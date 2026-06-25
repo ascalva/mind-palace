@@ -1,4 +1,15 @@
-"""Zone A — core RAG query agent + de-identified research criteria. Built in Phase 2.
+"""Zone A — the Librarian: core RAG query agent over the thought-graph (BUILD-SPEC §9).
 
-Reserved scaffold — see docs/BUILD-SPEC.md §18 for the gate.
+Semantic retrieval over the AUTHORED mirror + grounded reasoning under the Constitution,
+with a deterministic grounding self-check before returning. The de-identified research
+criteria seam (§16) lands with the airlock (Phase 8).
 """
+
+from core.librarian.librarian import (
+    Librarian,
+    LibrarianAnswer,
+    Retrieval,
+    build_librarian,
+)
+
+__all__ = ["Librarian", "LibrarianAnswer", "Retrieval", "build_librarian"]

@@ -26,7 +26,11 @@
       "Bash(./.venv/bin/pytest -q -m live)",
       "Bash(./.venv/bin/pytest -q -W ignore::DeprecationWarning)",
       "Bash(./.venv/bin/python scripts/ingest.py)",
-      "Read(//Users/ascalva/**)"
+      "Read(//Users/ascalva/**)",
+      "Bash(./.venv/bin/python -m pytest -m \"not live\" -q)",
+      "Bash(./.venv/bin/python scripts/eval.py --bless)",
+      "Bash(./.venv/bin/python -m pytest -m live -q)",
+      "Bash(./.venv/bin/python -m pytest -q)"
     ]
   }
 }

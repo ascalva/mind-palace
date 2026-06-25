@@ -52,6 +52,6 @@ docs/    BUILD-SPEC.md, PROGRESS.md (build log)
 Keep `core/` free of any import that can reach the network.
 
 ## Current phase
-> Phase: 1 COMPLETE (2026-06-25) — verified against gate (36/36). Real corpus ingested: `~/.mind-palace/vault` (118 notes, 914 chunks/vectors via qwen3-embedding:4b). Next: Phase 2 (Librarian + golden set + behavioral check). Update this line as phases complete.
+> Phase: 2 COMPLETE (2026-06-25) — verified against gate (54/54: 50 logic + 4 live). Librarian RAG agent (`core/librarian`, routine tier qwen3.5:9b, mirror-only retrieval); frozen golden set + deterministic metrics (`eval/`, synthetic fixture corpus, recall@k=1.0 vs blessed baseline); Constitution pre-return check (`core/selfcheck` — deterministic grounding live, subjective judge seam deferred to Phase 10). Next: Phase 3 (Scheduler + tiers + two-slot + context budgeter). Update this line as phases complete.
 ```
 

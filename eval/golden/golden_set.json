@@ -1,0 +1,35 @@
+{
+  "_comment": "FROZEN ANCHOR (BUILD-SPEC §15, Invariant 9). Hand-blessed; edited only by the owner, on purpose, logged. Never auto-modified by any agent. Queries run against the synthetic fixture corpus in ./corpus (NOT the owner's private vault, which changes and is private). 'expected' titles are corpus filenames without .md. k is the retrieval depth scored.",
+  "queries": [
+    {
+      "id": "sleep",
+      "query": "how can I calm down and fall asleep when my mind keeps racing at night",
+      "expected": ["sleep-and-racing-thoughts"],
+      "k": 3
+    },
+    {
+      "id": "garden",
+      "query": "tips for growing vegetables in my backyard garden",
+      "expected": ["backyard-tomatoes"],
+      "k": 3
+    },
+    {
+      "id": "savings",
+      "query": "how do I save money each month and build an emergency fund",
+      "expected": ["monthly-budget"],
+      "k": 3
+    },
+    {
+      "id": "instrument",
+      "query": "I want to start practicing a musical instrument as a beginner",
+      "expected": ["learning-guitar"],
+      "k": 3
+    },
+    {
+      "id": "hike",
+      "query": "what should I pack and prepare for a long mountain hike",
+      "expected": ["mountain-day-hike"],
+      "k": 3
+    }
+  ]
+}

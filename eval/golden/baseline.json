@@ -1,0 +1,8 @@
+{
+  "metrics": {
+    "recall_at_k": 1.0,
+    "overlap": 0.3333,
+    "mean_distance": 0.6172,
+    "distance_tol": 0.05
+  }
+}

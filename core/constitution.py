@@ -35,14 +35,21 @@ def constitution_fingerprint() -> str:
 
 
 def frame_context(role_prompt: str, task: str | None = None, *,
-                  history: list[Message] | None = None) -> list[Message]:
+                  history: list[Message] | None = None,
+                  context_blocks: list[str] | None = None) -> list[Message]:
     """Assemble an agent's context outermost-first (BUILD-SPEC §13 priority order):
-    Constitution -> role/task -> history -> task. The Constitution is ALWAYS
-    messages[0]; role and task nest inside it and may never override it (Invariant 6).
+    Constitution -> role -> retrieved RAG context -> history -> task. The Constitution is
+    ALWAYS messages[0]; everything else nests inside it and may never override it
+    (Invariant 6).
+
+    `context_blocks` are retrieved grounding (e.g. the Librarian's RAG chunks), injected
+    after the role and before history per the §13 priority order.
     """
     messages: list[Message] = [{"role": "system", "content": load_constitution()}]
     if role_prompt:
         messages.append({"role": "system", "content": role_prompt})
+    for block in context_blocks or []:
+        messages.append({"role": "system", "content": block})
     messages.extend(history or [])
     if task is not None:
         messages.append({"role": "user", "content": task})

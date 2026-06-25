@@ -21,9 +21,11 @@ def test_task_cannot_override_constitution():
 
 
 def test_self_check_seam_present():
-    check = self_evaluate("any output")
+    # A generic agent has no retrieval context, so grounding is N/A and subjective
+    # directives defer to the Phase 10 judge; the check still runs and passes.
+    check = self_evaluate("a plain answer with no citations")
     assert check.passed
-    assert "phase0-stub" in check.notes
+    assert any(f.directive == "grounded-citations" for f in check.findings)
 
 
 def test_respond_requires_a_bound_server():
