@@ -56,6 +56,12 @@ class EmbeddingConfig:
 
 
 @dataclass(frozen=True)
+class InterfaceConfig:
+    handoff_dir: Path        # the sole core<->gateway channel (filesystem handoff, §6)
+    default_adapter: str
+
+
+@dataclass(frozen=True)
 class SandboxConfig:
     runtime: str            # "podman" (default substrate) | "wasm" (pure-compute, future)
     image: str
@@ -85,6 +91,7 @@ class Config:
     vault: VaultConfig
     embedding: EmbeddingConfig
     sandbox: SandboxConfig
+    interface: InterfaceConfig
     models: tuple[ModelConfig, ...]
 
     def model_for_tier(self, tier: str) -> ModelConfig:
@@ -110,6 +117,7 @@ def load_config(path: Path | None = None) -> Config:
     raw = tomllib.loads((path or _DEFAULTS).read_text(encoding="utf-8"))
     o, r, p = raw["ollama"], raw["resources"], raw["paths"]
     v, e, s = raw["vault"], raw["embedding"], raw["sandbox"]
+    itf = raw["interface"]
     return Config(
         ollama=OllamaConfig(
             host=o["host"],
@@ -146,6 +154,10 @@ def load_config(path: Path | None = None) -> Config:
             pids_limit=int(s["pids_limit"]),
             max_concurrency=int(s["max_concurrency"]),
             warm_pool_size=int(s["warm_pool_size"]),
+        ),
+        interface=InterfaceConfig(
+            handoff_dir=_resolve(itf["handoff_dir"]),
+            default_adapter=str(itf["default_adapter"]),
         ),
         models=tuple(
             ModelConfig(

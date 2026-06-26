@@ -183,4 +183,27 @@ Keep entries short. Cite paths, not contents.
 
 **Next (Phase 6 — Interface layer, Zone B):** the interface gateway + the private local/Tailscale adapter (primary), optional WhatsApp adapter, relaying owner messages to the sealed core and back. First **Zone B** (networked) work — the egress guard is NOT installed there; core↔edge communicate by filesystem handoff, never imports (Invariant 2). No new models needed.
 
+## Phase 6 — Interface layer (Zone B) (COMPLETE, 2026-06-25)
+**Gate to verify:** messages round-trip; core never touches the messaging service directly; private default works.
+
+**Built** — first **Zone B** (networked) work. The trust boundary is a **filesystem handoff, never an import** (Invariant 2): the gateway holds the network-facing adapter; the core holds the vault; they meet only at a handoff directory.
+- `core/interface.py` (Zone A): `CoreInbox` — reads sanitized request JSON from `handoff/requests/`, dispatches to an injected handler (the librarian/factory), writes answer JSON to `handoff/responses/` (atomic write-then-rename), consumes the request. **No network, no adapter, no `import edge`** — the structural form of "network and private data never share a component". A handler error becomes an error response, never a crash. `build_core_inbox` wires the librarian as the default handler.
+- `edge/interface/protocol.py`: `InboundMessage`/`OutboundMessage` + the on-disk wire format (mirrored, not imported, by the core).
+- `edge/interface/adapter.py`: `InterfaceAdapter` Protocol + **`LocalAdapter`** (the private default — loopback/Tailscale, `transits_third_party=False`) + **`WhatsAppAdapter`** (opt-in stub, `transits_third_party=True`, Invariant 11).
+- `edge/interface/channel.py`: `GatewayChannel` — the edge side of the handoff (submit request, poll/await response).
+- `edge/interface/gateway.py`: `InterfaceGateway` — relays adapter ↔ core over the channel; **refuses third-party adapters unless `allow_third_party=True`** (Invariant 11 opt-in).
+- Config: `[interface]` (`handoff_dir`, `default_adapter="local"`) + `InterfaceConfig`.
+
+**Verified (gate met):** `ruff` clean; `pytest` **129 passed (123 logic + 6 live), 5 podman skipped**.
+- *round-trip* — `test_message_round_trips_gateway_to_core_to_gateway` (owner→LocalAdapter→handoff→CoreInbox→handoff→adapter reply).
+- *core never touches messaging* — `test_core_inbox_never_imports_the_messaging_side` (no `import edge`) + the core processes purely from disk + handler; the gateway holds the adapter.
+- *private default works* — `LocalAdapter` round-trips in-memory, `transits_third_party=False`, default adapter is `local`; third-party adapters refused unless opted in.
+
+**Decisions**
+- **Handoff = JSON files in a shared dir; the wire format is mirrored, not a shared import** — honors "core↔edge communicate by filesystem handoff, never imports" (CONVENTIONS). Atomic write-then-rename so neither side reads a partial file.
+- **Adapters carry a `transits_third_party` flag**; the gateway makes the Invariant-11 tradeoff explicit and opt-in. WhatsApp is a declared stub (the live unofficial-lib/Cloud-API integration is deferred — §20.3/§20.4 owner decision).
+- **The core handler is injectable** (librarian by default) so the inbox is model-agnostic and testable; the scheduler (Phase 3) can also drive `CoreInbox.process_once` as a job.
+
+**Next (Phase 7 — Curator + dreaming):** background compaction (merge near-dupes, prune, flag contradictions) on the *interpreted* layer + dreaming synthesis (cluster embeddings, track themes), cron/trough-only, never during foreground use (the Phase-3 foreground gate). *Mirror, not oracle* (§4). **Phase 6b (voice/telephony)** remains an optional extension (§20.11 — needs owner's go-ahead + provider/number); skipped unless requested. No new models needed for Phase 7.
+
 <!-- Append new phase entries below as you complete each one. -->

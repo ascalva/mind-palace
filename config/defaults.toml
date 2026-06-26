@@ -76,6 +76,14 @@ resident_gb = 23.0
 num_ctx = 32768
 evicts_pinned = true
 
+[interface]
+# Zone B gateway <-> sealed core handoff (BUILD-SPEC §6, §12). The ONLY channel between the
+# networked gateway and the core is this filesystem directory — never shared memory or
+# imports (Invariant 2). The private default adapter is the local app over Tailscale;
+# third-party adapters (e.g. WhatsApp) leak interactions and are opt-in (Invariant 11).
+handoff_dir = "data/handoff"
+default_adapter = "local"
+
 [sandbox]
 # Executed code is POWERLESS (Invariant 4, BUILD-SPEC §11): network-off, no vault mount,
 # read-only rootfs + scratch tmpfs, dropped caps, non-root, CPU/mem/pids limits, wall-clock
