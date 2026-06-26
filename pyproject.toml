@@ -17,6 +17,7 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "ruff>=0.5",
+    "hypothesis>=6.0",   # property-based tests for the invariant catalog (I6/I9/I10/I13)
 ]
 
 [tool.pytest.ini_options]

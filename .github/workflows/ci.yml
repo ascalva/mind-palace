@@ -1,0 +1,41 @@
+name: ci
+
+# Static + logic gates for the sealed core. The import-firewall job is the static-tier
+# discharge of Invariant 2 (BUILD-SPEC §3): it proves, without running anything, that no
+# module under core/ can reach a networked zone or a networking primitive (outside the
+# audited loopback allowlist). Live (Ollama) and podman jobs are intentionally excluded —
+# they need pulled models / a container runtime and run locally (see docs/runbook.md).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  import-firewall:
+    # Invariant 2 — runs first and standalone: a core->network import path is a hard stop,
+    # independent of whether the test suite passes.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Import firewall (I2)
+        run: python -m ops.import_lint
+
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: ruff check .
+      - name: Tests (logic only — no live models, no podman)
+        run: pytest -m "not live and not podman"

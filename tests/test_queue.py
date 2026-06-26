@@ -1,12 +1,15 @@
 """Durable job queue (BUILD-SPEC §8, §13): priority, swap-avoidance, foreground gate,
 lifecycle transitions, defer/revive, and checkpoint-requeue."""
 
+from datetime import UTC, datetime, timedelta
+
 from scheduler.queue import (
     DEFERRED,
     DONE,
     FAILED,
     PRIORITY_BACKGROUND,
     PRIORITY_DEFAULT,
+    PRIORITY_INTERACTIVE,
     PRIORITY_REACTIVE,
     QUEUED,
     RUNNING,
@@ -16,6 +19,10 @@ from scheduler.queue import (
 
 def _q(tmp_path):
     return JobQueue(tmp_path / "q.db")
+
+
+def _hours_from_now(h: float) -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=h)
 
 
 def test_enqueue_get_and_depth(tmp_path):
@@ -89,3 +96,33 @@ def test_counts(tmp_path):
     got = q.claim()
     q.complete(got.id, None)
     assert q.counts() == {QUEUED: 1, DONE: 1}
+
+
+# --- anti-starvation aging (gap G6) ---------------------------------------------
+
+def test_aging_is_a_noop_under_normal_load(tmp_path):
+    # Fresh jobs age zero steps, so ordering is strict priority — unchanged behavior.
+    q = _q(tmp_path)
+    q.enqueue("dream", "synthesis", 32768, priority=PRIORITY_BACKGROUND)   # lower id, worse pri
+    inter = q.enqueue("chat", "routine", 16384, priority=PRIORITY_INTERACTIVE)
+    assert q.claim().id == inter.id          # interactive wins now; background has not aged
+
+
+def test_aging_lets_a_starving_background_job_eventually_win(tmp_path):
+    q = _q(tmp_path)
+    bg = q.enqueue("dream", "synthesis", 32768, priority=PRIORITY_BACKGROUND)  # enqueued first
+    q.enqueue("chat", "routine", 16384, priority=PRIORITY_INTERACTIVE)         # newer, higher pri
+    # After hours of waiting, the background job ages to the floor (INTERACTIVE), ties the
+    # interactive job, and wins on FIFO (older id) — it no longer starves.
+    chosen = q.claim(now=_hours_from_now(3))
+    assert chosen.id == bg.id
+
+
+def test_aging_never_preempts_a_reactive_escalation(tmp_path):
+    q = _q(tmp_path)
+    bg = q.enqueue("dream", "synthesis", 32768, priority=PRIORITY_BACKGROUND)
+    react = q.enqueue("watchdog", "router", 8192, priority=PRIORITY_REACTIVE)
+    # Even aged for days, the background job stops at the floor (10) and never beats reactive (0).
+    chosen = q.claim(now=_hours_from_now(72))
+    assert chosen.id == react.id
+    assert bg.id != react.id

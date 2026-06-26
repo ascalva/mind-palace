@@ -89,9 +89,17 @@ default_adapter = "local"
 # Curator + dreaming knobs (BUILD-SPEC §9). Clustering is deterministic (NumPy cosine over
 # note centroids), so these thresholds fully determine a run. They are the tunables a future
 # safe-lever (§14) could right-size; conservative defaults for a personal corpus.
-similarity_threshold = 0.62   # cosine >= this joins two notes into a theme cluster
+#
+# `similarity_threshold` IS σ — the thought-graph edge threshold E_sim = {(u,v): cos ≥ σ}
+# (WHITEPAPER-TECHNICAL §graph). BOUND (gap G7): σ ∈ [0.55, 0.75] for this embedder — high
+# enough that a "theme" is genuine semantic kinship, not topical drift; low enough that real
+# themes still connect. 0.62 is the conservative default; calibrate on the owner's own corpus
+# (the right σ is corpus- and embedder-specific) before trusting cluster boundaries.
+similarity_threshold = 0.62   # σ: cosine >= this joins two notes into a theme cluster
 min_cluster_size = 2          # a theme needs at least this many notes
 max_clusters = 8              # cap syntheses per dream run (the inference slot is scarce, §5)
+# A much tighter σ: near-identical, not merely related. BOUND: ≥ 0.90 so a merge candidate is
+# a true duplicate, never two distinct notes on one topic.
 near_dup_threshold = 0.93     # cosine >= this flags two authored notes as a merge candidate
 
 [sandbox]

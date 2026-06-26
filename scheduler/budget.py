@@ -24,7 +24,11 @@ from dataclasses import dataclass
 
 from core.constitution import Message, load_constitution
 
-DEFAULT_REPLY_RESERVE = 1024     # tokens held back for the model's reply
+# h = the reply headroom in the fit constraint Στ ≤ W − h (WHITEPAPER-TECHNICAL §budget).
+# BOUND (gap G7): h ≥ a role's largest expected reply, ~512–2048 tokens; 1024 is the default.
+# Too small risks truncating the model's answer; too large wastes window. A per-role override
+# is the §14 safe-lever's job once usage is tracked.
+DEFAULT_REPLY_RESERVE = 1024     # h: tokens held back for the model's reply
 _MSG_OVERHEAD = 4                # per-message role/formatting tokens (estimate)
 _TRUNC_MARK = "\n…[truncated]"
 

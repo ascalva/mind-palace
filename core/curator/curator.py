@@ -32,7 +32,7 @@ from core.dreaming.cluster import (
     note_centroids,
     note_snippets,
 )
-from core.provenance import MIRROR_READABLE
+from core.mirror import MirrorView
 from core.stores.derived import FINDING, DerivedStore
 from core.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
@@ -55,6 +55,7 @@ class CurationFinding:
     subjects: tuple[str, ...]
     detail: str
     data: dict
+    digests: tuple[str, ...] = ()   # authored note digests this finding is derived FROM (G2)
 
 
 @dataclass(frozen=True)
@@ -79,8 +80,11 @@ class Curator:
     _snippets: dict[str, str] = field(default_factory=dict)
 
     def near_duplicates(self) -> list[CurationFinding]:
-        """Authored notes with near-identical embeddings — read-only over the mirror."""
-        notes = note_centroids(self.store.all_rows(provenances=MIRROR_READABLE))
+        """Authored notes with near-identical embeddings — read-only over the mirror.
+
+        Reads through a `MirrorView` (Invariant 6, structural): a non-authored note can never
+        reach this scan, because a MirrorView holding one is unrepresentable."""
+        notes = note_centroids(MirrorView.project(self.store).rows())
         return [
             CurationFinding(
                 subkind=NEAR_DUPLICATE,
@@ -88,6 +92,7 @@ class Curator:
                 detail=(f"near-identical embeddings (cosine {sim:.3f}); review as a merge "
                         "candidate — not auto-merged (authored notes are immutable, §8)"),
                 data={"similarity": round(sim, 4), "digests": [a.digest, b.digest]},
+                digests=(a.digest, b.digest),
             )
             for a, b, sim in near_duplicate_pairs(notes, threshold=self.near_dup_threshold)
         ]
@@ -108,6 +113,7 @@ class Curator:
                 subjects=(title,),
                 detail="derived vector rows orphaned from the raw corpus (regenerable dead weight)",
                 data={"digest": digest},
+                digests=(digest,),
             )
             for digest, title in orphans.items()
         ]
@@ -117,7 +123,7 @@ class Curator:
         detector is injected; never faked (cf. the §4 judge seam)."""
         if self.contradiction_detector is None:
             return []
-        rows = self.store.all_rows(provenances=MIRROR_READABLE)
+        rows = MirrorView.project(self.store).rows()   # Invariant 6 (structural): authored-only
         self._snippets = note_snippets(rows, limit=_SNIPPET_CHARS)
         clusters = cluster_notes(note_centroids(rows), threshold=self.cluster_threshold,
                                  min_size=self.min_cluster_size)[: self.max_clusters]
@@ -130,6 +136,7 @@ class Curator:
                     subjects=cluster.titles,
                     detail=desc,
                     data={"cluster_size": cluster.size},
+                    digests=cluster.digests,
                 ))
         return findings
 
@@ -145,8 +152,9 @@ class Curator:
         Reads the authored corpus; writes ONLY to the derived store (§8 firewall)."""
         findings = self.near_duplicates() + self.prune_candidates() + self.contradictions()
         for f in findings:
+            # A finding is derived FROM the authored notes it concerns — its leaves (G2).
             self.derived.add(kind=FINDING, subkind=f.subkind, summary=f.detail,
-                             subjects=f.subjects, data=f.data)
+                             subjects=f.subjects, data=f.data, derived_from=f.digests)
         return CurationReport(
             findings=tuple(findings),
             contradiction_detection_deferred=self.contradiction_detector is None,

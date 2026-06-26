@@ -67,7 +67,25 @@
       "Bash(.venv/bin/python -m pytest tests/test_dreaming_live.py -v)",
       "Bash(.venv/bin/python -m pytest -m \"podman\" -q)",
       "Bash(.venv/bin/python -m pytest tests/test_librarian_live.py -q)",
-      "Bash(git -C /Users/ascalva/mind-palace status --short)"
+      "Bash(git -C /Users/ascalva/mind-palace status --short)",
+      "Bash(python -c \"import hypothesis; print\\('hypothesis', hypothesis.__version__\\)\")",
+      "Bash(python -c \"import importlinter; print\\('import-linter present'\\)\")",
+      "Bash(pip show *)",
+      "Bash(.venv/bin/python --version)",
+      "Bash(.venv/bin/python -c \"import hypothesis; print\\('hypothesis', hypothesis.__version__\\)\")",
+      "Bash(.venv/bin/python -c \"import importlinter, grimp; print\\('import-linter present'\\)\")",
+      "Bash(.venv/bin/python -m pip install 'hypothesis>=6.0')",
+      "Bash(.venv/bin/python -m ops.import_lint)",
+      "Bash(echo \"---exit:$?---\")",
+      "Bash(.venv/bin/python -m pytest tests/test_import_firewall.py -q)",
+      "Bash(.venv/bin/python -m pytest tests/test_mirror.py tests/test_dreamer.py tests/test_curator.py tests/test_cluster.py -q)",
+      "Bash(.venv/bin/python -m pytest tests/test_selfcheck.py tests/test_dreamer.py tests/test_curator.py tests/test_librarian.py -q -m \"not live\")",
+      "Bash(.venv/bin/python -m pytest tests/test_derived_store.py tests/test_dreamer.py tests/test_curator.py -q -m \"not live\")",
+      "Bash(.venv/bin/python -m pytest tests/test_derived_store.py tests/test_recursion.py -q)",
+      "Bash(.venv/bin/python -m pytest tests/test_properties.py -q)",
+      "Bash(.venv/bin/python -m pytest tests/test_loader_fsm.py -q)",
+      "Bash(.venv/bin/python -m pytest tests/test_gate_fsm.py -q)",
+      "Bash(.venv/bin/python -m pytest tests/test_queue.py tests/test_supervisor.py tests/test_cron.py -q -m \"not live\")"
     ]
   }
 }

@@ -23,8 +23,8 @@ from dataclasses import dataclass, field
 
 from core.constitution import Message, frame_context
 from core.dreaming.cluster import Cluster, cluster_notes, note_centroids, note_snippets
-from core.provenance import MIRROR_READABLE
-from core.selfcheck import SelfCheck, SubjectiveJudge, self_evaluate
+from core.mirror import MirrorView
+from core.selfcheck import SelfCheck, Source, SubjectiveJudge, self_evaluate
 from core.stores.derived import DREAM, Artifact, DerivedStore
 from core.stores.vectorstore import VectorStore
 
@@ -74,8 +74,12 @@ class Dreamer:
     _snippets: dict[str, str] = field(default_factory=dict)
 
     def clusters(self) -> list[Cluster]:
-        """Deterministic note-level clustering over the AUTHORED mirror (model-free, §9)."""
-        rows = self.store.all_rows(provenances=MIRROR_READABLE)
+        """Deterministic note-level clustering over the AUTHORED mirror (model-free, §9).
+
+        The rows come from a `MirrorView` (Invariant 6, structural): its only constructor is
+        the MIRROR_READABLE projection and it cannot hold a non-authored row, so observed
+        exhaust reaching this clustering is unrepresentable — not merely filtered out."""
+        rows = MirrorView.project(self.store).rows()
         self._snippets = note_snippets(rows, limit=_SNIPPET_CHARS)   # grounding text per note
         notes = note_centroids(rows)
         return cluster_notes(notes, threshold=self.threshold,
@@ -99,14 +103,21 @@ class Dreamer:
             messages = frame_context(DREAMER_ROLE, _DREAM_TASK,
                                      context_blocks=[self._format_cluster(cluster)])
             output = self.synthesize(messages)
-            # The clustered notes' titles are the only legitimate citation targets.
-            check = self_evaluate(output, sources=set(cluster.titles), judge=self.judge)
+            # The clustered notes are the only legitimate citation targets; resolve by stable
+            # digest so the grounding check is well-posed under shared titles (G1).
+            sources = [Source(title=m.title, digest=m.digest) for m in cluster.members]
+            check = self_evaluate(output, sources=sources, judge=self.judge)
             artifact = self.derived.add(
                 kind=DREAM,
                 summary=output,
                 subjects=cluster.titles,
                 data={"grounded": check.passed, "check": list(check.notes),
                       "cluster_size": cluster.size},
+                # The dream is derived FROM the clustered AUTHORED notes — its leaves (G2).
+                # Today every dream is depth 1 over authored ground; recursive dreaming (a
+                # flag-OFF R&D path) would add interpreted parents, which the acyclic insert
+                # and the decay bound c ≤ γ^d·g are already built to handle.
+                derived_from=[m.digest for m in cluster.members],
             )
             themes.append(Theme(titles=cluster.titles, summary=output,
                                 check=check, artifact=artifact))

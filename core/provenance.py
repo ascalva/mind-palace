@@ -24,4 +24,18 @@ class Provenance(StrEnum):
 
 
 # What the introspective mirror / dreaming agent is permitted to read (the firewall).
+#
+# The load-bearing structure is exactly this SET — `MIRROR_READABLE` — not a trust *preorder*
+# (gap G8). Earlier drafts asserted a provenance preorder ≼, but no code orders the classes,
+# and `INTERPRETED` is a *derived* axis orthogonal to trust (it neither out- nor under-ranks
+# `OBSERVED`), so a single trust order would be fiction. Two facts are load-bearing, and both
+# are now STRUCTURAL, not ordering-based:
+#   1. Mirror-readability is membership in this downward-closed set — enforced by the typed
+#      `MirrorView` (core/mirror.py): a non-MR view is unrepresentable (Invariant 6).
+#   2. Provenance is invariant under derivation — the only way to mint an INTERPRETED datum is
+#      the `DerivedStore`, which has no provenance parameter, so no pipeline can launder
+#      observed/interpreted into authored. Promotion *up* to authored is a deliberate human
+#      re-tag-from-raw (§8), never automatic.
+# A richer trust ordering is deferred until classes that actually need ordering exist (the §1
+# provenance-spectrum growth path: auth-solo / auth-dialogue / curated). Until then: a set.
 MIRROR_READABLE: frozenset[Provenance] = frozenset({Provenance.AUTHORED})

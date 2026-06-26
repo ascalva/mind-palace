@@ -7,8 +7,10 @@ content-derived so re-runs are idempotent; reset() makes it regenerable.
 
 import inspect
 
+import pytest
+
 from core.provenance import Provenance
-from core.stores.derived import DREAM, FINDING, DerivedStore
+from core.stores.derived import DREAM, FINDING, DerivationCycleError, DerivedStore
 
 
 def _store(tmp_path):
@@ -54,3 +56,49 @@ def test_reset_makes_it_regenerable(tmp_path):
     s.add(kind=DREAM, summary="t", subjects=["a"])
     s.reset()
     assert s.count() == 0
+
+
+# --- derivation edges + acyclicity (gap G2 / Invariant 10) ----------------------
+
+def test_derived_from_is_stored_and_read_back(tmp_path):
+    s = _store(tmp_path)
+    a = s.add(kind=DREAM, summary="t", subjects=["a", "b"], derived_from=["dig-a", "dig-b"])
+    assert a.derived_from == ("dig-a", "dig-b")
+    assert s.all(kind=DREAM)[0].derived_from == ("dig-a", "dig-b")
+
+
+def test_depth_authored_leaves_are_depth_one(tmp_path):
+    # A dream over authored note digests (leaves, depth 0) is itself depth 1.
+    s = _store(tmp_path)
+    dream = s.add(kind=DREAM, summary="t", subjects=["a"], derived_from=["dig-a"])
+    assert s.depth(dream.id) == 1
+    assert s.leaf_refs(dream.id) == {"dig-a"}            # bottoms out in an authored leaf
+
+
+def test_depth_increases_with_a_second_order_artifact(tmp_path):
+    # Recursive dreaming (a flag-OFF R&D path) would build an artifact FROM another artifact;
+    # the store computes the deeper depth and keeps the support closure's authored leaf.
+    s = _store(tmp_path)
+    first = s.add(kind=DREAM, summary="d1", subjects=["a"], derived_from=["dig-a"])
+    second = s.add(kind=DREAM, summary="d2", subjects=["meta"], derived_from=[first.id])
+    assert s.depth(second.id) == 2
+    assert s.leaf_refs(second.id) == {"dig-a"}           # closure still bottoms out authored
+
+
+def test_cycle_is_refused_at_insert(tmp_path):
+    # Build A <- B, then attempting A derived_from B (which already descends to A) is a cycle.
+    s = _store(tmp_path)
+    a = s.add(kind=DREAM, summary="A", subjects=["a"], derived_from=["dig-a"])
+    b = s.add(kind=DREAM, summary="B", subjects=["b"], derived_from=[a.id])
+    # Re-adding A with B as a parent would close the loop A -> B -> A.
+    with pytest.raises(DerivationCycleError):
+        s.add(kind=DREAM, summary="A", subjects=["a"], derived_from=[b.id])
+
+
+def test_self_reference_is_refused(tmp_path):
+    s = _store(tmp_path)
+    # The id is content-derived; precompute it to feed it back as its own parent.
+    from core.stores.derived import _artifact_id
+    self_id = _artifact_id(DREAM, None, ("a",))
+    with pytest.raises(DerivationCycleError):
+        s.add(kind=DREAM, summary="loop", subjects=["a"], derived_from=[self_id])

@@ -53,6 +53,7 @@ provenance-marked from the owner's authored ground truth. Lands Phase 7 (dreamin
 | summary    | TEXT | the dream reflection / the finding detail |
 | subjects   | TEXT | JSON array of note titles the artifact concerns |
 | data       | TEXT | JSON, kind-specific (e.g. `{similarity, digests}`) |
+| derived_from | TEXT | JSON array of refs this was derived FROM (gap G2): authored note digests (leaves) and/or other artifact ids. Acyclicity is **enforced at insert** (`DerivationCycleError`), so derivation depth `d(κ)` is computable (`depth()`) and the recursion bound `c ≤ γ^d·g` holds (Invariant 10). Added after the first Phase-7 schema; `_migrate()` backfills older DBs. |
 | created_at | TEXT | naive UTC ISO |
 
 **Regenerable:** `reset()` drops every artifact; a fresh dreaming/curation run rebuilds it

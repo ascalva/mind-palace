@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -29,6 +29,26 @@ PRIORITY_DEFAULT = 50
 PRIORITY_BACKGROUND = 100
 
 QUEUED, RUNNING, DONE, FAILED, DEFERRED = "queued", "running", "done", "failed", "deferred"
+
+
+@dataclass(frozen=True)
+class AgingPolicy:
+    """Anti-starvation aging (gap G6 — the liveness fix). A QUEUED job's EFFECTIVE priority
+    improves (its number falls) the longer it waits, so background work (dreaming, curation)
+    *eventually* outranks a perpetual stream of newer higher-priority jobs instead of starving
+    under sustained foreground load — `◇ queued jobs eventually run`.
+
+    Bounds, deliberately conservative:
+      * a job that has waited < `step_seconds` ages zero steps, so NORMAL-load ordering is
+        unchanged (jobs are usually claimed within seconds of enqueue);
+      * aging never lifts a job above `floor` (default = INTERACTIVE), so an aged background
+        job can come to tie with interactive work and win on FIFO, but can NEVER preempt a
+        genuine REACTIVE escalation (a low-memory alarm must still go first — if those arrive
+        perpetually the system is in crisis and background SHOULD wait)."""
+
+    step_seconds: float = 900.0          # every 15 min waited, priority improves by one step
+    step: int = 10                       # one priority band per step
+    floor: int = PRIORITY_INTERACTIVE    # never age above this (reactive stays untouchable)
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -93,6 +113,7 @@ def _row_to_job(r: sqlite3.Row) -> Job:
 @dataclass
 class JobQueue:
     path: Path
+    aging: AgingPolicy = field(default_factory=AgingPolicy)   # anti-starvation (gap G6)
 
     def __post_init__(self) -> None:
         if str(self.path) != ":memory:":
@@ -117,21 +138,35 @@ class JobQueue:
         self._conn.commit()
         return self.get(int(cur.lastrowid))
 
+    def _effective_priority(self, job: Job, now: datetime) -> int:
+        """A job's priority after anti-starvation aging (gap G6): the longer it has waited, the
+        lower (better) the number — clamped at the aging floor, and never raised above a job
+        already at/under the floor (so REACTIVE work is never demoted)."""
+        if job.priority <= self.aging.floor:
+            return job.priority
+        waited = (now - datetime.fromisoformat(job.created_at)).total_seconds()
+        steps = max(0, int(waited // self.aging.step_seconds))
+        aged = job.priority - steps * self.aging.step
+        return max(aged, self.aging.floor)
+
     def claim(self, *, loaded_key: tuple[str, int] | None = None,
-              blocked_tiers: frozenset[str] = frozenset()) -> Job | None:
-        """Select + mark RUNNING the next eligible job (§13 policy): highest priority first;
-        within the top-priority band prefer the job needing no model swap (matching
-        `loaded_key`), then FIFO; skip tiers in `blocked_tiers` (the foreground gate). They
-        stay QUEUED and are revisited once the block clears. Returns None if nothing is
-        runnable now."""
+              blocked_tiers: frozenset[str] = frozenset(),
+              now: datetime | None = None) -> Job | None:
+        """Select + mark RUNNING the next eligible job (§13 policy): highest EFFECTIVE priority
+        first (priority + anti-starvation aging, gap G6); within the top band prefer the job
+        needing no model swap (matching `loaded_key`), then FIFO; skip tiers in `blocked_tiers`
+        (the foreground gate) — they stay QUEUED and are revisited once the block clears.
+        Returns None if nothing is runnable now."""
+        now = now or datetime.now(UTC).replace(tzinfo=None)
         rows = self._conn.execute(
             "SELECT * FROM jobs WHERE state = ? ORDER BY priority, id", [QUEUED]
         ).fetchall()
         eligible = [_row_to_job(r) for r in rows if r["tier"] not in blocked_tiers]
         if not eligible:
             return None
-        top = min(j.priority for j in eligible)
-        band = [j for j in eligible if j.priority == top]
+        eff = {j.id: self._effective_priority(j, now) for j in eligible}
+        top = min(eff.values())
+        band = [j for j in eligible if eff[j.id] == top]
         band.sort(key=lambda j: (0 if j.load_key == loaded_key else 1, j.id))
         chosen = band[0]
         self._conn.execute(

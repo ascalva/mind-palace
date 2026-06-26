@@ -234,4 +234,34 @@ Keep entries short. Cite paths, not contents.
 
 **Next (Phase 8 — The airlock, AWS Zone C):** Terraform for `requests/`+`results/` S3 prefixes + the least-privilege fetcher (Lambda/Fargate), the containerized **bridge** (Zone B), and the one-way research flow — sanitized de-identified criteria out, public literature in, ranked inside the walls. The Librarian already has the "emit de-identified research criteria" seam (§16) noted. First **Zone C** work; needs §20.7 (AWS account/region/TF state) and §20.9 (Lambda vs Fargate) from the owner. The egress guard stays installed in core; only the bridge (edge) touches S3, and it never reads the vault (Invariant 2). **⚠️ Carry-forward:** Phase 4 empirical `-m podman` still pending (podman machine won't boot here — see runbook.md).
 
+## Hardening pass — verifiable properties (2026-06-26)
+**Not a phase.** Verification-only pass against `docs/WHITEPAPER-FORMAL-PROPERTIES.md`. **Main build not advanced (Phase 8 stays queued); dream R&D flag OFF; runtime behavior unchanged** (same outputs/defaults — internal types/checks hardened). Worked the invariant catalog by assurance tier.
+
+**Promoted toward "unrepresentable" (structural — highest leverage)**
+- **I6/G3 — typed `MirrorView`** (`core/mirror.py`). Sole constructor `project` applies the MIRROR_READABLE projection; `__post_init__` raises on any non-authored row, so a non-MR view is **unrepresentable** (not "checked then refused"). Dreamer (`clusters()`) + curator (`near_duplicates`, `contradictions`) introspective reads now flow through it. The firewall is structural for the introspective read path. **New gap G11:** guards the data, not the store handle.
+- **I9/G1 — stable digest citation IDs** (`core/selfcheck.py` `Source`). Grounding resolves each `[[title]]` to a single retrieved **digest**; a title matching two distinct digests is flagged *ambiguous* (the ill-posed case G1 named) instead of silently accepted. Librarian (`Retrieval.digest`) + dreamer pass `Source`s. **New gap G10:** surface form still a title (decidable iff unique-in-Ret, now detected when not).
+- **I10/G2 — `derived_from` edges + acyclicity** (`core/stores/derived.py`). `add(derived_from=…)` records edges and **refuses a cycle at insert** (`DerivationCycleError`); `depth()` computes d(κ); `core/recursion.py` `decay_bound` gives c≤γ^d·g. Dreamer/curator record authored-leaf digests → today every interpreted node is depth-1 over authored ground (recursive dreaming, flag-OFF, is what the deeper machinery is for). Additive SQLite migration for the new column. **New gap G9:** authored-leaf-only is by-convention (store can't tell a digest from a string); adjudicator that consumes the ranking is Phase 9.
+
+**Static lint (I2 — promoted runtime→static)**
+- `ops/import_lint.py` (stdlib AST, zero new deps) + `scripts/check_imports.py` + `.github/workflows/ci.yml` + `tests/test_import_firewall.py`. Core imports no `edge`/`cloud` (hard, zero-exception) and no networking primitive outside the audited loopback allowlist (`core/sealing.py`, `core/models/ollama_client.py`). Proves no core→net import path *without running*.
+
+**Property tests (Hypothesis)** — `tests/test_properties.py`: I6 (observed never survives projection), I9 (grounded ⇔ citations resolve uniquely), I10 (decay non-increasing in depth; chain depths increase; cycle rejected), I13 (authority non-widening under arbitrary skill composition). `hypothesis` added to dev deps.
+
+**Exhaustive FSM checks**
+- **I8** (`tests/test_loader_fsm.py`): BFS over every reachable two-slot resident set (real budget + a 5GB tight budget); ceiling holds in all reachable states; a load is refused **iff** it would breach; a refusal never mutates state.
+- **I12/G5** (`ops/gate.py` `gate_admits` + `tests/test_gate_fsm.py`): pure admission predicate G_now = approved ∧ golden≥B ∧ D≤Θ — **`conforms` deferred, absent not stubbed-true**; all 8 boolean states enumerated (admits only all-true, fail-closed); Δ-never-self-applies asserted structurally (data-in/bool-out, no Δ handle). The apply/validate/rollback loop stays Phase 10 — only the decision core is verified.
+
+**Honesty fixes**
+- **G5** — live gate guard stated without the `conforms` conjunct (above).
+- **I1** — native-bypass assumption + OS-isolation bound reaffirmed; already consistent across `core/sealing.py` docstring + `runbook.md §Sealing`; formal doc discharge-status row makes the bound explicit (pf/netns is the real guarantee before any networked phase).
+- **G6** — anti-starvation aging (`scheduler/queue.py` `AgingPolicy`): a QUEUED job's effective priority improves with wait time up to the INTERACTIVE floor (never preempts a REACTIVE escalation), a no-op under normal load. Tests in `tests/test_queue.py`.
+- **G7** — bounds declared at each site: γ=0.5 (depth-3 ≤ 0.125·g) + λ≤0.25 (`core/recursion.py`); σ ∈ [0.55,0.75] (`config/defaults.toml [dreaming]`); k ∈ [3,8] (`Librarian.k`); h ∈ [512,2048] (`scheduler/budget.py`).
+- **G8** — provenance preorder **retired** (decorative; only MR-set membership + derivation-invariance are load-bearing, both now structural). Removed from `core/provenance.py` note + `WHITEPAPER-TECHNICAL.md §provenance`.
+
+**Verified:** `ruff check .` clean; `pytest -m "not live and not podman"` **183 passed (+31 new)**, 12 deselected (live + podman). Import firewall `python -m ops.import_lint` → OK. No runtime-behavior change: existing Phase 0–7 logic tests unchanged and green.
+
+**Gap ledger after this pass:** CLOSED G1, G2, G3, G6; STATED G5; DECLARED G7; RETIRED G8. OPEN: **G4** (drift metric & Θ — Phase 11), and newly-exposed **G9** (structural authored-leaf check), **G10** (digest-as-surface-citation), **G11** (MirrorView guards data not handle) — all recorded in the formal doc, none blocking. **Carry-forward:** Phase 4 empirical `-m podman` still pending.
+
+**Next:** unchanged — **Phase 8 (the airlock, AWS Zone C)**; needs §20.7 + §20.9 from the owner.
+
 <!-- Append new phase entries below as you complete each one. -->

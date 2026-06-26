@@ -25,7 +25,7 @@ from core.ingest.embed import Embedder
 from core.ingest.index import semantic_search
 from core.models import ModelServer
 from core.provenance import MIRROR_READABLE, Provenance
-from core.selfcheck import SelfCheck, SubjectiveJudge, self_evaluate
+from core.selfcheck import SelfCheck, Source, SubjectiveJudge, self_evaluate
 from core.stores.vectorstore import VectorStore
 
 LIBRARIAN_ROLE = (
@@ -49,6 +49,7 @@ class Retrieval:
     text: str
     distance: float
     provenance: str
+    digest: str = ""        # stable content id — the citation identity for grounding (G1)
 
 
 @dataclass(frozen=True)
@@ -74,6 +75,9 @@ class Librarian:
     embedder: Embedder
     store: VectorStore
     tier: str = "routine"          # foreground RAG runs on the routine model (§9)
+    # k = the top-k retrieval depth, Ret_k(q) (WHITEPAPER-TECHNICAL §retrieval). BOUND (gap
+    # G7): k ∈ [3, 8] — enough recall to ground an answer, few enough that the budgeter rarely
+    # has to trim retrieval (the primary lever, §13) and a wrong note can't crowd the window.
     k: int = 5
 
     def retrieve(self, query: str, *,
@@ -88,6 +92,7 @@ class Librarian:
                 text=r.get("text", ""),
                 distance=float(r.get("_distance", 0.0)),
                 provenance=r.get("provenance", ""),
+                digest=r.get("digest", ""),
             )
             for r in rows
         ]
@@ -107,8 +112,10 @@ class Librarian:
         retrievals = self.retrieve(query, provenances=provenances)
         messages = self.context_for(query, retrievals, history=history)
         output = self.server.chat(self.tier, messages, think=think)
-        # The retrieved titles are the only legitimate citation targets (grounding check).
-        check = self_evaluate(output, sources={r.title for r in retrievals}, judge=judge)
+        # The retrieved notes are the only legitimate citation targets; resolve by stable
+        # digest so the grounding check is well-posed even if two notes share a title (G1).
+        sources = [Source(title=r.title, digest=r.digest) for r in retrievals]
+        check = self_evaluate(output, sources=sources, judge=judge)
         return LibrarianAnswer(text=output, sources=tuple(retrievals), check=check)
 
 
