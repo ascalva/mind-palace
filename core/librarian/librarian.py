@@ -68,7 +68,14 @@ _WORD = re.compile(r"[A-Za-z][A-Za-z'-]+")
 
 def _deterministic_proposer(query: str) -> tuple[str, list[str]]:
     """Model-free fallback: extract topical keywords by frequency/order. Deterministic, so
-    the criteria path is testable cold. `deidentify()` still scrubs whatever this returns."""
+    the criteria path is testable cold.
+
+    HONESTY: this only does *structural* word extraction — it does NOT understand which words
+    are personally sensitive narrative (it would keep "divorce" or a month from a personal
+    sentence). `deidentify()` guarantees the structural scrub (no emails/dates/phones/handles
+    leave), not semantic de-identification. For real outbound queries prefer
+    `model_term_proposer` (better term selection) and/or owner review before emit; richer
+    semantic scrubbing (corpus proper-noun denylist / NER) is the documented extension point."""
     words = [w.lower() for w in _WORD.findall(query) if w.lower() not in _STOPWORDS and len(w) > 2]
     seen: dict[str, None] = {}
     for w in words:

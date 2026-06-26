@@ -103,7 +103,11 @@
       "Bash(terraform -chdir=cloud/terraform/bootstrap init -backend=false -input=false -no-color)",
       "Bash(terraform -chdir=cloud/terraform/bootstrap validate -no-color)",
       "Bash(.venv/bin/python -c \"import boto3\")",
-      "Bash(.venv/bin/python -m pytest tests/test_research_criteria.py tests/test_research_airlock.py tests/test_research_rank.py tests/test_bridge.py tests/test_fetcher.py -q)"
+      "Bash(.venv/bin/python -m pytest tests/test_research_criteria.py tests/test_research_airlock.py tests/test_research_rank.py tests/test_bridge.py tests/test_fetcher.py -q)",
+      "Bash(.venv/bin/python -m pytest tests/test_research_live.py -q)",
+      "Bash(terraform -chdir=cloud/terraform/airlock fmt -check -recursive)",
+      "Bash(terraform -chdir=cloud/terraform/bootstrap fmt -check)",
+      "Bash(git check-ignore *)"
     ]
   }
 }
