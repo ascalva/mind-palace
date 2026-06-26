@@ -10,6 +10,7 @@ dependencies = [
     "duckdb>=1.0",    # telemetry store (embedded, no daemon)
     "psutil>=5.9",    # system vitals (memory headroom, cpu, load)
     "lancedb>=0.10",  # thought-graph vectors (embedded, no daemon)
+    "numpy>=1.26",    # deterministic embedding clustering for dreaming/curation (§9)
 ]
 
 [project.optional-dependencies]

@@ -40,6 +40,7 @@ class PathsConfig:
     telemetry_db: Path
     raw_store: Path
     vector_store: Path
+    derived_store: Path      # INTERPRETED artifacts (dreams + curator findings), §8
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,14 @@ class EmbeddingConfig:
     model: str
     dim: int
     query_instruction: str
+
+
+@dataclass(frozen=True)
+class DreamingConfig:
+    similarity_threshold: float   # cosine to join two notes into a theme cluster
+    min_cluster_size: int
+    max_clusters: int
+    near_dup_threshold: float     # cosine to flag two notes as a near-duplicate candidate
 
 
 @dataclass(frozen=True)
@@ -90,6 +99,7 @@ class Config:
     paths: PathsConfig
     vault: VaultConfig
     embedding: EmbeddingConfig
+    dreaming: DreamingConfig
     sandbox: SandboxConfig
     interface: InterfaceConfig
     models: tuple[ModelConfig, ...]
@@ -117,7 +127,7 @@ def load_config(path: Path | None = None) -> Config:
     raw = tomllib.loads((path or _DEFAULTS).read_text(encoding="utf-8"))
     o, r, p = raw["ollama"], raw["resources"], raw["paths"]
     v, e, s = raw["vault"], raw["embedding"], raw["sandbox"]
-    itf = raw["interface"]
+    itf, dr = raw["interface"], raw["dreaming"]
     return Config(
         ollama=OllamaConfig(
             host=o["host"],
@@ -134,6 +144,7 @@ def load_config(path: Path | None = None) -> Config:
             telemetry_db=_resolve(p["telemetry_db"]),
             raw_store=_resolve(p["raw_store"]),
             vector_store=_resolve(p["vector_store"]),
+            derived_store=_resolve(p["derived_store"]),
         ),
         vault=VaultConfig(
             # ~ expands to $HOME; the vault is the owner's source corpus, outside the repo.
@@ -144,6 +155,12 @@ def load_config(path: Path | None = None) -> Config:
             model=str(e["model"]),
             dim=int(e["dim"]),
             query_instruction=str(e["query_instruction"]),
+        ),
+        dreaming=DreamingConfig(
+            similarity_threshold=float(dr["similarity_threshold"]),
+            min_cluster_size=int(dr["min_cluster_size"]),
+            max_clusters=int(dr["max_clusters"]),
+            near_dup_threshold=float(dr["near_dup_threshold"]),
         ),
         sandbox=SandboxConfig(
             runtime=str(s["runtime"]),

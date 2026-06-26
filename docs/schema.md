@@ -38,9 +38,27 @@ migration step when the schema changes.
 is structurally impossible (e.g. the introspection agents get a reader; the vitals
 emitter gets a writer), per CONVENTIONS.
 
+## Derived store — SQLite (`core/stores/derived.py`)
+
+The **INTERPRETED** layer (§8): artifacts the *system* inferred, kept separate and
+provenance-marked from the owner's authored ground truth. Lands Phase 7 (dreaming + curator).
+
+### `interpreted_artifacts`
+| column     | type | notes |
+|------------|------|-------|
+| id         | TEXT PK | content-derived (`sha256(kind|subkind|sorted(subjects))[:16]`) → re-runs are idempotent |
+| kind       | TEXT | `dream` (theme synthesis) \| `finding` (curator) |
+| subkind    | TEXT | finding type: `near_duplicate` \| `prune_candidate` \| `contradiction` |
+| provenance | TEXT | **always `interpreted`** — `add()` has no provenance parameter, so this store cannot hold authored truth (the §8 firewall, structural) |
+| summary    | TEXT | the dream reflection / the finding detail |
+| subjects   | TEXT | JSON array of note titles the artifact concerns |
+| data       | TEXT | JSON, kind-specific (e.g. `{similarity, digests}`) |
+| created_at | TEXT | naive UTC ISO |
+
+**Regenerable:** `reset()` drops every artifact; a fresh dreaming/curation run rebuilds it
+from the immutable corpus. Never holds anything not derivable from the raw + vector stores.
+
 ## Reserved (future phases)
-- **Thought-graph — LanceDB** (Phase 1): immutable content-addressed raw notes +
-  regenerable derived embeddings; explicit (authored) vs interpreted (inferred) layers
-  kept provenance-marked and separable (§8).
-- **Job/state/gate — SQLite** (Phase 3): durable job table, scheduler state, the
-  propose/approve/validate ledger, rollback metadata, persisted-agent registry.
+- **Job/state/gate — SQLite** (Phase 3, landed): durable job table + scheduler state. The
+  propose/approve/validate ledger, rollback metadata, and persisted-agent registry grow with
+  Phases 5/10 (`core/factory/registry.py`, `ops/gate.py` seams exist).

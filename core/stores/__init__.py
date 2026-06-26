@@ -2,6 +2,8 @@
 
 Polyglot persistence, each store independently replaceable, with access scoped IN CODE
 (not by convention): a handle exposes exactly the reads/writes a role needs and nothing
-more. Present now: the DuckDB telemetry store. LanceDB (thought-graph vectors) lands in
-Phase 1; SQLite (queue/state/gate) in Phase 3.
+more. Present: the DuckDB telemetry store, the content-addressed raw store (immutable, §8),
+the LanceDB thought-graph vectors (derived), and the SQLite derived store for INTERPRETED
+artifacts (dreams + curator findings, §8) — the last writes `interpreted` provenance only,
+so the derived layer can never masquerade as authored ground truth.
 """

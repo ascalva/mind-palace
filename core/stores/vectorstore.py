@@ -74,6 +74,20 @@ class VectorStore:
         if TABLE in self._db.list_tables().tables:
             self._db.drop_table(TABLE)
 
+    def all_rows(self, *,
+                 provenances: Iterable[Provenance] | None = None) -> list[dict[str, Any]]:
+        """Full scan, optionally restricted to provenance classes — the read the dreaming
+        agent clusters over. The clustering itself is deterministic and model-free (§9), so
+        the mirror passes `provenances={AUTHORED}` and observed exhaust never seeds a dream.
+        Single-user corpus scale; filtered in Python after the Arrow scan for portability."""
+        if TABLE not in self._db.list_tables().tables:
+            return []
+        rows = self._table().to_arrow().to_pylist()
+        if provenances is None:
+            return rows
+        allowed = {Provenance(p).value for p in provenances}
+        return [r for r in rows if r.get("provenance") in allowed]
+
     def search(self, vector: list[float], *, k: int = 5,
                provenances: Iterable[Provenance] | None = None) -> list[dict[str, Any]]:
         """Nearest-neighbour search, optionally restricted to provenance classes.

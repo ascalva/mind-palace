@@ -38,6 +38,23 @@ def test_provenance_filter_is_the_mirror_firewall(tmp_path):
     assert {r["id"] for r in res} == {"auth"}  # observed excluded from the mirror
 
 
+def test_all_rows_scans_everything_and_filters_by_provenance(tmp_path):
+    vs = VectorStore(tmp_path / "v.lance", dim=3)
+    vs.add([
+        _row("auth", [1.0, 0.0, 0.0], Provenance.AUTHORED),
+        _row("interp", [0.0, 1.0, 0.0], Provenance.INTERPRETED),
+    ])
+    assert {r["id"] for r in vs.all_rows()} == {"auth", "interp"}
+    # The dreaming agent clusters over the AUTHORED mirror only (the firewall).
+    mirror = vs.all_rows(provenances={Provenance.AUTHORED})
+    assert {r["id"] for r in mirror} == {"auth"}
+    assert mirror[0]["vector"] == [1.0, 0.0, 0.0]      # vectors come back as plain lists
+
+
+def test_all_rows_is_empty_before_any_write(tmp_path):
+    assert VectorStore(tmp_path / "v.lance", dim=3).all_rows() == []
+
+
 def test_dim_mismatch_raises(tmp_path):
     vs = VectorStore(tmp_path / "v.lance", dim=3)
     with pytest.raises(ValueError):
