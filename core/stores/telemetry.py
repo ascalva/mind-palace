@@ -19,7 +19,7 @@ from typing import Any
 
 import duckdb
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _DDL = [
     """CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -44,6 +44,21 @@ _DDL = [
         unit VARCHAR,
         meta VARCHAR
     );""",
+    # v2: context-budget usage per agent/job (BUILD-SPEC §13) — budgets, drops, overflows
+    # and escalations are visible so window right-sizing (§14 safe-lever) has data to learn from.
+    """CREATE TABLE IF NOT EXISTS context_usage (
+        ts TIMESTAMP NOT NULL,
+        agent VARCHAR NOT NULL,
+        job_id VARCHAR,
+        tier VARCHAR,
+        ctx_window INTEGER,         -- "window" is a DuckDB reserved word
+        used_tokens INTEGER,
+        retrieved_kept INTEGER,
+        retrieved_dropped INTEGER,
+        history_dropped INTEGER,
+        tool_truncated INTEGER,
+        escalated BOOLEAN
+    );""",
 ]
 
 
@@ -59,7 +74,10 @@ def _connect(path: Path) -> duckdb.DuckDBPyConnection:
     for ddl in _DDL:
         conn.execute(ddl)
     row = conn.execute("SELECT max(version) FROM schema_migrations").fetchone()
-    if row is None or row[0] is None:
+    current = row[0] if row and row[0] is not None else 0
+    if current < SCHEMA_VERSION:
+        # All DDL above is idempotent (IF NOT EXISTS), so an older DB gains the new tables
+        # on open; record the version bump.
         conn.execute("INSERT INTO schema_migrations VALUES (?, ?)", [SCHEMA_VERSION, _utcnow()])
     return conn
 
@@ -83,6 +101,17 @@ class TelemetryWriter:
         for r in readings:
             self.record_vital(r.metric, r.value, unit=r.unit,
                               source=source, labels=getattr(r, "labels", None))
+
+    def record_context_usage(self, agent: str, report: Any, *,
+                             job_id: str | None = None, tier: str | None = None) -> None:
+        """Record a context-budget outcome (BUILD-SPEC §13). `report` is duck-typed (a
+        scheduler.budget.BudgetReport) so telemetry stays independent of the scheduler."""
+        self._conn.execute(
+            "INSERT INTO context_usage VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [_utcnow(), agent, job_id, tier, report.window, report.used_tokens,
+             report.retrieved_kept, report.retrieved_dropped, report.history_dropped,
+             report.tool_truncated, report.escalate],
+        )
 
 
 @dataclass
@@ -110,6 +139,13 @@ class TelemetryReader:
             "SELECT ts, value FROM vitals WHERE metric = ? AND ts >= ? ORDER BY ts",
             [metric, cutoff],
         ).fetchall()
+
+    def context_usage_count(self, agent: str | None = None) -> int:
+        if agent is None:
+            return self._conn.execute("SELECT count(*) FROM context_usage").fetchone()[0]
+        return self._conn.execute(
+            "SELECT count(*) FROM context_usage WHERE agent = ?", [agent]
+        ).fetchone()[0]
 
 
 @dataclass

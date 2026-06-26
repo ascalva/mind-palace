@@ -30,7 +30,9 @@
       "Bash(./.venv/bin/python -m pytest -m \"not live\" -q)",
       "Bash(./.venv/bin/python scripts/eval.py --bless)",
       "Bash(./.venv/bin/python -m pytest -m live -q)",
-      "Bash(./.venv/bin/python -m pytest -q)"
+      "Bash(./.venv/bin/python -m pytest -q)",
+      "Bash(./.venv/bin/python -m pytest tests/test_scheduler_live.py -m live -q)",
+      "Bash(./.venv/bin/python -m pytest tests/test_librarian_live.py tests/test_scheduler_live.py -m live -q -s)"
     ]
   }
 }
