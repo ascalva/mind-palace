@@ -1,0 +1,4 @@
+# The fetcher is intentionally dependency-free: stdlib only (urllib, xml, json) for the
+# public APIs, and boto3 is already present in the AWS Lambda Python runtime. Keeping the zip
+# empty of third-party packages keeps the deploy reproducible and the attack surface minimal.
+# (If a source ever needs a real dep, vendor it here and Terraform will pick it up.)

@@ -85,6 +85,23 @@ evicts_pinned = true
 handoff_dir = "data/handoff"
 default_adapter = "local"
 
+[airlock]
+# The research airlock (BUILD-SPEC §16, Invariant 11). The sealed core (Zone A) reads/writes
+# ONLY `handoff_dir` — a filesystem handoff like [interface]. It has no S3 and no network.
+# The de-identified criteria go out; public literature comes back; the corpus never crosses.
+handoff_dir = "data/airlock"
+# --- Zone B (the bridge) ONLY. The sealed core never reads these (it cannot reach S3). ---
+# Populate `s3_bucket` after `terraform apply` (output `airlock_bucket`). `aws_profile` is a
+# narrowly-scoped assumed role (cloud/terraform/airlock provisions it) — least privilege, the
+# bridge can PUT requests/ and GET results/ and nothing else.
+s3_bucket = ""
+s3_region = "us-east-1"
+aws_profile = "mind-palace-bridge"
+requests_prefix = "requests/"
+results_prefix = "results/"
+poll_interval_s = 5          # how often the bridge polls S3 results/ for a finished job
+poll_timeout_s = 900         # give up waiting on the fetcher after this long
+
 [dreaming]
 # Curator + dreaming knobs (BUILD-SPEC §9). Clustering is deterministic (NumPy cosine over
 # note centroids), so these thresholds fully determine a run. They are the tunables a future

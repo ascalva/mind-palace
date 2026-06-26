@@ -84,6 +84,21 @@ class InterfaceConfig:
 
 
 @dataclass(frozen=True)
+class AirlockConfig:
+    """Research airlock (§16). The sealed core uses only `handoff_dir`; the rest is Zone-B
+    bridge config (S3 target + the narrowly-scoped assumed role). The core never reads S3."""
+
+    handoff_dir: Path
+    s3_bucket: str
+    s3_region: str
+    aws_profile: str
+    requests_prefix: str
+    results_prefix: str
+    poll_interval_s: int
+    poll_timeout_s: int
+
+
+@dataclass(frozen=True)
 class SandboxConfig:
     runtime: str            # "podman" (default substrate) | "wasm" (pure-compute, future)
     image: str
@@ -116,6 +131,7 @@ class Config:
     dream_rnd: DreamRnDConfig
     sandbox: SandboxConfig
     interface: InterfaceConfig
+    airlock: AirlockConfig
     models: tuple[ModelConfig, ...]
 
     def model_for_tier(self, tier: str) -> ModelConfig:
@@ -142,6 +158,7 @@ def load_config(path: Path | None = None) -> Config:
     o, r, p = raw["ollama"], raw["resources"], raw["paths"]
     v, e, s = raw["vault"], raw["embedding"], raw["sandbox"]
     itf, dr, rnd = raw["interface"], raw["dreaming"], raw["dream_rnd"]
+    al = raw["airlock"]
     return Config(
         ollama=OllamaConfig(
             host=o["host"],
@@ -197,6 +214,16 @@ def load_config(path: Path | None = None) -> Config:
         interface=InterfaceConfig(
             handoff_dir=_resolve(itf["handoff_dir"]),
             default_adapter=str(itf["default_adapter"]),
+        ),
+        airlock=AirlockConfig(
+            handoff_dir=_resolve(al["handoff_dir"]),
+            s3_bucket=str(al["s3_bucket"]),
+            s3_region=str(al["s3_region"]),
+            aws_profile=str(al["aws_profile"]),
+            requests_prefix=str(al["requests_prefix"]),
+            results_prefix=str(al["results_prefix"]),
+            poll_interval_s=int(al["poll_interval_s"]),
+            poll_timeout_s=int(al["poll_timeout_s"]),
         ),
         models=tuple(
             ModelConfig(

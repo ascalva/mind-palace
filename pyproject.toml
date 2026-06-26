@@ -19,6 +19,12 @@ dev = [
     "ruff>=0.5",
     "hypothesis>=6.0",   # property-based tests for the invariant catalog (I6/I9/I10/I13)
 ]
+# Zone B (edge) ONLY — never a core dependency. The research-airlock bridge talks to S3 with
+# boto3; the import-firewall (ops/import_lint.py) forbids boto3 anywhere under core/. The
+# bridge imports it lazily so tests (fake S3 client) don't need it installed.
+edge = [
+    "boto3>=1.34",
+]
 
 [tool.pytest.ini_options]
 # Top-level zone packages (core/, edge/, …) are importable without an editable install.

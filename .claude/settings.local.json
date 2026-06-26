@@ -88,7 +88,22 @@
       "Bash(.venv/bin/python -m pytest tests/test_queue.py tests/test_supervisor.py tests/test_cron.py -q -m \"not live\")",
       "Bash(.venv/bin/python -m pytest tests/test_dream_rnd.py -q)",
       "Bash(.venv/bin/python -c \"from config.loader import load_config; print\\('dream_rnd.enabled =', load_config\\(\\).dream_rnd.enabled\\)\")",
-      "Bash(.venv/bin/python -m pytest -m \"not live and not podman\" -q -W error::SyntaxWarning)"
+      "Bash(.venv/bin/python -m pytest -m \"not live and not podman\" -q -W error::SyntaxWarning)",
+      "Bash(awk '/^#+.*\\\\b20\\\\b.*[Dd]ecision|^#+ *20[.\\\\\\) ]|## 20|### 20/{f=1} f{print} /^#+ *21[.\\\\\\) ]|## 21/{if\\(f\\)exit}' docs/BUILD-SPEC.md)",
+      "Bash(awk '/Phase 8/{f=1} f{print} /Phase 9/{if\\(f\\)exit}' docs/BUILD-SPEC.md)",
+      "Bash(terraform version *)",
+      "Bash(aws --version)",
+      "Bash(terraform -chdir=cloud/terraform/airlock fmt -recursive -check -diff)",
+      "Bash(echo \"airlock fmt exit: $?\")",
+      "Bash(terraform -chdir=cloud/terraform/bootstrap fmt -check -diff)",
+      "Bash(echo \"bootstrap fmt exit: $?\")",
+      "Bash(terraform -chdir=cloud/terraform/airlock fmt -recursive)",
+      "Bash(terraform -chdir=cloud/terraform/airlock init -backend=false -input=false -no-color)",
+      "Bash(terraform -chdir=cloud/terraform/airlock validate -no-color)",
+      "Bash(terraform -chdir=cloud/terraform/bootstrap init -backend=false -input=false -no-color)",
+      "Bash(terraform -chdir=cloud/terraform/bootstrap validate -no-color)",
+      "Bash(.venv/bin/python -c \"import boto3\")",
+      "Bash(.venv/bin/python -m pytest tests/test_research_criteria.py tests/test_research_airlock.py tests/test_research_rank.py tests/test_bridge.py tests/test_fetcher.py -q)"
     ]
   }
 }
