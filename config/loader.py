@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
@@ -103,6 +103,18 @@ class AirlockConfig:
 
 
 @dataclass(frozen=True)
+class AttestationConfig:
+    """Runtime proof layer (attestation-layer.md). Records are always written; `enabled` gates
+    SIGNING. Pub-key paths are committed (non-secret); the private seeds live in Keychain/Vault."""
+
+    enabled: bool = False
+    signing_key_secret: str = "attestation-signing-key"
+    owner_key_secret: str = "attestation-owner-key"
+    supervisor_pub: Path = Path("ops/attestation/supervisor.pub")
+    owner_pub: Path = Path("ops/attestation/owner.pub")
+
+
+@dataclass(frozen=True)
 class SandboxConfig:
     runtime: str            # "podman" (default substrate) | "wasm" (pure-compute, future)
     image: str
@@ -137,6 +149,8 @@ class Config:
     interface: InterfaceConfig
     airlock: AirlockConfig
     models: tuple[ModelConfig, ...]
+    # Default keeps direct Config(...) construction (e.g. in tests) working without this section.
+    attestation: AttestationConfig = field(default_factory=AttestationConfig)
 
     def model_for_tier(self, tier: str) -> ModelConfig:
         for m in self.models:
@@ -162,7 +176,7 @@ def load_config(path: Path | None = None) -> Config:
     o, r, p = raw["ollama"], raw["resources"], raw["paths"]
     v, e, s = raw["vault"], raw["embedding"], raw["sandbox"]
     itf, dr, rnd = raw["interface"], raw["dreaming"], raw["dream_rnd"]
-    al = raw["airlock"]
+    al, at = raw["airlock"], raw.get("attestation", {})
     return Config(
         ollama=OllamaConfig(
             host=o["host"],
@@ -233,6 +247,13 @@ def load_config(path: Path | None = None) -> Config:
             results_prefix=str(al["results_prefix"]),
             poll_interval_s=int(al["poll_interval_s"]),
             poll_timeout_s=int(al["poll_timeout_s"]),
+        ),
+        attestation=AttestationConfig(
+            enabled=bool(at.get("enabled", False)),
+            signing_key_secret=str(at.get("signing_key_secret", "attestation-signing-key")),
+            owner_key_secret=str(at.get("owner_key_secret", "attestation-owner-key")),
+            supervisor_pub=_resolve(at.get("supervisor_pub", "ops/attestation/supervisor.pub")),
+            owner_pub=_resolve(at.get("owner_pub", "ops/attestation/owner.pub")),
         ),
         models=tuple(
             ModelConfig(

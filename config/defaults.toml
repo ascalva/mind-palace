@@ -110,6 +110,18 @@ results_prefix = "results/"
 poll_interval_s = 5          # how often the bridge polls S3 results/ for a finished job
 poll_timeout_s = 900         # give up waiting on the fetcher after this long
 
+[attestation]
+# The runtime proof layer (design-notes/attestation-layer.md; core/attestation/). Records are
+# always written (chained, content-addressed); SIGNING is owner-gated by `enabled`.
+# OFF by default: records-only until the owner generates Ed25519 keys and places the private
+# seed in Keychain/Vault (ops/attestation/README.md + the runbook). Turning `enabled` on without
+# a placed key is a HARD ERROR (fail-closed) — never a silent unsigned run.
+enabled = false
+signing_key_secret = "attestation-signing-key"    # env/Keychain name of the supervisor seed (base64)
+owner_key_secret = "attestation-owner-key"          # env/Keychain name of the owner seed (gate decisions)
+supervisor_pub = "ops/attestation/supervisor.pub"   # committed public key (non-secret), agent attestations
+owner_pub = "ops/attestation/owner.pub"             # committed public key, gate-decision attestations
+
 [dreaming]
 # Curator + dreaming knobs (BUILD-SPEC §9). Clustering is deterministic (NumPy cosine over
 # note centroids), so these thresholds fully determine a run. They are the tunables a future

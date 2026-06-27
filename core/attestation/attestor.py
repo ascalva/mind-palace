@@ -10,13 +10,21 @@ not change. (Model advises; code attests — the agent never holds the key.)
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Protocol
 
+from core.attestation.crypto import Ed25519Signer
 from core.attestation.record import Attestation
 from core.attestation.store import AttestationStore
 from core.constitution import constitution_fingerprint
+
+
+class AttestationKeyMissing(RuntimeError):
+    """Signing was enabled (`[attestation] enabled = true`) but no signing key is placed.
+
+    Fail-closed: rather than silently emit UNSIGNED attestations when the owner asked for signed
+    ones, construction stops. Place the key (Keychain/Vault) before enabling — see the runbook."""
 
 
 def _utcnow() -> str:
@@ -37,11 +45,14 @@ class Attestor(Protocol):
 
 @dataclass
 class StoreAttestor:
-    """Builds, links, (Step-3) signs, and appends an attestation per agent action."""
+    """Builds, links, signs, and appends an attestation per agent action."""
 
     store: AttestationStore
     fingerprint: Callable[[], str] = constitution_fingerprint
     clock: Callable[[], str] = _utcnow
+    # When present, each emitted attestation is signed over its signing_payload() and tagged with
+    # the signer's name. None = records-only (Step 2 behavior; unsigned but still chained).
+    signer: Ed25519Signer | None = None
 
     def emit(self, *, agent_role, action, input_hashes=(), output_hashes=(),
              derived_from_ids=None) -> Attestation:
@@ -61,14 +72,33 @@ class StoreAttestor:
             output_hashes=tuple(output_hashes),
             derived_from_ids=tuple(derived_from_ids),
         )
-        # Step 3 inserts the signing step HERE (sign att.signing_payload(); set signature/signer)
-        # before append — the agents stay untouched.
+        if self.signer is not None:
+            # The signature covers signing_payload(), which EXCLUDES signature/signer — so signing
+            # does not change the content-addressed id. Verification recomputes the same payload.
+            att = replace(att, signature=self.signer.sign(att.signing_payload()),
+                          signer=self.signer.name)
         self.store.append(att)
         return att
 
 
 def build_attestor(config: object | None = None) -> StoreAttestor:
-    """Wire a StoreAttestor against the configured append-only attestation store."""
+    """Wire a StoreAttestor against the configured append-only attestation store.
+
+    Signing is owner-gated: only when `[attestation] enabled = true` is a supervisor signer
+    attached, and only if the private seed is actually placed (else fail-closed, never silently
+    unsigned). Default (`enabled = false`) is records-only — the Step-2 behavior."""
+    from config.loader import get_config, get_secret
     from core.attestation.store import open_attestation_store
 
-    return StoreAttestor(open_attestation_store(config))
+    cfg = config or get_config()
+    store = open_attestation_store(cfg)
+    acfg = getattr(cfg, "attestation", None)
+    if acfg is None or not acfg.enabled:
+        return StoreAttestor(store)
+    seed = get_secret(acfg.signing_key_secret)
+    if not seed:
+        raise AttestationKeyMissing(
+            f"[attestation] enabled = true but no signing key at "
+            f"get_secret({acfg.signing_key_secret!r}); place it (Keychain/Vault) before enabling"
+        )
+    return StoreAttestor(store, signer=Ed25519Signer.from_seed(seed, "supervisor"))
