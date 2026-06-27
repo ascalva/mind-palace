@@ -371,12 +371,39 @@ cd ../airlock && AWS_PROFILE=alberto-sso terraform init && AWS_PROFILE=alberto-s
 
 Copy `airlock_bucket` → `config/defaults.toml [airlock] s3_bucket`, and add a `mind-palace-bridge`
 AWS profile that assumes `bridge_role_arn` (`source_profile = alberto-sso`). Recommended: narrow
-`bridge_trusted_principal_arns` to the SSO role. The bridge (Zone B) is the only component that
-holds AWS creds and touches S3; the corpus never crosses — only de-identified criteria (Inv. 2/11).
+`bridge_trusted_principal_arns` to the SSO role (the TF still also trusts the Vault engine user, so
+that stays working). The bridge (Zone B) is the only component that holds AWS creds and touches S3;
+the corpus never crosses — only de-identified criteria (Inv. 2/11).
 
-Once Vault's `aws` engine (§2b) is configured, the bridge's static AWS profile can be retired in
-favor of dynamic `aws/creds/bridge-role` (TTL=1h) minted per interaction — the end state in
-`vault-runtime-auth.md` §4. Until then the static `mind-palace-bridge` profile is the stepping stone.
+#### 3a. Vault AWS dynamic engine (Phase B — the end state)
+
+The airlock TF (`vault_engine.tf`) also creates `mind-palace-vault`, the IAM user Vault's AWS engine
+authenticates as. Its only permission is `sts:AssumeRole` on bridge-role, so Vault can mint
+short-lived (TTL=1h) bridge creds on demand (`vault-runtime-auth.md §4`). After `terraform apply`:
+
+```sh
+# 1. Mint the engine user's access key BY HAND — kept out of tfstate. (Long-lived bootstrap key;
+#    this is the one durable secret the dynamic engine needs. Rotate later via aws/config/rotate-root.)
+aws iam create-access-key --user-name mind-palace-vault --profile alberto-sso
+
+# 2. Hand it to Vault as config/root (secret — by hand, never scripted):
+export VAULT_ADDR=http://127.0.0.1:8200
+export VAULT_TOKEN="$(security find-generic-password -a mind-palace -s vault-root-token -w)"
+vault secrets enable -path=aws aws
+vault write aws/config/root access_key=<…> secret_key=<…> region=us-east-1
+
+# 3. Configure the bridge role (validated script; bridge-role is the only assumable role):
+export BRIDGE_ROLE_ARN="$(cd cloud/terraform/airlock && terraform output -raw bridge_role_arn)"
+sh ops/vault/setup_aws_engine.sh
+
+# 4. Verify — mints a real temporary AWS cred that expires in 1h:
+vault read aws/creds/bridge-role
+```
+
+**Note on consumption:** nothing fetches `aws/creds/bridge-role` from Vault yet — the bridge still
+uses the static `mind-palace-bridge` SSO profile. Rewiring the bridge to mint AWS creds from Vault
+is Phase 5 (the bridge holding its own identity). On a single-user Mac with SSO this engine is the
+*end state staged early*; it truly earns its keep on the headless server (no SSO session to lean on).
 
 ### 4. Secrets ↔ where they live (the full map)
 

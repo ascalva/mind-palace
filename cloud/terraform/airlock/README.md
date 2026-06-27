@@ -33,6 +33,14 @@ source_profile = alberto-sso
 region         = us-east-1
 ```
 
+## Vault AWS dynamic engine (Phase B)
+
+`vault_engine.tf` also creates `mind-palace-vault` — the IAM user Vault's AWS secrets engine
+authenticates as (`config/root`), scoped to **only** `sts:AssumeRole` on bridge-role. The bridge
+role's trust includes it, so dynamic creds work even if you narrow `bridge_trusted_principal_arns`
+to your SSO role. Output `vault_engine_user_name`. The access key is **not** in tfstate by design —
+mint it by hand after apply and hand it to Vault. Full sequence: `docs/runbook.md` §3a.
+
 ## Validate offline (no credentials)
 
 ```sh

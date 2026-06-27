@@ -8,7 +8,13 @@
 # access. The fetcher's "web egress" is a network property (no VPC), not an IAM grant.
 
 locals {
-  bridge_principals = length(var.bridge_trusted_principal_arns) > 0 ? var.bridge_trusted_principal_arns : ["arn:aws:iam::${var.account_id}:root"]
+  # The configured bridge consumers (SSO role, or account-root fallback) PLUS the Vault AWS-engine
+  # user — so Vault can assume bridge-role for dynamic creds even when the trust is narrowed to the
+  # SSO principal for least privilege (vault_engine.tf, Phase B).
+  bridge_principals = concat(
+    length(var.bridge_trusted_principal_arns) > 0 ? var.bridge_trusted_principal_arns : ["arn:aws:iam::${var.account_id}:root"],
+    [aws_iam_user.vault_engine.arn],
+  )
 }
 
 # --- Fetcher (Lambda) execution role ----------------------------------------------------
