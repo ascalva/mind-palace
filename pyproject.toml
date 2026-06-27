@@ -36,10 +36,30 @@ watch = [
 # Top-level zone packages (core/, edge/, …) are importable without an editable install.
 pythonpath = ["."]
 testpaths = ["tests"]
+# Markers are split two ways (test-organization.md): a *category* marker per directory
+# (applied by each tests/<cat>/conftest.py) describing the execution profile, plus
+# *capability* markers (live/podman/slow/needs_*) describing what infra a test needs.
 markers = [
+    # category (execution profile) — one per tests/ subdirectory
+    "unit: fast, isolated, no I/O",
+    "integration: component-pair tests with real local stores, no network",
+    "e2e: full-pipeline tests (slow, may need models/podman)",
+    "property: Hypothesis property-based + exhaustive FSM invariant checks",
+    "metamorphic: input/output relationship tests (no ground truth)",
+    "adversarial: red-team invariant-violation attempts through the interfaces",
+    "integrity: firewall/provenance/attestation/import-lint — the non-skippable CI gate",
+    "emergent: multi-component, concurrent, cross-invariant tests",
+    "longitudinal: slow drift tests, scheduled only (excluded from default runs)",
+    # capability (infra needed) — orthogonal to category
     "live: requires a running Ollama server and pulled models (deselect: -m 'not live')",
     "podman: requires a working rootless Podman (deselect: -m 'not podman')",
+    "slow: takes >10s",
+    "needs_models: requires Ollama models pulled",
+    "needs_network: requires network (edge/cloud only — never core)",
 ]
+# The longitudinal suite is opt-in: it runs against a continuously-running system, not in
+# the standard inner loop. Exclude it from a bare `pytest`; opt in with `pytest tests/longitudinal`.
+addopts = "-m 'not longitudinal'"
 filterwarnings = [
     # LanceDB calls its own deprecated table_names() internally; not our code.
     "ignore:.*table_names.*:DeprecationWarning",

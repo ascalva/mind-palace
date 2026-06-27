@@ -8,31 +8,15 @@ file; raw is always kept).
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
+
+from fixtures.embedding import DIM, FakeEmbedder
 
 from core.ingest.index import semantic_search
 from core.ingest.sync import SyncOutcome, VaultSync
 from core.stores.catalog import VaultCatalog
 from core.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
-
-DIM = 8
-
-
-class FakeEmbedder:
-    """Deterministic content-derived vectors: identical text → identical vector (so a query
-    for a note's exact text retrieves it; changed text embeds differently)."""
-
-    def _vec(self, text: str) -> list[float]:
-        h = hashlib.sha256(text.strip().encode("utf-8")).digest()
-        return [b / 255.0 for b in h[:DIM]]
-
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return [self._vec(t) for t in texts]
-
-    def embed_query(self, text: str) -> list[float]:
-        return self._vec(text)
 
 
 def _sync(tmp_path: Path) -> VaultSync:

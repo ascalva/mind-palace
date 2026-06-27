@@ -40,7 +40,8 @@ CREATE TABLE IF NOT EXISTS interpreted_artifacts (
     subjects     TEXT NOT NULL,        -- JSON array of note titles the artifact concerns
     data         TEXT NOT NULL,        -- JSON payload, kind-specific
     derived_from TEXT NOT NULL DEFAULT '[]',  -- JSON array of refs this was derived FROM (G2)
-    created_at   TEXT NOT NULL
+    created_at   TEXT NOT NULL,
+    attestation_id TEXT                       -- the attestation that produced this record (or NULL)
 );
 """
 
@@ -64,6 +65,13 @@ def _artifact_id(kind: str, subkind: str | None, subjects: tuple[str, ...]) -> s
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 
 
+def artifact_id(kind: str, subkind: str | None, subjects: tuple[str, ...] | list[str]) -> str:
+    """Public, stable artifact id for a (kind, subkind, subjects) triple — same value `add()`
+    will assign. An emitter precomputes it so an attestation can record this record as its
+    output BEFORE the record is written, then `add(..., attestation_id=...)` links back."""
+    return _artifact_id(kind, subkind, tuple(subjects))
+
+
 @dataclass(frozen=True)
 class Artifact:
     id: str
@@ -79,6 +87,9 @@ class Artifact:
     # acyclic and bottom out in authored leaves, so derivation depth d(κ) is computable and
     # the recursion bound c ≤ γ^d·g holds. Empty = scaffolding not recorded (treated depth 1).
     derived_from: tuple[str, ...] = ()
+    # The attestation that produced this record (runtime proof layer). None when the artifact
+    # predates the attestation layer or was written without an attestor (attestation-layer.md §5).
+    attestation_id: str | None = None
 
 
 @dataclass
@@ -104,17 +115,26 @@ class DerivedStore:
                 "ALTER TABLE interpreted_artifacts ADD COLUMN derived_from TEXT NOT NULL "
                 "DEFAULT '[]'"
             )
+        if "attestation_id" not in cols:
+            # Added with the attestation layer (Step 2). Nullable: old rows have no attestation.
+            self._conn.execute(
+                "ALTER TABLE interpreted_artifacts ADD COLUMN attestation_id TEXT"
+            )
 
     def add(self, *, kind: str, summary: str, subjects: tuple[str, ...] | list[str],
             data: dict | None = None, subkind: str | None = None,
-            derived_from: tuple[str, ...] | list[str] | None = None) -> Artifact:
+            derived_from: tuple[str, ...] | list[str] | None = None,
+            attestation_id: str | None = None) -> Artifact:
         """Store one INTERPRETED artifact. There is deliberately NO `provenance` parameter:
         the derived store writes `INTERPRETED` and nothing else (§8 firewall, structural).
 
         `derived_from` records the refs this artifact was built from (gap G2): authored note
         digests (leaves) and/or other artifact ids. The edge set is checked for acyclicity
         BEFORE insert — a cycle is refused (`DerivationCycleError`), so the derivation DAG is
-        always acyclic and depth d(κ) is computable (Invariant 10)."""
+        always acyclic and depth d(κ) is computable (Invariant 10).
+
+        `attestation_id` links this record to the signed attestation that produced it (the
+        runtime proof layer, attestation-layer.md §5); None when written without an attestor."""
         subjects = tuple(subjects)
         edges = tuple(derived_from or ())
         new_id = _artifact_id(kind, subkind, subjects)
@@ -129,12 +149,14 @@ class DerivedStore:
             data=data or {},
             created_at=_utcnow(),
             derived_from=edges,
+            attestation_id=attestation_id,
         )
         self._conn.execute(
-            "INSERT OR REPLACE INTO interpreted_artifacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO interpreted_artifacts "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [rec.id, rec.kind, rec.subkind, rec.provenance.value, rec.summary,
              json.dumps(list(rec.subjects)), json.dumps(rec.data),
-             json.dumps(list(rec.derived_from)), rec.created_at],
+             json.dumps(list(rec.derived_from)), rec.created_at, rec.attestation_id],
         )
         self._conn.commit()
         return rec
@@ -237,12 +259,14 @@ class DerivedStore:
     def _row(r: sqlite3.Row) -> Artifact:
         keys = r.keys()
         derived_from = tuple(json.loads(r["derived_from"])) if "derived_from" in keys else ()
+        attestation_id = r["attestation_id"] if "attestation_id" in keys else None
         return Artifact(
             id=r["id"], kind=r["kind"], subkind=r["subkind"],
             provenance=Provenance(r["provenance"]),
             summary=r["summary"], subjects=tuple(json.loads(r["subjects"])),
             data=json.loads(r["data"]), created_at=r["created_at"],
             derived_from=derived_from,
+            attestation_id=attestation_id,
         )
 
     def close(self) -> None:

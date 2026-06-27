@@ -102,3 +102,19 @@ def test_self_reference_is_refused(tmp_path):
     self_id = _artifact_id(DREAM, None, ("a",))
     with pytest.raises(DerivationCycleError):
         s.add(kind=DREAM, summary="loop", subjects=["a"], derived_from=[self_id])
+
+
+# --- attestation_id link (attestation layer, Step 2) ----------------------------
+
+def test_attestation_id_is_stored_and_read_back(tmp_path):
+    s = _store(tmp_path)
+    a = s.add(kind=DREAM, summary="t", subjects=["a"], derived_from=["dig-a"],
+              attestation_id="att-123")
+    assert a.attestation_id == "att-123"
+    assert s.all(kind=DREAM)[0].attestation_id == "att-123"
+
+
+def test_attestation_id_defaults_to_none(tmp_path):
+    # A record written without an attestor (or before the layer existed) has no link.
+    s = _store(tmp_path)
+    assert s.add(kind=DREAM, summary="t", subjects=["a"]).attestation_id is None

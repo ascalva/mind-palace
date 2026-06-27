@@ -42,6 +42,7 @@ class PathsConfig:
     vector_store: Path
     derived_store: Path      # INTERPRETED artifacts (dreams + curator findings), §8
     vault_catalog: Path      # active/tombstone ledger for incremental ingest (vault-sync)
+    attestation_store: Path  # append-only attestation records (runtime proof layer)
 
 
 @dataclass(frozen=True)
@@ -180,6 +181,8 @@ def load_config(path: Path | None = None) -> Config:
             vector_store=_resolve(p["vector_store"]),
             derived_store=_resolve(p["derived_store"]),
             vault_catalog=_resolve(p["vault_catalog"]),
+            # .get default keeps older/custom TOMLs (without this key) loading.
+            attestation_store=_resolve(p.get("attestation_store", "data/attestations.sqlite")),
         ),
         vault=VaultConfig(
             # ~ expands to $HOME; the vault is the owner's source corpus, outside the repo.

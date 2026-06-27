@@ -2,36 +2,9 @@
 Deterministic via a fake runner — no Podman needed."""
 
 import pytest
+from fixtures.sandbox import FakeRunner
 
-from core.sandbox import ExecResult, Limits, SandboxBusyError, SandboxPolicy, WarmPool
-
-
-class FakeRunner:
-    def __init__(self, result=None):
-        self.result = result or ExecResult("out", "", 0)
-        self.started, self.reset_calls, self.destroyed = [], [], []
-        self._n = 0
-
-    def available(self):
-        return True
-
-    def run_once(self, spec, policy):
-        return self.result
-
-    def start(self, policy, limits, image):
-        self._n += 1
-        cid = f"c{self._n}"
-        self.started.append(cid)
-        return cid
-
-    def exec_in(self, container, spec):
-        return self.result
-
-    def reset(self, container):
-        self.reset_calls.append(container)
-
-    def destroy(self, container):
-        self.destroyed.append(container)
+from core.sandbox import Limits, SandboxBusyError, SandboxPolicy, WarmPool
 
 
 def _pool(runner, size=1):

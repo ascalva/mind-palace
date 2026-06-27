@@ -27,6 +27,7 @@ raw_store = "data/raw"            # content-addressed immutable raw notes (§8)
 vector_store = "data/vectors.lance"  # LanceDB thought-graph vectors (derived, regenerable)
 derived_store = "data/derived.sqlite"  # INTERPRETED artifacts: dreams + curator findings (§8)
 vault_catalog = "data/vault_catalog.sqlite"  # active/tombstone ledger for incremental ingest
+attestation_store = "data/attestations.sqlite"  # append-only attestation records (runtime proof)
 
 [vault]
 # The SOURCE corpus the system ingests FROM — read-only, AUTHORED, never committed.

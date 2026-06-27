@@ -17,7 +17,8 @@ from pathlib import Path
 
 import pytest
 
-FETCHER_DIR = Path(__file__).resolve().parent.parent / "cloud" / "fetcher"
+# tests/integration/<file> — three levels up is the repo root.
+FETCHER_DIR = Path(__file__).resolve().parents[2] / "cloud" / "fetcher"
 sys.path.insert(0, str(FETCHER_DIR))
 
 import aggregate as agg  # noqa: E402

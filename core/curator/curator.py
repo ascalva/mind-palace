@@ -25,6 +25,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from core.attestation import Attestor
 from core.dreaming.cluster import (
     Cluster,
     cluster_notes,
@@ -33,7 +34,7 @@ from core.dreaming.cluster import (
     note_snippets,
 )
 from core.mirror import MirrorView
-from core.stores.derived import FINDING, DerivedStore
+from core.stores.derived import FINDING, DerivedStore, artifact_id
 from core.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
 
@@ -77,6 +78,9 @@ class Curator:
     min_cluster_size: int = 2
     max_clusters: int = 8
     contradiction_detector: ContradictionDetector | None = None
+    # Optional runtime proof layer: when present, each finding emits an attestation (inputs =
+    # the authored note digests the finding concerns, output = the finding record). None = off.
+    attestor: Attestor | None = None
     _snippets: dict[str, str] = field(default_factory=dict)
 
     def near_duplicates(self) -> list[CurationFinding]:
@@ -152,9 +156,20 @@ class Curator:
         Reads the authored corpus; writes ONLY to the derived store (§8 firewall)."""
         findings = self.near_duplicates() + self.prune_candidates() + self.contradictions()
         for f in findings:
+            # Emit the finding's attestation BEFORE writing it so the record links back; the
+            # attestor auto-chains to the ingest attestations for these authored digests.
+            attestation_id = None
+            if self.attestor is not None:
+                att = self.attestor.emit(
+                    agent_role="curator", action="curate_finding",
+                    input_hashes=f.digests,
+                    output_hashes=[artifact_id(FINDING, f.subkind, f.subjects)],
+                )
+                attestation_id = att.id
             # A finding is derived FROM the authored notes it concerns — its leaves (G2).
             self.derived.add(kind=FINDING, subkind=f.subkind, summary=f.detail,
-                             subjects=f.subjects, data=f.data, derived_from=f.digests)
+                             subjects=f.subjects, data=f.data, derived_from=f.digests,
+                             attestation_id=attestation_id)
         return CurationReport(
             findings=tuple(findings),
             contradiction_detection_deferred=self.contradiction_detector is None,
@@ -165,6 +180,7 @@ def build_curator(config: object | None = None) -> Curator:
     """Wire a Curator against the real configured stores. Contradiction detection stays
     deferred unless a detector is supplied (e.g. one backed by the synthesis model)."""
     from config.loader import get_config
+    from core.attestation import build_attestor
     from core.stores.derived import open_derived_store
     from core.stores.vectorstore import open_vector_store
 
@@ -178,4 +194,5 @@ def build_curator(config: object | None = None) -> Curator:
         cluster_threshold=dcfg.similarity_threshold,
         min_cluster_size=dcfg.min_cluster_size,
         max_clusters=dcfg.max_clusters,
+        attestor=build_attestor(cfg),
     )

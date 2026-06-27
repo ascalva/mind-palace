@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from core.attestation import Attestor
 from core.ingest.embed import Embedder
 from core.ingest.index import index_records
 from core.ingest.logseq import DEFAULT_EXCLUDE_DIRS, iter_vault, parse_note
@@ -65,6 +66,10 @@ class VaultSync:
     exclude_dirs: frozenset[str] = DEFAULT_EXCLUDE_DIRS
     max_chars: int = 1200
     overlap_chars: int = 150
+    # Optional runtime proof layer: when present, each (re)indexed note emits a signed-provenance
+    # ingest attestation ("the authorized watcher ingested digest D under Constitution F",
+    # attestation-layer.md §3) — the authored leaf every dream chain bottoms out in. None = off.
+    attestor: Attestor | None = None
 
     def sync_path(self, path: Path) -> SyncOutcome:
         """Re-ingest one note. Idempotent: unchanged content is a no-op."""
@@ -83,6 +88,11 @@ class VaultSync:
         self.store.delete(digest=digest)
         index_records([record], self.embedder, self.store)
         self.catalog.record(source_path, digest, record.title)
+        if self.attestor is not None:
+            # input == output == the content digest: for AUTHORED content the bytes read and the
+            # content-addressed object written share one address. This is the chain's leaf.
+            self.attestor.emit(agent_role="vault_watcher", action="ingest_note",
+                               input_hashes=[digest], output_hashes=[digest])
 
         # If the file's *previous* content is now referenced by no active file, drop its
         # derived rows (dead weight). Raw is kept regardless.
@@ -116,6 +126,7 @@ class VaultSync:
 def build_vault_sync(config: object | None = None) -> VaultSync:
     """Wire a VaultSync against the configured vault + real stores + embedder."""
     from config.loader import get_config
+    from core.attestation import build_attestor
     from core.ingest.embed import build_embedder
 
     cfg = config or get_config()
@@ -126,4 +137,5 @@ def build_vault_sync(config: object | None = None) -> VaultSync:
         catalog=VaultCatalog(cfg.paths.vault_catalog),
         embedder=build_embedder(cfg),
         pattern=cfg.vault.pattern,
+        attestor=build_attestor(cfg),
     )

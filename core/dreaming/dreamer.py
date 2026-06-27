@@ -21,11 +21,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from core.attestation import Attestor
 from core.constitution import Message, frame_context
 from core.dreaming.cluster import Cluster, cluster_notes, note_centroids, note_snippets
 from core.mirror import MirrorView
 from core.selfcheck import SelfCheck, Source, SubjectiveJudge, self_evaluate
-from core.stores.derived import DREAM, Artifact, DerivedStore
+from core.stores.derived import DREAM, Artifact, DerivedStore, artifact_id
 from core.stores.vectorstore import VectorStore
 
 # A synthesizer maps an assembled (Constitution-first) context -> the reflection text. The
@@ -71,6 +72,10 @@ class Dreamer:
     min_cluster_size: int = 2
     max_clusters: int = 8          # cap the number of syntheses per run (scarce slot, §5)
     judge: SubjectiveJudge | None = None
+    # Optional runtime proof layer: when present, each dream emits a signed-later attestation
+    # (inputs = the authored cluster digests, output = the dream record) and the record links
+    # back to it. None = no attestation (existing behavior unchanged).
+    attestor: Attestor | None = None
     _snippets: dict[str, str] = field(default_factory=dict)
 
     def clusters(self) -> list[Cluster]:
@@ -107,6 +112,18 @@ class Dreamer:
             # digest so the grounding check is well-posed under shared titles (G1).
             sources = [Source(title=m.title, digest=m.digest) for m in cluster.members]
             check = self_evaluate(output, sources=sources, judge=self.judge)
+            leaf_digests = [m.digest for m in cluster.members]
+            # Emit the attestation BEFORE writing the record so the record can link to it. The
+            # attestor auto-chains to the ingest attestations that produced these authored
+            # digests (verifiable lineage to authored content, attestation-layer.md §3).
+            attestation_id = None
+            if self.attestor is not None:
+                att = self.attestor.emit(
+                    agent_role="dreamer", action="dream_pass",
+                    input_hashes=leaf_digests,
+                    output_hashes=[artifact_id(DREAM, None, cluster.titles)],
+                )
+                attestation_id = att.id
             artifact = self.derived.add(
                 kind=DREAM,
                 summary=output,
@@ -117,7 +134,8 @@ class Dreamer:
                 # Today every dream is depth 1 over authored ground; recursive dreaming (a
                 # flag-OFF R&D path) would add interpreted parents, which the acyclic insert
                 # and the decay bound c ≤ γ^d·g are already built to handle.
-                derived_from=[m.digest for m in cluster.members],
+                derived_from=leaf_digests,
+                attestation_id=attestation_id,
             )
             themes.append(Theme(titles=cluster.titles, summary=output,
                                 check=check, artifact=artifact))
@@ -128,6 +146,7 @@ def build_dreamer(config: object | None = None, *, tier: str = "synthesis") -> D
     """Wire a Dreamer against the real configured stores + synthesis model. Pulling the
     synthesis-tier model is required only to actually run it (the unit path injects a fake)."""
     from config.loader import get_config
+    from core.attestation import build_attestor
     from core.models import build_model_server
     from core.stores.derived import open_derived_store
     from core.stores.vectorstore import open_vector_store
@@ -142,4 +161,5 @@ def build_dreamer(config: object | None = None, *, tier: str = "synthesis") -> D
         threshold=dcfg.similarity_threshold,
         min_cluster_size=dcfg.min_cluster_size,
         max_clusters=dcfg.max_clusters,
+        attestor=build_attestor(cfg),
     )

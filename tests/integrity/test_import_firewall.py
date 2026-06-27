@@ -17,7 +17,8 @@ from ops.import_lint import (
     scan_file,
 )
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+# tests/integrity/<file> — three levels up is the repo root.
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_core_has_no_forbidden_imports():
