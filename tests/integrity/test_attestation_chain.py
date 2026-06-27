@@ -15,8 +15,9 @@ from fixtures.attestation import TEST_FINGERPRINT, attestor_with_store
 from fixtures.stores import raw_store
 
 from core.attestation import AttestationStore
+from core.curator import Curator
 from core.dreaming import Dreamer
-from core.stores.derived import DREAM, DerivedStore
+from core.stores.derived import DREAM, FINDING, DerivedStore
 
 
 class _FakeVectorStore:
@@ -91,6 +92,49 @@ def test_dreamer_attestation_never_references_observed(tmp_path):
     for att in dreamer_atts:
         assert dobs not in att.input_hashes               # observed never entered a dream
         assert set(att.input_hashes) <= set(authored)     # only authored leaves
+
+
+def _run_curate(tmp_path):
+    raw, store, authored, dobs = _corpus(tmp_path)
+    att_store, attestor = attestor_with_store(tmp_path)
+    # Ingest attestations first — the authored leaves the curator's findings bottom out in.
+    for d in authored:
+        attestor.emit(agent_role="vault_watcher", action="ingest_note",
+                      input_hashes=[d], output_hashes=[d])
+    curator = Curator(
+        store=store,
+        derived=DerivedStore(tmp_path / "derived.sqlite"),
+        raw=raw,                       # both authored digests exist in raw -> no prune noise
+        near_dup_threshold=0.99,
+        attestor=attestor,
+    )
+    report = curator.curate()
+    return raw, att_store, curator, report, authored, dobs
+
+
+def test_curator_finding_carries_a_complete_chain_to_authored_leaves(tmp_path):
+    raw, att_store, curator, report, authored, _ = _run_curate(tmp_path)
+    assert report.findings                                 # the near-dup pair fired
+    records = curator.derived.all(kind=FINDING)
+    assert records
+    for rec in records:
+        assert rec.attestation_id is not None             # record links to its attestation
+        chain = att_store.chain_for(rec.attestation_id)
+        assert chain.is_complete()                        # no broken links
+        assert chain.roles() == {"curator", "vault_watcher"}   # links down to ingest
+        assert chain.constitution_fingerprints() == {TEST_FINGERPRINT}
+        assert chain.leaf_input_hashes() == set(authored)  # bottoms out in exactly those notes
+        for h in chain.leaf_input_hashes():
+            assert raw.exists(h)                           # authored content present in raw
+
+
+def test_curator_attestation_never_references_observed(tmp_path):
+    _, att_store, _, _, authored, dobs = _run_curate(tmp_path)
+    curator_atts = att_store.by_role("curator")
+    assert curator_atts
+    for att in curator_atts:
+        assert dobs not in att.input_hashes                # observed never entered a finding
+        assert set(att.input_hashes) <= set(authored)      # only authored leaves
 
 
 def test_attestation_store_is_append_only_by_construction():

@@ -10,8 +10,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from fixtures.attestation import attestor_with_store
 from fixtures.embedding import DIM, FakeEmbedder
 
+from core.attestation import Attestor
 from core.ingest.index import semantic_search
 from core.ingest.sync import SyncOutcome, VaultSync
 from core.stores.catalog import VaultCatalog
@@ -19,7 +21,7 @@ from core.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
 
 
-def _sync(tmp_path: Path) -> VaultSync:
+def _sync(tmp_path: Path, *, attestor: Attestor | None = None) -> VaultSync:
     vault = tmp_path / "vault"
     vault.mkdir()
     return VaultSync(
@@ -28,6 +30,7 @@ def _sync(tmp_path: Path) -> VaultSync:
         store=VectorStore(tmp_path / "v.lance", dim=DIM),
         catalog=VaultCatalog(tmp_path / "catalog.sqlite"),
         embedder=FakeEmbedder(),
+        attestor=attestor,
     )
 
 
@@ -129,6 +132,35 @@ def test_dedup_shared_content_not_dropped_until_last_ref(tmp_path):
     b.unlink()
     sync.handle_deleted(str(b))
     assert all(r["digest"] != digest for r in sync.store.all_rows())
+
+
+def test_indexed_emits_a_leaf_ingest_attestation(tmp_path):
+    att_store, attestor = attestor_with_store(tmp_path)
+    sync = _sync(tmp_path, attestor=attestor)
+    p = _write(sync, "note.md", "an attested note about beekeeping")
+    assert sync.sync_path(p) is SyncOutcome.INDEXED
+    digest = sync.catalog.get(str(p)).digest
+
+    atts = att_store.by_role("vault_watcher")
+    assert len(atts) == 1
+    att = atts[0]
+    assert att.action == "ingest_note"
+    # Input == output == the content digest: the chain's leaf (attestation-layer.md §3).
+    assert att.input_hashes == (digest,)
+    assert att.output_hashes == (digest,)
+
+
+def test_unchanged_rescan_does_not_emit_a_duplicate_attestation(tmp_path):
+    att_store, attestor = attestor_with_store(tmp_path)
+    sync = _sync(tmp_path, attestor=attestor)
+    _write(sync, "a.md", "alpha content for attestation")
+    first = sync.rescan()
+    assert first.indexed == 1
+    assert att_store.count() == 1
+
+    second = sync.rescan()                        # nothing changed -> early-return, no emit
+    assert second.unchanged == 1
+    assert att_store.count() == 1                 # no spurious re-emission
 
 
 def test_readd_after_tombstone_reactivates(tmp_path):

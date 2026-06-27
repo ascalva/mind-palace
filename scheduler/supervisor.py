@@ -18,6 +18,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from config.secrets_backend import MintedToken, SecretsBackend
 from core.models import MemoryCeilingError
 from core.models.loader import TwoSlotLoader
 from core.stores.telemetry import TelemetryWriter
@@ -37,6 +38,7 @@ class Supervisor:
     handlers: dict[str, Handler]
     presence: Presence = field(default_factory=Presence)
     telemetry: TelemetryWriter | None = None
+    secrets: SecretsBackend | None = None  # vault-runtime-auth.md; Phase 5 wires per-job use
     warm: bool = True                      # tests pass warm=False (no Ollama calls)
     swaps: int = 0                         # worker-slot model swaps (the cost to minimize)
     _worker_key: tuple[str, int] | None = None
@@ -44,6 +46,16 @@ class Supervisor:
     @property
     def _pinned_tier(self) -> str:
         return self.loader.registry.pinned.tier
+
+    def mint_token(self, role: str, ttl: str = "10m") -> MintedToken:
+        """Mint an ephemeral token scoped to `role`'s policy (vault-runtime-auth.md §2). Returns
+        the whole `MintedToken`: the supervisor passes `.token` to the agent (Phase 5) and records
+        `.accessor` in the action's attestation (the Step-5 join) — it holds minting authority
+        only, never reading the secret it mints a token for; that happens later when the agent
+        itself calls `get_secret(name, token=...)`."""
+        if self.secrets is None:
+            raise RuntimeError("no secrets backend wired — mint_token requires [secrets] enabled")
+        return self.secrets.mint_token(role, ttl)
 
     def blocked_tiers(self) -> frozenset[str]:
         return HEAVY_TIERS if self.presence.foreground_active() else frozenset()

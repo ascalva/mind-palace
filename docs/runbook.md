@@ -190,3 +190,218 @@ returned as the top semantic-search hit. Deleting a tracked note tombstoned auto
 (catalog inactive, vector rows dropped, `RawStore.exists(digest)` still `True`). A no-change
 rescan returned `indexed=0` with the vector count unchanged. Full details + the concurrency bug
 this surfaced (now fixed) in `docs/PROGRESS.md`'s 2026-06-27 entry.
+
+## Security & trust infrastructure (owner-operated) — attestation keys, Vault, AWS airlock
+
+The consolidated owner runbook for the **security & attestation track** (Step 6 — the last step).
+The build agent wrote the code, dev-mode/mock tests, policy-as-code (`ops/vault/policies/*.hcl`),
+and this runbook; **nothing below has been run against production** — placing real keys, standing
+up real Vault, and applying real AWS are owner-operated by design (the model advises; code acts;
+*you* hold the credentials). The three component READMEs each point here for the full steps:
+`ops/attestation/README.md`, `ops/vault/README.md`, `cloud/terraform/airlock/README.md`.
+
+**Everything here is additive and independently reversible.** Until you do these, the system runs
+exactly as tested: attestation **records-only** (chained + content-addressed but unsigned),
+`[secrets]` **disabled** (so `get_secret(name)` reads env/Keychain unchanged), no AWS airlock.
+Each layer's bottom turtle is one secret in macOS Keychain. Do them in the order below.
+
+### 0. Keychain — the bottom turtle (delivery mechanism for every secret below)
+
+`get_secret(name)` is `os.environ.get(name)` (`config/loader.py`). So every "place X in Keychain"
+step means **store it in Keychain, and make sure the mind-palace process inherits it in its
+environment.** Store with the macOS `security` CLI (the seed never touches a file, a shell
+history entry, or a log — `-w` with no value prompts interactively):
+
+```sh
+security add-generic-password -U -a mind-palace -s attestation-signing-key -w   # prompts; paste seed
+security find-generic-password -a mind-palace -s attestation-signing-key -w     # read back to verify
+```
+
+Deliver to the process via a launch wrapper the agent execs — the secret names are hyphenated
+(`attestation-signing-key`), which `os.environ` and `env(1)` accept fine but shell `export` does
+not, so set them through `env(1)`, not `export`. Save as `scripts/run_with_secrets.sh` and point
+the LaunchAgent's `ProgramArguments` at it instead of `python` directly:
+
+```sh
+#!/bin/sh
+# Read secrets from Keychain into the env, then exec the real command. No seed is ever written
+# to disk — they live only in Keychain and this process's memory.
+set -eu
+kc() { security find-generic-password -a mind-palace -s "$1" -w; }
+exec env \
+  "attestation-signing-key=$(kc attestation-signing-key)" \
+  "attestation-owner-key=$(kc attestation-owner-key)" \
+  "vault-supervisor-token=$(kc vault-supervisor-token)" \
+  "$@"
+# plist ProgramArguments: [ .../scripts/run_with_secrets.sh, .../.venv/bin/python, .../scripts/watch.py ]
+```
+
+A secret that isn't placed yet just resolves to `None` — the corresponding layer stays off,
+fail-closed where it matters (see §1). Place only the ones whose layer you're turning on.
+
+### 1. Attestation signing keys — turn on the signed runtime-proof layer
+
+Activates Ed25519 signing inside `StoreAttestor.emit` (records become tamper-evident). The
+committed `ops/attestation/*.pub` are **DEV** keys with no production trust — replace them:
+
+```sh
+./.venv/bin/python scripts/gen_attestation_keys.py supervisor   # prints a base64 seed; rewrites supervisor.pub
+./.venv/bin/python scripts/gen_attestation_keys.py owner         # prints a base64 seed; rewrites owner.pub
+security add-generic-password -U -a mind-palace -s attestation-signing-key -w   # paste the supervisor seed
+security add-generic-password -U -a mind-palace -s attestation-owner-key   -w   # paste the owner seed
+git add ops/attestation/supervisor.pub ops/attestation/owner.pub && git commit   # pubs are public
+```
+
+Then set `[attestation] enabled = true` in config. Turning it on **without** a placed signing key
+is a hard error (`AttestationKeyMissing`, fail-closed) — never a silent unsigned run. The owner
+seed signs **gate decisions only** (non-repudiable approval); the supervisor seed signs all other
+agent attestations. Verify:
+
+```sh
+./.venv/bin/python scripts/verify_attestation.py --all     # every stored attestation's signature + chain
+```
+
+### 2. Vault (Homebrew) — the runtime credential-authorization layer
+
+You installed `vault` via Homebrew (`/opt/homebrew/bin/vault`). The design note
+(`vault-runtime-auth.md` §1) sketches Vault in a rootless Podman container; the Homebrew binary is
+simpler on a single-user Mac and equally loopback-bound — the client `addr` and the stored data
+are identical, only the process manager differs. Either is fine.
+
+#### 2a. Quick validation NOW — dev mode (disposable, in-memory, no production keys)
+
+This is what the `needs_vault` live tests target; it proves the real mint → accessor → scoped-read
+round-trip end to end. Dev mode auto-unseals, prints a root token, and **loses everything on
+Ctrl-C** — never use it for real secrets.
+
+```sh
+# Terminal 1 — throwaway server
+vault server -dev -dev-listen-address=127.0.0.1:8200      # copy the "Root Token: hvs.…" it prints
+
+# Terminal 2
+export VAULT_ADDR=http://127.0.0.1:8200
+export VAULT_TOKEN=<root token from terminal 1>
+./.venv/bin/python -m pytest -m needs_vault -v             # seeds policies from ops/vault/policies/, asserts the join
+```
+
+The test seeds `ops/vault/policies/dreamer.hcl` via the root token (the dev-mode equivalent of
+`vault policy write`), mints a `dreamer` token, and checks both a permitted read and an
+out-of-policy denial against the **real** server — the same assertions `FakeVault` makes in the
+unit suite, now against `hvac`.
+
+#### 2b. Production — persistent, auto-unsealed on login
+
+Run the server from a config file (not `brew services`' dev default), with Raft integrated storage:
+
+```hcl
+# ~/.mind-palace/vault.hcl
+storage "raft" { path = "/Users/<you>/.mind-palace/vault-data"  node_id = "mac" }
+listener "tcp" { address = "127.0.0.1:8200"  tls_disable = true }   # loopback = inside the egress guard (Invariant 1)
+api_addr     = "http://127.0.0.1:8200"
+cluster_addr = "http://127.0.0.1:8201"
+disable_mlock = true
+ui = true
+# When the server node joins the Tailscale mesh, ADD a second listener on the 100.x.x.x iface — do
+# not replace the loopback one (vault-runtime-auth.md §1).
+```
+
+```sh
+vault server -config ~/.mind-palace/vault.hcl &            # or a LaunchAgent, mirroring com.mind-palace.watch
+export VAULT_ADDR=http://127.0.0.1:8200
+vault operator init -key-shares=1 -key-threshold=1         # single-user simplicity; note the single-key tradeoff
+#   → store BOTH outputs in Keychain:
+security add-generic-password -U -a mind-palace -s vault-unseal-key   -w   # paste Unseal Key 1
+security add-generic-password -U -a mind-palace -s vault-root-token   -w   # paste Initial Root Token
+vault operator unseal "$(security find-generic-password -a mind-palace -s vault-unseal-key -w)"
+export VAULT_TOKEN="$(security find-generic-password -a mind-palace -s vault-root-token -w)"
+```
+
+Auto-unseal on login — a LaunchAgent (same pattern as `com.mind-palace.watch`) that starts the
+server then unseals from Keychain:
+
+```sh
+#!/bin/sh                                  # scripts/vault_unseal.sh, invoked by the LaunchAgent
+set -eu
+vault server -config "$HOME/.mind-palace/vault.hcl" &
+until vault status >/dev/null 2>&1 || [ "$?" = 2 ]; do sleep 1; done   # status exits 2 while sealed
+vault operator unseal "$(security find-generic-password -a mind-palace -s vault-unseal-key -w)"
+```
+
+Enable the engines, write the policies, bind a token role per agent, and load the static secrets
+(`ops/vault/README.md` has the role→grant table; `kv` paths must match it exactly):
+
+```sh
+vault secrets enable -version=2 -path=kv kv
+vault secrets enable -path=aws aws            # then configure bridge-role / airlock-role IAM (see §3 + the aws engine docs)
+for f in ops/vault/policies/*.hcl; do vault policy write "$(basename "$f" .hcl)" "$f"; done
+# one token role per policy so the supervisor can mint scoped child tokens:
+for r in dreamer bridge research-airlock advisor correlator gate; do
+  vault write "auth/token/roles/$r" allowed_policies="$r" period=10m orphan=false; done
+# static secrets the policies grant (values are yours; these are the names the code reads):
+vault kv put kv/oura-daily-aggregates value=<…>
+vault kv put kv/oura-api-token        value=<…>
+vault kv put kv/financial-readonly-key value=<…>
+vault kv put kv/gate-ledger-key       value=<…>
+```
+
+The **supervisor's** own bootstrap token is the bottom turtle for this layer — it holds
+`auth/token/create` (mints child tokens) and nothing else, and lives in Keychain, never in Vault:
+
+```sh
+vault token create -policy=supervisor -period=24h -orphan        # copy the token
+security add-generic-password -U -a mind-palace -s vault-supervisor-token -w    # paste it
+```
+
+Finally set `[secrets] enabled = true`. `build_secrets_backend` now wires a real `VaultClient`
+(`addr`/`kv_mount`/`aws_mount` from `[secrets]`, supervisor token from
+`get_secret("vault-supervisor-token")`). Agents still never call Vault directly — they receive a
+minted token in context (Phase 5) and pass it to `get_secret(name, token=…)`; an out-of-scope read
+raises `VaultPermissionDenied`, and that denial is itself an alignment signal (§6).
+
+### 3. AWS research airlock — apply Phase 8 (Zone C)
+
+Owner-operated infra apply (account `054942746160`, SSO `alberto-sso`, `us-east-1`). Full notes in
+`cloud/terraform/airlock/README.md`:
+
+```sh
+aws sso login --profile alberto-sso
+cd cloud/terraform/bootstrap && AWS_PROFILE=alberto-sso terraform init && AWS_PROFILE=alberto-sso terraform apply
+cd ../airlock && AWS_PROFILE=alberto-sso terraform init && AWS_PROFILE=alberto-sso terraform apply
+```
+
+Copy `airlock_bucket` → `config/defaults.toml [airlock] s3_bucket`, and add a `mind-palace-bridge`
+AWS profile that assumes `bridge_role_arn` (`source_profile = alberto-sso`). Recommended: narrow
+`bridge_trusted_principal_arns` to the SSO role. The bridge (Zone B) is the only component that
+holds AWS creds and touches S3; the corpus never crosses — only de-identified criteria (Inv. 2/11).
+
+Once Vault's `aws` engine (§2b) is configured, the bridge's static AWS profile can be retired in
+favor of dynamic `aws/creds/bridge-role` (TTL=1h) minted per interaction — the end state in
+`vault-runtime-auth.md` §4. Until then the static `mind-palace-bridge` profile is the stepping stone.
+
+### 4. Secrets ↔ where they live (the full map)
+
+| Secret name (`get_secret`) | Lives in | Read by | Scope |
+|---|---|---|---|
+| `attestation-signing-key` | Keychain | `build_attestor` (supervisor signer) | signs all non-gate attestations |
+| `attestation-owner-key` | Keychain | `build_attestor` (owner signer) | signs **gate decisions only** |
+| `vault-supervisor-token` | Keychain | `build_secrets_backend` | mints scoped child tokens; reads no role secret |
+| `vault-unseal-key` / `vault-root-token` | Keychain | the unseal LaunchAgent / you | bootstrap Vault itself |
+| `kv/oura-daily-aggregates` | Vault kv-v2 | `dreamer`, `correlator` tokens | biometric aggregates |
+| `kv/oura-api-token` | Vault kv-v2 | `bridge`, `advisor` tokens | Oura API |
+| `kv/financial-readonly-key` | Vault kv-v2 | `advisor` token | read-only financial |
+| `kv/gate-ledger-key` | Vault kv-v2 | `gate` token | gate-state encryption |
+| `aws/creds/bridge-role` | Vault aws (dynamic) | `bridge` token | S3 airlock, TTL=1h |
+| `aws/creds/airlock-role` | Vault aws (dynamic) | `research-airlock` token | research S3, TTL=1h |
+| AWS SSO | Keychain (owner-operated) | `aws sso login` (you) | not code-operated |
+
+### 5. End-to-end verification
+
+```sh
+./.venv/bin/python -m pytest -m needs_vault -v        # real Vault: scoped mint/read + out-of-policy denial (§2a)
+./.venv/bin/python scripts/verify_attestation.py --all   # signatures + chains to authored leaves (§1)
+./.venv/bin/python -m ops.import_lint                  # core/ still reaches no network, no hvac/boto3
+```
+
+Gate: a `dreamer` token reads `kv/oura-daily-aggregates` but is **denied** the financial key; the
+supervisor token cannot read role secrets directly; emitted attestations verify and (when an action
+runs under a minted token) carry that token's **accessor** — never the token (Step 5 join).

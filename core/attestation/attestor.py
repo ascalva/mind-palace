@@ -40,6 +40,7 @@ class Attestor(Protocol):
         input_hashes: tuple[str, ...] | list[str] = (),
         output_hashes: tuple[str, ...] | list[str] = (),
         derived_from_ids: list[str] | None = None,
+        vault_token_accessor: str = "",
     ) -> Attestation: ...
 
 
@@ -55,7 +56,7 @@ class StoreAttestor:
     signer: Ed25519Signer | None = None
 
     def emit(self, *, agent_role, action, input_hashes=(), output_hashes=(),
-             derived_from_ids=None) -> Attestation:
+             derived_from_ids=None, vault_token_accessor="") -> Attestation:
         ih = tuple(input_hashes)
         if derived_from_ids is None:
             # Auto-link the chain: any prior attestation that PRODUCED one of my inputs is a
@@ -71,6 +72,12 @@ class StoreAttestor:
             input_hashes=ih,
             output_hashes=tuple(output_hashes),
             derived_from_ids=tuple(derived_from_ids),
+            # The Vault token's non-secret accessor (Step-5 join) — the audit handle for the
+            # authorization this action ran under. NEVER the token itself (MintedToken docstring).
+            # It is part of signing_payload(), so the authorization claim is signed/tamper-evident.
+            # Default "" leaves every current emitter (Dreamer/Curator/VaultSync) unchanged: live
+            # token threading is Phase 5 (agent factory + dispatcher), as in Step 4.
+            vault_token_accessor=vault_token_accessor,
         )
         if self.signer is not None:
             # The signature covers signing_payload(), which EXCLUDES signature/signer — so signing

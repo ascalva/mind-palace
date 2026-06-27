@@ -32,6 +32,13 @@ edge = [
 watch = [
     "watchdog>=4.0",
 ]
+# Vault as a runtime authorization layer (design-notes/vault-runtime-auth.md). OPTIONAL: the
+# `[secrets]` config section defaults to disabled, and `get_secret(name)` with no token never
+# touches hvac. The import-firewall (ops/import_lint.py) forbids hvac anywhere under core/ —
+# config/secrets_backend.py imports it lazily so FakeVault-backed tests don't need it installed.
+secrets = [
+    "hvac>=2.0",
+]
 
 [tool.pytest.ini_options]
 # Top-level zone packages (core/, edge/, …) are importable without an editable install.
@@ -57,6 +64,7 @@ markers = [
     "slow: takes >10s",
     "needs_models: requires Ollama models pulled",
     "needs_network: requires network (edge/cloud only — never core)",
+    "needs_vault: requires a running Vault dev-server (deselect: -m 'not needs_vault')",
 ]
 # The longitudinal suite is opt-in: it runs against a continuously-running system, not in
 # the standard inner loop. Exclude it from a bare `pytest`; opt in with `pytest tests/longitudinal`.

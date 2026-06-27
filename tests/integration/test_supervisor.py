@@ -5,6 +5,9 @@ and resume at job boundaries."""
 
 import dataclasses
 
+import pytest
+from fixtures.secrets import fake_vault
+
 from config.loader import load_config
 from core.models.loader import TwoSlotLoader
 from core.models.ollama_client import OllamaClient
@@ -24,13 +27,14 @@ def _present(active: bool) -> Presence:
     return Presence(idle_probe=lambda: 0.0 if active else 10_000.0)
 
 
-def _supervisor(tmp_path, handlers, *, active=False, loader=None):
+def _supervisor(tmp_path, handlers, *, active=False, loader=None, secrets=None):
     return Supervisor(
         queue=JobQueue(tmp_path / "q.db"),
         loader=loader or _loader(),
         handlers=handlers,
         presence=_present(active),
         warm=False,
+        secrets=secrets,
     )
 
 
@@ -114,3 +118,19 @@ def test_checkpointed_job_yields_and_resumes(tmp_path):
     sup.run()
     assert calls == [None, "step-2"]
     assert sup.queue.get(j.id).state == DONE and sup.queue.get(j.id).result == "finished"
+
+
+def test_mint_token_returns_a_token_scoped_to_the_role(tmp_path):
+    vault = fake_vault(**{"oura-daily-aggregates": "42 steps"})
+    sup = _supervisor(tmp_path, {}, secrets=vault)
+    minted = sup.mint_token("dreamer", ttl="5m")
+    assert vault.minted == [("dreamer", "5m")]
+    assert vault.read_secret("oura-daily-aggregates", minted.token) == "42 steps"
+    # The accessor is the audit handle, minted alongside, and resolves back to the role.
+    assert vault.role_for_accessor(minted.accessor) == "dreamer"
+
+
+def test_mint_token_without_a_wired_backend_raises(tmp_path):
+    sup = _supervisor(tmp_path, {})
+    with pytest.raises(RuntimeError):
+        sup.mint_token("dreamer")

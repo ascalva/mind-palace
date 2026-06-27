@@ -122,6 +122,16 @@ owner_key_secret = "attestation-owner-key"          # env/Keychain name of the o
 supervisor_pub = "ops/attestation/supervisor.pub"   # committed public key (non-secret), agent attestations
 owner_pub = "ops/attestation/owner.pub"             # committed public key, gate-decision attestations
 
+[secrets]
+# Vault as a per-interaction runtime authorization layer (design-notes/vault-runtime-auth.md).
+# OFF by default: `get_secret(name)` with no token keeps reading env/Keychain unchanged either
+# way — `enabled` only gates whether a real VaultClient gets wired for `mint_token`/scoped
+# reads. Dev-mode Vault runs on loopback (already inside the egress guard, Invariant 1).
+enabled = false
+addr = "http://127.0.0.1:8200"
+kv_mount = "kv"          # kv-v2 mount point for static secrets
+aws_mount = "aws"        # dynamic AWS secrets engine mount point (bridge/airlock roles)
+
 [dreaming]
 # Curator + dreaming knobs (BUILD-SPEC §9). Clustering is deterministic (NumPy cosine over
 # note centroids), so these thresholds fully determine a run. They are the tunables a future

@@ -115,6 +115,18 @@ class AttestationConfig:
 
 
 @dataclass(frozen=True)
+class SecretsConfig:
+    """Vault as a per-interaction runtime authorization layer (vault-runtime-auth.md). `enabled`
+    only gates whether `build_secrets_backend` wires a real VaultClient — `get_secret(name)`
+    with no token is unaffected either way (env/Keychain, unchanged)."""
+
+    enabled: bool = False
+    addr: str = "http://127.0.0.1:8200"
+    kv_mount: str = "kv"
+    aws_mount: str = "aws"
+
+
+@dataclass(frozen=True)
 class SandboxConfig:
     runtime: str            # "podman" (default substrate) | "wasm" (pure-compute, future)
     image: str
@@ -151,6 +163,7 @@ class Config:
     models: tuple[ModelConfig, ...]
     # Default keeps direct Config(...) construction (e.g. in tests) working without this section.
     attestation: AttestationConfig = field(default_factory=AttestationConfig)
+    secrets: SecretsConfig = field(default_factory=SecretsConfig)
 
     def model_for_tier(self, tier: str) -> ModelConfig:
         for m in self.models:
@@ -177,6 +190,7 @@ def load_config(path: Path | None = None) -> Config:
     v, e, s = raw["vault"], raw["embedding"], raw["sandbox"]
     itf, dr, rnd = raw["interface"], raw["dreaming"], raw["dream_rnd"]
     al, at = raw["airlock"], raw.get("attestation", {})
+    sec = raw.get("secrets", {})
     return Config(
         ollama=OllamaConfig(
             host=o["host"],
@@ -255,6 +269,12 @@ def load_config(path: Path | None = None) -> Config:
             supervisor_pub=_resolve(at.get("supervisor_pub", "ops/attestation/supervisor.pub")),
             owner_pub=_resolve(at.get("owner_pub", "ops/attestation/owner.pub")),
         ),
+        secrets=SecretsConfig(
+            enabled=bool(sec.get("enabled", False)),
+            addr=str(sec.get("addr", "http://127.0.0.1:8200")),
+            kv_mount=str(sec.get("kv_mount", "kv")),
+            aws_mount=str(sec.get("aws_mount", "aws")),
+        ),
         models=tuple(
             ModelConfig(
                 name=m["name"],
@@ -274,11 +294,26 @@ def get_config() -> Config:
     return load_config()
 
 
-def get_secret(name: str) -> str | None:
-    """Fetch a secret from the environment (Keychain-backed in the owner's setup).
+def get_secret(name: str, token: str | None = None) -> str | None:
+    """Fetch a secret. With no token: environment (Keychain-backed in the owner's setup) —
+    the owner-operated / bootstrap path, unchanged from Phase 0.
+
+    With a token: a Vault ephemeral token minted for the calling agent's role
+    (`Supervisor.mint_token`, vault-runtime-auth.md §2). The agent receives the token in its
+    context, passes it here, and never constructs or stores it; Vault enforces the role's
+    policy and raises `VaultPermissionDenied` if the path is out of scope — the agent learns
+    nothing beyond "denied". The import lazily inside this branch only: `config.loader` is
+    imported throughout `core/`, and `hvac` must never become a transitive hard dependency of
+    that import (mirrors the lazy `boto3`/`watchdog` pattern elsewhere in this repo).
 
     Secrets are NEVER stored in config files or committed, and never passed to a model
-    (Invariant 10). No secrets are required in Phase 0; this exists as the single
-    sanctioned access point for later phases.
+    (Invariant 10).
     """
+    if token is not None:
+        from config.secrets_backend import build_secrets_backend
+
+        backend = build_secrets_backend()
+        if backend is None:
+            raise RuntimeError("a token was passed but [secrets] is not enabled")
+        return backend.read_secret(name, token)
     return os.environ.get(name)

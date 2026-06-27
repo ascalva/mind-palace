@@ -46,6 +46,7 @@ NETWORK_MODULES: frozenset[str] = frozenset({
     "nntplib", "telnetlib", "socketserver", "xmlrpc", "asyncore", "asynchat",
     "requests", "httpx", "aiohttp", "urllib3", "websockets", "websocket",
     "boto3", "botocore", "paramiko", "pycurl", "grpc",
+    "hvac",   # Vault HTTP client (vault-runtime-auth.md) — config/scheduler only, never core
 })
 
 # The ONLY core modules permitted to import a networking primitive (audited, loopback-only).

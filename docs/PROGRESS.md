@@ -473,8 +473,225 @@ Continuation of the 2026-06-26 vault-sync entry above: that session built the co
 - **Signature integrity (`tests/integrity/test_attestation_signatures.py`):** emitted signatures verify (incl. after a store round-trip); **tampering any signed field or the signature breaks verification**; an unknown signer fails closed; `chain.verify_signatures` is True for a fully-signed ingest→dream chain and **False if any one link is tampered**; **gate decisions must be owner-signed** (supervisor-signed `gate_approve`/`gate_reject` rejected, owner-signed accepted); committed `ops/attestation/*.pub` match the dev seeds. Crypto mechanics in `tests/unit/test_attestation_crypto.py`.
 - CLI smoke: `verify_attestation.py` end-to-end verifies a signed chain; exit codes correct (not-found→1, list→0, usage→2). `build_attestor` fail-closed when `enabled=true` + no key → `AttestationKeyMissing`.
 
-**Owner-deferred (you write code; owner operates production keys):** generate real keypairs (`scripts/gen_attestation_keys.py supervisor|owner`), place the printed seeds in Keychain (`attestation-signing-key`, `attestation-owner-key`), commit the regenerated `*.pub`, set `[attestation] enabled = true`. Full steps go in the Step-6 runbook. **Carry-forward:** Phase 4 empirical `-m podman` still pending.
+**Owner-deferred (you write code; owner operates production keys):** generate real keypairs (`scripts/gen_attestation_keys.py supervisor|owner`), place the printed seeds in Keychain (`attestation-signing-key`, `attestation-owner-key`), commit the regenerated `*.pub`, set `[attestation] enabled = true`. Full steps go in the Step-6 runbook.
 
-**Next (Step 4 — Vault integration, dev-mode/fake Vault):** `VaultBackend` + `get_secret(name, token=None)`; supervisor `mint_token(role, ttl)`; AppRole policies as HCL under `ops/vault/policies/` (NOT applied — owner-operated). Two acquisition patterns: in-process agents get supervisor-minted tokens via context (primitives + scope tests now; live wiring at Phase 5); the bridge holds its own AppRole identity (first real consumer). **Do NOT pass minted tokens across the core↔edge filesystem handoff** (surface if it conflicts with the Phase-8 bridge). `hvac` blocked from `core/` (import-lint). `FakeVault` tests + `@pytest.mark.needs_vault` real-dev-mode test. Production Vault setup is owner-operated. Steps 5–6 (Vault↔attestation join, owner runbook) follow.
+## Carry-forward RESOLVED — Phase 4 empirical `-m podman` (2026-06-27)
+**Not a phase; a status correction.** The Phase-4 empirical isolation gate had been carried forward as "pending" across every checkpoint since 2026-06-25 (podman machine wouldn't boot: libkrun virtio-fs mount failure, then applehv wedged on recreation — see the Phase 4 entry + `docs/runbook.md`). Re-checked while pausing before Step 4: `podman machine list` now shows `podman-machine-default` (libkrun, 2 CPU/2GiB) **currently running**; `podman info` returns full healthy host info (cgroups v2, fedora podman-machine-os); a manual `podman run --rm alpine:latest echo ...` pulled and ran successfully. Ran the actual gate: **`pytest -m podman` → 5/5 passed** (`tests/e2e/test_sandbox_podman_live.py`: runs code + returns stdout, network is off, vault is unreachable, wall-clock timeout enforced, runs as non-root). Likely cause: a podman/libkrun update since the last attempt fixed the virtio-fs boot bug; no code or test changes were needed — the by-construction logic gate (Phase 4) and the empirical gate now agree. **The Phase 4 gate is now fully closed, both tiers.** No further carry-forward needed; do not re-add this note to future entries unless the machine regresses again.
+
+## Security & attestation track — testing-coverage backfill (2026-06-27, NOT a phase)
+**Not a phase; closes out the owner-requested pause** (testing-coverage + sandbox-resilience review before Step 4 — the podman half is the RESOLVED entry above). Grepped for the gap rather than guessing: confirmed no test anywhere constructed `Curator(..., attestor=...)`, `VaultSync(..., attestor=...)`, or called `build_dreamer`/`build_curator`/`build_vault_sync` — so the `self.attestor.emit(...)` lines added in Step 2 had never executed under test for two of the three emitters, and none of the three `build_*` wiring branches had ever run. Backfilled all three; no production code changed.
+
+**Built (tests only)**
+- `tests/integrity/test_attestation_chain.py`: extended with the Curator half of the existing Dreamer pattern — `test_curator_finding_carries_a_complete_chain_to_authored_leaves` (a real `Curator(attestor=...)` over a corpus with an OBSERVED note sitting next to the authored near-dup pair in vector space; every finding's `attestation_id` resolves to a complete chain, `roles == {curator, vault_watcher}`, `leaf_input_hashes` == exactly the authored digests, present in raw) + `test_curator_attestation_never_references_observed` (the runtime firewall half, mirrored from the dreamer test).
+- `tests/integration/test_vault_sync.py`: `_sync()` helper now takes an optional `attestor=`. `test_indexed_emits_a_leaf_ingest_attestation` (a real `sync_path()` INDEXED outcome emits exactly one `vault_watcher`/`ingest_note` attestation with `input_hashes == output_hashes == (digest,)` — the chain's leaf) + `test_unchanged_rescan_does_not_emit_a_duplicate_attestation` (the UNCHANGED early-return never calls `attestor.emit`, asserted via `att_store.count()` staying at 1 across a second `rescan()`).
+- `tests/integration/test_attestor_build_wiring.py` (new file): `build_curator`/`build_dreamer`/`build_vault_sync` each wire a real `StoreAttestor` pointed at the configured attestation-store path, checked with `dataclasses.replace(get_config(), paths=..., vault=...)` into `tmp_path` (so the smoke test never touches the live repo's `data/` dir) — no live model/Ollama call needed, since `OllamaClient`/`build_model_server`/`lancedb.connect` are all side-effect-free at construction. Plus one cross-agent check that all three resolve to the same on-disk store path (so production attestations from different agents actually chain together).
+
+**Verified**
+- `ruff` clean; import-firewall **OK**. Fast suite **293 → 301 collected / 280 → 288 passed** (+8: 2 curator chain integrity, 2 vault-sync emission, 4 build-wiring), 13 deselected. **Integrity gate 23 → 25 passed.** No category double-marking.
+
+**Owner-deferred:** none (tests only). **Carry-forward:** none new.
+
+## Security & attestation track — WASM sandbox runner, scoped not built (2026-06-27, NOT a phase)
+**Design only — no code, no tests, no config changes.** Per the owner's selected sequencing
+("scope, build-it-later, not now"), wrote `docs/design-notes/wasm-sandbox-runtime.md`: how a
+future `WasmRunner` (wasmtime + Pyodide, named in CONVENTIONS.md/BUILD-SPEC §11 as the
+pure-compute upgrade path) fills the existing `core/sandbox/runner.py` seam without changing
+the `SandboxRunner` Protocol, `ExecSpec`/`ExecResult`/`Limits`/`Network`, or
+`ExecutionBroker`. Covers: isolation-mechanism comparison (Podman's kernel boundary vs
+wasmtime's capability boundary — no syscall import ever wired, vs one removed by flag);
+mapping the six `SandboxRunner` methods onto wasmtime `Store` lifecycle; a `RoutingRunner`
+design for per-execution WASM-vs-Podman routing (today's `build_broker()` picks one runtime
+for the process's lifetime — routing per `ExecSpec` is new); a conservative allowlist-based
+Pyodide package-compatibility check (deny-by-default, routes to Podman before execution, never
+a retry-after-failure); explicit non-goals (`bash`/`node` stay Podman-only — Pyodide is
+Python-only); open risks (Pyodide load cost, fuel/timeout tuning, allowlist staleness) flagged
+as resolve-before-building; a rough 6-step build scope for whenever it's picked up.
+Recommends staying unbuilt until exercised under real load — no urgency, since the Phase-4
+Podman gate is fully closed (see the RESOLVED entry above) and nothing currently depends on a
+second substrate.
+
+**Owner-deferred:** none. **Carry-forward:** none — this is a future-optional upgrade, not a
+gap; do not treat the unbuilt `WasmRunner` as pending work unless a real need for it shows up.
+
+## Security & attestation track — Step 4: Vault integration, dev-mode/fake (2026-06-27, NOT a phase)
+**Vault as a per-interaction runtime authorization layer** (`docs/design-notes/vault-runtime-auth.md`):
+an agent never holds a real secret, only an ephemeral token minted by the supervisor and scoped to
+a named role's policy; a token that doesn't cover a path is denied (`VaultPermissionDenied`) and the
+denial itself is logged as a signal, not just noise (§6). Disabled by default — `get_secret(name)`
+with no token is the env/Keychain path from Phase 0, completely unchanged.
+
+**Naming note:** `config/loader.py` already had a `VaultConfig` for the owner's *note* vault
+(`VaultSync`/`VaultCatalog`/`VaultWatcher` — unrelated). Every new identifier at the config/module/
+section layer uses "Secrets" instead to avoid the collision (`SecretsConfig`, `SecretsBackend`,
+`config/secrets_backend.py`, `[secrets]`); class names that are unambiguously about HashiCorp Vault
+itself still say so (`FakeVault`, `VaultClient`, `VaultPermissionDenied`).
+
+**Built**
+- `config/secrets_backend.py`: `SecretsBackend` Protocol (`mint_token`/`read_secret`); `FakeVault`
+  (in-memory dev double — `policies: dict[role, frozenset[secret_name]]`, append-only `minted`/
+  `denials` audit lists); `VaultClient` (real Vault via `hvac`, construction side-effect-free —
+  `hvac` imported per-method, not in `__init__`, mirroring `edge/bridge/bridge.py`'s lazy `boto3`);
+  `build_secrets_backend(config)` → `None` when `[secrets].enabled = false` (the default).
+- `config/loader.py`: `SecretsConfig` (`enabled`, `addr`, `kv_mount`, `aws_mount`) + `[secrets]` in
+  `config/defaults.toml`. `get_secret(name, token=None)` extended — `token=None` unchanged
+  (env/Keychain); a real token routes through `build_secrets_backend()` and raises on disabled/denied.
+- `scheduler/supervisor.py`: `Supervisor.secrets: SecretsBackend | None` field + `mint_token(role,
+  ttl="10m")` — the supervisor holds minting authority only, never reads what it mints a token for.
+  Threading minted tokens into actual dreamer/curator/vault-sync call sites stays deferred to
+  Phase 5 (agent factory + dispatcher) per the design note's own framing; this step only makes that
+  wiring *possible*.
+- `ops/import_lint.py`: `"hvac"` added to `NETWORK_MODULES`, no allowlist entry — flatly forbidden
+  under `core/`. Covered by the existing blanket `test_core_has_no_forbidden_imports`; no new test
+  needed for that guarantee specifically.
+- `ops/vault/policies/{dreamer,bridge,research-airlock,advisor,correlator,supervisor,gate}.hcl` (7
+  files) — the policy taxonomy from vault-runtime-auth.md §3, one path-stanza set per role.
+  `ops/vault/README.md` mirrors `ops/attestation/README.md`'s structure: grant table, **NOT applied**
+  warning, 6-step owner-operated production-application list.
+- `pyproject.toml`: optional `secrets = ["hvac>=2.0"]` extra; `needs_vault` marker.
+- Tests: `tests/fixtures/secrets.py` (`fake_vault()` helper over the policy taxonomy, mirrors the
+  7 `.hcl` files exactly) + `tests/unit/test_secrets_backend.py` (7 — mint for known/unknown role,
+  read in/out of policy, unknown token, two roles' overlapping grants stay scoped, env-fallback
+  unchanged) + `tests/integration/test_supervisor.py` (+2 — `mint_token` returns a token scoped to
+  the role; raises without a wired backend) + `tests/integration/test_secrets_backend_wiring.py`
+  (4 — disabled-by-default → `None`; enabled wires a real `VaultClient` **with no hvac installed**,
+  proving side-effect-free construction; custom addr/kv_mount picked up; `get_secret(token=...)`
+  raises when disabled) + `tests/e2e/test_secrets_vault_live.py` (2, `@pytest.mark.needs_vault` —
+  mint+read round-trips through a real dev-server; an out-of-policy read is denied by the real
+  server, not just `FakeVault`; self-contained setup via the dev-mode root token, auto-skips with no
+  reachable dev-server, same pattern as `test_sandbox_podman_live.py`/`test_research_live.py`).
+
+**Verified**
+- `ruff` clean; import-firewall **OK** (`hvac` confirmed blocked under `core/`, zero reach). Fast
+  suite **301 → 316 collected, 313 passed** (+15 new: 13 pass here, 2 skip — no Vault dev-server in
+  this environment, expected and correct); **3 total skips** (the 2 new + 1 pre-existing
+  `test_dreaming_live` — model not pulled, unrelated to this step). **Integrity gate unchanged at
+  25 passed** (this step didn't add structural-firewall tests; the import-lint addition is covered
+  by the existing blanket test). No category double-marking.
+- Caught and fixed two self-review issues before they shipped: `VaultClient.__init__` originally
+  imported `hvac` eagerly, contradicting its own "side-effect-free construction" docstring claim —
+  moved the import into `mint_token`/`read_secret` individually. A vacuous test assertion
+  (`"hvac" not in sys.modules or True` — always `True` regardless of the left operand) was written,
+  caught on review, and deleted rather than left in.
+
+**Owner-deferred (you write code/policy-as-code; owner operates production Vault):** stand up a
+Vault dev or production server, `vault policy write` each `ops/vault/policies/*.hcl`, enable the
+kv-v2 and AWS secrets engines, create AppRole bindings, place `vault-supervisor-token` via
+Keychain/env, set `[secrets] enabled = true`. Steps in `ops/vault/README.md`. Live-gate test
+(`pytest -m needs_vault`) will then exercise the real path instead of skipping.
+
+**Carry-forward:** threading minted tokens into real agent call sites (dreamer/curator/bridge) is
+Phase 5 work, not a Step-4 gap — the design note scopes it there explicitly.
+
+## Security & attestation track — Step 5: Vault↔attestation join (2026-06-27, NOT a phase)
+**Joins the two subsystems built across this track** (Vault tokens, Step 4 ↔ signed attestation
+records, Steps 2–3): every attestation has a `vault_token_accessor` field that has defaulted to
+`""` since Step 2 (the record was built ready for this) — Step 5 populates it. The crux is a
+security distinction (attestation-layer.md §2, vault-runtime-auth.md §6): a minted Vault token
+comes with an **accessor** — a *non-secret* audit handle that can look up a token's metadata or
+revoke it, but **cannot authenticate or read any secret**. The attestation records the **accessor**
+(tying an action to the Vault authorization it ran under), **never the token** (the credential —
+Invariant 10). The accessor is already inside `signing_payload()`, so the authorization claim is
+part of the signed, tamper-evident surface automatically. Same scope discipline as Step 4: build
+the join primitive + prove its security properties; live token-threading through agents stays
+Phase 5.
+
+**Built**
+- `config/secrets_backend.py`: `MintedToken(token, accessor)` frozen value object — a mint returns
+  both (real Vault hands back `resp["auth"]["client_token"]` + `["accessor"]` in one response).
+  `FakeVault.mint_token` now generates a distinct token AND accessor in **separate keyspaces**
+  (`fake-token-*` vs `fake-accessor-*` — a token can't be used where an accessor is expected, nor
+  vice versa) and adds `role_for_accessor(accessor)` (the dev-mode analogue of Vault's
+  `lookup-accessor`: resolves an accessor → role *without* the token — what makes the join
+  verifiable). `VaultClient.mint_token` captures the real accessor. `SecretsBackend` Protocol +
+  `Supervisor.mint_token` return `MintedToken`.
+- `core/attestation/attestor.py`: `Attestor` Protocol + `StoreAttestor.emit` gained
+  `vault_token_accessor: str = ""`, flowing into `Attestation.create`. Default `""` leaves every
+  live emitter (Dreamer/Curator/VaultSync) **unchanged** — no live token threading yet (Phase 5).
+- Tests: updated all Step-4 call sites to the new `MintedToken` return (`.token` for reads).
+  `tests/unit/test_secrets_backend.py` (+1: token/accessor occupy separate keyspaces — accessor
+  can't authenticate a read, token doesn't resolve as an accessor). `tests/integration/
+  test_supervisor.py` (mint test now also asserts `role_for_accessor(minted.accessor) == role`).
+  `tests/integrity/test_attestation_vault_join.py` (new, +4, the non-skippable gate): emit records
+  the accessor and the **token string appears NOWHERE** in the serialized attestation (the
+  firewall); the accessor resolves back to the attested `agent_role` (verifiable join) and a forged
+  accessor doesn't; the accessor is in the **signed** surface (swapping it breaks signature
+  verification, mirroring the field-tamper test); the accessor is in the content-address (two
+  actions differing only in authorization are distinct attestations).
+
+**Verified**
+- `ruff` clean; import-firewall **OK** (`hvac` still flatly blocked under `core/`, 4/4). Fast suite
+  **316 → 321 collected** (+5: 1 unit, 4 integrity join). **Integrity gate 25 → 29 passed.** Full
+  suite: of 321 collected, **all 318 non-skipped pass**, 3 skip (2 `needs_vault`, 1 `dreaming_live`
+  — infra-gated, unrelated). ⚠️ One full-suite run showed `test_scheduler_live::test_supervisor_
+  dispatches_a_real_job` failing with `TimeoutError` — a **concurrency-induced model timeout**
+  (I'd launched parallel `pytest` runs alongside the suite, starving the live Ollama dispatch); it
+  **passes clean in isolation (55.89s)**, confirmed. Not a regression — Step 5 doesn't touch the
+  dispatch path (only *added* `mint_token` + a default-`None` `secrets` field). Lesson: don't run
+  concurrent pytest against the live suite.
+
+**Owner-deferred:** none new — the Step-4 Vault standup (above) is the same prerequisite; once a
+real dev-server is up, `pytest -m needs_vault` exercises the real accessor round-trip too.
+
+**Carry-forward:** live token+accessor threading through real agent dispatch (supervisor mints →
+passes `.token` to the agent in context, records `.accessor` on the action's attestation) is
+Phase 5, as scoped — the seam is now complete and proven; Phase 5 wires it into the live loop.
+
+## Security & attestation track — Step 6: owner-operated runbook + live-validated (2026-06-27, NOT a phase) — TRACK COMPLETE
+**The last step. Consolidates every owner-deferred production step across the track into one
+owner-facing runbook**, and — because the owner had just installed Vault via Homebrew — actually
+**validated the Step-5 join end-to-end against a real Vault server** (the dev-mode side of the
+build/owner split, which is the build agent's to run; production standup remains the owner's).
+
+**Built (docs)**
+- `docs/runbook.md` → new **"Security & trust infrastructure (owner-operated)"** section, the
+  single place the three component READMEs (`ops/attestation/`, `ops/vault/`,
+  `cloud/terraform/airlock/`) already point to. Ordered, copy-pasteable, tailored to the owner's
+  actual environment (Homebrew `vault` at `/opt/homebrew/bin/vault`, macOS Keychain via the
+  `security` CLI, launchd, SSO `alberto-sso`): §0 Keychain bottom-turtle + a `run_with_secrets.sh`
+  launch-wrapper snippet that injects hyphenated secret names via `env(1)` (not shell `export`)
+  into the existing `get_secret`→`os.environ` path — no new code; §1 attestation keypair gen +
+  Keychain placement + `[attestation] enabled` (fail-closed); §2 Vault — **2a dev-mode quick
+  validation** (`vault server -dev` → `pytest -m needs_vault`) and **2b production** (Raft config,
+  `operator init`, Keychain auto-unseal LaunchAgent, enable kv/aws, `vault policy write` each
+  `ops/vault/policies/*.hcl`, per-role token roles, static secrets, `vault-supervisor-token`,
+  `[secrets] enabled`); §3 AWS airlock `terraform apply` (Phase 8, account `054942746160`); §4 a
+  full secret↔location↔reader↔scope table; §5 end-to-end verification commands. Notes the design
+  note's Podman-container option vs the owner's Homebrew binary (equivalent, loopback either way).
+
+**Built (code — surfaced by the live run)**
+- `config/secrets_backend.py`: `VaultClient.read_secret` now passes `raise_on_deleted_version=True`
+  to hvac's `read_secret_version` — pins current behavior and silences an hvac-v3 DeprecationWarning
+  that only appeared once the call hit a **real** server. Exactly the kind of thing the FakeVault
+  unit tests can't catch; the dev-mode validation earned its keep.
+
+**Verified — the join, live against real Vault (not FakeVault)**
+- Stood up a disposable `vault server -dev` on `127.0.0.1:8200` (in-memory, auto-unsealed, fixed
+  dev root token; **torn down after** — no production init/unseal, no real secrets, no daemon left
+  running). Installed `hvac` 2.4.0 into `.venv` (the `[secrets]` extra; doesn't affect the
+  import-firewall, which scans `core/` source, not site-packages). **`pytest -m needs_vault` → 2/2
+  PASSED** against the real server: a `dreamer` token mints (with a distinct accessor), reads its
+  in-policy `kv/oura-daily-aggregates`, and is **denied** the out-of-policy `financial-readonly-key`
+  by Vault itself — the same assertions `FakeVault` makes in the unit suite, now proven against
+  `hvac` + real policy enforcement. Re-ran after the deprecation fix: clean, no warnings.
+- `ruff` clean; import-firewall still OK (`hvac` installed but flatly blocked under `core/`). The
+  16 secrets/join logic tests green. No production keys placed, `[secrets]`/`[attestation]` remain
+  `false` — the live validation used only the disposable dev server + fake secret values.
+
+**Owner-deferred (now fully documented in the runbook — the build/owner line held throughout):**
+attestation keypair generation + Keychain placement + `[attestation] enabled`; production Vault
+standup (init/unseal, engines, AppRole, `vault-supervisor-token`, `[secrets] enabled`); AWS airlock
+`terraform apply`. All owner-operated; the build agent ran only the dev-mode validation.
+
+**Carry-forward:** live token+accessor threading through real agent dispatch remains Phase 5 (the
+seam is complete and now proven against real Vault). No track-level gaps remain.
+
+---
+### ✅ Security & attestation track COMPLETE (all 6 steps, 2026-06-27)
+1. test reorganization · 2. attestation records (unsigned) · 3. attestation crypto (Ed25519) ·
+4. Vault dev-mode integration · 5. Vault↔attestation join · 6. owner runbook + live validation.
+The runtime proof layer (signed, chained, content-addressed attestations) and the runtime
+credential-authorization layer (scoped ephemeral Vault tokens, accessor-not-token in the audit
+trail) are built, tested cold, and the Vault path is proven live. **Main build remains parked at
+Phase 8 complete — next is Phase 9 (Backups), untouched by this track.**
 
 <!-- Append new phase entries below as you complete each one. -->
