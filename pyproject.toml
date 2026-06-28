@@ -65,6 +65,7 @@ markers = [
     "needs_models: requires Ollama models pulled",
     "needs_network: requires network (edge/cloud only — never core)",
     "needs_vault: requires a running Vault dev-server (deselect: -m 'not needs_vault')",
+    "needs_restic: requires the restic binary installed (deselect: -m 'not needs_restic')",
 ]
 # The longitudinal suite is opt-in: it runs against a continuously-running system, not in
 # the standard inner loop. Exclude it from a bare `pytest`; opt in with `pytest tests/longitudinal`.

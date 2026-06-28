@@ -817,4 +817,74 @@ Phase 5 work, not done here. **Phase A + Phase B both DONE.**
 SSE-KMS, scheduled; AWS sees no plaintext; BUILD-SPEC §16b) — fresh session, re-ground from this
 file + CLAUDE.md + BUILD-SPEC §16b.
 
+## Phase 9 — Backups (restic → S3 + SSE-KMS): code complete + gate verified (2026-06-27)
+**The numbered phase.** restic → S3, client-side encrypted + deduplicated so AWS never sees
+plaintext; SSE-KMS on the bucket for defense in depth; scheduled (BUILD-SPEC §16b, §18 gate).
+Owner chose **full DR** (data + a consistent Vault raft snapshot). Architecture mirrors the airlock:
+Terraform for the AWS side, a testable argv-builder for the restic invocation (like
+`sandbox/policy.py`), a launchd runner, and a real round-trip test.
+
+**Built**
+- `cloud/terraform/backups/` — S3 bucket (private, **versioned**, TLS-only, **SSE-KMS** default via a
+  customer-managed `aws_kms_key` with rotation), lifecycle (expire noncurrent versions + abort MPU),
+  and a **dedicated** `mind-palace-backup` IAM user scoped to exactly this bucket + key. The user is
+  deliberately **independent of Vault's AWS engine**: restore is the DR path and must work when Vault
+  is sealed/down — a dependency on Vault (whose own state we back up) would be circular. Access key
+  NOT created in TF (kept out of tfstate). `terraform fmt`/`validate` clean offline.
+- `[backup]` config + `BackupConfig` (loader.py): repo URL, Keychain item names (password + AWS key —
+  never the values), region, `vault_snapshot`, exclude globs, retention (keep daily/weekly/monthly).
+  Off by default; enable per machine via the `config/local.toml` overlay.
+- `ops/backup/plan.py` — `BackupPlan` + pure, deterministic argv builders (`init/backup/forget/
+  restore/check/snapshots`) and `ResticRunner` (subprocess; secrets via env, never argv). No password
+  or AWS key can appear in argv by construction (no field carries one). `build_backup_plan()` backs
+  up the note vault + the data dir, **excluding the live Vault raft store** (`<data>/vault`) — that's
+  captured separately as a consistent snapshot the runner stages inside the data dir so it rides
+  along. `ops/backup/run.py` — CLI the launchd wrapper drives.
+- `ops/backup/backup.sh` (launchd-driven) — reads `restic-password` + the backup AWS key from
+  Keychain into env; best-effort `vault operator raft snapshot save` (full DR; skipped if Vault
+  sealed/no token); self-inits the repo on first run; `backup` → `forget --prune` → `check`.
+  `ops/backup/com.mind-palace.backup.plist` (daily 03:30, missed-while-asleep fires on wake).
+  `ops/vault/policies/backup.hcl` — least-privilege `sys/storage/raft/snapshot` read only (the
+  backup token sees no secret value), auto-applied by `setup_policies.sh`.
+- Tests: `tests/unit/test_backup_plan.py` (6 — argv builders deterministic + secret-free; plan
+  excludes the live raft). `tests/e2e/test_backup_roundtrip.py` (`@pytest.mark.needs_restic`) — the
+  gate, against a LOCAL restic repo (encryption is identical local-vs-S3): backup → restore →
+  byte-compare, AND grep the repo for the plaintext → **absent** (AWS-sees-no-plaintext). `needs_restic`
+  marker in pyproject.
+
+**Verified — the Phase 9 gate, demonstrated cold**
+- Installed `restic` 0.19.0 (brew — a real Phase-9 prerequisite, not throwaway). **`pytest -m
+  needs_restic` → 1/1 PASSED**: encrypted backup + restore round-trips; the repository's bytes
+  contain no plaintext; `restic check` passes. ruff clean; import-firewall green (`ops/backup` is
+  operational, not core — imports subprocess/shutil, no network lib). Logic suite **307 → 313
+  passed** (+6 backup unit). `run.py` CLI plumbing + exit codes smoke-tested.
+
+**Deployed live (2026-06-27, owner-operated):** `cloud/terraform/backups` applied for real —
+`mind-palace-backups-054942746160` (S3, versioned, SSE-KMS) + the `mind-palace-backup` IAM user.
+Access key minted by hand → Keychain (`backup-aws-access-key-id`/`-secret-access-key`, kept out of
+tfstate); a generated restic repo password → Keychain (`restic-password`) + escrowed out-of-band;
+`backup` Vault policy applied + a 768h orphan token → Keychain (`vault-backup-token`). `[backup]`
+enabled in `config/local.toml` (the repository line had briefly landed under `[secrets]` by mistake
+— moved to its own `[backup]` block, see `config/local.toml`). First real run: `vault operator raft
+snapshot save` succeeded, restic **initialized the live S3 repo** and backed up 1083 files / 26.756
+MiB (19.238 MiB stored after dedup/compression) → snapshot `fbb9935a`, `forget` applied retention,
+`check` found no errors. Restore-verify (`restore latest` to a scratch dir) confirmed byte-for-byte
+recovery from S3. LaunchAgent installed (`launchctl bootstrap` + a manual `kickstart -k`) and
+confirmed via `data/logs/backup.out.log` — daily 03:30 going forward.
+
+**Two operator slips caught + fixed live (worth noting for future deploys, not code bugs):**
+(1) `setup_policies.sh` was run from inside `cloud/terraform/backups` (left over from the apply
+step's `cd`) — relative path resolved wrong, "no such file or directory"; fix was `cd` back to the
+repo root. (2) the `restic_repository` terraform output was pasted under `[secrets]` instead of a
+new `[backup]` section in `config/local.toml`, so `backup.sh` ran (vault snapshot succeeded) but then
+correctly refused with "no `[backup]` repository configured" rather than silently doing the wrong
+thing. Both are runbook/sequencing footguns, not bugs in `ops/backup/` — the fail-closed config
+check did its job.
+
+**Phase 9 — code, gate, AND live deploy all COMPLETE.** Main build: Phases 0–9 fully done (+ the
+security/attestation track + production Vault + AWS airlock, all live). Next numbered phase:
+**Phase 10 — Self-modification loop** (the last + most dangerous; propose/approve/execute gate, safe
+levers, validate against rolling baseline + frozen golden set + Constitution, auto-rollback;
+BUILD-SPEC §18). Fresh session for it.
+
 <!-- Append new phase entries below as you complete each one. -->

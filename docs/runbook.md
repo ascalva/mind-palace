@@ -432,3 +432,59 @@ is Phase 5 (the bridge holding its own identity). On a single-user Mac with SSO 
 Gate: a `dreamer` token reads `kv/oura-daily-aggregates` but is **denied** the financial key; the
 supervisor token cannot read role secrets directly; emitted attestations verify and (when an action
 runs under a minted token) carry that token's **accessor** — never the token (Step 5 join).
+
+## Encrypted backups — restic → S3 (Phase 9, owner-operated)
+
+`restic` encrypts + deduplicates **client-side**, so the only bytes that reach S3 are ciphertext —
+AWS never sees plaintext (§16b). The bucket's SSE-KMS is defense in depth; the bucket is versioned
+so a bad prune is recoverable. The scheduled job (`ops/backup/backup.sh`) reads the data dirs and a
+consistent Vault snapshot, and is the only thing here that crosses the network — the sealed core
+never runs backups. The restic invocation itself is built + unit-tested in `ops/backup/plan.py`;
+backup + restore + no-plaintext are proven against a local repo (`pytest -m needs_restic`).
+
+```sh
+brew install restic        # the backup tool
+
+# 1. Infra (cloud/terraform/backups — S3 + KMS + the scoped mind-palace-backup IAM user):
+aws sso login --profile alberto-sso
+cd cloud/terraform/backups && AWS_PROFILE=alberto-sso terraform init && AWS_PROFILE=alberto-sso terraform apply
+#   note outputs: backup_bucket, backup_user_name (=mind-palace-backup), restic_repository
+
+# 2. Backup IAM key by hand (kept out of tfstate) -> Keychain:
+aws iam create-access-key --user-name mind-palace-backup --profile alberto-sso
+security add-generic-password -U -a mind-palace -s backup-aws-access-key-id     -w   # paste AccessKeyId
+security add-generic-password -U -a mind-palace -s backup-aws-secret-access-key -w   # paste SecretAccessKey
+
+# 3. The restic repo password — generate a STRONG one and place it in Keychain. ⚠️ ALSO escrow it
+#    out-of-band (printed/password-manager): lose it and the backups are UNRECOVERABLE.
+security add-generic-password -U -a mind-palace -s restic-password -w               # paste a long random string
+
+# 4. (Full-DR Vault snapshot) apply the backup policy + a long-lived snapshot token -> Keychain:
+export VAULT_ADDR=http://127.0.0.1:8200
+export VAULT_TOKEN="$(security find-generic-password -a mind-palace -s vault-root-token -w)"
+vault policy write backup ops/vault/policies/backup.hcl       # (or re-run ops/vault/setup_policies.sh)
+vault token create -policy=backup -period=768h -orphan -field=token   # copy it
+security add-generic-password -U -a mind-palace -s vault-backup-token -w            # paste it
+
+# 5. Enable [backup] for THIS machine in config/local.toml (gitignored), with the repo URL:
+#    [backup]
+#    enabled = true
+#    repository = "<terraform output restic_repository>"
+
+# 6. First run (self-inits the repo), then verify a restore + install the daily schedule:
+sh ops/backup/backup.sh                                        # init + backup + prune + check
+./.venv/bin/python -m ops.backup.run snapshots                 # should list one snapshot
+#   restore-verify into a scratch dir (do this once to trust the chain end-to-end):
+RESTIC_PASSWORD="$(security find-generic-password -a mind-palace -s restic-password -w)" \
+AWS_ACCESS_KEY_ID="$(security find-generic-password -a mind-palace -s backup-aws-access-key-id -w)" \
+AWS_SECRET_ACCESS_KEY="$(security find-generic-password -a mind-palace -s backup-aws-secret-access-key -w)" \
+  ./.venv/bin/python -m ops.backup.run restore latest /tmp/restore-check
+cp ops/backup/com.mind-palace.backup.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.mind-palace.backup.plist   # daily 03:30
+launchctl kickstart -k gui/$(id -u)/com.mind-palace.backup     # run once now to confirm; logs in data/logs/backup.*.log
+```
+
+Gate (BUILD-SPEC §18 Phase 9): an encrypted backup + restore round-trips, and AWS sees no plaintext.
+The `needs_restic` test proves the encryption boundary locally; step 6's S3 restore-verify confirms
+the live path. **Backup independence:** the `mind-palace-backup` identity is deliberately separate
+from Vault's AWS engine, so restore works even when Vault is sealed/down (it's the DR path).

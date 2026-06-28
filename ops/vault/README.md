@@ -15,6 +15,7 @@ fixture in tests.
 | `correlator.hcl` | `correlator` | read `kv/oura-daily-aggregates` only |
 | `supervisor.hcl` | `supervisor` | `auth/token/create` only — mints, never reads role secrets |
 | `gate.hcl` | `gate` | read/write `kv/gate-ledger-key` only |
+| `backup.hcl` | `backup` | read `sys/storage/raft/snapshot` only — the scheduled backup's consistent Vault snapshot (Phase 9); sees no secret value |
 
 Policies are narrow by default: grant the minimum, and the table above is the audit of *why*
 each grant exists, so a future widening is a deliberate diff against this table, not a guess.

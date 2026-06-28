@@ -132,6 +132,23 @@ addr = "http://127.0.0.1:8200"
 kv_mount = "kv"          # kv-v2 mount point for static secrets
 aws_mount = "aws"        # dynamic AWS secrets engine mount point (bridge/airlock roles)
 
+[backup]
+# restic → S3 encrypted backups (BUILD-SPEC §16b). restic encrypts + deduplicates CLIENT-SIDE, so
+# AWS never sees plaintext; the bucket's SSE-KMS is defense in depth. OFF by default — enable per
+# machine via config/local.toml after `cloud/terraform/backups` is applied and the restic password
+# + backup AWS key are placed in Keychain. The repo password and AWS key are NEVER stored here.
+enabled = false
+repository = ""          # terraform output restic_repository (s3:s3.<region>.amazonaws.com/<bucket>)
+password_secret = "restic-password"                  # Keychain item: the repo encryption password
+aws_access_key_id_secret = "backup-aws-access-key-id"
+aws_secret_access_key_secret = "backup-aws-secret-access-key"
+region = "us-east-1"
+vault_snapshot = true    # also capture a consistent `vault operator raft snapshot` (full DR)
+exclude = ["logs", "queue.sqlite", "queue.sqlite-wal", "queue.sqlite-shm", "*-shm", "*.lock", ".DS_Store"]
+keep_daily = 7
+keep_weekly = 4
+keep_monthly = 6
+
 [dreaming]
 # Curator + dreaming knobs (BUILD-SPEC §9). Clustering is deterministic (NumPy cosine over
 # note centroids), so these thresholds fully determine a run. They are the tunables a future

@@ -132,6 +132,30 @@ class SecretsConfig:
 
 
 @dataclass(frozen=True)
+class BackupConfig:
+    """restic → S3 encrypted backups (BUILD-SPEC §16b). restic encrypts + deduplicates CLIENT-SIDE,
+    so AWS never sees plaintext; the bucket's SSE-KMS is defense in depth. `enabled` gates the
+    scheduled job only. The repo password and the backup AWS key live in Keychain (named here, never
+    stored here). Off by default — turn on per machine via config/local.toml once the bucket is
+    applied and Keychain is placed."""
+
+    enabled: bool = False
+    repository: str = ""              # restic repo URL (terraform output restic_repository)
+    password_secret: str = "restic-password"                       # Keychain item: repo password
+    aws_access_key_id_secret: str = "backup-aws-access-key-id"     # Keychain item: backup key id
+    aws_secret_access_key_secret: str = "backup-aws-secret-access-key"  # Keychain item: its secret
+    region: str = "us-east-1"
+    vault_snapshot: bool = True       # also capture a consistent `vault operator raft snapshot`
+    exclude: tuple[str, ...] = (
+        "logs", "queue.sqlite", "queue.sqlite-wal", "queue.sqlite-shm",
+        "*-shm", "*.lock", ".DS_Store",
+    )
+    keep_daily: int = 7
+    keep_weekly: int = 4
+    keep_monthly: int = 6
+
+
+@dataclass(frozen=True)
 class SandboxConfig:
     runtime: str            # "podman" (default substrate) | "wasm" (pure-compute, future)
     image: str
@@ -169,6 +193,7 @@ class Config:
     # Default keeps direct Config(...) construction (e.g. in tests) working without this section.
     attestation: AttestationConfig = field(default_factory=AttestationConfig)
     secrets: SecretsConfig = field(default_factory=SecretsConfig)
+    backup: BackupConfig = field(default_factory=BackupConfig)
 
     def model_for_tier(self, tier: str) -> ModelConfig:
         for m in self.models:
@@ -205,6 +230,7 @@ def load_config(path: Path | None = None) -> Config:
     itf, dr, rnd = raw["interface"], raw["dreaming"], raw["dream_rnd"]
     al, at = raw["airlock"], raw.get("attestation", {})
     sec = raw.get("secrets", {})
+    bak = raw.get("backup", {})
     return Config(
         ollama=OllamaConfig(
             host=o["host"],
@@ -288,6 +314,29 @@ def load_config(path: Path | None = None) -> Config:
             addr=str(sec.get("addr", "http://127.0.0.1:8200")),
             kv_mount=str(sec.get("kv_mount", "kv")),
             aws_mount=str(sec.get("aws_mount", "aws")),
+        ),
+        backup=BackupConfig(
+            enabled=bool(bak.get("enabled", False)),
+            repository=str(bak.get("repository", "")),
+            password_secret=str(bak.get("password_secret", "restic-password")),
+            aws_access_key_id_secret=str(
+                bak.get("aws_access_key_id_secret", "backup-aws-access-key-id")
+            ),
+            aws_secret_access_key_secret=str(
+                bak.get("aws_secret_access_key_secret", "backup-aws-secret-access-key")
+            ),
+            region=str(bak.get("region", "us-east-1")),
+            vault_snapshot=bool(bak.get("vault_snapshot", True)),
+            exclude=tuple(
+                str(x) for x in bak.get(
+                    "exclude",
+                    ["logs", "queue.sqlite", "queue.sqlite-wal", "queue.sqlite-shm",
+                     "*-shm", "*.lock", ".DS_Store"],
+                )
+            ),
+            keep_daily=int(bak.get("keep_daily", 7)),
+            keep_weekly=int(bak.get("keep_weekly", 4)),
+            keep_monthly=int(bak.get("keep_monthly", 6)),
         ),
         models=tuple(
             ModelConfig(

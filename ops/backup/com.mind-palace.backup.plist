@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- LaunchAgent template for the scheduled encrypted backup (BUILD-SPEC §16b, runbook §4). Copy to
+     ~/Library/LaunchAgents/com.mind-palace.backup.plist, then:
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.mind-palace.backup.plist
+       launchctl kickstart -k gui/$(id -u)/com.mind-palace.backup     # run once now
+       launchctl bootout   gui/$(id -u)/com.mind-palace.backup        # stop
+     Paths are absolute (launchd requires it) and assume the repo at /Users/ascalva/mind-palace and
+     Homebrew at /opt/homebrew/bin (restic + vault + security must resolve). No secrets here — they
+     are read from Keychain at runtime by backup.sh. Daily at 03:30; a run missed while asleep
+     fires on next wake. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.mind-palace.backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>/Users/ascalva/mind-palace/ops/backup/backup.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/ascalva/mind-palace</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>3</integer>
+    <key>Minute</key>
+    <integer>30</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/Users/ascalva/mind-palace/data/logs/backup.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/ascalva/mind-palace/data/logs/backup.err.log</string>
+</dict>
+</plist>

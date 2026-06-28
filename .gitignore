@@ -22,3 +22,17 @@ config/local.toml
 # OS / packaging cruft
 .DS_Store
 mind-palace.zip
+
+# Terraform local state — `.terraform/` holds downloaded provider binaries (100s of MB, one per
+# platform) and is pure local cache; tfstate is remote (S3 backend) except a harmless backend
+# bookkeeping file terraform sometimes drops locally. The lock file (.terraform.lock.hcl) is NOT
+# ignored — that one is meant to be committed (pins provider versions).
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
