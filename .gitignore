@@ -18,6 +18,9 @@ data/
 # Per-machine config overlay (config/loader.py): enables [secrets]/[attestation] on a deployment
 # without flipping the shared safe defaults. Never shared — a fresh clone stays off-by-default.
 config/local.toml
+# Machine-owned knob overlay, written only by the self-modification loop (ops/apply.py) through
+# the §14 gate. Per-machine runtime state, regenerable; never committed.
+config/levers.toml
 
 # OS / packaging cruft
 .DS_Store

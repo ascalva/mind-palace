@@ -888,3 +888,82 @@ levers, validate against rolling baseline + frozen golden set + Constitution, au
 BUILD-SPEC §18). Fresh session for it.
 
 <!-- Append new phase entries below as you complete each one. -->
+
+## Phase 10 — Self-modification loop (the last phase): code complete + gate verified (2026-06-28)
+**The final numbered phase.** propose→approve→execute→validate→rollback (BUILD-SPEC §14/§15/§18).
+Owner's scoping steer this session, which SHAPED the design: for now the loop may tune **knobs**
+(dream/alignment parameters, system weights) and nothing else; **infrastructure and code are an
+extremely privileged resource the loop must not write**; feature-flag anything risky.
+
+**The safety property, made STRUCTURAL (not a runtime check):** the entire self-modifiable surface
+is a registry of bounded numeric config knobs (`ops/levers.py`). A `ProposedChange` is a
+(lever-name, numeric-target, rationale) value object with NO field that can carry a path / diff /
+command / code / TF plan — so a code or infrastructure change is not a proposal the loop can even
+*construct* (the same move as `ResearchCriteria` having no field for note content). A unit test
+asserts the field set is exactly `{lever, target, rationale}` and intersects no forbidden name —
+adding a code/infra lever later would be a visible, reviewable diff that breaks that test.
+
+**Built**
+- `ops/levers.py` — the lever registry = the whole writable surface. Seeded with the `[dreaming]`
+  knobs whose hard bounds defaults.toml already documented (σ∈[0.55,0.75], near-dup≥0.90,
+  min_cluster_size∈[2,6], max_clusters∈[4,16]). `Lever.validate` is fail-closed: out-of-bounds
+  RAISES, never silently clamps. `ProposedChange.resolve()` validates before anything reaches the
+  ledger.
+- `ops/ledger.py` — durable SQLite `ProposalLedger` (the Phase-10 upgrade of gate.py's in-memory
+  `HumanGate`). Lifecycle is an FSM enforced in the store so §14 ordering can't be skipped:
+  PROPOSED→APPROVED/DENIED→EXECUTED→VALIDATED/ROLLED_BACK; every transition asserts its precondition
+  (can't execute the un-approved, validate the un-executed, resurrect a denied/validated one).
+  Records prior-overlay (NULL = "loop introduced the key") for an exact rollback, validation
+  metrics, rollback reason, optional attestation-id join. `check_same_thread=False` + RLock
+  (matches AttestationStore/JobQueue idiom).
+- `ops/apply.py` — the reversible execute/rollback primitive. Writes ONLY a machine-owned
+  `config/levers.toml` overlay (gitignored), never the owner's hand-authored `local.toml`. Atomic
+  replace; deterministic emit; `overlay_set` returns the exact prior so `overlay_restore` reverses
+  with no residue (restores a value, or removes a key the loop introduced).
+- `config/loader.py` — `[selfmod]` + `SelfModConfig` (two fail-closed switches: `enabled` master,
+  `unattended_enabled` for the no-human path — both OFF). Overlay precedence is now
+  **defaults ← levers.toml ← local.toml** (a `_overlay()` helper), so a human knob in local.toml
+  always WINS over a loop-tuned one (human authority supreme). `refresh_config()` drops the cache so
+  an executed knob takes effect without a restart.
+- `ops/selfmod.py` — `SelfModLoop` ties registry+ledger+apply+validator. `validate` builds a
+  `ops/gate.GateDecision` from the FROZEN golden anchor (capability) + the rolling baseline (acute
+  drift) and lets `gate_admits(...)` decide mechanically; deny → restore prior overlay → ROLLED_BACK.
+  `conforms` (behavioral) stays HONESTLY DEFERRED — `gate_admits` omits it, not stubs it True, exactly
+  as ops/gate documents. `build_golden_validator(retriever,...)` is the default (injectable, mirrors
+  eval.golden's Retriever seam). **Unattended safe-lever path (`apply_unattended`) is built but
+  FLAG-OFF**: refuses unless `enabled` AND `unattended_enabled`, and the lever must be in an explicit
+  `SAFE_LEVERS={dream_max_clusters}` (a workload cap, can't touch authored data). Auto-approval is
+  recorded as approver='unattended' (auditable).
+- `ops/selfmod_cli.py` — the owner's front door: `list|history|show|propose|deny|approve`. `approve`
+  = approve→execute→validate against the live golden anchor (ingests the self-contained fixture
+  corpus through the real embedder); keeps or reports the auto-rollback. Reads work even with
+  `[selfmod]` disabled; state-changing commands go through the loop's fail-closed gate.
+
+**Verified — the §18 Phase-10 gate, demonstrated**
+- `tests/integration/test_selfmod.py` IS the gate: a good change traverses propose→approve→execute→
+  validate and is KEPT (overlay shows the tuned knob); a deliberately-bad change AUTO-ROLLS-BACK
+  (overlay restored, no residue); the **boiling-frog** case — validator reports
+  drift_within_tolerance=True (rolling happy) but golden_non_regressing=False (FROZEN anchor caught
+  it) → still denied → rollback, reason cites the frozen anchor not drift; master switch + unattended
+  switch both fail-closed by default; out-of-bounds refused before the ledger; execute requires
+  approval. Plus the default validator wired to the REAL frozen baseline (passes on no-capability-harm,
+  flags a real recall drop). `test_ledger.py` FSM (illegal transitions refused, durable across reopen),
+  `test_levers.py` (bounds + the structural firewall), `test_levers_overlay.py` (precedence: levers
+  changes the effective knob; local.toml wins; no overlay → committed defaults), `test_selfmod_cli.py`.
+  **Logic suite 313 → 350 (+37)**. ruff clean; import-firewall green (ops is operational, may import
+  core; core still reaches no network/edge/cloud).
+
+**Owner-operated to ACTIVATE (deliberately deferred — fail-closed by default):** the loop ships OFF.
+To use it on a machine, set `[selfmod] enabled = true` in `config/local.toml`, then drive the gate
+with `python -m ops.selfmod_cli` (propose/list/approve/deny). `unattended_enabled` stays off unless
+the owner deliberately turns it on. **NOT auto-wired into cron** this session: nothing autonomously
+proposes knob changes yet — the proposer side (e.g. the watchdog suggesting a σ nudge from telemetry)
+is a future, equally-cautious wiring. The gate, anchors, and reversibility exist; unleashing an
+autonomous proposer is a separate decision.
+
+**Phase 10 code + gate COMPLETE. ALL TEN NUMBERED PHASES (0–10) DONE.** The system is built: sealed
+core, ingest/matching/dreaming/curator, scheduler+budgeter, agent factory+gate, sandbox, edge
+interface, research airlock (live), encrypted backups (live), production Vault + attestations (live),
+and now the gated/validated/reversible self-modification loop. Remaining is operational/optional:
+activate `[selfmod]` when desired, wire a cautious proposer, Phase 6b voice (§20.11), and the
+still-pending empirical `-m podman` sandbox check (docs/runbook.md → "Sandbox runtime").

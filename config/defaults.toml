@@ -179,6 +179,21 @@ bridge_clustering_max = 0.5   # local clustering coefficient <= this (degree>=2)
 centrality_top_k = 5          # how many hub claims the centrality interpreter emits
 agreement_jaccard = 0.5       # support-set Jaccard >= this => interpreters corroborate one claim
 
+[selfmod]
+# The self-modification loop (BUILD-SPEC §14, Phase 10 — the last + most privileged capability).
+# Two fail-closed switches, both OFF by default:
+#   `enabled`            — master switch for the WHOLE propose→approve→execute→validate→rollback
+#                          loop. Off: nothing self-modifies, period.
+#   `unattended_enabled` — separately gates the ONLY path that acts WITHOUT human approval (the
+#                          §14 "safe levers"). Off even when `enabled` is on: every change needs a
+#                          human at the gate. Turn this on only deliberately, per machine.
+# The writable surface is knobs ONLY — the lever registry (ops/levers.py) holds bounded numeric
+# config knobs and physically cannot express a code or infrastructure change. Tuned values are
+# written to the machine-owned config/levers.toml overlay, never to your local.toml.
+enabled = false
+unattended_enabled = false
+ledger_db = "data/selfmod_ledger.sqlite"   # durable SQLite propose/approve/validate ledger
+
 [sandbox]
 # Executed code is POWERLESS (Invariant 4, BUILD-SPEC §11): network-off, no vault mount,
 # read-only rootfs + scratch tmpfs, dropped caps, non-root, CPU/mem/pids limits, wall-clock

@@ -3,8 +3,10 @@
 When the factory is asked for capability beyond an agent's scope ceiling, it routes the
 request HERE instead of minting a privileged agent (§10). This is the Phase-5 seam: it
 records the request as PENDING so nothing privileged ever happens unattended (Invariant 5,
-Constitution §II.4). The full propose → approve → execute → validate → rollback ledger is
-Phase 10; this module is its inbox, kept deliberately small.
+Constitution §II.4). The full propose → approve → execute → validate → rollback ledger landed
+in Phase 10 as the durable `ops/ledger.ProposalLedger` (orchestrated by `ops/selfmod.py`); this
+module remains the lightweight in-memory inbox for routed privileged requests, plus the decidable
+gate predicate (`gate_admits`) that the Phase-10 validate step consumes.
 """
 
 from __future__ import annotations
@@ -39,8 +41,9 @@ class GateStatus(StrEnum):
 # This predicate is a pure, data-in / bool-out decision: it takes only facts ABOUT Δ·s and
 # returns admit/deny. There is no callback to Δ and no apply step here, so **Δ can never
 # self-apply through the gate** (I12) — only code that holds the human approval applies a Δ,
-# and only when this returns True. The propose→approve→execute→validate→rollback ledger that
-# *uses* this is Phase 10; this is just its decidable core, FSM-checked in test_gate_fsm.py.
+# and only when this returns True. The propose→approve→execute→validate→rollback loop that
+# *uses* this is `ops/selfmod.SelfModLoop.validate` (Phase 10); this is its decidable core,
+# FSM-checked in test_gate_fsm.py.
 
 
 @dataclass(frozen=True)

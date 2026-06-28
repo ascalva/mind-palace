@@ -488,3 +488,41 @@ Gate (BUILD-SPEC §18 Phase 9): an encrypted backup + restore round-trips, and A
 The `needs_restic` test proves the encryption boundary locally; step 6's S3 restore-verify confirms
 the live path. **Backup independence:** the `mind-palace-backup` identity is deliberately separate
 from Vault's AWS engine, so restore works even when Vault is sealed/down (it's the DR path).
+
+## Self-modification gate — operating the loop (Phase 10, owner-operated)
+
+The system can tune its own **alignment/quality knobs** (the `[dreaming]` levers) through a gated,
+validated, reversible loop (BUILD-SPEC §14). The writable surface is knobs ONLY — `ops/levers.py`
+physically cannot express a code or infrastructure change (a `ProposedChange` has no field for a
+path/diff/command). The loop ships **OFF**; activating and driving it is owner work.
+
+```sh
+# 1. Activate the loop on THIS machine — add to config/local.toml (gitignored):
+#    [selfmod]
+#    enabled = true
+#    # unattended_enabled stays false: every change goes through you at the gate.
+
+# 2. Drive the gate (a model may write PROPOSED rows; only you approve — Invariant 5):
+./.venv/bin/python -m ops.selfmod_cli list                         # pending proposals
+./.venv/bin/python -m ops.selfmod_cli propose dream_similarity_threshold 0.66 "tighten themes"
+./.venv/bin/python -m ops.selfmod_cli show 1                       # full detail of a proposal
+./.venv/bin/python -m ops.selfmod_cli approve 1                    # approve -> execute -> VALIDATE
+#   approve runs the frozen golden anchor with the real embedder (Ollama must be up + the embed
+#   model pulled). If capability regresses, the knob AUTO-ROLLS-BACK and `approve` says so.
+./.venv/bin/python -m ops.selfmod_cli deny 2                       # reject a proposal
+./.venv/bin/python -m ops.selfmod_cli history                     # full audit trail
+```
+
+Tuned values land in `config/levers.toml` (machine-owned, gitignored); your hand-authored
+`config/local.toml` always overrides them (human authority is supreme). Delete `config/levers.toml`
+to revert every tuned knob to its committed default.
+
+**Registered levers** (hard bounds enforced — an out-of-range target is refused): `dream_similarity_threshold` [0.55–0.75],
+`dream_near_dup_threshold` [0.90–0.99], `dream_min_cluster_size` [2–6], `dream_max_clusters` [4–16].
+
+**Deferred by design:** behavioral (`conforms`) validation is the small-model judge seam — the gate
+honestly omits it rather than stubbing it True, so a knob change is kept on *capability-non-regression*
+only, with behavior the human's call. Nothing autonomously proposes yet (no cron wiring); the
+`unattended_enabled` "safe levers" path exists but is flag-off. Gate (BUILD-SPEC §18 Phase 10): a
+proposed change traverses the gate; a bad change auto-rolls-back; the frozen anchor catches drift the
+rolling baseline misses — all proven in `tests/integration/test_selfmod.py`.

@@ -19,6 +19,11 @@ _DEFAULTS = Path(__file__).resolve().parent / "defaults.toml"
 # up, or `[attestation] enabled = true` once signing keys are placed). Keeps the shipped repo
 # safe-by-default — a fresh clone / CI has no local.toml, so those flags stay off.
 _LOCAL = Path(__file__).resolve().parent / "local.toml"
+# Machine-owned knob overlay, written ONLY by the self-modification loop (ops/apply.py) through
+# the §14 gate. Overlaid UNDER local.toml below, so a human override in local.toml always wins
+# over a loop-tuned knob — human authority stays supreme. Gitignored; deleting it reverts every
+# tuned knob to its committed default.
+LEVERS_OVERLAY = Path(__file__).resolve().parent / "levers.toml"
 
 
 @dataclass(frozen=True)
@@ -156,6 +161,19 @@ class BackupConfig:
 
 
 @dataclass(frozen=True)
+class SelfModConfig:
+    """The self-modification loop (BUILD-SPEC §14, Phase 10). Two fail-closed switches:
+    `enabled` is the master switch for the whole propose→approve→execute→validate→rollback loop;
+    `unattended_enabled` separately gates the ONLY path that acts without human approval (the §14
+    'safe levers'). Both OFF by default — a fresh clone can't self-modify, and never unattended,
+    until the owner deliberately turns each on in config/local.toml."""
+
+    enabled: bool = False
+    unattended_enabled: bool = False
+    ledger_db: Path = Path("data/selfmod_ledger.sqlite")
+
+
+@dataclass(frozen=True)
 class SandboxConfig:
     runtime: str            # "podman" (default substrate) | "wasm" (pure-compute, future)
     image: str
@@ -194,6 +212,7 @@ class Config:
     attestation: AttestationConfig = field(default_factory=AttestationConfig)
     secrets: SecretsConfig = field(default_factory=SecretsConfig)
     backup: BackupConfig = field(default_factory=BackupConfig)
+    selfmod: SelfModConfig = field(default_factory=SelfModConfig)
 
     def model_for_tier(self, tier: str) -> ModelConfig:
         for m in self.models:
@@ -214,23 +233,34 @@ def _resolve(p: str) -> Path:
     return path if path.is_absolute() else REPO_ROOT / path
 
 
+def _overlay(raw: dict, path: Path) -> None:
+    """Shallow per-section merge of `path` onto `raw` in place — the overlay names just the keys
+    it changes (e.g. `[secrets]\nenabled = true`), leaving every other default intact."""
+    if not path.exists():
+        return
+    for section, values in tomllib.loads(path.read_text(encoding="utf-8")).items():
+        if isinstance(values, dict) and isinstance(raw.get(section), dict):
+            raw[section].update(values)
+        else:
+            raw[section] = values
+
+
 def load_config(path: Path | None = None) -> Config:
     raw = tomllib.loads((path or _DEFAULTS).read_text(encoding="utf-8"))
-    # Overlay the gitignored local override (only for the default path — an explicit `path`, as
-    # tests pass, is taken verbatim). Shallow per-section merge: local.toml names just the keys it
-    # changes, e.g. `[secrets]\nenabled = true`, leaving every other default intact.
-    if path is None and _LOCAL.exists():
-        for section, values in tomllib.loads(_LOCAL.read_text(encoding="utf-8")).items():
-            if isinstance(values, dict) and isinstance(raw.get(section), dict):
-                raw[section].update(values)
-            else:
-                raw[section] = values
+    # Overlay precedence (only for the default path — an explicit `path`, as tests pass, is taken
+    # verbatim): defaults ← levers.toml ← local.toml. The machine-tuned knobs land first; the
+    # owner's hand-authored local.toml lands LAST so a human override always wins over a loop-tuned
+    # knob (human authority supreme — the §14 ceiling). See LEVERS_OVERLAY / _LOCAL above.
+    if path is None:
+        _overlay(raw, LEVERS_OVERLAY)
+        _overlay(raw, _LOCAL)
     o, r, p = raw["ollama"], raw["resources"], raw["paths"]
     v, e, s = raw["vault"], raw["embedding"], raw["sandbox"]
     itf, dr, rnd = raw["interface"], raw["dreaming"], raw["dream_rnd"]
     al, at = raw["airlock"], raw.get("attestation", {})
     sec = raw.get("secrets", {})
     bak = raw.get("backup", {})
+    sm = raw.get("selfmod", {})
     return Config(
         ollama=OllamaConfig(
             host=o["host"],
@@ -338,6 +368,11 @@ def load_config(path: Path | None = None) -> Config:
             keep_weekly=int(bak.get("keep_weekly", 4)),
             keep_monthly=int(bak.get("keep_monthly", 6)),
         ),
+        selfmod=SelfModConfig(
+            enabled=bool(sm.get("enabled", False)),
+            unattended_enabled=bool(sm.get("unattended_enabled", False)),
+            ledger_db=_resolve(sm.get("ledger_db", "data/selfmod_ledger.sqlite")),
+        ),
         models=tuple(
             ModelConfig(
                 name=m["name"],
@@ -355,6 +390,14 @@ def load_config(path: Path | None = None) -> Config:
 @lru_cache(maxsize=1)
 def get_config() -> Config:
     return load_config()
+
+
+def refresh_config() -> Config:
+    """Drop the cached Config and reload from disk. Called after the self-mod loop writes a knob
+    to `levers.toml` (ops/apply.py) so the change actually takes effect for subsequent
+    `get_config()` callers in a long-running process, rather than waiting on a restart."""
+    get_config.cache_clear()
+    return get_config()
 
 
 def get_secret(name: str, token: str | None = None) -> str | None:
