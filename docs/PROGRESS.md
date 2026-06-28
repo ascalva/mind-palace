@@ -46,6 +46,8 @@ Keep entries short. Cite paths, not contents.
 - [alignment-subsystem](design-notes/alignment-subsystem.md) — alignment as a measurable subsystem: fixed seed (authored+Constitution+golden) vs regenerable layer (dreams/structure/params); detection (drift gauge + min-cut-to-authored + community/echo-chamber metrics), gated surgery (prune bubbles, interpreted-only), reset-from-raw; Phase-10 expansion = modifiable params + alignment-steering self-mod. Honor at Phase 10.
 - [dreaming-on-curated-graphs](design-notes/dreaming-on-curated-graphs.md) — dream R&D **R5** (flag OFF): run the interpreter panel on a curated corpus (a book) in its OWN graph (never the authored mirror — curated ∉ MIRROR_READABLE), then cross-graph **resonance** between curated and authored theme-centroids (interpreted-only). Build after R0/R1.
 - [vault-sync-and-capture](design-notes/vault-sync-and-capture.md) — **near-term, buildable now**: local vault watcher (filesystem-only, no egress) auto-re-ingests changed notes (idempotent via content-addressing), provenance authored-solo; Syncthing-over-Tailscale for private peer-to-peer sync (iCloud/Obsidian Sync transit a vendor — flagged); Tailscale to reach the interface gateway for chat-capture (authored-dialogue) + queries.
+- [nervous-system-and-ambassador](design-notes/nervous-system-and-ambassador.md) — tamper response (graduated/provenance-aware, NOT a single kill switch: regenerable breach→quarantine+reset-from-raw, fixed-layer breach→fail-closed freeze; "recovery mode" = a launch flag; honest caveat that watcher+watched share a machine, seed-immutability is the real guarantee); verification latency tiers (inline cheap signature/scope check at privileged gates ONLY; async auditor agent — separate, read-only, trough-scheduled — for deep chain-walks; findings feed the tripwire); the Ambassador (conversational front door: read-only MirrorView + NEW operational-introspection scope over attestations/ledger/metrics, delegates-not-acts, conversations are authored-dialogue, narrates system state; white papers as a curated system-self-knowledge graph). Honor at Phase 11 + text-interaction activation.
+- [ambassador-interpretation-and-flow](design-notes/ambassador-interpretation-and-flow.md) — refines the Ambassador (nervous-system note §4): interpretation splits into retrieval-time (safe — narrating already-grounded/attested conclusions, downstream of all grounding) vs intent interpretation (the only consequential kind — gated as a proposed task, never acted on; blast radius = a wrong query, not a corrupted mirror). Not a bottleneck because it's a thin dispatcher on the always-warm pinned tier (qwen3.5:2b) that delegates all heavy work to the async scheduler; real risk is context over-assembly, bounded by the §13 budgeter (selective per-turn retrieval). "Wide window, narrow hands, thin body." Honor at Phase 11 / text-interaction.
 
 ### Reconciliation — roadmap design note (asked 2026-06-25)
 
@@ -317,7 +319,7 @@ Keep entries short. Cite paths, not contents.
 
 **Verified:** `ruff` clean; `pytest -m "not live and not podman"` **194 passed (+11 R&D)**, 12 deselected; import-firewall OK (the new `core/dreaming/*` modules import no network/zone). Confirmed `scheduler/`+live dreamer reference NO R&D symbol (`grep` clean) — the boundary holds. Determinism + INTERPRETED-only storage asserted (`tests/test_dream_rnd.py`).
 
-**Next R&D (only when resumed, in order):** R2 utility telemetry (separate axis) → R3 recursion (ONLY after the Phase-11 drift gauge exists to watch it — depth cap + the dreams-citing-dreams / utility-up-grounding-down / confidence-up-with-depth alarms) → R4 cross-source assistant synthesis (observed+authored, interpreted, never the mirror). **R5 — curated-graph dreaming + cross-graph resonance** sits *beside* this chain (needs only R0/R1, not R2–R4): run the panel on a `curated` corpus (a book) in its OWN graph via a `CuratedView`, then cosine **resonance** between curated and authored theme-centroids — firewall held: `curated ∉ MIRROR_READABLE` (so `MirrorView` structurally excludes it — verified), the book is never merged into the authored mirror, resonance output is `interpreted`-only (DerivedStore has no provenance param) and never mutates the mirror. See [design-notes/dreaming-on-curated-graphs.md](design-notes/dreaming-on-curated-graphs.md); build after R0/R1 in a deliberate R&D session, flag OFF. **Main build resumes at Phase 8 (airlock).**
+**Next R&D (only when resumed, in order):** R2 utility telemetry (separate axis) → R3 recursion (ONLY after the Phase-11 drift gauge exists to watch it — depth cap + the dreams-citing-dreams / utility-up-grounding-down / confidence-up-with-depth alarms) → R4 cross-source assistant synthesis (observed+authored, interpreted, never the mirror). **R5 — curated-graph dreaming + cross-graph resonance** sits _beside_ this chain (needs only R0/R1, not R2–R4): run the panel on a `curated` corpus (a book) in its OWN graph via a `CuratedView`, then cosine **resonance** between curated and authored theme-centroids — firewall held: `curated ∉ MIRROR_READABLE` (so `MirrorView` structurally excludes it — verified), the book is never merged into the authored mirror, resonance output is `interpreted`-only (DerivedStore has no provenance param) and never mutates the mirror. See [design-notes/dreaming-on-curated-graphs.md](design-notes/dreaming-on-curated-graphs.md); build after R0/R1 in a deliberate R&D session, flag OFF. **Main build resumes at Phase 8 (airlock).**
 
 ## Phase 8 — The airlock (AWS Zone C) (COMPLETE, 2026-06-26)
 
@@ -363,15 +365,18 @@ First **Zone C** work. The one-way research flow (§16): core emits **de-identif
 **Next (Phase 9 — Backups):** restic → S3 + SSE-KMS, scheduled; client-side encrypted + deduplicated so AWS never sees plaintext (§16b). _Verify:_ encrypted backup + restore round-trips; AWS sees no plaintext. Reuses the bootstrap state backend; new namespaced bucket + KMS key. macOS/APFS — restic over data directories, don't assume btrfs.
 
 ## Near-term task — Vault watcher & capture (2026-06-26, NOT a phase)
+
 **Not a phase; main build stays at Phase 9 next.** Built the capture path from design-notes/vault-sync-and-capture.md so the owner's notes auto-ingest and embeddings stay current. Touches the Phase-1 ingest; adds an incremental watcher + tombstone deletion + a gated purge. The networked sync transport is **documented, not coded** (a separate process, never the core).
 
 **Built — core-side, LOCAL filesystem only (no network; import-lint stays green)**
+
 - `core/stores/catalog.py`: `VaultCatalog` (SQLite) — the **active/tombstone ledger** mapping `source_path → (digest, active)`. Content-addressing gives dedup but not "which file holds which content"; this is that map + the authority for tombstone semantics. `record`/`get`/`tombstone`/`active_refs`/`paths_for_digest`/`remove_digest`. All notes are `authored-solo` = the existing AUTHORED tag (spectrum split deferred, §1).
 - `core/ingest/sync.py`: `VaultSync` — the deterministic re-ingest engine. `sync_path` (unchanged digest+active → **no-op**; else (re)embed through the Phase-1 `ingest_note`+`index_records`, **delete-then-add so re-index is idempotent**, then drop the previous digest's derived rows iff no active file still references them); `handle_deleted` (**tombstone**: derived dropped, catalog inactive, **raw KEPT**); `rescan` (full catalog-vs-vault reconciliation — the idempotent backbone + catch-up). `SyncOutcome`/`SyncReport`.
 - `core/ingest/watch.py`: `VaultWatcher` — watches the vault, **debounces** a save burst into one `on_change`, takes an **injected callback** (so core never imports the scheduler). `watchdog`/FSEvents is an **optional, lazily-imported** real-time backend; **polling fallback** when absent. No `edge`/socket/http import.
 - `core/ingest/purge.py`: `purge_raw` — the **owner-gated true-deletion** action (the ONE exception to "raw is sacred"). Two fail-closed gates: `confirm=True` required, and refuses if `active_refs(digest) > 0` (delete from vault first). Mirrors the propose/approve posture (Invariant 4). `RawStore.delete` + `VectorStore.delete(digest=…)` are the new store primitives.
 
 **Built — scheduler wiring (depends on core, never the reverse)**
+
 - `scheduler/vault_sync.py`: `vault_sync_handler` (runs the idempotent `rescan`), `enqueue_vault_sync` (**BACKGROUND** priority), `build_vault_watcher` (on_change → enqueue). Routed to the **pinned** tier (`scheduler/router.py` `_PINNED_KINDS`): vault_sync needs no chat model (it calls the embedder directly), so `ensure_tier` is a no-op and the **worker slot is never evicted**; it's NOT in HEAVY_TIERS, so a note saved mid-session re-ingests promptly (not trough-gated).
 - `scripts/watch.py` (seals → wires watcher+supervisor → loop) + `scripts/purge_raw.py` (`--list` / `<digest> --confirm`). Config: `paths.vault_catalog`, `[vault] watch_debounce_s`/`watch_poll_interval_s`; `watchdog` as an OPTIONAL `[watch]` extra (poll fallback otherwise).
 
@@ -380,6 +385,7 @@ First **Zone C** work. The one-way research flow (§16): core emits **de-identif
 **Documented (operational, not code) — `docs/runbook.md` "Vault watcher & sync":** **Syncthing over Tailscale** for private peer-to-peer vault sync (device-to-device, encrypted, **no vendor in the path**); Tailscale as the private mesh to also reach the future interface gateway; the **iCloud/Obsidian-Sync vendor-transit tradeoff flagged** (Invariant 11 class). The sync transport is a separate process; the core only watches a local folder.
 
 **Decisions / invariants held**
+
 - **Watcher signals, supervisor acts.** The watcher enqueues a job; all store mutation stays on the single-writer queue. Core stays scheduler-free (clean layering) via the injected callback.
 - **Delete = tombstone, not destroy.** Raw is sacred; derived rows are dropped and the catalog marks inactive, so re-adds dedup and nothing is lost. True deletion is the separate, gated, owner-initiated purge.
 - **Dedup-safe deletion.** Derived rows for a digest are dropped only when no active file still references that content (the catalog's `active_refs`) — so two files with identical content don't pull each other's embeddings out.
@@ -388,6 +394,7 @@ First **Zone C** work. The one-way research flow (§16): core emits **de-identif
 **Next:** unchanged — **Phase 9 (Backups)**: restic → S3 + SSE-KMS, scheduled; AWS sees no plaintext (§16b).
 
 ## Near-term task — Vault sync operational setup + concurrency fix (2026-06-27, NOT a phase)
+
 Continuation of the 2026-06-26 vault-sync entry above: that session built the code; this session did the **operational setup** (Tailscale + Syncthing + the watcher as a launchd service) end-to-end on the owner's Mac + iPhone, found and fixed a real concurrency bug the operational run surfaced, and live-verified all three gate behaviors (not just unit tests). Main build is **still at Phase 9 next** — not started this session.
 
 **Configured — Tailscale.** Mac (Homebrew cask) + iPhone joined the same tailnet. `tailscale status` shows both (`albertos-macbook-pro` 100.97.85.13, `iphone182` 100.74.4.2); `tailscale ping` confirmed a **direct** path (`via 192.168.x.x:41641`, no DERP relay) before Syncthing was even installed.
@@ -401,12 +408,14 @@ Continuation of the 2026-06-26 vault-sync entry above: that session built the co
 **Configured — iOS capture (no third-party notes app).** Owner tried Apple Notes → Share → Save to Files, which (a) always names the export `text.txt` and auto-numbers on collision, and (b) can't produce a real `.md` at all — Shortcuts' own `Save File` action forces the input's native UTType extension (`.txt` for plain Text) regardless of what's typed in `Subpath`, even when the subpath string visibly ends in `.md`. Built an iOS Shortcut instead: `Ask for Input` (Text, multiline) → `Format Date` (input = **Current Date**, not Date Created — an easy variable-picker miswire) `yyyy-MM-dd-HHmmss` → `Save File` (saves the **input text**, not the date; destination = **Ask Each Time** since this iOS has no folder-bookmark action that can reach a third-party Files provider like Synctrain; `Subpath` = `note-[Formatted Date].md`) → **`Rename`** (the fix for the forced-`.txt` quirk — renames the just-saved file to the same `note-[Formatted Date].md` string). One tap, lands directly in the Synctrain → Mind Palace Vault folder.
 
 **Live end-to-end verification (real devices, not mocks):**
-- *Sync → ingest → searchable:* a note authored via the Shortcut on the iPhone (sentinel phrase, cellular connection) synced to the Mac, was picked up by the watcher **fully automatically** (no manual rescan) once the threading fix landed, embedded, and came back as the #1 semantic-search hit (distance 0.42 vs. 0.61 for the next-closest note).
-- *Delete → tombstone:* removing a tracked `.md` produced `tombstoned=1` automatically; catalog row `active=False`; vector rows for its digest dropped (no longer in search results); **`RawStore.exists(digest)` still `True`** — raw kept, per spec.
-- *Unchanged → no-op:* a rescan with zero vault changes returned `indexed=0 unchanged=121 tombstoned=0`; vector count identical before/after (917 → 917).
+
+- _Sync → ingest → searchable:_ a note authored via the Shortcut on the iPhone (sentinel phrase, cellular connection) synced to the Mac, was picked up by the watcher **fully automatically** (no manual rescan) once the threading fix landed, embedded, and came back as the #1 semantic-search hit (distance 0.42 vs. 0.61 for the next-closest note).
+- _Delete → tombstone:_ removing a tracked `.md` produced `tombstoned=1` automatically; catalog row `active=False`; vector rows for its digest dropped (no longer in search results); **`RawStore.exists(digest)` still `True`** — raw kept, per spec.
+- _Unchanged → no-op:_ a rescan with zero vault changes returned `indexed=0 unchanged=121 tombstoned=0`; vector count identical before/after (917 → 917).
 - Synctrain quirk confirmed and handled: phone-authored files don't push until the **Mind Palace Vault folder is manually rescanned** (pull-to-refresh) in Synctrain — iOS suspends the app's background file-watcher.
 
 **Decisions**
+
 - **Tailscale-only addresses + all discovery/relay disabled, on both ends, not just one.** Pinning only the Mac's address would still let the phone fall back to public discovery when off-LAN; both sides needed the same lockdown for the "no vendor in the path" guarantee to hold in every network condition (confirmed by testing the lockdown over cellular, not just Wi-Fi).
 - **`RLock` over a plain `Lock`** for the `JobQueue` fix — `enqueue()` and `claim()` already call `self.get()` internally; a non-reentrant lock would deadlock on that self-call. Kept the fix mechanical (lock the existing methods) rather than refactoring to private `_locked` variants, matching the no-premature-abstraction convention.
 - **iOS Shortcut over Obsidian/Runestone for capture** — owner's call: zero extra apps, can even share straight from Apple Notes' share sheet into the Shortcut-adjacent folder workflow once the Rename step exists.
@@ -415,19 +424,23 @@ Continuation of the 2026-06-26 vault-sync entry above: that session built the co
 **Next:** unchanged — **Phase 9 (Backups)**, not started this session.
 
 ## Security & attestation track — Step 1: test reorganization (2026-06-27, NOT a phase)
+
 **Not a phase; main build stays at Phase 9 next.** First step of the cross-cutting **security & attestation track** (test foundation → attestation records → crypto → Vault dev-mode → Vault↔attestation join → owner runbook), per design-notes/{test-organization,holistic-testing,attestation-layer,vault-runtime-auth}.md. Like the hardening pass: pulls forward attestation (Phase 10) + Vault primitives (Phase 5) because the building blocks exist (digests, Constitution fingerprint, `derived_from` edges, the `get_secret()` seam). This step is the **pure test-suite refactor** + seeding the new holistic-testing categories. **No production/runtime behavior changed.**
 
 **Built — test reorganization (mechanical, no logic change)**
+
 - Migrated the flat `tests/` into execution-profile subdirs (test-organization.md §1): `unit/` (65), `integration/` (154), `e2e/` (13 = all live+podman), `property/` (11 = Hypothesis + FSM checks), `integrity/` (12), plus empty-but-tracked `metamorphic/ adversarial/ emergent/ longitudinal/ fixtures/`. All 56 files moved via `git mv` (history preserved).
-- Per-dir `conftest.py` applies its **category marker** by **path filter** (the global-items pytest gotcha: a subdir conftest's `pytest_collection_modifyitems` still receives the *whole* item list, so each only marks items under its own dir). Capability markers (live/podman/slow/needs_*) stay per-file (`pytestmark`). All markers registered in `pyproject.toml`; `addopts = -m 'not longitudinal'` keeps the scheduled suite out of a bare `pytest`.
+- Per-dir `conftest.py` applies its **category marker** by **path filter** (the global-items pytest gotcha: a subdir conftest's `pytest_collection_modifyitems` still receives the _whole_ item list, so each only marks items under its own dir). Capability markers (live/podman/slow/needs\_\*) stay per-file (`pytestmark`). All markers registered in `pyproject.toml`; `addopts = -m 'not longitudinal'` keeps the scheduled suite out of a bare `pytest`.
 - **`integrity/` = the non-skippable CI gate**: network seal (`test_sealing`), import-firewall (`test_import_firewall`), mirror/provenance firewall (`test_mirror`). `.github/workflows/ci.yml` gains an `integrity-gate` job (`pytest -m "integrity and not live and not podman"`) as its own required check; the fast-suite job now also excludes `longitudinal`.
 - The move surfaced + fixed **two inter-test-module imports** (`from tests.test_vault_sync import DIM, FakeEmbedder`; `from tests.test_sandbox_pool import FakeRunner`) that would have broken — resolved the design-note way: extracted the shared fakes into the new **`tests/fixtures/`** package (`embedding.py`, `sandbox.py` + `corpus.py`/`stores.py` generators); root `tests/conftest.py` puts `tests/` on `sys.path` so `fixtures` imports from any category. Two `__file__`-relative repo-root refs (`test_import_firewall`, `test_fetcher`) re-anchored to `parents[2]` for the new depth.
 
 **Seeded — holistic-testing categories (new, additive, all passing)**
+
 - `metamorphic/` (+3): ingest idempotency (content-addressing — re-ingest ⇒ same digest, stored once, verbatim bytes round-trip); clustering order-independence.
 - `adversarial/` (+7): derivation-cycle refused through the public `add()` path (multi-hop + self-ref); prompt-injection note ingested as AUTHORED content with no provenance escalation; PII scrubber raises-on-doubt (email/phone/URL topic) + `assert_clean` bypass-proof.
 
 **Verified**
+
 - **Pure-refactor invariant held:** before = after = **255 collected / 242 passed** (`-m "not live and not podman"`), 8 live + 5 podman deselected. The move changed zero test outcomes.
 - After seeds: **265 collected / 252 passed** (+10). Categories partition exactly (65+154+13+11+3+7+12 = 265 — verified no double-marking); `e2e` == `live or podman` (13); `integrity` gate = **12 passed**.
 - `ruff check .` clean; import-firewall (`python -m ops.import_lint`) **OK** — core still reaches no network/zone.
@@ -437,18 +450,21 @@ Continuation of the 2026-06-26 vault-sync entry above: that session built the co
 **Next (Step 2 — attestation: records layer, NO signatures):** `core/attestation/` `Attestation` dataclass + append-only `AttestationStore` (no delete/update); `attestation_id` column on `DerivedStore`; emit **unsigned** attestations from Dreamer/Curator/VaultSync; `integrity/` tests asserting complete chains to authored leaves + dreamer attestation never references observed. Verify chain structure before adding crypto (Step 3). Steps 4–6 (Vault dev-mode, Vault↔attestation join, owner runbook) follow.
 
 ## Security & attestation track — Step 2: attestation records, NO signatures (2026-06-27, NOT a phase)
+
 **Not a phase; main build stays at Phase 9 next.** Second step of the security & attestation track (attestation-layer.md §2,§4,§5,§8). Built the **runtime proof layer's RECORDS** — the unsigned chain of custody — leaving `signature`/`signer` empty until Step 3, per the design note's "start without signatures; prove the structure first." **No runtime output changed** (the attestor is optional + additive; existing direct-construction tests pass an implicit `None`).
 
 **Built — `core/attestation/` (Zone A, stdlib-only; import-lint green)**
-- `record.py` `Attestation` (frozen): content-addressed `id = SHA-256(signing_payload())` over a canonical, **order-insensitive** (sorted hash tuples), fixed-separator JSON of all fields except `id`/`signature`/`signer`. So the id is stable and the future signature signs the *same* bytes the id is derived from (§2,§8). `create()` computes the id (never hand-set); `to_dict`/`from_dict` round-trip; `signing_payload()` is the Step-3 signing surface. `vault_token_accessor` defaults `""` (Step 5 populates).
+
+- `record.py` `Attestation` (frozen): content-addressed `id = SHA-256(signing_payload())` over a canonical, **order-insensitive** (sorted hash tuples), fixed-separator JSON of all fields except `id`/`signature`/`signer`. So the id is stable and the future signature signs the _same_ bytes the id is derived from (§2,§8). `create()` computes the id (never hand-set); `to_dict`/`from_dict` round-trip; `signing_payload()` is the Step-3 signing surface. `vault_token_accessor` defaults `""` (Step 5 populates).
 - `store.py` `AttestationStore` (SQLite, **append-only STRUCTURALLY** — exposes `append` + reads, **no `delete`/`update` method exists to call**; `INSERT OR IGNORE` so a re-emitted identical record is a no-op, never an overwrite). `check_same_thread=False` + `RLock` (the watcher emits from a spawned thread — same posture as the JobQueue fix). `producers_of(hashes)` = the chain-linking lookup (attestations whose outputs ∩ hashes); `chain_for(id)` assembles the transitive `derived_from_ids` closure and flags broken links. `AttestationChain` (`is_complete`/`leaves`/`leaf_input_hashes`/`roles`/`constitution_fingerprints`/`verify_signatures(verify)` — the last a Step-3 hook).
-- `attestor.py` `StoreAttestor` (the `Attestor` seam): agents call `emit(agent_role, action, input_hashes, output_hashes)`; it stamps the Constitution fingerprint + timestamp, **auto-links the chain** (`derived_from_ids = producers_of(input_hashes)` — so a dream that consumed digest D auto-derives from the ingest attestation that produced D), and appends. Step-3 signing slots in *inside* `emit` — agents stay untouched. `build_attestor(cfg)` wires the configured store.
+- `attestor.py` `StoreAttestor` (the `Attestor` seam): agents call `emit(agent_role, action, input_hashes, output_hashes)`; it stamps the Constitution fingerprint + timestamp, **auto-links the chain** (`derived_from_ids = producers_of(input_hashes)` — so a dream that consumed digest D auto-derives from the ingest attestation that produced D), and appends. Step-3 signing slots in _inside_ `emit` — agents stay untouched. `build_attestor(cfg)` wires the configured store.
 - `DerivedStore` gained an `attestation_id` column (additive migration + nullable) linking each interpreted record to the attestation that produced it (§5); public `artifact_id(kind, subkind, subjects)` so an emitter precomputes the record id, attests it as output, then writes the record with the link. `[paths] attestation_store` config (loader uses `.get` default so older TOMLs still load).
 - **Emitters wired** (each gains an optional `attestor`; `None` = off, default): Dreamer (`dream_pass`: inputs = clustered authored digests, output = dream record), Curator (`curate_finding` per finding), VaultSync (`ingest_note` on INDEXED: input==output==content digest — the authored leaf). `build_dreamer`/`build_curator`/`build_vault_sync` auto-wire a shared `build_attestor(cfg)`, so a live run produces a chained audit trail (ingest leaves → dreams/findings) in `data/attestations.sqlite`.
 
 **Verified**
+
 - `ruff` clean; import-firewall (`python -m ops.import_lint`) **OK** — `core/attestation/*` reach no network/zone. Fast suite **265 → 278 collected / 252 → 265 passed** (+13: 8 store mechanics, 3 integrity chain, 2 derived `attestation_id`), 13 deselected. Integrity gate **12 → 15 passed**.
-- **Records-layer integrity (the new gate tests, `tests/integrity/test_attestation_chain.py`):** a real dreaming pass (fake synthesizer, fixed-fingerprint attestor) over a corpus where an OBSERVED note sits *right next to* the authored cluster in vector space → every derived dream's `attestation_id` resolves to a **complete chain** whose leaves are the ingest attestations, `leaf_input_hashes` == exactly the authored digests (present in raw), `roles == {dreamer, vault_watcher}`, one Constitution fingerprint; and **no dreamer attestation references the observed digest** — the firewall holds at the attestation level (runtime half; the static half is MirrorView + import-lint). Append-only asserted structurally (no `delete`/`update` attr).
+- **Records-layer integrity (the new gate tests, `tests/integrity/test_attestation_chain.py`):** a real dreaming pass (fake synthesizer, fixed-fingerprint attestor) over a corpus where an OBSERVED note sits _right next to_ the authored cluster in vector space → every derived dream's `attestation_id` resolves to a **complete chain** whose leaves are the ingest attestations, `leaf_input_hashes` == exactly the authored digests (present in raw), `roles == {dreamer, vault_watcher}`, one Constitution fingerprint; and **no dreamer attestation references the observed digest** — the firewall holds at the attestation level (runtime half; the static half is MirrorView + import-lint). Append-only asserted structurally (no `delete`/`update` attr).
 - Store mechanics (`tests/integration/test_attestation_store.py`): content-addressed + order-insensitive ids, idempotent append, `producers_of`, chain closure + broken-link/missing-root detection, `by_role`.
 
 **Owner-deferred:** none (no production action; `data/attestations.sqlite` is gitignored). **Carry-forward:** Phase 4 empirical `-m podman` still pending.
@@ -456,19 +472,23 @@ Continuation of the 2026-06-26 vault-sync entry above: that session built the co
 **Next (Step 3 — attestation crypto, Ed25519, test keys):** signing in `StoreAttestor.emit` over `signing_payload()`; private key via `get_secret("attestation-signing-key")`, public key in repo, **test keypair in tests** (`@pytest.mark.needs_vault`-free — cold); `scripts/verify_attestation.py` standalone verifier; `chain.verify_signatures(verify)` wired to the real Ed25519 check; gate that attestations are signed by the owner key for gate decisions (owner key = Step 3 last). `integrity/`: signatures verify, tampering breaks them. Add `cryptography` dep (not a network lib — import-lint allows). **Production key placement is owner-operated.** Steps 4–6 (Vault dev-mode, Vault↔attestation join, owner runbook) follow.
 
 ## Security & attestation track — Step 3: attestation crypto, Ed25519 (2026-06-27, NOT a phase)
+
 **Not a phase; main build stays at Phase 9 next.** Third step of the security & attestation track (attestation-layer.md §3–4,§8). Added the **tamper-evidence**: Ed25519 signatures over the Step-2 records. Signing is **owner-gated** (`[attestation] enabled=false` default → records-only; turning it on without a placed key is a hard error, never a silent unsigned run). **No runtime output changed** by default.
 
 **Built — `core/attestation/` crypto (Zone A; `cryptography` dep — not a net lib, import-lint allows)**
+
 - `crypto.py`: Ed25519 `sign`/`verify` (base64 seeds/pubkeys/sigs; `verify` returns False on any malformed input, never raises) + `Ed25519Signer` (private key + name "supervisor"|"owner"; the key never leaves the object — callers hand it a payload, get a signature; the model/agents never see it). `generate_seed()`.
-- `verify.py`: `make_verifier(public_keys)` → `verify(att)` for `chain.verify_signatures`. An attestation verifies iff signed + known signer + valid Ed25519 over `signing_payload()` **and** — the §3 policy — **gate actions (`gate_approve`/`gate_reject`) are OWNER-signed** (a supervisor-signed gate decision is rejected, making gate approval non-repudiable). `load_public_keys` / `build_verifier` from the committed pub paths. (Gate-attestation *emission* lands with the Phase-10 gate loop — `ops/gate.py` is still the pure decision core; the verification half is enforced now.)
+- `verify.py`: `make_verifier(public_keys)` → `verify(att)` for `chain.verify_signatures`. An attestation verifies iff signed + known signer + valid Ed25519 over `signing_payload()` **and** — the §3 policy — **gate actions (`gate_approve`/`gate_reject`) are OWNER-signed** (a supervisor-signed gate decision is rejected, making gate approval non-repudiable). `load_public_keys` / `build_verifier` from the committed pub paths. (Gate-attestation _emission_ lands with the Phase-10 gate loop — `ops/gate.py` is still the pure decision core; the verification half is enforced now.)
 - `StoreAttestor.emit` now signs when a `signer` is set: `signature = sign(signing_payload())`, `signer = name`, via `replace` — and because the id is computed over `signing_payload()` (which **excludes** signature/signer), **signing does not change the content-addressed id** (verified: signed and unsigned emits of the same action share an id). `build_attestor` attaches a supervisor signer only when `enabled` AND the seed is placed; **fail-closed (`AttestationKeyMissing`)** otherwise.
 - `[attestation]` config (`enabled`, `signing_key_secret`, `owner_key_secret`, `supervisor_pub`, `owner_pub`) + `AttestationConfig` (Config field has a `default_factory` so direct `Config(...)` in tests stays valid).
 
 **Built — keys, scripts, docs (the build/owner split)**
+
 - Committed **public** keys `ops/attestation/{supervisor,owner}.pub` + **DEV** private seeds `tests/keys/{supervisor,owner}.seed` (deterministic from a fixed phrase; clearly marked NOT-production; `build_attestor` never reads `tests/keys/` — production signing uses `get_secret`). READMEs in both dirs draw the dev/production boundary.
 - `scripts/verify_attestation.py` — owner's standalone audit tool (`<id>` verifies signature + chain to authored leaves; `--all`; `--list`; seals first, read-only, no net). `scripts/gen_attestation_keys.py` — owner-operated keygen (prints the base64 seed to place in Keychain, writes only the public half to `ops/attestation/`).
 
 **Verified**
+
 - `ruff` clean; import-firewall **OK** (cryptography is not a network module; core still reaches no net/zone). Fast suite **278 → 293 collected / 265 → 280 passed** (+15: 7 crypto unit, 8 signature integrity), 13 deselected. **Integrity gate 15 → 23 passed.** No category double-marking (72+164+13+11+3+7+23 = 293).
 - **Signature integrity (`tests/integrity/test_attestation_signatures.py`):** emitted signatures verify (incl. after a store round-trip); **tampering any signed field or the signature breaks verification**; an unknown signer fails closed; `chain.verify_signatures` is True for a fully-signed ingest→dream chain and **False if any one link is tampered**; **gate decisions must be owner-signed** (supervisor-signed `gate_approve`/`gate_reject` rejected, owner-signed accepted); committed `ops/attestation/*.pub` match the dev seeds. Crypto mechanics in `tests/unit/test_attestation_crypto.py`.
 - CLI smoke: `verify_attestation.py` end-to-end verifies a signed chain; exit codes correct (not-found→1, list→0, usage→2). `build_attestor` fail-closed when `enabled=true` + no key → `AttestationKeyMissing`.
@@ -476,22 +496,27 @@ Continuation of the 2026-06-26 vault-sync entry above: that session built the co
 **Owner-deferred (you write code; owner operates production keys):** generate real keypairs (`scripts/gen_attestation_keys.py supervisor|owner`), place the printed seeds in Keychain (`attestation-signing-key`, `attestation-owner-key`), commit the regenerated `*.pub`, set `[attestation] enabled = true`. Full steps go in the Step-6 runbook.
 
 ## Carry-forward RESOLVED — Phase 4 empirical `-m podman` (2026-06-27)
+
 **Not a phase; a status correction.** The Phase-4 empirical isolation gate had been carried forward as "pending" across every checkpoint since 2026-06-25 (podman machine wouldn't boot: libkrun virtio-fs mount failure, then applehv wedged on recreation — see the Phase 4 entry + `docs/runbook.md`). Re-checked while pausing before Step 4: `podman machine list` now shows `podman-machine-default` (libkrun, 2 CPU/2GiB) **currently running**; `podman info` returns full healthy host info (cgroups v2, fedora podman-machine-os); a manual `podman run --rm alpine:latest echo ...` pulled and ran successfully. Ran the actual gate: **`pytest -m podman` → 5/5 passed** (`tests/e2e/test_sandbox_podman_live.py`: runs code + returns stdout, network is off, vault is unreachable, wall-clock timeout enforced, runs as non-root). Likely cause: a podman/libkrun update since the last attempt fixed the virtio-fs boot bug; no code or test changes were needed — the by-construction logic gate (Phase 4) and the empirical gate now agree. **The Phase 4 gate is now fully closed, both tiers.** No further carry-forward needed; do not re-add this note to future entries unless the machine regresses again.
 
 ## Security & attestation track — testing-coverage backfill (2026-06-27, NOT a phase)
+
 **Not a phase; closes out the owner-requested pause** (testing-coverage + sandbox-resilience review before Step 4 — the podman half is the RESOLVED entry above). Grepped for the gap rather than guessing: confirmed no test anywhere constructed `Curator(..., attestor=...)`, `VaultSync(..., attestor=...)`, or called `build_dreamer`/`build_curator`/`build_vault_sync` — so the `self.attestor.emit(...)` lines added in Step 2 had never executed under test for two of the three emitters, and none of the three `build_*` wiring branches had ever run. Backfilled all three; no production code changed.
 
 **Built (tests only)**
+
 - `tests/integrity/test_attestation_chain.py`: extended with the Curator half of the existing Dreamer pattern — `test_curator_finding_carries_a_complete_chain_to_authored_leaves` (a real `Curator(attestor=...)` over a corpus with an OBSERVED note sitting next to the authored near-dup pair in vector space; every finding's `attestation_id` resolves to a complete chain, `roles == {curator, vault_watcher}`, `leaf_input_hashes` == exactly the authored digests, present in raw) + `test_curator_attestation_never_references_observed` (the runtime firewall half, mirrored from the dreamer test).
 - `tests/integration/test_vault_sync.py`: `_sync()` helper now takes an optional `attestor=`. `test_indexed_emits_a_leaf_ingest_attestation` (a real `sync_path()` INDEXED outcome emits exactly one `vault_watcher`/`ingest_note` attestation with `input_hashes == output_hashes == (digest,)` — the chain's leaf) + `test_unchanged_rescan_does_not_emit_a_duplicate_attestation` (the UNCHANGED early-return never calls `attestor.emit`, asserted via `att_store.count()` staying at 1 across a second `rescan()`).
 - `tests/integration/test_attestor_build_wiring.py` (new file): `build_curator`/`build_dreamer`/`build_vault_sync` each wire a real `StoreAttestor` pointed at the configured attestation-store path, checked with `dataclasses.replace(get_config(), paths=..., vault=...)` into `tmp_path` (so the smoke test never touches the live repo's `data/` dir) — no live model/Ollama call needed, since `OllamaClient`/`build_model_server`/`lancedb.connect` are all side-effect-free at construction. Plus one cross-agent check that all three resolve to the same on-disk store path (so production attestations from different agents actually chain together).
 
 **Verified**
+
 - `ruff` clean; import-firewall **OK**. Fast suite **293 → 301 collected / 280 → 288 passed** (+8: 2 curator chain integrity, 2 vault-sync emission, 4 build-wiring), 13 deselected. **Integrity gate 23 → 25 passed.** No category double-marking.
 
 **Owner-deferred:** none (tests only). **Carry-forward:** none new.
 
 ## Security & attestation track — WASM sandbox runner, scoped not built (2026-06-27, NOT a phase)
+
 **Design only — no code, no tests, no config changes.** Per the owner's selected sequencing
 ("scope, build-it-later, not now"), wrote `docs/design-notes/wasm-sandbox-runtime.md`: how a
 future `WasmRunner` (wasmtime + Pyodide, named in CONVENTIONS.md/BUILD-SPEC §11 as the
@@ -514,19 +539,21 @@ second substrate.
 gap; do not treat the unbuilt `WasmRunner` as pending work unless a real need for it shows up.
 
 ## Security & attestation track — Step 4: Vault integration, dev-mode/fake (2026-06-27, NOT a phase)
+
 **Vault as a per-interaction runtime authorization layer** (`docs/design-notes/vault-runtime-auth.md`):
 an agent never holds a real secret, only an ephemeral token minted by the supervisor and scoped to
 a named role's policy; a token that doesn't cover a path is denied (`VaultPermissionDenied`) and the
 denial itself is logged as a signal, not just noise (§6). Disabled by default — `get_secret(name)`
 with no token is the env/Keychain path from Phase 0, completely unchanged.
 
-**Naming note:** `config/loader.py` already had a `VaultConfig` for the owner's *note* vault
+**Naming note:** `config/loader.py` already had a `VaultConfig` for the owner's _note_ vault
 (`VaultSync`/`VaultCatalog`/`VaultWatcher` — unrelated). Every new identifier at the config/module/
 section layer uses "Secrets" instead to avoid the collision (`SecretsConfig`, `SecretsBackend`,
 `config/secrets_backend.py`, `[secrets]`); class names that are unambiguously about HashiCorp Vault
 itself still say so (`FakeVault`, `VaultClient`, `VaultPermissionDenied`).
 
 **Built**
+
 - `config/secrets_backend.py`: `SecretsBackend` Protocol (`mint_token`/`read_secret`); `FakeVault`
   (in-memory dev double — `policies: dict[role, frozenset[secret_name]]`, append-only `minted`/
   `denials` audit lists); `VaultClient` (real Vault via `hvac`, construction side-effect-free —
@@ -536,10 +563,10 @@ itself still say so (`FakeVault`, `VaultClient`, `VaultPermissionDenied`).
   `config/defaults.toml`. `get_secret(name, token=None)` extended — `token=None` unchanged
   (env/Keychain); a real token routes through `build_secrets_backend()` and raises on disabled/denied.
 - `scheduler/supervisor.py`: `Supervisor.secrets: SecretsBackend | None` field + `mint_token(role,
-  ttl="10m")` — the supervisor holds minting authority only, never reads what it mints a token for.
+ttl="10m")` — the supervisor holds minting authority only, never reads what it mints a token for.
   Threading minted tokens into actual dreamer/curator/vault-sync call sites stays deferred to
   Phase 5 (agent factory + dispatcher) per the design note's own framing; this step only makes that
-  wiring *possible*.
+  wiring _possible_.
 - `ops/import_lint.py`: `"hvac"` added to `NETWORK_MODULES`, no allowlist entry — flatly forbidden
   under `core/`. Covered by the existing blanket `test_core_has_no_forbidden_imports`; no new test
   needed for that guarantee specifically.
@@ -561,6 +588,7 @@ itself still say so (`FakeVault`, `VaultClient`, `VaultPermissionDenied`).
   reachable dev-server, same pattern as `test_sandbox_podman_live.py`/`test_research_live.py`).
 
 **Verified**
+
 - `ruff` clean; import-firewall **OK** (`hvac` confirmed blocked under `core/`, zero reach). Fast
   suite **301 → 316 collected, 313 passed** (+15 new: 13 pass here, 2 skip — no Vault dev-server in
   this environment, expected and correct); **3 total skips** (the 2 new + 1 pre-existing
@@ -583,11 +611,12 @@ Keychain/env, set `[secrets] enabled = true`. Steps in `ops/vault/README.md`. Li
 Phase 5 work, not a Step-4 gap — the design note scopes it there explicitly.
 
 ## Security & attestation track — Step 5: Vault↔attestation join (2026-06-27, NOT a phase)
+
 **Joins the two subsystems built across this track** (Vault tokens, Step 4 ↔ signed attestation
 records, Steps 2–3): every attestation has a `vault_token_accessor` field that has defaulted to
 `""` since Step 2 (the record was built ready for this) — Step 5 populates it. The crux is a
 security distinction (attestation-layer.md §2, vault-runtime-auth.md §6): a minted Vault token
-comes with an **accessor** — a *non-secret* audit handle that can look up a token's metadata or
+comes with an **accessor** — a _non-secret_ audit handle that can look up a token's metadata or
 revoke it, but **cannot authenticate or read any secret**. The attestation records the **accessor**
 (tying an action to the Vault authorization it ran under), **never the token** (the credential —
 Invariant 10). The accessor is already inside `signing_payload()`, so the authorization claim is
@@ -596,12 +625,13 @@ the join primitive + prove its security properties; live token-threading through
 Phase 5.
 
 **Built**
+
 - `config/secrets_backend.py`: `MintedToken(token, accessor)` frozen value object — a mint returns
   both (real Vault hands back `resp["auth"]["client_token"]` + `["accessor"]` in one response).
   `FakeVault.mint_token` now generates a distinct token AND accessor in **separate keyspaces**
   (`fake-token-*` vs `fake-accessor-*` — a token can't be used where an accessor is expected, nor
   vice versa) and adds `role_for_accessor(accessor)` (the dev-mode analogue of Vault's
-  `lookup-accessor`: resolves an accessor → role *without* the token — what makes the join
+  `lookup-accessor`: resolves an accessor → role _without_ the token — what makes the join
   verifiable). `VaultClient.mint_token` captures the real accessor. `SecretsBackend` Protocol +
   `Supervisor.mint_token` return `MintedToken`.
 - `core/attestation/attestor.py`: `Attestor` Protocol + `StoreAttestor.emit` gained
@@ -610,7 +640,7 @@ Phase 5.
 - Tests: updated all Step-4 call sites to the new `MintedToken` return (`.token` for reads).
   `tests/unit/test_secrets_backend.py` (+1: token/accessor occupy separate keyspaces — accessor
   can't authenticate a read, token doesn't resolve as an accessor). `tests/integration/
-  test_supervisor.py` (mint test now also asserts `role_for_accessor(minted.accessor) == role`).
+test_supervisor.py` (mint test now also asserts `role_for_accessor(minted.accessor) == role`).
   `tests/integrity/test_attestation_vault_join.py` (new, +4, the non-skippable gate): emit records
   the accessor and the **token string appears NOWHERE** in the serialized attestation (the
   firewall); the accessor resolves back to the attested `agent_role` (verifiable join) and a forged
@@ -619,14 +649,15 @@ Phase 5.
   actions differing only in authorization are distinct attestations).
 
 **Verified**
+
 - `ruff` clean; import-firewall **OK** (`hvac` still flatly blocked under `core/`, 4/4). Fast suite
   **316 → 321 collected** (+5: 1 unit, 4 integrity join). **Integrity gate 25 → 29 passed.** Full
   suite: of 321 collected, **all 318 non-skipped pass**, 3 skip (2 `needs_vault`, 1 `dreaming_live`
   — infra-gated, unrelated). ⚠️ One full-suite run showed `test_scheduler_live::test_supervisor_
-  dispatches_a_real_job` failing with `TimeoutError` — a **concurrency-induced model timeout**
+dispatches_a_real_job` failing with `TimeoutError` — a **concurrency-induced model timeout**
   (I'd launched parallel `pytest` runs alongside the suite, starving the live Ollama dispatch); it
   **passes clean in isolation (55.89s)**, confirmed. Not a regression — Step 5 doesn't touch the
-  dispatch path (only *added* `mint_token` + a default-`None` `secrets` field). Lesson: don't run
+  dispatch path (only _added_ `mint_token` + a default-`None` `secrets` field). Lesson: don't run
   concurrent pytest against the live suite.
 
 **Owner-deferred:** none new — the Step-4 Vault standup (above) is the same prerequisite; once a
@@ -637,12 +668,14 @@ passes `.token` to the agent in context, records `.accessor` on the action's att
 Phase 5, as scoped — the seam is now complete and proven; Phase 5 wires it into the live loop.
 
 ## Security & attestation track — Step 6: owner-operated runbook + live-validated (2026-06-27, NOT a phase) — TRACK COMPLETE
+
 **The last step. Consolidates every owner-deferred production step across the track into one
 owner-facing runbook**, and — because the owner had just installed Vault via Homebrew — actually
 **validated the Step-5 join end-to-end against a real Vault server** (the dev-mode side of the
 build/owner split, which is the build agent's to run; production standup remains the owner's).
 
 **Built (docs)**
+
 - `docs/runbook.md` → new **"Security & trust infrastructure (owner-operated)"** section, the
   single place the three component READMEs (`ops/attestation/`, `ops/vault/`,
   `cloud/terraform/airlock/`) already point to. Ordered, copy-pasteable, tailored to the owner's
@@ -659,12 +692,14 @@ build/owner split, which is the build agent's to run; production standup remains
   note's Podman-container option vs the owner's Homebrew binary (equivalent, loopback either way).
 
 **Built (code — surfaced by the live run)**
+
 - `config/secrets_backend.py`: `VaultClient.read_secret` now passes `raise_on_deleted_version=True`
   to hvac's `read_secret_version` — pins current behavior and silences an hvac-v3 DeprecationWarning
   that only appeared once the call hit a **real** server. Exactly the kind of thing the FakeVault
   unit tests can't catch; the dev-mode validation earned its keep.
 
 **Verified — the join, live against real Vault (not FakeVault)**
+
 - Stood up a disposable `vault server -dev` on `127.0.0.1:8200` (in-memory, auto-unsealed, fixed
   dev root token; **torn down after** — no production init/unseal, no real secrets, no daemon left
   running). Installed `hvac` 2.4.0 into `.venv` (the `[secrets]` extra; doesn't affect the
@@ -686,25 +721,29 @@ standup (init/unseal, engines, AppRole, `vault-supervisor-token`, `[secrets] ena
 seam is complete and now proven against real Vault). No track-level gaps remain.
 
 ---
+
 ### ✅ Security & attestation track COMPLETE (all 6 steps, 2026-06-27)
+
 1. test reorganization · 2. attestation records (unsigned) · 3. attestation crypto (Ed25519) ·
-4. Vault dev-mode integration · 5. Vault↔attestation join · 6. owner runbook + live validation.
-The runtime proof layer (signed, chained, content-addressed attestations) and the runtime
-credential-authorization layer (scoped ephemeral Vault tokens, accessor-not-token in the audit
-trail) are built, tested cold, and the Vault path is proven live. **Main build remains parked at
-Phase 8 complete — next is Phase 9 (Backups), untouched by this track.**
+2. Vault dev-mode integration · 5. Vault↔attestation join · 6. owner runbook + live validation.
+   The runtime proof layer (signed, chained, content-addressed attestations) and the runtime
+   credential-authorization layer (scoped ephemeral Vault tokens, accessor-not-token in the audit
+   trail) are built, tested cold, and the Vault path is proven live. **Main build remains parked at
+   Phase 8 complete — next is Phase 9 (Backups), untouched by this track.**
 
 ## Production Vault standup — scaffolding + token-role fix (2026-06-27, NOT a phase, owner-operated)
+
 **Track is complete; this is the owner-operated production setup**, picked up because the owner had
 installed Vault via Homebrew and wanted it standing before Phase 9. Owner chose full scope (kv +
 AWS dynamic engine) + auto-unseal (Keychain + launchd). Build agent authored IaC + a correctness
 fix + validated against dev Vault; the owner runs init/unseal/key-placement (held the line).
 
-**Fixed (real correctness bug, surfaced by thinking about a *scoped* supervisor)**
+**Fixed (real correctness bug, surfaced by thinking about a _scoped_ supervisor)**
+
 - `VaultClient.mint_token` now mints via the **token role** (`create(role_name=role,
-  policies=[role])`), not a bare `policies=[role]`. The bare form only worked in dev because the
-  dev **root** token bypasses Vault's subset rule; a real *scoped* supervisor token can't assign a
-  policy it doesn't hold — and giving it those policies would let it *read* the secrets, breaking
+policies=[role])`), not a bare `policies=[role]`. The bare form only worked in dev because the
+  dev **root** token bypasses Vault's subset rule; a real _scoped_ supervisor token can't assign a
+  policy it doesn't hold — and giving it those policies would let it _read_ the secrets, breaking
   "supervisor mints but cannot read" (vault-runtime-auth.md §3). The token role's `allowed_policies`
   is the authorizer instead. `ops/vault/policies/supervisor.hcl` → `auth/token/create/*`.
 - New live test `test_scoped_supervisor_mints_but_cannot_read` proves it against real Vault with a
@@ -713,6 +752,7 @@ fix + validated against dev Vault; the owner runs init/unseal/key-placement (hel
   dev server.
 
 **Built (IaC — committed, owner-run; no secrets in any of it)**
+
 - `ops/vault/vault.hcl` (Raft at `data/vault/raft`, loopback listener, `disable_mlock`+FileVault
   posture), `ops/vault/vault-unseal.sh` (launchd-managed server + auto-unseal from Keychain via
   `security`, `wait`s so launchd supervises the pair), `ops/vault/com.mind-palace.vault.plist`
@@ -724,7 +764,7 @@ fix + validated against dev Vault; the owner runs init/unseal/key-placement (hel
   assumed-role creds, TTL=1h — gated on the airlock IAM existing). `scripts/run_with_secrets.sh`
   (Keychain→env launch wrapper via `env(1)` for the hyphenated secret names).
 - `ops/vault/README.md` updated with a scaffolding table + the short ordered standup; `docs/
-  runbook.md` §2 is the full guide. All `.sh` pass `sh -n`; plist passes `plutil -lint`.
+runbook.md` §2 is the full guide. All `.sh` pass `sh -n`; plist passes `plutil -lint`.
 
 **Verified:** `ruff` clean; logic suite **306 passed**; live **3/3** against dev Vault. `hvac` 2.4.0
 in `.venv`. No production server stood up, no real keys placed, `[secrets]`/`[attestation]` still
@@ -737,6 +777,7 @@ in Keychain, unseal, `setup_policies.sh`, load static secrets, install the Launc
 `setup_aws_engine.sh`. The build agent cannot place keys or init/unseal a production server.
 
 ## Production Vault standup — Phase A complete + live (2026-06-27, owner-operated, DONE)
+
 Owner ran the full Phase A standup on the Mac: `vault server -config ops/vault/vault.hcl` →
 `operator init` (1-share Shamir, single-user) → unseal key + root token in Keychain → unsealed →
 `setup_policies.sh` (real run: kv engine + 7 policies + 6 token roles, matched the dev validation
@@ -750,7 +791,7 @@ unseal, log showed `core: post-unseal setup complete`.
 clean way to turn it on for just this machine. Added a **gitignored `config/local.toml` overlay**:
 `config/loader.py` `load_config()` shallow-merges it onto defaults section-by-section when no
 explicit `path` is passed; `.gitignore` excludes `config/local.toml`. Created it here with
-`[secrets] enabled = true`. Made the two defaults-dependent tests hermetic (assert the *shipped*
+`[secrets] enabled = true`. Made the two defaults-dependent tests hermetic (assert the _shipped_
 default directly via `load_config(_DEFAULTS)`, not the ambient `get_config()`) so they can't be
 masked by a real local override — `tests/integration/test_secrets_backend_wiring.py`.
 
@@ -764,6 +805,7 @@ ambiently enabled during the test run) — confirms the hermetic-test fix holds.
 on for this machine only. Everything committed by the owner. **Phase A fully done.**
 
 ## Phase B — Vault AWS dynamic engine, live on production AWS (2026-06-27, DONE)
+
 Owner chose full scope (kv done above + AWS dynamic engine now) over deferring to Phase 5/the
 future server. Goal: the bridge gets short-lived (TTL=1h) AWS creds minted by Vault instead of a
 static SSO profile — vault-runtime-auth.md §4.
@@ -818,6 +860,7 @@ SSE-KMS, scheduled; AWS sees no plaintext; BUILD-SPEC §16b) — fresh session, 
 file + CLAUDE.md + BUILD-SPEC §16b.
 
 ## Phase 9 — Backups (restic → S3 + SSE-KMS): code complete + gate verified (2026-06-27)
+
 **The numbered phase.** restic → S3, client-side encrypted + deduplicated so AWS never sees
 plaintext; SSE-KMS on the bucket for defense in depth; scheduled (BUILD-SPEC §16b, §18 gate).
 Owner chose **full DR** (data + a consistent Vault raft snapshot). Architecture mirrors the airlock:
@@ -825,6 +868,7 @@ Terraform for the AWS side, a testable argv-builder for the restic invocation (l
 `sandbox/policy.py`), a launchd runner, and a real round-trip test.
 
 **Built**
+
 - `cloud/terraform/backups/` — S3 bucket (private, **versioned**, TLS-only, **SSE-KMS** default via a
   customer-managed `aws_kms_key` with rotation), lifecycle (expire noncurrent versions + abort MPU),
   and a **dedicated** `mind-palace-backup` IAM user scoped to exactly this bucket + key. The user is
@@ -835,7 +879,7 @@ Terraform for the AWS side, a testable argv-builder for the restic invocation (l
   never the values), region, `vault_snapshot`, exclude globs, retention (keep daily/weekly/monthly).
   Off by default; enable per machine via the `config/local.toml` overlay.
 - `ops/backup/plan.py` — `BackupPlan` + pure, deterministic argv builders (`init/backup/forget/
-  restore/check/snapshots`) and `ResticRunner` (subprocess; secrets via env, never argv). No password
+restore/check/snapshots`) and `ResticRunner` (subprocess; secrets via env, never argv). No password
   or AWS key can appear in argv by construction (no field carries one). `build_backup_plan()` backs
   up the note vault + the data dir, **excluding the live Vault raft store** (`<data>/vault`) — that's
   captured separately as a consistent snapshot the runner stages inside the data dir so it rides
@@ -853,8 +897,9 @@ Terraform for the AWS side, a testable argv-builder for the restic invocation (l
   marker in pyproject.
 
 **Verified — the Phase 9 gate, demonstrated cold**
+
 - Installed `restic` 0.19.0 (brew — a real Phase-9 prerequisite, not throwaway). **`pytest -m
-  needs_restic` → 1/1 PASSED**: encrypted backup + restore round-trips; the repository's bytes
+needs_restic` → 1/1 PASSED**: encrypted backup + restore round-trips; the repository's bytes
   contain no plaintext; `restic check` passes. ruff clean; import-firewall green (`ops/backup` is
   operational, not core — imports subprocess/shutil, no network lib). Logic suite **307 → 313
   passed** (+6 backup unit). `run.py` CLI plumbing + exit codes smoke-tested.
@@ -890,6 +935,7 @@ BUILD-SPEC §18). Fresh session for it.
 <!-- Append new phase entries below as you complete each one. -->
 
 ## Phase 10 — Self-modification loop (the last phase): code complete + gate verified (2026-06-28)
+
 **The final numbered phase.** propose→approve→execute→validate→rollback (BUILD-SPEC §14/§15/§18).
 Owner's scoping steer this session, which SHAPED the design: for now the loop may tune **knobs**
 (dream/alignment parameters, system weights) and nothing else; **infrastructure and code are an
@@ -899,11 +945,12 @@ extremely privileged resource the loop must not write**; feature-flag anything r
 is a registry of bounded numeric config knobs (`ops/levers.py`). A `ProposedChange` is a
 (lever-name, numeric-target, rationale) value object with NO field that can carry a path / diff /
 command / code / TF plan — so a code or infrastructure change is not a proposal the loop can even
-*construct* (the same move as `ResearchCriteria` having no field for note content). A unit test
+_construct_ (the same move as `ResearchCriteria` having no field for note content). A unit test
 asserts the field set is exactly `{lever, target, rationale}` and intersects no forbidden name —
 adding a code/infra lever later would be a visible, reviewable diff that breaks that test.
 
 **Built**
+
 - `ops/levers.py` — the lever registry = the whole writable surface. Seeded with the `[dreaming]`
   knobs whose hard bounds defaults.toml already documented (σ∈[0.55,0.75], near-dup≥0.90,
   min_cluster_size∈[2,6], max_clusters∈[4,16]). `Lever.validate` is fail-closed: out-of-bounds
@@ -940,6 +987,7 @@ adding a code/infra lever later would be a visible, reviewable diff that breaks 
   `[selfmod]` disabled; state-changing commands go through the loop's fail-closed gate.
 
 **Verified — the §18 Phase-10 gate, demonstrated**
+
 - `tests/integration/test_selfmod.py` IS the gate: a good change traverses propose→approve→execute→
   validate and is KEPT (overlay shows the tuned knob); a deliberately-bad change AUTO-ROLLS-BACK
   (overlay restored, no residue); the **boiling-frog** case — validator reports
