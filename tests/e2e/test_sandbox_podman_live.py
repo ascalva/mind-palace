@@ -49,3 +49,30 @@ def test_wall_clock_timeout_is_enforced():
 def test_runs_as_non_root():
     res = PodmanRunner().run_once(ExecSpec(code="import os; print(os.getuid())"), SandboxPolicy())
     assert res.stdout.strip() != "0"
+
+
+@_skip
+def test_piped_in_data_is_readable_and_processed():
+    # The data-in / data-out path: hand the sandbox a CSV, have stdlib code sum a column.
+    code = (
+        "import csv\n"
+        "with open('/tmp/input/series.csv') as f:\n"
+        "    rows = list(csv.DictReader(f))\n"
+        "print(sum(int(r['v']) for r in rows))\n"
+    )
+    spec = ExecSpec(code=code, inputs={"series.csv": "t,v\n1,10\n2,20\n3,12\n"})
+    res = PodmanRunner().run_once(spec, SandboxPolicy())
+    assert res.ok and res.stdout.strip() == "42"
+
+
+@_skip
+def test_vault_still_unreachable_with_inputs_present():
+    # Piping data IN must not open a host path: the vault remains absent even with inputs.
+    code = ("import os\n"
+            "print('input_present' if os.path.exists('/tmp/input/x') else 'input_absent')\n"
+            "vp = os.path.expanduser('~/.mind-palace/vault')\n"
+            "print('vault_present' if os.path.exists(vp) else 'vault_absent')\n")
+    res = PodmanRunner().run_once(ExecSpec(code=code, inputs={"x": "hi"}), SandboxPolicy())
+    lines = res.stdout.split()
+    assert "input_present" in lines      # the data arrived
+    assert "vault_absent" in lines and "vault_present" not in lines   # the vault did NOT

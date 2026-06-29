@@ -9,9 +9,13 @@ Code is delivered on **stdin** to the interpreter, so no bind mount is ever need
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 from core.sandbox.spec import ExecSpec, Limits, Network
+
+# Where piped-in data lands inside the sandbox (the isolated scratch tmpfs, not a host mount).
+SANDBOX_INPUT_DIR = "/tmp/input"
 
 # language -> (default image, argv that executes a program read from STDIN)
 RUNTIMES: dict[str, tuple[str, list[str]]] = {
@@ -31,6 +35,29 @@ class SandboxPolicy:
 
 
 DEFAULT_POLICY = SandboxPolicy()   # module-level singleton (avoids a call in arg defaults)
+
+
+def compose_program(spec: ExecSpec) -> str:
+    """The exact program piped to the interpreter on stdin: the user's code, prefixed (when
+    `inputs` are present) with a preamble that materializes each input to `/tmp/input/<name>`.
+
+    The data travels IN-BAND on stdin, NOT via a host bind mount — so the structural guarantee
+    that nothing from the host (the vault, indeed the whole host fs) is reachable is unchanged
+    (Invariant 4). Supported for python only (the data-analysis target); requesting inputs for
+    another language is refused rather than silently dropped."""
+    if not spec.inputs:
+        return spec.code
+    if spec.language != "python":
+        raise ValueError(f"data `inputs` are supported for python only, not {spec.language!r}")
+    payload = json.dumps(spec.inputs)            # name -> text
+    preamble = (
+        "import os as _os, json as _json\n"
+        f"_os.makedirs({SANDBOX_INPUT_DIR!r}, exist_ok=True)\n"
+        f"for _n, _v in _json.loads({payload!r}).items():\n"
+        f"    open(_os.path.join({SANDBOX_INPUT_DIR!r}, _n), 'w').write(_v)\n"
+        "del _os, _json, _n, _v\n"
+    )
+    return preamble + "\n" + spec.code
 
 
 def runtime_for(language: str) -> tuple[str, list[str]]:

@@ -43,9 +43,9 @@ def _corpus(tmp_path):
     dobs, _ = raw.add_text("third-party sleep-tracker nightly summary")
     rows = [
         {"digest": d1, "title": "sleep-1", "text": "racing thoughts",
-         "provenance": "authored", "vector": [1.0, 0.0, 0.0]},
+         "provenance": "authored-solo", "vector": [1.0, 0.0, 0.0]},
         {"digest": d2, "title": "sleep-2", "text": "slow breathing",
-         "provenance": "authored", "vector": [0.97, 0.03, 0.0]},
+         "provenance": "authored-solo", "vector": [0.97, 0.03, 0.0]},
         {"digest": dobs, "title": "tracker", "text": "observed exhaust",
          "provenance": "observed", "vector": [0.96, 0.04, 0.0]},   # close, but OBSERVED
     ]

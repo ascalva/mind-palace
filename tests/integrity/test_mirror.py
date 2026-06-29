@@ -26,7 +26,7 @@ class FakeStore:
 
 
 MIXED = [
-    {"digest": "a", "title": "auth", "provenance": "authored", "vector": [1.0]},
+    {"digest": "a", "title": "auth", "provenance": "authored-solo", "vector": [1.0]},
     {"digest": "b", "title": "obs", "provenance": "observed", "vector": [0.0]},
     {"digest": "c", "title": "interp", "provenance": "interpreted", "vector": [0.5]},
 ]
@@ -36,7 +36,7 @@ def test_project_applies_the_mirror_projection():
     store = FakeStore(list(MIXED))
     view = MirrorView.project(store)
     assert store.last_provenances == MIRROR_READABLE            # read restricted to MR
-    assert {r["provenance"] for r in view.rows()} == {Provenance.AUTHORED.value}
+    assert {r["provenance"] for r in view.rows()} == {Provenance.AUTHORED_SOLO.value}
     assert len(view) == 1
 
 
@@ -49,7 +49,7 @@ def test_direct_construction_with_a_non_authored_row_is_unrepresentable():
 
 
 def test_authored_rows_construct_fine():
-    view = MirrorView(_rows=({"provenance": "authored", "digest": "x"},))
+    view = MirrorView(_rows=({"provenance": "authored-solo", "digest": "x"},))
     assert len(view) == 1
 
 

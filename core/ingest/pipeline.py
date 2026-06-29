@@ -1,7 +1,11 @@
 """Ingest pipeline: vault -> raw store (dedup) -> chunks (BUILD-SPEC §8, §9).
 
-The deterministic write path. Embedding + LanceDB indexing consume `IngestRecord` (next
-increment). Everything produced here is provenance AUTHORED (the mirror's ground truth).
+The deterministic write path. Embedding + LanceDB indexing consume `IngestRecord`.
+
+`ingest_note` is provenance-PARAMETRIC (default `AUTHORED_SOLO`, the mirror's ground truth):
+vault notes are solo-authored, but the same chunk/embed path is reused — never a bespoke
+writer — for the Ambassador's `AUTHORED_DIALOGUE` capture and the `CURATED` self-knowledge
+ingest, which pass their own provenance through this one pipeline (the §1 spectrum split).
 """
 
 from __future__ import annotations
@@ -28,15 +32,18 @@ class IngestRecord:
 
 
 def ingest_note(note: ParsedNote, raw: RawStore, *,
+                provenance: Provenance = Provenance.AUTHORED_SOLO,
                 max_chars: int = 1200, overlap_chars: int = 150) -> IngestRecord:
     # Store the verbatim ORIGINAL bytes (raw is sacred, §8); chunk the decoded text view.
+    # `provenance` defaults to AUTHORED_SOLO (vault notes); dialogue capture / curated ingest
+    # pass AUTHORED_DIALOGUE / CURATED through this same path.
     digest, is_new = raw.add(note.raw_bytes)
     chunks = tuple(chunk_text(note.text, max_chars=max_chars, overlap_chars=overlap_chars))
     return IngestRecord(
         digest=digest,
         source_path=note.source_path,
         title=note.title,
-        provenance=Provenance.AUTHORED,
+        provenance=provenance,
         tags=note.tags,
         links=note.links,
         chunks=chunks,

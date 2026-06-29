@@ -1127,3 +1127,185 @@ amended (runbook → "Alignment drift gauge"). A1 now unblocks **R3/C2** (recurs
 **F4** (drift-trajectory asserts), and F9's two drift-deferred tests (move them to
 `longitudinal/` when F4 lands). Natural next: **A2** (structural detection + the alignment report,
 extends μ) or **F4** (uses the gauge), or Track B (Ambassador).
+
+### Track B — the Ambassador (the Voice), END TO END (B0–B5 + cross-cutting)
+
+**Status:** COMPLETE (2026-06-29; owner override: build the whole track in one session so the owner
+can start talking to the system — one-item-per-checkpoint suspended for Track B only). Notes (in
+precedence order): `ambassador-as-reasoning-agent.md` (authoritative), `ambassador-interpretation-and-flow.md`,
+`nervous-system-and-ambassador.md` §4. **No feature flags flipped** (dream R&D OFF, self-mod fail-closed
+OFF — untouched); nothing auto-activates (the CLI is the surface; the scheduled daemon is a runbook
+follow-up). The Ambassador is **core-side, reaches no network** (verified: no `core/`|`agents/` → `edge`).
+
+**Built**
+
+- **B0 — the §1 provenance split (the structural decision already made — executed, not re-derived).**
+  `core/provenance.py`: `AUTHORED` → `AUTHORED_SOLO` + `AUTHORED_DIALOGUE`, add `CURATED`;
+  `MIRROR_READABLE = {AUTHORED_SOLO, AUTHORED_DIALOGUE}` (curated/observed/interpreted excluded —
+  matches the formal spec). Blast radius exactly as mapped: `ingest_note` is now provenance-PARAMETRIC
+  (default `AUTHORED_SOLO`); `catalog.py` DDL default + `record` default `authored-solo`; `core/mirror.py`
+  unchanged (derives from `MIRROR_READABLE`). `VectorStore.relabel_provenance` + `VaultCatalog.relabel_provenance`
+  (delete-then-add / UPDATE; idempotent) back `scripts/migrate_provenance_split.py` (dry-run default,
+  `--apply`, same-trust-tier relabel — NOT a §8-firewall promotion, so safe + ungated).
+- **B3 — `core/ops_view.py` `OpsView`** (read-only operational introspection): binds ONLY the *read*
+  callables of the attestation store + proposal ledger + drift gauge — no `approve`/`deny`/`append`/
+  `mark_*` on its surface (static + guard tier; honestly weaker than MirrorView's structural copy, and
+  labelled so). `narrate()` renders status in plain language with NO internal nouns (tier/job/queue/
+  credentials), the §4 register; `_drift` is optional (drift not computed per-chat).
+- **Capture + curated.** `core/ingest/dialogue.py` `DialogueCapture.capture()` stores the owner's
+  message as `AUTHORED_DIALOGUE` through the SAME pipeline as vault ingest (parametrized provenance —
+  not a bespoke writer), mirror-readable + retrievable, idempotent, attested (`action=capture`).
+  `core/ingest/curated.py` ingests CONSTITUTION/CONVENTIONS/`docs/**` as `CURATED` (own graph, never
+  the mirror — `curated ∉ MIRROR_READABLE`); the "explain yourself" path is a deliberate, non-default
+  `Librarian.retrieve(provenances={CURATED})`.
+- **B2/B5 — `agents/ambassador/`** (the reasoning agent, pinned tier; persistent first-class role,
+  DELIBERATE empty scope — no `run_python`, no write — expressed as a `RoleTemplate` so the §10 ceiling
+  guards it). `intent.py`: deterministic floor (RETRIEVE/EXPLAIN/STATUS/TASK/CAPTURE) + model-earned
+  fallback, separately testable ("floor for the obvious, mind for the rest"). `agent.py`: the five
+  paths — RETRIEVE (mirror) / EXPLAIN (curated) / STATUS (ops-view, no model) / TASK (gate→queue +
+  effort narration) / CAPTURE (store + ack); B5 = context assembled through the §13 `Budgeter` every
+  turn (agent chooses ContextParts, budgeter enforces the window); grounding self-checked, ungrounded
+  answers flagged-not-hidden; per-step attestations; in-memory recent-history (older context re-retrieved
+  from `authored-dialogue`, no double-store). `policy.py`: effort narration (pure fn, no leaks) +
+  earned-interruption policy (off|earned_only|verbose, default earned_only; expected updates always
+  delivered, unprompted gated). `[ambassador]` config + `AmbassadorConfig`.
+- **B1 — wiring + CLI.** `scheduler/router.py`: `ambassador` kind → pinned tier @ REACTIVE,
+  `ambassador_task` → synthesis @ background. `scheduler/interface.py`: inbox-drain + delegated-task
+  handlers, the `task→gate→queue` delegation closures (the Ambassador never imports the scheduler —
+  injected), and `ConversationRuntime`/`build_conversation_runtime` (the in-process driver).
+  `core/interface.build_core_inbox` rewired to the Ambassador (lazy `agents` import — no load-time
+  cycle, no layering inversion). `scripts/talk.py` (REPL, `--offline` deterministic mode = the
+  verification + day-one surface), `scripts/ingest_self_knowledge.py`.
+
+**Verified**
+
+- Full logic suite **391 → 436 passed (+45)**, 4 skipped — no regressions. New: integrity
+  (`test_provenance_split` 7, `test_ops_view` 4, `test_curated_firewall` 3), unit (`test_ambassador_intent`
+  9, `test_ambassador_policy` 4), integration (`test_dialogue_capture` 3, `test_ambassador` 10,
+  `test_ambassador_budget` 3, `test_ambassador_conversation` 2 = the DoD as a test). Integrity gate **43**
+  green; import firewall (I2) green; ruff clean tree-wide; existing split-touched tests relabeled.
+- **Actually ran it** (the "interact meaningfully" bar): `scripts/talk.py --offline` drives a real
+  multi-turn conversation — retrieve (grounded, cited), explain (curated), status (plain narration),
+  task→deferred result on the next turn, capture → the exchange lands as `authored-dialogue` and
+  surfaces on a later retrieval (capture loop confirmed live, not just unit-tested).
+- Env note: the venv was rebuilt mid-session (uv.lock appeared) and lost pytest/ruff; reinstalled both
+  to verify. Run tests via `.venv/bin/python -m pytest`.
+
+**Owner-deferred (build/owner boundary)**
+
+- ⚠️ **Run the provenance migration** — `scripts/migrate_provenance_split.py --apply` (runbook →
+  "Provenance spectrum split"). The dry-run found **918 legacy `authored` vector rows + 135 catalog
+  rows** in live data; until relabeled they are NOT mirror-readable, so the live mirror reads empty.
+  Idempotent; restic snapshot is the safety net.
+- Run `scripts/ingest_self_knowledge.py` (needs Ollama) so EXPLAIN answers from the real docs.
+- Optional: the Tailscale-reachable local HTTP front end (lean: left as a runbook note — the CLI meets
+  the bar without an exposure decision); the scheduled-daemon wiring (handlers exist in
+  `scheduler/interface.py`, not enabled).
+
+**Next:** owner picks. Track B done unblocks daily use. Natural neighbors: **A2** (structural detection
+— extends the drift μ the ops-view can already narrate) or **F1–F3** (the harness). Per-category
+interruption sensitivity is a documented future extension (single dial shipped).
+
+### Operational lifecycle (`palace` launcher) + fresh-start (owner-requested, not a track item)
+
+**Status:** COMPLETE (2026-06-29). Owner asked for (a) a one-command start/stop for the whole system
+and (b) a clean wipe + re-point to a new Synctrain-over-Tailscale notes location. Both done.
+
+**Built**
+
+- `ops/lifecycle/` + `scripts/palace.py {start|stop|status|reset}` — the whole mind-palace as ONE
+  supervised process (supersedes the standalone `scripts/watch.py` / `com.mind-palace.watch`).
+  `runs.py` = a run ledger (`data/runs.sqlite`) pinning each run to its **git commit** + dirty flag +
+  clean/unclean shutdown. `preflight.py` = ensure-own + **verify-externals fail-closed** (Ollama
+  `version()`, Vault `/sys/health`, podman `which`; required ✗ refuses start, optional = warn) —
+  owner's chosen scope (manage own; verify, don't manage, the external daemons). `launcher.py`:
+  `start` (preflight → record run → catch-up vault sync / empty-cache rebuild → supervise queue +
+  watcher, with vault_sync + dream/curate + the delegating Ambassador inbox + `ambassador_task` all on
+  one supervisor) with a **graceful SIGTERM/SIGINT shutdown hook** (drain at a job boundary → mark run
+  clean — the ASG-lifecycle-hook analog); `stop` (signals the live run's pid); `status`; `reset` (the
+  surgical corpus wipe). **Recovery mode** on an unclean prior run (scheduler halted, read-only;
+  `--force` resumes) — the boot-time half of the A4 tamper response. launchd plist
+  `ops/lifecycle/com.mind-palace.palace.plist` (owner installs; `ExitTimeOut=120` drain window).
+- **Self-mod persistence answered + documented** (owner's question): tuned knob value →
+  `config/levers.toml` overlay (a file, not a db — `local.toml` always wins; delete = revert); the
+  propose→validate→rollback history → existing SQLite `data/selfmod_ledger.sqlite`; a restart re-reads
+  the overlay and resumes. The new run-ledger correlates a tuned knob to the commit/run it happened on.
+
+**Verified**
+
+- `tests/integration/test_lifecycle.py` (10): run-ledger clean/unclean detection (the recovery basis),
+  preflight fail-closed aggregation, launcher start→serve→mark-clean (fakes, no models), recovery on
+  unclean prior + `--force` resume, and **`reset` wipes the corpus but NEVER `data/vault`** (Raft) — the
+  load-bearing guard. Logic suite **436 → 446 (+10)**; ruff clean; preflight green against the live box
+  (Ollama 0.30.7, Vault health 200, podman present).
+
+**Executed (operational, owner-requested)**
+
+- `[vault] path` → `~/.mind-palace/vault/janus_notes` (config/local.toml) — ingest scoped to exactly
+  the new synced subdir. Retired the old `com.mind-palace.watch` LaunchAgent (superseded). Ran
+  `palace reset --confirm`: **hard-wiped the corpus** (raw + vectors + catalog + stale attestation chain
+  + queue = 9 paths); **production Vault Raft, ledgers, telemetry, backups untouched** (the guard held);
+  restic daily snapshot is the recovery net. A fresh re-ingest writes `authored-solo` natively → **the
+  provenance-split migration is now MOOT** (no `--apply` needed).
+
+**Owner-deferred / next**
+
+- ⚠️ Re-export your real notes into `~/.mind-palace/vault/janus_notes/` + point Synctrain there, then
+  `palace start` (re-ingests as authored-solo). `janus_notes/` still has 2 leftover 7–9 byte test stubs
+  from 06-27 — delete them (or let Synctrain reconcile) so they aren't ingested as junk.
+- Optional: install `com.mind-palace.palace.plist` for an always-on daemon; run
+  `scripts/ingest_self_knowledge.py` so the Ambassador's EXPLAIN path has the curated docs.
+- Future: a real cron cadence for dream/curate (currently a coarse in-loop interval); the full A4
+  graduated tamper response (this is the boot-time recovery half); a final-snapshot shutdown hook
+  (the `on_shutdown` seam is present, default off).
+
+### Wiring audit + sandbox finalization (owner-requested, not a track item)
+
+**Status:** COMPLETE (2026-06-29). Owner asked for a deep-dive on what's actually wired (fear of
+built-but-dangling parts), to finalize the code-exec sandbox/WASM + libraries + data-piping, and to
+clarify the watcher/process model.
+
+**Deep-dive audit → `docs/WIRING-AUDIT.md`** (durable map: WIRED / DANGLING / FLAG-OFF for every
+subsystem). Confirmed the fear is partly real. **DANGLING** (built+tested, no live driver):
+(1) dreams/curator findings are generated but never *surfaced* to the owner; (2) no agent
+autonomously *uses* the sandbox (the factory/run_python is built but undriven — Track D correlator);
+(3) the research airlock has no live driver; (4) Vault scoped tokens are mintable but unthreaded;
+(5) no auditor reads the attestation chain back (A3); (6) no remote gateway daemon (talk.py is the
+surface). All six are self-contained next-steps, documented with recommended fixes.
+
+**Finalized the sandbox (Track E E1/E2 + the owner's libs/data asks):**
+- **E1 closed** — podman runs here (libkrun machine); `pytest -m podman` **7/7** (added data-in +
+  vault-unreachable-with-inputs). Isolation now proven empirically, not just by construction. The
+  stale "KNOWN ISSUE" runbook section marked RESOLVED.
+- **Data-piping** — `ExecSpec.inputs` (name→text, 16 MB cap, name-safe) materialized at
+  `/tmp/input/<name>` by `policy.compose_program` IN-BAND on stdin (NO host mount → the vault stays
+  structurally unreachable; asserted). `run_python` tool + the new `scripts/sandbox.py` CLI thread
+  it through. Verified live: a CSV piped in, summed in-sandbox → 42.
+- **Libraries** — `ops/sandbox/Containerfile` (numpy/scipy/pandas/scikit-learn/cryptography) +
+  `scripts/build_sandbox_image.sh`; `[sandbox] image` selects it (owner builds once; default stays
+  slim so a fresh clone works). Wheels baked in → sandbox needs no network at run time.
+- **WASM (E2)** — `WasmRunner` is now a REAL wasmtime/WASI implementation (was a NotImplementedError
+  stub) + `RoutingRunner` (wasm for pure-compute python when available, else the verified podman);
+  fail-closed `available()`. `[sandbox] runtime` ∈ {podman, wasm, routing} + `wasm_module`. wasmtime
+  installed; activation needs an owner-placed `python.wasm` (documented). Isolation by absence of
+  syscall imports — no preopens/sockets granted.
+- **OS-health "agent" wired** — the `Watchdog` (built but never called) now runs in the palace serve
+  loop: feeds `mem.available_gb` (psutil) + raises a low-headroom flag (sense + report; the loader
+  already refuses ceiling-breaching loads). Closes a dangling end the owner named.
+
+**Watcher/process-model clarification:** "retired the watcher" = booted out the *duplicate*
+standalone `com.mind-palace.watch` LaunchAgent (else two watchers double-ingest). The watcher code
++ function live on, now *managed by* palace (started in serve, stopped in the graceful hook) — which
+IS the thin-supervisor model the owner described. Agents (ambassador/dreamer) are in-process config
+per BUILD-SPEC ("agents are config, not OS processes"), not separate daemons; Vault/Ollama are
+external daemons palace verifies. No code change needed — palace already starts everything + tears
+it down gracefully on stop.
+
+**Verified:** logic suite **446 → 456 (+10)**: data-piping (`test_sandbox_policy` +6), WASM/routing
+(`test_sandbox_wasm` +7), health-check wiring (`test_lifecycle`), minus overlap. podman e2e 7/7.
+ruff clean tree-wide; import firewall green. Deps added to `.venv`: wasmtime (+ earlier pytest/
+hypothesis/ruff after the mid-session venv rebuild). Owner command quick-reference added to the top
+of `docs/runbook.md`; sandbox/WASM section added.
+
+**Next (owner picks):** the six DANGLING items in `WIRING-AUDIT.md` — highest-value is surfacing
+dreams (small) and the Track D correlator (the autonomous sandbox driver, the owner's IoT example).

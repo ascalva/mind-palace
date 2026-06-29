@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The mind-palace as an always-on launchd daemon (operational lifecycle). This SUPERSEDES the
+  standalone com.mind-palace.watch agent — the launcher runs the watcher + the full supervisor
+  (vault_sync, dream/curate, ambassador tasks) in one supervised process with run-tracking and a
+  graceful-shutdown hook. Install (owner-operated):
+
+    cp ops/lifecycle/com.mind-palace.palace.plist ~/Library/LaunchAgents/
+    launchctl bootout  gui/$(id -u)/com.mind-palace.watch   2>/dev/null  # retire the old watcher
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.mind-palace.palace.plist
+
+  Stop gracefully (SIGTERM → drain at a job boundary → mark the run clean):
+    launchctl kill SIGTERM gui/$(id -u)/com.mind-palace.palace   # or: scripts/palace.py stop
+  Fully unload:
+    launchctl bootout gui/$(id -u)/com.mind-palace.palace
+
+  ExitTimeOut gives the drain time to finish before launchd escalates to SIGKILL (the ASG
+  lifecycle-hook drain window). Adjust the absolute paths if your checkout is elsewhere.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.mind-palace.palace</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/ascalva/mind-palace/.venv/bin/python</string>
+		<string>/Users/ascalva/mind-palace/scripts/palace.py</string>
+		<string>start</string>
+	</array>
+
+	<key>WorkingDirectory</key>
+	<string>/Users/ascalva/mind-palace</string>
+
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PYTHONUNBUFFERED</key>
+		<string>1</string>
+	</dict>
+
+	<key>RunAtLoad</key>
+	<true/>
+
+	<key>KeepAlive</key>
+	<true/>
+
+	<key>ThrottleInterval</key>
+	<integer>10</integer>
+
+	<key>ExitTimeOut</key>
+	<integer>120</integer>
+
+	<key>ProcessType</key>
+	<string>Background</string>
+
+	<key>StandardOutPath</key>
+	<string>/Users/ascalva/mind-palace/data/logs/palace.out.log</string>
+
+	<key>StandardErrorPath</key>
+	<string>/Users/ascalva/mind-palace/data/logs/palace.err.log</string>
+</dict>
+</plist>

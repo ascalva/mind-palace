@@ -74,13 +74,17 @@ def build_broker(config=None, *, telemetry: TelemetryWriter | None = None) -> Ex
 
     cfg = config or get_config()
     sb = cfg.sandbox
-    runner = build_runner(sb.runtime)
+    from pathlib import Path
+    wasm_module = Path(sb.wasm_module).expanduser() if sb.wasm_module else None
+    runner = build_runner(sb.runtime, wasm_module=wasm_module)
     policy = SandboxPolicy(image=sb.image)
     from core.sandbox.spec import Limits
 
     limits = Limits(memory=sb.memory, cpus=sb.cpus, pids=sb.pids_limit)
     pool = None
-    if sb.warm_pool_size > 0:
+    # The warm pool is a container concept (podman / routing-via-podman); the pure-wasm runtime
+    # has no persistent containers, so it never pools.
+    if sb.warm_pool_size > 0 and sb.runtime != "wasm":
         pool = WarmPool(runner=runner, policy=policy, limits=limits, size=sb.warm_pool_size)
     return ExecutionBroker(runner=runner, policy=policy, pool=pool,
                            telemetry=telemetry, max_concurrency=sb.max_concurrency)

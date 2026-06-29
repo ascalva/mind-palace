@@ -84,15 +84,22 @@ class CoreInbox:
 
 
 def build_core_inbox(config=None) -> CoreInbox:
-    """Wire the inbox to the librarian as the default handler (RAG over the mirror)."""
+    """Wire the inbox to the **Ambassador** — the conversational front door (Track B). The
+    Ambassador reasons about intent and routes to retrieve / explain / status / capture inline,
+    delegating heavy work; conversations are captured as `authored-dialogue`.
+
+    This base wiring has no DELEGATION queue handle (the core never imports the scheduler — that
+    would invert the layering), so TASK here still attests + narrates effort but enqueues nothing.
+    The full delegating inbox (task → gate → queue, with completed-result surfacing) is
+    `scheduler.interface.build_conversation_runtime`, used by the CLI and the scheduled path.
+
+    `agents.ambassador` is imported lazily (function-level): it transitively reaches the pure
+    `scheduler.budget` budgeter, and a top-level import would invert core's layering — the
+    Ambassador is core-side but is assembled, not imported, at module load (no network either)."""
+    from agents.ambassador import build_ambassador
     from config.loader import get_config
-    from core.librarian import build_librarian
 
     cfg = config or get_config()
-    librarian = build_librarian(cfg)
-
-    def handler(text: str) -> str:
-        return librarian.answer(text).text
-
+    ambassador = build_ambassador(cfg)
     os.makedirs(cfg.interface.handoff_dir, exist_ok=True)
-    return CoreInbox(handoff=cfg.interface.handoff_dir, handler=handler)
+    return CoreInbox(handoff=cfg.interface.handoff_dir, handler=ambassador.handler)

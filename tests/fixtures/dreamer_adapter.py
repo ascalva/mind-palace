@@ -253,7 +253,7 @@ class MindPalaceDreamerAdapter:
         # suite checks `set(grounding) & signal_ids`), and the digest IS the citation identity.
         return [
             {"id": f"{n.id}:0", "digest": n.id, "title": n.id, "source_path": "",
-             "chunk_index": 0, "provenance": Provenance.AUTHORED.value,
+             "chunk_index": 0, "provenance": Provenance.AUTHORED_SOLO.value,
              "text": n.text, "vector": vec}
             for n, vec in zip(notes, vectors, strict=True)   # one vector per note, by construction
         ]

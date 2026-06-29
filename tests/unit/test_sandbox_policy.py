@@ -9,7 +9,16 @@ import dataclasses
 
 import pytest
 
-from core.sandbox import ExecSpec, Limits, Network, SandboxPolicy, build_run_argv, build_warm_argv
+from core.sandbox import (
+    SANDBOX_INPUT_DIR,
+    ExecSpec,
+    Limits,
+    Network,
+    SandboxPolicy,
+    build_run_argv,
+    build_warm_argv,
+    compose_program,
+)
 
 
 def test_run_argv_has_full_isolation_and_mounts_nothing():
@@ -61,3 +70,39 @@ def test_warm_argv_is_an_isolated_idle_container():
     assert "-d" in argv and argv[-3:] == ["python:3.12-slim", "sleep", "infinity"]
     assert "--network=none" in argv and "--cap-drop=ALL" in argv and "--read-only" in argv
     assert "-v" not in argv
+
+
+# --- data piping IN (ExecSpec.inputs → /tmp/input, in-band on stdin, no host mount) -------------
+def test_compose_program_without_inputs_is_just_the_code():
+    assert compose_program(ExecSpec(code="print(1)")) == "print(1)"
+
+
+def test_compose_program_materializes_inputs_into_the_scratch_tmpfs():
+    spec = ExecSpec(code="print('done')", inputs={"data.csv": "a,b\n1,2\n"})
+    prog = compose_program(spec)
+    assert SANDBOX_INPUT_DIR in prog and "data.csv" in prog   # preamble writes it
+    assert prog.rstrip().endswith("print('done')")            # user code last
+    assert "a,b" in prog                                       # the data is carried in-band
+
+
+def test_compose_program_rejects_inputs_for_non_python():
+    with pytest.raises(ValueError):
+        compose_program(ExecSpec(code="echo hi", language="bash", inputs={"x": "y"}))
+
+
+def test_inputs_are_size_capped_and_name_safe():
+    from core.sandbox.spec import MAX_INPUT_BYTES
+    with pytest.raises(ValueError):                            # path traversal in a name
+        ExecSpec(code="x", inputs={"../escape": "data"})
+    with pytest.raises(ValueError):                            # absolute/separator in a name
+        ExecSpec(code="x", inputs={"a/b": "data"})
+    with pytest.raises(ValueError):                            # over the total cap
+        ExecSpec(code="x", inputs={"big": "z" * (MAX_INPUT_BYTES + 1)})
+
+
+def test_run_argv_still_mounts_nothing_even_with_inputs():
+    # The load-bearing property: data-in does NOT add a host mount, so the vault stays unreachable.
+    argv = build_run_argv(ExecSpec(code="print(1)", inputs={"data.csv": "a,b\n1,2"}))
+    assert "-v" not in argv
+    assert not any(a.startswith(("--volume", "--mount")) for a in argv)
+    assert "--network=none" in argv

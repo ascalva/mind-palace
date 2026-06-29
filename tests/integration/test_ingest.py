@@ -48,7 +48,7 @@ def test_pipeline_dedups_and_tags_authored(tmp_path):
     raw = RawStore(tmp_path / "raw")
     records = ingest_vault(v, raw)
     by_title = {r.title: r for r in records}
-    assert by_title["Daily"].provenance is Provenance.AUTHORED
+    assert by_title["Daily"].provenance is Provenance.AUTHORED_SOLO
     # identical content shares one raw object; exactly one of the two copies is is_new
     coping_digest = by_title["Coping"].digest
     assert by_title["CopingCopy"].digest == coping_digest
@@ -68,6 +68,10 @@ def test_ingest_handles_non_utf8(tmp_path):
 
 
 def test_mirror_firewall_is_authored_only():
-    # design-notes/observed-data-and-the-assistant-tier.md — the mirror reads authored only.
-    assert MIRROR_READABLE == frozenset({Provenance.AUTHORED})
+    # design-notes/observed-data-and-the-assistant-tier.md — the mirror reads BOTH authored
+    # classes (solo + dialogue) and nothing else (the §1 spectrum split; curated/observed out).
+    assert MIRROR_READABLE == frozenset(
+        {Provenance.AUTHORED_SOLO, Provenance.AUTHORED_DIALOGUE}
+    )
     assert Provenance.OBSERVED not in MIRROR_READABLE
+    assert Provenance.CURATED not in MIRROR_READABLE   # curated never enters the mirror

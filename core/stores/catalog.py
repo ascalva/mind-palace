@@ -13,9 +13,10 @@ authority for the tombstone semantics (design-notes/vault-sync-and-capture.md):
                     kept** so a re-add dedups and nothing is lost.
 
 It carries only local bookkeeping (paths, digests) — no note content, no network. All notes
-the watcher records are `authored-solo` (the owner's own writing), realized as the existing
-AUTHORED provenance tag (the authored-solo / authored-dialogue split is the §1 spectrum growth
-path, deferred — see docs/PROGRESS.md Phase-1 reconciliation).
+the watcher records are `authored-solo` (the owner's own writing) — the §1 spectrum split is
+now realized, so `Provenance.AUTHORED_SOLO` is the concrete tag (was the single `authored`).
+Dialogue capture records `authored-dialogue` and curated ingest records `curated` through the
+same catalog, by passing `provenance=` to `record`.
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ CREATE TABLE IF NOT EXISTS vault_files (
     source_path TEXT PRIMARY KEY,
     digest      TEXT NOT NULL,
     title       TEXT NOT NULL,
-    provenance  TEXT NOT NULL DEFAULT 'authored',
+    provenance  TEXT NOT NULL DEFAULT 'authored-solo',
     active      INTEGER NOT NULL DEFAULT 1,
     updated_at  TEXT NOT NULL
 );
@@ -50,7 +51,7 @@ class CatalogEntry:
     digest: str
     title: str
     active: bool
-    provenance: str = Provenance.AUTHORED.value
+    provenance: str = Provenance.AUTHORED_SOLO.value
 
 
 @dataclass
@@ -73,7 +74,7 @@ class VaultCatalog:
         return _to_entry(r) if r else None
 
     def record(self, source_path: str, digest: str, title: str, *,
-               provenance: Provenance = Provenance.AUTHORED) -> None:
+               provenance: Provenance = Provenance.AUTHORED_SOLO) -> None:
         """Upsert a file as active at `digest` (re-adding a tombstoned file reactivates it)."""
         self._conn.execute(
             "INSERT INTO vault_files (source_path, digest, title, provenance, active, updated_at)"
@@ -118,6 +119,21 @@ class VaultCatalog:
             "SELECT * FROM vault_files WHERE active = 1 ORDER BY source_path"
         ).fetchall()
         return [_to_entry(r) for r in rows]
+
+    def relabel_provenance(self, old: str, new: str) -> int:
+        """Rewrite every entry's provenance from `old` to `new`. Returns rows changed.
+
+        The catalog-side half of the §1 spectrum-split migration (relabel legacy `'authored'`
+        → `'authored-solo'`). Same-trust-tier relabel, idempotent (a second run matches no
+        `old` rows)."""
+        if old == new:
+            return 0
+        cur = self._conn.execute(
+            "UPDATE vault_files SET provenance = ?, updated_at = ? WHERE provenance = ?",
+            [new, _utcnow(), old],
+        )
+        self._conn.commit()
+        return cur.rowcount
 
     def remove(self, source_path: str) -> None:
         """Delete the catalog row entirely (used by the gated purge after raw removal)."""

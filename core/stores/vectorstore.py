@@ -84,6 +84,26 @@ class VectorStore:
             return
         self._table().delete(f"digest = '{digest}'")
 
+    def relabel_provenance(self, old: str, new: str) -> int:
+        """Rewrite every row's provenance from `old` to `new`. Returns rows relabeled.
+
+        Used by the §1 spectrum-split migration to relabel the legacy `'authored'` rows to
+        `'authored-solo'`. This is a SAME-TRUST-TIER relabel (both are mirror-readable), not a
+        promotion across the §8 firewall — so it is a safe, deterministic data migration, not a
+        gated provenance change. Idempotent by construction: a second run finds no `old` rows
+        and is a no-op. Implemented as delete-then-re-add (the store's existing re-index idiom)
+        so it stays portable — no dependency on a LanceDB in-place `update`."""
+        if old == new or TABLE not in self._db.list_tables().tables:
+            return 0
+        rows = [r for r in self._table().to_arrow().to_pylist() if r.get("provenance") == old]
+        if not rows:
+            return 0
+        for r in rows:
+            r["provenance"] = new
+        self._table().delete(f"provenance = '{old}'")
+        self.add(rows)
+        return len(rows)
+
     def all_rows(self, *,
                  provenances: Iterable[Provenance] | None = None) -> list[dict[str, Any]]:
         """Full scan, optionally restricted to provenance classes — the read the dreaming

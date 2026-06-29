@@ -14,11 +14,11 @@ from core.stores.derived import DREAM, DerivedStore
 
 ROWS = [
     {"digest": "d1", "title": "sleep-1", "text": "racing thoughts at night",
-     "provenance": "authored", "vector": [1.0, 0.0, 0.0]},
+     "provenance": "authored-solo", "vector": [1.0, 0.0, 0.0]},
     {"digest": "d2", "title": "sleep-2", "text": "slow breathing before bed",
-     "provenance": "authored", "vector": [0.96, 0.04, 0.0]},   # clusters with sleep-1
+     "provenance": "authored-solo", "vector": [0.96, 0.04, 0.0]},   # clusters with sleep-1
     {"digest": "d3", "title": "cooking", "text": "slow-cooked ragu",
-     "provenance": "authored", "vector": [0.0, 0.0, 1.0]},     # isolated -> dropped (<min_size)
+     "provenance": "authored-solo", "vector": [0.0, 0.0, 1.0]},     # isolated -> dropped
 ]
 
 

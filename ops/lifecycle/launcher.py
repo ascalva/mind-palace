@@ -1,0 +1,335 @@
+"""The launcher — one supervised process for the whole mind-palace (operational lifecycle).
+
+`start` → preflight (ensure own, verify externals, fail-closed) → record the run pinned to the
+git commit → reconcile the corpus (a catch-up vault sync; rebuilds an empty cache) → run the
+supervisor + watcher with a **graceful shutdown hook** (SIGTERM/SIGINT → stop claiming new work,
+let the in-flight job finish at its boundary — the scheduler is already cooperative — then mark
+the run CLEAN). `stop` signals the live run's pid. `status` shows preflight + the last runs.
+`reset` is the surgical fresh-start wipe.
+
+Recovery (nervous-system-and-ambassador.md §1): if the *previous* run never marked itself stopped
+(crash / kill -9 / power loss), `start` comes up in **recovery mode** — scheduler halted, watcher
+off, read-only — and asks the owner to inspect, then `--force` to resume. State itself lives in
+the stores/files, so a clean restart just resumes; recovery is the cautious response to an
+*unclean* exit, not the normal path.
+"""
+
+from __future__ import annotations
+
+import os
+import signal
+import time
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from ops.lifecycle.preflight import run_preflight
+from ops.lifecycle.runs import RunLedger, git_state
+
+# Data files/dirs the reset wipe must NEVER touch: the production Vault Raft store, the run +
+# self-mod ledgers, telemetry history, the live backup staging, and logs. The corpus targets are
+# computed from cfg.paths; this guard is defense-in-depth so a path mistake can't nuke Vault.
+_RESET_GUARD = ("vault", "runs.sqlite", "selfmod_ledger.sqlite", "telemetry.duckdb",
+                "backup-staging", "logs")
+
+# Default cadence for the trough housekeeping passes (dream + curate). They only actually run
+# when the foreground gate is clear (the supervisor's HEAVY_TIERS check), so this is a ceiling.
+_HOUSEKEEPING_INTERVAL_S = 6 * 3600
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)        # signal 0 = liveness probe, delivers nothing
+    except ProcessLookupError:
+        return False           # no such process
+    except PermissionError:
+        return True            # exists but owned by another user
+    return True
+
+
+@dataclass
+class Components:
+    """What `serve` drives. Injectable so tests exercise the lifecycle without models."""
+
+    supervisor: object                       # .run() / .blocked_tiers()
+    watcher: object                          # .start() -> backend, .stop()
+    queue: object                            # JobQueue
+    enqueue_catchup: Callable[[], None] = lambda: None     # reconcile corpus on start
+    enqueue_housekeeping: Callable[[], None] = lambda: None  # dream + curate pass
+    health_check: Callable[[], list] = lambda: []          # OS-health sense (returns crossed flags)
+
+
+def build_components(cfg) -> Components:
+    """Wire the full daemon: vault_sync (+watcher), the delegating Ambassador inbox, the
+    delegated-task worker, and the trough dream/curate handlers — all on one supervisor."""
+    import psutil
+
+    from agents.ambassador import build_ambassador
+    from core.curator import build_curator
+    from core.dreaming import build_dreamer
+    from core.ingest.sync import build_vault_sync
+    from core.interface import CoreInbox
+    from core.librarian import build_librarian
+    from core.models import Registry, TwoSlotLoader
+    from core.models.ollama_client import OllamaClient
+    from core.stores.telemetry import open_store
+    from ops.gate import HumanGate
+    from scheduler.cron import cron_handlers, enqueue_curate, enqueue_dream
+    from scheduler.interface import (
+        AMBASSADOR_KIND,
+        AMBASSADOR_TASK_KIND,
+        ambassador_inbox_handler,
+        ambassador_task_handler,
+        build_task_delegation,
+    )
+    from scheduler.queue import JobQueue
+    from scheduler.router import Router, Watchdog
+    from scheduler.supervisor import Supervisor
+    from scheduler.vault_sync import (
+        VAULT_SYNC_KIND,
+        build_vault_watcher,
+        enqueue_vault_sync,
+        vault_sync_handler,
+    )
+
+    queue = JobQueue(cfg.paths.data_dir / "queue.sqlite")
+    router = Router(cfg)
+    loader = TwoSlotLoader(config=cfg, client=OllamaClient(cfg.ollama), registry=Registry(cfg))
+
+    # The OS-health agent: the supervisor records its own vitals (queue depth, model-load time);
+    # here we also feed system memory so the deterministic Watchdog can raise a low-headroom flag
+    # (sense + report; the loader already REFUSES ceiling-breaching loads — Invariant 8).
+    tstore = open_store(cfg)
+    telemetry = tstore.writer()
+    watchdog = Watchdog(tstore.reader())
+
+    def health_check() -> list:
+        avail_gb = psutil.virtual_memory().available / (1024 ** 3)
+        telemetry.record_vital("mem.available_gb", round(avail_gb, 2), unit="GB", source="os")
+        return watchdog.check()
+
+    gate = HumanGate()
+    delegate, pending = build_task_delegation(queue, router, gate=gate)
+    ambassador = build_ambassador(cfg, delegate=delegate, pending_results=pending)
+    inbox = CoreInbox(handoff=cfg.interface.handoff_dir, handler=ambassador.handler)
+    task_librarian = build_librarian(cfg)
+
+    handlers = {
+        VAULT_SYNC_KIND: vault_sync_handler(build_vault_sync(cfg)),
+        AMBASSADOR_KIND: ambassador_inbox_handler(inbox),
+        AMBASSADOR_TASK_KIND: ambassador_task_handler(task_librarian),
+        **cron_handlers(build_dreamer(cfg), build_curator(cfg)),
+    }
+    supervisor = Supervisor(queue=queue, loader=loader, handlers=handlers, telemetry=telemetry)
+    watcher = build_vault_watcher(queue, router, cfg)
+
+    def _housekeeping() -> None:
+        enqueue_dream(queue, router)
+        enqueue_curate(queue, router)
+
+    return Components(
+        supervisor=supervisor, watcher=watcher, queue=queue,
+        enqueue_catchup=lambda: enqueue_vault_sync(queue, router),
+        enqueue_housekeeping=_housekeeping,
+        health_check=health_check,
+    )
+
+
+@dataclass
+class Launcher:
+    cfg: object
+    runs: RunLedger
+    repo_root: Path
+    components_factory: Callable[[object], Components] = build_components
+    preflight_fn: Callable[[object], object] = run_preflight   # injectable for tests
+    tick_seconds: float = 1.0
+    housekeeping_interval_s: float = _HOUSEKEEPING_INTERVAL_S
+    health_interval_s: float = 60.0                            # OS-health sense cadence
+    on_shutdown: Callable[[bool], None] | None = None   # ASG-style lifecycle hook (e.g. snapshot)
+    _stopping: bool = field(default=False, init=False)
+    _run_id: int | None = field(default=None, init=False)
+    _components: Components | None = field(default=None, init=False)
+
+    # --- start ------------------------------------------------------------------------------
+    def start(self, *, force: bool = False, max_ticks: int | None = None) -> int:
+        pf = self.preflight_fn(self.cfg)
+        print("preflight:")
+        print(pf.render())
+        if not pf.ok and not force:
+            print("\n✗ preflight failed — refusing to start. Fix the ✗ items, or `start --force` "
+                  "to override.")
+            return 1
+
+        last_clean = self.runs.last_was_clean()
+        recovery = not last_clean and not force
+        commit, dirty = git_state(self.repo_root)
+        run = self.runs.open_run(commit_sha=commit, dirty=dirty, pid=os.getpid(),
+                                 recovery=recovery)
+        self._run_id = run.id
+        tag = f"{commit[:12]}{' (dirty)' if dirty else ''}"
+        print(f"\nrun #{run.id} on {tag}"
+              + (" [RECOVERY — previous run did not exit cleanly]" if recovery else ""))
+
+        clean = False
+        try:
+            if recovery:
+                print("recovery mode: scheduler halted, watcher off, read-only. Inspect the "
+                      "stores, then `start --force` to resume normally once the cause is cleared.")
+                self._install_signal_handlers()
+                self._idle(max_ticks)
+            else:
+                self._components = self.components_factory(self.cfg)
+                self._components.enqueue_catchup()        # reconcile / rebuild an empty cache
+                self._install_signal_handlers()
+                self._serve(max_ticks)
+            clean = True
+        finally:
+            self._shutdown(clean=clean)
+        return 0
+
+    def _serve(self, max_ticks: int | None) -> None:
+        c = self._components
+        assert c is not None
+        backend = c.watcher.start()
+        print(f"watching {self.cfg.vault.path} (backend={backend}); supervising. "
+              "Ctrl-C or `palace stop` to drain + stop cleanly.")
+        c.enqueue_housekeeping()                          # one pass soon after start
+        last_housekeeping = last_health = time.monotonic()
+        ticks = 0
+        while not self._stopping and (max_ticks is None or ticks < max_ticks):
+            c.supervisor.run()                            # drain runnable jobs at boundaries
+            now = time.monotonic()
+            if now - last_health >= self.health_interval_s:
+                for flag in c.health_check():             # the OS-health agent: sense + report
+                    print(f"⚠ health: {flag.note} ({flag.metric}={flag.value} < {flag.threshold})")
+                last_health = now
+            if now - last_housekeeping >= self.housekeeping_interval_s:
+                c.enqueue_housekeeping()
+                last_housekeeping = now
+            ticks += 1
+            if self.tick_seconds:
+                time.sleep(self.tick_seconds)
+
+    def _idle(self, max_ticks: int | None) -> None:
+        ticks = 0
+        while not self._stopping and (max_ticks is None or ticks < max_ticks):
+            ticks += 1
+            if self.tick_seconds:
+                time.sleep(self.tick_seconds)
+
+    def _shutdown(self, *, clean: bool) -> None:
+        if self._run_id is None:
+            return
+        run_id, self._run_id = self._run_id, None        # idempotent: only once
+        if self._components is not None:
+            try:
+                self._components.watcher.stop()
+            except Exception:  # noqa: BLE001 — shutdown must not raise
+                pass
+        if self.on_shutdown is not None:
+            try:
+                self.on_shutdown(clean)                   # the lifecycle hook (e.g. final snapshot)
+            except Exception:  # noqa: BLE001
+                pass
+        if self._components is not None:
+            try:
+                self._components.queue.close()
+            except Exception:  # noqa: BLE001
+                pass
+        self.runs.mark_stopped(run_id, clean=clean)
+        print(f"run #{run_id} stopped ({'clean' if clean else 'UNCLEAN'}).")
+
+    def _install_signal_handlers(self) -> None:
+        def handler(_signum, _frame):
+            self._stopping = True
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            try:
+                signal.signal(sig, handler)
+            except ValueError:
+                pass            # not on the main thread (tests) — fine; max_ticks bounds the loop
+
+    # --- stop / status ----------------------------------------------------------------------
+    def stop(self) -> int:
+        run = self.runs.last()
+        if run is None or not run.active:
+            print("no active run to stop.")
+            return 1
+        try:
+            os.kill(run.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            # the process is gone but never marked stopped — a crash; record it as unclean.
+            self.runs.mark_stopped(run.id, clean=False, note="stop: process already gone")
+            print(f"run #{run.id} (pid {run.pid}) was not alive — marked unclean.")
+            return 1
+        print(f"sent SIGTERM to run #{run.id} (pid {run.pid}); it will drain + mark clean.")
+        return 0
+
+    def status(self) -> int:
+        print("preflight:")
+        print(run_preflight(self.cfg).render())
+        runs = self.runs.recent(5)
+        if not runs:
+            print("\nno runs recorded yet.")
+            return 0
+        print("\nrecent runs:")
+        for r in runs:
+            state = ("RUNNING" if r.active else ("clean" if r.clean_shutdown else "UNCLEAN"))
+            rec = " [recovery]" if r.recovery else ""
+            print(f"  #{r.id} {r.commit_sha[:12]}{' (dirty)' if r.dirty else ''} "
+                  f"started {r.started_at} — {state}{rec}")
+        return 0
+
+    # --- reset (the fresh-start wipe) -------------------------------------------------------
+    def reset_targets(self) -> list[Path]:
+        """The corpus + its derived/chain layer + the stale queue. Computed from cfg.paths;
+        each is asserted to be under data/ and outside the guard set (never the Vault Raft)."""
+        p = self.cfg.paths
+        candidates = [
+            p.raw_store, p.vector_store, p.vault_catalog, p.derived_store, p.attestation_store,
+            p.data_dir / "queue.sqlite",
+        ]
+        out: list[Path] = []
+        for c in candidates:
+            assert p.data_dir in c.parents or c.parent == p.data_dir, f"target {c} not under data/"
+            assert c.name not in _RESET_GUARD and c.name != "vault", f"refusing to wipe guarded {c}"
+            out.append(c)
+        return out
+
+    def reset(self, *, confirm: bool) -> int:
+        import shutil
+        run = self.runs.last()
+        if run is not None and run.active and _pid_alive(run.pid):
+            print(f"refusing reset — run #{run.id} (pid {run.pid}) is live. `palace stop` first.")
+            return 1
+        targets = self.reset_targets()
+        print("fresh-start reset will remove the corpus + derived layer:")
+        for t in targets:
+            print(f"  - {t}  (+ -wal/-shm if present)")
+        vault_raft = self.cfg.paths.data_dir / "vault"
+        print(f"GUARDED (never touched): production Vault Raft ({vault_raft}), "
+              "run/self-mod ledgers, telemetry, backups, logs.")
+        if not confirm:
+            print("\nDRY RUN — nothing removed. Re-run with --confirm. Your restic snapshot is the "
+                  "safety net; a fresh re-ingest re-tags everything authored-solo (mooting the "
+                  "provenance migration).")
+            return 0
+        removed = 0
+        for t in targets:
+            for path in (t, Path(str(t) + "-wal"), Path(str(t) + "-shm")):
+                if path.is_dir():
+                    shutil.rmtree(path)
+                    removed += 1
+                elif path.exists():
+                    path.unlink()
+                    removed += 1
+        print(f"\nremoved {removed} path(s). Re-export notes into the vault, then `palace start` "
+              "(it will re-ingest as authored-solo).")
+        return 0
+
+
+def build_launcher(config: object | None = None, **kw) -> Launcher:
+    from config.loader import REPO_ROOT, get_config
+    from ops.lifecycle.runs import open_run_ledger
+
+    cfg = config or get_config()
+    return Launcher(cfg=cfg, runs=open_run_ledger(cfg), repo_root=REPO_ROOT, **kw)

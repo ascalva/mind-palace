@@ -12,9 +12,9 @@ from core.selfcheck import FAIL
 
 ROWS = [
     {"title": "sleep-and-racing-thoughts", "source_path": "/x/sleep.md",
-     "text": "slow breathing helps", "provenance": "authored", "_distance": 0.4},
+     "text": "slow breathing helps", "provenance": "authored-solo", "_distance": 0.4},
     {"title": "monthly-budget", "source_path": "/x/budget.md",
-     "text": "emergency fund", "provenance": "authored", "_distance": 0.6},
+     "text": "emergency fund", "provenance": "authored-solo", "_distance": 0.6},
 ]
 
 

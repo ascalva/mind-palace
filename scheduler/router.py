@@ -25,12 +25,19 @@ from scheduler.queue import (
 
 # kind -> tier (rules). Unknown kinds default to the routine tier.
 _ROUTINE_KINDS = frozenset({"librarian", "query", "assistant", "chat", "converse"})
-_SYNTHESIS_KINDS = frozenset({"curate", "dream", "synthesize", "research", "compact"})
+# `ambassador_task` = the Ambassador's DELEGATED heavy work (the "→ queue" of task→gate→queue):
+# a deep grounded synthesis run, trough-gated like dreaming, so the conversation never blocks on it.
+_SYNTHESIS_KINDS = frozenset(
+    {"curate", "dream", "synthesize", "research", "compact", "ambassador_task"}
+)
 _ROUTER_KINDS = frozenset({"route", "classify", "watchdog"})
-# Embed-only maintenance (incremental vault re-ingest): needs NO chat model resident — it
-# calls the embedder directly. Routed to the always-pinned tier so `ensure_tier` is a no-op
-# and the worker slot is never evicted; enqueued at BACKGROUND priority (see scheduler/vault_sync).
-_PINNED_KINDS = frozenset({"vault_sync"})
+# Kinds that run on the always-pinned tier (config.pinned_model.tier). Two reasons a kind pins:
+#   * embed-only maintenance (`vault_sync`) needs NO chat model — pinning makes `ensure_tier` a
+#     no-op so the worker slot is never evicted (enqueued at BACKGROUND, see scheduler/vault_sync);
+#   * the conversational front door (`ambassador`) must be ALWAYS-WARM + low-latency — it uses the
+#     small pinned chat model and delegates heavy work (ambassador-as-reasoning-agent.md §2b).
+# Both default to PRIORITY_REACTIVE (responsive); the vault_sync enqueue overrides to BACKGROUND.
+_PINNED_KINDS = frozenset({"vault_sync", "ambassador"})
 
 
 @dataclass(frozen=True)

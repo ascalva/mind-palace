@@ -11,11 +11,11 @@ from core.provenance import MIRROR_READABLE, Provenance
 from core.stores.derived import FINDING, DerivedStore
 
 ROWS = [
-    {"digest": "d1", "title": "orig", "text": "a", "provenance": "authored",
+    {"digest": "d1", "title": "orig", "text": "a", "provenance": "authored-solo",
      "vector": [1.0, 0.0, 0.0]},
-    {"digest": "d2", "title": "dup", "text": "a", "provenance": "authored",
+    {"digest": "d2", "title": "dup", "text": "a", "provenance": "authored-solo",
      "vector": [0.999, 0.001, 0.0]},     # near-identical to orig
-    {"digest": "d3", "title": "orphan", "text": "b", "provenance": "authored",
+    {"digest": "d3", "title": "orphan", "text": "b", "provenance": "authored-solo",
      "vector": [0.0, 1.0, 0.0]},         # digest absent from the raw store -> prune candidate
 ]
 

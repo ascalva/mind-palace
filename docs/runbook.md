@@ -2,6 +2,51 @@
 
 Operational notes for running and verifying the mind-palace. Grows per phase.
 
+---
+
+## ⭐ Owner command quick-reference (deferred / operational steps)
+
+Everything the builder leaves for you to run, in dependency order. Detailed sections are linked.
+
+```sh
+cd ~/mind-palace            # all commands run from the repo root; use ./.venv/bin/python
+
+# --- DAY-TO-DAY -------------------------------------------------------------------------------
+./.venv/bin/python scripts/palace.py start     # run the whole system (preflight + supervise)
+./.venv/bin/python scripts/palace.py status    # health checklist + recent runs (commit-pinned)
+./.venv/bin/python scripts/palace.py stop       # graceful drain (from another shell)
+./.venv/bin/python scripts/talk.py             # talk to it (LIVE; --offline for a no-Ollama demo)
+
+# --- FRESH START (done 2026-06-29; re-runnable) — see "Fresh start" below ---------------------
+launchctl bootout gui/$(id -u)/com.mind-palace.watch 2>/dev/null   # retire the old watcher
+./.venv/bin/python scripts/palace.py reset --confirm               # hard-wipe corpus (Vault guarded)
+#   …then re-export notes into ~/.mind-palace/vault/janus_notes/ + point Synctrain there…
+./.venv/bin/python scripts/palace.py start                         # re-ingests as authored-solo
+
+# --- ONE-TIME ENABLEMENT ----------------------------------------------------------------------
+./.venv/bin/python scripts/ingest_self_knowledge.py    # so "how do you work?" answers from docs
+./scripts/build_sandbox_image.sh                       # data-analysis libs image (numpy/scipy/…)
+#   then set [sandbox] image = "mind-palace-sandbox:latest" in config/local.toml — see "Code-exec sandbox"
+
+# --- INSTALL THE ALWAYS-ON DAEMON (supersedes com.mind-palace.watch) — see "One-command lifecycle"
+cp ops/lifecycle/com.mind-palace.palace.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.mind-palace.palace.plist
+
+# --- USE THE SANDBOX DIRECTLY (data in, data out) — see "Code-exec sandbox" -------------------
+echo 'print(40+2)' | ./.venv/bin/python scripts/sandbox.py -
+./.venv/bin/python scripts/sandbox.py analysis.py --input series.csv=~/data/series.csv
+
+# --- ALREADY-LIVE LAYERS (reference; turn on/operate as needed) -------------------------------
+#   Vault (unseal LaunchAgent), Backups ([backup] in local.toml + restic), Self-mod gate
+#   ([selfmod] enabled + scripts/…), Attestation signing ([attestation] + gen_attestation_keys).
+#   The provenance-split migration is now MOOT (the fresh start re-tags everything authored-solo).
+```
+
+Optional / not built (your call): the Tailscale-reachable HTTP gateway (remote chat from your
+phone); a WASI `python.wasm` to activate the WASM sandbox substrate. Both in their sections below.
+
+---
+
 ## Prerequisites (Phase 0)
 - Python 3.11+ (built/verified on 3.14). Local venv at `.venv`.
 - Ollama running on loopback (`127.0.0.1:11434`).
@@ -39,14 +84,20 @@ The sealed core (`core/`) must have zero network egress. Enforcement is layered:
 Edge (`edge/`, Zone B) is the only zone allowed to reach the network; the guard is
 **not** installed there. Core↔edge communicate by filesystem handoff, never imports.
 
-## Sandbox runtime — Podman machine (Phase 4) — ⚠️ KNOWN ISSUE, REVISIT
+## Sandbox runtime — Podman machine (Phase 4) — ✅ RESOLVED 2026-06-29 (E1 closed)
+
+**The empirical gap is closed.** A podman machine runs here (libkrun provider, the
+`podman-machine-default` VM) and `pytest -m podman` passes **7/7** — real containers verify
+network-off, vault-unreachable, non-root, wall-clock-timeout, AND the new data-in path (data
+readable at `/tmp/input`, vault still unreachable with inputs present). So the isolation that
+was previously "proven only by construction" is now also proven empirically. Keep the podman
+machine running (`podman machine start`) for the sandbox + the `palace` preflight. The
+historical boot-troubleshooting notes below are retained for reference only.
 
 The Phase 4 sandbox (`core/sandbox/`) runs code in rootless Podman. On macOS Podman needs
 a Linux VM ("podman machine"). The **logic gate is fully met by construction** — the
-isolation profile is asserted on the argv (`tests/test_sandbox_policy.py`) and the
-pool/broker behavior with a fake runner (`tests/test_sandbox_*.py`), all passing. What is
-**not yet done is the empirical run** (`pytest -m podman`), because no podman machine would
-stay up on this host (2026-06-25).
+isolation profile is asserted on the argv (`tests/unit/test_sandbox_policy.py`) and the
+pool/broker behavior with a fake runner, all passing — AND now empirically (above).
 
 **Config written:** `~/.config/containers/containers.conf` sets `[machine] provider = applehv`,
 `cpus = 2`, `memory = 2048`, `disk_size = 20`. Sizing is deliberately small so the VM does
@@ -602,3 +653,176 @@ inputs are **owner-blessed frozen fixed points** in `eval/golden/baseline.json` 
 
 Nothing here is wired to act: the gate that consumes `D ≤ Θ` is the self-mod loop, which is flag-OFF
 by default. The gauge is live as a *measurement* the moment you call it.
+
+---
+
+## ⚠️ Provenance spectrum split — one-time data migration (Track B / B0, owner-operated)
+
+Track B split the single `authored` provenance into `authored-solo` + `authored-dialogue` and added
+`curated`. **Rows written before this change carry the literal string `"authored"`, which is no longer
+in `MIRROR_READABLE`** — so until you migrate, the mirror (Librarian retrieval, the dreamer, the
+Ambassador) sees those notes as *not* mirror-readable and your live mirror reads effectively EMPTY.
+
+This is a **same-trust-tier relabel** (`authored` → `authored-solo`; both are mirror-readable), NOT a
+promotion across the §8 firewall — so it's a safe deterministic migration, not a gated change. It is
+**idempotent** (a second run changes nothing). On this machine the dry-run counted real legacy rows
+(vectors + catalog), so this DOES need to run once:
+
+```sh
+# 0. Your nightly restic snapshot is the safety net; optionally take a fresh one first.
+# 1. DRY RUN — counts the legacy 'authored' rows in the vector store + catalog, mutates nothing:
+./.venv/bin/python scripts/migrate_provenance_split.py
+# 2. APPLY — relabel 'authored' -> 'authored-solo' in BOTH stores (idempotent, re-runnable):
+./.venv/bin/python scripts/migrate_provenance_split.py --apply
+# 3. confirm the mirror is back: a query should return your notes again
+./.venv/bin/python scripts/talk.py            # ask "what did I write about <topic>?"
+```
+
+(The DerivedStore is `interpreted`-only and the raw/attestation stores carry no `authored` literal, so
+only the vector store + catalog need relabeling — both covered by the script.)
+
+---
+
+## Talking to the system — the Ambassador (Track B, owner-operated)
+
+The Ambassador is the conversational front door: a reasoning agent on the always-warm pinned tier that
+reads your mirror, reads its own operational state, captures the dialogue as `authored-dialogue`, and
+delegates heavy work — **read + propose, never write + act**.
+
+```sh
+# Day-one surface (no daemon, no network decision) — an in-process REPL over the real path
+# (adapter → gateway → filesystem handoff → core inbox → Ambassador):
+./.venv/bin/python scripts/talk.py                 # LIVE: needs Ollama + a migrated, ingested vault
+./.venv/bin/python scripts/talk.py --offline       # deterministic demo, throwaway store, no Ollama
+
+# So it can answer "how do you work?" / "is my data safe?" — ingest its OWN docs as the `curated`
+# self-knowledge graph (own graph, never merged into the mirror; needs Ollama for embeddings):
+./.venv/bin/python scripts/ingest_self_knowledge.py
+```
+
+What it does each turn: reasons about intent (deterministic floor for the obvious cases, the model
+earned for the rest) → **retrieve** (mirror) / **explain** (curated) / **status** (plain-language
+operational narration) / **task** (delegate → gate → queue, "give me a bit", result surfaced on a
+later turn) / **capture** (store + acknowledge). The unprompted-message dial is
+`[ambassador] interruption_sensitivity` (off | earned_only | verbose; default earned_only).
+
+**Optional follow-up (not built — your call):** a tiny stdlib-only local HTTP front end reachable over
+Tailscale, following `LocalAdapter`'s "loopback/Tailscale" framing, so you can talk to it from your
+phone. The CLI above is sufficient to use it today; standing up a reachable daemon is an operational/
+exposure decision left to you, not something this build turns on.
+
+To run it as a scheduled service (instead of the in-process REPL), use the one-command launcher
+below — it runs the full supervisor (which includes the `ambassador_task` delegated-work handler),
+so delegations from `talk.py` are completed by the running daemon.
+
+---
+
+## One-command lifecycle — `palace start | stop | status | reset` (owner-operated)
+
+`scripts/palace.py` runs the **whole mind-palace as one supervised process** — the supersession of
+the standalone `scripts/watch.py` / `com.mind-palace.watch` agent. It manages our own components and
+*verifies* the externals (Vault, Ollama, podman) fail-closed; it does NOT start/stop those (they keep
+their own LaunchAgents).
+
+```sh
+./.venv/bin/python scripts/palace.py status            # preflight checklist + recent runs
+./.venv/bin/python scripts/palace.py start             # the full system, foreground (Ctrl-C = drain)
+./.venv/bin/python scripts/palace.py stop              # graceful drain of the live run (from another shell)
+./.venv/bin/python scripts/palace.py reset --confirm   # the fresh-start corpus wipe (see below)
+```
+
+**What `start` does:** seals the core → preflight (ensure data dirs; verify Ollama up, Vault
+unsealed, podman present — a required ✗ refuses the start, `--force` overrides) → records a **run
+pinned to the current git commit** in `data/runs.sqlite` → enqueues a catch-up vault sync (reconciles
+notes changed while down; rebuilds an empty cache) → supervises the queue + vault watcher (auto-ingest;
+trough dream/curate; delegated Ambassador tasks). On **SIGTERM/SIGINT** it stops claiming new work, lets
+the in-flight job finish at its boundary (the scheduler is cooperative), and marks the run **clean** —
+the graceful shutdown / ASG-style lifecycle hook. State lives in the stores/files, so the next `start`
+just resumes.
+
+**Recovery:** if the previous run never marked itself stopped (crash / `kill -9` / power loss), `start`
+comes up in **recovery mode** — scheduler halted, watcher off, read-only — and asks you to inspect, then
+`start --force` to resume. (The full graduated tamper response is Track A / A4; this is the boot-time
+fail-closed half.)
+
+**How self-mod knob changes persist across runs** (your question): the tuned value is written to the
+`config/levers.toml` overlay (merged `defaults ← levers.toml ← local.toml`, so your `local.toml` always
+wins and deleting `levers.toml` reverts every knob); the propose→approve→validate→rollback *history* is
+the SQLite ledger `data/selfmod_ledger.sqlite`. No new store — a restart re-reads `levers.toml` and picks
+up exactly where it left off. The **run ledger** adds which commit each run executed under, so a tuned
+knob can be correlated to the run/commit it was tuned during.
+
+**Always-on daemon:** install `ops/lifecycle/com.mind-palace.palace.plist` (header has the exact
+`launchctl bootstrap` / `bootout` commands, including retiring the old `com.mind-palace.watch`). Logs at
+`data/logs/palace.{out,err}.log`. `ExitTimeOut=120` is the drain window before launchd escalates to KILL.
+
+### Fresh start — wipe the corpus + re-export notes (executed 2026-06-29; re-runnable)
+
+`palace reset` surgically wipes the **corpus + derived layer** (raw, vectors, vault catalog, the now-
+stale attestation chain, the queue) and is hard-guarded to **never** touch the production Vault Raft
+store (`data/vault`), the run/self-mod ledgers, telemetry, backups, or logs. It refuses while a run is
+live. Sequence for a clean re-export onto the new Synctrain-over-Tailscale setup:
+
+```sh
+launchctl bootout gui/$(id -u)/com.mind-palace.watch 2>/dev/null   # stop the old watcher first
+./.venv/bin/python scripts/palace.py reset --confirm              # hard-wipe the corpus (restic = net)
+# re-export your notes into ~/.mind-palace/vault/janus_notes/ and point Synctrain there
+./.venv/bin/python scripts/palace.py start                        # re-ingests everything as authored-solo
+```
+
+`[vault] path` is set to `~/.mind-palace/vault/janus_notes` (config/local.toml) so only that synced
+subdir is ingested — old/stray files in the vault root are ignored. A fresh re-ingest tags everything
+`authored-solo` natively, so the provenance-split migration is **not needed** after a reset.
+
+---
+
+## Code-execution sandbox — libraries, data-piping, WASM (BUILD-SPEC §11, owner-operated)
+
+Executed code is **powerless** (Invariant 4): network-off, vault-less, non-root, read-only rootfs,
+resource-limited, wall-clock-bounded. As of 2026-06-29 the isolation is **empirically verified**
+(`pytest -m podman` → 7 live tests: runs code, network off, vault unreachable, timeout, non-root,
+**data-in works**, vault-still-unreachable-with-data). Prerequisite: the podman machine running
+(`podman machine start`).
+
+**Pipe data IN, get results OUT.** An agent (or you) hands the sandbox a dataset and gets the
+computed result back — data in, data out, never creds/vault/host-fs. Inputs land at
+`/tmp/input/<name>` (carried in-band on stdin, *not* a host mount, so the vault stays structurally
+unreachable). Use it directly:
+
+```sh
+echo 'import numpy as np; print(np.arange(5).sum())' | ./.venv/bin/python scripts/sandbox.py -
+./.venv/bin/python scripts/sandbox.py analysis.py --input series.csv=~/data/series.csv --timeout 30
+# inside analysis.py:  open('/tmp/input/series.csv')  → your data
+```
+
+**Scientific libraries.** The default image is `python:3.12-slim` (stdlib only, so a fresh clone
+works). For numpy / scipy / pandas / scikit-learn / cryptography, build the libs image once (slow —
+it downloads the wheels, which are then baked in so the sandbox needs NO network at run time):
+
+```sh
+./scripts/build_sandbox_image.sh                 # -> mind-palace-sandbox:latest
+#   then in config/local.toml:
+#   [sandbox]
+#   image = "mind-palace-sandbox:latest"
+```
+
+This is exactly the seam a future correlator / data-analyst agent uses to find patterns in
+observed/IoT data and cross-check the knowledge graph (the DANGLING item #2 in `docs/WIRING-AUDIT.md`
+— the sandbox is ready; the autonomous agentic driver is Track D).
+
+**WASM substrate (optional, strongest isolation — isolation by absence of syscalls).** The
+`WasmRunner` + `RoutingRunner` are real (wasmtime is installed). To activate the pure-compute WASM
+path, place a WASI build of CPython and point config at it:
+
+```sh
+# 1. (already done) pip install wasmtime  — into .venv
+# 2. obtain a WASI python (a python.wasm) and place it, e.g. ~/.mind-palace/python.wasm
+# 3. config/local.toml:
+#    [sandbox]
+#    runtime = "routing"                       # WASM for pure-compute python, else podman
+#    wasm_module = "~/.mind-palace/python.wasm"
+```
+
+Until a `python.wasm` is placed, `WasmRunner.available()` is False and `routing` falls back to the
+verified Podman substrate — fail-closed, never a silent wrong-substrate run. `runtime="podman"`
+(the default) ignores WASM entirely.

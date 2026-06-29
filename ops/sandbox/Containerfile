@@ -1,0 +1,26 @@
+# The data-analysis sandbox image (BUILD-SPEC §11). A slim Python with the scientific stack
+# pre-installed, so sandboxed code can actually process data (the dreamer/correlator/data_analyst
+# use case) WITHOUT network access at run time — the wheels are baked in at build time, and the
+# container still runs --network=none, --read-only, --cap-drop=ALL, non-root (see core/sandbox/
+# policy.py). DATA is piped in at /tmp/input/<name>; results come back on stdout. Build:
+#
+#   ./scripts/build_sandbox_image.sh           # -> mind-palace-sandbox:latest
+#
+# then point the sandbox at it (config/local.toml):  [sandbox] image = "mind-palace-sandbox:latest"
+FROM python:3.12-slim
+
+# Pinned-ish scientific stack. cryptography is included for code that needs to hash/verify (it
+# never gets KEYS — those never enter the sandbox, Invariant 4/§Secrets); it's a compute library.
+RUN pip install --no-cache-dir \
+        numpy \
+        scipy \
+        pandas \
+        scikit-learn \
+        cryptography \
+    && find /usr/local/lib/python3.12 -name '__pycache__' -type d -prune -exec rm -rf {} + \
+    && rm -rf /root/.cache
+
+# Default to the unprivileged user the policy also pins (nobody:nogroup). Defense in depth: even
+# if the policy's --user were ever dropped, the image itself does not run as root.
+USER 65534:65534
+WORKDIR /tmp

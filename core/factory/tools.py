@@ -108,6 +108,7 @@ def _run_python_handler(broker: Any) -> ToolHandler:
             code=args["code"],
             language=args.get("language", "python"),
             timeout_s=int(args.get("timeout_s", 10)),
+            inputs=args.get("inputs", {}),   # data to analyze, materialized at /tmp/input/<name>
         ))
         return {"stdout": res.stdout, "stderr": res.stderr,
                 "exit_code": res.exit_code, "timed_out": res.timed_out}

@@ -27,7 +27,7 @@ def test_injected_note_is_authored_content(tmp_path):
 
     rec = ingest_note(note, raw_store(tmp_path))
 
-    assert rec.provenance is Provenance.AUTHORED   # the owner's content — nothing special
+    assert rec.provenance is Provenance.AUTHORED_SOLO   # the owner's content — nothing special
     assert rec.chunks                              # chunked like any other note
     # Its markup is parsed as plain data, not as control: tags/links are just indexed terms.
     assert "urgent" in note.tags and "Constitution" in note.links

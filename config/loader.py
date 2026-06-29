@@ -98,6 +98,20 @@ class InterfaceConfig:
 
 
 @dataclass(frozen=True)
+class AmbassadorConfig:
+    """The conversational front door (Track B). Runs on the pinned tier (always warm); these
+    are its judgment bounds, not behavior switches: `retrieval_k` caps per-turn retrieval depth
+    (the budgeter enforces the window regardless), `history_max_turns` caps the cheap in-memory
+    working context (older context is RE-retrieved from the authored-dialogue corpus, not
+    double-stored), and `interruption_sensitivity` ∈ {off, earned_only, verbose} is the
+    owner-tunable unprompted-message dial (default earned_only — note §3)."""
+
+    retrieval_k: int = 5
+    history_max_turns: int = 6
+    interruption_sensitivity: str = "earned_only"
+
+
+@dataclass(frozen=True)
 class AirlockConfig:
     """Research airlock (§16). The sealed core uses only `handoff_dir`; the rest is Zone-B
     bridge config (S3 target + the narrowly-scoped assumed role). The core never reads S3."""
@@ -175,7 +189,7 @@ class SelfModConfig:
 
 @dataclass(frozen=True)
 class SandboxConfig:
-    runtime: str            # "podman" (default substrate) | "wasm" (pure-compute, future)
+    runtime: str            # "podman" (default) | "wasm" (pure-compute) | "routing" (wasm→podman)
     image: str
     timeout_s: int
     memory: str
@@ -183,6 +197,7 @@ class SandboxConfig:
     pids_limit: int
     max_concurrency: int
     warm_pool_size: int
+    wasm_module: str = ""   # path to a WASI python (python.wasm) for the wasm/routing runtimes
 
 
 @dataclass(frozen=True)
@@ -209,6 +224,7 @@ class Config:
     airlock: AirlockConfig
     models: tuple[ModelConfig, ...]
     # Default keeps direct Config(...) construction (e.g. in tests) working without this section.
+    ambassador: AmbassadorConfig = field(default_factory=AmbassadorConfig)
     attestation: AttestationConfig = field(default_factory=AttestationConfig)
     secrets: SecretsConfig = field(default_factory=SecretsConfig)
     backup: BackupConfig = field(default_factory=BackupConfig)
@@ -258,6 +274,7 @@ def load_config(path: Path | None = None) -> Config:
     v, e, s = raw["vault"], raw["embedding"], raw["sandbox"]
     itf, dr, rnd = raw["interface"], raw["dreaming"], raw["dream_rnd"]
     al, at = raw["airlock"], raw.get("attestation", {})
+    amb = raw.get("ambassador", {})
     sec = raw.get("secrets", {})
     bak = raw.get("backup", {})
     sm = raw.get("selfmod", {})
@@ -317,6 +334,7 @@ def load_config(path: Path | None = None) -> Config:
             pids_limit=int(s["pids_limit"]),
             max_concurrency=int(s["max_concurrency"]),
             warm_pool_size=int(s["warm_pool_size"]),
+            wasm_module=str(s.get("wasm_module", "")),
         ),
         interface=InterfaceConfig(
             handoff_dir=_resolve(itf["handoff_dir"]),
@@ -331,6 +349,11 @@ def load_config(path: Path | None = None) -> Config:
             results_prefix=str(al["results_prefix"]),
             poll_interval_s=int(al["poll_interval_s"]),
             poll_timeout_s=int(al["poll_timeout_s"]),
+        ),
+        ambassador=AmbassadorConfig(
+            retrieval_k=int(amb.get("retrieval_k", 5)),
+            history_max_turns=int(amb.get("history_max_turns", 6)),
+            interruption_sensitivity=str(amb.get("interruption_sensitivity", "earned_only")),
         ),
         attestation=AttestationConfig(
             enabled=bool(at.get("enabled", False)),

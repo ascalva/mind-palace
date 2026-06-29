@@ -93,6 +93,20 @@ evicts_pinned = true
 handoff_dir = "data/handoff"
 default_adapter = "local"
 
+[ambassador]
+# The conversational front door (Track B; ambassador-as-reasoning-agent.md). Runs on the pinned
+# tier (always warm). These are judgment BOUNDS, not behavior switches:
+#   retrieval_k             — cap on per-turn retrieval depth (the §13 budgeter enforces the
+#                             window regardless; this just bounds what the agent may pull).
+#   history_max_turns       — cheap in-memory working context kept per conversation; older
+#                             context is RE-retrieved from the authored-dialogue corpus (no
+#                             double-storage of the thread — note §2).
+#   interruption_sensitivity — the unprompted-message dial: off | earned_only | verbose.
+#                             Default earned_only ("not a silent oracle, not a nag" — note §3).
+retrieval_k = 5
+history_max_turns = 6
+interruption_sensitivity = "earned_only"
+
 [airlock]
 # The research airlock (BUILD-SPEC §16, Invariant 11). The sealed core (Zone A) reads/writes
 # ONLY `handoff_dir` — a filesystem handoff like [interface]. It has no S3 and no network.
@@ -197,9 +211,17 @@ ledger_db = "data/selfmod_ledger.sqlite"   # durable SQLite propose/approve/vali
 [sandbox]
 # Executed code is POWERLESS (Invariant 4, BUILD-SPEC §11): network-off, no vault mount,
 # read-only rootfs + scratch tmpfs, dropped caps, non-root, CPU/mem/pids limits, wall-clock
-# timeout. Default substrate is rootless Podman; wasmtime+Pyodide is the pure-compute path.
+# timeout. DATA can be piped IN (ExecSpec.inputs → /tmp/input/<name>, in-band on stdin, no host
+# mount) so an agent can analyze a provided dataset and get results back — data in, data out.
+#   runtime: "podman" (default, empirically verified) | "wasm" (pure-compute, needs a WASI
+#            python.wasm at wasm_module) | "routing" (wasm for pure-compute python, else podman).
+#   image:   the language image. For data analysis build the libs image (numpy/scipy/pandas/
+#            scikit-learn/cryptography) — `scripts/build_sandbox_image.sh` — and point here, e.g.
+#            via config/local.toml: image = "mind-palace-sandbox:latest". Default stays slim so a
+#            fresh clone works with stdlib-only code.
 runtime = "podman"
-image = "python:3.12-slim"   # default language image (per-language images in policy.RUNTIMES)
+image = "python:3.12-slim"
+wasm_module = ""             # path to a WASI python.wasm (enables runtime=wasm/routing; owner-placed)
 timeout_s = 10               # wall-clock per execution
 memory = "256m"
 cpus = 1.0
