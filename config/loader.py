@@ -112,6 +112,21 @@ class AmbassadorConfig:
 
 
 @dataclass(frozen=True)
+class MonitorConfig:
+    """The edge monitor — a small dashboard + chat surface over Tailscale (Zone B). A SEPARATE
+    process palace supervises; it reads the core-emitted status snapshot and relays chat over the
+    interface handoff, never importing core (Invariant 2). OFF by default; bind `host` to the
+    Tailscale IP (not 0.0.0.0) so the tailnet is the auth boundary, same as the note-sync setup.
+    `status_path` is where the launcher writes the metadata snapshot the dashboard renders."""
+
+    enabled: bool = False
+    host: str = "127.0.0.1"
+    port: int = 8787
+    status_path: Path = Path("data/monitor/status.json")
+    request_timeout_s: float = 30.0
+
+
+@dataclass(frozen=True)
 class AirlockConfig:
     """Research airlock (§16). The sealed core uses only `handoff_dir`; the rest is Zone-B
     bridge config (S3 target + the narrowly-scoped assumed role). The core never reads S3."""
@@ -148,6 +163,12 @@ class SecretsConfig:
     addr: str = "http://127.0.0.1:8200"
     kv_mount: str = "kv"
     aws_mount: str = "aws"
+    # Agent roles that receive an ephemeral scoped credential grant when minted (§2 lifecycle).
+    # FAIL-CLOSED EMPTY: a minted agent holds NO credential unless its role is listed here (grant
+    # the minimum; the owner opts in per role in local.toml). vault-runtime-auth.md §3 is the
+    # recommended set (e.g. correlator, advisor) — each must have a matching Vault token role.
+    grant_roles: frozenset[str] = frozenset()
+    token_ttl: str = "10m"   # TTL of a minted agent token — short; the grant expires by itself
 
 
 @dataclass(frozen=True)
@@ -225,6 +246,7 @@ class Config:
     models: tuple[ModelConfig, ...]
     # Default keeps direct Config(...) construction (e.g. in tests) working without this section.
     ambassador: AmbassadorConfig = field(default_factory=AmbassadorConfig)
+    monitor: MonitorConfig = field(default_factory=MonitorConfig)
     attestation: AttestationConfig = field(default_factory=AttestationConfig)
     secrets: SecretsConfig = field(default_factory=SecretsConfig)
     backup: BackupConfig = field(default_factory=BackupConfig)
@@ -275,6 +297,7 @@ def load_config(path: Path | None = None) -> Config:
     itf, dr, rnd = raw["interface"], raw["dreaming"], raw["dream_rnd"]
     al, at = raw["airlock"], raw.get("attestation", {})
     amb = raw.get("ambassador", {})
+    mon = raw.get("monitor", {})
     sec = raw.get("secrets", {})
     bak = raw.get("backup", {})
     sm = raw.get("selfmod", {})
@@ -355,6 +378,13 @@ def load_config(path: Path | None = None) -> Config:
             history_max_turns=int(amb.get("history_max_turns", 6)),
             interruption_sensitivity=str(amb.get("interruption_sensitivity", "earned_only")),
         ),
+        monitor=MonitorConfig(
+            enabled=bool(mon.get("enabled", False)),
+            host=str(mon.get("host", "127.0.0.1")),
+            port=int(mon.get("port", 8787)),
+            status_path=_resolve(mon.get("status_path", "data/monitor/status.json")),
+            request_timeout_s=float(mon.get("request_timeout_s", 30.0)),
+        ),
         attestation=AttestationConfig(
             enabled=bool(at.get("enabled", False)),
             signing_key_secret=str(at.get("signing_key_secret", "attestation-signing-key")),
@@ -367,6 +397,8 @@ def load_config(path: Path | None = None) -> Config:
             addr=str(sec.get("addr", "http://127.0.0.1:8200")),
             kv_mount=str(sec.get("kv_mount", "kv")),
             aws_mount=str(sec.get("aws_mount", "aws")),
+            grant_roles=frozenset(sec.get("grant_roles", [])),
+            token_ttl=str(sec.get("token_ttl", "10m")),
         ),
         backup=BackupConfig(
             enabled=bool(bak.get("enabled", False)),

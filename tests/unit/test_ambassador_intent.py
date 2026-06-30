@@ -24,6 +24,15 @@ def test_floor_buckets_the_obvious_cases():
     assert classify_floor("can you research treatments for migraines") is Intent.TASK
 
 
+def test_floor_buckets_dreams_questions():
+    assert classify_floor("what patterns have you noticed?") is Intent.DREAMS
+    assert classify_floor("any insights from my notes lately?") is Intent.DREAMS
+    assert classify_floor("what have you been dreaming about") is Intent.DREAMS
+    # dreams (patterns) is distinct from status (activity/health) and retrieve (a specific recall)
+    assert classify_floor("what have you been doing?") is Intent.STATUS
+    assert classify_floor("what did I write about sleep") is Intent.RETRIEVE
+
+
 def test_floor_returns_none_for_ambiguous():
     assert classify_floor("I've been thinking about my father a lot") is None
     assert classify_floor("tell me something interesting") is None

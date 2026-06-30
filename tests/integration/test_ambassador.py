@@ -10,11 +10,13 @@ from agents.ambassador import Ambassador, DeliveredResult, Intent, InterruptionP
 from agents.ambassador.policy import LEAKY_NOUNS
 from core.attestation.attestor import StoreAttestor
 from core.attestation.store import AttestationStore
+from core.dreams_view import DreamsView
 from core.ingest.dialogue import DialogueCapture
 from core.librarian import Librarian
 from core.ops_view import OpsView
 from core.provenance import Provenance
 from core.stores.catalog import VaultCatalog
+from core.stores.derived import DREAM, DerivedStore
 from core.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
 from ops.ledger import ProposalLedger
@@ -37,7 +39,7 @@ class _FakeDrift:
 
 
 def _amb(tmp_path, *, server=None, drift=None, sensitivity=Sensitivity.EARNED_ONLY,
-         delegate=None, pending=None):
+         delegate=None, pending=None, derived=None):
     emb = HashingEmbedder(DIM)
     store = VectorStore(tmp_path / "v.lance", dim=DIM)
     store.add([
@@ -57,6 +59,7 @@ def _amb(tmp_path, *, server=None, drift=None, sensitivity=Sensitivity.EARNED_ON
         server=server or ReplyServer("Here's what I see."),
         librarian=Librarian(server=server or ReplyServer(), embedder=emb, store=store, k=5),
         ops_view=ops_view,
+        dreams_view=DreamsView.over(derived) if derived is not None else None,
         budgeter=Budgeter(window=8192),
         tier="router",
         capture_sink=capture,
@@ -102,6 +105,32 @@ def test_explain_reads_the_curated_graph_not_the_mirror(tmp_path):
     assert turn.intent is Intent.EXPLAIN
     assert "computationally light" in seen["ctx"]           # curated reached the model
     assert "slow breathing" not in seen["ctx"]              # mirror did NOT (firewall, reversed)
+
+
+def test_dreams_reflects_the_interpreted_layer_mirror_not_oracle(tmp_path):
+    derived = DerivedStore(":memory:")
+    derived.add(kind=DREAM, summary="a pull toward solitude when work intensifies",
+                subjects=["overwork", "weekend alone"])
+    server = ReplyServer("SHOULD NOT BE CALLED")
+    amb, att_store, store = _amb(tmp_path, server=server, derived=derived)
+    turn = amb.respond("what patterns have you noticed in my notes?")
+
+    assert turn.intent is Intent.DREAMS
+    assert server.calls == []                               # deterministic narration, no model
+    low = turn.reply.lower()
+    assert "pull toward solitude" in low                    # the synthesis is reflected
+    assert "[[overwork]]" in turn.reply                     # the spanned notes are cited
+    assert "not anything you wrote" in low                  # framed as interpretation (§III.2)
+    # DREAMS is about the SYSTEM's read, not the owner's mind — not added to the corpus
+    assert store.all_rows(provenances={Provenance.AUTHORED_DIALOGUE}) == []
+    assert any(a.action == "read" for a in att_store.all())  # attested as a read
+
+
+def test_dreams_without_a_view_is_honest(tmp_path):
+    amb, _att, _store = _amb(tmp_path)                      # no derived store wired
+    turn = amb.respond("any insights from my notes?")
+    assert turn.intent is Intent.DREAMS
+    assert "haven't started looking for patterns" in turn.reply.lower()
 
 
 def test_status_is_plain_language_and_uses_no_model(tmp_path):

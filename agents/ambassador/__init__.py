@@ -35,7 +35,8 @@ __all__ = [
 
 
 def build_ambassador(config: object | None = None, *, delegate=None, pending_results=None,
-                     server=None, embedder=None, store=None, drift=None) -> Ambassador:
+                     server=None, embedder=None, store=None, drift=None,
+                     derived=None) -> Ambassador:
     """Wire an Ambassador against the real configured stores + models.
 
     Delegation (the gate→queue seam + completed-result surfacing) is INJECTED by the
@@ -52,12 +53,14 @@ def build_ambassador(config: object | None = None, *, delegate=None, pending_res
     from config.loader import get_config
     from core.attestation import build_attestor
     from core.attestation.store import open_attestation_store
+    from core.dreams_view import DreamsView
     from core.ingest.dialogue import DialogueCapture
     from core.ingest.embed import build_embedder
     from core.librarian import Librarian
     from core.models import build_model_server
     from core.ops_view import OpsView
     from core.stores.catalog import VaultCatalog
+    from core.stores.derived import open_derived_store
     from core.stores.rawstore import RawStore
     from core.stores.vectorstore import open_vector_store
     from ops.ledger import open_ledger
@@ -71,12 +74,14 @@ def build_ambassador(config: object | None = None, *, delegate=None, pending_res
     attestor = build_attestor(cfg)
     ops_view = OpsView.over(open_attestation_store(cfg), open_ledger(cfg),
                             drift=(lambda: drift) if drift is not None else None)
+    dreams_view = DreamsView.over(derived if derived is not None else open_derived_store(cfg))
     capture = DialogueCapture(raw=RawStore(cfg.paths.raw_store), store=store, embedder=embedder,
                               catalog=VaultCatalog(cfg.paths.vault_catalog), attestor=attestor)
     return Ambassador(
         server=server,
         librarian=Librarian(server=server, embedder=embedder, store=store, k=amb.retrieval_k),
         ops_view=ops_view,
+        dreams_view=dreams_view,
         budgeter=Budgeter(window=cfg.pinned_model.num_ctx),
         tier=cfg.pinned_model.tier,
         capture_sink=capture,

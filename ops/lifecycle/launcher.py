@@ -57,6 +57,10 @@ class Components:
     enqueue_catchup: Callable[[], None] = lambda: None     # reconcile corpus on start
     enqueue_housekeeping: Callable[[], None] = lambda: None  # dream + curate pass
     health_check: Callable[[], list] = lambda: []          # OS-health sense (returns crossed flags)
+    # The thin-master/child model: separate processes palace spawns + drains (the edge monitor).
+    children: list = field(default_factory=list)
+    # Write the metadata snapshot the edge monitor renders (no-op when [monitor] is off).
+    snapshot: Callable[[object, list], None] = lambda _run, _flags: None
 
 
 def build_components(cfg) -> Components:
@@ -127,11 +131,42 @@ def build_components(cfg) -> Components:
         enqueue_dream(queue, router)
         enqueue_curate(queue, router)
 
+    # The edge-monitor snapshot (Invariant 2): read-only views over the same stores → a metadata
+    # JSON the networked monitor renders. Built whether or not the monitor runs (cheap); the writer
+    # is a no-op target unless [monitor] is enabled.
+    from core.attestation.store import open_attestation_store
+    from core.dreams_view import DreamsView
+    from core.ops_view import OpsView
+    from core.stores.derived import open_derived_store
+    from ops.ledger import open_ledger
+    from ops.lifecycle.snapshot import build_status, write_status
+
+    ops_view = OpsView.over(open_attestation_store(cfg), open_ledger(cfg))
+    dreams_view = DreamsView.over(open_derived_store(cfg))
+
+    def write_snapshot(run: object, flags: list) -> None:
+        mem_gb = round(psutil.virtual_memory().available / (1024 ** 3), 2)
+        data = build_status(ops_view=ops_view, dreams_view=dreams_view, queue_depth=queue.depth(),
+                            run=run, mem_available_gb=mem_gb, flags=flags)
+        write_status(cfg.monitor.status_path, data)
+
+    # Network-facing components run as supervised child PROCESSES (Invariant 2): the edge monitor.
+    children: list = []
+    if cfg.monitor.enabled:
+        import sys
+
+        from config.loader import REPO_ROOT
+        from ops.lifecycle.children import Child
+        children.append(Child("monitor",
+                              [sys.executable, str(REPO_ROOT / "scripts" / "monitor.py")]))
+
     return Components(
         supervisor=supervisor, watcher=watcher, queue=queue,
         enqueue_catchup=lambda: enqueue_vault_sync(queue, router),
         enqueue_housekeeping=_housekeeping,
         health_check=health_check,
+        children=children,
+        snapshot=write_snapshot if cfg.monitor.enabled else (lambda _run, _flags: None),
     )
 
 
@@ -145,9 +180,11 @@ class Launcher:
     tick_seconds: float = 1.0
     housekeeping_interval_s: float = _HOUSEKEEPING_INTERVAL_S
     health_interval_s: float = 60.0                            # OS-health sense cadence
+    snapshot_interval_s: float = 5.0                           # edge-monitor snapshot cadence
     on_shutdown: Callable[[bool], None] | None = None   # ASG-style lifecycle hook (e.g. snapshot)
     _stopping: bool = field(default=False, init=False)
     _run_id: int | None = field(default=None, init=False)
+    _run: object | None = field(default=None, init=False)     # the active RunRecord (for snapshots)
     _components: Components | None = field(default=None, init=False)
 
     # --- start ------------------------------------------------------------------------------
@@ -166,6 +203,7 @@ class Launcher:
         run = self.runs.open_run(commit_sha=commit, dirty=dirty, pid=os.getpid(),
                                  recovery=recovery)
         self._run_id = run.id
+        self._run = run
         tag = f"{commit[:12]}{' (dirty)' if dirty else ''}"
         print(f"\nrun #{run.id} on {tag}"
               + (" [RECOVERY — previous run did not exit cleanly]" if recovery else ""))
@@ -193,16 +231,28 @@ class Launcher:
         backend = c.watcher.start()
         print(f"watching {self.cfg.vault.path} (backend={backend}); supervising. "
               "Ctrl-C or `palace stop` to drain + stop cleanly.")
+        for child in c.children:                          # the supervised child processes (Inv 2)
+            child.start()
+            print(f"  ↳ started child {child.name!r} (pid {child.pid})")
         c.enqueue_housekeeping()                          # one pass soon after start
-        last_housekeeping = last_health = time.monotonic()
+        last_housekeeping = last_health = last_snapshot = time.monotonic()
+        flags: list = []
         ticks = 0
         while not self._stopping and (max_ticks is None or ticks < max_ticks):
             c.supervisor.run()                            # drain runnable jobs at boundaries
             now = time.monotonic()
             if now - last_health >= self.health_interval_s:
-                for flag in c.health_check():             # the OS-health agent: sense + report
+                flags = c.health_check()                  # the OS-health agent: sense + report
+                for flag in flags:
                     print(f"⚠ health: {flag.note} ({flag.metric}={flag.value} < {flag.threshold})")
+                for child in c.children:                  # restart a child that died
+                    if not child.alive():
+                        print(f"⚠ child {child.name!r} exited — restarting")
+                        child.start()
                 last_health = now
+            if now - last_snapshot >= self.snapshot_interval_s:
+                c.snapshot(self._run, flags)              # refresh the edge-monitor snapshot
+                last_snapshot = now
             if now - last_housekeeping >= self.housekeeping_interval_s:
                 c.enqueue_housekeeping()
                 last_housekeeping = now
@@ -226,6 +276,12 @@ class Launcher:
                 self._components.watcher.stop()
             except Exception:  # noqa: BLE001 — shutdown must not raise
                 pass
+            for child in self._components.children:        # drain the child processes (SIGTERM)
+                try:
+                    child.stop()
+                    print(f"  ↳ stopped child {child.name!r}")
+                except Exception:  # noqa: BLE001
+                    pass
         if self.on_shutdown is not None:
             try:
                 self.on_shutdown(clean)                   # the lifecycle hook (e.g. final snapshot)

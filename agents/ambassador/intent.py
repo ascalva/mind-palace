@@ -26,6 +26,7 @@ class Intent(StrEnum):
     RETRIEVE = "retrieve"   # recall from the AUTHORED mirror → grounded answer
     EXPLAIN = "explain"     # how the SYSTEM works → the CURATED self-knowledge graph
     STATUS = "status"       # what it's been doing / is it healthy → the ops-view
+    DREAMS = "dreams"       # patterns it has noticed across the notes → the INTERPRETED layer
     TASK = "task"           # go do real background work → gate → queue (delegated)
     CAPTURE = "capture"     # a statement/journal entry → store it; acknowledge
 
@@ -53,6 +54,13 @@ _RETRIEVE_CUES = (
     "what did i say about", "do i have notes", "what have i said", "pull up my notes",
     "what did i note", "in my notes",
 )
+_DREAMS_CUES = (
+    "what patterns", "any patterns", "patterns in my notes", "patterns across",
+    "what have you noticed", "noticed anything", "noticed any", "what have you been dreaming",
+    "what are you dreaming", "what insights", "any insights", "what themes", "any themes",
+    "what connections", "any connections", "what stood out", "what have you figured out",
+    "what have you learned about me", "anything interesting in my notes",
+)
 _TASK_CUES = (
     "look into", "dig into", "dig through", "investigate", "find out", "figure out",
     "look up whether", "research whether", "do some research", "can you research",
@@ -69,6 +77,8 @@ def classify_floor(text: str) -> Intent | None:
         return Intent.STATUS
     if any(c in t for c in _EXPLAIN_CUES):
         return Intent.EXPLAIN
+    if any(c in t for c in _DREAMS_CUES):     # patterns/insights → the interpreted layer
+        return Intent.DREAMS
     if any(c in t for c in _RETRIEVE_CUES):   # before TASK: "what did I write" beats "research"
         return Intent.RETRIEVE
     if any(c in t for c in _TASK_CUES):
@@ -113,7 +123,9 @@ CLASSIFIER_ROLE = (
     "- retrieve: they want to recall or find something from their OWN notes/journals.\n"
     "- explain: they're asking how YOU (the system) work — your design or guarantees.\n"
     "- status: they're asking what you've been doing, or whether you are healthy.\n"
+    "- dreams: they're asking what PATTERNS, themes, or insights you've noticed across their "
+    "notes.\n"
     "- task: they're asking you to go look into / research / investigate something.\n"
     "- capture: they're telling you something (a thought, a journal entry) rather than asking.\n"
-    "Reply with one word: retrieve, explain, status, task, or capture."
+    "Reply with one word: retrieve, explain, status, dreams, task, or capture."
 )

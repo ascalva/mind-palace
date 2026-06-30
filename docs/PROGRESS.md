@@ -1309,3 +1309,99 @@ of `docs/runbook.md`; sandbox/WASM section added.
 
 **Next (owner picks):** the six DANGLING items in `WIRING-AUDIT.md` — highest-value is surfacing
 dreams (small) and the Track D correlator (the autonomous sandbox driver, the owner's IoT example).
+
+---
+
+## Forward layer — knocking out the DANGLING frontier (2026-06-29, owner override: multiple wins)
+
+Owner steer: confirmed the thin-master/supervised-children runtime model (palace stays the master;
+network-facing components become supervised child processes — forced by Invariant 2 + the model
+ceiling, not a style choice); wants a small dashboard reachable over Tailscale; "knock out these
+small but significant wins." Doing the self-contained core wins first, then the edge process.
+
+**Win 1 — Surface dreams (WIRING-AUDIT DANGLING #1).** The dreamer/curator wrote `interpreted`
+artifacts that nothing ever *showed*. New `core/dreams_view.py` `DreamsView` (read-only over the
+`DerivedStore`, the OpsView move — binds `all`/`count`, no `add`/`reset` on its surface); a 6th
+Ambassador intent `DREAMS` (`agents/ambassador/intent.py` cues + classifier line) → `_reflect_dreams`
+→ `narrate_recent()`, **mirror-not-oracle** (frames dreams as the system's interpretation, cites the
+spanned authored notes in [[brackets]], hands judgment back — §III.2 / §8 firewall). Wired in
+`build_ambassador` (`derived=` injectable). Tests: `tests/unit/test_dreams_view.py` (+5, incl.
+no-mutator guard), intent cases, `test_ambassador.py` DREAMS path (+2; deterministic, no model, not
+captured, attested read). RETRIEVE stays mirror-only — firewall intact.
+
+**Win 2 — Thread Vault scoped tokens into dispatch (DANGLING #4).** The §2 lifecycle primitives all
+existed (`Supervisor.mint_token`, `get_secret(name, token)`, `Attestor.emit(vault_token_accessor=)`,
+`FakeVault`); the glue did not. `MintedAgent` now carries `token` (off the prompt — `repr=False`,
+never in `build_context`) + `accessor` (audit handle) + `grant()` + a **code-only** `read_secret(name)`
+(the orchestration calls it; the model never sees the token — credentials are deliberately NOT a tool,
+PRE_DECLARED_MAX unchanged). `AgentFactory` mints+binds+attests-the-accessor for a role in
+`grant_roles` (fail-closed empty; `[secrets].grant_roles`/`token_ttl` config; `build_factory` wires
+the backend+attestor only when `[secrets]` enabled). `read_secret`→`get_secret(name, token)` so the
+agent holds only the token; Vault enforces scope (denied = opaque). Tests:
+`tests/integration/test_factory_credential_grant.py` (+6) prove in-scope read, out-of-scope denial
+(logged), ungranted/no-backend = no token, accessor-attested-not-token, token off prompt+repr.
+Mechanism is now live end-to-end; its first *consumer* is the Track D correlator (Win 4) — owner
+opts a role into `grant_roles` to activate (recommended `["correlator","advisor"]`).
+
+**Verified (Wins 1–2):** logic suite **456 → 470 (+14)**; ruff clean (core/config/tests); import
+firewall green (the two new core modules reach no network/edge). No flags flipped.
+
+**Win 3 — the edge monitor process (DANGLING #6 + the dashboard).** The thin-master/child model the
+owner confirmed, realized: palace stays the master and now spawns a SEPARATE child process for the
+network-facing surface (forced by Invariant 2 — it can't share the sealed core). New `edge/monitor/`
+(`server.py` = `MonitorApp` routing + `render_dashboard` + a `_Server` that skips `getfqdn`;
+`page.py` = the HTML/CSS/JS asset): `GET /` dashboard + `GET /status.json` + `POST /chat`. It reads a
+core-emitted snapshot file and relays chat over the existing interface handoff — **never imports core,
+never reads a store**. Core side: `ops/lifecycle/snapshot.py` (`build_status`/`write_status` — METADATA
+only: health, activity *shape*, queue depth, mem, dream counts; no note text). Supervision:
+`ops/lifecycle/children.py` `Child` (injectable spawn; idempotent start; graceful SIGTERM→SIGKILL);
+the launcher starts children in `_serve`, restarts a dead child, writes the snapshot every
+`snapshot_interval_s` (5s), and drains children on the graceful shutdown. `scripts/monitor.py` is the
+entry palace spawns (Zone B → deliberately NOT sealed). `[monitor]` config (OFF by default; bind
+`host` to the Tailscale IP for the phone — the tailnet is the auth boundary). Tests: `test_children.py`
+(+4), `test_monitor_server.py` (+5), `test_monitor_snapshot.py` (+2, incl. no-corpus-leak + chat
+round-trip through a real handoff), `test_lifecycle.py` (+1, child start/stop + snapshot). **Real bug
+found + fixed:** `HTTPServer.server_bind()` calls `socket.getfqdn(host)`, a reverse-DNS lookup that
+hung **35s** on a DNS-less host — would stall `palace start`; `_Server` skips it.
+
+**Verified (Win 3):** logic suite **470 → 482 (+12)**; **live HTTP smoke passed** (real socket: GET /
+renders metrics, GET /status.json, POST /chat round-trips through the handoff → reply); ruff clean
+tree-wide (asset lines isolated in `page.py` via a scoped per-file E501 ignore); import firewall green
+(core still reaches no edge — the monitor is edge-only). No flags flipped (`[monitor]` off by default).
+
+**Session total:** 456 → 482 (+26). DANGLING #1/#4/#6 closed; three remain (sandbox-driver, airlock
+driver, auditor) and collapse toward the **Track D correlator** capstone.
+
+**Next:** Win 4 — Track D correlator (autonomous sandbox driver + Apple Health `OBSERVED` ingest +
+the de-identified airlock question). Owner prep: export Apple Health (`export.zip`→`export.xml`); to
+use the dashboard now, set `[monitor] enabled=true` + `host=<tailscale-ip>` and `palace start`.
+
+---
+
+## `mind-palace` on PATH (2026-06-30, owner-requested, not a phase)
+
+`bin/mind-palace` (new, executable): a bash shim that resolves its own real location (follows the
+symlink), derives `REPO_ROOT` from that, so it works from any cwd without relying on `$PWD` (every
+`scripts/*.py` already resolves its own paths from `__file__`, confirmed by tracing
+`config.loader.REPO_ROOT`). Symlinked at `/opt/homebrew/bin/mind-palace` (already on PATH,
+user-writable, no sudo). Initially just `start`/`stop`/`status`/`reset` → `palace.py`.
+
+**Same day, follow-up ("I don't want to have to find those specific scripts every time"):** turned
+it into a full dispatcher — a `case` statement covering every owner-facing script in `scripts/`
+(`talk`, `monitor`, `sandbox`, `ingest`, `ingest-self-knowledge`, `migrate-provenance`, `purge-raw`,
+`gen-attestation-keys`, `verify-attestation`, `check-imports`, `run-with-secrets`, `eval`,
+`build-sandbox-image`, `keep-awake`, `watch` — `watch` prints a deprecation note pointing at `start`
+before running). `start|stop|status|reset` keep the verb in argv (palace.py's own dispatch expects
+it); every other verb is stripped before exec (the target script doesn't expect its own name as
+argv[0]). `mind-palace help`/`-h`/`--help`/no-args prints the full table; an unknown verb exits 2 with
+the same usage on stderr. **Real pre-existing bug found + fixed:** `scripts/check_imports.py` was
+missing the standard `sys.path.insert(0, …)` repo-root line every sibling script has — it threw
+`ModuleNotFoundError: No module named 'ops'` even run the old way (`./.venv/bin/python
+scripts/check_imports.py` from the repo root, since Python puts the *script's own dir* on
+`sys.path[0]`, not cwd). Fixed by adding the same path-insert line as every other script; verified
+`mind-palace check-imports` now passes (`ops.import_lint`'s own `python -m` entry point, used by CI,
+was never affected). **Verified:** `bash -n` syntax-clean; ruff clean (`bin/mind-palace` has no
+extension so `ruff check .` correctly skips it — confirmed CI's actual invocation is unaffected);
+full logic suite still 482/482; live-tested `status`/`sandbox`/`check-imports`/`verify-attestation`/
+unknown-verb from `/tmp` in a fresh `zsh -l` shell. `docs/runbook.md` quick-ref + lifecycle section
+updated throughout to `mind-palace <verb>`.

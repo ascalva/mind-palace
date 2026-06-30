@@ -8,24 +8,31 @@ Operational notes for running and verifying the mind-palace. Grows per phase.
 
 Everything the builder leaves for you to run, in dependency order. Detailed sections are linked.
 
-```sh
-cd ~/mind-palace            # all commands run from the repo root; use ./.venv/bin/python
+**`mind-palace` is on your PATH** (2026-06-30) — a shim at `/opt/homebrew/bin/mind-palace` (symlink
+→ `bin/mind-palace` in the repo) resolves the repo root from its own location and dispatches to
+**every** owner-facing script under `scripts/` — `mind-palace <verb> [args...]` works from any
+directory, no `cd` and no remembering which file does what. Run `mind-palace help` for the full verb
+list (it's the same list as this section). Adding a new script later = one new `case` line in
+`bin/mind-palace`.
 
-# --- DAY-TO-DAY -------------------------------------------------------------------------------
-./.venv/bin/python scripts/palace.py start     # run the whole system (preflight + supervise)
-./.venv/bin/python scripts/palace.py status    # health checklist + recent runs (commit-pinned)
-./.venv/bin/python scripts/palace.py stop       # graceful drain (from another shell)
-./.venv/bin/python scripts/talk.py             # talk to it (LIVE; --offline for a no-Ollama demo)
+```sh
+# --- DAY-TO-DAY (from anywhere) ----------------------------------------------------------------
+mind-palace start              # run the whole system (preflight + supervise)
+mind-palace status             # health checklist + recent runs (commit-pinned)
+mind-palace stop                # graceful drain (from another shell)
+mind-palace talk                 # talk to it locally (LIVE; --offline = no-Ollama demo)
+#   Remote dashboard + chat from your phone: set [monitor] enabled=true + host=<tailscale-ip>, then
+#   `mind-palace start` spawns it → http://<tailscale-ip>:8787  (see "Remote dashboard + chat" below)
 
 # --- FRESH START (done 2026-06-29; re-runnable) — see "Fresh start" below ---------------------
 launchctl bootout gui/$(id -u)/com.mind-palace.watch 2>/dev/null   # retire the old watcher
-./.venv/bin/python scripts/palace.py reset --confirm               # hard-wipe corpus (Vault guarded)
+mind-palace reset --confirm                                        # hard-wipe corpus (Vault guarded)
 #   …then re-export notes into ~/.mind-palace/vault/janus_notes/ + point Synctrain there…
-./.venv/bin/python scripts/palace.py start                         # re-ingests as authored-solo
+mind-palace start                                                  # re-ingests as authored-solo
 
 # --- ONE-TIME ENABLEMENT ----------------------------------------------------------------------
-./.venv/bin/python scripts/ingest_self_knowledge.py    # so "how do you work?" answers from docs
-./scripts/build_sandbox_image.sh                       # data-analysis libs image (numpy/scipy/…)
+mind-palace ingest-self-knowledge      # so "how do you work?" answers from docs
+mind-palace build-sandbox-image        # data-analysis libs image (numpy/scipy/…)
 #   then set [sandbox] image = "mind-palace-sandbox:latest" in config/local.toml — see "Code-exec sandbox"
 
 # --- INSTALL THE ALWAYS-ON DAEMON (supersedes com.mind-palace.watch) — see "One-command lifecycle"
@@ -33,17 +40,25 @@ cp ops/lifecycle/com.mind-palace.palace.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.mind-palace.palace.plist
 
 # --- USE THE SANDBOX DIRECTLY (data in, data out) — see "Code-exec sandbox" -------------------
-echo 'print(40+2)' | ./.venv/bin/python scripts/sandbox.py -
-./.venv/bin/python scripts/sandbox.py analysis.py --input series.csv=~/data/series.csv
+echo 'print(40+2)' | mind-palace sandbox -
+mind-palace sandbox analysis.py --input series.csv=~/data/series.csv
+
+# --- SECURITY / AUDIT (owner-operated) — see their sections below -----------------------------
+mind-palace gen-attestation-keys supervisor   # / owner — print a fresh signing seed for Keychain
+mind-palace verify-attestation --all          # / --list / <id> — verify the signed chain
+mind-palace check-imports                     # the import-firewall lint, standalone (also in CI)
+mind-palace purge-raw <digest> --confirm      # owner-gated TRUE deletion of a tombstoned blob
 
 # --- ALREADY-LIVE LAYERS (reference; turn on/operate as needed) -------------------------------
 #   Vault (unseal LaunchAgent), Backups ([backup] in local.toml + restic), Self-mod gate
-#   ([selfmod] enabled + scripts/…), Attestation signing ([attestation] + gen_attestation_keys).
-#   The provenance-split migration is now MOOT (the fresh start re-tags everything authored-solo).
+#   ([selfmod] enabled + ops/selfmod_cli.py), Attestation signing ([attestation] above).
+#   The provenance-split migration is now MOOT (the fresh start re-tags everything authored-solo);
+#   `mind-palace migrate-provenance` still exists if you ever need it again.
 ```
 
-Optional / not built (your call): the Tailscale-reachable HTTP gateway (remote chat from your
-phone); a WASI `python.wasm` to activate the WASM sandbox substrate. Both in their sections below.
+Optional (your call): the edge monitor (remote dashboard + chat over Tailscale — built; `[monitor]
+enabled=true`); Vault credential grants (`[secrets].grant_roles`); a WASI `python.wasm` to activate
+the WASM sandbox substrate. All in their sections below.
 
 ---
 
@@ -724,11 +739,15 @@ the standalone `scripts/watch.py` / `com.mind-palace.watch` agent. It manages ou
 *verifies* the externals (Vault, Ollama, podman) fail-closed; it does NOT start/stop those (they keep
 their own LaunchAgents).
 
+**`mind-palace` is on PATH** (`/opt/homebrew/bin/mind-palace` → `bin/mind-palace`, the dispatcher for
+every owner-facing script — see the quick-reference above and `mind-palace help`) — `start`/`stop`/
+`status`/`reset` pass straight through to `scripts/palace.py`, runnable from any directory:
+
 ```sh
-./.venv/bin/python scripts/palace.py status            # preflight checklist + recent runs
-./.venv/bin/python scripts/palace.py start             # the full system, foreground (Ctrl-C = drain)
-./.venv/bin/python scripts/palace.py stop              # graceful drain of the live run (from another shell)
-./.venv/bin/python scripts/palace.py reset --confirm   # the fresh-start corpus wipe (see below)
+mind-palace status            # preflight checklist + recent runs
+mind-palace start             # the full system, foreground (Ctrl-C = drain)
+mind-palace stop               # graceful drain of the live run (from another shell)
+mind-palace reset --confirm   # the fresh-start corpus wipe (see below)
 ```
 
 **What `start` does:** seals the core → preflight (ensure data dirs; verify Ollama up, Vault
@@ -765,14 +784,36 @@ live. Sequence for a clean re-export onto the new Synctrain-over-Tailscale setup
 
 ```sh
 launchctl bootout gui/$(id -u)/com.mind-palace.watch 2>/dev/null   # stop the old watcher first
-./.venv/bin/python scripts/palace.py reset --confirm              # hard-wipe the corpus (restic = net)
+mind-palace reset --confirm                                       # hard-wipe the corpus (restic = net)
 # re-export your notes into ~/.mind-palace/vault/janus_notes/ and point Synctrain there
-./.venv/bin/python scripts/palace.py start                        # re-ingests everything as authored-solo
+mind-palace start                                                 # re-ingests everything as authored-solo
 ```
 
 `[vault] path` is set to `~/.mind-palace/vault/janus_notes` (config/local.toml) so only that synced
 subdir is ingested — old/stray files in the vault root are ignored. A fresh re-ingest tags everything
 `authored-solo` natively, so the provenance-split migration is **not needed** after a reset.
+
+### Remote dashboard + chat — the edge monitor over Tailscale (owner-operated)
+
+palace supervises a SEPARATE child process (Invariant 2 — network-facing can't share the sealed core)
+that serves a small dashboard + chat surface. It reads the core-emitted status snapshot and relays chat
+over the interface handoff; it never imports core or reads a store. **Off by default.** To turn it on,
+add to `config/local.toml` and bind to this Mac's **Tailscale IP** (the tailnet is the auth boundary —
+do NOT use `0.0.0.0`):
+
+```toml
+[monitor]
+enabled = true
+host = "100.x.y.z"     # this machine's Tailscale IP (`tailscale ip -4`); 127.0.0.1 = local-only
+port = 8787
+```
+
+Then `palace start` spawns it (you'll see `↳ started child 'monitor'`); open `http://100.x.y.z:8787`
+from your phone on the tailnet. `GET /` = dashboard (health, run/commit, activity, queue, dream counts,
+auto-refreshing), `POST /chat` = talk to the Ambassador (same five paths as `talk.py`). palace restarts
+it if it dies and SIGTERMs it on a graceful stop. Run it standalone for a quick look:
+`./.venv/bin/python scripts/monitor.py`. The snapshot is metadata only — **no note text crosses to the
+network** (only counts + the *shape* of activity). It is deliberately NOT sealed (Zone B).
 
 ---
 

@@ -82,3 +82,7 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Embedded dashboard HTML/CSS/JS asset — long template lines, not code (server.py stays linted).
+"edge/monitor/page.py" = ["E501"]

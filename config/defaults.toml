@@ -107,6 +107,19 @@ retrieval_k = 5
 history_max_turns = 6
 interruption_sensitivity = "earned_only"
 
+[monitor]
+# The edge monitor — a small dashboard + chat surface palace supervises as a SEPARATE process
+# (network-facing → cannot share the sealed core, Invariant 2). It renders a core-emitted status
+# snapshot and relays chat over the interface handoff; it never imports core or reads a store.
+# OFF by default. To reach it from your phone, bind `host` to this machine's TAILSCALE IP (100.x)
+# — NOT 0.0.0.0 — so only tailnet devices can connect (the tailnet is the auth boundary, exactly
+# like the note-sync setup). 127.0.0.1 = local-only.
+enabled = false
+host = "127.0.0.1"
+port = 8787
+status_path = "data/monitor/status.json"   # where the launcher writes the metadata snapshot
+request_timeout_s = 30.0                    # how long a chat POST waits for the core's reply
+
 [airlock]
 # The research airlock (BUILD-SPEC §16, Invariant 11). The sealed core (Zone A) reads/writes
 # ONLY `handoff_dir` — a filesystem handoff like [interface]. It has no S3 and no network.
@@ -145,6 +158,12 @@ enabled = false
 addr = "http://127.0.0.1:8200"
 kv_mount = "kv"          # kv-v2 mount point for static secrets
 aws_mount = "aws"        # dynamic AWS secrets engine mount point (bridge/airlock roles)
+# Agent roles minted WITH an ephemeral scoped credential grant (§2 lifecycle). FAIL-CLOSED EMPTY:
+# a minted agent gets a Vault token only if its role is listed here AND `enabled = true`. Grant
+# the minimum and opt in per role in local.toml — recommended set (vault-runtime-auth.md §3):
+#   grant_roles = ["correlator", "advisor"]
+grant_roles = []
+token_ttl = "10m"        # short TTL — the per-interaction grant expires on its own
 
 [backup]
 # restic → S3 encrypted backups (BUILD-SPEC §16b). restic encrypts + deduplicates CLIENT-SIDE, so

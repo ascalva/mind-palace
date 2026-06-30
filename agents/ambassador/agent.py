@@ -28,6 +28,7 @@ from agents.ambassador.intent import CLASSIFIER_ROLE, Intent, classify
 from agents.ambassador.policy import InterruptionPolicy, narrate_effort, topic_of
 from core.attestation import Attestor
 from core.constitution import Message, frame_context
+from core.dreams_view import DreamsView
 from core.factory.roles import RoleTemplate
 from core.ingest.dialogue import DialogueCapture
 from core.librarian import Librarian, Retrieval
@@ -91,6 +92,7 @@ class Ambassador:
     librarian: Librarian
     ops_view: OpsView
     budgeter: Budgeter
+    dreams_view: DreamsView | None = None   # the INTERPRETED layer, mirror-not-oracle (DREAMS path)
     tier: str = "router"                   # the pinned tier (always warm — note §2b)
     capture_sink: DialogueCapture | None = None
     attestor: Attestor | None = None
@@ -129,6 +131,9 @@ class Ambassador:
         if intent is Intent.STATUS:
             self._attest("read")
             return self.ops_view.narrate(), (), None
+        if intent is Intent.DREAMS:
+            self._attest("read")
+            return self._reflect_dreams(), (), None
         if intent is Intent.TASK:
             return self._delegate(text, conversation), (), None
         # CAPTURE: the storing happens in respond(); here we just acknowledge.
@@ -168,6 +173,14 @@ class Ambassador:
             self.delegate(text, conversation)
         self._attest("propose")
         return narrate_effort(topic_of(text))
+
+    def _reflect_dreams(self) -> str:
+        """DREAMS: reflect the INTERPRETED layer (dreams + findings) back, mirror-not-oracle.
+        Read-only — the Ambassador can never write the interpreted layer through the view."""
+        if self.dreams_view is None:
+            return ("I haven't started looking for patterns across your notes yet — that runs in "
+                    "the background once there's a corpus to dream over.")
+        return self.dreams_view.narrate_recent()
 
     # --- surfacing (expected updates + earned interruptions) ----------------------------------
     def _surface(self, conversation: str) -> str:

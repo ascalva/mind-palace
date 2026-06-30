@@ -122,6 +122,41 @@ def test_start_serves_then_marks_run_clean(tmp_path):
     assert (not last.active) and last.clean_shutdown and not last.recovery   # graceful clean stop
 
 
+class _FakeChild:
+    name = "monitor"
+    pid = 123
+
+    def __init__(self):
+        self.started = self.stopped = 0
+        self._alive = True
+
+    def start(self):
+        self.started += 1
+
+    def alive(self):
+        return self._alive
+
+    def stop(self):
+        self.stopped += 1
+        self._alive = False
+
+
+def test_launcher_supervises_children_and_writes_snapshots(tmp_path):
+    sup, watch, q = _FakeSupervisor(), _FakeWatcher(), _FakeQueue()
+    child, snaps = _FakeChild(), []
+    comps = Components(supervisor=sup, watcher=watch, queue=q, children=[child],
+                       snapshot=lambda run, flags: snaps.append((run, flags)))
+    passing = Preflight((Check("x", required=True, ok=True, detail="ok"),))
+    launcher = Launcher(
+        cfg=_cfg(tmp_path), runs=RunLedger(tmp_path / "runs.sqlite"),
+        repo_root=Path(".").resolve(), components_factory=lambda _c: comps,
+        preflight_fn=lambda _c: passing, tick_seconds=0, health_interval_s=0, snapshot_interval_s=0)
+    launcher.start(max_ticks=2)
+    assert child.started == 1                  # spawned once on serve (alive → not re-spawned)
+    assert child.stopped == 1                  # drained on graceful shutdown (SIGTERM)
+    assert len(snaps) >= 1 and snaps[0][0] is not None   # snapshot written with the active run
+
+
 def test_unclean_prior_run_enters_recovery(tmp_path):
     runs = RunLedger(tmp_path / "runs.sqlite")
     runs.open_run(commit_sha="old", dirty=False, pid=1)   # a crash (never stopped)
