@@ -133,18 +133,27 @@ class MonitorConfig:
 
 @dataclass(frozen=True)
 class EffectorsConfig:
-    """Track G sensing surface (β = 0 only; docs/design-notes/hands-and-the-effector-layer.md).
-    Fail-closed
+    """Track G effector surface (docs/design-notes/hands-and-the-effector-layer.md). Fail-closed
     twice over: `enabled` off refuses to build either side of the handoff, and an empty
     `upstreams` allowlist refuses every fetch even when enabled. `upstreams` is (name, url)
     pairs — the ONLY place a URL exists in the sensing path; the core-side request carries
-    just the name."""
+    just the name.
+
+    Sensing (β = 0) is the only class the WIRED surface admits (EffectView ceiling ε = SENSING).
+    The acting-class knobs below (`ledger_db`, `drafts_dir`, `jit_credential_ttl`) support the
+    built-but-off reversible/irreversible hands (G5/G6): the durable effect ledger, where a
+    reversible write stages its draft, and the short TTL of the per-action JIT credential minted at
+    send time. They are inert until ε is deliberately raised past sensing."""
 
     enabled: bool = False
     handoff_dir: Path = Path("data/handoff/sensing")
     timeout_s: float = 20.0
     max_response_kb: int = 512
     upstreams: tuple[tuple[str, str], ...] = ()
+    # Acting classes (G5/G6) — built, flag-off. The ledger is a record (safe to open even off).
+    ledger_db: Path = Path("data/effectors/effects.sqlite")
+    drafts_dir: Path = Path("data/effectors/drafts")   # where a reversible write stages its draft
+    jit_credential_ttl: str = "60s"           # per-action send credential's short TTL (class 3)
 
 
 @dataclass(frozen=True)
@@ -465,6 +474,9 @@ def load_config(path: Path | None = None) -> Config:
             upstreams=tuple(
                 sorted((str(k), str(v)) for k, v in eff.get("upstreams", {}).items())
             ),
+            ledger_db=_resolve(eff.get("ledger_db", "data/effectors/effects.sqlite")),
+            drafts_dir=_resolve(eff.get("drafts_dir", "data/effectors/drafts")),
+            jit_credential_ttl=str(eff.get("jit_credential_ttl", "60s")),
         ),
         models=tuple(
             ModelConfig(

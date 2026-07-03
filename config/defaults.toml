@@ -139,6 +139,11 @@ enabled = false
 handoff_dir = "data/handoff/sensing"
 timeout_s = 20.0            # per-fetch socket timeout (edge-side)
 max_response_kb = 512       # oversize responses are REFUSED, not truncated
+# Acting classes (G5/G6) — BUILT but unreachable until ε is raised past sensing (the wired surface
+# admits at ceiling SENSING). These knobs are inert while the classes are off:
+ledger_db = "data/effectors/effects.sqlite"   # durable propose→approve→execute→validate/rollback
+drafts_dir = "data/effectors/drafts"          # where a reversible write (class 2) stages its draft
+jit_credential_ttl = "60s"                     # short TTL of the per-action send credential (class 3)
 
 [effectors.upstreams]
 # name = "https://..."  — the edge-side reviewed allowlist (https only; enforced at use).

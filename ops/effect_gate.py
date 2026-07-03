@@ -43,55 +43,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from ops.effect_catalog import ACTUATORS, ActuatorSpec, get_actuator
 from ops.effects import ApprovalStrength, ReversibilityClass, ScopedCapability, required_approval
 
-# Conservative cap on one param value: enough for a query term or an upstream name, far too
-# small for a script. Params are DATA to a reviewed native actuator, never interpreted — the
-# cap is hygiene on top of the per-actuator key allowlist, not the security boundary.
-_MAX_PARAM_CHARS = 256
-
-
-@dataclass(frozen=True)
-class ActuatorSpec:
-    """One registered hand: its name, its reversibility class (which sets w(β)), the capability
-    scope it requires, and the CLOSED set of param keys it accepts. Adding an actuator here is
-    a reviewed diff against this registry (the G4 catalog formalizes the process); a proposal
-    can only ever reference a hand that exists here — the lever-registry move."""
-
-    name: str
-    reversibility: ReversibilityClass
-    scope: str                      # the ScopedCapability.scope this actuator requires
-    param_keys: frozenset[str]      # closed allowlist; unknown keys are refused, not ignored
-    description: str = ""
-
-
-# --- The registry: every hand the layer can express -------------------------------------------
-#
-# Sensing-only (β = 0) until the classes below are solid (§4's filtration discipline, held in
-# the rollout, not just the types). `sense_fetch` is the one generic read-only hand: an HTTPS
-# GET against a NAMED upstream from the edge-side reviewed allowlist — the proposal carries a
-# name into that table, never a URL (core/sensing.py enforces the shape).
-
-_ACTUATORS: tuple[ActuatorSpec, ...] = (
-    ActuatorSpec(
-        name="sense_fetch",
-        reversibility=ReversibilityClass.SENSING,
-        scope="sense:fetch",
-        param_keys=frozenset({"upstream", "terms"}),
-        description="read-only HTTPS GET against a named, edge-allowlisted upstream (β = 0).",
-    ),
-)
-
-ACTUATORS: dict[str, ActuatorSpec] = {spec.name: spec for spec in _ACTUATORS}
-
-
-def get_actuator(name: str) -> ActuatorSpec:
-    """Look up a registered actuator. Raises (fail-closed) if `name` is not registered — a
-    proposal can only ever target a hand that exists here."""
-    try:
-        return ACTUATORS[name]
-    except KeyError:
-        raise KeyError(f"unknown actuator {name!r}; registered: {sorted(ACTUATORS)}") from None
+# The actuator registry (`ActuatorSpec`, `ACTUATORS`, `get_actuator`) moved to `ops/effect_catalog`
+# in G4 — the catalog is the single source of truth for the hands the layer can express (each an
+# audited §8 record), and the gate CONSUMES it. Re-exported here so callers that reason about the
+# gate can name the spec without reaching for the catalog. Param-value cap now lives per-actuator
+# (`ActuatorSpec.max_param_chars`): 256 for sensing, larger for content hands (a drafted body).
+__all__ = [
+    "ACTUATORS", "ActuatorSpec", "get_actuator", "ProposedEffect", "EffectGateDecision",
+    "capability_covers", "effect_gate_admits",
+]
 
 
 @dataclass(frozen=True)
@@ -123,9 +86,9 @@ class ProposedEffect:
                 )
             if not isinstance(value, str):
                 raise ValueError(f"param {key!r} must be a string, got {type(value).__name__}")
-            if len(value) > _MAX_PARAM_CHARS:
+            if len(value) > spec.max_param_chars:
                 raise ValueError(
-                    f"param {key!r} too long ({len(value)} > {_MAX_PARAM_CHARS} chars)"
+                    f"param {key!r} too long ({len(value)} > {spec.max_param_chars} chars)"
                 )
             out[key] = value
         return spec, out

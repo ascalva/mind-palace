@@ -7,5 +7,14 @@ in this repo, never live-installed third-party skill code (§1: mine the ecosyst
 adopt the runtime)."""
 
 from edge.effectors.sensing import SensingEffector, build_sensing_effector
+from edge.effectors.writes import (
+    ReversibleWriteEffector,
+    build_reversible_write_effector,
+)
 
-__all__ = ["SensingEffector", "build_sensing_effector"]
+__all__ = [
+    "SensingEffector",
+    "build_sensing_effector",
+    "ReversibleWriteEffector",
+    "build_reversible_write_effector",
+]
