@@ -2,10 +2,14 @@
 
 *Family tag → family 1 (labelings & flow): the sandbox is powerless — 𝒜(exec) ∩ {net, vault, cred} = ∅ (I4); a WASM runtime for pure compute. See [`../NOTATION.md`](../NOTATION.md).*
 
-**Status:** design only. Scopes the `WasmRunner` seam declared but not implemented in
-Phase 4 (`core/sandbox/runner.py`). Not scheduled as a numbered phase — pick up
-opportunistically as a hardening upgrade once Podman's empirical gap (`docs/runbook.md` →
-"Sandbox runtime") closes and the live path is otherwise stable. Build-it-later, not now.
+**Status:** partially built (corrected 2026-07-03 audit — the original "design only" header was
+stale). `WasmRunner` + `RoutingRunner` now exist with a **real wasmtime execution path**
+(`core/sandbox/runner.py`; `build_runner` has `wasm`/`routing` branches) — no longer the empty seam
+this note first scoped. They are **dormant and fail-closed**: `available()` returns False until a
+WASI CPython (`python.wasm`) asset is placed, so `RoutingRunner` falls back to Podman and nothing
+runs under WASM yet. Remaining before it is a live substrate: place/pin the `python.wasm` asset,
+benchmark it against the Podman warm pool, and close Podman's own empirical gap (`docs/runbook.md` →
+"Sandbox runtime"). The design below still governs finishing the work.
 
 ---
 

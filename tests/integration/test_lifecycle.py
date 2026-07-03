@@ -57,9 +57,31 @@ def test_preflight_fails_closed_on_a_required_check(tmp_path):
     def warn(_c):
         return Check("sandbox", required=False, ok=False, detail="no podman")
 
-    assert run_preflight(cfg, ollama=ok, vault=ok, podman=warn).ok is True   # optional fail = warn
-    pf = run_preflight(cfg, ollama=down, vault=ok, podman=warn)
+    # inject a passing constitution check so this test stays hermetic (not coupled to the real
+    # baseline.json ↔ CONSTITUTION.md match, which its own test covers below).
+    assert run_preflight(cfg, ollama=ok, vault=ok, podman=warn,
+                         constitution=ok).ok is True   # optional fail = warn
+    pf = run_preflight(cfg, ollama=down, vault=ok, podman=warn, constitution=ok)
     assert pf.ok is False and any(c.name == "ollama" for c in pf.failures())
+
+
+def test_constitution_check_fails_closed_on_tamper(tmp_path):
+    from ops.lifecycle.preflight import _constitution_check, check_constitution
+
+    # pure logic: match ✓ (required), missing anchor ⚠ (warn), mismatch ✗ (fail-closed)
+    match = _constitution_check("abc123def456", "abc123def456")
+    assert match.ok and match.required and match.name == "constitution"
+    missing = _constitution_check("abc123def456", None)
+    assert not missing.ok and not missing.required        # cannot verify → warn, never block
+    mismatch = _constitution_check("abc123def456", "999888777666")
+    assert not mismatch.ok and mismatch.required and "re-bless" in mismatch.detail
+
+    # a mismatching constitution refuses the start; the real check passes today (anchor matches).
+    ok = lambda _c: Check("x", required=True, ok=True, detail="up")  # noqa: E731
+    bad = lambda _c: _constitution_check("live", "blessed")          # noqa: E731 — a real mismatch
+    pf = run_preflight(_cfg(tmp_path), ollama=ok, vault=ok, podman=ok, constitution=bad)
+    assert pf.ok is False
+    assert check_constitution(_cfg(tmp_path)).ok is True             # live == blessed right now
 
 
 # --- the launcher (fake components; no models) --------------------------------------------------

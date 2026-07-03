@@ -100,11 +100,53 @@ def check_own(cfg) -> list[Check]:
     return checks
 
 
+def _constitution_check(live: str, blessed: str | None) -> Check:
+    """Pure comparison of the live Constitution fingerprint against the owner-blessed anchor.
+
+    A mismatch is a REQUIRED (fail-closed) failure: the fixed point (Invariant 9) must not change
+    silently — a divergence is either an un-blessed edit or tampering, and either way the owner
+    should look before the system frames any agent with it. Overridable with `start --force`. A
+    missing anchor cannot verify anything, so it warns rather than blocks.
+    """
+    if blessed is None:
+        return Check("constitution", required=False, ok=False,
+                     detail="no blessed fingerprint in baseline.json — cannot verify "
+                            "(bless with `scripts/eval.py --bless`)")
+    if live == blessed:
+        return Check("constitution", required=True, ok=True,
+                     detail=f"matches blessed anchor ({live[:12]}…)")
+    return Check("constitution", required=True, ok=False,
+                 detail=(f"CONSTITUTION.md {live[:12]}… ≠ blessed anchor {blessed[:12]}… — "
+                         "re-bless with `scripts/eval.py --bless` if you amended it deliberately, "
+                         "else investigate tampering"))
+
+
+def check_constitution(cfg) -> Check:
+    """Fail-closed integrity check on the fixed point: the live `CONSTITUTION.md` must match the
+    owner-blessed fingerprint in `eval/golden/baseline.json` (BUILD-SPEC §15, Invariant 9).
+
+    This runs the drift gauge's Constitution-breach comparison AT STARTUP, so a tampered or
+    un-blessed Constitution is caught *before* any agent is framed with it — the runtime half that
+    was missing: the fingerprint was recorded post-hoc in attestations but never compared in the
+    live loop (a tampered file would otherwise be served to every agent after the next restart).
+    """
+    try:
+        from core.constitution import constitution_fingerprint
+        from eval.drift import load_drift_config
+        live = constitution_fingerprint()
+        blessed = load_drift_config().blessed_fingerprint
+    except Exception as e:  # noqa: BLE001 — a probe failure is a warning, never a hard crash
+        return Check("constitution", required=False, ok=False,
+                     detail=f"could not read the blessed anchor ({e!r})")
+    return _constitution_check(live, blessed)
+
+
 CheckFn = Callable[[object], Check]
 
 
 def run_preflight(cfg, *, ollama: CheckFn = check_ollama, vault: CheckFn = check_vault,
-                  podman: CheckFn = check_podman) -> Preflight:
+                  podman: CheckFn = check_podman,
+                  constitution: CheckFn = check_constitution) -> Preflight:
     """Assemble the full preflight. External checks are injectable for tests."""
-    checks = [*check_own(cfg), ollama(cfg), vault(cfg), podman(cfg)]
+    checks = [*check_own(cfg), constitution(cfg), ollama(cfg), vault(cfg), podman(cfg)]
     return Preflight(checks=tuple(checks))

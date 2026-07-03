@@ -84,6 +84,12 @@ class BudgetedContext:
     report: BudgetReport
 
 
+class ConstitutionFrameError(RuntimeError):
+    """Refused: a caller tried to assemble a context whose outermost frame is not the canonical
+    Constitution (Invariant 6/9) without a deliberate, visible override. The Constitution is a
+    fixed point, not caller-substitutable content — closing the Threat-B assembly-logic seam."""
+
+
 @dataclass
 class Budgeter:
     window: int
@@ -93,10 +99,23 @@ class Budgeter:
     def _t(self, text: str) -> int:
         return self.estimator(text)
 
-    def assemble(self, parts: ContextParts) -> BudgetedContext:
+    def assemble(self, parts: ContextParts, *,
+                 allow_constitution_override: bool = False) -> BudgetedContext:
+        # The outermost frame is the fixed point (Invariant 6/9), not caller-substitutable content.
+        # Default: the loaded Constitution. A caller may pass `parts.constitution` ONLY if it is the
+        # canonical text (a harmless echo) — anything else is a silent substitution of the governing
+        # values and is REFUSED fail-closed, unless a test/tool sets `allow_constitution_override`
+        # (loud, greppable, and never on the live dispatch path). Closes audit finding G9.3.
+        canonical = load_constitution()
         constitution = parts.constitution
         if constitution is None:
-            constitution = load_constitution()
+            constitution = canonical
+        elif constitution != canonical and not allow_constitution_override:
+            raise ConstitutionFrameError(
+                "refusing a non-canonical Constitution as the outermost frame — pass "
+                "constitution=None to use the loaded fixed point, or "
+                "assemble(..., allow_constitution_override=True) for a deliberate test/tool."
+            )
         budget = self.window - self.reserve
 
         # Mandatory frame — never trimmed (Invariant 6): Constitution, role, task.

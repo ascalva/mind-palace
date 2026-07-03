@@ -990,3 +990,48 @@ Absence confirmed for the future tracks: Track L (all L-series artifacts absent)
 
 **Note:** a concurrent build session was live in this tree during the reorg (added the Source-set
 work above); its changes were left untouched and never staged.
+
+
+---
+
+## Threat-B hardening — two small wins from the integrity audit (2026-07-03)
+
+Owner-directed follow-up to the design-note audit: implement the small, high-value security wins it
+surfaced, before resuming the main track (hands/ingest). Two prompt-integrity gaps closed at their
+choke points; behavior on the live path is unchanged (both fail-closed only on an actual anomaly).
+
+**Built.**
+1. **Constitution fingerprint checked at startup** (`ops/lifecycle/preflight.py` `check_constitution`
+   + `_constitution_check`). Closes audit **G9.1/G3**: the blessed-anchor comparison existed
+   (`eval/drift.py`) but ran only in the disabled self-mod validator, so a tampered/un-blessed
+   `CONSTITUTION.md` would be served to every agent after the next restart with nothing noticing.
+   Preflight now compares the live fingerprint (`core.constitution.constitution_fingerprint`) to the
+   owner-blessed anchor in `eval/golden/baseline.json` (`eval.drift.load_drift_config`) BEFORE any
+   agent is framed, and **fails closed** on mismatch (required check → refuses start; overridable
+   with the existing `start --force`, per Invariant 9). A missing anchor warns; the probe never
+   raises. Re-bless path in the message (`scripts/eval.py --bless`).
+2. **The Constitution assembly seam closed** (`scheduler/budget.py` `Budgeter.assemble` +
+   `ConstitutionFrameError`). Closes audit **G9.3**: `ContextParts.constitution` let any caller make
+   arbitrary text the outermost frame with nothing validating `messages[0]`. `assemble` now REFUSES
+   a non-canonical Constitution fail-closed, unless a caller sets the loud, greppable, keyword-only
+   `allow_constitution_override=True` (test/tool paths only, never live). The live Ambassador path
+   passes `constitution=None` → the loaded fixed point → byte-identical. (The other model-call sites
+   already frame through `core.constitution.frame_context`, which hard-codes the canonical text —
+   structurally safe, unchanged.)
+
+Also corrected the **stale `wasm-sandbox-runtime.md` status header** (the runner is built, dormant
+pending a `python.wasm` asset — not "design only"); design body untouched.
+
+**Verified.** Full offline suite **610→611 (+1** G9.3 refusal regression test; budget tests updated
+to pass the explicit override), ruff clean, import firewall green (core seal intact — the new code is
+in `ops/`/`scheduler/`, reaches no network). Live preflight render confirmed
+`✓ constitution: matches blessed anchor` on the real config. Live/podman tiers N/A (no Ollama tier,
+no sandbox touched). **Not committed** (owner's role); no git actions taken.
+
+**Deliberately deferred (flagged, not built).** `DERIVED_STRATUM` reservation (recursive-strata §8):
+its "before the migration" urgency does **not** hold — `migrate_provenance_split.py` only relabels
+`authored→authored-solo` and never writes `DERIVED_STRATUM`, so it is a deliberate taxonomy
+commitment for the owner at Track-L unpark, not a mechanical win. Chunk-text-vs-digest re-verification
+at retrieval (G9.5) folds into the coming ingest work (hot path). Attestation prod-key generation +
+`[attestation] enabled` (G9.4) is owner-operational. RAG-in-`role:system` register (G9.2) needs a
+behavioral eval before changing.
