@@ -273,3 +273,10 @@ config have no identity at all, and the attestation trail that records the finge
 fact is unsigned in this deployment with dev verification anchors. For "the prompts that will be
 passed," the system today relies on git and process discipline, not on any runtime integrity
 control.
+
+**Cross-reference:** `docs/research/security-planes.md` §2 inherits this gap directly — the
+foundation file set's enumeration lists "the Constitution and all assembled-prompt components"
+as one entry precisely because the fingerprint-scope gap identified here is unresolved. That
+note's foundation-file-set verification is blocking on this audit's findings 3 and 6 in
+particular (assembly-logic seam, unfingerprinted role prompts); do not close either gap
+independently of the other.

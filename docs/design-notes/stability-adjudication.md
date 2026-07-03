@@ -89,6 +89,16 @@ K × the deterministic pass (trough-tier, model-free; persistence computed once,
 0 additional model calls. On the M2 Max the binding cost is K × (SBM VEM + curvature); K in
 the 10–30 range is the expected regime, to be measured, not assumed.
 
+## Cross-reference
+`docs/research/security-planes.md` §6 names this note's stability filter as the intended input
+to the adjudicator: artifacts failing perturbation stability are discarded before reaching the
+owner's review queue, which is the concrete mechanism that note relies on to cut review fatigue.
+That dependency runs one direction only — the adjudicator consumes survival rate as a report-only
+signal (per the clamp-law integration above); it does not grant the adjudicator authority to
+promote on its own. Promotion still spends only owner verdicts, per that note's owner-facing
+boundary. Keep the two notes' validation stories aligned: both are gated on the same L2 verdict
+store existing.
+
 ## Explicitly not this
 - **Not** multiple rounds of synthesis — no model calls over perturbed views, no
   interpreted-over-interpreted recursion (that remains the separate, flag-OFF

@@ -46,6 +46,8 @@ These extend existing invariants; none replaces one.
 
 **Provenance classification.** Derived strata are a third provenance class: neither authored (sealed core) nor external (network zone). They are self-generated — trusted as to origin (the attestation chain proves the Dreamer produced them and how), untrusted as to truth (verdicts alone confer that). The provenance firewall treats them as readable by the Dreamer but never confusable with authored content: no instrument may consume a derived node as if it were K₀. This is a new label type, not a new firewall mechanism.
 
+**Indexing policy cross-reference.** `docs/research/security-planes.md` §6 specifies the librarian's indexing policy as a function of this label lattice: external strata index on ingest, derived strata index on promotion only. This is the concrete mechanism that keeps I1 (promotion by verdict only) enforced at the retrieval layer, not just at the weight layer — an unpromoted `DERIVED_STRATUM` node must not be retrievable, not merely unweighted. Treat the two notes as one policy; do not let them diverge at unpark time.
+
 ## 5. Manifest additions (L3 schema, reserved now, ranges ratified later)
 
 - `strata.layer_weight` — bounded above per I3; default 0.

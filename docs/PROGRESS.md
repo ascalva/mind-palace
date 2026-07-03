@@ -1861,3 +1861,30 @@ sandbox, so `-m live`/`-m podman` don't apply. **Next (Track G):** G4 (the effec
 SKILL-mining pipeline doc = the §8 audit as a repeatable process); then G5 (reversible writes) only
 once its property tests are green — you do not get a class until the one below is solid (§4). The
 acting classes' *value* is gated on Track H producing a deep-enough model to tailor actions (§7).
+
+
+---
+
+## Security planes — design note (docs/research/)
+
+**Status:** DRAFT, pending ratification (2026-07-03)
+
+**Written:** `docs/research/security-planes.md`. Three-plane security composition — types (code
+plane, Threat B-adjacent), provenance (data plane, Threat A), capabilities (boundary, Threat B).
+Covers: foundation file set enumeration (builder never holds write access; blocking on repo
+verification pass), the Rust/PyO3 privileged-path split (parked, default recorded, rejected
+Nelua/Haskell-subroutine/Coq-Agda-F*/Koka-Frank), lightweight TLA+/Alloy + Hypothesis treatment
+for three invariants (label monotonicity, capability non-amplification, append-only), store
+encryption as capability-hardening rather than a confidentiality silver bullet (AEAD for
+integrity, key-as-capability, index-leakage caveat recorded), and the librarian/adjudicator
+split — one librarian indexing external strata on ingest and derived strata on promotion only;
+the adjudicator as an owner-facing clerk, not a pipeline component, writing recommendations to
+the verdict store inbox with promotion spent only by the owner.
+
+**Cross-referenced into:** `docs/audits/prompt-integrity-audit.md` (foundation-file-set gap),
+`docs/design-notes/recursive-strata.md` (indexing-on-promotion policy, I1 enforcement),
+`docs/design-notes/stability-adjudication.md` (adjudicator's stability-filter input).
+
+**Blocking on:** foundation file set verification pass against the repo (§2 of the note).
+**Not built:** no code changes; the note is design-only, same status class as the parked notes
+it cross-references.
