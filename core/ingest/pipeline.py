@@ -14,9 +14,20 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from core.ingest.chunk import Chunk, chunk_text
-from core.ingest.logseq import ParsedNote, iter_vault, parse_note
+from core.ingest.logseq import ParsedNote, _decode, iter_vault, parse_note
 from core.provenance import Provenance
 from core.stores.rawstore import RawStore
+
+
+def derive_chunks(raw_bytes: bytes, *, max_chars: int = 1200,
+                  overlap_chars: int = 150) -> tuple[Chunk, ...]:
+    """The chunks a raw blob yields — the ONE authoritative raw→chunks derivation, deterministic
+    and reproducible from the immutable raw store alone: decode (the tolerant text view, §8) then
+    chunk. `ingest_note` performs exactly this (it chunks `note.text`, which parse sets to
+    `_decode(note.raw_bytes)`); factoring it here lets the retrieval-integrity check
+    (`core.ingest.verify`) re-derive a source's chunks and confirm a stored row still matches —
+    "derived is regenerable from raw" made checkable."""
+    return tuple(chunk_text(_decode(raw_bytes), max_chars=max_chars, overlap_chars=overlap_chars))
 
 
 @dataclass(frozen=True)

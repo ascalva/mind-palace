@@ -75,11 +75,13 @@ def build_ambassador(config: object | None = None, *, delegate=None, pending_res
     ops_view = OpsView.over(open_attestation_store(cfg), open_ledger(cfg),
                             drift=(lambda: drift) if drift is not None else None)
     dreams_view = DreamsView.over(derived if derived is not None else open_derived_store(cfg))
-    capture = DialogueCapture(raw=RawStore(cfg.paths.raw_store), store=store, embedder=embedder,
+    raw = RawStore(cfg.paths.raw_store)
+    capture = DialogueCapture(raw=raw, store=store, embedder=embedder,
                               catalog=VaultCatalog(cfg.paths.vault_catalog), attestor=attestor)
     return Ambassador(
         server=server,
-        librarian=Librarian(server=server, embedder=embedder, store=store, k=amb.retrieval_k),
+        librarian=Librarian(server=server, embedder=embedder, store=store, raw=raw,
+                            k=amb.retrieval_k),
         ops_view=ops_view,
         dreams_view=dreams_view,
         budgeter=Budgeter(window=cfg.pinned_model.num_ctx),

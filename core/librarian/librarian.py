@@ -18,6 +18,7 @@ de-identification enforcement lives in `core.research.criteria` (the model advis
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -25,11 +26,15 @@ from dataclasses import dataclass
 from core.constitution import Message, frame_context
 from core.ingest.embed import Embedder
 from core.ingest.index import semantic_search
+from core.ingest.verify import verify_rows_against_raw
 from core.models import ModelServer
 from core.provenance import MIRROR_READABLE, Provenance
 from core.research.criteria import ResearchCriteria, deidentify
 from core.selfcheck import SelfCheck, Source, SubjectiveJudge, self_evaluate
+from core.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
+
+logger = logging.getLogger(__name__)
 
 LIBRARIAN_ROLE = (
     "You are the Librarian of a sealed personal mind-palace: a mirror onto the owner's "
@@ -122,12 +127,29 @@ class Librarian:
     # G7): k ∈ [3, 8] — enough recall to ground an answer, few enough that the budgeter rarely
     # has to trim retrieval (the primary lever, §13) and a wrong note can't crowd the window.
     k: int = 5
+    # When present, every retrieved chunk is verified against the immutable raw store before it
+    # can be cited (core.ingest.verify): a row whose `text` does not reproduce from its content-
+    # addressed source is dropped fail-closed, never reaching the model (audit G9.5). None => no
+    # verification (the store is trusted) — the pure-RAG path and existing tests stay unchanged.
+    raw: RawStore | None = None
 
     def retrieve(self, query: str, *,
                  provenances: Iterable[Provenance] | None = MIRROR_READABLE) -> list[Retrieval]:
         """Semantic retrieval over the thought-graph. Defaults to the mirror
-        (AUTHORED-only); the assistant tier (Phase 3+) may widen `provenances`."""
+        (AUTHORED-only); the assistant tier (Phase 3+) may widen `provenances`.
+
+        With a `raw` store wired, each hit is verified to reproduce from its content-addressed
+        source before it is returned (fail-closed integrity, audit G9.5): a tampered/unreproducible
+        row is dropped (logged) rather than cited to the model under a clean digest."""
         rows = semantic_search(query, self.embedder, self.store, k=self.k, provenances=provenances)
+        if self.raw is not None:
+            rows, dropped = verify_rows_against_raw(rows, self.raw)
+            for d in dropped:
+                logger.warning(
+                    "retrieval integrity: withheld chunk %s:%d (%s) — its text does not reproduce "
+                    "from the immutable raw store; not cited to the model.",
+                    d.digest, d.chunk_index, d.reason,
+                )
         return [
             Retrieval(
                 title=r.get("title", ""),
@@ -193,6 +215,7 @@ def build_librarian(config: object | None = None, *, k: int = 5) -> Librarian:
         server=build_model_server(cfg),
         embedder=build_embedder(cfg),
         store=open_vector_store(cfg),
+        raw=RawStore(cfg.paths.raw_store),
         k=k,
     )
 

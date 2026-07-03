@@ -1035,3 +1035,44 @@ commitment for the owner at Track-L unpark, not a mechanical win. Chunk-text-vs-
 at retrieval (G9.5) folds into the coming ingest work (hot path). Attestation prod-key generation +
 `[attestation] enabled` (G9.4) is owner-operational. RAG-in-`role:system` register (G9.2) needs a
 behavioral eval before changing.
+
+
+---
+
+## Retrieval content-integrity — G9.5 (2026-07-03, ingest/retrieval main track)
+
+The chunk-digest re-verification flagged for "the coming ingest work" (above), continuing the
+source-set/chunk-digest thread. Closes audit **G9.5**: retrieval took the vector-store row's `text`
+at face value, so a mutated LanceDB row would reach the prompt while the read attestation logged the
+clean digest (false fidelity; an injection vector once lower-trust provenances become retrievable).
+
+**Built.**
+- `core/ingest/pipeline.py::derive_chunks(raw_bytes)` — the one authoritative raw→chunks derivation
+  (`_decode` → `chunk_text`), exactly what `ingest_note` does (it chunks `note.text` = `_decode(raw_
+  bytes)`). Factored so the check re-derives a source's chunks from the immutable raw store.
+- `core/ingest/verify.py::verify_rows_against_raw(rows, raw)` → `(verified, dropped[IntegrityDrop])`
+  (Family 2 boundary). A row is verified iff its `text` is one of the chunks re-derived from the raw
+  blob it claims (by `digest`); raw fetched/rechunked once per digest. Missing-raw or non-reproducing
+  text is dropped fail-closed. **The check is exact** — re-derivation == the ingest derivation,
+  uniform across authored-solo / authored-dialogue / curated (all ride `ingest_note`) — so a
+  legitimate row NEVER false-drops; only genuinely unreproducible text fails.
+- `core/librarian/librarian.py` — `Librarian.raw: RawStore | None`; when wired, `retrieve()` verifies
+  each hit and drops failures with a loud `logging.warning` (non-silent). Wired into the 3 production
+  builds (`build_librarian`; the Ambassador reuses its `DialogueCapture` `RawStore`; the interface
+  `task_librarian`). `raw=None` (tests / pure-RAG) → verification off, path byte-identical (the trust
+  knob). The Ambassador's read attestation now covers only verified content as a consequence.
+
+**Verified.** Offline **611→617 (+6)** (`tests/integration/test_verify.py`: clean-verify, tamper-drop,
+missing-raw-drop, one-read-per-digest, derive_chunks==ingest, Librarian on/off; `test_ambassador_
+conversation` seed made raw-backed so RETRIEVE genuinely exercises the path). ruff clean; import
+firewall green (`core/ingest/verify.py` reaches no network). **LIVE SMOKE PASSED** (real
+`qwen3-embedding:4b` + real raw store): legitimate embedded content retrieved (no false-drop); a
+tampered row with a valid digest and a well-ranked vector was **dropped** (`text-not-in-raw`, logged)
+— the injection string never reached the answer.
+
+**Decisions.** Fail-closed drop + loud log is the default when `raw` is wired (house style; the drop
+is the load-bearing guarantee, the log is observability); no config knob for v1. Chunk params are the
+ingest defaults (1200/150). Stronger options (per-chunk hashes, signed-chunk attestation) named as the
+natural next seam on this path — not built. **Not committed** (owner's role); no git actions taken.
+
+**Next:** main-track frontier still open — Track G G4 (effector catalog) or the Track D correlator.

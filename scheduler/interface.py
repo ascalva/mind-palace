@@ -26,6 +26,7 @@ from agents.ambassador import DeliveredResult, build_ambassador
 from agents.ambassador.policy import topic_of
 from core.interface import CoreInbox
 from core.librarian import Librarian
+from core.stores.rawstore import RawStore
 from edge.interface import GatewayChannel, InterfaceGateway, LocalAdapter
 from ops.gate import HumanGate
 from scheduler.queue import DONE, QUEUED, Job, JobQueue
@@ -153,6 +154,6 @@ def build_conversation_runtime(config: object | None = None, *, server=None, emb
     adapter = LocalAdapter()
     gateway = InterfaceGateway(adapter=adapter, channel=GatewayChannel(handoff))
     task_librarian = Librarian(server=server, embedder=embedder, store=store, tier="synthesis",
-                               k=cfg.ambassador.retrieval_k)
+                               raw=RawStore(cfg.paths.raw_store), k=cfg.ambassador.retrieval_k)
     return ConversationRuntime(inbox=inbox, gateway=gateway, adapter=adapter, queue=queue,
                                task_handler=ambassador_task_handler(task_librarian))

@@ -12,6 +12,7 @@ import dataclasses
 from config.loader import load_config
 from core.ingest.index import semantic_search
 from core.provenance import MIRROR_READABLE, Provenance
+from core.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
 from scheduler.interface import build_conversation_runtime
 from tests.fixtures.fakes import HashingEmbedder, ReplyServer
@@ -32,14 +33,21 @@ def _runtime(tmp_path):
                               embedding=dataclasses.replace(base.embedding, dim=DIM))
     emb = HashingEmbedder(DIM)
     store = VectorStore(cfg.paths.vector_store, dim=DIM)
+    # Seed notes that are genuinely raw-backed: the Librarian now verifies each retrieved chunk
+    # against the immutable raw store (audit G9.5), so a row's text must reproduce from a real blob
+    # (each short note is a single chunk equal to its own text). This keeps RETRIEVE exercising the
+    # real path rather than silently dropping raw-less rows.
+    raw = RawStore(cfg.paths.raw_store)
+    t1 = "racing thoughts at night; slow breathing helps me sleep"
+    t2 = "deadline pressure; I get short with people when stressed at work"
+    d1, _ = raw.add_text(t1)
+    d2, _ = raw.add_text(t2)
     store.add([
-        {"id": "n1:0", "digest": "n1", "title": "sleep", "source_path": "/sleep",
-         "chunk_index": 0, "provenance": "authored-solo",
-         "text": "racing thoughts at night; slow breathing helps me sleep",
+        {"id": f"{d1}:0", "digest": d1, "title": "sleep", "source_path": "/sleep",
+         "chunk_index": 0, "provenance": "authored-solo", "text": t1,
          "vector": emb.embed_documents(["racing thoughts at night slow breathing sleep"])[0]},
-        {"id": "n2:0", "digest": "n2", "title": "work", "source_path": "/work",
-         "chunk_index": 0, "provenance": "authored-solo",
-         "text": "deadline pressure; I get short with people when stressed at work",
+        {"id": f"{d2}:0", "digest": d2, "title": "work", "source_path": "/work",
+         "chunk_index": 0, "provenance": "authored-solo", "text": t2,
          "vector": emb.embed_documents(["deadline pressure stressed at work"])[0]},
     ])
 
