@@ -28,7 +28,8 @@ class OllamaError(RuntimeError):
 class OllamaClient:
     config: OllamaConfig
 
-    def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def _post(self, path: str, payload: dict[str, Any], *,
+              timeout: float | None = None) -> dict[str, Any]:
         req = urllib.request.Request(
             f"{self.config.base_url}{path}",
             data=json.dumps(payload).encode("utf-8"),
@@ -36,7 +37,9 @@ class OllamaClient:
             headers={"Content-Type": "application/json"},
         )
         try:
-            with urllib.request.urlopen(req, timeout=self.config.request_timeout_s) as resp:
+            with urllib.request.urlopen(
+                req, timeout=timeout or self.config.request_timeout_s
+            ) as resp:
                 return json.loads(resp.read())
         except urllib.error.URLError as e:
             raise OllamaError(f"POST {path} failed: {e}") from e
@@ -102,4 +105,8 @@ class OllamaClient:
             payload["keep_alive"] = keep_alive
         if think is not None:  # Qwen3.x hybrid thinking toggle (per-request)
             payload["think"] = think
-        return self._post("/api/chat", payload).get("message", {}).get("content", "")
+        # Generation runs on the long timeout — a heavy thinking-model tier legitimately takes
+        # minutes; the control-plane default would false-trip on a real synthesis pass.
+        return self._post(
+            "/api/chat", payload, timeout=self.config.generation_timeout_s
+        ).get("message", {}).get("content", "")

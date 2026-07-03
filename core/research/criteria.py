@@ -152,6 +152,14 @@ class Paper:
         )
 
 
+def clean_term(term: str) -> str:
+    """The conservative outbound-term scrubber, public seam. ONE implementation shared by every
+    boundary where a term leaves the sealed core (airlock criteria here; sensing requests in
+    core/sensing.py) — so the de-identification policy cannot drift between surfaces. Raises
+    `DeidentificationError` on anything unsafe."""
+    return _clean_term(term)
+
+
 def _clean_term(term: str) -> str:
     """Validate and normalize one term. Raises `DeidentificationError` on anything unsafe."""
     t = " ".join(term.split())  # collapse whitespace

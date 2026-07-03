@@ -8,7 +8,13 @@
 host = "127.0.0.1"
 port = 11434
 default_keep_alive = "30m"   # seconds a worker stays warm after last use
+# Two timeouts by operation class. Control-plane ops (health/load/embed/evict) should fail fast;
+# a chat GENERATION by a large thinking-model tier (synthesis/stretch) legitimately runs minutes
+# — a real 27b synthesis pass was measured at ~290s. One uniform timeout is wrong in both
+# directions. Job-level liveness (a pass that never returns) is the supervisor's concern, above
+# the socket layer, so a generous generation timeout here is safe.
 request_timeout_s = 120
+generation_timeout_s = 600
 
 [resources]
 # Apple Silicon M2 Max, 32 GB unified memory; ~20-24 GB usable after OS + working set
@@ -119,6 +125,23 @@ host = "127.0.0.1"
 port = 8787
 status_path = "data/monitor/status.json"   # where the launcher writes the metadata snapshot
 request_timeout_s = 30.0                    # how long a chat POST waits for the core's reply
+
+[effectors]
+# Track G — the hands / effector layer (docs/hands-and-the-effector-layer.md). SENSING-ONLY
+# (β = 0): read-only hands; the acting classes (reversible/irreversible) are not built and the
+# types refuse them (EffectView ceiling ε = 0). OFF by default and fail-closed everywhere:
+# with `enabled = false` the core-side handoff and the edge effector both refuse to build, and
+# with `[effectors.upstreams]` EMPTY every fetch is refused even when enabled. A request
+# carries only a NAME into the upstreams table — the core-side type has no field that can hold
+# a URL, so the hand can only be aimed at entries the owner wrote here (reviewed allowlist).
+enabled = false
+handoff_dir = "data/handoff/sensing"
+timeout_s = 20.0            # per-fetch socket timeout (edge-side)
+max_response_kb = 512       # oversize responses are REFUSED, not truncated
+
+[effectors.upstreams]
+# name = "https://..."  — the edge-side reviewed allowlist (https only; enforced at use).
+# e.g.:  open-meteo = "https://api.open-meteo.com/v1/forecast?latitude=42.36&longitude=-71.06"
 
 [airlock]
 # The research airlock (BUILD-SPEC §16, Invariant 11). The sealed core (Zone A) reads/writes

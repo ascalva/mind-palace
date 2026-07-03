@@ -1759,3 +1759,105 @@ lands, both committed dreaming live gates run for real: `test_dreaming_live.py` 
 session's new `test_dream_v2_live.py` (v2 loop) — the latter already smoke-tested end to end
 against the real `qwen3.6:35b-a3b` (stretch) tier and produced a correctly-grounded, self-check-
 passing narration (see the H8–H9 entry above).
+
+## Live-tier bug fix — split Ollama socket timeout (2026-07-02)
+
+Running the full suite with the `qwen3.6:27b` synthesis tier finally pulled surfaced a **real
+production bug** (not a test artifact): 2 live failures, both `TimeoutError` on `OllamaClient.chat`
+— `test_scheduler_live` (a `router` ping under full-suite model-load pressure) and
+`test_dream_v2_live` (real `synthesis` narration). Root cause: `request_timeout_s = 120` was the
+*single* socket timeout on every Ollama POST. Measured a realistic 27b synthesis chat at **~290s**
+(2442 thinking+narration tokens) — 2.4× the ceiling; a real dream/synthesis pass would hit the
+identical wall. 120s is wrong in both directions: too long for a hung health/load probe, far too
+short for a heavy thinking-model generation.
+
+**Fix:** split by operation class. New `[ollama] generation_timeout_s = 600` (`OllamaConfig`,
+`.get`-defaulted so older TOMLs load); `OllamaClient._post` takes a `timeout` override; `chat()`
+uses the generation timeout, all control-plane ops (health/load/embed/evict) keep the fast 120s.
+Job-level liveness (a pass that never returns) is the supervisor's concern *above* the socket
+layer, so a generous generation timeout here is safe. **Verified:** both previously-failing live
+tests now pass (`test_dream_v2_live` = the loop v2 end to end on real 27b synthesis, grounded +
+self-check-passing — the first full-fidelity v2 run); offline suite unaffected (552 green); ruff
+clean. Pre-existing honest skip unchanged: `test_dreaming_live` (v1) skips when the golden fixture
+doesn't cluster at its 0.45 threshold under the real embedder (a fixture-threshold matter, not a
+regression).
+
+## Track G — Prompt G1–G3: the hands (the type, the gate, read-only sensing) (2026-07-03)
+
+Opened the outward-action boundary at its **safest end** — β = 0, read-only sensing — with the
+whole surface **flag-OFF by default** (`[effectors] enabled=false`, empty upstream allowlist).
+No acting classes built; the types structurally refuse them. Design: `docs/hands-and-the-
+effector-layer.md` (Track G). Everything below is new code behind the flag; no existing behavior
+changed (proven by the untouched 552 baseline still green inside the new 602).
+
+**G1 — the effector types (`ops/effects.py`).** `Effect` / `EffectView` + the `ReversibilityClass`
+enum (SENSING/REVERSIBLE/IRREVERSIBLE, an `IntEnum` because — unlike provenance, where G8 retired
+the order — the order here is the §4 filtration index). The load-bearing move, the **dual of
+`MirrorView`**: `Effect.__post_init__` **raises** unless the approval reference covers w(β) for the
+class (None admissible ONLY for SENSING), so an unapproved consequential effect is *unconstructable*,
+not checked-then-refused. Two more structural facts: (a) an effect carries **no confidence of its
+own** — `cites` names motivating interpretation ids, but there is deliberately no `confidence`
+field, holding companion III's u≠c separation at the actuator (a high-c dream earns no automatic
+action; test asserts the field's absence); (b) `ScopedCapability` carries a scope NAME + a Vault
+**accessor** (non-secret reference), and has **no token/secret/credential field at all** — one step
+harder than `MintedAgent.token` (off-prompt/off-repr): here the field doesn't exist. `EffectView` is
+**Effects_{β≤ε} as a type** — ceiling defaults to SENSING (ε=0); `admit` re-validates; a class above
+ε raises `CeilingExceededError`. β (`blast_radius`) and w(β) (`required_approval`) are property-tested
+monotone.
+
+**G2 — the gate generalized (`ops/effect_gate.py`).** The Phase-10 guarded transition system (I12),
+wider domain: `ProposedChange`→`ProposedEffect`, `G_now`→`G_effect(E) = proposed ∧ approved_{w(β)} ∧
+scoped_cap_valid ∧ attested` (§6). `ProposedEffect` inherits the structural ceiling — an
+(actuator-name, allowlisted-string-params) pair with **no path/diff/command/code/url field**, so
+"run this"/"fetch that address" is unexpressable (the `ProposedChange`/`ResearchCriteria` move);
+`resolve()` is fail-closed against the actuator registry (sensing-only: `sense_fetch`) + each
+actuator's **closed** param-key allowlist. `effect_gate_admits` is pure data-in/bool-out (no E
+handle, no apply ⇒ **E can never self-apply**, I12 inherited), the approval requirement **computed
+from the class** via w(β) (no `required` field a decision could understate), the scoped-capability
+check a **first-class conjunct** (the confused-deputy answer: no minted scope ⇒ no effect even
+fully-approved). **FSM-verified exhaustively over all 72 states** (3×2×3×2×2), same discipline as the
+8-state config gate. `capability_covers` = exact-scope-match (no glob authority) + fail-closed expiry
+(unparseable⇒expired). Scope note: the durable EffectLedger (execute/validate/rollback rows) lands
+with G5 (the first class with world state to roll back); β=0 has none — the guard + types +
+attestation trail are the whole machine.
+
+**G3 — read-only sensing, end to end (β = 0).** Core side `core/sensing.py`: `SenseRequest`
+(outbound — de-identified, carries **no note content and no URL**: `terms` pass the SAME conservative
+scrubber as airlock criteria via the new shared `core.research.criteria.clean_term` seam — one
+policy, one impl; `upstream` is a short NAME into the edge allowlist, shaped so a URL/host/path is
+unrepresentable → the confused-deputy answer made structural), `SensingHandoff.emit(request, effect)`
+(admission **IS** `EffectView.admit(ceiling=SENSING)` — an acting-class effect raises before anything
+touches the handoff), `SensedObservation.to_row()` (stamps provenance `observed` with **no
+parameter** — the DerivedStore unforgeability move; result type has **no actuator field**, §3),
+`ObservedView` (the assistant-tier read boundary, dual to MirrorView; the Track-D correlator's
+intended seam). **Edge side** `edge/effectors/sensing.py` (Zone B): `SensingEffector` serves
+`sense_fetch` from the handoff with a **powerless constrained fetch** (`UrllibTransport`: **https-only**,
+**redirects refused** — 3xx off-host is an exfil vector, **size-capped/refused-not-truncated**,
+timeout, no auth/cookies), resolving the request's NAME against its **own reviewed allowlist** (the
+ONLY place a URL exists; empty by default ⇒ every fetch refused); **never imports core/ops/scheduler**
+(AST-asserted). Refusals come back as **honest error observations**, not silent gaps. Wire shapes
+mirrored, not imported — airlock/monitor pattern.
+
+**The firewall (the §3 "done when"), structural both directions.** `MirrorView` refuses `observed`
+rows while `ObservedView` refuses everything non-`observed`, so the two views **partition** the tiers
+with no representable overlap: sensed exhaust provably **cannot reach the authored mirror or the §15
+baselines** (a store of observed rows projects to an empty MirrorView; a sensed row into MirrorView is
+a type error). Tested in `tests/integrity/test_sensing_firewall.py`.
+
+**Config** — new `[effectors]` section + `EffectorsConfig` (`.get`-defaulted so older TOMLs load):
+`enabled=false`, `handoff_dir`, `timeout_s`, `max_response_kb`, `[effectors.upstreams]` (name→https
+allowlist, empty). Fail-closed twice: `build_sensing_handoff` / `build_sensing_effector` both **refuse
+unless enabled**, and an empty allowlist refuses every fetch even when enabled.
+
+**Verified.** New tests: `test_effects.py` (G1 types), `test_effect_gate_fsm.py` (G2, 72-state FSM),
+`test_sensing.py` (core handoff), `test_sensing_effector.py` (edge, fake transport),
+`test_sensing_firewall.py` (the partition + the edge→private-zone import check),
+`test_sensing_transport.py` (non-https guard). **Offline suite 552→602 (+50), ruff clean tree-wide,
+import-firewall green** (core reaches no network; effectors are edge — both directions now enforced).
+**Live network smoke passed** (real `UrllibTransport` → `https://api.github.com/zen` returned a body;
+non-https + unknown-upstream refusals fired) — the real egress path, not just the fake. **No flags
+flipped** (effectors OFF, self-mod OFF, dream R&D OFF). Not touched: any Ollama tier or the podman
+sandbox, so `-m live`/`-m podman` don't apply. **Next (Track G):** G4 (the effector catalog + the
+SKILL-mining pipeline doc = the §8 audit as a repeatable process); then G5 (reversible writes) only
+once its property tests are green — you do not get a class until the one below is solid (§4). The
+acting classes' *value* is gated on Track H producing a deep-enough model to tailor actions (§7).

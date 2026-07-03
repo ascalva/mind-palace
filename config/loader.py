@@ -31,7 +31,8 @@ class OllamaConfig:
     host: str
     port: int
     default_keep_alive: str
-    request_timeout_s: int
+    request_timeout_s: int          # control-plane ops (health, load, embed, evict) — fail fast
+    generation_timeout_s: int       # chat generation — a heavy thinking-model pass runs minutes
 
     @property
     def base_url(self) -> str:
@@ -128,6 +129,21 @@ class MonitorConfig:
     port: int = 8787
     status_path: Path = Path("data/monitor/status.json")
     request_timeout_s: float = 30.0
+
+
+@dataclass(frozen=True)
+class EffectorsConfig:
+    """Track G sensing surface (β = 0 only; hands-and-the-effector-layer.md). Fail-closed
+    twice over: `enabled` off refuses to build either side of the handoff, and an empty
+    `upstreams` allowlist refuses every fetch even when enabled. `upstreams` is (name, url)
+    pairs — the ONLY place a URL exists in the sensing path; the core-side request carries
+    just the name."""
+
+    enabled: bool = False
+    handoff_dir: Path = Path("data/handoff/sensing")
+    timeout_s: float = 20.0
+    max_response_kb: int = 512
+    upstreams: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -255,6 +271,7 @@ class Config:
     secrets: SecretsConfig = field(default_factory=SecretsConfig)
     backup: BackupConfig = field(default_factory=BackupConfig)
     selfmod: SelfModConfig = field(default_factory=SelfModConfig)
+    effectors: EffectorsConfig = field(default_factory=EffectorsConfig)
 
     def model_for_tier(self, tier: str) -> ModelConfig:
         for m in self.models:
@@ -305,12 +322,16 @@ def load_config(path: Path | None = None) -> Config:
     sec = raw.get("secrets", {})
     bak = raw.get("backup", {})
     sm = raw.get("selfmod", {})
+    eff = raw.get("effectors", {})
     return Config(
         ollama=OllamaConfig(
             host=o["host"],
             port=int(o["port"]),
             default_keep_alive=str(o["default_keep_alive"]),
             request_timeout_s=int(o["request_timeout_s"]),
+            # .get keeps older/custom TOMLs (without this key) loading; default = 10 min, which
+            # comfortably covers a large thinking-model synthesis pass (measured ~290s for 27b).
+            generation_timeout_s=int(o.get("generation_timeout_s", 600)),
         ),
         resources=ResourceConfig(
             usable_ram_gb=float(r["usable_ram_gb"]),
@@ -434,6 +455,15 @@ def load_config(path: Path | None = None) -> Config:
             enabled=bool(sm.get("enabled", False)),
             unattended_enabled=bool(sm.get("unattended_enabled", False)),
             ledger_db=_resolve(sm.get("ledger_db", "data/selfmod_ledger.sqlite")),
+        ),
+        effectors=EffectorsConfig(
+            enabled=bool(eff.get("enabled", False)),
+            handoff_dir=_resolve(eff.get("handoff_dir", "data/handoff/sensing")),
+            timeout_s=float(eff.get("timeout_s", 20.0)),
+            max_response_kb=int(eff.get("max_response_kb", 512)),
+            upstreams=tuple(
+                sorted((str(k), str(v)) for k, v in eff.get("upstreams", {}).items())
+            ),
         ),
         models=tuple(
             ModelConfig(
