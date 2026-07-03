@@ -1,3 +1,7 @@
+> **Archived (2026-07-03 docs cleanup).** The security & attestation track this builder prompt
+> scoped is complete — see `docs/PROGRESS.md` (Security & attestation track, 6 steps, 2026-06-27)
+> and production Vault standup entries. Kept for historical reference; 0 inbound references.
+
 # Handoff — security & attestation track (ACTUAL BUILD) + test foundation
 
 Eight design notes (in `docs/design-notes/`), the builder prompt, and the exact

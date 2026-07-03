@@ -12,6 +12,7 @@ from collections.abc import Iterable
 from core.ingest.embed import Embedder
 from core.ingest.pipeline import IngestRecord
 from core.provenance import MIRROR_READABLE, Provenance
+from core.stores.sourceset import SourceSet, group_sources
 from core.stores.vectorstore import VectorStore
 
 
@@ -45,3 +46,20 @@ def semantic_search(query: str, embedder: Embedder, store: VectorStore, *, k: in
     introspective default that keeps observed exhaust out of the mirror. Pass
     provenances=None for the assistant tier to search across all classes."""
     return store.search(embedder.embed_query(query), k=k, provenances=provenances)
+
+
+def grouped_semantic_search(query: str, embedder: Embedder, store: VectorStore, *, k: int = 5,
+                            provenances: Iterable[Provenance] | None = MIRROR_READABLE
+                            ) -> list[SourceSet]:
+    """Semantic search returning results grouped by SOURCE OBJECT instead of flat chunks.
+
+    The explicit opt-in to source-grained retrieval: flat `semantic_search` stays the default
+    and is untouched (byte-identical), and this is a separate entry point rather than a flag on
+    it — the recursive-strata I3 floor-zero posture (the grouped mode adds nothing to the flat
+    path). `k` is the flat *chunk* budget; the returned sources are those chunks grouped by
+    digest, so a query hitting two chunks of one note yields one source with two members. Source
+    order follows search rank (each source at its best hit; see `group_sources`). Defaults to
+    MIRROR_READABLE like `semantic_search`. To expand a hit to its full membership rather than
+    only the matched chunks, call `source_set(store, hit.digest)`."""
+    hits = semantic_search(query, embedder, store, k=k, provenances=provenances)
+    return group_sources(hits)

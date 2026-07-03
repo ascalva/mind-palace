@@ -127,7 +127,8 @@ status_path = "data/monitor/status.json"   # where the launcher writes the metad
 request_timeout_s = 30.0                    # how long a chat POST waits for the core's reply
 
 [effectors]
-# Track G — the hands / effector layer (docs/hands-and-the-effector-layer.md). SENSING-ONLY
+# Track G — the hands / effector layer (docs/design-notes/hands-and-the-effector-layer.md).
+# SENSING-ONLY
 # (β = 0): read-only hands; the acting classes (reversible/irreversible) are not built and the
 # types refuse them (EffectView ceiling ε = 0). OFF by default and fail-closed everywhere:
 # with `enabled = false` the core-side handoff and the edge effector both refuse to build, and

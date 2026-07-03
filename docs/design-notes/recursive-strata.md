@@ -44,6 +44,13 @@ These extend existing invariants; none replaces one.
 
 **I4 — Depth is typed and visible.** Every derived node carries its stratum depth as data. Instruments and digests can therefore condition on depth, and the grounding gauge (§6) is computable by construction.
 
+**I5 — Bounded strata cardinality.** Distinct from I3, which bounds the strata layer's *mass* (Σ weight) so K₀ stays dominant. I5 bounds its *population* — the node and edge counts admitted per cycle. The two are orthogonal: a cycle can satisfy the I3 mass ceiling with a swarm of low-weight nodes, leaving the operator's dimension and the owner's review queue to blow up while every individual weight stays negligible. I5 is a ceiling on proposals per cycle, not a quota — the Dreamer proposes under it, and the promotion gate (I1) throttles again downstream. Two budgets:
+
+- `strata.node_budget` — maximum derived nodes proposed per cycle, expressed relative to the grounded node count, not as an absolute integer (a fixed count means opposite things at 10³ and 10⁵ nodes). At current corpus scale the binding constraint is not this fraction but owner review capacity; the fraction becomes binding only past the crossover where it exceeds what the owner can verdict in one session. Both bounds are recorded; review capacity binds first, which ties the node budget to review fatigue — the Track L primary failure mode — rather than to an arbitrary constant.
+- `strata.edge_budget` — typed, because the three edge kinds carry different risk. Grounding edges (derived→K₀) are unbudgeted or cheap: throttling them throttles accountability, the opposite of the intent. Lateral edges (derived→derived, same stratum) carry a real budget. Cross-stratum edges (derived→earlier-derived) carry the tightest budget — they are the tower's building material (§3), the stratum-*n*-citing-stratum-(*n*−1) pattern that manufactures self-confirmation. Budgeting edges by type makes I5 a *preventive* control on tower formation, complementing the grounding-ratio gauge's *detective* one (§6): the material is capped ex ante, not only measured after the tower stands.
+
+I5 damps *population*; the confidence bound `c ≤ γ^d·g` (Invariant 10) together with I2 and I3 damps *influence*. Both dampers are required for D to be a contraction: γ^d bounds how much a derived node may matter, I5 bounds how many may exist. Neither substitutes for the other, and setting either budget to its floor (node_budget 0, or all edge types to 0) recovers the non-recursive Dreamer exactly, preserving the I3 modularity guarantee in the cardinality dimension.
+
 **Provenance classification.** Derived strata are a third provenance class: neither authored (sealed core) nor external (network zone). They are self-generated — trusted as to origin (the attestation chain proves the Dreamer produced them and how), untrusted as to truth (verdicts alone confer that). The provenance firewall treats them as readable by the Dreamer but never confusable with authored content: no instrument may consume a derived node as if it were K₀. This is a new label type, not a new firewall mechanism.
 
 **Indexing policy cross-reference.** `docs/research/security-planes.md` §6 specifies the librarian's indexing policy as a function of this label lattice: external strata index on ingest, derived strata index on promotion only. This is the concrete mechanism that keeps I1 (promotion by verdict only) enforced at the retrieval layer, not just at the weight layer — an unpromoted `DERIVED_STRATUM` node must not be retrievable, not merely unweighted. Treat the two notes as one policy; do not let them diverge at unpark time.
@@ -54,6 +61,8 @@ These extend existing invariants; none replaces one.
 - `strata.decay_rate` — temporal decay of unrenewed derived weights.
 - `strata.max_depth` — hard ceiling on stratum depth admitted to the operator; small (2–3) at first unpark.
 - `strata.promotion_step` — weight increment per promote verdict.
+- `strata.node_budget` — per-cycle ceiling on derived-node proposals, relative to grounded count; overridden by the owner review-capacity absolute at current scale (I5).
+- `strata.edge_budget` — per-cycle ceiling on derived-edge proposals, typed {grounding: unbudgeted/cheap, lateral: bounded, cross_stratum: tightest} (I5).
 
 ## 6. Gauges
 
@@ -62,6 +71,8 @@ These extend existing invariants; none replaces one.
 **Depth histogram.** Count of derived nodes per stratum depth in the digest. Growth concentrated at max depth is pressure against the ceiling and prompts a decision rather than silently truncating.
 
 **Fixed-point drift.** Cycle-over-cycle stability of the promoted cluster set (Jaccard against previous cycle). Complements the A1 drift gauge: A1 watches the system's sense of itself; this watches the belief set. Stable-under-renewal is the desired attractor signature; oscillation or monotone growth are distinct pathologies worth distinguishing in the digest.
+
+**Proposal budget utilization.** Per cycle: derived nodes and edges proposed against their I5 ceilings, and the edge-type mix (grounding : lateral : cross-stratum). Sustained saturation of the node budget is pressure to raise the ceiling or tighten the Dreamer — a decision, not a silent absorption. A rising cross-stratum fraction is the tower forming in the population dimension, visible before the grounding ratio moves.
 
 ## 7. Threat model note
 
@@ -81,4 +92,4 @@ This is a third threat model, distinct from the two already separated: not adver
 
 ## 10. Open decisions at unpark time
 
-Deferred deliberately; listing them now so unparking starts from a decision list, not a blank page: initial `layer_weight` ceiling; decay half-life; whether demote verdicts exist symmetrically with promote or decay alone handles removal; whether strata participate in the frozen-control-corpus reruns (recommended: yes, with a separately frozen stratum set, so longitudinal curves isolate recursion's contribution the same way they isolate corpus growth); and whether the grounding ratio earns an interruption threshold or remains digest-only.
+Deferred deliberately; listing them now so unparking starts from a decision list, not a blank page: initial `layer_weight` ceiling; decay half-life; whether demote verdicts exist symmetrically with promote or decay alone handles removal; whether strata participate in the frozen-control-corpus reruns (recommended: yes, with a separately frozen stratum set, so longitudinal curves isolate recursion's contribution the same way they isolate corpus growth); whether the grounding ratio earns an interruption threshold or remains digest-only; and the I5 budgets — the initial `node_budget` fraction and the review-capacity absolute that overrides it at current scale, the `edge_budget` values per type, and specifically whether cross-stratum edges start at a hard zero at first unpark (strictest: no derived→derived-across-strata citation until the mechanism is trusted) or a small positive ceiling.

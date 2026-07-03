@@ -133,7 +133,8 @@ class MonitorConfig:
 
 @dataclass(frozen=True)
 class EffectorsConfig:
-    """Track G sensing surface (β = 0 only; hands-and-the-effector-layer.md). Fail-closed
+    """Track G sensing surface (β = 0 only; docs/design-notes/hands-and-the-effector-layer.md).
+    Fail-closed
     twice over: `enabled` off refuses to build either side of the handoff, and an empty
     `upstreams` allowlist refuses every fetch even when enabled. `upstreams` is (name, url)
     pairs — the ONLY place a URL exists in the sensing path; the core-side request carries
