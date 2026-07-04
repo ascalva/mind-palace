@@ -8,15 +8,15 @@ variables:
   SECRET_DETECTION_ENABLED: "true"
 
 include:
-  - project: ascalva-projects/pipeline-fragments
-    ref: v1.3.5
+  - project: ascalva-projects/utils/pipeline-fragments
+    ref: v1.3.6
     file:
       - .gitlab/stages.gitlab-ci.yml
       - .gitlab/rules.gitlab-ci.yml
   - template: Security/SAST.gitlab-ci.yml
   - template: Security/Secret-Detection.gitlab-ci.yml
-  - project: ascalva-projects/pipeline-fragments
-    ref: v1.3.5
+  - project: ascalva-projects/utils/pipeline-fragments
+    ref: v1.3.6
     file: templates/semantic-release.gitlab-ci.yml
 
 sast:
