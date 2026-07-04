@@ -27,11 +27,10 @@ SIMILAR = "similar"              # cosine backbone (usually recomputed, not stor
 SUPPORTS = "supports"            # one note reinforces another (+)
 CONTRADICTS = "contradicts"      # one note is in tension with another (−) — the balance input
 CONTEXTUALIZES = "contextualizes"
-# A versioned-amendment link (ingest-identity-and-amendment.md §4; build plan Item 1c): the edge
-# u=prev-version-digest → v=new-version-digest records "v2 supersedes v1" so an amendment ENHANCES
-# provenance (a version history) rather than destroying it. Sign is +1 (a successor relation, not a
-# tension); it is an authored-layer fact (the owner edited the note), not an interpreted one.
-SUPERSEDES = "supersedes"
+# NOTE: note-version supersession is deliberately NOT an edge type here (build plan Item 6; §4A
+# C1–C2). It is PRIMARY provenance keyed on version identity — a `sign` in this balance-fed store
+# would corrupt the signed-graph math — so it lives in `core/stores/versions.py`, a store the
+# reasoning complex has no handle to. Do not re-add a `supersedes` rel-type to this table.
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS edges (
@@ -119,6 +118,14 @@ class EdgeStore:
         the detector/owner that created them."""
         self._conn.execute("DELETE FROM edges")
         self._conn.commit()
+
+    def delete_rel_type(self, rel_type: str) -> int:
+        """Delete every edge of a given `rel_type`; returns rows removed. The migration for build
+        plan Item 6: retire any misplaced `supersedes` rows a prior build wrote here, now that
+        note-version history lives in the dedicated `VersionStore` the balance math cannot read."""
+        cur = self._conn.execute("DELETE FROM edges WHERE rel_type = ?", [rel_type])
+        self._conn.commit()
+        return cur.rowcount
 
     @staticmethod
     def _row(r: sqlite3.Row) -> Edge:

@@ -1,9 +1,14 @@
 # Sacred-Boundary Design Set — Reconciliation & Build Plan
 
-**Status:** INVESTIGATION / PLANNING ONLY — nothing implemented, no doc changed.
-Awaiting owner approval, item by item.
+**Status:** Investigation + plan. Items 1a/1b/1c, 2a, 4a/4b(store+apply), DERIVED_STRATUM,
+verdict taxonomy + transport, and Part B are now **BUILT** (owner-approved; see
+`docs/PROGRESS.md` 2026-07-04 entries). **This revision (post-builder-review) adds Q7–Q8 and
+Item 6 — supersession-edge correctness — which is PLANNING ONLY: awaiting owner approval before
+implementation** (it touches stored data and coordinates with `--apply`).
 **Origin:** Grounds the July-2026 sacred-boundary design set (`the-sacred-boundary.md`
-+ five subsystem notes) against the live codebase per `docs/builder-prompt.md`.
++ five subsystem notes) against the live codebase per `docs/builder-prompt.md`. The design set
+was itself refined mid-build: `ingest-identity-and-amendment.md` §4A and
+`dialogue-ingest-and-recursion.md` §4 now carry the supersession corrections Q7–Q8 confirm.
 **Location note:** the repo had **no established build-plan location**; this file
 creates `docs/design-notes/build-plans/` as the builder prompt directed.
 
@@ -228,6 +233,51 @@ states**, and the set's premise here is **partly stale**:
    confirms it has been run over the live corpus. Status: **built, execution pending
    (owner-operational).**
 
+### Q7 — Version identity / edge keying (`ingest-identity-and-amendment.md` §4A, §8)
+
+**Answer.** Confirmed on all three points, exactly as §4A anticipates: supersession edges are
+keyed on **content digest, not version identity**; there is **no version identity independent of
+content digest**; and a no-op re-save **records no occurrence**.
+
+- **Edges keyed on content digest.** `core/ingest/sync.py:110-111` (`edge_store.add(prev.digest,
+  digest, …)` — endpoints are the previous and new *content* digests); `core/stores/edges.py:57-59`
+  (`_edge_id` = SHA-256 over `(rel_type, u, v)`, content-derived). So the **revert case collapses**:
+  editing v1 → v2 → back to v1's exact bytes makes the third digest equal v1's, merging the node and
+  closing the cycle `(v1→v2)` + `(v2→v1)` — §4A Constraint 1 confirmed against code.
+- **No version identity exists.** The catalog is `source_path → (digest, active)` with **no
+  version-seq / per-version surrogate** — `core/stores/catalog.py:31-41` (schema: `source_path` PK,
+  `digest`, `title`, `provenance`, `active`, `updated_at`); the digest is the *current* version,
+  upserted in place on amendment (`core/stores/catalog.py:76-87`). A version-identity key
+  (`source_path` + monotonic version-seq, or a surrogate) is a **foundational addition** that touches
+  stored data and must coordinate with `--apply` (Item 6).
+- **Occurrences not logged on unchanged re-ingest.** `core/ingest/sync.py:90-91` returns `UNCHANGED`
+  *before* the ingest attestation (`:103`), and nothing else records a second event; the raw store
+  dedups the bytes but logs no occurrence (`core/ingest/pipeline.py:51`). So §2's "ingested twice is
+  historical truth and provenance must record it" is **not satisfied** — the no-op re-save drops the
+  occurrence fact. Recording it needs an append-only occurrence log, which does not exist.
+- **(Bonus) Constraint 4's active-view exclusion IS already satisfied.** `index_amendment`
+  (`core/ingest/index.py`) rebuilds the note's projection from the *current* chunks only and
+  `delete_source` drops the rest, so a removed chunk's vector never lingers in the active view. Item 6
+  is thus only the edge/store correction, not an active-view fix.
+
+### Q8 — Version-history store separation (`ingest-identity-and-amendment.md` §4A Constraint 2, §8)
+
+**Answer.** The balance-math consumer reads the **same `EdgeStore`** that now holds `supersedes`
+edges and **does not filter by rel-type**. `supersedes` is excluded today only **accidentally** —
+*weaker* than §4A assumed (there is not even a rel-type filter to lean on).
+
+- `build_complex` overlays persisted edges onto the signed adjacency the balance math consumes
+  (`core/complex/build.py:127` → `_overlay_signed`). `_overlay_signed` iterates **`edges.all()`** with
+  **no rel-type selection** (`core/complex/build.py:145`) and sets `signed[i,j] = sign·w` for every
+  edge whose endpoints are both nodes (`:149-151`); the signed Laplacian / frustration math then sum
+  those signs (`core/complex/balance.py:77-105`).
+- So `supersedes` is skipped **only because the superseded endpoint (the prev-version digest) is not
+  an active node** → `if i is None or j is None: continue` (`core/complex/build.py:147-148`). The
+  placeholder `sign=+1` (`core/ingest/sync.py:110`) would become a live `+w` support edge the instant
+  both endpoints are active nodes. This **confirms and sharpens §4A Constraint 2**: version history
+  must move to a structure the balance math is *structurally unable to read*, not merely a filtered
+  view of the shared store.
+
 ### Additional questions / risks discovered (not anticipated by the design set)
 
 - **R1 — §3-vs-§7 tension at chunk grain (design-internal contradiction).** §3 says
@@ -393,6 +443,8 @@ behavior exactly, per `recursive-strata.md:52`) rather than blocking on recursio
   Item4a ─▶ Item4b            (verdict track: sign before store) — the ORDERING-FIRST item
   Item1a ─▶ Item1b ─▶ Item1c  (verify → schema → rewrite; stored data)
   Item2a ─▶ Item2b ;  Item1c ─▶ Item2b ;  (I5/budgets: floored, PD4) ─▶ Item2b
+  Item6  ─▶ Item2/Item2b   (version-`supersedes` store separation BEFORE claim-`supersede` vocab — §4A C3)
+  Item1  ≈ Item6           (the two ingest-layer identity-keying corrections; both stored-data, both --apply)
   Item1c ─▶ Item3 ;  Item2b ─▶ Item3
   Item4b ─▶ (Track L L4 study) ;  Item2b ─▶ (Track L L4 study)
   Item5  : PARKED (PD1)
@@ -510,7 +562,39 @@ with anything touching the vector store.**
   derived projection is rebuilt, `ingest-identity §5`); sacred-boundary property 2
   (append + re-project, no mutate-the-immutable).
 
-**Item 2b — Implement the dialogue operations (close the recursive loop).** ⛓ after 2a +
+**Item 6 — Supersession-edge correctness (`ingest-identity-and-amendment.md` §4A).** ⛓ pairs with
+1c (the two ingest-layer identity-keying corrections); **before** Item 2/2b (§4A C3 — claim-
+`supersede` must not collide with version-`supersedes`). Touches stored data: **YES** — re-keys the
+edge onto a version identity and moves it out of the `EdgeStore`; coordinate with `--apply` + Item 1.
+- *Problem (built today, confirmed Q7/Q8):* `sync_path` writes a `SUPERSEDES` edge into the
+  balance-fed `EdgeStore` keyed on content digests with `sign=+1` (`core/ingest/sync.py:108-111`,
+  `core/stores/edges.py`). That collapses on revert (Q7) and sits in a store the balance math reads
+  unfiltered (Q8).
+- *Files (changed / new):* **new** `core/stores/versions.py` — an append-only version-history store
+  (`versions(doc_id, version_seq, digest, superseded_by, at)`) the balance math cannot reach
+  (Constraint 2), keyed on `(doc_id, version_seq)` not digest (Constraint 1); **change**
+  `core/ingest/sync.py` to record the version transition there (allocate the next `version_seq` for
+  the `source_path`) and **remove** the `EdgeStore`/`SUPERSEDES` write; **change**
+  `core/stores/edges.py` to drop the `SUPERSEDES` constant; **change** `core/ingest/sync.py`
+  `build_vault_sync` to stop wiring the edge store for supersession; a small migration to move any
+  existing `supersedes` rows out of the `EdgeStore`; `tests/integration/test_version_history.py`.
+- *Acceptance test:* a revert (v1 → v2 → v1-bytes) yields a **linear** chain v1→v2→v3 (v3 distinct
+  from v1 by `version_seq`, not digest); `build_complex._overlay_signed` sees **no** `supersedes`
+  sign (assert `A_signed` is unchanged by an amendment); the current version resolves by
+  **version-seq**, never by walking edges; **no `sign=+1` placeholder appears in any balance-fed
+  edge**.
+- *Named falsifier:* the version chain forms a cycle on revert; OR a `supersedes` sign enters
+  `A_signed` (a λ_min / frustration change from a version edge); OR `build_complex` can read the
+  version store.
+- *Invariants:* §4A Constraints 1–4; append-only, **no cycle guard** (a revert edge is truthful
+  history — `§4A`); ordering by version-seq, never edge topology (`§4A Ordering authority`); the §8
+  firewall / layer separation (§1, §6).
+- *Deferred (PD7):* **per-chunk** supersession edges — raw blobs of every version are kept, so
+  chunk-removal history is reconstructible by diffing raw; and Constraint 4's active-view exclusion is
+  already satisfied (Q7). This item is only the note-version edge/store correction.
+
+**Item 2b — Implement the dialogue operations (close the recursive loop).** ⛓ after 2a + **Item 6**
+(§4A C3) +
 1c; needs I5/budget enforcement **floored** (PD4). Touches stored data: **YES — writes
 supersession/defeater/warrant edges.**
 - *Files (changed):* `core/ingest/dialogue.py` (emit operations, not only a document);
@@ -601,12 +685,23 @@ Depends on Item 4b (verdict store — the labeled fitness signal) + Item 2b (clo
   assume a third unbuilt migration exists (none does). *Re-entry:* if the owner meant a
   distinct migration, name it before Item 1c.
 
+- **PD7 — Version identity key + per-chunk supersession edges (Item 6).** *Default:* key the new
+  version store on **`(doc_id = source_path, monotonic version_seq)`** (the catalog already carries
+  the stable `source_path`; add the seq), and **defer** per-chunk supersession edges. *Rejected:* a
+  random per-version surrogate (works, but `(source_path, version_seq)` reuses the existing identity
+  and is legible); keep the edge in the `EdgeStore` behind a rel-type filter (§4A Constraint 2 rejects
+  — correctness-by-discipline + the `sign` hazard, confirmed *accidental-only* in Q8); build per-chunk
+  edges now (raw-diff reconstructs the history, so the granularity isn't earning its cost yet).
+  *Re-entry (per-chunk edges):* a consumer needs chunk-level supersession without a raw diff.
+
 ---
 
 ## Status & next step
 
-Investigation complete; **nothing implemented, no existing doc edited.** The one new
-file is this plan. Awaiting owner approval — **item by item is acceptable**; Items 4a/4b
-(verdict store, the ordering-first deliverable) and the Item 1a/1b/1c ingest chain can be
-approved and assigned to distinct builders independently. No documentation banner or
-cross-reference from Part B will be applied until approved.
+Items 1a/1b/1c, 2a, 4a/4b (store + apply), DERIVED_STRATUM, verdict taxonomy + transport, and the
+Part B cross-references are **built + owner-approved** (`docs/PROGRESS.md`, 2026-07-04 entries).
+**Item 6 (supersession-edge correctness) is the sole open item in this revision and is PLANNING
+ONLY** — it touches stored data (a new version store + re-keying the supersession relation) and
+coordinates with `--apply`, so it awaits explicit owner approval before implementation. It pairs
+with Item 1 and must land **before** the dialogue vocabulary (Items 2/2b, §4A C3). Nothing from
+Item 6 has been implemented.

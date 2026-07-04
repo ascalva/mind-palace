@@ -72,6 +72,19 @@ than inferring.
   If absent, say so.
 - **Q6 — Track L prerequisites** (`the-sacred-boundary.md` §4). Status of
   provenance migration `--apply` and self-knowledge ingest, with citations.
+- **Q7 — version identity / edge keying** (`ingest-identity-and-amendment.md`
+  §4A, §8). Is there a version identity independent of content digest? Are
+  supersession edges keyed on content digest or version identity? Cite. If
+  versions are distinguished only by content digest, the revert case is
+  unrepresentable and a version-identity key is a foundational addition to
+  coordinate with `--apply`. Also confirm whether a re-ingest of unchanged
+  content still logs an *occurrence* per §2, or whether no-op re-saves record
+  nothing (dropping the "ingested twice" provenance fact).
+- **Q8 — version-history store separation** (`ingest-identity-and-amendment.md`
+  §4A Constraint 2, §8). Does the balance-math consumer read the same store that
+  holds `supersedes` edges? Exclusion structural or by rel-type filter? Cite the
+  consumer's rel-type selection. Confirm `supersedes` and its placeholder sign
+  never enter the signed-graph computation.
 
 Then list any **additional questions or risks** discovered during reading that
 the design set did not anticipate.
@@ -113,6 +126,21 @@ Produce a phased implementation plan. Constraints:
      set, alignment-drift weight owner-set and not auto-tuned. Scope in only if
      Track G is being opened now; otherwise record as parked with a re-entry
      condition.
+  6. **Supersession-edge correctness** (`ingest-identity-and-amendment.md` §4A).
+     Re-key `supersedes` edges on version identity (not content digest); move
+     version history out of the balance-fed semantic edge store into a dedicated
+     version structure the balance math cannot read; confirm removed-chunk
+     vectors are excluded from the active projection; order by version-seq, no
+     cycle guard (record truthful history). Per-chunk supersession edges are
+     deferred. Touches stored data if edges are re-keyed or a version-identity
+     column is added — coordinate with item 1 and `--apply`.
+
+Dependency edges (state these explicitly in the plan and extend as needed):
+item 6 **before** item 2 — claim-`supersede` from the dialogue vocabulary must
+not collide with version-`supersedes`, so the store separation in item 6 is a
+prerequisite. Items 1 and 6 are the two identity-keying corrections at the ingest
+layer; both touch stored data and both coordinate with provenance migration
+`--apply` — sequence them together and ahead of any corpus authoring (item 3).
 - For every deferred decision, use the parked-decisions protocol: record the
   default, name rejected alternatives with reasons, specify the explicit re-entry
   condition.

@@ -1315,3 +1315,100 @@ already writes doc-scoped keys), but correct if ever run on a populated index.
 Also hardened a pre-existing flake surfaced earlier: `test_attestation_signatures::test_signing_does_
 not_change_the_content_address` now freezes the clock (`attestor_with_store(clock=…)`), since the id
 covers the timestamp and two `_utcnow()` emits could straddle a 1-second boundary. **Not committed.**
+
+---
+
+## Sacred-boundary build plan — Item 6: supersession-edge correctness (2026-07-04)
+
+Owner-approved after the post-builder-review `ingest-identity-and-amendment.md` §4A refinement.
+Q7/Q8 confirmed the shipped whole-note supersedes edge had three defects: keyed on **content
+digest** (collapses on revert), sitting in the **balance-fed `EdgeStore`** read unfiltered by
+`build_complex._overlay_signed`, with a placeholder **`sign=+1`** (a live hazard the instant both
+endpoints are active nodes). Item 6 corrects all three.
+
+**Built.**
+- **New `core/stores/versions.py` `VersionStore`** — append-only note-version history keyed on
+  `(doc_id = source_path, monotonic version_seq)`, NOT content digest (Constraint 1):
+  `record`/`current`/`history`/`supersessions`. A revert (v1→v2→v1-bytes) is v3 at seq 3 — linear,
+  no cycle, no node merge; no cycle-guard wanted; ordering by version_seq, never edge topology.
+- **`core/ingest/sync.py`** — `sync_path` appends a version on every INDEXED (v1 on first ingest,
+  v2… per amendment) and writes **no edge**; the `edge_store` field/param is removed; `build_vault_sync`
+  wires `open_version_store` (Constraint 2 — the balance math has no handle to this store).
+- **`core/stores/edges.py`** — dropped the `SUPERSEDES` rel-type (with a comment not to re-add it)
+  and added `delete_rel_type` (the migration to retire any stray `supersedes` rows from the
+  EdgeStore; a no-op on the current empty store).
+
+**Verified.** `tests/integration/test_version_history.py` (6: monotonic chain, revert-stays-linear,
+per-document, append-only, amendment-records-version-and-no-edge-handle, delete_rel_type migration);
+`test_index_keying.py` trimmed (dropped the old edge test). Full offline **695 passed, 7 skipped**;
+ruff clean; import-lint (I2 seal) green. No Ollama tier / sandbox touched (pure SQLite swap) → live
+gate N/A. Also updated `docs/design-notes/build-plans/sacred-boundary-build-plan.md` (Q7/Q8, Item 6,
+the dependency edge Item 6 → Items 2/2b per §4A C3, and PD7). **Not committed.**
+
+**Remaining:** per-chunk supersession edges deferred (PD7 — raw-diff reconstructs that history); the
+dialogue operation vocabulary (Items 2/2b) is now unblocked (§4A C3 store-separation satisfied).
+
+---
+
+## Sacred-boundary build plan — Items 2a + 2b: dialogue operation vocabulary (2026-07-04)
+
+Owner-approved; unblocked by Item 6 (§4A C3 store separation). **Item 2a** ratified the starter set
+`{supersede, attach_defeater, record_warrant}`; extras (retract/split/merge/confidence_adjust) are
+deferred (PD2 — no cited case); warrant is a relation, not a node (PD3).
+
+**Built (Item 2b — deterministic core).**
+- **`core/recursion_ops.py`** — the operation types (`Supersede` / `AttachDefeater` /
+  `RecordWarrant`), an append-only `ClaimOpStore` (DISTINCT from the version + balance-edge stores,
+  §4A C3; `superseded()` is the active-projection filter), and `apply_operations`: a `Supersede`
+  mints its conclusion C′ as an INTERPRETED artifact via `DerivedStore` (`derived_from=[C]` →
+  depth ≥ 1 → γ^d bounds it, I10/I5 by construction), records the supersede RELATION, and never
+  enters C′ as an authored peer (the §2 failure avoided). Budgets floored (PD4 — no recursive-strata
+  enforcement).
+- **Extraction seam.** `DialogueAnalyzer` protocol + `no_op_analyzer` default (a dialogue emits NO
+  ops → document-only ingest, unchanged). The model-backed analyzer (dialogue text → operations) is
+  the deferred seam a real deployment injects.
+
+**Verified.** `tests/integration/test_dialogue_ops.py` (6: acts-on-claim-not-peer-node, γ^d-damped
+conclusion, defeater/warrant recorded, distinct-store §4A C3, idempotent, no-op default). Full
+offline **701 passed, 7 skipped**; ruff clean; import-lint (I2 seal) green. No Ollama tier / sandbox
+touched (deterministic core) → live gate N/A. **Not committed.**
+
+**Deferred (named seams, not built).** The model-backed `DialogueAnalyzer` (extraction is an LLM
+task, owner/verdict-reviewed); wiring `superseded()` into the MirrorView / reasoning-complex active
+projection (the consumer — the same shape as DreamsView honoring dispositions, a small follow-up);
+I5/edge-budget enforcement (parked with recursive-strata). **Next open item:** Item 3 (founding-corpus
+path, now unblocked by 1c + 2b) or the deferred 2b consumer wiring.
+
+---
+
+## Sacred-boundary build plan — Item 3: founding-corpus ingest path (2026-07-04)
+
+Owner-approved (unblocked by 1c + 2b). The founding corpus is authoring the initial condition — NOT
+model training and NOT steady-state ingest (founding-corpus.md §1–§2): a dated, supersession-linked
+sequence that MUST share the steady-state path or the provenance model fractures at the origin (Q3).
+
+**Built.**
+- **`core/ingest/founding.py`** — `FoundingItem` (a dated musing + optional `supersedes` link) +
+  `ingest_founding`: a thin batch over the ONE pipeline (`ingest_note` AUTHORED_SOLO → `index_records`
+  → `catalog.record`, the curated idiom — no bespoke writer). Enforces **dated** (each reconstructed
+  date recorded as a `date::` property in the raw blob — permanent; undated refused, §2.1) and
+  **supersession-linked** (a later musing revising an earlier one records a claim-`supersede` in the
+  `ClaimOpStore` — a RELATION between authored notes; forward references refused). AUTHORED_SOLO, never
+  the control corpus (§2.3). Ingest, not fine-tuning — the weights never move (§1).
+- **`core/ingest/logseq.py`** — factored `parse_text` out of `parse_note` (the path-free parse core),
+  so programmatic ingest reuses the SAME tag/link/property extraction (no bespoke parser).
+- **`scripts/ingest_founding.py`** — owner CLI over a JSON founding manifest.
+
+**Verified.** `tests/integration/test_founding_corpus.py` (6: shared-path AUTHORED_SOLO + retrievable +
+digest == `ingest_note`'s [no bespoke writer]; date lands in the raw blob; supersession recorded;
+undated refused; forward-supersession refused; mechanically distinct from a CURATED control §2.3).
+Parse-refactor dependents green (ingest / vault_sync / dialogue_capture). Full offline **707 passed,
+7 skipped**; ruff clean; import-lint (I2 seal) green. No Ollama tier / sandbox touched → live gate N/A.
+**Not committed.**
+
+**Deferred seam.** The temporal *layer* reading founding dates (`build_complex` wants a `created_at`
+the vector rows don't carry — that layer is dormant/parked); dates are recorded now so it can when it
+wakes. **Remaining plan items:** Item 5 (effector-risk optimizer) stays parked (PD1); the 2b model
+`DialogueAnalyzer` + the supersede/retract active-projection consumer wiring are named seams. With
+Items 1–4 + 6 built, the sacred-boundary set's inbound + effect channels are implemented end to end
+behind their gates; the frontier is Track L (verdict-labeled longitudinal study) + Track H depth.

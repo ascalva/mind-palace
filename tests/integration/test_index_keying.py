@@ -2,19 +2,17 @@
 
 After 1c the derived index is keyed by a doc-scoped content address `(source_path, chunk_hash)`, so
 amending ONE block of a note re-embeds ONLY that block: the unchanged chunk keeps its point id and
-its vector is reused, not recomputed, and the amendment records a `supersedes` version-chain edge.
+its vector is reused, not recomputed (version-history provenance: test_version_history.py).
 This is the Item-1a falsifier, now flipped to assert the closed state. Real ingest/sync/vector-store
 path + a counting embedder (to prove no re-embed); deterministic, no model, no network.
 """
 
 from __future__ import annotations
 
-from core.complex_types import EdgeSign
 from core.ingest.amend import chunk_point_id
 from core.ingest.chunk import chunk_text
 from core.ingest.sync import VaultSync
 from core.stores.catalog import VaultCatalog
-from core.stores.edges import SUPERSEDES, EdgeStore
 from core.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
 from tests.fixtures.embedding import DIM, FakeEmbedder
@@ -37,13 +35,12 @@ class _CountingEmbedder(FakeEmbedder):
         return super().embed_documents(texts)
 
 
-def _sync(tmp_path, embedder, *, edge_store=None):
+def _sync(tmp_path, embedder):
     vault = tmp_path / "vault"
     vault.mkdir(exist_ok=True)
     store = VectorStore(tmp_path / "v.lance", dim=DIM)
     sync = VaultSync(vault=vault, raw=RawStore(tmp_path / "raw"), store=store,
-                     catalog=VaultCatalog(tmp_path / "catalog.sqlite"), embedder=embedder,
-                     edge_store=edge_store)
+                     catalog=VaultCatalog(tmp_path / "catalog.sqlite"), embedder=embedder)
     return vault, store, sync
 
 
@@ -78,21 +75,3 @@ def test_amending_one_chunk_reembeds_only_that_chunk(tmp_path):
     assert after[1]["id"] != before[1]["id"]
     # The id IS the doc-scoped content address (source_path, chunk_hash), not the old digest:index.
     assert after[0]["id"] == chunk_point_id(after[0]["source_path"], v1[0])
-
-
-def test_amendment_records_a_supersedes_version_edge(tmp_path):
-    edges = EdgeStore(tmp_path / "edges.sqlite")
-    vault, store, sync = _sync(tmp_path, FakeEmbedder(), edge_store=edges)
-    note = vault / "n.md"
-
-    note.write_text(NOTE_V1, encoding="utf-8")
-    sync.rescan()
-    d1 = _by_chunk(store)[0]["digest"]
-    note.write_text(NOTE_V2, encoding="utf-8")
-    sync.rescan()
-    d2 = _by_chunk(store)[0]["digest"]
-
-    supersedes = edges.all(rel_type=SUPERSEDES)
-    assert len(supersedes) == 1                     # v1 → v2, the version chain (§4)
-    e = supersedes[0]
-    assert (e.u, e.v) == (d1, d2) and e.sign == EdgeSign.SUPPORT

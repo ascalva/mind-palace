@@ -53,21 +53,23 @@ def _decode(data: bytes) -> str:
     return data.decode("utf-8", errors="replace")
 
 
-def parse_note(path: Path, vault: Path) -> ParsedNote:
-    data = path.read_bytes()
-    text = _decode(data)
+def parse_text(text: str, *, source_path: str, title: str, raw_bytes: bytes) -> ParsedNote:
+    """Parse an in-memory note (tags, links, properties) — the path-free core of `parse_note`.
+
+    Used by programmatic ingest that builds note text directly rather than reading a vault file
+    (the founding-corpus driver, and anywhere else authored text is composed in memory), so those
+    paths get the SAME tag/link/property extraction as vault ingest — no bespoke parser."""
     tags = set(_TAG_BRACKET.findall(text)) | set(_TAG_PLAIN.findall(text))
     links = set(_LINK.findall(text))  # note: #[[x]] is also a [[x]] link — intentional
     props = {k: v.strip() for k, v in _PROP.findall(text)}
-    return ParsedNote(
-        source_path=str(path),
-        title=_title_from_path(path, vault),
-        text=text,
-        tags=frozenset(tags),
-        links=frozenset(links),
-        properties=props,
-        raw_bytes=data,
-    )
+    return ParsedNote(source_path=source_path, title=title, text=text, tags=frozenset(tags),
+                      links=frozenset(links), properties=props, raw_bytes=raw_bytes)
+
+
+def parse_note(path: Path, vault: Path) -> ParsedNote:
+    data = path.read_bytes()
+    return parse_text(_decode(data), source_path=str(path),
+                      title=_title_from_path(path, vault), raw_bytes=data)
 
 
 def iter_vault(vault: Path, *, pattern: str = DEFAULT_PATTERN,

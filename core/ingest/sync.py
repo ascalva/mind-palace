@@ -26,15 +26,14 @@ from enum import Enum
 from pathlib import Path
 
 from core.attestation import Attestor
-from core.complex_types import EdgeSign
 from core.ingest.embed import Embedder
 from core.ingest.index import index_amendment
 from core.ingest.logseq import DEFAULT_EXCLUDE_DIRS, iter_vault, parse_note
 from core.ingest.pipeline import ingest_note
 from core.stores.catalog import VaultCatalog
-from core.stores.edges import SUPERSEDES, EdgeStore
 from core.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
+from core.stores.versions import VersionStore
 
 
 class SyncOutcome(Enum):
@@ -72,11 +71,11 @@ class VaultSync:
     # ingest attestation ("the authorized watcher ingested digest D under Constitution F",
     # attestation-layer.md §3) — the authored leaf every dream chain bottoms out in. None = off.
     attestor: Attestor | None = None
-    # Optional versioned-amendment provenance: when present, an amendment records a `supersedes`
-    # edge (prev-version digest → new-version digest) so a note's history is a queryable chain
-    # rather than lost (ingest-identity-and-amendment.md §4). None = amendment still reuses/embeds
-    # chunk-level, just without the edge record.
-    edge_store: EdgeStore | None = None
+    # Optional version-history provenance (ingest-identity-and-amendment.md §4A; build plan Item 6):
+    # when present, each indexed (re)ingest appends the note's next VERSION — keyed on
+    # (source_path, version_seq), NOT content digest, so a revert stays linear (no cycle) —
+    # to a dedicated store the balance math cannot read (never EdgeStore). None = no version log.
+    version_store: VersionStore | None = None
 
     def sync_path(self, path: Path) -> SyncOutcome:
         """Re-ingest one note as a chunk-level amendment; unchanged content is a no-op."""
@@ -103,12 +102,13 @@ class VaultSync:
             self.attestor.emit(agent_role="vault_watcher", action="ingest_note",
                                input_hashes=[digest], output_hashes=[digest])
 
-        # Record the version supersession (prev → new) so an amendment ENHANCES provenance — a
-        # queryable version chain, not a silent overwrite (§4). Authored-layer fact, +1 polarity.
-        if (self.edge_store is not None and prev is not None
-                and prev.active and prev.digest != digest):
-            self.edge_store.add(prev.digest, digest, sign=EdgeSign.SUPPORT,
-                                rel_type=SUPERSEDES, provenance=record.provenance.value)
+        # Append the note's next VERSION so an amendment ENHANCES provenance — a queryable version
+        # chain, not a silent overwrite (§4A). Keyed on version identity (the store allocates the
+        # next version_seq for this source_path), NOT content digest, so a revert is a new version,
+        # never a cycle; and it lives OUTSIDE the balance-fed edge store (Constraint 2). Every
+        # INDEXED outcome is a new version (v1 on first ingest, v2… on each amendment).
+        if self.version_store is not None:
+            self.version_store.record(source_path, digest)
         return SyncOutcome.INDEXED
 
     def handle_deleted(self, source_path: str) -> SyncOutcome:
@@ -138,7 +138,7 @@ def build_vault_sync(config: object | None = None) -> VaultSync:
     from config.loader import get_config
     from core.attestation import build_attestor
     from core.ingest.embed import build_embedder
-    from core.stores.edges import open_edge_store
+    from core.stores.versions import open_version_store
 
     cfg = config or get_config()
     return VaultSync(
@@ -149,5 +149,5 @@ def build_vault_sync(config: object | None = None) -> VaultSync:
         embedder=build_embedder(cfg),
         pattern=cfg.vault.pattern,
         attestor=build_attestor(cfg),
-        edge_store=open_edge_store(cfg),      # amendments record a `supersedes` version chain (§4)
+        version_store=open_version_store(cfg),   # each (re)ingest appends a note version (§4A)
     )
