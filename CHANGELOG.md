@@ -1,3 +1,17 @@
+# [1.1.0](https://gitlab.com/ascalva-projects/mind-palace/compare/v1.0.0...v1.1.0) (2026-07-04)
+
+
+### Bug Fixes
+
+* Add design notes ([4da6796](https://gitlab.com/ascalva-projects/mind-palace/commit/4da6796ef5bffe3afc6cda46aed03e20ae19231c))
+
+
+### Features
+
+* Add Founding Corpus Path ([5934f92](https://gitlab.com/ascalva-projects/mind-palace/commit/5934f9272fd6f8a1994703c93afe77a7dc4392f5))
+* Added supersession edges, but stop to re-consider type overload ([43eb3db](https://gitlab.com/ascalva-projects/mind-palace/commit/43eb3dbfa37ef0d6fd0458943737976a7173c538))
+* Checkpointing work before proceeding to next sub-phase ([5f9867d](https://gitlab.com/ascalva-projects/mind-palace/commit/5f9867d04b513ff00a74ee52bf30dcc51669fc56))
+
 # 1.0.0 (2026-07-04)
 
 
