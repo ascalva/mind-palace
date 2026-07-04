@@ -1,0 +1,27 @@
+{
+  "name": "mind-palace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A knowledge system built around a single question: what does it mean for a system to know why it believes something?",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "setup": "pnpm install --frozen-lockfile",
+    "release": "semantic-release",
+    "validate:issue": "node scripts/validate-issue.js",
+    "test": "echo \"no js tests yet\""
+  },
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/gitlab": "^13.2.9",
+    "@semantic-release/release-notes-generator": "^14.1.0",
+    "conventional-changelog-conventionalcommits": "^9.1.0",
+    "node-fetch": "^3.3.2",
+    "semantic-release": "^25.0.2"
+  }
+}
