@@ -1141,3 +1141,63 @@ seams named, not built: per-chunk/per-effect signed attestation at scale (Track 
 **Next:** Track G's *value* is gated on Track H producing a model deep enough to tailor actions worth
 proposing (design note precondition) — build the engine, then raise ε. Open main-track frontier: the
 Track D correlator (the `observed`-tier consumer `core.sensing.ObservedView` is the seam it reads).
+
+---
+
+## Sacred-boundary build plan — Phase 0 + verdict store + amendment mechanism (2026-07-04)
+
+Investigation + plan committed as `docs/design-notes/build-plans/sacred-boundary-build-plan.md`
+(answers Q1–Q6 with citations, reconciliation diffs, phased plan). Owner said "proceed to build …
+both, verdict store first." Built every safely-buildable item; the two stored-data / owner-decision
+steps are gated below. Nothing rewrites the corpus; no default behavior changed (the mechanism-built-
+but-not-flipped-on posture, as Track G did).
+
+**Built.**
+- **Item 1a — index-keying verification harness.** `tests/integration/test_index_keying.py`
+  (read-only; real ingest/sync/vector-store path + offline `FakeEmbedder`). **CONFIRMS the Q1 gap**:
+  the index is keyed by `(raw-note-digest, chunk-index)`, not chunk-content-hash
+  (`core/ingest/index.py:33`), so amending ONE block re-keys EVERY chunk under a new note-digest and
+  the old rows are dropped whole (`core/ingest/sync.py:99-101`) — an unchanged chunk does NOT keep
+  its point. Falsifier is a live assertion that flips when a content-addressed chunk key is adopted.
+- **Item 4a — verdict signing core (pure).** `core/verdict/{payload,__init__}.py`: `VerdictPayload`
+  (subject id, category, **monotonic seq**, timestamp) + canonical serialization +
+  `sign_verdict`/`SignedVerdict.verify`. Reuses `core/attestation/crypto.py` verbatim (signer
+  `"owner"`); NOT the attestation record (`_canonical` can't express a verdict — plan R6). Content-
+  bound + asymmetric (verifier holds only the public key).
+- **Item 4b-store — signed append-only verdict store.** `core/stores/verdicts.py`: verify-on-append
+  (a forged/wrong-key verdict is refused, nothing stored), **monotonic seq** (replay/reorder refused),
+  **detectable gaps** (`gaps()` — a dropped verdict is visible, never silently lost), append-only is
+  **structural** (no update/delete/reset), `verify_all` tamper-evidence, taxonomy-agnostic
+  (`allowed_verdicts` hook, unset until R3 ratified). The ORDERING-FIRST deliverable (sacred-boundary
+  §4). Schema-additive (new table), no stored-data rewrite.
+- **Items 1b + 1c-mechanism — versioned amendment (PURE).** `core/ingest/chunk.py` `Chunk.content_hash`
+  (property; additive, construction-preserving) + `core/ingest/amend.py`: `chunk_point_id` (the
+  document-scoped `(doc_id, chunk_hash)` identity — resolves the §3-vs-§7 tension so distinct notes
+  sharing a verbatim chunk keep BOTH points, plan R1) and `plan_amendment` (retain/add/remove diff by
+  content hash). No store, no embed, no live-data touch — the mechanism the sync path will call once
+  wired.
+
+**Verified.** 23 new tests (`test_index_keying` 1, `test_verdict_signing` 9, `test_verdict_store` 7,
+`test_chunk_amendment` 6); full offline suite **672 passed, 7 skipped** (`-m "not live and not
+podman"`), no regressions; ruff clean; import-lint (I2 seal) green — `core/verdict/` + `core/ingest/
+amend.py` reach no network. **No Ollama tier / sandbox touched** (offline embedder; the id scheme is
+embedder-independent; verdict work is pure crypto/SQLite), so the live/podman outer gate is **N/A**.
+**Not committed** (owner's role).
+
+**Gated — owner decision + snapshot needed before these proceed.**
+- **Item 1c WIRING (the stored-data rewrite):** switch the vector-store row id to `chunk_point_id`,
+  make `sync.sync_path` a chunk-level diff (retain/embed/supersede), add a `supersedes` edge rel-type,
+  + a re-index-from-raw migration (dry-run default, `--apply` opt-in like `migrate_provenance_split`).
+  Needs owner ratification of the §4 versioning semantics (PD5) + a **restic snapshot** before any
+  `--apply`. The pure mechanism (`amend.py`) is built + tested; only the wiring + live re-index remain.
+- **Item 4b-apply:** what `promote`/`supersede` DO to the graph — blocked on the parked promotion
+  mechanism (recursive-strata I1).
+- **`DERIVED_STRATUM` reservation (PD6):** a semantically-loaded taxonomy commitment (mirror-readable?
+  depth field on which store?) — left as an owner call, not baked in unilaterally.
+- **Verdict taxonomy (R3):** the `allowed_verdicts` set the store enforces — owner to ratify
+  (`live-adoption` §3 L2 candidate: novel_useful/true_known/plausible/wrong/noise + "promote insight").
+- **Part-B reconciliation cross-references:** unapplied (await approval).
+
+**Next:** owner ratifies §4 semantics + takes a snapshot → wire Item 1c + run the re-index; and/or
+ratifies the verdict taxonomy → wire 4b into the Ambassador-as-transport path (a verify+apply seam
+separate from the Ambassador, plan R7).

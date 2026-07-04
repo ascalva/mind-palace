@@ -9,6 +9,7 @@ tokenizer) is a later refinement; characters are a stable proxy now.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 
 
@@ -16,6 +17,15 @@ from dataclasses import dataclass
 class Chunk:
     index: int
     text: str
+
+    @property
+    def content_hash(self) -> str:
+        """The chunk's content-address: SHA-256 of its text. The identity a content-addressed
+        derived index keys on (ingest-identity-and-amendment.md §3–§4; build plan Item 1b), so an
+        unchanged chunk is recognizable across versions of a note. A property, not a stored field:
+        additive and construction-preserving — `chunk_text` and every existing caller are
+        unchanged, and the derived layer stays regenerable from raw (§8)."""
+        return hashlib.sha256(self.text.encode("utf-8")).hexdigest()
 
 
 def _blocks(text: str, max_chars: int) -> list[str]:
