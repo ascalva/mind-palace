@@ -361,13 +361,17 @@ def _changed_files() -> list:
     return files
 
 
-def _diff_text(baseline: str | None) -> str:
+def _diff_text_head() -> str:
+    """Unified diff of the working tree against HEAD, scoped to the artifact trees
+    that carry blessings. Against HEAD (not a stale session baseline) so a
+    *committed* blessing self-clears — it is in history, hence accountable to its
+    commit author (§10, "deliberate, logged") — while an *uncommitted* in-flight
+    flip still shows (§6c, A1; warrant finding-0003)."""
     try:
-        args = ["git", "diff"]
-        if baseline:
-            args.append(baseline)
-        args += ["--", "docs/design-notes", "docs/build-plans"]
-        return subprocess.run(args, capture_output=True, text=True, cwd=ROOT).stdout
+        return subprocess.run(
+            ["git", "diff", "HEAD", "--", "docs/design-notes", "docs/build-plans"],
+            capture_output=True, text=True, cwd=ROOT,
+        ).stdout
     except Exception:
         return ""
 
@@ -435,7 +439,12 @@ def cmd_stop_audit(diff_file: str | None) -> int:
         if deny:
             reasons.append(f"(b) foundation files modified: {deny}.")
 
-    # (c) blessing transition in the diff since baseline -> every session.
+    # (c) uncommitted blessing transition -> every session. Diff the working tree
+    # against HEAD, not the session baseline (§6c, A1; warrant finding-0003): a
+    # *committed* blessing is accountable to its commit author (§10, "deliberate,
+    # logged") and must self-clear; only an *uncommitted* in-flight flip is
+    # flagged. session-baseline is retained solely for the SessionStart brief's
+    # narration and is deliberately not consulted here.
     if diff_file:
         try:
             with open(diff_file, "r", encoding="utf-8") as fh:
@@ -443,17 +452,13 @@ def cmd_stop_audit(diff_file: str | None) -> int:
         except Exception:
             diff = ""
     else:
-        baseline = None
-        bpath = os.path.join(ROOT, ".claude", "state", "session-baseline")
-        if os.path.exists(bpath):
-            with open(bpath) as fh:
-                baseline = fh.read().strip() or None
-        diff = _diff_text(baseline)
+        diff = _diff_text_head()
     bless = _blessing_in_diff(diff)
     if bless:
         reasons.append(
-            f"(c) blessing transition in diff since baseline: {bless}. Blessing "
-            f"is owner-manual (§10) — revert the Bash-mediated flip.")
+            f"(c) uncommitted blessing transition vs HEAD: {bless}. Blessing is "
+            f"owner-manual (§10) — commit it (then it is accountable) or revert "
+            f"the Bash-mediated flip.")
 
     if reasons:
         print("BLOCK: " + " ".join(reasons))

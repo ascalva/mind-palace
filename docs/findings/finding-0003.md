@@ -1,16 +1,17 @@
 ---
 type: finding
 id: finding-0003
-status: routed
+status: promoted
 created: 2026-07-05
 updated: 2026-07-05
 links:
   - .claude/hooks/_lib.py
   - docs/design-notes/agent-workflow.md
+  - docs/build-plans/bp-001/plan.md
 ftype: spec-defect
 origin_plan: bp-000
 route: orchestrator
-resolution: null
+resolution: "Promoted into agent-workflow.md amendment A1 (ratified, §16): §6b made untracked-inclusive with the worktree-isolation soundness dependency explicit, §6c re-anchored from the session baseline to HEAD, §12 gained the bootstrap-worktree caveat. Code delta landed by bp-001 in .claude/hooks/_lib.py: cmd_stop_audit (c) now diffs `git diff HEAD -- docs/design-notes docs/build-plans` (was the stale session-baseline), so a committed blessing self-clears; (b) confirmed already untracked-inclusive + file-granular (`git status --porcelain -uall`), left unchanged. Regression-tested by docs/build-plans/bp-001/acceptance/run.sh: (c)-committed self-clears (rc=0) under a deliberately stale baseline, (c)-uncommitted blocks, (b) untracked out-of-scope blocks."
 ---
 
 # journal-gate (b) over-flags a shared worktree's foundation changes
@@ -86,3 +87,21 @@ the gate wants to permit.
 `spec-defect` → `route: orchestrator`. A design-changing fix would mint an
 `agent-workflow.md` amendment warrant-linked here; a pure code refinement is a
 one-plan builder change to `_lib.py` (both (b) `-uall` breadth and (c) baseline-vs-HEAD).
+
+## Resolution — promoted (2026-07-05, via bp-001)
+The owner chose the design-changing path: **amendment A1** (warrant: this finding),
+ratified into `agent-workflow.md` §16, folds the reconciliation into the spec —
+(b) is specified untracked-inclusive with the §4 soundness dependency named, (c)
+diffs against `HEAD` so a mid-session *committed* blessing self-clears, and §12
+gains the bootstrap-worktree caveat. Both day-one loops are eliminated with every
+enforcement guarantee preserved.
+
+`bp-001` landed the mechanical consequence: `_lib.py.cmd_stop_audit` (c) now calls
+`_diff_text_head()` (`git diff HEAD -- docs/design-notes docs/build-plans`) instead
+of reading `.claude/state/session-baseline`; the baseline is kept only for the
+SessionStart brief's narration. (b)'s `-uall` breadth was already conformant from
+BP-000 and left unchanged. Guarded by
+`docs/build-plans/bp-001/acceptance/run.sh` — the (c)-committed check stages a
+committed blessing under a *deliberately stale* baseline (the exact addendum
+scenario) and asserts `rc=0`, which is red under the old code and green under A1.
+Status → `promoted`.

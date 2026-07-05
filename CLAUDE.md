@@ -10,6 +10,23 @@ nest inside it, never override it. The system's full design is `docs/BUILD-SPEC.
 engineering and security practice is `CONVENTIONS.md`. Read those before writing
 code. This file governs *how work moves*; those govern *what the system is*.
 
+## Domain non-negotiables (never violate; full list `BUILD-SPEC §3`)
+Safety-critical bright lines are the one category exempt from this file's thinness
+rule (§5, amendment A2): an out-of-context guardrail is not a guardrail, so the
+digest stays here — in context, every turn — not behind a pointer.
+1. **Sealed core has zero network egress.** Enforce structurally, not by convention.
+2. **Network and private data never share a component.** Only `edge/` touches the network; it never reads the vault.
+3. **The model advises; code acts.** No model holds a shell, raw secrets, or direct infra mutation.
+4. **Executed code is powerless.** Sandboxed: no creds, no network (absent an explicit scoped grant), no vault. Returns data, never actions.
+5. **Self-modification is gated → validated → reversible.** Propose → human-approve → execute → validate → auto-rollback; no step skipped.
+6. **Every agent inherits `CONSTITUTION.md`** as its outermost frame; task instructions nest inside, never override. Minted agents can't exceed their template's scope or a pre-declared max.
+7. **Consequential advice (health/financial/legal) defers, not withheld** — substantive, honest about uncertainty, refuses dangerous specifics; the final decision is the owner's and a professional's.
+8. **Respect the memory ceiling** — ≤ 2 resident models, ~20–24 GB usable; the scheduler refuses breaching work.
+9. **The fixed points are sacred** — the frozen golden set and `CONSTITUTION.md` are never auto-modified; human-only, deliberate, logged.
+10. **Secrets outside code** — Keychain/env only; never committed, read by a model, or logged.
+11. **The interface may transit a third party; the corpus never does.** Adapters leak interactions, not the corpus — opt-in only; the private default is local/Tailscale.
+12. **Voice/telephony is bounded.** Speech synthesis/recognition run locally in core; only audio crosses the carrier. The adapter dials **only the owner's pre-registered number**; the LLM never supplies a number; calls are owner-initiated; a passphrase/callback authenticates the human before personalized content is spoken.
+
 ## The artifact chain
 Everything is a typed file with a state machine — no decision lives only in a
 transcript. Ideas flow one way, through gates:

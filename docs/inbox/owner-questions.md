@@ -14,7 +14,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0001 — Should CLAUDE.md re-home any of the pre-BP-000 domain digest?
-- status: open
+- status: answered
 - origin: docs/findings/finding-0001.md
 - blocking: false
 - question: BP-000 replaced the pre-BP-000 CLAUDE.md (mind-palace operating rules)
@@ -28,6 +28,12 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 - default_if_unanswered: pointer-only stands (workflow constitution stays lean per
   §5). Parks as finding-0001; re-entry — owner answers here, or a `direction`
   finding reports a session missing dropped context.
-- answer:
+- answer: Re-home the **safety-critical non-negotiables digest** (only). Ratified as
+  amendment A2 (warrant: finding-0001): §5 now exempts the domain bright-line digest
+  from the constitution thinness rule — an out-of-context guardrail is not a
+  guardrail, so it stays inline in the always-loaded body, not behind a pointer. The
+  *other* dropped items (repo map, current-phase marker, live-verify directive) are
+  operational context, not guardrails, and stay pointer-only per §5 — they remain in
+  `BUILD-SPEC.md` / `CONVENTIONS.md` / git history. Landed by bp-001 in CLAUDE.md.
 
 ---
