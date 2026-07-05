@@ -399,6 +399,41 @@ def _blessing_in_diff(diff: str) -> str | None:
     return None
 
 
+def _untracked_under(prefixes) -> list:
+    """Untracked, non-ignored files under the given path prefixes. `--others` is
+    precisely the set a tracked-only `git diff HEAD` cannot see; `--exclude-standard`
+    honors .gitignore, so a genuinely ambient ignored path (e.g.
+    `.claude/settings.local.json`, finding-0004) never enters the audit at all."""
+    try:
+        out = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard", "--", *prefixes],
+            capture_output=True, text=True, cwd=ROOT, check=True,
+        ).stdout
+    except Exception:
+        return []
+    return [rel(ln.strip()) for ln in out.splitlines() if ln.strip()]
+
+
+def _untracked_blessing() -> str | None:
+    """A3 (warrant finding-0005): a plan or design note *minted fresh through Bash*
+    directly at a blessed status. Such a file is untracked, so it is invisible to
+    `git diff HEAD` (the tracked (c) path scanned by `_blessing_in_diff`) and to
+    gate-guard (Edit/Write-only) — the exact hole that left `proposed → ready`
+    unenforced against a Bash-minting agent, the asymmetry A1 fixed for (b) but left
+    open in (c). Its on-disk front-matter is therefore read directly, and a new file
+    already at a blessed status is treated as a blessing transition *from nothing* —
+    the same as flipping one in place. A newly minted plan is legitimate only at
+    `status: proposed` (a note at `draft`); `ready`/`ratified` on an untracked file
+    is a violation. Untracked ⇒ never committed, so this cannot fire on a committed
+    (accountable, self-clearing) blessing — the A1 behavior is preserved intact."""
+    for f in _untracked_under(["docs/design-notes", "docs/build-plans"]):
+        if is_design_note(f) and status_of(f) == "ratified":
+            return f"design-note ratification on untracked file '{f}'"
+        if is_build_plan(f) and status_of(f) == "ready":
+            return f"plan readiness on untracked file '{f}'"
+    return None
+
+
 def cmd_stop_audit(diff_file: str | None) -> int:
     reasons = []
     plan = active_plan_path()
@@ -459,6 +494,23 @@ def cmd_stop_audit(diff_file: str | None) -> int:
             f"(c) uncommitted blessing transition vs HEAD: {bless}. Blessing is "
             f"owner-manual (§10) — commit it (then it is accountable) or revert "
             f"the Bash-mediated flip.")
+
+    # A3 (warrant finding-0005): the (c) detector is untracked-inclusive over the
+    # blessing surfaces. The tracked diff above sees a *flip of an existing artifact*
+    # but not a plan/note *minted fresh through Bash* directly at a blessed status —
+    # that file is untracked, invisible both to `git diff HEAD` and to gate-guard
+    # (Edit/Write-only). This reads the untracked plan/design paths directly so all
+    # three owner-only blessings are enforced against the Bash write path too. It
+    # scans only *untracked* files, so a committed blessing (tracked, in HEAD) never
+    # trips it — the A1 committed-self-clears behavior is preserved unchanged.
+    unbless = _untracked_blessing()
+    if unbless:
+        reasons.append(
+            f"(c) uncommitted blessing transition vs HEAD: {unbless}. A newly minted "
+            f"plan is legitimate only at status: proposed (a design note at draft); a "
+            f"blessed status on an untracked file is a from-nothing blessing (§6c, "
+            f"A3). Commit it (then it is accountable to its author) or revert the "
+            f"Bash-mediated creation.")
 
     if reasons:
         print("BLOCK: " + " ".join(reasons))

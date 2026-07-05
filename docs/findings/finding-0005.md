@@ -1,17 +1,18 @@
 ---
 type: finding
 id: finding-0005
-status: routed
+status: promoted
 created: 2026-07-05
 updated: 2026-07-05
 links:
   - .claude/hooks/_lib.py
   - .claude/hooks/gate-guard.sh
   - docs/design-notes/agent-workflow.md
+  - docs/build-plans/bp-002/plan.md
 ftype: discovery
 origin_plan: bp-001
 route: orchestrator
-resolution: null
+resolution: "Owner chose option (a): make the Stop-gate (c) detector untracked-inclusive. Promoted into agent-workflow.md amendment A3 (ratified, §16) with the §6(c) clarification — (c) now reads tracked AND untracked plan/design paths, treating a new file already at a blessed status (plan `ready`, note `ratified`) as a blessing from nothing; §14 parks the stronger pre-hoc plan-path denylist for an owner ruling. Code delta landed by bp-002 in .claude/hooks/_lib.py: added `_untracked_under()` (`git ls-files --others --exclude-standard`) + `_untracked_blessing()`, wired into cmd_stop_audit (c) after the unchanged `_blessing_in_diff` tracked scan. Regression-tested by docs/build-plans/bp-002/acceptance/run.sh: 0005-regression (untracked `ready` plan blocks, rc=2, cites blessing + file), 0005-legit (untracked `proposed` does NOT block — /graduate unimpeded), committed-blessing (committed `ready` self-clears rc=0, so A1 is preserved — the untracked scan never fires on a tracked/committed file)."
 ---
 
 # A Bash-minted build plan created directly at `status: ready` escapes every gate
@@ -79,3 +80,24 @@ verification pass found in the wider blessing machinery.
 `_lib.py` (a one-session builder plan, no spec edit). If the owner wants the
 enforcement contract itself tightened, that mints an `agent-workflow.md` §6c/§10
 amendment warrant-linked here. Outside bp-001's delta scope either way.
+
+## Resolution — promoted (2026-07-05, via bp-002)
+The owner took the design-changing path (option **(a)**): **amendment A3** (warrant:
+this finding + finding-0004), ratified into `agent-workflow.md` §16 with the §6(c)
+clarification, makes the Stop-gate (c) blessing detector **untracked-inclusive** over
+`docs/design-notes/**` and `docs/build-plans/**/plan.md`. A plan or note minted fresh
+through Bash directly at a blessed status is untracked — invisible to `git diff HEAD`
+(the tracked (c) path) and to `gate-guard` (Edit/Write-only) — so it is now read
+directly and treated as a blessing *from nothing*, closing the exact `proposed → ready`
+Bash-path hole this finding reported. §14 parks the stronger *pre-hoc* plan-path
+`ready` denylist as belt-and-suspenders, for a later owner ruling.
+
+`bp-002` landed the mechanical consequence in `.claude/hooks/_lib.py`: `_untracked_under()`
+enumerates `git ls-files --others --exclude-standard` under the two prefixes, and
+`_untracked_blessing()` flags any whose on-disk front-matter carries a blessed status;
+it is called in `cmd_stop_audit` (c) right after the unchanged `_blessing_in_diff`
+tracked scan. Because the new scan reads **only untracked** files, a committed blessing
+(tracked, in HEAD) never trips it — A1's HEAD-anchored self-clear is preserved intact.
+Guarded by `docs/build-plans/bp-002/acceptance/run.sh`: the untracked `ready` plan
+blocks (rc=2), the untracked `proposed` plan does not (so `/graduate` is unimpeded),
+and the committed `ready` plan self-clears (rc=0). Status → `promoted`.

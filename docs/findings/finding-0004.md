@@ -1,17 +1,18 @@
 ---
 type: finding
 id: finding-0004
-status: routed
+status: resolved
 created: 2026-07-05
 updated: 2026-07-05
 links:
   - .claude/settings.local.json
   - .claude/hooks/_lib.py
   - docs/design-notes/agent-workflow.md
+  - docs/build-plans/bp-002/plan.md
 ftype: discovery
 origin_plan: bp-001
 route: orchestrator
-resolution: null
+resolution: "Owner chose option (a): gitignore `.claude/settings.local.json` (per-machine permission cache, not shared config). Landed in `.gitignore` at commit 868ed17 (the bp-001 commit) and the file is untracked out of the index; reinforced by a machine-global ignore (`~/.config/git/ignore`). No `_lib.py` change is needed — `git status --porcelain -uall` (cmd_stop_audit (b)) and `git ls-files --others --exclude-standard` (the A3 (c) scan) both omit ignored paths, so the file's permission-cache churn never reaches the audit's working-tree diff. Locked by docs/build-plans/bp-002/acceptance/run.sh (0004 before/after): a *tracked* settings.local.json modification trips (b) (rc=2, names it) — the finding's original state — while after the committed untrack+gitignore the same churn is clean (rc=0). Resolves rather than promotes: the operative fix is repo hygiene, not a design change (agent-workflow.md §6/§16 A3 merely records the ambient-path-exclusion principle, warrant-linked here alongside finding-0005)."
 ---
 
 # Stop-gate (b) flags harness-managed `.claude/settings.local.json`
@@ -64,3 +65,26 @@ would mint an `agent-workflow.md` amendment warrant-linked here; the (a) gitigno
 path is a one-line repo-hygiene change needing no spec edit. Both are outside
 bp-001's `write_scope` (`.gitignore`, `.claude/settings.local.json`), so this must
 route out rather than resolve in-plan.
+
+## Resolution — resolved (2026-07-05, via bp-002)
+The owner took option **(a)**: gitignore the file. `.claude/settings.local.json` is a
+per-machine permission cache Claude Code rewrites whenever a new `Bash(...)` rule is
+approved — local-machine state by nature, not shared config. It is listed in
+`.gitignore` (committed `868ed17`, the bp-001 commit) and is untracked out of the
+index, so it is now genuinely ambient: neither a scope target nor a blessing surface.
+
+No code change was required. Both sides of the audit already honor ignore rules —
+`git status --porcelain -uall` (the (b) scope check) and `git ls-files --others
+--exclude-standard` (the A3 (c) untracked scan) omit ignored paths — so removing the
+file from the index is the whole fix. This is exactly the "diff must judge exactly the
+set it is responsible for" principle §6 records (the ambient-path-exclusion paragraph,
+warrant-linked here): untracked-inclusive where a Bash write could smuggle a blessing
+past, and blind to paths that are legitimately none of the audit's business.
+
+Guarded by `docs/build-plans/bp-002/acceptance/run.sh` (the 0004 before/after check):
+while the file is *tracked* and out-of-scope, a mid-build permission-cache write trips
+the (b) audit (rc=2, names it) — the state this finding reported; after the committed
+untrack + gitignore, the identical churn closes clean (rc=0). This `discovery`
+resolves rather than promotes: the owner-chosen fix is repo hygiene needing no spec
+edit (as this finding anticipated), while its warrant-sibling finding-0005 carries the
+actual enforcement-contract change in A3. Status → `resolved`.
