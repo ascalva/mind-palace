@@ -19,7 +19,7 @@ from core.ingest.index import index_records, semantic_search
 from core.ingest.logseq import parse_text
 from core.ingest.pipeline import ingest_note
 from core.provenance import MIRROR_READABLE, Provenance
-from core.recursion_ops import ClaimOpStore
+from core.stores.authored_supersession import AuthoredSupersessionStore
 from core.stores.catalog import VaultCatalog
 from core.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
@@ -28,7 +28,8 @@ from tests.fixtures.embedding import DIM, FakeEmbedder
 
 def _stores(tmp_path):
     return (RawStore(tmp_path / "raw"), VectorStore(tmp_path / "v.lance", dim=DIM),
-            VaultCatalog(tmp_path / "cat.sqlite"), ClaimOpStore(tmp_path / "ops.sqlite"))
+            VaultCatalog(tmp_path / "cat.sqlite"),
+            AuthoredSupersessionStore(tmp_path / "sup.sqlite"))
 
 
 def _items():
@@ -40,8 +41,8 @@ def _items():
 
 
 def test_founding_ingests_through_the_shared_path_as_authored_solo(tmp_path):
-    raw, store, catalog, ops = _stores(tmp_path)
-    report = ingest_founding(_items(), raw, store, FakeEmbedder(), catalog, ops_store=ops)
+    raw, store, catalog, sup = _stores(tmp_path)
+    report = ingest_founding(_items(), raw, store, FakeEmbedder(), catalog, supersession_store=sup)
     assert report.ingested == 2 and report.chunks >= 2
 
     # AUTHORED_SOLO + mirror-readable + retrievable — the shared path, not a bespoke writer.
@@ -58,8 +59,8 @@ def test_founding_ingests_through_the_shared_path_as_authored_solo(tmp_path):
 
 
 def test_dates_land_in_the_raw_note_permanently(tmp_path):
-    raw, store, catalog, ops = _stores(tmp_path)
-    ingest_founding(_items()[:1], raw, store, FakeEmbedder(), catalog, ops_store=ops)
+    raw, store, catalog, sup = _stores(tmp_path)
+    ingest_founding(_items()[:1], raw, store, FakeEmbedder(), catalog, supersession_store=sup)
     # The date is recorded IN the content-addressed raw blob — re-parsing it recovers the date.
     entry = catalog.active_entries()[0]
     reparsed = parse_text(raw.get(entry.digest).decode(), source_path="x", title="x", raw_bytes=b"")
@@ -67,11 +68,12 @@ def test_dates_land_in_the_raw_note_permanently(tmp_path):
 
 
 def test_supersession_is_recorded_between_authored_musings(tmp_path):
-    raw, store, catalog, ops = _stores(tmp_path)
-    ingest_founding(_items(), raw, store, FakeEmbedder(), catalog, ops_store=ops)
-    # m/2 supersedes m/1 → m/1's digest is superseded in the ClaimOpStore (a RELATION, authored).
+    raw, store, catalog, sup = _stores(tmp_path)
+    ingest_founding(_items(), raw, store, FakeEmbedder(), catalog, supersession_store=sup)
+    # m/2 supersedes m/1 → m/1's digest is superseded in the OWNER-DECLARED authored-historical
+    # store (8f: a K₀↔K₀ relation, owner's hand), NOT the ClaimOpStore.
     d1 = next(e.digest for e in catalog.active_entries() if e.source_path == "m/1")
-    assert d1 in ops.superseded() and ops.count() == 1
+    assert d1 in sup.superseded() and sup.count() == 1
 
 
 def test_undated_item_is_refused(tmp_path):
@@ -82,17 +84,17 @@ def test_undated_item_is_refused(tmp_path):
 
 
 def test_forward_supersession_is_refused(tmp_path):
-    raw, store, catalog, ops = _stores(tmp_path)
+    raw, store, catalog, sup = _stores(tmp_path)
     bad = [FoundingItem("m/1", "t", "body", "2019-01-01", supersedes="m/future")]
     with pytest.raises(ForwardSupersession):
-        ingest_founding(bad, raw, store, FakeEmbedder(), catalog, ops_store=ops)
+        ingest_founding(bad, raw, store, FakeEmbedder(), catalog, supersession_store=sup)
 
 
 def test_founding_is_mechanically_distinct_from_a_curated_control(tmp_path):
     # §2.3: founding is AUTHORED_SOLO (mirror); a control corpus is CURATED (never the mirror). One
     # store holds both, provenance-separated — so founding can never double as the control.
-    raw, store, catalog, ops = _stores(tmp_path)
-    ingest_founding(_items(), raw, store, FakeEmbedder(), catalog, ops_store=ops)
+    raw, store, catalog, sup = _stores(tmp_path)
+    ingest_founding(_items(), raw, store, FakeEmbedder(), catalog, supersession_store=sup)
     ctrl = ingest_note(parse_text("a literary probe passage", source_path="ctrl/1", title="ctrl",
                                   raw_bytes=b"a literary probe passage"),
                        raw, provenance=Provenance.CURATED)

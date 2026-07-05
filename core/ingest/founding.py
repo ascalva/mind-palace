@@ -15,10 +15,14 @@ founding-specific disciplines it enforces:
     `parse_text` lifts it into `properties['date']`. An undated item is refused — the timestamp lie
     (collapsing years into simultaneous peers) is exactly what founding must avoid. (The temporal
     *layer* reading these dates is dormant today; the dates are recorded now regardless.)
-  * **Supersession-linked (§2.1).** When a later musing revises an earlier one, it is recorded as a
-    claim-`supersede` in the `ClaimOpStore` (Item 2b) — a RELATION between authored claims, so the
-    active projection shows the current musing and the earlier lives on in history. Both endpoints
-    are authored notes (no derived conclusion is minted — that is the dialogue path).
+  * **Supersession-linked (§2.1).** When a later musing revises an earlier one, it is recorded as an
+    OWNER-DECLARED **authored-historical supersession** (`core/stores/authored_supersession.py`;
+    8f / PD11) — a K₀↔K₀ RELATION between two authored documents, so the active projection shows the
+    current musing and the earlier lives on in history. It is NOT a claim-`supersede` (no warrant,
+    no derived alternative) and NOT a note-version `supersedes` (two documents, not one doc's
+    versions). Founding is an owner entry point, so it mints an `OwnerDeclaration`; the store is
+    owner-declared
+    only and refuses any machine caller at its boundary (the-edge-model.md §4a).
 
 Provenance is AUTHORED_SOLO — the owner's writing, the mirror's ground truth. The founding corpus
 is deliberately biased-coherent, so it CANNOT be the Track-L control corpus (§2.3): the control
@@ -37,7 +41,7 @@ from core.ingest.index import index_records
 from core.ingest.logseq import parse_text
 from core.ingest.pipeline import ingest_note
 from core.provenance import Provenance
-from core.recursion_ops import ClaimOpStore, OpKind
+from core.stores.authored_supersession import AuthoredSupersessionStore, owner_declaration
 from core.stores.catalog import VaultCatalog
 from core.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
@@ -85,13 +89,13 @@ def _note_text(item: FoundingItem) -> str:
 
 def ingest_founding(items: Iterable[FoundingItem], raw: RawStore, store: VectorStore,
                     embedder: Embedder, catalog: VaultCatalog, *,
-                    ops_store: ClaimOpStore | None = None,
+                    supersession_store: AuthoredSupersessionStore | None = None,
                     attestor: Attestor | None = None) -> FoundingReport:
     """Ingest the founding sequence through the STEADY-STATE path (no bespoke writer): each item
     rides `ingest_note` (AUTHORED_SOLO) → `index_records` → `VaultCatalog.record`, exactly like
-    curated/dialogue ingest. Dated (undated refused) and supersession-linked (recorded in the
-    ClaimOpStore when a later musing revises an earlier one). Ingest, not fine-tuning — the weights
-    never move (§1); AUTHORED_SOLO, never the Track-L control corpus (§2.3)."""
+    curated/dialogue ingest. Dated (undated refused) and supersession-linked (recorded as an
+    OWNER-DECLARED authored-historical supersession when a later musing revises an earlier — 8f).
+    Ingest, not fine-tuning — weights never move (§1); AUTHORED_SOLO, never the control (§2.3)."""
     report = FoundingReport()
     digest_by_source: dict[str, str] = {}
     for item in items:
@@ -118,9 +122,13 @@ def ingest_founding(items: Iterable[FoundingItem], raw: RawStore, store: VectorS
                     f"founding item {item.source_path!r} supersedes {item.supersedes!r}, which is "
                     "not an earlier ingested item"
                 )
-            if ops_store is not None:
-                ops_store.record(OpKind.SUPERSEDE, prior, related_id=record.digest,
-                                 text=f"superseded in the founding sequence by {item.title!r}")
+            if supersession_store is not None:
+                # Owner-declared: the founding manifest IS the owner's hand, so mint an
+                # OwnerDeclaration. The store verifies it at its boundary (a machine caller is
+                # refused there), keeping the authored-historical edge owner-only by construction.
+                supersession_store.record(
+                    prior, record.digest, declaration=owner_declaration(),
+                    note=f"superseded in the founding sequence by {item.title!r}")
                 report.superseded += 1
     return report
 
@@ -132,7 +140,7 @@ def build_and_ingest_founding(items: Iterable[FoundingItem],
     from config.loader import get_config
     from core.attestation import build_attestor
     from core.ingest.embed import build_embedder
-    from core.recursion_ops import open_claim_op_store
+    from core.stores.authored_supersession import open_authored_supersession_store
 
     cfg = config or get_config()
     return ingest_founding(
@@ -141,6 +149,6 @@ def build_and_ingest_founding(items: Iterable[FoundingItem],
         store=VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim),
         embedder=build_embedder(cfg),
         catalog=VaultCatalog(cfg.paths.vault_catalog),
-        ops_store=open_claim_op_store(cfg),
+        supersession_store=open_authored_supersession_store(cfg),
         attestor=build_attestor(cfg),
     )

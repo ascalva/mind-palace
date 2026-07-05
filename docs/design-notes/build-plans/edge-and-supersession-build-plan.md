@@ -588,8 +588,19 @@ owner-verdict removal from a dialogue-op removal → the authority tag is missin
 stores). Leans on the indexing policy (unpromoted derived not retrievable — holds by construction,
 Q11) so the unpromoted alternative is safe to mint immediately.
 
-**Sub-item 8f — founding routing fix (R5; taxonomy RESOLVED 2026-07-04, design-only this session).**
-Re-route K₀↔K₀ founding supersessions (`core/ingest/founding.py:121-123`) off the **claim-op store**.
+**Sub-item 8f — founding routing fix (R5; taxonomy RESOLVED; ✅ BUILT & VERIFIED 2026-07-04).**
+Re-route K₀↔K₀ founding supersessions off the **claim-op store**.
+
+> **Built.** `core/stores/authored_supersession.py` — `AuthoredSupersessionStore` (append-only,
+> keyed on the two authored digests; `superseded()` active-projection filter), **owner-declared only,
+> structurally fail-closed**: `record(..., declaration)` verifies an `OwnerDeclaration` (construction-
+> guarded via `_OWNER_TOKEN`) at its own boundary and raises `MachineAuthorityRefused` for any other
+> value. `core/ingest/founding.py` rerouted to it (mints `owner_declaration()`; no longer imports
+> `ClaimOpStore`). Acceptance met: (1) founding writes the authored-historical edge, **no claim-op row**
+> (founding can't even construct one); (2) **structural negative test** — a simulated dreamer/scheduler
+> caller (bad `declaration`) is rejected at the boundary (`test_authored_supersession.py`). Full offline
+> 722 passed; ruff clean; seal green. (3) — the active-projection *consumer* of `superseded()` is the
+> remaining Item-8 gate work; nothing demotes from retrieval yet.
 
 *The one-line test — does the edge connect two versions of one document, or two documents?* A founding
 `supersede(A, B)` has `A`, `B` at **different `source_paths`** (`founding.py:114-123`: `prior` and
@@ -639,9 +650,17 @@ dissolves); owner-declared-only **removes** the machine-write capability instead
 today. **Implementation is Item 8/8f, next session** (owner-declared-only authored-historical store
 keyed on the two authored digests + re-route `founding.py`; machine candidates stay in the gated
 lifecycle). *Acceptance (at implementation):* (1) a founding K₀↔K₀ supersession leaves **no
-`ClaimOpStore` row** and records an owner-declared authored-historical edge; (2) the store's write-path
-**refuses a non-owner-declared source** (fail-closed test); (3) no active retrievable K₀ note leaves
-the projection except by owner-declared authorship **or** an owner verdict.
+`ClaimOpStore` row** and records an owner-declared authored-historical edge; (2) **the store REFUSES
+machine authority at its own boundary — a structural negative test.** Assert the negative directly: a
+supersession submitted through a *simulated dreamer/scheduler caller* (i.e. `record()` called without a
+valid owner-authority capability — `None`, a forged object, or a would-be direct construction) is
+**rejected by the store** (raises), **not** merely "no machine path is currently wired to call it."
+Fail-closed-by-source is only as strong as the store's ability to check its caller's authority — a
+shared helper / batch tool / refactor that routes an owner call and a dreamer call through one function
+collapses a source-only rule; the store must therefore *check-and-reject at its own boundary* so the
+guarantee survives a careless future caller (the point of capability-dissolution over a flag). (3) no
+active retrievable K₀ note leaves the projection except by owner-declared authorship **or** an owner
+verdict.
 
 ---
 

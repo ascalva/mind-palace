@@ -1495,3 +1495,46 @@ derived case (inherit leaves, never claim) + a new `test_authored_revision_groun
 
 **Next unchanged:** Item 8 (now with 8f resolved to an authored-historical edge type) — fresh session,
 resume from here + the build plan's Item 8 / PD11.
+
+---
+
+## Edge & supersession — Item 8 / 8f: the owner-declared authored-historical store (2026-07-04)
+
+First slice of Item 8. Owner greenlit ("continue to item 8") with one build-time guardrail: the
+fail-closed-by-source invariant must be **structural at the store's own boundary** (the store
+CHECKS and REJECTS machine authority), verified by a **negative test** — not merely "no machine path
+is wired to call it" (which decays on the next refactor).
+
+**Built.**
+- **`core/stores/authored_supersession.py`** — the third dispositional edge type (the-edge-model §4a):
+  a K₀↔K₀ authored-historical `supersede` across two DOCUMENTS. `AuthoredSupersessionStore` is
+  append-only, keyed on the two authored digests; `superseded()` is the active-projection filter (same
+  role as `ClaimOpStore.superseded`). **Owner-declared ONLY, structurally:** `record(..., declaration)`
+  requires an `OwnerDeclaration` and **verifies it at its own boundary** (isinstance + the guarded
+  `_OWNER_TOKEN` via `getattr`, so a bypass-constructed instance is refused too); anything else —
+  `None`, a forged object, a machine caller's fabrication — raises `MachineAuthorityRefused`.
+  `OwnerDeclaration` is construction-guarded (`owner_declaration()` mints it; a direct
+  `OwnerDeclaration()` raises). This is capability-dissolution (the-sacred-boundary §3): the
+  machine-write capability is *removed*, not guarded with a forgeable flag. Balance math has no handle
+  (dispositional, like the version store).
+- **`core/ingest/founding.py`** — rerouted: founding K₀↔K₀ supersession now records to the new store
+  (mints `owner_declaration()` — founding IS an owner entry point) instead of the `ClaimOpStore`.
+  `ingest_founding(..., supersession_store=)` replaces `ops_store=`; `founding.py` no longer imports
+  `ClaimOpStore`/`OpKind`, so it structurally cannot write a claim-op row. `scripts/ingest_founding.py`
+  (owner CLI) unaffected (wires through `build_and_ingest_founding`).
+
+**Verified.** `tests/integration/test_authored_supersession.py` (new, 8): owner-declared write +
+`superseded()` filter; idempotent; **structural negative — a simulated dreamer/scheduler caller
+(declaration `None`/object/str/int) is REJECTED at the boundary**; capability cannot be forged (direct
+construction + `object.__new__` bypass both refused); positive control writes; append-only; no
+balance-math handle. `tests/integration/test_founding_corpus.py` updated (supersession now in the
+authored-historical store, not the claim-op store). Full offline **722 passed, 7 skipped**; ruff clean;
+seal green. Deterministic core → live gate N/A. **Not committed.**
+
+**Remaining in Item 8 (subsequent sessions):** the blessing gate (I1a — superseding blessed content
+records defeater + alternative + verdict recommendation, stays contested); `proposed → certified`
+states on claim-`supersede` + the verdict transition; disposition-authority recording
+({owner-declared, owner-verdict, dialogue-op, decay}); and wiring the active-projection **consumer**
+of `superseded()` (nothing demotes from retrieval yet — the store is the write side). Machine-inferred
+authored↔authored supersessions route through that gate (Item 10 candidates), never this store. Then
+Item 11 (γ^d·g exclusion confirmation). **Item 8-gate is a fresh session** — resume from here.
