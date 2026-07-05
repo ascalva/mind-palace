@@ -252,6 +252,17 @@ s(C, D) = sim(C, D) · 1[contradiction(C, D)] · 1[t(D) > t(C)]
 Recurrence across sleep cycles sharpens a candidate into a stronger
 recommendation. **Time surfaces and sharpens; a verdict certifies.**
 
+**A candidate over two authored notes is machine-derived — never an
+authored-historical fact.** The complex is authored-only (Invariant 6), so `s(C, D)`
+scores pairs of **authored (K₀) notes**: a hit is a machine-inferred "D revises C"
+with no owner in the loop. It must therefore route through the §3 blessing gate — the
+superseded authored note is demoted **only after an owner verdict**, never silently —
+and it must **not** be written to the owner-declared authored-historical `supersede`
+store (`the-edge-model.md` §4a). That store's "ungated" property holds only because it
+admits no machine source; a machine candidate that reached it would be exactly the
+derived-hides-blessed failure §3 guards. Owner authorship (a founding manifest / an
+owner CLI) is the *only* ungated writer; the Dreamer surfaces, the owner certifies.
+
 **Falsification experiment** (matches the project's curvature protocol): surface
 top-`k` candidates by `s`, blind-adjudicate against similarity- and time-matched
 random pairs; the instrument earns its place only if the adjudicated true-revision

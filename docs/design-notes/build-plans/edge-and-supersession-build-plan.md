@@ -611,16 +611,37 @@ third E_disp member distinct from note-version `supersedes` and claim `supersede
   version key. A fabricated identity is the same failure family as content-digest-as-version-key
   (`ingest-identity-and-amendment.md` §4A C1) and will surface as corruption later. **Do not.**
 
-*Gate scope (consistent with R5):* establishing the chain (A historical, B active) is **ungated** —
-owner's hand at authoring. The blessing gate fires **only** if a founding supersession would demote a
-currently *active, retrievable* K₀ note. *Safe to defer to implementation:* `founding.py:121`'s
-current claim-op records are **inert** — `ClaimOpStore.superseded()` has **no consumer** (grep), and
-the wired active projection filters on `DispositionStore.retracted` (owner verdicts) only
-(`core/dreams_view.py:56-58`), so nothing is hidden today. **Implementation is Item 8/8f, next
-session** (new authored-historical store keyed on the two authored digests + re-route `founding.py`).
-*Acceptance (at implementation):* a founding K₀↔K₀ supersession leaves **no `ClaimOpStore` row**,
-records an authored-historical edge instead, and removes the superseded note from retrieval only if it
-was the active version.
+*Gate scope — settled 2026-07-04 (the machine-derivation question).* The "ungated" property is **not
+intrinsic to the edge type**; it holds **only for owner-declared** assertions. Investigation:
+`FoundingItem.supersedes` is an owner-authored manifest field (`scripts/ingest_founding.py:33-34`,
+`core/ingest/founding.py:56-66`), and the only two supersession writers today are `founding.py:122`
+(owner-declared) and the inert dialogue path (`recursion_ops.py:278`). **But a supersession between
+two authored notes CAN be machine-derived by design** — Item 10's `s(C,D)` scorer runs over authored
+`E_geom` (`supersession-lifecycle.md` §6), and the curator's near-duplicate finder pairs authored
+notes (`core/curator/curator.py:86-101`); both propose "B revises A" with no owner in the loop. A
+machine-derived edge demoting an *active, retrievable* K₀ note is derived material silently hiding
+blessed content — the I1a failure.
+
+**Write-path invariant (bake into Item 8).** The authored-historical store is **owner-declared only**
+— its write-path admits **no** model / scheduler / dreamer source (fail-closed), so ungated-ness holds
+*by construction* (capability-dissolution, `the-sacred-boundary.md` §3). Owner-declared assertions
+(founding manifest / an owner CLI) are ungated, **including** active-note demotion (the owner's
+explicit hand). A machine-inferred authored↔authored supersession does **not** enter this store: it is
+a **dreamer-proposed candidate** routed through the proposed→certified blessing gate (Item 8 core),
+demoting an active retrievable note **only after an owner verdict**. *Rejected:* let the store hold
+machine-derived edges behind an `asserted_by` flag — that puts gating logic + a forgeable authority
+discriminator *inside* the "ungated" store (the per-consumer-filter discipline the E_disp partition
+dissolves); owner-declared-only **removes** the machine-write capability instead of guarding it.
+
+*Safe to defer to implementation:* `founding.py:121`'s current claim-op records are **inert** —
+`ClaimOpStore.superseded()` has **no consumer** (grep), and the wired active projection filters on
+`DispositionStore.retracted` (owner verdicts) only (`core/dreams_view.py:56-58`), so nothing is hidden
+today. **Implementation is Item 8/8f, next session** (owner-declared-only authored-historical store
+keyed on the two authored digests + re-route `founding.py`; machine candidates stay in the gated
+lifecycle). *Acceptance (at implementation):* (1) a founding K₀↔K₀ supersession leaves **no
+`ClaimOpStore` row** and records an owner-declared authored-historical edge; (2) the store's write-path
+**refuses a non-owner-declared source** (fail-closed test); (3) no active retrievable K₀ note leaves
+the projection except by owner-declared authorship **or** an owner verdict.
 
 ---
 
@@ -816,10 +837,19 @@ version store — `PRIMARY KEY (doc_id, version_seq)` cannot key a cross-`source
 (`core/stores/versions.py:57,99-103`), confirmed unkeyable. *Rejected:* synthesize a shared `doc_id`
 to force the version key — a fabricated identity, same failure family as content-digest-as-version-key
 (`ingest-identity-and-amendment.md` §4A C1). *Properties:* both endpoints K₀; dispositional (excluded
-from balance math); owner-authority at authoring time ⇒ ungated for chain-establishment, gated only if
-it demotes an active retrievable note. *Implementation:* Item 8/8f, next session (a store keyed on the
-two authored digests + re-route `founding.py:121`); safe to defer (the current claim-op records are
-inert — no `superseded()` consumer). Documented in `the-edge-model.md` §4–§5.
+from balance math). **Ungated only when owner-declared (settled 2026-07-04).** Investigation confirmed
+`FoundingItem.supersedes` is an owner-authored manifest field (`scripts/ingest_founding.py:33-34`), but
+a supersession between two authored notes **can be machine-derived** (Item 10 `s(C,D)` over authored
+`E_geom`; the curator near-duplicate finder, `core/curator/curator.py:86-101`), so ungated-ness is a
+property of the **authority, not the edge type**. **Write-path invariant:** the store is
+**owner-declared only** (fail-closed on any model/scheduler/dreamer source) ⇒ ungated by construction,
+including active-note demotion (the owner's explicit hand); a machine-inferred authored↔authored
+supersession is a **dreamer-proposed candidate** through the Item 8 blessing gate, demoting an active
+note only after an owner verdict. *Rejected:* hold machine-derived edges behind an `asserted_by` flag
+(gating logic + forgeable authority inside the "ungated" store). *Implementation:* Item 8/8f, next
+session (owner-declared-only store keyed on the two authored digests + re-route `founding.py:121`; safe
+to defer — the current claim-op records are inert, no `superseded()` consumer). Documented
+`the-edge-model.md` §4a/§5.
 
 **Resolved (recorded, not open) — grounding-maintenance propagation (Item 9 / supersession-lifecycle
 §5).** **Flag-for-re-examination**, not cascade. *Rejected:* *nothing* (grounding rot accumulates

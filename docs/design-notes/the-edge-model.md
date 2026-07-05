@@ -139,15 +139,29 @@ existing dispositional types:
   **mints no derived alternative**; both endpoints stay authored (K₀).
 
 So it is a **third E_disp member: authored-historical `supersede`** — both endpoints
-K₀, both persist in the log, dispositional (never in `A_geom`), and its authority is
-**the owner's hand at authoring time** (`authority = authored-ingest`). Because that
-*is* the owner's hand, establishing the historical chain needs **no verdict gate**
-(the blessing gate fires only if such an edge would demote a currently *active,
-retrievable* K₀ note). It gets its **own store** keyed on the two authored digests —
-**not** the version store, and emphatically **not** a synthesized shared `doc_id`
-(a fabricated identity is the content-digest-as-version-key failure family,
-`ingest-identity-and-amendment.md` §4A C1). Build: `edge-and-supersession-build-plan.md`
-Item 8 / 8f + PD11.
+K₀, both persist in the log, dispositional (never in `A_geom`). It gets its **own
+store** keyed on the two authored digests — **not** the version store, and emphatically
+**not** a synthesized shared `doc_id` (a fabricated identity is the
+content-digest-as-version-key failure family, `ingest-identity-and-amendment.md` §4A C1).
+
+**Ungated *only* when owner-declared — the write-path invariant.** The "no verdict
+gate" property rests entirely on the assertion being **the owner's hand**. That holds
+of the founding manifest / an owner CLI (`FoundingItem.supersedes` is an owner-authored
+field, `scripts/ingest_founding.py`) — but it is **not intrinsic to the edge type**. A
+supersession between two authored notes **can be machine-derived**: the unasserted-
+supersession scorer `s(C, D)` (`supersession-lifecycle.md` §6) runs over authored
+`E_geom`, and the curator's near-duplicate finder (`core/curator/curator.py`) pairs
+authored notes — both propose "B revises A" with **no owner in the loop**. A
+machine-derived edge that demoted an *active, retrievable* K₀ note would be derived
+material silently hiding blessed content — exactly the demotion the blessing gate (I1a,
+`supersession-lifecycle.md` §3) exists to stop. So ungated-ness is a property of the
+**authority, not the edge type**. Resolution (PD11): the authored-historical store is
+**owner-declared only** — its write-path admits no model / scheduler / dreamer source
+(fail-closed), so its ungated-ness holds *by construction* (the capability-dissolution
+move, `the-sacred-boundary.md` §3). A machine-inferred authored↔authored supersession is
+a **dreamer-proposed candidate** routed through the proposed→certified blessing gate
+(Item 8); it demotes an active note **only after an owner verdict**. Build:
+`edge-and-supersession-build-plan.md` Item 8 / 8f + PD11.
 
 ## 5. The model at a glance
 
