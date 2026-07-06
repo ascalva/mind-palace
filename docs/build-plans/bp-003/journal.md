@@ -11,6 +11,19 @@ files must continue without re-asking anything already answered.
 
 ---
 
+## Seal — 2026-07-06 — /triage — bp-003 `complete`, journal sealed
+
+**Seal.** Plan flipped `ready → complete` (`plan.md:4`) and this journal sealed by `/triage`,
+enacting owner ruling oq-0002 (fold bp-003 into the formal lifecycle for a uniform board). The owner
+supplied the `proposed → ready` blessing by hand (owner-only, §10); the orchestrator flipped
+`ready → complete` and sealed. A4's work is committed (`9b2431f`): the investigate→reconcile→plan
+template + the graduate/build-plan skill upgrades; all five acceptance criteria closed (journal
+below), finding-0007 → promoted, finding-0008 filed here (later reconciled by A6/bp-004). bp-003 has
+no acceptance harness; verification is the required-section grep + the no-implementation graduate
+dry-run recorded below. Narrative ends here; subsequent lines are mechanical markers only.
+
+---
+
 ## Entry — 2026-07-05 — A4 installed; all five criteria closed; findings terminal/routed
 
 **Status.** All five acceptance criteria closed and demonstrated. The A4 template is

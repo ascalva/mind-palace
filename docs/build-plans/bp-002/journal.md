@@ -10,6 +10,19 @@ write-scope files must continue without re-asking anything already answered.
 
 ---
 
+## Seal — 2026-07-06 — /triage — bp-002 `complete`, journal sealed
+
+**Seal.** Plan flipped `ready → complete` (`plan.md:4`) and this journal sealed by `/triage`,
+enacting owner ruling oq-0002 (fold bp-002 into the formal lifecycle for a uniform board). The owner
+supplied the `proposed → ready` blessing by hand (owner-only, §10); the orchestrator flipped
+`ready → complete` and sealed. A3's work is committed (`0e9fc90`, merged `c17a456`); the acceptance
+harness re-ran green at HEAD (**6/6 — PASS=6 FAIL=0, 23 assertions**) under bp-004's A5 change (a
+no-op on clean status lines); findings 0005 → promoted, 0004 → resolved. bp-002's §14-parked pre-hoc
+`status: ready` denylist remains a separate open decision. Narrative ends here; subsequent lines are
+mechanical markers only.
+
+---
+
 ## Entry — 2026-07-05 — A3 implemented; harness green; findings resolved
 
 **Status.** A3 landed and verified; `docs/build-plans/bp-002/acceptance/run.sh` is

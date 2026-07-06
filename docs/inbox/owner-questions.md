@@ -39,7 +39,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0002 — Fold bp-002 and bp-003 into the formal lifecycle (`complete`), or leave held at `proposed`?
-- status: answered
+- status: swept
 - origin: docs/PROGRESS.md — the standing "Owner-pending (non-blocking)" lifecycle decision
   recorded in the bp-002 note (2026-07-05) and the bp-003 note (2026-07-06, backfilled)
 - blocking: false
@@ -57,6 +57,6 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   flips `ready → complete`, seals each journal, and writes the PROGRESS checkpoints. An agent
   `proposed → complete` shortcut is deliberately NOT used — it would bypass the readiness gate
   (see finding-0009). bp-002's §14-parked pre-hoc `status: ready` denylist is a separate item,
-  unaffected. To be swept into both plans' PROGRESS checkpoints on completion, then marked `swept`.
+  unaffected. Swept into the combined bp-002 + bp-003 seal checkpoint (`docs/PROGRESS.md`, 2026-07-06).
 
 ---

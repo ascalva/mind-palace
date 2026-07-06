@@ -1669,3 +1669,38 @@ normalization on the `--standalone` debug path) — neither carries a bright-lin
 **Decisions.** finding-0006 → promoted (A5 warrant), finding-0008 → promoted (A6 warrant); both
 resolutions cite the amendment + bp-004 + the harness. No design-note edit (A5/A6 pre-ratified by
 the owner); no blessing flip; `complete` is the orchestrator's completion act, not a gate.
+
+---
+
+## Agent-workflow layer — bp-002 + bp-003 sealed: regularized to `complete` per oq-0002 (2026-07-06, /triage)
+
+Owner ruling (`owner-questions.md` oq-0002): fold bp-002 (A3) and bp-003 (A4) into the formal
+lifecycle so the board is uniform — no `proposed`-held plans whose work is already committed.
+Enacted respecting the blessing gate: the **owner** hand-blessed each `proposed → ready` (owner-only,
+§10 — deliberately not an agent act, since a direct `proposed → complete` edit would bypass the
+readiness gate, finding-0009); the **orchestrator** then flipped each `ready → complete`, sealed both
+journals, and wrote this checkpoint. Supersedes the two "NOT a seal" held-state notes above (bp-002
+2026-07-05; bp-003 backfilled 2026-07-06) — append-only, so those remain as history.
+
+**Built (already committed; full detail in the two notes above + each plan's journal).**
+- **bp-002 (A3, committed `0e9fc90`, merged `c17a456`).** Made the Stop-gate (c) audit
+  untracked-inclusive over `docs/design-notes/**` + `docs/build-plans/**/plan.md` (`_untracked_under`
+  / `_untracked_blessing`), closing the Bash-minted-`ready`-plan hole (finding-0005 → promoted);
+  locked finding-0004's ambient-path exclusion (`.gitignore`, `868ed17`; finding-0004 → resolved).
+- **bp-003 (A4, committed `9b2431f`).** Installed the investigate→reconcile→plan build-plan template
+  and the graduate (grounded planning pass) + build-plan (richer semantics) skill upgrades
+  (finding-0007 → promoted). Installing A4 surfaced the §3-schema / command-file drift filed as
+  finding-0008 (later reconciled by A6/bp-004).
+
+**Verified.** bp-002 `acceptance/run.sh` re-run green at current HEAD — **6/6 (PASS=6 FAIL=0; 23
+assertions)**, the A5 `_lib.py` change a confirmed no-op on its clean status lines. bp-003 has no
+harness; its journal records all five criteria closed (required-section grep + a no-implementation
+graduate dry-run) and finding-0007 terminal. Both journals now sealed; working tree clean post-commit.
+
+**Next.** Board uniform — bp-000 / bp-001 / bp-002 / bp-003 / bp-004 all `complete`. bp-002's
+§14-parked pre-hoc `status: ready` denylist stays a separate open decision; finding-0009 (the
+`proposed → complete` gate hole) is a candidate amendment **A7**, owner's ratify call.
+
+**Decisions.** oq-0002 answered → **swept** (this checkpoint is the sweep). No agent performed a
+blessing — the owner supplied both `proposed → ready` blessings by hand; the orchestrator did only
+the agent-legal `ready → complete` flips + seals.

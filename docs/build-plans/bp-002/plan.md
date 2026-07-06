@@ -1,9 +1,9 @@
 ---
 type: build-plan
 id: bp-002
-status: proposed
+status: complete
 created: 2026-07-05
-updated: 2026-07-05
+updated: 2026-07-06
 links:
   - docs/design-notes/agent-workflow.md
   - docs/findings/finding-0005.md
