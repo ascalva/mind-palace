@@ -13,6 +13,19 @@ write-scope files must continue without re-asking anything already answered.
 
 ---
 
+## Seal — 2026-07-06 — /triage — bp-004 `complete`, journal sealed
+
+**Seal.** Plan flipped `in-progress → complete` (`plan.md:4`) and this journal sealed by
+`/triage` — the orchestrator's single-writer completion accounting (§5): the three acts the
+builder deferred out of its lane (the status flip, this seal, the `docs/PROGRESS.md`
+checkpoint). All five acceptance criteria are closed; `docs/build-plans/bp-004/acceptance/run.sh`
+→ **PASS=21 FAIL=0**; the A5/A6 mechanical fixes are committed (`1e0443f`, merged `1328ae6`,
+working tree clean) and both findings are `promoted`. No blessing transition was performed or
+required — readiness was the owner's hand edit at session start, and `complete` is not a blessing
+gate. Narrative ends here; subsequent lines are mechanical markers only.
+
+---
+
 ## Entry — 2026-07-06 — ALL FIVE items closed; harness 21/21 green; findings promoted
 
 **Status.** Build complete. All five acceptance criteria closed and demonstrated;

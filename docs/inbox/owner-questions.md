@@ -37,3 +37,26 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   `BUILD-SPEC.md` / `CONVENTIONS.md` / git history. Landed by bp-001 in CLAUDE.md.
 
 ---
+
+## oq-0002 — Fold bp-002 and bp-003 into the formal lifecycle (`complete`), or leave held at `proposed`?
+- status: answered
+- origin: docs/PROGRESS.md — the standing "Owner-pending (non-blocking)" lifecycle decision
+  recorded in the bp-002 note (2026-07-05) and the bp-003 note (2026-07-06, backfilled)
+- blocking: false
+- question: bp-002 (amendment A3) and bp-003 (amendment A4) each landed and committed under owner
+  authority but never took the owner-only `proposed → ready` blessing, so both sit at
+  `status: proposed` while their work is terminal — a split board against bp-000/bp-001/bp-004
+  (`complete`). Fold both into the formal `ready → in-progress → complete` lifecycle to match
+  bp-004, or leave them held at `proposed` as landed-but-unblessed?
+- default_if_unanswered: leave held at `proposed` (the recorded state); re-entry — owner rules
+  here, or a `direction` finding reports the split board causing confusion.
+- answer: **FOLD BOTH TO `complete`, matching bp-004 — uniform board, no drift** (owner ruling,
+  2026-07-06). Enactment respects the blessing gate: the **owner** supplies the missing
+  `proposed → ready` blessing by hand on `docs/build-plans/bp-002/plan.md` and
+  `docs/build-plans/bp-003/plan.md` (owner-only, never in-session, §10); the **orchestrator** then
+  flips `ready → complete`, seals each journal, and writes the PROGRESS checkpoints. An agent
+  `proposed → complete` shortcut is deliberately NOT used — it would bypass the readiness gate
+  (see finding-0009). bp-002's §14-parked pre-hoc `status: ready` denylist is a separate item,
+  unaffected. To be swept into both plans' PROGRESS checkpoints on completion, then marked `swept`.
+
+---

@@ -1609,3 +1609,63 @@ Bash-minted-`ready`-plan hole (A3, §6c). finding-0004 ambient-path exclusion lo
 `ready → in-progress → complete` lifecycle (a hand blessing; a committed blessing now self-clears the
 audits). (2) §14-parked *pre-hoc* denylist of `docs/build-plans/**/plan.md` `status: ready` writes, as
 belt-and-suspenders over A3's post-hoc catch. finding-0005 → promoted; finding-0004 → resolved.
+
+---
+
+## Agent-workflow layer — bp-003 (A4) landed + committed; plan held at `proposed` (2026-07-05, /triage note — NOT a seal)
+
+Recorded for completeness, **not** a completion seal (parity with the bp-002 note above; backfilled
+2026-07-06 — bp-003 had no prior PROGRESS record). bp-003's work — installing amendment **A4**, the
+build-plan template overhaul — is implemented and committed (`9b2431f`) and its findings are terminal,
+but the plan is **deliberately held at `status: proposed`**: the session executed under owner authority
+yet performed no owner-only `proposed → ready` blessing and did not flip the plan (plan Provenance note).
+No seal is written until the owner rules on the lifecycle (the same open decision bp-002 carries).
+
+**Landed.** `docs/templates/build-plan.md` upgraded to the investigate→reconcile→plan form (A4, warrant
+finding-0007): §0–§12 with per-item acceptance **and** a named falsifier, `path:line`-cited Investigation
+for plans touching code, banner-vs-cross-reference Reconciliation, explicit Math field-guide clauses,
+blast-radius ordering, dependency/parallelizable edges, and N/A-marking discipline (one template, not two
+tiers). The `graduate` skill became a grounded planning pass and `build-plan` gained the richer semantics.
+Installing A4 against the §3 prose surfaced the schema contradiction filed as **finding-0008** (later
+reconciled by A6/bp-004). Journal declares terminal: all five criteria closed, "In-flight. None."
+
+**Owner-pending (non-blocking).** Whether to fold bp-003 into the formal
+`ready → in-progress → complete` lifecycle (a hand blessing; a committed blessing self-clears the audits)
+— the same standing decision as bp-002. finding-0007 → promoted (the template-thinness warrant A4
+answers); finding-0008 → filed by this plan, later promoted via A6/bp-004.
+
+---
+
+## Agent-workflow layer — bp-004 sealed: A5 + A6 mechanical fixes (2026-07-06, /triage)
+
+The mechanical consequence of amendments **A5** (finding-0006) and **A6** (finding-0008),
+already ratified into `agent-workflow.md` §3/§6/§16. Unlike bp-002, bp-004 ran the **formal
+lifecycle** (owner blessed `proposed → ready` at session start; builder `ready → in-progress`),
+so its terminal is `complete`. This is the orchestrator's deferred single-writer act — flip
+`in-progress → complete`, seal the journal, write this checkpoint — the three acts the builder
+left out of its lane (§5). Work committed `1e0443f`, merged `1328ae6`; tree clean.
+
+**Built.** `.claude/hooks/_lib.py`: `_normalize_status` (strip a trailing ` #` YAML comment from a
+*status* value — cut at first space-hash, then rstrip; status-path only) applied at **all three**
+status-extraction sites — `status_of`, `_status_in_text`, and `_blessing_in_diff:394` (the third
+routes through neither named extractor, so without it the tracked Stop-gate path stayed unfixed).
+All three blessing detectors now fire on a comment-bearing `ready`/`ratified`; `ready#x` (no space)
+is deliberately not stripped (false-negative-only, the safe direction); `_scalar`/`parse_front_matter`
+unchanged so a `#` survives in other fields. `docs/templates/build-plan.md`: status line comment
+removed (A5), `re_entry` restored as a front-matter key (A6). `.claude/commands/{build,graduate,scribe}.md`:
+the four moved fields (`objective`/`context_manifest`/`non_goals`/`stop_conditions`) now read from
+the §1/§2/§9/§10 body sections, not front-matter keys (A6); `re_entry` stays a front-matter key.
+
+**Verified.** `docs/build-plans/bp-004/acceptance/run.sh` — **21/21 (PASS=21 FAIL=0)**: bp-002's 18
+prior criteria by reference (green under the A5 change — a no-op on clean status lines) + 0006-strip
+(comment-bearing `ready` blocks on gate-guard hook-mode, Stop-gate tracked, Stop-gate untracked, each
+beside a clean-`ready` control that also blocks) + 0006-nospace (`ready#x` does NOT over-fire) +
+0006-scope (a non-status `#` survives `parse_front_matter`) + template/command/finding grep checks.
+
+**Next.** Sealed. Two §11 parked decisions remain deliberately out of scope with re-entry conditions
+(normalize `cmd_brief`'s cosmetic status render `_lib.py:533`; a belt-and-suspenders `cmd_gate_check`
+normalization on the `--standalone` debug path) — neither carries a bright-line stake.
+
+**Decisions.** finding-0006 → promoted (A5 warrant), finding-0008 → promoted (A6 warrant); both
+resolutions cite the amendment + bp-004 + the harness. No design-note edit (A5/A6 pre-ratified by
+the owner); no blessing flip; `complete` is the orchestrator's completion act, not a gate.

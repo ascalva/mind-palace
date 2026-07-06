@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-004
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/agent-workflow.md
 contract: builder
