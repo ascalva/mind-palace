@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0008
-status: routed
+status: promoted
 created: 2026-07-05
-updated: 2026-07-05
+updated: 2026-07-06
 links:
   - docs/design-notes/agent-workflow.md   # §3 front-matter schema (line 74) vs A4 template placement
   - docs/templates/build-plan.md            # the ratified A4 template installed by bp-003
@@ -11,7 +11,7 @@ links:
 ftype: spec-defect
 origin_plan: bp-003
 route: orchestrator
-resolution: null
+resolution: "promoted → agent-workflow.md amendment A6 (§3 build-plan schema reconciled to the A4 template: `re_entry` retained as a front-matter key, `objective`/`context_manifest`/`non_goals`/`stop_conditions` are body sections §1/§2/§9/§10). Command-file fix landed by bp-004: build.md/graduate.md/scribe.md now read the four moved fields from the §2/§7/§9/§10 body sections; template restores the `re_entry` front-matter key. Harness: docs/build-plans/bp-004/acceptance/run.sh."
 ---
 
 # finding-0008 — §3 front-matter schema and the A4 template disagree on field placement

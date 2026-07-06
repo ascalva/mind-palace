@@ -13,9 +13,11 @@ split-at-graduation-never-mid-build discipline.
 When ratified:
 1. Load the graduate skill and decompose the note into session-sized build plans
    against `docs/templates/build-plan.md`. Each plan: `status: proposed`,
-   `session_budget: 1`, a least-privilege `write_scope`, an ordered
-   `context_manifest`, runnable `acceptance`, and **interfaces pinned inline**
-   (copy signatures/schemas/invariants from the note — never reference).
+   `session_budget: 1`, a least-privilege `write_scope`, an ordered **§2 context
+   manifest**, **§7** items each with a runnable **Acceptance test**, and
+   **interfaces pinned inline** (§6) — copy signatures/schemas/invariants from the
+   note, never reference. (These are A4-template body sections, not front-matter
+   keys, A6; `re_entry` stays a front-matter key.)
 2. Write each to `docs/build-plans/<id>/plan.md`; create `journal.md` (alive) via
    the same template's journal shape.
 3. Cross-link: each plan's `design_ref`/`links` → the note; note the plan ids in

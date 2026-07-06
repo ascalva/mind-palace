@@ -175,6 +175,22 @@ def _scalar(v: str):
     return v
 
 
+def _normalize_status(v):
+    """Strip a trailing YAML comment from a *status* value before the blessing
+    detectors compare it by exact equality (A5, warrant finding-0006; design-note
+    §6). Cut at the first ' #' (space-hash — YAML comment semantics), then rstrip.
+    A '#' with no preceding space ('ready#x') is NOT a YAML comment and is left
+    intact, so a malformed status can never be normalized *into* a blessing
+    (false-negative-only, the safe direction). Scoped to the status extraction path
+    only — `_scalar` stays general so a legitimate '#' survives in other fields."""
+    if not isinstance(v, str):
+        return v
+    i = v.find(" #")
+    if i != -1:
+        v = v[:i]
+    return v.rstrip()
+
+
 def read_front_matter(path_abs: str) -> dict:
     try:
         with open(path_abs, "r", encoding="utf-8") as fh:
@@ -186,6 +202,8 @@ def read_front_matter(path_abs: str) -> dict:
 def status_of(path_rel: str):
     fm = read_front_matter(os.path.join(ROOT, path_rel))
     s = fm.get("status")
+    if isinstance(s, str) and s:
+        s = _normalize_status(s)
     return s if isinstance(s, str) and s else None
 
 
@@ -255,7 +273,7 @@ def _status_in_text(text: str):
     for ln in text.splitlines():
         s = ln.strip().lstrip("+").strip()
         if s.startswith("status:"):
-            return _scalar(s.split(":", 1)[1])
+            return _normalize_status(_scalar(s.split(":", 1)[1]))
     return None
 
 
@@ -391,7 +409,7 @@ def _blessing_in_diff(diff: str) -> str | None:
         body = ln[1:].strip()
         if not body.startswith("status:"):
             continue
-        val = _scalar(body.split(":", 1)[1])
+        val = _normalize_status(_scalar(body.split(":", 1)[1]))
         if cur_file and is_design_note(cur_file) and val == "ratified":
             return f"design-note ratification introduced in '{cur_file}'"
         if cur_file and is_build_plan(cur_file) and val == "ready":

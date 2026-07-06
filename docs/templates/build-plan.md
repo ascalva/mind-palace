@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: <bp-NNN | descriptive-slug>
-status: proposed          # proposed → ready (owner) → in-progress → complete | parked | superseded
+status: proposed
 design_ref:               # ratified design-note id(s) this plan graduates from
   - <docs/design-notes/....md>
 contract: builder         # builder | scribe
@@ -13,6 +13,7 @@ parallelizable_with: []   # plan ids that may run concurrently (requires disjoin
 created: <date>
 updated: <date>
 links: []
+re_entry: null            # only if parked — the greppable "parked ⇒ re-entry" gate (§3, Principle 1); §11 is its human-readable expansion (A6)
 supersedes: null          # plan id this replaces, if any
 superseded_by: null
 warrant: null             # finding id, if this plan supersedes another or corrects committed code

@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0006
-status: open
+status: promoted
 created: 2026-07-05
-updated: 2026-07-05
+updated: 2026-07-06
 links:
   - .claude/hooks/_lib.py
   - .claude/hooks/gate-guard.sh
@@ -13,7 +13,7 @@ links:
 ftype: discovery
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: "promoted → agent-workflow.md amendment A5 (status-value normalization as part of the blessing-detection contract, §6). Mechanical fix landed by bp-004: _lib.py `_normalize_status` applied at `status_of`, `_status_in_text`, and `_blessing_in_diff` (all three blessing detectors now fire on a comment-bearing ready/ratified; nospace `ready#x` deliberately not stripped); template line 4 status comment removed. Harness: docs/build-plans/bp-004/acceptance/run.sh."
 ---
 
 # A trailing `#` comment on a `status:` line defeats every blessing gate

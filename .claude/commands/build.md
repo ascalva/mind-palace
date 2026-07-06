@@ -23,8 +23,10 @@ When ready:
    - `scribe` → `.claude/agents/scribe.md` posture + the **book** skill: concern
      is exposition in `docs/book/**`; accuracy outranks style; gaps exit as
      findings, never as design edits.
-4. Read the `context_manifest` in order. Then execute against `acceptance`,
-   honoring `non_goals` and `stop_conditions`.
+4. Read the **§2 Context manifest** in order. Then execute against each **§7** item's
+   **Acceptance test**, honoring the **§9 Non-goals** and **§10 Stop-and-raise
+   conditions** — these are A4-template body sections, not front-matter keys (A6).
+   (`re_entry` remains a front-matter key.)
 5. Obey the journal contract (§9) — checkpoint `journal.md` at every semantic
    boundary. Never block on the owner: park a criterion with a re-entry condition
    and continue (§5). Only a `blocker` finding ends the session early, and the

@@ -13,7 +13,7 @@ skill for chapter map, voice, TikZ/notation conventions, and citation scheme.
    `docs/templates/build-plan.md` with:
    - `contract: scribe`, `status: proposed`, `session_budget: 1`
    - `write_scope: ["docs/book/**"]`
-   - `context_manifest`: the debt delta (the specific notes/findings/code refs)
+   - **§2 context manifest**: the debt delta (the specific notes/findings/code refs)
    - **Fixed acceptance on every sync plan:** whole-book review; every snippet and
      code citation re-verified against HEAD (each carries `source: path@ref`);
      clean compile (latexmk or tectonic — record the default on first run); zero
