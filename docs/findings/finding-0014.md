@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0014
-status: open
+status: routed
 created: 2026-07-06
-updated: 2026-07-06
+updated: 2026-07-08
 links:
   - docs/design-notes/the-edge-model.md
   - docs/design-notes/the-sacred-boundary.md
@@ -17,6 +17,8 @@ resolution: null
 ---
 
 # finding-0014 — Invariant-2 import-firewall is asymmetric and is not enforced by the GitLab CI
+
+> **Triage 2026-07-08 (/triage):** routed → orchestrator. Touches a domain non-negotiable (Invariant 2); the `scan_edge` lint + CI-topology decision is batched to `owner-questions.md` **oq-0006** (may graduate to a small builder task once ruled). Re-entry per §Re-entry condition below.
 
 ## What
 Invariant 2 (network and private data never share a component; only `edge/` touches

@@ -60,3 +60,157 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   unaffected. Swept into the combined bp-002 + bp-003 seal checkpoint (`docs/PROGRESS.md`, 2026-07-06).
 
 ---
+
+## oq-0003 — Ratify amendment A7: gate the *egress* from `proposed`, not just entry to `ready`?
+- status: open
+- origin: docs/findings/finding-0009.md
+- blocking: false
+- question: `gate-guard`'s `cmd_gate_check` denies only two destination values — a note `→ ratified`
+  and a plan `→ ready` — by exact equality on the *new* status. Every other value falls through to
+  ALLOW, so an agent editing a plan `proposed → in-progress` (or `→ complete`) directly reaches a
+  build-implying state **without the owner's `proposed → ready` blessing ever occurring**. Same
+  failure family as finding-0005/0006 (a bright line an ordinary edit silently bypasses). The finding
+  proposes **A7**: gate the egress — deny an agent transition *into* `in-progress`/`complete` unless
+  the on-disk `cur` is a legitimate predecessor (`in-progress` requires `cur ∈ {ready, in-progress}`;
+  `complete` requires `cur == in-progress`), applied at `gate-guard` **and** both Stop-gate paths for
+  A5 parity. Ratify A7 (owner-only, §10) so a builder can land the `_lib.py` change (as bp-002/bp-004
+  did for prior amendments), or decline? The exact predecessor table is your ratification call; the
+  finding names only the hole and direction.
+- default_if_unanswered: A7 unratified; the hole stands (mitigated only by convention — the orchestrator
+  never uses a `proposed → complete` shortcut, per oq-0002's enactment). Parks as finding-0009; re-entry —
+  owner ratifies here, or a `direction` finding reports an ungated `proposed → {in-progress,complete}`
+  flip actually occurring.
+- answer:
+
+---
+
+## oq-0004 — Refresh the stale self-status on the BUILT & WIRED design-note cohort?
+- status: open
+- origin: docs/findings/finding-0010.md
+- blocking: false
+- question: A cohort of design notes carry self-status ("design only" / "not implemented" / "DRAFT —
+  pending reconciliation") that understates code which is built, tested, and in several cases wired:
+  `verdict-authority.md`, `vault-runtime-auth.md`, `skills-and-scope.md`, `attestation-layer.md`,
+  `the-edge-model.md`, `the-sacred-boundary.md` (details + proposed completed-format front-matter in
+  `docs/audits/corpus-state-audit-2026-07.md` §4). Because `/graduate` refuses any note not `ratified`,
+  these cannot advance until their status is corrected **by hand at the blessing gate** (owner-only,
+  §10 — the design-note surface is owner-gated even for a builder). Apply the audit §4 front-matter to
+  this cohort? **Interaction:** bp-005 (in-progress) prepends *missing* front-matter at `status: draft`
+  and explicitly never writes `ratified`; it targets notes *lacking* front-matter, disjoint from this
+  cohort (which has stale-but-present status) — so the two do not collide, and `ratified` stays your
+  hand in both.
+- default_if_unanswered: the cohort keeps its stale status and stays ungraduatable. Parks as finding-0010;
+  re-entry — owner applies the §4 status by hand, or a `/graduate` attempt is blocked by a stale
+  non-`ratified` status on a note whose work is done.
+- answer:
+
+---
+
+## oq-0005 — Apply the edge/supersession note↔code reconciliations (incl. the drafted `recursive-strata-amendment`)?
+- status: open
+- origin: docs/findings/finding-0013.md
+- blocking: false
+- question: Five citation-verified note/plan↔code contradictions in the edge/supersession area, several
+  on load-bearing (Invariant-2-adjacent) partition claims: (1) `the-edge-model.md` §3 presents assertion
+  authority as a per-edge typed field that doesn't exist — Item 7 realized it as store-identity; (2)
+  `recursive-strata.md:45` cites a `SUPERSEDES` rel-type that was **removed** ("Do not re-add") — exactly
+  the fix the already-drafted `recursive-strata-amendment.md` §1 makes, still unapplied; (3) "EdgeStore
+  refuses supersedes" (edge plan + `build.py:149`) is literally false — the store accepts any `rel_type`;
+  the real protection is *no writer + no handle* (sound, tested), so the wording invites a future edit to
+  rely on a guarantee that isn't there; (4)(5) two stale status/tracking lines. Ratify+apply the drafted
+  `recursive-strata-amendment.md` (§1/§5) and reconcile the three wordings at the blessing gate
+  (owner-only — all fall on denylisted design-note/plan surfaces)? Item (5) alone (the `DERIVED_STRATUM`
+  PROGRESS line) is orchestrator-writable and is being corrected in this triage's checkpoint.
+- default_if_unanswered: the contradictions persist; the "store refuses" overclaim remains a latent hazard
+  (a future edit could lean on a guard that isn't there). Parks as finding-0013; re-entry — owner applies
+  the edits, or a builder relies on the false "EdgeStore refuses" guarantee.
+- answer:
+
+---
+
+## oq-0006 — Close the Invariant-2 import-firewall asymmetry and confirm which CI enforces it?
+- status: open
+- origin: docs/findings/finding-0014.md
+- blocking: false
+- question: Invariant 2 ("network and private data never share a component; only `edge/` touches the
+  network, never the vault") is enforced structurally by `ops/import_lint.py`, but asymmetrically:
+  **core → edge/network** is comprehensively linted (test + a dedicated GitHub CI job), while
+  **edge → core/vault** has no blanket static lint (only `edge/effectors/**` is narrowly barred; nothing
+  stops `edge/interface`, `edge/monitor`, `edge/bridge` from importing `core`). Separately, `.gitlab-ci.yml`
+  runs SAST/secret-detection/semantic-release but **no `import-firewall` job** — so if GitLab is
+  authoritative, structural enforcement of this non-negotiable rides solely on the pytest integrity gate.
+  Rule on: (a) add a `scan_edge` mirror barring `edge → core/vault` (the thinner-net, private-data-leak
+  direction), and (b) which CI host is canonical + ensure `import-firewall` runs there (add to
+  `.gitlab-ci.yml`, or confirm GitHub Actions is authoritative)? May graduate to a small builder task once
+  ruled.
+- default_if_unanswered: the one-directional lint stands; the edge→vault direction stays covered only by
+  the pytest integrity gate on whichever host runs it. Parks as finding-0014; re-entry — owner rules, or
+  an `edge/` module importing `core`/vault slips past because the authoritative CI didn't run the lint.
+- answer:
+
+---
+
+## oq-0007 — Give the tracking surfaces an explicit *built vs deployed vs wired* distinction (a wiring board)?
+- status: open
+- origin: docs/findings/finding-0020.md (umbrella; facets: finding-0011, -0012, -0015, -0016, -0019)
+- blocking: false
+- question: Across the corpus, "complete" consistently means *built/deployed*, not *wired-into-the-live-loop*,
+  but the terse summary surfaces (`CHANGELOG.md`, `README.md`, the archive Phase-10 roll-up) don't carry that
+  distinction, so a reader materially overestimates the running system. Code-verified overclaims: "Phase 8
+  Complete / research airlock (live)" — no live driver (finding-0019); "Vault Production … to access cloud" —
+  nothing consumes Vault on the daemon; "WIRED ceiling ε = SENSING" — no effector wired at any tier
+  (finding-0011); drift gauge A1 "keystone COMPLETE" — inert live, only the boot-time fingerprint conjunct
+  runs (finding-0015); execution/agency substrate present but undriven (finding-0016); supersession/dialogue
+  machinery dormant (finding-0012). The current `docs/PROGRESS.md` is itself honest/self-correcting; the
+  overclaim lives in the summaries. Each of those findings offers an "OR annotate as dormant/not-wired" cheap
+  path — this question is that shared decision. Introduce an explicit **built / deployed / wired** distinction
+  — a dedicated wiring board, or annotate the summaries — and in what form? (The *building* of the missing
+  drivers — Track D, A2, Item 8 — is normal roadmap sequencing, tracked separately, not this question.)
+- default_if_unanswered: the summaries stay as-is; `docs/PROGRESS.md` remains the honest source and this
+  triage's checkpoint records the specific overclaims in one place, but CHANGELOG/README still read as
+  "wired." Parks as finding-0020 (with 0011/0012/0015/0016/0019 folded); re-entry — owner picks the
+  annotation form, or a reader/agent is again misled by a summary surface.
+- answer:
+
+---
+
+## oq-0008 — The research airlock: give it a design record, wire-or-defer its driver, and rule on the ahead-of-code Vault provisioning?
+- status: open
+- origin: docs/findings/finding-0019.md
+- blocking: false
+- question: The research airlock (BUILD-SPEC §16) is a substantial built + tested + **AWS-deployed**
+  subsystem spanning four tiers (`core/research/*`, `edge/bridge/*`, `cloud/fetcher/*`, `cloud/terraform/*`)
+  that the 2026-07 corpus audit missed entirely (its cloud tier was outside the audit's scope —
+  finding-0018). **Not wired:** `build_bridge` raises without `[airlock] s3_bucket` (unset here); nothing on
+  the live path calls `emit`/`collect`/`rank_literature`; the `"research"` router-kind has no handler.
+  Separately, `ops/vault/policies/{correlator,dreamer}.hcl` provision a Vault `correlator` role reading
+  `oura-daily-aggregates` for a biometric pipeline that **has no implementation** — deployed access for code
+  that doesn't exist yet (a latent surface). Rule on: (a) give the airlock a design note (or an explicit
+  BUILD-SPEC §16 cross-reference in the corpus index) so it isn't invisible to future audits; (b) wire the
+  live driver (`research_criteria → emit → bridge → collect → rank_literature`) or explicitly defer it with a
+  re-entry marker; (c) whether the correlator/biometric Vault provisioning should precede its implementation.
+- default_if_unanswered: the airlock stays deployed-but-undriven and unindexed, and the ahead-of-code Vault
+  role stays provisioned. Parks as finding-0019; re-entry — owner rules (a)/(b)/(c), or the next corpus audit
+  re-misses the subsystem for lack of a design record.
+- answer:
+
+---
+
+## oq-0009 — Catalogue or prune the orphan `docs/research/planar_graphs.md`?
+- status: open
+- origin: docs/findings/finding-0017.md
+- blocking: false
+- question: `docs/research/planar_graphs.md` is an external survey with **no implementation target** (grep for
+  `planar|kuratowski|genus|planariz|fary|boyer|myrvold` across the source tree returns 0), is **not catalogued
+  in `docs/README.md`** (which lists the other two research notes), and its "topology" framing name-collides
+  with `core/complex/topology.py`, which implements a *different* body of math (persistent homology / Vietoris–
+  Rips) — a genuine trip hazard given how central `core/complex/` is. Both research surveys are also statusless
+  (no front-matter). Catalogue it in `docs/README.md` with an explicit "background reference, not a spec" line
+  (as `un-represent-ability.md` already carries), or prune it? Optionally add minimal front-matter to both
+  surveys for uniform headers. (bp-005 may add that front-matter under `docs/research/**` at `status: draft`;
+  the catalogue-or-prune call is yours.)
+- default_if_unanswered: the orphan stays uncatalogued with its name-colliding subject. Parks as finding-0017;
+  re-entry — owner decides catalogue-or-prune.
+- answer:
+
+---

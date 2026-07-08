@@ -1,12 +1,12 @@
 ---
 type: finding
 id: finding-0009
-status: open
+status: routed
 ftype: discovery
 origin_plan: null            # surfaced in /triage while regularizing bp-002/bp-003, not a build session
 route: orchestrator
 created: 2026-07-06
-updated: 2026-07-06
+updated: 2026-07-08
 links:
   - .claude/hooks/_lib.py (cmd_gate_check L313-331; Stop-gate paths _blessing_in_diff / _untracked_blessing)
   - docs/design-notes/agent-workflow.md (§6 blessing-detection contract; §10 owner-only gates)
@@ -15,6 +15,8 @@ links:
 ---
 
 # finding-0009 — A plan flipped `proposed → complete` (or `→ in-progress`) escapes the readiness blessing
+
+> **Triage 2026-07-08 (/triage):** routed → orchestrator. Design-changing spec-defect → **promotion proposed as amendment A7** (warrant this finding), batched for owner ratification at `owner-questions.md` **oq-0003**; flips to `promoted` on owner acceptance, then a builder lands the `_lib.py` change (as bp-002/bp-004 did). Re-entry per §"Recommended direction" below.
 
 ## Observation
 

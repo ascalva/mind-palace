@@ -1,19 +1,21 @@
 ---
 type: finding
 id: finding-0018
-status: open
+status: resolved
 created: 2026-07-06
-updated: 2026-07-06
+updated: 2026-07-08
 links:
   - docs/audits/corpus-state-audit-2026-07.md
   - docs/audits/corpus-state-audit-2026-07-verification.md
 ftype: discovery
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: "Self-resolved (2026-07-08 /triage): the methodology correction — derive the source-dir set empirically (enumerate every top-level entry, classify SOURCE/NOISE, never accept a fixed allowlist including a prompt's) and reconcile cross-cluster contradictions (esp. flag-off vs live) before assigning a WIRED verdict — is captured and applied in docs/audits/corpus-state-audit-2026-07-verification.md, to be read alongside the original audit. No system code change and no owner decision required. The scope defect damaged completeness (it missed the AWS-deployed research airlock → finding-0019), not correctness (zero spurious findings, zero wrong negatives)."
 ---
 
 # finding-0018 — The corpus audit ran with a directory-scope defect and at least one rigor error; the audit procedure must derive its scope empirically
+
+> **Triage 2026-07-08 (/triage):** **resolved** — the methodology fix is captured and applied in `docs/audits/corpus-state-audit-2026-07-verification.md` (derive the source-dir set empirically; reconcile flag-off-vs-live before a WIRED verdict). No system code change and no owner decision required; see `resolution` in front-matter.
 
 ## What
 The corpus-state audit (`docs/audits/corpus-state-audit-2026-07.md`) was produced with

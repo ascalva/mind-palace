@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0013
-status: open
+status: routed
 created: 2026-07-06
-updated: 2026-07-06
+updated: 2026-07-08
 links:
   - docs/design-notes/the-edge-model.md
   - docs/design-notes/recursive-strata.md
@@ -18,6 +18,8 @@ resolution: null
 ---
 
 # finding-0013 — Edge / supersession notes and plans assert mechanisms the code realizes differently or not at all
+
+> **Triage 2026-07-08 (/triage):** routed → orchestrator. Owner-gated note↔code reconciliation (incl. ratify+apply the drafted `recursive-strata-amendment.md` §1/§5) batched to `owner-questions.md` **oq-0005**. The one orchestrator-writable item — the stale `DERIVED_STRATUM` PROGRESS line (item 5) — is corrected in this triage's checkpoint. Re-entry per §Re-entry condition below.
 
 ## What
 Five concrete note/plan ↔ code contradictions in the edge/supersession area, all

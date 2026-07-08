@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0012
-status: open
+status: routed
 created: 2026-07-06
-updated: 2026-07-06
+updated: 2026-07-08
 links:
   - docs/design-notes/dialogue-ingest-and-recursion.md
   - docs/design-notes/supersession-lifecycle.md
@@ -16,6 +16,8 @@ resolution: null
 ---
 
 # finding-0012 — The supersession / dialogue-recursion dynamics are specified but wholly dormant
+
+> **Triage 2026-07-08 (/triage):** routed → orchestrator. **Parked pending the forward build (Item 8** — blessing gate + `proposed → certified` + disposition authority + an active-projection consumer of `superseded()`) — normal roadmap sequencing, not a discrete owner question. Its cheaper "annotate the three notes as dormant-pending-Item-8" alternative folds into `owner-questions.md` **oq-0007**. Re-entry per §Re-entry condition below.
 
 ## What
 Three DRAFT notes specify machinery that is unreachable from any live entry point:

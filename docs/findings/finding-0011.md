@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0011
-status: open
+status: routed
 created: 2026-07-06
-updated: 2026-07-06
+updated: 2026-07-08
 links:
   - docs/design-notes/hands-and-the-effector-layer.md
   - docs/PROGRESS.md
@@ -15,6 +15,8 @@ resolution: null
 ---
 
 # finding-0011 — "Wired ceiling ε = SENSING" overstates: no effector is wired into any live path
+
+> **Triage 2026-07-08 (/triage):** routed → orchestrator. Corrected in-triage where the orchestrator owns the surface — the project memory note and this triage's PROGRESS checkpoint now state "effectors cataloged but **not** wired; max reachable tier NONE; `[effectors] enabled=false`." The remaining owner-gated design-note (`hands-and-the-effector-layer.md` §10) reword folds into the built-vs-wired umbrella `owner-questions.md` **oq-0007**. Re-entry per §Re-entry condition below.
 
 ## What
 The tracking record (`docs/PROGRESS.md:1085-1087`), project memory, and

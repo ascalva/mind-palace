@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0016
-status: open
+status: routed
 created: 2026-07-06
-updated: 2026-07-06
+updated: 2026-07-08
 links:
   - docs/design-notes/wasm-sandbox-runtime.md
   - docs/design-notes/skills-and-scope.md
@@ -16,6 +16,8 @@ resolution: null
 ---
 
 # finding-0016 — The execution / agency substrate is present and tested but nothing in the live system drives it
+
+> **Triage 2026-07-08 (/triage):** routed → orchestrator. **Parked pending the forward build (Track D correlator / sandbox-driver** — the live path that mints an agent and executes through the broker) — normal roadmap sequencing. Its accuracy facet folds into `owner-questions.md` **oq-0007**. Re-entry per §Re-entry condition below.
 
 ## What
 Several capability substrates exist and are tested, but have no live driver — the

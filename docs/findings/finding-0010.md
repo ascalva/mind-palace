@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0010
-status: open
+status: routed
 created: 2026-07-06
-updated: 2026-07-06
+updated: 2026-07-08
 links:
   - docs/design-notes/verdict-authority.md
   - docs/design-notes/vault-runtime-auth.md
@@ -19,6 +19,8 @@ resolution: null
 ---
 
 # finding-0010 — A cohort of design notes carry stale self-status that understates built + wired reality
+
+> **Triage 2026-07-08 (/triage):** routed → orchestrator. Owner-gated design-note status hygiene batched to `owner-questions.md` **oq-0004** (apply the audit §4 completed-format front-matter to the BUILT & WIRED cohort by hand at the gate). Disjoint from bp-005, which adds *missing* front-matter at `draft` and never writes `ratified`. Re-entry per §Re-entry condition below.
 
 ## What
 Multiple design notes carry a self-declared status ("design only", "not

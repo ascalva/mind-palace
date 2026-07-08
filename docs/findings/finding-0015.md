@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0015
-status: open
+status: routed
 created: 2026-07-06
-updated: 2026-07-06
+updated: 2026-07-08
 links:
   - docs/design-notes/alignment-subsystem.md
   - eval/drift.py
@@ -15,6 +15,8 @@ resolution: null
 ---
 
 # finding-0015 — The alignment "keystone" (drift gauge) is built but largely inert on the live path
+
+> **Triage 2026-07-08 (/triage):** routed → orchestrator. **Parked pending the forward build (A2** — periodic structural detection + the alignment report + wiring `measure_drift()` into a scheduled/monitor path) — normal roadmap sequencing. Its accuracy facet (the "keystone COMPLETE" overclaim) folds into `owner-questions.md` **oq-0007**. Re-entry per §Re-entry condition below.
 
 ## What
 `alignment-subsystem.md` §2/§7 specifies the drift gauge `D(t) = d(μ(s_t), B)` is

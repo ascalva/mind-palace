@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0019
-status: open
+status: routed
 created: 2026-07-06
-updated: 2026-07-06
+updated: 2026-07-08
 links:
   - docs/BUILD-SPEC.md
   - docs/design-notes/observed-iot-and-cross-source-synthesis.md
@@ -16,6 +16,8 @@ resolution: null
 ---
 
 # finding-0019 — The research airlock is a fully-built, AWS-deployed subsystem with no design note and no live driver — missed entirely by the prior audit's scope
+
+> **Triage 2026-07-08 (/triage):** routed → orchestrator. Deployed-subsystem design-record + wire-or-defer + ahead-of-code Vault-provisioning decisions batched to `owner-questions.md` **oq-0008** (item (c) is security-adjacent). Re-entry per §Re-entry condition below.
 
 ## What
 The **research airlock** (BUILD-SPEC §16) is a substantial built + tested +

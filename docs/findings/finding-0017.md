@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0017
-status: open
+status: routed
 created: 2026-07-06
-updated: 2026-07-06
+updated: 2026-07-08
 links:
   - docs/research/planar_graphs.md
   - docs/research/un-represent-ability.md
@@ -16,6 +16,8 @@ resolution: null
 ---
 
 # finding-0017 — docs/research/planar_graphs.md is an uncatalogued orphan; both research surveys are statusless
+
+> **Triage 2026-07-08 (/triage):** routed → orchestrator. Corpus-hygiene owner call (catalogue-as-background-ref vs prune; optional front-matter on both surveys) batched to `owner-questions.md` **oq-0009**. Re-entry per §Re-entry condition below.
 
 ## What
 `docs/research/planar_graphs.md` is an external survey with no implementation target

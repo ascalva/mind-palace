@@ -1704,3 +1704,53 @@ graduate dry-run) and finding-0007 terminal. Both journals now sealed; working t
 **Decisions.** oq-0002 answered → **swept** (this checkpoint is the sweep). No agent performed a
 blessing — the owner supplied both `proposed → ready` blessings by hand; the orchestrator did only
 the agent-legal `ready → complete` flips + seals.
+
+---
+
+## Reflection sweep — the 2026-07 corpus-audit findings routed (2026-07-08, /triage)
+
+Cleared the 13-finding unswept backlog (the 2026-07 corpus audit + verification cohort). Orchestrator
+single-writer actions only — no design-note edit, no blessing flip; every design change is drafted for
+the owner at the blessing gate.
+
+**Routed (12 open → `routed`; 1 `resolved`).** finding-0009 → oq-0003 (**A7**, the `proposed →
+{in-progress,complete}` egress-gate hole — promotion proposed, warrant-linked). 0010 → oq-0004
+(design-note status hygiene). 0013 → oq-0005 (edge/supersession note↔code reconciliations + ratify the
+drafted `recursive-strata-amendment`). 0014 → oq-0006 (Invariant-2 firewall asymmetry + CI topology).
+0017 → oq-0009 (planar_graphs orphan). 0019 → oq-0008 (airlock design-record + driver + ahead-of-code
+Vault provisioning). 0020 → oq-0007, the **built-vs-deployed-vs-wired umbrella**, folding the accuracy
+facets of 0011/0012/0015/0016/0019. Parked-pending-forward-build (no owner question; roadmap
+sequencing): 0012 (Item 8), 0015 (A2), 0016 (Track D). **finding-0018 → `resolved`** — its audit-method
+fix (derive source-dir scope empirically; reconcile flag-off-vs-live before a WIRED verdict) is already
+captured + applied in `docs/audits/corpus-state-audit-2026-07-verification.md`; no code change.
+
+**Batched.** 7 owner questions (oq-0003 … oq-0009) in `docs/inbox/owner-questions.md`, each
+warrant-linked with a `default_if_unanswered` that degrades to the origin finding's parked state (§10) —
+none blocking.
+
+**Two accuracy corrections the orchestrator owns (recorded here, honestly, in one place — findings
+0011 / 0013(5) / 0015 / 0020):** the terse tracking surfaces conflate *built/deployed* with
+*wired-into-the-live-loop*. Setting the record straight for the specific code-verified overclaims:
+- **Effectors (Track G):** cataloged but **NOT wired** — no live entry point constructs any effector;
+  the max effector tier reachable in the live/default config is **NONE**, not SENSING
+  (`[effectors] enabled=false`; "ε = SENSING" is only the `EffectView` default ctor arg, and nothing
+  live constructs an `EffectView`). Supersedes the "WIRED ceiling ε = SENSING" phrasing at `:1085-1087`.
+- **`DERIVED_STRATUM` (finding-0013 item 5):** the earlier note that the reservation "was undone; the
+  enum has no such label" is stale — `core/provenance.py` still reserves `DERIVED_STRATUM`.
+- The drift gauge (A1) and the agency substrate are **built but inert/undriven live** (findings
+  0015/0016); the honest built-vs-wired distinction for the CHANGELOG/README summaries awaits the
+  owner's chosen form (oq-0007). `docs/PROGRESS.md` remains the self-correcting source of truth.
+
+**Not swept / not done here.** No plan newly `complete` → nothing sealed (bp-005 is `in-progress` —
+corpus front-matter conversion; write_scope includes `docs/design-notes/**` (owner-lifted) and
+`docs/findings/**`, disjoint from this sweep's already-front-mattered orchestrator-domain findings).
+No owner question newly answered → nothing folded back. finding-0021 stays `routed` (its enrichments
+land at the pending edge-model / supersession-lifecycle / founding-corpus ratification passes; its
+`supersession-recovery-evaluation.md` draft awaits ratification).
+
+**Book debt.** `docs/book/` is unscaffolded (no `SYNC.md`); the first `/scribe` sync plan is still
+pending (§12). Many notes have ratified/superseded since — book debt is the whole book. Offered to the
+owner, not auto-run.
+
+**Next.** Owner works `owner-questions.md` (oq-0003 … oq-0009); unanswered ones stay safely parked.
+Roadmap-parked findings (0012/0015/0016) re-enter with their forward builds (Item 8 / A2 / Track D).

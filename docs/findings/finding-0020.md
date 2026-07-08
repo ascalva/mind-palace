@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0020
-status: open
+status: routed
 created: 2026-07-06
-updated: 2026-07-06
+updated: 2026-07-08
 links:
   - CHANGELOG.md
   - README.md
@@ -16,6 +16,8 @@ resolution: null
 ---
 
 # finding-0020 — The tracking record overclaims operational reality: built/deployed subsystems are logged as "complete / live / wired"
+
+> **Triage 2026-07-08 (/triage):** routed → orchestrator. **The built-vs-deployed-vs-wired umbrella** → `owner-questions.md` **oq-0007**, folding the accuracy facets of findings 0011/0012/0015/0016/0019. This triage's PROGRESS checkpoint records the specific code-verified overclaims in one honest place pending the owner's chosen annotation form. Re-entry per §Re-entry condition below.
 
 ## What
 The terse tracking surfaces — the root `CHANGELOG.md` one-liners, the Phase-10 /
