@@ -5,13 +5,13 @@ status: draft
 created: 2026-07-06
 updated: 2026-07-06
 links:
-  - docs/findings/finding-0021.md                  # warrant: the episode + ground truth
-  - docs/audits/archive-recommendation.md          # source of the labeled set
+  - docs/findings/finding-0021.md # warrant: the episode + ground truth
+  - docs/audits/archive-recommendation.md # source of the labeled set
   - docs/design-notes/supersession-lifecycle.md
   - docs/design-notes/the-edge-model.md
-  - docs/design-notes/dream-phase-rnd-charter.md   # the flag-gated lane this runs in
-  - docs/design-notes/dreamer-quality-suite-evaluation.md  # the harness family this joins
-  - docs/design-notes/holistic-testing-and-emergent-behavior.md
+  - docs/design-notes/dream-phase-rnd-charter.md # the flag-gated lane this runs in
+  - docs/design-notes/dreamer-quality-suite-evaluation.md # the harness family this joins
+  - docs/design-notes/holistic-testing.md
 supersedes: null
 warrant: docs/findings/finding-0021.md
 ---
@@ -26,7 +26,7 @@ ground truth the system produced about itself. The corpus-maintenance pass of
 documented high-overlap negatives across the design-note corpus. The test: given
 that corpus **with all supersession information scrubbed**, does the Dreamer
 propose the same (or defensibly similar) edges — and, harder, does it correctly
-*decline* to propose edges for the additive pairs?
+_decline_ to propose edges for the additive pairs?
 
 The test built itself: the labeled set was produced by real reasoning over real
 documents, with rationales, and the owner's certify/decline decisions are the
@@ -42,7 +42,7 @@ not longitudinal); any ratification or status change to the notes under test.
 
 - **Clear expectations, self-derived.** Two positives with a difficulty gradient
   (one easy: all signals present; one hard: no chronology — same commit batch),
-  seven negatives whose *extends-vs-supersedes* discrimination is the genuinely
+  seven negatives whose _extends-vs-supersedes_ discrimination is the genuinely
   hard judgment. Expectations are written down before any run.
 - **It tests the designed pipeline shape** — cheap candidate generation over the
   graph, expensive interpreter reasoning only on the shortlist, proposals (never
@@ -63,14 +63,14 @@ A frozen copy of the design/research corpus with the answer removed. Constructio
    - prose self-declarations — "⚠️ PARTIALLY SUPERSEDED", "Supersedes …",
      "superseded by …" lines and equivalent markers → removed (the scrub list is
      a maintained pattern file, not a one-off grep);
-   - cross-references that *name the relation* (e.g. "this note replaces X") →
+   - cross-references that _name the relation_ (e.g. "this note replaces X") →
      removed; ordinary topical cross-references stay (they are legitimate fibers).
 3. **Exclude entirely** (never enter the fixture): `docs/audits/**` (both audit
    reports and the archive-recommendation contain the full answer),
    `docs/findings/**` (0021 and others state the answers), this note itself, and
    any PROGRESS/CHANGELOG material describing the supersessions.
 4. **Freeze.** The fixture is a pinned snapshot with a recorded source ref —
-   golden-set *discipline* (frozen, versioned, never casually edited) but **not**
+   golden-set _discipline_ (frozen, versioned, never casually edited) but **not**
    in `eval/golden/**`, which is denylisted and owned by a different suite. Home:
    its own fixture path (e.g. `eval/supersession_recovery/fixture/`), decided at
    graduation.
@@ -87,10 +87,10 @@ Machine-readable (JSON/YAML), versioned beside the fixture:
 
 - **Positives** — each: source note id, target note id, direction, expected
   granularity ("partial — subset of claims" vs "full"), the signal profile it
-  should be discoverable from (the hard case must be findable *without*
+  should be discoverable from (the hard case must be findable _without_
   chronology), and the certifying verdict reference.
 - **Negatives** — each: the pair, the expected non-edge, and the rationale class
-  (`extends` / `complementary` / `amendment-pending` / `orphan`) — because *why*
+  (`extends` / `complementary` / `amendment-pending` / `orphan`) — because _why_
   a pair is not a supersession is part of what a correct proposal channel must
   articulate.
 - **Append protocol** — each future owner-certified supersession (and each
@@ -131,12 +131,12 @@ from one it finds in 5 of 5.
   a naive candidate machine over-fires.
 - **Falsifiers (per the field-guide discipline):**
   - proposing supersession for any of the seven additive pairs → the candidate
-    machinery cannot distinguish *extends* from *supersedes* as designed;
+    machinery cannot distinguish _extends_ from _supersedes_ as designed;
   - missing **both** positives in every run → no recovery signal at this scale
     (recorded as such, with re-entry — not as terminal failure; n=2 is
     calibration, not validation);
-  - Condition B scoring **identical** to Condition D on the positives *with the
-    leak check somehow green* → suspect a leak the pattern file missed; audit the
+  - Condition B scoring **identical** to Condition D on the positives _with the
+    leak check somehow green_ → suspect a leak the pattern file missed; audit the
     fixture before believing the result.
 - A null or messy result is recorded "no signal at this scale," re-entry: the
   answer key reaching N certified cases (N set at graduation).
@@ -147,14 +147,14 @@ This joins the existing evaluation family, not Track L:
 
 - Runs offline, against the frozen fixture, in CI or on demand — the
   dreamer-quality-suite tier (CI-only is the honest current state of that suite,
-  per the corpus audit) and/or the holistic-testing *emergent* tier, which is
+  per the corpus audit) and/or the holistic-testing _emergent_ tier, which is
   currently empty and whose intended shape this matches (behavioral expectation
   over a whole subsystem, not a unit assertion).
 - Test entry point produces: the leak-check result, per-condition per-case table,
   k-run agreement, and the headline (hard-positive recovery; negative
   discrimination rate).
 - No dependency on Track L, the shadow runner, or verdict-taxonomy ratification —
-  this is precisely the evaluation that can run *before* those exist, on
+  this is precisely the evaluation that can run _before_ those exist, on
   self-knowledge ground truth.
 
 ## 8. Math carried
@@ -182,15 +182,15 @@ edge-model/supersession notes, ratified there, not here.
   the cheap combinatorial instruments already built? (Default recorded: overlap
   only; instruments are a v2 ablation.)
 - **Q3** — k (runs per condition) and the agreement threshold for "found."
-- **Q4** — whether Condition B also ingests a scrubbed copy of the *musings*
+- **Q4** — whether Condition B also ingests a scrubbed copy of the _musings_
   once the founding corpus lands — the owner's original hope: connections found
   between musings and design notes, not just design-note pairs. (Default: v2,
   after founding; the design-note-only v1 stands alone.)
 
 ## 11. Parked decisions
 
-| Decision | Default recorded | Re-entry condition |
-|---|---|---|
-| Instrument-scored candidates (curvature/frustration in `s(C,D)`) | Overlap-only v1 | Item 10's own re-entry (Track L live + verdict taxonomy ratified) |
-| Claim-level (set-to-set) scoring of partial supersessions | Note-level pairs in v1 | Founding-corpus Q3 resolved to decomposed claims + claim-level store support |
-| Musings in the blind corpus | Design notes + research only | Founding corpus ingested with reconstructed dates |
+| Decision                                                         | Default recorded             | Re-entry condition                                                           |
+| ---------------------------------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------- |
+| Instrument-scored candidates (curvature/frustration in `s(C,D)`) | Overlap-only v1              | Item 10's own re-entry (Track L live + verdict taxonomy ratified)            |
+| Claim-level (set-to-set) scoring of partial supersessions        | Note-level pairs in v1       | Founding-corpus Q3 resolved to decomposed claims + claim-level store support |
+| Musings in the blind corpus                                      | Design notes + research only | Founding corpus ingested with reconstructed dates                            |
