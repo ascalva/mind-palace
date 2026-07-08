@@ -1,3 +1,15 @@
+---
+type: research
+id: rn-security-planes
+status: draft
+created: 2026-07-03
+updated: 2026-07-04
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Security Planes
 
 **Status:** Draft for review. Parked items carry explicit re-entry conditions.

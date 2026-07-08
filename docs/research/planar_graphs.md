@@ -1,3 +1,15 @@
+---
+type: research
+id: rn-planar_graphs
+status: draft
+created: 2026-07-03
+updated: 2026-07-03
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Executive Summary  
 
 Planar graphs – graphs drawable in the plane without edge crossings – have a rich theory (e.g. Kuratowski’s and Wagner’s theorems) and many special properties.  Equivalently, a graph is planar if it can be *embedded* on a 2D surface (sphere) so edges meet only at common endpoints.  Extending this, any graph can be embedded without crossings in 3D (or higher) space.  In practice one can **project** a 3D (or higher-D) embedding to 2D to attempt a crossing-free drawing: if the graph is truly nonplanar, some crossings will appear.  Graph drawing research therefore studies *planarization* and crossing minimization: one finds a large planar subgraph, draws it, and then re-inserts the remaining edges (often via dummy vertices).  

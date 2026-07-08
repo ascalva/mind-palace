@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-supersession-lifecycle
+status: draft
+implementation: partial   # corpus-audit 2026-07 verification
+created: 2026-07-04
+updated: 2026-07-04
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Supersession Lifecycle — States, Gate, Grounding Maintenance, and Decay
 
 **Status:** DRAFT — pending codebase reconciliation and owner ratification

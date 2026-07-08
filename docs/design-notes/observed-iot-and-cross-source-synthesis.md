@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-observed-iot-and-cross-source-synthesis
+status: draft
+implementation: partial   # corpus-audit 2026-07 verification
+created: 2026-06-27
+updated: 2026-07-01
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — Observed IoT sources + cross-source synthesis
 
 *Family tag → family 1 (the observed label) + family 5 (cross-source synthesis): IoT/observed data kept out of the mirror; the correlator as a capability distinct from the Dreamer. See [`../NOTATION.md`](../NOTATION.md).*

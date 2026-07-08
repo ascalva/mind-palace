@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-alignment-subsystem
+status: draft
+implementation: partial   # corpus-audit 2026-07 verification
+created: 2026-06-27
+updated: 2026-07-01
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — Alignment as a subsystem: seeding, detection, surgery, reset (Phase 10 expansion)
 
 *Family tag → family 4 (metric geometry): alignment as fidelity of the regenerable layer to the frozen seed — the drift gauge D(t), the fixed points B/Θ, and the detect→surgery→reset loop. See [`../NOTATION.md`](../NOTATION.md).*

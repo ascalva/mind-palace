@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-dreamer-quality-suite-evaluation
+status: draft
+implementation: built-wired   # corpus-audit 2026-07 verification
+created: 2026-06-29
+updated: 2026-07-01
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — Evaluation: the dreamer output-quality suite (signal-vs-noise)
 
 *Family tag → family 5 (the reasoning complex), measured with family 4 (metric geometry): output-quality (signal-vs-noise) of the Dreamer, distinct from output-safety. See [`../NOTATION.md`](../NOTATION.md).*

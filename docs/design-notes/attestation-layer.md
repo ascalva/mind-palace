@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-attestation-layer
+status: draft
+implementation: partial   # corpus-audit 2026-07 verification
+created: 2026-06-27
+updated: 2026-07-01
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — Attestation layer: verifiable chain of custody for agent actions
 
 *Family tag → family 2 (regenerable derivation): an attestation chain is a signed path in the derivation DAG, terminating in authored leaves. See [`../NOTATION.md`](../NOTATION.md).*

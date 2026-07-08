@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-recursive-strata
+status: draft
+implementation: partial   # corpus-audit 2026-07 verification
+created: 2026-07-03
+updated: 2026-07-04
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Recursive Strata: The Dreamer as a Map on Complexes
 
 **Status:** Parked. Design captured; no implementation.

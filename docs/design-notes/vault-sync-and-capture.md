@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-vault-sync-and-capture
+status: draft
+implementation: built-wired   # corpus-audit 2026-07 verification
+created: 2026-06-26
+updated: 2026-07-01
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — Vault sync & capture: the owner's path to feed the system
 
 *Family tag → family 2 (regenerable derivation): incremental, idempotent, content-addressed re-ingest (unchanged=no-op, changed=re-embed, delete=tombstone, raw kept) + authored/dialogue capture (a family 1 label). See [`../NOTATION.md`](../NOTATION.md).*

@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-dreaming-on-curated-graphs
+status: draft
+implementation: not-built   # corpus-audit 2026-07 verification
+created: 2026-06-26
+updated: 2026-07-01
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — Dream R5: curated-graph dreaming + cross-graph resonance
 
 *Family tag → family 5 (the reasoning complex) over a family 1 label: dreaming on the curated graph (curated ∉ MIRROR_READABLE — the firewall holds) + cross-graph resonance. R&D, flag OFF. See [`../NOTATION.md`](../NOTATION.md).*

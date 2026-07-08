@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-roadmap-and-future-directions
+status: draft
+implementation: partial   # corpus-audit 2026-07 verification
+created: 2026-06-25
+updated: 2026-07-01
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — Roadmap & future directions (post-Phase-10 areas of interest)
 
 *Family tag → cross-cutting: post-Phase-10 directions spanning all families; each area notes its provenance/zone (family 1) implications. See [`../NOTATION.md`](../NOTATION.md).*

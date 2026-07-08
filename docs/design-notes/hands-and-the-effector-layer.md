@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-hands-and-the-effector-layer
+status: draft
+implementation: present-not-wired   # corpus-audit 2026-07 verification
+created: 2026-07-01
+updated: 2026-07-04
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Hands and the Effector Layer — Track G
 ### Design note · reframed with the reasoning-complex mathematics (companions III–IV)
 

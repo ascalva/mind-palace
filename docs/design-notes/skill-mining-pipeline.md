@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-skill-mining-pipeline
+status: draft
+implementation: present-not-wired   # corpus-audit 2026-07 verification
+created: 2026-07-03
+updated: 2026-07-03
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # The SKILL-mining pipeline — adding a hand as a repeatable reviewed process
 
 ### Design note · Track G item G4 · companion to `hands-and-the-effector-layer.md`

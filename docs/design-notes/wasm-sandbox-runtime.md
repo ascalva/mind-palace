@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-wasm-sandbox-runtime
+status: draft
+implementation: partial   # corpus-audit 2026-07 verification
+created: 2026-06-27
+updated: 2026-07-03
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — WASM sandbox runtime (wasmtime + Pyodide)
 
 *Family tag → family 1 (labelings & flow): the sandbox is powerless — 𝒜(exec) ∩ {net, vault, cred} = ∅ (I4); a WASM runtime for pure compute. See [`../NOTATION.md`](../NOTATION.md).*

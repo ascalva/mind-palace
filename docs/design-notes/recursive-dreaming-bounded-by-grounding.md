@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-recursive-dreaming-bounded-by-grounding
+status: draft
+implementation: partial   # corpus-audit 2026-07 verification
+created: 2026-06-26
+updated: 2026-07-01
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — Recursive dreaming: compounding interpretation, bounded by grounding
 
 *Family tag → family 2 (regenerable derivation): the recursion-decay bound c ≤ γ^d·g that keeps compounding interpretation from amplifying — the acyclic derivation DAG with authored leaves (I10). See [`../NOTATION.md`](../NOTATION.md).*

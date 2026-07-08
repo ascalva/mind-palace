@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-effector-risk-computation
+status: draft
+implementation: partial   # corpus-audit 2026-07 verification
+created: 2026-07-04
+updated: 2026-07-04
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Effector Risk Computation (Track G)
 
 **Status:** DRAFT — pending codebase reconciliation and owner ratification

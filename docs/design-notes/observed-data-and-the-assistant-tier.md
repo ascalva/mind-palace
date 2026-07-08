@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-observed-data-and-the-assistant-tier
+status: draft
+implementation: partial   # corpus-audit 2026-07 verification
+created: 2026-06-25
+updated: 2026-07-01
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — Observed data, the assistant tier, and the authored/observed firewall
 
 *Family tag → family 1 (labelings & flow): the observed provenance class and the authored/observed firewall — observed exhaust is quarantined from the mirror and the §15 baselines. See [`../NOTATION.md`](../NOTATION.md).*

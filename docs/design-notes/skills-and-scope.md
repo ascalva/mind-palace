@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-skills-and-scope
+status: draft
+implementation: present-not-wired   # corpus-audit 2026-07 verification
+created: 2026-06-25
+updated: 2026-07-01
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — Skills, roles, and the scope ceiling
 
 *Family tag → family 1 (the capability semilattice): 𝒜 = scope ∩ MAX; skills are non-widening, 𝒜(a ⊕ ς) = 𝒜(a) (I13). See [`../NOTATION.md`](../NOTATION.md).*

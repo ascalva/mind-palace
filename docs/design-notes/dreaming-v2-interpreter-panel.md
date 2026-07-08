@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-dreaming-v2-interpreter-panel
+status: draft
+implementation: present-not-wired   # corpus-audit 2026-07 verification
+created: 2026-06-26
+updated: 2026-07-01
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — Dreaming v2: a panel of interpreters with evidence-based adjudication
 
 *Family tag → family 5 (the reasoning complex): a panel of interpreters over the complex with evidence-based adjudication (c = γ^d·g·(1 + λ(|Agr|−1))). See [`../NOTATION.md`](../NOTATION.md).*

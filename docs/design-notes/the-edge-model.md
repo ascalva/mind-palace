@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-the-edge-model
+status: draft
+implementation: present-not-wired   # corpus-audit 2026-07 verification
+created: 2026-07-04
+updated: 2026-07-04
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # The Edge Model — Knowledge Edges, Reasoning Paths, and Assertion Authority
 
 **Status:** DRAFT — pending codebase reconciliation and owner ratification

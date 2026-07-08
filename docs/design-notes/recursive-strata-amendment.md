@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-recursive-strata-amendment
+status: draft
+implementation: design-only   # corpus-audit 2026-07 (N/A-design-only)
+created: 2026-07-04
+updated: 2026-07-04
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Amendment Spec — `recursive-strata.md` (revised against the actual file)
 
 **Status:** DRAFT patch-spec — pending owner ratification

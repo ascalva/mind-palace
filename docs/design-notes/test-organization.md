@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-test-organization
+status: draft
+implementation: built-wired   # corpus-audit 2026-07 verification
+created: 2026-06-27
+updated: 2026-07-01
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — Test directory reorganization
 
 *Family tag → cross-cutting: test-suite organization (by execution profile) for verifying all five families. See [`../NOTATION.md`](../NOTATION.md).*

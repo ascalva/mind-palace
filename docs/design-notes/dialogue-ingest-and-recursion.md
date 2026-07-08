@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-dialogue-ingest-and-recursion
+status: draft
+implementation: present-not-wired   # corpus-audit 2026-07 verification
+created: 2026-07-04
+updated: 2026-07-04
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Dialogue Ingest, Correction Semantics, and Bounded Recursion
 
 **Status:** DRAFT — pending codebase reconciliation and owner ratification

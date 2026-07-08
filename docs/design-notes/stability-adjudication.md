@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-stability-adjudication
+status: draft
+implementation: not-built   # corpus-audit 2026-07 verification
+created: 2026-07-02
+updated: 2026-07-03
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — Stability adjudication: perturbation consensus over the reasoning complex
 
 *Family tag → family 5 (the reasoning complex): confidence from survival under nondestructive,

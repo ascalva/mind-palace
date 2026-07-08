@@ -1,3 +1,15 @@
+---
+type: research
+id: rn-un-represent-ability
+status: draft
+created: 2026-07-03
+updated: 2026-07-03
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Executive Summary  
 Strong type systems and formal methods can **eliminate entire classes of bugs** by construction – a philosophy often summed up as “make illegal states unrepresentable”.  In practice this means using language features (e.g. option types, algebraic unions, dependent/refinement types) and verification tools so that invalid combinations simply *cannot* be coded.  Advocates (and even U.S. government cybersecurity agencies) argue this dramatically improves security: for example, Microsoft reports that ~70% of its tracked security bugs are memory-safety issues that *Rust’s* compile-time checks would prevent.  Formal languages like F* carry proofs of security properties, and verified kernels like seL4 eliminate entire vulnerability categories.  
 

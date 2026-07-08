@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-live-adoption-and-longitudinal-harness
+status: draft
+implementation: not-built   # corpus-audit 2026-07 verification
+created: 2026-07-03
+updated: 2026-07-04
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Live adoption & the longitudinal harness (Track L)
 
 **Status:** design note, forward-looking. Defines the path from "reasoning-complex core built (H1–H3,

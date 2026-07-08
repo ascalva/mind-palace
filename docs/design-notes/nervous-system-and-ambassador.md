@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-nervous-system-and-ambassador
+status: draft
+implementation: partial   # corpus-audit 2026-07 verification
+created: 2026-06-28
+updated: 2026-07-01
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — The nervous system: tamper response, verification, and the Ambassador
 
 *Family tag → family 3 (guarded transition systems): the scheduler/supervisor "nervous system" (queue lifecycle, tamper response) + the Ambassador front door (family 1). See [`../NOTATION.md`](../NOTATION.md).*

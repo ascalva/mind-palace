@@ -1,3 +1,16 @@
+---
+type: design-note
+id: dn-holistic-testing
+status: draft
+implementation: partial   # corpus-audit 2026-07 verification
+created: 2026-06-27
+updated: 2026-07-01
+links: []
+supersedes: null
+superseded_by: null
+warrant: null
+---
+
 # Design note — Holistic and logic-based testing: beyond unit and integration tests
 
 *Family tag → cross-cutting: the verification strategy across all five families (the assurance hierarchy — structural > static > runtime > property > assumption). See [`../NOTATION.md`](../NOTATION.md).*
