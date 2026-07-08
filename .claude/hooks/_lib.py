@@ -31,7 +31,7 @@ from datetime import datetime, timezone
 # and notes are a separate concern handled by gate-guard.
 DENYLIST = [
     "CONSTITUTION.md",
-    # "docs/design-notes/**",
+    "docs/design-notes/**",
     "eval/golden/**",
     "eval/golden.py",
 ]
