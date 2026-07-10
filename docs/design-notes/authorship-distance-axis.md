@@ -313,6 +313,80 @@ attributable, characterized in the calibration sheet, and never mistaken for the
 sensor's own signal. A model-committed write path is prohibited for the same reason
 agents hold no live credentials. Default and re-entry recorded in §10, PD-7.
 
+**(8) The access matrix — the axis as an integrity lattice.**
+
+**(8a) The reading.** An ordered authorship coordinate plus the meet-footprint is a
+**Biba-style integrity lattice**, and naming it buys searchable vocabulary and four
+decades of known failure modes, not new machinery: the footprint rule (§3.2) is the
+**low-water-mark policy** — a derived object drops to the minimum integrity of what it
+read — and the self-model's a₀-only scope (§4.2) is **no-read-down**, enforced
+structurally by the typed `MirrorView` rather than by checks.
+
+**(8b) The inversion.** In a protection-ring OS, privilege increases toward the center.
+Here it inverts: **capability dissolves toward the center.** The layer nearest the self
+is written through the narrowest channel in the system (owner-attributable acts only)
+and read by the most restricted scope in the system (the self-model). Nothing powerful
+lives at the center; the center is where the fewest operations are representable — the
+capability-dissolution principle showing up as ring geometry. Two corollaries that keep
+the intuition precise:
+
+- **The owner is the sole a₀ authority.** No agent authors a₀; every a₀ write is an
+  owner-attributable act.
+- **Channel and authority are distinct.** The Librarian is the sole write *conduit*
+  (the ingestion channel), never an *author* — conflating the two is how "the Librarian
+  is highly privileged" misreads the design. Its actual writes are safe-shaped, per
+  (8e).
+
+**(8c) The matrix.** Per-operation, per-layer:
+
+| layer | write | read |
+|---|---|---|
+| **a₀** | ingestion channel only; every write owner-attributable (Librarian as conduit, never author) | MR consumers: self-model, synthesis, Ambassador (π_MR) |
+| **a₁** | append-only event log, recorded as a side effect of owner acts | nothing yet (§10, PD-3) |
+| **a₂** | ingestion channel only, committing outside-φ_s outputs (§3.7); raw M_s stays outside forever | declared-scope synthesis + correlator; **never** the self-model |
+| **a₃** | ingestion channel (curated ingest) | deliberate non-default scope (`provenances={CURATED}`); synthesis under declared scope |
+| **derived** | Dreamer / correlator via `DerivedStore` (provenance structurally unforgeable) | per declared scope; footprint = low-water-mark (8a) |
+
+**(8d) Two enforcement regimes — one verified at source.** The matrix is enforced by
+two different mechanisms for two different populations:
+
+- **Minted agents — the capability semilattice. Verified 2026-07-09:**
+  `PRE_DECLARED_MAX = frozenset({"run_python"})` (`core/factory/roles.py`) — **one
+  handle in the entire grantable universe**, sandboxed execution, requested only by
+  `coder` and `data_analyst`. No shell, credential, or network handle (documented,
+  deliberate: a task needing one routes to the human gate, never satisfied by minting)
+  — and **no store handle of any kind, read or write**. `RoleTemplate.__post_init__`
+  refuses construction for any scope ⊄ MAX; the dispatcher holds only in-scope handles,
+  so an out-of-scope call is *unreachable*, not checked-then-denied
+  (`core/factory/tools.py`, `ToolNotInScopeError`). For the minted population,
+  "nobody writes base layers" is therefore **vacuously structural**: touching any store
+  is outside the space of grantable things.
+- **Pipeline components — typed stores and module boundaries.** The Librarian, Dreamer,
+  and correlator are not minted agents; they hold store access as ordinary code
+  imports. Their confinement rests on the type plane: `DerivedStore`'s absent
+  provenance parameter, `MirrorView`'s typed projection, the append-only log. This
+  regime is the one with residual audit surface — B-9 — and is where the
+  foundation-file-set concept (`security-planes.md`) must cover the modules that
+  *define* these boundaries.
+
+**(8e) Why the Librarian's privilege is safe-shaped.** Its writes decompose into
+(i) **append-conduit** to the event log — owner-attributable events, never content of
+its own authorship — and (ii) **re-materialization of a regenerable, content-addressed
+index** (family 2; `ingest-identity-and-amendment.md` §§2–3, Q1 pending at source). A
+compromised Librarian corrupts a *rebuildable projection*, never ground truth — the
+privilege is real but its blast radius is bounded by regenerability. Not yet specified:
+how placement works across axis classes (OQ-D).
+
+**(8f) The Dreamer writes derived nodes and proposes edges — never base nodes, never
+certification.** "Writing an edge" is minting a derived claim, and it carries this
+note's factorization unchanged: the edge's **footprint** is the meet over its support
+(endpoints and warrant — §3.2 extends to edges without modification), while its
+**authority** is the proposed/certified status, raised only by the owner's verdict
+(`the-edge-model.md` §3; `supersession-lifecycle.md` §2). An edge between two a₀ nodes
+proposed by the Dreamer is high-footprint, zero-authority until signed. Evidence class
+and authority status are separate coordinates — the §2 factorization recurring one
+level up.
+
 ## 4. Preserved — the firewall's non-negotiables, restated structurally
 
 Nothing in this section changes. Each is a set-membership constraint, weight-free:
@@ -473,6 +547,16 @@ Read the code, then report. Do not resolve unilaterally.
   the log/index separation covers transform attribution the way it covers a₁ (§1).
   *No falsifier — placement input; but if no surface can carry it, §3.7e's "answerable
   forever" claim fails and must be weakened.*
+- **B-9. Pipeline-component access regime.** The minted-agent half of the
+  base-layer-write question is **resolved at source** (2026-07-09; citations in §3.8d)
+  and needs no builder pass. The residue: for the Librarian, Dreamer, and correlator,
+  report how each acquires its store access (`path:line` of the imports/constructors),
+  what besides module discipline confines each to its designated stores, and whether
+  the foundation file set (`security-planes.md`) covers the modules that define these
+  boundaries (`core/provenance.py`, `core/mirror.py`, `core/stores/derived.py`,
+  `core/factory/roles.py`). Overlaps B-7's write-path tracing; fold them if convenient.
+  *Falsifier for §3.8d's pipeline claim: a pipeline component able to construct a
+  base-store writer through a public constructor carrying no type or label constraint.*
 
 ## 10. Parked decisions
 
@@ -514,6 +598,13 @@ Read the code, then report. Do not resolve unilaterally.
 - **OQ-C.** Should promotion be single-step-up only (aᵢ → aᵢ₋₁) or arbitrary-up
   (aᵢ → a₀ direct)? Lean: arbitrary-up with the warrant carrying the burden — the gate
   is the owner's judgment, not the ladder. Settle at verdict-taxonomy ratification.
+- **OQ-D.** How does the Librarian place and index across axis classes — one index
+  carrying α labels, or per-class indexes? This is the `MirrorView` question one level
+  down: typed views over one store vs. separate stores. Couples to
+  `ingest-identity-and-amendment.md` Q1 (index keying, unverified at source) and to
+  (8e)'s unspecified placement mechanics. Settle before any a₂/a₃ index work begins;
+  lean: undecided — both satisfy the matrix in §3.8c, and the deciding evidence is
+  whether declared-scope reads can be made structural (B-5) under each shape.
 
 ## Cross-references
 
@@ -530,6 +621,9 @@ Read the code, then report. Do not resolve unilaterally.
   transform attribution (§3.7d).
 - `core/provenance.py` — ρ, MR, G8's retirement of the trust preorder, and the six-class
   spectrum the §2 factorization maps from. Read 2026-07-09.
+- `core/factory/roles.py`, `core/factory/tools.py` — the capability semilattice:
+  `PRE_DECLARED_MAX = {"run_python"}`, construction-time refusal of scope ⊄ MAX,
+  dispatcher unreachability of out-of-scope calls (§3.8d). Read 2026-07-09.
 - `docs/NOTATION.md` — families 1, 2, 5; c ≤ γ^d · g and the d/g definitions §3.5 extends.
 - `docs/design-notes/the-sacred-boundary.md` §2.3–§2.4, §3 — promotion gating;
   un-purchasable-by-EV; capability dissolution.
