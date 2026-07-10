@@ -3,13 +3,13 @@ type: finding
 id: finding-0025
 status: routed
 ftype: spec-defect
-origin_plan: null            # surfaced in owner–orchestrator design review, triggered by finding-0024 (bp-005 denylist collision)
+origin_plan: null # surfaced in owner–orchestrator design review, triggered by finding-0024 (bp-005 denylist collision)
 route: orchestrator
 created: 2026-07-07
 updated: 2026-07-09
 links:
-  - docs/design-notes/agent-workflow.md            # the spec this defects against / amends
-  - docs/findings/finding-0024.md                  # the collision that triggered this
+  - docs/design-notes/agent-workflow.md # the spec this defects against / amends
+  #- docs/findings/finding-0024.md  # the collision that triggered this, design note 0024 was not needed, removed.
 resolution: null
 ---
 
@@ -29,10 +29,10 @@ resolution: null
 ## Summary
 
 The foundation denylist protects `docs/design-notes/**` as a whole directory, making
-*every* design note — draft or ratified — unwritable by any agent session. This is
+_every_ design note — draft or ratified — unwritable by any agent session. This is
 the wrong axis. The invariant actually worth protecting is that the **ratified**
 design record is tamper-proof to agents; there is no reason to forbid agents from
-*creating and iterating on draft* notes. By denying the directory instead of the
+_creating and iterating on draft_ notes. By denying the directory instead of the
 status, the current guard blocks the core orchestrator workflow — brainstorm → draft
 a design note → graduate to a build plan — which is the primary reason the
 orchestrator exists. The fix is to make the guard **status-aware** (ratified/superseded
@@ -53,7 +53,7 @@ never override it — `cmd_scope_check` applies the denylist in step 1, before t
 plan-scope check), so the design-note half of bp-005 was **unexecutable by any
 agent** — the builder's Bash writes were caught by the Stop-gate and correctly
 reverted. finding-0024 framed this as "bp-005 is ill-formed." True but shallow: the
-deeper defect is that the *denylist itself* is mis-drawn, such that a whole class of
+deeper defect is that the _denylist itself_ is mis-drawn, such that a whole class of
 legitimate agent work (authoring and converting draft notes) is structurally
 impossible. bp-005 didn't ask for something wrong; it asked for something the guard
 forbids for the wrong reason.
@@ -70,9 +70,9 @@ forbids for the wrong reason.
    denylist's real rationale (`_lib.py` DENYLIST comment: "the sacred fixed points…
    the ratified design record"), and it is the same property that made this
    conversation's corpus audit trustworthy: the design record is authoritative
-   *because* no agent can silently rewrite a ratified note.
+   _because_ no agent can silently rewrite a ratified note.
 
-The location-based denylist collapses these by protecting *all* notes to preserve
+The location-based denylist collapses these by protecting _all_ notes to preserve
 property 2 — and in doing so destroys property 1. The distinction it erases is
 exactly the one the rest of the system runs on: **unblessed working material is
 agent-writable (like a build plan); a blessing is agent-immutable (like a sealed
@@ -94,7 +94,7 @@ The property worth protecting is not "this file lives in `docs/design-notes/`" b
 
 So the corrective is the same pattern as A3/A5/A6 — the guard was checking the wrong
 thing (location), and the fix makes it status-aware using machinery already built.
-The change is *more* contained than a from-scratch guard would be, because
+The change is _more_ contained than a from-scratch guard would be, because
 `is_design_note` and `status_of` already exist.
 
 ## Proposed rule (for the amendment to specify precisely)
@@ -107,7 +107,7 @@ Replace the blanket `docs/design-notes/**` denylist entry with a status-aware gu
   `status: draft`, and edit a note whose on-disk status is `draft`, subject to the
   normal plan `write_scope` check. This is a draft-write, identical in trust to
   writing a build plan. (bp-005's conversion — statusless/prose-status note → `draft`
-  front-matter — becomes a *legal* operation, not a bracketed override.)
+  front-matter — becomes a _legal_ operation, not a bracketed override.)
 - **Ratified / superseded design notes → agent-immutable.** If the note's committed
   status is `ratified` or `superseded`, no agent write is permitted — not to its
   content, and not to its status. This is the tamper-proof-record guarantee, scoped
@@ -124,7 +124,7 @@ the code shows that undersells the gap. `cmd_gate_check_hook` returns ALLOW earl
 the incoming write sets **no status line** (`new_status is None`). So `gate-guard` is
 silent on a write that edits a ratified note's **body without touching its status
 line** — which is precisely a write that must be blocked (an agent altering ratified
-*content*). Today the *denylist* catches that, because it blocks all writes to the
+_content_). Today the _denylist_ catches that, because it blocks all writes to the
 path regardless of content. Therefore: **removing the denylist and leaning on
 gate-guard would leave body-only edits of ratified notes unguarded.** The amendment
 must add a status-aware **content** guard, not merely extend gate-guard.
@@ -166,7 +166,7 @@ This asymmetry is the difference between a real guarantee and a trivially bypass
 one. It is named here because it is easy to miss; the implementer must handle both
 layers, and the Stop-side HEAD comparison is the non-obvious half.
 
-*Open sub-question for the implementer (defer — needs live-code judgment):* the
+_Open sub-question for the implementer (defer — needs live-code judgment):_ the
 cleanest mechanism for the Stop-side check — extend `_changed_files` filtering to
 consult HEAD status for design-note paths, or add a dedicated
 `_ratified_note_modified()` helper paralleling `_untracked_blessing()`, or fold it
@@ -178,6 +178,7 @@ property (HEAD-status-keyed, catches body-only laundered edits via Bash).
 ## CORRECTION 3 — the fix is small and surgical (helpers already exist)
 
 Net scope of the change, for the implementing plan to confirm and bound:
+
 - `cmd_scope_check`: replace the design-notes arm of the denylist with the
   status-aware content guard (Correction 1). `CONSTITUTION.md` / `eval/golden*`
   unchanged.
@@ -195,6 +196,7 @@ mechanism.
 
 Consistent with the existing model, and made explicit because a body-only edit is a
 new attack the denylist covered for free:
+
 - **Pre-hoc** (`cmd_scope_check`): Edit/Write to a design note allowed only if its
   on-disk status is `draft` (or the note is new); denied if `ratified`/`superseded`.
 - **Post-hoc** (`cmd_stop_audit`): a Bash-mediated modification of a note whose HEAD
@@ -205,14 +207,14 @@ new attack the denylist covered for free:
 ## How this preserves — not weakens — the guarantees
 
 - **The corpus audit's trustworthiness survives.** What made it trustworthy was that
-  *ratified* notes could not be silently altered by an agent. Under the status-aware
+  _ratified_ notes could not be silently altered by an agent. Under the status-aware
   rule that holds exactly — including against body-only and laundered edits, once
-  Corrections 1 and 2 land. Only *draft* notes become agent-writable, and a draft is
+  Corrections 1 and 2 land. Only _draft_ notes become agent-writable, and a draft is
   by definition not part of the blessed record.
 - **Ratified notes still evolve — through the accountable path, not by mutation.**
   Agent-immutability channels every change through supersession (a new note plus
   warrant) or a finding plus owner ratification — the same accountable path the
-  supersession lifecycle already prescribes. The immutability is what *forces*
+  supersession lifecycle already prescribes. The immutability is what _forces_
   evolution through that path instead of silent edits.
 - **The blessing gates are untouched.** Draft→ratified and proposed→ready remain
   owner-only.
