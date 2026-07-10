@@ -1799,3 +1799,36 @@ book," not incremental. `/scribe` on request.
 default degrades to a parked finding with re-entry. A8 (oq-0011) is the highest-leverage answer: it
 unblocks agent draft-note authoring (the graduate pipeline's mouth) and ends per-episode temp-lifts.
 No plan is `in-progress`; the board is clean for the next `/graduate` or forward-layer build.
+
+## Reflection sweep — finding-0026 routed → oq-0012 (type-checker code plane) (2026-07-10, /triage)
+
+A short sweep: one commit since the last one (`38ccc85` — owner-authored `edge-core-handoff-protocol.md`
++ `type-system-as-core-audit.md` drafts, `biometric-sensor-agent.md` research note, finding-0026, and an
+owner tidy of finding-0025's dead finding-0024 link).
+
+**Routed (1) / promotion proposed (1).** finding-0026 `open → routed` — the code plane
+(`security-planes.md`: "types enforce it") has **no enforcement**: no type checker installed or
+configured, while `ops/import_lint.py` proves the project already runs on the very
+promote-to-static-proof argument a checker generalizes. Remedy note `type-system-as-core-audit.md` is
+already drafted and warrant-linked (`warrant: finding-0026` — the three-place P/P′/warrant is in place);
+its ratification batched → **oq-0012**. On acceptance the finding flips `promoted` and the note's
+B-items become graduatable.
+
+**Convention drift noted (evidence appended to oq-0010).** `biometric-sensor-agent.md` deviates from
+bp-005's provisional research-note schema on three axes (no `rn-` id prefix, novel `family:` field,
+missing `created`/`updated`). Every new research note without a ratified schema mints a dialect —
+the reconciliation bill grows until oq-0010 is answered.
+
+**Sealed / swept: none.** No plan is non-terminal (bp-000 … bp-005 all `complete`, journals sealed);
+no owner question answered (oq-0003 … oq-0012 all open — now **10**, none blocking). finding-0021
+unchanged (`routed`; `supersession-recovery-evaluation.md` confirmed still `draft` — an earlier grep
+false-positive from body prose is corrected here for the record: **nothing has been newly ratified**).
+
+**Book debt.** Unchanged — `docs/book/` unscaffolded, first `/scribe` plan pending (§12); no new
+ratifications, so still whole-book, not incremental.
+
+**Next.** The inbox is the bottleneck: 10 open questions, all parked-safe, none blocking. Highest
+leverage remain A8 (oq-0011, unblocks agent draft-note authoring) and A7 (oq-0003, closes the gate-egress
+hole); oq-0012 is the newest blessing decision. Three owner drafts now sit at `draft` awaiting the gate
+(`edge-core-handoff-protocol`, `type-system-as-core-audit`, `authorship-distance-axis` et al.) — each
+ratification opens a `/graduate` lane.

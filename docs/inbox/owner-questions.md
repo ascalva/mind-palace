@@ -230,6 +230,11 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   either way. **Secondary decision riding along:** for all 33 converted notes, `updated:` was set to
   each note's git last-commit date, not conversion date (a metadata-only migration shouldn't rewrite a
   note's recency) — confirm, or have it redone at the same cost.
+  **Update 2026-07-10 (/triage):** the drift the finding predicted is already live — the new
+  `docs/research/biometric-sensor-agent.md` (`38ccc85`) deviates from the provisional schema on three
+  axes: `id:` lacks the `rn-` prefix, a novel `family:` field appears, and `created`/`updated` are
+  absent (`supersedes: []` vs `null`). Each new research note without a ratified schema mints its own
+  dialect; the reconciliation cost grows with every one.
 - default_if_unanswered: the provisional convention stands, unratified. Parks as finding-0023;
   re-entry — owner ratifies/replaces here, or tooling starts keying on `type:`/id-prefix (the latent
   inconsistency the finding names).
@@ -259,6 +264,29 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 - default_if_unanswered: the location denylist stands; agent draft-note authoring remains impossible
   except by per-episode owner temp-lifts. Parks as finding-0025; re-entry — owner ratifies here, or
   the next legal draft-note task forces another temp-lift.
+- answer:
+
+---
+
+## oq-0012 — Ratify `type-system-as-core-audit.md`: give the code plane its missing enforcement?
+- status: open
+- origin: docs/findings/finding-0026.md
+- blocking: false
+- question: `security-planes.md` composes three planes — types enforce the **code plane**, provenance
+  labels the data plane, object capabilities the boundary — but the code plane is enforced by nothing:
+  no type checker is installed or configured (`pyproject.toml` has no `[tool.mypy]`; dev deps are
+  pytest/ruff/hypothesis; ruff's selected families lint style, not cross-boundary type consistency).
+  The sharp point (finding-0026): the project already accepts and depends on promote-runtime-invariant-
+  to-static-AST-proof — `ops/import_lint.py` does exactly that for I2 — yet applies it to no other
+  invariant, while two invariants slated for TLA+/Alloy treatment (label monotonicity, capability
+  non-amplification) have static shadows a checker would enforce at authorship time, free. The remedy
+  note `type-system-as-core-audit.md` is drafted (committed `38ccc85`, `warrant: finding-0026`) as a
+  conservative extension of `security-planes.md`. Ratify it at the blessing gate (by hand, §10) so
+  `/graduate` can decompose its B-items, or decline? On ratification finding-0026 flips `→ promoted`.
+- default_if_unanswered: the note stays `draft` and ungraduatable; the code plane stays enforcement-free
+  and every builder session mutates `core/` under a weaker guarantee than the three-plane composition
+  assumes. Parks as finding-0026; re-entry — owner ratifies/declines here, or a type-consistency defect
+  in `core/` that a checker would have caught at authorship surfaces in a build session.
 - answer:
 
 ---

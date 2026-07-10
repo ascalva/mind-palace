@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0026
-status: open
+status: routed
 ftype: discovery
 origin_plan: null            # surfaced in owner–chat design review, 2026-07-10
 route: orchestrator
@@ -14,6 +14,14 @@ resolution: null
 ---
 
 # finding-0026 — The code plane is assigned to the type system, but no type checker runs
+
+> **Triage 2026-07-10 (/triage):** open → routed (orchestrator). Design-changing discovery →
+> **promotion proposed: ratify `type-system-as-core-audit.md`** (already drafted, committed
+> `38ccc85`, `warrant: finding-0026` in its front-matter — the three-place P/P′/warrant link
+> is in place). Batched for the owner at `owner-questions.md` **oq-0012**; flips to
+> `promoted` on ratification, after which `/graduate` can decompose the note's B-items.
+> Declining leaves the code plane enforcement-free as `security-planes.md` currently
+> (mis)states it. Re-entry per oq-0012's park condition.
 
 ## What
 
