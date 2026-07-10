@@ -6,7 +6,7 @@ ftype: spec-defect
 origin_plan: null            # surfaced in owner–orchestrator design review, triggered by finding-0024 (bp-005 denylist collision)
 route: orchestrator
 created: 2026-07-07
-updated: 2026-07-07
+updated: 2026-07-09
 links:
   - docs/design-notes/agent-workflow.md            # the spec this defects against / amends
   - docs/findings/finding-0024.md                  # the collision that triggered this
@@ -14,6 +14,17 @@ resolution: null
 ---
 
 # finding-0025 — The design-note denylist guards on LOCATION when the real invariant is STATUS
+
+> **Triage 2026-07-09 (/triage):** routed → orchestrator. Design-changing spec-defect →
+> **promotion proposed as amendment A8** (A7 is taken by finding-0009/oq-0003), warrant
+> this finding, batched for owner ratification at `owner-questions.md` **oq-0011**; flips
+> to `promoted` on acceptance, then a builder lands the `_lib.py` change per §Disposition.
+> **Live evidence since drafting:** bp-005's design-note half could only land via an
+> owner **temp-lift of the global deny** (`d6e518f` lift → `f5d435d` restore) — a
+> hand-operated bypass standing in for exactly the missing status-aware capability this
+> finding specifies. Note: `finding-0024.md` (linked above) was deleted, owner-instructed,
+> when the lift resolved the bp-005 collision (see bp-005 plan addendum); its substance
+> is summarized under §"How it surfaced". Re-entry per oq-0011's park condition.
 
 ## Summary
 

@@ -214,3 +214,51 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 - answer:
 
 ---
+
+## oq-0010 — Ratify the provisional research-note front-matter convention (template + spec line)?
+- status: open
+- origin: docs/findings/finding-0023.md
+- blocking: false
+- question: bp-005 required front-matter on `docs/research/*.md`, but no research-note template or
+  schema exists anywhere (`docs/templates/` covers design-note, build-plan, capsule, finding only;
+  neither `BUILD-SPEC.md` nor `agent-workflow.md` defines a `type:`/id-prefix/field set for research
+  notes). To complete without blocking (§5) the builder applied a **provisional convention** mirroring
+  the design-note schema — `type: research`, `id: rn-<filename-slug>`, `status: draft`,
+  `created`/`updated` from git history, `links: []`, `supersedes`/`superseded_by`/`warrant: null` —
+  to the three research notes. Ratify it (add `docs/templates/research-note.md` + a line in the
+  artifact-chain spec), amend it, or replace it? The three `rn-*` headers get a cheap reconciliation
+  either way. **Secondary decision riding along:** for all 33 converted notes, `updated:` was set to
+  each note's git last-commit date, not conversion date (a metadata-only migration shouldn't rewrite a
+  note's recency) — confirm, or have it redone at the same cost.
+- default_if_unanswered: the provisional convention stands, unratified. Parks as finding-0023;
+  re-entry — owner ratifies/replaces here, or tooling starts keying on `type:`/id-prefix (the latent
+  inconsistency the finding names).
+- answer:
+
+---
+
+## oq-0011 — Ratify amendment A8: replace the design-notes *location* denylist with a *status*-aware guard?
+- status: open
+- origin: docs/findings/finding-0025.md
+- blocking: false
+- question: The foundation denylist bars `docs/design-notes/**` wholesale, so *draft* notes — unblessed
+  working material, same trust class as a build plan — are unwritable by any agent, structurally
+  destroying the brainstorm → draft note → graduate flow the orchestrator exists for. The invariant
+  actually worth protecting is **status**, not location: ratified/superseded notes agent-immutable
+  (content and status, laundering-proof); draft notes writable under normal `write_scope`;
+  `draft → ratified` owner-only, unchanged. **bp-005 proved the defect live:** its legal conversion
+  could land only via an owner temp-lift of the global deny (`d6e518f`) that was then restored
+  (`f5d435d`) — a hand-operated bypass, and while open, a hole in the very ratified-record guarantee
+  the denylist exists for. finding-0025 specifies the guard precisely, including the two non-obvious
+  requirements: a **content guard** in `cmd_scope_check` (gate-guard ALLOWs body-only writes that touch
+  no status line, so it alone cannot protect ratified *content*), and a **HEAD-keyed Stop-side check**
+  (post-hoc, on-disk status is the laundered value — compare against committed status, as
+  `_blessing_in_diff` already does). Helpers exist (`is_design_note`, `status_of`); the other three
+  denylist entries are untouched. Ratify A8 so a builder lands the `_lib.py` change with the six-case
+  regression harness (finding-0025 §Disposition item 4), or decline?
+- default_if_unanswered: the location denylist stands; agent draft-note authoring remains impossible
+  except by per-episode owner temp-lifts. Parks as finding-0025; re-entry — owner ratifies here, or
+  the next legal draft-note task forces another temp-lift.
+- answer:
+
+---

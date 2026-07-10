@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-005
-status: in-progress
+status: complete
 design_ref: []
 contract: builder
 write_scope:
@@ -13,7 +13,7 @@ session_budget: 1
 depends_on: []
 parallelizable_with: []
 created: 2026-07-07
-updated: 2026-07-08
+updated: 2026-07-09
 re_entry: null   # was parked on the denylist collision; owner lifted docs/design-notes/** from the DENYLIST mid-session, both halves now done
 supersedes: null
 superseded_by: null

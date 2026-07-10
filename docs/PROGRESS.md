@@ -1754,3 +1754,48 @@ owner, not auto-run.
 
 **Next.** Owner works `owner-questions.md` (oq-0003 … oq-0009); unanswered ones stay safely parked.
 Roadmap-parked findings (0012/0015/0016) re-enter with their forward builds (Item 8 / A2 / Track D).
+
+## Reflection sweep — bp-005 sealed; stranded record recovered; A8 proposed (2026-07-09, /triage)
+
+**Recovered (the load-bearing act of this sweep).** bp-005's `journal.md` (53 KB — including
+**Appendix A, the 204-hit supersession-marker inventory** that seeds the scrub-pattern file for
+`supersession-recovery-evaluation.md` §3, and Appendix B, the created-date provenance table) and
+`finding-0023.md` sat **untracked in the `mp-convert-notes` worktree**: the commit the journal's final
+entry requested (`66c3e6f`, merged `a33ecab`) took the 33 converted notes + `plan.md` but not the two
+untracked files. One `git worktree remove/prune` away from losing a plan deliverable. Both recovered to
+main and committed by this sweep. The worktree (and `mp-bp001`, clean) can now be pruned — owner's call.
+
+**Sealed — bp-005 `in-progress → complete` (corpus front-matter conversion).**
+- *Built:* 30 design + 3 research notes converted (+13/−0 prepends, prose md5-preserved), design notes
+  stamped `implementation:` verbatim from the 2026-07 verification audit; mid-session addendum items 1–4
+  delivered (marker inventory, stamps, date provenance, record repair). The run's shape is itself a
+  finding trail: denylist collision → revert → owner temp-lift (`d6e518f`) → conversion → restore
+  (`f5d435d`).
+- *Verified at seal:* all 43 notes under `docs/design-notes/` + `docs/research/` carry front-matter; the
+  three post-bp-005 notes (`capability-evaluation-harness`, `observed-stratum-spike`,
+  `authorship-distance-axis`) self-carry it at `draft` — the convention propagates unaided.
+- *Decisions recorded:* provisional `rn-*` research-note schema (unratified → oq-0010); `updated:` set
+  from git last-commit, not conversion date; finding-0024 deleted owner-instructed (its substance lives
+  in finding-0025 §"How it surfaced" — the dangling link is annotated there).
+- *Next:* nothing in bp-005 re-enters; its two open threads are oq-0010 (schema) and oq-0011 (A8).
+
+**Routed (1).** finding-0023 `open → routed` — no research-note template/schema exists; promotion
+proposed (ratify the provisional convention: `docs/templates/research-note.md` + a spec line) → **oq-0010**.
+
+**Promotion proposed (1).** finding-0025 → **amendment A8** (A7 is finding-0009's, oq-0003): replace the
+design-notes *location* denylist with a *status*-aware guard — ratified/superseded agent-immutable
+(content guard + HEAD-keyed Stop-side check, laundering-proof), drafts writable, blessing gates
+untouched. Batched → **oq-0011**. The bp-005 temp-lift episode is the live warrant: the owner
+hand-bypassed the global deny to land legal draft work, exactly the missing capability the finding names.
+
+**Swept.** None — no owner question newly answered (oq-0003 … oq-0011 all open). finding-0021 unchanged
+(`routed`; rides the pending edge-model / supersession-lifecycle / founding-corpus ratification passes).
+
+**Book debt.** Unchanged: `docs/book/` unscaffolded, first `/scribe` sync plan pending (§12). Nothing
+newly ratified since the last sweep (all three new notes are `draft`), so the debt is still "the whole
+book," not incremental. `/scribe` on request.
+
+**Next.** Owner works `owner-questions.md` — now **9 open** (oq-0003 … oq-0011), none blocking; every
+default degrades to a parked finding with re-entry. A8 (oq-0011) is the highest-leverage answer: it
+unblocks agent draft-note authoring (the graduate pipeline's mouth) and ends per-episode temp-lifts.
+No plan is `in-progress`; the board is clean for the next `/graduate` or forward-layer build.
