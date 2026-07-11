@@ -55,6 +55,7 @@ from uuid import uuid4
 from config.loader import Config
 from core.provenance import Provenance
 from core.research.criteria import DeidentificationError, clean_term
+from core.stores.code_observations import CodeObservation, batch_content_hash
 from ops.effects import Effect, EffectView, ReversibilityClass
 
 REQUESTS = "requests"
@@ -281,3 +282,68 @@ def build_sensing_handoff(config: Config | None = None) -> SensingHandoff:
     if not cfg.effectors.enabled:
         raise EffectorsDisabled("[effectors] enabled is false — the sensing surface is off")
     return SensingHandoff(handoff=cfg.effectors.handoff_dir)
+# ── The code-stream sibling seam (bp-012; code-observation-projection.md §2.4) ─────────────
+# Same seam FAMILY as SensingHandoff — atomic JSON files in a handoff dir, `from_dict` on the
+# way in, hardcoded-OBSERVED rows on the way out, collect-and-consume healing — but its OWN
+# payload type and file pattern: the biometric contract above (SensedObservation and its
+# observations/ dir) is untouched. Q1 resolution recorded in the bp-012 journal: `collect()`
+# above is typed to SensedObservation, so a second payload type cannot ride it without
+# changing the biometric contract; the sibling is the note's "same seam family, own
+# store/table" default made literal.
+
+CODE_OBSERVATIONS = "code_observations"
+
+
+@dataclass
+class CodeSensingHandoff:
+    """Core-side handoff for the CODE sensing stream — φ_code's sole path in (§2.2).
+
+    The code sensor (ops tier, unsealed — the restic precedent) writes one observation
+    batch per commit; core collects it into the OBSERVED-only `CodeObservationStore`:
+
+        <handoff>/code_observations/<commit_sha>.json   (ops writes → core collects)
+
+    Deliberately ABSENT, and why (vs `SensingHandoff` above): no `Effect`/`EffectView`
+    ceiling on emit and no `[effectors]` fail-closed gate — those guard the OUTBOUND
+    surface toward the network, and this stream has no outbound half (the repo is a local
+    instrument read ops-side; nothing crosses toward a carrier, so there is nothing for a
+    SENSING ceiling to admit). The inbound guarantees are identical: the payload carries
+    no provenance field, `CodeObservation.to_row()` mints `observed` with no parameter,
+    `ObservedView` admits the rows, `MirrorView` refuses them (§2.6)."""
+
+    handoff: Path
+
+    def __post_init__(self) -> None:
+        self.batches_dir = self.handoff / CODE_OBSERVATIONS
+        self.batches_dir.mkdir(parents=True, exist_ok=True)
+
+    def emit_batch(self, commit_sha: str, observations: list[CodeObservation]) -> str:
+        """Write one commit's projection batch to the handoff (atomic — the collector never
+        reads a partial batch). Returns the batch CONTENT hash: the `project_observations`
+        attestation's output hash (plan Q5), deterministic per §2.2 so re-projection of the
+        same commit re-derives the same address."""
+        content = batch_content_hash(observations)
+        payload: dict[str, Any] = {
+            "commit_sha": commit_sha,
+            "batch_hash": content,
+            "ts": _utcnow(),
+            "observations": [o.to_dict() for o in observations],
+        }
+        _atomic_write_json(self.batches_dir / f"{commit_sha}.json", payload)
+        return content
+
+    def collect(self, *, consume: bool = True) -> list[CodeObservation]:
+        """Read every available batch (and by default consume the files) — rescan-style: a
+        batch emitted but never collected (a crash between emit and store) heals on the next
+        sync's collect. The returned objects are observed-tier by construction; their only
+        typed container is `ObservedView`, and a mirror path refuses them (tested)."""
+        out: list[CodeObservation] = []
+        for path in sorted(self.batches_dir.glob("*.json")):
+            try:
+                obj = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            out.extend(CodeObservation.from_dict(d) for d in obj.get("observations", []))
+            if consume:
+                path.unlink(missing_ok=True)
+        return out
