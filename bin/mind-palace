@@ -55,6 +55,7 @@ case "$verb" in
   ""|help|-h|--help) usage ;;
   start|stop|status|reset|deploy)  py "$SCRIPTS/palace.py" "$verb" "$@" ;;
   talk)                     py "$SCRIPTS/talk.py" "$@" ;;
+  supersede)                py "$SCRIPTS/supersede.py" "$@" ;;
   monitor)                  py "$SCRIPTS/monitor.py" "$@" ;;
   sandbox)                  py "$SCRIPTS/sandbox.py" "$@" ;;
   ingest)                   py "$SCRIPTS/ingest.py" "$@" ;;
