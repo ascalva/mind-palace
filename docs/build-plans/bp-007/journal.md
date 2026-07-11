@@ -372,4 +372,90 @@ assertions may gain types never lose checks).
 
 ---
 
+## Entry — 2026-07-11 — Item 7 started: import-not-found family + effect_gate_fsm (tests 245 → 213)
+
+**Item 7 re-measure at start:** 245 tests-package errors, 76 files. By kind: `arg-type` 133 ·
+`union-attr` 36 · `import-not-found` 24 · `type-arg` 22 · `operator` 10 · `index` 5 ·
+`func-returns-value` 5 · `var-annotated` 4 · `return-value` 3 · `import-untyped` 1 ·
+`dict-item` 1 · `attr-defined` 1. Worked the `import-not-found` family + the single biggest
+file (`test_effect_gate_fsm.py`, 14 — unrelated family) first, since import-not-found blocks
+mypy from even checking a file's body in some cases and is config/convention work, not
+per-error triage.
+
+**The `fixtures` import-path split (24 errors, 17 files touched once fully traced).**
+`tests/conftest.py` deliberately inserts `tests/` onto `sys.path` so `fixtures.X` resolves
+bare from anywhere — but 8 files already used the fully-qualified `tests.fixtures.X` instead,
+which ALSO resolves (via mypy's `explicit_package_bases` synthesizing `tests` as a namespace
+package, since it's in `[tool.mypy] files`). mypy can only see one of these two live paths.
+
+**Tried first, rejected:** adding `mypy_path = "tests"` to make the bare style resolve too —
+tested in a scratch config copy, and it does clear all 24 import-not-found errors, but then
+mypy refuses every `tests/fixtures/*.py` file with "Source file found twice under different
+module names: fixtures.X and tests.fixtures.X" — a REAL ambiguity (the same file has two valid
+dotted names simultaneously), not a false positive. Reverted.
+
+**Chosen fix: converge on `tests.fixtures.X`** (the majority-8 style, and the one that matches
+what mypy's own `files` config already believes the package tree is) across the 15 files using
+the bare style, found via `grep -rl "^from fixtures\.` — a straight import-line rewrite, zero
+runtime behavior change (Python already resolves both identically via `conftest.py`'s
+`sys.path` insert; only what mypy can statically verify changes). Two more of the same shape
+turned up only once the direct 15 were fixed and I re-ran mypy: a lazy in-function import in
+`tests/quality/test_dreamer_quality.py` (a `try/except`-guarded optional real-adapter binding —
+unaffected by the fix, same rewrite applied), and `tests/quality/test_diffusion_clusterer.py`
+importing a SIBLING TEST FILE bare (`from test_dreamer_quality import ...`) — rewritten
+`from tests.quality.test_dreamer_quality import ...`.
+
+**A third, unrelated import-not-found: `tests/integration/test_fetcher.py`'s `import
+aggregate` / `import handler`.** These deliberately mirror `cloud/fetcher`'s flat Lambda-zip
+deployment via a runtime `sys.path.insert(0, FETCHER_DIR)` — a genuine T3: mypy cannot follow a
+dynamic `sys.path` mutation (this is residual gap (b), named explicitly in the design note
+§2.5: "(b) Dynamic dispatch... no static tier sees"). `cloud/` is Tier-3 by measurement (V1a:
+zero core imports) and out of this plan's scope entirely (plan §5/§9: "Tier-3 recorded
+default — not debt"; "typing `edge/`/`cloud/`" is a non-goal). A warranted `# type:
+ignore[import-not-found]` citing both facts is the correct, honest resolution here — not a
+workaround, and not laundering (the ignore is narrowly scoped to two lines, each with its own
+warrant comment).
+
+**`tests/property/test_effect_gate_fsm.py` (14, unrelated family — the single biggest test
+file).** `dict(reversibility=..., approval=..., ...)` + `**base` / `**{**base, "field": val}`
+splat patterns for building variant `EffectGateDecision`s. The bug-shape: `EffectGateDecision`
+has per-field types (`ReversibilityClass`, `bool`, `ApprovalStrength`), but assembling them via
+a bare `dict(...)` literal collapses the value type to their common supertype
+(`dict[str, int]`, since all three are int-backed enums/bools) — so `**base` unpacking loses
+per-field precision entirely, a real representability gap the property test's own construction
+was hiding. Fixed with `dataclasses.replace()` over one concrete `EffectGateDecision` instance
+per test (the frozen dataclass already supports this — the correct tool for "same base config,
+override one field," preserving per-field types through mypy's eyes exactly). Verified
+behaviorally unchanged: `pytest tests/property/test_effect_gate_fsm.py` → 8/8 pass, same as
+before the edit.
+
+**Tooling note:** `ruff --fix` re-sorted imports in all 18 touched files (import path changes
+moved sort order) — confirmed no `# type: ignore` comments were near any of the touched import
+blocks before running `--fix` (this file set predates any T3 ignore discipline), then re-ran
+`uv run mypy` on the whole set after to confirm nothing new broke. Clean.
+
+**Verification:** `uv run mypy` → 0 `import-not-found` remaining anywhere in the repo; `ruff
+check tests/` clean; pytest 743 passed / 4 skipped (unchanged — every fix here was either an
+import-path rewrite with an identical runtime resolution, a warranted ignore on genuinely
+Tier-3-adjacent dynamic-path code, or a construction-pattern fix with no behavioral surface).
+Repo-wide: 245 → **213** tests-package errors. Commit `f1cf8fc`.
+
+**Per-item running state:** Item 6 fully done (0 outside tests/). Item 7: 245→213 so far
+(import-not-found family: 24→0; `test_effect_gate_fsm.py`: 14→0). Remaining dominant families
+per the start-of-item breakdown: `arg-type` 133 (likely largest, needs per-file triage —
+fakes/stubs whose params don't match tightened core signatures is the leading hypothesis, to
+verify), `union-attr` 36 (likely the same `X | None` narrowing-gap shape seen throughout ops/ —
+`CatalogEntry | None`, `RunRecord | None`, etc. — `tests/integration/test_vault_sync.py` alone
+has 11 of these), `type-arg` 22 (same bare-generic family as Item 6), `operator` 10, `index` 5,
+`func-returns-value` 5, `var-annotated` 4, `return-value` 3, `attr-defined` 1.
+
+**Next action:** re-measure fresh (the 245 baseline is now stale after this entry's fixes),
+then work `tests/integration/test_vault_sync.py`'s `CatalogEntry | None` family (11 of its own
+13 errors) as the next-biggest single file, watching per the plan's explicit T1 warning
+whether any of these `| None` narrowing gaps hide a REAL bug (a test that asserts on a `.digest`
+that could genuinely be `None` at runtime would be exactly the "passes because untyped" shape
+the plan calls out) rather than reflexively asserting past every one.
+
+---
+
 ## Markers
