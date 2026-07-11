@@ -206,3 +206,55 @@ fixed in this plan's own front-matter, worth folding into bp-014's fix as a pars
 (orchestrator's call; noted here rather than a duplicate finding). Plan left
 `in-progress`, `cost.actual` null, for the orchestrator to seal. Follow-ups for triage:
 owner nod on `backfill_observations()` (timing above); bp-013 fills `references_out`.
+
+---
+
+## SEAL (orchestrator, 2026-07-11)
+
+**Status:** `in-progress → complete`. Merged to main `--no-ff`. Diff scrutinized (delegate
+skill): all changes in `write_scope`, no conflict candidates (clean merge). Load-bearing
+invariants verified at source, not just trusted — the store has **NO provenance parameter on
+any API surface** (`to_dict` carries none, `to_row`/`add_batch` hardcode `Provenance.OBSERVED`;
+the `provenances=` arg is a read-side filter, not a write param — Item 3 falsifier ruled out by
+the `inspect` sweep); `core/sensing.py` is pure-addition (biometric contract byte-identical);
+the §2.6 firewall test asserts `MirrorView.project` over an observation-bearing source raises
+`NonMirrorRowError` and honest π_MR yields 0; B-b idempotency + graceful degradation tested.
+
+**Acceptance, verbatim, re-run on merged main (local):**
+```
+$ uv run ruff check .                                            → All checks passed!
+$ uv run --extra dev mypy core agents eval ops scheduler scripts → Success (167 files, 0 errors)
+$ uv run --extra dev mypy                                         → Found 69 errors in 20 files  (baseline)
+$ uv run python scripts/check_imports.py                          → Import firewall (I2): OK
+$ uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'
+                                                                 → 785 passed, 4 skipped, 20 deselected  (768 + 17)
+```
+
+**Q1 seam:** SIBLING (`CodeSensingHandoff`) per the note's default — `SensingHandoff.collect` is
+typed to `SensedObservation` (can't carry a 2nd payload without touching the biometric
+contract), so the stop-and-raise did NOT trigger; own payload/store, same seam family.
+
+**φ_code is now write-side live but NOT consumed.** `sync()` projects per newly-ingested commit
+into `data/code_observations.sqlite` (created lazily on the next sync with a new commit); the
+daemon does not READ observations yet (finding-0020 class — write-side accumulation only). So no
+deploy is required to "apply" this — nothing in the live loop consumes it.
+
+**Parser defect (mine) — folded into bp-014.** The `oq-0013` amendment added a TRAILING inline
+comment to a `write_scope` entry (`- "ops/lifecycle/launcher.py"  # ...`), which the scope-guard
+`write_scope` parser (in `_lib.py`) mis-parses. The builder fixed its own front-matter (comment
+on its own line, semantics unchanged) and, rather than a duplicate finding, flagged it for
+bp-014 (which already opens `_lib.py`). **Folded into bp-014 as an opportunistic in-scope parser
+hardening** (noted in that plan). Lesson: `write_scope` entries take standalone comment lines,
+not trailing ones.
+
+**finding-0031:** another manifestation — in the worktree ALL hooked writes were denied (the
+bug also mangles worktree-relative paths, not just the pointer); builder Bash-mediated each
+after a standalone scope-guard confirmation. More warrant for bp-014's fix.
+
+**Cost ledger:** builder = **fable** · **157,154 tokens · 75 tool-uses · ~21 min** — **0.52×**
+the 300k estimate (under). Second consecutive under-estimate (bp-011 was 0.47×): the estimate
+sizing (grind AND core-discipline shapes) is running conservative — a real calibration signal
+for the cost-forecasting thread (2 datapoints now).
+
+**Not pushed** beyond the earlier snapshot (this merge is post-snapshot). bp-013 next (unblocked:
+V4 KEEP + bp-012 merged).

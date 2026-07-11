@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-012
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/code-observation-projection.md
 contract: builder
@@ -17,7 +17,7 @@ write_scope:
 session_budget: 1
 cost:
   estimate: { model: fable, tokens: 300k }    # core store discipline; bp-009-calibrated, heavier
-  actual: null
+  actual: { model: fable, tokens: 157k, tool_calls: 75, duration_min: 21 }   # 0.52x estimate (under)
 depends_on: []
 parallelizable_with: []
 created: 2026-07-11
