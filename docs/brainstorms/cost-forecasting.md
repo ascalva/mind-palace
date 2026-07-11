@@ -37,3 +37,39 @@ references:
   - .claude/skills/context-economy/SKILL.md
   - .claude/skills/delegate/SKILL.md
 ```
+
+---
+
+## 2026-07-11 — cross-layer parallel: estimate-vs-actual as ONE calibration primitive (owner insight)
+
+Owner observation: the orchestrator's per-plan cost ledger (`cost: {estimate, actual}` on
+build plans — first live pair: bp-011 = **0.47×** a 350k-token estimate) and the CORE's own
+context/complexity estimation (the scheduler's pre-admission resource estimate; Track H
+reasoning-complexity) are the **same primitive at two layers** — a self-calibrating cost
+model: *predict → execute → measure → update the predictor.* Different models, but both now
+accumulate estimate-vs-actual over time, so both can learn best practices from the history.
+
+**What transfers vs what doesn't:**
+- *Transfers* — the LOOP and its methodology: binning predictions by task-SHAPE
+  (grind / core-discipline / design), the sample threshold before recalibrating, regime-shift
+  detection, and the discipline of NOT retro-tuning off a single point (the bp-011 seal
+  explicitly refused to retune from one 0.47× datapoint).
+- *Does NOT transfer* — the units / cost-function: LLM tokens (orchestrator) vs
+  memory-GB / context-windows / compute (core). Same loop, different objective.
+
+**Concrete hooks for a design pass:**
+1. Make the **graduate skill's session-SIZING heuristic data-driven from seal history** — the
+   orchestrator's plan-sizing LEARNS from its own ledger, exactly as the core's scheduler
+   learns from its estimates. Today sizing is a static rubric; ~2 weeks of seals (the parked
+   cost-forecasting report generator is the seed) could make it empirical.
+2. Both planes feed the **evolution study's economics axis**: bp-011/012/013 make CODE
+   observable-as-data; the cost ledger makes WORK observable-as-data; finding-0034 adds a CI
+   cost-plane. The system accruing estimate-vs-actual across multiple planes is the Ouroboros
+   pattern (self-observation) made literal.
+3. Open question: should the two estimators share MACHINERY (one calibration lib, parametrized
+   by cost-function) or just the PATTERN (independent impls, common methodology)? Sharing
+   machinery risks coupling the workflow layer to core; sharing only the pattern keeps them
+   decoupled but duplicates. **Weigh against non-negotiable #2/#3 — the workflow layer must not
+   reach into sealed core.** Likely answer: share the pattern, not the code.
+
+Status: design-tier idea, parked for a Fable/xhigh design session (surfaced during supervision).
