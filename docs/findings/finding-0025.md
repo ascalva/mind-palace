@@ -1,16 +1,16 @@
 ---
 type: finding
 id: finding-0025
-status: routed
+status: promoted
 ftype: spec-defect
 origin_plan: null # surfaced in owner–orchestrator design review, triggered by finding-0024 (bp-005 denylist collision)
 route: orchestrator
 created: 2026-07-07
-updated: 2026-07-09
+updated: 2026-07-11
 links:
   - docs/design-notes/agent-workflow.md # the spec this defects against / amends
   #- docs/findings/finding-0024.md  # the collision that triggered this, design note 0024 was not needed, removed.
-resolution: null
+resolution: promoted → amendment A8 (ratified 8a5131e, owner's hand; implemented 4fe6ad4, bp-010 — 11/11 harness incl. laundering + deletion + A5-parity cases)
 ---
 
 # finding-0025 — The design-note denylist guards on LOCATION when the real invariant is STATUS

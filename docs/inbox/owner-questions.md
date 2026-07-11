@@ -243,7 +243,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0011 — Ratify amendment A8: replace the design-notes *location* denylist with a *status*-aware guard?
-- status: open
+- status: swept
 - origin: docs/findings/finding-0025.md
 - blocking: false
 - question: The foundation denylist bars `docs/design-notes/**` wholesale, so *draft* notes — unblessed
@@ -264,7 +264,10 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 - default_if_unanswered: the location denylist stands; agent draft-note authoring remains impossible
   except by per-episode owner temp-lifts. Parks as finding-0025; re-entry — owner ratifies here, or
   the next legal draft-note task forces another temp-lift.
-- answer:
+- answer: **RATIFIED as A8** (owner's hand: edits 1+2 committed `8a5131e`, edit 3 `a19e030`,
+  2026-07-11) and **IMPLEMENTED** same day (bp-010, `4fe6ad4`): status-aware guard live —
+  draft-writable, ratified/superseded agent-immutable, HEAD-keyed laundering-proof, 11/11
+  acceptance. finding-0025 → promoted. Swept to origin same day.
 
 ---
 

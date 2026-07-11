@@ -6,6 +6,18 @@ write-scope files must continue without re-asking anything already answered.
 
 ---
 
+## Seal — 2026-07-11 — /triage — bp-010 `complete`, journal sealed
+
+**Seal.** Guard live (`4fe6ad4`): 11/11 harness, ratchet 750, live smoke on the real ratified
+record. finding-0025 → promoted (A8 ratified `8a5131e`, implemented here); oq-0011 swept;
+`docs/inbox/proposed-amendment-A8.md` deleted per the signing-desk contract. First act under
+the new guard: the code-observation-projection note placed directly at `draft` by the
+orchestrator — the capability this amendment exists to grant, exercised minutes after it
+landed. No narrative entries after this line.
+
+---
+
+
 ## Entry — 2026-07-11 — Items 12+13+14 complete: guard live, 11/11 green
 
 **Item 13 first (TDD):** harness written, run RED against pre-A8 code — (a) draft-allow and

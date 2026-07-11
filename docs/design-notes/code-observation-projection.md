@@ -1,16 +1,3 @@
-<!-- ═══════════════════════════════════════════════════════════════════════════════
-  PROPOSED DESIGN NOTE — awaiting owner placement + ratification (chat-side protocol §8)
-
-  The orchestrator cannot write docs/design-notes/** (foundation denylist; A8/oq-0011
-  unratified — this delivery-by-inbox is the workaround A8 would retire). To adopt:
-
-    git mv docs/inbox/proposed-design-note-code-observation-projection.md \
-           docs/design-notes/code-observation-projection.md
-    # strip this comment block; ratify when satisfied: status: draft → ratified (your hand)
-
-  Warrants: docs/brainstorms/doc-code-entanglement.md (both capsules, 2026-07-11) +
-  docs/brainstorms/code-as-sensor-stream.md + the owner's in-session instruction.
-═══════════════════════════════════════════════════════════════════════════════ -->
 ---
 type: design-note
 id: dn-code-observation-projection
