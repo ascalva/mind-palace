@@ -67,3 +67,57 @@ references:
   - ops/code_snapshot.py                             # the AST walk the docstring layer rides on
   - scripts/ingest_self_knowledge.py                 # docs-as-curated; the bridge's other bank
 ```
+
+## 2026-07-11T10:05:00Z (captured — continuation)
+
+```capsule
+topic: doc-code-entanglement
+date: 2026-07-11
+
+decisions:
+  - Code, comments, and documentation are NOT authored-dialogue corpus (owner). They must
+    never enter under an authored class — confirms and sharpens the code-as-sensor-stream
+    ruling.
+  - The Rosetta (docstrings) represents a STATE TRANSITION between English and code —
+    the layer that connects theory/strata to code meaning.
+  - The code sensor is a PROJECTION MAPPING from an agent into the OBSERVED stratum
+    (owner: "it belongs as an agent that is projection mapping into the observed strata
+    layer") — i.e., φ_code in the axis note's §3.7 interpreter formalism, targeting the
+    observed layer (OBSERVED under the current enum; a₂ author-sensed under the axis).
+  - Direction to finalize: observations ON the code should help DETANGLE semantic threads
+    in the strata — code semantics as a disambiguation instrument over the corpus.
+
+open_questions:
+  - Observation schema: what does one code-observation row carry? (candidate: commit sha,
+    symbol/qualname, docstring text, references-out [paths/notes/symbols], header type)
+  - Same observed store as biometrics (sensor_readings, DuckDB, dormant) or its own
+    table? Same handoff seam (SensingHandoff → ObservedView) either way?
+  - The detangling consumer's lane split: DETERMINISTIC references (doc cites note, note
+    names symbol) = geometry-authority fibers laid by ingest (the-edge-model §2) vs
+    SEMANTIC disambiguation (which thread does this code support) = interpreted proposals
+    at dreamer-proposed authority. Two lanes, never one.
+  - Firewall compliance: OBSERVED is structurally mirror-opaque (MIRROR_READABLE) — the
+    detangler must be correlator-family (reads observed + interpreted, outputs interpreted
+    proposals; never writes authored). Confirm against observed-iot §2 safety rules.
+
+parked:
+  - decision: when code observations enter the corpus proper (vs the ops ledger today)
+    default: ledger-only stands (PD-5 event-log default) until the projection design note
+      is ratified
+    re_entry: the design note (draft gated on A8 or owner hand) is ratified; or a
+      detangling experiment on the ledger alone proves the value and demands the seam
+
+next_steps:
+  - Design note to draft (post-A8 or owner hand): "code-observation projection" — φ_code
+    into the observed stratum, schema, handoff seam, two-lane consumer split, firewall
+    compliance; written against the CURRENT ratified reality (OBSERVED/ObservedView) with
+    an explicit a₂ cross-map so it survives the axis ratification.
+  - The read-only reference-edge inventory (previous capsule) is now ALSO the feasibility
+    probe for the deterministic lane.
+
+references:
+  - core/sensing.py                       # SensedObservation / ObservedView / SensingHandoff — the seam
+  - docs/design-notes/authorship-distance-axis.md   # §3.7 φ_s formalism; a₂
+  - docs/design-notes/observed-iot-and-cross-source-synthesis.md  # correlator safety rules (§2)
+  - docs/brainstorms/code-as-sensor-stream.md       # the ruling this finalizes
+```
