@@ -233,4 +233,28 @@ files (out of bp-009's scope by design).
 
 ---
 
+## 2026-07-11 — HANDBACK: both items done, verdict KEEP, awaiting /triage
+
+**Per-item state:** Item 10 **done** (tags + `promote` stub + type-level tests landed;
+falsifier not tripped — zero casts at the definition site). Item 11 **done** (churn measured
+on the full MirrorView consumer set via discarded overlay; **0 warranted ignores / 0 casts**;
+note-falsifier NOT tripped; catch demonstrated on a real site and pinned in-repo;
+finding-0028 filed, verdict **KEEP**, routed orchestrator).
+
+**Final worktree state (verbatim):** `core errors: 0` (mypy) · ruff `All checks passed!` ·
+`tests/unit/test_provenance_tags.py` → `7 passed` · working tree clean. Full suite last run
+at Item-10 close: 765 passed / 8 skipped / 1 e2e timing flake (passes in isolation).
+
+**Commits on `worktree-agent-a5274515587080fd7`:** `1269c7f` (flip + survey), `5a6e9c5`
+(Item 10: tags + stub + tests), `951d30e` (journal), `<this + prev>` (Item 11 measurement +
+finding-0028 + handback). Nothing merged to main; plan NOT flipped to complete (owner/
+orchestrator act).
+
+**For /triage:** finding-0028 (keep-or-park = direction; OwnerVerdict design questions
+inside). Spec wrinkles resolved builder-side and recorded above: the plan's recommended
+"Librarian read path" seam does not transit MirrorView (real seam substituted); Item 11's
+"Files: the sampled seam" vs write_scope reconciled via the discarded overlay.
+
+---
+
 ## Markers
