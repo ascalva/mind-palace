@@ -114,4 +114,46 @@ the grep above — `agents/ambassador/__init__.py`), then `ops/` (74, the larges
 
 ---
 
+## Entry — 2026-07-11 — Item 6 continued: agents/ green (16 → 0)
+
+**agents/ambassador/agent.py.** `Ambassador.server: object` carried only a comment describing
+its real shape (`.chat(tier, messages, **kw) -> str`) — the exact "duck-typed object hides the
+real interface" T2 shape the audit note names. `ModelServer` (core/models/server.py) is a
+concrete class, but tests substitute a bare `FakeServer` (`tests/integration/test_librarian.py`)
+that doesn't inherit from it — tightening to the concrete class would break that
+substitutability. Fixed with a local **Protocol** (`ChatServer`, structural — the right tool
+for "some object with this method," not requiring inheritance): `server: ChatServer`.
+
+`verdict_transport: Callable[[object], object] | None` was actually **unsound by
+contravariance** — I verified with a scratch mypy repro
+(`/private/tmp/.../scratchpad/test_variance.py`) that `Callable[[object], X]` REJECTS a
+narrower callable like `Callable[[SignedVerdict], VerdictRecord]` (parameter types are
+contravariant), so this annotation would never have accepted the real
+`build_verdict_receiver()` output — it happened not to error only because `build_ambassador`
+passes it through an untyped kwarg. Retyped `Callable[..., object] | None`
+(`...` = "some opaque single-purpose callable"), which is both type-sound and preserves the
+deliberate design boundary (verdict-authority.md §4: the Ambassador never learns
+SignedVerdict/VerdictRecord's shape — that would leak verdict internals across the
+transport-only seam). Confirmed accepting with a second scratch repro. This is NOT an `Any`
+widening (falsifier check: `Callable[..., object]` is strictly more informative than `Any`,
+and strictly more honest than the unsound `object` it replaced).
+
+**agents/ambassador/__init__.py.** Same `config: object | None` → `Config | None` fix as
+scheduler (bp-006's dominant family), `Config` imported directly from `config.loader`.
+
+**Verification:** `uv run mypy agents/` → clean; repo-wide grep for `^agents/` → empty (16 →
+0). `ruff check .` clean; pytest 743 passed / 4 skipped. Commit `eb3980c`.
+
+**Per-item running state:** eval 1→0 ✓ · scheduler 10→0 ✓ · agents 16→0 ✓ · ops 74→? next ·
+scripts 0 (clean) · tests 243 (Item 7, not started).
+
+**Next action:** `ops/` (74 errors, the largest non-test package) — grep shows `ops/lifecycle/
+launcher.py`, `ops/ledger.py`, `ops/backup/plan.py`, `ops/effect_*.py`, `ops/selfmod.py`,
+`ops/ci_witness.py`, `ops/apply.py` as the hot files; same families expected (config: object,
+bare-dict type-arg, CompletedProcess type-arg) plus launcher.py's genuinely different
+`Callable[[], Job]` vs `Callable[[], None]` and a psutil import-untyped (candidate for the
+existing psutil boundary shim in `core/typedshims/psutil.py` — reuse rather than re-solve).
+
+---
+
 ## Markers
