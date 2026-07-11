@@ -578,4 +578,70 @@ currently doesn't cover (T1 — file a finding, don't silently assert).
 
 ---
 
+## Entry — 2026-07-11 — union-attr family closed; finding-0030 filed (245 → 123)
+
+**`test_vault_sync.py` (11) + `test_lifecycle.py` (5).** Same "narrow past a just-written row"
+T2 shape. `test_vault_sync.py`: one `_entry(sync, path)` helper (assert + comment naming the
+invariant: every lookup follows a `sync_path`/`rescan`/`handle_deleted` for that exact path in
+the SAME test) replaces 10 repeated `sync.catalog.get(...).FIELD` sites. `test_lifecycle.py`:
+same shape for `RunLedger.last() -> RunRecord | None`, a `_last()` helper; separately fixed an
+unrelated `func-returns-value` in the same file (`_launcher()`'s `Components` factory used
+`calls.__setitem__(...)` lambdas — `dict.__setitem__` always returns `None`, checker-flagged
+even when discarded via tuple-indexing — rewritten as three named functions with `calls: dict[
+str, int]` and `_health`'s real `list[Flag]` return type).
+
+**Eight more files, same family, smaller each.** `test_ledger.py` (`Proposal | None`, a `_get()`
+helper) · `test_secrets_backend_wiring.py` (a DIFFERENT sub-shape worth naming: `SecretsBackend`
+is a Protocol with only `mint_token`/`read_secret`; `.addr`/`.kv_mount` are `VaultClient`-
+specific, so the fix is `isinstance(backend, VaultClient)`, not a bare not-None assert — one
+sibling test in the same file already had this narrowing, the other test just didn't) ·
+`test_attestation_vault_join.py` (`Attestation | None`, inline) · `test_version_history.py`
+(`Version | None`, inline, two sites in one test) · `test_interface_gateway.py`
+(`OutboundMessage | None`, a `_response()` helper) · `test_attestor_build_wiring.py` (`Attestor
+| None`, missing an `isinstance` narrow three sibling tests in the same file already had) ·
+`test_properties.py` + `test_factory_live.py` (a THIRD distinct union shape:
+`MintedAgent | GateRequest`, `AgentFactory.mint`'s discriminated return — fixed with
+`isinstance(result, GateRequest)`, not `hasattr()`, since `hasattr` doesn't narrow a type for
+mypy the way `isinstance` does on a known closed union).
+
+**T1 check (per the plan's explicit warning): none found.** Every one of the ~20 narrowing
+gaps closed this entry was traced back, per-site, to a genuine "this test just created/wrote/
+looked up this exact row/entry/response in the same test function" invariant — none revealed a
+test silently passing over a reachable `None` it should have asserted against.
+
+**finding-0030 filed — pre-existing, unrelated numerical flake, NOT bp-007's.** Running the
+full ratchet mid-entry hit `tests/property/test_structural_interpreters.py::test_persistence_
+is_stable_under_perturbation` failing on a Hypothesis-cached example (`n=4, seed=558,
+eps=1e-08`) — a float32-precision-shaped tolerance gap in the bottleneck-stability property
+test, unrelated to any typing work. Verified NOT caused by this session: `git stash`ed every
+bp-007 change and it still failed identically; the file is byte-identical to `bfa19e1` (pre-
+bp-007). Filed as `discovery`, routed to orchestrator (math-adjacent — a numerical-precision
+design question, outside a mypy-scoped plan's mandate to resolve). Cleared the local,
+gitignored `.hypothesis/` cache (confirmed via `git check-ignore` / `git status --ignored` —
+untracked, disposable session state, not a source-of-truth fix) so bp-007's own gate reflects
+a fresh-CI state rather than an accumulated local cache. The underlying numerical question is
+parked, un-silenced (no tolerance widened, no xfail applied).
+
+**Verification:** `ruff check .` clean; pytest 743 passed / 4 skipped (after clearing the
+unrelated Hypothesis cache). `uv run mypy` → 123 (from 245 at Item 7's start). Commits
+`a11b7bc`, `db307e0`, `795b595`.
+
+**Per-item running state:** Item 6 done (0 outside tests/). Item 7: 245 → **123**. Findings this
+session: finding-0029 (core-injectable-as-concrete-class, parked) and finding-0030 (persistence-
+stability tolerance gap, parked, unrelated). Remaining error kinds (re-measure needed for exact
+current numbers): `arg-type` (mostly finding-0029-shaped, now measured-red-and-parked) ·
+`type-arg` (~18, mechanical bare-generic family, same as Item 6) · `operator` (~10) · `index`
+(~5) · `var-annotated` (~4) · `return-value` (~3) · `func-returns-value` (~2 left) ·
+`import-untyped`/`dict-item`/`attr-defined` (1 each).
+
+**Next action:** re-measure fresh, then the `type-arg` remainder (mechanical, same convention as
+Item 6 — should be fast), `test_cron.py`'s `SimpleNamespace`-as-`Job` shape (visible in every
+mypy tail this session — check whether it's finding-0029-shaped or genuinely different before
+deciding fix-in-scope vs park), then `operator`/`index`/`var-annotated`/`return-value` in
+whatever order groups best by file. Aim: drive to the finding-0029 floor (the point where every
+remaining error is the parked core-injectable-as-concrete-class shape, or a fresh distinct
+family worth its own judgment call).
+
+---
+
 ## Markers
