@@ -40,3 +40,6 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 .claude/settings.local.json
+
+# delegated-builder worktrees (delegate skill) — transient, never committed
+.claude/worktrees/
