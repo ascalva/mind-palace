@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-013
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/code-observation-projection.md
 contract: builder
