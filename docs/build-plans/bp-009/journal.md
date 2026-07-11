@@ -143,4 +143,94 @@ the keep-or-park verdict.
 
 ---
 
+## 2026-07-11 — Item 11 COMPLETE: churn measured on the real seam — ZERO warranted ignores; verdict KEEP (finding-0028)
+
+**Status:** Items 10 and 11 both done. Finding-0028 filed. Plan-complete pending orchestrator
+scrutiny + /triage (builder does NOT flip to complete).
+
+**Method (as decided in the Item-10 entry, executed verbatim):** local `git clone` of this
+worktree at `951d30e` into the scratchpad (`bp009-overlay`); Encoding A — `MirrorView.rows()
+-> list[Authored[dict[str, Any]]]`, the view stays the sole read-path mint, `__post_init__`
+runtime re-check and `MIRROR_READABLE` byte-identical — applied in place there; checked with
+`uv run --project <worktree> --extra dev mypy` (same pyproject config) and the clone's own
+pytest env. Overlay discarded after measurement; NOTHING landed outside write scope.
+
+**Headline numbers:**
+
+- **Warranted ignores required: 0. Casts required: 0.** (grep over the full overlay diff:
+  `git diff | grep -cE '^\+.*(type: ignore|cast\()'` → `0`)
+- Total churn to convert the ENTIRE MirrorView consumer set (not just one path):
+  **13 files, +37/−24 lines** (249-line unified diff, saved during the session as
+  `overlay-full.diff` in the scratchpad; reproducible from the table below).
+- mypy end state: **core 0 errors; repo-wide 296 = exact baseline parity (0 new, 0
+  resolved)**. ruff: `All checks passed!`. Runtime: full overlay suite minus e2e
+  **750 passed, 4 skipped** (targeted seam set passed earlier: `92 passed in 14.77s`).
+
+**Churn table (sites touched, by file):**
+
+| file | churn | nature |
+|---|---|---|
+| `core/mirror.py` | +1 import; `rows()` sig + wrap (1 method) | the mint. Runtime check UNTOUCHED |
+| `core/dreaming/cluster.py` | +1 import; 2 signatures; 2 unwrap lines | the introspective entry (`note_snippets`, `note_centroids`) |
+| `core/dreaming/dreamer.py` | 1 unwrap (dream_v2 title loop) | field access; `clusters()` needed NO change |
+| `core/dreaming/adjudicator.py` | 2 lines → `.value.get` | field access |
+| `core/complex/build.py` | +1 import; 1 helper sig (`_created_epoch`); 1 unwrap; 1 dict-comp | field access |
+| `core/effect_proposal.py` | 1 line → `.value.get` | field access (model_tailor context) |
+| `core/dreaming/graph.py` | **0** | pass-through (`note_centroids(view.rows())`) type-checks unchanged |
+| `core/dreaming/interpreters.py` | **0** | pass-through |
+| `core/curator/curator.py` | **0** | pass-through (both call sites) |
+| tests ×7 files | 5 unwraps (`r.value["…"]`); 3 explicit mints (`Authored(r)`) | see laundering note below |
+
+**The demonstrated catches (acceptance: "at least one accidental-violation the checker now
+catches"):**
+
+1. **Real site, caught statically:** `tests/unit/test_complex.py:114` —
+   `note_centroids(rows)` with hand-built rows that never transited a MirrorView. mypy:
+   `Argument 1 to "note_centroids" has incompatible type "list[dict[str, Any]]"; expected
+   "list[Authored[dict[str, Any]]]" [arg-type]`. This is exactly the MirrorView-bypass
+   class: today NOTHING catches a consumer clustering un-projected rows (the runtime
+   firewall guards only view construction). Fix forced an EXPLICIT, greppable mint.
+2. **Pinned permanently in-repo:** `tests/unit/test_provenance_tags.py::
+   test_mirror_bypass_is_a_type_error` — raw `store.all_rows()`-shaped rows and
+   `Derived[Row]` rows both rejected `[arg-type]` at an `Authored`-typed consumer;
+   tagged rows accepted.
+
+**Discovery — Any-laundering bounds the shadow's reach (the honest limit):** two test files
+fed bare rows into the retyped entry and mypy saw NOTHING; both surfaced only at runtime
+(`AttributeError: 'dict' object has no attribute 'value'`):
+- `tests/unit/test_cluster.py` — untyped local fixture `def _row(...)` returns `Any` →
+  every argument laundered (7 call sites, one-line fix at the fixture).
+- `tests/metamorphic/test_order_independence.py` — `from fixtures.corpus import
+  vector_rows` is unresolvable to mypy (pre-existing baseline error) → `Any` → laundered.
+This is §2.1's gradual-typing boundary made concrete: in strict Tier-1 (core) the shadow is
+tight — in Tier-2 it is only as strong as the flag floor and the fixture typing. Recorded in
+finding-0028; feeds the note's open "Tier-2 flag floor" question.
+
+**Honest caveats (in the finding too):**
+- The mint is NOT sealed: `Authored(...)` is publicly constructible, so the tag converts a
+  silent bypass into an explicit, reviewable assertion — it does not PROVE view-transit.
+  Sole-mint discipline (B-7-adjacent grep gate or module-private mint) is a design question.
+- "Zero runtime cost" holds for the CHECKING, not the encoding: `rows()` now allocates N
+  small frozen wrappers per call (a generic `NewType` does not exist in Python's grammar, so
+  a fully erased generic tag is not expressible). Negligible on this path, but nonzero.
+- The seam is non-severable: retyping `rows()` propagates to ALL consumers in one move —
+  "one seam" honestly = the full consumer set. The propagation was cheap (3 files needed
+  zero changes) but a partial adoption is not an option under Encoding A.
+
+**Falsifier check (the note's, verbatim: "if tagging requires warranted ignores at more than
+a handful of sites, the static-shadow claim is weakened; park the spike with that evidence
+attached rather than forcing the encoding"):** measured ignores = **0** across the full
+consumer set, tests included. Falsifier NOT tripped — by a wide margin. **Verdict: KEEP**
+(finding-0028): the static-shadow claim survives its own falsifier on real call sites.
+Landing the conversion needs a follow-up plan whose write_scope covers the 6 core + 7 test
+files (out of bp-009's scope by design).
+
+**Acceptance outputs (verbatim):**
+- overlay mypy: `core: 0 | total: 296 | new: 0 | resolved: 0`
+- overlay ruff: `All checks passed!`
+- overlay pytest (full minus e2e): `750 passed, 4 skipped in 8.77s`
+- overlay diff: `13 files changed, 37 insertions(+), 24 deletions(-)`; ignores/casts added: `0`
+
+---
+
 ## Markers
