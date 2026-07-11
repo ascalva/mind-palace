@@ -9,6 +9,7 @@ write_scope:
   - "core/stores/code_observations.py"
   - "core/sensing.py"
   - "ops/code_sensor.py"
+  - "ops/lifecycle/launcher.py"   # oq-0013: owner-concurred (Item 4 reset registration), 2026-07-11
   - "tests/**"
   - "docs/findings/**"
   - "docs/build-plans/bp-012/**"
@@ -103,6 +104,11 @@ the one `reset_targets()` line (carried explicitly by Item 4).
 Item 4 ONLY — one list entry. The scope-guard front-matter must include it:
 this plan's write_scope is amended to add `"ops/lifecycle/launcher.py"` at blessing if
 the owner concurs (or Item 4 parks with a finding).
+
+**APPLIED 2026-07-11 (owner concurred via oq-0013):** `"ops/lifecycle/launcher.py"` is
+now in the front-matter `write_scope` (one entry). Item 4 proceeds — the single
+`reset_targets()` line + comment + the additive seed line in the existing reset test.
+The rest of `ops/lifecycle/**` stays out of scope.
 
 ## 6. Interfaces pinned inline
 

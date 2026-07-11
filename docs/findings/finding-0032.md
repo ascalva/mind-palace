@@ -10,7 +10,7 @@ updated: 2026-07-11
 links:
   - docs/build-plans/bp-008/journal.md   # Entry 4: the demo-branch episode
   - .gitlab-ci.yml                        # type-gate and ratchet jobs (lint stage)
-resolution: null
+resolution: owner-adopted 2026-07-11 — mint a CI-scoped plan (needs:[] on type-gate + ratchet)
 ---
 
 # finding-0032 — Should CI gates (`type-gate`, `ratchet`) run via `needs: []`, independent of the `.pre` stage?
@@ -63,3 +63,12 @@ code gates carry `needs: []` and the release jobs do not.
 Parked for the next CI-scoped plan (or fold into a broader `.gitlab-ci.yml` revision).
 Trigger that reopens immediately: any push to main where a `.pre`/release failure is
 observed to have skipped `type-gate` or `ratchet`.
+
+## Owner decision (2026-07-11)
+
+**ADOPT.** The owner ruled that the code gates should run independently of a red `.pre`/release
+stage. Next step (NOT this supervision session — a graduate/triage act): mint a small CI-scoped
+build plan that adds `needs: []` to BOTH `type-gate` and `ratchet` in `.gitlab-ci.yml`, with a
+comment explaining why the code gates carry it and the release jobs do not. That plan takes the
+owner-only `proposed → ready` blessing like any other before it builds. Non-urgent; blocks nothing
+in the current queue. Queued for the closing /triage's promotion step.
