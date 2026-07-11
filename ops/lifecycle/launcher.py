@@ -511,6 +511,11 @@ class Launcher:
             # code-observation-projection.md §2.4) — wiped with the corpus, unlike the
             # snapshot LEDGER (build history, in _RESET_GUARD above). bp-012 Item 4 / Q4.
             p.data_dir / "code_observations.sqlite",
+            # Lane-1 reference edges are CORPUS-side too (cross-stratum doc↔code refs minted
+            # at projection time, ratified §2.5) — their rows reference wiped corpus/code
+            # endpoints, so they orphan on reset like the observations. bp-013 Q4 (parked to
+            # the orchestrator; launcher.py was outside the builder's write_scope).
+            p.data_dir / "reference_edges.sqlite",
         ]
         out: list[Path] = []
         for c in candidates:
