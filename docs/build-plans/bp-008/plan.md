@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-008
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/type-system-as-core-audit.md
 contract: builder
