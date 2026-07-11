@@ -98,6 +98,7 @@ def test_bad_change_auto_rolls_back_and_restores_the_knob(tmp_path):
     final = loop.execute_and_validate(p.id)
 
     assert final.status is LedgerStatus.ROLLED_BACK
+    assert final.rollback_reason is not None   # ROLLED_BACK always carries a reason
     assert "golden" in final.rollback_reason
     # the overlay is back to its prior state — the loop introduced the key, so rollback removed it
     assert read_overlay(tmp_path / "levers.toml") == {}
@@ -129,6 +130,7 @@ def test_frozen_anchor_catches_drift_the_rolling_baseline_misses(tmp_path):
     final = loop.execute_and_validate(p.id)
 
     assert final.status is LedgerStatus.ROLLED_BACK
+    assert final.rollback_reason is not None   # ROLLED_BACK always carries a reason
     assert "frozen anchor" in final.rollback_reason
     assert "drift" not in final.rollback_reason     # rolling passed; only the frozen anchor fired
 

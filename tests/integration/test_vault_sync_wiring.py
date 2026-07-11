@@ -8,9 +8,10 @@ watcher's on_change enqueues a job (the trigger path) — all without core impor
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 from config.loader import get_config
-from scheduler.queue import PRIORITY_BACKGROUND, JobQueue
+from scheduler.queue import PRIORITY_BACKGROUND, Job, JobQueue
 from scheduler.router import Router
 from scheduler.vault_sync import (
     VAULT_SYNC_KIND,
@@ -52,9 +53,11 @@ def test_enqueue_is_background_priority():
 def test_handler_runs_rescan():
     sync = _FakeSync()
     handler = vault_sync_handler(sync)
-    msg = handler(object())
+    # The handler ignores its Job argument entirely (see scheduler/vault_sync.py) -- a bare
+    # placeholder is the right test double; the cast says "this never matters here."
+    msg = handler(cast(Job, object()))
     assert sync.calls == 1
-    assert "indexed=1" in msg
+    assert msg is not None and "indexed=1" in msg
 
 
 def test_watcher_on_change_enqueues_a_job():

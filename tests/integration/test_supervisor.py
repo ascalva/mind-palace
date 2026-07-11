@@ -4,6 +4,7 @@ ceiling defers rather than crashes; a handler failure is isolated; checkpointed 
 and resume at job boundaries."""
 
 import dataclasses
+from collections.abc import Callable
 
 import pytest
 
@@ -39,8 +40,13 @@ def _supervisor(tmp_path, handlers, *, active=False, loader=None, secrets=None):
 
 
 def test_runs_jobs_in_order_and_records_results(tmp_path):
-    order = []
-    sup = _supervisor(tmp_path, {"x": lambda j: order.append(j.id) or "done"})
+    order: list[int] = []
+
+    def _record(j):
+        order.append(j.id)
+        return "done"
+
+    sup = _supervisor(tmp_path, {"x": _record})
     sup.loader.ensure_pinned(warm=False)
     a = sup.queue.enqueue("x", "routine", 16384)
     b = sup.queue.enqueue("x", "routine", 16384)
@@ -81,8 +87,9 @@ def test_ceiling_breach_defers_job(tmp_path):
                      handlers={"k": lambda j: None}, presence=_present(False), warm=False)
     j = sup.queue.enqueue("k", "synthesis", 32768)     # 2.7 + 17 > 5 -> refused
     sup.run()
-    assert sup.queue.get(j.id).state == DEFERRED
-    assert "ceiling" in sup.queue.get(j.id).error
+    deferred = sup.queue.get(j.id)
+    assert deferred.state == DEFERRED
+    assert deferred.error is not None and "ceiling" in deferred.error
 
 
 def test_handler_exception_fails_job_not_loop(tmp_path):
@@ -101,8 +108,8 @@ def test_handler_exception_fails_job_not_loop(tmp_path):
 
 
 def test_checkpointed_job_yields_and_resumes(tmp_path):
-    calls = []
-    handlers = {}
+    calls: list[object] = []
+    handlers: dict[str, Callable[..., str | None]] = {}
     sup = _supervisor(tmp_path, handlers, active=False)
 
     def stepper(j):
