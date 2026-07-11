@@ -19,6 +19,7 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from config.loader import Config
 from core.research.criteria import Paper, ResearchCriteria
@@ -31,7 +32,7 @@ def _utcnow() -> str:
     return datetime.now(UTC).replace(tzinfo=None).isoformat(timespec="seconds")
 
 
-def _atomic_write_json(path: Path, obj: dict) -> None:
+def _atomic_write_json(path: Path, obj: dict[str, Any]) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(obj), encoding="utf-8")
     tmp.replace(path)  # the bridge never reads a partial request
@@ -47,7 +48,7 @@ class ResearchResult:
     ts: str
 
     @classmethod
-    def from_dict(cls, obj: dict) -> ResearchResult:
+    def from_dict(cls, obj: dict[str, Any]) -> ResearchResult:
         return cls(
             criteria_id=str(obj.get("criteria_id") or obj.get("id", "")),
             papers=tuple(Paper.from_dict(p) for p in obj.get("papers", [])),

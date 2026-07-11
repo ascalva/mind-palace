@@ -13,6 +13,7 @@ distinct across documents (two notes sharing a verbatim chunk keep both points �
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import Any
 
 from core.ingest.amend import chunk_point_id, text_hash
 from core.ingest.chunk import Chunk
@@ -23,7 +24,7 @@ from core.stores.sourceset import SourceSet, group_sources
 from core.stores.vectorstore import VectorStore
 
 
-def _chunk_row(record: IngestRecord, chunk: Chunk, vector: list[float]) -> dict:
+def _chunk_row(record: IngestRecord, chunk: Chunk, vector: list[float]) -> dict[str, Any]:
     """Build one vector-store row for a chunk — the SINGLE place the row schema is assembled, so
     `index_records` and `index_amendment` never drift. `id` is the doc-scoped content address
     `(source_path, chunk_hash)`; `digest` stamps the note's CURRENT version."""
@@ -43,21 +44,21 @@ def index_records(records: Iterable[IngestRecord], embedder: Embedder, store: Ve
     """Embed each record's chunks and add them to the vector store. Returns rows added.
     Identical-content notes (same digest) are embedded once; within a note, chunks are
     deduplicated by content hash — one point per canonical chunk (§3)."""
-    rows = []
+    rows: list[dict[str, Any]] = []
     seen_digests: set[str] = set()
     for r in records:
         if not r.chunks or r.digest in seen_digests:
             continue
         seen_digests.add(r.digest)
         vectors = embedder.embed_documents([c.text for c in r.chunks])
-        by_hash: dict[str, dict] = {}
+        by_hash: dict[str, dict[str, Any]] = {}
         for chunk, vector in zip(r.chunks, vectors, strict=True):
             by_hash.setdefault(chunk.content_hash, _chunk_row(r, chunk, vector))
         rows.extend(by_hash.values())
     return store.add(rows)
 
 
-def index_amendment(record: IngestRecord, existing_rows: list[dict], embedder: Embedder,
+def index_amendment(record: IngestRecord, existing_rows: list[dict[str, Any]], embedder: Embedder,
                     store: VectorStore) -> tuple[int, int]:
     """Re-index one note as a chunk-level amendment (ingest-identity-and-amendment.md §4).
 
@@ -81,7 +82,7 @@ def index_amendment(record: IngestRecord, existing_rows: list[dict], embedder: E
     return len(to_embed), len(canonical) - len(to_embed)
 
 
-def _row_new_id(row: dict) -> str:
+def _row_new_id(row: dict[str, Any]) -> str:
     """The doc-scoped content id a stored row SHOULD have — `(source_path, chunk_hash)`, computed
     from the row's own `source_path` + `text`. The one place the migration and the dry-run agree."""
     return chunk_point_id(row["source_path"], Chunk(int(row.get("chunk_index", 0)), row["text"]))
@@ -103,7 +104,7 @@ def rekey_store(store: VectorStore) -> tuple[int, int]:
     re-key, not a re-ingest — so it needs no embedder and cannot be defeated by catalog change-
     detection the way a reset + `rescan()` would be). Regenerable from raw regardless (§8)."""
     rows = store.all_rows()
-    by_new_id: dict[str, dict] = {}
+    by_new_id: dict[str, dict[str, Any]] = {}
     for r in rows:
         r["id"] = _row_new_id(r)
         by_new_id[r["id"]] = r                 # last wins — coalesce identical chunks (§3)
@@ -112,7 +113,8 @@ def rekey_store(store: VectorStore) -> tuple[int, int]:
 
 
 def semantic_search(query: str, embedder: Embedder, store: VectorStore, *, k: int = 5,
-                    provenances: Iterable[Provenance] | None = MIRROR_READABLE) -> list[dict]:
+                    provenances: Iterable[Provenance] | None = MIRROR_READABLE,
+                    ) -> list[dict[str, Any]]:
     """Search the thought-graph. Defaults to MIRROR_READABLE (AUTHORED only) — the
     introspective default that keeps observed exhaust out of the mirror. Pass
     provenances=None for the assistant tier to search across all classes."""

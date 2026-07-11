@@ -21,6 +21,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from config.loader import Config
 
@@ -36,7 +37,7 @@ def _utcnow() -> str:
     return datetime.now(UTC).replace(tzinfo=None).isoformat(timespec="seconds")
 
 
-def _atomic_write_json(path: Path, obj: dict) -> None:
+def _atomic_write_json(path: Path, obj: dict[str, Any]) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(obj), encoding="utf-8")
     tmp.replace(path)   # rename is atomic; the gateway never reads a partial response

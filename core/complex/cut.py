@@ -32,7 +32,7 @@ from core.complex.spectral import spectral_labels
 _CAPACITY_SCALE = 1024
 
 
-def conductance(A: sp.spmatrix, S: set[int] | frozenset[int]) -> float:
+def conductance(A: sp.csr_matrix, S: set[int] | frozenset[int]) -> float:
     """Φ(S) = w(∂S) / min(vol S, vol S̄) over the weighted adjacency. 0 ⇔ S is disconnected from
     the rest; 1-ish ⇔ S is not a community at all. Degenerate S (empty / everything / zero
     volume) returns 0.0 — maximally sealed, the conservative reading for an alignment detector."""
@@ -50,7 +50,7 @@ def conductance(A: sp.spmatrix, S: set[int] | frozenset[int]) -> float:
     return boundary / min(vol_s, vol_rest)
 
 
-def min_conductance(A: sp.spmatrix, labels: np.ndarray | None = None) -> float:
+def min_conductance(A: sp.csr_matrix, labels: np.ndarray | None = None) -> float:
     """The worst (minimum) community conductance over a partition — the A2 echo-chamber axis.
     `labels` defaults to the deterministic spectral partition. Communities of size < 2 are
     skipped (a singleton is not a chamber). No community ⇒ 1.0 (nothing sealed off, healthy)."""
@@ -104,7 +104,7 @@ def grounding_cut(refs_of: dict[str, tuple[str, ...]], artifact: str,
     cap = sp.lil_matrix((n, n), dtype=np.int32)
     for u, v, c in edges:
         cap[u, v] = cap[u, v] + c               # parallel refs accumulate capacity
-    flow = maximum_flow(cap.tocsr(), src, sink)
+    flow = maximum_flow(cap.tocsr(), src, sink)  # type: ignore[arg-type]  # warrant: scipy accepts csr_matrix at runtime; stubs over-narrow to csr_array (T3)
     return float(flow.flow_value) / _CAPACITY_SCALE
 
 

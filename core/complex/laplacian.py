@@ -18,18 +18,19 @@ import numpy as np
 import scipy.sparse as sp
 
 
-def _degree(A: sp.spmatrix) -> np.ndarray:
+def _degree(A: sp.csr_matrix) -> np.ndarray:
     """Row sums (weighted degree) as a dense 1-D vector."""
     return np.asarray(A.sum(axis=1)).ravel()
 
 
-def laplacian(A: sp.spmatrix) -> sp.csr_matrix:
+def laplacian(A: sp.csr_matrix) -> sp.csr_matrix:
     """Combinatorial Laplacian L = D − A. dim ker L = number of connected components (§2.2)."""
     d = _degree(A)
-    return (sp.diags(d) - A).tocsr()
+    L: sp.csr_matrix = (sp.diags(d) - A).tocsr()
+    return L
 
 
-def laplacian_sym(A: sp.spmatrix) -> sp.csr_matrix:
+def laplacian_sym(A: sp.csr_matrix) -> sp.csr_matrix:
     """Symmetric normalized Laplacian L_sym = I − D^{-1/2} A D^{-1/2} (§2.2).
 
     The eigenbasis for spectral clustering; eigenvalues lie in [0, 2]. Isolated nodes (degree 0)
@@ -40,14 +41,16 @@ def laplacian_sym(A: sp.spmatrix) -> sp.csr_matrix:
         d_inv_sqrt = np.where(d > 0.0, 1.0 / np.sqrt(d), 0.0)
     n = A.shape[0]
     Dis = sp.diags(d_inv_sqrt)
-    return (sp.identity(n, format="csr") - Dis @ A @ Dis).tocsr()
+    L: sp.csr_matrix = (sp.identity(n, format="csr") - Dis @ A @ Dis).tocsr()
+    return L
 
 
-def signed_laplacian(A_signed: sp.spmatrix) -> sp.csr_matrix:
+def signed_laplacian(A_signed: sp.csr_matrix) -> sp.csr_matrix:
     """Signed Laplacian L̄ = D̄ − A_signed with absolute degree D̄_ii = Σ_j |A_ij| (§2.3).
 
     PSD, and singular **iff the signed graph is balanced** (λ_min(L̄) = 0 ⇔ balanced; Hou/Kunegis).
     xᵀL̄x = Σ_{+}w(x_u−x_v)² + Σ_{−}w(x_u+x_v)² — the energy that a frustrated cycle cannot drive
     to zero. `balance.py` reads its spectrum for the global dissonance proxy."""
     abs_deg = np.asarray(abs(A_signed).sum(axis=1)).ravel()
-    return (sp.diags(abs_deg) - A_signed).tocsr()
+    L: sp.csr_matrix = (sp.diags(abs_deg) - A_signed).tocsr()
+    return L

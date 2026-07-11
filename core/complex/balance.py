@@ -25,7 +25,7 @@ from core.complex.laplacian import signed_laplacian
 _DENSE_MAX = 4
 
 
-def signed_spectrum(A_signed: sp.spmatrix) -> float:
+def signed_spectrum(A_signed: sp.csr_matrix) -> float:
     """The dissonance proxy: the MAX over connected components of λ_min(L̄) on that component.
 
     On a CONNECTED graph this is exactly §2.3's λ_min(L̄) (0 ⇔ balanced, Hou/Kunegis). On a
@@ -49,7 +49,7 @@ def signed_spectrum(A_signed: sp.spmatrix) -> float:
     return worst
 
 
-def _lambda_min(L: sp.spmatrix) -> float:
+def _lambda_min(L: sp.csr_matrix) -> float:
     """Smallest eigenvalue of one component's signed Laplacian (clamped at 0 for fp noise).
 
     The fixed ARPACK start is a normalized ramp, NOT the uniform vector: on a balanced
@@ -69,12 +69,12 @@ def _lambda_min(L: sp.spmatrix) -> float:
     return float(max(0.0, vals[0]))
 
 
-def is_balanced(A_signed: sp.spmatrix, *, tol: float = 1e-8) -> bool:
+def is_balanced(A_signed: sp.csr_matrix, *, tol: float = 1e-8) -> bool:
     """True iff the signed graph is balanced (λ_min(L̄) ≈ 0 within `tol`)."""
     return signed_spectrum(A_signed) <= tol
 
 
-def frustrated_triangles(A_signed: sp.spmatrix) -> list[tuple[int, int, int]]:
+def frustrated_triangles(A_signed: sp.csr_matrix) -> list[tuple[int, int, int]]:
     """Every frustrated triangle (i<j<k with all three edges present and an ODD number of −
     edges) — the specific unresolved tensions. Sorted, deterministic. O(#triangles)."""
     A = A_signed.tocsr()
@@ -83,11 +83,11 @@ def frustrated_triangles(A_signed: sp.spmatrix) -> list[tuple[int, int, int]]:
     neighbors: list[set[int]] = [set() for _ in range(n)]
     coo = A.tocoo()
     sign: dict[tuple[int, int], int] = {}
-    for i, j, v in zip(coo.row, coo.col, coo.data, strict=True):
-        if i == j or v == 0.0:
+    for ci, cj, v in zip(coo.row, coo.col, coo.data, strict=True):
+        if ci == cj or v == 0.0:
             continue
-        neighbors[i].add(int(j))
-        a, b = (int(i), int(j)) if i < j else (int(j), int(i))
+        neighbors[int(ci)].add(int(cj))
+        a, b = (int(ci), int(cj)) if ci < cj else (int(cj), int(ci))
         sign[(a, b)] = 1 if v > 0 else -1
     out: list[tuple[int, int, int]] = []
     for i in range(n):
@@ -99,7 +99,7 @@ def frustrated_triangles(A_signed: sp.spmatrix) -> list[tuple[int, int, int]]:
     return out
 
 
-def frustration(A_signed: sp.spmatrix) -> tuple[float, list[tuple[int, int, int]]]:
+def frustration(A_signed: sp.csr_matrix) -> tuple[float, list[tuple[int, int, int]]]:
     """(λ_min(L̄), frustrated_triangles) — the global dissonance proxy plus the localized tensions
     (companion III §2.3 contract). Balanced graph ⇒ (0.0, [])."""
     return signed_spectrum(A_signed), frustrated_triangles(A_signed)

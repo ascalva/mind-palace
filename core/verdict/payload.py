@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from typing import Any
 
 from core.attestation.crypto import Ed25519Signer, public_from_b64, verify
 
@@ -67,12 +68,12 @@ class VerdictPayload:
         """The exact bytes the owner signature covers."""
         return _canonical(self.subject_id, self.verdict, self.seq, self.timestamp)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {"subject_id": self.subject_id, "verdict": self.verdict,
                 "seq": self.seq, "timestamp": self.timestamp}
 
     @classmethod
-    def from_dict(cls, d: dict) -> VerdictPayload:
+    def from_dict(cls, d: dict[str, Any]) -> VerdictPayload:
         return cls(subject_id=d["subject_id"], verdict=d["verdict"],
                    seq=int(d["seq"]), timestamp=d["timestamp"])
 
@@ -96,14 +97,14 @@ class SignedVerdict:
         False, never raises (delegates to `crypto.verify`)."""
         return verify(public_from_b64(public_b64), self.payload.signing_payload(), self.signature)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """The transport form — what the Ambassador (or any carrier) moves inbound. The signature
         travels WITH the payload, so the receiver re-verifies against the owner public key."""
         return {"payload": self.payload.to_dict(), "signature": self.signature,
                 "signer": self.signer}
 
     @classmethod
-    def from_dict(cls, d: dict) -> SignedVerdict:
+    def from_dict(cls, d: dict[str, Any]) -> SignedVerdict:
         return cls(payload=VerdictPayload.from_dict(d["payload"]),
                    signature=d["signature"], signer=d["signer"])
 

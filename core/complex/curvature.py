@@ -22,12 +22,12 @@ import numpy as np
 import scipy.sparse as sp
 
 
-def forman(A: sp.spmatrix) -> dict[tuple[int, int], float]:
+def forman(A: sp.csr_matrix) -> dict[tuple[int, int], float]:
     """Augmented Forman–Ricci curvature per edge of A's support, keyed (i, j) with i < j.
 
     Negative on bridges (high endpoint degree, low triangle support); positive inside
     triangle-dense communities. Exact and deterministic — pure degree/triangle combinatorics."""
-    B = (A != 0).astype(np.int64)               # the support graph (curvature is combinatorial)
+    B = (A != 0).astype(np.int64)  # type: ignore[attr-defined]  # warrant: sparse __ne__ returns a matrix at runtime; stubs over-narrow to bool (T3)
     B = B.tocsr()
     B.setdiag(0)
     B.eliminate_zeros()
@@ -43,7 +43,7 @@ def forman(A: sp.spmatrix) -> dict[tuple[int, int], float]:
     return out
 
 
-def most_negative_edges(A: sp.spmatrix, *, top_k: int) -> list[tuple[int, int, float]]:
+def most_negative_edges(A: sp.csr_matrix, *, top_k: int) -> list[tuple[int, int, float]]:
     """The candidate cross-domain bridges: edges ranked ascending by Forman curvature.
 
     Emission rule (deterministic, no magic threshold): candidates are the edges with κ ≤ 0 —

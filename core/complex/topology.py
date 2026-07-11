@@ -20,6 +20,7 @@ in plotting libs we never use at module import. Deterministic; no model; no netw
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -53,14 +54,17 @@ def cosine_distance_matrix(vectors: np.ndarray) -> np.ndarray:
     sim = np.clip(unit @ unit.T, -1.0, 1.0)
     D = 1.0 - sim
     np.fill_diagonal(D, 0.0)
-    return np.maximum(D, D.T)                 # exact symmetry
+    out: np.ndarray = np.maximum(D, D.T)      # exact symmetry
+    return out
 
 
-def persistence(D: np.ndarray, *, maxdim: int = 1) -> dict:
+def persistence(D: np.ndarray, *, maxdim: int = 1) -> dict[str, Any]:
     """Vietoris–Rips persistence over a distance matrix via ripser (lazy import). Returns the raw
     ripser output (`dgms`, `cocycles`, …) — exact and deterministic for a fixed input."""
-    from ripser import ripser as _ripser  # lazy: pulls in heavy, unused plotting deps
-    return _ripser(D, maxdim=maxdim, distance_matrix=True, do_cocycles=True)
+    # warrant: ripser ships no py.typed; the single lazy TDA entry point (T3)
+    from ripser import ripser as _ripser  # type: ignore[import-untyped]
+    result: dict[str, Any] = _ripser(D, maxdim=maxdim, distance_matrix=True, do_cocycles=True)
+    return result
 
 
 def _cycle_witness(D: np.ndarray, cocycle: np.ndarray, birth: float) -> tuple[int, ...]:

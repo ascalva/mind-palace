@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from typing import Any
 
 
 def _canonical(
@@ -97,7 +98,7 @@ class Attestation:
             vault_token_accessor=vault_token_accessor, signature=signature, signer=signer,
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id, "timestamp": self.timestamp, "agent_role": self.agent_role,
             "action": self.action, "constitution_fingerprint": self.constitution_fingerprint,
@@ -108,7 +109,7 @@ class Attestation:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> Attestation:
+    def from_dict(cls, d: dict[str, Any]) -> Attestation:
         return cls(
             id=d["id"], timestamp=d["timestamp"], agent_role=d["agent_role"],
             action=d["action"], constitution_fingerprint=d["constitution_fingerprint"],

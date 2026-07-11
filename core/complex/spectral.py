@@ -112,7 +112,8 @@ def _spectral_labels_component(A: sp.csr_matrix, *, k_max: int) -> np.ndarray:
     rownorm[rownorm == 0.0] = 1.0
     unit = embedding / rownorm
     _centroids, labels = kmeans2(unit, k, seed=_KMEANS_SEED, minit="++", missing="warn")
-    return labels.astype(np.int64)
+    out: np.ndarray = labels.astype(np.int64)
+    return out
 
 
 def spectral_labels(A: sp.csr_matrix, *, k_max: int = 8) -> np.ndarray:

@@ -33,6 +33,7 @@ from core.dreaming.rnd import require_rnd_enabled
 from core.mirror import MirrorView
 from core.selfcheck import SelfCheck, Source, SubjectiveJudge, self_evaluate
 from core.stores.derived import DREAM, Artifact, DerivedStore, artifact_id
+from core.stores.edges import EdgeStore
 from core.stores.vectorstore import VectorStore
 
 # A synthesizer maps an assembled (Constitution-first) context -> the reflection text. The
@@ -96,7 +97,7 @@ class Dreamer:
     # Loop-v2 seams (H8/H9; both optional — the v1 path never touches them): persisted
     # typed/signed edges overlaid on the signed adjacency (the tension lens's input), and the
     # structural-snapshot store the v2 pass appends to (§5.4). None = no edges / no snapshot.
-    edge_store: object | None = None
+    edge_store: EdgeStore | None = None
     snapshots: SnapshotStore | None = None
     _snippets: dict[str, str] = field(default_factory=dict)
 

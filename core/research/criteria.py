@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from typing import Any
 from uuid import uuid4
 
 # Conservative bounds on a single search term. A genuine topical term ("systematic review",
@@ -107,7 +108,7 @@ class ResearchCriteria:
         if self.from_year is not None and not (1800 <= self.from_year <= 2100):
             raise DeidentificationError(f"implausible from_year: {self.from_year}")
 
-    def to_request(self) -> dict:
+    def to_request(self) -> dict[str, Any]:
         """The outbound wire payload — de-identified criteria only, no corpus content."""
         return {
             "id": self.id,
@@ -137,7 +138,7 @@ class Paper:
     is_preprint: bool
 
     @classmethod
-    def from_dict(cls, d: dict) -> Paper:
+    def from_dict(cls, d: dict[str, Any]) -> Paper:
         return cls(
             source=str(d.get("source", "")),
             id=str(d.get("id", "")),

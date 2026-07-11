@@ -6,6 +6,39 @@ write-scope files must continue without re-asking anything already answered.
 
 ---
 
+## Entry — 2026-07-11 — Item 4 complete: core strict-GREEN (orchestrator resumed a dead builder)
+
+**Resume note (delegate skill, fresh-agent test exercised for real).** The delegated builder
+died mid-Item-4 at the account spend limit (148 tool calls in; 7 clean commits + this journal
+were its state). The orchestrator resumed IN THIS WORKTREE from plan + journal + diff alone —
+no re-asking — and finished the sweep in the builder's own conventions.
+
+**Item 4 final state.** 183 triaged errors → **0** (`uv run mypy` core-clean). Families closed
+by the resume: 30 bare-`dict` sites → `dict[str, Any]` (the open-payload convention; known
+shapes stayed TypedDict per the builder's Message precedent); numpy/scipy `no-any-return`
+sites → typed intermediates; balance.py COO/triangle loop variable shadowing disambiguated
+(`ci/cj` vs `i/j` — the int32-vs-int family was one bug-shaped shadowing, not five errors);
+`Dreamer.edge_store: object` → `EdgeStore | None` (the T2 its own triage flagged); 2 warranted
+T3 ignores added (scipy `maximum_flow` stub over-narrowing; sparse `__ne__` stub). One tooling
+interaction recorded: ruff --fix rewrapped the lazy ripser import and stranded its
+`type: ignore` on the alias line — warrant moved to its own line, ignore kept on the import.
+
+**Acceptance (all run, outputs in the session record):** `uv run mypy` → 0 core errors;
+shim grep (Item 2) → empty; bare-ignore grep → empty; ratchet 743 passed; `ruff check .` clean.
+
+**T3 ratio: 11/183 ≈ 6%** — far under the 1/3 razor threshold; no clause-3 finding needed.
+**T1 = 0** (Item 3): zero latent defects in core. Clause-3 check: T1+T2 ≠ 0 (T2 dominated the
+triage), so the audit claim STANDS on representability findings — and T1=0 is the PD-4
+evidence shape: strict typing found no latent-defect class on privileged paths, weakening the
+Rust-split's security motivation to performance-only. Route at /triage.
+
+**Per-item:** Item 1 done (triage table above) · Item 2 done (3 shims; overrides narrowed;
+watchdog interim override retained + warranted) · Item 3 done (T1=0, no findings to file) ·
+Item 4 done (this entry). Plan-complete pending orchestrator scrutiny + /triage seal.
+
+---
+
+
 ## 2026-07-11 — Item 2 complete: boundary shims landed (183 → 177)
 
 **Status:** Items 1–2 done (commits `d970a58`, `54ebbcb`). Core mypy count

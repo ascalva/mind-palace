@@ -57,7 +57,8 @@ def _init_posterior(A: sp.csr_matrix, k: int) -> np.ndarray:
     _c, labels = kmeans2(emb, k, seed=0, minit="++", missing="warn")
     q = np.full((n, k), 0.05 / max(k - 1, 1))
     q[np.arange(n), labels] = 0.95
-    return q / q.sum(axis=1, keepdims=True)
+    posterior: np.ndarray = q / q.sum(axis=1, keepdims=True)
+    return posterior
 
 
 def _vem(A: sp.csr_matrix, k: int) -> np.ndarray:
@@ -99,7 +100,7 @@ def _kn_objective(A: sp.csr_matrix, labels: np.ndarray, k: int) -> float:
     return float(terms.sum())
 
 
-def sbm(A: sp.spmatrix, *, k_max: int = 8) -> SBMResult:
+def sbm(A: sp.csr_matrix, *, k_max: int = 8) -> SBMResult:
     """Fit the DC-SBM for k = 1..k_max and select k by the penalized objective (ICL/BIC style):
 
         ICL(k) = L_KN(k) − ½·[k(k+1)/2]·ln W − ½·(k−1)·ln n,      W = total edge weight.

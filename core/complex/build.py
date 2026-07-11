@@ -19,7 +19,7 @@ Deterministic (fixed embeddings ⇒ fixed graph), model-free, Zone A (no network
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import scipy.sparse as sp
@@ -29,6 +29,8 @@ from core.provenance import Provenance
 
 if TYPE_CHECKING:  # annotation-only; the runtime import is lazy (see build_complex) to break
     from core.dreaming.cluster import NoteVector  # the package-init cycle with core.dreaming
+    from core.stores.derived import DerivedStore
+    from core.stores.edges import EdgeStore
 
 # Stable provenance → integer layer code (companion III §1.1: layers are provenance strata).
 _LAYER_CODE = {p.value: i for i, p in enumerate(Provenance)}
@@ -82,13 +84,13 @@ def _note_matrix(notes: list[NoteVector]) -> np.ndarray:
     return np.asarray([n.vector for n in notes], dtype=np.float64)
 
 
-def _created_epoch(rows: list[dict], nodes: tuple[str, ...]) -> np.ndarray:
+def _created_epoch(rows: list[dict[str, Any]], nodes: tuple[str, ...]) -> np.ndarray:
     """Per-node creation time (epoch seconds) for the §5.4 temporal index; 0.0 when unknown."""
     from datetime import datetime
     seen: dict[str, float] = {}
     for r in rows:
         d = r.get("digest")
-        if d in seen:
+        if not isinstance(d, str) or d in seen:
             continue
         ts = r.get("created_at") or r.get("timestamp") or r.get("created")
         val = 0.0
@@ -103,7 +105,8 @@ def _created_epoch(rows: list[dict], nodes: tuple[str, ...]) -> np.ndarray:
     return np.asarray([seen.get(d, 0.0) for d in nodes], dtype=np.float64)
 
 
-def build_complex(view: MirrorView, *, edges=None, derived=None,
+def build_complex(view: MirrorView, *, edges: EdgeStore | None = None,
+                  derived: DerivedStore | None = None,
                   sim_floor: float = 0.0) -> ReasoningComplex:
     """Assemble 𝔎|_MR from a `MirrorView` (Invariant 6: authored-only is structural — the input
     type cannot hold a non-authored row).
@@ -136,7 +139,8 @@ def build_complex(view: MirrorView, *, edges=None, derived=None,
                             layers=layers, created=created, titles=titles)
 
 
-def _overlay_signed(A: sp.csr_matrix, idx: dict[str, int], edges) -> sp.csr_matrix:
+def _overlay_signed(A: sp.csr_matrix, idx: dict[str, int],
+                    edges: EdgeStore | None) -> sp.csr_matrix:
     """A_signed = A (all support) with any persisted typed edges overlaid: an edge (u,v) present in
     the store sets the pair to sign·w (contradiction ⇒ −w). Both endpoints must be nodes here.
 
@@ -162,7 +166,8 @@ def _overlay_signed(A: sp.csr_matrix, idx: dict[str, int], edges) -> sp.csr_matr
     return signed.tocsr()
 
 
-def _hyperedges_touching(nodes: tuple[str, ...], derived) -> tuple[tuple[frozenset[str], str], ...]:
+def _hyperedges_touching(nodes: tuple[str, ...], derived: DerivedStore | None,
+                         ) -> tuple[tuple[frozenset[str], str], ...]:
     """Derivation B-arcs (tail set, head) whose tail set intersects these authored nodes."""
     if derived is None:
         return ()

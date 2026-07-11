@@ -13,6 +13,7 @@ stable input order the output is fully reproducible — a dream run is determini
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -41,7 +42,7 @@ class Cluster:
         return len(self.members)
 
 
-def note_snippets(rows: list[dict], *, limit: int = 600) -> dict[str, str]:
+def note_snippets(rows: list[dict[str, Any]], *, limit: int = 600) -> dict[str, str]:
     """Per-note grounding text: that note's chunk texts concatenated in row order and
     truncated to `limit` chars. Keeps a synthesis/contradiction context lean (§13) while
     still grounded in the owner's actual words."""
@@ -53,7 +54,7 @@ def note_snippets(rows: list[dict], *, limit: int = 600) -> dict[str, str]:
     return {d: t[:limit] for d, t in out.items()}
 
 
-def note_centroids(rows: list[dict]) -> list[NoteVector]:
+def note_centroids(rows: list[dict[str, Any]]) -> list[NoteVector]:
     """Aggregate chunk rows (one per vector) to one centroid per note (keyed by digest).
     Insertion order follows first appearance, so the result is deterministic."""
     vecs: dict[str, list[list[float]]] = {}
@@ -72,7 +73,8 @@ def note_centroids(rows: list[dict]) -> list[NoteVector]:
 def _normalize(m: np.ndarray) -> np.ndarray:
     norms = np.linalg.norm(m, axis=1, keepdims=True)
     norms[norms == 0] = 1.0          # leave zero vectors at the origin rather than divide by 0
-    return m / norms
+    unit: np.ndarray = m / norms
+    return unit
 
 
 def similarity_matrix(notes: list[NoteVector]) -> np.ndarray:
@@ -80,7 +82,8 @@ def similarity_matrix(notes: list[NoteVector]) -> np.ndarray:
     if not notes:
         return np.zeros((0, 0))
     m = _normalize(np.asarray([n.vector for n in notes], dtype=np.float64))
-    return m @ m.T
+    sim: np.ndarray = m @ m.T
+    return sim
 
 
 def cluster_notes(notes: list[NoteVector], *, threshold: float,

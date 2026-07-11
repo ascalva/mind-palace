@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import Any
 
 from core.stores.telemetry import TelemetryWriter
 from core.typedshims.psutil import cpu_percent, loadavg_1m, process_rss, virtual_memory
@@ -25,7 +26,7 @@ class Reading:
     metric: str
     value: float
     unit: str
-    labels: dict | None = None
+    labels: dict[str, Any] | None = None
 
 
 def collect_system_vitals() -> list[Reading]:

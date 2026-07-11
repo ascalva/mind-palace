@@ -24,6 +24,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 from config.loader import Config
 from core.attestation import Attestor
@@ -56,7 +57,7 @@ class CurationFinding:
     subkind: str
     subjects: tuple[str, ...]
     detail: str
-    data: dict
+    data: dict[str, Any]
     digests: tuple[str, ...] = ()   # authored note digests this finding is derived FROM (G2)
 
 

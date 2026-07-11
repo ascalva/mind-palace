@@ -32,6 +32,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 
@@ -45,6 +46,7 @@ from core.dreaming.cluster import cluster_notes, note_centroids
 from core.dreaming.graph import MirrorGraph
 from core.dreaming.rnd import require_rnd_enabled
 from core.mirror import MirrorView
+from core.stores.edges import EdgeStore
 
 # Method names (the discriminator carried on every claim).
 COMMUNITY = "community"
@@ -66,7 +68,7 @@ class Claim:
     method: str
     statement: str
     support: tuple[str, ...]
-    data: dict = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict[str, Any])
 
 
 # An interpreter is a deterministic map from the mirror graph (+ tunables) to claims.
@@ -240,7 +242,7 @@ STRUCTURAL_INTERPRETERS: dict[str, StructuralInterpreter] = {
 
 
 def build_structural_context(view: MirrorView, cfg: DreamRnDConfig, *,
-                             edges=None) -> StructuralContext:
+                             edges: EdgeStore | None = None) -> StructuralContext:
     """One pass's shared structural state: the σ-backbone complex (optionally with persisted
     typed/signed edges overlaid — the tension lens's input) + the unthresholded distance matrix
     (the persistence filtration). Authored-only by the constructor's input type."""

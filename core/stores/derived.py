@@ -28,6 +28,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from config.loader import Config
 from core.complex_types import HyperedgeRole
@@ -121,7 +122,7 @@ class Artifact:
     provenance: Provenance       # always INTERPRETED
     summary: str
     subjects: tuple[str, ...]
-    data: dict
+    data: dict[str, Any]
     created_at: str
     # Refs this artifact was derived FROM (gap G2): authored note digests (the LEAVES,
     # depth 0) and/or other artifact ids (interpreted parents). The support closure must be
@@ -176,7 +177,7 @@ class DerivedStore:
             )
 
     def add(self, *, kind: str, summary: str, subjects: tuple[str, ...] | list[str],
-            data: dict | None = None, subkind: str | None = None,
+            data: dict[str, Any] | None = None, subkind: str | None = None,
             derived_from: tuple[str, ...] | list[str] | None = None,
             attestation_id: str | None = None) -> Artifact:
         """Store one INTERPRETED artifact. There is deliberately NO `provenance` parameter:
