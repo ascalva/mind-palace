@@ -104,3 +104,38 @@ vault-axis:
   script:
     - uv sync --frozen --extra dev
     - uv run pytest -q -m needs_vault
+
+# GitLab Pages: code documentation generated from docstrings (owner rule 2026-07-11 —
+# the Rosetta layer renders the public docs). uvx keeps the tooling OUT of the project
+# env (no pyproject/lock churn); mkdocstrings uses griffe STATIC analysis, so the job
+# installs zero project dependencies. Budget: ~1 min, only on doc-relevant changes.
+pages:
+  stage: lint
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+  interruptible: true
+  variables:
+    GIT_DEPTH: "1"
+    UV_CACHE_DIR: .uv-cache
+  cache:
+    key:
+      files: [uv.lock]
+    paths: [.uv-cache]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes:
+        paths:
+          - "core/**/*"
+          - "ops/**/*"
+          - "scheduler/**/*"
+          - "agents/**/*"
+          - "edge/**/*"
+          - "config/**/*"
+          - "eval/**/*"
+          - "site/**/*"
+          - "mkdocs.yml"
+          - "README.md"
+          - ".gitlab-ci.yml"
+  script:
+    - uvx --with mkdocs-material --with "mkdocstrings[python]" mkdocs build --site-dir public
+  artifacts:
+    paths: [public]

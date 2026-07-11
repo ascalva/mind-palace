@@ -1,0 +1,50 @@
+site_name: Mind Palace
+site_description: >-
+  A local-first knowledge system that knows why it believes things — typed provenance,
+  sealed core, attested acts. API documentation generated from the code itself.
+site_url: https://ascalva-projects.gitlab.io/mind-palace/
+repo_url: https://gitlab.com/ascalva-projects/mind-palace
+repo_name: mind-palace
+
+# The site sources live in site/ — NOT docs/, which is the corpus artifact tree
+# (design notes, plans, findings). The API pages are generated from docstrings via
+# mkdocstrings' static analysis (griffe): the same Rosetta layer that bridges the
+# corpus to the code renders the public documentation. One source, two consumers.
+docs_dir: site
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: black
+      accent: teal
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_submodules: true
+            docstring_style: google
+            show_if_no_docstring: true
+            members_order: source
+            filters: ["!^_"]
+
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - API:
+      - core — the sealed kernel: api/core.md
+      - ops — host orchestration: api/ops.md
+      - scheduler — the supervisor: api/scheduler.md
+      - agents — the ambassador tier: api/agents.md
+      - edge — the networked zone: api/edge.md
+      - config — the deployment surface: api/config.md
+      - eval — gauges and golden sets: api/eval.md
