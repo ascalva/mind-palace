@@ -6,6 +6,18 @@ write-scope files must continue without re-asking anything already answered.
 
 ---
 
+## Seal — 2026-07-11 — /triage — bp-009 `complete`, journal sealed
+
+**Seal.** Plan flipped `in-progress → complete`; merged to main (5 files, +625/−1; overlay
+measurement discarded as designed). Spike verdict **KEEP** — falsifier untripped at 0 warranted
+ignores / 0 casts on the 13-file real-seam conversion; one genuine catch demonstrated
+(never-projected rows into clustering). finding-0028 (KEEP + riders) routed; its Any-laundering
+rider relayed live to bp-007's builder for the floor decision. MIRROR_READABLE and all runtime
+checks verified untouched at scrutiny. No narrative entries after this line.
+
+---
+
+
 ## 2026-07-11 — Session start: plan flipped in-progress; seam surveyed; Item 10 next
 
 **Status:** plan `ready → in-progress` (legal builder transition). Items 10, 11 both open.
