@@ -1,12 +1,12 @@
 ---
 type: design-note
 id: dn-type-system-as-core-audit
-status: draft            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
+status: ratified # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 created: 2026-07-10
 updated: 2026-07-10
 links:
-  - docs/research/security-planes.md          # this note supplies the enforcement mechanism its code plane names
-  - docs/findings/finding-0026.md             # the warrant
+  - docs/research/security-planes.md # this note supplies the enforcement mechanism its code plane names
+  - docs/findings/finding-0026.md # the warrant
 supersedes: null
 superseded_by: null
 warrant: finding-0026
@@ -25,7 +25,7 @@ warrant: finding-0026
 `security-planes.md` assigns the code plane to types. finding-0026 establishes
 that no checker runs. This note decides **what a static type checker is for in
 this project, what it proves, where it applies, and how it is wired** — and it
-reframes the first strict run over `core/` as an *audit of the core*, whose
+reframes the first strict run over `core/` as an _audit of the core_, whose
 error inventory is a measurement, not a chore.
 
 Doctrinally this adds nothing to the three-plane composition. It is a
@@ -49,7 +49,7 @@ conservative extension: the mechanism the code plane already assumed.
 
 ### 2.1 What a green run actually proves
 
-Under Curry–Howard a well-typed program *is* a proof — of **exactly the
+Under Curry–Howard a well-typed program _is_ a proof — of **exactly the
 proposition its type expresses, and nothing more**.
 
 ```python
@@ -71,7 +71,7 @@ A second boundary, from gradual typing: the guarantee holds only inside the
 **checked region**. Unannotated functions are silently exempt; `Any` is
 infectious, so one `Any` at a third-party boundary launders everything
 downstream out of the guarantee; `cast` and `# type: ignore` are holes by
-construction. A green *non-strict* run over partially annotated code is close to
+construction. A green _non-strict_ run over partially annotated code is close to
 meaningless. Strict mode's value is that it converts the first two from silent
 to loud (`disallow_untyped_defs` forces annotation or explicit exemption;
 `disallow_any_generics` / `warn_return_any` stop `Any` propagating unnoticed).
@@ -96,7 +96,7 @@ The engineering consequence of §2.1 is the note's central design move: to make
 "type-correct" approximate "invariant-respecting," raise the propositional
 content of the types. `int -> int` decorates. `promote(x: Derived[T], cap:
 OwnerVerdict) -> Authored[T]` constrains. This is the standing razor —
-*formalism must constrain, not decorate* — applied to annotations themselves. An
+_formalism must constrain, not decorate_ — applied to annotations themselves. An
 annotation earns its place by encoding an invariant whose violation the checker
 would catch.
 
@@ -134,7 +134,7 @@ expressible in the type grammar:
   def promote(x: Derived[T], cap: OwnerVerdict) -> Authored[T]: ...
   ```
 
-  makes *accidental* promotion a type error at every call site, checked on every
+  makes _accidental_ promotion a type error at every call site, checked on every
   builder run, at zero runtime cost.
 
 - **Capability non-amplification.** Capabilities as unforgeable parameter types:
@@ -144,7 +144,7 @@ expressible in the type grammar:
 
 The shadow is **strictly weaker** than the invariant: it sees no values and no
 runtime paths, and a deliberate `cast` defeats it. What it removes is the
-*accidental*-violation class, at authorship time. That is the aligned move under
+_accidental_-violation class, at authorship time. That is the aligned move under
 the standing principle — the correct design removes the error class rather than
 detecting instances of it. The formal treatment retains the full invariant; the
 types own the everyday path.
@@ -156,7 +156,7 @@ running the program. The type checker generalizes that move.
 ### 2.5 Scope — the two-tier checked region
 
 The scoping rule is the owner's: **a caller must respect the callee's types.**
-mypy verifies call sites in the *caller's* module, so the rule is enforceable
+mypy verifies call sites in the _caller's_ module, so the rule is enforceable
 only if every caller of core is itself analyzed. Hence:
 
 - **Tier 1 — `core/` + the foundation file set.** Full strict. (Synergy with
@@ -176,13 +176,13 @@ automatically with the import graph rather than by intention.
 
 **Zone interaction (V1a).** `ops/import_lint.py` establishes that `core/` may not
 import `edge` or `cloud`, and its docstring records that core↔edge is a
-filesystem handoff, never an import. The *inbound* direction is what Tier 2
+filesystem handoff, never an import. The _inbound_ direction is what Tier 2
 concerns, and it is not established by that lint: which of `agents/`, `config/`,
 `eval/`, `ops/`, `scheduler/`, `scripts/`, `tests/` import `core` is unmeasured
 here. Tier 2 may be small. Its size is an empirical question, not an assumption
 this note is entitled to make.
 
-**Residual gaps after Tier 2.** (a) `Any` laundering *inside* Tier 2 if its flag
+**Residual gaps after Tier 2.** (a) `Any` laundering _inside_ Tier 2 if its flag
 subset is too weak — bounded by the flag decision. (b) Dynamic dispatch
 (`getattr`, reflection), which no static tier sees. (c) External values at the
 ingestion boundary — untouched by any tier, and the standing reason PD-2 exists.
@@ -216,7 +216,7 @@ It licenses no change to the three-plane composition itself.
 
 ### 3.2 Verification items
 
-- **V1.** *(Resolved 2026-07-10, in-session.)* No mypy config exists anywhere in
+- **V1.** _(Resolved 2026-07-10, in-session.)_ No mypy config exists anywhere in
   the tree; no checker is in the `dev` extra; no gate path invokes one. Evidence
   in finding-0026.
 - **V1a.** Which top-level packages import `core/`? Determines the true size of
@@ -237,31 +237,31 @@ Ids are note-local; renumber into the global B-series at ratification.
   strict over Tier 1 and the interim flag floor over Tier 2, run report-only.
   Produce a T1/T2/T3 inventory with path-and-line for every error. File each T1
   as its own finding.
-  *Falsifier:* §2.2 clause 3 — if T1 + T2 = 0, the audit claim fails and is
+  _Falsifier:_ §2.2 clause 3 — if T1 + T2 = 0, the audit claim fails and is
   recorded as no-signal.
 
 - **B-2 — wire the gate.** Once both tiers are green, add the check per PD-1,
   **including the Tier-2 membership invariant** (import-graph scan asserting
   `imports core ⇒ in Tier-2 config`), and the bare-ignore scan from §2.3 T3.
-  *Falsifiers, all three must hold:* (i) an injected type error in a scratch
+  _Falsifiers, all three must hold:_ (i) an injected type error in a scratch
   commit blocks `mp-finish`; (ii) a scratch module importing `core` but absent
   from Tier-2 config blocks; (iii) a bare `# type: ignore` with no error code
   blocks.
 
 - **B-3 — static-shadow spike.** Express `Authored` / `Derived` tagging in
   `core/provenance.py` per §2.4; measure churn.
-  *Falsifier:* if tagging requires warranted ignores at more than a handful of
+  _Falsifier:_ if tagging requires warranted ignores at more than a handful of
   sites, the static-shadow claim is weakened; park the spike with that evidence
   attached rather than forcing the encoding.
 
 ## Parked decisions
 
-| id | decision | default recorded | re-entry condition |
-|---|---|---|---|
-| PD-1 | gate location | `mp-finish` pre-merge | V4 shows CI fragments already run pytest; **or** B-1 measures a steady-state check runtime that makes per-merge cost material |
-| PD-2 | runtime validation layer (pydantic / beartype) | none | T1 defects cluster at the ingestion boundary, where static types cannot reach |
-| PD-3 | checker identity | mypy (pyright rejected-with-record) | a *measured* gate-path runtime problem, not an anticipated one |
-| PD-4 | relation to the Rust/PyO3 split | unchanged; this note is the cheap experiment on the same axis | B-1 outcome feeds the split's re-entry: if strict typing plus wrappers closes the T1 class on privileged paths, the split's **security** motivation weakens to performance-only; if T1 defects persist in shapes Python's grammar cannot express, that is concrete evidence *for* the split |
+| id   | decision                                       | default recorded                                              | re-entry condition                                                                                                                                                                                                                                                                          |
+| ---- | ---------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PD-1 | gate location                                  | `mp-finish` pre-merge                                         | V4 shows CI fragments already run pytest; **or** B-1 measures a steady-state check runtime that makes per-merge cost material                                                                                                                                                               |
+| PD-2 | runtime validation layer (pydantic / beartype) | none                                                          | T1 defects cluster at the ingestion boundary, where static types cannot reach                                                                                                                                                                                                               |
+| PD-3 | checker identity                               | mypy (pyright rejected-with-record)                           | a _measured_ gate-path runtime problem, not an anticipated one                                                                                                                                                                                                                              |
+| PD-4 | relation to the Rust/PyO3 split                | unchanged; this note is the cheap experiment on the same axis | B-1 outcome feeds the split's re-entry: if strict typing plus wrappers closes the T1 class on privileged paths, the split's **security** motivation weakens to performance-only; if T1 defects persist in shapes Python's grammar cannot express, that is concrete evidence _for_ the split |
 
 ## Open questions
 
