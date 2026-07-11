@@ -28,6 +28,7 @@ def test_emit_records_the_accessor_and_never_the_token(tmp_path):
                         vault_token_accessor=minted.accessor)
 
     stored = store.get(att.id)
+    assert stored is not None   # just emitted; the store round-trips it by its own id
     assert stored.vault_token_accessor == minted.accessor
     # The firewall: the accessor is present, the credential is NOWHERE in the serialized record.
     blob = json.dumps(stored.to_dict())
