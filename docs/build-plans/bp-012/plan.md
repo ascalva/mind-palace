@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-012
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/code-observation-projection.md
 contract: builder
@@ -46,7 +46,7 @@ sees them.
 1. `docs/design-notes/code-observation-projection.md` — §2.2 (interpreter contract),
    §2.3 (schema, verbatim in §6 below), §2.4 (seam), §2.6 (firewall), B-b falsifier.
 2. `core/sensing.py` — `SensedObservation` / `SensingHandoff.collect` / `ObservedView`
-   (the pattern; V1: this plan builds the *sibling*, confirming reuse vs parallel at source).
+   (the pattern; V1: this plan builds the _sibling_, confirming reuse vs parallel at source).
 3. `core/stores/derived.py` — the no-provenance-parameter mint discipline to copy.
 4. `ops/code_sensor.py` — `sync()` (where projection batches are emitted).
 5. `docs/build-plans/bp-006/journal.md` — typing conventions (core is strict; stay green).
@@ -58,8 +58,8 @@ sees them.
   provenance=OBSERVED); `SensingHandoff.collect` reads handoff files into observations.
   The builder confirms at source whether a generic handoff carries a second payload type
   or whether a parallel `CodeSensingHandoff` (same shape, own file pattern) is cleaner —
-  *the code does not fully settle this; the note's default is "same seam family, own
-  store/table", and either satisfies it.*
+  _the code does not fully settle this; the note's default is "same seam family, own
+  store/table", and either satisfies it._
 - **Q2 — store engine?** (V2) Default **SQLite** (`data/code_observations.sqlite`): the
   repo's convention is SQLite for per-concern append-only ledgers keyed by identity
   (runs, versions, attestations, snapshots); DuckDB is the telemetry/time-series lane.
@@ -121,8 +121,8 @@ CodeObservation:
 Interpreter contract (§2.2): deterministic; sole path in; transform-attributed;
 re-interpretation = versioned supersession at the same (commit, symbol) key.
 
-B-b falsifier (note §3.3, verbatim): *"a second projection of the same commit changes
-row count."*
+B-b falsifier (note §3.3, verbatim): _"a second projection of the same commit changes
+row count."_
 
 Mint discipline to copy (`core/stores/derived.py:177` family): no provenance parameter;
 INSERT OR IGNORE on the identity key.
@@ -132,14 +132,14 @@ INSERT OR IGNORE on the identity key.
 ### Item 3 — the store
 
 - **Objective:** `core/stores/code_observations.py` — OBSERVED-only writer, identity key
-  (commit_sha, path, qualname), `references_out` as JSON column, open_* helper.
+  (commit*sha, path, qualname), `references_out` as JSON column, open*\* helper.
 - **Files:** the store, `tests/unit/test_code_observations.py` (new).
 - **Acceptance test:** unit tests: idempotent double-insert; no provenance param exists;
   a reader filtered to OBSERVED sees all rows. Core stays mypy-green; ratchet green.
 - **Falsifier:** any API surface that accepts a provenance value.
 - **Invariant(s):** MIRROR_READABLE untouched; import-firewall green (stdlib+sqlite only).
 - **Touches stored data?** creates a new store file — no existing data.
-- **Parallelizable?** no  **Depends on:** none
+- **Parallelizable?** no **Depends on:** none
 
 ### Item 4 — reset registration
 
@@ -151,7 +151,7 @@ INSERT OR IGNORE on the identity key.
   passes.
 - **Falsifier:** reset leaves the store behind (the versions.sqlite defect class).
 - **Invariant(s):** `_RESET_GUARD` untouched.
-- **Touches stored data?** no  **Parallelizable?** no  **Depends on:** Item 3, scope
+- **Touches stored data?** no **Parallelizable?** no **Depends on:** Item 3, scope
   amendment (§5)
 
 ### Item 5 — the projection (φ_code emits)
@@ -168,7 +168,7 @@ INSERT OR IGNORE on the identity key.
 - **Invariant(s):** §2.6 firewall set — MirrorView untouched, OBSERVED mirror-opaque
   (assert in test: a MirrorView over a source containing observation rows refuses them).
 - **Touches stored data?** yes — writes the new store (dry-run: fixture repo first).
-- **Parallelizable?** no  **Depends on:** Items 3, 4
+- **Parallelizable?** no **Depends on:** Items 3, 4
 
 ## 8. Math carried explicitly
 
@@ -191,13 +191,13 @@ parks); core mypy-green breaks in a way requiring changes outside scope.
 
 ## 11. Parked decisions
 
-| Decision | Default recorded | Rejected alternatives (why) | Re-entry condition |
-|---|---|---|---|
-| observation backfill (all history) | available, not run | run in-session (unmeasured cost) | one-batch timing journaled; owner nod |
-| a₂ relabel | OBSERVED now | wait for axis (blocks value on an unratified note) | axis ratification (the note's cross-map) |
+| Decision                           | Default recorded   | Rejected alternatives (why)                        | Re-entry condition                       |
+| ---------------------------------- | ------------------ | -------------------------------------------------- | ---------------------------------------- |
+| observation backfill (all history) | available, not run | run in-session (unmeasured cost)                   | one-batch timing journaled; owner nod    |
+| a₂ relabel                         | OBSERVED now       | wait for axis (blocks value on an unratified note) | axis ratification (the note's cross-map) |
 
 ## 12. Dependency & ordering summary
 
-Item 3 → 4 → 5. Runs after bp-008 merges (tests/** adjacency); independent of bp-011
+Item 3 → 4 → 5. Runs after bp-008 merges (tests/\*\* adjacency); independent of bp-011
 (docstring column enriches but does not gate — Item 5 degrades gracefully). Gates bp-013
 (edges need observation nodes). B-d stays gated on Track D.

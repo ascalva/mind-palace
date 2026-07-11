@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-011
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/code-observation-projection.md
 contract: builder
@@ -96,8 +96,8 @@ references_out  list    # typed: [{type: note-citation | path-mention | symbol-m
 Existing migration pattern (pinned): `cols = {r[1] for r in db.execute("PRAGMA
 table_info(snapshots)")}` → `ALTER TABLE ... ADD COLUMN ... DEFAULT ''`.
 
-V4 falsifier (note §2.7 clause 3, verbatim-condensed): *inventory near-empty or
-noise-dominated ⇒ record as no-signal; the ledger remains valuable independently.*
+V4 falsifier (note §2.7 clause 3, verbatim-condensed): _inventory near-empty or
+noise-dominated ⇒ record as no-signal; the ledger remains valuable independently._
 
 ## 7. Items
 
@@ -114,7 +114,7 @@ noise-dominated ⇒ record as no-signal; the ledger remains valuable independent
 - **Invariant(s):** ledger stays reset-guarded; snapshot idempotency by sha unchanged.
 - **Touches stored data?** yes — additive migration on `data/code_snapshots.sqlite`
   (backfill re-runs are idempotent; dry-run on a copied db first, per template rule).
-- **Parallelizable?** no  **Depends on:** bp-008 merged (scope adjacency)
+- **Parallelizable?** no **Depends on:** bp-008 merged (scope adjacency)
 
 ### Item 2 — the V4 reference inventory
 
@@ -127,7 +127,7 @@ noise-dominated ⇒ record as no-signal; the ledger remains valuable independent
   explicit keep/no-signal verdict.
 - **Falsifier:** V4's own (pinned above) — an honest no-signal is a SUCCESS outcome.
 - **Invariant(s):** read-only over the corpus and code.
-- **Touches stored data?** no  **Parallelizable?** with Item 1  **Depends on:** none
+- **Touches stored data?** no **Parallelizable?** with Item 1 **Depends on:** none
 
 ## 8. Math carried explicitly
 
@@ -146,8 +146,8 @@ finding + park Item 2 verdict).
 
 ## 11. Parked decisions
 
-| Decision | Default recorded | Rejected alternatives (why) | Re-entry condition |
-|---|---|---|---|
+| Decision                   | Default recorded        | Rejected alternatives (why)     | Re-entry condition                            |
+| -------------------------- | ----------------------- | ------------------------------- | --------------------------------------------- |
 | where coverage is surfaced | sync() report line only | telemetry/dashboard (premature) | the site's what's-new/dashboard work wants it |
 
 ## 12. Dependency & ordering summary

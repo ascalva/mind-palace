@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-013
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/code-observation-projection.md
 contract: builder
@@ -17,7 +17,7 @@ parallelizable_with: []
 created: 2026-07-11
 updated: 2026-07-11
 links:
-  - docs/findings/finding-0021.md   # code-as-corroboration — what these edges structuralize
+  - docs/findings/finding-0021.md # code-as-corroboration — what these edges structuralize
 supersedes: null
 superseded_by: null
 warrant: null
@@ -56,14 +56,14 @@ authority, cross-stratum endpoints, provably invisible to every balance instrume
 ## 3. Investigation & grounding
 
 - **Q1 — why a new store rather than EdgeStore?** Pinned from the ratified note §2.5:
-  the endpoints are CROSS-STRATUM (observed ↔ authored/curated); 𝔎|_MR is authored-only;
+  the endpoints are CROSS-STRATUM (observed ↔ authored/curated); 𝔎|\_MR is authored-only;
   EdgeStore feeds `A_signed`. The separation pattern is `versions.py`'s: a store
-  `build_complex` has no parameter for. *The code confirms:* `build_complex(view, *,
-  edges=None, derived=None, sim_floor=...)` — no path for a second edge store; adding
+  `build_complex` has no parameter for. _The code confirms:_ `build_complex(view, *,
+edges=None, derived=None, sim_floor=...)` — no path for a second edge store; adding
   none preserves the isolation by construction.
 - **Q2 — edge identity?** (source, target, ref_type, source_line) where source/target are
   typed endpoints: code side = (commit_sha, path, qualname); corpus side = note path or
-  content digest. *The code does not settle digest-vs-path for corpus endpoints* — the
+  content digest. _The code does not settle digest-vs-path for corpus endpoints_ — the
   catalog keys docs by absolute source_path; design notes are not IN the catalog (not
   vault content). Default: repo-relative path for design-note targets, digest for
   vault-note targets when resolvable; builder confirms and journals.
@@ -94,12 +94,12 @@ balance side — that is the point), MirrorView/provenance, Lane 2 anything.
 
 ## 6. Interfaces pinned inline
 
-Lane 1 (note §2.5, verbatim-condensed): *deterministic references … geometry-class
+Lane 1 (note §2.5, verbatim-condensed): _deterministic references … geometry-class
 authority … BUT cross-stratum — they live in a dedicated reference-edge store the
-balance math holds no handle to; `build_complex`'s signature stays untouched.*
+balance math holds no handle to; `build_complex`'s signature stays untouched._
 
-B-c falsifier (note §3.3, verbatim): *"any instrument result changes when reference
-edges are added or removed."*
+B-c falsifier (note §3.3, verbatim): _"any instrument result changes when reference
+edges are added or removed."_
 
 references_out element shape (note §2.3): `{type: note-citation | path-mention |
 symbol-mention | design-ref, target: str, source_line: int}`.
@@ -109,14 +109,14 @@ symbol-mention | design-ref, target: str, source_line: int}`.
 ### Item 6 — the reference-edge store
 
 - **Objective:** `core/stores/reference_edges.py` — typed directed edges, identity-keyed,
-  append-only, open_* helper; docstring carries the Q1 isolation rationale.
+  append-only, open\_\* helper; docstring carries the Q1 isolation rationale.
 - **Files:** store + new unit tests.
 - **Acceptance test:** unit tests (idempotency, typed endpoints); core mypy-green;
   ratchet green.
 - **Falsifier:** any import path from `core/complex/**` to this store (grep-asserted in
   the test).
 - **Invariant(s):** `build_complex` signature untouched; import-firewall green.
-- **Touches stored data?** new store only.  **Parallelizable?** no  **Depends on:** bp-012
+- **Touches stored data?** new store only. **Parallelizable?** no **Depends on:** bp-012
 
 ### Item 7 — extraction at projection time
 
@@ -129,7 +129,7 @@ symbol-mention | design-ref, target: str, source_line: int}`.
 - **Falsifier:** an edge minted from a pattern bp-011 marked below the precision bar.
 - **Invariant(s):** Lane-1/Lane-2 separation — no model call anywhere in the path.
 - **Touches stored data?** yes (new store; fixture-first).
-- **Parallelizable?** no  **Depends on:** Item 6
+- **Parallelizable?** no **Depends on:** Item 6
 
 ### Item 8 — the isolation proof
 
@@ -140,16 +140,16 @@ symbol-mention | design-ref, target: str, source_line: int}`.
 - **Acceptance test:** the test itself; it IS the B-c falsifier, automated forever.
 - **Falsifier:** B-c's, verbatim (pinned §6) — any drift fails the build.
 - **Invariant(s):** the E_geom ⊔ E_disp partition doctrine extends to the new store.
-- **Touches stored data?** no (fixtures).  **Parallelizable?** with Item 7
+- **Touches stored data?** no (fixtures). **Parallelizable?** with Item 7
   **Depends on:** Item 6
 
 ## 8. Math carried explicitly
 
-- **Reference edges as a typed relation OUTSIDE the complex** — *measures:* referential
+- **Reference edges as a typed relation OUTSIDE the complex** — _measures:_ referential
   entanglement between strata (which threads cite which code), the corroboration signal
-  finding-0021 used manually. *valid when:* extraction is deterministic and
+  finding-0021 used manually. _valid when:_ extraction is deterministic and
   precision-gated (bp-011's bar); the store is unreachable from every balance
-  computation (Item 8 proves it). *fails its keep if:* the inventory's edge set never
+  computation (Item 8 proves it). _fails its keep if:_ the inventory's edge set never
   disambiguates anything a consumer cares about (the note's §2.7 clause-3 razor — then
   the store idles as recorded provenance, harmless, and B-d never builds on it).
 
@@ -167,10 +167,10 @@ turns out to need catalog changes (out of scope — finding + park); any Item 8 
 
 ## 11. Parked decisions
 
-| Decision | Default recorded | Rejected alternatives (why) | Re-entry condition |
-|---|---|---|---|
-| edge symmetry | directed as extracted | auto-symmetrize (invents assertions) | a consumer needs the undirected view (symmetrize on read) |
-| corpus endpoint id | path (notes) / digest (vault) | digest-everywhere (design notes lack catalog digests) | notes enter a catalog |
+| Decision           | Default recorded              | Rejected alternatives (why)                           | Re-entry condition                                        |
+| ------------------ | ----------------------------- | ----------------------------------------------------- | --------------------------------------------------------- |
+| edge symmetry      | directed as extracted         | auto-symmetrize (invents assertions)                  | a consumer needs the undirected view (symmetrize on read) |
+| corpus endpoint id | path (notes) / digest (vault) | digest-everywhere (design notes lack catalog digests) | notes enter a catalog                                     |
 
 ## 12. Dependency & ordering summary
 
