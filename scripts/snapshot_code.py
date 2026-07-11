@@ -1,12 +1,11 @@
 #!/usr/bin/env python
-"""Snapshot the code's structure at a commit (ops/code_snapshot.py). From the repo root:
+"""Drive the code-sensor agent (ops/code_sensor.py). From the repo root:
 
-    ./.venv/bin/python scripts/snapshot_code.py              # snapshot HEAD
-    ./.venv/bin/python scripts/snapshot_code.py <rev>        # snapshot a specific commit
-    ./.venv/bin/python scripts/snapshot_code.py --backfill   # every commit on the branch
+    ./.venv/bin/python scripts/snapshot_code.py    # sync: reconcile ledger vs branch history
 
-Stdlib only (git + ast + sqlite) — no models, no embeddings, no corpus writes. Installed as a
-non-blocking post-commit hook via `git config core.hooksPath .githooks`. Idempotent by SHA.
+Sync semantics subsume both the per-commit hook case (one missing commit) and backfill
+(all missing commits) — idempotent, oldest first, a missed hook heals on the next run.
+Model-less: the agent holds git-read, ledger-write, attest, and nothing else.
 """
 
 from __future__ import annotations
@@ -14,22 +13,15 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ops.code_snapshot import backfill, open_snapshot_db, snapshot_commit  # noqa: E402
+from ops.code_sensor import build_code_sensor  # noqa: E402
 
 
-def main(argv: list[str]) -> int:
-    db = open_snapshot_db(REPO / "data" / "code_snapshots.sqlite")
-    if "--backfill" in argv:
-        print(f"code-snapshot: backfilled {backfill(db, REPO)} commit(s)")
-        return 0
-    rev = argv[0] if argv else "HEAD"
-    sha = snapshot_commit(db, REPO, rev)
-    print(f"code-snapshot: {'recorded ' + sha[:12] if sha else 'already recorded — no-op'}")
+def main() -> int:
+    print(build_code_sensor().sync())
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    raise SystemExit(main())
