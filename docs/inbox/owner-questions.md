@@ -297,3 +297,24 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   Swept to the origin finding same day.
 
 ---
+
+## oq-0013 — Amend bp-012's write_scope with `ops/lifecycle/launcher.py` (one line) so Item 4 can register the store for reset?
+- status: open
+- origin: docs/build-plans/bp-012/plan.md §5 (scope amendment note) + §7 Item 4
+- blocking: false
+- question: bp-012 (B-b, the code-observation store) has Item 4 "reset registration" — the new
+  `data/code_observations.sqlite` store is corpus-side (the observed stratum), so it must join
+  `reset_targets()` in `ops/lifecycle/launcher.py` (Q4; the versions.sqlite/`bp-fix` sidecar precedent:
+  reset targets are listed explicitly). But `ops/lifecycle/launcher.py` is NOT in bp-012's front-matter
+  `write_scope` — only "the one `reset_targets()` line" is contemplated (§5 keeps the rest of
+  `ops/lifecycle/**` out of scope). The plan defers the one-line scope amendment to you: add
+  `"ops/lifecycle/launcher.py"` to bp-012's `write_scope`, and the builder lands Item 4 (one list entry +
+  comment + an additive seed line in the existing reset test — the ONE permitted existing-test edit); or
+  decline, and Item 4 parks with a finding (the store works but is NOT wiped on corpus reset until a later
+  scoped plan adds it — the versions.sqlite defect class, a hygiene gap, not a correctness break).
+  This is a capability grant, not a blessing gate — your call by hand on the plan front-matter (or a word
+  here and the orchestrator adds the single line before spawning bp-012).
+- default_if_unanswered: `ops/lifecycle/launcher.py` stays out of bp-012's write_scope; Item 4 parks with a
+  finding and Items 3+5 proceed (the store + projection land; reset-registration deferred). Re-entry — owner
+  adds the line (here or by hand), or a corpus reset is observed to leave `code_observations.sqlite` behind.
+- answer:
