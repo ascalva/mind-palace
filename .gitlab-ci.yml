@@ -24,3 +24,42 @@ sast:
 
 secret_detection:
   stage: security-checks
+
+# The deterministic ratchet in CI (owner rule 2026-07-11): ruff + import-firewall + the
+# model-free pytest tier. Sized for the free-tier shared runners — ONE job, uv-cached,
+# skipped entirely on docs-only pushes (`rules:changes`), interruptible so a newer push
+# cancels a stale run. live/podman/needs_vault/needs_restic stay LOCAL by design: shared
+# runners have no Ollama, no nested virt, no Vault, no restic repo (runbook §Verifying).
+ratchet:
+  stage: lint
+  image: ghcr.io/astral-sh/uv:python3.14-bookworm-slim
+  interruptible: true
+  variables:
+    GIT_DEPTH: "1"
+    UV_CACHE_DIR: .uv-cache
+  cache:
+    key:
+      files: [uv.lock]
+    paths: [.uv-cache]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes:
+        paths:
+          - "core/**/*"
+          - "agents/**/*"
+          - "eval/**/*"
+          - "ops/**/*"
+          - "scheduler/**/*"
+          - "scripts/**/*"
+          - "tests/**/*"
+          - "config/**/*"
+          - "edge/**/*"
+          - "cloud/**/*"
+          - "pyproject.toml"
+          - "uv.lock"
+          - ".gitlab-ci.yml"
+  script:
+    - uv sync --frozen --extra dev
+    - uv run ruff check .
+    - uv run python scripts/check_imports.py   # Invariant 2 static proof in CI (finding-0014)
+    - uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'

@@ -41,5 +41,11 @@ description: How and when to commit in this repo — the CONVENTIONS §Commits h
 - **Push to origin is routine** (owner standing rule, 2026-07-11: the remote mirrors the
   current state; `mind-palace deploy` is the one gate that needs the owner in the loop).
   Never amend or rebase published history; never run `deploy` yourself — the owner fires it.
+- **Push at boundaries, not per commit** — CI minutes are free-tier shared runners. Each
+  code push runs the `ratchet` job (ruff + import-firewall + model-free pytest, uv-cached);
+  docs-only pushes skip it via `rules:changes`. Batch related commits, then push once.
+  After a code push, verify the pipeline if `glab` is available
+  (`glab ci status --repo ascalva-projects/mind-palace`); live/podman/vault axes never run
+  in CI — they are local verification (runbook §Verifying a change).
 - **After a main commit**, the hook prints `code-sensor sync: ingested=1 …`. If it
   didn't, the sensor missed — `uv run scripts/snapshot_code.py` heals idempotently.

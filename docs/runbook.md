@@ -77,6 +77,12 @@ uv run pytest -m live       # real Ollama: embedder + router/routine/synthesis/s
 uv run pytest -m podman     # real rootless-Podman run_python execution (separate axis, below)
 ```
 
+CI (2026-07-11): every **code** push to main runs the `ratchet` job on GitLab shared runners
+(ruff + import-firewall + the model-free pytest tier; docs-only pushes skip it). The live/
+podman/vault/restic axes never run in CI — shared runners have none of those substrates;
+they remain local verification, above. Free-tier minutes are the budget: batch commits and
+push at boundaries, not per commit.
+
 **These are two different axes — don't conflate them.** `-m live` needs a pulled model + a running
 Ollama server (`ollama list` / `curl localhost:11434/api/version`); `-m podman` needs
 `podman machine list` showing `Currently running`. A live/dreaming change needs `-m live`, not
