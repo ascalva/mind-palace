@@ -263,4 +263,47 @@ Protocol-vs-concrete-type judgment call as `ChatServer`/`Proc`).
 
 ---
 
+## Entry — 2026-07-11 — Item 6 continued: backup/plan.py + ci_witness.py green (ops 45 → 22)
+
+**ops/backup/plan.py (10).** `ResticRunner`'s six `CompletedProcess`-returning methods
+parameterized `CompletedProcess[str]` — checked the `_run()` call site first
+(`subprocess.run(..., text=True)`), so `str` is the correct type argument, not the bytes
+default. `build_backup_plan`'s `config: object | None` → `Config | None`.
+
+**ops/ci_witness.py (13) — the GitLab JSON-HTTP-boundary file.** `_get`/`_api_root` (raw
+`json.load()` over the GitLab API) typed `Any` — deliberately, not `dict[str, Any]`: the same
+path returns a LIST for listing endpoints (`/pipelines?...`, `/jobs?...`) and a DICT for
+single-resource endpoints, so committing to `dict` would be dishonest for half the call sites.
+This is the same warranted JSON-boundary shape bp-006 named for `core/models/ollama_client.py`
+— `Any` at the exact ingestion point, narrowed by each caller. `pipeline_for`/`verdict`/
+`attest_verdict`'s `pipe` parameter typed `dict[str, Any]` (a GitLab pipeline resource — known-
+ish keys, open set, not TypedDict-worthy for a script this size). Two real invariants the
+checker couldn't see were made explicit with `assert`, each citing WHY: `check()`'s `pipe is
+not None` once `v != "absent"` (because `verdict(None)` is always `"absent"` — see `verdict()`
+2 lines above the assert); `release()`'s `pipe is not None` once `verdict(pipe) == "green"` is
+required (same reason). No behavior change — the code already relied on both invariants
+implicitly (it would have raised a `TypeError`/`KeyError` at runtime had they been false); the
+asserts just make the reasoning visible to both the reader and the checker.
+
+**Verification:** `uv run mypy ops/backup/plan.py ops/ci_witness.py` → clean; `ruff check .`
+clean (one line-length wrap needed on `ResticRunner.restore`); pytest 743 passed / 4 skipped.
+Commit `b92cb12`.
+
+**Per-item running state:** eval 1→0 ✓ · scheduler 10→0 ✓ · agents 16→0 ✓ ·
+ops 74→**22** (everything in `ops/` done except `ops/lifecycle/launcher.py`) · scripts 0
+(clean) · tests 243 (Item 7, not started).
+
+**Next action:** `ops/lifecycle/launcher.py` (22, the last ops file — the biggest single file
+in the package; read it FULLY before touching). Known shapes going in: `Callable[[], Job]` vs
+`Callable[[], None]` (same fix as `scheduler/vault_sync.py`'s `_on_change` wrapper earlier this
+session); `psutil` import-untyped (reuse `core/typedshims/psutil.py`, already built in bp-006 —
+do not re-solve); several `object`-typed attribute chains (`.paths`, `.vault`, `.start`,
+`.run`, `.stop`, `.close`) that are almost certainly the `config: object | None` family plus
+one or two components needing a small Protocol (same judgment as `ChatServer`/`Proc` — check
+whether tests inject a fake before reaching for the concrete class); one `list` type-arg.
+Once launcher.py is green, `ops/` is 0 and Item 6 is fully done except a final repo-wide
+re-verify + acceptance-test recording. Then Item 7 (`tests/`, 243 errors) starts fresh.
+
+---
+
 ## Markers
