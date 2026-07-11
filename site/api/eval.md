@@ -1,3 +1,9 @@
-# eval — gauges and golden sets
+# eval — top-level modules
 
-::: eval
+::: eval.drift
+
+::: eval.effector_drift
+
+::: eval.golden
+
+::: eval.metrics

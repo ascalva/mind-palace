@@ -14,8 +14,8 @@ live instance (one person's always-on daemon; its corpus is never public).
 ## Where to start
 
 - [Architecture](architecture.md) — the zones and the load-bearing asymmetries.
-- [core](api/core.md) — the sealed kernel: stores, provenance, the reasoning complex.
-- [ops](api/ops.md) — lifecycle, deploy gate, sensors, witnesses.
+- [core](api/core/) — the sealed kernel: stores, provenance, the reasoning complex.
+- [ops](api/ops/) — lifecycle, deploy gate, sensors, witnesses.
 
 ## The design record
 

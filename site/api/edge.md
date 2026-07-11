@@ -1,3 +1,1 @@
-# edge — the networked zone
-
-::: edge
+# edge — top-level modules

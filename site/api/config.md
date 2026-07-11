@@ -1,3 +1,5 @@
-# config — the deployment surface
+# config — top-level modules
 
-::: config
+::: config.loader
+
+::: config.secrets_backend

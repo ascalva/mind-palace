@@ -30,21 +30,50 @@ plugins:
       handlers:
         python:
           options:
-            show_source: true
-            show_submodules: true
+            show_source: false          # source stays one click away in the repo; embedding
+                                        # highlighted source for ~330 modules is what timed out
             docstring_style: google
             show_if_no_docstring: true
             members_order: source
+            show_root_heading: true
             filters: ["!^_"]
 
 nav:
   - Home: index.md
   - Architecture: architecture.md
   - API:
-      - core — the sealed kernel: api/core.md
-      - ops — host orchestration: api/ops.md
-      - scheduler — the supervisor: api/scheduler.md
-      - agents — the ambassador tier: api/agents.md
-      - edge — the networked zone: api/edge.md
-      - config — the deployment surface: api/config.md
-      - eval — gauges and golden sets: api/eval.md
+    - core — the sealed kernel:
+        - modules: api/core.md
+        - core.attestation: api/core.attestation.md
+        - core.complex: api/core.complex.md
+        - core.curator: api/core.curator.md
+        - core.dreaming: api/core.dreaming.md
+        - core.factory: api/core.factory.md
+        - core.ingest: api/core.ingest.md
+        - core.librarian: api/core.librarian.md
+        - core.matching: api/core.matching.md
+        - core.models: api/core.models.md
+        - core.research: api/core.research.md
+        - core.sandbox: api/core.sandbox.md
+        - core.stores: api/core.stores.md
+        - core.typedshims: api/core.typedshims.md
+        - core.verdict: api/core.verdict.md
+    - ops — host orchestration:
+        - modules: api/ops.md
+        - ops.backup: api/ops.backup.md
+        - ops.lifecycle: api/ops.lifecycle.md
+    - scheduler — the supervisor:
+        - modules: api/scheduler.md
+    - agents — the ambassador tier:
+        - modules: api/agents.md
+        - agents.ambassador: api/agents.ambassador.md
+    - edge — the networked zone:
+        - modules: api/edge.md
+        - edge.bridge: api/edge.bridge.md
+        - edge.effectors: api/edge.effectors.md
+        - edge.interface: api/edge.interface.md
+        - edge.monitor: api/edge.monitor.md
+    - config — the deployment surface:
+        - modules: api/config.md
+    - eval — gauges and golden sets:
+        - modules: api/eval.md

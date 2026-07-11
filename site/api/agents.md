@@ -1,3 +1,1 @@
-# agents — the ambassador tier
-
-::: agents
+# agents — top-level modules

@@ -1,3 +1,17 @@
-# scheduler — the supervisor
+# scheduler — top-level modules
 
-::: scheduler
+::: scheduler.budget
+
+::: scheduler.cron
+
+::: scheduler.interface
+
+::: scheduler.presence
+
+::: scheduler.queue
+
+::: scheduler.router
+
+::: scheduler.supervisor
+
+::: scheduler.vault_sync
