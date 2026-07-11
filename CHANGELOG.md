@@ -1,3 +1,31 @@
+# [1.2.0](https://gitlab.com/ascalva-projects/mind-palace/compare/v1.1.0...v1.2.0) (2026-07-11)
+
+
+### Bug Fixes
+
+* **deps:** declare ripser (core/complex/topology.py) + git in the CI image ([f80e6b2](https://gitlab.com/ascalva-projects/mind-palace/commit/f80e6b2d601efdeee117092e8a817ebf61a5ba20))
+* fix mp-env.sh bugs ([6c2e6a6](https://gitlab.com/ascalva-projects/mind-palace/commit/6c2e6a6cda62a6bbe23ba08dfea0678337a8b3d4))
+* fix mp-env.sh label checker function ([20ce4d3](https://gitlab.com/ascalva-projects/mind-palace/commit/20ce4d373c0bfd8094ad7711795c1038a03efbf3))
+* reset wipes the four provenance sidecar stores (owner-instructed) ([1db295a](https://gitlab.com/ascalva-projects/mind-palace/commit/1db295a0ed941403a9c438ca6a5f56a093ed6ed8))
+* rm temp lift global deny ([f5d435d](https://gitlab.com/ascalva-projects/mind-palace/commit/f5d435db66776192ccfb5dba02710ab1a374fef9))
+* scope supersede [C]-grounding prohibition to derived C ([87ed48e](https://gitlab.com/ascalva-projects/mind-palace/commit/87ed48ece711be7771d1ed7021fe5380741dc6a9))
+* temp lift global deny ([d6e518f](https://gitlab.com/ascalva-projects/mind-palace/commit/d6e518fd9641e9306fb4882143aab3f452e3b808))
+* **tests:** hermetic config for the sealed-core live test ([90857e4](https://gitlab.com/ascalva-projects/mind-palace/commit/90857e4a9dfea4495a3e394f3e2cd6a8a59883e4))
+
+
+### Features
+
+* Added claude development automation, steering, skills, and hook file ([0b21de6](https://gitlab.com/ascalva-projects/mind-palace/commit/0b21de67b879312f8b57e1c38b62e1b74ef02c3a))
+* Added the authored-historical supersession store ([a096f3c](https://gitlab.com/ascalva-projects/mind-palace/commit/a096f3cb12f1c42156b520f90bd58aa690411826))
+* code-sensor agent — model-less pipeline agent over the repo instrument ([e75974c](https://gitlab.com/ascalva-projects/mind-palace/commit/e75974c675eafcbbfcd4be8cd6bf48b2ca02a0a1))
+* **ops:** ci-witness attestations + release-on-deploy + vault CI axis ([e3e0f16](https://gitlab.com/ascalva-projects/mind-palace/commit/e3e0f16119db91494cb8444eab0fadb3e2241eb2))
+* **ops:** ci-witness token self-rotation — verify-before-store, attested ([f33eb99](https://gitlab.com/ascalva-projects/mind-palace/commit/f33eb993aac63f53f18a2dd7e1bf206988300f73))
+* **ops:** commit house rule + typed ledger lookup + main-only ingest ([ec6ddd3](https://gitlab.com/ascalva-projects/mind-palace/commit/ec6ddd39a356de99ee5b10f4acc400d791ce8111))
+* **ops:** mind-palace supersede — owner CLI for the phone-capture flow ([97d5687](https://gitlab.com/ascalva-projects/mind-palace/commit/97d56877ce9ad8335facb46e63cda588da9976ab))
+* **ops:** palace deploy — the promotion gate for the always-on system ([48ebcdf](https://gitlab.com/ascalva-projects/mind-palace/commit/48ebcdf351c50d5c3efc734bfd49e4f64cb5fdc0))
+* per-commit structural code snapshots (ops/code_snapshot.py) ([01e34e9](https://gitlab.com/ascalva-projects/mind-palace/commit/01e34e9e368e7800548ab98e21e3007932a2c230))
+* Revision to edges ([a9e8423](https://gitlab.com/ascalva-projects/mind-palace/commit/a9e8423e54df2ba0b910d325f785c4df4a8ce830))
+
 # [1.1.0](https://gitlab.com/ascalva-projects/mind-palace/compare/v1.0.0...v1.1.0) (2026-07-04)
 
 
