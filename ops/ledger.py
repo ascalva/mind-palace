@@ -32,6 +32,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
+
+from config.loader import Config
 
 
 class LedgerStatus(StrEnum):
@@ -91,7 +94,7 @@ class Proposal:
     proposer: str
     approver: str | None
     prior_overlay: float | None
-    metrics: dict | None
+    metrics: dict[str, Any] | None
     rollback_reason: str | None
     attestation_id: str | None
     proposed_at: str
@@ -157,6 +160,15 @@ class ProposalLedger:
             )
         return p
 
+    def _get_or_die(self, proposal_id: int) -> Proposal:
+        """Re-fetch a row this same method just wrote — never None in practice (a `_require()`
+        precondition check or the INSERT itself guarantees the row exists), but `get()`'s
+        signature is honestly `Proposal | None` (any id could 404), so narrow it explicitly (T3:
+        mypy can't see the existence guarantee across the intervening SQL statement)."""
+        rec = self.get(proposal_id)
+        assert rec is not None
+        return rec
+
     def all(self) -> list[Proposal]:
         with self._lock:
             rows = self._conn.execute(
@@ -192,7 +204,10 @@ class ProposalLedger:
             )
             self._conn.commit()
             new_id = cur.lastrowid
-        return self.get(new_id)  # type: ignore[return-value]
+            assert new_id is not None  # sqlite3: set after a successful INSERT
+        rec = self.get(new_id)
+        assert rec is not None  # warrant: the row we just committed must be gettable by its id (T3)
+        return rec
 
     def _decide(self, proposal_id: int, status: LedgerStatus, approver: str) -> Proposal:
         self._require(proposal_id, LedgerStatus.PROPOSED)
@@ -204,7 +219,7 @@ class ProposalLedger:
                 [status, approver, _utcnow(), proposal_id],
             )
             self._conn.commit()
-        return self.get(proposal_id)  # type: ignore[return-value]
+        return self._get_or_die(proposal_id)
 
     def approve(self, proposal_id: int, *, approver: str = "owner") -> Proposal:
         """PROPOSED → APPROVED. A human act — never auto-called by the loop (Invariant 5)."""
@@ -224,9 +239,11 @@ class ProposalLedger:
                 [LedgerStatus.EXECUTED, prior_overlay, _utcnow(), proposal_id],
             )
             self._conn.commit()
-        return self.get(proposal_id)  # type: ignore[return-value]
+        return self._get_or_die(proposal_id)
 
-    def mark_validated(self, proposal_id: int, *, metrics: dict | None = None) -> Proposal:
+    def mark_validated(
+        self, proposal_id: int, *, metrics: dict[str, Any] | None = None
+    ) -> Proposal:
         """EXECUTED → VALIDATED (kept). Stores the validation metrics that cleared the gate."""
         self._require(proposal_id, LedgerStatus.EXECUTED)
         with self._lock:
@@ -237,10 +254,10 @@ class ProposalLedger:
                  _utcnow(), proposal_id],
             )
             self._conn.commit()
-        return self.get(proposal_id)  # type: ignore[return-value]
+        return self._get_or_die(proposal_id)
 
     def mark_rolled_back(
-        self, proposal_id: int, *, reason: str, metrics: dict | None = None
+        self, proposal_id: int, *, reason: str, metrics: dict[str, Any] | None = None
     ) -> Proposal:
         """EXECUTED → ROLLED_BACK (reverted). Records why an anchor regressed."""
         self._require(proposal_id, LedgerStatus.EXECUTED)
@@ -253,7 +270,7 @@ class ProposalLedger:
                  _utcnow(), proposal_id],
             )
             self._conn.commit()
-        return self.get(proposal_id)  # type: ignore[return-value]
+        return self._get_or_die(proposal_id)
 
     def attach_attestation(self, proposal_id: int, attestation_id: str) -> None:
         """Link a signed gate-decision attestation to this proposal (records the accessor-join
@@ -270,7 +287,7 @@ class ProposalLedger:
             self._conn.close()
 
 
-def open_ledger(config: object | None = None) -> ProposalLedger:
+def open_ledger(config: Config | None = None) -> ProposalLedger:
     from config.loader import get_config
 
     cfg = config or get_config()

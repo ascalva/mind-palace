@@ -36,7 +36,7 @@ _HEADER = (
 )
 
 
-def read_overlay(path: Path = LEVERS_OVERLAY) -> dict[str, dict]:
+def read_overlay(path: Path = LEVERS_OVERLAY) -> dict[str, dict[str, float | int]]:
     """Parse the overlay into {section: {key: value}}. Missing file → empty (no knobs tuned)."""
     if not path.exists():
         return {}
@@ -48,7 +48,7 @@ def _format(value: float | int, kind: LeverKind) -> str:
     return str(int(value)) if kind is LeverKind.INT else repr(float(value))
 
 
-def write_overlay(data: dict[str, dict], path: Path = LEVERS_OVERLAY) -> None:
+def write_overlay(data: dict[str, dict[str, float | int]], path: Path = LEVERS_OVERLAY) -> None:
     """Emit `data` deterministically (sorted sections + keys) and replace the file atomically.
 
     Values are written untyped-by-section here because callers always pass already-coerced

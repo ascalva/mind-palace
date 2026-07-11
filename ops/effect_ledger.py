@@ -42,6 +42,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from config.loader import Config
 from ops.effects import ApprovalStrength, ReversibilityClass, required_approval
 from ops.ledger import IllegalTransition, LedgerStatus
 
@@ -89,7 +90,7 @@ class EffectRecord:
     actuator: str
     reversibility: ReversibilityClass
     scope: str
-    params: dict
+    params: dict[str, str]
     status: LedgerStatus
     rationale: str
     proposer: str
@@ -178,7 +179,7 @@ class EffectLedger:
         reversibility: ReversibilityClass,
         *,
         scope: str = "",
-        params: dict | None = None,
+        params: dict[str, str] | None = None,
         rationale: str = "",
         proposer: str = "",
     ) -> EffectRecord:
@@ -194,7 +195,10 @@ class EffectLedger:
             )
             self._conn.commit()
             new_id = cur.lastrowid
-        return self.get(new_id)  # type: ignore[return-value]
+            assert new_id is not None  # sqlite3: set after a successful INSERT
+        rec = self.get(new_id)
+        assert rec is not None  # the row we just committed must be gettable by its own id
+        return rec
 
     def approve(
         self, effect_id: int, *, approver: str = "owner",
@@ -280,7 +284,7 @@ class EffectLedger:
             self._conn.close()
 
 
-def open_effect_ledger(config: object | None = None) -> EffectLedger:
+def open_effect_ledger(config: Config | None = None) -> EffectLedger:
     """Wire the effect ledger against the configured effectors data dir (beside sensing handoff).
     Independent of `[effectors] enabled`: the ledger is a record, safe to open read-only for audit
     even when the hands are off."""
