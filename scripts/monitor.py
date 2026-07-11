@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Run the edge monitor — the dashboard + chat surface (Zone B). From the repo root:
 
-    ./.venv/bin/python scripts/monitor.py            # uses [monitor] from config
+    uv run scripts/monitor.py            # uses [monitor] from config
 
 Palace spawns this as a SUPERVISED CHILD PROCESS when `[monitor] enabled = true`; you can also run
 it by hand. It is network-facing (Zone B) and therefore deliberately NOT sealed — the sealing guard

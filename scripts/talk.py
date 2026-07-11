@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """Talk to the mind-palace — a local REPL over the Ambassador (Track B). From the repo root:
 
-    ./.venv/bin/python scripts/talk.py                 # LIVE: real models + your ingested vault
-    ./.venv/bin/python scripts/talk.py --offline       # OFFLINE: deterministic, self-contained demo
+    uv run scripts/talk.py                 # LIVE: real models + your ingested vault
+    uv run scripts/talk.py --offline       # OFFLINE: deterministic, self-contained demo
 
 It drives the REAL path — LocalAdapter → gateway → filesystem handoff → core inbox → Ambassador
 → handoff → gateway — in-process, so there's no daemon to install and no Tailscale decision to

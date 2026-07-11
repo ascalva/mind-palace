@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """Re-key the derived vector index to doc-scoped content ids (ingest-identity §4; build plan 1c).
 
-    ./.venv/bin/python scripts/migrate_chunk_keys.py            # DRY RUN (report only)
-    ./.venv/bin/python scripts/migrate_chunk_keys.py --apply    # re-key rows in place
+    uv run scripts/migrate_chunk_keys.py            # DRY RUN (report only)
+    uv run scripts/migrate_chunk_keys.py --apply    # re-key rows in place
 
 The row-id scheme changed from `{note_digest}:{chunk_index}` to `{source_path}:{chunk_hash}` —
 stable across a note's versions (unchanged chunk keeps its point), distinct across documents (§7).

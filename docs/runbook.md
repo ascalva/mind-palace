@@ -71,9 +71,9 @@ tier or the sandbox — verify those live, as a matter of course, whenever the r
 available:
 
 ```sh
-./.venv/bin/pytest -m 'not live and not podman and not needs_vault and not needs_restic'  # the ratchet (fast, always)
-./.venv/bin/pytest -m live       # real Ollama: embedder + router/routine/synthesis/stretch tiers
-./.venv/bin/pytest -m podman     # real rootless-Podman run_python execution (separate axis, below)
+uv run pytest -m 'not live and not podman and not needs_vault and not needs_restic'  # the ratchet (fast, always)
+uv run pytest -m live       # real Ollama: embedder + router/routine/synthesis/stretch tiers
+uv run pytest -m podman     # real rootless-Podman run_python execution (separate axis, below)
 ```
 
 **These are two different axes — don't conflate them.** `-m live` needs a pulled model + a running
@@ -90,22 +90,22 @@ sufficient.
 ---
 
 ## Prerequisites (Phase 0)
-- Python 3.11+ (built/verified on 3.14). Local venv at `.venv`.
+- Python 3.11+ (built/verified on 3.14), managed by **uv** (`uv.lock` is authoritative;
+  `uv run` resolves the env — never invoke `./.venv/bin/...` paths by hand, house rule 2026-07-11).
 - Ollama running on loopback (`127.0.0.1:11434`).
 - Models: `qwen3.5:2b` (pinned, pulled). `qwen3.5:9b` / `qwen3.6:27b` are pulled as
   Phases 1–2 need them; `qwen3.6:35b-a3b` (stretch) already present.
 
 ## Setup
 ```
-python3 -m venv .venv
-./.venv/bin/pip install duckdb psutil pytest ruff
+uv sync --extra dev
 ```
 
 ## Verify Phase 0
 ```
-./.venv/bin/ruff check .
-./.venv/bin/pytest -q              # full suite (skips live if Ollama down)
-./.venv/bin/pytest -q -m "not live"   # logic-only, no Ollama needed
+uv run ruff check .
+uv run pytest -q              # full suite (skips live if Ollama down)
+uv run pytest -q -m "not live"   # logic-only, no Ollama needed
 ```
 Gate: model responds; vitals flow into DuckDB; sealed core blocks external egress;
 a trivial agent inherits the Constitution.
@@ -163,7 +163,7 @@ procs, provider config left at `applehv`. Decent/idle.
    unexpectedly` recurs, try `podman machine reset` first, or reboot to clear stale state.
 2. Pre-pull the image so the 10 s wall-clock timeout isn't spent pulling:
    `podman pull python:3.12-slim`.
-3. Empirically verify isolation: `./.venv/bin/pytest -m podman`
+3. Empirically verify isolation: `uv run pytest -m podman`
    (network-off, vault-unreachable, non-root, timeout-enforced).
 4. **Fallback if Podman stays broken:** Docker works on this host but its daemon is
    **rootful** (weaker than rootless Podman). To use it, add a `DockerRunner` alongside
@@ -185,9 +185,9 @@ session log, including a concurrency bug found and fixed during verification.
 Re-ingests changed notes through the Phase-1 pipeline, idempotently (content-addressing):
 unchanged = no-op, changed = re-embed, deleted = **tombstone** (derived dropped, raw kept).
 ```
-./.venv/bin/python scripts/watch.py     # seals the core, then watches [vault].path
+uv run scripts/watch.py     # seals the core, then watches [vault].path
 ```
-Real-time via `watchdog` (FSEvents) if installed (`./.venv/bin/pip install watchdog`); without
+Real-time via `watchdog` (FSEvents) if installed (`uv pip install watchdog`); without
 it the watcher **falls back to polling** every `[vault].watch_poll_interval_s`. Either way the
 trigger just enqueues a background `vault_sync` job and the supervisor runs the idempotent
 rescan — missed/duplicate events are harmless. It is core-side and reaches no network (the
@@ -265,15 +265,15 @@ A vault delete only **tombstones** (raw kept) so re-adds dedup and nothing is lo
 the raw bytes too (genuine privacy deletion), use the deliberate, irreversible purge — refused
 unless `--confirm` is passed AND the content is held by no active note (tombstone it first):
 ```
-./.venv/bin/python scripts/purge_raw.py --list                 # show purgeable (tombstoned) digests
-./.venv/bin/python scripts/purge_raw.py <digest> --confirm     # destroy raw + derived for it
+uv run scripts/purge_raw.py --list                 # show purgeable (tombstoned) digests
+uv run scripts/purge_raw.py <digest> --confirm     # destroy raw + derived for it
 ```
 
 ### Verify
 - Edit a note → its embeddings update (search reflects the new content; old rows gone).
 - Delete a note → it stops surfacing in search; raw blob is retained until a purge.
 - Unchanged re-scan → no-op (no new digests, no duplicate rows).
-- `./.venv/bin/python -m ops.import_lint` → green (the watcher reaches no network).
+- `uv run python -m ops.import_lint` → green (the watcher reaches no network).
 Cold-tested in `tests/test_vault_sync.py`, `tests/test_vault_watcher.py`,
 `tests/test_purge_raw.py`, `tests/test_vault_sync_wiring.py`.
 
@@ -326,7 +326,7 @@ exec env \
   "attestation-owner-key=$(kc attestation-owner-key)" \
   "vault-supervisor-token=$(kc vault-supervisor-token)" \
   "$@"
-# plist ProgramArguments: [ .../scripts/run_with_secrets.sh, .../.venv/bin/python, .../scripts/watch.py ]
+# plist ProgramArguments: [ .../scripts/run_with_secrets.sh, .../uv, run, .../scripts/watch.py ]
 ```
 
 A secret that isn't placed yet just resolves to `None` — the corresponding layer stays off,
@@ -338,8 +338,8 @@ Activates Ed25519 signing inside `StoreAttestor.emit` (records become tamper-evi
 committed `ops/attestation/*.pub` are **DEV** keys with no production trust — replace them:
 
 ```sh
-./.venv/bin/python scripts/gen_attestation_keys.py supervisor   # prints a base64 seed; rewrites supervisor.pub
-./.venv/bin/python scripts/gen_attestation_keys.py owner         # prints a base64 seed; rewrites owner.pub
+uv run scripts/gen_attestation_keys.py supervisor   # prints a base64 seed; rewrites supervisor.pub
+uv run scripts/gen_attestation_keys.py owner         # prints a base64 seed; rewrites owner.pub
 security add-generic-password -U -a mind-palace -s attestation-signing-key -w   # paste the supervisor seed
 security add-generic-password -U -a mind-palace -s attestation-owner-key   -w   # paste the owner seed
 git add ops/attestation/supervisor.pub ops/attestation/owner.pub && git commit   # pubs are public
@@ -351,7 +351,7 @@ seed signs **gate decisions only** (non-repudiable approval); the supervisor see
 agent attestations. Verify:
 
 ```sh
-./.venv/bin/python scripts/verify_attestation.py --all     # every stored attestation's signature + chain
+uv run scripts/verify_attestation.py --all     # every stored attestation's signature + chain
 ```
 
 ### 2. Vault (Homebrew) — the runtime credential-authorization layer
@@ -374,7 +374,7 @@ vault server -dev -dev-listen-address=127.0.0.1:8200      # copy the "Root Token
 # Terminal 2
 export VAULT_ADDR=http://127.0.0.1:8200
 export VAULT_TOKEN=<root token from terminal 1>
-./.venv/bin/python -m pytest -m needs_vault -v             # seeds policies from ops/vault/policies/, asserts the join
+uv run python -m pytest -m needs_vault -v             # seeds policies from ops/vault/policies/, asserts the join
 ```
 
 The test seeds `ops/vault/policies/dreamer.hcl` via the root token (the dev-mode equivalent of
@@ -517,9 +517,9 @@ is Phase 5 (the bridge holding its own identity). On a single-user Mac with SSO 
 ### 5. End-to-end verification
 
 ```sh
-./.venv/bin/python -m pytest -m needs_vault -v        # real Vault: scoped mint/read + out-of-policy denial (§2a)
-./.venv/bin/python scripts/verify_attestation.py --all   # signatures + chains to authored leaves (§1)
-./.venv/bin/python -m ops.import_lint                  # core/ still reaches no network, no hvac/boto3
+uv run python -m pytest -m needs_vault -v        # real Vault: scoped mint/read + out-of-policy denial (§2a)
+uv run scripts/verify_attestation.py --all   # signatures + chains to authored leaves (§1)
+uv run python -m ops.import_lint                  # core/ still reaches no network, no hvac/boto3
 ```
 
 Gate: a `dreamer` token reads `kv/oura-daily-aggregates` but is **denied** the financial key; the
@@ -566,12 +566,12 @@ security add-generic-password -U -a mind-palace -s vault-backup-token -w        
 
 # 6. First run (self-inits the repo), then verify a restore + install the daily schedule:
 sh ops/backup/backup.sh                                        # init + backup + prune + check
-./.venv/bin/python -m ops.backup.run snapshots                 # should list one snapshot
+uv run python -m ops.backup.run snapshots                 # should list one snapshot
 #   restore-verify into a scratch dir (do this once to trust the chain end-to-end):
 RESTIC_PASSWORD="$(security find-generic-password -a mind-palace -s restic-password -w)" \
 AWS_ACCESS_KEY_ID="$(security find-generic-password -a mind-palace -s backup-aws-access-key-id -w)" \
 AWS_SECRET_ACCESS_KEY="$(security find-generic-password -a mind-palace -s backup-aws-secret-access-key -w)" \
-  ./.venv/bin/python -m ops.backup.run restore latest /tmp/restore-check
+  uv run python -m ops.backup.run restore latest /tmp/restore-check
 cp ops/backup/com.mind-palace.backup.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.mind-palace.backup.plist   # daily 03:30
 launchctl kickstart -k gui/$(id -u)/com.mind-palace.backup     # run once now to confirm; logs in data/logs/backup.*.log
@@ -596,14 +596,14 @@ path/diff/command). The loop ships **OFF**; activating and driving it is owner w
 #    # unattended_enabled stays false: every change goes through you at the gate.
 
 # 2. Drive the gate (a model may write PROPOSED rows; only you approve — Invariant 5):
-./.venv/bin/python -m ops.selfmod_cli list                         # pending proposals
-./.venv/bin/python -m ops.selfmod_cli propose dream_similarity_threshold 0.66 "tighten themes"
-./.venv/bin/python -m ops.selfmod_cli show 1                       # full detail of a proposal
-./.venv/bin/python -m ops.selfmod_cli approve 1                    # approve -> execute -> VALIDATE
+uv run python -m ops.selfmod_cli list                         # pending proposals
+uv run python -m ops.selfmod_cli propose dream_similarity_threshold 0.66 "tighten themes"
+uv run python -m ops.selfmod_cli show 1                       # full detail of a proposal
+uv run python -m ops.selfmod_cli approve 1                    # approve -> execute -> VALIDATE
 #   approve runs the frozen golden anchor with the real embedder (Ollama must be up + the embed
 #   model pulled). If capability regresses, the knob AUTO-ROLLS-BACK and `approve` says so.
-./.venv/bin/python -m ops.selfmod_cli deny 2                       # reject a proposal
-./.venv/bin/python -m ops.selfmod_cli history                     # full audit trail
+uv run python -m ops.selfmod_cli deny 2                       # reject a proposal
+uv run python -m ops.selfmod_cli history                     # full audit trail
 ```
 
 Tuned values land in `config/levers.toml` (machine-owned, gitignored); your hand-authored
@@ -632,12 +632,12 @@ prose, and the real embedder needs Ollama).
 
 ```sh
 # Runs against BOTH the in-file reference fake AND the real binding (parametrized [ref]/[real]):
-./.venv/bin/pytest tests/quality/ -v
-./.venv/bin/pytest -m quality                       # the same, selected by marker
+uv run pytest tests/quality/ -v
+uv run pytest -m quality                       # the same, selected by marker
 
 # Force a single explicit adapter (the design-note env seam):
 MIND_PALACE_DREAMER_ADAPTER="fixtures.dreamer_adapter:build_real_dreamer_adapter" \
-  ./.venv/bin/pytest tests/quality/test_dreamer_quality.py -q
+  uv run pytest tests/quality/test_dreamer_quality.py -q
 ```
 
 **Optional full-fidelity run against the real embedder.** The CI binding uses a deterministic
@@ -687,7 +687,7 @@ inputs are **owner-blessed frozen fixed points** in `eval/golden/baseline.json` 
 
 ```sh
 # 1. amend CONSTITUTION.md (deliberate, logged — §V), then recompute its identity:
-./.venv/bin/python -c "from core.constitution import constitution_fingerprint as f; print(f())"
+uv run -c "from core.constitution import constitution_fingerprint as f; print(f())"
 # 2. paste the new hash into eval/golden/baseline.json -> drift.constitution_fingerprint
 # 3. re-run the golden set against the new anchor and re-bless baseline.json -> metrics if needed.
 #    (Skipping step 2 is fail-safe, not fail-dangerous: every drift reading hard-trips until you do.)
@@ -713,11 +713,11 @@ promotion across the §8 firewall — so it's a safe deterministic migration, no
 ```sh
 # 0. Your nightly restic snapshot is the safety net; optionally take a fresh one first.
 # 1. DRY RUN — counts the legacy 'authored' rows in the vector store + catalog, mutates nothing:
-./.venv/bin/python scripts/migrate_provenance_split.py
+uv run scripts/migrate_provenance_split.py
 # 2. APPLY — relabel 'authored' -> 'authored-solo' in BOTH stores (idempotent, re-runnable):
-./.venv/bin/python scripts/migrate_provenance_split.py --apply
+uv run scripts/migrate_provenance_split.py --apply
 # 3. confirm the mirror is back: a query should return your notes again
-./.venv/bin/python scripts/talk.py            # ask "what did I write about <topic>?"
+uv run scripts/talk.py            # ask "what did I write about <topic>?"
 ```
 
 (The DerivedStore is `interpreted`-only and the raw/attestation stores carry no `authored` literal, so
@@ -734,12 +734,12 @@ delegates heavy work — **read + propose, never write + act**.
 ```sh
 # Day-one surface (no daemon, no network decision) — an in-process REPL over the real path
 # (adapter → gateway → filesystem handoff → core inbox → Ambassador):
-./.venv/bin/python scripts/talk.py                 # LIVE: needs Ollama + a migrated, ingested vault
-./.venv/bin/python scripts/talk.py --offline       # deterministic demo, throwaway store, no Ollama
+uv run scripts/talk.py                 # LIVE: needs Ollama + a migrated, ingested vault
+uv run scripts/talk.py --offline       # deterministic demo, throwaway store, no Ollama
 
 # So it can answer "how do you work?" / "is my data safe?" — ingest its OWN docs as the `curated`
 # self-knowledge graph (own graph, never merged into the mirror; needs Ollama for embeddings):
-./.venv/bin/python scripts/ingest_self_knowledge.py
+uv run scripts/ingest_self_knowledge.py
 ```
 
 What it does each turn: reasons about intent (deterministic floor for the obvious cases, the model
@@ -839,7 +839,7 @@ Then `palace start` spawns it (you'll see `↳ started child 'monitor'`); open `
 from your phone on the tailnet. `GET /` = dashboard (health, run/commit, activity, queue, dream counts,
 auto-refreshing), `POST /chat` = talk to the Ambassador (same five paths as `talk.py`). palace restarts
 it if it dies and SIGTERMs it on a graceful stop. Run it standalone for a quick look:
-`./.venv/bin/python scripts/monitor.py`. The snapshot is metadata only — **no note text crosses to the
+`uv run scripts/monitor.py`. The snapshot is metadata only — **no note text crosses to the
 network** (only counts + the *shape* of activity). It is deliberately NOT sealed (Zone B).
 
 ---
@@ -858,8 +858,8 @@ computed result back — data in, data out, never creds/vault/host-fs. Inputs la
 unreachable). Use it directly:
 
 ```sh
-echo 'import numpy as np; print(np.arange(5).sum())' | ./.venv/bin/python scripts/sandbox.py -
-./.venv/bin/python scripts/sandbox.py analysis.py --input series.csv=~/data/series.csv --timeout 30
+echo 'import numpy as np; print(np.arange(5).sum())' | uv run scripts/sandbox.py -
+uv run scripts/sandbox.py analysis.py --input series.csv=~/data/series.csv --timeout 30
 # inside analysis.py:  open('/tmp/input/series.csv')  → your data
 ```
 

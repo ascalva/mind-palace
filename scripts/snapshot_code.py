@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Drive the code-sensor agent (ops/code_sensor.py). From the repo root:
 
-    ./.venv/bin/python scripts/snapshot_code.py    # sync: reconcile ledger vs branch history
+    uv run scripts/snapshot_code.py    # sync: reconcile ledger vs branch history
 
 Sync semantics subsume both the per-commit hook case (one missing commit) and backfill
 (all missing commits) — idempotent, oldest first, a missed hook heals on the next run.

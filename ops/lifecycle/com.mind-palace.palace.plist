@@ -25,7 +25,9 @@
 
 	<key>ProgramArguments</key>
 	<array>
-		<string>/Users/ascalva/mind-palace/.venv/bin/python</string>
+		<!-- uv owns env resolution (CONVENTIONS §Language); absolute path — launchd PATH is minimal -->
+		<string>/opt/homebrew/bin/uv</string>
+		<string>run</string>
 		<string>/Users/ascalva/mind-palace/scripts/palace.py</string>
 		<string>start</string>
 	</array>

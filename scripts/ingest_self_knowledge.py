@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Ingest the system's own docs as the `curated` self-knowledge graph (Track B / B4). From repo:
 
-    ./.venv/bin/python scripts/ingest_self_knowledge.py
+    uv run scripts/ingest_self_knowledge.py
 
 So the Ambassador can answer "how do you work?" / "is my data safe?" from the actual white
 papers + design notes + Constitution/Conventions — its OWN graph, `curated`, kept OUT of the

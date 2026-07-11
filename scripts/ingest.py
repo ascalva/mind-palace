@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """(Re)build the knowledge base from the configured vault. Run from the repo root:
 
-    ./.venv/bin/python scripts/ingest.py
+    uv run scripts/ingest.py
 
 Seals the core (Invariant 1) before doing any work, then ingests the configured Logseq/
 markdown vault into the raw store + LanceDB vectors. Vectors rebuild from raw each run.

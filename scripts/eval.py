@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """Run the frozen golden set against the real embedder (BUILD-SPEC §15). From repo root:
 
-    ./.venv/bin/python scripts/eval.py            # print the report vs the baseline
-    ./.venv/bin/python scripts/eval.py --bless     # re-bless baseline.json (owner-only)
+    uv run scripts/eval.py            # print the report vs the baseline
+    uv run scripts/eval.py --bless     # re-bless baseline.json (owner-only)
 
 Seals the core (Invariant 1) first, then ingests the golden fixture corpus into a throwaway
 store and scores the blessed queries. `--bless` rewrites `baseline.json` — this MOVES the

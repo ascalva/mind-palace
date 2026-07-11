@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """Owner verdict transport — sign / submit / inspect owner verdicts (verdict-authority.md).
 
-    ./.venv/bin/python scripts/verdict.py sign <subject_id> <verdict> [seq]   # -> signed JSON
-    ./.venv/bin/python scripts/verdict.py submit '<signed-json>'     # verify + store + apply
-    ./.venv/bin/python scripts/verdict.py list          # stored verdicts + gaps
+    uv run scripts/verdict.py sign <subject_id> <verdict> [seq]   # -> signed JSON
+    uv run scripts/verdict.py submit '<signed-json>'     # verify + store + apply
+    uv run scripts/verdict.py list          # stored verdicts + gaps
 
 `sign` uses the owner PRIVATE seed (Keychain: `attestation-owner-key`) to produce a content-bound
 Ed25519 signature over the verdict — the artifact a transport carries. `submit` is the RECEIVE seam:

@@ -5,7 +5,7 @@
 # disk: each lives only in Keychain and this process's memory.
 #
 # Point the supervisor/watcher LaunchAgent's ProgramArguments at this wrapper:
-#   [ .../scripts/run_with_secrets.sh, .../.venv/bin/python, .../scripts/watch.py ]
+#   [ .../scripts/run_with_secrets.sh, .../uv, run, .../scripts/watch.py ]
 #
 # A secret you haven't provisioned yet resolves to empty — which is falsy, so the layer that needs
 # it stays fail-closed (e.g. [attestation] enabled = true with no key is a hard error). Place only

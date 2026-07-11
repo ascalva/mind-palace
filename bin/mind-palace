@@ -12,7 +12,8 @@ while [ -L "$src" ]; do
   [[ "$src" != /* ]] && src="$dir/$src"
 done
 REPO_ROOT="$(cd -P "$(dirname "$src")/.." >/dev/null 2>&1 && pwd)"
-PY="$REPO_ROOT/.venv/bin/python"
+# uv owns env resolution (CONVENTIONS §Language); shim may run outside the repo cwd.
+py() { exec /opt/homebrew/bin/uv run --directory "$REPO_ROOT" python "$@"; }
 SCRIPTS="$REPO_ROOT/scripts"
 
 usage() {
@@ -52,25 +53,25 @@ if [ "$#" -gt 0 ]; then shift; fi
 
 case "$verb" in
   ""|help|-h|--help) usage ;;
-  start|stop|status|reset)  exec "$PY" "$SCRIPTS/palace.py" "$verb" "$@" ;;
-  talk)                     exec "$PY" "$SCRIPTS/talk.py" "$@" ;;
-  monitor)                  exec "$PY" "$SCRIPTS/monitor.py" "$@" ;;
-  sandbox)                  exec "$PY" "$SCRIPTS/sandbox.py" "$@" ;;
-  ingest)                   exec "$PY" "$SCRIPTS/ingest.py" "$@" ;;
-  ingest-self-knowledge)    exec "$PY" "$SCRIPTS/ingest_self_knowledge.py" "$@" ;;
-  migrate-provenance)       exec "$PY" "$SCRIPTS/migrate_provenance_split.py" "$@" ;;
-  purge-raw)                exec "$PY" "$SCRIPTS/purge_raw.py" "$@" ;;
-  gen-attestation-keys)     exec "$PY" "$SCRIPTS/gen_attestation_keys.py" "$@" ;;
-  verify-attestation)       exec "$PY" "$SCRIPTS/verify_attestation.py" "$@" ;;
-  check-imports)            exec "$PY" "$SCRIPTS/check_imports.py" "$@" ;;
+  start|stop|status|reset)  py "$SCRIPTS/palace.py" "$verb" "$@" ;;
+  talk)                     py "$SCRIPTS/talk.py" "$@" ;;
+  monitor)                  py "$SCRIPTS/monitor.py" "$@" ;;
+  sandbox)                  py "$SCRIPTS/sandbox.py" "$@" ;;
+  ingest)                   py "$SCRIPTS/ingest.py" "$@" ;;
+  ingest-self-knowledge)    py "$SCRIPTS/ingest_self_knowledge.py" "$@" ;;
+  migrate-provenance)       py "$SCRIPTS/migrate_provenance_split.py" "$@" ;;
+  purge-raw)                py "$SCRIPTS/purge_raw.py" "$@" ;;
+  gen-attestation-keys)     py "$SCRIPTS/gen_attestation_keys.py" "$@" ;;
+  verify-attestation)       py "$SCRIPTS/verify_attestation.py" "$@" ;;
+  check-imports)            py "$SCRIPTS/check_imports.py" "$@" ;;
   run-with-secrets)         exec "$SCRIPTS/run_with_secrets.sh" "$@" ;;
-  eval)                     exec "$PY" "$SCRIPTS/eval.py" "$@" ;;
+  eval)                     py "$SCRIPTS/eval.py" "$@" ;;
   build-sandbox-image)      exec "$SCRIPTS/build_sandbox_image.sh" "$@" ;;
   keep-awake)               exec "$SCRIPTS/keep-awake.sh" "$@" ;;
   watch)
     echo "⚠ scripts/watch.py is superseded by 'mind-palace start' (which now manages the watcher" >&2
     echo "  + everything else as one supervised process). Running it standalone anyway:" >&2
-    exec "$PY" "$SCRIPTS/watch.py" "$@" ;;
+    py "$SCRIPTS/watch.py" "$@" ;;
   *)
     echo "mind-palace: unknown verb '$verb'" >&2
     usage >&2

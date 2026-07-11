@@ -7,5 +7,7 @@
 # or detached HEAD — branch work enters the ledger when it lands on main.
 [ "$(git symbolic-ref --short -q HEAD)" = "main" ] || exit 0
 cd "$(git rev-parse --show-toplevel)" || exit 0
-./.venv/bin/python scripts/snapshot_code.py 2>&1 || echo "code-sensor sync failed (non-blocking; next sync heals)"
+# uv owns env resolution (CONVENTIONS §Language); venv fallback for environments without uv on PATH.
+if command -v uv >/dev/null 2>&1; then RUN="uv run"; else RUN="./.venv/bin/python"; fi
+$RUN scripts/snapshot_code.py 2>&1 || echo "code-sensor sync failed (non-blocking; next sync heals)"
 exit 0

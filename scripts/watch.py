@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Run the local vault watcher + incremental re-ingest loop (vault-sync task). From repo root:
 
-    ./.venv/bin/python scripts/watch.py
+    uv run scripts/watch.py
 
 Seals the core first (Invariant 1), then watches the configured vault. On change → a
 background `vault_sync` job is enqueued and the supervisor re-ingests through the Phase-1

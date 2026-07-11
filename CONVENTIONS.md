@@ -7,6 +7,7 @@ Engineering and security practice for this repo. Binding unless the full `docs/B
 - Performance-critical deterministic stream math (EWMA, z-scores, changepoint) uses **Polars/NumPy**; it may later move to Rust if it becomes a bottleneck. Don't prematurely optimize.
 - The job queue is **SQLite-backed Python** by default; **River (Go)** is the sanctioned alternative if more robustness is wanted (decision point).
 - Type-hint everything. Keep modules small and single-purpose. Prefer pure functions for anything testable.
+- **Run everything via `uv`** (house rule, 2026-07-11): `uv run scripts/palace.py start`, `uv run pytest -q`, `uv sync --extra dev` for setup. Never hand-built `./.venv/bin/...` paths — `uv.lock` is authoritative and `uv run` owns env resolution. Daemon surfaces (launchd plists, cron shells) use the absolute `/opt/homebrew/bin/uv` because launchd's PATH is minimal.
 
 ## Frameworks — what NOT to use
 Do **not** pull in LangGraph, CrewAI, AutoGen, or similar agent frameworks. They are ceremony that obscures ownership and fights the resource model. **Hand-roll the ReAct/tool loop and the supervisor.** Build thin wrappers over solid primitives (Ollama HTTP, LanceDB, DuckDB, SQLite, Podman) rather than adopting large abstractions.

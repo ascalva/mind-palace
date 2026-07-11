@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """Verify attestation signatures + chain integrity — the owner's standalone audit tool.
 
-    ./.venv/bin/python scripts/verify_attestation.py <attestation_id>   # verify one + its chain
-    ./.venv/bin/python scripts/verify_attestation.py --all              # verify every record
-    ./.venv/bin/python scripts/verify_attestation.py --list             # list records
+    uv run scripts/verify_attestation.py <attestation_id>   # verify one + its chain
+    uv run scripts/verify_attestation.py --all              # verify every record
+    uv run scripts/verify_attestation.py --list             # list records
 
 Checks each attestation's Ed25519 signature against the committed public keys
 (ops/attestation/*.pub), enforces the gate-action owner-key policy, and reports chain

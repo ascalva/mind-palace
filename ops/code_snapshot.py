@@ -20,7 +20,6 @@ is ratified.
 from __future__ import annotations
 
 import ast
-import hashlib
 import re
 import sqlite3
 import subprocess
@@ -141,7 +140,8 @@ def _module_imports(tree: ast.Module) -> set[str]:
 
 
 def parse_source(path: str, blob_sha: str, source: str) -> FileShape:
-    shape = FileShape(path=path, blob_sha=blob_sha, loc=source.count("\n") + (0 if source.endswith("\n") or not source else 1))
+    loc = source.count("\n") + (0 if source.endswith("\n") or not source else 1)
+    shape = FileShape(path=path, blob_sha=blob_sha, loc=loc)
     try:
         tree = ast.parse(source)
     except SyntaxError:
@@ -189,7 +189,8 @@ def snapshot_commit(db: sqlite3.Connection, repo: Path, rev: str = "HEAD", *,
     sha = _git(repo, "rev-parse", rev).strip()
     if db.execute("SELECT 1 FROM snapshots WHERE commit_sha=?", (sha,)).fetchone():
         return None
-    committed_at, subject = _git(repo, "show", "-s", "--format=%aI%x09%s", sha).strip().split("\t", 1)
+    header = _git(repo, "show", "-s", "--format=%aI%x09%s", sha).strip()
+    committed_at, subject = header.split("\t", 1)
     ctype, scope = parse_header(subject)
     blobs = _py_blobs(repo, sha)
     fresh = _read_blobs(repo, sorted({b for _, b in blobs if b not in cache}))
@@ -206,7 +207,8 @@ def snapshot_commit(db: sqlite3.Connection, repo: Path, rev: str = "HEAD", *,
             db.execute("INSERT INTO files VALUES (?,?,?,?,?,?,?)",
                        (sha, s.path, s.blob_sha, s.loc, s.functions, s.classes, int(s.parse_error)))
             db.executemany("INSERT OR IGNORE INTO symbols VALUES (?,?,?,?,?,?)",
-                           [(sha, s.path, y.kind, y.qualname, y.lineno, y.signature) for y in s.symbols])
+                           [(sha, s.path, y.kind, y.qualname, y.lineno, y.signature)
+                            for y in s.symbols])
             db.executemany("INSERT OR IGNORE INTO imports VALUES (?,?,?)",
                            [(sha, s.path, m) for m in sorted(s.imports)])
     return sha

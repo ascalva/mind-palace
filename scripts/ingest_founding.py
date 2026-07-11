@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Ingest a founding-corpus manifest — the owner's dated, supersession-linked musings (Item 3).
 
-    ./.venv/bin/python scripts/ingest_founding.py <manifest.json>
+    uv run scripts/ingest_founding.py <manifest.json>
 
 The manifest is a JSON array; each item is
 `{"source_path", "title", "body", "date", "supersedes"?}`. `date` is the musing's RECONSTRUCTED

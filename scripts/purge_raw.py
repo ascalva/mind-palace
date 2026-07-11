@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Owner-gated TRUE deletion of a note's raw bytes (vault-sync task). Run from the repo root:
 
-    ./.venv/bin/python scripts/purge_raw.py <digest> --confirm
+    uv run scripts/purge_raw.py <digest> --confirm
 
 A vault delete only TOMBSTONES (derived dropped, raw kept). This removes the raw blob too —
 deliberate, irreversible, and refused unless `--confirm` is passed AND the digest is held by

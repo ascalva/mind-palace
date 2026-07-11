@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 """Mind-palace lifecycle — ONE command to run the whole system. From the repo root:
 
-    ./.venv/bin/python scripts/palace.py start          # preflight → record run → supervise
-    ./.venv/bin/python scripts/palace.py stop           # graceful drain of the live run
-    ./.venv/bin/python scripts/palace.py status         # preflight + recent runs
-    ./.venv/bin/python scripts/palace.py reset --confirm # fresh-start wipe of the corpus layer
+    uv run scripts/palace.py start          # preflight → record run → supervise
+    uv run scripts/palace.py stop           # graceful drain of the live run
+    uv run scripts/palace.py status         # preflight + recent runs
+    uv run scripts/palace.py reset --confirm # fresh-start wipe of the corpus layer
 
 `start` seals the core (Invariant 1 — loopback only), runs preflight (ensures our own
 components, VERIFIES Vault/Ollama/podman, fail-closed), records the run pinned to the current

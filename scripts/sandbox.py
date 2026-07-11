@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """Run code in the powerless sandbox, with data piped IN. From the repo root:
 
-    ./.venv/bin/python scripts/sandbox.py analysis.py --input series.csv=~/data/series.csv
-    echo 'import numpy as np; print(np.arange(5).sum())' | ./.venv/bin/python scripts/sandbox.py -
+    uv run scripts/sandbox.py analysis.py --input series.csv=~/data/series.csv
+    echo 'import numpy as np; print(np.arange(5).sum())' | uv run scripts/sandbox.py -
 
 The code runs network-off, vault-less, non-root, resource-limited, wall-clock-bounded (Invariant
 4) — DATA in, DATA out, never actions. Each `--input NAME=PATH` loads a host file as text and makes

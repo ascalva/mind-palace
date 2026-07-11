@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """Relabel legacy `authored` rows to `authored-solo` (the §1 provenance-spectrum split).
 
-    ./.venv/bin/python scripts/migrate_provenance_split.py            # DRY RUN (counts only)
-    ./.venv/bin/python scripts/migrate_provenance_split.py --apply    # mutate the live stores
+    uv run scripts/migrate_provenance_split.py            # DRY RUN (counts only)
+    uv run scripts/migrate_provenance_split.py --apply    # mutate the live stores
 
 Track B split `Provenance.AUTHORED` ("authored") into `AUTHORED_SOLO` ("authored-solo") +
 `AUTHORED_DIALOGUE`. Rows written before the split carry the literal string `"authored"`,

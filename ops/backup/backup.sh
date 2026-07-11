@@ -7,7 +7,8 @@ set -eu
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO_ROOT"
-PY="$REPO_ROOT/.venv/bin/python"
+# uv owns env resolution (CONVENTIONS §Language); absolute path — launchd PATH is minimal.
+py() { /opt/homebrew/bin/uv run --directory "$REPO_ROOT" python "$@"; }
 
 kc() { security find-generic-password -a mind-palace -s "$1" -w 2>/dev/null || true; }
 
@@ -15,7 +16,7 @@ kc() { security find-generic-password -a mind-palace -s "$1" -w 2>/dev/null || t
 RESTIC_PASSWORD="$(kc restic-password)"
 AWS_ACCESS_KEY_ID="$(kc backup-aws-access-key-id)"
 AWS_SECRET_ACCESS_KEY="$(kc backup-aws-secret-access-key)"
-AWS_DEFAULT_REGION="$("$PY" -c 'from config.loader import get_config; print(get_config().backup.region)')"
+AWS_DEFAULT_REGION="$(py -c 'from config.loader import get_config; print(get_config().backup.region)')"
 export RESTIC_PASSWORD AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION
 [ -n "$RESTIC_PASSWORD" ] || { echo "FATAL: no restic-password in Keychain" >&2; exit 1; }
 
@@ -38,10 +39,10 @@ else
 fi
 
 # --- ensure the repo exists (first run inits it; later runs skip) ---
-"$PY" -m ops.backup.run snapshots >/dev/null 2>&1 || "$PY" -m ops.backup.run init
+py -m ops.backup.run snapshots >/dev/null 2>&1 || py -m ops.backup.run init
 
 # --- backup -> retention prune -> integrity check (argv built + reviewed in ops/backup/plan.py) ---
-"$PY" -m ops.backup.run backup
-"$PY" -m ops.backup.run forget
-"$PY" -m ops.backup.run check
+py -m ops.backup.run backup
+py -m ops.backup.run forget
+py -m ops.backup.run check
 echo "backup complete"

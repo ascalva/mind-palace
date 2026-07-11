@@ -71,7 +71,8 @@ through the same gate brainstorms do — never by side effect.
 ## Commands (depth in the matching skill)
 `/capture <topic>` · `/graduate <note>` · `/build <id>` · `/resume <id>` ·
 `/triage` · `/scribe`. Skills: **graduate**, **build-plan**, **finding**,
-**checkpoint**, **book**. Templates: `docs/templates/`.
+**checkpoint**, **commit**, **book**. Templates: `docs/templates/`.
+Run commands via `uv run` (CONVENTIONS §Language) — never `./.venv/bin/...` paths.
 
 If a hook prints `HOOK-FAILURE …`, enforcement did not apply: rerun the named
 script standalone (`bash .claude/hooks/<name>.sh --standalone …`), reconcile, then

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """Generate an Ed25519 attestation keypair — OWNER-OPERATED (production key placement).
 
-    ./.venv/bin/python scripts/gen_attestation_keys.py supervisor
-    ./.venv/bin/python scripts/gen_attestation_keys.py owner
+    uv run scripts/gen_attestation_keys.py supervisor
+    uv run scripts/gen_attestation_keys.py owner
 
 Prints a fresh base64 PRIVATE SEED to stdout (place it in Keychain — NEVER commit it) and writes
 the matching PUBLIC key to ops/attestation/<role>.pub (commit that — it is non-secret). Then set
