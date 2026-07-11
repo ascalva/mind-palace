@@ -30,7 +30,7 @@ from ops.lifecycle.runs import RunLedger, git_state
 # self-mod ledgers, telemetry history, the live backup staging, and logs. The corpus targets are
 # computed from cfg.paths; this guard is defense-in-depth so a path mistake can't nuke Vault.
 _RESET_GUARD = ("vault", "runs.sqlite", "selfmod_ledger.sqlite", "telemetry.duckdb",
-                "backup-staging", "logs")
+                "code_snapshots.sqlite", "backup-staging", "logs")
 
 # Default cadence for the trough housekeeping passes (dream + curate). They only actually run
 # when the foreground gate is clear (the supervisor's HEAVY_TIERS check), so this is a ceiling.
