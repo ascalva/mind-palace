@@ -1,9 +1,9 @@
 ---
 type: build-plan
 id: bp-010
-status: proposed
+status: ready
 design_ref:
-  - docs/design-notes/agent-workflow.md   # amendment A8 (pending owner paste — see §0)
+  - docs/design-notes/agent-workflow.md # amendment A8 (pending owner paste — see §0)
 contract: builder
 write_scope:
   - ".claude/hooks/**"
@@ -11,13 +11,13 @@ write_scope:
   - "docs/findings/**"
   - "docs/build-plans/bp-010/**"
 session_budget: 1
-depends_on: []                # gated on the A8 ratification paste, not on a plan (§0)
+depends_on: [] # gated on the A8 ratification paste, not on a plan (§0)
 parallelizable_with: [bp-007] # disjoint scope: bp-007 never touches hooks/CLAUDE.md
 created: 2026-07-11
 updated: 2026-07-11
 links:
-  - docs/findings/finding-0025.md          # the warrant; Corrections 1-3 are the spec
-  - docs/inbox/proposed-amendment-A8.md    # the paste awaiting the owner
+  - docs/findings/finding-0025.md # the warrant; Corrections 1-3 are the spec
+  - docs/inbox/proposed-amendment-A8.md # the paste awaiting the owner
 supersedes: null
 superseded_by: null
 warrant: docs/findings/finding-0025.md
@@ -110,6 +110,7 @@ still bars it — this plan modifies the guard while standing outside it),
 ## 6. Interfaces pinned inline
 
 finding-0025's proposed rule (the spec, verbatim-condensed):
+
 - Draft design notes → agent-writable (create new at `draft`; edit on-disk-`draft`),
   subject to normal plan write-scope.
 - Ratified/superseded → agent-immutable: not content, not status, not deletion.
@@ -142,7 +143,7 @@ Current signatures (live, 2026-07-11): `status_of(path_rel) -> str | None` (`:20
   pre-hoc but escaping the Stop audit (the exact hole Correction 2 exists to close).
 - **Invariant(s):** `CONSTITUTION.md`/`eval/golden*` denials unchanged; `cmd_gate_check`
   transition denials unchanged; A5 normalization applied to HEAD reads.
-- **Touches stored data?** no  **Parallelizable?** no  **Depends on:** the A8 paste (§0)
+- **Touches stored data?** no **Parallelizable?** no **Depends on:** the A8 paste (§0)
 
 ### Item 13 — the six-case harness (non-vacuous controls)
 
@@ -159,7 +160,7 @@ Current signatures (live, 2026-07-11): `status_of(path_rel) -> str | None` (`:20
 - **Falsifier:** a case that passes with the guard REVERTED (vacuous test) — the harness
   must fail against pre-A8 `_lib.py`, proven once in the journal.
 - **Invariant(s):** harness never touches the real repo's stores or notes.
-- **Touches stored data?** no  **Parallelizable?** with Item 12 (TDD order encouraged)
+- **Touches stored data?** no **Parallelizable?** with Item 12 (TDD order encouraged)
   **Depends on:** none
 
 ### Item 14 — the digest surfaces
@@ -172,7 +173,7 @@ Current signatures (live, 2026-07-11): `status_of(path_rel) -> str | None` (`:20
 - **Falsifier:** a stale digest line telling future sessions the old rule (the
   finding-0013 class of defect).
 - **Invariant(s):** CLAUDE.md thinness (net line count ±2).
-- **Touches stored data?** no  **Parallelizable?** no  **Depends on:** Item 12
+- **Touches stored data?** no **Parallelizable?** no **Depends on:** Item 12
 
 ## 8. Math carried explicitly
 
@@ -193,10 +194,10 @@ somewhere — finding, stop).
 
 ## 11. Parked decisions
 
-| Decision | Default recorded | Rejected alternatives (why) | Re-entry condition |
-|---|---|---|---|
-| draft-note writes for BUILDERS under plans | allowed only when the plan's write_scope grants a design-notes path (normal capability rules) | blanket builder access (over-broad; the orchestrator is the note-drafting role) | a ratified workflow change to builder duties |
-| Stop-side check scope | design notes only | extending HEAD-keyed immutability to eval/golden (already absolute-denied; redundant) | golden-set ever leaves the hard denylist |
+| Decision                                   | Default recorded                                                                              | Rejected alternatives (why)                                                           | Re-entry condition                           |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------- |
+| draft-note writes for BUILDERS under plans | allowed only when the plan's write_scope grants a design-notes path (normal capability rules) | blanket builder access (over-broad; the orchestrator is the note-drafting role)       | a ratified workflow change to builder duties |
+| Stop-side check scope                      | design notes only                                                                             | extending HEAD-keyed immutability to eval/golden (already absolute-denied; redundant) | golden-set ever leaves the hard denylist     |
 
 ## 12. Dependency & ordering summary
 
