@@ -1,16 +1,16 @@
 ---
 type: finding
 id: finding-0026
-status: routed
+status: promoted
 ftype: discovery
 origin_plan: null            # surfaced in owner–chat design review, 2026-07-10
 route: orchestrator
 created: 2026-07-10
-updated: 2026-07-10
+updated: 2026-07-11
 links:
   - docs/research/security-planes.md                     # the spec whose code plane this finding shows unenforced
   - docs/design-notes/type-system-as-core-audit.md       # the design note proposed as the remedy
-resolution: null
+resolution: promoted → type-system-as-core-audit.md, ratified by the owner's hand 2026-07-11 (oq-0012); B-1 bootstrap begun same day
 ---
 
 # finding-0026 — The code plane is assigned to the type system, but no type checker runs

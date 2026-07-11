@@ -269,7 +269,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0012 — Ratify `type-system-as-core-audit.md`: give the code plane its missing enforcement?
-- status: open
+- status: swept
 - origin: docs/findings/finding-0026.md
 - blocking: false
 - question: `security-planes.md` composes three planes — types enforce the **code plane**, provenance
@@ -287,6 +287,10 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   and every builder session mutates `core/` under a weaker guarantee than the three-plane composition
   assumes. Parks as finding-0026; re-entry — owner ratifies/declines here, or a type-consistency defect
   in `core/` that a checker would have caught at authorship surfaces in a build session.
-- answer:
+- answer: **RATIFIED** — owner hand-edited `status: draft → ratified` (2026-07-11, the blessing
+  gate proper) and directed the mypy bootstrap to begin immediately. finding-0026 flipped
+  `→ promoted`. The note's B-items are now licensed: B-1 (report-only audit) executed same day;
+  B-2 (gate wiring) follows once both tiers are green; B-3 (static-shadow spike) per the note.
+  Swept to the origin finding same day.
 
 ---
