@@ -72,3 +72,12 @@ build plan that adds `needs: []` to BOTH `type-gate` and `ratchet` in `.gitlab-c
 comment explaining why the code gates carry it and the release jobs do not. That plan takes the
 owner-only `proposed → ready` blessing like any other before it builds. Non-urgent; blocks nothing
 in the current queue. Queued for the closing /triage's promotion step.
+
+**Platform-pivot supersession watch (2026-07-11, evening).** GitLab shared runners are now
+EXHAUSTED (0 min) and the owner has directed a runner-strategy design note weighing a migration to
+GitHub Actions (repo is public → unlimited free CI) — see finding-0034's evening addendum. On
+GitHub Actions, jobs are independent by default (no implicit `.pre` stage ordering), so THIS
+finding's `needs:[]` remedy is **largely subsumed** by a GitHub migration. Do NOT mint the
+standalone GitLab `needs:[]` plan in isolation; fold this finding into finding-0034's design note
+so the decision is made once, on the chosen platform. If GitLab stays authoritative for any
+interim window, the `needs:[]` fix still applies there.

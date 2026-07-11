@@ -120,3 +120,54 @@ suits the workflow better. So the design note must weigh, at least:
 
 Interim cheap fix (option 2 above — `rules:changes` on the always-run jobs + finding-0032's
 `needs:[]`) proceeds regardless of the platform decision, on whichever host is current.
+
+## Owner direction + settled inputs (2026-07-11, evening) — TRIGGER FIRED, now priority
+
+Two of this finding's open variables have resolved, and the trigger has fired:
+
+1. **GitLab shared runners are EXHAUSTED (0 min).** The "minute balance hits a working
+   floor" re-entry trigger has fired: there is now **no working CI gate at all** on GitLab.
+   Every `.gitlab-ci.yml` pipeline is dead until the monthly reset. This promotes the design
+   from queued to **priority** — but the owner chose the deliberate path (mint a proper design
+   note + plan, Fable/xhigh), NOT a supervision-session hack.
+2. **The GitHub mirror is PUBLIC** (`github.com/ascalva/Mind-Palace`, owner-confirmed
+   2026-07-11). This resolves this finding's headline open question: **GitHub Actions is
+   unlimited-free CI for a public repo** — the "cheapest fix of ALL" branch above is now LIVE
+   (unlimited free CI, zero AWS infra required for the CI gate itself). Framework code is public;
+   the corpus/data stays local (privacy ethos intact — confirm nothing sensitive is in the tree
+   at design time).
+
+**Owner's framing of the fork (2026-07-11):** GitHub is NOT necessarily either/or with the AWS
+MicroVM runner. The owner sees three live shapes the design note must weigh as a *sequence/hybrid*,
+not a mutually-exclusive pick:
+- **(a) GitHub as the destination** — GitHub Actions IS the CI gate going forward; unlimited free
+  minutes for a public repo make AWS runners unnecessary for the gate. Re-point `ci_witness` +
+  move `semantic-release` to GitHub; retire `.gitlab-ci.yml`.
+- **(b) GitHub as the bootstrap step toward proper AWS runners** — stand up GitHub Actions now
+  (fast, free, unblocks the dead gate), then layer **self-hosted AWS Lambda MicroVM runners**
+  under GitHub Actions (the MicroVM community tooling is GitHub-Actions-first — this is the
+  MATURE integration path finding-0034 §3 flagged, vs. the DIY GitLab custom-executor). The
+  Firecracker per-job isolation = the constitution's "executed code is powerless" at the infra
+  layer, which matters most for the sandbox/effector tiers, not the lint gate.
+- **(c) both / split** — GitHub-hosted runners for the cheap deterministic + security gate
+  (free, public); self-hosted MicroVM runners for anything needing real isolation or heavier
+  compute (sandbox-adjacent jobs, future effector CI). The gate and the sandbox have different
+  runner needs.
+
+**Existing starting artifact:** `.github/workflows/ci.yml` already exists (Jun 27) but is STALE —
+missing the mypy type-gate (bp-008 split: 0-floor + 69 baseline), SAST/secret-detection,
+semantic-release, and predating the uv migration + the `check_imports.py` rename (finding-0014).
+Relying on it today is a FALSE GREEN. The design note's first plan must bring it to parity, not
+trust it as-is.
+
+**finding-0032 interaction:** its `needs:[]` fix is a GitLab `.pre`-stage-suppression remedy. On
+GitHub Actions, jobs are independent by default (no implicit stage ordering), so the finding-0032
+concern is largely SUBSUMED by a GitHub migration — the design note should note this rather than
+port `needs:[]` blindly. If GitLab stays authoritative for any window, finding-0032 still applies there.
+
+**Next step (deferred to a Fable/xhigh design-tier session, owner-directed):** promote this
+finding (+ finding-0032) into a **runner-strategy design note** structured around the (a)/(b)/(c)
+fork above, ratify (owner gate), `/graduate` into plans (first plan = the deterministic+security
+GitHub Actions gate to parity; later plan(s) = deploy-attestation re-point + optional MicroVM
+runners). bp-013 does NOT need this to land — it merges on local-green (CI is attestation, not the
+gate).
