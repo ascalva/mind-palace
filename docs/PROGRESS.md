@@ -1898,3 +1898,36 @@ mode itself needs an agent-workflow amendment (A9 candidate) once the first sequ
 will (gate armed end-to-end); the 9 open owner questions (oq-0003..0011) stand, A8 (agent draft-note
 authoring) still the highest-leverage unanswered. Formal /triage on bp-006 completion (route its
 findings, seal, checkpoint).
+
+---
+
+### Checkpoint 2026-07-11 (late) — bp-008 sealed; bp-011 in flight (supervision session)
+
+**Type-plane build sequence landed.** bp-006/007/009/010 complete (sealed in their journals). **bp-008
+COMPLETE this session** (merge `b804a49`, seals `2893c80`+`8b2b8de`): the CI `type-gate` job +
+`ops/type_gate.py` (`membership()` Tier-2 import invariant + `bare_ignores()` tokenize-based scan),
+11 unit tests. All three B-2 falsifiers confirmed LIVE in CI — (i) type-error `2669813352`, (ii)
+membership `2669813994`, (iii) bare-ignore `2669822550` — each also locally reproduced; green baseline
+`2669812161`. main's `type-gate` mirrors `ratchet` (no `needs:`).
+
+**Delegation lesson (recorded).** bp-008's builder was assumed dead (mid-poll `.output` snapshot) but
+was only slow-polling a runner-starved pipeline; it retried, completed, and cleaned up while the
+orchestrator raced it to seal. Both converged; the builder's completion notification endorsed the seal
++ `finding-0032` routing. Cost (measured, post-seal): sonnet, 201741 tok / 263 tool-uses / ~37 min.
+**Rule reinforced for handoffs:** a spawned builder that looks idle may be polling — inspect worktree +
+journal, and if it may still be live, WAIT/poll rather than race it.
+
+**finding-0032 (direction, routed):** should the code gates (`type-gate` AND `ratchet`) carry
+`needs: []` to run independently of a red `.pre`/release stage? Builder committed `needs:[]` cleanly
+(`0d843d2`, raced off, never reached main); NOT adopted at merge (direction-typed, implicates both
+jobs). Owner decision.
+
+**In flight.** bp-011 builder spawned (sonnet, worktree, background, est 350k) — B-a docstring ledger
+column + V4 read-only reference inventory. Its V4 keep/no-signal verdict GATES bp-013. Then bp-012
+(full-strength, SEQUENTIAL — shares `ops/code_sensor.py`; write_scope may need
+`ops/lifecycle/launcher.py` added by owner for Item 4, else it parks). bp-013 gated on bp-011 verdict +
+bp-012 merged.
+
+**Next.** Scrutinize+merge bp-011 → seal → bp-012 → bp-013 (or un-bless if V4 no-signal). Closing
+/triage: route findings 0027-0032, full PROGRESS catch-up, queue owner items (A9 amendment candidate;
+cost-forecasting re-entry). Owner desk: oq-0003..0010.
