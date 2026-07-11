@@ -70,6 +70,62 @@ ratchet:
     - uv run python scripts/check_imports.py   # Invariant 2 static proof in CI (finding-0014)
     - uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'
 
+# The type gate (bp-008, type-system-as-core-audit.md B-2): a red type check, a Tier-2
+# membership violation, or a bare `# type: ignore` blocks the pipeline. Mirrors the
+# ratchet job's shape (image, uv cache, rules:changes, interruptible) as its own job so
+# either can fail independently and the ratchet job's runtime doesn't grow with mypy's.
+# No-new-errors strategy (decided bp-008 journal Entry 1, measured 2026-07-11): mypy is
+# run TWICE — once over everything except tests/ (must be 0 errors: any error there is
+# necessarily new, since bp-006/bp-007 left that region green), once over the whole
+# [tool.mypy].files list including tests/, pinned at exactly 69 (finding-0029's
+# recorded, triaged baseline — all arg-type/return-value, the Protocol-vs-concrete-class
+# shape a future core-scoped plan owns; re-fixing it is out of bp-008's write_scope). A
+# single repo-wide "count == 69" baseline would not catch a new core/ error masked by a
+# coincidental fix elsewhere in tests/ holding the total steady — the split closes that
+# gap by making core/agents/eval/ops/scheduler/scripts a hard zero-error floor.
+type-gate:
+  stage: lint
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+  interruptible: true
+  variables:
+    GIT_DEPTH: "1"
+    UV_CACHE_DIR: .uv-cache
+  cache:
+    key:
+      files: [uv.lock]
+    paths: [.uv-cache]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes:
+        paths:
+          - "core/**/*"
+          - "agents/**/*"
+          - "eval/**/*"
+          - "ops/**/*"
+          - "scheduler/**/*"
+          - "scripts/**/*"
+          - "tests/**/*"
+          - "pyproject.toml"
+          - "uv.lock"
+          - ".gitlab-ci.yml"
+  script:
+    - uv sync --frozen --extra dev
+    - uv run mypy core agents eval ops scheduler scripts   # Tier-2 hard floor: 0 errors, no exceptions
+    # tests/ baseline pinned at finding-0029's 69 (all arg-type/return-value,
+    # Protocol-vs-concrete-class — see docs/findings/finding-0029.md); a DIFFERENT
+    # count (higher OR lower) blocks, so a fix there also forces updating this
+    # pinned number rather than silently drifting.
+    - |
+      MYPY_TESTS_BASELINE=69
+      MYPY_OUT="$(uv run mypy 2>&1)" || true
+      echo "$MYPY_OUT"
+      MYPY_COUNT="$(echo "$MYPY_OUT" | tail -1 | grep -oE '[0-9]+ error' | grep -oE '[0-9]+')"
+      if [ "$MYPY_COUNT" != "$MYPY_TESTS_BASELINE" ]; then
+        echo "type-gate: expected exactly $MYPY_TESTS_BASELINE mypy errors (tests/ baseline, finding-0029), got '${MYPY_COUNT:-0}'"
+        exit 1
+      fi
+    - uv run python -m ops.type_gate   # Tier-2 membership + bare-ignore scans (bp-008)
+
 # The vault axis in CI: a disposable dev-mode Vault as a service container proves the
 # committed AppRole policies against a REAL server (tests/e2e/test_secrets_vault_live.py
 # auto-skips without one — in CI it never skips). Scoped tighter than the ratchet: only

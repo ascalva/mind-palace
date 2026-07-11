@@ -190,3 +190,59 @@ tripped over first.
 
 **Next:** Item 9 — the `type-gate` CI job in `.gitlab-ci.yml`, then the three live
 falsifier demonstrations on a throwaway branch.
+
+---
+
+## Entry 3 — Item 9 built (job authored + locally validated), before the live falsifier push
+
+**`.gitlab-ci.yml` — new `type-gate` job**, inserted right after `ratchet` (same
+`lint` stage; both can run concurrently, budget is shared uv cache not serialization).
+Shape mirrors `ratchet` exactly: `image: ghcr.io/astral-sh/uv:python3.12-bookworm-
+slim`, `interruptible: true`, `GIT_DEPTH: "1"` + `UV_CACHE_DIR: .uv-cache` +
+`cache.key.files: [uv.lock]`, `rules: if $CI_COMMIT_BRANCH == "main"` +
+`changes:paths` on the same code-path set as `ratchet` (`core/**/*`, `agents/**/*`,
+`eval/**/*`, `ops/**/*`, `scheduler/**/*`, `scripts/**/*`, `tests/**/*`,
+`pyproject.toml`, `uv.lock`, `.gitlab-ci.yml` — task instructions' exact list;
+deliberately NOT `config/**/*`/`.claude/**/*`/`edge/**/*`/`cloud/**/*`, since those
+carry zero core imports (V1a) and are outside `[tool.mypy].files`, so a change there
+cannot move the mypy verdict — narrower `rules:changes` than `ratchet`'s is correct
+here, not an oversight).
+
+**Script, in order:**
+1. `uv sync --frozen --extra dev`
+2. `uv run mypy core agents eval ops scheduler scripts` — the hard Tier-2-minus-tests
+   floor, 0 errors required (mypy's own nonzero exit on any error stops the job here,
+   under CI's default `set -e` shell semantics — no custom logic needed for this line).
+3. A `|` block-scalar shell snippet implementing the pinned-baseline check: capture
+   `uv run mypy` (full `[tool.mypy].files`, tests/ included) output, echo it (so the
+   job log still shows every individual error for a human to read), parse the
+   trailing `"Found N errors..."` line for `N` via `grep -oE`, and `exit 1` unless
+   `N == 69` exactly (both higher AND lower blocks — a fixed baseline forces a
+   deliberate re-pin in either direction, not silent drift). Chose a `$(...)`-captured
+   variable + `grep`/`test` over piping through `tee` to a temp file — no temp-file
+   lifecycle to manage, and the parse logic is identical either way.
+4. `uv run python -m ops.type_gate` — the two Item-8 scans.
+
+**Locally validated the exact YAML content** (not just "should work"): parsed
+`.gitlab-ci.yml` with `PyYAML` (`uv run --with pyyaml python3 -c "yaml.safe_load(...)"`)
+— valid YAML, `type-gate` job's `script` list has exactly 4 entries, the block-scalar
+extracted verbatim as intended. Then extracted script entry 3 verbatim to a file and
+ran it with `bash -e` standalone: passed (69 confirmed, exit 0). Separately verified
+the count-mismatch failure path with synthetic mypy output at both 70 (too many) and
+"Success: no issues found..." (zero — no `N error` match, empty-string comparison
+still correctly fails) — both `exit 1` as intended, under real `set -e` semantics
+(confirmed the `uv run mypy ... | tee ...` alternative I considered first would NOT
+propagate mypy's exit code through the pipe without `pipefail`, which is why the
+final form uses `$(...)` capture + explicit `test`/`if` instead of relying on a
+piped command's exit code).
+
+Ran the full real 4-line sequence against the actual repo, in order, exactly as CI
+would: `uv sync --frozen --extra dev` → `uv run mypy core agents eval ops scheduler
+scripts` → **"Success: no issues found in 166 source files"** → the pinned-baseline
+block → **"Found 69 errors in 20 files (checked 325 source files)"**, count matched,
+no exit → `uv run python -m ops.type_gate` → **both scans OK**. The whole sequence
+exits 0 today, as required (a currently-green tree must not be blocked by its own
+gate).
+
+**Not yet done:** the three LIVE falsifier demonstrations (plan Item 9's acceptance
+test) on the throwaway `bp-008-falsifier-demo` branch — next.
