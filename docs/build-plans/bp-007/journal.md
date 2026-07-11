@@ -456,6 +456,23 @@ whether any of these `| None` narrowing gaps hide a REAL bug (a test that assert
 that could genuinely be `None` at runtime would be exactly the "passes because untyped" shape
 the plan calls out) rather than reflexively asserting past every one.
 
+**Cross-plan note (orchestrator, mid-run, not a course-correction for this plan's own scope):**
+bp-009 merged to `main` mid-session — `finding-0028` is theirs (my own findings, if any, start
+at **finding-0029**). Their churn measurement found two Tier-2 test files that Any-laundered
+past the new provenance type tags (an untyped fixture + an unresolvable `fixtures.corpus`
+import) — invisible until runtime because those files sat below the pre-Item-5 floor. This is
+independent evidence FOR the `disallow_any_generics` floor decision already made and recorded
+in `pyproject.toml` (Item 5, this journal, above) — I'm noting the corroboration here rather
+than reopening the decision, since it was already made from this session's own measured delta
+(zero T1, T2-only, falsifier not tripped) and bp-009's finding only reinforces it, doesn't
+change it. Worth flagging: bp-009's "unresolvable `fixtures.corpus` import" sounds like the
+EXACT SAME bare-`fixtures.X` vs `tests.fixtures.X` split fixed in THIS entry — if their fixture
+file is a different one than the 17 touched here, it may still be broken on `main` post-merge;
+re-check post-rebase (not a blocker for this plan — `core/provenance.py` is bp-009's, disjoint
+from bp-007's write_scope, and the orchestrator owns the rebase, not this builder). Main is NOT
+merged into this worktree and won't be by this builder (per contract: own worktree, never
+merge to main / never merge main in either).
+
 ---
 
 ## Markers
