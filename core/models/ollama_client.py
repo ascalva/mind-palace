@@ -13,7 +13,7 @@ import json
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 from config.loader import OllamaConfig
 
@@ -48,7 +48,9 @@ class OllamaClient:
             with urllib.request.urlopen(
                 req, timeout=timeout or self.config.request_timeout_s
             ) as resp:
-                return json.loads(resp.read())
+                # warrant(T3): static types end at the JSON boundary; the local Ollama
+                # server's response shape is trusted here (runtime validation is PD-2).
+                return cast("dict[str, Any]", json.loads(resp.read()))
         except urllib.error.URLError as e:
             raise OllamaError(f"POST {path} failed: {e}") from e
 
@@ -57,13 +59,15 @@ class OllamaClient:
             with urllib.request.urlopen(
                 f"{self.config.base_url}{path}", timeout=self.config.request_timeout_s
             ) as resp:
-                return json.loads(resp.read())
+                # warrant(T3): as _post — trusted local JSON boundary (PD-2 owns validation).
+                return cast("dict[str, Any]", json.loads(resp.read()))
         except urllib.error.URLError as e:
             raise OllamaError(f"GET {path} failed: {e}") from e
 
     # --- introspection -----------------------------------------------------------
     def version(self) -> str:
-        return self._get("/api/version").get("version", "")
+        # warrant(T3): .get on dict[str, Any] is Any; trusted local JSON boundary (PD-2).
+        return cast(str, self._get("/api/version").get("version", ""))
 
     def list_models(self) -> list[str]:
         """Names of models available on disk (pullable -> resident)."""
@@ -94,7 +98,8 @@ class OllamaClient:
         payload: dict[str, Any] = {"model": model, "input": inputs}
         if keep_alive is not None:
             payload["keep_alive"] = keep_alive
-        return self._post("/api/embed", payload).get("embeddings", [])
+        # warrant(T3): .get on dict[str, Any] is Any; trusted local JSON boundary (PD-2).
+        return cast("list[list[float]]", self._post("/api/embed", payload).get("embeddings", []))
 
     # --- inference ---------------------------------------------------------------
     def chat(self, model: str, messages: list[Message], *,
@@ -115,6 +120,6 @@ class OllamaClient:
             payload["think"] = think
         # Generation runs on the long timeout — a heavy thinking-model tier legitimately takes
         # minutes; the control-plane default would false-trip on a real synthesis pass.
-        return self._post(
-            "/api/chat", payload, timeout=self.config.generation_timeout_s
-        ).get("message", {}).get("content", "")
+        data = self._post("/api/chat", payload, timeout=self.config.generation_timeout_s)
+        # warrant(T3): chained .get over Any; trusted local JSON boundary (PD-2).
+        return cast(str, data.get("message", {}).get("content", ""))

@@ -19,8 +19,18 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Protocol
 
 OnChange = Callable[[], None]
+
+
+class ObserverLike(Protocol):
+    """The slice of a watchdog Observer this watcher drives (watchdog is an
+    OPTIONAL dependency, so its own types never appear in signatures here)."""
+
+    def stop(self) -> None: ...
+
+    def join(self, timeout: float | None = ...) -> None: ...
 
 
 @dataclass
@@ -31,7 +41,7 @@ class VaultWatcher:
     poll_interval_s: float = 5.0  # fallback cadence when watchdog isn't available
     _timer: threading.Timer | None = field(default=None, init=False, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
-    _observer: object | None = field(default=None, init=False, repr=False)
+    _observer: ObserverLike | None = field(default=None, init=False, repr=False)
     _poll_stop: threading.Event | None = field(default=None, init=False, repr=False)
     backend: str = field(default="", init=False)
 

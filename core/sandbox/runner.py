@@ -15,6 +15,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -62,7 +63,7 @@ class PodmanRunner:
             return False
 
     def _exec(self, argv: list[str], *, input_text: str, timeout_s: int,
-              on_timeout=None) -> ExecResult:
+              on_timeout: Callable[[], None] | None = None) -> ExecResult:
         t0 = time.monotonic()
         try:
             proc = subprocess.run(argv, input=input_text, capture_output=True,
@@ -136,7 +137,9 @@ class WasmRunner:
         if self.wasm_module is None or not Path(self.wasm_module).exists():
             return False
         try:
-            import wasmtime  # noqa: F401 — presence probe only
+            # warrant(T3): optional dependency, absent until the owner activates the
+            # WASM substrate — presence-probed, fail-closed (WasmUnavailableError).
+            import wasmtime  # type: ignore[import-not-found]  # noqa: F401
         except ImportError:
             return False
         return True
@@ -158,7 +161,8 @@ class WasmRunner:
         import tempfile
         import threading
 
-        import wasmtime
+        # warrant(T3): optional dependency (see available()); reaching here implies installed.
+        import wasmtime  # type: ignore[import-not-found]
 
         cfg = wasmtime.Config()
         cfg.epoch_interruption = True
@@ -186,7 +190,7 @@ class WasmRunner:
 
             timed_out = [False]
 
-            def _interrupt():
+            def _interrupt() -> None:
                 engine.increment_epoch()
                 timed_out[0] = True
 

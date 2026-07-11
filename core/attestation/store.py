@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -64,7 +65,7 @@ class AttestationChain:
     def constitution_fingerprints(self) -> set[str]:
         return {a.constitution_fingerprint for a in self.attestations}
 
-    def verify_signatures(self, verify) -> bool:
+    def verify_signatures(self, verify: Callable[[Attestation], bool]) -> bool:
         """Step-3 hook: True iff `verify(att)` holds for every link. The caller supplies the
         verifier appropriate to the phase (unsigned records have no signature to check)."""
         return all(verify(a) for a in self.attestations)

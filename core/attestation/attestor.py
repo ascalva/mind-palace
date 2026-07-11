@@ -9,7 +9,7 @@ not change. (Model advises; code attests — the agent never holds the key.)
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Protocol
@@ -56,8 +56,10 @@ class StoreAttestor:
     # the signer's name. None = records-only (Step 2 behavior; unsigned but still chained).
     signer: Ed25519Signer | None = None
 
-    def emit(self, *, agent_role, action, input_hashes=(), output_hashes=(),
-             derived_from_ids=None, vault_token_accessor="") -> Attestation:
+    def emit(self, *, agent_role: str, action: str,
+             input_hashes: Iterable[str] = (), output_hashes: Iterable[str] = (),
+             derived_from_ids: Iterable[str] | None = None,
+             vault_token_accessor: str = "") -> Attestation:
         ih = tuple(input_hashes)
         if derived_from_ids is None:
             # Auto-link the chain: any prior attestation that PRODUCED one of my inputs is a

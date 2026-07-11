@@ -100,8 +100,11 @@ def seal() -> None:
     global _INSTALLED
     if _INSTALLED:
         return
-    socket.socket.connect = _guarded_connect  # type: ignore[method-assign]
-    socket.socket.connect_ex = _guarded_connect_ex  # type: ignore[method-assign]
+    # warrant(T3): deliberate process-wide monkeypatch — THE egress guard (Invariant 1).
+    # The guard accepts a looser address type than _socket's overload set, hence the
+    # `assignment` code alongside `method-assign`.
+    socket.socket.connect = _guarded_connect  # type: ignore[method-assign, assignment]
+    socket.socket.connect_ex = _guarded_connect_ex  # type: ignore[method-assign, assignment]
     _INSTALLED = True
 
 

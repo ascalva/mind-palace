@@ -21,8 +21,23 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Protocol
 
 from core.stores.derived import DREAM, FINDING, Artifact
+
+
+class ArtifactReads(Protocol):
+    """The read slice of a `DerivedStore` this view binds — reads and ONLY reads."""
+
+    def all(self, *, kind: str | None = ..., subkind: str | None = ...) -> list[Artifact]: ...
+
+    def count(self, *, kind: str | None = ...) -> int: ...
+
+
+class RetractedReads(Protocol):
+    """A duck-typed source of RETRACTED subject ids (a `DispositionStore.retracted`)."""
+
+    def retracted(self) -> set[str]: ...
 
 
 @dataclass(frozen=True)
@@ -40,7 +55,8 @@ class DreamsView:
     _retracted: Callable[[], set[str]] | None = None
 
     @classmethod
-    def over(cls, store: object, *, dispositions: object | None = None) -> DreamsView:
+    def over(cls, store: ArtifactReads, *,
+             dispositions: RetractedReads | None = None) -> DreamsView:
         """Bind the store's reads (+ an optional `retracted` disposition read).
         The returned view exposes those and only those — the store's `add`/`reset` are unreachable
         through it. Passing `dispositions` makes it the ACTIVE projection: retracted dreams are
