@@ -73,3 +73,45 @@ accumulate estimate-vs-actual over time, so both can learn best practices from t
    reach into sealed core.** Likely answer: share the pattern, not the code.
 
 Status: design-tier idea, parked for a Fable/xhigh design session (surfaced during supervision).
+
+---
+
+## 2026-07-11 — the calibration data as a SELF-SENSOR: proprioception for the observing agent (owner)
+
+Owner leap: the estimate-vs-actual data isn't only calibration input — it's a **sensor
+stream**, and what it senses is the AGENT ITSELF over time. So the sensor taxonomy gains an
+axis:
+- **exteroceptive** sensors — biometric (the owner's body), code (bp-011/012's φ_code):
+  sensing the WORLD.
+- **interoceptive / proprioceptive** sensor — the agent sensing its OWN operation (cost,
+  estimation-error, tool-use patterns, session shapes) over time.
+
+**Why it's elegant, not a bolt-on:** it rides the EXACT seam bp-012 is building right now
+(`SensingHandoff → collect → OBSERVED store`). A self/operational sensor is the THIRD instance
+through that seam (biometric, code, self) — which VALIDATES bp-012's core bet that the seam is
+sensor-agnostic. The design note should note the seam was built to generalize; the self-sensor
+is its confirming third case.
+
+**Why "over time" is load-bearing:** self-sensing is the MECHANISM behind the previous
+capsule's "learn best practices over time." Longitudinal self-observation IS how the estimator
+recalibrates — the agent watches its own competence evolve. Direct tie to the evolution study
+(the system studying its own evolution — the Ouroboros name made literal).
+
+**The discipline that keeps it safe (no runaway self-reference):**
+- The OBSERVED stratum is passive / write-side — the daemon does NOT consume observations yet
+  (finding-0020 honesty). Self-observations ACCUMULATE as data without an automatic feedback
+  loop; recalibration stays a deliberate, gated step. That's what prevents observing-the-
+  observing regress.
+- Same firewall as any observation: OBSERVED provenance, mirror-opaque, corpus-side (reset
+  target). "Model advises, code acts" — the self-sensor is CODE projecting telemetry, not the
+  model introspecting unboundedly.
+
+**Open design questions:** own store (`agent_observations`) vs a payload type on the existing
+seam? What exactly is observed (start narrow — the cost ledger already exists as structured
+data — then tool-use histograms, session shapes, Stop-gate/finding rates)? Where's the precise
+line between healthy self-observation and infinite regress (the passive-stratum answer is the
+first cut)?
+
+Status: design-tier; generalizes the cost-forecasting thread into a sensor-architecture
+question. Cross-ref: `code-observation-projection.md` (the seam), the evolution study. Park for
+a Fable/xhigh design session.
