@@ -36,7 +36,11 @@ The spectrum (Track B realizes the §1 split that the formal spec already assume
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import StrEnum
+from typing import Generic, TypeVar, final
+
+T = TypeVar("T")
 
 
 class Provenance(StrEnum):
@@ -76,3 +80,83 @@ class Provenance(StrEnum):
 MIRROR_READABLE: frozenset[Provenance] = frozenset(
     {Provenance.AUTHORED_SOLO, Provenance.AUTHORED_DIALOGUE}
 )
+
+
+# ── The static shadow (type-system-as-core-audit.md §2.4; bp-009 spike) ──────────────────
+#
+# `Authored[T]` / `Derived[T]` lift the authored-vs-derived HALF of the labeling ρ into the
+# type grammar, so *accidental* label promotion is a mypy error at authorship time, at zero
+# runtime cost. The shadow is STRICTLY WEAKER than the runtime invariant: it sees no values
+# and no runtime paths, and a deliberate `cast` defeats it. It strengthens — never replaces
+# or duplicates — the structural layer above: `MirrorView` remains the sole authority that
+# may mint `Authored` at a read boundary (its runtime re-check is untouched), and
+# `DerivedStore` remains the only INTERPRETED mint. What the tags add is REACH: today the
+# proof evaporates at `MirrorView.rows()` (downstream consumers accept bare row dicts, so a
+# caller that bypasses the view is caught by nothing); a consumer typed to demand
+# `Authored[...]` carries the proof to its own signature.
+#
+# Grain is BINARY by recorded default (bp-009 plan §11): the checker's grammar is unordered,
+# so the four-class authorship-distance axis order cannot be expressed as types anyway; the
+# classes stay data (the `Provenance` enum above). Depth is VALUES-ONLY (same table):
+# `list[Authored[Row]]` — a container of tagged values — is in; `Authored[list[Row]]` is not.
+# Together the two points form a meet-semilattice (plan §8): meet = Derived (a function
+# mixing any Derived input returns Derived); `promote` below is the ONLY up-move.
+
+
+@final
+@dataclass(frozen=True)
+class Authored(Generic[T]):
+    """A value obtained exclusively from mirror-readable (authored) sources.
+
+    An information-flow label, not a claim the owner typed this exact value: a note centroid
+    computed over authored rows is still `Authored[NoteVector]` — what the firewall tracks is
+    the provenance CLASS of the sources. `@final`: even deliberate subclass-laundering
+    (a `Derived` masquerading via inheritance) is a type error, not just an accident."""
+
+    value: T
+
+
+@final
+@dataclass(frozen=True)
+class Derived(Generic[T]):
+    """A value that transited system inference (the INTERPRETED lane) — or mixed with one.
+
+    The meet of the two-point lattice: any computation touching a `Derived` input yields
+    `Derived` output. The only way UP is `promote`, which demands the owner's capability."""
+
+    value: T
+
+
+@final
+class OwnerVerdict:
+    """PLACEHOLDER capability token for verdict-gated promotion (I1) — taxonomy UNRATIFIED.
+
+    Deliberately a NOMINAL class, not a Protocol: an empty Protocol is structurally satisfied
+    by every object, which would let `promote(d, object())` type-check and vacate the
+    capability constraint. `@final` keeps it unforgeable-by-subclass at the type level.
+
+    This class answers NO design questions (recorded in bp-009's journal for /triage):
+    whether it unifies with the runtime verdict machinery (`core/verdict/`,
+    `core/stores/verdicts.py`), whether a verdict names its target authored class, and its
+    scope (per-value / per-artifact / per-run) are all open until the I1 taxonomy ratifies.
+    At runtime it confers nothing — `promote` raises regardless."""
+
+    __slots__ = ()
+
+
+def promote(x: Derived[T], cap: OwnerVerdict) -> Authored[T]:
+    """The ONLY up-move of the two-point lattice — signature per §2.4, verbatim.
+
+    Extends the promotion comment above `MIRROR_READABLE` ("Promotion *up* to an authored
+    class is a deliberate human re-tag-from-raw (§8), never automatic"): at the type level,
+    a call site that never received an `OwnerVerdict` cannot even EXPRESS a promotion, so
+    the accidental-violation class is removed at authorship time.
+
+    STUB — verdict-gated promotion (I1) is unbuilt (recursive-strata parked) and the verdict
+    taxonomy is unratified, so this body deliberately implements NO policy. The typed
+    signature is the contract the future implementation must satisfy."""
+    raise NotImplementedError(
+        "verdict-gated promotion (I1) is not built: the OwnerVerdict taxonomy is unratified "
+        "(recursive-strata parked). This stub exists so the type checker constrains call "
+        "sites today; it deliberately implements no promotion policy."
+    )
