@@ -12,9 +12,22 @@ from __future__ import annotations
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Protocol
 
-# A Popen-like: .pid, .poll() (None = alive), .terminate(), .wait(timeout), .kill().
-Proc = object
+
+class Proc(Protocol):
+    """A Popen-like: `.pid`, `.poll()` (None = alive), `.terminate()`, `.wait(timeout)`, `.kill()`.
+    Structural on purpose — tests inject a bare fake (no subprocess.Popen inheritance) that
+    satisfies this shape, so `Spawn` stays swappable without real OS processes."""
+
+    pid: int
+
+    def poll(self) -> int | None: ...
+    def terminate(self) -> None: ...
+    def wait(self, timeout: float | None = None) -> int: ...
+    def kill(self) -> None: ...
+
+
 Spawn = Callable[[list[str]], Proc]
 
 
@@ -48,6 +61,7 @@ class Child:
         if not self.alive():
             return
         proc = self._proc
+        assert proc is not None  # alive() just confirmed self._proc is set
         try:
             proc.terminate()                      # SIGTERM — let it drain its own work
             proc.wait(timeout=self.stop_timeout_s)
