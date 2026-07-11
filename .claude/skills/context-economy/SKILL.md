@@ -37,6 +37,31 @@ so **a session that ends loses nothing it was supposed to keep.**
 Reserve the top tier for the ~20% of work that is judgment; the mechanical majority
 must run where the meter doesn't matter.
 
+## Sensing complexity (the auto-switching rubric, owner rule 2026-07-11)
+
+The session CANNOT flip its own model/effort — those are the owner's commands. The skill
+delivers the same economics through two mechanisms:
+
+**1. Route work through right-sized subagents** (the Agent tool takes model + effort per
+spawn). Score the unit on four axes; the highest axis wins:
+
+| Axis | cheap (haiku/sonnet) | full-strength (top tier) |
+|---|---|---|
+| Verification | a crisp checker judges (mypy, tests, grep) | a falsifier needs judgment to evaluate |
+| Blast radius | new files, docs, additive | hooks/enforcement, core invariants, migrations |
+| Novelty | grounded plan pins everything | open design, unpinned interfaces, spikes |
+| Reversibility | worktree-contained, revertable | touches live stores, published surfaces |
+
+If any axis says full-strength, the unit is full-strength. When axes disagree wildly,
+split the unit instead of averaging.
+
+**2. Declare the tier at every boundary.** Each resume brief MUST end with the next
+session's recommended `/model` + `/effort`, derived from the rubric applied to the
+queue's next unit — the owner's switch becomes one informed keystroke. A session that
+discovers mid-flight it is under-tiered for an emergent design question does not strain:
+it notes the question for a top-tier session and continues its own lane. Over-tiered is
+the silent failure — notice it at the next boundary and say so in the brief.
+
 ## Polling & notification discipline
 
 Attested machinery does not need watching — CI, the witness, launchd, builders in
