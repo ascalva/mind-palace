@@ -306,4 +306,70 @@ re-verify + acceptance-test recording. Then Item 7 (`tests/`, 243 errors) starts
 
 ---
 
+## Entry — 2026-07-11 — Item 6 COMPLETE: ops/lifecycle/launcher.py green, 0 errors outside tests/
+
+**ops/lifecycle/launcher.py (22 → 0), the last ops/ file.** Read fully before touching (per the
+plan's own guidance) — five distinct fixes:
+
+1. **`psutil` import-untyped** — reused `core/typedshims/psutil.py` (bp-006's boundary shim)
+   via `from core.typedshims import psutil`, instead of a raw `import psutil`. The shim already
+   wraps exactly the one call this file makes (`virtual_memory().available`).
+2. **`Components.supervisor` / `.watcher` / `.queue` / `.children`** — four bare `object` fields
+   with duck-type comments, given real Protocols (`SupervisorLike`, `WatcherLike`, `QueueLike`,
+   `ChildLike`). Confirmed via `tests/integration/test_lifecycle.py`'s `_FakeSupervisor`/
+   `_FakeWatcher`/`_FakeQueue`/`_FakeChild` that callers inject bare fakes, never the concrete
+   `Supervisor`/`VaultWatcher`/`JobQueue`/`Child` — same judgment as `ChatServer` (agents) and
+   `Proc` (lifecycle/children) earlier this session. **Important nuance found while doing this:**
+   a Protocol must match the ACTUAL call shape in the file, not the full real interface — my
+   first draft mirrored `VaultWatcher.start(self, *, prefer="auto")` and `Supervisor.run(self,
+   *, max_ticks=None)` exactly, and mypy correctly rejected `_FakeWatcher`/`_FakeSupervisor`
+   (their bare `start()`/`run()` don't accept those kwargs, so they don't structurally satisfy a
+   Protocol that promises callers can pass them). Narrowed both Protocols to no-arg — the only
+   shape `launcher.py` itself ever calls (`c.watcher.start()`, `c.supervisor.run()`) — which is
+   the correct fix, not a workaround: a Protocol should describe what THIS FILE needs, not the
+   real class's full surface. `ChildLike.pid` needed a `@property`, not a plain attribute — the
+   real `Child.pid` is read-only, and a Protocol attribute (unlike a property) implies a settable
+   slot, which `Child` can't satisfy.
+3. **`Components.health_check`/`.snapshot`, the `children` list** — `list` → `list[Flag]` /
+   `list[ChildLike]` (`scheduler.router.Flag` imported under a new `TYPE_CHECKING` block,
+   alongside `Config` — no new runtime import; `build_components`/`build_launcher` already
+   lazily import these modules at call time for the real path).
+4. **`Launcher.cfg`/`.components_factory`/`.preflight_fn`/`._run`** — `object` → `Config` /
+   `Callable[[Config], Components]` / `Callable[[Config], Preflight]` / `RunRecord | None` — all
+   four are already-concrete, already-imported-elsewhere types; no guessing needed.
+5. **`enqueue_catchup=lambda: enqueue_vault_sync(queue, router)`** — same `Callable[[], Job]` vs
+   `Callable[[], None]` shape as `scheduler/vault_sync.py`'s `_on_change` fix earlier this
+   session; replaced with a named `_catchup() -> None`.
+
+**Tooling note (the ruff --fix trap, watched for per plan §11/bp-006 journal):** `ruff --fix`
+re-sorted the `build_components` import block (moved `core.typedshims` alphabetically) — no
+`# type: ignore` comments were near it, so nothing was stranded, but re-ran `uv run mypy
+ops/lifecycle/launcher.py` immediately after the fix anyway to confirm (still clean).
+
+**Verification (Item 6 acceptance test, verbatim from the plan): `uv run mypy` → 0 errors
+outside `tests/`.** Confirmed: repo-wide run → 245 errors, ALL in `tests/` (grep `^tests/`
+against `error:` lines only, excluding multi-line `note:` continuations that share the path
+prefix and inflated an earlier naive count). `ops/`, `agents/`, `scheduler/`, `scripts/`,
+`eval/` — all **0**. `ruff check .` clean; pytest 743 passed / 4 skipped — unchanged behavior
+across the whole Item 6 sweep (every fix was annotation-only, a Protocol, or an explicit assert
+narrowing an invariant the code already relied on). Commit `35766a8`.
+
+**ITEM 6 IS COMPLETE.** Final per-package count (post-bp-006 baseline → now): eval 1→0,
+scheduler 10→0, agents 16→0, ops 74→0, scripts 0→0 (already clean). Zero T1 findings filed
+during Item 6 — every error triaged as T2 (representability: bare dict/list/CompletedProcess,
+duck-typed `object` params/fields, `config: object | None`) or a stale/mismatched T3 ignore
+(the two ledger `lastrowid` sites, `ops/ci_witness.py`'s narrowing gaps) — no genuine T1 latent
+defect surfaced in `ops`/`agents`/`scheduler`/`scripts`/`eval`, consistent with core's own T1=0
+finding in bp-006.
+
+**Next action:** Item 7 — `tests/` (245 errors as measured this entry; the plan's baseline
+estimate was ~223, pre-`disallow_any_generics`-floor and pre- the two real test-file fixes
+needed for `test_lifecycle.py`'s `RunRecord | None` narrowing gaps surfaced above). Start fresh:
+re-measure by file, triage for hidden T1s per the plan's explicit warning ("tests' errors may
+hide real T1s — a test asserting the wrong type that 'passes' because untyped"), work smallest
+files first, same discipline (no blanket per-file ignores, no `ignore_errors` overrides,
+assertions may gain types never lose checks).
+
+---
+
 ## Markers
