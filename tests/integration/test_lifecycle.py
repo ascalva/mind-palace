@@ -230,7 +230,8 @@ def test_reset_wipes_corpus_but_never_the_vault_raft(tmp_path):
     cfg.paths.vault_catalog.write_text("catalog")
     # the four sibling provenance stores (opened via derived_store.parent, no cfg path)
     sidecars = ["versions.sqlite", "authored_supersessions.sqlite",
-                "verdicts.sqlite", "verdict_dispositions.sqlite"]
+                "verdicts.sqlite", "verdict_dispositions.sqlite",
+                "code_observations.sqlite"]   # observed stratum: a reset target (bp-012 Item 4)
     for name in sidecars:
         (cfg.paths.data_dir / name).write_text("rows")
     (cfg.paths.data_dir / "vault").mkdir()

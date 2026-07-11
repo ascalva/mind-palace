@@ -507,6 +507,10 @@ class Launcher:
             p.data_dir / "authored_supersessions.sqlite",   # owner-declared K₀↔K₀ (founding)
             p.data_dir / "verdicts.sqlite",                 # verdict ledger over derived artifacts
             p.data_dir / "verdict_dispositions.sqlite",     # dispositions derived from verdicts
+            # Code observations are CORPUS-side (the observed stratum, ratified
+            # code-observation-projection.md §2.4) — wiped with the corpus, unlike the
+            # snapshot LEDGER (build history, in _RESET_GUARD above). bp-012 Item 4 / Q4.
+            p.data_dir / "code_observations.sqlite",
         ]
         out: list[Path] = []
         for c in candidates:

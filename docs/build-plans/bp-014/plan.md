@@ -1,9 +1,9 @@
 ---
 type: build-plan
 id: bp-014
-status: proposed
+status: ready
 design_ref:
-  - docs/design-notes/agent-workflow.md   # the write-discipline design being RESTORED (not changed)
+  - docs/design-notes/agent-workflow.md # the write-discipline design being RESTORED (not changed)
 contract: builder
 write_scope:
   - ".claude/hooks/_lib.py"
@@ -13,14 +13,14 @@ write_scope:
   - "docs/build-plans/bp-014/**"
 session_budget: 1
 cost:
-  estimate: { model: fable, tokens: 350k }   # enforcement layer + fail-closed harness; blast-radius HIGH
+  estimate: { model: fable, tokens: 350k } # enforcement layer + fail-closed harness; blast-radius HIGH
   actual: null
-depends_on: [bp-012, bp-013]     # SEQUENCING/SAFETY: do not modify enforcement hooks while builders run against them
+depends_on: [bp-012, bp-013] # SEQUENCING/SAFETY: do not modify enforcement hooks while builders run against them
 parallelizable_with: []
 created: 2026-07-11
 updated: 2026-07-11
 links:
-  - docs/findings/finding-0031.md   # origin (3 live manifestations 2026-07-11)
+  - docs/findings/finding-0031.md # origin (3 live manifestations 2026-07-11)
 supersedes: null
 superseded_by: null
 warrant: finding-0031
@@ -34,8 +34,8 @@ warrant: finding-0031
 
 Promoted directly from `finding-0031` (worktree enforcement-state bleed) — a **codebase
 bugfix, not a policy change.** The intended behavior already exists in the design:
-`active_plan_path()`'s docstring states *"the pointer is worktree-local ... concurrent
-worktrees never collide on enforcement state (design-note §4)"*, and `agent-workflow.md`'s
+`active_plan_path()`'s docstring states _"the pointer is worktree-local ... concurrent
+worktrees never collide on enforcement state (design-note §4)"_, and `agent-workflow.md`'s
 write-discipline design assumes per-plan capability. The CODE simply does not honor that
 intent under worktree isolation. Because no policy changes, this is promoted as a bugfix plan
 rather than through a new design note/amendment — **the owner's `proposed → ready` blessing
@@ -56,7 +56,7 @@ main-checkout pointer must never LOOSEN a worktree builder.
 2. `.claude/hooks/_lib.py` — `repo_root()` (prefers `CLAUDE_PROJECT_DIR`) → `ROOT`;
    `active_plan_path()` reads `os.path.join(ROOT, ".claude/state/active-plan")`.
 3. `.claude/hooks/*.sh` — six wrappers, each: `ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse
-   --show-toplevel 2>/dev/null || pwd)}"` (journal-gate, scope-guard, gate-guard,
+--show-toplevel 2>/dev/null || pwd)}"` (journal-gate, scope-guard, gate-guard,
    compaction-marker, session-brief, staleness-nudge).
 4. `docs/build-plans/bp-010/journal.md` — the last hooks-layer change (A8), for the
    `_lib.py`/`--standalone` test conventions and the regression-harness shape to mirror.
@@ -79,7 +79,7 @@ main-checkout pointer must never LOOSEN a worktree builder.
 
 **Additional risks surfaced:** `.claude/state/` may be gitignored (runtime, untracked), so a
 fresh worktree may lack `active-plan` until its own `/build` writes it — the resolution must
-handle "worktree has no pointer yet" as *no active plan* (deny-by-absence for that worktree),
+handle "worktree has no pointer yet" as _no active plan_ (deny-by-absence for that worktree),
 NOT fall back to main's pointer.
 
 ## 4. Reconciliation
@@ -96,9 +96,16 @@ two-worktree regression test, findings, own dir. **Out of scope:** the enforceme
 the harness spawn machinery (harness-side, not ours). `.claude/hooks/**` is agent-writable
 (not denylisted; bp-010 precedent) but every OTHER hook behavior stays byte-identical.
 
+**Opportunistic in-scope hardening (folded from bp-012's seal):** while in `_lib.py`, also fix
+the `write_scope` parser (`plan_write_scope`) so a TRAILING inline comment on a list entry
+(`- "path"  # note`) parses correctly — the `oq-0013` amendment tripped this (bp-012's builder
+worked around it). A small, separate hunk/commit from the ROOT-resolution change; keep it one
+logical change per commit. If it proves non-trivial, split it back out to its own finding.
+
 ## 6. Interfaces pinned inline
 
 Current (buggy) resolution — `_lib.py`:
+
 ```
 def repo_root():
     root = os.environ.get("CLAUDE_PROJECT_DIR")
@@ -106,11 +113,13 @@ def repo_root():
     # else: git rev-parse --show-toplevel  (from CWD)
 ROOT = repo_root()
 ```
+
 Wrappers (×6): `ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"`
 
 Target resolution (both `_lib.py` and wrappers, kept in lock-step): prefer the CWD git
 worktree toplevel over `CLAUDE_PROJECT_DIR` **when they differ AND the CWD-toplevel contains
 `.claude/state/`**; else current behavior. Shell sketch (wrappers):
+
 ```
 CWD_TOP="$(git rev-parse --show-toplevel 2>/dev/null)"
 if [ -n "$CWD_TOP" ] && [ "$CWD_TOP" != "$CLAUDE_PROJECT_DIR" ] && [ -d "$CWD_TOP/.claude/state" ]; then
@@ -119,11 +128,13 @@ else
   ROOT="${CLAUDE_PROJECT_DIR:-${CWD_TOP:-$(pwd)}}"
 fi
 ```
+
 `_lib.py:repo_root()` gets the equivalent, and stays the single source the wrappers echo.
 
 ## 7. Items
 
 ### Item 1 — worktree-aware ROOT in `_lib.py` + the six wrappers
+
 - **Objective:** ROOT resolves to the CWD worktree per §6; `active_plan_path()` then reads the
   worktree's own pointer. `_lib.py` and wrappers kept in lock-step (identical rule).
 - **Files:** `.claude/hooks/_lib.py`, the six `.claude/hooks/*.sh` wrappers.
@@ -135,6 +146,7 @@ fi
 - **Touches stored data?** no **Parallelizable?** no **Depends on:** none
 
 ### Item 2 — the two-worktree regression harness (the fail-closed proof)
+
 - **Objective:** an automated test creating two throwaway worktrees with DIFFERENT active plans
   and asserting enforcement is worktree-local in BOTH directions.
 - **Files:** new `tests/` file (fixtures create temp worktrees + state pointers).
@@ -167,8 +179,8 @@ modifying the ROOT rule regresses any existing hook's main-checkout behavior (sp
 
 ## 11. Parked decisions
 
-| Decision | Default recorded | Rejected alternatives (why) | Re-entry condition |
-| --- | --- | --- | --- |
+| Decision          | Default recorded                    | Rejected alternatives (why)                             | Re-entry condition                                           |
+| ----------------- | ----------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
 | resolution source | CWD `git rev-parse --show-toplevel` | env-var patch in the harness spawn (not ours to change) | harness gains a worktree-aware `CLAUDE_PROJECT_DIR` upstream |
 
 ## 12. Dependency & ordering summary

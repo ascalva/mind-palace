@@ -145,3 +145,12 @@ sensor records readings AND the evolution of its interpretive view, via superses
 
 Status: design-tier capstone of the self-sensor thread; ties it to EXISTING interpreter/
 supersession machinery (a buildable hook, not just philosophy). Park for the design session.
+
+---
+
+## 2026-07-11 — thread spun out → `self-sensing.md`
+
+The estimate-vs-actual → self-sensor → worldview-projection arc (the three capsules above)
+outgrew this file. Consolidated, graduate-ready, in **`docs/brainstorms/self-sensing.md`**.
+This file keeps the cost-forecasting core (the template cost block + the parked report
+generator on ~2wk of seal data); the self-sensing generalization lives there.

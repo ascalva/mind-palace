@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-012
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/code-observation-projection.md
 contract: builder
@@ -9,14 +9,15 @@ write_scope:
   - "core/stores/code_observations.py"
   - "core/sensing.py"
   - "ops/code_sensor.py"
-  - "ops/lifecycle/launcher.py"   # oq-0013: owner-concurred (Item 4 reset registration), 2026-07-11
+  # oq-0013: owner-concurred (Item 4 reset registration), 2026-07-11
+  - "ops/lifecycle/launcher.py"
   - "tests/**"
   - "docs/findings/**"
   - "docs/build-plans/bp-012/**"
 session_budget: 1
 cost:
   estimate: { model: fable, tokens: 300k }    # core store discipline; bp-009-calibrated, heavier
-  actual: null
+  actual: { model: fable, tokens: 157k, tool_calls: 75, duration_min: 21 }   # 0.52x estimate (under)
 depends_on: []
 parallelizable_with: []
 created: 2026-07-11
