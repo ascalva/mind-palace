@@ -1832,3 +1832,69 @@ leverage remain A8 (oq-0011, unblocks agent draft-note authoring) and A7 (oq-000
 hole); oq-0012 is the newest blessing decision. Three owner drafts now sit at `draft` awaiting the gate
 (`edge-core-handoff-protocol`, `type-system-as-core-audit`, `authorship-distance-axis` et al.) — each
 ratification opens a `/graduate` lane.
+
+## Ouroboros goes live — founding ingest, always-on, deploy gate, CI, delegation (2026-07-11, orchestrator checkpoint)
+
+The day the framework became a running system. Owner-directed throughout; every gate held.
+(Named this day too: **mind-palace = the framework; Ouroboros = the live system** — the name is
+from the founding note itself.)
+
+**Founding corpus (seeded, sealed, supersession-linked).** Two owner musings ingested via the
+founding path (`ingested=2 chunks=8`), reconstructed dates honest (auto-timestamped creation),
+owner-declared authored-historical edge `4c20a5d3… → 6e28b56b…` ("This is the founding corpus"
+supersedes "Ouroboros — a study on process", owner ruling). Byte-identity established: vault files
+== founding-composed bytes == catalog == edge digests, so rescans are no-ops. First dream (05:45):
+grounded=true, citations pass, one cluster of both notes — and it independently surfaced the
+intra-note self-supersession ("Foundation vs. Entropy"). Dream idempotency PROVEN live: second pass
+produced the identical content-addressed artifact (same id, two attestations) — an unchanged corpus
+cannot accumulate dream duplicates. `mind-palace supersede <old> <new>` added for the phone-capture
+flow (shortcut emits new timestamped files; in-place edits take the version path instead).
+
+**Always-on.** launchd agent (KeepAlive) owns the daemon; owner set clamshell power config; old
+standalone watcher retired (was a live second ingest path); supervisor collision untangled (recovery
+mode behaved exactly as designed). Corollary documented: under KeepAlive, `palace stop` = restart;
+true stop is `launchctl bootout`. reset now wipes the four provenance sidecar stores it missed.
+
+**The code stream.** Per-commit structural snapshots (`ops/code_snapshot.py`, backfilled 90 commits
+in ~4s, ledger now 113+) run by a model-less `code_sensor` pipeline agent (git-read + ledger-write +
+attest, the vault-watcher species) on a main-only post-commit hook. Commit house rule (CONVENTIONS
+§Commits): typed headers parsed into ledger lookup columns. uv adopted everywhere (shim, plists,
+backup, docs). An UNDECLARED core dependency (ripser — persistent homology) was exposed by frozen CI
+envs and pinned.
+
+**Deploy/promote gate (`palace deploy`) — the ONE owner-in-loop gate.** Clean tree + main + new SHA
++ ratchet green + ATTESTED remote-green (ci_witness polls the pipeline, emits
+`ci_witness/pipeline_green` chained to the commit's ingest) → graceful cycle via KeepAlive →
+successor-SHA verified → semantic-release played via Keychain PAT. Token self-rotation
+(verify-before-store, attested, weekly plist available; PAT verified live: api+self_rotate scopes).
+Push-to-origin is routine by owner rule; releases follow deployments.
+
+**CI (free-tier sized).** `ratchet` job (ruff + import-firewall + 743-test model-free tier, ~54-77s,
+uv-cached, docs-only pushes skip) + `vault-axis` job (dev-Vault service proves AppRole policies,
+auth-paths only — green first try). Five debugging iterations, each a real fix: repo-wide lint debt,
+.claude outside its own gate, py3.12 wheel floor validated, gitless slim image, the ripser gap.
+Pipeline metadata is public; verification loop = push → poll API → failure_reason → `git archive
+HEAD | podman run` exact-job reproduction.
+
+**Type plane (finding-0026 → promoted).** Owner ratified `type-system-as-core-audit.md` (10c9a66,
+blessing committed at the Stop-gate's demand); oq-0012 swept. B-1 bootstrap landed same day:
+two-tier mypy config, baseline 463 errors/134 files (core 193) inventoried in
+`docs/audits/mypy-baseline-2026-07-11.md`. /graduate produced bp-006..bp-009 (proposed→READY by
+owner's hand, fbdd738): Tier-1 triage+shims+strict-green → Tier-2 floor ∥ static-shadow spike →
+CI type-gate. PD-1's re-entry FIRED (CI became a pytest host today; mp-finish does not exist).
+
+**Delegated builders (owner rule; delegate skill).** Orchestrator may spawn supervised parallel
+builders in isolated worktrees for ready plans; right-size to verification complexity; merge-to-main
+broadcasts to active worktrees; diff scrutiny before every merge; gates unchanged. **bp-006's builder
+is running now** (full-strength, own worktree) — first delegated build in the project's history.
+`.claude/worktrees/` gitignored after it tripped deploy's clean-tree gate (gate correct, infra new).
+
+**Watching for (pre-written re-entry signatures):** PD-2 unparks if bp-006's T1s cluster at the
+ingestion boundary; PD-4 (Rust split) gets evidence either way; bp-009 feeds the axis note's
+tagging-grain question and forces the OwnerVerdict type (verdict-taxonomy accelerant); the delegate
+mode itself needs an agent-workflow amendment (A9 candidate) once the first sequence's findings land.
+
+**Next.** bp-006 reports → diff scrutiny → merge → spawn bp-007 ∥ bp-009 → bp-008. Owner: deploy at
+will (gate armed end-to-end); the 9 open owner questions (oq-0003..0011) stand, A8 (agent draft-note
+authoring) still the highest-leverage unanswered. Formal /triage on bp-006 completion (route its
+findings, seal, checkpoint).
