@@ -1931,3 +1931,45 @@ bp-012 merged.
 **Next.** Scrutinize+merge bp-011 → seal → bp-012 → bp-013 (or un-bless if V4 no-signal). Closing
 /triage: route findings 0027-0032, full PROGRESS catch-up, queue owner items (A9 amendment candidate;
 cost-forecasting re-entry). Owner desk: oq-0003..0010.
+
+---
+
+### Checkpoint 2026-07-11 (evening) — trilogy 2/3 sealed, bp-013 in flight; session clearing
+
+**bp-011 + bp-012 sealed** (code-observation trilogy, `code-observation-projection.md`):
+- bp-011 (docstring ledger column + V4 inventory verdict KEEP) merged `a7d4eb0`; cost sonnet
+  163k = 0.47× est. Real ledger auto-migrated on merge (doc_coverage 28.4%).
+- bp-012 (code-observation store + φ_code projection seam, B-b) sealed `88cf58c`; cost fable
+  157k = 0.52× est. No-provenance store + §2.6 MirrorView opacity + B-b idempotency verified.
+  **φ_code now projects WRITE-SIDE on commit (`projected=N`); the daemon does NOT consume it
+  (finding-0020 class) — no deploy needed to "apply" the trilogy.**
+
+**bp-013 IN FLIGHT** — builder spawned (fable, worktree `.claude/worktrees/agent-a80bc7f9344a9a5af`,
+branch `worktree-agent-a80bc7f9344a9a5af`, NO push). Last piece: reference-edge store +
+precision-gated extraction + THE isolation proof (bit-identical instruments with/without edges =
+B-c falsifier). **Reset-registration PARKED** (launcher.py not in its scope — a premature
+amendment was reverted; builder instructed to park it). **Orchestrator OWES post-merge:** add
+`data/reference_edges.sqlite` to `reset_targets()` in `ops/lifecycle/launcher.py` (owner-concurred,
+oq-0013 extension).
+
+**bp-014 READY — owner-blessed by hand 2026-07-11.** Worktree-aware ROOT resolution (finding-0031
+fix, 3 manifestations today). `depends_on: [bp-012, bp-013]` — enforcement hooks must not change
+while builders run; **first unit AFTER bp-013 seals**, FULL-STRENGTH (enforcement layer). Includes
+an opportunistic write_scope inline-comment parser fix.
+
+**Findings:** 0032 (needs:[] CI-topology, owner-ADOPTED → mint a small CI plan), 0033 (bp-011
+builder's finding-0031 corroboration), 0034 (CI runner-minute bottleneck, owner-DIRECTED → MicroVM/
+GitHub runner design note).
+
+**Runner budget ~55/400** — every push burns next-version + security scans (no rules:changes);
+deploy needs an attested-green pipeline so exhaustion blocks deploy. Builds don't push; orchestrator
+batches. Snapshot at `e576c7d`; ~7 commits unpushed since (bp-012 seal) — batch-push with bp-013.
+
+**Design-tier threads captured (for a Fable/xhigh session):** `docs/brainstorms/self-sensing.md`
+(agent-as-self-sensor / proprioception / worldview-projection via §2.2 supersession — owner-directed
+capture); `finding-0034` (AWS Lambda MicroVMs, real 2026-06-22, vs GitHub Actions — repo already
+mirrored to github.com/ascalva/Mind-Palace); cost-forecasting report generator (2 datapoints now,
+both under-estimate — the sizing runs conservative).
+
+**Next session (supervision-tier):** inspect bp-013 worktree/journal → scrutinize+merge+seal (+
+register the reset target) → batch-push → bp-014 (full-strength) → finding-0032 CI plan → /triage.
