@@ -287,3 +287,58 @@ last `origin/main` push predates this session's start; this branch
 session was local (`uv run pytest/ruff/mypy`) and Item 2 is read-only by design — no
 CI-triggering action was ever needed. No change in approach required; noting for the
 record per the fresh-agent test.
+
+---
+
+## SEAL (orchestrator, 2026-07-11)
+
+**Status:** `in-progress → complete`. Merged to main `--no-ff` (`a7d4eb0`, *"Merge
+bp-011: docstring ledger column (B-a) + V4 reference inventory"*). Diff scrutinized per
+the delegate skill: every builder-changed path in `write_scope`
+(`ops/code_snapshot.py`, `ops/code_sensor.py`, the ONE new test file, `bp-011/**`,
+`docs/findings/finding-0033.md`); no denylist, no blessing transition, no existing test
+edited. Code matches the plan's pinned interfaces — additive PRAGMA-checked `ALTER
+TABLE` (subject/ctype/scope precedent), `ast.get_docstring` in the same walk (no second
+parse), and an idempotent `backfill_docstrings()` whose `_docstring_backfilled` marker
+table converges (distinguishes undocumented from not-yet-visited). One journal conflict
+at merge (the orchestrator's transient Stop-gate note vs the builder's real entries) —
+resolved by taking the builder's journal, as pre-declared.
+
+**Acceptance, verbatim, re-run on merged main (local; NOT pushed — runner-budget):**
+```
+$ uv run ruff check .                                          → All checks passed!
+$ uv run --extra dev mypy core agents eval ops scheduler scripts → Success (166 files, 0 errors)
+$ uv run --extra dev mypy                                       → Found 69 errors in 20 files  (baseline held)
+$ uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'
+                                                               → 768 passed, 4 skipped, 20 deselected  (761 + 7 new)
+```
+
+**Item 1 real-ledger apply — resolved (was deferred).** The builder dry-ran the
+migration+backfill on a COPY (the real 174 MB ledger lives only in the main checkout,
+`data/` is outside write_scope). On merge, the code-sensor post-commit hook ran the new
+`sync()` against the REAL ledger automatically: `code-sensor sync: ingested=7
+ledger_total=212 doc_coverage=28.43%` — matches the dry-run's 28.37%. Additive +
+idempotent + marker-guarded, so this was a safe no-op-shaped apply, exactly as the
+self-healing design intended. No manual script needed.
+
+**Item 2 V4 verdict: KEEP (not no-signal).** 364 edges, 76.3% precision, 13.2%
+judgment-call rate (< the 20% stop threshold). **This UN-BLOCKS bp-013** — §10's
+"un-bless if no-signal" clause does NOT fire; bp-013 stays blessed (still gated on
+bp-012 merged). Patterns ranked for bp-013's extractor in `inventory.json`.
+
+**Findings:** builder filed `finding-0033` (codebase, routed) — a THIRD live
+finding-0031 manifestation today (builder's own IN-SCOPE writes denied by scope-guard
+under the bled pointer; worked around via documented standalone-check-then-write). With
+the bp-007 denial and the orchestrator Stop-gate false-guard, finding-0031 now has three
+distinct manifestations — strong warrant for its worktree-aware-ROOT fix.
+(`finding-0034`, CI runner budget, is a SEPARATE orchestrator finding — no relation.)
+
+**Cost ledger:** builder = **claude-sonnet-5** · **163,293 tokens · 142 tool-uses ·
+~19 min**. Estimate was 350k → came in at **0.47× estimate** (well under). First
+estimate-vs-actual pair on the front-matter cost block — the grind/read-only-inventory
+sizing was conservative; a useful calibration datapoint (bp-007-derived estimate ran
+high for this shape).
+
+**Not pushed.** Merge + seal are local only (runner-budget conservation, owner rule
+2026-07-11). Origin sync deferred to a deliberate batched push. bp-012 next (sequential
+— shares `ops/code_sensor.py`; its Item 4 now unblocked, write_scope amended via oq-0013).

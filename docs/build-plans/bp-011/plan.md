@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-011
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/code-observation-projection.md
 contract: builder
@@ -14,7 +14,7 @@ write_scope:
 session_budget: 1
 cost:
   estimate: { model: sonnet, tokens: 350k }   # grind + read-only inventory; bp-007-calibrated
-  actual: null
+  actual: { model: sonnet, tokens: 163k, tool_calls: 142, duration_min: 19 }   # came in UNDER estimate (0.47x)
 depends_on: []
 parallelizable_with: []
 created: 2026-07-11
