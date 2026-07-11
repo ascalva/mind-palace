@@ -1,18 +1,18 @@
 ---
 type: design-note
 id: dn-code-observation-projection
-status: draft            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
-implementation: design-only   # nothing built; the ledger precursor exists, the projection does not
+status: ratified # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
+implementation: design-only # nothing built; the ledger precursor exists, the projection does not
 created: 2026-07-11
 updated: 2026-07-11
 links:
-  - docs/brainstorms/doc-code-entanglement.md        # the two warrant capsules
-  - docs/brainstorms/code-as-sensor-stream.md        # the stream-classification ruling this finalizes
-  - docs/design-notes/authorship-distance-axis.md    # §3.7 interpreter formalism; a₂ cross-map
-  - docs/design-notes/the-edge-model.md              # §2 deterministic ingest lays fibers; E_geom ⊔ E_disp
-  - docs/design-notes/observed-data-and-the-assistant-tier.md   # the firewall this must not weaken
+  - docs/brainstorms/doc-code-entanglement.md # the two warrant capsules
+  - docs/brainstorms/code-as-sensor-stream.md # the stream-classification ruling this finalizes
+  - docs/design-notes/authorship-distance-axis.md # §3.7 interpreter formalism; a₂ cross-map
+  - docs/design-notes/the-edge-model.md # §2 deterministic ingest lays fibers; E_geom ⊔ E_disp
+  - docs/design-notes/observed-data-and-the-assistant-tier.md # the firewall this must not weaken
   - docs/design-notes/observed-iot-and-cross-source-synthesis.md # correlator safety rules (§2)
-  - docs/findings/finding-0021.md                    # code as corroboration arbiter — the value, evidenced
+  - docs/findings/finding-0021.md # code as corroboration arbiter — the value, evidenced
 supersedes: null
 superseded_by: null
 warrant: docs/brainstorms/doc-code-entanglement.md
@@ -31,7 +31,7 @@ Code, comments, and documentation are **not** authored-dialogue corpus (owner ru
 2026-07-11). They are a sensed stream — the repo is an instrument, the code sensor is its
 interpreter. This note decides **how that stream is projected into the corpus**: the
 observation schema, the entry seam, which stratum receives it, the two-lane consumer
-split that lets code semantics *detangle* threads in the strata, and the firewall
+split that lets code semantics _detangle_ threads in the strata, and the firewall
 obligations that make all of it safe. It finalizes the interaction the
 code-as-sensor-stream ruling left at "event-log-only, pending design."
 
@@ -50,7 +50,7 @@ deterministic reference edges and correlator-class interpreted proposals.**
   the substrate it reads.
 - **Any promotion path for code observations.** Observations never become authored —
   not by verdict, not by anything. Code is builder-produced reality, not owner belief
-  (finding-0021); there is nothing to promote *to*. This is stronger than the I1
+  (finding-0021); there is nothing to promote _to_. This is stronger than the I1
   verdict-gate: the path does not exist.
 - **Ingesting code TEXT into the vector corpus.** The projection carries structure and
   prose-about-code (docstrings, references), not source bodies. Re-entry only via a
@@ -103,7 +103,7 @@ CodeObservation:
 ```
 
 Grain default: **symbol** (module row for module docstrings). The docstring is carried
-verbatim because it is the *state transition between English and code* (owner framing):
+verbatim because it is the _state transition between English and code_ (owner framing):
 the one layer of the stream already written in corpus-language. References are extracted
 deterministically: explicit paths, `design-notes/*.md` citations, `[[note]]` links,
 backticked symbol mentions — patterns V4 verifies before anything is trusted.
@@ -114,7 +114,7 @@ The existing sensing pattern, unchanged in shape: the sensor (ops tier, unsealed
 restic precedent) writes an observation batch to the **filesystem handoff**; core
 collects through the `SensingHandoff`-family seam into a dedicated
 **`code_observations` store** (its own table — not `sensor_readings`, which is the
-biometric contract; same store *family*, same constructor discipline: the store writes
+biometric contract; same store _family_, same constructor discipline: the store writes
 OBSERVED and nothing else, `DerivedStore.add`-style, no provenance parameter to lie
 with). `ObservedView`-compatible: the observed-only constructor check applies as-is.
 Cadence: per main-merge (riding the existing post-commit sync), idempotent by
@@ -127,7 +127,7 @@ V1 verifies the seam signatures at source before any build.
 A docstring citing `recursive-strata.md`, a design note naming `core/recursion.py` —
 observer-independent facts, extractable without judgment: geometry-class authority per
 the edge model's §2 ownership rule. **But they are cross-stratum** (observed-node ↔
-authored/curated-node), and the mirror's reasoning complex 𝔎|_MR is authored-only — so
+authored/curated-node), and the mirror's reasoning complex 𝔎|\_MR is authored-only — so
 these edges must NOT enter `A_geom` uninvited. Decision: they live in a dedicated
 **reference-edge store** the balance math holds no handle to (the E_disp separation
 pattern applied to a geometry-authority store: separated not because the edges carry
@@ -196,25 +196,25 @@ machinery, no code-text embedding.
 ### 3.3 Builder items (post-ratification, blast-radius ordered)
 
 - **B-a** — ledger docstring column + doc-coverage metric (additive migration; the
-  evolution study gains a documentation axis). *Falsifier: extraction misses docstrings
-  the AST exposes.*
+  evolution study gains a documentation axis). _Falsifier: extraction misses docstrings
+  the AST exposes._
 - **B-b** — `code_observations` store + handoff collection + `project_observations`
-  attestation; idempotent per commit. *Falsifier: a second projection of the same commit
-  changes row count.*
+  attestation; idempotent per commit. _Falsifier: a second projection of the same commit
+  changes row count._
 - **B-c** — Lane-1 reference-edge store + φ_code extraction, seeded by V4's validated
   patterns; balance-math isolation proven by the bit-identical-instruments test pattern
-  (`test_edge_partition.py` precedent). *Falsifier: any instrument result changes when
-  reference edges are added or removed.*
-- **B-d** *(gated on Track D or a dedicated plan)* — the first detangling consumer.
+  (`test_edge_partition.py` precedent). _Falsifier: any instrument result changes when
+  reference edges are added or removed._
+- **B-d** _(gated on Track D or a dedicated plan)_ — the first detangling consumer.
 
 ## 4. Parked decisions
 
-| id | decision | default recorded | re-entry condition |
-|---|---|---|---|
-| PD-a | observation grain | symbol-level | V4 shows references resolve mostly at file level (grain too fine) or chunk level (too coarse) |
-| PD-b | code-text embedding | never (structure + docstrings only) | a measured retrieval case where docstring+reference retrieval fails but body-text would succeed |
-| PD-c | docstring format standard | CONVENTIONS "comment the why" only | V4 shows extraction quality gated on form |
-| PD-d | historical backfill of observations (all 130+ commits) vs from-ratification-forward | backfill (the ledger already proves it cheap) | projection cost measured non-trivial at V3 |
+| id   | decision                                                                            | default recorded                              | re-entry condition                                                                              |
+| ---- | ----------------------------------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| PD-a | observation grain                                                                   | symbol-level                                  | V4 shows references resolve mostly at file level (grain too fine) or chunk level (too coarse)   |
+| PD-b | code-text embedding                                                                 | never (structure + docstrings only)           | a measured retrieval case where docstring+reference retrieval fails but body-text would succeed |
+| PD-c | docstring format standard                                                           | CONVENTIONS "comment the why" only            | V4 shows extraction quality gated on form                                                       |
+| PD-d | historical backfill of observations (all 130+ commits) vs from-ratification-forward | backfill (the ledger already proves it cheap) | projection cost measured non-trivial at V3                                                      |
 
 ## 5. Open questions
 
