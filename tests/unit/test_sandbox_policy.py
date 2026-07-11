@@ -6,6 +6,7 @@ as root) breaks a test.
 """
 
 import dataclasses
+from typing import cast
 
 import pytest
 
@@ -42,7 +43,11 @@ def test_run_argv_has_full_isolation_and_mounts_nothing():
 
 def test_run_argv_rejects_any_network_request():
     # Network grants are a deliberate, logged later extension; Phase 4 runs network-off only.
-    spec = dataclasses.replace(ExecSpec(code="x"), network="scoped-grant")
+    # `_guard_network` checks `is not Network.NONE` (identity, not enum-membership), so any
+    # non-NONE value trips the guard — a plain str proves that INCLUDING values that aren't
+    # (yet) real Network members, which is exactly what this test wants to pin down. Cast, not
+    # a real Network member, on purpose.
+    spec = dataclasses.replace(ExecSpec(code="x"), network=cast(Network, "scoped-grant"))
     with pytest.raises(NotImplementedError):
         build_run_argv(spec)
     assert Network.NONE == "none"

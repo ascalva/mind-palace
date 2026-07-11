@@ -11,6 +11,7 @@ None of this runs in a normal session: the live cron path uses the Phase-7 Dream
 """
 
 import dataclasses
+from typing import Any
 
 import pytest
 
@@ -25,7 +26,7 @@ from core.stores.derived import DREAM_LOG, DerivedStore
 
 # A small authored graph: two clusters (A, B) held together by a bridge note (g1), plus an
 # isolated outlier (z1). 3-D vectors so every interpreter fires deterministically.
-ROWS = [
+ROWS: list[dict[str, Any]] = [
     {"digest": "dA1", "title": "A1", "provenance": "authored-solo", "vector": [1.0, 0.0, 0.0]},
     {"digest": "dA2", "title": "A2", "provenance": "authored-solo", "vector": [0.97, 0.03, 0.0]},
     {"digest": "dB1", "title": "B1", "provenance": "authored-solo", "vector": [0.0, 1.0, 0.0]},
@@ -33,7 +34,7 @@ ROWS = [
     {"digest": "dG1", "title": "G1", "provenance": "authored-solo", "vector": [0.7, 0.7, 0.0]},
     {"digest": "dZ1", "title": "Z1", "provenance": "authored-solo", "vector": [0.0, 0.0, 1.0]},
 ]
-AUTHORED_DIGESTS = {r["digest"] for r in ROWS}
+AUTHORED_DIGESTS: set[str] = {r["digest"] for r in ROWS}
 
 
 def _view() -> MirrorView:

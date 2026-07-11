@@ -1,6 +1,6 @@
 """The Constitution loads, fingerprints stably, and frames every context outermost."""
 
-from core.constitution import constitution_fingerprint, frame_context, load_constitution
+from core.constitution import Message, constitution_fingerprint, frame_context, load_constitution
 
 
 def test_loads_nonempty():
@@ -23,7 +23,8 @@ def test_constitution_is_outermost_frame():
 
 
 def test_history_sits_between_role_and_task():
-    history = [{"role": "user", "content": "earlier"}, {"role": "assistant", "content": "reply"}]
+    history: list[Message] = [{"role": "user", "content": "earlier"},
+                              {"role": "assistant", "content": "reply"}]
     msgs = frame_context("role", "now", history=history)
     assert msgs[0]["content"] == load_constitution()
     assert {"role": "user", "content": "earlier"} in msgs

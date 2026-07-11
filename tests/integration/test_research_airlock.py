@@ -66,6 +66,7 @@ def test_airlock_module_touches_no_network_or_zones():
     import core.research.rank as rank
 
     for m in (mod, crit, rank):
+        assert m.__file__ is not None   # real file-backed modules, never a namespace package
         src = Path(m.__file__).read_text()
         assert "boto3" not in src
         assert "import edge" not in src
