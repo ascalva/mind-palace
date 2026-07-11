@@ -24,14 +24,19 @@ branch, the builder hit a stage-sequencing snag: the `.pre`-stage `next-version`
 **skipped** the later `lint`-stage `type-gate` job entirely. The builder added
 `needs: []` to `type-gate` (commit `aef6e86`, which lives ONLY in the discarded demo
 history) to decouple it from stage order — it then ran immediately regardless of
-`.pre`. The builder argued in its journal that this is a *permanent* improvement, not
-a demo-only workaround.
+`.pre`. The builder held this a *permanent* improvement (not a demo-only workaround)
+and re-committed it cleanly on its real branch as `0d843d2` ("bp-008 Item 9
+follow-up").
 
-At seal, the orchestrator **did not merge** `needs: []` into main: it arrived on a
-demo commit, main's `next-version` succeeds normally (that is how releases are cut),
-so the decoupling is not *required* for correctness on main, and matching the sibling
-`ratchet` job's shape (no `needs:`) is the conservative default. main's `type-gate`
-therefore mirrors `ratchet` exactly, as bp-008 Item 9 was authored.
+At seal, the orchestrator **did not merge** `needs: []` into main: main's
+`next-version` succeeds normally (that is how releases are cut), so the decoupling is
+not *required* for correctness on main; matching the sibling `ratchet` job's shape
+(no `needs:`) is the conservative default; and — decisively — this is a `direction`-
+typed CI-topology call, which a merge shouldn't adopt unilaterally. (`0d843d2` was
+superseded by an orchestrator/builder race and never reached main.) The builder's own
+completion notification explicitly endorsed routing over merging: "a `direction`-typed
+question shouldn't be silently adopted." main's `type-gate` therefore mirrors
+`ratchet` exactly, as bp-008 Item 9 was authored.
 
 ## Why it matters
 

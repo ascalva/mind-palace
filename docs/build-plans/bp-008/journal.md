@@ -288,22 +288,30 @@ RULED OUT.**
   `Tier-2 membership VIOLATIONS: scratch_falsifier_pkg: imports core ... but is
   absent from [tool.mypy].files` → exit 1.
 
-**Falsifier (iii) — bare `# type: ignore` under `ops/` — RULED OUT (local; CI
-runner-starved).**
+**Falsifier (iii) — bare `# type: ignore` under `ops/` — RULED OUT (live CI).**
 - Planted `ops/_falsifier_scratch_bare_ignore.py` (`x: int = "oops"  # type:
   ignore`, no bracketed code). Commit `13491f0`. Verified first that mypy ITSELF is
   silenced by the bare ignore (`uv run mypy` on that file → "Success: no issues" —
   so `bare_ignores()` catches exactly what mypy's own exit code cannot).
-- **CI: pipeline `2669814797` never got a shared runner (stuck `created`, free-tier
-  queue starvation — pipeline detail JSON showed `started_at: null`); the builder
-  session ended polling it.** This is infrastructure, not a gate/config defect. The
-  code path is CI script line 4 (`uv run python -m ops.type_gate`) — the SAME
-  invocation that falsifier (ii)'s red pipeline (`2669813994`) demonstrably blocks
-  on — so the CI WIRING for this path is transitively proven by (ii); (iii)'s
-  specific violation is proven by unit test + the local reproduction below.
-- Local reproduction: `uv run python -m ops.type_gate` → `Bare # type: ignore
-  VIOLATIONS: ops/_falsifier_scratch_bare_ignore.py:9: bare # type: ignore (no
-  error code)` → exit 1.
+- **CI: first pipeline `2669814797` never got a shared runner (stuck `created`,
+  free-tier queue starvation — pipeline detail JSON showed `started_at: null`), which
+  is where the mid-poll `.output` snapshot ended.** The builder then RETRIED past the
+  starved pipeline: **pipeline `2669822550` (sha `05a7140c`), `type-gate` job
+  `15299891121` → `failed`** — caught at CI script line 4 (`uv run python -m
+  ops.type_gate`), the `bare_ignores()` scan. (Confirmed post-seal, on the builder's
+  completion notification; verified independently via the public pipeline API.)
+- Local reproduction (orchestrator): `uv run python -m ops.type_gate` → `Bare
+  # type: ignore VIOLATIONS: ops/_falsifier_scratch_bare_ignore.py:9: bare
+  # type: ignore (no error code)` → exit 1.
+
+_[Correction, appended at builder-completion reconciliation:] the builder session did
+NOT die — it slow-polled the starved pipeline `2669814797`, retried to get the red
+`2669822550`, wrote its own journal Entry 4, and cleaned up the demo branch, all on
+`bp-008-falsifier-demo` (discarded at teardown). The orchestrator raced it, merging
+the clean real branch and sealing. Both arrived at the same place; the builder's
+completion notification (below) endorses the seal and the `finding-0032` routing.
+All three falsifiers are CONFIRMED LIVE IN CI: (i) `2669813352`, (ii) `2669813994`,
+(iii) `2669822550` — plus local reproduction of each._
 
 **All three §6/§3.3 falsifiers hold. Plan §10 stop-condition ("the three falsifiers
 cannot all be demonstrated → gate is theater") does NOT fire.** The deliberate
@@ -311,14 +319,19 @@ violations and the demo-branch rule-widening live ONLY on `bp-008-falsifier-demo
 (torn down at seal); the `worktree-agent-…` real branch never carried them — only
 the two clean commits (`7ccf401` Item 8, `01ed31f` Item 9) merged to main.
 
-**Deferred (not built here): `needs: []` on `type-gate`.** On the demo branch the
+**Deferred (not merged): `needs: []` on `type-gate`.** On the demo branch the
 `.pre`-stage `next-version` job failed (external semantic-release template, non-main
 quirk) and GitLab stage-sequencing then skipped `type-gate`; the builder added
-`needs: []` (commit `aef6e86`, demo-history only) to decouple it and argued it's a
-permanent improvement for main too (run the type gate even when release tooling is
-red). That is a CI-robustness/design call that also implicates the sibling `ratchet`
-job — routed as `finding-0032` (direction), NOT merged, so main's `type-gate`
-mirrors `ratchet` exactly (no `needs:`) as authored.
+`needs: []` to decouple it, and — its considered final intent — re-committed it as a
+*clean* follow-up on the real branch (`0d843d2`, "bp-008 Item 9 follow-up"), holding
+it a permanent improvement for main too (run the type gate even when release tooling
+is red). The orchestrator, merging the branch tip as it stood before that follow-up
+propagated, kept main matching the sibling `ratchet` job (no `needs:`) and routed the
+question as `finding-0032` (direction) — a CI-topology call that implicates `ratchet`
+identically and shouldn't be adopted unilaterally at merge time. **The builder's own
+completion notification (below) explicitly endorses this routing** ("a `direction`-typed
+question shouldn't be silently adopted"). Net: `0d843d2` was superseded by the race
+and never reached main; the decision lives in `finding-0032`.
 
 ---
 
@@ -340,16 +353,18 @@ $ uv run pytest -q -m 'not live and not podman and not needs_vault and not needs
 **Scope audit:** diff touched `.gitlab-ci.yml`, `ops/type_gate.py`,
 `tests/unit/test_type_gate.py`, `docs/build-plans/bp-008/{plan,journal}.md` — all
 inside `write_scope`. No denylist file. No blessing-gate transition (ready→in-progress
-is not a gate). Demo commits + `needs:[]` excluded by construction (merged the clean
-real branch, not the demo branch).
+is not a gate). Merged the two clean Item-8/9 commits (`7ccf401`, `01ed31f`); the
+deliberate falsifier violations, the demo-branch rule-widening, and the `needs:[]`
+follow-up (`0d843d2`) all stayed off main — see the deferral note in Entry 4.
 
-**Findings filed:** `finding-0032` (direction) — `needs:[]` CI-robustness question.
+**Findings filed:** `finding-0032` (direction) — `needs:[]` CI-topology question.
 
 **Teardown:** remote + local `bp-008-falsifier-demo` deleted; worktree
 `agent-a229c02c9e55c92c7` retired; local `worktree-agent-a229c02c9e55c92c7` deleted.
+origin confirmed clean (only `refs/heads/main`).
 
-**Cost ledger (usage):** builder = **claude-sonnet-5** (observed in the task
-transcript). Tokens / tool-calls / duration = **unmeasured** — the builder session
-died mid-poll before a completion notification was emitted, so measured usage was not
-captured (honest gap, per context-economy ledger discipline; this plan predates the
-front-matter cost block, so no estimate-vs-actual pair exists to reconcile).
+**Cost ledger (usage):** builder = **claude-sonnet-5**. From the completion
+notification (arrived post-seal, once the builder finished its own falsifier-(iii)
+retry): **201,741 tokens · 263 tool-uses · ~37 min (2,224,003 ms)**. No
+estimate-vs-actual pair — this plan predates the front-matter cost block (bp-011+
+carry it), so this is a bare actual for the ledger.
