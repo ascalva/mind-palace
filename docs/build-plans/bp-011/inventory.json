@@ -1,0 +1,3008 @@
+{
+  "scanned_at": "2026-07-11",
+  "code_dirs": [
+    "ops",
+    "core",
+    "agents",
+    "eval",
+    "scheduler",
+    "scripts",
+    "config"
+  ],
+  "corpus_dirs": [
+    "docs/design-notes",
+    "docs/findings",
+    "docs/brainstorms"
+  ],
+  "counts": {
+    "code_to_corpus_total": 98,
+    "corpus_to_code_total": 266,
+    "total": 364,
+    "by_pattern": {
+      "path-mention": 300,
+      "note-citation": 4,
+      "wikilink": 5,
+      "symbol-mention": 55
+    }
+  },
+  "precision_sample": {
+    "note": "38-item stratified hand-check, seed=11 (see journal.md for the full per-item table + verdicts); NOT re-embedded here to keep this file a clean re-runnable probe -- the journal is the precision record of truth.",
+    "overall_precision": 0.763,
+    "by_pattern": {
+      "code_to_corpus/note-citation": {
+        "hits": 4,
+        "n": 4,
+        "precision": 1.0
+      },
+      "code_to_corpus/path-mention": {
+        "hits": 7,
+        "n": 7,
+        "precision": 1.0
+      },
+      "code_to_corpus/wikilink": {
+        "hits": 0,
+        "n": 5,
+        "precision": 0.0
+      },
+      "corpus_to_code/path-mention": {
+        "hits": 17,
+        "n": 17,
+        "precision": 1.0
+      },
+      "corpus_to_code/symbol-mention": {
+        "hits": 1,
+        "n": 5,
+        "precision": 0.2
+      }
+    },
+    "judgment_call_rate": 0.132
+  },
+  "verdict": "keep",
+  "verdict_rationale": "364 total deterministic edges over the real corpus (98 code_to_corpus, 266 corpus_to_code) -- not near-empty. Two patterns (note-citation, path-mention, both directions) score 100% precision in-sample and account for the large majority of edges; the ledger falsifier (V4, note Sec2.7 clause 3) is RULED OUT for those patterns. wikilink (0%) and symbol-mention (20%) are noise-dominated IN CODE DOCSTRINGS SPECIFICALLY and should be dropped or substantially reworked before bp-013 uses them -- this is itself useful signal (per-pattern quality, exactly what V4 asks for), not a reason to call the whole probe no-signal. Judgment-call rate 13.2% is well under the 20% stop-and-raise threshold (plan Sec10), so precision IS determinable, cleanly.",
+  "ranked_patterns_for_bp013": [
+    {
+      "pattern": "note-citation",
+      "direction": "code_to_corpus",
+      "precision": 1.0,
+      "recommendation": "use as-is"
+    },
+    {
+      "pattern": "path-mention",
+      "direction": "corpus_to_code",
+      "precision": 1.0,
+      "recommendation": "use as-is; add basename-lookup fallback for bare filenames (ambiguous e.g. policy.py, apply.py, _lib.py -- 3/17 sampled needed directory-proximity context to disambiguate, all resolvable)"
+    },
+    {
+      "pattern": "path-mention",
+      "direction": "code_to_corpus",
+      "precision": 1.0,
+      "recommendation": "use as-is; same bare-filename caveat as above"
+    },
+    {
+      "pattern": "symbol-mention",
+      "direction": "corpus_to_code",
+      "precision": 0.2,
+      "recommendation": "rework before use: exclude stdlib-shaped dotted tokens (os.fsync, select.kqueue), filenames with dots mistaken for module.attr (python.wasm, sensor_readings.ts), and add a SEPARATE compound path.symbol pattern (e.g. `_lib.py.cmd_stop_audit`) instead of forcing it through the plain dotted-symbol regex"
+    },
+    {
+      "pattern": "wikilink",
+      "direction": "code_to_corpus",
+      "precision": 0.0,
+      "recommendation": "drop for code docstrings -- every sampled hit was prose describing [[...]] SYNTAX, not a real link; the corpus's genuine wikilinks live in dialogue/logseq content (core/ingest/logseq.py's own domain), not code comments"
+    }
+  ],
+  "edges": [
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/apply.py",
+      "source_line": 1,
+      "target": "config/levers.toml",
+      "context": "p both come down to mutating ONE file —\n`config/levers.toml`, a gitignored overl"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/apply.py",
+      "source_line": 1,
+      "target": "config/local.toml",
+      "context": "p NEVER edits the owner's hand-authored `config/local.toml`. It writes only\n   "
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/apply.py",
+      "source_line": 1,
+      "target": "levers.toml",
+      "context": "`config/local.toml`. It writes only\n    `levers.toml`, and the loader ove"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/backup/plan.py",
+      "source_line": 1,
+      "target": "core/sandbox/policy.py",
+      "context": "deterministic (unit-tested the same way `core/sandbox/policy.py`'s\nargv is) — the *w"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/backup/run.py",
+      "source_line": 1,
+      "target": "ops/backup/backup.sh",
+      "context": "I entrypoint for the scheduled backup — `ops/backup/backup.sh` drives it.\n\nBuilds "
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "note-citation",
+      "source_file": "ops/code_sensor.py",
+      "source_line": 1,
+      "target": "docs/brainstorms/code-as-sensor-stream.md",
+      "context": "uild_*`, never minted.\n\nSensor framing (docs/brainstorms/code-as-sensor-stream.md): the repo is an in"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/code_sensor.py",
+      "source_line": 1,
+      "target": "core/ingest/sync.py",
+      "context": " the\nsame species as the vault watcher (`core/ingest/sync.py`), the deterministic"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/code_sensor.py",
+      "source_line": 1,
+      "target": "ops/code_snapshot.py",
+      "context": "ment, the\ncommit stream is sensed data, `ops/code_snapshot.py` is the interpreter "
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/code_snapshot.py",
+      "source_line": 1,
+      "target": "code-observation-projection.md",
+      "context": "rse) — the Rosetta payload the ratified\n`code-observation-projection.md` §2.3 names as the f"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "note-citation",
+      "source_file": "ops/effect_catalog.py",
+      "source_line": 1,
+      "target": "docs/design-notes/skill-mining-pipeline.md",
+      "context": " process** (the\nSKILL-mining pipeline, `docs/design-notes/skill-mining-pipeline.md`):\n\n    read the so"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/effect_catalog.py",
+      "source_line": 1,
+      "target": "docs/design-notes/skill-mining-pipeline.md",
+      "context": "e process** (the\nSKILL-mining pipeline, `docs/design-notes/skill-mining-pipeline.md`):\n\n    read the sou"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/effect_catalog.py",
+      "source_line": 74,
+      "target": "SKILL.md",
+      "context": "capability was mined from (an ecosystem `SKILL.md`, or \"native\"), trea"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/effect_ledger.py",
+      "source_line": 1,
+      "target": "ops/effect_gate.py",
+      "context": "ping, the actual staging/send) lives in\n`ops/effect_gate.py`, `ops/effects.py`, "
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/effect_ledger.py",
+      "source_line": 1,
+      "target": "ops/effects.py",
+      "context": "ng/send) lives in\n`ops/effect_gate.py`, `ops/effects.py`, `ops/effect_exec.p"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/effect_ledger.py",
+      "source_line": 1,
+      "target": "ops/effect_exec.py",
+      "context": "`ops/effect_gate.py`, `ops/effects.py`, `ops/effect_exec.py`, and the edge effec"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/gate.py",
+      "source_line": 1,
+      "target": "ops/selfmod.py",
+      "context": "ledger.ProposalLedger` (orchestrated by `ops/selfmod.py`); this\nmodule remai"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/import_lint.py",
+      "source_line": 1,
+      "target": "core/sealing.py",
+      "context": "ed\n     loopback/seal modules:\n       * `core/sealing.py` — imports `socket` "
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/import_lint.py",
+      "source_line": 1,
+      "target": "core/models/ollama_client.py",
+      "context": " WRAP and seal it (the guard).\n       * `core/models/ollama_client.py` — the single sancti"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/import_lint.py",
+      "source_line": 1,
+      "target": "scripts/check_imports.py",
+      "context": ".\n\nRun: `python -m ops.import_lint` (or `scripts/check_imports.py`); also asserted in\n"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/import_lint.py",
+      "source_line": 1,
+      "target": "tests/test_import_firewall.py",
+      "context": "ts/check_imports.py`); also asserted in\n`tests/test_import_firewall.py` and wired into CI."
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/lifecycle/__init__.py",
+      "source_line": 1,
+      "target": "runs.py",
+      "context": "ed process with:\n\n  * a **run ledger** (`runs.py`) pinning which git "
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/lifecycle/__init__.py",
+      "source_line": 1,
+      "target": "preflight.py",
+      "context": " for recovery mode);\n  * **preflight** (`preflight.py`) — ensure our own c"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/lifecycle/__init__.py",
+      "source_line": 1,
+      "target": "launcher.py",
+      "context": " clear checklist;\n  * the **launcher** (`launcher.py`) — `start` (preflig"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/lifecycle/launcher.py",
+      "source_line": 61,
+      "target": "tests/integration/test_lifecycle.py",
+      "context": "ld`'s real surface here — structural so\n`tests/integration/test_lifecycle.py`'s bare `_FakeChild`"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/lifecycle/preflight.py",
+      "source_line": 124,
+      "target": "CONSTITUTION.md",
+      "context": "rity check on the fixed point: the live `CONSTITUTION.md` must match the\nowne"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/type_gate.py",
+      "source_line": 1,
+      "target": "type-system-as-core-audit.md",
+      "context": "te` CI job's two mechanical scans (B-2, `type-system-as-core-audit.md`).\n\n`type-system-as-"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/type_gate.py",
+      "source_line": 1,
+      "target": "type-system-as-core-audit.md",
+      "context": "(B-2, `type-system-as-core-audit.md`).\n\n`type-system-as-core-audit.md` §2.5 draws the two-"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/type_gate.py",
+      "source_line": 1,
+      "target": "ops/import_lint.py",
+      "context": "\none, provable by reading the AST\" move `ops/import_lint.py` already performs fo"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/type_gate.py",
+      "source_line": 1,
+      "target": "pyproject.toml",
+      "context": "y read\nsource text and (for membership) `pyproject.toml`.\n\nRun: `python -m o"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/type_gate.py",
+      "source_line": 1,
+      "target": ".gitlab-ci.yml",
+      "context": "e`). Wired into\nthe `type-gate` CI job (`.gitlab-ci.yml`), alongside `mypy` "
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "ops/type_gate.py",
+      "source_line": 87,
+      "target": "ops/import_lint.py",
+      "context": "package, so they are excluded — mirrors\n`ops/import_lint.py`'s `_imported_names`"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/complex/__init__.py",
+      "source_line": 1,
+      "target": "build.py",
+      "context": "on of the strong Dreamer: the *object* (`build.py` — nodes, the\nweight"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/complex/__init__.py",
+      "source_line": 1,
+      "target": "laplacian.py",
+      "context": "derivation hyperedges), the\n*operator* (`laplacian.py` — L, L_sym, signed "
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/complex/__init__.py",
+      "source_line": 1,
+      "target": "spectral.py",
+      "context": "signed L̄), the principled *clusterer* (`spectral.py` —\nFiedler, diffusio"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/complex/__init__.py",
+      "source_line": 1,
+      "target": "balance.py",
+      "context": "haining),\nand rigorous *contradiction* (`balance.py` — λ_min(L̄), frustr"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/complex/build.py",
+      "source_line": 142,
+      "target": "core/stores/versions.py",
+      "context": "dge stores — note-version `supersedes` (`core/stores/versions.py`) and claim\n`superse"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/complex/build.py",
+      "source_line": 142,
+      "target": "core/recursion_ops.py",
+      "context": "es/versions.py`) and claim\n`supersede` (`core/recursion_ops.py`) — are `E_disp`, an"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/complex/build.py",
+      "source_line": 142,
+      "target": "core/stores/edges.py",
+      "context": "itself refuses a `supersedes` rel-type (`core/stores/edges.py`). Falsifier: adding"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/complex/build.py",
+      "source_line": 142,
+      "target": "tests/integration/test_edge_partition.py",
+      "context": " fix at the store boundary, never here (`tests/integration/test_edge_partition.py`)."
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/complex/cut.py",
+      "source_line": 1,
+      "target": "eval/drift.py",
+      "context": "drift gauge's additive structural axes\n(`eval/drift.py`, the A2 extension) "
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/complex/laplacian.py",
+      "source_line": 48,
+      "target": "balance.py",
+      "context": " frustrated cycle cannot drive\nto zero. `balance.py` reads its spectrum "
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/complex/topology.py",
+      "source_line": 1,
+      "target": "balance.py",
+      "context": "igned/semantic property, routed through `balance.py`) and NEVER\ncircular"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/complex_types.py",
+      "source_line": 1,
+      "target": "MATHEMATICAL-REFRAMING.md",
+      "context": "the `MirrorView`/`ProposedChange` move,\n`MATHEMATICAL-REFRAMING.md` §B.1: make it a typ"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/complex_types.py",
+      "source_line": 1,
+      "target": "core/stores/derived.py",
+      "context": "ary the derivation-hypergraph junction (`core/stores/derived.py`) uses today and\nthe"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/constitution.py",
+      "source_line": 1,
+      "target": "CONSTITUTION.md",
+      "context": " is the inheritance mechanism: it loads `CONSTITUTION.md` and assembles each\n"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/dreaming/__init__.py",
+      "source_line": 1,
+      "target": "design-notes/dream-phase-rnd-charter.md",
+      "context": "ator (R1) are a\n**flag-OFF R&D track** (`design-notes/dream-phase-rnd-charter.md`) — exported here fo"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/dreaming/__init__.py",
+      "source_line": 1,
+      "target": "scheduler/cron.py",
+      "context": "ted here for tests\nbut never wired into `scheduler/cron.py`; their entry points"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/dreaming/graph.py",
+      "source_line": 1,
+      "target": "interpreters.py",
+      "context": " read-only structure; the interpreters (`interpreters.py`) derive claims from"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/dreaming/graph.py",
+      "source_line": 1,
+      "target": "adjudicator.py",
+      "context": "ive claims from it and the\nadjudicator (`adjudicator.py`) ranks them. Nothin"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/dreaming/interpreters.py",
+      "source_line": 1,
+      "target": "core/complex/balance.py",
+      "context": "ys routed through the signed Laplacian (`core/complex/balance.py`) +\ntyped `contradic"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/dreaming/rnd.py",
+      "source_line": 1,
+      "target": "scheduler/cron.py",
+      "context": "ly NOT wired into the live dream path —\n`scheduler/cron.py` runs the Phase-7 `D"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "wikilink",
+      "source_file": "core/dreams_view.py",
+      "source_line": 1,
+      "target": "brackets",
+      "context": "y, cites the authored notes it spans in [[brackets]], and hands the judg"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/effect_proposal.py",
+      "source_line": 1,
+      "target": "core/mirror.py",
+      "context": "nnot\n    hold observed or curated rows (`core/mirror.py` raises), so a steer"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/effect_proposal.py",
+      "source_line": 1,
+      "target": "edge/effectors/writes.py",
+      "context": "or STAGES a draft the owner can\ndelete (`edge/effectors/writes.py`). Sending that draf"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/effect_proposal.py",
+      "source_line": 50,
+      "target": "core/sensing.py",
+      "context": "fail-closed): sensing\nhas its own path (`core/sensing.py`) and irreversible s"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "note-citation",
+      "source_file": "core/factory/__init__.py",
+      "source_line": 1,
+      "target": "docs/design-notes/skills-and-scope.md",
+      "context": "`),\nnever to a privileged agent. Honors docs/design-notes/skills-and-scope.md."
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "wikilink",
+      "source_file": "core/ingest/__init__.py",
+      "source_line": 1,
+      "target": "links",
+      "context": "t graph layer the owner authored (tags, [[links]]), and chunks notes\n"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/ingest/founding.py",
+      "source_line": 1,
+      "target": "curated.py",
+      "context": "s` → `VaultCatalog.record`, exactly the `curated.py` shape, never a besp"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/ingest/founding.py",
+      "source_line": 1,
+      "target": "core/stores/authored_supersession.py",
+      "context": "D **authored-historical supersession** (`core/stores/authored_supersession.py`;\n    8f / PD11) — a"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "wikilink",
+      "source_file": "core/ingest/logseq.py",
+      "source_line": 1,
+      "target": "links",
+      "context": ": page text, the tags they applied, the [[links]]\nthey drew. We extra"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/ingest/purge.py",
+      "source_line": 1,
+      "target": "scripts/purge_raw.py",
+      "context": "ombstoned catalog\nrows for that digest. `scripts/purge_raw.py` is the owner-facing"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/ingest/sync.py",
+      "source_line": 1,
+      "target": "core/ingest/watch.py",
+      "context": " the\ndeterministic engine; the watcher (`core/ingest/watch.py`) only *triggers* it"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/ingest/sync.py",
+      "source_line": 1,
+      "target": "core/ingest/purge.py",
+      "context": "is the separate,\n    owner-gated purge (`core/ingest/purge.py`), never done here.\n"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/ingest/watch.py",
+      "source_line": 1,
+      "target": "scheduler/vault_sync.py",
+      "context": "change` callback. The\nscheduler wiring (`scheduler/vault_sync.py`) supplies a callbac"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/provenance.py",
+      "source_line": 131,
+      "target": "core/stores/verdicts.py",
+      "context": "ime verdict machinery (`core/verdict/`,\n`core/stores/verdicts.py`), whether a verdict"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/recursion_ops.py",
+      "source_line": 1,
+      "target": "core/stores/versions.py",
+      "context": "ote-`supersedes(v1,v2)` is a file edit (`core/stores/versions.py`). Different relatio"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/research/__init__.py",
+      "source_line": 1,
+      "target": "criteria.py",
+      "context": "ural firewall (Invariant 11, §16):\n\n  * `criteria.py` — only a `ResearchC"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/research/__init__.py",
+      "source_line": 1,
+      "target": "airlock.py",
+      "context": "ld that could carry note content**.\n  * `airlock.py` — the core writes c"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/research/__init__.py",
+      "source_line": 1,
+      "target": "rank.py",
+      "context": " network. The corpus never crosses.\n  * `rank.py` — public literature"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/sandbox/__init__.py",
+      "source_line": 1,
+      "target": "policy.py",
+      "context": "rofile is built\ninto the podman argv in `policy.py` so it is verifiable"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/sandbox/runner.py",
+      "source_line": 1,
+      "target": "policy.py",
+      "context": "is enforced structurally by the argv in `policy.py`.\n\nThe wall-clock ti"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "wikilink",
+      "source_file": "core/selfcheck.py",
+      "source_line": 38,
+      "target": "...",
+      "context": " human-facing label the\nmodel writes in [[...]]. Grounding decidabi"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "wikilink",
+      "source_file": "core/selfcheck.py",
+      "source_line": 113,
+      "target": "cited",
+      "context": "Deterministic: every [[cited]] note must resolve t"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/sensing.py",
+      "source_line": 1,
+      "target": "edge/effectors/sensing.py",
+      "context": "of that path; the fetch itself lives in\n`edge/effectors/sensing.py` (Zone B), which nev"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/stores/authored_supersession.py",
+      "source_line": 1,
+      "target": "core/stores/versions.py",
+      "context": "`supersedes` (versions of ONE `doc_id`,\n`core/stores/versions.py`) and claim `superse"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/stores/authored_supersession.py",
+      "source_line": 1,
+      "target": "core/recursion_ops.py",
+      "context": "s.py`) and claim `supersede` (dialogue, `core/recursion_ops.py`).\nIt connects two d"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/stores/authored_supersession.py",
+      "source_line": 1,
+      "target": "the-sacred-boundary.md",
+      "context": " future caller (capability-dissolution, `the-sacred-boundary.md` §3 — the\nmachine-wr"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/stores/authored_supersession.py",
+      "source_line": 1,
+      "target": "supersession-lifecycle.md",
+      "context": "oposed candidate for the blessing gate\n(`supersession-lifecycle.md` §3), never a row he"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/stores/edges.py",
+      "source_line": 1,
+      "target": "balance.py",
+      "context": "y —\nchiefly contradiction, the input to `balance.py`.\n\nDerivation (a B-a"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/stores/verdicts.py",
+      "source_line": 1,
+      "target": "core/attestation/store.py",
+      "context": "STRUCTURAL, like the attestation store (`core/attestation/store.py`): this class\nexpose"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/typedshims/sknetwork.py",
+      "source_line": 1,
+      "target": "core/complex/spectral.py",
+      "context": "ching the call site's prior\nbehavior in `core/complex/spectral.py`."
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/verdict/__init__.py",
+      "source_line": 1,
+      "target": "payload.py",
+      "context": "he sacred boundary, inbound: verdict).\n\n`payload.py` — the pure signing "
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/verdict/__init__.py",
+      "source_line": 1,
+      "target": "taxonomy.py",
+      "context": " serialization, signing, verification).\n`taxonomy.py` — the ratified verd"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/verdict/__init__.py",
+      "source_line": 1,
+      "target": "apply.py",
+      "context": "ries the store accepts (build plan R3).\n`apply.py` — the receive+verif"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/verdict/__init__.py",
+      "source_line": 1,
+      "target": "core/stores/verdicts.py",
+      "context": "ppend-only signed store itself lives in\n`core/stores/verdicts.py`. Zone A, no network"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/verdict/__init__.py",
+      "source_line": 1,
+      "target": "apply.py",
+      "context": " the PURE surface (payload + taxonomy). `apply.py` depends on\n`core.st"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/verdict/payload.py",
+      "source_line": 1,
+      "target": "core/stores/verdicts.py",
+      "context": "parate (the append-only signed store is\n`core/stores/verdicts.py`; verify+apply is a "
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "core/verdict/payload.py",
+      "source_line": 1,
+      "target": "core/attestation/crypto.py",
+      "context": "tation Ed25519 primitives **verbatim** (`core/attestation/crypto.py`) — the same\nprimiti"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "agents/ambassador/__init__.py",
+      "source_line": 1,
+      "target": "agent.py",
+      "context": " read +\npropose, never write + act. See `agent.py` for the full design"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "agents/ambassador/__init__.py",
+      "source_line": 38,
+      "target": "scheduler/interface.py",
+      "context": "INJECTED by the\nscheduler-layer wiring (`scheduler/interface.py`), which owns the qu"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "eval/drift.py",
+      "source_line": 1,
+      "target": "alignment-subsystem.md",
+      "context": "1; gap G4).\n\nThe Voigt-Kampff analog of `alignment-subsystem.md` §2: a periodic, det"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "scheduler/interface.py",
+      "source_line": 1,
+      "target": "scheduler/cron.py",
+      "context": "ador) was built but never\n*scheduled* — `scheduler/cron.py` had no reference to"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "scheduler/interface.py",
+      "source_line": 1,
+      "target": "scripts/talk.py",
+      "context": "time` is the in-process driver the CLI (`scripts/talk.py`) and the e2e test u"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "scripts/sandbox.py",
+      "source_line": 1,
+      "target": "./scripts/build_sandbox_image.sh",
+      "context": "t, build + select the libs image\nfirst: `./scripts/build_sandbox_image.sh` then `[sandbox] ima"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "note-citation",
+      "source_file": "config/loader.py",
+      "source_line": 135,
+      "target": "docs/design-notes/hands-and-the-effector-layer.md",
+      "context": "Track G effector surface (docs/design-notes/hands-and-the-effector-layer.md). Fail-closed\ntwice"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "config/loader.py",
+      "source_line": 500,
+      "target": "levers.toml",
+      "context": "fter the self-mod loop writes a knob\nto `levers.toml` (ops/apply.py) so t"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "config/secrets_backend.py",
+      "source_line": 1,
+      "target": "ops/import_lint.py",
+      "context": "c\nto be installed. The import-firewall (`ops/import_lint.py`) additionally block"
+    },
+    {
+      "direction": "code_to_corpus",
+      "pattern": "path-mention",
+      "source_file": "config/secrets_backend.py",
+      "source_line": 110,
+      "target": "edge/bridge/bridge.py",
+      "context": "imported per-method, not in `__init__`: `edge/bridge/bridge.py` holds the same\nline"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/agent-workflow.md",
+      "source_line": 125,
+      "target": "notation.tex",
+      "context": "**Scribe** is the third contract, selected by a plan's `contract: scribe` field, minted by `/scribe`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/agent-workflow.md",
+      "source_line": 138,
+      "target": "eval/golden.py",
+      "context": "(`CONSTITUTION.md`, `eval/golden/**`, `eval/golden.py`) applies beneath any plan, in every session, "
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/agent-workflow.md",
+      "source_line": 302,
+      "target": "eval/golden.py",
+      "context": "`eval/golden/**`, and `eval/golden.py` remain on the unconditional denylist;"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/attestation-layer.md",
+      "source_line": 218,
+      "target": "core/constitution.py",
+      "context": "| Constitution fingerprint | ✅ Phase 0 | `core/constitution.py` |"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 107,
+      "target": "core/provenance.py",
+      "context": "(`core/provenance.py` docstring: \"your words to it are more yours than its words to"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 118,
+      "target": "core/provenance.py",
+      "context": "`core/provenance.py` is explicit: \"No code orders the classes, and `INTERPRETED` is a"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 195,
+      "target": "DerivedStore.depth",
+      "context": "`DerivedStore.depth` describe derivation depth. If the source matches NOTATION, OQ-1's"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 240,
+      "target": "sensor_readings.ts",
+      "context": "(`sensor_readings.ts`; the correlator's lagged windows in"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 272,
+      "target": "core/provenance.py",
+      "context": "(`core/provenance.py`). Transform attribution is the same origin-trust, extended to"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 292,
+      "target": "core/recursion.py",
+      "context": "(NOTATION.md family 2; `core/recursion.py`) — and the dedup boundary rule"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 354,
+      "target": "core/factory/roles.py",
+      "context": "`PRE_DECLARED_MAX = frozenset({\"run_python\"})` (`core/factory/roles.py`) — **one"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 358,
+      "target": "RoleTemplate.__post_init__",
+      "context": "— and **no store handle of any kind, read or write**. `RoleTemplate.__post_init__`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 361,
+      "target": "core/factory/tools.py",
+      "context": "(`core/factory/tools.py`, `ToolNotInScopeError`). For the minted population,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 460,
+      "target": "core/provenance.py",
+      "context": "relabels 918 rows, else a second migration.\" **Reading `core/provenance.py` corrects"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 515,
+      "target": "core/recursion.py",
+      "context": "- **B-2. The envelope at source.** `core/recursion.py` (`decay_bound`), `DerivedStore.depth`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 515,
+      "target": "DerivedStore.depth",
+      "context": "- **B-2. The envelope at source.** `core/recursion.py` (`decay_bound`), `DerivedStore.depth`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 556,
+      "target": "core/provenance.py",
+      "context": "boundaries (`core/provenance.py`, `core/mirror.py`, `core/stores/derived.py`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 556,
+      "target": "core/mirror.py",
+      "context": "boundaries (`core/provenance.py`, `core/mirror.py`, `core/stores/derived.py`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 556,
+      "target": "core/stores/derived.py",
+      "context": "boundaries (`core/provenance.py`, `core/mirror.py`, `core/stores/derived.py`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 557,
+      "target": "core/factory/roles.py",
+      "context": "`core/factory/roles.py`). Overlaps B-7's write-path tracing; fold them if convenient."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 622,
+      "target": "core/provenance.py",
+      "context": "- `core/provenance.py` — ρ, MR, G8's retirement of the trust preorder, and the six-class"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 624,
+      "target": "core/factory/roles.py",
+      "context": "- `core/factory/roles.py`, `core/factory/tools.py` — the capability semilattice:"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/authorship-distance-axis.md",
+      "source_line": 624,
+      "target": "core/factory/tools.py",
+      "context": "- `core/factory/roles.py`, `core/factory/tools.py` — the capability semilattice:"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/capability-evaluation-harness.md",
+      "source_line": 401,
+      "target": "eval/drift.py",
+      "context": "tree (proposal: `eval/capability/` — sibling of `eval/drift.py`, outside"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/code-observation-projection.md",
+      "source_line": 118,
+      "target": "DerivedStore.add",
+      "context": "OBSERVED and nothing else, `DerivedStore.add`-style, no provenance parameter to lie"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/code-observation-projection.md",
+      "source_line": 127,
+      "target": "core/recursion.py",
+      "context": "A docstring citing `recursive-strata.md`, a design note naming `core/recursion.py` —"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/code-observation-projection.md",
+      "source_line": 182,
+      "target": "SensingHandoff.collect",
+      "context": "- **V1** — seam signatures at source: `SensedObservation` / `SensingHandoff.collect` /"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/code-observation-projection.md",
+      "source_line": 183,
+      "target": "core/sensing.py",
+      "context": "`ObservedView` constructor semantics (`core/sensing.py`) — confirm the projection can"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/code-observation-projection.md",
+      "source_line": 189,
+      "target": "code_snapshots.sqlite",
+      "context": "- **V3** — the ledger precursor: docstring extraction column in `code_snapshots.sqlite`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/code-observation-projection.md",
+      "source_line": 206,
+      "target": "test_edge_partition.py",
+      "context": "(`test_edge_partition.py` precedent). _Falsifier: any instrument result changes when"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/code-observation-projection.md",
+      "source_line": 232,
+      "target": "core/sensing.py",
+      "context": "Verified in-session 2026-07-11: `core/sensing.py` (SensedObservation/ObservedView/"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/code-observation-projection.md",
+      "source_line": 233,
+      "target": "core/provenance.py",
+      "context": "SensingHandoff exist, constructor-enforced observed-only); `core/provenance.py`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/code-observation-projection.md",
+      "source_line": 235,
+      "target": "ops/code_snapshot.py",
+      "context": "of bp-009); `ops/code_snapshot.py` (AST walk per commit, 134+ snapshots); zero E_geom"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/core-integrity.md",
+      "source_line": 57,
+      "target": "manifest.json.sig",
+      "context": "**Canonical form and signing.** The manifest is written in already-canonical form: keys sorted, UTF-"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/dream-phase-rnd-charter.md",
+      "source_line": 80,
+      "target": "core/selfcheck.py",
+      "context": "- **R1 — evidence-based adjudicator.** Extend `core/selfcheck.py` grounding into a ranker;"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/dreamer-quality-suite-evaluation.md",
+      "source_line": 19,
+      "target": "tests/quality/test_dreamer_quality.py",
+      "context": "(`tests/quality/test_dreamer_quality.py`) against the existing testing story and folds"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/dreamer-quality-suite-evaluation.md",
+      "source_line": 95,
+      "target": "Dream.grounding_node_ids",
+      "context": "- **Flat grounding vs. chained grounding.** The adapter's `Dream.grounding_node_ids` is"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/dreamer-quality-suite-evaluation.md",
+      "source_line": 130,
+      "target": "tests/quality/test_dreamer_quality.py",
+      "context": "`tests/quality/test_dreamer_quality.py`. Lives in `tests/quality/` (pure-CI, no scheduler"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/dreaming-v2-interpreter-panel.md",
+      "source_line": 20,
+      "target": "core/dreaming/cluster.py",
+      "context": "directly on `core/dreaming/cluster.py`, `core/dreaming/dreamer.py`, `core/selfcheck.py`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/dreaming-v2-interpreter-panel.md",
+      "source_line": 20,
+      "target": "core/dreaming/dreamer.py",
+      "context": "directly on `core/dreaming/cluster.py`, `core/dreaming/dreamer.py`, `core/selfcheck.py`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/dreaming-v2-interpreter-panel.md",
+      "source_line": 20,
+      "target": "core/selfcheck.py",
+      "context": "directly on `core/dreaming/cluster.py`, `core/dreaming/dreamer.py`, `core/selfcheck.py`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/dreaming-v2-interpreter-panel.md",
+      "source_line": 21,
+      "target": "core/stores/derived.py",
+      "context": "`core/stores/derived.py`."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/dreaming-v2-interpreter-panel.md",
+      "source_line": 24,
+      "target": "cluster.py",
+      "context": "One deterministic interpreter (cosine single-linkage connected components, `cluster.py`)"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/dreaming-v2-interpreter-panel.md",
+      "source_line": 25,
+      "target": "dreamer.py",
+      "context": "→ per-theme grounded synthesis (`dreamer.py`, Constitution-first, cluster notes as the only"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/dreaming-v2-interpreter-panel.md",
+      "source_line": 52,
+      "target": "core/selfcheck.py",
+      "context": "the cited notes actually support the claim. Reuse and extend `core/selfcheck.py`'s"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/dreaming-v2-interpreter-panel.md",
+      "source_line": 75,
+      "target": "queue.checkpoint",
+      "context": "insufficient. The per-cluster checkpoint seam already noted (`queue.checkpoint`) lets the"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/edge-core-handoff-protocol.md",
+      "source_line": 365,
+      "target": "os.fsync",
+      "context": "*simpler*. Python detail: `os.fsync` on macOS does **not** issue"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/edge-core-handoff-protocol.md",
+      "source_line": 375,
+      "target": "select.kqueue",
+      "context": "| macOS / BSD | kqueue `EVFILT_VNODE` + `NOTE_WRITE` on the inbox dir fd, opened `O_EVTONLY` | fd-ba"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/edge-core-handoff-protocol.md",
+      "source_line": 448,
+      "target": "ops/import_lint.py",
+      "context": "| V4 | `ops/import_lint.py` docstring records the handoff rule at the cited location | grep-and-cite"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/edge-core-handoff-protocol.md",
+      "source_line": 449,
+      "target": "select.kqueue",
+      "context": "| V5 | `select.kqueue` available and sufficient in the pinned Python runtime; `fcntl.F_FULLFSYNC` co"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/edge-core-handoff-protocol.md",
+      "source_line": 449,
+      "target": "fcntl.F_FULLFSYNC",
+      "context": "| V5 | `select.kqueue` available and sufficient in the pinned Python runtime; `fcntl.F_FULLFSYNC` co"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/edge-core-handoff-protocol.md",
+      "source_line": 511,
+      "target": "os.fsync",
+      "context": "confirmation that `os.fsync` does not full-flush on Darwin."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/hands-and-the-effector-layer.md",
+      "source_line": 162,
+      "target": "ops/effects.py",
+      "context": "> set, never priced terms**. The current effector layer is already constraint-only (`ops/effects.py`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/hands-and-the-effector-layer.md",
+      "source_line": 163,
+      "target": "ops/effect_gate.py",
+      "context": "> `ops/effect_gate.py`); the note's interior optimizer is parked (build plan PD1)."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/hands-and-the-effector-layer.md",
+      "source_line": 294,
+      "target": "ops/effects.py",
+      "context": "| G1 ✅ | The `Effect`/`EffectView` type + `ReversibilityClass` enum (illegal states unrepresentable)"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/hands-and-the-effector-layer.md",
+      "source_line": 295,
+      "target": "ops/effect_gate.py",
+      "context": "| G2 ✅ | `ProposedEffect` gate generalization (family 3) + blast-radius-weighted approval — `ops/eff"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/hands-and-the-effector-layer.md",
+      "source_line": 296,
+      "target": "core/sensing.py",
+      "context": "| G3 ✅ | **Read-only sensing** effectors (class 1): sandboxed fetch → `observed`-tier — `core/sensin"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/hands-and-the-effector-layer.md",
+      "source_line": 296,
+      "target": "edge/effectors/sensing.py",
+      "context": "| G3 ✅ | **Read-only sensing** effectors (class 1): sandboxed fetch → `observed`-tier — `core/sensin"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/hands-and-the-effector-layer.md",
+      "source_line": 297,
+      "target": "ops/effect_catalog.py",
+      "context": "| G4 ✅ | The effector catalog + the SKILL-mining pipeline doc (the §8 audit as a process) — `ops/eff"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/hands-and-the-effector-layer.md",
+      "source_line": 298,
+      "target": "core/effect_proposal.py",
+      "context": "| G5 ✅ | **Reversible writes** (class 2): draft/hold/stage — approval-light, `MirrorView` tailoring,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/hands-and-the-effector-layer.md",
+      "source_line": 298,
+      "target": "edge/effectors/writes.py",
+      "context": "| G5 ✅ | **Reversible writes** (class 2): draft/hold/stage — approval-light, `MirrorView` tailoring,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/hands-and-the-effector-layer.md",
+      "source_line": 298,
+      "target": "ops/effect_ledger.py",
+      "context": "| G5 ✅ | **Reversible writes** (class 2): draft/hold/stage — approval-light, `MirrorView` tailoring,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/hands-and-the-effector-layer.md",
+      "source_line": 299,
+      "target": "ops/effect_exec.py",
+      "context": "| G6 ✅ | **Irreversible / external** (class 3): send/pay/actuate — full gate, per-action JIT scoped "
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/hands-and-the-effector-layer.md",
+      "source_line": 300,
+      "target": "eval/effector_drift.py",
+      "context": "| G7 ✅ | Blast-radius drift `Axis` (family 4) — effector reach vs a frozen anchor, detection-only — "
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 45,
+      "target": "scripts/ingest_self_knowledge.py",
+      "context": "2. `scripts/ingest_self_knowledge.py` — so EXPLAIN and the digest can cite the real docs."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 77,
+      "target": "core/dreaming/shadow.py",
+      "context": "- `core/dreaming/shadow.py` — `ShadowRunner`: executes BOTH pipelines (live default = single-linkage"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 81,
+      "target": "core/stores/runledger.py",
+      "context": "- `core/stores/runledger.py` — append-only `dream_runs` + `dream_claims` tables (SQLite, WAL,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 122,
+      "target": "core/stores/verdicts.py",
+      "context": "- `core/stores/verdicts.py` — append-only `claim_verdicts(claim_id, verdict, note, verdicted_at,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 133,
+      "target": "core/stores/verdicts.py",
+      "context": "> sacred-boundary upgrade. Built: `core/stores/verdicts.py` (store), `core/verdict/` (sign/apply)."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 134,
+      "target": "scripts/review.py",
+      "context": "- `scripts/review.py` — a deterministic review REPL (no model call needed to display): presents each"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 168,
+      "target": "core/complex/manifest.py",
+      "context": "- `config/tuning.toml` + `core/complex/manifest.py` — the manifest: every tunable with type, range,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 175,
+      "target": "scripts/tune.py",
+      "context": "- `scripts/tune.py` — `show | set <key> <value> | history`. `set` validates against the manifest"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 200,
+      "target": "eval/longitudinal.py",
+      "context": "- `eval/longitudinal.py` — computes, per (pipeline, fingerprint) segment over time:"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 228,
+      "target": "scripts/curves.py",
+      "context": "- `scripts/curves.py` — renders the curves as terminal sparklines + a static HTML report into"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 285,
+      "target": "core/stores/runledger.py",
+      "context": "> **Task.** `core/stores/runledger.py` (`dream_runs`, `dream_claims`, content-addressed `claim_id`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 286,
+      "target": "core/dreaming/shadow.py",
+      "context": "> with `novel` computed on insert); `core/dreaming/shadow.py` `ShadowRunner` (both pipelines, one"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 298,
+      "target": "core/stores/verdicts.py",
+      "context": "> **Task.** `core/stores/verdicts.py` (append-only, 5-verdict enum — a closed StrEnum, illegal"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 299,
+      "target": "scripts/review.py",
+      "context": "> verdicts unrepresentable); `scripts/review.py` (REPL: unverdicted-novel queue, cited chunks"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 312,
+      "target": "core/complex/manifest.py",
+      "context": "> **Task.** `config/tuning.toml` + `core/complex/manifest.py` (typed, ranged; includes `clusterer`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 313,
+      "target": "scripts/tune.py",
+      "context": "> and `g_scaling` enums); `scripts/tune.py` (`show/set/history/--revert`, range-validated, attested"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 324,
+      "target": "eval/drift.py",
+      "context": "> **Context.** The evidence layer. Read: this note §5; `eval/drift.py` (A1); F4/F9 notes; the"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 326,
+      "target": "eval/longitudinal.py",
+      "context": "> **Task.** `eval/longitudinal.py` (precision@review, novelty/duplication, grounding-defect rate,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/live-adoption-and-longitudinal-harness.md",
+      "source_line": 329,
+      "target": "scripts/curves.py",
+      "context": "> tests to `longitudinal/`; `scripts/curves.py` (sparklines + static local HTML into `data/reports/`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/observed-iot-and-cross-source-synthesis.md",
+      "source_line": 67,
+      "target": "core/stores/telemetry.py",
+      "context": "The `sensor_readings` table in `core/stores/telemetry.py` (DuckDB) is already in the"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/observed-iot-and-cross-source-synthesis.md",
+      "source_line": 97,
+      "target": "core/ingest/biometric.py",
+      "context": "The normalizer lives in `edge/` or a dedicated `core/ingest/biometric.py` — it"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/observed-stratum-spike.md",
+      "source_line": 97,
+      "target": "core/stores/telemetry.py",
+      "context": "**D3 — unverified references.** The bare `§14` / `§15` / `§16` section references inherited from `ob"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/recursive-dreaming-bounded-by-grounding.md",
+      "source_line": 42,
+      "target": "core/selfcheck.py",
+      "context": "true). Extend `core/selfcheck.py`: the citation chain **cannot loop within INTERPRETED** — it"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/recursive-strata-amendment.md",
+      "source_line": 50,
+      "target": "core/stores/edges.py",
+      "context": "introduced in ingest-identity, *built as `SUPERSEDES` in `core/stores/edges.py`*."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/recursive-strata-amendment.md",
+      "source_line": 51,
+      "target": "core/stores/edges.py",
+      "context": "That is now **stale**: Item 6 **dropped** `SUPERSEDES` from `core/stores/edges.py`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/recursive-strata-amendment.md",
+      "source_line": 53,
+      "target": "core/stores/versions.py",
+      "context": "store (`core/stores/versions.py`), keyed on `(doc_id, version_seq)`. Replace the"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/recursive-strata-amendment.md",
+      "source_line": 58,
+      "target": "core/stores/versions.py",
+      "context": "> (`core/stores/versions.py`, Item 6; `SUPERSEDES` was removed from"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/recursive-strata-amendment.md",
+      "source_line": 59,
+      "target": "core/stores/edges.py",
+      "context": "> `core/stores/edges.py`) and claim-level `supersede` in the claim-op store"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/recursive-strata-amendment.md",
+      "source_line": 60,
+      "target": "core/recursion_ops.py",
+      "context": "> (`core/recursion_ops.py`, Item 2b). Both are dispositional and excluded from the"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/recursive-strata-amendment.md",
+      "source_line": 67,
+      "target": "strata.edge_budget",
+      "context": "The typed `strata.edge_budget` (grounding / lateral / cross-stratum) governs"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/recursive-strata.md",
+      "source_line": 36,
+      "target": "core/recursion.py",
+      "context": "> **Cross-ref (ingest operations):** `design-notes/dialogue-ingest-and-recursion.md` is the concrete"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/recursive-strata.md",
+      "source_line": 58,
+      "target": "core/stores/edges.py",
+      "context": "> **Cross-ref (identity & amendment):** `design-notes/ingest-identity-and-amendment.md` gives the st"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/recursive-strata.md",
+      "source_line": 66,
+      "target": "strata.node_budget",
+      "context": "- `strata.node_budget` — maximum derived nodes proposed per cycle, expressed relative to the grounde"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/recursive-strata.md",
+      "source_line": 67,
+      "target": "strata.edge_budget",
+      "context": "- `strata.edge_budget` — typed, because the three edge kinds carry different risk. Grounding edges ("
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/recursive-strata.md",
+      "source_line": 77,
+      "target": "strata.layer_weight",
+      "context": "- `strata.layer_weight` — bounded above per I3; default 0."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/recursive-strata.md",
+      "source_line": 78,
+      "target": "strata.decay_rate",
+      "context": "- `strata.decay_rate` — temporal decay of unrenewed derived weights."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/recursive-strata.md",
+      "source_line": 79,
+      "target": "strata.max_depth",
+      "context": "- `strata.max_depth` — hard ceiling on stratum depth admitted to the operator; small (2–3) at first "
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/recursive-strata.md",
+      "source_line": 80,
+      "target": "strata.promotion_step",
+      "context": "- `strata.promotion_step` — weight increment per promote verdict."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/recursive-strata.md",
+      "source_line": 81,
+      "target": "strata.node_budget",
+      "context": "- `strata.node_budget` — per-cycle ceiling on derived-node proposals, relative to grounded count; ov"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/recursive-strata.md",
+      "source_line": 82,
+      "target": "strata.edge_budget",
+      "context": "- `strata.edge_budget` — per-cycle ceiling on derived-edge proposals, typed {grounding: unbudgeted/c"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/roadmap-and-future-directions.md",
+      "source_line": 254,
+      "target": "core.sealing",
+      "context": "`core.sealing`) or routed via edge — **never silent** (the builder's Phase-1 flag stands)."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/secrets-management-evolution.md",
+      "source_line": 101,
+      "target": "config/loader.py",
+      "context": "`config/loader.py` `get_secret()` is already an abstraction. Adding a Vault backend"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/secrets-management-evolution.md",
+      "source_line": 149,
+      "target": "config/loader.py",
+      "context": "6. Implement `VaultBackend` in `config/loader.py` behind the existing `get_secret()`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/secrets-management-evolution.md",
+      "source_line": 151,
+      "target": "ops/import_lint.py",
+      "context": "7. Update `ops/import_lint.py` — the Vault client (`hvac`) is an `edge/` dependency;"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/skill-mining-pipeline.md",
+      "source_line": 34,
+      "target": "ops/effect_catalog.py",
+      "context": "the whole pipeline is one reviewed `CatalogEntry` in `ops/effect_catalog.py` plus its property"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/skill-mining-pipeline.md",
+      "source_line": 48,
+      "target": "ops/effect_catalog.py",
+      "context": "Build a native `ActuatorSpec` (`ops/effect_catalog.py`) with a **closed** `param_keys` allowlist"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/skill-mining-pipeline.md",
+      "source_line": 57,
+      "target": "ops/effects.py",
+      "context": "Place the hand in a `ReversibilityClass` (`ops/effects.py`): `SENSING` (β = 0, read-only),"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/skill-mining-pipeline.md",
+      "source_line": 74,
+      "target": "spec.scope",
+      "context": "> **Output:** `spec.scope`. No secret appears anywhere in the catalog or the effect types."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/skill-mining-pipeline.md",
+      "source_line": 77,
+      "target": "CatalogEntry.sandbox_profile",
+      "context": "Name the §11 powerless exec profile the hand runs under (`CatalogEntry.sandbox_profile`): no"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/skill-mining-pipeline.md",
+      "source_line": 91,
+      "target": "ops/effect_ledger.py",
+      "context": "is auditable. The `EffectLedger` (`ops/effect_ledger.py`) walks the durable"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/skill-mining-pipeline.md",
+      "source_line": 101,
+      "target": "ops.effects.Effect.__post_init__",
+      "context": "covering w(β) (`ops.effects.Effect.__post_init__`);"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/skill-mining-pipeline.md",
+      "source_line": 104,
+      "target": "core/sensing.py",
+      "context": "enter a `MirrorView` (the firewall, `core/sensing.py`)."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/skill-mining-pipeline.md",
+      "source_line": 130,
+      "target": "ops/effect_catalog.py",
+      "context": "| 2 | `ActuatorSpec` (native re-implementation) | `ops/effect_catalog.py` |"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/skill-mining-pipeline.md",
+      "source_line": 131,
+      "target": "ops/effects.py",
+      "context": "| 3 | `ReversibilityClass` / `blast_radius` / `w(β)` | `ops/effects.py` |"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/skill-mining-pipeline.md",
+      "source_line": 132,
+      "target": "ops/effects.py",
+      "context": "| 4 | `ScopedCapability` (name, no secret); JIT mint | `ops/effects.py`, `ops/effect_exec.py` |"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/skill-mining-pipeline.md",
+      "source_line": 132,
+      "target": "ops/effect_exec.py",
+      "context": "| 4 | `ScopedCapability` (name, no secret); JIT mint | `ops/effects.py`, `ops/effect_exec.py` |"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/skill-mining-pipeline.md",
+      "source_line": 133,
+      "target": "CatalogEntry.sandbox_profile",
+      "context": "| 5 | sandbox profile reference | `CatalogEntry.sandbox_profile` |"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/skill-mining-pipeline.md",
+      "source_line": 134,
+      "target": "ops/effect_ledger.py",
+      "context": "| 6 | attested action record; durable lifecycle | `core/attestation/`, `ops/effect_ledger.py` |"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/skill-mining-pipeline.md",
+      "source_line": 135,
+      "target": "ops/effect_catalog.py",
+      "context": "| 7 | `CatalogEntry` + property tests | `ops/effect_catalog.py`, `tests/property/`, `tests/unit/` |"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/skills-and-scope.md",
+      "source_line": 42,
+      "target": "core/agent.py",
+      "context": "- **`core/agent.py`** — `Agent = {name, role_prompt, tier, server}`. **No tool scope, no"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/skills-and-scope.md",
+      "source_line": 52,
+      "target": "core/stores/telemetry.py",
+      "context": "- **`core/stores/telemetry.py`** — already implements scoped capability as"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/stability-adjudication.md",
+      "source_line": 20,
+      "target": "support.py",
+      "context": "completed interpreter panel (`support.py`, tension, temporal, loop v2 assembly must land first)"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/test-organization.md",
+      "source_line": 131,
+      "target": "conftest.py",
+      "context": "Apply markers at the directory level via `conftest.py` in each subdir, so every"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/test-organization.md",
+      "source_line": 189,
+      "target": "conftest.py",
+      "context": "1. Create the subdirectories + a `conftest.py` in each that applies its marker."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/the-edge-model.md",
+      "source_line": 162,
+      "target": "FoundingItem.supersedes",
+      "context": "of the founding manifest / an owner CLI (`FoundingItem.supersedes` is an owner-authored"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/the-edge-model.md",
+      "source_line": 163,
+      "target": "scripts/ingest_founding.py",
+      "context": "field, `scripts/ingest_founding.py`) — but it is **not intrinsic to the edge type**. A"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/the-edge-model.md",
+      "source_line": 166,
+      "target": "core/curator/curator.py",
+      "context": "`E_geom`, and the curator's near-duplicate finder (`core/curator/curator.py`) pairs"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/type-system-as-core-audit.md",
+      "source_line": 44,
+      "target": "ops/import_lint.py",
+      "context": "- **Displacing existing gates.** `ruff`, `ops/import_lint.py`, the F9 quality"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/type-system-as-core-audit.md",
+      "source_line": 152,
+      "target": "ops/import_lint.py",
+      "context": "This is precisely the promotion `ops/import_lint.py` already performs for I2:"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/type-system-as-core-audit.md",
+      "source_line": 177,
+      "target": "ops/import_lint.py",
+      "context": "**Zone interaction (V1a).** `ops/import_lint.py` establishes that `core/` may not"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/type-system-as-core-audit.md",
+      "source_line": 214,
+      "target": "core/provenance.py",
+      "context": "a Tier-2 config, wrapper modules, and — for B-3 only — `core/provenance.py`."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/type-system-as-core-audit.md",
+      "source_line": 223,
+      "target": "ops/import_lint.py",
+      "context": "Tier 2. Answerable by extending the AST walk in `ops/import_lint.py`."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/type-system-as-core-audit.md",
+      "source_line": 252,
+      "target": "core/provenance.py",
+      "context": "`core/provenance.py` per §2.4; measure churn."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/type-system-as-core-audit.md",
+      "source_line": 286,
+      "target": "ops/import_lint.py",
+      "context": "- `ops/import_lint.py` — AST import-graph firewall; module docstring states the"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/type-system-as-core-audit.md",
+      "source_line": 287,
+      "target": "tests/test_import_firewall.py",
+      "context": "static-tier promotion argument for I2; asserted in `tests/test_import_firewall.py`."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/vault-runtime-auth.md",
+      "source_line": 144,
+      "target": "config/loader.py",
+      "context": "**`config/loader.py` `get_secret()`:**"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/vault-runtime-auth.md",
+      "source_line": 204,
+      "target": "config/loader.py",
+      "context": "7. Implement `_vault_get()` in `config/loader.py` via `hvac`."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/vault-runtime-auth.md",
+      "source_line": 206,
+      "target": "ops/import_lint.py",
+      "context": "9. Update `ops/import_lint.py`: `hvac` allowed in `config/`, `ops/`; blocked in"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/verdict-authority.md",
+      "source_line": 130,
+      "target": "core/stores/verdicts.py",
+      "context": "reasoning is original to this note. Built: `core/verdict/`, `core/stores/verdicts.py`."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 20,
+      "target": "core/sandbox/runner.py",
+      "context": "(`core/sandbox/runner.py`; `build_runner` has `wasm`/`routing` branches) — no longer the empty seam"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 22,
+      "target": "python.wasm",
+      "context": "WASI CPython (`python.wasm`) asset is placed, so `RoutingRunner` falls back to Podman and nothing"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 23,
+      "target": "python.wasm",
+      "context": "runs under WASM yet. Remaining before it is a live substrate: place/pin the `python.wasm` asset,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 32,
+      "target": "core/sandbox/policy.py",
+      "context": "(`core/sandbox/policy.py` `_isolation_flags`). That satisfies Invariant 4 today. The"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 66,
+      "target": "policy.py",
+      "context": "the existing stdin-pipe approach in `policy.py`'s `RUNTIMES[\"python\"]`); the runner pumps"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 80,
+      "target": "core/sandbox/runner.py",
+      "context": "No change to `core/sandbox/runner.py`'s `SandboxRunner` Protocol, `core/sandbox/spec.py`'s"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 80,
+      "target": "core/sandbox/spec.py",
+      "context": "No change to `core/sandbox/runner.py`'s `SandboxRunner` Protocol, `core/sandbox/spec.py`'s"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 81,
+      "target": "core/sandbox/broker.py",
+      "context": "`ExecSpec`/`ExecResult`/`Limits`/`Network`, or `core/sandbox/broker.py`'s `ExecutionBroker`."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 93,
+      "target": "Limits.memory",
+      "context": "`Limits` maps loosely: wasmtime has its own memory-pages cap (`Limits.memory` converts to a"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 97,
+      "target": "Limits.cpus",
+      "context": "`Limits.cpus` and `Limits.pids` have no WASM equivalent (no threads, no processes) — they"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 97,
+      "target": "Limits.pids",
+      "context": "`Limits.cpus` and `Limits.pids` have no WASM equivalent (no threads, no processes) — they"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 148,
+      "target": "policy.py",
+      "context": "- **`bash` and `node` runtimes** (`policy.py`'s other two `RUNTIMES` entries) — Pyodide is a"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 152,
+      "target": "Network.NONE",
+      "context": "- **Anything needing real wall-clock I/O, even loopback** — `Network.NONE` is the only mode"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 153,
+      "target": "core/sandbox/spec.py",
+      "context": "either substrate supports today (`core/sandbox/spec.py`); this is unaffected by adding"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 154,
+      "target": "policy.py",
+      "context": "WASM. A future scoped-network grant (already flagged in `policy.py`'s `_guard_network` as"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 164,
+      "target": "Limits.cpus",
+      "context": "`Limits.cpus`/`Limits.pids` become asserted no-ops under WASM, not new optional fields."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 164,
+      "target": "Limits.pids",
+      "context": "`Limits.cpus`/`Limits.pids` become asserted no-ops under WASM, not new optional fields."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 202,
+      "target": "core/ingest/watch.py",
+      "context": "optional deps (mirrors `watchdog`'s optional+lazy import pattern in `core/ingest/watch.py`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/design-notes/wasm-sandbox-runtime.md",
+      "source_line": 210,
+      "target": "policy.py",
+      "context": "5. Property tests mirroring `policy.py`'s existing pure-function isolation tests: assert the"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0003.md",
+      "source_line": 30,
+      "target": "_lib.py._changed_files",
+      "context": "check (b) — which lists **tracked modifications only**. `_lib.py._changed_files`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0003.md",
+      "source_line": 89,
+      "target": "_lib.py",
+      "context": "one-plan builder change to `_lib.py` (both (b) `-uall` breadth and (c) baseline-vs-HEAD)."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0003.md",
+      "source_line": 99,
+      "target": "_lib.py.cmd_stop_audit",
+      "context": "`bp-001` landed the mechanical consequence: `_lib.py.cmd_stop_audit` (c) now calls"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0004.md",
+      "source_line": 15,
+      "target": "_lib.py",
+      "context": "resolution: \"Owner chose option (a): gitignore `.claude/settings.local.json` (per-machine permission"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0004.md",
+      "source_line": 25,
+      "target": "_lib.py",
+      "context": "Two entries were appended this session — for the `_lib.py` import check and the"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0004.md",
+      "source_line": 51,
+      "target": "_lib.py.cmd_stop_audit",
+      "context": "`_lib.py.cmd_stop_audit`, parallel to how `.claude/state/**` is already gitignored"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0005.md",
+      "source_line": 66,
+      "target": "_lib.py",
+      "context": "opened; a one-plan `_lib.py` change. Recommended."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0005.md",
+      "source_line": 80,
+      "target": "_lib.py",
+      "context": "`_lib.py` (a one-session builder plan, no spec edit). If the owner wants the"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0005.md",
+      "source_line": 95,
+      "target": ".claude/hooks/_lib.py",
+      "context": "`bp-002` landed the mechanical consequence in `.claude/hooks/_lib.py`: `_untracked_under()`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0006.md",
+      "source_line": 28,
+      "target": "_lib.py",
+      "context": "The parser gap is general and load-bearing for enforcement. `_lib.py`'s `_scalar` (L171–175),"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0006.md",
+      "source_line": 75,
+      "target": "_lib.py",
+      "context": "(not every scalar) to avoid touching fields where `#` may be legitimate. A one-plan `_lib.py`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0009.md",
+      "source_line": 19,
+      "target": "_lib.py",
+      "context": "> **Triage 2026-07-08 (/triage):** routed → orchestrator. Design-changing spec-defect → **promotion "
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0010.md",
+      "source_line": 31,
+      "target": "core/verdict/payload.py",
+      "context": "- `verdict-authority.md` (\"DRAFT\") — BUILT & WIRED: `core/verdict/payload.py`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0010.md",
+      "source_line": 32,
+      "target": "core/stores/verdicts.py",
+      "context": "`core/stores/verdicts.py`, `core/verdict/apply.py`, live via `scripts/verdict.py`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0010.md",
+      "source_line": 32,
+      "target": "core/verdict/apply.py",
+      "context": "`core/stores/verdicts.py`, `core/verdict/apply.py`, live via `scripts/verdict.py`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0010.md",
+      "source_line": 32,
+      "target": "scripts/verdict.py",
+      "context": "`core/stores/verdicts.py`, `core/verdict/apply.py`, live via `scripts/verdict.py`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0010.md",
+      "source_line": 33,
+      "target": "agents/ambassador/__init__.py:88",
+      "context": "and the Ambassador verdict-receiver (`agents/ambassador/__init__.py:88`)."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0010.md",
+      "source_line": 34,
+      "target": "config/secrets_backend.py",
+      "context": "- `vault-runtime-auth.md` (\"design only\") — built + tested (`config/secrets_backend.py`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0010.md",
+      "source_line": 37,
+      "target": "core/factory/roles.py",
+      "context": "tested (`core/factory/roles.py`, `core/factory/tools.py`)."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0010.md",
+      "source_line": 37,
+      "target": "core/factory/tools.py",
+      "context": "tested (`core/factory/roles.py`, `core/factory/tools.py`)."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0011.md",
+      "source_line": 26,
+      "target": "scripts/palace.py",
+      "context": "effector module, sensing included**: a grep of `scripts/palace.py`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0011.md",
+      "source_line": 27,
+      "target": "ops/lifecycle/launcher.py",
+      "context": "`ops/lifecycle/launcher.py` (`build_components`/`build_launcher`),"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0011.md",
+      "source_line": 32,
+      "target": "ops/effects.py:184",
+      "context": "argument of the `EffectView` type (`ops/effects.py:184`); nothing live constructs an"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0012.md",
+      "source_line": 26,
+      "target": "core/recursion_ops.py",
+      "context": "`core/recursion_ops.py` (`apply_operations`, `Supersede`/`AttachDefeater`/"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0012.md",
+      "source_line": 27,
+      "target": "tests/integration/test_dialogue_ops.py",
+      "context": "`RecordWarrant`, `ClaimOpStore`) exists and is tested (`tests/integration/test_dialogue_ops.py`)"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0012.md",
+      "source_line": 30,
+      "target": "DialogueCapture.capture",
+      "context": "(`DialogueCapture.capture`, `core/ingest/dialogue.py:60-64`) only stores the"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0012.md",
+      "source_line": 35,
+      "target": "core/stores/versions.py",
+      "context": "- **Retrieval demotion**: `core/stores/versions.py` (VersionStore) and"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0012.md",
+      "source_line": 36,
+      "target": "core/stores/authored_supersession.py",
+      "context": "`core/stores/authored_supersession.py` are write-only in the live system —"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0012.md",
+      "source_line": 37,
+      "target": "core/ingest/sync.py:111",
+      "context": "`core/ingest/sync.py:111` writes versions and `scripts/ingest_founding.py` writes"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0012.md",
+      "source_line": 37,
+      "target": "scripts/ingest_founding.py",
+      "context": "`core/ingest/sync.py:111` writes versions and `scripts/ingest_founding.py` writes"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0013.md",
+      "source_line": 34,
+      "target": "core/stores/edges.py",
+      "context": "as \"built as `SUPERSEDES`, `core/stores/edges.py`\". The `SUPERSEDES` rel-type was"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0013.md",
+      "source_line": 35,
+      "target": "core/stores/edges.py:33",
+      "context": "**removed** (`core/stores/edges.py:33` \"Do not re-add\"). This is exactly the"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0013.md",
+      "source_line": 38,
+      "target": "core/complex/build.py:149",
+      "context": "(lines 343, 525) and `core/complex/build.py:149` say the `EdgeStore`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0013.md",
+      "source_line": 45,
+      "target": "core/stores/versions.py",
+      "context": "declares \"Item 6 PLANNING ONLY / nothing implemented,\" but `core/stores/versions.py`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0013.md",
+      "source_line": 46,
+      "target": "core/ingest/sync.py:111",
+      "context": "exists and is wired (`core/ingest/sync.py:111`); `edges.py:30-33,122` and the"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0013.md",
+      "source_line": 49,
+      "target": "core/provenance.py:54",
+      "context": "reservation was \"undone; the enum has no such label,\" but `core/provenance.py:54`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0014.md",
+      "source_line": 25,
+      "target": "ops/import_lint.py",
+      "context": "the network, never the vault) is enforced structurally by `ops/import_lint.py`, but"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0014.md",
+      "source_line": 30,
+      "target": "core/sealing.py",
+      "context": "outside a 2-file allowlist (`:54-57` = `core/sealing.py`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0014.md",
+      "source_line": 31,
+      "target": "core/models/ollama_client.py",
+      "context": "`core/models/ollama_client.py`). Enforced as a test"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0014.md",
+      "source_line": 38,
+      "target": "scripts/monitor.py:9",
+      "context": "`scripts/monitor.py:9` only *documents* (does not lint) that the monitor never"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0015.md",
+      "source_line": 24,
+      "target": "eval/drift.py:133",
+      "context": "the gauge is fully built and tested — `eval/drift.py:133` `drift()`, `:210`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0015.md",
+      "source_line": 26,
+      "target": "tests/unit/test_drift.py",
+      "context": "`tests/unit/test_drift.py`, `tests/property/test_drift_property.py`. But its live"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0015.md",
+      "source_line": 26,
+      "target": "tests/property/test_drift_property.py",
+      "context": "`tests/unit/test_drift.py`, `tests/property/test_drift_property.py`. But its live"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0015.md",
+      "source_line": 33,
+      "target": "ops/lifecycle/launcher.py:192",
+      "context": "`ops/lifecycle/launcher.py:192`) — a hard equality check on one file, not the"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0015.md",
+      "source_line": 35,
+      "target": "core/complex/cut.py:111",
+      "context": "- **A2 structural detection** (`core/complex/cut.py:111` `alignment_snapshot`) is"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0015.md",
+      "source_line": 36,
+      "target": "tests/unit/test_drift.py",
+      "context": "called only from `tests/unit/test_drift.py`; the alignment report, the surgery loop"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0015.md",
+      "source_line": 39,
+      "target": "core/ops_view.py:109",
+      "context": "- **The OpsView drift-narration seam is dead** — `core/ops_view.py:109` can narrate a"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0015.md",
+      "source_line": 40,
+      "target": "scripts/talk.py",
+      "context": "drift value, but every live caller passes `drift=None` (`scripts/talk.py`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0015.md",
+      "source_line": 41,
+      "target": "scheduler/interface.py",
+      "context": "`scheduler/interface.py`)."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0016.md",
+      "source_line": 28,
+      "target": "scripts/sandbox.py",
+      "context": "`scripts/sandbox.py` CLI (`:53`); `ops/lifecycle/launcher.py build_components`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0016.md",
+      "source_line": 30,
+      "target": "MintedAgent.mint",
+      "context": "- **Agent factory.** `core/factory/build_factory` / `MintedAgent.mint` are never"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0016.md",
+      "source_line": 33,
+      "target": "RoleTemplate.skills",
+      "context": "- **Instructional-skill half is a dead field.** `RoleTemplate.skills`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0016.md",
+      "source_line": 34,
+      "target": "core/factory/roles.py:27",
+      "context": "(`core/factory/roles.py:27`) has zero consumers, and `MintedAgent.build_context`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0016.md",
+      "source_line": 34,
+      "target": "MintedAgent.build_context",
+      "context": "(`core/factory/roles.py:27`) has zero consumers, and `MintedAgent.build_context`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0016.md",
+      "source_line": 43,
+      "target": "tests/e2e/test_ollama_live.py",
+      "context": "caller (only `tests/e2e/test_ollama_live.py`); the live seal comes from per-script"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0016.md",
+      "source_line": 56,
+      "target": "python.wasm",
+      "context": "owner-placed `python.wasm`."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0017.md",
+      "source_line": 27,
+      "target": "core/complex/topology.py",
+      "context": "any note or code. Its \"topology\" framing collides in name with `core/complex/topology.py`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0017.md",
+      "source_line": 29,
+      "target": "topology.py:59",
+      "context": "(`topology.py:59`), not planar-graph drawing. Separately, both research surveys"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0018.md",
+      "source_line": 35,
+      "target": "core/dreaming/interpreters.py:249",
+      "context": "(`core/dreaming/interpreters.py:249`) is reachable only from the flag-off"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0018.md",
+      "source_line": 37,
+      "target": "scheduler/cron.py:33",
+      "context": "(`scheduler/cron.py:33`). The verification downgrades it to PRESENT-BUT-NOT-WIRED."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0019.md",
+      "source_line": 27,
+      "target": "core/research/airlock.py",
+      "context": "- **Core (Zone A):** `core/research/airlock.py` (`ResearchAirlock.emit/collect`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0019.md",
+      "source_line": 28,
+      "target": "core/research/criteria.py",
+      "context": "`build_airlock`), `core/research/criteria.py` (`deidentify`, `assert_clean`,"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0019.md",
+      "source_line": 29,
+      "target": "core/research/rank.py",
+      "context": "`to_request` — the de-identification firewall), `core/research/rank.py`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0019.md",
+      "source_line": 32,
+      "target": "edge/bridge/bridge.py",
+      "context": "- **Bridge (Zone B):** `edge/bridge/bridge.py` (`ResearchBridge.push_requests/"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0019.md",
+      "source_line": 33,
+      "target": "edge/bridge/protocol.py",
+      "context": "pull_results/sync_once`, `build_bridge`), `edge/bridge/protocol.py`."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0019.md",
+      "source_line": 37,
+      "target": "vault_engine.tf",
+      "context": "IAM, `vault_engine.tf` (Vault AWS dynamic secrets engine), `backups/kms.tf`."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0019.md",
+      "source_line": 40,
+      "target": "tests/adversarial/test_pii_scrubber.py",
+      "context": "test_research_criteria}.py`, `tests/adversarial/test_pii_scrubber.py`."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0019.md",
+      "source_line": 46,
+      "target": "scheduler/router.py:31",
+      "context": "not airlock emits); the `\"research\"` router-kind (`scheduler/router.py:31`) has no"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0019.md",
+      "source_line": 50,
+      "target": "dreamer.hcl",
+      "context": "**Related — IaC-ahead-of-code:** `ops/vault/policies/correlator.hcl` (+ `dreamer.hcl`)"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0025.md",
+      "source_line": 21,
+      "target": "_lib.py",
+      "context": "> to `promoted` on acceptance, then a builder lands the `_lib.py` change per §Disposition."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0025.md",
+      "source_line": 40,
+      "target": "_lib.py",
+      "context": "owner-only), reusing the front-matter-status machinery already present in `_lib.py`."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0025.md",
+      "source_line": 42,
+      "target": ".claude/hooks/_lib.py",
+      "context": "This finding was drafted against a full read of `.claude/hooks/_lib.py` (current at"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0025.md",
+      "source_line": 70,
+      "target": "_lib.py",
+      "context": "denylist's real rationale (`_lib.py` DENYLIST comment: \"the sacred fixed points…"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0025.md",
+      "source_line": 86,
+      "target": "_lib.py",
+      "context": "**status**, and the helpers to do so already exist in `_lib.py`:"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0025.md",
+      "source_line": 103,
+      "target": "eval/golden.py",
+      "context": "`CONSTITUTION.md`, `eval/golden/**`, and `eval/golden.py` stay on the hard denylist"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0025.md",
+      "source_line": 132,
+      "target": "_lib.py",
+      "context": "Where it goes (implementer to confirm against live `_lib.py`): the design-notes"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0025.md",
+      "source_line": 236,
+      "target": "_lib.py",
+      "context": "4. Is implemented by a build plan whose grounded pass re-confirms every `_lib.py`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0025.md",
+      "source_line": 252,
+      "target": "_lib.py",
+      "context": "- Re-confirm all `_lib.py` function names, call sites, and section numbers against"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0026.md",
+      "source_line": 40,
+      "target": "mypy.ini",
+      "context": "matches. There is no `mypy.ini`, `.mypy.ini`, or `setup.cfg`."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0026.md",
+      "source_line": 40,
+      "target": "setup.cfg",
+      "context": "matches. There is no `mypy.ini`, `.mypy.ini`, or `setup.cfg`."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0026.md",
+      "source_line": 44,
+      "target": "ops/import_lint.py",
+      "context": "- Static analysis *does* exist and is wired: `ops/import_lint.py` is an"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0026.md",
+      "source_line": 45,
+      "target": "tests/test_import_firewall.py",
+      "context": "AST-based import-graph firewall, asserted in `tests/test_import_firewall.py`."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0027.md",
+      "source_line": 24,
+      "target": "core/complex/balance.py",
+      "context": "One near-miss worth naming: `core/complex/balance.py` reused numpy loop variables as"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0028.md",
+      "source_line": 23,
+      "target": "core/provenance.py",
+      "context": "`core/provenance.py`) and measured adoption churn on the real introspective read"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0028.md",
+      "source_line": 35,
+      "target": "graph.py",
+      "context": "fixtures. Three consumer files (`graph.py`, `interpreters.py`, `curator.py`)"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0028.md",
+      "source_line": 35,
+      "target": "interpreters.py",
+      "context": "fixtures. Three consumer files (`graph.py`, `interpreters.py`, `curator.py`)"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0028.md",
+      "source_line": 35,
+      "target": "curator.py",
+      "context": "fixtures. Three consumer files (`graph.py`, `interpreters.py`, `curator.py`)"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0028.md",
+      "source_line": 39,
+      "target": "tests/unit/test_complex.py:114",
+      "context": "- **A real accidental-violation caught:** `tests/unit/test_complex.py:114` fed"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0028.md",
+      "source_line": 46,
+      "target": "fixtures.corpus",
+      "context": "unresolvable `fixtures.corpus` import) and surfaced only at runtime. The"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0028.md",
+      "source_line": 69,
+      "target": "fixtures.corpus",
+      "context": "the `fixtures.corpus` import for mypy)."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0028.md",
+      "source_line": 72,
+      "target": "core/stores/verdicts.py",
+      "context": "with `core/verdict/` + `core/stores/verdicts.py`; does a verdict name its"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0028.md",
+      "source_line": 87,
+      "target": "core/provenance.py",
+      "context": "needed). Nothing here blocks other work — `core/provenance.py`'s tags + stub are"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0029.md",
+      "source_line": 33,
+      "target": "eval/drift.py",
+      "context": "`core/sandbox/*.py: WasmRunner`/`PodmanRunner`, and `eval/drift.py`-adjacent"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0029.md",
+      "source_line": 46,
+      "target": "agents/ambassador/agent.py",
+      "context": "`agents/ambassador/agent.py`'s `Ambassador.server` field: it was `object` with a"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0029.md",
+      "source_line": 46,
+      "target": "Ambassador.server",
+      "context": "`agents/ambassador/agent.py`'s `Ambassador.server` field: it was `object` with a"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0029.md",
+      "source_line": 48,
+      "target": "tests/integration/test_librarian.py",
+      "context": "Protocol precisely because `tests/integration/test_librarian.py`'s `FakeServer` doesn't"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0029.md",
+      "source_line": 86,
+      "target": "tests/integrity/test_ops_view.py",
+      "context": "None` param rejects `tests/integrity/test_ops_view.py`'s `_FakeDrift`, which provides"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0029.md",
+      "source_line": 93,
+      "target": "agents/ambassador/agent.py",
+      "context": "precedent, `agents/ambassador/agent.py`), narrowed to only the methods actually called"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0029.md",
+      "source_line": 94,
+      "target": "ops/lifecycle/launcher.py",
+      "context": "through that parameter (per this session's `ops/lifecycle/launcher.py` lesson: a"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0030.md",
+      "source_line": 71,
+      "target": "core/complex/topology.py",
+      "context": "A build plan (or the owner, direct) with `core/complex/topology.py` and/or `tests/"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0030.md",
+      "source_line": 91,
+      "target": "core/complex/topology.py",
+      "context": "bp-007's own gate green; re-entry is for whoever next owns `core/complex/topology.py` or"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/findings/finding-0031.md",
+      "source_line": 28,
+      "target": "_lib.py",
+      "context": "state\", `_lib.py` docstring) holds for the file layout but not for the env resolution."
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "symbol-mention",
+      "source_file": "docs/findings/finding-0033.md",
+      "source_line": 28,
+      "target": "os.path.relpath",
+      "context": "though the tool call's own absolute file path was under the worktree. `os.path.relpath`"
+    },
+    {
+      "direction": "corpus_to_code",
+      "pattern": "path-mention",
+      "source_file": "docs/brainstorms/code-as-sensor-stream.md",
+      "source_line": 5,
+      "target": "ops/code_snapshot.py",
+      "context": "code-snapshot tool landed (`ops/code_snapshot.py`, commit `01e34e9`). Restructured"
+    }
+  ]
+}
