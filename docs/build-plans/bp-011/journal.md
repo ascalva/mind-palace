@@ -275,3 +275,15 @@ un-blessing.
 json.load(...)"` — see Acceptance run below); this journal carries counts + precision +
 the explicit verdict (above). Falsifier (V4, plan-pinned) addressed with data, not
 assumption.
+
+## 2026-07-11 — coordinator note: runner-budget, no push
+
+Coordinator relayed an owner-surfaced runner-budget alert (~55/400 shared-runner minutes
+left; `workflow.rules: when: always` means any push burns minutes) — instruction: do NOT
+`git push` this worktree branch to origin; commit locally only, orchestrator merges.
+Confirmed: no push was made at any point this session (`git reflog show --all` shows the
+last `origin/main` push predates this session's start; this branch
+`worktree-agent-acfad7293163d7c6f` has no remote tracking branch). All acceptance this
+session was local (`uv run pytest/ruff/mypy`) and Item 2 is read-only by design — no
+CI-triggering action was ever needed. No change in approach required; noting for the
+record per the fresh-agent test.
