@@ -65,12 +65,52 @@ same sweep (they are now baseline errors under the adopted floor, not a separate
 (e.g. `CompletedProcess[str]`, `dict[str, int]`) where the call site makes the shape obvious
 without guessing.
 
-**Acceptance evidence (Item 5):** journal table above; `pyproject.toml` floor comment to be
-updated in the same commit as the override (next action).
+**Acceptance evidence (Item 5):** journal table above; `pyproject.toml` floor comment
+updated in the same commit as the override. Commit `6db461b`.
 
-**Next action:** commit the `pyproject.toml` floor + edge/config override change first (small,
-isolated, config-only), re-measure the true post-floor baseline for Items 6–7, then start
-Item 6 (ops/scheduler/agents/scripts/eval) package by package, smallest first.
+**True post-floor baseline for Items 6–7** (`uv run --extra dev mypy`, both config changes
+applied): **337 errors total** in 90 files (322 checked) — tests 243, ops 74, agents 16,
+scheduler 10, scripts 0, eval 1 (`edge`/`config` no longer surface, per the override).
+
+---
+
+## Entry — 2026-07-11 — Item 6 in progress: eval + scheduler green (16 → 0 combined)
+
+**eval/golden.py (1 → 0).** `Retriever = Callable[[str, int], Sequence[dict]]` → `Sequence[dict[str,
+Any]]` — the docstring already names the open shape (`{"title": ..., optionally "_distance":
+...}`), so `dict[str, Any]` is the correct open-payload convention (bp-006), not a TypedDict
+(no fixed key set is promised — only a minimum).
+
+**scheduler/queue.py (T2/T3, 1 error).** `JobQueue.enqueue` called `self.get(int(cur.lastrowid))`
+where `cur.lastrowid: int | None` per the sqlite3 stubs. Read the call site: `lastrowid` is
+populated by sqlite3 after any successful `INSERT` into a rowid table (this table has no
+`WITHOUT ROWID`) — same shape as bp-006's duckdb `fetchone()` count(*) family ("None
+unreachable; narrow"). Replaced the unsound `int(...)` call (which would raise a
+different, more confusing exception than an assert if the stub's `None` were ever real) with
+`assert cur.lastrowid is not None` + comment, then pass the narrowed `int` straight through.
+
+**scheduler/vault_sync.py + scheduler/interface.py (9 errors, the `config: object | None`
+family).** Same T2 family bp-006 closed in `core/` — fixed identically: `Config` imported
+directly from `config.loader` (both files already depend on `config` transitively; no import
+cycle — `config.loader` does not import `scheduler`), `config: object | None` → `config:
+Config | None` at both call sites (`build_vault_watcher`, `build_conversation_runtime`).
+`vault_sync.py`'s `on_change` lambda was also a genuine T2: `VaultWatcher.on_change` (core,
+sealed) declares `Callable[[], None]`, but the lambda `lambda: enqueue_vault_sync(queue,
+router)` returns `Job` — Python discards it at runtime (no behavior change) but the type
+was dishonest. Replaced the lambda with a named `_on_change() -> None` that calls
+`enqueue_vault_sync` for effect and returns nothing — the annotation now says what the code
+actually guarantees.
+
+**Verification:** `uv run mypy scheduler/` → clean; repo-wide `uv run mypy | grep '^scheduler/'`
+→ empty (scheduler fully green, 10 → 0). `ruff check .` clean; pytest 743 passed / 4 skipped
+(no behavior change — all fixes were annotation-only or narrowed an unreachable-None call,
+consistent with Item 6's invariant). Commit `12c96f0`.
+
+**Per-item running state:** eval 1→0 ✓ done · scheduler 10→0 ✓ done · agents 16→? next ·
+ops 74→? next · scripts 0 (already clean, nothing to do) · tests 243 (Item 7, untouched so far).
+
+**Next action:** `agents/` (16 errors, mostly the same `config: object | None` family per
+the grep above — `agents/ambassador/__init__.py`), then `ops/` (74, the largest package).
 
 ---
 
