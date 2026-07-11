@@ -10,15 +10,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fixtures.attestation import attestor_with_store
-from fixtures.embedding import DIM, FakeEmbedder
-
 from core.attestation import Attestor
 from core.ingest.index import semantic_search
 from core.ingest.sync import SyncOutcome, VaultSync
-from core.stores.catalog import VaultCatalog
+from core.stores.catalog import CatalogEntry, VaultCatalog
 from core.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
+from tests.fixtures.attestation import attestor_with_store
+from tests.fixtures.embedding import DIM, FakeEmbedder
 
 
 def _sync(tmp_path: Path, *, attestor: Attestor | None = None) -> VaultSync:
@@ -40,6 +39,16 @@ def _write(sync: VaultSync, name: str, content: str) -> Path:
     return p
 
 
+def _entry(sync: VaultSync, path: str) -> CatalogEntry:
+    """`catalog.get(path)`, narrowed: every call site in this file looks up a path immediately
+    after `sync_path`/`rescan`/`handle_deleted` indexed or tombstoned it, so the row always
+    exists (`VaultCatalog.get`'s honest `CatalogEntry | None` return covers an arbitrary/unknown
+    path — a shape this test's own construction never produces)."""
+    entry = sync.catalog.get(path)
+    assert entry is not None, f"catalog has no entry for {path!r} — the test's own setup is broken"
+    return entry
+
+
 def _titles_for(sync: VaultSync, query: str) -> list[str]:
     return [r["title"] for r in semantic_search(query, sync.embedder, sync.store, k=5)]
 
@@ -48,13 +57,13 @@ def test_edit_updates_embeddings(tmp_path):
     sync = _sync(tmp_path)
     p = _write(sync, "note.md", "the original content about gardening")
     assert sync.sync_path(p) is SyncOutcome.INDEXED
-    d1 = sync.catalog.get(str(p)).digest
+    d1 = _entry(sync, str(p)).digest
     assert "note" in _titles_for(sync, "the original content about gardening")
 
     # Edit the note → re-embed; the old digest's rows are dropped.
     p.write_text("a completely different topic: astrophysics", encoding="utf-8")
     assert sync.sync_path(p) is SyncOutcome.INDEXED
-    d2 = sync.catalog.get(str(p)).digest
+    d2 = _entry(sync, str(p)).digest
     assert d2 != d1
     # New content is searchable; the old content's rows are gone.
     assert sync.store.all_rows() and all(r["digest"] != d1 for r in sync.store.all_rows())
@@ -82,14 +91,14 @@ def test_delete_stops_surfacing_but_keeps_raw(tmp_path):
     sync = _sync(tmp_path)
     p = _write(sync, "secret.md", "a memorable unique phrase xyzzy")
     sync.sync_path(p)
-    digest = sync.catalog.get(str(p)).digest
+    digest = _entry(sync, str(p)).digest
     assert "secret" in _titles_for(sync, "a memorable unique phrase xyzzy")
 
     p.unlink()
     assert sync.handle_deleted(str(p)) is SyncOutcome.TOMBSTONED
     # Stops surfacing in search; catalog entry inactive; derived rows gone.
     assert "secret" not in _titles_for(sync, "a memorable unique phrase xyzzy")
-    assert sync.catalog.get(str(p)).active is False
+    assert _entry(sync, str(p)).active is False
     assert all(r["digest"] != digest for r in sync.store.all_rows())
     # Raw kept (tombstone, not purge).
     assert sync.raw.exists(digest)
@@ -118,8 +127,8 @@ def test_dedup_shared_content_not_dropped_until_last_ref(tmp_path):
     b = _write(sync, "b.md", "identical twins content")
     sync.sync_path(a)
     sync.sync_path(b)
-    digest = sync.catalog.get(str(a)).digest
-    assert sync.catalog.get(str(b)).digest == digest      # same content, same digest
+    digest = _entry(sync, str(a)).digest
+    assert _entry(sync, str(b)).digest == digest      # same content, same digest
     assert sync.catalog.active_refs(digest) == 2
 
     # Deleting one copy must NOT drop the shared derived rows.
@@ -139,7 +148,7 @@ def test_indexed_emits_a_leaf_ingest_attestation(tmp_path):
     sync = _sync(tmp_path, attestor=attestor)
     p = _write(sync, "note.md", "an attested note about beekeeping")
     assert sync.sync_path(p) is SyncOutcome.INDEXED
-    digest = sync.catalog.get(str(p)).digest
+    digest = _entry(sync, str(p)).digest
 
     atts = att_store.by_role("vault_watcher")
     assert len(atts) == 1
@@ -167,15 +176,15 @@ def test_readd_after_tombstone_reactivates(tmp_path):
     sync = _sync(tmp_path)
     p = _write(sync, "n.md", "content that comes and goes")
     sync.sync_path(p)
-    digest = sync.catalog.get(str(p)).digest
+    digest = _entry(sync, str(p)).digest
     p.unlink()
     sync.handle_deleted(str(p))
-    assert sync.catalog.get(str(p)).active is False
+    assert _entry(sync, str(p)).active is False
 
     # Re-adding identical content dedups at raw and reactivates the catalog entry.
     _write(sync, "n.md", "content that comes and goes")
     assert sync.sync_path(p) is SyncOutcome.INDEXED
-    entry = sync.catalog.get(str(p))
+    entry = _entry(sync, str(p))
     assert entry.active is True
     assert entry.digest == digest
     assert "n" in _titles_for(sync, "content that comes and goes")

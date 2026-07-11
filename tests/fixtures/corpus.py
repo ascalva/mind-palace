@@ -8,9 +8,10 @@ disk for the ingest pipeline. Both are reproducible: same args -> same bytes.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 
-def vector_rows(specs: list[tuple[str, str, list[float]]]) -> list[dict]:
+def vector_rows(specs: list[tuple[str, str, list[float]]]) -> list[dict[str, Any]]:
     """Build chunk rows from ``(digest, title, vector)`` triples.
 
     A single text per row is enough for clustering (it averages vectors per digest).

@@ -37,8 +37,10 @@ def test_versions_are_per_document(tmp_path):
     vs = VersionStore(tmp_path / "versions.sqlite")
     vs.record("a.md", "d1")
     vs.record("b.md", "d1")              # same content, different doc → each its own seq-1 chain
-    assert vs.current("a.md").version_seq == 1
-    assert vs.current("b.md").version_seq == 1
+    a_current, b_current = vs.current("a.md"), vs.current("b.md")
+    assert a_current is not None and b_current is not None   # just recorded, for these exact ids
+    assert a_current.version_seq == 1
+    assert b_current.version_seq == 1
 
 
 def test_store_is_append_only(tmp_path):

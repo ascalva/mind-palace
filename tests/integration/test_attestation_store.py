@@ -13,11 +13,23 @@ def _store(tmp_path):
     return AttestationStore(tmp_path / "att.sqlite")
 
 
-def _att(**kw) -> Attestation:
-    base = dict(timestamp="2026-06-27T00:00:00", agent_role="dreamer", action="dream_pass",
-                constitution_fingerprint="F", input_hashes=["a"], output_hashes=["o"])
-    base.update(kw)
-    return Attestation.create(**base)
+def _att(
+    *,
+    agent_role: str = "dreamer",
+    action: str = "dream_pass",
+    input_hashes: list[str] | None = None,
+    output_hashes: list[str] | None = None,
+    derived_from_ids: list[str] | None = None,
+    vault_token_accessor: str = "",
+) -> Attestation:
+    return Attestation.create(
+        timestamp="2026-06-27T00:00:00", agent_role=agent_role, action=action,
+        constitution_fingerprint="F",
+        input_hashes=input_hashes if input_hashes is not None else ["a"],
+        output_hashes=output_hashes if output_hashes is not None else ["o"],
+        derived_from_ids=derived_from_ids if derived_from_ids is not None else [],
+        vault_token_accessor=vault_token_accessor,
+    )
 
 
 def test_append_and_get_roundtrip(tmp_path):

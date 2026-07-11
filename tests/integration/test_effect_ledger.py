@@ -103,5 +103,6 @@ def test_pending_and_attestation_link(tmp_path):
     lg.propose("calendar_hold", ReversibilityClass.REVERSIBLE)
     assert {r.actuator for r in lg.pending()} == {"draft_reply", "calendar_hold"}
     lg.attach_attestation(a.id, "att-123")
-    assert lg.get(a.id).attestation_id == "att-123"
+    rec = lg.get(a.id)
+    assert rec is not None and rec.attestation_id == "att-123"   # just proposed this exact id
     lg.close()

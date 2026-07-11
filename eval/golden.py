@@ -19,6 +19,7 @@ import json
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from eval.metrics import mean_cosine_distance, recall_at_k, set_overlap
 
@@ -28,7 +29,7 @@ GOLDEN_SET_PATH = GOLDEN_DIR / "golden_set.json"
 BASELINE_PATH = GOLDEN_DIR / "baseline.json"
 
 # (query, k) -> retrieved rows (each at least {"title": ..., optionally "_distance": ...})
-Retriever = Callable[[str, int], Sequence[dict]]
+Retriever = Callable[[str, int], Sequence[dict[str, Any]]]
 
 
 @dataclass(frozen=True)

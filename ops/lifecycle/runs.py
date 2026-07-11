@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from config.loader import Config
+
 _DDL = """
 CREATE TABLE IF NOT EXISTS runs (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,7 +106,8 @@ class RunLedger:
                 [commit_sha, int(dirty), pid, _utcnow(), int(recovery), note],
             )
             self._conn.commit()
-            return self.get(int(cur.lastrowid))
+            assert cur.lastrowid is not None  # sqlite3: set after a successful INSERT
+            return self.get(cur.lastrowid)
 
     def mark_stopped(self, run_id: int, *, clean: bool, note: str = "") -> RunRecord:
         with self._lock:
@@ -152,7 +155,7 @@ class RunLedger:
             self._conn.close()
 
 
-def open_run_ledger(config: object | None = None) -> RunLedger:
+def open_run_ledger(config: Config | None = None) -> RunLedger:
     from config.loader import get_config
 
     cfg = config or get_config()

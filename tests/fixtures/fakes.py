@@ -12,6 +12,8 @@ import math
 import re
 from collections.abc import Callable
 
+from core.constitution import Message
+
 _WORD = re.compile(r"[a-z0-9']+")
 
 
@@ -45,11 +47,13 @@ class ReplyServer:
     """A ModelServer stand-in. `chat(tier, messages, **kw)` returns `fn(tier, messages)` if a
     function was given, else the canned `reply`. Records every call for assertions."""
 
-    def __init__(self, reply: str = "ok", fn: Callable[[str, list[dict]], str] | None = None):
+    def __init__(
+        self, reply: str = "ok", fn: Callable[[str, list[Message]], str] | None = None
+    ):
         self.reply = reply
         self.fn = fn
-        self.calls: list[tuple[str, list[dict]]] = []
+        self.calls: list[tuple[str, list[Message]]] = []
 
-    def chat(self, tier: str, messages: list[dict], *, think=None, temperature=None) -> str:
+    def chat(self, tier: str, messages: list[Message], **kwargs: object) -> str:
         self.calls.append((tier, messages))
         return self.fn(tier, messages) if self.fn is not None else self.reply

@@ -7,8 +7,11 @@ watcher's on_change enqueues a job (the trigger path) — all without core impor
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import cast
+
 from config.loader import get_config
-from scheduler.queue import PRIORITY_BACKGROUND, JobQueue
+from scheduler.queue import PRIORITY_BACKGROUND, Job, JobQueue
 from scheduler.router import Router
 from scheduler.vault_sync import (
     VAULT_SYNC_KIND,
@@ -40,7 +43,7 @@ def test_routes_to_pinned_tier_no_worker_swap():
 
 def test_enqueue_is_background_priority():
     cfg = get_config()
-    queue = JobQueue(":memory:")
+    queue = JobQueue(Path(":memory:"))
     job = enqueue_vault_sync(queue, Router(cfg))
     assert job.kind == VAULT_SYNC_KIND
     assert job.tier == cfg.pinned_model.tier
@@ -50,14 +53,16 @@ def test_enqueue_is_background_priority():
 def test_handler_runs_rescan():
     sync = _FakeSync()
     handler = vault_sync_handler(sync)
-    msg = handler(object())
+    # The handler ignores its Job argument entirely (see scheduler/vault_sync.py) -- a bare
+    # placeholder is the right test double; the cast says "this never matters here."
+    msg = handler(cast(Job, object()))
     assert sync.calls == 1
-    assert "indexed=1" in msg
+    assert msg is not None and "indexed=1" in msg
 
 
 def test_watcher_on_change_enqueues_a_job():
     cfg = get_config()
-    queue = JobQueue(":memory:")
+    queue = JobQueue(Path(":memory:"))
     watcher = build_vault_watcher(queue, Router(cfg), cfg)
     assert queue.depth() == 0
     watcher.on_change()                              # the trigger the FS event would cause

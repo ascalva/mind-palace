@@ -21,6 +21,7 @@ import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from config.loader import Config
 from core.attestation import Attestor
 from ops.code_snapshot import FileShape, _git, annotate_headers, open_snapshot_db, snapshot_commit
 
@@ -70,7 +71,7 @@ class CodeSensor:
         return report
 
 
-def build_code_sensor(config: object | None = None) -> CodeSensor:
+def build_code_sensor(config: Config | None = None) -> CodeSensor:
     """Wire the agent's three tools against the real repo, ledger, and attestation chain."""
     from config.loader import REPO_ROOT, get_config
     from core.attestation import build_attestor

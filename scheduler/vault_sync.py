@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from config.loader import Config
 from core.ingest.sync import VaultSync
 from core.ingest.watch import VaultWatcher
 from scheduler.queue import PRIORITY_BACKGROUND, Job, JobQueue
@@ -41,7 +42,9 @@ def enqueue_vault_sync(queue: JobQueue, router: Router) -> Job:
     return queue.enqueue(plan.kind, plan.tier, plan.num_ctx, priority=plan.priority)
 
 
-def build_vault_watcher(queue: JobQueue, router: Router, config=None) -> VaultWatcher:
+def build_vault_watcher(
+    queue: JobQueue, router: Router, config: Config | None = None
+) -> VaultWatcher:
     """A watcher whose on_change enqueues a background vault_sync job. Call `.start()` to run.
 
     The supervisor must have the `vault_sync` handler registered (see `vault_sync_handler`) to
@@ -49,9 +52,13 @@ def build_vault_watcher(queue: JobQueue, router: Router, config=None) -> VaultWa
     from config.loader import get_config
 
     cfg = config or get_config()
+
+    def _on_change() -> None:
+        enqueue_vault_sync(queue, router)
+
     return VaultWatcher(
         vault=cfg.vault.path,
-        on_change=lambda: enqueue_vault_sync(queue, router),
+        on_change=_on_change,
         debounce_s=cfg.vault.watch_debounce_s,
         poll_interval_s=cfg.vault.watch_poll_interval_s,
     )

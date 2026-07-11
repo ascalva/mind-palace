@@ -6,11 +6,10 @@ note: same content digest, stored exactly once (content-addressing), second pass
 
 from __future__ import annotations
 
-from fixtures.corpus import write_vault
-from fixtures.stores import raw_store
-
 from core.ingest.logseq import parse_note
 from core.ingest.pipeline import ingest_note
+from tests.fixtures.corpus import write_vault
+from tests.fixtures.stores import raw_store
 
 
 def test_same_note_ingested_twice_is_one_raw_object(tmp_path):

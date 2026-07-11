@@ -29,8 +29,14 @@ class _FakeProc:
 
 
 def test_start_spawns_and_tracks_pid():
-    procs = []
-    child = Child("monitor", ["x"], spawn=lambda _a: procs.append(_FakeProc()) or procs[-1])
+    procs: list[_FakeProc] = []
+
+    def _spawn(_argv):
+        proc = _FakeProc()
+        procs.append(proc)
+        return proc
+
+    child = Child("monitor", ["x"], spawn=_spawn)
     child.start()
     assert child.alive() and child.pid == 4242
     child.start()                                   # idempotent — already alive, no re-spawn
@@ -59,7 +65,7 @@ def test_stop_force_kills_on_timeout():
 
 
 def test_restart_after_death():
-    procs = []
+    procs: list[_FakeProc] = []
 
     def spawn(_a):
         procs.append(_FakeProc(pid=100 + len(procs)))

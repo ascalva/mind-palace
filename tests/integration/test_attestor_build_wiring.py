@@ -60,5 +60,8 @@ def test_wired_attestors_share_the_configured_store_across_agents(tmp_path):
     curator = build_curator(cfg)
     dreamer = build_dreamer(cfg)
     sync = build_vault_sync(cfg)
+    assert isinstance(curator.attestor, StoreAttestor)
+    assert isinstance(dreamer.attestor, StoreAttestor)
+    assert isinstance(sync.attestor, StoreAttestor)
     paths = {curator.attestor.store.path, dreamer.attestor.store.path, sync.attestor.store.path}
     assert paths == {cfg.paths.attestation_store}

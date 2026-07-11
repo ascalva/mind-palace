@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 
 def _utcnow() -> str:
@@ -19,7 +20,7 @@ def _utcnow() -> str:
 
 
 def build_status(*, ops_view, dreams_view, queue_depth: int, run=None,
-                 mem_available_gb: float | None = None, flags=()) -> dict:
+                 mem_available_gb: float | None = None, flags=()) -> dict[str, Any]:
     """Assemble the snapshot dict from the read-only views. Pure — no I/O — so it is unit-testable
     against in-memory stores. `run` is the active RunRecord (commit-pinned); `flags` are the OS
     watchdog's crossed-threshold flags."""
@@ -53,7 +54,7 @@ def build_status(*, ops_view, dreams_view, queue_depth: int, run=None,
     }
 
 
-def write_status(path: Path, data: dict) -> None:
+def write_status(path: Path, data: dict[str, Any]) -> None:
     """Write the snapshot atomically — the edge reader never sees a partial file (rename swap)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")

@@ -94,18 +94,30 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.mypy]
 # type-system-as-core-audit.md §2.5 — the two-tier checked region (ratified 2026-07-11).
-# GLOBAL settings are the Tier-2 interim floor: every module that imports core is analyzed,
-# untyped defs are still checked, and args flowing into core calls can't silently be Any.
-# Tier-3 (edge/, cloud/ — zero core imports, measured V1a 2026-07-11) is unchecked by
-# RECORDED DEFAULT, not deferred debt. Report-only until B-2 wires the gate.
+# GLOBAL settings are the Tier-2 FLOOR, decided from measured evidence (bp-007 Item 5,
+# 2026-07-11): `check_untyped_defs` (every module that imports core is analyzed, untyped
+# defs still checked) + `disallow_any_generics` (bare generic containers — dict/list/etc
+# missing type params — can't silently launder Any into core calls). Decision evidence:
+# adding disallow_any_generics to the post-bp-006 baseline (296 errors) cost +68 errors,
+# ALL `type-arg`, zero T1 in the delta, T2-only (real untyped shape: bare dict/list/
+# CompletedProcess/Sequence/set/Counter) — the plan Item 5 falsifier ("adds only T3
+# friction") did NOT trip, so the stricter floor earns its place; adopted, not the base
+# floor alone. Tier-3 (edge/, cloud/ — zero core imports, measured V1a 2026-07-11) is
+# unchecked by RECORDED DEFAULT, not deferred debt — see the follow_imports override below
+# for why their errors don't surface when pulled in transitively by Tier-2 importers.
+# Report-only until B-2 wires the gate.
 files = ["core", "agents", "eval", "ops", "scheduler", "scripts", "tests"]
 explicit_package_bases = true       # scripts/ are entry points, not a package: scripts/eval.py
                                     # must resolve as scripts.eval, not collide with eval/
 check_untyped_defs = true
+disallow_any_generics = true
 warn_redundant_casts = true
 warn_unused_configs = true
 
 # Tier 1 — core/: strict components (mypy forbids `strict` inside overrides; expanded here).
+# disallow_any_generics is now also set globally (floor, above) — kept here too so this
+# block stays a complete, self-contained statement of Tier-1 strictness if the floor ever
+# changes independently.
 [[tool.mypy.overrides]]
 module = "core.*"
 disallow_untyped_defs = true
@@ -123,3 +135,16 @@ warn_return_any = true
 [[tool.mypy.overrides]]
 module = ["watchdog.*"]
 ignore_missing_imports = true
+
+# bp-007 Item 5 (2026-07-11): `edge`/`config` are Tier-3 by measurement (V1a — zero core
+# imports) but are NOT in `files` above, so they are absent from the Tier-2 checked region
+# by construction; they nonetheless surface in a run because mypy follows imports
+# transitively from Tier-2 modules that import them (`ops`, `agents`, `scheduler`, and
+# `scripts` all reach `config`; `scheduler.interface`/`scripts.monitor` reach `edge`).
+# `follow_imports = "silent"` keeps their types available to Tier-2 callers (no loss of
+# checking on the Tier-2 side) while suppressing error-reporting FOR those Tier-3 modules
+# themselves — the recorded-default-not-debt posture stays honest instead of accidentally
+# becoming stricter than the note licenses via transitive leakage.
+[[tool.mypy.overrides]]
+module = ["edge.*", "config.*"]
+follow_imports = "silent"

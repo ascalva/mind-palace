@@ -17,7 +17,7 @@ from core.attestation import (
     StoreAttestor,
     make_verifier,
 )
-from core.attestation.crypto import private_from_seed, public_b64
+from core.attestation.crypto import Ed25519PublicKey, private_from_seed, public_b64
 
 TEST_FINGERPRINT = "F-test-constitution"
 _KEYS_DIR = Path(__file__).resolve().parent.parent / "keys"
@@ -32,7 +32,7 @@ def dev_signer(role: str = "supervisor") -> Ed25519Signer:
     return Ed25519Signer.from_seed(_seed(role), role)
 
 
-def dev_public_keys() -> dict:
+def dev_public_keys() -> dict[str, Ed25519PublicKey]:
     """The {signer: public_key} map matching the dev signers — for `make_verifier`."""
     from core.attestation.crypto import public_from_b64
 

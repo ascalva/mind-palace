@@ -13,14 +13,24 @@ from config.loader import load_config
 from ops.lifecycle.launcher import Components, Launcher
 from ops.lifecycle.preflight import Check, Preflight, run_preflight
 from ops.lifecycle.runs import RunLedger
+from scheduler.router import Flag
 
 
 # --- run ledger ---------------------------------------------------------------------------------
+def _last(runs: RunLedger):
+    """`runs.last()`, narrowed: every call site here follows an `open_run` in the SAME test, so
+    a row always exists (`RunLedger.last`'s honest `RunRecord | None` covers a fresh/empty
+    ledger, a shape this file's own setup never produces at these call sites)."""
+    r = runs.last()
+    assert r is not None
+    return r
+
+
 def test_run_ledger_clean_shutdown_detection(tmp_path):
     runs = RunLedger(tmp_path / "runs.sqlite")
     assert runs.last_was_clean() is True            # no prior run → clean
     r = runs.open_run(commit_sha="abc123", dirty=False, pid=999)
-    assert r.active and runs.last().id == r.id
+    assert r.active and _last(runs).id == r.id
     runs.mark_stopped(r.id, clean=True)
     assert runs.last_was_clean() is True            # prior run closed clean
 
@@ -29,7 +39,7 @@ def test_run_ledger_crash_is_unclean(tmp_path):
     runs = RunLedger(tmp_path / "runs.sqlite")
     runs.open_run(commit_sha="abc", dirty=True, pid=1)   # never marked stopped = crash
     assert runs.last_was_clean() is False               # → next start should recover
-    assert runs.last().dirty is True                    # commit/dirty round-trip
+    assert _last(runs).dirty is True                    # commit/dirty round-trip
 
 
 # --- preflight ----------------------------------------------------------------------------------
@@ -116,12 +126,23 @@ class _FakeQueue:
 
 def _launcher(tmp_path, **kw):
     sup, watch, q = _FakeSupervisor(), _FakeWatcher(), _FakeQueue()
-    calls = {"catchup": 0, "housekeeping": 0, "health": 0}
+    calls: dict[str, int] = {"catchup": 0, "housekeeping": 0, "health": 0}
+
+    def _catchup() -> None:
+        calls["catchup"] += 1
+
+    def _housekeeping() -> None:
+        calls["housekeeping"] += 1
+
+    def _health() -> list[Flag]:
+        calls["health"] += 1
+        return []
+
     comps = Components(
         supervisor=sup, watcher=watch, queue=q,
-        enqueue_catchup=lambda: calls.__setitem__("catchup", calls["catchup"] + 1),
-        enqueue_housekeeping=lambda: calls.__setitem__("housekeeping", calls["housekeeping"] + 1),
-        health_check=lambda: (calls.__setitem__("health", calls["health"] + 1), [])[1],
+        enqueue_catchup=_catchup,
+        enqueue_housekeeping=_housekeeping,
+        health_check=_health,
     )
     passing = Preflight((Check("x", required=True, ok=True, detail="ok"),))
     launcher = Launcher(
@@ -197,7 +218,7 @@ def test_force_resumes_normally_after_unclean(tmp_path):
     launcher.runs = runs
     launcher.start(force=True, max_ticks=1)
     assert sup.runs == 1 and watch.started                 # --force boots normally
-    assert not launcher.runs.last().recovery
+    assert not _last(launcher.runs).recovery
 
 
 # --- reset (the fresh-start wipe) ---------------------------------------------------------------
@@ -248,7 +269,7 @@ def test_stop_dead_pid_is_marked_unclean(tmp_path):
     runs.open_run(commit_sha="x", dirty=False, pid=2_000_000_000)   # a pid that isn't alive
     launcher = Launcher(cfg=_cfg(tmp_path), runs=runs, repo_root=Path(".").resolve())
     assert launcher.stop() == 1
-    assert (not runs.last().active) and not runs.last().clean_shutdown   # recorded as a crash
+    assert (not _last(runs).active) and not _last(runs).clean_shutdown   # recorded as a crash
 
 
 # --- deploy (the promotion gate) ------------------------------------------------------------------

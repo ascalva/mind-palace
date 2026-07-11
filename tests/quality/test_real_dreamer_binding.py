@@ -21,10 +21,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from fixtures.dreamer_adapter import MindPalaceDreamerAdapter, build_real_dreamer_adapter
-
 from core.provenance import Provenance
 from core.stores.derived import DREAM, DerivedStore
+from tests.fixtures.dreamer_adapter import MindPalaceDreamerAdapter, build_real_dreamer_adapter
 
 
 @dataclass(frozen=True)

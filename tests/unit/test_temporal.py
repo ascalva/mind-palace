@@ -8,6 +8,7 @@ flow into the drift gauge (the A2 wiring end to end).
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import numpy as np
 import pytest
@@ -20,7 +21,7 @@ from core.mirror import MirrorView
 from core.stores.edges import CONTRADICTS, EdgeStore
 
 
-def _row(digest: str, vec: list[float]) -> dict:
+def _row(digest: str, vec: list[float]) -> dict[str, Any]:
     return {"digest": digest, "title": digest, "provenance": "authored-solo", "vector": vec}
 
 

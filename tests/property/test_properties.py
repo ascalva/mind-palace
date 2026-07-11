@@ -22,6 +22,7 @@ from core.provenance import MIRROR_READABLE, Provenance
 from core.recursion import claim_confidence, decay_bound
 from core.selfcheck import FAIL, PASS, Source, check_grounding
 from core.stores.derived import DREAM, DerivationCycleError, DerivedStore
+from ops.gate import GateRequest
 
 _PROVENANCES = [p.value for p in Provenance]          # authored | interpreted | observed
 _AUTHORED = {p.value for p in MIRROR_READABLE}        # {authored}
@@ -180,9 +181,10 @@ def test_I13_authority_does_not_widen(scope, skills, requested):
 
     if requested - resolved:
         # Any capability beyond the resolved ceiling routes to the gate — never a wider agent.
-        assert not hasattr(result, "dispatcher")
+        assert isinstance(result, GateRequest)
     else:
         # Authority is exactly role.scope ∩ MAX, regardless of the skills composed in.
+        assert not isinstance(result, GateRequest)
         assert result.dispatcher.scope == resolved
         for t in ["deploy", "shell", "read_secret"]:
             assert not result.dispatcher.can_invoke(t)        # out-of-scope = unreachable

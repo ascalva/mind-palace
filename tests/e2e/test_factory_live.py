@@ -21,9 +21,12 @@ def _routine_present() -> bool:
 
 @pytest.mark.skipif(not _routine_present(), reason="routine model not pulled")
 def test_minted_agent_responds_and_self_evaluates():
+    from ops.gate import GateRequest
+
     cfg = get_config()
     factory = AgentFactory(server=build_model_server(cfg), tools=build_default_registry(None))
     agent = factory.mint("general_conversation")
+    assert not isinstance(agent, GateRequest)   # general_conversation's default scope always mints
     text, check = agent.respond("In one sentence, what is a mind palace?")
     assert text.strip()
     assert check.passed                # advisory answer; grounding N/A, subjective deferred

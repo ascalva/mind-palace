@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from ops.ledger import IllegalTransition, LedgerStatus, ProposalLedger
+from ops.ledger import IllegalTransition, LedgerStatus, Proposal, ProposalLedger
 
 
 def _ledger(tmp_path) -> ProposalLedger:
@@ -17,6 +17,15 @@ def _ledger(tmp_path) -> ProposalLedger:
 
 def _propose(led: ProposalLedger):
     return led.propose("dream_similarity_threshold", 0.62, 0.66, rationale="tighten themes")
+
+
+def _get(led: ProposalLedger, proposal_id: int) -> Proposal:
+    """`led.get(id)`, narrowed: both call sites look up a proposal this same test just proposed
+    (`ProposalLedger.get`'s honest `Proposal | None` covers an unknown id — a shape neither
+    call site here produces)."""
+    p = led.get(proposal_id)
+    assert p is not None
+    return p
 
 
 def test_propose_creates_a_pending_row(tmp_path):
@@ -58,7 +67,7 @@ def test_denied_is_terminal(tmp_path):
     led = _ledger(tmp_path)
     p = _propose(led)
     led.deny(p.id)
-    assert led.get(p.id).status is LedgerStatus.DENIED
+    assert _get(led, p.id).status is LedgerStatus.DENIED
     with pytest.raises(IllegalTransition):
         led.approve(p.id)        # cannot resurrect a denied proposal
 
@@ -99,5 +108,5 @@ def test_durable_across_reopen(tmp_path):
     led.approve(p.id)
     led.close()
     reopened = ProposalLedger(db)
-    again = reopened.get(p.id)
+    again = _get(reopened, p.id)
     assert again.status is LedgerStatus.APPROVED and again.target_value == 0.66

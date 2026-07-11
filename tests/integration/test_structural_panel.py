@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 import math
+from typing import Any
 
 import numpy as np
 import pytest
@@ -24,7 +25,7 @@ def _on_config():
     return dataclasses.replace(cfg, dream_rnd=dataclasses.replace(cfg.dream_rnd, enabled=True))
 
 
-def _row(digest: str, vec: list[float]) -> dict:
+def _row(digest: str, vec: list[float]) -> dict[str, Any]:
     return {"digest": digest, "title": digest, "provenance": "authored-solo", "vector": vec}
 
 

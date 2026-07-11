@@ -9,9 +9,11 @@ forged/mis-categorized verdicts never persist. The owner key is loaded from the 
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
+from config.loader import Config
 from core.attestation import Ed25519Signer, generate_seed
 from core.stores.verdicts import VerdictCategoryError, VerdictSignatureError, VerdictStore
 from core.verdict import VERDICT_TAXONOMY, VerdictPayload, sign_verdict
@@ -55,12 +57,15 @@ def test_load_owner_pub_reads_the_committed_key(tmp_path):
     owner = _owner()
     key_file = tmp_path / "owner.pub"
     key_file.write_text(owner.public_b64() + "\n", encoding="utf-8")   # trailing ws tolerated
-    cfg = SimpleNamespace(attestation=SimpleNamespace(owner_pub=key_file))
+    # load_owner_pub_b64 reads only cfg.attestation.owner_pub -- a minimal SimpleNamespace mirror
+    # is the deliberate fixture; the cast says "this is intentionally partial," not a real Config.
+    cfg = cast(Config, SimpleNamespace(attestation=SimpleNamespace(owner_pub=key_file)))
     assert load_owner_pub_b64(cfg) == owner.public_b64()
 
 
 def test_load_owner_pub_fails_closed_when_absent(tmp_path):
-    cfg = SimpleNamespace(attestation=SimpleNamespace(owner_pub=tmp_path / "nope.pub"))
+    missing_ns = SimpleNamespace(attestation=SimpleNamespace(owner_pub=tmp_path / "nope.pub"))
+    cfg = cast(Config, missing_ns)
     with pytest.raises(OwnerKeyMissing):
         load_owner_pub_b64(cfg)
 

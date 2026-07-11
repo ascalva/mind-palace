@@ -9,13 +9,13 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from fixtures.embedding import DIM, FakeEmbedder
 
 from core.ingest.purge import PurgeRefusedError, purge_raw
 from core.ingest.sync import VaultSync
 from core.stores.catalog import VaultCatalog
 from core.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
+from tests.fixtures.embedding import DIM, FakeEmbedder
 
 
 def _sync(tmp_path: Path) -> VaultSync:
@@ -34,7 +34,9 @@ def _index(sync: VaultSync, name: str, content: str) -> str:
     p = sync.vault / name
     p.write_text(content, encoding="utf-8")
     sync.sync_path(p)
-    return sync.catalog.get(str(p)).digest
+    entry = sync.catalog.get(str(p))
+    assert entry is not None   # just synced this exact path
+    return entry.digest
 
 
 def test_purge_refused_without_confirm(tmp_path):

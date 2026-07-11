@@ -55,6 +55,9 @@ def test_enabled_wiring_picks_up_custom_addr_and_mount():
     secrets = dataclasses.replace(cfg.secrets, addr="http://10.0.0.5:8200", kv_mount="secret")
     cfg = dataclasses.replace(cfg, secrets=secrets)
     backend = build_secrets_backend(cfg)
+    # SecretsBackend (the Protocol) declares only mint_token/read_secret; .addr/.kv_mount are
+    # VaultClient-specific, so narrow first (same as test_enabled_wires_a_vault_client_..., above).
+    assert isinstance(backend, VaultClient)
     assert backend.addr == "http://10.0.0.5:8200"
     assert backend.kv_mount == "secret"
 

@@ -11,13 +11,12 @@ the dreamer *cannot* read observed; this proves a real run *did not*.
 
 from __future__ import annotations
 
-from fixtures.attestation import TEST_FINGERPRINT, attestor_with_store
-from fixtures.stores import raw_store
-
 from core.attestation import AttestationStore
 from core.curator import Curator
 from core.dreaming import Dreamer
 from core.stores.derived import DREAM, FINDING, DerivedStore
+from tests.fixtures.attestation import TEST_FINGERPRINT, attestor_with_store
+from tests.fixtures.stores import raw_store
 
 
 class _FakeVectorStore:

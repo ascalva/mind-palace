@@ -6,6 +6,8 @@ mentioned when present; and — the integrity bit — the view exposes no mutato
 cannot write the interpreted layer through it (Constitution §III.2, BUILD-SPEC §8 firewall).
 """
 
+from pathlib import Path
+
 from core.dreams_view import DreamsView
 from core.stores.derived import DREAM, FINDING, DerivedStore
 
@@ -14,7 +16,7 @@ _FORBIDDEN = ("add", "reset", "close")
 
 
 def _store_with_dreams():
-    store = DerivedStore(":memory:")
+    store = DerivedStore(Path(":memory:"))
     store.add(kind=DREAM, summary="a recurring pull toward solitude when work intensifies",
               subjects=["overwork", "weekend alone"])
     store.add(kind=DREAM, summary="sleep notes cluster around late-night screen time",
@@ -44,7 +46,7 @@ def test_narration_is_mirror_not_oracle_and_cites_notes():
 
 
 def test_empty_store_says_so_plainly():
-    text = DreamsView.over(DerivedStore(":memory:")).narrate_recent()
+    text = DreamsView.over(DerivedStore(Path(":memory:"))).narrate_recent()
     assert "haven't surfaced any patterns yet" in text
 
 

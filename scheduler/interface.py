@@ -24,6 +24,7 @@ from dataclasses import dataclass
 
 from agents.ambassador import DeliveredResult, build_ambassador
 from agents.ambassador.policy import topic_of
+from config.loader import Config
 from core.interface import CoreInbox
 from core.librarian import Librarian
 from core.stores.rawstore import RawStore
@@ -124,7 +125,7 @@ class ConversationRuntime:
         return done
 
 
-def build_conversation_runtime(config: object | None = None, *, server=None, embedder=None,
+def build_conversation_runtime(config: Config | None = None, *, server=None, embedder=None,
                                store=None, drift=None) -> ConversationRuntime:
     """Wire the full delegating Ambassador + inbox + gateway + queue for in-process use.
 

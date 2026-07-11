@@ -17,6 +17,7 @@ from agents.ambassador.agent import (
 )
 from agents.ambassador.intent import Intent, classify, classify_floor
 from agents.ambassador.policy import InterruptionPolicy, Sensitivity, narrate_effort
+from config.loader import Config
 
 __all__ = [
     "AMBASSADOR_ROLE",
@@ -34,7 +35,7 @@ __all__ = [
 ]
 
 
-def build_ambassador(config: object | None = None, *, delegate=None, pending_results=None,
+def build_ambassador(config: Config | None = None, *, delegate=None, pending_results=None,
                      server=None, embedder=None, store=None, drift=None,
                      derived=None) -> Ambassador:
     """Wire an Ambassador against the real configured stores + models.

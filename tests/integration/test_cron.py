@@ -6,6 +6,7 @@ foreground use* (§13). Deterministic: warm=False, fake agents, no Ollama.
 """
 
 from types import SimpleNamespace
+from typing import cast
 
 from config.loader import load_config
 from core.models.loader import TwoSlotLoader
@@ -19,7 +20,7 @@ from scheduler.cron import (
     enqueue_dream,
 )
 from scheduler.presence import Presence
-from scheduler.queue import QUEUED, JobQueue
+from scheduler.queue import QUEUED, Job, JobQueue
 from scheduler.router import Router
 from scheduler.supervisor import Supervisor
 
@@ -87,6 +88,10 @@ def test_cron_jobs_are_gated_during_foreground_then_run_in_a_trough(tmp_path):
 
 def test_cron_handlers_summarize_results(tmp_path):
     handlers = cron_handlers(FakeDreamer(), FakeCurator())
-    job = SimpleNamespace()
-    assert "theme" in handlers[DREAM_KIND](job)
-    assert "finding" in handlers[CURATE_KIND](job)
+    # Both handlers ignore their Job argument entirely (see scheduler/cron.py) -- a bare
+    # placeholder is the right test double; the cast says "this never matters here."
+    job = cast(Job, SimpleNamespace())
+    dream_result = handlers[DREAM_KIND](job)
+    curate_result = handlers[CURATE_KIND](job)
+    assert dream_result is not None and "theme" in dream_result
+    assert curate_result is not None and "finding" in curate_result

@@ -12,6 +12,7 @@ the gate (the predicate is data-in/bool-out with no effect handle and no apply c
 from __future__ import annotations
 
 import inspect
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from itertools import product
 
@@ -67,31 +68,32 @@ def test_effect_gate_admits_exactly_when_all_conjuncts_hold():
 
 def test_sensing_admits_with_no_human_approval_but_still_needs_the_other_conjuncts():
     # β = 0: w(β) = NONE, so approval=NONE admits — IF proposed, capability-valid, attested.
-    base = dict(
+    base = EffectGateDecision(
         reversibility=ReversibilityClass.SENSING,
         approval=ApprovalStrength.NONE,
         proposed=True,
         capability_valid=True,
         attested=True,
     )
-    assert effect_gate_admits(EffectGateDecision(**base)) is True
+    assert effect_gate_admits(base) is True
     # Drop any single other conjunct → denied (sensing is not a free pass).
-    assert effect_gate_admits(EffectGateDecision(**{**base, "proposed": False})) is False
-    assert effect_gate_admits(EffectGateDecision(**{**base, "capability_valid": False})) is False
-    assert effect_gate_admits(EffectGateDecision(**{**base, "attested": False})) is False
+    assert effect_gate_admits(replace(base, proposed=False)) is False
+    assert effect_gate_admits(replace(base, capability_valid=False)) is False
+    assert effect_gate_admits(replace(base, attested=False)) is False
 
 
 def test_irreversible_requires_the_full_gate_strength():
     # An IRREVERSIBLE effect with everything else true but only LIGHT approval is denied;
     # only FULL_GATE admits. This is w(β) selecting the approval weight (§4).
-    base = dict(
+    base = EffectGateDecision(
         reversibility=ReversibilityClass.IRREVERSIBLE,
         proposed=True,
+        approval=ApprovalStrength.NONE,
         capability_valid=True,
         attested=True,
     )
     def admits(approval: ApprovalStrength) -> bool:
-        return effect_gate_admits(EffectGateDecision(**base, approval=approval))
+        return effect_gate_admits(replace(base, approval=approval))
 
     assert admits(ApprovalStrength.NONE) is False
     assert admits(ApprovalStrength.LIGHT) is False

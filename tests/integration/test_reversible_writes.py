@@ -113,6 +113,7 @@ def test_full_reversible_write_loop_stages_a_draft_never_sends(tmp_path):
 
     # What landed is a DRAFT envelope — never a sent artifact. The tailored body is there.
     staged = effector.read(ref)
+    assert staged is not None   # just staged this exact ref
     assert staged["actuator"] == "draft_reply"
     assert staged["params"]["to"] == "bob@example.com"
     assert "body" in staged["params"]
@@ -149,7 +150,9 @@ def test_no_param_can_direct_the_on_disk_write(tmp_path):
     staged_files = list(drafts.glob("*.draft"))
     assert staged_files == [drafts / f"{ref}.draft"]                  # exactly one file, in drafts
     assert not (tmp_path.parent / "etc" / "authorized_keys").exists()
-    assert effector.read(ref)["params"]["name"] == "../../../etc/authorized_keys"  # kept as data
+    staged = effector.read(ref)
+    assert staged is not None   # just staged this exact ref
+    assert staged["params"]["name"] == "../../../etc/authorized_keys"  # kept as data
     # A malicious REF is refused outright (the second traversal guard).
     with pytest.raises(ValueError):
         effector._path_for("../../evil")

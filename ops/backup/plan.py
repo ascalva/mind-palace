@@ -16,6 +16,8 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from config.loader import Config
+
 DEFAULT_TAG = "mind-palace"
 
 
@@ -92,7 +94,7 @@ class ResticRunner:
     def available(self) -> bool:
         return shutil.which("restic") is not None
 
-    def _run(self, argv: list[str]) -> subprocess.CompletedProcess:
+    def _run(self, argv: list[str]) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             argv,
             env={**os.environ, **self.env},
@@ -101,26 +103,28 @@ class ResticRunner:
             check=False,
         )
 
-    def init(self, repository: str) -> subprocess.CompletedProcess:
+    def init(self, repository: str) -> subprocess.CompletedProcess[str]:
         return self._run(init_argv(repository))
 
-    def backup(self, plan: BackupPlan) -> subprocess.CompletedProcess:
+    def backup(self, plan: BackupPlan) -> subprocess.CompletedProcess[str]:
         return self._run(backup_argv(plan))
 
-    def forget(self, plan: BackupPlan) -> subprocess.CompletedProcess:
+    def forget(self, plan: BackupPlan) -> subprocess.CompletedProcess[str]:
         return self._run(forget_argv(plan))
 
-    def restore(self, repository: str, snapshot: str, target: str) -> subprocess.CompletedProcess:
+    def restore(
+        self, repository: str, snapshot: str, target: str
+    ) -> subprocess.CompletedProcess[str]:
         return self._run(restore_argv(repository, snapshot, target))
 
-    def check(self, repository: str) -> subprocess.CompletedProcess:
+    def check(self, repository: str) -> subprocess.CompletedProcess[str]:
         return self._run(check_argv(repository))
 
-    def snapshots(self, repository: str) -> subprocess.CompletedProcess:
+    def snapshots(self, repository: str) -> subprocess.CompletedProcess[str]:
         return self._run(snapshots_argv(repository))
 
 
-def build_backup_plan(config: object | None = None) -> BackupPlan:
+def build_backup_plan(config: Config | None = None) -> BackupPlan:
     """Assemble the host's BackupPlan from `[backup]` + the data/vault paths. Backs up the note
     vault + the data dir; EXCLUDES the live Vault raft store (`<data>/vault`) because it is captured
     separately as a consistent `vault operator raft snapshot` (the runner stages that snapshot

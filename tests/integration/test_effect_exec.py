@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from pathlib import Path
 
 import pytest
 
@@ -41,9 +42,9 @@ class FakeEffectTransport:
     The real send/pay transports are edge-side; this proves the wiring without a network."""
 
     def __init__(self):
-        self.calls: list[tuple[str, dict, str]] = []
+        self.calls: list[tuple[str, dict[str, str], str]] = []
 
-    def perform(self, actuator: str, params: dict, *, token: str) -> str:
+    def perform(self, actuator: str, params: dict[str, str], *, token: str) -> str:
         self.calls.append((actuator, dict(params), token))
         return f"receipt-{actuator}-001"
 
@@ -51,7 +52,7 @@ class FakeEffectTransport:
 def _executor(ttl: str = "60s"):
     vault = FakeVault(policies={"send:email": frozenset({"smtp-credential"})},
                       secrets={"smtp-credential": "hunter2"})
-    store = AttestationStore(":memory:")
+    store = AttestationStore(Path(":memory:"))
     transport = FakeEffectTransport()
     ex = IrreversibleExecutor(secrets=vault, attestor=StoreAttestor(store), transport=transport,
                               credential_ttl=ttl)

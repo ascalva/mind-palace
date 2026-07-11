@@ -45,7 +45,7 @@ def _reachable(cfg: Config) -> dict[frozenset[str], list[str]]:
     """BFS over ensure() transitions; returns every reachable resident set + a reaching seq."""
     names = [m.name for m in cfg.models]
     seen: dict[frozenset[str], list[str]] = {frozenset(): []}
-    frontier = [frozenset()]
+    frontier: list[frozenset[str]] = [frozenset()]
     while frontier:
         state = frontier.pop()
         seq = seen[state]

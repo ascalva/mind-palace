@@ -7,6 +7,7 @@ them), and `BackupPlan` has no field that could carry one.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 from config.loader import get_config
@@ -21,15 +22,15 @@ from ops.backup.plan import (
     snapshots_argv,
 )
 
+_BASE_PLAN = BackupPlan(
+    repository="s3:s3.us-east-1.amazonaws.com/b", paths=("/v", "/d"),
+    excludes=("logs", "*-shm"), tags=("mind-palace",),
+    keep_daily=7, keep_weekly=4, keep_monthly=6,
+)
+
 
 def _plan(**kw) -> BackupPlan:
-    base = dict(
-        repository="s3:s3.us-east-1.amazonaws.com/b", paths=("/v", "/d"),
-        excludes=("logs", "*-shm"), tags=("mind-palace",),
-        keep_daily=7, keep_weekly=4, keep_monthly=6,
-    )
-    base.update(kw)
-    return BackupPlan(**base)
+    return replace(_BASE_PLAN, **kw)
 
 
 def test_init_argv():

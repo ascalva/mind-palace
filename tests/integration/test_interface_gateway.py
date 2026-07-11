@@ -16,9 +16,19 @@ from edge.interface import (
     InboundMessage,
     InterfaceGateway,
     LocalAdapter,
+    OutboundMessage,
     ThirdPartyNotAllowedError,
     WhatsAppAdapter,
 )
+
+
+def _response(ch: GatewayChannel, request_id: str) -> OutboundMessage:
+    """`ch.read_response(id)`, narrowed: each call site here reads a response file this same
+    test just wrote (`GatewayChannel.read_response`'s honest `OutboundMessage | None` covers a
+    not-yet-answered request — a shape neither call site here is exercising)."""
+    resp = ch.read_response(request_id)
+    assert resp is not None
+    return resp
 
 
 def test_channel_submit_then_read(tmp_path):
@@ -29,7 +39,7 @@ def test_channel_submit_then_read(tmp_path):
     (ch.responses_dir / f"{rid}.json").write_text(
         json.dumps({"id": rid, "text": "yo", "conversation": "default", "ts": "t"})
     )
-    assert ch.read_response(rid).text == "yo"
+    assert _response(ch, rid).text == "yo"
     assert ch.read_response(rid) is None                     # consumed
 
 
@@ -72,4 +82,4 @@ def test_handler_error_becomes_an_error_response_not_a_crash(tmp_path):
     ch = GatewayChannel(handoff)
     rid = ch.submit(InboundMessage(text="x"))
     assert inbox.process_once() == 1
-    assert "kaboom" in ch.read_response(rid).text
+    assert "kaboom" in _response(ch, rid).text

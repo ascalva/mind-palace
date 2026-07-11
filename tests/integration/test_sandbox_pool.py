@@ -2,9 +2,9 @@
 Deterministic via a fake runner — no Podman needed."""
 
 import pytest
-from fixtures.sandbox import FakeRunner
 
 from core.sandbox import Limits, SandboxBusyError, SandboxPolicy, WarmPool
+from tests.fixtures.sandbox import FakeRunner
 
 
 def _pool(runner, size=1):

@@ -37,7 +37,8 @@ def test_append_persists_and_reads_back(tmp_path):
     rec = store.append(_signed(owner, seq=1), public_b64=owner.public_b64())
     assert rec.seq == 1 and rec.signer == "owner"
     assert store.latest_seq() == 1 and store.count() == 1
-    assert store.get(1).verdict == "promote"
+    got = store.get(1)
+    assert got is not None and got.verdict == "promote"   # just appended this exact seq
     assert store.verify_all(owner.public_b64())
 
 

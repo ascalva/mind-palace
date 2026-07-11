@@ -28,6 +28,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from config.loader import LEVERS_OVERLAY, Config, get_config, refresh_config
 from ops.apply import overlay_restore, overlay_set
@@ -66,7 +67,7 @@ class ValidationResult:
 
     golden_non_regressing: bool   # frozen golden anchor (capability) didn't drop (§15)
     drift_within_tolerance: bool  # §15 drift gauge D(Δ·s) ≤ Θ vs the frozen anchor (eval.drift)
-    metrics: dict = field(default_factory=dict)
+    metrics: dict[str, Any] = field(default_factory=dict)
 
 
 # (lever, applied-value) -> ValidationResult. Injectable, mirroring eval.golden's Retriever seam:
@@ -194,8 +195,8 @@ def build_golden_validator(
     retriever,
     *,
     golden=None,
-    frozen_baseline: dict | None = None,
-    rolling_baseline: dict | None = None,
+    frozen_baseline: dict[str, float] | None = None,
+    rolling_baseline: dict[str, float] | None = None,
 ) -> Validator:
     """Default validator: run the frozen golden set through `retriever` and decide both §15
     conjuncts from it. `golden_non_regressing` is the STRICT capability check against the FROZEN

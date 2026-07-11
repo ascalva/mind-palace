@@ -21,8 +21,11 @@ import pytest
 FETCHER_DIR = Path(__file__).resolve().parents[2] / "cloud" / "fetcher"
 sys.path.insert(0, str(FETCHER_DIR))
 
-import aggregate as agg  # noqa: E402
-import handler as handler_mod  # noqa: E402
+# warrant: cloud/fetcher is Tier-3 (unchecked, recorded default — V1a, zero core imports); this
+# sys.path trick mirrors its flat Lambda-zip deployment layout, and mypy cannot follow a dynamic
+# sys.path insert (T3, residual gap (b) named in type-system-as-core-audit.md §2.5).
+import aggregate as agg  # type: ignore[import-not-found]  # noqa: E402
+import handler as handler_mod  # type: ignore[import-not-found]  # noqa: E402
 
 OPENALEX = json.dumps({
     "results": [

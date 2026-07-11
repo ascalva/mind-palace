@@ -23,6 +23,7 @@ import json
 import subprocess
 import urllib.parse
 import urllib.request
+from typing import Any
 
 PROJECT = "ascalva-projects/mind-palace"
 API = "https://gitlab.com/api/v4/projects/" + urllib.parse.quote(PROJECT, safe="")
@@ -31,7 +32,11 @@ API = "https://gitlab.com/api/v4/projects/" + urllib.parse.quote(PROJECT, safe="
 _PENDING = {"created", "waiting_for_resource", "preparing", "pending", "running"}
 
 
-def _get(path: str, token: str | None = None) -> object:
+def _get(path: str, token: str | None = None) -> Any:
+    # JSON HTTP boundary: GitLab's API returns a list (pipelines/jobs listing) or a dict
+    # (single-resource endpoints) depending on the path — Any is the honest shape here (same
+    # warranted pattern as core/models/ollama_client.py's JSON boundary); callers narrow per
+    # call site (isinstance checks / TypedDict-shaped access) rather than this helper guessing.
     req = urllib.request.Request(API + path)
     if token:
         req.add_header("PRIVATE-TOKEN", token)
@@ -45,13 +50,13 @@ def _keychain_token() -> str | None:
     return r.stdout.strip() or None if r.returncode == 0 else None
 
 
-def pipeline_for(sha: str) -> dict | None:
+def pipeline_for(sha: str) -> dict[str, Any] | None:
     """Newest pipeline for the commit, or None if GitLab has none for it."""
     rows = _get(f"/pipelines?sha={sha}&per_page=1")
     return rows[0] if isinstance(rows, list) and rows else None
 
 
-def verdict(pipe: dict | None) -> str:
+def verdict(pipe: dict[str, Any] | None) -> str:
     """'green' | 'red' | 'pending' | 'absent' — the witness never guesses."""
     if pipe is None:
         return "absent"
@@ -61,7 +66,7 @@ def verdict(pipe: dict | None) -> str:
     return "green" if pipe["status"] in ("success", "manual") else "red"
 
 
-def attest_verdict(sha: str, pipe: dict, v: str) -> None:
+def attest_verdict(sha: str, pipe: dict[str, Any], v: str) -> None:
     from config.loader import get_config
     from core.attestation import build_attestor
 
@@ -84,6 +89,8 @@ def check(sha: str, *, wait_s: float = 600.0) -> int:
         print(f"ci-witness: no pipeline for {sha[:12]} — was it pushed? (docs-only pushes "
               "still create a pipeline; a missing one means the sha never reached origin)")
         return 1
+    # verdict(None) is always "absent" (see verdict()) — v != "absent" here means pipe is set.
+    assert pipe is not None
     if v == "pending":
         print(f"ci-witness: pipeline {pipe['id']} still {pipe['status']} after {wait_s:.0f}s")
         return 1
@@ -92,7 +99,7 @@ def check(sha: str, *, wait_s: float = 600.0) -> int:
     return 0 if v == "green" else 1
 
 
-def _api_root(path: str, token: str, *, method: str = "GET", timeout: int = 20) -> object:
+def _api_root(path: str, token: str, *, method: str = "GET", timeout: int = 20) -> Any:
     """Top-level (non-project) API call — rotation lives at /personal_access_tokens/…"""
     req = urllib.request.Request("https://gitlab.com/api/v4" + path, method=method,
                                  headers={"PRIVATE-TOKEN": token})
@@ -153,6 +160,8 @@ def release(sha: str) -> int:
     if verdict(pipe) != "green":
         print(f"ci-witness: no green pipeline for {sha[:12]} — nothing to release.")
         return 1
+    # verdict(None) is always "absent" ("green" required above) — pipe is set here.
+    assert pipe is not None
     token = _keychain_token()
     if token is None:
         print("ci-witness: no gitlab-api token in Keychain — play semantic-release by hand:\n"

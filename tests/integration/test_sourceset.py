@@ -101,7 +101,9 @@ def test_grouped_retrieval_regroups_flat_hits_losslessly(tmp_path):
     # lossless: the grouped members are exactly the flat hits, regrouped
     assert {m["id"] for s in grouped for m in s.members} == {r["id"] for r in flat}
     # best_distance orders sources the way the search ranked them
-    assert grouped[0].best_distance() <= grouped[1].best_distance()
+    d0, d1 = grouped[0].best_distance(), grouped[1].best_distance()
+    assert d0 is not None and d1 is not None  # both groups have members (asserted above)
+    assert d0 <= d1
 
 
 # ── provenance / strata scoping ──

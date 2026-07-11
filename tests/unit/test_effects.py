@@ -96,6 +96,7 @@ def test_irreversible_effect_with_full_approval_constructs():
         proposal_att="att-6",
         approval_ref=_FULL,
     )
+    assert e.approval_ref is not None   # set explicitly above
     assert e.approval_ref.strength is ApprovalStrength.FULL_GATE
 
 

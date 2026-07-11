@@ -24,9 +24,52 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING, Protocol
 
-from ops.lifecycle.preflight import run_preflight
-from ops.lifecycle.runs import RunLedger, git_state
+from ops.lifecycle.preflight import Preflight, run_preflight
+from ops.lifecycle.runs import RunLedger, RunRecord, git_state
+
+if TYPE_CHECKING:  # annotations only — the real modules stay lazily imported at runtime
+    from config.loader import Config
+    from scheduler.router import Flag
+
+
+class SupervisorLike(Protocol):
+    """`scheduler.supervisor.Supervisor`'s real surface here — structural so tests inject a bare
+    `_FakeSupervisor` without subclassing the real Supervisor. Narrowed to a no-arg `run()`
+    (the only call shape launcher.py uses: `c.supervisor.run()`), not the real Supervisor's
+    fuller `run(*, max_ticks=...)` — a Protocol is only as wide as its actual call sites here."""
+
+    def run(self) -> object: ...
+
+
+class WatcherLike(Protocol):
+    """`core.ingest.watch.VaultWatcher`'s real surface here (structural, same reasoning).
+    `start()` narrowed to no-arg (the only call shape here: `c.watcher.start()`)."""
+
+    def start(self) -> object: ...
+    def stop(self) -> None: ...
+
+
+class QueueLike(Protocol):
+    """`scheduler.queue.JobQueue`'s real surface here (only `.close()` is called through
+    `Components.queue` — `build_components` calls `.depth()` on its own `JobQueue` directly)."""
+
+    def close(self) -> None: ...
+
+
+class ChildLike(Protocol):
+    """`ops.lifecycle.children.Child`'s real surface here — structural so
+    `tests/integration/test_lifecycle.py`'s bare `_FakeChild` satisfies it without subclassing."""
+
+    name: str
+
+    @property
+    def pid(self) -> int | None: ...  # read-only on the real Child (a computed property)
+
+    def start(self) -> None: ...
+    def alive(self) -> bool: ...
+    def stop(self) -> None: ...
 
 # Data files/dirs the reset wipe must NEVER touch: the production Vault Raft store, the run +
 # self-mod ledgers, telemetry history, the live backup staging, and logs. The corpus targets are
@@ -75,23 +118,21 @@ def _launchd_cycle(label: str, repo_plist: Path, installed: Path) -> None:
 class Components:
     """What `serve` drives. Injectable so tests exercise the lifecycle without models."""
 
-    supervisor: object                       # .run() / .blocked_tiers()
-    watcher: object                          # .start() -> backend, .stop()
-    queue: object                            # JobQueue
+    supervisor: SupervisorLike
+    watcher: WatcherLike
+    queue: QueueLike
     enqueue_catchup: Callable[[], None] = lambda: None     # reconcile corpus on start
     enqueue_housekeeping: Callable[[], None] = lambda: None  # dream + curate pass
-    health_check: Callable[[], list] = lambda: []          # OS-health sense (returns crossed flags)
+    health_check: Callable[[], list[Flag]] = lambda: []    # OS-health sense (returns crossed flags)
     # The thin-master/child model: separate processes palace spawns + drains (the edge monitor).
-    children: list = field(default_factory=list)
+    children: list[ChildLike] = field(default_factory=list)
     # Write the metadata snapshot the edge monitor renders (no-op when [monitor] is off).
-    snapshot: Callable[[object, list], None] = lambda _run, _flags: None
+    snapshot: Callable[[object, list[Flag]], None] = lambda _run, _flags: None
 
 
-def build_components(cfg) -> Components:
+def build_components(cfg: Config) -> Components:
     """Wire the full daemon: vault_sync (+watcher), the delegating Ambassador inbox, the
     delegated-task worker, and the trough dream/curate handlers — all on one supervisor."""
-    import psutil
-
     from agents.ambassador import build_ambassador
     from core.curator import build_curator
     from core.dreaming import build_dreamer
@@ -101,6 +142,7 @@ def build_components(cfg) -> Components:
     from core.models import Registry, TwoSlotLoader
     from core.models.ollama_client import OllamaClient
     from core.stores.telemetry import open_store
+    from core.typedshims import psutil
     from ops.gate import HumanGate
     from scheduler.cron import cron_handlers, enqueue_curate, enqueue_dream
     from scheduler.interface import (
@@ -131,7 +173,7 @@ def build_components(cfg) -> Components:
     telemetry = tstore.writer()
     watchdog = Watchdog(tstore.reader())
 
-    def health_check() -> list:
+    def health_check() -> list[Flag]:
         avail_gb = psutil.virtual_memory().available / (1024 ** 3)
         telemetry.record_vital("mem.available_gb", round(avail_gb, 2), unit="GB", source="os")
         return watchdog.check()
@@ -155,6 +197,9 @@ def build_components(cfg) -> Components:
         enqueue_dream(queue, router)
         enqueue_curate(queue, router)
 
+    def _catchup() -> None:
+        enqueue_vault_sync(queue, router)   # reconcile the corpus; the Job return is discarded
+
     # The edge-monitor snapshot (Invariant 2): read-only views over the same stores → a metadata
     # JSON the networked monitor renders. Built whether or not the monitor runs (cheap); the writer
     # is a no-op target unless [monitor] is enabled.
@@ -168,14 +213,14 @@ def build_components(cfg) -> Components:
     ops_view = OpsView.over(open_attestation_store(cfg), open_ledger(cfg))
     dreams_view = DreamsView.over(open_derived_store(cfg))
 
-    def write_snapshot(run: object, flags: list) -> None:
+    def write_snapshot(run: object, flags: list[Flag]) -> None:
         mem_gb = round(psutil.virtual_memory().available / (1024 ** 3), 2)
         data = build_status(ops_view=ops_view, dreams_view=dreams_view, queue_depth=queue.depth(),
                             run=run, mem_available_gb=mem_gb, flags=flags)
         write_status(cfg.monitor.status_path, data)
 
     # Network-facing components run as supervised child PROCESSES (Invariant 2): the edge monitor.
-    children: list = []
+    children: list[ChildLike] = []
     if cfg.monitor.enabled:
         import sys
 
@@ -186,7 +231,7 @@ def build_components(cfg) -> Components:
 
     return Components(
         supervisor=supervisor, watcher=watcher, queue=queue,
-        enqueue_catchup=lambda: enqueue_vault_sync(queue, router),
+        enqueue_catchup=_catchup,
         enqueue_housekeeping=_housekeeping,
         health_check=health_check,
         children=children,
@@ -196,11 +241,11 @@ def build_components(cfg) -> Components:
 
 @dataclass
 class Launcher:
-    cfg: object
+    cfg: Config
     runs: RunLedger
     repo_root: Path
-    components_factory: Callable[[object], Components] = build_components
-    preflight_fn: Callable[[object], object] = run_preflight   # injectable for tests
+    components_factory: Callable[[Config], Components] = build_components
+    preflight_fn: Callable[[Config], Preflight] = run_preflight   # injectable for tests
     tick_seconds: float = 1.0
     housekeeping_interval_s: float = _HOUSEKEEPING_INTERVAL_S
     health_interval_s: float = 60.0                            # OS-health sense cadence
@@ -219,7 +264,7 @@ class Launcher:
     launchd_label: str = "com.mind-palace.palace"
     _stopping: bool = field(default=False, init=False)
     _run_id: int | None = field(default=None, init=False)
-    _run: object | None = field(default=None, init=False)     # the active RunRecord (for snapshots)
+    _run: RunRecord | None = field(default=None, init=False)  # the active RunRecord (for snapshots)
     _components: Components | None = field(default=None, init=False)
 
     # --- start ------------------------------------------------------------------------------
@@ -271,7 +316,7 @@ class Launcher:
             print(f"  ↳ started child {child.name!r} (pid {child.pid})")
         c.enqueue_housekeeping()                          # one pass soon after start
         last_housekeeping = last_health = last_snapshot = time.monotonic()
-        flags: list = []
+        flags: list[Flag] = []
         ticks = 0
         while not self._stopping and (max_ticks is None or ticks < max_ticks):
             c.supervisor.run()                            # drain runnable jobs at boundaries
@@ -502,7 +547,7 @@ class Launcher:
         return 0
 
 
-def build_launcher(config: object | None = None, **kw) -> Launcher:
+def build_launcher(config: Config | None = None, **kw) -> Launcher:
     from config.loader import REPO_ROOT, get_config
     from ops.lifecycle.runs import open_run_ledger
 

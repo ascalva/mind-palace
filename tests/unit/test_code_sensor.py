@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -25,7 +26,7 @@ def _commit(repo: Path, name: str, body: str) -> None:
 
 @dataclass
 class FakeAttestor:
-    emitted: list[dict] = field(default_factory=list)
+    emitted: list[dict[str, Any]] = field(default_factory=list)
 
     def emit(self, **kw):
         self.emitted.append(kw)

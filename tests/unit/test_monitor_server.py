@@ -5,9 +5,11 @@ resolve (dashboard / status.json / health / 404); chat returns the reply, 400s a
 and 502s — without leaking internals — when the core can't be reached.
 """
 
+from typing import Any
+
 from edge.monitor import MonitorApp, render_dashboard
 
-_STATUS = {
+_STATUS: dict[str, Any] = {
     "generated_at": "2026-06-29T10:00:00",
     "run": {"id": 7, "commit": "abc123def456", "dirty": False, "started_at": "2026-06-29T09:00:00"},
     "activity": {"actions_logged": 12, "pending_approvals": 1,

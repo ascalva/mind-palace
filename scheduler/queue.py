@@ -152,7 +152,8 @@ class JobQueue:
                  json.dumps(payload) if payload else None, _utcnow()],
             )
             self._conn.commit()
-            return self.get(int(cur.lastrowid))
+            assert cur.lastrowid is not None  # sqlite3: set after a successful INSERT
+            return self.get(cur.lastrowid)
 
     def _effective_priority(self, job: Job, now: datetime) -> int:
         """A job's priority after anti-starvation aging (gap G6): the longer it has waited, the

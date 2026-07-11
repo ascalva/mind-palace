@@ -70,15 +70,32 @@ def test_dreamsview_without_dispositions_is_unchanged(tmp_path):
 
 
 def test_ambassador_transports_but_never_applies():
-    from agents.ambassador.agent import Ambassador
+    from typing import cast
 
+    from agents.ambassador.agent import Ambassador, ChatServer
+    from core.librarian import Librarian
+    from core.ops_view import OpsView
+    from scheduler.budget import Budgeter
+
+    # This test exercises ONLY transport_verdict(); server/librarian/ops_view/budgeter are never
+    # read on that path, so a bare `object()` placeholder is the right test double — the casts
+    # say "this field's real type doesn't matter here," not "this satisfies the interface."
+    placeholder = object()
     carried = []
-    amb = Ambassador(server=object(), librarian=object(), ops_view=object(), budgeter=object(),
-                     verdict_transport=lambda s: carried.append(s) or "forwarded")
+
+    def _carry(s: object) -> str:
+        carried.append(s)
+        return "forwarded"
+
+    amb = Ambassador(server=cast(ChatServer, placeholder), librarian=cast(Librarian, placeholder),
+                     ops_view=cast(OpsView, placeholder), budgeter=cast(Budgeter, placeholder),
+                     verdict_transport=_carry)
     assert amb.transport_verdict({"payload": "..."}) == "forwarded"
     assert carried == [{"payload": "..."}]           # forwarded verbatim, unexamined
 
-    no_channel = Ambassador(server=object(), librarian=object(), ops_view=object(),
-                            budgeter=object())
+    no_channel = Ambassador(server=cast(ChatServer, placeholder),
+                            librarian=cast(Librarian, placeholder),
+                            ops_view=cast(OpsView, placeholder),
+                            budgeter=cast(Budgeter, placeholder))
     with pytest.raises(RuntimeError):        # cannot manufacture a verdict channel it lacks
         no_channel.transport_verdict({"payload": "..."})

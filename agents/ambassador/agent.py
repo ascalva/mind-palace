@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Protocol
 
 from agents.ambassador.intent import CLASSIFIER_ROLE, Intent, classify
 from agents.ambassador.policy import InterruptionPolicy, narrate_effort, topic_of
@@ -86,9 +87,18 @@ def _format_chunk(r: Retrieval) -> str:
     return f"[[{r.title}]]\n{r.text}"
 
 
+class ChatServer(Protocol):
+    """The Ambassador's real dependency on `ModelServer` (core/models/server.py): "chat at a
+    tier, get text back." A Protocol rather than the concrete class so test fakes (bare
+    `.chat(tier, messages, ...) -> str` stand-ins) satisfy the type structurally, without
+    inheriting from or importing the real `ModelServer`."""
+
+    def chat(self, tier: str, messages: list[Message], **kwargs: object) -> str: ...
+
+
 @dataclass
 class Ambassador:
-    server: object                         # ModelServer-like: .chat(tier, messages, **kw) -> str
+    server: ChatServer                     # ModelServer-like: .chat(tier, messages, **kw) -> str
     librarian: Librarian
     ops_view: OpsView
     budgeter: Budgeter
@@ -103,7 +113,14 @@ class Ambassador:
     # Inbound verdict transport (verdict-authority.md §4; build plan R7): the Ambassador CARRIES a
     # signed owner verdict to the verify+apply seam — it never signs, verifies, or applies one (that
     # would be a write, outside its read+propose scope). Injected like `delegate`; None = off.
-    verdict_transport: Callable[[object], object] | None = None
+    # Typed `Callable[..., object]` rather than `Callable[[object], object]`: the Ambassador
+    # deliberately does not know the verdict transport's real argument type (SignedVerdict,
+    # core-only) — committing to `object` as the PARAMETER type would be dishonest (contravariance
+    # means a narrower callable like Callable[[SignedVerdict], VerdictRecord] can't satisfy it),
+    # and importing SignedVerdict/VerdictRecord here would leak verdict internals across the
+    # transport-only boundary this field exists to enforce. `...` says "some single opaque
+    # callable," which is the true invariant, without laundering to `Any`.
+    verdict_transport: Callable[..., object] | None = None
     interruption: InterruptionPolicy = field(default_factory=InterruptionPolicy)
     role_prompt: str = AMBASSADOR_ROLE
     history_max_turns: int = 6

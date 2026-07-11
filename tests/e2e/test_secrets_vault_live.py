@@ -30,7 +30,7 @@ def _vault_available() -> bool:
     if not _VAULT_TOKEN:
         return False
     try:
-        import hvac
+        import hvac  # type: ignore[import-untyped]  # warrant: no py.typed upstream (V2); optional [secrets] extra
 
         client = hvac.Client(url=_VAULT_ADDR, token=_VAULT_TOKEN)
         return client.is_authenticated()

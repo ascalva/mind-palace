@@ -60,7 +60,8 @@ def test_dispositional_edges_never_reach_the_balance_math(tmp_path):
     edges.add("p0", "s0", sign=EdgeSign.CONTRADICT, rel_type=CONTRADICTS, w=1.0)  # real frustration
     derived = DerivedStore(tmp_path / "derived.sqlite")
 
-    def measure() -> tuple[float, list, dict, list]:
+    def measure() -> tuple[float, list[tuple[int, int, int]], dict[tuple[int, int], float],
+                          list[tuple[str, ...]]]:
         kx = build_complex(view, edges=edges, derived=derived)
         lam, tris = frustration(kx.A_signed)
         curv = forman(kx.A)

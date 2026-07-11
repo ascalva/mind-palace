@@ -9,7 +9,7 @@ panel it consumes.
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -106,7 +106,10 @@ def test_dream_v2_end_to_end(tmp_path):
         assert art.data["methods"]                            # which lenses corroborated
 
     # The ONLY model seam: synthesis, once per stored dream, nothing else.
-    assert dreamer.synthesize.calls == len(themes)
+    # dreamer.synthesize is statically Synthesizer (Callable[[list[Message]], str]) -- _dreamer()
+    # always injects a _CountingSynth (this file), which additionally counts invocations.
+    synth = cast(_CountingSynth, dreamer.synthesize)
+    assert synth.calls == len(themes)
 
     # 10. MEASURE — the snapshot persisted with the planted structure's invariants.
     assert snapshots.count() == 1
@@ -136,7 +139,9 @@ def test_dream_v2_tension_lens_fires_on_an_asserted_contradiction(tmp_path):
     tension = [t for t in themes if "tension" in t.artifact.data["methods"]]
     assert tension, "the asserted contradiction did not surface as a tension theme"
     assert {"dA1", "dA2"} <= set(tension[0].artifact.derived_from)
-    assert snapshots.latest_structural()["frustration"] > 0.0     # and the gauge saw it
+    latest = snapshots.latest_structural()
+    assert latest is not None   # dream_v2 just took a structural snapshot this pass
+    assert latest["frustration"] > 0.0     # and the gauge saw it
     snapshots.close()
 
 

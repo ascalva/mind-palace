@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -47,7 +48,7 @@ def _write_request(handoff: Path, rid: str, upstream: str, terms=()):
     }))
 
 
-def _read_observation(handoff: Path, rid: str) -> dict:
+def _read_observation(handoff: Path, rid: str) -> dict[str, Any]:
     return json.loads((handoff / "observations" / f"{rid}.json").read_text())
 
 

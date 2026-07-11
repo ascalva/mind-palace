@@ -5,6 +5,8 @@ Proves the owner's messages land in the corpus through the SAME pipeline as vaul
 search, idempotent on content, and attested.
 """
 
+from pathlib import Path
+
 from core.attestation.attestor import StoreAttestor
 from core.attestation.store import AttestationStore
 from core.ingest.dialogue import DialogueCapture
@@ -19,7 +21,7 @@ DIM = 32
 
 
 def _capture(tmp_path):
-    att_store = AttestationStore(":memory:")
+    att_store = AttestationStore(Path(":memory:"))
     cap = DialogueCapture(
         raw=RawStore(tmp_path / "raw"),
         store=VectorStore(tmp_path / "v.lance", dim=DIM),
