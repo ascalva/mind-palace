@@ -128,10 +128,12 @@ class TelemetryReader:
 
     def count(self, metric: str | None = None) -> int:
         if metric is None:
-            return self._conn.execute("SELECT count(*) FROM vitals").fetchone()[0]
-        return self._conn.execute(
-            "SELECT count(*) FROM vitals WHERE metric = ?", [metric]
-        ).fetchone()[0]
+            row = self._conn.execute("SELECT count(*) FROM vitals").fetchone()
+        else:
+            row = self._conn.execute(
+                "SELECT count(*) FROM vitals WHERE metric = ?", [metric]
+            ).fetchone()
+        return int(row[0]) if row else 0
 
     def window(self, metric: str, seconds: float) -> list[tuple[datetime, float]]:
         cutoff = _utcnow() - timedelta(seconds=seconds)
@@ -142,10 +144,12 @@ class TelemetryReader:
 
     def context_usage_count(self, agent: str | None = None) -> int:
         if agent is None:
-            return self._conn.execute("SELECT count(*) FROM context_usage").fetchone()[0]
-        return self._conn.execute(
-            "SELECT count(*) FROM context_usage WHERE agent = ?", [agent]
-        ).fetchone()[0]
+            row = self._conn.execute("SELECT count(*) FROM context_usage").fetchone()
+        else:
+            row = self._conn.execute(
+                "SELECT count(*) FROM context_usage WHERE agent = ?", [agent]
+            ).fetchone()
+        return int(row[0]) if row else 0
 
 
 @dataclass

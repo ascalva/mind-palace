@@ -200,7 +200,8 @@ class ClaimOpStore:
                 for r in self._conn.execute("SELECT * FROM claim_ops ORDER BY at, op_id")]
 
     def count(self) -> int:
-        return self._conn.execute("SELECT count(*) FROM claim_ops").fetchone()[0]
+        row = self._conn.execute("SELECT count(*) FROM claim_ops").fetchone()
+        return int(row[0]) if row else 0
 
     def close(self) -> None:
         self._conn.close()

@@ -144,7 +144,8 @@ class AttestationStore:
 
     def count(self) -> int:
         with self._lock:
-            return self._conn.execute("SELECT count(*) FROM attestations").fetchone()[0]
+            row = self._conn.execute("SELECT count(*) FROM attestations").fetchone()
+        return int(row[0]) if row else 0
 
     def close(self) -> None:
         with self._lock:

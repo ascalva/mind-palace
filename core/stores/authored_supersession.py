@@ -155,7 +155,8 @@ class AuthoredSupersessionStore:
                     "SELECT * FROM authored_supersessions ORDER BY at, superseded")]
 
     def count(self) -> int:
-        return self._conn.execute("SELECT count(*) FROM authored_supersessions").fetchone()[0]
+        row = self._conn.execute("SELECT count(*) FROM authored_supersessions").fetchone()
+        return int(row[0]) if row else 0
 
     def close(self) -> None:
         self._conn.close()

@@ -105,7 +105,8 @@ class VersionStore:
         return list(zip(seqs, seqs[1:], strict=False))
 
     def count(self) -> int:
-        return self._conn.execute("SELECT count(*) FROM versions").fetchone()[0]
+        row = self._conn.execute("SELECT count(*) FROM versions").fetchone()
+        return int(row[0]) if row else 0
 
     def close(self) -> None:
         self._conn.close()

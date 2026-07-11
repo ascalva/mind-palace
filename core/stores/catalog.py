@@ -104,9 +104,10 @@ class VaultCatalog:
         """How many ACTIVE files currently hold this content. Derived rows for a digest may be
         dropped only when this is 0 (so dedup-shared content isn't pulled out from under a
         still-present file)."""
-        return self._conn.execute(
+        row = self._conn.execute(
             "SELECT count(*) FROM vault_files WHERE digest = ? AND active = 1", [digest]
-        ).fetchone()[0]
+        ).fetchone()
+        return int(row[0]) if row else 0
 
     def active_paths(self) -> set[str]:
         rows = self._conn.execute(

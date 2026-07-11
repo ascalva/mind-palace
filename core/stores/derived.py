@@ -382,10 +382,12 @@ class DerivedStore:
 
     def count(self, *, kind: str | None = None) -> int:
         if kind is None:
-            return self._conn.execute("SELECT count(*) FROM interpreted_artifacts").fetchone()[0]
-        return self._conn.execute(
-            "SELECT count(*) FROM interpreted_artifacts WHERE kind = ?", [kind]
-        ).fetchone()[0]
+            row = self._conn.execute("SELECT count(*) FROM interpreted_artifacts").fetchone()
+        else:
+            row = self._conn.execute(
+                "SELECT count(*) FROM interpreted_artifacts WHERE kind = ?", [kind]
+            ).fetchone()
+        return int(row[0]) if row else 0
 
     def reset(self) -> None:
         """Drop all derived artifacts and their hyperedges. Interpreted data is regenerable (§8):

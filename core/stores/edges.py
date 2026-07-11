@@ -112,7 +112,8 @@ class EdgeStore:
         return [self._row(r) for r in self._conn.execute(sql, params).fetchall()]
 
     def count(self) -> int:
-        return self._conn.execute("SELECT count(*) FROM edges").fetchone()[0]
+        row = self._conn.execute("SELECT count(*) FROM edges").fetchone()
+        return int(row[0]) if row else 0
 
     def reset(self) -> None:
         """Drop all edges. Similarity edges are regenerable; asserted edges are re-derivable by

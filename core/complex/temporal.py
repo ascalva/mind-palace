@@ -18,6 +18,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import duckdb
 
 import numpy as np
 from scipy.sparse.csgraph import connected_components
@@ -114,7 +118,7 @@ class SnapshotStore:
     gauge (A2) and the F4 longitudinal harness consume."""
 
     path: Path
-    _conn: object = field(init=False, repr=False)
+    _conn: duckdb.DuckDBPyConnection = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         import duckdb  # heavy import kept local to construction (telemetry-store convention)
@@ -134,7 +138,8 @@ class SnapshotStore:
         )
 
     def count(self) -> int:
-        return self._conn.execute("SELECT count(*) FROM structural_snapshots").fetchone()[0]
+        row = self._conn.execute("SELECT count(*) FROM structural_snapshots").fetchone()
+        return int(row[0]) if row else 0
 
     def trajectory(self, metric: str) -> list[tuple[str, float]]:
         """The time series of one invariant, oldest first — the F4 drift-trajectory input.
