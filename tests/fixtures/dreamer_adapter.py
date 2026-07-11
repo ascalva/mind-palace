@@ -83,9 +83,10 @@ from pathlib import Path
 from typing import Any
 
 from core.complex.spectral import diffusion_cluster_notes
+from core.constitution import Message
 from core.dreaming.adjudicator import AUTHORED_LEAF_DEPTH
 from core.dreaming.cluster import Cluster, cluster_notes, similarity_matrix
-from core.dreaming.dreamer import Clusterer, Dreamer
+from core.dreaming.dreamer import Clusterer, Dreamer, Theme
 from core.provenance import Provenance
 from core.recursion import DEFAULT_LAMBDA
 from core.selfcheck import grounding_score
@@ -221,7 +222,7 @@ class _RowSource:
         return [r for r in self._rows if r.get("provenance") in allowed]
 
 
-def _grounded_synth(messages: list[dict]) -> str:
+def _grounded_synth(messages: list[Message]) -> str:
     """A deterministic synthesizer that grounds correctly for ANY cluster: it echoes the exact
     [[note titles]] the dreamer placed in the cluster block, so `core.selfcheck` sees every
     citation resolve. Stands in for the synthesis-tier model — the quality suite does not grade
@@ -327,7 +328,7 @@ class MindPalaceDreamerAdapter:
     # blind-rating ritual (docs/runbook.md). A passing proxy is not a validated value-claim.
 
     # ---- end-to-end real-DerivedStore exercise (binding test) ----------------------------
-    def persist_dreams(self, notes: Sequence[Any], derived: DerivedStore) -> list:
+    def persist_dreams(self, notes: Sequence[Any], derived: DerivedStore) -> list[Theme]:
         """Run the FULL live `Dreamer.dream()` against a REAL `DerivedStore`: real clustering →
         grounded synthesis → Constitution self-check → interpreted-only persist with
         `derived_from` = authored leaf digests. Returns the Themes; the store now holds the

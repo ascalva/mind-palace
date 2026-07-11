@@ -172,7 +172,7 @@ def _tokens(text: str) -> list[str]:
     return out
 
 
-def _jaccard(a: set, b: set) -> float:
+def _jaccard(a: set[str], b: set[str]) -> float:
     if not a and not b:
         return 1.0
     if not a or not b:
@@ -311,7 +311,7 @@ def paraphrase(notes: Sequence[Note], rng: random.Random) -> list[Note]:
 
 def _tfidf_vectors(notes: Sequence[Note]) -> dict[str, dict[str, float]]:
     docs = {note.id: _tokens(note.text) for note in notes}
-    df: Counter = Counter()
+    df: Counter[str] = Counter()
     for toks in docs.values():
         df.update(set(toks))
     N = max(1, len(docs))
@@ -324,7 +324,7 @@ def _tfidf_vectors(notes: Sequence[Note]) -> dict[str, dict[str, float]]:
     return vecs
 
 
-def _cosine(a: dict, b: dict) -> float:
+def _cosine(a: dict[str, float], b: dict[str, float]) -> float:
     if not a or not b:
         return 0.0
     common = set(a) & set(b)
@@ -337,7 +337,7 @@ def _cosine(a: dict, b: dict) -> float:
 def _greedy_cluster(notes: Sequence[Note], sim_thresh: float = 0.18) -> list[list[Note]]:
     vecs = _tfidf_vectors(notes)
     clusters: list[list[Note]] = []
-    centroids: list[dict] = []
+    centroids: list[dict[str, float]] = []
     for note in notes:
         v = vecs[note.id]
         best, best_sim = -1, 0.0
@@ -357,7 +357,7 @@ def _greedy_cluster(notes: Sequence[Note], sim_thresh: float = 0.18) -> list[lis
 
 def _cluster_to_dream(cluster: list[Note], honest_grounding: bool, rng: random.Random) -> Dream:
     # theme = top terms in the cluster
-    tf: Counter = Counter()
+    tf: Counter[str] = Counter()
     for note in cluster:
         tf.update(_tokens(note.text))
     theme = " ".join(w for w, _ in tf.most_common(4)) or "misc"
@@ -707,7 +707,7 @@ def _decoys(notes: Sequence[Note], k: int, rng: random.Random) -> list[Dream]:
     out = []
     for i in range(k):
         members = rng.sample(list(notes), k=min(len(notes), rng.randint(3, 6)))
-        tf: Counter = Counter()
+        tf: Counter[str] = Counter()
         for n in members:
             tf.update(_tokens(n.text))
         theme = " ".join(w for w, _ in tf.most_common(4)) or "insight"

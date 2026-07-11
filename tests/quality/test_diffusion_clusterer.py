@@ -14,6 +14,7 @@ against the single-linkage adapter (unchanged); this is the added adopted-subset
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Protocol
 
 from tests.fixtures.dreamer_adapter import (
     build_diffusion_dreamer_adapter,
@@ -22,7 +23,16 @@ from tests.fixtures.dreamer_adapter import (
 from tests.quality.test_dreamer_quality import THRESH, noise_corpus, planted_in_noise_corpus
 
 
-def _best_recall(dreams: Sequence, signal_ids: set[str]) -> float:
+class _HasGrounding(Protocol):
+    """The one field _best_recall reads — matches both test_dreamer_quality.Dream and
+    dreamer_adapter._Dream (a deliberate duck-typed mirror, per that module's own docstring,
+    to avoid a fixture -> test-module import cycle)."""
+
+    @property
+    def grounding_node_ids(self) -> tuple[str, ...]: ...
+
+
+def _best_recall(dreams: Sequence[_HasGrounding], signal_ids: set[str]) -> float:
     best = 0.0
     for d in dreams:
         g = set(d.grounding_node_ids)
