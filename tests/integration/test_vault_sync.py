@@ -10,15 +10,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fixtures.attestation import attestor_with_store
-from fixtures.embedding import DIM, FakeEmbedder
-
 from core.attestation import Attestor
 from core.ingest.index import semantic_search
 from core.ingest.sync import SyncOutcome, VaultSync
 from core.stores.catalog import VaultCatalog
 from core.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
+from tests.fixtures.attestation import attestor_with_store
+from tests.fixtures.embedding import DIM, FakeEmbedder
 
 
 def _sync(tmp_path: Path, *, attestor: Attestor | None = None) -> VaultSync:

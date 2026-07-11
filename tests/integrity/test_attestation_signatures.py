@@ -11,14 +11,13 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 
-from fixtures.attestation import (
+from core.attestation import Attestation, make_verifier
+from tests.fixtures.attestation import (
     attestor_with_store,
     dev_public_keys,
     dev_signer,
     dev_verifier,
 )
-
-from core.attestation import Attestation, make_verifier
 
 
 def _signed(role: str = "supervisor", **kw) -> Attestation:

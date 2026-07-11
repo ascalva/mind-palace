@@ -9,13 +9,13 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from fixtures.embedding import DIM, FakeEmbedder
 
 from core.ingest.purge import PurgeRefusedError, purge_raw
 from core.ingest.sync import VaultSync
 from core.stores.catalog import VaultCatalog
 from core.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
+from tests.fixtures.embedding import DIM, FakeEmbedder
 
 
 def _sync(tmp_path: Path) -> VaultSync:

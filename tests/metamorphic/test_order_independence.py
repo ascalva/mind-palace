@@ -6,9 +6,8 @@ deterministic NumPy clustering must not depend on the order rows arrive in.
 
 from __future__ import annotations
 
-from fixtures.corpus import vector_rows
-
 from core.dreaming.cluster import cluster_notes, note_centroids
+from tests.fixtures.corpus import vector_rows
 
 # two tight pairs + one outlier (which is dropped: it can't meet min_size on its own)
 _SPECS = [

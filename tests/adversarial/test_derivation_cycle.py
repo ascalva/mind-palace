@@ -8,9 +8,9 @@ would close a loop raises rather than corrupting the derivation DAG. Attempted v
 from __future__ import annotations
 
 import pytest
-from fixtures.stores import derived_store
 
 from core.stores.derived import DREAM, DerivationCycleError, _artifact_id
+from tests.fixtures.stores import derived_store
 
 
 def test_multi_hop_cycle_is_refused(tmp_path):

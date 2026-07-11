@@ -9,10 +9,10 @@ this — asserted here too so a future edit can't silently couple the two paths.
 from __future__ import annotations
 
 import pytest
-from fixtures.secrets import fake_vault
 
 from config.loader import get_secret
 from config.secrets_backend import VaultPermissionDenied
+from tests.fixtures.secrets import fake_vault
 
 
 def test_mint_token_for_known_role_succeeds():

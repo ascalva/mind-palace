@@ -15,11 +15,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from fixtures.dreamer_adapter import (
+from tests.fixtures.dreamer_adapter import (
     build_diffusion_dreamer_adapter,
     build_real_dreamer_adapter,
 )
-from test_dreamer_quality import THRESH, noise_corpus, planted_in_noise_corpus
+from tests.quality.test_dreamer_quality import THRESH, noise_corpus, planted_in_noise_corpus
 
 
 def _best_recall(dreams: Sequence, signal_ids: set[str]) -> float:

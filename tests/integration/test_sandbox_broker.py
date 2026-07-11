@@ -2,7 +2,6 @@
 concurrency cap, and per-execution logging. Deterministic via a fake runner."""
 
 import pytest
-from fixtures.sandbox import FakeRunner
 
 from core.sandbox import (
     ExecResult,
@@ -13,6 +12,7 @@ from core.sandbox import (
     SandboxPolicy,
     WarmPool,
 )
+from tests.fixtures.sandbox import FakeRunner
 
 
 def _broker(runner, *, pool=None, telemetry=None, max_concurrency=1):

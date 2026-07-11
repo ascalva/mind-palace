@@ -13,10 +13,9 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 
-from fixtures.attestation import attestor_with_store, dev_signer, dev_verifier
-from fixtures.secrets import fake_vault
-
 from core.attestation import Attestation
+from tests.fixtures.attestation import attestor_with_store, dev_signer, dev_verifier
+from tests.fixtures.secrets import fake_vault
 
 
 def test_emit_records_the_accessor_and_never_the_token(tmp_path):

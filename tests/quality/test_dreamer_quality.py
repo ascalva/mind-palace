@@ -443,7 +443,7 @@ def _adapter_factories() -> list[tuple[str, object]]:
         return [("env", getattr(importlib.import_module(mod), attr))]
     factories: list[tuple[str, object]] = [("ref", RefDreamer)]
     try:
-        from fixtures.dreamer_adapter import build_real_dreamer_adapter
+        from tests.fixtures.dreamer_adapter import build_real_dreamer_adapter
         factories.append(("real", build_real_dreamer_adapter))
     except Exception:   # real binding unavailable -> reference fake still runs green
         pass

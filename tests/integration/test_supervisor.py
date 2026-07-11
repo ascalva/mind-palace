@@ -6,7 +6,6 @@ and resume at job boundaries."""
 import dataclasses
 
 import pytest
-from fixtures.secrets import fake_vault
 
 from config.loader import load_config
 from core.models.loader import TwoSlotLoader
@@ -15,6 +14,7 @@ from core.models.registry import Registry
 from scheduler.presence import Presence
 from scheduler.queue import DEFERRED, DONE, FAILED, QUEUED, JobQueue
 from scheduler.supervisor import Supervisor
+from tests.fixtures.secrets import fake_vault
 
 
 def _loader(cfg=None):
