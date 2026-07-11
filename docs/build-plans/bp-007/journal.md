@@ -475,4 +475,56 @@ merge to main / never merge main in either).
 
 ---
 
+## Entry — 2026-07-11 — Item 7 continued: :memory:->Path family + ChatServer conformance (245 → 179)
+
+**The `":memory:"` string-vs-Path family (22 errors, 10 files).** `DerivedStore`/
+`AttestationStore`/`ProposalLedger`/`JobQueue` all declare `path: Path`; many tests pass the
+bare sqlite/duckdb in-memory sentinel `":memory:"` directly as a `str`. `Path(":memory:")`
+round-trips identically — verified against `DerivedStore.__post_init__`'s own `if str(self.path)
+!= ":memory:"` guard — and `tests/property/test_properties.py` already used exactly this idiom,
+confirming it's the established fix, not a guess. Applied mechanically (script + grep) across
+10 files: `test_dreams_view.py`, `test_ambassador.py`, `test_ambassador_budget.py`,
+`test_dialogue_capture.py`, `test_factory_credential_grant.py`, `test_vault_sync_wiring.py`,
+`test_monitor_snapshot.py`, `test_effect_exec.py`, `dreamer_adapter.py` (fixture), `test_ops_view.py`.
+Zero runtime behavior change. Commit `592d144`.
+
+**The systemic pattern surfaced by this sweep — flagged here, not yet resolved.** Fixing the
+mechanical families exposed the DOMINANT remaining shape: ~37+ of the 123 `arg-type` errors are
+test doubles (`FakeEmbedder`, `_FakeWasm`, `_FakePodman`, `_FakeDrift`, `_Server`/`_Embedder`/
+`_Store`, `ReplyServer`, `HashingEmbedder`, `Spy`, …) passed where core declares a CONCRETE
+dataclass (`Embedder`, `ModelServer`, `VectorStore`, `RawStore`, `WasmRunner`, `PodmanRunner`,
+`DriftReport`, …) rather than a Protocol — nominal typing means no amount of structural
+duck-typing satisfies it. This is the exact shape `agents/ambassador/agent.py`'s `ChatServer`
+Protocol (this session, Item 6) already fixed for `Ambassador.server` — the fix generalizes,
+but EVERY one of those core classes is a `core/**` signature, out of this plan's write_scope.
+**This is a core-signature-needed stop-and-raise (plan §10)** — see finding filed below.
+
+**What WAS fixable in test scope (self-inflicted by my own Item-6 `ChatServer` Protocol):**
+`tests/fixtures/fakes.py`'s `ReplyServer.chat(messages: list[dict])` → `list[Message]`
+(`core.constitution.Message`, the TypedDict every real caller already uses) — this is MY
+Protocol, not core's, so tightening the shared fixture to satisfy it is in-scope and correct.
+`tests/integration/test_verdict_dispositions.py`'s `test_ambassador_transports_but_never_
+applies()` constructs an `Ambassador` with bare `object()` placeholders for fields the test
+never reads (only `transport_verdict()` is exercised) — `cast()` to each field's real type
+(`ChatServer`/`Librarian`/`OpsView`/`Budgeter`) makes the "doesn't matter here" intent explicit
+rather than silently untyped; a `list.append(...) or "value"` idiom in the same test (always
+evaluates true since `append` always returns `None`, but checker-suspicious) rewritten as a
+named function with an honest return. Commit `18f6323`.
+
+**Verification:** `ruff check .` clean; pytest 743 passed / 4 skipped throughout (every fix
+this entry was either str→Path with an identical round-trip, a Protocol the fixture already
+structurally satisfied except for one field's element type, or a cast making an already-true
+"this field is unused here" explicit). Repo-wide mypy: 245 → **179**.
+
+**Next action:** file the core-signature finding for the Embedder/ModelServer/VectorStore/
+RawStore/WasmRunner/PodmanRunner/DriftReport-as-concrete-class-not-Protocol pattern (park that
+criterion with a re-entry condition, per plan §10), THEN continue with what remains fixable in
+test scope: the `**dict` splat family (`Attestation.create`, `StoreAttestor.emit`,
+`BackupPlan` — same `dataclasses.replace`/direct-kwargs fix as `test_effect_gate_fsm.py`),
+narrow one-offs (`Network` enum vs str, `list[dict]` vs `list[Message]` in
+`test_constitution.py`), and the `union-attr` family (`CatalogEntry | None`, `RunRecord | None`
+narrowing gaps — watch for a hidden T1 per the plan's explicit warning).
+
+---
+
 ## Markers
