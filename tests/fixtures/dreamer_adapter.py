@@ -79,6 +79,7 @@ import re
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from core.complex.spectral import diffusion_cluster_notes
@@ -268,7 +269,7 @@ class MindPalaceDreamerAdapter:
         return Dreamer(
             store=_RowSource(rows),
             synthesize=_grounded_synth,
-            derived=derived if derived is not None else DerivedStore(":memory:"),
+            derived=derived if derived is not None else DerivedStore(Path(":memory:")),
             threshold=self.threshold,
             min_cluster_size=self.min_cluster_size,
             max_clusters=self.max_clusters,

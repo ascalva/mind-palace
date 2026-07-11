@@ -5,6 +5,8 @@ budgeter is the one and only thing that enforces the window. An oversized choice
 escalated), never silently overflowed.
 """
 
+from pathlib import Path
+
 from agents.ambassador import Ambassador
 from core.attestation.store import AttestationStore
 from core.librarian import Librarian, Retrieval
@@ -15,11 +17,11 @@ from tests.fixtures.fakes import HashingEmbedder, ReplyServer
 
 
 def _bare_ambassador(window: int, reserve: int) -> Ambassador:
-    store_att = AttestationStore(":memory:")
+    store_att = AttestationStore(Path(":memory:"))
     return Ambassador(
         server=ReplyServer(),
         librarian=Librarian(server=ReplyServer(), embedder=HashingEmbedder(8), store=None, k=5),
-        ops_view=OpsView.over(store_att, ProposalLedger(":memory:")),
+        ops_view=OpsView.over(store_att, ProposalLedger(Path(":memory:"))),
         budgeter=Budgeter(window=window, reserve=reserve),
         tier="router",
     )

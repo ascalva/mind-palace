@@ -6,6 +6,8 @@ are unreachable through it) and that the plain-language narration leaks no inter
 (tier names, "job"/"queue", credentials/accessors/signatures) per the authoritative note §4.
 """
 
+from pathlib import Path
+
 from core.attestation.attestor import StoreAttestor
 from core.attestation.store import AttestationStore
 from core.ops_view import OpsView
@@ -19,11 +21,11 @@ _FORBIDDEN = (
 
 
 def _wired():
-    store = AttestationStore(":memory:")
+    store = AttestationStore(Path(":memory:"))
     att = StoreAttestor(store)
     att.emit(agent_role="ambassador", action="capture", input_hashes=["d1"], output_hashes=["d1"])
     att.emit(agent_role="ambassador", action="read", input_hashes=["d1"])
-    ledger = ProposalLedger(":memory:")
+    ledger = ProposalLedger(Path(":memory:"))
     return OpsView.over(store, ledger), store, ledger
 
 
@@ -63,7 +65,7 @@ class _FakeDrift:
 
 
 def test_narrate_reflects_drift_health():
-    store, ledger = AttestationStore(":memory:"), ProposalLedger(":memory:")
+    store, ledger = AttestationStore(Path(":memory:")), ProposalLedger(Path(":memory:"))
     healthy = OpsView.over(store, ledger, drift=lambda: _FakeDrift(True))
     assert "healthy" in healthy.narrate().lower()
 

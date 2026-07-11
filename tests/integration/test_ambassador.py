@@ -6,6 +6,8 @@ model; TASK delegates + narrates effort; the owner's messages on mind-turns are 
 authored-dialogue; every step is attested; earned interruptions respect the policy.
 """
 
+from pathlib import Path
+
 from agents.ambassador import Ambassador, DeliveredResult, Intent, InterruptionPolicy, Sensitivity
 from agents.ambassador.policy import LEAKY_NOUNS
 from core.attestation.attestor import StoreAttestor
@@ -49,11 +51,11 @@ def _amb(tmp_path, *, server=None, drift=None, sensitivity=Sensitivity.EARNED_ON
         _row("cur1", "docs/design",
              "The Ambassador is a reasoning agent that is computationally light", "curated", emb),
     ])
-    att_store = AttestationStore(":memory:")
+    att_store = AttestationStore(Path(":memory:"))
     attestor = StoreAttestor(att_store)
     capture = DialogueCapture(raw=RawStore(tmp_path / "raw"), store=store, embedder=emb,
                               catalog=VaultCatalog(tmp_path / "c.sqlite"), attestor=attestor)
-    ops_view = OpsView.over(att_store, ProposalLedger(":memory:"),
+    ops_view = OpsView.over(att_store, ProposalLedger(Path(":memory:")),
                             drift=(lambda: drift) if drift is not None else None)
     amb = Ambassador(
         server=server or ReplyServer("Here's what I see."),
@@ -108,7 +110,7 @@ def test_explain_reads_the_curated_graph_not_the_mirror(tmp_path):
 
 
 def test_dreams_reflects_the_interpreted_layer_mirror_not_oracle(tmp_path):
-    derived = DerivedStore(":memory:")
+    derived = DerivedStore(Path(":memory:"))
     derived.add(kind=DREAM, summary="a pull toward solitude when work intensifies",
                 subjects=["overwork", "weekend alone"])
     server = ReplyServer("SHOULD NOT BE CALLED")

@@ -7,6 +7,8 @@ watcher's on_change enqueues a job (the trigger path) — all without core impor
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from config.loader import get_config
 from scheduler.queue import PRIORITY_BACKGROUND, JobQueue
 from scheduler.router import Router
@@ -40,7 +42,7 @@ def test_routes_to_pinned_tier_no_worker_swap():
 
 def test_enqueue_is_background_priority():
     cfg = get_config()
-    queue = JobQueue(":memory:")
+    queue = JobQueue(Path(":memory:"))
     job = enqueue_vault_sync(queue, Router(cfg))
     assert job.kind == VAULT_SYNC_KIND
     assert job.tier == cfg.pinned_model.tier
@@ -57,7 +59,7 @@ def test_handler_runs_rescan():
 
 def test_watcher_on_change_enqueues_a_job():
     cfg = get_config()
-    queue = JobQueue(":memory:")
+    queue = JobQueue(Path(":memory:"))
     watcher = build_vault_watcher(queue, Router(cfg), cfg)
     assert queue.depth() == 0
     watcher.on_change()                              # the trigger the FS event would cause

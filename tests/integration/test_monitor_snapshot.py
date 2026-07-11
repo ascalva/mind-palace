@@ -5,6 +5,7 @@ filesystem, never by importing it.
 """
 
 import json
+from pathlib import Path
 
 from core.attestation.attestor import StoreAttestor
 from core.attestation.store import AttestationStore
@@ -19,11 +20,11 @@ from ops.lifecycle.snapshot import build_status, write_status
 
 
 def test_snapshot_is_metadata_not_corpus(tmp_path):
-    att = AttestationStore(":memory:")
+    att = AttestationStore(Path(":memory:"))
     StoreAttestor(att).emit(agent_role="ambassador", action="read", input_hashes=["d1"])
-    derived = DerivedStore(":memory:")
+    derived = DerivedStore(Path(":memory:"))
     derived.add(kind=DREAM, summary="SECRET-NOTE-BODY recurring theme", subjects=["s1"])
-    ops = OpsView.over(att, ProposalLedger(":memory:"))
+    ops = OpsView.over(att, ProposalLedger(Path(":memory:")))
     dreams = DreamsView.over(derived)
 
     data = build_status(ops_view=ops, dreams_view=dreams, queue_depth=3, mem_available_gb=9.5)

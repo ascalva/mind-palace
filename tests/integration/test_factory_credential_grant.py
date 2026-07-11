@@ -7,6 +7,8 @@ token (fail-closed), and the token never reaches the model prompt or the attesta
 accessor does (the Vault↔attestation join; Invariant 10).
 """
 
+from pathlib import Path
+
 import pytest
 
 from config.secrets_backend import VaultPermissionDenied
@@ -67,7 +69,7 @@ def test_no_backend_means_no_grant():
 
 def test_mint_attests_the_accessor_not_the_token():
     fv = fake_vault(**{"oura-daily-aggregates": "hrv=42"})
-    store = AttestationStore(":memory:")
+    store = AttestationStore(Path(":memory:"))
     agent = _factory(fv, attestor=StoreAttestor(store)).mint("correlator")
     mint_atts = [a for a in store.all() if a.action == "mint_token"]
     assert len(mint_atts) == 1

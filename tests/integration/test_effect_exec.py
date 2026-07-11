@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from pathlib import Path
 
 import pytest
 
@@ -51,7 +52,7 @@ class FakeEffectTransport:
 def _executor(ttl: str = "60s"):
     vault = FakeVault(policies={"send:email": frozenset({"smtp-credential"})},
                       secrets={"smtp-credential": "hunter2"})
-    store = AttestationStore(":memory:")
+    store = AttestationStore(Path(":memory:"))
     transport = FakeEffectTransport()
     ex = IrreversibleExecutor(secrets=vault, attestor=StoreAttestor(store), transport=transport,
                               credential_ttl=ttl)
