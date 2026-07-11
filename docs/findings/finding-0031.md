@@ -10,7 +10,7 @@ updated: 2026-07-11
 links:
   - docs/build-plans/bp-007/journal.md      # the episode (documented workaround)
   - .claude/skills/delegate/SKILL.md        # the mode this infrastructure serves
-resolution: null
+resolution: promoted 2026-07-11 -> bp-014 (proposed); owner-directed to fix
 ---
 
 # finding-0031 — Enforcement state bleeds across worktrees: the active-plan pointer is not worktree-local in practice
@@ -53,3 +53,27 @@ hooks-scoped fix (bp-010's surface family); verify with a two-worktree harness c
 Parked until the next hooks-scoped plan (or fold into A7's implementation plan). Trigger
 that reopens immediately: any parallel-builder denial or allowance traceable to a
 pointer outside its own worktree.
+
+## Promotion (2026-07-11) — owner-directed, -> bp-014
+
+The owner directed this be handled ("you keep bringing it up, so it must be important").
+**Three live manifestations on 2026-07-11**, all one root cause (hooks resolve `ROOT` to
+`CLAUDE_PROJECT_DIR` = the MAIN checkout even for worktree agents, so `active_plan_path()`
+reads main's pointer, not the worktree's):
+1. **bp-007 builder** — its in-scope Edit/Write DENIED against another plan's scope (original).
+2. **Orchestrator Stop-gate FALSE-GUARD** — a running builder's `/build` set MAIN's pointer,
+   so the bare orchestrator session's `journal-gate` guarded a plan it wasn't building (~5×
+   this session; the recurring mtime-touch tax).
+3. **bp-011 builder** — its OWN in-scope writes denied by `scope-guard` (builder's finding-0033),
+   worked around via standalone-check-then-write.
+
+**Promoted to `bp-014` (status `proposed`)** — a codebase bugfix restoring the stated
+worktree-local design (`active_plan_path()` docstring + design-note §4), changing no policy.
+The fix is pinned there (worktree-aware ROOT: prefer the CWD `git rev-parse --show-toplevel`
+over `CLAUDE_PROJECT_DIR` when they differ and the CWD-toplevel has its own `.claude/state/`),
+with a two-worktree regression harness whose critical case is the **fail-closed / unsafe**
+direction (a broad main pointer must NOT loosen a narrow worktree builder).
+
+**Sequencing:** bp-014 `depends_on: [bp-012, bp-013]` — enforcement hooks must not change
+while delegated builders are running against them. First unit after the current queue clears.
+**Owner action to approve:** the `proposed -> ready` blessing by hand (owner-only gate).
