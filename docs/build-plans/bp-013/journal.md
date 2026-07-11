@@ -150,3 +150,87 @@ main, did NOT push.
   docstring updated (six handles; Lane-1 paragraph).
 - Acceptance: 8 passed (+ bp-012's 17 unchanged); ruff clean; `mypy core ops` strict →
   "Success: no issues found in 130 source files".
+
+## Entry — 2026-07-11 — finding-0035 → finding-0036 renumber (collision with main)
+
+The worktree's Item-7 spec-fidelity finding was `finding-0035`, but main sealed a DIFFERENT
+`finding-0035` (`fb23c48` — the orchestrator self-resume-prompt practice) after this worktree
+branched. To avoid an add/add merge conflict at the orchestrator's merge, `git mv
+docs/findings/finding-0035.md docs/findings/finding-0036.md`; front-matter `id:` bumped to
+`finding-0036` (the H1 is descriptive, carries no number); both journal references to the
+BUILDER's finding updated to 0036. `grep -rn finding-0035 docs/` is now empty (no ref to
+main's meaning here). Committed `bc28dea` (no Co-Authored-By — a mechanical renumber).
+
+## Entry — 2026-07-11 — Item 8 COMPLETE — bit-identical reference-edge isolation proof (B-c falsifier automated)
+
+`tests/integration/test_reference_edge_isolation.py` (2 tests) — the structural twin of
+`test_edge_partition.py`, specialized to the Lane-1 reference-edge store. Item 8 is the B-c
+falsifier automated forever (plan §6, verbatim): *"any instrument result changes when reference
+edges are added or removed."*
+
+**What the test asserts.**
+- `test_reference_edges_never_reach_the_balance_math`: builds the SAME two-theme MirrorView the
+  edge-partition mirror uses (8 authored nodes p0–p3 / s0–s3, seeded rng(0), identical fixture),
+  runs the FULL instrument stack via a `measure()` closure — `frustration(kx.A_signed)` (balance
+  λ + frustrated triangles), `forman(kx.A)` (curvature), `cluster_notes(note_centroids(...),
+  threshold=0.5)` (clustering) — snapshots (lam0, tris0, curv0, cl0); then POPULATES the reference
+  store; re-`measure()`s; asserts every result bit-identical (`lam0 == pytest.approx(lam1)` — the
+  only approx, matching the mirror; `tris0/curv0/cl0 == …` exact). An EdgeStore CONTRADICT(p0,s0)
+  is planted first so `A_signed` carries real frustration to move IF the store leaked.
+- `test_build_complex_has_no_handle_to_the_reference_edge_store`: structural, bp-013-specific —
+  `set(inspect.signature(build_complex).parameters) == {"view","edges","derived","sim_floor"}`.
+  There is NOWHERE to pass a `ReferenceEdgeStore`, so it cannot reach `A_signed` by construction
+  (the mirror asserts the same set for the E_disp stores; this one is named for THIS store, a
+  forever-green guard).
+
+**How the with/without difference is REAL (the actual edges planted).** Between the two
+`measure()` calls the test opens a real `ReferenceEdgeStore(tmp_path/"reference_edges.sqlite")`
+and `add_batch`es four `ReferenceEdge.mint(...)` rows whose CORPUS endpoints ARE node digests of
+the complex (so if the store were reachable, THESE rows over THESE nodes are exactly what would
+move an instrument): `code_to_corpus/note-citation → p0`, `code_to_corpus/path-mention → s0`,
+`corpus_to_code/path-mention → p1`, `corpus_to_code/path-mention → s3` (both directions, the
+validated ref_types). The difference is proven real, not assumed: `assert added == 4`,
+`assert ref_store.count() == 4`, and `assert {e.corpus_ref for e in ref_store.all()} <=
+set(node_digests)` — the store REALLY has rows over the complex's own nodes (the mirror asserts
+`versions.count() == 1`; this is its analogue with the stronger endpoint-overlap assertion).
+
+**Result: the isolation proof PASSES.** All instrument results are bit-identical WITH and WITHOUT
+the populated store. No B-c falsification (plan §10 stop-and-raise did NOT fire).
+
+**core/complex/** + core/stores/edges.py are UNTOUCHED** — Item 8 is test-only, which is the
+point. `git diff --stat main...HEAD -- core/complex/ core/stores/edges.py` is EMPTY. Full stat:
+```
+ core/stores/reference_edges.py          | 233 +++++
+ docs/build-plans/bp-013/journal.md      | (this entry)
+ docs/build-plans/bp-013/plan.md         |   2 +-
+ docs/findings/finding-0036.md           |  55 +++
+ ops/code_sensor.py                      | 154 +++--
+ tests/unit/test_reference_edges.py      | 134 +++  (Item 6 + the mypy-baseline fix below)
+ tests/unit/test_reference_extraction.py | 198 +++
+ tests/integration/test_reference_edge_isolation.py  (Item 8, new)
+```
+
+**Codebase fix folded in (in-scope, `tests/**`).** Item 6's `test_reference_edges.py:27` had a
+bare `kw: dict = dict(...)` — a `[type-arg]` error that pushed the WHOLE-TREE mypy baseline from
+finding-0029's 69 to 70. Fixed to `kw: dict[str, Any]` (`dict[str, object]` was tried first but
+its `**kw` unpack into `mint`'s typed params added two `[arg-type]` errors → net worse;
+`dict[str, Any]` unpacks cleanly). Whole-tree mypy back to exactly **69**. Not a finding — a
+one-line type annotation on an in-scope test file, resolved and annotated (codebase class).
+
+**Acceptance — verbatim command output.**
+- `uv run pytest tests/integration/test_reference_edge_isolation.py -v`:
+  ```
+  tests/integration/test_reference_edge_isolation.py::test_reference_edges_never_reach_the_balance_math PASSED [ 50%]
+  tests/integration/test_reference_edge_isolation.py::test_build_complex_has_no_handle_to_the_reference_edge_store PASSED [100%]
+  ============================== 2 passed in 0.82s ===============================
+  ```
+- `uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'`:
+  `804 passed, 4 skipped, 20 deselected in 23.52s` (resume brief expected ~785; actual **804**
+  after Items 6+7's unit tests and Item 8's 2 integration tests all landed).
+- `uv run ruff check .`: `All checks passed!`
+- `uv run mypy core agents eval ops scheduler scripts`: `Success: no issues found in 168 source files` (strict floor, 0 errors).
+- `uv run mypy` (whole `[tool.mypy].files`, incl `tests/`): `Found 69 errors in 20 files (checked 333 source files)` — matches finding-0029 baseline exactly.
+- `uv run python scripts/check_imports.py`: `Import firewall (I2): OK` (Invariant-2 green).
+
+Plan left `in-progress` — the completion flip is the orchestrator's /triage seal, not a builder
+step. NOT pushed (runner-budget rule); Item 8 commit is local for the orchestrator to merge.

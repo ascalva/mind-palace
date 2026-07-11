@@ -9,6 +9,7 @@ bit-identical instruments proof lives in tests/integration/test_reference_edge_i
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -24,7 +25,7 @@ REPO = Path(__file__).resolve().parents[2]
 
 
 def _edge(**over: object) -> ReferenceEdge:
-    kw: dict = dict(direction="code_to_corpus", ref_type="note-citation",
+    kw: dict[str, Any] = dict(direction="code_to_corpus", ref_type="note-citation",
                     commit_sha="c1", code_path="core/recursion.py", qualname="",
                     corpus_ref="docs/design-notes/recursive-strata.md",
                     corpus_kind="path", source_line=1)
