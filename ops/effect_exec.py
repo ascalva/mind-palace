@@ -53,6 +53,7 @@ from ops.effects import (
 )
 
 if TYPE_CHECKING:  # annotations only — no runtime import (config/attestation stay injectable)
+    from config.loader import Config
     from config.secrets_backend import SecretsBackend
     from core.attestation.attestor import Attestor
 
@@ -74,7 +75,7 @@ class EffectTransport(Protocol):
     returns a receipt/id (a string the attestation hashes). Real implementations live in Zone B and
     touch the network; they never see anything but the token minted for this single effect."""
 
-    def perform(self, actuator: str, params: dict, *, token: str) -> str: ...
+    def perform(self, actuator: str, params: dict[str, str], *, token: str) -> str: ...
 
 
 class EffectDenied(RuntimeError):
@@ -105,7 +106,7 @@ class IrreversibleExecutor:
     agent_role: str = "effector"
 
     def execute(
-        self, effect: Effect, params: dict, *, proposed: bool, attested: bool
+        self, effect: Effect, params: dict[str, str], *, proposed: bool, attested: bool
     ) -> ExecRecord:
         """Perform one approved irreversible effect. `proposed` / `attested` are the recorded facts
         (from the `EffectLedger` / attestation store) the gate conjoins. Raises `EffectDenied` (and
@@ -161,7 +162,7 @@ class IrreversibleExecutor:
                           attestation_id=att.id, receipt=receipt)
 
 
-def build_irreversible_executor(config: object | None = None, *,
+def build_irreversible_executor(config: Config | None = None, *,
                                 transport: EffectTransport) -> IrreversibleExecutor:
     """Wire the executor against the real Vault backend + attestor. REFUSES unless `[secrets]` is
     enabled (there is no mint authority otherwise) — the acting classes are owner-activated, and the
