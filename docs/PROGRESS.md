@@ -2049,3 +2049,39 @@ exactly when a trigger fires. Grounding done this session:
 
 **Next:** if ratified → `/graduate` the note (Fable/xhigh). Else → bp-014 (opus/default,
 supervision; finding-0031 fix + finding-0035 hook mechanism). Then /triage.
+
+### Checkpoint 2026-07-11 (late night) — /graduate DONE: bp-015/016/017 minted `proposed` (Fable/xhigh)
+
+**The ratified `dn-ci-platform-and-runner-strategy` graduated into three plans**, grounded
+pass complete (every §3 claim carries a `path:line` citation; commands pinned verbatim §6):
+
+- **bp-015 — Plan A, the parity gate** (opus est. 250k): rebuild `.github/workflows/ci.yml`
+  as five independent jobs (ratchet · type-gate 0/69 · vault-axis service-container · semgrep
+  · gitleaks full-history = Gate-0 residual discharge) + tombstone `.gitlab-ci.yml` + runbook
+  §Verifying correction. New grounding this pass: the 4-marker pytest exclusion does NOT leak
+  `longitudinal` (measured: 808/828 collected, 0 longitudinal — `tests/longitudinal` never
+  enters collection); vault service resolves via `localhost:8200` port-map on GitHub (env-only
+  deviation; tests read `VAULT_ADDR`); the `chore(release)` skip rule deliberately not ported
+  (P2). Live wiring proof (green→red-canary→green) is orchestrator-executed — builders never push.
+- **bp-016 — Plan B, witness re-point + release relocation** (fable est. 300k; depends bp-015):
+  GitHub backend in `ops/ci_witness.py` (query `ci.yml` runs by head_sha; ONLY
+  `completed`+`success` = green; absent-grace 300 s inside `check()`; emission keeps
+  `pipeline_green|red` action names, output `pipeline:→run:`); CLI/launcher contract
+  byte-frozen. **Deviation surfaced:** GitHub has no PAT self-rotation endpoint — `rotate()`
+  becomes guided-manual (Item 8, owner sees it at the gate). Release relocation (Item 10) is
+  **P5-guarded**: parks until the owner's origin re-point + tag-parity check (`v*` tags may
+  not have mirrored — pre-check pinned). Owner-step ledger (PAT mint · re-point+tags · mirror
+  retirement · scanning toggles) lives in the journal from day one. Found+repairing: the
+  witness docstring's "runbook §CI witness" points at a section that doesn't exist.
+- **bp-017 — Plan C, docs → GitHub Pages** (sonnet est. 100k; depends bp-015, ∥ bp-016): port
+  the one-command uvx mkdocs build to a `pages.yml` workflow + re-point `mkdocs.yml` URLs
+  (default `ascalva.github.io/Mind-Palace`, note parked #4). Kept separate from A: A's
+  red-proof burden is already a session; C has its own crisp checker.
+
+All three `proposed` — **`proposed → ready` is the owner's, by hand, item-by-item.** Family
+item numbering 1–13 across the trio. bp-014 (ready) remains parallel-safe with bp-015
+(disjoint scopes); owner priority sequences the two lanes.
+
+**Next:** owner blesses any of bp-015/016/017 → delegate per plan tier. Meanwhile
+supervision-tier: bp-014 build, then /triage (findings 0027–0036 sweep, oq-0013/0014
+answer-sweep, promotions, seals).
