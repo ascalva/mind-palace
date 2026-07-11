@@ -48,20 +48,27 @@ In the `amendments:` list add:
   becomes workable — task capability still never exceeds what §5 grants.
 ```
 
-## Edit 3 — §5 hook-contract row (line ~135), scope-guard description
+## Edit 3 — §5 hook-contract row (scope-guard description) — RUN, don't paste
 
-Replace the final sentence of the `scope-guard` row:
+The row is a markdown TABLE CELL: pasted newlines break it. Run this instead (one line
+lands in the cell):
 
-> A global foundation-file denylist applies beneath any plan, in every session,
-> orchestrator included.
-
-with:
-
-> A global foundation-file denylist (`CONSTITUTION.md`, `eval/golden/**`,
-> `eval/golden.py`) applies beneath any plan, in every session, orchestrator included.
-> Design notes are guarded by STATUS, not location (A8): draft notes are agent-writable
-> working material; ratified/superseded notes are agent-immutable, enforced pre-hoc on
-> on-disk status and post-hoc against HEAD status (laundering-proof).
+```bash
+python3 - <<'PYEOF'
+from pathlib import Path
+p = Path("docs/design-notes/agent-workflow.md")
+t = p.read_text()
+old = "A global foundation-file denylist applies beneath any plan, in every session, orchestrator included."
+new = ("A global foundation-file denylist (`CONSTITUTION.md`, `eval/golden/**`, `eval/golden.py`) "
+       "applies beneath any plan, in every session, orchestrator included. Design notes are guarded "
+       "by STATUS, not location (A8): draft notes are agent-writable working material; "
+       "ratified/superseded notes are agent-immutable — enforced pre-hoc on on-disk status and "
+       "post-hoc against HEAD status (laundering-proof).")
+assert old in t, "target sentence not found"
+p.write_text(t.replace(old, new, 1))
+print("edit 3 applied — single line, table intact")
+PYEOF
+```
 
 ---
 
