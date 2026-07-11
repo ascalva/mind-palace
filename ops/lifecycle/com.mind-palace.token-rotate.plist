@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Weekly self-rotation of the gitlab-api Keychain token (ops/ci_witness.py rotate).
+     Fail-safe: a missed rotation lets the 30-day expiry lapse -> manual re-mint; a leaked
+     token dies at the next rotation. Install:
+       cp ops/lifecycle/com.mind-palace.token-rotate.plist ~/Library/LaunchAgents/
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.mind-palace.token-rotate.plist -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.mind-palace.token-rotate</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/opt/homebrew/bin/uv</string>
+		<string>run</string>
+		<string>/Users/ascalva/mind-palace/scripts/ci_witness.py</string>
+		<string>rotate</string>
+	</array>
+	<key>WorkingDirectory</key>
+	<string>/Users/ascalva/mind-palace</string>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Weekday</key>
+		<integer>1</integer>
+		<key>Hour</key>
+		<integer>9</integer>
+		<key>Minute</key>
+		<integer>0</integer>
+	</dict>
+	<key>StandardOutPath</key>
+	<string>/Users/ascalva/mind-palace/data/logs/token-rotate.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/ascalva/mind-palace/data/logs/token-rotate.log</string>
+</dict>
+</plist>

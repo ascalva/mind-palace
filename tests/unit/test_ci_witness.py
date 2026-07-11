@@ -12,3 +12,11 @@ def test_verdict_mapping():
     assert verdict({"status": "manual", "id": 1}) == "green"
     assert verdict({"status": "failed", "id": 1}) == "red"
     assert verdict({"status": "canceled", "id": 1}) == "red"
+
+
+def test_rotation_expiry_is_future_iso_date():
+    from datetime import date
+
+    from ops.ci_witness import rotation_expiry
+    v = rotation_expiry()
+    assert date.fromisoformat(v) > date.today()

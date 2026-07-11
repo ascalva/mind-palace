@@ -92,6 +92,61 @@ def check(sha: str, *, wait_s: float = 600.0) -> int:
     return 0 if v == "green" else 1
 
 
+def _api_root(path: str, token: str, *, method: str = "GET", timeout: int = 20) -> object:
+    """Top-level (non-project) API call — rotation lives at /personal_access_tokens/…"""
+    req = urllib.request.Request("https://gitlab.com/api/v4" + path, method=method,
+                                 headers={"PRIVATE-TOKEN": token})
+    with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 — fixed https host
+        return json.load(r)
+
+
+def rotation_expiry(days: int = 30) -> str:
+    from datetime import date, timedelta
+    return (date.today() + timedelta(days=days)).isoformat()
+
+
+def rotate() -> int:
+    """Self-rotate the Keychain token (owner rule 2026-07-11): the old token is revoked
+    server-side the moment rotation succeeds, so the ordering is fail-safe by design —
+    VERIFY the new token works, THEN overwrite Keychain, THEN read back and compare,
+    THEN attest the event (token id + expiry; never the secret). Any failure after
+    rotation prints loud instructions to re-mint — the fail state is a dead token and
+    a five-minute manual re-mint, never a silently broken credential.
+
+    Residual exposure, stated honestly: `security add-generic-password -w` places the
+    secret on argv for the write (same exposure as the owner's one-time setup command,
+    single-user Mac). Keychain has no stdin write path for -w; accepted and recorded."""
+    token = _keychain_token()
+    if token is None:
+        print("ci-witness: no gitlab-api token in Keychain — nothing to rotate. "
+              "Mint one first (runbook §CI witness).")
+        return 1
+    rotated = _api_root(f"/personal_access_tokens/self/rotate?expires_at={rotation_expiry()}",
+                        token, method="POST")
+    new_token, new_id = rotated["token"], rotated.get("id", "?")
+    try:
+        _api_root("/personal_access_tokens/self", new_token)   # prove it works before storing
+        subprocess.run(["security", "add-generic-password", "-U", "-a", "mind-palace",
+                        "-s", "gitlab-api", "-w", new_token], check=True, capture_output=True)
+        if _keychain_token() != new_token:
+            raise RuntimeError("keychain read-back mismatch")
+    except Exception as e:  # noqa: BLE001 — the old token is already dead; be LOUD
+        print(f"ci-witness: ROTATION STORE FAILED ({e}) — the old token is revoked and the "
+              "new one was NOT stored. Re-mint by hand: gitlab → access tokens → api scope, "
+              "then: security add-generic-password -U -a mind-palace -s gitlab-api -w <TOKEN>")
+        return 1
+    from config.loader import get_config
+    from core.attestation import build_attestor
+    attestor = build_attestor(get_config())
+    if attestor is not None:
+        attestor.emit(agent_role="ci_witness", action="token_rotated",
+                      input_hashes=[f"token:{new_id}"],
+                      output_hashes=[f"expires:{rotated.get('expires_at', '?')}"])
+    print(f"ci-witness: token rotated (id {new_id}, expires {rotated.get('expires_at')}) — "
+          "stored + attested")
+    return 0
+
+
 def release(sha: str) -> int:
     """Play the manual semantic-release job for the sha's pipeline (token required)."""
     pipe = pipeline_for(sha)

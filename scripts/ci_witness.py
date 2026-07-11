@@ -3,6 +3,7 @@
 
     uv run scripts/ci_witness.py check <sha>     # poll pipeline to verdict, attest, rc 0 = green
     uv run scripts/ci_witness.py release <sha>   # play semantic-release (token) or print URL
+    uv run scripts/ci_witness.py rotate          # self-rotate the Keychain token (attested)
 
 Deliberately UNSEALED (ops tier reaches gitlab.com; the sealed core never does) — which is
 why `palace deploy` invokes this as a subprocess rather than importing it.
@@ -19,6 +20,9 @@ from ops.ci_witness import check, release  # noqa: E402
 
 
 def main(argv: list[str]) -> int:
+    if argv and argv[0] == "rotate" and len(argv) == 1:
+        from ops.ci_witness import rotate
+        return rotate()
     if len(argv) != 2 or argv[0] not in ("check", "release"):
         print(__doc__)
         return 2
