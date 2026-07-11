@@ -3,9 +3,12 @@
 Git already stores the *text* of every commit; what it does not give the evolution study is
 the *structure* as queryable data. This module walks a commit's tracked ``*.py`` blobs (the
 COMMITTED tree via ``git show``, never the working directory), parses each with ``ast``, and
-records the skeleton — symbols (functions/classes with signatures), imports, LOC, per-file
-blob hashes — keyed by commit SHA. Diffing two SHAs answers "what changed structurally,"
-which git can only answer textually.
+records the skeleton — symbols (functions/classes with signatures), docstrings, imports,
+LOC, per-file blob hashes — keyed by commit SHA. Diffing two SHAs answers "what changed
+structurally," which git can only answer textually. Docstrings ride the SAME AST walk
+(`ast.get_docstring`, no second parse) — the Rosetta payload the ratified
+`code-observation-projection.md` §2.3 names as the future observation schema's translation
+layer; this ledger is its cheap, additive precursor (B-a).
 
 A small dedicated SQLite (`data/code_snapshots.sqlite`), the same pattern as the run ledger —
 and like the run ledger it is BUILD history, not corpus: `palace reset` guards it. Idempotent
@@ -51,6 +54,7 @@ CREATE TABLE IF NOT EXISTS files (
     functions   INTEGER NOT NULL,
     classes     INTEGER NOT NULL,
     parse_error INTEGER NOT NULL DEFAULT 0,
+    docstring   TEXT NOT NULL DEFAULT '',        -- module-level ast.get_docstring, '' if absent
     PRIMARY KEY (commit_sha, path)
 );
 CREATE TABLE IF NOT EXISTS symbols (
@@ -60,6 +64,7 @@ CREATE TABLE IF NOT EXISTS symbols (
     qualname   TEXT NOT NULL,                    -- dotted within the module (Cls.method)
     lineno     INTEGER NOT NULL,
     signature  TEXT NOT NULL DEFAULT '',         -- unparsed arg list for defs, '' for classes
+    docstring  TEXT NOT NULL DEFAULT '',         -- ast.get_docstring verbatim, '' if absent
     PRIMARY KEY (commit_sha, path, qualname, lineno)
 );
 CREATE TABLE IF NOT EXISTS imports (
@@ -96,6 +101,7 @@ class Symbol:
     qualname: str
     lineno: int
     signature: str
+    docstring: str = ""                          # ast.get_docstring verbatim, '' if absent
 
 
 @dataclass
@@ -106,6 +112,7 @@ class FileShape:
     symbols: list[Symbol] = field(default_factory=list)
     imports: set[str] = field(default_factory=set)
     parse_error: bool = False
+    docstring: str = ""                          # module-level ast.get_docstring, '' if absent
 
     @property
     def functions(self) -> int:
@@ -121,11 +128,12 @@ def _walk_defs(node: ast.AST, prefix: str, out: list[Symbol]) -> None:
         if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef):
             kind = "async_function" if isinstance(child, ast.AsyncFunctionDef) else "function"
             qual = f"{prefix}{child.name}"
-            out.append(Symbol(kind, qual, child.lineno, f"({ast.unparse(child.args)})"))
+            out.append(Symbol(kind, qual, child.lineno, f"({ast.unparse(child.args)})",
+                               ast.get_docstring(child) or ""))
             _walk_defs(child, f"{qual}.", out)
         elif isinstance(child, ast.ClassDef):
             qual = f"{prefix}{child.name}"
-            out.append(Symbol("class", qual, child.lineno, ""))
+            out.append(Symbol("class", qual, child.lineno, "", ast.get_docstring(child) or ""))
             _walk_defs(child, f"{qual}.", out)
 
 
@@ -147,6 +155,7 @@ def parse_source(path: str, blob_sha: str, source: str) -> FileShape:
     except SyntaxError:
         shape.parse_error = True
         return shape
+    shape.docstring = ast.get_docstring(tree) or ""
     _walk_defs(tree, "", shape.symbols)
     shape.imports = _module_imports(tree)
     return shape
@@ -204,10 +213,11 @@ def snapshot_commit(db: sqlite3.Connection, repo: Path, rev: str = "HEAD", *,
              sum(s.functions for s in shapes), sum(s.classes for s in shapes),
              sum(1 for s in shapes if s.parse_error), subject, ctype, scope))
         for s in shapes:
-            db.execute("INSERT INTO files VALUES (?,?,?,?,?,?,?)",
-                       (sha, s.path, s.blob_sha, s.loc, s.functions, s.classes, int(s.parse_error)))
-            db.executemany("INSERT OR IGNORE INTO symbols VALUES (?,?,?,?,?,?)",
-                           [(sha, s.path, y.kind, y.qualname, y.lineno, y.signature)
+            db.execute("INSERT INTO files VALUES (?,?,?,?,?,?,?,?)",
+                       (sha, s.path, s.blob_sha, s.loc, s.functions, s.classes,
+                        int(s.parse_error), s.docstring))
+            db.executemany("INSERT OR IGNORE INTO symbols VALUES (?,?,?,?,?,?,?)",
+                           [(sha, s.path, y.kind, y.qualname, y.lineno, y.signature, y.docstring)
                             for y in s.symbols])
             db.executemany("INSERT OR IGNORE INTO imports VALUES (?,?,?)",
                            [(sha, s.path, m) for m in sorted(s.imports)])
@@ -238,6 +248,51 @@ def annotate_headers(db: sqlite3.Connection, repo: Path) -> int:
     return len(rows)
 
 
+def backfill_docstrings(db: sqlite3.Connection, repo: Path) -> int:
+    """Fill docstrings on files/symbols rows recorded before the docstring columns
+    existed — re-parses each affected blob ONCE (docstrings aren't derivable from stored
+    columns alone, unlike header healing). Idempotent: a row already carrying a non-empty
+    docstring, or genuinely undocumented (docstring == '' in the source), is left alone —
+    re-running is a no-op once every blob in the ledger has been visited. Self-healing on
+    every sync (rescan discipline, same shape as `annotate_headers`)."""
+    rows = db.execute(
+        "SELECT commit_sha, path, blob_sha FROM files WHERE docstring='' "
+        "AND (commit_sha, path) NOT IN (SELECT commit_sha, path FROM _docstring_backfilled)"
+    ).fetchall()
+    if not rows:
+        return 0
+    shas = sorted({b for _, _, b in rows})
+    blobs = _read_blobs(repo, shas)
+    cache: dict[str, FileShape] = {}
+    updated = 0
+    file_updates: list[tuple[str, str, str]] = []
+    symbol_updates: list[tuple[str, str, str, str, int]] = []
+    marks: list[tuple[str, str]] = []
+    for commit_sha, path, blob_sha in rows:
+        if blob_sha not in blobs:
+            marks.append((commit_sha, path))   # blob unreachable (pruned/shallow) — mark done
+            continue
+        if blob_sha not in cache:
+            cache[blob_sha] = parse_source(path, blob_sha, blobs[blob_sha])
+        shape = cache[blob_sha]
+        if shape.docstring:
+            file_updates.append((shape.docstring, commit_sha, path))
+            updated += 1
+        for y in shape.symbols:
+            if y.docstring:
+                symbol_updates.append((y.docstring, commit_sha, path, y.qualname, y.lineno))
+        marks.append((commit_sha, path))
+    with db:
+        db.executemany(
+            "UPDATE files SET docstring=? WHERE commit_sha=? AND path=?", file_updates)
+        db.executemany(
+            "UPDATE symbols SET docstring=? WHERE commit_sha=? AND path=? "
+            "AND qualname=? AND lineno=?", symbol_updates)
+        db.executemany(
+            "INSERT OR IGNORE INTO _docstring_backfilled VALUES (?,?)", marks)
+    return updated
+
+
 def open_snapshot_db(path: Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(str(path))
@@ -247,4 +302,17 @@ def open_snapshot_db(path: Path) -> sqlite3.Connection:
     for col in ("subject", "ctype", "scope"):
         if col not in cols:
             db.execute(f"ALTER TABLE snapshots ADD COLUMN {col} TEXT NOT NULL DEFAULT ''")
+    file_cols = {r[1] for r in db.execute("PRAGMA table_info(files)")}
+    if "docstring" not in file_cols:
+        db.execute("ALTER TABLE files ADD COLUMN docstring TEXT NOT NULL DEFAULT ''")
+    symbol_cols = {r[1] for r in db.execute("PRAGMA table_info(symbols)")}
+    if "docstring" not in symbol_cols:
+        db.execute("ALTER TABLE symbols ADD COLUMN docstring TEXT NOT NULL DEFAULT ''")
+    # marks (commit_sha, path) pairs already visited by backfill_docstrings — an
+    # undocumented file legitimately carries docstring='' forever; without a mark the
+    # backfill would re-scan it on every sync trying to "heal" a row that isn't broken.
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS _docstring_backfilled ("
+        "commit_sha TEXT NOT NULL, path TEXT NOT NULL, "
+        "PRIMARY KEY (commit_sha, path))")
     return db

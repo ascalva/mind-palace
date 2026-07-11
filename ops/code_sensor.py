@@ -23,7 +23,14 @@ from pathlib import Path
 
 from config.loader import Config
 from core.attestation import Attestor
-from ops.code_snapshot import FileShape, _git, annotate_headers, open_snapshot_db, snapshot_commit
+from ops.code_snapshot import (
+    FileShape,
+    _git,
+    annotate_headers,
+    backfill_docstrings,
+    open_snapshot_db,
+    snapshot_commit,
+)
 
 
 @dataclass
@@ -31,9 +38,11 @@ class CodeSyncReport:
     ingested: int = 0
     ledger_total: int = 0
     shas: list[str] = field(default_factory=list)
+    doc_coverage: float = 0.0     # documented symbols / total symbols in the ledger, [0, 1]
 
     def __str__(self) -> str:
-        return f"code-sensor sync: ingested={self.ingested} ledger_total={self.ledger_total}"
+        return (f"code-sensor sync: ingested={self.ingested} ledger_total={self.ledger_total} "
+                f"doc_coverage={self.doc_coverage:.2%}")
 
 
 @dataclass
@@ -67,7 +76,12 @@ class CodeSensor:
             report.ingested += 1
             report.shas.append(sha)
         annotate_headers(self.db, self.repo)   # heal pre-header rows (CONVENTIONS §Commits)
+        backfill_docstrings(self.db, self.repo)  # heal pre-docstring-column rows (B-a)
         report.ledger_total = self.db.execute("SELECT count(*) FROM snapshots").fetchone()[0]
+        total, documented = self.db.execute(
+            "SELECT count(*), count(*) FILTER (WHERE docstring != '') FROM symbols"
+        ).fetchone()
+        report.doc_coverage = (documented / total) if total else 0.0
         return report
 
 
