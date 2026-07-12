@@ -1,60 +1,132 @@
 name: ci
 
-# Static + logic gates for the sealed core. The import-firewall job is the static-tier
-# discharge of Invariant 2 (BUILD-SPEC §3): it proves, without running anything, that no
-# module under core/ can reach a networked zone or a networking primitive (outside the
-# audited loopback allowlist). Live (Ollama) and podman jobs are intentionally excluded —
-# they need pulled models / a container runtime and run locally (see docs/runbook.md).
+# Static + logic gates for the sealed core, ported wholesale from .gitlab-ci.yml when the
+# CI gate moved to GitHub Actions (docs/design-notes/ci-platform-and-runner-strategy.md,
+# D1/D2). Five mutually-independent jobs — ratchet, type-gate, vault-axis, semgrep,
+# gitleaks — each able to go red alone (no needs:, no stage coupling, D6). The import-
+# firewall (Invariant 2, BUILD-SPEC §3) lives inside ratchet via scripts/check_imports.py
+# (finding-0014). Live (Ollama) / podman / needs_restic axes stay LOCAL by design — the
+# runner has no pulled models, no nested virt, no restic repo (docs/runbook.md §Verifying).
+# No paths: filters anywhere: every main sha yields a verdict (P2). No pull_request until
+# the D4 origin re-point lands (parked, bp-016 Item 11b).
 
 on:
   push:
     branches: [main]
-  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true # replaces GitLab `interruptible: true`
 
 jobs:
-  import-firewall:
-    # Invariant 2 — runs first and standalone: a core->network import path is a hard stop,
-    # independent of whether the test suite passes.
+  ratchet:
+    # The deterministic ratchet: ruff + import-firewall (Invariant 2 static proof,
+    # finding-0014) + the model-free pytest tier. 3.12, not local 3.14: scikit-network's
+    # locked version ships linux wheels only for cp311/cp312 (uv.lock); CI validates the floor.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8
         with:
           python-version: "3.12"
-      - name: Import firewall (I2)
-        run: python -m ops.import_lint
-
-  integrity-gate:
-    # The non-skippable constitutional gate (test-organization.md §5): the firewall, the
-    # network seal, provenance separation, and the import-lint live in tests/integrity/. A
-    # failure here means a core promise is broken — it blocks merge unconditionally and is
-    # never marked xfail/skip. Kept as its own job so it is visibly required, not buried in
-    # the broader suite.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Ratchet (ruff · import-firewall · model-free pytest tier)
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e '.[dev]'
-      - name: Integrity gate (firewall / seal / provenance / import-lint)
-        run: pytest -m "integrity and not live and not podman"
+          uv sync --frozen --extra dev
+          uv run ruff check .
+          uv run python scripts/check_imports.py   # Invariant 2 static proof in CI (finding-0014)
+          uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'
 
-  lint-and-test:
+  type-gate:
+    # The type gate (bp-008): a red type check, a Tier-2 membership violation, or a bare
+    # `# type: ignore` blocks the pipeline. mypy runs TWICE — once over everything except
+    # tests/ (must be 0 errors: any error there is necessarily new), once over the whole
+    # [tool.mypy].files list including tests/, pinned at exactly 69 (finding-0029's recorded,
+    # triaged baseline). The split catches a new core/ error masked by a coincidental fix in
+    # tests/ holding the total steady.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8
         with:
           python-version: "3.12"
-      - name: Install
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Type gate (Tier-2 floor + tests/ baseline + membership scans)
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e '.[dev]'
-      - name: Ruff
-        run: ruff check .
-      - name: Tests (logic only — no live models, no podman, no longitudinal)
-        run: pytest -m "not live and not podman and not longitudinal"
+          uv sync --frozen --extra dev
+          uv run mypy core agents eval ops scheduler scripts   # Tier-2 hard floor: 0 errors, no exceptions
+          MYPY_TESTS_BASELINE=69
+          MYPY_OUT="$(uv run mypy 2>&1)" || true
+          echo "$MYPY_OUT"
+          MYPY_COUNT="$(echo "$MYPY_OUT" | tail -1 | grep -oE '[0-9]+ error' | grep -oE '[0-9]+')"
+          if [ "$MYPY_COUNT" != "$MYPY_TESTS_BASELINE" ]; then
+            echo "type-gate: expected exactly $MYPY_TESTS_BASELINE mypy errors (tests/ baseline, finding-0029), got '${MYPY_COUNT:-0}'"
+            exit 1
+          fi
+          uv run python -m ops.type_gate   # Tier-2 membership + bare-ignore scans (bp-008)
+
+  vault-axis:
+    # The vault axis: a disposable dev-mode Vault as a service container proves the committed
+    # AppRole policies against a REAL server (tests/e2e/test_secrets_vault_live.py never skips
+    # in CI). Host-run job reaches the service via mapped port on localhost — the GitLab
+    # `vault` alias (container-run DNS) does not apply here (Q4).
+    runs-on: ubuntu-latest
+    services:
+      vault:
+        image: hashicorp/vault:latest
+        env:
+          VAULT_DEV_ROOT_TOKEN_ID: ci-root-disposable
+        ports:
+          - 8200:8200
+    env:
+      VAULT_ADDR: http://localhost:8200 # host-run job: localhost + mapped port, not the GitLab alias
+      VAULT_TOKEN: ci-root-disposable
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Vault axis (needs_vault against a real dev-server)
+        run: |
+          uv sync --frozen --extra dev
+          uv run pytest -q -m needs_vault
+
+  semgrep:
+    # SAST engine, run directly (replaces the GitLab Security/SAST template, Q8). --error
+    # ⇒ nonzero exit on findings. The ruleset may be EXTENDED but never dropped below p/default.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Semgrep (p/default, fail on findings)
+        run: uvx semgrep scan --config p/default --error
+
+  gitleaks:
+    # Secret detection over FULL history (replaces the GitLab Security/Secret-Detection
+    # template, Q8). fetch-depth: 0 so the git-mode scan sees every commit; the first green
+    # run also discharges Gate-0's entropy-scan residual (note §2). Official binary, version-
+    # pinned (build-time choice — see journal), not the marketplace action.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks (pinned)
+        run: |
+          GITLEAKS_VERSION=8.30.1
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o gitleaks.tar.gz
+          tar -xzf gitleaks.tar.gz gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+      - name: Gitleaks (full-history git-mode scan)
+        run: gitleaks git . --redact
