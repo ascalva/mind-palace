@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-015
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/ci-platform-and-runner-strategy.md # D1 (gate moves), D2 (parity content), D5 (tombstone), Gate-0 residual
 contract: builder
@@ -19,7 +19,7 @@ cost:
 depends_on: [] # first of the family; unblocks bp-016/bp-017 and the deploy path
 parallelizable_with: [bp-014] # disjoint write_scope (.claude/hooks vs CI files); owner priority sequences the two
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-12
 links:
   - docs/findings/finding-0034.md # warrant-in-fact of the design note (runner-minutes exhaustion)
   - docs/findings/finding-0029.md # the mypy 0-floor/69-baseline split the type-gate pins
