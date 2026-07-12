@@ -1,7 +1,7 @@
 ---
 type: design-note
 id: dn-edge-dynamics
-status: draft # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
+status: ratified # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 implementation: design-only # the degree-0 floor exists (laplacian/spectral/topology/balance/temporal/curvature); nothing at degree 1 is built
 created: 2026-07-12
 updated: 2026-07-12
