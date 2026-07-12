@@ -20,7 +20,10 @@ Two generations of lens share the panel (BUILD §3.2 — "each interpreter is a 
   * the STRUCTURAL lenses over the reasoning complex (H4–H7): `bridge` (Forman–Ricci curvature —
     upgraded from the local-clustering proxy to the real instrument, companion III §3.2), `hole`
     (persistent H₁ — conceptual gaps, NEVER contradictions, §4.2), `theme` (DC-SBM posterior with
-    a model-selected count + a spectral cross-check, §6.2).
+    a model-selected count + a spectral cross-check, §6.2);
+  * the degree-1 lift (design note `dn-edge-dynamics` §2.3, bp-022, Lane A L-b): `thread` — the
+    harmonic H₁ lens over `core/complex/hodge.py`'s Hodge decomposition, a gap-family sibling of
+    `hole` narrating the circulating structure that orbits a hole rather than the hole itself.
 
 Change-point is a registered but DEFERRED seam — it needs a per-note temporal axis the MirrorView
 does not yet carry, so it returns nothing rather than fake a trend (the honest-seam pattern).
@@ -40,6 +43,7 @@ from config.loader import Config, DreamRnDConfig
 from core.complex.blocks import sbm
 from core.complex.build import ReasoningComplex, build_complex
 from core.complex.curvature import most_negative_edges
+from core.complex.hodge import edge_index, harmonic_basis
 from core.complex.spectral import spectral_labels
 from core.complex.topology import cosine_distance_matrix, long_lived_holes
 from core.dreaming.cluster import cluster_notes, note_centroids
@@ -55,6 +59,7 @@ BRIDGE = "bridge"
 DENSITY = "density"
 THEME = "theme"                 # H7: SBM blocks with posterior + model-selected count
 HOLE = "hole"                   # H5: long-lived H₁ — a conceptual gap, never a contradiction
+THREAD = "thread"                # Lane A L-b: harmonic H1 flow — a gap-family sibling of hole
 TENSION = "tension"             # H3/H8: frustrated triangles — commitments that can't co-hold
 CHANGE_POINT = "change_point"   # deferred seam
 
@@ -165,6 +170,50 @@ def hole_interpreter(ctx: StructuralContext, cfg: DreamRnDConfig) -> list[Claim]
     return claims
 
 
+def thread_interpreter(ctx: StructuralContext, cfg: DreamRnDConfig) -> list[Claim]:
+    """Lane A L-b — the harmonic lens (design note `dn-edge-dynamics` §2.3, bp-022 §6(b)):
+    the flag complex's harmonic classes (ker L₁, bp-021's `core/complex/hodge.py`) localized to
+    their carrying cycles — a closed loop of pairwise-related notes orbiting a gap you have not
+    stated. Routing class: gap-family, NEVER contradiction (dissonance stays with `tension_claims`
+    / the signed machinery, §2.3's routed-split inheritance). The honest seam comes FIRST: β₁ = 0
+    (no harmonic classes at all) short-circuits before any hole pairing is attempted, so a
+    filtration hole below scale can never be misread as a thread."""
+    kx = ctx.complex
+    basis = harmonic_basis(kx.A)
+    beta1 = basis.shape[1]
+    if beta1 == 0:
+        return []                          # the honest seam FIRST — no harmonic classes, period
+    holes = long_lived_holes(ctx.distances, min_persistence=cfg.thread_min_persistence)
+    idx = edge_index(kx.A)
+    claims: list[Claim] = []
+    for hole in holes[: min(len(holes), beta1)]:
+        # Support ⊆ witness, by construction (the L-b falsifier's second clause).
+        witness_digests = tuple(kx.nodes[v] for v in hole.vertices)
+        # Cycle edges: pairs of witness vertices that are actual sigma-skeleton edges (only those
+        # count for flow — a non-edge pair inside the witness carries no harmonic-basis row).
+        cycle_edges = [
+            idx[(min(a, b), max(a, b))]
+            for pos, a in enumerate(hole.vertices)
+            for b in hole.vertices[pos + 1:]
+            if (min(a, b), max(a, b)) in idx
+        ]
+        if not cycle_edges:
+            continue                       # no sigma-edges on this witness — nothing to narrate
+        flow = float(max(np.mean(np.abs(basis[cycle_edges, col])) for col in range(beta1)))
+        titles = [kx.titles.get(d, d) for d in witness_digests]
+        preview = ", ".join(f"'{t}'" for t in titles[:3])
+        claims.append(Claim(
+            method=THREAD,
+            statement=(f"a circulating thread — {preview}"
+                       f"{', …' if len(titles) > 3 else ''} form a closed loop orbiting a gap "
+                       f"you have not stated (persistence {hole.lifetime:.2f})"),
+            support=witness_digests,
+            data={"persistence": round(hole.lifetime, 4), "flow": round(flow, 6),
+                  "witness": list(witness_digests)},
+        ))
+    return claims
+
+
 def theme_interpreter(ctx: StructuralContext, cfg: DreamRnDConfig) -> list[Claim]:
     """H7 — the SBM lens: degree-corrected blocks give theme membership WITH a posterior and a
     model-selected theme count (§6.2 — "how many concerns, how sure"), cross-checked against the
@@ -233,11 +282,12 @@ INTERPRETERS: dict[str, Interpreter] = {
     DENSITY: density_interpreter,
     CHANGE_POINT: change_point_interpreter,
 }
-# Structural lenses over core/complex/ (H4–H7):
+# Structural lenses over core/complex/ (H4–H7 + Lane A L-b):
 STRUCTURAL_INTERPRETERS: dict[str, StructuralInterpreter] = {
     BRIDGE: bridge_interpreter,
     HOLE: hole_interpreter,
     THEME: theme_interpreter,
+    THREAD: thread_interpreter,
 }
 
 
