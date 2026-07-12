@@ -58,7 +58,21 @@ When unsure, size up — a wrong-sized cheap agent costs a rerun plus review tim
 - The orchestrator reviews the **diff** before any merge to main: scope check (nothing
   outside `write_scope`), acceptance actually run (demand the command output, not the
   claim), falsifiers considered, findings filed for anything routed.
-- Ratchet green locally before merge; CI green after push (the witness attests it).
+- **"Green locally" means the FULL attestable-green gate, not ruff+pytest** (finding-0038:
+  a bp-014 merge passed ruff+pytest locally, then CI's type-gate reddened on a new tests/
+  file). Builder AND orchestrator each run, before declaring green / merging:
+
+      uv run ruff check . \
+        && uv run mypy core agents eval ops scheduler scripts \
+        && uv run mypy \
+        && uv run python -m ops.type_gate \
+        && uv run pytest -q
+
+  and assert the **argless** `uv run mypy` tail equals the pinned tests/-baseline
+  (**69** today — finding-0029's measured footprint; re-pin here when it changes). The
+  argless run covers `[tool.mypy].files` *including* `tests/**` — the easily-missed
+  tooth; any new tests file can shift the count. Put this command set **verbatim in
+  every delegation prompt**. CI green after push (the witness attests it).
 - A builder that stalls or drifts is stopped and its worktree inspected — resume beats
   restart (journal), restart beats rescue (worktrees are cheap).
 - Findings remain the only channel from build back to design: a delegated builder files

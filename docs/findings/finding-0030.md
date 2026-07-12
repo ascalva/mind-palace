@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0030
-status: open
+status: routed
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-12
 links:
   - tests/property/test_structural_interpreters.py
   - core/complex/topology.py
@@ -90,3 +90,12 @@ scope and mandate do not license). Not filed as `spec-defect` (no design note is
 contradicted) and not `blocker` (does not end this session — the local cache clear keeps
 bp-007's own gate green; re-entry is for whoever next owns `core/complex/topology.py` or
 this test file).
+
+## Triage disposition (2026-07-12, /triage)
+
+Routed orchestrator (math-adjacent). Stays PARKED un-silenced exactly as filed — no tolerance
+widened, no xfail; an intermittent property-suite recurrence is expected, not a new regression.
+Re-entry unchanged: the next plan with `core/complex/topology.py` or the property test in scope
+traces the dtype (float32 vs float64 through the ripser call) and fixes cause-side or
+tolerance-side accordingly. Sized as a half-session rider on that future plan — not worth its
+own plan alone; no owner input needed (the dtype trace decides the fix direction).

@@ -231,3 +231,11 @@ enactment + five live CI watch cycles (green-fail-1, 4/5, green#1, red-canary, g
 
 **Deferred to a later plan / triage (not bp-015):** the 22 semgrep findings (finding-0037
 backlog). **bp-016 ∥ bp-017 now unblocked** (gated on this seal; disjoint scopes).
+
+---
+
+**SEALED — 2026-07-12, /triage.** Plan `complete` — five-job attestable green + red-canary
+proof (semgrep report-only per oq-0015, now swept; the 22-finding backlog lives in
+finding-0037). PROGRESS SEAL entry in the 2026-07-12 checkpoint; cost.actual ledgered (builder
+opus 64k tok / 55 calls / 513s + orchestrator-side Item 5). bp-016 ∥ bp-017 unblocked. No
+further narrative entries.

@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0028
-status: open             # open → routed → resolved | promoted
+status: routed           # open → routed → resolved | promoted
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-12
 links:
   - docs/design-notes/type-system-as-core-audit.md # B-3, §2.4 — the claim under test
   - docs/build-plans/bp-009/plan.md # the spike
@@ -86,3 +86,20 @@ the OwnerVerdict questions re-enter with the I1 verdict-taxonomy ratification
 note's B-item, and the OwnerVerdict questions are design-level (owner batch if
 needed). Nothing here blocks other work — `core/provenance.py`'s tags + stub are
 inert additions, landed strict-green on the bp-009 branch.
+
+## Triage disposition (2026-07-12, /triage)
+
+Routed orchestrator; disposition recorded, no owner question minted (non-blocking):
+
+- **KEEP stands.** The B-3 falsifier was not tripped (0 warranted ignores / 0 casts across the
+  full non-severable seam) — the note's own decision rule licenses keeping the shadow; the tags
+  + `promote()` stub stay landed.
+- **The conversion item** (the measured 6-core + 7-test consumer set) queues for the
+  type-audit note's next `/graduate` wave — it wants its own scoped plan with `core/**` in
+  write_scope, and it naturally pairs with finding-0029's Protocol-at-injection-boundary work
+  (same seam family, same write_scope). Blessing `proposed → ready` stays owner-by-hand.
+- **The three riders** (sole-mint discipline; the non-erasable wrapper allocation; the Tier-2
+  Any-laundering flag floor) travel with that conversion plan's §2 context manifest — they are
+  design inputs to it, not separate findings.
+- **OwnerVerdict taxonomy questions** stay parked on their named re-entry (the I1
+  verdict-taxonomy ratification / recursive-strata unpark).

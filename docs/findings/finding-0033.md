@@ -1,16 +1,17 @@
 ---
 type: finding
 id: finding-0033
-status: routed
+status: resolved
 ftype: discovery
 origin_plan: bp-011
 route: orchestrator
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-12
 links:
   - docs/findings/finding-0031.md            # same root cause, different manifestation
   - docs/build-plans/bp-011/journal.md        # the episode (documented workaround)
-resolution: null
+  - docs/build-plans/bp-014/plan.md           # the fix (shared with finding-0031)
+resolution: FIXED by bp-014 (sealed 2026-07-12) — same worktree-aware ROOT fix as finding-0031; `rel()`'s path arithmetic now resolves against the worktree's own toplevel, so a worktree builder's in-scope writes ALLOW. Regression harness covers the allow direction alongside the fail-closed case.
 ---
 
 # finding-0033 — scope-guard path-resolution denial in a delegated worktree (corroborates finding-0031's root cause, new manifestation)
@@ -70,3 +71,12 @@ since it breaks a builder's OWN in-scope writes, not just cross-plan bleed.
 Parked until the next hooks-scoped plan (or folds into finding-0031's eventual fix,
 same surface). Trigger that reopens immediately: any further worktree-delegated build
 session hitting the same path-resolution denial.
+
+## Resolution (2026-07-12, /triage) — FIXED with finding-0031
+
+bp-014's worktree-aware ROOT (sealed 2026-07-12, CI green) fixes this manifestation at the same
+root: with `repo_root()` resolving to the worktree's own toplevel, `rel()` no longer doubles the
+`.claude/worktrees/agent-.../` prefix, so a worktree builder's OWN in-scope Edit/Write calls
+ALLOW without standalone-check workarounds. Verified by the bp-014 two-worktree harness (in-scope
+allow + out-of-scope deny + fail-closed cross-bleed cases) and by bp-014's own delegated builder
+running under the patched hooks. Reopen trigger unchanged if any recurrence appears.

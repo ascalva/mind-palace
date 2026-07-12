@@ -2188,3 +2188,42 @@ by-eye/diff-scrutiny backstop alone.
 **Next:** push → watch the CI witness (5-job attestable green). Then the **bp-016 (fable witness)
 ∥ bp-017 (sonnet Pages)** parallel lane opens (disjoint scopes, both gated on bp-015's seal — now
 long done). Then DESIGN-tier **/triage** (findings 0027–0037; oq-0013/0014/0015 answer-sweeps).
+
+## Reflection sweep — findings 0027–0038 drained; oq-0013/0014/0015 swept; bp-014 + bp-015 journals sealed (2026-07-12, /triage)
+
+**Board after the sweep** — every sweep-target finding is now terminal or parked-with-re-entry:
+
+- **Resolved:** **0031** + **0033** (both fixed by bp-014's worktree-aware ROOT — the
+  pointer-bleed and path-resolution manifestations of one root cause; two-worktree harness
+  red→green + CI run 29185014622 verify); **0035** (all three resume-brief recs landed: bp-014's
+  auto-surface + this sweep's `docs/templates/resume-brief.md` + the context-economy
+  location/lifecycle/schema rule); **0038** (promoted into the delegate skill — "green locally"
+  now means the FULL five-part gate with the argless-mypy `== 69` assertion, carried verbatim in
+  every delegation prompt; rec 3's `scripts/attestable_green.sh` deferred). 0036 (builder,
+  in-session) and 0037 (oq-0015's report-only ruling) were already resolved.
+- **Promoted:** **0032** + **0034** — both into the ratified `ci-platform-and-runner-strategy.md`
+  (owner hand-ratified 2026-07-11): D6 closes `needs:[]` as subsumed-by-construction on GitHub
+  Actions; D4 ruled (i) end-state (GitHub becomes origin). Plan A = bp-015 **sealed** (5/5
+  attestable green), Plan B = bp-016 ready, Plan C = bp-017 ready; MicroVM runners parked at D7.
+- **Routed, parked with re-entry:** **0028** (B-3 spike verdict KEEP stands — falsifier untripped
+  at 0 ignores/0 casts; the 6-core+7-test conversion item queues for the type-audit note's next
+  `/graduate` wave); **0029** (injectable-dependency ⇒ Protocol — pairs with 0028's conversion
+  plan, same seam family; the pinned 69 baseline is its measured footprint); **0030** (float32
+  tolerance flake — parked un-silenced for whoever next owns `core/complex/topology.py`); 0027
+  unchanged (T1=0 evidence annotates the parked Rust/PyO3 record at its next owner-touched
+  revision).
+- **Owner desk:** oq-0013 / oq-0014 / oq-0015 swept to origins (bp-012 §5 grant + bp-014 parser
+  fold; finding-0034 → promoted; finding-0037). Standing: oq-0003..0010 (8 open, design-tier,
+  none blocking).
+- **Journals sealed:** bp-014 + bp-015 seal lines appended (their PROGRESS entries pre-existed;
+  the seal-line step had been skipped in the moment).
+- **Book debt (§11):** `docs/book/` still not scaffolded while FIVE design notes sit ratified —
+  the first scribe plan (§12) is pending; offer `/scribe` at a design-tier slot.
+- **Deliberately NOT minted this sweep** (carried as deferrals, not lost): the 0028+0029
+  conversion plan (a /graduate act against `type-system-as-core-audit.md`), the finding-0037
+  22-semgrep backlog plan, `scripts/attestable_green.sh` (0038 rec 3).
+
+**Next:** Fable-first step 2 — promote `docs/brainstorms/self-sensing.md` into a design-note
+draft (fable/xhigh, its own session; ratification stays owner-by-hand). Then the bp-016 (fable
+builder) ∥ bp-017 (sonnet builder) lane under opus/default supervision, delegation prompts
+carrying the full-gate command set per the sharpened delegate skill.

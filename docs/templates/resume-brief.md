@@ -1,0 +1,54 @@
+# Orchestrator self-resume prompt — written <YYYY-MM-DD> (<unit just closed>), prior session cleared
+
+<!--
+Template for `.claude/state/resume-brief.md` (finding-0035). The brief itself is
+EPHEMERAL and gitignored — written by the orchestrator at every clearing boundary,
+auto-surfaced at the TOP of the next SESSION BRIEF by `session-brief.sh` (bp-014
+Item 3), then REWRITTEN by that session at its own boundary. `docs/PROGRESS.md`
+stays the committed durable backstop; the brief is the fast path. The seven
+sections below are REQUIRED, in this order (context-economy skill). §2 In-flight
+is the load-bearing one: a missing in-flight line is how a fresh session re-asks
+or RACES a running builder.
+-->
+
+Resume the mind-palace orchestrator. Fresh session per the context-economy skill — read
+`.claude/skills/context-economy/SKILL.md` and `.claude/skills/delegate/SKILL.md` first;
+`CLAUDE.md` governs; full durable state in `docs/PROGRESS.md`'s latest checkpoint.
+
+**SESSION TIER: <purpose> — `/model <model>` · `/effort <effort>`.** <One sentence: the unit
+this tier was derived FOR, per the context-economy rubric (verification / blast radius /
+novelty / reversibility — highest axis wins).>
+
+## IN FLIGHT — <nothing | the live work>
+
+<For each running builder: worktree PATH + branch, what to check on wake, and the
+merge/seal/park owed. For "nothing": assert it checkably — main == origin (<sha>), expected
+`git worktree list`, `.claude/state/active-plan` empty.>
+
+## THEN-QUEUE (in order)
+
+1. **[<TIER>] <unit>** — <what it is, its gates, and any reminders that must survive the
+   session boundary>.
+2. …
+
+## DESIGN-TIER DEFERRALS (note, don't strain)
+
+- <Threads a supervision session must NOT pick up — with pointers (finding/oq/plan ids) so a
+  design-tier session can. Include the cost-ledger line if carrying one.>
+
+## STANDING RULES
+
+- <The session-invariant constraints: push/deploy policy, CI-observation mechanics,
+  trailer policy, `uv run` discipline, blessing gates. Copy forward what still binds;
+  drop what a landed unit retired.>
+
+## OPEN DESK (owner questions)
+
+<Which oq-ids stand open, which are answered-awaiting-sweep, where they live
+(`docs/inbox/owner-questions.md`). Note if a NEW question was opened this session.>
+
+## SELF-REWRITE
+
+End your own session at the unit boundary by REWRITING this file (fresh self-resume prompt:
+tier · in-flight · then-queue · deferrals · standing rules · open desk · this instruction) +
+declaring the next tier — so the owner never crafts the re-prompt.

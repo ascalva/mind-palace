@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0038
-status: routed
+status: resolved
 ftype: direction
 origin_plan: bp-014
 route: orchestrator
@@ -11,7 +11,7 @@ links:
   - .claude/skills/delegate/SKILL.md          # "Ratchet green locally before merge" — the rule to sharpen
   - .github/workflows/ci.yml                   # the type-gate job (argless-mypy exact-69 + ops.type_gate)
   - docs/build-plans/bp-014/plan.md            # the episode
-resolution: null
+resolution: promoted 2026-07-12 into the delegate skill (recs 1+2 — the full five-part gate command set, verbatim-in-every-delegation-prompt rule, and the pinned argless-mypy 69 baseline inline in SKILL.md §Supervision). Rec 3 (`scripts/attestable_green.sh` one-shot wrapper) deferred — candidate rider on a future scripts-scoped plan; the skill text closes the gap procedurally until then.
 ---
 
 # finding-0038 — "Ratchet green locally" must mean the FULL attestable-green gate, not just ruff + pytest
@@ -58,3 +58,13 @@ Promote at /triage into the delegate skill (SKILL.md). **Immediate carry (before
 the bp-016 ∥ bp-017 delegation prompts must instruct each builder to run the full gate above —
 especially the argless `uv run mypy` baseline — before declaring green. Trigger that reopens: any
 future CI red on a gate the builder's local check didn't cover.
+
+## Resolution (2026-07-12, /triage) — promoted into the delegate skill
+
+Recs 1+2 landed in `.claude/skills/delegate/SKILL.md` (§Supervision & scrutiny): the old
+"Ratchet green locally before merge" bullet is now the concrete five-part command set with the
+argless-mypy `== 69` assertion inline, binding BOTH the builder and the supervising merge check,
+plus the rule that the command set goes verbatim into every delegation prompt (which covers the
+bp-016 ∥ bp-017 immediate carry). Rec 3 (a `scripts/attestable_green.sh` self-certify wrapper
+mirroring all five CI jobs) stays deferred — noted as a rider candidate for a future
+scripts-scoped plan; reopen trigger unchanged (any CI red on a gate the local check skipped).

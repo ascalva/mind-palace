@@ -62,6 +62,20 @@ discovers mid-flight it is under-tiered for an emergent design question does not
 it notes the question for a top-tier session and continues its own lane. Over-tiered is
 the silent failure — notice it at the next boundary and say so in the brief.
 
+## The resume brief — location, lifecycle, schema (finding-0035)
+
+- **Location:** `.claude/state/resume-brief.md` — ephemeral, gitignored, the fast path.
+  `docs/PROGRESS.md` stays the committed durable backstop (portable across machines).
+- **Lifecycle:** the orchestrator WRITES it at every clearing boundary (the self-rewrite
+  step); `session-brief.sh` auto-surfaces it at the TOP of the next SESSION BRIEF (bp-014
+  Item 3, zero owner action); the next session consumes it and REWRITES it at its own
+  boundary. It is never left stale — a brief describing a finished unit is worse than none.
+- **Schema — seven required sections, in order** (template: `docs/templates/resume-brief.md`):
+  1 session tier (`/model` + `/effort`, rubric-derived) · 2 **in-flight** (the load-bearing
+  one: running builders w/ worktree path + branch, merges/seals owed — a missing in-flight
+  line is how a fresh session races a live builder) · 3 then-queue · 4 design-tier
+  deferrals · 5 standing rules · 6 open desk · 7 the self-rewrite instruction.
+
 ## Polling & notification discipline
 
 Attested machinery does not need watching — CI, the witness, launchd, builders in

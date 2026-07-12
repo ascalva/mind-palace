@@ -1,17 +1,18 @@
 ---
 type: finding
 id: finding-0035
-status: routed
+status: resolved
 ftype: direction
 origin_plan: null   # workflow practice — owner-directed, 2026-07-11
 route: orchestrator
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-12
 links:
   - .claude/skills/context-economy/SKILL.md   # where the practice is documented
   - .claude/hooks/session-brief.sh             # the SessionStart hook that would auto-surface it
   - docs/build-plans/bp-014/plan.md            # the hooks session this hook change folds into
-resolution: null
+  - docs/templates/resume-brief.md             # rec 2's template (landed 2026-07-12)
+resolution: all three recommendations landed — rec 3 (auto-surface) by bp-014 Item 3 (2026-07-12); recs 1+2 at /triage same day (location/lifecycle/schema rule in context-economy SKILL.md + the seven-section `docs/templates/resume-brief.md` template).
 ---
 
 # finding-0035 — The orchestrator emits a documented-style self-resume prompt at clearing boundaries
@@ -79,3 +80,17 @@ Still OPEN (route at /triage — OUT of bp-014's write_scope, deliberately not t
   + a `context-economy` SKILL.md rule.
 
 Status stays `routed` (NOT `resolved`): only 1 of 3 recommendations landed.
+
+## Resolved (2026-07-12, /triage) — recs 1+2 landed; all three now closed
+
+- **Rec 1 (location + lifecycle):** formalized in the context-economy skill — a dedicated
+  "resume brief" section fixing `.claude/state/resume-brief.md` as the ephemeral fast path
+  (PROGRESS.md the durable backstop) and the write → auto-surface → consume → REWRITE cycle,
+  including the never-stale rule.
+- **Rec 2 (documented style):** the seven-section schema is now `docs/templates/resume-brief.md`
+  (annotated template, in-order required sections, §2 In-flight flagged load-bearing) + the
+  schema digest in the same context-economy section.
+- **Rec 3 (auto-surface):** was already live via bp-014 Item 3 (`session-brief.sh`).
+
+Reopen trigger: a cleared session's brief missing a required section (esp. in-flight), or the
+owner having to ask "how do I prompt you?" again.

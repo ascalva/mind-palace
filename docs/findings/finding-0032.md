@@ -1,12 +1,12 @@
 ---
 type: finding
 id: finding-0032
-status: routed
+status: promoted
 ftype: direction
 origin_plan: bp-008
 route: orchestrator
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-12
 links:
   - docs/build-plans/bp-008/journal.md   # Entry 4: the demo-branch episode
   - .gitlab-ci.yml                        # type-gate and ratchet jobs (lint stage)
@@ -81,3 +81,15 @@ finding's `needs:[]` remedy is **largely subsumed** by a GitHub migration. Do NO
 standalone GitLab `needs:[]` plan in isolation; fold this finding into finding-0034's design note
 so the decision is made once, on the chosen platform. If GitLab stays authoritative for any
 interim window, the `needs:[]` fix still applies there.
+
+## Promoted — closed at /triage (2026-07-12), verified
+
+Verified against the ratified `ci-platform-and-runner-strategy.md` (owner hand-flipped
+`draft → ratified` 2026-07-11; ruling record oq-0014): **D6 closes this finding as subsumed by
+construction** — GitHub Actions is the authoritative gate, its five jobs are mutually
+independent (no `needs:`, no `.pre` stage), so a red release/tooling job can never suppress
+`type-gate`/`ratchet`. Confirmed live: bp-015's five-job runs (e.g. 29185014622) execute all
+jobs regardless of sibling status, and the semgrep-red window (pre-oq-0015) demonstrably did
+NOT stop the other four from running. The standalone GitLab `needs:[]` plan is NOT minted, per
+D6; if any interim GitLab window reopens, D6's own text carries the caveat. Warrant chain:
+this finding → dn-ci-platform-and-runner-strategy D6 (ratified) → `promoted`.

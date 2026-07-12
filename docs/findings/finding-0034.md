@@ -1,17 +1,17 @@
 ---
 type: finding
 id: finding-0034
-status: routed
+status: promoted
 ftype: direction
 origin_plan: null   # operational — owner-surfaced runner-budget warning, 2026-07-11
 route: orchestrator
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-12
 links:
   - .gitlab-ci.yml                          # workflow.rules + the included security/release templates
   - docs/findings/finding-0032.md           # sibling CI-topology finding (needs:[]); fold together
   - docs/memory/... (push & deploy policy)  # deploy needs an attested green pipeline
-resolution: promoted 2026-07-11 — docs/design-notes/ci-platform-and-runner-strategy.md (draft; ratification asked as oq-0014)
+resolution: promoted → docs/design-notes/ci-platform-and-runner-strategy.md, RATIFIED by owner hand 2026-07-11 (ruling record oq-0014; D4 = (i) end-state, GitHub becomes origin). Plan A (parity gate) = bp-015, sealed 2026-07-12 five-job green; Plan B (witness re-point + release relocation) = bp-016 ready; Plan C (Pages docs home) = bp-017 ready. MicroVM runners parked at D7 triggers.
 ---
 
 # finding-0034 — CI runner-minutes are a deploy-blocking bottleneck; every push burns them
@@ -171,3 +171,20 @@ fork above, ratify (owner gate), `/graduate` into plans (first plan = the determ
 GitHub Actions gate to parity; later plan(s) = deploy-attestation re-point + optional MicroVM
 runners). bp-013 does NOT need this to land — it merges on local-green (CI is attestation, not the
 gate).
+
+## Promoted — closed at /triage (2026-07-12), ratification swept from oq-0014
+
+The full promotion chain completed:
+- **Note drafted** (`ci-platform-and-runner-strategy.md`, warrant: this finding + finding-0032)
+  → **RATIFIED by the owner's hand 2026-07-11** (the blessing gate proper; ruling record
+  oq-0014). **D4 ruled (i) end-state: GitHub becomes origin** — releases run on GitHub
+  (`workflow_dispatch`, witness-dispatched), `@semantic-release/gitlab → @semantic-release/github`,
+  mirror reverses/retires, PR/branch CI unlocks.
+- **Graduated + built:** Plan A (parity gate) = **bp-015, sealed 2026-07-12** — five-job
+  attestable green on GitHub Actions (`ratchet` · `type-gate` · `vault-axis` · `gitleaks` ·
+  `semgrep` report-only per oq-0015), the dead-gate condition this finding opened on is CLOSED
+  (unlimited free CI on the public repo). Plan B (witness re-point + release relocation) =
+  **bp-016 ready**; Plan C (Pages docs home) = **bp-017 ready**.
+- **MicroVM runners:** parked at the note's D7 triggers (unchanged — the Firecracker isolation
+  case re-enters with sandbox-adjacent CI needs, not the lint gate).
+- finding-0032 promoted alongside (D6, subsumed by construction).

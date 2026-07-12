@@ -299,7 +299,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0013 — Amend bp-012's write_scope with `ops/lifecycle/launcher.py` (one line) so Item 4 can register the store for reset?
-- status: answered
+- status: swept   # 2026-07-12 /triage — grant applied in bp-012 front-matter (owner-concurred comment in place); Item 4 landed + sealed; the trailing-comment parser wrinkle this exposed fixed by bp-014's §5 fold (`_scalar()`)
 - origin: docs/build-plans/bp-012/plan.md §5 (scope amendment note) + §7 Item 4
 - blocking: false
 - question: bp-012 (B-b, the code-observation store) has Item 4 "reset registration" — the new
@@ -328,7 +328,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0014 — Ratify `ci-platform-and-runner-strategy.md`, and rule D4 (release home = repo host)?
-- status: open
+- status: swept   # 2026-07-12 /triage — ratification + D4(i) folded to origin finding-0034 (→ promoted); note ratified by owner hand; Plan A = bp-015 sealed, Plans B/C = bp-016/bp-017 ready
 - origin: docs/design-notes/ci-platform-and-runner-strategy.md (promoted from finding-0034 + finding-0032)
 - blocking: true   # the only working CI gate + the deploy-attestation path hang on it (GitLab minutes = 0)
 - question: The runner/CI strategy note is drafted per your 2026-07-11 direction: GitHub Actions
@@ -361,7 +361,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0015 — The ported `semgrep --error` gate is blocking and red on the existing tree (22 findings); keep blocking, or match GitLab's report-only parity?
-- status: answered
+- status: swept   # 2026-07-12 /triage — ruling (report-only, GitLab parity) already enacted + folded to origin finding-0037 (resolved) in the bp-015 seal session; 22-finding backlog persists there as triage backlog
 - origin: docs/findings/finding-0037.md
 - blocking: true   # gates bp-015's seal, and the bp-016 witness's definition of "attestable green"
 - question: bp-015's first clean live CI run (sha `8d534a0`, run 29179448272) is **4/5 green** —

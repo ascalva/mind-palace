@@ -96,3 +96,11 @@ Item 3 preserved automatically (disjoint from the branch).
 cost.actual ledgered (opus 101k/85/764s). CI witness next.
 
 ## Markers
+
+---
+
+**SEALED — 2026-07-12, /triage.** Plan `complete`; PROGRESS checkpoint written (the 2026-07-12
+bp-014 entry); CI five-job attestable green (run 29185014622, incl. the d23e0d6 type-gate fix
+that spawned finding-0038 → promoted into the delegate skill same day); cost.actual ledgered
+(opus 101k tok / 85 calls / 764s). finding-0031 + finding-0033 → resolved; finding-0035 → all
+three recs landed. No further narrative entries.

@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0029
-status: open
+status: routed
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-12
 links:
   - docs/design-notes/type-system-as-core-audit.md   # §2.5, the Tier-2 requirement this bears on
   - docs/build-plans/bp-007/plan.md                  # Item 7, §10 stop-and-raise
@@ -114,3 +114,15 @@ before this pattern's full scope was visible). May promote into an amendment of
 call site" as a general convention, parallel to the T2 TypedDict convention it already
 states — or into its own small build plan scoped to exactly the six classes above plus
 their call sites, with `core/**` in write_scope.
+
+## Triage disposition (2026-07-12, /triage)
+
+Routed orchestrator. Promotion candidate NOTED, not drafted at this sweep: the honest fix is
+either (a) a small amendment to `type-system-as-core-audit.md` §2.4/§2.5 naming "injectable
+dependency ⇒ Protocol at the call site" (the `ChatServer` precedent) — an owner-gate act, since
+the note is ratified and agent-immutable — or (b) a scoped conversion plan over the confirmed
+class list with `core/**` in write_scope. Deferred to the type-audit's next graduation wave,
+where it pairs with finding-0028's B-3 conversion item (same seam family; one plan can carry
+both). Concrete stake in the ground meanwhile: the pinned argless-mypy **69** baseline
+(type-gate; finding-0038's full-gate rule) IS this finding's measured footprint — when this
+lands, that baseline ratchets toward 0.

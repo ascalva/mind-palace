@@ -1,16 +1,17 @@
 ---
 type: finding
 id: finding-0031
-status: routed
+status: resolved
 ftype: discovery
 origin_plan: bp-007
 route: orchestrator
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-12
 links:
   - docs/build-plans/bp-007/journal.md      # the episode (documented workaround)
   - .claude/skills/delegate/SKILL.md        # the mode this infrastructure serves
-resolution: promoted 2026-07-11 -> bp-014 (proposed); owner-directed to fix
+  - docs/build-plans/bp-014/plan.md         # the fix
+resolution: FIXED by bp-014 (sealed 2026-07-12, CI green run 29185014622) — worktree-aware ROOT in `_lib.py:repo_root()` + all six hook wrappers; two-worktree regression harness red→green with the fail-closed case (c) non-vacuous. Promoted 2026-07-11 → bp-014, owner-directed.
 ---
 
 # finding-0031 — Enforcement state bleeds across worktrees: the active-plan pointer is not worktree-local in practice
@@ -77,3 +78,15 @@ direction (a broad main pointer must NOT loosen a narrow worktree builder).
 **Sequencing:** bp-014 `depends_on: [bp-012, bp-013]` — enforcement hooks must not change
 while delegated builders are running against them. First unit after the current queue clears.
 **Owner action to approve:** the `proposed -> ready` blessing by hand (owner-only gate).
+
+## Resolution (2026-07-12, /triage) — FIXED, verified
+
+bp-014 landed and sealed 2026-07-12: `_lib.py:repo_root()` (and all six wrappers, lock-step)
+now prefers the CWD git-worktree toplevel over `CLAUDE_PROJECT_DIR` when they differ AND the
+CWD-toplevel carries its own `.claude/state/` — realpath-normalized both sides, fail-closed.
+All three 2026-07-11 manifestations are covered, and the two-worktree regression harness
+(`tests/integration/test_worktree_enforcement.py`, 4 cases) proved red→green with the UNSAFE
+direction (a broad main pointer loosening a narrow worktree builder) pinned non-vacuously.
+CI five-job attestable green: run 29185014622. A delegated builder is now enforced against ITS
+OWN worktree plan; the bp-016 ∥ bp-017 lane opens on sound enforcement, not diff-scrutiny alone.
+Corroborating manifestation finding-0033 closes with this same fix.
