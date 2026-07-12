@@ -66,14 +66,36 @@ call site asserts); `add_batch`/`mark_projected` keep the §6(c) pin verbatim. H
 guarded by Item 4's bump→re-projects test. Orchestrator may restore the pin at merge
 per the finding's re-entry note.
 
-**Next action:** Item 3 — `code_observations.py` migrations (§6(d) ALTER-add
-interpreter, §6(e) projections copy-rename idempotent), new write API (§6(c) as
-amended by finding-0047), §4 reconciliations (mark_projected comment rewrite +
-docstring ledger-half cross-ref), new tests (i)–(v); acceptance (v) runs on a COPY of
-the MAIN checkout's live store in the scratchpad (never open the original for write;
-sqlite3 backup API from a read-only URI connection). Item 3's commit also carries the
-minimal mechanical sensor call-site updates (pass INTERPRETER_VERSION) so the commit
-is green; ratchet re-pin at 1.0.0 in the same commit = declared refactor (journaled).
+**Item 3 CLOSED** (commit `33d4dc9`): store per §6(c,d,e) + §4 reconciliations
+(mark_projected comment now describes mechanics; module docstring gained the
+ledger-half cross-ref; boundary header updated). Acceptance runs: (i) same-version
+re-add `(0,0)`, count unchanged; (ii) bump → `(0,1)`, current row 2.0.0, history
+count 1, `chain_for` = [(1.0.0, v1), (2.0.0, v2)] oldest→current; (iii) history=None
+superseding write raises `MissingHistoryError`, standing row untouched; (iv) pre-B-a
+fixture heals (rows/marks preserved, interpreter backfilled 1.0.0, marks readable
+version-keyed) AND half-migrated fixture (leftover `projections_v2` + old table)
+heals with re-open idempotent (marks==1, no dupes); (v) **live-copy migration**:
+backup-API copy of MAIN checkout's store (read-only URI open, only to copy) →
+PRE rows=259813 marks=85, POST rows=259813 marks=85, payload spot-check verbatim,
+all interpreters 1.0.0, re-open idempotent — no row lost/altered, no stop condition.
+Falsifier (B-a, inverted) pinned by test: bumped re-projection neither mutates
+in place (old generation archived, readable) nor is ignored (new reading lands).
+Sensor call sites updated mechanically (interpreter kwarg + 3-arg mark;
+`is_projected` version pass-through deliberately left to Item 4); ratchet re-pinned
+`f1eff4bf…` at 1.0.0 = declared refactor (batch content byte-identical). All 46
+affected-suite tests green incl. untouched out-of-scope `test_code_projection.py`
+(finding-0047 resolution holding). Ruff clean; argless mypy 69 (337 files); fast
+suite 852 passed.
+
+**Next action:** Item 4 — sensor: `history` handle field + wire in
+`build_code_sensor` via `open_observation_history_store(cfg)`; `_project` checks
+`is_projected(sha, INTERPRETER_VERSION)` and passes `history=self.history`;
+`backfill_observations` same; `_RESET_GUARD` gains `"observation_history.sqlite"` +
+split-naming comment (§6(f), ONE entry only); tests in `test_code_sensor.py`:
+monkeypatch-bump → `backfill_observations()` re-projects, old rows archived,
+`projected` counts it; `reset_targets()` lists `code_observations.sqlite`, refuses
+the sidecar (stub-cfg `Launcher`, `runs`/`repo_root` unused by `reset_targets`).
+Ratchet re-pin again in the Item 4 commit (declared refactor, same argument).
 
 ## 2026-07-12 — minted at graduation (orchestrator, Fable/xhigh)
 
