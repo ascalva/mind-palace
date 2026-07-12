@@ -21,7 +21,7 @@ cost:
   estimate: { model: fable, tokens: 250k } # core-store invariants + the reset path: the falsifier needs judgment (supersession semantics), not just green tests
   actual: null
 depends_on: []
-parallelizable_with: []
+parallelizable_with: [bp-021] # disjoint write_scope (only docs/findings/** shared — new files, disjoint ID ranges); asserted at spawn 2026-07-12, graduation-author's amendment
 created: 2026-07-12
 updated: 2026-07-12
 links:

@@ -15,7 +15,7 @@ cost:
   estimate: { model: sonnet, tokens: 300k } # pinned formulas + crisp synthetic-topology falsifiers (the tests ARE the judge); sign/orientation subtleties are what the estimate buys
   actual: null
 depends_on: []
-parallelizable_with: []
+parallelizable_with: [bp-018] # disjoint write_scope (only docs/findings/** shared — new files, disjoint ID ranges); asserted at spawn 2026-07-12, graduation-author's amendment
 created: 2026-07-12
 updated: 2026-07-12
 links:

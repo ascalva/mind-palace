@@ -136,6 +136,12 @@ Gate attestations are the only ones signed by the **owner's key** (stored in Key
 / Secure Enclave), not just the supervisor's key. This makes gate decisions
 non-repudiable — the owner's signature proves they personally approved the change.
 
+**CI-witness attestation** — built (bp-016): `ci_witness / pipeline_green|pipeline_red`
+with the commit sha as input. The verdict source is GitHub Actions per
+`dn-ci-platform-and-runner-strategy` D3 (re-pointed from GitLab 2026-07-12); the output
+hash is `run:<id>` (was `pipeline:<id>`) — action names deliberately unchanged across
+the host move so chain history stays one vocabulary (P3).
+
 ---
 
 ## 4. The signing infrastructure

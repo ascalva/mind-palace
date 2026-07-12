@@ -6,6 +6,28 @@ write-scope files must continue without re-asking anything already answered.
 
 ---
 
+## 2026-07-12 — SEAL: merged, pushed, LIVE-PROVEN — the witness attested its own merge green
+
+**Status:** COMPLETE. Merge commit `cd289bb` (`merge(bp-016): …`) pushed to origin;
+the ci run for that exact sha went green on GitHub Actions and **the new witness
+itself attested it**: `uv run scripts/ci_witness.py check cd289bb…` →
+`ci-witness: run 29211747966 GREEN for cd289bb9619c — attested`, rc 0 (authenticated
+via Keychain `github-api`; emission `ci_witness / pipeline_green / run:29211747966`
+in the live store). That one command is simultaneously the live CI proof, Item 9's
+falsifier replay (the runbook §CI witness play produces a working authenticated
+call), and the deploy-gate unblock — deploy's attestation gate now reads GitHub.
+
+Seal acts: plan `in-progress → complete` + cost actual (builder usage unknown — died
+on the spend limit; recovery ran orchestrator-side); §4's attestation-layer.md
+cross-ref applied by the orchestrator (draft note, agent-writable — one paragraph in
+§3 naming the ci_witness type, D3, and the `pipeline:→run:` output change). No
+release cut, no release.yml dispatch (Item 10 acceptance was dry-run only; the first
+live dispatch is the owner's). Worktree removed after seal. Findings filed this
+plan: 0039 (routed orchestrator → triage: falsifier-demo side-effect audit +
+owner PAT-rotation notice), 0046 (live-test flake, builder-tier, → triage).
+
+---
+
 ## 2026-07-12 — ORCHESTRATOR RECOVERY: snapshot restructured, scrutinized, gate green (evening session)
 
 **Status:** builder died on the spend limit before its commits; the orchestrator resumed

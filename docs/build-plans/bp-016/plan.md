@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-016
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/ci-platform-and-runner-strategy.md # D3 (witness re-point), D4 RULED end-state (GitHub becomes origin), P3/P5
 contract: builder
@@ -19,7 +19,7 @@ write_scope:
 session_budget: 1
 cost:
   estimate: { model: fable, tokens: 300k } # deploy-promotion-gate blast radius: the false-green direction needs judgment, not just tests
-  actual: null
+  actual: { model: fable, tokens: unknown } # builder died on the org spend limit before reporting; recovery (restructure+scrutiny+gate+merge+seal) ran inside the 2026-07-12 evening fable/xhigh orchestrator session — not separately metered
 depends_on: [bp-015] # the witness needs a live green `ci` workflow to point at (D1: parity before attestation)
 parallelizable_with: [bp-017] # disjoint write_scope
 created: 2026-07-11

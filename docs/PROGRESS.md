@@ -2342,3 +2342,37 @@ ratification) and the deferred riders (second /triage, /scribe offer at six rati
 bp-019..022 → spawn bp-018 (B-a, `ready`, the substrate the worldview chains ride).
 Session shape: one Fable/xhigh orchestrator (design+supervision combined) + one sonnet
 builder sealed 0.97× + one fable builder lost mid-flight to the limit.
+
+## 2026-07-12 — bp-016 SEALED after spend-limit recovery: the witness attested its own merge
+
+- **Recovery per the delegate/context-economy skills (resume-beats-restart, proven again):**
+  fresh Fable/xhigh orchestrator session resumed the dead builder's worktree from plan +
+  journal + safety snapshot `60bd857`. Scrutiny of the full unreviewed diff against plan §6
+  line-by-line: PASS (CLI surface byte-identical; only `success` green; emission shape exact;
+  grace loop in `check()` only; no secrets; launcher untouched; 11 files all in scope).
+  Snapshot restructured into the planned logical commits (`f5bb116` witness+suite+shim,
+  `2205057` docs, `6a4de1c` release trio + release.yml), `main` merged in clean.
+- **Gate (worktree, post-merge):** ruff · mypy-scoped · argless mypy **= 69 = baseline** ·
+  type_gate · pytest 850 passed, 1 environmental live-axis flake (async-unload race in
+  `test_scheduler_live`'s own clean-slate step; failed 2× ~132 s then re-ran green in both
+  checkouts; probes isolated the mechanism) → **finding-0046** (codebase, tests/e2e outside
+  bp-016 scope). bp-017 precedent applied.
+- **Merged `cd289bb`, pushed, LIVE-PROVEN:** ci run **29211747966 GREEN** for the merge sha
+  and **the new witness itself attested it** (`scripts/ci_witness.py check` rc 0,
+  authenticated, emission `ci_witness / pipeline_green / run:29211747966`) — live CI proof,
+  Item 9's falsifier replay, and the **deploy-gate unblock in one command**. Deploy's
+  attestation gate now reads GitHub; first release.yml dispatch stays owner-initiated
+  (none fired; Item 10 acceptance was dry-run only).
+- **Seal acts:** plan `complete` + cost actual (builder tokens unknown — died before
+  reporting; recovery not separately metered); §4's attestation-layer.md cross-ref applied
+  (draft note, §3 gains the ci_witness type, D3, `pipeline:→run:`); worktree removed.
+  Findings owed to /triage: 0039 (falsifier-demo side-effect audit + owner PAT-rotation
+  notice), 0046 (flaky live test).
+- **Spawn prep:** bp-018 ∥ bp-021 write_scopes verified disjoint (only `docs/findings/**`
+  shared — new files, ID ranges 018→0047+, 021→0052+); mutual `parallelizable_with`
+  asserted in both front-matters (graduation-author's amendment at spawn, per brief).
+
+**Next:** spawn bp-018 (fable) ∥ bp-021 (sonnet) builders; merge-as-they-land; then
+bp-019 (after 018), bp-022 (after 021), bp-020 last (Item 11 backfill is the
+orchestrator's at seal). Riders: second /triage (0039, 0046, resolved 0045, oq-0016
+sweep), /scribe offer (book debt: seven ratified notes).
