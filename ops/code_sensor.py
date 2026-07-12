@@ -212,9 +212,10 @@ class CodeSensor:
             return 0, 0
         batch = self._observations_for(sha)
         content = self.obs_handoff.emit_batch(sha, batch)
-        added = self.observations.add_batch(self.obs_handoff.collect())
+        added, _ = self.observations.add_batch(self.obs_handoff.collect(),
+                                               interpreter=INTERPRETER_VERSION)
         edges = self._mint_reference_edges(sha, batch)
-        self.observations.mark_projected(sha, content)
+        self.observations.mark_projected(sha, content, INTERPRETER_VERSION)
         if self.attestor is not None:
             # inputs=[commit sha], outputs=[batch content hash] (plan Q5). derived_from is
             # auto-linked by the attestor via producers_of: the ingest_commit attestation

@@ -5,8 +5,10 @@
 #            boundary — no provenance parameter exists anywhere in this module's API.
 # ENFORCED:  structural — `CodeObservation.to_row()` and `CodeObservationStore.add_batch()`
 #            hardcode `Provenance.OBSERVED` (the DerivedStore/SensedObservation mint
-#            discipline); identity key (commit_sha, path, qualname) + INSERT OR IGNORE
-#            makes re-projection idempotent (the B-b falsifier, inverted).
+#            discipline); identity key (commit_sha, path, qualname) unchanged by bp-018:
+#            same-interpreter re-projection is idempotent (the B-b falsifier, inverted);
+#            a DIFFERENT interpreter archives-then-replaces (§2.2 versioned supersession
+#            — the main table holds exactly latest-per-identity by construction).
 """OBSERVED-only store for code observations (ratified code-observation-projection.md B-b).
 
 One row = one symbol-grain reading of one commit: the repo is an instrument, commits are
@@ -30,7 +32,11 @@ the deterministic reference extractor (Lane 1, V4-seeded patterns) is B-c / bp-0
 Engine: SQLite (plan Q2) — an identity-keyed append-style ledger, the runs/versions/
 snapshots convention, not the DuckDB telemetry lane. Reset semantics (plan Q4): this store
 is CORPUS-side (the observed stratum) and joins `reset_targets()` — wiped with the corpus,
-unlike the snapshot LEDGER (build history, reset-guarded).
+unlike the snapshot LEDGER (build history, reset-guarded). [cross-ref: extension, bp-018]
+That corpus-side call covers the current READINGS only, which rebuild by re-projection
+from git; the worldview HISTORY — generations superseded when a bumped interpreter
+re-projects — lives in the ledger-class, reset-guarded sidecar
+(`core/stores/observation_history.py`; dn-self-sensing §2.5 ruling).
 """
 
 from __future__ import annotations
@@ -46,6 +52,7 @@ from typing import Any
 
 from config.loader import Config
 from core.provenance import Provenance
+from core.stores.observation_history import ObservationHistoryStore
 
 # The observation grain's kind vocabulary (note §2.3): a module row (qualname '') carries
 # the module docstring; the rest are the snapshot walk's def/class kinds.
@@ -63,17 +70,30 @@ CREATE TABLE IF NOT EXISTS code_observations (
     references_out TEXT NOT NULL DEFAULT '[]',   -- JSON: [{type, target, source_line}] (B-c fills)
     provenance     TEXT NOT NULL,                -- always 'observed' (nothing else is written)
     observed_at    TEXT NOT NULL,                -- when the projection landed the row
+    -- the worldview coordinate OUTSIDE the identity key (bp-018, dn-self-sensing §2.4);
+    -- declared LAST so a fresh file's column order matches a §6(d) ALTER-migrated one
+    interpreter    TEXT NOT NULL DEFAULT '1.0.0',
     PRIMARY KEY (commit_sha, path, qualname)
 );
 -- Projection bookkeeping (NOT part of the §2.3 schema): which commits φ_code has already
--- projected, and the attested batch content hash. Lets a zero-symbol commit be a recorded
--- no-op instead of re-projecting forever, and makes `sync()` re-runs skip attested batches.
+-- projected UNDER WHICH interpreter version, and the attested batch content hash. Lets a
+-- zero-symbol commit be a recorded no-op instead of re-projecting forever, makes `sync()`
+-- re-runs skip attested batches, and — version-keyed since bp-018 — makes every commit
+-- eligible again after an interpreter bump (backfill_observations() is the deliberate
+-- re-projection entry point, plan Q5).
 CREATE TABLE IF NOT EXISTS projections (
-    commit_sha   TEXT PRIMARY KEY,
+    commit_sha   TEXT NOT NULL,
+    interpreter  TEXT NOT NULL,                  -- the worldview that projected it
     batch_hash   TEXT NOT NULL,                  -- sha256 of the canonical batch JSON
-    projected_at TEXT NOT NULL
+    projected_at TEXT NOT NULL,
+    PRIMARY KEY (commit_sha, interpreter)
 );
 """
+
+
+class MissingHistoryError(RuntimeError):
+    """A superseding write arrived with `history=None` — refusing to silently drop a
+    worldview generation (bp-018 §6(c): archive-then-replace, never replace-and-forget)."""
 
 
 def _utcnow() -> str:
@@ -155,22 +175,82 @@ class CodeObservationStore:
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_DDL)
         self._conn.commit()
+        self._migrate()
 
-    def add_batch(self, observations: Iterable[CodeObservation]) -> int:
-        """Land one projection batch. INSERT OR IGNORE on the identity key
-        (commit_sha, path, qualname): a second projection of the same commit changes
-        NOTHING (the B-b falsifier, inverted). Returns the number of NEW rows."""
-        added = 0
+    def _migrate(self) -> None:
+        """Healing-on-open (the `backfill_docstrings` precedent): a pre-bp-018 file
+        upgrades on first open, idempotently — re-checking the column set means a
+        re-open after a crashed migration heals instead of failing.
+
+        §6(d) — observations: genuinely additive; ALTER backfills existing rows to
+        '1.0.0', honest because they were produced by the current, unchanged φ_code
+        source — the same worldview Item 1 declares as 1.0.0.
+        §6(e) — projections: SQLite cannot alter a PRIMARY KEY (plan Q6), so the
+        version-keyed bookkeeping is copy-rename in one transaction; a leftover
+        `projections_v2` from a crashed attempt is dropped and the copy redone."""
+        cols = {r[1] for r in self._conn.execute("PRAGMA table_info(code_observations)")}
+        if "interpreter" not in cols:
+            with self._conn:
+                self._conn.execute("ALTER TABLE code_observations "
+                                   "ADD COLUMN interpreter TEXT NOT NULL DEFAULT '1.0.0'")
+        pcols = {r[1] for r in self._conn.execute("PRAGMA table_info(projections)")}
+        if "interpreter" not in pcols:
+            with self._conn:
+                self._conn.execute("DROP TABLE IF EXISTS projections_v2")
+                self._conn.execute(
+                    "CREATE TABLE projections_v2 (commit_sha TEXT NOT NULL, "
+                    "interpreter TEXT NOT NULL, batch_hash TEXT NOT NULL, "
+                    "projected_at TEXT NOT NULL, PRIMARY KEY (commit_sha, interpreter))")
+                self._conn.execute("INSERT INTO projections_v2 "
+                                   "SELECT commit_sha, '1.0.0', batch_hash, projected_at "
+                                   "FROM projections")
+                self._conn.execute("DROP TABLE projections")
+                self._conn.execute("ALTER TABLE projections_v2 RENAME TO projections")
+
+    def add_batch(self, observations: Iterable[CodeObservation], *,
+                  interpreter: str,
+                  history: ObservationHistoryStore | None = None) -> tuple[int, int]:
+        """Land one projection batch under a declared interpreter version. Returns
+        (new rows, superseded rows). Three cases per identity key (§6(c)):
+
+        - no existing row → INSERT (a new reading);
+        - existing row, SAME interpreter → no-op (idempotence unchanged — the B-b
+          falsifier, inverted);
+        - existing row, DIFFERENT interpreter → archive the existing generation to
+          `history` (store='code'), then replace: versioned supersession (§2.2), and
+          the main table stays exactly latest-per-identity by construction. A
+          superseding write with `history=None` raises `MissingHistoryError` — a
+          generation is never silently dropped."""
+        added = superseded = 0
         with self._conn:
             for o in observations:
-                cur = self._conn.execute(
-                    "INSERT OR IGNORE INTO code_observations VALUES (?,?,?,?,?,?,?,?,?)",
+                existing = self._conn.execute(
+                    "SELECT * FROM code_observations "
+                    "WHERE commit_sha = ? AND path = ? AND qualname = ?",
+                    [o.commit_sha, o.path, o.qualname]).fetchone()
+                if existing is not None and existing["interpreter"] == interpreter:
+                    continue
+                if existing is not None:
+                    if history is None:
+                        raise MissingHistoryError(
+                            f"superseding ({o.commit_sha}, {o.path}, {o.qualname}) "
+                            f"[{existing['interpreter']} → {interpreter}] with no history "
+                            f"store — a worldview generation would be silently dropped")
+                    history.archive("code", [(self._row(existing),
+                                              str(existing["interpreter"]), interpreter)])
+                    superseded += 1
+                else:
+                    added += 1
+                self._conn.execute(
+                    "INSERT OR REPLACE INTO code_observations "
+                    "(commit_sha, path, qualname, kind, signature, docstring, "
+                    " references_out, provenance, observed_at, interpreter) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?)",
                     [o.commit_sha, o.path, o.qualname, o.kind, o.signature, o.docstring,
                      json.dumps([dict(r) for r in o.references_out]),
-                     Provenance.OBSERVED.value, _utcnow()],
+                     Provenance.OBSERVED.value, _utcnow(), interpreter],
                 )
-                added += cur.rowcount
-        return added
+        return added, superseded
 
     # --- reads (view-compatible dict rows) ----------------------------------------------
     def all_rows(self, *,
@@ -196,18 +276,46 @@ class CodeObservationStore:
         row = self._conn.execute("SELECT count(*) FROM code_observations").fetchone()
         return int(row[0]) if row else 0
 
-    # --- projection bookkeeping (φ_code's idempotency ledger) ----------------------------
-    def is_projected(self, commit_sha: str) -> bool:
+    # --- projection bookkeeping (φ_code's idempotency ledger, version-keyed) --------------
+    def is_projected(self, commit_sha: str, interpreter: str | None = None) -> bool:
+        """Was `commit_sha` projected under `interpreter`? With `interpreter=None`:
+        under ANY interpreter — the pre-bp-018 read, kept for callers asking only
+        "was this sha ever projected?" (finding-0047: the §6(c) pin required the
+        argument; one out-of-scope caller wants exactly the any-generation semantic,
+        so the default carries it honestly). The sensor always passes its version —
+        Item 4's bump→re-projects test pins that end-to-end."""
+        if interpreter is None:
+            return self._conn.execute(
+                "SELECT 1 FROM projections WHERE commit_sha = ?", [commit_sha]
+            ).fetchone() is not None
         return self._conn.execute(
-            "SELECT 1 FROM projections WHERE commit_sha = ?", [commit_sha]
+            "SELECT 1 FROM projections WHERE commit_sha = ? AND interpreter = ?",
+            [commit_sha, interpreter],
         ).fetchone() is not None
 
-    def mark_projected(self, commit_sha: str, content_hash: str) -> None:
-        """Record that φ_code projected `commit_sha` (INSERT OR IGNORE: first mark wins —
-        re-interpretation is a versioned supersession, §2.2, not an in-place overwrite)."""
+    def mark_projected(self, commit_sha: str, content_hash: str, interpreter: str) -> None:
+        """Record that φ_code-at-`interpreter` projected `commit_sha`. INSERT OR IGNORE
+        on (commit_sha, interpreter): first mark per worldview wins, and a NEW
+        interpreter's mark is a NEW row — the versioned supersession §2.2 promised,
+        mechanical since bp-018 (this comment described intent only, pre-B-a)."""
         with self._conn:
-            self._conn.execute("INSERT OR IGNORE INTO projections VALUES (?,?,?)",
-                               [commit_sha, content_hash, _utcnow()])
+            self._conn.execute("INSERT OR IGNORE INTO projections VALUES (?,?,?,?)",
+                               [commit_sha, interpreter, content_hash, _utcnow()])
+
+    def chain_for(self, commit_sha: str, path: str, qualname: str,
+                  history: ObservationHistoryStore) -> list[dict[str, Any]]:
+        """The queryable worldview chain at one identity key (§2.4): archived
+        generations + the current row, oldest → current. Each element carries its own
+        `interpreter` — the second orthogonal history (across interpreter at fixed
+        identity), readable without touching default reads."""
+        identity = {"commit_sha": commit_sha, "path": path, "qualname": qualname}
+        chain = history.chain("code", identity)
+        current = self._conn.execute(
+            "SELECT * FROM code_observations WHERE commit_sha = ? AND path = ? AND qualname = ?",
+            [commit_sha, path, qualname]).fetchone()
+        if current is not None:
+            chain.append(self._row(current))
+        return chain
 
     @staticmethod
     def _row(r: sqlite3.Row) -> dict[str, Any]:
