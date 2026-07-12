@@ -144,3 +144,47 @@ sidecar-file mechanism, §11). Grounding verified in-session: the degenerate
 `is_projected(sha)` no-op path (`ops/code_sensor.py:207-208`), the promise-comment at
 `code_observations.py:205-207`, `_RESET_GUARD` at `launcher.py:77-78`, sole-caller
 check (Q3). No code written. Awaiting the owner's `proposed → ready` hand edit.
+
+---
+
+## 2026-07-12 — ORCHESTRATOR: main merged in, scrutiny PASS, gate re-run in flight
+
+**Status:** builder reported complete (8 commits, head `d313cef`); orchestrator
+supervision underway in this worktree.
+
+- **`git merge main` clean (`3445172`)** — main had moved 78deaf6→9e2c5c5 after spawn
+  (triage sweep, oq-0017 enactment, bp-021 merge+seal, spawn amendments, finding-0051);
+  zero file overlap with this plan's diff; plan.md front-matter line-merged cleanly
+  (main's parallelizable_with amendment + branch's status flip, different lines).
+- **Scrutiny (full diff vs `78deaf6`): PASS.**
+  - Launcher audit: `_RESET_GUARD` gains EXACTLY one tuple entry + its comment —
+    the oq-0013-precedent grant honored to the letter.
+  - §6(d,e) migrations: healing-on-open via PRAGMA column checks; copy-rename in one
+    transaction; leftover `projections_v2` dropped and redone — idempotent in both
+    crash windows. Archive-BEFORE-replace ordering means a crash between the two can
+    only duplicate an archive attempt (INSERT OR IGNORE absorbs), never lose a
+    generation (the two stores commit on separate connections; verified the ordering).
+  - §6(c) add_batch: all three cases exact; MissingHistoryError on history=None
+    supersede; main table latest-per-identity by construction; default reads untouched.
+  - §6(b) sidecar: append-only STRUCTURAL (no delete/update surface, test-swept);
+    pinned archive() tuple shape exact; IDENTITY_KEYS registry is a light, documented
+    coupling (key columns only — honest adaptation, bp-019 registers 'agent').
+  - §6(a,g): INTERPRETER_VERSION + ratchet comment verbatim; attestation emission
+    shape unchanged; sync() newly-ingested-only preserved (Q5).
+  - **finding-0047 deviation ACCEPTED at scrutiny:** `is_projected`'s
+    `interpreter: str | None = None` (None = any generation) — the semantics the
+    out-of-scope caller (tests/unit/test_code_projection.py:111) actually asserts;
+    the forgotten-arg hazard is pinned by Item 4's bump→re-projects test. Restoring
+    the §6(c) pin verbatim would require an out-of-scope test edit at merge for zero
+    semantic gain. finding-0048 (second live-flake class member) noted for /triage
+    fold into the 0046 known-flake note.
+  - Scope: 12 files, all in write_scope; no secrets; plan.md diff = status flip only.
+- **Gate re-run (orchestrator, post-merge):** ruff clean · mypy scoped clean (170
+  files) · **argless mypy = 69 = baseline** (339 source files) · type_gate OK ·
+  pytest leg IN FLIGHT (background br7kijy0m; contending with bp-022's gate suite —
+  0046/0048 flake classes may need the isolation re-run).
+
+**Next action:** on pytest green (with any flake re-runs journaled) — merge to main
+(watch the post-commit hook's sensor sync exercise the LIVE store migration), push,
+witness `check` on the merge sha, seal (cost.actual: fable ~194,279 tok / 104 calls /
+~44 min = 0.78× of 250k), then spawn bp-019.
