@@ -119,3 +119,31 @@ Import firewall (I2): OK — core imports no zone ...   # EXIT 0
 ## Handoff to orchestrator (Item 5, not this session)
 
 Items 1–4 complete and committed on branch `worktree-agent-a0565fedc5daaa66e`. **Item 5 (live wiring proof) is ORCHESTRATOR-EXECUTED at seal** — builders never push. At seal, merge Items 1–4 to main, let the mirrored push produce a `ci` run (expect all five green), then one canary push (a trivial ruff violation → red `ratchet`) and its revert (→ green). Three run URLs (green → red → green) go in this journal. Secret/semgrep reds are NOT pushed (public-repo hygiene; Item 2 covered them locally). Also do the Item-4 falsifier check: confirm GitLab creates NO new pipeline for the pushed sha (tombstone effective).
+
+---
+
+## Item 5 — live wiring proof (ORCHESTRATOR-EXECUTED) — IN PROGRESS (2026-07-12)
+
+### Green-run attempt 1 — FAILED (workflow-wiring defect, fixed in scope)
+
+Merged Items 1–4 to main (`e14be25`), pushed origin (GitLab→GitHub mirror). The `ci`
+run for the sha (github.com/ascalva/Mind-Palace/actions/runs/29179344841) came back
+**failure**: 4/5 jobs (ratchet, type-gate, vault-axis, semgrep) failed at the very first
+**"Set up job"** step; only `gitleaks` (no `setup-uv`) went green. Setup log:
+`##[error]Unable to resolve action astral-sh/setup-uv@v8, unable to find version v8`.
+
+**Root cause:** `astral-sh/setup-uv` publishes exact tags `v8.0.0`…`v8.3.2` but **no
+moving `v8` major alias** (git ref `tags/v8` → HTTP 404; `v6`/`v7` DO have aliases — the
+v8 series dropped the major-alias convention). The build-time pin assumed a `v8` alias by
+analogy; it does not exist. `actions/checkout@v7` resolves fine (gitleaks proved it).
+
+**Fix (orchestrator, in bp-015 write_scope — the gate's wiring, NOT gate content and NOT
+the code bending):** pinned all four `setup-uv` refs to the exact tag `@v8.3.2` — the
+version the builder actually verified locally (action.yml inputs confirmed).
+`actionlint .github/workflows/ci.yml` → exit 0. Re-pushing for green-run attempt 2.
+
+**Verification-gap noted (finding owed at seal):** Item 2's local red-proofs validate the
+gate *commands* but run under local `uv`/`uvx` — they cannot exercise GitHub Actions'
+marketplace-action *resolution* or service-container health. Only the live run (Item 5)
+catches a bad action ref. Future CI-style plans should budget an Item-5 wiring-fix round
+and, ideally, pre-validate action refs against the GitHub git-ref API at build time.
