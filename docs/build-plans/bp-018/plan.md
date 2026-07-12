@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-018
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/self-sensing.md # B-a; §2.2 versioned re-interpretation, §2.4 mechanism gap, §2.5 reset ruling, V2
 contract: builder
