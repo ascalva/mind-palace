@@ -107,3 +107,31 @@ flag equivalence makes the ripser cross-check exact (Q2/Q4); corpus scale suppor
 dense-deterministic null-space path (Q3, guard pinned). The ∂₁∂₂ = 0 identity pinned
 as the sign-error catcher. No code written. Awaiting the owner's `proposed → ready`
 hand edit; bp-022 depends on this.
+
+---
+
+## 2026-07-12 — ORCHESTRATOR: main merged in, scrutiny PASS, gate re-run in flight
+
+**Status:** builder reported complete (two commits: `556a09a` code, `579d143` docs);
+orchestrator supervision underway in this worktree.
+
+- **`git merge main` clean (`63203d5`)** — main had moved 78deaf6→e4f506f after spawn
+  (docs-only: triage sweep + oq-0017 enactment); zero overlap with this plan's scope.
+- **Scrutiny (full diff vs `78deaf6`): PASS.** §6(b,c) verified incl. an analytic
+  re-derivation of ∂₂'s sign convention (∂₁(e_jk − e_ik + e_ij) telescopes to 0);
+  §6(d) decompose projector logic sound (im ∂₁ᵀ ⊥ im ∂₂ ⟸ ∂₁∂₂=0, so sequential
+  lstsq projections are exact); §6(e) guard at all three dense entry points, rank cut
+  1e-10·s_max; §6(f) harness implements the alive-interval count verbatim, module-level
+  (bp-022 reuses); imports exactly numpy+scipy.sparse (no model/network/store);
+  5-fixture β₁ table hand-checked (incl. cycle-with-chord → both triangles flag-filled
+  → β₁=0); size-guard test uses a REAL >20k-edge graph; scope = exactly 4 files, all
+  in write_scope; plan.md diff is the status flip only. No findings.
+- **Gate re-run (orchestrator, post-merge):** ruff clean · mypy scoped clean (169
+  files) · **argless mypy = 69 = baseline** · type_gate OK · pytest leg IN FLIGHT
+  (background task b8ldjew3j; builder's own full run was 892 passed / 8 skipped / 0
+  failed pre-merge on the identical code tree).
+
+**Next action:** on pytest green — merge this branch to main (sequenced; bp-018 still
+building, folds main at its landing), push, witness `check` on the merge sha, seal
+(cost.actual: sonnet ~173,956 tok / 233 tool uses / ~21 min = 0.58× of 300k estimate),
+then spawn bp-022 (dependency clears at the merge).
