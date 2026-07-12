@@ -1,8 +1,9 @@
+# TOMBSTONE (2026-07-11) — the CI gate moved to GitHub Actions (.github/workflows/ci.yml).
+# See docs/design-notes/ci-platform-and-runner-strategy.md (D1/D5). This pipeline never
+# runs; the file is retained until the D4 origin migration completes (parked decision #3).
 workflow:
   rules:
-    - if: '$CI_COMMIT_MESSAGE =~ /^chore\(release\):/ && $CI_COMMIT_BRANCH'
-      when: never
-    - when: always
+    - when: never
 
 variables:
   SECRET_DETECTION_ENABLED: "true"
