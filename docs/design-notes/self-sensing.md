@@ -44,8 +44,8 @@ The one-sentence architecture: **φ_self is a second deterministic interpreter o
 repo — projecting committed workflow artifacts into an OBSERVED-only `agent_observations`
 store through a sibling of the bp-012 seam — whose interpreter-versioned supersession
 chain records not only what the agent did, but how the agent's way of seeing itself
-changed over time.** This is the owner's distillation made structural: _"the projection
-maps FROM agents interpreting results OVER TIME."_
+changed over time.** This is the owner's distillation made structural: *"the projection
+maps FROM agents interpreting results OVER TIME."*
 
 ### 1.2 Out of scope (explicit non-goals)
 
@@ -76,13 +76,13 @@ The sensor taxonomy gains an axis:
 Classification of the rows: **`OBSERVED`**, by the code-stream note's §2.1 reasoning
 inherited verbatim — never `AUTHORED_*` (agent output entering as authored would be
 masquerade at origin), never `CURATED`, never `INTERPRETED` (these are measurements of
-workflow facts, not inferences over the corpus). The subject being _the agent itself_
+workflow facts, not inferences over the corpus). The subject being *the agent itself*
 changes nothing about the class: what enters the corpus is exhaust about operation, and
 it is mirror-opaque like every observation (§2.6).
 
 The self-sensor is the **third stream through the sensing seam** (biometric, code, self)
 — confirming the seam's core bet that it is sensor-agnostic. It arrives as a third
-_instance_, not new infrastructure.
+*instance*, not new infrastructure.
 
 ### 2.2 φ_self — the interpreter contract, instantiated
 
@@ -124,7 +124,7 @@ AgentObservation:
 ```
 
 Identity key: **(commit_sha, stream, subject_id, key)**; `interpreter` is the version
-coordinate _outside_ the identity key (§2.4). Idempotence: re-projection under the same
+coordinate *outside* the identity key (§2.4). Idempotence: re-projection under the same
 interpreter is a no-op (the `INSERT OR IGNORE` + attested-batch pattern the code store
 proves).
 
@@ -157,15 +157,15 @@ counts as "cost"), re-projecting the SAME artifacts under the NEW φ_self versio
 supersedes the old observations, and **the supersession chain is the fossil record of
 the changing self-model.** The stratum then holds two orthogonal histories at once:
 
-- across `commit_sha` at fixed `interpreter`: _what the agent's operation was, over time;_
-- across `interpreter` at fixed identity key: _how the agent read that operation, over time._
+- across `commit_sha` at fixed `interpreter`: *what the agent's operation was, over time;*
+- across `interpreter` at fixed identity key: *how the agent read that operation, over time.*
 
 The second is the owner's epistemology-over-time, and it generalizes to every sensor:
 each stream records readings AND the evolution of its interpretive view. The evolution
 study gains this as an axis alongside economics (§5, owner call).
 
 **The erasure test (owner question, 2026-07-12 capsule).** Would the system keep flowing
-in the same direction if the edge _history_ were reset but the current _snapshot_ kept?
+in the same direction if the edge *history* were reset but the current *snapshot* kept?
 Today, behaviorally, yes — the stratum is passive, nothing that acts consults the record
 — but the study would lose its baseline, and the study is the point. Once gated
 consumers exist, no: recalibration and regime-shift detection are functionals of the
@@ -183,7 +183,7 @@ implements only the degenerate case: `PRIMARY KEY (commit_sha, path, qualname)` 
 `INSERT OR IGNORE`, plus a `projections` bookkeeping table that makes `sync()` skip
 already-attested batches — same-interpreter idempotence, with no interpreter-version
 column and no way to hold a superseding row. The §2.2 clause is ratified contract, not
-yet built mechanics. **B-a builds it** — for the observation-store _family_, so φ_code
+yet built mechanics. **B-a builds it** — for the observation-store *family*, so φ_code
 inherits the same upgrade: version column outside the identity key, latest-per-identity
 as the default read, the chain queryable. This implements what §2.2 already states; no
 supersession or amendment of the code-observation note is required.
@@ -209,9 +209,9 @@ So, by direct analogy with `CodeSensingHandoff` / `CodeObservationStore`:
   `code_observations.py` mold: structural OBSERVED-only, identity-keyed idempotence,
   SQLite expected per that store's Q2 reasoning (an identity-keyed ledger, not the DuckDB
   telemetry lane — V4 confirms against CONVENTIONS). Reset semantics are **split by
-  re-derivability** (owner ruling, 2026-07-12 capsule): current _readings_ are
+  re-derivability** (owner ruling, 2026-07-12 capsule): current *readings* are
   corpus-class — wiped with the corpus and rebuilt by re-projection from git. The
-  versioned _history_ B-a creates — superseded worldview chains and, later,
+  versioned *history* B-a creates — superseded worldview chains and, later,
   edge-strength series — is **ledger-class, reset-guarded**: it does not rebuild (the
   old interpreters no longer exist at HEAD), and the study of its change over time is
   the stratum's point. Mechanism (whole-store guard vs a readings/history split) is
@@ -227,8 +227,8 @@ Three cuts, from operational to structural:
    loop; any future recalibration is a deliberate, gated workflow-layer act over
    committed artifacts, not a consumer of this store.
 2. **Domain excludes codomain.** φ_self reads committed workflow artifacts; it writes
-   corpus-store rows. Its output is not in its input domain, so _φ_self observing its own
-   observations is unrepresentable_ — the regress has no fixed point to start from. Owner
+   corpus-store rows. Its output is not in its input domain, so *φ_self observing its own
+   observations is unrepresentable* — the regress has no fixed point to start from. Owner
    sharpening (2026-07-12 capsule): the sensor is **stateless** — it reads
    deterministically, projection-maps, and forgets; the store is durable retention of
    readings for future use, never working state a later run consumes. No accumulator
@@ -247,7 +247,7 @@ Three cuts, from operational to structural:
 ### 2.7 Calibration is a shared pattern, never shared machinery
 
 The core's scheduler estimator (context/complexity pre-admission) and the workflow's cost
-ledger are the same primitive — _predict → execute → measure → update the predictor_ —
+ledger are the same primitive — *predict → execute → measure → update the predictor* —
 at two layers. What transfers is the **methodology**: bin predictions by task shape,
 require a sample threshold before recalibrating, detect regime shifts, never retune off
 one point (the bp-011 seal's explicit refusal to retune from a single 0.47× datum is the
@@ -310,24 +310,24 @@ mirror change, no report generator (parked elsewhere).
 ### 3.3 Builder items (post-ratification, blast-radius ordered)
 
 - **B-a** — interpreter-version supersession mechanics in the observation-store family
-  (additive migration; φ*code inherits). \_Falsifier: a re-projection under a bumped
-  interpreter version either mutates rows in place or is silently ignored.*
-- **B-b** — `AgentSensingHandoff` + `AgentObservationStore` + φ*self over the cost
-  stream; attested, idempotent per commit. \_Falsifier: a second projection of the same
-  commit changes row count; or any API surface accepts a provenance parameter.*
+  (additive migration; φ_code inherits). _Falsifier: a re-projection under a bumped
+  interpreter version either mutates rows in place or is silently ignored._
+- **B-b** — `AgentSensingHandoff` + `AgentObservationStore` + φ_self over the cost
+  stream; attested, idempotent per commit. _Falsifier: a second projection of the same
+  commit changes row count; or any API surface accepts a provenance parameter._
 - **B-c** — backfill over all sealed plans' graduation/seal commits. _Falsifier: a
   sealed plan with a complete cost block yields no estimate/actual join._
 
 ## 4. Parked decisions
 
-| id   | decision                                                               | default recorded                                                    | re-entry condition                                                                      |
-| ---- | ---------------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| PD-a | additional streams (session shapes, tool-use, finding rates, CI plane) | not licensed; named only                                            | per stream: its facts exist as committed artifacts + a small additive plan              |
-| PD-b | transcript-derived streams                                             | never (committed artifacts only)                                    | owner-ratified amendment with a concrete case that artifacts cannot carry               |
-| PD-c | shared calibration machinery with core                                 | pattern only, independent implementations                           | a third estimator plane exists AND duplication causes a measured divergence in method   |
-| PD-d | historical backfill vs forward-only                                    | backfill (artifacts all in git; projection cheap)                   | V3 measures the parse non-trivial or frontmatter too unstable to read deterministically |
-| PD-e | estimate-vs-actual as row vs join                                      | join (two facts, two time coordinates)                              | a consumer design shows the join reconstruction is the dominant cost                    |
-| PD-f | utility-graded edge durability                                         | binary — history is ledger-class, guarded (owner ruling 2026-07-12) | a built consumer produces per-edge utility measurements worth weighting retention by    |
+| id   | decision                                   | default recorded                                                       | re-entry condition                                                                      |
+| ---- | ------------------------------------------ | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| PD-a | additional streams (session shapes, tool-use, finding rates, CI plane) | not licensed; named only                    | per stream: its facts exist as committed artifacts + a small additive plan               |
+| PD-b | transcript-derived streams                 | never (committed artifacts only)                                        | owner-ratified amendment with a concrete case that artifacts cannot carry                |
+| PD-c | shared calibration machinery with core     | pattern only, independent implementations                               | a third estimator plane exists AND duplication causes a measured divergence in method    |
+| PD-d | historical backfill vs forward-only        | backfill (artifacts all in git; projection cheap)                       | V3 measures the parse non-trivial or frontmatter too unstable to read deterministically  |
+| PD-e | estimate-vs-actual as row vs join          | join (two facts, two time coordinates)                                  | a consumer design shows the join reconstruction is the dominant cost                     |
+| PD-f | utility-graded edge durability             | binary — history is ledger-class, guarded (owner ruling 2026-07-12)     | a built consumer produces per-edge utility measurements worth weighting retention by     |
 
 ## 5. Open questions
 
@@ -357,12 +357,11 @@ mirror change, no report generator (parked elsewhere).
 ## Cross-references
 
 Verified in-session 2026-07-12: `core/sensing.py` (`SensingHandoff`; `CodeSensingHandoff`
-
-- the Q1 sibling-precedent comment; `ObservedView` constructor-enforced observed-only);
-  `core/stores/code_observations.py` (structural OBSERVED mint; `PRIMARY KEY (commit_sha,
++ the Q1 sibling-precedent comment; `ObservedView` constructor-enforced observed-only);
+`core/stores/code_observations.py` (structural OBSERVED mint; `PRIMARY KEY (commit_sha,
 path, qualname)` + `INSERT OR IGNORE`; `projections` bookkeeping; SQLite Q2 note;
-  finding-0020 honesty note); `docs/templates/build-plan.md` (the `cost:` estimate/actual
-  block); `docs/build-plans/bp-011/plan.md` (the first live pair, 0.47×). Asserted from the
-  design record: code-observation-projection §2.1/§2.2/§2.4/§2.6 (ratified);
-  authorship-distance-axis §3.7; observed-data-and-the-assistant-tier (firewall);
-  findings 0020/0034; the owner capsules of 2026-07-11 in `cost-forecasting.md`.
+finding-0020 honesty note); `docs/templates/build-plan.md` (the `cost:` estimate/actual
+block); `docs/build-plans/bp-011/plan.md` (the first live pair, 0.47×). Asserted from the
+design record: code-observation-projection §2.1/§2.2/§2.4/§2.6 (ratified);
+authorship-distance-axis §3.7; observed-data-and-the-assistant-tier (firewall);
+findings 0020/0034; the owner capsules of 2026-07-11 in `cost-forecasting.md`.
