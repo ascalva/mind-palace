@@ -289,3 +289,15 @@ references:
   - docs/design-notes/code-observation-projection.md   # §2.5 — the A_geom exclusion
   - docs/design-notes/self-sensing.md
 ```
+
+---
+
+## 2026-07-12 — math/physics thread spun out → `edge-dynamics-and-continuum.md`
+
+The owner-dialogue arc of 2026-07-12 (phase space → Hodge threads → Fourier/splines →
+the continuum bridge; the five capsules above) outgrew capsule-appends. Consolidated,
+in spirit and rigor, per the owner's instruction, in
+**`docs/brainstorms/edge-dynamics-and-continuum.md`** — the charter vocabulary for
+Track D's design pass. This file remains the self-sensing (proprioceptive projection)
+home; the design note is `docs/design-notes/self-sensing.md` (draft, awaiting the
+owner's hand).

@@ -349,7 +349,10 @@ mirror change, no report generator (parked elsewhere).
   `ObservedView` emitting INTERPRETED proposals (dreamer-proposed authority) — the
   mirror-side dream path stays opaque to observations. That consumer's charter belongs
   to Track D's design pass; this note only guarantees the substrate it would read
-  (shared time coordinates, versioned chains) exists and is safe to accumulate.
+  (shared time coordinates, versioned chains) exists and is safe to accumulate. The
+  charter's mathematical vocabulary — phase space, Hodge threads, persistence, the
+  continuum-approximates-the-discrete inversion — is consolidated in
+  `docs/brainstorms/edge-dynamics-and-continuum.md` (2026-07-12).
 
 ## Cross-references
 
