@@ -164,6 +164,20 @@ The second is the owner's epistemology-over-time, and it generalizes to every se
 each stream records readings AND the evolution of its interpretive view. The evolution
 study gains this as an axis alongside economics (§5, owner call).
 
+**The erasure test (owner question, 2026-07-12 capsule).** Would the system keep flowing
+in the same direction if the edge *history* were reset but the current *snapshot* kept?
+Today, behaviorally, yes — the stratum is passive, nothing that acts consults the record
+— but the study would lose its baseline, and the study is the point. Once gated
+consumers exist, no: recalibration and regime-shift detection are functionals of the
+record, so the trajectory diverges at the first history-consuming act; and where edge
+strengths update incrementally, the snapshot is itself compressed history — the
+direction survives but attribution and shift-detection do not (dead reckoning: course
+corrections came from the record, so the current course fossilizes). Erasure-invariance
+is thus the operational form of the owner's smart-vs-wise distinction: a merely smart
+system's trajectory is a function of its state; a wise one's is a functional of its
+path. This system starts erasure-invariant and gains path-dependence only through
+deliberate gates — one audited consumer at a time.
+
 **The mechanism gap (verified in-session 2026-07-12).** The built code-observation store
 implements only the degenerate case: `PRIMARY KEY (commit_sha, path, qualname)` +
 `INSERT OR IGNORE`, plus a `projections` bookkeeping table that makes `sync()` skip
@@ -194,10 +208,14 @@ So, by direct analogy with `CodeSensingHandoff` / `CodeObservationStore`:
 - **`AgentObservationStore`** (`core/stores/agent_observations.py`) — the
   `code_observations.py` mold: structural OBSERVED-only, identity-keyed idempotence,
   SQLite expected per that store's Q2 reasoning (an identity-keyed ledger, not the DuckDB
-  telemetry lane — V4 confirms against CONVENTIONS), **corpus-side reset target** (these
-  rows are corpus, wiped with it; the git-committed artifacts they project from are the
-  durable record, so a reset loses nothing unrecoverable — re-projection rebuilds the
-  stratum, minus superseded worldview chains, which is what "corpus-side" means).
+  telemetry lane — V4 confirms against CONVENTIONS). Reset semantics are **split by
+  re-derivability** (owner ruling, 2026-07-12 capsule): current *readings* are
+  corpus-class — wiped with the corpus and rebuilt by re-projection from git. The
+  versioned *history* B-a creates — superseded worldview chains and, later,
+  edge-strength series — is **ledger-class, reset-guarded**: it does not rebuild (the
+  old interpreters no longer exist at HEAD), and the study of its change over time is
+  the stratum's point. Mechanism (whole-store guard vs a readings/history split) is
+  pinned at graduation with the rejected alternative recorded.
 
 ### 2.6 The safety line — why self-reference does not run away
 
@@ -273,13 +291,13 @@ mirror change, no report generator (parked elsewhere).
   skip). Rejected: bare declared constant (a forgotten bump reproduces the exact silent
   no-op being fixed); pure content-hash (every refactor re-projects, filling the chain
   with non-worldview noise). The `projections` skip-table key gains the version too.
-  **One named escalation candidate** — the only place this audit could reach past the
-  store into corpus policy: §2.5 makes worldview chains reset-wiped with the corpus, and
-  unlike the readings they do NOT rebuild on re-projection (the old interpreter no
-  longer exists at HEAD). If the owner judges the epistemology record reset-precious
-  (ledger-class, like build history) rather than corpus-class, that is a small amendment
-  question at the gate; otherwise V2 re-confirms corpus-side deliberately and B-a stays
-  a plan-level pin.
+  **The escalation candidate is RESOLVED** (owner ruling, 2026-07-12 capsule in the
+  warrant brainstorm): the epistemology record is **ledger-class, reset-guarded** —
+  §2.5's split-by-re-derivability. V2's remaining duty is mechanical: confirm the
+  guard's implementation fits the ruling, and check the interaction with the code
+  store's plan-level Q4 (its corpus-side call predates chains — B-a revisits it for the
+  history it creates, not for readings; the ratified note text pinned no reset
+  semantics, so no amendment is triggered).
 - **V3** — the source inventory (the feasibility probe; read-only, can run before
   ratification): parse every `docs/build-plans/*/plan.md` cost block; report how many
   complete estimate/actual pairs exist, their task-shape spread, and whether frontmatter
@@ -309,6 +327,7 @@ mirror change, no report generator (parked elsewhere).
 | PD-c | shared calibration machinery with core     | pattern only, independent implementations                               | a third estimator plane exists AND duplication causes a measured divergence in method    |
 | PD-d | historical backfill vs forward-only        | backfill (artifacts all in git; projection cheap)                       | V3 measures the parse non-trivial or frontmatter too unstable to read deterministically  |
 | PD-e | estimate-vs-actual as row vs join          | join (two facts, two time coordinates)                                  | a consumer design shows the join reconstruction is the dominant cost                     |
+| PD-f | utility-graded edge durability             | binary — history is ledger-class, guarded (owner ruling 2026-07-12)     | a built consumer produces per-edge utility measurements worth weighting retention by     |
 
 ## 5. Open questions
 

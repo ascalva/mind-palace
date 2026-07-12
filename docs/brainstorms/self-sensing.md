@@ -134,3 +134,63 @@ references:
   - docs/design-notes/observed-iot-and-cross-source-synthesis.md
   - docs/findings/finding-0034.md
 ```
+
+---
+
+## 2026-07-12T18:17:58Z (captured) — owner ruling: the edge history is the durable thing; smart vs wise; the erasure thought experiment
+
+```capsule
+topic: self-sensing
+date: 2026-07-12
+
+decisions:
+  - (owner ruling — resolves V2's named escalation candidate, same-day) the edges /
+    fibers / supersession chains "are important, so they also need to be durable":
+    the edge-and-chain HISTORY is LEDGER-CLASS (reset-guarded), not corpus-class.
+    Warrant: unlike readings (re-projectable from git), superseded chains and
+    edge-strength series are not re-derivable — the old interpreters no longer exist
+    at HEAD — and "the study of how they change over time is the point." Lands in
+    B-a's design (dn-self-sensing §2.5/V2). No conflict with the ratified
+    code-observation note: its corpus-side call was plan-level (Q4, store docstring),
+    made when no chains existed; B-a is what creates them.
+  - edge strength is a TIME SERIES, not a scalar: edges are not permanent, they
+    fluctuate in strength over time — and the record of that fluctuation is the
+    study object.
+  - the smart-vs-wise frame (owner): smart = many points of knowledge without the
+    subtleties of how they connect; wise = reasoning over the connections and seeing
+    useful patterns arise. Structural map: readings/nodes = the knowledge points;
+    edge evolution = the wisdom substrate; the weaving consumer is wisdom-hunting.
+
+open_questions:
+  - "edges start becoming more durable as utility increases" — a GRADED retention
+    policy (durability proportional to demonstrated utility) vs the simple binary
+    guard adopted now.
+  - the erasure thought experiment (owner): reset edge HISTORY but keep the current
+    edge SNAPSHOT — does the system keep flowing in time over the same direction?
+    Session answer (folded into the note §2.4): today, behaviorally yes — nothing
+    reads the record, but the study loses its baseline; once gated consumers close
+    the loop, no — divergence begins at the first history-consuming act
+    (recalibration, regime-shift detection are functionals of the record); if edge
+    strengths update incrementally, the snapshot is itself compressed history —
+    direction is retained but attribution and regime-shift detection are lost (dead
+    reckoning: the course fossilizes because course corrections came from the
+    record). Erasure-invariance is thus the OPERATIONAL smart/wise line: a merely
+    smart system's trajectory is a function of its state; a wise one's is a
+    functional of its path. The system as designed starts erasure-invariant and
+    gains path-dependence only through deliberate gates.
+
+parked:
+  - decision: utility-graded edge durability
+    default: binary — history is ledger-class, guarded (the study IS the utility)
+    re_entry: a built consumer produces per-edge utility measurements worth
+      weighting retention by
+
+next_steps:
+  - fold the ruling into dn-self-sensing: §2.5 reset semantics, V2 escalation
+    candidate → RESOLVED, §2.4 the erasure test, PD table row (same session).
+
+references:
+  - docs/design-notes/self-sensing.md
+  - docs/design-notes/code-observation-projection.md
+  - core/stores/code_observations.py
+```
