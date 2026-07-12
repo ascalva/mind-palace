@@ -2278,3 +2278,37 @@ Same-day extension of the self-sensing session — a five-exchange owner dialogu
 
 **Next session (Fable/xhigh while it lives):** spawn bp-016(fable)+bp-017(sonnet) builders
 first (background), draft `dn-edge-dynamics` while they run, scrutinize + merge at tail.
+
+## 2026-07-12 — P0..P3 in one pass: ratification recorded, edge-dynamics drafted, self-sensing graduated; builders in flight
+
+Fable/xhigh combined design+supervision session, executing the §7 queue in order.
+
+- **P0 recorded (`8deab2a`):** the owner hand-ratified `dn-self-sensing`; committed verbatim.
+  The ratifying save ran an editor markdown formatter that mangled three spans (§3.3 B-a/B-b
+  falsifier emphasis, the Cross-references paragraph); A8 correctly denied agent repair
+  post-flip, so the exact hand-fix is filed as **oq-0016** (non-blocking). Owner then
+  **permanently removed the formatter** — future saves are safe; repair still owed.
+- **P1 done (`d04378d`): `docs/design-notes/edge-dynamics.md` (`dn-edge-dynamics`, draft)** —
+  the two-lane split as the central decision (Lane A mirror-side 1-form lift as dreamer
+  lenses, data exists today; Lane B observed-side weaving consumer, gated on substrate +
+  sample depth + a Track-D charter); the degree-1 lift pinned to buildable precision (flag
+  complex forced by Rips consistency, oriented ∂₁/∂₂, L₁, Hodge decomposition, THREAD lens
+  under the interpreter-panel contract, dim ker L₁ == ripser-β₁ as the built-in falsifier);
+  the inversion as a standing invariant with the R1–R4 rung ladder. Ratification owner-by-hand.
+- **P3 done (`5f0d92b`): /graduate `dn-self-sensing` → bp-018 (B-a, fable/250k), bp-019
+  (B-b, sonnet/350k), bp-020 (B-c, sonnet/100k), all `proposed`**, serial chain. Graduation
+  pinned: version identity = declared semver + source-hash ratchet test; reset mechanism =
+  family-shared guarded history sidecar (`observation_history.sqlite` into `_RESET_GUARD`),
+  archive-then-replace; φ_self grain = first-parent diff of plan cost blocks; bp-013's
+  partial actuals (54,048 opus tokens, Items-6-7 session unrecorded) annotated at bp-020
+  Item 9. `proposed → ready` is the owner's hand.
+- **P2 in flight:** bp-016 (fable builder) ∥ bp-017 (sonnet builder) spawned first, in
+  background worktrees, prompts carrying the five-part gate verbatim + finding-ID ranges
+  (0039+/0045+). CI green on `931d977` confirmed pre-spawn (run 29205100281). Scrutiny,
+  sequential merges, live CI/pages proof, and seals with measured usage are this session's
+  tail (or the next session's head if context runs out first).
+
+**Next:** merge + seal bp-016/bp-017 (bp-016 §4 owes the attestation-layer.md cross-ref at
+seal; bp-017 owes the live pages proof); owner acts pending: ratify `dn-edge-dynamics`,
+bless bp-018..020 `proposed → ready`, hand-repair oq-0016. Then P4 (/graduate Lane A after
+ratification) and the deferred riders (second /triage, /scribe offer at six ratified notes).
