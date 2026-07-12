@@ -2130,3 +2130,19 @@ session (Fable/xhigh) sweeps the ruling, does the semgrep re-verify + ratchet ca
 bp-015, and the bp-016 ∥ bp-017 lane opens. Independent of oq-0015: **bp-014** (opus/default,
 finding-0031 + finding-0035) may run any time no other builder is active. Also owed: /triage
 (findings 0027–0037, oq-0013/0014 answer-sweep).
+
+**SEAL (same session, 2026-07-12): oq-0015 answered live → bp-015 COMPLETE.** Owner ruled
+**report-only** (GitLab-SAST parity; finding-0037 resolved). Applied (semgrep `--error` dropped),
+re-verified, and the Item-5 canary ran to completion — **green→red→green** on three main shas:
+GREEN [29183251392](https://github.com/ascalva/Mind-Palace/actions/runs/29183251392) (`739dc98`,
+5/5) → RED [29183299956](https://github.com/ascalva/Mind-Palace/actions/runs/29183299956)
+(`874afcd`, ratchet-only on a planted F401) → GREEN
+[29183331779](https://github.com/ascalva/Mind-Palace/actions/runs/29183331779) (`e8eed02`, 5/5).
+bp-015 flipped `in-progress → complete`; journal sealed; cost.actual ledgered (builder 64k/55/513s
+opus). **CI is live on GitHub Actions** (every sha yields a verdict; GitLab tombstoned+dead;
+runbook repointed). "Attestable green" now defined: 4 blocking jobs + semgrep report-only. The 22
+semgrep findings persist as a finding-0037 triage backlog. **bp-016 ∥ bp-017 unblocked.**
+
+**Next:** DESIGN (Fable/xhigh) — delegate **bp-016** (fable witness) ∥ **bp-017** (sonnet Pages),
+disjoint scopes, both gated on this now-complete seal. Or **bp-014** (opus/default) if run alone
+(no other builder concurrent, §12). Then /triage (findings 0027–0037 + oq-0013/0014/0015 sweeps).

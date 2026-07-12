@@ -192,10 +192,42 @@ anyway. **Bundle it with the semgrep re-verify** once oq-0015 is answered: re-ru
 green (or four-green-plus-ruled-semgrep), then one ratchet canary + revert, record the three
 URLs, and seal.
 
-## Status at this checkpoint
+### oq-0015 answered → semgrep report-only → Item 5 COMPLETE (green→red→green proven)
 
-Items 1–4 landed and merged to main (`e14be25`), wiring fix `8d534a0`. **4/5 CI jobs live and
-green; tombstone effective.** bp-015 stays **`in-progress`** — sealing waits on the owner's
-oq-0015 semgrep ruling (+ the bundled canary re-verify). This is the correct unit boundary: an
-owner decision is the gating input, and bp-016/bp-017 rightly wait on bp-015's seal (don't build
-the witness until "attestable green" is defined).
+Owner ruled **oq-0015 = report-only, match GitLab parity** (2026-07-12, via AskUserQuestion;
+finding-0037 resolved). Enacted in `.github/workflows/ci.yml`: semgrep step dropped `--error`
+(findings log, non-blocking) — an owner-authorized gate change, so no longer a unilateral one.
+The 22 findings persist in finding-0037 as a triage backlog (a future scoped plan / triage may
+address the genuine hardening: terraform.aws CloudWatch encryption + Lambda X-Ray, the flask
+format-string, SHA-pinning actions).
+
+**Item 5 live wiring proof — three main shas, green→red→green (the canary is NO LONGER deferred):**
+
+| leg | sha | run | verdict |
+| --- | --- | --- | --- |
+| GREEN #1 | `739dc98` | [29183251392](https://github.com/ascalva/Mind-Palace/actions/runs/29183251392) | **all 5 green** (semgrep now report-only) |
+| RED (canary) | `874afcd` | [29183299956](https://github.com/ascalva/Mind-Palace/actions/runs/29183299956) | **ratchet failure** (planted F401 in `_ci_canary.py`), other 4 green |
+| GREEN #2 (revert) | `e8eed02` | [29183331779](https://github.com/ascalva/Mind-Palace/actions/runs/29183331779) | **all 5 green** restored |
+
+**Falsifier disconfirmed:** the canary did NOT come back green — `ratchet` red on the F401 while
+`type-gate`/`vault-axis`/`semgrep`/`gitleaks` stayed green, proving the workflow honors per-job
+exit codes and the red is correctly attributed to `ratchet`. The canary file was a root-level
+`_ci_canary.py` (unused `import os`) — outside the type-gate mypy paths, so only `ratchet` reds,
+matching the plan's "the red run's failing job is `ratchet`." Both canary commits are throwaway
+main-history commits, accepted per Item 5; working tree clean after the revert.
+
+## SEAL (2026-07-12) — bp-015 COMPLETE
+
+All five items closed: Items 1–4 by the delegated opus builder; Item 5 by the orchestrator
+(wiring fix `setup-uv@v8.3.2`, then the green→red→green proof above). **CI is live on GitHub
+Actions — every main sha yields a verdict**; `.gitlab-ci.yml` tombstoned and provably dead (no
+GitLab pipeline for any tombstoned sha); the runbook is repointed. The witness's "attestable
+green" is now defined: five jobs, `ratchet`/`type-gate`/`vault-axis`/`gitleaks` blocking +
+`semgrep` report-only. Status flipped `in-progress → complete`.
+
+**Usage ledger (context-economy):** delegated opus builder = 63,994 tokens · 55 tool calls ·
+~513 s. Orchestrator-side Item 5 (this session): the wiring diagnosis + fix + report-only
+enactment + five live CI watch cycles (green-fail-1, 4/5, green#1, red-canary, green#2).
+
+**Deferred to a later plan / triage (not bp-015):** the 22 semgrep findings (finding-0037
+backlog). **bp-016 ∥ bp-017 now unblocked** (gated on this seal; disjoint scopes).

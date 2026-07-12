@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-015
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/ci-platform-and-runner-strategy.md # D1 (gate moves), D2 (parity content), D5 (tombstone), Gate-0 residual
 contract: builder
@@ -15,11 +15,11 @@ write_scope:
 session_budget: 1
 cost:
   estimate: { model: opus, tokens: 250k } # commands fully pinned; verification crisp (CI verdict) but the red-proof protocol needs discipline
-  actual: null
+  actual: { model: opus, builder_tokens: 64k, builder_tool_calls: 55, builder_seconds: 513, note: "Items 1-4 delegated; Item 5 orchestrator-run (wiring fix + 5 CI watch cycles) not metered here" }
 depends_on: [] # first of the family; unblocks bp-016/bp-017 and the deploy path
 parallelizable_with: [bp-014] # disjoint write_scope (.claude/hooks vs CI files); owner priority sequences the two
 created: 2026-07-11
-updated: 2026-07-12
+updated: 2026-07-12 # SEALED complete — CI live on GitHub Actions, green→red→green proven (Item 5)
 links:
   - docs/findings/finding-0034.md # warrant-in-fact of the design note (runner-minutes exhaustion)
   - docs/findings/finding-0029.md # the mypy 0-floor/69-baseline split the type-gate pins
