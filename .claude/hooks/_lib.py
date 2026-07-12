@@ -42,10 +42,10 @@ DENYLIST = [
 # --------------------------------------------------------------------------- #
 # Repo root + path normalization
 # --------------------------------------------------------------------------- #
-def repo_root() -> str:
-    root = os.environ.get("CLAUDE_PROJECT_DIR")
-    if root:
-        return os.path.realpath(root)
+def _cwd_toplevel() -> str | None:
+    """The git-worktree toplevel of the process CWD (realpath'd), or None. Each
+    git worktree is its own toplevel, so from a hook firing inside a worktree this
+    returns the WORKTREE path — the correct enforcement root (finding-0031)."""
     try:
         out = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
@@ -53,9 +53,38 @@ def repo_root() -> str:
             text=True,
             check=True,
         )
-        return os.path.realpath(out.stdout.strip())
+        top = out.stdout.strip()
+        return os.path.realpath(top) if top else None
     except Exception:
-        return os.path.realpath(os.getcwd())
+        return None
+
+
+def repo_root() -> str:
+    """Resolve the enforcement ROOT worktree-aware (finding-0031 / bp-014).
+
+    Prefer the CWD git-worktree toplevel over the inherited ``CLAUDE_PROJECT_DIR``
+    **when they differ AND the CWD-toplevel carries its own ``.claude/state/``** —
+    so a hook firing inside a worktree reads THAT worktree's ``active-plan`` pointer,
+    not the main checkout's (which the delegate harness sets ``CLAUDE_PROJECT_DIR``
+    to). Fail-closed: the CWD worktree's own state governs its own writes, so a broad
+    main-checkout pointer never loosens a narrow worktree builder. When the two agree,
+    or the CWD-toplevel lacks ``.claude/state/``, behavior is byte-identical to before
+    (the common main-checkout case). Both sides are realpath-normalized so
+    ``/tmp``→``/private/tmp`` symlink drift can never spoof the comparison."""
+    env = os.environ.get("CLAUDE_PROJECT_DIR")
+    env_norm = os.path.realpath(env) if env else None
+    cwd_top = _cwd_toplevel()
+    if (
+        cwd_top
+        and cwd_top != env_norm
+        and os.path.isdir(os.path.join(cwd_top, ".claude", "state"))
+    ):
+        return cwd_top
+    if env_norm:
+        return env_norm
+    if cwd_top:
+        return cwd_top
+    return os.path.realpath(os.getcwd())
 
 
 ROOT = repo_root()
@@ -240,7 +269,9 @@ def _head_status_of(path_rel: str):
 def active_plan_path() -> str | None:
     """Repo-relative path to the active plan.md, or None. The pointer is
     worktree-local (`.claude/state/active-plan`), so concurrent worktrees never
-    collide on enforcement state (design-note §4)."""
+    collide on enforcement state (design-note §4). This holds because `repo_root()`
+    resolves ROOT to the CWD worktree's own toplevel (bp-014), so this read is of
+    THIS worktree's pointer — never the main checkout's."""
     ptr = os.path.join(ROOT, ".claude", "state", "active-plan")
     try:
         with open(ptr, encoding="utf-8") as fh:
