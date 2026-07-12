@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-017
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/ci-platform-and-runner-strategy.md # D5 (Pages dies with the tombstone), Consequences Plan C, parked #4
 contract: builder
@@ -61,8 +61,8 @@ tombstone killed.
   not the gate (P2 is about `ci`), but minutes are unmetered and a uniform
   no-filter trigger keeps the two workflows consistent. Deviation recorded here.
 - **Q2 — which URLs pin the old host?** `mkdocs.yml:5-7`: `site_url:
-  https://ascalva-projects.gitlab.io/mind-palace/`, `repo_url:
-  https://gitlab.com/ascalva-projects/mind-palace`. Repo-wide sweep 2026-07-11: the only
+https://ascalva-projects.gitlab.io/mind-palace/`, `repo_url:
+https://gitlab.com/ascalva-projects/mind-palace`. Repo-wide sweep 2026-07-11: the only
   live `gitlab.io` consumers are `mkdocs.yml` and the design note's own prose (historical
   record — not edited). No README badge, no other consumer.
 - **Q3 — GitHub Pages deploy mechanics.** The Actions-native pattern:
@@ -123,21 +123,21 @@ permissions:
   id-token: write
 concurrency:
   group: pages
-  cancel-in-progress: false   # never cancel a deployment mid-flight (deploy-pages guidance)
+  cancel-in-progress: false # never cancel a deployment mid-flight (deploy-pages guidance)
 # jobs: checkout → setup uv → §6(a) build → upload-pages-artifact (path: public) → deploy-pages
 ```
 
 **(c) URL re-point** (`mkdocs.yml`, Item 13):
 
 ```yaml
-site_url: https://ascalva.github.io/Mind-Palace/     # parked-decision default; owner may override at the gate
+site_url: https://ascalva.github.io/Mind-Palace/ # parked-decision default; owner may override at the gate
 repo_url: https://github.com/ascalva/Mind-Palace
 repo_name: Mind-Palace
 ```
 
 ## 7. Items
 
-*(family numbering continues from bp-016)*
+_(family numbering continues from bp-016)_
 
 ### Item 12 — `.github/workflows/pages.yml`: build + deploy
 
@@ -155,7 +155,7 @@ repo_name: Mind-Palace
   semantics — a red `pages` run never blocks deploy attestation (the witness reads only
   `ci`, bp-016 §6(d)).
 - **Touches stored data?** no
-- **Parallelizable?** yes (with Item 13)  **Depends on:** bp-015 complete; owner console
+- **Parallelizable?** yes (with Item 13) **Depends on:** bp-015 complete; owner console
   toggle (§11) for the live half — the workflow can land parked-on-toggle without
   blocking.
 
@@ -170,7 +170,7 @@ repo_name: Mind-Palace
   sweep missed one) — file a finding and route rather than chase it out of scope.
 - **Invariant(s):** historical artifacts are not retro-edited to the new URL.
 - **Touches stored data?** no
-- **Parallelizable?** yes (with Item 12)  **Depends on:** none
+- **Parallelizable?** yes (with Item 12) **Depends on:** none
 
 ## 8. Math carried explicitly
 
@@ -194,11 +194,11 @@ stop — land the workflow, journal the re-entry).
 
 ## 11. Parked decisions
 
-| Decision | Default recorded | Rejected alternatives (why) | Re-entry condition |
-|---|---|---|---|
-| Pages URL | `https://ascalva.github.io/Mind-Palace/` (note parked #4 default) | custom domain (no need; adds DNS surface) | owner states a preference at the `proposed → ready` gate |
-| Pages source toggle | owner flips Settings → Pages → GitHub Actions | agent-side API enablement (repo settings are owner surface, same class as secret-scanning toggles) | owner flips it; Item 12's live half re-enters |
-| build trigger filter | none (every main push) | port `rules:changes` (metered-era optimization; inconsistent with `ci.yml`'s no-filter posture) | hosted-runner pressure ever returns (D7 trigger 3) |
+| Decision             | Default recorded                                                  | Rejected alternatives (why)                                                                        | Re-entry condition                                       |
+| -------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Pages URL            | `https://ascalva.github.io/Mind-Palace/` (note parked #4 default) | custom domain (no need; adds DNS surface)                                                          | owner states a preference at the `proposed → ready` gate |
+| Pages source toggle  | owner flips Settings → Pages → GitHub Actions                     | agent-side API enablement (repo settings are owner surface, same class as secret-scanning toggles) | owner flips it; Item 12's live half re-enters            |
+| build trigger filter | none (every main push)                                            | port `rules:changes` (metered-era optimization; inconsistent with `ci.yml`'s no-filter posture)    | hosted-runner pressure ever returns (D7 trigger 3)       |
 
 ## 12. Dependency & ordering summary
 

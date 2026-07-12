@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-016
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/ci-platform-and-runner-strategy.md # D3 (witness re-point), D4 RULED end-state (GitHub becomes origin), P3/P5
 contract: builder
@@ -26,7 +26,7 @@ created: 2026-07-11
 updated: 2026-07-11
 links:
   - docs/design-notes/attestation-layer.md # the witness this plan re-points (status: draft)
-  - docs/findings/finding-0034.md          # warrant-in-fact of the design note
+  - docs/findings/finding-0034.md # warrant-in-fact of the design note
 supersedes: null
 superseded_by: null
 warrant: null
@@ -181,12 +181,12 @@ network, no clock.
 
 **(c) GitHub → vocabulary mapping (Q3/Q4):**
 
-| GitHub run state | verdict |
-|---|---|
-| no run for sha | `absent` |
-| `status != "completed"` (`queued`, `in_progress`, `waiting`, `requested`, `pending`) | `pending` |
-| `status == "completed"` and `conclusion == "success"` | `green` |
-| `status == "completed"` and any other conclusion (`failure`, `cancelled`, `timed_out`, `action_required`, `neutral`, `skipped`, `stale`) | `red` |
+| GitHub run state                                                                                                                         | verdict   |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| no run for sha                                                                                                                           | `absent`  |
+| `status != "completed"` (`queued`, `in_progress`, `waiting`, `requested`, `pending`)                                                     | `pending` |
+| `status == "completed"` and `conclusion == "success"`                                                                                    | `green`   |
+| `status == "completed"` and any other conclusion (`failure`, `cancelled`, `timed_out`, `action_required`, `neutral`, `skipped`, `stale`) | `red`     |
 
 Only `success` is green. The witness never guesses.
 
@@ -232,8 +232,8 @@ Item 9): `security add-generic-password -U -a mind-palace -s github-api -w <PAT>
 name: release
 on: workflow_dispatch
 permissions:
-  contents: write            # @semantic-release/git commit-back + tag push
-concurrency: release         # never two releases interleaved
+  contents: write # @semantic-release/git commit-back + tag push
+concurrency: release # never two releases interleaved
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -253,7 +253,7 @@ major (pnpm add -D pins it; journal the version).
 
 ## 7. Items
 
-*(family numbering continues from bp-015)*
+_(family numbering continues from bp-015)_
 
 ### Item 6 — GitHub backend in `ops/ci_witness.py`
 
@@ -272,7 +272,7 @@ major (pnpm add -D pins it; journal the version).
   action names preserved; launcher untouched.
 - **Touches stored data?** no (attestation emission is append-only by design and only
   fires on live runs, not in tests)
-- **Parallelizable?** no  **Depends on:** bp-015 complete
+- **Parallelizable?** no **Depends on:** bp-015 complete
 
 ### Item 7 — the test suite: GitHub shapes + grace timing
 
@@ -286,7 +286,7 @@ major (pnpm add -D pins it; journal the version).
   nothing.
 - **Invariant(s):** tests stay pure (no live GitHub calls; `not live` tier).
 - **Touches stored data?** no
-- **Parallelizable?** no  **Depends on:** Item 6
+- **Parallelizable?** no **Depends on:** Item 6
 
 ### Item 8 — `rotate()` disposition (the honest deviation, Q7)
 
@@ -303,7 +303,7 @@ major (pnpm add -D pins it; journal the version).
   fail-safe ordering (verify-new → store → read-back → attest) instead.
 - **Invariant(s):** no secret ever printed, logged, or committed; Invariant 10.
 - **Touches stored data?** no
-- **Parallelizable?** yes (with Item 9)  **Depends on:** Item 6
+- **Parallelizable?** yes (with Item 9) **Depends on:** Item 6
 
 ### Item 9 — runbook §CI witness (repairs the dangling reference)
 
@@ -319,7 +319,7 @@ major (pnpm add -D pins it; journal the version).
   working authenticated witness call (owner/orchestrator replays it at seal).
 - **Invariant(s):** no secret material in the docs — plays only.
 - **Touches stored data?** no
-- **Parallelizable?** yes (with Item 8)  **Depends on:** Item 6
+- **Parallelizable?** yes (with Item 8) **Depends on:** Item 6
 
 ### Item 10 — release relocation (P5-GUARDED: lands only WITH/AFTER the origin re-point)
 
@@ -336,7 +336,7 @@ major (pnpm add -D pins it; journal the version).
   `.github/workflows/release.yml`, `ops/ci_witness.py` (dispatch path),
   `tests/unit/test_ci_witness.py` (mocked dispatch).
 - **Acceptance test:** `pnpm install --frozen-lockfile` exits 0; `npx semantic-release
-  --dry-run` exits 0 against the GitHub origin and computes a sane next version (>
+--dry-run` exits 0 against the GitHub origin and computes a sane next version (>
   v1.0.0 lineage, proving tag history is visible); `actionlint` clean on release.yml;
   mocked-dispatch unit test green.
 - **Falsifier:** the dry-run wants to push anywhere other than origin, or computes a
@@ -347,7 +347,7 @@ major (pnpm add -D pins it; journal the version).
   owner-initiated).
 - **Touches stored data?** no (repo files only; external effect — an actual release —
   requires a later owner-initiated dispatch)
-- **Parallelizable?** no  **Depends on:** Items 6–7 + owner step 11b
+- **Parallelizable?** no **Depends on:** Items 6–7 + owner step 11b
 
 ### Item 11 — the owner-step ledger (parked sub-items; never blocking)
 
@@ -357,7 +357,7 @@ major (pnpm add -D pins it; journal the version).
     `github-api` per §6(h). Re-entry: authenticated polling + dispatch work; witness runs
     degraded until then.
   - **(b) origin re-point:** `git remote set-url origin
-    git@github.com:ascalva/Mind-Palace.git` + `git push origin --tags` + `ls-remote`
+git@github.com:ascalva/Mind-Palace.git` + `git push origin --tags` + `ls-remote`
     parity check. Gates Item 10.
   - **(c) mirror reversal/retirement** on the GitLab side. Re-entry condition for
     deleting the GitLab lane entirely (note parked #3).
@@ -371,7 +371,7 @@ major (pnpm add -D pins it; journal the version).
 - **Invariant(s):** none of (a)–(d) is agent-executed — they change where pushes land
   and what credentials exist; owner-by-hand.
 - **Touches stored data?** no
-- **Parallelizable?** yes (ledger spans the session)  **Depends on:** none
+- **Parallelizable?** yes (ledger spans the session) **Depends on:** none
 
 ## 8. Math carried explicitly
 
@@ -396,12 +396,12 @@ anywhere downstream (blast-radius surprise — stop, finding, owner question if 
 
 ## 11. Parked decisions
 
-| Decision | Default recorded | Rejected alternatives (why) | Re-entry condition |
-|---|---|---|---|
-| Item 10 timing | parked until origin re-point (11b) | land it early behind a flag (P5 says the diverging shape is never built — a flag is still a built shape) | owner runs 11b |
-| `gitlab-api` Keychain token | left in place | delete now (GitLab stays reachable until the mirror retires; the token is the owner's to revoke) | Item 11c done → owner revokes + deletes |
-| GitLab release history (v1.0.0 release object) | stays on GitLab as history | migrate release notes to GitHub (no consumer; CHANGELOG.md in-repo is the record) | someone actually needs it |
-| absent-grace size | 300 s (≤ the 600 s poll, ≥ observed mirror batch) | 0 s (today's semantics — wrong under mirror lag); full wait_s (masks "never pushed") | origin re-point makes lag ~0; revisit constant at first post-migration triage |
+| Decision                                       | Default recorded                                  | Rejected alternatives (why)                                                                              | Re-entry condition                                                            |
+| ---------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Item 10 timing                                 | parked until origin re-point (11b)                | land it early behind a flag (P5 says the diverging shape is never built — a flag is still a built shape) | owner runs 11b                                                                |
+| `gitlab-api` Keychain token                    | left in place                                     | delete now (GitLab stays reachable until the mirror retires; the token is the owner's to revoke)         | Item 11c done → owner revokes + deletes                                       |
+| GitLab release history (v1.0.0 release object) | stays on GitLab as history                        | migrate release notes to GitHub (no consumer; CHANGELOG.md in-repo is the record)                        | someone actually needs it                                                     |
+| absent-grace size                              | 300 s (≤ the 600 s poll, ≥ observed mirror batch) | 0 s (today's semantics — wrong under mirror lag); full wait_s (masks "never pushed")                     | origin re-point makes lag ~0; revisit constant at first post-migration triage |
 
 ## 12. Dependency & ordering summary
 

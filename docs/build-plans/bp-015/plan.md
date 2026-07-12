@@ -1,14 +1,14 @@
 ---
 type: build-plan
 id: bp-015
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/ci-platform-and-runner-strategy.md # D1 (gate moves), D2 (parity content), D5 (tombstone), Gate-0 residual
 contract: builder
 write_scope:
   - ".github/workflows/ci.yml"
   - ".gitlab-ci.yml"
-  - ".gitleaks.toml"        # only if synthetic fixtures need allowlisting (Item 3)
+  - ".gitleaks.toml" # only if synthetic fixtures need allowlisting (Item 3)
   - "docs/runbook.md"
   - "docs/findings/**"
   - "docs/build-plans/bp-015/**"
@@ -16,7 +16,7 @@ session_budget: 1
 cost:
   estimate: { model: opus, tokens: 250k } # commands fully pinned; verification crisp (CI verdict) but the red-proof protocol needs discipline
   actual: null
-depends_on: []               # first of the family; unblocks bp-016/bp-017 and the deploy path
+depends_on: [] # first of the family; unblocks bp-016/bp-017 and the deploy path
 parallelizable_with: [bp-014] # disjoint write_scope (.claude/hooks vs CI files); owner priority sequences the two
 created: 2026-07-11
 updated: 2026-07-11
@@ -76,7 +76,7 @@ never resurrects a non-authoritative pipeline.
   nothing ports from it.
 - **Q3 — does the 4-marker exclusion leak `longitudinal` (CLI `-m` overrides the
   `addopts` `-m`)?** No — measured 2026-07-11: `uv run pytest -m 'not live and not podman
-  and not needs_vault and not needs_restic' --collect-only` → 808/828 collected, zero
+and not needs_vault and not needs_restic' --collect-only` → 808/828 collected, zero
   longitudinal items; `pytest tests/longitudinal --collect-only` → 0 collected. The
   command ports verbatim, unmodified.
 - **Q4 — how does the vault service container resolve on GitHub?** GitLab used alias
@@ -146,13 +146,13 @@ on:
 # NO pull_request (parked: no PR refs exist until the D4 origin re-point executes).
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true      # replaces GitLab `interruptible: true`
+  cancel-in-progress: true # replaces GitLab `interruptible: true`
 ```
 
 **(b) Common job setup** (all five jobs): `runs-on: ubuntu-latest`; `actions/checkout`
 (default shallow — **except gitleaks: `fetch-depth: 0`**); uv via `astral-sh/setup-uv`
 with caching keyed on `uv.lock`, interpreter CPython **3.12** (Q6). The pinned
-*constraints* are: uv-managed, 3.12, `--frozen` against `uv.lock`; the builder pins the
+_constraints_ are: uv-managed, 3.12, `--frozen` against `uv.lock`; the builder pins the
 current action major versions at build time and records them in the journal.
 
 **(c) `ratchet` job script** — verbatim from `.gitlab-ci.yml:68-71`:
@@ -192,7 +192,7 @@ services:
     ports:
       - 8200:8200
 env:
-  VAULT_ADDR: http://localhost:8200   # host-run job: localhost + mapped port, not the GitLab alias
+  VAULT_ADDR: http://localhost:8200 # host-run job: localhost + mapped port, not the GitLab alias
   VAULT_TOKEN: ci-root-disposable
 # steps: uv sync --frozen --extra dev  →  uv run pytest -q -m needs_vault
 ```
@@ -237,9 +237,9 @@ filters anywhere in the `ci` workflow (P2).
   byte-matches §6(c–f); triggers/concurrency match §6(a) exactly.
 - **Falsifier:** any pinned command drifting from the `.gitlab-ci.yml` source (diff the
   script lines against §6), or a `paths:`/`needs:` key present anywhere (P2/D6 violation).
-- **Invariant(s):** §6(h); gate *content* is ported, never redesigned (note "out of scope").
+- **Invariant(s):** §6(h); gate _content_ is ported, never redesigned (note "out of scope").
 - **Touches stored data?** no
-- **Parallelizable?** yes (with Item 3)  **Depends on:** none
+- **Parallelizable?** yes (with Item 3) **Depends on:** none
 
 ### Item 2 — local red-proofs: every gate falsified once at command level
 
@@ -250,12 +250,12 @@ filters anywhere in the `ci` workflow (P2).
   revert. Planted defects are NEVER committed.
 - **Files:** none committed (scratch worktree; the journal records each red).
 - **Acceptance test:** journal table gate → planted defect → observed nonzero exit; `git
-  status` clean afterwards.
+status` clean afterwards.
 - **Falsifier:** a gate that stays green under its planted defect — the port is cosmetic
   (e.g. the baseline grep parses nothing and `MYPY_COUNT` comes out empty yet passes).
 - **Invariant(s):** no planted defect ever reaches a commit, let alone a push.
 - **Touches stored data?** no
-- **Parallelizable?** no  **Depends on:** Item 1
+- **Parallelizable?** no **Depends on:** Item 1
 
 ### Item 3 — gitleaks full-history run (Gate-0 residual discharge)
 
@@ -271,7 +271,7 @@ filters anywhere in the `ci` workflow (P2).
 - **Invariant(s):** allowlist entries never cover a real credential pattern class, only
   named fixture paths.
 - **Touches stored data?** no
-- **Parallelizable?** yes (with Item 1)  **Depends on:** none
+- **Parallelizable?** yes (with Item 1) **Depends on:** none
 
 ### Item 4 — tombstone `.gitlab-ci.yml` + runbook correction
 
@@ -287,7 +287,7 @@ filters anywhere in the `ci` workflow (P2).
 - **Invariant(s):** tombstone lands in the SAME merge as (or after) Item 1 — never a
   window with both gates dead by our own hand.
 - **Touches stored data?** no
-- **Parallelizable?** no  **Depends on:** Item 1
+- **Parallelizable?** no **Depends on:** Item 1
 
 ### Item 5 — live wiring proof (ORCHESTRATOR-EXECUTED at seal; builders never push)
 
@@ -304,7 +304,7 @@ filters anywhere in the `ci` workflow (P2).
 - **Invariant(s):** performed by the orchestrator/owner, never the builder; no deploy
   attempted off the red canary sha.
 - **Touches stored data?** no
-- **Parallelizable?** no  **Depends on:** Items 1–4 merged
+- **Parallelizable?** no **Depends on:** Items 1–4 merged
 
 ## 8. Math carried explicitly
 
@@ -323,7 +323,7 @@ the item, never bend the code inside this plan).
 
 A TRUE secret hit in Item 3 (owner-level remediation: rotate → filter-repo →
 force-remirror — never improvised solo); any gate that cannot reach green on GitHub
-without changing gate *content* (spec-defect finding — parity is the contract); the vault
+without changing gate _content_ (spec-defect finding — parity is the contract); the vault
 service container unreachable under host networking after honest attempts (park the
 vault-axis item with a re-entry condition, continue the rest — never weaken to a skip); a
 marketplace action turning out to require an org license (fall back to the binary; if
@@ -332,12 +332,12 @@ never route around scope-guard).
 
 ## 11. Parked decisions
 
-| Decision | Default recorded | Rejected alternatives (why) | Re-entry condition |
-|---|---|---|---|
-| `pull_request` CI | not enabled | enable now (no PR refs exist — the mirror is main-only; a dead trigger is noise) | D4 origin re-point executes (bp-016 Item 11b) |
-| `.gitlab-ci.yml` deletion | tombstoned, retained | delete now (loses the reference body; note parked #3 awaits D4 completion) | D4 migration completes |
-| gitleaks acquisition | builder picks binary vs `gitleaks-action` at build, journals it | pre-pinning here (marketplace/licensing facts are build-time facts) | — |
-| runner arch | `ubuntu-latest` x64 | arm64 (only cheaper on private repos; D7 territory) | a D7 trigger fires |
+| Decision                  | Default recorded                                                | Rejected alternatives (why)                                                      | Re-entry condition                            |
+| ------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------------- |
+| `pull_request` CI         | not enabled                                                     | enable now (no PR refs exist — the mirror is main-only; a dead trigger is noise) | D4 origin re-point executes (bp-016 Item 11b) |
+| `.gitlab-ci.yml` deletion | tombstoned, retained                                            | delete now (loses the reference body; note parked #3 awaits D4 completion)       | D4 migration completes                        |
+| gitleaks acquisition      | builder picks binary vs `gitleaks-action` at build, journals it | pre-pinning here (marketplace/licensing facts are build-time facts)              | —                                             |
+| runner arch               | `ubuntu-latest` x64                                             | arm64 (only cheaper on private repos; D7 territory)                              | a D7 trigger fires                            |
 
 ## 12. Dependency & ordering summary
 
