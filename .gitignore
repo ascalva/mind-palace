@@ -43,3 +43,6 @@ override.tf.json
 
 # delegated-builder worktrees (delegate skill) — transient, never committed
 .claude/worktrees/
+
+# mkdocs local build output (bp-017 §6(a); published via the pages workflow, never tracked — finding-0045)
+public/

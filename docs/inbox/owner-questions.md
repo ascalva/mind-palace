@@ -437,7 +437,15 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   ```
 
   (rest of that paragraph unchanged, de-indented back to column 0).
+- update (2026-07-12, owner): **the markdown auto-formatter is permanently removed** — no future
+  save can re-mangle. The three spans above are still owed a hand-repair (the note is ratified,
+  agent-immutable), but the formatter-stability rationale is now moot: restoring the original
+  spans verbatim is equally safe; the block above works either way.
 - default_if_unanswered: the blessed record stays as-is — three spans render broken but read
   unambiguously; nothing downstream consumes the rendering. Re-entry: any future owner hand-edit
   of the note (fold the repair in), or the note's first supersession.
-- answer:
+- answer: **REPAIRED BY HAND** (owner, 2026-07-12, same day). All three spans restored (§3.3
+  B-a/B-b falsifiers, the Cross-references paragraph incl. its original `+` continuation —
+  safe again with the formatter permanently removed), and the formatter's benign underscore
+  restyling reverted to the original asterisk italics throughout. Committed verbatim by the
+  orchestrator. Swept when /triage runs.

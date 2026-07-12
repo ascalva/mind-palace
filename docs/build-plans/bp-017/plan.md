@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-017
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/ci-platform-and-runner-strategy.md # D5 (Pages dies with the tombstone), Consequences Plan C, parked #4
 contract: builder
@@ -13,11 +13,11 @@ write_scope:
 session_budget: 1
 cost:
   estimate: { model: sonnet, tokens: 100k } # small mechanical port; crisp checker (site builds, workflow lints)
-  actual: null
+  actual: { model: sonnet, tokens: 97449, tool_calls: 90, duration_min: 22 } # 0.97x — first near-1x pair in the ledger; excludes the orchestrator's seal fix (setup-uv step)
 depends_on: [bp-015] # the tombstone kills GitLab Pages; this restores docs hosting on the new host
 parallelizable_with: [bp-016] # disjoint write_scope
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-12
 links:
   - docs/findings/finding-0034.md # warrant-in-fact of the design note
 supersedes: null

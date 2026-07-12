@@ -2278,3 +2278,67 @@ Same-day extension of the self-sensing session — a five-exchange owner dialogu
 
 **Next session (Fable/xhigh while it lives):** spawn bp-016(fable)+bp-017(sonnet) builders
 first (background), draft `dn-edge-dynamics` while they run, scrutinize + merge at tail.
+
+## 2026-07-12 — P0..P3 in one pass: ratification recorded, edge-dynamics drafted, self-sensing graduated; builders in flight
+
+Fable/xhigh combined design+supervision session, executing the §7 queue in order.
+
+- **P0 recorded (`8deab2a`):** the owner hand-ratified `dn-self-sensing`; committed verbatim.
+  The ratifying save ran an editor markdown formatter that mangled three spans (§3.3 B-a/B-b
+  falsifier emphasis, the Cross-references paragraph); A8 correctly denied agent repair
+  post-flip, so the exact hand-fix is filed as **oq-0016** (non-blocking). Owner then
+  **permanently removed the formatter** — future saves are safe; repair still owed.
+- **P1 done (`d04378d`): `docs/design-notes/edge-dynamics.md` (`dn-edge-dynamics`, draft)** —
+  the two-lane split as the central decision (Lane A mirror-side 1-form lift as dreamer
+  lenses, data exists today; Lane B observed-side weaving consumer, gated on substrate +
+  sample depth + a Track-D charter); the degree-1 lift pinned to buildable precision (flag
+  complex forced by Rips consistency, oriented ∂₁/∂₂, L₁, Hodge decomposition, THREAD lens
+  under the interpreter-panel contract, dim ker L₁ == ripser-β₁ as the built-in falsifier);
+  the inversion as a standing invariant with the R1–R4 rung ladder. Ratification owner-by-hand.
+- **P3 done (`5f0d92b`): /graduate `dn-self-sensing` → bp-018 (B-a, fable/250k), bp-019
+  (B-b, sonnet/350k), bp-020 (B-c, sonnet/100k), all `proposed`**, serial chain. Graduation
+  pinned: version identity = declared semver + source-hash ratchet test; reset mechanism =
+  family-shared guarded history sidecar (`observation_history.sqlite` into `_RESET_GUARD`),
+  archive-then-replace; φ_self grain = first-parent diff of plan cost blocks; bp-013's
+  partial actuals (54,048 opus tokens, Items-6-7 session unrecorded) annotated at bp-020
+  Item 9. `proposed → ready` is the owner's hand.
+- **P2 in flight:** bp-016 (fable builder) ∥ bp-017 (sonnet builder) spawned first, in
+  background worktrees, prompts carrying the five-part gate verbatim + finding-ID ranges
+  (0039+/0045+). CI green on `931d977` confirmed pre-spawn (run 29205100281). Scrutiny,
+  sequential merges, live CI/pages proof, and seals with measured usage are this session's
+  tail (or the next session's head if context runs out first).
+
+**Next:** merge + seal bp-016/bp-017 (bp-016 §4 owes the attestation-layer.md cross-ref at
+seal; bp-017 owes the live pages proof); owner acts pending: ratify `dn-edge-dynamics`,
+bless bp-018..020 `proposed → ready`, hand-repair oq-0016. Then P4 (/graduate Lane A after
+ratification) and the deferred riders (second /triage, /scribe offer at six ratified notes).
+
+## 2026-07-12 — session tail: owner gates flew, bp-017 sealed, Lane A graduated, bp-016 builder lost to the spend limit
+
+- **Owner acts, all same-day:** ratified `dn-edge-dynamics` (`13e26bc`); flipped bp-018
+  `ready`; hand-repaired the oq-0016 mangled spans (`3a873c2`) and permanently removed the
+  markdown formatter. Both blessing gates exercised twice today, both by hand, both clean.
+- **bp-017 SEALED (`d05e860`).** First live pages run failed — `uvx` absent on hosted
+  runners; the setup-uv step was in the plan's own §6(b) comment and both builder and
+  orchestrator diff-review missed it; the live-proof-at-seal discipline caught it
+  (orchestrator fix `1528ffd`). Then: green run, site + `/api/core/` serve (783 rendered
+  content matches), the two live-axis test timeouts re-ran green uncontended,
+  finding-0045 (public/ gitignore) resolved. Usage sonnet 97,449 tok / 90 calls / 22 min
+  — **0.97×, the ledger's first near-1× pair** (V3's set grows to five).
+- **bp-016 builder DIED on the monthly Claude spend limit** ~91 tool calls in, before its
+  gate run or report. Work preserved: orchestrator safety commit `60bd857` on
+  `worktree-agent-a9ab532a788bd1549` (witness re-point, release relocation shape,
+  release.yml, runbook §CI witness, finding-0039 — UNREVIEWED). Recovery is
+  resume-in-worktree per the delegate skill; deploy stays blocked until the witness
+  attests. **The spend-limit raise is the owner's console act and gates all builder work.**
+- **P4 (`89058b6`): /graduate `dn-edge-dynamics` Lane A → bp-021** (`core/complex/hodge.py`
+  — oriented flag complex, ∂₁/∂₂ with the ∂₁∂₂=0 sign catcher, L₁, Hodge decomposition,
+  deterministic harmonic basis, ripser cross-check harness) **+ bp-022** (THREAD lens via
+  the interpreter-panel contract, honest-seam order pinned; `dim ker L₁` + harmonic
+  persistence into the temporal snapshot series with additive DuckDB heal). Both
+  `proposed`; 022 depends 021.
+
+**Next:** owner raises the spend limit → recover/scrutinize/merge/seal bp-016 → bless
+bp-019..022 → spawn bp-018 (B-a, `ready`, the substrate the worldview chains ride).
+Session shape: one Fable/xhigh orchestrator (design+supervision combined) + one sonnet
+builder sealed 0.97× + one fable builder lost mid-flight to the limit.
