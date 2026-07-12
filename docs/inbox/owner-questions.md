@@ -453,7 +453,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0017 — Pin a "side-effect audit before falsifier-demo runs" rule (finding-0039)? Plus a notice: your GitLab PAT was incidentally rotated.
-- status: open
+- status: swept   # 2026-07-12 — owner accepted same day; amendment landed in build-plan SKILL.md §7, finding-0039 → promoted
 - origin: docs/findings/finding-0039.md
 - blocking: false
 - question: bp-016's falsifier-demo run (the discipline that points a NEW test suite at
@@ -476,4 +476,4 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   delegation); the skill files stay unamended. Parks as finding-0039; re-entry — owner
   ratifies the skill amendment here, or a falsifier-demo side effect recurs despite the
   prompt line.
-- answer:
+- answer: owner accepts
