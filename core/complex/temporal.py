@@ -2,10 +2,12 @@
 
 The valuable *temporal* program is not a PDE but a **time series of structural invariants**:
 compute β₀, the Fiedler value, frustration, the curvature distribution, the SBM theme count,
-the worst community conductance, and the H₁ hole count at each trough pass; watch how they move.
-A rising frustration, a community whose conductance is falling, a domain fragmenting — each is a
-measurable trajectory. This is exactly the input the drift gauge (A1/A2) and the longitudinal
-harness (F4) want.
+the worst community conductance, the H₁ hole count, and (design note `dn-edge-dynamics` §2.3,
+bp-022) the two degree-1 invariants — dim ker L₁ (β₁ of the flag complex, exact) and total
+harmonic persistence (Σ lifetime over long-lived holes) — at each trough pass; watch how they
+move. A rising frustration, a community whose conductance is falling, a domain fragmenting, a
+thread count that grows — each is a measurable trajectory. This is exactly the input the drift
+gauge (A1/A2) and the longitudinal harness (F4) want.
 
 Wall-clock time τ (the graph actually changing) — NOT diffusion time t (a resolution knob on a
 frozen snapshot); keeping them distinct is §5.1's discipline. Snapshots are DuckDB (the telemetry
@@ -32,6 +34,7 @@ from core.complex.blocks import sbm
 from core.complex.build import ReasoningComplex
 from core.complex.curvature import forman
 from core.complex.cut import min_conductance
+from core.complex.hodge import harmonic_basis
 from core.complex.spectral import fiedler
 from core.complex.topology import long_lived_holes
 
@@ -50,6 +53,10 @@ CREATE TABLE IF NOT EXISTS structural_snapshots (
     min_conductance DOUBLE NOT NULL,      -- worst community conductance (alignment)
     persistence_h1  INTEGER               -- long-lived H1 holes; NULL when distances not given
 );
+-- Additive on-open heal (design note `dn-edge-dynamics` §2.3/bp-022 §6(d)): idempotent, existing
+-- rows read back NULL -> None, new rows carry the degree-1 invariants. Never a destructive DDL.
+ALTER TABLE structural_snapshots ADD COLUMN IF NOT EXISTS dim_ker_l1 INTEGER;
+ALTER TABLE structural_snapshots ADD COLUMN IF NOT EXISTS harmonic_persistence_total DOUBLE;
 """
 
 
@@ -67,9 +74,15 @@ class StructuralSnapshot:
     n_blocks_sbm: int
     min_conductance: float
     persistence_h1: int | None = None
+    # Degree-1 invariants (design note `dn-edge-dynamics` §2.3, bp-022 §6(c)) — additive,
+    # degrade-to-None exactly like `persistence_h1` when `distances` is not given.
+    dim_ker_l1: int | None = None                   # β₁ of the σ-flag complex (exact, degree 1)
+    harmonic_persistence_total: float | None = None  # Σ lifetime over holes ≥ thread threshold
 
     def structural_axes(self) -> dict[str, float]:
-        """The A2 drift axes this snapshot feeds (`eval.drift.Profile` optional fields)."""
+        """The A2 drift axes this snapshot feeds (`eval.drift.Profile` optional fields). The
+        drift-axes contract is CONSUMED (design note §3 risk) — the degree-1 fields are
+        additive observation, never added here; this stays byte-identical to before bp-022."""
         return {"frustration": self.frustration, "min_conductance": self.min_conductance}
 
 
@@ -79,16 +92,25 @@ def _utcnow() -> str:
 
 def compute_snapshot(kx: ReasoningComplex, *, distances: np.ndarray | None = None,
                      sbm_k_max: int = 8, hole_min_persistence: float = 0.15,
+                     thread_min_persistence: float = 0.15,
                      taken_at: str | None = None) -> StructuralSnapshot:
     """Compute the invariants on one complex. Deterministic, model-free. `distances` (the
-    unthresholded cosine-distance matrix) enables the H₁ count; None records NULL rather than a
-    fake zero (the persistence filtration cannot run on the thresholded backbone alone)."""
+    unthresholded cosine-distance matrix) enables the H₁ count and the two degree-1 invariants
+    (design note `dn-edge-dynamics` §2.3, bp-022 §6(c)); None records NULL rather than a fake
+    zero (the persistence filtration cannot run on the thresholded backbone alone). `dim_ker_l1`
+    is the kernel dimension of `kx.A`'s Hodge 1-Laplacian at σ (exact, cheap at fixed scale —
+    bp-021's cross-check harness guarantees agreement with the ripser alive-count, plan §6(c) /
+    parked decision "snapshot β₁ source"); `harmonic_persistence_total` sums lifetime over holes
+    at least `thread_min_persistence` long — the same filtration `long_lived_holes` already runs
+    for `persistence_h1`, just re-thresholded and summed rather than counted."""
     n = kx.n
     if n == 0:
         return StructuralSnapshot(taken_at=taken_at or _utcnow(), n_nodes=0, n_components=0,
                                   fiedler=0.0, frustration=0.0, mean_forman=0.0,
                                   frac_neg_curv=0.0, n_blocks_sbm=0, min_conductance=1.0,
-                                  persistence_h1=None if distances is None else 0)
+                                  persistence_h1=None if distances is None else 0,
+                                  dim_ker_l1=None if distances is None else 0,
+                                  harmonic_persistence_total=None if distances is None else 0.0)
     n_comp, _labels = connected_components(kx.A, directed=False)
     lam2, _vec = fiedler(kx.A)
     curv = forman(kx.A)
@@ -96,8 +118,13 @@ def compute_snapshot(kx: ReasoningComplex, *, distances: np.ndarray | None = Non
     mean_forman = float(np.mean(vals)) if vals else 0.0
     frac_neg = float(np.mean([v < 0.0 for v in vals])) if vals else 0.0
     h1: int | None = None
+    dim_ker_l1: int | None = None
+    harmonic_persistence_total: float | None = None
     if distances is not None:
         h1 = len(long_lived_holes(distances, min_persistence=hole_min_persistence))
+        dim_ker_l1 = int(harmonic_basis(kx.A).shape[1])
+        threads = long_lived_holes(distances, min_persistence=thread_min_persistence)
+        harmonic_persistence_total = float(sum(t.lifetime for t in threads))
     return StructuralSnapshot(
         taken_at=taken_at or _utcnow(),
         n_nodes=n,
@@ -109,6 +136,8 @@ def compute_snapshot(kx: ReasoningComplex, *, distances: np.ndarray | None = Non
         n_blocks_sbm=int(sbm(kx.A, k_max=sbm_k_max).k),
         min_conductance=min_conductance(kx.A),
         persistence_h1=h1,
+        dim_ker_l1=dim_ker_l1,
+        harmonic_persistence_total=harmonic_persistence_total,
     )
 
 
@@ -131,10 +160,11 @@ class SnapshotStore:
         self._conn.execute(
             "INSERT INTO structural_snapshots (taken_at, n_nodes, n_components, fiedler, "
             "frustration, mean_forman, frac_neg_curv, n_blocks_sbm, min_conductance, "
-            "persistence_h1) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "persistence_h1, dim_ker_l1, harmonic_persistence_total) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [snap.taken_at, snap.n_nodes, snap.n_components, snap.fiedler, snap.frustration,
              snap.mean_forman, snap.frac_neg_curv, snap.n_blocks_sbm, snap.min_conductance,
-             snap.persistence_h1],
+             snap.persistence_h1, snap.dim_ker_l1, snap.harmonic_persistence_total],
         )
 
     def count(self) -> int:
@@ -145,7 +175,8 @@ class SnapshotStore:
         """The time series of one invariant, oldest first — the F4 drift-trajectory input.
         `metric` is validated against the schema (no SQL injection by column name)."""
         allowed = {"n_nodes", "n_components", "fiedler", "frustration", "mean_forman",
-                   "frac_neg_curv", "n_blocks_sbm", "min_conductance", "persistence_h1"}
+                   "frac_neg_curv", "n_blocks_sbm", "min_conductance", "persistence_h1",
+                   "dim_ker_l1", "harmonic_persistence_total"}
         if metric not in allowed:
             raise ValueError(f"unknown structural metric {metric!r}; one of {sorted(allowed)}")
         rows = self._conn.execute(
