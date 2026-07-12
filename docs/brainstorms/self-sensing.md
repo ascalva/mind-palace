@@ -79,3 +79,58 @@ Cross-ref: `code-observation-projection.md` (the seam + §2.2 interpreter contra
 `cost-forecasting.md` (origin + the cost-ledger half + the parked report generator), the
 evolution study (add an epistemology axis alongside economics), `finding-0034` (a third
 cost-plane: CI).
+
+---
+
+## 2026-07-12T17:54:25Z (captured) — owner read of the draft note: stateless projector, multi-stream expansion, the weaving hypothesis
+
+```capsule
+topic: self-sensing
+date: 2026-07-12
+
+decisions:
+  - (owner, confirming the draft note's regress line) the sensor agent is STATELESS — it
+    reads sensor data deterministically and projection-maps onto the observed stratum;
+    the database is durable retention of readings ("in case we need that data in the
+    future"), NOT working state the next run consumes. "The role of the agent is to
+    projection map."
+  - S1 stands as drafted — start with just the cost data.
+  - expansion intent (owner): eventually projection-map MORE of the code structure over
+    time — cost, documentation, scope-of-changes — so related planes accumulate in the
+    stratum. The weaving hypothesis: "the more related data that we feed, the higher
+    chance there's some thread that can be found that weaves through the data, or a set
+    of these fibers and supersession edges" — and then see what the dreamer can reason
+    about that.
+
+open_questions:
+  - the weaving reasoner's routing: per the standing firewall it lands as a Track-D /
+    correlator-class consumer over ObservedView emitting INTERPRETED proposals
+    (dreamer-proposed authority) — the mirror-side dream path cannot read observations
+    (mirror-opacity stands). Confirm at Track D's design pass that this is the intended
+    landing for "what the dreamer can reason about."
+  - stream placement: documentation-over-time (doc-coverage precursor already in the
+    snapshot ledger) and scope-of-changes/churn are φ_code-plane git/AST facts;
+    session shapes / tool-use are φ_self-plane. Both planes share the commit_sha time
+    coordinate — the join geometry the weaving consumer will need.
+
+parked:
+  - decision: streams beyond S1 (documentation, scope-of-changes, session shapes, …)
+    default: not licensed (dn-self-sensing PD-a)
+    re_entry: per stream — its facts exist as committed artifacts or git facts, plus a
+      small additive plan the owner blesses
+  - decision: the weaving consumer (multi-stream thread / fiber+supersession reasoning)
+    default: no consumer (dn-self-sensing §1.2 — substrate only)
+    re_entry: Track D's design pass; this capsule is its charter seed
+
+next_steps:
+  - fold the owner-named candidate streams + the shared-time-coordinate point into
+    dn-self-sensing (§2.3/§2.6/§5) before the ratification read (same session as capture).
+  - B-a needs no separate design note: V2 audits the gap; graduation pins the
+    interpreter-version identity mechanics (see the session's chat answer).
+
+references:
+  - docs/design-notes/self-sensing.md
+  - docs/design-notes/code-observation-projection.md
+  - docs/design-notes/observed-iot-and-cross-source-synthesis.md
+  - docs/findings/finding-0034.md
+```

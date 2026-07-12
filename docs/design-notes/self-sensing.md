@@ -138,9 +138,15 @@ moments, and the stratum records that honestly. First live pair: bp-011
 Backfill over all sealed plans is cheap (the artifacts all exist in git) — PD-d records
 the default.
 
-Later candidate streams — session shapes, tool-use histograms, Stop-gate/finding rates,
-the CI cost-plane (finding-0034) — are **named but not licensed**: each re-enters per
-PD-a when its facts are committed artifacts, as its own small additive plan.
+Later candidate streams are **named but not licensed** — each re-enters per PD-a when
+its facts are committed artifacts (or plain git facts), as its own small additive plan:
+on the φ_self plane, session shapes, tool-use histograms, Stop-gate/finding rates, the
+CI cost-plane (finding-0034); on the φ_code plane (owner direction, 2026-07-12 capsule),
+**documentation-over-time** (the doc-coverage precursor already lives in the snapshot
+ledger) and **scope-of-changes/churn per commit**. All streams share `commit_sha` as the
+time coordinate — deliberately: that shared coordinate, plus the Lane-1 reference edges
+and the supersession chains, is the join geometry a future cross-stream consumer would
+weave threads through (§5).
 
 ### 2.4 The worldview record — supersession as epistemology-over-time
 
@@ -204,7 +210,11 @@ Three cuts, from operational to structural:
    committed artifacts, not a consumer of this store.
 2. **Domain excludes codomain.** φ_self reads committed workflow artifacts; it writes
    corpus-store rows. Its output is not in its input domain, so *φ_self observing its own
-   observations is unrepresentable* — the regress has no fixed point to start from. (The
+   observations is unrepresentable* — the regress has no fixed point to start from. Owner
+   sharpening (2026-07-12 capsule): the sensor is **stateless** — it reads
+   deterministically, projection-maps, and forgets; the store is durable retention of
+   readings for future use, never working state a later run consumes. No accumulator
+   exists for a loop to build on. (The
    streams do observe each other's **instruments** — φ_code will read
    `ops/self_sensor.py`'s docstrings as code — but never each other's **output**; an
    instrument being visible is not a loop.)
@@ -300,6 +310,15 @@ mirror change, no report generator (parked elsewhere).
   `ObservationStream` abstraction pay for itself, or do three explicit siblings stay
   clearer? Default: siblings stay explicit; a refactor decision for a future plan, not
   this note.
+- **The weaving consumer** (owner direction, 2026-07-12 capsule in the warrant
+  brainstorm): the more related planes accumulate — cost, documentation,
+  scope-of-changes, over time — the higher the chance a thread weaves through them via
+  fibers and supersession edges; "see what the dreamer can reason about that." Per the
+  standing firewall this lands as a Track-D / correlator-class reader over
+  `ObservedView` emitting INTERPRETED proposals (dreamer-proposed authority) — the
+  mirror-side dream path stays opaque to observations. That consumer's charter belongs
+  to Track D's design pass; this note only guarantees the substrate it would read
+  (shared time coordinates, versioned chains) exists and is safe to accumulate.
 
 ## Cross-references
 
