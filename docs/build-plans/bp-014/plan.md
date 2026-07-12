@@ -18,9 +18,10 @@ cost:
 depends_on: [bp-012, bp-013] # SEQUENCING/SAFETY: do not modify enforcement hooks while builders run against them
 parallelizable_with: []
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-12
 links:
   - docs/findings/finding-0031.md # origin (3 live manifestations 2026-07-11)
+  - docs/findings/finding-0035.md # folded: auto-surface resume-brief via session-brief.sh (Item 3)
 supersedes: null
 superseded_by: null
 warrant: finding-0031
@@ -102,6 +103,13 @@ the `write_scope` parser (`plan_write_scope`) so a TRAILING inline comment on a 
 worked around it). A small, separate hunk/commit from the ROOT-resolution change; keep it one
 logical change per commit. If it proves non-trivial, split it back out to its own finding.
 
+**Second fold — finding-0035 auto-surface (Item 3):** `session-brief.sh` is already in scope
+(`.claude/hooks/*.sh`), so the finding-0035 hook piece lands here: emit
+`.claude/state/resume-brief.md` (if present) at the TOP of the SESSION BRIEF. **Only the hook
+piece folds** — finding-0035's `docs/templates/resume-brief.md` template and the
+`context-economy` SKILL.md rule are OUT of this write_scope; they route at /triage. Do NOT flip
+finding-0035 to `resolved` (only 1 of its 3 recommendations lands here).
+
 ## 6. Interfaces pinned inline
 
 Current (buggy) resolution — `_lib.py`:
@@ -159,6 +167,26 @@ fi
 - **Invariant(s):** the harness itself must FAIL against the pre-fix code (prove it catches the
   bug — run it on the unpatched `_lib.py` first and show red, per the falsifier-demo discipline).
 - **Touches stored data?** no (temp worktrees only) **Parallelizable?** no **Depends on:** Item 1
+
+### Item 3 — auto-surface the resume-brief (finding-0035 fold)
+
+- **Objective:** `session-brief.sh` emits `.claude/state/resume-brief.md` (if present) at the
+  TOP of the SESSION BRIEF — before the `═══ SESSION BRIEF ═══` world-state block — so a fresh
+  orchestrator session reads its own self-resume prompt FIRST with zero owner action. Resolve
+  the file under the (post-Item-1) worktree-aware `ROOT`, so a bare main session reads main's
+  brief. Bash-side emission (cat before the `python3 "$LIB" brief` call) keeps `_lib.py`'s
+  `cmd_brief` pure.
+- **Files:** `.claude/hooks/session-brief.sh` (already in write_scope).
+- **Acceptance test:** with a `.claude/state/resume-brief.md` present,
+  `bash .claude/hooks/session-brief.sh --standalone` prints its contents ABOVE the SESSION BRIEF
+  block; with the file ABSENT, output is byte-identical to today (no stray leading line/marker).
+- **Falsifier:** the brief file exists but its contents don't appear, appear BELOW the
+  world-state, or the absent-file case changes today's output.
+- **Invariant(s):** fail-open — a missing/unreadable resume-brief never blocks or errors the
+  SessionStart hook (§6 fail-open, fail-loud). The baseline-recording (`session-baseline`) and
+  the `brief` call stay byte-identical.
+- **Touches stored data?** no **Parallelizable?** no (same hook file family) **Depends on:** none
+  (independent of Items 1–2, but touches the same `.claude/hooks/**` tree — one solo unit)
 
 ## 8. Math carried explicitly
 
