@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0039
-status: open
+status: routed # 2026-07-12 /triage — process question + owner PAT-rotation notice batched as oq-0017
 created: 2026-07-12
 updated: 2026-07-12
 links:

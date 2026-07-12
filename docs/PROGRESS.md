@@ -2376,3 +2376,18 @@ builder sealed 0.97× + one fable builder lost mid-flight to the limit.
 bp-019 (after 018), bp-022 (after 021), bp-020 last (Item 11 backfill is the
 orchestrator's at seal). Riders: second /triage (0039, 0046, resolved 0045, oq-0016
 sweep), /scribe offer (book debt: seven ratified notes).
+
+## 2026-07-12 — /triage (second sweep): 0039 routed → oq-0017, oq-0016 swept, journals sealed
+
+- **Routed:** finding-0039 (discovery, bp-016) `open → routed`; its process question (side-effect
+  audit before falsifier-demo runs) + the owner PAT-rotation notice batched as **oq-0017**
+  (non-blocking; interim mitigation already in every delegation prompt). finding-0046 (codebase,
+  flaky live e2e test) noted and LEFT for a builder whose scope covers `tests/e2e/` — stays open.
+- **Sealed:** bp-016 + bp-017 journals get their /triage seal lines (both plans `complete` with
+  PROGRESS checkpoints already in place). No other plan flipped since the last sweep.
+- **Swept:** oq-0016 `→ swept` (owner hand-repaired `3a873c2` + permanently removed the
+  formatter; self-contained). Board: oq-0003..0010 still open (design-tier, non-blocking,
+  unchanged), oq-0017 new.
+- **Promotions:** none this sweep (0039's amendment rides oq-0017; the routed 0009–0030 backlog
+  stays design-tier-deferred). **Book debt: SEVEN ratified notes, book unscaffolded — /scribe
+  offer stands** (owner keystroke away; first scribe plan would be minted `proposed`).
