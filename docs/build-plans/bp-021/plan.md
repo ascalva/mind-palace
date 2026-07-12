@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-021
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/edge-dynamics.md # Lane A, §2.2 (the degree-1 lift, pinned); §3.1 L-a
 contract: builder
@@ -13,7 +13,7 @@ write_scope:
 session_budget: 1
 cost:
   estimate: { model: sonnet, tokens: 300k } # pinned formulas + crisp synthetic-topology falsifiers (the tests ARE the judge); sign/orientation subtleties are what the estimate buys
-  actual: null
+  actual: { model: sonnet, tokens: 173956, tool_calls: 233, duration_min: 21 } # 0.58x — measured at completion notification, 2026-07-12; incl. two research subagents (~46k+~65k) for the live-corpus wiring investigation
 depends_on: []
 parallelizable_with: [bp-018] # disjoint write_scope (only docs/findings/** shared — new files, disjoint ID ranges); asserted at spawn 2026-07-12, graduation-author's amendment
 created: 2026-07-12

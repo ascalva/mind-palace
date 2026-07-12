@@ -55,6 +55,15 @@ never omitted.
     false. Every item carries both. A "falsifier" that only negates the acceptance
     test ("acceptance didn't pass") is not one — name the *independent* observable
     that would disconfirm the approach.
+
+    **Falsifier-demo runs carry a side-effect audit** (owner-ratified 2026-07-12;
+    warrant: finding-0039 / oq-0017): the demo discipline — run a NEW suite once
+    against the PRE-change module and show the red — executes old code by design,
+    and old code may hold live side-effecting functions. Before any demo run,
+    enumerate the pre-change module's live-action functions (network calls,
+    credential access, dispatches, writes) and mock/skip them for the run. The
+    incident-in-fact: a demo run live-rotated a real PAT (benign only because that
+    path was fail-safe).
   - **Invariant(s)** it must not violate; **Touches stored data?** (the blast-radius
     flag — if yes, a dry-run / verification pass precedes the real write);
     **Parallelizable?** and **Depends on** edges.

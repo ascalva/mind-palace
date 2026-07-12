@@ -399,7 +399,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0016 — Hand-repair three formatter-mangled spans in the now-ratified `dn-self-sensing`?
-- status: open
+- status: swept   # 2026-07-12 /triage — owner repaired by hand (3a873c2) + permanently removed the formatter; answer self-contained, origin is the note itself (no finding to fold)
 - origin: docs/design-notes/self-sensing.md (the ratification save, 2026-07-12; committed verbatim as 8deab2a)
 - blocking: false   # renders broken in three spots; semantics still legible — P3 graduation proceeds regardless
 - question: Your ratification save ran the editor's markdown auto-formatter. Most of the pass is
@@ -449,3 +449,31 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   safe again with the formatter permanently removed), and the formatter's benign underscore
   restyling reverted to the original asterisk italics throughout. Committed verbatim by the
   orchestrator. Swept when /triage runs.
+
+---
+
+## oq-0017 — Pin a "side-effect audit before falsifier-demo runs" rule (finding-0039)? Plus a notice: your GitLab PAT was incidentally rotated.
+- status: swept   # 2026-07-12 — owner accepted same day; amendment landed in build-plan SKILL.md §7, finding-0039 → promoted
+- origin: docs/findings/finding-0039.md
+- blocking: false
+- question: bp-016's falsifier-demo run (the discipline that points a NEW test suite at
+  the PRE-change module to show red) executed the old module's `rotate()` live — it
+  rotated the real GitLab PAT as a side effect. Outcome benign (fail-safe ordering
+  completed; no secret exposed; details in the finding), but the hazard class is real:
+  pre-change code may hold live side-effecting functions, and the demo run executes
+  them un-mocked. Proposed one-line amendment to the falsifier-demo discipline (lives in
+  the build-plan/checkpoint skills): "before running any suite against a pre-change
+  module, enumerate its live side-effecting functions and mock/skip them for the demo
+  run." Ratify (or re-word) the amendment? Interim mitigation already active: the
+  orchestrator now includes the side-effect audit line verbatim in every delegation
+  prompt (bp-018/bp-021 onward, 2026-07-12).
+  **NOTICE riding along (no action needed):** the Keychain `gitlab-api` PAT was rotated
+  by that demo run — new token id 25599923, expires 2026-08-11, old value revoked
+  server-side, stored + read-back verified. The plan's parked decision (you revoke the
+  GitLab token at mirror retirement, Item 11c) is unchanged — there is simply a newer
+  value in the same slot.
+- default_if_unanswered: the prompt-level mitigation stands (orchestrator-enforced per
+  delegation); the skill files stay unamended. Parks as finding-0039; re-entry — owner
+  ratifies the skill amendment here, or a falsifier-demo side effect recurs despite the
+  prompt line.
+- answer: owner accepts

@@ -192,3 +192,5 @@ same session (.gitignore covers public/). Usage into cost.actual: sonnet, 97,449
 flipped `complete`. One scrutiny lesson recorded: the missing setup-uv step was in the
 plan's own §6(b) comment — both builder and orchestrator-diff-review missed it; the
 live-proof-at-seal discipline caught it exactly as designed.
+
+**SEALED by /triage (2026-07-12).** No further narrative entries.

@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0039
-status: open
+status: promoted # 2026-07-12 — owner accepted oq-0017: side-effect-audit rule ratified into the build-plan skill (§7 falsifier bullet); PAT notice acknowledged
 created: 2026-07-12
 updated: 2026-07-12
 links:
@@ -11,7 +11,7 @@ links:
 ftype: discovery
 origin_plan: bp-016
 route: orchestrator
-resolution: null
+resolution: "Promoted via oq-0017 (owner accepts, 2026-07-12): the falsifier-demo side-effect audit is now pinned in .claude/skills/build-plan/SKILL.md §7 (warrant-linked here). Prompt-level mitigation continues in every delegation prompt. PAT-rotation notice delivered; parked Item-11c disposition unchanged."
 ---
 
 # Falsifier-demo run against the pre-change module live-rotated the GitLab PAT

@@ -19,8 +19,8 @@ session_budget: 1
 cost:
   estimate: { model: sonnet, tokens: 250k } # lens-mold work (tension_claims/hole_interpreter as templates) + additive snapshot fields; crisp tests
   actual: null
-depends_on: [bp-021] # consumes hodge.py's harmonic_basis + the cross-check harness
-parallelizable_with: []
+depends_on: [bp-021] # consumes hodge.py's harmonic_basis + the cross-check harness — SATISFIED (bp-021 complete, merged cb953a9, 2026-07-12)
+parallelizable_with: [bp-018] # disjoint write_scope (dreaming/temporal/config vs stores/sensor/launcher; only docs/findings/** shared — new files, disjoint ID ranges); asserted at spawn 2026-07-12, graduation-author's amendment
 created: 2026-07-12
 updated: 2026-07-12
 links:

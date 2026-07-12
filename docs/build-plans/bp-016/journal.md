@@ -299,3 +299,8 @@ as both Authentication key (`ssh -T git@github.com` authenticates) and Signing k
 (signed history renders Verified on the mirror).
 
 ## Markers
+
+---
+
+**SEALED by /triage (2026-07-12).** Plan complete (`78deaf6` seal commit); findings 0039
+(→ oq-0017) and 0046 (builder-tier, open) carried; no further narrative entries.

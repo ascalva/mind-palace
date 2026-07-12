@@ -2376,3 +2376,37 @@ builder sealed 0.97× + one fable builder lost mid-flight to the limit.
 bp-019 (after 018), bp-022 (after 021), bp-020 last (Item 11 backfill is the
 orchestrator's at seal). Riders: second /triage (0039, 0046, resolved 0045, oq-0016
 sweep), /scribe offer (book debt: seven ratified notes).
+
+## 2026-07-12 — /triage (second sweep): 0039 routed → oq-0017, oq-0016 swept, journals sealed
+
+- **Routed:** finding-0039 (discovery, bp-016) `open → routed`; its process question (side-effect
+  audit before falsifier-demo runs) + the owner PAT-rotation notice batched as **oq-0017**
+  (non-blocking; interim mitigation already in every delegation prompt). finding-0046 (codebase,
+  flaky live e2e test) noted and LEFT for a builder whose scope covers `tests/e2e/` — stays open.
+- **Sealed:** bp-016 + bp-017 journals get their /triage seal lines (both plans `complete` with
+  PROGRESS checkpoints already in place). No other plan flipped since the last sweep.
+- **Swept:** oq-0016 `→ swept` (owner hand-repaired `3a873c2` + permanently removed the
+  formatter; self-contained). Board: oq-0003..0010 still open (design-tier, non-blocking,
+  unchanged), oq-0017 new.
+- **Promotions:** none this sweep (0039's amendment rides oq-0017; the routed 0009–0030 backlog
+  stays design-tier-deferred). **Book debt: SEVEN ratified notes, book unscaffolded — /scribe
+  offer stands** (owner keystroke away; first scribe plan would be minted `proposed`).
+
+## 2026-07-12 — bp-021 SEALED: hodge.py lands — the degree-1 instruments exist, cross-checked exact
+
+- **Built (sonnet builder, worktree, ~35 min wall):** `core/complex/hodge.py` (218 lines) —
+  oriented flag complex (`edge_index`/`flag_triangles`), boundary operators `∂₁`/`∂₂`
+  (∂₁∂₂ = 0 exact on 5 fixtures), `L₁ = ∂₁ᵀ∂₁ + ∂₂∂₂ᵀ` (PSD), the three-way Hodge
+  decomposition (orthogonal < 1e-8, reconstruction exact, idempotent), deterministic dense-SVD
+  harmonic basis, `l1_spectrum`, 20k-edge dense-path guard (ValueError, never a silent solver
+  switch). 42 tests incl. the reusable §6(f) ripser harness. Zero findings — every §6 pin
+  matched the codebase.
+- **Verified:** builder gate green (892/0) + orchestrator full gate re-run post-main-merge
+  green (**893 passed / 8 skipped / 0 failed**, argless 69); scrutiny PASS incl. analytic
+  ∂₂-sign re-derivation and a hand-check of the 5-fixture β₁ table; **live cross-check:
+  dim ker L₁ == ripser alive-H₁ on the real corpus (0 == 0 at σ=0.62)** and exact across 3 σ
+  values hermetic. finding-0046's flake did NOT trip either run. Merged `cb953a9`, pushed.
+- **Usage (the ledger's sixth pair):** sonnet, **173,956 tokens / 233 tool calls / ~21 min =
+  0.58×** of the 300k estimate.
+- **Next:** bp-022 (THREAD lens + temporal invariants) unblocked — spawning now, parallel to
+  the still-running bp-018 (scopes disjoint: dreaming/temporal/config vs stores/sensor).
