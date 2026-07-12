@@ -63,3 +63,19 @@ A resume prompt is NOT free-form; it must carry, in order:
 
 Parked for the hooks session (bp-014-adjacent) + a skill/template pass. Trigger that reopens
 immediately: the next clear where the owner has to ask "how do I prompt you?" again.
+
+## Partially addressed (2026-07-12, bp-014 Item 3)
+
+Recommendation **3 (auto-surface)** is DONE: `.claude/hooks/session-brief.sh` now emits
+`.claude/state/resume-brief.md` (if present) at the TOP of the SESSION BRIEF, above the
+`═══ SESSION BRIEF ═══` block, resolved under the worktree-aware ROOT (bp-014 Item 1). It is
+fail-open (a missing/unreadable brief never errors the hook) and the absent-file case is
+byte-identical to before. Verified via `bash .claude/hooks/session-brief.sh --standalone`.
+
+Still OPEN (route at /triage — OUT of bp-014's write_scope, deliberately not touched here):
+- Recommendation **1 (location + lifecycle)** — formalizing `.claude/state/resume-brief.md` as
+  the durable location + the write/consume/clear lifecycle in workflow docs.
+- Recommendation **2 (documented style)** — the section schema → `docs/templates/resume-brief.md`
+  + a `context-economy` SKILL.md rule.
+
+Status stays `routed` (NOT `resolved`): only 1 of 3 recommendations landed.
