@@ -6,6 +6,50 @@ write-scope files must continue without re-asking anything already answered.
 
 ---
 
+## 2026-07-12 — ORCHESTRATOR RECOVERY: snapshot restructured, scrutinized, gate green (evening session)
+
+**Status:** builder died on the spend limit before its commits; the orchestrator resumed
+in this worktree from plan + journal + safety snapshot `60bd857` (resume-beats-restart,
+context-economy skill). All items complete; gate green; ready to merge.
+
+**Completed:**
+- **Scrutiny (pre-commit, full diff vs `daf9264`): PASS.** Plan §6 checked line-by-line
+  against the diff: §6(a) CLI arg surface byte-identical (old shim diffed — docstring-only
+  change); §6(b,c) verdict mapping exact, only `success` green; §6(d) endpoints/headers
+  verbatim; §6(e) degradation chain all three rows; §6(f) grace in `check()` only,
+  `verdict()` pure; §6(g) emission shape exact (action names preserved, `run:<id>`);
+  §6(h) Keychain service/account; §6(i) workflow matches the skeleton + two journaled
+  additions (`persist-credentials: true`, current action majors); §6(j) plugin swap keeps
+  the three disable flags, `package.json` has the `release` script the workflow calls.
+  Launcher untouched; nothing outside write_scope (11 files, all in scope); no secrets
+  anywhere in the diff. Falsifier evidence accepted from the journal (Item 7 RED demo;
+  Item 10 dry-run push-target + version-lineage checks).
+- **Snapshot restructured** into the planned logical commits (soft reset of `60bd857`):
+  `f5bb116` code (witness + suite + shim, Items 6–8), `2205057` docs (runbook §CI
+  witness + finding-0039 + plan/journal, Item 9), `6a4de1c` release trio + workflow
+  (Item 10). `node_modules/` removed (never committed).
+- **`git merge main` clean** (`4da9c38`; main had moved daf9264→19d884b: bp-017 +
+  pages fix + graduations + blessings — zero file overlap with this plan's scope).
+- **Five-part gate (worktree, post-merge):** ruff clean · mypy scoped clean (168 files) ·
+  **argless mypy = 69 = pinned baseline** · type_gate OK (Tier-2 membership + bare-ignore
+  scan) · pytest **1 failed / 850 passed / 8 skipped** — the failure is
+  `test_supervisor_dispatches_a_real_job` (live axis), **environmental**: failed 2×
+  (~132 s, DONE + empty text) then passed on re-runs in both checkouts (worktree 15.8 s);
+  direct probes of the same chat path from this worktree passed warm (2.4 s) and cold
+  (92 s). Mechanism (async-unload race in the test's own clean-slate step) recorded as
+  **finding-0046** (ftype codebase; `tests/e2e/` is outside this plan's scope). Same
+  precedent as bp-017's live-axis timeouts.
+- **Usage (context-economy ledger):** builder's actual usage UNKNOWN — it died on the
+  org spend limit before reporting; its work spanned Items 6–10 complete with evidence.
+  Recovery (restructure + scrutiny + gate) ran orchestrator-side in the 2026-07-12
+  evening Fable/xhigh session; recorded qualitatively in the seal.
+
+**Next action:** merge to main (orchestrator sequences), push, live CI proof on the merge
+sha, witness live `check` (doubles as Item 9's falsifier replay), then seal + §4
+attestation-layer cross-ref (orchestrator's).
+
+---
+
 ## 2026-07-12 — Items 6/7/8 built + green; Item 9 written; Item 10 acceptance evidence complete
 
 **Status:** the GitHub witness module + suite are green (29 passed; ruff clean; mypy ops
