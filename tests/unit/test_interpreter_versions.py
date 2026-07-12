@@ -48,7 +48,7 @@ INTERPRETERS: dict[str, Interp] = {
     "phi_code": Interp(version_attr=("ops.code_sensor", "INTERPRETER_VERSION"),
                        sources=("ops/code_sensor.py", "ops/code_snapshot.py"),
                        version="1.0.0",
-                       sha256="f1eff4bf03fc02d36bfb69ce0ae5f22583b732b218611a16e4d35ca8e8fdf108"),
+                       sha256="8832e5b369763049dad5a0ea384eaaff04672265eb3170e1ee1a6cbccd365d5c"),
 }
 
 

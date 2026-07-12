@@ -75,7 +75,13 @@ class ChildLike(Protocol):
 # self-mod ledgers, telemetry history, the live backup staging, and logs. The corpus targets are
 # computed from cfg.paths; this guard is defense-in-depth so a path mistake can't nuke Vault.
 _RESET_GUARD = ("vault", "runs.sqlite", "selfmod_ledger.sqlite", "telemetry.duckdb",
-                "code_snapshots.sqlite", "backup-staging", "logs")
+                "code_snapshots.sqlite",
+                # Observation worldview HISTORY (bp-018, dn-self-sensing §2.5 split):
+                # current READINGS are corpus-side and wiped (code_observations.sqlite
+                # stays a reset target — rebuilt by re-projection from git); superseded
+                # generations do NOT rebuild (their interpreters no longer exist at HEAD).
+                "observation_history.sqlite",
+                "backup-staging", "logs")
 
 # Default cadence for the trough housekeeping passes (dream + curate). They only actually run
 # when the foreground gate is clear (the supervisor's HEAVY_TIERS check), so this is a ceiling.
