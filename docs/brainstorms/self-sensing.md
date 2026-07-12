@@ -231,3 +231,61 @@ references:
   - docs/design-notes/self-sensing.md
   - docs/brainstorms/self-sensing.md (the 2026-07-12T17:54Z weaving capsule)
 ```
+
+---
+
+## 2026-07-12T18:36:02Z (captured) — "a set of edge vectors that interact — what math structure am I reaching for?"
+
+```capsule
+topic: self-sensing
+date: 2026-07-12
+
+decisions: []   # none — vocabulary ruling for the Track-D charter, verified against
+                # the built house math (core/complex/, Track H) in-session
+
+open_questions:
+  - (owner) edges as vectors with position+direction that interact and influence each
+    other — the named structures, ascending precision:
+      1. minimal: a COUPLED DYNAMICAL SYSTEM ON EDGE SPACE — per-edge phase point
+         (strength, velocity); influence topology = shared endpoints/triangles (the
+         line graph); the influence matrix is the Jacobian; symmetric coupling ⇒
+         gradient flow (settles), asymmetric ⇒ rotational components (cycles).
+      2. the right one, given "fibers/threads": DISCRETE HODGE THEORY on the
+         simplicial complex — a set of edge values IS a 1-COCHAIN (discrete 1-form);
+         edge-edge interaction = the Hodge 1-Laplacian L₁ (down-coupling via shared
+         nodes, up-coupling via shared triangles); the HODGE DECOMPOSITION names the
+         owner's threads exactly: gradient (node-potential-explained) ⊕ curl (local
+         circulation) ⊕ HARMONIC (global circulation around holes — flow no local
+         structure explains: the thread that weaves). dim(harmonic) = β₁ = the hole
+         count topology.py already computes — the hole is the absence, the harmonic
+         flow is the thread orbiting it ("you orbit this without stating it").
+      3. durability axis: PERSISTENT HOMOLOGY over the strength filtration (already
+         ripser-built for H₁) — durable-as-utility = long bars; over wall-clock time,
+         vineyards (temporal.py already runs the scalar-invariant version).
+      4. typed influence: the SHEAF LAPLACIAN — laplacian.py's own header defers it
+         ("general-transport cases, not built here"); the named next rung when edges
+         carry typed data with consistency maps, not scalar strengths.
+  - VERIFIED in-session: Track H already built the floor on the AUTHORED stratum —
+    laplacian.py (L = δ*δ family incl. signed), balance.py (frustration), topology.py
+    (flag complex + persistent H₁), temporal.py ("the system watching its own
+    structure evolve" — invariant time series, detection only). The weaving consumer
+    is this toolbox ONE DEGREE UP (0-forms → 1-forms) pointed at observed/cross-
+    stratum edges — the math transfers; the DATA BOUNDARY is what Track D must
+    license (𝔎|_MR stays authored-only; reference edges stay out of A_geom).
+  - the diagnostic/dynamical line (keep it): the built machinery MEASURES structure
+    ("nothing here alters anything"); edge-edge influence as a DYNAMICS is a model —
+    correlator-class, INTERPRETED proposals only. The observed record supplies the
+    measured trajectory; any dynamics is an interpretation of it, superseding like
+    every other view.
+
+next_steps:
+  - none now — this + the phase-space capsule are Track D's charter vocabulary.
+
+references:
+  - core/complex/laplacian.py
+  - core/complex/topology.py
+  - core/complex/temporal.py
+  - core/complex/balance.py
+  - docs/design-notes/code-observation-projection.md   # §2.5 — the A_geom exclusion
+  - docs/design-notes/self-sensing.md
+```
