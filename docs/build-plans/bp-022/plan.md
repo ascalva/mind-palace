@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-022
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/edge-dynamics.md # Lane A §2.3 (lens-contract entry), §3.1 L-b/L-c
 contract: builder

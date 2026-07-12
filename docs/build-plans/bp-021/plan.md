@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-021
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/edge-dynamics.md # Lane A, §2.2 (the degree-1 lift, pinned); §3.1 L-a
 contract: builder
