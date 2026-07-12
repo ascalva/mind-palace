@@ -48,7 +48,7 @@ _HOOKS_SRC = Path(
 )
 
 
-def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
+def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *args],
         cwd=str(cwd),
