@@ -1,0 +1,49 @@
+name: pages
+
+# Docs hosting, re-homed from the retired GitLab Pages job (D5, docs/design-notes/
+# ci-platform-and-runner-strategy.md; bp-017 Plan C). Same mkdocstrings/griffe static-
+# analysis build the GitLab `pages` job ran (`.gitlab-ci.yml:195`), now shipped through
+# the Actions-native configure-pages → build → upload-pages-artifact → deploy-pages
+# chain. No `paths:` filter (deviation from the ported job's `rules:changes`, recorded
+# in the plan's Q1): minutes are unmetered here and a uniform no-filter trigger keeps
+# this workflow consistent with ci.yml's posture (P2) rather than reintroducing the
+# metered-era optimization. Pages is not a deploy gate — a red run here never blocks
+# deploy attestation (the witness reads only `ci`, bp-016 §6(d)).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false # never cancel a Pages deployment mid-flight (deploy-pages guidance)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7 # current major at build time (2026-07-12), matches ci.yml's convention
+      - uses: actions/configure-pages@v6 # current major at build time (2026-07-12)
+      - name: Build docs (mkdocs + mkdocstrings, uvx-isolated — no project-env churn)
+        run: |
+          uvx --with mkdocs-material --with "mkdocstrings[python]" mkdocs build --site-dir public
+      - uses: actions/upload-pages-artifact@v5 # current major at build time (2026-07-12)
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5 # current major at build time (2026-07-12)
