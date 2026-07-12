@@ -2,9 +2,9 @@ site_name: Mind Palace
 site_description: >-
   A local-first knowledge system that knows why it believes things — typed provenance,
   sealed core, attested acts. API documentation generated from the code itself.
-site_url: https://ascalva-projects.gitlab.io/mind-palace/
-repo_url: https://gitlab.com/ascalva-projects/mind-palace
-repo_name: mind-palace
+site_url: https://ascalva.github.io/Mind-Palace/ # re-pointed from GitLab Pages (bp-017; parked-decision default, note D5 #4)
+repo_url: https://github.com/ascalva/Mind-Palace
+repo_name: Mind-Palace
 
 # The site sources live in site/ — NOT docs/, which is the corpus artifact tree
 # (design notes, plans, findings). The API pages are generated from docstrings via

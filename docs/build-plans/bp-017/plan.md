@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-017
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/ci-platform-and-runner-strategy.md # D5 (Pages dies with the tombstone), Consequences Plan C, parked #4
 contract: builder
@@ -17,7 +17,7 @@ cost:
 depends_on: [bp-015] # the tombstone kills GitLab Pages; this restores docs hosting on the new host
 parallelizable_with: [bp-016] # disjoint write_scope
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-12
 links:
   - docs/findings/finding-0034.md # warrant-in-fact of the design note
 supersedes: null
