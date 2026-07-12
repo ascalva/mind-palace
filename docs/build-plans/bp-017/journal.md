@@ -179,3 +179,16 @@ miss shared by builder and orchestrator; caught exactly where the plan said it w
 (live proof at seal, bp-015 precedent: "actionlint can't prove resolution"). Fix applied
 by the orchestrator (one step in `.github/workflows/pages.yml`: `astral-sh/setup-uv@v8.3.2`
 with the ci.yml options verbatim). Re-proof: next main push.
+
+## 2026-07-12 — SEAL (orchestrator)
+
+Live proof COMPLETE after the setup-uv fix: pages run green on 1528ffd; site root 200;
+`/api/core/` 200 with real rendered docstrings (783 content matches — the Item 12
+falsifier cleared, not a stub). The two live-axis pytest timeouts from the builder's
+gate re-run UNCONTENDED (bp-016 builder no longer hammering Ollama): **2 passed in
+34.49s** — environmental as diagnosed; the gate is fully green. finding-0045 resolved
+same session (.gitignore covers public/). Usage into cost.actual: sonnet, 97,449 tokens,
+90 tool calls, ~22 min — 0.97x of estimate, the ledger's first near-1x pair. Plan
+flipped `complete`. One scrutiny lesson recorded: the missing setup-uv step was in the
+plan's own §6(b) comment — both builder and orchestrator-diff-review missed it; the
+live-proof-at-seal discipline caught it exactly as designed.
