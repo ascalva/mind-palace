@@ -77,11 +77,18 @@ uv run pytest -m live       # real Ollama: embedder + router/routine/synthesis/s
 uv run pytest -m podman     # real rootless-Podman run_python execution (separate axis, below)
 ```
 
-CI (2026-07-11): every **code** push to main runs the `ratchet` job on GitLab shared runners
-(ruff + import-firewall + the model-free pytest tier; docs-only pushes skip it). The live/
-podman/vault/restic axes never run in CI — shared runners have none of those substrates;
-they remain local verification, above. Free-tier minutes are the budget: batch commits and
-push at boundaries, not per commit.
+CI (2026-07-12): the gate runs on **GitHub Actions** (`.github/workflows/ci.yml`) — the GitLab
+pipeline is tombstoned (`.gitlab-ci.yml`, `workflow: when: never`; see
+docs/design-notes/ci-platform-and-runner-strategy.md D1/D5). **Every** push to main (no
+docs-skip — every sha yields a verdict) runs **five mutually-independent jobs**: `ratchet`
+(ruff + import-firewall + the model-free pytest tier), `type-gate` (mypy Tier-2 floor + the
+tests/ baseline + membership scans), `vault-axis` (the `needs_vault` suite against a disposable
+dev-mode Vault service container), `semgrep` (SAST, `p/default`), and `gitleaks` (secret
+detection over full history). The live/podman/restic axes still never run in CI — the runner
+has none of those substrates; they remain local verification, above. Runner minutes are now
+unmetered (public repo), so batching is no longer a budget necessity — but push at unit
+boundaries anyway for verdict hygiene and wall-clock (a stale run is auto-cancelled by a newer
+push, `concurrency: cancel-in-progress`).
 
 **These are two different axes — don't conflate them.** `-m live` needs a pulled model + a running
 Ollama server (`ollama list` / `curl localhost:11434/api/version`); `-m podman` needs
