@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0037
-status: open
+status: resolved
 created: 2026-07-12
 updated: 2026-07-12
 links:
@@ -12,9 +12,13 @@ ftype: design
 origin_plan: bp-015
 route: orchestrator
 resolution: >
-  UNRESOLVED — routed to the owner as oq-0015. bp-015's semgrep job is PARKED
-  (re-entry: owner rules block-vs-report + a triage/suppression policy). The other
-  four gates (ratchet, type-gate, vault-axis, gitleaks) are live and green on main.
+  RESOLVED (owner ruling oq-0015, 2026-07-12): option 2 — REPORT-ONLY, match GitLab
+  parity. `.github/workflows/ci.yml` semgrep step dropped `--error` (findings log,
+  non-blocking). The 22 findings persist here as a triage backlog (not fixed — a future
+  scoped plan or /triage may address the genuine hardening items: terraform.aws CloudWatch
+  encryption + Lambda X-Ray, the flask format-string, SHA-pinning actions). bp-015 then
+  re-verified 5/5 green + ratchet canary and sealed. The verification-methodology lesson
+  (pre-validate action refs; run blocking gates on the clean tree) stands for future CI plans.
 ---
 
 # The ported `semgrep --error` gate is blocking, and reaches red on the existing tree (22 findings) — GitLab's SAST was report-only

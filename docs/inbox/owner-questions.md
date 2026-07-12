@@ -361,7 +361,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0015 — The ported `semgrep --error` gate is blocking and red on the existing tree (22 findings); keep blocking, or match GitLab's report-only parity?
-- status: open
+- status: answered
 - origin: docs/findings/finding-0037.md
 - blocking: true   # gates bp-015's seal, and the bp-016 witness's definition of "attestable green"
 - question: bp-015's first clean live CI run (sha `8d534a0`, run 29179448272) is **4/5 green** —
@@ -387,4 +387,11 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   `in-progress` with semgrep parked; bp-016/bp-017 wait on bp-015's seal; deploy stays hard-blocked (no
   clean attestable green). Parks on finding-0037; re-entry — owner rules here, or a reader/witness is
   blocked by the persistently-red `semgrep` job.
-- answer:
+- answer: **REPORT-ONLY — match GitLab parity** (owner, 2026-07-12, via AskUserQuestion). Drop
+  `--error` so semgrep reports findings in the log but does not fail the pipeline — exactly the
+  GitLab SAST template's non-blocking behavior; restores true parity (the `--error` blocking was
+  the plan's over-reach beyond the ported original). The 22 findings are preserved in finding-0037
+  as a triage backlog (not lost, not fixed here). Enacted THIS session (a gate change now
+  owner-authorized, not a unilateral one): `.github/workflows/ci.yml` semgrep step → report-only;
+  finding-0037 → resolved; bp-015 re-verified 5/5 green + ratchet canary, then sealed. Swept to
+  origin (finding-0037) same session.

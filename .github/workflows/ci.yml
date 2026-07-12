@@ -98,8 +98,11 @@ jobs:
           uv run pytest -q -m needs_vault
 
   semgrep:
-    # SAST engine, run directly (replaces the GitLab Security/SAST template, Q8). --error
-    # ⇒ nonzero exit on findings. The ruleset may be EXTENDED but never dropped below p/default.
+    # SAST engine, run directly (replaces the GitLab Security/SAST template, Q8). REPORT-ONLY
+    # to match the GitLab SAST template's non-blocking behavior (owner ruling oq-0015, 2026-07-12,
+    # warrant finding-0037): findings surface in the log but do not fail the pipeline. The prior
+    # `--error` (blocking) was stricter than the ported original and red on a 22-item pre-existing
+    # audit backlog. The ruleset may be EXTENDED but never dropped below p/default.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -108,8 +111,8 @@ jobs:
           python-version: "3.12"
           enable-cache: true
           cache-dependency-glob: uv.lock
-      - name: Semgrep (p/default, fail on findings)
-        run: uvx semgrep scan --config p/default --error
+      - name: Semgrep (p/default, report-only — GitLab-SAST parity, oq-0015)
+        run: uvx semgrep scan --config p/default   # report-only: no --error; findings in log, non-blocking
 
   gitleaks:
     # Secret detection over FULL history (replaces the GitLab Security/Secret-Detection
