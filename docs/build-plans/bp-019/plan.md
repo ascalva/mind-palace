@@ -22,8 +22,8 @@ session_budget: 1
 cost:
   estimate: { model: sonnet, tokens: 350k } # mold-following build (code store/sensor as template) with crisp acceptance; interfaces fully pinned
   actual: null
-depends_on: [bp-018] # inherits the version-supersession mechanics + history sidecar + ratchet-test pattern
-parallelizable_with: []
+depends_on: [bp-018] # inherits the version-supersession mechanics + history sidecar + ratchet-test pattern — SATISFIED (bp-018 complete, merged 160fd2f, 2026-07-12)
+parallelizable_with: [bp-022] # disjoint write_scope (sensing/self-sensor/agent-store vs dreaming/temporal/config; only docs/findings/** shared — new files, disjoint ID ranges 0057+/0052+); asserted at spawn 2026-07-12, graduation-author's amendment
 created: 2026-07-12
 updated: 2026-07-12
 links:
