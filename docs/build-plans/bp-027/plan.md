@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-027
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/external-grounding.md
 contract: builder
@@ -12,7 +12,11 @@ cost:
   estimate:
     model: sonnet
     tokens: 100k
-  actual: null
+  actual:
+    model: sonnet
+    tokens: 89k          # 88,998 metered (notification <usage>) — 0.89× estimate
+    tool_calls: 86
+    duration_min: 18
 depends_on: []
 parallelizable_with: [bp-028, bp-029]
 created: 2026-07-13

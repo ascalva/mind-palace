@@ -2712,3 +2712,29 @@ portable backstop):
   curated store; licence gate default-DENY parked; depends_on bp-028). Index-query EXCLUDED (→ vet);
   math gate deferred. Items 22–30. `proposed→ready` stays owner-by-hand.
 - main == origin == **`d6196cf`**; all pushed; CI attesting. Clean CLEAR boundary.
+
+### 2026-07-13 (cont.) — bp-027 SEALED: the reference_material seed layer lands (first delegated build of the arc)
+
+- **bp-027 COMPLETE** (`003a7d9`, FF-merged to main): the nine web-verified citations from the
+  literature pass now have schema-valid `docs/reference_material/<slug>/{manifest.md,distillation.md}`
+  cards — the curated (objective) stratum's seed set is now **VERIFIED + DISTILLED** (not yet EMBEDDED;
+  every card `not_fetched`, `store_ref: null`, `provenance: agent-proposed`). Moore–Aronszajn stays the
+  resident exemplar (untouched). 18 new files + journal, 590 insertions.
+- **First delegated build off the external-grounding arc** — ran as a supervised **sonnet builder in a
+  worktree** (the economically-correct tier: docs authoring, crisp checker). Pre-flight budget gate
+  passed (week 70%, session 18% at spawn; fable 100%-capped, untouched — sonnet requested, no downgrade
+  risk). Shook out the /build→review→merge flow cleanly.
+- **Supervision verdict:** scope clean (only `docs/reference_material/**` + the bp-027 journal; README +
+  moore-aronszajn untouched); five-leg green gate all-green with argless mypy == **69** (docs-only, no
+  code moved); acceptance script confirmed all v0 keys + states + verdicts (8 CONFIRMED / 1 PARTIAL).
+  All nine distillations verified faithful to `dn-core-query-protocol §2.2/§2.5` line-by-line. One
+  minor non-blocking gloss in the Quillen card (names the obstruction's `d` "the ledger-compression
+  operator"; §2.5's `d` is the cochain differential — reference-facing claim is correct). No findings
+  filed by the builder; none warranted on review.
+- **Seal / economics:** sonnet, **88,998 tokens** (0.89× the 100k estimate — UNDER, first estimate/actual
+  pair of this arc), 86 tool calls, ~18 min. One env wrinkle (worktree venv needed `uv sync --extra dev`;
+  no PyYAML in the project so the builder used a scratchpad nested-YAML reader for the acceptance check —
+  both benign, off the write_scope).
+- **Queue now:** bp-028 (the live driver — opus-class, invariant-adjacent Inv 2/7) and bp-029 (EMBED
+  tail, depends_on bp-028) remain `ready`. Do NOT run concurrently (finding-0069 live-tier RAM). bp-028
+  is a scrutinized `/build` session, not a cheap delegation.
