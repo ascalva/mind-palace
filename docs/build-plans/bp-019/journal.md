@@ -1,5 +1,32 @@
 # bp-019 journal
 
+## 2026-07-12 — Item 6 complete: `AgentSensingHandoff` seam sibling
+
+Appended `AgentSensingHandoff`/`AGENT_OBSERVATIONS` to `core/sensing.py` per §6(c),
+verbatim-mirroring `CodeSensingHandoff`'s shape (own subdir `agent_observations/`, atomic
+emit_batch/collect, consume-and-heal). One import line added at the top (`from
+core.stores.agent_observations import AgentObservation` + the `batch_content_hash`
+alias) — confirmed against the bp-012 precedent commit (`a1df6da`) that this is the
+established shape (import at top + block appended at bottom), not a falsifier violation;
+`git diff core/sensing.py` shows ONLY insertions (0 deletions) — the biometric and code
+contracts are byte-identical.
+
+Wrote the Item 6 transport tests in `tests/unit/test_sensing_transport.py`: emit→collect
+round-trip, consume-by-default + second-collect-empty, uncollected-batch heals on next
+collect (a "crash" simulation via a fresh handoff instance), batch-hash determinism across
+re-emission order, own-subdirectory isolation (never touches the sibling dirs), and the
+named falsifier check (existing `SensingHandoff`/`CodeSensingHandoff` surfaces unchanged,
+three classes structurally distinct — Q1 restated).
+
+Gate: `uv run pytest -q tests/unit/test_sensing_transport.py` → **7 passed**. Also rechecked
+the full sensing-adjacent suite (`test_code_projection.py`, `test_code_sensor.py`,
+`test_reference_extraction.py`, `test_agent_observations.py`,
+`test_sensing_transport.py`) → **42 passed**, confirming the append caused no regression.
+`ruff check core/sensing.py tests/unit/test_sensing_transport.py` clean.
+
+Next: Item 7, `ops/self_sensor.py` (φ_self v1.0.0) + its fixture-repo test suite +
+the interpreter-version ratchet pair.
+
 ## 2026-07-12 — Item 5 complete: `AgentObservationStore`
 
 Wrote `core/stores/agent_observations.py` mirroring `code_observations.py` exactly per

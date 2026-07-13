@@ -55,6 +55,8 @@ from uuid import uuid4
 from config.loader import Config
 from core.provenance import Provenance
 from core.research.criteria import DeidentificationError, clean_term
+from core.stores.agent_observations import AgentObservation
+from core.stores.agent_observations import batch_content_hash as agent_batch_content_hash
 from core.stores.code_observations import CodeObservation, batch_content_hash
 from ops.effects import Effect, EffectView, ReversibilityClass
 
@@ -344,6 +346,67 @@ class CodeSensingHandoff:
             except (OSError, json.JSONDecodeError):
                 continue
             out.extend(CodeObservation.from_dict(d) for d in obj.get("observations", []))
+            if consume:
+                path.unlink(missing_ok=True)
+        return out
+# ── The self-stream sibling seam (bp-019; dn-self-sensing.md §2.2/§2.5) ────────────────────
+# Same seam FAMILY as SensingHandoff and CodeSensingHandoff above — atomic JSON files in a
+# handoff dir, `from_dict` on the way in, hardcoded-OBSERVED rows on the way out, collect-
+# and-consume healing — but its OWN payload type and file pattern: the biometric contract
+# (SensedObservation/observations/) and the code contract (CodeObservation/code_observations/)
+# above are both untouched. Q1 resolution (plan §3, restated): `collect()` is typed to its
+# own payload per handoff, so a THIRD payload type cannot ride either existing handoff
+# without changing its contract; this is the sibling family's third instance, not new
+# infrastructure — a fourth stream re-enters the same way (note §5 rule-of-three).
+
+AGENT_OBSERVATIONS = "agent_observations"
+
+
+@dataclass
+class AgentSensingHandoff:
+    """Core-side handoff for the SELF sensing stream — φ_self's sole path in (§2.2).
+
+    <handoff>/agent_observations/<commit_sha>.json   (ops writes → core collects)
+
+    Deliberately ABSENT, same reasoning as CodeSensingHandoff verbatim: no Effect/
+    EffectView ceiling, no [effectors] gate — no outbound half exists (the repo is a
+    local instrument; nothing crosses toward a carrier). Inbound guarantees identical:
+    payload carries no provenance field, to_row() mints observed with no parameter,
+    ObservedView admits the rows, MirrorView refuses them."""
+
+    handoff: Path
+
+    def __post_init__(self) -> None:
+        self.batches_dir = self.handoff / AGENT_OBSERVATIONS
+        self.batches_dir.mkdir(parents=True, exist_ok=True)
+
+    def emit_batch(self, commit_sha: str, observations: list[AgentObservation]) -> str:
+        """Write one commit's projection batch to the handoff (atomic — the collector never
+        reads a partial batch). Returns the batch CONTENT hash: the `project_agent_observations`
+        attestation's output hash (plan §6(d)), deterministic per §2.2 so re-projection of the
+        same commit re-derives the same address."""
+        content = agent_batch_content_hash(observations)
+        payload: dict[str, Any] = {
+            "commit_sha": commit_sha,
+            "batch_hash": content,
+            "ts": _utcnow(),
+            "observations": [o.to_dict() for o in observations],
+        }
+        _atomic_write_json(self.batches_dir / f"{commit_sha}.json", payload)
+        return content
+
+    def collect(self, *, consume: bool = True) -> list[AgentObservation]:
+        """Read every available batch (and by default consume the files) — rescan-style: a
+        batch emitted but never collected (a crash between emit and store) heals on the next
+        sync's collect. The returned objects are observed-tier by construction; their only
+        typed container is `ObservedView`, and a mirror path refuses them (tested)."""
+        out: list[AgentObservation] = []
+        for path in sorted(self.batches_dir.glob("*.json")):
+            try:
+                obj = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            out.extend(AgentObservation.from_dict(d) for d in obj.get("observations", []))
             if consume:
                 path.unlink(missing_ok=True)
         return out
