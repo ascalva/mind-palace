@@ -79,29 +79,39 @@ def test_reference_edges_never_reach_the_balance_math(tmp_path):
     lam0, tris0, curv0, cl0 = measure()
 
     # POPULATE the Lane-1 reference-edge store with REAL edges over the SAME authored nodes —
-    # both directions, every validated ref_type — using the store's real mint/add_batch API.
+    # all three directions (bp-026 v2 adds corpus_to_corpus), every validated ref_type —
+    # using the store's real mint/add_batch API (v2 symmetric endpoints, bp-026 Item 18/19).
     # The corpus endpoint IS a node digest of the complex; if the store were reachable, THESE
     # rows over THESE nodes would be exactly what moves an instrument.
     ref_store = ReferenceEdgeStore(tmp_path / "reference_edges.sqlite")
     planted = [
-        ReferenceEdge.mint(direction="code_to_corpus", ref_type="note-citation",
-                           commit_sha="c0ffee", code_path="core/recursion.py",
-                           qualname="apply_operations", corpus_ref="p0", source_line=12),
-        ReferenceEdge.mint(direction="code_to_corpus", ref_type="path-mention",
-                           commit_sha="c0ffee", code_path="core/mirror.py",
-                           qualname="MirrorView.project", corpus_ref="s0", source_line=7),
-        ReferenceEdge.mint(direction="corpus_to_code", ref_type="path-mention",
-                           commit_sha="c0ffee", code_path="core/complex/build.py",
-                           corpus_ref="p1", source_line=3),
-        ReferenceEdge.mint(direction="corpus_to_code", ref_type="path-mention",
-                           commit_sha="c0ffee", code_path="core/complex/balance.py",
-                           corpus_ref="s3", source_line=41),
+        ReferenceEdge.mint(source_kind="code", source_ref="core/recursion.py",
+                           source_detail="apply_operations", target_kind="corpus",
+                           target_ref="p0", ref_type="note-citation",
+                           commit_sha="c0ffee", source_line=12),
+        ReferenceEdge.mint(source_kind="code", source_ref="core/mirror.py",
+                           source_detail="MirrorView.project", target_kind="corpus",
+                           target_ref="s0", ref_type="path-mention",
+                           commit_sha="c0ffee", source_line=7),
+        ReferenceEdge.mint(source_kind="corpus", source_ref="p1", target_kind="code",
+                           target_ref="core/complex/build.py", ref_type="path-mention",
+                           commit_sha="c0ffee", source_line=3),
+        ReferenceEdge.mint(source_kind="corpus", source_ref="s3", target_kind="code",
+                           target_ref="core/complex/balance.py", ref_type="path-mention",
+                           commit_sha="c0ffee", source_line=41),
+        # bp-026: corpus_to_corpus — a doc→doc edge over two authored nodes of the SAME
+        # complex, the direction v1 had no way to represent at all.
+        ReferenceEdge.mint(source_kind="corpus", source_ref="p2", target_kind="corpus",
+                           target_ref="s1", ref_type="design-ref",
+                           commit_sha="c0ffee", source_line=1),
     ]
     added = ref_store.add_batch(planted)
     # The store REALLY has rows — mirrors test_edge_partition.py's `versions.count() == 1`.
     assert added == len(planted)
     assert ref_store.count() == len(planted)
-    assert {e.corpus_ref for e in ref_store.all()} <= set(node_digests)
+    corpus_refs = {e.source_ref for e in ref_store.all() if e.source_kind == "corpus"} | \
+        {e.target_ref for e in ref_store.all() if e.target_kind == "corpus"}
+    assert corpus_refs <= set(node_digests)
 
     lam1, tris1, curv1, cl1 = measure()
 
