@@ -1,5 +1,61 @@
 # bp-019 journal
 
+## 2026-07-12 — GATE GREEN, session end (builder → orchestrator handoff)
+
+Full gate swept, all five legs green:
+- `uv run ruff check .` → All checks passed.
+- `uv run mypy core agents eval ops scheduler scripts` → Success: no issues found in
+  173 source files.
+- `uv run mypy` (argless) → tail `Found 69 errors in 20 files (checked 344 source files)`
+  — the pinned baseline, UNCHANGED by this plan's new tests.
+- `uv run python -m ops.type_gate` → Tier-2 membership OK; bare-ignore scan OK.
+- `uv run pytest -q` (full suite) → **954 passed, 8 skipped, 0 failed** (479.27s). No
+  live-e2e flake re-run needed — clean on the first pass; the 8 skips are pre-existing
+  conditional skips (marker-gated, e.g. live/podman axes), not new.
+
+Falsifier evidence (independently re-verified directly against the built modules, beyond
+the pytest suite, per the contract):
+- **No-provenance-parameter sweep**: 15 public surfaces across
+  `core.stores.agent_observations` (module functions + `AgentObservation`/
+  `AgentObservationStore` methods) inspected via `inspect.signature` — zero accept
+  `provenance`/`provenances_write`/`tier`/`label`. Same check on `AgentSensingHandoff.
+  emit_batch`/`collect` — clean.
+- **B-b idempotence falsifier**: a real fixture repo (`bp-999`, create+seal in one commit)
+  synced twice — first sync landed 2 rows, second sync changed NOTHING (0 new rows, row
+  count held at 2). Holds.
+- **§2.6 safety-line proof**: `ops/self_sensor.py`'s only external-process calls are
+  `subprocess.run(["git", ...])` (AST-verified: every `subprocess.run` call's argv[0] is
+  the literal string `"git"`); no `open()`/network-module import anywhere in the file
+  (`test_sensor_reads_only_git_and_config_paths`, AST-based, not substring-matched against
+  prose). The sensor's only inputs are git subprocess output + config paths — no
+  transcript/prompt access anywhere, structurally.
+
+Two findings filed and resolved in-session (both spec-fidelity, builder-resolved per the
+routing rule, both flagged for orchestrator awareness):
+- **finding-0057**: `core/stores/observation_history.py`'s `IDENTITY_KEYS` dict lacks the
+  `"agent"` entry its own comments anticipate — bp-019's write_scope never granted that
+  file. Resolved via an in-test monkeypatch registration (exercises the real
+  `archive()`/`chain()` code paths); recommend a tiny follow-up one-line grant before
+  bp-020's backfill depends on it for real.
+- **finding-0058**: plan §6(e)'s pinned `rev-list`/`diff-tree` command text omitted
+  `--first-parent` (rev-list) and `--root` (diff-tree), contradicting the plan's own §3
+  risk-analysis prose and root-commit requirement — both verified empirically against
+  throwaway fixture repos and fixed in `ops/self_sensor.py` with inline documentation.
+
+All four items (5, 6, 7, 8) complete, in commit order: `f6b94ba` (Item 5,
+AgentObservationStore), `c0322e1` (Item 6, AgentSensingHandoff), `4ec7b9b` (Item 7,
+self_sensor.py), `e48c56e` (Item 8, wiring). Plan status left `in-progress` for the
+orchestrator to scrutinize, merge, and seal — not touched further by this session.
+
+Non-goals honored: no consumer reads `ObservedView` here; only the `cost` stream is
+projected; the live backfill over real history is untouched (bp-020's, deliberately); no
+transcript parsing anywhere; `MIRROR_READABLE`/the mirror/the dreamer untouched (confirmed
+by `git diff --stat` since baseline — no file outside write_scope was touched, and
+`core/stores/observation_history.py`/`core/mirror.py` were read-only throughout).
+
+Session ends here at this unit boundary (all §7 items closed, gate green) — a fresh
+resume, if needed, has everything above plus the plan + write-scope files.
+
 ## 2026-07-12 — Item 8 complete: wiring (hook line, driver script, reset entry)
 
 Wrote `scripts/sense_self.py` mirroring `scripts/snapshot_code.py` exactly: prints
