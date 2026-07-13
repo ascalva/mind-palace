@@ -1,3 +1,26 @@
+# [1.5.0](https://github.com/ascalva/Mind-Palace/compare/v1.4.0...v1.5.0) (2026-07-13)
+
+
+### Bug Fixes
+
+* **bp-019:** implement the §6(f) warning path — unparseable non-null cost warns ([6fc4e26](https://github.com/ascalva/Mind-Palace/commit/6fc4e264c2815eb1779104728038fa909c733be3))
+* **core:** register the agent identity key in the observation-history sidecar ([6b4daa6](https://github.com/ascalva/Mind-Palace/commit/6b4daa614d0c1d8ab27d702fa2e37da3a95e6c54))
+
+
+### Features
+
+* **bp-019:** AgentObservationStore — the OBSERVED-only agent-observation stratum ([f6b94ba](https://github.com/ascalva/Mind-Palace/commit/f6b94ba98f7c32ba82ba546f2178c023595b1379))
+* **bp-019:** AgentSensingHandoff — the sensing seam's third sibling ([c0322e1](https://github.com/ascalva/Mind-Palace/commit/c0322e16f37b8941c4b12f270d9ea3a1c728b9d2))
+* **bp-019:** phi_self v1.0.0 — the cost-stream projector (ops/self_sensor.py) ([4ec7b9b](https://github.com/ascalva/Mind-Palace/commit/4ec7b9b284a2da96aee2c1ac4ff78e4b3a8f3831))
+* **bp-019:** wire the self sensor — hook line, driver script, reset entry ([e48c56e](https://github.com/ascalva/Mind-Palace/commit/e48c56e81203c8193b3082ed261a3ef245c88876))
+* **config:** add thread_min_persistence (bp-022 Item 4) ([d513d76](https://github.com/ascalva/Mind-Palace/commit/d513d769d53038989e144379161db44f56e8e09a))
+* **core:** add the observation-history sidecar, ledger-class and append-only ([e4bf8a6](https://github.com/ascalva/Mind-Palace/commit/e4bf8a67b0fb63f7988411c9f6eb4deab0f0a555))
+* **core:** version-key the code-observation store; archive-then-replace ([33d4dc9](https://github.com/ascalva/Mind-Palace/commit/33d4dc96515a868843fc1a60857612463eb0b57e))
+* **dreaming:** the THREAD lens — harmonic H1 flow (bp-022 Item 5) ([d0fedc0](https://github.com/ascalva/Mind-Palace/commit/d0fedc06416aa1fdf7259d081fecabad3b78175e))
+* **ops:** declare phi_code's interpreter version + the source-hash ratchet ([f8a2f95](https://github.com/ascalva/Mind-Palace/commit/f8a2f95f31f09bb32ef2d17dc4c2a9403f011029))
+* **ops:** wire the interpreter version end-to-end; guard the history sidecar ([f087695](https://github.com/ascalva/Mind-Palace/commit/f0876959ec82ff39df4d58825b2d875531b8fe71))
+* **temporal:** degree-1 invariants in structural snapshots (bp-022 Item 6) ([833172c](https://github.com/ascalva/Mind-Palace/commit/833172c2745af1f6bb7b1ddb331f4fea12e0010b))
+
 # [1.4.0](https://github.com/ascalva/Mind-Palace/compare/v1.3.0...v1.4.0) (2026-07-12)
 
 
