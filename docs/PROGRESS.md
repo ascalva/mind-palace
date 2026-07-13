@@ -2462,3 +2462,32 @@ sweep), /scribe offer (book debt: seven ratified notes).
 - **Usage (the ledger's eighth pair): sonnet, 236,576 tok / 210 calls / ~34 min = 0.68×**
   (incl. the scrutiny-addendum resume — the first measured resume-a-builder cycle).
 - **Next:** bp-022 gate finishing → merge + final combined gate + seal; then bp-020 (last).
+
+## 2026-07-12 — bp-022 SEALED: the threads are narratable — Lane A COMPLETE; wave closed with a combined-tree gate
+
+- **Built (sonnet builder; died at the usage limit mid-gate with all items complete —
+  orchestrator recovery per the bp-016 precedent):** the `THREAD` lens joins
+  `STRUCTURAL_INTERPRETERS` (harmonic H₁ flow over bp-021's Hodge decomposition; honest seam
+  FIRST — β₁=0 short-circuits before hole pairing; support ⊆ witness by construction;
+  gap-family, never contradiction — pinned by test); `StructuralSnapshot` gains the two
+  degree-1 exact invariants (`dim_ker_l1`, `harmonic_persistence_total`) additive/
+  degrade-to-None with a DuckDB on-open heal; `structural_axes()` byte-identical (the consumed
+  drift contract — pinned by test); config purely additive (`thread_min_persistence`).
+- **Verified:** worktree gate green (926/0, argless 69, zero flakes uncontended); scrutiny
+  PASS (no findings); merged `723fb33`; **combined-tree gate on main (018+019+021+022
+  together): 970 passed + the 0046 flake re-run green isolated (117 s), argless 69** —
+  the wave's last full suite. Witness-attested: bp-019 `b1040a4` run 29220719660 GREEN,
+  bp-022 `723fb33` run 29220917823 GREEN. (Witness lesson: short shas silently match
+  nothing on the head_sha query — burned one grace window; hardening on the triage agenda.)
+- **finding-0057 CLOSED by owner grant:** the `IDENTITY_KEYS["agent"]` one-liner applied
+  under the oq-0013 capability-grant precedent (`6b4daa6`) — the latent KeyError on a future
+  φ_self bump is gone.
+- **Usage (the ledger's ninth pair): sonnet, 210,223 tok / 155 calls / ~36 min = 0.84×.**
+- **The board:** bp-016..bp-019, bp-021, bp-022 ALL COMPLETE — six seals in one day, two
+  builder deaths recovered with zero work lost, v1.4.0 cut, deploy live-proven. Lane A
+  (edge-dynamics) is DONE: instruments (021) + lens + temporal record (022). Self-sensing
+  is two-thirds done: substrate (018) + third stream (019); **bp-020 (B-c: forecast checks
+  + backfill verification report) is the queue's last plan.**
+- **Next:** bp-020 (sonnet/100k), then the third /triage (agenda: live-flake lock, 0051
+  hook hardening, witness short-sha guard, launcher stale comment, && -chain gate text,
+  0047/0048/0057/0058 sweeps), then /scribe offer (book debt: seven ratified notes).

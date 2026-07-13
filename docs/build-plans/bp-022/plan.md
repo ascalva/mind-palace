@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-022
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/edge-dynamics.md # Lane A §2.3 (lens-contract entry), §3.1 L-b/L-c
 contract: builder
@@ -18,7 +18,7 @@ write_scope:
 session_budget: 1
 cost:
   estimate: { model: sonnet, tokens: 250k } # lens-mold work (tension_claims/hole_interpreter as templates) + additive snapshot fields; crisp tests
-  actual: null
+  actual: { model: sonnet, tokens: 210223, tool_calls: 155, duration_min: 36 } # 0.84x — measured at the builder's last notification before it died at the usage limit mid-gate (items complete); orchestrator recovery not separately metered
 depends_on: [bp-021] # consumes hodge.py's harmonic_basis + the cross-check harness — SATISFIED (bp-021 complete, merged cb953a9, 2026-07-12)
 parallelizable_with: [bp-018, bp-019] # disjoint write_scopes (dreaming/temporal/config vs stores/sensors; only docs/findings/** shared — new files, disjoint ID ranges); bp-018 asserted at spawn, bp-019 at ITS spawn post-bp-018-seal — 2026-07-12, graduation-author's amendments
 created: 2026-07-12
