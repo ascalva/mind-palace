@@ -109,13 +109,16 @@ the tokens it already spent for nothing.
   claim), falsifiers considered, findings filed for anything routed.
 - **"Green locally" means the FULL attestable-green gate, not ruff+pytest** (finding-0038:
   a bp-014 merge passed ruff+pytest locally, then CI's type-gate reddened on a new tests/
-  file). Builder AND orchestrator each run, before declaring green / merging:
+  file). Builder AND orchestrator each run, before declaring green / merging — run each
+  leg SEPARATELY and read its result, do NOT `&&`-chain them:
 
-      uv run ruff check . \
-        && uv run mypy core agents eval ops scheduler scripts \
-        && uv run mypy \
-        && uv run python -m ops.type_gate \
-        && uv run pytest -q
+      uv run ruff check .
+      uv run mypy core agents eval ops scheduler scripts
+      uv run mypy                 # ARGLESS — exits 1 at the tests/-baseline (69);
+                                   # this is why the legs must not be &&-chained (leg 3
+                                   # would short-circuit legs 4-5).
+      uv run python -m ops.type_gate
+      uv run pytest -q
 
   and assert the **argless** `uv run mypy` tail equals the pinned tests/-baseline
   (**69** today — finding-0029's measured footprint; re-pin here when it changes). The

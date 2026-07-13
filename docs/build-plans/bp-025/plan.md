@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-025
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/self-sensing.md # N/A as graduation — wave-debt micro-sweep, no design note (see §0)
 contract: builder
@@ -19,7 +19,7 @@ cost:
 depends_on: []
 parallelizable_with: []
 created: 2026-07-12
-updated: 2026-07-12
+updated: 2026-07-13
 links:
   - docs/findings/finding-0038.md # attestable-green rec 3 (the &&-chain fix's origin)
 re_entry: null
