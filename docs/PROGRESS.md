@@ -2642,3 +2642,49 @@ sweep), /scribe offer (book debt: seven ratified notes).
   (+ the external-grounding literature kind) — GATED to Jul 17 (fable exhausted); finding-0066
   `palace down/up` command; /scribe (book still unscaffolded); the 0065 corpus-scope ruling. An
   optional redeploy aligns the daemon (`344f02c`) with main HEAD; not required.
+
+## 2026-07-13 — EXTERNAL-GROUNDING arc: curated literature layer designed; research airlock reframed; a design note QUEUED
+
+A long owner↔orchestrator design session (post-wave, no build) developed the **external-grounding**
+arc end-to-end and grounded it against existing code. All in `docs/brainstorms/external-grounding.md`
+(9 capsules, 2026-07-13). Durable summary (the resume brief holds the actionable task; this is the
+portable backstop):
+- **The arc.** Ouroboros as a LIVE SELF-INDEX to cut context cost (the origin motivation) → two
+  grounding threads: SymPy verifies the *machinery we choose, not the theory* (a deterministic,
+  sandbox-native, fable-relieving checker), and a CURATED external-literature stratum (a 2nd K₀,
+  objective, provenance-distinct from the mirror; **depth ≠ authority**). Citations are free edges;
+  transitive expansion makes it a graph (γ^d-damped); **ratification is the promotion gate**; the
+  curated layer is cross-strata connective tissue closing an objective **warrant circuit** (authored
+  intuition → dialogue → curated → code).
+- **FABLE-verified formalism (tier-checked `claude-fable-5`):** the γ^d weight generalizes to
+  **`w(d,a,c) = γ^{(d+μc)/a}`** — authority as a decay-RATE not a toll; naive product form is
+  degenerate. Banked verbatim; routes to the Jul-17 vet.
+- **`docs/reference_material/` STOOD UP** (owner design): subdir-per-reference + `manifest.md` (v0
+  schema, README) + distillations; first resident `moore-aronszajn-1950/` LIVE. **Two-plane model:**
+  git holds manifest+distillation (portable); the FULL SOURCE is ingested LOCALLY (embedded in
+  `data/`, never git, never egress) — the pattern-finding substrate. States: asserted→verified→
+  DISTILLED→EMBEDDED.
+- **Literature check (§1.3 item 6 of dn-core-query-protocol) — ✅ DONE, no fable** (sonnet+web, 7
+  CONFIRMED/2 PARTIAL/0 REFUTED). Caught + fixed a substantive misattribution: **Mercer →
+  Moore–Aronszajn (1950)** in §2.2 (corrected inline). First DOGFOOD of verify-before-trust.
+- **REFRAME — build-item-b already exists.** The Phase-8 §16 **research airlock** is a complete,
+  tested, DORMANT external-research subsystem (`core/research/{criteria,airlock,rank}.py` de-id
+  boundary + `cloud/fetcher/{sources,aggregate,handler}.py` OpenAlex/EuropePMC/arXiv + `librarian.
+  research_criteria`). The `edge/` fetch boundary (Inv 2) is already built; sources span medical AND
+  math/CS. The "fresh perspective" is ONE inverted decision: **flip transient→EMBEDDED** (embed into
+  the SEPARATE curated store, keeping "never pollutes the mirror"). Common missing piece: **the live
+  driver** (foreground Ambassador + background scheduler). Reviving the owner's medical-research
+  feature and the design-grounding pipeline is one build.
+- **Fable episode (banked in the delegate skill):** the owner bought extra-usage credits to run the
+  dn-core-query-protocol fable-vet; **fable did NOT route** — 2 `model: fable` spawns both silently
+  downgraded to opus (UI indicator caught it; the agent self-declaration LIED). Fable is a WEEKLY
+  time-throttle, not a spendable balance — no real fable until **Jul 17**. Tier-check discipline
+  corrected: trust the UI indicator + completion `<usage>`, never the agent's self-report.
+- **QUEUED (owner-requested, NO FABLE):** draft the design note **`dn-external-grounding`** that
+  graduates this arc (curated stratum + transient→EMBEDDED flip + two-plane model + ratification gate
+  + live driver + EMBED-tail with the copyright/licence gate + invariant reconciliation + the seam to
+  dn-core-query-protocol). Opus is enough; the `reference`-KIND tagging + `w(d,a,c)` are the only
+  fable-gated bits (deferred to the Jul-17 vet). Full drafting spec + all context pointers are in the
+  resume brief's THEN-QUEUE item 1.
+- main == origin == **`49bf5f9`** at this checkpoint; all pushed; CI attesting. Session was a whale
+  (build wave + this whole arc) — CLEAR recommended.
