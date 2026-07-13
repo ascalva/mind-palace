@@ -1,3 +1,30 @@
+# [1.4.0](https://github.com/ascalva/Mind-Palace/compare/v1.3.0...v1.4.0) (2026-07-12)
+
+
+### Bug Fixes
+
+* **hooks:** strip trailing inline comment on a quoted write_scope entry ([3c166d6](https://github.com/ascalva/Mind-Palace/commit/3c166d6a29d704b46ed8852629abd426271701a1)), closes [ready#x](https://github.com/ready/issues/x)
+* **hooks:** worktree-aware ROOT so enforcement reads the worktree's own active-plan ([65825e7](https://github.com/ascalva/Mind-Palace/commit/65825e7874efe227e41a73db940d5aec96fe2764))
+* **mkdocs:** re-point site_url/repo_url to the GitHub Pages host ([de4e6cd](https://github.com/ascalva/Mind-Palace/commit/de4e6cd3e7450ea7dbdbc18e617d45031cdcdd4d)), closes [#4](https://github.com/ascalva/Mind-Palace/issues/4)
+* **pages:** add setup-uv step — uvx absent on hosted runners; first live run red at build ([1528ffd](https://github.com/ascalva/Mind-Palace/commit/1528ffd10bb51343370a12be5643a3c877882c63))
+* **release:** node 24 on the release runner — semantic-release 25 needs >=22.14 ([c82b53e](https://github.com/ascalva/Mind-Palace/commit/c82b53e36d0ed11f3a9977cab91b5eab66e408ce))
+* **tests:** type-arg CompletedProcess[str] to hold the mypy exact-69 baseline (bp-014 CI red) ([d23e0d6](https://github.com/ascalva/Mind-Palace/commit/d23e0d689fc2f12421a6287600e8eb53dc61785b))
+
+
+### Features
+
+* **bp-011:** V4 reference inventory probe — code<->corpus reference edges ([69dbb9c](https://github.com/ascalva/Mind-Palace/commit/69dbb9c7896d55927e6486397c6950640b2595f2))
+* **core:** code-observation store — OBSERVED-only, identity-keyed, mint-disciplined (bp-012 Item 3) ([0a9b37e](https://github.com/ascalva/Mind-Palace/commit/0a9b37eb3b74052bdbdab268e644ea57988f545b))
+* **hodge:** add core/complex/hodge.py — the Hodge 1-Laplacian family ([556a09a](https://github.com/ascalva/Mind-Palace/commit/556a09a449f91bb0c0fea8607972de7479eb586a))
+* **hooks:** auto-surface resume-brief at the top of the session brief ([06c1aa1](https://github.com/ascalva/Mind-Palace/commit/06c1aa1402d2f9d18fb0668c97fad5497fa1b1e7))
+* **ops:** code-observation store joins reset_targets — corpus-side wipe (bp-012 Item 4) ([f966078](https://github.com/ascalva/Mind-Palace/commit/f9660781518b51cd325b171a0aa2c4fcd917c836))
+* **ops:** docstring column on the code-snapshot ledger (bp-011 Item 1, B-a) ([6a897cb](https://github.com/ascalva/Mind-Palace/commit/6a897cb2a9782d592f789fc05fdb9caf2e68cada))
+* **ops:** register reference_edges.sqlite as a corpus-layer reset target (bp-013 Q4) ([11ffc01](https://github.com/ascalva/Mind-Palace/commit/11ffc01f8e2c312e4ea13f31cd701716692eca2f))
+* **ops:** sync() projects phi_code — the observed stratum gains code observations (bp-012 Item 5) ([a1df6da](https://github.com/ascalva/Mind-Palace/commit/a1df6da8501875dafaa234484a8c2d67282a8d16))
+* **ops:** type_gate.py — Tier-2 membership + bare-ignore scans (bp-008 Item 8) ([7ccf401](https://github.com/ascalva/Mind-Palace/commit/7ccf401567f01fd5496c01a43e10d22c621185ec))
+* **sensor:** Lane-1 reference extraction at projection time (bp-013 Item 7) ([e20bb09](https://github.com/ascalva/Mind-Palace/commit/e20bb09994eddd5bd64d5b71db100868354105b3))
+* **stores:** Lane-1 reference-edge store — cross-stratum, balance-isolated (bp-013 Item 6) ([201d61d](https://github.com/ascalva/Mind-Palace/commit/201d61d1f6b374c31c0b9fe92a1021f137ebf691))
+
 # [1.3.0](https://gitlab.com/ascalva-projects/mind-palace/compare/v1.2.0...v1.3.0) (2026-07-11)
 
 

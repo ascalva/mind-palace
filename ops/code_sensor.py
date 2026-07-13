@@ -8,7 +8,9 @@ and nothing else: no model, no embedder, no vector
 corpus, no network. It is the
 same species as the vault watcher (`core/ingest/sync.py`), the deterministic-ingest agent
 pattern, and deliberately NOT a factory-minted role: `PRE_DECLARED_MAX` holds no git or
-store handle (§10), so instrument agents are wired by `build_*`, never minted.
+store handle (§10), so instrument agents are wired by `build_*`, never minted. (bp-018
+adds a seventh handle: the observation-history sidecar, so a bumped INTERPRETER_VERSION
+can archive superseded generations instead of dropping them.)
 
 Sensor framing (docs/brainstorms/code-as-sensor-stream.md): the repo is an instrument, the
 commit stream is sensed data, `ops/code_snapshot.py` is the interpreter φ_code, the ledger
@@ -44,6 +46,7 @@ from config.loader import Config
 from core.attestation import Attestor
 from core.sensing import CodeSensingHandoff
 from core.stores.code_observations import CodeObservation, CodeObservationStore
+from core.stores.observation_history import ObservationHistoryStore
 from core.stores.reference_edges import ReferenceEdge, ReferenceEdgeStore
 from ops.code_snapshot import (
     FileShape,
@@ -53,6 +56,10 @@ from ops.code_snapshot import (
     open_snapshot_db,
     snapshot_commit,
 )
+
+INTERPRETER_VERSION = "1.0.0"   # φ_code's worldview coordinate (dn-self-sensing §2.4).
+# Bump ⇒ re-projection supersedes (run backfill_observations()); an unbumped source
+# change is a RED ratchet test (tests/unit/test_interpreter_versions.py), never silent.
 
 # ── Lane-1 reference extraction (B-c, bp-013 Item 7) — bp-011's VALIDATED patterns ONLY ──
 # The V4 inventory (docs/build-plans/bp-011/inventory.json, `ranked_patterns_for_bp013`)
@@ -139,6 +146,11 @@ class CodeSensor:
     # handle is the SENSOR's, never build_complex's — the balance math cannot reach it
     # (core/stores/reference_edges.py docstring; the isolation test pins it).
     reference_edges: ReferenceEdgeStore | None = None
+    # The bp-018 worldview-history handle: where a superseded generation lands when a
+    # bumped INTERPRETER_VERSION re-projects (archive-then-replace, dn-self-sensing
+    # §2.4/§2.5 — ledger-class, reset-guarded). None = a superseding write RAISES in the
+    # store (MissingHistoryError) rather than silently dropping a generation.
+    history: ObservationHistoryStore | None = None
 
     def sync(self) -> CodeSyncReport:
         """Reconcile the ledger against the ingestion branch; snapshot + attest what's missing."""
@@ -204,13 +216,15 @@ class CodeSensor:
         attestation), and collect() drains any batch a prior crash left in the handoff.
         Returns (NEW observation rows, NEW reference edges)."""
         assert self.observations is not None and self.obs_handoff is not None
-        if self.observations.is_projected(sha):
+        if self.observations.is_projected(sha, INTERPRETER_VERSION):
             return 0, 0
         batch = self._observations_for(sha)
         content = self.obs_handoff.emit_batch(sha, batch)
-        added = self.observations.add_batch(self.obs_handoff.collect())
+        added, _ = self.observations.add_batch(self.obs_handoff.collect(),
+                                               interpreter=INTERPRETER_VERSION,
+                                               history=self.history)
         edges = self._mint_reference_edges(sha, batch)
-        self.observations.mark_projected(sha, content)
+        self.observations.mark_projected(sha, content, INTERPRETER_VERSION)
         if self.attestor is not None:
             # inputs=[commit sha], outputs=[batch content hash] (plan Q5). derived_from is
             # auto-linked by the attestor via producers_of: the ingest_commit attestation
@@ -263,16 +277,20 @@ class CodeSensor:
         return edges
 
     def backfill_observations(self) -> int:
-        """Project every ledger commit not yet projected — the HISTORY backfill (note
-        PD-d). Available, deliberately NOT called by sync(): running it over the full
-        ledger is the plan §11 parked decision (re-entry: one-batch timing journaled +
-        owner nod). Idempotent via the projections table; returns commits projected."""
+        """Project every ledger commit not yet projected UNDER THE CURRENT
+        INTERPRETER_VERSION — the HISTORY backfill (note PD-d) and, since bp-018, the
+        deliberate RE-PROJECTION entry point (plan Q5): a version bump makes every
+        commit eligible again, and re-projecting supersedes (old generations archived
+        to `history`). Available, deliberately NOT called by sync(): running it over
+        the full ledger is the plan §11 parked decision (re-entry: one-batch timing
+        journaled + owner nod). Idempotent per (sha, version) via the projections
+        table; returns commits projected."""
         if self.observations is None or self.obs_handoff is None:
             return 0
         done = 0
         for (sha,) in self.db.execute(
                 "SELECT commit_sha FROM snapshots ORDER BY committed_at, commit_sha"):
-            if not self.observations.is_projected(sha):
+            if not self.observations.is_projected(sha, INTERPRETER_VERSION):
                 self._project(sha)
                 done += 1
         return done
@@ -285,6 +303,7 @@ def build_code_sensor(config: Config | None = None) -> CodeSensor:
     from core.stores.code_observations import open_code_observation_store
 
     cfg = config or get_config()
+    from core.stores.observation_history import open_observation_history_store
     from core.stores.reference_edges import open_reference_edge_store
 
     return CodeSensor(
@@ -294,4 +313,5 @@ def build_code_sensor(config: Config | None = None) -> CodeSensor:
         observations=open_code_observation_store(cfg),
         obs_handoff=CodeSensingHandoff(handoff=cfg.paths.data_dir / "code_sensing_handoff"),
         reference_edges=open_reference_edge_store(cfg),
+        history=open_observation_history_store(cfg),
     )

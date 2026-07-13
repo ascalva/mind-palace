@@ -112,3 +112,70 @@ def test_agent_without_attestor_still_ingests(repo, tmp_path):
         "SELECT commit_sha, qualname FROM symbols ORDER BY commit_sha, qualname").fetchall()
     assert len(rows) == 3                       # commit1: a — commit2: a AND b (rows per commit)
     assert {q for _, q in rows} == {"a", "b"}
+
+
+# --- bp-018 Item 4: the interpreter version is live end-to-end --------------------------------
+def test_version_bump_makes_backfill_reproject_and_archive(repo, tmp_path, monkeypatch):
+    """The Item 4 falsifier, inverted: after a version bump, `backfill_observations()`
+    re-projects EVERY ledger commit (the version key is live through is_projected →
+    add_batch → mark_projected), old generations land in the history sidecar, and
+    `sync()` still projects only newly-ingested commits (re-projection stays
+    deliberate — plan Q5, the §11 parked decision unchanged)."""
+    from core.sensing import CodeSensingHandoff
+    from core.stores.code_observations import CodeObservationStore
+    from core.stores.observation_history import ObservationHistoryStore
+
+    obs = CodeObservationStore(tmp_path / "code_observations.sqlite")
+    hist = ObservationHistoryStore(tmp_path / "observation_history.sqlite")
+    sensor = CodeSensor(repo=repo, db=open_snapshot_db(tmp_path / "s.sqlite"), attestor=None,
+                        observations=obs,
+                        obs_handoff=CodeSensingHandoff(handoff=tmp_path / "handoff"),
+                        history=hist)
+    assert sensor.sync().projected == 2
+    rows_v1 = obs.count()
+    assert rows_v1 == 6                     # c1: a.py module+a — c2: a.py module+a, b.py module+b
+    shas = _git(repo, "rev-list", "--reverse", "main").splitlines()
+
+    monkeypatch.setattr("ops.code_sensor.INTERPRETER_VERSION", "2.0.0")
+    assert sensor.sync().projected == 0     # invariant: sync projects newly-ingested ONLY (Q5)
+    assert sensor.backfill_observations() == 2   # the deliberate act: ALL commits eligible again
+    assert obs.count() == rows_v1                # latest-per-identity: replaced, never doubled
+    assert {r["interpreter"] for r in obs.all_rows()} == {"2.0.0"}
+    assert hist.count("code") == rows_v1         # every superseded generation archived
+    for sha in shas:
+        assert obs.is_projected(sha, "2.0.0")    # projected counts it, version-keyed
+        assert obs.is_projected(sha, "1.0.0")    # the old worldview's mark is history, not erased
+    chain = obs.chain_for(shas[0], "a.py", "a", history=hist)
+    assert [g["interpreter"] for g in chain] == ["1.0.0", "2.0.0"]   # the §2.4 queryable chain
+    assert sensor.backfill_observations() == 0   # idempotent at the new version
+
+
+def test_reset_wipes_readings_but_refuses_the_worldview_history(tmp_path):
+    """Pins §6(f): `reset_targets()` still lists the readings store (corpus-side, wiped,
+    rebuilt by re-projection) and the history sidecar is NOT a target — it sits in
+    `_RESET_GUARD`, where the launcher's target assertion refuses it outright."""
+    from typing import cast
+
+    from config.loader import Config
+    from ops.lifecycle.launcher import _RESET_GUARD, Launcher
+    from ops.lifecycle.runs import RunLedger
+
+    class _Paths:
+        def __init__(self, d: Path) -> None:
+            self.data_dir = d
+            self.raw_store = d / "raw.sqlite"
+            self.vector_store = d / "vectors.lance"
+            self.vault_catalog = d / "vault_catalog.sqlite"
+            self.derived_store = d / "derived.sqlite"
+            self.attestation_store = d / "attestations.sqlite"
+
+    class _Cfg:
+        def __init__(self, d: Path) -> None:
+            self.paths = _Paths(d)
+
+    launcher = Launcher(cfg=cast(Config, _Cfg(tmp_path / "data")),
+                        runs=cast(RunLedger, None), repo_root=tmp_path)
+    names = {t.name for t in launcher.reset_targets()}
+    assert "code_observations.sqlite" in names           # readings: corpus-side, wiped
+    assert "observation_history.sqlite" not in names     # the worldview ledger is NOT a target…
+    assert "observation_history.sqlite" in _RESET_GUARD  # …and the guard refuses it structurally

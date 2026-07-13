@@ -30,7 +30,10 @@ jobs:
       - uses: pnpm/action-setup@v6 # reads the packageManager field (pnpm 9.15.0)
       - uses: actions/setup-node@v6
         with:
-          node-version: 20 # package.json engines floor
+          # semantic-release 25 requires node ^22.14 || >=24.10 — the package.json engines
+          # floor (>=20) is NOT sufficient for the runner; the first live dispatch failed
+          # at node 20 (run 29213279927, 2026-07-12). Local dry-runs passed on node 26.
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: semantic-release
