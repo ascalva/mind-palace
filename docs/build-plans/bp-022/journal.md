@@ -283,3 +283,9 @@ Recovery per the bp-016 precedent: the orchestrator completes the tail in this w
 **Next action:** on gate green — merge to main (sequenced after bp-019's warnings-fix
 addendum lands or independently, one merge at a time), push, witness `check`, seal
 (cost.actual: sonnet ~210,223 tok / 155 calls / ~36 min = 0.84× of 250k).
+
+**Gate CLOSED (orchestrator, 2026-07-12):** full five-part gate on this worktree
+post-main-merge: ruff clean · mypy scoped clean (170 files) · **argless mypy = 69 =
+baseline** (340 files) · type_gate OK · pytest **926 passed / 8 skipped / 0 failed**
+(611 s, uncontended — zero flakes). Folding main again (bp-019 + its seal landed
+mid-gate; disjoint scopes), then merging to main; final combined-tree gate runs on main.
