@@ -487,3 +487,83 @@ references:
   - bp-026 / reference_edges v2 (~188k edges, per-commit projection) — the index substrate, live now.
   - dn-core-query-protocol (drafted) — the query algebra over the index; agents as scoped clients.
 ```
+
+## 2026-07-13T18:16:15Z (captured — FABLE reasoning, tier-verified)
+
+```capsule
+topic: external-grounding
+date: 2026-07-13
+thread: THE WEIGHT FORMALISM — γ^d generalized to w(d,a,c) once authority + citation-distance decouple from depth
+
+provenance:
+  - FABLE PASS, tier-VERIFIED: model `claude-fable-5` (line-1 self-declaration + completion-
+    notification cross-check: claude-fable-5, 15,600 tok, 0 tool calls, ~97s — plausible fable
+    profile, no downgrade). Spent the last ~1% of the pre-Jul-17 fable budget on ONE bounded
+    question. Banked verbatim; routes into the dn-core-query-protocol fable-vet as the weighting
+    successor. Claim labels are fable's own ([GROUNDED]/[DERIVED]/[INFERENCE]/[ANALOGY]).
+  - Question posed: minimal coherent generalization of the γ^d depth-discount to a combined weight
+    over (derivation-depth d, authority a, citation-distance c) s.t. (a) reduces to γ^d at fixed
+    reference authority; (b) a K₀ high-authority literature node can dominate a deep low-authority
+    dialogue node; (c) citation-distance composes with depth.
+
+the_form:
+  - w(d, a, c) = γ^{(d + μc)/a}
+      * a ∈ (0, ∞), reference a_ref = 1 (the authored bedrock); a>1 = vetted/high-authority
+        (literature), a<1 = dubious. UNBOUNDED ABOVE is load-bearing (see failure 1).
+      * μ > 0 = the citation-to-depth EXCHANGE RATE (one cite-hop ≡ μ derivation steps; μ = log_γ δ
+        if a separate citation base δ is preferred; μ = 1 if one hop ≡ one derivation step).
+      * log-space: log w = −λ(d + μc)/a, with λ = −ln γ > 0.
+  - THE CRUX (why the naive form is wrong): authority a enters as an EXPONENT MODIFIER — an
+    ATTENUATION LENGTH that scales the decay RATE — NOT as a multiplier / log-shift (which is a
+    one-time "toll"). Semantic justification [INFERENCE by fable]: authority is a claim about how
+    well a source's content SURVIVES DERIVATION, so it must act PER-STEP; its influence on ranking
+    therefore GROWS with distance. A multiplier is a constant log-offset whose relative effect is
+    distance-invariant — semantically wrong.
+
+axioms (fable, [DERIVED] unless noted):
+  - A1 BACKWARD COMPAT: w(d, 1, 0) = γ^d.  Check: γ^{(d+0)/1} = γ^d. ✓
+  - A2 DOMINANCE / SINGLE-CROSSING: w strictly ↓ in d and c, strictly ↑ in a (for d+μc>0); and for
+    a₁>a₂ the ratio w(·,a₁)/w(·,a₂) = γ^{−D·Δ} (D = d+μc, Δ = 1/a₂−1/a₁ > 0) strictly INCREASES in
+    D — "authority matters MORE the deeper you go." ✓
+      * PRECISE CONDITION FOR (b): a K₀ literature node at citation-distance c dominates a depth-d,
+        authority-a_dlg dialogue node IFF  μc/a_lit < d/a_dlg,  i.e.  a_lit/a_dlg > μc/d
+        (UNCONDITIONAL when c = 0, since w = 1 > γ^{d/a_dlg}). This is the exact form of "authority
+        can outrank shallow depth" the whole arc gestured at.
+  - A3 COMPOSITION (semigroup on effective distance D = d+μc): w(D₁+D₂, a) = w(D₁,a)·w(D₂,a).
+    Check: γ^{(D₁+D₂)/a} = γ^{D₁/a}·γ^{D₂/a}. ✓  Citation hops and derivation steps CONCATENATE
+    ADDITIVELY as path lengths — a source c hops out is discounted exactly as if μc levels deeper.
+  - COROLLARY (deliberate): at D = 0, w = 1 for ALL a — authority governs PROPAGATION, not the
+    intrinsic presence of un-derived material. Nodes tie at the origin, diverge with distance. (If
+    origin-discrimination is later wanted, add a bounded prior π(a); not minimal — omitted.) [INFERENCE]
+
+failure_mode_of_naive_product (w = γ^d · a · δ^c — why the obvious form is degenerate):
+  1. A1 forces a_ref = 1 = the CEILING of [0,1], so the authored bedrock pins to max authority; a
+     peer-vetted theorem (a ≤ 1) can at best TIE a raw shower-note at equal depth — requirement (b)
+     "dominate" is structurally UNREACHABLE; the authority axis degenerates to a pure penalty knob.
+  2. TOLL not RATE: a is a constant log-offset — the depth it buys back is capped forever at
+     ln a/ln γ; the authority ratio between two nodes is DEPTH-INVARIANT; a vetted theorem's 3rd-hop
+     citation decays exactly as fast as gossip's. Worse, as d grows the absolute separation
+     a·γ^d − γ^d → 0 exponentially, so deep strata lose ALL authority resolution under any floor /
+     quantization.
+  3. HARD ZERO from a soft axis: a = 0 annihilates a node outright, even un-derived bedrock.
+  - The RATE form repairs each: reference 1 sits mid-scale so literature genuinely outranks (fix 1);
+    authority scales the exponent so its effect COMPOUNDS with distance and never washes out (fix 2,
+    via A2 single-crossing); a→0⁺ gives infinite decay of DERIVATIVES while the un-derived node
+    itself stays at weight 1 — no bedrock annihilation (fix 3).
+
+open_questions_for_the_vet (fable pass was math-only; these need the full vet + owner):
+  - How is authority a ESTIMATED per node/kind? (peer-review status, citation in-degree, source
+    tier, owner ranking?) The form assumes a is given; sourcing it is the empirical half.
+  - Is μ (cite-hop ≡ derivation-step exchange rate) a global constant, per-domain, or learned?
+  - Does the "tie at origin" corollary match intent, or is a bounded authority prior π(a) at D=0
+    actually wanted (so a vetted K₀ theorem outweighs a raw K₀ note even before any derivation)?
+  - Empirical calibration of γ, μ against real retrieval quality on the live v2 index.
+
+connections:
+  - finding-0068 (γ^d derivation gradient): THIS is its formal successor — generalizes the single-
+    axis depth discount to the (depth, authority, citation-distance) weight the curated strata forces.
+  - The core-query-protocol math successor note (deferred, edge-dynamics Lane B feed): w(d,a,c) is a
+    candidate object for it.
+  - Supersedes the loose "depth × authority × relevance × citation-distance" product gestured at in
+    the earlier capsules — fable shows the PRODUCT is the naive/degenerate form; the RATE form is right.
+```
