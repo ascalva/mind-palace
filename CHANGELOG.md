@@ -1,3 +1,15 @@
+# [1.6.0](https://github.com/ascalva/Mind-Palace/compare/v1.5.0...v1.6.0) (2026-07-13)
+
+
+### Bug Fixes
+
+* **code-sensor:** revert INTERPRETER_VERSION over-bump — re-pin, not bump (bp-026) ([7b93a2d](https://github.com/ascalva/Mind-Palace/commit/7b93a2d9ec8d6017325a60c32dca7ab16b6bf689))
+
+
+### Features
+
+* **reference-edges:** symmetric v2 schema + doc↔doc extractor (bp-026 Items 18-20) ([d0fcf5a](https://github.com/ascalva/Mind-Palace/commit/d0fcf5a782f3475e5171ef12388d6498e03fa2b8))
+
 # [1.5.0](https://github.com/ascalva/Mind-Palace/compare/v1.4.0...v1.5.0) (2026-07-13)
 
 
