@@ -23,14 +23,16 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from agents.ambassador import DeliveredResult, build_ambassador
-from agents.ambassador.policy import topic_of
+from agents.ambassador.policy import is_research_request, topic_of
 from config.loader import Config
 from core.interface import CoreInbox
 from core.librarian import Librarian
+from core.research.criteria import DeidentificationError
 from core.stores.rawstore import RawStore
 from edge.interface import GatewayChannel, InterfaceGateway, LocalAdapter
 from ops.gate import HumanGate
 from scheduler.queue import DONE, QUEUED, Job, JobQueue
+from scheduler.research import RESEARCH_KIND
 from scheduler.router import Router
 
 AMBASSADOR_KIND = "ambassador"
@@ -64,12 +66,34 @@ def enqueue_ambassador_inbox(queue: JobQueue, router: Router) -> Job:
 
 
 # --- the delegation seam (task → gate → queue), injected into the Ambassador -----------------
-def build_task_delegation(queue: JobQueue, router: Router, *, gate: HumanGate | None = None):
+def build_task_delegation(queue: JobQueue, router: Router, *, gate: HumanGate | None = None,
+                          librarian: Librarian | None = None):
     """Return `(delegate, pending_results)` closures over the queue. `delegate` records the task
     in the gate (the routed-request ledger — visible, never auto-approved) and enqueues the
     delegated job; `pending_results` reads completed jobs back for the conversation. The
-    Ambassador holds only these closures — never the queue itself."""
+    Ambassador holds only these closures — never the queue itself.
+
+    A research-shaped TASK (external-literature cue, `is_research_request`) routes to the airlock
+    `"research"` kind instead of the general `librarian.answer` path — but ONLY the de-identified
+    criteria cross into the payload: `research_criteria` scrubs the raw query at THIS boundary
+    (Inv 11), the gate ledger records only the scrubbed topic, and no raw conversation text
+    reaches the outbound path. Without a `librarian`, the research route is off (mirror only)."""
     def delegate(query: str, conversation: str) -> str:
+        if librarian is not None and is_research_request(query):
+            try:
+                criteria = librarian.research_criteria(query)         # de-identify at the boundary
+            except DeidentificationError:
+                # No usable de-identified terms — fail CLOSED (nothing emitted) and fall through to
+                # the general answer path (§11: default to librarian.answer on doubt). Never crash.
+                criteria = None
+            if criteria is not None:
+                if gate is not None:
+                    gate.submit("research_task", criteria.topic, agent="ambassador")  # scrubbed
+                plan = router.plan(RESEARCH_KIND)                     # synthesis tier, background
+                job = queue.enqueue(plan.kind, plan.tier, plan.num_ctx, priority=plan.priority,
+                                    payload={"criteria": criteria.to_request(),
+                                             "conversation": conversation, "topic": criteria.topic})
+                return str(job.id)
         if gate is not None:
             gate.submit("delegated_task", query, agent="ambassador")   # visible routed request
         plan = router.plan(AMBASSADOR_TASK_KIND)                        # synthesis tier, background
@@ -81,7 +105,7 @@ def build_task_delegation(queue: JobQueue, router: Router, *, gate: HumanGate | 
     def pending_results(conversation: str) -> list[DeliveredResult]:
         out: list[DeliveredResult] = []
         for job in queue.list(DONE):
-            if job.kind != AMBASSADOR_TASK_KIND or job.result is None:
+            if job.kind not in (AMBASSADOR_TASK_KIND, RESEARCH_KIND) or job.result is None:
                 continue
             if job.payload.get("conversation") != conversation:
                 continue
@@ -100,6 +124,7 @@ class ConversationRuntime:
     adapter: LocalAdapter
     queue: JobQueue
     task_handler: Handler
+    research_handler: Handler | None = None   # None => the research path is not wired (CLI offline)
 
     def send(self, text: str, *, conversation: str = "default") -> str:
         """Drive one full turn in-process: owner text → reply text (through the real gateway →
@@ -112,13 +137,18 @@ class ConversationRuntime:
 
     def run_pending_tasks(self) -> int:
         """Complete any queued delegated tasks (the supervisor's job; the CLI calls this between
-        turns so a delegated result is ready to surface on the owner's next message)."""
+        turns so a delegated result is ready to surface on the owner's next message). Handles both
+        the general `ambassador_task` and — when wired — the airlock `research` kind."""
         done = 0
         for job in self.queue.list(QUEUED):
-            if job.kind != AMBASSADOR_TASK_KIND:
+            if job.kind == AMBASSADOR_TASK_KIND:
+                handler = self.task_handler
+            elif job.kind == RESEARCH_KIND and self.research_handler is not None:
+                handler = self.research_handler
+            else:
                 continue
             try:
-                self.queue.complete(job.id, self.task_handler(job))
+                self.queue.complete(job.id, handler(job))
             except Exception as e:                       # a task failure must not crash the loop
                 self.queue.fail(job.id, repr(e))
             done += 1
@@ -126,26 +156,36 @@ class ConversationRuntime:
 
 
 def build_conversation_runtime(config: Config | None = None, *, server=None, embedder=None,
-                               store=None, drift=None) -> ConversationRuntime:
+                               store=None, drift=None, airlock=None) -> ConversationRuntime:
     """Wire the full delegating Ambassador + inbox + gateway + queue for in-process use.
 
-    `server`/`embedder`/`store` are injectable (offline CLI + tests). The delegated-task
+    `server`/`embedder`/`store`/`airlock` are injectable (offline CLI + tests). The delegated-task
     librarian runs on the synthesis tier (heavy work) over the SAME store the Ambassador reads,
-    so a delegated result lands where the next conversation can find it."""
+    so a delegated result lands where the next conversation can find it. The same librarian gives
+    the delegate its `research_criteria` (de-identify) seam; `airlock` defaults to the configured
+    core-side airlock, and the research trough handler completes research jobs between turns."""
     from config.loader import get_config
     from core.ingest.embed import build_embedder
     from core.models import build_model_server
+    from core.research.airlock import build_airlock
     from core.stores.vectorstore import open_vector_store
+    from scheduler.cron import research_handler
 
     cfg = config or get_config()
     server = server or build_model_server(cfg)
     embedder = embedder or build_embedder(cfg)
     store = store if store is not None else open_vector_store(cfg)
+    airlock = airlock if airlock is not None else build_airlock(cfg)
 
     queue = JobQueue(cfg.paths.data_dir / "queue.sqlite")
     router = Router(cfg)
     gate = HumanGate()
-    delegate, pending_results = build_task_delegation(queue, router, gate=gate)
+    # One librarian serves both the delegate's `research_criteria` (de-identify) seam and the
+    # deep `librarian.answer` task path — the synthesis tier; `research_criteria` uses the
+    # deterministic proposer (no model call), so the tier is immaterial to it.
+    librarian = Librarian(server=server, embedder=embedder, store=store, tier="synthesis",
+                          raw=RawStore(cfg.paths.raw_store), k=cfg.ambassador.retrieval_k)
+    delegate, pending_results = build_task_delegation(queue, router, gate=gate, librarian=librarian)
     ambassador = build_ambassador(cfg, delegate=delegate, pending_results=pending_results,
                                   server=server, embedder=embedder, store=store, drift=drift)
 
@@ -154,7 +194,6 @@ def build_conversation_runtime(config: Config | None = None, *, server=None, emb
     inbox = CoreInbox(handoff=handoff, handler=ambassador.handler)
     adapter = LocalAdapter()
     gateway = InterfaceGateway(adapter=adapter, channel=GatewayChannel(handoff))
-    task_librarian = Librarian(server=server, embedder=embedder, store=store, tier="synthesis",
-                               raw=RawStore(cfg.paths.raw_store), k=cfg.ambassador.retrieval_k)
     return ConversationRuntime(inbox=inbox, gateway=gateway, adapter=adapter, queue=queue,
-                               task_handler=ambassador_task_handler(task_librarian))
+                               task_handler=ambassador_task_handler(librarian),
+                               research_handler=research_handler(airlock, embedder, store))

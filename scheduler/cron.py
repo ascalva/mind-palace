@@ -19,7 +19,17 @@ from collections.abc import Callable
 
 from core.curator import Curator
 from core.dreaming import Dreamer
+from core.ingest.embed import Embedder
+from core.research.airlock import ResearchAirlock
+from core.research.criteria import ResearchCriteria
+from core.stores.vectorstore import VectorStore
 from scheduler.queue import Job, JobQueue
+from scheduler.research import (
+    RESEARCH_KIND,
+    criteria_from_request,
+    render_ranked,
+    run_research,
+)
 from scheduler.router import Router
 
 DREAM_KIND = "dream"
@@ -56,3 +66,32 @@ def enqueue_dream(queue: JobQueue, router: Router) -> Job:
 def enqueue_curate(queue: JobQueue, router: Router) -> Job:
     plan = router.plan(CURATE_KIND)         # -> synthesis tier, background priority
     return queue.enqueue(plan.kind, plan.tier, plan.num_ctx, priority=plan.priority)
+
+
+# --- research: the dormant airlock, wired as a trough job (bp-028, §16) ----------------------
+# `"research"` is already a synthesis kind (router.py:31) → same trough discipline as dreaming:
+# background priority + the supervisor's HEAVY_TIERS foreground gate keep it out of the owner's
+# conversation time (§13). The airlock diode is one-way filesystem; the handler never touches
+# the network and never persists a paper (transient — persistence is bp-029).
+def research_handler(airlock: ResearchAirlock, embedder: Embedder, store: VectorStore) -> Handler:
+    """Run one research job: reconstruct the de-identified criteria from the payload, drive
+    `emit → collect → rank`, and return a plain reading list. If no criteria is present, or no
+    result is back from the fetcher yet, it degrades to a plain message — never raises."""
+    def handle(job: Job) -> str:
+        request = job.payload.get("criteria")
+        if not request:
+            return "research: no criteria in payload"
+        criteria = criteria_from_request(request)
+        ranked = run_research(criteria, airlock, embedder, store)
+        return render_ranked(ranked)
+    return handle
+
+
+def enqueue_research(queue: JobQueue, router: Router, criteria: ResearchCriteria) -> Job:
+    """Enqueue a research job (synthesis tier, background — trough-gated). The payload carries the
+    ALREADY de-identified criteria (`to_request()`), never raw query text (Inv 11): the criteria
+    was scrubbed by `research_criteria`/`deidentify` at the enqueue boundary, and `emit()` will
+    re-assert cleanliness on the way out."""
+    plan = router.plan(RESEARCH_KIND)       # -> synthesis tier, background priority
+    return queue.enqueue(plan.kind, plan.tier, plan.num_ctx, priority=plan.priority,
+                         payload={"criteria": criteria.to_request(), "topic": criteria.topic})

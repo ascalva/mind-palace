@@ -41,6 +41,29 @@ def topic_of(text: str) -> str:
     return t[:60].strip()
 
 
+# External-literature cues that mark a TASK as *research* (the airlock path) rather than a dig
+# through the owner's OWN notes (the existing librarian.answer path). Deliberately CONSERVATIVE
+# (external-grounding.md §2.5 parked decision): a request must explicitly invoke the literature
+# to route to the airlock; anything ambiguous defaults to the mirror path (blast radius of a
+# wrong route: a read-only mirror answer, fully recoverable). Precision is revisitable with a
+# classifier if it proves poor in use.
+RESEARCH_CUES = (
+    "research on", "research about", "research into", "the research on", "recent research",
+    "papers", "literature", "studies on", "the studies", "publications", "scientific",
+    "clinical trial", "clinical trials", "meta-analysis", "meta analysis",
+    "systematic review", "peer-reviewed", "peer reviewed", "academic", "the evidence on",
+    "what does the science", "what does the research",
+)
+
+
+def is_research_request(text: str) -> bool:
+    """True when a TASK message asks for EXTERNAL literature grounding (the airlock), not a dig
+    through the owner's own notes. Conservative: an explicit literature cue is required, else the
+    request stays on the mirror path (the safe default — external-grounding.md §2.5)."""
+    low = text.lower()
+    return any(cue in low for cue in RESEARCH_CUES)
+
+
 def narrate_effort(topic: str = "") -> str:
     """Plain-language "I need to go work on this" — the RIGHT register (note §4): honest about
     the wait + the rough plan, never the plumbing. A pure function from "what was delegated" to

@@ -147,10 +147,11 @@ def build_components(cfg: Config) -> Components:
     from core.librarian import build_librarian
     from core.models import Registry, TwoSlotLoader
     from core.models.ollama_client import OllamaClient
+    from core.research.airlock import build_airlock
     from core.stores.telemetry import open_store
     from core.typedshims import psutil
     from ops.gate import HumanGate
-    from scheduler.cron import cron_handlers, enqueue_curate, enqueue_dream
+    from scheduler.cron import cron_handlers, enqueue_curate, enqueue_dream, research_handler
     from scheduler.interface import (
         AMBASSADOR_KIND,
         AMBASSADOR_TASK_KIND,
@@ -159,6 +160,7 @@ def build_components(cfg: Config) -> Components:
         build_task_delegation,
     )
     from scheduler.queue import JobQueue
+    from scheduler.research import RESEARCH_KIND
     from scheduler.router import Router, Watchdog
     from scheduler.supervisor import Supervisor
     from scheduler.vault_sync import (
@@ -185,15 +187,21 @@ def build_components(cfg: Config) -> Components:
         return watchdog.check()
 
     gate = HumanGate()
-    delegate, pending = build_task_delegation(queue, router, gate=gate)
+    # Build the task librarian first: it doubles as the delegate's `research_criteria`
+    # (de-identify) seam, so a research-shaped TASK routes to the airlock instead of the general
+    # answer path (bp-028 §16 / dn-external-grounding §2.5). Its embedder + store also drive the
+    # inside-the-walls literature ranking; the airlock is the core-side one-way diode.
+    task_librarian = build_librarian(cfg)
+    airlock = build_airlock(cfg)
+    delegate, pending = build_task_delegation(queue, router, gate=gate, librarian=task_librarian)
     ambassador = build_ambassador(cfg, delegate=delegate, pending_results=pending)
     inbox = CoreInbox(handoff=cfg.interface.handoff_dir, handler=ambassador.handler)
-    task_librarian = build_librarian(cfg)
 
     handlers = {
         VAULT_SYNC_KIND: vault_sync_handler(build_vault_sync(cfg)),
         AMBASSADOR_KIND: ambassador_inbox_handler(inbox),
         AMBASSADOR_TASK_KIND: ambassador_task_handler(task_librarian),
+        RESEARCH_KIND: research_handler(airlock, task_librarian.embedder, task_librarian.store),
         **cron_handlers(build_dreamer(cfg), build_curator(cfg)),
     }
     supervisor = Supervisor(queue=queue, loader=loader, handlers=handlers, telemetry=telemetry)

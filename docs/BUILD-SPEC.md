@@ -276,6 +276,13 @@ Without the fixed anchors, every individual check can pass while the system degr
 
 ## 16. The Cloud Airlock — AWS (Zone C)
 
+> **Generalized by [`dn-external-grounding` §2.4](design-notes/external-grounding.md) (ratified 2026-07-13).**
+> This machinery is **corpus-agnostic literature grounding**, not medical-only: the medical
+> case (Europe PMC / PubMed, keeping Invariant 7) is one use; design-grounding (arXiv, OpenAlex)
+> is another — one machinery, one airlock. The **live driver** that runs the dormant
+> `criteria → emit → collect → rank → surface` chain (foreground Ambassador + background trough,
+> transient) is §2.5 (built by bp-028). The body below remains accurate for the medical case.
+
 All AWS via Terraform, least-privilege IAM, owner's stack conventions.
 
 **a) Outbound research fetchers.**
