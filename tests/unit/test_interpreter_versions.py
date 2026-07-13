@@ -49,6 +49,15 @@ INTERPRETERS: dict[str, Interp] = {
                        sources=("ops/code_sensor.py", "ops/code_snapshot.py"),
                        version="1.0.0",
                        sha256="8832e5b369763049dad5a0ea384eaaff04672265eb3170e1ee1a6cbccd365d5c"),
+    # bp-019 Item 7: phi_self over the cost stream (dn-self-sensing.md §2.2/§2.4).
+    # Re-pinned same-version once in-session (orchestrator scrutiny catch: §6(f) warning
+    # path was unimplemented) — a DECLARED REFACTOR, not a worldview change: the projection
+    # map is byte-identical (unparseable non-null yielded no observation before and after);
+    # only report-side warnings were added, and batch content hashes are untouched.
+    "phi_self": Interp(version_attr=("ops.self_sensor", "INTERPRETER_VERSION"),
+                       sources=("ops/self_sensor.py",),
+                       version="1.0.0",
+                       sha256="6a5a75347f5c469361e147744ffcb1457baa0f3bda663d60bf5995e04529ddeb"),
 }
 
 

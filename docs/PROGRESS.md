@@ -2440,3 +2440,25 @@ sweep), /scribe offer (book debt: seven ratified notes).
   the gate command's step-3-exits-1 structural wrinkle (fold into attestable_green.sh, 0038).
 - **Next:** bp-019 spawn (B-b, sonnet/350k — deps clear); bp-022 scrutiny when its builder
   reports (final gate re-run in flight); bp-020 last.
+
+## 2026-07-12 — bp-019 SEALED: the third sensing stream — φ_self reads the agent's own cost ledger
+
+- **Built (sonnet builder + one scrutiny-addendum resume):** `AgentObservationStore`
+  (OBSERVED-only, interpreter-versioned from birth, family-sidecar supersession),
+  `AgentSensingHandoff` (the seam's third sibling, appended to core/sensing.py — 0 deletions
+  outside the block), `ops/self_sensor.py` (φ_self v1.0.0: deterministic git-subprocess-only
+  reads, first-parent candidate walk + diff, §6(f) payload normalization incl. the warnings
+  path), driver script, ONE hook line, ONE reset_targets entry. 47 new tests.
+- **Scrutiny:** PASS after one catch — the §6(f) unparseable-non-null WARNING path was
+  unimplemented; sent back via SendMessage, builder closed it (deterministic per-(path,key)
+  warnings, 2 pinning tests, ratchet honestly re-pinned as a declared refactor). Findings
+  0057 (IDENTITY_KEYS 'agent' entry — needs a one-line grant, OWNER ASK PENDING) and 0058
+  (plan's pinned git commands lacked --first-parent/--root; fixed, empirically verified)
+  both spec-fidelity, builder-resolved. One-line grants audited exact (hook + launcher).
+- **Verified:** builder full gate 954/0 on a tree identical to merge result (spawn base ==
+  main, zero drift); addendum re-verified fast legs + 41 targeted tests; argless 69 held
+  throughout. Merged `b1040a4` atop v1.4.0. Combined-tree full gate runs once after bp-022
+  lands (disjoint scopes; each branch fully gated on its own tree).
+- **Usage (the ledger's eighth pair): sonnet, 236,576 tok / 210 calls / ~34 min = 0.68×**
+  (incl. the scrutiny-addendum resume — the first measured resume-a-builder cycle).
+- **Next:** bp-022 gate finishing → merge + final combined gate + seal; then bp-020 (last).

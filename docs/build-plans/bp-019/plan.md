@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-019
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/self-sensing.md # B-b: §2.2 φ_self contract, §2.3 schema + S1, §2.5 seam sibling, §2.6 safety line
 contract: builder
@@ -21,7 +21,7 @@ write_scope:
 session_budget: 1
 cost:
   estimate: { model: sonnet, tokens: 350k } # mold-following build (code store/sensor as template) with crisp acceptance; interfaces fully pinned
-  actual: null
+  actual: { model: sonnet, tokens: 236576, tool_calls: 210, duration_min: 34 } # 0.68x — cumulative across the build session + the scrutiny-addendum resume (§6(f) warnings path), 2026-07-12
 depends_on: [bp-018] # inherits the version-supersession mechanics + history sidecar + ratchet-test pattern — SATISFIED (bp-018 complete, merged 160fd2f, 2026-07-12)
 parallelizable_with: [bp-022] # disjoint write_scope (sensing/self-sensor/agent-store vs dreaming/temporal/config; only docs/findings/** shared — new files, disjoint ID ranges 0057+/0052+); asserted at spawn 2026-07-12, graduation-author's amendment
 created: 2026-07-12

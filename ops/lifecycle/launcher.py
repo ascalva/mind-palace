@@ -522,6 +522,12 @@ class Launcher:
             # endpoints, so they orphan on reset like the observations. bp-013 Q4 (parked to
             # the orchestrator; launcher.py was outside the builder's write_scope).
             p.data_dir / "reference_edges.sqlite",
+            # Agent (self-sensing) observations are CORPUS-side too — the third stream's
+            # READINGS (dn-self-sensing §2.5 ruling): wiped with the corpus, rebuilt by
+            # re-projection from git's build-plan `cost:` history. The worldview HISTORY
+            # (superseded generations) rides the guarded `observation_history.sqlite`
+            # sidecar above, unaffected by this reset. bp-019 Item 8 / §6(h).
+            p.data_dir / "agent_observations.sqlite",
         ]
         out: list[Path] = []
         for c in candidates:
