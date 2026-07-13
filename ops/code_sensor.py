@@ -65,15 +65,23 @@ from ops.code_snapshot import (
     snapshot_commit,
 )
 
-INTERPRETER_VERSION = "1.1.0"   # φ_code's worldview coordinate (dn-self-sensing §2.4).
-# Bumped 1.0.0 -> 1.1.0 (bp-026 Item 20, finding-0063 addendum): a WORLDVIEW change, not
-# a refactor -- phi_code now additionally senses corpus_to_corpus edges (a reading it
-# never produced before), so a re-projection under this version supersedes the prior
-# generation exactly as the ratchet (tests/unit/test_interpreter_versions.py) intends.
-# Minor bump (not major): the existing code<->corpus reading is unchanged in meaning
-# (bp-026 Item 19's explicit acceptance bar), only ADDED to. Item 21's wipe+reproject IS
-# the re-projection this bump calls for -- no separate backfill_observations() run is
-# needed beyond what Item 21 already mandates.
+INTERPRETER_VERSION = "1.0.0"   # φ_code's worldview coordinate (dn-self-sensing §2.4).
+# UNCHANGED across bp-026 (Items 19/20) -- a RE-PIN case, not a bump (the ratchet
+# licenses either, deliberately; tests/unit/test_interpreter_versions.py). Rationale:
+# INTERPRETER_VERSION stamps ONLY code observations -- every usage is
+# self.observations.is_projected/mark_projected(sha, INTERPRETER_VERSION), governing the
+# code_observations store's re-projection/supersession semantics. Reference edges carry
+# NO version field (content-keyed edge_id, append-only, regenerable -- reference_edges.py
+# schema). bp-026's φ_doc emits corpus_to_corpus reference edges ONLY; it does not change
+# any code observation (Item 19 kept code<->corpus semantics identical -- the same commit
+# yields the SAME code observations). Bumping would spuriously re-project + archive the
+# ENTIRE unchanged code_observations store -- a worldview supersession of content
+# identical modulo the version stamp, which the doctrine's re-projection is NOT for (that
+# is for when the SAME input yields DIFFERENT versioned output). So this source change
+# (Items 19/20 edited the file's bytes) is a DECLARED REFACTOR of φ_code's versioned
+# worldview: the sha256 pin re-pins at version 1.0.0 (orchestrator, at seal -- the pin
+# lives in tests/unit/test_interpreter_versions.py, outside bp-026's write_scope;
+# finding-0064). φ_doc is a separate, UNVERSIONED reference-edge lane.
 # Bump ⇒ re-projection supersedes (run backfill_observations()); an unbumped source
 # change is a RED ratchet test (tests/unit/test_interpreter_versions.py), never silent.
 

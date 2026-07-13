@@ -435,3 +435,68 @@ exercise the real constant via `CodeSensor.sync()`/`backfill_observations()`.
 failures (all finding-0064), 8 skipped.** No other regression. Gate: **GREEN modulo
 finding-0064** (an honest, routed, pre-computed-fix scope gap — not a silent pass, not
 an unexplained red).
+
+## 2026-07-13 — CORRECTION: revert the INTERPRETER_VERSION over-bump (re-pin, not bump)
+
+**Orchestrator scrutiny catch.** My 1.0.0 → 1.1.0 bump was a defensible-but-incorrect
+over-bump. The corrected grounding (now recorded in the `INTERPRETER_VERSION` comment
+and finding-0064):
+
+- `INTERPRETER_VERSION` stamps **only code observations** — every usage is
+  `self.observations.is_projected/mark_projected(sha, INTERPRETER_VERSION)` (code_sensor.py,
+  in `_project`/`backfill_observations`). It governs the `code_observations` store's
+  re-projection/supersession semantics.
+- **Reference edges carry NO version field** — content-keyed `edge_id`, append-only,
+  regenerable. φ_doc's `corpus_to_corpus` edges are an UNVERSIONED reference-edge lane.
+- φ_doc emits reference edges ONLY; it changes NO code observation (Item 19 kept
+  code↔corpus semantics byte-identical — the same commit yields the SAME code
+  observations). So a bump would spuriously re-project + archive the ENTIRE unchanged
+  `code_observations` store — a worldview supersession of content identical modulo the
+  version stamp, which the doctrine's re-projection is NOT for.
+- The ratchet explicitly licenses **bump OR re-pin, deliberately**. This is a **re-pin**:
+  the source bytes changed (Items 19/20) but φ_code's versioned worldview (code
+  observations) did not. dn-self-sensing §2.4 licenses re-pin.
+
+**Action:** REVERTED `ops/code_sensor.py`'s `INTERPRETER_VERSION` back to `"1.0.0"` (in
+write_scope) with a comment recording this reasoning. Recomputed the source-hash pin
+(the comment change shifted the bytes again): new sha256
+`9bd50a2aa34e692e2eec959fa0c92e9a57d71dd4fd847301f8f8ce487f6a563e` at version `1.0.0`.
+
+**The revert made two of the three previously-red tests GO GREEN with NO edit** (verified
+by direct run `uv run pytest -q <3 nodeids> -v`):
+- `tests/unit/test_code_sensor.py::test_version_bump_makes_backfill_reproject_and_archive`
+  → **PASSES UNTOUCHED** (its hardcoded `"1.0.0"` literals are valid again now that the
+  real version is 1.0.0 — the second breakage my over-bump caused is GONE; that file needs
+  NO change).
+- `tests/unit/test_interpreter_versions.py::test_declared_version_matches_the_pin[phi_code]`
+  → **PASSES** (declared 1.0.0 == pinned 1.0.0).
+- `tests/unit/test_interpreter_versions.py::test_source_hash_matches_the_pin[phi_code]` →
+  **REMAINS RED, EXPECTED, MINE-NOT-TO-FIX** — the source bytes DID change, so the sha256
+  re-pin (version staying 1.0.0) is the orchestrator's at seal (that file is outside
+  bp-026's write_scope). This is the ONE known-routed residual red.
+
+finding-0064 **rewritten** to the corrected resolution: re-pin-not-bump; the ONLY
+remaining out-of-scope fix is the sha256 re-pin at version 1.0.0
+(`9bd50a2aa34e692e2eec959fa0c92e9a57d71dd4fd847301f8f8ce487f6a563e`). The
+`test_code_sensor.py` fix the over-bump had implied is no longer needed.
+
+## 2026-07-13 — the five-leg gate, re-run after the correction
+
+1. `uv run ruff check .` → **All checks passed!**
+2. `uv run mypy core agents eval ops scheduler scripts` → **Success: no issues found in
+   173 source files**
+3. `uv run mypy` (argless) → **Found 69 errors in 20 files** — baseline unchanged
+   (finding-0029); none in bp-026's write_scope.
+4. `uv run python -m ops.type_gate` → **Tier-2 membership: OK; Bare-ignore scan: OK**.
+5. `uv run pytest -q` → **2 failed, 982 passed, 8 skipped** in 585.44s (0:09:45):
+   - `tests/e2e/test_scheduler_live.py::test_supervisor_dispatches_a_real_job` — the same
+     confirmed live-contention flake; re-ran isolated → **PASSED** (36.91s). Flake, not a
+     regression.
+   - `tests/unit/test_interpreter_versions.py::test_source_hash_matches_the_pin[phi_code]`
+     — the single EXPECTED source-hash re-pin, routed to finding-0064 (orchestrator's, at
+     seal; out of write_scope).
+
+**Discounting the confirmed flake, the corrected true tally is 983 passed, 1
+known/routed red (the phi_code source-hash pin — MINE via the orchestrator at seal), 8
+skipped** — an improvement from the over-bump's 3 reds down to 1. Gate: **GREEN modulo
+the single finding-0064 sha256 re-pin.**
