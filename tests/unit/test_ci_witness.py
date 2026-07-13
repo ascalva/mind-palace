@@ -105,6 +105,87 @@ def test_run_for_none_when_no_runs(monkeypatch: pytest.MonkeyPatch) -> None:
     assert w.run_for("b" * 40) is None
 
 
+# --- _full_sha guard (bp-025 Item 15): expand-then-verify, error before any HTTP poll ----
+
+
+def test_full_sha_identity_no_git_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    called = False
+
+    def fake_run(*a: object, **kw: object) -> None:
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr(w.subprocess, "run", fake_run)
+    full = "a" * 40
+    assert w._full_sha(full) == full
+    assert not called                           # already-full sha needs no git call
+
+
+def test_full_sha_expands_short_via_stubbed_git(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, Any] = {}
+
+    class _R:
+        returncode = 0
+        stdout = "b" * 40 + "\n"
+
+    def fake_run(cmd: list[str], capture_output: bool = False, text: bool = False) -> _R:
+        seen["cmd"] = cmd
+        return _R()
+
+    monkeypatch.setattr(w.subprocess, "run", fake_run)
+    assert w._full_sha("short123") == "b" * 40
+    assert seen["cmd"] == ["git", "rev-parse", "--verify", "short123^{commit}"]
+
+
+def test_full_sha_unresolvable_raises_before_any_http(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _R:
+        returncode = 1
+        stdout = ""
+
+    monkeypatch.setattr(w.subprocess, "run", lambda *a, **kw: _R())
+
+    def fail_run_for(sha: str, token: str | None = None) -> None:
+        pytest.fail("run_for must never be reached for an unresolvable sha")
+
+    def fail_get(path: str, token: str | None = None) -> None:
+        pytest.fail("HTTP boundary must never be reached for an unresolvable sha")
+
+    monkeypatch.setattr(w, "run_for", fail_run_for)
+    monkeypatch.setattr(w, "_get", fail_get)
+    with pytest.raises(SystemExit):
+        w._full_sha("bogus")
+
+
+def test_check_rejects_unresolvable_sha_before_run_for(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _R:
+        returncode = 1
+        stdout = ""
+
+    monkeypatch.setattr(w.subprocess, "run", lambda *a, **kw: _R())
+
+    def fail_run_for(sha: str, token: str | None = None) -> None:
+        pytest.fail("check() must reject an unresolvable sha before calling run_for")
+
+    monkeypatch.setattr(w, "run_for", fail_run_for)
+    with pytest.raises(SystemExit):
+        w.check("bogus", wait_s=1.0)
+
+
+def test_release_rejects_unresolvable_sha_before_run_for(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _R:
+        returncode = 1
+        stdout = ""
+
+    monkeypatch.setattr(w.subprocess, "run", lambda *a, **kw: _R())
+
+    def fail_run_for(sha: str, token: str | None = None) -> None:
+        pytest.fail("release() must reject an unresolvable sha before calling run_for")
+
+    monkeypatch.setattr(w, "run_for", fail_run_for)
+    with pytest.raises(SystemExit):
+        w.release("bogus")
+
+
 # --- check(): absent-grace loop (§6(f)) + terminal attestation --------------------------
 
 

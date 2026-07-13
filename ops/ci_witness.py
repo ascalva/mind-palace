@@ -26,6 +26,7 @@ the dispatch URL for a by-hand play (runbook §CI witness).
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import urllib.error
 import urllib.request
@@ -37,6 +38,23 @@ API = "https://api.github.com/repos/" + REPO
 # the release workflow the witness dispatches after green (§6(d)).
 WORKFLOW = "ci.yml"
 RELEASE_WORKFLOW = "release.yml"
+
+_FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+
+
+def _full_sha(sha: str) -> str:
+    """Return the 40-hex sha. Identity if already full; else resolve via git.
+    Raises SystemExit with a clear message if it cannot resolve (never poll on a
+    sha that can never match GitHub's head_sha= query, plan §3 Q1)."""
+    if _FULL_SHA.match(sha):
+        return sha
+    r = subprocess.run(["git", "rev-parse", "--verify", f"{sha}^{{commit}}"],
+                        capture_output=True, text=True)
+    out = r.stdout.strip()
+    if r.returncode != 0 or not _FULL_SHA.match(out):
+        raise SystemExit(f"ci-witness: '{sha}' is not a resolvable 40-char commit sha "
+                          f"(head_sha= needs the full sha; pass the full commit).")
+    return out
 
 # Absent-grace (§6(f)): GitHub creates workflow runs asynchronously after a push, so a
 # just-pushed sha can be legitimately runless for a while. Inside check()'s poll loop an
@@ -113,6 +131,7 @@ def check(sha: str, *, wait_s: float = 600.0) -> int:
     Absent-grace per §6(f): an absent verdict with elapsed < min(GRACE_S, wait_s) keeps
     polling (run creation is asynchronous); still absent past grace concludes absent.
     """
+    sha = _full_sha(sha)
     import time
     token = _keychain_token()                 # degrades to unauthenticated when absent
     start = time.monotonic()
@@ -170,6 +189,7 @@ def release(sha: str) -> int:
     dispatch 404 (release workflow not landed) → print the local play, rc 0 —
     degraded, never failed: deploy proceeds.
     """
+    sha = _full_sha(sha)
     token = _keychain_token()
     run = run_for(sha, token)
     if verdict(run) != "green":
