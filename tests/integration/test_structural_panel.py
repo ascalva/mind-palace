@@ -1,9 +1,12 @@
-"""H4–H7 through the panel: the structural interpreters emit grounded Claims (flag-gated).
+"""H4–H7 + Lane A L-b through the panel: the structural interpreters emit grounded Claims
+(flag-gated).
 
 Planted structures the lenses must find: a ring of pairwise-similar notes with no center (the
-`hole` lens — a conceptual gap, never a contradiction), two dense concerns (the `theme` lens with
-a model-selected count + posterior), and a cross-cluster link (the curvature `bridge` lens —
-covered by test_dream_rnd's planted graph; here we assert the panel wiring end to end).
+`hole` lens — a conceptual gap, never a contradiction; and, at a sigma that keeps the ring's own
+edges intact, the `thread` lens — the harmonic H1 flow orbiting that same gap, design note
+`dn-edge-dynamics` §2.3 / bp-022), two dense concerns (the `theme` lens with a model-selected
+count + posterior), and a cross-cluster link (the curvature `bridge` lens — covered by
+test_dream_rnd's planted graph; here we assert the panel wiring end to end).
 """
 
 from __future__ import annotations
@@ -16,13 +19,23 @@ import numpy as np
 import pytest
 
 from config.loader import load_config
-from core.dreaming.interpreters import BRIDGE, HOLE, THEME, run_panel
+from core.dreaming.interpreters import BRIDGE, HOLE, THEME, THREAD, run_panel
 from core.mirror import MirrorView
 
 
 def _on_config():
     cfg = load_config()
     return dataclasses.replace(cfg, dream_rnd=dataclasses.replace(cfg.dream_rnd, enabled=True))
+
+
+def _on_config_sigma(sigma: float):
+    """A THREAD-lens variant: the harmonic lens needs the ring's OWN edges present in the
+    sigma-skeleton (unlike `hole`, which reads the unthresholded distance matrix directly), so
+    a THREAD-firing test needs sigma low enough to keep the ring intact."""
+    cfg = load_config()
+    return dataclasses.replace(
+        cfg, dream_rnd=dataclasses.replace(cfg.dream_rnd, enabled=True, sigma=sigma)
+    )
 
 
 def _row(digest: str, vec: list[float]) -> dict[str, Any]:
@@ -88,3 +101,43 @@ def test_ring_yields_no_bridge_false_positive_and_all_support_is_authored():
     bridges = [c for c in claims if c.method == BRIDGE]
     for b in bridges:
         assert b.data["curvature"] == pytest.approx(bridges[0].data["curvature"])  # all alike
+
+
+# --- Lane A L-b: the THREAD lens through the panel (bp-022 Item 5) ------------------------------
+
+def test_thread_lens_fires_alongside_existing_lenses_when_ring_edges_are_intact():
+    """`collect_claims` returns THREAD claims alongside the existing lenses (plan §7 acceptance):
+    at a sigma that keeps the ring's own edges in the flag complex (beta1=1), the panel run
+    includes exactly one THREAD claim, every claim's support stays authored-only, and the OTHER
+    lenses' presence/behavior is unaffected by THREAD's registration."""
+    cfg = _on_config_sigma(0.3)
+    claims = run_panel(_ring_view(), config=cfg)
+    methods = {c.method for c in claims}
+    assert THREAD in methods
+    thread_claims = [c for c in claims if c.method == THREAD]
+    assert len(thread_claims) == 1
+    assert set(thread_claims[0].support) <= AUTHORED_RING
+    assert HOLE in methods                              # the sibling lens still fires too
+    for c in claims:
+        assert set(c.support) <= AUTHORED_RING          # firewall holds across every lens
+
+
+def test_thread_lens_absent_at_default_sigma_where_ring_has_no_edges():
+    """At the DEFAULT sigma (0.62), the ring's cosine similarities fall below the floor and the
+    sigma-skeleton has zero edges — beta1 = 0, so THREAD must be silent even though `hole` still
+    fires (hole reads the unthresholded distance matrix, not the sigma-skeleton). This is the
+    honest seam at the panel level, and confirms every EXISTING panel test (which runs at default
+    sigma) is unaffected by THREAD's registration."""
+    claims = run_panel(_ring_view(), config=_on_config())
+    assert not [c for c in claims if c.method == THREAD]
+    assert [c for c in claims if c.method == HOLE]      # the sibling lens is unaffected
+
+
+def test_panel_determinism_with_thread_registered():
+    """Determinism: two runs, identical claims — across the WHOLE panel, now that THREAD is
+    registered alongside the pre-existing lenses."""
+    cfg = _on_config_sigma(0.3)
+    view = _ring_view()
+    claims1 = run_panel(view, config=cfg)
+    claims2 = run_panel(view, config=cfg)
+    assert claims1 == claims2

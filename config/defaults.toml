@@ -243,6 +243,7 @@ agreement_jaccard = 0.5       # support-set Jaccard >= this => interpreters corr
 # Structural interpreters (H4-H7, backed by core/complex/). Declared bounds, not magic (G7):
 bridge_top_k = 5              # most-negative-curvature edges the bridge interpreter surfaces
 hole_min_persistence = 0.15   # min H1 lifetime (cosine-distance units) for a "long-lived" hole
+thread_min_persistence = 0.15 # min H1 lifetime (cosine-distance units) for a THREAD's carrying cycle
 sbm_k_max = 8                 # model-selection cap for the SBM theme count (>= 1)
 
 [selfmod]
