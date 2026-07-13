@@ -18,7 +18,7 @@ cost:
   # token usage NOT captured (delegated builder, no completion-notification recorded).
   # Item 8 (isolation proof) + finding renumber: resume builder, opus, 54k tokens,
   # 44 tool calls, ~350s. Whole-plan actual under estimate on the captured half.
-  actual: { model: opus, tokens_item8: 54k, tool_calls_item8: 44, note: "items 6-7 uncaptured" }
+  actual: { model: opus, tokens: 54048, tool_calls: null, duration_min: null } # PARTIAL — Item 8 + finding-renumber session only; the Items 6-7 session was never captured (journal :263-265, the recorded ledger gap). Late seal-fill, 2026-07-12.
 depends_on: [bp-011, bp-012]
 parallelizable_with: []
 created: 2026-07-11

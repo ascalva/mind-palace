@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-020
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/self-sensing.md # B-c: backfill over all sealed plans' graduation/seal commits; PD-d
 contract: builder
