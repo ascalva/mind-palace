@@ -1,7 +1,7 @@
 ---
 type: design-note
 id: dn-external-grounding
-status: draft # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
+status: ratified # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 implementation: partially-built # the airlock + fetcher exist but are DORMANT (no live driver); the curated store, the EMBED tail, and reference_material/ curation are to-build. See §3.
 created: 2026-07-13
 updated: 2026-07-13
