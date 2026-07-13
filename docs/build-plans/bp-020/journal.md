@@ -284,3 +284,6 @@ Gate green, baseline unchanged. Plan left `in-progress` — the completion flip
 (and Item 11's live run) are the orchestrator's, per §11's parked ruling and the
 briefing's explicit instruction. NOT pushed (worktree branch only, local commits
 for the orchestrator to review and merge).
+
+
+**SEALED by /triage (2026-07-13).** Plan `complete` (merge `42e4206`). Item 9: bp-013 seal-fill corrected (mis-encoded `tokens_item8:54k` → conforming `tokens:54048`, join-eligible). Item 10 dry-run: 11 pairs, 0 warnings, deterministic. Item 11 live (orchestrator, main checkout): bp-013 now a complete estimate/actual pair (est 250000 / act 54048) in the live store; 30 agent_observations / 62 projections; second sense_self run idempotent (0 rows); φ_self keeps both bp-013 actuals as the honest temporal record. finding-0059 (stale baseline) resolved. Usage: sonnet 149,834 tok / 106 calls / ~22 min = 1.50× of 100k. **B-c COMPLETE — self-sensing family done; queue drained.** No further narrative entries.

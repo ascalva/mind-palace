@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-020
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/self-sensing.md # B-c: backfill over all sealed plans' graduation/seal commits; PD-d
 contract: builder
@@ -12,11 +12,11 @@ write_scope:
 session_budget: 1
 cost:
   estimate: { model: sonnet, tokens: 100k } # small: one annotation + a dry-run/live-run pair with crisp count checks
-  actual: null
+  actual: { model: sonnet, tokens: 149834, tool_calls: 106, duration_min: 22 } # 1.50× estimate; sealed 2026-07-13
 depends_on: [bp-019] # runs the sensor bp-019 builds
 parallelizable_with: []
 created: 2026-07-12
-updated: 2026-07-12
+updated: 2026-07-13
 links:
   - docs/build-plans/bp-013/journal.md # the partially-recoverable actuals (seal block, :263-265)
   - docs/brainstorms/cost-forecasting.md # the forecasting dataset this backfill seeds

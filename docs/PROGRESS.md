@@ -2523,3 +2523,41 @@ sweep), /scribe offer (book debt: seven ratified notes).
 - **Next:** merge/seal bp-020 (the queue's last plan) on its builder's completion; /scribe
   offer; owner blesses bp-023/024/025 at leisure (none blocking; queue self-drains through
   bp-020).
+
+## 2026-07-13 — bp-020 SEALED: the backfill's first live verification — self-sensing family COMPLETE, ORIGINAL QUEUE DRAINED
+
+- **Built (sonnet builder, worktree; branch merged `42e4206`):** Item 9 — bp-013's late
+  seal-fill. At the builder's HEAD bp-013's `actual` was NOT null (plan §4's premise): it
+  had been seal-filled at `ef9319e` with non-conforming field names (`tokens_item8: 54k`,
+  not `tokens: 54048`) that the φ_self parser silently under-parsed (no `tokens` key → not
+  join-eligible). Item 9 corrected the ENCODING to the §6(a) pin — same recorded facts, no
+  invented numbers. Item 10 — dry-run inventory (`:memory:` store, real repo): 11 complete
+  estimate/actual pairs, 0 parse warnings, deterministic across two runs.
+- **Verified (orchestrator, main checkout, Item 11 live):** merged from the main checkout
+  (disjoint scope, conflict-free); ran `uv run scripts/sense_self.py`; **bp-013 is now a
+  complete pair in the live store** (est 250000 / act 54048); 30 agent_observations / 62
+  projections; **second run idempotent (0 rows)**; 0 warnings throughout. φ_self correctly
+  keeps BOTH bp-013 `actual` observations (the mis-encoded one at `ef9319e`, the corrected
+  one at `6d6bc24`) as the honest temporal record — "an edited fact is a new observation at
+  its landing commit" (the design, live). Gate: ruff clean · argless mypy **69** · type_gate
+  OK · pytest unchanged-by-construction (docs/frontmatter only; builder ran 970/0 green,
+  live flake re-ran green isolated per the flake rule).
+- **finding-0059 (spec-fidelity, builder-resolved):** V3's "11 pre-rule / zero-cost-block"
+  baseline (dn-self-sensing §3.2, carried into bp-019 §3 Q4 + bp-020 §3 Q1) is STALE — only
+  8 of bp-000..010 are truly cost-block-free; bp-006/007/009 carry backfilled `actual`-only
+  blocks (added by `ea3d8e8`, the commit that introduced the ledger convention). Sensor was
+  correct; the carried count was wrong. Correcting the ratified note's + sealed bp-019's
+  phrasing is design-tier (A8-immutable) — deferred to an owner touchpoint, non-blocking.
+- **Usage (the ledger's TENTH pair): sonnet, 149,834 tok / 106 calls / ~22 min = 1.50×** of
+  the 100k estimate (over — the builder's grounding surfaced the mis-encoding + stale
+  baseline, honest extra reads; recorded for calibration).
+- **The board:** bp-000..bp-022 ALL COMPLETE. **The original graduation queue is drained.**
+  Self-sensing (dn-self-sensing) is DONE: substrate (018) + third stream (019) + backfill
+  (020); φ_self projects every main commit live. Three NEW `ready` plans await the owner's
+  build green-light: bp-023 (live-test lock), bp-024 (finding-0051 hook fix), bp-025
+  (wave-debt micro-sweep) — the third-triage promotions.
+- **Next:** /scribe offer (book debt: SEVEN ratified notes, book unscaffolded); then a
+  session to build bp-023/024/025 (sonnet builders, disjoint scopes — parallelizable); the
+  cost-forecast report generator is now the self-sensing frontier (real substrate: the live
+  agent_observations store). Deploy promotes bp-020 + the triage to the live daemon (owner,
+  any time).
