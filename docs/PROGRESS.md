@@ -2561,3 +2561,40 @@ sweep), /scribe offer (book debt: seven ratified notes).
   cost-forecast report generator is now the self-sensing frontier (real substrate: the live
   agent_observations store). Deploy promotes bp-020 + the triage to the live daemon (owner,
   any time).
+
+## 2026-07-13 — dn-core-query-protocol DRAFTED + bp-026 SEALED: the reference stratum goes symmetric, doc→doc live
+
+- **Design session (opus, fable-guard relaxed):** a deep chat arc (agents as scoped clients of
+  a core-query algebra; three retrieval modes; the deterministic single-stratum reference
+  agent; the eval loop; the edge math) was captured to `docs/brainstorms/core-query-protocol.md`
+  (four threads + two opus math sketches + a **fable rigorous pass** — `claude-fable-5`,
+  tier-verified: the β-deformation/Maslov, the kernel-cone Mercer inversion, the bicomplex⟺
+  functoriality reduction, ledger-as-Sz.-Nagy-dilation). Graduated to **draft
+  `dn-core-query-protocol`** with an honest §1.3 opus/fable seam map (what's fable-grounded vs
+  what a fable pass must finalize). Findings 0060/0061 (workflow smoothing) + 0062 (the
+  reference-gap direction) filed en route.
+- **bp-026 built + SEALED (sonnet builder, worktree `bb43bee`):** `reference_edges` generalized
+  to a **symmetric v2 schema** (`source_*/target_*`, derived direction, `corpus_to_corpus`
+  first-class) + a φ_doc **doc→doc extractor** (front-matter `design_ref`/`links`/… + inline
+  note-citations + wikilinks). Isolation invariant (B-c) held bit-identically; grep-oracle exact
+  on sampled notes/findings.
+- **Scrutiny catch:** the builder **over-bumped `INTERPRETER_VERSION`** (φ_doc adds unversioned
+  reference edges; it stamps only code observations → re-pin, not bump). Sent back via
+  SendMessage → reverted to 1.0.0, sha re-pinned `9bd50a2a…` at seal (finding-0064). Clean
+  provenance; resume-beats-restart.
+- **Item 21 live migration (orchestrator, OWNER-COORDINATED daemon-down window):** the running
+  v1 daemon **shares `data/`** and holds v1 code in memory → the migration is **deploy-coupled**
+  (finding-0066). Owner `bootout`'d the daemon (KeepAlive means `palace stop` won't hold it);
+  I wiped `reference_edges` + `code_observations` (φ_self untouched) and reprojected to v2:
+  **183,458 edges (45,527 corpus→corpus / 137,931 code↔corpus), == dry-run exactly, 0 warnings,
+  idempotent**; owner `bootstrap`'d it back on v2. Full gate green (984 passed, argless 69).
+- **Findings:** 0063 (v1-compat properties, resolved), 0064 (the over-bump, resolved at seal),
+  **0065** (corpus→corpus scan excludes build-plans — §6c said docs/**; a corpus-scope ruling
+  for triage — the doc→doc capability is complete for authored notes, not build-plans yet),
+  **0066** (migration deploy-coupling + the missing KeepAlive-aware `palace down/up` command),
+  **0067** (daemon ownership / privilege model — service-user vs user-agent; owner's capture).
+- **Usage (ledger's ELEVENTH pair): sonnet, 280,146 tok / 291 calls / ~88 min = 1.56×** of 180k
+  (includes the over-bump scrutiny-catch resume — honest cost of catching it before main).
+- **Next:** the corpus-scope ruling (0065) + possible re-migration; the `palace down/up` command
+  (0066) + daemon-privilege design note (0067); bp-023/024/025 still `ready` (unbuilt); /scribe
+  offer; dn-core-query-protocol wants a fable-vetting pass before ratification.

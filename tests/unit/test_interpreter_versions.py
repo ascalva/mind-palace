@@ -45,10 +45,14 @@ def source_fingerprint(sources: tuple[str, ...]) -> str:
 
 
 INTERPRETERS: dict[str, Interp] = {
+    # Re-pinned same-version at bp-026's seal (orchestrator; finding-0064): Items 19/20 added
+    # φ_doc's corpus_to_corpus reference-edge lane to ops/code_sensor.py. A DECLARED REFACTOR,
+    # not a worldview change — INTERPRETER_VERSION stamps ONLY code observations (unchanged);
+    # reference edges carry no version field. dn-self-sensing §2.4 licenses re-pin over bump.
     "phi_code": Interp(version_attr=("ops.code_sensor", "INTERPRETER_VERSION"),
                        sources=("ops/code_sensor.py", "ops/code_snapshot.py"),
                        version="1.0.0",
-                       sha256="8832e5b369763049dad5a0ea384eaaff04672265eb3170e1ee1a6cbccd365d5c"),
+                       sha256="9bd50a2aa34e692e2eec959fa0c92e9a57d71dd4fd847301f8f8ce487f6a563e"),
     # bp-019 Item 7: phi_self over the cost stream (dn-self-sensing.md §2.2/§2.4).
     # Re-pinned same-version once in-session (orchestrator scrutiny catch: §6(f) warning
     # path was unimplemented) — a DECLARED REFACTOR, not a worldview change: the projection

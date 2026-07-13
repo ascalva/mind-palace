@@ -500,3 +500,6 @@ remaining out-of-scope fix is the sha256 re-pin at version 1.0.0
 known/routed red (the phi_code source-hash pin — MINE via the orchestrator at seal), 8
 skipped** — an improvement from the over-bump's 3 reds down to 1. Gate: **GREEN modulo
 the single finding-0064 sha256 re-pin.**
+
+
+**SEALED by /triage (2026-07-13).** Plan `complete` (merge `bb43bee` + seal). Items 18-20 built (v2 symmetric schema, writer migration, φ_doc corpus→corpus extractor); grep-oracle exact on notes/findings. Scrutiny caught + reverted an INTERPRETER_VERSION over-bump (finding-0064; re-pin at 1.0.0, sha `9bd50a2a…`). **Item 21 live migration DONE** (orchestrator, owner-coordinated daemon-down window): wipe reference_edges + code_observations, reproject to v2 — **183,458 edges (45,527 corpus→corpus NEW / 137,931 code↔corpus), counts == dry-run exactly, 0 warnings, idempotent**; φ_self store untouched. Caveat: corpus→corpus scan excludes build-plans (finding-0065 — §6c said docs/**; scope ruling pending). Deploy-coupling + daemon-control gaps → finding-0066; daemon-ownership discussion → finding-0067. Usage: sonnet 280,146 tok / 291 calls / ~88 min = 1.56× (incl. the scrutiny-catch resume). No further narrative entries.

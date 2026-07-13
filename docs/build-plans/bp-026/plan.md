@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-026
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/core-query-protocol.md # §3.1 licenses this (draft; independently warranted by findings below)
 contract: builder
@@ -15,7 +15,7 @@ write_scope:
 session_budget: 1
 cost:
   estimate: { model: sonnet, tokens: 180k } # schema migration + writer migration + new extractor + verified dry-run
-  actual: null
+  actual: { model: sonnet, tokens: 280146, tool_calls: 291, duration_min: 88 } # 1.56× — includes the over-bump scrutiny-catch resume (finding-0064); sealed 2026-07-13
 depends_on: []
 parallelizable_with: []
 created: 2026-07-13
