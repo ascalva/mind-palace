@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-018
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/self-sensing.md # B-a; §2.2 versioned re-interpretation, §2.4 mechanism gap, §2.5 reset ruling, V2
 contract: builder
@@ -19,7 +19,7 @@ write_scope:
 session_budget: 1
 cost:
   estimate: { model: fable, tokens: 250k } # core-store invariants + the reset path: the falsifier needs judgment (supersession semantics), not just green tests
-  actual: null
+  actual: { model: fable, tokens: 194279, tool_calls: 104, duration_min: 44 } # 0.78x — measured at completion notification, 2026-07-12; wall clock dominated by two full live-suite passes
 depends_on: []
 parallelizable_with: [bp-021, bp-022] # disjoint write_scopes (only docs/findings/** shared — new files, disjoint ID ranges); bp-021 asserted at spawn, bp-022 at its own spawn post-bp-021-merge — 2026-07-12, graduation-author's amendments
 created: 2026-07-12

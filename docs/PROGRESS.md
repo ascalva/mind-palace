@@ -2410,3 +2410,33 @@ sweep), /scribe offer (book debt: seven ratified notes).
   0.58×** of the 300k estimate.
 - **Next:** bp-022 (THREAD lens + temporal invariants) unblocked — spawning now, parallel to
   the still-running bp-018 (scopes disjoint: dreaming/temporal/config vs stores/sensor).
+
+## 2026-07-12 — DEPLOY live-proves the GitHub gate · v1.4.0 CUT · bp-018 SEALED
+
+- **DEPLOY (owner-fired):** run #12 → **run #13 pinned `9e2c5c5`**, graceful cycle clean; the
+  deploy gate's witness leg ran as a real subprocess against GitHub Actions and attested green
+  before promotion — the re-pointed attestation pipeline is proven in its actual consumer.
+- **First release dispatch failed → fixed → v1.4.0 CUT.** release-on-deploy dispatched
+  release.yml (owner-initiated by construction); run 29213279927 failed at semantic-release:
+  node 20 pinned per the engines floor, but semantic-release 25 needs ≥22.14 (local dry-runs
+  passed on node 26 — the bp-017 setup-uv class again; live-proof caught it). Orchestrator fix
+  `c82b53e` (node 24), CI green, owner re-fired → **v1.4.0 tagged, CHANGELOG commit-back
+  `01726dd` by semantic-release-bot**. **Q9 CONFIRMED live: zero ci runs on the commit-back**
+  (GITHUB_TOKEN loop guard) — bp-016's last carried question closes.
+- **bp-018 SEALED (merge `160fd2f`, redone atop the release commit):** all four items;
+  scrutiny PASS (launcher grant exactly one guard entry; §6(d,e) migrations idempotent in both
+  crash windows; archive-before-replace ordering can duplicate an archive attempt but never
+  lose a generation; finding-0047's is_projected deviation ACCEPTED — honest semantics,
+  test-guarded). Gate: argless 69; pytest 908 passed, 3 live-e2e contention flakes ALL re-ran
+  green truly uncontended (2 passed / 126 s with zero other suites machine-wide). Live-copy
+  migration preserved 259,813 rows; the LIVE store (now 288,091 rows) migrates at this seal
+  commit's hook. Findings: 0047 (spec-defect, resolved — Q3 missed one test caller),
+  0048 (second live-flake class member). **Usage (seventh pair): fable, 194,279 tok / 104
+  calls / ~44 min = 0.78×.**
+- **Flake-class tally for /triage:** three catalogued members in one day (0046 scheduler
+  unload-race, 0048 dream_v2 embed death, research_live today) + perfect correlation with
+  concurrent live suites → candidate: a cross-suite live-axis lock or serialized runner,
+  one small scoped plan. Also riding: launcher.py:259 stale "talks to gitlab.com" comment;
+  the gate command's step-3-exits-1 structural wrinkle (fold into attestable_green.sh, 0038).
+- **Next:** bp-019 spawn (B-b, sonnet/350k — deps clear); bp-022 scrutiny when its builder
+  reports (final gate re-run in flight); bp-020 last.
