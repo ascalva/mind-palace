@@ -145,3 +145,7 @@ number drift, noted above, no semantic change).
 Ready for orchestrator to flip `docs/build-plans/bp-024/plan.md`
 `in-progress → complete` and finding-0051 `→ promoted`, then sequence the
 merge (both out of this builder's write_scope).
+
+## SEAL (orchestrator, 2026-07-13)
+
+Merged into main via `--no-ff` at the wave boundary (bp-023/024/025 landed sequentially, disjoint scopes, zero conflicts). Combined green gate on the merged tree: ruff clean · targeted mypy clean · **argless mypy == 69** (finding-0038 class clear) · type_gate OK · CI-equivalent `pytest -m "not live …"` **977 passed, 0 failed**. Status flipped `in-progress → complete`. **Usage (measured, harness): sonnet, 64929 tok / 63 calls / ~22 min = 1.08×** of estimate. Item 14 (the (d) cross-checkout bleed check) landed with a rigorous 3-control falsifier over a real git worktree. Enforcement blast-radius; scrutinized hardest; no finding needed.

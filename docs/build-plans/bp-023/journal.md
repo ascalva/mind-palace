@@ -212,3 +212,7 @@ the collected suite.")
   continued to the green gate.
 - Green gate: all five legs pass, argless-mypy at the pinned 69-error baseline.
 - Ready for the orchestrator's diff review + merge sequencing.
+
+## SEAL (orchestrator, 2026-07-13)
+
+Merged into main via `--no-ff` at the wave boundary (bp-023/024/025 landed sequentially, disjoint scopes, zero conflicts). Combined green gate on the merged tree: ruff clean · targeted mypy clean · **argless mypy == 69** (finding-0038 class clear) · type_gate OK · CI-equivalent `pytest -m "not live …"` **977 passed, 0 failed**. Status flipped `in-progress → complete`. **Usage (measured, harness): sonnet, 124620 tok / 140 calls / ~35 min = 1.56×** of estimate. Item 12 (lock fixture) fully met; Item 13 closed via §6(b)'s alternate acceptance (endpoint windows provably disjoint — run-3 server-log cross-ref) with the wider machine-RAM contention axis routed to finding-0069 → oq-0018. Correct §10 behavior: no retry papering.

@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-024
-status: in-progress
+status: complete
 design_ref:
   - docs/findings/finding-0051.md # findings-driven enforcement hardening — no design-note graduation (§0)
 contract: builder
@@ -13,7 +13,7 @@ write_scope:
 session_budget: 1
 cost:
   estimate: { model: sonnet, tokens: 60k } # one bounded check + one integration test; spec pinned verbatim §6
-  actual: null
+  actual: { model: sonnet, tokens: 64929, tool_calls: 63, duration_min: 22 } # 1.08× — spec fully pinned; sealed 2026-07-13
 depends_on: []
 parallelizable_with: []
 created: 2026-07-12

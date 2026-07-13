@@ -477,3 +477,36 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   ratifies the skill amendment here, or a falsifier-demo side effect recurs despite the
   prompt line.
 - answer: owner accepts
+
+---
+
+## oq-0018 — Delegated-parallel-builders + live tests: machine-global lock, scheduler policy, or accept the re-run fallback? (finding-0069)
+- status: open
+- origin: docs/findings/finding-0069.md
+- blocking: false
+- question: bp-023 landed the live-test lock (Item 12) and PROVED it correct — a
+  server-log cross-reference showed exactly one endpoint cold-load during a two-process
+  race, i.e. the fixture serializes two live tests in ONE worktree as designed. But
+  Item 13's literal "both processes pass" flaked under a WIDER axis this plan could not
+  reach: whole-machine RAM pressure from the *sibling builder worktrees* — i.e. THIS
+  session's own decision to run bp-023/024/025 in parallel starved the shared physical
+  Ollama daemon (server log: "predicted to exceed available memory, evicting …
+  system_free=3.2 GiB"; two sibling worktrees' gate suites running concurrently). A
+  single worktree's `write_scope` cannot install a lock spanning worktrees it may not
+  write. So: the delegated-parallel-builders mode (now standard) introduces a
+  cross-worktree, machine-capacity contention the repo-scoped lock doesn't cover. Which
+  answer do you want — (a) a MACHINE-GLOBAL lock outside any worktree's write_scope
+  (e.g. a scheduler-level or ~/.ollama-adjacent convention, keyed by endpoint hash,
+  shared across worktrees); (b) a SCHEDULER/DELEGATE POLICY ("no two delegated builders
+  run `-m live` concurrently" — a policy fix, encoded in the delegate skill, not code);
+  or (c) ACCEPT the residual as the documented cost of parallel builders for the live
+  tier, with finding-0046's "re-run before investigating" the permanent fallback for
+  this cross-worktree case?
+- default_if_unanswered: (c) — accept the fallback. Item 12's lock stands as the fix for
+  the ORIGINALLY-MODELED class (one worktree's live tests racing, or a builder's suite
+  overlapping the orchestrator's gate in the SAME checkout); the cross-worktree residual
+  is documented and the CI gate never runs live tests anyway (`-m "not live …"`), so it
+  does not gate merges. Re-entry — the live-flake tax under parallel builders becomes
+  painful enough to warrant (a) or (b), or /triage promotes finding-0069 to a design note
+  amending the delegate skill.
+- answer:

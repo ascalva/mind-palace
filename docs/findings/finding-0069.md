@@ -106,3 +106,11 @@ builder's authority to resolve unilaterally (it may warrant a design-note amendm
 the delegate skill, or simply an owner-acknowledged fallback). Not a blocker: bp-023's own
 work (Items 12–13, as scoped) is complete and independently verified; this finding
 documents the residual class for the next /triage.
+
+**Batched to `docs/inbox/owner-questions.md` oq-0018 (orchestrator, 2026-07-13).** The
+(a) machine-global lock / (b) scheduler-delegate policy / (c) accept-the-fallback call is
+the owner's; default-if-unanswered is (c) — Item 12's lock stands for the originally-modeled
+class and the CI gate never runs live tests, so the residual does not gate merges. bp-023
+sealed at the wave boundary regardless (Item 12 correct; Item 13 met via §6(b)'s alternate
+disjoint-window acceptance). Ironic provenance worth noting: this session's own
+parallel-builder decision produced the RAM pressure that exposed the wider axis.

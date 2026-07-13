@@ -116,3 +116,7 @@ non-skipped tests green). Ready for orchestrator review/merge. Plan left at
 `in-progress` — orchestrator flips to `complete` per role split (builders don't
 flip plan status themselves per CLAUDE.md "Orchestrator... flips plan status on
 completion").
+
+## SEAL (orchestrator, 2026-07-13)
+
+Merged into main via `--no-ff` at the wave boundary (bp-023/024/025 landed sequentially, disjoint scopes, zero conflicts). Combined green gate on the merged tree: ruff clean · targeted mypy clean · **argless mypy == 69** (finding-0038 class clear) · type_gate OK · CI-equivalent `pytest -m "not live …"` **977 passed, 0 failed**. Status flipped `in-progress → complete`. **Usage (measured, harness): sonnet, 60630 tok / 56 calls / ~27 min = 1.21×** of estimate. Items 15/16/17 (witness short-sha guard + unit test · launcher comment · delegate gate-text separation) all landed; correct commit-trailer discipline (trailer on code, omitted on comment/doc). No findings.

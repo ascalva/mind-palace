@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-025
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/self-sensing.md # N/A as graduation — wave-debt micro-sweep, no design note (see §0)
 contract: builder
@@ -15,7 +15,7 @@ write_scope:
 session_budget: 1
 cost:
   estimate: { model: sonnet, tokens: 50k } # three crisp, independent micro-fixes with a checker each
-  actual: null
+  actual: { model: sonnet, tokens: 60630, tool_calls: 56, duration_min: 27 } # 1.21× — three independent micro-fixes; sealed 2026-07-13
 depends_on: []
 parallelizable_with: []
 created: 2026-07-12

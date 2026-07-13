@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-023
-status: in-progress
+status: complete
 design_ref:
   - docs/findings/finding-0046.md # findings-driven test-infra hardening — no design-note graduation (see §0)
 contract: builder
@@ -13,7 +13,7 @@ write_scope:
 session_budget: 1
 cost:
   estimate: { model: sonnet, tokens: 80k } # one fixture + a two-process contention proof
-  actual: { model: sonnet, tokens: "~110k" } # incl. Item 13's multi-run contention investigation + finding-0069
+  actual: { model: sonnet, tokens: 124620, tool_calls: 140, duration_min: 35 } # 1.56× — Item 13's multi-run contention forensics + finding-0069; sealed 2026-07-13
 depends_on: []
 parallelizable_with: []
 created: 2026-07-12

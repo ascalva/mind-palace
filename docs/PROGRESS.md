@@ -2598,3 +2598,47 @@ sweep), /scribe offer (book debt: seven ratified notes).
 - **Next:** the corpus-scope ruling (0065) + possible re-migration; the `palace down/up` command
   (0066) + daemon-privilege design note (0067); bp-023/024/025 still `ready` (unbuilt); /scribe
   offer; dn-core-query-protocol wants a fable-vetting pass before ratification.
+
+## 2026-07-13 — bp-023 + bp-024 + bp-025 SEALED: the third-triage wave lands (3 parallel sonnet builders)
+
+- **First fully-parallel delegated wave:** bp-023 (live-test cross-process lock), bp-024 (Stop-gate
+  `(d)` cross-checkout bleed check, finding-0051 fix 2), bp-025 (wave-debt micro-sweep: witness
+  short-sha guard + launcher comment + delegate gate-text) built CONCURRENTLY as dedicated
+  `builder`-type **sonnet** agents in three isolated worktrees. Disjoint code scopes; shared
+  `docs/findings/**` de-conflicted by pre-assigned finding-ID ranges. All three tier-verified
+  `claude-sonnet-5` (no downgrades). Pre-flight budget gate held: 34% all-models weekly headroom
+  covered the ~305k padded wave.
+- **Merged sequentially `--no-ff` at the wave boundary**, zero conflicts (scopes truly disjoint).
+  Combined green gate on the merged tree: ruff · targeted mypy · **argless mypy == 69**
+  (finding-0038 class clear) · type_gate · CI-equivalent `pytest -m "not live …"` **977 passed,
+  0 failed**. (Full `pytest -q`: 1 live failure — `test_scheduler_live` — the finding-0069
+  environmental class, which CI never runs.) main now at the merge tip; pushed.
+- **bp-024 scrutinized hardest (enforcement blast-radius):** the `(d)` check is read-only,
+  fail-open, byte-identical off-worktree, appends without touching checks (a)–(c); its falsifier
+  stands up a REAL git worktree with 3 controls (empty / different-plan / not-a-worktree), each
+  hitting a distinct code path. `_normalize_plan_ref` correctly normalizes without `rel()`-binding
+  a foreign path. No finding needed.
+- **finding-0069 (bp-023, `discovery` → orchestrator → oq-0018):** Item 12's lock is PROVEN
+  correct (server-log cross-ref: one cold-load in the race window ⇒ endpoint windows disjoint),
+  but Item 13's literal "both pass" flaked under a WIDER axis — whole-machine RAM pressure from the
+  SIBLING builder worktrees (this session's own parallel-builder decision starved the shared
+  Ollama daemon). A single write_scope can't install a machine-global lock. Item 13 closed via
+  §6(b)'s alternate disjoint-window acceptance; the cross-worktree policy call (machine-global lock
+  vs scheduler policy vs accept re-run fallback) is oq-0018, default (c). **Lesson for the
+  delegated-parallel-builders mode: parallel builders contend on physical RAM, not just the
+  endpoint — the live tier is the pinch point.**
+- **Ledger — the TWELFTH/THIRTEENTH/FOURTEENTH pairs (all sonnet):** bp-024 64,929 tok / 63 calls
+  / ~22 min = **1.08×** of 60k; bp-025 60,630 / 56 / ~27 min = **1.21×** of 50k; bp-023 124,620 /
+  140 / ~35 min = **1.56×** of 80k (Item 13's contention forensics drove the overage). Wave total
+  ~250k measured vs 190k estimate = 1.32× aggregate; the 1.6× pad held with margin.
+- **Design capture (owner chat, mid-wave):** `docs/brainstorms/external-grounding.md` — two
+  threads: (1) SymPy/CAS math-verification ("proves the MACHINERY we choose, not the THEORY" —
+  owner) as a deterministic, sandbox-native, fable-relieving checker; (2) the CURATED strata as
+  trusted external LITERATURE — a second K₀ bedrock on a provenance axis distinct from the mirror
+  (author=subjective, curated=objective; Popper World 2/3, Polanyi personal knowledge), forcing a
+  depth-≠-authority split in the finding-0068 gradient. Routes into the dn-core-query-protocol
+  fable-vet (adds a 5th kind: `reference`/`literature`).
+- **Next:** the three `ready` plans are drained. Remaining queue: fable-vet dn-core-query-protocol
+  (+ the external-grounding literature kind) — GATED to Jul 17 (fable exhausted); finding-0066
+  `palace down/up` command; /scribe (book still unscaffolded); the 0065 corpus-scope ruling. An
+  optional redeploy aligns the daemon (`344f02c`) with main HEAD; not required.
