@@ -262,7 +262,7 @@ class Launcher:
     gate_cmd: tuple[str, ...] = ("uv", "run", "pytest", "-q", "-m",
                                  "not live and not podman and not needs_vault and not needs_restic")
     # remote half of the gate + release-on-deploy (ops/ci_witness.py). Subprocesses, not
-    # imports: the witness talks to gitlab.com and must stay outside this sealed process.
+    # imports: the witness talks to api.github.com and must stay outside this sealed process.
     ci_check_cmd: tuple[str, ...] | None = ("uv", "run", "scripts/ci_witness.py", "check")
     ci_release_cmd: tuple[str, ...] | None = ("uv", "run", "scripts/ci_witness.py", "release")
     deploy_wait_s: float = 60.0
