@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-026
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/core-query-protocol.md # §3.1 licenses this (draft; independently warranted by findings below)
 contract: builder
