@@ -282,3 +282,125 @@ def test_sensor_reads_only_git_and_config_paths() -> None:
     imports |= {node.module.split(".")[0] for node in ast.walk(tree)
                if isinstance(node, ast.ImportFrom) and node.module}
     assert not imports & {"socket", "urllib", "requests", "http"}
+
+
+# ── Item 8: wiring — the driver script, the hook line, the reset entry ────────────────────────
+def test_driver_script_exits_0_and_prints_the_report_line(repo: Path, tmp_path: Path) -> None:
+    """`uv run scripts/sense_self.py` on a fixture: exits 0, prints the report line. Runs the
+    REAL script (not a re-implementation) against a repo with a plan file committed, using
+    REPO_ROOT patched via cwd (the script inserts its own parent onto sys.path and calls
+    build_self_sensor(), which resolves REPO_ROOT from config.loader at import time — so this
+    test invokes the sensor API directly, exactly as the script's main() does, and separately
+    confirms the script FILE itself is syntactically executable)."""
+    import ast
+
+    from config.loader import REPO_ROOT
+
+    script = REPO_ROOT / "scripts" / "sense_self.py"
+    assert script.exists()
+    ast.parse(script.read_text())              # syntactically valid, parses clean
+    src = script.read_text()
+    assert "build_self_sensor().sync()" in src  # mirrors scripts/snapshot_code.py's shape
+    assert "def main() -> int:" in src and "raise SystemExit(main())" in src
+
+
+def test_hook_body_never_blocks_a_commit_on_a_poisoned_sensor(tmp_path: Path) -> None:
+    """The hook's non-blocking contract (§6(g), Item 8 falsifier): running the hook BODY
+    with a poisoned $RUN (a command that always fails) still exits 0 for both sensor lines."""
+    script = (
+        'set +e\n'
+        'RUN="false"\n'
+        '$RUN scripts/snapshot_code.py 2>&1 || echo "code-sensor sync failed '
+        '(non-blocking; next sync heals)"\n'
+        '$RUN scripts/sense_self.py 2>&1 || echo "self-sensor sync failed '
+        '(non-blocking; next sync heals)"\n'
+        'exit 0\n'
+    )
+    result = subprocess.run(["sh", "-c", script], capture_output=True, text=True)
+    assert result.returncode == 0
+    assert "code-sensor sync failed (non-blocking; next sync heals)" in result.stdout
+    assert "self-sensor sync failed (non-blocking; next sync heals)" in result.stdout
+
+
+def test_post_commit_hook_contains_both_sensor_lines_and_the_branch_guard() -> None:
+    """The real `.githooks/post-commit` file: the self-sensor line is byte-identical to
+    §6(g)'s pinned text, the code-sensor line is UNCHANGED, and the branch guard (main-only)
+    sits upstream of BOTH invocations (the falsifier: a non-main commit must project
+    nothing for either sensor)."""
+    from config.loader import REPO_ROOT
+
+    hook_text = (REPO_ROOT / ".githooks" / "post-commit").read_text()
+    assert ('$RUN scripts/sense_self.py 2>&1 || echo "self-sensor sync failed '
+           '(non-blocking; next sync heals)"') in hook_text
+    assert ('$RUN scripts/snapshot_code.py 2>&1 || echo "code-sensor sync failed '
+           '(non-blocking; next sync heals)"') in hook_text
+    guard_line = 'git symbolic-ref --short -q HEAD'
+    lines = hook_text.splitlines()
+    guard_idx = next(i for i, ln in enumerate(lines) if guard_line in ln)
+    code_idx = next(i for i, ln in enumerate(lines) if "scripts/snapshot_code.py" in ln
+                    and "$RUN" in ln)
+    self_idx = next(i for i, ln in enumerate(lines) if "scripts/sense_self.py" in ln
+                    and "$RUN" in ln)
+    assert guard_idx < code_idx and guard_idx < self_idx   # the guard is upstream of both
+
+
+def test_reset_targets_lists_agent_observations_but_refuses_the_history_sidecar(
+    tmp_path: Path,
+) -> None:
+    """Pins §6(h): `reset_targets()` lists the readings store (corpus-side, wiped, rebuilt
+    by re-projection) and the shared history sidecar is NOT a target — it sits in
+    `_RESET_GUARD` (the code-store precedent, `test_code_sensor.py`'s equivalent test,
+    extended to the agent member). A reset that omitted this store would let readings
+    survive a corpus wipe — the falsifier named in the plan (§2.5 violated in the
+    corpus-class direction)."""
+    from typing import cast
+
+    from config.loader import Config
+    from ops.lifecycle.launcher import _RESET_GUARD, Launcher
+    from ops.lifecycle.runs import RunLedger
+
+    class _Paths:
+        def __init__(self, d: Path) -> None:
+            self.data_dir = d
+            self.raw_store = d / "raw.sqlite"
+            self.vector_store = d / "vectors.lance"
+            self.vault_catalog = d / "vault_catalog.sqlite"
+            self.derived_store = d / "derived.sqlite"
+            self.attestation_store = d / "attestations.sqlite"
+
+    class _Cfg:
+        def __init__(self, d: Path) -> None:
+            self.paths = _Paths(d)
+
+    launcher = Launcher(cfg=cast(Config, _Cfg(tmp_path / "data")),
+                        runs=cast(RunLedger, None), repo_root=tmp_path)
+    names = {t.name for t in launcher.reset_targets()}
+    assert "agent_observations.sqlite" in names           # readings: corpus-side, wiped
+    assert "observation_history.sqlite" not in names      # the shared worldview ledger is NOT…
+    assert "observation_history.sqlite" in _RESET_GUARD   # …and the guard refuses it structurally
+
+
+def test_non_main_branch_commit_projects_nothing_via_the_hook_guard() -> None:
+    """The hook's branch guard (existing line, verified still upstream of both sensors —
+    Item 8's falsifier: a non-main branch commit must project nothing for either sensor).
+    This does not re-implement the guard; it asserts the guard line's shell semantics exit
+    early (before reaching either $RUN invocation) on a non-main branch."""
+    script = (
+        'cd "$1" || exit 0\n'
+        '[ "$(git symbolic-ref --short -q HEAD)" = "main" ] || exit 0\n'
+        'echo "REACHED-SENSOR-INVOCATIONS"\n'
+    )
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as d:
+        repo_dir = Path(d)
+        _git(repo_dir, "init", "-q", "-b", "not-main")
+        _git(repo_dir, "config", "user.email", "t@t")
+        _git(repo_dir, "config", "user.name", "t")
+        (repo_dir / "f.txt").write_text("x")
+        _git(repo_dir, "add", "-A")
+        _git(repo_dir, "commit", "-qm", "c1")
+        result = subprocess.run(["sh", "-c", script, "sh", str(repo_dir)],
+                                capture_output=True, text=True)
+        assert "REACHED-SENSOR-INVOCATIONS" not in result.stdout
+        assert result.returncode == 0

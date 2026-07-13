@@ -1,5 +1,41 @@
 # bp-019 journal
 
+## 2026-07-12 — Item 8 complete: wiring (hook line, driver script, reset entry)
+
+Wrote `scripts/sense_self.py` mirroring `scripts/snapshot_code.py` exactly: prints
+`build_self_sensor().sync()`, exits 0.
+
+Appended the hook line to `.githooks/post-commit` per §6(g), BYTE-IDENTICAL to the pinned
+text: `$RUN scripts/sense_self.py 2>&1 || echo "self-sensor sync failed (non-blocking; next
+sync heals)"`. Also updated the header comment (the §4-licensed reconciliation extension —
+"header mentions both sensors") to name both `ops/code_sensor.py` and `ops/self_sensor.py`.
+Diff is exactly the header-comment update + one appended invocation line; the branch guard
+and code-sensor line are unchanged (confirmed by diff).
+
+Added the ONE `reset_targets()` list entry + comment to `ops/lifecycle/launcher.py` per
+§6(h): `p.data_dir / "agent_observations.sqlite"`, citing dn-self-sensing §2.5 (readings
+corpus-class; history rides the guarded sidecar). Confirmed `agent_observations.sqlite` is
+NOT in `_RESET_GUARD` and `observation_history.sqlite` already is (shared across both
+family members, unaffected by this addition). Diff is exactly one list entry + comment.
+
+Item 8 tests added to `tests/unit/test_self_sensor.py` (5 new, 22 total in the file): the
+driver script parses clean and mirrors the mold's shape; the hook body with a poisoned
+`$RUN` still exits 0 for BOTH sensor lines (non-blocking, tested directly via `sh -c`); the
+real `.githooks/post-commit` contains both pinned lines with the branch guard upstream of
+both; `reset_targets()` lists `agent_observations.sqlite` and refuses
+`observation_history.sqlite` (mirroring `test_code_sensor.py`'s existing equivalent test);
+a non-main branch commit's hook-guard exits before reaching either sensor invocation
+(verified against a real throwaway repo on a non-main branch).
+
+Gate: `uv run pytest -q tests/unit/test_self_sensor.py` → **22 passed**.
+`uv run pytest -q tests/unit/test_code_sensor.py` → **7 passed** (existing reset test
+unaffected by the new launcher entry). `ruff check` / `mypy` clean on
+`scripts/sense_self.py` and `ops/lifecycle/launcher.py`.
+
+All four items (5-8) of bp-019 are now code-complete. Next: the full gate sweep (ruff repo-
+wide, mypy full + argless, `ops.type_gate`, `pytest -q` full suite) before handing back to
+the orchestrator.
+
 ## 2026-07-12 — Item 7 complete: φ_self v1.0.0 (`ops/self_sensor.py`)
 
 Wrote `ops/self_sensor.py` per §6(d,e,f): `INTERPRETER_VERSION = "1.0.0"`, `SelfSensor`

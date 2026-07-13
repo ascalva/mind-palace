@@ -1,7 +1,10 @@
 #!/bin/sh
-# Code-sensor agent sync on every commit (ops/code_sensor.py). NEVER blocks a commit:
-# a failed sync prints a warning and exits 0 — sync is idempotent catch-up, so the next
-# invocation (any commit, or scripts/snapshot_code.py by hand) heals the gap.
+# Code-sensor (ops/code_sensor.py) and self-sensor (ops/self_sensor.py, bp-019) agent sync
+# on every commit. NEVER blocks a commit: a failed sync prints a warning and exits 0 — sync
+# is idempotent catch-up, so the next invocation (any commit, or scripts/snapshot_code.py /
+# scripts/sense_self.py by hand) heals the gap. Each sensor's line is independent — one
+# sensor's failure never blocks the other's sync (§11 parked decision: own driver script,
+# own hook line, per sensor).
 #
 # main is the ingestion branch (CONVENTIONS §Commits): exit silently on any other branch
 # or detached HEAD — branch work enters the ledger when it lands on main.
@@ -10,4 +13,5 @@ cd "$(git rev-parse --show-toplevel)" || exit 0
 # uv owns env resolution (CONVENTIONS §Language); venv fallback for environments without uv on PATH.
 if command -v uv >/dev/null 2>&1; then RUN="uv run"; else RUN="./.venv/bin/python"; fi
 $RUN scripts/snapshot_code.py 2>&1 || echo "code-sensor sync failed (non-blocking; next sync heals)"
+$RUN scripts/sense_self.py 2>&1 || echo "self-sensor sync failed (non-blocking; next sync heals)"
 exit 0
