@@ -135,3 +135,6 @@ orchestrator supervision underway in this worktree.
 building, folds main at its landing), push, witness `check` on the merge sha, seal
 (cost.actual: sonnet ~173,956 tok / 233 tool uses / ~21 min = 0.58× of 300k estimate),
 then spawn bp-022 (dependency clears at the merge).
+
+
+**SEALED by /triage (2026-07-12, third sweep).** Plan `complete`; durable seal in PROGRESS.md (2026-07-12 "bp-021 SEALED: hodge.py lands"). No further narrative entries.

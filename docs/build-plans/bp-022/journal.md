@@ -289,3 +289,6 @@ post-main-merge: ruff clean · mypy scoped clean (170 files) · **argless mypy =
 baseline** (340 files) · type_gate OK · pytest **926 passed / 8 skipped / 0 failed**
 (611 s, uncontended — zero flakes). Folding main again (bp-019 + its seal landed
 mid-gate; disjoint scopes), then merging to main; final combined-tree gate runs on main.
+
+
+**SEALED by /triage (2026-07-12, third sweep).** Plan `complete`; Lane A COMPLETE, wave closed with the combined-tree gate; durable seal in PROGRESS.md (2026-07-12 "bp-022 SEALED"). No further narrative entries.

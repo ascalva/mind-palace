@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0058
-status: open
+status: resolved # 2026-07-12 third /triage — frontmatter reconciled with the recorded `resolution: resolved` (builder settled --first-parent/--root in bp-019)
 created: 2026-07-12
 updated: 2026-07-12
 links:

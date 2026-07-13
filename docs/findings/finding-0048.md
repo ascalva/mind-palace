@@ -51,3 +51,10 @@ embed-path timeout/retry posture deserves a real look).
 
 `discovery`, codebase concern → builder resolved by evidence + annotation (this file,
 journal, FINISH report); orchestrator may fold into finding-0046's known-flake note.
+
+## Triage note (third /triage, 2026-07-12) — folded into finding-0046 → bp-023
+
+Folded into [[finding-0046]]'s known-flake note as recommended, and carried into **bp-023**
+(`proposed`) with it — same live-flake class, structurally fixed by the cross-process
+endpoint lock. Already `resolved` in-plan (re-run green); the structural fix lands via
+bp-023.

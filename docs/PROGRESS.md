@@ -2491,3 +2491,35 @@ sweep), /scribe offer (book debt: seven ratified notes).
 - **Next:** bp-020 (sonnet/100k), then the third /triage (agenda: live-flake lock, 0051
   hook hardening, witness short-sha guard, launcher stale comment, && -chain gate text,
   0047/0048/0057/0058 sweeps), then /scribe offer (book debt: seven ratified notes).
+
+## 2026-07-12 — THIRD /triage: three proposed plans minted, wave-debt swept, four journals sealed
+
+- **Ran concurrently with the bp-020 build** (opus orchestrator, default effort; the
+  tier-justifying judgment was pre-ruled at the wave boundary in the closing fable session
+  and executed here — no re-litigation). Board verified clean at entry: main `36906fb`,
+  root `active-plan` empty, live φ_self store healthy (26 agent_observations / 59
+  projections — growing per-commit from the bp-019-seal baseline of 25/57).
+- **Promotions → three `proposed` plans minted (owner flips `proposed → ready`):**
+  - **bp-023** (sonnet/80k) — serialize the live test axis ACROSS processes via an
+    endpoint-keyed stdlib `fcntl.flock` autouse fixture. Resolves the live-flake CLASS:
+    finding-0046 + finding-0048 (folded) + bp-018's research_live/semantic_search_live
+    cross-suite evidence. `filelock` rejected (not installed; POSIX `fcntl` needs no dep).
+  - **bp-024** (sonnet/60k) — finding-0051 fix 2: a `(d)` check in `cmd_stop_audit` that
+    BLOCKS a worktree Stop when MAIN's `active-plan` names that worktree's own plan (the
+    exact bleed signature; zero-false-positive predicate). Spec pinned verbatim in §6.
+  - **bp-025** (sonnet/50k) — wave-debt micro-sweep, three independent items: witness
+    short-sha guard (`_full_sha` expand-or-error before polling, ci_witness.py:110/165);
+    launcher.py:265 `gitlab.com`→`api.github.com` comment; delegate SKILL.md gate text
+    separated (the `&&`-chain short-circuits at leg 3, argless mypy exits 1 at baseline 69).
+    `scripts/attestable_green.sh` (0038 rec 3) stays deferred.
+- **Findings:** 0046 → carried into bp-023 (flips `→ promoted` on blessing); 0048 → folded
+  into 0046 + bp-023; 0051 → fix 2 carried into bp-024 (flips `routed → promoted` on
+  blessing); 0058 frontmatter reconciled (`open → resolved`, matched its recorded
+  resolution); 0047 + 0057 already `resolved` (no action). No promotions beyond 1–3;
+  oq-0003..0010 stay design-tier-deferred.
+- **Sealed** the bp-018/019/021/022 journals (seal markers appended; durable seals already
+  in PROGRESS above). **Owner questions:** 8 open (oq-0003..0010), none answered — nothing
+  to sweep.
+- **Next:** merge/seal bp-020 (the queue's last plan) on its builder's completion; /scribe
+  offer; owner blesses bp-023/024/025 at leisure (none blocking; queue self-drains through
+  bp-020).

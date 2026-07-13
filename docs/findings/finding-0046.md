@@ -52,3 +52,14 @@ the flake — re-run before investigating.
 
 `codebase` → builder-tier fix; annotated here and carried past bp-016 (out of its
 scope). Surfaced at the next /triage.
+
+## Triage note (third /triage, 2026-07-12) — PROMOTED into bp-023
+
+The live-flake CLASS (this finding + [[finding-0048]] + bp-018's journal evidence of
+research_live / semantic_search_live failing under *cross-suite* overlap) is promoted to
+**bp-023** (`proposed`) — an OS-level, endpoint-keyed `fcntl.flock` serializing the live
+test axis ACROSS processes (the contention is cross-process, so the async-unload race is a
+symptom of shared-endpoint contention, not the root). finding-0048 is folded in here (same
+class). The "re-run before investigating" workaround stays the documented fallback for a
+genuinely hung endpoint. This finding flips `open → promoted` when the owner blesses
+bp-023 `proposed → ready`.

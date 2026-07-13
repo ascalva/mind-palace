@@ -62,3 +62,12 @@ then: the orchestrator re-verifies the root pointer is empty at every unit bound
 ## Routing
 
 `discovery` → orchestrator (enforcement/process). Non-blocking; prompt fix live.
+
+## Triage note (third /triage, 2026-07-12) — fix 2 PROMOTED into bp-024
+
+Fix 2 (the hook-level backstop) is promoted to **bp-024** (`proposed`): a `(d)` check in
+`cmd_stop_audit` that BLOCKS a worktree session's close when the MAIN checkout's
+`active-plan` points to that worktree's own plan — the exact bleed signature here. Fix 1
+(the `$PWD`-anchored spawn prompt) remains the pre-hoc primary control; bp-024 is the
+post-hoc Stop-gate backstop for the residual Bash path. This finding flips
+`routed → promoted` when the owner blesses bp-024 `proposed → ready`.

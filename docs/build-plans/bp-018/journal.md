@@ -195,3 +195,6 @@ semantic_search_live same load class; the run overlapped bp-022's gate suite 18 
 Re-runs: semantic_search green in the first partial re-run; scheduler + research_live
 **2 passed in 126 s truly uncontended** (verified zero pytest processes machine-wide
 first). Five-part gate GREEN in full. Merging to main.
+
+
+**SEALED by /triage (2026-07-12, third sweep).** Plan `complete` (merge `160fd2f`); durable seal in PROGRESS.md (2026-07-12 "bp-018 SEALED"). No further narrative entries.

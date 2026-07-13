@@ -280,3 +280,6 @@ V4's SQLite confirmation (`CONVENTIONS.md:15-18`), V3's parse feasibility (4 pai
 estimate-only, 11 pre-rule). First-parent diff grain pinned (§6(e)); v1 payload
 worldview recorded (§6(f)). No code written. Awaiting the owner's `proposed → ready`
 hand edit; depends on bp-018.
+
+
+**SEALED by /triage (2026-07-12, third sweep).** Plan `complete` (merge `b1040a4`); durable seal in PROGRESS.md (2026-07-12 "bp-019 SEALED — the third sensing stream"). φ_self live per-commit. No further narrative entries.
