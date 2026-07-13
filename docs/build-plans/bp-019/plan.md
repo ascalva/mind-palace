@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-019
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/self-sensing.md # B-b: §2.2 φ_self contract, §2.3 schema + S1, §2.5 seam sibling, §2.6 safety line
 contract: builder
