@@ -68,6 +68,25 @@ every token:
 Complements context-economy's tier rubric (which decides *which* tier); this is how to reach the
 scarce top tier without waste.
 
+## Pre-flight budget gate (owner rule, 2026-07-13)
+
+Before spawning **any** delegated worker, gate the spawn against the remaining budget. The
+fable/subscription token pool is scarce and has **no query API** — the owner reads it (`/usage`
+or `/cost`; the agent cannot run slash commands) and relays the number. The gate prevents the
+failure this repo has logged repeatedly: a worker that dies at the usage limit mid-run, burning
+the tokens it already spent for nothing.
+
+- **Get `available`** from the owner (exact, or an estimate with headroom).
+- **Pad the estimate by the measured overrun margin — estimates run OVER.** This wave's builders
+  came in at ~1.5–1.6× their graduation estimate (bp-020 1.50×, bp-026 1.56×). Gate on
+  `estimate × ~1.6`, not the raw estimate — or quote a pre-padded estimate and compare directly.
+  Refine the margin from the ledger's estimate/actual pairs as it grows.
+- **Spawn only if `padded_estimate ≲ available`.** Otherwise: downsize the tier, split the task
+  into budget-sized units, or defer — never start a worker that can't finish.
+- **Close the loop:** the worker self-reports actual usage on completion (the honesty mandate
+  above); record it in the seal; the estimate/actual ratio sharpens the next margin. Managing a
+  scarce budget becomes a checklist instead of vigilance.
+
 ## Worktree mechanics
 
 - One builder per plan, each in its **own worktree** (`Agent` tool `isolation:
