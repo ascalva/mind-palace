@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-023
-status: proposed
+status: ready
 design_ref:
   - docs/findings/finding-0046.md # findings-driven test-infra hardening — no design-note graduation (see §0)
 contract: builder

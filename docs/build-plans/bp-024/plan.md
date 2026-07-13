@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-024
-status: proposed
+status: ready
 design_ref:
   - docs/findings/finding-0051.md # findings-driven enforcement hardening — no design-note graduation (§0)
 contract: builder

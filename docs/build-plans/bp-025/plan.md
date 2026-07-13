@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-025
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/self-sensing.md # N/A as graduation — wave-debt micro-sweep, no design note (see §0)
 contract: builder
