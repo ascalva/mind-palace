@@ -126,7 +126,22 @@
 ## Status at handoff
 
 Item 14 (the plan's only item) is COMPLETE: implementation + falsifier test
-green, green gate to run and be recorded in the final report, side-effect
-audit clean. Ready to commit and hand back to orchestrator for plan
-`in-progress → complete` and finding-0051 `→ promoted` (owner/orchestrator
-action per §12, not this builder's write_scope).
+green, green gate run in full (all 5 legs green; argless mypy = 69,
+matching the pinned baseline), side-effect audit clean. Full suite
+(`uv run pytest -q`): 985 passed, 4 skipped→7 skipped (env-dependent
+`tests/e2e/*_live.py` require a live local Ollama server, not present in
+this sandbox — pre-existing/environmental, unrelated to this plan's scope);
+`--ignore=tests/e2e`: 972 passed, 4 skipped, zero failures.
+
+Committed on the worktree branch: `ce692f0` — "feat(hooks): stop-audit (d)
+— flag cross-checkout state bleed (finding-0051 fix 2)". 4 files: `_lib.py`,
+`test_worktree_enforcement.py`, `bp-024/plan.md`, `bp-024/journal.md`
+(new). All inside write_scope; verified via `git diff --stat` before commit.
+
+No findings filed — the §10 stop-and-raise predicate held (see above), and
+no codebase/spec-fidelity gap surfaced during grounding (only trivial line-
+number drift, noted above, no semantic change).
+
+Ready for orchestrator to flip `docs/build-plans/bp-024/plan.md`
+`in-progress → complete` and finding-0051 `→ promoted`, then sequence the
+merge (both out of this builder's write_scope).
