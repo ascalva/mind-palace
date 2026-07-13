@@ -1,5 +1,13 @@
 # external-grounding
 
+**Origin — the root the whole arc grew from (owner, 2026-07-13).** This began from a concrete
+engineering need, not philosophy: the owner wanted to use **Ouroboros itself** — the live daemon
++ reference store ([[ouroboros-naming]]), projected per-commit — as a way to *find references to
+code*, so the **orchestrator and builders query a live, always-up-to-date self-index instead of
+burning context searching for documents** (context-economy: cost is O(context × turns × tier)).
+Everything below grew *outward* from that seed and serves one end — a richer, more precise live
+index. The closing capsule (18:03) records the origin in full; read it first for the "why."
+
 Owner raised two ideas mid-build-wave (2026-07-13, chat), seeking an honest read. Both are one
 move under different guises: **ground the system's reasoning in externally-vetted truth rather
 than model assertion.** Thread 1 grounds *computation* (a deterministic tool verifies the math
@@ -413,4 +421,69 @@ next_steps:
   - Carry this whole arc into the dn-core-query-protocol fable-vet as THE FRAME: curated strata =
     objective connective tissue; the design note = cross-strata join; ratification = the circuit
     seal. The kind vocabulary + weighting must express CROSS-STRATA edges, not just intra-kind ones.
+```
+
+## 2026-07-13T18:03:19Z (captured)
+
+```capsule
+topic: external-grounding
+date: 2026-07-13
+thread: ORIGIN + ANCHOR — Ouroboros as a live self-index to cut context cost (the seed the whole arc grew from)
+
+the_seed (owner — the practical motivation, captured last but it is the ROOT):
+  - OWNER (2026-07-13): this entire discussion "stemmed from me wanting to use the OUROBOROS ITSELF
+    as a way of finding references to code, which would be used by the ORCH or BUILDERS to cut down
+    on the CONTEXT COST associated with trying to find documents. The system is a LIVE, ALWAYS
+    UP-TO-DATE INDEX."
+  - The philosophical arc (external grounding, curated strata, the cross-strata warrant circuit)
+    grew OUTWARD from this concrete engineering need. It all serves the same end: a richer, more
+    precise live index. Recorded last; it is the root.
+
+the_mechanism:
+  - Ouroboros (the live daemon + evolving corpus + reference store) already IS the index: the v2
+    reference_edges graph (~188k edges — code<->corpus, doc->doc, doc->code) + code_observations,
+    PROJECTED PER-COMMIT by the post-commit hook. It tracks HEAD continuously — that is the "always
+    up-to-date" property, no staleness, unlike a static doc search.
+  - THE USE CASE: instead of an agent GREPPING/READING to find "what code implements X" or "what
+    note discusses Y" (expensive — context-economy: cost is O(context x turns x tier)), it QUERIES
+    the graph, gets the precise pointers, and reads ONLY those. Search-by-context-burn is replaced
+    by lookup-against-a-precomputed-live-index. This is a first-class CONTEXT-ECONOMY tool, not only
+    an epistemics project.
+  - This IS dn-core-query-protocol's core purpose: agents as SCOPED CLIENTS of a core-query algebra
+    over the live index (three retrieval modes). The reference taxonomy (finding-0068) + the kind
+    vocabulary (the fable-vet) matter BECAUSE they determine what you can query for — better kinds
+    -> more precise queries -> more context saved.
+
+why_the_arc_serves_the_seed:
+  - The index is only as useful as its edges are correct and its node-kinds are right, so the
+    taxonomy work is not academic — it is what makes the queries precise. The CURATED strata extends
+    the index to a whole new queryable class (external literature): an agent can pull "the theorem
+    this code implements" or "the paper that grounds this approach" from the SAME live index, so the
+    context-cost win extends from internal code/docs to external knowledge.
+  - The cross-strata warrant circuit (prior capsule) is what a query TRAVERSES: it can walk
+    authored -> dialogue -> curated -> code and return a whole grounded chain as POINTERS, not prose
+    — the agent reconstructs context by reading pointers, not by searching.
+
+decisions:
+  - The NORTH STAR is a LIVE SELF-INDEX that orch/builders query to cut context cost — the primary,
+    near-term, buildable utility. The external-grounding synthesis is in service of it (richer index).
+  - Freshness is guaranteed STRUCTURALLY by per-commit projection (the post-commit hook), not by a
+    re-index chore — "always up to date" is a property of the substrate, already live on v2.
+
+near_term_vs_frontier (honest separation):
+  - NEAR-TERM, index-first win — does NOT need the fable-vet OR the curated strata: a query surface
+    the orch/builders call to resolve "references to code/docs for X" against the LIVE v2 graph
+    (which exists now, ~188k edges, per-commit). That is the context-cost tool the owner actually
+    wants, buildable today.
+  - FRONTIER — the curated strata + cross-strata edges + verification/ratification gates make that
+    index RICHER and externally-grounded later; they route through the dn-core-query-protocol
+    fable-vet (gated Jul 17). Do not let the frontier block the near-term index win.
+
+references:
+  - [[ouroboros-naming]] — Ouroboros = the LIVE system (daemon + evolving corpus), distinct from the
+    mind-palace framework; this is that live system used as an index OF ITSELF.
+  - context-economy skill — cost is O(context x turns x tier); a live index returning pointers is the
+    structural answer to search-by-context-burn.
+  - bp-026 / reference_edges v2 (~188k edges, per-commit projection) — the index substrate, live now.
+  - dn-core-query-protocol (drafted) — the query algebra over the index; agents as scoped clients.
 ```
