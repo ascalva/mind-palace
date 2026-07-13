@@ -210,3 +210,113 @@ def test_d_no_pointer_is_no_plan_not_main_fallback(two_worktrees):
     assert scope(two_worktrees["wt_a"], "CONSTITUTION.md", project_dir=main) == 2, (
         "the foundation denylist must bind even with no active plan"
     )
+
+
+# --------------------------------------------------------------------------- #
+# bp-024 (warrant finding-0051 fix 2): cmd_stop_audit's (d) cross-checkout state
+# bleed check. A worktree builder's Bash write can reach MAIN's own
+# `.claude/state/active-plan` (finding-0051's observed bleed: bp-022's builder
+# set both its own worktree pointer AND main's pointer to "bp-022"). scope-guard
+# is pre-hoc and structurally can't see a Bash write to an absolute cross-
+# checkout path; only a post-hoc Stop-gate audit can flag it. This is that check.
+# --------------------------------------------------------------------------- #
+@pytest.fixture
+def bleed_fixture(tmp_path: Path):
+    """A self-contained MAIN repo + one worktree, each with their OWN
+    ``.claude/state/active-plan``. Returns a ``run`` helper that invokes
+    ``_lib.py stop-audit`` from the worktree with ``CLAUDE_PROJECT_DIR`` set to
+    MAIN (the exact condition a delegated builder runs under)."""
+    main = tmp_path / "main"
+    main.mkdir()
+    _git(main, "init", "-q", "-b", "main")
+    _git(main, "config", "user.email", "t@t")
+    _git(main, "config", "user.name", "t")
+
+    (main / ".claude" / "hooks").mkdir(parents=True)
+    for f in _HOOKS_SRC.glob("*.py"):
+        shutil.copy(f, main / ".claude" / "hooks" / f.name)
+
+    plans = main / "docs" / "build-plans"
+    (plans / "bp-024").mkdir(parents=True)
+    (plans / "bp-024" / "plan.md").write_text(_plan("bp-024", ["edge/**"]))
+    (plans / "bp-024" / "journal.md").write_text("# journal\n")
+    (plans / "bp-other").mkdir(parents=True)
+    (plans / "bp-other" / "plan.md").write_text(_plan("bp-other", ["core/**"]))
+    (plans / "bp-other" / "journal.md").write_text("# journal\n")
+
+    (main / ".claude" / "state").mkdir(parents=True)
+    (main / ".claude" / "state" / "active-plan").write_text("")  # orchestrator posture
+    _git(main, "add", "-A")
+    _git(main, "commit", "-qm", "fixture: bp-024 + bp-other + hooks")
+
+    wt = tmp_path / "wt"
+    _git(main, "worktree", "add", "-q", "-b", "br-wt", str(wt))
+    (wt / ".claude" / "state").mkdir(parents=True, exist_ok=True)
+    (wt / ".claude" / "state" / "active-plan").write_text("bp-024")
+    # Journal is fresh (mtime after HEAD) so (a) staleness never fires and
+    # muddies the (d)-only assertions below.
+    (wt / "docs" / "build-plans" / "bp-024" / "journal.md").write_text(
+        "# journal\n- fresh\n"
+    )
+
+    def run(main_pointer_val: str, in_worktree: bool = True) -> str:
+        """Set MAIN's pointer to `main_pointer_val`, run `_lib.py stop-audit`
+        from `wt` (or from `main` itself if `in_worktree` is False — the
+        env-top == cwd-top control), with CLAUDE_PROJECT_DIR=main. Returns
+        stdout (the ALLOW/BLOCK decision line)."""
+        (main / ".claude" / "state" / "active-plan").write_text(main_pointer_val)
+        cwd = wt if in_worktree else main
+        env = dict(os.environ)
+        env["CLAUDE_PROJECT_DIR"] = str(main)
+        r = subprocess.run(
+            ["python3", str(cwd / ".claude" / "hooks" / "_lib.py"), "stop-audit"],
+            cwd=str(cwd),
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        return r.stdout
+
+    return {"main": main, "wt": wt, "run": run}
+
+
+@pytest.mark.integration
+def test_stop_audit_flags_main_checkout_pointer_bleed(bleed_fixture):
+    """THE positive case: main's active-plan pointer names THIS worktree's OWN
+    plan (bp-024) — the exact finding-0051 bleed signature. `(d)` must fire."""
+    out = bleed_fixture["run"]("bp-024")
+    assert "(d) cross-checkout state bleed" in out, (
+        f"expected the (d) bleed reason in BLOCK output, got: {out!r}"
+    )
+
+
+@pytest.mark.integration
+def test_stop_audit_bleed_control_1_empty_main_pointer(bleed_fixture):
+    """Control 1: main's pointer is EMPTY (orchestrator posture, the common
+    case) -> no (d) reason."""
+    out = bleed_fixture["run"]("")
+    assert "(d)" not in out, f"empty main pointer must never trip (d), got: {out!r}"
+
+
+@pytest.mark.integration
+def test_stop_audit_bleed_control_2_different_plan_no_false_positive(bleed_fixture):
+    """Control 2 (zero-false-positive guarantee, §3 Q3): main's pointer names a
+    DIFFERENT plan than this worktree's own -> no (d) reason. An orchestrator
+    legitimately holding a different main-checkout plan must not be flagged."""
+    out = bleed_fixture["run"]("bp-other")
+    assert "(d)" not in out, (
+        f"a main pointer naming a DIFFERENT plan must never trip (d) (zero "
+        f"false positives), got: {out!r}"
+    )
+
+
+@pytest.mark.integration
+def test_stop_audit_bleed_control_3_not_a_worktree_byte_identical(bleed_fixture):
+    """Control 3: NOT running in a worktree (env-top == cwd-top, i.e. running
+    from MAIN itself) -> byte-identical, no (d) reason, even if main's own
+    pointer happens to equal the value under test."""
+    out = bleed_fixture["run"]("bp-024", in_worktree=False)
+    assert "(d)" not in out, (
+        f"running from the main checkout itself (env-top == cwd-top) must "
+        f"never trip (d), got: {out!r}"
+    )

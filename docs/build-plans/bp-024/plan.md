@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-024
-status: ready
+status: in-progress
 design_ref:
   - docs/findings/finding-0051.md # findings-driven enforcement hardening — no design-note graduation (§0)
 contract: builder
@@ -17,7 +17,7 @@ cost:
 depends_on: []
 parallelizable_with: []
 created: 2026-07-12
-updated: 2026-07-12
+updated: 2026-07-13
 links:
   - docs/findings/finding-0051.md # the observed bleed (bp-022 spawn)
   - docs/findings/finding-0031.md # the parent class (CLAUDE_PROJECT_DIR = main for worktree agents)

@@ -298,6 +298,23 @@ def active_plan_path() -> str | None:
     return val if os.path.exists(os.path.join(ROOT, val)) else val
 
 
+def _normalize_plan_ref(val: str) -> str:
+    """Normalize a raw ``active-plan`` pointer value to the same
+    ``docs/build-plans/<id>/plan.md`` form ``active_plan_path()`` produces, WITHOUT
+    checking existence against this worktree's ``ROOT`` — the value may name a plan
+    in a different checkout entirely (the (d) cross-checkout bleed check's use case,
+    warrant finding-0051). Tolerates a bare plan id or a path; strips a leading
+    slash and normalizes separators the same way ``rel()`` does, but never resolves
+    against ``ROOT`` (that would silently coerce a foreign path onto this
+    worktree's filesystem)."""
+    v = val.strip().replace("\\", "/").lstrip("./")
+    while v.startswith("/"):
+        v = v[1:]
+    if not v.endswith(".md"):
+        v = f"docs/build-plans/{v}/plan.md"
+    return v
+
+
 def plan_write_scope(plan_rel: str) -> list:
     fm = read_front_matter(os.path.join(ROOT, plan_rel))
     ws = fm.get("write_scope")
@@ -660,6 +677,28 @@ def cmd_stop_audit(diff_file: str | None) -> int:
             f"A3). Commit it (then it is accountable to its author) or revert the "
             f"Bash-mediated creation."
         )
+
+    # (d) cross-checkout state bleed (warrant finding-0051) -> worktree sessions only.
+    # A worktree builder must never write the MAIN checkout's .claude/state/**; the
+    # pre-hoc guard can't see the Bash write, so flag it at Stop. Signature (zero false
+    # positives, §3 Q3): running in a worktree AND main's active-plan resolves to THIS
+    # worktree's own plan. Read-only; fail-open on any error (enforcement never crashes).
+    try:
+        env_top = os.environ.get("CLAUDE_PROJECT_DIR")
+        cwd_top = _cwd_toplevel()  # realpath'd git toplevel of CWD, or None
+        if env_top and cwd_top and os.path.realpath(env_top) != cwd_top and plan is not None:
+            main_ptr = os.path.join(os.path.realpath(env_top), ".claude", "state", "active-plan")
+            with open(main_ptr, encoding="utf-8") as fh:
+                main_val = fh.read().strip()
+            if main_val and _normalize_plan_ref(main_val) == plan:
+                reasons.append(
+                    "(d) cross-checkout state bleed: the MAIN checkout's active-plan "
+                    f"points to this worktree's plan ('{main_val}'). A worktree builder "
+                    "never writes the main checkout's .claude/state/** (finding-0051). "
+                    f"Clear it: printf '' > {main_ptr}"
+                )
+    except Exception:
+        pass  # fail-open, fail-loud is the .sh's job; a missing/unreadable pointer never blocks
 
     if reasons:
         print("BLOCK: " + " ".join(reasons))
