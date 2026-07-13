@@ -32,6 +32,14 @@ edges — both directions — into the dedicated `ReferenceEdgeStore`
 (`core/stores/reference_edges.py`), a store the balance math holds no handle to.
 Extraction is mechanical (bp-011's measured-precision regexes verbatim); no model call
 exists anywhere in this path.
+
+φ_doc (bp-026, Item 20): the SAME projection pass also scans the corpus's OWN citation
+graph — front-matter `design_ref`/`links`/`depends_on`/`warrant`/`supersedes`/
+`superseded_by`, inline note-citations, and `[[wikilinks]]` — into `corpus_to_corpus`
+edges, using the v2 symmetric `ReferenceEdgeStore` schema (bp-026 Item 18). Front-matter
+is PARSED (a minimal YAML-subset parser scoped to this module — no project dependency on
+PyYAML, per `pyproject.toml`'s "runtime deps are intentionally minimal"), never
+regex-approximated (plan §10). Still fully mechanical; still no model anywhere in the path.
 """
 
 from __future__ import annotations
@@ -58,6 +66,22 @@ from ops.code_snapshot import (
 )
 
 INTERPRETER_VERSION = "1.0.0"   # φ_code's worldview coordinate (dn-self-sensing §2.4).
+# UNCHANGED across bp-026 (Items 19/20) -- a RE-PIN case, not a bump (the ratchet
+# licenses either, deliberately; tests/unit/test_interpreter_versions.py). Rationale:
+# INTERPRETER_VERSION stamps ONLY code observations -- every usage is
+# self.observations.is_projected/mark_projected(sha, INTERPRETER_VERSION), governing the
+# code_observations store's re-projection/supersession semantics. Reference edges carry
+# NO version field (content-keyed edge_id, append-only, regenerable -- reference_edges.py
+# schema). bp-026's φ_doc emits corpus_to_corpus reference edges ONLY; it does not change
+# any code observation (Item 19 kept code<->corpus semantics identical -- the same commit
+# yields the SAME code observations). Bumping would spuriously re-project + archive the
+# ENTIRE unchanged code_observations store -- a worldview supersession of content
+# identical modulo the version stamp, which the doctrine's re-projection is NOT for (that
+# is for when the SAME input yields DIFFERENT versioned output). So this source change
+# (Items 19/20 edited the file's bytes) is a DECLARED REFACTOR of φ_code's versioned
+# worldview: the sha256 pin re-pins at version 1.0.0 (orchestrator, at seal -- the pin
+# lives in tests/unit/test_interpreter_versions.py, outside bp-026's write_scope;
+# finding-0064). φ_doc is a separate, UNVERSIONED reference-edge lane.
 # Bump ⇒ re-projection supersedes (run backfill_observations()); an unbumped source
 # change is a RED ratchet test (tests/unit/test_interpreter_versions.py), never silent.
 
@@ -87,6 +111,126 @@ _RE_BACKTICK_PATH = re.compile(r"`([\w./\-]+\.(?:py|md|toml|yml|yaml|sh))(:\d+)?
 _RE_PATH_MENTION = re.compile(r"`([\w./\-]+\.py)(:(\d+))?`")
 # The corpus surfaces bp-011 scanned (corpus→code direction) — repo docs, not vault.
 _CORPUS_DIRS = ("docs/design-notes", "docs/findings", "docs/brainstorms")
+
+# ── φ_doc: the corpus→corpus extractor (bp-026 Item 20, §6(c)) ──────────────────────────
+# High-precision by construction: front-matter is STRUCTURED (parsed as YAML, not
+# regex-approximated — plan §10), so a `docs/….md` value in one of these keys is as
+# reliable as `_RE_NOTE_CITATION` — the SAME pattern the code↔corpus scan already trusts
+# at 100% (bp-011). `design_ref` is its own ref_type (`design-ref`); the rest share
+# `note-citation` (they are all "this artifact names that artifact" assertions, same shape
+# as an inline citation). Self-loops (a doc citing itself) are dropped at mint time.
+CORPUS_TO_CORPUS_VALIDATED = frozenset({
+    ("corpus_to_corpus", "design-ref"),
+    ("corpus_to_corpus", "note-citation"),
+})
+_FRONT_MATTER_REF_KEYS: tuple[tuple[str, str], ...] = (
+    ("design_ref", "design-ref"),
+    ("links", "note-citation"),
+    ("depends_on", "note-citation"),
+    ("warrant", "note-citation"),
+    ("supersedes", "note-citation"),
+    ("superseded_by", "note-citation"),
+)
+_RE_WIKILINK = re.compile(r"\[\[([^\]|]+)\]\]")
+_RE_FRONT_MATTER_KEY = re.compile(r"^([A-Za-z_][\w]*):\s*(.*)$")
+_RE_FRONT_MATTER_LIST_ITEM = re.compile(r"^\s*-\s+(.*)$")
+
+
+def _split_front_matter(text: str) -> tuple[str | None, str, int]:
+    """Split a markdown file's leading `---`-fenced front-matter block from its body.
+    Returns (front_matter_text_or_None, body_text, body_start_line) — `body_start_line`
+    is the 1-based line number of the body's first line (so a body-scan's `enumerate`
+    reports the SAME source_line an editor would show, not a re-based-at-1 offset)."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None, text, 1
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            front = "\n".join(lines[1:i])
+            body = "\n".join(lines[i + 1:])
+            return front, body, i + 2
+    return None, text, 1                                   # unterminated fence: no front matter
+
+
+def _front_matter_key_line(front_matter: str, key: str) -> int:
+    """The 1-based line (within the WHOLE file, front matter starts at line 2 — line 1 is
+    the opening `---`) where `key:` is declared, for the edge's `source_line`. Falls back
+    to line 2 (the front matter's first line) if the key is somehow absent (defensive; the
+    caller only invokes this for a key it already found present)."""
+    for i, line in enumerate(front_matter.splitlines(), start=2):
+        if _RE_FRONT_MATTER_KEY.match(line) and line.split(":", 1)[0].strip() == key:
+            return i
+    return 2
+
+
+def _parse_front_matter(front_matter: str) -> dict[str, object]:
+    """A minimal, correct YAML-SUBSET parser for the front-matter shapes this repo's own
+    templates use (`docs/templates/*.md`): top-level `key: scalar`, `key:` followed by a
+    block list (`  - item`), and `key: [a, b]` inline lists. This is PARSING (a proper
+    grammar over the container structure), not the `_RE_NOTE_CITATION` regex-approximation
+    plan §10 forbids — that regex is applied AFTER parsing, only to locate a doc-path
+    substring within an already-isolated scalar value (`_front_matter_doc_paths`).
+    Deliberately scoped here rather than a project-wide PyYAML dependency: runtime deps
+    are intentionally minimal (pyproject.toml), and this repo already has one precedent
+    for exactly this trade-off (`.claude/hooks/_lib.py:parse_front_matter`, outside this
+    plan's write_scope) — same shape, independently reimplemented for this module."""
+    out: dict[str, object] = {}
+    key: str | None = None
+    for raw_line in front_matter.splitlines():
+        if not raw_line.strip() or raw_line.lstrip().startswith("#"):
+            continue
+        list_m = _RE_FRONT_MATTER_LIST_ITEM.match(raw_line)
+        if list_m and raw_line[:1].isspace() and key is not None:
+            existing = out.get(key)
+            items: list[str | None] = existing if isinstance(existing, list) else []
+            items.append(_front_matter_scalar(list_m.group(1)))
+            out[key] = items
+            continue
+        key_m = _RE_FRONT_MATTER_KEY.match(raw_line)
+        if key_m:
+            key = key_m.group(1)
+            v = key_m.group(2).strip()
+            if v == "":
+                out[key] = None                # value may be a block list on following lines
+            elif v.startswith("[") and v.endswith("]"):
+                inner = v[1:-1].strip()
+                out[key] = [_front_matter_scalar(x.strip()) for x in inner.split(",") if x.strip()]
+            else:
+                out[key] = _front_matter_scalar(v)
+    return out
+
+
+def _front_matter_scalar(v: str) -> str | None:
+    """One YAML scalar: strips a trailing unquoted `# comment` (this repo's front-matter
+    convention throughout `docs/templates/*.md`), honors quotes, and maps the bare `null`
+    literal to `None` (matching the `supersedes: null` / `warrant: null` convention)."""
+    v = v.strip()
+    if len(v) >= 2 and v[0] in "\"'":
+        q = v[0]
+        end = v.find(q, 1)
+        return v[1:end] if end != -1 else v[1:]
+    i = v.find(" #")
+    if i != -1:
+        v = v[:i].rstrip()
+    return None if v == "null" else v
+
+
+def _front_matter_doc_paths(value: object) -> list[str]:
+    """Normalize a parsed front-matter value (scalar, None, or list) to the `docs/….md`
+    paths it names — bp-011's `_RE_NOTE_CITATION` shape, applied to the ALREADY-PARSED
+    scalar (locating the path substring within a YAML value, not regex-approximating the
+    reference itself: a scalar may carry a trailing `# comment` the YAML layer doesn't
+    strip, e.g. `warrant: finding-0059` names no doc at all and correctly yields nothing,
+    while `- docs/design-notes/x.md # the note` yields exactly `docs/design-notes/x.md`)."""
+    items = value if isinstance(value, list) else ([value] if value is not None else [])
+    out: list[str] = []
+    for item in items:
+        if not isinstance(item, str):
+            continue
+        m = _RE_NOTE_CITATION.search(item)
+        if m:
+            out.append(m.group(0))
+    return out
 
 
 def extract_references(docstring: str, *, source_line: int) -> tuple[dict[str, Any], ...]:
@@ -238,10 +382,12 @@ class CodeSensor:
 
     def _mint_reference_edges(self, sha: str, batch: list[CodeObservation]) -> int:
         """Lane 1 (B-c): turn the batch's `references_out` (code→corpus) plus the commit's
-        corpus-side path-mentions (corpus→code) into typed edges in the dedicated
-        reference-edge store. Deterministic — no model anywhere in this path; validated
-        patterns only (`VALIDATED_PATTERNS`); direction stored as extracted (Q3).
-        Idempotent via the store's content identity AND `_project`'s projected-sha gate."""
+        corpus-side path-mentions (corpus→code) plus (bp-026) the corpus's own doc→doc
+        citation graph (corpus→corpus) into typed edges in the dedicated reference-edge
+        store. Deterministic — no model anywhere in this path; validated patterns only
+        (`VALIDATED_PATTERNS`/`CORPUS_TO_CORPUS_VALIDATED`); direction DERIVED from the v2
+        symmetric endpoints (Q3 spirit — never auto-symmetrized on write). Idempotent via
+        the store's content identity AND `_project`'s projected-sha gate."""
         if self.reference_edges is None:
             return 0
         minted: list[ReferenceEdge] = []
@@ -249,10 +395,12 @@ class CodeSensor:
             for ref in o.references_out:
                 assert ("code_to_corpus", ref["type"]) in VALIDATED_PATTERNS
                 minted.append(ReferenceEdge.mint(
-                    direction="code_to_corpus", ref_type=str(ref["type"]), commit_sha=sha,
-                    code_path=o.path, qualname=o.qualname, corpus_ref=str(ref["target"]),
-                    corpus_kind="path", source_line=int(ref["source_line"])))
+                    source_kind="code", source_ref=o.path, source_detail=o.qualname,
+                    target_kind="corpus", target_ref=str(ref["target"]), target_detail="",
+                    ref_type=str(ref["type"]), commit_sha=sha,
+                    source_line=int(ref["source_line"])))
         minted.extend(self._corpus_reference_edges(sha))   # corpus→code: the md-side scan
+        minted.extend(self._corpus_to_corpus_edges(sha))   # corpus→corpus: φ_doc (bp-026)
         return self.reference_edges.add_batch(minted)
 
     def _corpus_reference_edges(self, sha: str) -> list[ReferenceEdge]:
@@ -271,9 +419,70 @@ class CodeSensor:
             for i, line in enumerate(text.splitlines(), start=1):
                 for m in _RE_PATH_MENTION.finditer(line):
                     edges.append(ReferenceEdge.mint(
-                        direction="corpus_to_code", ref_type="path-mention",
-                        commit_sha=sha, code_path=m.group(1), qualname="",
-                        corpus_ref=doc_path, corpus_kind="path", source_line=i))
+                        source_kind="corpus", source_ref=doc_path, source_detail="",
+                        target_kind="code", target_ref=m.group(1), target_detail="",
+                        ref_type="path-mention", commit_sha=sha, source_line=i))
+        return edges
+
+    def _corpus_to_corpus_edges(self, sha: str) -> list[ReferenceEdge]:
+        """φ_doc (bp-026 Item 20, B-c generalization): the corpus's OWN citation graph —
+        doc→doc edges, scanned at the commit's OWN tree state (deterministic per §2.2).
+        Three sources, each high-precision (`CORPUS_TO_CORPUS_VALIDATED`):
+          1. front-matter keys (`design_ref`/`links`/`depends_on`/`warrant`/`supersedes`/
+             `superseded_by`) whose value is a `docs/….md` path — PARSED as YAML (never
+             regex-approximated: front-matter is structured, and a regex over it invites
+             exactly the silent-miss class bp-026 §10 forbids). `ref_type` is `design-ref`
+             for the `design_ref` key, `note-citation` for the rest.
+          2. inline `_RE_NOTE_CITATION` matches in the document body → `note-citation`.
+          3. `[[wikilink]]` references resolving to a known doc in this tree → `note-citation`.
+        Self-loops (a doc citing itself) are dropped. Corpus endpoints are repo-relative
+        paths (`detail=''`), matching the code↔corpus corpus-side convention (Q2)."""
+        edges: list[ReferenceEdge] = []
+        listed = _git(self.repo, "ls-tree", "-r", "--name-only", sha, "--", *_CORPUS_DIRS)
+        doc_paths = sorted(p for p in listed.splitlines() if p.endswith(".md"))
+        known_docs = {Path(p).stem: p for p in doc_paths}
+        for doc_path in doc_paths:
+            text = _git(self.repo, "show", f"{sha}:{doc_path}")
+            front_matter, body, body_start_line = _split_front_matter(text)
+
+            # 1. front-matter references — parsed (grammar over the container structure),
+            #    not regex-approximated (plan §10).
+            if front_matter is not None:
+                parsed = _parse_front_matter(front_matter)
+                for key, ref_type in _FRONT_MATTER_REF_KEYS:
+                    if key not in parsed:
+                        continue
+                    line = _front_matter_key_line(front_matter, key)
+                    for target in _front_matter_doc_paths(parsed[key]):
+                        if target == doc_path:
+                            continue                           # self-loop, dropped
+                        assert ("corpus_to_corpus", ref_type) in CORPUS_TO_CORPUS_VALIDATED
+                        edges.append(ReferenceEdge.mint(
+                            source_kind="corpus", source_ref=doc_path, source_detail="",
+                            target_kind="corpus", target_ref=target, target_detail="",
+                            ref_type=ref_type, commit_sha=sha, source_line=line))
+
+            # 2. inline note-citations in the body.
+            for i, line_text in enumerate(body.splitlines(), start=body_start_line):
+                for m in _RE_NOTE_CITATION.finditer(line_text):
+                    target = m.group(0)
+                    if target == doc_path:
+                        continue                               # self-loop, dropped
+                    edges.append(ReferenceEdge.mint(
+                        source_kind="corpus", source_ref=doc_path, source_detail="",
+                        target_kind="corpus", target_ref=target, target_detail="",
+                        ref_type="note-citation", commit_sha=sha, source_line=i))
+
+                # 3. [[wikilinks]] resolving to a known doc in this tree.
+                for m in _RE_WIKILINK.finditer(line_text):
+                    name = m.group(1).strip()
+                    wikilink_target = known_docs.get(name)
+                    if wikilink_target is None or wikilink_target == doc_path:
+                        continue                    # unresolved or self-loop, dropped
+                    edges.append(ReferenceEdge.mint(
+                        source_kind="corpus", source_ref=doc_path, source_detail="",
+                        target_kind="corpus", target_ref=wikilink_target, target_detail="",
+                        ref_type="note-citation", commit_sha=sha, source_line=i))
         return edges
 
     def backfill_observations(self) -> int:
