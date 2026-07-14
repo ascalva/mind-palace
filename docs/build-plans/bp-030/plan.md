@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-030
-status: ready
+status: in-progress
 design_ref:
   - docs/brainstorms/lifecycle-cli-overhaul.md
 contract: builder
@@ -24,7 +24,7 @@ cost:
 depends_on: []
 parallelizable_with: []
 created: 2026-07-13
-updated: 2026-07-13
+updated: 2026-07-14
 links:
   - docs/brainstorms/lifecycle-cli-overhaul.md
   - docs/findings/finding-0066.md

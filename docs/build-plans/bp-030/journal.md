@@ -23,3 +23,36 @@ bp-031 reuses this plan's enriched `status`/`build_status` seam → sequence bp-
 
 Model estimate opus/300k (invariant-adjacent `launcher.py` + a Zone-B deletion; falsifiers need
 judgment). Awaiting the owner-only `proposed → ready` blessing. No work started.
+
+## 2026-07-14 — blessed + recon complete; PARKED (owner pivoted the session)
+
+Owner blessed `proposed → ready` in-session; orchestrator committed the flip (`81ab7aa`) and flipped
+`ready → in-progress`. Read the full §2 context manifest (palace.py, launcher.py, plist, snapshot.py,
+children.py, config/loader.py, defaults.toml, edge/monitor/**, test_lifecycle.py + the two monitor
+test files). **No code written.**
+
+**Blast-radius analysis (Item 2 — monitor removal):**
+- Codebase sweep for `edge.monitor` / `MonitorConfig` / `cfg.monitor` importers → **no NON-monitor
+  importer** (§10 stop-and-raise does NOT fire). All hits are monitor-internal or the launcher spawn.
+- **`snapshot.build_status` / `write_status`** (Item 3's seam) confirmed self-contained in
+  `ops/lifecycle/snapshot.py` — KEEP unchanged, as planned.
+- **WRITE_SCOPE GAP → finding-0075 (open, owner-gated):** `tests/unit/test_monitor_server.py`
+  imports `edge.monitor` and reds on deletion, but is NOT in write_scope. Item 2 cannot complete
+  *green* until the owner hand-adds that path. `tests/integration/test_monitor_snapshot.py` SURVIVES
+  (imports `edge.interface`, not `edge.monitor`; tests the retained snapshot seam) — no scope change
+  needed, only a cosmetically-stale name.
+
+**Re-entry (fresh-agent sufficient):**
+- Items **1** (`down`/`up`/`restart`) and **3** (enrich `status`) are unblocked — resume and build them
+  from §7 as pinned; Item 3 reuses the retained `build_status` (construct ops_view/dreams_view/queue
+  depth inside `status()`, which today has no Components — see §6 interfaces).
+- Item **2** (monitor deletion) is BLOCKED on finding-0075: owner must add
+  `tests/unit/test_monitor_server.py` to write_scope, THEN delete `edge/monitor/**` +
+  `scripts/monitor.py` + `test_monitor_server.py` together, remove `MonitorConfig`/`[monitor]`, and
+  strip the launcher monitor-spawn + monitor-path `write_status` call. Do Item 2's deletion LAST so
+  the suite never goes red mid-build.
+- Full attestable-green gate (5 legs) before any commit; blast order remains 2 → 1 ∥ 3, but 1 & 3 can
+  land first while 2 waits on the scope grant.
+
+Parked to run an owner-directed **Fable design pass on the edge-dynamics design note** (session pivot,
+2026-07-14). `active-plan` cleared; `/resume bp-030` re-points and continues.
