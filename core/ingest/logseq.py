@@ -66,6 +66,23 @@ def parse_text(text: str, *, source_path: str, title: str, raw_bytes: bytes) -> 
                       links=frozenset(links), properties=props, raw_bytes=raw_bytes)
 
 
+def strip_properties(text: str) -> str:
+    """Return `text` with every Logseq page-property line (`key:: value`) removed and every other
+    line preserved verbatim — the metadata/body split for the EMBEDDED derivation (bp-036; f-0077).
+
+    Page properties are parsed for metadata (`parse_text`) but must NOT enter the vector layer: a
+    minted `id:: <uuid4>` is content-free identity noise, and the shared `"id:: "` prefix uniformly
+    lifts cosine similarity — together they measurably moved the σ-graph off note CONTENT (f-0077).
+    Embedding prose only restores it. The file, raw bytes, and digest are untouched — this shapes
+    only the *derived* text (`derive_chunks`/`ingest_note`), so it stays regenerable from raw (§8).
+
+    Deterministic and idempotent. A line is a property IFF the module's `_PROP` object matches it —
+    the SAME object `parse_text` uses — so strip and parse can never disagree (parse≡strip). Only
+    column-0 `key::` lines go: indented Logseq block properties don't match `_PROP` and are prose
+    here (bp-036 §10, verified against the corpus)."""
+    return "\n".join(line for line in text.split("\n") if not _PROP.match(line))
+
+
 def parse_note(path: Path, vault: Path) -> ParsedNote:
     data = path.read_bytes()
     return parse_text(_decode(data), source_path=str(path),

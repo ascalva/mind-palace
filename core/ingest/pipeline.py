@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from core.ingest.chunk import Chunk, chunk_text
-from core.ingest.logseq import ParsedNote, _decode, iter_vault, parse_note
+from core.ingest.logseq import ParsedNote, _decode, iter_vault, parse_note, strip_properties
 from core.provenance import Provenance
 from core.stores.rawstore import RawStore
 
@@ -22,12 +22,16 @@ from core.stores.rawstore import RawStore
 def derive_chunks(raw_bytes: bytes, *, max_chars: int = 1200,
                   overlap_chars: int = 150) -> tuple[Chunk, ...]:
     """The chunks a raw blob yields — the ONE authoritative raw→chunks derivation, deterministic
-    and reproducible from the immutable raw store alone: decode (the tolerant text view, §8) then
-    chunk. `ingest_note` performs exactly this (it chunks `note.text`, which parse sets to
-    `_decode(note.raw_bytes)`); factoring it here lets the retrieval-integrity check
-    (`core.ingest.verify`) re-derive a source's chunks and confirm a stored row still matches —
-    "derived is regenerable from raw" made checkable."""
-    return tuple(chunk_text(_decode(raw_bytes), max_chars=max_chars, overlap_chars=overlap_chars))
+    and reproducible from the immutable raw store alone: decode (the tolerant text view, §8),
+    strip Logseq `key::` page-property lines (metadata, NOT prose — bp-036/finding-0077: an `id::`
+    uuid and the shared `"id:: "` prefix moved the σ-graph off note CONTENT), then chunk the body.
+    `ingest_note` performs exactly this (it chunks `strip_properties(note.text)`, `note.text` being
+    `_decode(note.raw_bytes)`), so the retrieval-integrity check (`core.ingest.verify`) re-derives
+    the SAME body chunks and a re-embedded row still matches ("derived is regenerable from raw" made
+    checkable), and the strip stays consistent across ingest and verify via this one derivation. The
+    raw bytes + digest keep the properties; only the derived text drops them."""
+    return tuple(chunk_text(strip_properties(_decode(raw_bytes)),
+                            max_chars=max_chars, overlap_chars=overlap_chars))
 
 
 @dataclass(frozen=True)
@@ -45,11 +49,13 @@ class IngestRecord:
 def ingest_note(note: ParsedNote, raw: RawStore, *,
                 provenance: Provenance = Provenance.AUTHORED_SOLO,
                 max_chars: int = 1200, overlap_chars: int = 150) -> IngestRecord:
-    # Store the verbatim ORIGINAL bytes (raw is sacred, §8); chunk the decoded text view.
+    # Store the verbatim ORIGINAL bytes (raw is sacred, §8); chunk the property-stripped body — the
+    # same derivation `derive_chunks` uses, so ingest + verify never disagree (bp-036).
     # `provenance` defaults to AUTHORED_SOLO (vault notes); dialogue capture / curated ingest
     # pass AUTHORED_DIALOGUE / CURATED through this same path.
     digest, is_new = raw.add(note.raw_bytes)
-    chunks = tuple(chunk_text(note.text, max_chars=max_chars, overlap_chars=overlap_chars))
+    chunks = tuple(chunk_text(strip_properties(note.text),
+                              max_chars=max_chars, overlap_chars=overlap_chars))
     return IngestRecord(
         digest=digest,
         source_path=note.source_path,
