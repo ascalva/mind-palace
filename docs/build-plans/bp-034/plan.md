@@ -12,6 +12,7 @@ write_scope:
   - core/stores/catalog.py
   - tests/integration/test_mint_ids.py
   - tests/unit/test_version_rekey.py
+  - core/stores/authored_supersession.py
 session_budget: 1
 cost:
   estimate:

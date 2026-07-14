@@ -195,5 +195,11 @@ identity forever (permanent ambiguity — *worse* for the invariant's purpose th
 taxes every version query for a one-time event; (b) the full table rebuild has identical UPDATE
 semantics with more blast and no gain.
 
-**Owner confirmation: PENDING** — note it here when given; the bp-034 build session should not start
-Item 14 before it.
+**Owner confirmation:** owner accepts (2026-07-14, in-session — "the plan looks well documented and
+thought out, let's proceed"). The verifier rider was also decided the recommended way: the owner
+hand-added `core/stores/authored_supersession.py` to bp-034's `write_scope` (the one additive
+`verify_owner_declaration()` helper). **Item 14 is fully unblocked; the build session builds to this
+entry.** Build session sizing (orchestrator rec, owner-agreed): **opus/high, self-driven full `/build`
+in the main lane** — the judgment-dense design is done here; what remains is disciplined implementation
+against a pinned spec (xhigh stays reserved for design/gates per the standing rule; no delegation at
+this blast radius).
