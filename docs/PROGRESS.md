@@ -3023,3 +3023,22 @@ portable backstop):
 - No code touched (docs-only). Next: build bp-031 (foundation) → then, when the owner is ready, bless +
   run bp-034 (the deliberate, offline mint). bp-032/033 (temporal module) proceed in parallel to the
   identity work once bp-031 lands.
+
+## 2026-07-14 (cont.) — bp-031 SEALED: rename-stable `doc_id` — the A6 hard prerequisite LANDS (`f002985`)
+
+- **All 3 items built + sealed in one orchestrator-driven session (opus/high, 0 subagents).** A file
+  rename no longer forks version-history lineage — proven by `tests/integration/test_rename_identity.py`
+  (4 proofs: pure-rename continuous chain, `id::` identity, rename+edit fallback, ambiguous-dedup guard).
+- **oq-0019 ruling B implemented as RESOLUTION only** (read existing `id::` at first bind + exact-content
+  carry-forward on rescan) — the superset-compatible base. Item 2 guards on `prev is None`, so a
+  historied note's identity is never switched → **no live-fork window**; the mint + append-only re-key is
+  **bp-034** (owner-run, daemon down).
+- **Behavior-preservation held:** additive `doc_id` (== source_path until a mechanism diverges it) →
+  FULL suite **1033 passed, 8 skipped** (+7 new); the falsifier (any other test reddening) never fired.
+- **Live-store migration DE-RISKED:** dry-run twice against a COPY of the live `data/vault_catalog.sqlite`
+  (5 rows → 5, all `doc_id == source_path`, idempotent). **Deploy-coupled** (finding-0066): the migration
+  runs when the daemon next opens the catalog on this code → optional owner `mind-palace deploy` align.
+- **5-leg gate green** (ruff / mypy 0 / mypy 69 / type_gate / pytest — run separately). Cost: est 300k →
+  **91k non-cache, $9.19, ratio 0.30** (self-driven band); session +21pp (14→35%), week +2pp (78→80%).
+- **⭐ UNBLOCKS bp-032** (the `core/temporal/` module — δ_D/version chains need rename-stable `doc_id`).
+  Owner directed: proceed to **bp-032 → bp-033** (strict dependency order). Building bp-032 next.
