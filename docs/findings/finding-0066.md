@@ -6,12 +6,18 @@ created: 2026-07-13
 updated: 2026-07-13
 links:
   - docs/build-plans/bp-026/plan.md
+  - docs/build-plans/bp-030/plan.md
   - scripts/palace.py
   - ops/lifecycle/launcher.py
 ftype: direction
 origin_plan: bp-026
 route: orchestrator
-resolution: null
+resolution: >
+  Two halves. (1) The KeepAlive-aware daemon-down command is GRADUATED into bp-030 (proposed,
+  2026-07-13) — `down`/`up`/`restart` via launchctl bootout/bootstrap, part of the lifecycle-CLI
+  overhaul (brainstorm: lifecycle-cli-overhaul.md). (2) The live-store-schema-migration deploy
+  coupling remains a STANDING RULE (owner-coordinated bootout→migrate→bootstrap; resume-brief).
+  Stays routed until bp-030 seals the command half.
 ---
 
 # A live-store schema migration is deploy-coupled — and there's no KeepAlive-aware daemon-down command
