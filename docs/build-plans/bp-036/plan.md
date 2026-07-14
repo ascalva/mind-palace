@@ -18,12 +18,18 @@ cost:
     tokens: 250k
   actual:
     model: opus            # self-driven, high effort, single-lane (0 subagents)
-    tokens: ~300k          # est (long session: strip + wiring + A/B + experiment harness + heavy
-                           # E501/scope-guard iteration). PRECISE + dollars/deltas pending owner /usage.
-    ratio: ~1.2            # ~300k / 250k — over estimate (the owner-driven scope grew: snapshot +
-                           # wipe-all + dreamer-trigger + experiment framing were added mid-build)
-    session_delta: pending # owner /usage
-    week_delta: pending    # owner /usage
+    tokens: ~300k          # bp-036 build portion (est). Whole-conversation non-cache = 563k (60.6k in
+                           # + 502.8k out, + 155.7m cache read); bp-034 was ~175k, so bp-036 + the mint
+                           # RUN + integrity + the experiment ≈ the ~388k remainder — interleaved, not
+                           # cleanly separable; ~300k is bp-036's build share.
+    ratio: ~1.2            # ~300k / 250k — over estimate (owner-driven scope grew mid-build: snapshot
+                           # + wipe-all + dreamer-trigger + experiment framing + judgment)
+    dollars: ~78           # of the $99.00 whole-conversation total, the post-bp-034 delta (bp-036 build
+                           # + mint run + integrity + experiment); bp-036's build share ~$40-50, approx
+    session_delta: "+4pp week over the whole conversation (81%->85%; bp-036 share ~+2pp)"
+    week_delta: "resets Jul 17 8pm"
+    # Credits UNCHANGED at 89% ($89.59/$100) — the whole $99 conversation was weekly/subscription-
+    # covered, NOT billed to credits (same as bp-034). The binding meter is the WEEKLY (now 85%).
 depends_on:
   - bp-034                            # the mint that introduced the id:: line into the embedded text
 parallelizable_with: []
