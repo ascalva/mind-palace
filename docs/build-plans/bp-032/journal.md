@@ -99,9 +99,9 @@ isolation → PASSED (126s)**. Not a regression; bp-032 touches nothing the sche
 4-cycle→1, filled-triangle→0), `δ_D²=0` on a real multi-step chain, the cycle stop-and-raise, and the
 isolation twin proving frustration/forman/clustering stay bit-identical when `X_cite` is populated.
 
-**Cost:** est opus/400k; actual ≈100k (ratio ≈0.25, read-only greenfield). dollars/deltas **pending the
-owner's next /usage relay** (bp-031's seal read $9.19 session-total, session 35%, week 80%). Single-lane,
-0 subagents.
+**Cost (owner /usage relayed at seal):** est opus/400k; actual **67k non-cache** (11.4k in + 55.2k out,
+delta over bp-031's seal), **$9.83** ($19.02 session-total − $9.19), ratio **0.17** — WELL under
+(read-only greenfield math). session +4pp (35→39%), week +0pp (80%, cache-dominated). Single-lane, 0 subagents.
 
 **⚠ FLAKE TO SURFACE (not a new finding yet):** `test_scheduler_live::test_supervisor_dispatches_a_real_job`
 flaked under full-suite load (passed solo). Worth a `codebase` finding if it recurs — flagged to owner.
