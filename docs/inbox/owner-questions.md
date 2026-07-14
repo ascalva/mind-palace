@@ -510,3 +510,34 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   painful enough to warrant (a) or (b), or /triage promotes finding-0069 to a design note
   amending the delegate skill.
 - answer:
+
+---
+
+## oq-0019 — bp-031 rename-stable identity: which `doc_id` mechanism? (the A6 prerequisite)
+- status: open
+- origin: docs/build-plans/bp-031/plan.md §11
+- blocking: false
+- question: `dn-temporal-retrieval-algebra`'s A6 ruling made rename-stable note identity a HARD
+  prerequisite (it gates the diachronic reader / Result-1 H1 / β\*-over-lineage), and bp-031 is the
+  FIRST graduated plan. The note deliberately left the *mechanism* open ("front-matter uuid **or
+  equivalent**", `supersession-lifecycle.md:290`), so graduation parked it rather than infer it (A4).
+  Two grounding facts sharpen the choice: (1) the `versions` store is ALREADY keyed on a generic
+  `doc_id` column (`versions.py:54`) — today `sync.py:112` just passes `source_path` as that id, so the
+  version schema needs NO change; (2) `parse_note` ALREADY extracts `id::`-style properties into
+  `parsed.properties` (`logseq.py:19,64`) — reading an EXISTING Logseq page id is zero-new-code and
+  zero-vault-mutation. The open question is what to do when a note has no id: (A) read an existing
+  `id::` when present + detect renames by EXACT-CONTENT match on rescan, and do NOT mint into the vault
+  (non-mutating, deterministic, but rename+edit falls back to a new lineage); (B) MINT an `id::` into
+  every note's front-matter (guarantees stability incl. rename+edit, but WRITES the owner's authored
+  corpus — a vault mutation); or (C) an external-only `doc_id ↔ source_path` map with no rename
+  detection (adds a store but leaves the same rename gap as A without A's content-match coverage).
+  Which mechanism? (bp-031 Item 1 — the additive `doc_id := source_path` foundation — is
+  mechanism-agnostic and buildable regardless; only Items 2–3, the resolution + rename carry-forward,
+  wait on this.)
+- default_if_unanswered: (A) — existing-`id::` + exact-content rename detection on rescan, NO
+  mint-into-vault. It is deterministic, non-corpus-mutating, and exact for the common case
+  (rename-without-edit); rename+edit degrades to a new lineage, which is no worse than today. Parks as
+  bp-031 §11; re-entry — owner rules here at `proposed → ready`, or a measured rename+edit frequency
+  warrants escalating to (B) mint-into-vault (which makes it exact but requires an explicit vault-write
+  grant).
+- answer:

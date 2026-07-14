@@ -2912,3 +2912,41 @@ portable backstop):
   the census into Thread-C. **3 OWNER DECISIONS:** (1) adopt the defer-operator ruling (rec yes); (2)
   census dream-narration vocabulary (taste, §5); (3) covering-only `supersedes` as a checked A6-invariant
   (rec adopt, near-zero cost).
+
+## 2026-07-14 (cont.) — GRADUATED `dn-temporal-retrieval-algebra` → three `proposed` plans (opus/xhigh, fresh session)
+
+- **Unit chosen by the owner** (from the resume-brief queue): `/graduate` the math successor — NOT fable
+  (depth already paid; graduation is decomposition + blast-ordering + write_scope/test-path discipline).
+  Budget re-checked live at session start: **week 78%, Fable 100% capped (both units were opus anyway),
+  credits 81%.** Single-lane, minimal-subagent (0 spawned), ends at the graduation boundary.
+- **Grounded pass (investigate → reconcile → plan; citations in each plan §3):** read `sync.py`,
+  `catalog.py`, `versions.py`, `logseq.py`, `reference_edges.py`, `hodge.py`, `topology.py`,
+  `test_reference_edge_isolation.py`, `supersession-lifecycle.md §7`. Two de-risking discoveries carried
+  the decomposition: (1) `versions` is **already** `doc_id`-keyed (`versions.py:54`) → the uuid work needs
+  NO version-schema change, only the value `sync.py:112` passes; (2) `logseq` **already** parses `id::`
+  into `parsed.properties` → reading an existing page id is zero-new-code, zero-vault-mutation.
+- **Three plans minted (`proposed`, blast-ordered, chained):**
+  - **bp-031 — rename-stable `doc_id`** (the A6 HARD prerequisite; `depends_on: []`, the FIRST plan). Item
+    1 is additive + **behavior-preserving** (`doc_id := source_path` backfill keeps ~20 `source_path`-keyed
+    tests green); Items 2–3 (mechanism + rename carry-forward) **owner-gated → oq-0019**. write_scope names
+    all 3 test paths (finding-0075) + the stop-and-raise for any OTHER reddened test.
+  - **bp-032 — `core/temporal/` topological core** (`depends_on: bp-031`): `X_cite` assembly from
+    `ReferenceEdgeStore`, `∂`/`δ_D` (+`δ_D²=0`), the `dim ker L₁ == ripser β₁` falsifier (reuses
+    `hodge`/`topology` — the SAFE import direction), a new isolation twin. **Resolves TA-d: home pinned to
+    `core/temporal/`.**
+  - **bp-033 — `core/temporal/` transport operators** (`depends_on: bp-032`): `π_active`, `σ_*`/`σ^*`,
+    `‖[d,τ]‖` (= the exact severed-citation count, Result 2). Linear-chain only; diamonds stop-and-raise
+    (TA-c). Split from bp-032 because the objective carried an "and" + each half has an independent
+    falsifier.
+- **oq-0019 filed** — bp-031's identity mechanism (owner ruling; default (A): existing-`id::` +
+  exact-content rename detection, NO mint-into-vault). Non-blocking (bp-031 Item 1 proceeds regardless).
+- **Deferred downstream** (gated on the module landing, NOT graduated this session): the empirical
+  **Thread-C sweep + arrow-aware census** (note §3 Consequence 2 — folds in the magnetic-Laplacian census)
+  and the **`K(β)` retrieval curve** (Consequence 3, TA-b). Also NOT graduated: `dn-core-query-protocol`
+  §3 consequences (its own note/session) and the `dn-weaving-consumer-charter` (GATED, its 4 gates aren't
+  green).
+- **Numbering note:** the resume-brief loosely earmarked "bp-031" for the diagnostic subcommand;
+  graduation claimed the next three numbers (031–033), so **the diagnostic is now bp-034** (author when
+  bp-030 lands its enriched `status` seam). No code touched; CI unaffected (docs-only).
+- **Next:** owner blesses `proposed → ready` (item-by-item) + rules oq-0019 → then `/build bp-031`
+  (FIRST). Or resume bp-030 (Items 1 & 3 unblocked). All on disk; fresh session.
