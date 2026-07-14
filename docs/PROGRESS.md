@@ -3042,3 +3042,23 @@ portable backstop):
   **91k non-cache, $9.19, ratio 0.30** (self-driven band); session +21pp (14→35%), week +2pp (78→80%).
 - **⭐ UNBLOCKS bp-032** (the `core/temporal/` module — δ_D/version chains need rename-stable `doc_id`).
   Owner directed: proceed to **bp-032 → bp-033** (strict dependency order). Building bp-032 next.
+
+## 2026-07-14 (cont.) — bp-032 SEALED: `X_cite` citation complex + the `dim ker L₁ == β₁` falsifier (`07686fb`)
+
+- **The topological half of the temporal algebra is BUILT** (dn-temporal-retrieval-algebra §3
+  Consequence 1). New greenfield package `core/temporal/` — read-only sensing, structurally isolated
+  from `core/complex/`'s balance math (the A4 constraint that forced it OUT of `core/complex/`).
+- **Items 5–8** (opus/high, orchestrator-driven, same session as bp-031): `complex.py`
+  (`build_citation_complex` → binary symmetric `A_cite`; `dim_ker_L1` reuses `hodge.harmonic_basis`;
+  `citation_distance_matrix` = the ripser input), `boundary.py` (the supersession poset + simplicial
+  `δ_D` with `δ_D²=0`; a cycle → `SupersessionCycleError`, stop-and-raise), and the isolation twin.
+- **The load-bearing falsifier PASSES:** `dim ker L₁` (incidence algebra) == an INDEPENDENT ripser β₁
+  on hand-verified fixtures (tree→0, chordless 4-cycle→1, filled-triangle→0). A5 honored: D-arrows
+  (`E_disp`, directed) are NEVER symmetrized into `A_cite` (`E_geom`) — a mixed `L₁` is a type error.
+- **5-leg gate green** (ruff / mypy 0 / mypy 69 / type_gate / pytest **1045 passed**). The lone
+  full-suite failure was a **pre-existing timing flake** (`test_scheduler_live::test_supervisor_
+  dispatches_a_real_job`) — **passed in isolation (126s)**, unrelated to a read-only math module.
+  ⚠ flagged to owner as a flake to watch (finding-worthy if it recurs).
+- Cost: est 400k → **~100k, ratio ~0.25** (read-only greenfield); dollars/deltas pending owner /usage.
+- **⭐ UNBLOCKS bp-033** (the σ/π transport operators + `‖[d,τ]‖`, consuming this module's API).
+  Building bp-033 next (strict order).
