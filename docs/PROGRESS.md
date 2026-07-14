@@ -3115,3 +3115,27 @@ portable backstop):
 - **⭐ OWNER TOUCHPOINT (not auto):** the mint RUN — `uv run scripts/mint_ids.py --dry-run` then
   `--confirm`, **offline, daemon DOWN, after bp-031 is deployed**. Reversible from the auto-backup.
   Next build work (resume brief): `/resume bp-030` (Items 1&3; Item 2 owner-gated on finding-0075).
+
+## 2026-07-14 (cont.) — bp-034 MINT RUN executed (owner-driven, live) — the corpus is on durable id::
+
+- **The bp-034 migration RAN successfully on the real corpus** (owner-driven, orchestrator-guided; the
+  deploy-coupled owner touchpoint). Deploy-coupled sequence per finding-0066: **deploy HEAD → bootout
+  (true down) → dry-run → `--confirm` → bootstrap (up)**.
+- **Deploy:** `palace deploy` promoted the live daemon `5a08cd4 → 4e1d885` (run #16 → #17; gate green
+  1062 passed, ci-witness attested). bp-031→034 all went live at once.
+- **Down:** `launchctl bootout gui/$UID/com.mind-palace.palace` (the `palace down` command is still
+  bp-030 work; raw bootout for now — finding-0066). Verified: `launchctl print` exit 113, run #17 clean.
+- **Migration:** `uv run scripts/mint_ids.py --confirm` →
+  **`minted=13 rekeyed=13 verified=True rescan=(indexed=13 unchanged=0 tombstoned=0)`**. All 13 janus
+  notes got a durable `id::` + their version chains re-keyed `source_path → id::`, no fork. Backup at
+  `data/mint_ids_backup`.
+- **Up:** `launchctl bootstrap … com.mind-palace.palace.plist` → run #18 on `4e1d885`, healthy.
+  Post-migration `--dry-run` = **mint 0 / re-key 0 / skipped 13** (idempotent, it held).
+- **The A6 well-foundedness conditions now hold on the REAL corpus** (`dn-temporal-retrieval-algebra`
+  §2.4) — the operational prerequisite bp-034 existed to deliver. The daemon at HEAD (`4e1d885`) no longer
+  lags; the deploy-lag half of finding-0066 is closed for this cycle.
+- **finding-0076 filed** (`spec-defect`, non-blocking): `--dry-run` against a pre-bp-031 store runs
+  bp-031's idempotent catalog `_migrate` on open — benign (named-INSERT v1 tolerates it), but the
+  "dry-run mutates nothing" contract needs honest wording. Route: builder, batch at /triage.
+- **Owner touchpoints now CLEAR:** the mint RUN ✅, the deploy ✅. Remaining: oq-0019 `open→answered`
+  confirm-flip (the mint is now built AND run) at the next /triage.
