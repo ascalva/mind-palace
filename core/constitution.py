@@ -15,7 +15,7 @@ from __future__ import annotations
 import hashlib
 from functools import lru_cache
 from pathlib import Path
-from typing import TypedDict
+from typing import ReadOnly, TypedDict
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CONSTITUTION_PATH = REPO_ROOT / "CONSTITUTION.md"
@@ -25,10 +25,14 @@ class Message(TypedDict):
     """One chat turn, Ollama chat-API shaped (bp-006 T2 convention: TypedDict).
 
     Runtime-identical to the plain dict this replaced — TypedDict is erased to
-    dict — but the shape now crosses module boundaries visibly to the checker."""
+    dict — but the shape now crosses module boundaries visibly to the checker.
+    Both fields are `ReadOnly` (PEP 705): a turn is a write-once record, so
+    `msg["content"] = …` after construction is a type error — the immutability an
+    assembled context relies on (Invariant 6: nothing nested may rewrite a prior
+    turn) made unrepresentable, not merely discouraged. Runtime is unchanged."""
 
-    role: str  # "system" | "user" | "assistant"
-    content: str
+    role: ReadOnly[str]  # "system" | "user" | "assistant"
+    content: ReadOnly[str]
 
 
 @lru_cache(maxsize=1)

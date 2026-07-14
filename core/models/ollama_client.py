@@ -13,7 +13,7 @@ import json
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Any, TypedDict, cast
+from typing import Any, ReadOnly, TypedDict, cast
 
 from config.loader import OllamaConfig
 
@@ -22,10 +22,12 @@ class Message(TypedDict):
     """One chat turn, Ollama chat-API shaped. Deliberately duplicated from
     `core.constitution.Message` (structurally identical, so mypy treats them as
     interchangeable) to keep this client standalone; runtime-identical to the
-    plain dict it replaced."""
+    plain dict it replaced. Both fields are `ReadOnly` (PEP 705) — kept in lock-step
+    with `core.constitution.Message` so the two stay assignable in both directions
+    (a ReadOnly/mutable mismatch would break that interchangeability)."""
 
-    role: str  # "system" | "user" | "assistant"
-    content: str
+    role: ReadOnly[str]  # "system" | "user" | "assistant"
+    content: ReadOnly[str]
 
 
 class OllamaError(RuntimeError):
