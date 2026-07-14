@@ -7,7 +7,17 @@ Stdlib only (`urllib`, `xml`, `json`) so the Lambda zip is dependency-free. The 
 callable is injected so the aggregation logic is unit-testable without network access.
 
 Each client normalizes to a common record:
-    {source, id, title, abstract, year, venue, type, doi, url, is_preprint}
+    {source, id, title, abstract, year, venue, type, doi, url, is_preprint,
+     open_access, full_text}
+
+`open_access` + `full_text` are the EMBED-tail additions (bp-029, dn-external-grounding §2.6).
+Only **open-access** sources with a **stdlib-extractable** full text populate `full_text`;
+everything else leaves it `None` and stays DISTILLED-only (the licence gate default-denies).
+Concretely: Europe PMC OA articles are fetched as JATS XML (`fullTextXML`, stdlib-parseable);
+arXiv is open by licence but its full text is a **PDF** (not extractable in a stdlib-only Lambda)
+so it is default-DENIED here (`open_access=True`, `full_text=None` — finding-0073); OpenAlex has
+no stdlib-fetchable full text. Every full-text fetch **fails closed**: any network/parse error
+or empty body yields `None` — never a partial guess, never a crash of the gather (§10).
 """
 
 from __future__ import annotations
@@ -50,6 +60,21 @@ def _norm_type(raw: str) -> str:
     return _TYPE_MAP.get(raw.strip().lower(), raw.strip().lower())
 
 
+def _europepmc_fulltext(pmcid: str, fetch: Fetch) -> str | None:
+    """Fetch + extract Europe PMC open-access full text (JATS XML) via the `fullTextXML` REST
+    endpoint. Stdlib-only parse (`xml.etree`). **Fails closed** — any network/parse error, a
+    non-XML body, or an empty extraction returns `None`, so the paper stays DISTILLED-only and
+    the core never embeds on a guess (bp-029 §10). Called ONLY for `isOpenAccess == "Y"` records
+    with a PMCID, so the licence gate is enforced at the fetch boundary (the Item-27 falsifier)."""
+    url = f"https://www.ebi.ac.uk/europepmc/webservices/rest/PMC/{pmcid}/fullTextXML"
+    try:
+        root = ET.fromstring(fetch(url))
+    except Exception:  # noqa: BLE001 — fail closed: a fetch/parse failure keeps it DISTILLED-only
+        return None
+    text = " ".join(t.strip() for t in root.itertext() if t and t.strip())
+    return text or None
+
+
 def _query_string(terms: list[str]) -> str:
     return " ".join(terms).strip()
 
@@ -76,6 +101,10 @@ def openalex(criteria: dict, fetch: Fetch) -> list[dict]:
             "doi": (w.get("doi") or "").replace("https://doi.org/", ""),
             "url": w.get("id", "") or (w.get("doi") or ""),
             "is_preprint": str(w.get("type", "")).lower() == "preprint",
+            # OpenAlex reports OA status but exposes only a PDF (no stdlib-fetchable full text) →
+            # honest flag, but always DISTILLED-only here.
+            "open_access": bool((w.get("open_access") or {}).get("is_oa", False)),
+            "full_text": None,
         })
     return out
 
@@ -118,6 +147,11 @@ def europepmc(criteria: dict, fetch: Fetch) -> list[dict]:
         pubtype = str(r.get("pubType", "")).lower()
         is_preprint = (r.get("source") == "PPR") or ("preprint" in pubtype)
         pmid = r.get("pmid") or r.get("id") or ""
+        # Licence gate at the FETCH boundary (Item-27 falsifier): fetch full text ONLY for
+        # records Europe PMC flags open-access AND that carry a PMCID (the fullTextXML key).
+        is_oa = str(r.get("isOpenAccess", "")).upper() == "Y"
+        pmcid = str(r.get("pmcid") or "")
+        full_text = _europepmc_fulltext(pmcid, fetch) if (is_oa and pmcid) else None
         out.append({
             "source": "europepmc",
             "id": str(pmid),
@@ -130,6 +164,8 @@ def europepmc(criteria: dict, fetch: Fetch) -> list[dict]:
             "url": (f"https://doi.org/{r['doi']}" if r.get("doi")
                     else f"https://europepmc.org/article/{r.get('source', 'MED')}/{pmid}"),
             "is_preprint": is_preprint,
+            "open_access": is_oa,
+            "full_text": full_text,
         })
     return out
 
@@ -160,6 +196,11 @@ def arxiv(criteria: dict, fetch: Fetch) -> list[dict]:
             "doi": entry.findtext(f"{_ATOM}{{http://arxiv.org/schemas/atom}}doi", default=""),
             "url": arxiv_url,
             "is_preprint": True,   # arXiv is always not-yet-vetted (§16)
+            # arXiv is open by licence, but its full text is a PDF — not extractable in a
+            # stdlib-only Lambda. Default-DENY full text here (DISTILLED-only); a non-stdlib
+            # PDF/LaTeX text path is deferred (finding-0073). The `open_access` flag stays honest.
+            "open_access": True,
+            "full_text": None,
         })
     return out
 

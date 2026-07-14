@@ -54,6 +54,11 @@ class PathsConfig:
     derived_store: Path      # INTERPRETED artifacts (dreams + curator findings), §8
     vault_catalog: Path      # active/tombstone ledger for incremental ingest (vault-sync)
     attestation_store: Path  # append-only attestation records (runtime proof layer)
+    # The CURATED literature store (dn-external-grounding §2.2/§2.4) — a SEPARATE LanceDB from
+    # `vector_store`, holding embedded open-access full text (provenance CURATED, never the mirror).
+    # Default carries a value so direct `PathsConfig(...)` construction (tests) needs no change;
+    # under `data/` + `*.lance/` it is gitignored by construction (Inv 11 — never git/egress).
+    curated_store: Path = Path("data/research_curated.lance")
 
 
 @dataclass(frozen=True)
@@ -357,6 +362,7 @@ def load_config(path: Path | None = None) -> Config:
             vault_catalog=_resolve(p["vault_catalog"]),
             # .get default keeps older/custom TOMLs (without this key) loading.
             attestation_store=_resolve(p.get("attestation_store", "data/attestations.sqlite")),
+            curated_store=_resolve(p.get("curated_store", "data/research_curated.lance")),
         ),
         vault=VaultConfig(
             # ~ expands to $HOME; the vault is the owner's source corpus, outside the repo.

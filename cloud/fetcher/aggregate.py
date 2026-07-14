@@ -10,6 +10,10 @@ private notes stays in the sealed core. Here we:
 
 Pure function of (criteria, fetch) so it is unit-testable with a fake fetch. The result dict
 is exactly what gets written to S3 `results/<id>.json` and read back by the core.
+
+The EMBED-tail keys `open_access` + `full_text` (bp-029) ride through untouched — each paper is
+its source's normalized record, and dedup keeps the whole record — so the core reads the fetched
+open-access full text back via `Paper.from_dict` without any change here.
 """
 
 from __future__ import annotations

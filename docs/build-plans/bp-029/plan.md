@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-029
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/external-grounding.md
 contract: builder
@@ -11,16 +11,27 @@ write_scope:
   - core/stores/curated_store.py
   - config/**
   - docs/reference_material/**
+  - tests/integration/test_fetcher_fulltext.py
+  - tests/integration/test_curated_store.py
+  - tests/integration/test_research_persist.py
+  - tests/integration/test_curate_manifest.py
 session_budget: 1
 cost:
   estimate:
     model: opus
     tokens: 450k
-  actual: null
+  actual:
+    model: opus
+    tokens: 120k          # non-cache: 14.7k in + 105.7k out (+16.8M cache-read, 272k cache-write)
+    dollars: 13.82
+    ratio: 0.27           # 120k / 450k — UNDER, leaner than bp-028's 0.54× (fakes, no live tier)
+    session_delta: "+8pp (34%->42%)"
+    week_delta: "+1pp (72%->73%, cache-dominated — cheap on the weekly quota)"
 depends_on: [bp-028]
 parallelizable_with: []
 created: 2026-07-13
 updated: 2026-07-13
+started: 2026-07-13
 links:
   - docs/design-notes/external-grounding.md
   - docs/reference_material/README.md

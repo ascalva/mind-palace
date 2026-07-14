@@ -136,9 +136,15 @@ class Paper:
     doi: str
     url: str             # canonical resolvable URL
     is_preprint: bool
+    # EMBED-tail fields (bp-029, dn-external-grounding §2.6). `open_access` is the source's
+    # licence flag; `full_text` is the fetched open-access full source text (Europe PMC OA XML)
+    # or None (DISTILLED-only). Defaults keep every existing `Paper(...)` construction working.
+    open_access: bool = False
+    full_text: str | None = None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Paper:
+        ft = d.get("full_text")
         return cls(
             source=str(d.get("source", "")),
             id=str(d.get("id", "")),
@@ -150,6 +156,8 @@ class Paper:
             doi=str(d.get("doi", "")),
             url=str(d.get("url", "")),
             is_preprint=bool(d.get("is_preprint", False)),
+            open_access=bool(d.get("open_access", False)),
+            full_text=(str(ft) if ft else None),
         )
 
 

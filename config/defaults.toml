@@ -34,6 +34,10 @@ vector_store = "data/vectors.lance"  # LanceDB thought-graph vectors (derived, r
 derived_store = "data/derived.sqlite"  # INTERPRETED artifacts: dreams + curator findings (§8)
 vault_catalog = "data/vault_catalog.sqlite"  # active/tombstone ledger for incremental ingest
 attestation_store = "data/attestations.sqlite"  # append-only attestation records (runtime proof)
+# The CURATED literature store — embedded open-access full text (dn-external-grounding §2.2/§2.4).
+# A SEPARATE LanceDB from vector_store; provenance CURATED never merges into the authored mirror.
+# Under data/ + *.lance/ → gitignored by construction (Inv 11: the full text never enters git).
+curated_store = "data/research_curated.lance"
 
 [vault]
 # The SOURCE corpus the system ingests FROM — read-only, AUTHORED, never committed.

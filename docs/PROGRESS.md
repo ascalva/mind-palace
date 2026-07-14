@@ -2775,3 +2775,51 @@ portable backstop):
 - **Queue now:** bp-029 (EMBED tail, `ready`, **depends_on bp-028** — now satisfiable) is the next build,
   but do NOT run concurrently with anything live-tier (finding-0069). Lighter independent picks: /triage
   (flip finding-0062 promoted; route the backlog + 0071), finding-0066 → `palace down/up`, /scribe.
+
+### 2026-07-13 (cont.) — bp-029 SEALED: the EMBED tail — transient becomes persisted (curated store lands)
+
+- **bp-029 COMPLETE** (sealed this commit): the external-grounding arc's last near-term plan. The
+  ranked-then-DISCARDED literature pipeline now **persists keepers** into a SEPARATE curated
+  vectorstore. Items 27 (open-access full-text fetch, Zone C), 28 (the curated store), 29 (the
+  licence-gated persist/embed), 30 (the manifest DISTILLED→EMBEDDED mechanism + dangling-claim guard).
+- **What shipped:** `cloud/fetcher/sources.py` fetches Europe PMC OA full text (`fullTextXML`, stdlib
+  JATS parse, gated on `isOpenAccess=="Y"`), fails closed; `Paper` gains `open_access`/`full_text`.
+  `core/stores/curated_store.py::open_curated_store` opens `data/research_curated.lance` (gitignored,
+  a SECOND store, base `VectorStore` untouched). `core/research/persist.py` chunks→embeds keepers with
+  `provenance="curated"` under the default-DENY licence gate. `core/research/curate.py` flips a manifest
+  to EMBEDDED (surgical, comment-preserving) + guards the dangling claim (embedded ⟹ real store_ref
+  backed by real vectors).
+- **Invariant-adjacent, held STRUCTURALLY:** Inv 2 (persist reads already-fetched text — core never
+  fetches), never-pollute-the-mirror (separate store + `CURATED ∉ MIRROR_READABLE` — the enum class
+  already existed), Inv 11 (full text under `data/`, `git check-ignore` confirms), the licence gate
+  (`open_access AND full_text`, belt-and-suspenders; verified by the Item-27 falsifier test — a non-OA
+  record never triggers a full-text fetch).
+- **Offline-build boundary (by design):** real seed cards stay `not_fetched` — flipping one needs real
+  vectors → a real fetch → Zone-C/curation-time (Inv 2 forbids a core fetch). The build delivers the
+  TESTED mechanism; real flips ride a live driver run (bp-028) + `mark_manifest_embedded` (gated by
+  `ingestion_errors` so a dangling claim can never land). All ≥10 real seed manifests validated against
+  the v0 schema + confirmed unflipped.
+- **Ran SELF-DRIVEN** (opus/high — effort set at the TOP this time, the bp-028 lesson applied). One
+  owner touchpoint: the write_scope test-path gap (finding-0072, = finding-0071 class) — surfaced, NOT
+  self-widened; owner authorized in-session, orchestrator added the 4 `tests/integration/*` paths.
+- **Findings:** 0072 (write_scope gap — RESOLVED; /graduate check still owed), 0073 (arXiv PDF full-text
+  deferred — codebase, not a blocker; Europe PMC is the working OA tail), 0074 (Item-30 real flips are
+  live-time — spec-fidelity, RESOLVED: mechanism delivered).
+- **Gate — all five legs green (run separately):** ruff `All checks passed`; import-firewall (Inv 2)
+  `OK`; model-free pytest **1010 passed, 4 skipped** (+20 new bp-029 tests); mypy Tier-2 hard floor **0**
+  (177 files); argless mypy pinned **69** (one new bare-`dict` fixed to hold the pin); type_gate OK;
+  semgrep report-only. Vault axis untouched (no local vault). **Live tier NOT run** (deterministic fakes;
+  finding-0069/oq-0018 default (c) stands).
+- **Seal / economics:** opus, **120k non-cache tokens** (14.7k in + 105.7k out; 16.8M cache-read),
+  **$13.82**, **0.27× the 450k estimate — UNDER, even leaner than bp-028's 0.54×** (fakes, no live tier,
+  tight edits, item-boundary checkpointing). Session 34%→42% (+8pp); **week 72%→73% (+1pp —
+  cache-dominated, cheap on the weekly quota)**. Fable 100% capped. (The 24h "85% subagent-heavy /
+  80% >150k-context" advisory is the aggregate, NOT this session — this build is the lean self-driven
+  counterexample.)
+- **main == origin == (this seal)**; pushed; CI attesting. Clean unit boundary.
+- **The external-grounding near-term arc is now COMPLETE**: bp-027 (seed layer) + bp-028 (live driver) +
+  bp-029 (EMBED tail) all sealed. What remains is design-tier (the Jul-17 fable-vet: the `reference` kind,
+  `w(d,a,c)`, the index-query façade) + a live deploy to activate the airlock (owner-only).
+- **Queue now:** finding-0066 → `palace down/up` (small sonnet plan, budget-friendly); /triage (flip
+  finding-0062 promoted; sweep 0071/0072/0074-resolved + 0073; route the backlog); /scribe (book debt,
+  unscaffolded). The Jul-17 fable-vet is gated (Fable capped until then).
