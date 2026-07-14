@@ -1,3 +1,11 @@
+# [1.9.0](https://github.com/ascalva/Mind-Palace/compare/v1.8.0...v1.9.0) (2026-07-14)
+
+
+### Features
+
+* **bp-036:** body-only embeddings — strip key:: props from the shared derivation (Items 13/14) ([1d731d8](https://github.com/ascalva/Mind-Palace/commit/1d731d877711cca577c6fa01336dc87d957bc826))
+* **bp-036:** re-embed + dream-regeneration experiment harness (Item 15) ([16c4694](https://github.com/ascalva/Mind-Palace/commit/16c469433c7aabffd8d4568da2db30969868ca3b))
+
 # [1.8.0](https://github.com/ascalva/Mind-Palace/compare/v1.7.0...v1.8.0) (2026-07-14)
 
 
