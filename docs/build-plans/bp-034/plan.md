@@ -20,13 +20,13 @@ cost:
     tokens: 450k
   actual:
     model: opus            # self-driven, high effort, single-lane (0 subagents; 3 Explore scouts)
-    tokens: ~200k          # estimate (heavier than bp-033: 3 new files + a 10-min full pytest +
-                           # ruff/mypy iteration). PRECISE tokens + dollars/deltas pending owner /usage.
-    ratio: ~0.44           # ~200k / 450k — within the self-driven single-lane band (est 0.5–0.8x)
-    session_delta: pending # owner /usage relay at seal
-    week_delta: pending    # owner /usage relay at seal
-    # Start-of-session /usage (pre-flight gate): credits 89% ($89.59/$100, resets Aug 1);
-    # week 81% (resets Jul 17 8pm). Enrich this block from the end-of-session /usage.
+    tokens: 175k           # non-cache: 38.9k in + 136.0k out (+ 26.3m cache read). Owner /usage.
+    dollars: 20.36         # full session (started at 0%; the whole session WAS bp-034)
+    ratio: 0.39            # 175k / 450k — within the self-driven single-lane band (est 0.5–0.8x)
+    session_delta: "+13pp (0%->13%)"      # the 5-hour session window
+    week_delta: "+1pp (81%->82%, cache-dominated — light on the weekly quota)"
+    # Credits UNCHANGED at 89% ($89.59/$100, resets Aug 1) — this session was covered by the
+    # weekly/subscription allowance, not billed to credits. Start-of-session week was 81%.
 depends_on:
   - bp-031
 parallelizable_with: []
