@@ -1,5 +1,13 @@
 # Mind Palace
 
+[![CI](https://github.com/ascalva/Mind-Palace/actions/workflows/ci.yml/badge.svg)](https://github.com/ascalva/Mind-Palace/actions/workflows/ci.yml)
+[![tests](https://img.shields.io/badge/tests-1000%2B-brightgreen)](docs/runbook.md)
+[![mypy](https://img.shields.io/badge/mypy-0_errors-brightgreen)](pyproject.toml)
+[![type coverage](https://img.shields.io/badge/type_coverage-gate--enforced-brightgreen)](ops/type_gate.py)
+[![sealed core](https://img.shields.io/badge/sealed_core-zero_egress-6f42c1)](scripts/check_imports.py)
+[![python](https://img.shields.io/badge/python-3.11%2B-blue)](pyproject.toml)
+[![license](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+
 > A knowledge system built around a single question: what does it mean for a system to know _why_ it believes something?
 
 It's deliberately limited in scope — it trades breadth of action for provability — with a formal structure that lets it reason about how its own knowledge holds together. Runs locally, core sealed. Built with the thing it's trying to understand.
@@ -28,13 +36,13 @@ A few ideas do most of the load-bearing work:
 - **Dreamer** — the offline layer that works over the structure of what's stored. Deterministic clustering feeds model synthesis; outputs are content-addressed proposals that can never silently become beliefs.
 - **Store, and its typed views** — memory, a read-only reflection of it (`MirrorView`: authored words only, enforced at construction), and a write-only path to external effect. The asymmetry is deliberate and enforced.
 - **Provenance and scope** — every item carries its origin class and what it may affect; the self-model reads only what the owner actually wrote. Code itself enters as a *sensed stream* — the repo is an instrument, never a voice in the mirror.
-- **Airlock** — a one-way path for outside research. De-identified on the way out, unable to reach back in.
+- **Airlock and the curated stratum** — a one-way path for outside research: de-identified on the way out, unable to reach back in. What returns is ranked against the private corpus locally; a clearly open-access source can be embedded into a *separate* curated store — a second bedrock of ground truth _about the world_, held structurally apart from the mirror of what the owner wrote, and never merged into it.
 
 ## Status — stated honestly
 
 The base build (Phases 0–10) is complete; the live instance runs always-on under launchd with a graceful, gated deployment path. "Complete" is not "wired": this repo distinguishes **built** (code + tests exist), **deployed** (present in the running system), and **wired** (active in the live loop) — and its own audit found the summaries were the least honest surface, so this one names the gaps.
 
-Wired and live today: ingestion (notes within seconds, code per commit), dreaming on a six-hour cadence with content-addressed idempotency, the provenance firewall, the attestation chain, strict-typed core (mypy zero, enforced), CI on every push, deploy-gated releases. Built but deliberately dormant, awaiting their design gates: retrieval demotion for superseded content, the supersession certification layer, effectors (the "hands" — flag-off at every tier), recursive dreaming (parked on an adoption criterion it hasn't earned yet).
+Wired and live today: ingestion (notes within seconds, code per commit), dreaming on a six-hour cadence with content-addressed idempotency, the provenance firewall, the attestation chain, strict-typed core (mypy zero, enforced), CI on every push, deploy-gated releases, and the research airlock driven live — a de-identified query goes out, a reading list ranked against the private corpus comes back. Built but deliberately dormant, awaiting their design gates: retrieval demotion for superseded content, the supersession certification layer, the curated stratum's full-text embedding (built and licence-gated, waiting on a deployed fetcher before any source is ingested), effectors (the "hands" — flag-off at every tier), recursive dreaming (parked on an adoption criterion it hasn't earned yet).
 
 The current frontier is the reasoning layer — moving the Dreamer from summarizing structure toward reasoning over it — and the entanglement between the corpus and the code that implements it.
 
@@ -46,7 +54,7 @@ By a human and AI agents in a gated loop, in the open. The human owns direction 
 
 Builds run as supervised parallel agents in isolated worktrees; merges are scrutinized diffs, never trust. Code reaches the live system through exactly one gate — `deploy`: clean tree, tests green locally, pipeline green remotely *and attested*, graceful cycle, successor verified, release cut. The build's own history is a first-class dataset: every commit's structure (symbols, signatures, imports, typed headers) is snapshotted into a queryable ledger by a model-less sensor agent — the system tracks its own construction.
 
-The recursion is the point. It's a system for reasoning carefully about AI, built with AI, whose corpus opens with its owner thinking about what it means to build it.
+The recursion is the point. It's a system for reasoning carefully about AI, built with AI, whose corpus opens with its owner thinking about what it means to build it. It has already bent back on itself: a literature pass grounding the system's own math notes caught a misattribution in a ratified design — a kernel result credited to Mercer that is properly Moore–Aronszajn — and the correction became the curated layer's first resident.
 
 ## Rigor, verifiable
 
@@ -54,14 +62,14 @@ Claims above are checkable, not vibes:
 
 ```sh
 uv sync --extra dev
-uv run pytest -q -m 'not live and not podman'   # the deterministic tier: 750+ tests
+uv run pytest -q -m 'not live and not podman'   # the deterministic tier: 1000+ tests
 uv run mypy                                      # core/ strict: 0 errors, enforced
 uv run python scripts/check_imports.py           # the sealed core names no network module
 bash docs/build-plans/bp-010/acceptance/run.sh   # the write-guard harness, 11 cases
 sqlite3 data/attestations.sqlite 'select agent_role, action, count(*) from attestations group by 1,2'
 ```
 
-Structural invariants carry structural tests — e.g. the balance mathematics is proven bit-identical under injection of dispositional edges, and the blessing gates' harnesses include the laundering, comment-evasion, and deletion paths. Live axes (`-m live`, `-m podman`, a dev-Vault CI service) verify against the real substrates, honestly skipped when absent.
+Structural invariants carry structural tests — e.g. the balance mathematics is proven bit-identical under injection of dispositional edges, and the blessing gates' harnesses include the laundering, comment-evasion, and deletion paths. The suite is tiered by intent — unit, integration, property, metamorphic, adversarial, integrity, longitudinal, and emergent — so an invariant regression reads differently from a flaky assertion. Live axes (`-m live`, `-m podman`, a dev-Vault CI service) verify against the real substrates, honestly skipped when absent. (Line coverage is deliberately not a headline metric here — the argument is that a structural test deleting an illegal state is worth more than a line touched; the type-gate instead enforces that every core-reaching package is type-checked at all.)
 
 ## Running it
 
