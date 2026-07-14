@@ -3,7 +3,10 @@
 
     uv run scripts/palace.py start          # preflight → record run → supervise
     uv run scripts/palace.py stop           # graceful drain of the live run
-    uv run scripts/palace.py status         # preflight + recent runs
+    uv run scripts/palace.py down           # maintenance-down (bootout — outlasts KeepAlive)
+    uv run scripts/palace.py up             # bring the agent back (bootstrap)
+    uv run scripts/palace.py restart        # plain down→up cycle (NOT deploy)
+    uv run scripts/palace.py status         # preflight + recent runs + system snapshot
     uv run scripts/palace.py reset --confirm # fresh-start wipe of the corpus layer
     uv run scripts/palace.py deploy         # promotion gate: cycle the live run onto HEAD
 
@@ -28,7 +31,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root on 
 
 from core.sealing import seal
 
-USAGE = "usage: palace.py {start|stop|status|reset|deploy} [--force] [--confirm] [--skip-tests]"
+USAGE = ("usage: palace.py {start|stop|down|up|restart|status|reset|deploy} "
+         "[--force] [--confirm] [--skip-tests]")
 
 
 def main(argv: list[str]) -> int:
@@ -44,6 +48,12 @@ def main(argv: list[str]) -> int:
         return launcher.start(force="--force" in flags)
     if cmd == "stop":
         return launcher.stop()
+    if cmd == "down":
+        return launcher.down()
+    if cmd == "up":
+        return launcher.up()
+    if cmd == "restart":
+        return launcher.restart()
     if cmd == "status":
         return launcher.status()
     if cmd == "reset":

@@ -56,3 +56,60 @@ test files). **No code written.**
 
 Parked to run an owner-directed **Fable design pass on the edge-dynamics design note** (session pivot,
 2026-07-14). `active-plan` cleared; `/resume bp-030` re-points and continues.
+
+## 2026-07-14 — Items 1 & 3 BUILT + verified; Item 2 stays PARKED (finding-0075)
+
+Resumed from the journal (fresh-agent test passed — no re-derivation needed). Built the two unblocked
+items; Item 2 (monitor deletion) remains blocked on the owner write_scope grant.
+
+**Item 1 — `down` / `up` / `restart` (KeepAlive-aware control).** `ops/lifecycle/launcher.py`:
+- Module fn `_run_launchctl(argv)` (captures output) + two injectable Launcher fields: `launchctl`
+  (the runner) and `installed_plist` (the LaunchAgent path) — one seam, so tests drive bootout/
+  bootstrap with a fake and no real launchd contact.
+- `down()` = `launchctl bootout gui/$uid/<label>` (true maintenance-down, outlasts KeepAlive —
+  finding-0066); idempotent (already-out → report, rc 0); not-installed → falls back to plain `stop`
+  (no KeepAlive to outlast). `up()` = `bootstrap gui/$uid <plist>`; idempotent; not-installed → guided
+  message, rc 0. `restart()` = plain down→up (NOT `deploy` — no git/gate/HEAD promotion; falsifier held
+  structurally: the path only calls down/up).
+- `scripts/palace.py`: dispatch (`down`/`up`/`restart`) + USAGE + docstring.
+- Tests `tests/integration/test_lifecycle_control.py` (8): the exact incantations, both idempotency
+  reports, both not-installed fallbacks, and a real-bootout-failure → non-zero.
+- **Deliberately did NOT run `down`/`up`/`restart` live** — they mutate the real launchd agent (which
+  is UP: `status` shows run #20 RUNNING on 4500d42; the resume brief's "daemon is down" was stale, the
+  owner already bootstrapped it). Unit-verified only, by design.
+
+**Item 3 — enrich `status`.** `ops/lifecycle/launcher.py`:
+- Added the **running-vs-HEAD gap** (compares the live run's `commit_sha` to `git_state(HEAD)` — the
+  finding-0066 deploy-lag, made visible) and `_report_snapshot()`, which opens the SAME read-only views
+  the edge-monitor snapshot fed (`OpsView`/`DreamsView`/`JobQueue`) and pretty-prints `build_status`:
+  queue depth, RAM headroom, drift, constitution, dream + tidy counts, action activity. Read-only —
+  `snapshot.py` untouched (reused as pinned).
+- Switched `status()`'s preflight to the injectable `self.preflight_fn` (start() already used it;
+  default is `run_preflight`, so production behavior is identical) → status is now hermetic/fast to test.
+- **Falsifier tension noted:** Item 3's acceptance wishlist names "last-dream + resident-model lines,"
+  but `build_status` provides *dream count* and *memory headroom*, not dream text or a model list. The
+  falsifier ("must NOT fabricate a field build_status doesn't provide") is the binding constraint → I
+  show only what traces to `build_status`/ledger/git. No finding — resolvable within the plan.
+- **End-to-end verified on the REAL system:** `uv run scripts/palace.py status` → the HEAD-gap line
+  fired (run #20 4500d42 behind HEAD fc34761-dirty), `dreams: 1` (matches the bp-036 body-only result),
+  `queue depth: 34`, rc 0, no writes. `drift`/`constitution` render `None` — honest: the daemon's own
+  snapshot binds neither on `OpsView.over(...)` either, so status matches it exactly (not a fabrication).
+- Tests `tests/integration/test_status_report.py` (5): HEAD-gap warning, running-HEAD-when-current,
+  the snapshot lines, read-only (two calls → no new run), no-runs-yet.
+
+**Gate (5-leg attestable-green): GREEN.** ruff clean · `mypy core agents eval ops scheduler scripts` = 0
+(185 files) · argless `mypy` = **69** (baseline held) · `ops.type_gate` OK · `pytest` = **1108 passed**,
+8 skipped, 2 failed — both failures are `pytest.mark.live` (`test_scheduler_live` + `test_dream_v2_live`),
+which the attestable gate DESELECTS (`-m "not live and not podman and not needs_vault and not needs_restic"`
+→ 1098 collected, 20 deselected). Neither live test imports launcher/palace/status — they fail on the
+loaded, low-RAM box (status reported 2.42 GB available with the daemon live), environmental not a
+regression. The 13 new non-live tests + the extended `test_lifecycle.py` are all in the passing set.
+
+**Re-entry — Item 2 (monitor deletion) still PARKED.** Blocked on **finding-0075**: the owner must add
+`tests/unit/test_monitor_server.py` to this plan's `write_scope` (correcting a blessed plan's
+write_scope is owner-gated — standing rule). Re-entry condition: that grant lands → then delete
+`edge/monitor/**` + `scripts/monitor.py` + `test_monitor_server.py` together, remove `MonitorConfig` +
+`[monitor]` (`config/loader.py` + `defaults.toml`), and strip the launcher monitor-spawn + the
+monitor-path `write_status` call (launcher.py `build_components` :236-253 + the `snapshot=` wiring).
+Do Item 2's deletion LAST so the suite never reds mid-build. `build_status`/`children.py`/`test_children.py`
+SURVIVE (KEEP). Plan stays `in-progress` until Item 2 lands — this session commits Items 1 & 3 only.

@@ -120,6 +120,12 @@ def _launchd_cycle(label: str, repo_plist: Path, installed: Path) -> None:
     subprocess.run(["launchctl", "bootstrap", domain, str(installed)], check=True)
 
 
+def _run_launchctl(argv: list[str]) -> subprocess.CompletedProcess[str]:
+    """Run a `launchctl` subcommand, capturing output — the down/up/restart control seam.
+    Injectable on the Launcher so tests drive bootout/bootstrap with a fake runner."""
+    return subprocess.run(["launchctl", *argv], capture_output=True, text=True)
+
+
 @dataclass
 class Components:
     """What `serve` drives. Injectable so tests exercise the lifecycle without models."""
@@ -276,6 +282,11 @@ class Launcher:
     deploy_wait_s: float = 60.0
     deploy_poll_s: float = 0.5
     launchd_label: str = "com.mind-palace.palace"
+    # down/up/restart (KeepAlive-aware maintenance control, finding-0066): the launchctl runner
+    # and the installed LaunchAgent plist path — injectable so tests drive control with a fake.
+    launchctl: Callable[[list[str]], subprocess.CompletedProcess[str]] = _run_launchctl
+    installed_plist: Path = field(
+        default_factory=lambda: Path.home() / "Library/LaunchAgents/com.mind-palace.palace.plist")
     _stopping: bool = field(default=False, init=False)
     _run_id: int | None = field(default=None, init=False)
     _run: RunRecord | None = field(default=None, init=False)  # the active RunRecord (for snapshots)
@@ -491,9 +502,59 @@ class Launcher:
         print(f"sent SIGTERM to run #{run.id} (pid {run.pid}); it will drain + mark clean.")
         return 0
 
+    # --- down / up / restart (KeepAlive-aware maintenance control, finding-0066) -------------
+    def _managed(self) -> bool:
+        """Is the palace agent currently bootstrapped in the user's gui domain?"""
+        return self.launchctl(["print", f"gui/{os.getuid()}/{self.launchd_label}"]).returncode == 0
+
+    def down(self) -> int:
+        """Maintenance-down that OUTLASTS KeepAlive (finding-0066): `launchctl bootout`. Plain
+        `stop` only SIGTERMs and launchd immediately relaunches it — so a true down boots the
+        agent out. Idempotent (already-out reports and returns 0); if the agent isn't installed
+        there is no KeepAlive to outlast, so fall back to a plain `stop`."""
+        if not self.installed_plist.exists():
+            print("down: not installed as a LaunchAgent — no KeepAlive to outlast; plain stop.")
+            return self.stop()
+        if not self._managed():
+            print("down: already down (agent booted out).")
+            return 0
+        rc = self.launchctl(["bootout", f"gui/{os.getuid()}/{self.launchd_label}"]).returncode
+        if rc != 0:
+            print(f"down: `launchctl bootout` failed (rc={rc}). The agent may still be live.")
+            return rc
+        print(f"down: booted out {self.launchd_label} — stays down past KeepAlive. "
+              "`palace up` to bring it back.")
+        return 0
+
+    def up(self) -> int:
+        """Bring the agent back: `launchctl bootstrap`. Idempotent (already-up reports, returns
+        0); if the agent isn't installed there is nothing to bootstrap (run `palace start`)."""
+        if not self.installed_plist.exists():
+            print("up: not installed as a LaunchAgent — `palace start` (foreground) or install "
+                  "the agent (runbook → One-command lifecycle).")
+            return 0
+        if self._managed():
+            print("up: already up (agent bootstrapped).")
+            return 0
+        rc = self.launchctl(
+            ["bootstrap", f"gui/{os.getuid()}", str(self.installed_plist)]).returncode
+        if rc != 0:
+            print(f"up: `launchctl bootstrap` failed (rc={rc}).")
+            return rc
+        print(f"up: bootstrapped {self.launchd_label} — live under KeepAlive.")
+        return 0
+
+    def restart(self) -> int:
+        """A plain down→up cycle. NOT `deploy` — no HEAD promotion, no test/CI gate; this just
+        cycles the running code as-is (a deploy is the gated ratchet onto HEAD)."""
+        rc = self.down()
+        if rc != 0:
+            return rc
+        return self.up()
+
     def status(self) -> int:
         print("preflight:")
-        print(run_preflight(self.cfg).render())
+        print(self.preflight_fn(self.cfg).render())
         runs = self.runs.recent(5)
         if not runs:
             print("\nno runs recorded yet.")
@@ -504,7 +565,53 @@ class Launcher:
             rec = " [recovery]" if r.recovery else ""
             print(f"  #{r.id} {r.commit_sha[:12]}{' (dirty)' if r.dirty else ''} "
                   f"started {r.started_at} — {state}{rec}")
+        # running-code-vs-HEAD gap: a live run pinned to a commit behind HEAD hasn't picked up the
+        # latest deploy (finding-0066 lag). Only meaningful while a run is live.
+        live = self.runs.last()
+        head_commit, head_dirty = git_state(self.repo_root)
+        if live is not None and live.active:
+            if live.commit_sha != head_commit:
+                print(f"\n⚠ running {live.commit_sha[:12]} — HEAD is {head_commit[:12]}"
+                      f"{' (dirty)' if head_dirty else ''}: run #{live.id} is behind. "
+                      "`palace deploy` to promote onto HEAD.")
+            else:
+                print(f"\nrunning HEAD ({head_commit[:12]}"
+                      f"{' — dirty tree' if head_dirty else ''}).")
+        self._report_snapshot(live)                       # the enriched read-only system snapshot
         return 0
+
+    def _report_snapshot(self, run: RunRecord | None) -> None:
+        """Pretty-print the `build_status` payload (bp-030 Item 3): queue depth, health/RAM
+        headroom, drift, dream + tidy-suggestion counts, action activity. Read-only — reuses the
+        same views the edge-monitor snapshot fed; every datum traces to `build_status`."""
+        from core.attestation.store import open_attestation_store
+        from core.dreams_view import DreamsView
+        from core.ops_view import OpsView
+        from core.stores.derived import open_derived_store
+        from core.typedshims import psutil
+        from ops.ledger import open_ledger
+        from ops.lifecycle.snapshot import build_status
+        from scheduler.queue import JobQueue
+
+        ops_view = OpsView.over(open_attestation_store(self.cfg), open_ledger(self.cfg))
+        dreams_view = DreamsView.over(open_derived_store(self.cfg))
+        queue = JobQueue(self.cfg.paths.data_dir / "queue.sqlite")
+        try:
+            depth = queue.depth()
+        finally:
+            queue.close()
+        mem_gb = round(psutil.virtual_memory().available / (1024 ** 3), 2)
+        data = build_status(ops_view=ops_view, dreams_view=dreams_view, queue_depth=depth,
+                            run=run, mem_available_gb=mem_gb)
+        h, p, a = data["health"], data["patterns"], data["activity"]
+        print("\nsystem:")
+        print(f"  queue depth: {data['queue_depth']}")
+        print(f"  memory available: {h['memory_available_gb']} GB")
+        print(f"  drift within tolerance: {h['drift_within_tolerance']}   "
+              f"constitution intact: {h['constitution_intact']}")
+        print(f"  dreams: {p['dreams']}   tidy suggestions: {p['tidy_suggestions']}")
+        print(f"  actions logged: {a['actions_logged']}   "
+              f"pending approvals: {a['pending_approvals']}")
 
     # --- reset (the fresh-start wipe) -------------------------------------------------------
     def reset_targets(self) -> list[Path]:
