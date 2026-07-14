@@ -6,11 +6,11 @@ design_ref:
   - docs/findings/finding-0077.md   # the id:: mint measurably changed the mirror graph (5→9); parked-4 re-entry
 contract: builder
 write_scope:
-  - core/ingest/logseq.py            # a deterministic strip_properties() helper co-located with _PROP
-  - core/ingest/pipeline.py          # apply the strip in the ONE raw→chunks derivation (derive_chunks + ingest_note)
+  - core/ingest/logseq.py
+  - core/ingest/pipeline.py
   - tests/unit/test_property_strip.py
   - tests/integration/test_body_only_embedding.py
-  - scripts/reembed_bodyonly.py      # owner-run, gated re-embed (mirrors scripts/mint_ids.py posture)
+  - scripts/reembed_bodyonly.py
 session_budget: 1
 cost:
   estimate:
