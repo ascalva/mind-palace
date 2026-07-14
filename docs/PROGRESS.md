@@ -3139,3 +3139,19 @@ portable backstop):
   "dry-run mutates nothing" contract needs honest wording. Route: builder, batch at /triage.
 - **Owner touchpoints now CLEAR:** the mint RUN ✅, the deploy ✅. Remaining: oq-0019 `open→answered`
   confirm-flip (the mint is now built AND run) at the next /triage.
+
+## 2026-07-14 (cont.) — post-mint derived-layer cleanup (owner-directed, live data)
+
+- **Integrity check after the bp-034 mint** (owner-requested, thorough) confirmed: 13/13 three-way
+  identity (file id:: == catalog doc_id == version chain), 0 forks, 28/28 digests resolvable in raw,
+  13/13 chains preserved byte-identical vs the backup, 9 live mirror edges / 2 theme clusters, 5 dreams
+  all pointing to real notes, and a **live rename-stability proof on a copy of the migrated stores**
+  (A6 holds: lineage follows a rename, no fork). No signed EdgeStore was ever touched — `edges.sqlite`
+  never existed (empty by design; nothing asserts contradictions yet).
+- **One real wrinkle found + fixed:** 3 older dreams' derivation-graph leaves referenced each note's
+  PRE-MINT digest (the exact bytes they were generated from — accurate provenance, but a prior version).
+  These would NOT self-heal (title-derived ids; their clusters are subsumed by the grown 6-note cluster,
+  so they never re-emit). Applied a surgical remap (owner chose this over reset+re-dream): corrected only
+  `derived_from` pre-mint→current digest (verified 1:1), re-synced the hypergraph via the store primitive,
+  preserved summaries/subjects/data/created_at. Verified: 0 non-current leaves, 0 derived_from↔ℋ drift,
+  5/5 dreams intact. Before-state captured (reversible). Live-data op; not a code change.
