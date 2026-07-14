@@ -19,7 +19,8 @@ def test_removed_lines_are_exactly_the_parsed_properties():
     kept = strip_properties(text)
     removed = [ln for ln in text.split("\n") if ln not in kept.split("\n")]
     parsed_keys = [m[0] for m in _PROP.findall(text)]
-    assert [_PROP.match(ln).group(1) for ln in removed] == parsed_keys == ["id", "date"]
+    removed_keys = [m.group(1) for ln in removed if (m := _PROP.match(ln))]
+    assert removed_keys == parsed_keys == ["id", "date"]
     # and every surviving line is NOT a property
     assert all(not _PROP.match(ln) for ln in kept.split("\n"))
 

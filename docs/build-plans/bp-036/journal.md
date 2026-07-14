@@ -1,5 +1,42 @@
 # bp-036 journal
 
+## 2026-07-14 — Item 15 COMPLETE — the re-embed + dream-regeneration EXPERIMENT harness (green)
+
+**Status:** all three items (13/14/15) built + green, offline. **5-leg green:** ruff; tier-2 mypy 0
+[185 files]; argless mypy **69** [baseline held]; type_gate; full `pytest -q` = **1097 passed, 8 skipped**
+(1078 + 19 new). Seal next; the live re-embed/experiment is owner-run post-deploy.
+
+**Completed — Item 15 (`scripts/reembed_bodyonly.py`), scope EXPANDED by owner (this session):** the tool
+is now the before/after EXPERIMENT harness, not just a re-embed. `run(...)` (all deps injectable):
+daemon-down gate + confirm gate → **SNAPSHOT** the pre-wipe dreams to JSON (the "before") + back up the
+derived store → **re-embed body-only** (`run_ingest(rebuild=True)` — resets vectors, rebuilds from raw
+through the stripping pipeline; leaves catalog/versions/identity untouched) → **WIPE all dreams**
+(`DerivedStore.reset()`, owner chose reset-all over post-mint-only) → **trigger the dreamer**
+(`build_dreamer(cfg).dream()`) on the clean graph → report. `main()` wires the real config/dreamer/ledger;
+`--dry-run` default, `--confirm` runs it. Mirrors `scripts/mint_ids.py` (seal, gates, reversible: vectors
+regenerate from raw §8; snapshot + derived-store backup restore the "before").
+- **4 orchestration tests** (in `test_body_only_embedding.py`, loaded via importlib since scripts/ isn't a
+  package): snapshot-then-reembed-then-wipe-then-redream ordering (snapshot captures the 2 dreams BEFORE
+  the wipe); refuse without confirm; refuse while daemon up; allowed when daemon down. Fakes for
+  derived/dreamer/reindex — no model, no live store.
+
+**THE EXPERIMENT (owner's framing) — judged by me after the owner runs it, on 3 axes:** (1) BETTER? the
+body-only graph is sparser (4 vs 9 edges) → expect fewer over-merged themes, more content-grounded dreams;
+(2) UNCOVERED? a clean cluster may surface a theme the polluted 6-note blob buried; (3) REGRESSED? did we
+lose a GENUINE cross-note link (not artifact)? I'll compare the JSON snapshot ("before") against the new
+dreams ("after") and report honestly.
+
+**Sequence (deploy-coupled, finding-0066):** seal bp-036 → owner deploys → owner runs
+`reembed_bodyonly.py --confirm` (daemon down) → I judge. The daemon keeps regenerating polluted dreams
+until this runs, so the wipe MUST follow the re-embed in one op (it does).
+
+**Next action:** seal — checkpoint PROGRESS, flip plan `in-progress → complete`, enriched cost.actual.
+Then the owner deploys + runs the experiment; I judge.
+
+**Context-manifest delta:** `core/ingest/run.py` (`run_ingest(rebuild=True)` — the reindex-from-raw);
+`core/dreaming/dreamer.py` (`build_dreamer`/`dream()`); `core/stores/derived.py` (`all`/`reset`, Artifact
+fields for the snapshot). finding-0078 resolved (bare-path write_scope).
+
 ## 2026-07-14 — Items 13 + 14 COMPLETE + green; A/B measured (9→4); Item 15 gains a dream-wipe
 
 **Status:** `in-progress`. Unblocked (owner corrected `write_scope` to bare paths, `aad2317`). Items 13

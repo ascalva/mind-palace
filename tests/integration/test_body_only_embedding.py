@@ -12,7 +12,14 @@ the acceptance MEASUREMENT; here a deterministic fake embedder asserts the invar
 from __future__ import annotations
 
 import hashlib
+import importlib.util
+import json
+import os
+import sys
+from dataclasses import dataclass
 from pathlib import Path
+
+import pytest
 
 from core.ingest.logseq import parse_note, strip_properties
 from core.ingest.sync import VaultSync
@@ -98,3 +105,128 @@ def test_note_with_no_properties_is_unchanged_by_the_strip(tmp_path: Path):
     rows = sync.store.all_rows()
     verified, dropped = verify_rows_against_raw(rows, sync.raw)
     assert dropped == [] and len(verified) == len(rows)
+
+
+# ── Item 15: the re-embed + dream-regeneration experiment harness (orchestration, offline) ──────
+# scripts/ is not a package, so load the owner-run script by path to test its run() with fakes —
+# no model, no live store; the owner runs it with the real embedder/dreamer post-deploy.
+
+def _load_reembed():
+    path = Path(__file__).resolve().parents[2] / "scripts" / "reembed_bodyonly.py"
+    spec = importlib.util.spec_from_file_location("reembed_bodyonly", path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod          # register so @dataclass can resolve cls.__module__
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@dataclass
+class _FakeArtifact:
+    id: str
+    kind: str = "dream"
+    subkind: str | None = None
+    summary: str = "a themed synthesis"
+    subjects: tuple[str, ...] = ()
+    created_at: str = "2026-07-14T19:32:00"
+    derived_from: tuple[str, ...] = ()
+
+
+@dataclass
+class _FakeDerived:
+    artifacts: list[_FakeArtifact]
+    reset_called: bool = False
+    def all(self) -> list[_FakeArtifact]:
+        return list(self.artifacts)
+    def reset(self) -> None:
+        self.reset_called = True
+        self.artifacts = []
+
+
+@dataclass
+class _FakeDreamer:
+    themes: list[object]
+    dream_called: bool = False
+    def dream(self) -> list[object]:
+        self.dream_called = True
+        return self.themes
+
+
+@dataclass
+class _FakeRun:
+    active: bool
+    pid: int
+
+
+@dataclass
+class _FakeLedger:
+    run: _FakeRun | None
+    def last(self) -> _FakeRun | None:
+        return self.run
+
+
+@dataclass
+class _FakeSummary:
+    vector_rows: int = 7
+
+
+def _run_args(tmp_path: Path, derived, dreamer, calls: list[str], **over):
+    def reindex() -> _FakeSummary:
+        calls.append("reindex")
+        return _FakeSummary()
+    base = dict(
+        derived=derived, dreamer=dreamer, reindex=reindex,
+        snapshot_path=tmp_path / "bak" / "dreams.json",
+        backup_dir=tmp_path / "bak", derived_db=None, confirm=True, run_ledger=None,
+    )
+    base.update(over)
+    return base
+
+
+def test_reembed_experiment_snapshots_then_reembeds_then_rewipes_then_redreams(tmp_path: Path):
+    reembed = _load_reembed()
+    derived = _FakeDerived([_FakeArtifact("d1", subjects=("a",)),
+                            _FakeArtifact("d2", subjects=("b",))])
+    dreamer = _FakeDreamer(themes=[object(), object(), object()])
+    calls: list[str] = []
+    report = reembed.run(**_run_args(tmp_path, derived, dreamer, calls))
+
+    # the "before" was snapshotted (2 dreams) BEFORE the wipe — the experiment's baseline
+    snap = json.loads((tmp_path / "bak" / "dreams.json").read_text())
+    assert [d["id"] for d in snap] == ["d1", "d2"]
+    assert report.dreams_snapshotted == 2
+    # re-embed ran, dreams were wiped, and the dreamer regenerated on the clean graph
+    assert calls == ["reindex"]
+    assert derived.reset_called is True
+    assert dreamer.dream_called is True
+    assert report.vector_rows == 7 and report.new_dreams == 3
+
+
+def test_reembed_refuses_without_confirm(tmp_path: Path):
+    reembed = _load_reembed()
+    derived = _FakeDerived([_FakeArtifact("d1")])
+    calls: list[str] = []
+    with pytest.raises(reembed.ReembedRefusedError):
+        reembed.run(**_run_args(tmp_path, derived, _FakeDreamer([]), calls, confirm=False))
+    assert calls == [] and derived.reset_called is False       # nothing touched
+    assert not (tmp_path / "bak" / "dreams.json").exists()
+
+
+def test_reembed_refuses_while_daemon_up(tmp_path: Path):
+    reembed = _load_reembed()
+    derived = _FakeDerived([_FakeArtifact("d1")])
+    live = _FakeLedger(_FakeRun(active=True, pid=os.getpid()))     # active run + alive pid = up
+    calls: list[str] = []
+    with pytest.raises(reembed.ReembedRefusedError):
+        reembed.run(**_run_args(tmp_path, derived, _FakeDreamer([]), calls, run_ledger=live))
+    assert calls == [] and derived.reset_called is False
+
+
+def test_reembed_allowed_when_daemon_down(tmp_path: Path):
+    reembed = _load_reembed()
+    derived = _FakeDerived([_FakeArtifact("d1")])
+    down = _FakeLedger(_FakeRun(active=False, pid=os.getpid()))    # stopped run → daemon down
+    calls: list[str] = []
+    report = reembed.run(
+        **_run_args(tmp_path, derived, _FakeDreamer([object()]), calls, run_ledger=down))
+    assert report.new_dreams == 1 and derived.reset_called is True
