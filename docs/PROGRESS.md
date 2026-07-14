@@ -2823,3 +2823,49 @@ portable backstop):
 - **Queue now:** finding-0066 → `palace down/up` (small sonnet plan, budget-friendly); /triage (flip
   finding-0062 promoted; sweep 0071/0072/0074-resolved + 0073; route the backlog); /scribe (book debt,
   unscaffolded). The Jul-17 fable-vet is gated (Fable capped until then).
+
+## 2026-07-14 — FABLE finalization: the temporal/edge frontier closed → THREE design notes drafted; bp-030 blessed+parked
+
+- **Session shape:** owner blessed bp-030 `proposed→ready` (committed `81ab7aa`), /build started; recon
+  found a write_scope gap (finding-0075) → **bp-030 PARKED** (`9abb4b4`); owner then pivoted the session
+  to a **Fable pass on the edge-dynamics/temporal frontier** (the whole deferred backlog). Orchestrator
+  on opus/xhigh for cross-check + composition.
+- **The Fable spawn (owner-driven tier):** background `general-purpose` worker, `model: fable`. Initial
+  spawn FELL BACK to opus (Fable weekly-capped — the delegate-skill prediction held); **owner manually
+  switched it opus→fable and it drew on usage credits** — tier confirmed on the UI signal + the
+  173k-token/19-tool `<usage>` profile. Clean single pass (~16 min). One harness oddity: switching the
+  worker's model also flipped the orch session to Fable (owner reset it to Opus 4.8).
+- **The warrant** — `docs/brainstorms/edge-dynamics-lane-b-fable-pass.md` (committed `b404a5b`).
+  Cross-checked EXTENSIVELY (owner ask): every grounded claim spot-checked green — `hodge.py` builds on
+  the *similarity* backbone (A4); **bp-026 genuinely `complete`** (the doc→doc extractor landed → the
+  empirical program is unblocked, a stale premise both the note AND the prior fable capsule carried);
+  `change_point` deferred seam at `interpreters.py:64,269` (Ruling B's keystone); `doc_id=source_path`
+  rename-instability real (`sync.py:77` + `supersession-lifecycle §7`); `reference_edges` schema has no
+  payload column + the `:61–63` vault-digest reservation (the §2.4 correction's basis). **Authentic
+  fable-depth** — it *corrects* opus, doesn't restate it.
+- **THREE design notes composed** (single-writer, from the warrant; all `draft`, owner ratifies):
+  1. **`dn-temporal-retrieval-algebra`** (NEW) — the math successor: normalization triple pinned
+     (`c=−log w` walk vs `1−sim` Rips scale; z-bound IS the γ-ceiling); `σ_*`/`π_active` operators
+     (π_active is the ambient default, a correction); the five §2.5 results theorem-grade (bicomplex⟺F1∧F2;
+     `[d,τ]` on severed citations; Quillen superconnection; ledger=Sz.-Nagy dilation; γ-contraction);
+     the separate `X_cite` complex (home OUTSIDE `core/complex/` — isolation grep); Hodge on E_geom⊔E_disp
+     (two Helmholtz sides, don't mix); **the A7 signal-vs-noise discriminator** (load-bearing apophenia
+     guard); **β\* now a theorem** (finite iff `d_∞` not negative-type; RSP kernel stays PSD).
+  2. **`dn-core-query-protocol`** (UPDATED draft) — folded in C1 (§2.4 **corrected to
+     capability-dissolution** — a local repo-derived twin, not a sealed-store read), C2 (scope-grammar
+     **bounded lattice**; join=monotone-delegation IS non-negotiable #6), C3 (operators re-ranked), C4
+     (§4.5 **RULED: promotion re-anchors depth**), C5 (**three notes**), Ruling B (§2.7 the **diachronic
+     interpreter** = a distinct interpreter, not a second dreamer mode). §1.3 marked FINALIZED.
+  3. **`dn-weaving-consumer-charter`** (NEW) — Track D's Lane-B charter (gated, not licensed): reads
+     `ObservedView`/`X_cite`, emits INTERPRETED-only, four entry gates (§2.6's three + **the A7 gate**),
+     R1-first. `dn-edge-dynamics` (ratified) untouched — the algebra enters as a NEW note cross-linked as
+     its Lane B math home.
+- **OWNER DECISIONS pending (surfaced in-note, not baked):** (1) C1 residual — repo-derivable graph
+  queryable by build context? (rec yes); (2) C4 re-anchor depth `d₀` — shallowest-derived (rec) vs K₀-0;
+  (3) A6 **rename-stable identity is a hard prerequisite** for the diachronic reader (currently at risk);
+  (4) magnetic-Laplacian timing; (5) evolution-study axes at ratification. **Next step is the owner
+  ratifying the three drafts** (draft→ratified is owner-by-hand) after ruling these.
+- **No code touched** — three markdown design notes + this checkpoint. No test gate applies to design
+  notes; A8 respected (edited a draft, authored two drafts, ratified `edge-dynamics` untouched, no
+  blessing flip). **bp-030 still in-progress/parked** (Items 1&3 resume anytime; Item 2 waits on the
+  finding-0075 write_scope grant).

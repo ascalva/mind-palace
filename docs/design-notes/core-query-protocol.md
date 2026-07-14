@@ -4,7 +4,7 @@ id: dn-core-query-protocol
 status: draft # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 implementation: design-only # nothing built; the reference substrate (reference_edges, 61k edges) exists but is code-anchored + agent-unreachable
 created: 2026-07-13
-updated: 2026-07-13
+updated: 2026-07-14
 links:
   - docs/brainstorms/core-query-protocol.md # the graduate-ready arc (warrant): four threads + two opus sketches + the fable rigorous pass
   - docs/design-notes/edge-dynamics.md # the 1-form lift, Hodge/Helmholtz split, L₁ Fourier basis, THREAD lens, Lane A/B seam
@@ -16,6 +16,8 @@ links:
   - docs/findings/finding-0059.md # doc→doc blindness (the prerequisite this note surfaces)
   - docs/findings/finding-0061.md # the stale-baseline class the reference graph would guard
   - docs/findings/finding-0062.md # the direction finding this note graduates
+  - docs/design-notes/temporal-retrieval-algebra.md # the math successor (§2.5 formalization; C5)
+  - docs/brainstorms/edge-dynamics-lane-b-fable-pass.md # the 2026-07-14 fable finalization warrant
 supersedes: null
 superseded_by: null
 warrant: docs/brainstorms/core-query-protocol.md
@@ -32,11 +34,12 @@ warrant: docs/brainstorms/core-query-protocol.md
 > decisions they inform; it does not re-derive them. The remaining fable work is the
 > formalization **shortlist** (§ Parked), not the whole note.
 >
-> **⚠ This draft should be fable-vetted before ratification.** It was composed at opus
-> under a relaxed guard; a fable pass should review the design decisions (especially the
-> §2.4 boundary ruling and the §2.2 algebra's fidelity to the captured derivations) and
-> settle the Parked normalization triple, *before* the owner ratifies. Opus-drafted,
-> fable-checked, owner-ratified.
+> **✓ Fable-vetted 2026-07-14** (`claude-fable-5`, tier owner-confirmed;
+> `docs/brainstorms/edge-dynamics-lane-b-fable-pass.md`). The pass reviewed the design
+> decisions — it **corrected** §2.4 (toward capability-dissolution) and re-ranked the §2.5
+> operators, folded in below — pinned the Parked normalization triple (now in the math successor
+> `dn-temporal-retrieval-algebra`), and ruled §4.5 and one-note-vs-two. This draft is now
+> **ready for the owner's ratification review**. Opus-drafted, fable-checked, owner-ratified.
 >
 > Ratification is a hand edit by the owner — no command performs it, `gate-guard` denies
 > any agent attempt, and `/graduate` refuses this note until `status: ratified`.
@@ -94,7 +97,15 @@ curvature; the ledger-as-dilation; the γ-contraction). These carry the fable pa
 `[ESTABLISHED]`/`[DERIVED]` labels; the *decisions* resting on them (§2.2's "three modes are
 one algebra"; §2.5's design consequences) are sound.
 
-**Opus-provisional — a fable pass MUST finalize before ratification:**
+**Opus-provisional — ✓ FINALIZED by the 2026-07-14 fable pass**
+(`docs/brainstorms/edge-dynamics-lane-b-fable-pass.md`). Resolutions: **(1)** §2.4 → *corrected*
+to capability-dissolution (a local repo-derived twin, not a sealed-store read) — §2.4; **(2)** §2.1
+scope grammar → the *bounded lattice* — §2.1; **(3)** surface shapes → `ReferenceView` library
+object + the two mode-3 operators named/re-ranked — §2.5; **(4)** the normalization triple →
+*pinned* in `dn-temporal-retrieval-algebra` §2.1; **(5)** §4.5 → *ruled: promotion re-anchors
+depth*, and one-note-vs-two → *three notes* (this + the math successor + the Track D charter) — see
+Parked. The original opus-provisional list is retained below as the record of what fable was asked
+to settle:
 
 1. **§2.4 the sacred-boundary ruling** — an opus *design judgment* touching an invariant
    boundary. It is the single highest-stakes call in the note and wants fable + owner scrutiny,
@@ -163,6 +174,31 @@ capability-scoped window onto one plane. This note's frame unifies them: a View 
 safe is that **scope is the access-control primitive** — the sacred boundary (§2.4), the
 mirror firewall, and `read+propose≠write` are all expressed as scope, never as ad-hoc
 special cases in each client.
+
+**The scope algebra is a bounded lattice (fable-grade, C2).** A scope is a 4-tuple
+`s = (Σ, E, T, A)`: `Σ ⊆ Strata`; `E ⊆ {F, D}`; `T ∈ {now} ∪ {[t₀,t₁]} ∪ {ledger}` (`now` applies
+`π_active`, `ledger` is the dilation space — §2.5); `A ∈ {read < read+propose < write}`. Composition
+is a bounded lattice:
+
+- **Meet** `s₁ ⊓ s₂ = (Σ₁∩Σ₂, E₁∩E₂, T₁∩T₂, min(A₁,A₂))` — the **safe** composition; a delegated
+  sub-agent receives the *meet* of its own and its parent's scope.
+- **Join** `s₁ ⊔ s₂ = (∪,∪,∪,max)` — a **widening**, **not** freely grantable: a scope widens only by
+  an authority that already holds the wider scope (**monotone delegation** — you cannot delegate
+  more than you have). *This lattice law IS non-negotiable #6* ("minted agents can't exceed their
+  template's scope or a pre-declared max") — the constitutional rule and the lattice law are one
+  statement.
+- **⊥** `= (∅,∅,∅,read)` (no access); **⊤** = full core — and **even ⊤ honors the foundation
+  denylist** (`CONSTITUTION.md`, `eval/golden/**`) as a hard forbidden region in every writable `Σ`.
+
+**Enforcement is structural, not by convention.** Each client is *constructed* with a scope; a
+query is a well-typed sentence whose required capability must be `⊑` the granted scope; ill-scoped
+queries are **unrepresentable** (a constructor error) — exactly as `MirrorView` makes a non-authored
+read unrepresentable. The existing Views are the partial instances: `MirrorView ≈ (mirror-authored,
+F, now, read)`, `ObservedView ≈ (observed, *, *, read)`, `EffectView ≈ (—, —, —, write-under-gate)`.
+Firewalls are **forbidden-region ideals checked by meet**: the mirror firewall is any scope whose
+`Σ` includes mirror-*payload* meeting to ⊥ for non-mirror clients; **`D`-exclusion is a type
+constraint** — a mode-1 grounding query is *typed* `E = {F}` and cannot name `D` (the "infinite cost
+on `D`" is now a type); **C1 is a stratum refinement** `reference_repo ⊂ reference`.
 
 ### 2.2 The three retrieval modes are one algebra
 
@@ -238,19 +274,45 @@ The reference stratum (`data/reference_edges.sqlite`, ~61k edges) lives in the s
 "make it useful for *us*" means the **build-time plane** querying the **live daemon's**
 stratum — a plane crossing (`the-sacred-boundary.md`).
 
-**Ruling (proposed; owner ratifies).** Expose it **as a capability scope, not a special
-case.** The reference graph is **corpus-structural** (who-cites-what — the *shape* of the
-authored corpus), not **observed exhaust** (not the mirror's contents, not private
-interaction data). A read scoped to *structural edges only* therefore does not cross the
-firewall the mirror protects. Concretely, the boundary is drawn *inside* the scope grammar:
+**Ruling (fable-corrected 2026-07-14; owner ratifies).** The opus draft exposed the stratum "as a
+capability scope, not a special case" — right in *direction*, but one step short of
+`the-sacred-boundary` §3's own dissolution test (*"keep moving the boundary until the permission is
+unnecessary"*). The fable pass corrects the **mechanism** from a scoped cross-boundary *read* to a
+**local repo-derived twin** — and sharpens the predicate. `[capsule C1; VERIFIED
+reference_edges.py:117–129 (no payload column), :61–63 (vault-digest reservation, empty to date)]`
 
-- **Permitted scope:** `read( reference stratum , F , structural metadata: ref_type, source_line, path )`.
-- **Denied by the same scope grammar:** any read of node *payloads* (the mirror), any
-  observed-exhaust stratum, any `D`-traversal that would leak revision *content* rather than
-  structure. `read+propose`/`write` never available to a build-time client.
+1. **The schema fact holds.** `reference_edges.sqlite` stores only structure — `edge_id, commit_sha,
+   endpoints (kind/ref/detail), ref_type, source_line` — **no payload, no note text, no
+   embeddings.** So "corpus-structural, not the mirror's contents" is true at the schema level.
+2. **Information-equivalence to repo-grep is decisive.** For edges over `docs/**` + code, the
+   citation graph is **derivable from the repo the build-time plane already holds** — that is
+   literally what the §2.6 self-grading oracle does (repo-grep at HEAD). A build-time reference
+   query over in-repo edges adds **zero** information the plane cannot already compute.
+3. **The residual the opus ruling missed — vault-backed edges.** `reference_edges.py:61–63` reserves
+   `detail = digest` for vault-note targets (private notes not in the repo). None exist today
+   (`detail=''` in every minted edge), but a *future* vault-citation edge would leak private-note
+   citation structure, which is **not** repo-derivable. So the predicate tightens from "structural
+   metadata" to **"repo-derivable edges only (both endpoints in `docs/**`+code, never
+   vault-backed)."**
+4. **The correction — dissolve the crossing, don't scope it.** The build-time plane **rebuilds the
+   identical reference index locally** from the repo (deterministic `φ_doc`/`φ_code`) —
+   bit-identical to the sealed store for in-repo edges, and **structurally incapable of seeing
+   vault-backed edges** (they are not in the repo). **Ruling: the build-time plane queries a LOCAL
+   repo-derived twin, never a handle into the live sealed store.** This (a) dissolves the
+   plane-crossing (no sealed-store handle — faithful to non-negotiables #1/#2), (b) is
+   information-equivalent for in-repo edges, (c) cannot leak vault structure by construction. The
+   "duplicates the sensor" objection dissolves: determinism makes the twin free, and the §2.6
+   grep-oracle is the *continuous proof* that the twin ≡ the sealed store for in-repo edges.
+5. **In-core clients are unaffected.** The Ambassador / dreamer legitimately live inside the core;
+   their read of the live reference stratum is *not* a crossing. The correction re-homes only the
+   *build-time* plane's access.
 
-This keeps the boundary a *property of the type system* (§2.1) rather than a rule each caller
-must remember — which is the whole point of the protocol.
+This keeps the boundary a *property of the type system* (§2.1) — `reference_repo ⊂ reference`, the
+repo-derivable sub-stratum — rather than a rule each caller must remember.
+
+> **OWNER DECISION (low-stakes residual, C1).** Do you accept even the *repo-derivable* citation
+> graph being queryable by a delegated/worktree build-time context, given it is already `grep`-able?
+> *(Orchestrator rec: yes — information-equivalent; the twin adds convenience, not exposure.)*
 
 ### 2.5 The temporal layer and the invariants (stated; formalization Parked)
 
@@ -278,9 +340,15 @@ congruence `K ↦ σ_* K σ_*ᵀ` (PSD-preserving). The fable pass established:
   energy source in the dynamics.* `[DERIVED, contingent on supersession-lifecycle §4.5 —
   Parked.]`
 
-**Design consequence:** the protocol's type system must **name two distinct mode-3 operators**
-— *ledger-compression* (kills superseded content) vs *correspondence transport* `σ_*` (follows
-`D` to successors) — and a temporal query must declare which.
+**Design consequence (fable-corrected, C3/A2).** The two mode-3 operators are **not peers a query
+"declares which."** `π_active` (ledger-compression) is the **ambient default** — the operator form
+of `D`-exclusion, applied to *every* non-temporal query (scope `T = now`), a contraction that
+destroys superseded content. `σ_*` (`transport_forward`, follow `D` to successors) and its
+merge-safe adjoint `σ^*` (`transport_back`) are the **opt-in** temporal traversal a query declares
+(`T = window, E ∋ D, direction ∈ {forward = σ_*, backward = σ^*}`). Their formalization — types,
+composition, which invariants each preserves, and the well-foundedness prerequisite (rename-stable
+identity — a data risk today, `supersession-lifecycle` §7 / `sync.py:77`) — is made theorem-grade in
+the math successor `dn-temporal-retrieval-algebra` §2.2, §2.4.
 
 ### 2.6 The self-grading loop (Thread C)
 
@@ -305,6 +373,41 @@ The fable pass added a fourth measurable: the **alignment instrument** — proje
 the structural spectral manifold and report the energy fraction (how graph-explainable the
 embedding is) and its spectral filter shape. Deterministic, gauge-invariant, Thread-C-gradable.
 
+### 2.7 The diachronic interpreter (Ruling B)
+
+**Decision (fable, 2026-07-14).** The temporal structure — the graph's *direction/velocity*, not
+only its state — enters the dreamer path as a **DISTINCT diachronic interpreter, not a second mode**
+of the synchronic dreamer. `[capsule B; grounds in interpreters.py:64,269; edge-dynamics §2.1;
+provenance.py]`
+
+- **Different input domain forces it.** The synchronic dreamer reads `G_MR` — one MirrorView
+  snapshot, authored-only, embedder-mediated. The diachronic reader needs a *sequence* of snapshots
+  + `X_cite` + the supersession/version chains. The lens signature *extends* `φ_i : G_MR → 2^K` to a
+  temporal-context input — a contract extension, not a mode flag.
+- **The codebase already left the temporal-shaped hole** — `change_point` is a *registered but
+  deferred* seam (`interpreters.py:64,269`) that returns nothing rather than fake a trend because
+  "MirrorView does not yet carry a per-note temporal axis." The diachronic interpreter unblocks it
+  by reading a *different* substrate, not by bolting time onto MirrorView. **The architecture
+  anticipated the split.**
+- **The Lane A/B firewall forbids folding it in** (`edge-dynamics` §2.1: "Lane A never touches the
+  mirror-side dream path"). A reader of the *dynamics* is Lane B / correlator-class.
+- **Two tiers.** A **corpus-structural** tier over `X_cite` (who-cites-what, mirror-safe per C1) can
+  ship earlier; the **weaving through observed planes** (cost/documentation/scope) is the Lane-B
+  tier = the **Track D charter**.
+- **The lens contract still binds** (either tier): `Claim(statement, support ⊆ authored notes)`,
+  model-free (the §9 deterministic floor), no in-lens adjudication (R1 adjudicates), lands
+  INTERPRETED (the `derives` hyperedge, `provenance='interpreted'`, INTERPRETED ∉ MIRROR_READABLE),
+  **zero back-action**, erasure-invariant, verdict/promotion-gated via `core/provenance.py`
+  (`promote()` — owner verdict only; a drift claim can never silently become a belief). Admissibility
+  additionally requires the **A7 signal-vs-noise discriminator** (`dn-temporal-retrieval-algebra`
+  §2.5) — else it reads embedding noise as drift.
+
+**The recursion resolved.** The dreamer once surfaced, from the owner's own notes, "should the
+founding corpus be a fixed anchor, or is its transformation the phenomenon to track?" The diachronic
+interpreter *tracks the transformation of corpus structure* and PROPOSES (INTERPRETED) readings of
+it — **while the founding corpus itself stays a fixed anchor** (non-negotiable #9: fixed points are
+never auto-modified). The instrument tracks the drift; it never touches the fixed point.
+
 ## 3. Consequences — what this note licenses (on ratification)
 
 1. **The doc→doc reference extractor** (a small build plan) — parse `design_ref:`, `links:`,
@@ -318,9 +421,11 @@ embedding is) and its spectral filter shape. Deterministic, gauge-invariant, Thr
 3. **The boundary scope grammar** (§2.4) — the machinery that expresses `the-sacred-boundary`
    as a scope rather than a special case.
 4. **The self-grading harness + the alignment instrument** (§2.6) as Thread-C measurables.
-5. **A math successor note (or a section of `edge-dynamics` Lane B)** carrying the formalized
-   algebra — the fable session's output (Parked shortlist below). This note deliberately keeps
-   the math as *stated results*; the successor makes them theorem-grade.
+5. **The math successor `dn-temporal-retrieval-algebra`** (NOW DRAFTED, 2026-07-14) carries the
+   formalized algebra — the normalization triple, the `σ_*`/`π_active` operators, the five §2.5
+   results theorem-grade, `X_cite`, the A7 discriminator, β\*. This note keeps the math as *stated
+   results*; the successor makes them theorem-grade. The **Track D weaving-consumer charter** (the
+   diachronic reader's Lane-B tier, §2.7) is the third note.
 
 This note builds nothing itself. Its first plan is the doc→doc extractor; the reference agent
 and the protocol type system follow.
@@ -329,12 +434,12 @@ and the protocol type system follow.
 
 | Decision | Default recorded | Re-entry condition |
 |---|---|---|
-| The normalization triple (cost dictionary `c=−log w` vs `1−sim`; directedness treatment; the `(β,z)` coupling) | recommend the RSP coupling as the canonical curve; nothing is theorem-grade before this is pinned | the fable design session (math successor note) |
-| One note or two | this unified note now; a math successor note (or Lane B section) splits out for the formalized algebra | the fable session decides at graduation |
-| `supersession-lifecycle §4.5` — does promotion re-anchor stratum depth? | undecided; the math makes it a sharp dichotomy — *contractive-except-at-owner-verdicts* (elegant) vs *unconditionally contractive* (deep insight permanently damped) | the fable session, with the dynamical reading in hand |
-| Weighted vs combinatorial inner products (PD-b, inherited from `edge-dynamics`) | combinatorial (v1); the metric tier of §2.5 is a second customer | when the metric-coherence tier is built |
-| The two mode-3 operators (ledger-compression vs correspondence) | both named; the protocol type system must require a temporal query to declare which | the protocol type-system plan |
-| Where kernel-representability is lost along the curve (`β*`) | open; conjectured finite on sparse citation graphs | computable post-extractor (a Thread-C sweep) |
+| The normalization triple (cost dictionary; directedness; `(β,z)`) | ✓ **RESOLVED** (fable): `c=−log w` is the walk cost, `1−sim` the orthogonal Rips scale; symmetrized backbone + magnetic-Laplacian upgrade; z's bound IS the γ-ceiling — `dn-temporal-retrieval-algebra` §2.1 | — (settled) |
+| One note or two | ✓ **RESOLVED → THREE notes** (fable C5): this (architecture) + `dn-temporal-retrieval-algebra` (math) + the Track D charter; never an edit to ratified `edge-dynamics` | — (settled) |
+| `supersession-lifecycle §4.5` — does promotion re-anchor stratum depth? | ✓ **RULED (fable C4): promotion RE-ANCHORS depth** (the *contractive-except-at-owner-verdicts* branch) — the dynamics forces it: unconditional contraction makes the corpus a pure dissipator, so the owner verdict must be the only energy source (non-negotiables #3/#5/#9). **OWNER DECISION (residual):** *how far* — re-anchor to shallowest-derived (rec, keeps the derived/authored firewall) vs authored-K₀ depth-0 | the graduating plan that touches promotion depth |
+| Weighted vs combinatorial inner products (PD-b, inherited from `edge-dynamics`) | combinatorial (v1); the metric tier of §2.5 is a second customer — `dn-temporal-retrieval-algebra` TA-a | when the metric-coherence tier is built |
+| The two mode-3 operators (ledger-compression vs correspondence) | ✓ **RESOLVED (fable C3/A2): NOT peers** — `π_active` is the ambient default (`T=now`); `σ_*`/`σ^*` are the opt-in temporal traversal — `dn-temporal-retrieval-algebra` §2.2 | the protocol type-system plan (naming lands) |
+| Where kernel-representability is lost along the curve (`β*`) | ✓ **RESOLVED (fable A8): β\* finite iff `d_∞` is not of negative type** (generic on sparse cyclic citation graphs); the RSP *kernel* stays PSD — only the *distance* loses negative-type. Now computable (bp-026) | a Thread-C β-sweep on the citation metric |
 
 ## Cross-references
 
@@ -344,6 +449,11 @@ and the protocol type system follow.
 - `docs/design-notes/edge-dynamics.md` — the 1-form lift, the Helmholtz/Hodge decomposition
   (`P_grad + P_harm + P_curl = I`), `L₁` as the Fourier basis, the THREAD lens (`P_harm`), the
   Lane A/B seam. The math successor extends its Lane B.
+- `docs/design-notes/temporal-retrieval-algebra.md` — **the math successor** (drafted 2026-07-14):
+  the normalization triple, the `σ_*`/`π_active` operators, the §2.5 results theorem-grade, `X_cite`,
+  the A7 discriminator, β\*. This note's §2.2/§2.4/§2.5/Parked defer to it.
+- `docs/brainstorms/edge-dynamics-lane-b-fable-pass.md` — the **2026-07-14 fable warrant**: the full
+  derivations, grades, and rejected alternatives behind the C1–C5 rulings and Ruling B folded in here.
 - `docs/design-notes/recursive-strata-amendment.md` — `γ^d` (Invariant 10), the typed
   `edge_budget` (grounding/lateral/cross-stratum), fibers vs dispositional edges.
 - `docs/design-notes/supersession-lifecycle.md` — the dispositional edge; §4.5 (the Parked
