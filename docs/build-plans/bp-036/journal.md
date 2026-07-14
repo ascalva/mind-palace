@@ -39,3 +39,7 @@ strip, prove `verify.py` passes + digests/`doc_id` unchanged, run the offline A/
 
 **Context-manifest delta:** read beyond the manifest — `.claude/hooks/scope-guard.sh` (the verbatim-match
 cause); inspected the 13 notes' property structure (Item 13 step 1). Findings filed: 0078.
+
+## Markers
+- 2026-07-14: park committed clean at `c748025` (journal + finding-0078 `dd3e5f5`; status flip `c748025`).
+  Repo clean, pushed. Build resumes on the owner-gated `write_scope` bare-path correction (finding-0075).
