@@ -1,7 +1,7 @@
 ---
 type: design-note
 id: dn-weaving-consumer-charter
-status: draft # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
+status: ratified # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 implementation: design-only # nothing built; the consumer is GATED behind four entry conditions
 created: 2026-07-14
 updated: 2026-07-14

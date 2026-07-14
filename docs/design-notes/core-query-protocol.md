@@ -1,7 +1,7 @@
 ---
 type: design-note
 id: dn-core-query-protocol
-status: draft # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
+status: ratified # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 implementation: design-only # nothing built; the reference substrate (reference_edges, 61k edges) exists but is code-anchored + agent-unreachable
 created: 2026-07-13
 updated: 2026-07-14

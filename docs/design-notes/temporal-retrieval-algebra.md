@@ -1,7 +1,7 @@
 ---
 type: design-note
 id: dn-temporal-retrieval-algebra
-status: draft # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
+status: ratified # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 implementation: design-only # nothing built; states the fable-finalized results, licenses the graduation
 created: 2026-07-14
 updated: 2026-07-14
