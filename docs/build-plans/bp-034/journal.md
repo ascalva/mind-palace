@@ -1,5 +1,96 @@
 # bp-034 journal
 
+## 2026-07-14 — Items 13/15/16 COMPLETE — the migrator, script + e2e verification (build green)
+
+**Status:** all four items (13–16) built + green (4 fast legs; full `pytest -q` confirming). The tool is
+delivered; the owner runs the mint offline, daemon down, post-bp-031-deploy (NEVER in-session).
+
+**Completed — Items 13 (preview), 15 (mint), 16 (orchestration), all in `core/ingest/mint_ids.py`:**
+- **`preview()` (Item 13)** — pure read: enumerates the mint set (no-stable-id notes), the re-key plan
+  (`NotePlan` per note: mint / rekey-only / skip), and the §4a **pre-state manifest** (`ChainSnapshot`
+  per chain: `(seq, digest)`) so `run()` verifies CARRIED CONTENT, not just old-key emptiness. Opens no
+  write handle. Detection: `has_stable_id` = Logseq `id::` OR YAML `id:` front-matter (`has_yaml_id`
+  added — `logseq.py._PROP` only matches `key:: value`, so YAML detection is ours); `logseq_id` is the
+  re-key TARGET (what bp-031 resolution reads back).
+- **`mint()` (Item 15)** — byte-preserving `id:: <uuid4>` PREPENDED as the first page-property line
+  (`_insert_id_line`: one line added, original bytes verbatim after). REFUSES a YAML-front-matter note
+  (`MintRefusedError`) rather than guess placement (§10). Idempotent-skip any note that gained an id.
+- **`run()` (Item 16)** — daemon-down gate (`_daemon_is_up` via RunLedger.last() + `_pid_alive`, mirrors
+  launcher; a crashed run counts as down) → confirm gate → **`preview` (capture §4a) → `_backup`
+  (vault + versions/catalog sqlite, WAL-checkpointed, verified non-empty §4c) → PER-NOTE mint-then-rekey
+  (§6 convergence: mint the note, then re-key its chain `source_path→id::` on both stores, owner-gated)
+  → rescan → `_verify_no_fork`** (history(source_path) empty AND carried-content prefix == manifest).
+  `restore_from_backup` reverses it (exercised by the test, §4b). Reversible; offline-only.
+- **`scripts/mint_ids.py`** — owner entry mirroring `scripts/purge_raw.py`: `seal()` first; `--dry-run`
+  (default, fail-safe) prints the plan; `--confirm` runs the real reversible migration and reports;
+  refuses (exit 1) on `MintRefusedError` or a failed post-migration verify.
+- **`tests/integration/test_mint_ids.py`** — 11 tests: preview-mutates-nothing (Item 13); one-line
+  byte-diff + idempotent-skip + YAML-refusal (Item 15); no-fork end-to-end + post-rename lineage +
+  second-run no-op + no-confirm/daemon-up refusal + daemon-stopped-allowed (Item 16); **§6
+  crash-convergence** (mint-without-rekey → re-run converges, no orphan/no fresh-uuid fork); **§4b
+  restore-rehearsal** (restore from backup → byte-identical vault + version history). All pass.
+
+**Design decisions settled in code (beyond the plan):** (1) re-key `old` is universally the note's
+`source_path`; convergence rides CHECK ORDER (ii). (2) A note can carry `id::` yet have its chain under
+`source_path` (bp-031 preserves stored doc_id) → `run()` re-keys EVERY in-scope note toward its id::,
+not just minted ones. (3) `id::` prepended as line 1 = a Logseq page property, byte-preserving; YAML
+front-matter is refused, not guessed (§10 honored without needing the real vault). (4) Vector/raw NOT
+backed up (self-heal / digest-safe, re-derive from raw) — only versions+catalog+vault, the reversible set.
+
+**Green (all 5 legs):** ruff clean · `mypy core agents eval ops scheduler scripts` = 0 (184 files) ·
+argless `mypy` = **69** (baseline held — new test files added 0 net errors after `_vs` narrowing) ·
+`ops.type_gate` OK · full `pytest -q` = **1078 passed, 8 skipped** (1055 pre-bp-034 + 23 new; clean run,
+no flake). Suite → 1078.
+
+**Next action:** confirm full-suite green, commit (Item 14 = stores+rider+unit test; Items 13/15/16 =
+migrator+script+integration test), flip plan `in-progress → complete`, checkpoint PROGRESS.md, seal with
+enriched `cost.actual`. The mint RUN remains an owner touchpoint (offline, post-deploy).
+
+**Context-manifest delta (this leg):** `ops/lifecycle/launcher.py:_pid_alive` (reimplemented locally, not
+imported — avoids pulling the launcher's heavy deps into the ingest module).
+
+## 2026-07-14 — BUILD started (opus/high, self-driven); Item 14 COMPLETE (re-key primitives + rider)
+
+**Status:** `in-progress` (flipped from `ready`; `active-plan` set). Building against the §11 journal
+determination (ADMIT-WITH-GUARDRAILS, owner-confirmed). Item 14 done + green; Items 13/15/16 next.
+
+**Completed — Item 14 (the owner-gated re-key primitive + verifier rider):**
+- **Verifier rider** (`core/stores/authored_supersession.py`): added `verify_owner_declaration(declaration)
+  -> None` — the ONE owner-capability check factored out of `record()` (isinstance + guarded `_token`
+  identity via `getattr`, defends `object.__new__` bypass). `record()` now delegates to it (DRY; one
+  token system-wide, per §3 guardrail 1). No second owner token minted.
+- **`versions.py`**: `RekeyRefusedError` (the `PurgeRefusedError` pattern) + `migrate_rekey_doc_id(old,
+  new, *, declaration) -> int`. §3 CHECK ORDER enforced verbatim: owner-auth → input-sanity →
+  (i) old==new no-op → (ii) old-empty no-op (the convergence case) → (iii) both-populated REFUSE (merge)
+  → (iv) relabel (one UPDATE). §5 header ENFORCED block + module-docstring paragraph amended to the
+  exact journal wording.
+- **`catalog.py`**: `migrate_rekey_doc_id(source_path, new_doc_id, *, declaration) -> None` — keyed by
+  the unchanged PK `source_path`; same owner gate; **guardrail 5** doc_id-uniqueness refusal (no unique
+  index on `doc_id`, so this is the only guard against a resolution-layer merge); idempotent self-no-op.
+- **`tests/unit/test_version_rekey.py`**: 12 tests — (seq,digest,at) byte-preservation, owner-refusal,
+  forged-declaration refusal, all four CHECK ORDER branches, empty-key, re-run idempotency, catalog
+  rebind + collision refusal + idempotence. All pass.
+- **Verified green (Item 14 slice):** ruff clean; mypy clean (3 files); `pytest test_version_rekey.py
+  + test_rename_identity.py + test_version_history.py` = 22 passed (no regression). Import-cycle checked:
+  catalog → versions → authored_supersession → config.loader; no cycle.
+
+**Design note carried into the build (from §3 grounding + code re-read):** the re-key `old` key is
+ALWAYS the note's `source_path` — a chain lives under either its source_path (un-migrated) or its own
+`id::` (already migrated, in which case source_path is empty → CHECK ORDER (ii) no-op). So the run loop
+is universal: `old=source_path, new=note's id::`. Also confirmed the MINT set ≠ the RE-KEY set: a note
+can carry `id::` yet still have its chain under source_path (bp-031 preserves stored doc_id on re-record
+— "switching a historied note's identity is the owner re-key"), so run() must re-key EVERY in-scope
+note toward its `id::`, not only freshly-minted ones. Item 16 builds to this.
+
+**Next action:** build `core/ingest/mint_ids.py` — helpers (`has_stable_id`, `logseq_id`), `preview()`
+(Item 13, pure read + pre-state manifest §4a), `mint()` (Item 15, byte-preserving `id::` insertion),
+`run(confirm=...)` (Item 16, per-note mint-then-rekey §6 + daemon-down gate via RunLedger/`_pid_alive`).
+
+**Context-manifest delta:** read beyond the manifest — `tests/integration/test_rename_identity.py` (the
+Item-16(b) analog + `_sync` fixture idiom), `ops/lifecycle/runs.py` + `launcher.py:_pid_alive` (the
+daemon-liveness gate), `config/defaults.toml [vault]`. YAML-`id:` detection is NOT in `logseq.py` (`_PROP`
+only matches `key:: value`) — the minter must detect YAML front-matter `id:` itself for the skip decision.
+
 ## 2026-07-14 — authored `proposed` (orchestrator, opus/xhigh; the oq-0019 B follow-on)
 
 Authored as the follow-on to **oq-0019's (B) ruling** (owner sided with mint-into-vault as the durable,

@@ -3082,3 +3082,36 @@ portable backstop):
   curve** (Consequence 3, TA-b) can now each graduate — separate design/graduate steps, not build work.
 - **Session shape:** ONE orchestrator session did all three builds (bp-031 live-store migration + bp-032/033
   greenfield math), single-lane (0 subagents). A big unit boundary → resume brief rewritten, recommend CLEAR.
+
+## 2026-07-14 (cont.) — bp-034 SEALED: the id-mint migration (durable id:: + version re-key) — the tool, owner runs the mint
+
+- **oq-0019 (B) realized as a TOOL.** The highest-blast plan to date (first operation that would write
+  the authored corpus + first append-only relabel) is built, green, and **not run** — mirrors
+  `purge.py`: the owner runs the mint once, corpus-wide, **daemon DOWN**, after bp-031 deploys
+  (deploy-coupled, finding-0066). Built against the binding **§11 journal determination**
+  (ADMIT-WITH-GUARDRAILS, owner-confirmed) — not the bare plan.
+- **Items 13–16** (opus/high, self-driven single-lane, 0 subagents):
+  * **Item 14** — the owner-gated re-key primitive. `versions.migrate_rekey_doc_id` RELABELS a chain's
+    `doc_id` (`source_path → minted id::`) preserving every `(version_seq, digest, at)` byte-for-byte —
+    a relabel, never a history rewrite; the ONE admitted write to the append-only store. §3 CHECK ORDER
+    verbatim (no-op cases BEFORE the merge refusal, so a partial run converges). Catalog twin +
+    guardrail-5 uniqueness refusal (no unique index on `doc_id`). `verify_owner_declaration()` rider
+    factors the one owner-capability check out of `authored_supersession` (no second token). §5 docstring
+    amendment records the admitted path explicitly.
+  * **Items 13/15/16** — `core/ingest/mint_ids.py`: `preview()` (pure read + §4a pre-state manifest),
+    `mint()` (byte-preserving `id:: <uuid4>` prepend; refuses YAML front-matter §10; idempotent-skip),
+    `run()` (daemon-down gate → backup → **per-note mint-then-rekey**, the §6 crash-convergence order →
+    rescan → verify no fork; `restore_from_backup` reverses). `scripts/mint_ids.py` mirrors
+    `scripts/purge_raw.py` (`--dry-run` default, `--confirm` runs it).
+- **The load-bearing verification PASSES:** end-to-end — every note's history is ONE chain under its
+  minted id, `history(source_path)` empty (no fork); a post-migration rename preserves lineage (A6);
+  a second run is a no-op; without `--confirm` or with the daemon up it refuses. Plus the two the §11
+  determination added: **§6 crash-convergence** (mint-without-rekey → re-run converges, no orphan/no
+  fresh-uuid fork) and **§4b restore-rehearsal** (restore → byte-identical vault + version history).
+- **5-leg gate green** (ruff / mypy 0 [184 files] / argless mypy **69** [baseline held] / type_gate /
+  pytest **1078 passed, 8 skipped** — clean run, no flake). Suite 1055 → **1078** (+23).
+- Cost: est opus/450k → **~200k est, ratio ~0.44** (self-driven single-lane); precise tokens +
+  dollars/deltas pending owner /usage. Commits `a440dba` (Item 14) + `20b810f` (Items 13/15/16).
+- **⭐ OWNER TOUCHPOINT (not auto):** the mint RUN — `uv run scripts/mint_ids.py --dry-run` then
+  `--confirm`, **offline, daemon DOWN, after bp-031 is deployed**. Reversible from the auto-backup.
+  Next build work (resume brief): `/resume bp-030` (Items 1&3; Item 2 owner-gated on finding-0075).

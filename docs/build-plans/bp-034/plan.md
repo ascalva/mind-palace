@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-034
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/temporal-retrieval-algebra.md   # A6 rename-stable identity; oq-0019 ruled (B)
 contract: builder
@@ -18,12 +18,20 @@ cost:
   estimate:
     model: opus
     tokens: 450k
-  actual: null
+  actual:
+    model: opus            # self-driven, high effort, single-lane (0 subagents; 3 Explore scouts)
+    tokens: ~200k          # estimate (heavier than bp-033: 3 new files + a 10-min full pytest +
+                           # ruff/mypy iteration). PRECISE tokens + dollars/deltas pending owner /usage.
+    ratio: ~0.44           # ~200k / 450k — within the self-driven single-lane band (est 0.5–0.8x)
+    session_delta: pending # owner /usage relay at seal
+    week_delta: pending    # owner /usage relay at seal
+    # Start-of-session /usage (pre-flight gate): credits 89% ($89.59/$100, resets Aug 1);
+    # week 81% (resets Jul 17 8pm). Enrich this block from the end-of-session /usage.
 depends_on:
   - bp-031
 parallelizable_with: []
 created: 2026-07-14
-updated: 2026-07-14
+updated: 2026-07-14   # SEALED — Items 13-16 built + green (1078 passed); tool delivered, mint owner-run
 links:
   - docs/design-notes/temporal-retrieval-algebra.md
   - docs/design-notes/supersession-lifecycle.md
