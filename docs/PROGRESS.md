@@ -3202,3 +3202,25 @@ portable backstop):
   body-only, wipes + regenerates dreams. Then **I JUDGE old vs new** (better? uncovered? regressed?).
 - Findings this arc: **0078** (scope-guard verbatim-matches write_scope; inline comments block writes —
   resolved by bare-path write_scope; recommend the hook strip comments).
+
+## 2026-07-14 (cont.) — bp-036 EXPERIMENT run (owner) + JUDGED: body-only dreams are cleaner; σ needs re-tune
+
+- **Owner ran the re-embed/re-dream experiment** (deploy `4e1d885→4500d42` run #19 → bootout → 
+  `reembed_bodyonly.py --confirm` → snapshot 5 dreams, body-only vector_rows 23→21, **5 dreams → 1**).
+- **Judged (orchestrator), the owner's 3-axis gauge — a clear WIN:**
+  * **BETTER:** the old 5 were mostly redundant (dreams 1–4 = one recursion theme re-snapshotted 2→4→5→6
+    notes as the id::-merged cluster grew). The new single dream is the true 4-note recursion core (cos
+    0.64–0.72) — content-grounded, non-redundant.
+  * **UNCOVERED:** a truer cluster boundary — `000928`/`130834` dropped out (best cos 0.615/0.602, i.e.
+    0.005/0.018 BELOW σ): adjacent, not core.
+  * **REGRESSED (honest):** the art cluster (`132225/132316/132412`) was lost — content cosines 0.46–0.57,
+    all below σ (artifact-driven before; correct to drop), BUT only 0.05–0.09 below → genuine subtle theme.
+- **The discovery → finding-0079:** σ=0.62 was implicitly calibrated on the id::-INFLATED graph; body-only
+  dropped all cosines ~5%, so σ=0.62 is now too strict (near-misses above). Re-tune σ toward ~0.56–0.58
+  ON the clean graph — but as a PROPER σ-sweep experiment (future work), not this one-off gauge. Owner-gated
+  config tune; batched.
+- **Two critical errors caught this arc** (owner's framing): (1) finding-0077 — id:: metadata polluting the
+  semantic embeddings (would have made ALL future dream/theme results meaningless); (2) dreams clustered on
+  that polluted graph (practically useless). Both fixed: bp-036 strips props from the embedded text; the
+  experiment wiped + regenerated clean dreams. finding-0079 is the follow-on calibration.
+- **Session close:** owner brings the daemon back up (`launchctl bootstrap …palace.plist`). Repo clean.
