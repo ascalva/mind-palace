@@ -168,9 +168,9 @@ Let `X_n` be the citation complex at time n (§2.4), supersession `D` inducing n
    (`dn-core-query-protocol` C4).** On confidence-weighted cochains `‖σ_* x‖_w ≤ γ‖x‖_w` — a
    strict γ-contraction — **except** where an owner promotion re-anchors depth (multiplying the
    weight by `γ^{d₀−d} > 1`: energy injection). **The only operation that injects energy is the
-   owner verdict** — *"the owner is the only energy source in the dynamics."* Becomes
-   unconditional once C4 lands (which rules that promotion re-anchors depth precisely so the
-   dynamics has an energy source). `[DERIVED, contingent on §4.5]`
+   owner verdict** — *"the owner is the only energy source in the dynamics."* **C4 is now RULED
+   (owner, 2026-07-14: promotion re-anchors depth, to the shallowest-derived level), so this is an
+   UNCONDITIONAL theorem.** `[DERIVED; §4.5 ruled]`
 
 **The built falsifier binds this note too:** every continuous/algebraic claim above must
 reproduce the exact discrete invariants (β₁ of `X_cite`, `dim ker L₁`, the content-addressed
@@ -283,21 +283,24 @@ or introduces back-action.
 | TA-d | `X_cite` module home | `core/temporal/` (or `core/query/`), outside `core/complex/` | the graduating plan pins the package name |
 | TA-e | build-plane citation coverage | authored-note citations only (bp-026); build-plan `design_ref` targets still doc→doc-blind | the residual `design_ref` extractor lands |
 
-## Open questions / OWNER DECISIONS
+## Owner rulings (2026-07-14) + open questions
 
-- **OWNER DECISION — rename-stable identity priority (A6).** The diachronic reader (and Result 1
-  H1, β\* over lineage) **requires** rename-stable note identity, but the codebase keys on
-  `source_path` (forks lineage on rename — `supersession-lifecycle` §7, `sync.py:77`). Should the
-  uuid-stable-identity work be prioritized **before** the diachronic reader graduates?
-  *(Orchestrator rec: yes — it is a hard prerequisite, not an optimization.)*
-- **OWNER DECISION — magnetic-Laplacian timing (A1 ii / TA-a).** When does directed *diffusion*
-  (`L^{(q)}`, not just directed reachability) earn the weighted-inner-product tier? *(Rec: defer;
-  parked cleanly with PD-b.)*
-- **OWNER DECISION — the evolution study's axes** (`dn-edge-dynamics` §5, `self-sensing` §5 open
-  q). Does the evolution study formally adopt the **phase-space axis** (q from snapshots, measured
-  p from B-a chains) and the **epistemology axis**, alongside economics? *(Your taste call at this
-  note's ratification.)*
-- Diamond-superconnection rigor (TA-c) and the z-resolution dial (TA-b) re-enter per their gates.
+**The owner ruled all three in-session (2026-07-14):**
+
+- **✓ Rename-stable identity is a HARD PREREQUISITE (A6).** The diachronic reader (and Result 1 H1,
+  β\* over lineage) **requires** rename-stable note identity; the codebase keys on `source_path`
+  (forks lineage on rename — `supersession-lifecycle` §7, `sync.py:77`). **Ruling: prioritize the
+  uuid-stable-identity work BEFORE the diachronic reader graduates** — a prerequisite, not an
+  optimization. This gates the Track D charter and the diachronic interpreter's graduation.
+- **✓ The evolution study adopts the phase-space + epistemology axes.** It formally takes the
+  **phase-space axis** (q from snapshots, measured p from B-a chains) **and** the **epistemology
+  axis**, alongside economics — resolving `dn-edge-dynamics` §5 / `self-sensing` §5's open question
+  **YES**. The answer lives here in the successor; the ratified `edge-dynamics` note is not edited.
+- **✓ Magnetic-Laplacian timing — DEFER.** `L^{(q)}` (directed diffusion) stays parked with PD-b /
+  TA-a; combinatorial v1 ships first. Re-entry per TA-a.
+
+Open (data/gate-driven): the diamond-superconnection rigor (TA-c) and the z-resolution dial (TA-b)
+re-enter per their gates.
 
 ## Cross-references
 

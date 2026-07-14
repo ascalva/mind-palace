@@ -135,10 +135,10 @@ B-a chains). Its three-clause razor:
 
 ## Open questions / OWNER DECISIONS
 
-- **OWNER DECISION — the substrate prerequisite.** This consumer's gate 1 is `self-sensing` B-a/B-b
-  (not yet built) and its A6 identity prerequisite (rename-stable identity, at risk today). It
-  cannot graduate before those; the owner sequences that upstream work (see
-  `dn-temporal-retrieval-algebra` OWNER DECISIONS).
+- **✓ Substrate prerequisite (owner ruled 2026-07-14).** This consumer's gate 1 is `self-sensing`
+  B-a/B-b (not yet built) and its A6 identity prerequisite — **rename-stable identity, which the
+  owner ruled a HARD prerequisite to prioritize BEFORE the diachronic reader graduates**
+  (`dn-temporal-retrieval-algebra` §2.4 / rulings). It cannot graduate before that upstream work.
 - Whether the weaving claim's narration needs new dream-prompt vocabulary (a taste question, costs
   nothing until the first build) — inherits `dn-edge-dynamics` §5's narration open question.
 

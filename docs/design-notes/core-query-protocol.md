@@ -310,9 +310,9 @@ reference_edges.py:117–129 (no payload column), :61–63 (vault-digest reserva
 This keeps the boundary a *property of the type system* (§2.1) — `reference_repo ⊂ reference`, the
 repo-derivable sub-stratum — rather than a rule each caller must remember.
 
-> **OWNER DECISION (low-stakes residual, C1).** Do you accept even the *repo-derivable* citation
-> graph being queryable by a delegated/worktree build-time context, given it is already `grep`-able?
-> *(Orchestrator rec: yes — information-equivalent; the twin adds convenience, not exposure.)*
+> **OWNER RULING (2026-07-14): YES.** The *repo-derivable* citation graph may be queried by a
+> delegated/worktree build-time context — it is already `grep`-able, so the twin is
+> information-equivalent (convenience, not exposure). C1 is settled.
 
 ### 2.5 The temporal layer and the invariants (stated; formalization Parked)
 
@@ -436,7 +436,7 @@ and the protocol type system follow.
 |---|---|---|
 | The normalization triple (cost dictionary; directedness; `(β,z)`) | ✓ **RESOLVED** (fable): `c=−log w` is the walk cost, `1−sim` the orthogonal Rips scale; symmetrized backbone + magnetic-Laplacian upgrade; z's bound IS the γ-ceiling — `dn-temporal-retrieval-algebra` §2.1 | — (settled) |
 | One note or two | ✓ **RESOLVED → THREE notes** (fable C5): this (architecture) + `dn-temporal-retrieval-algebra` (math) + the Track D charter; never an edit to ratified `edge-dynamics` | — (settled) |
-| `supersession-lifecycle §4.5` — does promotion re-anchor stratum depth? | ✓ **RULED (fable C4): promotion RE-ANCHORS depth** (the *contractive-except-at-owner-verdicts* branch) — the dynamics forces it: unconditional contraction makes the corpus a pure dissipator, so the owner verdict must be the only energy source (non-negotiables #3/#5/#9). **OWNER DECISION (residual):** *how far* — re-anchor to shallowest-derived (rec, keeps the derived/authored firewall) vs authored-K₀ depth-0 | the graduating plan that touches promotion depth |
+| `supersession-lifecycle §4.5` — does promotion re-anchor stratum depth? | ✓ **RULED (fable C4): promotion RE-ANCHORS depth** (the *contractive-except-at-owner-verdicts* branch) — the dynamics forces it: unconditional contraction makes the corpus a pure dissipator, so the owner verdict must be the only energy source (non-negotiables #3/#5/#9). **OWNER RULING (2026-07-14):** re-anchor to **shallowest-derived** (keeps the derived/authored firewall; not authored-K₀ depth-0) | settled; the graduating plan implements it |
 | Weighted vs combinatorial inner products (PD-b, inherited from `edge-dynamics`) | combinatorial (v1); the metric tier of §2.5 is a second customer — `dn-temporal-retrieval-algebra` TA-a | when the metric-coherence tier is built |
 | The two mode-3 operators (ledger-compression vs correspondence) | ✓ **RESOLVED (fable C3/A2): NOT peers** — `π_active` is the ambient default (`T=now`); `σ_*`/`σ^*` are the opt-in temporal traversal — `dn-temporal-retrieval-algebra` §2.2 | the protocol type-system plan (naming lands) |
 | Where kernel-representability is lost along the curve (`β*`) | ✓ **RESOLVED (fable A8): β\* finite iff `d_∞` is not of negative type** (generic on sparse cyclic citation graphs); the RSP *kernel* stays PSD — only the *distance* loses negative-type. Now computable (bp-026) | a Thread-C β-sweep on the citation metric |

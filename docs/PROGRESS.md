@@ -2869,3 +2869,11 @@ portable backstop):
   notes; A8 respected (edited a draft, authored two drafts, ratified `edge-dynamics` untouched, no
   blessing flip). **bp-030 still in-progress/parked** (Items 1&3 resume anytime; Item 2 waits on the
   finding-0075 write_scope grant).
+- **Owner RULED the 5 decisions in-session (2026-07-14), folded into the drafts:** (1) C1 — **YES**,
+  the repo-derivable citation graph may be queried by a build/worktree context; (2) C4 — re-anchor to
+  **shallowest-derived** (keeps the derived/authored firewall); (3) A6 — **rename-stable (uuid) identity
+  is a HARD prerequisite, prioritized BEFORE the diachronic reader graduates** (a NEW upstream item;
+  `doc_id=source_path` forks lineage on rename, at risk today); (4) magnetic-Laplacian — **defer** (TA-a);
+  (5) evolution study — **YES**, adopt the phase-space (q,p) + epistemology axes. Consequence: Result 6
+  (γ-contraction) is now an UNCONDITIONAL theorem. **The 3 drafts are ratification-ready; draft→ratified
+  stays owner-by-hand.** Pushed `8f63758` (notes) + this rulings increment.
