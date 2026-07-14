@@ -541,3 +541,37 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   warrants escalating to (B) mint-into-vault (which makes it exact but requires an explicit vault-write
   grant).
 - answer:
+
+---
+
+## oq-0020 — Covering-only `supersedes` as a checked A6 invariant? (dn-magnetic-laplacian decision 3)
+- status: open
+- origin: docs/design-notes/magnetic-laplacian.md § Owner rulings (decision 3)
+- blocking: false
+- question: The magnetic-Laplacian pass (Q1c) surfaced a cheap data-integrity rider: rule that
+  `supersedes` front-matter declares **covering** relations only (no transitive shortcuts — i.e. never
+  `supersedes: [P, P′]` where P′ already supersedes P), and add the check beside F2 in the A6 invariant
+  list (`recursive-strata-amendment`). Payoff: it keeps the Hasse supersession skeleton **triangle-free**,
+  which the magnetic operator (if ever built) requires and the diamond census prefers. Cost: constrains
+  authoring practice slightly + one cheap checker. Adopt it as a checked invariant? (Rec: adopt.)
+- default_if_unanswered: adopt — near-zero cost, keeps the skeleton clean, and the check is a small
+  additive validator. Parks as `dn-magnetic-laplacian` decision 3; re-entry — owner rules here, or a
+  transitive-shortcut supersession is observed in the corpus and forces the question.
+- answer:
+
+---
+
+## oq-0021 — Dream-narration vocabulary for the arrow-aware census? (dn-magnetic-laplacian decision 2)
+- status: open
+- origin: docs/design-notes/magnetic-laplacian.md § Owner rulings (decision 2)
+- blocking: false
+- question: The arrow-aware combinatorial census the magnetic pass licensed (directed influence cycles on
+  `X_cite`, revision-effort asymmetry / unbalanced diamonds, retro-citations) is exact and mirror-safe.
+  Does this claim family enter the **dreamer's narration**, and with what language? This extends the
+  standing `dn-edge-dynamics` §5 vocabulary question — a taste call, not a correctness one. Costs nothing
+  until a lens/narration plan exists.
+- default_if_unanswered: defer — no narration vocabulary is committed; the census computes its exact
+  invariants (via the Thread-C sweep) and emits nothing about dreams until a lens plan is proposed. Parks
+  as `dn-magnetic-laplacian` decision 2 (with `dn-edge-dynamics` §5); re-entry — owner rules here, or a
+  directed-census lens plan is graduated and needs the vocabulary decided.
+- answer:
