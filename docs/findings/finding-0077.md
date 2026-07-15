@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0077
-status: open             # open → routed → resolved | promoted
+status: routed           # open → routed → resolved | promoted  (batched → oq-0023)
 created: 2026-07-14
 updated: 2026-07-14
 links:

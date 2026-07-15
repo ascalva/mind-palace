@@ -3389,3 +3389,29 @@ portable backstop):
 - **Note §3 Consequence 1 DISCHARGED.** Consequences 2–4 now expressible (delegation law testable —
   wiring parked; instruments declare Inv/Rate(κ) at graduation; fable geometry units consume T's clocks).
 - **Still to graduate** (both ratified, Opus-buildable): `dn-velocity-instruments`, `dn-temporal-geometry`.
+
+## 2026-07-15 — /triage sweep (8): reflection after the CQ-scope build
+
+- **Routed 5 orchestrator findings `open → routed`:** 0065 (workflow node-kind — ruled option
+  2-narrow, awaits owner concurrence + follow-up plan), 0069 (live-flake = machine-wide RAM pressure
+  across sibling worktrees — already batched at oq-0018), 0077 (id:: embedding pollution), 0079 (σ
+  re-tune), 0080 (`dn-core-query-protocol` stale-frontmatter erratum).
+- **Batched 4 new owner-questions:** oq-0022 (finding-0065 workflow-kind concurrence + plan mint),
+  oq-0023 (finding-0077 strip-props scope: id:: only vs all key::), oq-0024 (finding-0079 σ value +
+  build a σ-sweep harness), oq-0025 (finding-0080 note-erratum: annotate the ratified note vs leave
+  the finding). Each carries a `default_if_unanswered` with a park condition (§10). Inbox now
+  oq-0001…oq-0025 (12 still open/awaiting owner incl. the new 4 + oq-0019's owner-confirm flip).
+- **Resolved 1:** finding-0082 `open → resolved` (resolved-in-place in bp-038 —
+  `supersession_wellfounded` takes explicit `doc_ids`; the status field merely lagged).
+- **finding-0084 (this session's, spec-fidelity) already resolved** in the bp-039 build. Noted as a
+  4th data point in the /graduate-foresight class (0071/0072/0075): graduation should scan the
+  retrofit targets' EXISTING tests for exact-public-surface / exact-coverage assertions that an
+  additive change predictably trips, and pre-widen write_scope. **Standing-fix still owed** (amend the
+  /graduate skill's test-path check) — deferred (week 93%; a cheap skill edit for a calmer session).
+- **Builder-owned findings stay OPEN for their plans** (not resolved here): 0046, 0059, 0064, 0073,
+  0076, 0078 (codebase/spec-fidelity/spec-defect → the owning plan's session).
+- **No promotions minted:** 0065/0080 await owner concurrence (batched); nothing else is ready.
+- **Book debt (§12):** `docs/book/` is NOT scaffolded; three notes ratified this session
+  (dn-capability-scope BUILT, dn-velocity-instruments, dn-temporal-geometry) + the CQ-scope build all
+  accrue debt against the pending first scribe plan. Offer `/scribe` to scaffold when a slot opens.
+- **Plan board:** complete=bp-000..bp-039; proposed/in-progress/ready = none. Active plan: none.

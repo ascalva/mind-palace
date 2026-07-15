@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0080
-status: open
+status: routed
 created: 2026-07-14
 updated: 2026-07-14
 links:

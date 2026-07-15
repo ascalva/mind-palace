@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0082
-status: open
+status: resolved
 created: 2026-07-15
 updated: 2026-07-15
 links:
@@ -11,7 +11,11 @@ links:
 ftype: discovery
 origin_plan: bp-038
 route: builder
-resolution: null
+resolution: >-
+  Resolved-in-place in bp-038 (builder, codebase): `supersession_wellfounded` was narrowed to
+  require an EXPLICIT `doc_ids` argument rather than a store-wide enumerator — the missing
+  `VersionStore` doc_id enumerator is not needed for the well-foundedness check as built. Swept to
+  resolved at /triage 2026-07-15 (status field lagged the in-plan resolution).
 ---
 
 # `VersionStore` has no doc_id enumerator — `supersession_wellfounded` can't scan "all versioned docs"

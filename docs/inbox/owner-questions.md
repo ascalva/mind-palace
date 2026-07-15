@@ -589,3 +589,91 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   as `dn-magnetic-laplacian` decision 2 (with `dn-edge-dynamics` §5); re-entry — owner rules here, or a
   directed-census lens plan is graduated and needs the vocabulary decided.
 - answer:
+
+---
+
+## oq-0022 — Concur with the `workflow` node-kind ruling for the citation graph, and mint the follow-up plan? (finding-0065)
+- status: open
+- origin: docs/findings/finding-0065.md
+- blocking: false
+- question: The doc→doc citation scan excludes build-plans (bp-026 §6c pinned "`docs/**`" but landed
+  as `_CORPUS_DIRS` = design-notes/findings/brainstorms only), so a plan's `design_ref: dn-…` mints no
+  edge and nothing targets a build-plan — exactly finding-0059's motivating pain (a note's stale count
+  cited by build **plans**). A 2026-07-13 fable ruling (tier-verified) settled the shape: **add a
+  distinct `workflow` node kind** (build-plans as source + target) rather than widen `corpus` — folding
+  process artifacts into `corpus` would make the kind-name lie and erode the §2.4 "corpus-structural, not
+  observed exhaust" boundary; and "`docs/**`" was a scope typo (it sweeps templates/archive/book). Two
+  non-blocking follow-ups: (1) shape `dn-core-query-protocol`'s kind vocabulary `{code, corpus, workflow}`
+  at its already-owed pre-ratification vet; (2) a small plan (warrant finding-0065) — `KINDS`/`DIRECTIONS`
+  + a path→kind classifier + scan/target-regex widening + a build-plan source in the grep-oracle
+  acceptance (the exact gap) + the additive backfill (a strict superset → INSERT-OR-IGNORE no-ops, in an
+  owner-coordinated finding-0066 window). Concur with the `workflow`-kind ruling + mint the plan when a
+  graduation slot opens?
+- default_if_unanswered: proceed with the `workflow`-kind ruling (option 2-narrow); the follow-up plan
+  waits for a slot. The v2 store is live + correct for the authored-corpus graph. Parks as finding-0065;
+  re-entry — owner concurs here, or a consumer needs plan-cites-note edges (finding-0059's pain) badly
+  enough to prioritize the plan.
+- answer:
+
+---
+
+## oq-0023 — Strip metadata property lines before embedding: `id::` only, or all `key::` page-properties? (finding-0077)
+- status: open
+- origin: docs/findings/finding-0077.md
+- blocking: false
+- question: The bp-034 `id::` mint MEASURABLY changed the mirror similarity graph. An A/B on the owner's
+  13-note corpus through the real `qwen3-embedding:4b` embedder: the shared `"id:: "` prefix + random
+  uuid lifted borderline pairs over σ (mirror edges @σ=0.62: **5 → 9, +4/−0**; per-note centroid drift
+  mean 0.953, min 0.891). The dreams now partly cluster on IDENTITY METADATA, not content — a quality
+  regression on the semantic layer (not data loss; the mint's rename-stability purpose is intact). The
+  fix is additive with no rollback: strip metadata property lines from the DERIVED/embedded text
+  (`logseq.py`/`index.py`), leaving raw + the authored file byte-identical, then re-embed from raw (§8,
+  regenerable). Scope call: strip **`id::` only**, or **all `key::` page-property lines** (they are
+  uniformly metadata, not authored prose)? Then a small ingest plan graduates (strip-props-before-embed
+  + re-embed-from-raw).
+- default_if_unanswered: strip ALL page-property (`key::`) lines — they are uniformly metadata, not
+  prose; the broadest strip restores a content-only graph and forecloses the same regression from any
+  future property. Parks as finding-0077 / bp-034 parked-decision-4; re-entry — owner rules scope here,
+  then the ingest plan graduates. Until then the live mirror graph carries the +4-edge artifact.
+- answer:
+
+---
+
+## oq-0024 — Re-tune σ (dreaming threshold) on the clean graph, and build a σ-sweep harness? (finding-0079)
+- status: open
+- origin: docs/findings/finding-0079.md
+- blocking: false
+- question: σ = `dreaming.similarity_threshold` = 0.62 was implicitly calibrated on the id::-polluted
+  graph (finding-0077). Removing the properties dropped all pairwise cosines ~5%, so the SAME σ is now
+  materially STRICTER and under-clusters genuine themes: the art/creation cluster (content cosines
+  0.46–0.57, thematically real but artifact-driven before) and two near-core recursion notes (0.005–0.018
+  below σ) are now dropped. Two asks: (a) the σ value — a candidate **~0.56–0.58** recovers the art theme
+  + the near-core notes; (b) whether to build a proper **σ-sweep harness** (mirror `reembed_bodyonly`)
+  that sweeps [0.55, 0.75], records the graph + resulting dreams at each step, and picks σ by the curve —
+  evidence-based + repeatable when the embedder/corpus changes — rather than this session's one-off N=13
+  gauge. A config tune (`config/local.toml` / `levers.toml`) is owner-gated, never auto-modified.
+- default_if_unanswered: keep σ = 0.62 until the owner runs/reviews a sweep — a single-guess retune risks
+  over/under-clustering the other way. Parks as finding-0079; re-entry — owner sets σ here (and rules on
+  the harness), or the dream layer's missed-theme cost (the art cluster) becomes painful enough to tune.
+- answer:
+
+---
+
+## oq-0025 — `dn-core-query-protocol` note-erratum: annotate the ratified note by hand, or leave the finding as the standing erratum? (finding-0080)
+- status: open
+- origin: docs/findings/finding-0080.md
+- blocking: false
+- question: Ratified `dn-core-query-protocol` (`implementation: design-only`) is overtaken by the live
+  code on two facts: (1) its frontmatter says the reference substrate is **61k edges** — the live store
+  now holds **~272k** (corpus_to_corpus ~73k); (2) §3.1 names the doc→doc extractor as the "recommended
+  *first* graduation," but the sensor **already mints** doc→doc edges — bp-035's `ReferenceView` oracle
+  measured the graph at doc→doc recall **227/228 = 0.996** (vs the note's stale **0/16** hand-demo). The
+  note is ratified → **immutable (A8)**; it is never hand-edited to "fix" this — finding-0080 IS the
+  standing-erratum channel (the same discipline supersession uses; the discredited claim stays
+  inspectable, bp-035 carries the corrected plan-of-record). Decision: **annotate** the ratified note by
+  hand (owner-only — a dated "superseded by finding-0080" pointer), or **leave** finding-0080 as the
+  erratum of record?
+- default_if_unanswered: leave finding-0080 as the standing erratum (the note stays frozen per A8; bp-035
+  is the corrected plan-of-record). Parks as finding-0080; re-entry — owner annotates the note by hand,
+  or a book chapter / downstream design is about to cite the stale 61k / extractor-first framing.
+- answer:
