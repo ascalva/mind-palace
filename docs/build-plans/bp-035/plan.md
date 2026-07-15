@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-035
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/core-query-protocol.md
 contract: builder
