@@ -96,7 +96,7 @@ non-decision condition (data accretion, an owner ruling, the Fable cap).
 | id | item | home | status | depends on | re-entry / trigger |
 |---|---|---|---|---|---|
 | VF-covar | velocity-covariance (the corrected Q1: `cos(ẇ_i,ẇ_j)` matrix eigenmodes; market-beta split) | brainstorm; **formalized** `velocity-and-clocks-fable-pass` V2 | parked (formalized 2026-07-15: eigenmodes = **POD, not Koopman** — non-normal transport; legitimate as DMD's spatial half; compositional-closure caveat pinned) | → R1 | R1 series exist |
-| VF-velhodge | velocity Hodge decomposition | brainstorm; **formalized** pass V1 | parked-with-an-UNLOCK (formalized 2026-07-15: splits into `P_harm(Δw)` + `(ΔP_harm)w`; **two MEASUREMENT-class two-snapshot instruments buildable NOW** per X2 — the harmonic-subspace rotation (principal angles; TRA R4 made measurable, the metric complement of ‖[d,τ]‖) + the alive/stale hole discriminator) | → L-a (BUILT); series version → R1 | owner picks a graduation slot (measurement-class half); R1 (series half) |
+| VF-velhodge | velocity Hodge decomposition | brainstorm; **formalized** pass V1; **note DRAFTED** `dn-velocity-instruments` §2.2 | **note-drafted** (the two measurement-class instruments — harmonic-subspace rotation on X_cite + alive/stale hole discriminator — are the note's §3.1 licensed plan; pins: Inv-typed, A7-bound, honest seams, falsifiers named) | → owner ratifies `dn-velocity-instruments` | ratification → /graduate the pair; R1 (series half, unchanged) |
 | VF-jointspec | joint space×time spectrum (L₁ modes × Lomb–Scargle) | brainstorm; **formalized** pass V3 | parked (formalized: track eigenSPACE projections, not eigenvectors — determinism repair) | → R2, → R3 | R2/R3 land |
 | VF-duality | distant-correlation ⟺ low-graph-frequency | brainstorm; **formalized** pass V4 | parked (formalized: HALF a theorem — forward holds, converse REFUTED; the cheap test stands) | → VF-covar, → L-a | VF-covar built |
 | VF-residual | prediction-residual = live creative signal | brainstorm; **formalized** pass V6 | parked (formalized: Kalman innovations; by TRA R6 supported on injection events; **provenance-decomposable r_owner + r_dreamer by construction** — demon-vs-source now a specified experiment; attribution design rides DD-1's charter) | → R3, → R4 | the evolution operator is fit |
@@ -140,9 +140,10 @@ L-a (BUILT) ──► L-b ──► PD-f ;  L-a ──► L-c ;  L-a ──► P
 
 CQ-ref (BUILT, bp-035) ──► CQ-align ; ──► CQ-mode1b ; ──► CQ-twin (parallel, owner-ruled)
 CQ-scope (FORMALIZED 2026-07-15, fable on usage credits) ──► owner ratifies dn-capability-scope ──► the scope-layer build
-VF-* (ALL FORMALIZED 2026-07-15, same fable session) ──► data gates only (R1/R2/R3 unchanged);
-   EXCEPT VF-velhodge's two measurement-class instruments (X2) ──► buildable now, owner picks the slot
-temporal-clocks T1/T4 (+ owner's §2.5 erratum) ──► ONE post-reset TRA revision, opus-draftable (warrant banked)
+VF-* (ALL FORMALIZED 2026-07-15, same fable session) ──► **dn-velocity-instruments DRAFTED** ──► owner
+   ratifies ──► ONE plan now (the measurement-class pair, X2) + R-gated catalog graduates per gate
+temporal-clocks T1–T6 (+ §2.5 erratum, finding-0083 PROMOTED) ──► **dn-temporal-geometry DRAFTED** ──►
+   owner ratifies ──► clock-declaration obligation + J/Φ diagnostic (R1-gated) + dreamer-alone protocol
 ```
 
 **Reading it:** almost the entire *dynamics/velocity* half hangs off one external root — **sample depth**

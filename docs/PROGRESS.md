@@ -3316,3 +3316,30 @@ portable backstop):
   the Fable-cap external root largely discharged. The post-reset TRA revision now carries T1 + T4 +
   the owner's §2.5 erratum in one revision, opus-draftable (warrant banked). One sonnet+web
   citation-verify sweep now covers both passes' externals.
+- **T6 (owner closing coda):** cosine is the LOCAL metric only (1−cos isn't a metric; arccos is the
+  spherical geodesic); retrieval distance = the K(β) geodesic family at finite β (β* excludes the pure
+  limit); the activity field is a refractive index (Fermat) computed by the same L⁺ that measures the
+  β→0 distance; **CQ-mode1b re-warranted as the intrinsic retrieval geometry** (gates unchanged).
+
+## 2026-07-15 — SAME SESSION (owner-extended ×2): the remaining design notes DRAFTED — the arc is concrete
+
+- **Owner asked: "create the remaining design notes so everything can start being made concrete."**
+  Done at fable, from the banked warrants (both passes):
+  - **`dn-temporal-geometry`** (`docs/design-notes/temporal-geometry-and-drives.md`, draft) — the TRA
+    extension home: the time-index (ledger = causal set; proper time EXACT; anchors = cuts; clock
+    declarations), the corrected energy picture (**finding-0083** erratum in its sharpened one-channel/
+    two-layer form; heat death = Banach; corpus temperature σ²=q/(1−γ²); demon-vs-source protocol),
+    the velocity-conformal geometry (auto-centering Φ; geodesic retrieval T6; the α-instrument;
+    ẅ refuted), the locally-clocked superconnection (def + reduction) + 𝔸_Φ candidate. Parked TG-a…f.
+  - **`dn-velocity-instruments`** (`docs/design-notes/velocity-instruments.md`, draft) — the typing
+    rules X1–X3 as binding law; **the two measurement-class instruments fully pinned** (harmonic-
+    subspace rotation on X_cite, Inv-typed, extends TemporalView with a `RotationReport`; alive/stale
+    hole discriminator, mirror-side, A7-bound, global-energy v1, localization joins at L-b) with
+    falsifiers named; the R-gated catalog (V2–V6) pinned with repairs baked in so each later
+    graduation needs zero new design. Licenses ONE build plan now. Parked VI-a…e.
+  - **`finding-0083`** (PROMOTED same-day) — the TRA §2.5 gloss erratum, warrant-linked to the pass
+    and resolved into `dn-temporal-geometry` (ratified TRA text untouched, A8 honored).
+- **The concrete path now:** THREE draft notes await owner ratification (`dn-capability-scope`,
+  `dn-temporal-geometry`, `dn-velocity-instruments`) → each ratification unlocks /graduate → the
+  builds are Opus-tier (no fable needed; the design is banked). Buildable immediately on ratification:
+  the scope typing layer (`core/scope.py`) + the velocity-instrument pair.
