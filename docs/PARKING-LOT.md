@@ -54,7 +54,7 @@ non-decision condition (data accretion, an owner ruling, the Fable cap).
 | CQ-selfgrade | self-grading grep-oracle | CQ §2.6 | **built** | → CQ-ref | (done: bp-035 Item 3) |
 | CQ-align | the alignment instrument (project `K_sem` onto the structural spectral manifold) | CQ §2.6 | parked | → CQ-ref, (ext) embedding Gram | the §2.6 second measurable is wanted |
 | CQ-twin | build-time repo-derived reference twin | CQ §2.4 | **ready** | — (owner ruled YES) | graduate when the build-plane bookkeeping need bites (findings 0059/0061) |
-| CQ-scope | **the capability-scope type system (the UNIFIED QUERY LANGUAGE)** — all Views as instances of one bounded-lattice scope algebra | CQ §2.1 | parked | (ext) Fable (fable-grade design) | owner-directed (roadmap #2); formalize post-Fable-reset, then build |
+| CQ-scope | **the capability-scope type system (the UNIFIED QUERY LANGUAGE)** — all Views as instances of one bounded-lattice scope algebra | CQ §2.1 | parked | (ext) Fable (fable-grade design) | owner-directed (roadmap #2); LEAD next. **Fable session MUST also read `brainstorms/temporal-clocks-and-strata.md`** (owner 2026-07-15) — it sharpens the scope tuple's `T` (time-scope) dim: T = a choice of clock/anchor, per-stratum clocks ⇒ relativity-of-simultaneity in the lattice meet/join, anchor-as-first-class, invariant-vs-rate typing. bp-037/038 TemporalView = the concrete T-instance |
 | CQ-mode1b | Mode-1b soft diffusion + the `K_struct ⊙ K_sem` hybrid | CQ §2.2 | parked | → CQ-ref, (ext) kernel machinery | a ranking customer + eval set |
 
 ### Diachronic dreamer — `dn-core-query-protocol` §2.7 / Lane B

@@ -7,6 +7,16 @@
 > and lands on a striking convergence: the owner's clock intuition re-derives, from scratch, the
 > **superconnection curvature `[d,τ]`** the fable pass already established, and points *beyond* it to a
 > genuinely new object (a locally-clocked transport whose time-step varies across space).
+>
+> **▶ Feeds forward — REQUIRED context for the `CQ-scope` fable session (owner-directed 2026-07-15).**
+> `CQ-scope` (the capability-scope type system = the unified query language, `dn-core-query-protocol`
+> §2.1) formalizes the scope tuple `s = (Σ, E, T, A)`. This thread is load-bearing for its **`T`
+> (time-scope) dimension**: `T` is a *choice of clock/anchor* (global `N` / per-stratum `N_s` /
+> git-commit / distinct-snapshot); per-stratum clocks ⇒ **relativity-of-simultaneity** in the lattice
+> meet/join (a cross-stratum scope needs a consistent *slice* = a causal-set antichain); the **anchor
+> may be first-class in the scope**; and **reparametrization-invariant vs rate-dependent** is a typing
+> distinction the algebra could carry. `bp-037`/`bp-038`'s `TemporalView` is the concrete `T`-instance
+> `CQ-scope` generalizes.
 
 ## 2026-07-15T16:02:27Z — the logical clock, per-stratum sub-clocks, relativity, and curvature
 
