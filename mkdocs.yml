@@ -72,7 +72,6 @@ nav:
         - edge.bridge: api/edge.bridge.md
         - edge.effectors: api/edge.effectors.md
         - edge.interface: api/edge.interface.md
-        - edge.monitor: api/edge.monitor.md
     - config — the deployment surface:
         - modules: api/config.md
     - eval — gauges and golden sets:
