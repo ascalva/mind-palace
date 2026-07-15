@@ -36,3 +36,29 @@
 - **Not started** — `proposed`. Owner blesses `proposed→ready` by hand, then `/build bp-040`. It is
   read-only + cheap + safe even at week 93%. After build: the owner RUNS it (ideally after this deploy
   settles / daemon idle), reads the curve, sets σ, re-dreams once — none of which is this plan.
+
+## 2026-07-15 — REVISED (still proposed): σ-sweep → off-loop full-dreamer evaluation harness
+
+- Owner directives (2026-07-15): (1) sweep σ + bring back best candidates AND run dream sequences at
+  candidate σ to see how dreams change with connectivity; (2) "no feature flag should stop the full
+  dreamer"; then via AskUserQuestion: **see it off-loop first**, and **dream_v2 replaces Phase-7** when
+  live.
+- **Grounded dream_v2's runtime contract** (one Explore). Key facts that made the harness safe + correct:
+  - `dream_v2(*, config=None) -> list[Theme]`; σ = `config.dream_rnd.sigma`. Enable IN-PROCESS via
+    `dataclasses.replace(cfg, dream_rnd=replace(cfg.dream_rnd, enabled=True, sigma=σ))` — NEVER flips the
+    on-disk flag. It's **end-to-end complete + tested** (`test_dream_v2_end_to_end`), all 8 lenses live
+    (`change_point` an honest empty-emitter, non-blocking).
+  - Runs OFF-LOOP: construct `Dreamer` directly (NOT `build_dreamer`) with `derived=DerivedStore(scratch)`,
+    `snapshots=None`, `attestor=None`, `edge_store=None` → all writes land in scratch, never
+    `data/derived.sqlite`. `store` is duck-typed (read-only over the live VectorStore).
+  - TWO output modes: narrated dreams (dream_v2 + real local 27b synthesis, ~290s/cluster) vs model-free
+    structural claims (`run_dream_rnd` → DREAM_LOG, no model). Harness does both: cheap structural sweep
+    across the grid + narrated dreams at a few `--candidates`.
+- **Plan revised** (alias `sigma-sweep` → `dream-calibrate`; est 90k → 150k): 3 items —
+  (1) pure σ-connectivity sweep + candidate surfacing; (2) off-loop dream_v2 runner into scratch stores;
+  (3) report + CLI. OFF-LOOP + SCRATCH-ONLY (owner's "see it first"); NO live-loop wiring, NO config/live-
+  store write. The 27b synthesis is LOCAL compute (not Claude budget).
+- **Sequel named:** `bp-041` (NOT authored) — wire dream_v2 LIVE replacing Phase-7 (flip `[dream_rnd]`,
+  cron/launcher, set the owner's σ, validate). Graduate AFTER the owner sees bp-040's report.
+- Still `proposed` — owner blesses `proposed→ready` → `/build bp-040`. Read-only over live data + scratch
+  writes; safe. The RUN (real 27b dreams) is done daemon-idle/down (Ollama contention, finding-0069).

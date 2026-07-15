@@ -1,25 +1,28 @@
 ---
 type: build-plan
 id: bp-040
-alias: sigma-sweep
+alias: dream-calibrate
 status: proposed
-design_ref: []            # no design note — warranted by finding-0079 (a direction finding); implements
-                          # NO new design: the σ knob + its bound σ∈[0.55,0.75] + "calibrate on the owner's
-                          # corpus" already exist (config/defaults.toml:211). This is a measurement instrument.
+design_ref: []            # no design note — warranted by finding-0079 (σ) + the owner's 2026-07-15
+                          # directive to bring the full dreamer online. Implements NO new design: the σ
+                          # knob (config/defaults.toml:211,229) and dream_v2 (built, tested, flag-off)
+                          # both exist. This is an OFF-LOOP evaluation harness over built machinery.
 contract: builder
 write_scope:
-  - scripts/sigma_sweep.py
-  - tests/unit/test_sigma_sweep.py
+  - scripts/dream_calibrate.py
+  - tests/unit/test_dream_calibrate.py
 session_budget: 1
 cost:
   estimate:
     model: opus
-    tokens: 90k
+    tokens: 150k
     rationale: >-
-      A small, READ-ONLY analysis script over already-built, test-pinned machinery (`cluster_notes`,
-      `note_centroids`, `MirrorView`, `open_vector_store` — all exist and are graded). No new math, no
-      store mutation, no re-embed, no model call. Modeled on `scripts/reembed_bodyonly.py` but read-only.
-      Deterministic; a synthetic-fixture test. Self-driven lands ~0.5–0.8× (bp-039 = 0.71×). No fable.
+      An off-loop harness over already-built, TESTED machinery: the σ-graph sweep (`cluster_notes`/
+      `similarity_matrix`/`MirrorGraph`) + running `dream_v2` at candidate σ into SCRATCH stores
+      (inject-a-scratch-store pattern straight from `tests/integration/test_dream_v2.py`). No new math,
+      no live-store/config write, no live-loop wiring. Bigger than a pure σ-sweep (adds the dream_v2
+      runner + report + a fake-synth test) but all reuse. Self-driven ~0.5–0.8× (bp-039 = 0.71×). No
+      fable. NB the RUN's 27b synthesis is LOCAL Ollama compute (~290s/cluster), NOT Claude budget.
   actual: null
 depends_on: []
 parallelizable_with: []
@@ -27,9 +30,9 @@ created: 2026-07-15
 updated: 2026-07-15
 links:
   - docs/findings/finding-0079.md
-  - docs/findings/finding-0077.md
-  - docs/build-plans/bp-036/plan.md
-  - core/dreaming/cluster.py
+  - core/dreaming/dreamer.py
+  - core/dreaming/rnd.py
+  - core/dreaming/adjudicator.py
   - config/defaults.toml
 re_entry: null
 supersedes: null
@@ -37,210 +40,290 @@ superseded_by: null
 warrant: docs/findings/finding-0079.md
 ---
 
-# Build Plan — `sigma-sweep` (bp-040): a read-only σ-sweep harness for the dreaming threshold
+# Build Plan — `dream-calibrate` (bp-040): an off-loop σ-sweep + full-dreamer (`dream_v2`) evaluation harness
 
 > **Every section below is required.** Inapplicable sections are marked `N/A — <reason>`.
 
 ## 0. Mode & provenance
 
 Investigation and planning produced this plan; **implementation proceeds item-by-item on owner
-approval** (owner-only `proposed → ready`, by hand). Warranted by **finding-0079** (a `direction`
-finding), which asks for exactly this — *"a small harness … that emits the σ-sweep so the choice is
-evidence-based and repeatable."* It implements **no new design**: the σ knob, its bound
-`σ ∈ [0.55, 0.75]`, and the standing instruction to *"calibrate σ on the owner's own corpus"* already
-live in `config/defaults.toml:211`. This is a **measurement instrument** over built, graded dreaming
-machinery — so no ratified design note is required (the finding is the warrant).
+approval** (owner-only `proposed → ready`, by hand). Warranted by **finding-0079** (σ re-calibration on
+the clean graph) + the owner's 2026-07-15 directive to bring the **full dreamer** (`dream_v2` / the
+`[dream_rnd]` topological R&D track) online. It implements **no new design**: the σ knob + its bound
+`σ ∈ [0.55, 0.75]` (`config/defaults.toml:211`), and `dream_v2` itself (built, unit- + integration-
+tested, `test_dream_v2_end_to_end`), already exist. The finding + directive are the warrant.
 
-**READ-ONLY.** The harness mutates nothing — no store write, no config write, no re-embed, no re-dream,
-no model call. It reads the live vector store, projects the AUTHORED-only `MirrorView`, and re-runs ONLY
-the clustering step (`cluster_notes`) across a σ grid. σ affects clustering alone; the embeddings are
-fixed (already body-only/clean since bp-036 + the owner's 2026-07-14 re-embed, finding-0077 resolved).
-Model tier **opus**; no fable, no xhigh.
+**OFF-LOOP + SCRATCH-ONLY (the owner's "see it off-loop first" ruling).** This harness runs the full
+dreamer OUTSIDE the live cron loop and writes ONLY to a scratch directory + a report file — never
+`data/derived.sqlite`, never `config/**`, never the live daemon. It exists so the owner can SEE how the
+topological dreamer's output changes with connectivity (σ), and confirm it runs end-to-end, **before** a
+separate follow-up plan wires it live (replacing Phase-7, the owner's ruling). Model tier **opus** for
+the build; no fable, no xhigh. The harness's own dream synthesis is the **local 27b Ollama** model.
 
 ## 1. Objective
 
-Produce, on the owner's live clean mirror graph, a σ-sweep table over `σ ∈ [0.55, 0.75]` — at each σ:
-the edge count, the clusters (count, sizes, titles), and the near-threshold pairs (those within a band
-of σ, i.e. the notes on the bubble) — so the owner can pick σ by the curve and set it by hand in
-`config/local.toml`.
+Produce, off the live loop and into a report, (a) a σ-connectivity sweep of the authored mirror graph
+over `σ ∈ [0.55, 0.75]` (edges, components, near-threshold "bubble" pairs, surfaced candidate σ values),
+and (b) the **full dreamer `dream_v2`'s output at a few candidate σ values** — the topological lenses,
+adjudicated claims (confidence/methods/evidence), and the narrated dream texts — so the owner can see
+how dreams change with connectivity and pick σ, with nothing written to the live store.
 
 ## 2. Context manifest
 
 Read whole, in order:
 
-1. `docs/findings/finding-0079.md` — the warrant: what to sweep (edges, clusters, near-threshold pairs),
-   why (σ was calibrated on the id::-polluted graph; the clean graph needs a lower σ; art cluster @
-   0.46–0.57, two near-core notes 0.005–0.018 below 0.62), and the methodology (sweep [0.55,0.75], pick
-   by the curve, repeatable).
-2. `core/dreaming/cluster.py` — the clustering the sweep re-runs. `NoteVector` (the per-note centroid +
-   title/digest), `note_centroids(rows)` (:57), `similarity_matrix(notes)` (:80, normalized `m @ m.T`),
-   `cluster_notes(notes, *, threshold, min_size)` (:89, union-find single-linkage at σ, `>= min_size`,
-   largest-first), `Cluster` (its fields: members/titles/digests), `near_duplicate_pairs(notes, *,
-   threshold)` (:129, the near-threshold-pair pattern to model the "on the bubble" reporter on).
-3. `core/dreaming/dreamer.py` — the LIVE read path to mirror EXACTLY: `MirrorView.project(self.store).
-   rows()` (:110) → `note_centroids(rows)` (:112) → `cluster_notes(..., threshold=dcfg.
-   similarity_threshold, min_size=dcfg.min_cluster_size)`. The sweep reproduces this read, varying only σ.
-4. `core/mirror.py` — `MirrorView.project(source)` (:72), the AUTHORED-only firewall the sweep must read
-   through (never raw rows — the dreamer's own discipline).
-5. `core/stores/vectorstore.py` — `open_vector_store(config)` (:116), `VectorStore.all_rows()` — the
-   read surface (the sweep opens it read-only; never `.reset()`/`.add()`).
-6. `config/defaults.toml` §`[dreaming]` (:205) — `similarity_threshold = 0.62` (:215), the bound
-   `σ ∈ [0.55, 0.75]` (:211), `min_cluster_size = 2` (:216), `near_dup_threshold = 0.93` (:220). Load via
-   `get_config()`; the sweep reads these defaults, changes none.
-7. `scripts/reembed_bodyonly.py` — the SHAPE to model on (gate/report/`main()` wiring, injectable stores,
-   dry-run default) — but bp-040 is READ-ONLY: no `seal()`, no daemon-down refusal (a read needs neither),
-   no `reset`, no re-embed, no re-dream. Copy the CLI/report scaffolding, drop every mutation.
+1. `docs/findings/finding-0079.md` — the σ warrant (sweep [0.55,0.75], record graph + dreams, pick by
+   the curve, repeatable). The owner extends it: use the FULL dreamer (`dream_v2`), replace Phase-7.
+2. `core/dreaming/dreamer.py` — BOTH dreamers. `Dreamer` is a plain `@dataclass` (`:80-101`; fields
+   `store, synthesize, derived, snapshots, edge_store, attestor, threshold, min_cluster_size,
+   max_clusters, clusterer, judge`). **`dream_v2(self, *, config=None) -> list[Theme]`** (`:168`): σ =
+   `config.dream_rnd.sigma` (`:185,196`); writes per kept candidate to `self.derived.add(...)` (`:229`),
+   optional `self.attestor.emit` (`:222`, skip with `attestor=None`), one `self.snapshots.write` (`:243`,
+   skip with `snapshots=None`). `Theme` (`:72-77`) = `{titles, summary, check, artifact}`. `clusters()`
+   (`:104`, the Phase-7 read) + `cluster_notes` (the retiring single-linkage). DO NOT use `build_dreamer`
+   (`:265` — it opens the LIVE stores); construct `Dreamer` directly with scratch sinks.
+3. `core/dreaming/rnd.py` — `require_rnd_enabled(config)` (`:31`) reads `config.dream_rnd.enabled`, raises
+   `DreamRnDDisabledError` when false. Enable IN-PROCESS (no file edit) via `dataclasses.replace` (the
+   test idiom, `tests/integration/test_dream_v2.py:71-73`).
+4. `core/dreaming/adjudicator.py` — R1: `DreamLogEntry` (`:46-58`: statement, methods, evidence,
+   grounding g, agreement, confidence c, terminates_in_authored, members); confidence law `:118`;
+   **`run_dream_rnd(view, derived, *, config)`** (`:138`) — the MODEL-FREE path that persists
+   `DreamLogEntry`s as `DREAM_LOG` artifacts (no synthesis call) — the deterministic per-σ structural view.
+5. `core/dreaming/interpreters.py` — the R0 panel: `Claim` (`:67-76`); the 8 live lenses (community,
+   centrality, density, bridge=Forman–Ricci, hole=persistent H₁, theme=DC-SBM, thread=Hodge harmonic,
+   tension=frustrated triangles); `change_point` is an honest empty-emitter (`:269`, non-blocking).
+6. `core/dreaming/graph.py` — `MirrorGraph.build(view, *, sigma)` (`:33`, σ-adjacency `sim >= sigma`) —
+   the σ-graph dream_v2 reasons over; the connectivity the sweep reports.
+7. `core/dreaming/cluster.py` — `note_centroids(rows)` (`:57`), `similarity_matrix(notes)` (`:80`,
+   cosine), `cluster_notes(notes, *, threshold, min_size)` (`:89`), `near_duplicate_pairs` (`:129`) — the
+   pure pieces for the σ-connectivity sweep (edges/components/bubble pairs).
+8. `config/loader.py` — `DreamRndConfig` (`:87-102`: enabled, sigma, min_degree, …, sbm_k_max); it is a
+   field of `Config` (`:263`). `load_config()` / `get_config()`. The harness reads config, edits NONE.
+9. `tests/integration/test_dream_v2.py` — the pattern to reuse: `_RowSource` (`:44`, duck-typed
+   `all_rows`), `_CountingSynth` (`:55`, a fake synthesizer for model-free tests), `dataclasses.replace`
+   flag-enable (`:71`), scratch `DerivedStore(tmp_path/…)` (`:80`), and the end-to-end assertions (`:91`).
+10. `scripts/reembed_bodyonly.py` — the CLI/report scaffolding + `_artifact_to_dict` JSON serialization
+    (`:60`) to reuse; but bp-040 is OFF-LOOP (no `reset`, no live-store write, no re-embed).
 
 ## 3. Investigation & grounding
 
-- **Q1 — Does σ require re-embedding? NO.** σ is only the clustering `threshold` (`cluster_notes(...,
-  threshold=σ)`, `cluster.py:89`,:111-114) over FIXED centroids (`note_centroids`, :57). The embeddings do
-  not change with σ, so a sweep re-runs only the cheap NumPy clustering per σ — no re-embed, no daemon-down,
-  no model call. `[grounds: cluster.py:80-126 is pure NumPy over centroids.]`
+- **Q1 — Is `dream_v2` end-to-end complete? YES.** `test_dream_v2_end_to_end` (`tests/integration/
+  test_dream_v2.py:91-119`) runs it green: `themes` non-empty, all self-checks pass, one `DREAM` artifact
+  per theme (INTERPRETED, `derived_from ⊆ authored`, `data.loop=="v2"`, `0 < confidence ≤ 1`, methods
+  non-empty), `snapshots.count()==1`. All 8 lenses are implemented; `change_point` returns `[]` by design
+  (`interpreters.py:269`) and does not block. **The tension lens** only fires with a signed `edge_store`
+  injected (`interpreters.py:301`); absent one, it honestly emits nothing (not a bug). So dream_v2 runs
+  off-loop as-is; the harness may pass `edge_store=None` (v1) — tension simply stays quiet.
 
-- **Q2 — Is the live graph clean (body-only)? YES.** bp-036 (sealed) wired `strip_properties` into the
-  embed derivation (`core/ingest/pipeline.py:33,57`) — ALL `key::` props stripped before embedding — and
-  the owner ran `scripts/reembed_bodyonly.py --confirm` (2026-07-14) so the live vectors are body-only
-  (finding-0077, resolved). So the sweep runs on the honest content-only graph; this is precisely the
-  graph finding-0079 wants σ calibrated against.
+- **Q2 — Can it run off-loop without touching the live store? YES.** Construct `Dreamer` directly (NOT
+  `build_dreamer`) with `derived=DerivedStore(scratch/"derived.sqlite")`, `snapshots=None`, `attestor=
+  None`, `edge_store=None` (`test_dream_v2.py:80` idiom). Every write sink is a constructor field, so all
+  writes land in scratch. `store` is duck-typed (`all_rows(provenances=…)`) — feed the live `VectorStore`
+  READ-ONLY (dream_v2 only reads it via `MirrorView.project`). `[grounds: dreamer.py:80-101,186,229-247.]`
 
-- **Q3 — What does the sweep read, exactly like the dreamer?** `MirrorView.project(open_vector_store(cfg))
-  .rows()` → `note_centroids(rows)` (`dreamer.py:110-112`). The sweep reproduces this ONCE (centroids are
-  σ-independent), then loops `cluster_notes(notes, threshold=σ, min_size=dcfg.min_cluster_size)` over the
-  grid. Edge count at σ = `#{(i,j): i<j, cos[i,j] >= σ}` from `similarity_matrix(notes)` (:80). Near-
-  threshold pairs at σ = pairs with `σ - band <= cos < σ + band` (the ones a small σ move flips).
+- **Q3 — Enabling `[dream_rnd]` off-loop.** In-process only: `cfg = dataclasses.replace(load_config(),
+  dream_rnd=dataclasses.replace(cfg.dream_rnd, enabled=True, sigma=<σ>))` (`test_dream_v2.py:71-73`).
+  **The on-disk `config/defaults.toml` flag stays `false`** — this harness never flips the live flag (that
+  is the follow-up live-wiring plan, owner-gated). So running the harness does NOT enable dream_v2 in the
+  daemon.
 
-- **Q4 — Corpus size / cost?** 13 authored notes (finding-0077/0079; the vault). A full σ-grid sweep is
-  sub-second (13×13 cosine matrix, ~20 σ steps). No performance concern; no daemon-down needed (read-only).
+- **Q4 — σ for dream_v2 vs the sweep.** dream_v2 reads σ from `config.dream_rnd.sigma` (`dreamer.py:196`
+  → `MirrorGraph.build(view, sigma=rnd.sigma)`), and σ propagates to the whole panel (`sim_floor`,
+  community threshold). So "dream_v2 at σ" = rebuild the config with `dream_rnd.sigma=σ`. The σ-CONNECTIVITY
+  sweep (Item 1) reports the same σ-adjacency (`sim >= σ`) dream_v2 clusters over — a dreamer-agnostic
+  connectivity map. (Phase-7 single-linkage clusters are reported only as a reference; Phase-7 is retiring.)
 
-**Additional risks surfaced:** (a) reading `vectors.lance` while the daemon is mid-ingest could catch a
-transient state — MITIGATION: the harness prints the corpus size + a note to run it when the daemon is
-idle (or just after a deploy settles); it does NOT require daemon-down (read-only). (b) `min_cluster_size`
-and the near-threshold `band` are sweep parameters — defaulted from config / a sensible band (0.02), CLI-
-overridable; NOT written back anywhere.
+- **Q5 — Model dependency + cost.** dream_v2's structural pipeline (graph→panel→adjudicate) is
+  deterministic/model-free, but each kept candidate calls `self.synthesize` = the **local 27b**
+  (`~290s/cluster`, `cron.py:12`). So NARRATED dreams need the model pulled; the MODEL-FREE structural
+  claims (lenses, holes/threads/bridges, confidence) come from `run_dream_rnd`/the panel with NO model.
+  The harness offers both: cheap deterministic structural sweep across the grid + narrated dreams at a few
+  candidates. Corpus = 13 notes; a candidate run is ≤ `max_clusters=8` syntheses.
+
+**Additional risks:** (a) Ollama contention — running the 27b while the daemon also dreams risks RAM
+eviction (finding-0069). MITIGATION: the harness prints a "run with the daemon idle/down" note; it does
+NOT control the daemon. (b) `run_dream_rnd` writes `DREAM_LOG` artifacts — point it at a SCRATCH store too.
 
 ## 4. Reconciliation
 
-`N/A — nothing corrected or extended.` The harness is a NEW, additive, read-only script; it changes no
-existing code path, no config, no store. (It merely re-uses `cluster_notes` etc. as a library.)
+`N/A — nothing corrected or extended.` The harness is a NEW, additive, off-loop script; it reuses
+`dream_v2`/`run_dream_rnd`/`cluster_notes` as libraries and changes no existing code path, no config, no
+live store. The LIVE-wiring of dream_v2 (flipping the flag, retiring Phase-7 from cron) is a SEPARATE
+follow-up plan (§12) — this plan touches none of it.
 
 ## 5. Write scope
 
-- `scripts/sigma_sweep.py` — **NEW**: the read-only σ-sweep report tool.
-- `tests/unit/test_sigma_sweep.py` — **NEW**: deterministic tests over synthetic centroids.
+- `scripts/dream_calibrate.py` — **NEW**: the off-loop σ-sweep + dream_v2 evaluation harness.
+- `tests/unit/test_dream_calibrate.py` — **NEW**: deterministic tests (synthetic centroids + a FAKE
+  synthesizer), asserting scratch-store isolation (no `data/**` write) + report shape.
 
-**Deliberately OUT of scope:** `config/**` (the σ VALUE is an owner-gated hand edit to `config/local.toml`
-— never written by an agent or this tool); `core/**` (the dreaming machinery is reused as a library, never
-modified); `data/**` + `scripts/reembed_bodyonly.py` (no re-embed, no re-dream, no store mutation); every
-design note; the denylist. The tool NEVER calls `.reset()`, `.add()`, `dreamer.dream()`, or the embedder.
+**Deliberately OUT of scope:** `config/**` (never flip `[dream_rnd] enabled` on disk, never write the σ
+value — both are owner-gated; the harness enables the flag ONLY in-process for its own run); `core/**`
+(dreaming machinery reused as a library, never modified); `scheduler/**` + `ops/lifecycle/launcher.py`
+(the LIVE wiring of dream_v2 is the follow-up plan, not this); `data/derived.sqlite` + any live store
+(scratch dir only); the denylist. The harness NEVER writes the live derived store, config, or cron.
 
 ## 6. Interfaces pinned inline
 
 ```python
-# scripts/sigma_sweep.py — READ-ONLY. Model the CLI/report scaffolding on reembed_bodyonly.py, drop
-# every mutation (no seal/daemon-refusal/reset/re-embed/re-dream).
+# scripts/dream_calibrate.py — OFF-LOOP. Reuse reembed_bodyonly.py's CLI/report/_artifact_to_dict
+# scaffolding, but NO reset / NO live-store write / NO daemon control.
 
-# REUSED unchanged (core/dreaming/cluster.py — read the module for NoteVector/Cluster exact fields):
-#   note_centroids(rows) -> list[NoteVector]           # per-note averaged centroid + title/digest
-#   similarity_matrix(notes) -> np.ndarray             # normalized centroids, m @ m.T  (cosine)
-#   cluster_notes(notes, *, threshold, min_size) -> list[Cluster]   # single-linkage components at σ
-#   near_duplicate_pairs(notes, *, threshold) -> [...] # the near-pair pattern to model the bubble reporter
-# REUSED (the live read path, EXACTLY as the dreamer, dreamer.py:110-112):
-#   MirrorView.project(open_vector_store(cfg)).rows()  -> the AUTHORED-only rows
-# REUSED (config, read-only): get_config().dreaming -> DreamingConfig(similarity_threshold=0.62,
-#   min_cluster_size=2, near_dup_threshold=0.93);  bound σ ∈ [0.55, 0.75] (defaults.toml:211)
+import dataclasses
+from config.loader import load_config
+from core.stores.derived import DerivedStore
+from core.dreaming.dreamer import Dreamer, Theme
+from core.dreaming.cluster import note_centroids, similarity_matrix, cluster_notes
+from core.dreaming.graph import MirrorGraph
+from core.dreaming.adjudicator import run_dream_rnd     # model-free structural claims (DREAM_LOG)
+from core.stores.vectorstore import open_vector_store
 
-def sweep(notes, *, lo=0.55, hi=0.75, step=0.01, min_size=2, band=0.02) -> list[SigmaRow]:
-    """For each σ in the grid, from FIXED centroids: edge count, clusters (count/sizes/titles), and the
-    near-threshold pairs (|cos - σ| < band — the notes on the bubble). Pure function of the cosine
-    matrix; no I/O. `edges(σ)` is non-increasing in σ (the sweep's own invariant)."""
+# --- Item 1: σ-connectivity sweep (pure, read-only, no model) ---
+def sweep_connectivity(notes, *, lo=0.55, hi=0.75, step=0.01, band=0.02) -> list[SigmaRow]:
+    """Per σ from FIXED centroids: n_edges (#pairs cos>=σ, the MirrorGraph adjacency), n_components,
+    component sizes, near-threshold 'bubble' pairs (σ-band <= cos < σ+band). Pure fn of the cosine
+    matrix; edges non-increasing in σ. Also surfaces candidate σ (where component structure transitions)."""
     ...
 
-# @dataclass SigmaRow: sigma, n_edges, n_clusters, cluster_sizes, cluster_titles, near_threshold_pairs
-# main(): get_config() -> open_vector_store (READ) -> MirrorView.project -> note_centroids -> sweep()
-#   -> print a table (σ | edges | clusters | sizes | bubble-pairs) + optionally write a JSON report to a
-#   path arg. NO --confirm needed (read-only). Prints corpus size + "run when the daemon is idle".
+# --- Enable dream_rnd IN-PROCESS for one σ (never touches config files) ---
+def _rnd_config_at(sigma: float):
+    cfg = load_config()
+    return dataclasses.replace(cfg, dream_rnd=dataclasses.replace(cfg.dream_rnd, enabled=True, sigma=sigma))
+
+# --- Item 2: run the FULL dreamer off-loop at a σ, into SCRATCH stores ---
+def dream_v2_at(sigma: float, *, scratch_dir, synthesize, structure_only: bool):
+    """structure_only=True  -> run_dream_rnd(view, DerivedStore(scratch/'log.sqlite'), config=cfg):
+                               MODEL-FREE — persists DreamLogEntry as DREAM_LOG; read them back for the report.
+       structure_only=False -> Dreamer(store=open_vector_store(cfg) [READ], synthesize=synthesize,
+                               derived=DerivedStore(scratch/'dreams.sqlite'), snapshots=None, attestor=None,
+                               edge_store=None).dream_v2(config=_rnd_config_at(sigma)) -> list[Theme];
+                               capture each Theme's summary (dream text)+artifact.data (statement/confidence/
+                               methods/grounded). NEVER data/derived.sqlite."""
+    ...
+# synthesize (narrated mode): lambda messages: build_model_server(cfg).chat("synthesis", messages)
+#   (test_dream_v2_live.py:51). For a fast dry-run / tests: a fake synth echoing titles (_CountingSynth).
+
+# main(): open vector store READ -> MirrorView centroids -> sweep_connectivity() (print table + JSON);
+#   then for each --candidate σ: dream_v2_at(..., structure_only per --no-model) -> append to a markdown
+#   + JSON report at --out. Flags: --lo/--hi/--step, --candidates a,b,c, --no-model, --out DIR.
+#   Prints corpus size + "run with the daemon idle/down (Ollama contention, finding-0069)".
 ```
 
 ## 7. Items
 
-### Item 1 — `sweep()` + the report types (the pure, testable core)
-- **Objective:** `sweep(notes, *, lo, hi, step, min_size, band)` — from the fixed centroids, per σ:
-  `n_edges`, the clusters (count/sizes/titles via `cluster_notes`), and near-threshold pairs
-  (`σ-band ≤ cos < σ+band`). A pure function of the notes (their cosine matrix) — no I/O.
-- **Files:** `scripts/sigma_sweep.py`, `tests/unit/test_sigma_sweep.py`.
-- **Acceptance test:** over a SYNTHETIC fixture of hand-placed centroids with known pairwise cosines
-  (e.g. a tight triple @ ~0.7, a bubble pair @ ~0.61, an isolate), `sweep(lo=0.55, hi=0.75, step=0.05)`
-  yields: `n_edges` **non-increasing** in σ; the bubble pair present in `near_threshold_pairs` at σ≈0.62
-  and absent far from it; the triple forms one cluster at σ≤0.7 and splits above; cluster titles match.
-- **Falsifier:** `n_edges` rises as σ increases (the monotonicity invariant broken → a threshold-sense
-  bug); OR a σ change re-embeds / mutates any store (it must be pure over fixed centroids).
-- **Invariant(s):** read-only/pure (no store, no model, no config write); AUTHORED-only (reads via
-  `MirrorView`, never raw rows); deterministic (fixed grid, no `Math.random`).
-- **Touches stored data?** No.  **Parallelizable?** No (Item 2 wraps it).
+### Item 1 — σ-connectivity sweep (pure, read-only) + candidate surfacing
+- **Objective:** `sweep_connectivity(notes, *, lo, hi, step, band)` — per σ from fixed centroids:
+  `n_edges` (σ-adjacency), `n_components` + sizes, near-threshold bubble pairs; surface candidate σ
+  (component-structure transition points). Pure function of the cosine matrix; + a `main()` path that
+  reads the live vectors READ-ONLY and prints a table + writes JSON.
+- **Files:** `scripts/dream_calibrate.py`, `tests/unit/test_dream_calibrate.py`.
+- **Acceptance test:** over a synthetic fixture (a tight triple @~0.7, a bubble pair @~0.61, an isolate),
+  `sweep_connectivity(lo=0.55,hi=0.75,step=0.05)`: `n_edges` non-increasing in σ; the bubble pair in
+  `near_threshold` at σ≈0.62, absent far away; components merge/split at the right σ; candidate σ includes
+  the transition. A live smoke asserts ZERO writes to `data/**`/`config/**` (mtime unchanged).
+- **Falsifier:** `n_edges` rises with σ (threshold-sense bug); OR any write to a live store/config.
+- **Invariant(s):** read-only/pure; AUTHORED-only (via `MirrorView`); deterministic (fixed grid, no random).
+- **Touches stored data?** No.  **Parallelizable?** No (Item 2 shares the harness).
 
-### Item 2 — `main()`: wire the live read + emit the table/JSON
-- **Objective:** open the live vector store READ-ONLY, project `MirrorView`, compute centroids once, run
-  `sweep()`, print a σ-table (σ | edges | clusters | sizes | bubble-pairs) + the corpus size, and
-  optionally write a JSON report to a `--out` path. CLI overrides: `--lo/--hi/--step/--min-size/--band`.
-- **Files:** `scripts/sigma_sweep.py`.
-- **Acceptance test:** `uv run scripts/sigma_sweep.py --lo 0.55 --hi 0.75 --step 0.01` on the live store
-  prints a well-formed table with one row per σ, the current σ=0.62 row flagged, and the corpus note
-  count; `--out report.json` writes valid JSON of the same rows; the run performs ZERO writes to any
-  store/config (verifiable: no mtime change on `data/**` or `config/**`).
-- **Falsifier:** the run writes to any store/config, calls the embedder, or calls `dreamer.dream()` (any
-  mutation or model call means it overreached the read-only contract); OR it reads raw (non-authored) rows.
-- **Invariant(s):** read-only (Inv 4 flavor — reports data, takes no action); AUTHORED-only firewall; no
-  network, no vault.
-- **Touches stored data?** No (opens the store read-only).  **Depends on:** Item 1.
+### Item 2 — off-loop `dream_v2` runner at candidate σ (SCRATCH-only)
+- **Objective:** `dream_v2_at(sigma, …)` — enable `dream_rnd` IN-PROCESS (`dataclasses.replace`), run the
+  full dreamer into SCRATCH stores (`derived=DerivedStore(scratch/…)`, `snapshots=None`, `attestor=None`,
+  `edge_store=None`), and capture per-candidate: the narrated dream text (`Theme.summary`) + the structural
+  fields (`artifact.data`: statement/confidence/methods/grounded). A `structure_only`/`--no-model` mode
+  uses `run_dream_rnd` (model-free) for the deterministic lens/claim view across the grid.
+- **Files:** `scripts/dream_calibrate.py`.
+- **Acceptance test:** with a FAKE synthesizer (echo titles, like `_CountingSynth`) and a `tmp` scratch
+  dir, `dream_v2_at(0.60, structure_only=False)` returns themes, writes ONLY under the scratch dir, and
+  `data/derived.sqlite` is byte-unchanged (assert mtime/size); the captured report rows carry
+  `confidence ∈ (0,1]`, non-empty `methods`, and `derived_from ⊆` the authored digests; `structure_only=
+  True` produces the same claims WITHOUT any synth call (call count 0). A live/manual run at 2–3 candidate
+  σ with the real 27b is the owner-facing artifact (documented in §12, not a unit test).
+- **Falsifier:** any write to `data/derived.sqlite`/config/the live daemon (off-loop contract broken); OR
+  enabling `dream_rnd` on disk; OR the run needs `build_dreamer` (which opens live stores) instead of a
+  directly-constructed `Dreamer`.
+- **Invariant(s):** off-loop + scratch-only; INTERPRETED provenance preserved (dream_v2's structural
+  firewall); AUTHORED-only reads; the on-disk `[dream_rnd] enabled` stays `false`.
+- **Touches stored data?** No (scratch dir only; live vectors read-only).  **Depends on:** Item 1.
+
+### Item 3 — the report + CLI wiring
+- **Objective:** `main()` — read the live vectors READ-ONLY, run Item 1's sweep (table + JSON), then for
+  each `--candidate` σ run Item 2 and append a **markdown + JSON report** (per σ: the connectivity row +
+  the dreams/claims) to `--out`. Flags `--lo/--hi/--step/--candidates/--no-model/--out`. Print corpus size
+  + the "daemon idle/down" note.
+- **Files:** `scripts/dream_calibrate.py`.
+- **Acceptance test:** `uv run scripts/dream_calibrate.py --candidates 0.56,0.60,0.62 --no-model --out /tmp/rep`
+  produces a well-formed markdown+JSON report with one section per candidate σ (structural claims, since
+  `--no-model`), the σ-table, and the corpus count; ZERO writes outside `--out` + the scratch dir.
+- **Falsifier:** the report writes into `data/**` or `config/**`; OR `--no-model` still calls the 27b.
+- **Invariant(s):** all output confined to `--out` + scratch; read-only over live data.
+- **Touches stored data?** No.  **Depends on:** Items 1, 2.
 
 ## 8. Math carried explicitly
 
-- **Single-linkage clustering at σ** — *measures:* the theme clusters as connected components of the
-  graph `E_sim(σ) = {(u,v) : cos(centroid_u, centroid_v) ≥ σ}` over note centroids (`cluster_notes`,
-  `cluster.py:89`). *valid when:* centroids are unit-normalized (they are — `similarity_matrix` normalizes)
-  so `m @ mᵀ` is cosine, and σ is in a regime where components are meaningful (the `σ ∈ [0.55, 0.75]`
-  bound). *fails its keep if:* `n_edges(σ)` is not monotone non-increasing in σ (a threshold-sense bug),
-  or the swept components disagree with `cluster_notes` at the same σ (the sweep must call the SAME
-  clustering the dreamer uses — never a re-implementation that could drift).
+- **σ-adjacency connectivity** — *measures:* the authored similarity graph `E(σ) = {(u,v): cos ≥ σ}` and
+  its connected components — the "levels of connectivity" the owner wants to reason about
+  (`MirrorGraph.build`, `graph.py:39`). *valid when:* centroids are unit-normalized (they are). *fails its
+  keep if:* `n_edges(σ)` is not monotone non-increasing in σ.
+- **dream_v2's adjudicated confidence** `c(κ) = min{1, γ^d·g·(1+λ(|Agr|−1))}` (`adjudicator.py:118`) —
+  *measures:* how much a structural claim, corroborated by `|Agr|` independent lenses and grounded `g` in
+  authored notes, is worth surfacing. *valid when:* it terminates in authored evidence (`g>0`; else
+  `c=0`). *fails its keep if:* a surfaced dream's `derived_from` is not a subset of authored digests (the
+  INTERPRETED firewall broken) — the harness asserts `derived_from ⊆ authored` per captured theme. **The
+  harness does NOT re-derive or alter this math** — it runs the built `dream_v2`/`adjudicate` and reports.
 
 ## 9. Non-goals
 
-- **No re-dreaming per σ.** The 27b synthesis call (~290s/cluster) makes per-σ re-dreaming impractical
-  and unnecessary for calibration — the GRAPH structure (edges/clusters/bubble-pairs) is the calibration
-  signal. Re-dreaming happens ONCE at the owner's chosen σ, via the existing `scripts/reembed_bodyonly.py`
-  (or a lighter re-dream), as a separate owner-run step. This harness stops at the graph report.
-- **No config write.** The σ VALUE is an owner-gated hand edit to `config/local.toml` (never auto-modified,
-  finding-0079). The tool RECOMMENDS nothing binding — it reports the curve; the owner decides.
-- **No re-embed, no store mutation, no model call, no daemon control.** Pure read over fixed centroids.
-- **No new clustering math.** It calls the built `cluster_notes`/`similarity_matrix`; it does not
-  re-implement or "improve" the clustering (that would be a separate designed change).
-- **No `[dream_rnd]` path.** The sweep targets the LIVE dreamer's single-linkage clustering, not the
-  flag-off R&D graph track.
+- **No live-loop wiring.** Flipping `[dream_rnd] enabled` on disk, wiring `dream_v2` into
+  `scheduler/cron.py`, and retiring Phase-7 `dream()` are the SEPARATE follow-up plan (§12), owner-gated.
+  This harness enables the flag ONLY in-process for its own off-loop run.
+- **No live-store / config write.** All output → `--out` + a scratch dir. `data/derived.sqlite`,
+  `config/local.toml` (the σ value), and `config/defaults.toml` (the flag) are untouched — the σ value is
+  the owner's hand edit after reading the curve.
+- **No auto-recommended σ.** The harness reports the connectivity curve + the dreams at candidates; the
+  owner picks σ (a taste call on their own corpus, finding-0079).
+- **No re-embed.** The embeddings are fixed (body-only since bp-036); σ only re-clusters.
+- **No new dreaming math or lenses.** It runs the built `dream_v2`/`run_dream_rnd`; it neither
+  re-implements the panel nor "fixes" the `change_point` empty-emitter (that is dream_v2's own backlog).
+- **No tension-lens edge store (v1).** `edge_store=None` — the tension lens stays quiet; wiring a signed
+  contradiction store is a later concern, not this evaluation harness.
 
 ## 10. Stop-and-raise conditions
 
-- The sweep cannot read the store without the daemon (a lock / exclusive handle) → **file a `codebase`
-  finding**; do not bring the daemon down from within the tool (a read should not need it; if it does,
-  that is a finding, not a workaround).
-- The swept components disagree with `cluster_notes` at the same σ → **stop**; the sweep MUST call the
-  same clustering the dreamer uses, never a re-implementation (§8 falsifier).
-- The tool would need to write config to "apply" a σ → **must not**; the σ change is the owner's hand edit.
+- `dream_v2` cannot run off-loop without a live store / the daemon → **file a `codebase` finding**; the
+  off-loop contract (scratch stores, directly-constructed `Dreamer`) must hold — do not fall back to
+  `build_dreamer` or the live daemon.
+- A captured dream's `derived_from` is not ⊆ authored digests → **stop, file a `codebase` finding**: the
+  INTERPRETED/authored firewall is load-bearing (do not paper over it).
+- The harness would need to flip `[dream_rnd] enabled` on disk or write config to run → **must not**; the
+  flag is in-process only, and the σ value is the owner's hand edit.
+- Running reveals `dream_v2` is NOT actually end-to-end (a stub fires) despite the passing test → **file a
+  `spec-defect` finding** and surface it; the follow-up live-wiring plan must not proceed on a broken v2.
 - Any blessing flip → must not.
 
 ## 11. Parked decisions
 
 | Decision | Default recorded | Rejected alternatives (why) | Re-entry condition |
 |---|---|---|---|
-| Re-dream at each σ | NO — report graph structure only; re-dream once at the chosen σ | re-dream every σ (rejected: ~290s/cluster × grid — impractical, and the graph is the calibration signal) | the owner wants to see actual dreams across σ (a separate, budgeted run) |
-| The σ grid + band | `[0.55, 0.75]` step 0.01, band 0.02 (CLI-overridable) | a coarser/finer fixed grid (deferred: CLI covers it) | the owner wants a different resolution |
-| Where the harness lives | `scripts/sigma_sweep.py` (a script, like `reembed_bodyonly.py`) | a mirror/dreamer method (deferred: a report tool is not a library method; keep the read path a script) | a consumer needs the sweep as a library call |
-| Auto-recommending a σ | NO — report only; the owner picks | emit a "recommended σ" (rejected: a taste call on the owner's own corpus, finding-0079 — the tool informs, never decides) | the owner asks for a heuristic pick (e.g. knee-of-curve) |
+| Narrated dreams vs model-free claims per σ | BOTH — model-free structural claims across the grid (cheap) + narrated dreams at a FEW `--candidates` (27b) | narrate every σ (rejected: ~290s/cluster × grid — impractical) | the owner wants narrated dreams at more σ values (a longer local run) |
+| Tension lens (signed edges) | OFF (`edge_store=None`) — the lens stays quiet | wire a contradiction edge store now (deferred: not needed to evaluate σ/connectivity) | the owner wants the tension/contradiction lens in the evaluation |
+| Where the harness lives | `scripts/dream_calibrate.py` (a script, like `reembed_bodyonly.py`) | a mirror/dreamer method (deferred: an eval tool is not a library method) | a consumer needs the sweep as a library call |
+| Auto-recommending a σ | NO — report only; the owner picks | a knee-of-curve heuristic (rejected: a taste call on the owner's corpus, finding-0079) | the owner asks for a heuristic pick |
 
 ## 12. Dependency & ordering summary
 
-Blast-radius order: **Item 1** (pure `sweep()` + tests — zero I/O) → **Item 2** (the live read wiring +
-table/JSON emit). Both in `scripts/sigma_sweep.py` + one new test file → **one session, not parallel.**
-`depends_on: []`. Model **opus** (small, read-only, deterministic; no fable, no xhigh). After the build:
-the OWNER runs the tool (read-only; ideally after this deploy settles / daemon idle), reads the curve,
-sets σ by hand in `config/local.toml`, and re-dreams once at the chosen σ — none of which is this plan.
+Blast-radius order: **Item 1** (pure σ sweep — zero I/O) → **Item 2** (off-loop dream_v2 runner, scratch
+stores) → **Item 3** (report + CLI). All in `scripts/dream_calibrate.py` + one new test file → **one
+session, not parallel.** `depends_on: []`. Model **opus** (a harness over built, tested machinery — no
+fable, no xhigh).
+
+**After the build (owner-run, not this plan):** the OWNER (or the orchestrator, daemon idle) runs
+`dream_calibrate` at a few candidate σ with the real 27b, reads the report (connectivity curve + how the
+full dreamer's dreams change with σ), and picks σ.
+
+**The follow-up this plan enables (NOT authored yet — graduate AFTER the owner sees the harness output):**
+- **`bp-041` — wire the full dreamer live, replacing Phase-7** (owner ruling 2026-07-15). Flip
+  `[dream_rnd] enabled = true` (owner-gated config), wire `dream_v2` into `scheduler/cron.py` +
+  `ops/lifecycle/launcher.py` REPLACING the Phase-7 `dream()` handler, set the live σ (the owner's chosen
+  value), and validate in the daemon. Warrant = this evaluation + the owner directive. `depends_on:
+  [bp-040]`. Its open questions (settle at ITS graduation): whether to keep `dream()` as a fallback, the
+  live snapshot/attestation wiring for v2, and the cadence — none inferred here.
