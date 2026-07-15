@@ -44,8 +44,8 @@ non-decision condition (data accretion, an owner ruling, the Fable cap).
 | TA-a | weighted vs combinatorial inner products (the magnetic `L^{(q)}` upgrade) | TRA parked (= PD-b) | parked | → PD-b | the metric-coherence tier (Result 4) is built, OR PD-b's 2nd customer is proposed |
 | TA-b | the `(β,z)` z-resolution dial | TRA parked | parked | (ext) a retrieval eval set | an eval set gives z a falsifier |
 | TA-c | homotopy-coherent (diamond) superconnection `τ_k` | TRA parked | parked | → MAG-census | measured fork/merge **diamond frequency** warrants the rigor |
-| CQ-wire | wire `core/temporal` **single-snapshot** (X_cite β₁ threads) into a live read surface = `TemporalView` | CQ §3 / TRA | **active** (graduated → `bp-037` proposed, 2026-07-15; awaits owner bless) | → TA-d (built) | (done: graduated. `/build bp-037` after `proposed→ready`) |
-| CQ-wire-2 | wire `core/temporal` **two-snapshot** (`‖[d,τ]‖` citation-coherence, `σ_*`, poset `δ_D²=0`) into `TemporalView` | CQ §3 / TRA | parked | → CQ-wire (bp-037, so its `TemporalView` interface is built not inferred) | graduate AFTER bp-037 builds; its open design (σ resolution across commits, deleted-note totality vs DiamondError, two-distinct-commit data availability) settles in ITS grounded pass |
+| CQ-wire | wire `core/temporal` **single-snapshot** (X_cite β₁ threads) into a live read surface = `TemporalView` | CQ §3 / TRA | **built** (bp-037 sealed `1a7be36`, 2026-07-15; live β₁=24 @ HEAD) | → TA-d (built) | (done) |
+| CQ-wire-2 | wire `core/temporal` **two-snapshot** (`‖[d,τ]‖` citation-coherence, `σ_*`, poset `δ_D²=0`) into `TemporalView` | CQ §3 / TRA | **active** (graduated → `bp-038` proposed, 2026-07-15; awaits owner bless) | → CQ-wire (bp-037, built) | graduated. σ ruled = restrict-to-common (§3 Q1); `doc_id==source_path` resolves the poset identity; DATA CONFIRMED (435 commits). `/build bp-038` after `proposed→ready` |
 
 ### Query protocol — `dn-core-query-protocol`
 | id | item | home | status | depends on | re-entry / trigger |
