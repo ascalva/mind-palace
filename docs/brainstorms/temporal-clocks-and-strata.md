@@ -186,3 +186,177 @@ references:
     System" (CACM 1978); Bombelli–Lee–Meyer–Sorkin, "Space-time as a causal set" (PRL 1987); the
     causal-set proper-time ≈ maximal-chain-length relation.
 ```
+
+## 2026-07-15T16:43:50Z — the curvature clarified: activity-RATE deforms the stratum, and that IS local time (the GR closure, and its departure)
+
+**What "curvature" meant (owner clarification).** Not the Ricci tensor, not Forman–Ricci ("the ricci
+stuff"), and not (directly) the superconnection `[d,τ]`. It is the **general-relativity picture**:
+compute a local **density** at every point of a stratum → a smooth scalar field → that field **deforms
+the geometry** ("the space is deformed by density"), and the deformation **sets local time**. The
+parallel the owner drew: *information distorts space, which impacts local time* — GR's
+`mass → curvature → time-dilation`, read on the corpus. This is a **third, distinct curvature** in the
+thread, and it is the GR-gravitational one, not the tensor-calculus one.
+
+**The refinement (the departure from GR).** The owner then sharpened the source: **it is not the
+standing density but the RATE of information addition that actually distorts the space.** This is the
+crux, and it is a genuine departure from GR:
+- GR is sourced by **standing, conserved** mass-energy `T_μν` (`∇·T = 0`). A dense STATIC mass curves
+  spacetime whether or not anything changes.
+- Here the source is the **information-addition RATE** `J(x)` — a flux/current, and **non-conserved**
+  (the append-only ledger *creates* mass). A dense-but-STATIC region (the frozen founding corpus)
+  sources **nothing** — no ongoing distortion. Only where information is *being added* does the
+  geometry warp.
+
+So this is not vacuum GR. It is closer to: **(a)** a field sourced by a **current** — the
+*magnetic/radiative* side of a gauge theory (a moving/changing source, not a standing charge), which is
+exactly why the parked **magnetic Laplacian** (`dn-magnetic-laplacian`, sourced by edge-flux /
+directedness) is the natural operator here, not the ordinary mass-sourced Laplacian; and **(b)** a
+**matter-creation cosmology** (a growing space with sources), not a static-mass spacetime.
+
+**Definitional vs substantive — untangling the apparent loop.** `J(x) = dN_x/dt_wall` (events per
+wall-second at region `x`) IS, by definition, the local logical-clock rate — the per-region sub-clock
+ticks once per event. So "rate = local time" is *definitional*, not circular. The **substantive,
+testable** claim is the second half: `J(x)` does not only set `x`'s own clock — **it deforms the
+geometric relationships in `x`'s neighbourhood** (a fast-growing topic bends the retrieval/similarity
+geometry toward itself, changing effective distances to other notes). That is the "mass bends
+spacetime" analog, with **activity-rate as the mass** — a real, measurable hypothesis.
+
+**Computable, with machinery already in the system.** Give the activity field a potential by solving the
+graph Poisson equation `∇²Φ = J` ⇒ `Φ = L⁺ J` — the **graph Green's function** of the activity field,
+i.e. exactly the `(L_F)⁺` Mode-1b object (`dn-core-query-protocol` §2.2). Then the deformation/curvature
+is `∇²Φ = J` (Poisson), geodesics in `Φ` bend toward high-activity regions, and a posited coupling
+`clock-rate = f(Φ)` closes the loop. None of this is out of reach: `L⁺`, kernel activity-estimation, and
+diffusion geometry are built or specified. And **diffusion maps already carry the density knob** — the
+Coifman–Lafon `α`-parameter tunes *how much local density deforms the diffusion geometry* — so a
+rate-weighted diffusion is the concrete first instrument.
+
+**The smoothness question, resolved.** Earlier the orchestrator objected: "we're discrete; a smooth
+field needs a continuum limit." The owner's construction dissolves that — kernel-smoothing the discrete
+activity into a field `J(x)` gives smoothness **directly** (a KDE over the point cloud), no continuum
+required. Caveat: on the **young corpus (~113 nodes)** the smoothing is sampling-limited — the field is
+only as trustworthy as the sample density — so this is gated on corpus growth (the same *sample-depth*
+root the whole R-ladder hangs from).
+
+**The closure with an established result.** The temporal algebra already proved the active-view transport
+is a strict **γ-contraction except at owner promotions** — *"the owner is the only energy source in the
+dynamics"* (`dn-temporal-retrieval-algebra` §2.5). Fuse that with the activity-source model and a clean
+statement falls out: **the owner's additions are the gravitational source that curves the corpus
+geometry; everything else is dissipation (flat, contracting).** The fixed founding corpus (non-negotiable
+#9) exerts no ongoing pull — consistent, because a fixed anchor has zero addition-rate, hence zero
+curvature. The living geometry is bent only by live authoring.
+
+**Four curvatures, kept distinct (no conflation):**
+1. **Forman–Ricci** — static combinatorial edge-curvature of one snapshot ("the ricci stuff," set aside).
+2. **Superconnection `[d,τ]`** — the space×time *transport* obstruction (severed citations); the
+   time-evolution coupling.
+3. **Activity-conformal curvature (THIS)** — the **rate-of-CHANGE** field `|ẇ|` (the velocity 1-cochain
+   magnitude — see the coda) deforming the stratum geometry and setting local time; the GR-gravitational
+   analog, sourced by a *rate of change*, not a standing mass.
+4. **Ollivier–Ricci (bridge)** — if you want the discrete, computable form of "density/mass deforms
+   space," optimal-transport curvature is its home (it *is* "how the local mass-ball transports"); a
+   different object than the Ricci tensor of #1, and the rigorous landing spot for the intuition.
+
+**Is the relativity parallel fair? (the xhigh verdict.)** Yes — and this version is *tighter* than the
+earlier special-relativity one, because it invokes the RIGHT half of relativity: GR's
+`source → curvature → time-dilation`, plus geodesics bending toward the source (which diffusion retrieval
+literally does). It remains an **analogy, not a derivation**: there is no Einstein field equation (no
+`G = 8πT` fixing the source→curvature coupling — we *posit* `∇²Φ = J`), the clock coupling `f(Φ)` is
+chosen/measured not derived, and — the owner's own flag — the source is a **non-conserved rate**, not
+standing conserved mass-energy, so it is a *different theory* (a driven / creation geometry). The causal
+backbone (the ledger / op-seq order = a **causal set**) gives it a genuine Lorentzian-flavoured causal
+structure, which is why the analogy runs deeper than surface. Honest one-liner: **an activity-conformal
+geometry on a causal-set skeleton — GR-shaped, but current-sourced and non-conservative.**
+
+```capsule
+topic: temporal-clocks-and-strata
+date: 2026-07-15
+
+decisions:
+  - The owner's "curvature" is the GR-gravitational picture (a source field deforms the stratum
+    geometry, which sets local time) — a THIRD curvature, distinct from Forman-Ricci (#1, set aside)
+    and the superconnection [d,τ] (#2, time-transport).
+  - The source is the RATE OF CHANGE |ẇ(x)| (the velocity 1-cochain magnitude — churn/revision/
+    supersession, NOT just monotone addition), a non-conserved field, NOT standing density — the
+    deliberate departure from GR. The progression was density → addition → CHANGE (settled). A static
+    region (the fixed founding corpus, |ẇ|=0) sources EXACTLY ZERO curvature; only live change bends it.
+  - J(x) = the local logical-clock rate BY DEFINITION (events/wall-second); the SUBSTANTIVE, testable
+    claim is that J deforms the NEIGHBOURHOOD geometry (activity bends retrieval geometry toward itself).
+  - Computable with existing machinery: Φ = L⁺J (the Mode-1b Green's function), curvature ∇²Φ = J
+    (Poisson), diffusion-maps α as the density knob; smoothness from kernel-smoothing (no continuum
+    limit needed), sampling-limited on the young corpus.
+  - Closure with TRA §2.5: the owner (the only energy source) is the gravitational source; everything
+    else is flat/contracting dissipation — consistent with the fixed-anchor invariant (#9).
+
+parked:
+  - decision: Formalize the activity-conformal geometry (J → Φ = L⁺J → clock = f(Φ)); pick/derive f
+    default: analogy + a computable sketch; the coupling f(Φ) is posited, not derived
+    re_entry: a Fable pass (post Jul-17 reset) AND the R1 rate/velocity field has data (sample depth)
+  - decision: Rate-as-current ⇒ the MAGNETIC Laplacian is the operator (not the mass-sourced Laplacian)
+    default: noted as the natural link; not built (ML-* parked, census gate iii not met)
+    re_entry: the magnetic operator unparks (its gates) AND a rate/velocity field exists
+  - decision: The SIGN of the activity→geometry coupling (does activity ATTRACT or REPEL neighbours?)
+    default: undetermined — an empirical sign, unlike GR's fixed dense→slow direction
+    re_entry: measure local activity-rate vs neighbourhood-geometry deformation on a grown corpus
+  - decision: Ollivier-Ricci as the discrete computable form of "density/mass deforms space"
+    default: named as the landing spot, not adopted (owner set aside "the ricci stuff")
+    re_entry: a curvature customer wants the transport-Ricci form
+
+open_questions:
+  - Is the source the rate J = ρ̇, or a higher object (acceleration ρ̈, or the velocity 1-cochain ẇ from
+    the vector-field brainstorm)? Which ORDER of change curves the space?
+  - Does activity-rate empirically deform neighbourhood retrieval geometry (the substantive claim) — and
+    with which sign (attract vs repel)?
+  - What clock coupling f(Φ) is right — √(1+2Φ) (GR-shaped), linear, exponential — and from what principle?
+  - Non-conservation: is there ANY conserved quantity (a Noether charge) in a creation geometry, or is
+    the ledger's monotone growth the only invariant?
+  - Does this unify with [d,τ]? (activity-curvature = spatial deformation; [d,τ] = temporal-transport
+    obstruction — are they two faces of one curvature 2-form on the space×time bicomplex?)
+
+next_steps:
+  - Fold this into dn-temporal-retrieval-algebra's anchor/time-index section at the post-reset Fable pass,
+    with the causal-set framing + the locally-clocked superconnection from the prior capsule.
+  - When R1 (the rate/velocity 1-cochain) has data, compute a first J-field + Φ = L⁺J on the live corpus
+    as a diagnostic (a diffusion-maps-α diagnostic) — gated on sample depth.
+  - VERIFY the external citations below against primary sources before any design note / book cites them.
+
+references:
+  - docs/brainstorms/temporal-clocks-and-strata.md  # this file, the prior (clock/relativity) section
+  - docs/design-notes/temporal-retrieval-algebra.md  # §2.2 L⁺/Mode-1b Green's function; §2.5 owner = only energy source
+  - docs/design-notes/dn-magnetic-laplacian.md  # rate-as-current → the magnetic operator; PARKING-LOT ML-*
+  - docs/brainstorms/edge-dynamics-vector-field.md  # the velocity 1-cochain ẇ = the rate field
+  - core/complex/curvature.py  # Forman (#1); core/temporal/superconnection.py  # [d,τ] (#2)
+  - external [FROM MEMORY — verify]: Coifman & Lafon, "Diffusion maps" (ACHA 2006, the α density
+    parameter); Ollivier, "Ricci curvature of Markov chains on metric spaces" (2009); the causal-set
+    proper-time construction; GR gravitational time dilation (g_00 = 1 + 2Φ/c²).
+```
+
+### Coda (owner, same session) — the source is the rate of CHANGE, not of addition
+
+A final sharpening, and it matters. The progression was **density → rate of addition → rate of CHANGE**,
+and *change* is the settled source. The distinction is real:
+
+- **Addition** is monotone (`≥ 0`, append-only) — it measures *growth*. **Change** includes revision,
+  re-weighting, and supersession (destruction in the active view) — it measures *churn*. A section under
+  heavy revision has a **high rate of change with near-zero net addition** (edits in ≈ edits out). The
+  geometry should warp where the structure is *moving*, not merely where it is *growing* — so change is
+  the right source.
+- The rate of change is exactly the **velocity 1-cochain `ẇ`** (`edge-dynamics-vector-field.md`, R1); the
+  source field is `|ẇ(x)|`, its local magnitude. So the source already has a name and a home in the
+  parked velocity work — this is not a new object, it is *that* object promoted to a gravitational source.
+- It makes the fixed-anchor statement **exact**: `|ẇ| = 0` (no change) ⇒ zero curvature. The founding
+  corpus is a flat region *by definition* (non-negotiable #9), cleaner than the addition reading (an
+  anchor could be re-cited — a change of others *about* it — without itself changing).
+
+**The physics upgrade.** Sourcing curvature by a *rate of change* rather than a *standing density* moves
+the analogy from the **static** gravity regime (Schwarzschild — a standing mass curves space) to the
+**dynamic / radiative** regime: in physics it is *changing* sources that produce induced and radiated
+fields (a changing current sources a magnetic field, Ampère–Maxwell; an accelerating mass distribution
+radiates gravitational waves). So the corpus's geometry **ripples where the structure is changing and
+lies flat where it has settled** — a living, dynamic metric, not a frozen one. *Caveat on order:* "rate
+of change" as the first derivative `ẇ` is the **induction** regime (changing source → induced field);
+true gravitational *radiation* is sourced by the **second** derivative (the quadrupole `ẅ`), so "which
+order of change curves the space" (`ẇ` vs `ẅ`) stays an open question (already logged). Everything else
+in the prior section carries over verbatim with the source reread as `|ẇ|`: the potential `Φ = L⁺|ẇ|`,
+geodesics bending toward high-churn regions, the owner-as-only-energy-source closure, and the causal-set
+skeleton. **Settled one-liner: a velocity-conformal geometry on a causal-set skeleton — the corpus
+curves where it is changing, and the owner's edits are the only source of change.**
