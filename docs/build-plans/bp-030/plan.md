@@ -21,7 +21,20 @@ cost:
   estimate:
     model: opus
     tokens: 300k
-  actual: null
+  actual:
+    model: opus            # self-driven, high effort, single-lane (0 subagents on the bp-030 portion;
+                           # the session's one Explore subagent was for the later bp-035 graduation)
+    tokens: ~95k           # bp-030 build share (est). Whole-session non-cache = ~161k (20.1k in +
+                           # 140.8k out, + 18.7m cache read / 457.4k cache write). The session bundled
+                           # bp-030 (all 3 items + 2 full pytest runs + verification) then the bp-035
+                           # graduation + reference research (~65k incl. the 54k Explore) — bp-030 ≈ 60%.
+    ratio: ~0.32           # ~95k / 300k — well UNDER estimate: read-heavy, cache-warm, no delegation,
+                           # the monitor removal was a clean deletion (grep-confirmed, no surprises).
+    dollars: ~10           # of the $17.36 whole-session total (opus $17.35 + haiku $0.0006); bp-030 ≈ 60%
+    session_delta: "session meter 14% used (resets 12:10am ET); bp-030 the bulk of it"
+    week_delta: "85% -> 86% (+1pp) over the whole session; bp-030 share ~+0.6pp; resets Jul 17 8pm ET"
+    # Credits UNCHANGED at 89% ($89.59/$100) — the session was weekly/subscription-covered, NOT billed
+    # to credits (same pattern as bp-034/bp-036). Binding meter is the WEEKLY (86%). Fable now 100% capped.
 depends_on: []
 parallelizable_with: []
 created: 2026-07-13
