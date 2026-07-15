@@ -77,3 +77,77 @@ def test_live_beta1_agrees_with_independent_ripser_oracle() -> None:
         "relaxed assertion)")
     assert view.boundary_composition_is_zero() is True   # ∂₁∂₂=0 on the live citation backbone
     assert view.n_nodes >= 1                              # the anchor carried citation structure
+
+
+# ── bp-038 Item 3: live two-snapshot coherence ‖[d,τ]‖ + supersession health ──────────────────
+
+def _snapshot_by_commit() -> tuple[dict[str, set[tuple[str, str]]], dict[str, set[str]]]:
+    """Per-commit (undirected non-self citation pairs, all-endpoint node set) from the live store —
+    matching build_citation_complex's edge/node rules (self-citations are nodes but not 1-cells)."""
+    from config.loader import get_config
+    from core.stores.reference_edges import open_reference_edge_store
+
+    store = open_reference_edge_store(get_config())
+    try:
+        pairs: dict[str, set[tuple[str, str]]] = {}
+        nodes: dict[str, set[str]] = {}
+        for e in store.all(direction="corpus_to_corpus"):
+            nodes.setdefault(e.commit_sha, set()).update((e.source_ref, e.target_ref))
+            if e.source_ref != e.target_ref:
+                lo, hi = sorted((e.source_ref, e.target_ref))
+                pairs.setdefault(e.commit_sha, set()).add((lo, hi))
+    finally:
+        store.close()
+    return pairs, nodes
+
+
+def _two_most_recent_distinct_snapshots():
+    """(older, newer, pairs_old, nodes_old, pairs_new, nodes_new) for the two most-recent commits
+    (git order) whose citation EDGE sets differ — or None if <2 distinct snapshots exist."""
+    log = subprocess.run(["git", "-C", str(REPO_ROOT), "log", "--format=%H", "-80"],  # noqa: S607
+                         capture_output=True, text=True, check=True).stdout.split()
+    pairs, nodes = _snapshot_by_commit()
+    newer = next((s for s in log if s in pairs or s in nodes), None)
+    if newer is None:
+        return None
+    snap_new = pairs.get(newer, set())
+    passed_newer = False
+    for sha in log:
+        if sha == newer:
+            passed_newer = True
+            continue
+        if passed_newer and (sha in pairs or sha in nodes) and pairs.get(sha, set()) != snap_new:
+            return (sha, newer, pairs.get(sha, set()), nodes.get(sha, set()),
+                    snap_new, nodes.get(newer, set()))
+    return None
+
+
+def test_live_two_snapshot_coherence_and_supersession_health() -> None:
+    from core.temporal_view import open_coherence, open_supersession_wellfounded
+
+    found = _two_most_recent_distinct_snapshots()
+    if found is None:
+        pytest.skip("fewer than two DISTINCT corpus→corpus snapshots here (environmental)")
+    older, newer, pairs_old, nodes_old, pairs_new, nodes_new = found
+
+    report = open_coherence(commit_from=older, commit_to=newer)
+
+    # INDEPENDENT oracle: restrict-to-common via pure set arithmetic (no operator machinery).
+    common = nodes_old & nodes_new
+    restricted_old = {p for p in pairs_old if p[0] in common and p[1] in common}
+    severed_indep = restricted_old - pairs_new
+
+    print("\n=== two-snapshot citation coherence ‖[d,τ]‖ — live store ===")
+    print(f"from {older[:12]} → to {newer[:12]}")
+    print(f"common nodes: {report.common_nodes}  ‖[d,τ]‖: {report.coherence_norm}  "
+          f"flat: {report.is_flat}  +nodes {report.nodes_added} / -nodes {report.nodes_dropped}")
+    print(f"severed (set-diff): {len(severed_indep)}  pairs: {sorted(report.severed)}")
+
+    assert set(report.severed) == severed_indep      # the wiring produces the right severed set
+    assert report.coherence_norm == len(report.severed)     # ‖[d,τ]‖ == count (Result 2, live)
+    assert report.is_flat == (report.coherence_norm == 0)   # flatness ⟺ no severing
+    assert report.common_nodes == len(common)
+    assert report.nodes_dropped == len(nodes_old - nodes_new)
+
+    # supersession well-foundedness over the newer anchor's corpus nodes (a cycle would RAISE, §10).
+    assert open_supersession_wellfounded(commit=newer) is True

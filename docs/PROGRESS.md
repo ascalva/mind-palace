@@ -3242,3 +3242,22 @@ portable backstop):
   **week held flat at 89%** (subscription-covered). No delegation, no fable.
 - **Next (owner-directed):** graduate CQ-wire-2 (two-snapshot `‖[d,τ]‖` coherence), then build it. Data
   probed: 435 distinct commits carry corpus→corpus edges (~320/commit) — two-snapshot is NOT data-starved.
+
+## 2026-07-15 — bp-038 (CQ-wire-2) COMPLETE: two-snapshot ‖[d,τ]‖ coherence — the algebra is fully wired
+
+- **Built:** `core/temporal_view.py` — `coherence_to(other)` + `CoherenceReport` + `_restrict` (two-snapshot
+  citation-coherence: σ = identity on the common node set, `‖[d,τ]‖` = severed-citation count, `is_flat`,
+  node deltas) + `supersession_wellfounded`/`open_supersession_wellfounded` (poset `δ_D²=0` health) +
+  `open_coherence`. Wires operators.py + superconnection.py + boundary.py — the two-snapshot half.
+- **σ ruling (§3 Q1):** restrict-to-common (measure citations lost between notes present at BOTH commits;
+  node add/drop is a separate axis). The dropped-node-is-not-severed falsifier guards the augment-semantics.
+- **LIVE:** two-snapshot `‖[d,τ]‖` = 0 (flat, +1 node) comparing the two most-recent DISTINCT snapshots
+  (`3797f8b→177b7fd`), cross-checked vs independent set arithmetic; supersession health True.
+- **finding-0082** (builder-resolved): `VersionStore` has no doc_id enumerator → `supersession_wellfounded`
+  requires explicit `doc_ids`; the factory scopes to the anchor's corpus nodes. A `VersionStore.doc_ids()`
+  read (owner-gated store write) is the future full-corpus fix.
+- **Gate:** ruff ✓; mypy typed 0 (186); argless mypy 69 (held); type_gate OK; pytest 1138 passed / 8
+  skipped / 0 failed. Cost: self-driven opus, ~0.4× est. No delegation, no fable.
+- **`core/temporal` FULLY WIRED** (bp-037 β₁ + bp-038 ‖[d,τ]‖) — "complete the algebra" (roadmap #1) DONE.
+- Design thread captured: `docs/brainstorms/temporal-clocks-and-strata.md` (logical clock / per-stratum
+  sub-clocks / relativity / the curvature convergence → a locally-clocked superconnection, fable-grade).

@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-038
 alias: CQ-wire-2
-status: proposed
+status: complete
 design_ref:
   - docs/design-notes/core-query-protocol.md
   - docs/design-notes/temporal-retrieval-algebra.md
@@ -23,11 +23,27 @@ cost:
       second axis (the supersession poset over VersionStore). More design judgment per item than
       bp-037's pure wiring, so estimated above it. Self-driven lands ~0.5–0.8×. No fable (the math is
       banked theorem-grade in `dn-temporal-retrieval-algebra` §2.2–§2.3).
-  actual: null
+  actual:
+    model: opus            # SELF-DRIVEN (orchestrator-as-builder, no delegation)
+    tokens: ~90k           # est share of the session for the build+gate+ruff+pages-diagnosis; last
+                           # owner /usage (mid-build) read 176.8k session output cumulative — reconcile
+                           # bp-038's incremental share at the next /usage relay
+    ratio: ~0.4            # ~90k / 220k — UNDER estimate (self-driven; the operators were test-pinned,
+                           # so no math re-derivation — only the σ/restrict wiring judgment)
+    dollars: pending       # next owner /usage relay (session was $20.17 mid-build; week 90%)
+    session_delta: "session $20.17 at mid-build /usage (graduate+build bp-037, capture, graduate+build bp-038)"
+    week_delta: "89% → 90% over the whole session (the temporal arc + captures); bp-038 build ~flat"
+    # GREEN attested SEPARATELY (5-leg): ruff clean; mypy typed 0 (186 files); argless mypy 69 (HELD —
+    # the 3 new set-type-arg errors fixed, not re-baselined); ops.type_gate OK; pytest 1138 passed /
+    # 8 skipped / 0 FAILED (the 2 flaky live dream e2e passed this run). finding-0082 filed (VersionStore
+    # enumerator gap, builder-resolved). LIVE: two-snapshot ‖[d,τ]‖ = 0 (flat, +1 node) 3797f8b→177b7fd,
+    # cross-checked vs independent set arithmetic; supersession health True.
 depends_on: [bp-037]
 parallelizable_with: []
 created: 2026-07-15
 updated: 2026-07-15
+started: 2026-07-15
+completed: 2026-07-15
 links:
   - docs/design-notes/core-query-protocol.md
   - docs/design-notes/temporal-retrieval-algebra.md

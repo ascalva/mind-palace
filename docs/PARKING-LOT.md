@@ -45,7 +45,7 @@ non-decision condition (data accretion, an owner ruling, the Fable cap).
 | TA-b | the `(β,z)` z-resolution dial | TRA parked | parked | (ext) a retrieval eval set | an eval set gives z a falsifier |
 | TA-c | homotopy-coherent (diamond) superconnection `τ_k` | TRA parked | parked | → MAG-census | measured fork/merge **diamond frequency** warrants the rigor |
 | CQ-wire | wire `core/temporal` **single-snapshot** (X_cite β₁ threads) into a live read surface = `TemporalView` | CQ §3 / TRA | **built** (bp-037 sealed `1a7be36`, 2026-07-15; live β₁=24 @ HEAD) | → TA-d (built) | (done) |
-| CQ-wire-2 | wire `core/temporal` **two-snapshot** (`‖[d,τ]‖` citation-coherence, `σ_*`, poset `δ_D²=0`) into `TemporalView` | CQ §3 / TRA | **active** (graduated → `bp-038` proposed, 2026-07-15; awaits owner bless) | → CQ-wire (bp-037, built) | graduated. σ ruled = restrict-to-common (§3 Q1); `doc_id==source_path` resolves the poset identity; DATA CONFIRMED (435 commits). `/build bp-038` after `proposed→ready` |
+| CQ-wire-2 | wire `core/temporal` **two-snapshot** (`‖[d,τ]‖` citation-coherence, `σ_*`, poset `δ_D²=0`) into `TemporalView` | CQ §3 / TRA | **built** (bp-038 sealed, 2026-07-15; live ‖[d,τ]‖=0 flat 3797f8b→177b7fd) | → CQ-wire (bp-037, built) | (done). σ = restrict-to-common (§3 Q1). finding-0082 = VersionStore enumerator gap (poset scoped to corpus nodes). **`core/temporal` FULLY WIRED — "complete the algebra" DONE** |
 
 ### Query protocol — `dn-core-query-protocol`
 | id | item | home | status | depends on | re-entry / trigger |
