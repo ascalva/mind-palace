@@ -113,3 +113,31 @@
   unreferenced module doesn't break the `pages` build (stays green), and the file is out of write_scope.
   Left for a future docs sweep.
 - Next: await leg 5 green → orchestrator flips `in-progress→complete`, seals with cost.actual.
+
+## 2026-07-15 — AWAITING leg 5 (full pytest, background)
+
+- All four items committed (`f9897b5`); gate legs 1–4 GREEN. Leg 5 (`pytest -q`, full suite ~1140
+  tests) running in the background — buffers until done. **Re-entry for a fresh agent:** on leg-5
+  green, flip bp-039 `in-progress→complete` (orchestrator, non-blessing), clear `.claude/state/active-plan`,
+  and seal with `cost.actual` (get fresh /usage). If leg 5 shows a failure OTHER than the two known-flaky
+  live dream e2e (`test_dream_v2_live`/`test_dreaming_live`, TimeoutError on a loaded box — the only
+  tolerated ones), fix forward before completing. No item is open; only the final gate confirmation
+  and the status flip remain.
+
+## 2026-07-15 — SEALED · bp-039 COMPLETE (leg 5 green, all falsifiers held)
+
+- **LEG 5 GREEN — pytest 1177 passed / 8 skipped, exit 0** (1138→1177 = +39 new; even the two
+  known-flaky live dream e2e passed this run). All FIVE gate legs green. Zero failures.
+- **Orchestrator flipped `in-progress→complete`** (non-blessing), cleared `.claude/state/active-plan`,
+  set `completed: 2026-07-15`. cost.actual sealed: opus, self-driven, ~130k est (~0.54× — pending
+  owner /usage to price dollars/week precisely; next-session relay).
+- **All plan falsifiers held:** bit-identical reads (existing View suites unmodified but for the one
+  finding-0084 line); cross-clock T-meet raises (never guesses); delegation monotone (meet(parent,
+  template) ⊑ parent, every pair — #6); SLICE rejects cut-less multi-stratum point; denylist FOUNDATION
+  ungrantable; `core/scope.py` imports nothing from ops (layering held — bridge ops-side).
+- **The note's §3 Consequence 1 is DISCHARGED:** the scope typing layer exists. Consequences 2–4 are
+  now expressible (delegation law testable — wiring parked §11; instruments declare Inv/Rate(κ) at
+  graduation — R1 velocity is the first Rate customer; the fable geometry units consume T's clocks).
+- **Open follow-ons (parked, not owed):** CS-a (materialize N), the factory.grant wiring, the sensor
+  write-dual, ObservedView/DreamsView scope (§11); optional `site/api/core.md` `::: core.scope` stub.
+- Fresh-agent test: PASSES — plan + this journal + write-scope files fully reconstruct the build.

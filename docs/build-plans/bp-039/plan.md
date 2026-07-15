@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-039
 alias: CQ-scope
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/capability-scope-algebra.md
 contract: builder
@@ -33,12 +33,31 @@ cost:
       View retrofits + declared-vs-actual guards. The math is banked theorem-grade in
       `dn-capability-scope` (fable, ratified) — NO fable, NO xhigh; deterministic algebra.
       Self-driven lands ~0.5–0.8× (week 92%, budget-tight); delegated ~1.6×.
-  actual: null
+  actual:
+    model: opus            # SELF-DRIVEN (orchestrator-as-builder, no delegation — week at 92→93%)
+    tokens: 170.4k         # MEASURED (owner /usage): 170.4k opus output for the WHOLE session
+                           # (ratify 3 notes + graduate bp-039 + build 4 items + finding-0084), one
+                           # context; 1938 LOC added / 139 removed. The build is the bulk.
+    ratio: ~0.71           # 170.4k / 240k est — UNDER estimate, in the ~0.5–0.8× self-driven band
+                           # (deterministic pure-typing over a ratified, fully-specified design; no
+                           # re-derivation, no fable, no xhigh). Note: whole-session, so the BUILD
+                           # alone is < 0.71× (ratify+graduate share the total).
+    dollars: 17.97         # MEASURED whole-session (owner /usage): $17.97 (42.1k in / 170.4k out /
+                           # 21.0m cache read / 313.4k cache write). 21m cache-read = convo cached.
+    session_delta: "session $17.97 (ratify 3 notes + graduate + build 4 items + finding-0084), one context, self-driven, no delegation, no fable"
+    week_delta: "92% → 93% (+1% for the whole build; resets Jul 17 8pm ET). CREDITS UNCHANGED at 74% ($112.43/$150) — subscription/weekly-covered, drew ZERO credits."
+    # GREEN attested SEPARATELY (5-leg): ruff PASS; mypy `core agents eval ops scheduler scripts` == 0
+    # (187 files, 186→187 = +core/scope.py); argless mypy == 69 UNCHANGED (new test files added zero
+    # type errors — the tooth HELD, no re-baseline); ops.type_gate OK; pytest -q == 1177 passed / 8
+    # skipped (1138→1177 = +39 new; the 2 known-flaky live dream e2e PASSED this run too). Zero failures.
+    # falsifiers all held: bit-identical reads (existing View suites green), cross-clock-meet raises,
+    # delegation-monotonicity, SLICE, denylist-ungrantable. finding-0084 (spec-fidelity) resolved in-session.
 depends_on: []
 parallelizable_with: []
 created: 2026-07-15
 updated: 2026-07-15
 started: 2026-07-15
+completed: 2026-07-15
 links:
   - docs/design-notes/capability-scope-algebra.md
   - docs/brainstorms/cq-scope-fable-pass.md

@@ -3365,3 +3365,27 @@ portable backstop):
   enum core-side, the bridge ops-side (ops→core preserved, `core/scope.py` imports nothing from ops).
 - **Still awaiting graduation** (owner picks slot): `dn-velocity-instruments` (the measurement-class
   instrument pair) + `dn-temporal-geometry` (mostly gated programs). Both ratified, Opus-buildable.
+
+## 2026-07-15 — SAME SESSION (7): `bp-039 CQ-scope` BUILT + SEALED (the scope typing layer ships)
+
+- Owner blessed `bp-039` `proposed→ready` by hand; self-driven build (orchestrator-as-builder, no
+  delegation, no fable — week at 92%). **All four items green, 5-leg gate clean, SEALED complete.**
+- **`core/scope.py` shipped** — the `(Σ,E,T,A)` capability lattice: `StratumScope` downsets (⊤_Σ=R∖𝔇),
+  `EdgeScope` fibers, `TimeScope`=(clock,window) with the PARTIAL cross-clock meet (raises until N
+  materializes), `Authority`=Privilege×W_Σ×`WorldReach` (the NONE-floored world-reach chain), firewall
+  `Ideal`s, the SLICE rule, `Tier` as a compare=False min-annotation, and `Inv`/`Rate` result markers +
+  Rule CLOCK. Pure-core (stdlib only). `req()` retrofitted as a `SCOPE` ClassVar on all five Views +
+  the ops-side `world_reach` bridge — **bit-identical reads** (the whole-plan falsifier held).
+- **Reconciliation delivered** (§4): the note's `W_world=NONE<SENSING` extends the code's SENSING-floored
+  `ReversibilityClass` — a new `WorldReach` core-side, the bridge ops-side (ops→core preserved).
+- **finding-0084 (spec-fidelity, resolved):** the public `SCOPE` constant tripped test_reference_view's
+  exact-public-surface assertion (its sibling uses a robust no-mutator-leaked pattern); write_scope
+  widened one file (warrant finding-0084), the assertion acknowledges SCOPE, no-mutator guarantee kept.
+- **Gate (5-leg):** ruff clean · `mypy core…scripts` 0/187 (186→187) · argless mypy 69 HELD · type_gate
+  OK · **pytest 1177 passed / 8 skipped** (1138→1177 = +39; even the flaky dream e2e passed). Zero fails.
+- **Cost (measured, owner /usage):** whole session **$17.97**, **170.4k opus output** (~0.71× the 240k
+  est; ratify+graduate+build+finding, one context, self-driven), **week 92%→93%**, **CREDITS UNCHANGED
+  at 74%** ($112.43 — subscription/weekly-covered, drew zero credits). 1938 LOC added / 139 removed.
+- **Note §3 Consequence 1 DISCHARGED.** Consequences 2–4 now expressible (delegation law testable —
+  wiring parked; instruments declare Inv/Rate(κ) at graduation; fable geometry units consume T's clocks).
+- **Still to graduate** (both ratified, Opus-buildable): `dn-velocity-instruments`, `dn-temporal-geometry`.
