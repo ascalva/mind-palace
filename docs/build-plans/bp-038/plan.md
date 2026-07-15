@@ -30,9 +30,11 @@ cost:
                            # bp-038's incremental share at the next /usage relay
     ratio: ~0.4            # ~90k / 220k — UNDER estimate (self-driven; the operators were test-pinned,
                            # so no math re-derivation — only the σ/restrict wiring judgment)
-    dollars: pending       # next owner /usage relay (session was $20.17 mid-build; week 90%)
+    dollars: "~$0 credits"  # RECONCILED (owner /usage 2026-07-15, next session): usage credits $89.59
+                           # UNCHANGED across the bp-038 build + pages fix — subscription/cache-covered;
+                           # prior session read $20.17 at mid-build (final session $ not captured)
     session_delta: "session $20.17 at mid-build /usage (graduate+build bp-037, capture, graduate+build bp-038)"
-    week_delta: "89% → 90% over the whole session (the temporal arc + captures); bp-038 build ~flat"
+    week_delta: "90% (mid-build relay) → 91% (next-session relay 2026-07-15) — bp-038 build + pages fix + captures moved the weekly ≤1%; credits flat at $89.59/$150 (59%)"
     # GREEN attested SEPARATELY (5-leg): ruff clean; mypy typed 0 (186 files); argless mypy 69 (HELD —
     # the 3 new set-type-arg errors fixed, not re-baselined); ops.type_gate OK; pytest 1138 passed /
     # 8 skipped / 0 FAILED (the 2 flaky live dream e2e passed this run). finding-0082 filed (VersionStore
