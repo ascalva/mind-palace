@@ -1,13 +1,13 @@
 ---
 type: design-note
 id: dn-live-adoption-and-longitudinal-harness
-status: draft
+status: superseded
 implementation: not-built   # corpus-audit 2026-07 verification
 created: 2026-07-03
-updated: 2026-07-04
+updated: 2026-07-15
 links: []
 supersedes: null
-superseded_by: null
+superseded_by: dn-evaluation-harness  # consolidation supersession 2026-07-15; L1–L5 shapes carried as protocol annex
 warrant: null
 ---
 

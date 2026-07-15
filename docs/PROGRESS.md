@@ -3465,3 +3465,14 @@ portable backstop):
 - **Plan board:** complete=bp-000..bp-039; bp-040 proposed (ON HOLD, subsumed — re-derive from this note
   post-ratification); ready/in-progress=none. **Next: owner ratifies `dn-evaluation-harness` →
   `/graduate` the E1–E8 decomposition** (align `dn-velocity-instruments` graduation with E5/catalog).
+
+## 2026-07-15 — `dn-evaluation-harness` RATIFIED (owner hand edit); spines stamped superseded
+
+- Owner ratified `dn-evaluation-harness` same-day. Blessing flip committed FIRST (`5bbdcec`, rule 0060).
+- EH-a executed: both spine notes stamped `status: superseded` + `superseded_by: dn-evaluation-harness`
+  (`capability-evaluation-harness.md`, `live-adoption-and-longitudinal-harness.md`) — a non-blessing
+  orchestrator edit; their §5/§7/§9 and L1–L5 detail remains the protocol annex per the ratified note §1.2.
+  (Process note: the stamp must be ONE atomic front-matter edit per file — scope-guard A8 reads the
+  working-tree status, so flipping `status` first locks the file before `superseded_by` lands.)
+- **Next: `/graduate dn-evaluation-harness` at OPUS** (design done; graduation is template work —
+  fable reserved for design/gates, and fable weekly is 100%). E1 (eval-results store + registry) first.

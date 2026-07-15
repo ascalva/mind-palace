@@ -1,10 +1,10 @@
 ---
 type: design-note
 id: dn-capability-evaluation-harness
-status: draft
+status: superseded
 implementation: not-built
 created: 2026-07-08
-updated: 2026-07-08
+updated: 2026-07-15
 links:
   - docs/design-notes/supersession-recovery-evaluation.md # instance #1 of this family
   - docs/design-notes/dreamer-quality-suite-evaluation.md # F9 — the unit-scale sibling; shared philosophy
@@ -15,7 +15,7 @@ links:
   - docs/design-notes/live-adoption-and-longitudinal-harness.md # Track L; shared replay machinery
   - docs/NOTATION.md # family tags; family-5 honest-status banner (see verification item V1)
 supersedes: null
-superseded_by: null
+superseded_by: dn-evaluation-harness  # consolidation supersession 2026-07-15; §5/§7/§9 carried as protocol annex
 warrant: null
 ---
 
