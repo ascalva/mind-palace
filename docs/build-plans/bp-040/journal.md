@@ -62,3 +62,12 @@
   cron/launcher, set the owner's σ, validate). Graduate AFTER the owner sees bp-040's report.
 - Still `proposed` — owner blesses `proposed→ready` → `/build bp-040`. Read-only over live data + scratch
   writes; safe. The RUN (real 27b dreams) is done daemon-idle/down (Ollama contention, finding-0069).
+
+## 2026-07-15 — ON HOLD (still proposed): SUBSUMED by the harness design
+
+- Owner (2026-07-15) directed a proper, consolidated evaluation/test-harness DESIGN NOTE before building
+  ad-hoc harness pieces. bp-040 `dream-calibrate` (the dual-dreamer σ-sweep) is now **one component under
+  that harness design** — it will be **re-derived from the ratified `dn-evaluation-harness`**, not built
+  standalone. **Do NOT `/build` bp-040** until the harness note is written (Fable, post-Jul-17 reset) and
+  ratified; the note may reshape bp-040's scope (shared eval-results store, report format, sweep
+  orchestration). Warrant/synthesis: `docs/brainstorms/evaluation-harness.md`. Held at `proposed`.

@@ -142,3 +142,29 @@ longer the constraint. (Claude budget is NOT the constraint for RUNS — the dre
   owner-verdict rate (needs L2 verdicts first)? a composite? At 13-note scale, regression-shaped.
 - **Tier to write the note:** fable-grade design (the hardest kind); fable resets Jul-17 (~2 days). Bank
   now (this capsule), fable-pass post-reset for top quality — or opus draft now.
+
+## 2026-07-15 — OWNER DECISIONS (via AskUserQuestion) — the Fable pass is queued
+
+- **WRITE AT FABLE, post-Jul-17 reset.** This capsule is the warrant; the consolidated design note
+  `dn-evaluation-harness` is written at Fable once the weekly Fable meter resets (Jul 17, 8pm ET). The
+  brainstorm→design fable-guard is satisfied by this being a Fable pass. Highest quality for the hardest
+  synthesis. (Opus-now was declined.)
+- **AUTOMATED-TUNING AUTONOMY = DESIGN BOTH, OWNER PICKS PER-LEVER.** The note specifies BOTH modes and
+  makes per-lever autonomy a **config choice**: *measure+propose* is the default (the optimizer sweeps a
+  lever grid, builds the curve, PROPOSES the curve-optimal value; every `set` is an owner §14 hand-
+  blessing); *bounded auto-apply* is opt-in per lever (within a pre-blessed band + the frozen golden/drift
+  guardrails, the loop may auto-`set` and auto-rollback on any regression — the `SAFE_LEVERS` /
+  `unattended_enabled` shape, generalized per-lever). The note must specify the per-lever autonomy field,
+  its bounds representation, and that the never-tunable fixed points (golden/Θ/Constitution/gate
+  predicates) cannot express either mode (structurally unrepresentable).
+- **Overnight-run mandate confirmed** (owner reaffirmed 2026-07-15: "I also want this harness built well,
+  I don't mind running the harness/tests overnight") — design for THOROUGHNESS: full σ grids, complete
+  r0→r8 ablation ladders, long longitudinal curves, dual-dreamer A/B at many σ. Wall-clock is not the
+  constraint; the memory ceiling (≤2 models) + local compute still are. Claude budget is NOT a run cost
+  (dream synthesis is local 27b).
+- **bp-040 `dream-calibrate` is SUBSUMED** — it becomes ONE component (the dual-dreamer σ-sweep instance)
+  under the harness design, re-derived from the ratified note rather than built ad-hoc/standalone. Held
+  at `proposed`, NOT built, pending `dn-evaluation-harness`.
+- **Remaining open (for the Fable pass):** supersede-vs-umbrella (the two draft harness notes are
+  supersedable); the optimizer's objective function (golden recall / F9 quality / owner-verdict rate —
+  needs L2 verdicts first / a composite; regression-shaped at 13-note scale).
