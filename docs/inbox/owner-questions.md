@@ -618,7 +618,9 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0023 — Strip metadata property lines before embedding: `id::` only, or all `key::` page-properties? (finding-0077)
-- status: open
+- status: swept   # MOOT — already resolved by bp-036 (sealed) before this was batched: strip_properties
+                  # removes ALL key:: props (core/ingest/pipeline.py:33,57) + owner re-embedded 2026-07-14.
+                  # /triage-8 batched this without checking bp-036; closed at the 2026-07-15 σ-scoping pass.
 - origin: docs/findings/finding-0077.md
 - blocking: false
 - question: The bp-034 `id::` mint MEASURABLY changed the mirror similarity graph. An A/B on the owner's

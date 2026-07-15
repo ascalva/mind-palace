@@ -1,18 +1,26 @@
 ---
 type: finding
 id: finding-0077
-status: routed           # open → routed → resolved | promoted  (batched → oq-0023)
+status: resolved         # open → routed → resolved | promoted
 created: 2026-07-14
-updated: 2026-07-14
+updated: 2026-07-15
 links:
   - docs/build-plans/bp-034/plan.md      # §5 Q5b + parked decision 4 (strip props before embedding)
-  - core/ingest/index.py                  # _chunk_row / index_amendment — the embedded text
-  - core/ingest/logseq.py                 # where properties are (not) stripped from text
-  - core/dreaming/cluster.py              # the σ=0.62 similarity graph the dreams cluster over
+  - docs/build-plans/bp-036/plan.md      # THE FIX — stripped all key:: props before embedding + re-embed
+  - core/ingest/pipeline.py               # strip_properties wired in (:33, :57) — the fix landed here
+  - core/ingest/logseq.py                 # strip_properties() helper
+  - core/dreaming/cluster.py              # the σ similarity graph; the σ consequence is finding-0079
 ftype: direction         # blocker | spec-defect | question | discovery — a measured design regression
 origin_plan: bp-034
 route: orchestrator       # design/direction → owner-gated follow-on plan
-resolution: null
+resolution: >-
+  RESOLVED by bp-036 (sealed, warrant=finding-0077): `strip_properties()` removes EVERY Logseq
+  `key::` page-property line from the chunked+embedded text (`core/ingest/pipeline.py:33,57`) —
+  the broadest scope, so the "id:: only vs all key::" question is answered = ALL properties. The
+  owner ran `scripts/reembed_bodyonly.py --confirm` (2026-07-14, daemon down) so the live mirror
+  graph is body-only/clean, permanently (every future ingest strips props). The σ consequence (σ
+  was calibrated on the polluted graph) is the SEPARATE finding-0079. NB: /triage-8 mis-batched
+  oq-0023 for this before checking bp-036 — oq-0023 is moot and closed here.
 ---
 
 # The id:: mint measurably changed the mirror graph — embedding identity metadata pollutes similarity

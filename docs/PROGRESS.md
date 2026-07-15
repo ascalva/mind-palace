@@ -3415,3 +3415,17 @@ portable backstop):
   (dn-capability-scope BUILT, dn-velocity-instruments, dn-temporal-geometry) + the CQ-scope build all
   accrue debt against the pending first scribe plan. Offer `/scribe` to scaffold when a slot opens.
 - **Plan board:** complete=bp-000..bp-039; proposed/in-progress/ready = none. Active plan: none.
+
+## 2026-07-15 — σ re-calibration scoped → bp-040 `sigma-sweep` (proposed); finding-0077 corrected
+
+- Owner asked to tackle the σ re-calibration (finding-0079). Grounded the machinery (one Explore):
+  σ affects ONLY clustering (`cluster_notes(threshold=σ)`) over FIXED centroids → a sweep is READ-ONLY,
+  re-embed-free, no daemon-down. The live graph is already clean (bp-036 strip + the owner's 2026-07-14
+  re-embed). So the work is a small read-only σ-sweep harness + the owner's config decision.
+- **`bp-040 sigma-sweep` graduated (proposed)** — `scripts/sigma_sweep.py`: sweep σ∈[0.55,0.75] over the
+  live mirror centroids, report edges/clusters/near-threshold("bubble") pairs per σ; NO re-dream per σ
+  (once at the chosen σ, separately), NO config write (owner-gated hand edit), NO auto-recommended σ.
+  Warrant = finding-0079 (no new design → no ratified note needed). Est. opus 90k, self-driven.
+- **/triage-8 correction:** finding-0077 → **resolved** (bp-036 already stripped ALL `key::` props +
+  the owner re-embedded — the strip question was answered before I batched it). **oq-0023 closed as
+  moot.** So the σ work has no finding-0077 dependency.
