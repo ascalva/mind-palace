@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-039
 alias: CQ-scope
-status: proposed
+status: in-progress
 design_ref:
   - docs/design-notes/capability-scope-algebra.md
 contract: builder
@@ -35,6 +35,7 @@ depends_on: []
 parallelizable_with: []
 created: 2026-07-15
 updated: 2026-07-15
+started: 2026-07-15
 links:
   - docs/design-notes/capability-scope-algebra.md
   - docs/brainstorms/cq-scope-fable-pass.md
