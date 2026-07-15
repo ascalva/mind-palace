@@ -47,3 +47,32 @@
   `/build bp-039`. Budget note: week at 92% (relayed this session) — the BUILD is a separate session;
   right-size at build time (self-driven if week still tight, else consider delegation w/ pre-flight
   budget gate).
+
+## 2026-07-15 — BUILD started (self-driven); Items 1 + 2 GREEN
+
+- Owner blessed `proposed→ready` by hand; flipped `ready→in-progress` (`51d72f2`→build), active-plan
+  pointer set. Read the §2 manifest: `ops/effects.py` + all five View files in full for exact forms.
+- **Item 1 CLOSED — `core/scope.py`** (the pure algebra). `Scope=(Σ,E,T,A)` frozen dataclass +
+  the four component lattices: `StratumScope` (downset of the refinement forest R; `of()` auto-closes
+  downward — a grant over `reference` pulls in `reference_repo`; `top()`=R∖𝔇), `EdgeScope` ({F,D}),
+  `TimeScope`=(`Clock`,`Window`) with the **partial** meet, `Authority`=`Privilege`×W_Σ(0/1)×`WorldReach`.
+  `WorldReach` carries the **NONE floor** (§4 reconciliation — the code's `ReversibilityClass` is
+  SENSING-floored; bridge stays ops-side, added in Item 3). `Tier` is `field(compare=False)` — a
+  min-composed annotation, excluded from `==`/⊑ (so the lattice laws hold on the four coords). Firewall
+  `Ideal`s + `admissible` (`DENYLIST_IDEAL`={FOUNDATION}); `SliceError` on cut-less multi-stratum point
+  windows (COMMIT clock / explicit `cut` satisfies it); `common_refinement` clock poset (N parked →
+  cross-clock meets raise `NoCommonClockError`). `DEPLOYED_WORLD_CEILING=NONE` (finding-0011). Pure-core:
+  imports only stdlib — nothing from ops/edge/stores. **mypy core/scope.py: 0 errors.**
+- **BUG caught + fixed mid-build:** `Scope.join` (a widening) used `window.meet` (narrows) for its
+  time coord → broke the absorption law. Added `Window.join` (convex-hull widening; ALL annihilator,
+  EMPTY identity, opaque→ALL) and switched `Scope.join` to it. Absorption now holds.
+- **Item 2 CLOSED — `tests/unit/test_scope.py`** (24 tests, all green). Lattice laws (idempotent/
+  commutative/associative/absorption) over an ENUMERATED population on ONE clock (COMMIT, int-bounded
+  windows = clean lattice; no randomness); `a⊑b ⟺ meet(a,b)==a`; **delegation monotonicity** (`meet(parent,
+  template)⊑parent` for every pair, + a wider-template-can't-widen-child witness — non-negotiable #6);
+  cross-clock meet raises (both TimeScope + Scope level); SLICE rule (rejects cut-less multi-stratum
+  point; COMMIT/explicit-cut satisfy; single-stratum needs none); firewall-ideal admissibility (denylist
+  + a general curated-firewall); Σ downward closure; Authority min/max-per-chain; WorldReach NONE floor;
+  W_Σ∈{0,1} guard; tier min-composition + compare=False; `req_admissible`=⊑.
+- Next: **Item 3** (the five View `SCOPE` constants + the ops-side `world_reach` bridge — the ONLY
+  items touching existing code; bit-identical reads the falsifier) → **Item 4** (Inv/Rate markers).
