@@ -54,7 +54,7 @@ non-decision condition (data accretion, an owner ruling, the Fable cap).
 | CQ-selfgrade | self-grading grep-oracle | CQ §2.6 | **built** | → CQ-ref | (done: bp-035 Item 3) |
 | CQ-align | the alignment instrument (project `K_sem` onto the structural spectral manifold) | CQ §2.6 | parked | → CQ-ref, (ext) embedding Gram | the §2.6 second measurable is wanted |
 | CQ-twin | build-time repo-derived reference twin | CQ §2.4 | **ready** | — (owner ruled YES) | graduate when the build-plane bookkeeping need bites (findings 0059/0061) |
-| CQ-scope | **the capability-scope type system (the UNIFIED QUERY LANGUAGE)** — all Views as instances of one bounded-lattice scope algebra | CQ §2.1 | parked | (ext) Fable (fable-grade design) | owner-directed (roadmap #2); LEAD next. **Fable session MUST also read `brainstorms/temporal-clocks-and-strata.md`** (owner 2026-07-15) — it sharpens the scope tuple's `T` (time-scope) dim: T = a choice of clock/anchor, per-stratum clocks ⇒ relativity-of-simultaneity in the lattice meet/join, anchor-as-first-class, invariant-vs-rate typing. bp-037/038 TemporalView = the concrete T-instance |
+| CQ-scope | **the capability-scope type system (the UNIFIED QUERY LANGUAGE)** — all Views as instances of one bounded-lattice scope algebra | CQ §2.1 | **formalized** (fable pass 2026-07-15, on usage tokens; required context honored incl. `temporal-clocks-and-strata.md` in full) | → owner ratifies `dn-capability-scope` | **`dn-capability-scope` DRAFTED from `brainstorms/cq-scope-fable-pass.md`** — Σ = refinement lattice (denylist an ideal off ⊤); T = clock+window (partial meets, SLICE rule, commit = the consistent cut); A = product of three chains (the write rung split sensor/effector); Inv/Rate(κ) result typing; firewalls-as-ideals; tier-as-annotation. On ratification: ONE build plan (`core/scope.py`, a pure typing layer; bit-identical-reads falsifier) |
 | CQ-mode1b | Mode-1b soft diffusion + the `K_struct ⊙ K_sem` hybrid | CQ §2.2 | parked | → CQ-ref, (ext) kernel machinery | a ranking customer + eval set |
 
 ### Diachronic dreamer — `dn-core-query-protocol` §2.7 / Lane B
@@ -107,8 +107,9 @@ non-decision condition (data accretion, an owner ruling, the Fable cap).
   honest-CV threshold today.
 - **(ext) a retrieval eval set** — roots TA-b, ML-c, CQ-mode1b. Note CQ-selfgrade (bp-035's oracle)
   *bootstraps* a structural eval set; a *directed-ranking* eval set is a further step.
-- **(ext) Fable weekly cap** — resets **Jul 17 8pm ET** (currently 100% used). Gates the *formalization*
-  of CQ-scope + every VF-*.
+- **(ext) Fable weekly cap** — resets **Jul 17 8pm ET** (currently 100% used). Gates every VF-*
+  formalization. (CQ-scope cleared this gate early: its fable pass ran 2026-07-15 on **usage
+  credits**, per the owner's directive.)
 - **SS-substrate** — `dn-self-sensing` B-a (interpreter-version supersession) + B-b (`AgentObservationStore`
   + φ_self). Roots DD-2 / Lane B. (Build-state to verify at /triage.)
 
@@ -134,7 +135,8 @@ TA-d / core-temporal (BUILT) ──► CQ-wire (bp-037: β₁ TemporalView) ─�
 L-a (BUILT) ──► L-b ──► PD-f ;  L-a ──► L-c ;  L-a ──► PD-c (+ a Ricci rung)
 
 CQ-ref (BUILT, bp-035) ──► CQ-align ; ──► CQ-mode1b ; ──► CQ-twin (parallel, owner-ruled)
-(ext) Fable reset ──► CQ-scope (unified query language) ;  ──► every VF-* formalization
+CQ-scope (FORMALIZED 2026-07-15, fable on usage credits) ──► owner ratifies dn-capability-scope ──► the scope-layer build
+(ext) Fable reset ──► every VF-* formalization
 ```
 
 **Reading it:** almost the entire *dynamics/velocity* half hangs off one external root — **sample depth**
@@ -161,9 +163,11 @@ language → (3) the diachronic dreamer tier**, and RULED (2026-07-15) the concr
   interface is built-not-inferred; open σ-resolution design settles in its own grounded pass). The
   owner may override at the bless gate and ask for both halves in one session.
 - **SESSION N+2 — a FABLE session = `CQ-scope`** (the §2.1 capability-scope type system — all Views as
-  one bounded-lattice scope algebra = the unified query language). Correctly placed **after the Jul-17
-  Fable reset** (Fable is 100% capped until then). Design largely settled in CQ §2.1 (fable-vetted); the
-  fable session formalizes + the build follows.
+  one bounded-lattice scope algebra = the unified query language). Design largely settled in CQ §2.1
+  (fable-vetted); the fable session formalizes + the build follows.
+  → **DONE 2026-07-15** (early — ran on **usage credits**, owner-directed, not waiting for the Jul-17
+  reset): fable pass `brainstorms/cq-scope-fable-pass.md` (S1–S8) + **`dn-capability-scope` drafted**.
+  Awaits owner ratification; then `/graduate` mints the one scope-layer build plan (Opus, no fable).
 - **SESSION N+3+ — the diachronic dreamer = `DD-1`** (corpus-structural tier over X_cite). **Depends on
   `CQ-wire`** (consumes the wired algebra) + `A7` + the lens contract → naturally follows the algebra
   build. `DD-2` (observed-plane weaving / Track D) waits on the self-sensing substrate + sample depth.

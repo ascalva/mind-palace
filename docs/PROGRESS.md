@@ -3261,3 +3261,28 @@ portable backstop):
 - **`core/temporal` FULLY WIRED** (bp-037 β₁ + bp-038 ‖[d,τ]‖) — "complete the algebra" (roadmap #1) DONE.
 - Design thread captured: `docs/brainstorms/temporal-clocks-and-strata.md` (logical clock / per-stratum
   sub-clocks / relativity / the curvature convergence → a locally-clocked superconnection, fable-grade).
+
+## 2026-07-15 — CQ-scope FORMALIZED (roadmap #2): the fable pass ran early, on usage credits
+
+- **The lead unit, executed at tier:** the owner's directed FABLE session (`claude-fable-5`, usage
+  tokens — not waiting for the Jul-17 reset). Required context honored in full: CQ §2.1 (C2 seed) +
+  **`temporal-clocks-and-strata.md` read in full** (owner-directed) + the built View instances.
+- **The pass:** `docs/brainstorms/cq-scope-fable-pass.md` (S1–S8, graded). Headlines: Σ = downward-closed
+  sets of the stratum-refinement forest (C1/π_MR as elements; denylist an ideal off ⊤); **T = (clock,
+  window)** — clocks are monotone coarsenings of the ledger's causal order (N ⪰ N_s, N ⪰ commit ⪰
+  distinct-snapshot), anchor first-class, cross-clock meets pull back to a materialized common refinement
+  or are a CONSTRUCTOR ERROR (T honestly a *partial* meet-semilattice until N materializes); the **SLICE
+  rule** (multi-stratum "now" must carry a consistent cut; commit SHA = the cut for repo-backed strata —
+  retro-explains the shared `_resolve_default_commit` discipline); **Inv vs Rate(κ)** result typing (rule
+  CLOCK; all built instruments audit Inv; R1 velocity = first Rate customer); **A = {read<propose} ×
+  {store-write} × {world-write ε}** (the seed's "write" rung conflated sensor projection with effector
+  mutation — split; Track G's max-tier-NONE = `⊤_deployed.W_world = NONE`); firewalls-as-ideals;
+  enforcement tier an annotation (min-law), never a lattice element.
+- **The note:** **`dn-capability-scope`** (`docs/design-notes/capability-scope-algebra.md`, status
+  `draft`) — states the decisions, Views-as-instances table, parked CS-a…CS-f. **AWAITS OWNER
+  RATIFICATION** (hand edit). On ratification, `/graduate` mints ONE build plan: `core/scope.py`, a pure
+  typing layer (lattice ops, ideals as data, `req()` on View constructors); falsifiers: bit-identical
+  reads, lattice property tests, cross-clock-meet raises, delegation-exceeding-parent unrepresentable.
+- **Desk:** bp-038 `cost.actual` reconciled from the fresh /usage (credits flat $89.59 across the build;
+  week 90%→91%). External citations in the pass flagged `[FROM MEMORY — verify]` per external-grounding.
+- No delegation. Docs-only session (no gate run needed — no Python surface touched).
