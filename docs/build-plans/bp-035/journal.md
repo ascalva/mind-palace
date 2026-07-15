@@ -103,3 +103,28 @@ gap was the read surface (this plan). Note is immutable A8 → owner-gated amend
 bp-035 criterion. Orchestrator batches to owner.
 
 Next: the 5-leg attestable-green gate.
+
+## 2026-07-15 — attestable-green + committed
+
+All three items complete; the 5-leg gate run SEPARATELY, each read:
+1. `ruff check .` → **All checks passed!** (after fixing 7×E501 + 1 unused import in the new files).
+2. `mypy core agents eval ops scheduler scripts` → **Success: no issues found in 185 source files**.
+3. argless `mypy` → **Found 69 errors in 20 files (checked 375 source files)** — exactly the
+   pinned tests/-baseline; my two new test files did NOT shift it (finding-0029 footprint intact).
+4. `python -m ops.type_gate` → **Tier-2 membership OK / Bare-ignore scan OK**.
+5. `pytest -q` → **1123 passed, 9 skipped in 1023.55s** — zero failures, no live-test flakes; the
+   oracle test is among the 9 skips (correct: no store projected in this worktree's empty data/).
+   (Ran ~17min because a concurrent second `pytest` was sharing the box.)
+
+Committed on the worktree branch: **1585150** `feat(bp-035): ReferenceView …`. NOT merged, NOT
+pushed, NO blessing flip — the orchestrator reviews the diff, re-runs the gate (where the oracle
+MEASURES, not skips, against the projected main store), and merges + flips `in-progress →
+complete`.
+
+Note: `docs/findings/finding-0081.md` transiently vanished while untracked (a concurrent process
+cleaned the worktree); recreated identically and committed — it is now tracked and safe.
+
+**Reported fidelity (Item 3, measured via a temporary symlink of the main 100MB store into the
+worktree data/, removed after): doc→doc full-path recall 227/228 = 0.996** — the note's stale
+hand-demo was 0/16 = 0.000. Expanded surface (bare finding-/dn- prose) 0.763 = the residual
+precision-gating gap; precision 0.991; doc→code recall 1.000.
