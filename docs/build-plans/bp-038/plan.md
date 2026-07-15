@@ -135,10 +135,30 @@ Read whole, in order:
   DIFFERENT axis from citation coherence (D-arrows vs F-edges — A5 keeps them separate). Exposed as its
   own read (`supersession_wellfounded`), never mixed into `A_cite`. `[grounds: versions.py:69-88.]`
 
-- **Q4 — Data availability (is two-snapshot meaningful on the live store)?** YES. Probed at the bp-037
-  seal: **435 distinct commits** carry corpus→corpus edges, ~320/commit — consecutive commits give real
-  citation-graph deltas. The live coherence test compares two real anchors and asserts `‖[d,τ]‖` ==
-  `len(severed_citations)` (Result 2's inversion) on real data. `[grounds: bp-037 journal 2026-07-15.]`
+- **Q4 — What IS a "snapshot," and is two-snapshot meaningful on the live store? → a COMMIT is a
+  time-LABEL for a full re-projected citation graph; the meaningful unit is a DISTINCT snapshot.** The
+  store holds one row per (edge, commit); the sensor re-projects the WHOLE corpus→corpus graph at each
+  commit it runs on (not a delta), so `commit_sha` labels a full snapshot. **435 distinct commits** carry
+  corpus→corpus edges — BUT the doc-citation stratum moves far slower than git commits tick, so
+  consecutive commits are usually the SAME snapshot. Probed 2026-07-15: the **6 most-recent commits are
+  ONE identical 217-pair snapshot** (they added doc files but no new which-note-cites-which); the graph
+  only differs back at `02b121d` (212 pairs). **Consequence (the owner's multi-rate point):** comparing
+  "HEAD vs git-parent" would compare two IDENTICAL snapshots → `‖[d,τ]‖ = 0` trivially. So the meaningful
+  comparison is between two **distinct** citation snapshots (commits whose corpus→corpus edge-set
+  differs), and the live test (Item 3) selects those, never naive git-adjacency. `[grounds: live probe
+  2026-07-15; reference_edges.py:120 commit_sha = "the commit the reading landed at".]`
+
+- **Q6 — Does this lock out generalization? → No; `coherence_to(other)` is anchor- and stratum-agnostic
+  by construction (owner constraint 2026-07-15).** The API compares ANY two commit-anchored views —
+  every generalization layers on top without a redesign: (a) *distinct snapshots vs git-adjacency* is a
+  caller/test selection concern, not an API constraint; (b) *different strata at different rates* — a
+  code-citation coherence is the SAME operators with `direction="code_to_code"` instead of
+  `corpus_to_corpus` (the one generalization point is `build_citation_complex`'s hardcoded direction —
+  a future kwarg, not a rewrite); (c) *longitudinal multi-rate tracking* is a future `φ_coh` stream over
+  the distinct-snapshot SEQUENCE, consuming `coherence_to`; (d) *corpus-time vs git-time* is a selection
+  layer that dedups identical snapshots above the API. This plan scopes to the **corpus (doc) citation
+  stratum** deliberately (single-stratum, per the note's Mode-1 framing; A5 keeps strata unmixed) — NOT
+  as a ceiling. Recorded as generalization affordances in §11.
 
 - **Q5 — DiamondError on the linear-chain operators.** `sigma_node_map` raises `DiamondError` if σ
   merges two nodes onto one (non-injective). With σ = identity on distinct doc paths, injectivity holds
@@ -256,14 +276,18 @@ def supersession_wellfounded(config=None, *, doc_ids: list[str] | None = None) -
   `A_cite`.  **Touches stored data?** No.  **Depends on:** independent of Item 1 (different store/axis).
 
 ### Item 3 — the live two-anchor coherence + live poset health
-- **Objective:** on the live store, pick two real anchors (e.g. HEAD and its parent), compute
-  `open_coherence`, and assert `coherence_norm == len(severed)` (Result 2) on real data; run
-  `supersession_wellfounded` over the live version chains and assert True (or a recorded honest raise).
-  PRINT the coherence norm + node deltas + the two anchors.
+- **Objective:** on the live store, select the two most-recent **DISTINCT** citation snapshots (§3 Q4 —
+  skip commits whose corpus→corpus graph is identical to the newer one, so the comparison is not
+  trivially empty), compute `open_coherence`, and assert `coherence_norm == len(severed)` (Result 2) on
+  real data; run `supersession_wellfounded` over the live version chains and assert True (or a recorded
+  honest raise). PRINT the coherence norm + node deltas + the two anchor commits.
 - **Files:** `tests/integration/test_temporal_view_live.py`.
-- **Acceptance test:** skip-with-reason if fewer than two commits carry corpus→corpus edges (fresh
-  worktree); else assert the Result-2 inversion holds live and print the numbers. Does NOT assert a
-  fixed `‖[d,τ]‖` VALUE (the corpus evolves) — only the inversion invariant + well-foundedness.
+- **Acceptance test:** skip-with-reason if fewer than **two distinct** corpus→corpus snapshots exist
+  (fresh worktree / a single snapshot); else pick the two most-recent distinct snapshots, assert the
+  Result-2 inversion `coherence_norm == len(severed)` holds live, and print the numbers + both anchors.
+  Does NOT assert a fixed `‖[d,τ]‖` VALUE (the corpus evolves) — only the inversion invariant + node
+  deltas + well-foundedness. (A distinct-snapshot pair may still have `‖[d,τ]‖ = 0` if edges were only
+  ADDED, none severed — that is honest: `is_flat=True`, `nodes_added>0`. The point is a real comparison.)
 - **Falsifier:** `coherence_norm != len(severed)` live (a real assembly bug); OR the poset raises on the
   live chains (a rename-fork data defect — plan §10 → a codebase finding, NOT a swallowed False).
 - **Invariant(s):** read-only over live stores; the oracle is the direct severed-count, never a proxy.
@@ -315,10 +339,22 @@ backbone `A_cite` (`E_geom`) and the directed supersession arrows `E_disp` are N
 | Decision | Default recorded | Rejected alternatives | Re-entry |
 |---|---|---|---|
 | σ across two snapshots (appear/disappear) | restrict to the common node set; node deltas reported separately (§3 Q1) | augment X_{n+1} with isolated vertices so σ is total on all X_n (rejected: conflates citation-removal with node-departure) | if a consumer needs deletion-induced severing counted as coherence loss |
-| Which two anchors the live test compares | HEAD vs its git parent (both must carry corpus→corpus edges) | a fixed pair (rejected: brittle as the corpus grows); all-consecutive-pairs sweep (deferred: a longitudinal φ-stream, future) | when longitudinal coherence tracking is wanted (a φ_coh stream) |
+| Which two anchors the live test compares | the two most-recent **DISTINCT** citation snapshots (§3 Q4) | HEAD vs git-parent (REJECTED: the 6 latest commits are one identical snapshot — a trivially-empty compare); a fixed pair (rejected: brittle); all-consecutive-pairs sweep (deferred: the φ_coh stream) | when longitudinal coherence tracking is wanted (a φ_coh stream) |
 | Expose `π_active`/`t_active` (active-view compression) | NOT exposed (the anchor already gives `T=now`) | a `.active_view()` read returning the compressed cochain (deferred) | when a consumer needs the transported+compressed cochain, not just the norm |
 | Weighted severed count (a severed high-potential citation weighs more) | combinatorial (each severed edge weighs 1) | potential-weighted `‖[d,τ]‖` (TA-a/parked — needs the weighted `A_cite`) | the metric-coherence tier (Result 4) is built |
 | Which docs the poset covers | all versioned docs (`doc_ids=None`) | only X_cite nodes at an anchor (deferred: couples the two axes) | if a citation-scoped poset health is wanted |
+
+**Generalization affordances (owner constraint 2026-07-15 — on record so nothing forecloses the
+future).** `coherence_to(other)` is anchor- and stratum-agnostic; every generalization layers on the
+same API without a redesign: (1) **per-stratum coherence** — a code→code / code→corpus coherence is the
+same operators with a different `direction`; the ONLY change point is `build_citation_complex`'s
+hardcoded `direction="corpus_to_corpus"` (a future kwarg, not a rewrite). (2) **longitudinal / multi-rate
+tracking** — a `φ_coh` observation stream over the SEQUENCE of distinct snapshots (each stratum at its
+own rate), consuming `coherence_to`. (3) **corpus-time vs git-time** — the commit is only a label; a
+corpus-time index that dedups identical snapshots is a selection layer above the API. (4) **the σ policy**
+(restrict-to-common) is a *default*, not a lock — the augment alternative is a swap-in if a consumer
+needs deletion-induced severing. This plan's corpus-only, git-commit-anchored, combinatorial v1 is the
+FIRST instance, deliberately narrow, never a ceiling.
 
 ## 12. Dependency & ordering summary
 

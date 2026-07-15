@@ -20,6 +20,20 @@
 - **Not started** — proposed. Owner blesses `proposed→ready` by hand, then `/build bp-038`
   (opus, self-driven; no fable).
 
+## 2026-07-15 — AMENDED (owner design dialogue): snapshot semantics + generalization on record
+
+- Owner asked "we're comparing snapshots, not commits, right?" + "don't lock out generalization." Both
+  reconciled into the plan (still proposed, so editable):
+  - **§3 Q4 rewritten + Q6 added.** A commit is a time-LABEL for a FULL re-projected citation graph; the
+    doc-citation stratum moves slower than commits tick. **Live probe: the 6 most-recent commits are ONE
+    identical 217-pair snapshot** — so "HEAD vs git-parent" would compare identical snapshots (‖[d,τ]‖=0
+    trivially). CORRECTED: Item 3 selects the two most-recent **DISTINCT** snapshots.
+  - **§11 generalization affordances on record:** `coherence_to` is anchor/stratum-agnostic; per-stratum
+    (via a future `direction` kwarg on `build_citation_complex`), longitudinal `φ_coh` over distinct
+    snapshots, corpus-time-vs-git-time dedup, and the augment-σ alternative all layer on the same API —
+    corpus-only/git-anchored/combinatorial v1 is the FIRST instance, never a ceiling.
+- Still proposed; owner satisfied ("as long as we can generalize, I am good"). Awaits `proposed→ready`.
+
 ### Re-entry (for the builder, once blessed)
 - Start at **Item 1** (`_restrict` + `coherence_to`) — the heart; Item 2 (poset) is independent.
 - `TemporalView` is frozen + store-less (bp-037) — `coherence_to` compares two views via `other._complex`
