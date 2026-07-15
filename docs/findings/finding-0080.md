@@ -46,6 +46,14 @@ reading** and re-measures the 0/16 demo against the now-populated store (its Ite
 Left unrecorded, the stale note would send a future graduation to re-build an extractor that exists —
 wasted work — and mis-state the substrate size in any book chapter or downstream design.
 
+**MEASURED (bp-035 oracle, 2026-07-15).** The `ReferenceView` self-grading oracle put a number on the
+reconciliation: doc→doc full-path recall **227/228 = 0.996** (precision 228/230 = 0.991; doc→code(.py)
+recall 373/373 = 1.000; expanded bare-`finding-`/`dn-` prose surface 228/299 = 0.763 — the residual is
+sensor precision-gating, not a bug). Against the note's stale hand-demo of **0/16 = 0.000**, the doc→doc
+graph went from agent-invisible to 99.6%-faithful and reachable. (The delegated builder independently
+re-filed this reconciliation as `finding-0081`, not knowing this one existed — a same-session duplicate;
+0081 was dropped and its measured datum folded here.)
+
 ## Resolution (proposed)
 
 The note is ratified → **immutable (A8)**; it is never hand-edited to "fix" this. The finding IS the

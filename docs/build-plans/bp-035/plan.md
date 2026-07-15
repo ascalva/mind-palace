@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-035
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/core-query-protocol.md
 contract: builder
@@ -14,11 +14,23 @@ cost:
   estimate:
     model: opus
     tokens: 250k
-  actual: null
+  actual:
+    model: opus            # DELEGATED — one supervised builder in a worktree (owner-directed spawn)
+    tokens: ~145k          # the builder's measured subagent usage (145,175; 76 tool calls, ~30min)
+    ratio: ~0.58           # ~145k / 250k — UNDER estimate. Delegated but still under: a well-pinned
+                           # read-surface plan (§6 interfaces copied inline) let the builder execute
+                           # without re-deriving design; the padding-for-delegation margin didn't bite.
+    dollars: pending       # builder token count only; a fresh owner /usage is owed to price it + week_delta
+    session_delta: "delegated worker (not the orchestrator's session); orchestrator review+merge ~small"
+    week_delta: "pending fresh owner /usage (last relayed: week 86% pre-build; Fable 100% capped, unused)"
+    # Verified GREEN by the orchestrator independently: worktree pytest 1123 passed / 9 skipped / 0 failed
+    # on byte-identical code, legs 1-4 re-run (argless mypy 69 held — the new-tests tooth). Oracle
+    # measured doc→doc 0.996 (builder, symlinked store); skips at un-deployed HEAD (deploy-lag, expected).
 depends_on: []
 parallelizable_with: []
 created: 2026-07-14
-updated: 2026-07-14
+updated: 2026-07-15
+completed: 2026-07-15
 links:
   - docs/design-notes/core-query-protocol.md
   - docs/design-notes/temporal-retrieval-algebra.md
