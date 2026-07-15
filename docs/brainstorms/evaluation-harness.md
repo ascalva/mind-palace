@@ -145,10 +145,11 @@ longer the constraint. (Claude budget is NOT the constraint for RUNS — the dre
 
 ## 2026-07-15 — OWNER DECISIONS (via AskUserQuestion) — the Fable pass is queued
 
-- **WRITE AT FABLE, post-Jul-17 reset.** This capsule is the warrant; the consolidated design note
-  `dn-evaluation-harness` is written at Fable once the weekly Fable meter resets (Jul 17, 8pm ET). The
-  brainstorm→design fable-guard is satisfied by this being a Fable pass. Highest quality for the hardest
-  synthesis. (Opus-now was declined.)
+- **WRITE AT FABLE — NOW, on usage credits** (owner update 2026-07-15: "I have usage credits to design
+  the harness" — so the pass runs immediately on credits rather than waiting for the Jul-17 fable-weekly
+  reset). This capsule is the warrant; the consolidated note `dn-evaluation-harness` is written at
+  Fable+xhigh in a fresh session bootstrapped by `.claude/state/resume-brief.md`. The brainstorm→design
+  fable-guard is satisfied by this being a Fable pass. (Opus-now was declined in favor of Fable.)
 - **AUTOMATED-TUNING AUTONOMY = DESIGN BOTH, OWNER PICKS PER-LEVER.** The note specifies BOTH modes and
   makes per-lever autonomy a **config choice**: *measure+propose* is the default (the optimizer sweeps a
   lever grid, builds the curve, PROPOSES the curve-optimal value; every `set` is an owner §14 hand-
