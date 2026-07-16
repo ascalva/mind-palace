@@ -31,3 +31,33 @@
   (strip inline comments from write_scope globs; intent unchanged) + a `spec-defect` finding (the
   recurring 0071/0072/0075/0084 lineage — the /graduate skill should forbid inline comments on
   write_scope globs). Then resume Item 3 (metrics.py absorption) + Item 4.
+
+## 2026-07-15 — ALL 4 ITEMS DONE + 5-leg gate GREEN (build complete, awaiting orchestrator seal)
+
+- **Item 3 DONE** — `eval/metrics.py` absorbed (header cross-reference + `__all__`; signatures
+  unchanged); `tests/unit/test_metric_registry.py` 6 tests PASS (families resolve w/ correct
+  type/source/guardrail; fail-closed on unknown; dup-reject; regression-default; absorption additive).
+- **Item 4 DONE** — `tests/integrity/test_eval_isolation.py` 3 tests PASS: a transitive first-party
+  import-graph BFS proves (a) no path eval-store → `core.ingest`, (b) no touch of the mirror world
+  (`core.mirror`/`core.provenance`) ⇒ ∉ MIRROR_READABLE; + a negative control (the BFS *does* catch
+  `core/ingest/pipeline.py` reaching `core.ingest`), so green means isolation, not a broken scanner.
+- **5-LEG GREEN GATE (run SEPARATELY):**
+  1. ruff `.` — PASS (fixed 15 E501 in-session).
+  2. mypy `core agents eval ops scheduler scripts` — 0 issues, **190 files** (187→190 = +eval/harness
+     `__init__`/`store`/`registry`).
+  3. argless mypy — **69** UNCHANGED (the tooth HELD; the 5 test-only errors introduced were fixed:
+     `EvalResultsStore.path` widened to `Path | str` so `":memory:"` typechecks; one Optional-access
+     guarded).
+  4. `ops.type_gate` — OK (tier-2 membership + bare-ignore scan).
+  5. `pytest -q -m 'not live'` — **1183 passed / 7 skipped / 9 deselected (live)**, 0 failures; +14 new
+     (5 store + 6 registry + 3 isolation). Live dream-e2e deselected (real 27b, Ollama-contended,
+     finding-0069; the project's CI invocation deselects `live` too) — the deterministic + integration
+     tiers are fully green.
+- **Falsifiers all held:** same-key-diff-value → `put` returns False + first value preserved (append-
+  only); replay across REOPEN inserts 0; confounds separable one-component-at-a-time; absorption keeps
+  `recall_at_k` et al. bit-identical; the isolation BFS's negative control fires.
+- **Scope note:** hit + handled the write_scope inline-comment parse defect (finding-0085); one
+  orchestrator plan-fix commit (`e52151b`) unblocked, intent unchanged. bp-043/044/045 need the same
+  one-line cleanup before they build (tracked in 0085 + the resume brief).
+- **Next:** commit the build (Co-Authored-By — agent-authored code); orchestrator flips
+  `in-progress→complete` + seals `cost.actual`; then `/build bp-045`.
