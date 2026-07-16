@@ -45,7 +45,7 @@ from __future__ import annotations
 from collections.abc import Hashable, Iterable
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum, StrEnum
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════
 # Σ — the stratum-refinement forest R (dn-capability-scope §2.1; fable pass S1)
@@ -617,3 +617,59 @@ def rate_under[T](value: T, *, scope: Scope, clock: Clock) -> Rate[T]:
             f"but the scope is on {scope.time.clock.value!r} (dn-capability-scope §2.3)"
         )
     return Rate(value=value, clock=clock)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# Resolution typing — Res(π), Rule SCALE (dn-resolution-result-typing §2.2; bp-054 / FB-2)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+#
+# A THIRD result grade beside Inv/Rate — the ratified amendment `dn-resolution-result-typing` to
+# `dn-capability-scope` §2.3 (cited, never re-derived). A `Res(π)` is a value with NO clock but an
+# irreducible dependence on a declared RESOLUTION RULER — the range and grid it was measured over
+# (π). Where Inv sees one construction and Rate divides by an event-clock's index, `Res(π)` spans a
+# parameter family none of whose members changes what the client sees: the capability-invisibility
+# half (§2.2(ii)) is that π NEVER enters s = (Σ, E, T, A), never affects admissibility, and never
+# composes under meet/join — a proof obligation discharged by NOT writing that code (this module
+# stays vocabulary; nothing above changes). First inhabitant: `pers(χ) : Res(π_σ)` (dn-sigma-fibers
+# §2.3, the sigma_persistence.* family registered in eval/harness/registry.py).
+
+@dataclass(frozen=True)
+class ResParam:
+    """The RESOLUTION DESCRIPTOR π = (name, U, Γ): the parameter over (`"sigma"`, `"grain"`,
+    `"depth"`, ...), its declared range `U = [lo, hi]` (the ruler — e.g. cosine ∈ [0.55, 0.75]), and
+    its sampling `Γ` (`grid` — a grid id like `"Γ_21"` or an exact-partition tag like
+    `"exact-partition"`). Frozen so a `Res`'s π is an immutable part of its identity — two `Res`
+    values compare iff their π compare equal (`res_comparable`)."""
+
+    name: str
+    lo: float
+    hi: float
+    grid: str
+
+
+@dataclass(frozen=True)
+class Res[T]:
+    """A RESOLUTION-GRADED result (Rule SCALE) — a measurement of variation across a declared family
+    of constructions over one fixed event set. It carries π in its type and is NEVER a bare number:
+    the `param` field is REQUIRED, so a π-less Res is unconstructable (the §2.2(i) carriage law,
+    structural — mirroring `Rate`'s required `clock`). Comparable to another Res iff their π are
+    identical (`res_comparable`); cross-π comparison without a declared transport is refused (RT-a —
+    transport is parked, always a new measurement)."""
+
+    value: T
+    param: ResParam
+
+
+def res_under[T](value: T, *, param: ResParam) -> Res[T]:
+    """Rule SCALE (i) as a checked constructor — the `rate_under` analog: mint a `Res(π)` carrying
+    its resolution descriptor. The carriage law is structural (`param` is required), so a Res can
+    never be minted without its ruler; the round-tripping entry point instrument families call."""
+    return Res(value=value, param=param)
+
+
+def res_comparable(a: Res[Any], b: Res[Any]) -> bool:
+    """Rule SCALE comparability: two `Res` values compare iff their π are IDENTICAL (same name, same
+    declared range U, same grid Γ). Cross-π comparison without a declared transport is refused —
+    RT-a, the CS-f conservatism ("re-binning … is a new measurement", dn-capability-scope:171)
+    applied to rulers. π-identical only; nothing transports strengths across distinct rulers."""
+    return a.param == b.param

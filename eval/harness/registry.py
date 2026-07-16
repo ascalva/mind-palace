@@ -24,7 +24,9 @@ AssertionShape = Literal["regression", "absolute"]
 @dataclass(frozen=True)
 class MetricSpec:
     name: str
-    type_tag: str                       # "Inv" | "Rate(<clock>)"
+    type_tag: str                       # "Inv" | "Rate(<clock>)" | "Res(<param>)" (Rule SCALE,
+                                        # dn-resolution-result-typing §2.2 / §2.4 — the tag is a
+                                        # bare str; a Res(π) needs no schema change, bp-054)
     source_instrument: str              # a catalog row id (§2.3)
     comparability: str                  # which corpus_refs / anchors it may be compared across
     assertion_shape: AssertionShape     # regression-first (§2.5)
@@ -96,4 +98,56 @@ _BUILT: tuple[MetricSpec, ...] = (
 )
 
 for _spec in _BUILT:
+    register(_spec)
+
+
+# --- FB-2 (bp-054): the σ-fibers Res(π) family + the structural_axes A2 axes. -------------------
+# The first `Res(π)` inhabitant (Rule SCALE, dn-resolution-result-typing §2.2 / dn-sigma-fibers
+# §2.4.4): `sigma_persistence.*` carries type_tag "Res(sigma)" — a value with no clock but an
+# irreducible dependence on the σ ruler (declared range + grid).
+#
+# NAME AGREEMENT — why LITERALS here, not an import of FB-1's constants. `eval.harness.fibers`
+# exports the five names as constants (`METRIC_MEAN` … `METRIC_N_CLAIMS`) and the plan pins "import,
+# don't restring". But `fibers` imports `core.dreaming.shadow`, which imports THIS module
+# (`from eval.harness import registry`) — so a module-scope `from eval.harness.fibers import …` here
+# closes a registry→fibers→shadow→registry cycle that fails whenever fibers/shadow is the import
+# entry point (demonstrated: partially-initialized-module ImportError). Restructuring is impossible
+# (both edges live in read-only bp-050 files). RESOLUTION (finding on this build, spec-fidelity /
+# builder-resolved): register the exact literal names here — keeping `register`/`get`/`REGISTRY`
+# eager and cycle-free — and MACHINE-ENFORCE agreement in `tests/unit/test_registry_res.py`, which
+# imports the FB-1 constants and asserts `registry.get(METRIC_*)` resolves each. Any future drift in
+# fibers' names fails that test at CI — the finding-0086 failure class stays foreclosed, by test
+# rather than by an unsafe import.
+_SIGMA_COMPARABILITY = ("same corpus_ref, identical resolution descriptor π; never across "
+                        "grids/ranges without a declared transport")
+_FIBERS: tuple[MetricSpec, ...] = (
+    MetricSpec("sigma_persistence.mean", "Res(sigma)", "row15-sigma-fibers",
+               _SIGMA_COMPARABILITY, "regression", False),
+    MetricSpec("sigma_persistence.p50", "Res(sigma)", "row15-sigma-fibers",
+               _SIGMA_COMPARABILITY, "regression", False),
+    MetricSpec("sigma_persistence.max", "Res(sigma)", "row15-sigma-fibers",
+               _SIGMA_COMPARABILITY, "regression", False),
+    MetricSpec("sigma_persistence.frac_ge_strong", "Res(sigma)", "row15-sigma-fibers",
+               _SIGMA_COMPARABILITY, "regression", False),
+    MetricSpec("sigma_persistence.n_claims", "Res(sigma)", "row15-sigma-fibers",
+               _SIGMA_COMPARABILITY, "regression", False),
+)
+
+# row 6 — the dream_v2 A2 structural axes (`core/dreaming/shadow.py:232-243` writes
+# `structural_axes.<axis>`, axis ∈ latest_structural() = {frustration, min_conductance} —
+# `core/complex/temporal.py:82-86,188-197`). Inv (each is a count/scalar off one snapshot, no clock
+# divides in); guardrail_eligible=False — they FEED drift's A2 axes, they are not themselves a
+# guardrail (finding-0086 resolution: source_instrument = catalog row 6 / core/complex/temporal.py).
+# NOTE: FB-1's σ names are importable constants; shadow's structural_axes names are string literals
+# (no exported constant yet) — matched exactly here; factoring them into constants beside the axis
+# dict in temporal.py is a reasonable later tidy, not owed by this plan.
+_STRUCTURAL_AXES_COMPARABILITY = "same fixture / same pipeline; A2 axes over the scratch snapshot"
+_STRUCTURAL_AXES: tuple[MetricSpec, ...] = (
+    MetricSpec("structural_axes.frustration", "Inv", "row6-structural-axes",
+               _STRUCTURAL_AXES_COMPARABILITY, "regression", False),
+    MetricSpec("structural_axes.min_conductance", "Inv", "row6-structural-axes",
+               _STRUCTURAL_AXES_COMPARABILITY, "regression", False),
+)
+
+for _spec in (*_FIBERS, *_STRUCTURAL_AXES):
     register(_spec)
