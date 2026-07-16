@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-046
 alias: sweep-levers
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/evaluation-harness.md   # §2.6 the closed lever registry the manifest/sweep overlay; §2.9 the dual dreamers; §2.1 config_fingerprint
 contract: builder
@@ -16,7 +16,22 @@ cost:
   estimate:
     model: opus
     tokens: 120k
-  actual: null
+  actual:
+    model: opus
+    tokens: 80k          # builder subagent_tokens 80355
+    ratio: 0.67x         # 80k/120k — under estimate; slightly above the ~0.5x calibration
+                         # because an unforeseen retrofit surface (finding-0088, the bp-047
+                         # shipped-manifest test) forced an extra scrutiny+fix loop
+    dollars: 4.24        # opus; owner /usage delta at seal
+    session_delta: +5pt  # session 29% -> 34%
+    week_delta: 0pt      # week held at 6% (drew the weekly allowance)
+    credits_delta: 0     # credits UNCHANGED $122.94/$150 — a build draws the weekly allowance
+    sealed: 2026-07-16   # session 18
+    note: >
+      One delegated worktree builder (opus). Legs 1-4 green + falsifier verified on the
+      builder's own diff; leg 5 had one out-of-scope red (finding-0088) the builder correctly
+      filed rather than routed around. Orchestrator resolved it as a merge-scrutiny fix
+      (registry-faithful manifest test), gated fully green (1264 passed), merged --no-ff.
 depends_on: []
 parallelizable_with: []
 created: 2026-07-16

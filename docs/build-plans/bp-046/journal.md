@@ -84,3 +84,23 @@ post-bp-046 runs get the wider key. Expected — exactly why the σ-sweep is a f
 
 **Blessings:** none performed (no `proposed→ready` / `draft→ratified`). finding-0088 is `open`,
 routed to orchestrator.
+
+### 2026-07-16 (session 18) — SEALED, status→complete
+
+Orchestrator resolved the parked leg-5 criterion + merged. Actions:
+- Scrutinized the builder diff: the fingerprint IS derived from `ops.levers.LEVERS` (comprehension,
+  not a hardcoded list), keyed `<section>.<key>` (no cross-section collision), `getattr` fails loud;
+  lever bounds `[0.55,0.75]` FLOAT; the falsifier test asserts BOTH directions (registered σ moves
+  the fingerprint, unregistered `min_degree` does not). Correct and complete.
+- **finding-0088 RESOLVED** as a merge-scrutiny fix (orchestrator, outside the builder's write_scope):
+  made `test_shipped_manifest_loads_and_covers_every_lever` registry-faithful — `pol.subsystem ==
+  LEVERS[name].section` (matching its sibling `test_missing_file_...`) and `pol.objective in
+  {"f9_composite", None}`. The parked sub-question (an explicit `[tuning.dream_rnd_sigma]` block in
+  `config/tuning.toml`) stays deferred per §9. Committed `fd0f5ff` (no Co-Authored-By — orchestrator
+  correction, not builder code).
+- **Independent 5-leg gate on the merge tree: ALL GREEN** — ruff pass · mypy(dirs) 0 (199 files) ·
+  argless mypy **69** (HELD) · type_gate OK · pytest **1264 passed**, 0 failed, 10 skipped.
+- Merged `--no-ff` (`03a47df`), worktree + branch removed. cost.actual: ~80k/120k = **0.67×**.
+
+**Downstream now unblocked:** bp-049 (`sweep-engine`) `depends_on: [bp-046]` — it branches from a main
+that NOW carries `dream_rnd_sigma` + the widened `_config_fingerprint`. STEP 2 of the sequential build.
