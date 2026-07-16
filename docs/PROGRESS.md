@@ -3960,3 +3960,30 @@ diffs read directly), merged `--no-ff`, worktrees removed.
   Cross-strata ratification licenses no build (G1–G4 front it). oq-0027 → ANSWERED.
 - Next session (opus): /graduate wave 1 → owner blesses proposed→ready → build wave. /triage still
   owed (now incl. finding-0090).
+
+### session-19 graduation (2026-07-16) — 📐 EIGHT PLANS MINTED (bp-050..bp-057, all `proposed`) — the ratified quartet decomposed
+
+- /graduate performed in-session while the full design context was loaded (fresh-agent test: the next
+  orchestrator proceeds from artifacts alone). All plans `proposed` — **`proposed→ready` blessing is
+  the owner's, by hand, per plan.** Wave structure (disjoint write_scopes within each wave):
+  - **Wave 1 (parallel):** bp-050 `fibers-consumer` (FB-1; 240k est), bp-051 `spine-skeleton` (GC-1;
+    240k), bp-052 `velocity-pair` (dn-velocity-instruments §3.1; 180k).
+  - **Wave 2 (parallel, after deps):** bp-053 `clock-maps` (GC-2 + N_s; dep bp-051; 200k), bp-054
+    `res-typing-registry` (FB-2: Res[T]/res_under + sigma_persistence.* + structural_axes.* — RESOLVES
+    finding-0086; dep bp-050; 180k).
+  - **Wave 3 (parallel):** bp-055 `certified-cuts` (GC-3; dep bp-053; Scope.cut UNTOUCHED — the
+    CertifiedCut rides the opaque Hashable, keeping scopes disjoint; 180k), bp-056 `tmeet-completion`
+    (GC-4; dep bp-053; the ClockAtlas Protocol seam keeps core/scope.py pure-core; atlas impl in NEW
+    core/temporal/atlas.py for parallel-safety; HIGHEST scrutiny — merge last, orchestrator xhigh
+    line-by-line; 200k), bp-057 `sigma-gate` (FB-3; deps bp-050+bp-054; SHIPS ONLY IF the three F9
+    criteria hold — park-and-record is a sanctioned outcome; 220k).
+- **Test spine per wave:** every plan carries acceptance + named falsifiers; integrity teeth grow by
+  spine-acyclicity (051), clock-laws-on-real-stores (053), cut-soundness (055); bp-056's cardinal
+  falsifier = tests/unit/test_scope.py green WITH ZERO EDITS (bit-identical legal meets — the owner's
+  ratification condition, executable). 5-leg gate after every merge; suite grows from 1287.
+- **Tier ruling for the wave (owner proposed opus/xhigh; orchestrator concurs with refinement):**
+  orchestrator session opus/xhigh (supervision + merge scrutiny — the 0.61-0.67× pattern); delegated
+  BUILDERS opus at standard effort (well-pinned plans don't need xhigh workers); bp-056's merge review
+  is the one xhigh-mandatory scrutiny point. PRE-FLIGHT: owner relays /usage; pad Σ-estimates ~1.6×;
+  wave 1 ≈ 660k est ⇒ ~1.06M padded — start after the Jul-17 weekly reset for a full allowance.
+- Total estimate: 8 plans, ~1.62M tokens raw (≈2.6M padded) across 3 waves — 2-3 orchestrator sessions.
