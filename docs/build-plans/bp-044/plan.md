@@ -28,7 +28,7 @@ cost:
     model: opus
     tokens: ~120k
     ratio: ~0.60
-    dollars: null
+    dollars: ~8          # APPROX per-plan share of the $25.01 session; drew ZERO credits (weekly-covered)
     session_delta: "DELEGATED supervised build (worktree-agent-a00b8478152789f5f). Builder
       self-reported usage: 119,511 tokens, 75 tool-uses, ~13.4 min wall (805,488 ms), model
       claude-opus-4-8, single continuous pass (no fable/xhigh, not interrupted/degraded). ~120k /
@@ -36,7 +36,9 @@ cost:
       E1/E2 surfaces + one additive telemetry table; no rework beyond two trivial ruff/test fixes).
       Orchestrator supervision (review + independent 5-leg gate + merge) is additional main-loop
       context not counted here. Dollar/session-delta backfill owed from owner /usage at session end."
-    week_delta: "week opened at 1% (owner /usage, session start); backfill the delta at session end"
+    week_delta: "MEASURED (owner /usage, session end): whole session $25.01, week 1%->3% (+2%) for
+      BOTH delegated builds + supervision; ZERO usage credits drawn (81% UNCHANGED, weekly-covered).
+      ~$8 is bp-044's honest share (smaller pure-renderer build + lighter review than bp-043)."
     loc: "~913 added (report 360 + sparkline ~55 + scripts/report ~50 + telemetry +44 + 3 test files
       ~400 + journal); telemetry.py the ONLY existing-code touch — strictly additive (SCHEMA_VERSION
       2->3, new harness_cost table + record/reader; existing tables/tests untouched)"

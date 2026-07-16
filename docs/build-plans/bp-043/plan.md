@@ -31,7 +31,8 @@ cost:
     model: opus
     tokens: ~180k
     ratio: ~0.82
-    dollars: null
+    dollars: ~13         # APPROX per-plan share of the $25.01 session (larger build + first-delegation
+                         # setup + finding-0086 review); drew ZERO credits (weekly-covered)
     session_delta: "DELEGATED supervised build (worktree-agent-a382dc69444c1797a). Builder
       self-reported usage (completion notification): 180,003 tokens, 89 tool-uses, ~20.5 min
       wall (1,227,159 ms), model claude-opus-4-8, single continuous pass (no fable/xhigh, not
@@ -41,7 +42,10 @@ cost:
       so little rediscovery. Orchestrator supervision (review + independent 5-leg gate + merge)
       is additional main-loop context not counted here. Dollar/session-delta backfill owed from
       an owner /usage read at session end (bp-042 precedent, commit 6aa6fa6)."
-    week_delta: "week opened at 1% (owner /usage, session start); backfill the delta at session end"
+    week_delta: "MEASURED (owner /usage, session end): whole session $25.01 / 239.4k opus output,
+      week 1%->3% (+2%) for BOTH delegated builds + all orchestrator supervision; drew ZERO usage
+      credits (81%/$122.94 UNCHANGED — weekly-covered, same as the bp-042/045 session). Per-plan $
+      is an honest split, not an isolated measurement (bp-039/bp-042 precedent)."
     loc: "~1046 added (runledger 205 + shadow 260 + cron +23 + 3 test files ~397 + journal 113 +
       finding-0086 48); 0 existing runtime lines changed (cron.py purely additive — enqueue_dream/
       dream_handler/cron_handlers untouched, the whole-plan falsifier)"
