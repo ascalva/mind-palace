@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from core.attestation.record import Attestation
+from core.attestation.store import AttestationStore
 from core.complex_types import EdgeSign
 from core.stores.edges import EdgeStore
 from core.stores.runledger import RunLedger
@@ -141,6 +143,51 @@ def test_referenceless_cross_store_pair_is_concurrent() -> None:
     v = _find_ref(spine, "versions", "DV")
     edge_ev = _find_ref(spine, "edges", e.edge_id)
     assert spine.order(v.event_id, edge_ev.event_id) is Order.CONCURRENT
+
+
+def _raw_att(*, action: str, inputs: list[str], outputs: list[str]) -> Attestation:
+    return Attestation.create(timestamp="t", agent_role="r", action=action,
+                              constitution_fingerprint="f", input_hashes=inputs,
+                              output_hashes=outputs)
+
+
+def test_mutual_hash_attestations_do_not_cycle() -> None:
+    """Regression for the live-corpus 1467-event SCC: two attestations that MUTUALLY share
+    input/output hashes must not create producer↔consumer edges in both directions. §2.8-5:
+    attestation order is the derived_from_ids DAG, not the raw output/input hash coincidence."""
+    store = AttestationStore(_MEM)
+    a = _raw_att(action="a", inputs=["H2"], outputs=["H1"])
+    b = _raw_att(action="b", inputs=["H1"], outputs=["H2"])   # each produces what the other inputs
+    store.append(a)
+    store.append(b)
+    spine = Spine.derive(SpineSources(attestations=store))    # must NOT raise SpineCycleError
+
+    a_ev = next(iter(spine.producers_of({a.id})))
+    b_ev = next(iter(spine.producers_of({b.id})))
+    g2 = {(ed.src, ed.dst) for ed in spine.generators() if ed.gen == "g2"}
+    assert (a_ev, b_ev) not in g2 and (b_ev, a_ev) not in g2   # shared hashes ≠ provenance edges
+    # order is well-defined and consistent (the g1 append chain) — never a cycle
+    assert spine.order(a_ev, b_ev) is Order.BEFORE
+    assert spine.order(b_ev, a_ev) is Order.AFTER
+
+
+def test_shared_hub_hash_creates_no_spurious_attestation_edges() -> None:
+    """A hub hash output by ≥2 attestations AND consumed by ≥2 others (shared mutable state, not a
+    write-once mint) must create NO attestation↔attestation edges — only derived_from_ids orders
+    attestations (§2.8-5). This is the exact shape the live corpus collapsed into an SCC."""
+    store = AttestationStore(_MEM)
+    for att in (_raw_att(action="p1", inputs=["s1"], outputs=["HUB"]),
+                _raw_att(action="p2", inputs=["s2"], outputs=["HUB"]),
+                _raw_att(action="c1", inputs=["HUB"], outputs=["o3"]),
+                _raw_att(action="c2", inputs=["HUB"], outputs=["o4"])):
+        store.append(att)
+    spine = Spine.derive(SpineSources(attestations=store))     # no cycle
+
+    att_ids = {e.event_id for e in spine.events() if e.store == "attestations"}
+    g2_among_atts = [(ed.src, ed.dst) for ed in spine.generators()
+                     if ed.gen == "g2" and ed.src in att_ids and ed.dst in att_ids]
+    assert g2_among_atts == []                                 # HUB creates no att↔att edge
+    assert spine.report().refs_without_producer >= 1           # HUB consumers resolve to no minter
 
 
 def test_forged_ref_is_dropped_never_fabricated() -> None:
