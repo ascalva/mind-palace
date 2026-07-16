@@ -38,6 +38,7 @@ from typing import TYPE_CHECKING, ClassVar
 import numpy as np
 import scipy.sparse as sp
 
+from core.complex.hodge import edge_index, harmonic_basis
 from core.scope import (
     ANCHOR,
     Authority,
@@ -80,6 +81,53 @@ class CoherenceReport:
     is_flat: bool                          # ‖[d,τ]‖ == 0 ⟺ every common-node citation carried fwd
     nodes_added: int                       # |X_{n+1}.nodes \ X_n.nodes| — the node-delta axis
     nodes_dropped: int                     # |X_n.nodes \ X_{n+1}.nodes|
+
+
+@dataclass(frozen=True)
+class RotationReport:
+    """The harmonic-subspace rotation between an earlier snapshot (n) and a later one (n+1) — the
+    metric complement of `‖[d,τ]‖` (dn-velocity-instruments §2.2 (a); TRA Result 4: chain maps
+    transport homology, not kernels, made measurable). The **principal angles** between
+    `ker L₁(X_cite,n | common)` and `ker L₁(X_cite,n+1 | common)`, restricted to the notes present
+    at BOTH commit anchors (the `_restrict`-to-common pattern `CoherenceReport` uses). It measures
+    how the *thread structure reorients* even when the thread *count* (β₁) is unchanged.
+
+    **Type `Inv`** (a subspace-geometry value on the two anchors' event sets — no clock division;
+    the report never divides by a clock). Both SHAs are recorded — an `Inv` carries its anchors.
+
+    The honest seam (no fabricated geometry): β₁ = 0 at either anchor ⇒ `principal_angles == ()` and
+    `empty_reason` is set — there is no thread structure to rotate, so nothing is emitted. Identical
+    snapshots ⇒ all angles 0."""
+
+    anchor_a: str                          # earlier commit SHA (X_n)
+    anchor_b: str                          # later commit SHA (X_{n+1})
+    n_common: int                          # |X_n.nodes ∩ X_{n+1}.nodes| — the measured domain
+    beta1_a: int                           # dim ker L₁(X_n | common)
+    beta1_b: int                           # dim ker L₁(X_{n+1} | common)
+    principal_angles: tuple[float, ...]    # radians, ascending; () when β₁ == 0 at either anchor
+    empty_reason: str | None               # the honest seam — never fabricated geometry
+
+
+def _principal_angles(
+    q_a: np.ndarray, idx_a: dict[tuple[int, int], int],
+    q_b: np.ndarray, idx_b: dict[tuple[int, int], int],
+) -> tuple[float, ...]:
+    """Principal angles (radians, ascending) between the column spaces of two orthonormal harmonic
+    bases `q_a`, `q_b`, each keyed by an edge→row map (`edge_index` of the same-node-ordered
+    restricted complex). Both bases are zero-embedded into the UNION edge space over the common
+    nodes; zeros preserve orthonormality, so the singular values of `Qaᵀ Qb` are exactly the cosines
+    of the principal angles (min(β₁ₐ, β₁_b) of them). Deterministic — dense numpy SVD, no seed."""
+    union = sorted(set(idx_a) | set(idx_b))
+    union_index = {edge: k for k, edge in enumerate(union)}
+    emb_a = np.zeros((len(union), q_a.shape[1]))
+    for edge, row in idx_a.items():
+        emb_a[union_index[edge]] = q_a[row]
+    emb_b = np.zeros((len(union), q_b.shape[1]))
+    for edge, row in idx_b.items():
+        emb_b[union_index[edge]] = q_b[row]
+    cos_sv = np.linalg.svd(emb_a.T @ emb_b, compute_uv=False)
+    angles = np.arccos(np.clip(cos_sv, 0.0, 1.0))
+    return tuple(sorted(float(theta) for theta in angles))
 
 
 def _restrict(cx: CitationComplex, keep: set[str]) -> CitationComplex:
@@ -189,6 +237,42 @@ class TemporalView:
             nodes_dropped=len(nodes_n - nodes_np1),
         )
 
+    def rotation_to(self, other: TemporalView) -> RotationReport:
+        """Harmonic-subspace rotation from THIS view (earlier, X_n) to `other` (later, X_{n+1}) —
+        the principal angles between `ker L₁(X_n | common)` and `ker L₁(X_{n+1} | common)`
+        (dn-velocity-instruments §2.2 (a)). Both complexes are restricted to the common node set
+        (the same `_restrict` pattern `coherence_to` uses); because `_restrict` sorts the common
+        nodes identically for both, the two restricted complexes share a node ordering and their
+        harmonic bases are keyed by comparable integer edge pairs.
+
+        Reads only the two views' assembled complexes (same-class private access) — no store handle.
+        The honest seam: β₁ = 0 at either anchor ⇒ empty report with `principal_angles == ()` and a
+        recorded reason (no fabricated geometry). Deterministic, model-free, `Inv` (no clock)."""
+        cx_n, cx_np1 = self._complex, other._complex
+        common = set(cx_n.nodes) & set(cx_np1.nodes)
+        restricted_n = _restrict(cx_n, common)
+        restricted_np1 = _restrict(cx_np1, common)
+
+        q_a = harmonic_basis(restricted_n.A_cite)
+        q_b = harmonic_basis(restricted_np1.A_cite)
+        beta1_a, beta1_b = int(q_a.shape[1]), int(q_b.shape[1])
+
+        if beta1_a == 0 or beta1_b == 0:
+            zero_at = [name for name, b in (("anchor_a", beta1_a), ("anchor_b", beta1_b)) if b == 0]
+            return RotationReport(
+                anchor_a=self.commit, anchor_b=other.commit, n_common=len(common),
+                beta1_a=beta1_a, beta1_b=beta1_b, principal_angles=(),
+                empty_reason=(f"β₁=0 at {', '.join(zero_at)}: no citation-thread structure to "
+                              "rotate (honest seam — no fabricated geometry)"),
+            )
+
+        angles = _principal_angles(
+            q_a, edge_index(restricted_n.A_cite), q_b, edge_index(restricted_np1.A_cite))
+        return RotationReport(
+            anchor_a=self.commit, anchor_b=other.commit, n_common=len(common),
+            beta1_a=beta1_a, beta1_b=beta1_b, principal_angles=angles, empty_reason=None,
+        )
+
 
 def open_temporal_view(config: Config | None = None, *,
                        commit: str | None = None) -> TemporalView:
@@ -221,6 +305,23 @@ def open_coherence(config: Config | None = None, *,
     view_from = TemporalView.over(store, commit=commit_from)
     view_to = TemporalView.over(store, commit=commit_to)
     return view_from.coherence_to(view_to)
+
+
+def open_rotation(config: Config | None = None, *,
+                  commit_from: str, commit_to: str) -> RotationReport:
+    """Factory: open the reference store once and compute the harmonic-subspace rotation between the
+    citation snapshots at `commit_from` (earlier, X_n) and `commit_to` (later, X_{n+1}) — the
+    principal angles between their `ker L₁ | common` (dn-velocity-instruments §2.2 (a)). Mirrors
+    `open_coherence`: both views are built off the SAME store handle (then discarded); the returned
+    report holds no store reference."""
+    from config.loader import get_config
+    from core.stores.reference_edges import open_reference_edge_store
+
+    cfg = config or get_config()
+    store = open_reference_edge_store(cfg)
+    view_from = TemporalView.over(store, commit=commit_from)
+    view_to = TemporalView.over(store, commit=commit_to)
+    return view_from.rotation_to(view_to)
 
 
 def supersession_wellfounded(config: Config | None = None, *, doc_ids: list[str],
