@@ -3476,3 +3476,58 @@ portable backstop):
   working-tree status, so flipping `status` first locks the file before `superseded_by` lands.)
 - **Next: `/graduate dn-evaluation-harness` at OPUS** (design done; graduation is template work —
   fable reserved for design/gates, and fable weekly is 100%). E1 (eval-results store + registry) first.
+
+## 2026-07-15 — `/graduate dn-evaluation-harness` → the milestone-1 tranche minted (bp-042..bp-045, proposed)
+
+- Graduated by the orchestrator (OPUS, self-driven — no subagents; the /usage note flags subagent-heavy
+  sessions as 46% of spend, and graduation is orchestrator work). Owner chose **"Graduate now"** with
+  /usage in front of them (week 95%, credits 81% $122.94/$150, fable 100%; all reset Jul 17 8pm ET).
+- **Decomposition judgment (transparent, not a silent cap):** graduated only the **milestone-1 critical
+  path** — the four plans that compose the first overnight dual-dreamer A/B (§3 sequencing `E1 → {E2, E4}`
+  + `E5(A2)`). The downstream tranche (E3a, E3b, E5-rest, E6, E7, E8) has its boundaries fixed by §3 but
+  grounds far better AFTER E1/E2 land (E3a must pin against the store's *built* surface, not design-only)
+  — so it graduates in a follow-up slot post-E1/E2 (and post Jul-17 reset). Honors "boundaries decided
+  with the whole note in view" (they are, §3) without spending thin opus grounding plans that sit weeks.
+- **Minted (all `proposed`, journals alive):**
+  - **bp-042 `eval-results-store` (E1, keystone)** — DuckDB store, §2.1 key, append-only-**by-key**
+    (resumability + honest comparison), the metric registry, absorbs `eval/metrics.py`, the eval-isolation
+    integrity tooth. Items 1–4. Opus 200k est. `depends_on: []`. Builds FIRST.
+  - **bp-043 `run-ledger-shadow` (E2 + the run-producer role)** — SQLite/WAL `dream_runs`+`dream_claims`,
+    content-addressed `claim_id`, `novel`-on-insert; `ShadowRunner` (both pipelines, one snapshot) writing
+    claims → ledger AND registered metric readings (guardrails + dream_v2 `structural_axes.*`) → the E1
+    eval store; shadow trough job + isolation tooth. Items 5–7. Opus **260k** est. `depends_on: [bp-042]`,
+    `parallelizable_with: [bp-044]`.
+  - **bp-044 `harness-report` (E4)** — deterministic model-free renderer (`data/reports/`, markdown+JSON
+    one-model-two-renderings, terminal sparklines, drift study, A/B tables) + the cost ledger (a
+    `harness_cost` table in telemetry.duckdb, SCHEMA_VERSION 2→3, additive). Items 8–10. Opus 200k est.
+    `depends_on: [bp-042, bp-043]`.
+  - **bp-045 `wire-snapshot-a2` (E5(A2) slice)** — the ONE-kwarg wiring of `snapshots=open_snapshot_store`
+    into `build_dreamer` so dream_v2 step-10 fires; phase7 bit-identical. Item 11. Opus 60k est.
+    `depends_on: []`, `parallelizable_with: [all]`. Buildable first (a good tiny first build).
+- **Key graduation decisions (documented in the plans):**
+  1. **The §3-vs-§2.9 soft seam, resolved** (bp-043 §1): the milestone A/B is the **single-config**
+     dual-pipeline comparison (E1+E2+E5(A2)+E4, "one snapshot"); the σ-**grid** version
+     (`sweep.dreamer-sigma-ab`) is E3a's declarative sweep engine, deferred. So **E2's ShadowRunner is the
+     harness's run PRODUCER** — it writes through the eval store ("everything writes through it", §2.2),
+     hence bp-043 → bp-042.
+  2. **A2 per-run keying WITHOUT a schema change** (bp-043 Q6): `StructuralSnapshot` has no config/run key,
+     so the runner reads `SnapshotStore.latest_structural()` and writes keyed `structural_axes.*` `Reading`s
+     into the eval store; `structural.duckdb` unchanged; attribution lives in the §2.1 key.
+  3. **E5(A2) kept standalone (bp-045)**, not folded into bp-043 — buildable first/parallel, avoids
+     renumbering. The rest of E5 (CoherenceReport caller, adjudicator panel, effector_drift → reports) is
+     the deferred **E5-rest** plan (report enrichments; depends on E1+E4 built).
+- **DEFERRED tranche (boundaries fixed by §3; graduate post-E1/E2, post-reset):** E3a (sweep engine
+  propose-mode; needs E1) · E3b (bounded auto-apply; only after propose-mode blessed sets) · **E5-rest**
+  (CoherenceReport replay-pair caller + adjudicator confidence panel + effector_drift report-only axis;
+  needs E1+E4) · E6 (review REPL; verdict store already built) · E7 (longitudinal + F4 + Θ-calibration) ·
+  E8 (capability batteries; instance #1 first; P1 codegraph its own plan). Also align **dn-velocity-
+  instruments** graduation with E5/catalog rows 9–10 (RotationReport + alive/stale discriminator) and
+  **dn-temporal-geometry** (demon-vs-source = catalog row 12, R-gated).
+- **bp-041 RESERVED** (not authored) — wire dream_v2 LIVE replacing Phase-7; graduate AFTER the owner sees
+  the first A/B report. bp-040 stays `proposed`/subsumed (re-derives as `sweep.dreamer-sigma-ab` under E3a).
+- Docs-only session (build plans + journals) — **no gate run needed** (A4: graduation implements nothing).
+  Nothing built, no status flipped. Plan board: complete=bp-000..bp-039; proposed=bp-040 (subsumed),
+  **bp-042, bp-043, bp-044, bp-045**; ready/in-progress=none.
+- **Next:** owner blesses `proposed→ready` (by hand) for the tranche — recommend order bp-042 → bp-045 →
+  bp-043 → bp-044 (bp-042 keystone; bp-045 tiny/independent; bp-043 needs bp-042; bp-044 needs both). Then
+  `/build` or delegate (pre-flight budget gate first — opus week thin at 95% until Jul 17).

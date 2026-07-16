@@ -101,6 +101,23 @@ non-decision condition (data accretion, an owner ruling, the Fable cap).
 | VF-duality | distant-correlation ⟺ low-graph-frequency | brainstorm; **formalized** pass V4 | parked (formalized: HALF a theorem — forward holds, converse REFUTED; the cheap test stands) | → VF-covar, → L-a | VF-covar built |
 | VF-residual | prediction-residual = live creative signal | brainstorm; **formalized** pass V6 | parked (formalized: Kalman innovations; by TRA R6 supported on injection events; **provenance-decomposable r_owner + r_dreamer by construction** — demon-vs-source now a specified experiment; attribution design rides DD-1's charter) | → R3, → R4 | the evolution operator is fit |
 
+### Evaluation harness — `dn-evaluation-harness` (ratified 2026-07-15; §3 E1–E8 + parked EH-a…EH-k)
+| id | item | home | status | depends on | re-entry / trigger |
+|---|---|---|---|---|---|
+| EH-milestone1 | the first overnight dual-dreamer A/B (single-config) | note §2.9/§3 | **graduated 2026-07-15** → bp-042 (E1) + bp-043 (E2) + bp-044 (E4) + bp-045 (E5(A2)), all `proposed` | → owner blesses the 4 plans `proposed→ready` | owner bless → /build (order bp-042→bp-045→bp-043→bp-044) |
+| EH-E3a | sweep engine, propose-mode (σ-grid, admissibility, `TuningProposal`) | note §2.6 / §3 E3a | parked — deferred tranche | → E1 built (pin against the store's *built* surface) | bp-042 lands → graduate E3a |
+| EH-E3b | bounded auto-apply (per-lever `autonomy`, derived `SAFE_LEVERS`, cooldowns, rollback) | note §2.6 / §3 E3b | parked — deferred tranche | → E3a propose-mode has produced owner-blessed sets | trust the loop before arming it |
+| EH-E5rest | CoherenceReport replay-pair caller + adjudicator confidence panel + effector_drift report-only axis | note §3 E5 (rows 8/11/7) | parked — deferred tranche (the report enrichments; E5(A2) already graduated as bp-045) | → E1 + E4 built | bp-042 + bp-044 land → graduate E5-rest |
+| EH-E6 | review REPL + probes (verdict store already built) | note §3 E6 / Track L L2 | parked — deferred tranche | → E2 (claims to judge) | bp-043 lands + owner wants the L2 loop |
+| EH-E7 | longitudinal metrics + F4 + Θ-calibration; `tests/longitudinal/` tenant | note §3 E7 / Track L L5 | parked — deferred tranche | → weeks of E2/E6 data; EH-e (4 wks) | verdicts accrue → the `precision@review` upgrade (EH-c) |
+| EH-E8 | capability batteries (instance #1 first; P1 codegraph its own plan) | note §3 E8 / capability annex §5 | parked — deferred tranche | → E1 + P1–P4 prereqs; EH-h (RAG corpus) | E1 lands + battery prereqs met |
+| EH-c | headline objective `f9_composite` → `precision@review` | note §2.6 / parked EH-c | parked | → L2 verdict count ≥ floor (set at E7 graduation) | E7 sets the floor, verdicts cross it |
+| EH-e | Θ auto-calibration (propose from p99 healthy variance) | note parked EH-e | parked | → 4 weeks of longitudinal curves (E7) | 4 wks accrue → harness proposes, owner blesses in baseline.json |
+| bp-041 | wire dream_v2 LIVE, replacing Phase-7 | resume-brief / PROGRESS | **reserved** (not authored) | → owner sees the first A/B report | milestone-1 built + run + owner reads the σ/A2 report |
+| bp-040 | `sweep.dreamer-sigma-ab` (the σ-grid A/B) | bp-040 (subsumed) | parked — re-derives under E3a, never standalone | → E3a (sweep engine) | E3a graduates → this is its first sweep spec |
+| (align) | dn-velocity-instruments RotationReport + alive/stale discriminator = catalog rows 9–10 | `dn-velocity-instruments` §3.1 | parked — align with E5/catalog at graduation | → ratified (it is) + E5-rest graduation | fold into the E5-rest / catalog graduation |
+| (align) | dn-temporal-geometry demon-vs-source = catalog row 12 | `dn-temporal-geometry` §2.2 | parked — R3/R4-gated | → R3/R4 series + owner gate | the harness hosts the protocol; the *run* is owner-gated |
+
 ### External conditions (not decisions — the roots the chains hang from)
 - **(ext) sample depth** — data accretion over commits; the root of the whole R-ladder + every VF-*.
   The corpus is YOUNG (2026-07-15 census: 234 distinct doc→doc pairs / 113 nodes) — likely below R1's
