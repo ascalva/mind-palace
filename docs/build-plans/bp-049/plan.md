@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-049
 alias: sweep-engine
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/evaluation-harness.md   # §2.6 the sweep spec + deterministic optimizer; §2.8 overnight profile; §2.9 sweep.dreamer-sigma-ab (bp-040 re-derived)
 contract: builder
@@ -17,7 +17,22 @@ cost:
   estimate:
     model: opus
     tokens: 240k
-  actual: null
+  actual:
+    model: opus
+    tokens: 148k         # builder subagent_tokens 147581
+    ratio: 0.61x         # 148k/240k — well pinned; the §6 inline interfaces + §8 field-guide
+                         # made the driver/emission/selection seams unambiguous
+    sealed: 2026-07-16   # session 18
+    note: >
+      One delegated worktree builder (opus). Orchestrator scrutinized the load-bearing logic
+      directly: the §8 select() (plateau-center, grid-adjacency via grid_index so a removed cell
+      breaks a plateau, least-motion tie-break) with an adversarial peak-chasing falsifier test;
+      admissibility applied BEFORE argmax (lexicographic) with a not-captured refuse-to-emit path;
+      PROPOSED-only emission (status/approver/executed_at all asserted None, disabled→zero rows);
+      one shared eval store + run ledger reused across cells. Independent 5-leg gate green
+      (1287 passed, 23 new). finding-0089 (multi-pipeline selection) resolved in-scope by the
+      builder (recorded select_pipeline default), left open as a design-note question for /triage.
+      Dollar/week deltas fold into the session-18 aggregate (relay at session end).
 depends_on: [bp-046]
 parallelizable_with: []
 created: 2026-07-16

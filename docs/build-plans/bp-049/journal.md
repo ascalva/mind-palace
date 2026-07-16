@@ -90,4 +90,34 @@ CARDINAL FALSIFIER covered: singleton max + wider near-optimal plateau → plate
   (status PROPOSED, approver None, executed_at/resolved_at None).
 - Emission gates on `selfmod_loop.config.selfmod.enabled` — never forces the switch.
 - Finding-0089 (spec-fidelity, open) records the select-pipeline ambiguity + the recorded default.
+  (The one "finding-0090" mention at §Grounding is a typo — the filed finding is 0089.)
 - Committed on `build/bp-049`. Orchestrator merges after scrutiny (do NOT merge here).
+
+### 2026-07-16 (session 18) — SEALED, status→complete
+
+Orchestrator scrutinized the load-bearing logic DIRECTLY (not just the builder's report):
+- **§8 `select()`** — read verbatim: inadmissible dropped before `M` (lexicographic), near-optimal
+  `P` within ε, partitioned into maximal runs of grid-ADJACENT points via `grid_index` (so a removed
+  inadmissible/non-near cell correctly breaks a plateau — the subtle-but-right choice), longest run's
+  median-grid-point center, least-motion tie-break, ≤3 degenerates to argmax. The adversarial
+  peak-chasing test (`test_flat_top_selects_plateau_center_not_first_max`) puts a 1.0 singleton beside
+  a 0.99×3 plateau and asserts the plateau center wins; the minimize variant puts a lower 0.05
+  singleton against a wider 0.10 plateau. Genuinely adversarial, not tautological.
+- **Admissibility BEFORE argmax** (`optimize`): per-cell `golden_recall` vs baseline builds the
+  `admissible` flag; `select` re-filters before `M`. Not-captured (no retriever → no golden_recall)
+  short-circuits to `selected=None`, `proposal_emitted=False`, refusing to emit on an unguarded curve.
+- **PROPOSED-only**: emission gated on `selfmod.enabled`; `propose(ProposedChange(...))` → one PROPOSED
+  row; the test asserts status PROPOSED, approver/executed_at/resolved_at all None, and disabled→zero
+  rows. Nothing auto-approves/executes.
+- **One shared store + ledger** reused across cells (verified the injection); resumability is the
+  store's dedup, engine never re-keys.
+- **Independent 5-leg gate on the merge tree: ALL GREEN** — ruff · mypy(dirs) 0 (201 files) · argless
+  mypy **69** (HELD) · type_gate OK · pytest **1287 passed**, 10 skipped (1264 + 23 new).
+- Merged `--no-ff` (`0f5f5c3`), worktree + branch removed. cost.actual ~148k/240k = **0.61×**.
+- **finding-0089 left OPEN** — the build proceeds on a defensible recorded default (`select_pipeline`
+  = the dream_v2 lane the σ lever drives); the open question (make selection-pipeline first-class in
+  design-note §2.6, derive from a lever→pipeline map) is a design-layer question owed to /triage.
+
+**Sequential sweep-engine build COMPLETE (both STEP 1 bp-046 + STEP 2 bp-049 merged + sealed).** The
+σ-sweep can now RUN (owner/scheduler act; needs `[selfmod] enabled` to emit the proposal) → closes
+oq-0024's VALUE axis + feeds bp-041 (wire dream_v2 live, owner-gated).
