@@ -3714,3 +3714,24 @@ portable backstop):
   reserved=bp-046 (E3a-1); ready/in-progress=none.
 - **Next:** owner blesses bp-047 + bp-048 `proposed→ready` (by hand) → delegate as parallel supervised
   builders (disjoint write_scope). Graduate E3a-1 (bp-046) from a fresh context against the resolved fork.
+
+### 2026-07-16 (session 17) — THE BUILD WAVE: owner blessed bp-047+bp-048 → ready; bp-047 SEALED (delegated)
+
+- Owner blessed bp-047 + bp-048 `proposed→ready` by hand (commit `f0ab085`) — the build wave armed.
+  Orchestrator flipped both `ready→in-progress` + committed FIRST (`dc4eae9`), then spawned TWO parallel
+  supervised builders in isolated worktrees (disjoint write_scope; opus, inherited session tier).
+- **Pre-flight budget gate cleared:** owner /usage week (all models) 4% (resets Jul 17), credits $27.06
+  left (resets Aug 1). Builds draw the weekly subscription allowance (abundant), not the credit pool.
+- **bp-047 `tuning-manifest` (E3a-2) — SEALED, complete.** Items 15 (`eval/harness/tuning.py` manifest
+  model + loader + order-insensitive resolved fingerprint; `config/tuning.toml`) + 16 (`scripts/tune.py`
+  attended `show`/`set`/`history`/`--revert` over the BUILT §14 `SelfModLoop`). POLICY-only manifest
+  (range/kind DERIVED from `Lever`; never shadows local.toml); fail-closed on unregistered levers +
+  `autonomy="auto"` (E3b). `--revert` reverts EXECUTED via the loop's rollback primitives, REFUSES a
+  VALIDATED (terminal) proposal + offers the inverse `set` — no reimplemented gate, no faked transition.
+  Falsifiers verified by orchestrator diff-read (fingerprint order-insensitive; no self-approve; no
+  pre-approval overlay write). No findings; no §10 stop-and-raise. **Orchestrator re-ran the 5-leg gate
+  independently: all green, argless mypy tail==69, suite 1243 passed.** Merged `--no-ff` (`351dc6d`,
+  `73873eb` → merge). Cost: 104k tokens (harness-measured) = **0.52×** the opus/200k estimate — matches
+  the milestone's well-pinned-delegated-lands-under calibration. Worktree removed.
+- **bp-048 `review-repl` (E6)** — building in parallel (still running at bp-047 seal); merges next, then
+  /triage the accrued debt (2 RUN observations + φ_conversation-sensor capture + findings 0086/0087).

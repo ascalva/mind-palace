@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-047
 alias: tuning-manifest
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/evaluation-harness.md   # §2.6 the automated-tuning layer (manifest half); §3 E3a
 contract: builder
@@ -17,7 +17,14 @@ cost:
   estimate:
     model: opus
     tokens: 200k
-  actual: null
+  actual:
+    model: claude-opus-4-8
+    tokens: 104k          # harness-measured (subagent_tokens); self-report est ~130-150k
+    ratio: 0.52           # 104k / 200k — well under; matches milestone-1's well-pinned delegated builds landing < estimate
+    tool_uses: 58
+    duration: ~11min
+    delegated: true       # parallel supervised builder, worktree
+    gate: 5-leg green (orchestrator re-ran independently; argless mypy tail==69; suite 1243)
 depends_on: []
 parallelizable_with: [bp-048]
 created: 2026-07-16
