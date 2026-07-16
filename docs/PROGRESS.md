@@ -3874,3 +3874,34 @@ diffs read directly), merged `--no-ff`, worktrees removed.
 - **Next:** owner reviews oq-0027 (any subset may ratify). On dn-sigma-fibers ratification → /graduate
   (FB-1 first; FB-2 riders with finding-0086). /triage still owed (≈34 unswept + findings 0086/0089);
   the σ-sweep RUN still owed (oq-0024) — both for an opus/orchestrator session, NOT a Fable one.
+
+### session-19 cont. (2026-07-16) — ⏱ the GLOBAL CLOCK finalized: `dn-global-event-clock` (draft #4, owner-extended charter)
+
+- Owner extended the sanctioned pass to the global clock. **`dn-global-event-clock`** drafted — the
+  designed RE-ENTRY of the ratified algebra's CS-a ("materialize N") + CS-b (antichain machinery) parks;
+  the re-entry condition is genuinely met (dn-cross-strata-dreamer G3 is the named consumer, φ_coh the
+  other). Ratifying the note IS the owner-blessed unpark; the ratified note is untouched (its §2.2
+  anticipated exactly this completion).
+- **The ruling:** N = (Ev, ≼), the DERIVED causal event poset — per-store total chains (g1; honest audit:
+  versions/runledger/edges/derived/attestations carry order; the EVAL STORE records NO append order,
+  keyed only — its events order via references alone), reads-from content-address edges (g2 — the built
+  attestation auto-link `producers_of`, attestor.py:59-69, is the mechanized exemplar the spine
+  generalizes), recorded program order (g3). Wall-time NEVER generates order (Law C4). Read-side
+  derivation only: a write-side global sequencer is REJECTED STRUCTURALLY — it would couple sealed core
+  and edge zone through a shared synchronous component when the async handoff is deliberately the only
+  coupling (#1/#2). Soundness law: ≼_derived ⊆ ≼_true; derived concurrency over-approximates — hence
+  cuts must be CERTIFIED: (commit ∧ trough-quiescence ∧ handoff-empty) frontier certificates (§2.4),
+  typing Scope.cut and completing SLICE for non-repo strata. Clock laws C1 (monotone) / C2 (convex
+  fibers — "commit is a RANGE" now a property test) / C3 (read-clocks borrow the observed write
+  frontier) / C4. Proper time = maximal-chain length in N_s (causal-set frame; citations stay
+  [FROM MEMORY — verify]).
+- **What it completes on ratification+build (GC-1..GC-4):** T-meet totalizes over registered clocks
+  (pullback intersections; NoCommonClockError narrows, never vanishes); CS-b antichain windows
+  inhabited; (N,∗) the Sz.-Nagy dilation space becomes queryable (TRA R5); CS-f re-binning = possible
+  as RE-MEASUREMENT only; N_s materializes = the parked prerequisite of the locally-clocked
+  superconnection + DD-1. §2.6 draws the clock/Res(π) line once: a clock changes the denoted event set
+  (scope-side); a resolution never does (result-side) — the capability-visibility test decides.
+- Corrections recorded: temporal-clocks capsule's "op-seq is already the spine" gloss (op-seq is ONE
+  store's chain — supersession-lifecycle §1); the eval-store no-order audit finding. Consumer wiring:
+  dn-cross-strata-dreamer G3/XS-b updated in-draft to point here. oq-0027 updated (bundle of FOUR).
+- Session-19 remains design-only: no code, no build, suite 1287 untouched, zero models resident.

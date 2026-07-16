@@ -746,4 +746,21 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   (nothing cross-strata reads anything) and single-σ selection (bp-049) remain the operative reality. The
   σ-sweep RUN (oq-0024) is unaffected and, once run, its retained cells are FB-1's first dataset whenever
   dn-sigma-fibers ratifies.
+- update 2026-07-16 (same session, owner-extended charter): a FOURTH note joins the bundle —
+  **`dn-global-event-clock`** (docs/design-notes/global-event-clock.md), the designed RE-ENTRY of the
+  ratified algebra's CS-a + CS-b parks (the re-entry condition is met: dn-cross-strata-dreamer G3 is the
+  named consumer). Ruling: N = the DERIVED causal event poset (Ev, ≼) — per-store total chains + reads-from
+  reference edges (the built attestation auto-link, attestor.py:59-69, is the mechanized exemplar) +
+  recorded program order; materialized READ-SIDE only — a write-side global sequencer is REJECTED
+  STRUCTURALLY (it would couple the sealed core and edge zone through a shared synchronous component; the
+  async handoff is deliberately the only coupling, #1/#2). Wall-time never generates order. Cuts =
+  certified quiescent frontiers (commit ∧ trough-empty ∧ handoff-empty), typing Scope.cut and completing
+  SLICE for non-repo strata. On ratification + build (GC-1..GC-4): the T-meet totalizes over registered
+  clocks (NoCommonClockError narrows to genuinely-exogenous cases), CS-b's antichain windows are
+  inhabited, (N,∗) the dilation space becomes queryable, CS-f re-binning becomes possible as
+  re-measurement, and N_s materializes (the parked prerequisite of the locally-clocked superconnection +
+  DD-1 anchoring). Ratifying this note IS the owner-blessed unpark of CS-a/CS-b — the highest-leverage
+  item in the bundle after the Res(π) amendment. Corrections recorded: the temporal-clocks capsule's
+  "op-seq is already the spine" gloss (op-seq is ONE store's chain); the eval store records NO append
+  order (keyed only — its events order via references alone).
 - answer:
