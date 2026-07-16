@@ -1,0 +1,23 @@
+# The first sweep instance — bp-040's σ-connectivity sweep re-derived (dn-evaluation-harness §2.9,
+# bp-049 §2/§4). Sweeps `dream_rnd_sigma` (the SHADOW dream_v2 lane's cosine edge threshold) across
+# its [0.55, 0.75] range, producing the native phase7/dream_v2 A/B per cell. The deterministic
+# optimizer (eval/harness/sweep.py) builds the curve, filters by admissibility (guardrails
+# lexicographically prior), selects the widest near-optimal plateau center, and PROPOSES it into the
+# §14 ledger — the owner blesses the apply. No model in the loop; the curve is the adviser (§2.6).
+
+[sweep.dreamer-sigma-ab]
+levers      = { dream_rnd_sigma = "full" }   # "full" = the lever's [lo, hi] at `resolution` points
+resolution  = 21                             # grid points across the σ range (dense — plateaus mean something, §2.8)
+pipelines   = ["phase7", "dream_v2"]         # native A/B; the runner produces both per cell
+select_pipeline = "dream_v2"                 # the lane that reads dream_rnd.sigma (finding-0089)
+corpus      = "mirror-snapshot"              # scored against the live MirrorView snapshot (firewall-safe)
+seeds       = 5                              # k runs per cell at distinct seeds; the curve aggregates with an interval
+
+# metrics WRITTEN per cell (§3 Q3). NOTE the banner-on-correction (bp-049 §4): the design note's
+# example `objective = "f9_composite"` CANNOT be used yet — f9_composite is REGISTERED but NOT
+# written by ShadowRunner per cell. Wiring F9 into the per-cell run is a separate concern (E5/E7 or a
+# rider, §11 parked). Until then the objective is a written, registered metric.
+metrics     = ["golden_recall", "drift_D", "structural_axes.frustration"]
+objective   = "golden_recall"                # registered AND written per cell (maximizes)
+guardrails  = []                             # additive only; the §2.5 defaults (golden_recall, drift_D) are always on
+mode        = "propose"                      # never "auto" — that is E3b, the autonomy this engine refuses to build (§9)
