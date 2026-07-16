@@ -1,18 +1,20 @@
 ---
 type: finding
 id: finding-0086
-status: open
+status: resolved
 created: 2026-07-16
 updated: 2026-07-16
 links:
   - docs/build-plans/bp-043/plan.md
+  - docs/build-plans/bp-054/plan.md   # the plan that discharged the owed registration (FB-2)
   - eval/harness/registry.py
   - core/dreaming/shadow.py
   - core/complex/temporal.py
 ftype: spec-fidelity
 origin_plan: bp-043
 route: builder
-resolution: builder-resolved (annotated; follow-up registration owed)
+resolved_by: bp-054   # structural_axes.{frustration,min_conductance} now registered (Inv rows), merged 4ec4cdc
+resolution: RESOLVED — the owed registration was discharged by bp-054 (structural_axes.* Inv rows), with name agreement machine-enforced by test (see finding-0093)
 ---
 
 # `structural_axes.*` readings are written un-registered (E1 registry gap)

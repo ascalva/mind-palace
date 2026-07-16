@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0093
-status: open
+status: resolved
 created: 2026-07-16
 updated: 2026-07-16
 links:
@@ -13,7 +13,8 @@ links:
 ftype: spec-fidelity
 origin_plan: bp-054
 route: builder
-resolution: builder-resolved (annotated; literals + machine-checked agreement test)
+resolved_by: bp-054   # merged 4ec4cdc — literals + fail-closed name-agreement test (no circular import)
+resolution: RESOLVED — builder-resolved (literals + machine-checked agreement test). OPTIONAL future tidy (NOT owed): relocate FB-1's METRIC_* constants to a cycle-free leaf so a future registry could import them, and export the structural_axes axis names as constants in core/complex/temporal.py
 ---
 
 # bp-054 Item 2 pins "import FB-1's name constants into the registry" — but that closes a circular import

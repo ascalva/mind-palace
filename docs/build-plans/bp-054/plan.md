@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-054
 alias: res-typing-registry
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/resolution-result-typing.md               # RATIFIED — §2.2 Rule SCALE; §3.2 the Res[T] build item; §2.4 zero-schema tags
   - docs/design-notes/sigma-fibers-and-multiscale-dreaming.md   # RATIFIED — §2.4.4 the registry rows (FB-2)
@@ -17,6 +17,18 @@ cost:
   estimate:
     model: opus
     tokens: 180k
+  actual:
+    model: opus
+    tokens: 137494        # harness-measured
+    tool_uses: 71
+    ratio: 0.76           # actual/estimate — well-pinned, under estimate
+    merged: 4ec4cdc       # 5-leg green on main: ruff · mypy(205) · argless 69 · type_gate · pytest 1349p/9s;
+                          # additive proof: test_scope.py 28 passed UNCHANGED (2-hunk scope.py diff)
+    sealed: 2026-07-16
+    dollars: pending      # wave-level $ from owner end-of-session /usage relay
+    findings: [finding-0086, finding-0093]   # 0086 RESOLVED (structural_axes registered); 0093 RESOLVED
+                          # (plan's "import constants" pin ⇒ circular import; builder registered literals +
+                          # test-enforced name agreement — the same no-drift guarantee, cycle-free)
 depends_on: [bp-050]
 parallelizable_with: [bp-053]
 created: 2026-07-16

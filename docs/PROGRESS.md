@@ -4043,3 +4043,19 @@ GC-2/GC-3: g2 fires only from an identifier's unique minter). Cost **304840 tok 
 - **Process lesson:** an integrity acceptance needing live `data/` cannot be verified in a builder's
   worktree — run it on main (ideally a scratch integration BEFORE the main merge). Fold into delegate skill.
 - **WAVE 1 COMPLETE:** bp-050 ✅ · bp-051 ✅ (via fix) · bp-052 ✅ — all sealed, main green, suite 1337.
+
+**Wave 2 launched** (owner blessed bp-053..057 → ready, recorded `97239b8`; brainstorm
+`retrieval-and-temporal-scaling` captured `d355750`). Pre-flight: week 17%, session 63%, credits 81%
+unchanged (5th pool-split confirmation).
+- **bp-054 `res-typing-registry` → COMPLETE.** Merged `4ec4cdc`. `Res[T]`/`res_under`/`res_comparable`
+  additive to core/scope.py (proven: test_scope.py 28 passed UNCHANGED, 2-hunk diff, no capability symbol
+  moved) + sigma_persistence.* (Res(sigma)) & structural_axes.* (Inv) registry rows. 5-leg green (mypy
+  205; argless 69; suite 1337→**1349**). Actual **137k / 0.76×**. RESOLVES **finding-0086** (structural_axes
+  registry gap) and files+resolves **finding-0093** (the plan's "import FB-1 constants" pin closes a
+  circular import registry→fibers→shadow→registry; builder registered literals + a fail-closed name-
+  agreement test — same no-drift guarantee, cycle-free; optional future tidy noted, not owed).
+- **bp-053 `clock-maps` — still running** (extends spine.py; its live-data integrity test I must verify on
+  main myself, per the bp-051 lesson). Merge on land.
+- Both wave-2 builders' worktrees were cut from the session baseline `4b3ace7` (pre-wave-1-merge), so each
+  ff-merged current main to pick up its dependency (bp-054 needed bp-050's fibers.py) before building —
+  clean, disjoint. bp-053 must do the same to get bp-051's merged spine.py: VERIFY at its merge.
