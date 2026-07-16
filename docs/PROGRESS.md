@@ -3642,3 +3642,40 @@ portable backstop):
   engine + tuning-manifest/CLI; grounded against BUILT ShadowRunner + `ops/selfmod.py` proposal ledger;
   `config/levers.toml` is on-demand, not a gap) + E6 — from a FRESH context (graduate wants the whole
   note in view; this session is build-heavy).
+
+## 2026-07-16 (session 16) — 🎯 THE RUN — the first dual-dreamer A/B report is PRODUCED
+
+- **The harness fired end-to-end for the first time against the REAL corpus.** Owner-confirmed
+  (confirm-consequential-actions: first exercise of new machinery on the live corpus), chose the
+  **full** variant (golden retriever injected). **No deploy needed** — the session-15 PROGRESS entry's
+  "deploy owner-gate" framing was for the *recurring* live shadow job; the one-shot data-gen is
+  model-free, reads the live mirror READ-ONLY (`MirrorView`), and writes ONLY the harness stores
+  (run ledger + eval DuckDB) — it touched NEITHER the daemon NOR the live derived store. Exactly as
+  the resume brief predicted.
+- **THE RUN** (`ShadowRunner(open_run_ledger(), retriever=<golden-fixture>).run()`): one live snapshot,
+  both pipelines. corpus_digest `1b8d9d1e…`, config_fingerprint `22f6581e…`. phase7 run
+  `990e2d3e…`, dream_v2 run `27f7f25a…`. The golden retriever = the `live` e2e pattern (ingest the
+  frozen synthetic golden corpus into a throwaway store + real `qwen3-embedding:4b` embedder — reads
+  the FIXTURE, never the vault; firewall intact) so the guardrails are captured, not logged
+  not-captured.
+- **THE REPORT** (`scripts/report.py` model, rendered around the daemon's telemetry write-lock via a
+  fresh in-memory cost source — honest, since `harness_cost` has never been written and isn't even
+  migrated into the live daemon's Jul-15 pre-bp-044 store): `data/reports/2026-07-16-dreamer-ab/`
+  (gitignored — local file drop, ∉ MIRROR_READABLE).
+  - **A/B (the headline):** dream_v2 = **8 claims / 6 novel**; phase7 = **1 claim / 1 novel**. The full
+    interpreter panel surfaces 8× the single community lens over the identical corpus snapshot.
+  - **golden_recall = 1.0** (both pipelines — the capability anchor holds; fixture retriever finds every
+    golden note).
+  - **drift_D = 0.13** (both) against the blessed tolerance band **Θ = 1.0** → well within tolerance,
+    **no breach**. Structural axes captured for dream_v2: `frustration = 0.0`, `min_conductance = 0.0`.
+  - **cost appendix:** empty — recorded in `coverage_notes` (no silent cap, §2.4). The `harness_cost`
+    ledger has never been written; the live daemon hasn't restarted since bp-044 (still telemetry
+    schema v2, no `harness_cost` table). Populates once a harness run logs cost / the daemon restarts.
+- **Two RUN-surfaced observations (for /triage):** (1) 3 phase7 claim kinds (`bridge`, `centrality`,
+  `density`) had no polarity mapping → defaulted `+` (the runner logged it, no silent cap — a
+  `polarity_and_flag` coverage gap worth a finding). (2) both structural axes = 0.0 on the live
+  snapshot — plausibly a small/sparse MirrorGraph, but worth a sanity check before the axes feed
+  selection.
+- **Feeds:** bp-041 (wire dream_v2 live — the 8-vs-1 differential is the evidence) + oq-0024 (σ:
+  this run used the default `[dream_rnd].sigma`; the A/B is the substrate a σ-sweep varies).
+- **Next:** graduate E3a (2-plan split) + E6 from fresh grounding (owner: this session, after the RUN).
