@@ -75,4 +75,27 @@ errors** (confirmed pre-work).
   `validate` uses on gate-deny. Not reimplementing the gate (gate = the admit predicate); it is a
   deliberate, unconditional reversal. Q2 explicitly maps `--revert` → `overlay_restore`.
 
+### Item 16 — DONE
+- `scripts/tune.py`: `show` / `set` / `history` / `--revert` — the attended CLI over the built §14
+  loop; no gate reimplemented, no model in the path.
+  - `show` (read-only, no loop): live value via `_section_value` + bounds + manifest policy; works
+    with `[selfmod] enabled=false`.
+  - `set` (PROPOSE only): `loop.propose(...)` → PROPOSED row + "awaits OWNER APPROVAL"; never
+    approves/executes; bounds fail-closed via `ProposedChange.resolve` before any ledger write.
+  - `history`: `ledger.all()` rendered by status.
+  - `--revert`: EXECUTED → `overlay_restore` + `mark_rolled_back` + `refresh_config` (legal
+    EXECUTED→ROLLED_BACK). VALIDATED → refuses (status untouched) + prints inverse `set`. Other
+    states → refused with a clear message. Requires `[selfmod] enabled`.
+- `tests/integration/test_tune_cli.py`: 13 tests green (incl. all Item-16 falsifiers).
+- Note: `ledger.get()` returns `Proposal | None`; a local `_get()` helper narrows it so the test
+  file adds ZERO new errors to the argless-mypy baseline (kept at 69).
+
+### GREEN GATE — all five legs green (2026-07-16):
+- `ruff check .` → All checks passed!
+- `mypy core agents eval ops scheduler scripts` → Success: no issues found in 197 source files
+- `mypy` (argless) → Found 69 errors in 20 files (checked 403 source files) — tail count == 69 baseline
+- `python -m ops.type_gate` → Tier-2 membership OK; bare-ignore scan OK
+- `pytest -q -m 'not live'` → 1243 passed, 10 skipped, 9 deselected
+
 ### Findings filed: none. §10 stop-and-raise: none — policy/value separation holds cleanly.
+### STATUS: both items closed, green. Awaiting orchestrator diff review + merge; owner flips status.
