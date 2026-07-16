@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-043
 alias: run-ledger-shadow
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/evaluation-harness.md
 contract: builder
@@ -27,13 +27,43 @@ cost:
       bp-039 (240k est / 170k actual): the pipeline-driving + digest/fingerprint + the metric-
       evaluation-into-eval-store surface. Calibrated ~260k opus. Deterministic — NO fable, NO xhigh.
       Self-driven ~0.5–0.8×; delegated ~1.6×.
-  actual: null
+  actual:
+    model: opus
+    tokens: ~180k
+    ratio: ~0.82
+    dollars: null
+    session_delta: "DELEGATED supervised build (worktree-agent-a382dc69444c1797a). Builder
+      self-reported usage (completion notification): 180,003 tokens, 89 tool-uses, ~20.5 min
+      wall (1,227,159 ms), model claude-opus-4-8, single continuous pass (no fable/xhigh, not
+      interrupted/degraded). ~180k / 220k front-matter est = 0.82× (vs the ~260k rationale =
+      0.69×) — UNDER the ~1.6× delegated-wave margin (bp-020 1.50×, bp-026 1.56×): a fully-pinned
+      §6, greenfield ledger + a runner following the model-free path the plan already specified,
+      so little rediscovery. Orchestrator supervision (review + independent 5-leg gate + merge)
+      is additional main-loop context not counted here. Dollar/session-delta backfill owed from
+      an owner /usage read at session end (bp-042 precedent, commit 6aa6fa6)."
+    week_delta: "week opened at 1% (owner /usage, session start); backfill the delta at session end"
+    loc: "~1046 added (runledger 205 + shadow 260 + cron +23 + 3 test files ~397 + journal 113 +
+      finding-0086 48); 0 existing runtime lines changed (cron.py purely additive — enqueue_dream/
+      dream_handler/cron_handlers untouched, the whole-plan falsifier)"
+    # GREEN attested SEPARATELY on the MERGED tree (5-leg): ruff `.` PASS; mypy `core agents eval
+    # ops scheduler scripts` == 0 (192 files, 190→192 = +runledger +shadow); argless mypy == 69
+    # UNCHANGED (baseline HELD); ops.type_gate OK; pytest -q -m 'not live' == 1202 passed / 7
+    # skipped / 9 deselected(live) / 0 failures (+17 new: 7 runledger + 5 shadow + 5 isolation).
+    # Falsifiers held: claim_id excludes surface_text+confidence (content-address); novel cross-run
+    # not per-run; one corpus_digest for both pipeline runs; live derived store row-count unchanged;
+    # [dream_rnd] disk flag still False; model-free (synthesize never called); isolation AST tooth
+    # green with two negative controls. Process: finding-0086 (structural_axes.* registry gap,
+    # spec-fidelity, builder-resolved — registration owed to a follow-up with registry.py in scope);
+    # shadow machinery built but NOT activated in the live loop (cron_handlers untouched) — the
+    # deploy-gated RUN wires SHADOW_KIND->shadow_handler(runner) + calls enqueue_shadow on a tick.
 depends_on:
-  - bp-042                           # imports eval.harness.{store,registry} to write metric readings per run
+  - bp-042
 parallelizable_with:
   - bp-044                           # disjoint write_scope (core/stores + core/dreaming vs eval/harness/report)
 created: 2026-07-15
-updated: 2026-07-15
+updated: 2026-07-16
+started: 2026-07-16
+completed: 2026-07-16
 links:
   - docs/design-notes/evaluation-harness.md
   - docs/design-notes/live-adoption-and-longitudinal-harness.md   # the L1 protocol annex (carried)
