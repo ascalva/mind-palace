@@ -4076,3 +4076,20 @@ unchanged (5th pool-split confirmation).
   bp-056 tmeet-completion (dep bp-053 ✅; HIGHEST scrutiny — merge LAST, xhigh line-by-line; falsifier
   test_scope.py green with ZERO edits), bp-057 sigma-gate (deps bp-050✅+bp-054✅; park-and-record if the
   three F9 criteria don't hold). All deps now satisfied; all three blessed `ready` (97239b8).
+
+### session-20 economics (2026-07-16) — 💰 waves 1+2, owner-relayed end-of-session /usage
+
+- **Session cost: $74.07** (all opus: 58.0k in / 791.0k out / 73.7M cache-read / 2.4M cache-write),
+  wall 1h54m / API 3h03m, 5150 lines added / 318 removed.
+- **Week (all models) 12%→19% (+7pt)** for the whole build wave-1+2 (5 plans + the bp-051 defect rework +
+  all merges/seals + the brainstorm). **Fable 10% UNCHANGED** (no fable — a pure opus build session).
+  **Credits 81% UNCHANGED ($122.94/$150)** — 6th confirmation the build wave draws the WEEKLY pool only.
+- **Per-plan (harness tokens / ratio):** bp-050 217k/0.90× · bp-051 305k/**1.27×** · bp-052 175k/0.97× ·
+  bp-053 205k/1.03× · bp-054 137k/0.76×. **Mean ≈ 0.99×** — the wave came in essentially AT estimate:
+  bp-051's rework (the live-data defect) was offset by the four well-pinned plans (0.76–1.03×). Validates
+  [[seal-cost-fields]] — the ratio tracks pinning quality + rework.
+- **Deliverables/dollar:** 5 plans through the full pipeline (1 defect caught on live data + fixed), 4
+  findings filed (0091/0092/0093/0094) + 2 resolved (0086/0093), 1 brainstorm captured, every merge
+  gated + sealed + pushed. The per-plan seals' `dollars` defer here — this block is the authoritative figure.
+- **Session hit 83%** at wrap — stopped at the wave-2 boundary (context-economy); wave 3 handed to a fresh
+  session via the rewritten resume brief.
