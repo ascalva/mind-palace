@@ -3531,3 +3531,34 @@ portable backstop):
 - **Next:** owner blesses `proposed→ready` (by hand) for the tranche — recommend order bp-042 → bp-045 →
   bp-043 → bp-044 (bp-042 keystone; bp-045 tiny/independent; bp-043 needs bp-042; bp-044 needs both). Then
   `/build` or delegate (pre-flight budget gate first — opus week thin at 95% until Jul 17).
+
+## 2026-07-15 — BUILT + SEALED bp-042 (E1 keystone) + bp-045 (E5(A2)) — owner "start getting results"
+
+- Owner blessed bp-042 + bp-045 `proposed→ready` by hand (committed FIRST, rule 0060: `d9be748`,
+  `fc52eb9`); chose "bp-042 + bp-045 now, the big ones (bp-043/044) after the Jul-17 reset". Both BUILT
+  self-driven (orchestrator-as-builder, no delegation), 5-leg gate green, SEALED complete.
+- **bp-042 `eval-results-store` (E1 keystone) — COMPLETE** (`4bb201b` build, `aef60e1` seal). The
+  append-only-BY-KEY DuckDB store (`eval/harness/store.py`: `EvalKey`/`Reading`, `put` skips a present
+  cell + never overwrites/dups, `has/get/query`), the metric registry (`eval/harness/registry.py`:
+  `MetricSpec`, fail-closed `get`, dup-reject, 4 built families golden/drift/f9/telemetry
+  Inv/Rate(wall)-typed), `eval/metrics.py` absorbed by re-export (signatures unchanged), and the
+  eval-isolation integrity tooth (transitive import-graph BFS: no path to `core.ingest`, no mirror-world
+  touch ⇒ ∉ MIRROR_READABLE, with a negative control). +14 tests.
+- **bp-045 `wire-snapshot-a2` (E5(A2)) — COMPLETE** (`92b8874` build, `7ff19ab` seal). `build_dreamer`
+  now passes `snapshots=open_snapshot_store(cfg)` (catalog row 6 wired) → dream_v2 step-10 fires;
+  phase7 `dream()` bit-identical (writes none). +2 tests (proven THROUGH the wired store).
+- **5-leg gate (both, run SEPARATELY):** ruff PASS; mypy scoped 0 (190 files, 187→190); argless mypy
+  **69 UNCHANGED** (the tooth HELD both builds; test-only type errors fixed — `Path|str` for `:memory:`,
+  a `cast` for the `_RowSource` test double); ops.type_gate OK; pytest `-m 'not live'` **1185 passed /
+  7 skipped / 9 deselected(live)** / 0 failures (+16 new). Live dream-e2e deselected (Ollama/slow,
+  finding-0069; the project CI deselects `live` too) — deterministic + integration tiers fully green.
+- **finding-0085 filed + handled:** write_scope inline comments break scope-guard's YAML parse (the
+  0071/0072/0075/0084 lineage). bp-042's write_scope cleaned in-session (orchestrator plan-fix
+  `e52151b`); bp-045's pre-cleaned before build (`749485b`). **bp-043 + bp-044 still carry inline
+  comments** — pre-clean them before those builds (post-reset). Durable fix owed: scope-guard should
+  strip trailing ` #…`, and/or the /graduate skill should forbid inline write_scope comments.
+- **cost.actual: $/opus-output PENDING owner /usage** (both plans' seals mark `tokens: pending`,
+  `ratio: pending` — backfill at session wrap). Self-driven; est bp-042 200k / bp-045 60k.
+- **Plan board:** complete=bp-000..bp-039, **bp-042, bp-045**; proposed=bp-040 (subsumed), bp-043,
+  bp-044; ready/in-progress=none. **Milestone-1 half-built:** E1 + E5(A2) done; **E2 (bp-043) + E4
+  (bp-044) remain** for the first A/B report — build post-Jul-17-reset (owner blesses them then).
