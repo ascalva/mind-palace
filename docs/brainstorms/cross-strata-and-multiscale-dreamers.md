@@ -186,3 +186,79 @@ references:
   - This brainstorm's Idea A (multi-scale dreamers over the authored graph, firewall-compatible) — the
     parent family; σ is its concrete scale parameter.
 ```
+
+## 2026-07-16T17:32:23Z — σ-fibers: the two surfaces DIRECTLY impacted (harness + scope-algebra/query) — the Fable pass MUST work these rigorously
+
+> Owner: the design connects directly to (1) the eval HARNESS and (2) the capability ALGEBRA / query
+> language — those are impacted, not incidental — and the pass NEEDS TO BE RIGOROUS (formal, grounded
+> to path:line, ratifiable — not a sketch). Recording the concrete seams so the Fable pass grounds,
+> not hand-waves. Design only.
+
+```capsule
+topic: cross-strata-and-multiscale-dreamers (σ-fibers × harness × algebra/query)
+date: 2026-07-16
+
+decisions: []   # seams to be worked rigorously by the Fable pass; nothing ratified
+
+open_questions:
+  # ── HARNESS (eval/harness/**) ────────────────────────────────────────────────────────────────
+  - The harness ALREADY keys per-σ: bp-046 made `config_fingerprint` move with σ, so the eval store
+    already holds a distinct keyed series per σ cell (`EvalKey(spec_hash, corpus_ref,
+    config_fingerprint, seed)`). σ-fibers therefore adds a DERIVED CONSUMER over that existing series,
+    NOT a new store. Rigor bar: the pass must show the persistence metric is computable from
+    `EvalResultsStore.query` alone, no schema change (the same discipline bp-049 held).
+  - bp-049's §8 `select` is a SELECTION consumer of the σ-series (collapse → one value). σ-fibers needs
+    a RETENTION + PERSISTENCE-SCORING consumer (keep the series → strength per connection/feature).
+    Both read the same store. The pass must define persistence FORMALLY: for a feature f, its σ-support
+    interval `[σ_birth(f), σ_death(f)]` over the filtration {G_σ}, and `strength(f)` = a declared
+    functional of that interval (length? area-under-support? weighted by ȳ?). Three-clause falsifier
+    discipline (like bp-049 §8): the observable that would falsify the strength metric.
+  - σ-persistence as a REGISTERED structural axis in `eval/harness/registry.py` — `type_tag=Inv`?
+    (careful: see the typing question below — persistence is σ-parametrized, so is it truly `Inv` or a
+    new result class?), catalog row, `guardrail_eligible` (likely False — descriptive, not a bright
+    line). Sibling of finding-0086's `structural_axes.*` registration rider.
+  - F9 / apophenia (Track F) is the strength gate's EVALUATION: low σ = looser edges = higher apophenia
+    risk, so the strength→surfacing gate must be VALIDATED against F9's signal-vs-noise grading in the
+    harness, not asserted. The pass ties the gate's threshold to an F9-measured false-connection rate.
+  # ── SCOPE ALGEBRA / QUERY LANGUAGE (core/scope.py, capability-scope-algebra.md, core-query-protocol)
+  - THE LOAD-BEARING ALGEBRA QUESTION: Rule CLOCK (`capability-scope-algebra.md:116`) already makes a
+    reparametrization-carrying dimension first-class — `q : s → Rate(κ)` REQUIRES `s.T.clock = κ`; a
+    Rate carries its clock in its type, never a bare number. σ (and grain, and conversation-depth) is a
+    SCALE/RESOLUTION parameter of exactly that shape. So: does the algebra need a FIRST-CLASS "Rule
+    SCALE" — a `Res(σ)` result typing analogous to `Rate(κ)`, where a resolution-parameterized
+    instrument carries its σ/grain in its type — OR is scale already expressible via the existing scope
+    meet/join (the founding capsule claimed "local vs macro scope IS the scope algebra's meet/join")?
+    This is the decision that determines whether σ-fibers + chunk-smear + conversation-layers are ONE
+    algebra extension or three ad-hoc features. The pass must answer it FORMALLY (typing rule, not prose).
+  - TYPING SUBTLETY (must be nailed, not glossed): §2.3 splits results into `Inv` (reparametrization-
+    invariant: β₁, connected sets, well-foundedness) vs `Rate(κ)` (per-unit-clock). σ-persistence is
+    invariant under σ-GRID reparametrization (denser grid, same interval) — arguing `Inv` — YET it is
+    intrinsically about variation ALONG σ — arguing a new `Res(σ)` class. The pass must place it
+    correctly; getting this wrong mis-types every downstream instrument.
+  - QUERY LANGUAGE: retrieval over a multi-resolution corpus needs a RESOLUTION PARAMETER — "retrieve
+    at grain g", "connections with persistence > θ", "the σ at which this cluster is born". Precedent:
+    `grouped_semantic_search` (core/stores/sourceset.py) already parametrized retrieval by group-by-
+    digest; scale is the next parameter on that surface. ALL THREE multi-resolution ideas press on the
+    query surface IDENTICALLY → this is the strongest test of whether "scale-as-a-dimension" is one
+    abstraction worth naming (see doc-code-entanglement multi-resolution capsule) or three features.
+
+parked:
+  - decision: introduce a first-class `Res(σ)` / Rule SCALE in the capability algebra
+    default: NOT introduced — the pass evaluates it; a scope-algebra change is a RATIFIED-note edit
+      (capability-scope-algebra.md), owner-blessed, never casual.
+    re_entry: the pass shows scale is NOT faithfully expressible via meet/join (i.e. an instrument that
+      needs σ-in-its-type to audit correctly) → draft the algebra extension as its own note.
+
+next_steps:
+  - The Fable+xhigh pass works BOTH surfaces to path:line rigor: (harness) the persistence metric +
+    its registry row + the F9-validated gate, computable from the existing store; (algebra/query) the
+    `Inv`-vs-`Res(σ)` typing verdict + the meet/join-vs-Rule-SCALE decision + the query-surface
+    resolution parameter. Grounded, falsifiable, ratifiable — the bar is a note the owner CAN ratify.
+
+references:
+  - eval/harness/sweep.py §8 (bp-049) ; eval/harness/store.py (EvalKey/query) ; eval/harness/registry.py
+  - core/scope.py ; docs/design-notes/capability-scope-algebra.md (§2.3 Inv/Rate(κ), :116 Rule CLOCK)
+  - docs/brainstorms/core-query-protocol.md ; core/stores/sourceset.py (grouped_semantic_search precedent)
+  - docs/design-notes/dreamer-quality-suite-evaluation.md / Track F (F9 — the gate's evaluation)
+  - docs/brainstorms/doc-code-entanglement.md (the multi-resolution-family capsule — the query-surface test)
+```
