@@ -107,3 +107,82 @@ references:
   - The first live dual-dreamer A/B RUN (data/reports/2026-07-16-dreamer-ab/): dream_v2 over 13
     authored nodes / 4 edges — the concrete motivation (small authored substrate; sensor strata grow).
 ```
+
+## 2026-07-16T17:18:05Z — σ-fibers: σ as a sensitivity knob → a multi-strength fiber bundle (Idea A, made concrete)
+
+> Seeded by the owner off the back of shipping the sweep engine (bp-046 + bp-049, session 18). The
+> sweep VARIES `dream_rnd_sigma` (the mirror-graph cosine edge threshold) across a grid to SELECT one
+> value. The owner's question: *should we ever produce fibers on different σ values — different fibers
+> of different strengths — treating σ as a sensitivity tool?* Owner directed this be captured HERE
+> (it stems from this brainstorm's Idea A: multi-scale dreamers over the authored graph). Design only;
+> no build authorized.
+
+```capsule
+topic: cross-strata-and-multiscale-dreamers (σ-fibers facet)
+date: 2026-07-16
+
+decisions:
+  - σ IS a scale/sensitivity parameter, so this is Idea-A territory made concrete: FIREWALL-COMPATIBLE
+    (pure scope/scale on the AUTHORED graph via MirrorView — no new boundary, no union scope). High σ
+    = a sparse graph of only the strongest associations; low σ = a dense graph including loose ones.
+    Sweeping σ yields a NESTED family {G_σ} — a filtration in the persistent-homology sense: as σ
+    falls, edges are born; structural features (clusters, communities, bridges) acquire a birth-σ and
+    a death-σ.
+  - "Fibers of different strengths" = PERSISTENCE. A connection/synthesis that survives a wide σ-range
+    is robust/strong; one alive only in a narrow band is weak/tentative. Persistence LENGTH is a
+    principled strength scalar — strictly better than the binary "is it an edge at the chosen σ." This
+    is the load-bearing reframe: strength stops being ad-hoc and becomes a structural invariant.
+  - This is the DUAL of what the sweep engine does. bp-049's `select` COLLAPSES σ to one value (and,
+    tellingly, already privileges σ-robustness — it picks the widest near-optimal plateau, not the
+    knife-edge max). The σ-fiber idea says: don't collapse — RETAIN σ as a dimension and let each
+    dream carry its strength. The grid bp-049 computes for selection is exactly the raw material for
+    the fiber bundle; today we discard it after picking a value.
+  - What this buys (three): (1) HONEST CONFIDENCE — a weak fiber surfaces as "a hunch," a strong one
+    as "a settled link"; strength GATES trust/surfacing. Dovetails with F9 apophenia grading (low σ =
+    higher apophenia risk → strength and grounding-defect are correlated axes). (2) MULTI-SCALE
+    DREAMING, firewall-clean — a "tight" dreamer reads G_{high σ}, a "loose" dreamer reads G_{low σ},
+    both over MirrorView; Idea A's "local vs macro scope" with σ as the concrete scale knob. (3) A
+    PRINCIPLED STRUCTURAL AXIS — persistence-across-σ is an invariant that could register in the eval
+    harness (like frustration) and feed drift.
+  - Cheap to prototype BECAUSE of what just shipped: the marginal cost of RETAINING vs DISCARDING the
+    grid is storage + the synthesis passes, not the graph builds (the sweep already builds every G_σ).
+
+parked:
+  - What IS a "fiber"? Three candidate objects, different builds: (a) a whole graph at one σ; (b) a
+    single connection carrying a persistence interval [σ_birth, σ_death]; (c) a dreamer instance
+    parameterized by σ. Default lean: (b) — the persistence-interval annotation is the most
+    mathematically load-bearing AND the cheapest (it annotates connections, computed from the grid).
+    Re-entry: the Fable design pass picks the object (it determines whether this is a storage/
+    representation change or a new dreamer family).
+  - Cost/memory ceiling: k live σ-fibers = k synthesis passes; the ≤2-resident-model ceiling (§8)
+    bounds how many can be dreamt live → likely a batched/overnight structure, not per-interaction.
+    Re-entry: the design pass sizes the fiber count against the memory ceiling + the overnight profile.
+  - Corpus inflation / noise: retaining low-σ fibers multiplies syntheses and invites apophenia; the
+    strength tag is what makes it SAFE, but only if strength gates surfacing (else the corpus drowns
+    in weak hunches). Re-entry: the design pass pins the strength→surfacing gate before any build.
+
+open_questions:
+  - Should σ-persistence be a first-class REGISTERED structural axis (eval/harness/registry.py), and
+    does it subsume or complement the existing structural_axes.* (frustration, …)?
+  - Is the fiber-strength gate the SAME instrument as the sweep's admissibility/selection, or a
+    distinct one? (The sweep asks "which σ is best"; the fiber model asks "how strong is each σ's
+    contribution" — related but not identical.)
+  - Does this fold INTO the awaited cross-strata Fable+xhigh design pass as a concrete Idea-A
+    mechanism, or warrant its own design note? (Owner leans: capture here, decide at the pass.)
+
+next_steps:
+  - Fold the σ-fiber facet into the awaited Fable+xhigh design pass for this brainstorm (Idea A half);
+    the pass chooses the fiber object (parked (a)/(b)/(c)) and pins the strength→surfacing gate.
+  - No build authorized. The sweep engine (bp-046/bp-049) stays a SELECTOR; σ-fibers is a distinct
+    design thread that must travel brainstorm → design note → build plan through the same gate.
+
+references:
+  - eval/harness/sweep.py (bp-049) — the σ-grid driver + §8 `select` (widest-plateau, the collapse
+    this idea is the dual of); config/sweeps/dreamer-sigma-ab.toml — the σ grid instance.
+  - ops/levers.py `dream_rnd_sigma` (bp-046) + core/dreaming/shadow.py (`MirrorGraph.build(view,
+    sigma=rnd.sigma)`) — where σ enters the mirror graph.
+  - docs/design-notes/dreamer-quality-suite-evaluation.md / Track F (F9 apophenia) — the signal-vs-
+    noise grading that fiber-strength would gate against.
+  - This brainstorm's Idea A (multi-scale dreamers over the authored graph, firewall-compatible) — the
+    parent family; σ is its concrete scale parameter.
+```
