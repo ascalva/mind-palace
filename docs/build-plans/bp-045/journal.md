@@ -31,3 +31,25 @@
   Buildable first (open_snapshot_store already exists). bp-043's ShadowRunner inherits this wiring via
   `build_dreamer`+`replace`, then reads `latest_structural()` → keyed eval-store readings (bp-043 Q6).
   Owner blesses `proposed→ready`, then `/build bp-045` (a good tiny first build — cheap even at week 95%).
+
+## 2026-07-15 — BUILT + 5-leg gate GREEN (Item 11 done; awaiting orchestrator seal)
+
+- Owner blessed bp-045 `proposed→ready` (committed `fc52eb9`); orchestrator flipped `ready→in-progress`
+  + stripped the write_scope inline comment (finding-0085 owed cleanup) — committed `749485b`.
+- **Item 11 DONE — the wiring.** `core/dreaming/dreamer.py`: extended the `:27` import with
+  `open_snapshot_store`; `build_dreamer` now passes `snapshots=open_snapshot_store(cfg)` (one kwarg +
+  a 3-line comment). `dream()`/`dream_v2` bodies untouched.
+- **Test `tests/unit/test_build_dreamer_snapshots.py` — 2 tests PASS:**
+  1. build_dreamer wires a SnapshotStore at `derived_store.parent/structural.duckdb`, `count()==0` fresh.
+  2. THROUGH build_dreamer's wired store: Phase-7 `dream()` writes NO snapshot (count unchanged — the
+     whole-plan falsifier), then `dream_v2` step-10 fires and records exactly one (`count()==before+1`).
+     Uses the planted R0/R1 shape + a fake `_CountingSynth` (no live model), dream_rnd enabled in-process.
+- **5-LEG GREEN GATE (SEPARATELY):** ruff `.` PASS; mypy `core agents eval ops scheduler scripts` == 0
+  (190 files); argless mypy == **69** UNCHANGED (the tooth HELD — the 1 test-only `_RowSource`→`VectorStore`
+  arg-type error was fixed with a `cast`, matching test_dream_v2's idiom); ops.type_gate OK; pytest
+  `-m 'not live'` == **1185 passed / 7 skipped / 9 deselected(live)** / 0 failures (+2 new; the dreaming
+  integration suite exercising the wired step-10 is green). Live dream-e2e deselected (Ollama/slow).
+- **Falsifiers held:** phase7 dream() writes no structural row through the wired store; no `[dream_rnd]`
+  disk flag touched (enabled in-process only); existing dreamer/dream_v2 suites green unmodified.
+- **Next:** commit (Co-Authored-By — code); orchestrator flips `in-progress→complete` + seals; then
+  session wrap (PROGRESS + resume-brief; /usage backfill of both plans' cost.actual).

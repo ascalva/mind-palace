@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from config.loader import Config
 from core.attestation import Attestor
 from core.complex.support import grounding_with_support
-from core.complex.temporal import SnapshotStore, compute_snapshot
+from core.complex.temporal import SnapshotStore, compute_snapshot, open_snapshot_store
 from core.constitution import Message, frame_context
 from core.dreaming.cluster import Cluster, cluster_notes, note_centroids, note_snippets
 from core.dreaming.graph import MirrorGraph
@@ -282,4 +282,8 @@ def build_dreamer(config: Config | None = None, *, tier: str = "synthesis") -> D
         min_cluster_size=dcfg.min_cluster_size,
         max_clusters=dcfg.max_clusters,
         attestor=build_attestor(cfg),
+        # Wire the A2 structural-snapshot store (catalog row 6, dn-evaluation-harness §3 E5): with
+        # it set, dream_v2's step-10 records the structural snapshot per run. The live Phase-7
+        # dream() has no step-10 and never touches it — bit-identical (bp-045).
+        snapshots=open_snapshot_store(cfg),
     )
