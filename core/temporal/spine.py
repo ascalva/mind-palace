@@ -74,6 +74,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import deque
+from collections.abc import Hashable
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -84,6 +85,9 @@ from typing import TYPE_CHECKING
 # pure-core (or eval) module with no network path (`ops/import_lint` forbids only edge/cloud/net;
 # `core/dreaming/shadow.py` already imports `eval.harness.store`).
 from core.attestation.store import AttestationStore
+
+# `Clock` is READ-ONLY vocabulary here (the registered clock hierarchy); bp-056 owns changes to it.
+from core.scope import Clock
 from core.stores.catalog import VaultCatalog
 from core.stores.derived import DerivedStore
 from core.stores.edges import EdgeStore
@@ -172,6 +176,25 @@ _STRATUM: dict[str, str] = {
 def _event_id(store: str, chain_key: str, position: int | None) -> str:
     """Deterministic, content-free event id. Chain-less events render position as '-'."""
     return f"{store}:{chain_key}:{position if position is not None else '-'}"
+
+
+# ── GC-2 · the clock maps (plan §6; note §2.3 laws C1–C4) ────────────────────────────────────────
+# The registered clocks (`core/scope.py:171-184`, READ-ONLY here) partition by how their p_κ is
+# sourced against the materialized spine (= N):
+#   * N              — identity: p_N(e) = e (the finest clock, the spine itself). Singleton fibers.
+#   * N_S            — per-stratum event tick: p(N_S, e) = (stratum, e). The RICH N_s object (the
+#                      restriction with its induced order + proper time) is `Spine.n_s(stratum)`.
+#   * read-clocks    — projection_event / last_write / now: mint NO events; their tick is the
+#                      BORROWED per-store frontier (Law C3). p(read,e) = frontier_at(e.store).
+#   * WALL           — Law C4: generates nothing; p/fiber RAISE. No p_wall exists (structural).
+#   * COMMIT /       — repo-backed COARSENINGS ("a commit is a RANGE of N"). Their tick is which git
+#     DISTINCT_       commit / content-snapshot an event belongs to — sourced EXTERNALLY: no store
+#     SNAPSHOT        spine enumerates carries a commit SHA, and `core/` never shells to git (§2.10:
+#                     the spine is arithmetic over stores, opens no socket). So the tick is INJECTED
+#                     (`coarsening_ticks`), and p/fiber over the injected map; absent it, p RAISES a
+#                     clear error. The integrity test (which MAY drive git) supplies the real map.
+_READ_CLOCKS: frozenset[Clock] = frozenset({Clock.PROJECTION_EVENT, Clock.LAST_WRITE, Clock.NOW})
+_COARSENING_CLOCKS: frozenset[Clock] = frozenset({Clock.COMMIT, Clock.DISTINCT_SNAPSHOT})
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════
@@ -396,7 +419,9 @@ class _Builder:
             self._add("catalog", sp, None, produces=(digest,), consumes=())
 
     # -- g2 (reads-from) + acyclicity → the immutable Spine ---------------------------------------
-    def finalize(self) -> Spine:
+    def finalize(
+        self, coarsening_ticks: dict[Clock, dict[str, Hashable]] | None = None
+    ) -> Spine:
         gen: set[tuple[str, str, str]] = set(self.g13_edges)
         refs_without_producer = 0
         for eid, refs in self.consumes.items():
@@ -423,6 +448,7 @@ class _Builder:
             _produced_by={k: set(v) for k, v in self.produced_by.items()},
             _present=tuple(self.present),
             _refs_without_producer=refs_without_producer,
+            _coarsening_ticks={c: dict(m) for c, m in (coarsening_ticks or {}).items()},
         )
 
 
@@ -467,11 +493,22 @@ class Spine:
     _produced_by: dict[str, set[str]]             # identifier -> minting event_ids
     _present: tuple[str, ...]
     _refs_without_producer: int
+    # GC-2: externally-sourced ticks for the repo-backed coarsenings (COMMIT/DISTINCT_SNAPSHOT) —
+    # {clock: {event_id: tick}}. Empty unless injected (core never sources commit SHAs itself).
+    _coarsening_ticks: dict[Clock, dict[str, Hashable]] = field(default_factory=dict)
 
     @classmethod
-    def derive(cls, sources: SpineSources) -> Spine:
+    def derive(
+        cls,
+        sources: SpineSources,
+        coarsening_ticks: dict[Clock, dict[str, Hashable]] | None = None,
+    ) -> Spine:
         """Enumerate the present stores and build `(Ev, ≼)`. Raises `SpineCycleError` if the derived
-        order is not acyclic (an integrity failure — plan §10 STOP-and-raise)."""
+        order is not acyclic (an integrity failure — plan §10 STOP-and-raise).
+
+        `coarsening_ticks` injects the externally-sourced ticks for the repo-backed coarsenings
+        (COMMIT/DISTINCT_SNAPSHOT) — `{clock: {event_id: tick}}`. Core never sources commit SHAs
+        itself (§2.10); the integrity test / a future consumer supplies the map."""
         b = _Builder()
         if sources.versions is not None:
             b.versions(sources.versions)
@@ -487,7 +524,7 @@ class Spine:
             b.eval(sources.eval)
         if sources.catalog is not None:
             b.catalog(sources.catalog)
-        return b.finalize()
+        return b.finalize(coarsening_ticks)
 
     # -- the pinned surface ------------------------------------------------------------------------
     def order(self, a: str, b: str) -> Order:
@@ -532,6 +569,8 @@ class Spine:
             _produced_by=new_pb,
             _present=self._present,
             _refs_without_producer=0,
+            _coarsening_ticks={c: {e: t for e, t in m.items() if e in kept}
+                               for c, m in self._coarsening_ticks.items()},
         )
 
     def events(self) -> list[SpineEvent]:
@@ -565,6 +604,109 @@ class Spine:
             stores_unwired=_UNWIRED_STORES,
         )
 
+    # -- GC-2: the clock maps p_κ + N_s + proper time (plan §6; note §2.3 laws C1–C4) --------------
+    def p(self, clock: Clock, event_id: str) -> Hashable:
+        """`p_κ(e)` — the coarsening of the spine (= N) onto clock κ's index (plan §6; note §2.3).
+
+        * WALL → RAISE (Law C4: wall is an exogenous coordinate, generates no order, has no p_κ).
+        * N → identity `e` (the finest clock — the spine itself; singleton fibers).
+        * N_S → `(stratum, e)`, the per-stratum event tick (rich N_s via `n_s(stratum)`).
+        * read-clocks (projection_event / last_write / now) → `frontier_at(e.store)` — the borrowed
+          write frontier (Law C3: read-clocks mint no events, they sample the frontier).
+        * COMMIT / DISTINCT_SNAPSHOT → the injected external tick (`coarsening_ticks`); RAISES if
+          the event has no injected tick (p_commit is partial over Ev — repo-backed events only)."""
+        if event_id not in self._events:
+            raise KeyError(f"unknown event {event_id!r}")
+        if clock is Clock.WALL:
+            raise ValueError(
+                "wall is not a clock of Ev (Law C4) — it is an exogenous coordinate, generates no "
+                "order and has no p_κ; register it only as a Rate(wall) denominator"
+            )
+        ev = self._events[event_id]
+        if clock is Clock.N:
+            return event_id                                   # identity — N is the finest (= spine)
+        if clock is Clock.N_S:
+            return (ev.stratum, event_id)                     # per-stratum event tick
+        if clock in _READ_CLOCKS:
+            return self.frontier_at(ev.store)                 # C3: borrow the write frontier
+        if clock in _COARSENING_CLOCKS:
+            ticks = self._coarsening_ticks.get(clock)
+            if ticks is None or event_id not in ticks:
+                raise ValueError(
+                    f"clock {clock.value!r} has no p_κ tick for {event_id!r}: its tick is sourced "
+                    f"externally (a git commit / content snapshot the event belongs to) and no "
+                    f"store the spine reads carries it — inject via `coarsening_ticks` (bp-053 "
+                    f"finding; core never shells to git, §2.10)"
+                )
+            return ticks[event_id]
+        raise ValueError(f"clock {clock.value!r} has no registered p_κ over the spine")
+
+    def fiber(self, clock: Clock, tick: Hashable) -> list[str]:
+        """`p_κ⁻¹(tick)` — the event_ids that map to `tick`, sorted (deterministic). MUST be
+        order-convex (Law C2): no event outside the tick lies ≼-between two inside it — "a commit is
+        a RANGE of N" made a property (verify with `is_fiber_convex`). WALL RAISES (C4)."""
+        if clock is Clock.WALL:
+            raise ValueError("wall is not a clock of Ev (Law C4) — no fiber p_wall⁻¹ exists")
+        if clock in _COARSENING_CLOCKS:
+            ticks = self._coarsening_ticks.get(clock)
+            if ticks is None:
+                raise ValueError(
+                    f"clock {clock.value!r} is not materialized — its ticks are sourced externally "
+                    f"(git commit / content snapshot); inject via `coarsening_ticks` (bp-053)"
+                )
+            return sorted(eid for eid, t in ticks.items() if t == tick)
+        return sorted(eid for eid in self._events if self.p(clock, eid) == tick)
+
+    def is_fiber_convex(self, clock: Clock, tick: Hashable) -> bool:
+        """Law C2 oracle: `p_κ⁻¹(tick)` is order-convex — no event OUTSIDE the fiber lies strictly
+        ≼-between two events INSIDE it. This is the checkable form of "a commit is a range of N"
+        (note §2.3 C2 / §2.8-3). The property tests + the integrity test drive this per clock."""
+        members = set(self.fiber(clock, tick))
+        if len(members) < 2:
+            return True                                       # singletons / empties are convex
+        for x in self._events:
+            if x in members:
+                continue
+            # x is between two members iff some a ∈ F has a ≼ x and some b ∈ F has x ≼ b
+            above = any(x in self._reachable(a) for a in members)
+            if not above:
+                continue
+            if any(b in self._reachable(x) for b in members):
+                return False
+        return True
+
+    def n_s(self, stratum: str) -> Spine:
+        """N_s — the spine restricted to stratum `s` (an alias of `restrict`; the object per-stratum
+        proper time and the locally-clocked superconnection are parked on, note §2.3/GC-N6)."""
+        return self.restrict(stratum)
+
+    def proper_time(self, a: str, b: str) -> tuple[int, bool]:
+        """`(max-chain length, chain_complete)` between two events — the finding-0090 discipline.
+
+        Proper time = the maximal-chain length in the N_s restriction (causal-set construction,
+        GC-N6). It is EXACT (== event count) ONLY when the causal interval [a,b] is a TOTAL order
+        (a single chain) — then `chain_complete=True`. Otherwise `chain_complete=False` and the bare
+        count is NEVER sold as proper time (finding-0090):
+          * different strata → cross-stratum, never one chain → `chain_complete=False`;
+          * concurrent (neither ≼ the other) → no chain connects them → `(0, False)`;
+          * comparable but the interval has concurrent events in between → `(longest_chain, False)`.
+        Computed within `n_s(stratum)` when both events share a stratum (per-CHAIN per finding-0090,
+        never per-stratum)."""
+        for e in (a, b):
+            if e not in self._events:
+                raise KeyError(f"unknown event {e!r}")
+        if self._events[a].stratum == self._events[b].stratum:
+            return self.n_s(self._events[a].stratum)._chain_metric(a, b)   # per-stratum N_s
+        length, _ = self._chain_metric(a, b)                  # cross-stratum: never chain_complete
+        return (length, False)
+
+    def frontier_at(self, store: str) -> int:
+        """The observed write frontier of `store` — its latest chain position (Law C3 substrate:
+        read-clocks borrow this, minting no event). 0 for an absent or chain-less-only store."""
+        positions = [ev.position for ev in self._events.values()
+                     if ev.store == store and ev.position is not None]
+        return max(positions) if positions else 0
+
     # -- internal ----------------------------------------------------------------------------------
     def _reachable(self, start: str) -> set[str]:
         """Every event strictly reachable from `start` over the direct adjacency (BFS)."""
@@ -577,3 +719,48 @@ class Spine:
             seen.add(n)
             queue.extend(self._succ.get(n, set()))
         return seen
+
+    def _chain_metric(self, a: str, b: str) -> tuple[int, bool]:
+        """`(longest-chain length, is_total)` for the causal interval [a,b] within THIS (possibly
+        restricted) spine. `is_total` iff the interval is a chain (longest-chain len == its size —
+        the exactness identity). Concurrent / self handled; a==b is the trivial 1-chain."""
+        if a == b:
+            return (1, True)
+        if b in self._reachable(a):
+            lo, hi = a, b
+        elif a in self._reachable(b):
+            lo, hi = b, a
+        else:
+            return (0, False)                                 # concurrent — no chain connects a,b
+        interval = self._interval(lo, hi)
+        length = self._longest_chain_len(interval)
+        return (length, length == len(interval))
+
+    def _interval(self, lo: str, hi: str) -> set[str]:
+        """The causal interval `{x : lo ≼ x ≼ hi}` (inclusive), within this spine's order."""
+        below_hi = self._reachable(lo) | {lo}                 # x with lo ≼ x
+        return {x for x in below_hi if x == hi or hi in self._reachable(x)}
+
+    def _longest_chain_len(self, nodes: set[str]) -> int:
+        """Longest path by NODE count within the sub-DAG induced on `nodes` (Kahn topo DP). Correct
+        on both the direct-adjacency spine and a restricted spine's transitively-closed `_succ`."""
+        if not nodes:
+            return 0
+        indeg: dict[str, int] = dict.fromkeys(nodes, 0)
+        for n in nodes:
+            for m in self._succ.get(n, set()):
+                if m in nodes:
+                    indeg[m] += 1
+        ready = deque(n for n in nodes if indeg[n] == 0)
+        dist: dict[str, int] = dict.fromkeys(nodes, 1)
+        while ready:
+            n = ready.popleft()
+            for m in self._succ.get(n, set()):
+                if m not in nodes:
+                    continue
+                if dist[n] + 1 > dist[m]:
+                    dist[m] = dist[n] + 1
+                indeg[m] -= 1
+                if indeg[m] == 0:
+                    ready.append(m)
+        return max(dist.values())
