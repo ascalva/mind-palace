@@ -3830,3 +3830,47 @@ diffs read directly), merged `--no-ff`, worktrees removed.
   VALUE axis + feeds bp-041 (wire dream_v2 live, owner-gated). Owner floated a **σ-fibers / multi-strength
   design idea** (captured `brainstorms/`) — a live thread with the carried multiscale-dreamers brainstorm.
   /triage still owed (2 RUN obs + φ_conversation-sensor + findings 0086/0089).
+
+### session-19 (2026-07-16) — 🧠 THE FABLE+xhigh DESIGN PASS: cross-strata/σ-fibers graduated into THREE drafts
+
+- **The owner-sanctioned Fable+xhigh pass** (the one sanctioned use per context-economy; Fable pool was
+  at 0%) worked `brainstorms/cross-strata-and-multiscale-dreamers.md` (all three capsules) + the two
+  resonant captures into three `draft` design notes — separable because their blessing stakes differ.
+  Batched as **oq-0027** for ratification review. DESIGN ONLY: nothing built, nothing blessed.
+- **`dn-sigma-fibers`** (sigma-fibers-and-multiscale-dreaming.md) — Idea A concrete. The parked fiber
+  object RESOLVED as (b)-sharpened: the fiber is the content-addressed CLAIM (`claim_id`,
+  runledger.py:37) carrying its σ-support — bare-edge persistence proved DEGENERATE (≡ a monotone
+  transform of the stored cosine), so claims are where persistence is non-trivial. `pers(χ)` =
+  normalized support measure over the declared σ-range, with a convergence theorem (the pipeline is
+  piecewise-constant in σ; breakpoints = sim-matrix entries ⇒ an exact grid-free oracle exists) and a
+  three-clause falsifier (degeneracy anchor · ruler test · earning-its-place). Harness realization is a
+  DERIVED CONSUMER, zero schema change — with a recorded capsule correction: per-claim persistence reads
+  the RunLedger (claims), not EvalResultsStore alone; aggregates land in the eval store keyed by a
+  fibers spec_hash carrying the grid. Strength→surfacing gate PINNED: two-axis lexicographic
+  (SETTLED/HUNCH/RETAINED by pers; confidence orders within tier; NEVER one scalar; I1 untouched —
+  surfacing only), F9-validated before shipping (noise-fixture SETTLED ≈ 0 ∧ planted → SETTLED ∧ beats
+  best single-σ precision). Memory ceiling: zero models resident for everything licensed. Build
+  decomposition FB-1..FB-4 (FB-4 parked). The owed σ-sweep RUN doubles as FB-1's first dataset.
+- **`dn-resolution-result-typing`** — the algebra verdict, drafted as an ADDITIVE amendment to RATIFIED
+  `dn-capability-scope` §2.3 (A8-clean: the ratified note is untouched; owner stamps a pointer on
+  ratification, EH-a pattern). Ruling: Inv/Rate(κ) gains **Res(π)** + Rule SCALE — carriage (a
+  resolution-graded value carries its ruler π like a Rate carries its clock) + capability-invisibility
+  (PROVED: req(dream@σ) = MirrorView.SCOPE constant in σ ⇒ NO fifth scope coordinate, NO meet/join
+  expression; the founding capsule's "local-vs-macro scope is meet/join" corrected). σ-persistence typed
+  Res(π_σ): grid-refinement-stability is a VALIDITY property; range-dependence is a TYPE property. The
+  meta-pattern ruled at the cheapest moment: the TYPING is what generalizes across σ-fibers/smear/
+  conversation-layers (π_σ/π_grain/π_depth — one table); the FUSION instruments do NOT (three rules,
+  three falsifiers) — no "scale framework" note; both sibling parks' evidence bars unchanged.
+- **`dn-cross-strata-dreamer`** — Idea B / the firewall fork, resolved deliberately (ratification IS the
+  parked human decision). Firewall stands as written; the dreamer is a correlator-family
+  `interpreted`-tier client class needing an owner-declared read-exemption from ι_MR (per-client-class
+  admissibility — authored⊕observed does NOT intrinsically collapse to ⊥). The pass's strongest result:
+  the type system ALREADY gates it structurally — SliceError (multi-stratum point window needs a cut) +
+  NoCommonClockError (no common materialized clock until CS-a) FORCE the pairwise per-stratum shape,
+  re-deriving Track D's correlator from first principles. Gate chain G0–G4 recorded (fork → verdict
+  taxonomy → Track D charter → cut discipline → mirror-value-first); ratification licenses NO build.
+- **Economics:** run AS Fable on the untouched Fable weekly pool (was 0%); no builders spawned, no
+  models resident, design-only session. Suite untouched (1287 on main; no code changed).
+- **Next:** owner reviews oq-0027 (any subset may ratify). On dn-sigma-fibers ratification → /graduate
+  (FB-1 first; FB-2 riders with finding-0086). /triage still owed (≈34 unswept + findings 0086/0089);
+  the σ-sweep RUN still owed (oq-0024) — both for an opus/orchestrator session, NOT a Fable one.
