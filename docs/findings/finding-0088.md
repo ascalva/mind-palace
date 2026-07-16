@@ -1,9 +1,16 @@
 ---
 type: finding
 id: finding-0088
-status: open
+status: resolved
 created: 2026-07-16
 updated: 2026-07-16
+resolution: >
+  Orchestrator merge-scrutiny fix (bp-046, 2026-07-16): made the two hardcoded per-lever
+  assertions in test_shipped_manifest_loads_and_covers_every_lever registry-faithful —
+  `pol.subsystem == LEVERS[name].section` (matching its sibling default-policy test) and
+  `pol.objective in {"f9_composite", None}`. Full non-live suite green (1264 passed). The
+  parked sub-question (whether config/tuning.toml should gain an explicit
+  [tuning.dream_rnd_sigma] block) stays deferred per bp-046 §9 (default policy, no edit).
 links:
   - docs/build-plans/bp-046/plan.md
   - tests/unit/test_tuning_manifest.py

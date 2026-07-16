@@ -34,8 +34,13 @@ def test_shipped_manifest_loads_and_covers_every_lever():
     for name in LEVERS:
         pol = manifest.policy(name)
         assert pol.autonomy == "propose"
-        assert pol.subsystem == "dreaming"
-        assert pol.objective == "f9_composite"
+        # registry-faithful: subsystem defaults to the lever's own section (matches
+        # test_missing_file_resolves_every_lever_to_default_policy), so the shipped manifest
+        # covers a mixed-section registry (dreaming.* AND dream_rnd.*) — not a frozen all-dreaming
+        # snapshot (finding-0088, bp-046: dream_rnd_sigma is section=dream_rnd, objective auto-fills
+        # to None since config/tuning.toml declares no block for it).
+        assert pol.subsystem == LEVERS[name].section
+        assert pol.objective in {"f9_composite", None}
 
 
 def test_missing_file_resolves_every_lever_to_default_policy(tmp_path):
