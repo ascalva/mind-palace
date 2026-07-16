@@ -88,3 +88,32 @@ schema drift → no §4 codebase finding needed (confirmed on disk in this workt
   `SpineEdge`+`generators()`, `producers_of()`, `report()`/`SpineReport`, `SpineSources.resolve()`,
   `SpineCycleError`.
 - No findings filed. Nothing stop-and-raised (no real-store cycle: worktree has no `data/`).
+
+## RE-OPEN (coordinator, post-commit `6f49f5f`): live-corpus acyclicity FAILED — fixed
+Coordinator ran the acyclicity tooth on `main` (populated `data/`): `SpineCycleError: cycle over
+1467 events` (1457 attestations + 9 runledger + 1 derived, an SCC). Root cause (spec-fidelity, my
+remit): the g2 minter map over-generated. I set attestation `produces=(aid, *output_hashes)`, so a
+shared corpus/config digest listed as BOTH an input and an output of many attestations created
+`producer(h)→consumer(h)` edges in BOTH directions → false 2-cycles (e.g. att:1↔att:5), violating my
+own §8 soundness law `≼_derived ⊆ ≼_true`.
+
+**Fix (faithful to §2.8-5, NOT a design change):** an attestation is a proof-layer record, not the
+MINTER of its outputs (each output is written to a store whose OWN event mints it). So an attestation
+now produces ONLY its own content-addressed id; attestation→attestation order is EXACTLY the
+`derived_from_ids` DAG (acyclic — parents are prior attestations). Preserved: version→att via
+`input_hashes` (versions/derived are the true minters); att→derived via `derived.attestation_id`;
+att→eval via `evidence_ref`; the artifact-production order A≺derived≺child holds transitively.
+output_hashes still RIDE the row as displayed `refs` (via a new `_add(refs=…)` param) but no longer
+drive `produced_by`. Files touched: `core/temporal/spine.py` (`_Builder.attestations` + `_add`
+signature + g2 docstring).
+
+**Synthetic regressions** (I cannot reproduce the live 1467-cycle — no `data/`): added to
+`tests/unit/test_spine.py` — `test_mutual_hash_attestations_do_not_cycle` (mirror att:1↔att:5: no
+cycle, no g2 edge either way) and `test_shared_hub_hash_creates_no_spurious_attestation_edges` (a HUB
+output by ≥2 / consumed by ≥2: zero att↔att edges). The old cycle test in `test_spine_invariants.py`
+was RETARGETED: mutual output/input hashes are (correctly) no longer a cycle, so the genuine
+forged-reference case is now mutual `derived_from_ids` (an attestation claiming to derive from one
+that derives from it) → `derive()` still raises `SpineCycleError` (§2.8-1 tooth intact).
+
+Gate re-run green (all 5 legs): ruff clean; mypy Success (202); argless mypy = **69**; type_gate OK;
+pytest **1309 passed** (+2 synthetic), 10 skipped, 9 deselected. Spine files: 22 passed.

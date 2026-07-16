@@ -68,13 +68,18 @@ def test_acyclicity_on_a_seeded_multi_store_graph() -> None:
 
 
 def test_forged_cycle_makes_derive_fail_closed() -> None:
-    """Two attestations that each produce the other's input close a cycle in ≼_derived — the
-    forged/corrupted-reference case. derive() must fail closed (§2.8-1)."""
+    """A genuine forged/corrupted provenance reference closes a cycle in ≼_derived: two attestations
+    that each claim to DERIVE FROM the other (mutual `derived_from_ids`) — impossible in true time,
+    since a parent is always a PRIOR attestation. derive() must fail closed (§2.8-1). (Mutual
+    output/input HASHES are NOT a cycle — that is shared mutable state, §2.8-5; see the unit
+    regression `test_mutual_hash_attestations_do_not_cycle`.)"""
     store = AttestationStore(_MEM)
-    a = Attestation.create(timestamp="t", agent_role="r", action="x",
-                           constitution_fingerprint="f", input_hashes=["H2"], output_hashes=["H1"])
-    b = Attestation.create(timestamp="t", agent_role="r", action="x",
-                           constitution_fingerprint="f", input_hashes=["H1"], output_hashes=["H2"])
+    a = Attestation(id="A", timestamp="t", agent_role="r", action="x",
+                    constitution_fingerprint="f", input_hashes=(), output_hashes=(),
+                    derived_from_ids=("B",))
+    b = Attestation(id="B", timestamp="t", agent_role="r", action="x",
+                    constitution_fingerprint="f", input_hashes=(), output_hashes=(),
+                    derived_from_ids=("A",))
     store.append(a)
     store.append(b)
     with pytest.raises(SpineCycleError):

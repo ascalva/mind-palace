@@ -20,9 +20,14 @@ order that is the reflexive-transitive closure of three generator families (note
     Ordered by rowid / version_seq — NEVER by a wall timestamp (Law C4: `created_at`/`started_at`/
     `at`/`timestamp` decorate events for display only; they generate no order).
   * **g2 — reads-from (content-address references).** An event whose row records an identifier
-    minted by another event is causally after it. This is the attestation auto-link
+    MINTED by another event is causally after it. This is the attestation auto-link
     (`core/attestation/attestor.py:59-69`, `store.producers_of`) GENERALIZED from attested actions
     to all store events; the attestation DAG embeds as-is (the calibration oracle, §2.8-5).
+    Faithfully implementing §2.8-5: an attestation is a proof-layer record, NOT the minter of its
+    outputs (each output is written to a store, whose OWN event mints it), so attestation→
+    attestation order is exactly the `derived_from_ids` DAG — never the raw output/input hash
+    coincidence, which over-generates on a SHARED corpus/config digest (mutable state listed as
+    both an input and an output of many attestations) and would manufacture a false cycle.
   * **g3 — recorded program order.** Where one actor's sequence is itself recorded — a run's
     `start_run → add_claim*` (`core/stores/runledger.py`).
 
@@ -248,11 +253,15 @@ class _Builder:
     present: list[str] = field(default_factory=list)
 
     def _add(self, store: str, chain_key: str, position: int | None,
-             produces: tuple[str, ...], consumes: tuple[str, ...]) -> str:
+             produces: tuple[str, ...], consumes: tuple[str, ...],
+             refs: tuple[str, ...] | None = None) -> str:
+        # `refs` (the displayed row metadata) defaults to produces ∪ consumes, but may be given
+        # explicitly where an identifier belongs ON the row yet must NOT drive the g2 minter map —
+        # an attestation's output_hashes (it is a proof-layer record, not the minter; see below).
         eid = _event_id(store, chain_key, position)
-        refs = tuple(sorted(set(produces) | set(consumes)))
+        row_refs = tuple(sorted(set(refs) if refs is not None else set(produces) | set(consumes)))
         self.events[eid] = SpineEvent(event_id=eid, store=store, stratum=_STRATUM[store],
-                                      position=position, refs=refs)
+                                      position=position, refs=row_refs)
         self.chain_of[eid] = f"{store}:{chain_key}"
         for p in produces:
             self.produced_by.setdefault(p, set()).add(eid)
@@ -341,12 +350,25 @@ class _Builder:
             if rec is None:
                 produces: tuple[str, ...] = (aid,)
                 consumes: tuple[str, ...] = ()
+                row_refs: tuple[str, ...] = (aid,)
             else:
-                # produces its id + outputs; consumes its inputs + parent ids (auto-link, §2.8-5)
-                produces = (aid, *rec.output_hashes)
+                # §2.8-5 (authoritative): attestation→attestation causal order is the
+                # `derived_from_ids` PROVENANCE DAG (acyclic by construction — parents are PRIOR
+                # attestations), NOT the raw output/input hash coincidence. An attestation is a
+                # proof-layer record, not the MINTER of its outputs — each output is written to a
+                # store whose OWN event mints it — so it produces ONLY its own content-addressed id.
+                # If it also injected its output_hashes into the minter map, a shared corpus/config
+                # digest listed as both an input and an output of many attestations would create
+                # producer↔consumer edges in BOTH directions (the live-corpus 1467-event SCC).
+                # Cross-store order survives: parentage via derived_from_ids; version→att via
+                # input_hashes (versions/derived events are the true minters of those digests);
+                # att→derived/eval via this attestation's own id (derived.attestation_id /
+                # eval.evidence_ref). output_hashes still RIDE the row as displayed refs.
+                produces = (aid,)
                 consumes = (*rec.input_hashes, *rec.derived_from_ids)
+                row_refs = (aid, *rec.output_hashes, *rec.input_hashes, *rec.derived_from_ids)
             eid = self._add("attestations", "attestation", pos,
-                            produces=produces, consumes=consumes)
+                            produces=produces, consumes=consumes, refs=row_refs)
             if prev is not None:
                 self.g13_edges.add((prev, eid, "g1"))
             prev = eid
