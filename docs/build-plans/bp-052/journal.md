@@ -53,3 +53,34 @@ common (n_common counts the intersection only). No store used in tests — `Temp
 constructed directly over hand-built `CitationComplex` fixtures.
 
 Next: Item 2 — `core/velocity_view.py` alive/stale energy.
+
+## 2026-07-16 — Item 2 COMPLETE (alive/stale energy) — `test_alive_stale.py` green (7 passed)
+
+New `core/velocity_view.py`: `WeightedBackbone` (anchor + interpreter_version + node-aligned weighted
+`A`), `AliveStaleReport` (pinned §6 shape EXACTLY), private `_weighted_edges`/`_common_restriction`
+(X1 common-edge restriction + `Δw = w_b − w_a`), and public `alive_stale_energy`. Decomposes `Δw`
+with `hodge.hodge_decompose` over the binary structural common backbone (v1 combinatorial ⇒ projectors
+key on structure, weight-independent), reporting `‖P_harm‖`/`‖P_grad‖`/`‖P_curl‖`. A7 guard fires
+FIRST: interpreter-version mismatch ⇒ empty report, `interpreter_version="va→vb"`, reason recorded,
+zero energies (the apophenia leak refused). Honest seam also on no-common-edges and β₁=0.
+
+Falsifier clauses proven as tests: gradient-only Δw (`∂₁ᵀx`) ⇒ harmonic_energy < 1e-9 (curl ≡ 0 on a
+4-cycle); β₁=0 ⇒ void reading with reason; three Hodge parts mutually orthogonal + report energies ==
+independent `hodge_decompose` norms on a triangle+hole fixture (curl AND harmonic both live); version
+boundary ⇒ empty; common restriction keeps only both-present edges (X1); no-common-nodes empty;
+determinism.
+
+**GREEN GATE — all 5 legs pass (run separately, each read):**
+- `uv run ruff check .` → All checks passed
+- `uv run mypy core agents eval ops scheduler scripts` → Success, no issues (202 files)
+- `uv run mypy` (argless) → **69 errors** (matches the pin; my +3 checked files added none)
+- `uv run python -m ops.type_gate` → Tier-2 membership OK, bare-ignore scan OK
+- `uv run pytest -q -m 'not live'` → **1300 passed, 10 skipped, 9 deselected**
+
+Note on ruff: line-length is 100; the many multibyte glyphs (₁ Δ ‖ β → ≥ § — ×) forced several
+docstring/comment reflows — no logic touched. No live/podman legs relevant (deterministic, model-free,
+no sandbox). No findings needed: `hodge.py`'s public projector surface exposed exactly what (b) needs
+(`hodge_decompose` + `harmonic_basis`), so §10 stop-and-raise did not trigger; §4 reconciliation was a
+no-op. Isolation intact: `core/complex` untouched, consumed only via its public surface.
+
+Both items complete. Ready for orchestrator to flip status + merge.

@@ -3,10 +3,10 @@
 
 Proves the §2.2 falsifier clauses as tests (plan §8): identical snapshots ⇒ all principal angles 0
 (no fabricated rotation); β₁ = 0 at either anchor ⇒ an empty report with a recorded reason and
-`principal_angles == ()` (the honest seam, no fabricated geometry); the reported angles agree with an
-INDEPENDENT SVD-based computation on the same harmonic bases (`scipy.linalg.subspace_angles`); and the
-result is deterministic run-to-run. Built over in-memory `CitationComplex` fixtures with KNOWN
-topology (4-cycle → β₁=1, path → β₁=0) — no store, no model, no network; `Inv` (never a clock).
+`principal_angles == ()` (the honest seam, no fabricated geometry); the reported angles agree with
+an INDEPENDENT SVD-based computation on the same harmonic bases (`scipy.linalg.subspace_angles`);
+and the result is deterministic run-to-run. Built over in-memory `CitationComplex` fixtures with
+KNOWN topology (4-cycle → β₁=1, path → β₁=0) — no store, no model, no network; `Inv` (no clock).
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from scipy.linalg import subspace_angles
 
 from core.complex.hodge import edge_index, harmonic_basis
 from core.temporal.complex import CitationComplex
-from core.temporal_view import RotationReport, TemporalView
+from core.temporal_view import TemporalView
 
 
 def _cx(edges: list[tuple[str, str]]) -> CitationComplex:
@@ -121,11 +121,11 @@ def test_rotation_is_deterministic_run_to_run():
 
 
 def test_partial_node_overlap_restricts_to_common():
-    # X_n carries a square on {a,b,c,d}; X_{n+1} adds node e but the common restriction is still the
-    # 4-cycle → n_common = 4, both β₁ = 1, a well-defined rotation (angles ≈ 0, same thread).
-    later = _SQUARE + [("d", "e"), ("e", "a")]             # a,b,c,d,e present; a-b-c-d-e-a hexagon
+    # X_n carries a square on {a,b,c,d}; X_{n+1} adds node e via a d-e-a ear (a filled triangle
+    # a-d-e). The common restriction to {a,b,c,d} is still the 4-cycle → n_common = 4, both β₁ = 1.
+    later = _SQUARE + [("d", "e"), ("a", "e")]             # e is X_{n+1}-only; triangle a-d-e fills
     report = _view(_SQUARE, "c1").rotation_to(_view(later, "c2"))
     assert report.n_common == 4                            # e is X_{n+1}-only, dropped from common
     assert report.beta1_a == 1 and report.beta1_b == 1     # both restrict to the a-b-c-d-a square
     assert report.empty_reason is None
-    assert max(report.principal_angles) < 1e-6             # same thread survives on the common nodes
+    assert max(report.principal_angles) < 1e-6             # same thread survives on common nodes
