@@ -3937,3 +3937,26 @@ diffs read directly), merged `--no-ff`, worktrees removed.
   identity (TRA A6, owner-ruled HARD) before the diachronic reader / Track D.
 - Session remains design-only; suite 1287 untouched. The four drafts + finding-0090 + the path are the
   session's complete deliverable set.
+
+### session-19 coda (2026-07-16) — 🏛 ALL FOUR NOTES RATIFIED (owner hand-flips, in-session); oq-0027 ANSWERED
+
+- Owner ruled in chat (2=Res(π) lean-yes with the "different processes visible at different
+  resolutions" motivation; 3=cross-strata YES IN GENERALIZED FORM — dreamers grantable per-scope over
+  non-authored strata combinations, bounding conditions unchanged; 4=global clock YES conditional on
+  the clock-bridge preserving structure + zone separation — mapped to GC-4/GC-N1 falsifiers), the
+  rulings were RECORDED into the drafts + oq-0027's answer field, and the owner then HAND-FLIPPED all
+  four frontmatters draft→ratified: **dn-sigma-fibers, dn-resolution-result-typing,
+  dn-cross-strata-dreamer, dn-global-event-clock — RATIFIED 2026-07-16.** All four now A8-immutable.
+- Consistency check (owner asked; verdict recorded): rulings 2 and 4 are exactly the design's assumed
+  strong branches (FB-2's Res-gate resolves strong; the item-4 condition IS the design's falsifier
+  surface). Ruling 3 is consistent-and-BROADER: the draft's single exemption class generalizes to
+  per-grant scope-parametric dreamers; folded pre-flip (the §2.1 owner-ruling block + XS-a per-grant +
+  per-grant gate semantics: G1 any promotion crossing, G3 multi-stratum only, G2 the correlator, G4
+  prudential). The one tension — "we can test it all" vs G4 mirror-value-first — reconciles via
+  SHADOW-pipeline evaluation under eval isolation (scoped dreamers are testable as harness lanes
+  without anything reaching the corpus; live grants still travel the gate chain).
+- **Unlocked:** /graduate for FB-1..FB-3 (+ the Res[T]/res_under rider) and GC-1..GC-4 per
+  dn-global-event-clock §3.1 (wave 1: FB-1 + GC-1 + the velocity pair; the σ-sweep RUN feeds FB-1).
+  Cross-strata ratification licenses no build (G1–G4 front it). oq-0027 → ANSWERED.
+- Next session (opus): /graduate wave 1 → owner blesses proposed→ready → build wave. /triage still
+  owed (now incl. finding-0090).

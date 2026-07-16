@@ -716,7 +716,11 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0027 — the Fable design pass shipped THREE draft notes with three different blessing stakes: ratification review requested (σ-fibers · Res(π) algebra amendment · cross-strata fork)
-- status: open
+- status: ANSWERED (2026-07-16) — **ALL FOUR notes hand-ratified by the owner** same session
+  (frontmatter flips observed on disk; the chat rulings in the answer field below are the recorded
+  rationale, folded into the notes pre-flip). /graduate is unlocked per dn-global-event-clock §3.1;
+  dn-cross-strata-dreamer's ratification licenses NO build by its own terms (G1–G4 still front any
+  cross-strata plan).
 - origin: the 2026-07-16 Fable+xhigh design pass on docs/brainstorms/cross-strata-and-multiscale-dreamers.md
 - blocking: false (each note records its default-if-unratified; nothing waits)
 - question: The pass split the brainstorm into three drafts, deliberately separable because their blessing
@@ -774,4 +778,24 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   dn-global-event-clock §3.1 (wave 1: FB-1 + GC-1 + the ratified velocity pair + the σ-sweep RUN;
   wave 2: GC-2 + FB-2; wave 3: GC-3 + GC-4 + FB-3; wave 4: the gated instruments, incl. uuid-identity
   before Track D).
-- answer:
+- answer (2026-07-16, owner in chat — RECORDED; ratification itself remains the owner's hand edit of
+  each note's `status:` frontmatter; the notes stay `draft` and /graduate refuses them until flipped):
+  - item 2 (Res(π)) — **leaning YES**: "Res will give us a generic and powerful way to specify
+    resolution, and it feels like at different resolutions, different processes could be visible."
+    (The motivation is folded into the note, attributed.)
+  - item 3 (cross-strata fork) — **YES, in GENERALIZED form**: "dreamers can be scoped to different
+    strata layers, and different combinations, so the generalized answer would be yes — dreamers
+    should be allowed to be scoped to use non-authored seeds; we can test it all." I.e. the fork
+    resolves as: the firewall binds the MIRROR dreamer, not dreaming per se; scoped dreamers over
+    non-authored / composed strata are grantable per-scope (the capability algebra is the mechanism),
+    with the bounding conditions unchanged (interpreted-only output; MIRROR_READABLE untouched; the
+    mirror dreamer stays authored-only; owner ratification the only authored crossing; the harness
+    evaluates each scoped dreamer). Folded into the note as an owner-ruling block; XS-a updated
+    (Σ-extent becomes per-grant, harness-tested, not a fixed list).
+  - item 4 (global event clock) — **YES, with the named condition**: accepted as the derived,
+    read-side, partially-ordered causal spine "as long as it can act as a bridge between clocks
+    without sacrificing structure and zone separation." Condition mapped to the note's falsifiers:
+    the bridge = GC-4 pullback meets (structure preserved: bit-identical on all previously-legal
+    meets); zone separation = GC-N1 read-side-only (the sequencer rejection). Folded into the note.
+  - item 1 (dn-sigma-fibers) — no chat ruling; ratified directly by the hand flip (observed on disk
+    2026-07-16, same session as items 2–4's flips).
