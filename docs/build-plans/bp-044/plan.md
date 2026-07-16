@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-044
 alias: harness-report
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/evaluation-harness.md
 contract: builder
@@ -24,13 +24,40 @@ cost:
       + JSON + ASCII sparklines), one additive telemetry table (the cost ledger), and golden-file /
       round-trip tests. No model, no math object, no live-store mutation. Comparable to bp-039's
       renderer-shaped half; calibrated ~200k opus. NO fable, NO xhigh. Self-driven ~0.5–0.8×.
-  actual: null
+  actual:
+    model: opus
+    tokens: ~120k
+    ratio: ~0.60
+    dollars: null
+    session_delta: "DELEGATED supervised build (worktree-agent-a00b8478152789f5f). Builder
+      self-reported usage: 119,511 tokens, 75 tool-uses, ~13.4 min wall (805,488 ms), model
+      claude-opus-4-8, single continuous pass (no fable/xhigh, not interrupted/degraded). ~120k /
+      200k est = 0.60x — squarely in the self-driven 0.5-0.8x band (a pure renderer over now-BUILT
+      E1/E2 surfaces + one additive telemetry table; no rework beyond two trivial ruff/test fixes).
+      Orchestrator supervision (review + independent 5-leg gate + merge) is additional main-loop
+      context not counted here. Dollar/session-delta backfill owed from owner /usage at session end."
+    week_delta: "week opened at 1% (owner /usage, session start); backfill the delta at session end"
+    loc: "~913 added (report 360 + sparkline ~55 + scripts/report ~50 + telemetry +44 + 3 test files
+      ~400 + journal); telemetry.py the ONLY existing-code touch — strictly additive (SCHEMA_VERSION
+      2->3, new harness_cost table + record/reader; existing tables/tests untouched)"
+    # GREEN attested SEPARATELY on the MERGED tree (5-leg): ruff PASS; mypy `core agents eval ops
+    # scheduler scripts` == 0 (195 files, 192->195); argless mypy == 69 UNCHANGED (baseline HELD);
+    # ops.type_gate OK; pytest -q -m 'not live' == 1220 passed / 7 skipped / 9 deselected(live) / 0
+    # failures (+18 new: sparkline + report + cost ledger). Falsifiers held: renderer READ-ONLY (no
+    # store mutation in report.py); every Figure carries its EvalKey; model-free deterministic (byte-
+    # identical re-render); telemetry additive-DDL (existing telemetry tests green unmodified).
+    # Reconciliation (disclosed): the A/B split is sourced from the ledger's explicit `pipeline`
+    # column (pipeline lives in the opaque spec_hash); ledger/telemetry figures carry transparent
+    # source-tagged keys — no reading lacks its key (not the §10 stop). finding-0086 reconciled:
+    # structural_axes.* rendered via query() without fail-closed registry.get; registration owed.
 depends_on:
-  - bp-042                               # reads the eval-results store query() surface
-  - bp-043                               # reads the run ledger runs()/claims() surface
-parallelizable_with: []                  # its inputs (E1/E2 surfaces) must exist first
+  - bp-042
+  - bp-043
+parallelizable_with: []
 created: 2026-07-15
-updated: 2026-07-15
+updated: 2026-07-16
+started: 2026-07-16
+completed: 2026-07-16
 links:
   - docs/design-notes/evaluation-harness.md
   - core/stores/telemetry.py
