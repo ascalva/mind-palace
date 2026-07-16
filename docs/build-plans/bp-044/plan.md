@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-044
 alias: harness-report
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/evaluation-harness.md
 contract: builder
