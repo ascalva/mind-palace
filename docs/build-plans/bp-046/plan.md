@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-046
 alias: sweep-levers
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/evaluation-harness.md   # §2.6 the closed lever registry the manifest/sweep overlay; §2.9 the dual dreamers; §2.1 config_fingerprint
 contract: builder

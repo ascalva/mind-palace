@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-049
 alias: sweep-engine
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/evaluation-harness.md   # §2.6 the sweep spec + deterministic optimizer; §2.8 overnight profile; §2.9 sweep.dreamer-sigma-ab (bp-040 re-derived)
 contract: builder
