@@ -1,0 +1,34 @@
+# The tuning manifest — a per-lever POLICY overlay on ops/levers.LEVERS (dn-evaluation-harness
+# §2.6, E3a). POLICY ONLY: this file carries no live lever values. A lever's admissible range and
+# kind are DERIVED from its Lever in ops/levers.py (the single source of truth); its live value is
+# read from the config/overlay chain. This manifest is subordinate to config/local.toml — the
+# human's value channel always wins. Editing it changes tuning POLICY, never a knob's value.
+#
+# Per-lever keys (E3a):
+#   subsystem  informational grouping (defaults to the lever's config section)
+#   autonomy   "propose" only in E3a — the default, and the value when the key is absent. "auto"
+#              (the unattended E3b mode) is RESERVED but rejected at load until E3b lands.
+#   objective  OPTIONAL: the default eval-registry key this lever's sweeps optimize (E3a-1 reads it)
+#
+# Adding a lever here that ops/levers.py does not register fails closed at load (a fixed point has
+# no lever and cannot be named). Range/default are never re-declared here.
+
+[tuning.dream_similarity_threshold]
+subsystem = "dreaming"
+autonomy  = "propose"
+objective = "f9_composite"
+
+[tuning.dream_near_dup_threshold]
+subsystem = "dreaming"
+autonomy  = "propose"
+objective = "f9_composite"
+
+[tuning.dream_min_cluster_size]
+subsystem = "dreaming"
+autonomy  = "propose"
+objective = "f9_composite"
+
+[tuning.dream_max_clusters]
+subsystem = "dreaming"
+autonomy  = "propose"
+objective = "f9_composite"
