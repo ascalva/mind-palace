@@ -70,6 +70,27 @@ Every plan copies the signatures, schemas, and invariants its builder must honor
 infer design. This is the single most common decomposition defect; get it right
 here. (Details: build-plan skill.)
 
+## Write-scope authoring (two teeth the guard cannot recover from)
+
+The `write_scope` is the builder's *capability*, parsed by `scope-guard` pre-hoc.
+Author it so the guard grants exactly the plan's intent — two habits break it:
+
+- **No inline comments on `write_scope` globs** (finding-0085). `scope-guard` reads
+  each unquoted list entry literally, so `- eval/metrics.py  # absorbed` is stored
+  as the string `eval/metrics.py  # absorbed` and matches *nothing* — the builder is
+  denied a file its plan explicitly grants (a false-negative denial mid-build). Put
+  every rationale in **§5 Write scope** prose; the front-matter list is bare globs
+  only. (The robustness half — a guard that strips a trailing ` #…` — is tracked in
+  finding-0085 as optional tooling; do not rely on it, author clean.)
+- **Retrofit plans pre-widen `write_scope` for the target's existing tests**
+  (findings 0071/0072/0075/0084). When a plan *changes existing code*, that code's
+  current tests may assert its **exact surface** (a signature, a return shape, a
+  string). Changing the surface reddens those tests, so the builder must edit them —
+  but they are outside a naïve write_scope and the guard denies it mid-build. Before
+  emitting: **scan the retrofit target's test files** (`grep` the changed symbols in
+  `tests/`) and add every test file that asserts the touched surface to `write_scope`.
+  Name them in §5 as "carried because they pin the surface this plan moves."
+
 ## Procedure
 
 1. Verify `status: ratified` (the command already gated; re-confirm).
@@ -81,7 +102,9 @@ here. (Details: build-plan skill.)
    this" where true) and §4 Reconciliation (banner-or-cross-reference proposals).
    Implement nothing.
 5. For each plan: instantiate `docs/templates/build-plan.md` → `status: proposed`,
-   least-privilege `write_scope`, ordered §2 context manifest, §7 items ordered by
+   least-privilege `write_scope` (bare globs, no inline comments; retrofit plans
+   carry the target's surface-pinning test files — see *Write-scope authoring*),
+   ordered §2 context manifest, §7 items ordered by
    blast radius with per-item acceptance **and** named falsifier, invariants, the
    `Touches stored data?` flag, and dependency/parallelizable edges, §8 Math
    field-guide where a mathematical object is implemented, `session_budget: 1`,

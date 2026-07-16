@@ -3,7 +3,7 @@ type: finding
 id: finding-0085
 status: open
 created: 2026-07-15
-updated: 2026-07-15
+updated: 2026-07-16
 links:
   - .claude/hooks/scope-guard.sh
   - .claude/skills/graduate/SKILL.md
@@ -44,6 +44,18 @@ Not parked — bp-042 is unblocked (write_scope cleaned in-session). This findin
 fix: (a) **the `/graduate` skill** should forbid inline comments on `write_scope` globs (put
 rationale in §5), and/or (b) **scope-guard** should strip trailing ` #…` before matching (the
 robust fix — humans will keep annotating). Pre-build cleanup owed on bp-043/044/045.
+
+**Update 2026-07-16 — (a) LANDED; (b) narrowed to optional tooling.** The `/graduate` skill now
+carries a *Write-scope authoring* section forbidding inline write_scope comments (rationale → §5)
+plus the retrofit test-path pre-widen discipline (findings 0071/0072/0075/0084), and Procedure step 5
+references it. bp-043/044/045 write_scopes were already cleaned; bp-043 is now building. The named
+standing /graduate-skill fix is DONE. **(b) remains owed as scoped robustness tooling**, not a
+blocker: a scope-guard strip of a *space-hash* (` #`, YAML comment) trailing an unquoted block-list
+entry — mirroring `_lib.py:_normalize_status`'s existing space-hash rule, applied at the block-list
+parse (`_lib.py:188`), NOT globally in `_scalar` (the author deliberately keeps `_scalar` from
+stripping `#` so a legitimate hash in a plain value survives — `_lib.py:207-213`). Because it edits
+enforcement machinery with no parser test today, it warrants a tiny build plan (propose → bless →
+build → validate) rather than a mid-session hand-edit — carried, not mid-supervision-reflexed.
 
 ## Routing
 `spec-defect` bearing on tooling + a skill → orchestrator. Batches with the standing /graduate-skill
