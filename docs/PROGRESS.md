@@ -4025,3 +4025,21 @@ diffs read directly), merged `--no-ff`, worktrees removed.
 - **Dollars/session-deltas: pending** owner end-of-session /usage relay → fill the seals' `dollars`
   fields + wave-level economics in the self-rewrite.
 - Next: merge+seal bp-051 on completion; waves 2/3 (bp-053..057) await owner `proposed→ready`.
+
+**bp-051 update — CAUGHT RED, FIXED, sealed COMPLETE.** Initial merge `0a3d468` passed 4/5 legs but
+the Item-3 acyclicity tooth FAILED against the LIVE corpus (`SpineCycleError`, 1467-event SCC) — a
+defect the isolated worktree structurally could not catch (no `data/`). Diagnosed on main
+(scratchpad/spine_cycle_diag.py): g2 minted attestation `output_hashes` into `produced_by`, so a shared
+corpus/config digest (both input & output of many attestations) created producer↔consumer edges both
+ways → the whole attestation store collapsed to one SCC, violating §8 `≼_derived ⊆ ≼_true`. Re-engaged
+the same builder (context intact) with the precise diagnosis + a synthetic-regression spec it could
+verify in-worktree. Fix `14b3140` (merged `2c541db`): an attestation produces ONLY its own id (it is a
+proof-layer record, not the minter of its outputs — the store event is); att→att order = `derived_from_ids`
+(§2.8-5, acyclic); output_hashes still display as `refs`; cross-store provenance preserved. **LIVE-corpus
+acyclicity re-verified PASS**; forged-cycle tooth RETARGETED to mutual `derived_from_ids` (still bites);
+full 5-leg green (suite 1315→**1337**; argless 69 held). `finding-0092` filed RESOLVED (spec-fidelity;
+minter mis-attribution, NOT a note errata — §2.2's "minted"=unique write-once mint; forward rule for
+GC-2/GC-3: g2 fires only from an identifier's unique minter). Cost **304840 tok / 1.27×** (the rework).
+- **Process lesson:** an integrity acceptance needing live `data/` cannot be verified in a builder's
+  worktree — run it on main (ideally a scratch integration BEFORE the main merge). Fold into delegate skill.
+- **WAVE 1 COMPLETE:** bp-050 ✅ · bp-051 ✅ (via fix) · bp-052 ✅ — all sealed, main green, suite 1337.

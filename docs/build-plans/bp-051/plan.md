@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-051
 alias: spine-skeleton
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/global-event-clock.md   # RATIFIED 2026-07-16 — §2.1 GC-N1; §2.2 generators g1/g2/g3 + the store audit; §2.7 no-payload; §2.8 three clauses (GC-1)
 contract: builder
@@ -15,6 +15,17 @@ cost:
   estimate:
     model: opus
     tokens: 240k
+  actual:
+    model: opus
+    tokens: 304840        # harness-measured, CUMULATIVE (initial build ~263k + fix rework ~41k)
+    tool_uses: 79
+    ratio: 1.27           # OVER estimate — the defect+fix rework (finding-0092); clean plans ran ~0.9x
+    merged: 2c541db       # fix merge, 5-leg green + LIVE-corpus acyclicity PASS. Initial merge 0a3d468
+                          # failed the live acyclicity tooth (1467-event cycle) → finding-0092 → fixed 14b3140
+    sealed: 2026-07-16
+    dollars: pending      # wave-level $ from owner end-of-session /usage relay → PROGRESS + self-rewrite
+    findings: [finding-0092]   # spec-fidelity: g2 over-generated on shared attestation hashes — caught on
+                               # LIVE data (worktree had no data/), fixed faithful to §2.8-5, RESOLVED
 depends_on: []
 parallelizable_with: [bp-050, bp-052]
 created: 2026-07-16
