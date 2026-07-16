@@ -4059,3 +4059,20 @@ unchanged (5th pool-split confirmation).
 - Both wave-2 builders' worktrees were cut from the session baseline `4b3ace7` (pre-wave-1-merge), so each
   ff-merged current main to pick up its dependency (bp-054 needed bp-050's fibers.py) before building —
   clean, disjoint. bp-053 must do the same to get bp-051's merged spine.py: VERIFY at its merge.
+- **bp-053 `clock-maps` → COMPLETE.** Merged `0c1ea0c` (it ff-merged main to extend bp-051's fixed
+  spine.py — verified). p_κ + C-laws C1–C4 + N_s + proper_time (finding-0090 discipline). Applied the
+  bp-051 lesson: verified LIVE-corpus clock-laws (7/7: commit-range/N_s/proper_time on real chains) +
+  re-ran bp-051 acyclicity — ALL PASS — in the uncommitted merge state BEFORE finalizing (git-merge-abort
+  was the safety net). 5-leg green (suite 1349→**1375**; argless 69). Actual **205k / 1.03×**.
+  - **Finding-number collision handled:** bp-053 and bp-054 both minted `finding-0093` from the same
+    `4b3ace7` baseline. bp-054's merged first (circular-import); bp-053's renumbered to **finding-0094**
+    (add/add conflict resolved keep-ours; journal refs fixed).
+  - **finding-0094 (spec-fidelity, RESOLVED):** the commit clock is injection-based — no spine-enumerated
+    store carries a commit SHA and sealed-core forbids core/→git (non-neg #1/#2), so the "against ACTUAL
+    git history" check is a named OPS-SIDE follow-up (re-entry: first Rate(commit)/commit-cut consumer),
+    NOT under-delivery. p_commit is honestly PARTIAL; N_s + proper_time fully live-verified.
+- **WAVE 2 COMPLETE:** bp-053 ✅ · bp-054 ✅ — sealed, main green, suite 1375, argless 69 held.
+- **NEXT = WAVE 3 (fresh session, per context-economy):** bp-055 certified-cuts (dep bp-053 ✅),
+  bp-056 tmeet-completion (dep bp-053 ✅; HIGHEST scrutiny — merge LAST, xhigh line-by-line; falsifier
+  test_scope.py green with ZERO edits), bp-057 sigma-gate (deps bp-050✅+bp-054✅; park-and-record if the
+  three F9 criteria don't hold). All deps now satisfied; all three blessed `ready` (97239b8).

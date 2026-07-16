@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-053
 alias: clock-maps
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/global-event-clock.md   # RATIFIED — §2.3 clock laws C1–C4 + GC-N6; §2.9-3 (TG-a prerequisite) (GC-2)
 contract: builder
@@ -15,6 +15,23 @@ cost:
   estimate:
     model: opus
     tokens: 200k
+  actual:
+    model: opus
+    tokens: 205020        # harness-measured
+    tool_uses: 83
+    ratio: 1.03           # actual/estimate — on estimate
+    merged: 0c1ea0c       # 5-leg green on main: ruff · mypy(205) · argless 69 · type_gate · pytest 1375p/7s.
+                          # LIVE-corpus verified pre-finalize: clock-laws 7/7 (commit-range/N_s/proper_time
+                          # on real chains) + bp-051 acyclicity still PASS (the bp-051 discipline applied)
+    sealed: 2026-07-16
+    dollars: pending      # wave-level $ from owner end-of-session /usage relay
+    findings: [finding-0094]   # spec-fidelity, RESOLVED (renumbered from a 0093 collision with bp-054)
+    completion_note: >
+      p_κ + C-laws (C1–C4) + N_s + proper_time (finding-0090 discipline: (len, chain_complete)) DELIVERED
+      and LIVE-verified. The commit clock is honestly PARTIAL/injection-based: no spine-enumerated store
+      carries a commit SHA and sealed-core forbids core/ shelling to git (non-neg #1/#2), so p_commit
+      consumes an injected coarsening map; the "against ACTUAL git history" convexity check is a named
+      ops-side follow-up (finding-0094 re-entry), NOT under-delivery — forced by a non-negotiable.
 depends_on: [bp-051]
 parallelizable_with: [bp-054]
 created: 2026-07-16
