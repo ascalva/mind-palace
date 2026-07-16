@@ -657,6 +657,14 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 - default_if_unanswered: keep σ = 0.62 until the owner runs/reviews a sweep — a single-guess retune risks
   over/under-clustering the other way. Parks as finding-0079; re-entry — owner sets σ here (and rules on
   the harness), or the dream layer's missed-theme cost (the art cluster) becomes painful enough to tune.
+- update 2026-07-16 (finding-0087, from the E3a graduation grounding): the σ-sweep harness now has a
+  concrete WHICH-KNOB fork that must be decided BEFORE the harness can produce a meaningful σ curve. The
+  BUILT `ShadowRunner` computes dream_v2 from `[dream_rnd].sigma` (unregistered), while the registered
+  lever is `[dreaming].similarity_threshold` = 0.62 (this oq's σ) — and the runner only *fingerprints*
+  `[dreaming]`. So a sweep over the registered lever yields flat curves against the runner. The fork
+  (finding-0087): (1) register `[dream_rnd]` knobs as levers [orchestrator's lean — most faithful here];
+  (2) fix ShadowRunner to read `[dreaming]`; (3) widen the sweep grammar past the lever registry [weak].
+  This BLOCKS graduating E3a-1 (bp-046 reserved); E3a-2 (bp-047) + E6 (bp-048) graduated regardless.
 - answer:
 
 ---
