@@ -3751,6 +3751,10 @@ portable backstop):
   delegated calibration holds a 5th time. Combined suite on main **1262 passed**, argless mypy==69, both
   features coexist green. Milestone-1's automated-tuning control surface (E3a-2) + the human-labeling
   surface (E6) now exist.
+- **Session economics (owner /usage post-hoc, aggregate — 2 builds + orchestration):** $12.91 (opus),
+  1866 LOC added / 152 removed. **week 4%→5% (+1pt), credits UNCHANGED $122.94/$150** — CONFIRMED: a
+  delegated build wave draws the weekly subscription allowance, NOT the credit pool (credits engage only
+  past the weekly cap). Standing budget-gate fact for future waves.
 - **Next:** **/triage** the accrued debt (2 RUN observations — the polarity coverage gap + the 0.0 structural
   axes sanity-check; φ_conversation-sensor capture; findings 0086/0087). Then **graduate E3a-1 (bp-046)**
   — the sweep engine — from a FRESH context against the resolved σ-fork (register `[dream_rnd]` knobs as
