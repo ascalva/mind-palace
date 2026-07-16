@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-042
 alias: eval-results-store
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/evaluation-harness.md
 contract: builder
@@ -28,12 +28,29 @@ cost:
       test-pinned, no-live-model character as bp-039 (240k est / 170k actual, self-driven) but
       SMALLER: one table, one registry dataclass, no lattice algebra. Calibrated at ~200k opus.
       Deterministic — NO fable, NO xhigh. Self-driven lands ~0.5–0.8×; delegated ~1.6×.
-  actual: null
+  actual:
+    model: opus            # SELF-DRIVEN (orchestrator-as-builder, no delegation)
+    tokens: pending        # MEASURED $/opus-output await owner /usage at session end (backfill)
+    ratio: pending         # vs 200k est; expected in the ~0.5–0.8× self-driven band (deterministic,
+                           # fully-specified design; no fable, no xhigh, no re-derivation)
+    session_delta: "build shares this session with bp-042 graduation + bp-045; measured split awaits /usage"
+    week_delta: "opus week was 95% at session start (resets Jul 17 8pm ET); confirm delta at /usage"
+    loc: "~470 added (store 165 + registry 105 + 3 test files ~195 + eval/metrics.py +6); 0 existing runtime lines changed"
+    # GREEN attested SEPARATELY (5-leg): ruff `.` PASS; mypy `core agents eval ops scheduler scripts`
+    # == 0 (190 files, 187→190 = +eval/harness {__init__,store,registry}); argless mypy == 69
+    # UNCHANGED (the tooth HELD — 5 test-only errors introduced were fixed: path widened Path|str for
+    # ":memory:", one Optional-access guarded); ops.type_gate OK; pytest -q -m 'not live' == 1183
+    # passed / 7 skipped / 9 deselected(live) / 0 failures (+14 new: 5 store + 6 registry + 3 isolation).
+    # Falsifiers held: append-only-by-key (same-key-diff-value→False, first value kept), resume-replay
+    # inserts 0, confounds separable, absorption bit-identical, isolation-BFS negative control fires.
+    # Process: finding-0085 (write_scope inline-comment parse defect) surfaced + handled mid-build;
+    # one orchestrator plan-fix commit (e52151b), intent unchanged.
 depends_on: []
 parallelizable_with: []             # the keystone; E2/E4 read its surface but do not write it
 created: 2026-07-15
 updated: 2026-07-15
 started: 2026-07-15
+completed: 2026-07-15
 links:
   - docs/design-notes/evaluation-harness.md
   - docs/brainstorms/evaluation-harness.md
