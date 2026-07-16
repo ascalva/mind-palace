@@ -24,8 +24,9 @@ cost:
       effector_drift into reports) is a separate deferred plan (depends on E1+E4 built).
   actual:
     model: opus            # SELF-DRIVEN (orchestrator-as-builder, no delegation)
-    tokens: pending        # measured $/opus-output await owner /usage (backfill with bp-042 at wrap)
-    ratio: pending         # vs 60k est; trivial-mechanical wiring — expected well under
+    tokens: ~13k           # APPROX (owner /usage; per-plan split of the shared $25.15/108.8k two-build delta)
+    ratio: ~0.22           # ~13k / 60k est — well under (trivial-mechanical wiring; the tiny slice it was)
+    dollars: ~3            # APPROX share of the $25.15 two-build session delta; ZERO credits drawn
     loc: "~10 added (1-line import extend + 1 kwarg + 3-line comment in build_dreamer) + 1 test file (~95)"
     # GREEN attested SEPARATELY (5-leg): ruff `.` PASS; mypy `core agents eval ops scheduler scripts`
     # == 0 (190 files); argless mypy == 69 UNCHANGED (the 1 test-only _RowSource→VectorStore arg-type

@@ -30,11 +30,16 @@ cost:
       Deterministic — NO fable, NO xhigh. Self-driven lands ~0.5–0.8×; delegated ~1.6×.
   actual:
     model: opus            # SELF-DRIVEN (orchestrator-as-builder, no delegation)
-    tokens: pending        # MEASURED $/opus-output await owner /usage at session end (backfill)
-    ratio: pending         # vs 200k est; expected in the ~0.5–0.8× self-driven band (deterministic,
-                           # fully-specified design; no fable, no xhigh, no re-derivation)
-    session_delta: "build shares this session with bp-042 graduation + bp-045; measured split awaits /usage"
-    week_delta: "opus week was 95% at session start (resets Jul 17 8pm ET); confirm delta at /usage"
+    tokens: ~80k           # APPROX (owner /usage, per-plan split of a shared session — see session_delta)
+    ratio: ~0.40           # ~80k / 200k est — UNDER the ~0.5–0.8× self-driven band (deterministic,
+                           # fully-specified design; the finding-0085 detour + ruff/mypy fixups added
+                           # some overhead but the store+registry+tests were mechanical)
+    dollars: ~18           # APPROX share of the $25.15 two-build session delta; drew ZERO credits (weekly-covered)
+    session_delta: "MEASURED session /usage delta = $25.15 / 108.8k opus output for BOTH builds + the
+      side-convos (transcript-log Q&A, brainstorm capture, bp-040 exchange), split off the post-graduation
+      reading ($9.89/105.1k → $35.04/213.9k). bp-042 was the bulk (store+registry+isolation+finding-0085);
+      bp-045 the tiny wiring. Per-plan $ is an honest estimate, not an isolated measurement (bp-039 precedent)."
+    week_delta: "week reset to 0% by session end (Jul 16); the whole $35.04 session drew ZERO usage credits (81% unchanged)"
     loc: "~470 added (store 165 + registry 105 + 3 test files ~195 + eval/metrics.py +6); 0 existing runtime lines changed"
     # GREEN attested SEPARATELY (5-leg): ruff `.` PASS; mypy `core agents eval ops scheduler scripts`
     # == 0 (190 files, 187→190 = +eval/harness {__init__,store,registry}); argless mypy == 69
