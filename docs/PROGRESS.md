@@ -3562,3 +3562,44 @@ portable backstop):
 - **Plan board:** complete=bp-000..bp-039, **bp-042, bp-045**; proposed=bp-040 (subsumed), bp-043,
   bp-044; ready/in-progress=none. **Milestone-1 half-built:** E1 + E5(A2) done; **E2 (bp-043) + E4
   (bp-044) remain** for the first A/B report — build post-Jul-17-reset (owner blesses them then).
+
+## 2026-07-16 — DELEGATE-BUILT + SEALED bp-043 (E2 run-ledger + shadow) — first supervised builder
+
+- Owner directed delegated-builders mode (spawn supervised builders, orchestrator supervises). Week
+  reset (owner /usage: week 1%, session 6%, Fable 0%) → pre-flight budget gate PASS (est 220k ×1.6 ≈
+  352k ≪ open weekly allowance). Flipped bp-043 ready→in-progress FIRST (`d48068d`), spawned ONE
+  full-strength opus builder in an isolated worktree (background), supervised to green.
+- **bp-043 `run-ledger-shadow` (E2) — COMPLETE** (builder commits `196e5fc`/`b76150e`, merge `ef61c2b`,
+  seal `dfd3223`). `core/stores/runledger.py` — SQLite/WAL append-only `dream_runs`+`dream_claims`,
+  content-addressed `claim_id = sha256(kind‖sorted(set(support))‖polarity)` EXCLUDING surface/
+  confidence, method→polarity map, `novel`-on-insert across ALL prior runs (indexed). `core/dreaming/
+  shadow.py` — `ShadowRunner.run` drives BOTH pipelines over ONE MirrorView snapshot MODEL-FREE
+  (`collect_claims`+`adjudicate`, never `synthesize`), dream_v2 enabled in-process via `replace`
+  (never the disk flag), claims→ledger + guardrails(`drift_D`/`golden_recall` by registry name)+
+  `structural_axes.*`(from an EPHEMERAL scratch SnapshotStore, never live `structural.duckdb`)→ the
+  E1 eval store, each keyed per §2.1; not-captured fallbacks (no silent cap). `scheduler/cron.py` —
+  `SHADOW_KIND`+`enqueue_shadow`+`shadow_handler` ADDITIVE beside untouched `enqueue_dream`/`dream_
+  handler`/`cron_handlers`. +17 tests (7 runledger, 5 shadow, 5 AST-isolation tooth w/ 2 neg controls).
+- **Whole-plan falsifier HELD:** live dream surface unchanged — shadow writes only ledger+eval store,
+  live derived-store row-count unchanged, `[dream_rnd]` disk flag still False, model-free. Shadow
+  machinery BUILT but NOT activated in the live loop (`cron_handlers` untouched, deliberate) —
+  activation (register SHADOW_KIND→handler + call enqueue_shadow on a tick w/ a live ledger) is the
+  deploy-gated RUN.
+- **5-leg gate (orchestrator re-ran SEPARATELY on the MERGED tree):** ruff PASS; mypy scoped 0 (192
+  files, 190→192); argless mypy **69 UNCHANGED**; ops.type_gate OK; pytest `-m 'not live'` **1202
+  passed / 7 skipped / 9 deselected(live)** / 0 failures. Diff scrutinized pre-merge: 8 files ==
+  write_scope+journal+finding-0086, nothing out of scope.
+- **finding-0086 filed (spec-fidelity, builder-resolved):** `structural_axes.*` written per §3 Q6 but
+  not registered in `eval/harness/registry.py` (out of write_scope; `put()` doesn't gate on
+  registration → no runtime break). Registration follow-up owed — natural rider on E4/bp-044.
+- **finding-0085 (a) LANDED:** the /graduate skill now forbids inline write_scope comments + codifies
+  the retrofit test-path pre-widen discipline (`b65cc3f`); (b) the scope-guard ` #…` strip narrowed to
+  optional tooling (warrants its own tiny plan — enforcement machinery, no parser test today).
+- **cost.actual:** builder self-reported ~180k tokens / 89 tool-uses / ~20.5 min, ratio ~0.82× est
+  (UNDER the delegated-wave 1.6× margin — fully-pinned greenfield). Dollar/session-delta backfill owed
+  from owner /usage at session end.
+- **Plan board:** complete=bp-000..bp-039, **bp-042, bp-043, bp-045**; proposed=bp-040 (subsumed),
+  bp-044 (ready); in-progress=none. **Next:** graduate E3a(+E6) now grounded against BUILT E2, then
+  delegate bp-044 (E4) — its RunLedger interface is now built, not inferred. Then milestone-1 is
+  code-complete → the first dual-dreamer A/B run (ShadowRunner over the live mirror; the RUN is the
+  deploy-gated step).
