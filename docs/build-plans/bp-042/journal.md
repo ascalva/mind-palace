@@ -7,27 +7,27 @@
 ## 2026-07-15 — GRADUATED (proposed), awaiting owner `proposed→ready` blessing
 
 - Graduated by the orchestrator (opus, self-driven) from ratified `dn-evaluation-harness` §3 **E1**
-  — the keystone of the milestone-1 tranche (E1 → {E2, E4} + E5(A2), the first overnight dual-dreamer
-  A/B). Implements NO new design (the note is banked, ratified 2026-07-15); this plan *builds* the
-  eval-results store + metric registry the note specifies.
-- **Grounding done in-session** (direct reads, no subagents — context economy + the /usage note's
-  subagent-heavy flag). Key facts:
-  - `eval/harness/` is absent (verified `ls`) → greenfield; §3/§4/§8 marked N/A with judgment
-    (§4 carries the one existing-code touch: `eval/metrics.py` absorbed *by re-export*, additive).
-  - The §2.1 key `(spec_hash, corpus_ref, config_fingerprint, seed)` + the §2.2 row shape are pinned
-    verbatim in §6; the store is DuckDB (A-4), append-only-**by-key** (the discipline is in code —
-    DuckDB will happily dup, so `put()` must skip a present cell; that is the whole-plan falsifier).
-  - Telemetry store (`core/stores/telemetry.py`) is the house DuckDB precedent (writer/reader split,
-    `open_store(config)`), NOT a dependency — the eval store mirrors its shape only.
-  - Four built metric families to register: golden recall (`eval/metrics.py` — the 3 pure fns),
-    drift `D` (`eval/drift.py`), F9 components (`tests/quality` `THRESH`: signal_recall/noise_max_conf/
-    noise_max_mean), telemetry vitals (`core/stores/telemetry.py`). Registry declares the §2.5 fields.
-- **Scope decisions (graduation judgment):** four items, blast-radius ordered — (1) store + types +
-  append-only-by-key; (2) resumability/honest-comparison tests; (3) registry + `eval/metrics.py`
-  absorption (the ONLY existing-code touch, additive); (4) the eval-isolation integrity tooth
-  (non-skippable, proves ∉ MIRROR_READABLE + no ingest path). One session, not parallel.
-- **Cost estimate:** opus 200k (new DuckDB store + typed registry + tests; smaller than bp-039's
-  240k est — one table, no lattice). Self-driven ~0.5–0.8×. No fable, no xhigh (deterministic).
-- **Not started** — `proposed`. Owner blesses `proposed→ready` by hand, then `/build bp-042`. This is
-  the keystone: E2/E3/E4/E5 all read or write its surface, so it builds FIRST. Safe (a new store,
-  touches no live data; tests use tmp/`:memory:`), so it can build even at week 95%.
+  — the keystone of the milestone-1 tranche. (Full graduation rationale in the git history / PROGRESS.)
+
+## 2026-07-15 — BUILD STARTED (owner blessed `proposed→ready`; orchestrator flipped `ready→in-progress`)
+
+- Owner hand-blessed bp-042 (+ bp-045) `proposed→ready`; flips committed `d9be748`/`fc52eb9` (rule 0060).
+- **Item 1 DONE — `eval/harness/store.py` + `__init__.py`.** `EvalKey`/`Reading` frozen dataclasses;
+  `EvalResultsStore` over one DuckDB table `eval_results` PK `(spec_hash,corpus_ref,config_fingerprint,
+  seed,metric_name)`; `put()` idempotent-by-key (present cell → return False, NEVER overwrites/dups),
+  `has()`/`get()`/`query()`/`close()`; `open_eval_store(config)` → `derived_store.parent/eval_results.duckdb`
+  (telemetry precedent). Smoke-verified append-only-by-key + confound separability.
+- **Item 2 DONE — `tests/unit/test_eval_store.py`.** 5 tests PASS: round-trip; idempotent-by-key-no-overwrite
+  (the append-only falsifier); resumability across a store REOPEN (replay inserts 0, all put=False);
+  confounds separable one-key-component-at-a-time; query filters compose + empty store empty.
+- **Item 3 IN PROGRESS — `eval/harness/registry.py` written** (MetricSpec + register/get fail-closed +
+  dup-reject; the 4 built families registered: golden_recall/overlap/mean_distance [Inv,row1;recall
+  guardrail], drift_D [Inv,row2,guardrail], f9_composite+3 components [Inv,row5], telemetry_wall
+  [Rate(wall),row4]+context_usage [Inv,row4]).
+- **BLOCKED then handled — scope-guard parse defect.** Editing `eval/metrics.py` (the absorption
+  header) was DENIED: its write_scope entry has an INLINE COMMENT (`eval/metrics.py  # absorbed…`) that
+  scope-guard did not strip, so the path didn't match. Same for `tests/integrity/test_eval_isolation.py`
+  (Item 4's file). File SET is correct; only the YAML format breaks the guard. → Orchestrator plan-fix
+  (strip inline comments from write_scope globs; intent unchanged) + a `spec-defect` finding (the
+  recurring 0071/0072/0075/0084 lineage — the /graduate skill should forbid inline comments on
+  write_scope globs). Then resume Item 3 (metrics.py absorption) + Item 4.

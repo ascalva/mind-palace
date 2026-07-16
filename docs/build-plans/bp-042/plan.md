@@ -2,18 +2,20 @@
 type: build-plan
 id: bp-042
 alias: eval-results-store
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/evaluation-harness.md
 contract: builder
 write_scope:
+  # NOTE: no inline comments on globs — scope-guard's YAML parse does not strip them (finding-0085).
+  # Rationale for each path lives in §5, not here.
   - eval/harness/__init__.py
   - eval/harness/store.py
   - eval/harness/registry.py
-  - eval/metrics.py                 # absorbed into the registry (§2.2, E1); kept importable, re-exported
+  - eval/metrics.py
   - tests/unit/test_eval_store.py
   - tests/unit/test_metric_registry.py
-  - tests/integrity/test_eval_isolation.py   # the "no path from eval store to ingest" integrity tooth
+  - tests/integrity/test_eval_isolation.py
 session_budget: 1
 cost:
   estimate:
@@ -31,6 +33,7 @@ depends_on: []
 parallelizable_with: []             # the keystone; E2/E4 read its surface but do not write it
 created: 2026-07-15
 updated: 2026-07-15
+started: 2026-07-15
 links:
   - docs/design-notes/evaluation-harness.md
   - docs/brainstorms/evaluation-harness.md
