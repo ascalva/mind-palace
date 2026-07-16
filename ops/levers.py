@@ -109,6 +109,17 @@ _LEVERS: tuple[Lever, ...] = (
         hi=16,
         description="cap on syntheses per dream run (the inference slot is scarce, §5).",
     ),
+    Lever(
+        name="dream_rnd_sigma",
+        section="dream_rnd",
+        key="sigma",
+        kind=LeverKind.FLOAT,
+        lo=0.55,
+        hi=0.75,
+        description="σ (dream_v2 lane): cosine edge threshold for the SHADOW mirror graph "
+        "(core/dreaming/shadow.py reads dream_rnd.sigma; distinct from "
+        "dream_similarity_threshold, which drives the live Phase-7 path).",
+    ),
 )
 
 LEVERS: dict[str, Lever] = {lever.name: lever for lever in _LEVERS}

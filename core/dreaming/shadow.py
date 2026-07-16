@@ -59,7 +59,7 @@ from eval.harness import registry
 from eval.harness.store import EvalKey, EvalResultsStore, Reading
 
 if TYPE_CHECKING:
-    from config.loader import Config, DreamingConfig
+    from config.loader import Config
 
 _log = logging.getLogger(__name__)
 
@@ -91,15 +91,23 @@ def _corpus_digest(rows: list[dict[str, Any]]) -> str:
     return level[0]
 
 
-def _config_fingerprint(dreaming: DreamingConfig) -> str:
-    """sha256 of the resolved `[dreaming]` levers (§3 Q2). E3 widens this to the full tuning
-    manifest (parked, §11); until then the dreaming subset is the config identity — shared by BOTH
-    pipelines (one lever set, one snapshot)."""
+def _config_fingerprint(config: Config) -> str:
+    """sha256 of the live value of EVERY registered lever (§3 Q2). Widened (bp-046) from the
+    `[dreaming]`-only subset to the registered `[dream_rnd]` levers: a σ-sweep varies
+    `dream_rnd.sigma`, which dream_v2 actually reads for the mirror graph (`run()` below,
+    `MirrorGraph.build(view, sigma=rnd.sigma)`) — so that value must enter the config identity or
+    every grid cell collapses onto one eval-store key and the curve/resumability break (§4).
+
+    The lever set is DERIVED FROM `ops.levers.LEVERS` (the single source of truth), never a
+    hardcoded list — so bp-049 widening the registry moves this key with no second edit here.
+    Keyed `"<section>.<key>"` so a `[dream_rnd]` key can never collide with a `[dreaming]` one.
+    Hashes VALUES (not the manifest policy, bp-047's `resolved_fingerprint()`, which is static
+    across a sweep — §4). Both pipelines share one `cfg`, so still ONE fingerprint per run."""
+    from ops.levers import LEVERS
+
     levers = {
-        "similarity_threshold": dreaming.similarity_threshold,
-        "min_cluster_size": dreaming.min_cluster_size,
-        "max_clusters": dreaming.max_clusters,
-        "near_dup_threshold": dreaming.near_dup_threshold,
+        f"{lever.section}.{lever.key}": getattr(getattr(config, lever.section), lever.key)
+        for lever in LEVERS.values()
     }
     canon = json.dumps(levers, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canon.encode()).hexdigest()
@@ -133,7 +141,7 @@ class ShadowRunner:
         view = MirrorView.project(store)
         rows = view.rows()
         corpus_digest = _corpus_digest(rows)
-        config_fingerprint = _config_fingerprint(cfg.dreaming)
+        config_fingerprint = _config_fingerprint(cfg)
 
         # dream_v2 enabled IN-PROCESS — never the disk flag (the whole-plan falsifier).
         rnd = replace(cfg.dream_rnd, enabled=True)

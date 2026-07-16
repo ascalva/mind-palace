@@ -76,3 +76,23 @@ def test_every_lever_points_at_a_real_numeric_config_knob():
 def test_registry_keys_match_lever_names():
     for name, lever in LEVERS.items():
         assert isinstance(lever, Lever) and lever.name == name
+
+
+def test_registry_has_five_levers_including_dream_rnd_sigma():
+    # bp-046 widened the registry 4 -> 5: the four [dreaming] levers PLUS dream_rnd_sigma — the σ
+    # knob the SHADOW dream_v2 lane actually reads (core/dreaming/shadow.py), so a sweep can move
+    # what the runner computes, not just the eval-store key.
+    assert len(LEVERS) == 5
+    sigma = get_lever("dream_rnd_sigma")
+    assert sigma.section == "dream_rnd" and sigma.key == "sigma"
+    assert sigma.kind is LeverKind.FLOAT
+    assert (sigma.lo, sigma.hi) == (0.55, 0.75)
+    # distinct from the live-path σ lever (finding-0087's fork): different section, different name.
+    assert get_lever("dream_similarity_threshold").section == "dreaming"
+
+
+def test_dream_rnd_sigma_bounds_are_fail_closed():
+    # out of [0.55, 0.75] is refused, never silently clamped (falsifier: bounds admit a value >hi).
+    with pytest.raises(ValueError, match="outside hard bounds"):
+        get_lever("dream_rnd_sigma").validate(0.80)
+    assert get_lever("dream_rnd_sigma").validate(0.62) == 0.62

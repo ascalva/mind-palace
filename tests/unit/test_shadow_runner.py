@@ -88,7 +88,9 @@ def test_two_runs_one_corpus_digest_and_claims() -> None:
     digests = {r["corpus_digest"] for r in runs}
     assert len(digests) == 1, "both pipelines scored ONE snapshot -> one corpus_digest (falsifier)"
     fingerprints = {r["config_fingerprint"] for r in runs}
-    assert len(fingerprints) == 1, "one [dreaming] lever set -> one config_fingerprint"
+    # STILL one fingerprint per run: both pipelines share ONE cfg. bp-046 widened the fingerprint's
+    # BASIS (the [dreaming] four PLUS the registered [dream_rnd] levers), not its per-run count.
+    assert len(fingerprints) == 1, "both pipelines share one cfg -> one config_fingerprint"
 
     assert len(runner.ledger.claims()) >= 1
     # phase7 emits community claims; dream_v2 emits adjudicated panel claims.
@@ -158,6 +160,27 @@ def test_second_run_marks_reemits_not_novel_and_skips_present_cells() -> None:
     assert len(runner.ledger.claims(novel_only=True)) == first_novel
     # append-only-by-key: the metric cells are unchanged (put skipped every present cell).
     assert len(store.query()) == cells_after_first
+
+
+def test_config_fingerprint_moves_with_registered_sigma_only() -> None:
+    """bp-046 falsifier killers: the config_fingerprint MUST move when a REGISTERED lever
+    (dream_rnd.sigma — what dream_v2 reads) changes, and MUST NOT move for an UNregistered
+    [dream_rnd] knob (min_degree). If sigma collided, a σ-sweep would produce one flat point and
+    skip every cell after the first as a resume (§4)."""
+    from core.dreaming.shadow import _config_fingerprint
+
+    base = get_config()
+
+    # a REGISTERED lever changed -> the identity MUST move (the sweep-breaking bug this plan kills).
+    sigma_a = dataclasses.replace(base, dream_rnd=dataclasses.replace(base.dream_rnd, sigma=0.60))
+    sigma_b = dataclasses.replace(base, dream_rnd=dataclasses.replace(base.dream_rnd, sigma=0.62))
+    assert _config_fingerprint(sigma_a) != _config_fingerprint(sigma_b)
+
+    # an UNREGISTERED [dream_rnd] knob changed -> the identity MUST NOT move (only registered
+    # levers count; min_degree is not a lever, so it stays out of the config identity).
+    deg_a = dataclasses.replace(base, dream_rnd=dataclasses.replace(base.dream_rnd, min_degree=2))
+    deg_b = dataclasses.replace(base, dream_rnd=dataclasses.replace(base.dream_rnd, min_degree=3))
+    assert _config_fingerprint(deg_a) == _config_fingerprint(deg_b)
 
 
 def test_claim_ids_are_content_addressed_from_support() -> None:
