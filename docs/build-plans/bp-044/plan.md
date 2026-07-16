@@ -2,15 +2,15 @@
 type: build-plan
 id: bp-044
 alias: harness-report
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/evaluation-harness.md
 contract: builder
 write_scope:
   - eval/harness/report.py
-  - eval/harness/sparkline.py            # the pure terminal-sparkline renderer (no deps)
-  - scripts/report.py                    # the CLI entry point
-  - core/stores/telemetry.py             # the cost ledger: ONE new table + SCHEMA_VERSION 2->3 (additive)
+  - eval/harness/sparkline.py
+  - scripts/report.py
+  - core/stores/telemetry.py
   - tests/unit/test_harness_report.py
   - tests/unit/test_sparkline.py
   - tests/unit/test_cost_ledger.py

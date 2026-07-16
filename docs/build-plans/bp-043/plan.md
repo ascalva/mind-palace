@@ -2,17 +2,17 @@
 type: build-plan
 id: bp-043
 alias: run-ledger-shadow
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/evaluation-harness.md
 contract: builder
 write_scope:
   - core/stores/runledger.py
   - core/dreaming/shadow.py
-  - scheduler/cron.py                # add the shadow trough job (additive; live dream job unchanged)
+  - scheduler/cron.py
   - tests/unit/test_runledger.py
   - tests/unit/test_shadow_runner.py
-  - tests/integrity/test_shadow_isolation.py   # shadow writes ONLY the ledger; reads only MirrorView
+  - tests/integrity/test_shadow_isolation.py
 session_budget: 1
 cost:
   estimate:
