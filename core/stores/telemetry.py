@@ -19,7 +19,7 @@ from typing import Any
 
 import duckdb
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _DDL = [
     """CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -58,6 +58,19 @@ _DDL = [
         history_dropped INTEGER,
         tool_truncated INTEGER,
         escalated BOOLEAN
+    );""",
+    # v3: the harness cost ledger (dn-evaluation-harness §2.4 / bp-044 Item 10) — one row per
+    # harness run, surfaced as the report's cost appendix (§2.7). ADDITIVE: a new table + a
+    # SCHEMA_VERSION bump 2→3, mirroring the v2 `context_usage` precedent exactly. No existing
+    # table, reader, or writer signature is touched (the bit-identical-telemetry falsifier).
+    """CREATE TABLE IF NOT EXISTS harness_cost (
+        ts TIMESTAMP NOT NULL,
+        run_id VARCHAR,
+        wall_clock_s DOUBLE,
+        models_resident INTEGER,
+        cells_completed INTEGER,
+        cells_skipped INTEGER,
+        note VARCHAR
     );""",
 ]
 
@@ -113,6 +126,17 @@ class TelemetryWriter:
              report.tool_truncated, report.escalate],
         )
 
+    def record_harness_cost(self, run_id: str, *, wall_clock_s: float, models_resident: int,
+                            cells_completed: int, cells_skipped: int,
+                            note: str | None = None) -> None:
+        """Record one harness run's cost/residency (dn-evaluation-harness §2.4, bp-044 Item 10) —
+        surfaced as the report's cost appendix. `run_id` links to the run ledger (E2)."""
+        self._conn.execute(
+            "INSERT INTO harness_cost VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [_utcnow(), run_id, float(wall_clock_s), int(models_resident),
+             int(cells_completed), int(cells_skipped), note],
+        )
+
 
 @dataclass
 class TelemetryReader:
@@ -149,6 +173,25 @@ class TelemetryReader:
             row = self._conn.execute(
                 "SELECT count(*) FROM context_usage WHERE agent = ?", [agent]
             ).fetchone()
+        return int(row[0]) if row else 0
+
+    def harness_costs(self, run_id: str | None = None) -> list[dict[str, Any]]:
+        """The harness cost ledger's rows (bp-044 Item 10), ordered `(ts, run_id)` deterministically
+        — the report's cost appendix reads through here. Read-only; no clock, no model."""
+        sql = ("SELECT ts, run_id, wall_clock_s, models_resident, cells_completed, "
+               "cells_skipped, note FROM harness_cost")
+        params: list[Any] = []
+        if run_id is not None:
+            sql += " WHERE run_id = ?"
+            params.append(run_id)
+        sql += " ORDER BY ts, run_id"
+        rows = self._conn.execute(sql, params).fetchall()
+        cols = ("ts", "run_id", "wall_clock_s", "models_resident", "cells_completed",
+                "cells_skipped", "note")
+        return [dict(zip(cols, r, strict=True)) for r in rows]
+
+    def harness_cost_count(self) -> int:
+        row = self._conn.execute("SELECT count(*) FROM harness_cost").fetchone()
         return int(row[0]) if row else 0
 
 
