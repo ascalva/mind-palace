@@ -712,3 +712,38 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   book chapter / downstream design is about to cite the stale "not-built" / "NOT built" framing (the harness
   chapter is the likely trigger — book debt is growing).
 - answer:
+
+---
+
+## oq-0027 — the Fable design pass shipped THREE draft notes with three different blessing stakes: ratification review requested (σ-fibers · Res(π) algebra amendment · cross-strata fork)
+- status: open
+- origin: the 2026-07-16 Fable+xhigh design pass on docs/brainstorms/cross-strata-and-multiscale-dreamers.md
+- blocking: false (each note records its default-if-unratified; nothing waits)
+- question: The pass split the brainstorm into three drafts, deliberately separable because their blessing
+  stakes differ. Review in this order (independent decisions — any subset may ratify):
+  1. **`dn-sigma-fibers`** (docs/design-notes/sigma-fibers-and-multiscale-dreaming.md) — Idea A, the
+     ratifiable near-term half. Fiber object = the content-addressed CLAIM carrying its σ-support (parked
+     (b), sharpened — bare-edge persistence proved degenerate ≡ cosine); pers(χ) = normalized support
+     measure with a three-clause falsifier incl. an exact grid-free oracle (the pipeline is piecewise-
+     constant in σ with breakpoints at cosine values); a two-axis lexicographic surfacing gate
+     (SETTLED/HUNCH/RETAINED; I1 untouched — surfacing only, never weight/promotion) F9-validated before
+     shipping; zero schema change, zero models resident. Standard stake: new-subsystem design note.
+  2. **`dn-resolution-result-typing`** (docs/design-notes/resolution-result-typing.md) — the HIGHEST
+     stake: drafts an ADDITIVE amendment to the RATIFIED dn-capability-scope §2.3 (Inv/Rate(κ) →
+     +Res(π), Rule SCALE). The verdict: σ-persistence is neither Inv (it rescales under a change of
+     declared σ-range — the A7 ruler-confound) nor Rate (no clock), and scale must NOT become a scope
+     coordinate (proved: every σ reads identical rows under the identical MirrorView grant — capability-
+     invisible). Rejecting it is safe: dn-sigma-fibers records the fallback (register as Inv + grid in
+     spec_hash + comparability string — weaker typing, identical arithmetic).
+  3. **`dn-cross-strata-dreamer`** (docs/design-notes/cross-strata-dreamer.md) — Idea B, the fork that
+     sits NEAR an inviolable: ratification of THIS note IS the human decision the founding capsule parked.
+     Ruling drafted: firewall stands as written (MIRROR_READABLE untouched); the cross-strata dreamer is a
+     correlator-family interpreted-tier client class with an owner-declared read-exemption from ι_MR;
+     the type system ALREADY forces the pairwise per-stratum shape (SliceError + NoCommonClockError —
+     a unified snapshot is ill-typed until CS-a); ratification licenses NO build (gate chain G1–G4:
+     verdict taxonomy → Track D charter → cut discipline → mirror-dreamer-value-first).
+- default_if_unanswered: all three stay `draft` (agent-writable working material); the firewall default
+  (nothing cross-strata reads anything) and single-σ selection (bp-049) remain the operative reality. The
+  σ-sweep RUN (oq-0024) is unaffected and, once run, its retained cells are FB-1's first dataset whenever
+  dn-sigma-fibers ratifies.
+- answer:
