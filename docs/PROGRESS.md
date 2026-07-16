@@ -3603,3 +3603,42 @@ portable backstop):
   delegate bp-044 (E4) — its RunLedger interface is now built, not inferred. Then milestone-1 is
   code-complete → the first dual-dreamer A/B run (ShadowRunner over the live mirror; the RUN is the
   deploy-gated step).
+
+## 2026-07-16 — DELEGATE-BUILT + SEALED bp-044 (E4 report generator + cost ledger) — MILESTONE-1 CODE-COMPLETE
+
+- Second supervised builder this session (SEQUENTIAL after bp-043 merged — bp-044 `depends_on
+  [bp-042, bp-043]`). Delegated grounded against the NOW-BUILT E1/E2 surfaces (not inferred pins),
+  briefed on finding-0086. Full-strength opus builder, isolated worktree, supervised to green.
+- **bp-044 `harness-report` (E4) — COMPLETE** (builder `b0331dd`/`3185d44`/`a6a4adb`, merge `da61518`,
+  seal `6a3006a`). `eval/harness/sparkline.py` — a pure deterministic Unicode-block sparkline. `eval/
+  harness/report.py` — the `Figure`/`Report` model (every Figure carries its `EvalKey`), `build_report`
+  (pure, READ-ONLY over E1 `query()` + E2 `runs()/claims()` + telemetry), `render_markdown`/`render_
+  json` (ONE model, two renderings — cannot drift), the drift study + per-axis structural decomposition,
+  the phase7-vs-dream_v2 A/B table, the cost appendix, `write_report` → `data/reports/<date>-<topic>/`.
+  `scripts/report.py` — the CLI (stamps the date; renderer stays clock-free/deterministic). `core/
+  stores/telemetry.py` — the ONLY existing-code touch, strictly ADDITIVE: `SCHEMA_VERSION` 2→3, a new
+  `harness_cost` table + `record_harness_cost`/`harness_costs`/`harness_cost_count` (existing tables/
+  readers/writers + all telemetry tests untouched). +18 tests.
+- **Whole-plan falsifier HELD:** renderer READ-ONLY (no store-mutation call in report.py), every figure
+  keyed (provenance), model-free deterministic (byte-identical re-render). Reconciliation (disclosed,
+  journal + Item 9 commit): the A/B split is sourced from the ledger's explicit `pipeline` column
+  (pipeline lives in the opaque `spec_hash`, not attributable from the shared `corpus_digest`/`config_
+  fingerprint`); ledger/telemetry figures carry transparent source-tagged provenance keys — no reading
+  lacks its key (not a §10 stop). finding-0086 reconciled: `structural_axes.*` rendered via `query()`
+  without the fail-closed `registry.get` (registration STILL owed — a follow-up with registry.py in scope).
+- **5-leg gate (orchestrator re-ran SEPARATELY on the MERGED tree):** ruff PASS; mypy scoped 0 (195
+  files, 192→195); argless mypy **69 UNCHANGED**; ops.type_gate OK; pytest `-m 'not live'` **1220 passed
+  / 7 skipped / 9 deselected(live)** / 0 failures. Diff scrutinized: 8 files == write_scope+journal.
+- **cost.actual:** builder self-reported ~120k tokens / 75 tool-uses / ~13.4 min, ratio ~0.60× est
+  (self-driven band — pure renderer over built surfaces). Dollar/session-delta backfill owed at wrap.
+- **🎯 MILESTONE-1 CODE-COMPLETE:** E1 (bp-042) + E2 (bp-043) + E4 (bp-044) + E5(A2) (bp-045) ALL built.
+  **Plan board:** complete=bp-000..bp-039, **bp-042, bp-043, bp-044, bp-045**; proposed=bp-040
+  (subsumed); ready/in-progress=none.
+- **Two open follow-ups:** finding-0086 (register the `structural_axes.*` family — a rider on the next
+  registry-scoped plan) + finding-0085(b) (the optional scope-guard ` #…` strip — its own tiny plan).
+- **Next:** (1) the RUN — ShadowRunner over the live mirror → the first dual-dreamer A/B report
+  (`scripts/report.py`); running it live touches the daemon → the **deploy** owner-gate (not before).
+  The report feeds bp-041 (wire dream_v2 live) + oq-0024 (σ). (2) graduate E3a (2-plan split: sweep
+  engine + tuning-manifest/CLI; grounded against BUILT ShadowRunner + `ops/selfmod.py` proposal ledger;
+  `config/levers.toml` is on-demand, not a gap) + E6 — from a FRESH context (graduate wants the whole
+  note in view; this session is build-heavy).
