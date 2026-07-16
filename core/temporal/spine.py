@@ -77,6 +77,7 @@ from collections import deque
 from collections.abc import Hashable
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 # Read-only handles on the audited stores. The spine is "arithmetic over what the stores already
@@ -153,6 +154,81 @@ class SpineCycleError(RuntimeError):
     point backward in true time, so a cycle is an integrity failure and `derive()` fails CLOSED."""
 
 
+# ── GC-3 · certified quiescent cuts (plan §6; note §2.4 GC-N3 — the SLICE rule completed) ─────────
+# A cut is a DOWN-SET of (Ev, ≼): a per-chain frontier vector PLUS a certificate that makes it sound
+# despite the incompleteness law (`≼_derived ⊆ ≼_true`, §2.2) — a computed-but-uncertified cut is
+# REFUSED, never warned. Each certificate comes from ONE named observable, never wall-time or
+# inference (the plan §7 falsifier: a certificate asserted from anything but its observable):
+#   * COMMIT   — the repo snapshot is atomic (git); certifies repo-backed strata. Evidence is a
+#                commit SHA — INJECTED (core never shells to git, §2.10), never sourced here.
+#   * TROUGH   — the scheduler owns the job queue (single-writer, runledger:16-18); an empty queue
+#                between trough jobs certifies no in-flight core causality. Evidence is the
+#                scheduler's OWN quiescence fact (`TroughState`, built by the caller from
+#                `scheduler.JobQueue.counts()`) — core cannot IMPORT scheduler (scheduler imports
+#                core; a handle would cycle), so the FACT is injected, never fabricated.
+#   * HANDOFF  — the sensing handoff's requests/ and observations/ dirs empty (core/sensing.py:236)
+#                certify no in-flight edge↔core flow. Evidence is a hash of the (empty) listing; the
+#                spine lists the dir (a filesystem read — no socket, no vault, no network).
+
+
+class Certificate(Enum):
+    """The quiescence certificate a cut carries (note §2.4 GC-N3). A cross-strata cut COMPOSES all
+    certificates its strata require; a missing certificate for an in-scope stratum ⇒ REFUSAL."""
+
+    COMMIT = "commit"
+    TROUGH = "trough-quiescent"
+    HANDOFF = "handoff-empty"
+
+
+class CutCertificateError(ValueError):
+    """A cut was requested but a required certificate could not be SOURCED from its named observable
+    (no injection, or the observable reports NOT quiescent). The cut REFUSES construction with a
+    clear message rather than fabricate a certificate (plan §7 falsifier; note §2.4)."""
+
+
+@dataclass(frozen=True)
+class TroughState:
+    """The scheduler's OWN quiescence fact, injected (core cannot import scheduler — a cycle).
+    The caller reads `scheduler.JobQueue.counts()` and builds this; `quiescent` iff no QUEUED and no
+    RUNNING jobs (an empty queue BETWEEN trough jobs, note §2.4-2). `trough_id` is the evidence — a
+    marker of WHICH quiescent state (a queue-state id / done-count, NEVER a wall timestamp)."""
+
+    queued: int
+    running: int
+    trough_id: str
+
+    @property
+    def quiescent(self) -> bool:
+        return self.queued == 0 and self.running == 0
+
+
+@dataclass(frozen=True)
+class CutSources:
+    """The injected certificate observables `cut_at` sources from. Every field optional; a cut whose
+    strata require a certificate with no source here REFUSES (never fabricates). Kept OFF `derive`'s
+    store enumeration (`SpineSources`) — these are cut-time facts, not the append handles."""
+
+    commit_sha: str | None = None       # the atomic repo snapshot SHA (injected; no git-shell)
+    trough: TroughState | None = None   # the scheduler's own quiescence fact (JobQueue.counts())
+    handoff: Path | None = None         # the sensing handoff dir (requests/ + observations/)
+
+
+@dataclass(frozen=True)
+class CertifiedCut:
+    """A certified consistent cut (note §2.4 GC-N3): a per-chain frontier vector + the certificates
+    that make it sound + their evidence. HASHABLE — it rides UNCHANGED in `Scope.cut` (the opaque
+    `Hashable` field; the plan pin keeps `core/scope.py` untouched).
+
+    `frontier` is `sorted (chain-key, position)` pairs, where chain-key is `"<store>:<chain-key>"`
+    exactly as `Spine.frontier()` keys it (per-DOC for versions — collapsing to a bare store would
+    lose the per-doc soundness the down-set needs). The pin's "(store, position)" reads chain-key as
+    the str; the pinned TYPE `tuple[tuple[str, int], ...]` is honored verbatim."""
+
+    frontier: tuple[tuple[str, int], ...]
+    certificates: frozenset[Certificate]
+    evidence: tuple[str, ...]
+
+
 # Beyond the §2.2 core seven — the note §2.9-5 enumerates these as chain-carrying (SQLite) or
 # chain-less (DuckDB) but they are NOT wired by GC-1 (parked, plan §11: re-entry = GC-2 needs their
 # clocks). Named here so a store is never SILENTLY absent from the spine's report.
@@ -171,6 +247,29 @@ _STRATUM: dict[str, str] = {
     "attestations": "ops",
     "eval": "eval",
 }
+
+# The certificate(s) each stratum requires for a cut to be sound (note §2.4; plan §8 "certificates
+# for all strata whose stores intersect the frontier"). GROUNDED, a spec-fidelity resolution the
+# note under-specifies as an exact map (finding-0095):
+#   * mirror (versions/catalog = the repo-backed corpus) → COMMIT — the ratified `_CUT_CLOCKS` case:
+#     the commit SHA IS the cut for repo-backed strata (`core/scope.py:450`).
+#   * ops (runledger/attestations) + interpreted (edges/derived) = core stores written by scheduler
+#     jobs that can incorporate in-flight edge observations → TROUGH (no in-flight core causality)
+#     AND HANDOFF (no in-flight edge↔core flow). A cut across the core↔edge boundary needs both.
+#   * eval (eval results) = internal scheduler jobs, no edge dependency → TROUGH.
+# The FULL cross-strata cut (all four) therefore composes {COMMIT, TROUGH, HANDOFF} — exactly the
+# note's "commit ∧ trough-empty ∧ handoff-empty" (§2.4).
+_STRATUM_CERTIFICATES: dict[str, frozenset[Certificate]] = {
+    "mirror": frozenset({Certificate.COMMIT}),
+    "ops": frozenset({Certificate.TROUGH, Certificate.HANDOFF}),
+    "interpreted": frozenset({Certificate.TROUGH, Certificate.HANDOFF}),
+    "eval": frozenset({Certificate.TROUGH}),
+}
+
+# The handoff-empty observable — MIRRORED (not imported) from `core/sensing.py:63-64`, the zone-
+# boundary discipline: the sealed core and the edge share "nothing but the async file handoff …
+# mirrored-not-imported wire shapes" (note §2.1-1). Both dirs empty ⇒ no in-flight edge↔core flow.
+_HANDOFF_SUBDIRS: tuple[str, ...] = ("requests", "observations")
 
 
 def _event_id(store: str, chain_key: str, position: int | None) -> str:
@@ -420,7 +519,8 @@ class _Builder:
 
     # -- g2 (reads-from) + acyclicity → the immutable Spine ---------------------------------------
     def finalize(
-        self, coarsening_ticks: dict[Clock, dict[str, Hashable]] | None = None
+        self, coarsening_ticks: dict[Clock, dict[str, Hashable]] | None = None,
+        cut_sources: CutSources | None = None,
     ) -> Spine:
         gen: set[tuple[str, str, str]] = set(self.g13_edges)
         refs_without_producer = 0
@@ -449,6 +549,7 @@ class _Builder:
             _present=tuple(self.present),
             _refs_without_producer=refs_without_producer,
             _coarsening_ticks={c: dict(m) for c, m in (coarsening_ticks or {}).items()},
+            _cut_sources=cut_sources or CutSources(),
         )
 
 
@@ -496,19 +597,27 @@ class Spine:
     # GC-2: externally-sourced ticks for the repo-backed coarsenings (COMMIT/DISTINCT_SNAPSHOT) —
     # {clock: {event_id: tick}}. Empty unless injected (core never sources commit SHAs itself).
     _coarsening_ticks: dict[Clock, dict[str, Hashable]] = field(default_factory=dict)
+    # GC-3: injected certificate observables for `cut_at` (commit SHA / scheduler trough fact /
+    # handoff path). Empty unless injected — a cut needing an unsourced certificate REFUSES (§2.4).
+    _cut_sources: CutSources = field(default_factory=CutSources)
 
     @classmethod
     def derive(
         cls,
         sources: SpineSources,
         coarsening_ticks: dict[Clock, dict[str, Hashable]] | None = None,
+        cut_sources: CutSources | None = None,
     ) -> Spine:
         """Enumerate the present stores and build `(Ev, ≼)`. Raises `SpineCycleError` if the derived
         order is not acyclic (an integrity failure — plan §10 STOP-and-raise).
 
         `coarsening_ticks` injects the externally-sourced ticks for the repo-backed coarsenings
         (COMMIT/DISTINCT_SNAPSHOT) — `{clock: {event_id: tick}}`. Core never sources commit SHAs
-        itself (§2.10); the integrity test / a future consumer supplies the map."""
+        itself (§2.10); the integrity test / a future consumer supplies the map.
+
+        `cut_sources` (GC-3) injects the certificate observables `cut_at` sources from (the commit
+        SHA, the scheduler quiescence fact, the sensing handoff path). Empty ⇒ `cut_at` refuses any
+        cut whose strata require a certificate (never fabricates one, note §2.4)."""
         b = _Builder()
         if sources.versions is not None:
             b.versions(sources.versions)
@@ -524,7 +633,7 @@ class Spine:
             b.eval(sources.eval)
         if sources.catalog is not None:
             b.catalog(sources.catalog)
-        return b.finalize(coarsening_ticks)
+        return b.finalize(coarsening_ticks, cut_sources)
 
     # -- the pinned surface ------------------------------------------------------------------------
     def order(self, a: str, b: str) -> Order:
@@ -571,6 +680,7 @@ class Spine:
             _refs_without_producer=0,
             _coarsening_ticks={c: {e: t for e, t in m.items() if e in kept}
                                for c, m in self._coarsening_ticks.items()},
+            _cut_sources=self._cut_sources,
         )
 
     def events(self) -> list[SpineEvent]:
@@ -706,6 +816,123 @@ class Spine:
         positions = [ev.position for ev in self._events.values()
                      if ev.store == store and ev.position is not None]
         return max(positions) if positions else 0
+
+    # -- GC-3: certified cuts (plan §6; note §2.4 GC-N3 + the crossing-edge falsifier) ------------
+    def cut_at(self, *, strata: frozenset[str]) -> CertifiedCut:
+        """A certified consistent cut over `strata` — the per-chain frontier of those strata plus
+        the composed certificate set they require, each SOURCED from its named observable
+        (`_cut_sources`, injected at `derive`). REFUSES (`CutCertificateError`) if a certificate
+        has no source or its observable is not quiescent — never fabricates one (plan §7 falsifier:
+        a cut without its needed certificate, or a certificate from wall-time/inference)."""
+        unknown = set(strata) - set(_STRATUM_CERTIFICATES)
+        if unknown:
+            raise CutCertificateError(
+                f"cannot cut across unknown strata {sorted(unknown)!r} — no certificate rule "
+                f"(known: {sorted(_STRATUM_CERTIFICATES)}); refusing rather than certifying blind"
+            )
+        fmap: dict[str, int] = {}
+        for eid, ev in self._events.items():
+            if ev.position is None or ev.stratum not in strata:
+                continue                                  # chain-less / out-of-scope: no frontier
+            key = self._chain_of[eid]
+            if key not in fmap or ev.position > fmap[key]:
+                fmap[key] = ev.position
+        required: set[Certificate] = set()
+        for s in strata:
+            required |= _STRATUM_CERTIFICATES[s]
+        evidence = tuple(sorted(self._source_certificate(c)
+                                for c in sorted(required, key=lambda c: c.value)))
+        return CertifiedCut(frontier=tuple(sorted(fmap.items())),
+                            certificates=frozenset(required), evidence=evidence)
+
+    def downset(self, cut: CertifiedCut) -> frozenset[str]:
+        """`D(cut)` — the event down-set the frontier generates (note §2.4; plan §8). A CHAINED
+        event is in D iff its chain is in the frontier and its position ≤ the frontier there. A
+        CHAIN-LESS event (eval / catalog — position None) rides in iff it causally PRECEDES a
+        chained seed event (a chain-less SOURCE like catalog whose digest a seed consumes) — so a
+        real cut stays down-closed; a chain-less SINK (eval) is correctly never pulled in.
+        Deliberately NOT auto-closed over chained events: that closure is exactly what
+        `crossing_edges` verifies (else the soundness tooth would be vacuous)."""
+        fmap = dict(cut.frontier)
+        seed = {eid for eid, ev in self._events.items()
+                if ev.position is not None and self._chain_of[eid] in fmap
+                and ev.position <= fmap[self._chain_of[eid]]}
+        result = set(seed)
+        for eid, ev in self._events.items():
+            if ev.position is None and self._reachable(eid) & seed:
+                result.add(eid)                               # chain-less predecessor of the seed
+        return frozenset(result)
+
+    def crossing_edges(self, cut: CertifiedCut) -> list[tuple[str, str]]:
+        """The §2.4 cut falsifier: generator edges `(a, b)` with `b ∈ D` but `a ∉ D` — an event
+        inside the down-set reading from one outside it. MUST be `[]` for a certified cut; any hit
+        is a certification bug (plan §7 — merge-blocking on real data). Only edges whose EXCLUDED
+        source is IN the cut's covered domain (its chain is in the frontier) count: an edge exiting
+        the cut's strata is out-of-scope (§2.7 GC-N8 — a cut reads only in-scope events), not a
+        crossing."""
+        d = self.downset(cut)
+        fmap = dict(cut.frontier)
+        crossings = [
+            (e.src, e.dst) for e in self._gen_edges
+            if e.dst in d and e.src not in d and self._chain_of.get(e.src) in fmap
+        ]
+        return sorted(crossings)
+
+    def _source_certificate(self, cert: Certificate) -> str:
+        """Source ONE certificate from its named observable in `_cut_sources`, or REFUSE. Never
+        wall-time, never inference (note §2.4; plan §7 falsifier)."""
+        src = self._cut_sources
+        if cert is Certificate.COMMIT:
+            if src.commit_sha is None:
+                raise CutCertificateError(
+                    "commit certificate absent: a repo-backed cut needs the commit SHA (the atomic "
+                    "repo snapshot), and core never shells to git (§2.10) — inject it via "
+                    "CutSources.commit_sha; refusing rather than fabricating a snapshot"
+                )
+            return f"commit:{src.commit_sha}"
+        if cert is Certificate.TROUGH:
+            if src.trough is None:
+                raise CutCertificateError(
+                    "trough certificate absent: a core-strata cut needs the scheduler's OWN "
+                    "quiescence fact (JobQueue.counts()) — inject via CutSources.trough; refusing "
+                    "rather than ASSUMING an empty queue"
+                )
+            if not src.trough.quiescent:
+                raise CutCertificateError(
+                    f"scheduler is NOT quiescent — {src.trough.queued} queued / "
+                    f"{src.trough.running} running job(s) in flight; a cut across core strata "
+                    f"needs an empty queue between trough jobs (§2.4-2), never a fabricated one"
+                )
+            return f"trough:{src.trough.trough_id}"
+        if cert is Certificate.HANDOFF:
+            if src.handoff is None:
+                raise CutCertificateError(
+                    "handoff certificate absent: a boundary-crossing cut needs the sensing handoff "
+                    "path (requests/ + observations/) — inject it via CutSources.handoff; refusing "
+                    "rather than assuming an empty handoff"
+                )
+            listing = self._handoff_listing(src.handoff)
+            if listing:
+                raise CutCertificateError(
+                    f"sensing handoff is NOT empty — {len(listing)} in-flight edge↔core item(s) "
+                    f"({listing[:4]}); a boundary cut needs requests/ and observations/ empty "
+                    f"(note §2.4-3, core/sensing.py:236), never a fabricated emptiness"
+                )
+            digest = hashlib.sha256("\x00".join(listing).encode("utf-8")).hexdigest()[:16]
+            return f"handoff:{digest}"
+        raise CutCertificateError(f"unknown certificate {cert!r}")   # unreachable (enum-exhaustive)
+
+    @staticmethod
+    def _handoff_listing(handoff: Path) -> list[str]:
+        """The sorted names in the handoff's requests/ and observations/ dirs — the handoff-empty
+        observable (mirrored from `core/sensing.py`, never imported: the zone-boundary discipline).
+        A filesystem read (no socket, no vault, no network) — the spine's only I/O beyond SELECT."""
+        names: list[str] = []
+        for sub in _HANDOFF_SUBDIRS:
+            d = handoff / sub
+            if d.is_dir():
+                names.extend(p.name for p in d.iterdir())
+        return sorted(names)
 
     # -- internal ----------------------------------------------------------------------------------
     def _reachable(self, start: str) -> set[str]:
