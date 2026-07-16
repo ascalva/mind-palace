@@ -88,9 +88,9 @@ class RotationReport:
     """The harmonic-subspace rotation between an earlier snapshot (n) and a later one (n+1) — the
     metric complement of `‖[d,τ]‖` (dn-velocity-instruments §2.2 (a); TRA Result 4: chain maps
     transport homology, not kernels, made measurable). The **principal angles** between
-    `ker L₁(X_cite,n | common)` and `ker L₁(X_cite,n+1 | common)`, restricted to the notes present at
-    BOTH commit anchors (the `_restrict`-to-common pattern `CoherenceReport` uses). It measures how
-    the *thread structure reorients* even when the thread *count* (β₁) is unchanged.
+    `ker L₁(X_cite,n | common)` and `ker L₁(X_cite,n+1 | common)`, restricted to the notes present
+    at BOTH commit anchors (the `_restrict`-to-common pattern `CoherenceReport` uses). It measures
+    how the *thread structure reorients* even when the thread *count* (β₁) is unchanged.
 
     **Type `Inv`** (a subspace-geometry value on the two anchors' event sets — no clock division;
     the report never divides by a clock). Both SHAs are recorded — an `Inv` carries its anchors.
