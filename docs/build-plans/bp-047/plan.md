@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-047
 alias: tuning-manifest
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/evaluation-harness.md   # §2.6 the automated-tuning layer (manifest half); §3 E3a
 contract: builder

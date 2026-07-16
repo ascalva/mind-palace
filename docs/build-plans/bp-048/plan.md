@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-048
 alias: review-repl
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/evaluation-harness.md   # §2.2 the verdict store + review REPL; §3 E6 (Track L L2)
 contract: builder
