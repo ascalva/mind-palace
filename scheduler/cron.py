@@ -19,6 +19,7 @@ from collections.abc import Callable
 
 from core.curator import Curator
 from core.dreaming import Dreamer
+from core.dreaming.shadow import ShadowRunner
 from core.ingest.embed import Embedder
 from core.research.airlock import ResearchAirlock
 from core.research.criteria import ResearchCriteria
@@ -34,6 +35,7 @@ from scheduler.router import Router
 
 DREAM_KIND = "dream"
 CURATE_KIND = "curate"
+SHADOW_KIND = "shadow"
 
 Handler = Callable[[Job], "str | None"]
 
@@ -61,6 +63,27 @@ def cron_handlers(dreamer: Dreamer, curator: Curator) -> dict[str, Handler]:
 def enqueue_dream(queue: JobQueue, router: Router) -> Job:
     plan = router.plan(DREAM_KIND)          # -> synthesis tier, background priority
     return queue.enqueue(plan.kind, plan.tier, plan.num_ctx, priority=plan.priority)
+
+
+# --- shadow: the harness's off-loop run producer, wired as an ADDITIVE trough job (bp-043, E2) ---
+# The engine is `core/dreaming/shadow.py` — it drives BOTH dream pipelines over one MirrorView
+# snapshot and writes ONLY the run ledger + the eval store (the live dream() surface is untouched:
+# the whole-plan falsifier). This job is trough-gated EXACTLY like `dream`: it sources the synthesis
+# tier + background priority from the dream plan (so the HEAVY_TIERS foreground gate keeps it out of
+# the owner's time, §13) but enqueues under `shadow` so it dispatches to `shadow_handler`, not
+# `dream_handler`. `enqueue_dream` and the live handler above are DELIBERATELY unchanged.
+def shadow_handler(runner: ShadowRunner) -> Handler:
+    def handle(_job: Job) -> str:
+        phase7_id, dream_v2_id = runner.run()
+        return f"shadow: phase7={phase7_id[:8]} dream_v2={dream_v2_id[:8]}"
+    return handle
+
+
+def enqueue_shadow(queue: JobQueue, router: Router) -> Job:
+    # Route via the dream plan so shadow is foreground-gated identically (synthesis tier), at
+    # background priority; enqueue under SHADOW_KIND so the shadow handler runs.
+    plan = router.plan(DREAM_KIND)          # -> synthesis tier, background priority
+    return queue.enqueue(SHADOW_KIND, plan.tier, plan.num_ctx, priority=plan.priority)
 
 
 def enqueue_curate(queue: JobQueue, router: Router) -> Job:
