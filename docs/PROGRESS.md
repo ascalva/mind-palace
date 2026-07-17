@@ -4423,3 +4423,26 @@ unchanged (5th pool-split confirmation).
   `dn-connectivity-instruments` — paste-ready text delivered in-session. Ledger: ready=(none),
   proposed=bp-065, superseded=bp-040,bp-060,bp-061,bp-062. Next finding 0103; next plan id bp-066.
 - **NEXT:** owner blesses bp-065 `proposed → ready` → in-session fable build (harvest + thin-ify + gates).
+
+## 2026-07-17 (session 26 cont.) — bp-065 COMPLETE + SEALED: connectivity math re-homed to core, clean break, second audit
+
+- **bp-065 (`core-graph-rehome`) COMPLETE** (`23e332f`) — the owner-directed reconciliation, done.
+  `core/graph/{sigma_star,conductance}.py` own the σ*/conductance MATH on `core/complex`'s ONE
+  Laplacian (P3); `eval/harness/{connectivity,conductance}.py` are PLAIN CONSUMERS — no wrappers,
+  no aliases, no `__all__` (the clean break). Arrow: `eval → core.graph → core.complex`, one way.
+- **Second audit (owner-directed):** AST move-fidelity (68 defs, zero unsanctioned drift — found+fixed
+  2 deferred-import deviations); independent first-principles math (maximin≡MST brute-forced,
+  R_eff circuit laws exact, heat-kernel ≡ scipy.expm, Rayleigh, sign law, von-Luxburg) ALL PASS;
+  P1-P6 design-match; house-style (OBJECT/INVARIANT/ENFORCED headers added — owner catch).
+- **Gate:** all 5 legs green on the final clean-break tree — ruff · mypy targeted 216 · **argless 69**
+  · type_gate · **pytest 1536p/8s**. cost.actual mixed fable→opus; dollars/deltas pending /usage relay.
+- **Ledger moves:** bp-060 → superseded (build preserved on branch `worktree-agent-a1d5f2b78350b8586`,
+  shipped here behavior-frozen); bp-061/062 → superseded pre-build (re-mint against core/graph);
+  bp-059 stays complete (placement banner). dn-core-graph-instruments RATIFIED; dn-connectivity-
+  instruments amendment banner in place. Blessings recorded: `0d05001` (note), `7f75fa9` (bp-065),
+  `4e95480` (banner).
+- **finding-0102 OPEN** — `shadow.py` imports eval LOGIC (drift/golden): the remaining "core self-
+  contained" reach (+ the store-sink); deferred to its own design pass. Memory: [[core-self-containment]].
+- **NEXT (orchestrator):** push to origin. Then — bp-064 (chat clock, the held `ready` chat-lane plan)
+  OR re-mint bp-061/062 against core/graph OR the finding-0102 self-containment pass. Next finding
+  0103; next plan bp-066. /usage relay still owed to close bp-063 + bp-065 seal deltas.
