@@ -4228,3 +4228,25 @@ unchanged (5th pool-split confirmation).
   `uv run scripts/sweep.py config/sweeps/dreamer-sigma-ab.toml` → analyze STRICTLY per FROZEN §2.2
   (SE-1 disposes oq-0024) → assemble the composite → seal the run journal. Connectivity tranche still
   DEFERRED until run-1 findings.
+
+## 2026-07-17 (session 23 cont.) — σ-sweep RUN 1 executed + SEALED; cross-strata direction captured
+
+- **RAN + SEALED σ-sweep run 1** (owner-fired, pre-registration `d932670`). Quiesced the daemon
+  (`palace down` — bootout outlasts KeepAlive, finding-0066 mechanism) for a valid V2 cut; brought it
+  back `up` after. V1–V5 ALL hold (V2 = bp-055's debut: 13-chain mirror cut, COMMIT-certified at
+  `214eaf4`; V3 controls GREEN; V4 bit-wise determinism; V5 propose-only, owner-flipped then reverted).
+- **Result:** oq-0024 **RETIRED** (SE-1 rule (b): golden_recall flat=1.0 across all 21 σ-cells,
+  default 0.62 stands; proposal #1 [0.62→0.65] declined). **finding-0096** = the flatness is objective
+  SATURATION at 13-doc scale, not σ-invariance. SE-2 positive: dream_v2 fibers non-degenerate (n=32,
+  real multiscale structure) — the instrument works. SE-3: apophenia guard holds but discrimination
+  unproven at scale (**finding-0098**). **finding-0097** = SE-1 (a)/(b) flat-curve precedence wrinkle.
+  Composite report: `data/reports/2026-07-17-sigma-run1/` (gitignored).
+- **Owner direction → cross-strata substrate sweep** (`docs/brainstorms/cross-strata-substrate-sweep.md`):
+  run 1's convergent finding (13-doc mirror too small) motivates widening to the whole substrate
+  (notes+docs+code+comments+chats+observed). ARCHITECTURE pinned: this is the CROSS-STRATA CORRELATOR
+  (Track D, ratified generalized), NOT the mirror dreamer (firewall/Invariant 6 preserved). Two bands:
+  public (docs/code/comments — firewall-safe, near-term) vs private (chats/observed — scoped grant).
+- **NEXT (owner: "build out what we've already designed"):** graduate + build the RATIFIED
+  `dn-connectivity-instruments` tranche (items 1–3; item 4 gated on uuid-identity) — the phase-B
+  re-analysis instruments for exactly this kind of run. Weekly pool 29%; but session pool 57% + high
+  context ⇒ the tranche graduation is a FRESH-session task (context economy).
