@@ -100,21 +100,36 @@ across a large proper-time gap, reported *with the bridging event named*.
 self-diagnostic present on every emitted profile; a synthetic decay-only interval showing no
 conductance increase.
 
-### 2.4 CN-4 — the metric slot: activity-weighted distance, sign undecided by design
+### 2.4 CN-4 — the metric slot: churn as a change of measure (owner-refined, 2026-07-17)
 
-**Decision.** "Change distorts distance" enters as edge weights
-`w(u,v) = cos(u,v)^α · exp(s·a(u,v))` with `a` the local activity read from the built
-instruments (proper-time density N_s; velocity/churn) and **`s` a signed THRESH-dict lever
-shipped at `s = 0` (neutral)**. Whether churn impedes conduction (stable regions carry meaning
-reliably — "metal") or facilitates it (active regions are where connection happens —
-"semiconductor") is an empirical question the sweep engine answers; **the sign is never decided
-by taste.** "Change distorts the local clock" requires no new construction — GC-2's per-stratum
-proper time *is* the local clock, and temporal path-length routes through it. Metric curvature
-(this) and gauge holonomy (§2.6) are independent axes (magnetic pass Q5); the owner's sentence
-was two theorems, not one.
+**Decision.** "Change distorts distance" enters not as one signed drag but as a **derived
+decomposition with signs forced by circuit law** (owner refinement; pass §C4b):
 
-*Falsifier:* any code path hard-coding a nonzero `s` outside the THRESH dict; promotion of `s`
-to `ops/levers.py` without a separate owner-visible act.
+- **The depth budget (the owner's bound, adopted as a law of the family).** Events partition by
+  stratum, so `N(W) = Σ_s N_s(W)` — the global budget is additive. Any ≼-chain confined to
+  stratum s within window W has ≤ `N_s(W)` events: **proper time is the sequential-depth
+  budget** — no thread or argument chain through a region can be deeper than the region's local
+  clock ticked over the window it spans (GC-2 supplies the readings today).
+- **Sequential churn** (supersession depth; edge turnover) acts in **series** — through-window
+  traversal walks the threads against that budget: *impedes, by law*.
+- **Lateral churn** (new cross-links) acts in **parallel** — Rayleigh: *conducts, by law*.
+
+Weights: `w(u,v) = cos(u,v)^α · exp(s_lat·a_lat − s_seq·a_seq)` with `s_lat, s_seq ≥ 0`
+THRESH-dict levers **both shipped at 0**; the components read from the spine — canonical form:
+the region's window-event poset depth vs width (Mirsky/Dilworth; sequentiality
+`χ_s(W) = longest-chain / N_s(W)`), practical v1: edge-type counts. Only *magnitudes* are
+sweepable; the signs are structural. "Metal vs semiconductor" becomes a **measured per-region,
+per-window ratio**, not a stance. "Change distorts the local clock" requires no new
+construction — GC-2's proper time *is* the local clock, and temporal path-length routes
+through it (a churny region as a higher-refractive-index medium: geodesics lengthen through it
+unless its churn built lateral shortcuts). Metric curvature (this) and gauge holonomy (§2.6)
+remain independent axes (magnetic pass Q5).
+
+*Falsifiers:* the depth budget on the real spine (no ≼-chain within (s, W) exceeds `N_s(W)`
+events; `χ_s ∈ (0,1]`, = 1 iff the window-events are totally ordered — synthetic check);
+any code path assigning lateral churn an impedance sign or sequential churn a conductance sign
+(the signs are law, not tuning); hard-coded nonzero magnitudes outside the THRESH dict;
+promotion to `ops/levers.py` without a separate owner-visible act.
 
 ### 2.5 CN-5 — bridges: arguments are well-formed paths
 
@@ -181,8 +196,9 @@ disjoint from core except where named.
    quality tests; consumes the dreamer's σ-graph builder + certified cuts. Falsifiers: §2.2 +
    the Law-C4 tooth. **~150–180k. No new dependencies; the keystone.**
 2. **(σ,t) conductance profile + reconnection rider** (CN-3, CN-4) — Laplacian/heat-kernel
-   over the same graphs; the s-lever THRESH dict; Δ-conductance cut-pair scan with event
-   attribution. Falsifiers: §2.3 + §2.4. **~200k. Depends on item 1's module surface.**
+   over the same graphs; the `(s_seq, s_lat)` THRESH levers + the `χ_s` sequentiality statistic
+   + the depth-budget tooth; Δ-conductance cut-pair scan with event attribution. Falsifiers:
+   §2.3 + §2.4. **~200k. Depends on item 1's module surface.**
 3. **Bridge search v1** (CN-5 + CN-7) — typed-edge composability + atlas checks + bidirectional
    budget-bounded search; two-axis bridge report. Falsifiers: §2.5 + §2.7. **~200k. Depends on
    items 1–2.**
@@ -208,8 +224,10 @@ fingerprints in every reading); levers THRESH-first.
 
 ## 5. Owner decisions surfaced at ratification
 
-- **D1 (the sign):** ratifying this note ratifies `s = 0` as the shipped default, with the sign
-  left to the sweep — "is the corpus a metal or a semiconductor" becomes a measured answer.
+- **D1 (the sign) — RETIRED by owner refinement (2026-07-17):** the signs are derived by
+  circuit law (series churn impedes; lateral churn conducts); only the magnitudes
+  `(s_seq, s_lat)` remain, shipped at 0 and sweep-tuned. "Is the corpus a metal or a
+  semiconductor" becomes a measured per-region ratio (`χ_s`), not a decision at all.
 - **D2 (the split):** ratifying this note ratifies the standalone gate — retrieval/temporal
   *scaling* remains a separate future note (its capsule wants a growth measurement first).
 - **D3 (uuid-identity):** this note registers the third consumer; scheduling stays the owner's

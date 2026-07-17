@@ -167,6 +167,30 @@ curvature (Forman/Ollivier) are independent axes [DERIVED: magnetic-laplacian-fa
   through it; nothing new to build for this half. The intuition was retroactively load-bearing:
   the clock maps were built before the question that needs them was asked.
 
+## 4b. C4b — owner refinement (2026-07-17, on the draft note): churn as measure; the depth budget
+
+**The owner's bound, formalized** [DERIVED; the readings are GROUNDED: bp-053's N_s]. Events
+partition by stratum, so over a global window W the budget is exactly additive:
+`N(W) = Σ_s N_s(W)`. A ≼-chain visits distinct events, so any chain confined to stratum s
+within W has ≤ `N_s(W)` events (≤ `N_s(W) − 1` supersession steps) — **proper time is the
+sequential-depth budget**: a thread or argument chain through a region cannot be deeper than
+the region's local clock ticked over the window it spans. Near-tautological as a theorem; its
+value is the reframing it forces:
+
+**The C4 sign question dissolves** [DERIVED]. Churn is a change of measure with two components
+whose signs are forced by circuit law: **sequential churn** (supersession depth) acts in
+*series* — through-window traversal walks the threads, step by step, drawing on the budget;
+series impedes, by law. **Lateral churn** (new cross-links) acts in *parallel* — Rayleigh;
+parallel conducts, by law. "Metal vs semiconductor" is therefore not a global empirical sign
+but a **per-region, per-window measured ratio**. Canonical statistic [ESTABLISHED: Mirsky/
+Dilworth]: restrict the region's events to the window; sequentiality
+`χ_s(W) = longest-chain / N_s(W) ∈ (0,1]` (depth vs width of the event poset) — χ→1 fully
+serial (revision grinding), χ small wide/parallel (lateral novelty). The C4 lever `s` is
+REPLACED by two non-negative magnitudes `(s_seq, s_lat)` on the derived decomposition; only
+magnitudes remain sweepable. Practical v1 approximation: edge-type counts (supersession vs
+lateral events); the poset depth/width is the canonical target. OWNER DECISION D1 is thereby
+**retired, not resolved** — the better outcome for a gate.
+
 ## 5. C5 — arguments as well-formed paths (the algebra earns its keep)
 
 **The grammar, made operational** [DERIVED from the ratified scope algebra + bp-056]: give each
