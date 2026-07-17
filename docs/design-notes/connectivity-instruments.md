@@ -21,6 +21,12 @@ superseded_by: null
 warrant: docs/brainstorms/conductivity-and-reasoning-chains.md
 ---
 
+> **AMENDED (2026-07-17, owner): placement only.** §3's "All eval-side" is superseded by
+> `dn-core-graph-instruments` (warrant finding-0101): the tranche's MATHEMATICS lives in
+> `core/graph/` (one Laplacian, from `core/complex/`); `eval/harness` keeps thin instruments
+> (readings, evidence, gates). Every mathematical decision in this note — CN-1..CN-7, the
+> signs-as-law churn measure, the attribution law — stands unchanged.
+
 # Connectivity instruments: σ*, conductance, bridges, and helices over the temporal substrate
 
 > Composed at **fable** (`claude-fable-5`/xhigh, 2026-07-17, owner-chartered: "draft the design
