@@ -33,6 +33,7 @@ from dataclasses import dataclass, field, replace
 
 import numpy as np
 
+from core.dreaming.graph import MirrorGraph
 from core.graph.conductance import (
     CONDUCTANCE_THRESH,
     ConductanceProfile,
@@ -44,7 +45,6 @@ from core.graph.conductance import (
     reconnection_scan,
     sigma_t_profile,
 )
-from core.dreaming.graph import MirrorGraph
 from core.graph.sigma_star import ConnIndex, acquire_mirror_cut, cut_fingerprint
 from core.mirror import MirrorView
 from core.temporal.spine import Spine

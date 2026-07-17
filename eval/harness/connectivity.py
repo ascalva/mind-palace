@@ -30,6 +30,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from statistics import mean, median
 
+from core.dreaming.graph import MirrorGraph
 from core.graph.sigma_star import (
     ConnIndex,
     CrossingEdgeError,
@@ -41,7 +42,6 @@ from core.graph.sigma_star import (
     pairwise_sigma_star,
     sigma_star,
 )
-from core.dreaming.graph import MirrorGraph
 from core.mirror import MirrorView
 from core.temporal.spine import Spine
 from eval.harness.store import EvalKey, EvalResultsStore, Reading
