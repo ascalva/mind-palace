@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-062
 alias: helix-detector
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/connectivity-instruments.md   # RATIFIED — CN-6 (the helix: revisitation is necessarily helical)
 contract: builder

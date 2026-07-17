@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-061
 alias: bridge-search
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/connectivity-instruments.md   # RATIFIED — CN-5 (arguments are well-formed paths) + CN-7 (the arc: bidirectional field-guided search)
 contract: builder

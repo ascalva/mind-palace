@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-064
 alias: chat-clock-wiring
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/chat-sensor.md            # RATIFIED — CS-4 (per-session chains in observed; cuts at session close)
 contract: builder

@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-060
 alias: conductance-profile
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/connectivity-instruments.md   # RATIFIED — CN-3 (the (σ,t) conductance profile + reconnection) + CN-4 (churn as change of measure)
 contract: builder

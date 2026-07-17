@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-063
 alias: chat-sensor-core
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/chat-sensor.md            # RATIFIED — CS-1 (raw retention), CS-2 (OBSERVED), CS-3 (utterance grain + tool-strip + secret guard)
 contract: builder
