@@ -75,3 +75,55 @@ references:
   - docs/design-notes/cross-strata-dreamer.md        # RATIFIED (generalized) — the scoped-dreamer capability
   - docs/design-notes/sigma-fibers-and-multiscale-dreaming.md   # the fibers/gate this widens
 ```
+
+## 2026-07-17T17:45Z — owner refinement: the chat stratum is the formalization boundary
+
+```capsule
+decisions:
+  - id: R1-chats-are-the-derivation
+    text: >
+      Owner (2026-07-17, verbatim intent): "I do want to start using our chat conversations as
+      some sensor source, because this is where intuition and creativity get the helping hand to
+      formalize, and through our process, we make concrete, to study the system itself." This
+      REFRAMES the private band's chat entry: not merely more substrate coverage, but the ONLY
+      stratum holding the DERIVATION — the artifact chain currently begins at /capture, which
+      keeps the result (the capsule) and discards the process (question → grounding → falsifier →
+      refinement). Proof case: the graph-at-a-past-cut capture holds "wall = chart, resolver
+      interval-valued" but not the collision with Law C4 that produced it. The capsule keeps the
+      theorem; the conversation was the proof.
+  - id: R2-formalization-lag-instrument
+    text: >
+      The instrument the chat stratum unlocks, riding the memory-curve family
+      (graph-at-a-past-cut D7): sigma*(A,B;c) with A = a chat utterance, B = a design-note claim
+      or shipped module = FORMALIZATION LAG — how long an intuition lived in conversation before
+      crystallizing; which conversations were load-bearing; which ideas died in chat vs reached
+      code. The palace measuring its own ideation dynamics under the same certified-cut,
+      leave-one-out-attributed discipline as everything else.
+  - id: R3-governance-pins
+    text: >
+      Already-decided pins that make this buildable: chats land as OBSERVED provenance (agent
+      half is exhaust; owner half un-ratified until committed) → readable ONLY by the Track D
+      correlator, never the mirror dreamer (Invariant 6 intact); transcripts already exist
+      locally on disk (bright line 11 intact — nothing new transits); the sensor is a third
+      sibling of the code-sensor/self-sensor pair (established pattern, fires on commit/session
+      boundaries).
+open_questions:
+  - id: RQ1
+    q: >
+      Provenance class for a JOINT object: a conversation is co-produced — neither authored nor
+      pure observed exhaust. Does the taxonomy want a `dialogue` class (correlator-readable,
+      mirror-excluded, but distinguished from third-party observed for weighting/consent
+      semantics)? The design note decides; do not overload `observed` silently.
+  - id: RQ2
+    q: >
+      Extraction grain: raw transcripts are mostly tool noise. Utterance-grain chunks with a
+      curation/extraction layer (the sensor's own MirrorView-analog), or capsule-adjacent
+      summaries only? Fidelity-vs-noise tradeoff is the sensor design's center.
+next_steps:
+  - Fold R1-R3 + RQ1-RQ2 into the cross-strata design note when it graduates (after the
+    connectivity tranche builds); the chat sensor remains gated on the scoped grant + that note.
+references:
+  - docs/brainstorms/graph-at-a-past-cut.md          # D7 memory curve — the instrument R2 extends
+  - core/stores/agent_observations.py                # the observed-store pattern the sensor rides
+  - .claude/state/resume-brief.md                    # the chat-sensor gate as previously pinned
+```
