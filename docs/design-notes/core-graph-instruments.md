@@ -1,7 +1,7 @@
 ---
 type: design-note
 id: dn-core-graph-instruments
-status: draft            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
+status: ratified            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 implementation: bp-065 (mints on ratification)
 created: 2026-07-17
 updated: 2026-07-17
