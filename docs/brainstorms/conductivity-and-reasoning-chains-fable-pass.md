@@ -381,3 +381,28 @@ that falls out post-ratification (estimates in the house unit):
 - Journey semantics for arguments: temporal reachability is asymmetric; arguments may cite the
   past (backward traversal = citation — allowed?) while following supersession forward.
   Default: allow both, annotate direction per hop. Re-entry: bridge-search v1 design.
+
+## 9. Pre-ratification errata (2026-07-17, adversarial pass over the draft note)
+
+Eight wrinkles found and fixed in `dn-connectivity-instruments` before ratification; recorded
+here so the derivation trail matches the decided text:
+1. **Index signatures** — the blanket "(σ,t,cut) on every reading" law was over-strong (σ\* has
+   no walk, hence no t); instruments now declare per-instrument signatures.
+2. **σ\* grid-relativity** — the MST is built on the *loosest-grid* graph with the grid pinned
+   in evidence (FibersEvidence pattern); off-grid pairs report "not connected within grid",
+   never an extrapolated value (also removes any implicit O(V²) full-graph claim).
+3. **Attribution phrasing** — "a jump is attributable to..." over-claimed; corrected to: a rise
+   *requires* new edges (Rayleigh), contributors enumerable + leave-one-out *verified*.
+4. **α and the edge convention were unpinned** — `α = 1` default joins the THRESH dict;
+   `a_•(u,v)` = mean of endpoint strata's statistics (v1 convention, revisit at item-2 review).
+5. **Cross-stratum gain was under-defined** — the primary gain is now the ℤ interval count
+   (total, strictly positive per forward hop); per-stratum proper time is the refinement —
+   which also insulates the detector from the OPEN finding-0090 proper-time erratum.
+6. **Helix criterion clarified** — nonzero pitch, NOT snapshot-invisibility: a citation cycle
+   can be co-present at one cut yet carry positive pitch (C6's falsifier updated accordingly —
+   the earlier "visible at a cut ⇒ bug" clause would have flagged correct detections).
+7. **"Composable subgraph" was ill-typed** — composability is a path property (running meet =
+   state); C7's search is label-setting over (node, scope) states with sound dominance (scopes
+   only narrow); the correctness falsifier now references an exhaustive small-instance oracle.
+8. **Grain grounding** — the built `MirrorGraph` is note-centroid grain (not chunk); the parked
+   grain default now says so.

@@ -61,12 +61,13 @@ its design is its own act); any build.
 
 **Decision.** Every instrument in this family is indexed by a point in **(σ, t, cut)**-space:
 σ the abstraction scale (the nested cosine filtration), t the diffusion/walk time inside a fixed
-graph, and the cut the corpus-history coordinate. The three axes are never conflated; every
-reading records all three. "The graph at a moment" exists **only at a certified cut** (GC-3);
+graph, and the cut the corpus-history coordinate. The three axes are never conflated; each instrument **declares its index
+signature** over them (σ\*: (σ-grid, cut) — no walk, hence no t; conductance: (σ, t, cut);
+bridges: (σ, cut, budget); helix: (cut-window)), and every reading carries its declared tuple. "The graph at a moment" exists **only at a certified cut** (GC-3);
 wall-clock indexes nothing (Law C4). The corpus is the two-layer object: undirected σ-indexed
 spatial graphs fibered over the acyclic spine — acyclicity is a temporal-layer property only.
 
-*Falsifier:* an instrument reading lacking any of the three indices, or computed at an
+*Falsifier:* a reading missing any index its instrument declares, or computed at an
 uncertified cut, is malformed — the reading refuses to emit.
 
 ### 2.2 CN-2 — σ\*: the abstraction ultrametric and its realizing chain (the keystone)
@@ -75,7 +76,11 @@ uncertified cut, is malformed — the reading refuses to emit.
 thoughts still share a component — is the family's first instrument. It is a single-linkage
 ultrametric ("how coarse must abstraction get before two thoughts are the same conversation"),
 equal to the maximin-cosine path value; **one maximum spanning tree per cut yields all pairwise
-σ\* and the realizing chain for every pair** in O(E log V). The MST chain is the canonical
+σ\* and the realizing chain for every pair** in O(E log V). σ\* is **grid-relative** (the
+fibers discipline): computed against the declared σ-grid, the MST built on the loosest-grid
+graph, the grid pinned in every reading's evidence (the FibersEvidence pattern); a pair
+unconnected there reports **"not connected within grid"** — an honest bounded answer, never an
+extrapolation. The MST chain is the canonical
 "path of least resistance" — the strongest single chain of association between any two thoughts.
 
 *Falsifiers:* the ultrametric inequality `σ*(A,C) ≥ min(σ*(A,B), σ*(B,C))` on sampled real
@@ -90,9 +95,10 @@ local degrees in dense regimes (the von Luxburg result), so finite-t diffusion d
 authoritative there, and **every profile carries the degeneracy self-diagnostic**
 (`corr(R_eff, 1/d_A + 1/d_B)` at the loosest σ) — the instrument reports its own domain of
 validity. Commute time supplies the operational meaning (expected wander time of a
-dreamer-like walk). Rayleigh monotonicity binds: under pure decay conductance only falls;
-therefore **a conductance jump between consecutive cuts is attributable to specific new edges,
-hence to the specific spine events that minted them**. A **reconnection event** — the owner's
+dreamer-like walk). Rayleigh monotonicity binds: removals can never raise conductance;
+therefore **a conductance rise between consecutive cuts requires new edges**, and the
+contributing additions are enumerable and individually testable (leave-one-out re-computation)
+— the reconnection report names the bridging event(s) it *verified*, never a guess. A **reconnection event** — the owner's
 "connections I forgot I had made," made measurable — is a Δ-conductance spike between cuts
 across a large proper-time gap, reported *with the bridging event named*.
 
@@ -114,8 +120,10 @@ decomposition with signs forced by circuit law** (owner refinement; pass §C4b):
   traversal walks the threads against that budget: *impedes, by law*.
 - **Lateral churn** (new cross-links) acts in **parallel** — Rayleigh: *conducts, by law*.
 
-Weights: `w(u,v) = cos(u,v)^α · exp(s_lat·a_lat − s_seq·a_seq)` with `s_lat, s_seq ≥ 0`
-THRESH-dict levers **both shipped at 0**; the components read from the spine — canonical form:
+Weights: `w(u,v) = cos(u,v)^α · exp(s_lat·a_lat(u,v) − s_seq·a_seq(u,v))` with `α = 1` and
+`s_lat, s_seq ≥ 0` all THRESH-dict entries (**α default 1; magnitudes shipped at 0**), and the
+v1 edge convention `a_•(u,v)` = mean of the endpoint strata's statistics (revisited at item-2
+design review); the components read from the spine — canonical form:
 the region's window-event poset depth vs width (Mirsky/Dilworth; sequentiality
 `χ_s(W) = longest-chain / N_s(W)`), practical v1: edge-type counts. Only *magnitudes* are
 sweepable; the signs are structural. "Metal vs semiconductor" becomes a **measured per-region,
@@ -150,8 +158,15 @@ readings.
 ### 2.6 CN-6 — the helix: revisitation is necessarily helical
 
 **Decision.** The helix is formalized on the **gain graph** over the idea quotient: spatial
-edges carry gain 0 (co-presence), temporal edges carry +Δτ (proper time, GC-2); the pitch is a
-linear functional on the cycle space. The **forced-helix theorem** (proved in the pass) binds:
+edges carry gain 0 (co-presence); temporal edges carry the **ℤ-valued interval count as the
+primary gain** — always defined, strictly positive per forward temporal hop, well-defined even
+across strata — with per-stratum proper time (GC-2) as the *refinement* where a hop stays
+within one stratum. (The ℤ-primary choice also insulates the detector from the open
+finding-0090 proper-time erratum: the refinement waits on its resolution.) The pitch is a
+linear functional on the cycle space. **The helix criterion is nonzero pitch, not
+snapshot-invisibility**: a citation cycle can be fully co-present at one cut yet carry positive
+pitch — a legitimate, separately-reported subclass (a loop closed *by* time while visible *in*
+one snapshot). The **forced-helix theorem** (proved in the pass) binds:
 *every closed idea-walk traversing ≥1 temporal edge all-forward has strictly positive pitch —
 its lift cannot close; revisitation is necessarily helical* — with the spine's constructed
 acyclicity as the engine. Purely-spatial cycles are legal and flat; time-balanced mixed cycles
@@ -169,8 +184,8 @@ never merging distinct ideas (false merges manufacture phantom cycles — the de
 integrity depends on π's precision more than its recall).
 
 *Falsifiers:* pitch ≡ 0 on every spatial-only cycle; pitch > 0 on every all-forward
-revisitation walk (synthetic first, real once π lands); a detected "helix" whose cycle exists
-in full at a single certified cut (a flat cycle misclassified — detector bug).
+revisitation walk (synthetic first, real once π lands); a **zero-pitch** cycle reported as a
+helix (detector bug — snapshot-visibility is explicitly NOT the criterion).
 
 ### 2.7 CN-7 — the arc: bidirectional field-guided search with refusal
 
@@ -178,16 +193,19 @@ in full at a single certified cut (a flat cycle misclassified — detector bug).
 field-guided, budget-bounded** growth (the owner's arc, whose physics — dielectric breakdown —
 is guided by the same Laplacian potential as CN-3): frontiers from A and B expand by potential-
 guided priority (A\*/reduced-cost form of the same object), **each candidate extension
-scope-meet-checked at expansion time** (the streamer only grows through admissible bonds), until
-they meet or the budget exhausts. Budget exhaustion yields the principled refusal **"no arc at
+scope-meet-checked at expansion time** (the streamer only grows through admissible bonds) —
+and since composability is a *path* property (the running meet is state), the search is
+label-setting over (node, accumulated-scope) states, with dominance pruning sound because
+scopes only narrow along a path — until they meet or the budget exhausts. Budget exhaustion yields the principled refusal **"no arc at
 this voltage"** — quantified (budget spent, frontier reach), never a partial path presented as
 a bridge. v1 is deterministic (the high-η limit = bidirectional Dijkstra); stochastic η-growth
 is parked (§4).
 
-*Falsifiers:* the meet-point chain equals the global weighted geodesic on the composable
-subgraph; a below-requirement budget produces the refusal report, never a partial bridge.
+*Falsifiers:* the meet-point chain equals the optimal well-formed chain from an exhaustive
+reference search on small instances (label-dominance correctness); a below-requirement budget
+produces the refusal report, never a partial bridge.
 
-## 3. The instrument tranche (what /graduate mints, post-ratification)
+## 3. Consequences — the instrument tranche (what /graduate mints, post-ratification)
 
 Session-sized, in dependency order; estimates in the house unit. All eval-side; write scopes
 disjoint from core except where named.
@@ -218,7 +236,7 @@ fingerprints in every reading); levers THRESH-first.
 | certified-cut lattice closure (cut arithmetic) | cut *sampling* at session/handoff boundaries | an instrument needs cut meets/joins, not samples |
 | stochastic η-growth (dreamer-adjacent explorer) | deterministic v1 (high-η limit) | bridge-search v1 shipped + a dreamer-integration gate |
 | β compactification (U(1)/spectral helix route) | combinatorial v1 only | the magnetic lane's own build gate opens |
-| conductance grain (chunk vs claim) | chunk-grain; source-set relation supplies group-by | item-2 design review shows claim-grain queries dominate |
+| conductance grain | note-centroid grain (`MirrorGraph`'s built grain); the source-set relation supplies the chunk↔note group-by | item-2 design review shows chunk- or claim-grain queries dominate |
 | journey semantics for arguments (citing the past) | both directions allowed, direction annotated per hop | bridge-search v1 design review |
 | snapshot-realizability co-presence (the Helly gap) | not needed by v1 detectors | the helix detector's spatial-cycle baseline treatment |
 
@@ -239,3 +257,22 @@ No writes; no dreamer modification; no auto-surfacing of bridges into the mirror
 E6-style tenant plan); no Track-D correlator work; no claim-matching build (SF-a keeps its own
 re-entry); no ANN/compression/scaling work (the adjacent note's future gate); no magnetic/
 spectral build ahead of its own lane; no uuid-identity design here (requirement surface only).
+
+## Cross-references
+
+- **Code (the substrate, all built):** `core/dreaming/graph.py:25-33` (`MirrorGraph.build` —
+  `E = {cos ≥ σ}`, note-centroid grain, deterministic) · `core/temporal/spine.py` (N = (Ev, ≼),
+  Kahn/`SpineCycleError`; `N_s`/`p_κ`/proper time — GC-1/GC-2; `CertifiedCut`/`downset`/
+  `crossing_edges` — GC-3) · `core/scope.py` (meets, admissibility, `ClockAtlas` seam — GC-4)
+  · `core/temporal/atlas.py` (`SpineAtlas`) · `eval/harness/fibers.py:96` (`ClaimFiber`;
+  `FibersEvidence` grid/fingerprint pinning — the evidence discipline this family copies) ·
+  `eval/harness/gate.py` (`Tier`/`assign_tiers` — the two-axis reporting discipline).
+- **Artifacts:** bp-050..bp-057 (the substrate, all `complete`); the warrant capsules + the
+  C1–C7 fable pass (frontmatter links); `magnetic-laplacian-fable-pass.md` Q3/Q4/Q5/Q6 (the
+  prior rulings CN-6 reconciles with).
+- **Open findings checked for interference:** finding-0090 (TG §2.1 proper-time-exactness
+  erratum, OPEN) — does **not** touch this note: CN-4's budget uses `N_s` event *counts*
+  directly (GC-2's built objects), and CN-6's primary gain is the ℤ interval count precisely so
+  the proper-time refinement can wait on the erratum's resolution. finding-0091
+  (velocity-instruments cross-edge-space angle, OPEN) — no dependency; CN-4 consumes velocity
+  magnitudes only, not the angle construction.
