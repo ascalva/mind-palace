@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-059
 alias: sigma-star-mst
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/connectivity-instruments.md   # RATIFIED — CN-1 (the (σ,t,cut) index discipline) + CN-2 (σ*/MST, the keystone)
 contract: builder
