@@ -1,3 +1,16 @@
+# ── Family: σ-connectivity instruments (graph measurement at a certified cut) · docs/NOTATION.md ──
+# OBJECT:    σ*(A,B) = sup{σ : A ∼ B in G_σ(cut)} — the abstraction ultrametric — plus the CN-1
+#            (σ-grid, cut) index and the one maximum spanning forest realizing every pairwise σ*
+#            and its chain (the bottleneck edge of the unique MST path).
+# INVARIANT: grid-relative, never extrapolated (unconnected at the loosest grid ⇒ None — an honest
+#            bound); readings exist ONLY at a sound certified cut (crossing edges refuse); model-
+#            free, deterministic, clockless (Law C4); imports core substrate only — NEVER eval (P1,
+#            dn-core-graph-instruments).
+# ENFORCED:  structurally — `acquire_mirror_cut` raises `CrossingEdgeError` / lets
+#            `CutCertificateError` propagate (fail-closed); `_grid_snap` bounds σ* to the declared
+#            grid; the P1 no-eval and Law-C4 no-clock teeth are permanent AST scans
+#            (`tests/unit/test_graph_boundary.py`); the eval harness re-exports are `is`-identity-
+#            pinned (P5) so the math cannot silently fork.
 r"""CN-2 mathematics: σ*, the abstraction ultrametric, via one maximum spanning tree per cut.
 
 The σ-connectivity family's keystone math, re-homed from `eval/harness/connectivity.py` by
