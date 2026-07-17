@@ -1,7 +1,7 @@
 ---
 type: design-note
 id: dn-sigma-sweep-experiment
-status: draft               # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
+status: ratified               # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 implementation: design-only
 created: 2026-07-17
 updated: 2026-07-17
