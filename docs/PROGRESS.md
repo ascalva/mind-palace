@@ -4298,3 +4298,18 @@ unchanged (5th pool-split confirmation).
   plan" to an eval-side adapter; no change to the blessed plan itself). Next finding = **0101**.
 - **NEXT:** /clear → fresh OPUS session → `/build bp-059`. After the tranche: graduate the
   graph-at-a-past-cut capture into a design note (memory curve v1 = candidate first follow-on plan).
+
+## 2026-07-17 (session 24 close) — dn-chat-sensor composed AND RATIFIED; README mission reframe
+
+- **`dn-chat-sensor` composed (Fable/xhigh) and owner-RATIFIED by hand in-session** (rode into `4ce96d2`;
+  provenance recorded in the empty bless commit). Decides CS-1..CS-6: verbatim rawstore retention (the
+  CLI transcript source is EPHEMERAL — 103 files today, pruned by retention policy); ALL rows OBSERVED
+  (never-automatic promotion; `/capture` stays the promotion path; the typed `promote`/OwnerVerdict stub
+  registered as the future seam); utterance-grain extraction with structural tool-strip (anti-apophenia +
+  secret hygiene); per-session g1 chains, stratum observed, session-close cut certificates;
+  correlator-only reader (Invariant 6 untouched); formalization-lag designed, TRIPLE-GATED. Both warrant
+  RQs decided. §3 tranche graduatable on owner sequencing; the LEAD remains /build bp-059.
+- **README reframed (owner-directed, `38a499c`):** "Why it exists" — the living thought experiment;
+  intuition bounded by math, made representable/constructable, self-validated (the guardrails are the
+  kiln); frontier → the temporal-connectivity family entering build; recursion gains the chat-sensor turn.
+- Owner memory updated: the project is art-first; excitement is the point.
