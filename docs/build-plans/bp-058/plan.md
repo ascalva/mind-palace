@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-058
 alias: sigma-sweep-experiment-wiring
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/sigma-sweep-experiment.md   # RATIFIED @ d932670 (FROZEN pre-registration) — §2.1 V1–V5, §2.2 SE-1..SE-4, §2.3 report contract, §3 licenses THIS one thin build item
 contract: builder
