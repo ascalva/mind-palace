@@ -829,3 +829,32 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   finding-0090 / finding-0091; re-entry — owner annotates a note by hand, or a book chapter / successor
   design is about to cite §2.1's exactness claim or §2.2(a)'s under-specified cross-space construction.
 - answer:
+
+---
+
+## oq-0029 — bless the connectivity-instruments tranche `proposed → ready`, item-by-item (bp-059 · bp-060 · bp-061 · bp-062)
+- status: open
+- origin: /graduate dn-connectivity-instruments (2026-07-17, session-24) — the owner's "build out what we
+  have already designed" lead
+- blocking: false
+- question: The RATIFIED `dn-connectivity-instruments` note is graduated into four `proposed` build plans
+  (all eval-side, read-side, model-free, disjoint write_scopes). This is the owner-only `proposed → ready`
+  blessing gate — an agent may not flip it (`gate-guard` denies the Edit path; the Stop-gate audit catches a
+  Bash-minted `ready`). Bless by hand (edit each plan's `status:` and record a `bless(...)` commit):
+  1. **bp-059** (σ*/MST — the keystone; no deps) — `eval/harness/connectivity.py`. **~180k opus. BUILDABLE
+     FIRST.**
+  2. **bp-060** (the (σ,t) conductance profile + churn change-of-measure + reconnection) — depends on bp-059.
+     **~200k opus.**
+  3. **bp-061** (type-checked bridges + bidirectional arc search) — depends on bp-059 + bp-060. **~200k opus.**
+  4. **bp-062** (the helix detector) — **GATED on uuid-identity** (D3). Item 10 (synthetic detector) is
+     buildable now; item 11 (real-corpus π wiring) waits on uuid-identity. **~180k opus.** Default per your
+     ruling: the whole plan waits behind uuid-identity; the surfaced option is to bless item 10 forward for
+     early value (its correctness is fully provable on synthetic gain graphs).
+  Each plan pins its interfaces inline, grounds against the six built substrate modules with `path:line`
+  citations, and honors the run-1 findings (0096: NO golden_recall coupling — the falsifiers are structural,
+  not recall signals). One load-bearing grounding fact carried in all four: `MirrorView` has no cut-restriction
+  surface, so v1 pins to the latest certified cut (historical restriction is a parked `core/` prerequisite).
+- default_if_unanswered: the four plans stay `proposed` (unblessed, unbuilt); no agent flips readiness. Parks
+  as the tranche; re-entry — owner blesses one or more plans `proposed → ready` by hand, then `/build <id>`.
+  bp-059 is the natural first bless (the keystone all three others consume).
+- answer:

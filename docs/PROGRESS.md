@@ -4250,3 +4250,28 @@ unchanged (5th pool-split confirmation).
   `dn-connectivity-instruments` tranche (items 1–3; item 4 gated on uuid-identity) — the phase-B
   re-analysis instruments for exactly this kind of run. Weekly pool 29%; but session pool 57% + high
   context ⇒ the tranche graduation is a FRESH-session task (context economy).
+
+## 2026-07-17 (session 24) — GRADUATED the connectivity-instruments tranche → 4 proposed plans (bp-059..062)
+
+- **/graduate `dn-connectivity-instruments`** (RATIFIED, CN-1..CN-7) → four `proposed`, eval-side, read-side,
+  model-free build plans with disjoint write_scopes. Grounded pass (investigate→reconcile→plan) against the
+  six built substrate modules (Explore-assisted); each plan pins its consumed signatures inline with
+  `path:line` citations. Next plan id now **bp-063**.
+  - **bp-059** (σ*/MST, the keystone; no deps) — `eval/harness/connectivity.py`; the shared CN-1 scaffolding
+    (ConnIndex/ConnEvidence/latest-cut gate) the family imports. ~180k opus.
+  - **bp-060** (the (σ,t) conductance profile + churn change-of-measure + reconnection) — deps bp-059.
+    Signs are LAW (D1 retired); `CONDUCTANCE_THRESH` magnitudes ship at 0; χ_s + depth-budget from the spine.
+    ~200k opus.
+  - **bp-061** (type-checked bridges + bidirectional arc search) — deps bp-059+bp-060. Node→scope =
+    MirrorView.SCOPE ⊓ spine-event TimeScope (Σ trivial, atlas T-meet is the live refusal axis). ~200k opus.
+  - **bp-062** (helix detector) — **GATED on uuid-identity** (D3). Item 10 (synthetic detector) buildable now;
+    item 11 (real-corpus π) waits behind the gate. ~180k opus.
+- **One load-bearing grounding fact, carried in all four:** `MirrorView` has NO cut-restriction surface
+  (`core/mirror.py:96-105`); `MirrorGraph.build` takes no cut. v1 pins to the LATEST certified cut
+  (`spine.cut_at`), recorded in evidence; historical cut-restriction is a parked `core/` prerequisite.
+- **Run-1 findings honored:** finding-0096 (golden_recall saturation) ⇒ NO recall coupling — every plan's
+  falsifiers are structural (ultrametric inequality, Rayleigh monotonicity, forced-helix theorem), not recall.
+- **NEXT = owner blessing gate (oq-0029):** owner blesses `proposed → ready` by hand, item-by-item, records a
+  `bless(...)` commit; bp-059 is the natural first (the keystone). Then `/build` each ready plan (5-leg gate,
+  seal w/ cost.actual). No agent flips readiness (gate-guard + Stop-gate audit). Cross-strata σ-sweep design
+  note still DEFERRED (these instruments are its phase-B re-analysis layer — build first).
