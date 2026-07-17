@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-065
 alias: core-graph-rehome
-status: in-progress
+status: complete           # sealed 2026-07-17 (session-26); full suite 1536p/8s on the clean-break tree
 design_ref:
   - docs/design-notes/core-graph-instruments.md      # the placement ruling (P1-P6) this executes
   - docs/design-notes/connectivity-instruments.md    # RATIFIED — the MATH (CN-2/3/4) — unchanged, amended on placement only
@@ -31,7 +31,25 @@ cost:
   estimate:
     model: fable          # owner-directed session tier (in-session self-build, session-26)
     tokens: 90k
-  actual: null
+  actual:
+    model: fable→opus     # started fable (design/refactor); owner switched to opus mid-build for
+                          # the audit + clean-break cleanup — a MIXED-tier in-session self-build
+    tokens: null          # main-loop self-build (no delegated-worker usage report); pending /usage relay
+    ratio: null           # computed on the /usage relay
+    dollars: null
+    session_delta: null
+    week_delta: null      # a build wave draws the WEEKLY
+    merged: 552f885→084739d   # DIRECT on-main self-build (items 1-2, audit fixes, clean break)
+    sealed: 2026-07-17
+    gate: "ruff · mypy targeted 216 · argless 69 · type_gate OK · pytest 1536p/8s (clean-break tree)"
+    scope_notes: >-
+      shipped BEYOND the staged plan by owner direction: a second full audit (AST move-fidelity +
+      first-principles math verification + P1-P6 design-match + house-style) and THE CLEAN BREAK
+      (write_scope widened by bp-059's 2 tests; aliases/__all__ deleted; harness a plain consumer).
+      bp-060 superseded; its built math ships here behavior-frozen (off-diag-exact / degrees-ulp /
+      R_eff rtol-1e-10 equivalence teeth). finding-0102 opened (shadow.py eval-logic — deferred).
+    findings: []          # zero NEW findings this build (0102 was an audit-surfaced discovery, filed
+                          # session-26; the build itself raised none)
 depends_on: [bp-059]
 parallelizable_with: []
 supersedes: bp-060        # the eval-homed conductance plan — its built math ships HERE (branch preserved)

@@ -144,3 +144,19 @@ ratification of dn-core-graph-instruments; blessed ready by owner hand (recorded
   `eval → core.graph → core.complex`.
 - **Gate:** ruff full-tree clean (isort --fix on the 4 tests) · mypy targeted 216 · **argless == 69**
   · type_gate OK · targeted battery 52p (was 54 — the 2 deleted re-export teeth). Full leg 5 next.
+
+## 2026-07-17 — bp-065 COMPLETE + SEALED
+
+- **Full-suite leg 5 on the clean-break tree: 1536 passed / 8 skipped** (1536 = the 1538 pre-clean-
+  break minus the 2 deleted re-export identity teeth — exactly expected). All 5 legs green on the
+  final tree (ruff · mypy targeted 216 · argless 69 · type_gate · pytest).
+- Status in-progress→complete (non-blessing). cost.actual sealed: mixed tier fable→opus (owner
+  switched mid-build), tokens/dollars/deltas pending the /usage relay; merged direct on main
+  552f885→084739d; scope_notes record the audit + clean break shipped beyond the staged plan.
+- **The reconciliation is DONE.** core/graph owns the σ*/conductance math (on core/complex's one
+  Laplacian); eval/harness is a plain consumer (no wrappers). Arrow eval → core.graph → core.complex.
+  bp-060 superseded, its build preserved on branch + shipped here behavior-frozen.
+- Active-plan pointer cleared → orchestrator posture. OWED (orchestrator, now unblocked): the
+  cross-session MEMORY note (core-self-containment; scope-guard blocked it mid-builder-contract),
+  PROGRESS checkpoint, push to origin. Follow-ons: finding-0102 (shadow.py eval-logic) + the
+  store-inversion are the remaining "core self-contained" work; bp-061/062 re-mint against core/graph.
