@@ -41,6 +41,7 @@ from core.graph.sigma_star import (
     pairwise_sigma_star,
     sigma_star,
 )
+from core.dreaming.graph import MirrorGraph
 from core.mirror import MirrorView
 from core.temporal.spine import Spine
 from eval.harness.store import EvalKey, EvalResultsStore, Reading
@@ -173,8 +174,6 @@ def run_connectivity(
     aggregate readings keyed with the `ConnEvidence` ref. Reads only the view + spine; writes only
     additive, idempotent-by-key eval Readings (never re-keys, never overwrites). n≤1 corpora emit
     no readings and note it (a sanctioned empty outcome, bp-059 §10)."""
-    from core.dreaming.graph import MirrorGraph
-
     grid = tuple(sorted(float(g) for g in grid))
     if not grid:
         raise ValueError("run_connectivity: empty σ-grid — an instrument must declare its grid")

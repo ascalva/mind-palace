@@ -61,3 +61,51 @@ ratification of dn-core-graph-instruments; blessed ready by owner hand (recorded
   edit-rise attribution, decay-null, degeneracy-always-present: all green against the CORE file.
 - **NEXT:** item 3 — full 5-leg gate (argless == 69 the watch item; 3 new test files must add 0),
   then seal + ledger (bp-060 → superseded is already recorded; PROGRESS + status flip on green).
+
+## 2026-07-17 — item 3 checkpoint: legs 1–4 ATTESTED, leg 5 in flight, amendment chain closed
+
+- **Gate legs 1–4 run separately, all green:** ruff full-tree ✓ · mypy targeted (216 files) ✓ ·
+  **argless mypy tail == 69** (451 files checked; the 3 new test files added 0 — the watch item
+  held) · type_gate Tier-2 + bare-ignore OK. **Leg 5 (full pytest) running in background** — item 3
+  completes ONLY on its green; no status flip before.
+- **Design-artifact chain fully closed mid-gate:** the owner hand-pasted the amendment banner into
+  ratified `dn-connectivity-instruments` (agent-immutable A8 — the edit is the owner's); recorded
+  `4e95480`, mirroring the bless-record precedent. The full accountable chain: note drafted
+  `5394ddf` → owner-ratified (recorded `0d05001`) → track amended `3df5bcc` → bp-065 blessed
+  (recorded `7f75fa9`) → items 1–2 built `2e362e9`+`53289bf` → source note banner `4e95480`.
+- **REMAINING for item 3:** leg-5 green → flip bp-065 in-progress→complete + seal cost.actual
+  (fable in-session; /usage relay pending for dollar/delta fields) → PROGRESS checkpoint →
+  push to origin. Fresh-agent note: if this session dies, resume = check the background pytest
+  output (b18wdjb9b), then execute exactly that list; ALL code work is committed.
+
+## 2026-07-17 — SECOND AUDIT (owner-directed): fidelity + math + design-match + house style
+
+- **Part 1 — AST move-fidelity (mechanical):** every top-level def of bp-059's original module and
+  bp-060's harvest located across the new files and compared via docstring-stripped ast.dump.
+  Result after fixes: **zero unsanctioned discrepancies** (33+35 defs IDENTICAL). The two sanctioned
+  CHANGED (`_r_eff_matrix`, `_diffusion_distances`) were diffed line-level: ONLY the
+  `_laplacian → _dense_laplacian` call swap + docstring wording. **Two real deviations found+fixed:**
+  both retyped `run_*` wrappers had deferred the `MirrorGraph` import into the function body
+  (originals import at module top) — behaviorally identical, but unsanctioned drift; restored.
+- **Part 2 — independent math audit (first-principles oracles, live modules): ALL PASS** —
+  maximin ≡ MST-bottleneck (brute force over ALL simple paths, 30 seeded random graphs, every
+  pair); ultrametric inequality; R_eff circuit laws EXACT (single edge 1/w, series 1/w₁+1/w₂,
+  triangle 2/(3w)); Rayleigh monotonicity (30 trials, every pair); finite-t distances ≡
+  ‖expm(−tL)(e_i−e_j)‖ vs scipy.linalg.expm directly (the eigendecomposition is correct);
+  sign law numeric (+lat conducts / −seq impedes / zero-churn ⇒ cos^α EXACTLY); conductance
+  monotone under σ-loosening; dense-graph degeneracy corr high (von Luxburg direction);
+  __all__ resolves everywhere.
+- **Part 3 — design-match:** P1 tooth green; P2 layout = the owner-selected preview; P3 no other
+  Laplacian derivation anywhere in scope (grep); P4/P6 core/complex + shadow/spine/ops_view
+  UNTOUCHED all session (git); P5 full structural fidelity + bp-059 tests byte-untouched (git);
+  all 32 carried test functions present incl. edit-rise/decay-null/idempotency/degeneracy
+  falsifiers; zero stale math-home references. **One honest one-sided item:** P4 says Φ(S)/R_eff
+  are "cross-referenced in both docstrings" — the core/graph side carries it; the RECIPROCAL line
+  in `core/complex/cut.py` is NOT added (the note's own §1 puts core/complex out of scope; a
+  trivial follow-up sweep or owner hand-line closes it). Recorded, not silently dropped.
+- **Part 4 — house style:** OBJECT/INVARIANT/ENFORCED family headers on all three core files
+  (velocity_view exemplar shape); `# ── section ──` rules; ≤100-col (ruff config) clean; `__all__`
+  house-idiomatic (core/agent.py + 3 core __init__ precedents); import order (ruff) clean; r-strings
+  where math symbols appear; test headers carry the plan-ref style.
+- **Gate hygiene:** the first leg-5 run went green (1552-outcome tree) but STARTED before the two
+  fidelity fixes — stale by discipline. Legs 1–4 re-run + a FRESH leg 5 on the final tree follow.

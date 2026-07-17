@@ -44,6 +44,7 @@ from core.graph.conductance import (
     reconnection_scan,
     sigma_t_profile,
 )
+from core.dreaming.graph import MirrorGraph
 from core.graph.sigma_star import ConnIndex, acquire_mirror_cut, cut_fingerprint
 from core.mirror import MirrorView
 from core.temporal.spine import Spine
@@ -193,8 +194,6 @@ def run_conductance(
     "no cut pair yet" and NOTES it, never reconstructing a past graph. `reconnection_scan` is
     exercised on synthetic cut-pairs in the quality battery. n≤1 corpora emit no readings and
     note it."""
-    from core.dreaming.graph import MirrorGraph
-
     sigma_grid = tuple(sorted(float(s) for s in sigma_grid))
     t_grid = tuple(float(t) for t in t_grid)
     if not sigma_grid:
