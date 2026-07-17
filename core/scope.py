@@ -45,7 +45,7 @@ from __future__ import annotations
 from collections.abc import Hashable, Iterable
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum, StrEnum
-from typing import Any, Literal, cast
+from typing import Any, Literal, Protocol, cast
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════
 # Σ — the stratum-refinement forest R (dn-capability-scope §2.1; fable pass S1)
@@ -314,6 +314,39 @@ class NoCommonClockError(ValueError):
     (dn-capability-scope §2.2). Re-entry: CS-a materializes N."""
 
 
+# ── The clock-atlas seam (GC-4, dn-global-event-clock §2.5) ──────────────────────────────────────
+# A cross-clock T-meet totalizes ONLY through a materialized common refinement (canonically N). The
+# derived spine (`core/temporal/spine.py`) IS that object, but THIS module is pure-core and imports
+# no store — so it knows the atlas only as a Protocol. A consumer that has built the spine registers
+# a concrete atlas (`core/temporal/atlas.py`, which DOES import stores); `core/scope.py` never
+# imports it. With NO atlas registered (`_ATLAS is None`, the default), the T-meet stays the honest
+# PARTIAL semilattice it ships as — every current behavior byte-identical (the GC-4 falsifier).
+class ClockAtlas(Protocol):
+    """The injectable clock-pullback seam `TimeScope.meet` consults for a cross-clock meet. `has`
+    reports whether a window over κ can be pulled back to N (an exogenous coordinate with no `p_κ` —
+    wall, the live-present anchor — is NOT covered); `pullback` maps a κ-window to an opaque,
+    hashable N-window token (the event set `p_κ⁻¹(W)`); `intersect` meets two such tokens. The
+    concrete `SpineAtlas` lives in `core/temporal/atlas.py`; scope.py stays store-free (plan §3)."""
+
+    def has(self, clock: Clock) -> bool: ...
+    def pullback(self, clock: Clock, window: Window) -> Hashable: ...      # an N-window token
+    def intersect(self, a: Hashable, b: Hashable) -> Hashable | None: ...  # None ⇒ the empty set
+
+
+# The process-wide registered atlas — `None` by default (the T-meet is the partial semilattice it
+# ships as until a consumer materializes the spine and registers one). Single-writer registration at
+# daemon start; plan §11 parks auto-registration until a second consumer needs it.
+_ATLAS: ClockAtlas | None = None
+
+
+def register_atlas(atlas: ClockAtlas | None) -> None:
+    """Register (or clear, with `None`) the process-wide clock atlas the cross-clock
+    `TimeScope.meet` consults. Consumers that build the spine call this; `core/scope.py` never
+    imports the concrete atlas (the pure-core seam). Idempotent — last write wins."""
+    global _ATLAS
+    _ATLAS = atlas
+
+
 @dataclass(frozen=True)
 class TimeScope:
     """`T = (clock, window)`. The anchor is first-class: `now = (κ, pt(latest))`, `ledger = (N, ∗)`.
@@ -334,6 +367,18 @@ class TimeScope:
     def meet(self, other: TimeScope) -> TimeScope:
         if self.clock is other.clock:
             return TimeScope(self.clock, self.window.meet(other.window))
+        atlas = _ATLAS
+        if atlas is not None and atlas.has(self.clock) and atlas.has(other.clock):
+            # GC-4: both clocks are atlas-covered ⇒ pull each window back to the event level and
+            # intersect (T₁ ⊓ T₂ = (N, p₁⁻¹(W₁) ∩ p₂⁻¹(W₂)); dn-global-event-clock §2.5). The
+            # intersected event set is an opaque N-window token wrapped in the existing Window
+            # grammar; the empty intersection is the EMPTY window, NEVER an error. This branch's
+            # domain is EXACTLY the cross-clock path that raised below — no previously-legal (same-
+            # clock) meet is touched, and with no atlas registered this is skipped entirely.
+            token = atlas.intersect(atlas.pullback(self.clock, self.window),
+                                    atlas.pullback(other.clock, other.window))
+            return TimeScope(Clock.N,
+                             Window.empty() if token is None else Window.interval(token, token))
         if common_refinement(self.clock, other.clock) is None:
             raise NoCommonClockError(
                 f"no common materialized clock for {self.clock.value!r} ⊓ {other.clock.value!r} — "
