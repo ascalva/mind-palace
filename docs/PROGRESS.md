@@ -4339,3 +4339,22 @@ unchanged (5th pool-split confirmation).
   this module's `ConnIndex`/`ConnEvidence`). Then bp-061; bp-062 gated on uuid-identity. After the
   tranche: graduate `graph-at-a-past-cut` → design note (memory curve v1). Next plan id bp-063; next
   finding 0101. oq-0029 still open (bless the rest of the tranche item-by-item).
+
+## 2026-07-17 (session 25 cont.) — /graduate dn-chat-sensor → bp-063 + bp-064 (proposed)
+
+- **`/graduate dn-chat-sensor`** (owner-directed) — minted the §3 tranche as `proposed`:
+  **bp-063 chat-sensor-core** (CS-1/2/3: rawstore retention + the OBSERVED-only `chatlog` store +
+  utterance extraction with structural tool-strip + secret guard; ~200k opus, 3 items) and
+  **bp-064 chat-clock-wiring** (CS-4: enroll the store as g1 per-session chains in the `observed`
+  stratum + `observed→TROUGH` cut certificate; ~150k opus, 2 items, `depends_on: bp-063`).
+  **Plan 3 (formalization-lag, CS-6) deliberately NOT minted** — triple-gated (connectivity built ✓
+  bp-059; sensor+clock ⇐ bp-063+064; correlator scoped grant = owner act; + uuid-identity for claim grain).
+- **Grounded pass (both plans, §3):** transcript JSONL shape MEASURED on a live file (text/thinking/
+  tool_use/tool_result blocks; keep `text` only); OBSERVED-only store copies `code_observations.py`
+  (no provenance param — structural firewall); no reusable secret scanner exists (guard authored, a
+  backstop to the tool-strip); no edge handoff (local-file sensor, vault-watcher species); bp-064 is an
+  ADDITIVE extension of the pinned spine surface (`observed→TROUGH`, session-close trough-style, no
+  HANDOFF — grounded vs the `eval→TROUGH` case). 105 transcripts today (note said 103 — never hard-coded).
+- **NEXT (owner-gated):** owner blesses bp-063 → build (OPUS) → owner blesses bp-064 → build. These
+  interleave with the connectivity tranche (bp-060/061/062) per the owner's sequencing. Next plan id
+  **bp-065**; next finding **0101**. dn-chat-sensor stays ratified (unedited — graduation changes no note).
