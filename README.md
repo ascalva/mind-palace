@@ -15,6 +15,12 @@ It's deliberately limited in scope — it trades breadth of action for provabili
 
 Two names, deliberately: **mind-palace** is the framework — this repository. **Ouroboros** is the live instance — the always-on daemon dreaming over one person's corpus, named by its own founding note ("is that the name i would give this study on process? ouroboros"). The framework is public; the corpus never is.
 
+## Why it exists
+
+Before it is a tool, this is a **living thought experiment** — one person seeing how far physics and mathematical intuition can be pushed into running code without losing rigor on the way. The method is the project: an intuition (conductance between two thoughts; a helix of revisitation; proper time inside a corpus; memory as a graph at a past cut) is admitted only if it can be **bounded by mathematics** — an ultrametric, a circuit law, a gain graph, a certified snapshot — **made representable and constructable** in typed code, and **validated by the system itself**: every design decision ships with a named falsifier, every instrument carries the observable that would prove it wrong, and the numeric checks run before the prose is committed. The guardrails are not bureaucracy around the creativity; they are the kiln. A metaphor that survives formalization becomes an instrument; one that doesn't is recorded, with the reason it failed, in the same ledger.
+
+Utility is a side effect and is treated as one. What the project optimizes for is the loop itself: conversation → capture → design note → build plan → code → findings → back into design — with the system increasingly able to observe that loop running through it.
+
 ## What it is
 
 Mind Palace takes private notes and writing and represents them as a typed, layered graph rather than a pile of documents. On top of that graph sits an operator — one mathematical object in several guises — that turns the relationships between pieces of knowledge into things the system can compute over, test, and revise, instead of leaving them implicit.
@@ -45,7 +51,7 @@ The base build (Phases 0–10) is complete; the live instance runs always-on und
 
 Wired and live today: ingestion (notes within seconds, code per commit), dreaming on a six-hour cadence with content-addressed idempotency, the provenance firewall, the attestation chain, strict-typed core (mypy zero, enforced), CI on every push, deploy-gated releases, and the research airlock driven live — a de-identified query goes out, a reading list ranked against the private corpus comes back. Built but deliberately dormant, awaiting their design gates: retrieval demotion for superseded content, the supersession certification layer, the curated stratum's full-text embedding (built and licence-gated, waiting on a deployed fetcher before any source is ingested), effectors (the "hands" — flag-off at every tier), recursive dreaming (parked on an adoption criterion it hasn't earned yet).
 
-The current frontier is the reasoning layer — moving the Dreamer from summarizing structure toward reasoning over it — and the entanglement between the corpus and the code that implements it.
+The current frontier is the temporal-connectivity layer: over a substrate of certified cuts, per-stratum clocks, and a cross-clock atlas (built), a ratified instrument family is entering build — σ\*, the abstraction ultrametric with its realizing chain; (σ,t) conductance profiles whose reconnection events are attributed, never guessed; type-checked bridges where an argument is a path whose capability scopes still compose; and a helix detector resting on a proved theorem that revisitation across time cannot close flat. Behind it, drafted: the palace's memory of itself — the graph as it stood at any past cut, and the conversations that design the system becoming a stratum it can study. The entanglement between the corpus and the code that implements it deepens by design.
 
 An honest note on scope: the engineering rigor here governs _how_ outputs are produced — their provenance, their limits, whether they still hold. Whether the outputs are actually insightful is a separate question the reasoning layer has to earn against real use, not against provability alone. That gap is named on purpose.
 
@@ -55,7 +61,7 @@ By a human and AI agents in a gated loop, in the open. The human owns direction 
 
 Builds run as supervised parallel agents in isolated worktrees; merges are scrutinized diffs, never trust. Code reaches the live system through exactly one gate — `deploy`: clean tree, tests green locally, pipeline green remotely *and attested*, graceful cycle, successor verified, release cut. The build's own history is a first-class dataset: every commit's structure (symbols, signatures, imports, typed headers) is snapshotted into a queryable ledger by a model-less sensor agent — the system tracks its own construction.
 
-The recursion is the point. It's a system for reasoning carefully about AI, built with AI, whose corpus opens with its owner thinking about what it means to build it. It has already bent back on itself: a literature pass grounding the system's own math notes caught a misattribution in a ratified design — a kernel result credited to Mercer that is properly Moore–Aronszajn — and the correction became the curated layer's first resident.
+The recursion is the point. It's a system for reasoning carefully about AI, built with AI, whose corpus opens with its owner thinking about what it means to build it. It has already bent back on itself: a literature pass grounding the system's own math notes caught a misattribution in a ratified design — a kernel result credited to Mercer that is properly Moore–Aronszajn — and the correction became the curated layer's first resident. The next turn is drafted: the design conversations themselves — the place where intuition gets its formal helping hand — becoming a sensed stratum, so the distance between an idea's first utterance and its formalization is something the system can one day measure.
 
 ## Rigor, verifiable
 
