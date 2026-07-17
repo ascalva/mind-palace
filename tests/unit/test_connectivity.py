@@ -27,12 +27,7 @@ import numpy as np
 import pytest
 
 from core.dreaming.graph import MirrorGraph
-from core.mirror import MirrorView
-from core.provenance import Provenance
-from core.stores.versions import VersionStore
-from core.temporal.spine import CutCertificateError, CutSources, Spine, SpineSources
-from eval.harness.connectivity import (
-    ConnEvidence,
+from core.graph.sigma_star import (
     MaxSpanningForest,
     acquire_mirror_cut,
     build_max_spanning_tree,
@@ -40,6 +35,11 @@ from eval.harness.connectivity import (
     pairwise_sigma_star,
     sigma_star,
 )
+from core.mirror import MirrorView
+from core.provenance import Provenance
+from core.stores.versions import VersionStore
+from core.temporal.spine import CutCertificateError, CutSources, Spine, SpineSources
+from eval.harness.connectivity import ConnEvidence
 
 _MEM = Path(":memory:")
 

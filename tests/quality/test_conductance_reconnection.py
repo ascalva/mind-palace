@@ -28,6 +28,8 @@ import numpy as np
 
 from core.dreaming.cluster import NoteVector
 from core.dreaming.graph import MirrorGraph
+from core.graph.conductance import reconnection_scan
+from core.graph.sigma_star import cut_fingerprint
 from core.mirror import MirrorView
 from core.provenance import Provenance
 from core.stores.versions import VersionStore
@@ -37,10 +39,9 @@ from eval.harness.conductance import (
     METRIC_FRAC_CONNECTED,
     METRIC_N_PAIRS,
     ConductanceEvidence,
-    reconnection_scan,
     run_conductance,
 )
-from eval.harness.connectivity import ConnEvidence, cut_fingerprint
+from eval.harness.connectivity import ConnEvidence
 from eval.harness.store import EvalResultsStore
 
 _MEM = Path(":memory:")

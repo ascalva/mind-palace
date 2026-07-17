@@ -4,8 +4,10 @@ r"""CN-3/CN-4 instrument: (σ,t) conductance readings — the thin harness over 
 profile family, the churn change-of-measure, χ_s/depth-budget, the reconnection scan — lives
 in `core/graph/conductance.py` on `core/complex`'s single Laplacian (P3). This module is the
 *instrument*: the (σ,t)-extended evidence pin, spec/corpus keying, the aggregate summary, and
-the idempotent-by-key eval readings. Every relocated name is re-exported here (P5) so the
-bp-060-lineage tests and downstream pins resolve unchanged. Design:
+the idempotent-by-key eval readings — a PLAIN CONSUMER that imports the core instruments it
+uses (no re-export layer; the (σ,t)/churn/reconnection math lives in `core.graph.conductance`
+and every caller — tests included — imports it from there directly: the clean break,
+owner-directed 2026-07-17). Design:
 `docs/design-notes/connectivity-instruments.md` CN-3 + CN-4 (RATIFIED; placement amended by
 `dn-core-graph-instruments`, warrant finding-0101; built work harvested from bp-060's branch).
 
@@ -38,11 +40,7 @@ from core.graph.conductance import (
     CONDUCTANCE_THRESH,
     ConductanceProfile,
     ReconnectionEvent,
-    chi_s,
     chi_s_all,
-    churn_weight,
-    effective_conductance,
-    reconnection_scan,
     sigma_t_profile,
 )
 from core.graph.sigma_star import ConnIndex, acquire_mirror_cut, cut_fingerprint
@@ -50,25 +48,6 @@ from core.mirror import MirrorView
 from core.temporal.spine import Spine
 from eval.harness.connectivity import ConnEvidence
 from eval.harness.store import EvalKey, EvalResultsStore, Reading
-
-__all__ = [
-    "CONDUCTANCE_THRESH",     # re-export (core.graph.conductance)
-    "METRIC_DEGENERACY",
-    "METRIC_FRAC_CONNECTED",
-    "METRIC_MEAN",
-    "METRIC_N_PAIRS",
-    "ConductanceEvidence",
-    "ConductanceProfile",     # re-export (core.graph.conductance)
-    "ConductanceResult",
-    "ReconnectionEvent",      # re-export (core.graph.conductance)
-    "chi_s",                  # re-export (core.graph.conductance)
-    "chi_s_all",              # re-export (core.graph.conductance)
-    "churn_weight",           # re-export (core.graph.conductance)
-    "effective_conductance",  # re-export (core.graph.conductance)
-    "reconnection_scan",      # re-export (core.graph.conductance)
-    "run_conductance",
-    "sigma_t_profile",        # re-export (core.graph.conductance)
-]
 
 # --- family + instrument constants --------------------------------------------------------------
 _INSTRUMENT = "conductance/v1"          # the spec_hash instrument tag (id + version)

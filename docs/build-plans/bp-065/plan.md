@@ -21,6 +21,11 @@ write_scope:
   - tests/unit/test_conductance.py
   - tests/quality/test_conductance_reconnection.py
   - tests/unit/test_graph_boundary.py
+  # widened 2026-07-17 (owner-approved, in-session): the clean break repoints bp-059's two
+  # test files' MATH imports from eval.harness to core.graph — the note §11 "tests relocation"
+  # re-entry, invoked by the owner. Aliases + __all__ deleted; harness becomes a plain consumer.
+  - tests/unit/test_connectivity.py
+  - tests/quality/test_connectivity_sigma_star.py
 session_budget: 1
 cost:
   estimate:

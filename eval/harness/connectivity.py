@@ -4,8 +4,9 @@ r"""CN-2 instrument: σ* readings over the certified cut — the thin harness ov
 grid snap, the CN-1 index object, the cut acquisition — lives in `core/graph/sigma_star.py`
 (graph math is core vocabulary; the arrow is `eval → core.graph`, never the reverse). This
 module is the *instrument*: evidence pins, spec/corpus keying, the aggregate summary, and the
-idempotent-by-key eval readings. Every relocated name is re-exported here (P5 compatibility
-contract — downstream pins and the bp-059 test suites resolve unchanged). Design:
+idempotent-by-key eval readings — a PLAIN CONSUMER that imports the core instruments it uses
+(no re-export layer; the σ*/MST math lives in `core.graph.sigma_star` and every caller — tests
+included — imports it from there directly: the clean break, owner-directed 2026-07-17). Design:
 `docs/design-notes/connectivity-instruments.md` CN-1 + CN-2 (RATIFIED; placement amended by
 `dn-core-graph-instruments`, warrant finding-0101).
 
@@ -33,38 +34,16 @@ from statistics import mean, median
 from core.dreaming.graph import MirrorGraph
 from core.graph.sigma_star import (
     ConnIndex,
-    CrossingEdgeError,
     MaxSpanningForest,
     SigmaStar,
     acquire_mirror_cut,
     build_max_spanning_tree,
     cut_fingerprint,
     pairwise_sigma_star,
-    sigma_star,
 )
 from core.mirror import MirrorView
 from core.temporal.spine import Spine
 from eval.harness.store import EvalKey, EvalResultsStore, Reading
-
-__all__ = [
-    "METRIC_FRAC_CONNECTED",
-    "METRIC_MAX",
-    "METRIC_MEAN",
-    "METRIC_N_PAIRS",
-    "METRIC_P50",
-    "ConnEvidence",
-    "ConnIndex",            # re-export (core.graph.sigma_star)
-    "ConnResult",
-    "CrossingEdgeError",    # re-export (core.graph.sigma_star)
-    "MaxSpanningForest",    # re-export (core.graph.sigma_star)
-    "SigmaStar",            # re-export (core.graph.sigma_star)
-    "acquire_mirror_cut",   # re-export (core.graph.sigma_star)
-    "build_max_spanning_tree",  # re-export (core.graph.sigma_star)
-    "cut_fingerprint",      # re-export (core.graph.sigma_star)
-    "pairwise_sigma_star",  # re-export (core.graph.sigma_star)
-    "run_connectivity",
-    "sigma_star",           # re-export (core.graph.sigma_star)
-]
 
 # --- family constants ---------------------------------------------------------------------------
 _INSTRUMENT = "connectivity/v1"           # the spec_hash instrument tag (id + version)

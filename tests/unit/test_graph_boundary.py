@@ -1,17 +1,18 @@
-"""The dn-core-graph-instruments boundary teeth (bp-065): P1 import purity + P5 re-export
-identity + P3 one-Laplacian equivalence.
+"""The dn-core-graph-instruments boundary teeth (bp-065): P1 import purity + P3 one-Laplacian
+equivalence.
 
 (a) **P1 — the permanent tooth**: no file under `core/graph/` imports `eval`, ever. Scoped to
     the package's OWN files (a static AST scan), NOT the transitive closure — core substrate
     legitimately writes readings out through the tolerated sink (`core/temporal/spine.py:97`,
     P6), so a closure test would fail by design.
-(b) **P5 — the compatibility contract**: every name the eval harness re-exports IS the core
-    object (`is`-identity) — a drifted copy would silently fork the math.
-(c) **P3 — one Laplacian** (added with item 2): `core/graph`'s dense Laplacian adapter routes
-    through `core/complex/laplacian.laplacian` and equals the direct dense construction
-    `D − W` EXACTLY on fixture-scale graphs (n < 128: NumPy's pairwise summation reduces to
-    sequential there, and interleaved zeros perturb nothing, so float64 equality is exact —
-    the no-silent-metric-change clause).
+(b) **P3 — one Laplacian**: `core/graph`'s dense Laplacian adapter routes through
+    `core/complex/laplacian.laplacian`; off-diagonals are EXACT vs the direct `D − W` and the
+    degrees agree to ulps (summation reassociation), with R_eff values invariant at rtol 1e-10
+    — the no-silent-metric-change clause (P4).
+
+(The P5 re-export identity teeth were removed with the clean break, 2026-07-17: there are no
+re-exports left — the σ*/conductance math lives in `core.graph` and every caller imports it
+from there directly, so name identity is structural, nothing left to assert.)
 """
 
 from __future__ import annotations
@@ -62,56 +63,7 @@ def test_core_graph_reads_no_clock() -> None:
         assert "time" not in imported and "datetime" not in imported, f"{path} reads a clock"
 
 
-# ── (b) P5: the eval harness re-exports ARE the core objects ────────────────────────────────────
-
-
-def test_connectivity_reexports_are_the_core_objects() -> None:
-    """`eval.harness.connectivity`'s relocated names are `is`-identical to `core.graph.sigma_star`'s
-    — the re-export surface every downstream pin (bp-061/062) and the bp-059 suites resolve
-    through. A drifted copy would silently fork the math. (importlib: the package re-exports the
-    *function* `sigma_star`, which shadows the same-named submodule as a package attribute — the
-    modules must be addressed via sys.modules, not attribute access.)"""
-    import importlib
-
-    gs = importlib.import_module("core.graph.sigma_star")
-    conn = importlib.import_module("eval.harness.connectivity")
-
-    for name in (
-        "ConnIndex",
-        "CrossingEdgeError",
-        "MaxSpanningForest",
-        "SigmaStar",
-        "acquire_mirror_cut",
-        "build_max_spanning_tree",
-        "cut_fingerprint",
-        "pairwise_sigma_star",
-        "sigma_star",
-    ):
-        assert getattr(conn, name) is getattr(gs, name), f"{name} drifted from core.graph"
-
-
-def test_conductance_reexports_are_the_core_objects() -> None:
-    """Same P5 contract for the conductance wrapper: the relocated names ARE the core objects."""
-    import importlib
-
-    gc = importlib.import_module("core.graph.conductance")
-    cond = importlib.import_module("eval.harness.conductance")
-
-    for name in (
-        "CONDUCTANCE_THRESH",
-        "ConductanceProfile",
-        "ReconnectionEvent",
-        "chi_s",
-        "chi_s_all",
-        "churn_weight",
-        "effective_conductance",
-        "reconnection_scan",
-        "sigma_t_profile",
-    ):
-        assert getattr(cond, name) is getattr(gc, name), f"{name} drifted from core.graph"
-
-
-# ── (c) P3: one Laplacian — the core/complex route equals the direct construction EXACTLY ───────
+# ── (b) P3: one Laplacian — the core/complex route equals the direct construction ───────────────
 
 
 def test_dense_laplacian_equals_the_direct_construction() -> None:

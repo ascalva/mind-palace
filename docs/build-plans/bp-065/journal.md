@@ -109,3 +109,38 @@ ratification of dn-core-graph-instruments; blessed ready by owner hand (recorded
   where math symbols appear; test headers carry the plan-ref style.
 - **Gate hygiene:** the first leg-5 run went green (1552-outcome tree) but STARTED before the two
   fidelity fixes — stale by discipline. Legs 1–4 re-run + a FRESH leg 5 on the final tree follow.
+
+## 2026-07-17 — audit closed: fixes committed, final battery green, fresh leg 5 in flight
+
+- Audit code fixes landed: import restoration (audit finding) + ruff isort reflow (`ccffcb4`).
+  Post-fix fidelity re-check: **zero unsanctioned discrepancies** across all 68 moved defs.
+- Owner asked about the `# re-export (core.graph.…)` tags: answered in-session — the P5 seam made
+  visible (alias vs owned name; is-identity-pinned; F401-intentional; transitional until the
+  bp-061/062 re-mints import core.graph directly). No artifact change needed.
+- Final targeted battery on the audited tree: **54 passed**. Legs 1–4 re-attested (argless == 69).
+- **Fresh leg 5 (full suite) running on the FINAL tree** (task bg8ewhcrs) — the earlier green
+  (1538p/8s, 9:28) attested the pre-fix tree; discipline demands the final tree's own attestation.
+- REMAINING on green: flip in-progress→complete + seal (fable in-session; /usage relay still
+  pending for dollar/delta fields) → PROGRESS → push. All code committed through `ccffcb4`.
+
+## 2026-07-17 — THE CLEAN BREAK (owner-directed): no wrappers, harness is a plain consumer
+
+- **Owner ruling:** the re-export aliases were unnecessary ceremony — the eval modules should be
+  plain instrument code that IMPORTS the core instruments, not wrappers. Approved widening
+  write_scope by bp-059's two test files (the note §11 "tests relocation" re-entry, owner-invoked).
+- **Executed:** dropped both `__all__` blocks + every alias import from `eval/harness/
+  {connectivity,conductance}.py`; each now imports from `core.graph` ONLY the names its body uses
+  (connectivity drops CrossingEdgeError+sigma_star; conductance drops chi_s+churn_weight+
+  effective_conductance+reconnection_scan — all were re-export-only). Repointed all four test
+  files' MATH imports to `core.graph.{sigma_star,conductance}`, leaving INSTRUMENT names
+  (ConnEvidence/METRIC_*/run_*) sourced from eval. Deleted the two now-moot `is`-identity
+  re-export teeth from test_graph_boundary.py (no re-exports left to drift); P1 no-eval, Law-C4,
+  and the L-equivalence/R_eff-invariance teeth all remain.
+- **Census before trimming (safety):** grep confirmed NO star-imports and NO production importers
+  of the relocated names — only the 4 test files (+ conductance's intra-eval ConnEvidence). Nothing
+  outside test scope could break.
+- **End state:** no wrappers anywhere. `core.graph` owns the math; `eval/harness` is a plain
+  consumer that owns the lab-notebook (evidence pins, keying, aggregate readings). Arrow strictly
+  `eval → core.graph → core.complex`.
+- **Gate:** ruff full-tree clean (isort --fix on the 4 tests) · mypy targeted 216 · **argless == 69**
+  · type_gate OK · targeted battery 52p (was 54 — the 2 deleted re-export teeth). Full leg 5 next.

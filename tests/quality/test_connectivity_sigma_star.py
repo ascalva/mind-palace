@@ -24,6 +24,7 @@ from typing import Any
 
 import numpy as np
 
+from core.graph.sigma_star import cut_fingerprint
 from core.mirror import MirrorView
 from core.provenance import Provenance
 from core.stores.versions import VersionStore
@@ -32,7 +33,6 @@ from eval.harness.connectivity import (
     METRIC_FRAC_CONNECTED,
     METRIC_N_PAIRS,
     ConnEvidence,
-    cut_fingerprint,
     run_connectivity,
 )
 from eval.harness.store import EvalResultsStore

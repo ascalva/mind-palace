@@ -33,11 +33,7 @@ import pytest
 
 from core.dreaming.cluster import NoteVector
 from core.dreaming.graph import MirrorGraph
-from core.mirror import MirrorView
-from core.provenance import Provenance
-from core.stores.versions import VersionStore
-from core.temporal.spine import CutSources, Spine, SpineSources
-from eval.harness.conductance import (
+from core.graph.conductance import (
     CONDUCTANCE_THRESH,
     ConductanceProfile,
     chi_s,
@@ -46,6 +42,10 @@ from eval.harness.conductance import (
     effective_conductance,
     sigma_t_profile,
 )
+from core.mirror import MirrorView
+from core.provenance import Provenance
+from core.stores.versions import VersionStore
+from core.temporal.spine import CutSources, Spine, SpineSources
 
 _MEM = Path(":memory:")
 # bp-065 retarget (dn-core-graph-instruments P5): the sign-law / THRESH-dict / Law-C4 AST teeth
