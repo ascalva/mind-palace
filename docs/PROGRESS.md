@@ -4156,3 +4156,28 @@ unchanged (5th pool-split confirmation).
   **Next lead (per the retired resume brief's self-rewrite trigger): /triage (finding-0090/0091 → owner batch)
   + the σ-sweep RUN + (owner-gated) the wave-4 instruments** (dn-global-event-clock §3.1). The
   retrieval/temporal-scaling brainstorm (`d355750`) is now ripe to graduate into a design note.
+
+## 2026-07-17 (session 22, FABLE/xhigh) — ⭐ THE DESIGN SESSION: two notes RATIFIED; the experiment is the next lead
+
+- **Owner switched the session to fable/xhigh for a design arc; docs-only (zero code; suite stays 1430).**
+  Products, in chain order: **3 brainstorm capsules** (`self-mapping-the-palace` — the teleology: the palace
+  as the owner's self-map, his CV↔architecture correspondence; `conductivity-and-reasoning-chains` — the four
+  connectivity questions + the arc addendum; the retrieval-scaling capsule stands adjacent, deliberately
+  separate) → **the C1–C7 fable pass** (`conductivity-and-reasoning-chains-fable-pass.md`: σ*/MST ultrametric,
+  honest (σ,t) conductance w/ the von-Luxburg protective result, metric-vs-gauge split, well-formed argument
+  paths, the FORCED-HELIX theorem reconciled w/ magnetic Q3/Q4/Q5/Q6, arc search; §9 errata) → **two design
+  notes drafted, adversarially passed (8 wrinkles fixed pre-ratification), and OWNER-RATIFIED** (`d932670`):
+  - **dn-connectivity-instruments** (CN-1..CN-7): the 4-plan instrument tranche; CN-4 owner-refined mid-draft
+    (churn = change of measure; the DEPTH BUDGET `N(W)=Σ N_s(W)` — proper time bounds chain length; D1
+    RETIRED — signs by circuit law, only magnitudes sweepable); uuid-identity registered as 3-consumer.
+  - **dn-sigma-sweep-experiment** (SE-1..SE-4, V1..V5): the pre-registered protocol for σ-sweep RUN 1;
+    **ratification = FREEZING** (the bless commit `d932670` IS the frozen pre-registration run 1 must cite);
+    V2 = certified-cut snapshot indexing (bp-055's production debut); SE-3 = the owner as BLINDED judge;
+    licenses ONE thin wiring plan (~100–120k) + the owner-fired RUN (selfmod propose-only).
+- **Sequencing decided (owner-confirmed): EXPERIMENT FIRST** — data before instruments; risk discovery
+  (SF-a flicker, corpus-size floor) before the ~730k connectivity wave; the tranche graduates after run-1
+  findings + a fresh weekly pool. **Handoff → a new OPUS/high session:** /graduate the wiring plan (bp-058),
+  owner blesses, build, pre-flight V1–V5, supervise run 1, analyze per the FROZEN rules only, dispose oq-0024.
+- **Economics:** dollars for wave 3 + this fable session remain `pending` in the seals — fill from the next
+  owner /usage relay (weekly reset was Jul 17 ~8pm ET; credits last read 86%/$130.23). Finding numbers:
+  0096/0097 reserved in wave 3 went UNUSED — **next free = 0096**. /triage (0090/0091 → owner batch) still owed.
