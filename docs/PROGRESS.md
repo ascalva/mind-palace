@@ -4407,3 +4407,19 @@ unchanged (5th pool-split confirmation).
 - **NEXT (owner, two hand acts):** ratify `dn-core-graph-instruments` → orchestrator files bp-065 →
   owner blesses `ready` → in-session fable build. Chat lane: bp-064 unaffected, queued behind the
   reconciliation. Next finding 0103; next plan bp-066 (after bp-065 files).
+
+## 2026-07-17 (session 26 cont.) — dn-core-graph-instruments RATIFIED (owner hand edit) · bp-065 minted · TRACK AMENDED
+
+- **Note RATIFIED by owner hand** (`status: draft → ratified` observed in working tree). The ruling is law.
+- **bp-065 (`core-graph-rehome`) MINTED `proposed`** from the ratified note (plan + journal filed from the
+  session-staged text; supersedes bp-060; fable in-session self-build, est 90k). Awaits owner `proposed → ready`.
+- **Track amended (owner instruction), every artifact:** bp-060 → `superseded` (by bp-065; build DONE +
+  preserved on branch, harvest banner); bp-061 → `superseded` pre-build (re-mint post-bp-065; §6–§8 carries
+  verbatim); bp-062 → `superseded` pre-build (re-mint inherits item-11 uuid park); bp-059 stays `complete`
+  + placement-amendment banner (history unaltered); `graph-at-a-past-cut` brainstorm → orientation note
+  (future graduation must cite core.graph). All banners name the note + warrant finding-0101; /build now
+  refuses every superseded plan (status is the guard).
+- **OWED to owner hand (agent-immutable at ratified):** the amendment banner INSIDE
+  `dn-connectivity-instruments` — paste-ready text delivered in-session. Ledger: ready=(none),
+  proposed=bp-065, superseded=bp-040,bp-060,bp-061,bp-062. Next finding 0103; next plan id bp-066.
+- **NEXT:** owner blesses bp-065 `proposed → ready` → in-session fable build (harvest + thin-ify + gates).

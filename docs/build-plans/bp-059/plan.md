@@ -51,6 +51,12 @@ warrant: null
 
 # Build Plan — CN-2: σ*, the abstraction ultrametric, via one maximum spanning tree per cut
 
+> **PLACEMENT AMENDED post-completion (2026-07-17, session-26)** — `dn-core-graph-instruments`
+> (warrant finding-0101): the σ*/MST mathematics this plan built in `eval/harness/connectivity.py`
+> relocates to `core/graph/sigma_star.py` via bp-065; `eval/harness/connectivity.py` becomes a thin
+> instrument re-exporting every name (this plan's tests must pass UNCHANGED — the compat tooth).
+> This plan, its seal, and its journal remain the unaltered historical record; status stays `complete`.
+
 ## 0. Mode & provenance
 Graduated from RATIFIED `dn-connectivity-instruments` CN-1 + CN-2 (the keystone of the tranche;
 no upstream item dependency). Investigation & planning produced this from a single context holding

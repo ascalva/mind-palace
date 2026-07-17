@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-062
 alias: helix-detector
-status: ready
+status: superseded        # pre-build (dn-core-graph-instruments; warrant finding-0101) — re-mint against core/graph post-bp-065, see banner
 design_ref:
   - docs/design-notes/connectivity-instruments.md   # RATIFIED — CN-6 (the helix: revisitation is necessarily helical)
 contract: builder
@@ -24,13 +24,21 @@ links:
   - docs/design-notes/global-event-clock.md                       # GC-2 proper time (the refinement gain) + the spine's acyclicity (the theorem's engine)
   - docs/brainstorms/magnetic-laplacian-fable-pass.md             # Q3/Q6 — the pitch is the proper-time refinement of the arm-imbalance flux; U(1) route stays gated
   - docs/findings/finding-0090.md                                 # OPEN proper-time erratum — the ℤ-primary gain SIDESTEPS it; the refinement waits on it
-re_entry: null            # proposed, not parked; the uuid-identity gate is encoded in §0/§10/§12, not here
+re_entry: re-mint against core/graph homes after bp-065 lands (inherits the item-11 uuid-identity park verbatim)
 supersedes: null
-superseded_by: null
-warrant: null
+superseded_by: null       # the re-mint's id is assigned when minted post-bp-065
+warrant: docs/findings/finding-0101.md
 ---
 
 # Build Plan — CN-6: the helix detector — revisitation is necessarily helical
+
+> **SUPERSEDED (2026-07-17, session-26), pre-build** — placement amended by
+> `dn-core-graph-instruments` (warrant finding-0101): the helix mathematics homes in
+> `core/graph/helix.py` with a thin `eval/harness` instrument. The §6–§8 design below carries
+> over VERBATIM to the re-mint (minted after bp-065 lands; owner re-blesses). **The re-mint
+> inherits this plan's gate structure unchanged**: item 10 (synthetic detector) buildable, item
+> 11 (real-π claim grain) PARKED on uuid-identity, per the owner's partial-build ruling.
+> **Do not build from this plan** — its write_scope is placement-invalid.
 
 ## 0. Mode & provenance — GATED
 Graduated from RATIFIED `dn-connectivity-instruments` CN-6. **This plan is GATED on uuid-identity landing**

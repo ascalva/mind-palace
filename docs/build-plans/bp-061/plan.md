@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-061
 alias: bridge-search
-status: ready
+status: superseded        # pre-build (dn-core-graph-instruments; warrant finding-0101) — re-mint against core/graph post-bp-065, see banner
 design_ref:
   - docs/design-notes/connectivity-instruments.md   # RATIFIED — CN-5 (arguments are well-formed paths) + CN-7 (the arc: bidirectional field-guided search)
 contract: builder
@@ -24,13 +24,20 @@ links:
   - docs/design-notes/capability-scope-algebra.md                 # the scope meet / admissibility grammar CN-5 operationalizes
   - docs/design-notes/global-event-clock.md                       # GC-4 the ClockAtlas — the cross-clock type-checker
   - docs/design-notes/recursive-strata.md                         # I1 — bridges are surfacing-only, never a weight
-re_entry: null
+re_entry: re-mint against core/graph homes after bp-065 lands (id assigned at mint; owner re-blesses)
 supersedes: null
-superseded_by: null
-warrant: null
+superseded_by: null       # the re-mint's id is assigned when minted post-bp-065
+warrant: docs/findings/finding-0101.md
 ---
 
 # Build Plan — CN-5 + CN-7: type-checked bridges and bidirectional field-guided arc search
+
+> **SUPERSEDED (2026-07-17, session-26), pre-build** — placement amended by
+> `dn-core-graph-instruments` (warrant finding-0101): the bridges/arc mathematics homes in
+> `core/graph/bridges.py` with a thin `eval/harness` instrument (readings/evidence only). The
+> §6–§8 design below carries over VERBATIM to the re-mint (minted after bp-065 lands; owner
+> re-blesses; until then, imports of `ConnIndex`/`ConnEvidence`/the conductance surface resolve
+> via bp-065's re-exports). **Do not build from this plan** — its write_scope is placement-invalid.
 
 ## 0. Mode & provenance
 Graduated from RATIFIED `dn-connectivity-instruments` CN-5 + CN-7. Investigation & planning produced this;

@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-060
 alias: conductance-profile
-status: ready
+status: superseded        # by bp-065 (dn-core-graph-instruments; warrant finding-0101) — the BUILD is done and harvested, see banner
 design_ref:
   - docs/design-notes/connectivity-instruments.md   # RATIFIED — CN-3 (the (σ,t) conductance profile + reconnection) + CN-4 (churn as change of measure)
 contract: builder
@@ -26,11 +26,20 @@ links:
   - docs/findings/finding-0090.md                                 # OPEN proper-time erratum — CN-4 uses N_s COUNTS, sidesteps it (see §3)
 re_entry: null
 supersedes: null
-superseded_by: null
-warrant: null
+superseded_by: bp-065
+warrant: docs/findings/finding-0101.md
 ---
 
 # Build Plan — CN-3 + CN-4: the (σ,t) conductance profile, the churn change-of-measure, and reconnection events
+
+> **SUPERSEDED (2026-07-17, session-26) by bp-065 `core-graph-rehome`** — placement amended by
+> `dn-core-graph-instruments` (warrant finding-0101): this math homes in `core/graph/conductance.py`,
+> not `eval/harness/`. **The build is DONE and preserved**: branch `worktree-agent-a1d5f2b78350b8586`
+> holds items 4–6 committed (`3c7421e`, `88e73ca`; final 5-leg attestation deliberately left to
+> bp-065's gate). bp-065 harvests it behavior-frozen (L-equivalence-tested, P3/P4); every §7
+> acceptance criterion and falsifier carries over via the harvested tests. **Do not build from this
+> plan.** All math content below (finding-0099 correction banner included) remains the authoritative
+> spec the harvest is checked against.
 
 ## 0. Mode & provenance
 Graduated from RATIFIED `dn-connectivity-instruments` CN-3 + CN-4. Investigation & planning produced

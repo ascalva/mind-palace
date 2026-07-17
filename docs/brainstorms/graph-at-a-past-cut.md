@@ -213,3 +213,11 @@ references:
     .4548 down; C2 growth: σ* equal, conductance .3826→.4381) and check_edit.py (bridge edit:
     σ* .7071→0.0000) — deterministic, reproduce with the seeds shown
 ```
+
+---
+**2026-07-17 (session-26) placement amendment — orientation for any future graduation of this
+pass:** the σ*/conductance modules cited above live at their NEW home `core/graph/`
+(`dn-core-graph-instruments`, warrant finding-0101; bp-065 executes). `eval/harness/
+connectivity.py` / `conductance.py` are thin re-exporting instruments post-bp-065 — a design
+note or plan minted from this brainstorm must cite `core.graph`, and any NEW math it needs
+(versions-membership σ*(A,B;c)) graduates into `core/graph/` per the P6 standing rule.
