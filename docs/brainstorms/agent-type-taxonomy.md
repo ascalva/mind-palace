@@ -15,26 +15,43 @@ THREE agent types, distinguished by their relationship to the corpus graph (node
    prose, real-time) + layer 1 (the ACTION LOG, "what happened, in order": `owner_prompt → commit →
    ratify → build_plan → …`, delayed, from turns + tool records); the code sensor; the self-sensor;
    the vault ingest/watcher.
-2. **Query agent (ambassador style)** — reads the corpus (nodes + edges) and answers / interprets,
-   USING A MODEL. The consumer. Reads **nodes + edges**.
-   *Instance:* the **Ambassador** (Track B, `agents/ambassador.py`) — the conversational front door,
-   the type specimen. (The dreamer — a model-using reader that produces interpretations — likely
-   belongs to this family too; TO RECONCILE, don't force.)
-3. **Integrator** — connects strata into proven cross-stratum links. Deterministic, model-free.
+2. **Query agent (ambassador style)** — reads the corpus (nodes + edges) and answers, USING A MODEL.
+   The consumer. Reads **nodes + edges** → writes **answers** (no graph structure).
+   *Instance:* the **Ambassador** (Track B, `agents/ambassador.py`) — the conversational front door.
+3. **Integrator** — connects strata into PROVEN cross-stratum links. Deterministic, model-free.
    Writes **edges**. Resolves the references a transcript's tool records name (commit SHAs, file
    paths, doc paths) against the OTHER sensors' stores.
    *Instances:* the chat agent's **layer 2** / bp-070 ("where it happened": chat action → real commit
    → real files → real doc); `reference_edges` (doc↔code) was the proto.
 
+## The dreamer — a distinct, apex class (NOT a query agent)
+
+The dreamer is a DIFFERENT class entirely — the only GENERAL agent, where the other three are each
+specialized to one move:
+- **Lives in the CORE** (full privilege — not edge, not sandboxed).
+- **Full strata access** — reads across ALL strata (full or a subset). This is WHY Track-2 exists:
+  `capability-scope-algebra` is the dreamer's access bound ("grant this dreamer full/subset strata,
+  safely"); the resume brief's "privileged reader/dreamer reads full/subset strata" IS this class.
+  (Sensors read only their own data; integrators only resolve named references — neither crosses
+  strata, so neither needs the scope machinery. The dreamer does.)
+- **Can query, produce nodes, AND produce ALL edge types** — it spans every capability.
+- **Subtypes by temporal mode:**
+  - **Synchronic** — structure at a single certified cut: themes, clusters, the σ-graph,
+    conductance/connectivity *now*. (`docs/design-notes/connectivity-instruments.md`)
+  - **Diachronic** — evolution across cuts: how a theme forms/decays, memory curves, lag. Needs the
+    certified-cut clock. (`global-event-clock`, the `graph-at-a-past-cut` brainstorm)
+
 ## Two load-bearing properties
 
-- **The deterministic floor holds up the model ceiling.** Sensor agents + integrators are model-free
-  and FREE (no inference) — they write the graph's nodes and edges. The MODEL lives only in the query
-  agent, which consumes the integrator's PROVEN edges as ground truth — so its answers/interpretations
-  stand on fact, not cosine coincidence.
+- **The deterministic floor holds up the interpretive ceiling — TWO EDGE CLASSES.** Integrators write
+  PROVEN edges (deterministic, free, causal); dreamers write INTERPRETIVE edges (inferred, model). The
+  dreamer's interpretive edges are grounded BY the integrator's proven ones — that is the apophenia
+  control, made structural. Sensors + integrators are the model-free floor; the model lives in the
+  query agent and the dreamer.
 - **Integration was hiding as a projection side-effect** (`reference_edges` built inside the code
   projection). Promoting it to a first-class type clarifies the split: **sensors write nodes,
-  integrators write edges, query agents read the graph.**
+  integrators write proven edges, query agents read → answer, dreamers (full-strata) query + write
+  nodes + write all edge types.**
 
 ## Why it matters downstream (the connectivity payoff)
 
@@ -58,11 +75,19 @@ cosine was its only connective signal. The integrator injects a second, proven c
 - **Later** — an abstractive model summary (a projector rate that DOES use a model, reading only the
   scrubbed store — the model boundary = bright line #10).
 
+## The four types (settled 2026-07-18)
+1. **Sensor agent** — deterministic; reads its OWN data; senses + projects; writes **nodes**.
+2. **Query agent** (ambassador) — model; reads the graph; writes **answers** (no structure).
+3. **Integrator** — deterministic; resolves references; writes **proven edges**.
+4. **Dreamer** — core-resident, FULL strata access; queries + writes **nodes + all edge types**;
+   synchronic (single-cut structure) | diachronic (across-cut evolution). The apex/general class.
+
 ## Open / to settle
-- **Dreamer's home in the taxonomy:** is the dreamer a query agent (autonomous, ambassador-family,
-  model-using reader that writes interpretations), or a distinct type? Lean: query-agent family. Reconcile
-  against the existing dreaming/curator design; don't duplicate.
-- **The later model summary** (an abstractive per-session summary) puts a MODEL inside what is otherwise a
-  sensor agent — is that a sensor-agent rate that borrows a model, or a query-agent step feeding the sensor?
-  Settle when that rate is built (it reads only the scrubbed store — the model boundary = bright line #10).
-- Graduate this into a design note (`dn-agent-taxonomy`?) once the owner confirms the ontology is stable.
+- **The later model summary** (abstractive per-session) puts a MODEL inside what is otherwise a sensor
+  agent — a sensor-agent rate that borrows a model, or a query/dreamer step? Settle when that rate is built
+  (reads only the scrubbed store — the model boundary = bright line #10).
+- **Curator's home:** where does the curator (near-dup / prune / contradiction findings) sit — a dreamer
+  subtype, or its own thing? Reconcile against `core/curator.py`.
+- **GRADUATE this into a design note (`dn-agent-taxonomy`)** — the ontology is now stable enough; this is
+  the Fable/xhigh design task the owner switched the model for. It should ref `connectivity-instruments`,
+  `cross-strata-dreamer`, `capability-scope-algebra`, `global-event-clock`, and dn-chat-sensor.
