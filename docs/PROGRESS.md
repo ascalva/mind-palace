@@ -4661,3 +4661,28 @@ resolved-in-plan; 2 follow-ups parked), 6 builder-owned. Next finding **0109**.
 **Next:** the game plan's Track 2 (connectivity strata-access) now has its observed chat data (110
 sessions) to read. Also verify the daemon auto-ingests once HEAD deploys (the `_catchup`/`_housekeeping`
 wiring), and consider bp-069 for finding-0105 (deploy-gate ratchet deselect).
+
+---
+
+## 2026-07-18 (session 28) — bp-069 MINTED (proposed): real-time lossless chat + multi-rate projection
+
+bp-068's live verification surfaced a v1 caveat → **finding-0109** (design, owner-DECIDED): freeze-once is
+lossy — a session left open (hours/overnight, how the owner works) drops its tail. Owner standard: parity
+with code ingestion (every commit → every transcript change), "the system is real-time so ingestion must
+be immediate."
+
+**Architecture (owner):** ONE agent, MULTI-RATE PROJECTION — the model-free chat sensor always accepts the
+latest real-time transcripts and projects each layer at its own rate. bp-069 = *rate 0* (real-time: raw
+layer 0 + dialogue-strata projection); layers 1 (summaries) + 2 (references) are lower-rate projections by
+the same agent, later, on already-scrubbed text (Track 2 / CS-5). Credential removal stays the DETERMINISTIC
+gate at the real-time rate (bright line #10 — a model never reads a secret).
+
+**bp-069 (proposed, owner-directed, warrant finding-0109):** growth-aware append (drive off rawstore
+`is_new` — stateless "git for transcripts"; never freeze) + torn-line tolerance + a LIVE debounced
+transcript watcher (generalize `VaultWatcher`→`DirectoryWatcher`; `build_chat_watcher`; multi-watcher
+launcher; `[chat]` config). AMENDS ratified dn-chat-sensor Q4. Folds finding-0108's two follow-ups.
+Est opus/180k, session_budget 2. **Awaits owner `proposed → ready` bless.**
+
+Findings open: 0103 (19 reaches), 0096-0100 (connectivity/oq-0031), 0105 (decided-A, impl pending),
+0106/0107 (papercuts), 0108 (bp-068 grounding, resolved-in-plan; folded into bp-069), **0109** (chat
+freeze-once, decided → bp-069). Next finding **0110**. Plans: proposed = bp-069; next id after = bp-070.
