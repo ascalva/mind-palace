@@ -4742,3 +4742,29 @@ DREAMER, not the integrator (deterministic, structural enforcement — no runtim
 build). Risks instrumented: retention window (step 2 first), schema drift (parity ratchet +
 C-coverage ship WITH 69/70), A1's hidden owner decisions (surface early), A2's graph-choice
 (explicit eval-design decision at step 6).
+
+---
+
+## 2026-07-18 (session 28, FABLE) — sequencing AMENDED by owner: algebra leads (supersedes the order two entries up; the diamond GRAPH stands)
+
+Owner's order accepted — scope algebra as CONSTRUCTION LANGUAGE, not just enforcement: agents born
+carrying declared scopes (instantiation pressure: the grant machinery debuts on two deterministic
+clients before the model-priced dreamer; no retrofit pass). **Retention-clock objection DEFUSED by
+insurance:** transcripts dir snapshotted → `data/backup-staging/transcripts-snapshot-2026-07-18.tar.gz`
+(60MB, 203 .jsonl — reset-guarded, restic-covered). Note: 203 files on disk vs 110 ingested — the
+sensor's parity gauge must account for every file (ingested/refused/empty/excluded).
+
+**Order: Α → Β → Γ → Δ.**
+Α (lead, ~2 sessions, after owner ratifies dn-agent-taxonomy): D1 type extensions (DIALOGUE stratum +
+fiber C, lattice tests); D2 declared-scope agent layer (template scopes, meet-composition, conformance
+guard "handles ⊑ declared scope"); D3 instruments accept E_sim ∪ E_proven (fixtures, turnkey later).
+NOT in Α: model-client grant enforcement + dreamer gates (A1's second half, later).
+Β (~2-3 sessions): bp-069 RE-MINTED as the dialogue sensor agent born-scoped (Σ=dialogue, E=∅,
+A=(READ,W_Σ=1,NONE), clock N_chat) → owner bless → build L0-lossless → watcher → L1 action log →
+re-ingest recovers frozen tails.
+Γ (~2 sessions): bp-070 the integrator, born with the real multi-strata scope
+(Σ={(dialogue,L1),(observed,commit-ledger),(dialogue_artifact)}, E={C,F} write, Clock.COMMIT,
+pair-cut witnesses, parity + C-coverage instruments).
+Δ (~1 session): connectivity re-measure; resolve 0096-0100/oq-0031.
+Parallel any time: ops leg (0105 → push → owner deploy); A1 dreamer-facing design pass (batches its
+owner questions). Next: OWNER ratifies dn-agent-taxonomy → mint the Phase-Α plan(s).
