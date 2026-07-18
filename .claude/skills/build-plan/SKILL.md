@@ -40,6 +40,14 @@ never omitted.
   these, in order, and can then build. If building needs a file not listed, that is
   a manifest defect — the journal records the delta and a richer resume/plan fixes
   it. Keep it minimal and sufficient.
+  - **Does `core/` already implement this? (the DRY audit — required for any plan
+    introducing an algorithm or primitive).** Before a plan proposes a mathematical
+    object, algorithm, or reusable primitive, its manifest MUST include an audit for
+    an existing implementation — **`core/` first**, then the wider tree — and cite
+    it. Reuse over re-derive: a duplicated implementation is a defect (CONVENTIONS
+    §Language & style), and this is the process defense that a hook cannot give.
+    bp-060 re-derived a Laplacian `core/complex` already owned precisely because its
+    manifest omitted the audit (finding-0101/0103); the audit closes that gap.
 - **§3 Investigation & grounding / §4 Reconciliation.** The graduate grounded pass
   fills these for a plan touching existing code: `path:line` citations ("code does
   not settle this" where true), and banner-on-correction / cross-reference-on-
