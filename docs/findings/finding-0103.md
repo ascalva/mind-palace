@@ -49,6 +49,20 @@ Two open questions the owner must rule on before enforcement scope is fixed:
 2. The 16 non-config reaches each need inversion (core returns data; the machinery calls core) or
    relocation — a program of work, not one edit.
 
+## Progress (2026-07-18)
+- **Enforcement: DONE** (bp-066) — the red test at 106 + the CONVENTIONS DRY/self-containment rules +
+  the manifest-audit skill step.
+- **Config leg: DONE** (bp-067) — the loader moved to `core.config`; ratchet **106 → 19**. The config
+  remediation was a **SPLIT** (loader into core, tomls stay in `config/`, outside becomes a facade),
+  NOT the DI first sketched. `get_secret` split at the trust boundary (core env-only; token in the
+  facade). Note bp-067 fixed 87 (not 90) config imports — factory's token `get_secret` + 2
+  `secrets_backend` imports are network-entangled and DEFERRED to the secrets inversion (see below).
+- **Remaining red = 19:** (a) the **3 factory secrets/Vault reaches** (`config.secrets_backend` ×2 +
+  the token `get_secret`) — a SECURITY-focused inversion (inject/relocate the network Vault wiring out
+  of core; `ops/effect_exec.py` shares the pattern), **bp-068 candidate**; (b) the **16 machinery
+  reaches** (shadow/effect_proposal/sensing/factory→gate/interface/ops_view/reference_view/spine) —
+  each its own inversion plan. Zero ⇒ suite fully green.
+
 ## Re-entry condition
 **RULED (owner, 2026-07-17): config IS in-scope — strict, no wiggle room.** The forbidden set is
 EVERY first-party sibling of core (`config`, `eval`, `ops`, `agents`, `edge`, `scheduler`, …). The
