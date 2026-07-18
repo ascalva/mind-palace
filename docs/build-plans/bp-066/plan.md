@@ -2,28 +2,38 @@
 type: build-plan
 id: bp-066
 alias: core-self-containment-enforcement
-status: ready
+status: complete
 design_ref:
   - CONVENTIONS.md                                 # the standing engineering-practice doc this AMENDS (the two rules land here)
   - docs/findings/finding-0103.md                  # THE WARRANT — the full audit + the owner's strict ruling
 contract: builder
 write_scope:
-  - tests/unit/test_core_self_containment.py       # NEW — the red enforcement test
-  - CONVENTIONS.md                                 # Rule 1 (DRY, §Language & style) + Rule 2 (self-containment, §Trust boundaries)
-  - .claude/skills/build-plan/SKILL.md             # the manifest-audit process step (DRY's non-hook enforcement)
+  - "tests/unit/test_core_self_containment.py"     # NEW — the red enforcement test
+  - "CONVENTIONS.md"                               # Rule 1 (DRY, §Language & style) + Rule 2 (self-containment, §Trust boundaries)
+  - ".claude/skills/build-plan/SKILL.md"           # the manifest-audit process step (DRY's non-hook enforcement)
 session_budget: 1
 cost:
   estimate:
     model: opus
     tokens: 40k
-  actual: null
+  actual:
+    model: opus                                    # in-session self-build (session-27); no delegation
+    tokens: ~45k                                   # approx; manifest reads + test + ruff reflow iterations
+    ratio: ~1.1                                    # ≈ estimate — a well-pinned §7 (text carried verbatim)
+    dollars: pending /usage relay                  # OWED — closes with the bp-063/065 relay
+    session_delta: pending /usage relay
+    week_delta: pending /usage relay
+    note: >-
+      The only non-trivial surprise was a plan-front-matter defect (unquoted write_scope entries with
+      inline comments → scope-guard denied every in-scope write); fixed by quoting. Suite wall-clock
+      (931s) was machine contention from stacked concurrent runs, not the change.
 depends_on: []
 parallelizable_with: []
 supersedes: null
 superseded_by: null
 warrant: docs/findings/finding-0103.md
 created: 2026-07-17
-updated: 2026-07-17
+updated: 2026-07-17                                 # session-27: ready→in-progress (build start)
 re_entry: null
 ---
 
