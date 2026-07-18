@@ -80,12 +80,15 @@ secret-bearing content). When the later model summary lands, it will read ONLY t
 keeping the model-boundary = the #10 line. Structurally two cooperating components (sensor + event
 projector), conceptually one multi-rate agent.
 
-**Out of THIS plan — rate 2 (layer 2):** a SEPARATE deterministic connector agent. Its source is the
-transcript's own TOOL RECORDS (the `Edit`/`Write` file_paths + the `git commit` SHAs the tool_results
-report, each at its exact dialogue position) — the exact blocks layer 0 STRIPS. It projects PROVABLE CAUSAL
-links (this chat turn → these exact file changes → this exact commit), read straight from the raw
-transcript. NOT a time-based / co-occurrence join (owner, 2026-07-18: "we can deterministically create the
-links that prove causation"). No model, no strata read. Its own plan (bp-070).
+**Out of THIS plan — layer 2 (a SENSOR-UNIFICATION step, not a chat projection).** Where layers 0/1 are the
+chat agent projecting its OWN transcript, layer 2 sits ABOVE the sensors and CONNECTS them: it takes the
+references the transcript's TOOL RECORDS name (the `git commit` SHAs + `Edit`/`Write` file_paths + doc-path
+writes, each at its exact dialogue position — the blocks layer 0 strips) and resolves them against the OTHER
+sensors' stores to mint deterministic edges: chat action → the real commit → the real files → the real doc.
+PROVABLE CAUSATION (owner, 2026-07-18: "we can deterministically create the links that prove causation"),
+NOT a time-based join. Same shape as the existing `reference_edges` (doc↔code) extended with chat as the
+causal origin — an edge-build/join, so NO dreamer/scope machinery. Its own plan (bp-070); it reuses this
+plan's tool-record parser (Item 3).
 
 Still OBSERVED-only (layer 0) / INTERPRETED (layer 1), local, secret-guarded (no bright line moves —
 finding-0109).
@@ -375,8 +378,8 @@ beyond torn-line tolerance + the Q2 refusal note). NO edge seam (local files onl
 growth-aware sensor — the data-model fix) → 2 (the live watcher + launcher — the real-time trigger) → 3
 (rate-1 action-log projection — "what happened, in order", the delayed rate). Blast: Items 1–2
 reversible/append-only + a pure vault-watcher rename; Item 3 is additive (a new projector + trough job).
-**Downstream:** rates 0+1 are the agent's real-time + delayed projections; **rate 2 (bp-070)** is the
-SEPARATE deterministic causal connector — it reads the transcript's tool records (the exact file changes +
-commit SHAs at each dialogue position, the blocks layer 0 strips) to project provable chat↔file↔commit
-links. All three are the one multi-rate chat projection agent; none reads another stratum. Folds
-finding-0108's two follow-ups (G1 transcripts_dir override, G2 _PINNED_KINDS).
+**Downstream:** layers 0+1 are the chat agent's two self-projections (this plan). **Layer 2 (bp-070)** is a
+different KIND of thing — a SENSOR-UNIFICATION step that connects those projections OUT to the code+commit
+stratum and the docs, resolving the tool-record references into deterministic edges (`reference_edges`
+shape, chat as the causal origin). It reuses this plan's Item-3 tool-record parser. Folds finding-0108's two
+follow-ups (G1 transcripts_dir override, G2 _PINNED_KINDS).
