@@ -833,7 +833,8 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0029 — bless the connectivity-instruments tranche `proposed → ready`, item-by-item (bp-059 · bp-060 · bp-061 · bp-062)
-- status: open
+- status: swept
+- swept: 2026-07-18 (triage) — MOOT / overtaken by events: the tranche was reconciled into core/graph (oq-0030 answer). bp-059 COMPLETE; bp-060/061/062 SUPERSEDED (re-mint against core/graph is a separate standing item). No blessing of the original proposed tranche is needed.
 - origin: /graduate dn-connectivity-instruments (2026-07-17, session-24) — the owner's "build out what we
   have already designed" lead
 - blocking: false
@@ -860,7 +861,8 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 - answer:
 
 ## oq-0030 — connectivity instruments re-derive `core/complex/` primitives: reconcile the design, or land-and-unify-later? (finding-0101)
-- status: answered
+- status: swept
+- swept: 2026-07-18 (triage) — answered (A) reconcile; delivered by bp-065 (core/graph σ*/conductance on core/complex's Laplacian); finding-0101 promoted; dn-core-graph-instruments ratified.
 - origin: bp-060 post-build review + owner dialogue (2026-07-17, session-26) — owner's "these are core
   graph instruments operating on the raw graph across strata" lead
 - blocking: false (connectivity lane held; chat lane bp-063/064 proceeds regardless)
@@ -889,3 +891,27 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   eval thin wrappers; session switched to fable/xhigh and the refactor directed performed now). Recorded
   in `dn-core-graph-instruments` (draft; owner ratification pending); finding-0101 → promoted; bp-065
   staged for mint-on-ratification.
+
+## oq-0031 — Connectivity/sweep instruments can't discriminate at 13-doc corpus scale: grow the corpus, defer validation, or accept "built-but-unvalidated"? (findings 0096/0097/0098; entangles oq-0024)
+- status: open
+- origin: docs/findings/finding-0096.md (+ 0097, 0098) — the σ-sweep-experiment run-1 results
+- blocking: false
+- question: The connectivity/sweep track is CODE-COMPLETE but its instruments have no discriminating
+  power at the current 13-doc corpus. Concretely (run-1): `golden_recall` is SATURATED at 1.0 across
+  the entire σ-grid (0096) — the sweep objective can't rank σ; SE-3 persistence-tiering does NOT rate
+  SETTLED claims more real than RETAINED (0098) — tiering doesn't yet track owner-perceived realness;
+  and SE-1's decision rules are ambiguous on a perfectly flat curve (0097). This is the reflection's
+  "construction outran validation" pattern: the machinery is right, but nothing at 13 docs can PROVE it
+  earns its place. It also blocks a meaningful answer to oq-0024 (the σ re-tune). Direction options:
+  - **(A) Grow the corpus first** — make corpus growth an explicit track (more of the owner's own
+    notes) so the metrics gain discriminating range, THEN validate the sweep/persistence instruments
+    against real signal. Slower, but it's the only path that actually validates them.
+  - **(B) Defer the connectivity-validation lane** — freeze the instruments as built-but-unvalidated
+    (they're read-side, model-free, harmless off), park findings 0096/0097/0098 + oq-0024, and revisit
+    when the corpus is naturally larger. Cheapest; accepts the instruments sit unproven.
+  - **(C) Shrink the ambition to what 13 docs CAN show** — re-scope the sweep objective to a metric
+    that isn't saturated at this scale (structural, not golden_recall), per finding-0096's own hint.
+- default_if_unanswered: (B) — the connectivity-validation lane stays PARKED (instruments built, flags
+  off, no harm), findings 0096/0097/0098 + oq-0024 park with it. Re-entry: the owner picks A/B/C, or the
+  corpus crosses a scale where `golden_recall` de-saturates (the metrics regain range on their own).
+- answer:

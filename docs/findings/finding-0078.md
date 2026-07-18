@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0078
-status: open             # open → routed → resolved | promoted
+status: resolved             # open → routed → resolved | promoted
 created: 2026-07-14
-updated: 2026-07-14
+updated: 2026-07-18
 links:
   - .claude/hooks/scope-guard.sh
   - docs/templates/build-plan.md
@@ -11,7 +11,7 @@ links:
 ftype: spec-defect       # blocker | spec-defect | question | discovery
 origin_plan: bp-036
 route: builder           # codebase | spec-fidelity → builder / tooling
-resolution: null
+resolution: resolved 2026-07-18 (triage) — see the Triage resolution section below
 ---
 
 # scope-guard matches write_scope entries verbatim — an inline `# comment` silently blocks every write
@@ -43,3 +43,6 @@ fix, matches YAML semantics; or (b) the build-plan template / graduate skill sta
 
 `spec-fidelity` → builder/tooling. Non-blocking once write_scope is bare paths. Batch for the next
 tooling touch or `/triage`.
+
+## Triage resolution (2026-07-18)
+Fixed at source (commit 4afa2d8, bp-067 session): write_scope entries are now bare globs — the rule landed in `docs/templates/build-plan.md` + `.claude/skills/build-plan/SKILL.md`, and scope-guard's quoted-vs-unquoted comment behavior is documented. **finding-0085 and finding-0104 are the SAME footgun re-found** (three times total); all closed by this fix. Memory `[[write-scope-quoting]]` strengthened.

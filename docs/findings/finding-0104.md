@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0104
-status: open
+status: resolved
 created: 2026-07-18
 updated: 2026-07-18
 links:
@@ -66,3 +66,6 @@ that very boundary into this plan — the thing option 1 was meant to avoid.
 ## Routing
 `spec-fidelity` discovery at build time → orchestrator → owner (the scope/boundary decision). Surfaced
 by grounding the facade against the actual out-of-scope callers before writing any code.
+
+## Triage resolution (2026-07-18)
+RESOLVED — owner chose option A (2026-07-18): bp-067's write_scope widened to the 3 monkeypatch-coupled tests, repointed to `core.config.loader`; get_secret env-only in core + token-capable in the outside facade; trust boundary untouched. bp-067 built + SEALED (e529320/ce22893); ratchet 106→19.

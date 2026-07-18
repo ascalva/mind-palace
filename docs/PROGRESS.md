@@ -4518,3 +4518,35 @@ unchanged (5th pool-split confirmation).
 - **/usage relay (owed for bp-063/065/066/064/067) — CLOSED:** session 11% used, all-models week 3%,
   Fable 0%; session $53.28 (opus 258.3k output). Credits now OFF ⇒ builds draw the weekly (ample room).
 - **State:** main `ce22893`→(this). Next finding 0105; next plan bp-068. Ledger: complete +bp-067.
+
+## 2026-07-18 (session 27) — /triage reflection checkpoint (the four-tracks reflection)
+
+Owner called a reflective checkpoint on the four tracks (chat sensor · connectivity · seal-core refactor
+· triage). Reflection theme: **construction outran enforcement/validation** — the core-seal surprise is
+one instance of a recurring shape (a property built but not structurally proven until forced open). The
+`write_scope` footgun literally proves it: found THREE times (findings 0078, 0085, 0104) before the
+source-level fix landed this session.
+
+**Sweep results:**
+- **Resolved (4):** finding-0078 + finding-0085 (the write_scope inline-comment footgun — fixed at
+  source, commit 4afa2d8: bare-globs rule in template + build-plan skill); finding-0102 (shadow.py→eval,
+  subsumed by finding-0103's cleanup program); finding-0104 (bp-067 obstacle — owner option A, bp-067
+  sealed).
+- **Routed open→routed (5):** finding-0096/0097/0098 (σ-sweep saturation at 13-doc scale) +
+  finding-0099/0100 (CN-3 law refinement + bp-059 over-claim). The connectivity/sweep cluster.
+- **Owner questions swept (2):** oq-0030 (reconcile connectivity → delivered by bp-065) + oq-0029
+  (bless the tranche — MOOT: bp-059 complete, bp-060/061/062 superseded via bp-065).
+- **New owner question (1):** **oq-0031** — the connectivity/sweep instruments are code-complete but
+  can't discriminate at 13-doc corpus scale (findings 0096/0097/0098; entangles oq-0024). Direction
+  fork: (A) grow the corpus first, (B) defer the validation lane (default — parked, harmless off),
+  (C) shrink the sweep objective to a non-saturated metric. Owner to decide.
+- **Builder-owned, left for their plans (6):** finding-0046/0059/0064/0073/0076/0089 (bp-016/020/026/
+  029/034/049 — codebase/spec-fidelity, correctly builder-routed; revisit with their plans).
+- **Plans sealed this session:** bp-064, bp-066, bp-067 (all checkpointed + journals sealed above).
+- **Book:** unscaffolded — no sync debt.
+
+**Findings ledger after triage:** open 16→10 (4 resolved, but the 5 routed stay "open-ish" as routed;
+net open-that-need-owner = the connectivity cluster + the 6 builder-owned). Open owner questions: 11
+(oq-0031 new; oq-0029/0030 swept). Standing owner-question debt worth a batch review: oq-0009/0010
+(research-note convention), oq-0018–0022 (magnetic-laplacian decisions), oq-0024 (σ tune — now under
+oq-0031), oq-0025/0026/0028 (ratified-note errata: annotate-by-hand vs standing-erratum), oq-0029→swept.

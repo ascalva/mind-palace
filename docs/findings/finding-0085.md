@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0085
-status: open
+status: resolved
 created: 2026-07-15
-updated: 2026-07-16
+updated: 2026-07-18
 links:
   - .claude/hooks/scope-guard.sh
   - .claude/skills/graduate/SKILL.md
@@ -14,7 +14,7 @@ links:
 ftype: spec-defect
 origin_plan: bp-042
 route: orchestrator
-resolution: null
+resolution: resolved 2026-07-18 (triage) — see the Triage resolution section below
 ---
 
 # Inline comments on `write_scope` globs break scope-guard's path match
@@ -61,3 +61,6 @@ build → validate) rather than a mid-session hand-edit — carried, not mid-sup
 `spec-defect` bearing on tooling + a skill → orchestrator. Batches with the standing /graduate-skill
 fix already owed (resume-brief "Standing-fix owed"). The scope-guard strip is a small hook edit; the
 skill amendment is a one-line rule. Neither blocks the current build (bp-042 proceeds).
+
+## Triage resolution (2026-07-18)
+Fixed at source (commit 4afa2d8) — DUPLICATE of finding-0078 (the write_scope inline-comment footgun, re-found on bp-042). The bare-globs rule is now in the build-plan template + skill; graduate inherits it. Closed with 0078.

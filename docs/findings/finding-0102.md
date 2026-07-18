@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0102
-status: open
+status: resolved
 created: 2026-07-17
-updated: 2026-07-17
+updated: 2026-07-18
 links:
   - docs/design-notes/core-graph-instruments.md   # the P1 principle this violates (named there §2 P6, deliberately NOT folded in)
   - core/dreaming/shadow.py                        # the violating module
@@ -12,7 +12,7 @@ links:
 ftype: discovery
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: resolved 2026-07-18 (triage) — see the Triage resolution section below
 ---
 
 # `core/dreaming/shadow.py` imports eval LOGIC — the P1 boundary's other open violation
@@ -44,3 +44,6 @@ not licensed for imitation (new code may not cite it as precedent; P6's standing
 ## Routing
 `design` discovery → orchestrator (owner-batched via a future oq once bp-065 lands; not
 blocking anything now). Surfaced by the orchestrator's boundary audit, session-26.
+
+## Triage resolution (2026-07-18)
+SUBSUMED by finding-0103 — `shadow.py → eval.{drift,golden}` is one of the 16 machinery reaches in the core-self-containment cleanup program. The ratchet test counts it; it inverts in a bp-069+ plan. Closed as subsumed.
