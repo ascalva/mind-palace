@@ -105,3 +105,22 @@ owner/orchestrator follow-ups parked there: TOML-overridable transcripts dir (to
 
 **Next:** flip plan → complete, PROGRESS checkpoint, commit, seal. Then the game plan's Track 2
 (connectivity strata-access) now has its observed chat data.
+
+## 2026-07-18 (session-28, OPUS) — SEALED `2093c69`; owner cadence Q surfaced a v1 caveat to record
+
+Sealed at commit **`2093c69`** (amended to correct cost.actual to the real /usage: $9.83, 7% session).
+Plan `complete`, PROGRESS checkpointed, finding-0108 filed.
+
+**Owner asked how ingestion works now (layers 0/1/2, cadence, "are transcripts constantly diffed?").**
+Answered: 3 triggers (startup catch-up + 6h housekeeping tick + `palace ingest-chat`), NO watcher —
+session-level reconcile, NOT content-diffed. Layer 0 = rawstore (once/session, immutable); layer 1a =
+chatlog extraction (once/session, verbatim tool-stripped — NOT model-summarized); layer 1b (dreamer
+synthesis over chat) + layer 2 (CS-5 reference correlator) are NOT wired — that's Track 2.
+
+**Real v1 caveat surfaced (worth an owner-question / bp-069 candidate):** `sync()` FREEZES a session
+once its id is in the store (bp-063 Q4), and the daemon can't know which session is live
+(`active_session_id=None`), so an OPEN session captured mid-flight is frozen PARTIAL — its later turns
+are never picked up (a future `sync()` skips the known id). Safe pattern = ingest after close; but a
+session open during a 6h tick is captured partial. Options put to the owner: skip-until-closed (mtime
+heuristic) / growth-aware re-ingest (`backfill()` + turn-append) / a real transcripts watcher. Awaiting
+the owner's steer (v1-good-enough vs. a small follow-up) before filing.
