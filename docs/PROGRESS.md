@@ -4570,3 +4570,28 @@ oq-0031), oq-0025/0026/0028 (ratified-note errata: annotate-by-hand vs standing-
   strengthened. Process note: a greedy `resolution:` regex ate 4 findings' bodies mid-triage — restored
   via `git checkout`, re-applied line-based (prefer line-based frontmatter edits).
 - Full resume handoff in `.claude/state/resume-brief.md`. Next finding 0105; next plan bp-068.
+
+## 2026-07-18 (session 27 END+) — Ouroboros recovery incident (halted-in-recovery → clean HEAD daemon)
+
+Correcting the earlier wrap-up ("Ouroboros UP and busy" — WRONG): the daemon had been **halted in
+recovery** since 2026-07-17. Run #23 died ungracefully (no traceback — a process kill / laptop
+sleep-wake), KeepAlive restarted into #24's **fail-safe recovery** (scheduler halted, watcher off,
+read-only), pinned to the STALE sigma-sweep commit `c63f12f`. That halted watcher is why the vault
+catalog was stuck at 13 while the vault grew to 17. (The "busy" code-sensor is a post-commit git hook,
+not the daemon.)
+
+**Resolution (this session):** owner `start --force`'d → foreground #25 on HEAD, which created a
+**double-instance** beside the launchd #24. I `down`'d the stale launchd #24 (`launchctl bootout` —
+outlasts KeepAlive; leaves the foreground untouched); owner Ctrl-C'd #25 clean; I `up`'d launchd →
+**#26 RUNNING, background, clean, on HEAD (ec243275)** — "running HEAD", no promote warning. Tidied the
+#23 zombie (false RUNNING → UNCLEAN). HEAD's refactored code is now VALIDATED LIVE (#25's foreground
+run advanced dreams 1→2, clean shutdown).
+
+**Findings filed:** 0105 (the red-by-design ratchet BLOCKS `palace deploy` for the whole cleanup period
+— owner picks the gate policy, lean: deselect the one intentional test); 0106 (`mind-palace` wrapper
+omits `up`/`down`/`restart`/`deploy` — they're on `scripts/palace.py`; `status` even points at the
+wrapper-absent `palace deploy`). Memory saved: [[palace-lifecycle-recovery]].
+
+**Standing:** chat still un-ingested at wrap (but #26 runs HEAD's chat sensor — should ingest next
+cycle; verify); pending-approval:1 in the gate (owner review); `drift/constitution: None` right after
+start (verify populated next session). Next finding 0107.
