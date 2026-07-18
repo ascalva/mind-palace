@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-068
 alias: chat-sensor-wiring
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/chat-sensor.md               # RATIFIED dn-chat-sensor — CS-1/2/3 (the sensor this RUNS)
 contract: builder
