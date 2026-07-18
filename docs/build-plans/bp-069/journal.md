@@ -42,3 +42,13 @@ abstractive model summary is a LATER rate. bp-069 has no model → #10 not in pl
 + multi-watcher launcher + `[chat]` config). Est opus/180k, session_budget 2. ⚠️ suite stays RED-by-design
 at the ratchet 19 — acceptance = only `test_core_self_containment` fails AND count == 19; verify the vault
 watcher is byte-identical post-rename; verify a live transcript change re-ingests appended turns.
+
+## 2026-07-18 (session-28, FABLE) — RE-MINTED as Phase Β: the dialogue sensor agent, born scoped
+Owner sequenced "algebra leads" → the plan is rewritten under the ratified-pending `dn-agent-taxonomy`
+(§2.4 sensor role, §3 Phase Β): same three items (L0 lossless growth-aware + torn-line + TOTAL
+accounting; DirectoryWatcher + multi-watcher launcher; L1 action log `chat_events`), now +
+`depends_on: bp-070` (consumes D2's `sensor_scope(DIALOGUE)` + conformance test), + the parity gauge
+(explains the 203-files-vs-110-sessions delta), + the snapshot insurance noted
+(`data/backup-staging/transcripts-snapshot-2026-07-18.tar.gz`, 203 files/60MB — tails recoverable).
+Integrator renumbered bp-070→**bp-071** (bp-070 = Phase Α scope tooling). Status stays `proposed`;
+bless meaningful after Α seals (or at the owner's discretion now — build order enforced by depends_on).

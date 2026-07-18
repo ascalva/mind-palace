@@ -58,7 +58,7 @@ One source (the transcript), projected at different rates — all DETERMINISTIC 
 - **Layer 2 (delayed) — WHERE they happened.** Deterministic edges connecting each action to the exact
   commit / file / doc — read straight from the same tool records (the SHAs + file_paths the transcript
   records), proving causation. NOT a time-based co-occurrence join; NOT CS-5; NO strata-access/`MirrorView`
-  needed. A SEPARATE deterministic connector agent. **bp-070.**
+  needed. A SEPARATE deterministic connector agent. **bp-071.**
 
 **Corrections to my first framing (recorded so the plan doesn't inherit them):** (a) layers 1/2 do NOT need
 the Track-2 strata-access machinery — the agent reads its OWN transcript, never other strata; (b) layer 1 is
@@ -67,7 +67,7 @@ records, not a time-join. The abstractive model summary is a LATER rate (not bp-
 model at all; when the later model summary lands it reads only the scrubbed store — the model boundary is the
 #10 line.
 
-## Why layer 2 matters — the free proven-edge substrate (owner, 2026-07-18) — warrants bp-070
+## Why layer 2 matters — the free proven-edge substrate (owner, 2026-07-18) — warrants bp-071
 Layer 2 is a MECHANICAL/deterministic agent that automates the cross-sensor connections, producing PROVEN
 edges (causal, model-free, FREE). Proven edges are exactly what the interpretive/analytic layers cannot
 safely manufacture themselves, so they RIDE ON layer 2's output:
@@ -81,9 +81,9 @@ safely manufacture themselves, so they RIDE ON layer 2's output:
   **oq-0031** (the σ-sweep saturating at 13 docs): the graph was thin because cosine was its ONLY connective
   signal; layer 2 injects a second class — proven causal edges — so connectivity has real structure to measure.
 
-**Division of labor:** layers 0/1 project the transcript deterministically → **layer 2 (bp-070)** unifies them
+**Division of labor:** layers 0/1 project the transcript deterministically → **layer 2 (bp-071)** unifies them
 into free proven edges (a `reference_edges`-shaped store, chat as causal origin) → the dreamer / scope algebra
-/ conductance / connectivity all consume that ground truth. bp-070 must ref the ratified
+/ conductance / connectivity all consume that ground truth. bp-071 must ref the ratified
 `connectivity-instruments.md` + `cross-strata-dreamer.md` + `capability-scope-algebra.md` as its downstream
 consumers.
 

@@ -35,7 +35,7 @@ brainstorm): **sensor agents**, **query agents**, **integrators**, **dreamers**.
 role well-posed as a **scope signature** `s = (Σ, E, T, A)` plus two annotations (model-class,
 residence), states the two laws that relate them, resolves the strata carving the roles exposed (the
 **dialogue stratum**), and derives the consequences: the generalized charters under which bp-069 (the
-transcript sensor agent) is re-grounded and bp-070 (the first full integrator) is minted.
+transcript sensor agent) is re-grounded and bp-071 (the first full integrator) is minted.
 
 **Out of scope:** any build; the retrieval mathematics; the dreamer program's own build gates
 (`dn-cross-strata-dreamer` §3 — unchanged); any relaxation of `MIRROR_READABLE` (none proposed,
@@ -172,7 +172,7 @@ archives**; its falsifier is any floor artifact that cannot be recomputed from r
 of "fiber" meet in exactly one place, the witness law: a C-edge's witness is *composed of* these
 projection backpointers — the fibers are the raw material the proofs are made of.
 
-### 2.5 The integrator, generalized — the witness law (bp-070's charter)
+### 2.5 The integrator, generalized — the witness law (bp-071's charter)
 
 An integrator resolves **references** — identifiers one stratum's records name (commit SHAs, file
 paths, artifact ids) — against the stores of *other* strata, minting **proven edges**. Its defining
@@ -247,21 +247,33 @@ leans on are named here so they are held by instruments, not vigilance:
 ceiling (`W_world = NONE` everywhere here); the dreamer program's gate chain
 (`dn-cross-strata-dreamer` §3 — its builds remain separately gated); the sealed core / egress rules.
 
-## 3. Consequences
+## 3. Consequences — the phased build program (owner-sequenced, 2026-07-18: "algebra leads")
 
-1. **bp-069 re-grounds** as *the dialogue sensor agent*: rates 0+1 (L0 substrate real-time +
-   lossless; L1 action log delayed), vocabulary and interfaces per §2.4. Substance already matches;
-   the re-ground is language + the layer/rate framing pinned in §6 of the plan.
-2. **bp-070 mints** as *the first full integrator*: chat↔code↔doc, multi-strata layer-granular
-   grant, witness law, fiber `C`, `reference_edges` as proto. Downstream consumers recorded:
-   connectivity/conductance (`E_proven ∪ E_sim`), the dreamer's grounding law, the scope algebra.
-3. **The `DIALOGUE` stratum** enters R (enum + two refinements) — additive; folded into bp-070 or a
-   sibling small plan at graduation.
-4. **The later abstractive summary** is typed out of the sensor (§2.4c): a small scoped model-client
-   reading scrubbed layers, writing `interpreted` — its own future plan, after the dreamer-program
-   gates it rides with.
-5. **The curator** reconciles as a minimal-grant synchronic dreamer (single stratum, point window,
-   interpreted-only output) — no code change implied; vocabulary only.
+Ratification licenses the graduation of this program, executed strictly in phase order — agents are
+**born scoped** (the algebra is the construction language, not a retrofit):
+
+- **Phase Α — `bp-070` (scope tooling; builds first).** D1: `DIALOGUE` (+ refinements) into
+  `Stratum`, fiber `C` into `EdgeScope` — additive lattice extensions, lattice-law tests extended.
+  D2: the **declared-scope agent layer** — template scope constructors per role (§2.1),
+  meet-composition per the ratified delegation law, and the guard-tier conformance pattern ("an
+  agent's actual store handles ⊑ its declared scope"; precedent: `test_view_scopes.py`). D3: the
+  **composed-graph assembly** in `core/graph/` — an explicit node-set × edge-union (`E_sim ∪
+  E_proven`) graph, pure and dependency-injected, feeding the *existing* σ*/conductance math
+  unchanged (the harness's `MirrorGraph` is mirror-similarity-only; the union enters at assembly,
+  not in the instruments). Fixture-tested now; fed real data in Phase Δ.
+- **Phase Β — `bp-069` re-minted (the dialogue sensor agent).** Rates 0+1 per §2.4, carrying its
+  declared scope from D2 (`Σ = dialogue`, `E = ⊥`, `T = (N_s, ∗)`, `A = (READ, W_Σ=1, NONE)`) +
+  the conformance test + the parity/accounting gauge (§2.5 instruments). Recovers the frozen
+  session tails (disk + the 2026-07-18 snapshot).
+- **Phase Γ — `bp-071` (the first full integrator).** Chat↔code↔doc; the §2.5 charter: multi-strata
+  layer-granular scope, witness law, pair-cut, fiber `C`, C-coverage gauge; `reference_edges` as
+  proto. Re-grounds against Β's landed L1 schema before build.
+- **Phase Δ — connectivity re-measure.** The instruments consume the composed graph over
+  {mirror ∪ dialogue nodes} × {`E_sim ∪ E_proven`}; resolves the oq-0031 cluster (0096–0100).
+- **Parallel/later:** the dreamer-facing grant machinery + its ratified gate chain
+  (`dn-cross-strata-dreamer` §3 — unchanged by this note); the abstractive summary (typed out of
+  the sensor, §2.4c) rides with it. The curator reconciles as a minimal-grant synchronic dreamer —
+  vocabulary only, no code change.
 
 ## Parked decisions
 
@@ -280,5 +292,5 @@ ceiling (`W_world = NONE` everywhere here); the dreamer program's gate chain
 `core/sensing.py` (ObservedView — the assistant-tier read boundary) · `ops/chat_sensor.py` (φ_chat,
 the sensor specimen) · `agents/ambassador.py` (the query-agent specimen) ·
 `data: reference_edges.sqlite` (the proto-integrator's store) · bp-063/bp-064/bp-068 (chat stratum:
-store, clock, wiring) · bp-069 (the dialogue sensor agent, rates 0+1) · bp-070 (the integrator, to
+store, clock, wiring) · bp-069 (the dialogue sensor agent, rates 0+1) · bp-071 (the integrator, to
 mint) · finding-0108, finding-0109 · oq-0031 (the connectivity saturation this taxonomy answers).

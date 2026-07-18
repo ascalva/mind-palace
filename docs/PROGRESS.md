@@ -4768,3 +4768,23 @@ pair-cut witnesses, parity + C-coverage instruments).
 Δ (~1 session): connectivity re-measure; resolve 0096-0100/oq-0031.
 Parallel any time: ops leg (0105 → push → owner deploy); A1 dreamer-facing design pass (batches its
 owner questions). Next: OWNER ratifies dn-agent-taxonomy → mint the Phase-Α plan(s).
+
+---
+
+## 2026-07-18 (session 28, FABLE) — REFORMULATION COMPLETE: the diamond as artifacts; gate list
+
+Plan ids assigned: **bp-070 = Phase Α scope-tooling** (D1 DIALOGUE+fiber-C types · D2 declared-scope
+agent layer · D3 composed graph E_sim ∪ E_proven — grounded: MirrorGraph is similarity-only, the
+union enters at core-side assembly) · **bp-069 RE-MINTED = Phase Β dialogue sensor agent** (born
+scoped via D2; same 3 items + total-accounting parity gauge; depends_on bp-070) · **bp-071 = Phase Γ
+integrator** (charter-form; Item 0 = re-ground against landed Β; witness law, pair-cut, C-coverage +
+resolution-parity gauges). Integrator references renumbered bp-070→bp-071 across the taxonomy note,
+finding-0109, the brainstorm. dn-agent-taxonomy §3 rewritten as the phased program. Phase Δ
+(connectivity re-measure) minted at Γ-seal time, not before (its shape depends on Δ-adjacent
+findings). Next plan id **bp-072**.
+
+**TO BEGIN (owner, by hand):** 1) RATIFY `docs/design-notes/agent-taxonomy.md` (draft→ratified — also
+fixes the parked defaults: fiber letter C, DIALOGUE placement). 2) BLESS bp-070 (proposed→ready) →
+/build starts Phase Α. 3) BLESS bp-069 (now or after Α seals — depends_on enforces order either way).
+bp-071 stays proposed until after Β (Item 0 re-ground), bless then. Parallel owner gates any time:
+push (~30 commits) + finding-0105 impl + `palace deploy`.

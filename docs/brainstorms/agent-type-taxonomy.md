@@ -1,7 +1,7 @@
 # Brainstorm — the agent-type taxonomy (sensor / projector / integrator) + the multi-rate chat projection agent
 
 > Captured by the orchestrator from a live owner design session (2026-07-18). Exploratory —
-> the owner's verbatim thinking, distilled. Warrants finding-0109 + bp-069 (built) and bp-070
+> the owner's verbatim thinking, distilled. Warrants finding-0109 + bp-069 (built) and bp-071
 > (to mint). Candidate to graduate into a design note once the owner is ready.
 
 ## The ontology the owner settled on (2026-07-18)
@@ -21,7 +21,7 @@ THREE agent types, distinguished by their relationship to the corpus graph (node
 3. **Integrator** — connects strata into PROVEN cross-stratum links. Deterministic, model-free.
    Writes **edges**. Resolves the references a transcript's tool records name (commit SHAs, file
    paths, doc paths) against the OTHER sensors' stores.
-   *Instances:* the chat agent's **layer 2** / bp-070 ("where it happened": chat action → real commit
+   *Instances:* the chat agent's **layer 2** / bp-071 ("where it happened": chat action → real commit
    → real files → real doc); `reference_edges` (doc↔code) was the proto.
 
 ## The dreamer — a distinct, apex class (NOT a query agent)
@@ -73,7 +73,7 @@ cosine was its only connective signal. The integrator injects a second, proven c
 - **bp-069 (proposed) — the chat projection agent, layers 0 + 1** (sensor + projector, both
   deterministic/model-free). Layer 0 = the lossless real-time dialogue (the urgent data-loss fix);
   layer 1 = the action log. Item 3 builds the tool-record parser layer 2 reuses.
-- **bp-070 (to mint) — layer 2, the sensor integrator** (chat↔code↔doc proven edges). Must ref the
+- **bp-071 (to mint) — layer 2, the sensor integrator** (chat↔code↔doc proven edges). Must ref the
   ratified `connectivity-instruments.md` + `cross-strata-dreamer.md` + `capability-scope-algebra.md`
   as its downstream consumers.
 - **Later** — an abstractive model summary (a projector rate that DOES use a model, reading only the
