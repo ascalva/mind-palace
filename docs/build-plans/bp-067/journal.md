@@ -54,3 +54,12 @@ a backend resolver [folds a secrets-inversion slice, →16]; C: secrets inversio
 
 **PARKED in-progress** (re-entry: owner picks A/B/C). Zero code changes — clean to revise the plan and
 resume. active-plan pointer still set; status left `in-progress`.
+
+## 2026-07-18 (session-27) — RE-SCOPED per finding-0104 (owner option A); back to proposed
+Owner chose **option A**: widen scope to the 3 monkeypatch-coupled tests, keep the trust boundary
+untouched. Revised the plan: write_scope +3 tests (`test_levers_overlay`, `test_secrets_backend_wiring`,
+`test_ci_witness`); §0 records the re-scope; §2 adds the 3 tests + how each repoints; §5/§7 updated
+(item 2 now also repoints the coupled tests). Verified by exhaustive sweep that ONLY those 3 files
+monkeypatch loader internals — the other ~147 non-core importers are facade-served (public API / env
+get_secret). Status `in-progress → proposed`; active-plan cleared. **Awaits the owner `proposed→ready`
+re-bless (by hand), then `/build bp-067` resumes from item 1.** finding-0104 resolved.

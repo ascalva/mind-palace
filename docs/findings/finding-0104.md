@@ -8,11 +8,11 @@ links:
   - docs/build-plans/bp-067/plan.md                # the config-split plan this obstructs
   - config/loader.py                               # the module being moved
   - config/secrets_backend.py                      # the network Vault path get_secret's token branch reaches
-re_entry: awaiting owner decision on scope (A/B/C below); bp-067 is parked in-progress with no code changes
+re_entry: RESOLVED — owner chose option A (2026-07-18); bp-067 re-scoped to +3 coupled tests, back to proposed for re-bless
 ftype: spec-fidelity
 origin_plan: bp-067
 route: orchestrator
-resolution: null
+resolution: Option A (owner, 2026-07-18) — widen bp-067 write_scope to the 3 monkeypatch-coupled tests (test_levers_overlay, test_secrets_backend_wiring, test_ci_witness), repoint them to core.config.loader; get_secret stays env-only in core + token-capable in the outside facade; trust boundary untouched. bp-067 revised + set to proposed, awaiting the owner proposed→ready re-bless.
 ---
 
 # bp-067's clean loader move is blocked: out-of-scope tests couple to loader internals + the get_secret token path

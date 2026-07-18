@@ -2,9 +2,10 @@
 type: build-plan
 id: bp-067
 alias: config-split-loader-into-core
-status: in-progress
+status: proposed
 design_ref:
   - docs/findings/finding-0103.md                  # THE WARRANT — the 106-import audit + the SPLIT ruling
+  - docs/findings/finding-0104.md                  # the build-time obstacle + the owner's option-A scope widening
   - CONVENTIONS.md                                  # the self-containment + DRY rules (bp-066) this advances
 contract: builder
 write_scope:                                       # per-path rationale lives in §5 Write scope, never inline (bp-066 footgun)
@@ -13,6 +14,9 @@ write_scope:                                       # per-path rationale lives in
   - config/loader.py
   - config/__init__.py
   - tests/unit/test_config_split.py
+  - tests/integration/test_levers_overlay.py
+  - tests/integration/test_secrets_backend_wiring.py
+  - tests/unit/test_ci_witness.py
 session_budget: 1
 cost:
   estimate:
@@ -25,7 +29,7 @@ supersedes: null
 superseded_by: null
 warrant: docs/findings/finding-0103.md
 created: 2026-07-18
-updated: 2026-07-18
+updated: 2026-07-18                                 # re-scoped per finding-0104 (owner option A); awaits re-bless
 re_entry: null
 ---
 
@@ -43,6 +47,15 @@ side-effect-free) into `core.config` and repoints core's imports. The credential
 authority, `hvac`/Vault) inside a wide mechanical sweep is how a boundary erosion slips by unseen. It
 gets its own focused, adversarially-verified inversion plan (bp-068+). Owner-confirmed 2026-07-18:
 option 1 (loader move → red 106 → ~18), "the most secure approach that keeps the spirit of the form."
+
+**RE-SCOPED 2026-07-18 (finding-0104, owner option A).** Grounding the facade at build start found that
+3 out-of-scope tests **monkeypatch `config.loader`'s module globals / functions** (`LEVERS_OVERLAY`,
+`_LOCAL`, `get_config`) and expect `load_config`/the witness to honor the patch — which NO re-export
+facade preserves across a module move (the patch lands on the facade; the function reads
+`core.config.loader`'s globals). Those 3 tests test the loader that is moving, so they move/repoint WITH
+it — added to `write_scope`. The owner chose this (option A) over folding a secret-backend injection
+(option B) precisely to keep the credential trust boundary UNTOUCHED. The other ~147 non-core importers
+(public-API only, and env-path `get_secret` callers) remain served by the facade, untouched.
 
 ## 1. Objective
 `config.loader`'s definitions live at `core/config/` (core owns its own settings + paths); every core
@@ -75,6 +88,16 @@ reaches.
    passes (loader is stdlib-only; the env-only get_secret imports nothing banned).
 7. `config/secrets_backend.py` (skim) — stays OUTSIDE core (holds the network `VaultClient`; `hvac`
    lazy + firewalled). NOT moved. Named here so the facade's token `get_secret` can reach it.
+8. The 3 coupled tests (finding-0104), which repoint to `core.config.loader`:
+   - `tests/integration/test_levers_overlay.py` — `monkeypatch.setattr(loader, "LEVERS_OVERLAY"/
+     "_LOCAL", …)` + `load_config()` (`:18-20,30-39`). Repoint `import config.loader as loader` →
+     `from core.config import loader` (patch the module that now owns `load_config`'s globals).
+   - `tests/integration/test_secrets_backend_wiring.py` — `from config.loader import _DEFAULTS,…`
+     (`:16`), `monkeypatch.setattr(loader, "_LOCAL", …)` (`:39`); the token `get_secret` case (`:65-70`)
+     stays on the OUTSIDE facade (the token form lives there). Split its imports: loader internals from
+     `core.config.loader`, the token `get_secret` from `config.loader`.
+   - `tests/unit/test_ci_witness.py` — `monkeypatch.setattr(config.loader, "get_config", …)` (`:264`):
+     repoint the patch target to wherever the witness now reads `get_config` (`core.config`).
 
 ## 3. Investigation & grounding
 - **The loader is a clean move.** Stdlib-only, `lru_cache`'d pure TOML reads returning frozen
@@ -119,11 +142,14 @@ reaches.
 ## 5. Write scope
 `core/config/**` (the moved loader + tomls + `__init__`), `core/**/*.py` (import repoint — LINE-level:
 `from config… import X` → `from core.config import X`; NO logic edits), `config/loader.py` +
-`config/__init__.py` (the facade), and a new `tests/unit/test_config_split.py` (the falsifiers).
-**OUT:** `config/secrets_backend.py`, `config/tuning.toml`, `config/sweeps/**`, `config/defaults.toml`
-copy left behind (the file MOVES, not copies — no two sources); the 104 non-core importers (the facade
-spares them); `core/factory/factory.py`'s secrets/Vault imports (the deferred inversion — its
-`config.loader` get_config import DOES repoint, but its get_secret-token + secrets_backend imports stay);
+`config/__init__.py` (the facade), a new `tests/unit/test_config_split.py` (the falsifiers), and the 3
+coupled tests that monkeypatch loader internals and so must repoint with the loader (finding-0104):
+`tests/integration/test_levers_overlay.py`, `tests/integration/test_secrets_backend_wiring.py`,
+`tests/unit/test_ci_witness.py`. **OUT:** `config/secrets_backend.py`, `config/tuning.toml`,
+`config/sweeps/**`; the ~147 non-core importers that use only the public API or the env-path
+`get_secret` (the facade spares them — verified: only those 3 tests monkeypatch loader internals);
+`core/factory/factory.py`'s secrets/Vault imports (the deferred inversion — its `config.loader`
+get_config import DOES repoint, but its get_secret-token + secrets_backend imports stay);
 `CONSTITUTION.md`, `eval/golden/**` (denylist).
 
 ## 6. Interfaces pinned inline
@@ -185,16 +211,20 @@ def get_secret(name: str, token: str | None = None) -> str | None:
 - **Invariant(s):** side-effect-free (no writes/network on import or call); config values byte-identical;
   the env-only get_secret. **Touches stored data?** No (reads config; writes nothing).  **Parallelizable?** No.
 
-### Item 2 — repoint core's imports + build the outside facade  (blast: line-level import edits)
+### Item 2 — repoint core's imports + build the outside facade + repoint the 3 coupled tests  (blast: line-level import edits)
 - **Objective:** repoint every core `from config… import <pure symbol>` → `from core.config import …`
   (EXCEPT factory's secrets/Vault lines); make `config/loader.py` + `config/__init__.py` re-export
-  facades (with the token-capable `get_secret`).
+  facades (with the token-capable `get_secret`); repoint the 3 monkeypatch-coupled tests (finding-0104)
+  to patch `core.config.loader`'s globals/functions (their token-`get_secret` assertions stay on the
+  outside facade).
 - **Acceptance test:** `uv run pytest -q` is green-except-the-intentional-ratchet; the FULL suite's
-  non-core tests (which import `config.*`) pass unchanged (the facade holds); `test_config_split.py`
-  asserts the outside `config.loader` still exposes the full API incl. the token `get_secret`.
+  non-core tests (which import `config.*`) pass unchanged (the facade holds); the 3 repointed tests pass
+  (their monkeypatches now bite the real module); `test_config_split.py` asserts the outside
+  `config.loader` still exposes the full API incl. the token `get_secret`.
 - **Falsifier:** a non-core importer breaks (facade incomplete); a core file still importing
-  `config.loader` for a pure symbol (repoint missed); the facade re-implementing (not re-exporting) any
-  definition (a DRY violation / second source of truth).
+  `config.loader` for a pure symbol (repoint missed); a repointed test's monkeypatch still inert (wrong
+  target module); the facade re-implementing (not re-exporting) any definition (a DRY violation / second
+  source of truth).
 - **Invariant(s):** outside→core only (never core→outside for a pure symbol); one source of truth
   (facade re-exports, defines nothing but the token get_secret wrapper).  **Touches stored data?** No.  **Parallelizable?** No (after item 1).
 
