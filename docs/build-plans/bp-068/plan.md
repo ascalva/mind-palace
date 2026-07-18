@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-068
 alias: chat-sensor-wiring
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/chat-sensor.md               # RATIFIED dn-chat-sensor — CS-1/2/3 (the sensor this RUNS)
 contract: builder
@@ -19,14 +19,21 @@ cost:
   estimate:
     model: opus
     tokens: 100k
-  actual: null
+  actual:
+    model: opus
+    tokens: 78.7k out / 16.6k in (+12.2m cache read)   # est 100k; output under, but grounding-heavy
+    ratio: 1.0             # on-estimate: well-pinned + clean, but §6 mis-grounded twice offset the win
+    dollars: 9.83          # session-28 total (/usage); single build; well within the weekly
+    session_delta: 7%      # of the session budget
+    week_delta: <1%        # all-models weekly (5% cumulative)
+    result: both items complete; verified LIVE (110 sessions/6365 utterances ingested); ratchet held at 19
 depends_on: [bp-063]
 parallelizable_with: []
 supersedes: null
 superseded_by: null
 warrant: null
 created: 2026-07-18
-updated: 2026-07-18
+updated: 2026-07-18   # session-28: COMPLETE — chat ingests (110 sessions live); ratchet held 19 (OPUS)
 re_entry: null
 ---
 

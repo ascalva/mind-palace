@@ -9,6 +9,7 @@
     uv run scripts/palace.py status         # preflight + recent runs + system snapshot
     uv run scripts/palace.py reset --confirm # fresh-start wipe of the corpus layer
     uv run scripts/palace.py deploy         # promotion gate: cycle the live run onto HEAD
+    uv run scripts/palace.py ingest-chat    # on-demand: ingest the local Claude Code transcripts
 
 `start` seals the core (Invariant 1 — loopback only), runs preflight (ensures our own
 components, VERIFIES Vault/Ollama/podman, fail-closed), records the run pinned to the current
@@ -31,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root on 
 
 from core.sealing import seal
 
-USAGE = ("usage: palace.py {start|stop|down|up|restart|status|reset|deploy} "
+USAGE = ("usage: palace.py {start|stop|down|up|restart|status|reset|deploy|ingest-chat} "
          "[--force] [--confirm] [--skip-tests]")
 
 
@@ -60,6 +61,8 @@ def main(argv: list[str]) -> int:
         return launcher.reset(confirm="--confirm" in flags)
     if cmd == "deploy":
         return launcher.deploy(skip_tests="--skip-tests" in flags)
+    if cmd == "ingest-chat":
+        return launcher.ingest_chat()
     print(USAGE)
     return 2
 

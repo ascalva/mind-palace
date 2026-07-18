@@ -157,7 +157,9 @@ def build_components(cfg: Config) -> Components:
     from core.research.airlock import build_airlock
     from core.stores.telemetry import open_store
     from core.typedshims import psutil
+    from ops.chat_sensor import build_chat_sensor
     from ops.gate import HumanGate
+    from scheduler.chat_sync import CHAT_SYNC_KIND, chat_sync_handler, enqueue_chat_sync
     from scheduler.cron import cron_handlers, enqueue_curate, enqueue_dream, research_handler
     from scheduler.interface import (
         AMBASSADOR_KIND,
@@ -206,6 +208,10 @@ def build_components(cfg: Config) -> Components:
 
     handlers = {
         VAULT_SYNC_KIND: vault_sync_handler(build_vault_sync(cfg)),
+        # The chat sensor (bp-063) wired to RUN (bp-068): a model-less OBSERVED-only ingest of the
+        # local Claude Code transcripts, same species as vault_sync. build_chat_sensor is bp-063's
+        # (reused, not re-declared — finding-0108); the scheduler side is KIND + handler + enqueue.
+        CHAT_SYNC_KIND: chat_sync_handler(build_chat_sensor(cfg)),
         AMBASSADOR_KIND: ambassador_inbox_handler(inbox),
         AMBASSADOR_TASK_KIND: ambassador_task_handler(task_librarian),
         RESEARCH_KIND: research_handler(airlock, task_librarian.embedder, task_librarian.store),
@@ -217,9 +223,11 @@ def build_components(cfg: Config) -> Components:
     def _housekeeping() -> None:
         enqueue_dream(queue, router)
         enqueue_curate(queue, router)
+        enqueue_chat_sync(queue, router)    # periodic chat ingest (new closed sessions, bp-068)
 
     def _catchup() -> None:
         enqueue_vault_sync(queue, router)   # reconcile the corpus; the Job return is discarded
+        enqueue_chat_sync(queue, router)    # startup backfill of every closed chat session (bp-068)
 
     # The edge monitor (a supervised child PROCESS fed by a status-snapshot JSON, Invariant 2) was
     # removed with bp-030 Item 2 — it never worked and was `enabled=false`. Its data source
@@ -475,6 +483,19 @@ class Launcher:
             print(f"run #{run.id} (pid {run.pid}) was not alive — marked unclean.")
             return 1
         print(f"sent SIGTERM to run #{run.id} (pid {run.pid}); it will drain + mark clean.")
+        return 0
+
+    # --- ingest-chat (on-demand chat sensor run, bp-068) -------------------------------------
+    def ingest_chat(self) -> int:
+        """Build the bp-063 chat sensor and run one idempotent `sync()`, printing the report.
+
+        The scheduled `chat_sync` job does this in the daemon (startup catch-up + housekeeping);
+        this is the owner's MANUAL trigger — e.g. the very first ingest, before the daemon's first
+        housekeeping tick. Reads local transcripts only (no network, no vault) — safe inside the
+        seal. Idempotent: a session already in the store is skipped."""
+        from ops.chat_sensor import build_chat_sensor
+        report = build_chat_sensor(self.cfg).sync()
+        print(f"chat ingest: {report}")
         return 0
 
     # --- down / up / restart (KeepAlive-aware maintenance control, finding-0066) -------------

@@ -4620,3 +4620,44 @@ Implementation PENDING (small `gate_cmd` change + a marker + a falsifier; bp-069
 Findings open now: 0103 (19 reaches), 0096-0100 (connectivity, under oq-0031), 0105 (decided-A,
 impl pending), 0106/0107 (status/wrapper papercuts), 6 builder-owned. Next finding 0108; next plan
 bp-069.
+
+---
+
+## 2026-07-18 (session 28) — bp-068 COMPLETE: the chat sensor RUNS (chat ingested for the first time)
+
+Built + sealed **bp-068** (chat-sensor wiring), the game plan's Track-1 forward action. The bp-063
+sensor existed but nothing invoked it; now a scheduled `chat_sync` job + a `palace ingest-chat` verb do.
+
+**Built** (write_scope only):
+- `scheduler/chat_sync.py` (NEW) — `CHAT_SYNC_KIND` + `chat_sync_handler(sensor)` + `enqueue_chat_sync`
+  (pins DIRECTLY to the always-warm tier at BACKGROUND priority — a model-less file scan must not force
+  a worker load). Mirrors `scheduler/vault_sync.py`.
+- `ops/lifecycle/launcher.py` — registered the handler in `build_components` (reusing bp-063's
+  `ops.chat_sensor.build_chat_sensor`, as vault_sync reuses `core.ingest.sync.build_vault_sync`);
+  `_catchup` enqueues at startup (backfill), `_housekeeping` on the tick; added `Launcher.ingest_chat()`.
+- `scripts/palace.py` — the `ingest-chat` verb (USAGE + dispatch).
+- Tests: `tests/unit/test_chat_sync.py` (5) + `tests/integration/test_chat_sensor_wiring.py` (2) — real
+  Supervisor drains a chat_sync job + rows land; idempotency; secret fail-close; verb in-process.
+
+**Verified LIVE:** `palace ingest-chat` → **110 sessions / 6365 utterances** into `data/chatlog.sqlite`
+(OBSERVED), 111 raw retained, **1 session fail-closed by the secret guard**; a second run = 0 new
+(idempotent). Chat had NEVER ingested before. Suite: **1 failed (intentional ratchet, count HELD at 19)
+/ 1543 passed / 4 skipped**; ruff + mypy clean.
+
+**Grounding (finding-0108, spec-fidelity, resolved-in-plan):** the plan §6 was mis-grounded twice —
+(G1) `build_chat_sensor` ALREADY existed (unused) in `ops/chat_sensor.py`, so it was REUSED not
+duplicated ([[owner-dry-strictness]]); consequently the `chat_transcripts_dir` config field was
+DEFERRED (wiring it needs an out-of-scope ops/ edit; `_default_transcripts_dir()` already resolves for
+the daemon) → **core.config untouched, ratchet stayed 19** (better than the plan's "gains a Path field").
+(G2) pinning `chat_sync` wanted a `router._PINNED_KINDS` edit (out of scope) → done in-scope by enqueuing
+directly on the pinned tier (supervisor honours the stored `job.tier`). **Two owner/orchestrator
+follow-ups parked in finding-0108:** TOML-overridable transcripts dir (esp. for worktrees) + register
+`chat_sync` in `router._PINNED_KINDS`.
+
+**Plans:** complete += bp-068. Next plan **bp-069**. Findings open: 0103 (19 reaches), 0096-0100
+(connectivity/oq-0031), 0105 (decided-A, impl pending), 0106/0107 (papercuts), **0108** (bp-068 grounding,
+resolved-in-plan; 2 follow-ups parked), 6 builder-owned. Next finding **0109**.
+
+**Next:** the game plan's Track 2 (connectivity strata-access) now has its observed chat data (110
+sessions) to read. Also verify the daemon auto-ingests once HEAD deploys (the `_catchup`/`_housekeeping`
+wiring), and consider bp-069 for finding-0105 (deploy-gate ratchet deselect).
