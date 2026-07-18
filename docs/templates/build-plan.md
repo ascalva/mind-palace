@@ -5,7 +5,10 @@ status: proposed
 design_ref:               # ratified design-note id(s) this plan graduates from
   - <docs/design-notes/....md>
 contract: builder         # builder | scribe
-write_scope:              # exact globs — the capability; enforced by scope-guard
+write_scope:              # exact globs — the capability; enforced by scope-guard.
+                          # NO inline comment on an ENTRY: per-path rationale goes in §5, never here.
+                          # (An unquoted `- path  # note` glues the comment to the glob and scope-guard
+                          #  denies every write — the bp-066 footgun. Keep entries bare globs.)
   - <path/glob>
 session_budget: 1         # if the work will not fit ONE session, SPLIT at graduation, never mid-build
 cost:                     # the economics ledger (context-economy skill; owner rule 2026-07-11)

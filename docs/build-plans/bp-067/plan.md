@@ -2,17 +2,17 @@
 type: build-plan
 id: bp-067
 alias: config-split-loader-into-core
-status: proposed
+status: ready
 design_ref:
   - docs/findings/finding-0103.md                  # THE WARRANT — the 106-import audit + the SPLIT ruling
   - CONVENTIONS.md                                  # the self-containment + DRY rules (bp-066) this advances
 contract: builder
-write_scope:
-  - "core/config/**"                               # NEW — the moved loader + its tomls + the package __init__
-  - "core/**/*.py"                                 # the import repoint (config.loader → core.config) across core
-  - "config/loader.py"                             # becomes a re-export facade over core.config (+ the token get_secret)
-  - "config/__init__.py"                           # facade re-export over core.config
-  - "tests/unit/test_config_split.py"             # NEW — the value-identity + network-free + no-Vault-leak falsifiers
+write_scope:                                       # per-path rationale lives in §5 Write scope, never inline (bp-066 footgun)
+  - core/config/**
+  - core/**/*.py
+  - config/loader.py
+  - config/__init__.py
+  - tests/unit/test_config_split.py
 session_budget: 1
 cost:
   estimate:

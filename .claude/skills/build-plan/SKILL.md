@@ -21,6 +21,12 @@ never omitted.
   `journal.md`, and `docs/findings/**`, are always writable and need not be listed.
   Never include a foundation file (`CONSTITUTION.md`, `docs/design-notes/**`,
   `eval/golden/**`) — the denylist overrides write_scope regardless.
+  **Each entry is a BARE glob — never an inline `# comment`.** The front-matter
+  parser (`_lib.py:_scalar`) strips a trailing comment only from a *quoted* scalar,
+  so an unquoted `- path  # note` glues the comment onto the glob and `scope-guard`
+  then denies **every** write to that path (the bp-066 footgun — it cost a build a
+  false denial before the cause was found). Put the per-path rationale in §5 Write
+  scope, which mirrors the list in prose anyway; keep the front-matter entries bare.
 - **`design_ref`.** The ratified design-note id(s) this plan graduates from.
 - **`depends_on` / `parallelizable_with`.** Plan/item ids that must complete before
   this may start, and plans that may run concurrently (requires disjoint
