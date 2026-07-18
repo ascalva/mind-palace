@@ -4466,3 +4466,30 @@ unchanged (5th pool-split confirmation).
 - **Reset handoff:** `.claude/state/resume-brief.md` rewritten (full session-26 close). Ledger:
   complete +063+065; ready=bp-064,bp-066; superseded +060,061,062. Next finding 0104; next plan bp-067.
   OWED: /usage relay (bp-063 + bp-065 seal deltas). dn-connectivity-instruments amendment banner in place.
+
+## 2026-07-17 (session 27) — the build wave: bp-066 (red enforcement) + bp-064 (chat clock) SEALED
+
+- **Owner directive:** "run the hardening build and finish the other builds as well." The two `ready`
+  plans (bp-066, bp-064) were the whole buildable queue; both landed and sealed in-session (OPUS).
+  Everything downstream (bp-067 config-split, bp-068+ inversions, bp-061/062 re-mints) is gated on the
+  owner-only `proposed→ready` blessing, so it is NOT autonomously buildable — flagged, not built.
+- **bp-066 SEALED** (`748c946` deliverable + `a2f3bfd` seal) — the core-self-containment ratchet.
+  `tests/unit/test_core_self_containment.py` (dynamic AST scan) fails **RED at 106 by design**; the
+  two CONVENTIONS rules (DRY §Language & style; self-containment §Trust boundaries — no eval paren)
+  + the build-plan §2 manifest-audit step landed. **⚠️ The suite is now RED-by-design: "green" = the
+  ONLY failure is `test_core_imports_nothing_outside_core` AND its count is monotone non-increasing.**
+  Pre-build defect fixed: unquoted write_scope entries with inline comments → scope-guard denied every
+  write (quoted them; process note for future plans). cost ~45k opus, ratio ~1.1.
+- **bp-064 SEALED** (`c3fef76` deliverable + `39375b3` seal) — CS-4 chat clock. `chatlog` enrolled in
+  the spine as observed-stratum per-session g1 chains (chain-key=session_id, pos=turn_index) +
+  `_STRATUM_CERTIFICATES["observed"]={TROUGH}` (local-file sensor ⇒ no HANDOFF). Additive only, no
+  reshape. 9 new tests. §3 Q4 held (no atlas change, no finding). **Ratchet stayed 106** (ChatlogStore
+  is intra-core). cost ~85k opus, ratio ~0.57 (tightly pinned). Opens 2 of CS-6's 3 gates.
+- **State:** main at `39375b3`. Full suite **1 failed / 1547 passed / 8 skipped** (the 1 = intentional
+  red). Argless mypy **69** (baseline). Ledger: complete +bp-064,bp-066; ready=(none); superseded
+  bp-040,060,061,062. Next finding 0104; next plan bp-067.
+- **OWED:** /usage relay now closes bp-063 + bp-065 + bp-066 + bp-064 seal dollar/session/week deltas.
+- **Open owner decisions (unchanged, neither blocks anything):** pacing of the cleanup program (build
+  bp-067 config-split now to drop the red 106→16, or let the 106 red sit visibly first?); whether the
+  self-containment rule earns a one-line CLAUDE.md pointer (orchestrator leans NO — engineering, not a
+  safety bright line). Also standing: re-mint bp-061/062 against core/graph (owner re-bless).
