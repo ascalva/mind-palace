@@ -32,8 +32,12 @@ specialized to one move:
 - **Full strata access** — reads across ALL strata (full or a subset). This is WHY Track-2 exists:
   `capability-scope-algebra` is the dreamer's access bound ("grant this dreamer full/subset strata,
   safely"); the resume brief's "privileged reader/dreamer reads full/subset strata" IS this class.
-  (Sensors read only their own data; integrators only resolve named references — neither crosses
-  strata, so neither needs the scope machinery. The dreamer does.)
+  (Sensors read only their own data. **Integrators DO cross strata — owner correction 2026-07-18:**
+  multi-strata layer access is their defining need — code = observed strata; transcripts + design
+  notes/brainstorms/documentation = dialogue strata; an edge's endpoints span both. But the
+  integrator's grant is CHEAP: model-free, edges-only write. The dreamer's is the EXPENSIVE grant:
+  model + breadth. Both are priced by the same scope algebra — access is priced by what the holder
+  can DO with it.)
 - **Can query, produce nodes, AND produce ALL edge types** — it spans every capability.
 - **Subtypes by temporal mode:**
   - **Synchronic** — structure at a single certified cut: themes, clusters, the σ-graph,
@@ -78,7 +82,8 @@ cosine was its only connective signal. The integrator injects a second, proven c
 ## The four types (settled 2026-07-18)
 1. **Sensor agent** — deterministic; reads its OWN data; senses + projects; writes **nodes**.
 2. **Query agent** (ambassador) — model; reads the graph; writes **answers** (no structure).
-3. **Integrator** — deterministic; resolves references; writes **proven edges**.
+3. **Integrator** — deterministic; MULTI-strata layer-granular read (owner correction 2026-07-18);
+   resolves references; writes **proven edges**.
 4. **Dreamer** — core-resident, FULL strata access; queries + writes **nodes + all edge types**;
    synchronic (single-cut structure) | diachronic (across-cut evolution). The apex/general class.
 
@@ -88,6 +93,9 @@ cosine was its only connective signal. The integrator injects a second, proven c
   (reads only the scrubbed store — the model boundary = bright line #10).
 - **Curator's home:** where does the curator (near-dup / prune / contradiction findings) sit — a dreamer
   subtype, or its own thing? Reconcile against `core/curator.py`.
-- **GRADUATE this into a design note (`dn-agent-taxonomy`)** — the ontology is now stable enough; this is
-  the Fable/xhigh design task the owner switched the model for. It should ref `connectivity-instruments`,
-  `cross-strata-dreamer`, `capability-scope-algebra`, `global-event-clock`, and dn-chat-sensor.
+- ~~GRADUATE this into a design note~~ **DONE (2026-07-18, fable/xhigh):**
+  `docs/design-notes/agent-taxonomy.md` (`dn-agent-taxonomy`, draft — awaits owner ratification).
+  The note additionally records: the multi-strata integrator correction; fiber C (causal-witnessed)
+  beside F/D, with C-explains-D composition; layer tissue as projection fibers (not edges); commits
+  as cross-clock bookmarks (C-edges feed the future global clock N); the DIALOGUE stratum drafted
+  into R; the abstractive-summary question resolved by type (not a sensor rate).

@@ -4686,3 +4686,33 @@ Est opus/180k, session_budget 2. **Awaits owner `proposed → ready` bless.**
 Findings open: 0103 (19 reaches), 0096-0100 (connectivity/oq-0031), 0105 (decided-A, impl pending),
 0106/0107 (papercuts), 0108 (bp-068 grounding, resolved-in-plan; folded into bp-069), **0109** (chat
 freeze-once, decided → bp-069). Next finding **0110**. Plans: proposed = bp-069; next id after = bp-070.
+
+---
+
+## 2026-07-18 (session 28, FABLE/xhigh) — design pass: `dn-agent-taxonomy` drafted
+
+The owner's four-role agent ontology (sensor / query agent / integrator / dreamer), formalized as
+scope signatures in the ratified CQ-scope algebra → **`docs/design-notes/agent-taxonomy.md`**
+(`dn-agent-taxonomy`, **draft — awaits owner ratification**, warrant: the captured
+`agent-type-taxonomy` brainstorm + finding-0109). Decisions drafted:
+- **Roles as signatures** (Σ,E,T,A + model-class): sensor = own-stratum, multi-rate projection,
+  model-free; query agent = read-only, answers, never structure; **integrator = MULTI-strata
+  layer-granular read (the owner's correction), edges-only write, model-free**; dreamer = apex,
+  per-owner-grant up to ⊤_Σ, model-priced (cites the ratified cross-strata-dreamer per-scope ruling).
+- **Two laws:** the deterministic floor (nodes + proven edges are model-free) and the grounding law
+  (interpretive edges cite proven support) + the pricing corollary (breadth is cheap iff model-free).
+- **Fiber C (causal-witnessed)** proposed beside F/D — C = origin, D = lineage, F = support; C
+  explains D, never as it; C∘D answers "which conversation produced this version?".
+- **Witness law + SLICE:** every proven edge carries mechanical evidence and arrives cut-stamped
+  (the commit SHA is the cut). **Commits as cross-clock bookmarks:** each C-edge causally
+  co-registers the chat clock with the commit clock (`turn_i ≺ commit ≺ turn_{i+1}`) — the
+  empirical anchor data the future global event clock N interpolates through.
+- **Layer tissue is fibrational, not edge-typed** (projection fibers on the rows — the sourceset
+  pattern — vs E-fiber edges beside the data).
+- **The DIALOGUE stratum** drafted into R (transcripts + brainstorms/design notes/docs; code stays
+  observed); stratum ≠ provenance reconciliation explicit; MIRROR_READABLE untouched.
+- The abstractive model summary is typed OUT of the sensor (a later scoped model-client).
+
+**Next (after the owner's hand-ratification of the note):** re-ground bp-069 (the dialogue sensor
+agent, rates 0+1) in the note's language → owner bless → build; mint bp-070 (the first full
+integrator: chat↔code↔doc, witness law, fiber C, DIALOGUE enum addition folded in).
