@@ -28,3 +28,29 @@ sweep. Status `proposed` — awaits the owner's `proposed → ready` blessing (o
 facade) → item 3 (verify red drops 106→~18 with the remaining set = factory secrets + the 16 reaches,
 and core/config/** is network-free). Estimate opus/130k. ⚠️ The suite stays RED-by-design (the ratchet)
 — acceptance = the ONLY failure is `test_core_self_containment` AND its count dropped to ~18.
+
+---
+
+## 2026-07-18 (session-27) — STOP-AND-RAISE at build start (NO code changes) → finding-0104
+Owner blessed `ready`; I set active-plan + flipped `ready → in-progress`, then grounded the FACADE
+against the actual out-of-scope callers BEFORE writing any code (§10 discipline + the "scrutinize the
+measurement code before it builds" lesson). Found a structural blocker:
+
+- Core needs `get_config`/`load_config` (39+ imports) → those MUST move to `core.config`. But ~7
+  OUT-OF-SCOPE files couple to `config.loader`'s INTERNALS: `test_levers_overlay`,
+  `test_secrets_backend_wiring`, `test_lifecycle` monkeypatch `config.loader.{LEVERS_OVERLAY,_LOCAL}`
+  and call `load_config()` — a re-export facade does NOT preserve this (the patch lands on the facade,
+  `load_config` reads core.config.loader's globals). No facade trick preserves monkeypatch-of-globals
+  across a module move.
+- `get_secret`'s token branch is the network Vault path (can't be in core; `import_lint` bans hvac).
+  So core's get_secret is env-only — but the token test + factory need the token form under
+  `config.loader`. A transparent sys.modules alias (which would fix monkeypatch) forces env-only onto
+  them ⇒ their token path breaks. The two pull the facade in opposite directions.
+
+⇒ The loader move cannot leave every out-of-scope caller untouched (the plan's premise). The coupled
+tests must move/repoint WITH the loader — which the write_scope excluded. Filed **finding-0104** with
+three options (A: widen scope to the ~7 coupled files [recommended, boundary untouched, →18]; B: inject
+a backend resolver [folds a secrets-inversion slice, →16]; C: secrets inversion FIRST, then clean move).
+
+**PARKED in-progress** (re-entry: owner picks A/B/C). Zero code changes — clean to revise the plan and
+resume. active-plan pointer still set; status left `in-progress`.

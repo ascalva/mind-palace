@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-067
 alias: config-split-loader-into-core
-status: ready
+status: in-progress
 design_ref:
   - docs/findings/finding-0103.md                  # THE WARRANT — the 106-import audit + the SPLIT ruling
   - CONVENTIONS.md                                  # the self-containment + DRY rules (bp-066) this advances
