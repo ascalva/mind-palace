@@ -26,9 +26,9 @@ cost:
     model: opus                                    # in-session self-build (session-27); no delegation
     tokens: ~155k                                  # incl. the stop-and-raise round-trip + ruff/mypy iters
     ratio: ~1.2                                    # a shade over — the facade/get_secret entanglement +
-    dollars: pending /usage relay                  #   the core.* stricter-mypy fixups were unforecast
-    session_delta: pending /usage relay
-    week_delta: pending /usage relay
+    dollars: ~$32                                  #   the core.* stricter-mypy fixups were unforecast
+    session_delta: ~60% of the session (the largest of session-27's 3 builds; session 11% used total)
+    week_delta: ~2% (all-models week at 3% used after; credits now off ⇒ builds draw the weekly)
     note: >-
       One stop-and-raise (finding-0104) before any code: the facade can't preserve
       monkeypatch-of-globals across a module move, so 3 coupled tests joined scope (owner option A).

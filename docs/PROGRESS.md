@@ -4493,3 +4493,28 @@ unchanged (5th pool-split confirmation).
   bp-067 config-split now to drop the red 106→16, or let the 106 red sit visibly first?); whether the
   self-containment rule earns a one-line CLAUDE.md pointer (orchestrator leans NO — engineering, not a
   safety bright line). Also standing: re-mint bp-061/062 against core/graph (owner re-bless).
+
+## 2026-07-18 (session 27 cont.) — bp-067 SEALED: config loader moved to core.config (ratchet 106→19)
+
+- **Owner directive:** "let's now work on fixing the errors" → the 106 self-containment reds (owner
+  chose them over the 69 mypy baseline). First cleanup plan = bp-067, the config split.
+- **bp-067 SEALED** (`e529320` deliverable + `ce22893` seal) — the config leg of finding-0103.
+  `config.loader` (stdlib-only, side-effect-free) moved to `core/config/`; 46 core files repointed
+  `config.loader → core.config`; the outside `config/` is now a re-export **facade** (the ~147
+  non-core importers untouched). **get_secret split at the trust boundary:** core's is ENV-ONLY (no
+  token, no secrets_backend import — the network Vault path can't leak in); the token-capable form
+  stays in the facade. **Security win:** core config loading now falls under `import_lint`'s network
+  ban — structurally network-proven. **Ratchet 106 → 19.** Suite 1 failed (intentional) / 1552 passed
+  / 8 skipped; argless mypy 69. cost ~155k opus, ratio ~1.2 (~$32).
+- **finding-0104** (filed + resolved) — a build-start stop-and-raise: the facade can't preserve
+  monkeypatch-of-globals across a module move, so 3 coupled tests joined scope (owner **option A** —
+  keep the credential trust boundary untouched). A clean pause, zero code changes, then re-scoped +
+  re-blessed. Toml-data deviation: data stays in `config/` (its `.gitignore` is out of scope), loader
+  reads by path.
+- **write_scope footgun fix (`4afa2d8`)** — inline comments on write_scope entries are now banned at the
+  source (template + build-plan skill); memory [[write-scope-quoting]] strengthened. Owner-flagged.
+- **Remaining red = 19:** 3 factory secrets/Vault reaches (the DEFERRED security inversion, bp-068
+  candidate) + the 16 machinery reaches (each its own inversion plan) → green when all invert.
+- **/usage relay (owed for bp-063/065/066/064/067) — CLOSED:** session 11% used, all-models week 3%,
+  Fable 0%; session $53.28 (opus 258.3k output). Credits now OFF ⇒ builds draw the weekly (ample room).
+- **State:** main `ce22893`→(this). Next finding 0105; next plan bp-068. Ledger: complete +bp-067.
