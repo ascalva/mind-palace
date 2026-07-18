@@ -90,6 +90,7 @@ from core.attestation.store import AttestationStore
 # `Clock` is READ-ONLY vocabulary here (the registered clock hierarchy); bp-056 owns changes to it.
 from core.scope import Clock
 from core.stores.catalog import VaultCatalog
+from core.stores.chatlog import ChatlogStore  # CS-4 (bp-064): the observed-stratum chat store
 from core.stores.derived import DerivedStore
 from core.stores.edges import EdgeStore
 from core.stores.runledger import RunLedger
@@ -246,6 +247,7 @@ _STRATUM: dict[str, str] = {
     "runledger": "ops",
     "attestations": "ops",
     "eval": "eval",
+    "chatlog": "observed",     # CS-4 (bp-064): φ_chat's per-session readings — the observed stratum
 }
 
 # The certificate(s) each stratum requires for a cut to be sound (note §2.4; plan §8 "certificates
@@ -259,11 +261,19 @@ _STRATUM: dict[str, str] = {
 #   * eval (eval results) = internal scheduler jobs, no edge dependency → TROUGH.
 # The FULL cross-strata cut (all four) therefore composes {COMMIT, TROUGH, HANDOFF} — exactly the
 # note's "commit ∧ trough-empty ∧ handoff-empty" (§2.4).
+#   * observed (chatlog = φ_chat's chat readings) → TROUGH only. The chat sensor is a scheduler/ops
+#     job that reads LOCAL transcript files (dn-chat-sensor CS-2/CS-3) and never touches the
+#     edge↔core seam — so a cut over observed is sound exactly when the sensor is quiescent (no
+#     mid-session append in flight), the same TROUGH the eval stratum uses (internal job, no edge
+#     dependency). Deliberately NO HANDOFF: a spurious HANDOFF would make every observed cut require
+#     an edge-quiescence it has no dependency on (CS-4; plan §3 Q2). Open-session exclusion is
+#     enforced at INGEST (the store holds only closed-session rows, bp-063 Q4) ⇒ closed frontier.
 _STRATUM_CERTIFICATES: dict[str, frozenset[Certificate]] = {
     "mirror": frozenset({Certificate.COMMIT}),
     "ops": frozenset({Certificate.TROUGH, Certificate.HANDOFF}),
     "interpreted": frozenset({Certificate.TROUGH, Certificate.HANDOFF}),
     "eval": frozenset({Certificate.TROUGH}),
+    "observed": frozenset({Certificate.TROUGH}),   # CS-4 (bp-064) — session-close, sensor-quiescent
 }
 
 # The handoff-empty observable — MIRRORED (not imported) from `core/sensing.py:63-64`, the zone-
@@ -314,6 +324,7 @@ class SpineSources:
     attestations: AttestationStore | None = None
     eval: EvalResultsStore | None = None
     catalog: VaultCatalog | None = None
+    chatlog: ChatlogStore | None = None      # CS-4 (bp-064): the observed-stratum chat store
 
     @classmethod
     def resolve(cls, config: Config | None = None) -> SpineSources:
@@ -329,6 +340,10 @@ class SpineSources:
         ledger_p = base / "run_ledger.sqlite"
         edges_p = base / "edges.sqlite"
         eval_p = base / "eval_results.duckdb"
+        # CS-4 (bp-064): the chat store, at `open_chatlog_store`'s path (data_dir/chatlog.sqlite;
+        # here data_dir == derived_store.parent). Guarded by .exists() so resolve() never CREATES
+        # the DB — ChatlogStore(path) mkdirs+connects on construct, so it opens only if present.
+        chatlog_p = cfg.paths.data_dir / "chatlog.sqlite"
 
         eval_src: EvalResultsStore | None = None
         if eval_p.exists():
@@ -354,6 +369,7 @@ class SpineSources:
                 VaultCatalog(cfg.paths.vault_catalog)
                 if cfg.paths.vault_catalog.exists() else None
             ),
+            chatlog=ChatlogStore(chatlog_p) if chatlog_p.exists() else None,
         )
 
 
@@ -404,6 +420,24 @@ class _Builder:
             if prev is not None:                              # per-doc chain (the op-seq exemplar)
                 self.g13_edges.add((prev, eid, "g1"))
             prev_by_doc[doc_id] = eid
+
+    def chatlog(self, store: ChatlogStore) -> None:
+        """CS-4 (bp-064): per-SESSION g1 append chains — chain_key = session_id, position =
+        turn_index (both the store's identity; `all_rows` is ordered by them). An utterance MINTS
+        and CONSUMES no cross-store identifier (produces=(), consumes=()), so a chat chain
+        introduces no generator edge into any cut — `crossing_edges` stays [] for a certified
+        observed cut (plan §3 Q5). Order is turn index, NEVER the ts_bookmark wall time (Law C4).
+        Mirrors `versions`, the per-chain g1 exemplar; the store is `observed` (_STRATUM), so a
+        `MirrorView` never sees it."""
+        self.present.append("chatlog")
+        prev_by_session: dict[str, str] = {}
+        for row in store.all_rows():
+            session_id, turn_index = str(row["session_id"]), int(row["turn_index"])
+            eid = self._add("chatlog", session_id, turn_index, produces=(), consumes=())
+            prev = prev_by_session.get(session_id)
+            if prev is not None:                              # per-session chain (turn-index order)
+                self.g13_edges.add((prev, eid, "g1"))
+            prev_by_session[session_id] = eid
 
     def ledger(self, store: RunLedger) -> None:
         self.present.append("runledger")
@@ -633,6 +667,8 @@ class Spine:
             b.eval(sources.eval)
         if sources.catalog is not None:
             b.catalog(sources.catalog)
+        if sources.chatlog is not None:                       # CS-4 (bp-064): observed chains
+            b.chatlog(sources.chatlog)
         return b.finalize(coarsening_ticks, cut_sources)
 
     # -- the pinned surface ------------------------------------------------------------------------

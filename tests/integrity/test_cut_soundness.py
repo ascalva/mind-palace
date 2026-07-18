@@ -28,6 +28,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from core.stores.catalog import VaultCatalog
+from core.stores.chatlog import ChatlogStore, ChatUtterance
 from core.stores.derived import DerivedStore
 from core.stores.runledger import RunLedger
 from core.stores.versions import VersionStore
@@ -105,6 +106,26 @@ def test_out_of_scope_edge_is_not_a_crossing_seeded() -> None:
     )
     assert spine.crossing_edges(ops_only) == []                    # exits scope, not a crossing
     assert "versions:docX:1" not in spine.downset(ops_only)
+
+
+# ── CS-4 (bp-064): a chat chain introduces no crossing on a certified observed cut ───────────────
+
+
+def test_chat_chain_has_no_crossing_edges_seeded() -> None:
+    """A per-session chat chain (observed stratum) MINTS and CONSUMES no cross-store identifier, so
+    a cut at the current frontier over the chat chains is down-closed with NO crossing edge (plan §3
+    Q5 — the observed cut is sound). Runs on an in-memory seeded store, everywhere."""
+    store = ChatlogStore(_MEM)
+    store.add_batch([
+        ChatUtterance("s1", 0, "owner", "q", "d"),
+        ChatUtterance("s1", 1, "agent", "a", "d"),
+        ChatUtterance("s2", 0, "owner", "q2", "d"),
+    ])
+    spine = Spine.derive(SpineSources(chatlog=store))
+    cut = _cut_at_full_frontier(spine)
+    assert spine.crossing_edges(cut) == []
+    d = spine.downset(cut)
+    assert {"chatlog:s1:0", "chatlog:s1:1", "chatlog:s2:0"} <= d   # both session chains down-closed
 
 
 # ── down-set materialization: chain-less SOURCE rides in, chain-less SINK does not ───────────────

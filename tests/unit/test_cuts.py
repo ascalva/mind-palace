@@ -33,6 +33,7 @@ from core.scope import (
     TimeScope,
     Window,
 )
+from core.stores.chatlog import ChatlogStore, ChatUtterance
 from core.stores.derived import DerivedStore
 from core.stores.runledger import RunLedger
 from core.stores.versions import VersionStore
@@ -107,6 +108,19 @@ def test_interpreted_cut_composes_trough_and_handoff(tmp_path: Path) -> None:
 def test_eval_cut_composes_trough_only(tmp_path: Path) -> None:
     cut = _spine(handoff=_empty_handoff(tmp_path)).cut_at(strata=frozenset({"eval"}))
     assert cut.certificates == frozenset({Certificate.TROUGH})
+
+
+def test_observed_cut_composes_trough(tmp_path: Path) -> None:
+    """CS-4 (bp-064): the `observed` stratum (φ_chat's chat readings) certifies with TROUGH ALONE —
+    the chat sensor is a local-file job with no edge↔core seam, so no HANDOFF (plan §3 Q2). Additive
+    beside the mirror/ops/interpreted/eval cases; none of them changes meaning."""
+    store = ChatlogStore(_MEM)
+    store.add_batch([ChatUtterance("s1", 0, "owner", "hi", "dig")])
+    sources = CutSources(trough=_QUIESCENT, handoff=_empty_handoff(tmp_path))
+    spine = Spine.derive(SpineSources(chatlog=store), cut_sources=sources)
+    cut = spine.cut_at(strata=frozenset({"observed"}))
+    assert cut.certificates == frozenset({Certificate.TROUGH})   # TROUGH only, no HANDOFF/COMMIT
+    assert any(e == "trough:trough-abc" for e in cut.evidence)
 
 
 def test_full_cross_strata_cut_composes_all_three(tmp_path: Path) -> None:
