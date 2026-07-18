@@ -4446,3 +4446,23 @@ unchanged (5th pool-split confirmation).
 - **NEXT (orchestrator):** push to origin. Then — bp-064 (chat clock, the held `ready` chat-lane plan)
   OR re-mint bp-061/062 against core/graph OR the finding-0102 self-containment pass. Next finding
   0103; next plan bp-066. /usage relay still owed to close bp-063 + bp-065 seal deltas.
+
+## 2026-07-17 (session 26 END) — the core-sacred reconciliation; bp-066 enforcement READY
+
+- **Session arc:** Wave 1 (bp-063 sealed, bp-060 built) → owner interrogated the connectivity
+  instruments' placement → cascaded into a standing principle: **the core is SACRED and
+  self-contained** (deps = stdlib + pinned side-effect-free 3p + core; NO first-party outside core;
+  config included, no wiggle room) + strict **DRY** (a dup is a defect). Memory: [[core-self-containment]],
+  [[owner-dry-strictness]].
+- **bp-065 sealed** (`23e332f`) — reconciliation done: σ*/conductance math re-homed to `core/graph`
+  on `core/complex`'s one Laplacian; eval a plain consumer (clean break, no wrappers); second audit
+  (fidelity + first-principles math + P1-P6 + house style) all pass.
+- **finding-0103** — full audit: core violates self-containment **106×** (config 90 / ops 8 / eval 7 /
+  agents 1). Config remediation ruled = **SPLIT** (`core.config` inside core), not DI.
+- **bp-066 READY** (`c385ddd`, owner-blessed) — the LOUD RED enforcement (test at 106 + CONVENTIONS
+  DRY/self-containment rules + manifest-audit skill step). ⚠️ builds the suite RED-by-design; that's
+  the forcing function, not a regression. **Next session: `/build bp-066`.**
+- **Cleanup roadmap:** bp-067 config-split (106→16) → bp-068+ the 16 machinery inversions (→green).
+- **Reset handoff:** `.claude/state/resume-brief.md` rewritten (full session-26 close). Ledger:
+  complete +063+065; ready=bp-064,bp-066; superseded +060,061,062. Next finding 0104; next plan bp-067.
+  OWED: /usage relay (bp-063 + bp-065 seal deltas). dn-connectivity-instruments amendment banner in place.
