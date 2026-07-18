@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-067
 alias: config-split-loader-into-core
-status: proposed
+status: complete
 design_ref:
   - docs/findings/finding-0103.md                  # THE WARRANT — the 106-import audit + the SPLIT ruling
   - docs/findings/finding-0104.md                  # the build-time obstacle + the owner's option-A scope widening
@@ -22,7 +22,18 @@ cost:
   estimate:
     model: opus
     tokens: 130k
-  actual: null
+  actual:
+    model: opus                                    # in-session self-build (session-27); no delegation
+    tokens: ~155k                                  # incl. the stop-and-raise round-trip + ruff/mypy iters
+    ratio: ~1.2                                    # a shade over — the facade/get_secret entanglement +
+    dollars: pending /usage relay                  #   the core.* stricter-mypy fixups were unforecast
+    session_delta: pending /usage relay
+    week_delta: pending /usage relay
+    note: >-
+      One stop-and-raise (finding-0104) before any code: the facade can't preserve
+      monkeypatch-of-globals across a module move, so 3 coupled tests joined scope (owner option A).
+      Deviation from the §6 toml pin: data stays in config/ (gitignore out of scope), loader reads by
+      path. Ratchet 106→19 as planned; get_secret env/token split kept the trust boundary intact.
 depends_on: [bp-066]
 parallelizable_with: []
 supersedes: null

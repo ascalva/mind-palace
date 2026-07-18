@@ -63,3 +63,47 @@ untouched. Revised the plan: write_scope +3 tests (`test_levers_overlay`, `test_
 monkeypatch loader internals — the other ~147 non-core importers are facade-served (public API / env
 get_secret). Status `in-progress → proposed`; active-plan cleared. **Awaits the owner `proposed→ready`
 re-bless (by hand), then `/build bp-067` resumes from item 1.** finding-0104 resolved.
+
+## 2026-07-18 (session-27) — BUILT (items 1-3), pre-full-suite checkpoint
+Owner re-blessed `ready`; flipped ready→in-progress; built the loader move.
+
+**Item 1 (relocate).** `git mv config/loader.py core/config/loader.py`; added `core/config/__init__.py`
+(re-exports the public API). **Deviation from §6 pin (codebase resolution, annotated):** the toml DATA
+stays in `config/` — its gitignore entries (`config/local.toml`, `config/levers.toml`) are path-specific
+and `.gitignore` is OUT of write_scope, so moving the data would strand them. The loader reads the tomls
+by path (`REPO_ROOT / "config"`, a filesystem read — self-containment is about IMPORTS, not data). Same
+config VALUES (verified). `REPO_ROOT` re-anchored `.parent.parent → .parent.parent.parent`. `get_secret`
+split to ENV-ONLY (no token param, no secrets_backend import). Stricter core.* mypy surfaced 2 loader
+type-nits (dict type-args) — fixed. core/config/** import-clean + network-free.
+
+**Item 2 (repoint + facade + coupled tests).** Repointed 46 core files `from config.loader import` →
+`from core.config import` (Python script; sed -i '' failed on macOS). factory.py: repointed Config +
+get_config to core.config; KEPT its token `get_secret` (:82) + `secrets_backend` imports on the outside
+facade (the DEFERRED inversion — the 3 reaches that stay RED). Wrote the outside `config/loader.py`
+FACADE: explicit re-export of the public API (NOT `import *` — so `get_secret` is unambiguously the
+token-capable form here, env-only in core; this also cleared a mypy no-redef + the 2 token-caller
+errors). Repointed the 2 monkeypatching tests to `core.config.loader`; **test_ci_witness needed NO edit**
+(the witness imports get_config lazily from config.loader, so the facade carries the patch).
+
+**Item 3 (verify the drop + network-free).** New `tests/unit/test_config_split.py` (5 falsifiers: values
+resolve under REPO_ROOT; core/config network-free via `import_lint.scan_file`; no first-party sibling
+import; core get_secret env-only w/ no secrets_backend/hvac import; facade token-capable). **Ratchet:
+106 → 19** (87 config imports cleared; remaining 19 = factory's 3 secrets/Vault reaches + the 16
+machinery reaches). ruff clean across core/config/tests; **argless mypy 69 (baseline held)**.
+
+Coupled + secrets tests: 50 passed. config_split: 5 passed. Next: FULL suite two-part green check.
+
+## 2026-07-18 (session-27) — SEAL: bp-067 COMPLETE, ratchet 106→19
+Full suite: **1 failed / 1552 passed / 8 skipped** — the sole failure is the intentional
+`test_core_self_containment` at **19** (down from 106; +5 passed = test_config_split). Two-part green
+check ✓. Argless mypy **69** (baseline held). ruff clean. All changes in write_scope.
+
+**Deliverable committed `e529320`.** Status → complete; cost.actual recorded (~155k opus, ratio ~1.2 —
+the stop-and-raise + core.* stricter-mypy fixups were unforecast; dollar/session/week deltas OWED).
+
+**finding-0103 cleanup program status:** config leg DONE (106→19). Remaining red = 19: the **3 factory
+secrets/Vault reaches** (`config.secrets_backend` ×2 + the token `get_secret`) — the DEFERRED
+security-focused inversion (bp-068 candidate) — plus the **16 machinery reaches** (shadow/effect_proposal/
+sensing/factory→gate/interface/ops_view/reference_view/spine — each its own inversion plan). Driving
+those to zero turns the suite fully green. **Security win banked:** core config loading is now inside
+`import_lint`'s network ban — structurally network-proven.
