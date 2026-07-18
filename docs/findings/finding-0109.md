@@ -67,6 +67,26 @@ records, not a time-join. The abstractive model summary is a LATER rate (not bp-
 model at all; when the later model summary lands it reads only the scrubbed store — the model boundary is the
 #10 line.
 
+## Why layer 2 matters — the free proven-edge substrate (owner, 2026-07-18) — warrants bp-070
+Layer 2 is a MECHANICAL/deterministic agent that automates the cross-sensor connections, producing PROVEN
+edges (causal, model-free, FREE). Proven edges are exactly what the interpretive/analytic layers cannot
+safely manufacture themselves, so they RIDE ON layer 2's output:
+- **The dreamer** interprets over GROUND-TRUTH connections instead of guessing them. Its only cross-item
+  edges today are similarity edges (`E_sim = cos ≥ σ`) — where apophenia lives (a high cosine can be
+  coincidence). Layer 2 hands it edges that ACTUALLY HAPPENED (chat → commit → files → doc), so interpretation
+  stands on fact. The deterministic FLOOR keeps the interpretive CEILING honest.
+- **The capability-scope-algebra** exploits them as real structure.
+- **Conductance + connectivity ride on them** (`docs/design-notes/connectivity-instruments.md`): the graph
+  stops being similarity-only — the free edges are real conductive paths ACROSS strata. This is the answer to
+  **oq-0031** (the σ-sweep saturating at 13 docs): the graph was thin because cosine was its ONLY connective
+  signal; layer 2 injects a second class — proven causal edges — so connectivity has real structure to measure.
+
+**Division of labor:** layers 0/1 project the transcript deterministically → **layer 2 (bp-070)** unifies them
+into free proven edges (a `reference_edges`-shaped store, chat as causal origin) → the dreamer / scope algebra
+/ conductance / connectivity all consume that ground truth. bp-070 must ref the ratified
+`connectivity-instruments.md` + `cross-strata-dreamer.md` + `capability-scope-algebra.md` as its downstream
+consumers.
+
 ## Routing
 `design` → owner (DECIDED). Warrants **bp-069** (owner-directed). Not a bright-line change: still
 OBSERVED-only, local-file, model-free, secret-guarded — only the freshness/completeness semantics change.
