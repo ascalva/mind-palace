@@ -4550,3 +4550,23 @@ net open-that-need-owner = the connectivity cluster + the 6 builder-owned). Open
 (oq-0031 new; oq-0029/0030 swept). Standing owner-question debt worth a batch review: oq-0009/0010
 (research-note convention), oq-0018–0022 (magnetic-laplacian decisions), oq-0024 (σ tune — now under
 oq-0031), oq-0025/0026/0028 (ratified-note errata: annotate-by-hand vs standing-erratum), oq-0029→swept.
+
+## 2026-07-18 (session 27 END) — wrap-up: live-state check + forward plan + lessons
+
+- **Live-state check (owner asked whether Ouroboros is running):** it's **UP** (launchd
+  `com.mind-palace.palace` PID 78713 + vault + backup; KeepAlive) and very active (code-sensor stores
+  >2GB, 676 commits). The owner's "probably not running" was mistaken. BUT: **chat has NEVER been
+  ingested** (`data/chatlog.sqlite` absent — the bp-063 sensor never ran), and the **vault note-corpus is
+  still 13** files while the OBSERVED strata (code) are huge.
+- **Forward plan (owner, 2026-07-18):** (1) **run the chat sensor** to ingest the dialogue (first
+  action). (2) **continue the connectivity track** to build the **strata-access scope machinery** — a
+  privileged core reader / dreamer accesses the full strata (or a subset) WITHOUT widening MirrorView —
+  which unlocks the already-large observed-strata data for richer sweep/dreamer testing (the real answer
+  to oq-0031's 13-doc saturation). (3) diagnostic: why the mirror corpus is stuck at 13. Parallel:
+  seal-core cleanup (bp-068 factory secrets + bp-069+ the 16 reaches → green).
+- **Lessons learned (saved to memory):** [[structural-enforcement]] (a property is real only when a
+  ratchet proves it), [[ground-before-building]] (ground a facade/instrument against real out-of-scope
+  callers first; separate mechanical moves from trust-boundary changes), [[write-scope-quoting]]
+  strengthened. Process note: a greedy `resolution:` regex ate 4 findings' bodies mid-triage — restored
+  via `git checkout`, re-applied line-based (prefer line-based frontmatter edits).
+- Full resume handoff in `.claude/state/resume-brief.md`. Next finding 0105; next plan bp-068.

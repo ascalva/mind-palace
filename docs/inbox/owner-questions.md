@@ -914,4 +914,15 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 - default_if_unanswered: (B) — the connectivity-validation lane stays PARKED (instruments built, flags
   off, no harm), findings 0096/0097/0098 + oq-0024 park with it. Re-entry: the owner picks A/B/C, or the
   corpus crosses a scale where `golden_recall` de-saturates (the metrics regain range on their own).
+- update 2026-07-18 (owner steer + live-state check): the owner reframed this — the richer corpus
+  **already exists**, in the OBSERVED strata, not the 13 mirror notes. Live state: Ouroboros is UP
+  (launchd, very active — code_observations ~1GB, code_snapshots ~1.1GB, reference_edges ~200MB, 676
+  commits); but the VAULT note-corpus is still **13** files and **chat has NEVER been ingested**
+  (`data/chatlog.sqlite` absent — the bp-063 sensor never ran). So the path the owner wants is (roughly
+  a variant of A/C): **continue the connectivity track** to build the **scope/machinery for a privileged
+  core reader / dreamer to access the full strata (or a chosen subset) WITHOUT widening MirrorView's
+  scope** — that unlocks the already-large observed-strata data for the sweep/dreamer to test against,
+  rather than waiting on 13 notes. DIAGNOSTIC also owed: why the mirror note-corpus is stuck at 13 while
+  Ouroboros runs (owner expected more) — vault-sync not finding new notes, or none added? Verify next
+  session. This effectively supersedes the pure A/B/C fork; oq-0024 stays parked under it.
 - answer:
