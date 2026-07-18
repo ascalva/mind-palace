@@ -8,11 +8,11 @@ links:
   - ops/lifecycle/launcher.py                      # gate_cmd (:251) + start()/deploy() (:271, :388)
   - tests/unit/test_core_self_containment.py        # the red-by-design ratchet the gate now trips on
   - docs/build-plans/bp-066/plan.md                 # where the intentional red was introduced
-re_entry: owner decides the deploy-gate policy during the self-containment red period (options below)
+re_entry: DECIDED (owner 2026-07-18) — option A; implementation pending (a small deploy-gate change)
 ftype: direction
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: DECIDED — owner chose option A (2026-07-18): teach the deploy gate to DESELECT only the intentional ratchet test, so `palace deploy` enforces everything else and works throughout the cleanup, regaining full strength automatically when the test goes green. IMPLEMENTATION PENDING (a small change to `gate_cmd` in ops/lifecycle/launcher.py + a marker on the test, with a falsifier that a REAL regression still blocks the gate) — sequence it as a small plan (bp-069 candidate) or fold into the next ops-touching plan. Finding stays open until that lands.
 ---
 
 # The red-by-design ratchet BLOCKS `palace deploy` for the whole self-containment cleanup period

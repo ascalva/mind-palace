@@ -4595,3 +4595,28 @@ wrapper-absent `palace deploy`). Memory saved: [[palace-lifecycle-recovery]].
 **Standing:** chat still un-ingested at wrap (but #26 runs HEAD's chat sensor — should ingest next
 cycle; verify); pending-approval:1 in the gate (owner review); `drift/constitution: None` right after
 start (verify populated next session). Next finding 0107.
+
+## 2026-07-18 (session 27) — the game plan settled + bp-068 minted (chat-sensor wiring)
+
+Owner settled the forward build-plan ORDER (the "game plan"):
+1. **Track 1 — Chat (owner #1):** **bp-068 chat-sensor wiring** — MINTED `proposed`. The sensor
+   (bp-063) + clock (bp-064) exist but nothing invokes the sensor (no scheduler registration / entrypoint
+   — that's why chat has never ingested). bp-068 mirrors `scheduler/vault_sync.py` → `chat_sync.py`
+   (`CHAT_SYNC_KIND` + handler + enqueue + `build_chat_sensor`), wires it into the launcher, adds a
+   `palace ingest-chat` verb, and a `chat_transcripts_dir` config path. Est opus/100k. Awaits owner bless.
+2. **Track 2 — Connectivity strata-access (owner #2, the big lever):** a GRADUATE of the RATIFIED
+   `cross-strata-dreamer.md` + `capability-scope-algebra.md` → scope machinery so a privileged
+   reader/dreamer reads full/subset strata WITHOUT widening MirrorView. Unlocks the observed strata
+   (code ~1GB, chat) for the sweep/dreamer — the real answer to oq-0031's 13-doc saturation. ⚠️ overlaps
+   the seal-core inversions of sensing/ops_view/reference_view/spine — coordinate, don't invert blind.
+3. **Track 3 — Seal-core cleanup (parallel, ratchet 19→0):** factory secrets/Vault inversion (3 reaches,
+   security) + the 16 machinery inversions (non-overlapping ones anytime; the 4 strata-overlapping fold
+   into Track 2) + re-mint bp-061/062 against core/graph.
+
+**finding-0105 DECIDED — option A** (owner): teach the deploy gate to DESELECT only the intentional
+ratchet test, so `palace deploy` works throughout the cleanup + regains full strength when green.
+Implementation PENDING (small `gate_cmd` change + a marker + a falsifier; bp-069 candidate or folded).
+
+Findings open now: 0103 (19 reaches), 0096-0100 (connectivity, under oq-0031), 0105 (decided-A,
+impl pending), 0106/0107 (status/wrapper papercuts), 6 builder-owned. Next finding 0108; next plan
+bp-069.
