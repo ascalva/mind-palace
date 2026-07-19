@@ -13,7 +13,7 @@ re_entry: RESOLVED — owner blessed the verdict (2026-07-19, session-32) and th
 ftype: math
 origin_plan: bp-073
 route: orchestrator
-resolution: owner-blessed (2026-07-19, session-32). The oq-0031 verdict stands: the 13-doc saturation was INPUT-STARVATION (n=208 discriminates under E_sim alone); E_proven is a real second lever via σ*-uplift (+0.74 at σ=0.7), not loose-grid bridging; necessary-but-insufficient, refined. Findings 0096/0099/0100 resolved directly; 0097/0098 resolved root-cause (starvation), the optimizer-guard hardening left as a separate future finding if wanted. oq-0031 retired.
+resolution: owner-blessed (2026-07-19, session-32). The oq-0031 verdict stands: the 13-doc saturation was INPUT-STARVATION (n=208 discriminates under E_sim alone); E_proven is a real but SECONDARY lever via σ*-uplift (+0.74 at σ=0.7), not loose-grid bridging — sufficient to enrich connectivity, NOT necessary to break the saturation (node count was the primary cure). Findings 0096/0099/0100 resolved directly; 0097/0098 resolved root-cause (starvation), the optimizer-guard hardening left as a separate future finding if wanted. oq-0031 retired.
 ---
 
 # oq-0031 re-measured: the 13-doc saturation was INPUT-STARVATION; E_proven is a real second lever via σ*-uplift, NOT loose-grid bridging
@@ -73,9 +73,13 @@ Three findings, in order of weight:
    calibrated structural signal for a floor-connected corpus is **σ\*-uplift** (`n_sigma_uplifted` /
    the frac_connected curve), not the loose-grid component-bridge count.
 
-**Net:** the taxonomy's answer is **necessary-but-insufficient, refined** — E_proven genuinely enriches
-connectivity (σ*-uplift), but the dominant cure for the 13-doc saturation is node count. And the
-falsifier the note/plan named (loose-grid bridging) is the wrong instrument on a dense corpus; the
+**Net (precise wording — "necessary-but-insufficient" is too generous):** the taxonomy's answer had
+two halves. The **"not a better σ"** half is CONFIRMED — the fix is structural, not parametric. The
+**"E_proven is the fix"** half is REFINED: E_proven is a **real but SECONDARY lever** (σ*-uplift), NOT
+the primary cure and NOT strictly necessary — E_sim ALONE discriminates once the corpus is large
+enough (n=208). The dominant cure for the 13-doc saturation was **node count** (input-starvation).
+So E_proven is *sufficient to enrich* connectivity but *not necessary to break the saturation*. And
+the falsifier the note/plan named (loose-grid bridging) is the wrong instrument on a dense corpus; the
 right one is the σ*-uplift curve. No instrument was edited; no green was forced (`discriminates=False`
 stands, honestly, beside the strong σ*-uplift the curve records).
 
