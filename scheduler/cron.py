@@ -16,6 +16,7 @@ refinement if a pass ever grows long enough to want to yield mid-way.
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from core.curator import Curator
 from core.dreaming import Dreamer
@@ -24,7 +25,7 @@ from core.ingest.embed import Embedder
 from core.research.airlock import ResearchAirlock
 from core.research.criteria import ResearchCriteria
 from core.stores.vectorstore import VectorStore
-from scheduler.queue import Job, JobQueue
+from scheduler.queue import PRIORITY_BACKGROUND, Job, JobQueue
 from scheduler.research import (
     RESEARCH_KIND,
     criteria_from_request,
@@ -33,9 +34,13 @@ from scheduler.research import (
 )
 from scheduler.router import Router
 
+if TYPE_CHECKING:  # the projector is INJECTED into the handler — no runtime core.chat_events import
+    from core.chat_events import ChatEventProjector
+
 DREAM_KIND = "dream"
 CURATE_KIND = "curate"
 SHADOW_KIND = "shadow"
+CHAT_EVENTS_KIND = "chat_events"
 
 Handler = Callable[[Job], "str | None"]
 
@@ -88,6 +93,25 @@ def enqueue_shadow(queue: JobQueue, router: Router) -> Job:
 
 def enqueue_curate(queue: JobQueue, router: Router) -> Job:
     plan = router.plan(CURATE_KIND)         # -> synthesis tier, background priority
+    return queue.enqueue(plan.kind, plan.tier, plan.num_ctx, priority=plan.priority)
+
+
+# --- chat_events: the L1 action-log projector, wired as a pinned trough job (bp-069 Item 3) ------
+# The DELAYED rate of the dialogue sensor: WHAT was performed, in order — re-extracted from the raw
+# transcripts (turns + tool records) at housekeeping cadence, model-free. It is model-less
+# file work like `chat_sync`/`vault_sync`, so it pins (router._PINNED_KINDS) — pinning makes
+# `ensure_tier` a no-op and never evicts a worker slot — and runs at BACKGROUND priority.
+def chat_events_handler(projector: ChatEventProjector, *, max_per_pass: int) -> Handler:
+    def handle(_job: Job) -> str:
+        n = projector.project(max_sessions=max_per_pass)
+        return f"chat events: projected {n} session(s)"
+    return handle
+
+
+def enqueue_chat_events(queue: JobQueue, router: Router) -> Job:
+    """Enqueue one background L1 projection pass. `project()` is incremental (a session is skipped
+    when its transcript digest is unchanged) and idempotent, so duplicate jobs are harmless."""
+    plan = router.plan(CHAT_EVENTS_KIND, priority=PRIORITY_BACKGROUND)
     return queue.enqueue(plan.kind, plan.tier, plan.num_ctx, priority=plan.priority)
 
 

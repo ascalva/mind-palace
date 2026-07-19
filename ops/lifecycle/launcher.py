@@ -21,7 +21,7 @@ import shutil
 import signal
 import subprocess
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
@@ -132,7 +132,9 @@ class Components:
     """What `serve` drives. Injectable so tests exercise the lifecycle without models."""
 
     supervisor: SupervisorLike
-    watchers: list[WatcherLike]      # one per watched dir: vault + chat transcripts (bp-069)
+    # Sequence (covariant) so a concrete list[DirectoryWatcher] conforms; one per watched dir:
+    # the vault + the chat transcripts (bp-069). Only iterated (start/stop), never mutated.
+    watchers: Sequence[WatcherLike]
     queue: QueueLike
     enqueue_catchup: Callable[[], None] = lambda: None     # reconcile corpus on start
     enqueue_housekeeping: Callable[[], None] = lambda: None  # dream + curate pass
@@ -148,6 +150,7 @@ def build_components(cfg: Config) -> Components:
     """Wire the full daemon: vault_sync (+watcher), the delegating Ambassador inbox, the
     delegated-task worker, and the trough dream/curate handlers — all on one supervisor."""
     from agents.ambassador import build_ambassador
+    from core.chat_events import build_chat_event_projector
     from core.curator import build_curator
     from core.dreaming import build_dreamer
     from core.ingest.sync import build_vault_sync
@@ -166,7 +169,15 @@ def build_components(cfg: Config) -> Components:
         chat_sync_handler,
         enqueue_chat_sync,
     )
-    from scheduler.cron import cron_handlers, enqueue_curate, enqueue_dream, research_handler
+    from scheduler.cron import (
+        CHAT_EVENTS_KIND,
+        chat_events_handler,
+        cron_handlers,
+        enqueue_chat_events,
+        enqueue_curate,
+        enqueue_dream,
+        research_handler,
+    )
     from scheduler.interface import (
         AMBASSADOR_KIND,
         AMBASSADOR_TASK_KIND,
@@ -218,6 +229,11 @@ def build_components(cfg: Config) -> Components:
         # local Claude Code transcripts, same species as vault_sync. build_chat_sensor is bp-063's
         # (reused, not re-declared — finding-0108); the scheduler side is KIND + handler + enqueue.
         CHAT_SYNC_KIND: chat_sync_handler(build_chat_sensor(cfg)),
+        # The L1 action-log projector (bp-069 Item 3): the sensor's DELAYED rate, model-less like
+        # chat_sync. Re-extracts WHAT was performed (typed events, structural refs) from the raw
+        # transcripts at housekeeping cadence, incrementally by transcript_digest.
+        CHAT_EVENTS_KIND: chat_events_handler(build_chat_event_projector(cfg),
+                                              max_per_pass=cfg.chat.events_max_per_pass),
         AMBASSADOR_KIND: ambassador_inbox_handler(inbox),
         AMBASSADOR_TASK_KIND: ambassador_task_handler(task_librarian),
         RESEARCH_KIND: research_handler(airlock, task_librarian.embedder, task_librarian.store),
@@ -231,7 +247,8 @@ def build_components(cfg: Config) -> Components:
     def _housekeeping() -> None:
         enqueue_dream(queue, router)
         enqueue_curate(queue, router)
-        enqueue_chat_sync(queue, router)    # periodic chat ingest (new closed sessions, bp-068)
+        enqueue_chat_sync(queue, router)    # periodic chat ingest (growth-aware, bp-068/069)
+        enqueue_chat_events(queue, router)  # L1 action-log projection — the delayed rate (bp-069)
 
     def _catchup() -> None:
         enqueue_vault_sync(queue, router)   # reconcile the corpus; the Job return is discarded
@@ -664,6 +681,10 @@ class Launcher:
             # reset target; raw is sacred). bp-063 Q6 (parked to the orchestrator; launcher.py
             # was outside the builder's write_scope).
             p.data_dir / "chatlog.sqlite",
+            # The L1 action log is CORPUS-side too — the dialogue stratum's DERIVED layer (bp-069
+            # Item 3): wiped with the corpus and rebuilt by re-projection from the rawstore-backed
+            # chatlog (the raw archive is NOT a reset target). It holds only structural refs.
+            p.data_dir / "chat_events.sqlite",
         ]
         out: list[Path] = []
         for c in candidates:

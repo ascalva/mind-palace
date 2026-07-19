@@ -55,11 +55,19 @@ from pathlib import Path
 from typing import Any
 
 from config.loader import Config
+from core.agent_scope import sensor_scope
+from core.scope import Stratum
 from core.stores.chatlog import ChatlogStore, ChatUtterance, open_chatlog_store
 from core.stores.rawstore import RawStore
 
 # role → speaker (CS-3 metadata mapping). NEVER a provenance input (CS-2 firewall).
 _ROLE_TO_SPEAKER = {"user": "owner", "assistant": "agent"}
+
+# The dialogue sensor is BORN SCOPED (dn-agent-taxonomy §2.4, bp-070 D2): its declared scope is the
+# sensor region over the DIALOGUE stratum — `Σ = {DIALOGUE}↓`, `E = ⊥` (nodes, never edges), `W_Σ=1`
+# (projection-write its own stratum), `W_world = NONE`. Its handle inventory (chatlog, chat_events,
+# rawstore, transcripts — all DIALOGUE_TRANSCRIPT) conforms (tests/unit/test_chat_events.py).
+DIALOGUE_SENSOR_SCOPE = sensor_scope(Stratum.DIALOGUE)
 
 # The block types the extractor knows (Q1). Extraction is an ALLOW-LIST — only `text` is
 # kept; `thinking`/`tool_use`/`tool_result` are stripped structurally, and any NEW block type

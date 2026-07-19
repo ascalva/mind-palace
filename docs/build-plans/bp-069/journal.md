@@ -129,4 +129,28 @@ ruff clean on all new lines (4 pre-existing E501 in launcher.py gate_cmd + test_
 finding-0105 debt, line-shifted, NOT mine — pytest node-id string, unsplittable). mypy clean.
 Config ratchet STAYS 19 (`[chat]` is plain fields, no core.config first-party import).
 
-### Item 3 NEXT — L1 action log (`core/chat_events.py` + store, cron job) + the born scope + conformance
+### Item 3 DONE — L1 action log + the born scope + conformance
+**New:** `core/stores/chat_events.py` — `ChatEventStore` (table `(session_id, ord)` + `chat_event_digests`
+sidecar for incrementality; `replace_session` wipes+rewrites a session's log atomically; NO content
+column — structural refs only, structurally). `core/chat_events.py` — `ChatEvent` + `extract_events`
+(pure, model-free: reads the FULL raw JSONL — turns + tool records L0 strips; torn-line tolerant; a
+two-pass parse collects tool_use_id→result so a `git commit` resolves its sha from the result bracket;
+file-writes classified by path into build_plan/finding/design_note/file_edit; unknown tool → fail-open
+`tool_use(name)`; `order` dense per session, `turn_index` mirrors L0's text-turn counter as the
+projection-fiber backpointer) + `ChatEventProjector.project(max_sessions)` (re-extracts iff the
+session's latest `transcript_digest` changed; replace-per-session) + `build_chat_event_projector`.
+`ops/chat_sensor.py` — `DIALOGUE_SENSOR_SCOPE = sensor_scope(Stratum.DIALOGUE)` (born scoped).
+**Wired:** `scheduler/cron.py` — `CHAT_EVENTS_KIND` + `chat_events_handler` + `enqueue_chat_events`
+(pinned, BACKGROUND — the delayed rate). `scheduler/router.py` — chat_events already in `_PINNED_KINDS`
+(Item 2). `ops/lifecycle/launcher.py` — handler registered, `_housekeeping` enqueues it,
+`reset_targets()` += `chat_events.sqlite`; `Components.watchers: Sequence[WatcherLike]` (covariant, so
+`list[DirectoryWatcher]` conforms — mypy).
+**Tests:** `tests/unit/test_chat_events.py` (10): exact ordered typed sequence (prompt→response→
+commit(sha)→file_edit(path)→build_plan(id)), unknown→tool_use, finding/design_note typing, torn-line,
+project extract/skip-unchanged/re-extract-grown, max_per_pass cap, chat_events→pinned tier, **the D2
+conformance: sensor handles ⊑ DIALOGUE_SENSOR_SCOPE + a smuggled stratum/edge-fiber handle REJECTED**.
+**Full deterministic suite: 1584 passed / 4 skipped / only the ratchet red (19).** ruff+mypy clean.
+**LIVE projection over real transcripts** (`build_chat_event_projector().project(max_sessions=5)`):
+482 events across 5 sessions — rich typed logs (a build session: 11 commit / 24 build_plan / 57
+file_edit / 1 finding; a design session: 8 design_note / 4 commit), structural refs (`bp-027`,`bp-037`),
+no crash on real shapes. The extractor is validated end-to-end.
