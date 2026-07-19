@@ -148,13 +148,40 @@ def scan_docket(root: Path) -> list[DocketRow]:
     return sorted(rows, key=lambda r: r.sort_key)
 
 
+# Redundant H1 prefixes ("Design note — ", "Build Plan — ") are display noise once the
+# item sits under a grouped section header — stripped at render time only (rows keep
+# the raw title).
+_TITLE_PREFIX = re.compile(r"^(?:Design note|Build Plan)\s*—\s*", re.IGNORECASE)
+
+
+def _n(count: int, word: str) -> str:
+    return f"{count} {word}{'' if count == 1 else 's'}"
+
+
 def render(rows: list[DocketRow]) -> str:
+    """Grouped by owner action (the section IS the action, so item lines stay short):
+    blocking answers -> bless -> ratify -> answer, mirroring the class sort ranks."""
     if not rows:
         return "# Docket — nothing awaits the owner. Inbox zero.\n"
-    out = [f"# Docket — {len(rows)} awaiting the owner", ""]
-    for r in rows:
-        out.append(f"- `{r.id}`  [{r.action}]  {r.title}")
-        out.append(f"    {r.path}")
+    blocking = [r for r in rows if r.kind == "oq" and "BLOCKING" in r.action]
+    plans = [r for r in rows if r.kind == "plan"]
+    notes = [r for r in rows if r.kind == "note"]
+    oqs = [r for r in rows if r.kind == "oq" and "BLOCKING" not in r.action]
+
+    out = [f"# Docket — {len(rows)} awaiting the owner"]
+
+    def section(header: str, items: list[DocketRow]) -> None:
+        if not items:
+            return
+        out.extend(["", header, ""])
+        for r in items:
+            out.append(f"- `{r.id}` — {_TITLE_PREFIX.sub('', r.title)}")
+            out.append(f"    {r.path}")
+
+    section(f"## ⚑ Blocking — {_n(len(blocking), 'answer')} needed NOW", blocking)
+    section(f"## Bless — {_n(len(plans), 'plan')} proposed→ready  (`palace bless <id>`)", plans)
+    section(f"## Ratify — {_n(len(notes), 'draft note')}  (or leave working)", notes)
+    section(f"## Answer — {_n(len(oqs), 'open question')}", oqs)
     out.append("")
     out.append("_A derived view — recomputed from the artifact tree, never hand-maintained._")
     out.append("_Guide, not gate: it points; the owner acts (bless, ratify, answer)._")

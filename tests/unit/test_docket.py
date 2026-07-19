@@ -110,6 +110,26 @@ def test_write_mode_emits_the_landing_buffer(tmp_path, monkeypatch, capsys):
     assert "Guide, not gate" in body
 
 
+def test_render_groups_by_action(tmp_path):
+    """The render groups items under action section headers (grouped docket,
+    session-36): section order mirrors the class ranks, counts live in the
+    headers, and the old per-line action tag is gone from item lines."""
+    _fixture_tree(tmp_path)
+    body = docket.render(docket.scan_docket(tmp_path))
+    i_block = body.index("## ⚑ Blocking")
+    i_bless = body.index("## Bless")
+    i_ratify = body.index("## Ratify")
+    i_answer = body.index("## Answer")
+    assert i_block < i_bless < i_ratify < i_answer
+    assert "1 answer needed NOW" in body
+    assert "2 plans proposed→ready" in body
+    assert "1 draft note" in body
+    assert "1 open question" in body
+    # the repeated per-line tag is dead; the section carries the action now
+    assert "[ratify (or leave working)]" not in body
+    assert "[bless proposed->ready]" not in body
+
+
 def test_empty_tree_is_inbox_zero(tmp_path):
     (tmp_path / "docs" / "build-plans").mkdir(parents=True)
     rows = docket.scan_docket(tmp_path)
