@@ -58,8 +58,11 @@ apply_settings() {
 
 build() {
   # desk: docket (regenerated) open in vim, left; a claude session, right.
+  # The docket nvim ships <leader>dr (docket-refresh: regenerate + re-open) via -c at
+  # launch — session-owned like the tmux settings, no dotfile touched; the same map is
+  # offered as a dotfiles snippet in docs/supplemental/cockpit.md for adoption by hand.
   run tmux new-session -d -s "$SESSION" -c "$ROOT" -n desk
-  run tmux send-keys -t "$SESSION:desk" "uv run scripts/docket.py --write && nvim .claude/state/docket.md" Enter
+  run tmux send-keys -t "$SESSION:desk" "uv run scripts/docket.py --write && nvim -c 'nnoremap <leader>dr :silent !uv run scripts/docket.py --write<CR>:e .claude/state/docket.md<CR>' .claude/state/docket.md" Enter
   run tmux split-window -h -t "$SESSION:desk" -c "$ROOT"
   # Pin the reading-room session to the router default (opus-medium, auto mode) so it always
   # opens at the confirmed tier AND effort AND permission mode regardless of what a prior

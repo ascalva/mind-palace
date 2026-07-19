@@ -60,6 +60,15 @@ vim.api.nvim_create_user_command("PalaceRead", function(opts)
   end
 end, { nargs = 1, desc = "load a seal's read map into quickfix" })
 
+-- Docket refresh: regenerate the derived view and (re-)open it, one keystroke.
+-- The cockpit's own docket nvim already ships this map (cockpit.sh passes it via -c
+-- at launch — session-owned, like the tmux settings). Adopt here only if you want
+-- the same keystroke in every nvim you open at the repo, not just the cockpit's.
+vim.keymap.set("n", "<leader>dr", function()
+  vim.cmd("silent !uv run scripts/docket.py --write")
+  vim.cmd("edit .claude/state/docket.md")
+end, { desc = "refresh + open the docket" })
+
 -- Suggested plugins (a toolchain, not a requirement):
 --   render-markdown.nvim  -- the docket & journals render as prose, not raw markdown
 --   diffview.nvim         -- :DiffviewOpen — the FULL diff, always one command away (guide-not-gate)
