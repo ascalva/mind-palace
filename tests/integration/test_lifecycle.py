@@ -370,3 +370,39 @@ def test_deploy_fails_when_successor_is_recovery(tmp_path, live_run, monkeypatch
 
     launcher.stop = fake_stop
     assert launcher.deploy() == 1                    # loud failure, not a silent recovery
+
+
+# --- the deploy gate deselects ONLY the intentional-red ratchet (finding-0105) --------------------
+import subprocess as _subprocess  # noqa: E402
+import sys as _sys  # noqa: E402
+
+_RATCHET_NODE = "tests/unit/test_core_self_containment.py::test_core_imports_nothing_outside_core"
+
+
+def test_gate_deselects_only_the_intentional_ratchet():
+    """finding-0105 (owner decision A): the deploy gate neutralizes EXACTLY the one intentional-red
+    ratchet test — no more, no less — so it stays green through the self-containment cleanup yet a
+    REAL regression still refuses the deploy.
+
+    Falsifier, two halves:
+      (1) STRUCTURAL — the default ``gate_cmd`` carries a single ``--deselect`` and it names the
+          ratchet node. So nothing ELSE is deselected: the scanner guards in that same file, and
+          every other deterministic test, remain live in the gate (a real regression still blocks —
+          proven for the gate mechanics by ``test_deploy_refuses_red_gate`` above).
+      (2) BEHAVIOURAL — running the real self-containment file WITH exactly that deselect is GREEN.
+          This is a stable invariant across the ratchet's life: the deselected node's own colour
+          never matters, so a green result means the un-deselected guards actually ran and passed.
+          Were a guard to regress, this file would go red under the same selection and the gate would
+          refuse — which is the whole point of keeping the deselect surgical.
+    """
+    gate = Launcher.__dataclass_fields__["gate_cmd"].default
+    assert gate.count("--deselect") == 1
+    assert gate[gate.index("--deselect") + 1] == _RATCHET_NODE
+
+    repo_root = Path(__file__).resolve().parents[2]
+    green = _subprocess.run(
+        [_sys.executable, "-m", "pytest", "-q",
+         "tests/unit/test_core_self_containment.py", "--deselect", _RATCHET_NODE],
+        cwd=repo_root, capture_output=True, text=True,
+    )
+    assert green.returncode == 0, green.stdout + green.stderr

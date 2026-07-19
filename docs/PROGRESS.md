@@ -4788,3 +4788,24 @@ fixes the parked defaults: fiber letter C, DIALOGUE placement). 2) BLESS bp-070 
 /build starts Phase Α. 3) BLESS bp-069 (now or after Α seals — depends_on enforces order either way).
 bp-071 stays proposed until after Β (Item 0 re-ground), bless then. Parallel owner gates any time:
 push (~30 commits) + finding-0105 impl + `palace deploy`.
+
+---
+
+## 2026-07-18 (session 29, OPUS) — ops leg: finding-0105 landed (deploy gate unblocked)
+
+**Built** (owner said "do both, ops leg first, then bp-070"). Decided-A impl for finding-0105:
+`Launcher.gate_cmd` (`ops/lifecycle/launcher.py:259`) now carries a surgical
+`--deselect tests/unit/test_core_self_containment.py::test_core_imports_nothing_outside_core`, so the
+deploy gate enforces the whole deterministic suite EXCEPT the one intentional-red ratchet — and
+regains full strength automatically when the cleanup reaches zero. Not `--skip-tests` (blunt, drops
+the whole gate); not an xfail/skip on the test (would weaken the ratchet in the full suite too).
+
+**Verified.** Falsifier `test_gate_deselects_only_the_intentional_ratchet`
+(`tests/integration/test_lifecycle.py`): (1) structural — exactly one `--deselect`, naming the
+ratchet node, so the scanner guards + every other test stay live in the gate; (2) behavioural —
+the real self-containment file runs GREEN under that deselect (guards actually ran & passed; a guard
+regression would flip it red and refuse the deploy). `pytest -k "deploy or ratchet"`: 9 passed.
+Ratchet untouched, still red at 19 in the full suite. finding-0105 → **resolved**.
+
+**Next.** `palace deploy` is now owner-runnable to promote the daemon onto HEAD (owner gate — chat
+sensing runs continuously once landed). Then the diamond lead: `/build bp-070` (Phase Α).

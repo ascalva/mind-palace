@@ -256,8 +256,18 @@ class Launcher:
     on_shutdown: Callable[[bool], None] | None = None   # ASG-style lifecycle hook (e.g. snapshot)
     # deploy (the promotion gate): the ratchet command, the successor-wait budget, and the
     # launchd label — all injectable for tests.
-    gate_cmd: tuple[str, ...] = ("uv", "run", "pytest", "-q", "-m",
-                                 "not live and not podman and not needs_vault and not needs_restic")
+    gate_cmd: tuple[str, ...] = (
+        "uv", "run", "pytest", "-q",
+        "-m", "not live and not podman and not needs_vault and not needs_restic",
+        # finding-0105 (owner decision A, 2026-07-18): deselect ONLY the one intentional-red ratchet
+        # (test_core_self_containment) so the deploy gate enforces everything else throughout the
+        # self-containment cleanup and regains full strength automatically when the ratchet reaches
+        # zero (the node stops existing / the assertion goes green either way). This is surgical, not
+        # blunt: --skip-tests drops the WHOLE gate, and an xfail/skip on the test would weaken the
+        # ratchet in the full suite too. The other tests in that file (the scanner guards) still run,
+        # so a REAL scanner/import regression still blocks the gate.
+        "--deselect", "tests/unit/test_core_self_containment.py::test_core_imports_nothing_outside_core",
+    )
     # remote half of the gate + release-on-deploy (ops/ci_witness.py). Subprocesses, not
     # imports: the witness talks to api.github.com and must stay outside this sealed process.
     ci_check_cmd: tuple[str, ...] | None = ("uv", "run", "scripts/ci_witness.py", "check")

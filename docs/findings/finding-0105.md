@@ -1,14 +1,14 @@
 ---
 type: finding
 id: finding-0105
-status: open
+status: resolved
 created: 2026-07-18
 updated: 2026-07-18
 links:
   - ops/lifecycle/launcher.py                      # gate_cmd (:251) + start()/deploy() (:271, :388)
   - tests/unit/test_core_self_containment.py        # the red-by-design ratchet the gate now trips on
   - docs/build-plans/bp-066/plan.md                 # where the intentional red was introduced
-re_entry: DECIDED (owner 2026-07-18) — option A; implementation pending (a small deploy-gate change)
+re_entry: RESOLVED (2026-07-18, session-29) — option A landed: gate_cmd now `--deselect`s the one intentional-red node (ops/lifecycle/launcher.py:259) with a surgical-scope + behavioural falsifier (tests/integration/test_lifecycle.py::test_gate_deselects_only_the_intentional_ratchet). The gate enforces everything else through the cleanup and regains full strength automatically when the ratchet reaches zero. `palace deploy` (owner-run) is now unblocked.
 ftype: direction
 origin_plan: orchestrator
 route: orchestrator
