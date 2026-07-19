@@ -112,5 +112,69 @@ deps by default — run the gate legs with `uv run --extra dev …` (pytest/ruff
 mypy live in the `dev` optional-dependency group). The main checkout's `.venv`
 already carries them.
 
-Acceptance (Item 2): met. Committed alongside. Next: Item 3 (A9 text + seal
+Acceptance (Item 2): met. Committed `40ffe25`. Next: Item 3 (A9 text + seal
 warning), then the full attestable-green gate.
+
+### Item 3 — amendment A9 text (OWNER-APPLIED) + seal warning — DONE
+
+A8 binds: the builder never edits `agent-workflow.md` (ratified, immutable).
+The exact text below is EMITTED for the owner to apply and commit by hand. The
+orchestrator can load the fenced block into the paste buffer unmodified. Every
+claim matches the landed clause (e) line-for-line (verified against
+`_lib.py:cmd_stop_audit` as committed in `5e816e6`).
+
+**Append to `agent-workflow.md` §16 (Amendment log):**
+
+```markdown
+- **A9** — warrant: dn-session-handoff-gate (ratified `87a3d90`; implemented by
+  bp-074). Adds Stop-audit clause **(e)**, the session-handoff gate. In
+  orchestrator posture only (`plan is None`), `cmd_stop_audit` blocks session
+  close when commits landed THIS session but the resume brief is stale or
+  missing. The commits-this-session guard READS `.claude/state/session-baseline`:
+  current HEAD (`git log -1 --format=%H`) is compared to the baseline's content,
+  and a mismatch means the session committed. Freshness compares
+  `mtime(.claude/state/resume-brief.md)` to the **last-commit time**
+  (`git log -1 --format=%ct`) — the same test clause (a) uses for the journal,
+  NOT the baseline's mtime; a missing brief is infinitely stale (blocks whenever
+  commits happened). Fail-open on a missing/unreadable baseline (the signal
+  cannot be evaluated, so no block). This CORRECTS §6c's closing sentence
+  (":151", "`session-baseline` survives only for the SessionStart brief's
+  narration; enforcement does not read it"): enforcement now reads it — clause
+  (e) is its second consumer, scoped to orchestrator posture. Clause (c) still
+  does not read it (it diffs against HEAD). The §6 journal-gate table row (":143")
+  enumeration extends to (a)–(e); per the A1–A8 precedent the amendment log
+  carries the change rather than rewriting the row in place. No new machinery:
+  `session-brief.sh:52` already writes the baseline each SessionStart, and (e)
+  adds no git subprocess (the (a) last-commit fetch is hoisted to `--format=%H
+  %ct` and shared). Builder sessions are unaffected — they carry an active plan
+  and their handoff artifact is the journal, governed by (a).
+```
+
+**Corrected §6c sentence at `:151` (owner replaces the false claim):**
+
+```markdown
+`session-baseline` is read by Stop-audit clause (e) — the session-handoff gate
+(A9) — as its commits-this-session guard in orchestrator posture; enforcement's
+other paths do not read it (clause (c) diffs against HEAD).
+```
+
+(Per plan §4 the owner may instead leave the `:143`/`:151` body untouched and let
+the A9 log entry carry the record; the sentence above is offered because the
+current `:151` wording is now factually false. Owner's call at apply time.)
+
+### §3 seal-session WARNING (for the sealing orchestrator)
+
+**After (e) lands, the next orchestrator close after ANY commit will BLOCK until
+a fresh `.claude/state/resume-brief.md` exists — including bp-074's OWN seal
+session.** This is the designed behavior, not a regression. The build session
+you are reading was a delegated builder (it carried an active plan, so (e) was
+silent for it). But the orchestrator that merges this branch and seals bp-074
+will commit the merge/seal, then hit its own Stop gate with no active plan → (e)
+fires. To close cleanly: write the resume brief (context-economy skill's
+resume-brief shape) citing the final commit hashes AFTER the last seal commit,
+then close again. The block reason itself instructs this.
+
+Acceptance (Item 3): met — the A9 block is fenced, headed `A9 —`, and its claims
+match the landed code (baseline content = commits guard; brief mtime vs
+last-commit `%ct`; orchestrator-posture scope; fail-open on missing baseline).
+Falsifier avoided: A9 does NOT claim a baseline-mtime comparison.
