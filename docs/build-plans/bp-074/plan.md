@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-074
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/session-handoff-gate.md
 contract: builder
@@ -14,7 +14,15 @@ cost:
   estimate:
     model: opus
     tokens: 120k
-  actual: null
+  actual:
+    model: opus            # claude-opus-4-8[1m] — usage-accounting corroborated, no downgrade
+    tokens: 115k           # 114916 measured; ratio 0.96× (well-pinned plan)
+    tool_calls: 47
+    duration_min: 24
+    ratio: 0.96
+    net_loc: "+265"        # 282 insertions / 17 deletions across the 3 code files
+    tests_added: 6         # tests/integration/test_handoff_gate.py; enforcement surface 14/14
+    green_gate: all-green  # ruff · mypy(228) · mypy-argless(69) · type_gate · pytest(1652p/7s/21desel)
 depends_on: []
 parallelizable_with: []
 created: 2026-07-19
