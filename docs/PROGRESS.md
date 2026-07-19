@@ -4860,3 +4860,37 @@ no crash. ruff+mypy clean (mine; 4 pre-existing E501 in launcher gate_cmd are fi
 Committed all three. **Next:** owner `palace deploy` (unblocked) to put the daemon on HEAD for
 continuous sensing; then Phase Γ = bp-071 (integrator, proposed — Item 0 re-grounds against the landed
 L1 schema, then owner bless). Δ mints at Γ-seal. Parallel papercut: the owner-cockpit plan.
+
+---
+
+### bp-071 — Phase Γ: the first full integrator (chat↔code↔doc proven edges) — COMPLETE (2026-07-19)
+
+**Status:** COMPLETE (sealed session-31, OPUS; budget was 2, done in one). Graduates
+`dn-agent-taxonomy` §2.5 — the first full **integrator** role: deterministic, model-free,
+multi-strata read, edges-only write. Resolves the L1 action log's references into witnessed
+C-fiber proven edges.
+
+**Item 0 — re-ground vs landed Β** (`e1d4741`, finding-0111, spec-fidelity/builder-resolved):
+three divergences from the provisional plan — (1) the commit ledger stores the FULL TREE
+(`git ls-tree -r`), not the diff, so a commit's changed file set is unresolvable → file/doc
+endpoints come DIRECTLY from L1 write events (proven), the ledger resolves commit existence +
+full-sha only; no fan-out (would be an inferred edge). (2) the L1 commit ref is ABBREVIATED →
+prefix-match; 0/>1/empty NAMED (unknown/ambiguous/unparsed-sha). (3) v1 mints C only (no read/cite
+endpoint survives L1; F declared-but-unfed). Decisions: sibling `causal_edges.sqlite` (not extend
+`reference_edges`); `CausalEdge.pair_cut_sha`; commit→file composition is Δ's `ComposedGraph` job.
+
+**Items 1–2** (`d7c9112`): `core/stores/causal_edges.py` (witness-keyed, replace-per-session-digest
+store) + `core/integrator.py` (`INTEGRATOR_SCOPE`, `Integrator`, `IntegrationReport`, `coverage_gauge`).
+Born scoped (`build_integrator` asserts conformance). Core stays self-contained — the ledger is read
+via a direct `sqlite3.connect`, NOT an `ops` import (ratchet holds 19). Wired as a pinned, model-less
+trough job (`INTEGRATE_KIND` in cron + `router._PINNED_KINDS`; launcher handler + housekeeping enqueue
++ `causal_edges.sqlite` reset target; `ChatConfig.integrate_max_per_pass`). Instruments: the standing
+C-coverage gauge + the per-pass resolution-parity gauge (`is_fully_accounted`).
+
+**Verified:** full suite **1629 passed / 8 skipped / 1 failed** (the intentional ratchet @ 19) —
+green-except-the-ratchet, ratchet held. ruff + mypy clean (0 net; the 69 mypy baseline unchanged).
+LIVE smoke over the real corpus: **1599 C-edges**, commit_events=152 (31 resolved; 121 NAMED
+unresolved), coverage **93%**, `fully_accounted=True` (0 silent drops). **Next:** Δ = **bp-073**
+(re-measure oq-0031 saturation over D3's `ComposedGraph`, which composes these C-edges with the
+existing commit→file edges) mints at this seal. Parallel papercut: **bp-072** (owner-cockpit).
+Owner `palace deploy` still puts the daemon on HEAD for continuous sensing + integration.

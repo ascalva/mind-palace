@@ -90,3 +90,37 @@ the behavior is correct.
 + parity gauge) green; targeted set (wiring+cron+lifecycle+item1+config+chat_events) all green;
 ruff + mypy clean across all changed files; ratchet confirmed still 19. Full suite running (Item-1
 state was 1624p/8s/1-ratchet). Next: seal (Item 2 done → all items complete).
+
+## 2026-07-19 (session-31, OPUS) — SEALED. Phase Γ complete: the first full integrator (Items 0–2)
+All three items done in ONE OPUS session (budget was 2). Full suite **1629 passed / 8 skipped / 1
+failed** (the intentional self-containment ratchet @ 19) — green-except-the-ratchet, ratchet held.
+ruff + mypy clean (0 net mypy — the 69 baseline unchanged). Two commits: `e1d4741` (Item 0
+re-ground + finding-0111) + `d7c9112` (the integrator: store/resolver/wiring/instruments). Live
+smoke over the real corpus: 1599 C-edges, coverage 93%, fully_accounted=True (0 silent drops).
+
+### READ MAP (the ~20% of the diff that carries the concept — read these, skip the rest)
+1. **The witness law made concrete** — `core/integrator.py:_resolve_session` (the two-species
+   resolver: commit→ledger-prefix vs write→direct) + `_resolve_commit` (prefix match; unresolvable
+   NAMED). This is finding-0111's whole redesign in ~40 lines: each edge is the image of ONE L1
+   tool record, never a fan-out.
+2. **The edge shape + pair-cut** — `core/stores/causal_edges.py:CausalEdge` (fields) +
+   `_edge_id` (witness-keyed identity). `pair_cut_sha` is the (digest, sha) cut riding every commit
+   edge; "" for working-tree writes.
+3. **Born scoped** — `core/integrator.py:INTEGRATOR_SCOPE` + `Integrator.handle_inventory` +
+   `build_integrator`'s `assert_conforms` call. The conformance seam (D2) in one place.
+4. **The instruments** — `core/integrator.py:IntegrationReport.is_fully_accounted`/`coverage` (the
+   parity + C-coverage gauges) + `coverage_gauge` (the standing view).
+5. **Core-self-containment discipline** — `build_integrator`'s comment + direct `sqlite3.connect`
+   (why the ledger is NOT an `ops` import; ratchet 19).
+6. **The wiring pattern** — `scheduler/cron.py:integrate_handler`/`enqueue_integrate` +
+   `ops/lifecycle/launcher.py` (handler + `_housekeeping` enqueue + reset target). Mirrors
+   `chat_events` exactly.
+7. **The re-ground record** — `docs/findings/finding-0111.md` (the three divergences + the
+   extend-vs-sibling decision) — the design story behind all of the above.
+
+### Cost
+- estimate: opus, 180k tokens. actual: FILLED at seal (owner /usage relay) — see plan front-matter.
+
+### Downstream (unchanged by the build)
+Δ (bp-073) re-measures oq-0031 saturation over D3's `ComposedGraph`, which composes these C-edges
+(action→commit) with the existing commit→file edges. bp-072 (owner-cockpit) still a parallel papercut.

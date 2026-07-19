@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0111
-status: open
+status: resolved
 created: 2026-07-19
 updated: 2026-07-19
 links:

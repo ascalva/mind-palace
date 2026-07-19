@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-071
 alias: chat-code-doc-integrator
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/agent-taxonomy.md            # dn-agent-taxonomy §2.5 (the integrator charter) + §3 Phase Γ
   - docs/findings/finding-0109.md                  # the proven-edge rationale (layer 2 = WHERE it happened)
@@ -23,7 +23,15 @@ cost:
   estimate:
     model: opus
     tokens: 180k
-  actual: null
+  actual:
+    model: opus
+    sessions: 1                      # single OPUS session (session-31); budget was 2 — under
+    tokens: 122.5k                   # output (owner /usage relay); vs 180k estimate → ratio 0.68x
+    ratio: 0.68x                     # actual/estimate output; the Item-0 re-ground added the extra
+    dollars: 19.30                   # this session's opus spend (owner /usage relay)
+    session_delta: +9%               # session window 11% → 20% (owner /usage relay)
+    week_delta: +1%                  # week all-models 17% → 18% (the gate figure); Fable 14%→14% (0, all OPUS)
+    landed: 3/3 items; full suite 1629p/8s/1f (intentional ratchet); ratchet held 19
 depends_on: [bp-069, bp-070]
 parallelizable_with: []
 supersedes: null
