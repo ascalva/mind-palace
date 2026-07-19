@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0099
-status: routed
+status: resolved
 created: 2026-07-17
 updated: 2026-07-17
 links:
@@ -11,6 +11,7 @@ links:
 ftype: math
 origin_plan: graph-at-a-past-cut design pass (Fable/xhigh, 2026-07-17)
 route: orchestrator
+resolution: RESOLVED by finding-0113 (bp-073 Δ, owner-blessed 2026-07-19). The CN-3 connectivity statement was exercised on the real composed graph over 208 nodes: the σ*/conductance instruments discriminate strongly (frac_connected sweeps 1.0→0.004), and the σ*-uplift under E_proven confirms the multiscale reading is non-degenerate at adequate corpus scale. The refinement this finding named is validated by measurement.
 ---
 
 # CN-3's "a conductance rise requires new edges" is the unweighted shadow — under the CN-4 weighted measure the exact law is edge-WEIGHT monotonicity, and the attribution set includes edits

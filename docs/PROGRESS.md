@@ -4894,3 +4894,37 @@ unresolved), coverage **93%**, `fully_accounted=True` (0 silent drops). **Next:*
 (re-measure oq-0031 saturation over D3's `ComposedGraph`, which composes these C-edges with the
 existing commit→file edges) mints at this seal. Parallel papercut: **bp-072** (owner-cockpit).
 Owner `palace deploy` still puts the daemon on HEAD for continuous sensing + integration.
+
+### bp-073 — Phase Δ: connectivity re-measure (the oq-0031 payoff) — COMPLETE (2026-07-19)
+
+Graduates `dn-agent-taxonomy` §3 Phase Δ — the payoff of the Β→Γ→Δ arc. Assembles the composed graph
+`{dialogue-artifact docs} × {E_sim ∪ E_proven}` and feeds it UNCHANGED to the ratified σ*/conductance
+math to answer oq-0031. **Eval-side, model-free, NO core edit — ratchet held 19.**
+
+**Item 0 — grounding** (`739ecd7`, finding-0112 spec-fidelity/builder-resolved + one owner ruling):
+the mirror vectorstore holds only 17 janus_notes, which carry NO C-edges → E_proven is inert over the
+mirror. The C-edge-bearing docs (208 of 266) are a disjoint, UNEMBEDDED corpus the mirror firewall
+refuses. **Owner ruled A**: embed the dialogue-artifact corpus eval-side (ephemeral, read-only). Q2
+(C-edge→node-pair) resolved as **shared-witness co-production** (no commit→file fan-out — finding-0111's
+falsifier; no §10 stop). Q4 criterion PINNED before measuring.
+
+**Items 1–2 + 2b** (`6741fcf`): `eval/harness/re_measure.py` — `assemble_composed_graph` (pure/injected:
+E_sim = doc cosine ≥ min(grid), reuses `core.dreaming.cluster`; E_proven = witnessed co-production,
+fail-loud on a witnessless edge) → `compose()` via `cast(MirrorGraph)`; `re_measure_oq0031` (E_sim-only
+vs full, `sigma_star` over BOTH, attributes the delta; `frac_connected_by_sigma` + `n_sigma_uplifted` +
+`proven_bridges`); live read-only loaders (`open_causal_edges_ro` mode=ro, `embed_docs` ephemeral). 14
+tests. **Item 2b: every corpus handle read-only — a write raises `readonly`; Δ is daemon-safe.**
+
+**LIVE VERDICT** (208 docs, 3700 C-edges → 1068 proven edges, 21528 pairs; finding-0113, owner-blessed):
+the 13-doc saturation was **INPUT-STARVATION, not a real ceiling** — at n=208 the connectivity gauge
+already discriminates under E_sim alone (frac_connected 1.0→0.004). **E_proven is a real second lever
+via σ\*-uplift** (+0.74 at σ=0.7), NOT loose-grid bridging — the pinned bridge-criterion is vacuous on a
+corpus E_sim connects at the floor (a measurement-calibration lesson). **Necessary-but-insufficient,
+refined.** Honest, not forced (`discriminates=False` stands beside the strong σ*-uplift).
+
+**Findings 0096/0099/0100 RESOLVED** directly by finding-0113; **0097/0098** resolved root-cause
+(starvation — optimizer-guard hardening left as a separate future finding); **oq-0031 RETIRED**;
+**oq-0024** (σ re-tune) UN-blocked. **Verified:** ratchet held 19; 91 graph/eval + 14 re_measure tests
+green; ruff clean. Cost: 179.8k output (0.90×), $21.03 opus, week 19%→20%. **Next:** bp-072
+(owner-cockpit, reserved); a fresh σ-sweep on the 208-doc corpus (oq-0024); or deepen Track H.
+Diagnostic owed (why the mirror is stuck at 13 notes) — separate open thread.

@@ -171,9 +171,11 @@ quantification. **Ratchet confirmed 19 (unchanged); 91 graph/eval tests + 14 re_
 ruff clean.** Remaining: commit (feat re_measure / finding / seal); push; CI green; seal.
 
 ### SESSION PAUSE (2026-07-19, session-32) — build COMPLETE + committed locally; awaiting owner
-All three items done. Two commits landed on `main` (local, NOT pushed): `6741fcf` feat (re_measure.py
-+ test_re_measure.py) · `739ecd7` finding-0112/0113 + journal + plan(status→in-progress). Tree clean
-except this pause note. **Held the push deliberately** — the oq-0031 verdict (finding-0113) is the
+All three items done. THREE commits landed on `main` (local, NOT pushed): `6741fcf` feat (re_measure.py
++ test_re_measure.py) · `739ecd7` finding-0112/0113 + journal + plan(status→in-progress) · `b996479`
+checkpoint (this pause note). This trailing checkpoint edit is left UNCOMMITTED by design (the
+journal-gate wants a journal fresher than the last commit at close; the fresh-agent content is already
+committed at `b996479`). **Held the push deliberately** — the oq-0031 verdict (finding-0113) is the
 arc's payoff + an OWNER-ROUTED math finding, presented to Alberto for engagement before it goes to
 CI/main. **PARKED on owner (re-entry conditions):**
 1. `/usage` relay to fill `cost.actual` (well-pinned build, ~0.5× territory expected).
@@ -188,3 +190,19 @@ permits it); final journal seal w/ read map; push; verify CI all-green BEFORE cl
 (the grid-floor threshold matching MirrorGraph), `re_measure_oq0031` (E_sim-only vs full + the σ*-uplift
 loop), `ProvenBridge` docstring (why the bottleneck is NOT the proven edge), `embed_docs` (ephemeral
 read-only doc embedding); `finding-0113` §Verdict (the 3-part answer). Fresh-agent sufficient.
+
+### SEAL (2026-07-19, session-32) — owner blessed: seal + push + resolve 0096–0100. bp-073 COMPLETE.
+Alberto: "seal it and push, resolve 0096–0100" + `/usage`. Executed:
+- Plan status in-progress→**complete**; `cost.actual` filled (179.8k output = 0.90×; $21.03 opus;
+  week 19%→20% +1% gate figure; Fable 14% untouched; session →41%).
+- **finding-0113** status→resolved (owner-blessed verdict). **Findings 0096/0099/0100 RESOLVED**
+  directly; **0097/0098** resolved root-cause (starvation) — the optimizer emit-on-flat / SE-3-bar
+  hardening is a SEPARATE future finding if wanted (bp-073 §9 held sweep-rule tuning out of Δ; recorded
+  honestly, not silently claimed fixed). **oq-0031 RETIRED** (answer filled, status→resolved);
+  **oq-0024 UN-blocked** (σ re-tune can now discriminate on the 208-doc corpus).
+- PROGRESS.md bp-073 seal entry appended; active-plan pointer cleared (builder→orchestrator).
+- Diagnostic still owed + tracked separately: why the mirror note-corpus is stuck at 13 while Ouroboros
+  runs (vault-sync not finding new notes?) — NOT re-blocking.
+**Then:** commit the seal (docs; no code trailer); push; verify CI all-green BEFORE attestable
+(finding-0110 — expect a rebase onto a `chore(release)` semantic-release commit). Δ is read-only, so the
+push does not touch the live daemon's stores. Suite green-except-ratchet(19). bp-073 SEALED.

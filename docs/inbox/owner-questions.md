@@ -893,7 +893,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   staged for mint-on-ratification.
 
 ## oq-0031 — Connectivity/sweep instruments can't discriminate at 13-doc corpus scale: grow the corpus, defer validation, or accept "built-but-unvalidated"? (findings 0096/0097/0098; entangles oq-0024)
-- status: open
+- status: resolved
 - origin: docs/findings/finding-0096.md (+ 0097, 0098) — the σ-sweep-experiment run-1 results
 - blocking: false
 - question: The connectivity/sweep track is CODE-COMPLETE but its instruments have no discriminating
@@ -925,4 +925,15 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   rather than waiting on 13 notes. DIAGNOSTIC also owed: why the mirror note-corpus is stuck at 13 while
   Ouroboros runs (owner expected more) — vault-sync not finding new notes, or none added? Verify next
   session. This effectively supersedes the pure A/B/C fork; oq-0024 stays parked under it.
-- answer:
+- answer: RESOLVED 2026-07-19 (session-32, bp-073 Phase Δ; finding-0113, owner-blessed). The owner's
+  2026-07-18 steer was exactly right: the richer corpus already exists. Δ measured over the
+  **dialogue-artifact** strata (208 docs carrying C-edges, embedded eval-side) — NOT the 13 mirror
+  notes — feeding bp-071's proven C-edges as E_proven into D3's ComposedGraph. Verdict: the 13-doc
+  saturation was **input-starvation, not a real ceiling** — at n=208 the connectivity gauge already
+  discriminates under E_sim alone; E_proven adds a real second lever via σ*-uplift (+0.74 at σ=0.7).
+  So the connectivity instruments DO earn their place at adequate corpus scale (option A/C, realized
+  via the observed/dialogue strata rather than growing the mirror). Findings 0096/0099/0100 resolved
+  directly; 0097/0098 resolved root-cause (the optimizer-rule hardening is a separate future finding).
+  **oq-0024 (the σ re-tune) is UN-blocked** — it was gated on this; a fresh sweep on the 208-doc corpus
+  can now discriminate σ. Diagnostic owed (why the mirror is stuck at 13) is a separate, still-open
+  thread — NOT re-blocking, tracked independently.

@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0113
-status: open
+status: resolved
 created: 2026-07-19
 updated: 2026-07-19
 links:
@@ -9,11 +9,11 @@ links:
   - docs/findings/finding-0096.md                  # the golden_recall saturation this re-measures
   - docs/design-notes/agent-taxonomy.md            # §2.2 grounding law ("a second edge class, not a better σ")
   - eval/harness/re_measure.py                     # the measurement (assemble + re_measure_oq0031)
-re_entry: OWNER — the oq-0031 verdict + resolving the 0096–0100 cluster (a math finding, owner-routed). Measured, honest, non-forced. See §Verdict.
+re_entry: RESOLVED — owner blessed the verdict (2026-07-19, session-32) and the resolution of the 0096–0100 cluster with it.
 ftype: math
 origin_plan: bp-073
 route: orchestrator
-resolution: null
+resolution: owner-blessed (2026-07-19, session-32). The oq-0031 verdict stands: the 13-doc saturation was INPUT-STARVATION (n=208 discriminates under E_sim alone); E_proven is a real second lever via σ*-uplift (+0.74 at σ=0.7), not loose-grid bridging; necessary-but-insufficient, refined. Findings 0096/0099/0100 resolved directly; 0097/0098 resolved root-cause (starvation), the optimizer-guard hardening left as a separate future finding if wanted. oq-0031 retired.
 ---
 
 # oq-0031 re-measured: the 13-doc saturation was INPUT-STARVATION; E_proven is a real second lever via σ*-uplift, NOT loose-grid bridging

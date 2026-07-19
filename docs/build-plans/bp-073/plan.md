@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-073
 alias: connectivity-re-measure
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/agent-taxonomy.md            # §2.2 grounding law + §3 Phase Δ (the charter)
   - docs/design-notes/connectivity-instruments.md  # RATIFIED — the σ*/conductance consumers of E_proven
@@ -19,7 +19,14 @@ cost:
   estimate:
     model: opus
     tokens: 200k
-  actual: null
+  actual:
+    model: opus
+    output_tokens: 179.8k        # vs 200k est → ratio 0.90x (genuine open design in Item 0 +
+    #                              the verdict interpretation + lint churn — ~1x, not tightly pinned)
+    dollars: 21.03               # opus, this session (the whole session was the bp-073 build)
+    week_delta: "19%→20% (+1%)"  # all-models — the gate figure
+    fable: "14% (untouched — no fable this session; builds are opus)"
+    session_window: "→41%"
 depends_on: [bp-069, bp-070, bp-071]
 parallelizable_with: []
 supersedes: null

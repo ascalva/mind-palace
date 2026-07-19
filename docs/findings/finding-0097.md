@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0097
-status: routed
+status: resolved
 created: 2026-07-17
 updated: 2026-07-17
 links:
@@ -11,6 +11,7 @@ links:
 ftype: design
 origin_plan: dn-sigma-sweep-experiment run 1 (SE-1)
 route: orchestrator
+resolution: RESOLVED-root-cause by finding-0113 (bp-073 Δ, owner-blessed 2026-07-19). The optimizer's emit-on-flat trigger was the STARVED (flat) objective — a small-corpus artifact, not a real ceiling (finding-0113: input-starvation). At adequate corpus scale the objective discriminates. The residual design question — whether the optimizer should GUARD against a flat objective (refuse-to-emit) as hardening — is a SEPARATE concern (bp-073 §9 non-goal); if wanted, mint a fresh finding. Root cause closed here.
 ---
 
 # SE-1's decision rules (a) and (b) are NOT mutually exclusive on a perfectly FLAT curve — the plateau-center ≠ default satisfies (a) while "flat within ε" satisfies (b); (b) must govern, and the sweep engine emits a proposal regardless (no flat-curve carve-out)

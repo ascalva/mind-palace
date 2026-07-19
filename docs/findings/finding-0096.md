@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0096
-status: routed
+status: resolved
 created: 2026-07-17
 updated: 2026-07-17
 links:
@@ -12,6 +12,7 @@ links:
 ftype: math
 origin_plan: dn-sigma-sweep-experiment run 1 (SE-1)
 route: orchestrator
+resolution: RESOLVED by finding-0113 (bp-073 Phase Δ, owner-blessed 2026-07-19). The golden_recall saturation was INPUT-STARVATION, not a real ceiling — at n=208 (the dialogue-artifact corpus) the connectivity gauge already discriminates under E_sim alone (frac_connected 1.0→0.004 across σ). E_proven adds a real second lever via σ*-uplift (+0.74 at σ=0.7). Necessary-but-insufficient, refined.
 ---
 
 # golden_recall is SATURATED (1.0 across the entire σ-grid) at the 13-doc corpus scale — the sweep objective has zero discriminating power, so SE-1's "insensitive in-range" is objective saturation, NOT σ-invariance of structure

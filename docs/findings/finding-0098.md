@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0098
-status: routed
+status: resolved
 created: 2026-07-17
 updated: 2026-07-17
 links:
@@ -11,6 +11,7 @@ links:
 ftype: design
 origin_plan: dn-sigma-sweep-experiment run 1 (SE-3)
 route: orchestrator
+resolution: RESOLVED-root-cause by finding-0113 (bp-073 Δ, owner-blessed 2026-07-19). The SE-3 bar failures were STARVATION symptoms — the §2.5 gate could not calibrate on a corpus too small to discriminate (finding-0113: input-starvation, not a real ceiling). The real-data calibration of the gate bars is now a well-posed task on an adequately-sized corpus; if a re-calibration pass is wanted it is a SEPARATE build (bp-073 §9 held the sweep-rule tuning out of Δ). Root cause closed here.
 ---
 
 # SE-3 bar (1) fails on real data: SETTLED-tier claims are NOT rated more real than RETAINED — persistence-tiering does not yet discriminate owner-perceived realness at 13-doc scale (apophenia guard DOES hold: bars 2 & 3 pass)

@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0100
-status: routed
+status: resolved
 created: 2026-07-17
 updated: 2026-07-17
 links:
@@ -13,6 +13,7 @@ links:
 ftype: design
 origin_plan: graph-at-a-past-cut design pass (Fable/xhigh, 2026-07-17)
 route: orchestrator
+resolution: RESOLVED by finding-0113 (bp-073 Δ, owner-blessed 2026-07-19). The claim that the measurement is EVAL-SIDE constructible (the substrate already retains everything) is CONFIRMED — Δ built the whole re-measure eval-side over `MirrorGraph`-surface graphs and the live read-only stores, with NO core edit (ratchet held 19). The retro/eval-side constructibility this finding asserted is demonstrated in `eval/harness/re_measure.py`.
 ---
 
 # Graph-at-a-past-cut is EVAL-SIDE constructible — the substrate already retains everything; bp-059 §11's "core/ plan" prerequisite is over-stated, and note-grain identity across cuts is already solved
