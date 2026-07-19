@@ -572,23 +572,29 @@ def cmd_stop_audit(diff_file: str | None) -> int:
     reasons = []
     plan = active_plan_path()
 
+    # HEAD sha + last-commit epoch in ONE subprocess — shared by (a) journal
+    # staleness and (e) the session-handoff gate (owner DRY rule: never a second
+    # git call). Empty-repo safe: "" / 0 on failure, and every use is guarded
+    # (`if last_commit and ...`, `if ... head_sha ...`). %H yields the same 40-char
+    # sha session-brief.sh records into session-baseline via `git rev-parse HEAD`,
+    # so (e)'s `head_sha != baseline` is a valid commits-this-session test.
+    try:
+        _headline = subprocess.run(
+            ["git", "log", "-1", "--format=%H %ct"],
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+            check=True,
+        ).stdout.split()
+        head_sha = _headline[0] if _headline else ""
+        last_commit = int(_headline[1]) if len(_headline) > 1 else 0
+    except Exception:
+        head_sha, last_commit = "", 0
+
     # (a) journal staleness + (b) out-of-scope worktree changes -> need a plan.
     if plan is not None:
         journal = journal_for(plan)
         j_abs = os.path.join(ROOT, journal)
-        try:
-            last_commit = int(
-                subprocess.run(
-                    ["git", "log", "-1", "--format=%ct"],
-                    capture_output=True,
-                    text=True,
-                    cwd=ROOT,
-                    check=True,
-                ).stdout.strip()
-                or "0"
-            )
-        except Exception:
-            last_commit = 0
         if last_commit and os.path.exists(j_abs):
             if os.path.getmtime(j_abs) < last_commit:
                 reasons.append(
@@ -642,8 +648,10 @@ def cmd_stop_audit(diff_file: str | None) -> int:
     # against HEAD, not the session baseline (§6c, A1; warrant finding-0003): a
     # *committed* blessing is accountable to its commit author (§10, "deliberate,
     # logged") and must self-clear; only an *uncommitted* in-flight flip is
-    # flagged. session-baseline is retained solely for the SessionStart brief's
-    # narration and is deliberately not consulted here.
+    # flagged. session-baseline is deliberately not consulted by (c) here (which
+    # diffs against HEAD); its second consumer is clause (e) below — the
+    # session-handoff gate (dn-session-handoff-gate) — where its content is the
+    # commits-this-session guard for the orchestrator resume-brief check.
     if diff_file:
         try:
             with open(diff_file, encoding="utf-8") as fh:
@@ -699,6 +707,36 @@ def cmd_stop_audit(diff_file: str | None) -> int:
                 )
     except Exception:
         pass  # fail-open, fail-loud is the .sh's job; a missing/unreadable pointer never blocks
+
+    # (e) session-handoff gate (dn-session-handoff-gate §2.2) -> orchestrator
+    # posture only (no active plan; builder sessions carry one and are governed by
+    # (a)). BLOCK when commits landed THIS session (HEAD moved past the SessionStart
+    # baseline) but the resume brief is stale (mtime older than the last commit) or
+    # absent (a missing brief is infinitely stale). Fail-open on a missing/unreadable
+    # session-baseline: the signal can't be evaluated, so no block (note §2.5). The
+    # block reason IS the automation — it instructs writing the brief.
+    if plan is None:
+        try:
+            with open(
+                os.path.join(ROOT, ".claude", "state", "session-baseline"),
+                encoding="utf-8",
+            ) as fh:
+                baseline = fh.read().strip()
+        except Exception:
+            baseline = ""  # missing/unreadable baseline -> fail-open (skip)
+        if baseline and head_sha and head_sha != baseline:
+            brief_abs = os.path.join(ROOT, ".claude", "state", "resume-brief.md")
+            try:
+                brief_fresh = os.path.getmtime(brief_abs) >= last_commit
+            except OSError:
+                brief_fresh = False  # missing brief = infinitely stale
+            if not brief_fresh:
+                reasons.append(
+                    "(e) commits landed this session but the resume brief is stale "
+                    "or missing — write .claude/state/resume-brief.md (the resume-"
+                    "brief shape, context-economy skill) citing the final commit "
+                    "hashes, then close again (dn-session-handoff-gate)."
+                )
 
     if reasons:
         print("BLOCK: " + " ".join(reasons))

@@ -16,3 +16,69 @@ zero predicted reddening. If the builder sees otherwise, that grounding was
 wrong: stop, finding, park.
 
 Status: `proposed`. Awaiting the owner's `palace bless bp-074` + hand commit.
+
+## 2026-07-19 — build session (delegated builder, worktree agent-a198f4cd)
+
+### Setup: worktree freshness reconciliation (not a blessing)
+
+Worktree was cut at `3b68cd5` — one commit BEFORE the owner's blessing
+`203df79` ("bless(bp-074): proposed→READY — OWNER keystroke, recorded") landed.
+`203df79`'s parent IS `3b68cd5` (clean linear descent; `git log 203df79..HEAD`
+empty), and `main` is at `203df79`. So the plan read `proposed` in my worktree
+purely as a sync artifact. Resolution: `git merge --ff-only 203df79` — a pure
+fast-forward that picks up the owner's already-applied blessing. This is NOT the
+builder performing a blessing (the owner already did, accountably, in `203df79`);
+it is syncing the worktree so the ready gate is satisfied honestly. Then set
+`.claude/state/active-plan` → the plan path and flipped `status: ready →
+in-progress` (a non-blessing transition; build-ceremony). NOTE: plan.md is
+outside my write_scope, so the in-progress flip is left UNSTAGED in the working
+tree and NOT committed — the orchestrator owns plan status (flips to `complete`
+at seal).
+
+### Item 1 — clause (e) in `cmd_stop_audit` (+ two comment reconciliations) — DONE
+
+Landed in `.claude/hooks/_lib.py` and `.claude/hooks/journal-gate.sh`.
+
+**The shared fetch (owner DRY rule).** Hoisted the (a) last-commit subprocess out
+of the `if plan is not None:` block to the top of `cmd_stop_audit`, and extended
+its format from `%ct` to **`%H %ct`** so ONE `git log -1` yields BOTH the HEAD sha
+(for (e)'s commits-this-session test) and the last-commit epoch (for (a) and (e)).
+This satisfies the Item-1 invariant "no new subprocess beyond the shared
+last-commit fetch": (e) adds zero git calls. `%H` is the same 40-char sha
+`session-brief.sh:52` records into `session-baseline` via `git rev-parse HEAD`, so
+`head_sha != baseline` is a valid "did this session commit?" test. (a) stays
+byte-identical: it reads the same integer epoch (`_headline[1]`) under the same
+`if last_commit and ...` guards; empty-repo path yields `"", 0` (was `0`).
+
+**Clause (e).** Inserted after (d), before the reasons emit, guarded by
+`if plan is None:` (orchestrator posture — builders carry a plan and are governed
+by (a)). Logic, matching the pinned §6 condition verbatim:
+- read `.claude/state/session-baseline`; missing/unreadable → `baseline=""` →
+  fail-open skip (note §2.5).
+- BLOCK iff `baseline and head_sha and head_sha != baseline` (commits happened
+  this session) AND `mtime(resume-brief.md) < last_commit` — `os.path.getmtime`
+  raising `OSError` (missing brief) counts as infinitely stale → block.
+- reason string is prefixed `"(e) "` and INSTRUCTS the fix (write
+  `.claude/state/resume-brief.md` per context-economy) — the block reason IS the
+  automation.
+
+**Comment reconciliations (called out, not slipped in):**
+- `_lib.py` (c)-block comment (formerly "retained solely for the SessionStart
+  brief's narration and is deliberately not consulted here") → now names clause (e)
+  as `session-baseline`'s second consumer (commits-this-session guard), citing
+  dn-session-handoff-gate; still notes (c) itself diffs against HEAD.
+- `journal-gate.sh` header (a)–(c) enumeration → gains "(e) with no plan active:
+  commits landed this session but the resume brief is stale (dn-session-handoff-
+  gate)".
+
+**Smoke test (scratch git repo, orchestrator posture) — all pass:**
+- no-commits (baseline==HEAD), stale brief → ALLOW
+- commits + stale brief → BLOCK (e)
+- commits + missing brief → BLOCK (e)
+- commits + fresh brief (mtime > last commit) → ALLOW
+- commits + missing baseline → ALLOW (fail-open)
+
+Acceptance (Item 1): met. Invariants held: (a)–(d) behavior unchanged, one
+subprocess only, exit-code contract untouched. Next: Item 2 formal tests
+(incl. case 6 — silent under an active plan), then Item 3 (A9 text + seal
+warning), then the full attestable-green gate.

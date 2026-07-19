@@ -3,8 +3,10 @@
 # the post-hoc backstop that catches the Bash-mediated writes the pre-hoc guards
 # cannot see (design-note §6). Blocks close when, with a plan active: (a) the
 # journal mtime predates the last commit, or (b) the worktree holds out-of-scope
-# changes; and, in every session: (c) the diff since the session baseline
-# contains a blessing transition. Pre-hoc porous, post-hoc tight.
+# changes; in every session: (c) the diff since the session baseline contains a
+# blessing transition; and, with no plan active: (e) commits landed this session
+# but the resume brief is stale (dn-session-handoff-gate). Pre-hoc porous,
+# post-hoc tight.
 #
 # Dual-mode:  hook (Stop event)  |  --standalone [--diff-file <path>]
 # Fail posture: fail-open, fail-loud (§6). A block is exit 2 with a reason.
