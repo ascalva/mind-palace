@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-073
 alias: connectivity-re-measure
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/agent-taxonomy.md            # §2.2 grounding law + §3 Phase Δ (the charter)
   - docs/design-notes/connectivity-instruments.md  # RATIFIED — the σ*/conductance consumers of E_proven
@@ -26,7 +26,7 @@ supersedes: null
 superseded_by: null
 warrant: docs/design-notes/agent-taxonomy.md
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-07-19  # session-32: build start
 re_entry: null
 ---
 
