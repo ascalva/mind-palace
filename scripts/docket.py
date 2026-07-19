@@ -183,6 +183,9 @@ def render(rows: list[DocketRow]) -> str:
     section(f"## Ratify — {_n(len(notes), 'draft note')}  (or leave working)", notes)
     section(f"## Answer — {_n(len(oqs), 'open question')}", oqs)
     out.append("")
+    out.append("_Keys: `gf` on a path line opens that artifact (plain gf — no leader) ·_")
+    out.append("_`<leader>dr` regenerates this view · bless = `palace bless <id>` + your commit._")
+    out.append("")
     out.append("_A derived view — recomputed from the artifact tree, never hand-maintained._")
     out.append("_Guide, not gate: it points; the owner acts (bless, ratify, answer)._")
     return "\n".join(out) + "\n"
