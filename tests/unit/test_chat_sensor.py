@@ -28,6 +28,7 @@ from core.stores.rawstore import RawStore
 from ops.chat_sensor import (
     ChatSecretGuard,
     ChatSensor,
+    ChatSyncReport,
     SecretInUtteranceError,
     parse_transcript,
 )
@@ -182,9 +183,12 @@ def test_secret_bearing_utterance_is_refused_whole(tmp_path: Any, secret: str) -
     report = s.backfill()
     assert report.refused_sessions == ["sess-bad"]        # named, no silent cap
     assert s.store.count() == 0                           # whole session refused, nothing stored
-    # the guard itself signals via a named exception carrying the session id (never the value):
+    # the guard itself signals via a named exception carrying the session id (never the value). Swap
+    # in a fresh rawstore so `is_new` fires (the backfill above already retained the raw) and the
+    # refusal path — not the unchanged-skip — is exercised on this direct call:
+    s.rawstore = RawStore(tmp_path / "raw2")
     with pytest.raises(SecretInUtteranceError) as ei:
-        s._ingest(s.transcripts_dir / "sess-bad.jsonl", report)
+        s._ingest(s.transcripts_dir / "sess-bad.jsonl", ChatSyncReport(), set())
     assert "sess-bad" in str(ei.value)
     assert secret not in str(ei.value)                    # the caught secret is never logged
 
@@ -256,3 +260,99 @@ def test_report_str_is_informative(tmp_path: Any) -> None:
     _write_transcript(s.transcripts_dir, "s1", [_rec("user", "x")])
     txt = str(s.backfill())
     assert "chat-sensor" in txt and "utterances=1" in txt
+
+
+# --- bp-069 Item 1: growth-aware (freeze-once REMOVED, finding-0109) --------------------------
+def test_grown_session_reingests_only_the_new_turns(tmp_path: Any) -> None:
+    """THE Q4 fix: a session left open no longer freezes at first ingest. A second sync over a
+    GROWN transcript re-ingests ONLY the appended turns (add_batch idempotent by turn_index)."""
+    s = _sensor(tmp_path)
+    _write_transcript(s.transcripts_dir, "s1",
+                      [_rec("user", "one"), _rec("assistant", [_text("two")])])
+    r1 = s.sync()
+    assert r1.sessions_ingested == 1 and r1.utterances_added == 2
+    # the session grows by one turn (the file is rewritten longer — is_new fires):
+    _write_transcript(s.transcripts_dir, "s1",
+                      [_rec("user", "one"), _rec("assistant", [_text("two")]),
+                       _rec("user", "three")])
+    r2 = s.sync()
+    assert r2.sessions_grown == 1          # counted as grown, not a fresh ingest
+    assert r2.sessions_ingested == 0
+    assert r2.utterances_added == 1        # ONLY the new turn (0,1 already stored)
+    assert s.store.count() == 3
+    assert r2.is_fully_accounted()
+
+
+def test_unchanged_file_is_zero_writes_no_churn(tmp_path: Any) -> None:
+    """The is_new signal: an unchanged transcript is skipped without a re-parse (no churn) — the
+    falsifier is unchanged files re-parsing."""
+    s = _sensor(tmp_path)
+    _write_transcript(s.transcripts_dir, "s1", [_rec("user", "hi")])
+    s.sync()
+    r2 = s.sync()
+    assert r2.unchanged == ["s1"]
+    assert r2.transcripts_retained == 0   # rawstore dedup — nothing re-retained
+    assert r2.utterances_added == 0
+    assert r2.is_fully_accounted()
+
+
+def test_torn_trailing_line_parses_valid_records_never_raises(tmp_path: Any) -> None:
+    """Torn-line tolerance: a live read catching a half-written trailing line must parse the valid
+    records and never raise (the falsifier is a crash on a torn line)."""
+    s = _sensor(tmp_path)
+    good = _jsonl([_rec("user", "clean line", session_id="s1"),
+                   _rec("assistant", [_text("answer")], session_id="s1")])
+    torn = good + '{"type":"user","sessionId":"s1","message":{"role":"user","content":[{"typ'
+    (s.transcripts_dir / "s1.jsonl").write_text(torn, encoding="utf-8")
+    r = s.sync()                          # must not raise
+    assert s.store.count() == 2           # the two complete records landed
+    assert r.sessions_ingested == 1
+    assert r.is_fully_accounted()
+
+
+def test_report_accounts_every_file_into_exactly_one_bucket(tmp_path: Any) -> None:
+    """The total-accounting parity gauge (§2.5): every file on disk lands in exactly ONE bucket —
+    ingested | empty | unparseable | refused | active — none silently skipped (the falsifier)."""
+    s = _sensor(tmp_path, active="sess-open")
+    _write_transcript(s.transcripts_dir, "sess-open", [_rec("user", "live")])          # active
+    _write_transcript(s.transcripts_dir, "ingest-me",
+                      [_rec("user", "hi"), _rec("assistant", [_text("yo")])])           # ingested
+    _write_transcript(s.transcripts_dir, "empty-one",                        # decoded, no prose
+                      [{"type": "system", "sessionId": "empty-one", "content": "boot"}])
+    (s.transcripts_dir / "garbage.jsonl").write_text(                        # unparseable
+        "{not json at all\n{also broken\n", encoding="utf-8")
+    _write_transcript(s.transcripts_dir, "sess-bad",                         # refused
+                      [_rec("assistant", [_text("key AKIA1234567890ABCDEF")])])
+    r = s.sync()
+    assert r.files_seen == 5
+    assert r.skipped_active == "sess-open"
+    assert r.sessions_ingested == 1
+    assert r.empty == ["empty-one"]
+    assert r.unparseable == ["garbage"]
+    assert r.refused_sessions == ["sess-bad"]
+    assert r.is_fully_accounted()                     # the parity law holds
+    # a second pass: nothing changed on disk ⇒ every non-active file lands in `unchanged`
+    r2 = s.sync()
+    assert set(r2.unchanged) == {"ingest-me", "empty-one", "garbage", "sess-bad"}
+    assert r2.skipped_active == "sess-open"
+    assert r2.is_fully_accounted()
+
+
+def test_secret_in_a_new_turn_freezes_session_at_pre_secret_state(tmp_path: Any) -> None:
+    """Q2 under growth (emergent, not new code): earlier clean turns committed in a prior pass
+    STAND; a secret arriving in a NEW turn refuses the whole current pass — the session holds at its
+    pre-secret state — the secret never lands, the earlier turns remain."""
+    s = _sensor(tmp_path)
+    _write_transcript(s.transcripts_dir, "s1",
+                      [_rec("user", "clean one"), _rec("assistant", [_text("clean two")])])
+    assert s.sync().sessions_ingested == 1
+    assert s.store.count() == 2
+    # the session grows with a secret-bearing turn:
+    _write_transcript(s.transcripts_dir, "s1",
+                      [_rec("user", "clean one"), _rec("assistant", [_text("clean two")]),
+                       _rec("user", "my key is AKIA1234567890ABCDEF")])
+    r2 = s.sync()
+    assert r2.refused_sessions == ["s1"]              # the grown pass is refused whole
+    assert s.store.count() == 2                       # frozen at pre-secret state — turns 0,1 stand
+    assert s.store.rows_for("s1")[-1]["text"] == "clean two"   # the secret turn never landed
+    assert r2.is_fully_accounted()

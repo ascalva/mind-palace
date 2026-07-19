@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-069
 alias: dialogue-sensor-agent
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/agent-taxonomy.md            # dn-agent-taxonomy §2.4 (sensor role) + §3 Phase Β — REQUIRES RATIFICATION
   - docs/design-notes/chat-sensor.md               # RATIFIED dn-chat-sensor; Q4 amended by finding-0109
@@ -38,7 +38,7 @@ supersedes: null
 superseded_by: null
 warrant: docs/findings/finding-0109.md
 created: 2026-07-18
-updated: 2026-07-18   # RE-MINTED session-28 (fable): born-scoped under dn-agent-taxonomy — Phase Β
+updated: 2026-07-19   # session-30 (opus): /build started — in-progress
 re_entry: null
 ---
 

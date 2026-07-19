@@ -25,10 +25,15 @@ The pipeline, per closed session (CS-1 verbatim-first — retention BEFORE extra
   4. land the extraction in the OBSERVED-only chatlog store (idempotent by (session_id,
      turn_index) — a frozen session re-ingested is a no-op).
 
-Open-session handling (Q4): `active_session_id` (this process's own transcript among the
-files) is excluded — a mid-append session is out of v1 (a session is frozen once ingested;
-re-ingest of a grown open session is out of scope). Backfill (D2) processes every transcript
-except the active one. Cut-time exclusion of open sessions is bp-064's certificate concern.
+Growth-aware (finding-0109 — the freeze-once fix, bp-069): the system is real-time, so a session
+left open for hours must ingest its tail, not freeze at first read. `sync()` retains-then-extracts
+EVERY transcript and lets the rawstore `is_new` signal skip the unchanged and re-ingest the grown
+(`add_batch` is idempotent by `(session_id, turn_index)`, so a grown re-parse appends ONLY the new
+turns). This AMENDS ratified dn-chat-sensor Q4 (freeze-once) — the owner is the design authority.
+
+Open-session handling (Q4): `active_session_id` (this process's own transcript among the files) is
+still excluded — the daemon does not ingest its own live session. Cut-time exclusion of open
+sessions is bp-064's certificate concern.
 
 Spine-invisible in v1: NO chain written, NO stratum registered (bp-064, CS-4). The
 `reset_targets()` registration of `data/chatlog.sqlite` (corpus-side wipe target; rebuilds
@@ -71,24 +76,43 @@ def _transcript_digest(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def parse_transcript(text: str) -> tuple[ChatUtterance, ...]:
-    """JSONL transcript text → utterance-grain readings (CS-3), tool exhaust stripped.
+@dataclass(frozen=True)
+class ParseOutcome:
+    """The accounting-grade result of parsing one transcript (bp-069 §2.5 parity gauge): the
+    utterances PLUS the tallies the total-accounting report needs to bucket a file that yielded no
+    utterance. `decoded_records` counts lines that parsed as a JSON object (dialogue or not);
+    `decode_failures` counts lines that raised `JSONDecodeError` (a torn/garbage line — skipped,
+    never fatal). A file with 0 utterances is `empty` if any record decoded, `unparseable` if none
+    did (only torn/garbage lines)."""
 
-    Deterministic and model-free. Keeps `text` blocks of `user`/`assistant` records ONLY;
-    `tool_use`/`tool_result`/`thinking` are stripped structurally, as is any unknown block
-    type (allow-list). Handles both `message.content` shapes (Q1): a block list, and a legacy
-    bare string (⇒ one text utterance). `turn_index` is contiguous per session in file
-    (extraction) order — the chain position (CS-4); the wall `timestamp` is a bookmark only,
-    never an ordering key (Law C4). Empty/whitespace-only text is skipped (no null utterance).
-    """
+    utterances: tuple[ChatUtterance, ...]
+    decoded_records: int
+    decode_failures: int
+
+
+def _parse_lines(text: str) -> ParseOutcome:
+    """The parse, with the accounting tallies (bp-069). Torn-line tolerant: a `JSONDecodeError`
+    (a live file read mid-append can catch a half-written line) is skipped and counted, never
+    raised — the same record re-reads complete on the next event (a whole JSON object is one line,
+    so a torn trailing line loses nothing already-committed). Extraction is otherwise the ratified
+    allow-list (CS-3): `text` blocks of `user`/`assistant` records only."""
     digest = _transcript_digest(text)
     out: list[ChatUtterance] = []
     turn = 0
+    decoded = 0
+    failures = 0
     for line in text.splitlines():
         line = line.strip()
         if not line:
             continue
-        record = json.loads(line)
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            failures += 1                              # torn/garbage line — skip, count, continue
+            continue
+        if not isinstance(record, dict):
+            continue                                   # a bare JSON scalar — not a record
+        decoded += 1
         speaker = _ROLE_TO_SPEAKER.get(str(record.get("type", "")))
         if speaker is None:
             continue                                   # not a dialogue record (system/mode/…)
@@ -105,7 +129,20 @@ def parse_transcript(text: str) -> tuple[ChatUtterance, ...]:
                 session_id=session_id, turn_index=turn, speaker=speaker,
                 text=utterance_text, transcript_digest=digest, ts_bookmark=bookmark))
             turn += 1
-    return tuple(out)
+    return ParseOutcome(tuple(out), decoded, failures)
+
+
+def parse_transcript(text: str) -> tuple[ChatUtterance, ...]:
+    """JSONL transcript text → utterance-grain readings (CS-3), tool exhaust stripped.
+
+    Deterministic and model-free. Keeps `text` blocks of `user`/`assistant` records ONLY;
+    `tool_use`/`tool_result`/`thinking` are stripped structurally, as is any unknown block
+    type (allow-list). Handles both `message.content` shapes (Q1): a block list, and a legacy
+    bare string (⇒ one text utterance). `turn_index` is contiguous per session in file
+    (extraction) order — the chain position (CS-4); the wall `timestamp` is a bookmark only,
+    never an ordering key (Law C4). Empty/whitespace-only text is skipped (no null utterance).
+    Torn/garbage lines are skipped (JSONDecodeError-tolerant — a live read never raises, bp-069)."""
+    return _parse_lines(text).utterances
 
 
 def _text_blocks(content: Any) -> list[str]:
@@ -175,19 +212,50 @@ class ChatSecretGuard:
 
 @dataclass
 class ChatSyncReport:
-    """The pass's honest tally — no silent cap: refused/skipped sessions are NAMED."""
+    """The pass's TOTAL accounting (dn-agent-taxonomy §2.5 parity gauge, bp-069): every transcript
+    file on disk lands in EXACTLY ONE bucket — none silently skipped. The buckets partition
+    `files_seen`:
+      * `sessions_ingested` — a NEW session, ≥ 1 utterance stored;
+      * `sessions_grown`    — an already-ingested session that gained turns (the Q4 fix);
+      * `unchanged`         — content-identical (the rawstore `is_new` signal said skip — no churn);
+      * `refused_sessions`  — a secret matched → the whole session is held at its pre-secret state;
+      * `empty`             — parsed to 0 utterances (a system/tool-only or blank transcript);
+      * `unparseable`       — every line failed to decode (a torn/garbage file);
+      * `skipped_active`    — the excluded open session (Q4).
+    Refused/empty/unparseable are NAMED (no silent cap). `is_fully_accounted()` is BOTH the test
+    assertion surface and the ops log line — the sensor's required instrument (plan §2.5)."""
 
+    files_seen: int = 0
     sessions_ingested: int = 0
+    sessions_grown: int = 0              # already-known sessions that gained turns (Q4 fix)
     utterances_added: int = 0
-    transcripts_retained: int = 0        # raw blobs newly written this pass (dedup ⇒ 0 on re-run)
+    transcripts_retained: int = 0        # raw blobs newly written (is_new; dedup ⇒ 0 on re-run)
     refused_sessions: list[str] = field(default_factory=list)   # a secret matched → whole-session
+    unchanged: list[str] = field(default_factory=list)          # is_new=False — nothing to do
+    empty: list[str] = field(default_factory=list)              # parsed to 0 utterances
+    unparseable: list[str] = field(default_factory=list)        # every line failed to decode
     skipped_active: str | None = None    # the excluded open session (Q4), if present
 
+    def total_accounted(self) -> int:
+        """The sum of the mutually-exclusive buckets — equals `files_seen` iff nothing skipped."""
+        return (self.sessions_ingested + self.sessions_grown
+                + len(self.refused_sessions) + len(self.unchanged)
+                + len(self.empty) + len(self.unparseable)
+                + (1 if self.skipped_active else 0))
+
+    def is_fully_accounted(self) -> bool:
+        """The parity gauge (plan §2.5): every seen file landed in exactly one bucket. A False here
+        is the accounting law broken — a silent skip, the Item-1 falsifier."""
+        return self.total_accounted() == self.files_seen
+
     def __str__(self) -> str:
-        return (f"chat-sensor: sessions={self.sessions_ingested} "
-                f"utterances={self.utterances_added} retained={self.transcripts_retained} "
-                f"refused={len(self.refused_sessions)} "
-                f"active_skipped={'yes' if self.skipped_active else 'no'}")
+        return (f"chat-sensor: files={self.files_seen} ingested={self.sessions_ingested} "
+                f"grown={self.sessions_grown} utterances={self.utterances_added} "
+                f"retained={self.transcripts_retained} unchanged={len(self.unchanged)} "
+                f"refused={len(self.refused_sessions)} empty={len(self.empty)} "
+                f"unparseable={len(self.unparseable)} "
+                f"active_skipped={'yes' if self.skipped_active else 'no'} "
+                f"accounted={'ok' if self.is_fully_accounted() else 'BROKEN'}")
 
 
 @dataclass
@@ -210,62 +278,83 @@ class ChatSensor:
             return []
         return sorted(self.transcripts_dir.glob("*.jsonl"))
 
-    def _ingest(self, path: Path, report: ChatSyncReport) -> None:
-        """Retain-raw-first, then extract-guard-store ONE transcript (CS-1 → CS-3 → CS-2).
+    def _ingest(self, path: Path, report: ChatSyncReport, known: set[str]) -> None:
+        """Retain-raw-first, then (only if the raw is new) extract-guard-store ONE transcript
+        (CS-1 → CS-3 → CS-2), bucketing it for the total accounting (bp-069 §2.5). `known` is the
+        set of session ids already in the store at pass start, so a re-ingested-and-GROWN session
+        is told apart from a brand-new one.
 
-        A whole session is the refusal unit: if the guard matches ANY utterance, nothing from
-        the session is stored (the raw is still retained — re-ingest after guard tuning
-        recovers it) and the session is NAMED in the report. This is strictly more fail-closed
-        than a per-row skip, and keeps a partially-stored session from ever existing."""
+        Growth-aware (finding-0109): `is_new` from the content-addressed rawstore is the change
+        signal. Unchanged ⇒ `unchanged` bucket, no re-parse (no churn). Grown ⇒ re-parse; add_batch
+        appends ONLY new turns (idempotent by `(session_id, turn_index)`).
+
+        A whole session is the refusal unit (fail-closed, bright line #10): if the guard matches ANY
+        utterance the pass stores nothing NEW for the session — but turns committed in a PRIOR clean
+        pass STAND (the store already holds them), so a secret arriving in a new turn holds the
+        session at its pre-secret state (Q2). The raw is retained regardless (re-ingest after guard
+        tuning recovers it), and the session is NAMED."""
         session_id = path.stem
         text = path.read_text(encoding="utf-8")
-        # CS-1: byte-verbatim retention BEFORE any extraction. The digest is the utterance's
-        # recoverability anchor; dedup means a re-run retains nothing new.
+        # CS-1: byte-verbatim retention BEFORE any extraction. `is_new` is the growth signal — an
+        # unchanged transcript hashes identically (skip, no churn); a grown one hashes anew (its
+        # tail re-ingests). Retention is unconditional — even a refused/unparseable session's raw
+        # is kept (the archive never depends on extraction succeeding).
         _digest, is_new = self.rawstore.add_text(text)
-        if is_new:
-            report.transcripts_retained += 1
-        utterances = parse_transcript(text)
-        for u in utterances:                              # CS-3 guard, fail-closed, whole-session
+        if not is_new:
+            report.unchanged.append(session_id)           # content-identical — nothing to do
+            return
+        report.transcripts_retained += 1
+        outcome = _parse_lines(text)
+        for u in outcome.utterances:                      # CS-3 guard, fail-closed, whole-session
             if self.guard.scan(u.text):
                 report.refused_sessions.append(session_id)
                 raise SecretInUtteranceError(
                     f"candidate secret in session {session_id} at turn {u.turn_index} "
-                    f"(pattern {self.guard.matched_pattern(u.text)}) — row refused whole, "
-                    f"session not stored (raw retained; re-ingest after guard tuning)")
-        added = self.store.add_batch(utterances)
-        if utterances:
+                    f"(pattern {self.guard.matched_pattern(u.text)}) — row refused whole, session "
+                    f"held at its pre-secret state (raw retained; re-ingest after guard tuning)")
+        if not outcome.utterances:
+            if outcome.decoded_records == 0 and outcome.decode_failures > 0:
+                report.unparseable.append(session_id)     # nothing decoded — a torn/garbage file
+            else:
+                report.empty.append(session_id)           # valid records, no dialogue prose
+            return
+        report.utterances_added += self.store.add_batch(outcome.utterances)
+        if session_id in known:
+            report.sessions_grown += 1                    # Q4 fix: a grown session re-ingests
+        else:
             report.sessions_ingested += 1
-        report.utterances_added += added
 
     def _run(self, paths: Iterable[Path]) -> ChatSyncReport:
-        """The shared loop: exclude the active session (Q4), ingest each, catching a refusal
-        per-session so one secret-bearing transcript never aborts the whole pass (the refused
-        session is named in the report — no silent cap)."""
+        """The shared loop, with the total accounting (bp-069): every file counts into `files_seen`
+        and lands in exactly one bucket. Excludes the active session (Q4). Catches a refusal
+        per-session so one secret-bearing transcript never aborts the pass (named in the report —
+        no silent cap)."""
         report = ChatSyncReport()
+        known = set(self.store.sessions())                # session ids already stored at pass start
         for path in paths:
+            report.files_seen += 1
             if self.active_session_id is not None and path.stem == self.active_session_id:
                 report.skipped_active = path.stem
                 continue
             try:
-                self._ingest(path, report)
+                self._ingest(path, report, known)
             except SecretInUtteranceError:
                 continue                                  # named in report.refused_sessions
         return report
 
     def sync(self) -> ChatSyncReport:
-        """Incremental pass: retain-raw-first then extract, for each CLOSED session not yet
-        ingested (a session already in the store is frozen, Q4 — skipped cheaply). Excludes
-        the active session. Idempotent (the store's identity key makes a re-run a no-op even
-        without the skip)."""
-        known = set(self.store.sessions())
-        paths = [p for p in self._transcript_paths() if p.stem not in known]
-        return self._run(paths)
+        """Growth-aware incremental pass (finding-0109 — freeze-once REMOVED): retain-raw-first then
+        extract for EVERY transcript, letting the rawstore `is_new` signal skip the unchanged and
+        re-ingest the grown (the Q4 fix — a session left open no longer freezes at first ingest).
+        Excludes the active session. Idempotent: a re-run over an unchanged corpus writes 0 (every
+        file lands in `unchanged`)."""
+        return self._run(self._transcript_paths())
 
     def backfill(self) -> ChatSyncReport:
-        """Full backfill (D2 default): every transcript except the active session. Idempotent
-        — a second `backfill()` writes 0 new rows (the store's identity key) and retains 0 new
-        raw blobs (rawstore dedup)."""
-        return self._run(self._transcript_paths())
+        """Full pass. Since the sensor became growth-aware (finding-0109) a full pass and an
+        incremental one are the SAME operation — `is_new` gates the work either way — so this IS
+        `sync()`, kept as a named entry for the D2 semantics and the existing call sites."""
+        return self.sync()
 
 
 def _default_transcripts_dir() -> Path:
