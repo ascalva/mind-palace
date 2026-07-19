@@ -22,10 +22,12 @@ cost:
   actual:
     model: opus
     sessions: 1                      # single OPUS session (session-29); budget was 2
-    pinning: tight                   # §6 interfaces pinned inline + full manifest read up front
-    ratio: ~0.5x                     # well-pinned band (near-first-try landings; only ruff fixups)
+    tokens: 105.2k                   # output; vs 140k estimate → ratio 0.75x (tight §6 pinning)
+    ratio: 0.75x                     # actual/estimate output tokens; near-first-try, only ruff fixups
+    dollars: 15.29                   # this session's opus spend (shared with the ops-leg fix)
+    session_delta: +8%               # session window 62% → 70% (owner relay, session-29)
+    week_delta: ~0%                  # week all-models 11% → 11% (owner relay)
     landed: 3/3 items; suite 1567p/4s/0f (ratchet deselected); ratchet held 19
-    dollars: pending-owner-relay     # precise $/session_delta/week_delta await /usage relay
 depends_on: []
 parallelizable_with: []
 supersedes: null

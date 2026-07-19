@@ -104,7 +104,9 @@ core substrate; agent_scope→core.scope, composed→numpy). No Views/stores/har
   consumes D1's C/DIALOGUE + D2's `integrator_scope`; Δ consumes D3's composed graph.
 - **Parked (unchanged from §11):** layer-refinement lattice inside Σ (v1 = (stratum,layer) args);
   dialogue_artifact vs reference_repo overlap; C-class edge weights (1.0, Δ calibrates).
-- **cost.actual:** opus, well-pinned (interfaces pinned inline §6 + full manifest read up front →
-  near-first-try landings, only ruff line-length fixups). Ratio ~0.5× band (tight pinning). Precise
-  $/session_delta/week_delta pending owner /usage relay; recorded qualitatively.
+- **cost.actual (owner relay, session-29):** opus, **$15.29** (shared w/ the ops-leg fix), **105.2k
+  output tokens** vs 140k estimate → **ratio 0.75×** (tight §6 pinning + full manifest up front →
+  near-first-try landings, only ruff line-length fixups). session_delta **+8%** (62%→70%), week_delta
+  **~0%** (11%→11%). Single session (budget was 2). ⚠️ 94% of 24h usage at >150k context — bp-069
+  gets a FRESH small-context session, not a continuation.
 Status flipped in-progress→complete; active-plan pointer cleared.
