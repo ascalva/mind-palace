@@ -36,11 +36,13 @@ from scheduler.router import Router
 
 if TYPE_CHECKING:  # the projector is INJECTED into the handler — no runtime core.chat_events import
     from core.chat_events import ChatEventProjector
+    from core.integrator import Integrator
 
 DREAM_KIND = "dream"
 CURATE_KIND = "curate"
 SHADOW_KIND = "shadow"
 CHAT_EVENTS_KIND = "chat_events"
+INTEGRATE_KIND = "integrate"
 
 Handler = Callable[[Job], "str | None"]
 
@@ -112,6 +114,28 @@ def enqueue_chat_events(queue: JobQueue, router: Router) -> Job:
     """Enqueue one background L1 projection pass. `project()` is incremental (a session is skipped
     when its transcript digest is unchanged) and idempotent, so duplicate jobs are harmless."""
     plan = router.plan(CHAT_EVENTS_KIND, priority=PRIORITY_BACKGROUND)
+    return queue.enqueue(plan.kind, plan.tier, plan.num_ctx, priority=plan.priority)
+
+
+# --- integrate: the chat↔code↔doc integrator, wired as a pinned trough job (bp-071 Item 2) -------
+# The C-fiber proven-edge pass (dn-agent-taxonomy §2.5 — the first full integrator): resolves the L1
+# action log's references (commit shas, file paths, artifact ids) against the commit ledger into
+# witnessed causal edges. Model-FREE, like `chat_events`/`chat_sync`/`vault_sync`, so it pins
+# (router._PINNED_KINDS) and runs at BACKGROUND priority (housekeeping cadence). It reads L1 (which
+# the delayed `chat_events` pass produces) — so it naturally runs a tick behind, on retained state.
+def integrate_handler(integrator: Integrator, *, max_per_pass: int) -> Handler:
+    def handle(_job: Job) -> str:
+        report = integrator.integrate(max_sessions=max_per_pass)
+        return (f"integrate: {report.sessions_processed} session(s), "
+                f"{report.edges_minted} edge(s), coverage={report.coverage:.0%}, "
+                f"unresolved={dict(sorted(report.unresolved.items()))}")
+    return handle
+
+
+def enqueue_integrate(queue: JobQueue, router: Router) -> Job:
+    """Enqueue one background integration pass. `integrate()` is incremental (a session is skipped
+    when its L1 digest is unchanged) and idempotent, so duplicate jobs are harmless."""
+    plan = router.plan(INTEGRATE_KIND, priority=PRIORITY_BACKGROUND)
     return queue.enqueue(plan.kind, plan.tier, plan.num_ctx, priority=plan.priority)
 
 

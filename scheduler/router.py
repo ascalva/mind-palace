@@ -39,7 +39,7 @@ _ROUTER_KINDS = frozenset({"route", "classify", "watchdog"})
 #   * the conversational front door (`ambassador`) must be ALWAYS-WARM + low-latency — it uses the
 #     small pinned chat model and delegates heavy work (ambassador-as-reasoning-agent.md §2b).
 # Both default to PRIORITY_REACTIVE (responsive); the model-less enqueues override to BACKGROUND.
-_PINNED_KINDS = frozenset({"vault_sync", "ambassador", "chat_sync", "chat_events"})
+_PINNED_KINDS = frozenset({"vault_sync", "ambassador", "chat_sync", "chat_events", "integrate"})
 
 
 @dataclass(frozen=True)

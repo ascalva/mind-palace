@@ -154,6 +154,7 @@ def build_components(cfg: Config) -> Components:
     from core.curator import build_curator
     from core.dreaming import build_dreamer
     from core.ingest.sync import build_vault_sync
+    from core.integrator import build_integrator
     from core.interface import CoreInbox
     from core.librarian import build_librarian
     from core.models import Registry, TwoSlotLoader
@@ -171,11 +172,14 @@ def build_components(cfg: Config) -> Components:
     )
     from scheduler.cron import (
         CHAT_EVENTS_KIND,
+        INTEGRATE_KIND,
         chat_events_handler,
         cron_handlers,
         enqueue_chat_events,
         enqueue_curate,
         enqueue_dream,
+        enqueue_integrate,
+        integrate_handler,
         research_handler,
     )
     from scheduler.interface import (
@@ -234,6 +238,11 @@ def build_components(cfg: Config) -> Components:
         # transcripts at housekeeping cadence, incrementally by transcript_digest.
         CHAT_EVENTS_KIND: chat_events_handler(build_chat_event_projector(cfg),
                                               max_per_pass=cfg.chat.events_max_per_pass),
+        # The chat↔code↔doc integrator (bp-071): the first full integrator role — model-less like
+        # chat_events, one tick behind it (it reads the L1 that pass produces). Resolves L1 refs
+        # against the commit ledger into witnessed C-fiber proven edges; pinned, trough cadence.
+        INTEGRATE_KIND: integrate_handler(build_integrator(cfg),
+                                          max_per_pass=cfg.chat.integrate_max_per_pass),
         AMBASSADOR_KIND: ambassador_inbox_handler(inbox),
         AMBASSADOR_TASK_KIND: ambassador_task_handler(task_librarian),
         RESEARCH_KIND: research_handler(airlock, task_librarian.embedder, task_librarian.store),
@@ -249,6 +258,7 @@ def build_components(cfg: Config) -> Components:
         enqueue_curate(queue, router)
         enqueue_chat_sync(queue, router)    # periodic chat ingest (growth-aware, bp-068/069)
         enqueue_chat_events(queue, router)  # L1 action-log projection — the delayed rate (bp-069)
+        enqueue_integrate(queue, router)    # C-fiber proven edges from L1 + the ledger (bp-071)
 
     def _catchup() -> None:
         enqueue_vault_sync(queue, router)   # reconcile the corpus; the Job return is discarded
@@ -685,6 +695,10 @@ class Launcher:
             # Item 3): wiped with the corpus and rebuilt by re-projection from the rawstore-backed
             # chatlog (the raw archive is NOT a reset target). It holds only structural refs.
             p.data_dir / "chat_events.sqlite",
+            # The C-fiber causal edges are CORPUS-side too — the integrator's DERIVED output
+            # (bp-071): a pure function of retained L1 + the ledger (the floor invariant), so wiped
+            # with the corpus and rebuilt by re-integration. Structural refs only; no content.
+            p.data_dir / "causal_edges.sqlite",
         ]
         out: list[Path] = []
         for c in candidates:

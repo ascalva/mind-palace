@@ -63,6 +63,7 @@ watch_poll_interval_s = 5.0
 watch_debounce_s = 0.5          # coalesce one turn's write into one re-ingest ("immediate", Q4)
 watch_poll_interval_s = 5.0     # fallback cadence when watchdog isn't available
 events_max_per_pass = 50        # L1 action-log projector cap per pass (Item 3)
+integrate_max_per_pass = 50     # integrator proven-edge pass cap per tick (bp-071 Item 2)
 
 [embedding]
 # Embedding quality is load-bearing (retrieval, dreaming, matching) — owner chose the

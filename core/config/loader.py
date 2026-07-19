@@ -83,12 +83,14 @@ class ChatConfig:
     the finding-0108 G1 override: None ⇒ the resolved default `_default_transcripts_dir()`
     (`~/.claude/projects/<repo-slug>`); set it when the canonical repo path differs from a worktree.
     A small `watch_debounce_s` (0.5s) makes ingestion "immediate" to a human (Q4).
-    `events_max_per_pass` caps the L1 action-log projector per pass (Item 3)."""
+    `events_max_per_pass` caps the L1 action-log projector per pass (Item 3);
+    `integrate_max_per_pass` caps the integrator's proven-edge pass per tick (bp-071 Item 2)."""
 
     transcripts_dir: Path | None = None
     watch_debounce_s: float = 0.5
     watch_poll_interval_s: float = 5.0
     events_max_per_pass: int = 50
+    integrate_max_per_pass: int = 50
 
 
 @dataclass(frozen=True)
@@ -434,6 +436,7 @@ def load_config(path: Path | None = None) -> Config:
             watch_debounce_s=float(ch.get("watch_debounce_s", 0.5)),
             watch_poll_interval_s=float(ch.get("watch_poll_interval_s", 5.0)),
             events_max_per_pass=int(ch.get("events_max_per_pass", 50)),
+            integrate_max_per_pass=int(ch.get("integrate_max_per_pass", 50)),
         ),
         ambassador=AmbassadorConfig(
             retrieval_k=int(amb.get("retrieval_k", 5)),
