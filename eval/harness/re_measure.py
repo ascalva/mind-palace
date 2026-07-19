@@ -113,8 +113,8 @@ def proven_pairs_from_causal(
                 "carry the raw it was read from"
             )
         endpoint = ProvenEndpoint(
-            dst=dst, event_order=int(e["event_order"]),
-            witness_turn=int(e["witness_turn"]), witness_digest=digest,
+            dst=dst, event_order=int(str(e["event_order"])),
+            witness_turn=int(str(e["witness_turn"])), witness_digest=digest,
         )
         docs = by_session.setdefault(str(e["session_id"]), {})
         prior = docs.get(dst)
@@ -309,14 +309,14 @@ def re_measure_oq0031(
             ))
     bridges.sort(key=lambda br: (-br.sigma_star_full, br.a, br.b))
 
-    neg_inf = float("-inf")
-    n_uplifted = sum(
-        1 for r in r_full
-        if (r.sigma_star if r.sigma_star is not None else neg_inf)
-        > (sim_by_pair[(r.a, r.b)].sigma_star
-           if sim_by_pair.get((r.a, r.b)) and sim_by_pair[(r.a, r.b)].sigma_star is not None
-           else neg_inf)
-    )
+    def _sig(reading: SigmaStar | None) -> float:
+        # None ("not connected within grid") sorts below any real σ*, so a None→reading counts as
+        # an uplift and a value increase counts too.
+        if reading is None or reading.sigma_star is None:
+            return float("-inf")
+        return reading.sigma_star
+
+    n_uplifted = sum(1 for r in r_full if _sig(r) > _sig(sim_by_pair.get((r.a, r.b))))
 
     frac_sim = _frac_connected(r_sim, grid)
     frac_full = _frac_connected(r_full, grid)

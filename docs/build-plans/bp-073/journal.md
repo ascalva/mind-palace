@@ -206,3 +206,13 @@ Alberto: "seal it and push, resolve 0096–0100" + `/usage`. Executed:
 **Then:** commit the seal (docs; no code trailer); push; verify CI all-green BEFORE attestable
 (finding-0110 — expect a rebase onto a `chore(release)` semantic-release commit). Δ is read-only, so the
 push does not touch the live daemon's stores. Suite green-except-ratchet(19). bp-073 SEALED.
+
+### CI FIX (2026-07-19, session-32) — type-gate RED @ 3a1cce3, fixed (the finding-0110 lesson, extended)
+Pushed @ 3a1cce3, then CI: `pages` green, `ci` FAILED on the **type-gate** (ratchet/semgrep/vault/
+gitleaks all green). I ran ruff pre-push but NOT mypy — the finding-0110 lesson ("green ≠ pushed")
+extends to mypy, not just pytest. 4 Tier-2-floor errors in `re_measure.py`: (1-2) `int(e["event_order"])`
+/`int(e["witness_turn"])` on `object`-typed Mapping values → `int(str(...))`; (3-4) the σ*-uplift sum
+compared `float | None` σ* values (mypy couldn't narrow across a subscript) → extracted a typed
+`_sig(SigmaStar | None) -> float` helper (None→-inf). Now: Tier-2 floor **0 errors**, tests baseline
+**69** (unchanged), ruff clean, 14 tests green. Fix commit + re-push; re-verify CI. **PROCESS:
+run `uv run mypy core agents eval ops scheduler scripts` BEFORE every push, alongside ruff + pytest.**
