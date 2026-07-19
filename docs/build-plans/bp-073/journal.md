@@ -216,3 +216,25 @@ compared `float | None` σ* values (mypy couldn't narrow across a subscript) →
 `_sig(SigmaStar | None) -> float` helper (None→-inf). Now: Tier-2 floor **0 errors**, tests baseline
 **69** (unchanged), ruff clean, 14 tests green. Fix commit + re-push; re-verify CI. **PROCESS:
 run `uv run mypy core agents eval ops scheduler scripts` BEFORE every push, alongside ruff + pytest.**
+
+### CI GREEN + ATTESTABLE (2026-07-19, session-32) — bp-073 fully closed
+Fix committed `c8802c5`, pushed. **CI all-green on c8802c5** (`ci`: success — ratchet/type-gate/
+semgrep/vault-axis/gitleaks; `pages`: success). Verified via `gh run list` per finding-0110 — GREEN
+before claiming attestable. origin/main == local (c8802c5); no `chore(release)` auto-commit this cycle
+(no rebase needed). **bp-073 Phase Δ is COMPLETE, SEALED, PUSHED, CI-GREEN, deploy-attestable.** The
+Β→Γ→Δ arc is done. This trailing note left UNCOMMITTED (the journal-gate wants a journal fresher than
+the last commit at close; fresh-agent content committed at `c8802c5`). Next: bp-072 (cockpit) or the
+now-unblocked oq-0024 σ-sweep. Diagnostic owed: why the mirror is stuck at 13 notes (separate thread).
+
+### POST-SEAL (2026-07-19, session-32) — wording correction + bp-072 handoff staged
+Owner drift-check on "necessary but insufficient": too generous for the grounding law — E_proven is
+NOT strictly necessary (E_sim alone discriminates at n=208). Refined finding-0113 to "a real but
+SECONDARY lever; sufficient to enrich, not necessary to break the saturation; node count was the
+primary cure" — committed + pushed `dc2305b`. (The phrase is right in the TESTS/instruments sense —
+"built ≠ validated"; bp-073 was the validation/sufficiency step for the connectivity instruments.)
+**bp-072 handoff staged in the resume brief** (full block): owner-cockpit, a FABLE mint next session —
+sources `docs/brainstorms/owner-cockpit.md` + `decision-routing.md`; scope `cockpit.sh + docket.py +
+readmap.py + bless CLI + docs/supplemental/cockpit.md` (leaf `scripts/**` + 2 doc paths, papercut,
+owner-blesses-manually); process gate = does it need a light design note or a direct leaf mint;
+open Qs (tmux layout / focus-events / docket-vs-dashboard) settled at mint. bp-073 fully closed;
+main @ dc2305b, CI green (docs-only push). This note left uncommitted (journal-gate fresh-at-close).
