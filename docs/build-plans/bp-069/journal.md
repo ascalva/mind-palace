@@ -154,3 +154,43 @@ conformance: sensor handles ⊑ DIALOGUE_SENSOR_SCOPE + a smuggled stratum/edge-
 482 events across 5 sessions — rich typed logs (a build session: 11 commit / 24 build_plan / 57
 file_edit / 1 finding; a design session: 8 design_note / 4 commit), structural refs (`bp-027`,`bp-037`),
 no crash on real shapes. The extractor is validated end-to-end.
+
+## 2026-07-19 (session-30, OPUS) — SEALED (status → complete)
+**Phase Β of the diamond is done.** All 3 items built + verified in ONE OPUS session (budget was 3):
+L0 growth-aware/torn-line/total-accounting (`c5d8bbf`) → real-time DirectoryWatcher + multi-watcher
+launcher + `[chat]` config (`2821a53`) → L1 action log + born scope + D2 conformance (`632fa6f`).
+Full deterministic suite **1584p/4s/0f**, ratchet held **19** throughout. Two live verifications on real
+data: `palace ingest-chat` recovered the frozen tail (grown=1, accounted=ok, churn-free on re-run) and
+`project(max_sessions=5)` produced 482 typed L1 events with structural refs. Freeze-once is gone; the
+dialogue sensor now senses in real time and projects at two rates, both deterministic.
+
+**Reconciliations (no findings needed):** kept legacy `ChatSyncReport` field names + added buckets
+(zero test churn, owner DRY); Q2 "freeze at pre-secret state" is emergent (whole-session refusal +
+idempotent prior commits), not new code; `ratify` kind reserved-not-emitted in v1 (design_note records
+the touch — §11 parked). Pre-existing E501 debt in `launcher.py` gate_cmd (finding-0105, a pytest
+node-id string) left untouched — not bp-069's concern; the deploy gate is pytest-only, not ruff.
+
+### READ MAP (curated — the essence, ~20% of the diff)
+- **The freeze-once removal (the finding-0109 fix):** `ops/chat_sensor.py:255` `sync()` — the dropped
+  `p.stem not in known` filter; `ops/chat_sensor.py:213` `_ingest` — the `is_new` gate + bucket
+  classification (grown vs ingested vs unchanged/empty/unparseable).
+- **The parity gauge:** `ops/chat_sensor.py:176` `ChatSyncReport` — `total_accounted()` /
+  `is_fully_accounted()` (the §2.5 instrument: every file → exactly one bucket).
+- **The L1 extractor (the substrate bp-071 reuses):** `core/chat_events.py:135` `extract_events` —
+  the turn/tool walk; `core/chat_events.py:89` `_tool_event` — the commit-sha/file-path classification
+  (structural refs only).
+- **The born scope + its proof:** `ops/chat_sensor.py:69` `DIALOGUE_SENSOR_SCOPE`;
+  `tests/unit/test_chat_events.py` `test_the_sensor_is_born_scoped` + the two smuggled-handle rejections.
+- **The DRY rename:** `core/ingest/watch.py:37` `DirectoryWatcher` (was VaultWatcher); the launcher's
+  `watchers: Sequence` multi-watcher loop (`ops/lifecycle/launcher.py`).
+
+### HANDOFF — next session (fresh OPUS)
+- **Owner action any time:** `palace deploy` (unblocked since session-29) — puts the daemon (run #26,
+  on OLD code) onto HEAD so real-time chat sensing + L1 projection run continuously. Run #26 is behind.
+- **Phase Γ — bp-071 (integrator, `proposed`):** its Item 0 re-grounds §2/§6 against the LANDED L1
+  schema (`core/chat_events.py` ChatEvent + ChatEventStore), then back to the owner for the fable bless
+  gate. It consumes D1's C/DIALOGUE + D2's `integrator_scope` + reuses the tool-record parse here.
+- **Phase Δ mints at Γ-seal** (bp-072→ now reserved for the cockpit; use the NEXT free id) — consumes
+  D3's ComposedGraph; re-measures oq-0031 saturation over the enlarged dialogue node set.
+- **Parallel papercut:** mint the cockpit plan (owner-cockpit capture) — leaf scope, owner blesses.
+- Next finding **0110**.

@@ -4832,3 +4832,31 @@ The diamond's first plan lands. Three additive, deterministic, fixture-tested de
 harness touched. ruff+mypy clean throughout. Committed; pushed. **Next:** `/build bp-069` (Phase Β,
 the dialogue sensor agent — READY, depends_on bp-070 now satisfied); it consumes D2's
 `sensor_scope(DIALOGUE)` + conformance. bp-071 (Γ) stays proposed until Β seals. Δ mints at Γ-seal.
+
+## 2026-07-19 (session 30, OPUS) — bp-069 SEALED: Phase Β, the dialogue sensor agent (born scoped)
+
+Phase Β of the diamond lands — all 3 items built + verified in ONE OPUS session (budget was 3). The
+Claude Code transcript sensor becomes lossless + real-time (finding-0109 — freeze-once removed) and
+projects at two deterministic rates, born scoped under bp-070's D2 layer:
+- **Item 1 — L0 lossless** (`ops/chat_sensor.py`, `c5d8bbf`): `sync()` drops the freeze-once filter and
+  gates re-parse on the rawstore `is_new` signal — an unchanged transcript is skipped (no churn), a
+  GROWN one re-ingests its tail (add_batch appends only new turns). `parse_transcript` is torn-line
+  tolerant. `ChatSyncReport` is now a TOTAL accounting (`is_fully_accounted()` — every file → exactly
+  one bucket). Q2 "freeze at pre-secret state" is emergent (whole-session refusal unchanged).
+- **Item 2 — real-time trigger** (`2821a53`): `VaultWatcher` → `DirectoryWatcher` (DRY rename, vault
+  behavior byte-identical); `build_chat_watcher` (on_change → chat_sync); `[chat]` config / `ChatConfig`
+  (ratchet stays 19); the launcher drives a LIST of watchers (vault + chat); chat_sync/chat_events pin
+  (finding-0108 G2).
+- **Item 3 — L1 action log** (`core/chat_events.py` + `core/stores/chat_events.py`, `632fa6f`):
+  `extract_events` reduces a raw transcript to its ordered typed action log (prompt→response→commit(sha)
+  →file_edit→build_plan→… — model-free, structural refs only, unknown tools fail-open); `ChatEventProjector`
+  re-extracts iff `transcript_digest` changed. Born scoped: `DIALOGUE_SENSOR_SCOPE` + the D2 conformance
+  test (handles ⊑ scope; smuggled stratum/edge-fiber rejected).
+
+**Verified:** full deterministic suite = **1584 passed / 4 skipped / 0 failures**; ratchet held **19**
+throughout. Two LIVE runs on real data: `palace ingest-chat` recovered the frozen tail (grown=1,
+accounted=ok, churn-free on re-run); `project(max_sessions=5)` → 482 typed L1 events, structural refs,
+no crash. ruff+mypy clean (mine; 4 pre-existing E501 in launcher gate_cmd are finding-0105 debt).
+Committed all three. **Next:** owner `palace deploy` (unblocked) to put the daemon on HEAD for
+continuous sensing; then Phase Γ = bp-071 (integrator, proposed — Item 0 re-grounds against the landed
+L1 schema, then owner bless). Δ mints at Γ-seal. Parallel papercut: the owner-cockpit plan.

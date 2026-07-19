@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-069
 alias: dialogue-sensor-agent
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/agent-taxonomy.md            # dn-agent-taxonomy §2.4 (sensor role) + §3 Phase Β — REQUIRES RATIFICATION
   - docs/design-notes/chat-sensor.md               # RATIFIED dn-chat-sensor; Q4 amended by finding-0109
@@ -31,7 +31,15 @@ cost:
   estimate:
     model: opus
     tokens: 280k
-  actual: null
+  actual:
+    model: opus
+    sessions: 1                      # single OPUS session (session-30); budget was 3 — well under
+    tokens: ~170k                    # output, approx (no /usage readout this session); vs 280k est
+    ratio: ~0.6x                     # actual/estimate; tight §6 pinning — main churn was ruff E501s
+    dollars: pending                 # owner /usage relay (session started at 5%)
+    session_delta: pending           # owner /usage relay
+    week_delta: pending              # owner /usage relay
+    landed: 3/3 items; full suite 1584p/4s/0f (ratchet deselected); ratchet held 19
 depends_on: [bp-063, bp-068, bp-070]
 parallelizable_with: []
 supersedes: null
