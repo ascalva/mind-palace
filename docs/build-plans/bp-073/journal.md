@@ -21,4 +21,11 @@ questions the build's Item 0 must pin against reality —
 Eval-side (finding-0100: the measurement is eval-side constructible; the substrate retains everything).
 NO new instruments (feed the ratified ones unchanged — the note's "assembly, not new instruments").
 `depends_on: [bp-069, bp-070, bp-071]` — all landed. write_scope = eval/harness measurement + tests.
+
+**Operational safety (owner raised, session-31): Δ cannot push Ouroboros into recovery.** Recovery is
+an UNCLEAN-EXIT fail-safe read off `runs.sqlite`; Δ is eval-side, touches neither the daemon process
+nor the run ledger. Added **Item 2b — READ-ONLY by construction:** the live measurement opens every
+corpus store with sqlite `mode=ro` (a test asserts no writable handle), so Δ runs safely WHILE the
+daemon is live — zero write-contention, recovery structurally unreachable. Made the property STRUCTURAL,
+not conventional (the owner's enforcement principle).
 **Next:** owner blesses proposed→ready (by hand); then a fresh OPUS /build session, Item 0 first.

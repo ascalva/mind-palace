@@ -151,6 +151,16 @@ class ReMeasureReport:
 - **Falsifier:** a forced-green verdict; the instruments edited to discriminate; a proven bridge not
   attributed to E_proven; `golden_recall` improvement claimed without the σ-grid evidence.
 
+### Item 2b — READ-ONLY by construction (operational safety; blast: none)
+- **Acceptance:** the live measurement opens EVERY corpus store read-only (sqlite
+  `file:…?mode=ro` URI / `open(..., "r")`), so it holds NO writable handle to any store the live
+  daemon owns. A test asserts this (a write attempt through the measurement's handles raises
+  `sqlite3.OperationalError: attempt to write a readonly database`). Consequence: Δ can run WHILE
+  Ouroboros is live with zero write-contention and zero possibility of corrupting a store or the run
+  ledger — the daemon's recovery path (unclean-exit-only) is structurally unreachable from here.
+- **Falsifier:** any measurement code path holding a writable handle to a corpus/ledger store; a run
+  that requires stopping the daemon (Δ must be safe to run against the live corpus).
+
 ## 8. Math carried explicitly
 The grounding law (§2.2): connectivity is measured over `E_proven ∪ E_sim`; a proven edge has weight
 1.0 ≥ any cosine, so it is present at EVERY grid σ and can bridge two similarity components — the
