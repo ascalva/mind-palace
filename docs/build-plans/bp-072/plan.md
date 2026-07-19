@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-072
 alias: owner-cockpit
-status: proposed
+status: ready
 design_ref:
   - docs/brainstorms/owner-cockpit.md      # THE SPEC — and the direct-mint warrant (line 10: "no design-note gate needed for the tooling itself")
   - docs/brainstorms/decision-routing.md   # §Sequencing v1: docket + bless CLI, zero governance change
