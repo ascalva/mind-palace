@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-071
 alias: chat-code-doc-integrator
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/agent-taxonomy.md            # dn-agent-taxonomy §2.5 (the integrator charter) + §3 Phase Γ
   - docs/findings/finding-0109.md                  # the proven-edge rationale (layer 2 = WHERE it happened)
