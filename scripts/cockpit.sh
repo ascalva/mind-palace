@@ -45,7 +45,7 @@ build() {
   # Pin the reading-room session to the router default (opus-medium) so it always opens at
   # the confirmed tier regardless of what a prior /model re-tier left saved globally; the
   # owner still re-tiers in place with /model for a design/gate turn.
-  run tmux send-keys -t "$SESSION:desk.1" "claude --model opus[1m]" Enter
+  run tmux send-keys -t "$SESSION:desk.1" "claude --model 'opus[1m]'" Enter
   run tmux select-pane -t "$SESSION:desk.0"          # leave focus on the reading pane
   # ops: system snapshot + a live daemon-log tail (never requires the daemon to be up).
   run tmux new-window -t "$SESSION" -n ops -c "$ROOT"
