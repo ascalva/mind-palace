@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-074
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/session-handoff-gate.md
 contract: builder
