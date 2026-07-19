@@ -79,6 +79,38 @@ by (a)). Logic, matching the pinned §6 condition verbatim:
 - commits + missing baseline → ALLOW (fail-open)
 
 Acceptance (Item 1): met. Invariants held: (a)–(d) behavior unchanged, one
-subprocess only, exit-code contract untouched. Next: Item 2 formal tests
-(incl. case 6 — silent under an active plan), then Item 3 (A9 text + seal
+subprocess only, exit-code contract untouched. Committed `5e816e6`.
+
+### Item 2 — `tests/integration/test_handoff_gate.py` — DONE
+
+New file, mirrors `test_worktree_enforcement.py`'s pattern (self-contained
+throwaway git repo, `_lib.py stop-audit` invoked directly with
+`CLAUDE_PROJECT_DIR` set, assert on the `ALLOW`/`BLOCK:` decision line). One
+`handoff_repo` fixture in orchestrator posture (empty active-plan) with control
+helpers: `set_baseline_to_head`, `commit`, `write_brief(fresh=…)` (sets brief
+mtime to last-commit ±100 s for deterministic staleness). `.claude/state/` is
+**gitignored in the fixture** (as in the real repo) so runtime files never enter
+the (b) out-of-scope audit — important for case 6's clean ALLOW.
+
+Six cases, all green (`uv run --extra dev pytest tests/integration/
+test_handoff_gate.py -q` → **6 passed**):
+1. commits + stale brief → BLOCK (e)
+2. commits + missing brief → BLOCK (e)
+3. no commits (baseline==HEAD) + stale brief → ALLOW, no (e)
+4. commits + fresh brief → ALLOW, no (e)
+5. commits + missing baseline → fail-open ALLOW, no (e)
+6. active plan (bp-xx pointer) + stale brief + fresh journal → no (e), ALLOW
+   (decided by (a)-(d) only)
+
+Falsifier (Item 2): none tripped — no case required editing `session-brief.sh`
+or adding hooks; the signal design stands alone. §3 Q5 held: `test_worktree_
+enforcement.py` fixtures still write no `session-baseline`, so (e) skips
+fail-open there (verified in the full-suite run below).
+
+VENV NOTE for the sealing orchestrator: this fresh worktree venv has no dev
+deps by default — run the gate legs with `uv run --extra dev …` (pytest/ruff/
+mypy live in the `dev` optional-dependency group). The main checkout's `.venv`
+already carries them.
+
+Acceptance (Item 2): met. Committed alongside. Next: Item 3 (A9 text + seal
 warning), then the full attestable-green gate.
