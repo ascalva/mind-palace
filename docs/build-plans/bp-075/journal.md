@@ -160,3 +160,25 @@ All 4 items complete + green. Files touched: `core/config/loader.py`,
 `config/defaults.toml [exhaust]` was already merged (`9bb4d3b`) — not re-touched.
 Plan stays `in-progress`; the orchestrator seals + flips to `complete` (no
 builder status-flip). No new findings; finding-0115 was resolved by the amendment.
+
+## 2026-07-20 — SEALED complete (orchestrator)
+
+Second (completion) pass merged `4a0be3b`; gate re-run green by the orchestrator before merge
+(1659p/7s/21desel; +7 exhaust tests; argless mypy 69; scope clean — only the 6 granted surfaces).
+Tier verified via usage accounting (109598 tok pass-2, opus). finding-0115 resolved (owner Option
+A) → ExhaustConfig mirrors VaultConfig. Cost 2.6× (grounding miss, not delegation — recorded in
+cost.actual).
+
+⚑ finding-0116 (OPEN → owner): the exhaust WRITE-owner (ouroboros-only per dn-ouroboros-principal
+§3.4) contradicts this writer's plane (workflow/ascalva). NOT a bp-075 defect — bp-075 is correct
+under today's ascalva ownership; the conflict is a bp-076 (migration) blocker. Recorded for the
+owner's ruling before that migration chowns exhaust.
+
+```read-map
+core/config/loader.py:79: ExhaustConfig — the single-purpose core widening (mirrors VaultConfig); the finding-0115 resolution
+core/config/loader.py:396: load_config wiring — exhaust is a REQUIRED Config field (raw["exhaust"] hard subscript, always present via defaults.toml)
+scripts/exhaust_report.py:55: the writer places, never composes — reads get_config().exhaust.path, refuses silent overwrite
+tests/unit/test_exhaust_report.py:79: the test-of-the-test — a planted source INSIDE exhaust proves the invariant check is not vacuous
+tests/unit/test_exhaust_report.py:47: the source-root enumeration (vault + chat transcripts) — the invariant's coverage surface, worth knowing
+docs/supplemental/cockpit.md:97: the owner-side exhaust setup (SyncTrain pair + Files shortcut) — what you do by hand
+```

@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-075
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/exhaust-lane.md
 contract: builder
@@ -17,7 +17,17 @@ cost:
   estimate:
     model: opus
     tokens: 80k
-  actual: null
+  actual:
+    model: opus            # claude-opus-4-8[1m] both passes — usage-accounting corroborated
+    tokens: 210k           # ~100k pass-1 (finding-0115 stop-and-raise) + ~110k pass-2 (completion)
+    passes: 2
+    ratio: 2.6             # 210k / 80k — the overrun is a GROUNDING MISS, not delegation: graduation
+                           #   grounded config/loader.py (the facade) but not core/config/loader.py
+                           #   (the schema), so the [exhaust] surface needed a mid-plan scope-widen +
+                           #   re-delegation. Lesson: ground a facade against its REAL implementation
+                           #   (memory ground-before-building) — the same finding-0104 class, one drawer over.
+    tool_calls: 82         # ~40 pass-1 + ~42 pass-2
+    green_gate: all-green  # ruff · mypy(229) · mypy-argless(69) · type_gate · pytest 1659p/7s/21desel
 depends_on: []
 parallelizable_with: []
 created: 2026-07-19
