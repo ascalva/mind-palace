@@ -69,3 +69,64 @@ references:
   - ~/.mind-palace/vault (Syncthing "Mind Palace Vault") # the existing synced corpus folder
   - ~/mind-palace-reports/2026-07-19-bp-074-*.html   # today's proof-of-concept report
 ```
+
+## 2026-07-19T21:20:00Z — the ouroboros principal & filesystem permissions
+
+```capsule
+topic: exhaust-and-ingest-sync
+date: 2026-07-19
+thread: least-privilege ownership of the ingest/exhaust lanes
+
+grounding (verified this machine, 2026-07-19):
+  - There is NO `ouroboros` user and NO `ouroboros` group yet. Syncthing, the palace
+    daemon, the vault, and `~/.mind-palace` all run as / are owned by `ascalva:staff`.
+    So this is not tightening existing perms — it is MINTING a new principal and running
+    the live system under it. A meaningful hardening; scope is bigger than the folders
+    (it is how the whole daemon runs — currently launchd-as-ascalva).
+
+decisions (owner, refining the model):
+  - The ingest path's read/write must be LIMITED on this machine: `ouroboros` is the only
+    principal that needs to READ the ingested corpus and WRITE the ingest identity ("the
+    id" — doc_id / dedup markers, cf. dn-ingest-identity-and-amendment). Not readable by
+    Alberto's general login processes → stronger corpus privacy than today's ascalva-owned
+    vault (any app under the ascalva login can currently read the corpus).
+  - The exhaust path's WRITE privilege is limited to `ouroboros` (the system emits; nobody
+    else authors exhaust). Readers (the sync-out principal, Alberto) get read-only. A clean
+    drop-box: one writer, many readers.
+
+the permission model implied:
+  - ingest/  owner=ouroboros, ouroboros-only read, mode 0700 (or 2770 + a shared sync group);
+    write-in principal = whoever syncs incoming material.
+  - exhaust/  owner=ouroboros, ouroboros-only write, mode 0750/0755; sync-out reader has read.
+
+THE design wrinkle to resolve (created directly by the "ouroboros is the ONLY reader" rule):
+  - Syncthing runs as `ascalva` today. For ingest/ to be ouroboros-ONLY-readable, the thing
+    writing incoming files cannot be an ascalva-Syncthing. Options:
+    (a) run the ingest sync AS ouroboros (files land system-owned; sole-reader holds
+        cleanly) — cleanest, but a second Syncthing principal / move the vault sync under
+        ouroboros. LEANING (a): it honors the rule as written.
+    (b) shared `ouroboros` group + setgid dir: ascalva-Syncthing writes via the group,
+        ouroboros reads — simpler infra, but "only reader" softens to "the group reads",
+        weaker than the rule.
+  - exhaust/ has NO tension: ouroboros writes, the sync-out principal reads.
+  - This REINFORCES the separate-share layout: ingest and exhaust want DIFFERENT owners and
+    DIFFERENT modes — natural as two independently-owned folders, awkward as two subdirs of
+    one ascalva-owned vault.
+
+open_questions (added):
+  - Does the palace DAEMON itself move to run as `ouroboros` (launchd user change), or only
+    the ingest/exhaust ownership? The corpus-privacy win is fullest if the daemon IS
+    ouroboros and Alberto's login cannot read the vault at all. Scope call for the owner.
+  - Interaction with vault-unseal / Vault runtime auth (dn-vault-runtime-auth): the unseal
+    script (`ops/vault/vault-unseal.sh`) runs today as ascalva — does it move too?
+  - macOS specifics: a hidden service account (`dscl`/sysadminctl), or a role account;
+    launchd `UserName` key; Syncthing-as-a-second-user via its own launchd agent.
+
+route:
+  - This is INFRA + a trust-boundary change (a new principal) — owner-in-the-loop, NEVER
+    autonomous (no user creation / chown / daemon-user change without the owner). Graduates
+    with the exhaust design as a FABLE/xhigh pass; the permission invariants become
+    structural checks (ownership + mode asserted, not assumed). Keep the mechanical
+    exhaust-writer build SEPARATE from the ouroboros-principal trust-boundary change
+    (memory ground-before-building: don't mix a mechanical move with a trust-boundary one).
+```
