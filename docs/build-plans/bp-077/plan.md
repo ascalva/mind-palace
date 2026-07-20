@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-077
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/authorship-distance-axis.md
   - docs/design-notes/the-sacred-boundary.md
@@ -17,7 +17,7 @@ cost:
 depends_on: []
 parallelizable_with: []
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-07-20
 links:
   - CONSTITUTION.md
   - docs/BUILD-SPEC.md

@@ -1,0 +1,23 @@
+# LaTeX build artifacts — source-only commits; the PDF is built locally
+# (bp-077 §9 / dn-agent-workflow §14: PDF publishing cadence is parked).
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
+*.pdf
+*.run.xml
+*.bcf
+*.idx
+*.ilg
+*.ind
+*.nav
+*.snm
+*.vrb
+*.xdv

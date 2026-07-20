@@ -1,0 +1,27 @@
+% notation.tex — THE symbol registry. Defined ONCE, used everywhere (book skill).
+% Extend this file; never redefine a symbol locally in a chapter. Seeded here with
+% what Chapter 1 (Philosophy) needs; later chapters extend it (architecture, then
+% the mathematics chapter, which owns the coboundary/grounding symbols).
+
+% --- Proper names (used throughout). --------------------------------------------
+% The framework vs. the live system it runs (memory `ouroboros-naming`; the live
+% system is defined in \artifact{dn-ouroboros-principal} §1).
+\newcommand{\mindpalace}{\textsc{mind-palace}}      % the framework: repo + machinery
+\newcommand{\Ouroboros}{\textsc{Ouroboros}}          % the live system: daemon + corpus
+\newcommand{\Constitution}{\textsc{Constitution}}    % the fixed-point kernel
+
+% --- Artifact-chain node names (shared by prose and the Fig. 1.1 TikZ source). ---
+% Grounded in \artifact{dn-agent-workflow} §3 (the state-machine table).
+\newcommand{\stbrainstorm}{\textsf{brainstorm}}
+\newcommand{\stdesign}{\textsf{design note}}
+\newcommand{\stplan}{\textsf{build plan}}
+\newcommand{\stjournal}{\textsf{journal + findings}}
+\newcommand{\streflect}{\textsf{reflection}}
+
+% --- Reserved for later chapters (NOT used in Ch.1; declared here so later scribe
+%     plans EXTEND rather than fork the registry). The mathematics chapter is the
+%     canonical home of these; their definitions ratify with that chapter's sources.
+%     Kept commented until first use to avoid asserting draft formalism in the book.
+% \newcommand{\authdist}{\alpha}              % authorship-distance coordinate (draft)
+% \newcommand{\footprint}[1]{\hat{\alpha}(#1)}% derived-node authorship footprint (draft)
+% \newcommand{\confbound}{c \le \gamma^{d}\, g}% the grounding/confidence envelope

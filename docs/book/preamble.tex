@@ -1,0 +1,53 @@
+% preamble.tex — packages, figure toolchain, and the citation macros.
+% Loaded by main.tex before notation.tex. No chapter content lives here.
+%
+% CITATION SCHEME (pinned by bp-077 §6, Q3 — one mechanism for the whole book):
+%   \artifact{<id>}        design claim  -> a ratified design-note / finding id
+%   \coderef{<path>}{<ref>} implementation claim -> code by path @ git-ref
+% Snippets are COPIES annotated `source: path@ref`. Draft notes are barred as
+% citations (dn-agent-workflow §3); draft theses are forward-\ref'd, never cited.
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds,shapes.geometric}
+% hyperref last (except for the macros it must see); cleveref would go after it.
+\usepackage[hidelinks]{hyperref}
+
+% --- The edition marker: the HEAD sha this edition is keyed to (see SYNC.md). ---
+% Every \coderef in the book pins to this ref unless a snippet states otherwise.
+\newcommand{\gitref}{bdcd9bc}
+
+% --- Citation macros (bp-077 §6). ------------------------------------------------
+% \artifact — a design-note or finding id, rendered as a small-caps bracketed token.
+\newcommand{\artifact}[1]{\textnormal{\textsc{[#1]}}}
+% \coderef — implementation reference: <path> @ <git-ref>, both monospaced.
+% Escape underscores in the path argument at the call site (e.g. check\_imports.py).
+\newcommand{\coderef}[2]{\mbox{\texttt{#1}\,@\,\texttt{#2}}}
+
+% --- Named colours for the two ratified diagrams. --------------------------------
+\definecolor{inkblue}{HTML}{1F3A5F}
+\definecolor{gate}{HTML}{B23A48}
+\definecolor{soft}{HTML}{6B7B8C}
+\definecolor{panel}{HTML}{EEF2F6}
+
+% --- Book-specific environments. -------------------------------------------------
+% A "Principle" is a stated stance of the system, always followed by its citation.
+\theoremstyle{definition}
+\newtheorem{principle}{Principle}[chapter]
+% A "design-evolution remark" carries superseded material as pedagogy, warrant-linked
+% (book skill §chapter-map). Not yet used in Ch.1; defined once, here.
+\newtheorem*{devolution}{Design-evolution remark}
+
+% Draft-thesis forward-reference helper: names a thesis whose formal design note is
+% still draft (barred from the book, dn-agent-workflow §3) and points at the chapter
+% that will carry it once ratified. Keeps the "no draft citation" rule mechanical.
+% Usage: \fwdthesis{authorship distance}{ch:architecture}
+\newcommand{\fwdthesis}[2]{\emph{#1}~(design in progress; its formal treatment lands
+  in \autoref{#2} on ratification)}
