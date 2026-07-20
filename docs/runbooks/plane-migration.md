@@ -142,20 +142,41 @@ git config --local commit.gpgsign true
 ```
 
 **Accepted residual (design decision):** `ouroboros-work` must be able to *read the human's private
-signing key* to sign — grant it deliberately. Either make the key file group-readable by `palace`
-(least effort) **or** forward an ssh-agent the role session can reach:
+signing key* to sign — grant it deliberately. **THREE grants are required together** — all three
+confirmed necessary on the 2026-07-20 migration (`finding-0122`); the last two are easy to forget and
+each fails the verify with a misleading error:
 
 ```sh
+# (1) private key group-readable by palace (the .pub is already o+r)
 sudo chgrp palace /Users/ascalva/.ssh/id_ed25519 && sudo chmod g+r /Users/ascalva/.ssh/id_ed25519
+# (2) TRAVERSE into ~/.ssh — g+x only (NOT g+r): palace can reach a known filename, cannot list the
+#     dir; other keys stay 600/invisible. WITHOUT THIS the key grant is unreachable and git reports
+#     "Couldn't load public key …: No such file or directory" (a traverse EACCES, not a real ENOENT).
+sudo chgrp palace /Users/ascalva/.ssh && sudo chmod g+x /Users/ascalva/.ssh
+# (3) git refuses a repo owned by a DIFFERENT uid (CVE-2022-24765); core.sharedRepository/group does
+#     NOT satisfy it (it is uid-based). Mark the tree safe for ouroboros-work, else "dubious ownership".
+sudo -u ouroboros-work -H git config --global --add safe.directory /Users/ascalva/mind-palace
 ```
 
-- **Verify:** `git -C "$REPO" config --local --get user.signingkey` is non-empty; make a scratch
-  commit as the role user and confirm it is **Verified**:
-  `sudo -u ouroboros-work -H git -C "$REPO" commit --allow-empty -m 'signing probe' && git log
-  --show-signature -1` → `Good "git" signature`. Delete the probe commit after
-  (`git reset --hard HEAD~1`). (`verify_planes.py` → "repo-local git signing" PASS.)
+**⚠️ Passphrase → unattended signing (the real operational catch — `finding-0122`).** If the signing
+key is passphrase-protected, the verify below **prompts for the passphrase** — fine by hand, but the
+autonomous orchestrator (as `ouroboros-work`) cannot type it on every commit. Solve it the SAME way
+as §5's credential: the cockpit wrapper starts an ssh-agent for `ouroboros-work` and `ssh-add`s the
+key ONCE at launch (passphrase from its keychain via `--apple-use-keychain`), so git's SSH signing
+goes through the agent silently thereafter. **Do NOT strip the passphrase off the key.**
+
+- **Verify (exercises all three grants + signing).** Prefer a throwaway branch — a probe commit on
+  `main` trips the post-commit code-sensor and briefly moves `main` (harmless but noisy):
+  ```sh
+  sudo -u ouroboros-work -H git -C "$REPO" commit --allow-empty -m 'signing probe'  # may prompt passphrase
+  git log --show-signature -1        # → Good "git" signature for ascalva@gmail.com
+  git reset --hard HEAD~1            # remove the probe
+  ```
+  (`verify_planes.py` → "repo-local git signing" PASS.)
 - **Rollback:** `git config --local --remove-section user; git config --local --unset gpg.format;
-  git config --local --unset commit.gpgsign`; `sudo chmod g-r /Users/ascalva/.ssh/id_ed25519`.
+  git config --local --unset commit.gpgsign`; `sudo chmod g-r /Users/ascalva/.ssh/id_ed25519`;
+  `sudo chmod g-x /Users/ascalva/.ssh && sudo chgrp staff /Users/ascalva/.ssh` (restore 700/staff);
+  `sudo -u ouroboros-work -H git config --global --unset safe.directory /Users/ascalva/mind-palace`.
 
 ---
 
