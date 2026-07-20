@@ -124,3 +124,12 @@ SAFETY: I did NOT invoke the real CLI — with the real config it would write to
 `~/.mind-palace/exhaust/` (outside the repo, live owner data, forbidden). All 5
 writer tests drive `main()`/`place_report()` against a stubbed tmp exhaust root
 (monkeypatched `get_config`). 7/7 green: `pytest tests/unit/test_exhaust_report.py`.
+
+**Item 4 — DONE** (`docs/supplemental/cockpit.md`). Added "The exhaust lane —
+build reports on your phone (owner-side, by hand)" section: the two one-time owner
+setup steps (pair `~/.mind-palace/exhaust` as a separate Syncthing share sibling to
+the vault, over Tailscale; favorite `…/exhaust/reports/` in iPhone Files), the exact
+report naming, and the writer command with its overwrite-refusal note. Preserved the
+guide-not-gate framing (a report is a review surface; every blessing/apply is at the
+keyboard; the system writes exhaust and reads the vault, neither lane reads the other).
+Placed before the read-map section; nothing auto-applied.

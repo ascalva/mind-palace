@@ -94,6 +94,44 @@ bare shell it `attach`es.
 
 ---
 
+## The exhaust lane — build reports on your phone (owner-side, by hand)
+
+The **exhaust lane** (`dn-exhaust-lane`) is the outbound mirror of the vault: where the vault
+Syncthing share carries the corpus *in* (owner-written, system-read), the exhaust share carries
+system-emitted artifacts *out* (system-written, owner-read) — starting with delegated-build
+reports as self-contained HTML you read on your phone. It is a **separate Syncthing share**,
+`~/.mind-palace/exhaust/`, a *sibling* to the vault — never a subdirectory (structural isolation:
+the ingest scanner has no configured path to it, and a unit test enforces that no source root can
+lie inside it). The root is pinned once in config (`config/defaults.toml [exhaust] path`) and read
+through `get_config().exhaust.path`, so the writer and the invariant test never drift.
+
+Two one-time, owner-performed setup steps (nothing here is automated — the system writes files
+into the lane; you pair it and read it):
+
+1. **Pair the share in SyncTrain.** Add `~/.mind-palace/exhaust` as a new folder in Syncthing and
+   share it to your phone over Tailscale — exactly as the vault share is paired, one extra folder.
+   Private default (Constitution 11): Syncthing-over-Tailscale, no third party.
+2. **Add the iPhone Files shortcut.** In the Files app, favorite the synced
+   `…/exhaust/reports/` directory. Reports are named `YYYY-MM-DD-<bp-id>-<slug>.html`, so Files
+   sorts them newest-first by name; tap one and it renders in place (self-contained, theme-aware —
+   no external assets, dark-mode aware).
+
+The writer that places a report (the orchestrator runs this at merge-ready; it composes the
+report, the script only places it):
+
+```sh
+uv run scripts/exhaust_report.py <composed.html> --plan bp-NNN --slug <slug>
+# -> writes <exhaust>/reports/YYYY-MM-DD-bp-NNN-<slug>.html  (creates reports/;
+#    refuses a silent overwrite — pass --force to replace an existing dated report)
+```
+
+**Guide, not gate (the bp-072 rule holds here too).** A report is a *review surface*: every
+blessing, apply, or merge it mentions is still performed at your keyboard. The lane delivers what
+happened for you to read; it never acts. The system writes exhaust and reads the vault; neither
+lane reads the other.
+
+---
+
 ## The read-map block format (seals author this, session-33 onward)
 
 Every sealed plan's journal carries a **read map**: the load-bearing ~15–20% of the diff worth
