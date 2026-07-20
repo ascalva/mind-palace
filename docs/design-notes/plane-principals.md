@@ -336,6 +336,25 @@ New parks:
   records author strings, not uids, and the repo is group-writable; the
   existing hook/audit gates remain the enforcement. Re-entry: a laundering
   incident that the HEAD-keyed A8 guard fails to catch.
+- **A dedicated VERIFIED bot identity for the orchestrator's commits**
+  (`ouroboros-work` commits as e.g. `Ouroboros (agent) <bot@…>` with its OWN
+  registered signing key; the human's HAND commits — blessings, ratifications,
+  seals — stay the human's identity). Default (owner decision 2026-07-20):
+  agent commits keep the **human's** identity + key, staying `Alberto <…>` and
+  Verified as today (§3.2) — the human chose their name on the history over
+  machine-vs-human legibility. **Parked, not discarded — it may carry workflow
+  benefits** (owner, 2026-07-20): legible machine-vs-human history (filter/blame
+  by author; branch-protection or review rules that key off a bot author);
+  automation that triggers on bot vs human commits; and it CLOSES the §3.2
+  accepted residual — a bot key ≠ the human's key, so `ouroboros-work` no longer
+  needs read access to the human's signing key (a compromised agent could no
+  longer sign as the human). Aligns with the authorship-distance principle
+  (`dn-authorship-distance-axis`): machine authorship honestly attributed.
+  Re-entry: any of those workflow benefits becomes wanted — a CI/automation
+  hook that must distinguish bot commits, a review policy that gates on
+  authorship, or the signing-key-access residual becoming a felt concern.
+  Cost when un-parked: mint + register the bot key to the forge; set the
+  identity per-context (agent contexts → bot, hand contexts → human).
 
 ## Cross-references
 
