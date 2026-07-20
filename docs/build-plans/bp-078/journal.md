@@ -149,4 +149,37 @@ the `_launchd_managed` monkeypatch extended to accept the domain arg (one-line).
 **tests/integration/test_lifecycle_control.py + test_lifecycle.py: 36 passed.**
 ruff clean, mypy(launcher) clean, import-firewall OK.
 
-Next: Item 2 (cockpit sudo launch line) ∥ Item 3 (pf anchor).
+## 2026-07-20 — Items 2 + 3 DONE
+
+- **Item 2** (`scripts/cockpit.sh`): the orchestrator pane launches `sudo -u ouroboros-work
+  -H claude …`; every other pane + hand action stays ascalva. `bash scripts/cockpit.sh
+  --dry-run` prints the sudo prefix on `desk.1` ONLY (all other panes unchanged) and spawns no
+  tmux (`run()` prints in DRY mode). shellcheck clean. Committed `a4ea16f`.
+- **Item 3** (`ops/network/ouroboros-egress.pf.conf`): `pass out quick on lo0` STRICTLY before
+  `block drop out quick proto { tcp udp } … user ouroboros`. Ordering proven by text; syntax by
+  `pfctl -n -f` on a resolvable-user substitution (rc 0). Names only ouroboros. Committed `ebe99bf`.
+
+## 2026-07-20 — Items 4 + 5 DONE (verifier + ratchets) + a real risk-(b) discovery
+
+- **Item 4** (`scripts/verify_planes.py`): read-only four-plane verifier behind an injectable
+  `SystemProbe` so every check is exercised against pre/partial/post fixtures with NO mutation
+  and no real accounts. Verdict semantics: **green (exit 0) = no FAIL and no PENDING**; SKIP is
+  allowed but LISTED (the unseal item is an owner-run one-liner — the verifier NEVER scans a
+  credential store, finding-0120; pf needs root). A not-yet-migrated lane is always PENDING → a
+  partial migration can never false-green (the Item 4 falsifier). Runs end-to-end via `uv run
+  scripts/verify_planes.py` (finding-0118 — a subprocess test pins the CLI form). Read-only
+  proven by an AST test (no mutating call, no `open` for write, no pfctl `-f`) + the no-core AST
+  guard. **REAL DISCOVERY (risk (b) grounded):** on this machine `/Users/ascalva` is `0o750` — NO
+  o+x, so role accounts genuinely CANNOT traverse to the repo / ~/.mind-palace. The verifier
+  flags it FAIL; Item 6's runbook MUST remediate (an ACL grant or `chmod o+x` on the traversal
+  path, or relocate). The note only *warned* this needed verifying; the verifier turned the
+  warning into a concrete, machine-specific gap.
+- **Item 5** (`tests/unit/test_plane_migration.py`): 5 self-configuring ratchets keyed on real
+  `stat().st_uid` — vault-unreadable, exhaust/reports==work, data==core, repo-local signing, pf
+  egress. On THIS machine (pre-migration) ALL FIVE **SKIP** with a reason (the suite does not
+  redden pre-migration — the Item 5 falsifier). Plus the committed anchor's ordering (text) +
+  syntax (resolvable-user `pfctl -n`) + names-only-ouroboros, and a `[planes]` default-disabled
+  assertion. **tests/unit/test_plane_migration.py: 16 passed, 5 skipped.** ruff + mypy(verifier)
+  clean; verifier end-to-end exit 1 (honest: nothing migrated).
+
+Next: Item 6 (migration runbook + docs/runbook.md pointer), then the full green gate.
