@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0115
-status: open
+status: resolved
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-07-20
 links:
   - docs/build-plans/bp-075/plan.md                # the exhaust-lane plan this obstructs (Item 1)
   - docs/design-notes/exhaust-lane.md              # §2.2: the exhaust root is pinned in config (SSOT)

@@ -7,6 +7,8 @@ design_ref:
 contract: builder
 write_scope:
   - config/defaults.toml
+  - core/config/loader.py
+  - config/loader.py
   - scripts/exhaust_report.py
   - tests/unit/test_exhaust_report.py
   - docs/supplemental/cockpit.md
@@ -108,11 +110,18 @@ one code-settled question left deliberately to the builder's reading.
 
 ## 5. Write scope
 
-`config/defaults.toml` (the `[exhaust]` table only), `scripts/exhaust_report.py`
-(new), `tests/unit/test_exhaust_report.py` (new — carries the invariant test
-and the writer tests), `docs/supplemental/cockpit.md` (the owner-side section).
+`config/defaults.toml` (the `[exhaust]` table — DONE, merged `9bb4d3b`),
+`core/config/loader.py` + `config/loader.py` (the `ExhaustConfig` surface —
+WIDENED IN per finding-0115, owner Option A 2026-07-20; the loader is schema'd,
+so surfacing `[exhaust]` via `get_config()` requires a core dataclass field, the
+same shape as `VaultConfig`), `scripts/exhaust_report.py` (new),
+`tests/unit/test_exhaust_report.py` (new — the invariant test and the writer
+tests), `docs/supplemental/cockpit.md` (the owner-side section).
 
-Deliberately OUT: `core/**` (Q2 escape hatch is a finding, not a scope creep),
+The `core/config/loader.py` grant is a NARROW, single-purpose widening: an
+`ExhaustConfig` mirroring the existing `VaultConfig` — the config system used as
+designed (every section lives there), NOT outsourcing and NOT a trust boundary
+(finding-0115 §Options A). Deliberately still OUT: the rest of `core/**`,
 `config/local.toml` (owner's machine-local file), `~/.mind-palace/**` (live
 data — the builder never writes outside the repo), `.claude/hooks/**`, the
 foundation denylist as always.
@@ -126,12 +135,24 @@ Config key (Item 1 adds; writer and test read):
 path = "~/.mind-palace/exhaust"   # system-written, owner-read; NEVER an ingest root
 ```
 
-Config access pattern (scripts-side precedent, `verify_attestation.py:25`):
+Config access pattern — CORRECTED per finding-0115 (the loader returns a frozen
+`Config` dataclass, NOT a subscriptable dict; `get_config()["exhaust"]["path"]`
+was unimplementable). The real form, after Item 1 adds the `ExhaustConfig` field:
 
 ```python
 from config.loader import get_config
-cfg = get_config()
-exhaust_root = Path(cfg["exhaust"]["path"]).expanduser()
+exhaust_root = get_config().exhaust.path      # .path is already an expanduser'd Path
+```
+
+`ExhaustConfig` to add in `core/config/loader.py` (mirror `VaultConfig` exactly):
+
+```python
+@dataclass(frozen=True)
+class ExhaustConfig:
+    path: Path
+# on Config:  exhaust: ExhaustConfig
+# in load_config():  exhaust=ExhaustConfig(path=Path(raw["exhaust"]["path"]).expanduser())
+# re-export the name in the config/loader.py facade + its __all__
 ```
 
 Writer CLI contract (Item 3):
@@ -154,20 +175,27 @@ or rewrites content (composition is the orchestrator's, memory
 
 ## 7. Items
 
-### Item 1 — the `[exhaust]` config root
+### Item 1 — the `[exhaust]` config surface  (data half DONE; code half now in-scope)
 
-- **Objective:** pin the exhaust root in `config/defaults.toml`; confirm (or
-  minimally enable) loader passthrough.
-- **Files:** `config/defaults.toml` (+ `config/loader.py` ONLY if Q2 shows a
-  schema gate and the change is config-local — else stop-and-raise).
-- **Acceptance test:** `get_config()["exhaust"]["path"]` returns the pinned
-  path in a test; existing config tests stay green.
-- **Falsifier:** loader requires a `core/`-side change to surface the table —
-  the write_scope was mis-drawn; finding + park, never widen silently.
-- **Invariant(s):** no existing config key changes meaning; `[vault]`
-  untouched.
+- **Status:** the `[exhaust]` table landed in `config/defaults.toml` (merged
+  `9bb4d3b`). Remaining: the `ExhaustConfig` surface in the schema'd loader.
+- **Objective:** add `ExhaustConfig` to `core/config/loader.py` (mirror
+  `VaultConfig`: frozen dataclass, `expanduser()`'d path), the `exhaust` field
+  on `Config`, the `load_config()` wiring, and the `config/loader.py` facade
+  re-export (+ `__all__`).
+- **Files:** `core/config/loader.py`, `config/loader.py`.
+- **Acceptance test:** `get_config().exhaust.path` returns the expanduser'd
+  pinned path in a test; `[vault]`/every existing section unchanged; the full
+  config test suite green.
+- **Falsifier:** an existing config field changes meaning or a config test
+  reddens (the mirror was not faithful), or `ExhaustConfig` needs anything
+  beyond the `VaultConfig` shape (a sign the section is more than a path — stop
+  and reconsider).
+- **Invariant(s):** no existing config key changes meaning; `[vault]` untouched;
+  the widening stays confined to `ExhaustConfig` (the finding-0115 grant is
+  single-purpose).
 - **Touches stored data?** No.
-- **Parallelizable?** No. **Depends on:** none.
+- **Parallelizable?** No (Items 2/3 read this surface). **Depends on:** none.
 
 ### Item 2 — the ingest-invariant test
 
