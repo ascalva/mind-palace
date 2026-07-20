@@ -7,6 +7,7 @@
     uv run scripts/palace.py up             # bring the agent back (bootstrap)
     uv run scripts/palace.py restart        # plain down→up cycle (NOT deploy)
     uv run scripts/palace.py status         # preflight + recent runs + system snapshot
+    uv run scripts/palace.py queue          # read-only: waiting jobs, grouped by kind
     uv run scripts/palace.py reset --confirm # fresh-start wipe of the corpus layer
     uv run scripts/palace.py deploy         # promotion gate: cycle the live run onto HEAD
     uv run scripts/palace.py ingest-chat    # on-demand: ingest the local Claude Code transcripts
@@ -38,7 +39,8 @@ from core.sealing import seal
 
 _ROOT = Path(__file__).resolve().parent.parent  # repo root, for the bless path resolution
 
-USAGE = ("usage: palace.py {start|stop|down|up|restart|status|reset|deploy|ingest-chat|bless} "
+USAGE = ("usage: palace.py "
+         "{start|stop|down|up|restart|status|queue|reset|deploy|ingest-chat|bless} "
          "[--force] [--confirm] [--skip-tests] [<plan-id>]")
 
 
@@ -113,10 +115,96 @@ def bless(plan_id: str) -> int:
     return 0
 
 
+def _fmt_age(seconds: float) -> str:
+    """Compact human age for the oldest-waiting column: 41s / 6m / 2h / 3d."""
+    s = int(max(0, seconds))
+    if s < 60:
+        return f"{s}s"
+    if s < 3600:
+        return f"{s // 60}m"
+    if s < 86400:
+        return f"{s // 3600}h"
+    return f"{s // 86400}d"
+
+
+def queue_overview() -> int:
+    """Read-only overview of the daemon's job queue — how many jobs of each KIND are waiting,
+    so the bare depth number becomes legible (what is the daemon actually behind on?).
+
+    Opens the queue SQLite **read-only** (``mode=ro``): a view must never take a write lock on
+    the live single-writer daemon's db, so this deliberately issues raw aggregate reads rather
+    than constructing a ``JobQueue`` (whose ``__post_init__`` runs DDL + flips WAL — a write).
+    It reuses the queue's own state/priority vocabulary so the labels never drift from source."""
+    import sqlite3
+    from datetime import UTC, datetime
+
+    from core.config.loader import get_config
+    from scheduler.queue import (
+        DEFERRED,
+        DONE,
+        FAILED,
+        PRIORITY_BACKGROUND,
+        PRIORITY_DEFAULT,
+        PRIORITY_INTERACTIVE,
+        PRIORITY_REACTIVE,
+        QUEUED,
+        RUNNING,
+    )
+
+    db = get_config().paths.data_dir / "queue.sqlite"
+    if not db.exists():
+        print(f"no queue yet ({db} not found) — the daemon has not run.")
+        return 0
+
+    prio_name = {
+        PRIORITY_REACTIVE: "reactive",
+        PRIORITY_INTERACTIVE: "interactive",
+        PRIORITY_DEFAULT: "default",
+        PRIORITY_BACKGROUND: "background",
+    }
+    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        state_rows = conn.execute("SELECT state, count(*) FROM jobs GROUP BY state").fetchall()
+        by_state = {r[0]: r[1] for r in state_rows}
+        # Active (non-terminal) jobs, grouped by kind so "how many of each kind" reads off directly;
+        # tier + priority + oldest give the number meaning (what tier is backed up, and how stale).
+        rows = conn.execute(
+            "SELECT kind, state, tier, priority, count(*) AS n, min(created_at) AS oldest "
+            "FROM jobs WHERE state IN (?, ?, ?) "
+            "GROUP BY kind, state, tier, priority ORDER BY n DESC, kind",
+            [QUEUED, RUNNING, DEFERRED],
+        ).fetchall()
+    finally:
+        conn.close()
+
+    active = sum(r["n"] for r in rows)
+    print(f"\nmind-palace queue — {db}\n")
+    print(
+        f"  {active} active   "
+        f"({by_state.get(QUEUED, 0)} queued · {by_state.get(RUNNING, 0)} running · "
+        f"{by_state.get(DEFERRED, 0)} deferred)\n"
+    )
+    if not rows:
+        print("  nothing waiting — the queue is drained.\n")
+    else:
+        now = datetime.now(UTC).replace(tzinfo=None)  # match _utcnow(): naive UTC, seconds
+        print(f"  {'kind':<16}{'state':<9}{'tier':<11}{'priority':<13}{'n':>4}   oldest")
+        print(f"  {'-' * 15:<16}{'-' * 8:<9}{'-' * 10:<11}{'-' * 12:<13}{'-' * 4:>4}   {'-' * 6}")
+        for r in rows:
+            age = _fmt_age((now - datetime.fromisoformat(r["oldest"])).total_seconds())
+            pn = prio_name.get(r["priority"], str(r["priority"]))
+            print(f"  {r['kind']:<16}{r['state']:<9}{r['tier']:<11}{pn:<13}{r['n']:>4}   {age}")
+    print(f"\n  lifetime: {by_state.get(DONE, 0):,} done, {by_state.get(FAILED, 0):,} failed\n")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if not argv or argv[0] in {"-h", "--help"}:
         print(USAGE)
         return 0
+    if argv[0] == "queue":  # read-only view; never touches the daemon -> before seal()/launcher
+        return queue_overview()
     if argv[0] == "bless":  # owner-only gate; never touches the daemon -> before seal()/launcher
         if len(argv) != 2:
             print("usage: palace.py bless <plan-id>", file=sys.stderr)
