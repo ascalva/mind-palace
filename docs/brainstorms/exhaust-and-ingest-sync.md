@@ -130,3 +130,40 @@ route:
     exhaust-writer build SEPARATE from the ouroboros-principal trust-boundary change
     (memory ground-before-building: don't mix a mechanical move with a trust-boundary one).
 ```
+
+## 2026-07-20T15:51:04Z — operational: exhaust versioned = the system's durable OUTPUT history
+
+```capsule
+topic: exhaust-and-ingest-sync
+date: 2026-07-20
+thread: versioning the exhaust lane
+
+decisions:
+  - The exhaust Syncthing share (`~/.mind-palace/exhaust`, sibling to the vault, paired to the
+    phone `iphone182`) has **Staggered file versioning** enabled on the Mac (source of truth),
+    owner-set 2026-07-20:
+      - clean-out-after = **0** (keep FOREVER — reports are ~8 KB; an unbounded archive is ~free,
+        and no emission is ever lost). Staggered still thins DENSITY (hourly→daily→weekly) but only
+        for files that accrue multiple versions; each report is a distinct dated file the writer
+        won't overwrite, so versions accrue only on `--force` regen or a DELETION — exactly the
+        cases worth catching.
+      - version-path = **default** (`.stversions` inside the folder, Mac-local). Syncthing
+        AUTO-EXCLUDES `.stversions` from sync, so the archive never reaches the phone — the Mac
+        holds the history, the phone stays a clean read surface. (`.stversions` inside exhaust is
+        fine under the never-ingest invariant: it is not an ingest root.)
+      - cleanup-interval = 3600 (moot with clean-out = 0; harmless default).
+  - THE FRAMING (why it is more than a config): a versioned exhaust makes the lane the system's
+    durable OUTPUT history — deletion-safe, permanently retained — mirroring the corpus (vault) as
+    its INPUT history. Input stratum ↔ output stratum (authorship-distance kinship). Ties to the
+    durable-chat-blessings / attestation provenance thread: a retained, recoverable record of
+    everything Ouroboros ever emitted.
+
+open_questions:
+  - This is an OPERATIONAL (Syncthing-level) fact, not in the ratified `dn-exhaust-lane` (A8). Should
+    a future exhaust-lane amendment / the bp-076 re-graduation FORMALIZE "exhaust is a retained output
+    archive" as a design property (with the versioning config as its mechanism), or does it stay
+    operational? Default: operational; re-entry: the output-history property becomes load-bearing
+    (e.g. an attestation/provenance feature reads the archive).
+  - Phone-side (SyncTrain) versioning is NOT set — only the Mac archives. Intentional (Mac = source
+    of truth). Re-entry: the owner wants phone-side recovery too.
+```
