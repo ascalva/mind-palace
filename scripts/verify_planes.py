@@ -196,8 +196,15 @@ def check_lane(probe: SystemProbe, lane: Lane) -> Check:
         return Check(f"{lane.label} owner", PENDING,
                      f"user {lane.owner_user!r} not created yet (cannot resolve expected uid)")
     if owner.uid != want_uid:
-        actual = pwd.getpwuid(owner.uid).pw_name if _uid_name(owner.uid) else owner.uid
-        return Check(f"{lane.label} owner", PENDING if _looks_unmigrated(actual) else FAIL,
+        # PENDING vs FAIL comes from the PROBE's role uids (portable — fake in tests, real in
+        # prod), NOT from resolving owner.uid to a name and matching a hardcoded {ascalva} set:
+        # that made the verdict host-dependent — green on the owner's Mac, FAIL on CI where the
+        # runner != ascalva (finding-0124). A lane owned by a role account OTHER than the expected
+        # one is a real migration error (FAIL); owned by anything else (the human, any non-plane
+        # user) it is simply not migrated yet (PENDING).
+        status = FAIL if _is_role_uid(probe, owner.uid) else PENDING
+        actual = _uid_name(owner.uid) or owner.uid   # message only — never affects the verdict
+        return Check(f"{lane.label} owner", status,
                      f"want {lane.owner_user} (uid {want_uid}), have uid {owner.uid} ({actual})")
     # owner matches — now the group + mode, where pinned.
     detail = f"owner {lane.owner_user}"
@@ -306,9 +313,6 @@ def check_unseal_item() -> Check:
 
 
 # --------------------------------------------------------------------------------------------
-_UNMIGRATED_OWNERS = {HUMAN}
-
-
 def _uid_name(uid: int) -> str | None:
     try:
         return pwd.getpwuid(uid).pw_name
@@ -316,10 +320,14 @@ def _uid_name(uid: int) -> str | None:
         return None
 
 
-def _looks_unmigrated(actual: object) -> bool:
-    """A lane still owned by the human reads as PENDING (migration not done for it), not FAIL —
-    FAIL is reserved for a lane owned by the WRONG principal after migration."""
-    return isinstance(actual, str) and actual in _UNMIGRATED_OWNERS
+def _is_role_uid(probe: SystemProbe, uid: int) -> bool:
+    """True iff uid belongs to one of the three role accounts, resolved through the PROBE (fake in
+    tests, real in prod) — so 'wrong principal after migration' (FAIL) is told apart from
+    'human / not migrated yet' (PENDING) identically on any OS, never via the host user db.
+    finding-0124: the previous name-in-{ascalva} test was green on macOS and FAIL on Linux CI."""
+    role_uids = {probe.user_uid(u) for u in (CORE, WORK, EDGE)}
+    role_uids.discard(None)
+    return uid in role_uids
 
 
 def run_checks(probe: SystemProbe, cfg: Any) -> list[Check]:

@@ -141,16 +141,30 @@ def test_fully_migrated_is_green_with_manual_skips():
 
 
 def test_partial_migration_is_not_a_false_green():
-    """The Item 4 falsifier: reports/ still human-owned while everything else migrated → PENDING,
-    NOT green. A partial migration must never report OK."""
+    """The Item 4 falsifier: reports/ not yet chowned to ouroboros-work → PENDING (never a false
+    green) for ANY non-role owner; FAIL is reserved for a lane owned by the WRONG role account. The
+    PENDING/FAIL split reads role uids from the PROBE, never the host user db, so it is identical on
+    any OS — finding-0124: the old name-in-{ascalva} test was green on the owner's Mac but FAIL on
+    Linux CI, where the runner's uid resolves to a non-'ascalva' name."""
     cfg = _cfg()
-    probe = _migrated_probe(cfg)
     reports = Path(cfg.exhaust.path).expanduser() / "reports"
-    probe.owners[reports] = vp.Owner(_UID[vp.HUMAN], _STAFF_GID)   # not yet chowned to work
+
+    # (a) a NON-role owner -> PENDING (not migrated yet). 424242 stands for any non-plane uid that
+    #     need not even resolve to a name (the CI-runner case that the old code mis-scored as FAIL).
+    for non_role_uid in (_UID[vp.HUMAN], 424242):
+        probe = _migrated_probe(cfg)
+        probe.owners[reports] = vp.Owner(non_role_uid, _STAFF_GID)
+        checks = vp.run_checks(probe, cfg)
+        assert not vp.is_green(checks)
+        rc = next(c for c in checks if c.name.startswith("exhaust/reports/"))
+        assert rc.status == vp.PENDING, f"non-role {non_role_uid} → PENDING, got {rc.status}"
+
+    # (b) the WRONG role account (ouroboros/CORE, not ouroboros-work) -> FAIL (real migration err).
+    probe = _migrated_probe(cfg)
+    probe.owners[reports] = vp.Owner(_UID[vp.CORE], _STAFF_GID)
     checks = vp.run_checks(probe, cfg)
-    assert not vp.is_green(checks)
-    reports_check = next(c for c in checks if c.name.startswith("exhaust/reports/"))
-    assert reports_check.status == vp.PENDING
+    rc = next(c for c in checks if c.name.startswith("exhaust/reports/"))
+    assert rc.status == vp.FAIL, f"wrong-role owner must be FAIL, got {rc.status}"
 
 
 def test_readable_vault_after_migration_is_a_hard_fail():
@@ -284,10 +298,14 @@ def test_ratchet_vault_unreadable_from_test_uid():
 
 
 def test_ratchet_exhaust_reports_owned_by_work():
+    """Self-configuring witness (matches the vault/data ratchets): SKIP until exhaust/reports/ is
+    actually chowned to ouroboros-work, then ENFORCE. Keys on the LANE's real ownership, not merely
+    on the user existing — else a PARTIAL migration (users created in §1 but reports not yet chowned
+    in §8) would enforce prematurely and redden the suite (finding-0124)."""
     reports = Path(get_config().exhaust.path).expanduser() / "reports"
     work = _uid(vp.WORK)
-    if work is None or not reports.exists():
-        pytest.skip("pre-migration: ouroboros-work absent or exhaust/reports/ not present")
+    if work is None or not reports.exists() or reports.stat().st_uid != work:
+        pytest.skip("pre-migration: exhaust/reports/ not yet ouroboros-work-owned")
     assert reports.stat().st_uid == work
 
 
