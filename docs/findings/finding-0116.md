@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0116
-status: open
+status: resolved
 created: 2026-07-20
 updated: 2026-07-20
 links:
@@ -13,7 +13,11 @@ re_entry: null
 ftype: spec-defect
 origin_plan: bp-076
 route: owner
-resolution: null
+resolution: >
+  Resolved structurally by dn-plane-principals (2026-07-20, warrant = this finding):
+  exhaust/reports/ is owned by the new ouroboros-work workflow principal (Option A,
+  generalized to the owner's 4-user plane model); system-emission subdirs stay
+  ouroboros-owned. See docs/design-notes/plane-principals.md §3.3.
 ---
 
 # The exhaust WRITE-owner contradicts the report writer's plane — two ratified notes disagree on who writes `exhaust/reports/`
