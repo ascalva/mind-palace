@@ -77,6 +77,18 @@ class VaultConfig:
 
 
 @dataclass(frozen=True)
+class ExhaustConfig:
+    """The OUTBOUND lane (dn-exhaust-lane §2.1) — system-emitted artifacts the owner reads on his
+    phone, starting with delegated-build reports under `reports/`. A sibling to [vault], NEVER an
+    ingest root (§2.2, enforced by the ingest-invariant test): reports describe the system, so
+    ingesting them would be recursive self-ingestion. Mirrors VaultConfig's `path`: `~` expands to
+    $HOME; the exhaust dir lives outside the repo. Single source of truth — the report writer and
+    the invariant test both read `get_config().exhaust.path`."""
+
+    path: Path
+
+
+@dataclass(frozen=True)
 class ChatConfig:
     """The dialogue sensor over the local Claude Code transcripts (bp-069). Plain fields — the
     self-containment ratchet stays 19 (no first-party import into core.config). `transcripts_dir` is
@@ -282,6 +294,7 @@ class Config:
     resources: ResourceConfig
     paths: PathsConfig
     vault: VaultConfig
+    exhaust: ExhaustConfig
     embedding: EmbeddingConfig
     dreaming: DreamingConfig
     dream_rnd: DreamRnDConfig
@@ -380,6 +393,8 @@ def load_config(path: Path | None = None) -> Config:
             watch_debounce_s=float(v.get("watch_debounce_s", 1.0)),
             watch_poll_interval_s=float(v.get("watch_poll_interval_s", 5.0)),
         ),
+        # ~ expands to $HOME; the exhaust dir is the owner's outbound sync, outside the repo.
+        exhaust=ExhaustConfig(path=Path(raw["exhaust"]["path"]).expanduser()),
         embedding=EmbeddingConfig(
             model=str(e["model"]),
             dim=int(e["dim"]),

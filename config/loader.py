@@ -26,6 +26,7 @@ from core.config.loader import (
     DreamRnDConfig,
     EffectorsConfig,
     EmbeddingConfig,
+    ExhaustConfig,
     InterfaceConfig,
     ModelConfig,
     OllamaConfig,
@@ -43,7 +44,8 @@ from core.config.loader import get_secret as _env_secret
 
 __all__ = [
     "AirlockConfig", "AmbassadorConfig", "AttestationConfig", "BackupConfig", "Config",
-    "DreamRnDConfig", "DreamingConfig", "EffectorsConfig", "EmbeddingConfig", "InterfaceConfig",
+    "DreamRnDConfig", "DreamingConfig", "EffectorsConfig", "EmbeddingConfig", "ExhaustConfig",
+    "InterfaceConfig",
     "LEVERS_OVERLAY", "ModelConfig", "OllamaConfig", "PathsConfig", "REPO_ROOT", "ResourceConfig",
     "SandboxConfig", "SecretsConfig", "SelfModConfig", "VaultConfig",
     "get_config", "get_secret", "load_config", "refresh_config",

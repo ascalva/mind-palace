@@ -70,3 +70,30 @@ Net this session: `[exhaust]` config table (in-scope forward progress) +
 finding-0115 (the deliverable — grounding caught a scope/interface defect before
 any wasted implementation, the finding-0104 pattern). Plan stays `in-progress`
 with 3 parked items; the orchestrator makes the scope call.
+
+---
+
+## Session 2 (2026-07-20) — RESUME after finding-0115 resolved (owner Option A)
+
+**Context.** Plan AMENDED (`bdcd9bc`): write_scope WIDENED to include
+`core/config/loader.py` + `config/loader.py` (owner picked Option A of
+finding-0115 — the narrow, single-purpose `ExhaustConfig` mirror). finding-0115
+now `status: resolved`. The `[exhaust]` table data half (Item 1) already landed
+`9bb4d3b` — NOT re-added. Resuming Items 1(code)/2/3/4.
+
+**Item 1 (code half) — DONE.** In `core/config/loader.py`:
+- Added `ExhaustConfig` frozen dataclass (single `path: Path` field) right after
+  `VaultConfig` — the faithful mirror.
+- Added `exhaust: ExhaustConfig` as a REQUIRED field on `Config`, positioned in
+  the required block right after `vault`. Safe because grep confirmed NO direct
+  `Config(...)` construction anywhere in tests — every test uses `load_config()`
+  or `dataclasses.replace()`, both of which populate/preserve the field. Only
+  the single `Config(...)` call in `load_config()` needed the new arg.
+- Wired `exhaust=ExhaustConfig(path=Path(raw["exhaust"]["path"]).expanduser())`
+  after the `vault=VaultConfig(...)` block — direct subscript (mirrors vault;
+  `[exhaust]` is always present in defaults.toml).
+- Re-exported `ExhaustConfig` in the `config/loader.py` facade import list + its
+  `__all__`.
+- **Acceptance MET:** `get_config().exhaust.path` → `/Users/ascalva/.mind-palace/exhaust`
+  (expanduser'd, no `~`), `isinstance ExhaustConfig` True, `vault.path` unchanged.
+  Verified via a live `uv run python -c` load.
