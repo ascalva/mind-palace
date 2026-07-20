@@ -30,3 +30,38 @@ launchd/keychain/Syncthing. Est. 220k (a big, careful plan — larger than a
 papercut; if it doesn't fit one session, file spec-defect and re-graduate).
 
 Status: `proposed`. Awaiting the owner's `palace bless bp-076` + hand commit.
+
+## 2026-07-20 — RE-GRADUATION REQUIRED before build (delegated design agent, fable)
+
+`dn-ouroboros-principal` — the note this plan was graduated from — is being
+superseded by `dn-plane-principals` (draft filed 2026-07-20, warrant
+finding-0116): the owner generalized the 2-principal model to FOUR users, one
+per plane (`ascalva` human / `ouroboros-work` workflow / `ouroboros` core /
+`ouroboros-edge` network-facing, created now as forward-provision).
+
+**This plan must be re-graduated against `dn-plane-principals` BEFORE it
+builds** — its runbook/verifier/ratchet were sized for 2 users and would, as
+graduated, chown exhaust `ouroboros`-write-only and silently break report
+delivery (exactly finding-0116). Material deltas the re-graduation carries:
+
+1. Four role accounts, not one; shared group `palace` (ascalva + ouroboros-work).
+2. `exhaust/reports/` owned by `ouroboros-work` (finding-0116 resolution);
+   system-emission subdirs stay `ouroboros`.
+3. Cockpit launches the orchestrator via `sudo -u ouroboros-work -H claude …`
+   (cockpit.sh:73 changes); builders inherit the uid; sudoers NOPASSWD
+   descending grant; §3 must ground Claude Code's credential storage
+   (keychain vs apiKeyHelper/env) for the service user — the sharpest edge.
+4. pf anchor: block off-host egress for uid `ouroboros` (+ `pass on lo0` for
+   local model serving — verify against the running daemon); edge-only sockets.
+5. Shared-repo mechanics: setgid dirs, `core.sharedRepository=group`, umask 002.
+6. `data/` runtime substrate ownership (daemon writes inside the repo tree —
+   chown vs relocate; new grounding item).
+7. Ambassador relocation to `ouroboros-edge` via the handoff-dir airlock
+   (launcher.py:150,227-228) — or explicit deferral; the USER is created
+   unconditionally either way.
+8. Ratchets extended per-plane (vault unreadable from work AND edge postures;
+   egress refused from core posture); the stat().st_uid skip-gate carries over
+   per-path.
+
+Not touched here: plan.md (re-graduation is the orchestrator's; blessing the
+owner's). This entry only parks the build with its re-entry condition.
