@@ -1,7 +1,7 @@
 ---
 type: design-note
 id: dn-plane-principals
-status: draft               # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
+status: ratified               # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 created: 2026-07-20
 updated: 2026-07-20
 links:

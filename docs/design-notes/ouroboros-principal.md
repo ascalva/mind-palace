@@ -1,7 +1,7 @@
 ---
 type: design-note
 id: dn-ouroboros-principal
-status: ratified            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
+status: superseded            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 created: 2026-07-19
 updated: 2026-07-19
 links:
@@ -11,7 +11,7 @@ links:
   - docs/design-notes/secrets-management-evolution.md
   - docs/design-notes/vault-runtime-auth.md
 supersedes: null
-superseded_by: null
+superseded_by: dn-plane-principals
 warrant: null
 ---
 
