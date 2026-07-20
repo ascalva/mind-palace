@@ -70,3 +70,93 @@ Net this session: `[exhaust]` config table (in-scope forward progress) +
 finding-0115 (the deliverable — grounding caught a scope/interface defect before
 any wasted implementation, the finding-0104 pattern). Plan stays `in-progress`
 with 3 parked items; the orchestrator makes the scope call.
+
+---
+
+## Session 2 (2026-07-20) — RESUME after finding-0115 resolved (owner Option A)
+
+**Context.** Plan AMENDED (`bdcd9bc`): write_scope WIDENED to include
+`core/config/loader.py` + `config/loader.py` (owner picked Option A of
+finding-0115 — the narrow, single-purpose `ExhaustConfig` mirror). finding-0115
+now `status: resolved`. The `[exhaust]` table data half (Item 1) already landed
+`9bb4d3b` — NOT re-added. Resuming Items 1(code)/2/3/4.
+
+**Item 1 (code half) — DONE.** In `core/config/loader.py`:
+- Added `ExhaustConfig` frozen dataclass (single `path: Path` field) right after
+  `VaultConfig` — the faithful mirror.
+- Added `exhaust: ExhaustConfig` as a REQUIRED field on `Config`, positioned in
+  the required block right after `vault`. Safe because grep confirmed NO direct
+  `Config(...)` construction anywhere in tests — every test uses `load_config()`
+  or `dataclasses.replace()`, both of which populate/preserve the field. Only
+  the single `Config(...)` call in `load_config()` needed the new arg.
+- Wired `exhaust=ExhaustConfig(path=Path(raw["exhaust"]["path"]).expanduser())`
+  after the `vault=VaultConfig(...)` block — direct subscript (mirrors vault;
+  `[exhaust]` is always present in defaults.toml).
+- Re-exported `ExhaustConfig` in the `config/loader.py` facade import list + its
+  `__all__`.
+- **Acceptance MET:** `get_config().exhaust.path` → `/Users/ascalva/.mind-palace/exhaust`
+  (expanduser'd, no `~`), `isinstance ExhaustConfig` True, `vault.path` unchanged.
+  Verified via a live `uv run python -c` load.
+
+**Items 2 + 3 — DONE** (`tests/unit/test_exhaust_report.py` + `scripts/exhaust_report.py`).
+
+*Item 2 (ingest invariant).* Enumerated the ingest source roots in a documented
+`_ingest_source_roots(cfg)` helper: `cfg.vault.path` (corpus — consumers
+core/ingest/*, scheduler/vault_sync.py) and the chat transcripts dir
+(`cfg.chat.transcripts_dir or _default_transcripts_dir()` — scheduler/chat_sync.py;
+reuses the sensor's OWN resolver, DRY). Grep confirmed these are the only two
+config-pinned roots the pipeline reads owner content FROM (the `[paths]` entries
+are the system's own output stores, not ingest sources). This is a semantically-
+grounded enumeration of the ingest lanes, NOT drift-prone literal-path pinning —
+so the §7 falsifier ("cannot enumerate generically → finding") did NOT fire. Check
+= `is_relative_to(exhaust)` after `expanduser().resolve()` (symlink-normalized).
+Two tests: (a) real merged config → offenders == []; (b) test-of-the-test — a
+`dataclasses.replace` config planting vault INSIDE exhaust → offender flagged.
+
+*Item 3 (writer).* `scripts/exhaust_report.py`: `place_report()` copies a composed
+HTML file to `<exhaust>/reports/YYYY-MM-DD-<plan>-<slug>.html`, `mkdir -p reports/`,
+raises `FileExistsError` on an existing target unless `force`; `main()` maps that to
+exit 1 with guidance, prints the dest on success (exit 0). Reads the root via
+`get_config().exhaust.path` (SSOT). Imports = stdlib + `config` only; AST test
+asserts NO `core` import (docket precedent) and imports ⊆ the allowed set.
+
+SAFETY: I did NOT invoke the real CLI — with the real config it would write to
+`~/.mind-palace/exhaust/` (outside the repo, live owner data, forbidden). All 5
+writer tests drive `main()`/`place_report()` against a stubbed tmp exhaust root
+(monkeypatched `get_config`). 7/7 green: `pytest tests/unit/test_exhaust_report.py`.
+
+**Item 4 — DONE** (`docs/supplemental/cockpit.md`). Added "The exhaust lane —
+build reports on your phone (owner-side, by hand)" section: the two one-time owner
+setup steps (pair `~/.mind-palace/exhaust` as a separate Syncthing share sibling to
+the vault, over Tailscale; favorite `…/exhaust/reports/` in iPhone Files), the exact
+report naming, and the writer command with its overwrite-refusal note. Preserved the
+guide-not-gate framing (a report is a review surface; every blessing/apply is at the
+keyboard; the system writes exhaust and reads the vault, neither lane reads the other).
+Placed before the read-map section; nothing auto-applied.
+
+## Session 2 — VERIFICATION (full attestable-green gate, live-excluded)
+
+All legs run with `uv run --extra dev`, each separate, live/podman/vault/restic
+markers excluded + the two known-red deselects (finding-0105 self-containment node,
+finding-0103 ratchet at 19):
+
+- **ruff check .** → `All checks passed!`
+- **mypy core agents eval ops scheduler scripts** → `Success: no issues found in 229 source files`
+- **mypy (argless)** → `Found 69 errors in 20 files (checked 484 source files)` — tests
+  baseline 69 HELD; the new test file added zero net errors.
+- **python -m ops.type_gate** → `Tier-2 membership: OK` + `Bare-ignore scan: OK`.
+- **pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'
+  --deselect …self_containment… --deselect …finding_0103_ratchet…**
+  → `1659 passed, 7 skipped, 21 deselected in 53.08s` (incl. the 7 new exhaust tests).
+
+A post-commit `ruff --fix` re-sorted the test import block (removed one blank line);
+folded into the lint commit below. No behavior change.
+
+## SEAL-READY
+
+All 4 items complete + green. Files touched: `core/config/loader.py`,
+`config/loader.py`, `scripts/exhaust_report.py` (new),
+`tests/unit/test_exhaust_report.py` (new), `docs/supplemental/cockpit.md`.
+`config/defaults.toml [exhaust]` was already merged (`9bb4d3b`) — not re-touched.
+Plan stays `in-progress`; the orchestrator seals + flips to `complete` (no
+builder status-flip). No new findings; finding-0115 was resolved by the amendment.
