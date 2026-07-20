@@ -52,6 +52,18 @@ pattern = "**/*.md"
 watch_debounce_s = 1.0
 watch_poll_interval_s = 5.0
 
+[exhaust]
+# The OUTBOUND lane (dn-exhaust-lane): system-emitted artifacts the owner reads on his phone
+# (Files-app shortcut), starting with delegated-build reports under `reports/`. A SEPARATE
+# Syncthing share, sibling to [vault] — NOT a subdirectory of it. `~` expands to $HOME.
+# Single source of truth: the report writer and the ingest-invariant test both read this root.
+# NEVER an ingest/source root (note §2.2): no core/ingest path may read from here — reports
+# describe the system, and ingesting them would be recursive self-ingestion of meta-content.
+# NOTE (finding-0115): surfacing this table through `get_config()` needs an `ExhaustConfig` in
+# `core/config/loader.py` (the loader is schema'd, not a passthrough) — out of bp-075's
+# write_scope. Until that lands this key is inert (parsed into `raw`, dropped by `load_config`).
+path = "~/.mind-palace/exhaust"   # system-written, owner-read
+
 [chat]
 # The dialogue sensor over the local Claude Code transcripts (bp-069). Growth-aware + real-time:
 # a live DirectoryWatcher (core-side, filesystem only — no network) enqueues a background
