@@ -39,6 +39,10 @@
       }
     ]
   },
+  "statusLine": {
+    "type": "command",
+    "command": "bash \"${CLAUDE_PROJECT_DIR:-/Users/ascalva/mind-palace}/.claude/statusline.sh\""
+  },
   "permissions": {
     "allow": [
       "Bash(git status:*)",
