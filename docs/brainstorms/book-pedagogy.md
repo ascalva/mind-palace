@@ -89,11 +89,22 @@ decisions:
   - Snippets are PSEUDO-CODE, not verbatim Python: teach the algorithm's shape, not the repo's
     surface. (Orchestrator note: this also shrinks the FACTUAL tier of book debt — pseudo-code
     doesn't go stale with signature churn; only structural debt remains for those passages.)
+  - The book REFERENCES the relevant research papers when needed (owner addendum, same session):
+    where a construct stands on published work (Lamport clocks, spectral graph theory, causal
+    sets, …), cite the actual literature — the reader getting up to speed deserves the trail out
+    of the palace and into the field. (Orchestrator note: composes with the EXTERNAL-GROUNDING
+    gate — a citation lands in a chapter only VERIFIED: real paper, correctly attributed claim.
+    `[FROM MEMORY]` citations stay flagged until the grounding pass clears them — the
+    capability-scope-algebra citation-verification item is exactly this gate's first customer.
+    `docs/reference_material/` remains the math-provenance home the citations anchor to.)
 
 next_steps:
-  - Fold both rules into the book skill's voice/snippet conventions at the next /scribe touch.
+  - Fold all three rules into the book skill's voice/snippet/citation conventions at the next
+    /scribe touch.
   - Harness-side memory mirror (book-narrative-philosophy) updated this session.
 
 references:
   - .claude memory: book-narrative-philosophy   # mirror updated 2026-07-20
+  - docs/brainstorms/external-grounding.md      # the verification gate every citation passes
+  - docs/reference_material/                    # math provenance the citations anchor to
 ```
