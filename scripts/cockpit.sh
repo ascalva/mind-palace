@@ -70,7 +70,18 @@ build() {
   # fable — the model pin is the fable-inheritance fix; --effort/--permission-mode close the
   # same footgun for the other two dials). The owner still re-tiers in place (/model, effort
   # dial) for a design/gate turn.
-  run tmux send-keys -t "$SESSION:desk.1" "claude --model 'opus[1m]' --effort medium --permission-mode auto" Enter
+  #
+  # The orchestrator (and every delegated builder it spawns, by uid inheritance) runs as the
+  # WORKFLOW plane `ouroboros-work`, NOT as the human `ascalva` (dn-plane-principals §3.2). This is
+  # the ONLY pane whose launch identity changes; the desk vim pane, the ops window, and every hand
+  # action (blessings, `palace bless`, hand commits) stay `ascalva`. `-H` repoints HOME so the
+  # agent gets its own ~/.claude (its Anthropic OAuth credential separates from the human's). The
+  # sudo is a DESCENDING grant (ouroboros-work is strictly weaker than ascalva); sudoers carries
+  # `ascalva ALL=(ouroboros-work) NOPASSWD: ALL`. INERT until the owner runs the migration (creates
+  # the user + sudoers rule, docs/runbooks/plane-migration.md) — before that this prefix simply has
+  # no ouroboros-work to become. Git identity is a SEPARATE axis: agent commits keep the human's
+  # name + signing key via repo-local .git/config (§3.2 / Q10), which HOME cannot override.
+  run tmux send-keys -t "$SESSION:desk.1" "sudo -u ouroboros-work -H claude --model 'opus[1m]' --effort medium --permission-mode auto" Enter
   run tmux select-pane -t "$SESSION:desk.0"          # leave focus on the reading pane
   # ops: system snapshot + a live daemon-log tail (never requires the daemon to be up).
   run tmux new-window -t "$SESSION" -n ops -c "$ROOT"

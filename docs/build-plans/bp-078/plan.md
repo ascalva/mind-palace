@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-078
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/plane-principals.md
 contract: builder

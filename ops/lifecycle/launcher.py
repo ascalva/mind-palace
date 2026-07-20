@@ -106,25 +106,106 @@ def _git_branch(repo_root: Path) -> str:
     return r.stdout.strip()
 
 
-def _launchd_managed(label: str) -> bool:
-    """Is the palace agent bootstrapped in the user's gui domain?"""
-    r = subprocess.run(["launchctl", "print", f"gui/{os.getuid()}/{label}"],
+@dataclass(frozen=True)
+class LaunchDomain:
+    """Which launchd domain a Launcher drives — the dn-plane-principals §3.1/§3.2 axis.
+
+    DEFAULT = the per-user GUI LaunchAgent (`gui/$UID`): today's path, byte-identical — no sudo,
+    plist in `~/Library/LaunchAgents/`, control target `gui/$UID/<label>`. The **system-daemon**
+    variant runs the palace as the `ouroboros` core principal under a LaunchDaemon
+    (`UserName ouroboros`): control targets `system/<label>`, goes through `sudo launchctl`, and
+    the plist installs to `/Library/LaunchDaemons/`. The domain is the ONLY thing that differs
+    between the two — the `launchctl` runner stays injectable, so tests drive both with a fake and
+    no real launchd domain is touched (the migration itself is owner-run, dn-plane-principals §3.5).
+    """
+
+    kind: str = "gui"   # "gui" | "system"
+
+    @classmethod
+    def gui(cls) -> LaunchDomain:
+        return cls(kind="gui")
+
+    @classmethod
+    def system(cls) -> LaunchDomain:
+        return cls(kind="system")
+
+    @property
+    def needs_sudo(self) -> bool:
+        """System-domain control requires `sudo launchctl` (note §3.2; risk (c)); gui does not."""
+        return self.kind == "system"
+
+    def target(self, label: str) -> str:
+        """The service target for `bootout`/`print` (domain + label): `system/<label>` or
+        `gui/$UID/<label>`."""
+        return f"system/{label}" if self.kind == "system" else f"gui/{os.getuid()}/{label}"
+
+    def bootstrap_domain(self) -> str:
+        """The DOMAIN argument for `bootstrap` (no label): `system` or `gui/$UID`."""
+        return "system" if self.kind == "system" else f"gui/{os.getuid()}"
+
+    def launchctl_argv(self, args: list[str]) -> list[str]:
+        """The full argv to execute — `sudo` prepended ONLY for the system domain. The gui form is
+        byte-identical to the historical `["launchctl", *args]`."""
+        prefix = ["sudo", "launchctl"] if self.needs_sudo else ["launchctl"]
+        return [*prefix, *args]
+
+    def installed_plist(self) -> Path:
+        """Where the installed plist lives: `/Library/LaunchDaemons/` (system — needs root to
+        write, an owner-run migration step) or `~/Library/LaunchAgents/` (gui). The filename keeps
+        the label (`com.mind-palace.palace.plist`) either way."""
+        if self.kind == "system":
+            return Path("/Library/LaunchDaemons/com.mind-palace.palace.plist")
+        return _default_installed_agent_plist()
+
+    def repo_plist(self, repo_root: Path) -> Path:
+        """The committed SOURCE plist for this domain: the daemon variant (`UserName ouroboros`)
+        for system, the LaunchAgent for gui."""
+        name = ("com.mind-palace.palace-daemon.plist" if self.kind == "system"
+                else "com.mind-palace.palace.plist")
+        return repo_root / "ops/lifecycle" / name
+
+
+def _default_installed_agent_plist() -> Path:
+    """The gui LaunchAgent install path — the historical `installed_plist` default (unchanged)."""
+    return Path.home() / "Library/LaunchAgents/com.mind-palace.palace.plist"
+
+
+def _launchd_managed(label: str, domain: LaunchDomain | None = None) -> bool:
+    """Is the palace agent bootstrapped in its launchd domain? Defaults to the gui domain —
+    byte-identical to the historical `launchctl print gui/$UID/<label>`."""
+    domain = domain or LaunchDomain.gui()
+    r = subprocess.run(domain.launchctl_argv(["print", domain.target(label)]),
                        capture_output=True)
     return r.returncode == 0
 
 
-def _launchd_cycle(label: str, repo_plist: Path, installed: Path) -> None:
-    """The infra half of deploy: bootout → install the repo plist → bootstrap."""
-    domain = f"gui/{os.getuid()}"
-    subprocess.run(["launchctl", "bootout", f"{domain}/{label}"], check=False)
+def _launchd_cycle(label: str, repo_plist: Path, installed: Path,
+                   domain: LaunchDomain | None = None) -> None:
+    """The infra half of deploy: bootout → install the repo plist → bootstrap. Domain-aware
+    (risk (a)): the system domain boots out `system/<label>` and bootstraps the `system` domain
+    via `sudo launchctl`, and `installed` follows the domain. Defaults to the gui domain
+    (unchanged). NB for the system daemon the `shutil.copy2` into `/Library/LaunchDaemons/` needs
+    root — this cycle therefore runs under the owner's privilege at migration time, never
+    ambiently (the default Launcher is gui, so this path is inert until the daemon move)."""
+    domain = domain or LaunchDomain.gui()
+    subprocess.run(domain.launchctl_argv(["bootout", domain.target(label)]), check=False)
     shutil.copy2(repo_plist, installed)
-    subprocess.run(["launchctl", "bootstrap", domain, str(installed)], check=True)
+    subprocess.run(domain.launchctl_argv(["bootstrap", domain.bootstrap_domain(), str(installed)]),
+                   check=True)
 
 
 def _run_launchctl(argv: list[str]) -> subprocess.CompletedProcess[str]:
-    """Run a `launchctl` subcommand, capturing output — the down/up/restart control seam.
-    Injectable on the Launcher so tests drive bootout/bootstrap with a fake runner."""
+    """Run a `launchctl` subcommand in the GUI domain, capturing output — the down/up/restart
+    control seam's DEFAULT runner. Injectable on the Launcher so tests drive bootout/bootstrap
+    with a fake; a system-domain Launcher swaps in `_run_launchctl_sudo` (see `__post_init__`)."""
     return subprocess.run(["launchctl", *argv], capture_output=True, text=True)
+
+
+def _run_launchctl_sudo(argv: list[str]) -> subprocess.CompletedProcess[str]:
+    """The system-domain control runner: `sudo launchctl <subcommand>` (note §3.2). Bound as the
+    Launcher's default runner when it is constructed with the system domain and no explicit
+    runner override."""
+    return subprocess.run(["sudo", "launchctl", *argv], capture_output=True, text=True)
 
 
 @dataclass
@@ -310,15 +391,33 @@ class Launcher:
     deploy_wait_s: float = 60.0
     deploy_poll_s: float = 0.5
     launchd_label: str = "com.mind-palace.palace"
+    # Which launchd domain this Launcher drives (dn-plane-principals §3.1/§3.2). DEFAULT = gui —
+    # every control incantation, the installed-plist path, and the drift check stay byte-identical
+    # to today. `LaunchDomain.system()` selects the `ouroboros` LaunchDaemon (sudo + system/<label>
+    # + /Library/LaunchDaemons); the migration that makes it live is owner-run (§3.5).
+    domain: LaunchDomain = field(default_factory=LaunchDomain.gui)
     # down/up/restart (KeepAlive-aware maintenance control, finding-0066): the launchctl runner
-    # and the installed LaunchAgent plist path — injectable so tests drive control with a fake.
+    # and the installed plist path — injectable so tests drive control with a fake. The runner
+    # default is gui (`launchctl …`); a system-domain Launcher swaps in the `sudo launchctl` runner
+    # in `__post_init__` unless the caller injected one. `installed_plist` follows the domain
+    # unless set explicitly (risk (a)).
     launchctl: Callable[[list[str]], subprocess.CompletedProcess[str]] = _run_launchctl
-    installed_plist: Path = field(
-        default_factory=lambda: Path.home() / "Library/LaunchAgents/com.mind-palace.palace.plist")
+    installed_plist: Path = field(default_factory=_default_installed_agent_plist)
     _stopping: bool = field(default=False, init=False)
     _run_id: int | None = field(default=None, init=False)
     _run: RunRecord | None = field(default=None, init=False)  # the active RunRecord (for snapshots)
     _components: Components | None = field(default=None, init=False)
+
+    def __post_init__(self) -> None:
+        # A system-domain Launcher controls launchd via `sudo launchctl` and installs its plist to
+        # /Library/LaunchDaemons (note §3.2, risk (a)). Apply those ONLY when the caller did not
+        # override the field — so an injected fake runner (tests) and an explicit installed_plist
+        # are always honored, and the gui default path is untouched.
+        if self.domain.needs_sudo:
+            if self.launchctl is _run_launchctl:
+                self.launchctl = _run_launchctl_sudo
+            if self.installed_plist == _default_installed_agent_plist():
+                self.installed_plist = self.domain.installed_plist()
 
     # --- start ------------------------------------------------------------------------------
     def start(self, *, force: bool = False, max_ticks: int | None = None) -> int:
@@ -480,14 +579,14 @@ class Launcher:
                 print("deploy: REFUSED — no attested green pipeline for HEAD. Push first, "
                       "wait for CI, or (emergencies only) --skip-tests.")
                 return 1
-        managed = _launchd_managed(self.launchd_label)
-        repo_plist = self.repo_root / "ops/lifecycle/com.mind-palace.palace.plist"
-        installed = Path.home() / "Library/LaunchAgents/com.mind-palace.palace.plist"
+        managed = _launchd_managed(self.launchd_label, self.domain)
+        repo_plist = self.domain.repo_plist(self.repo_root)
+        installed = self.installed_plist                       # domain-correct (risk (a))
         drift = (managed and repo_plist.exists() and installed.exists()
                  and installed.read_bytes() != repo_plist.read_bytes())
         if drift:
             print("deploy: plist drift detected — full reinstall cycle (bootout → cp → bootstrap).")
-            _launchd_cycle(self.launchd_label, repo_plist, installed)
+            _launchd_cycle(self.launchd_label, repo_plist, installed, self.domain)
         else:
             self.stop()                                    # SIGTERM → drain at the boundary
         if not managed:
@@ -546,8 +645,8 @@ class Launcher:
 
     # --- down / up / restart (KeepAlive-aware maintenance control, finding-0066) -------------
     def _managed(self) -> bool:
-        """Is the palace agent currently bootstrapped in the user's gui domain?"""
-        return self.launchctl(["print", f"gui/{os.getuid()}/{self.launchd_label}"]).returncode == 0
+        """Is the palace agent currently bootstrapped in its launchd domain (gui by default)?"""
+        return self.launchctl(["print", self.domain.target(self.launchd_label)]).returncode == 0
 
     def down(self) -> int:
         """Maintenance-down that OUTLASTS KeepAlive (finding-0066): `launchctl bootout`. Plain
@@ -560,7 +659,7 @@ class Launcher:
         if not self._managed():
             print("down: already down (agent booted out).")
             return 0
-        rc = self.launchctl(["bootout", f"gui/{os.getuid()}/{self.launchd_label}"]).returncode
+        rc = self.launchctl(["bootout", self.domain.target(self.launchd_label)]).returncode
         if rc != 0:
             print(f"down: `launchctl bootout` failed (rc={rc}). The agent may still be live.")
             return rc
@@ -579,7 +678,7 @@ class Launcher:
             print("up: already up (agent bootstrapped).")
             return 0
         rc = self.launchctl(
-            ["bootstrap", f"gui/{os.getuid()}", str(self.installed_plist)]).returncode
+            ["bootstrap", self.domain.bootstrap_domain(), str(self.installed_plist)]).returncode
         if rc != 0:
             print(f"up: `launchctl bootstrap` failed (rc={rc}).")
             return rc

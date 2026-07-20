@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The mind-palace as an always-on launchd SYSTEM DAEMON running as the `ouroboros` CORE PRINCIPAL
+  (dn-plane-principals §3.1/§3.2). This is the daemon-mode SOURCE plist; it mirrors the gui
+  LaunchAgent (com.mind-palace.palace.plist) exactly EXCEPT it adds `UserName ouroboros`, so the
+  reasoning daemon + the vault run as the least-privilege core user with NO off-host network (the
+  pf anchor ops/network/ouroboros-egress.pf.conf blocks core egress). It is authored here for the
+  owner to install; NOTHING in this repo loads it (the four-plane migration is entirely owner-run,
+  §3.5). Install (OWNER-operated, needs root — a LaunchDaemon lives in the system domain):
+
+    sudo cp ops/lifecycle/com.mind-palace.palace-daemon.plist \
+            /Library/LaunchDaemons/com.mind-palace.palace.plist
+    sudo chown root:wheel /Library/LaunchDaemons/com.mind-palace.palace.plist
+    sudo chmod 644        /Library/LaunchDaemons/com.mind-palace.palace.plist
+    launchctl bootout  gui/$(id -u)/com.mind-palace.palace   2>/dev/null  # retire the gui agent
+    sudo launchctl bootstrap system /Library/LaunchDaemons/com.mind-palace.palace.plist
+
+  Stop gracefully (SIGTERM → drain at a job boundary → mark the run clean):
+    sudo launchctl kill SIGTERM system/com.mind-palace.palace   # or: scripts/palace.py stop
+  Fully unload:
+    sudo launchctl bootout system/com.mind-palace.palace
+
+  PRECONDITIONS the runbook (docs/runbooks/plane-migration.md) establishes before this loads:
+    - the `ouroboros` role account exists and owns the vault + data/ (data/logs must be
+      ouroboros-writable — StandardOut/Err sink there);
+    - the unseal keychain item + Syncthing have migrated to `ouroboros`;
+    - `/Users/ascalva` is traversable by `ouroboros` so it can reach the repo + ~/.mind-palace.
+  ExitTimeOut gives the drain time to finish before launchd escalates to SIGKILL. Adjust the
+  absolute paths if your checkout is elsewhere.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.mind-palace.palace</string>
+
+	<!-- The daemon runs as the core principal (dn-plane-principals §3.2). This one key is the
+	     whole difference from the gui LaunchAgent: uid = ouroboros, so the vault (0700 ouroboros)
+	     and data/ (ouroboros:palace) are writable and nothing else on the machine can open them. -->
+	<key>UserName</key>
+	<string>ouroboros</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<!-- uv owns env resolution (CONVENTIONS §Language); absolute path — launchd PATH is minimal -->
+		<string>/opt/homebrew/bin/uv</string>
+		<string>run</string>
+		<string>/Users/ascalva/mind-palace/scripts/palace.py</string>
+		<string>start</string>
+	</array>
+
+	<key>WorkingDirectory</key>
+	<string>/Users/ascalva/mind-palace</string>
+
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PYTHONUNBUFFERED</key>
+		<string>1</string>
+	</dict>
+
+	<key>RunAtLoad</key>
+	<true/>
+
+	<key>KeepAlive</key>
+	<true/>
+
+	<key>ThrottleInterval</key>
+	<integer>10</integer>
+
+	<key>ExitTimeOut</key>
+	<integer>120</integer>
+
+	<key>ProcessType</key>
+	<string>Background</string>
+
+	<key>StandardOutPath</key>
+	<string>/Users/ascalva/mind-palace/data/logs/palace.out.log</string>
+
+	<key>StandardErrorPath</key>
+	<string>/Users/ascalva/mind-palace/data/logs/palace.err.log</string>
+</dict>
+</plist>

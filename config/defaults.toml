@@ -64,6 +64,22 @@ watch_poll_interval_s = 5.0
 # write_scope. Until that lands this key is inert (parsed into `raw`, dropped by `load_config`).
 path = "~/.mind-palace/exhaust"   # system-written, owner-read
 
+[planes]
+# The four-plane principal model (dn-plane-principals §3.1). Role-account HOMES for the three
+# hidden service users (never GUI-login; owner-created via sysadminctl/dscl per the migration
+# runbook). These keys are consumed by scripts/verify_planes.py + the tests/unit/test_plane_migration.py
+# ratchets — NOT by get_config(): core/config/loader.py is schema'd and drops unknown sections, so
+# there is deliberately no PlanesConfig; the verifier/ratchets read this block via a direct tomllib
+# parse (with the local.toml overlay honored). `enabled` is the COARSE master switch for the
+# per-plane ratchets; the PRIMARY signal is self-configuring on real ownership (stat().st_uid), so
+# a lane migrates its own ratchet from skip→enforce with no manual flip — this flag just lets the
+# owner force-disable the whole set mid-migration if needed. It stays false until the migration is
+# complete (flip it in config/local.toml, not here).
+core_home = "/var/ouroboros"            # ouroboros:      the reasoning daemon + the vault
+work_home = "/var/ouroboros-work"       # ouroboros-work: the orchestrator + delegated builders
+edge_home = "/var/ouroboros-edge"       # ouroboros-edge: network-facing (forward-provisioned; §9)
+enabled = false                          # false until the owner completes the migration
+
 [chat]
 # The dialogue sensor over the local Claude Code transcripts (bp-069). Growth-aware + real-time:
 # a live DirectoryWatcher (core-side, filesystem only — no network) enqueues a background

@@ -40,6 +40,12 @@ mind-palace build-sandbox-image        # data-analysis libs image (numpy/scipy/�
 cp ops/lifecycle/com.mind-palace.palace.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.mind-palace.palace.plist
 
+# --- FOUR-PLANE MIGRATION (least-privilege: one OS user per plane) — its OWN runbook -----------
+#   The full owner-run, step-verified, rollback-per-step migration to the four principals
+#   (ascalva · ouroboros-work · ouroboros · ouroboros-edge) lives in a dedicated runbook:
+#       docs/runbooks/plane-migration.md   (dn-plane-principals; bp-078)
+#   It ends with `uv run scripts/verify_planes.py` GREEN. Do it at a calm moment, not mid-task.
+
 # --- USE THE SANDBOX DIRECTLY (data in, data out) — see "Code-exec sandbox" -------------------
 echo 'print(40+2)' | mind-palace sandbox -
 mind-palace sandbox analysis.py --input series.csv=~/data/series.csv

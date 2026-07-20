@@ -322,7 +322,9 @@ def _deploy_launcher(tmp_path, runs, monkeypatch, *, head="newsha", branch="main
                      dirty=False, managed=True, gate=("true",), ci=("true",)):
     monkeypatch.setattr("ops.lifecycle.launcher.git_state", lambda _r: (head, dirty))
     monkeypatch.setattr("ops.lifecycle.launcher._git_branch", lambda _r: branch)
-    monkeypatch.setattr("ops.lifecycle.launcher._launchd_managed", lambda _l: managed)
+    # bp-078: _launchd_managed is now domain-aware (label, domain); the fake accepts the domain
+    # arg and ignores it — the deploy tests exercise the promotion gate, not the domain.
+    monkeypatch.setattr("ops.lifecycle.launcher._launchd_managed", lambda _l, _d=None: managed)
     return Launcher(cfg=_cfg(tmp_path), runs=runs, repo_root=tmp_path,  # tmp: no plist → no drift
                     gate_cmd=gate, ci_check_cmd=ci, ci_release_cmd=None,
                     deploy_wait_s=2.0, deploy_poll_s=0.05)
