@@ -182,4 +182,16 @@ ruff clean, mypy(launcher) clean, import-firewall OK.
   assertion. **tests/unit/test_plane_migration.py: 16 passed, 5 skipped.** ruff + mypy(verifier)
   clean; verifier end-to-end exit 1 (honest: nothing migrated).
 
-Next: Item 6 (migration runbook + docs/runbook.md pointer), then the full green gate.
+## 2026-07-20 — Item 6 DONE (migration runbook + pointer)
+
+`docs/runbooks/plane-migration.md`: the full owner-run sequence, §0–§11, each step with a
+`Verify:` + `Rollback:` line (13 verify / 12 rollback). Ordering guards called out up front
+(key-before-vault-chown, lo0-before-pf-block, plist-before-bootstrap, traversal-before-daemon).
+§5 is the ⛔ Q9 credential STOP-gate with the §3.2 mitigation order (a: cockpit
+`security unlock-keychain` → b: apiKeyHelper/env) AND the §10 stop-and-raise if neither works
+(→ finding-0120, do not invent a path). §0 remediates the DISCOVERED risk-(b) `/Users/ascalva`
+`0o750` gap (chmod o+x traverse, or a scoped ACL). risk (c) KeepAlive control caveat stated in
+§9. Ends with `uv run scripts/verify_planes.py` green. `docs/runbook.md` gets a quick-reference
+pointer block (resolves). No agent-run step anywhere — authoring only.
+
+All 6 items done. Running the full green gate next.
