@@ -97,3 +97,30 @@ now `status: resolved`. The `[exhaust]` table data half (Item 1) already landed
 - **Acceptance MET:** `get_config().exhaust.path` → `/Users/ascalva/.mind-palace/exhaust`
   (expanduser'd, no `~`), `isinstance ExhaustConfig` True, `vault.path` unchanged.
   Verified via a live `uv run python -c` load.
+
+**Items 2 + 3 — DONE** (`tests/unit/test_exhaust_report.py` + `scripts/exhaust_report.py`).
+
+*Item 2 (ingest invariant).* Enumerated the ingest source roots in a documented
+`_ingest_source_roots(cfg)` helper: `cfg.vault.path` (corpus — consumers
+core/ingest/*, scheduler/vault_sync.py) and the chat transcripts dir
+(`cfg.chat.transcripts_dir or _default_transcripts_dir()` — scheduler/chat_sync.py;
+reuses the sensor's OWN resolver, DRY). Grep confirmed these are the only two
+config-pinned roots the pipeline reads owner content FROM (the `[paths]` entries
+are the system's own output stores, not ingest sources). This is a semantically-
+grounded enumeration of the ingest lanes, NOT drift-prone literal-path pinning —
+so the §7 falsifier ("cannot enumerate generically → finding") did NOT fire. Check
+= `is_relative_to(exhaust)` after `expanduser().resolve()` (symlink-normalized).
+Two tests: (a) real merged config → offenders == []; (b) test-of-the-test — a
+`dataclasses.replace` config planting vault INSIDE exhaust → offender flagged.
+
+*Item 3 (writer).* `scripts/exhaust_report.py`: `place_report()` copies a composed
+HTML file to `<exhaust>/reports/YYYY-MM-DD-<plan>-<slug>.html`, `mkdir -p reports/`,
+raises `FileExistsError` on an existing target unless `force`; `main()` maps that to
+exit 1 with guidance, prints the dest on success (exit 0). Reads the root via
+`get_config().exhaust.path` (SSOT). Imports = stdlib + `config` only; AST test
+asserts NO `core` import (docket precedent) and imports ⊆ the allowed set.
+
+SAFETY: I did NOT invoke the real CLI — with the real config it would write to
+`~/.mind-palace/exhaust/` (outside the repo, live owner data, forbidden). All 5
+writer tests drive `main()`/`place_report()` against a stubbed tmp exhaust root
+(monkeypatched `get_config`). 7/7 green: `pytest tests/unit/test_exhaust_report.py`.
