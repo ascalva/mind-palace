@@ -76,3 +76,39 @@ references:
   - docs/design-notes/the-sacred-boundary.md        # "no model performs a blessing" — the line this respects
   - docs/design-notes/authorship-distance-axis.md   # chat as a self-data stratum
 ```
+
+## 2026-07-20T15:05:38Z — refinement (owner): the ceremony is INVARIANT; the new thing is a SECOND proof
+
+```capsule
+topic: durable-chat-blessings
+date: 2026-07-20
+thread: two proofs, not a replacement
+
+decisions:
+  - THE CEREMONY STAYS — unchanged. The owner still marks permission BY HAND (the blessing
+    commit / hand-flip). This is NOT what changes. The sacred boundary and the owner-by-hand
+    gate are fully retained.
+  - WHAT IS NEW: the durable chat-blessing is a CAUSAL EDGE that acts as a SECOND, INDEPENDENT
+    TYPE OF PROOF, alongside the git-commit proof. One authorization now has TWO corroborating
+    attestations:
+      (1) the git blessing commit — WHAT changed, WHO committed, accountable to the commit author;
+      (2) the durable chat-blessing — WHY / intent / context, in the owner's own words, durably
+          attributed via the chat sensor.
+    Two proofs of different KINDS (an act vs an intent) covering the same event — defense-in-depth
+    for provenance, stronger than either alone.
+  - THIS RESOLVES THE FORK toward the SAFE half by construction: chat-blessing is CORROBORATION,
+    never a REPLACEMENT for the ceremony, so no agent-actionable authorization is created and the
+    bright line ("no model performs a blessing") is untouched. The deep-half park still stands, but
+    it is explicitly NOT the target — the owner wants the second proof, not the retired ceremony.
+  - "CAUSAL EDGE" is literal (dn-the-edge-model): a typed edge from the authorizing utterance to the
+    change, whose assertion authority is the owner. The authorization history becomes a GRAPH of
+    such edges — which is what makes it queryable (the payoff in the prior entry).
+
+open_questions (added):
+  - THE JOIN is the corroboration mechanism: the chat-edge ↔ git-blessing-commit must be linkable,
+    and a MISMATCH (one proof present without the other) is the detectable anomaly — a chat-bless
+    with no commit (incomplete ceremony), or a blessing commit with no chat authorization (an
+    unattested flip). What establishes the edge — shared id, timestamp+artifact match, explicit ref?
+  - Edge typing: is "authorizes" a first-class edge type in the reasoning complex (dn-the-edge-model
+    assertion authority = owner), distinct from ordinary knowledge edges?
+```
