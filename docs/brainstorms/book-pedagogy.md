@@ -69,3 +69,31 @@ references:
   - docs/findings/finding-0111.md          # the C-fiber re-ground — a worked example of "why" as narrative
   - .claude memory: book-narrative-philosophy  # harness-side mirror of this guidance
 ```
+
+## 2026-07-20T21:28Z (session-39, fable — owner: rigor is part of the pedagogy)
+
+Owner, near-verbatim: *"the textbook should also be rigorous when it needs to be; the book is also
+about getting someone up to speed with the math and the code, although we should not shy away from
+the math/equations; you can use pseudo code instead of real python code when needing to show a code
+snippet."* Complements — does not soften — the 2026-07-19 narrative-first capsule: intuition still
+leads, but where a construct warrants formal treatment, the formalism is given in full.
+
+```capsule
+topic: book-pedagogy
+date: 2026-07-20
+
+decisions:
+  - RIGOR WHEN IT NEEDS TO BE: the narrative-first rule caps neither depth nor formality. The
+    book's job includes bringing a reader genuinely up to speed on the math AND the code — full
+    equations/derivations where the construct warrants them; never shy away from the math.
+  - Snippets are PSEUDO-CODE, not verbatim Python: teach the algorithm's shape, not the repo's
+    surface. (Orchestrator note: this also shrinks the FACTUAL tier of book debt — pseudo-code
+    doesn't go stale with signature churn; only structural debt remains for those passages.)
+
+next_steps:
+  - Fold both rules into the book skill's voice/snippet conventions at the next /scribe touch.
+  - Harness-side memory mirror (book-narrative-philosophy) updated this session.
+
+references:
+  - .claude memory: book-narrative-philosophy   # mirror updated 2026-07-20
+```
