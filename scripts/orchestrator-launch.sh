@@ -16,12 +16,40 @@
 #   security add-generic-password -U -s ssh-signing-passphrase -a ouroboros-work -w <key passphrase>
 #   sudoers Defaults:ascalva env_keep += "CLAUDE_CODE_OAUTH_TOKEN PALACE_SIGN_PASS SSH_ASKPASS SSH_ASKPASS_REQUIRE"
 #
+# Toggle: `PLANE=ascalva` launches this pane as the invoking login user (fable-tier available for
+# design/gate work) instead of the isolated ouroboros-work principal — see finding-0125.
+#
 # Fail-safe: if ouroboros-work is not provisioned yet (pre-migration), launch plainly as the
 # invoking user so the cockpit still opens a working pane.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MODEL="${1:-opus[1m]}"; EFFORT="${2:-medium}"; PERM="${3:-auto}"
+EFFORT="${2:-medium}"; PERM="${3:-auto}"
+
+# PLANE selects the principal this pane runs as:
+#   workflow (default) -> ouroboros-work, the isolated build/orchestration principal (this file's job)
+#   ascalva            -> plain login as the invoking user, which RETAINS fable-tier access for
+#                          design/gate passes (finding-0125: the headless `setup-token` credential the
+#                          workflow plane authenticates with does NOT expose fable; the interactive
+#                          login does). Flip per-pane with `PLANE=ascalva`; default stays isolated.
+PLANE="${PLANE:-workflow}"
+
+# --- ascalva plane: the fable/design escape hatch ---------------------------------------------
+# Launch as the invoking user — no sudo, no role split, no OAuth-token/askpass injection: the login
+# user already has its own Anthropic credential AND global git signing config. Model is left to the
+# owner (pass arg 1, or pick via /model in-session) so a wrong/renamed fable id can never break the
+# launch and strand the cockpit pane.
+if [ "$PLANE" = "ascalva" ]; then
+  echo "orchestrator-launch: PLANE=ascalva — launching as $(id -un); fable-tier available for design/gate work (finding-0125). Workflow-plane isolation is OFF for this pane." >&2
+  MODEL="${1:-}"
+  if [ -n "$MODEL" ]; then
+    exec claude --model "$MODEL" --effort "$EFFORT" --permission-mode "$PERM"
+  fi
+  exec claude --effort "$EFFORT" --permission-mode "$PERM"
+fi
+
+# --- workflow plane (default): the ouroboros-work isolated principal --------------------------
+MODEL="${1:-opus[1m]}"
 
 # Pre-migration / un-provisioned -> plain launch as whoever we are (no plane split yet).
 if ! id ouroboros-work >/dev/null 2>&1; then

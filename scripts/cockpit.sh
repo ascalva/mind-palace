@@ -87,7 +87,16 @@ build() {
   # repo (#10) or a command line (argv is world-readable). It is SELF-GUARDING: pre-migration (no
   # ouroboros-work user) it falls back to a plain launch, so this line is safe on an un-migrated
   # checkout. (Pane cwd is $ROOT, so the relative path resolves.)
-  run tmux send-keys -t "$SESSION:desk.1" "scripts/orchestrator-launch.sh 'opus[1m]' medium auto" Enter
+  # PLANE toggle (finding-0125): the workflow-plane headless `setup-token` auth does NOT expose the
+  # fable tier, but design/gate work needs it. Default `workflow` pins opus[1m] (fable unreachable
+  # there anyway, and the pin overrides the global fable default). `PLANE=ascalva scripts/cockpit.sh`
+  # launches the orchestrator pane as the human login (fable available) and pins NO model, so it
+  # inherits the global settings default (fable) — the isolation trade is OFF for that pane, by design.
+  if [ "${PLANE:-workflow}" = "ascalva" ]; then
+    run tmux send-keys -t "$SESSION:desk.1" "PLANE=ascalva scripts/orchestrator-launch.sh '' medium auto" Enter
+  else
+    run tmux send-keys -t "$SESSION:desk.1" "scripts/orchestrator-launch.sh 'opus[1m]' medium auto" Enter
+  fi
   run tmux select-pane -t "$SESSION:desk.0"          # leave focus on the reading pane
   # ops: system snapshot + a live daemon-log tail (never requires the daemon to be up).
   run tmux new-window -t "$SESSION" -n ops -c "$ROOT"
