@@ -222,20 +222,49 @@ headless path.
 
 ---
 
-## §6 — Sudoers: the descending NOPASSWD grant
+## §6 — Sudoers: the descending NOPASSWD grant + the launch-secret handoff
 
 Lets the cockpit become `ouroboros-work` without a prompt. This is a **descending** grant (the
 target is strictly weaker than you), so its blast radius is "ascalva may act as a user with LESS
-authority" — the whole point.
+authority" — the whole point. The `env_keep` line is what lets `scripts/orchestrator-launch.sh` hand
+the two launch secrets across the boundary via the **environment** (never argv, never the repo, #10).
 
 ```sh
-echo 'ascalva ALL=(ouroboros-work) NOPASSWD: ALL' | sudo tee /etc/sudoers.d/mind-palace-work
+sudo tee /etc/sudoers.d/mind-palace-work >/dev/null <<'SUDOERS'
+Defaults:ascalva env_keep += "CLAUDE_CODE_OAUTH_TOKEN PALACE_SIGN_PASS SSH_ASKPASS SSH_ASKPASS_REQUIRE"
+ascalva ALL=(ouroboros-work) NOPASSWD: ALL
+SUDOERS
 sudo visudo -cf /etc/sudoers.d/mind-palace-work        # syntax-check (MUST print "parsed OK")
 sudo chmod 440 /etc/sudoers.d/mind-palace-work
 ```
 
 - **Verify:** `sudo -n -u ouroboros-work id` prints ouroboros-work's id with no password prompt.
 - **Rollback:** `sudo rm /etc/sudoers.d/mind-palace-work`.
+
+### §6b — the cockpit wrapper's two keychain secrets (finding-0120 + finding-0122)
+
+`scripts/orchestrator-launch.sh` (the cockpit's orchestrator pane) reads these from **ascalva's**
+login keychain at launch and injects them into the `ouroboros-work` session. Store both once:
+
+```sh
+# the subscription OAuth token (§5) and the ssh signing-key passphrase (§4), never in the repo:
+security add-generic-password -U -s claude-oauth-token     -a ouroboros-work -w '<setup-token>'
+security add-generic-password -U -s ssh-signing-passphrase -a ouroboros-work -w '<key passphrase>'
+```
+
+- **Verify (end-to-end, the real proof):** from the repo root, run the wrapper and confirm BOTH
+  halves — auth and silent signing:
+  ```sh
+  scripts/orchestrator-launch.sh 'opus[1m]' medium auto      # should open an AUTHENTICATED claude
+  # then, from that ouroboros-work session (or a probe): a signed commit must NOT prompt:
+  sudo -u ouroboros-work -H env CLAUDE_CODE_OAUTH_TOKEN="$(security find-generic-password -s claude-oauth-token -a ouroboros-work -w)" \
+       PALACE_SIGN_PASS="$(security find-generic-password -s ssh-signing-passphrase -a ouroboros-work -w)" \
+       SSH_ASKPASS="$PWD/scripts/sign-askpass.sh" SSH_ASKPASS_REQUIRE=force \
+       git -C "$REPO" commit --allow-empty -m 'wrapper signing probe' && git log --show-signature -1 && git reset --hard HEAD~1
+  ```
+  First keychain read may pop a one-time approval dialog — click **Always Allow**.
+- **Rollback:** `security delete-generic-password -s claude-oauth-token -a ouroboros-work`;
+  `security delete-generic-password -s ssh-signing-passphrase -a ouroboros-work`.
 
 ---
 

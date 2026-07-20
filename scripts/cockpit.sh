@@ -75,13 +75,19 @@ build() {
   # WORKFLOW plane `ouroboros-work`, NOT as the human `ascalva` (dn-plane-principals §3.2). This is
   # the ONLY pane whose launch identity changes; the desk vim pane, the ops window, and every hand
   # action (blessings, `palace bless`, hand commits) stay `ascalva`. `-H` repoints HOME so the
-  # agent gets its own ~/.claude (its Anthropic OAuth credential separates from the human's). The
+  # agent gets its own ~/.claude (its Anthropic credential state separate from the human's). The
   # sudo is a DESCENDING grant (ouroboros-work is strictly weaker than ascalva); sudoers carries
-  # `ascalva ALL=(ouroboros-work) NOPASSWD: ALL`. INERT until the owner runs the migration (creates
-  # the user + sudoers rule, docs/runbooks/plane-migration.md) — before that this prefix simply has
-  # no ouroboros-work to become. Git identity is a SEPARATE axis: agent commits keep the human's
-  # name + signing key via repo-local .git/config (§3.2 / Q10), which HOME cannot override.
-  run tmux send-keys -t "$SESSION:desk.1" "sudo -u ouroboros-work -H claude --model 'opus[1m]' --effort medium --permission-mode auto" Enter
+  # `ascalva ALL=(ouroboros-work) NOPASSWD: ALL` + an env_keep whitelist for the launch secrets
+  # (plane-migration.md §6). Git identity is a SEPARATE axis: agent commits keep the human's name +
+  # signing key via repo-local .git/config (§3.2 / Q10), which HOME cannot override.
+  #
+  # The launch goes through scripts/orchestrator-launch.sh, which injects the two secrets it needs
+  # from ascalva's keychain at launch — CLAUDE_CODE_OAUTH_TOKEN for auth (finding-0120) and the ssh
+  # signing passphrase for silent Verified commits (finding-0122) — via the environment, never the
+  # repo (#10) or a command line (argv is world-readable). It is SELF-GUARDING: pre-migration (no
+  # ouroboros-work user) it falls back to a plain launch, so this line is safe on an un-migrated
+  # checkout. (Pane cwd is $ROOT, so the relative path resolves.)
+  run tmux send-keys -t "$SESSION:desk.1" "scripts/orchestrator-launch.sh 'opus[1m]' medium auto" Enter
   run tmux select-pane -t "$SESSION:desk.0"          # leave focus on the reading pane
   # ops: system snapshot + a live daemon-log tail (never requires the daemon to be up).
   run tmux new-window -t "$SESSION" -n ops -c "$ROOT"
