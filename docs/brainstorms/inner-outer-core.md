@@ -133,3 +133,28 @@ next_steps:
 references:
   - docs/brainstorms/hypothetical-subspace.md   # captured same session — first concrete outer-core consumer
 ```
+
+## 2026-07-20T22:08Z (session-39, fable — owner ruling on the draft's open predicate decision: v2)
+
+The dn-inner-outer-core draft (`fde4326`) left ONE predicate ruling to the owner: v1
+(∖ network stdlib; 51 members, sqlite store layer inside) vs the parked P1/v2 (further ∖ sqlite3;
+~29 members — "the math and the sacred boundaries"). Owner, in chat after the diff was laid out:
+*"i do like v2 more."*
+
+```capsule
+topic: inner-outer-core
+date: 2026-07-20
+
+decisions:
+  - The inner-ring predicate is V2 (owner ruling, session-39): base = (stdlib ∖ NETWORK_MODULES
+    ∖ {sqlite3}) ∪ {numpy, scipy}, strict semantics — the ring is the math/algebra/sacred-boundary
+    vocabulary of the founding language, not the austere plumbing. The wider network-only ring
+    (v1, 51 members) is recorded as the rejected alternative with a re-entry, not deleted.
+  - Still import-grain, still computed-never-curated; the honest caveat carries forward — v2 is
+    NOT call-grain effect-free (e.g. rawstore touches disk via pathlib, config.loader reads env);
+    a full purity predicate remains a parked v3.
+
+next_steps:
+  - Re-cut the draft note to adopt v2 before ratification: recompute the fixed point at HEAD,
+    rewrite the membership appendix and the affected sections; ratification remains owner-by-hand.
+```
