@@ -62,6 +62,49 @@ Four ingredients, owner-named, one track:
   all speak about dreaming. The pass must say per-note extend/supersede — a supersession-lifecycle
   job, not a green field.
 
+### Addendum (same session): laziness as a design principle for the whole machinery
+
+Owner, near-verbatim: *"the use of algebra, edge compositions, temporal navigation via cuts — all
+this machinery I would think could benefit from being lazy; the graph will grow, in size and time,
+so efficient operations are necessary."*
+
+Orchestrator scrutiny (offered, not decided):
+
+- **The scope algebra is already the natural vehicle for laziness.** A scope expression is a
+  *description* of a view, not the view — if expressions compose symbolically (meet/join/restrict/
+  time-shift) and materialize only at the instrument boundary where an actual number is demanded,
+  composition costs O(expression), not O(graph). The algebra becomes a query planner: build the
+  tree, fuse/simplify algebraically, materialize once at the leaf. (The relational-algebra /
+  lazy-DAG move; inner core holds the symbolic algebra, outer core holds the evaluators — clean
+  ring alignment.)
+- **Edge composition lazily = never materialize transitive closure.** A composed relation (e.g. a
+  C-fiber chain action→commit→file→doc) stays an unevaluated composition; only the restriction
+  actually demanded ("the chain through THIS node") evaluates. Eager closure on a growing graph is
+  the quadratic trap.
+- **Cuts want persistence, not copies.** "Graph at cut t" as a full rebuild is O(history) per
+  read. Lazy = an append-only delta log with cuts as pointers and structure shared across views
+  (persistent-data-structure discipline). The hypothetical subspace then falls out for free: an
+  OVERLAY view (graph ∪ subspace) is the same mechanism as a cut view — cheap, composable,
+  discardable. The diachronic dreamer walking cuts = sliding a window over the log, incremental.
+- **Instruments need INCREMENTALITY on top of laziness.** A lazy view doesn't help if the leaf
+  evaluation is a full eigensolve each time. Known moves: warm-started/perturbative spectral
+  updates (few edges changed ⇒ perturbation theory, not recompute), locality (polynomial/k-hop
+  approximations), digest-keyed caching of materialized views (the sourceset group-by-digest
+  precedent). Sharp special case: subspace INFLUENCE is literally a perturbation problem — the
+  with/without instrument diff IS the first-order perturbation term; computing it that way is both
+  the efficient and the mathematically honest formulation.
+- **The fable-level candidate unification: the lazy view IS the capability.** Materialization-on-
+  demand through a scope means the scope check happens at the only place data becomes real — a
+  scoped dreamer holding a lazy view structurally *cannot* read outside its scope. Laziness and
+  the View-firewall (MirrorView/ObservedView kin) would be one mechanism, not two: the
+  materialization boundary is the authorization boundary. If this holds, efficiency is not a
+  bolt-on — it is the same design as the sacred-boundary enforcement. To be tested in the pass.
+- **Laziness has costs — demand a cost model at the boundary.** Thunk buildup, latency spikes at
+  materialization, cache invalidation. The honest counterweight: an unevaluated expression can be
+  COST-ESTIMATED and refused *before* running (the memory-ceiling scheduler refusal, rule #8,
+  extended to views) — an eager operation has already paid by the time you know. Laziness makes
+  the refusal gate checkable; that is an argument FOR it, stated with its falsifier.
+
 ```capsule
 topic: synchronic-diachronic-dreamer
 date: 2026-07-20
@@ -70,6 +113,10 @@ decisions:
   - The seed itself (owner): this is the NEXT design track after inner/outer-core, likely the last
     fable pass of the arc — synchronic vs diachronic dreaming, dreamer scopes, the algebra as the
     dreamer's tools, connectivity as its senses. Seed only; no design decisions taken here.
+  - LAZINESS as a requirement, not an optimization (owner addendum, same session): the algebra,
+    edge compositions, and temporal navigation via cuts should be lazy — the graph grows in size
+    AND time, so efficient operations are necessary. The design pass treats evaluation strategy as
+    first-class, not an implementation detail.
 
 parked:
   - decision: dispatch of the fable pass
@@ -94,6 +141,16 @@ open_questions:
     for the arrow-aware census — the parked oq-0021) for the owner to rule? And: census as the
     dreamer's directional sense, with ML-a gate (ii) as the only honest path to the operator —
     does the dreamer's need ever open it, or does the census suffice?
+  - Does the lazy-view = capability-view unification hold (materialization boundary =
+    authorization boundary), or do performance views and firewall Views need to stay separate
+    mechanisms? What does the current store/View layer already give us (DRY audit before new
+    machinery)?
+  - Cuts as pointers into an append-only delta log (persistent structure-sharing): is the current
+    store layout compatible, or is this a migration? Where does the cost-model/refusal gate at the
+    materialization boundary live (scheduler kin, rule #8)?
+  - For the instruments: which spectral quantities admit warm-start/perturbative incremental
+    updates vs demand full recompute — and is subspace influence formalized AS the perturbation
+    term (efficient and honest) rather than as recompute-both-and-diff?
 
 next_steps:
   - Queue as the next fable design pass once dn-inner-outer-core lands; owner slots it.
