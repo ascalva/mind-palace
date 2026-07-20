@@ -34,7 +34,7 @@ pending:                   # DEBT for later chapters — the next /scribe reads 
     - the zone / boundary notes  # the-sacred-boundary (mechanism), the-edge-model, etc.
   mathematics:
     - the coboundary framing and derived instruments (canonical write-up)
-    - dn-authorship-distance-axis  # DRAFT — barred until ratified (finding-0116)
+    - dn-authorship-distance-axis  # DRAFT — barred until ratified (finding-0117)
   intuition: []
   future-work:
     - the parked decisions of the record, verbatim with re-entry conditions
@@ -46,7 +46,7 @@ open:
   # Q2 gap (bp-077 §3): memory `ouroboros-naming` says the live system is "named by
   # its own founding note"; the candidate `founding-corpus.md` is DRAFT and does not
   # itself name "Ouroboros" (read at bdcd9bc). The name is cited to the ratified
-  # `dn-ouroboros-principal` §1 instead. See docs/findings/finding-0116.md.
-  # finding-0116 (spec-defect -> orchestrator): bp-077 §2 lists four DRAFT notes as
+  # `dn-ouroboros-principal` §1 instead. See docs/findings/finding-0117.md.
+  # finding-0117 (spec-defect -> orchestrator): bp-077 §2 lists four DRAFT notes as
   # Chapter-1 sources, but dn-agent-workflow §3 bars draft notes from the book.
   # Resolution this edition: ratified anchors only; draft theses forward-referenced.

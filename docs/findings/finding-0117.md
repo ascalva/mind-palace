@@ -1,6 +1,6 @@
 ---
 type: finding
-id: finding-0116
+id: finding-0117
 status: open
 created: 2026-07-20
 updated: 2026-07-20
