@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-075
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/exhaust-lane.md
 contract: builder
