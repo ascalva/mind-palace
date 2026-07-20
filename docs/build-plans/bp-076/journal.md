@@ -50,7 +50,10 @@ delivery (exactly finding-0116). Material deltas the re-graduation carries:
 3. Cockpit launches the orchestrator via `sudo -u ouroboros-work -H claude …`
    (cockpit.sh:73 changes); builders inherit the uid; sudoers NOPASSWD
    descending grant; §3 must ground Claude Code's credential storage
-   (keychain vs apiKeyHelper/env) for the service user — the sharpest edge.
+   (keychain vs apiKeyHelper/env) for the service user — the sharpest edge. ALSO ground the GIT signing-key
+   access (owner decision 2026-07-20: agent commits keep the human's identity +
+   key, stay Verified — repo-local user.email/signingkey, HOME-independent; the
+   ouroboros-work session must read the human's signing key).
 4. pf anchor: block off-host egress for uid `ouroboros` (+ `pass on lo0` for
    local model serving — verify against the running daemon); edge-only sockets.
 5. Shared-repo mechanics: setgid dirs, `core.sharedRepository=group`, umask 002.

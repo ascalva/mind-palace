@@ -160,8 +160,27 @@ sudo -u ouroboros-work -H claude --model 'opus[1m]' --effort medium --permission
 - **The interactive orchestrator session runs as `ouroboros-work`.** `sudo -u`
   in a tmux pane is an ordinary TTY process; Claude Code neither knows nor
   cares. `-H` points HOME at the service user's home, so the agent gets its
-  *own* `~/.claude` (config, credentials, projects, memory) and its own git
-  identity — agent state fully separates from the human's.
+  *own* `~/.claude` (Claude Code config, its OAuth credential, projects,
+  memory) — the *Anthropic* credential separates from the human's, which is the
+  isolation worth having.
+- **Git identity is a SEPARATE axis, deliberately NOT isolated (owner decision,
+  2026-07-20).** The uid governs filesystem/network; commit identity + signing
+  are orthogonal — git reads `user.email`/`user.signingkey` from the
+  **repo-local** `.git/config`, which overrides `$HOME`. So agent-authored
+  commits keep the human's identity and are signed with the human's key: they
+  stay `Alberto <…>` and **Verified**, exactly as today (the owner runs verified
+  commits; nothing about that view changes). This is status-quo — everything
+  runs as the human today, so agent commits are already Alberto-signed; the uid
+  split does not regress it. **Accepted residual:** `ouroboros-work` must be able
+  to *read the human's signing key* to sign — a modest leak (a compromised
+  workflow agent could sign a commit as the human), knowingly accepted because
+  (a) it is already true today, (b) the signing key is not a crown jewel (the
+  vault is, and that stays `0700 ouroboros`), and (c) the alternative — a
+  separate verified bot identity — was weighed and rejected in favor of the
+  human's name on the history. bp-076 §3 grounds the exact key path + how the
+  `ouroboros-work` session accesses it (SSH-signing key file readable by the
+  user, or GPG agent), and sets `user.email`/`user.signingkey`/`commit.gpgsign`
+  in repo-local config so identity is HOME-independent.
 - **The human stays `ascalva`** in every other pane: the vim/docket pane, hand
   blessings, `palace bless`, hand commits. Daily flow is unchanged — still one
   command, `./scripts/cockpit.sh`; the sudo is inside the script.
