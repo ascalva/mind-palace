@@ -252,17 +252,24 @@ security add-generic-password -U -s claude-oauth-token     -a ouroboros-work -w 
 security add-generic-password -U -s ssh-signing-passphrase -a ouroboros-work -w '<key passphrase>'
 ```
 
-- **Verify (end-to-end, the real proof):** from the repo root, run the wrapper and confirm BOTH
-  halves — auth and silent signing:
+- **Verify (end-to-end, the real proof — confirmed working 2026-07-20).** Export the secrets into
+  ASCALVA's shell (visible to owner+root only — never argv); `env_keep` (§6) then carries them across
+  `sudo`, exactly as the wrapper does:
   ```sh
-  scripts/orchestrator-launch.sh 'opus[1m]' medium auto      # should open an AUTHENTICATED claude
-  # then, from that ouroboros-work session (or a probe): a signed commit must NOT prompt:
-  sudo -u ouroboros-work -H env CLAUDE_CODE_OAUTH_TOKEN="$(security find-generic-password -s claude-oauth-token -a ouroboros-work -w)" \
-       PALACE_SIGN_PASS="$(security find-generic-password -s ssh-signing-passphrase -a ouroboros-work -w)" \
-       SSH_ASKPASS="$PWD/scripts/sign-askpass.sh" SSH_ASKPASS_REQUIRE=force \
-       git -C "$REPO" commit --allow-empty -m 'wrapper signing probe' && git log --show-signature -1 && git reset --hard HEAD~1
+  cd "$REPO"
+  export CLAUDE_CODE_OAUTH_TOKEN="$(security find-generic-password -s claude-oauth-token     -a ouroboros-work -w)"
+  export PALACE_SIGN_PASS="$(security find-generic-password        -s ssh-signing-passphrase -a ouroboros-work -w)"
+  export SSH_ASKPASS="$PWD/scripts/sign-askpass.sh" SSH_ASKPASS_REQUIRE=force
+  sudo -n -u ouroboros-work -H claude -p 'say ok'                                  # (a) AUTH -> "Ok."
+  sudo -n -u ouroboros-work -H git -C "$PWD" commit --allow-empty -m 'wrapper probe'  # (b) SIGN, no prompt
+  git log --show-signature -1        # -> Good "git" signature for ascalva@gmail.com
+  git reset --hard HEAD~1
+  unset CLAUDE_CODE_OAUTH_TOKEN PALACE_SIGN_PASS
   ```
-  First keychain read may pop a one-time approval dialog — click **Always Allow**.
+  Pass = (a) prints `Ok.` and (b) commits with NO passphrase prompt and a Good signature. The
+  interactive `scripts/orchestrator-launch.sh 'opus[1m]' medium auto` opens the same authenticated
+  session (the actual cockpit pane). First keychain read may pop a one-time approval dialog — click
+  **Always Allow**.
 - **Rollback:** `security delete-generic-password -s claude-oauth-token -a ouroboros-work`;
   `security delete-generic-password -s ssh-signing-passphrase -a ouroboros-work`.
 

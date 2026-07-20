@@ -1,19 +1,29 @@
 ---
 type: finding
 id: finding-0122
-status: open
+status: resolved
 created: 2026-07-20
 updated: 2026-07-20
 links:
-  - docs/runbooks/plane-migration.md               # §4 — amended by this finding
+  - docs/runbooks/plane-migration.md               # §4 amended + §6b wrapper setup
   - docs/build-plans/bp-078/plan.md                # Q10 (§3), the signing residual
   - docs/design-notes/plane-principals.md          # §3.2 the accepted signing-key residual
   - docs/findings/finding-0120.md                  # sibling: the same "secret for the role session" class
+  - scripts/orchestrator-launch.sh                 # the wrapper that resolves the unattended half
+  - scripts/sign-askpass.sh
 re_entry: null
 ftype: spec-defect
 origin_plan: bp-078
 route: orchestrator
-resolution: null
+resolution: >
+  Two halves, both resolved. (1) Doc-completeness: runbook §4 amended with the three required grants
+  (key g+r, `.ssh` g+x traversal, `safe.directory`) — a live-verified role commit signs Verified as
+  the human. (2) Unattended signing: the cockpit wrapper `scripts/orchestrator-launch.sh` (+
+  `scripts/sign-askpass.sh`, commit 0a3d32a) reads the ssh passphrase from ascalva's keychain and
+  feeds it to `ssh-keygen -Y sign` via SSH_ASKPASS + SSH_ASKPASS_REQUIRE=force (passed across sudo by
+  the §6 env_keep whitelist, never argv/repo). Confirmed end-to-end 2026-07-20: `sudo -n -u
+  ouroboros-work git commit` produced `Good "git" signature for ascalva@gmail.com` with NO passphrase
+  prompt. Solved in the same wrapper as finding-0120 (the OAuth token), one place.
 ---
 
 # Runbook §4 (git signing) shipped incomplete — the key-access chain needs `.ssh` traversal + `safe.directory`, and a passphrase-protected key can't sign unattended

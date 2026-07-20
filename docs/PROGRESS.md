@@ -5029,3 +5029,29 @@ the 250k estimate — well-pinned). week_delta +1% (33→34%), fable flat.
 **Next:** OWNER runs the four-plane migration from `docs/runbooks/plane-migration.md` (§0 traversal
 first), resolving finding-0120 at the credential STOP-gate. Standing: finding-0119 bless-ceremony
 ruling · finding-0114 scripts tidy · book Architecture /scribe.
+
+---
+
+### plane migration — WORKFLOW plane LANDED (owner-run, 2026-07-20); CORE plane parked
+
+Ran the bp-078 runbook live (owner at the keyboard, orchestrator verifying each step read-only).
+**Workflow plane §1–§6 + the cockpit wrapper are DONE and proven:** 4 role users (`ouroboros`,
+`ouroboros-work`, `ouroboros-edge`; `ascalva`), `palace` shared group, shared-repo mechanics
+(`core.sharedRepository`, setgid, umask), repo-local git signing, sudoers descending grant, and
+`scripts/orchestrator-launch.sh` — the cockpit's orchestrator pane now runs as the constrained
+`ouroboros-work`, authenticated headlessly and committing **silently Verified** as the human. So
+agents run one rung below the human login (no personal files, no vault ambiently). Adopt on the next
+`cockpit.sh` restart.
+
+**Findings this arc:** 0120 (Claude credential for a role account) RESOLVED — keychain is a dead end
+for a keychain-less role account; `claude setup-token` → `CLAUDE_CODE_OAUTH_TOKEN` keeps subscription
+billing, headless. 0122 (git signing gaps + unattended signing) RESOLVED — three access grants +
+SSH_ASKPASS silent signing via the wrapper. **0123 OPEN → the CORE plane is PARKED:** the
+`ouroboros` daemon (a launchd-at-boot LaunchDaemon) can't get its Vault unseal key from a keychain
+(no login keychain, no wrapper seam); §7–§11 (daemon→ouroboros, vault 0700, pf egress) await a design
+pass on the headless-daemon secret bootstrap (System keychain / file / hybrid) — likely FABLE.
+
+**Verify surface:** `uv run scripts/verify_planes.py` (read-only) → users/group/repo-tree/signing/
+traversal PASS; the vault/exhaust/data/daemon lanes PENDING (the parked core plane). Discovery en
+route: `/Users/ascalva` was `0o750` (no o+x) → role accounts couldn't traverse (runbook §0 fix);
++ finding-0121 (no worktree reaper — 7GB of stale trees reclaimed).
