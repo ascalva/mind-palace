@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0140
-status: routed
+status: promoted
 created: 2026-07-21
 updated: 2026-07-21
 links:
@@ -67,3 +67,8 @@ which is warrant-linked here. On the owner's ratification of `dn-fiber-geometry`
 flips `routed → promoted`. No separate owner question — the fix rides that one ratify decision.
 Until then the three warrant brainstorms keep their as-written (mislettered) text; the note
 re-reads them, per A8 (never edit a ratified/consumed artifact silently).
+
+## Resolution (2026-07-21) — PROMOTED on ratification
+`dn-fiber-geometry` ratified by the owner (bless `fbea48d`), adopting §2.0 FG-0 (the canonical
+`Σ_move = {S, F, D, C}` alphabet). The alphabet correction is now ratified design; the three
+warrant brainstorms are re-read under it (never edited — A8). Finding closed as `promoted`.

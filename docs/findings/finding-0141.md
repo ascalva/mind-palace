@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0141
-status: open
+status: resolved
 created: 2026-07-21
 updated: 2026-07-21
 links:
@@ -49,3 +49,11 @@ gates the steering heuristic on exactly this).
 ## Routing
 `spec-fidelity` → orchestrator (the surface is a brainstorm + PROGRESS posture,
 orchestrator-owned; no builder action exists).
+
+## Resolution (2026-07-21) — RESOLVED on ratification
+`dn-agentic-loop` ratified by the owner (bless `fbea48d`). The note carries the corrected posture
+(§2.2 / §2.6 G-A): the internal probe loop (bp-079/082) is BUILT-NOT-WIRED (`[dream_rnd]
+enabled=false`; no live charter constructor) — not "live" as the brainstorm capsule stated. Same
+honesty class as finding-0011, one tier in; error direction safe. The corrected posture is now in
+ratified design; finding closed as `resolved`. (G-A remains a real gap tracked in the note's gap
+catalog + the AL-plan graduation — the finding is about the record's accuracy, which is fixed.)
