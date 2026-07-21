@@ -193,3 +193,74 @@ next_steps:
   - /graduate of D-1 includes the narrative-delta A/B as an observation/acceptance item and
     routes the comparison to the owner (exhaust-lane report or chat, his choice at the time).
 ```
+
+## 2026-07-21T02:20Z (session-39 — owner seed: the dreamer as falsifiable forecaster)
+
+Owner, near-verbatim: *"it would be interesting to compare how its predictions compare to what
+then happens right after — how far can it predict until prediction and reality diverge?"*
+
+### Orchestrator chew — the pieces already exist; this composes them
+
+- **The reframe: prediction skill as a dreamer-quality axis.** A dream at cut t carries implicit
+  forward content (a bridge claim suggests a forming connection; a hole claim marks a gap the
+  owner may fill; a theme claim names an emerging attractor). Score it against the ACTUAL graph
+  at t+Δ: did the bridge form, the hole fill, the theme grow? Dreams earn trust by measured
+  forecast skill, not eloquence — the falsifier epistemics applied to the dreamer itself.
+- **The representation is the just-ratified HYPOTHETICAL stratum.** An explicit prediction is a
+  staged subspace at cut t: predicted nodes/edges as a TTL'd overlay (TTL = the prediction's
+  horizon; expiry = the forecast lapsing; NO promotion path = a prediction can never launder into
+  the corpus by being believed). Scoring = the same with/without diff machinery pointed at
+  REALITY'S delta instead of the hypothesis's influence: divergence(Δ) = distance between the
+  staged overlay and the actually-materialized structure at t+Δ. Certified cuts anchor both ends;
+  the perturbation metric doubles as the divergence metric. Nearly zero new machinery.
+- **The horizon is an inverse thermometer (ties to clock-curvature).** Divergence time τ_pred
+  should be SHORT in hot regions (high volatility ⇒ fast divergence — a Lyapunov-time analog)
+  and LONG in dead clusters (trivially predictable). Sharp testable invariance: measured in
+  wall time, τ_pred varies by region; measured in VOLATILITY-EXPOSURE proper time
+  (clock-curvature's chain-time), it may be roughly constant. If so, the horizon map and the
+  temperature field are one observable read two ways.
+- **The confound, named: observation contamination (self-fulfilling dreams).** If the owner READS
+  a dream and then builds the predicted bridge, fulfillment measures INFLUENCE, not forecast
+  skill. The two are both valuable and must not be conflated. Design consequence: a HELD-OUT
+  control arm — shadow predictions never surfaced to the owner, scored beside surfaced ones; the
+  skill score splits by exposure. The chat/attribution sensors can witness exposure (whether a
+  dream was seen before the act), the durable-chat-blessings seam's kin.
+
+```capsule
+topic: synchronic-diachronic-dreamer
+date: 2026-07-21
+
+decisions:
+  - The seed itself (owner): score dream predictions against what actually happens next; find the
+    divergence horizon. Seed only — composes the ratified HYPOTHETICAL stratum (prediction =
+    staged TTL overlay), certified cuts (anchor both ends), and the perturbation diff (divergence
+    metric). No design decisions taken here.
+
+parked:
+  - decision: where the scoring harness lives
+    default: the dreamer-quality-suite (dn-dreamer-quality-suite-evaluation) gains a retrodictive
+      skill axis, fed by the D-plans' dispatch records
+    re_entry: D-1 seals (dreams as dispatch records exist to score) — likely rides the same
+      graduation wave as the narrative-delta A/B item
+
+open_questions:
+  - What counts as fulfillment, operationally? (A bridge claim: an actual edge at t+Δ? Within
+    what neighborhood? Partial credit by proximity?) The metric needs a design pass ruling.
+  - The invariance test: is τ_pred ÷ local-volatility-exposure roughly uniform across regions
+    (horizon = inverse temperature), or do some regions genuinely forecast better per unit churn?
+  - The held-out arm: what fraction of dreams stay shadow (never surfaced) as the uncontaminated
+    baseline, and does withholding conflict with the exhaust-lane's surface-everything default?
+  - Does exposure attribution (owner saw the dream before acting) need the chat-sensor witness
+    seam, or is surfacing-time vs act-time ordering from existing logs sufficient?
+
+next_steps:
+  - Fold into the dreamer track's graduation queue: the scoring harness is a natural D-2-shaped
+    plan after D-1; the metric ruling can ride the next design touch on the track.
+  - Cross-ref clock-curvature: the horizon-thermometer invariance joins its measure-first battery.
+
+references:
+  - docs/design-notes/synchronic-diachronic-dreamer.md   # HYPOTHETICAL stratum, cuts, perturbation diff (all ratified)
+  - docs/design-notes/dreamer-quality-suite-evaluation.md # the harness this extends
+  - docs/brainstorms/clock-curvature.md                   # τ_pred as inverse temperature; proper-time invariance
+  - docs/brainstorms/durable-chat-blessings.md            # exposure-witness kin (did the owner SEE it before acting)
+```
