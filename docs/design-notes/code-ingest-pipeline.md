@@ -1,7 +1,7 @@
 ---
 type: design-note
 id: dn-code-ingest-pipeline
-status: draft            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
+status: ratified            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 implementation: design-only   # nothing built; corrects the plane model, licenses the CI-* plan family
 created: 2026-07-21
 updated: 2026-07-21
