@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-081
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/synchronic-diachronic-dreamer.md
 contract: builder
