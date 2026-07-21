@@ -16,6 +16,7 @@ links:
   - docs/design-notes/self-sensing.md                  # RATIFIED — interpreter-version supersession; the §2.6 regress line
   - docs/design-notes/chat-sensor.md                   # RATIFIED — CS-3 tool-strip / duplication-apophenia precedent
   - docs/design-notes/inner-outer-core.md              # RATIFIED — ring placement of the new lane
+  - docs/design-notes/cross-strata-dreamer.md          # RATIFIED — XS-a per-grant ruling (§2.3's dream-grant posture)
 supersedes: null         # intended at ratification: PARTIAL supersession of dn-code-observation-projection (§2.6)
 superseded_by: null
 warrant: docs/findings/finding-0146.md
@@ -23,14 +24,21 @@ warrant: docs/findings/finding-0146.md
 
 # The code ingest pipeline — three layers: the code, its documentation, and the bridge into the corpus
 
-> Composed at **fable** (`claude-fable-5`, 2026-07-21, orchestrator-dispatched design pass on
-> finding-0146 — the owner ruled the un-vectorized code corpus a **critical bug**, not an open
-> question). Filed as `draft`; ratification is an owner-only hand edit; `/graduate` refuses this
-> note until `status: ratified`. **Design only; no build is authorized beyond §3's plan family.**
-> Every nontrivial claim carries a grade (`[ESTABLISHED]`/`[DERIVED]`/`[INFERENCE]`/`[ANALOGY]`);
-> external-literature claims are `[FROM MEMORY]`. Every code claim was verified on disk this
-> session (worktree at `441fcc3`; live-store reads noted inline). The correction to
-> `dn-code-observation-projection` is announced in §2.6 — banner-on-correction, never silent.
+> Composed by an orchestrator-dispatched worker (2026-07-21, design pass on finding-0146 —
+> the owner ruled the un-vectorized code corpus a **critical bug**, not an open question).
+> **Provenance correction (audit):** the worker was spawned `fable/max` but its completion
+> usage shows it ran at `claude-opus-4-8` (the known worker-dispatch downgrade bug); the
+> original banner's "Composed at fable" self-report was **false** — a live instance of
+> banners-as-unreliable-self-report. **Audited line-by-line at fable** (`claude-fable-5`,
+> main loop, 2026-07-21): every `path:line` ground-citation opened on disk, every graded
+> claim re-checked, every decision re-derived against the hard constraints, live stores
+> re-queried at `625a058`; corrections applied in place, logged in
+> `docs/findings/finding-0147.md`. Filed as `draft`; ratification is an owner-only hand
+> edit; `/graduate` refuses this note until `status: ratified`. **Design only; no build is
+> authorized beyond §3's plan family.** Every nontrivial claim carries a grade
+> (`[ESTABLISHED]`/`[DERIVED]`/`[INFERENCE]`/`[ANALOGY]`); external-literature claims are
+> `[FROM MEMORY]`. The correction to `dn-code-observation-projection` is announced in §2.6
+> — banner-on-correction, never silent.
 
 ## 1. Purpose and scope
 
@@ -97,7 +105,9 @@ scanners cross-checking (`dn-inner-outer-core`), the S↔F two-measures-diverge 
 **L0a — the structural (AST) reading: symbol nodes + AST edges.**
 
 - **Unit:** one embedded chunk per symbol — function / async function / method / class /
-  module preamble — the verbatim source slice at AST-given boundaries, docstring and comments
+  module shell (the file's code outside every top-level symbol slice: preamble, inter-symbol
+  statements, trailing code — the module treated as the outermost parent, so byte-cover holds) —
+  the verbatim source slice at AST-given boundaries, docstring and comments
   in place. Nested defs are their own symbols (`_walk_defs` recurses, qualname `Cls.method`,
   `ops/code_snapshot.py:126-137`), so a parent embeds as its *shell* (its slice minus child-
   symbol slices) — each source line appears in exactly one L0a chunk (single-scale within the
@@ -117,21 +127,30 @@ scanners cross-checking (`dn-inner-outer-core`), the S↔F two-measures-diverge 
     reference edges** — a direction the v2 symmetric store already admits and nothing yet
     mints (`core/stores/reference_edges.py:104-107`: "`code_to_code`, reachable, not minted
     anywhere yet"). New ref_types `inherits` / `calls`, precision-first per the bp-011
-    discipline: v1 mints only **statically resolvable** targets (base/callee names resolving
-    within the module or through an explicit import recorded in the ledger's `imports` table,
-    `ops/code_snapshot.py:70-75`); dynamic dispatch and cross-module attribute chains are
-    dropped, not guessed (PD-I parks the fuller call graph). Balance-math isolation is
-    inherited from the store's standing invariant (`reference_edges.py:1-10,50-56`).
-    `[DERIVED — the store seam exists; resolution precision gates per pattern, M-C6]`
+    discipline: v1 mints only **statically resolvable** targets — base/callee names resolving
+    within the module; cross-module resolution is NOT free today (audit correction): the
+    ledger's `imports` table records only the ROOT of each dotted import
+    (`ops/code_snapshot.py:70-75`; `_module_imports` splits to `[0]`, `:140-147`), which cannot
+    map an imported name to its defining module, so CI-3 includes an **additive import-record
+    extension** (full module path + imported names, the same `open_snapshot_db` migration
+    pattern) as the precondition for any cross-module mint. Dynamic dispatch and attribute
+    chains are dropped, not guessed (PD-I parks the fuller call graph). Balance-math isolation
+    is inherited from the store's standing invariant (`reference_edges.py:1-10,50-56`).
+    `[DERIVED — the store seam exists; the import-record gap is named; resolution precision
+    gates per pattern, M-C6]`
 
 **L0b — the windowed textual reading: the note path applied to raw source.**
 
-- **Unit:** the existing sliding char-window — `derive_chunks`' blank-line-aware packing with
-  overlap (`core/ingest/pipeline.py:22-34` → `core/ingest/chunk.py:31-56`) — applied to the
-  file's **raw source text**, boundaries ignoring the tree. Bodies and inline `#` comments
-  flow together exactly as written: the reading is *"what is this code region about,"* local
-  co-occurrence and comment-as-code-texture included. Maximal DRY: this is byte-for-byte the
-  note lane's derivation, pointed at `.py` bytes. `[DERIVED]`
+- **Unit:** the existing sliding char-window — `chunk_text`'s blank-line-aware packing with
+  overlap (`core/ingest/chunk.py:31-56`, the ONE window machinery) — applied to the file's
+  **raw source text**, boundaries ignoring the tree. Bodies and inline `#` comments flow
+  together exactly as written: the reading is *"what is this code region about,"* local
+  co-occurrence and comment-as-code-texture included. Maximal DRY at the right seam (audit
+  correction): the reused unit is `chunk_text`, NOT `derive_chunks`
+  (`core/ingest/pipeline.py:22-34`) — that wrapper is the *note* lane's raw→chunks derivation
+  and bundles two note-specific steps, the tolerant decode and the Logseq `strip_properties`
+  pass; the strip must not run on code (0 tracked `.py` lines match `_PROP` today — measured
+  at audit — but the exclusion is structural, not luck). `[DERIVED]`
 - L0b is what catches semantics the tree hides: cross-symbol locality (a helper beside its
   caller), region-level comment context, module "paragraphs" that straddle def boundaries.
   L0a is what catches semantics the window smears: the whole-symbol atom, name-anchored.
@@ -205,8 +224,9 @@ full re-embed path already exists (`vectorstore.reset`, `core/stores/vectorstore
 
 **What embeds.** Per file, the **prose view**: module docstring, every symbol docstring, and —
 new capture — every inline `#` comment, assembled **in source order** with its coordinate
-header (`{path}:{qualname or line}`), then chunked by the ONE authoritative derivation
-`derive_chunks` (`core/ingest/pipeline.py:22-34`) — the owner's DRY rule applied: the note
+header (`{path}:{qualname or line}`), then chunked by the ONE window machinery `chunk_text`
+(`core/ingest/chunk.py:31-56`; `derive_chunks`' note-specific property-strip does not apply
+to code — §2.1 L0b) — the owner's DRY rule applied: the note
 chunker, the note embed call (`index_records`, `core/ingest/index.py:43-58` row assembly via
 `_chunk_row`), the note store. The file *contains* its L1 chunks exactly as it contains its L0
 chunks: same `digest` = blob sha, same group-by-digest superset relation. A `layer` coordinate
@@ -218,7 +238,9 @@ idempotent path). `[DERIVED]`
 **The comment capture (closing finding-0146 defect 2).** Today `#` comments exist in no store
 (`ops/code_snapshot.py` stores only `ast.get_docstring` output — `:158`, `:131-136`; the AST
 drops comment trivia). Capture is a **tokenize pass** (stdlib `tokenize`, `COMMENT` tokens —
-3,318 of them across the 247 main-package `.py` files, counted this session), recorded at
+3,318 of them across the 247 main-package `.py` files, "main-package" =
+`{core, ops, edge, config, scripts, agents, eval}`, tests excluded; reproduced exactly at
+audit), recorded at
 symbol grain by line-range containment (a comment belongs to the innermost symbol whose
 `lineno..end_lineno` spans it; file grain otherwise). Lands as a new `comments` column/sidecar
 in the snapshot ledger (additive migration, `open_snapshot_db` pattern) so φ_code remains the
@@ -272,7 +294,7 @@ instrument") to the enum (`core/provenance.py:44-61`), with:
   provenance filter works). Ouroboros can dream over its own implementation — deliberately,
   never by default. `[DERIVED]`
 
-**Why a new class and not one of the existing five:**
+**Why a new class and not one of the existing six:**
 - **Not `OBSERVED`:** the enum's own docstring scopes it "third-party behavioral exhaust …
   assistant-tier only" (`core/provenance.py:33-34,59-61`) — already strained by agent dialogue
   rows (dn-agentic-loop G-C); adding the entire codebase would make one label cover three
@@ -287,9 +309,15 @@ instrument") to the enum (`core/provenance.py:44-61`), with:
   testimony-vs-measurement line was rejected once already (ratified §2.1) and stays rejected.
 - **Not `INTERPRETED`:** the chunks are measurements/projections of the repo, not system
   inference over the corpus; and INTERPRETED's mint is structurally reserved to `DerivedStore`.
+- **Not `DERIVED_STRATUM`** (the sixth class the drafted pass omitted — audit addition):
+  reserved for promoted, depth-carrying dreamer outputs that re-enter reasoning as substrate
+  (`core/provenance.py:49-56`) — trusted as to origin, untrusted as to truth. Code chunks are
+  instrument readings, not model-generated strata; spending the reserved label here would
+  conflate measurement with dream substrate and burn the recursive-Dreamer unpark path.
 
 **Composition with the authorship/exhaust machinery (the AL-3 / bp-088 layer).** The corpus
-now knows *which dialogue produced which code*: 4,084 witnessed C-edges, commit-keyed
+now knows *which dialogue produced which code*: 4,084 witnessed C-edges at the AL-3 seal
+(4,160 live at audit, 2026-07-21 — the integrator keeps minting), commit-keyed
 (`dn-agentic-loop` §2.0, §2.4b EX-2), and the `exhaust ⊂ dialogue` refinement + `origin(e)`
 view are built (`core/scope.py:79-90,100-107` — EXHAUST as an excluded-by-default refinement).
 The composition, ruled:
@@ -357,11 +385,14 @@ dominant citation forms. Ruling, precision-first per the bp-011 discipline:
    (whose §N?) and is **dropped** — 968 tokens is a volume argument for the paired rule, not
    for guessing. `[DERIVED — precision-first]`
 3. **The example-path false positive** (finding-0146: the sensor's own docstring example
-   minted a real edge): a mint-time self-exclusion — a match inside the extractor module's own
-   sources whose target does not exist in the tree is already dropped by (1)'s existence
-   check; the residual (existing paths cited as *examples*) is accepted as noise at Lane-1's
-   measured precision, re-checked by the F-CI6 sample. Recorded honestly rather than
-   over-engineered.
+   `docs/design-notes/x.md` minted a real edge): fixed by an explicit NEW rule (audit
+   correction — the drafted text implied (1)'s existence check already covered this; it
+   covers only the new shorthand patterns): **every corpus-target mint gains the tree-
+   existence check**, the existing literal `note-citation` pattern included — which today
+   mints with no existence check at all (`extract_references`, `ops/code_sensor.py:243-247`).
+   A target absent from the tree at that commit is dropped; that kills the `x.md` class. The
+   residual (existing paths cited as *examples*) is accepted as noise at Lane-1's measured
+   precision, re-checked by the F-CI6 sample. Recorded honestly rather than over-engineered.
 
 **The NEW capability — the S-fiber bridge (why L0+L1 change what L2 can see).** Once code
 chunks and note chunks share one space, **S (similarity) spans code↔docs** with no new
@@ -386,8 +417,8 @@ fiber already populated or computed:
 |---|---|---|
 | **S** | cosine over L0a/L0b/L1 chunks, and across to notes | computed by the kernel once embedded (CI-1) |
 | **F** | `reference_edges` code↔corpus (shorthand-resolved) + `code_to_code` inherits/calls | extractor exists; resolver fixed + code_to_code minted (CI-3) |
-| **C** | dialogue → commit → file, witnessed; node-keyed authorship join (§2.5b) | **live** — 4,084 edges; node-keyed reader is CI-2's rider (PD-J) |
-| **D** | blob version chain per path + orthogonal embedder-version axis (§2.5b) | **live** — snapshots ledger + temporal machinery; drives incremental sync |
+| **C** | dialogue → commit → file, witnessed; node-keyed authorship join (§2.5b) | **live** — 4,084 edges at the AL-3 seal / 4,160 at audit; node-keyed reader is CI-2's rider (PD-J) |
+| **D** | blob version chain per path + orthogonal embedder-version axis (§2.5b) | **recorded** — snapshots ledger carries the chains; the store-free poset core is ready but not yet wired to them (§2.5b); drives incremental sync |
 
 The palace is a self-map ("mining my own brain"); its largest artifact — the code, carrying
 the math and the §-warrants — was the one region outside the map. This note pulls it in under
@@ -402,10 +433,13 @@ with the built fabric rather than duplicating it.
 
 **D over code — the version chain is the blob lineage, and it is NOT re-minted here.** A file's
 supersession chain is `blob_sha(v) → blob_sha(v+1)` along the path's commit history — already
-carried by the snapshots ledger (`ops/code_snapshot.py:49-59` `files.blob_sha` per commit) and
-consumed by the temporal machinery (`core/temporal/boundary.py`; `supersession_poset` in
-`core/temporal/acquire.py`). **Ruling: the embed lane keys on `blob_sha`, and the D-chain
-stays where it lives.** The concrete payoff for ingest: `index_amendment`'s reuse-unchanged
+carried by the snapshots ledger (`ops/code_snapshot.py:49-59` `files.blob_sha` per commit).
+The temporal machinery is READY for those chains, not yet wired to them (audit correction —
+the drafted "consumed by" was false): `supersession_poset` (`core/temporal/acquire.py:31`)
+reads `VersionStore` chains only; the store-free poset core `poset_from_chains`
+(`core/temporal/boundary.py:99-112`) accepts per-path blob chains as-is when a consumer
+arrives — a reader wiring, no new machinery. **Ruling: the embed lane keys on `blob_sha`, and
+the D-chain stays where it lives.** The concrete payoff for ingest: `index_amendment`'s reuse-unchanged
 discipline (`core/ingest/index.py:61-82`) means a file whose blob is unchanged across a commit
 re-embeds **nothing**, and the D-edge (old blob → new blob) is exactly the signal that its
 chunks must be re-derived. Incremental sync (§2.7) is therefore *driven by* the D-fiber: walk
@@ -415,13 +449,18 @@ the ledger carries blob lineage; the amendment path consumes it]`
 **Interpreter/embedder version is a SECOND D-axis, orthogonal to content.** Re-embedding the
 same blob under a new embedder version is the interpreter-version supersession the code sensor
 already runs for observations (`ops/code_sensor.py:68-86` `INTERPRETER_VERSION`;
-`dn-self-sensing` §2.4 versioned re-interpretation). The vector rows carry an `embedder`
-version stamp (A7 pin); a bump re-derives from git (§2.7-3). Two D-axes — *content changed*
+`dn-self-sensing` §2.4 versioned re-interpretation). A7 pins the embedder version
+corpus-wide, not per-row (audit correction — the drafted "rows carry an `embedder` stamp"
+was false: the schema has no such column, `core/stores/vectorstore.py:27-37`): the pin is
+config-level (`config/defaults.toml:96-101`, model+dim) with fixed-version cuts and
+reset+re-embed-from-raw on change; if a per-row `embedder` stamp is wanted it rides the same
+`layer`-column migration (§5-4). A bump re-derives from git (§2.7-3). Two D-axes — *content changed*
 (new blob) and *worldview changed* (new embedder) — never conflated, exactly as the
 observation store separates them. `[DERIVED]`
 
 **C over code — dialogue→code is LIVE; the embed lane consumes it, adds nothing to it.** The
-integrator already mints 4,084 witnessed C-edges dialogue-action → (commit, file, doc)
+integrator already mints witnessed C-edges dialogue-action → (commit, file, doc) — 4,084 at
+the AL-3 seal, 4,160 at audit
 (`core/integrator.py`; `dn-agent-taxonomy` §2.5). A code chunk's `(digest=blob_sha, commit,
 path)` coordinates join to the C-edge whose witnessed commit touched that path — the typed
 answer to "which conversation wrote this code," and the mechanism behind §2.3-1's
@@ -462,6 +501,7 @@ absorbed verbatim.** Clause by clause:
 | §2.5 two lanes | **EXTENDED to three**: Lane 0 (new) = the semantic embedding lane; Lane 1 = deterministic reference edges (kept, resolver fixed); Lane 2 = correlator-class proposals (kept, still unbuilt). The lanes still never merge. |
 | §2.6 firewall obligations | **PRESERVED and sharpened**: mirror-opacity now covers the vector rows too (CODE ∉ MIRROR_READABLE), enforced at the same structural surfaces. |
 | §3.2 V4 / observation-grain PD-a | **VINDICATED** — symbol grain, measured then, is the grain §2.1 embeds at. |
+| §1.2's remaining non-goals: the no-promotion path ("observations never become authored — the path does not exist"), the parked smear, the correlator boundary | **UNTOUCHED** (audit addition — the drafted table left these undisposed) — CODE ∉ MIRROR_READABLE keeps the no-promotion line intact for the new rows (promotion up stays a deliberate human re-tag-from-raw, `core/provenance.py:74-77`, unused here); the smear stays parked (§1.2 here); Lane 2 stays Track D's charter. |
 
 **Why partial and not full:** the projection note's machinery is ratified, built, tested, and
 *correct*; only its sufficiency claim (structure-only, semantics never) was wrong. Superseding
@@ -475,8 +515,10 @@ banner it, preserve the rest as authoritative.
 - `dn-agent-taxonomy` (ratified) — **EXTEND**: the embed lane is a sensor-role layer family
   over the repo source (§2.4 there); the fiber-vs-edge criterion *ruled L2a* (§2.4 here);
   "code is observed strata" stands.
-- `dn-agentic-loop` (ratified) — **EXTEND**: EX-2's origin view gains its first non-dialogue
-  consumer (agent-vs-owner code attribution, §2.3-1); no exhaust semantics change.
+- `dn-agentic-loop` (ratified) — **EXTEND**: the origin family (C∘commit-keying) gains its
+  first code-side consumer — through the PD-J node-keyed sibling reader beside
+  `origin_view.py`, not `origin(e)` itself (§2.5b's grounding correction); agent-vs-owner
+  code attribution, §2.3-1. No exhaust semantics change.
 - `dn-authorship-distance-axis` (draft) — **EXTEND**: code = a₂ base rows with transform
   attribution (embedder version = the calibration sheet's transform half, §3.7d there);
   `w(a_self)` for agent-authored code rides its existing PD-1 gate unchanged.
@@ -491,9 +533,10 @@ banner it, preserve the rest as authoritative.
 
 ### 2.7 D5 — ingest weight and sequencing vs the memory ceiling
 
-**Sizing (measured this session, HEAD ledger):** 528 tracked `.py` files / 5,065 symbols at
-the latest snapshot; 76,507 total `.py` LOC; 3,318 inline comments in the 247 main-package
-files. Estimated chunk volume: ~5.6k L0 chunks (symbols + module preambles; oversized splits
+**Sizing (measured this session; re-verified at audit against the ledger at `625a058`):**
+528 tracked `.py` files / 5,065 symbols at the latest snapshot; 76,508 total `.py` LOC
+(drafted 76,507 was off by one); 3,318 inline comments in the 247 main-package files
+(§2.2's set — both counts reproduced exactly at audit). Estimated chunk volume: ~5.6k L0 chunks (symbols + module preambles; oversized splits
 roughly offset by empty shells) + ~1–2k L1 chunks after `derive_chunks` packing ≈ **~7k
 chunks, ~250× today's 28** — still small absolutely: at the configured dim, tens of MB in
 LanceDB; single-user scale readers (`all_rows` Python-side filters,
@@ -502,8 +545,9 @@ this session; the chunk estimate is ±2×]`
 
 **Rulings:**
 1. **HEAD-only, incremental — no historical embedding backfill.** The semantic space is a
-   *current-view* instrument; history is already carried by D (snapshots ledger, 899 commits)
-   and by re-projection. Embedding every historical blob would multiply cost for no named
+   *current-view* instrument; history is already carried by D (snapshots ledger, 902 commits
+   at `625a058`; the drafted 899 was finding-0145's stale `20253d5` reading) and by
+   re-projection. Embedding every historical blob would multiply cost for no named
    consumer (PD-B parks it with one). Incremental sync rides the existing post-commit cadence:
    changed blobs only, keyed by blob sha — `digest`-keyed delete + re-add is exactly the
    watcher's amendment idiom (`vectorstore.delete(digest=…)` `:78-86`; `index_amendment`'s
@@ -524,7 +568,7 @@ this session; the chunk estimate is ±2×]`
 | id | measurement | gates |
 |---|---|---|
 | M-C1 | one-file end-to-end timing (parse→strip→chunk→embed→land) + projected seed cost | the seed run's scheduling (§2.7-2) |
-| M-C2 | chunk census after CI-1: L0/L1 counts, size distribution, partition verification (L0⊔L1 byte-cover per file) | F-CI2 |
+| M-C2 | chunk census after CI-1: per-layer counts, size distribution, the L0a cover check (module shell + symbol slices reassemble every file byte-identically) | F-CI2 |
 | M-C3 | retrieval probe: a small golden set of "find the code that does X" queries, code-lane vs docstring-only baseline | F-CI3; PD-b's measurement debt, paid |
 | M-C4 | cross-space geometry: code↔doc cosine distribution vs within-class; are cross neighborhoods informative or bimodally degenerate? | PD-C (embedder re-entry); the §2.4 bridge's viability |
 | M-C5 | reader-scale check: `all_rows`/search latency at ~7k rows | the Python-side-filter posture |
@@ -563,9 +607,12 @@ this session; the chunk estimate is ±2×]`
 
 - **F-CI1** (§2.3) — a CODE row reachable through a MirrorView / MIRROR_READABLE-default
   search, or a code-lane API with a provenance parameter ⇒ firewall incident; halt the lane.
-- **F-CI2** (§2.1/§2.2) — the L0⊔L1 partition fails byte-cover on any file, or chunks are not
-  re-derivable bit-identically from the blob (the `core.ingest.verify` re-derivation
-  discipline) ⇒ the derivation is not regenerable; the lane is malformed.
+- **F-CI2** (§2.1/§2.2) — the **L0a** slices fail byte-cover on any file (a source line in
+  zero or ≥2 L0a chunks — the audit killed the drafted "L0⊔L1 partition" phrasing, a residue
+  of the superseded single-partition draft: L0b overlaps by design and L1 re-projects content
+  L0a carries, so L0a alone is the partition), or any layer's chunks are not re-derivable
+  bit-identically from the blob (the `core.ingest.verify` re-derivation discipline) ⇒ the
+  derivation is not regenerable; the lane is malformed.
 - **F-CI3** (§2.7/M-C3) — the code lane fails to beat the docstring-only retrieval baseline on
   the golden probes ⇒ the embedding earns no keep; record as no-signal, re-open grain (PD-D)
   before scale-up. (PD-b's measurement obligation, inherited and inverted.)
@@ -629,13 +676,16 @@ snapshot; additive migrations) · `core/scope.py:60-107` (Stratum; EXHAUST as ex
 refinement) · `core/complex/build.py:121-124` (note centroids computed on read) ·
 `core/ingest/amend.py:43-74` (chunk_point_id; plan_amendment) · `core/origin_view.py:1-100`
 (the C∘commit-keying view; the reference-edge target-kind boundary) · `core/integrator.py`
-(the live C-edge minter) · `core/temporal/boundary.py:17,102` (the supersession poset the
-D-chain feeds) · `config/defaults.toml:96-132` (embedding model; the model slots).
+(the live C-edge minter) · `core/temporal/boundary.py:17,99-112` + `core/temporal/acquire.py:31`
+(the store-free poset core the D-chain CAN feed — not yet wired, §2.5b) ·
+`config/defaults.toml:96-132` (embedding model; the model slots).
 
-**Live-store readings (2026-07-21):** vectors.lance 28 chunks / 19 notes (finding-0146);
-code_snapshots latest commit 528 files / 5,065 symbols; 3,318 `#` comment tokens across 247
-main-package `.py` files (tokenize, this session); causal_edges 4,084; reference_edges
-current view 2,199 / 624 doc→doc (finding-0145).
+**Live-store readings (2026-07-21; ✓ = re-verified independently at the fable audit, at
+`625a058`):** vectors.lance 28 chunks / 19 notes ✓ (finding-0146; all rows `authored-solo` ✓);
+code_snapshots latest commit 528 files ✓ / 5,065 symbols ✓ / 76,508 LOC ✓ / 902 commits ✓;
+3,318 `#` comment tokens across 247 main-package `.py` files ✓ (tokenize; reproduced exactly);
+causal_edges 4,160 at audit (4,084 at the AL-3 seal); reference_edges 950,025 accumulated at
+audit / current view 2,199 / 624 doc→doc (finding-0145).
 
 **Design:** finding-0146 (warrant) · finding-0145 · dn-code-observation-projection (§2.6
 disposition table) · dn-fiber-geometry §2.0/§2.2 · dn-agent-taxonomy §2.3/§2.4/§2.5 ·
