@@ -330,3 +330,47 @@ next_steps:
   - Fold into the same measure-first battery: the σ-fiber differential + the D-fiber thermometer
     read join the CN-4 grounding, Forman-vs-churn, and phase-transition scans.
 ```
+
+## 2026-07-21T02:45Z (same conversation — naming the heterogeneous walk)
+
+Owner: *"what is the walk along a heterogeneous edge type set called — a superedge? a thread?
+what do you call the siblings, paths that restrict/limit the type of edges used?"*
+
+### The vocabulary ruling (working names, house-consistent)
+
+- **Rejected first, with reasons:** *thread* is TAKEN — `THREAD` is a structural-panel claim
+  kind (`core/dreaming/interpreters.py:62`, harmonic H1 flow); *superedge* collides with the
+  house's existing derives HYPEREDGES (bundling connotation — a superedge names one fat edge,
+  not a walk).
+- **Adopted (working):** a mixed-fiber walk is a **composed chain** — a chain on the composed
+  assembly, which is literally where fiber union happens (`core/graph/composed.py`); the
+  restricted siblings are **fiber chains** (a D-chain is a lineage, a C-chain a causal chain,
+  an F-chain a similarity path — the σ-fiber restriction as a path object).
+- **The sharper object under the name:** every chain spells a word in the fiber alphabet — its
+  **fiber signature** (deliberately echoing role-as-scope-signature). Then restriction is not a
+  SUBSET but a **LANGUAGE** over the alphabet — and this is forced, not aesthetic: the [d,τ]
+  diamond proved order-of-walk non-commutative, so subset-restriction is provably too coarse;
+  "which edges may you walk" is inherently order-aware ("any number of F steps, then at most
+  one D step" is a regular expression, not a set). Subsets are the commutative shadow of the
+  real sibling family.
+- Literature anchors `[FROM MEMORY — external-grounding before the book cites]`: typed-sequence
+  walks in heterogeneous information networks = *meta-paths* (Sun & Han); language-restricted
+  walks = *regular path queries*; the flattened multiplex = *supra-graph*.
+
+```capsule
+topic: clock-curvature
+date: 2026-07-21
+
+decisions:
+  - Working vocabulary (owner question, orchestrator proposal — ratifies by use): COMPOSED CHAIN
+    (mixed-fiber walk on the composed assembly) · FIBER CHAIN (type-restricted sibling) · FIBER
+    SIGNATURE (the word a chain spells in the fiber alphabet). "thread" and "superedge" rejected
+    (name collisions: the THREAD claim kind; derives hyperedges).
+
+open_questions:
+  - Does the grant's E coordinate ever generalize from a fiber SET to a fiber LANGUAGE (an
+    automaton in the scope algebra)? A CS-x extension seed — only on a concrete consumer, per
+    the capability-scope discipline.
+  - Which signatures actually appear in endorsed chains, and which conduct best? Measurable once
+    bp-080's census (C/D-signature structures) and the σ-fiber differential land.
+```
