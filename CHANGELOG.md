@@ -1,3 +1,47 @@
+# [1.15.0](https://github.com/ascalva/mind-palace/compare/v1.14.0...v1.15.0) (2026-07-21)
+
+
+### Bug Fixes
+
+* **bp-072:** satisfy ruff + mypy CI gates (lint/type only, no behavior change) ([dde9dba](https://github.com/ascalva/mind-palace/commit/dde9dba2edcc571b5f86f35096df7d53bf923fe0))
+* **bp-077:** renumber the book's finding 0116->0117 (0116 taken by the exhaust-write conflict on main); retarget 4 book refs ([d201911](https://github.com/ascalva/mind-palace/commit/d201911324d00dd69dbb1ea9d1d725f0bd95b2bc))
+* **bp-078:** make plane verifier OS-portable — CI was red since the seal (finding-0124) ([ebce282](https://github.com/ascalva/mind-palace/commit/ebce2826ba123f145b2ed5946a9e25890a010069))
+* **cockpit:** force umask 002 in the ouroboros-work launch (sudo resets it to 022) ([681b187](https://github.com/ascalva/mind-palace/commit/681b1872888e7a54ca977253f9b06fe2e41df2aa))
+* **cockpit:** pin reading-room session to opus[1m] router default ([f41dbd1](https://github.com/ascalva/mind-palace/commit/f41dbd19d7e0493acc80c8829d32f7f21194cd6d))
+* **cockpit:** quote opus[1m] so zsh doesn't glob-expand the model pin ([e8a278e](https://github.com/ascalva/mind-palace/commit/e8a278e7e878f798d277faa9f8b891ce1ba8e8cc))
+* **exhaust_report:** add repo-root sys.path bootstrap so the CLI actually runs (finding-0118) ([f5f46d9](https://github.com/ascalva/mind-palace/commit/f5f46d9c657109c2d6b8ccfca8fd82f39373242a))
+
+
+### Features
+
+* **agentic-loop:** AL-1 — three actor profiles + the zone-boundary lattice law (G-D) ([9774bd7](https://github.com/ascalva/mind-palace/commit/9774bd7fe351053c930c8a2988435e57eb817d24))
+* **agentic-loop:** AL-3 — exhaust⊂dialogue excluded refinement + origin(e) view (bp-088) ([9e9555f](https://github.com/ascalva/mind-palace/commit/9e9555f657b5fa9362445f92898a9dc1026525b2))
+* **bp-072:** owner cockpit — docket + readmap + bless CLI + tmux reading room ([d0a5623](https://github.com/ascalva/mind-palace/commit/d0a5623c7bd683ff9375cad6285ef274a8788ac0))
+* **bp-074:** stop-audit clause (e) — the session-handoff gate ([5e816e6](https://github.com/ascalva/mind-palace/commit/5e816e6aea65125be83dd0ad72aedee1f47c66dc))
+* **bp-075:** pin the [exhaust] config root in defaults.toml ([d29672c](https://github.com/ascalva/mind-palace/commit/d29672ccf08dd0a70ead00309ea8062764c3be1a))
+* **bp-075:** surface the [exhaust] config root via ExhaustConfig ([0338200](https://github.com/ascalva/mind-palace/commit/0338200776aaa6b2ca215826a754bc841c538da0))
+* **bp-075:** the ingest-invariant test and the report writer ([2068410](https://github.com/ascalva/mind-palace/commit/2068410e2740a96fa8a2d9d8b528db104945c10a))
+* **bp-078:** cockpit launches the orchestrator as ouroboros-work ([a4ea16f](https://github.com/ascalva/mind-palace/commit/a4ea16fe1eaddb0ec873392112a5f7281a050f32))
+* **bp-078:** core-egress pf anchor (block ouroboros off-host, lo0 carve-out) ([ebe99bf](https://github.com/ascalva/mind-palace/commit/ebe99bf7946d5170bfb6f3756b6c5dd1a839567a)), closes [#2](https://github.com/ascalva/mind-palace/issues/2)
+* **bp-078:** domain/user-aware Launcher + ouroboros daemon plist + [planes] ([c6c72da](https://github.com/ascalva/mind-palace/commit/c6c72da5677b5a52e4caa0d06d76aa2876fa1daa))
+* **bp-078:** read-only four-plane verifier + per-plane self-configuring ratchets ([194ecf6](https://github.com/ascalva/mind-palace/commit/194ecf6f40a36e45f13ee62c75fd2bf12d9a17ba))
+* **bp-079:** DreamCharter dispatch record + materialization boundary ([fc25809](https://github.com/ascalva/mind-palace/commit/fc25809c8b280d0c82460cee231e12a458d85656))
+* **bp-080:** D-1 ARROW-READ census — reader + panel lens behind R&D flag ([beae067](https://github.com/ascalva/mind-palace/commit/beae0675950bb30a8164dcc457fce8fc038e6e0e))
+* **bp-081:** H-0 + H-1 — the HYPOTHETICAL stratum and its staging substrate ([8f70eca](https://github.com/ascalva/mind-palace/commit/8f70ecaa3fe1c2aff8030b67202669cbded502b5)), closes [trou#tier](https://github.com/trou/issues/tier)
+* **bp-082:** H-2 influence v1 + the conditioning law (Items 11-13) ([e50bb32](https://github.com/ascalva/mind-palace/commit/e50bb326f1a61f46e04bb2cf7da3ec0be27171db))
+* **cockpit:** <leader>dr docket-refresh binding in the desk nvim ([9710854](https://github.com/ascalva/mind-palace/commit/97108549365660159eee910153bc895e3fe46edf))
+* **cockpit:** orchestrator-launch wrapper — inject ouroboros-work's OAuth token + silent SSH signing ([0a3d32a](https://github.com/ascalva/mind-palace/commit/0a3d32af3d0ff7d2460dfc3880a3d2151ca561b8)), closes [#10](https://github.com/ascalva/mind-palace/issues/10)
+* **cockpit:** PLANE=ascalva toggle — fable escape hatch for design/gate panes ([eb7a577](https://github.com/ascalva/mind-palace/commit/eb7a57739d8eca349e9b56a70a344d3c14c9b442))
+* **cockpit:** swap PLANE default to ascalva — fable-first, isolation opt-in ([f294c3e](https://github.com/ascalva/mind-palace/commit/f294c3e07da0e14b01d047db292134f8fb4cf53a))
+* **cockpit:** vim-nav pane bindings + reload runtime settings on join ([bd1cb21](https://github.com/ascalva/mind-palace/commit/bd1cb21221a6118459f2a81c4c41cab775fc8485))
+* **docket:** group the render by owner action — bless / ratify / answer sections ([43d1f27](https://github.com/ascalva/mind-palace/commit/43d1f27d66e2dae7af17ae35568d345dd27f0545))
+* **docket:** in-view key legend in the footer (gf is plain gf — no leader) ([3b68cd5](https://github.com/ascalva/mind-palace/commit/3b68cd5b63e2f0779450f1d0a697a1539f86b510))
+* **fiber-geometry:** G-A — the read-only measure-first survey M1-M8 (bp-085) ([978b073](https://github.com/ascalva/mind-palace/commit/978b07352e656a2fcdc08265fe2e46f7af8f9c72))
+* **inner-outer-core:** M0 — born-green inner-ring map + fixed-point ratchet (bp-083) ([33d6929](https://github.com/ascalva/mind-palace/commit/33d692923793eebe8abc5a82809dfe9742e1a278))
+* **inner-outer-core:** S1 — temporal math↔persistence splits, INNER 30→37 (bp-089) ([d8d9d09](https://github.com/ascalva/mind-palace/commit/d8d9d09f836a64faa2a67b8a54b0918869829806))
+* **palace:** queue subcommand — read-only overview of waiting jobs by kind ([57b2b01](https://github.com/ascalva/mind-palace/commit/57b2b01561a5f4364ae4c9a0cefb9fe05559a1ab))
+* **statusline:** full-telemetry plane-aware statusLine ([a95986d](https://github.com/ascalva/mind-palace/commit/a95986dd573bf1c4f36f7668bf1aba127c49a141))
+
 # [1.14.0](https://github.com/ascalva/mind-palace/compare/v1.13.0...v1.14.0) (2026-07-19)
 
 
