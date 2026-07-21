@@ -18,7 +18,8 @@ whose four coordinates are themselves lattices:
   * **Σ (`StratumScope`)** — a downward-closed subset of the stratum-refinement forest R. Base
     strata (mirror, curated, observed, ops, reference, interpreted, world, dialogue) with refinement
     predicates BELOW them as first-class elements (`reference_repo ⊂ reference`,
-    `mirror_authored ⊂ mirror`, `dialogue_transcript`/`dialogue_artifact ⊂ dialogue`).
+    `mirror_authored ⊂ mirror`, `dialogue_transcript`/`dialogue_artifact ⊂ dialogue`, and the
+    default-EXCLUDED `exhaust ⊂ dialogue` — grantable only when named, dn-agentic-loop §2.4b).
     `⊤_Σ = R ∖ 𝔇`: even the fullest grant excludes the foundation denylist 𝔇 (an order-ideal),
     so `CONSTITUTION.md` / `eval/golden/**` are structurally ungrantable.
   * **E (`EdgeScope`)** — the edge-class fibers `E ⊆ {F, D, C}` (F = citation, D = supersession,
@@ -75,6 +76,15 @@ class Stratum(StrEnum):
     DIALOGUE = "dialogue"
     DIALOGUE_TRANSCRIPT = "dialogue_transcript"      # ⊂ dialogue
     DIALOGUE_ARTIFACT = "dialogue_artifact"          # ⊂ dialogue
+    # the agent-exhaust refinement (dn-agentic-loop §2.4b EX-1). A genuine refinement
+    # `exhaust ⊂ dialogue` (`_REFINES` below, so it sits BELOW dialogue in R) BUT an EXCLUDED
+    # refinement (`_EXCLUDED_REFINEMENTS`): unlike dialogue_transcript/dialogue_artifact it is NOT
+    # auto-added by a parent's downward closure — a read of agent-exhaust rows is constructible only
+    # under a grant that NAMES it (the bp-081 HYPOTHETICAL default-grant precedent, applied to a
+    # refinement). So `⊤_Σ`/`of(dialogue)` omit it and stay byte-identical; only `of(…, exhaust)`
+    # sees it (the Σ-visibility capability test, F-AL6). "Low priority" ≠ this cut: set-membership
+    # isolation is the safety property; the retrieval weight `w(a_self)` is tuning, owner-gated.
+    EXHAUST = "exhaust"                      # ⊂ dialogue; excluded-by-default refinement (§2.4b)
     # the counterfactual overlay stratum (dn-synchronic-diachronic-dreamer §2.6-1). An OVERLAY, not
     # a refinement: staged hypotheses carry their would-be stratum/provenance as ROW DATA (stratum ≠
     # provenance), so one element serves overlays beside any stratum. Unlike every other base
@@ -93,6 +103,7 @@ _REFINES: dict[Stratum, Stratum] = {
     Stratum.REFERENCE_REPO: Stratum.REFERENCE,
     Stratum.DIALOGUE_TRANSCRIPT: Stratum.DIALOGUE,   # dn-agent-taxonomy §2.3
     Stratum.DIALOGUE_ARTIFACT: Stratum.DIALOGUE,     # dn-agent-taxonomy §2.3
+    Stratum.EXHAUST: Stratum.DIALOGUE,               # dn-agentic-loop §2.4b EX-1 (excluded refine)
 }
 
 # the base strata (the roots of R) — everything a maximal grant may name, minus the denylist AND the
@@ -106,6 +117,17 @@ _BASE_STRATA: frozenset[Stratum] = frozenset(
 )
 
 
+# EXCLUDED refinements — the `exhaust ⊂ dialogue` default-grant exclusion (dn-agentic-loop §2.4b
+# EX-1(ii)). A genuine refinement (it IS in `_REFINES`, so it sits below its parent in R and is
+# excluded from `_BASE_STRATA` like every refinement), YET a parent's downward closure does NOT
+# auto-add it: it enters a downset ONLY when named directly. This is the bp-081 HYPOTHETICAL
+# precedent applied to a refinement — `⊤_Σ`/`of(dialogue)` stay byte-identical (exhaust never
+# auto-added), and a read of agent-exhaust rows is constructible only under a grant naming `exhaust`
+# (the Σ-visibility capability test the F-AL6 ratchet pins). Set-membership isolation is the safety
+# property; NOT a trust weight (`w(a_self)` is tuning, owner-gated at the authorship-axis note).
+_EXCLUDED_REFINEMENTS: frozenset[Stratum] = frozenset({Stratum.EXHAUST})
+
+
 def _refinements_below(s: Stratum) -> frozenset[Stratum]:
     """The refinement predicates strictly below `s` in R (child ⊂ s). One level in v1 (the forest is
     shallow); recursion-ready if a refinement ever refines a refinement."""
@@ -114,11 +136,13 @@ def _refinements_below(s: Stratum) -> frozenset[Stratum]:
 
 def _downward_close(strata: Iterable[Stratum]) -> frozenset[Stratum]:
     """The downward closure in R: adding a base stratum pulls in its refinement predicates (a grant
-    over `reference` includes `reference_repo`). A downset is closed under this."""
-    out: set[Stratum] = set()
-    for s in strata:
-        out.add(s)
-        out |= _refinements_below(s)
+    over `reference` includes `reference_repo`). A downset is closed under this — EXCEPT for the
+    excluded refinements (`_EXCLUDED_REFINEMENTS`): a parent's closure SKIPS them, and one enters a
+    downset only when it is directly among the input strata (the `exhaust ⊂ dialogue` default-grant
+    exclusion, dn-agentic-loop §2.4b EX-1(ii)). A directly-named stratum is always kept."""
+    out: set[Stratum] = set(strata)                             # named strata kept verbatim
+    for s in out.copy():
+        out |= _refinements_below(s) - _EXCLUDED_REFINEMENTS    # auto-close skips excluded ones
     return frozenset(out)
 
 

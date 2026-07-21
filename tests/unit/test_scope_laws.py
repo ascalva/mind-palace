@@ -39,15 +39,18 @@ _EXPECTED_MEMBERS = {
     "reference", "reference_repo",
     "interpreted", "world",
     "dialogue", "dialogue_transcript", "dialogue_artifact",
+    "exhaust",
     "hypothetical",
     "foundation",
 }
 
 
 def test_stratum_member_set_is_pinned():
-    """The full `Stratum` enum, pinned by value — H-0 adds exactly `hypothetical`, nothing else."""
+    """The full `Stratum` enum, pinned by value — H-0 added `hypothetical`; AL-3 (dn-agentic-loop
+    §2.4b EX-1) adds exactly `exhaust`, nothing else."""
     assert {s.value for s in Stratum} == _EXPECTED_MEMBERS
     assert Stratum.HYPOTHETICAL.value == "hypothetical"
+    assert Stratum.EXHAUST.value == "exhaust"
 
 
 def test_hypothetical_is_an_overlay_not_a_refinement():
@@ -85,13 +88,18 @@ def test_hypothetical_is_not_the_denylist():
 # reads off this declared set — any drift in its membership is a deliberate, reviewed act, exactly
 # like the `_EXPECTED_MEMBERS` pin above. The widest-exclusion default keeps every stratum but
 # `world` (plan §3 Q3: ops/reference IN, owner's call at proposed→ready).
-_EXPECTED_PRIVATE = _EXPECTED_MEMBERS - {"world", "foundation", "hypothetical"}
+# `exhaust` is excluded too: it is a default-EXCLUDED refinement (AL-3), so `_downward_close` never
+# auto-adds it to `⊤_Σ` — PRIVATE_STRATA (derived from ⊤_Σ ∖ {world}) is therefore byte-identical to
+# before `exhaust` existed (the additive property, mirroring `hypothetical`).
+_EXPECTED_PRIVATE = _EXPECTED_MEMBERS - {"world", "foundation", "hypothetical", "exhaust"}
 
 
 def test_private_strata_membership_is_pinned():
     """PRIVATE_STRATA = every grantable stratum (⊤_Σ, refinements included) EXCEPT `world`; excludes
-    `foundation` (𝔇) and the `hypothetical` overlay (not a base stratum)."""
+    `foundation` (𝔇), the `hypothetical` overlay (not a base stratum), and `exhaust` (a default-
+    excluded refinement, never in ⊤_Σ — AL-3 keeps PRIVATE_STRATA byte-identical)."""
     assert {s.value for s in PRIVATE_STRATA} == _EXPECTED_PRIVATE
     assert Stratum.WORLD not in PRIVATE_STRATA
     assert Stratum.FOUNDATION not in PRIVATE_STRATA
     assert Stratum.HYPOTHETICAL not in PRIVATE_STRATA
+    assert Stratum.EXHAUST not in PRIVATE_STRATA

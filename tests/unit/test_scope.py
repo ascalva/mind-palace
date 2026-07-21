@@ -536,3 +536,113 @@ def test_zone_law_admits_world_only_sigma_at_any_reach():
                             Window.all(), Authority(Privilege.READ, 0, reach))
         assert world_only.sigma.strata == frozenset({Stratum.WORLD})
         assert zone_admissible(world_only)
+
+
+# ── AL-3 (dn-agentic-loop §2.4b EX-1) — the `exhaust ⊂ dialogue` default-EXCLUDED refinement ──────
+# ADDITIVE only: every test above passes verbatim (⊤_Σ is byte-identical — EXHAUST, like the
+# HYPOTHETICAL overlay, is NOT auto-added to top() or to of(dialogue)). EXHAUST differs from
+# HYPOTHETICAL in ONE way: it is a genuine refinement (`_REFINES[EXHAUST]=DIALOGUE`, below
+# dialogue in R), yet the closure SKIPS it (`_EXCLUDED_REFINEMENTS`) — grantable only when named.
+from core.scope import (  # noqa: E402  (grouped with the AL-3 section it supports)
+    _EXCLUDED_REFINEMENTS,
+    _REFINES,
+    _refinements_below,
+)
+
+
+def test_exhaust_is_a_genuine_but_excluded_refinement_of_dialogue():
+    """`exhaust ⊂ dialogue` is a real forest edge (`_REFINES`, so it is BELOW dialogue and hence
+    excluded from `_BASE_STRATA` like every refinement) AND a member of `_EXCLUDED_REFINEMENTS` —
+    the two facts that together make it grantable only when named."""
+    assert _REFINES[Stratum.EXHAUST] is Stratum.DIALOGUE
+    assert Stratum.EXHAUST in _refinements_below(Stratum.DIALOGUE)   # a child of dialogue in R
+    assert Stratum.EXHAUST in _EXCLUDED_REFINEMENTS               # but excluded from auto-closure
+
+
+def test_default_grants_exclude_exhaust():
+    """F-AL6, the crux (positive half). "Default grants exclude it" is STRUCTURAL: neither ⊤_Σ (the
+    fullest ordinary grant) NOR `of(dialogue)` (its own parent's downset) contains EXHAUST — only a
+    grant that NAMES it does. This is the Σ-visibility capability test the isolation rests on."""
+    assert Stratum.EXHAUST not in StratumScope.top().strata
+    assert Stratum.EXHAUST not in StratumScope.of(Stratum.DIALOGUE).strata
+    # the dialogue grant still carries its NON-excluded refinements (transcript/artifact) intact —
+    # the skip is surgical to the excluded set, not a blanket refusal of closure.
+    assert Stratum.DIALOGUE_TRANSCRIPT in StratumScope.of(Stratum.DIALOGUE).strata
+    assert Stratum.DIALOGUE_ARTIFACT in StratumScope.of(Stratum.DIALOGUE).strata
+    # naming it is the ONLY way it appears (an excluded refinement pulls in no further children).
+    named = StratumScope.of(Stratum.DIALOGUE, Stratum.EXHAUST).strata
+    assert Stratum.EXHAUST in named
+    assert StratumScope.of(Stratum.EXHAUST).strata == frozenset({Stratum.EXHAUST})
+
+
+def test_top_sigma_is_byte_identical_across_the_exhaust_addition():
+    """⊤_Σ still equals `R ∖ (𝔇 ∪ overlays ∪ excluded-refinements)` — the base strata + their
+    NON-excluded refinements. The additive property: adding EXHAUST moved no element of top()."""
+    top = StratumScope.top().strata
+    assert Stratum.EXHAUST not in top          # the excluded refinement never entered ⊤_Σ
+    assert Stratum.HYPOTHETICAL not in top     # overlay still out (unchanged)
+    assert Stratum.FOUNDATION not in top       # 𝔇 still out (unchanged)
+    assert {Stratum.DIALOGUE, Stratum.DIALOGUE_TRANSCRIPT, Stratum.DIALOGUE_ARTIFACT} <= top
+
+
+def test_exhaust_refinement_order_holds_only_when_named():
+    """The genuine `⊑` a refinement earns: `of(exhaust) ⊑ of(dialogue, exhaust)` and
+    `of(dialogue) ⊑ of(dialogue, exhaust)` — naming exhaust WIDENS the grant. And the isolation's
+    load-bearing NON-order: `of(exhaust) ⋢ of(dialogue)` — the default dialogue grant does not reach
+    exhaust (the fact F-AL6 pins; contrast the ordinary `of(reference_repo) ⊑ of(reference)`)."""
+    exhaust = StratumScope.of(Stratum.EXHAUST)
+    dialogue = StratumScope.of(Stratum.DIALOGUE)
+    both = StratumScope.of(Stratum.DIALOGUE, Stratum.EXHAUST)
+    assert exhaust <= both and dialogue <= both        # exhaust sits under a grant that names it
+    assert not (exhaust <= dialogue)                   # but a bare dialogue grant excludes it
+    # sanity: a NON-excluded refinement DOES ride its parent's default grant (the contrast case)
+    assert StratumScope.of(Stratum.REFERENCE_REPO) <= StratumScope.of(Stratum.REFERENCE)
+
+
+def test_req_admissible_refuses_an_exhaust_read_under_a_grant_that_omits_it():
+    """F-AL6, the crux (capability half). A read naming EXHAUST is admissible ONLY under a grant
+    that also names it — an agent-exhaust row is UNREACHABLE under a grant that omits `exhaust`,
+    INCLUDING ⊤_Σ. If ⊤_Σ (or of(dialogue)) admitted it, the isolation would be decorative."""
+    reading_exhaust = _scope(StratumScope.of(Stratum.EXHAUST), EdgeScope.bottom(),
+                             Window.all(), Authority.read_only())
+    # the widest ordinary grant — ⊤_Σ + full edges/reach — still REFUSES the exhaust read
+    grant_top = _scope(StratumScope.top(), EdgeScope.top(), Window.all(),
+                       Authority(Privilege.READ_PROPOSE, 1, WorldReach.SENSING))
+    assert not req_admissible(reading_exhaust, grant_top)
+    # so does a grant naming exhaust's own parent, dialogue
+    grant_dialogue = _scope(StratumScope.of(Stratum.DIALOGUE), EdgeScope.top(),
+                            Window.all(), Authority.read_only())
+    assert not req_admissible(reading_exhaust, grant_dialogue)
+    # only a grant that NAMES exhaust admits the read
+    grant_exhaust = _scope(StratumScope.of(Stratum.DIALOGUE, Stratum.EXHAUST), EdgeScope.top(),
+                           Window.all(), Authority(Privilege.READ, 0, WorldReach.NONE))
+    assert req_admissible(reading_exhaust, grant_exhaust)
+
+
+def test_lattice_laws_hold_over_exhaust():
+    """The lattice laws hold over a population carrying EXHAUST beside dialogue/durable strata —
+    proof the excluded refinement is a genuine additive lattice extension, not merely a new enum
+    member. ⊤_Σ is untouched: meeting top() with an exhaust scope keeps exhaust out of top."""
+    def s(sigma: StratumScope) -> Scope:
+        return _scope(sigma, EdgeScope.of("C"), Window.all(), Authority.read_only())
+
+    ext = [
+        s(StratumScope.of(Stratum.EXHAUST)),
+        s(StratumScope.of(Stratum.DIALOGUE, Stratum.EXHAUST)),
+        s(StratumScope.of(Stratum.EXHAUST, Stratum.OPS)),
+        s(StratumScope.top()),
+        s(StratumScope.of(Stratum.DIALOGUE)),
+    ]
+    for a in ext:
+        assert a.meet(a) == a and a.join(a) == a
+    for a, b in itertools.combinations(ext, 2):
+        assert a.meet(b) == b.meet(a) and a.join(b) == b.join(a)
+        assert a.meet(a.join(b)) == a and a.join(a.meet(b)) == a
+        assert (a <= b) == (a.meet(b) == a)
+        assert a.meet(b) <= a and a.meet(b) <= b            # delegation monotonicity, exhaust too
+    for a, b, c in itertools.combinations(ext, 3):
+        assert a.meet(b).meet(c) == a.meet(b.meet(c))
+        assert a.join(b).join(c) == a.join(b.join(c))
+    # the refinement never launders into ⊤_Σ: meeting top() with an EXHAUST-naming scope keeps it
+    # out of top's strata (top has no EXHAUST to contribute — it was never auto-added)
+    assert Stratum.EXHAUST not in ext[3].sigma.meet(ext[0].sigma).strata
