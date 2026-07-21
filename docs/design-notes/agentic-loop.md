@@ -1,7 +1,7 @@
 ---
 type: design-note
 id: dn-agentic-loop
-status: draft               # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
+status: ratified               # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 implementation: mostly-built  # the loop's valves exist at four different wiring states — §2.0 is the honest inventory
 created: 2026-07-21
 updated: 2026-07-21
