@@ -5181,3 +5181,26 @@ until M0+G-A land.
 
 **Board:** bp-087 complete, bp-086 complete. bp-085 (G-A) + bp-083 (M0) still building. bp-084 after
 M0; bp-088 after this (with the diff-apply caveat).
+
+### 2026-07-21 (session-40) — bp-083 (M0) SEALED: the born-green inner ring
+
+Third build landed. M0 (opus, 98k tok / 65 calls / 42 min, ratio 0.39× — born-green additive is
+cheap; duration inflated by full-suite CPU contention). Adopted `33d6929` by file-checkout (base
+`4212306`, an ancestor of main — clean); re-verified born-green at post-AL-1 HEAD (AL-1's pure-core
+scope.py additions did NOT shift membership — 4 tests passed).
+
+- **`|INNER| = 30`** = Appendix A's 29 + `core.rings` itself (stdlib-only ⇒ computes inner ⇒ B1
+  forces self-declaration). The computed 29 was **byte-identical to Appendix A** even though core/
+  grew 135→141 modules since `97c245c` — the ring held; **F6 satisfied by construction** (no
+  hand-edit toward green). `core/__init__.py` confirmed import-free (+ a new `test_core_init_is_
+  import_free` guard). Outer ratchet unchanged at 19.
+- Builder honesty flag (noted, moot): a hook created an intermediate `feat(...)` commit on its
+  worktree branch; irrelevant — I adopted file content onto main, not the branch topology.
+
+**Unblocks S1 (bp-084)** — the +7 promotion wave, which diffs against this `INNER` map. S1 NEEDS
+core/rings.py present ⇒ run it against post-M0 main (non-isolated, or a worktree confirmed to
+include `33d6929`), NOT a stale worktree.
+
+**Board:** bp-083/086/087 complete (M0, AL-1, AL-2). **bp-085 (G-A) still building** (only builder
+left). bp-084 (S1, after M0) + bp-088 (AL-3, after AL-1) held until G-A lands — run sequentially,
+non-isolated, to guarantee they see the dependency's output + keep concurrency ≤2.

@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-083
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/inner-outer-core.md
 contract: builder
@@ -13,7 +13,13 @@ cost:
   estimate:
     model: opus
     tokens: 250k
-  actual: null
+  actual:
+    model: opus            # claude-opus-4-8[1m], tier verified via completion usage
+    tokens: 97778
+    tool_calls: 65
+    duration_min: 42
+    ratio: 0.39            # well UNDER — born-green additive is cheap; F6 satisfied by construction (computed==29 at HEAD, no hand-edit)
+    session_delta: "weekly all-models pool; ran parallel with bp-085/bp-086; duration inflated by full-suite contention (≤2-builder lesson)"
 depends_on: []
 parallelizable_with: [bp-085, bp-087]
 created: 2026-07-21
