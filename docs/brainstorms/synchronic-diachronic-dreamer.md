@@ -172,3 +172,24 @@ references:
   - docs/design-notes/magnetic-laplacian.md                   # owner decision 2 (dream vocab, oq-0021) + ML-a gates + census-as-sense
   - docs/design-notes/edge-dynamics.md                        # §5 vocabulary question this extends
 ```
+
+## 2026-07-21T02:05Z (session-39 — post-ratification: the owner wants to SEE the narrative delta)
+
+The owner ratified dn-synchronic-diachronic-dreamer (bless `44bbeec`), adopting §2.9's oq-0021
+ADMIT. On the census entering narration: *"I also do want to know if it impacts the dreamer's
+narrative in any way — happy it's there."*
+
+```capsule
+topic: synchronic-diachronic-dreamer
+date: 2026-07-21
+
+decisions:
+  - Owner interest, plan-shaping (for D-1's graduation): beyond the F-SD9 planted-fixture battery
+    (which proves correctness), the owner wants the LIVE narrative delta observed on the real
+    corpus — a with/without-census read of actual dream narratives (same corpus, same dispatch,
+    admission toggled), surfaced to him when D-1 lands. Observation item, not a new gate.
+
+next_steps:
+  - /graduate of D-1 includes the narrative-delta A/B as an observation/acceptance item and
+    routes the comparison to the owner (exhaust-lane report or chat, his choice at the time).
+```

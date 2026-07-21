@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0126
-status: open
+status: resolved
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-07-21
 links:
   - docs/design-notes/agent-taxonomy.md               # the park whose stated blocker is stale ("diachronic dreamer — blocked on certified cuts (G3)")
   - docs/design-notes/global-event-clock.md           # GC-3 — the named blocker
@@ -13,7 +13,12 @@ links:
 ftype: discovery
 origin_plan: orchestrator          # session-39 dispatched fable design pass (dn-synchronic-diachronic-dreamer)
 route: orchestrator                # design
-resolution: null
+resolution: |
+  Closed by the note's ratification (owner bless commit 44bbeec, 2026-07-21): the owner adopted
+  dn-synchronic-diachronic-dreamer as ratified, including §2.8/SD-a's restated re-entry — the
+  diachronic park now gates on (a) the graph-at-a-past-cut instrument family graduating AND
+  (b) D-1 sealed, not on the already-satisfied "G3 materializes." The stale re-entry can no
+  longer be cited as license.
 ---
 
 # The diachronic dreamer's stated blocker (certified cuts / G3) is built; the park's re-entry needs restating
