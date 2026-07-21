@@ -189,3 +189,66 @@ references:
   - docs/brainstorms/code-as-sensor-stream.md        # the passive φ-projection framing
   - docs/design-notes/hands-and-the-effector-layer.md  # Track G — where "know how to act" lands (perceive→act)
 ```
+
+### ⚑ Reconciliation (owner, same session): this framework is ALREADY BUILT — don't reinvent it
+
+Owner: *"we already built the framework a while ago — how the agent acts/perturbs its environment
+and senses what happened."* Correct, and it sharpens (partly deflates) the active/passive framing
+above. The built vocabulary, recalled precisely from `dn-hands-and-the-effector-layer.md` (Track G,
+"the hands" — G1–G7, COMPLETE, committed; the one sentence: *"the reasoner proposes, the effector
+executes, the gate makes it trustworthy"*):
+
+- **Acting hands** = the EFFECTOR layer — outward effect (send email, set thermostat, run shell);
+  **propose → human-approve → code-acts**, no agent holds the live credential; the `Effect` type
+  carries an actuator id + scoped capability; a hand never bypasses the gate. This IS "the agent
+  perturbs its environment." (`ops/effect_{catalog,ledger,exec}.py`, `core/effect_proposal.py`,
+  `edge/effectors/writes.py`.)
+- **Sensing hands** = read-only reaching-out (read calendar/inbox/weather/Home-Assistant *state*,
+  fetch a page) → sandboxed → de-identified → the **`observed`-tier** derived view. The note's own
+  words: *"sensing hands are just new sensors."* **This is exactly the "active sensor / microscope"
+  idea above — already named and typed** (a sensing-hand result has no actuator field; illegal
+  effects are unrepresentable).
+- **"Senses what happened"** = the consequence returns as **`observed`-tier** data (the assistant
+  tier + the correlator, Track D / `observed-data-and-the-assistant-tier`, `ObservedView`). The
+  loop closes: propose → gate → act → the world's response is sensed back as observed data.
+
+**So the honest correction to the capsule above:** active/passive is NOT a new axis — it is the
+BUILT distinction. *Passive* = the standing `ops/` φ-projections (code/chat/self/reference sensors).
+*Active* = **sensing hands** (read-only investigate → observed-tier), with **acting hands**
+(effectors) as the perturb side and the **observed stratum** as the sense-back. bp-079's instrument
+grant + bp-082's influence probe are the *internal-graph* analog (perturb the graph, read the diff)
+of the *external-world* effector→observed loop — same shape, different target. **Status (unchanged,
+important):** the whole hands+observed apparatus is BUILT but flag-off — **max reachable effector
+tier is NONE, not even SENSING** (finding-0011); it is dormant machinery, not a live capability.
+
+**Consequence for any dn-agent-taxonomy pass:** it must GROUND on and reconcile with the
+sensing-hands / acting-hands / observed-stratum framework (DRY — the owner's rule), never propose a
+parallel "active/passive" structure beside it. The likely outcome is a naming/reconciliation note
+that maps {passive sensor, active sensor} → {standing φ-sensor, sensing hand} and folds the internal
+probe (bp-079/082) in as the graph-target instance — not new machinery. The reference sensor is
+plainly a passive standing sensor (not a hand at all) and is unaffected.
+
+```capsule
+topic: active-passive-sensing
+date: 2026-07-21
+
+decisions:
+  - RECONCILIATION (owner): the act/perturb-and-sense framework is ALREADY BUILT as Track G "the
+    hands" (acting hands = effectors, propose→approve→act; sensing hands = read-only investigate =
+    "just new sensors" → observed-tier) + the observed stratum/correlator ("senses what happened").
+    The active/passive distinction is NOT new — active ≈ sensing hands; passive ≈ standing
+    φ-sensors; bp-079/082 = the internal-graph analog of the external effector→observed loop.
+  - CORRECTION to this file's earlier capsule: do not treat active/passive as a novel axis. Any
+    taxonomy pass RECONCILES with the built hands/observed framework (DRY), never parallels it.
+
+open_questions:
+  - Is there ANY residue the built framework doesn't already cover — e.g. active sensing of the
+    INTERNAL graph (bp-079/082) vs external sensing hands: are they one category or two? (The one
+    genuinely open sub-question; the rest is naming.)
+
+references:
+  - docs/design-notes/hands-and-the-effector-layer.md   # Track G — acting hands / sensing hands / the gate (the built framework)
+  - docs/design-notes/observed-data-and-the-assistant-tier.md  # "senses what happened" — the observed-tier return
+  - docs/design-notes/effector-risk-computation.md      # the blast-radius gate on acting hands
+  - docs/findings/finding-0011.md                       # max reachable effector tier = NONE (the dormancy status)
+```
