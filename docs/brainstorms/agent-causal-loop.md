@@ -182,3 +182,57 @@ references:
   - docs/design-notes/recursive-dreaming-bounded-by-grounding.md  # the guardrail: no dreams-cite-dreams laundering
   - docs/brainstorms/self-mapping-the-palace.md         # the self-map theme this mechanizes
 ```
+
+## 2026-07-21T16:05Z — internal vs external acting carry DIFFERENT scopes (owner, the last thought)
+
+Owner: *"external acting vs internal acting agents should carry different scopes — internal acting
+may need more strata access, while external acting doesn't need the same privilege."*
+
+### Orchestrator chew — the asymmetry IS the zone boundary (a strong catch)
+
+- **The two acting modes sit at OPPOSITE corners of the (Σ, E, T, A) scope lattice.** *Internal
+  acting* (perturb the graph — the dreamer/hypothetical probe, bp-079/082) needs **broad Σ (strata)
+  read** to reason meaningfully, but its action authority A is confined to **interpreted-tier writes
+  with zero world reach** (`(READ, W_Σ=1, NONE)`). *External acting* (acting hands / effectors —
+  perturb the world) needs **narrow Σ** (least-privilege, need-to-know — one scoped capability) but
+  holds **high A / world effect** (gated). The privilege is INVERTED: internal = broad-read /
+  no-world; external = narrow-read / world-effect.
+- **And this is not a new rule — it is the SEALED-CORE / EDGE split (bright lines 1–4).** Internal
+  acting is **core-side**: broad private-data access, NO network. External acting is **edge-side**:
+  world-facing, must NOT read the vault (bright line 2 — network and private data never share a
+  component). So the owner's scope asymmetry *derives from* the founding zone boundary: the thing
+  that holds the most data cannot touch the world; the thing that touches the world holds the least
+  data. `[DERIVED — the (Σ,A) profile of each acting mode reduces to the zone invariant]` The design
+  win is stating it in scope-algebra terms so the taxonomy carries it explicitly.
+- **Consequence for the loop:** the internal loop (closed, live) runs at high-Σ/no-world; the
+  external loop (dormant, gated) runs at narrow-Σ/world — and the gate on external acting (tier
+  NONE, finding-0011; propose→approve→act) is the A-axis discipline, while the mirror firewall (I6)
+  and least-privilege are the Σ-axis discipline. Two axes, two disciplines, one lattice.
+
+```capsule
+topic: agent-causal-loop
+date: 2026-07-21
+
+decisions:
+  - The last thought (owner): internal-acting and external-acting agents carry DIFFERENT scopes —
+    internal needs broad strata (Σ) read, external needs narrow Σ but holds world-effect (A). The
+    asymmetry is a scope-lattice fact and DERIVES from the sealed-core/edge zone boundary (internal
+    = core: broad data, no network; external = edge: world-facing, no vault). Seed + [DERIVED] chew.
+
+open_questions:
+  - Does the taxonomy state the two acting modes as two named scope PROFILES (internal-actor:
+    high-Σ/A=interpreted-no-world; external-actor: narrow-Σ/A=world-gated), and does that subsume
+    the sensing/acting-hands split already in dn-hands? (The integration pass rules.)
+  - Where exactly does internal-acting's broad-Σ stop — the full graph incl. HYPOTHETICAL, but
+    minus 𝔇 and the mirror-write firewall? (Reconcile with the DreamCharter grant, bp-079.)
+
+next_steps:
+  - Hand to the integration fable pass (dispatched this session) as a first-class section: the
+    internal/external acting scope asymmetry, stated in (Σ,E,T,A) and grounded on the zone boundary.
+
+references:
+  - docs/design-notes/capability-scope-algebra.md       # (Σ,E,T,A) — the lattice the two profiles live on
+  - docs/design-notes/the-sacred-boundary.md            # the sealed-core/edge zone invariant the asymmetry derives from
+  - docs/design-notes/the-edge-model.md                 # edge-side external acting (narrow-Σ, world-facing)
+  - docs/design-notes/hands-and-the-effector-layer.md   # acting hands = external; the A-axis gate
+```
