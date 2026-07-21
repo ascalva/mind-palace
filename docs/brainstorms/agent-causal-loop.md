@@ -100,3 +100,85 @@ references:
   - docs/brainstorms/edge-dynamics-vector-field.md      # prediction-residual-as-creative-signal (the confirm/surprise term)
   - docs/findings/finding-0011.md                       # max effector tier = NONE (the embodied loop is dormant)
 ```
+
+## 2026-07-21T16:00Z — the intuition: self-sensing, self-correction, and EXHAUST-AS-SENSOR (owner)
+
+Owner: *"here's where the intuition comes in: the application of this sensor is such that it helps
+Ouroboros sense itself, sense its own gaps, and correct itself — and it being a causal loop is
+reason enough to record the interaction. The exhaust of the agent is itself a sensor as well."*
+
+### Orchestrator chew — the loop turns inward and becomes the ouroboros
+
+- **The application is SELF-sensing → gap-detection → self-correction (the self-map, made
+  mechanical).** The active-sensing loop pointed at Ouroboros itself: orient attention at its own
+  structure, find where it is incomplete or inconsistent, act to repair, confirm. "Sense its own
+  gaps" already has instruments — the **`hole` lens** (persistent H₁ = conceptual gaps), the
+  **coverage gauges** (doc_coverage, the integrator's coverage), the **drift** instruments — so
+  active attention directed at self-incompleteness is self-directed repair using built senses. This
+  is the owner's standing theme (`owner-background-self-mapping`: "mining my own brain"; the palace
+  is a self-map) turned into a control loop, and it is bounded by the same gate as all
+  self-modification (bright line 5: propose → approve → execute → validate → rollback).
+- **"The causal loop is reason enough to record" = closure IS the ingest warrant.** A closed
+  sense→act→confirm loop is a *witnessed* causal interaction, so it earns a C-fiber by its
+  structure — the loop's closure is the provenance warrant for ingestion (ingest-identity). The
+  system does not need a separate rule for "should I record this"; a confirmed causal loop is
+  self-justifying to record. `[INFERENCE — a clean principle, to reconcile with the ingest-identity
+  discipline]`
+- **⚑ EXHAUST-AS-SENSOR — the payoff, and it half-exists.** The agent's OUTPUT (dreams, reports,
+  reasoning, confirmed actions) is not terminal — it is a **sensor stream**: the agent senses its
+  own exhaust, which informs the next loop. Partly BUILT already: the **chat sensor** ingests the
+  owner↔agent turns (the agent's own utterances re-enter), the **exhaust lane** carries reports,
+  the **dream exhaust** is provenance-tracked (bp-082's conditioning law). So "exhaust is a sensor"
+  generalizes **self-sensing** from the palace's code/state to the agent's *outputs* — a dedicated
+  **exhaust sensor** over dreams/reports/actions, ingested with provenance. This is the ouroboros
+  literally closing: exhaust → re-sensed → orient at gaps → act/correct → new exhaust; the system
+  consumes its own output as input (the founding note's name, now the mechanism).
+- **The guardrail that keeps it from becoming self-hallucination (non-negotiable).** Exhaust is a
+  **LOW-AUTHORITY** sensor: it records *"the agent produced X"* (a fact about the interaction),
+  NOT *"X is true."* The grounding law (`recursive-dreaming-bounded-by-grounding`, sharpened in the
+  dreamer note §2.7-4) and the conditioning law (bp-082) exist precisely to stop the degenerate
+  loop — dreams citing dreams as ground, interpretation laundered into truth. So exhaust-as-sensor
+  MUST carry a distinct **self-authored** provenance class (the open question from the parent
+  capsule; home = `dn-authorship-distance-axis` / `authorship-strata`), trust-weighted below
+  owner-authored and observed. Same "records, not causes" honesty as the census: the exhaust sensor
+  observes what the agent DID/THOUGHT, never certifies it. Self-sensing that forgets this becomes a
+  confirmation-bias amplifier — the one way this idea goes wrong.
+
+```capsule
+topic: agent-causal-loop
+date: 2026-07-21
+
+decisions:
+  - The intuition (owner): the loop's application is SELF — Ouroboros senses itself, senses its own
+    gaps, corrects itself; the causal-loop closure is reason enough to record the interaction; and
+    THE AGENT'S EXHAUST IS ITSELF A SENSOR (its output re-enters as sensed data). Seed + chew.
+  - Load-bearing guardrail (to bind any design): exhaust-as-sensor is LOW-AUTHORITY — it records
+    "the agent produced X" (fact of the interaction), never "X is true." It requires a self-authored
+    provenance class trust-weighted below owner-authored/observed; the grounding + conditioning laws
+    prevent the dreams-cite-dreams degenerate loop. Records, not causes.
+
+open_questions:
+  - Is the exhaust sensor a NEW passive sensor (φ_exhaust over dreams/reports/actions), or does the
+    chat sensor + dream-exhaust provenance already cover it (DRY audit)? Likely a thin new φ plus a
+    self-authored stratum, not new reasoning.
+  - Gap-sensing as a control law: does high `hole`/low-coverage/high-drift signal auto-RE-ORIENT
+    active attention (self-steering curiosity), and is that steering itself gated/logged?
+  - Which self-corrections are agent-autonomous (interpreted-tier, reversible) vs owner-gated
+    (bright line 5 / fixed points)? The self-correction loop must inherit the self-modification gate,
+    not route around it.
+
+next_steps:
+  - Folds into the dn-agent-taxonomy reconciliation pass (parent capsule) AS the self-directed
+    instance: the exhaust sensor + gap-oriented attention + the self-modification gate. Grounds on
+    the built self-sensor, chat sensor, hole/coverage/drift instruments, and finding-0011 dormancy.
+  - MEASURE-first: is the agent's exhaust already partially ingested (chat sensor coverage of agent
+    turns)? Quantify before proposing a φ_exhaust.
+
+references:
+  - docs/design-notes/self-sensing.md                   # the palace senses its own code/state — exhaust-as-sensor generalizes it to outputs
+  - docs/design-notes/chat-sensor.md                    # already ingests agent turns (partial exhaust sensing)
+  - docs/design-notes/exhaust-lane.md                   # the exhaust channel (reports) — a re-sensable stream
+  - docs/design-notes/authorship-distance-axis.md       # the self-authored provenance class the exhaust sensor needs
+  - docs/design-notes/recursive-dreaming-bounded-by-grounding.md  # the guardrail: no dreams-cite-dreams laundering
+  - docs/brainstorms/self-mapping-the-palace.md         # the self-map theme this mechanizes
+```
