@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-086
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/agentic-loop.md
 contract: builder
@@ -16,7 +16,13 @@ cost:
   estimate:
     model: opus
     tokens: 220k
-  actual: null
+  actual:
+    model: opus            # claude-opus-4-8[1m], tier verified via completion usage
+    tokens: 150640
+    tool_calls: 69
+    duration_min: 20
+    ratio: 0.68            # UNDER estimate — well-pinned plan; F-AL3 crux passed, no stop-and-raise
+    session_delta: "weekly all-models pool; ran parallel with bp-085/bp-083; ~10min lost to full-suite CPU contention (pivoted to blast-radius verify)"
 depends_on: []
 parallelizable_with: [bp-083, bp-085, bp-087]
 created: 2026-07-21

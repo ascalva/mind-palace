@@ -5155,3 +5155,29 @@ a future owner-gated amendment, not an orchestrator edit.
 
 **Board:** bp-085 (G-A) still building (background). bp-083/086 held for sequenced merge; bp-084
 after 083, bp-088 after 086.
+
+### 2026-07-21 (session-40) — bp-086 (AL-1) SEALED: the actor profiles + the zone law (G-D)
+
+Second build landed. AL-1 (opus, 150k tok / 69 calls / 20 min, ratio 0.68× — UNDER estimate).
+Adopted `9774bd7` by **file-checkout, not git-merge** (the builder's worktree branched from the
+stale session-start `d08da37`, so a merge would have reverted the intervening AL-2/brainstorm
+commits — the 5 write_scope files were byte-identical at its base, so their final content applied
+cleanly). Verified on main: ruff + check_imports (pure-core) + mypy(2 files) + 64 scope tests green.
+
+- **`internal_actor` / `external_proposer` / `external_executor`** in `core/agent_scope.py`; the
+  zone law **`PRIVATE_STRATA` + `zone_admissible`** in `core/scope.py` (cross-coordinate, NOT an
+  `Ideal`). **F-AL3 CRUX PASSED**: `test_zone_law_REFUSES_a_constructable_private_read_with_world_reach`
+  — a hand-built ⊤_Σ + W_world=SENSING grant is structurally refused. The §2.3 derivation is a
+  ratchet, not decorative. No stop-and-raise, no design finding.
+- **Owner question flagged (parked, non-blocking):** `PRIVATE_STRATA` ships as ⊤_Σ ∖ {world}
+  (widest-exclusion, strongest law); whether `ops`/`reference` count as "private" is the owner's
+  call — pinned in the code comment + `test_private_strata_membership_is_pinned` guards drift.
+
+**Unblocks AL-3 (bp-088)** — but bp-088 adds the exhaust refinement to `core/scope.py`, which AL-1
+just changed. Its worktree (if stale-based at d08da37) will build against the pre-AL-1 scope.py, so
+AL-3 must be adopted by **diff-apply** (its enum/refinement region vs AL-1's PRIVATE_STRATA region
+don't overlap) or spawned on post-AL-1 main — NOT whole-file checkout (would revert AL-1). Hold AL-3
+until M0+G-A land.
+
+**Board:** bp-087 complete, bp-086 complete. bp-085 (G-A) + bp-083 (M0) still building. bp-084 after
+M0; bp-088 after this (with the diff-apply caveat).
