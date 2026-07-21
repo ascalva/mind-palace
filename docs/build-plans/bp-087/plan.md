@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-087
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/agentic-loop.md
 contract: builder
@@ -12,7 +12,13 @@ cost:
   estimate:
     model: fable
     tokens: 90k
-  actual: null
+  actual:
+    model: sonnet          # re-tiered fable→sonnet at spawn (read-only measurement, no reasoning depth); tier verified via completion usage
+    tokens: 98195
+    tool_calls: 87
+    duration_min: 9
+    ratio: 1.09            # vs the 90k estimate — well-pinned; M-6c honestly deferred, not forced
+    session_delta: "drew the weekly all-models pool (61%→ ~+small); ran parallel with bp-085 G-A"
 depends_on: []
 parallelizable_with: [bp-083, bp-084, bp-085, bp-086, bp-088]
 created: 2026-07-21

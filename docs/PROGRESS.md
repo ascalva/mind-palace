@@ -5131,3 +5131,27 @@ write scopes (parallelizable); bp-084 after bp-083; bp-088 after bp-086 (both wr
 
 **NEXT (owner):** bless `proposed → ready` by hand (lazygit), then delegated `/build` per plan
 (pre-flight `/usage`; priority G-A + AL-2). Book debt unchanged (dreamer /scribe sync still owed).
+
+### 2026-07-21 (session-40) — bp-087 (AL-2) SEALED: the owed M-3/M-6 baselines recorded
+
+First delegated build of the graduation wave landed. AL-2 (sonnet, 98k tok / 87 calls / 9 min,
+ratio 1.09× — I re-tiered fable→sonnet at spawn: read-only measurement, no reasoning depth).
+Read-only over live `data/`; merged `3f983a3`; `finding-0143` filed (`ftype: discovery`, direction).
+
+**Baselines (delta anchors for the next AL pass) — recorded HERE, NOT in the ratified §2.8 (A8):**
+- **M-3 C-coverage = 0.8996** (witnessed 4,084 / integrable 4,540; unwitnessed 456). The gauge's
+  first reading (note had "built, not taken"). Cross-check: 4,084 == §2.8 M-2's C-edge count. ✓
+- **M-6a holes = 0** (real-zero at `min_persistence=0.15`; 19 authored notes → 19×19 cosine matrix,
+  full vault, not truncated).
+- **M-6b doc_coverage = 0.3391** (1,008,484 / 2,973,708 symbols; 883 commits). Cross-check: matches
+  the live code-sensor's 33.92%. ✓
+- **M-6c drift-vs-anchor = DEFERRED** — needs a live `Retriever` (embedding model, non-negotiable
+  #8), not a store read; re-enters on a daemon-attached session (finding-0143 §Re-entry).
+
+**PD-3 precondition** (M-6 baselines recorded) now satisfied for a/b; c still owed. **Note the
+A8 correction:** the builder suggested checkpointing into `dn-agentic-loop` §2.8's table — declined,
+the note is ratified/immutable; the finding + this entry are the durable record. Any §2.8 refresh is
+a future owner-gated amendment, not an orchestrator edit.
+
+**Board:** bp-085 (G-A) still building (background). bp-083/086 held for sequenced merge; bp-084
+after 083, bp-088 after 086.
