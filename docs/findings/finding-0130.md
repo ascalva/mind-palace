@@ -50,3 +50,17 @@ dedicated small wiring plan. Until then the sweep is caller-invoked only.
   explicitly anticipated this and instructed stop-and-raise). The builder resolved by landing the
   callable and parking the wiring; the orchestrator batches the wiring into a scheduler-scoped plan.
   No design change — the sweep's shape is settled; only the scheduler edit is deferred.
+
+## Orchestrator annotation (2026-07-21, session-39 — bp-081 merge/seal)
+Re-entry CORRECTED: **not bp-082.** bp-082 (H-2, influence + conditioning) works over injected /
+fixture staged data — exactly as bp-080's census did — and its `write_scope` is
+`core/graph/influence.py` + `core/dreaming/conditioning.py` + tests; it touches NO scheduler
+surface and does NOT make staged rows live in the daemon. So bp-082 is not the wiring's home.
+The correct re-entry is a **dedicated "make the subspace live" plan** — the whole HYPOTHETICAL
+family is flag-off / not-wired-at-any-tier by design (the Track-G effector pattern: build the
+machinery dark, wire it only when the owner turns the capability on). That plan's `write_scope`
+adds `scheduler/cron.py`, `scheduler/router.py` (`_PINNED_KINDS`), `ops/lifecycle/launcher.py`,
+and registers `run_sweep` as a pinned trough job. Gated on the owner wanting HYPOTHETICAL live in
+a real dispatch. **finding-0130 stays OPEN** (builder-lane, parked) until that plan is minted.
+Harmless meanwhile: nothing stages rows in the live daemon; `run_sweep` is caller-invoked and
+fully tested.

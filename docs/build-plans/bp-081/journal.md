@@ -118,3 +118,29 @@ durable-store writer, the scheduler package, all design notes. The scope OPERATO
 THE SPINE INVARIANT holds: NO promotion path from HYPOTHETICAL exists — proven by the Item 8
 API-surface scan (no durable-store import, no promotion-verb method, no durable-store-typed
 signature) and the Item 10 durable zero-scan battery. No "gated" promotion was written (none exists).
+
+## 2026-07-21 ~06:15 ET — SEALED (orchestrator, session-39)
+
+Merged to main `--no-ff` (single-writer). Builder commit 8f70eca touched ONLY its 9 write_scope
+files + journal + finding-0130 (verified via `git show --stat`); disjoint from bp-080 (census.py/
+interpreters.py). Base at 01e006b — 3-way merge kept main's bp-080 + brainstorm captures.
+
+Orchestrator re-ran the FULL 6-leg gate on main: ruff clean · import firewall OK · mypy (scope/
+staging/composed/staging_sweep) Success · type_gate OK · pytest **1769 passed, 10 skipped, 21
+deselected**. finding-0103 ratchet UNCHANGED (all touched core files import core+stdlib only;
+staging_sweep is ops→core). Green.
+
+cost.actual: opus (claude-opus-4-8, tier verified), 217,049 tok, 100 tool_calls, ~23 min, 0.87×.
+Status ready→complete. Worktree removed.
+
+H-0+H-1 done: Stratum.HYPOTHETICAL (additive, excluded from _BASE_STRATA ⇒ default grants exclude
+it structurally) + append-only generation-clocked staging store (spine invariant PROVEN by
+API-surface scan — no promotion path) + the overlay at the composed assembly (E_STAGED, grant-gated)
++ the expiry sweep (D8 wall→generation, Law C4) + the isolation battery.
+
+⚑ finding-0130 (spec-defect, builder-lane, OPEN): the sweep's trough-tier scheduler WIRING is out
+of scope — run_sweep landed as a tested callable, wiring parked. Orchestrator annotation: re-entry
+is NOT bp-082 (fixture-based) but a future "make the subspace live" plan (Track-G-style: build dark,
+wire when the owner turns HYPOTHETICAL on). Harmless now — nothing stages rows in the live daemon.
+
+Unblocks bp-082 (H-2, the capstone — depends on bp-079✓ + bp-081✓).
