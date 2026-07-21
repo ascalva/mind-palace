@@ -128,3 +128,71 @@ references:
   - docs/brainstorms/temporal-clocks-and-strata.md            # clock rates per region
   - core/graph/sigma_star.py                                  # VERIFIED: bottleneck semantics, no hop pricing (the divergence)
 ```
+
+## 2026-07-21T01:11Z (same capture, minutes later — the owner completes the picture: general relativity)
+
+Owner, near-verbatim: *"it also almost reminds me of general relativity, which also distorts
+light — the space is distorting the shortest path, which causes the shortest path, if the
+region's change rate is sufficiently large, to curve."*
+
+### Orchestrator chew, continued
+
+- **The two pictures agree by theorem, not by taste.** Weak-field static GR lensing is formally
+  equivalent to propagation through an effective refractive index (the optical–mechanical
+  analogy, n ≈ 1 + 2|Φ|/c²) `[FROM MEMORY — external-grounding gate before the book cites]`. So
+  the capture's conformal ds_eff = n(x)·ds IS the weak-field GR metric; the refraction
+  formalization and the GR instinct are one formalism. The owner's phrasing adds the intrinsic
+  reading: the bent path is not a forced detour through a medium — it IS the straightest line in
+  the curved geometry.
+- **What GR adds beyond refraction, concretely:**
+  1. *Curvature as metric mismatch — the measurable field.* The palace has BOTH an ambient flat
+     metric (the embedding/cosine space) and an effective chain metric (what routing experiences).
+     "Distortion" is precisely their divergence, sourced by churn. Candidate observable: the
+     ratio field (effective chain distance ÷ embedding distance); where it gradients is where
+     space is curved. This makes claim (1) instrument-ready without new machinery.
+  2. *The full field-equation loop.* Seed bullet (3) closes the Einstein-equation shape:
+     activity/churn is the stress-energy term sourcing curvature; curvature steers chains
+     (geodesics); admitted dreamer exhaust deposits structure that re-sources curvature.
+     Nonlinear the way gravity gravitating is nonlinear — and bounded, here, by the admission
+     gates.
+  3. *Threshold phenomena — the conductivity-horizon prediction.* "If the change rate is
+     sufficiently large" is a threshold claim. Under multiplicative attenuation, a sufficiently
+     churned region becomes TRANSIT-OPAQUE: through-conductivity collapses while internal
+     cohesion stays high — grazing orbit-chains (the photon-sphere analog) and, past the
+     threshold, a region that can only be routed AROUND, never through. Systemic risk named: an
+     overheated cluster becomes a conductivity black hole — locally rich, globally decoupled.
+     The route-around annealing of bullet (3) is the graph's defense. Falsifiable with the same
+     built instruments.
+- **The honest disanalogy, so the analogy stays load-bearing:** chronometry INVERTS. GR mass
+  slows local proper time; here the "mass" IS a fast local clock. The analogy is optical/lensing,
+  not time-dilation — say so wherever this is taught. The deeper structural rhyme, though, is
+  already in the chain: the palace refused a global clock (G3), reads state only on certified
+  cuts (simultaneity surfaces), and carries the causal-set lineage (`Bombelli et al. [FROM
+  MEMORY]`, pending the external-grounding sweep) — the temporal machinery made the GR move
+  before this seed arrived.
+
+```capsule
+topic: clock-curvature
+date: 2026-07-21
+
+decisions:
+  - The seed extends (owner): the distortion is GR-shaped — the space itself curves the shortest
+    path once a region's change rate is sufficiently large. Seed only; the weak-field equivalence
+    means this REFINES the capture's formalization rather than replacing it.
+
+open_questions:
+  - The mismatch field: does (effective chain distance ÷ embedding distance) gradient where churn
+    does? This is THE curvature observable — computable from existing stores + sigma machinery.
+  - The horizon threshold: is there a churn level beyond which through-conductivity collapses
+    while internal cohesion holds (the decoupling prediction)? Longitudinal once measured once.
+  - Chronometric honesty: is there a palace phenomenon where the inversion matters (fast-clock
+    regions aging OUT of relevance faster — a redshift analog on retrieval weight?), or is the
+    optical half the whole usable analogy?
+
+next_steps:
+  - Same as the parent capsule (measure first; ride the edge-dynamics/curvature track); the
+    design pass should treat weak-field refraction and intrinsic curvature as ONE formalization
+    with the mismatch field as its observable.
+  - The external-grounding sweep gains two entries: the optical–mechanical analogy citation and
+    the causal-set lineage — both [FROM MEMORY] until verified.
+```
