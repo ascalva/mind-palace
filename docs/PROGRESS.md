@@ -5256,3 +5256,26 @@ A named core.integrator; bp-089 carries the executable correction, note untouche
 
 **Board:** bp-083/085/086/087 complete; bp-084 superseded; **bp-089 proposed (needs blessing)**;
 bp-088 (AL-3) ready, still queued. Wave: 4/6 built; S1 re-graduated; AL-3 remains.
+
+### 2026-07-21 (session-40) — bp-088 (AL-3) SEALED: exhaust refinement + origin(e) view
+
+Fifth build landed. AL-3 (opus, 163k tok / 72 calls / 22 min, ratio 0.54× — under). Adopted
+`9e9555f` by file-checkout (builder merged main first, base cea89b7 — AL-1's scope.py present);
+verified on main (ruff/imports/mypy + 76 scope/origin tests green).
+
+- **Item 16 — `exhaust ⊂ dialogue` EXCLUDED refinement:** `Stratum.EXHAUST` + `_EXCLUDED_REFINEMENTS`;
+  `_downward_close` keeps named strata verbatim, auto-adds only non-excluded refinements. **F-AL6
+  holds** — `top()`/`of(DIALOGUE)` exclude EXHAUST, admitted only when named; ⊤_Σ byte-identical,
+  PRIVATE_STRATA unchanged (AL-1's zone law still green).
+- **Item 17 — `origin(e)` view** (`core/origin_view.py`, new): regenerable two-hop join C∘commit-
+  keying; **F-AL7 holds** (reproducible from witnesses+commit keys, no store, E_disp); scoped to
+  X_cite ids carrying `commit_sha` (working-tree C-edges with empty pair_cut_sha out of domain,
+  PD-8 parks row-grain).
+- **Builder caught a plan imprecision (no finding, correctly resolved):** my §7 Item 16 acceptance
+  (iv) `of(EXHAUST) ⊑ of(DIALOGUE)` self-contradicts the exclusion crux (excluded ⇒ not in the
+  downset ⇒ ⋢). The builder implemented the exclusion (the ratified note's safety property) and
+  pinned the genuine order `of(EXHAUST) ⊑ of(DIALOGUE, EXHAUST)` + the load-bearing non-order
+  `of(EXHAUST) ⋢ of(DIALOGUE)`. Aligned to dn-agentic-loop §2.4b EX-1(ii). Sound.
+
+**⚑ WAVE: 5 of 6 BUILT (AL-2·AL-1·M0·G-A·AL-3). Only S1 (bp-089) remains** — `ready` (owner blessed
+`85c80cc`), HELD on budget (session 77%, binding) until spawnable alone. No other plan pending.

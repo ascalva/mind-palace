@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-088
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/agentic-loop.md
 contract: builder
@@ -16,7 +16,13 @@ cost:
   estimate:
     model: opus
     tokens: 300k
-  actual: null
+  actual:
+    model: opus            # claude-opus-4-8[1m], tier verified via completion usage
+    tokens: 163215
+    tool_calls: 72
+    duration_min: 22
+    ratio: 0.54            # UNDER; F-AL6 + F-AL7 both hold; caught+resolved a plan §7(iv) imprecision (no finding — exclusion IS the safety property)
+    session_delta: "weekly all-models pool; ran parallel with the S1 re-graduation; merged main first for AL-1's scope.py"
 depends_on: [bp-086]
 parallelizable_with: [bp-083, bp-085, bp-087]
 created: 2026-07-21
