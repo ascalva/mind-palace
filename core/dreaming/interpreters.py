@@ -49,6 +49,13 @@ from core.config import Config, DreamRnDConfig
 from core.dreaming.cluster import cluster_notes, note_centroids
 from core.dreaming.graph import MirrorGraph
 from core.dreaming.rnd import require_rnd_enabled
+from core.graph.census import (
+    INFLUENCE_LOOP,
+    REACH_BACK,
+    REVISION_ASYMMETRY,
+    CensusClaim,
+    CensusReading,
+)
 from core.mirror import MirrorView
 from core.stores.edges import EdgeStore
 
@@ -62,6 +69,11 @@ HOLE = "hole"                   # H5: long-lived H₁ — a conceptual gap, neve
 THREAD = "thread"                # Lane A L-b: harmonic H1 flow — a gap-family sibling of hole
 TENSION = "tension"             # H3/H8: frustrated triangles — commitments that can't co-hold
 CHANGE_POINT = "change_point"   # deferred seam
+# The arrow-aware census lens (bp-080 Item 5) — one panel method per census claim SHAPE, so
+# adjudication keeps the per-shape signal (plan §11). Records-not-causes (§2.9), gauge-immune.
+CENSUS_LOOP = "census_loop"                 # a closed influence loop (a directed citation cycle)
+CENSUS_ASYMMETRY = "census_asymmetry"       # a revision-effort asymmetry (an unbalanced diamond)
+CENSUS_REACH_BACK = "census_reach_back"     # a reach-back (a re-citation of a younger note)
 
 
 @dataclass(frozen=True)
@@ -325,25 +337,93 @@ def tension_claims(kx: ReasoningComplex) -> list[Claim]:
     return claims
 
 
-def collect_claims(graph: MirrorGraph, ctx: StructuralContext,
-                   cfg: DreamRnDConfig) -> list[Claim]:
+# ---------------------------------------------------------------------------------
+# The census lens (bp-080 Item 5): the arrow-aware combinatorial census on the panel, in the
+# §2.9 ADOPTED vocabulary — records-not-causes, arrow-literal, witness inline, gauge-immune.
+# Equal-citizen beside bridge/hole/theme/thread; adjudication unchanged. Direction is time's
+# RESIDUE, never a cause: NEVER "B shaped your thinking on A" (F-SD9 forbids causal phrasing;
+# no flux/spectral term exists to leak — the census is purely combinatorial, ML §2.7b).
+# ---------------------------------------------------------------------------------
+
+_CENSUS_METHOD: dict[str, str] = {
+    INFLUENCE_LOOP: CENSUS_LOOP,
+    REVISION_ASYMMETRY: CENSUS_ASYMMETRY,
+    REACH_BACK: CENSUS_REACH_BACK,
+}
+
+
+def _census_statement(claim: CensusClaim) -> str:
+    """Render one census claim arrow-literally in the §2.9 vocabulary — a FACT the witness backs,
+    never an inference. No causal verb ("influenced"/"shaped"/"led to"), no flux/spectral phrasing
+    (there is none to speak). The witness (arc ids / first-authorship evidence) is inline."""
+    witness = ", ".join(claim.witness)
+    if claim.kind == INFLUENCE_LOOP:
+        cycle = list(claim.detail["cycle"])
+        chain = " cites ".join([*cycle, cycle[0]])
+        return f"{chain} — a closed influence loop (witness: {witness})"
+    if claim.kind == REVISION_ASYMMETRY:
+        long_r, short_r = claim.detail["long_revisions"], claim.detail["short_revisions"]
+        return (f"this branch took {long_r} revisions where its sibling took {short_r} — a "
+                f"revision-effort asymmetry (witness: {witness})")
+    if claim.kind == REACH_BACK:
+        citer, cited = claim.detail["citer"], claim.detail["cited"]
+        return (f"{citer} re-cites {cited}, younger than its own first authorship — a "
+                f"revision-mediated backflow (witness: {witness})")
+    raise ValueError(f"unknown census claim kind {claim.kind!r}")
+
+
+def census_lens(reading: CensusReading, cfg: DreamRnDConfig) -> list[Claim]:
+    """Map an arrow-aware census reading onto panel Claims (§2.9 ADOPTED — equal-citizen). `support`
+    is the claim's authored member refs (so grounding treats a census claim like any lens's); the
+    witness and the anchored cut ride in `data`. The empty census emits ZERO claims — silence,
+    never filler (§2.9-d). `cfg` is accepted for interpreter-signature symmetry (no census tunable
+    today)."""
+    cut_evidence = list(reading.cut.evidence)
+    return [
+        Claim(
+            method=_CENSUS_METHOD[c.kind],
+            statement=_census_statement(c),
+            support=c.members,
+            data={"witness": list(c.witness), "shape": c.kind, "cut": cut_evidence, **c.detail},
+        )
+        for c in reading.claims
+    ]
+
+
+def collect_claims(graph: MirrorGraph, ctx: StructuralContext, cfg: DreamRnDConfig,
+                   *, census: CensusReading | None = None) -> list[Claim]:
     """Run both registries (σ-graph lenses + structural lenses) plus the tension lens over
     already-built state. The un-gated core of `run_panel`, shared with the loop-v2 dream pass
-    (which builds its own context so it can overlay persisted edges)."""
+    (which builds its own context so it can overlay persisted edges). When a `census` reading is
+    supplied, its arrow-aware claims join equal-citizen (bp-080 Item 5); absent (the default), the
+    panel is byte-for-byte what it was before the census lens registered."""
     claims: list[Claim] = []
     for interpret in INTERPRETERS.values():
         claims.extend(interpret(graph, cfg))
     for interpret_structural in STRUCTURAL_INTERPRETERS.values():
         claims.extend(interpret_structural(ctx, cfg))
     claims.extend(tension_claims(ctx.complex))
+    if census is not None:
+        claims.extend(census_lens(census, cfg))
     return claims
 
 
-def run_panel(view: MirrorView, *, config: Config | None = None) -> list[Claim]:
+def run_panel(view: MirrorView, *, config: Config | None = None,
+              census: CensusReading | None = None) -> list[Claim]:
     """Run every registered interpreter (σ-graph lenses + structural lenses over one shared
     reasoning complex) and return all candidate claims (R0 — no adjudication). Refuses unless
-    the R&D flag is on (hard boundary)."""
+    the R&D flag is on (hard boundary). An optional `census` reading (bp-080 Item 5) joins the
+    arrow-aware census claims equal-citizen behind the SAME flag; None keeps the panel unchanged."""
     cfg = require_rnd_enabled(config)
     graph = MirrorGraph.build(view, sigma=cfg.sigma)
     ctx = build_structural_context(view, cfg)
-    return collect_claims(graph, ctx, cfg)
+    return collect_claims(graph, ctx, cfg, census=census)
+
+
+def run_census_lens(reading: CensusReading, *, config: Config | None = None) -> list[Claim]:
+    """The census lens behind the hard R&D flag (like `run_panel`) — renders a census reading as
+    equal-citizen panel claims. Refuses unless `[dream_rnd] enabled` is set deliberately, so the
+    arrow-aware narration cannot run in a normal session (it lands BEHIND the flag; bp-080 changes
+    no R&D wiring)."""
+    cfg = require_rnd_enabled(config)
+    return census_lens(reading, cfg)
