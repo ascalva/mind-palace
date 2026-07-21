@@ -104,3 +104,27 @@ No findings filed (0127-0129 unused): every §6 pin held at HEAD; no store surfa
 census is empty on the live corpus (arc-source stores unmaterialized) exactly as §2.8 predicted,
 so the A/B is a non-event, not a re-rule. No parked criteria. Committed on the worktree branch;
 NOT merged (orchestrator is single-writer).
+
+## 2026-07-21 ~06:00 ET — SEALED (orchestrator, session-39)
+
+Merged to main `--no-ff` (single-writer). Builder branch based at 01e006b (pre the session's
+brainstorm captures), so `git diff main..branch` showed fiber-chain-grammar.md +
+edge-dynamics-vector-field.md as "deleted" — a base-trailing artifact, NOT the builder's work;
+the builder commit beae067 touched ONLY its 6 write_scope files + journal (verified via
+`git show --stat beae067`). 3-way merge kept both brainstorms (branch didn't touch them). Post-merge
+verified both present + census.py present.
+
+Orchestrator re-ran the FULL 6-leg gate on main: ruff clean · import firewall OK · mypy
+(census.py+interpreters.py + 2 new test files) Success · type_gate OK · pytest **1733 passed, 10
+skipped, 21 deselected**. finding-0103 ratchet UNCHANGED at 22 (census reads injected data — zero
+new core→sibling imports). Green.
+
+cost.actual: opus (claude-opus-4-8, tier verified), 176,636 tok, 75 tool_calls, ~18 min, 0.71×
+(well-pinned). Status ready→complete. Worktree removed.
+
+D-1 done: the arrow-aware census reader (influence loops / revision-effort asymmetries /
+reach-backs, each witnessed, gauge-immune) + the census lens on the structural panel behind the
+R&D flag, in the ratified oq-0021 vocabulary (records-not-causes; F-SD9 battery green). Census
+EMPTY on the live corpus (arc-source stores unmaterialized; §2.8 anticipated) — fixtures carry
+correctness. Unblocks nothing new (bp-082 depends on bp-081, not this). Live-wiring the census to
+ReferenceEdgeStore/VersionStore at a cut is a later plan (§2.8).
