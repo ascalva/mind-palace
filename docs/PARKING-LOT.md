@@ -23,9 +23,12 @@ the reference/query arc; this file is its seed (the schema below is deliberately
 graduatable) · `built` (implemented) · `resolved` (a decision, settled — no build) · `open-owner`
 (awaits an owner ruling) · `superseded`.
 
-**Coverage.** SEEDED (2026-07-15) with the **query / edge-dynamics / magnetic / reference cluster** —
-the tangle currently in play. Other clusters (effectors/Track G, dreaming, sensing, secrets, voice,
-etc.) are swept in incrementally at `/triage`; a `⋯` at the end of a section marks "more to harvest."
+**Coverage.** SEEDED (2026-07-15) with the **query / edge-dynamics / magnetic / reference cluster**.
+**SWEPT 2026-07-21 (session-39):** the **dreamer** track (SD-*, bp-079..082 BUILT), **inner/outer-core**
+(ring, RATIFIED), **fiber-geometry** (FG-*, RATIFIED), **agentic-loop** (AL-*/PD-loop, RATIFIED), and the
+**sensing/loop/curvature/grammar** cluster — see the session-39 sections below the seed cluster. Still
+to harvest (`⋯`): older effectors/Track G rows, voice, secrets. Other clusters are swept incrementally
+at `/triage`.
 
 ---
 
@@ -70,9 +73,9 @@ non-decision condition (data accretion, an owner ruling, the Fable cap).
 | L-a | `hodge.py` degree-1 lift (∂₁/∂₂, L₁, Hodge split, harmonic + L₁ eigenbasis) | ED §3.1 | **built** | — | (hodge.py exists; reused by `core/temporal`) |
 | L-b | the `THREAD` harmonic lens | ED §3.1 | parked? | → L-a | Lane A graduation (verify built-state at /triage) |
 | L-c | degree-1 invariants in `temporal.py` snapshots | ED §3.1 | parked? | → L-a | Lane A graduation (verify) |
-| PD-a | 2-simplices beyond 3-cliques | ED §4 | parked | — | the sheaf/general-transport design pass |
-| PD-b | weighted L₁ (strength inner products) | ED §4 | parked | — | harmonic reps too delocalized to narrate, OR the metric tier (→ TA-a) |
-| PD-c | **Ollivier directed-walk Ricci (the true "directed Ricci")** | ED §4 / MAG §2.6 | parked | → L-a, (ext) a P5 rung needing it | Lane A lands AND a Ricci-flow rung needs the principled form |
+| PD-a | 2-simplices beyond 3-cliques / **the sheaf-Laplacian** (= FG-a) | ED §4 · dn-fiber-geometry FG-5 | parked | → G-A survey (M1/M2) | **CUSTOMER APPEARED 2026-07-21** (three-fiber bundle); re-entry SHARPENED to FG-5's 3 measured conditions (M1 skeleton overlap + non-degenerate class populations · M2 nonzero cut-stable cross-class structure · a consumer the independent per-class runs can't answer). A sheaf w/ coord-projection restrictions is **block-diagonal = zero coupling content** — stays parked until measured; default = per-class runs + scalar cross-stats |
+| PD-b | weighted L₁ (strength inner products) | ED §4 | parked | — | harmonic reps too delocalized to narrate, OR the metric tier (→ TA-a), OR **FG-g** (Hodge readings consumed quantitatively for transport attribution — dn-fiber-geometry §2.1-3 named it a customer) |
+| PD-c | **Ollivier directed-walk Ricci** | ED §4 / MAG §2.6 | parked | → Forman-vs-churn reads (M5/M7) | **CUSTOMER-CANDIDATE APPEARED 2026-07-21** (clock-curvature metric curvature; dn-fiber-geometry registers it) — but the ladder is honored: **Forman (built) runs FIRST** (M5/M7); Ollivier builds only if transport-contraction is demonstrably needed after those reads |
 | PD-e | first potential V for gradient-flow fits (Dirichlet default) | ED §4 | parked | → R4 | R4 entry |
 | PD-f | THREAD claim narration weighting | ED §4 | parked | → L-b | dreamer-quality evidence it needs distinct adjudication |
 | R1 | splines/GP per edge series → measured momentum `p` (the velocity 1-cochain ẇ) | ED §2.5 | parked | (ext) sample depth | enough points per series for honest CV |
@@ -88,8 +91,8 @@ non-decision condition (data accretion, an owner ruling, the Fable cap).
 | ML-a | the magnetic **operator** build `L^{(q)}` | MAG ML-a | parked (3 gates; ANY one) | gate(i) → TA-b **and** → ML-c · gate(ii) → MAG-census insufficient · gate(iii) → MAG-census shows cycles/diamonds COMMON | **census ran → gate(iii) NOT met** (cycles inflated, retro 8.5% modest) |
 | ML-b | the **spectral** census (eigenvector localization; soft cycles) | MAG ML-b | parked | → ML-a gate(ii) | the combinatorial lens proves insufficient |
 | ML-c | the phase→score dictionary (directed-diffusion ranking) | MAG ML-c | parked | (ext) a retrieval eval set (= TA-b) | an eval set exists |
-| ML-d | magnetic Weitzenböck / flux-aware Forman | MAG ML-d | parked | (ext) a curvature customer + Q1 obstruction addressed | both appear |
-| MAG-own2 | dream-narration vocabulary for the arrow-aware census | MAG owner-dec-2 | **open-owner** | → DD-1 | owner taste ruling (at a lens plan) |
+| ML-d | magnetic Weitzenböck / flux-aware Forman | MAG ML-d | parked | (ext) a curvature customer + Q1 obstruction addressed | **the three-directed-fibers reading was DECLINED as a customer 2026-07-21** (dn-fiber-geometry FG-5: non-commutativity is monoid-level — no structure group, no fiber space) — park stands, NO customer registered |
+| MAG-own2 | dream-narration vocabulary for the arrow-aware census (= **oq-0021**) | MAG owner-dec-2 | ✅ **RESOLVED 2026-07-21** | — | owner ratified **ADMIT** via `dn-synchronic-diachronic-dreamer` §2.9 (bless `44bbeec`); BUILT as bp-080's census lens (records-not-causes; F-SD9 battery); `dn-fiber-geometry` sharpens it to a positive verb-licensing table |
 | MAG-own3 | covering-only `supersedes:` as a checked A6 invariant | MAG owner-dec-3 | **open-owner** | — | owner ruling (rec: adopt; near-zero cost; keeps the Hasse DAG triangle-free) |
 
 ### Vector-field candidates — `docs/brainstorms/edge-dynamics-vector-field.md` (~mine, fable-grade)
@@ -118,6 +121,67 @@ non-decision condition (data accretion, an owner ruling, the Fable cap).
 | (align) | dn-velocity-instruments RotationReport + alive/stale discriminator = catalog rows 9–10 | `dn-velocity-instruments` §3.1 | parked — align with E5/catalog at graduation | → ratified (it is) + E5-rest graduation | fold into the E5-rest / catalog graduation |
 | (align) | dn-temporal-geometry demon-vs-source = catalog row 12 | `dn-temporal-geometry` §2.2 | parked — R3/R4-gated | → R3/R4 series + owner gate | the harness hosts the protocol; the *run* is owner-gated |
 
+### Dreamer — `dn-synchronic-diachronic-dreamer` (RATIFIED 2026-07-20; bp-079..082 BUILT + sealed 2026-07-21)
+| id | item | home | status | depends on | re-entry / trigger |
+|---|---|---|---|---|---|
+| bp-079 | D-0 DreamCharter + materialization boundary | dreamer §2.2/§2.4 | **built** (01e006b) | — | (done) |
+| bp-080 | D-1 arrow-read census + panel lens | dreamer §2.8/§2.9 | **built** (cdedfab) | → bp-079 | (done; census EMPTY on live corpus — fixtures carry) |
+| bp-081 | H-0+H-1 HYPOTHETICAL stratum + staging + overlay + sweep | dreamer §2.6 | **built** (8be3c98) | — | (done; BUILT DARK) |
+| bp-082 | H-2 influence (integer+smooth) + conditioning law | dreamer §2.7 | **built** (3979291) | → bp-079,bp-081 | (done; BUILT DARK) |
+| SD-a | diachronic EXECUTION (interval-window dispatches) | dreamer §2.8 | parked | (ext) graph-at-a-past-cut graduates | `graph-at-a-past-cut` family graduates **AND** D-1 sealed (finding-0126 RESOLVED the stale "G3 materializes" — the substrate GC-3 is already built) |
+| SD-b | past-cut dispatch build (ANCHORED→RETRO/ARCHIVAL) | dreamer §2.1/§2.5 | parked | → SD-a seam | `graph-at-a-past-cut` graduates its instrument note (HistoricalRowSource adapter) |
+| SD-c | persistent/incremental σ-graph (delta-log adjacency) | dreamer §2.5 | parked | (ext) cost | a measured projection/cut-sweep cost crosses a stated budget on the grown corpus |
+| SD-d | expired staging: tombstone vs hard delete | dreamer §2.6 | parked | (ext) growth | staging growth is measured material (owner call — hard delete admissible-by-design for this one store) |
+| SD-e | edit/removal overlays ("what if this were gone") | dreamer §2.7 | parked | — | a real removal counterfactual needs it (its own pass — opposite one-sided law) |
+| SD-f | spectral influence (eigenvector localization over the overlay) | dreamer §2.7 | parked | → P8(sknetwork) | P8 (inner-outer P7) resolves AND F-SD7a shows the perturbation family needs the finer instrument |
+| SD-g | structural (v3) closed-evaluator enforcement | dreamer §2.4 | parked | → inner-outer P1 | F-SD4b fires, or "provably effect-free" needed (= inner-outer-core P1) |
+| SD-h | per-dispatch σ/resolution defaults | dreamer §2 | parked | → FB-3 | the σ-fiber tier gate validates tiers |
+| finding-0130 | staging-sweep scheduler WIRING | bp-081 Item 10 | parked (builder-lane) | (ext) owner turns HYPOTHETICAL live | a future "make the subspace live" plan wires `run_sweep` as a pinned trough job (Track-G build-dark pattern). ⚑ the WHOLE H-family is flag-off/not-wired |
+
+### Inner/outer core — `dn-inner-outer-core` (RATIFIED 2026-07-21)
+| id | item | home | status | depends on | re-entry / trigger |
+|---|---|---|---|---|---|
+| M0 | the born-green ring (`core/rings.py` + `tests/unit/test_inner_ring.py`) | note §2.4/§3 | ✅ **ready to /graduate** | — | ratified → /graduate (recompute the fixed point at HEAD; Appendix A is expectation not authority; F5) |
+| S1 | temporal-math↔persistence splits (+7 → 36-member ring) | note §2.6b | ✅ **ready to /graduate** | → M0 | ratified (owner fired P8) → /graduate (bp-065/sigma_star shape; DRY-audit integrator/recursion_ops persistence) |
+| P1 | v3 effect-free predicate (base further ∖ sqlite3) | note P1 | parked | — | a consumer needs "inner ⇒ effect-free" (F1 fires) OR hypothetical-subspace wants provably-effect-free isolation (= SD-g) |
+| P2 | two-sided layout (`core/machinery/` for outer) | note P2 | parked | → M2 | recurring misplacement/confusion in review during M2 |
+| P7 | sknetwork/ripser dep decision (spectral/topology → inner) | note P7 | parked | — | the subspace/instrument program needs spectral math inside the ring (= SD-f/FG-h chain) |
+| M2/M3 | physical migration waves (K1/K2/K3) → the flip | note §2.7 | parked | → M0 + per-wave stability | begins after ratify + per-wave stability (≥2 sealed plans, no open inversion); M3 flip gated on outer ratchet **0** |
+| (P3–P6, P8, P9) | computation-extract · headers · TYPE_CHECKING exempt · librarian name · (P8 temporal RESOLVED→S1) · P9 store-typed vocab (chat_events/dreams_view) | note P3–P9 | parked / P8 resolved | — | per each note row (2nd consumer / reviewer friction / own pass) |
+
+### Fiber geometry — `dn-fiber-geometry` (RATIFIED 2026-07-21)
+| id | item | home | status | depends on | re-entry / trigger |
+|---|---|---|---|---|---|
+| G-A | the read-only **M1–M10 measure-first survey** | note §2.6/§3 | ✅ **ready to /graduate** | — | ratified → /graduate (eval-side, read-only; **nulls are results**; several rows expected null on thin C) — the DATA the other FG parks hang from |
+| G-C | verb-licensing narration check (positive F-SD9) | note §3 | ✅ **ready to /graduate** | → bp-080 lens | rider-sized; after the census lens surface exists |
+| G-B | the mismatch lens (S↔C / S↔F densities) | note §3 | parked (conditional) | → G-A M2 | G-A's M2 shows signal |
+| FG-a | sheaf/bundle Laplacian | note §2.5 | parked | → G-A M1/M2 | (= PD-a row above — 3 measured conditions) |
+| FG-b | hop-priced (−log-product) functional beside σ* | note §2.4 | parked | → M8 (=oq-0024) | M8 shows material divergence AND product-optimal predicts endorsed chains better |
+| FG-d | CS-x: the E coordinate SET → LANGUAGE (fiber-chain grammar) | note §2.3 / `fiber-chain-grammar.md` | parked | — | the **explainable-retrieval (generate) instrument** graduates as the consumer (E stays a set until then) |
+| FG-e | learned grammar (route 3) | note §2.3 | parked | (ext) endorsed-chain corpus | corpus at validating size + held-out arm in place |
+| FG-f | CN-4 magnitude calibration by volatility exposure (clock-curvature) | note §2.4 | parked | → M6/M7 | M6/M7 land AND the owner performs the CN-4 owner-visible lever act (magnitudes shipped 0 = inert) |
+| FG-h | the horizon/decoupling instrument (clock-curvature) | note §2.4 | parked | → FG-b, M7 | FG-b resolved for the product functional AND M7 shows the phase transition |
+| finding-0140 | the S/F/D/C move alphabet | note §2.0 | ✅ **PROMOTED** (ratified) | — | (done) |
+
+### Agentic loop — `dn-agentic-loop` (RATIFIED 2026-07-21)
+| id | item | home | status | depends on | re-entry / trigger |
+|---|---|---|---|---|---|
+| AL-1 | the two (Σ,E,T,A) actor-profile constructors + the zone-ideal test (gap G-D) | note §2.3/§3 | ✅ **ready to /graduate** | — | ratified → /graduate (~1 small session; the zone exclusion becomes a ratchet) |
+| AL-2 | read-only C-coverage + gap-instrument baselines | note §2.8/§3 | ✅ **ready to /graduate** | — | ratified → /graduate (read-only; generates the gap-signal data PD-3 needs) |
+| AL-3 | exhaust⊂dialogue refinement + default-grant-exclusion test + the `origin(e)` derived view | note §2.4b/§3 | ✅ **ready to /graduate** | — | ratified → /graduate (the exhaust stratum as a refinement; provenance spine as a VIEW not a store; F-AL6/F-AL7) |
+| PD-1 | the self-authored provenance class + `w(a_self)` weight | note §2.4 / `dn-authorship-distance-axis` | parked (open-owner) | → authorship-axis gate | the authorship-distance-axis note's class is defined + owner-gated (the exhaust trust-weight; the one missing entry in the trust ledger) |
+| PD-3 | the curiosity / gap-steering heuristic (self-steering attention) | note §2.5 | parked | → R&D flag, → M-6 | owner wires the R&D flag (`dream_rnd`) **AND** gap-instrument baselines (AL-2/M-6) exist |
+| PD-7 | "informed-by" return edges (graph-grain loop reading) | note §2.4b | parked | — | loop-reading at graph grain demonstrated necessary AND clears the apophenia bar (witnessed deterministic orientation record only) |
+| PD-8 | producer-parameterized refinement / edge-of-edges endpoint kind | note §2.4b | parked | — | a grant must include agent A's exhaust while excluding B's, OR a consumer needs created-edge row grain |
+| finding-0141 | internal probe loop built-not-wired (was "LIVE") | note §2.2/§2.6 G-A | ✅ **RESOLVED** (ratified) | — | (record fixed; the *gap* G-A persists — internal loop goes live when owner wires the R&D flag) |
+
+### Sensing / reference — session-39 brainstorms (pre-design; measure-first)
+| id | item | home | status | depends on | re-entry / trigger |
+|---|---|---|---|---|---|
+| ref-sensor | the reference SENSOR (keep X_cite / F fresh; passive, `ops/`) | `reference-integrator.md` | brainstorm | (ext) staleness gap | **MEASURE the staleness gap first** (refs-in-tree vs latest-commit edge set — G-F says 893,991 rows vs ~hundreds current); then a small pass. Extractor EXISTS (code_sensor + note-ingest) — schedule+reconcile, DON'T reinvent |
+| coverage | bare-prose `docs/…` path-ref extraction coverage | `reference-integrator.md` | brainstorm | — | verify the extractor picks up prose paths (not just front-matter/wikilink/inline) — fix BEFORE the keeper |
+| active/passive | active vs passive sensing taxonomy | `reference-integrator.md` / `agent-causal-loop.md` | **resolved (no new axis)** | — | reconciled to sensing/acting hands + observed stratum (dn-agentic-loop) — no work |
+
 ### External conditions (not decisions — the roots the chains hang from)
 - **(ext) sample depth** — data accretion over commits; the root of the whole R-ladder + every VF-*.
   The corpus is YOUNG (2026-07-15 census: 234 distinct doc→doc pairs / 113 nodes) — likely below R1's
@@ -133,6 +197,18 @@ non-decision condition (data accretion, an owner ruling, the Fable cap).
   depth), so no fable unit is currently blocked on the cap.
 - **SS-substrate** — `dn-self-sensing` B-a (interpreter-version supersession) + B-b (`AgentObservationStore`
   + φ_self). Roots DD-2 / Lane B. (Build-state to verify at /triage.)
+- **(ext) the measure-first battery M1–M10** (= dn-fiber-geometry §2.6 = the **G-A survey**) — the DATA
+  root most session-39 parks hang from: PD-a (M1/M2), PD-c (M5/M7), FG-b (M8), FG-f (M6/M7), FG-h (M7),
+  the grammar's route-3 (M10). Read-only, built instruments; **RUN IT before formalizing anything**. (new 2026-07-21)
+- **(ext) the C-fiber is thin / the live census is EMPTY** — bp-080 seal: the arrow-source stores were
+  unmaterialized at build; ~4,084 C-edges exist but census read empty. **Several battery rows expected
+  NULL today** (census, S↔C mismatch) — a null PARKS the machinery it gates (the point of measure-first). (new 2026-07-21)
+- **(ext) the R&D flag `dream_rnd enabled=false`** (finding-0141) — roots the internal probe loop going
+  LIVE (bp-079/082 are built-not-wired) **and** PD-3 (gap-steering). Owner wires it — a deliberate, gated act. (new 2026-07-21)
+- **(ext) max effector tier = NONE** (finding-0011) — roots the EXTERNAL acting loop; the hands
+  (acting/sensing) are built-DARK. The external sense-back also needs the Track-D correlator (design-only). (new 2026-07-21)
+- **(ext) oq-0024 σ-sweep** (the owed run) — roots FG-b (M8) + the census/CN-4 calibration; **un-blocked,
+  execution not design** — a strong un-gated next-exec that feeds the measure-first battery. (new 2026-07-21)
 
 ---
 
@@ -168,6 +244,30 @@ temporal-clocks T1–T6 (+ §2.5 erratum, finding-0083 PROMOTED) ──► **dn-
 **retrieval eval set** + the **census** (ran; gate iii not met). The *reference/query* half is the only
 one with roots already satisfied (`core/temporal` + `ReferenceView` are built) — which is why the owner's
 roadmap starts there.
+
+**Session-39 chains (2026-07-21) — the newly-ratified cluster:**
+```
+3 notes RATIFIED (fbea48d) ──► /graduate:
+  dn-inner-outer-core ─► M0 (born-green ring) ─► S1 (temporal splits +7) ─► M2 waves ─► M3 flip (◄ ratchet 0)
+  dn-fiber-geometry   ─► G-A survey (M1–M10, read-only) ─┬─► M1/M2 ─► PD-a (sheaf, else per-class runs)
+                                                          ├─► M5/M7 ─► PD-c (Forman first, then Ollivier)
+                                                          ├─► M8 (= oq-0024) ─► FG-b ─► FG-h
+                                                          └─► M10 ─► FG-d (E set→language) ◄─ explainable-retrieval consumer
+  dn-agentic-loop     ─► AL-1 (profiles+G-D test) · AL-2 (C-coverage baselines) ─► PD-3 (◄ R&D flag)
+                                                    · AL-3 (exhaust⊂dialogue + origin() view)
+                        PD-1 (self-authored class) ◄─ authorship-axis gate (owner)
+
+BUILT-DARK (flag-off): the whole dreamer H-family (staging/overlay/influence/conditioning) ─► finding-0130
+  sweep-wiring + census live-read ◄─ (ext) owner turns HYPOTHETICAL live
+INTERNAL loop live · PD-3 steering ◄─ (ext) dream_rnd flag (finding-0141) ;  EXTERNAL loop ◄─ tier NONE (finding-0011) + Track-D correlator
+MOST FG/curvature parks ◄─ (ext) the M1–M10 battery (G-A) ;  the corpus is thin (C empty) ─► many rows expected NULL
+```
+
+**Reading the session-39 half:** the roots are now **owner ratify (done)** → **the read-only
+measurement plans (G-A, AL-2)**, which are the DATA sources nearly every fresh park hangs from —
+so graduating *those first* unblocks the most. The build parks (M0/S1/AL-1) are additive/born-green.
+The loop parks (PD-1/PD-3, the external loop) hang off owner-gated flags (R&D flag, effector tier,
+authorship-axis) — deliberately dormant, one owner act away each.
 
 ---
 
