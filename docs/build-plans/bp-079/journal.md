@@ -82,3 +82,23 @@ member demanded more than a name-to-callable binding; no blessing. No findings f
 All three items closed, all acceptance criteria + named falsifiers green. Scope confined to the
 four write_scope globs + this journal. Committing on branch; NOT merging (orchestrator seals).
 
+
+## 2026-07-20 ~23:40 ET — SEALED (orchestrator, session-39)
+
+Merged to main `--no-ff` (single-writer). Builder branch based pre-blessing at 5a525ae, so the
+3-way merge kept the blessed plan statuses (bp-080/081/082 stay `ready`; the branch's `proposed`
+plan.md were unchanged-from-base, main's `ready` won). Builder's one commit fc25809 touched ONLY
+its 5 write_scope+journal files — verified via `git log main..branch` before merge.
+
+Orchestrator re-ran the FULL 6-leg gate on main (independent of the builder's tails):
+ruff clean · import firewall OK · mypy charter.py+evaluate.py + both new test files = Success
+(0 issues) · type_gate OK (Tier-2 + bare-ignore) · pytest green gate **1707 passed, 10 skipped,
+21 deselected** (finding-0103 ratchet deselected — the two new core modules import core-only,
+NOT in the inversion list, ratchet count unchanged). Green.
+
+cost.actual: opus (claude-opus-4-8, tier verified), 164,590 tok, 101 tool_calls, ~17 min,
+ratio 0.82× (well-pinned). Status flipped ready→complete. Worktree removed.
+
+D-0 done: the DreamCharter (scope grant ⊓ dreamer_scope, instrument ceiling, budget, gauge) +
+the single materialization boundary (estimate→refuse-or-force, closed-evaluator at guard tier).
+Unblocks bp-080 (D-1). bp-081 is dependency-free; bp-082 needs 079+081.

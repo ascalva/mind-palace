@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-079
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/synchronic-diachronic-dreamer.md
 contract: builder
@@ -15,7 +15,13 @@ cost:
   estimate:
     model: opus
     tokens: 200k
-  actual: null
+  actual:
+    model: opus            # claude-opus-4-8, tier verified on return
+    tokens: 164590
+    tool_calls: 101
+    duration_min: 17
+    ratio: 0.82            # well-pinned plan (interfaces copied inline); under estimate
+    session_delta: "session ~70%→~82% (30% remainder, pre-1:20am-ET reset)"
 depends_on: []
 parallelizable_with: [bp-081]
 created: 2026-07-21
