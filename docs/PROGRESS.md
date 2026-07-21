@@ -5232,3 +5232,27 @@ fiber pass — parked to /triage, not edited now.
 after AL-1)** — the two dependents. Main is now quiet (no builders). Run them SEQUENTIALLY,
 NON-ISOLATED on current main (guarantees S1 sees core/rings.py, AL-3 sees AL-1's core/scope.py;
 avoids the stale-worktree base + main-HEAD race). S1 next (critical path, the +7 promotion wave).
+
+### 2026-07-21 (session-40) — bp-084 (S1) STOP-AND-RAISE → superseded by bp-089 (my graduation defect)
+
+The delegated S1 builder did the disciplined thing: ran the read-only DRY audit (Item 3), found
+the plan's `write_scope` **cannot deliver the atomic +7**, STOPPED CLEAN (no code written, tree
+pristine), and filed `finding-0144` (spec-fidelity → orchestrator). The defect is MINE (graduation):
+1. Missed `core/temporal_view.py` (`:56/:187/:340/:348`) + `core/temporal/__init__.py` (`:18,22,50,69`)
+   as importers of the moved symbols — the retrofit scan covered only `tests/`. Clean-break repoint
+   needs them in scope.
+2. Missed `core/stores/claim_ops.py` — the DRY audit found NO existing store covers `claim_ops`
+   (`authored_supersession` distinct; `versions` is note-version supersession). New store needed;
+   `core/stores/**` was out of scope.
+3. +7 named `core.integrator` where the executable promotion is **`core.integrator_math`** (new
+   inner module; `core.integrator` keeps the `ledger:sqlite3.Connection` + out-of-scope importers
+   `scheduler/cron.py:39`, `ops/lifecycle/launcher.py:238`, stays OUTER). Final `|INNER|=37`.
+
+**Remediation (supersession, not in-place edit):** minted **bp-089** (S1′, `proposed`) with the 3
+`write_scope` additions + the naming fix, warrant `finding-0144`, supersedes bp-084. bp-084 →
+`superseded` (superseded_by bp-089), kept inspectable. **Needs owner `proposed → ready` blessing**
+before build. The `dn-inner-outer-core` §2.6b design is UNCHANGED (A8 — the ratified note's Appendix
+A named core.integrator; bp-089 carries the executable correction, note untouched).
+
+**Board:** bp-083/085/086/087 complete; bp-084 superseded; **bp-089 proposed (needs blessing)**;
+bp-088 (AL-3) ready, still queued. Wave: 4/6 built; S1 re-graduated; AL-3 remains.

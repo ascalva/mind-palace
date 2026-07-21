@@ -1,7 +1,7 @@
 ---
 type: build-plan
-id: bp-084
-status: superseded
+id: bp-089
+status: proposed
 design_ref:
   - docs/design-notes/inner-outer-core.md
 contract: builder
@@ -9,9 +9,12 @@ write_scope:
   - core/temporal/boundary.py
   - core/temporal/complex.py
   - core/temporal/acquire.py
+  - core/temporal/__init__.py
+  - core/temporal_view.py
   - core/integrator.py
   - core/integrator_math.py
   - core/recursion_ops.py
+  - core/stores/claim_ops.py
   - core/rings.py
   - tests/unit/test_inner_ring.py
   - tests/unit/test_temporal_complex.py
@@ -37,27 +40,43 @@ updated: 2026-07-21
 links:
   - docs/design-notes/inner-outer-core.md
   - docs/build-plans/bp-065/plan.md
+  - docs/build-plans/bp-084/plan.md          # superseded — the graduation-defect original
+  - docs/findings/finding-0144.md            # the spec-fidelity warrant
 re_entry: null
-supersedes: null
-superseded_by: bp-089
-warrant: null
+supersedes: bp-084
+superseded_by: null
+warrant: docs/findings/finding-0144.md
 ---
 
-> **SUPERSEDED by bp-089** (2026-07-21), on the spec-fidelity warrant `finding-0144`. This plan's
-> `write_scope` could not deliver the atomic +7 (it missed `core/temporal_view.py` +
-> `core/temporal/__init__.py` as importers of the moved symbols, and `core/stores/claim_ops.py` as
-> the new store recursion_ops needs), and its +7 list named `core.integrator` where the executable
-> promotion is `core.integrator_math`. The bp-084 builder caught this via stop-and-raise (no code
-> written). Kept inspectable per the supersession-not-editing rule; build from **bp-089**.
+# Build Plan — S1′: the temporal math enters the ring (math↔persistence splits, map +7 → 37)
 
-# Build Plan — S1: the temporal math enters the ring (math↔persistence splits, map +7 → 36)
+> **Supersedes bp-084**, grounded on the spec-fidelity warrant `finding-0144` (S1's builder
+> stop-and-raise). Same design (`dn-inner-outer-core` §2.6b, the +7). bp-084 was graduation-defective
+> in three mechanical ways — corrected here (§0-bis):
+> 1. **`write_scope` += `core/temporal_view.py`** — a CORE importer of both moved symbols
+>    (`build_citation_complex` top-level `:56/:187`; `supersession_poset` lazy `:340/:348`), missed
+>    at graduation because the retrofit scan covered only `tests/`. Clean-break repoint needs it.
+> 2. **`write_scope` += `core/temporal/__init__.py`** — re-exports the moved symbols (`:18,22,50,69`);
+>    breaks the same way when they leave `boundary`/`complex`.
+> 3. **`write_scope` += `core/stores/claim_ops.py`** — the DRY audit (bp-084 Item 3, done, recorded
+>    in finding-0144) found NO existing `core/stores/*` covers `claim_ops` (`authored_supersession`
+>    is a distinct owner-declared edge type; `versions` is note-version supersession). A new store is
+>    genuinely needed, so `core/stores/**` must be granted for exactly this one file.
+>
+> **And one naming fix:** the +7 promotes **`core.integrator_math`** (a NEW inner module holding the
+> pure `IntegrationReport`/`CoverageGauge`), NOT `core.integrator` — the latter keeps the `ledger:
+> sqlite3.Connection` and its out-of-scope importers (`scheduler/cron.py:39`,
+> `ops/lifecycle/launcher.py:238`), so it stays OUTER. Nothing external imports
+> `IntegrationReport`/`CoverageGauge`, so that split needs no further repoint. Final `|INNER| = 37`
+> (30 + 7). The note's Appendix A preview named `core.integrator`; this is the executable correction
+> (spec-fidelity, A8: the ratified note is NOT edited — this plan carries the correction).
 
 > Graduated from ratified `dn-inner-outer-core` §2.6b / §3 (owner-ruled 2026-07-20T22:55Z: *"I
-> would want the temporal math in the inner core"*). The SECOND licensed plan, **strictly after M0
-> (bp-083)**. Shape pinned to bp-065 precedent: **the pure builder takes data; the store-reading
-> acquisition seam moves one ring outward — the machinery calls core, core returns data.** No
-> behavior change, no new mathematics. Acceptance is mechanical: the seven named modules enter the
-> computed fixed point, forcing a +7 diff in `core/rings.py`.
+> would want the temporal math in the inner core"*). **Strictly after M0 (bp-083, sealed).** Shape
+> pinned to bp-065: **the pure builder takes data; the store-reading acquisition seam moves one ring
+> outward — the machinery calls core, core returns data.** No behavior change, no new mathematics.
+> Acceptance is mechanical: the seven named modules enter the computed fixed point, forcing a +7 diff
+> in `core/rings.py` (30 → 37).
 
 ## 0. Mode & provenance
 
@@ -69,9 +88,9 @@ M0 (bp-083) sealed** — S1's whole acceptance is a diff against the `INNER` map
 
 Relocate the four store-reading seams off `core/temporal/{boundary,complex}.py`,
 `core/integrator.py`, and `core/recursion_ops.py` — one ring outward — so that the seven modules
-`core.integrator`, `core.recursion_ops`, `core.temporal` (pkg), `core.temporal.boundary`,
+`core.integrator_math`, `core.recursion_ops`, `core.temporal` (pkg), `core.temporal.boundary`,
 `core.temporal.complex`, `core.temporal.operators`, `core.temporal.superconnection` enter the
-computed inner fixed point (map +7 → 36), with byte-identical behavior.
+computed inner fixed point (map +7 → 37), with byte-identical behavior.
 
 ## 2. Context manifest
 
@@ -134,7 +153,10 @@ modules must import neither (assertion B2 catches a regression).
   *"the store-reading seam relocated to `<outer home>` (bp-084, inner-ring promotion); this module
   is now inner — it takes data, it does not acquire it."*
 - **Importers repointed, no alias wrappers (bp-065 clean-break):** every caller of a moved symbol
-  is repointed in the same commit. `core/temporal/atlas.py`, `eval/harness/*`, and the tests in
+  is repointed in the same commit. The ACTUAL importers (grepped at HEAD, correcting bp-084's
+  mis-named list): **`core/temporal_view.py`** (`:56/:187` top-level `build_citation_complex`;
+  `:340/:348` lazy `supersession_poset`) and **`core/temporal/__init__.py`** (`:18,22,50,69`
+  re-exports), plus the tests in
   write_scope import the moved wrappers; each import line moves to the new home. No compatibility
   shim (`boundary.supersession_poset` re-export) — the owner's no-alias rule.
 - `core/rings.py` — **cross-reference-on-extension**: the +7 lands as an `INNER` diff; the module
@@ -167,18 +189,23 @@ def build_citation_complex(ref_store: ReferenceEdgeStore, *, ...) -> ...: ...
     ledger: sqlite3.Connection
 ```
 **The expected promotion set (§2.6b, Appendix A post-S1) — S1's acceptance:** exactly
-`core.integrator`, `core.recursion_ops`, `core.temporal`, `core.temporal.boundary`,
+`core.integrator_math`, `core.recursion_ops`, `core.temporal`, `core.temporal.boundary`,
 `core.temporal.complex`, `core.temporal.operators`, `core.temporal.superconnection` enter `INNER`;
-map becomes 36 strict / 49 lax; packaging-debt gap unchanged at 13.
+map becomes **37 strict** (the note's 36 preview + `core.rings` from M0); packaging-debt gap
+unchanged at 13. `core.integrator` STAYS OUTER (keeps the sqlite `ledger` + its acquisition API).
 
 ## 7. Items
 
 Ordered by blast radius (read-only sensing → reversible writes; nothing irreversible/external).
 
-### Item 3 — DRY audit + seam-home decision (read-only)
-- **Objective:** confirm no existing `core/stores/*` already covers recursion_ops' inline sqlite
-  and integrator's ledger; decide the exact homes (`acquire.py` / `integrator_math.py` / an
-  existing store).
+### Item 3 — DRY audit + seam-home decision (read-only) — ALREADY DONE (bp-084, recorded in finding-0144)
+- **Status: COMPLETE — do not repeat.** The bp-084 builder ran this audit; results in `finding-0144`:
+  temporal wrappers → `core/temporal/acquire.py` (reuse `VersionStore`/`ReferenceEdgeStore`, no new
+  store); integrator ledger → stays (reuse `code_snapshots.sqlite`); recursion_ops `claim_ops` → **NEW
+  `core/stores/claim_ops.py`** (no existing store covers it — `authored_supersession` is a distinct
+  edge type, `versions` is note-version supersession). Re-read finding-0144, then proceed to Item 4.
+- **Objective (original, for the record):** confirm no existing `core/stores/*` already covers
+  recursion_ops' inline sqlite and integrator's ledger; decide the exact homes.
 - **Files:** none written (a reading pass recorded in the journal).
 - **Acceptance test:** the journal records, per seam, the chosen home + the DRY finding ("no
   existing store covers X" with a `path:line`, or "reuse `stores.Y`").
@@ -189,9 +216,10 @@ Ordered by blast radius (read-only sensing → reversible writes; nothing irreve
 
 ### Item 4 — relocate the temporal seams (boundary + complex)
 - **Objective:** move `supersession_poset` and `build_citation_complex` to `core/temporal/acquire.py`
-  (outer); shed `:25`/`:34` store imports from the now-inner modules; repoint importers.
+  (outer); shed `:25`/`:34` store imports from the now-inner modules; repoint **`core/temporal_view.py`
+  + `core/temporal/__init__.py`** (the two core importers) and the temporal test files.
 - **Files:** `core/temporal/boundary.py`, `core/temporal/complex.py`, `core/temporal/acquire.py`
-  (new), plus the temporal test files repointed.
+  (new), `core/temporal_view.py`, `core/temporal/__init__.py`, plus the temporal test files repointed.
 - **Acceptance test:** `uv run pytest tests/unit/test_temporal_complex.py tests/unit/test_temporal_operators.py
   tests/unit/test_temporal_view.py tests/integration/test_temporal_isolation.py` green; the two
   modules import no `core.stores.*`.
@@ -203,14 +231,17 @@ Ordered by blast radius (read-only sensing → reversible writes; nothing irreve
 
 ### Item 5 — split the integrator + recursion_ops persistence out
 - **Objective:** extract integrator's pure gauge math to `core/integrator_math.py` (inner); leave
-  the `ledger`/witness acquisition in `core/integrator.py` (outer); relocate recursion_ops'
-  sqlite + `stores.derived` seam per Item 3's decision; repoint importers.
-- **Files:** `core/integrator.py`, `core/integrator_math.py` (new), `core/recursion_ops.py`, the
-  integrator test files repointed.
+  the `ledger`/witness acquisition in `core/integrator.py` (outer); move recursion_ops' `claim_ops`
+  persistence to the NEW **`core/stores/claim_ops.py`** (Item 3's DRY audit: no existing store
+  covers it), so recursion_ops sheds `sqlite3` (`:53`) + `stores.derived` (`:62`); repoint importers.
+- **Files:** `core/integrator.py`, `core/integrator_math.py` (new), `core/recursion_ops.py`,
+  `core/stores/claim_ops.py` (new), the integrator test files repointed.
 - **Acceptance test:** `uv run pytest tests/unit/test_integrator.py tests/unit/test_rotation_report.py
   tests/integration/test_integrator_wiring.py` green; `core.integrator_math` and
   `core.recursion_ops` import no sqlite3 / `core.stores.*`.
-- **Falsifier (F10):** `core.integrator`/`core.recursion_ops` fail to enter the computed set.
+- **Falsifier (F10):** `core.integrator_math`/`core.recursion_ops` fail to enter the computed set.
+  (`core.integrator` is NOT expected inner — it keeps the ledger; asserting it inner is the defect
+  bp-084 carried.)
 - **Invariant(s):** the C-coverage / integrator wiring behavior is unchanged (the launcher still
   wires the same object); zero behavior change.
 - **Touches stored data?** No. **Parallelizable?** No. **Depends on:** Item 4.
