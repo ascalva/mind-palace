@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0140
-status: open
+status: routed
 created: 2026-07-21
 updated: 2026-07-21
 links:
@@ -59,3 +59,11 @@ brainstorm text is edited (capsules are records); the correction lives here and 
 `design` → orchestrator. No owner decision required beyond ratifying dn-fiber-geometry (FG-0
 is definitional hygiene, not a taste call); flagged so /triage annotates the capsules' readers
 rather than the capsules.
+
+## Triage annotation (2026-07-21, session-39 /triage)
+Routed → orchestrator (design/discovery). This is a promotion candidate: the resolution is
+already authored as `dn-fiber-geometry` §2.0 (FG-0 — the canonical Σ_move={S,F,D,C} alphabet),
+which is warrant-linked here. On the owner's ratification of `dn-fiber-geometry`, this finding
+flips `routed → promoted`. No separate owner question — the fix rides that one ratify decision.
+Until then the three warrant brainstorms keep their as-written (mislettered) text; the note
+re-reads them, per A8 (never edit a ratified/consumed artifact silently).

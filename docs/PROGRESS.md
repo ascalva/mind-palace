@@ -5055,3 +5055,50 @@ pass on the headless-daemon secret bootstrap (System keychain / file / hybrid) �
 traversal PASS; the vault/exhaust/data/daemon lanes PENDING (the parked core plane). Discovery en
 route: `/Users/ascalva` was `0o750` (no o+x) → role accounts couldn't traverse (runbook §0 fix);
 + finding-0121 (no worktree reaper — 7GB of stale trees reclaimed).
+
+---
+
+## Session-39 (2026-07-21) — the dreamer track BUILT + the fiber-geometry synthesis
+
+**Built + sealed: `dn-synchronic-diachronic-dreamer` → bp-079/080/081/082 (all `complete`).**
+Four tier-verified opus worktree builders, each independently 6-leg-gated on main by the
+orchestrator, `--no-ff` merged single-writer, sealed with `cost.actual`, worktrees removed.
+- **bp-079** D-0: the DreamCharter dispatch record (scope⊓dreamer_scope + instrument ceiling +
+  budget + gauge) + the single materialization boundary (estimate→refuse-or-force; laziness laws
+  L1–L3). 164,590 tok / 0.82× (01e006b).
+- **bp-080** D-1: the arrow-read census (influence loops / revision-effort asymmetries /
+  reach-backs, each witnessed, gauge-immune) + the census lens on the structural panel behind the
+  R&D flag (oq-0021 records-not-causes vocabulary; F-SD9 battery). Census EMPTY on the live corpus
+  — fixtures carry. 176,636 tok / 0.71× (cdedfab).
+- **bp-081** H-0+H-1: the HYPOTHETICAL stratum + append-only generation-clocked staging store +
+  the composed-assembly overlay + the expiry sweep. The no-promotion spine invariant proven
+  STRUCTURALLY (API-surface scan). 217,049 tok / 0.87× (8be3c98). Filed **finding-0130**.
+- **bp-082** H-2: influence (integer Δσ*/Δcensus with CN-3 attribution + smooth Rayleigh with the
+  finite-difference check; one-sided law structural) + the conditioning law (fails closed, F-SD7b;
+  taint-split reuses the influence diff). 269,887 tok / 0.96× (3979291). Q3 did NOT fire.
+- **Verify:** suite 1707 → **1790 passed**; finding-0103 ratchet held at **19** throughout
+  (verified explicitly at the bp-082 seal; interim "22" reports were builder miscounts).
+- **⚑ Built DARK:** the whole H-family (staging/overlay/influence/conditioning) is flag-off, NOT
+  wired to the live daemon. A future "make the subspace live" plan wires the sweep (finding-0130)
+  + the census live-read (dreamer note §2.8) when the owner turns HYPOTHETICAL on (the Track-G
+  build-dark pattern). Two build reports placed on the exhaust lane (phone).
+
+**Design output (all pushed):** `dn-synchronic-diachronic-dreamer` **RATIFIED** (owner bless
+44bbeec; adopts oq-0021 ADMIT). `dn-inner-outer-core` DRAFT (v2 + S1 licensed, 7a532f0).
+`dn-fiber-geometry` DRAFT (fable MAX synthesis, dada719 — one typed graph / three layers;
+clock-curvature = Layer 1; sheaf coupling refuted block-diagonal; ML-d declined; the M1–M10
+measure-first battery; licenses the G-A survey). Brainstorm captures: hypothetical-subspace,
+book-pedagogy (+citations), synchronic-diachronic-dreamer (+laziness, +forecaster),
+clock-curvature (4 capsules: metric/GR/dying-cluster/path-invariance), fiber-chain-grammar
+(+reasoning-as-proof-path), edge-dynamics-vector-field (3 fields + dynamics).
+
+**Findings this arc:** 0126 RESOLVED (diachronic park's blocker already shipped, closed by the
+dreamer ratify). **0130 OPEN** (builder-lane — the staging sweep's scheduler wiring, parked to a
+future live-subspace plan). **0140 ROUTED** (the F-letter collision → S/F/D/C alphabet; promotes
+on the dn-fiber-geometry ratify). Next finding id **0141**.
+
+**NEXT (design-gated on the owner):** ratify the two draft notes (oq-0032) → then /graduate the
+G-A survey + M0/S1. Un-blocked execution meanwhile: oq-0024 σ-sweep + the measure-first readings
+(grounds the pending fiber-geometry/clock-curvature passes; several battery rows expected null on
+today's thin C-fiber). Book debt: `dn-synchronic-diachronic-dreamer` newly ratified — a /scribe
+sync is owed (the sensor→…→dreamer arc).

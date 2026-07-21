@@ -937,3 +937,29 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   **oq-0024 (the σ re-tune) is UN-blocked** — it was gated on this; a fresh sweep on the 208-doc corpus
   can now discriminate σ. Diagnostic owed (why the mirror is stuck at 13) is a separate, still-open
   thread — NOT re-blocking, tracked independently.
+
+## oq-0032 — Ratify the two session-39 draft notes (dn-fiber-geometry · dn-inner-outer-core), and rule the taste calls each carries
+- status: open
+- origin: session-39 (2026-07-21) — the dreamer track build wave + the fable synthesis pass
+- blocking: false
+- default_if_unanswered: both notes stay `draft`; `/graduate` refuses them; the next build waves
+  (fiber-geometry's G-A survey; inner-outer-core's M0 + S1) do not mint. Nothing stalls a running
+  builder — the dreamer track is complete and everything downstream is design-gated on these
+  blessings, so an unanswered question simply PARKS the two waves with an obvious re-entry (the
+  owner ratifies when ready). Park condition: revisit at the next design/ratify session.
+- question: Two draft notes are on `main`, each needing a hand `draft → ratified` flip plus one or
+  two embedded taste decisions:
+  1. **dn-fiber-geometry** (dada719) — the fable synthesis (one typed graph; grammar/geometry/
+     dynamics layers; clock-curvature ruled Layer-1; sheaf-coupling refuted; ML-d declined).
+     Ratifying it (a) adopts the framework, (b) resolves finding-0140 (the S/F/D/C alphabet fix →
+     flips to `promoted`), (c) licenses the read-only **G-A survey** (the M1–M10 measure-first
+     battery). Embedded taste calls (§5, non-blocking — M10 data informs both): is a citation (F)
+     an admissible grounding terminal, i.e. does `S*·(C|D)` extend to `S*·(C|D|F)`? and should a
+     chain crossing a node superseded at the read's cut be *hard*-required to narrate its D-context
+     (a candidate new hard production)?
+  2. **dn-inner-outer-core** (7a532f0) — v2 predicate + the S1 temporal-math splits (both already
+     inside from earlier this session). One open taste item: the physical directory name for the
+     inner ring (`core/kernel/` proposed). Ratifying licenses M0 (the born-green ring) + S1.
+  Also still owed before ITS ratify (tracked separately, not part of this oq): re-examine
+  `dn-headless-daemon-secret-bootstrap` as an OPUS product (finding-0125 residual) — it was
+  reported as a fable pass but composed on Opus.
