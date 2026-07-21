@@ -18,11 +18,20 @@ import pytest
 from config.loader import load_config
 from core.dreaming import DreamRnDDisabledError, run_dream_rnd, run_panel
 from core.dreaming.adjudicator import adjudicate
-from core.dreaming.interpreters import BRIDGE, CENTRALITY, COMMUNITY, DENSITY, Claim
+from core.dreaming.interpreters import (
+    BRIDGE,
+    CENSUS_LOOP,
+    CENTRALITY,
+    COMMUNITY,
+    DENSITY,
+    Claim,
+)
+from core.graph.census import Arc, census
 from core.mirror import MirrorView
 from core.provenance import Provenance
 from core.selfcheck import grounding_score
 from core.stores.derived import DREAM_LOG, DerivedStore
+from core.temporal.spine import Certificate, CertifiedCut
 
 # A small authored graph: two clusters (A, B) held together by a bridge note (g1), plus an
 # isolated outlier (z1). 3-D vectors so every interpreter fires deterministically.
@@ -139,6 +148,24 @@ def test_run_is_deterministic(tmp_path):
     b = run_dream_rnd(_view(), DerivedStore(tmp_path / "b.sqlite"), config=_on_config())
     assert [(e.statement, e.confidence, e.methods) for e in a] == \
            [(e.statement, e.confidence, e.methods) for e in b]
+
+
+def test_census_claims_adjudicate_equal_citizen(tmp_path):
+    """bp-080 Item 5: census claims join the panel behind the SAME flag and flow through the
+    adjudicator UNCHANGED. A census loop over authored notes (dA1→dA2→dB1→dA1) grounds fully
+    (support ⊆ authored) and ranks like any lens — no adjudicator change was needed."""
+    cut = CertifiedCut(frontier=(("versions:dA1", 1),),
+                       certificates=frozenset({Certificate.COMMIT}), evidence=("cafe",))
+    arcs = [Arc("dA1", "dA2", "x1"), Arc("dA2", "dB1", "x2"), Arc("dB1", "dA1", "x3")]
+    reading = census(arcs, {}, cut)
+    claims = run_panel(_view(), config=_on_config(), census=reading)
+    census_claims = [c for c in claims if c.method == CENSUS_LOOP]
+    assert len(census_claims) == 1
+    assert set(census_claims[0].support) <= AUTHORED_DIGESTS      # firewall holds for census
+    entries = adjudicate(claims, authored_digests=AUTHORED_DIGESTS, agreement_jaccard=0.5)
+    census_entries = [e for e in entries if CENSUS_LOOP in e.methods]
+    assert census_entries and census_entries[0].grounding == 1.0  # grounded, equal-citizen
+    assert entries == sorted(entries, key=lambda e: -e.confidence)  # ranking intact
 
 
 def test_observed_rows_cannot_enter_the_panel():

@@ -19,8 +19,17 @@ import numpy as np
 import pytest
 
 from config.loader import load_config
-from core.dreaming.interpreters import BRIDGE, HOLE, THEME, THREAD, run_panel
+from core.dreaming.interpreters import (
+    BRIDGE,
+    CENSUS_LOOP,
+    HOLE,
+    THEME,
+    THREAD,
+    run_panel,
+)
+from core.graph.census import Arc, CensusReading, census
 from core.mirror import MirrorView
+from core.temporal.spine import Certificate, CertifiedCut
 
 
 def _on_config():
@@ -141,3 +150,46 @@ def test_panel_determinism_with_thread_registered():
     claims1 = run_panel(view, config=cfg)
     claims2 = run_panel(view, config=cfg)
     assert claims1 == claims2
+
+
+# --- bp-080 Item 5: the arrow-aware census lens joins the panel equal-citizen -------------------
+
+def _census_cut() -> CertifiedCut:
+    return CertifiedCut(
+        frontier=(("versions:r0", 1),),
+        certificates=frozenset({Certificate.COMMIT}),
+        evidence=("cafe",),
+    )
+
+
+def _ring_census() -> CensusReading:
+    """A census reading whose loop members ARE authored ring notes (r0/r1/r2), so census claims
+    ground exactly like the structural lenses — the §2.9 equal-citizen demonstration."""
+    arcs = [Arc("r0", "r1", "e1"), Arc("r1", "r2", "e2"), Arc("r2", "r0", "e3")]
+    return census(arcs, {}, _census_cut())
+
+
+def test_census_lens_joins_the_panel_equal_citizen_behind_the_flag():
+    """With a census reading supplied, the panel returns the arrow-aware census claims ALONGSIDE
+    the structural lenses — same flag, one call. Every census member is an authored ring note, so
+    the firewall (support ⊆ authored) holds across the extended kind set."""
+    claims = run_panel(_ring_view(), config=_on_config(), census=_ring_census())
+    census_claims = [c for c in claims if c.method == CENSUS_LOOP]
+    assert len(census_claims) == 1
+    assert set(census_claims[0].support) <= AUTHORED_RING       # firewall holds for census too
+    assert "closed influence loop" in census_claims[0].statement
+    assert HOLE in {c.method for c in claims}                   # the existing lenses still fire
+
+
+def test_panel_unchanged_when_no_census_supplied():
+    """The retrofit is inert by default: absent a census reading the panel is byte-for-byte what
+    it was before the census lens registered (no census method appears)."""
+    claims = run_panel(_ring_view(), config=_on_config())
+    assert not [c for c in claims if c.method == CENSUS_LOOP]
+
+
+def test_census_lens_determinism_on_the_panel():
+    view, cens = _ring_view(), _ring_census()
+    a = run_panel(view, config=_on_config(), census=cens)
+    b = run_panel(view, config=_on_config(), census=cens)
+    assert a == b
