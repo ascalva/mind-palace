@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from core.scope import (
     DENYLIST_IDEAL,
+    PRIVATE_STRATA,
     Authority,
     Clock,
     EdgeScope,
@@ -78,3 +79,19 @@ def test_hypothetical_is_not_the_denylist():
                               tier=Tier.CONVENTION)
     assert admissible(naming_hyp, [DENYLIST_IDEAL])           # named overlay is admissible
     assert not admissible(naming_foundation, [DENYLIST_IDEAL])  # 𝔇 never is
+
+
+# The exact PRIVATE_STRATA membership pin (bp-086 Item 12; dn-agentic-loop §2.3 G-D). The zone law
+# reads off this declared set — any drift in its membership is a deliberate, reviewed act, exactly
+# like the `_EXPECTED_MEMBERS` pin above. The widest-exclusion default keeps every stratum but
+# `world` (plan §3 Q3: ops/reference IN, owner's call at proposed→ready).
+_EXPECTED_PRIVATE = _EXPECTED_MEMBERS - {"world", "foundation", "hypothetical"}
+
+
+def test_private_strata_membership_is_pinned():
+    """PRIVATE_STRATA = every grantable stratum (⊤_Σ, refinements included) EXCEPT `world`; excludes
+    `foundation` (𝔇) and the `hypothetical` overlay (not a base stratum)."""
+    assert {s.value for s in PRIVATE_STRATA} == _EXPECTED_PRIVATE
+    assert Stratum.WORLD not in PRIVATE_STRATA
+    assert Stratum.FOUNDATION not in PRIVATE_STRATA
+    assert Stratum.HYPOTHETICAL not in PRIVATE_STRATA

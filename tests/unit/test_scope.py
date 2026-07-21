@@ -18,6 +18,7 @@ import pytest
 
 from core.scope import (
     DENYLIST_IDEAL,
+    PRIVATE_STRATA,
     Authority,
     Clock,
     ClockMismatchError,
@@ -39,6 +40,7 @@ from core.scope import (
     common_refinement,
     rate_under,
     req_admissible,
+    zone_admissible,
 )
 
 
@@ -458,3 +460,79 @@ def test_lattice_laws_hold_over_hypothetical():
     # the overlay never launders into ⊤_Σ: meeting top() with a HYPOTHETICAL-naming scope keeps it
     # out of top's strata (top has no HYPOTHETICAL to contribute)
     assert Stratum.HYPOTHETICAL not in ext[3].sigma.meet(ext[0].sigma).strata
+
+
+# ── G-D (dn-agentic-loop §2.3; bp-086 / AL-1) — the zone-boundary law Σ(private) ⊥ W_world ────────
+# The cross-coordinate law `s.Σ ⊓ PRIVATE_STRATA ≠ ⊥ ⇒ s.A.W_world = NONE`, made a ratchet. F-AL3
+# demands the ADVERSARIAL case: a CONSTRUCTABLE deployed grant with non-⊥ private Σ AND W_world>NONE
+# must be REFUSED — if it cannot be structurally refused, the §2.3 derivation is decorative. It can.
+def test_private_strata_is_every_grantable_stratum_except_world():
+    """PRIVATE_STRATA = ⊤_Σ ∖ {world}: the corpus/vault side. It carries the refinements (so a scope
+    naming only `mirror_authored` counts private) and excludes `world`, FOUNDATION (𝔇, ungrantable),
+    and the HYPOTHETICAL overlay (not a base stratum)."""
+    assert PRIVATE_STRATA == StratumScope.top().strata - {Stratum.WORLD}
+    assert Stratum.WORLD not in PRIVATE_STRATA
+    assert Stratum.FOUNDATION not in PRIVATE_STRATA
+    assert Stratum.HYPOTHETICAL not in PRIVATE_STRATA
+    # private base strata + refinements ARE in (the widest-exclusion default: ops/reference
+    # kept IN pending the owner's proposed→ready call, plan §3 Q3)
+    for s in (Stratum.MIRROR, Stratum.MIRROR_AUTHORED, Stratum.CURATED, Stratum.OBSERVED,
+              Stratum.OPS, Stratum.REFERENCE, Stratum.REFERENCE_REPO, Stratum.INTERPRETED,
+              Stratum.DIALOGUE, Stratum.DIALOGUE_TRANSCRIPT, Stratum.DIALOGUE_ARTIFACT):
+        assert s in PRIVATE_STRATA
+
+
+def test_zone_law_REFUSES_a_constructable_private_read_with_world_reach():
+    """F-AL3, the crux. A hand-built, WELL-TYPED deployed grant with non-⊥ private Σ (the fullest
+    private read) AND W_world = SENSING (>NONE) is CONSTRUCTABLE — and `zone_admissible` REFUSES it.
+    A single private refinement + world reach is refused too. This is the structural refusal
+    §2.3 requires; without it the zone derivation would be decorative."""
+    # the broad adversary: ⊤_Σ (all private strata) + a nonzero world reach, on a cut clock (Window
+    # ALL, so SLICE does not fire) — a genuine, constructable scope, not a malformed one.
+    adversary = Scope(StratumScope.top(), EdgeScope.top(),
+                      TimeScope(Clock.COMMIT, Window.all()),
+                      Authority(Privilege.READ_PROPOSE, 1, WorldReach.SENSING),
+                      tier=Tier.STATIC_GUARD)
+    assert adversary.sigma.strata & PRIVATE_STRATA        # antecedent TRUE — it reads private
+    assert adversary.authority.world > WorldReach.NONE    # consequent's negation — it reaches world
+    assert not zone_admissible(adversary)                 # ⇒ REFUSED (the law bites)
+
+    # the same refusal at the finest granularity: one private refinement + any nonzero reach
+    for reach in (WorldReach.SENSING, WorldReach.REVERSIBLE, WorldReach.IRREVERSIBLE):
+        narrow_leak = _scope(StratumScope.of(Stratum.MIRROR_AUTHORED), EdgeScope.bottom(),
+                             Window.all(), Authority(Privilege.READ, 0, reach))
+        assert not zone_admissible(narrow_leak)
+
+
+def test_zone_law_admits_private_read_with_no_world_reach():
+    """The compliant internal-actor corner: broad private Σ but W_world = NONE ⇒ admissible (the
+    consequent holds)."""
+    compliant = Scope(StratumScope.top(), EdgeScope.top(),
+                      TimeScope(Clock.COMMIT, Window.all()),
+                      Authority(Privilege.READ_PROPOSE, 1, WorldReach.NONE),
+                      tier=Tier.STATIC_GUARD)
+    assert compliant.sigma.strata & PRIVATE_STRATA        # reads private
+    assert zone_admissible(compliant)                     # but no world reach ⇒ admissible
+
+
+def test_zone_law_admits_bottom_sigma_at_any_reach():
+    """The external-executor corner: Σ = ⊥ reads nothing private, so the antecedent is FALSE and the
+    scope is admissible at EVERY world reach — this is how EA-x holds world reach lawfully (bright
+    line 2)."""
+    for reach in (WorldReach.NONE, WorldReach.SENSING, WorldReach.REVERSIBLE,
+                  WorldReach.IRREVERSIBLE):
+        eax = Scope(StratumScope.bottom(), EdgeScope.bottom(),
+                    TimeScope(Clock.NOW, Window.all()),
+                    Authority(Privilege.READ, 0, reach), tier=Tier.STATIC_GUARD)
+        assert not (eax.sigma.strata & PRIVATE_STRATA)    # antecedent FALSE
+        assert zone_admissible(eax)
+
+
+def test_zone_law_admits_world_only_sigma_at_any_reach():
+    """A scope naming ONLY `world` (the public coordinate) reads nothing private ⇒ admissible at any
+    reach. `world ∉ PRIVATE_STRATA` is the hinge."""
+    for reach in (WorldReach.NONE, WorldReach.SENSING, WorldReach.IRREVERSIBLE):
+        world_only = _scope(StratumScope.of(Stratum.WORLD), EdgeScope.bottom(),
+                            Window.all(), Authority(Privilege.READ, 0, reach))
+        assert world_only.sigma.strata == frozenset({Stratum.WORLD})
+        assert zone_admissible(world_only)

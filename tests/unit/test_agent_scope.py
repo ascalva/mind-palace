@@ -16,17 +16,22 @@ from core.agent_scope import (
     Handle,
     assert_conforms,
     dreamer_scope,
+    external_executor,
+    external_proposer,
     integrator_scope,
+    internal_actor,
     query_scope,
     sensor_scope,
 )
 from core.scope import (
+    PRIVATE_STRATA,
     Clock,
     Privilege,
     Stratum,
     StratumScope,
     Tier,
     WorldReach,
+    zone_admissible,
 )
 
 
@@ -154,3 +159,80 @@ def test_assert_conforms_rejects_edge_write_outside_declared_e():
     handles = (Handle(name="edge-writer", stratum=Stratum.DIALOGUE, writes_fiber="C"),)
     with pytest.raises(ConformanceError):
         assert_conforms(declared, handles)
+
+
+# ── the three ACTOR profiles (dn-agentic-loop §2.3; bp-086 / AL-1) ────────────────────────────
+# IA / EA-p / EA-x land in their §2.3 regions AND are zone-admissible BY CONSTRUCTION — IA/EA-p via
+# W_world=NONE, EA-x via Σ=⊥. The falsifier here is Item 13's: a constructor that produced a scope
+# `zone_admissible` REJECTS. It cannot — proven below.
+def test_internal_actor_broad_private_no_world_reach():
+    """IA: Σ = ⊤_Σ by default (broad private read), E = ⊤, cut-clock T, A = (READ_PROPOSE, 1, NONE).
+    Zone-admissible (reads private, but W_world=NONE)."""
+    s = internal_actor()
+    assert s.sigma.strata == StratumScope.top().strata            # broad by grant (defaults to top)
+    assert s.sigma.strata & PRIVATE_STRATA                        # it DOES read private strata
+    assert s.edges.fibers == frozenset({"F", "D", "C"})          # reasons over all edge classes
+    assert s.authority.privilege is Privilege.READ_PROPOSE
+    assert s.authority.store_write == 1                           # interpreted-tier write
+    assert s.authority.world is WorldReach.NONE                   # zero world reach
+    assert s.time.clock is Clock.COMMIT                           # a CUT clock (SLICE-safe)
+    assert s.tier is Tier.STATIC_GUARD
+    assert zone_admissible(s)                                     # admissible BY CONSTRUCTION
+
+
+def test_internal_actor_respects_the_grant_and_hypothetical_flag():
+    """IA never widens past the grant: a narrower `strata` yields that downset; `hypothetical=True`
+    names the overlay (still zone-admissible — W_world=NONE)."""
+    narrow = internal_actor([Stratum.OPS])
+    assert narrow.sigma.strata == StratumScope.of(Stratum.OPS).strata
+    assert zone_admissible(narrow)
+    staged = internal_actor([Stratum.MIRROR], hypothetical=True)
+    assert Stratum.HYPOTHETICAL in staged.sigma.strata           # overlay named explicitly
+    assert Stratum.MIRROR_AUTHORED in staged.sigma.strata        # downward closure preserved
+    assert zone_admissible(staged)
+
+
+def test_external_proposer_is_propose_only_mirror_authored():
+    """EA-p: Σ = mirror_authored, A = (READ_PROPOSE, W_Σ=0, NONE) — propose-only, writes nothing
+    structural, no world reach. Zone-admissible (reads private, W_world=NONE)."""
+    s = external_proposer()
+    assert s.sigma.strata == StratumScope.of(Stratum.MIRROR_AUTHORED).strata
+    assert Stratum.MIRROR_AUTHORED in PRIVATE_STRATA             # it reads a private stratum
+    assert s.authority.privilege is Privilege.READ_PROPOSE       # proposes
+    assert s.authority.store_write == 0                          # writes NOTHING structural
+    assert s.authority.world is WorldReach.NONE                  # no world reach
+    assert zone_admissible(s)
+
+
+def test_external_executor_bottom_sigma_holds_world_reach():
+    """EA-x: Σ = ⊥ (never reads the vault — bright line 2), A = (READ, 0, W_world=reach). It HOLDS
+    world reach, yet is zone-admissible via Σ=⊥ (antecedent false), NOT via W_world."""
+    s = external_executor()
+    assert s.sigma.strata == frozenset()                         # ⊥ — reads no corpus stratum
+    assert not (s.sigma.strata & PRIVATE_STRATA)                 # reads nothing private
+    assert s.edges.fibers == frozenset()
+    assert s.authority.privilege is Privilege.READ
+    assert s.authority.store_write == 0
+    assert s.authority.world is WorldReach.SENSING               # default nonzero world reach
+    assert s.authority.world > WorldReach.NONE                   # it genuinely reaches the world
+    assert zone_admissible(s)                                    # admissible BY Σ=⊥, not by reach
+    # even at the maximal reach it stays admissible — the whole point of the vault-blind executor
+    assert zone_admissible(external_executor(WorldReach.IRREVERSIBLE))
+
+
+def test_all_three_profiles_are_zone_admissible_by_construction():
+    """The Item 13 falsifier: NO profile constructor expresses a scope the zone law rejects. IA/EA-p
+    via W_world=NONE; EA-x via Σ=⊥."""
+    for s in (internal_actor(), internal_actor([Stratum.MIRROR], hypothetical=True),
+              external_proposer(), external_proposer([Stratum.MIRROR_AUTHORED]),
+              external_executor(), external_executor(WorldReach.IRREVERSIBLE)):
+        assert zone_admissible(s)
+
+
+def test_internal_actor_delegation_never_widens_parent():
+    """Composition stays the ratified `Scope.meet`: meet(parent, IA-template) ⊑ parent — a broad IA
+    template cannot launder authority up to a narrow parent (both on the IA cut-clock, COMMIT)."""
+    parent = internal_actor([Stratum.OPS])                       # a narrow IA parent (COMMIT clock)
+    minted = parent.meet(internal_actor())                       # meet with the broad IA template
+    assert minted <= parent
+    assert minted == parent                                      # meet with a superset = the parent

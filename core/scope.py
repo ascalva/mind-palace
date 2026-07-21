@@ -39,6 +39,10 @@ lattice coordinates. Result typing (`Inv` vs `Rate(κ)`, Rule CLOCK) lives at th
 This is a PURE-CORE module: it imports nothing from `ops/`, `edge/`, or a store (the sealed-core
 egress rule, and the ops→core dependency direction — the `ReversibilityClass → WorldReach` bridge
 lives ops-side in `ops/effects.py`). It materializes no clock; N stays parked (CS-a).
+
+The zone-boundary law `PRIVATE_STRATA`/`zone_admissible` (below the deployed top) types the
+bright-line inversion "broad private read ⊥ world reach" as a cross-coordinate predicate over Σ × A
+(dn-agentic-loop §2.3, gap G-D) — its warrant, and the adversarial ratchet (F-AL3), live there.
 """
 
 from __future__ import annotations
@@ -641,6 +645,44 @@ def req_admissible(required: Scope, granted: Scope) -> bool:
 # standing fact, finding-0011: `⊤_deployed.W_world = NONE`, not SENSING). A statement, tested in
 # tests/unit/test_view_scopes.py, not a runtime gate.
 DEPLOYED_WORLD_CEILING: WorldReach = WorldReach.NONE
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# The zone-boundary law — Σ-breadth ⊥ world-reach (dn-agentic-loop §2.3, gap G-D; bp-086 / AL-1)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+#
+# Bright lines 1–2 (CONSTITUTION / BUILD-SPEC §3) invert on the lattice: the component that reads
+# broad PRIVATE data has no world reach; the component that touches the world never reads the vault.
+# `dn-agentic-loop` §2.3 typed that inversion as ONE implication over a deployed grant s:
+#
+#     s.Σ ⊓ PRIVATE_STRATA ≠ ⊥   ⇒   s.A.W_world = NONE
+#
+# It is a CROSS-COORDINATE law (Σ × A), NOT a pure Σ-order-ideal — so it is deliberately NOT modeled
+# as an `Ideal` (whose `.excludes` is Σ-only). It rides as a named set + predicate; the ratchet
+# that makes it real (an adversarial hand-built violator is REFUSED) lives in test_scope.py
+# (F-AL3). Today VACUOUSLY true — `⊤_deployed.W_world = NONE` (finding-0011) — so the predicate
+# asserts a property the code already has by shape; the point is to make it a tested ratchet,
+# not an accident, before any EffectView is ever wired.
+
+# PRIVATE_STRATA — the corpus/vault side of R: every grantable stratum EXCEPT `world` (the sole
+# public/effector coordinate). Derived from `⊤_Σ` (carries refinements too — a scope naming
+# only `mirror_authored` still counts as private) minus WORLD; FOUNDATION (never grantable) and the
+# HYPOTHETICAL overlay (never in an ordinary grant, and any real staged read composes with a durable
+# private stratum that IS in this set) are excluded by construction. This is the WIDEST-exclusion /
+# strongest-law default (plan §3 Q3): whether `ops`/`reference` ought to count as "private" for this
+# law is an OWNER call at proposed→ready — the default keeps them IN (a leak passing is the unsafe
+# direction; over-inclusion only over-constrains a not-yet-wired world reach).
+PRIVATE_STRATA: frozenset[Stratum] = _downward_close(_BASE_STRATA - {Stratum.WORLD})
+
+
+def zone_admissible(s: Scope) -> bool:
+    """The G-D zone law as a predicate: True iff `s` does NOT read private strata OR has no world
+    reach — i.e. `s.Σ ⊓ PRIVATE_STRATA ≠ ⊥ ⇒ s.A.W_world = NONE`. A grant with non-⊥ private Σ AND
+    `W_world > NONE` is REFUSED (returns False); that is the constructable violation F-AL3 requires
+    the ratchet to catch. `Σ = ⊥` (the executor) and `Σ = {world}` (world-only) pass at ANY reach —
+    they read nothing private, so the antecedent is false (dn-agentic-loop §2.3)."""
+    reads_private = bool(s.sigma.strata & PRIVATE_STRATA)
+    return (not reads_private) or s.authority.world is WorldReach.NONE
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════

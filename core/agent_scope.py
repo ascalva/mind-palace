@@ -159,6 +159,90 @@ def dreamer_scope(strata: Iterable[Stratum]) -> Scope:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════
+# The three actor PROFILES (dn-agentic-loop §2.3) — the internal/external scope asymmetry, typed
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+#
+# Where the four ROLE constructors above are the taxonomy's read/witness signatures, these three are
+# the ACTOR profiles the agentic loop names: IA (internal actor — the dreamer/probe family), and the
+# external actor split into EA-p (proposer, core-side) + EA-x (executor, edge-side). They are the
+# same KIND of thing — template scopes, composed against a parent by the existing `Scope.meet`,
+# pure-core (imports only `core.scope`) — layered on the ratified lattice, exactly as the roles are.
+#
+# Their point is the zone-boundary inversion (§2.3, gap G-D — `core.scope.zone_admissible`):
+# broad PRIVATE read ⊥ world reach. All three are zone-admissible BY CONSTRUCTION — IA/EA-p carry
+# `W_world = NONE` (private, no world reach); EA-x carries `Σ = ⊥` (world reach, reads no vault —
+# bright line 2). The test surface (tests/unit/test_agent_scope.py) proves each lands in its §2.3
+# region AND passes `zone_admissible`.
+
+
+def internal_actor(
+    strata: Iterable[Stratum] | None = None, *, hypothetical: bool = False
+) -> Scope:
+    """**Profile IA — the internal actor** (dn-agentic-loop §2.3; the DreamCharter is its built
+    constructor, bp-079). Broad private read, no world reach. `Σ =` the granted downset, default
+    to `⊤_Σ` (`R ∖ 𝔇` — broad by grant; the caller passes what the owner declared, this never widens
+    past top), optionally ∪ {HYPOTHETICAL} when staging counterfactuals (`hypothetical=True`
+    — named explicitly, per the overlay's Σ-visibility rule). `E = ⊤` (it reasons over all edge
+    classes); `T = (commit, ∗)` — a CUT clock, so the multi-stratum scope is well-typed and any
+    point read carries the pair-cut (§2.3: "SLICE fires on any multi-stratum point read"); `A =
+    (READ_PROPOSE, W_Σ=1, W_world=NONE)` — interpreted-tier projection-writes (structurally
+    unforgeable: `DerivedStore` has no provenance parameter), zero world reach. Residence: core.
+
+    Zone-admissible by construction: `W_world = NONE`, so the §2.3 antecedent's consequent holds
+    however broad Σ is."""
+    base = StratumScope.top() if strata is None else StratumScope.of(*strata)
+    sigma = (
+        StratumScope(base.strata | frozenset({Stratum.HYPOTHETICAL})) if hypothetical else base
+    )
+    return Scope(
+        sigma=sigma,
+        edges=EdgeScope.top(),
+        time=TimeScope(Clock.COMMIT, Window.all()),
+        authority=Authority(Privilege.READ_PROPOSE, 1, WorldReach.NONE),
+        tier=Tier.STATIC_GUARD,
+    )
+
+
+def external_proposer(strata: Iterable[Stratum] = (Stratum.MIRROR_AUTHORED,)) -> Scope:
+    """**Profile EA-p — the external proposer** (dn-agentic-loop §2.3; core-side tailoring half of
+    Track G's proposer/executor split, dn-hands §5/§7). Composes a PROPOSAL artifact, never a sent
+    one. `Σ =` `mirror_authored` (via `MirrorView`) or narrower — the owner-authored corpus the
+    outbound tailoring reads; `E = ⊤` (it reads every edge class to compose); `T = (N, ∗)` (single
+    stratum — SLICE never fires); `A = (READ_PROPOSE, W_Σ=0, W_world=NONE)` — propose-only, writes
+    NOTHING structural, zero world reach. Residence: core.
+
+    Zone-admissible: it reads private strata (`mirror_authored ∈ PRIVATE_STRATA`) but
+    `W_world = NONE`, so the law holds."""
+    return Scope(
+        sigma=StratumScope.of(*strata),
+        edges=EdgeScope.top(),
+        time=TimeScope.ledger(),
+        authority=Authority(Privilege.READ_PROPOSE, 0, WorldReach.NONE),
+        tier=Tier.STATIC_GUARD,
+    )
+
+
+def external_executor(reach: WorldReach = WorldReach.SENSING) -> Scope:
+    """**Profile EA-x — the external executor** (dn-agentic-loop §2.3; edge-side half of Track G's
+    split). It NEVER reads the vault (bright line 2): `Σ = ⊥` over corpus strata — its only scope is
+    the world coordinate. `E = ⊥`; `T = (now, ∗)` (the live present — EffectView's clock); `A =
+    (READ, W_Σ=0, W_world=reach)`, `reach` the blast-radius-gated effector ceiling ε (default the
+    minimal nonzero `SENSING`; ops-side gates the actual grant per bright line 3, and finding-0011
+    keeps the DEPLOYED ceiling NONE — this template is vocabulary, wires nothing). Residence: edge.
+
+    Zone-admissible by construction NOT via `W_world` (it HOLDS world reach) but via `Σ = ⊥`: the
+    law's antecedent `Σ ⊓ PRIVATE_STRATA ≠ ⊥` is FALSE, so any reach is admissible. This is the
+    inversion's other corner — the whole point of the executor reading no vault."""
+    return Scope(
+        sigma=StratumScope.bottom(),
+        edges=EdgeScope.bottom(),
+        time=TimeScope(Clock.NOW, Window.all()),
+        authority=Authority(Privilege.READ, 0, reach),
+        tier=Tier.STATIC_GUARD,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
 # Conformance — an agent's actual handles ⊑ its declared scope (guard tier)
 # ═══════════════════════════════════════════════════════════════════════════════════════════════
 
