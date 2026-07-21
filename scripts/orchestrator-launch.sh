@@ -30,7 +30,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-EFFORT="${2:-medium}"; PERM="${3:-auto}"
+EFFORT="${2:-high}"; PERM="${3:-auto}"   # default effort medium→high (owner rule 2026-07-21)
 PLANE="${PLANE:-ascalva}"
 
 # --- workflow plane (opt-in): the isolated ouroboros-work principal ---------------------------

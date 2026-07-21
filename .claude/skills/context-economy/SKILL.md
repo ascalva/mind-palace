@@ -31,7 +31,7 @@ so **a session that ends loses nothing it was supposed to keep.**
 | Session type | Model | Effort | Examples |
 |---|---|---|---|
 | Design / gates / scrutiny | top tier (Fable) | xhigh | graduation, amendment drafting, merge scrutiny, triage |
-| Supervision / plumbing | mid (Opus/Sonnet) | default | poll-merge-report loops, CI babysitting, routine seals |
+| Supervision / plumbing | mid (Opus/Sonnet) | **high** (orchestrator default, owner rule 2026-07-21 — raised from medium after the audit sweep) | poll-merge-report loops, CI babysitting, routine seals |
 | Grind | delegate down (sonnet/haiku builder) | — | crisp-checker work; never done in the orchestrator |
 
 Reserve the top tier for the ~20% of work that is judgment; the mechanical majority

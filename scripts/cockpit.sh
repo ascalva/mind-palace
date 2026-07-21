@@ -64,7 +64,8 @@ build() {
   run tmux new-session -d -s "$SESSION" -c "$ROOT" -n desk
   run tmux send-keys -t "$SESSION:desk" "uv run scripts/docket.py --write && nvim -c 'nnoremap <leader>dr :silent !uv run scripts/docket.py --write<CR>:e .claude/state/docket.md<CR>' .claude/state/docket.md" Enter
   run tmux split-window -h -t "$SESSION:desk" -c "$ROOT"
-  # Pin the reading-room session to the router default (opus-medium, auto mode) so it always
+  # Pin the reading-room session to the router default (opus-HIGH, auto mode — orchestrator
+  # effort raised medium→high, owner rule 2026-07-21 after the audit sweep) so it always
   # opens at the confirmed tier AND effort AND permission mode regardless of what a prior
   # /model or /effort re-tier left saved globally (the global settings.json default model is
   # fable — the model pin is the fable-inheritance fix; --effort/--permission-mode close the
@@ -94,9 +95,9 @@ build() {
   # ouroboros-work principal (pins opus[1m]). Default swapped from workflow→ascalva by the owner
   # 2026-07-20 (fable broken on the role account ⇒ human-login pane is the common case).
   if [ "${PLANE:-ascalva}" = "workflow" ]; then
-    run tmux send-keys -t "$SESSION:desk.1" "PLANE=workflow scripts/orchestrator-launch.sh 'opus[1m]' medium auto" Enter
+    run tmux send-keys -t "$SESSION:desk.1" "PLANE=workflow scripts/orchestrator-launch.sh 'opus[1m]' high auto" Enter
   else
-    run tmux send-keys -t "$SESSION:desk.1" "PLANE=ascalva scripts/orchestrator-launch.sh '' medium auto" Enter
+    run tmux send-keys -t "$SESSION:desk.1" "PLANE=ascalva scripts/orchestrator-launch.sh '' high auto" Enter
   fi
   run tmux select-pane -t "$SESSION:desk.0"          # leave focus on the reading pane
   # ops: system snapshot + a live daemon-log tail (never requires the daemon to be up).
