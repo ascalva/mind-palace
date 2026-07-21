@@ -23,7 +23,8 @@ from core.complex_types import EdgeSign
 from core.dreaming.cluster import cluster_notes, note_centroids
 from core.mirror import MirrorView
 from core.provenance import Provenance
-from core.recursion_ops import ClaimOpStore, Supersede, apply_operations
+from core.recursion_ops import Supersede
+from core.stores.claim_ops import ClaimOpStore, apply_operations
 from core.stores.derived import DerivedStore
 from core.stores.edges import CONTRADICTS, EdgeStore
 from core.stores.versions import VersionStore

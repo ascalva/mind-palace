@@ -51,9 +51,9 @@ from core.scope import (
     TimeScope,
     Window,
 )
+from core.temporal.acquire import build_citation_complex
 from core.temporal.complex import (
     CitationComplex,
-    build_citation_complex,
     dim_ker_L1,
     flag_boundary_composition_is_zero,
 )
@@ -337,7 +337,8 @@ def supersession_wellfounded(config: Config | None = None, *, doc_ids: list[str]
     `version_store` is an optional injected handle (test seam); None opens the live store."""
     from core.config import get_config
     from core.stores.versions import open_version_store
-    from core.temporal.boundary import delta_D_squared_is_zero, supersession_poset
+    from core.temporal.acquire import supersession_poset
+    from core.temporal.boundary import delta_D_squared_is_zero
 
     vs = version_store
     opened = vs is None

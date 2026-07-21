@@ -14,14 +14,12 @@ from core.recursion import claim_confidence, decay_bound
 from core.recursion_ops import (
     DIALOGUE_CONCLUSION,
     AttachDefeater,
-    ClaimOpStore,
     RecordWarrant,
     Supersede,
-    apply_operations,
     no_op_analyzer,
-    stale_closure,
 )
 from core.selfcheck import grounding_score
+from core.stores.claim_ops import ClaimOpStore, apply_operations, stale_closure
 from core.stores.derived import DerivedStore
 
 

@@ -6,6 +6,10 @@ handle, no model, no network, and no path into the balance math (`build_complex`
 
 from __future__ import annotations
 
+# The store-reading seams `supersession_poset` / `build_citation_complex` are NOT re-exported here:
+# they relocated to `core/temporal/acquire.py` (bp-089, S1′ inner-ring promotion). Re-importing them
+# here would pull the store types into this package `__init__`, making `core.temporal` OUTER again —
+# the opposite of the promotion. Import them from `core.temporal.acquire` directly.
 from core.temporal.boundary import (
     SupersessionCycleError,
     SupersessionPoset,
@@ -15,11 +19,9 @@ from core.temporal.boundary import (
     delta_D_squared_is_zero,
     poset_from_chains,
     poset_from_pairs,
-    supersession_poset,
 )
 from core.temporal.complex import (
     CitationComplex,
-    build_citation_complex,
     citation_distance_matrix,
     dim_ker_L1,
     flag_boundary_composition_is_zero,
@@ -47,7 +49,6 @@ __all__ = [
     "SupersessionCycleError",
     "SupersessionPoset",
     "active_projection",
-    "build_citation_complex",
     "citation_distance_matrix",
     "coboundary_0",
     "coboundary_1",
@@ -66,6 +67,5 @@ __all__ = [
     "pushforward_1",
     "severed_citations",
     "sigma_node_map",
-    "supersession_poset",
     "t_active",
 ]

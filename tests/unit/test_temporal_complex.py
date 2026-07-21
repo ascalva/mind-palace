@@ -15,6 +15,7 @@ import pytest
 
 from core.complex.topology import persistence
 from core.stores.reference_edges import ReferenceEdge, ReferenceEdgeStore
+from core.temporal.acquire import build_citation_complex
 from core.temporal.boundary import (
     SupersessionCycleError,
     delta_D_squared_is_zero,
@@ -22,7 +23,6 @@ from core.temporal.boundary import (
     poset_from_pairs,
 )
 from core.temporal.complex import (
-    build_citation_complex,
     citation_distance_matrix,
     dim_ker_L1,
     flag_boundary_composition_is_zero,

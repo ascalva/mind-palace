@@ -16,7 +16,8 @@ import pytest
 
 from core.complex.hodge import boundary_1
 from core.stores.reference_edges import ReferenceEdge, ReferenceEdgeStore
-from core.temporal.complex import CitationComplex, build_citation_complex
+from core.temporal.acquire import build_citation_complex
+from core.temporal.complex import CitationComplex
 from core.temporal.operators import (
     DiamondError,
     active_projection,

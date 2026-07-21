@@ -12,7 +12,7 @@ from pathlib import Path
 
 from core.stores.reference_edges import ReferenceEdge, ReferenceEdgeStore
 from core.stores.versions import VersionStore
-from core.temporal.complex import build_citation_complex
+from core.temporal.acquire import build_citation_complex
 from core.temporal_view import TemporalView, _restrict, supersession_wellfounded
 
 

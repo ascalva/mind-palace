@@ -29,7 +29,8 @@ from core.provenance import Provenance
 from core.stores.derived import DerivedStore
 from core.stores.edges import CONTRADICTS, EdgeStore
 from core.stores.reference_edges import ReferenceEdge, ReferenceEdgeStore
-from core.temporal.complex import build_citation_complex, dim_ker_L1
+from core.temporal.acquire import build_citation_complex
+from core.temporal.complex import dim_ker_L1
 
 _COMPLEX_DIR = Path(inspect.getfile(build_complex)).parent
 

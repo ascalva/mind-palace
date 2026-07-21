@@ -12,7 +12,10 @@ These D-arrows are `E_disp` — **directed and acyclic** — and are kept STRICT
 undirected citation backbone `A_cite` (`complex.py`, `E_geom`): A5 forbids a single `L₁` over the
 union. This module builds the coboundary of the *order* structure; it never touches `A_cite`.
 
-Zone A: reads `VersionStore` (or a pure chain fixture) only; no write handle, no model, no network.
+Zone A: takes chain data (a pure fixture, or the chains the outer acquisition seam read); no write
+handle, no model, no network. **Inner (bp-089, S1′):** the store-reading wrapper
+`supersession_poset` relocated to `core/temporal/acquire.py` (inner-ring promotion) — this module
+now COMPUTES, it does not acquire; it holds no `VersionStore` import.
 """
 
 from __future__ import annotations
@@ -21,8 +24,6 @@ from dataclasses import dataclass
 
 import numpy as np
 import scipy.sparse as sp
-
-from core.stores.versions import VersionStore
 
 # A poset element is a versioned document identity: (doc_id, version_seq).
 Element = tuple[str, int]
@@ -109,16 +110,6 @@ def poset_from_chains(chains: dict[str, list[int]]) -> SupersessionPoset:
             for s_j in ordered[i + 1:]:
                 less_pairs.add(((doc_id, s_i), (doc_id, s_j)))
     return poset_from_pairs(elements, less_pairs)
-
-
-def supersession_poset(
-    version_store: VersionStore, doc_ids: list[str]
-) -> SupersessionPoset:
-    """Read the version chains for `doc_ids` from a live `VersionStore` and build the poset. Uses
-    the rename-stable `doc_id` (bp-031) as the chain identity — so a rename no longer forks a chain
-    into two orphan lineages (which would show up here as a well-foundedness defect)."""
-    chains = {doc_id: [v.version_seq for v in version_store.history(doc_id)] for doc_id in doc_ids}
-    return poset_from_chains(chains)
 
 
 def coboundary_0(poset: SupersessionPoset) -> sp.csr_matrix:

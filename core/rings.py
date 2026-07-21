@@ -38,11 +38,16 @@ MATH_3P: frozenset[str] = frozenset({"numpy", "scipy"})
 # there). Membership stays computed — the lever is the predicate, not any module's assignment.
 PLUMBING_STDLIB: frozenset[str] = frozenset({"sqlite3"})
 
-# The inner ring — the strict-v2 fixed point over ``core/**``, recomputed at build HEAD (bp-083).
-# 30 members = Appendix A's 29 + ``core.rings`` itself: this map module is stdlib-only, so it
-# computes inner and the ratchet (§2.4-B1, "pure ⇒ the map must claim them") forces it to declare
-# itself. That +1 is the only delta from the note's 29-member expectation (Appendix A predates this
-# file). Module names, not paths (survives M2 renames).
+# The inner ring — the strict-v2 fixed point over ``core/**``, recomputed at build HEAD.
+# 30 members at bp-083 (Appendix A's 29 + ``core.rings`` itself: this map module is stdlib-only, so
+# it computes inner and the ratchet (§2.4-B1, "pure ⇒ the map must claim them") forces it to declare
+# itself). **S1 (bp-089), the first promotion wave: +7 → 37.** Relocating the store-reading seams
+# off
+# the temporal / integrator / recursion-ops modules one ring outward (dn-inner-outer-core §2.6b)
+# promotes ``core.integrator_math`` (the new pure gauge home), ``core.recursion_ops``,
+# ``core.temporal`` (pkg) and its ``boundary`` / ``complex`` / ``operators`` / ``superconnection``.
+# ``core.integrator`` STAYS OUTER — it keeps the sqlite ``ledger`` + its acquisition API. Module
+# names, not paths (survives M2 renames).
 INNER: frozenset[str] = frozenset({
     "core",
     "core.agent_scope",
@@ -62,16 +67,23 @@ INNER: frozenset[str] = frozenset({
     "core.ingest.logseq",
     "core.ingest.pipeline",
     "core.ingest.verify",
+    "core.integrator_math",       # S1 (bp-089): the pure integrator gauge math (report + coverage)
     "core.matching",
     "core.mirror",
     "core.provenance",
     "core.recursion",
+    "core.recursion_ops",         # S1 (bp-089): the pure dialogue-operation vocabulary
     "core.rings",
     "core.scope",
     "core.selfcheck",
     "core.stores",
     "core.stores.rawstore",
     "core.stores.sourceset",
+    "core.temporal",              # S1 (bp-089): the temporal package (seams shed to acquire.py)
+    "core.temporal.boundary",     # S1 (bp-089): the supersession coboundary δ_D (pure)
+    "core.temporal.complex",      # S1 (bp-089): the citation complex X_cite (pure)
+    "core.temporal.operators",    # S1 (bp-089): the σ chain maps / active projection (pure)
+    "core.temporal.superconnection",  # S1 (bp-089): the temporal curvature (pure)
     "core.typedshims",
     "core.velocity_view",
 })
