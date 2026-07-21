@@ -5102,3 +5102,32 @@ G-A survey + M0/S1. Un-blocked execution meanwhile: oq-0024 σ-sweep + the measu
 (grounds the pending fiber-geometry/clock-curvature passes; several battery rows expected null on
 today's thin C-fiber). Book debt: `dn-synchronic-diachronic-dreamer` newly ratified — a /scribe
 sync is owed (the sensor→…→dreamer arc).
+
+## 2026-07-21 (session-40) — /graduate the three ratified notes → six `proposed` plans (bp-083..088)
+
+`/graduate` over `inner-outer-core` + `fiber-geometry` + `agentic-loop` (ratified `fbea48d`).
+Decomposition + grounding done in ONE orchestrator context (subagent decomposition parked §14);
+every seam/instrument re-verified on disk at HEAD `d08da37`. Nothing implemented (A4). Six plans:
+
+- **bp-083 — M0** (`inner-outer-core` §2.4/§2.7-M0): born-green inner ring — `core/rings.py` +
+  `tests/unit/test_inner_ring.py`; map RECOMPUTED at build HEAD (Appendix A = expectation, F6);
+  additive, outer ratchet untouched. deps: none.
+- **bp-084 — S1** (§2.6b): temporal math↔persistence splits, map +7 → 36; four seams relocate one
+  ring outward (bp-065 clean-break); zero behavior change; retrofit test files carried. **deps: bp-083.**
+- **bp-085 — G-A** (`fiber-geometry` §2.6/§3): the read-only M1–M8 survey, eval-side
+  (`eval/harness/fiber_survey.py` + finding); nulls-as-results (C thin/empty expected). deps: none.
+- **bp-086 — AL-1** (`agentic-loop` §2.3): IA/EA-p/EA-x profile constructors + the G-D zone-law
+  test (`Σ⊓private≠⊥ ⇒ W_world=NONE`, F-AL3); `core/agent_scope.py` + `core/scope.py`. deps: none.
+- **bp-087 — AL-2** (§2.8): the owed M-3 (C-coverage) + M-6 (gap baselines) readings → finding;
+  read-only, `docs/findings/**` only. deps: none. **fable/~90k.**
+- **bp-088 — AL-3** (§2.4b): `exhaust ⊂ dialogue` excluded refinement (F-AL6) + the `origin(e)`
+  derived view (F-AL7, no store/no minted rows); `core/scope.py` + `core/origin_view.py`.
+  **deps: bp-086** (shared `core/scope.py`).
+
+**Owner steer (session-40 brief):** graduate the READ-ONLY measurement plans (G-A, AL-2) with
+priority — they generate the data the parked §5/taste questions need; leave those questions OPEN.
+M0/S1/AL-1/AL-3 are the additive/born-green builds. Parallelism: bp-083/085/086/087 have disjoint
+write scopes (parallelizable); bp-084 after bp-083; bp-088 after bp-086 (both write `core/scope.py`).
+
+**NEXT (owner):** bless `proposed → ready` by hand (lazygit), then delegated `/build` per plan
+(pre-flight `/usage`; priority G-A + AL-2). Book debt unchanged (dreamer /scribe sync still owed).
