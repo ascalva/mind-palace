@@ -5384,3 +5384,28 @@ daemon run with Ollama) is the linchpin** that discharges everything at once: bp
 bp-093's M-C3/M-C4 verdicts, bp-094's φ_code 1.1.0 re-projection of the 3.76M observations (rides the
 next deploy), AND the M-C4 gate that unblocks-or-supersedes bp-095. That run is the track's deskcheck
 subject — owner-scheduled, not a build.
+
+---
+
+**bp-098 SEALED (session-43) — the code-ingest ENABLE PATH (Plan B, warrant finding-0159).**
+The switch CI-1..4 deferred, now built through the proper discipline. Three linear items:
+(1) `CodeIngestConfig` in the config loader — `[code_ingest]` is schema'd (enabled/max_chars/
+overlap_chars), OFF by default; (2) `code_sync` handler registered in `build_components`
+(unconditional, like vault_sync's eager store-open) + `_housekeeping` enqueues the INCREMENTAL
+sync ONLY when `code_ingest.enabled` — the gate, never an auto-seed; (3) `palace code-seed`
+(+`Launcher.code_seed`) inserts one deliberate `code_sync` onto the durable shared supervisor
+queue (single-writer preserved — a job insert, not a CLI store write). Resolved the graduation
+"does `ingest_chat` reach a live queue?" question: it does NOT (in-process `.sync()`), but the
+on-disk SQLite queue is cross-process, so `code_seed` enqueues cleanly instead — Item 3 shipped,
+not parked. Committed `2e851ff`; run IN-SESSION under the builder contract (not delegated —
+weekly budget 89% used, grounding pre-loaded). 5 new wiring tests (`build_components` exercised
+offline for real). Gate: ruff · import-firewall · mypy(0) · type_gate · pytest **1907 passed**.
+**The 3 `test_provenance_tags` failures are PRE-EXISTING under mypy 2.2.0 (filed finding-0160,
+proven on clean HEAD) — the full green-gate / deploy gate is RED on main for a reason ORTHOGONAL
+to bp-098; needs its own fix session (diagnose the mirror-bypass 0-errors case FIRST).**
+`enabled` stays `false`; no engine/KIND/φ_code change. **This is the ENABLE PATH, NOT the
+deskcheck** — flipping `enabled=true` and/or running `palace code-seed` to prove ingest is the
+owner's deskcheck act (it IS the code-ingest track's already-listed deskcheck subject: "one
+owner-visible idle daemon run with Ollama"). Next owner-owed on the code-ingest track: that seed
+run (discharges bp-092 seed + bp-093 M-C3/M-C4 + bp-094's 1.1.0 re-projection at deploy + the
+bp-095 M-C4 gate), integrator densification (f-0151), the bp-094 reference-edge patterns (F-CI6).
