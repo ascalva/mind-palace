@@ -11,6 +11,7 @@ write_scope:
   - core/stores/reference_edges.py
   - tests/unit/test_code_sensor*.py
   - tests/unit/test_reference_edges*.py
+  - tests/unit/test_interpreter_versions.py
   - tests/integration/test_reference_edge_isolation.py
 session_budget: 1
 cost:
