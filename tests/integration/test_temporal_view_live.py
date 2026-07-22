@@ -21,9 +21,9 @@ import pytest
 
 from config.loader import REPO_ROOT, get_config
 from core.complex.topology import persistence
+from core.kernel.temporal.complex import citation_distance_matrix
 from core.stores.reference_edges import open_reference_edge_store
 from core.temporal.acquire import build_citation_complex
-from core.temporal.complex import citation_distance_matrix
 from core.temporal_view import open_temporal_view
 
 

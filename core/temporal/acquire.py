@@ -22,10 +22,10 @@ from __future__ import annotations
 import numpy as np
 import scipy.sparse as sp
 
+from core.kernel.temporal.boundary import SupersessionPoset, poset_from_chains
+from core.kernel.temporal.complex import CitationComplex
 from core.stores.reference_edges import ReferenceEdgeStore
 from core.stores.versions import VersionStore
-from core.temporal.boundary import SupersessionPoset, poset_from_chains
-from core.temporal.complex import CitationComplex
 
 
 def supersession_poset(
@@ -36,7 +36,7 @@ def supersession_poset(
     into two orphan lineages (which would show up here as a well-foundedness defect).
 
     The store-reading seam (bp-089, S1′ inner-ring promotion): it acquires the chains, then
-    delegates to the pure store-free `core.temporal.boundary.poset_from_chains` — math unchanged."""
+    delegates to the store-free `core.kernel.temporal.boundary.poset_from_chains` — math same."""
     chains = {doc_id: [v.version_seq for v in version_store.history(doc_id)] for doc_id in doc_ids}
     return poset_from_chains(chains)
 
@@ -58,7 +58,7 @@ def build_citation_complex(ref_store: ReferenceEdgeStore, *,
     over already-read rows: no new import, no store-API change, isolation untouched (§2.4).
 
     The store-reading seam (bp-089, S1′ inner-ring promotion): it acquires the citation rows, then
-    assembles the same `core.temporal.complex.CitationComplex` — the math is unchanged."""
+    assembles the same `core.kernel.temporal.complex.CitationComplex` — the math is unchanged."""
     citations = ref_store.all(direction="corpus_to_corpus")
     if commit is not None:
         citations = [e for e in citations if e.commit_sha == commit]

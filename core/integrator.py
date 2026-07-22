@@ -32,9 +32,9 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 
-from core.integrator_math import CoverageGauge, IntegrationReport
 from core.kernel.agent_scope import Handle, HandleInventory, assert_conforms, integrator_scope
 from core.kernel.config import Config
+from core.kernel.integrator_math import CoverageGauge, IntegrationReport
 from core.kernel.scope import Stratum
 from core.stores.causal_edges import CausalEdge, CausalEdgeStore
 from core.stores.chat_events import ChatEventStore

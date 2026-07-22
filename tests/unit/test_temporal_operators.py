@@ -15,10 +15,8 @@ import numpy as np
 import pytest
 
 from core.kernel.complex.hodge import boundary_1
-from core.stores.reference_edges import ReferenceEdge, ReferenceEdgeStore
-from core.temporal.acquire import build_citation_complex
-from core.temporal.complex import CitationComplex
-from core.temporal.operators import (
+from core.kernel.temporal.complex import CitationComplex
+from core.kernel.temporal.operators import (
     DiamondError,
     active_projection,
     is_chain_map,
@@ -28,7 +26,14 @@ from core.temporal.operators import (
     sigma_node_map,
     t_active,
 )
-from core.temporal.superconnection import curvature, curvature_norm, is_flat, severed_citations
+from core.kernel.temporal.superconnection import (
+    curvature,
+    curvature_norm,
+    is_flat,
+    severed_citations,
+)
+from core.stores.reference_edges import ReferenceEdge, ReferenceEdgeStore
+from core.temporal.acquire import build_citation_complex
 
 
 def _complex(tmp_path: Path, name: str, edges: list[tuple[str, str]]) -> CitationComplex:

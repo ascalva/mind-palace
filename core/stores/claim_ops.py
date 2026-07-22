@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from core.kernel.config import Config
-from core.recursion_ops import (
+from core.kernel.recursion_ops import (
     DIALOGUE_CONCLUSION,
     ApplyReport,
     AttachDefeater,

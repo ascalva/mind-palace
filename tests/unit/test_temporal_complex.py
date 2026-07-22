@@ -14,19 +14,19 @@ from pathlib import Path
 import pytest
 
 from core.complex.topology import persistence
-from core.stores.reference_edges import ReferenceEdge, ReferenceEdgeStore
-from core.temporal.acquire import build_citation_complex
-from core.temporal.boundary import (
+from core.kernel.temporal.boundary import (
     SupersessionCycleError,
     delta_D_squared_is_zero,
     poset_from_chains,
     poset_from_pairs,
 )
-from core.temporal.complex import (
+from core.kernel.temporal.complex import (
     citation_distance_matrix,
     dim_ker_L1,
     flag_boundary_composition_is_zero,
 )
+from core.stores.reference_edges import ReferenceEdge, ReferenceEdgeStore
+from core.temporal.acquire import build_citation_complex
 
 
 def _cite_store(tmp_path: Path, edges: list[tuple[str, str]]) -> ReferenceEdgeStore:

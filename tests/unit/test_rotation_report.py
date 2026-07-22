@@ -16,7 +16,7 @@ import scipy.sparse as sp
 from scipy.linalg import subspace_angles
 
 from core.kernel.complex.hodge import edge_index, harmonic_basis
-from core.temporal.complex import CitationComplex
+from core.kernel.temporal.complex import CitationComplex
 from core.temporal_view import TemporalView
 
 

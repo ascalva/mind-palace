@@ -1,71 +1,16 @@
-"""`core/temporal/` — the citation complex `X_cite` and its topological falsifier, living OUTSIDE
-`core/complex/` so the isolation invariant (`core/complex/**` never imports `reference_edges`) is
-never weakened (dn-temporal-retrieval-algebra §2.4 A4; bp-032). Read-only sensing: no store write
-handle, no model, no network, and no path into the balance math (`build_complex`/`A_signed`).
+"""`core/temporal/` — the OUTER residue of the temporal package after K3 (bp-091).
+
+The pure citation-complex mathematics (`boundary`, `complex`, `operators`, `superconnection`)
+and this package's old re-exporting init were the S1 seven (bp-089); K3 relocated them to
+`core/kernel/temporal/**` (dn-inner-outer-core §2.6b/§2.7). Import that math from
+`core.kernel.temporal.*` directly.
+
+What stays here is OUTER **by design**: the store-reading acquisition seam `acquire.py`
+(the S1 seam — "the pure builder takes data; the store-reading acquisition seam moves one
+ring outward"), the eval-coupled `spine.py`, and `atlas.py`. This residue init is a
+docstring-only package marker: import-free, side-effect-free, so the inner-ring fixed point
+claims it (§2.4-B1) while its outer submodules stay behind — the same shape as the K1
+split-package residues (`core.complex` / `core.ingest` / `core.stores` / `core.typedshims`).
 """
 
 from __future__ import annotations
-
-# The store-reading seams `supersession_poset` / `build_citation_complex` are NOT re-exported here:
-# they relocated to `core/temporal/acquire.py` (bp-089, S1′ inner-ring promotion). Re-importing them
-# here would pull the store types into this package `__init__`, making `core.temporal` OUTER again —
-# the opposite of the promotion. Import them from `core.temporal.acquire` directly.
-from core.temporal.boundary import (
-    SupersessionCycleError,
-    SupersessionPoset,
-    coboundary_0,
-    coboundary_1,
-    delta_D_squared,
-    delta_D_squared_is_zero,
-    poset_from_chains,
-    poset_from_pairs,
-)
-from core.temporal.complex import (
-    CitationComplex,
-    citation_distance_matrix,
-    dim_ker_L1,
-    flag_boundary_composition_is_zero,
-)
-from core.temporal.operators import (
-    DiamondError,
-    active_projection,
-    is_chain_map,
-    pullback_0,
-    pushforward_0,
-    pushforward_1,
-    sigma_node_map,
-    t_active,
-)
-from core.temporal.superconnection import (
-    curvature,
-    curvature_norm,
-    is_flat,
-    severed_citations,
-)
-
-__all__ = [
-    "CitationComplex",
-    "DiamondError",
-    "SupersessionCycleError",
-    "SupersessionPoset",
-    "active_projection",
-    "citation_distance_matrix",
-    "coboundary_0",
-    "coboundary_1",
-    "curvature",
-    "curvature_norm",
-    "delta_D_squared",
-    "delta_D_squared_is_zero",
-    "dim_ker_L1",
-    "flag_boundary_composition_is_zero",
-    "is_chain_map",
-    "is_flat",
-    "poset_from_chains",
-    "poset_from_pairs",
-    "pullback_0",
-    "pushforward_0",
-    "pushforward_1",
-    "severed_citations",
-    "sigma_node_map",
-    "t_active",
-]

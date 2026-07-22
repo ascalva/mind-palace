@@ -23,7 +23,7 @@ from core.kernel.complex.curvature import forman
 from core.kernel.complex_types import EdgeSign
 from core.kernel.mirror import MirrorView
 from core.kernel.provenance import Provenance
-from core.recursion_ops import Supersede
+from core.kernel.recursion_ops import Supersede
 from core.stores.claim_ops import ClaimOpStore, apply_operations
 from core.stores.derived import DerivedStore
 from core.stores.edges import CONTRADICTS, EdgeStore

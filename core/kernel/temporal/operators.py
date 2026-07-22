@@ -19,7 +19,7 @@ import numpy as np
 import scipy.sparse as sp
 
 from core.kernel.complex.hodge import boundary_1
-from core.temporal.complex import CitationComplex
+from core.kernel.temporal.complex import CitationComplex
 
 
 class DiamondError(ValueError):

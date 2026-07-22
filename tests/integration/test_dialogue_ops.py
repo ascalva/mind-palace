@@ -11,14 +11,14 @@ version + balance-edge stores (§4A C3). Deterministic; no model.
 from __future__ import annotations
 
 from core.kernel.recursion import claim_confidence, decay_bound
-from core.kernel.selfcheck import grounding_score
-from core.recursion_ops import (
+from core.kernel.recursion_ops import (
     DIALOGUE_CONCLUSION,
     AttachDefeater,
     RecordWarrant,
     Supersede,
     no_op_analyzer,
 )
+from core.kernel.selfcheck import grounding_score
 from core.stores.claim_ops import ClaimOpStore, apply_operations, stale_closure
 from core.stores.derived import DerivedStore
 

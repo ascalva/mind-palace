@@ -26,13 +26,14 @@ from core.kernel.complex.curvature import forman
 from core.kernel.complex_types import EdgeSign
 from core.kernel.mirror import MirrorView
 from core.kernel.provenance import Provenance
+from core.kernel.temporal.complex import dim_ker_L1
 from core.stores.derived import DerivedStore
 from core.stores.edges import CONTRADICTS, EdgeStore
 from core.stores.reference_edges import ReferenceEdge, ReferenceEdgeStore
 from core.temporal.acquire import build_citation_complex
-from core.temporal.complex import dim_ker_L1
 
 _COMPLEX_DIR = Path(inspect.getfile(build_complex)).parent
+_TEMPORAL_PREFIXES = ("core.temporal", "core.kernel.temporal")  # K3 (bp-091): forbid both trees
 
 
 class _Rows:
@@ -108,15 +109,17 @@ def test_build_complex_signature_unchanged():
 
 
 def test_core_complex_never_imports_core_temporal():
-    # Structural, grep-grade: no module under core/complex/ imports core.temporal — the forbidden
-    # direction stays forbidden (core/temporal → core/complex/hodge is the ONLY allowed direction).
+    # Structural: no module under core/complex/ imports the temporal math — the forbidden
+    # direction stays forbidden. Post-K3 the temporal math lives at core.kernel.temporal (bp-091);
+    # forbid BOTH prefixes so the guard is not silently weakened by the relocation.
     offenders = []
     for py in sorted(_COMPLEX_DIR.rglob("*.py")):
         tree = ast.parse(py.read_text(encoding="utf-8"), filename=str(py))
         for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom) and (node.module or "").startswith("core.temporal"):
-                offenders.append(f"{py.name}: from {node.module}")
+            mod = node.module if isinstance(node, ast.ImportFrom) else None
+            if mod and mod.startswith(_TEMPORAL_PREFIXES):
+                offenders.append(f"{py.name}: from {mod}")
             if isinstance(node, ast.Import):
                 offenders.extend(f"{py.name}: import {n.name}"
-                                 for n in node.names if n.name.startswith("core.temporal"))
+                                 for n in node.names if n.name.startswith(_TEMPORAL_PREFIXES))
     assert offenders == [], f"core/complex must not import core.temporal: {offenders}"

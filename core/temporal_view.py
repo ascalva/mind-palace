@@ -51,14 +51,14 @@ from core.kernel.scope import (
     TimeScope,
     Window,
 )
-from core.temporal.acquire import build_citation_complex
-from core.temporal.complex import (
+from core.kernel.temporal.complex import (
     CitationComplex,
     dim_ker_L1,
     flag_boundary_composition_is_zero,
 )
-from core.temporal.operators import sigma_node_map
-from core.temporal.superconnection import curvature_norm, is_flat, severed_citations
+from core.kernel.temporal.operators import sigma_node_map
+from core.kernel.temporal.superconnection import curvature_norm, is_flat, severed_citations
+from core.temporal.acquire import build_citation_complex
 
 if TYPE_CHECKING:  # annotations only — the factory imports the config/store lazily at runtime
     from core.kernel.config import Config
@@ -336,9 +336,9 @@ def supersession_wellfounded(config: Config | None = None, *, doc_ids: list[str]
     scope explicitly; `open_supersession_wellfounded` scopes to the anchor's corpus nodes.
     `version_store` is an optional injected handle (test seam); None opens the live store."""
     from core.kernel.config import get_config
+    from core.kernel.temporal.boundary import delta_D_squared_is_zero
     from core.stores.versions import open_version_store
     from core.temporal.acquire import supersession_poset
-    from core.temporal.boundary import delta_D_squared_is_zero
 
     vs = version_store
     opened = vs is None

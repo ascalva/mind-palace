@@ -19,7 +19,7 @@ from __future__ import annotations
 import numpy as np
 import scipy.sparse as sp
 
-from core.temporal.complex import CitationComplex
+from core.kernel.temporal.complex import CitationComplex
 
 
 def severed_citations(cx_n: CitationComplex, cx_np1: CitationComplex,

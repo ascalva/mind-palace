@@ -18,8 +18,8 @@ path. It names modules (``"core.kernel.scope"``), never paths — so a further d
 mechanical rename here, not a re-computation. This file itself now lives at ``core/kernel/rings.py``
 (K1, bp-090) and is named ``core.kernel.rings``.
 
-The ``INNER`` set below was recomputed at build HEAD after the K1 physical move (bp-090); it is the
-strict-v2 fixed point over the post-move ``core/**`` tree. If
+The ``INNER`` set below was recomputed at build HEAD after the K1 (bp-090) and K3 (bp-091) physical
+moves; it is the strict-v2 fixed point over the post-move ``core/**`` tree. If
 ``test_inner_ring_is_the_computed_fixed_point`` ever lands red, the map — never the test — is stale:
 recompute at HEAD and edit ``INNER`` to match, never hand-edit toward green (falsifier F6). See
 ``tests/unit/test_core_self_containment.py`` — the OUTER ratchet (19 → 0 over all of ``core/``), a
@@ -40,19 +40,24 @@ MATH_3P: frozenset[str] = frozenset({"numpy", "scipy"})
 # there). Membership stays computed — the lever is the predicate, not any module's assignment.
 PLUMBING_STDLIB: frozenset[str] = frozenset({"sqlite3"})
 
-# The inner ring — the strict-v2 fixed point over the post-K1 ``core/**`` tree (42 members).
+# The inner ring — the strict-v2 fixed point over the post-K1+K3 ``core/**`` tree (43 members).
 # **K1 (bp-090): the born inner ring physically moved to ``core/kernel/**``.** The 30 born members
 # (37 pre-move − the S1 seven) were relocated ``core.X → core.kernel.X`` (subpaths preserved),
 # except ``core`` (the root package) which stays. The move MINTED five new pure package modules the
 # fixed point now claims (§2.4-B1, "pure ⇒ the map must claim them"): ``core.kernel`` (the new
 # kernel package init) and the four split-package residue inits — ``core.complex`` / ``core.ingest``
 # / ``core.stores`` / ``core.typedshims`` — each a docstring-only marker whose outer submodules stay
-# behind. ``config`` and ``matching`` moved WHOLE (no outer submodule ⇒ no residue). The S1 seven
-# (bp-089) STAY at their pre-move names — they are K3, a later wave (bp-091). Module names, not
-# paths (survives further renames).
+# behind. ``config`` and ``matching`` moved WHOLE (no outer submodule ⇒ no residue).
+# **K3 (bp-091): the S1 seven join the kernel.** ``core.integrator_math`` and ``core.recursion_ops``
+# (single-file leaves) and the temporal citation-complex math (``core.temporal`` + its four pure
+# submodules ``boundary`` / ``complex`` / ``operators`` / ``superconnection``) relocated
+# ``core.X → core.kernel.X`` (subpaths preserved). The store-reading seam ``acquire.py``, the
+# eval-coupled ``spine.py``, and ``atlas.py`` stay OUTER by design (the S1 seam invariant, §2.6b) —
+# so a new docstring-only ``core.temporal`` residue init is claimed as the 6th split-package marker.
+# Net: 42 − 6 old S1 names + 7 kernel names = 43. Module names, not paths (survives renames).
 INNER: frozenset[str] = frozenset({
     "core",                       # the root package init (import-free; does not move — §2.3)
-    # ── the kernel subtree: the 29 relocated born members + the kernel package init ──
+    # ── the kernel subtree: 29 born (K1) + 7 S1 (K3) relocated members + the kernel package init ──
     "core.kernel",                # K1 (bp-090): the new inner-core package
     "core.kernel.agent_scope",
     "core.kernel.complex",
@@ -71,29 +76,30 @@ INNER: frozenset[str] = frozenset({
     "core.kernel.ingest.logseq",
     "core.kernel.ingest.pipeline",
     "core.kernel.ingest.verify",
+    "core.kernel.integrator_math",  # K3 (bp-091): the pure integrator gauge math
     "core.kernel.matching",
     "core.kernel.mirror",
     "core.kernel.provenance",
     "core.kernel.recursion",
+    "core.kernel.recursion_ops",  # K3 (bp-091): the pure dialogue-operation vocabulary
     "core.kernel.rings",          # this map module, now at core/kernel/rings.py
     "core.kernel.scope",
     "core.kernel.selfcheck",
     "core.kernel.stores",
     "core.kernel.stores.rawstore",
     "core.kernel.stores.sourceset",
+    # K3 (bp-091): the temporal citation-complex math (the S1 seven's pure core; acquire/spine stay)
+    "core.kernel.temporal",           # the moved re-exporting init (was core.temporal)
+    "core.kernel.temporal.boundary",  # the supersession coboundary δ_D (pure)
+    "core.kernel.temporal.complex",   # the citation complex X_cite (pure)
+    "core.kernel.temporal.operators",  # the σ chain maps / active projection (pure)
+    "core.kernel.temporal.superconnection",  # the temporal curvature (pure)
     "core.kernel.typedshims",
     "core.kernel.velocity_view",
     # ── split-package outer residues (K1, bp-090): pure package markers, outer submodules behind ──
     "core.complex",               # residue: spectral/topology/temporal/blocks/build/cut stay
     "core.ingest",                # residue: embed/watch/curated/dialogue/founding/… stay
     "core.stores",                # residue: the sqlite/duckdb/lancedb store layer stays
+    "core.temporal",              # residue (K3, bp-091): acquire.py/spine.py/atlas.py stay behind
     "core.typedshims",            # residue: lancedb/psutil/sknetwork shims stay
-    # ── the S1 seven (bp-089), UNMOVED — K3, a later wave (bp-091) ──
-    "core.integrator_math",       # S1: the pure integrator gauge math (report + coverage)
-    "core.recursion_ops",         # S1: the pure dialogue-operation vocabulary
-    "core.temporal",              # S1: the temporal package (seams shed to acquire.py)
-    "core.temporal.boundary",     # S1: the supersession coboundary δ_D (pure)
-    "core.temporal.complex",      # S1: the citation complex X_cite (pure)
-    "core.temporal.operators",    # S1: the σ chain maps / active projection (pure)
-    "core.temporal.superconnection",  # S1: the temporal curvature (pure)
 })
