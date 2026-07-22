@@ -51,7 +51,7 @@ nav:
         - core.factory: api/core.factory.md
         - core.ingest: api/core.ingest.md
         - core.librarian: api/core.librarian.md
-        - core.matching: api/core.matching.md
+        - core.kernel.matching: api/core.kernel.matching.md
         - core.models: api/core.models.md
         - core.research: api/core.research.md
         - core.sandbox: api/core.sandbox.md

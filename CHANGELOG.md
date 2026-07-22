@@ -1,3 +1,19 @@
+# [1.16.0](https://github.com/ascalva/mind-palace/compare/v1.15.0...v1.16.0) (2026-07-22)
+
+
+### Bug Fixes
+
+* **bp-092:** write_scope core/provenance.py → core/kernel/provenance.py (K1 relocation) ([dcd79c6](https://github.com/ascalva/mind-palace/commit/dcd79c63948de22a98ac44b2dc855c28314ad40b))
+* **docs:** repoint mkdocs API refs to core.kernel.* after K1/K3 relocation ([98bc7b2](https://github.com/ascalva/mind-palace/commit/98bc7b2ffd1ff76fac4a2f791ac1700a3c7293f3))
+
+
+### Features
+
+* **board:** scripts/board.py — the derived tracks x phases view + tests ([1d8169b](https://github.com/ascalva/mind-palace/commit/1d8169b424815916fa8f274cf3b1db1eabdef298))
+* **templates:** add track: coordinate + resume-brief deskchecks-owed line ([9c676cc](https://github.com/ascalva/mind-palace/commit/9c676cc1f65b002e40056d9297b5473f9de19ebe))
+* **tracks:** author the eight track manifests (docs/tracks/<slug>.md) ([5a603f9](https://github.com/ascalva/mind-palace/commit/5a603f92344298379d25d8554384d170a198d812))
+* **workflow:** surface owed deskchecks in the brief + /triage ([d113d8a](https://github.com/ascalva/mind-palace/commit/d113d8aa95a5f3e64d8c0b76b9363cfe844abd60))
+
 # [1.15.0](https://github.com/ascalva/mind-palace/compare/v1.14.0...v1.15.0) (2026-07-21)
 
 

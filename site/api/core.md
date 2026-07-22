@@ -2,9 +2,9 @@
 
 ::: core.agent
 
-::: core.complex_types
+::: core.kernel.complex_types
 
-::: core.constitution
+::: core.kernel.constitution
 
 ::: core.dreams_view
 
@@ -12,21 +12,21 @@
 
 ::: core.interface
 
-::: core.mirror
+::: core.kernel.mirror
 
 ::: core.ops_view
 
-::: core.provenance
+::: core.kernel.provenance
 
-::: core.recursion
+::: core.kernel.recursion
 
-::: core.recursion_ops
+::: core.kernel.recursion_ops
 
 ::: core.runtime
 
 ::: core.sealing
 
-::: core.selfcheck
+::: core.kernel.selfcheck
 
 ::: core.sensing
 
