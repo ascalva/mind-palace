@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# gate-guard — PreToolUse(Edit|Write|MultiEdit): deny blessing transitions.
-# The two blessing gates — design-note draft→ratified and plan proposed→ready —
-# are owner-manual, made by hand outside any agent session (design-note §10).
-# This hook denies either transition pre-hoc, in every session and every role.
-# All other status transitions (ready→in-progress→complete|parked|superseded)
-# pass. Only fires on files under docs/design-notes/ and docs/build-plans/**/plan.md.
+# gate-guard — PreToolUse(Edit|Write|MultiEdit): deny owner-only transitions.
+# The three owner-only gates — design-note draft→ratified, plan proposed→ready,
+# and deskcheck verdict pending→approved|needs-work — are owner-manual, made by
+# hand outside any agent session (design-note §10, D3). This hook denies each
+# transition pre-hoc, in every session and every role. All other status
+# transitions (ready→in-progress→complete|parked|superseded) and a deskcheck at
+# verdict: pending pass. Only fires on files under docs/design-notes/,
+# docs/build-plans/**/plan.md, and docs/deskchecks/dc-*.md (file-type gating is
+# in _lib.py, so the matcher stays the broad Edit|Write|MultiEdit — no settings change).
 #
 # Dual-mode:  hook (stdin JSON)  |  --standalone <file_path> <intended_status>
 # Fail posture: fail-open, fail-loud (§6).

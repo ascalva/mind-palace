@@ -251,15 +251,25 @@ def status_of(path_rel: str):
     return s if isinstance(s, str) and s else None
 
 
-def _head_status_of(path_rel: str):
-    """Front-matter status of the file AT HEAD (the committed truth), or None when the
-    file does not exist at HEAD. The Stop-side design-note clause (b2) compares against
-    THIS, never the working tree: post-hoc, a Bash write has already happened, so the
-    on-disk status may be the laundered value (A8, finding-0025 Correction 2 — the same
-    read-HEAD discipline as _blessing_in_diff). Normalized with _normalize_status for A5
-    parity: comment evasion must not survive the HEAD read either."""
+def verdict_of(path_rel: str):
+    """On-disk `verdict:` of a deskcheck record, normalized (None if absent). The
+    deskcheck analogue of status_of — it is the field the third gate protects.
+    `_normalize_status` is the YAML-comment strip (` #…`) and is field-agnostic, so
+    the template's `verdict: pending  # …` inline comment reads back as `pending`
+    (owner DRY: one comment-strip, not a `_normalize_verdict` twin)."""
+    fm = read_front_matter(os.path.join(ROOT, path_rel))
+    v = fm.get("verdict")
+    if isinstance(v, str) and v:
+        v = _normalize_status(v)
+    return v if isinstance(v, str) and v else None
+
+
+def git_show_head(path_rel: str) -> str | None:
+    """`git show HEAD:<path>` text, or None when the path does not exist at HEAD
+    (the committed truth — the read-HEAD discipline the (b2)/(c) post-hoc clauses
+    share, since a Bash write may have laundered the on-disk value already)."""
     try:
-        out = subprocess.run(
+        return subprocess.run(
             ["git", "show", f"HEAD:{path_rel}"],
             capture_output=True,
             text=True,
@@ -267,6 +277,18 @@ def _head_status_of(path_rel: str):
             check=True,
         ).stdout
     except Exception:
+        return None
+
+
+def _head_status_of(path_rel: str):
+    """Front-matter status of the file AT HEAD (the committed truth), or None when the
+    file does not exist at HEAD. The Stop-side design-note clause (b2) compares against
+    THIS, never the working tree: post-hoc, a Bash write has already happened, so the
+    on-disk status may be the laundered value (A8, finding-0025 Correction 2 — the same
+    read-HEAD discipline as _blessing_in_diff). Normalized with _normalize_status for A5
+    parity: comment evasion must not survive the HEAD read either."""
+    out = git_show_head(path_rel)
+    if out is None:
         return None
     s = parse_front_matter(out).get("status")
     if isinstance(s, str) and s:
@@ -344,6 +366,18 @@ def is_build_plan(path_rel: str) -> bool:
     return path_rel.startswith("docs/build-plans/") and os.path.basename(path_rel) == "plan.md"
 
 
+def is_deskcheck(path_rel: str) -> bool:
+    """A deskcheck RECORD: `docs/deskchecks/dc-NNN.md` (design-note D3). Gated on the
+    `dc-` basename prefix so the store's `README.md`/`.gitkeep` scaffolding is never
+    mistaken for a record whose `verdict:` is owner-only (mirrors is_design_note's
+    shape, but keyed on the filename convention the third gate protects)."""
+    return (
+        path_rel.startswith("docs/deskchecks/")
+        and path_rel.endswith(".md")
+        and os.path.basename(path_rel).startswith("dc-")
+    )
+
+
 # --------------------------------------------------------------------------- #
 # stdin (hook mode) JSON
 # --------------------------------------------------------------------------- #
@@ -362,6 +396,17 @@ def _status_in_text(text: str):
     for ln in text.splitlines():
         s = ln.strip().lstrip("+").strip()
         if s.startswith("status:"):
+            return _normalize_status(_scalar(s.split(":", 1)[1]))
+    return None
+
+
+def _verdict_in_text(text: str):
+    """Return the value assigned by a `verdict:` line in a blob, or None — the
+    deskcheck sibling of _status_in_text (Q2: `_status_in_text` is named for status
+    and must NOT be assumed to match `verdict:`, so the read is explicit here)."""
+    for ln in text.splitlines():
+        s = ln.strip().lstrip("+").strip()
+        if s.startswith("verdict:"):
             return _normalize_status(_scalar(s.split(":", 1)[1]))
     return None
 
@@ -420,21 +465,34 @@ def cmd_scope_check(file_path: str) -> int:
 
 def cmd_gate_check(file_path: str, new_status) -> int:
     fp = rel(file_path)
-    dn, bp = is_design_note(fp), is_build_plan(fp)
-    if not (dn or bp):
+    dn, bp, dc = is_design_note(fp), is_build_plan(fp), is_deskcheck(fp)
+    if not (dn or bp or dc):
         print("ALLOW")
         return 0
-    cur = status_of(fp)  # on-disk status (None if new file)
     reason = (
         "blessing transitions are owner-manual, made by hand outside any "
         "agent session (design-note §10). "
     )
-    if dn and new_status == "ratified" and cur != "ratified":
-        print(f"DENY: {reason}Design-note ratification ({cur or 'new'}→ratified) on '{fp}' denied.")
-        return 0
-    if bp and new_status == "ready" and cur != "ready":
-        print(f"DENY: {reason}Plan readiness ({cur or 'new'}→ready) on '{fp}' denied.")
-        return 0
+    if dn or bp:
+        cur = status_of(fp)  # on-disk status (None if new file)
+        if dn and new_status == "ratified" and cur != "ratified":
+            print(
+                f"DENY: {reason}Design-note ratification "
+                f"({cur or 'new'}→ratified) on '{fp}' denied."
+            )
+            return 0
+        if bp and new_status == "ready" and cur != "ready":
+            print(f"DENY: {reason}Plan readiness ({cur or 'new'}→ready) on '{fp}' denied.")
+            return 0
+    if dc:
+        # The third owner-only gate (design-note D3): a deskcheck verdict flip to
+        # approved|needs-work is owner-by-hand. `pending` (the only agent-legal
+        # start) always passes. `cur or 'pending'` names the effective prior value.
+        cur = verdict_of(fp)  # on-disk verdict (None if new file / no verdict yet)
+        nv = _normalize_status(new_status) if isinstance(new_status, str) else new_status
+        if nv in ("approved", "needs-work") and cur != nv:
+            print(f"DENY: {reason}Deskcheck verdict ({cur or 'pending'}→{nv}) on '{fp}' denied.")
+            return 0
     print("ALLOW")
     return 0
 
@@ -449,7 +507,8 @@ def cmd_gate_check_hook() -> int:
     ev = load_stdin()
     ti = ev.get("tool_input", {}) or {}
     fp = ti.get("file_path", "") or ""
-    # Gather every blob this tool would introduce, and read any status it sets.
+    # Gather every blob this tool would introduce, and read the field this file
+    # type's gate keys on: `verdict:` for a deskcheck record, `status:` otherwise.
     blobs = []
     if "content" in ti:
         blobs.append(str(ti.get("content") or ""))
@@ -457,16 +516,17 @@ def cmd_gate_check_hook() -> int:
         blobs.append(str(ti.get("new_string") or ""))
     for e in ti.get("edits", []) or []:
         blobs.append(str((e or {}).get("new_string") or ""))
-    new_status = None
+    reader = _verdict_in_text if is_deskcheck(rel(fp)) else _status_in_text
+    new_value = None
     for b in blobs:
-        s = _status_in_text(b)
-        if s:
-            new_status = s
-    if new_status is None:
-        # The edit does not touch status -> no transition -> allow.
+        v = reader(b)
+        if v:
+            new_value = v
+    if new_value is None:
+        # The edit sets no gated field -> no transition -> allow.
         print("ALLOW")
         return 0
-    return cmd_gate_check(fp, new_status)
+    return cmd_gate_check(fp, new_value)
 
 
 def _changed_files() -> list:
@@ -498,7 +558,10 @@ def _diff_text_head() -> str:
     flip still shows (§6c, A1; warrant finding-0003)."""
     try:
         return subprocess.run(
-            ["git", "diff", "HEAD", "--", "docs/design-notes", "docs/build-plans"],
+            # docs/deskchecks joins the blessing surfaces so the (c) scanner sees a
+            # Bash-mediated verdict flip (the third owner-only gate, D3/D6).
+            ["git", "diff", "HEAD", "--",
+             "docs/design-notes", "docs/build-plans", "docs/deskchecks"],
             capture_output=True,
             text=True,
             cwd=ROOT,
@@ -508,7 +571,8 @@ def _diff_text_head() -> str:
 
 
 def _blessing_in_diff(diff: str) -> str | None:
-    """Scan unified diff text for a Bash-mediated blessing transition."""
+    """Scan unified diff text for a Bash-mediated blessing OR deskcheck-verdict
+    transition (all three owner-only flips, D3/D6)."""
     cur_file = None
     for ln in diff.splitlines():
         if ln.startswith("+++ b/"):
@@ -520,13 +584,16 @@ def _blessing_in_diff(diff: str) -> str | None:
         if not ln.startswith("+") or ln.startswith("+++"):
             continue
         body = ln[1:].strip()
-        if not body.startswith("status:"):
-            continue
-        val = _normalize_status(_scalar(body.split(":", 1)[1]))
-        if cur_file and is_design_note(cur_file) and val == "ratified":
-            return f"design-note ratification introduced in '{cur_file}'"
-        if cur_file and is_build_plan(cur_file) and val == "ready":
-            return f"plan readiness introduced in '{cur_file}'"
+        if body.startswith("status:"):
+            val = _normalize_status(_scalar(body.split(":", 1)[1]))
+            if cur_file and is_design_note(cur_file) and val == "ratified":
+                return f"design-note ratification introduced in '{cur_file}'"
+            if cur_file and is_build_plan(cur_file) and val == "ready":
+                return f"plan readiness introduced in '{cur_file}'"
+        elif body.startswith("verdict:"):
+            val = _normalize_status(_scalar(body.split(":", 1)[1]))
+            if cur_file and is_deskcheck(cur_file) and val in ("approved", "needs-work"):
+                return f"deskcheck verdict ({val}) introduced in '{cur_file}'"
     return None
 
 
@@ -560,12 +627,108 @@ def _untracked_blessing() -> str | None:
     `status: proposed` (a note at `draft`); `ready`/`ratified` on an untracked file
     is a violation. Untracked ⇒ never committed, so this cannot fire on a committed
     (accountable, self-clearing) blessing — the A1 behavior is preserved intact."""
-    for f in _untracked_under(["docs/design-notes", "docs/build-plans"]):
+    for f in _untracked_under(["docs/design-notes", "docs/build-plans", "docs/deskchecks"]):
         if is_design_note(f) and status_of(f) == "ratified":
             return f"design-note ratification on untracked file '{f}'"
         if is_build_plan(f) and status_of(f) == "ready":
             return f"plan readiness on untracked file '{f}'"
+        if is_deskcheck(f) and verdict_of(f) in ("approved", "needs-work"):
+            return f"deskcheck verdict on untracked file '{f}'"
     return None
+
+
+def _split_front_matter(text: str) -> tuple[str, str]:
+    """Split a doc into (front-matter-text, body-text) at the `---` fences. When
+    there is no front matter, the whole doc is body. A missing closing fence means
+    all-front-matter, no body (best-effort; the body compare then trivially holds)."""
+    if not text.startswith("---"):
+        return "", text
+    lines = text.splitlines(keepends=True)
+    if not lines or lines[0].strip() != "---":
+        return "", text
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            return "".join(lines[1:i]), "".join(lines[i + 1 :])
+    return "".join(lines[1:]), ""
+
+
+def _is_additive_frontmatter_only(file_rel: str) -> bool:
+    """True iff the working-tree change to `file_rel` vs HEAD is PURELY additive
+    front matter: body byte-identical, `status` unchanged, no existing key changed —
+    only new `key: value` lines added (e.g. the owner staging a `track:` line). This
+    gates the (b2) owner-staged YIELD posture, and it is deliberately false-negative
+    safe: ANY body edit, status change, key mutation, or a deletion/unreadable file
+    returns False, so a body edit can NEVER earn the yield message that invites a
+    commit (design-note D6; plan bp-097 §6, §10). Comparing the parsed body + the
+    front-matter key-map (not raw diff lines) makes a body line dressed as `key:`
+    fall out via the body compare, not slip through a line-shape regex."""
+    head_text = git_show_head(file_rel)
+    if head_text is None:
+        return False  # not at HEAD (untracked) — not a modification of a blessed note
+    try:
+        with open(os.path.join(ROOT, file_rel), encoding="utf-8") as fh:
+            work_text = fh.read()
+    except Exception:
+        return False  # deleted / unreadable -> never yield
+    _, head_body = _split_front_matter(head_text)
+    _, work_body = _split_front_matter(work_text)
+    if head_body != work_body:
+        return False  # any body change -> hard block, no yield
+    head_fm = parse_front_matter(head_text)
+    work_fm = parse_front_matter(work_text)
+    if head_fm.get("status") != work_fm.get("status"):
+        return False  # a status flip is never mere metadata
+    for k, v in head_fm.items():
+        if work_fm.get(k) != v:
+            return False  # an existing key changed/removed -> not purely additive
+    return work_fm != head_fm  # something WAS added (else it is a no-op, not a yield case)
+
+
+def _sealed_plans_in_diff(diff: str) -> list:
+    """Build-plan files whose diff introduces `status: complete` — a seal made this
+    session (mirrors _blessing_in_diff's per-file status parse). Clause (f) checks
+    each such plan's journal for the follow-through block before allowing close."""
+    out = []
+    cur_file = None
+    for ln in diff.splitlines():
+        if ln.startswith("+++ b/"):
+            cur_file = rel(ln[6:].strip())
+            continue
+        if ln.startswith("diff --git"):
+            cur_file = None
+            continue
+        if not ln.startswith("+") or ln.startswith("+++"):
+            continue
+        body = ln[1:].strip()
+        if body.startswith("status:"):
+            val = _normalize_status(_scalar(body.split(":", 1)[1]))
+            if cur_file and is_build_plan(cur_file) and val == "complete":
+                out.append(cur_file)
+    return out
+
+
+def _journal_tail_has_followthrough(journal_rel: str) -> bool:
+    """Does the journal's LAST entry carry a `## Follow-through` block? Sealed
+    journals order oldest-first with the SEAL entry at the tail (observed bp-007..
+    bp-011), and the five follow-through questions (D5, checkpoint skill) live in
+    that seal entry. Bounded to the final entry — the tail from the last `## `
+    header that is neither the Follow-through block itself nor the hook-appended
+    `## Markers` trailer — so an EARLY draft mention can't false-clear the gate.
+    Header-presence only: the grep-class tooth (F-WF5's accepted residual — the
+    block's completeness is the deskcheck's job, not this crude check's)."""
+    try:
+        with open(os.path.join(ROOT, journal_rel), encoding="utf-8") as fh:
+            text = fh.read()
+    except Exception:
+        return False  # missing journal for a sealed plan -> block (a seal must checkpoint)
+    lines = text.splitlines()
+    start = 0
+    for i, ln in enumerate(lines):
+        s = ln.strip()
+        if ln.startswith("## ") and s != "## Follow-through" and s != "## Markers":
+            start = i
+    tail = "\n".join(lines[start:])
+    return "## Follow-through" in tail
 
 
 def cmd_stop_audit(diff_file: str | None) -> int:
@@ -637,12 +800,28 @@ def cmd_stop_audit(diff_file: str | None) -> int:
         if f and is_design_note(f) and _head_status_of(f) in ("ratified", "superseded")
     ]
     if tampered:
-        reasons.append(
-            f"(b2) blessed design notes modified/deleted vs HEAD: {tampered} — "
-            "ratified/superseded notes are agent-immutable (A8). Revert the "
-            "session's change, or the owner commits their own edit (then it is "
-            "accountable)."
-        )
+        # D6 yield (bp-097): if EVERY tampered note's change is purely additive front
+        # matter (the owner staging a `track:` line — no body or status change), the
+        # reason gains the owner-staged yield posture. It STILL BLOCKS until committed
+        # — the yield only guides "commit + say-so-once, don't thrash" instead of
+        # "revert". `all(...)` is conservative: a single non-additive (body edit,
+        # deletion, key mutation) among them, or any doubt, keeps the hard block —
+        # a body edit must NEVER earn the commit-inviting yield message (§10).
+        if all(_is_additive_frontmatter_only(f) for f in tampered):
+            reasons.append(
+                f"(b2) blessed design notes modified vs HEAD: {tampered} — the change "
+                "is additive front matter only (no body or status edit). If this is "
+                "the owner's staged hand (e.g. a `track:` line), commit it (then it is "
+                "accountable) and say so ONCE — do not thrash. A ratified/superseded "
+                "note's BODY stays agent-immutable (A8)."
+            )
+        else:
+            reasons.append(
+                f"(b2) blessed design notes modified/deleted vs HEAD: {tampered} — "
+                "ratified/superseded notes are agent-immutable (A8). Revert the "
+                "session's change, or the owner commits their own edit (then it is "
+                "accountable)."
+            )
 
     # (c) uncommitted blessing transition -> every session. Diff the working tree
     # against HEAD, not the session baseline (§6c, A1; warrant finding-0003): a
@@ -663,9 +842,11 @@ def cmd_stop_audit(diff_file: str | None) -> int:
     bless = _blessing_in_diff(diff)
     if bless:
         reasons.append(
-            f"(c) uncommitted blessing transition vs HEAD: {bless}. Blessing is "
-            f"owner-manual (§10) — commit it (then it is accountable) or revert "
-            f"the Bash-mediated flip."
+            f"(c) uncommitted blessing/verdict transition vs HEAD: {bless}. Blessings "
+            f"and deskcheck verdicts are owner-manual (§10). If this flip is yours "
+            f"(agent), revert the Bash-mediated change; if it is the owner's staged "
+            f"hand, say so once and YIELD — commit it (then it is accountable), do not "
+            f"poll, do not re-ask."
         )
 
     # A3 (warrant finding-0005): the (c) detector is untracked-inclusive over the
@@ -680,10 +861,10 @@ def cmd_stop_audit(diff_file: str | None) -> int:
     if unbless:
         reasons.append(
             f"(c) uncommitted blessing transition vs HEAD: {unbless}. A newly minted "
-            f"plan is legitimate only at status: proposed (a design note at draft); a "
-            f"blessed status on an untracked file is a from-nothing blessing (§6c, "
-            f"A3). Commit it (then it is accountable to its author) or revert the "
-            f"Bash-mediated creation."
+            f"plan is legitimate only at status: proposed (a design note at draft, a "
+            f"deskcheck at verdict: pending); a blessed status/verdict on an untracked "
+            f"file is a from-nothing blessing (§6c, A3). Commit it (then it is "
+            f"accountable to its author) or revert the Bash-mediated creation."
         )
 
     # (d) cross-checkout state bleed (warrant finding-0051) -> worktree sessions only.
@@ -737,6 +918,23 @@ def cmd_stop_audit(diff_file: str | None) -> int:
                     "brief shape, context-economy skill) citing the final commit "
                     "hashes, then close again (dn-session-handoff-gate)."
                 )
+
+    # (f) seal follow-through (bp-097; design-note D5) -> every posture. A plan
+    # sealed to `status: complete` this session (the flip shows in the HEAD-keyed
+    # `diff` above, in both builder and orchestrator posture) must carry a
+    # `## Follow-through` block in its journal tail — the five questions that turn a
+    # ledger-close into an honest one (checkpoint skill). Missing block -> BLOCK.
+    # Grep-class (header presence), the (a)-staleness family of crude post-hoc
+    # checks; the deskcheck itself is the real backstop (F-WF5 residual, §11).
+    for sealed in _sealed_plans_in_diff(diff):
+        if not _journal_tail_has_followthrough(journal_for(sealed)):
+            reasons.append(
+                f"(f) plan '{sealed}' is sealed to complete but its journal tail "
+                f"lacks a '## Follow-through' block — a seal must answer the five "
+                f"follow-through questions (built? / wired-or-dormant? / consumer? / "
+                f"track state? / new track or finding?; checkpoint skill, D5) before "
+                f"close. Add the block to the seal entry, then close again."
+            )
 
     if reasons:
         print("BLOCK: " + " ".join(reasons))

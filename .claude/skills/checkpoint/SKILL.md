@@ -44,6 +44,29 @@ emits the **last** such block verbatim for a vim `:cfile` walk. Format spec:
 `docs/supplemental/cockpit.md` → "The read-map block format" (bp-072). Legacy prose
 seals are not back-filled; `readmap.py` exits 1 on them rather than guess.
 
+## Seal entries answer follow-through
+
+A **SEAL** entry additionally carries a `## Follow-through` block — the five
+questions that turn a ledger-close into an *honest* one (design-note D5; the
+"completion-claims honesty" rule). The Stop gate's **clause (f)** greps the
+journal tail for this exact header and BLOCKs a seal-to-`complete` without it, so
+the header must be verbatim:
+
+```
+## Follow-through
+- **Built?** …
+- **Wired / delivered (or why dormant)?** …
+- **Does a consumer use it?** …
+- **Track state (what remains on this track)?** …
+- **Opened a new track/finding?** …
+```
+
+Answer each honestly — "built but NOT wired" is a valid, expected answer (a track
+is DONE only when deskchecked; DONE ≠ sealed). The block is additive to the
+read-map; both live in the seal entry. On completion the plan is **ready to
+deskcheck** — file it into `docs/DESKCHECK-QUEUE.md`; the owner's verdict (the
+third gate) closes the track, never the seal.
+
 ## The fresh-agent test — the acceptance bar
 
 A new session given **only** `plan.md` + this journal + the write-scope files must
@@ -59,6 +82,7 @@ compaction is the mid-criterion fallback only.
 ## On the way out
 
 The Stop gate (`journal-gate`) blocks close if the journal predates the last
-commit, if the worktree holds out-of-scope changes, or if the diff since baseline
-contains a blessing transition. So the last act before stopping is always a fresh,
-truthful journal entry.
+commit, if the worktree holds out-of-scope changes, if the diff since baseline
+contains a blessing/verdict transition, or — on a seal to `complete` — if the
+journal tail lacks the `## Follow-through` block (clause (f)). So the last act
+before stopping is always a fresh, truthful journal entry.
