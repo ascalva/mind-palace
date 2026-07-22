@@ -202,7 +202,10 @@ def test_changed_blob_reembeds_only_that_file(repo, tmp_path):
     assert any("changed" in str(r["text"]) for r in a_rows)
 
 
-def test_deleted_file_is_tombstoned(repo, tmp_path):
+def test_vanished_file_is_retained_but_marked_superseded(repo, tmp_path):
+    """Keep-and-link (dn-temporal-code-corpus D2, bp-099 — reverses the old delete): a vanished
+    file's rows are RETAINED (never deleted) but flipped current=false, so the current-view no
+    longer surfaces them while history is preserved."""
     store = VectorStore(tmp_path / "v.lance", dim=DIM)
     sync = CodeCorpusSync(repo=repo, store=store, embedder=FakeEmbedder())
     sync.seed()
@@ -211,5 +214,90 @@ def test_deleted_file_is_tombstoned(repo, tmp_path):
     _git(repo, "commit", "-qm", "drop b")
     report = sync.sync()
     assert report.deleted_files == 1
-    paths = {r["source_path"] for r in store.all_rows(provenances={Provenance.CODE})}
-    assert paths == {"a.py"}
+    assert report.superseded_rows > 0                # b.py's rows flipped, not deleted
+    all_code = store.all_rows(provenances={Provenance.CODE})
+    # b.py is RETAINED (the falsifier: a superseded row must never be deleted)
+    assert {r["source_path"] for r in all_code} == {"a.py", "b.py"}
+    b_rows = [r for r in all_code if r["source_path"] == "b.py"]
+    assert b_rows and all(r["current"] is False for r in b_rows)
+    a_rows = [r for r in all_code if r["source_path"] == "a.py"]
+    assert all(r["current"] is True for r in a_rows)
+
+
+def test_changed_blob_keeps_and_links_old_version(repo, tmp_path):
+    """D2: on a changed blob the OLD version survives current=false (same ids, vectors intact) and
+    the NEW version lands current=true. The falsifier: any superseded row deleted."""
+    store = VectorStore(tmp_path / "v.lance", dim=DIM)
+    sync = CodeCorpusSync(repo=repo, store=store, embedder=FakeEmbedder())
+    sync.seed()
+    before = {(r["id"], r["digest"], tuple(r["vector"]))
+              for r in store.all_rows(provenances={Provenance.CODE})
+              if r["source_path"] == "a.py"}
+
+    (repo / "a.py").write_text("def a():\n    return 1 + 1  # changed\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "two")
+    report = sync.sync()
+    assert report.superseded_rows > 0
+
+    a_rows = [r for r in store.all_rows(provenances={Provenance.CODE})
+              if r["source_path"] == "a.py"]
+    old = [r for r in a_rows if r["current"] is False]
+    new = [r for r in a_rows if r["current"] is True]
+    assert old and new                                     # BOTH versions retained
+    assert any("changed" in str(r["text"]) for r in new)   # the new version is current
+    assert not any("changed" in str(r["text"]) for r in old)
+    # the old rows survive with the SAME ids/digest/vectors (vectors carried through the flip)
+    after_old = {(r["id"], r["digest"], tuple(r["vector"])) for r in old}
+    assert before <= after_old
+
+
+def test_default_search_is_current_view_history_is_opt_in(repo, tmp_path):
+    """D3: a superseded version never surfaces on the default search; include_superseded=True
+    returns it. A deterministic fake embedder + a real temp lance store (no Ollama)."""
+    store = VectorStore(tmp_path / "v.lance", dim=DIM)
+    emb = FakeEmbedder()
+    sync = CodeCorpusSync(repo=repo, store=store, embedder=emb)
+    sync.seed()
+    (repo / "a.py").write_text("def a():\n    return 42  # newtoken\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "two")
+    sync.sync()
+
+    q = emb.embed_documents(["def a"])[0]
+    current_only = store.search(q, k=50, provenances={Provenance.CODE})
+    assert current_only and all(r["current"] is True for r in current_only)
+    with_history = store.search(q, k=50, provenances={Provenance.CODE},
+                                include_superseded=True)
+    assert any(r["current"] is False for r in with_history)
+
+
+def test_current_column_additive_migration_preserves_rows(tmp_path):
+    """The `current` migration mirrors the `layer` migration precedent: a store written under the
+    old (pre-`current`) schema is migrated in place on the next add — every row preserved
+    bit-identically, stamped current=true (correct while the store is HEAD-only), vectors/ids
+    untouched. The legacy table is built with raw lancedb (no `current` column)."""
+    import lancedb  # type: ignore[import-untyped]
+
+    from core.stores.vectorstore import TABLE
+    path = tmp_path / "v.lance"
+    chunks = derive_code_chunks("m.py", _SRC)
+    landed = code_rows("m.py", "blob0", chunks, [[0.1] * DIM for _ in chunks])
+    legacy = [{k: v for k, v in r.items() if k != "current"} for r in landed]   # strip current
+
+    raw = lancedb.connect(str(path))
+    raw.create_table(TABLE, data=legacy)                       # a pre-bp-099 (no-current) table
+
+    store = VectorStore(path, dim=DIM)                         # opens the legacy table
+    store.add(code_rows("n.py", "blob1", derive_code_chunks("n.py", _SRC),
+                        [[0.2] * DIM for _ in derive_code_chunks("n.py", _SRC)]))
+    rows = store.all_rows(provenances={Provenance.CODE})
+    assert all("current" in r for r in rows)
+    m_rows = [r for r in rows if r["source_path"] == "m.py"]
+    assert m_rows and all(r["current"] is True for r in m_rows)   # migrated rows stamped true
+    # vectors/ids preserved bit-identically for the migrated rows (the falsifier: migration
+    # must not touch vectors/ids)
+    by_id = {r["id"]: r for r in m_rows}
+    for r in legacy:
+        assert r["id"] in by_id
+        assert list(by_id[r["id"]]["vector"]) == pytest.approx(list(r["vector"]))

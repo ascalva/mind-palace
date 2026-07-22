@@ -19,12 +19,16 @@ embedders build lazily so `build_components` runs fully offline):
 from __future__ import annotations
 
 import dataclasses
+import importlib.util
+import io
+import subprocess
+from contextlib import redirect_stdout
 from pathlib import Path
 
 from core.kernel.config import REPO_ROOT, load_config
 from ops.lifecycle.launcher import Launcher, build_components
 from ops.lifecycle.runs import RunLedger
-from scheduler.code_sync import CODE_SYNC_KIND
+from scheduler.code_sync import CODE_BACKFILL_KIND, CODE_SYNC_KIND
 from scheduler.queue import JobQueue
 
 # --- Item 1: CodeIngestConfig loader schema -------------------------------------------------
@@ -120,3 +124,102 @@ def test_code_seed_enqueues_one_code_sync(tmp_path) -> None:
         assert [j.kind for j in q.list()].count(CODE_SYNC_KIND) == 1
     finally:
         q.close()
+
+
+# --- bp-099 Item 2: the history backfill KIND + catch-up probe + CLI -------------------------
+
+
+def _git(repo: Path, *args: str) -> str:
+    return subprocess.run(["git", "-C", str(repo), *args], check=True,
+                          capture_output=True, text=True).stdout
+
+
+def _seed_ledger(cfg) -> None:
+    """Build a small φ_code snapshots ledger under the cfg's data_dir (where the catch-up probe
+    reads it), so `ledger_versions` returns real versions while the vector store stays empty."""
+    from ops.code_snapshot import backfill as ledger_backfill
+    from ops.code_snapshot import open_snapshot_db
+    repo = cfg.paths.data_dir / "src"
+    repo.mkdir(parents=True, exist_ok=True)
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "t@t")
+    _git(repo, "config", "user.name", "t")
+    (repo / "m.py").write_text("def m():\n    return 1\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "one")
+    db = open_snapshot_db(cfg.paths.data_dir / "code_snapshots.sqlite")
+    try:
+        ledger_backfill(db, repo)
+    finally:
+        db.close()
+
+
+def _catchup_kinds(comps) -> list[str]:
+    comps.enqueue_catchup()
+    return [j.kind for j in comps.queue.list()]
+
+
+def test_code_backfill_handler_registered_regardless(tmp_path) -> None:
+    """The backfill handler registers unconditionally (same species as code_sync) so the supervisor
+    can drain a deliberate/catch-up code_backfill job."""
+    comps = build_components(_cfg(tmp_path, enabled=False))
+    try:
+        assert CODE_BACKFILL_KIND in comps.supervisor.handlers  # type: ignore[attr-defined]
+    finally:
+        comps.queue.close()
+
+
+def test_catchup_enqueues_backfill_only_when_incomplete(tmp_path) -> None:
+    """The incompleteness probe (no loop — the falsifier): a ledger with versions + an empty store
+    → exactly one code_backfill; a fresh instance (empty ledger == empty store) → none; enabled=
+    False (even with a seeded ledger) → none."""
+    # incomplete: ledger seeded, store empty → one backfill
+    inc = _cfg(tmp_path / "inc", enabled=True)
+    _seed_ledger(inc)
+    comps = build_components(inc)
+    try:
+        assert _catchup_kinds(comps).count(CODE_BACKFILL_KIND) == 1
+    finally:
+        comps.queue.close()
+    # complete/equal: no ledger, empty store → NONE (the probe must not loop)
+    complete = build_components(_cfg(tmp_path / "eq", enabled=True))
+    try:
+        assert _catchup_kinds(complete).count(CODE_BACKFILL_KIND) == 0
+    finally:
+        complete.queue.close()
+    # disabled → NONE even with a seeded ledger (the enabled-gate short-circuits the probe)
+    off_cfg = _cfg(tmp_path / "off", enabled=False)
+    _seed_ledger(off_cfg)
+    off = build_components(off_cfg)
+    try:
+        assert _catchup_kinds(off).count(CODE_BACKFILL_KIND) == 0
+    finally:
+        off.queue.close()
+
+
+def test_code_backfill_enqueues_one_job(tmp_path) -> None:
+    """`palace code-backfill` inserts ONE code_backfill job onto the shared supervisor queue
+    (single-writer: a job insert, never a store write from the CLI) and returns 0."""
+    cfg = _cfg(tmp_path, enabled=False)
+    launcher = Launcher(cfg=cfg, runs=RunLedger(tmp_path / "runs.sqlite"),
+                        repo_root=Path(".").resolve())
+    assert launcher.code_backfill() == 0
+    q = JobQueue(cfg.paths.data_dir / "queue.sqlite")
+    try:
+        assert [j.kind for j in q.list()].count(CODE_BACKFILL_KIND) == 1
+    finally:
+        q.close()
+
+
+def test_palace_usage_lists_code_backfill() -> None:
+    """`palace.py --help` surfaces the new verb (the ON switch must be reachable — finding-0159)."""
+    spec = importlib.util.spec_from_file_location(
+        "palace_cli", REPO_ROOT / "scripts" / "palace.py")
+    assert spec and spec.loader
+    palace = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(palace)
+    assert "code-backfill" in palace.USAGE
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert palace.main(["--help"]) == 0
+    assert "code-backfill" in buf.getvalue()

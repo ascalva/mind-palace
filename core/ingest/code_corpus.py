@@ -29,6 +29,12 @@ rows). `digest` = the git blob sha (git is already the content-addressed raw sto
 group-by-digest gives file = source object, chunks = members, UNCHANGED. Derivation is a PURE
 function of (path, source): re-running yields bit-identical chunks (F-CI2 re-derivability). All
 embedding is LOCAL (the core embedder) — zero network egress (non-negotiable #1).
+
+[banner: supersession] The incremental sync's delete+replace contract (old §2.7) is REVERSED to
+keep-and-link per `dn-temporal-code-corpus` D2 (warrant finding-0163, bp-099): a superseded code
+version is RETAINED with `current=false`, never deleted, and `backfill()` embeds the full ledger
+history (D1) — so every code version is a semantic node and the causal graph's supersession edge
+`blob(v)→blob(v+1)` has both endpoints resolvable. Default retrieval stays current-view (D3).
 """
 
 from __future__ import annotations
@@ -191,12 +197,17 @@ def derive_code_chunks(path: str, source: str, *,
 # ── the structural CODE mint — row assembly with NO provenance parameter (F-CI1) ─────────
 
 def code_rows(path: str, blob_sha: str, chunks: Sequence[CodeChunk],
-              vectors: Sequence[list[float]]) -> list[dict[str, Any]]:
+              vectors: Sequence[list[float]], *, current: bool = True) -> list[dict[str, Any]]:
     """Assemble vector-store rows for one file version. Provenance is HARDCODED `CODE` — there is
     NO parameter, so a caller physically cannot launder code into an authored class (F-CI1). `id`
     is `(source_path, layer, chunk_hash)` — doc+layer-scoped and content-addressed, so an unchanged
     chunk keeps its point across versions and two layers with identical text stay distinct. `digest`
-    is the git blob sha, so group-by-digest yields file = source object, its chunks = members."""
+    is the git blob sha, so group-by-digest yields file = source object, its chunks = members.
+
+    `current` (dn-temporal-code-corpus D2, bp-099) marks whether this version is the path's HEAD
+    projection: the sync lands the new version `current=True` and flips the superseded one to False
+    (keep-and-link — never a delete); a history backfill lands each version `current = (blob is
+    HEAD's blob)`. `current` is a KEEP-AND-LINK flag, not a provenance parameter (F-CI1 intact)."""
     by_id: dict[str, dict[str, Any]] = {}
     for idx, (ch, vec) in enumerate(zip(chunks, vectors, strict=True)):
         rid = f"{path}:{ch.layer}:{ch.content_hash}"
@@ -212,6 +223,7 @@ def code_rows(path: str, blob_sha: str, chunks: Sequence[CodeChunk],
             "qualname": ch.qualname,
             "line_start": ch.line_start,
             "line_end": ch.line_end,
+            "current": current,
             "vector": vec,
         }
         by_id.setdefault(rid, row)                   # one point per (path, layer, content)
@@ -226,19 +238,25 @@ class CodeSyncReport:
     changed_files: int = 0
     unchanged_files: int = 0
     deleted_files: int = 0
+    superseded_rows: int = 0        # rows flipped current=true→false, RETAINED (keep-and-link, D2)
+    parse_failures: int = 0         # blobs that failed AST-parse → L0b-only, still embedded (D1)
 
     def __str__(self) -> str:
         return (f"embedded_rows={self.embedded_rows} changed={self.changed_files} "
-                f"unchanged={self.unchanged_files} deleted={self.deleted_files}")
+                f"unchanged={self.unchanged_files} deleted={self.deleted_files} "
+                f"superseded_rows={self.superseded_rows} parse_failures={self.parse_failures}")
 
 
 @dataclass
 class CodeCorpusSync:
-    """Blob-sha-keyed incremental sync of HEAD's tracked `.py` into the vector store (§2.7). The
-    store's own set of CODE `(source_path, digest)` pairs IS the D-fiber state: a file whose blob is
-    already embedded costs ZERO embeds; a changed blob replaces that path's projection; a vanished
-    file is tombstoned. The one-time SEED is just `sync()` against an empty store. HEAD-only — no
-    historical backfill (PD-B). The embedder runs locally (no network, #1)."""
+    """Blob-sha-keyed sync of the tracked `.py` corpus into the vector store. The store's own set of
+    CODE `(source_path, digest)` pairs IS the D-fiber state: a file whose blob is already embedded
+    costs ZERO embeds. On a changed blob the incremental `sync()` is now **keep-and-link**
+    (dn-temporal-code-corpus D2, bp-099 — reverses the §2.7 delete contract): the superseded version
+    is RETAINED with `current=false` (never deleted) and the new version lands `current=true`; a
+    vanished file's rows likewise flip `current=false` rather than being removed. `backfill()`
+    embeds every HISTORICAL ledger version (D1) so the whole code history is a set of nodes. The
+    one-time SEED is `sync()` against an empty store. The embedder runs locally (no network, #1)."""
 
     repo: Path
     store: VectorStore
@@ -246,14 +264,17 @@ class CodeCorpusSync:
     max_chars: int = _DEFAULT_MAX_CHARS
     overlap_chars: int = _DEFAULT_OVERLAP_CHARS
 
-    def _embed_and_land(self, path: str, blob_sha: str, source: str) -> int:
+    def _embed_and_land(self, path: str, blob_sha: str, source: str, *,
+                        current: bool = True) -> int:
+        """Derive → embed → land one file version's rows. Keep-and-link (D2): it NEVER deletes the
+        path's prior projection — the caller flips the superseded version to `current=false` first
+        (`store.supersede_source`). `current` marks whether this version is HEAD's projection."""
         chunks = derive_code_chunks(path, source,
                                     max_chars=self.max_chars, overlap_chars=self.overlap_chars)
         if not chunks:
             return 0
         vectors = self.embedder.embed_documents([c.text for c in chunks])
-        rows = code_rows(path, blob_sha, chunks, vectors)
-        self.store.delete_source(path)               # replace this path's prior projection
+        rows = code_rows(path, blob_sha, chunks, vectors, current=current)
         return self.store.add(rows)
 
     def sync(self) -> CodeSyncReport:
@@ -268,13 +289,15 @@ class CodeCorpusSync:
         report.unchanged_files = len(head) - len(changed)
 
         deleted = present_paths - {p for p, _ in head}
-        for p in deleted:                             # tombstone a vanished file's projection
-            self.store.delete_source(p)
+        for p in deleted:                        # vanished file: keep rows, flip current=false (D2)
+            report.superseded_rows += self.store.supersede_source(p)
         report.deleted_files = len(deleted)
 
         blobs = read_py_blobs(self.repo, sorted({b for _, b in changed}))
         for path, blob_sha in changed:
-            report.embedded_rows += self._embed_and_land(path, blob_sha, blobs[blob_sha])
+            report.superseded_rows += self.store.supersede_source(path)  # keep the old version (D2)
+            report.embedded_rows += self._embed_and_land(path, blob_sha, blobs[blob_sha],
+                                                         current=True)
         return report
 
     def seed(self) -> CodeSyncReport:
@@ -282,6 +305,37 @@ class CodeCorpusSync:
         (§2.7-2). Scheduler-gated at the call site (BACKGROUND, pinned tier); the memory ceiling
         (#8) is enforced by the loader on each embed call, exactly as for vault_sync."""
         return self.sync()
+
+    def backfill(self, versions: Sequence[tuple[str, str]]) -> CodeSyncReport:
+        """Embed the full code HISTORY (dn-temporal-code-corpus D1, bp-099): every distinct ledger
+        `(path, blob_sha)` version in `versions` (from `ops.code_lineage.ledger_versions`) becomes a
+        semantic node. Idempotent by construction — a `(path, digest)` already in the store is
+        skipped at zero embeds (`digest` = blob sha, content-addressed) — so a re-run embeds nothing
+        and re-running after the seed only adds the *non-HEAD* versions. Each landed version is
+        `current = (blob is that path's HEAD blob)`, so backfilling into an un-seeded store also
+        marks HEAD correctly and every superseded version `current=false`. A parse-fail blob still
+        embeds (L0b windows + module shell, `derive_code_chunks` degrades — never a hard stop) and
+        is counted. Store writes stay on the caller (the supervisor handler), single-writer kept."""
+        report = CodeSyncReport()
+        head = dict(list_py_blobs(self.repo, "HEAD"))          # path -> HEAD blob_sha
+        code_now = self.store.all_rows(provenances={Provenance.CODE})
+        present_pd = {(str(r["source_path"]), str(r["digest"])) for r in code_now}
+        todo = [(p, b) for (p, b) in dict.fromkeys(versions) if (p, b) not in present_pd]
+        if not todo:
+            return report
+        blobs = read_py_blobs(self.repo, sorted({b for _, b in todo}))
+        for path, blob_sha in todo:
+            source = blobs.get(blob_sha)
+            if source is None:                                 # blob unreachable (shallow/pruned)
+                continue
+            if parse_source(path, blob_sha, source).parse_error:
+                report.parse_failures += 1
+            landed = self._embed_and_land(path, blob_sha, source,
+                                          current=head.get(path) == blob_sha)
+            if landed:
+                report.embedded_rows += landed
+                report.changed_files += 1
+        return report
 
 
 def build_code_corpus_sync(config: Any = None, *, repo: Path | None = None,

@@ -12,6 +12,7 @@
     uv run scripts/palace.py deploy         # promotion gate: cycle the live run onto HEAD
     uv run scripts/palace.py ingest-chat    # on-demand: ingest the local Claude Code transcripts
     uv run scripts/palace.py code-seed      # on-demand: seed the code embed lane (HEAD .py blobs)
+    uv run scripts/palace.py code-backfill  # on-demand: embed the full code history (bp-099)
     uv run scripts/palace.py bless <id>     # owner-only: flip a plan proposed -> ready (gate)
 
 `start` seals the core (Invariant 1 — loopback only), runs preflight (ensures our own
@@ -41,7 +42,8 @@ from core.sealing import seal
 _ROOT = Path(__file__).resolve().parent.parent  # repo root, for the bless path resolution
 
 USAGE = ("usage: palace.py "
-         "{start|stop|down|up|restart|status|queue|reset|deploy|ingest-chat|code-seed|bless} "
+         "{start|stop|down|up|restart|status|queue|reset|deploy|ingest-chat|code-seed|"
+         "code-backfill|bless} "
          "[--force] [--confirm] [--skip-tests] [<plan-id>]")
 
 
@@ -236,6 +238,8 @@ def main(argv: list[str]) -> int:
         return launcher.ingest_chat()
     if cmd == "code-seed":
         return launcher.code_seed()
+    if cmd == "code-backfill":
+        return launcher.code_backfill()
     print(USAGE)
     return 2
 

@@ -31,6 +31,7 @@ from ops.lifecycle.runs import RunLedger, RunRecord, git_state
 
 if TYPE_CHECKING:  # annotations only — the real modules stay lazily imported at runtime
     from config.loader import Config
+    from core.ingest.code_corpus import CodeCorpusSync
     from scheduler.router import Flag
 
 
@@ -227,6 +228,28 @@ class Components:
     snapshot: Callable[[object, list[Flag]], None] = lambda _run, _flags: None
 
 
+def _code_backfill_incomplete(cfg: Config, code_driver: CodeCorpusSync) -> bool:
+    """The catch-up incompleteness probe (dn-temporal-code-corpus §3, bp-099): is the store missing
+    any ledger code version? Compares DISTINCT `(path, blob_sha)` versions on BOTH sides — the
+    store's embedded code versions vs the ledger's `ledger_versions` — so a COMPLETE store is
+    exactly equal and the probe enqueues NOTHING (no loop). (§6's shorthand `distinct digests <
+    distinct versions` would false-positive forever — 1,472 distinct blobs < 1,542 distinct
+    (path,blob) pairs even when complete; the falsifier forbids that loop, so the probe is
+    like-to-like — finding-0166.) Cheap scans, no embed. A missing ledger → not incomplete."""
+    from core.kernel.provenance import Provenance
+    from ops.code_lineage import ledger_versions
+    from ops.code_snapshot import open_snapshot_db
+
+    store_versions = {(str(r["source_path"]), str(r["digest"]))
+                      for r in code_driver.store.all_rows(provenances={Provenance.CODE})}
+    db = open_snapshot_db(cfg.paths.data_dir / "code_snapshots.sqlite")
+    try:
+        ledger = set(ledger_versions(db))
+    finally:
+        db.close()
+    return len(store_versions) < len(ledger)
+
+
 def build_components(cfg: Config) -> Components:
     """Wire the full daemon: vault_sync (+watcher), the delegating Ambassador inbox, the
     delegated-task worker, and the trough dream/curate handlers — all on one supervisor."""
@@ -253,8 +276,11 @@ def build_components(cfg: Config) -> Components:
         enqueue_chat_sync,
     )
     from scheduler.code_sync import (
+        CODE_BACKFILL_KIND,
         CODE_SYNC_KIND,
+        code_backfill_handler,
         code_sync_handler,
+        enqueue_code_backfill,
         enqueue_code_sync,
     )
     from scheduler.cron import (
@@ -314,6 +340,9 @@ def build_components(cfg: Config) -> Components:
     ambassador = build_ambassador(cfg, delegate=delegate, pending_results=pending)
     inbox = CoreInbox(handoff=cfg.interface.handoff_dir, handler=ambassador.handler)
 
+    code_driver = build_code_corpus_sync(cfg)   # one sync driver for both code_sync + code_backfill
+    code_snapshots_db = cfg.paths.data_dir / "code_snapshots.sqlite"
+
     handlers = {
         VAULT_SYNC_KIND: vault_sync_handler(build_vault_sync(cfg)),
         # The chat sensor (bp-063) wired to RUN (bp-068): a model-less OBSERVED-only ingest of the
@@ -325,7 +354,12 @@ def build_components(cfg: Config) -> Components:
         # handler is registered unconditionally (like vault_sync it eagerly opens the vector store —
         # no new startup cost beyond a git rev-parse); the daemon only ENQUEUES it when
         # `code_ingest.enabled` (see _housekeeping). The deliberate seed is `palace code-seed`.
-        CODE_SYNC_KIND: code_sync_handler(build_code_corpus_sync(cfg)),
+        CODE_SYNC_KIND: code_sync_handler(code_driver),
+        # The history backfill (bp-099 / dn-temporal-code-corpus D1/D4): embeds every ledger
+        # version + captures the first-parent commit diffs (the supersession-chain substrate).
+        # Registered unconditionally (same species as code_sync); ENQUEUED only by the catch-up
+        # incompleteness probe or the deliberate `palace code-backfill`. Idempotent, BACKGROUND.
+        CODE_BACKFILL_KIND: code_backfill_handler(code_driver, code_snapshots_db, code_driver.repo),
         # The L1 action-log projector (bp-069 Item 3): the sensor's DELAYED rate, model-less like
         # chat_sync. Re-extracts WHAT was performed (typed events, structural refs) from the raw
         # transcripts at housekeeping cadence, incrementally by transcript_digest.
@@ -358,6 +392,8 @@ def build_components(cfg: Config) -> Components:
     def _catchup() -> None:
         enqueue_vault_sync(queue, router)   # reconcile the corpus; the Job return is discarded
         enqueue_chat_sync(queue, router)    # startup backfill of every closed chat session (bp-068)
+        if cfg.code_ingest.enabled and _code_backfill_incomplete(cfg, code_driver):
+            enqueue_code_backfill(queue, router)   # history not yet fully embedded (bp-099 D1)
 
     # The edge monitor (a supervised child PROCESS fed by a status-snapshot JSON, Invariant 2) was
     # removed with bp-030 Item 2 — it never worked and was `enabled=false`. Its data source
@@ -682,6 +718,31 @@ class Launcher:
                  if live else
                  "no daemon is running — the job waits in the durable queue until `palace start`.")
         print(f"code seed: enqueued code_sync job #{job.id}; {where}")
+        return 0
+
+    # --- code-backfill (the deliberate history backfill, bp-099 / dn-temporal-code-corpus) ----
+    def code_backfill(self) -> int:
+        """Enqueue the one-time code HISTORY backfill onto the running daemon's supervisor queue —
+        every distinct ledger `(path, blob_sha)` version embedded (D1) + the first-parent commit
+        diffs captured (D4). Same discipline as `code_seed`: HEAVY, so it rides the single-writer
+        supervisor queue (a durable job insert, never a store write from this CLI). Idempotent —
+        already-embedded versions re-embed nothing, so a duplicate backfill is safe; the catch-up
+        probe also enqueues one automatically when the store is incomplete. If the daemon is down
+        job waits in the durable queue until `palace start`."""
+        from scheduler.code_sync import enqueue_code_backfill
+        from scheduler.queue import JobQueue
+        from scheduler.router import Router
+        queue = JobQueue(self.cfg.paths.data_dir / "queue.sqlite")
+        try:
+            job = enqueue_code_backfill(queue, Router(self.cfg))
+        finally:
+            queue.close()
+        run = self.runs.last()
+        live = run is not None and run.active
+        where = ("the daemon will drain it at BACKGROUND priority — `palace queue` to watch."
+                 if live else
+                 "no daemon is running — the job waits in the durable queue until `palace start`.")
+        print(f"code backfill: enqueued code_backfill job #{job.id}; {where}")
         return 0
 
     # --- down / up / restart (KeepAlive-aware maintenance control, finding-0066) -------------
