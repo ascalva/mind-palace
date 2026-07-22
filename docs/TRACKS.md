@@ -72,10 +72,10 @@
 - **Sync/diac dreamers** (active):
     - D-0 / D-1 / H-0 / H-1 / H-2 dispatch machinery sealed (bp-079 / 080 / 081 / 082)
     - the wire-or-accept-dormant decision resolved (finding-0141)
-- **Track G / effectors** (active · warrant finding-0011):
-    - G1–G7 built (e0bf1ad) — but currently NOT wired (max reachable tier NONE): work-owed
-    - WIRE the effectors reachable behind the full control stack (72-state gate, propose-never-send, JIT creds), DEFAULT OFF + owner-flippable — the ON switch must exist (worth building ⇒ worth wiring)
-    - a design pass on the wiring approach (what tier, what controls) precedes the build
+- **Track G / effectors** (deferred · warrant finding-0011):
+    - G1–G7 built (e0bf1ad) — but NOT wired (max reachable tier NONE)
+    - WIRE the effectors reachable behind the full control stack (72-state gate, propose-never-send, JIT creds), DEFAULT OFF + owner-flippable — worth building ⇒ worth wiring
+    - a design pass on the wiring approach precedes the build
 - **Workflow / tooling** (active):
     - WF-1 the board substrate built (bp-096) — track coordinate, manifests, derived board
     - WF-2 the deskcheck gate built (bp-097) — the deskcheck record + verdict gate

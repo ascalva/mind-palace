@@ -66,10 +66,13 @@ Make "the ON switch exists" a first-class part of the definition of done:
    owner verdict; (b) stop saying "ready to deskcheck" on a mere seal (say it only when the track
    works). This is the code-ingest case: sealed CI-1..3, but the wiring (bp-098) + the proving seed
    run are owed, so the track is work-owed, not deskcheck-owed.
-5. **"Dormant-by-design" is banned; the workflow itself is work-owed** (owner 2026-07-22): there is
-   no valid "built but never wired" state — if it was worth building it is worth wiring; the only
-   legit "off" is wired-but-flag-off (Track-G/effectors are work-owed, not a dormancy-confirm).
-   Remove the `dormant-by-design` phase from `board.py` + dn-track-board-and-deskcheck-gate D2. AND:
+5. **"Dormant-by-design" is banned; `deferred` replaces it; the workflow itself is work-owed**
+   (owner 2026-07-22): no valid "built but never wired, called done" state — if it was worth
+   building it is worth wiring; the only legit "off" is wired-but-flag-off. BUT **`deferred` is a
+   legitimate track status** — paused because we lack the answers, with a re-entry, honestly NOT
+   done (Track-G/effectors are DEFERRED pending a design decision on effector wiring). Replace the
+   `dormant-by-design` phase in `board.py` + dn-track-board-and-deskcheck-gate D2 with a `deferred`
+   phase (a deferred track surfaces as OPEN/paused, never deskcheck-owed, never "done"). AND:
    the workflow track is NOT done — these amendments (1–5) must be BUILT INTO it structurally (the
    §4-present gate, the Follow-through tightening, the board phase-label fix) before it is
    deskcheck-ready. The proper workflow is still being defined by the owner.
