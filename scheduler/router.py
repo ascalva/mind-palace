@@ -32,14 +32,16 @@ _SYNTHESIS_KINDS = frozenset(
 )
 _ROUTER_KINDS = frozenset({"route", "classify", "watchdog"})
 # Kinds that run on the always-pinned tier (config.pinned_model.tier). Two reasons a kind pins:
-#   * model-less maintenance (`vault_sync`, `chat_sync`, `chat_events`) needs NO chat model —
-#     pinning makes `ensure_tier` a no-op so the worker slot is never evicted (enqueued at
-#     BACKGROUND, see scheduler/{vault_sync,chat_sync,cron}); chat_sync/chat_events join here per
-#     finding-0108 G2 (bp-069) — the dialogue sensor is model-free file work like vault_sync;
+#   * model-less maintenance (`vault_sync`, `chat_sync`, `chat_events`, `code_sync`) needs NO chat
+#     model — pinning makes `ensure_tier` a no-op so the worker slot is never evicted (enqueued at
+#     BACKGROUND, see scheduler/{vault_sync,chat_sync,code_sync,cron}); chat_sync/chat_events join
+#     here per finding-0108 G2 (bp-069); `code_sync` is the code embed lane (bp-092/CI-1), a
+#     model-free file→embedder ingest of the SAME species as vault_sync;
 #   * the conversational front door (`ambassador`) must be ALWAYS-WARM + low-latency — it uses the
 #     small pinned chat model and delegates heavy work (ambassador-as-reasoning-agent.md §2b).
 # Both default to PRIORITY_REACTIVE (responsive); the model-less enqueues override to BACKGROUND.
-_PINNED_KINDS = frozenset({"vault_sync", "ambassador", "chat_sync", "chat_events", "integrate"})
+_PINNED_KINDS = frozenset(
+    {"vault_sync", "ambassador", "chat_sync", "chat_events", "integrate", "code_sync"})
 
 
 @dataclass(frozen=True)
