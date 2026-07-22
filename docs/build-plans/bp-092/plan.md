@@ -8,7 +8,7 @@ design_ref:
 contract: builder
 write_scope:
   - core/ingest/**
-  - core/provenance.py
+  - core/kernel/provenance.py
   - core/stores/vectorstore.py
   - ops/code_snapshot.py
   - scheduler/**
@@ -25,7 +25,7 @@ cost:
 depends_on: []
 parallelizable_with: []
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-22
 links:
   - docs/design-notes/code-ingest-pipeline.md
   - docs/findings/finding-0146.md
@@ -56,7 +56,7 @@ joined, blob-sha-keyed incremental, seed run scheduler-gated.
 1. `docs/design-notes/code-ingest-pipeline.md` — §2.1/§2.1b/§2.2/§2.3/§2.7/§2.8 WHOLE.
 2. `core/ingest/chunk.py`, `core/ingest/pipeline.py`, `core/ingest/index.py`,
    `core/ingest/amend.py`, `core/ingest/embed.py` — the reused machinery.
-3. `core/provenance.py` + `core/stores/vectorstore.py` — the enum + schema being extended.
+3. `core/kernel/provenance.py` + `core/stores/vectorstore.py` — the enum + schema being extended.
 4. `ops/code_snapshot.py` — the ledger the span/comment capture extends.
 5. `core/stores/code_observations.py:146-150` — the hardcoded-mint pattern to copy.
 6. `core/ingest/curated.py` — the own-graph precedent.
@@ -76,7 +76,7 @@ joined, blob-sha-keyed incremental, seed run scheduler-gated.
   27-37`); extension delivered by reset+rebuild (the note's recorded default; §5-4 offered
   the owner an alternative — none chosen ⇒ rebuild stands). 28 rows today; re-derivable
   bit-identically (`core.ingest.verify`).
-- **Q4 — provenance enum has six classes** (`core/provenance.py:44-61`); `CODE` is the
+- **Q4 — provenance enum has six classes** (`core/kernel/provenance.py:44-61`); `CODE` is the
   seventh; `MIRROR_READABLE` (`:78-80`) is untouched.
 - **Q5 — group-by-digest works unchanged for blob-sha digests** (`core/stores/sourceset.py`
   invariant: one provenance stratum per digest — all code rows are CODE ✓).
@@ -96,7 +96,7 @@ delta **∅** (the M1-rider statement, inner-outer-core §3).
 
 ## 4. Reconciliation
 
-- `core/provenance.py` docstring's five-class spectrum → **[cross-ref: extension]**: the
+- `core/kernel/provenance.py` docstring's five-class spectrum → **[cross-ref: extension]**: the
   CODE entry documents "builder-produced reality read from the repo instrument;
   ∉ MIRROR_READABLE; dreamable by named grant only (XS-a)."
 - `ops/code_snapshot.py` header "Deliberately NOT here: ingesting snapshots into the
@@ -163,7 +163,7 @@ config block.
   bit-identical re-derivable), row assembly with hardcoded CODE + layer + fiber coordinates;
   `Provenance.CODE` enum entry; vectorstore `layer` column via reset+rebuild (note rows
   re-landed `prose`; count 28 preserved).
-- **Files:** `core/ingest/code_corpus.py` (new), `core/provenance.py`,
+- **Files:** `core/ingest/code_corpus.py` (new), `core/kernel/provenance.py`,
   `core/stores/vectorstore.py`, tests.
 - **Acceptance test:** F-CI2 test green (byte-cover + re-derivation); the rebuilt note rows
   verify via `core.ingest.verify`; F-CI1 structural test green (no provenance param exists —
