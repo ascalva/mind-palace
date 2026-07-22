@@ -299,6 +299,19 @@ def _read_blobs(repo: Path, shas: list[str]) -> dict[str, str]:
     return out
 
 
+def list_py_blobs(repo: Path, rev: str = "HEAD") -> list[tuple[str, str]]:
+    """(path, blob_sha) for every tracked `.py` in `rev`'s committed tree — the code embed lane's
+    enumeration seam (bp-092). Public wrapper over the one blob walk, so the lane reuses φ_code's
+    reader (DRY) rather than re-shelling git."""
+    return _py_blobs(repo, rev)
+
+
+def read_py_blobs(repo: Path, shas: list[str]) -> dict[str, str]:
+    """blob_sha -> decoded source text, in ONE `git cat-file --batch` (the lane reuses the same
+    batched reader the snapshot walk uses). `errors='replace'` on decode, matching φ_code."""
+    return _read_blobs(repo, shas)
+
+
 def snapshot_commit(db: sqlite3.Connection, repo: Path, rev: str = "HEAD", *,
                     _cache: dict[str, FileShape] | None = None) -> str | None:
     """Snapshot one commit's tree. Idempotent: returns None if the SHA is already recorded.

@@ -36,6 +36,13 @@ def _chunk_row(record: IngestRecord, chunk: Chunk, vector: list[float]) -> dict[
         "chunk_index": chunk.index,
         "provenance": record.provenance.value,
         "text": chunk.text,
+        # The layer coordinate (dn-code-ingest-pipeline §2.2): a note is 'prose' with empty code
+        # fiber coordinates. The code lane assembles its own rows (hardcoded CODE + real coords) —
+        # this keeps the ONE shared schema uniform so a note re-ingest lands the new columns.
+        "layer": "prose",
+        "qualname": "",
+        "line_start": 0,
+        "line_end": 0,
         "vector": vector,
     }
 

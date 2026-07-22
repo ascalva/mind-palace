@@ -32,6 +32,16 @@ The spectrum (Track B realizes the §1 split that the formal spec already assume
                             no provenance parameter).
   * **observed**          — third-party behavioral exhaust. Assistant-tier only; never the
                             mirror, never the baselines. Reserved (dormant schema).
+  * **code**              — builder-produced reality read from the repo instrument (the code
+                            embed lane, dn-code-ingest-pipeline §2.3; warrant finding-0146). ∉
+                            MIRROR_READABLE — a `MirrorView` refuses code rows by construction,
+                            so the self-model and the §15 baselines never see code. STRUCTURALLY
+                            minted: the code lane's row assembly hardcodes CODE with NO provenance
+                            parameter anywhere on its API (`core/ingest/code_corpus.py`), so a
+                            caller physically cannot launder code into an authored class — the
+                            `CodeObservation.to_row` move. Dreamable by DELIBERATE grant only
+                            (`provenances={CODE}`, the CURATED precedent; XS-a per-grant,
+                            dn-cross-strata-dreamer) — never the default grant.
 """
 
 from __future__ import annotations
@@ -59,6 +69,14 @@ class Provenance(StrEnum):
     # the mirror and from behavioral baselines (§15). Defined now so stores and queries are
     # provenance-aware from the start (cf. the dormant sensor schema).
     OBSERVED = "observed"
+    # The code embed lane (dn-code-ingest-pipeline §2.3; warrant finding-0146). Builder-produced
+    # reality read from the repo instrument — the source, its docstrings, its comments, embedded as
+    # a first-class semantic source. ∉ MIRROR_READABLE (below), so it is INVISIBLE to the mirror and
+    # the §15 baselines. Structurally minted (no provenance param on `core/ingest/code_corpus.py`),
+    # so it is non-launderable like INTERPRETED/OBSERVED. Dreamable only by a deliberate
+    # `provenances={CODE}` grant (the CURATED precedent) — Ouroboros dreams over its own code by
+    # choice, never by default. Consumed by the code lane; F-CI1 pins the firewall.
+    CODE = "code"
 
 
 # What the introspective mirror / dreaming agent is permitted to read (the firewall).

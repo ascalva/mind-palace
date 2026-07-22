@@ -178,13 +178,16 @@ def test_mirror_bypass_is_a_type_error(tmp_path: Path) -> None:
 
 
 def test_enum_and_firewall_unchanged() -> None:
+    # `code` is the seventh class (dn-code-ingest-pipeline §2.3, bp-092/CI-1): the code embed lane's
+    # structurally minted, mirror-EXCLUDED provenance. The firewall set is unchanged — CODE ∉ MR.
     assert [p.value for p in Provenance] == [
         "authored-solo", "authored-dialogue", "curated", "interpreted",
-        "derived-stratum", "observed",
+        "derived-stratum", "observed", "code",
     ]
     assert MIRROR_READABLE == frozenset(
         {Provenance.AUTHORED_SOLO, Provenance.AUTHORED_DIALOGUE}
     )
+    assert Provenance.CODE not in MIRROR_READABLE
 
 
 def test_promote_stub_raises_not_implemented() -> None:
