@@ -1,6 +1,7 @@
 ---
 type: build-plan
 id: bp-088
+track: agentic-loop
 status: complete
 design_ref:
   - docs/design-notes/agentic-loop.md

@@ -1,6 +1,7 @@
 ---
 type: design-note
 id: dn-<slug>
+track: <slug>            # the board coordinate — dn-track-board-and-deskcheck-gate (D1); MUST equal a docs/tracks/<slug>.md manifest
 status: draft            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 created: <YYYY-MM-DD>
 updated: <YYYY-MM-DD>

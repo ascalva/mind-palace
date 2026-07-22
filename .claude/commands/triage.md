@@ -29,4 +29,13 @@ Sweep, in order:
    answer into the finding/plan), mark the question `swept`.
 5. **Surface book debt** (§11): if a design note has been ratified or superseded
    since `docs/book/SYNC.md`, note it and offer to run `/scribe`.
-6. Report a terse summary: routed, batched, promoted, sealed, swept.
+6. **Surface owed deskchecks** (the third inbox — dn-track-board-and-deskcheck-gate
+   D4). If any plan `status` or `track:` changed this sweep, regenerate the board
+   first (`uv run scripts/board.py --write` — TRACKS.md + DESKCHECK-QUEUE.md are
+   DERIVED, never hand-edited). Then read the queue (`docs/DESKCHECK-QUEUE.md`; count
+   via `uv run scripts/board.py --queue-count`) and surface each owed track beside
+   findings and OQ — kept raised until the owner approves each; a track is not closed
+   until its deskcheck is approved. This step READS and surfaces — it adds no writer,
+   and it NEVER flips a verdict (owner-only, by hand, like the two blessings).
+7. Report a terse summary: routed, batched, promoted, sealed, swept, deskchecks
+   surfaced (owed count).

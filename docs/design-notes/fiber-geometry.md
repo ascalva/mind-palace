@@ -1,6 +1,7 @@
 ---
 type: design-note
 id: dn-fiber-geometry
+track: fiber-geometry
 status: ratified               # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 implementation: design-only # nothing built; decides layers/rulings/measurements, licenses one survey
 created: 2026-07-21

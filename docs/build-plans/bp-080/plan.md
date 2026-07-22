@@ -1,6 +1,7 @@
 ---
 type: build-plan
 id: bp-080
+track: sync-diac-dreamers
 status: complete
 design_ref:
   - docs/design-notes/synchronic-diachronic-dreamer.md

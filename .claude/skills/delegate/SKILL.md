@@ -38,6 +38,27 @@ Match the agent to the *complexity of verification*, not the line count:
 
 When unsure, size up — a wrong-sized cheap agent costs a rerun plus review time.
 
+## Right-sizing the AUDIT (risk-proportional, design-note D2)
+
+The audit that stands behind a track's deskcheck is sized to *who built it and at
+what tier*, not to line count — and it is **recorded** so the board's
+"audit: present/owed" flag (fed by the track/deskcheck `audit_refs`) has a basis:
+
+- **Delegated build, or a build at a lower tier than the reviewer** ⇒ an
+  **independent audit pass at the reviewer's tier** (typically Opus): a fresh read
+  of the diff against the plan's falsifiers, filed as a finding (or an explicit
+  "audit clean" note the deskcheck cites). The builder's own green gate is not the
+  audit.
+- **Supervised same-tier merge** (the orchestrator drove or watched the work live)
+  ⇒ the **merge scrutiny IS the audit** — the pre-merge diff review (scope,
+  acceptance actually run, falsifiers considered) is the audit of record. Record it
+  as such (name it in the seal / the deskcheck `audit_refs`); do not double-pay a
+  redundant second pass.
+
+Either way the audit is a *named artifact*, not a vibe: the deskcheck (the third
+owner-only gate) evaluates the track against its DoD **and** its audit, so an
+un-recorded audit reads as "audit: owed" on the board.
+
 ## Delegating UP to fable — precision + tier-verification (field-tested 2026-07-13)
 
 The mirror of sizing down: some work genuinely needs the top tier — open math/formalism, a

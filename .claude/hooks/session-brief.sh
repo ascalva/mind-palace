@@ -47,6 +47,19 @@ _RB="$ROOT/.claude/state/resume-brief.md"
 if [ -r "$_RB" ]; then cat "$_RB"; echo; fi
 
 python3 "$LIB" brief; rc=$?
+
+# Deskchecks-owed count (bp-096 Item 6; dn-track-board-and-deskcheck-gate D4): append ONE
+# line to the brief so the standing owed-deskcheck obligation stops depending on the agent's
+# memory. Sourced from the derived board's `--queue-count`. Fail-open, fail-loud: a generator
+# error never breaks the brief — the line shows `?` (and never aborts the hook). Bash-side by
+# design (WF-1 does not touch _lib.py; that is WF-2's surface).
+_OWED="$(python3 "$ROOT/scripts/board.py" --queue-count 2>/dev/null)"
+if printf '%s' "$_OWED" | grep -Eq '^[0-9]+$'; then
+  printf 'Deskchecks owed: %s (docs/DESKCHECK-QUEUE.md — surfaced every session + /triage, kept raised until the owner closes each).\n' "$_OWED"
+else
+  printf 'Deskchecks owed: ? (board.py --queue-count unavailable; see docs/DESKCHECK-QUEUE.md).\n'
+fi
+
 # Record HEAD for the Stop-gate (c) blessing-diff audit.
 mkdir -p "$ROOT/.claude/state"
 git -C "$ROOT" rev-parse HEAD > "$ROOT/.claude/state/session-baseline" 2>/dev/null || true

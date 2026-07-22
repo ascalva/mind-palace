@@ -1,6 +1,7 @@
 ---
 type: build-plan
 id: bp-095
+track: code-ingest
 status: ready
 design_ref:
   - docs/design-notes/code-ingest-pipeline.md

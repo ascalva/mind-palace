@@ -5304,3 +5304,17 @@ origin view). Sealed costs 0.39–1.09× (all ≤ estimate except AL-2's 1.09×)
 candidate) · G-A's deferred S-rows (M2/M4/M5/M8 — re-run with embed headroom) · AL-1's PRIVATE_STRATA
 owner-Q · the dreamer /scribe book-sync. **M1 riders now available** (packaging remedies + the
 sigma_star/conductance math split can grow INNER further, each carrying its ring-map delta).
+
+## 2026-07-22 — session-42: the workflow track built (WF-1 + WF-2)
+
+Graduated `dn-track-board-and-deskcheck-gate` → **bp-096 (WF-1 board substrate)** + **bp-097 (WF-2
+deskcheck gate)**; owner blessed both; built in **parallel** delegated worktrees (opus, tier-verified
+via transcript), full attestable-green gate each, merged to main (`d7e6128`, `ee94e67`) and sealed
+complete. Owner hand-tagged the 6 ratified active-track notes with `track:` (`5d0d1ba`) — the
+accountable channel for A8-immutable notes, keeping D1's self-declaration pure. The board is now
+DERIVED (`scripts/board.py` → TRACKS.md + DESKCHECK-QUEUE.md, no persisted state); the third
+owner-only gate (deskcheck verdict) + clause (f) seal-follow-through + the new clause-(b2)
+owner-staged yield are live on merge. **finding-0155** (P-WF1 probe: model id reachable indirectly
+via `transcript_path`) → oq-0033. Deskcheck queue now **6** (workflow track joined). The workflow
+track is DONE-not-CLOSED — it owes its own deskcheck. **Next:** budget re-probe → inner/outer core
+(bp-090 K1) if usage remains.

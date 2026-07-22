@@ -1,6 +1,7 @@
 ---
 type: build-plan
 id: <bp-NNN | descriptive-slug>
+track: <slug>             # the board coordinate — dn-track-board-and-deskcheck-gate (D1); MUST equal a docs/tracks/<slug>.md manifest
 status: proposed
 design_ref:               # ratified design-note id(s) this plan graduates from
   - <docs/design-notes/....md>
