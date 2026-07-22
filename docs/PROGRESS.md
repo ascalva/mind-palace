@@ -5354,3 +5354,11 @@ an owner-visible idle daemon run (the deskcheck subject). Two mid-build drift fi
 resolved): write_scope `core/provenance.py`→kernel (`dcd79c6`) + carried the φ_code pin test
 (`bfa321b`), and the φ_code source hash re-pinned same-version as a verified declared refactor
 (`f8b0fa6`). **Next:** bp-093 + bp-094 (both dep 092, now unblocked) → bp-095; budget permitting.
+
+**bp-093 (CI-2) DONE + sealed** (delegated, opus, 176k): the retrieval/geometry proof machinery —
+M-C3/M-C4/M-C5 battery + CN-1 ReadingIndex + 15 golden code probes (read via `provenances={CODE}`,
+never the mirror). 15 new tests. Merged (`4653cf8`); re-verified green (ruff · mypy 254 · argless 69 ·
+type_gate · CI pytest 1895 passed). **Parked with re-entry:** the NUMERIC M-C3/M-C4 verdicts need
+real qwen3 embeddings — they park with bp-092's owner-visible seed run (re-entry: run mc3/mc4 on the
+seeded store; they gate CI-4/PD-C); M-C5 recorded (synthetic, embedder-independent). No findings.
+bp-094 (CI-3) still building in parallel. **Next:** seal bp-094 (verify its φ_code attestation) → bp-095.

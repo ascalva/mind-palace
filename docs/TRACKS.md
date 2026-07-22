@@ -28,7 +28,7 @@
 | Agentic loop | bp-087 — AL-2: the M-3 / M-6 readings (C-coverage + gap-instrument baselines) | deskcheck-pending · complete | opus |
 | Agentic loop | bp-088 — AL-3: the exhaust⊂dialogue refinement + the origin(e) derived view | deskcheck-pending · complete | opus |
 | Code-ingest | bp-092 — CI-1: the code embed lane (L0a + L0b + L1, Provenance.CODE, joins, incremental) | deskcheck-pending · complete | opus |
-| Code-ingest | bp-093 — CI-2: the isolation + retrieval proof (M-C3 / M-C4 / M-C5) | build · ready | opus |
+| Code-ingest | bp-093 — CI-2: the isolation + retrieval proof (M-C3 / M-C4 / M-C5) | deskcheck-pending · complete | opus |
 | Code-ingest | bp-094 — CI-3: the reference layer — shorthand resolvers (L2b) + the code_to_code AST edges | build · ready | opus |
 | Code-ingest | bp-095 — CI-4: the S↔F code↔design lens (M-C7, read-only survey) | build · ready | opus |
 | Fiber geometry | bp-085 — G-A: the fiber-geometry measure-first survey (M1–M8, read-only) | deskcheck-pending · complete | opus |

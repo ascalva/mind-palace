@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-093
 track: code-ingest
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/code-ingest-pipeline.md
 contract: builder
