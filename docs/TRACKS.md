@@ -35,7 +35,7 @@
 | Inner/outer core | bp-083 — M0: enforce the two-ring refinement in place (born-green inner ratchet) | deskcheck-pending · complete | opus |
 | Inner/outer core | bp-089 — S1′: the temporal math enters the ring (math↔persistence splits, map +7 → 37) | deskcheck-pending · complete | opus |
 | Inner/outer core | bp-090 — K1: the born inner ring moves to `core/kernel/**` (M2 wave 1, physical migration) | deskcheck-pending · complete | opus |
-| Inner/outer core | bp-091 — K3: the S1 seven join the kernel (M2 wave 2) | build · ready | opus |
+| Inner/outer core | bp-091 — K3: the S1 seven join the kernel (M2 wave 2) | deskcheck-pending · complete | opus |
 | Reference bookkeeper | the async F-consistency agent (finding-0145/0154) | design-pass | FABLE |
 | Sync/diac dreamers | bp-079 — D-0: the DreamCharter dispatch record + the materialization boundary | deskcheck-pending · complete | opus |
 | Sync/diac dreamers | bp-080 — D-1: the ARROW-READ synchronic dispatch (the clock-free v1) | deskcheck-pending · complete | opus |

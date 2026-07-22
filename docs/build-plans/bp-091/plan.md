@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-091
 track: inner-outer-core
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/inner-outer-core.md
 contract: builder

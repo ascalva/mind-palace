@@ -5327,3 +5327,13 @@ argless mypy = 69 · type_gate · CI pytest 1853 passed/11 skipped/21 deselected
 refinements journaled (config/matching are full moves not splits; two `__file__` REPO_ROOT
 re-anchors needed — a K3 lesson). inner-outer-core track owes its deskcheck (M0+S1+K1). **Next:**
 bp-091 (K3, the S1 seven) after K1 — budget permitting.
+
+**bp-091 (K3) DONE + sealed** (delegated builder, opus): the seven S1 modules
+(`integrator_math`, `recursion_ops`, `temporal` + 4 pure math) relocated into `core/kernel/**` —
+7 `git mv` + 15 repoints, kernel map 42→43, outer ratchet 19 unchanged (move-neutral), zero
+behavior change. Merged (`5ecbd01`); orchestrator re-verified: ruff · mypy 250 · argless mypy = 69 ·
+type_gate · CI pytest 1853 passed/11 skipped/21 deselected; inner ring computed==declared==43. No
+findings; the K1 `__file__` hazard did NOT recur (none of the seven compute a repo root). Process
+note: the builder briefly ran Bash in the shared main checkout, caught it, stashed the stray work
+(`stash@{0}`, recoverable) and redid it cleanly in the worktree — main stayed pristine. **K1+K3 done;
+inner-outer-core owes its deskcheck (M0+S1+K1+K3). Stopped before the CI wave (owner go needed).**
