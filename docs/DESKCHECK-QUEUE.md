@@ -6,7 +6,7 @@
 >
 > Verdict: `PENDING` (owed) · an owner-approved `dc-NNN` moves the track to the board's Closed section · `NEEDS-WORK` sends it back to an earlier phase.
 
-## Owed now — 6 track(s)
+## Owed now — 5 track(s)
 
 | # | track | what to demo (working / true state) + surprise | verdict |
 |---|---|---|---|
@@ -15,7 +15,6 @@
 | 3 | Inner/outer core | the live two-ring ratchet (INNER=37) green + the map — genuinely demonstrable-working (bp-083/089, M0+S1) | PENDING |
 | 4 | Sync/diac dreamers | the sealed dispatch machinery + that it is NOT wired ([dream_rnd]=false, f-0141); decision owed — wire live, or accept dormant | PENDING |
 | 5 | Workflow / tooling | sealed work (deskcheck-pending); confirm delivered | PENDING |
-| 6 | Track G / effectors | confirm-only — dormancy (tier NONE, finding-0011) still intended (G1–G7, e0bf1ad) | PENDING |
 
 ## Owed on completion — the current build tracks
 

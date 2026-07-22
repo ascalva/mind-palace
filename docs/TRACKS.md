@@ -42,9 +42,9 @@
 | Sync/diac dreamers | bp-080 — D-1: the ARROW-READ synchronic dispatch (the clock-free v1) | deskcheck-pending · complete | opus |
 | Sync/diac dreamers | bp-081 — H-0 + H-1: the HYPOTHETICAL stratum and its staging substrate | deskcheck-pending · complete | opus |
 | Sync/diac dreamers | bp-082 — H-2: influence v1 + the conditioning law | deskcheck-pending · complete | opus |
+| Track G / effectors | G1–G7 (e0bf1ad) | design-pass | FABLE |
 | Workflow / tooling | bp-096 — WF-1: the board substrate | deskcheck-pending · complete | opus |
 | Workflow / tooling | bp-097 — WF-2: the deskcheck gate | deskcheck-pending · complete | opus |
-| Track G / effectors | G1–G7 (e0bf1ad) (dormant-by-design) | dormant | — |
 
 ## Definition of done (per track — the deskcheck evaluates against this)
 
@@ -72,12 +72,14 @@
 - **Sync/diac dreamers** (active):
     - D-0 / D-1 / H-0 / H-1 / H-2 dispatch machinery sealed (bp-079 / 080 / 081 / 082)
     - the wire-or-accept-dormant decision resolved (finding-0141)
+- **Track G / effectors** (active · warrant finding-0011):
+    - G1–G7 built (e0bf1ad) — but currently NOT wired (max reachable tier NONE): work-owed
+    - WIRE the effectors reachable behind the full control stack (72-state gate, propose-never-send, JIT creds), DEFAULT OFF + owner-flippable — the ON switch must exist (worth building ⇒ worth wiring)
+    - a design pass on the wiring approach (what tier, what controls) precedes the build
 - **Workflow / tooling** (active):
     - WF-1 the board substrate built (bp-096) — track coordinate, manifests, derived board
     - WF-2 the deskcheck gate built (bp-097) — the deskcheck record + verdict gate
     - the board enforced — derived TRACKS.md / DESKCHECK-QUEUE.md, owed-count surfaced (finding-0153)
-- **Track G / effectors** (dormant-by-design · warrant finding-0011):
-    - G1–G7 built + flag-off, NOT wired at any tier — max reachable effector tier is NONE (finding-0011)
 
 ## Closed (owner-approved deskchecks)
 
@@ -86,5 +88,6 @@ _(none yet — a track closes only on an owner-approved deskcheck.)_
 ## Coordinate check (orphans)
 
 - (info) manifest `reference-bookkeeper` has no plan/note members yet — carried by manifest (design-pass queued); not an error while its work is pre-plan.
+- (info) manifest `track-g-effectors` has no plan/note members yet — carried by manifest (design-pass queued); not an error while its work is pre-plan.
 
 _Derived by `scripts/board.py` from front matter + `docs/tracks/` manifests + `docs/deskchecks/`. Never hand-edit; edit the sources and regenerate._

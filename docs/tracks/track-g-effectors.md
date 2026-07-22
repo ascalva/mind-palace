@@ -2,26 +2,30 @@
 type: track
 slug: track-g-effectors
 title: Track G / effectors — G1–G7 (e0bf1ad)
-status: dormant-by-design
+status: active
 warrant: finding-0011
 audit_refs: []
 dod:
-  - G1–G7 built + flag-off, NOT wired at any tier — max reachable effector tier is NONE (finding-0011)
-backlog_deskcheck: confirm-only — dormancy (tier NONE, finding-0011) still intended (G1–G7, e0bf1ad)
+  - G1–G7 built (e0bf1ad) — but currently NOT wired (max reachable tier NONE): work-owed
+  - WIRE the effectors reachable behind the full control stack (72-state gate, propose-never-send, JIT creds), DEFAULT OFF + owner-flippable — the ON switch must exist (worth building ⇒ worth wiring)
+  - a design pass on the wiring approach (what tier, what controls) precedes the build
+backlog_deskcheck: null
 links:
   - docs/findings/finding-0011.md
+  - docs/findings/finding-0159.md
 ---
 # Track — Track G / effectors (G1–G7)
 
 The identity card for the effectors track. **Scope:** the hands — the effector
 types, the 72-state gate, the catalog/pipeline, the reversible-writes propose-never-send
-path, and the JIT-credential executor (G1–G7, committed `e0bf1ad`). **No design note
-or plan carries this slug** — the track is carried by this manifest alone.
+path, and the JIT-credential executor (G1–G7, committed `e0bf1ad`).
 
-**Status: dormant-by-design** (warrant finding-0011): all of G1–G7 is built but
-flag-off and NOT wired at any tier — the max reachable effector tier is NONE, not
-SENSING. Dormancy is the intended state, not a gap.
+**Status: active — WORK-OWED, not "dormant-by-design"** (owner ruling 2026-07-22, finding-0159):
+G1–G7 are built but NOT wired — the max reachable effector tier is NONE (unreachable). That is the
+built-not-wired anti-pattern, not a valid final state: **if it was worth building, it is worth
+wiring.** Safety-gating the effectors OFF by default is correct — but off means WIRED-but-flag-off
+(the ON switch exists, owner-flippable behind the full control stack), never unreachable. Wiring
+them (default-off, reachable, gated) is owed; a design pass on how precedes it.
 
-**Owed deskcheck (standing):** confirm-only — that the dormancy (tier NONE,
-finding-0011) is still intended. Not a demo of working effectors; a signed
-re-affirmation that they stay dark.
+**Not deskcheck-ready.** Not until the effectors are wired (reachable, gated off) — a deskcheck is
+"here it is, working as expected", never "confirm it stays dark".
