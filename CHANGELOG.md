@@ -1,3 +1,22 @@
+# [1.17.0](https://github.com/ascalva/mind-palace/compare/v1.16.0...v1.17.0) (2026-07-22)
+
+
+### Bug Fixes
+
+* **bp-092:** carry tests/unit/test_interpreter_versions.py in write_scope (retrofit rule) ([bfa321b](https://github.com/ascalva/mind-palace/commit/bfa321bb6fb41d9d5de2104c078b694399ca03fa))
+* **bp-094:** pre-carry test_interpreter_versions.py in write_scope (finding-0157 lesson) ([1f89e52](https://github.com/ascalva/mind-palace/commit/1f89e523779d1e77a407b10e6f1779312db6fc2b))
+
+
+### Features
+
+* **bp-093:** CI-2 — the retrieval/geometry/scale proof (M-C3/M-C4/M-C5) ([c7adc9f](https://github.com/ascalva/mind-palace/commit/c7adc9fbcee885419943bd84e0bec38d6a42f5c1))
+* **code-ingest:** CI-1 Item 1 — ledger span/comment/import capture (bp-092) ([dbec242](https://github.com/ascalva/mind-palace/commit/dbec242106e59111583636c94d473e15426d28ed))
+* **code-ingest:** CI-1 Item 2 — three-layer chunkers + the CODE mint + layer column (bp-092) ([4acb9f0](https://github.com/ascalva/mind-palace/commit/4acb9f001b1562668e176b4cf8b3a88b99addae2))
+* **code-ingest:** CI-1 Item 3 — code_sync scheduler KIND + incremental seed config (bp-092) ([6a5ae40](https://github.com/ascalva/mind-palace/commit/6a5ae409601cf60ab2a4302c2781966ff6673bcc)), closes [#8](https://github.com/ascalva/mind-palace/issues/8)
+* **code-ingest:** ON by default — defaults.toml enabled=true (finding-0161/oq-0034 resolved) ([f6f283b](https://github.com/ascalva/mind-palace/commit/f6f283b3376a87f577ffdacdeff5ec45676b5553))
+* **code-ingest:** wire the ENABLE path — CodeIngestConfig + gated daemon enqueue + palace code-seed (bp-098) ([2e851ff](https://github.com/ascalva/mind-palace/commit/2e851ff4b252cae90b6f5b0a7112c2bce45c7f07))
+* **code-sensor:** CI-3 L2b resolvers + code_to_code inherits/calls (Item 1, gated off) ([81927f6](https://github.com/ascalva/mind-palace/commit/81927f61b20ed628a1507156f2788adfd2258c99))
+
 # [1.16.0](https://github.com/ascalva/mind-palace/compare/v1.15.0...v1.16.0) (2026-07-22)
 
 
