@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0155
-status: open             # open → routed → resolved | promoted
+status: routed           # open → routed → resolved | promoted
 created: 2026-07-21
 updated: 2026-07-21
 links:

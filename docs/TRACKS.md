@@ -41,8 +41,8 @@
 | Sync/diac dreamers | bp-080 — D-1: the ARROW-READ synchronic dispatch (the clock-free v1) | deskcheck-pending · complete | opus |
 | Sync/diac dreamers | bp-081 — H-0 + H-1: the HYPOTHETICAL stratum and its staging substrate | deskcheck-pending · complete | opus |
 | Sync/diac dreamers | bp-082 — H-2: influence v1 + the conditioning law | deskcheck-pending · complete | opus |
-| Workflow / tooling | bp-096 — WF-1: the board substrate | build · ready | opus |
-| Workflow / tooling | bp-097 — WF-2: the deskcheck gate | build · ready | opus |
+| Workflow / tooling | bp-096 — WF-1: the board substrate | deskcheck-pending · complete | opus |
+| Workflow / tooling | bp-097 — WF-2: the deskcheck gate | deskcheck-pending · complete | opus |
 | Track G / effectors | G1–G7 (e0bf1ad) (dormant-by-design) | dormant | — |
 
 ## Definition of done (per track — the deskcheck evaluates against this)

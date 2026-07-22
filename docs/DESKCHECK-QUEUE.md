@@ -6,7 +6,7 @@
 >
 > Verdict: `PENDING` (owed) · an owner-approved `dc-NNN` moves the track to the board's Closed section · `NEEDS-WORK` sends it back to an earlier phase.
 
-## Owed now — 5 track(s)
+## Owed now — 6 track(s)
 
 | # | track | what to demo (working / true state) + surprise | verdict |
 |---|---|---|---|
@@ -14,10 +14,11 @@
 | 2 | Fiber geometry | the survey readings (M1–M8) with honest nulls; owed S-rows (M2/M4/M5/M8, re-run w/ embed headroom) (bp-085) | PENDING |
 | 3 | Inner/outer core | the live two-ring ratchet (INNER=37) green + the map — genuinely demonstrable-working (bp-083/089, M0+S1) | PENDING |
 | 4 | Sync/diac dreamers | the sealed dispatch machinery + that it is NOT wired ([dream_rnd]=false, f-0141); decision owed — wire live, or accept dormant | PENDING |
-| 5 | Track G / effectors | confirm-only — dormancy (tier NONE, finding-0011) still intended (G1–G7, e0bf1ad) | PENDING |
+| 5 | Workflow / tooling | sealed work (deskcheck-pending); confirm delivered | PENDING |
+| 6 | Track G / effectors | confirm-only — dormancy (tier NONE, finding-0011) still intended (G1–G7, e0bf1ad) | PENDING |
 
 ## Owed on completion — the current build tracks
 
-Every plan in the board's `build` phase enters this inbox at seal (`build → audit → deskcheck`): Code-ingest, Workflow / tooling. The orchestrator adds the row and says "ready to deskcheck" when a track reaches phase 6. None is closed by sealing.
+Every plan in the board's `build` phase enters this inbox at seal (`build → audit → deskcheck`): Code-ingest. The orchestrator adds the row and says "ready to deskcheck" when a track reaches phase 6. None is closed by sealing.
 
 _Derived by `scripts/board.py`; never hand-edit. This is the deskcheck-pending-or-backlog filter over the board._

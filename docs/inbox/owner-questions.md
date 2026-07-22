@@ -963,3 +963,20 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   Also still owed before ITS ratify (tracked separately, not part of this oq): re-examine
   `dn-headless-daemon-secret-bootstrap` as an OPUS product (finding-0125 residual) — it was
   reported as a fable pass but composed on Opus.
+
+## oq-0033 — structural model-per-phase: graduate a plan off the `transcript_path` model-id path, or keep P-WF1 parked?
+- status: open
+- blocking: false
+- origin: docs/findings/finding-0155.md (the P-WF1 probe, bp-097 Item 7)
+- question: The P-WF1 probe (finding-0155) found the running model id is NOT directly exposed to
+  hooks (no env var; PreToolUse stdin has no `model` field — only `CLAUDE_EFFORT=high`), but IS
+  reachable INDIRECTLY via the payload's `transcript_path` → the last assistant message's
+  `message.model`. That partially satisfies D7's re-entry condition. Do you want to graduate a NEW
+  plan for structural model-per-phase enforcement (e.g. gate-guard refusing a *non-Fable*
+  design-note **creation**) on that indirect path — accepting its fragility (a transcript
+  read+parse on every PreToolUse hot-path fire; a race against the in-flight turn; coupling to an
+  undocumented transcript schema; must fail-open) — or keep P-WF1 parked pending a first-class
+  model-id field in the hook payload (worth an upstream ask)? Default recorded: keep parked; the
+  procedural backstop (banner + usage-verify + board visibility) stands.
+- park condition: revisit when you decide, or if a fable↔opus mismatch actually produces a
+  wrong-tier design note before then.

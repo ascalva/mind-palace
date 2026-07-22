@@ -87,3 +87,29 @@
   generate the board (Item 5, gated on a lossless-reproduction check), then the
   brief + triage surfacing (6–7). Do NOT run concurrently with bp-090.
 - **Blocking:** none. Awaiting the proposed→ready blessing (owner-only, by hand).
+
+## Follow-through
+
+<!-- Sealed by the orchestrator (delegated builder predated the checkpoint-skill
+Follow-through shape WF-2 added). Placed at the journal tail so clause (f)'s
+tail-check finds it; this journal is newest-first, so the tail is the oldest
+entry — a clause-(f) ordering fragility noted for the workflow-track deskcheck. -->
+
+- **Built?** Yes — all 7 items: `track:` into the two templates + the resume-brief
+  owed line, backfilled onto the 16 active plans; 8 `docs/tracks/` manifests;
+  `scripts/board.py` (derived, no state) regenerating `TRACKS.md` +
+  `DESKCHECK-QUEUE.md` with the do-not-hand-edit banner; `session-brief.sh`
+  owed-count; `/triage` third inbox. `tests/unit/test_board.py` 13/13.
+- **Wired / delivered?** WIRED and live on this merge — no flag: `board.py` is the
+  board authority, `session-brief.sh` injects the owed count into every session's
+  brief, `/triage` reads the third inbox. Generation replaces maintenance (D2).
+- **Does a consumer use it?** Yes — every session's opening brief (the owed-count
+  line) and `/triage`; `board.py` consumes the dc-verdict schema shared with
+  bp-097 (pinned identically, cannot drift). The generated board files are now the
+  state authority.
+- **Track state?** The `workflow` track: WF-1 (this) + WF-2 (bp-097) both
+  complete/merged; the board derives itself as of now. NOT CLOSED until an
+  owner-approved deskcheck of the workflow track.
+- **Opened a new track/finding?** No new track. bp-097 filed finding-0155
+  (P-WF1); the clause-(f) journal-ordering fragility above is carried into the
+  workflow-track deskcheck rather than filed separately.
