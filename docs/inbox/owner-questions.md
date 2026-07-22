@@ -980,3 +980,26 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   procedural backstop (banner + usage-verify + board visibility) stands.
 - park condition: revisit when you decide, or if a fable↔opus mismatch actually produces a
   wrong-tier design note before then.
+
+## oq-0034 — Should code-ingest be ON by default (defaults.toml), not opt-in per-instance (local.toml)?
+- status: open
+- blocking: false
+- origin: docs/findings/finding-0161.md (raised 2026-07-22, at the code-ingest enable step)
+- question: `[code_ingest].enabled` ships `false` in defaults.toml; this Mac opts in via local.toml
+  (like secrets/backup). You question that placement — code-ingest is NOT a security gate (unlike
+  secrets/backup), just fail-safe conservatism, and the Ouroboros is fundamentally about consuming
+  itself, so ingesting its own code by default feels native to what mind-palace IS. The crux to
+  weigh (finding-0161): defaults.toml is the FRAMEWORK default (every clone + CI); local.toml is
+  THIS instance's posture — and ouroboros-naming already draws that line (framework = mind-palace,
+  LIVE self-consuming system = Ouroboros), so the self-consumption thesis is arguably an INSTANCE
+  property local.toml already expresses. Flipping defaults.toml asserts it for every clone/CI too —
+  where there's no Ollama/daemon, and where "enabled" auto-embeds the whole tree on first
+  housekeeping (cold store ⇒ incremental = full seed, the heavy-op-from-a-flag §2.7 was written to
+  avoid). Middle paths exist: (a) keep OFF, just name the instance-ON as intentional; (b) default
+  ON but gate the housekeeping auto-embed on "daemon+embedder present" (default-on-when-runnable);
+  (c) an explicit "this is the Ouroboros instance" marker flipping instance-native defaults together.
+- default_if_unanswered: status quo stands — defaults.toml OFF, this instance ON via local.toml
+  (already live). Nothing is blocked; the deploy + seed proceed under the current opt-in. Parks as
+  finding-0161; re-entry — you rule here, or the framework-vs-instance line is settled elsewhere.
+- park condition: revisit when you decide; no builder waits on it.
+- answer:
