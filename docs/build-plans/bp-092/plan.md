@@ -15,6 +15,7 @@ write_scope:
   - config/defaults.toml
   - tests/unit/test_code_corpus*.py
   - tests/unit/test_provenance*.py
+  - tests/unit/test_interpreter_versions.py
   - tests/integration/test_code_vector*.py
 session_budget: 1
 cost:
