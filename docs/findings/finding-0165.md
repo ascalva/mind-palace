@@ -53,6 +53,16 @@ deploy's drain-wait now sits behind an hours-long in-flight job boundary.
 
 (1)+(2) compose; (1) is the one that matters for bp-099's backfill.
 
+## Decision at the bp-099 merge (orchestrator, low-stakes, logged — 2026-07-22)
+
+The one-time backfill ships **un-sliced** (accepted): it is a single historical catch-up, the
+pileup is idempotent no-ops that self-drain, and slicing machinery was out of bp-099's scope. The
+live observation strengthened the case for the structural fix, though — at seed-hour-one the pileup
+had grown to **621+621**, and the un-deployed seed is exactly the job class at issue. The
+STRUCTURAL fix stays owed: the composer is already born-sliced by design
+(dn-integrator-densification D5, `compose_max_per_pass`), and directions (1)/(2)/(3) remain open
+for `code_sync`/`code_backfill`/the watchers as their own small plan.
+
 ## Re-entry condition
 
 Before or with the bp-099 seal/deploy: decide whether the backfill ships sliced (direction 1) or

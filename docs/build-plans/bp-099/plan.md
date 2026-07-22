@@ -28,6 +28,7 @@ cost:
     ratio: 1.02            # vs 250k estimate — well-pinned (interfaces inline in §6); Q3/Q5/Q6 resolved by reading, not iterating
     session_delta: one delegated builder session, all 3 items + gates green on the first structural pass
     notes: 1 spec-fidelity finding (0166; renumbered from the builder's 0164 at merge — id collision with main) filed + resolved in-scope; zero new mypy errors; pins byte-untouched
+    week_delta: +3%          # weekly 92%→95% across spawn→seal (builder 256k + orchestration; resets Jul 24)
 depends_on:
   - bp-092
   - bp-098

@@ -8,8 +8,8 @@ links:
   - docs/design-notes/code-ingest-pipeline.md          # PD-B (§637), §548 HEAD-only, §430-460 D-fiber/supersession
   - docs/findings/finding-0151.md                      # the integrator — this is its FOUNDATION, not a sibling
   - docs/findings/finding-0146.md                      # code is a first-class semantic source
-  - core/temporal/acquire.py                           # supersession_poset — the machinery, ready but unwired to code
-  - core/temporal/boundary.py                          # poset_from_chains — accepts per-path blob chains
+  - core/kernel/temporal/acquire.py                           # supersession_poset — the machinery, ready but unwired to code
+  - core/kernel/temporal/boundary.py                          # poset_from_chains — accepts per-path blob chains
 ftype: direction         # reopens a ratified design decision (PD-B) — owner-ruled
 origin_plan: orchestrator
 route: orchestrator      # feeds the Fable integrator design pass (finding-0151)
@@ -53,8 +53,8 @@ the graph.
    store-model change.
 3. **Mint the supersession D-edges** `blob(v) → blob(v+1)` as real graph edges over the embedded
    versions. The temporal machinery is already built and described in the note as "ready, a reader
-   wiring, no new machinery": `supersession_poset` (`core/temporal/acquire.py`), `poset_from_chains`
-   (`core/temporal/boundary.py`) — waiting for exactly this consumer.
+   wiring, no new machinery": `supersession_poset` (`core/kernel/temporal/acquire.py`), `poset_from_chains`
+   (`core/kernel/temporal/boundary.py`) — waiting for exactly this consumer.
 4. **The integrator composes** `C-fiber (conversation→commit) ∘ D-edge (commit→code-change)`
    (finding-0151's ComposedGraph) so the causal chain is a traversable path.
 

@@ -5409,3 +5409,29 @@ owner's deskcheck act (it IS the code-ingest track's already-listed deskcheck su
 owner-visible idle daemon run with Ollama"). Next owner-owed on the code-ingest track: that seed
 run (discharges bp-092 seed + bp-093 M-C3/M-C4 + bp-094's 1.1.0 re-projection at deploy + the
 bp-095 M-C4 gate), integrator densification (f-0151), the bp-094 reference-edge patterns (F-CI6).
+
+---
+
+**bp-099 SEALED (session-43, delegated) — THE TEMPORAL CODE CORPUS (dn-temporal-code-corpus,
+warrant finding-0163: PD-B reversed).** History is now first-class in the semantic plane: (1)
+`current` bool column (additive migration, the layer precedent) + **keep-and-link sync** —
+superseded code versions RETAINED current=false, never deleted (`supersede_source`, whole-path
+re-land — the cross-version id-collision solved deliberately); default retrieval current-view,
+`include_superseded` opt-in; (2) `CodeCorpusSync.backfill` over `ops/code_lineage.ledger_versions`
+(1,542 distinct (path,blob) versions / 977 commits ≈ 6× HEAD) — idempotent, parse-fail→L0b-only;
+`CODE_BACKFILL_KIND` + catch-up incompleteness probe (like-to-like, no loop) + `palace
+code-backfill`; (3) `ops/code_lineage.py` (NEW): first-parent `git diff-tree` → `commit_diffs`
+(additive; `code_snapshot.py` byte-untouched — φ_code pin holds) + `supersession_chains` →
+`poset_from_chains` UNMODIFIED via version_seq position maps (**finding-0166**: real contract is
+`dict[str,list[int]]`; blob-sha chains would lexically reorder). Builder: opus-4-8[1m], one
+delegated worktree session, 256k (1.02×), merged `a30f22e` after combined-tree re-gate (ruff ·
+firewall · mypy 69=baseline · type_gate · pytest **1919 passed**). Also this sitting:
+**dn-integrator-densification DRAFTED** (the finding-0151 Fable pass — composer role, graded
+evidence lattice ANCHORED/TAGGED/WINDOWED/UNWITNESSED, write-tag hook, code_origin restored;
+awaits ratification, gated on this deploy) + **finding-0164** (owner ruling: ALL ingest lanes
+keep-and-link; purge exempt) + **finding-0165** (long-job queue starvation, observed live
+368→621 poll-enqueue pairs behind the seed; backfill accepted un-sliced one-shot, composer
+born-sliced, structural fix owed). **OWED: owner deploy** (after the running seed's job boundary —
+until deployed the live daemon still delete+replaces on every commit) → the catch-up probe then
+AUTO-enqueues the history backfill; then the code-ingest DESKCHECK (keep-and-link + backfill + a
+resolved supersession edge on the real store) and the dn-integrator-densification ratification.
