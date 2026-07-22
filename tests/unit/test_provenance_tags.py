@@ -47,6 +47,9 @@ def _run_mypy(fixture: Path, tmp_path: Path) -> subprocess.CompletedProcess[str]
             sys.executable, "-m", "mypy",
             "--config-file", os.devnull,      # no repo/user config: default flags, fixture only
             "--no-error-summary",
+            "--no-color-output",              # parse plain text: mypy honors FORCE_COLOR even on a
+                                              # pipe, and an ANSI-colorized "error:" breaks the
+                                              # `": error:"` substring filter below (finding-0160).
             "--no-incremental",
             "--cache-dir", str(tmp_path / ".mypy_cache"),
             str(fixture),
