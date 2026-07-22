@@ -1,6 +1,7 @@
 ---
 type: design-note
 id: dn-track-board-and-deskcheck-gate
+track: workflow
 status: ratified            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 implementation: design-only   # licenses WF-1 (board substrate) + WF-2 (deskcheck gate); nothing built
 created: 2026-07-21

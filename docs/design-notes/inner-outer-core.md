@@ -1,6 +1,7 @@
 ---
 type: design-note
 id: dn-inner-outer-core
+track: inner-outer-core
 status: ratified            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 created: 2026-07-20
 updated: 2026-07-20
