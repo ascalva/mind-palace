@@ -31,6 +31,7 @@
 | Code-ingest | bp-093 — CI-2: the isolation + retrieval proof (M-C3 / M-C4 / M-C5) | deskcheck-pending · complete | opus |
 | Code-ingest | bp-094 — CI-3: the reference layer — shorthand resolvers (L2b) + the code_to_code AST edges | deskcheck-pending · complete | opus |
 | Code-ingest | bp-095 — CI-4: the S↔F code↔design lens (M-C7, read-only survey) | build · ready | opus |
+| Code-ingest | bp-098 — CI-wiring (Plan B): the code-ingest ENABLE path | graduate · proposed | Fable/Opus |
 | Fiber geometry | bp-085 — G-A: the fiber-geometry measure-first survey (M1–M8, read-only) | deskcheck-pending · complete | opus |
 | Inner/outer core | bp-083 — M0: enforce the two-ring refinement in place (born-green inner ratchet) | deskcheck-pending · complete | opus |
 | Inner/outer core | bp-089 — S1′: the temporal math enters the ring (math↔persistence splits, map +7 → 37) | deskcheck-pending · complete | opus |
@@ -55,6 +56,8 @@
     - CI-2 retrieval / geometry proof (bp-093)
     - CI-3 reference resolvers + inherits/calls edges (bp-094)
     - CI-4 the S↔F lens (bp-095)
+    - CI-wiring the ENABLE path — CodeIngestConfig + daemon enqueue + `palace code-seed` (bp-098, warrant finding-0159)
+    - the seed run PROVES it works — code is actually embedded + retrievable (not just built); owner-visible run
     - integrator densification (finding-0151) — design-pass, FABLE, after the build plans
 - **Fiber geometry** (active):
     - G-A survey readings M1–M8 with honest nulls (bp-085)

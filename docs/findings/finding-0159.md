@@ -57,6 +57,15 @@ Make "the ON switch exists" a first-class part of the definition of done:
    Added to `docs/templates/design-note.md` this session so the ON switch is designed, never
    deferred. The promotion step is making it a checked contract (a gate that a note lacks §4, or
    its §4 is empty of the required subsection), amending dn-agent-workflow.
+4. **Deskcheck = proven-working, and the board mislabels it** (owner sharpening 2026-07-22): a
+   deskcheck is "here it is, working as expected" — it FINALIZES a track and cannot be claimed
+   while the track still needs work to run ([[deskcheck-discipline]] updated). Two fixes: (a)
+   `board.py`'s phase function labels a *sealed plan* "deskcheck-pending" — misleading; a complete
+   plan whose track still has open build/enable work should read "sealed" (track not yet
+   deskcheck-ready), with "deskcheck-pending" reserved for a demonstrably-working track awaiting the
+   owner verdict; (b) stop saying "ready to deskcheck" on a mere seal (say it only when the track
+   works). This is the code-ingest case: sealed CI-1..3, but the wiring (bp-098) + the proving seed
+   run are owed, so the track is work-owed, not deskcheck-owed.
 
 ## Routing
 
