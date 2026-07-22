@@ -5337,3 +5337,20 @@ findings; the K1 `__file__` hazard did NOT recur (none of the seven compute a re
 note: the builder briefly ran Bash in the shared main checkout, caught it, stashed the stray work
 (`stash@{0}`, recoverable) and redid it cleanly in the worktree — main stayed pristine. **K1+K3 done;
 inner-outer-core owes its deskcheck (M0+S1+K1+K3). Stopped before the CI wave (owner go needed).**
+
+**CI wave started (owner-authorized 2026-07-22); the `pages` CI drift fixed en route.** bp-092 (CI-1)
+sealed; separately, the `pages` (mkdocs) workflow — red since K3 — was fixed (8 API refs repointed to
+`core.kernel.*`, `98bc7b2`), and finding-0157 filed on the process gap (mkdocs not in the local gate;
+refs outside the mover's scope). Deployed v1.16.0.
+
+**bp-092 (CI-1) DONE + sealed** (delegated, opus, 286k = 0.52× the 550k estimate): the three-layer
+code embed lane — L0a/L0b/L1 chunkers, structurally-minted `Provenance.CODE` (mirror-excluded, no
+provenance parameter — F-CI1), vectorstore `layer`+fiber columns (row/vector-preserving rebuild),
+blob-sha incremental + the `code_sync` scheduler KIND, ledger captures (end_lineno/comments/
+import_records), F-CI1/F-CI5 ratchets. 37 new tests. Merged (`f8b0fa6`); combined tree re-verified
+green (ruff · mypy 252 · argless 69 · type_gate · CI pytest 1881 passed). **DORMANT BY DESIGN** —
+`[code_ingest].enabled=false`, not auto-enqueued; the live seed run + M-C1/M-C2/M-C8 readings PARK for
+an owner-visible idle daemon run (the deskcheck subject). Two mid-build drift fixes (finding-0156,
+resolved): write_scope `core/provenance.py`→kernel (`dcd79c6`) + carried the φ_code pin test
+(`bfa321b`), and the φ_code source hash re-pinned same-version as a verified declared refactor
+(`f8b0fa6`). **Next:** bp-093 + bp-094 (both dep 092, now unblocked) → bp-095; budget permitting.

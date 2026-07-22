@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0156
-status: open
+status: resolved
 created: 2026-07-22
 updated: 2026-07-22
 links:
@@ -10,7 +10,7 @@ links:
   - docs/build-plans/bp-091/plan.md                # K3 — the relocation seal that caused the drift
 ftype: spec-fidelity
 route: orchestrator            # a plan write_scope edit is orchestrator-single-writer territory
-resolution: null
+resolution: orchestrator widened bp-092 write_scope to the relocated paths — core/provenance.py→core/kernel/provenance.py (dcd79c6) + carried tests/unit/test_interpreter_versions.py (bfa321b); the φ_code pin was re-pinned same-version as a verified declared refactor (f8b0fa6). Generalized to finding-0157 (add a graduation-time reference-scan rule).
 ---
 
 # bp-092 write_scope + §2/§6 path pins drifted under the K1/K3 relocation (sealed AFTER graduation)
