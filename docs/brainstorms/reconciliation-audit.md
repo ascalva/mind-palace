@@ -92,6 +92,41 @@ OWNER RULING (2026-07-23, this capture — the standing pre-gate):
     seal → ADVERSARIAL REVIEW → bless/deskcheck), and gate-guard/Stop-gate learn to demand the
     review artifact's existence.
 
+OWNER REFINEMENT (2026-07-23, same capture): **the adversaries are DOMAIN EXPERTS** — not one
+generalist refuter but a panel of specialists, each with a single deep concern:
+  - The roster (initial; grows as domains do):
+    * **core auditor** — the sealed core: store/ingest/retrieval semantics, provenance firewall
+      (non-laundering, MIRROR_READABLE), self-containment/import discipline, single-writer,
+      re-derivability, the memory ceiling. Lives in BUILD-SPEC + core/**.
+    * **harness/workflow auditor** — the artifact chain itself: gates, write_scope capability,
+      hooks, template conformance, delegation discipline, blessing integrity.
+    * **security auditor** — the non-negotiables as an attack surface: egress seal, network/vault
+      separation, secrets, sandbox powerlessness, effector tiers, blast radius; adversarial about
+      capability LEAKS (the Track-G class), not just bugs.
+    * **mathematics/logic auditor** — derivations, invariants, premises-measured, falsifier
+      presence, the reasoning-complex / fiber-geometry / homology claims, gauge statistics;
+      wields the T2 harness (sympy/numeric) as its instrument.
+    * **systems/scheduler auditor** — concurrency, queue discipline, starvation (the
+      finding-0165 class), crash/recovery, idempotency under retry, growth curves.
+  - **Auditor briefs are standing ARTIFACTS, not re-derived prompts** — the natural home is
+    `.claude/agents/auditor-<domain>.md` beside builder.md/scribe.md (the contract mechanism
+    already exists). Each brief carries: the domain's invariants, its checklist, and a grown
+    "misses" section — every detection-lag failure in that domain becomes a permanent checklist
+    line (the compounding property: the panel gets sharper with every finding).
+  - **Routing is mechanical, not judgment:** the artifact's touched surfaces select the experts —
+    write_scope globs map to domains (core/** → core auditor; scheduler/** → systems; edge/,
+    secrets, effectors → security ALWAYS); a non-N/A §8 → math auditor MANDATORY; design notes
+    always get workflow + their surface's experts. Security and math sit on a low threshold —
+    when in doubt, they're in.
+  - **Independence + accounting:** experts run parallel, read-only, small-context (brief +
+    artifact + targeted greps — fleet-shaped, cheap per unit); each files findings independently
+    (no consensus-seeking — a lone dissent is a feature); the merged report names WHICH experts
+    examined WHAT, so an unexamined surface is visible (the integrator's named-not-dropped
+    accounting, applied to review coverage). Tier by stakes: math/security highest.
+  - This mirrors dn-agent-taxonomy on the workflow side: the system's own agents are typed by
+    scope-and-concern; the auditors are the same species pointed at the workshop instead of the
+    corpus.
+
 open (for the Fable pass):
   - adversarial-review depth vs cost per artifact class (a one-line fix plan vs a new subsystem
     note do not warrant the same fleet); who reviews the reviewer's misses (the standing-cadence
