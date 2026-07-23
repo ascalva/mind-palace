@@ -60,12 +60,27 @@ D1/D2 amendment, through the NEW expert-panel gate — core + systems + math aud
 Then ONE rebuild — which under dedup embeds only distinct chunks, i.e. CHEAPER than the backfill
 it replaces. Nothing done now is lost.
 
+## Owner ruling addendum (2026-07-23, same thread): cross-file sharing + FORK semantics — ruled IN
+
+Two documents sharing a chunk = ONE vector, TWO memberships. If the chunk changes in one file,
+**the lineage forks**: only that file's membership swaps to the new vector, minting a supersession
+edge to the new item scoped to ITS slot; the other file keeps pointing at the original. The formal
+pin that makes this coherent: **supersession edges live on the SLOT-LINEAGE `(path, slot)`, never
+on the vector** — a vector is immutable/eternal with no successor of its own; succession is a
+property of occupancy chains. Edge identity = `(path, slot, old_hash → new_hash, at blob
+transition)`. Consequences, all free: the shared past is a GRAPH FACT (two lineages intersecting
+at a node — "historically once the same" is readable, not stored); parallel same-edits mint
+parallel edges through the same nodes with distinct provenance; CONVERGENCE (later copy-paste
+re-shares the node) joins as naturally as forks. The store is git's own model one level down:
+content-addressed immutable nodes, memberships as trees, lineage per-path — self-similar with the
+file grain (`digest` = blob sha; `content_hash` = chunk sha).
+
 ## Open for the design pass
 
 - Membership store shape (sqlite table beside the catalog? its own db?), the denormalized-flag
   update discipline (flip on supersession), and crash consistency between lance + membership.
-- Cross-FILE dedup scope: same content_hash in two files = one vector, two memberships — rule in
-  or out explicitly (provenance is identical, CODE; retrieval provenance rides membership).
+- Slot identity across layers: L0a/L1 slots = qualname/symbol (stable); L0b windows are slotless
+  (membership-only, no chains) — confirm the slot vocabulary the edge schema carries.
 - Whether the NOTE corpus adopts the same model when its keep-and-link lands (finding-0164 — one
   membership machinery for all lanes, or code-first).
 - Chunk-slot supersession chains (L0a/L1) as first-class edges for the integrator's composed
