@@ -96,6 +96,31 @@ Two pins keeping the axiom honest:
    right-to-forget. Near-moot for CODE (public in git); load-bearing when the notes lane adopts
    this model.
 
+## Owner ruling addendum 3 (2026-07-23): membership cardinality n(v) is a first-class observable
+
+Owner: "understanding the frequency of use of that vector can be important — common tokens is an
+indication of a common language, or at least a common way of expressing an idea, an atomic
+component of an idea." Under the membership model this is FREE — n(v) is a COUNT over the
+membership relation, versioned by cut (n at time t = memberships current at t; n over history =
+the lifetime reach of the atom). What it unlocks:
+- **Retrieval weighting, IDF at idea grain:** ubiquitous vectors are the corpus's stopword-
+  analogues (style/boilerplate); rare vectors are signal — or INVERTED deliberately to mine the
+  common language itself.
+- **The idiolect atlas (self-map):** the owner's recurring thought-atoms across notes — the
+  atomic vocabulary of how he expresses ideas — becomes a queryable stratum; its DRIFT over cuts
+  is the evolution of his language.
+- **Code idiom/boilerplate detection:** high-n code chunks = the house patterns; a FORK in a
+  high-n vector (one file diverges from shared language) is itself a signal event.
+- **Hub structure for the dreamer/graph:** high-n atoms are connective tissue; n(v) is a degree
+  measure the association machinery can read directly.
+- **The histogram (owner, same thread): the DISTRIBUTION of n(v) over the whole plane** — one
+  GROUP-BY away under membership. Diagnostics it carries: the shape (natural-language token
+  frequencies are Zipfian — whether idea-atoms follow Zipf is a falsifiable corpus property; a
+  deviation localizes something real); its drift across cuts (language consolidating vs
+  diversifying over time); per-lane comparison (code idiom distribution vs note idiolect
+  distribution). A standing gauge of the corpus's common language — joins the drift-gauge family;
+  feeds the T4 limits work and the retrieval-weighting design.
+
 ## Open for the design pass
 
 - Membership store shape (sqlite table beside the catalog? its own db?), the denormalized-flag
