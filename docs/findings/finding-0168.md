@@ -75,6 +75,27 @@ re-shares the node) joins as naturally as forks. The store is git's own model on
 content-addressed immutable nodes, memberships as trees, lineage per-path — self-similar with the
 file grain (`digest` = blob sha; `content_hash` = chunk sha).
 
+## Owner ruling addendum 2 (2026-07-23): the vector plane is APPEND-ONLY — no deletes
+
+Owner (verbatim): "the same vector doesn't need to be stored twice, a point is a point, somewhat
+meaningless, but that vector is a member of n > 0; once it's stored it's always there in the
+history, no deletes." Confirmed as the closing axiom, with the separation it implies:
+**geometry** (the point — assertion-free alone) vs **reference** (membership — where meaning
+lives) vs **history** (slot-lineage chains through the point). The embedding space is a growing
+dictionary of ideas; the corpus is the usage record over it. Append-only is affordable BECAUSE of
+dedup: the space grows only by genuinely-new ideas; an edit = ≤1 vector insert + membership row +
+edge row; reverts/copy-pastes are pure metadata, zero geometry.
+
+Two pins keeping the axiom honest:
+1. `n` counts HISTORY: a vector may have zero CURRENT memberships (every file moved on) yet
+   remains a historical member forever (n ≥ 1 by construction) — the `current=false` points,
+   traversable dark matter.
+2. **Purge remains the one carved exception** (finding-0164, owner-ruled): owner-gated privacy
+   deletion outranks lineage — a purge deletes the vector and TOMBSTONES its memberships (a
+   recorded hole, never silent). "No deletes" binds the MACHINERY, not the owner's
+   right-to-forget. Near-moot for CODE (public in git); load-bearing when the notes lane adopts
+   this model.
+
 ## Open for the design pass
 
 - Membership store shape (sqlite table beside the catalog? its own db?), the denormalized-flag
