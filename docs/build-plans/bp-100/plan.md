@@ -1,7 +1,7 @@
 ---
 type: build-plan
 id: bp-100
-track: code-ingest
+track: ops
 status: proposed
 design_ref:
   - docs/design-notes/temporal-code-corpus.md

@@ -31,12 +31,16 @@
 | Code-ingest | bp-093 — CI-2: the isolation + retrieval proof (M-C3 / M-C4 / M-C5) | deskcheck-pending · complete | opus |
 | Code-ingest | bp-094 — CI-3: the reference layer — shorthand resolvers (L2b) + the code_to_code AST edges | deskcheck-pending · complete | opus |
 | Code-ingest | bp-095 — CI-4: the S↔F code↔design lens (M-C7, read-only survey) | build · ready | opus |
-| Code-ingest | bp-098 — CI-wiring (Plan B): the code-ingest ENABLE path | graduate · proposed | Fable/Opus |
+| Code-ingest | bp-098 — CI-wiring (Plan B): the code-ingest ENABLE path | deskcheck-pending · complete | opus |
+| Code-ingest | bp-099 — the temporal code corpus (history embedded · keep-and-link · supersession edges) | deskcheck-pending · complete | opus |
 | Fiber geometry | bp-085 — G-A: the fiber-geometry measure-first survey (M1–M8, read-only) | deskcheck-pending · complete | opus |
 | Inner/outer core | bp-083 — M0: enforce the two-ring refinement in place (born-green inner ratchet) | deskcheck-pending · complete | opus |
 | Inner/outer core | bp-089 — S1′: the temporal math enters the ring (math↔persistence splits, map +7 → 37) | deskcheck-pending · complete | opus |
 | Inner/outer core | bp-090 — K1: the born inner ring moves to `core/kernel/**` (M2 wave 1, physical migration) | deskcheck-pending · complete | opus |
 | Inner/outer core | bp-091 — K3: the S1 seven join the kernel (M2 wave 2) | deskcheck-pending · complete | opus |
+| Ops | bp-100 — bp-100: make `supersede_source` cost-independent of store size (the backfill blocker) | graduate · proposed | Fable/Opus |
+| Ops | bp-101 — bp-101: queue hygiene — enqueue coalescing and orphaned-job reclaim | graduate · proposed | Fable/Opus |
+| Ops | bp-102 — bp-102: status tells the truth — liveness, failures, and rates (command center, Tier 1) | graduate · proposed | Fable/Opus |
 | Reference bookkeeper | the async F-consistency agent (finding-0145/0154) | design-pass | FABLE |
 | Sync/diac dreamers | bp-079 — D-0: the DreamCharter dispatch record + the materialization boundary | deskcheck-pending · complete | opus |
 | Sync/diac dreamers | bp-080 — D-1: the ARROW-READ synchronic dispatch (the clock-free v1) | deskcheck-pending · complete | opus |
@@ -66,6 +70,14 @@
     - M0+S1 ring enforcement live (bp-083 / bp-089) — the two-ring ratchet green (INNER=37)
     - K1 born-30 inner ring → core/kernel/** physical migration (bp-090)
     - K3 the S1 seven (bp-091)
+- **Ops** (active · warrant docs/findings/finding-0169.md):
+    - OPS-1 store cost bounded — `supersede_source` O(path depth), proven by a ratchet, not asserted (bp-100, warrant finding-0169)
+    - OPS-2 queue hygiene — enqueue coalescing + orphaned-job reclaim (bp-101, warrant findings 0170/0173)
+    - OPS-3 status tells the truth — liveness, failures, and the rate/budget block; command-center TIER 1 (bp-102, warrant finding-0172)
+    - OPS-4 the shutdown contract closed — oq-0035 ruled and built (finding-0171); `down` must be able to stop a wedged daemon
+    - OPS-5 the command center proper — TIER 2, real-time, macro axes; design note + adversarial panel, then graduate (docs/brainstorms/command-center.md)
+    - OPS-6 cost as a checkable property — the performance-ratchet suite generalized beyond one method; scale witnesses (docs/brainstorms/ops-and-optimal-form.md)
+    - the restart PROVES it — daemon back up, backfill completes to ~1,542 versions, rate observable throughout (owner-visible run, not merely built)
 - **Reference bookkeeper** (active):
     - the async F-consistency agent designed (a FABLE design-pass) — bookkeeper still unbuilt
     - the reference-sensor gap closed (finding-0145)
