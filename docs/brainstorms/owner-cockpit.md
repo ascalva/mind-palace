@@ -384,3 +384,68 @@ names. Line-precision is the level to reach for last, not first.
 
 Open for the owner: whether the standard should actively **discourage** bare line refs in docs
 (as opposed to code comments), given the decay evidence.
+
+### Owner extension — a finding prefix, and a reserved SUBTYPE slot
+
+Verbatim: *"also findings can have a prefix as well, owner questions already do, maybe you can
+define a finding as `f?:<name>`, where `?` can be any char to help organize findings if we need to."*
+
+Two separable proposals. **Take the first, reserve-but-do-not-populate the second.**
+
+#### 1. `f:` as the finding prefix — yes, adopt
+
+Already in the grammar above (`f:0199` → `docs/findings/finding-0199.md`). It restores symmetry:
+`oq:0035` and `f:0199` are the same shape, and today's `finding-0199` is the only artifact id that
+spells its type out in full. Cheap, no decisions blocked.
+
+#### 2. `f?:` — a subtype char. ⚑ Reserve the SYNTAX; do NOT fill it yet.
+
+The instinct is sound — leaving a growth slot in a grammar is cheaper than retrofitting one. But
+populating it now would freeze an **incoherent vocabulary** into every citation in the corpus.
+
+**Measured this session — the corpus runs TWO disjoint ftype vocabularies simultaneously:**
+
+| `docs/templates/finding.md` set | n | `CLAUDE.md` routing set | n |
+|---|---|---|---|
+| discovery | 51 | spec-fidelity | 22 |
+| spec-defect | 50 | direction | 24 |
+| question | 3 | design | 13 |
+| blocker | 1 | math · codebase | 10 |
+| **105** | | **69** | |
+
+That is `f:0193` exactly ("the ftype vocabulary in the finding template and CLAUDE.md are disjoint
+sets"), **still `open` and unruled**. A subtype char has to draw from *some* closed vocabulary, and
+there is currently no single one to draw from. ⇒ **`f:0193` is a hard prerequisite.**
+
+#### ⚑ The deeper objection — ftype is MUTABLE, and identifiers should not be
+
+Even after `f:0193` is ruled, encoding type into the *reference* is the wrong shape:
+
+- **A finding's type changes.** Triage re-routes and re-types; a `discovery` becomes a
+  `spec-defect` once someone proves it bites. The id is cited from plans, journals, other findings,
+  track manifests, and the book.
+- **A stale subtype still RESOLVES — it just lies.** `fb:0199` for a finding that is no longer a
+  blocker opens the right file and misinforms the reader silently. That is strictly worse than a
+  broken link, which at least fails loudly. Compare the line-ref decay above: same failure mode,
+  larger blast radius, because a retype invalidates *every* citation at once rather than drifting
+  one.
+- **The filename would have to encode it too**, so a retype means a file rename → git history
+  break + every existing ref dead.
+
+General principle worth writing into the standard: **identifiers are opaque and stable; attributes
+live in frontmatter and in derived views.** The corpus already follows it everywhere else —
+`bp-108` does not encode its track or status, and `docs/TRACKS.md` is generated rather than named.
+
+#### What actually serves the stated goal ("help organize findings")
+
+A **derived index** — `scripts/board.py` for findings: group by ftype / route / status / track,
+regenerate, never hand-edit. Same pattern already proven twice (`TRACKS.md`, `DESKCHECK-QUEUE.md`).
+It gives filtering and grouping *without* putting mutable state in a name, and it stays correct
+across retypes for free. If the want is to see the type *while reading a ref*, that is a resolver/
+picker affordance (show frontmatter on completion), not an identifier change.
+
+#### Recommendation
+
+Grammar reserves the slot: `<type> ::= f | f<subtype-char> | dn | bs | …` — **syntax legal,
+vocabulary empty**, so adopting it later costs nothing and needs no re-parse. Populate only if
+(a) `f:0193` is ruled AND (b) someone shows a real need the derived index cannot serve.
