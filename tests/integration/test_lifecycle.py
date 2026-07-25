@@ -97,12 +97,21 @@ def test_constitution_check_fails_closed_on_tamper(tmp_path):
 
 # --- the launcher (fake components; no models) --------------------------------------------------
 class _FakeSupervisor:
-    def __init__(self):
-        self.runs = 0
+    """Widened by bp-108 Item 4 to the real `Supervisor.run(*, max_ticks=…) -> int`. It records
+    the bound it was handed and returns a dispatch count, because `_serve` now uses both: the
+    bound is what returns control to the loop at a job boundary, and the count is what decides
+    whether the tick sleep happens at all."""
 
-    def run(self):
+    def __init__(self, dispatch_counts: list[int] | None = None):
+        self.runs = 0
+        self.max_ticks_seen: list[int | None] = []
+        self._dispatch_counts = list(dispatch_counts or [])
+
+    def run(self, *, max_ticks=None):
         self.runs += 1
-        return 0
+        self.max_ticks_seen.append(max_ticks)
+        # Default 0 = "nothing was runnable", the pre-bp-108 behaviour every existing test assumes.
+        return self._dispatch_counts.pop(0) if self._dispatch_counts else 0
 
 
 class _FakeWatcher:
@@ -442,3 +451,145 @@ def test_gate_deselects_only_the_intentional_ratchet():
         cwd=repo_root, capture_output=True, text=True,
     )
     assert green.returncode == 0, green.stdout + green.stderr
+
+
+# =================================================================================================
+# bp-108 Item 4 — the drain is bounded, and the sleep stops being unconditional
+# =================================================================================================
+#
+# Two halves of ONE fix, and either alone is a defect. Before this, `_serve` called a bare
+# `supervisor.run()` — which drains until nothing is runnable, so with a backlog the health check,
+# the snapshot refresh and housekeeping did not run until the queue emptied. Bounding the drain
+# fixes that and creates a second defect if the tick sleep stays unconditional: N trivial jobs then
+# cost ⌈N/K⌉ sleeps of pure waiting. Both are asserted, and both mutations are covered.
+
+
+class _BacklogSupervisor:
+    """A queue of N no-op jobs. Honours `max_ticks` exactly as the real `Supervisor.run` does —
+    dispatch up to that many, return how many went — and treats `max_ticks=None` as "drain until
+    empty", which is the pre-bp-108 behaviour. That fidelity is what makes the falsifier below
+    real: remove the bound from the call site and this fake empties the whole backlog in one pass,
+    exactly like the real supervisor would."""
+
+    def __init__(self, backlog: int):
+        self.remaining = backlog
+        self.runs = 0
+        self.max_ticks_seen: list[int | None] = []
+
+    def run(self, *, max_ticks=None):
+        self.runs += 1
+        self.max_ticks_seen.append(max_ticks)
+        n = self.remaining if max_ticks is None else min(max_ticks, self.remaining)
+        self.remaining -= n
+        return n
+
+
+def _draining_launcher(tmp_path, sup, *, tick_seconds, **kw):
+    """A launcher over `sup` that records what the health tick could SEE each time it fired."""
+    seen_remaining: list[int] = []
+
+    def _health() -> list[Flag]:
+        seen_remaining.append(sup.remaining)
+        return []
+
+    comps = Components(supervisor=sup, watchers=[_FakeWatcher()], queue=_FakeQueue(),
+                       health_check=_health)
+    passing = Preflight((Check("x", required=True, ok=True, detail="ok"),))
+    launcher = Launcher(
+        cfg=_cfg(tmp_path), runs=RunLedger(tmp_path / "runs.sqlite"),
+        repo_root=Path(".").resolve(), components_factory=lambda _c: comps,
+        preflight_fn=lambda _c: passing, tick_seconds=tick_seconds, health_interval_s=0, **kw)
+    return launcher, seen_remaining
+
+
+def test_the_serve_loop_bounds_every_drain_with_K(tmp_path):
+    """`_serve` calls `c.supervisor.run(max_ticks=K)` — on every pass, not just the first."""
+    sup = _BacklogSupervisor(backlog=0)
+    launcher, _ = _draining_launcher(tmp_path, sup, tick_seconds=0)
+    assert launcher.start(max_ticks=3) == 0
+    assert sup.max_ticks_seen == [launcher.drain_max_ticks] * 3
+    assert launcher.drain_max_ticks == 64                  # §11's parked default
+
+
+def test_supervisory_ticks_fire_DURING_a_drain_rather_than_after_it(tmp_path):
+    """⚑ NAMED FALSIFIER, first half — the defect Item 4 exists to fix.
+
+    With N ≫ K queued jobs the health tick must run WHILE the backlog is still draining. Asserted
+    as "health saw a non-empty backlog at least once", which is only possible if control returned
+    to the serve loop mid-drain. Delete `max_ticks=` from the call site and `_BacklogSupervisor`
+    empties all 1,766 in the first pass, so health only ever observes 0 — this test reddens."""
+    sup = _BacklogSupervisor(backlog=1766)                 # the plan's measured backlog
+    launcher, seen_remaining = _draining_launcher(tmp_path, sup, tick_seconds=0)
+
+    assert launcher.start(max_ticks=5) == 0
+    assert any(r > 0 for r in seen_remaining), (
+        f"health never saw an un-drained queue: {seen_remaining} — the drain is unbounded")
+    assert sup.remaining < 1766                            # ...and it really was draining
+
+
+def test_the_tick_sleep_runs_only_when_the_drain_came_back_idle(tmp_path, monkeypatch):
+    """⚑ NAMED FALSIFIER, second half — the defect a bound WITHOUT this would introduce.
+
+    `run()` returns its dispatch count; a non-zero count means more work is ready right now, so the
+    loop must go straight round again. Sleeping anyway is what turns a no-op backlog into a crawl.
+    """
+    slept: list[float] = []
+    monkeypatch.setattr("ops.lifecycle.launcher.time.sleep", slept.append)
+    sup = _FakeSupervisor(dispatch_counts=[7, 3, 0, 0])    # busy, busy, idle, idle
+    comps = Components(supervisor=sup, watchers=[_FakeWatcher()], queue=_FakeQueue())
+    passing = Preflight((Check("x", required=True, ok=True, detail="ok"),))
+    launcher = Launcher(
+        cfg=_cfg(tmp_path), runs=RunLedger(tmp_path / "runs.sqlite"),
+        repo_root=Path(".").resolve(), components_factory=lambda _c: comps,
+        preflight_fn=lambda _c: passing, tick_seconds=1.0, health_interval_s=0)
+
+    assert launcher.start(max_ticks=4) == 0
+    assert slept == [1.0, 1.0], (
+        f"expected a sleep on the two IDLE passes only, got {slept} — an unconditional sleep "
+        "trades the drain bound for a throughput collapse")
+
+
+def test_a_no_op_backlog_does_not_take_N_times_tick_seconds(tmp_path):
+    """⚑ NAMED FALSIFIER, measured in wall-clock — the note's own §2.10 disqualifier: "1,766 queued
+    no-ops must not take 30 minutes because each tick eats a `tick_seconds` sleep".
+
+    Real sleeps, real clock, scaled down. With K = 64 the backlog needs ⌈1766/64⌉ = 28 non-idle
+    passes; every one of them must skip the sleep, so the whole drain costs ~0 and only the final
+    idle pass pays. The pre-fix behaviour would pay on all 28."""
+    import time as _time
+    tick = 0.02
+    sup = _BacklogSupervisor(backlog=1766)
+    launcher, _ = _draining_launcher(tmp_path, sup, tick_seconds=tick)
+
+    passes = 28                                            # exactly ⌈1766/64⌉
+    started = _time.monotonic()
+    assert launcher.start(max_ticks=passes) == 0
+    elapsed = _time.monotonic() - started
+
+    assert sup.remaining == 0                              # fully drained in those passes
+    unconditional = passes * tick                          # what the old loop would have slept
+    assert elapsed < unconditional / 2, (
+        f"drain of 1766 no-ops took {elapsed:.3f}s; an unconditional sleep would cost "
+        f"{unconditional:.3f}s. At the real tick_seconds=1.0 that is {passes}s — and at K=1, "
+        f"{1766 / 60:.0f} minutes.")
+
+
+def test_recovery_mode_keeps_its_unconditional_sleep(tmp_path, monkeypatch):
+    """The conditional sleep is `_serve`'s, NOT `_idle`'s. Recovery halts the scheduler entirely
+    ("scheduler halted, watcher off, read-only"), so there is never a drain to be idle after and
+    the unconditional sleep is the correct duty cycle. Without this, a future tidy-up that
+    "unifies" the two loops would silently spin recovery mode at 100% CPU."""
+    slept: list[float] = []
+    monkeypatch.setattr("ops.lifecycle.launcher.time.sleep", slept.append)
+    runs = RunLedger(tmp_path / "runs.sqlite")
+    runs.open_run(commit_sha="old000000000", dirty=False, pid=2 ** 22)   # unclean → recovery
+    comps = Components(supervisor=_FakeSupervisor(), watchers=[], queue=_FakeQueue())
+    passing = Preflight((Check("x", required=True, ok=True, detail="ok"),))
+    launcher = Launcher(
+        cfg=_cfg(tmp_path), runs=runs, repo_root=Path(".").resolve(),
+        components_factory=lambda _c: comps, preflight_fn=lambda _c: passing,
+        tick_seconds=1.0, health_interval_s=0)
+
+    assert launcher.start(max_ticks=3) == 0
+    assert _last(runs).recovery
+    assert slept == [1.0, 1.0, 1.0]                        # every idle pass, unconditionally

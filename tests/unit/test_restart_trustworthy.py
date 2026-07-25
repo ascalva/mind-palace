@@ -46,10 +46,12 @@ def _cfg(tmp_path):
 class _FakeSupervisor:
     def __init__(self):
         self.runs = 0
+        self.max_ticks_seen: list[int | None] = []
 
-    def run(self):
+    def run(self, *, max_ticks=None):     # bp-108 Item 4 widened the call site to the real shape
         self.runs += 1
-        return 0
+        self.max_ticks_seen.append(max_ticks)
+        return 0                          # 0 dispatched = nothing runnable
 
 
 def _launcher(tmp_path, runs, *, queue=None, monkeypatch=None, **kw):
@@ -316,10 +318,10 @@ def _serving_launcher(tmp_path, runs, queue, monkeypatch):
         def __init__(self):
             self.runs = 0
 
-        def run(self):
+        def run(self, *, max_ticks=None):   # bp-108 Item 4 — the real `run` shape
             self.runs += 1
-            queue.claim()
-            return 0
+            claimed = queue.claim()
+            return 1 if claimed is not None else 0
 
     comps = Components(supervisor=_ClaimingSupervisor(), watchers=[], queue=queue)
     monkeypatch.setattr("ops.lifecycle.launcher.git_state", lambda _r: ("abc123456789", False))
