@@ -132,6 +132,61 @@ the lifetime reach of the atom). What it unlocks:
 - Chunk-slot supersession chains (L0a/L1) as first-class edges for the integrator's composed
   graph (a finer D-fiber than blob→blob).
 
+## Owner ruling addendum 4 (2026-07-25): a RENAME creates no vector — only a membership edge
+
+**Owner, verbatim:** *"random thought on the vector embeddings being members of sets, when a file is
+renamed, the data stays the same, so when ingested, the only thing that changed was the creation of a
+membership relationship, no new vector, that's how you detect a rename."*
+
+**Ruled: correct, and stronger than stated.** Under the membership model a rename is not something
+the ingest must *detect and handle* — it is the shape the data already has. Same content ⇒ same
+content-addressed chunks ⇒ **no new vector is minted**; the only delta is a membership edge from a
+new path to an existing chunk set. Rename detection becomes an *observation over data already
+stored*, not a mechanism with its own code path.
+
+**The generalization — the whole taxonomy falls out of membership set algebra.** Let `C(p)` be the
+chunk set of path `p`. Then:
+
+| operation | membership signature |
+|---|---|
+| rename | `C(p′) = C(p)`, `p` gone — total overlap, new path |
+| edit | high overlap, **same** path |
+| **rename + edit** | high-but-partial overlap, new path — *graded*, and the degree says how much changed |
+| split | `C(p)` distributes across `C(p₁) ∪ C(p₂)` — a fork (already ruled IN, addendum 1) |
+| merge | `C(p₁), C(p₂)` converge into `C(p′)` — a join |
+| copy | chunks shared by two paths, **both current** — cross-file sharing (addendum 1) |
+
+**What this supersedes.** Today rename carry-forward is `rename_by_digest` (`core/ingest/sync.py:
+150-166`, bp-031 Item 2): **doc-grain, exact-content only**, and a digest shared by more than one
+vanished path is explicitly *"AMBIGUOUS (dedup, no single predecessor), dropped"*. Membership
+subsumes it on all three counts — chunk grain instead of doc grain; **graded instead of binary, so
+rename-plus-edit survives** (the case exact-digest matching cannot see at all); and the ambiguous
+case stops being a failure to drop and becomes a *fork/copy fact*, which addendum 1 already ruled in.
+
+**Git comparison, made precise.** Git detects renames *heuristically* — a similarity index over line
+diffs, with a tunable threshold (`-M`). The membership model gets the same answer **structurally**,
+with no heuristic and no threshold to tune, at **idea grain rather than line grain**. This is the
+concrete cash value of this finding's "git's model one level down."
+
+**⚑ It composes with addendum 3 (n(v)).** Membership frequency is exactly the IDF term for identity
+evidence: a chunk with high `n(v)` is boilerplate (a license header, an import block) and is *weak*
+evidence that two paths are the same document; a rare chunk is *strong* evidence. So overlap should
+be weighted `~1/n(v)`, not counted raw. Addendum 3's Zipf gauge and this addendum are one mechanism.
+
+**⚑ THE PRECONDITION, and it is not yet met.** All of the above is only as good as **chunk-boundary
+stability under edits.** finding-0167 already flags this as owed: *"L0a proven edit-stable, L1
+line-header check owed."* If a chunk id embeds a line header, inserting one line near the top shifts
+every downstream chunk id and the overlap collapses to near zero — graded rename detection would
+then report "entirely new document" for a one-line edit. **Edit-stable chunk identity is therefore a
+PRECONDITION of this addendum, not an optimization.** This raises the priority of f-0167's L1 check
+from cleanup to load-bearing.
+
+**Degeneracies to design against:** a single-chunk document has binary overlap and no gradation;
+near-empty or heavily-boilerplate files may overlap strongly without being related (the `1/n(v)`
+weighting is the defense, but the threshold needs a falsifier); and a file whose content is entirely
+replaced under the same path is an edit by path but a total-miss by membership — the two signals
+disagree, and the design must say which wins.
+
 ## Routing
 
 `direction`, owner-ruled → the next Fable design pass with the expert panel. Amends
