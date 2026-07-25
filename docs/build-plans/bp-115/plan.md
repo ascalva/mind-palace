@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-115
 track: ops
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/dn-local-model-runtime.md
 contract: builder
