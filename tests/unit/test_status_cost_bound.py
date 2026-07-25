@@ -219,7 +219,7 @@ def test_store_stats_carries_only_the_one_cheap_figure():
     over `code_snapshots.sqlite`) MEASURED at 3.5 s — 423,855 rows, `SCAN files` + a temp B-tree,
     over a 2.3 GB table — and the embedded side has no filtered-count reader at all. `StoreStats`
     is therefore pinned to a single field, so re-adding an expensive figure has to be a deliberate
-    edit to this contract rather than a quiet extra line in the renderer (finding-0175)."""
+    edit to this contract rather than a quiet extra line in the renderer (finding-0178)."""
     import dataclasses
 
     fields = {f.name for f in dataclasses.fields(read_store_stats())}
