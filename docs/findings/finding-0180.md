@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0180
-status: open
+status: resolved
 created: 2026-07-25
 updated: 2026-07-25
 links:
@@ -14,7 +14,14 @@ links:
 ftype: design
 origin_plan: bp-103
 route: orchestrator
-resolution: null
+resolution: |
+  MEASURED 2026-07-25, twice independently (orchestrator + bp-103 auditor, identical
+  numbers): the live store at data/vectors.lance carries the `current` column.
+  22,621 rows; 14,002 current=true / 8,619 current=false. Option A is already correct
+  in production and the raise is unreachable there — restart checklist step 1 is closed
+  on evidence rather than inference. Option C (an O(1) schema probe) remains worthwhile
+  on its own merits: add() still pays two full to_arrow().to_pylist() probes per
+  instance (core/stores/vectorstore.py:109,133). See docs/audits/ops-wave-2026-07-25.md.
 ---
 
 # The schema migrations arm only on `add()` — and after bp-103, `supersede_source` reaches a column they may not have created yet

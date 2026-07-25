@@ -4,7 +4,8 @@ slug: ops
 title: Ops — operating the live system: cost, observability, and the shutdown contract
 status: active
 warrant: docs/findings/finding-0169.md
-audit_refs: []
+audit_refs:
+  - docs/audits/ops-wave-2026-07-25.md   # six independent auditors, cold-read, mutation-verified (bp-100..104 + SEAMS)
 dod:
   - OPS-1 store cost bounded — `supersede_source` O(path depth), proven by a ratchet, not asserted (bp-100, warrant finding-0169)
   - OPS-2 queue hygiene — enqueue coalescing + orphaned-job reclaim (bp-101, warrant findings 0170/0173)
