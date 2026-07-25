@@ -182,3 +182,81 @@ references:
   - core/stores/sourceset.py  # the single-scale-at-chunk-grain decision the smear presses on
   - eval/harness/sweep.py §8 `select` (bp-049)  # a WORKED fusion instrument over a scale-family
 ```
+
+## 2026-07-25 — the shared lexicon, and code as the LABELED subgraph
+
+```capsule
+topic: doc-code-entanglement (the lexical bridge + the calibration use)
+date: 2026-07-25 (session-44, ~03:00)
+
+warrant (owner, verbatim): "but for the code, isn't that interesting, you can start to relate code
+to documents, same english words, different context, and the code AST is layer 0, so variable names,
+function names, logic operators are common tokens, connected in an intricate pattern that describes
+the code as a graph"
+
+WHAT IS ALREADY BUILT (so this extends rather than re-proposes — grounded 2026-07-25):
+  `core/stores/reference_edges.py` (schema v2, bp-026) already carries the DETERMINISTIC doc<->code
+  bridge: symmetric `(source_kind, source_ref, source_detail) -> (target_kind, ...)` with
+  `kind in {code, corpus}`, admitting code_to_corpus | corpus_to_code | corpus_to_corpus. Extraction
+  is phi_code (`ops/code_sensor.py`). Invariant, structurally enforced: **cross-stratum edges NEVER
+  reach the balance math** (`build_complex` holds no handle; grep-asserted + proven bit-identical by
+  tests/integration/test_reference_edge_isolation.py). The 2026-07-11 capsule's EDGES thread is
+  DONE for the citation case.
+
+⚑ WHAT IS NEW HERE — the LEXICAL bridge, which is a different evidence class:
+  reference_edges requires an EXPLICIT citation (a docstring naming a note, a note naming a path, a
+  wikilink, a front-matter ref). The owner's observation is about the case where NOBODY CITES
+  ANYBODY: the token `supersede_source` simply appears in a chat turn and also names a function.
+  That is a SHARED-VOCABULARY join, not a reference.
+  ⇒ It is STATISTICAL, not deterministic — so it must NOT be minted into `reference_edges` (whose
+    whole contract is determinism), and a fortiori must stay balance-isolated. If it becomes an edge
+    class at all it is a THIRD class, weaker than reference, stronger than cosine.
+  ⇒ It also inherits the 07-11 capsule's own warning in reverse: that capsule said the doc<->code
+    connection is "REFERENTIAL, not distributional — cosine proximity cannot see it." The lexical
+    bridge is the distributional channel that DOES see part of it, without needing a citation. Both
+    are true; they cover different cases.
+
+⚑⚑ THE STRONGEST IDEA IN THIS CAPSULE — CODE'S GRAPH IS GIVEN, PROSE'S IS INFERRED:
+  For code, the structure is GROUND TRUTH: the AST is exact, and identifier->definition resolution
+  is deterministic. For prose, the sigma-graph is ESTIMATED from cosine. Same corpus, two halves,
+  one with labels and one without.
+  ⇒ **Code is a LABELED SUBGRAPH.** You can measure whether cosine-based edge inference recovers
+    edges you already know to be true — precision/recall of sigma against AST ground truth.
+  ⇒ This answers a STANDING, ADMITTED GAP. `config/defaults.toml:268-271` records sigma in
+    [0.55, 0.75] as a BOUND with the explicit caveat that the right sigma is "corpus- and
+    embedder-specific" and must be swept "before trusting cluster boundaries." **Nobody has had
+    labels to sweep against. The code half supplies them.** That turns a taste parameter into a
+    measured one — and it is a falsifier, not a proof, which is the disposition this project
+    ratifies.
+  ⇒ CAUTION on "ground truth": the AST is exact; CALL/inherits edges are STATIC APPROXIMATIONS
+    (dynamic dispatch, reflection, duck typing). Calibrate against the exact part, treat the
+    approximate part as approximate, and say which is which.
+
+COMPOSES WITH n(v) (f-0168 addenda 3/4): identifier frequency IS the IDF term for this join. A rare
+  identifier (`supersede_source`, `poset_from_chains`) is a high-information join key between a
+  transcript and a commit; a ubiquitous token (`self`, `data`, `get`, `current`) is noise and worse
+  than noise, because it false-joins. Weight ~1/n(v), never raw counts. Third use of the same
+  weighting tonight (rename identity, boilerplate suppression, now cross-modal join) — which is
+  itself evidence the gauge is load-bearing rather than decorative.
+
+⚑ THE CONCRETE PAYOFF — THE INTEGRATOR'S HISTORICAL WINDOW:
+  dn-integrator-densification's write-tag hook makes authorship EXACT going forward (grade TAGGED),
+  but it can do nothing for the ~977 commits already in the ledger — history can only be inferred,
+  which is why the grade lattice bottoms out at WINDOWED (time-join) and UNWITNESSED.
+  **Rare-identifier co-occurrence is retrievable evidence for exactly that un-taggable past**: a
+  chat turn mentioning `supersede_source` near-in-time to a commit that CHANGES `supersede_source`
+  is far stronger than a bare time-window. Candidate: strengthen WINDOWED with a lexical term, or
+  add a grade between WINDOWED and TAGGED. Feed this into the integrator's expert-panel pass.
+
+open questions:
+  - Identifier tokenization: `supersede_source` must split (snake_case/camelCase) to match prose
+    "supersede source". Standard code-search practice; does the current chunker do it? UNVERIFIED.
+  - Polysemy in both directions: `current` in prose (present-time) vs `current` the boolean column.
+    Does the 1/n(v) weight suppress this adequately, or is a sense-disambiguation step needed?
+  - REDUNDANCY CHECK (measure before building — this session's recurring lesson): does the dense
+    embedding already capture the lexical join implicitly, making an explicit lexical channel
+    unnecessary? Test: do a transcript chunk and a code chunk sharing a rare identifier already sit
+    close in the space? If yes, this is a retrieval-weighting question, not a new edge class.
+  - Does the sigma-calibration use conflict with the balance-isolation invariant? Calibration READS
+    both halves; it mints nothing — so isolation should hold, but the design pass must state it.
+```
