@@ -50,6 +50,7 @@
 | Track G / effectors | G1–G7 (e0bf1ad) | design-pass | FABLE |
 | Workflow / tooling | bp-096 — WF-1: the board substrate | deskcheck-pending · complete | opus |
 | Workflow / tooling | bp-097 — WF-2: the deskcheck gate | deskcheck-pending · complete | opus |
+| Workflow / tooling | bp-104 — bp-104: book sync, Chapter 2 (Architecture) — the boundaries, told from ratified mechanism | deskcheck-pending · complete | opus |
 
 ## Definition of done (per track — the deskcheck evaluates against this)
 

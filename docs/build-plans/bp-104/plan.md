@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-104
 track: workflow
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/agent-workflow.md
 contract: scribe
@@ -13,7 +13,30 @@ cost:
   estimate:
     model: opus
     tokens: 160k
-  actual: null
+  actual:
+    model: opus              # claude-opus-5, delegated scribe in a worktree, session-45
+    tokens: 316k             # harness-measured (316,419); 153 tool calls; 35.7 min wall
+    ratio: 1.98              # vs 160k — read-heavy: swept the design record and RE-VERIFIED every
+                             # existing citation across the 260-commit gap, which is the acceptance
+                             # bar, not scope creep
+    session_delta: one delegated scribe; all 3 items closed; 26p chapter, 4 new TikZ figures
+    notes: >-
+      Clean compile from a latexmk -C state — zero errors, warnings, undefined refs, font
+      substitutions, or over/underfull boxes; 28 pages, 724,563 bytes, reproduced byte-identically
+      by the orchestrator on the merged tree. ZERO draft ids cited; superseded sources marked as
+      such at every use; all four external references (Tarski 1955, Wadler 2015, Lamport 1978,
+      Chandy & Lamport 1985) verified in-session against DOI/CrossRef, never from memory.
+      Item 1 turned finding-0117's resolution into STRUCTURE rather than caution: SYNC.md's pending
+      block now requires every id under a chapter row to be ratified/superseded at HEAD, and a new
+      `forward-referenced:` block holds the draft theses the book names but never cites.
+      ⚑ finding-0185 is a genuine correction to a claim the chapter was about to make: the first
+      draft "proved" core's reachable imports are confined to the allowlist, which is FALSE —
+      ops/import_lint.py checks DIRECT imports only. Rewritten as local invariant → proved
+      proposition → named hypothesis → unconditional only at the limit. **This reclassifies
+      finding-0103 from hygiene to a SAFETY-DISCHARGE item for non-negotiable 1.**
+      Findings renumbered 0180/0181/0182 → 0183/0184/0185 at integration (the finding-0182 defect,
+      milder form: spawned before those ids existed on main).
+    week_delta: +1%          # weekly 6%→7% across the scribe run (resets Jul 31)
 depends_on: []
 parallelizable_with:
   - bp-103
