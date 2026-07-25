@@ -48,7 +48,7 @@ the elapsed time; no such mechanism exists.
 the "second, unwired constant" the falsifier forbids — nothing would read it, because enforcing a
 job budget is oq-0035 / finding-0171(b), an explicitly out-of-scope owner decision. Per §10
 stop-and-raise: **config half DROPPED, `config/defaults.toml` unchanged, finding filed**
-(finding-0175), honest-reporting half kept. The "budget fraction" of §8 is therefore reported as
+(finding-0178), honest-reporting half kept. The "budget fraction" of §8 is therefore reported as
 elapsed with an explicit "no enforced job budget" — the honest instrument, not a fabricated ratio.
 
 Also NOT added: a `[status]` window knob. `core/config/loader.py` is schema'd and drops unknown
@@ -91,10 +91,10 @@ preflight (Ollama probe + Constitution fingerprint + vault glob).
    That is a full scan, and Item 2's falsifier disqualifies it. **The lesson: measure with the real
    runner against the real store — the first number was wrong by 20×.**
 
-Both are finding-0176. `status` prints the vector row count and states plainly that code-version
+Both are finding-0179. `status` prints the vector row count and states plainly that code-version
 coverage has no metadata-only reader, rather than showing an expensive or fabricated figure.
 
-Side discovery recorded in finding-0176: that same 3.5 s `DISTINCT` is already paid on the DAEMON
+Side discovery recorded in finding-0179: that same 3.5 s `DISTINCT` is already paid on the DAEMON
 STARTUP path — `launcher._code_backfill_incomplete` → `ops/code_lineage.py:ledger_versions` — where
 nobody has measured it.
 
@@ -107,7 +107,7 @@ nobody has measured it.
   wedge the series is silent. Rates therefore come from the `jobs` table directly, as §2.6 pins.
 - `JobQueue` exposes no windowed/aggregate reads and `scheduler/queue.py` is bp-101's (DENIED), so
   `snapshot.read_queue_stats()` opens its own `mode=ro` connection against the schema the plan
-  pins at `scheduler/queue.py:62+`. Hand-off noted in finding-0176 (these belong on `JobQueue`).
+  pins at `scheduler/queue.py:62+`. Hand-off noted in finding-0179 (these belong on `JobQueue`).
 - `sweep_orphans` (§11) does **not** exist in this tree — bp-101 has not merged. Wiring deferred;
   it stays a one-line addition at the merge.
 
@@ -133,7 +133,7 @@ Commits on the worktree branch (see `git log`):
   Carries `rows_read` and `queries` so the cost bound is testable. Missing db ⇒ empty stats,
   never creates the file.
 - `read_store_stats(*, vector_store)` → `StoreStats(vector_rows)`; ONE field, deliberately —
-  see the measurement above and finding-0176.
+  see the measurement above and finding-0179.
 - `humanize_seconds` — `4490.0` → `1h14m50s`; rounding a budget away is how a 74-minute job reads
   as fine.
 - `build_status(...)` extended with keyword-only `liveness` / `queue_stats` / `store_stats` /
@@ -249,12 +249,12 @@ launchd.
 
 ### Findings filed
 
-- `docs/findings/finding-0175.md` — Q4: no job-level timeout exists; the ~4,490 s was elapsed, and
+- `docs/findings/finding-0178.md` — Q4: no job-level timeout exists; the ~4,490 s was elapsed, and
   the real bound is a per-CALL `[ollama] request_timeout_s` socket timeout that also escapes
   `OllamaError` (because `socket.timeout` is not a `URLError`). Routes to the orchestrator: it
   re-frames finding-0171's option (b) from "tune a mechanism" to "build one", and carries two
   builder-resolvable pieces that do not prejudge the owner's answer.
-- `docs/findings/finding-0176.md` — three hand-offs, all outside this write_scope: metadata-only
+- `docs/findings/finding-0179.md` — three hand-offs, all outside this write_scope: metadata-only
   vector-store readers (bp-100's lane), an index on `files(path, blob_sha)` (which also costs the
   daemon 3.5 s on every start), and windowed aggregate reads on `JobQueue` (bp-101's lane).
 
@@ -289,5 +289,5 @@ Suite grew 1936 → 1974 (+38 new unit tests).
 ### Fresh-agent re-entry
 
 Everything in this plan is landed and committed on the worktree branch. If a successor picks this
-up: the only open items are the three hand-offs in finding-0176 and the `sweep_orphans` wiring,
+up: the only open items are the three hand-offs in finding-0179 and the `sweep_orphans` wiring,
 none of which is bp-102's to do. Do NOT start the daemon.

@@ -1049,7 +1049,7 @@ class Launcher:
         # vs ledger target, current/superseded split) is deliberately NOT shown: neither side has
         # a cheap reader today (the ledger side measures 3.5 s — a full scan), and paying that on
         # every `status` would be finding-0169 all over again. See snapshot.StoreStats /
-        # finding-0175 for the two readers that would make it cheap.
+        # finding-0178 for the two readers that would make it cheap.
         rows = "?" if store.vector_rows is None else f"{store.vector_rows:,}"
         print(f"  store: {rows} vector rows "
               "(code-version coverage has no metadata-only reader — not shown)")

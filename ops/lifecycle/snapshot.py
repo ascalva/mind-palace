@@ -230,7 +230,7 @@ def read_queue_stats(path: Path, *, now: datetime | None = None,
     Why raw SQL rather than `JobQueue`: `JobQueue` exposes no windowed or aggregate reads
     (`list()` would materialize every one of 300k rows with payloads), and `scheduler/queue.py` is
     bp-101's write scope. bp-102 §2.6 pins the `jobs` schema as the source for exactly these
-    queries. The hand-off — these belong on `JobQueue` — is finding-0175.
+    queries. The hand-off — these belong on `JobQueue` — is finding-0178.
     """
     if not path.exists():
         return _EMPTY_QUEUE_STATS
@@ -316,7 +316,7 @@ class StoreStats:
       so nothing indexes the pair this needs. That is a full scan by any name, and it belongs to
       the class of read this plan exists to keep out of `status`.
 
-    Both hand-offs are finding-0175. Reporting an expensive figure would fail the falsifier;
+    Both hand-offs are finding-0178. Reporting an expensive figure would fail the falsifier;
     reporting a fabricated one would be worse; saying nothing and pretending coverage is unknown
     for a mysterious reason would be worst. The render says which figure is missing and why."""
 
