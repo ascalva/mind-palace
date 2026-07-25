@@ -200,11 +200,11 @@ Targeted first: the three new files alone = `23 passed in 17.02s`.
   `scheduler/queue.py` + the three test files. Deliberately ONE commit, not three: items 2 and 3
   both require item 1's column, so per-item commits could not stand alone, and they share one file
   and one classification table. The body enumerates the three parts.
-- Journal + finding-0175 follow as a docs commit (no Co-Authored-By, per the trailer policy).
+- Journal + finding-0177 follow as a docs commit (no Co-Authored-By, per the trailer policy).
 
 ## Findings filed
 
-- **finding-0175** — the orphan sweep is built but has no caller; the two-line wiring owed in
+- **finding-0177** — the orphan sweep is built but has no caller; the two-line wiring owed in
   `ops/lifecycle/launcher.py` (widen `QueueLike`, call `sweep_orphans(run.id)` after
   `components_factory` and before `enqueue_catchup`), spelled out as a diff for bp-102. Filed
   because `launcher.py` is deliberately out of write_scope and the switch must not be lost.
@@ -217,7 +217,7 @@ Targeted first: the three new files alone = `23 passed in 17.02s`.
 - [x] Item 1 — `claimed_by_run` column + idempotent migration (dry-run PASSED against a copy)
 - [x] Item 2 — `sweep_orphans` (falsifier tested, did not fire)
 - [x] Item 3 — enqueue coalescing (falsifier tested, did not fire)
-- [x] Hand-off finding (finding-0175)
+- [x] Hand-off finding (finding-0177)
 - [x] Green gate — all five legs run SEPARATELY, all pass
 - [x] Commits
 
@@ -233,15 +233,15 @@ Checked read-only (`file:…?mode=ro`) after all work and all five gate legs:
 - `queue.sqlite` mtime still `Jul 25 00:07`, `-wal` still 0 bytes.
 
 Job 300246 is still sitting in `running`, as it should be — it is reclaimed by the wiring in
-finding-0175, not by this build.
+finding-0177, not by this build.
 
 ## What a fresh agent needs to know to continue
 
-1. **Nothing in bp-101 is outstanding except the wiring in finding-0175**, which is out of this
+1. **Nothing in bp-101 is outstanding except the wiring in finding-0177**, which is out of this
    plan's write_scope by design. The three items are complete, tested, and green.
 2. The live queue is **untouched**. The daemon must stay DOWN; nothing here started it. The 1,766
    duplicates and job 300246 are still on disk — clearing them is a RESTART step (plan §9), and
-   job 300246 will be reclaimed automatically the moment finding-0175's wiring lands.
+   job 300246 will be reclaimed automatically the moment finding-0177's wiring lands.
 3. **Do not add the partial UNIQUE index** finding-0170 suggests until those duplicates are gone;
    it would make `palace up` fail. See the comment beside `_MIGRATIONS`.
 4. If a new job kind is added, decide its `_IDEMPOTENT_KINDS` membership from its HANDLER, not from
