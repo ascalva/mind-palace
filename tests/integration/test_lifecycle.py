@@ -97,12 +97,21 @@ def test_constitution_check_fails_closed_on_tamper(tmp_path):
 
 # --- the launcher (fake components; no models) --------------------------------------------------
 class _FakeSupervisor:
-    def __init__(self):
-        self.runs = 0
+    """Widened by bp-108 Item 4 to the real `Supervisor.run(*, max_ticks=…) -> int`. It records
+    the bound it was handed and returns a dispatch count, because `_serve` now uses both: the
+    bound is what returns control to the loop at a job boundary, and the count is what decides
+    whether the tick sleep happens at all."""
 
-    def run(self):
+    def __init__(self, dispatch_counts: list[int] | None = None):
+        self.runs = 0
+        self.max_ticks_seen: list[int | None] = []
+        self._dispatch_counts = list(dispatch_counts or [])
+
+    def run(self, *, max_ticks=None):
         self.runs += 1
-        return 0
+        self.max_ticks_seen.append(max_ticks)
+        # Default 0 = "nothing was runnable", the pre-bp-108 behaviour every existing test assumes.
+        return self._dispatch_counts.pop(0) if self._dispatch_counts else 0
 
 
 class _FakeWatcher:
@@ -442,3 +451,237 @@ def test_gate_deselects_only_the_intentional_ratchet():
         cwd=repo_root, capture_output=True, text=True,
     )
     assert green.returncode == 0, green.stdout + green.stderr
+
+
+# =================================================================================================
+# bp-108 Item 4 — the drain is bounded, and the sleep stops being unconditional
+# =================================================================================================
+#
+# Two halves of ONE fix, and either alone is a defect. Before this, `_serve` called a bare
+# `supervisor.run()` — which drains until nothing is runnable, so with a backlog the health check,
+# the snapshot refresh and housekeeping did not run until the queue emptied. Bounding the drain
+# fixes that and creates a second defect if the tick sleep stays unconditional: N trivial jobs then
+# cost ⌈N/K⌉ sleeps of pure waiting. Both are asserted, and both mutations are covered.
+
+
+class _BacklogSupervisor:
+    """A queue of N no-op jobs. Honours `max_ticks` exactly as the real `Supervisor.run` does —
+    dispatch up to that many, return how many went — and treats `max_ticks=None` as "drain until
+    empty", which is the pre-bp-108 behaviour. That fidelity is what makes the falsifier below
+    real: remove the bound from the call site and this fake empties the whole backlog in one pass,
+    exactly like the real supervisor would."""
+
+    def __init__(self, backlog: int):
+        self.remaining = backlog
+        self.runs = 0
+        self.max_ticks_seen: list[int | None] = []
+
+    def run(self, *, max_ticks=None):
+        self.runs += 1
+        self.max_ticks_seen.append(max_ticks)
+        n = self.remaining if max_ticks is None else min(max_ticks, self.remaining)
+        self.remaining -= n
+        return n
+
+
+def _draining_launcher(tmp_path, sup, *, tick_seconds, **kw):
+    """A launcher over `sup` that records what the health tick could SEE each time it fired."""
+    seen_remaining: list[int] = []
+
+    def _health() -> list[Flag]:
+        seen_remaining.append(sup.remaining)
+        return []
+
+    comps = Components(supervisor=sup, watchers=[_FakeWatcher()], queue=_FakeQueue(),
+                       health_check=_health)
+    passing = Preflight((Check("x", required=True, ok=True, detail="ok"),))
+    launcher = Launcher(
+        cfg=_cfg(tmp_path), runs=RunLedger(tmp_path / "runs.sqlite"),
+        repo_root=Path(".").resolve(), components_factory=lambda _c: comps,
+        preflight_fn=lambda _c: passing, tick_seconds=tick_seconds, health_interval_s=0, **kw)
+    return launcher, seen_remaining
+
+
+def test_the_serve_loop_bounds_every_drain_with_K(tmp_path):
+    """`_serve` calls `c.supervisor.run(max_ticks=K)` — on every pass, not just the first."""
+    sup = _BacklogSupervisor(backlog=0)
+    launcher, _ = _draining_launcher(tmp_path, sup, tick_seconds=0)
+    assert launcher.start(max_ticks=3) == 0
+    assert sup.max_ticks_seen == [launcher.drain_max_ticks] * 3
+    assert launcher.drain_max_ticks == 64                  # §11's parked default
+
+
+def test_supervisory_ticks_fire_DURING_a_drain_rather_than_after_it(tmp_path):
+    """⚑ NAMED FALSIFIER, first half — the defect Item 4 exists to fix.
+
+    With N ≫ K queued jobs the health tick must run WHILE the backlog is still draining. Asserted
+    as "health saw a non-empty backlog at least once", which is only possible if control returned
+    to the serve loop mid-drain. Delete `max_ticks=` from the call site and `_BacklogSupervisor`
+    empties all 1,766 in the first pass, so health only ever observes 0 — this test reddens."""
+    sup = _BacklogSupervisor(backlog=1766)                 # the plan's measured backlog
+    launcher, seen_remaining = _draining_launcher(tmp_path, sup, tick_seconds=0)
+
+    assert launcher.start(max_ticks=5) == 0
+    assert any(r > 0 for r in seen_remaining), (
+        f"health never saw an un-drained queue: {seen_remaining} — the drain is unbounded")
+    assert sup.remaining < 1766                            # ...and it really was draining
+
+
+def test_the_tick_sleep_runs_only_when_the_drain_came_back_idle(tmp_path, monkeypatch):
+    """⚑ NAMED FALSIFIER, second half — the defect a bound WITHOUT this would introduce.
+
+    `run()` returns its dispatch count; a non-zero count means more work is ready right now, so the
+    loop must go straight round again. Sleeping anyway is what turns a no-op backlog into a crawl.
+    """
+    slept: list[float] = []
+    monkeypatch.setattr("ops.lifecycle.launcher.time.sleep", slept.append)
+    sup = _FakeSupervisor(dispatch_counts=[7, 3, 0, 0])    # busy, busy, idle, idle
+    comps = Components(supervisor=sup, watchers=[_FakeWatcher()], queue=_FakeQueue())
+    passing = Preflight((Check("x", required=True, ok=True, detail="ok"),))
+    launcher = Launcher(
+        cfg=_cfg(tmp_path), runs=RunLedger(tmp_path / "runs.sqlite"),
+        repo_root=Path(".").resolve(), components_factory=lambda _c: comps,
+        preflight_fn=lambda _c: passing, tick_seconds=1.0, health_interval_s=0)
+
+    assert launcher.start(max_ticks=4) == 0
+    assert slept == [1.0, 1.0], (
+        f"expected a sleep on the two IDLE passes only, got {slept} — an unconditional sleep "
+        "trades the drain bound for a throughput collapse")
+
+
+def test_a_no_op_backlog_does_not_take_N_times_tick_seconds(tmp_path):
+    """⚑ NAMED FALSIFIER, measured in wall-clock — the note's own §2.10 disqualifier: "1,766 queued
+    no-ops must not take 30 minutes because each tick eats a `tick_seconds` sleep".
+
+    Real sleeps, real clock, scaled down. With K = 64 the backlog needs ⌈1766/64⌉ = 28 non-idle
+    passes; every one of them must skip the sleep, so the whole drain costs ~0 and only the final
+    idle pass pays. The pre-fix behaviour would pay on all 28."""
+    import time as _time
+    tick = 0.02
+    sup = _BacklogSupervisor(backlog=1766)
+    launcher, _ = _draining_launcher(tmp_path, sup, tick_seconds=tick)
+
+    passes = 28                                            # exactly ⌈1766/64⌉
+    started = _time.monotonic()
+    assert launcher.start(max_ticks=passes) == 0
+    elapsed = _time.monotonic() - started
+
+    assert sup.remaining == 0                              # fully drained in those passes
+    unconditional = passes * tick                          # what the old loop would have slept
+    assert elapsed < unconditional / 2, (
+        f"drain of 1766 no-ops took {elapsed:.3f}s; an unconditional sleep would cost "
+        f"{unconditional:.3f}s. At the real tick_seconds=1.0 that is {passes}s — and at K=1, "
+        f"{1766 / 60:.0f} minutes.")
+
+
+def test_recovery_mode_keeps_its_unconditional_sleep(tmp_path, monkeypatch):
+    """The conditional sleep is `_serve`'s, NOT `_idle`'s. Recovery halts the scheduler entirely
+    ("scheduler halted, watcher off, read-only"), so there is never a drain to be idle after and
+    the unconditional sleep is the correct duty cycle. Without this, a future tidy-up that
+    "unifies" the two loops would silently spin recovery mode at 100% CPU."""
+    slept: list[float] = []
+    monkeypatch.setattr("ops.lifecycle.launcher.time.sleep", slept.append)
+    runs = RunLedger(tmp_path / "runs.sqlite")
+    runs.open_run(commit_sha="old000000000", dirty=False, pid=2 ** 22)   # unclean → recovery
+    comps = Components(supervisor=_FakeSupervisor(), watchers=[], queue=_FakeQueue())
+    passing = Preflight((Check("x", required=True, ok=True, detail="ok"),))
+    launcher = Launcher(
+        cfg=_cfg(tmp_path), runs=runs, repo_root=Path(".").resolve(),
+        components_factory=lambda _c: comps, preflight_fn=lambda _c: passing,
+        tick_seconds=1.0, health_interval_s=0)
+
+    assert launcher.start(max_ticks=3) == 0
+    assert _last(runs).recovery
+    assert slept == [1.0, 1.0, 1.0]                        # every idle pass, unconditionally
+
+
+# =================================================================================================
+# bp-108 Item 5 — `scripts/watch.py` cannot be the second claimant (finding-0186's open half)
+# =================================================================================================
+#
+# The script is a SUPERVISOR: it builds its own `Supervisor` over the shared queue. Its hazards are
+# structural and ORDERED, so they are asserted structurally and in order, against the real source.
+# An end-to-end test is not available here — `main()` calls `seal()`, a process-wide monkeypatch
+# that would follow the rest of the suite, and the script reads the real `data_dir` with no
+# injection seam. What CAN be pinned without either is the shape of `main()` itself, which is
+# exactly where all four properties live.
+
+
+def _watch_main_ast():
+    import ast as _ast
+    src = (Path(__file__).resolve().parents[2] / "scripts" / "watch.py").read_text()
+    tree = _ast.parse(src)
+    main = next(n for n in tree.body if isinstance(n, _ast.FunctionDef) and n.name == "main")
+    return _ast, main
+
+
+def _first_line(_ast, node, predicate) -> int | None:
+    """Line number of the first call in `node` satisfying `predicate`, or None."""
+    lines = [c.lineno for c in _ast.walk(node) if isinstance(c, _ast.Call) and predicate(c)]
+    return min(lines) if lines else None
+
+
+def _callee(_ast, call) -> str:
+    f = call.func
+    if isinstance(f, _ast.Attribute):
+        return f.attr
+    return getattr(f, "id", "")
+
+
+def test_watch_py_takes_the_supervisor_lock_before_it_builds_a_supervisor():
+    """⚑ ORDERING. `scripts/watch.py:39-46` used to construct a `JobQueue` and a second
+    `Supervisor` with no exclusion at all. Acquiring after any of that would leave a window in
+    which this process has already touched the queue the daemon owns."""
+    _ast, main = _watch_main_ast()
+    acquired = _first_line(_ast, main, lambda c: _callee(_ast, c) == "acquire")
+    supervisor_built = _first_line(_ast, main, lambda c: _callee(_ast, c) == "Supervisor")
+    queue_built = _first_line(_ast, main, lambda c: _callee(_ast, c) == "JobQueue")
+
+    assert acquired is not None, "watch.py never acquires the supervisor lock"
+    assert supervisor_built is not None and queue_built is not None
+    assert acquired < queue_built, "the queue is opened before the role is claimed"
+    assert acquired < supervisor_built, "a second Supervisor is built before the role is claimed"
+
+
+def test_watch_py_refuses_with_a_non_zero_exit_when_the_lock_is_held():
+    """"Exits non-zero WITHOUT claiming a single row" — the refusal must be a `return 1` inside the
+    `SupervisorLockHeld` handler, not a warning that carries on regardless."""
+    _ast, main = _watch_main_ast()
+    handlers = [h for h in _ast.walk(main) if isinstance(h, _ast.ExceptHandler)
+                and "SupervisorLockHeld" in _ast.dump(h.type or _ast.Pass())]
+    assert handlers, "watch.py does not handle SupervisorLockHeld"
+    returns = [n for h in handlers for n in _ast.walk(h) if isinstance(n, _ast.Return)]
+    assert returns, "the SupervisorLockHeld handler falls through instead of refusing"
+    assert all(isinstance(r.value, _ast.Constant) and r.value.value != 0 for r in returns), (
+        "the refusal must exit non-zero")
+
+
+def test_watch_py_adopts_a_run_id_rather_than_stamping_rows_NULL():
+    """⚑ NAMED FALSIFIER (plan §7 Item 5): *it acquires the lock but still runs with
+    `active_run_id = None`.* The lock stops concurrency; it does not stop a NULL stamp, and a NULL
+    stamp is by definition reclaimable — so a lock-holding NULL-stamping claimant is the same lying
+    ledger one step later. It must open a run row and sweep with it, BEFORE the first claim."""
+    _ast, main = _watch_main_ast()
+    opened = _first_line(_ast, main, lambda c: _callee(_ast, c) == "open_run")
+    swept = _first_line(_ast, main, lambda c: _callee(_ast, c) == "sweep_orphans")
+    drained = _first_line(_ast, main, lambda c: _callee(_ast, c) == "run")
+
+    assert opened is not None, "watch.py never opens a run row — every claim would stamp NULL"
+    assert swept is not None, "watch.py never sweeps, so it never adopts its run id"
+    assert opened < swept, "the sweep needs the run id that open_run returns"
+    assert drained is not None and swept < drained, "the sweep must precede the first claim"
+
+
+def test_watch_pys_drain_carries_the_same_bound_as_the_daemon():
+    """One system, one duty cycle. Two serve loops with two different bounds would be two answers
+    to one question, so the constant has a single home in `launcher.py`."""
+    from ops.lifecycle.launcher import DEFAULT_DRAIN_MAX_TICKS
+
+    _ast, main = _watch_main_ast()
+    drains = [c for c in _ast.walk(main)
+              if isinstance(c, _ast.Call) and _callee(_ast, c) == "run" and c.keywords]
+    bounds = [k.value for c in drains for k in c.keywords if k.arg == "max_ticks"]
+    assert bounds, "watch.py's supervisor.run() is unbounded — the pre-bp-108 defect"
+    assert all(isinstance(b, _ast.Name) and b.id == "DEFAULT_DRAIN_MAX_TICKS" for b in bounds), (
+        "watch.py must reuse the launcher's K, not re-declare a literal")
+    assert Launcher.__dataclass_fields__["drain_max_ticks"].default == DEFAULT_DRAIN_MAX_TICKS

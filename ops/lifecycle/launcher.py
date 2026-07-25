@@ -27,6 +27,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
+from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld
 from ops.lifecycle.preflight import Preflight, run_preflight
 from ops.lifecycle.runs import RunLedger, RunRecord, git_state
 
@@ -52,11 +53,15 @@ if TYPE_CHECKING:  # annotations only — the real modules stay lazily imported 
 
 class SupervisorLike(Protocol):
     """`scheduler.supervisor.Supervisor`'s real surface here — structural so tests inject a bare
-    `_FakeSupervisor` without subclassing the real Supervisor. Narrowed to a no-arg `run()`
-    (the only call shape launcher.py uses: `c.supervisor.run()`), not the real Supervisor's
-    fuller `run(*, max_ticks=...)` — a Protocol is only as wide as its actual call sites here."""
+    `_FakeSupervisor` without subclassing the real Supervisor.
 
-    def run(self) -> object: ...
+    Widened by bp-108 Item 4 from a no-arg `run()` to the real Supervisor's
+    `run(*, max_ticks=...) -> int`, because `_serve` now uses BOTH halves of that signature: it
+    bounds the drain so supervisory ticks reach a job boundary, and it reads the returned dispatch
+    count to decide whether to sleep. A Protocol is only as wide as its actual call sites — the
+    call site grew, so this grew with it."""
+
+    def run(self, *, max_ticks: int | None = None) -> int: ...
 
 
 class WatcherLike(Protocol):
@@ -112,6 +117,11 @@ _RESET_GUARD = ("vault", "runs.sqlite", "selfmod_ledger.sqlite", "telemetry.duck
 # Default cadence for the trough housekeeping passes (dream + curate). They only actually run
 # when the foreground gate is clear (the supervisor's HEAVY_TIERS check), so this is a ceiling.
 _HOUSEKEEPING_INTERVAL_S = 6 * 3600
+
+# K — the drain bound (bp-108 Item 4 / §11). Public and module-level because `scripts/watch.py`
+# builds its own supervisor loop and must use the SAME bound: two serve loops with two different
+# duty cycles would be two answers to one question.
+DEFAULT_DRAIN_MAX_TICKS = 64
 
 
 def _pid_alive(pid: int) -> bool:
@@ -528,6 +538,18 @@ class Launcher:
     components_factory: Callable[[Config], Components] = build_components
     preflight_fn: Callable[[Config], Preflight] = run_preflight   # injectable for tests
     tick_seconds: float = 1.0
+    # K — how many jobs one `supervisor.run()` may dispatch before control returns to the serve
+    # loop (bp-108 §11, default 64). NOT the same thing as `start(max_ticks=…)`, which bounds the
+    # OUTER loop's iterations and is the test seam; conflating the two would make a test's
+    # `max_ticks=1` silently mean "dispatch one job", which it does not.
+    #
+    # A field rather than config: `core/kernel/config/loader.py` is schema'd and drops unknown
+    # sections, so a `[scheduler]` key would be inert today (bp-102 / finding-0174), and the
+    # schema change belongs to bp-110, which owns that file. Re-entry for the value itself is
+    # §11's: if a single job routinely exceeds the tick budget, a count bound stops helping and
+    # the note's time-boxed drain becomes the right fix (it needs `scheduler/supervisor.py`,
+    # deliberately out of this plan's scope).
+    drain_max_ticks: int = DEFAULT_DRAIN_MAX_TICKS
     housekeeping_interval_s: float = _HOUSEKEEPING_INTERVAL_S
     health_interval_s: float = 60.0                            # OS-health sense cadence
     snapshot_interval_s: float = 5.0                           # edge-monitor snapshot cadence
@@ -579,6 +601,11 @@ class Launcher:
     _run_id: int | None = field(default=None, init=False)
     _run: RunRecord | None = field(default=None, init=False)  # the active RunRecord (for snapshots)
     _components: Components | None = field(default=None, init=False)
+    # The supervisor lock, held for the whole serve lifetime (§2.6). Not injectable and not
+    # configurable on purpose: its path is derived from `cfg.paths.data_dir` so it is always
+    # beside the queue it guards, and a mutual-exclusion guarantee with a seam for tests to
+    # disable it is not a guarantee. Tests get isolation from `data_dir` being a tmp_path.
+    _lock: SupervisorLock | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         # A system-domain Launcher controls launchd via `sudo launchctl` and installs its plist to
@@ -593,12 +620,22 @@ class Launcher:
 
     # --- start ------------------------------------------------------------------------------
     def start(self, *, force: bool = False, max_ticks: int | None = None) -> int:
-        # SINGLE-INSTANCE GATE — first, and NOT bypassable by --force (finding-0186, owner ruling
-        # 2026-07-25: "start should refuse outright if there is any potential for an issue to
-        # occur... the system deeming an unrunnable state"). `--force` overrides *preflight*, not
-        # *safety*. A second supervisor over a live one is not contention: `sweep_orphans` reclaims
-        # the live run's in-flight rows, so the first worker's job is re-queued (double execution)
-        # or written FAILED with a fabricated cause under it (a lying ledger).
+        # SINGLE-INSTANCE **DIAGNOSTIC** — first, and NOT bypassable by --force (finding-0186,
+        # owner ruling 2026-07-25: "start should refuse outright if there is any potential for an
+        # issue to occur... the system deeming an unrunnable state"). `--force` overrides
+        # *preflight*, not *safety*. A second supervisor over a live one is not contention:
+        # `sweep_orphans` reclaims the live run's in-flight rows, so the first worker's job is
+        # re-queued (double execution) or written FAILED with a fabricated cause under it (a lying
+        # ledger).
+        #
+        # ⚑ This gate is NO LONGER what enforces exclusivity — the supervisor lock below is
+        # (dn-supervision-and-liveness §2.6, bp-108). Kept, and deliberately kept FIRST, because
+        # the two answer different questions: the lock is held-or-not and can only say "no", while
+        # this gate can say WHICH run is live and with what pid. Guarantee and diagnostic. On the
+        # note's enforcement ladder the gate is tier 5 (a runtime probe someone must remember to
+        # make, with a check-then-act window between the probe and the start) and the lock is
+        # tier 3 (a kernel fact, acquired atomically). Deleting the gate would lose the
+        # explanation, not the exclusion — so it stays.
         #
         # Ahead of preflight deliberately — an unrunnable state should not first cost the operator
         # preflight's uncosted 120 s Ollama probe (finding-0195). Same shape as `reset()`'s guard
@@ -610,6 +647,37 @@ class Launcher:
                   "live one rewrites its in-flight jobs — finding-0186.)")
             return 1
 
+        # THE GUARANTEE — the supervisor role is kernel-exclusive from here on (§2.6). Acquired
+        # before `sweep_orphans` (the first thing that can rewrite another claimant's rows) and
+        # before preflight (same 120 s argument as the gate). Unconditional and unflagged: §4 of
+        # the note is explicit that "a mutual-exclusion guarantee behind a flag is a
+        # contradiction", so there is no `--force` path past this and no config key to disable it.
+        #
+        # It catches precisely what the gate above cannot: a claimant with no active run row at
+        # all (`scripts/watch.py` — finding-0186's open half), and the gate's own check-then-act
+        # window. Recovery mode holds it too — a recovery run is a live supervisor.
+        self._lock = SupervisorLock(self.cfg.paths.data_dir / "supervisor.lock")
+        try:
+            self._lock.acquire()
+        except SupervisorLockHeld:
+            path, self._lock = self._lock.path, None
+            print(f"refusing to start — another process holds the supervisor lock ({path}). "
+                  "Something is already supervising this data dir. `palace stop` first, or find "
+                  "the holder with `lsof` on that path. (--force does not bypass this either: "
+                  "exclusivity is not a preference — dn-supervision-and-liveness §2.6.)")
+            return 1
+
+        try:
+            return self._start_locked(force=force, max_ticks=max_ticks)
+        finally:
+            # `_shutdown` is the normal release site; this covers the paths that never reach it
+            # (a failed preflight returns before any run row is opened). `release()` is
+            # idempotent, so the double call on the normal path is a no-op.
+            self._release_lock()
+
+    def _start_locked(self, *, force: bool, max_ticks: int | None) -> int:
+        """`start`'s body, with the supervisor lock already held. Split out so the acquisition has
+        exactly one paired release (`start`'s `finally`) rather than one per early return."""
         pf = self.preflight_fn(self.cfg)
         print("preflight:")
         print(pf.render())
@@ -673,7 +741,11 @@ class Launcher:
         flags: list[Flag] = []
         ticks = 0
         while not self._stopping and (max_ticks is None or ticks < max_ticks):
-            c.supervisor.run()                            # drain runnable jobs at boundaries
+            # BOUND THE DRAIN (bp-108 Item 4, dn-supervision-and-liveness §2.5's interim fix).
+            # This used to be a bare `run()`, which drains until nothing is runnable — so with a
+            # backlog the health check, the snapshot refresh and housekeeping below did not run
+            # until the queue emptied. The bound returns control to this loop at a job boundary.
+            dispatched = c.supervisor.run(max_ticks=self.drain_max_ticks)
             now = time.monotonic()
             if now - last_health >= self.health_interval_s:
                 flags = c.health_check()                  # the OS-health agent: sense + report
@@ -691,18 +763,39 @@ class Launcher:
                 c.enqueue_housekeeping()
                 last_housekeeping = now
             ticks += 1
-            if self.tick_seconds:
+            # ⚑ THE OTHER HALF OF THE BOUND, and not optional. The sleep used to run every
+            # iteration regardless of whether anything was dispatched. Pair that with a bounded
+            # drain and a backlog of N trivial jobs costs ⌈N/K⌉ × tick_seconds of pure sleeping:
+            # at the measured shape (N = 1,766 no-ops, tick_seconds = 1.0) a K of 1 would have
+            # turned seconds of work into ~29 minutes. Bounding the drain WITHOUT this line trades
+            # one availability defect for another — it is the note's own §2.10 falsifier.
+            #
+            # So: sleep only when the drain came back idle. `run()` returns its dispatch count, and
+            # a non-zero count means there is more work ready right now — go straight round again.
+            # This is not a spin: every no-sleep iteration dispatched up to K real jobs.
+            if self.tick_seconds and not dispatched:
                 time.sleep(self.tick_seconds)
 
     def _idle(self, max_ticks: int | None) -> None:
+        # No conditional sleep here, deliberately: recovery mode runs no supervisor at all
+        # ("scheduler halted, watcher off, read-only"), so there is never anything to drain and
+        # the unconditional sleep IS the right duty cycle.
         ticks = 0
         while not self._stopping and (max_ticks is None or ticks < max_ticks):
             ticks += 1
             if self.tick_seconds:
                 time.sleep(self.tick_seconds)
 
+    def _release_lock(self) -> None:
+        """Drop the supervisor lock if this launcher holds it. Idempotent and never raises —
+        shutdown must not be the thing that crashes."""
+        lock, self._lock = self._lock, None
+        if lock is not None:
+            lock.release()
+
     def _shutdown(self, *, clean: bool) -> None:
         if self._run_id is None:
+            self._release_lock()     # nothing to close down, but we may still hold the lock
             return
         run_id, self._run_id = self._run_id, None        # idempotent: only once
         if self._components is not None:
@@ -728,6 +821,11 @@ class Launcher:
             except Exception:  # noqa: BLE001
                 pass
         self.runs.mark_stopped(run_id, clean=clean)
+        # LAST — the supervisor role is not free until the ledger says this run is over. Releasing
+        # earlier would open a window in which a successor holds the lock while this run's row is
+        # still active, so its `sweep_orphans` would see live rows to reclaim: the finding-0186
+        # hazard, reintroduced by an ordering mistake.
+        self._release_lock()
         print(f"run #{run_id} stopped ({'clean' if clean else 'UNCLEAN'}).")
 
     def _install_signal_handlers(self) -> None:
