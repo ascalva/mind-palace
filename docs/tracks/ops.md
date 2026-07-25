@@ -12,17 +12,22 @@ dod:
   - OPS-4 the shutdown contract closed — oq-0035 ruled and built (finding-0171); `down` must be able to stop a wedged daemon
   - OPS-5 the command center proper — TIER 2, real-time, macro axes; design note + adversarial panel, then graduate (docs/brainstorms/command-center.md)
   - OPS-6 cost as a checkable property — the performance-ratchet suite generalized beyond one method; scale witnesses (docs/brainstorms/ops-and-optimal-form.md)
+  - OPS-7 the local model RUNTIME and model SELECTION — llama.cpp-direct migration, residency owned by palace code, and choosing the model against measured performance limits (owner 2026-07-25; docs/brainstorms/local-model-runtime.md, warrant finding-0174)
+  - OPS-8 detection LAG is measured, not asserted — the reconciliation-audit's central model made self-measuring (owner 2026-07-25 "we will need to also measure lag"; substrate blocked on finding-0175)
   - the restart PROVES it — daemon back up, backfill completes to ~1,542 versions, rate observable throughout (owner-visible run, not merely built)
 backlog_deskcheck: null
 links:
   - docs/brainstorms/command-center.md
   - docs/brainstorms/ops-and-optimal-form.md
   - docs/brainstorms/reconciliation-audit.md
+  - docs/brainstorms/local-model-runtime.md
   - docs/findings/finding-0169.md
   - docs/findings/finding-0170.md
   - docs/findings/finding-0171.md
   - docs/findings/finding-0172.md
   - docs/findings/finding-0173.md
+  - docs/findings/finding-0174.md
+  - docs/findings/finding-0175.md
   - docs/build-plans/bp-100/plan.md
   - docs/build-plans/bp-101/plan.md
   - docs/build-plans/bp-102/plan.md
@@ -72,6 +77,13 @@ cannot be deskchecked while it merely *could* work; the completing backfill is t
   and whether the run is observable*.
 - **fiber-geometry / inner-outer-core** — no overlap today, but OPS-6's "measure the system's own
   access patterns before choosing a representation" will eventually want their instruments.
+- **the local model runtime is OPS** (owner ruling 2026-07-25). `docs/brainstorms/local-model-runtime.md`
+  had no track coordinate; it is ops-shaped by every criterion here, and the owner extended it:
+  **choosing the appropriate model against measured performance limits is itself an ops function**,
+  not a one-off configuration choice. That makes residency, the memory accounting (finding-0174), and
+  model selection one concern with one owner. The EMBEDDER-choice question
+  (`docs/brainstorms/embedding-space-specialization.md`) is downstream of it and is not separately
+  owned.
 - **finding-0168 (the membership store)** — NOT owned here. It is a design pass with its own path,
   and it structurally retires the re-land idiom OPS-1 is bounding. Ops supplies the performance
   argument for it (independently derived from the semantic one); it does not absorb it.

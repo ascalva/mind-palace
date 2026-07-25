@@ -17,6 +17,6 @@
 
 ## Owed on completion — the current build tracks
 
-_(no build-phase tracks pending completion.)_
+Every plan in the board's `build` phase enters this inbox at seal (`build → audit → deskcheck`): Ops. The orchestrator adds the row and says "ready to deskcheck" when a track reaches phase 6. None is closed by sealing.
 
 _Derived by `scripts/board.py`; never hand-edit. This is the deskcheck-pending-or-backlog filter over the board._

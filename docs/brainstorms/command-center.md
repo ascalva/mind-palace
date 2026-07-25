@@ -155,12 +155,39 @@ open questions:
   - Watchlist as a typed artifact: where does it live (beside the resume brief? a `docs/` artifact?
     the queue?), what is its schema, and who retires an entry — the author, the instrument, or the
     owner?
-  - Does the agent pane get WRITE authority (file a finding when a watch fires) or is it read-only
-    advisory? "The model advises, code acts" says advisory by default; filing a finding is arguably
-    still advice. Needs a ruling, not an assumption.
+  - ~~Does the agent pane get WRITE authority?~~ **RULED (owner, 2026-07-25) — see below.**
   - tmux re-layout vs a real TUI: is the split-window version enough to test the idea before Tier 2
     builds anything bespoke? (Almost certainly yes — and it would be a MEASURED premise instead of
     an assumed one, which is this session's recurring lesson.)
   - Which plane does the agent pane run in (`PLANE=ascalva` vs `workflow`)? It reads ops state and
     may file findings — the plane split has security consequences the panel should vet.
 ```
+
+### Owner ruling (2026-07-25) — the agent pane files FINDINGS, review-comment style
+
+**Owner, verbatim:** *"I would say yes, they express their feedback/comments/suggestions, that is
+recorded as a finding routed to the builder/build-plan to address, sort of like a merge/pull
+request."*
+
+**Ruled:** the agent pane's output is a **typed finding routed to the builder / build-plan**, not a
+direct action. This preserves non-negotiable 3 exactly — *the model advises, code acts*: a finding
+IS advice in typed form, and it reaches the code only through a builder who resolves and annotates
+it. No new authority is created; the pane uses **the channel that already exists** (the finding
+skill's routing rules: `codebase | spec-fidelity` → builder resolves; `design | math | direction` →
+orchestrator).
+
+**The PR analogy is load-bearing, not decorative.** A review comment is (a) attached to a specific
+changeset, (b) visible to whoever must address it, and (c) **must be resolved or explicitly
+declined before merge** — never silently dropped. Builder-routed findings already work this way
+(the builder resolves, annotates the finding and the journal, and continues), so the mechanism is
+in place; what the ruling adds is the *originator*. Design consequences to carry into the note:
+
+- Findings from the pane should carry their **triggering observation** (which watch fired, which
+  metric, at what value) so the builder is reading evidence, not an opinion — the same standard the
+  adversarial-panel ruling sets for expert findings.
+- A watch that fires repeatedly must not file N findings; **coalesce** (finding-0170's lesson,
+  applied one layer up — the observer must not become load in the artifact plane either).
+- Open: does a pane-authored finding differ in *weight* from a human-authored one? The
+  sector-experts draft treats experts as **attested oracles — grounded answers, challengeable**,
+  which suggests: same channel, same typing, and provenance recorded so it can be trust-weighted.
+  Do not decide here; the sector-experts pass owns it.
