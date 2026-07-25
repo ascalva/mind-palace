@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0171
-status: open
+status: routed
 created: 2026-07-25
 updated: 2026-07-25
 links:
@@ -11,7 +11,7 @@ links:
 ftype: spec-defect
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: "oq-0035 RULED 2026-07-25 — (c) both. Design half lands in dn-supervision-and-liveness (ratified); build half awaits /graduate."
 ---
 
 # Graceful shutdown has no bound — `down` could not bring the system down
@@ -93,3 +93,35 @@ the interim mitigation is knowledge, not code: **`down` may not stop a wedged da
 `design` → orchestrator. Batch the (a)/(b)/(c) choice to `owner-questions.md`. The honest-reporting
 half of the fix (`down` must not claim success while the process lives) is builder-resolvable
 without waiting on that answer and can be split off.
+
+## Owner ruling — 2026-07-25 (oq-0035)
+
+**(c) BOTH.** Verbatim: *"I like (c), feels like the most robust approach."*
+
+- **(b) worker-enforced job budgets = the real fix.** Per finding-0178 there is no job timeout to
+  tune — this is a BUILD. It becomes enforceable only once the handler stops owning the
+  supervisor's thread (`dn-supervision-and-liveness` §2.2/§2.5): you cannot bound a synchronous
+  in-process call from outside it.
+- **(a) bounded SIGTERM → N → SIGKILL = the fail-safe behind it**, aimed **only at the WORKER,
+  never the supervisor**. Killing the supervisor is what the lease/dead-man design makes
+  unnecessary, and it is what would lose the landing step.
+
+⚑ **This finding's stated crux has dissolved.** The question framed the trade as *"whether an
+interrupted store write is acceptable"* — data integrity against a shutdown guarantee. The ratified
+note's I1 survey (all 11 registered kinds) found **no handler is irreducibly write-interleaved**,
+and `ambassador_task` (`scheduler/interface.py:53-59`) **already** computes-then-returns while the
+supervisor lands the result (`scheduler/supervisor.py:94-95`). Under the compute/land split nothing
+interrupts a write: a computation is interrupted and nothing is landed. Single-writer gets
+*stronger* — landing becomes a short atomic step the supervisor owns rather than an hours-long span
+it delegates. The `supersede_source` delete→add window this finding worried about closes
+structurally rather than being accepted as a cost.
+
+**Open, and NOT a gate on the ruling — V3:** does Ollama abandon its work when its HTTP client
+dies? If not, killing the worker stops the *accounting* but not the *burn* — the drain completes
+and the daemon exits (what this finding asked for), while consumption continues on the Ollama side
+until that call returns. Unmeasured. It is a direct argument for NEW NOTE 2 (llama.cpp-direct),
+where cancellation becomes ours to hold rather than to ask about. See also finding-0199.
+
+**Status:** the DESIGN half is discharged by `dn-supervision-and-liveness` (ratified `3945d9f`).
+The BUILD half is owed and arrives via `/graduate` on that note — it is OPS-4's design half.
+The honest-reporting half shipped separately in bp-102 Item 3.

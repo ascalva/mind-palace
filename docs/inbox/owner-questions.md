@@ -1040,4 +1040,29 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   needs no ruling. The operational knowledge stands in for the fix: **`down` may not stop a wedged
   daemon — check `ps` before trusting it.** Parks as finding-0171; nothing is blocked.
 - park condition: revisit when you rule. No builder waits on it; bp-100/0101/0102 all proceed.
-- answer: (unanswered)
+- answer: **(c) BOTH** — owner, 2026-07-25, verbatim: *"I like (c), feels like the most robust
+  approach."* (b) worker-enforced job budgets is the real fix; (a) bounded SIGTERM → N → SIGKILL is
+  the fail-safe behind it. Per `dn-supervision-and-liveness` (ratified 2026-07-25, `3945d9f`) the
+  escalation is aimed **only at the WORKER, never at the supervisor** — killing the supervisor is
+  what the lease/dead-man design makes unnecessary, and what would lose the landing step.
+
+  ⚑ **The crux this question was originally framed on has DISSOLVED, and the ruling should be read
+  in that light.** oq-0035 asked you to trade data integrity against a shutdown guarantee —
+  *"whether an interrupted store write is acceptable."* The note's I1 survey (all 11 registered
+  kinds) established that **no handler is irreducibly write-interleaved**, and that
+  `ambassador_task` (`scheduler/interface.py:53-59`) **already** computes-then-returns while the
+  supervisor lands the result (`scheduler/supervisor.py:94-95`). Under the compute/land split you
+  never interrupt a write — you interrupt a *computation* and land nothing. So (c) does not buy the
+  availability guarantee at the cost of integrity; single-writer gets **stronger**, because landing
+  becomes a short atomic step the supervisor owns instead of an hours-long span it delegates.
+
+  **Open implementation input, NOT a gate on this ruling — V3.** Does Ollama abandon its work when
+  its HTTP client dies? If it does not, killing the worker stops the *accounting* but not the
+  *burn*: the drain completes and the daemon exits (which is what this question actually asked
+  for), but resource consumption continues on the Ollama side until that call finishes. (c) remains
+  correct either way; V3 decides how much (a)'s half is really worth, and it is a direct argument
+  for NEW NOTE 2 (llama.cpp-direct), where cancellation becomes ours to hold rather than to ask
+  about. Not measured yet — see the note's V-series and finding-0199.
+
+  Follow-through owed: reflect this ruling onto finding-0171, and carry it into
+  `/graduate dn-supervision-and-liveness` (the escalation contract is OPS-4's design half).
