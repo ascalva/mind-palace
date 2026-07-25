@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-104
 track: workflow
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/agent-workflow.md
 contract: scribe
