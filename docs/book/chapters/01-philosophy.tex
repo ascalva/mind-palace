@@ -43,8 +43,9 @@ There are two names in play, and keeping them apart is the reader's first piece 
 notation. \mindpalace{} is the \emph{framework} --- the repository, the machinery,
 the workflow that builds and governs the thing. \Ouroboros{} is the \emph{live
 system}: the running daemon together with the evolving corpus it reasons over
-(\artifact{dn-ouroboros-principal}, \S 1). The framework is the workshop;
-\Ouroboros{} is the machine running.
+(\artifact{dn-ouroboros-principal}, \S 1 --- \textsc{superseded} by
+\artifact{dn-plane-principals}, which retains the naming verbatim in its \S 1).
+The framework is the workshop; \Ouroboros{} is the machine running.
 
 The name is chosen, not decorative. The ouroboros --- the serpent consuming its
 own tail --- is a system that feeds on its own output: it ingests traces of its own
@@ -94,8 +95,10 @@ It means the opposite: the dangerous, general capability --- a component that co
 forge a verdict, an optimiser that could buy past a bright line, a privilege to
 mutate the immutable --- is \emph{dissolved} rather than granted under guard. The
 design keeps moving the boundary until the dangerous permission is simply
-unnecessary. The full taxonomy of the three channels that cross the core's boundary
-is architecture; \autoref{ch:architecture} gives it. The principle is here.
+unnecessary. A full taxonomy of the channels that cross the core's boundary is
+\fwdthesis{the sacred boundary}{ch:architecture}; what \emph{is} settled ---
+authority split into advisory, projection-write and world-write rungs --- is
+mechanism, and \autoref{sec:scope} carries it. The principle is here.
 
 \begin{principle}[Dissolve, do not guard]
 Sanctity at a boundary is achieved by removing the need for the dangerous
@@ -112,16 +115,19 @@ itself to keep. The maturing move --- made repeatedly across the design --- is t
 stop trusting posture and make the property \emph{physical}, so that a violation is
 not \emph{caught} but \emph{unrepresentable}.
 
-The exemplar is the \Ouroboros{} principal (\artifact{dn-ouroboros-principal}).
-Several constitution lines that are enforced today by convention --- an agent must
-never hold the private corpus, the model never holds raw secrets --- become
-\emph{OS-enforced facts} when the live system runs as its own least-privilege
-operating-system user: after the change, an agent running as the developer's login
-simply \emph{cannot} open the vault. As the note puts it, this is the same move as
-the core-seal reckoning: \emph{stop trusting posture, make the property physical}
-(\artifact{dn-ouroboros-principal}, \S 2). The mechanism --- the dedicated user, the
-launch daemon, the ingest and exhaust lanes --- is architecture, and \autoref{ch:architecture}
-carries it; the principle is what belongs here.
+The exemplar is the \Ouroboros{} principal (\artifact{dn-ouroboros-principal},
+\textsc{superseded} --- see below). Several constitution lines that are enforced
+today by convention --- an agent must never hold the private corpus, the model never
+holds raw secrets --- become \emph{OS-enforced facts} when the live system runs as
+its own least-privilege operating-system user: after the change, an agent running as
+the developer's login simply \emph{cannot} open the vault. As the note puts it, this
+is the same move as the core-seal reckoning: \emph{stop trusting posture, make the
+property physical} (\artifact{dn-ouroboros-principal}, \S 2). That reasoning is
+retained intact by its successor, \artifact{dn-plane-principals}, which widens the
+conclusion from one principal to four --- one per plane --- on the warrant of
+\artifact{finding-0116}. The mechanism --- the principals, the launch daemon, the
+ingest and exhaust lanes --- is architecture, and \autoref{sec:planes} carries it;
+the principle is what belongs here.
 
 The move is not aspirational; parts of it are already concrete in the repository.
 The sealed core's isolation from the network is a static lint, not a hope: a
@@ -145,7 +151,8 @@ can express.
 \begin{principle}[Structural over behavioural]
 A safety property is real only when a mechanism makes its violation impossible or
 mechanically caught --- never when it rests on an agent's good behaviour
-(\artifact{dn-ouroboros-principal}, \S 2; \coderef{scripts/check\_imports.py}{\gitref}).
+(\artifact{dn-ouroboros-principal}, \S 2 --- \textsc{superseded}, reasoning
+retained by \artifact{dn-plane-principals}; \coderef{scripts/check\_imports.py}{\gitref}).
 \end{principle}
 
 \section{The artifact chain: how a decision becomes real}

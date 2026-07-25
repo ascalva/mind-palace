@@ -15,6 +15,7 @@
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{xcolor}
 \usepackage{enumitem}
+\usepackage{booktabs}   % added by Ch.2 (bp-104): rules for the tier/zone tables
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds,shapes.geometric}
 % hyperref last (except for the macros it must see); cleveref would go after it.
@@ -22,7 +23,9 @@
 
 % --- The edition marker: the HEAD sha this edition is keyed to (see SYNC.md). ---
 % Every \coderef in the book pins to this ref unless a snippet states otherwise.
-\newcommand{\gitref}{bdcd9bc}
+% bp-104 re-keyed bdcd9bc -> 009b726 after re-verifying EVERY citation and snippet
+% against that ref, file by file (260 commits had passed; spot-checking was refused).
+\newcommand{\gitref}{009b726}
 
 % --- Citation macros (bp-077 §6). ------------------------------------------------
 % \artifact — a design-note or finding id, rendered as a small-caps bracketed token.
@@ -42,8 +45,21 @@
 \theoremstyle{definition}
 \newtheorem{principle}{Principle}[chapter]
 % A "design-evolution remark" carries superseded material as pedagogy, warrant-linked
-% (book skill §chapter-map). Not yet used in Ch.1; defined once, here.
+% (book skill §chapter-map). First used in Ch.2; defined once, here.
 \newtheorem*{devolution}{Design-evolution remark}
+% Added by Ch.2 (bp-104). An "Invariant" is a property the system enforces, stated
+% formally and always cited to the ratified source that decides it. A "Proposition"
+% is a consequence the manual DERIVES from a cited invariant — its proof is given
+% inline and is checkable by the reader; it asserts nothing the record does not.
+\theoremstyle{definition}
+\newtheorem{invariant}{Invariant}[chapter]
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}[chapter]
+% hyperref needs an \autoref name for every custom theorem environment, else it
+% warns and prints nothing before the number.
+\providecommand{\invariantautorefname}{Invariant}
+\providecommand{\propositionautorefname}{Proposition}
+\providecommand{\principleautorefname}{Principle}
 
 % Draft-thesis forward-reference helper: names a thesis whose formal design note is
 % still draft (barred from the book, dn-agent-workflow §3) and points at the chapter

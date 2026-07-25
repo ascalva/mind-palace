@@ -1,11 +1,1174 @@
 \chapter{Architecture: the zones and their boundaries}
 \label{ch:architecture}
 
-\emph{Stub — pending a later scribe plan.} This chapter gives the mechanism behind
-the principles stated in \autoref{ch:philosophy}: the trust zones, the sealed
-core's structural network isolation, and the three sacred write channels into and
-out of the core. It is where the session-36 trust-boundary designs
-(\artifact{dn-session-handoff-gate}, \artifact{dn-exhaust-lane},
-\artifact{dn-ouroboros-principal}) receive their mechanical write-up — the
-\Ouroboros{} principal as its own OS user, the ingest and exhaust lanes, and the
-Stop-audit clauses — the architecture debt recorded in \texttt{SYNC.md}.
+\autoref{ch:philosophy} ended on a principle and an unpaid debt. The principle was
+\emph{dissolve, do not guard}: sanctity at a boundary is achieved by removing the
+need for the dangerous capability, not by permitting it under controls
+(\autoref{sec:sacred}). The debt is the obvious follow-up question, and it is an
+engineering question, not a philosophical one --- \emph{where do you put the
+boundary so that the dangerous permission stops being necessary?}
+
+This chapter is the answer, and it has a shape worth stating before the details
+arrive. The same move is made five times, at five different scales: between
+processes, between operating-system users, between modules, between types, and
+between the terms of a single query. Each time the move is identical --- take a
+capability that a rule was being asked to restrain, and relocate the boundary until
+the capability is \emph{absent} on one side of it. What differs is only the
+enforcement machinery available at that scale, and the honesty with which the
+design admits how strong its machinery actually is.
+
+That reading is the manual's own synthesis and is flagged as such; but it is not
+invented out of nothing. The record states the correspondence explicitly for two of
+the five scales: the foundation denylist is ``ungrantable at the centre with
+grantable strata around it,'' and the code side ``now has the same geometry, with
+\texttt{CONSTITUTION.md} to data what the inner ring is to machinery: the fixed
+points'' (\artifact{dn-inner-outer-core}, \S 2.8). What follows extends that
+observation across the remaining three.
+
+\section{The grading rubric: three tiers of enforcement}
+\label{sec:tiers}
+
+Before drawing a single boundary it is worth fixing how the chapter will judge one,
+because a design manual that describes only mechanisms is a catalogue, and a
+catalogue cannot tell you whether a system is safe.
+
+The record supplies the rubric. Enforcement sits on a three-rung ladder ---
+$\tstruct{} \succ \tstatic{} \succ \tconv{}$ --- and the ladder carries one
+non-obvious composition law: \emph{the tier of a composed grant is the minimum tier
+along the construction chain} (\artifact{dn-capability-scope}, \S 2.2). The law is
+what stops a convention-tier permission from laundering itself through a
+structural-looking wrapper and emerging apparently strong. Its practical
+consequence is that the tier is an \emph{annotation on the whole chain}, never a
+property of the last link, and it must be recorded honestly at each link or the
+minimum cannot be computed at all.
+
+\begin{principle}[Enforcement has a tier, and the tier is the minimum]
+Every boundary in this system is labelled with the strength of the mechanism that
+holds it: \tstruct{} (violation is unrepresentable or refused by the kernel),
+\tstatic{} (violation is caught mechanically before the program runs), or
+\tconv{} (violation is caught by review, or not at all). A boundary composed of
+several mechanisms inherits the weakest of them
+(\artifact{dn-capability-scope}, \S 2.2).
+\end{principle}
+
+\autoref{fig:enforcement-ladder} shows the ladder with the system's single most
+enforced invariant --- the sealed core's network isolation --- placed on all three
+rungs at once, which is exactly the point: the tiers stack rather than replace.
+\autoref{tab:five-scales} is then the chapter's map, and it doubles as an honest
+scorecard. Two rows are \tconv{}, and the chapter says so where it reaches them.
+
+\begin{figure}[t]
+  \centering
+  \input{figures/enforcement-ladder}
+  \caption[The enforcement ladder]{One invariant, three tiers. The rungs are the
+    ladder of \artifact{dn-capability-scope} \S 2.2; the mechanisms are the three
+    enforcements the repository actually carries for non-negotiables 1 and 2
+    (\coderef{docs/BUILD-SPEC.md}{\gitref}, \S 3). The static lint is deliberately
+    \emph{retained} after the kernel fact exists --- ``it stays as the cheap,
+    pre-runtime tripwire; it catches the violation at review, the kernel catches it
+    at execution'' (\artifact{dn-plane-principals}, \S 3.4).}
+  \label{fig:enforcement-ladder}
+\end{figure}
+
+\begin{table}[t]
+  \centering\footnotesize
+  \begin{tabular}{@{}llll@{}}
+    \toprule
+    \textbf{Scale} & \textbf{The boundary} & \textbf{Held by} & \textbf{Tier} \\
+    \midrule
+    processes  & zones A/B/C           & a filesystem handoff        & \tstruct{} \\
+    modules    & the import closure    & an AST lint                 & \tstatic{} \\
+    OS users   & four plane principals & kernel DAC + \texttt{pf} & \tstruct{} \\
+    modules    & inner ring / outer    & a computed fixed point      & \tstatic{} \\
+    types      & the checked region    & a strict type checker       & \tstatic{} \\
+    queries    & the scope lattice     & construction-time admissibility & mixed \\
+    workflow   & the plan's write scope & pre-hoc guard + post-hoc audit & mixed \\
+    \bottomrule
+  \end{tabular}
+  \caption[The five scales]{The chapter's map. ``Mixed'' is not evasion: the scope
+    lattice labels each of its five inhabitants individually
+    (\artifact{dn-capability-scope}, \S 2.4), and the workflow's write enforcement
+    is deliberately porous pre-hoc and tight post-hoc
+    (\artifact{dn-agent-workflow}, \S 6). \autoref{sec:residuals} states every
+    residual.}
+  \label{tab:five-scales}
+\end{table}
+
+\section{Zones: the boundary is a spool of files}
+\label{sec:zones}
+
+The outermost boundary is drawn between \emph{processes}, and it is drawn around
+the network.
+
+Three zones (\coderef{docs/BUILD-SPEC.md}{\gitref}, \S 6). \zoneA{}, the sealed
+core, holds everything private: the vault, the vector store over the thought-graph,
+the telemetry store, the private-reasoning models, the librarian, curator, dreaming
+and matching agents, the agent factory, the sandbox broker. It has no outbound
+network. \zoneB{}, the networked edge, is two narrowly scoped processes --- a
+bridge that ships research specs outward and retrieves public corpora, and an
+interface gateway that relays the owner's messages --- each running with the
+private vault \emph{unmounted}. \zoneC{} is the cloud: encrypted backups and
+outbound research fetchers, which see only de-identified topic criteria and public
+literature.
+
+\begin{figure}[t]
+  \centering
+  \input{figures/trust-zones}
+  \caption[The trust zones and the airlock]{The three zones, the handoff between
+    them, and the airlock's deliberate asymmetry --- de-identified criteria out,
+    public content in. Source: \coderef{docs/BUILD-SPEC.md}{\gitref}, \S 6 and
+    \S 3 (invariants 1, 2 and 11); the reading of the handoff directory as an
+    airlock is \artifact{dn-plane-principals}, \S 3.1.}
+  \label{fig:trust-zones}
+\end{figure}
+
+The load-bearing sentence in that section is not the zone list --- it is the one
+about what connects them. \emph{The boundary between the core and the networked
+processes is the filesystem handoff (specific directories), not shared memory or
+shared DB access} (\coderef{docs/BUILD-SPEC.md}{\gitref}, \S 6). This looks like an
+implementation detail and is in fact the whole design. A shared database or a
+shared memory segment is a channel with \emph{ambient} authority: whatever is
+reachable through it is reachable by anyone holding the handle, and the only thing
+standing between a compromised edge process and the corpus is the correctness of
+every query the edge is trusted not to write. A directory of typed files has no
+ambient authority at all. It carries exactly what was written into it, it is
+inspectable after the fact, and --- the property that matters most --- it is
+\emph{inert}: reading a file is not an invocation. When the plane split later
+formalises this, it names the handoff for what it always was: ``the only thing edge
+and core share is a spool of typed files --- no shared network, no shared uid''
+(\artifact{dn-plane-principals}, \S 3.1).
+
+The second load-bearing idea is the airlock's asymmetry. Outbound traffic is
+de-identified topic criteria only; inbound traffic is public content only
+(\coderef{docs/BUILD-SPEC.md}{\gitref}, \S 6). The point is not symmetry-breaking
+for its own sake. It is that these two constraints, taken together, let the system
+keep learning from the world without the world ever learning about the owner: ``the
+owner's inner life never leaves the walls; fresh external knowledge still gets
+in.'' The same section adds the warning that shows the design thought past its own
+slogan --- \emph{even topic keywords carry intent}, so outbound criteria are kept
+general. A boundary that leaks the shape of a question has leaked something.
+
+One further asymmetry is stated at the constitutional level and belongs here
+because it is the only place the design knowingly lets something cross: the
+interface may transit a third party; the corpus never does
+(\coderef{docs/BUILD-SPEC.md}{\gitref}, \S 3, invariant 11). If a messaging adapter
+routes through an external service, the owner's \emph{interactions} leave the
+boundary even though the corpus does not --- and the record insists that this
+tradeoff be explicit and opt-in, with the private default keeping interactions
+inside the walls. It is worth pausing on the register of that sentence. It does not
+claim the boundary is perfect; it names the one place it is deliberately porous and
+requires the owner to choose it.
+
+\section{The import firewall: turning a zone into a theorem}
+\label{sec:firewall}
+
+A zone drawn on an architecture diagram is a convention --- the lowest rung of
+\autoref{fig:enforcement-ladder}. Nothing about \zoneA{} being labelled ``no
+network'' prevents a module inside it from importing \texttt{urllib} on a Tuesday.
+The question this section answers is how the label becomes a fact, and the answer
+contains the single most elegant argument in the codebase.
+
+\subsection*{The idea: make it a property of the closure, not of a module}
+
+Checking that no core module opens a socket is a whack-a-mole exercise: you check
+every module, and you must re-check on every change, and a module that merely
+\emph{imports} something that opens a socket passes the check while remaining
+capable. The move is to stop reasoning about modules and start reasoning about the
+\emph{import closure}. The lint's own docstring states the argument
+(\coderef{ops/import\_lint.py}{\gitref}): if no module under \texttt{core/} can
+\emph{reach} a network-capable module, then no egress path exists regardless of
+edge behaviour --- \emph{composition cannot create one}.
+
+That is worth making precise, because the precision is where the strength comes
+from --- and because the precision also exposes exactly what the lint does
+\emph{not} yet buy. Let $G$ be the module import digraph of the repository, with an
+edge $m \to m'$ whenever $m$ imports $m'$; write $\imports(m)$ for the direct
+imports of $m$ and $\reach(S)$ for everything reachable from $S$ by any number of
+edges. Let $\coremods{}$ be the modules under \texttt{core/}, let $\netmods{}$ be
+the network-capable module roots, and let $\netallow{} \subseteq \coremods{}$ be the
+audited allowlist.
+
+What the lint actually checks is \emph{local} --- one AST walk per file, direct
+imports only (\coderef{ops/import\_lint.py}{\gitref}):
+
+\begin{invariant}[Zone non-interference and network containment]
+\label{inv:firewall}
+For every $m \in \coremods{}$: $\imports(m) \cap \{\texttt{edge},\texttt{cloud}\}
+= \varnothing$, and if $m \notin \netallow{}$ then
+$\imports(m) \cap \netmods{} = \varnothing$
+(\coderef{ops/import\_lint.py}{\gitref}; \coderef{docs/BUILD-SPEC.md}{\gitref},
+\S 3, invariants 1--2).
+\end{invariant}
+
+\noindent A local check cannot, by itself, give a global reachability property. What
+it gives is this:
+
+\begin{proposition}[Every escape route is visible]
+\label{prop:closure}
+Under \autoref{inv:firewall}, every path in $G$ from a module in $\coremods{}$ to a
+module in $\netmods{}$ either begins at a module of $\netallow{}$, or leaves
+$\coremods{}$ at some step into a module that is neither \texttt{edge},
+\texttt{cloud}, nor network-capable.
+\end{proposition}
+
+\begin{proof}
+Let $m_0 \to \cdots \to m_k$ be such a path with $m_0 \in \coremods{}$ and
+$m_k \in \netmods{}$, and let $i$ be the last index with $m_i \in \coremods{}$. If
+$i = k$ then $m_k \in \coremods{} \cap \netmods{}$, which \autoref{inv:firewall}
+permits only for $m_k \in \netallow{}$. Otherwise $m_{i+1} \in \imports(m_i)$ lies
+outside $\coremods{}$, and \autoref{inv:firewall} forbids it from being
+\texttt{edge}, \texttt{cloud}, or a member of $\netmods{}$ unless
+$m_i \in \netallow{}$.
+\end{proof}
+
+\noindent So the local condition closes every \emph{direct} route and forces every
+remaining route to pass through a module core imports from outside itself. The
+global claim --- \emph{no egress path exists, regardless of composition} --- therefore
+holds under one extra hypothesis:
+
+\begin{quote}
+$(\star)$\quad every module core reaches outside $\coremods{}$ is stdlib or a pinned,
+side-effect-free third-party library.
+\end{quote}
+
+And that hypothesis is not decoration; it is a second, separately named invariant
+with its own enforcement, and \textbf{it is currently false on purpose}. Core still
+imports from sibling packages, the audit that measured it is
+\artifact{finding-0103}, and the test asserting $(\star)$ is \emph{red by design} ---
+a ratchet whose count may only ever decrease, which the owner chose over a silent
+allowlist or a deferred cleanup
+(\coderef{tests/unit/test\_core\_self\_containment.py}{\gitref};
+\artifact{dn-inner-outer-core}, \S 2.4 records it counting 19 down to 0).
+
+\begin{proposition}[The closure claim, at the limit]
+\label{prop:closure-limit}
+If $(\star)$ holds, then
+$\reach(\coremods{}) \cap \netmods{} \subseteq \netallow{}$: composition cannot
+create an egress path.
+\end{proposition}
+
+\begin{proof}
+By \autoref{prop:closure}, a path from core to $\netmods{}$ that does not begin in
+$\netallow{}$ must leave core into some $m_{i+1} \notin \coremods{}$. Under
+$(\star)$ that $m_{i+1}$ is stdlib or a pinned pure library, none of which is in
+$\netmods{}$ or reaches it --- so no such path exists.
+\end{proof}
+
+This is the chapter's first real piece of synthesis, and it is worth stating
+plainly: \emph{the import firewall and the core self-containment ratchet are not two
+hygiene programmes; they are the two hypotheses of one theorem}. Until the ratchet
+reaches zero, the sealed core's static isolation is a conditional result, and the
+condition is measurable --- which is a far more useful state to be in than either
+overclaiming the guarantee or not knowing what it depends on. It is also why the
+runtime guard and the kernel anchor of the next section are not redundancy: they
+hold the property unconditionally while the static argument is still being
+discharged.
+
+The lint's own contribution remains large and cheap. It needs no understanding of
+the program --- it reads imports --- and the record names the move: a runtime
+guarantee lifted to a static one, ``provable by reading the AST without running the
+program'' (\artifact{dn-type-system-as-core-audit}, \S 2.4).
+
+\subsection*{Two rules of different strength --- and the honesty about the second}
+
+The firewall is not one rule but two, and they are deliberately unequal.
+
+\begin{quote}\small\ttfamily
+source: ops/import\_lint.py@\gitref
+\end{quote}
+{\small\begin{verbatim}
+FORBIDDEN_ZONES: frozenset[str] = frozenset({"edge", "cloud"})
+
+    ... (NETWORK_MODULES, the audited network-capable set, elided) ...
+
+NETWORK_ALLOWLIST: frozenset[str] = frozenset({
+    "core/sealing.py",                 # wraps socket to seal it
+    "core/models/ollama_client.py",    # loopback Ollama IPC channel (127.0.0.1)
+})
+\end{verbatim}}
+
+\noindent The first rule --- no \texttt{core/} module may import \texttt{edge} or
+\texttt{cloud} --- is hard, with zero exceptions, and the docstring explains why it
+can afford to be: the sealed core ``cannot even \emph{name} the networked zones, so
+there is no \texttt{core} $\to$ \texttt{edge} $\to$ net path to create.'' This is
+capability dissolution at the module scale. There is nothing to guard because there
+is nothing to reference.
+
+The second rule --- no networking primitive --- carries an allowlist of exactly two
+audited files, and the design refuses to overstate what that buys. The docstring's
+own words: the guarantee is ``exactly these two audited files touch networking
+primitives, both loopback-only,'' \emph{not} ``no core file imports \texttt{http}''
+--- and overclaiming the latter ``would be dishonest (the Ollama channel is
+real).'' A reader should notice what has happened there. The system needs to speak
+to a locally resident model server, so a loopback channel genuinely exists; rather
+than hide it behind a stronger-sounding claim, the design names it, audits it,
+pins it to two files, and writes the weaker true sentence into the source. That
+habit --- preferring the weaker claim that is true --- is the same stance
+\autoref{sec:falsifiers} identified in the process, now visible in a docstring.
+
+\subsection*{The same invariant, three times}
+
+The import lint is the middle rung. Beneath it, at runtime,
+\coderef{core/sealing.py}{\gitref} installs a process-wide, fail-closed guard that
+intercepts every socket \texttt{connect} and permits only loopback destinations and
+\texttt{AF\_UNIX}, raising before a packet leaves. Its docstring is candid about
+its own ceiling --- a native extension opening its own socket could bypass a
+Python-level guard --- and about why it exists anyway: it fails closed, it is
+process-wide, it is verifiable in tests, and it composes with the OS-level layer.
+Above the lint, at the kernel, sits the \texttt{pf} anchor of
+\autoref{sec:planes} --- committed as an inert file, loaded by the owner as part
+of a deliberate migration. Three mechanisms, one property, three tiers, each with
+its stated limit. That is what defence in depth looks like when the layers are
+honest about their individual weakness.
+
+\section{Planes: the boundary the kernel enforces}
+\label{sec:planes}
+
+The zone boundary is about \emph{code}. The next boundary is about \emph{processes
+and the users that own them} --- and it is the one place where the system's rules
+stop being the system's rules and become the operating system's.
+
+\begin{devolution}
+The design arrived here in two steps, and the first is retained because the second
+is unintelligible without it. \artifact{dn-ouroboros-principal}
+(\textbf{superseded}) minted \emph{one} new principal --- \texttt{ouroboros}, the
+live system --- and drew the boundary between ``the human builds the machine'' and
+``the machine is running.'' Its \S 3.3 stated the generalisation it did not itself
+take: \emph{the uid separates planes, not agent types}. Then \artifact{finding-0116}
+observed that exhaust has two producer planes --- the workflow writes build
+reports, the system writes its own emissions --- so one new principal cannot carry
+the plane model the note had articulated. \artifact{dn-plane-principals}
+supersedes it on that warrant, generalising rather than patching: \emph{four OS
+principals, one per plane}. The superseded note's threat model, role-account
+mechanics, daemon relocation and execution protocol are retained by reference and
+are unchanged (\artifact{dn-plane-principals}, \S 1--\S 2). Chapter 1's citations
+to \artifact{dn-ouroboros-principal} should be read in this light: the reasoning
+stands, the conclusion widened.
+\end{devolution}
+
+\subsection*{Four principals}
+
+\phuman{} is the human: hand edits, blessings, the decisions. \pwork{} is the
+workflow plane --- the orchestrator and its delegated builders and scribes, the
+repository working tree, and the owner of the build-report lane. \pcore{} is the
+core plane: the reasoning daemon and the vault, with read/write on the corpus and
+no off-host network. \pedge{} is the edge plane: network-facing only, never the
+vault (\artifact{dn-plane-principals}, \S 3.1).
+
+The fourth is worth dwelling on, because it was created before it was needed. Edge
+is effectively empty today --- the maximum reachable effector tier is
+\textsc{none}, and the only edge surface is a Tailscale-local ambassador
+(\artifact{finding-0011}) --- and the note creates the principal anyway, as
+forward provisioning. The stated reason is the good one: ``it guards little now;
+the model is complete the moment edge grows, and \emph{no future edge component can
+be born inside core for convenience}'' (\artifact{dn-plane-principals}, \S 3.1).
+This is a boundary drawn to remove a future temptation rather than a present
+capability, which is an unusual and rather disciplined thing to spend a design on.
+
+\subsection*{Non-negotiable \#2 becomes a kernel fact}
+
+The constitutional line is that private data and network access never live in the
+same component (\coderef{CONSTITUTION.md}{\gitref}, \S II.1). Before the plane
+split, that was enforced at the \emph{source} level by the import firewall of
+\autoref{sec:firewall} --- which is, as \artifact{dn-plane-principals} \S 3.4 puts
+it precisely, review-time enforcement of a runtime property. The four-user split
+makes it a kernel fact, enforced from both directions at once:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Edge cannot reach the vault.} $\pedge{} \neq \pcore{}$, and the
+    vault is mode \texttt{0700} owned by \pcore{}. The kernel's discretionary
+    access check denies the \texttt{open}. No code path, no import, and no bug in
+    edge can cross it short of a kernel exploit or root.
+  \item \textbf{Core cannot reach the network.} A \texttt{pf} anchor keyed on the
+    uid drops core's off-host traffic, with a loopback carve-out placed
+    \emph{before} it, because core legitimately speaks localhost to the resident
+    model servers. ``Sealed'' means zero \emph{off-host} egress, not zero loopback.
+\end{itemize}
+
+The whole of the second bullet is two lines of configuration, and they are worth
+reading in full because the ordering is the design:
+
+\begin{quote}\small\ttfamily
+source: ops/network/ouroboros-egress.pf.conf@\gitref
+\end{quote}
+{\small\begin{verbatim}
+pass  out quick on lo0
+block drop out quick proto { tcp udp } from any to any user ouroboros
+\end{verbatim}}
+
+\noindent \texttt{pf} is first-match-wins for \texttt{quick} rules, so the carve-out
+must precede the block or the daemon's own model calls are dropped and core wedges.
+The same file records that \texttt{pf}'s \texttt{user} clause matches the socket's
+effective uid in \emph{both} directions, so this one block covers egress and any
+listening socket core might open off-loopback. Two lines; one non-negotiable; a
+kernel that does not negotiate.
+
+\begin{figure}[t]
+  \centering
+  \input{figures/plane-principals}
+  \caption[The four plane principals]{One OS user per plane, and the two denials
+    that compose. Source: \artifact{dn-plane-principals}, \S 3.1 (the ownership
+    matrix) and \S 3.4 (the two directions); the rules are
+    \coderef{ops/network/ouroboros-egress.pf.conf}{\gitref}.}
+  \label{fig:planes}
+\end{figure}
+
+The composition is the payoff, and the note states it in one sentence: ``the
+component holding private data has no network; the component holding the network
+has no private data; and they are different uids, so no single process can ever
+hold both'' (\artifact{dn-plane-principals}, \S 3.4). Note also what does
+\emph{not} happen next: the import firewall is not retired. It stays as the cheap
+pre-runtime tripwire --- ``it catches the violation at review, the kernel catches
+it at execution.''
+
+\subsection*{What the agents lose, and what the split does not do}
+
+The clearest way to feel a capability boundary is to state it as a subtraction.
+Running as \pwork{}, an agent --- and anything it spawns, and any supply-chain
+compromise inside its toolchain --- cannot read the human's documents, SSH keys,
+keychain or browser profiles; cannot open the vault; and cannot write core's
+runtime substrate. Its writable world is the repository, its own home, and the
+report lane. ``That \emph{is} the workflow plane, now enumerable by \texttt{ls
+-l}'' (\artifact{dn-plane-principals}, \S 3.2).
+
+And the residuals, stated by the note itself rather than discovered by a reader.
+The split does \emph{not} enforce the blessing gates: the repository is
+group-writable by design, so an errant agent process can still touch a ratified
+note at the filesystem level --- the guards of \autoref{sec:workflow} remain the
+enforcement there. Workflow keeps open network egress, because building needs it;
+a workflow compromise can still exfiltrate the \emph{repository}, just no longer
+the vault or the human's files. And \pwork{} must be able to read the human's
+signing key in order to sign commits as the human --- a modest, knowingly accepted
+leak, recorded with its rationale and with the alternative (a separate verified bot
+identity) parked rather than discarded (\artifact{dn-plane-principals}, \S 3.2,
+\S 5).
+
+This is designed, built and instrumented rather than aspirational --- and the
+instrument is the interesting part. The migration itself is owner-run and
+privileged (creating users, loading a packet-filter anchor), so what ships in the
+repository is a runbook, a set of per-plane ratchets, and a \emph{read-only}
+verifier that mutates nothing and asserts the end state across all four principals
+(\coderef{scripts/verify\_planes.py}{\gitref}). Crucially it is runnable
+\emph{mid}-migration: a lane not yet migrated reports \textsc{pending}, never a
+false green. A boundary whose instrument can say ``not yet'' is a boundary you can
+trust the report of.
+
+What the edge plane will eventually \emph{contain} is a separate question, and its
+design note is not yet ratified --- so this manual names
+\fwdthesis{the edge model}{ch:architecture} and asserts nothing about it beyond the
+principal that already exists.
+
+\section{Rings: a boundary of meaning, computed rather than curated}
+\label{sec:rings}
+
+Every boundary so far exists because something is dangerous. The next one exists
+because something is \emph{confusing}, and it is the most instructive of the five,
+because it shows the house style applied where there is no threat at all.
+
+\subsection*{The motivation}
+
+\texttt{core/} was heterogeneous: a pure mathematical and algebraic kernel, a
+boundary/invariant layer, and administrative machinery, all in one package
+(\artifact{dn-inner-outer-core}, \S 1). The owner's decision was to split it into
+two rings --- but the interesting part is the constraint placed on \emph{how}: the
+split had to be \textbf{mechanical}. Membership is computed, never curated, so that
+no module's assignment is ever a judgment call.
+
+The reason to insist on this is not tidiness. A curated boundary decays: each
+individual exception is defensible, the accumulated set is not, and nobody can say
+at any moment what the boundary now means. A computed boundary cannot decay,
+because there is nothing to exercise judgment on. If you want to move it, you must
+amend the \emph{predicate} --- a single ratified design decision, applied to
+everything at once.
+
+\subsection*{The predicate, stated exactly}
+
+Let $\coremods{}$ be the modules under \texttt{core/} and let the admissible base be
+\[
+  \basemods{} \;=\; \bigl(\text{stdlib} \setminus \netmods{} \setminus
+  \{\texttt{sqlite3}\}\bigr) \;\cup\; \{\texttt{numpy}, \texttt{scipy}\},
+\]
+where $\netmods{}$ is the same audited network-module set the firewall of
+\autoref{sec:firewall} uses --- one home for ``network-capable,'' reused rather
+than re-declared. Call a subset $S$ of $\coremods{}$ \emph{import-closed} when
+every $m \in S$ satisfies $\imports(m) \subseteq S \cup \basemods{}$. Then
+
+\begin{invariant}[The inner ring]
+\label{inv:ring}
+$\innerring{}$ is the maximal import-closed subset of $\coremods{}$ over
+$\basemods{}$ (\artifact{dn-inner-outer-core}, \S 2.1, \S 2.3).
+\end{invariant}
+
+A maximum exists, and the reason is worth one line because it is what makes
+``maximal'' well defined rather than a hopeful adjective: a union of import-closed
+sets is import-closed (if $m \in S_1$ then $\imports(m) \subseteq S_1 \cup
+\basemods{} \subseteq \bigcup_j S_j \cup \basemods{}$), so
+$\innerring{} = \bigcup \{ S \subseteq \coremods{} : S \text{ import-closed}\}$ is
+itself import-closed and contains every other. Equivalently, $\innerring{}$ is the
+greatest fixed point of the monotone operator
+$F(S) = \{ m \in \coremods{} : \imports(m) \subseteq S \cup \basemods{}\}$ on the
+powerset lattice of $\coremods{}$ --- the classical lattice-theoretic
+fixed-point construction.\footnote{A.~Tarski, ``A lattice-theoretical fixpoint
+theorem and its applications,'' \emph{Pacific Journal of Mathematics} 5(2):285--309,
+1955. \textsc{doi}:\,\texttt{10.2140/pjm.1955.5.285}. Verified 2026-07-25.} Two
+immediate corollaries: an import-closed set cannot reach its complement, so
+\emph{inner never imports outer} --- the direction law is a theorem, not a further
+rule; and the fixed point is computable by iterating $F$ downward from
+$\coremods{}$ until it stabilises, which is precisely what the ratchet test does.
+
+\subsection*{Why exactly two subtractions --- one forced, one ruled}
+
+The base could have been simply ``stdlib plus numpy and scipy.'' It is not, and the
+record is unusually clear about the difference between the two corrections it makes
+(\artifact{dn-inner-outer-core}, \S 2.1).
+
+The first subtraction is \emph{computed-forced}. Applied literally, the naive base
+lands the loopback model client (which imports \texttt{urllib}) and the egress guard
+(which imports \texttt{socket}) \emph{inside} the inner ring, because
+\texttt{urllib} and \texttt{socket} are stdlib. ``An inner core
+containing the repo's only two network-capable core files would poison the term on
+day one.'' Subtracting the audited network set makes \emph{inner $\subseteq$
+network-incapable} a theorem with an empty allowlist --- and it does so by reusing
+the firewall's constant rather than minting a second opinion about what counts as
+network-capable.
+
+The second subtraction is \emph{owner-ruled}, and is recorded as taste with its
+reasoning attached rather than disguised as necessity. With only the first
+subtraction the ring computes to include the SQLite store layer, because
+\texttt{sqlite3} is stdlib and the store modules are import-austere. The ruling:
+``the inner ring should \textbf{be} the founding language --- the algebra, the
+mathematics, the sacred boundaries --- not the austere plumbing. Persistence
+machinery, however dependency-clean, is machinery.'' The rejected wider alternative
+is kept on the record with its own re-entry condition, not deleted.
+
+\subsection*{The mechanism: a declaration forced to equal a computation}
+
+Here is the move that makes the whole thing work, and it generalises far beyond
+this chapter. The ring map is a plain declaration in code: a frozen set of module
+names, living in
+\coderef{core/kernel/rings.py}{\gitref}.
+The ratchet test recomputes the fixed point at test time and asserts
+\emph{equality in both directions}
+(\artifact{dn-inner-outer-core}, \S 2.4):
+
+\begin{quote}\small\ttfamily
+pseudo-code --- the shape of tests/unit/test\_inner\_ring.py
+\end{quote}
+{\small\begin{verbatim}
+computed <- greatest S subset of core/** with imports(S) subset of S + BASE
+assert computed == DECLARED        # both directions, not containment
+  # a module that acquires an inadmissible import LEAVES computed
+  #   -> red until the map records the demotion, explicitly
+  # a module that becomes pure ENTERS computed
+  #   -> red until the map claims it, explicitly
+\end{verbatim}}
+
+\noindent Neither direction is decoration. Containment in one direction alone would
+let the ring silently shrink; containment in the other would let it silently grow.
+Equality means every change of membership is a \emph{reviewable one-file diff} that
+must be named in a build plan's write scope --- so the guard of
+\autoref{sec:workflow} makes every promotion and demotion plan-visible with no new
+machinery at all. The design note is explicit that this is the point: the map ``is
+a declaration forced to match a computation.'' And the failure mode is pre-assigned
+--- if the ratchet goes red, the \emph{map} is stale, never the test; recompute at
+\textsc{head} and edit the map, never hand-edit toward green.
+
+Around it sit four no-laundering bindings, which exist because the interesting
+attack on a ratchet is not to violate it but to redefine what it counts: no module
+ever leaves \texttt{core/} under this programme; every physical move asserts the
+outer violation count is unchanged on both sides; ring assignment cannot redefine a
+violation (a violating module is outer \emph{because} it violates --- there is no
+assignment step a violation could hide in); and the map may shrink only through a
+named plan line-item (\artifact{dn-inner-outer-core}, \S 2.4).
+
+\subsection*{Where it stands, and what it is not}
+
+At the edition's ref the ring is 43 modules, and it physically lives in one
+subtree, \texttt{core/kernel/**}
+(\coderef{core/kernel/rings.py}{\gitref}).
+The outer ring is the complement --- \texttt{core/**} minus that subtree --- and the
+sibling packages
+--- \texttt{eval}, \texttt{ops}, \texttt{agents}, \texttt{scheduler},
+\texttt{edge}, \texttt{config} --- are not core at all
+(\artifact{dn-inner-outer-core}, \S 2.5, \S 2.7). \autoref{fig:core-rings} draws
+the three regions.
+
+\begin{figure}[t]
+  \centering
+  \input{figures/core-rings}
+  \caption[The three code regions]{Inner ring $\subset$ core; outer ring = core
+    $\setminus$ inner; the siblings are not core at all. The security perimeter is
+    drawn \emph{core-wide}, deliberately larger than the ring. Source:
+    \artifact{dn-inner-outer-core}, \S 2.5 and \S 2.7.}
+  \label{fig:core-rings}
+\end{figure}
+
+Two honest edges, both stated by the source rather than found by a critic. First,
+\textbf{the ring is not the security perimeter}. Shrinking it surrendered nothing,
+because the import firewall bans network imports across \emph{all} of
+\texttt{core/**} regardless of ring: ``the ring is a meaning boundary, not the
+egress boundary.'' Second, \textbf{inner does not mean pure}. Two members prove it
+by inspection --- the content-addressed raw store performs disk I/O, and the config
+loader reads the environment --- so ``nobody may build on \emph{inner $\Rightarrow$
+pure function}.'' A call-grain purity predicate is parked, with a named candidate
+consumer and a falsifier, rather than quietly assumed.
+
+What the ring \emph{is}, the note says best, and it is the sentence to carry out of
+this section: the inner core ``is not an agent and not a service --- it is the
+vocabulary agents are written in; nobody grants you arithmetic''
+(\artifact{dn-inner-outer-core}, \S 2.5).
+
+\section{Types: the boundary at authorship time}
+\label{sec:types}
+
+The boundaries so far constrain \emph{reach}. This one constrains
+\emph{expressibility} --- it moves the wall to the moment the code is written, so
+that a whole class of wrong operation cannot be said.
+
+\subsection*{What a green run actually proves}
+
+The temptation with a type checker is to treat a green run as evidence the system
+is correct. The record refuses that reading immediately, on the strongest possible
+grounds. ``Under Curry--Howard a well-typed program \emph{is} a proof --- of
+exactly the proposition its type expresses, and nothing
+more''\footnote{The correspondence between proofs and programs, and a readable
+modern account of it: P.~Wadler, ``Propositions as types,'' \emph{Communications of
+the ACM} 58(12):75--84, 2015. \textsc{doi}:\,\texttt{10.1145/2699407}. Verified
+2026-07-25.} (\artifact{dn-type-system-as-core-audit}, \S 2.1). The note makes the
+point with a two-line counterexample:
+
+\begin{quote}\small\ttfamily
+pseudo-code --- the illustration of dn-type-system-as-core-audit \S 2.1
+\end{quote}
+{\small\begin{verbatim}
+function add(a: int, b: int) -> int:
+    return a - b          # type-checks.
+    # The theorem proven is "ints map to ints" -- and that theorem is true.
+\end{verbatim}}
+
+\noindent So correctness splits into two obligations, and the split is the
+section's central idea: \textbf{code $\models$ type-spec} is owned by the checker
+--- mechanical and continuous; \textbf{type-spec $\models$ intent} is never
+provable statically, and is owned by tests and by the owner. Knowing which of the
+two a green run discharges is the difference between a useful instrument and a
+false comfort.
+
+There is a second boundary, from gradual typing, and it is sharper than it looks.
+The guarantee holds only inside the \emph{checked region}. Unannotated functions
+are silently exempt; \texttt{Any} is infectious, so a single \texttt{Any} at a
+third-party boundary launders everything downstream out of the guarantee; casts
+and suppressions are holes by construction. The consequence, stated flatly: ``a
+green \emph{non-strict} run over partially annotated code is close to
+meaningless.'' Strict mode earns its place not by proving more but by converting
+silent exemptions into loud ones.
+
+\subsection*{The design move: raise the propositional content}
+
+If a type's value is the proposition it expresses, then the engineering lever is to
+make the propositions say more. The note's formulation is the one to remember:
+\texttt{int -> int} \emph{decorates}; a signature like
+
+\begin{quote}\small\ttfamily
+pseudo-code --- the static shadow of label monotonicity (\S 2.4)
+\end{quote}
+{\small\begin{verbatim}
+promote(x: Derived[T], cap: OwnerVerdict) -> Authored[T]
+\end{verbatim}}
+
+\noindent \emph{constrains}. Under this signature, promoting derived material to
+authored status without an owner verdict is not a policy violation to be detected
+--- it is a type error at every call site, on every builder run, at zero runtime
+cost. The same encoding gives capability non-amplification: a privileged operation
+whose signature demands an unforgeable capability object simply cannot be called
+from a path that never received one, and the checker verifies the plumbing end to
+end (\artifact{dn-type-system-as-core-audit}, \S 2.4).
+
+This is the standing razor of the whole project applied to annotations themselves:
+\emph{formalism must constrain, not decorate}. An annotation earns its place by
+encoding an invariant whose violation the checker would catch.
+
+And --- characteristically --- the note immediately states how much weaker the
+shadow is than the invariant it shadows. It sees no values and no runtime paths,
+and a deliberate cast defeats it. What it removes is the \emph{accidental}
+violation class, at authorship time. That is exactly the aligned move: ``the
+correct design removes the error class rather than detecting instances of it.''
+
+\subsection*{The audit framing, and a boundary that grows by itself}
+
+The first strict pass over \texttt{core/} was reframed as an \emph{audit}, whose
+error inventory is a measurement rather than a chore
+(\artifact{dn-type-system-as-core-audit}, \S 2.3; warrant \artifact{finding-0026}).
+Each error triages into exactly one of three classes: \textbf{T1}, a latent defect
+corresponding to reachable incorrect behaviour, each filed as its own finding;
+\textbf{T2}, a \emph{representability} finding --- behaviourally fine, but the
+types reveal untyped shape crossing a module boundary; \textbf{T3}, checker
+friction, resolved by a suppression that must carry an error code and a warrant
+comment so that bare suppressions are grep-detectable violations.
+
+The T2 class is the one worth internalising, because it is the type system doing
+boundary work rather than correctness work: \emph{a shape the type system cannot
+see is a shape the code-plane audit cannot defend}. T2 density measures how much of
+the system's real structure lives outside the checked region.
+
+The scope rule is the owner's, and it has the same computed-not-curated character
+as the ring. Because a checker verifies call sites in the \emph{caller's} module,
+``a caller must respect the callee's types'' is enforceable only if every caller of
+core is itself analysed. Hence two tiers: core plus the foundation file set under
+full strict, and an interface tier consisting of \emph{every module that imports
+anything from} \texttt{core/}. Membership of the second is ``not a judgment call
+but a mechanical invariant --- \texttt{imports core} $\Rightarrow$ present in
+Tier-2 config --- decidable from the AST import graph and enforceable on the gate
+path,'' and the ratchet is one-way: no module ever moves to a weaker tier, and
+Tier-2 membership ``grows automatically with the import graph rather than by
+intention'' (\artifact{dn-type-system-as-core-audit}, \S 2.5). A boundary that
+enlarges itself as the code changes needs no maintainer.
+
+Where an external dependency ships no honest types, the \texttt{Any} is quarantined
+in a thin typed wrapper --- one file per dependency, rather than smeared through
+core. That layer is built: \coderef{core/typedshims/lancedb.py}{\gitref} is, in its
+own words, ``the ONE place core touches the raw package,'' pinning returned values
+to the minimal protocol surface the store actually uses, with the single
+suppression carrying its warrant inline. Its final instruction is a small lesson in
+boundary hygiene: do not widen these protocols speculatively --- each addition
+should arrive with the call that needs it.
+
+Finally, the falsifier, because this chapter would be dishonest without it. The
+note names the observation that would retire its own central claim: if the first
+strict pass yields zero T1 and zero T2 findings and the steady-state cost is
+dominated by T3 friction, then the \emph{audit} framing has failed and is recorded
+as no-signal --- the checker may survive as a regression floor, but the stronger
+claim is withdrawn (\artifact{dn-type-system-as-core-audit}, \S 2.2).
+
+\section{Scope: the boundary at query time}
+\label{sec:scope}
+
+Every boundary so far is a fact about the system --- true of the code, the
+processes, the users. This one is a fact about a \emph{request}: what a given
+caller, right now, is permitted to ask.
+
+It is also, unlike the others, a piece of \emph{vocabulary} rather than a gate. The
+built module says so in its own header: it ``wires NO enforcement into any read
+path --- it is vocabulary, not a gate''
+(\coderef{core/kernel/scope.py}{\gitref}). Read this section as the language in
+which every other boundary in the chapter can be stated exactly, and in which future
+grants will be checked.
+
+\subsection*{The object}
+
+A scope is a four-tuple $\scopeobj{} = (\stratums{}, \edgeclass{}, \timescope{},
+\authority{})$ (\artifact{dn-capability-scope}, \S 2.1). Informally: \emph{which
+material}, \emph{which relations over it}, \emph{as of when}, and \emph{with what
+authority}. Each component is a lattice, and the interesting content is in how each
+is made well-posed.
+
+\paragraph{$\stratums{}$ --- which material.} A downward-closed subset of a
+refinement forest $\reffor{}$ whose base strata are the system's kinds of material
+--- mirror, curated, observed, ops, reference, interpreted, world
+(\artifact{dn-capability-scope}, \S 2.1), joined since by a \emph{dialogue}
+stratum --- with refinement predicates below them as first-class \emph{elements}
+rather than annotations. The refinements are where the boundary work happens: the
+built forest carries \texttt{exhaust} as a refinement of dialogue that is
+\emph{default-excluded} and grantable only when named
+(\coderef{core/kernel/scope.py}{\gitref};
+\artifact{dn-agentic-loop}, \S 2.4b) --- \autoref{sec:workflow}'s one-way exhaust
+invariant, re-expressed as a lattice element. The detail that matters most here is
+the top:
+\[
+  \top_{\stratums{}} \;=\; \reffor{} \setminus \denyset{},
+\]
+where $\denyset{}$ is the foundation denylist. \emph{Even the fullest grant
+structurally excludes} \texttt{CONSTITUTION.md} \emph{and the frozen golden set}.
+The fixed point of \autoref{sec:fixed-point} is not protected by a check that runs
+before each write; it is subtracted from the space of grantable scopes, so no
+grant that includes it can be constructed.
+
+\paragraph{$\edgeclass{}$ --- which relations.} A subset of the edge fibers.
+The algebra was ratified with two --- $F$, citation-support, and $D$, supersession
+lineage --- and the agent taxonomy argued for a third, $C$ (causal-witnessed
+\emph{origin}), as an additive lattice extension. The argument for why $C$ is not
+$D$ is worth the detour, because it is a boundary drawn between two things that look
+alike: a supersession edge is \emph{homogeneous}, two versions of one artifact's
+lineage, whereas ``this conversation produced this change'' is
+\emph{heterogeneous} --- origin, not lineage. ``An utterance is not a prior version
+of a file'' (\artifact{dn-agent-taxonomy}, \S 2.5). The extension has since landed:
+the built algebra types $\edgeclass{} \subseteq \{F, D, C\}$
+(\coderef{core/kernel/scope.py}{\gitref}).
+
+\paragraph{$\timescope{}$ --- as of when.} A pair (clock $\clockk{}$, window),
+where a clock is a monotone coarsening of the append-only ledger's causal order.
+This component carries the chapter's best example of a boundary drawn around the
+system's own ignorance. Clocks form a hierarchy, and the finest --- a global event
+clock over all strata --- \emph{does not yet exist}. So the meet on
+$\timescope{}$ is honestly partial: same clock, intersect the windows; different
+clocks, pull both windows back to a materialised common refinement; and if no such
+clock has been materialised, the constructor \textbf{raises an error} ---
+``\emph{never a silent guess}'' (\artifact{dn-capability-scope}, \S 2.2). A
+lattice operation that refuses to be total is an unusual thing to design on
+purpose. It is the alternative to a system that quietly compares two timelines that
+were never comparable.
+
+\paragraph{$\authority{}$ --- with what power.} A product of three chains,
+\[
+  \authority{} \;=\; P \times W_{\stratums{}} \times W_{\text{world}},
+\]
+being the advisory ladder $P \in \{\textsf{read} < \textsf{read+propose}\}$ ---
+which is non-negotiable \#3, ``the model advises; code acts,'' as a lattice
+coordinate --- the projection-write rung $W_{\stratums{}}$, and the effector
+blast-radius chain $W_{\text{world}}$. The product exists to repair a real
+conflation: a single ``write'' rung had merged \emph{sensor projection} (writing
+into the store) with \emph{effector mutation} (acting on the world), ``two
+capabilities the architecture already separates structurally --- a sensor has no
+world reach, the executor no store reach'' (\artifact{dn-capability-scope},
+\S 2.1). Track G's standing fact --- that the maximum reachable effector tier is
+\textsc{none} --- becomes a single lattice statement:
+$\top_{\text{deployed}}.W_{\text{world}} = \textsc{none}$.
+
+That three-way split of authority is the \emph{ratified partial} of a larger
+argument about what crosses the core's boundary. The fuller taxonomy ---
+\fwdthesis{the sacred boundary}{ch:architecture} --- is not yet ratified, so this
+manual names it and withholds its content; \artifact{finding-0180} records the gap
+and proposes the note for ratification.
+
+\subsection*{Composition, and delegation as a law}
+
+Meet is componentwise, and meet is \emph{safe composition}: a delegated agent
+receives the meet of its parent's scope with its template's. That single equation is
+non-negotiable \#6 --- you cannot delegate more than you hold --- expressed as
+arithmetic rather than as an instruction
+(\artifact{dn-capability-scope}, \S 2.2, \S 3):
+\[
+  \scopeobj{}_{\text{minted}} \;=\; \scopeobj{}_{\text{parent}} \meetop{}
+  \scopeobj{}_{\text{template}}
+  \qquad\text{hence}\qquad
+  \scopeobj{}_{\text{minted}} \scopeleq{} \scopeobj{}_{\text{parent}}.
+\]
+Monotone delegation is then a theorem about a meet-semilattice rather than a rule
+an agent is trusted to obey. \autoref{sec:structural} already showed the
+code-side floor of this at work: the frozen one-element maximum that construction
+refuses to exceed
+(\coderef{core/factory/roles.py}{\gitref}).
+The algebra is what that floor is a special case of.
+
+Join is a widening, grantable only by an authority that already holds the join.
+And enforcement tier is carried as an \emph{annotation}, never as a lattice
+element, with composition taking the minimum along the chain --- the law of
+\autoref{sec:tiers}, which is where it comes from.
+
+\subsection*{Firewalls as ideals: ``dissolve, do not guard'' as lattice theory}
+
+Here is the moment where \autoref{sec:sacred}'s principle stops being a slogan.
+
+Each firewall --- the mirror-payload firewall for non-exempt clients, the
+foundation denylist always --- is an \emph{order ideal} $\iota$ in the scope
+lattice. A grant is admissible for a client class $c$ exactly when
+\[
+  \scopeobj{} \meetop{} \iota \;=\; \bot
+  \qquad \text{for every } \iota \text{ applicable to } c ,
+\]
+and the grantable lattice is therefore the ideal quotient. The design note's own
+gloss is the sentence to hold onto: \emph{firewalls are subtracted from the space
+of scopes, not re-checked per query} (\artifact{dn-capability-scope}, \S 2.2).
+
+Read that against Chapter 1's principle. ``Dissolve, do not guard'' says: remove
+the need for the dangerous capability rather than permitting it under controls.
+Here the dangerous capability is a scope that reaches forbidden material, and it is
+not refused at query time --- it is \emph{not in the lattice}. There is no query to
+refuse because there is no scope to construct. The principle and the algebra are
+the same statement in two languages, which is the strongest evidence available that
+the principle was a real one.
+
+The same move governs the query language above it. A query is a sentence
+$(\text{verb}, \scopeobj{})$, admissibility is
+$\text{req}(\text{verb}) \scopeleq{} \scopeobj{}_{\text{granted}}$ checked at
+construction, and ill-scoped sentences are \emph{unrepresentable}. And mode is a
+corollary of scope rather than a flag on a call: whether a query is structural,
+semantic or temporal follows from which fibers and which window the scope carries
+(\artifact{dn-capability-scope}, \S 2.4).
+
+\subsection*{Two consequences worth their own names}
+
+\paragraph{The slice rule.} A scope spanning more than one stratum with a
+point-in-time window must carry an explicit \emph{consistent cut}; a bare ``now'' is
+well-typed only within a single stratum. This is the classical observation that an
+instant is not globally defined across independent
+timelines,\footnote{L.~Lamport, ``Time, clocks, and the ordering of events in a
+distributed system,'' \emph{Communications of the ACM} 21(7):558--565, 1978.
+\textsc{doi}:\,\texttt{10.1145/359545.359563}; K.~M.~Chandy and L.~Lamport,
+``Distributed snapshots: determining global states of distributed systems,''
+\emph{ACM Transactions on Computer Systems} 3(1):63--75, 1985.
+\textsc{doi}:\,\texttt{10.1145/214451.214456}. Both verified 2026-07-25.} applied
+to a corpus rather than to a network. For repo-backed strata the commit SHA
+\emph{is} the consistent cut --- and the note observes, with evident pleasure, that
+this retro-explains an existing piece of code: two independent views were already
+routed through one shared commit resolver
+(\coderef{core/reference\_view.py}{\gitref}, \texttt{\_resolve\_default\_commit}).
+``The slice discipline was discovered empirically; the type now enforces it''
+(\artifact{dn-capability-scope}, \S 2.2). A boundary can be found before it is
+formalised; formalising it is what stops the next author from unfinding it.
+
+\paragraph{$\Inv{}$ versus $\Rate{}(\clockk{})$.} Results are graded by
+clock-dependence. An $\Inv{}$ result depends only on the window's event set ---
+counts, sets, booleans. A $\Rate{}(\clockk{})$ result is a difference quotient
+against a clock's index --- severings per commit, events per wall-second. The rule:
+computing a rate against clock $\clockk{}$ \emph{requires} that the scope's own
+clock be $\clockk{}$, and a rate value carries its clock in its type and is never a
+bare number (\artifact{dn-capability-scope}, \S 2.3). The failure this forecloses
+is precise and would otherwise be invisible: a drift \emph{rate} read off an
+unacknowledged clock --- a number that looks like a measurement and is an artefact
+of the denominator. Every instrument built so far audits as $\Inv{}$; the coherence
+report, for instance, returns its count together with both anchors and deliberately
+never divides.
+
+\section{The workflow is a zone}
+\label{sec:workflow}
+
+Everything so far concerns the running system. The final boundary is the one that
+governs the process that \emph{builds} it --- and treating that process as another
+zone, with the same geometry and the same rubric, is one of the project's more
+distinctive decisions.
+
+It is also not merely an analogy. The instruments are literally shared. The
+foundation denylist appears twice: as the order ideal $\denyset{}$ subtracted from
+the top of the scope lattice (\autoref{sec:scope}), and as a list of paths refused
+to every session by a hook. \autoref{ch:philosophy} established the artifact chain
+and the plan-as-capability; this section gives the mechanism, and a reader who has
+followed the chapter will recognise every move in it.
+
+\subsection*{The plan is a capability, and the capability is checked twice}
+
+A build plan's \texttt{write\_scope} is a list of globs, and it is enforced pre-hoc
+on every edit (\artifact{dn-agent-workflow}, \S 6). The decision procedure is short
+enough to state in full:
+
+\begin{quote}\small\ttfamily
+pseudo-code --- the shape of .claude/hooks/\_lib.py, cmd\_scope\_check
+\end{quote}
+{\small\begin{verbatim}
+on every Edit/Write, given a target path p:
+  if p matches FOUNDATION_DENYLIST:   DENY   # beneath any plan, any session
+  if p is a design note, status in {ratified, superseded}:
+                                      DENY   # the blessed record is immutable
+  if no plan is active:               ALLOW  # orchestrator posture
+  allowed <- plan.write_scope + [the plan, its journal, docs/findings/**]
+  if p matches allowed: ALLOW else DENY
+\end{verbatim}}
+
+\noindent Three details in that sketch repay attention.
+
+First, the denylist is \emph{location}-keyed and the design-note guard is
+\emph{status}-keyed, and the asymmetry is deliberate. The Constitution and the
+frozen golden set are fixed points --- they are what they are wherever they sit. A
+design note's protection, by contrast, must follow its \emph{blessing}: a draft is
+agent-writable working material, and the same file becomes agent-immutable the
+moment the owner ratifies it. Guarding notes by location would either freeze
+drafts or expose ratified text; guarding them by status tracks the thing that
+actually changed (\artifact{dn-agent-workflow}, \S 6; \coderef{CLAUDE.md}{\gitref}).
+
+Second, the always-appended tail --- the plan, its journal, and the findings
+directory --- is the structural reason a constrained agent is never cornered. An
+agent that discovers it needs to write outside its capability has exactly one
+sanctioned move, and that move is always available: file a finding. The boundary is
+tight precisely because there is a legitimate door.
+
+Third, and most honest: this pre-hoc guard covers editing tools only. An agent can
+write files through a shell, and pre-hoc shell pattern-denial is brittle and was
+deliberately parked. So the enforcement is two-layer, and the record states the
+posture in four words --- \emph{pre-hoc porous, post-hoc tight}
+(\artifact{dn-agent-workflow}, \S 6). At session close, an audit diffs the working
+tree and blocks the session from ending on any out-of-scope path, forcing revert
+or finding first. The audit is untracked-inclusive, because a shell-written file is
+precisely the untracked one the pre-hoc guard could not see.
+
+The immutability check gets the same treatment, and the phrase for it is worth
+borrowing: the pre-hoc arm reads status \emph{on disk}, the post-hoc arm reads
+status \emph{at} \textsc{head} --- \emph{laundering-proof}, because an agent that
+edits a ratified note and also rewrites its status line to \texttt{draft} still
+fails the comparison against the committed truth.
+
+\subsection*{The clause family}
+
+The Stop audit is not one check but a family of six lettered clauses (one with a
+sub-clause), added one at a time as each gap was found, each traceable to the
+artifact that decided it:
+
+\begin{itemize}[leftmargin=*,itemsep=1pt]
+  \item \textbf{(a)} the journal has not been written since the last commit;
+  \item \textbf{(b)} the uncommitted delta reaches outside the plan's write scope;
+  \item \textbf{(b2)} a blessed design note differs from \textsc{head} (A8);
+  \item \textbf{(c)} the working tree contains an uncommitted blessing transition;
+  \item \textbf{(d)} cross-checkout state bleed between worktrees;
+  \item \textbf{(e)} the session committed work but left the resume brief stale
+    (\artifact{dn-session-handoff-gate});
+  \item \textbf{(f)} a plan was sealed to \texttt{complete} without a
+    \emph{follow-through} block in its journal
+    (\artifact{dn-track-board-and-deskcheck-gate}, \S 2.5).
+\end{itemize}
+
+Clause (e) is a good miniature of the house method. The handoff loop is seal
+$\to$ brief $\to$ kill $\to$ resume; three of the four steps were already
+automated, and the brief was ``authored by habit, enforced by nothing''
+(\artifact{dn-session-handoff-gate}, \S 1). Rather than add machinery, the note
+found a signal already lying around --- the session's starting commit, written by
+an existing hook --- and expressed the block in two lines:
+
+\begin{quote}\small\ttfamily
+restatement of \artifact{dn-session-handoff-gate} \S 2.2 --- state paths abbreviated
+\end{quote}
+{\small\begin{verbatim}
+BLOCK  iff  HEAD != content(session-baseline)   # commits happened this session
+       and  mtime(resume-brief) < time of last commit
+\end{verbatim}}
+
+\noindent and then --- the part that makes it trustworthy --- states its own
+porosity: an \texttt{mtime} is launderable by a shell command; commit-less sessions
+can still end briefless; a one-line brief passes because the gate checks
+\emph{existence}, not quality. ``The gate targets forgetting, not adversarial
+evasion'' (\artifact{dn-session-handoff-gate}, \S 2.6). Naming the threat model a
+guard \emph{does not} cover is what keeps the guard from being mistaken for a wall.
+
+The failure posture beneath all six is the same and is equally candid: hooks fail
+open on script error and that platform behaviour is not configurable, so every
+script runs under a trap that emits a conspicuous failure line and appends a marker
+to the journal --- \emph{fail open, fail loud}
+(\artifact{dn-agent-workflow}, \S 6). A guard that could fail silently would be
+worse than no guard, because it would be believed.
+
+\subsection*{Derivation instead of enforcement}
+
+The strongest move in the workflow zone is the one that removes a guard entirely.
+
+Project state --- which track is in which phase, which reviews are owed --- is not
+a maintained file. It is \emph{derived}: recomputed from the artifact tree on every
+run, with no persisted state, so it cannot drift
+(\artifact{dn-track-board-and-deskcheck-gate}, \S 2.2). The consequence is stated
+in one line that could serve as the chapter's epigraph: \emph{a board that cannot
+be stale needs no hook to keep it honest.} The rejected alternative was a Stop
+clause forcing agents to update the board at seal time --- described, correctly, as
+``a hook where a compiler belongs.''
+
+The same reasoning governs the third owner-only gate. A track is not closed by
+setting a flag; closure is \emph{computed} --- a track is closed exactly when an
+approved review record names it and its definition-of-done items are closed. ``No
+artifact carries a \emph{closed} boolean \ldots{} nothing exists for an agent to
+launder'' (\artifact{dn-track-board-and-deskcheck-gate}, \S 2.3). This is
+\autoref{sec:scope}'s ideal-subtraction argument in a
+different medium: rather than forbidding an action, arrange for the state it would
+have produced to be unrepresentable.
+
+\subsection*{The exhaust lane closes the loop}
+
+One last boundary, and it returns the chapter to where \autoref{ch:philosophy}
+began.
+
+The system has an inbound lane --- the vault, owner-written and system-read --- and
+the design gave it a mirror: an \emph{exhaust} lane, system-written and owner-read,
+carrying artefacts the system emits for the owner to read away from the keyboard
+(\artifact{dn-exhaust-lane}, \S 1). Two lanes, opposite directions, and one
+invariant between them:
+
+\begin{invariant}[Exhaust never re-enters]
+\label{inv:exhaust}
+No configured ingest source root may lie inside the exhaust lane, and no core
+ingest path may read from it (\artifact{dn-exhaust-lane}, \S 2.2).
+\end{invariant}
+
+The reason is the ouroboros's reason. ``Reports describe the system; ingesting them
+is recursive self-ingestion of meta-content.'' A system that indexes its own
+descriptions of itself is not deepening its self-knowledge; it is amplifying its
+own summaries until the summaries outweigh the material.
+
+And the \emph{layout} was chosen to make the invariant structural rather than
+observed. Exhaust is a sibling directory of the vault, not a subdirectory of it,
+and the argument for that choice is the chapter's thesis in miniature: the ingest
+scanner's source roots are config-driven, so a sibling directory is \emph{outside
+every configured root by construction} --- the scanner has no path to it. The
+unified layout ``would instead depend on an exclusion rule being honored forever.''
+\emph{Structural isolation beats an honored exclude}
+(\artifact{dn-exhaust-lane}, \S 2.1). The invariant is additionally held by a test
+that loads the merged configuration and asserts no source root resolves inside
+exhaust --- but the test guards a property the directory layout already makes
+difficult, which is the correct order of operations.
+
+So the serpent may consume its tail. It ingests its own reasoning, spawns its own
+agents, and proposes changes to itself --- and there is one thing it may never
+digest (the fixed point) and one lane it may never re-enter. That is the whole of
+the architecture, if it must be compressed to a sentence.
+
+\section{What the boundaries do not do}
+\label{sec:residuals}
+
+A chapter that only listed defences would be asking to be trusted, which is exactly
+what \autoref{sec:falsifiers} says a claim may not do. Every residual below is
+stated by the source that owns the mechanism, not discovered by an outside critic
+--- and that provenance is itself the argument for believing the rest.
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{The import firewall} proves that exactly two audited files touch
+    networking primitives, both loopback-only --- not that no core file imports
+    \texttt{http}. The Ollama channel is real
+    (\coderef{ops/import\_lint.py}{\gitref}). And, per
+    \autoref{prop:closure-limit}, its \emph{global} no-egress-path claim is
+    conditional on core self-containment, whose ratchet
+    (\artifact{finding-0103}; \artifact{finding-0182}) is not yet at zero:\\
+    \hspace*{1em}\coderef{tests/unit/test\_core\_self\_containment.py}{\gitref}.\\
+    The runtime and kernel layers hold the property unconditionally meanwhile.
+  \item \textbf{The runtime seal} is a Python-level guard; a native extension
+    opening its own socket could bypass it. It fails closed and composes with the
+    kernel layer, and claims no more (\coderef{core/sealing.py}{\gitref}).
+  \item \textbf{The plane split} does not enforce the blessing gates --- the
+    repository is group-writable by design --- and the workflow plane keeps open
+    egress, so a workflow compromise can still exfiltrate the repository. \pwork{}
+    can also read the human's signing key. All three are named and accepted, one
+    with a parked alternative (\artifact{dn-plane-principals}, \S 3.2, \S 5).
+  \item \textbf{The ring} is a meaning boundary, not the egress boundary; the
+    security perimeter remains core-wide. And inner does not imply pure: two
+    members perform disk and environment reads (\artifact{dn-inner-outer-core},
+    \S 2.5).
+  \item \textbf{The type shadow} is strictly weaker than the invariant it shadows:
+    it sees no values and no runtime paths, and a deliberate cast defeats it. It
+    removes the accidental violation class only
+    (\artifact{dn-type-system-as-core-audit}, \S 2.4).
+  \item \textbf{The scope algebra} is a \emph{typing layer}, not a gate --- the
+    built module states that it wires no enforcement into any read path
+    (\coderef{core/kernel/scope.py}{\gitref}). Its tier is per-inhabitant: two of
+    the five built views are \tstruct{}, three are \tstatic{} and are labelled so
+    (\artifact{dn-capability-scope}, \S 2.4). Its time component is honestly
+    partial: cross-clock meets raise rather than guess.
+  \item \textbf{The workflow guards} are porous pre-hoc by construction and tight
+    only post-hoc; an \texttt{mtime} is launderable; the handoff gate checks that
+    a brief exists, not that it is good. They target forgetting, not an adversary
+    (\artifact{dn-agent-workflow}, \S 6; \artifact{dn-session-handoff-gate},
+    \S 2.6).
+\end{itemize}
+
+\subsection*{The arguments still being developed}
+
+Two pieces of this chapter's subject matter are, at this edition, designs in
+progress, and the manual's rule is that a design in progress is named and never
+asserted (\artifact{dn-agent-workflow}, \S 3).
+
+The first is \fwdthesis{the sacred boundary}{ch:architecture} --- the full taxonomy
+of the channels that cross the core's boundary, of which \autoref{sec:scope} gives
+only the ratified fragment (the three-factor authority product). Chapter 1
+originally promised that taxonomy here; the promise is now a forward reference, and
+\artifact{finding-0180} records the gap and proposes the note for ratification.
+The second is \fwdthesis{the edge model}{ch:architecture} --- what the edge plane
+will contain once it has tenants; \autoref{sec:planes} gives only the principal
+that already exists.
+
+A third gap is of a different kind and is recorded here because it bears on how
+this chapter should be read. The composition argument that would tie
+\autoref{sec:firewall}, \autoref{sec:types} and \autoref{sec:scope} together ---
+the claim that code-level, data-level and capability-level defences do not overlap
+and do not substitute for one another --- lives in a research note that has not
+been ratified. This chapter therefore presents the three as three mechanisms with a
+shared shape, which is honest, rather than as a proven composition, which would not
+be. \artifact{finding-0181} records it.
+
+\bigskip
+
+The boundaries are drawn. \autoref{ch:math} turns to the objects that live inside
+them --- the coboundary framing and the instruments derived from it ---
+\autoref{ch:intuition} assembles the whole into a working mental model, and
+\autoref{ch:future} records what has been deliberately deferred, each parked
+decision with the exact condition under which it returns.

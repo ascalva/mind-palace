@@ -1,0 +1,50 @@
+% figures/enforcement-ladder.tex — one invariant, three tiers of enforcement.
+% The LADDER (structural > static+guard > convention, and "composition takes the min
+% tier along the construction chain") is \artifact{dn-capability-scope} §2.2.
+% The three mechanisms shown are the three enforcements of the SAME property
+% (non-negotiables 1 and 2, \coderef{docs/BUILD-SPEC.md}{\gitref} §3):
+%   runtime  — \coderef{core/sealing.py}{\gitref} (fail-closed in-process guard)
+%   static   — \coderef{ops/import\_lint.py}{\gitref} (the import-closure lint)
+%   kernel   — \coderef{ops/network/ouroboros-egress.pf.conf}{\gitref} (pf on uid),
+%              per \artifact{dn-plane-principals} §3.4.
+% "The import firewall does not retire — it stays as the cheap, pre-runtime tripwire
+% (defense in depth)" is \artifact{dn-plane-principals} §3.4, verbatim in substance.
+% \input by chapters/02-architecture.tex inside a figure environment.
+\begin{tikzpicture}[
+    rung/.style={draw=inkblue, thick, rounded corners=2pt, fill=panel,
+      align=center, inner sep=4pt, text width=30mm, minimum height=12mm,
+      font=\small\sffamily},
+    mech/.style={align=left, font=\scriptsize\sffamily, text width=62mm},
+    when/.style={align=center, font=\scriptsize\itshape, text=soft, text width=22mm},
+    up/.style={-{Stealth[length=2mm]}, very thick, gate},
+  ]
+  \node[rung] (conv) at (0,0) {\tconv{}};
+  \node[rung] (stat) at (0,17mm) {\tstatic{}};
+  \node[rung] (strc) at (0,34mm) {\tstruct{}};
+
+  \draw[up] (conv.north) -- (stat.south);
+  \draw[up] (stat.north) -- (strc.south);
+  \node[font=\scriptsize\itshape, text=gate, right=1mm, rotate=90,
+        anchor=south] at ($(conv.north)!0.5!(stat.south)$) {stronger};
+
+  \node[when, left=4mm of conv] {caught at review, or not at all};
+  \node[when, left=4mm of stat] {caught before the program runs};
+  \node[when, left=4mm of strc] {cannot happen};
+
+  \node[mech, right=5mm of conv]
+    {``core must not open a socket'' --- written in a docstring and believed.};
+  \node[mech, right=5mm of stat]
+    {\texttt{ops/import\_lint.py} --- no module under \texttt{core/} \emph{reaches} a
+     network-capable module, proved by reading the AST.};
+  \node[mech, right=5mm of strc]
+    {\texttt{core/sealing.py} --- a fail-closed process-wide guard (runtime);\\
+     the \texttt{pf} anchor on the \pcore{} uid --- the kernel refuses the packet.};
+
+  \node[font=\scriptsize\itshape, text=inkblue, align=left, text width=100mm,
+        anchor=north west] at ([shift={(-30mm,-8mm)}]conv.south west)
+    {The tiers stack rather than replace: the static lint is retained as the cheap
+     pre-runtime tripwire even after the kernel fact exists. And a grant composed
+     through several mechanisms inherits the \emph{minimum} tier along the chain ---
+     which is what stops a convention-tier permission laundering through a structural
+     wrapper.};
+\end{tikzpicture}

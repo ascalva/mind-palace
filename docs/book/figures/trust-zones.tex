@@ -1,0 +1,38 @@
+% figures/trust-zones.tex — the three trust zones and the airlock asymmetry.
+% Source: \coderef{docs/BUILD-SPEC.md}{\gitref} §6 (zones A/B/C; the boundary is a
+% filesystem handoff, not shared memory or shared DB access; the data-flow asymmetry)
+% and §3 invariants 1, 2, 11. The handoff-as-airlock reading is
+% \artifact{dn-plane-principals} §3.1 ("the only thing edge and core share is a spool
+% of typed files"). Zone names from notation.tex.
+% \input by chapters/02-architecture.tex inside a figure environment.
+\begin{tikzpicture}[
+    node distance=8mm and 10mm,
+    zone/.style={draw=inkblue, thick, rounded corners=3pt, fill=panel,
+      align=center, inner sep=4pt, text width=31mm, minimum height=20mm,
+      font=\small\sffamily},
+    spool/.style={draw=gate, thick, fill=white, align=center, inner sep=3pt,
+      text width=15mm, minimum height=13mm, font=\scriptsize\sffamily},
+    outb/.style={-{Stealth[length=2mm]}, thick, gate},
+    inb/.style={-{Stealth[length=2mm]}, thick, inkblue},
+    lbl/.style={font=\scriptsize\itshape, align=center, text=soft},
+  ]
+  \node[zone] (a) {\zoneA{} --- sealed core\\[2pt]
+    \scriptsize vault · vector store · private models · the agents\\[2pt]
+    \scriptsize\bfseries no outbound network};
+  \node[spool, right=of a] (h) {handoff\\directories\\[2pt]\itshape typed files};
+  \node[zone, right=of h] (b) {\zoneB{} --- networked edge\\[2pt]
+    \scriptsize bridge · interface gateway\\[2pt]
+    \scriptsize\bfseries vault unmounted};
+  \node[zone, right=of b] (c) {\zoneC{} --- cloud\\[2pt]
+    \scriptsize encrypted backups ·\\ outbound research fetchers};
+
+  \draw[outb] (a.east) -- node[lbl, above] {sanitized\\job specs} (h.west);
+  \draw[inb]  (h.east) -- node[lbl, above] {results} (b.west);
+  \draw[outb] ([yshift=3mm]b.east) -- node[lbl, above] {de-identified\\topic criteria} ([yshift=3mm]c.west);
+  \draw[inb]  ([yshift=-5mm]c.west) -- node[lbl, below] {public\\content only} ([yshift=-5mm]b.east);
+
+  % The one boundary that is a *fact about processes*, not a convention.
+  \draw[gate, thick, dashed] ($(h.north)+(0,7mm)$) -- ($(h.south)+(0,-9mm)$);
+  \node[lbl, text=gate, below=9mm of h.south, text width=30mm]
+    {the boundary is a \textbf{filesystem handoff} --- never shared memory,\\ never a shared DB};
+\end{tikzpicture}

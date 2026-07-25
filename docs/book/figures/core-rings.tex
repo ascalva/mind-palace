@@ -1,0 +1,48 @@
+% figures/core-rings.tex — the three-zone code picture, with the two boundaries
+% drawn as what they actually are: the SECURITY perimeter (core-wide) and the
+% MEANING boundary (the kernel ring inside it).
+% Source: \artifact{dn-inner-outer-core} §2.5 ("inner ring subset core; outer ring =
+% core minus inner; the siblings are not core at all" — and the honest correction:
+% "the security perimeter is still core-wide ... the ring is a meaning boundary, not
+% the egress boundary"), §2.7 (the physical end-state `core/kernel/**`).
+% The perimeter is \coderef{ops/import\_lint.py}{\gitref} (all of core/**).
+% \input by chapters/02-architecture.tex inside a figure environment.
+\begin{tikzpicture}[
+    lbl/.style={font=\scriptsize\sffamily, align=center},
+    note/.style={font=\scriptsize\itshape, align=left, text=soft},
+  ]
+  % Outermost: the repo's sibling packages — not core at all.
+  \node[draw=soft, thick, dashed, rounded corners=4pt, fill=white,
+        minimum width=94mm, minimum height=54mm] (repo) {};
+  \node[lbl, text=soft, anchor=north west] at ([shift={(2mm,-2mm)}]repo.north west)
+    {\texttt{eval/} · \texttt{ops/} · \texttt{agents/} · \texttt{scheduler/} ·
+     \texttt{edge/} · \texttt{config/}\\[1pt]
+     \itshape the siblings --- machinery, not core};
+
+  % The security perimeter: all of core/**.
+  \node[draw=gate, very thick, rounded corners=4pt, fill=panel,
+        minimum width=66mm, minimum height=36mm] (core) at (0,-4mm) {};
+  \node[lbl, text=gate, anchor=north] at ([yshift=-1.5mm]core.north)
+    {\textbf{the security perimeter} --- all of \texttt{core/**}\\[1pt]
+     \itshape no network import, no \texttt{edge}/\texttt{cloud} import};
+
+  % The meaning boundary: the kernel ring.
+  \node[draw=inkblue, very thick, rounded corners=3pt, fill=white,
+        minimum width=44mm, minimum height=17mm] (kernel) at (0,-9mm) {};
+  \node[lbl, text=inkblue] at (kernel.center)
+    {\textbf{the inner ring} --- \texttt{core/kernel/**}\\[1pt]
+     \scriptsize the algebra · the mathematics ·\\[-1pt]
+     \scriptsize the boundary vocabulary};
+
+  \node[lbl, text=gate, anchor=south] at ([yshift=1.5mm]core.south)
+    {the \textbf{outer} ring = \texttt{core/**} $\setminus$ \texttt{core/kernel/**}
+     --- the machinery};
+
+  % The direction law.
+  \node[note, anchor=north west, text width=88mm]
+    at ([shift={(3mm,-4mm)}]repo.south west)
+    {Membership is \emph{computed}, never curated: the inner ring is the maximal
+     import-closed subset of \texttt{core/**} over the admissible base. Outer imports
+     inner, never the reverse --- a corollary of import-closedness, and given its own
+     named test anyway.};
+\end{tikzpicture}

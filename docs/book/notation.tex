@@ -18,7 +18,55 @@
 \newcommand{\stjournal}{\textsf{journal + findings}}
 \newcommand{\streflect}{\textsf{reflection}}
 
-% --- Reserved for later chapters (NOT used in Ch.1; declared here so later scribe
+% =============================================================================
+% ADDED BY CHAPTER 2 (Architecture), bp-104. Every symbol below is grounded in a
+% ratified source, named in the comment. Extend this file; never fork it.
+% =============================================================================
+
+% --- The trust zones (\coderef{docs/BUILD-SPEC.md}{\gitref} §6). -----------------
+\newcommand{\zoneA}{\textsf{Zone\,A}}                % sealed core, no network
+\newcommand{\zoneB}{\textsf{Zone\,B}}                % networked edge
+\newcommand{\zoneC}{\textsf{Zone\,C}}                % cloud (AWS)
+
+% --- The four OS plane principals (\artifact{dn-plane-principals} §3.1). ---------
+\newcommand{\phuman}{\texttt{ascalva}}               % the human login
+\newcommand{\pwork}{\texttt{ouroboros-work}}         % the workflow plane
+\newcommand{\pcore}{\texttt{ouroboros}}              % the core plane
+\newcommand{\pedge}{\texttt{ouroboros-edge}}         % the edge plane
+
+% --- The import-closure boundary (\artifact{dn-inner-outer-core} §2.1, §2.3;
+%     \coderef{ops/import\_lint.py}{\gitref}). -----------------------------------
+\newcommand{\coremods}{\mathcal{C}}                  % the modules under core/
+\newcommand{\netmods}{\mathcal{N}}                   % network-capable module roots
+\newcommand{\netallow}{\mathcal{L}}                  % the audited loopback allowlist
+\newcommand{\basemods}{\mathcal{B}}                  % the admissible base of the ring predicate
+\newcommand{\innerring}{\mathcal{I}}                 % the inner ring (the computed fixed point)
+\newcommand{\imports}{\operatorname{imp}}            % direct imports of a module
+\newcommand{\reach}{\operatorname{Reach}}            % transitive import reachability
+
+% --- The capability-scope algebra (\artifact{dn-capability-scope} §2.1--§2.3). ---
+% A scope is s = (Sigma, E, T, A). The symbols are the note's own; do not rename.
+\newcommand{\scopeobj}{s}                            % a scope
+\newcommand{\stratums}{\Sigma}                       % stratum scope
+\newcommand{\edgeclass}{E}                           % edge-class (fiber) scope
+\newcommand{\timescope}{T}                           % time scope = (clock, window)
+\newcommand{\authority}{A}                           % authority = P x W_Sigma x W_world
+\newcommand{\denyset}{\mathfrak{D}}                  % the foundation denylist, as an order ideal
+\newcommand{\reffor}{R}                              % the stratum refinement forest
+\newcommand{\meetop}{\sqcap}                         % meet: safe composition
+\newcommand{\joinop}{\sqcup}                         % join: a widening
+\newcommand{\scopeleq}{\sqsubseteq}                  % scope ordering
+\newcommand{\clockk}{\kappa}                         % a clock (a monotone coarsening)
+\newcommand{\Inv}{\textsf{Inv}}                      % clock-independent result type
+\newcommand{\Rate}{\textsf{Rate}}                    % clock-indexed rate result type
+
+% --- The enforcement-tier ladder (\artifact{dn-capability-scope} §2.2): the
+%     chapter's grading rubric. Composition takes the MIN tier along the chain. ---
+\newcommand{\tstruct}{\textsf{structural}}
+\newcommand{\tstatic}{\textsf{static+guard}}
+\newcommand{\tconv}{\textsf{convention}}
+
+% --- Reserved for later chapters (NOT used yet; declared here so later scribe
 %     plans EXTEND rather than fork the registry). The mathematics chapter is the
 %     canonical home of these; their definitions ratify with that chapter's sources.
 %     Kept commented until first use to avoid asserting draft formalism in the book.
