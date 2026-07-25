@@ -90,9 +90,9 @@ emptied (this edition discharges it), `pending.mathematics` was repopulated with
 draft theses the book NAMES but never CITES, each with what is withheld and the
 chapter it lands in on ratification.
 
-Two findings filed with it — **finding-0180** (Ch.1 forward-promised the
+Two findings filed with it — **finding-0183** (Ch.1 forward-promised the
 three-channel taxonomy whose only source is the draft `dn-the-sacred-boundary`) and
-**finding-0181** (the three-plane composition is load-bearing but lives in the draft
+**finding-0184** (the three-plane composition is load-bearing but lives in the draft
 `docs/research/security-planes.md`, which is also `_lib.py:27`'s cited denylist
 origin). Both `spec-defect` → orchestrator; both need the owner (ratification).
 
@@ -138,7 +138,7 @@ only**; it does not walk a closure. The closure claim in its docstring is a true
 (finding-0103). Rewritten honestly: Invariant 2.1 = the local condition;
 Proposition 2.1 = "every escape route is visible" (proved); (⋆) named explicitly;
 Proposition 2.2 = the unconditional closure **at the limit**. Filed
-**finding-0182** (`discovery` → orchestrator): the firewall and the
+**finding-0185** (`discovery` → orchestrator): the firewall and the
 self-containment ratchet are the two hypotheses of one theorem, which reclassifies
 finding-0103 as a safety-discharge item, not only hygiene.
 
@@ -184,7 +184,7 @@ No bibliography package was added — footnotes keep the compile risk at zero.
 warrant finding-0116) since `bdcd9bc`. All three Ch.1 citations repaired in place to
 cite it *as superseded* and name the successor; Ch.2 carries the transition as a
 `devolution` remark ("provenance as pedagogy", book skill). Ch.1's sacred-boundary
-forward promise was downgraded to `\fwdthesis` (finding-0180). Everything else in
+forward promise was downgraded to `\fwdthesis` (finding-0183). Everything else in
 Ch.1 was typographic: two figures adjusted (an overfull box and a bold-small-caps
 font substitution, both pre-existing at `bdcd9bc`).
 
@@ -209,8 +209,8 @@ this journal. No Python, no config, no hooks touched — verified with
 ### For the next scribe
 
 Remaining debt is chapters 3–5, listed in `SYNC.md` `pending` with **ratified ids
-only**. If the owner ratifies `dn-the-sacred-boundary` or a successor (finding-0180),
+only**. If the owner ratifies `dn-the-sacred-boundary` or a successor (finding-0183),
 Chapter 2 gains the channel taxonomy and Ch.1's `\fwdthesis` reverts to a citation.
-If `security-planes` is promoted and ratified (finding-0181), Ch.2's organizing
+If `security-planes` is promoted and ratified (finding-0184), Ch.2's organizing
 frame becomes a cited thesis instead of the manual's own reading. Plan status is
 NOT flipped — that is the orchestrator's.

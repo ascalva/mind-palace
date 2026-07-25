@@ -58,9 +58,9 @@ incorporated:              # ALL ids below verified `ratified` (or `superseded`,
     - finding-0103           # core self-containment audit — Ch.2's (⋆) hypothesis
     - finding-0116           # the exhaust write-owner conflict — the supersession warrant
     - finding-0117           # draft notes barred from the book (the standing rule)
-    - finding-0180           # FILED THIS EDITION — Ch.1's forward promise vs the draft taxonomy
-    - finding-0181           # FILED THIS EDITION — the three-plane composition is unratified
-    - finding-0182           # FILED THIS EDITION — the firewall's global claim is conditional
+    - finding-0183           # FILED THIS EDITION — Ch.1's forward promise vs the draft taxonomy
+    - finding-0184           # FILED THIS EDITION — the three-plane composition is unratified
+    - finding-0185           # FILED THIS EDITION — the firewall's global claim is conditional
   external-references:       # VERIFIED IN-SESSION 2026-07-25 via DOI metadata. Never from memory.
     - 10.2140/pjm.1955.5.285   # Tarski 1955, Pacific J. Math 5(2):285-309 — greatest fixed point
     - 10.1145/2699407          # Wadler 2015, CACM 58(12):75-84 — propositions as types
@@ -101,7 +101,7 @@ forward-referenced:        # DRAFT theses — NAMED in the book, never CITED, ne
                                  #   boundary (verdict / ingestion / effects) -> ch:architecture.
                                  #   Ch.2 §2.7 gives only the RATIFIED partial: dn-capability-scope's
                                  #   A = P x W_Sigma x W_world authority product. Ch.1's forward
-                                 #   promise was repaired to a \fwdthesis at bp-104 (finding-0180).
+                                 #   promise was repaired to a \fwdthesis at bp-104 (finding-0183).
   - dn-the-edge-model            # the edge zone's own model -> ch:architecture. Ch.2 §2.4 gives
                                  #   only the ratified `ouroboros-edge` plane (dn-plane-principals
                                  #   §3.1/§3.4) and says the tenancy question is open.
@@ -137,19 +137,19 @@ open:
   # bp-104: ratified/superseded anchors only; draft theses forward-referenced.
   #
   # --- opened by edition 009b726 (bp-104), all routed to the orchestrator ---
-  # finding-0180 (spec-defect): Ch.1 forward-promised the three-channel taxonomy of
+  # finding-0183 (spec-defect): Ch.1 forward-promised the three-channel taxonomy of
   # the sacred boundary; its only source is the DRAFT dn-the-sacred-boundary, so Ch.2
   # gives only dn-capability-scope's ratified authority product. Ch.1's sentence was
   # repaired to a \fwdthesis. RE-ENTRY: on ratification, amend Ch.2 with the full
   # taxonomy, restore Ch.1's citation, drop the id from `forward-referenced`.
-  # finding-0181 (spec-defect): the three-plane security composition (code / data /
+  # finding-0184 (spec-defect): the three-plane security composition (code / data /
   # boundary planes, and the claim that none substitutes for another) lives in the
   # DRAFT docs/research/security-planes.md — which is also the cited origin of the
   # foundation denylist at .claude/hooks/_lib.py:27, and the doctrinal frame the
   # RATIFIED dn-type-system-as-core-audit says it extends. Ch.2 therefore states its
   # organizing frame as the MANUAL'S OWN reading, not as a ratified claim.
   # RE-ENTRY: on ratification, that frame becomes Ch.2's cited opening thesis.
-  # finding-0182 (discovery): the import firewall checks DIRECT imports only, so its
+  # finding-0185 (discovery): the import firewall checks DIRECT imports only, so its
   # global no-egress-path claim is conditional on core self-containment — whose
   # ratchet is red by design (finding-0103). Ch.2 states the local invariant, proves
   # what it yields (Prop. 2.1), names the hypothesis (⋆) explicitly, and gives the
