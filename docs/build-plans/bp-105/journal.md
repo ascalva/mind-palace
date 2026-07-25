@@ -9,6 +9,18 @@ updated: 2026-07-25
 
 Session-47. Contract: `builder`. Ordering per §12: **Item 2 → Item 3 → Item 1**.
 
+> ## ⚑ BUILD COMPLETE — do NOT `/resume` this plan
+> All three items are built, mutation-verified and committed (**`2add267`**). The full gate is
+> green (2043 passed). The plan is left at `status: in-progress` deliberately: flipping it to
+> `complete` is the ORCHESTRATOR's single-writer duty, and the seal (with `cost.actual`) is owed
+> at `/triage` — a builder must not self-declare done.
+>
+> **What `/triage` owes:** flip bp-105 → `complete` + seal · close findings **0186 / 0187 / 0188**
+> (discharged; a builder may not edit an existing finding) · route the open hand-off on
+> **finding-0198** · add the Ops deskcheck demonstrable (Checkpoint 4 is the evidence) · **half-lift
+> the `⛔` restart constraint** (see Checkpoint 4 — `palace start` is now safe; `scripts/watch.py`
+> is NOT and stays constrained).
+
 ---
 
 ## Checkpoint 1 — §2 manifest read; Item 2's identity rule GROUNDED, and the plan's stated rule is INVERTED
