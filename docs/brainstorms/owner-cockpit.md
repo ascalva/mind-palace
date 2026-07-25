@@ -449,3 +449,70 @@ picker affordance (show frontmatter on completion), not an identifier change.
 Grammar reserves the slot: `<type> ::= f | f<subtype-char> | dn | bs | …` — **syntax legal,
 vocabulary empty**, so adopting it later costs nothing and needs no re-parse. Populate only if
 (a) `f:0193` is ruled AND (b) someone shows a real need the derived index cannot serve.
+
+### Owner correction — anchor to a SECTION, not a line ⚑ (supersedes the line-ref design)
+
+Verbatim: *"you're right, maybe line number is a bad metric, you can maybe anchor a ref to a
+section/subsection/exact parking condition/etc, so instead of `:line`, it's `:<doc-anchor>`."*
+
+**Adopt. This is strictly better than the line form and it repairs the standard's weakest joint.**
+
+#### ⚑ The corpus already does this — informally, thousands of times
+
+Measured: build-plan prose carries **673 × `§3`, 580 × `§6`, 342 × `§2.3`, 341 × `§2.4`,
+315 × `§4`** … The convention exists; it is simply not machine-resolvable. This is not a new
+notation to teach — it is **making an organic convention executable**, which is a far cheaper
+adoption than inventing one.
+
+And the anchors are unusually stable *here* because build plans are template-generated: §0 Mode,
+§1 Objective, §2 Context manifest, §3 Investigation & grounding, §5 Write scope, §6 Interfaces
+pinned inline, §7 Items, §10 Stop-and-raise, §11 Parked decisions, §12 Dependency summary — the
+**same numbers in every plan, by construction**. `bp:110#§10` means "that plan's STOP conditions"
+forever. No line number is that durable, and unlike a heading slug it cannot be reworded.
+
+#### ⚑ It fixes what the validator could not do
+
+The line design left a hole I flagged two capsules up: `check_refs.py` can prove a *file* exists and
+can catch an out-of-range line, but **cannot** prove `:191` still means what `:574` meant — the
+exact drift that bit `bp:105`'s §2 manifest and `f:0188`.
+
+**An anchor is checkable by name.** `dn:supervision-and-liveness#§2.3` either matches a heading in
+that file or it does not. Rename the section and the ref fails **loudly, at gate time**, instead of
+silently pointing at whatever moved into those coordinates. That converts the validator from
+"catches gross rot" to a genuine ratchet — and it is the thing that makes the standard
+*self-defending* rather than another convention that decays.
+
+#### ⚑ It dissolves the `oq:` / `dc:` special case
+
+Flagged twice above as a wrinkle: *"`oq:0035` and `dc:NNN` are section anchors, not files."* Under
+this design that stops being an exception — **they are simply anchor refs into a shared file**:
+
+    oq:0035   ≡   docs/inbox/owner-questions.md  #oq-0035
+    dc:NNN    ≡   the track manifest             #dc-NNN
+
+One mechanism, no special-casing, and the open-then-search wrapper the resolver needed for them is
+now the *primary* code path rather than a carve-out.
+
+#### Anchor kinds, by stability
+
+| anchor | example | stability |
+|---|---|---|
+| template section | `bp:110#§10` | **highest** — template-defined, same in every plan |
+| heading slug | `dn:supervision-and-liveness#the-worker-protocol` | high — breaks on rewording, loudly |
+| frontmatter field | `bp:119#re_entry` | high — schema-defined |
+| named element (parking condition, falsifier, criterion) | `bp:110#F2` | medium — depends on local naming discipline |
+| line number | `src:queue.py:222` | **lowest — last resort**, keep only where no name exists |
+
+#### Separator
+
+Propose **`#` for anchors**, keeping `:` for the residual numeric line case:
+
+    <ref> ::= <type> ":" <name> [ "#" <anchor> | ":" <line> ]
+
+- `#` is the universal fragment convention (URLs, markdown), so it reads correctly with no
+  explanation, and it is **already in nvim's default `isfname`** — no further surgery.
+- Numeric-vs-anchor stays trivially parseable, and it matches the code form already proposed:
+  `src:scheduler/queue.py#_effective_priority`.
+
+⇒ The grammar's optional tail is now **`#<anchor>` preferred, `:<line>` tolerated**. The earlier
+capsule's line-centric framing is superseded.
