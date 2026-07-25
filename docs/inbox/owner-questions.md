@@ -1009,3 +1009,35 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   start without a live Ollama (preflight), so no clone/CI auto-embeds without an embedder. Owed
   (owner-hand): the dn-code-ingest-pipeline §2.7 "owner-visible seed" wording now coexists with
   default-on auto-seed-on-first-housekeeping — a ratified-note amendment for you. See finding-0161.
+
+## oq-0035 — Graceful shutdown has no bound: bounded SIGKILL escalation, worker-enforced job budgets, or both? (finding-0171)
+- status: open
+- blocking: false
+- origin: docs/findings/finding-0171.md (raised 2026-07-25, during the post-deploy incident)
+- question: `palace down` returned success while the daemon kept running at 96% CPU. The graceful
+  contract is SIGTERM → drain at the job boundary → exit, and the wedged `code_sync` job (the
+  finding-0169 quadratic scan) never reached a boundary. `launchctl print` showed `active count = 1`
+  pending on the process exiting; the projected natural exit was ~57 minutes away, at the job's own
+  ~75-minute timeout. Resolution required `kill -9` with your authorization. This is a SAFETY
+  property, not a performance one: the shutdown path's only working fallback is the ungraceful kill
+  that the graceful design exists to avoid, and `deploy` shares the path (it calls `stop()` before
+  waiting for the successor run, so a deploy issued during a wedge hangs and then reports
+  `deploy: TIMED OUT` for an unrelated cause). Three ways to close it:
+  (a) **Bounded drain with escalation** — SIGTERM, wait N seconds, SIGKILL; N configurable, the
+  escalation logged and surfaced. Simple, conventional, guarantees termination. Cost: a killed job
+  may lose in-flight work — concretely, `supersede_source`'s `delete → add` window can drop one
+  path's rows (recoverable by re-embed from git, but genuine loss; tonight's kill missed that window
+  by luck, verified after the fact).
+  (b) **Worker-enforced job budgets** — each job carries a wall-clock budget the WORKER enforces
+  from outside, so no job can exceed it and the drain boundary is always reachable. Fixes the class
+  rather than the shutdown symptom, and pairs naturally with the lease/heartbeat parked in bp-101.
+  Cost: needs a cancellation seam in the handlers that does not exist today.
+  (c) **Both** — (b) as the real fix, (a) as the fail-safe behind it.
+  The crux is whether an interrupted store write is acceptable to guarantee availability. That trades
+  data integrity against a shutdown guarantee, which is your call, not a builder's.
+- default_if_unanswered: no escalation is built. bp-102 Item 3 lands the HONEST-REPORTING half only
+  (`down`/`stop` must not claim success while the process lives), which is builder-resolvable and
+  needs no ruling. The operational knowledge stands in for the fix: **`down` may not stop a wedged
+  daemon — check `ps` before trusting it.** Parks as finding-0171; nothing is blocked.
+- park condition: revisit when you rule. No builder waits on it; bp-100/0101/0102 all proceed.
+- answer: (unanswered)

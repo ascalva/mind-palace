@@ -142,3 +142,69 @@ open (for the Fable pass):
   - relation to WIRING-AUDIT.md and docs/audits/* (the existing one-shot audit artifacts):
     absorb-and-supersede vs keep as historical snapshots.
 ```
+
+## 2026-07-25 — the first incident: the cycle CLOSED but did not START
+
+```capsule
+topic: reconciliation-audit (detection lag, measured empirically for the first time)
+date: 2026-07-25 (session-44, immediately after the finding-0169 incident)
+companion capsules: command-center.md · ops-and-optimal-form.md (same sitting)
+
+warrant (owner, verbatim): "all this is how we get closer to proving ouroboros is operating as
+expected, by catching inconsistencies in performance, investigating, brainstorm/design, planning,
+building, resolving, a cycle of refinement"
+
+WHAT THE INCIDENT PROVED — the chain closes, and fast:
+  inconsistency (backfill not progressing) → measurement (11.7s/scan, 2 scans/version, sample(1)
+  hot stack, the failed job row) → 5 TYPED findings with numbers attached → routing (4 builder,
+  1 orchestrator) → 2 captures → a track with sequencing → a restart checklist. ~2 hours, and
+  nothing load-bearing lives only in the transcript. The fresh-agent test passes: tomorrow's
+  session has the figures, the forbidden action (`palace up`), and the order of work.
+
+WHAT IT DID NOT PROVE — and this is the finding:
+  **The cycle did not START on its own. Ouroboros did not catch this. The OWNER did — because his
+  laptop fans went quiet and the battery hit 1%.** Detection came from the PHYSICAL WORLD, not from
+  any instrument the system owns. Plugged in and asleep, the lag would have been overnight and the
+  queue in the tens of thousands by morning.
+  ⇒ Five of six links in the refinement cycle are working. THE FIRST ONE IS STILL MANUAL.
+  ⇒ This audit's own model says jenga-vs-not is determined by DETECTION LAG, not error rate.
+    First empirical datum for that model on a PERFORMANCE defect: **lag ≈ 75 min, and it was
+    bounded by an ACCIDENT (a battery), not by an instrument.** Every prior datum in this file was
+    a correctness/spec defect caught by a human, a falsifier, or a gate. Performance had no layer
+    at all — not a weak layer, an ABSENT one.
+  ⇒ Reframes the command center: not a nicer dashboard, but THE MISSING FIRST LINK of the loop the
+    owner is describing. It is what moves the trigger from "the owner happened to look" to "the
+    system said so."
+
+THE SHARPENING (the formulation worth keeping):
+  **You cannot catch an inconsistency without first having made a consistency claim.**
+  "Operating as expected" presupposes a stated expectation. There was NO declared expectation for
+  backfill throughput, so nothing could be violated — the system was not silent about a problem, it
+  was silent because no predicate existed to be false. This is the deep form of the ratchet
+  argument, and it generalizes this audit's thesis: the decision→enforcement map is exactly a
+  registry of consistency claims. Scale witnesses, rate budgets, declared bounds are not
+  bureaucracy — they are what makes "inconsistent" a COMPUTABLE PREDICATE rather than a human
+  noticing the room got quiet.
+  ⇒ Proposed extension to the audit's map: every ratified decision gets an enforcement artifact
+    (already designed) AND, where it makes a quantitative claim, a MEASURED PREMISE with its
+    measurement date. A premise with no measurement is drift waiting to happen — f-0163 (PD-B's
+    cost premise) and f-0169 (the re-land idiom's cost premise) are the same defect one week apart.
+
+THE RECURSION (Ouroboros doing the thing it is named for — and its shadow):
+  These findings become corpus. Tonight's failure is ingested, embedded, retrievable, and informs
+  the design that prevents its recurrence — the system learning from its own operational exhaust.
+  SHADOW SIDE, same property, same night: f-0170 — the chat watcher watches the agent's own
+  transcripts, so self-observation became self-load. Investigating the queue grew the queue.
+  Self-consumption is the thesis AND the failure mode; the audit should treat "does this sensing
+  loop have damping?" as a standing question, not a one-off.
+
+open questions:
+  - Should the audit map carry a "last measured" column for every quantitative premise, and should
+    a stale premise (older than N, or predating a scale change) itself be a finding?
+  - Detection-lag as a tracked METRIC: can the system compute its own lag (defect introduced →
+    defect detected) from the git + findings + chat corpora it already holds? That would make this
+    file's central model self-measuring rather than anecdotal.
+  - Which layer SHOULD have caught f-0169, counterfactually? (a perf ratchet in CI; a rate alarm in
+    the daemon; a scale witness on the store primitive) — the answer picks the first instrument to
+    build, and the three are not equally cheap.
+```
