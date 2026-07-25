@@ -243,3 +243,90 @@ deliberate trade, not a side effect. **Owner's call; recommendation is hyphen.**
 
 Unchanged from the capsule above: `oq-` and `dc-` resolve to **section anchors, not files**, so
 they need an open-then-search wrapper either way.
+
+### Owner generalization — a REFERENCE STANDARD for the whole corpus
+
+Verbatim: *"maybe that is a new standard for references in docs, at least when written so it's easy
+to navigate in an unambiguous way, something like
+`<doc-type><delim><filename-optional-ext><optional-line-delim><optional-line-number>`."*
+
+This is a bigger move than the `gf` resolver: the resolver becomes the *consumer* of a corpus-wide
+convention rather than a bag of heuristics. Worth stating plainly — **it also reverses the
+recommendation two capsules up.**
+
+#### ⚑ Why the hyphen recommendation is WITHDRAWN
+
+The earlier argument for `-` over `:` was that `:` is absent from nvim's default `isfname`, so
+adding it would make `gf` swallow the `:222` on 1,753 existing `path:line` refs.
+
+**Folding the line number into the grammar dissolves that objection.** If `[<line-delim><line>]` is
+part of the standard, the resolver needs a line-suffix rule *regardless* of which delimiter we pick
+— so the "extra machinery" is no longer a cost attributable to the colon; it is a requirement of
+the feature. And once it exists, `:` is strictly the better choice:
+
+- `path:line` is the **universal** convention (compilers, stack traces, ripgrep, `gF`), already used
+  1,753 times here. A standard that reuses it inherits every tool that already speaks it.
+- `gF` parses `file:line` **natively**. Pick `:` and `gF` works on typed refs for free.
+- `-` is ambiguous *inside* the grammar: slugs contain hyphens (`supervision-and-liveness`), so
+  `dn-supervision-and-liveness` needs the parser to know `dn` is a type rather than the first word
+  of the slug. `:` cannot collide — slugs never contain colons.
+
+Corrected cost statement: adding `:` to `isfname` breaks the 1,753 refs **only if** `includeexpr`
+lacks a strip rule. With it, `gf` → file, `gF` → file+line. That is neutral-to-better, not a
+regression. The earlier capsule overstated it.
+
+#### The grammar
+
+```
+<ref>       ::= <type> ":" <name> [ ":" <line> ]
+<type>      ::= dn | bs | bp | f | oq | tr | dc | au | src
+<name>      ::= <slug> | <slug>".md" | <path>          # extension optional
+<line>      ::= [0-9]+
+```
+
+| ref | resolves to |
+|---|---|
+| `dn:supervision-and-liveness` | `docs/design-notes/dn-supervision-and-liveness.md` |
+| `dn:inner-outer-core` | `docs/design-notes/inner-outer-core.md` — **the collision, now unambiguous** |
+| `bs:inner-outer-core` | `docs/brainstorms/inner-outer-core.md` |
+| `bp:108` | `docs/build-plans/bp-108/plan.md` |
+| `bp:108/journal` | `docs/build-plans/bp-108/journal.md` |
+| `f:0199` | `docs/findings/finding-0199.md` |
+| `tr:ops` | `docs/tracks/ops.md` |
+| `oq:0035` · `dc:NNN` | ⚠ **section anchors, not files** — open-then-search |
+| `src:scheduler/queue.py:222` | the file, at line 222 |
+| `scheduler/queue.py:222` (bare) | implicit `src:` — **the 1,753 existing refs stay valid** |
+
+Note the `dn:` row does the real work: it resolves whether or not the file carries the `dn-` prefix,
+which is why this **retires the rename** rather than deferring it.
+
+#### ⚑ Two decisions the standard has to make
+
+1. **Uniform, or typed-only-where-ambiguous?** `bp-108`, `finding-0199`, `oq-0035` are already
+   globally unique — they need no type tag. Only slug-named artifacts (`dn`, `bs`, `tr`) actually
+   collide. Minimal-change says tag only those; uniformity says tag everything because one rule is
+   easier to teach, lint, and machine-read than "tag it when you sense ambiguity." **Recommend
+   uniform for NEW writing, with bare forms permanently accepted by the resolver** — the corpus has
+   thousands of bare refs and they are not getting rewritten.
+2. **Retrofit: no.** Accept bare forms forever. A migration would touch nearly every doc for no
+   navigational gain (bare `bp-108` already resolves unambiguously).
+
+#### ⚑ Enforcement — otherwise the standard rots
+
+Per the owner's own standing rule (`structural enforcement`: a property is real only when a test
+proves it), a reference convention with no validator decays silently — a typo'd or stale
+`dn:foo` looks identical to a good one until someone hits `gf` and gets nothing.
+
+Proposal: **`scripts/check_refs.py`** walks `docs/`, extracts every typed ref, asserts each resolves
+to a real file (or a real anchor for `oq:`/`dc:`), and joins the green gate next to
+`scripts/check_imports.py`. That also makes it a **ratchet against link rot in general** — the
+corpus is heavily cross-referenced and nothing currently checks that any of it points anywhere.
+Arguably the validator is worth more than the `gf` feature that motivated it.
+
+#### Status / gate
+
+Captured, not adopted. This is an **authoring-convention change**, so it touches `CONVENTIONS.md`,
+`docs/templates/`, and the `gloss IDs inline` rule — not a system design note. Sequence if adopted:
+(1) settle the two decisions above → (2) write the convention into `CONVENTIONS.md` + templates →
+(3) `scripts/check_refs.py` + gate → (4) the `.nvim.lua` resolver. The editor feature is LAST; it
+is the payoff, not the foundation.
