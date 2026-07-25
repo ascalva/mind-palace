@@ -2,7 +2,7 @@
 type: design-note
 id: dn-supervision-and-liveness
 track: ops
-status: draft
+status: ratified
 created: 2026-07-25
 updated: 2026-07-25
 links:
