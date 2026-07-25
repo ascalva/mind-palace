@@ -275,8 +275,16 @@ uv run mypy core agents eval ops scheduler scripts → Success: no issues found 
 uv run mypy                                        → Found 69 errors in 20 files   (== baseline)
 uv run python -m ops.type_gate                     → Tier-2 membership: OK / Bare-ignore scan: OK
 uv run python scripts/check_imports.py             → Import firewall (I2): OK
-uv run pytest -q                                   → (see below)
+uv run pytest -q                                   → 1 failed, 1974 passed, 15 skipped (742s)
+uv run pytest -q --deselect …::test_core_imports_nothing_outside_core
+                                                   → 1974 passed, 15 skipped, 1 deselected (467s)
 ```
+
+The one bare-`pytest` failure is `test_core_self_containment.py::test_core_imports_nothing_outside_core`
+— the finding-0105 decision-A intentional-red ratchet the green gate deselects (it is also in
+`Launcher.gate_cmd`). Verified pre-existing: it fails identically with this plan's work stashed.
+
+Suite grew 1936 → 1974 (+38 new unit tests).
 
 ### Fresh-agent re-entry
 
