@@ -118,3 +118,78 @@ open questions:
   - Does the same grain serve prose AND code, or is grain per-layer (L0a/L0b/L1 already differ)?
     The layer split suggests the answer is already "no", which is a partial precedent.
 ```
+
+## 2026-07-25 — the Fourier thought: chunking IS low-pass filtering (but the transform is wavelets)
+
+```capsule
+topic: text-keypoints-and-chunk-grain (the spectral framing)
+date: 2026-07-25 (session-44, ~03:15)
+
+warrant (owner, verbatim): "a way to possibly test, if a fourier analysis of code or documents is
+computed, how similar is it to it's tokenized seperation, is the semantic meaning preserved? that
+could help with choosing the right embedder, if that was ever a concern?"
+
+THE PART THAT IS ALREADY ANSWERED IN THE LITERATURE:
+  "Is semantic meaning preserved under a Fourier transform?" has a published, partial YES. **FNet**
+  (arXiv 2105.03824, NAACL 2022) replaces the self-attention sublayer of a Transformer encoder with
+  a standard UNPARAMETERIZED Fourier transform and retains **92-97% of BERT's GLUE accuracy**, at
+  80% faster training on GPU. Token mixing in the frequency domain does most of the semantic work
+  attention does. So the owner's intuition that frequency-domain structure carries meaning is not
+  loose analogy — it is measured.
+  Related, already inside the tools: sinusoidal positional encodings ARE Fourier features, and RoPE
+  is literally rotation in frequency space. Fourier is not foreign to embedders; it is inside them.
+
+⚑ THE PART THE PALACE ALREADY HAS — and it is spectral, just not on the token axis:
+  `core/complex/**` (A_signed, L) and `core/graph/{sigma_star,conductance,census}.py` are
+  **GRAPH-Fourier** — eigendecomposition of the Laplacian. For a corpus modelled as a graph, that is
+  the NATIVE spectral analysis, and it is built. So "should we do spectral analysis?" is already
+  answered yes; the open question is only whether a SEQUENCE-axis transform adds anything the GRAPH
+  spectrum does not.
+
+⚑⚑ THE REFRAME THAT IS ACTUALLY USEFUL — **CHUNKING IS LOW-PASS FILTERING.**
+  Text has characteristic scales: token, line, block, function/paragraph, section, document.
+  Choosing a chunk grain IS choosing a cutoff frequency. Over-segmentation (superpixels) = high
+  cutoff; document-grain = low cutoff. This is the same object as the 2026-07-11 capsule's "SMEAR:
+  a smear of resolution along the embedded vector space" in doc-code-entanglement.md — and that
+  capsule PARKED it with a recorded default (single-scale-at-chunk-grain stands, per the 2026-07-03
+  source-set decision) and a re-entry condition ("a measured retrieval failure attributable to grain
+  mismatch"). **This thought presses on that parked decision; it does not open a new one.** Respect
+  the re-entry condition rather than routing around it.
+
+⚑ BUT THE TRANSFORM IS WRONG: FOURIER ASSUMES STATIONARITY; TEXT STRUCTURE IS LOCALIZED.
+  A Fourier transform gives GLOBAL frequency content with no localization — it answers "what
+  periodicities exist in this document" when the real question is "where does the structure change,
+  and at what scale". A function definition is a LOCAL EVENT, not a periodic one. The right family
+  is **WAVELETS / multi-resolution analysis**, which is localized in both position and scale.
+  ⇒ Restated: the owner's "smear of resolution" is multi-resolution analysis. Wavelets are the
+    named mathematics for it. That is the correction worth carrying into any design pass.
+  ⇒ And it rejoins the detector thread above: BLT's entropy-based patching is change-point detection
+    on a local signal — closer to a wavelet/edge detector than to an FFT.
+
+WHY IT DOES NOT WORK AS AN EMBEDDER-SELECTION TEST (the honest verdict):
+  1. **You cannot FFT "the text".** You must first project it to a numeric sequence — per-position
+     entropy, model surprisal, indentation depth, line length. THAT CHOICE DOES ALL THE WORK and is
+     itself unvalidated. The result would measure the projection, not the embedder.
+  2. **No established link to the thing we care about.** Spectral similarity between a raw-signal
+     transform and a tokenized separation has no demonstrated relationship to RETRIEVAL QUALITY. It
+     would be selecting an embedder by a proxy nobody has shown is predictive — which is this
+     week's recurring failure mode (f-0163, f-0169, f-0174) dressed in nicer mathematics.
+  3. **The direct instrument exists and is cheaper.** Retrieval precision measured on the actual
+     corpus — and now with LABELS, via the code half being a labeled subgraph (doc-code-entanglement
+     2026-07-25 capsule). Measure the thing, not a correlate of it.
+  ⇒ VERDICT: keep the spectral framing for CHUNK GRAIN (where it is illuminating and where wavelets
+    are the right tool); do NOT adopt it as an embedder-selection instrument. Embedder choice is
+    settled by task evaluation on this corpus, gated behind the runtime migration (f-0174) anyway.
+
+open questions:
+  - Does the SEQUENCE spectrum add anything over the GRAPH spectrum the palace already computes?
+    Cheap first test: does a wavelet/multi-scale decomposition of a document predict better chunk
+    boundaries than the current structural chunker — measured on retrieval, with a falsifier?
+  - Is there a principled mapping from "cutoff frequency" to "chunk size" that would make grain a
+    TUNED parameter rather than a taste call? (Same shape as the sigma-calibration opportunity —
+    another taste parameter that labels could turn into a measured one.)
+  - Does FNet's result imply anything USABLE here, or is it purely an architecture-efficiency result
+    with no bearing on corpus representation? (My read: the latter — it is about how a model mixes
+    tokens internally, not about how a corpus should be segmented. Recorded so the citation is not
+    over-claimed later.)
+```
