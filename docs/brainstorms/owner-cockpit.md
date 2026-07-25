@@ -578,3 +578,62 @@ The bp-110 line-237 case is a live hazard, not a hypothetical: a builder reading
 no local way to know which document's §2.3 is meant, and bp-110 is **blessed-pending and about to
 be built**. Candidate for a finding against the plan (spec-fidelity), independent of whether the
 reference standard is ever adopted.
+
+### Owner refinement — `:` everywhere; the anchor is what follows the SECOND colon
+
+Three messages, same session, converging: *"or even `::<anchor>` for ':' consistency"* · *"for the
+sake of brevity, if a document references itself, it can use the shorthand `:<anchor>`"* ·
+**`"anchors only come after the second colon"`**.
+
+The last one is the rule, and it **resolves the tension between the first two**: a single-colon
+`:§10` contradicts it, while `::§10` satisfies it exactly — empty type, empty name, anchor still
+after the second colon. So the self-reference needs **no special case**; it is the general form with
+the first two fields elided. Adopt `::<anchor>`.
+
+#### The grammar, settled
+
+```
+<ref>    ::= <type> ":" <name> [ ":" <anchor> ]     -- cross-document
+           | ":" ":" <anchor>                       -- self-reference (fields elided)
+<anchor> ::= "§" <num>            -- template section: the corpus's native form
+           | <heading-slug>
+           | <symbol>             -- code: prefer over a line
+           | <digits>             -- a LINE: last resort, only where nothing is named
+```
+
+| ref | meaning |
+|---|---|
+| `dn:supervision-and-liveness` | the note |
+| `dn:supervision-and-liveness:§2.3` | the note, §2.3 |
+| `bp:110:§10` | that plan's STOP conditions |
+| `::§10` | **this** document's §10 |
+| `src:scheduler/queue.py:_effective_priority` | the symbol |
+| `src:scheduler/queue.py:222` | the line — numerically distinguishable, last resort |
+
+⚑ **The line form is no longer a separate production.** A line number is simply a numeric anchor, so
+`path:line` — all 1,753 existing refs — is already a well-formed instance of the grammar. The
+notation absorbs the corpus's most common reference form instead of competing with it.
+
+#### ⚑ Measured this session — the `isfname` cost, stated honestly
+
+| char | in nvim's default `isfname`? |
+|---|---|
+| `§` | **yes** (matches `@`) — `gf` can grab a section anchor as-is |
+| `#` | **yes** |
+| `:` | **no** |
+
+So choosing `:` over `#` for consistency does cost the one `isfname` change — `#` would have been
+free. That is a real trade and it is being made deliberately: **one separator, one rule to teach,
+and `path:line` absorbed for free** in exchange for `vim.opt_local.isfname:append(":")`. One line of
+config. Worth it.
+
+(The earlier `#`-for-anchors proposal is superseded. `§` matching `isfname` was the open risk in the
+anchor design — it does, so the corpus's native `§N` form works under `gf` with no rewriting.)
+
+#### Consequence for the resolver
+
+Parsing is a split on `:` with the anchor as the last field when >1 colon is present; an empty first
+field means self-reference. Unambiguous because slugs and Unix paths contain no colons. The
+self-reference case resolves to the **current buffer**, so `::§10` is an intra-document motion —
+which is exactly the jump-on-`§3` feature asked for above, now expressible in the standard rather
+than needing a bespoke keymap.
