@@ -637,3 +637,62 @@ field means self-reference. Unambiguous because slugs and Unix paths contain no 
 self-reference case resolves to the **current buffer**, so `::§10` is an intra-document motion —
 which is exactly the jump-on-`§3` feature asked for above, now expressible in the standard rather
 than needing a bespoke keymap.
+
+### Owner refinement — TYPE ELISION by context
+
+Verbatim: *"you can play with anchors, if you are in a dn that references another dn, something like
+`:<other-dn>:<opt-anchor>` also works since that's the assumed context."*
+
+This completes the grammar with one rule: **an empty leading field inherits from the current
+document.** Self-reference and sibling-reference stop being two features and become one:
+
+| form | fields | means |
+|---|---|---|
+| `dn:supervision-and-liveness:§2.3` | type, name, anchor | fully qualified |
+| `:supervision-and-liveness:§2.3` | ⌀, name, anchor | **same type** as current doc, different file |
+| `:supervision-and-liveness` | ⌀, name | same type, no anchor |
+| `::§10` | ⌀, ⌀, anchor | **same file** (name also elided) |
+
+Parsing stays a plain split on `:` — `["", "supervision-and-liveness"]` vs `["", "", "§10"]` are
+distinguishable by arity, and slugs/Unix paths contain no colons. Nothing about the resolver gets
+harder. Reading a design note that cites three sibling notes, the `dn:` repetition genuinely is
+noise, so the brevity is earned.
+
+#### ⚑ But elision reintroduces the exact defect this standard was invented to kill
+
+Two capsules up, the bp-110 finding: a bare `§2.3` **inside a docstring** (`plan.md:237`) loses its
+meaning the moment it leaves the paragraph that disambiguated it. Elided refs have the same
+property, and one case is worse than the original:
+
+- `::§10` pasted into another build plan **still resolves** — every plan has a §10 by template. It
+  does not fail; it silently points at a different document's STOP conditions.
+- `:supervision-and-liveness` pasted from a design note into a build plan now means
+  `bp:supervision-and-liveness` — resolves to nothing, or to the wrong thing.
+
+This corpus copies text between artifacts constantly: plans quote notes, findings quote plans,
+docstrings quote plans (proven), the book quotes everything. **A context-dependent reference is
+correct exactly until someone moves it**, and the failure is silent rather than loud — which is the
+property that made bare `§N` a defect in the first place.
+
+⇒ Brevity and portability are genuinely in tension here. Neither is wrong; the standard has to say
+*where* each applies.
+
+#### Proposed rule — elision is scoped, and the scope is CHECKABLE
+
+**Elided forms are legal only in running prose inside `docs/`.** The fully qualified form is
+required wherever a reference travels:
+
+| context | form required | why |
+|---|---|---|
+| prose in a doc | elided OK | the context is present and stable |
+| **source code / docstrings** | **qualified** | proven hazard — `bp-110:237` ships into `.py` |
+| **findings** | **qualified** | cited from plans, notes, journals, the book |
+| **the book** | **qualified** | assembled from many sources |
+| commit messages, chat, journals | **qualified** | no surrounding document at all |
+
+⚑ **This is enforceable, which is the point.** `scripts/check_refs.py` knows the file it is reading,
+so "elided ref outside `docs/`" is a mechanical check — not a style note anyone has to remember.
+Same move as the `§`-anchor validation: the convention defends itself, or it decays.
+
+Open for the owner: whether journals count as prose (they are `docs/`, but they are also the
+handoff surface a fresh agent reads cold, which argues for qualified).
