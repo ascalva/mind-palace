@@ -23,7 +23,7 @@ SESSION=palace
 # Repo root, derived from this script's own location (scripts/ -> repo root) — so panes
 # root at the repo regardless of the caller's cwd.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LOG="data/logs/palace.out.log"   # launchd StandardOut sink; exists whether or not the daemon is up (Q8)
+LOG="data/logs/palace.out.log" # launchd StandardOut sink; exists whether or not the daemon is up (Q8)
 
 DRY=0
 [[ "${1:-}" == "--dry-run" ]] && DRY=1
@@ -92,14 +92,14 @@ build() {
   # login, where the fable tier is available for design/gate work (pins NO model, so it inherits the
   # global settings fable default). The workflow-plane headless `setup-token` auth does NOT expose
   # fable, so isolation is opt-in: `PLANE=workflow scripts/cockpit.sh` runs the pane as the isolated
-  # ouroboros-work principal (pins opus[1m]). Default swapped from workflow→ascalva by the owner
+  # ouroboros-work principal (pins claude-opus-5[1m]). Default swapped from workflow→ascalva by the owner
   # 2026-07-20 (fable broken on the role account ⇒ human-login pane is the common case).
   if [ "${PLANE:-ascalva}" = "workflow" ]; then
-    run tmux send-keys -t "$SESSION:desk.1" "PLANE=workflow scripts/orchestrator-launch.sh 'opus[1m]' high auto" Enter
+    run tmux send-keys -t "$SESSION:desk.1" "PLANE=workflow scripts/orchestrator-launch.sh 'claude-opus-5[1m]' high auto" Enter
   else
     run tmux send-keys -t "$SESSION:desk.1" "PLANE=ascalva scripts/orchestrator-launch.sh '' high auto" Enter
   fi
-  run tmux select-pane -t "$SESSION:desk.0"          # leave focus on the reading pane
+  run tmux select-pane -t "$SESSION:desk.0" # leave focus on the reading pane
   # ops: system snapshot + a live daemon-log tail (never requires the daemon to be up).
   run tmux new-window -t "$SESSION" -n ops -c "$ROOT"
   run tmux send-keys -t "$SESSION:ops" "uv run scripts/palace.py status; tail -n 40 -F $LOG" Enter
@@ -109,9 +109,9 @@ build() {
 
 join() {
   if [[ -n "${TMUX:-}" ]]; then
-    run tmux switch-client -t "$SESSION"   # INSIDE tmux — switch, never nest
+    run tmux switch-client -t "$SESSION" # INSIDE tmux — switch, never nest
   else
-    run tmux attach -t "$SESSION"          # OUTSIDE tmux — attach
+    run tmux attach -t "$SESSION" # OUTSIDE tmux — attach
   fi
 }
 
@@ -125,7 +125,7 @@ main() {
     return 0
   fi
   if tmux has-session -t "$SESSION" 2>/dev/null; then
-    apply_settings   # already built — reload runtime settings live, then jump in (never rebuild)
+    apply_settings # already built — reload runtime settings live, then jump in (never rebuild)
     join
   else
     build

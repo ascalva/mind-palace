@@ -30,15 +30,16 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-EFFORT="${2:-high}"; PERM="${3:-auto}"   # default effort medium→high (owner rule 2026-07-21)
+EFFORT="${2:-high}"
+PERM="${3:-auto}" # default effort medium→high (owner rule 2026-07-21)
 PLANE="${PLANE:-ascalva}"
 
 # --- workflow plane (opt-in): the isolated ouroboros-work principal ---------------------------
 # Only PLANE=workflow takes the role-account path; the default and anything else launch as the human
-# login below (fable available). Model pins opus[1m] here (fable is unreachable under this auth, and
+# login below (fable available). Model pins claude-opus-5[1m] here (fable is unreachable under this auth, and
 # the pin overrides the global fable default).
 if [ "$PLANE" = "workflow" ]; then
-  MODEL="${1:-opus[1m]}"
+  MODEL="${1:-claude-opus-5[1m]}"
 
   # Pre-migration / un-provisioned -> plain launch as whoever we are (no plane split yet).
   if ! id ouroboros-work >/dev/null 2>&1; then
@@ -55,7 +56,7 @@ if [ "$PLANE" = "workflow" ]; then
     echo "orchestrator-launch: keychain item 'claude-oauth-token' missing/empty — run 'claude setup-token' and store it (plane-migration.md §5)." >&2
     exit 1
   fi
-  PALACE_SIGN_PASS="$(_kc ssh-signing-passphrase || true)"   # optional; if absent, signed commits prompt
+  PALACE_SIGN_PASS="$(_kc ssh-signing-passphrase || true)" # optional; if absent, signed commits prompt
   if [ -z "${PALACE_SIGN_PASS:-}" ]; then
     echo "orchestrator-launch: WARNING — no 'ssh-signing-passphrase' in keychain; signed commits will prompt for it (plane-migration.md §4)." >&2
   fi
