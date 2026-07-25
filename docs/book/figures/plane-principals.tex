@@ -1,0 +1,51 @@
+% figures/plane-principals.tex — one OS user per plane, and the two enforcement
+% directions that compose into non-negotiable #2.
+% Source: \artifact{dn-plane-principals} §3.1 (the ownership/mode matrix) and §3.4
+% (the two directions: edge cannot reach the vault via DAC on a 0700 vault; core
+% cannot reach the network via a pf anchor keyed on uid, with the lo0 carve-out).
+% The pf rules are \coderef{ops/network/ouroboros-egress.pf.conf}{\gitref}:43--44.
+% Principal names from notation.tex.
+% \input by chapters/02-architecture.tex inside a figure environment.
+\begin{tikzpicture}[
+    node distance=9mm and 13mm,
+    plane/.style={draw=inkblue, thick, rounded corners=3pt, fill=panel,
+      align=center, inner sep=4pt, text width=34mm, minimum height=17mm,
+      font=\small\sffamily},
+    asset/.style={draw=soft, thick, fill=white, align=center, inner sep=3pt,
+      text width=26mm, font=\scriptsize\sffamily},
+    deny/.style={-{Bar[width=2mm]}, very thick, gate},
+    allow/.style={-{Stealth[length=2mm]}, thick, inkblue},
+    lbl/.style={font=\scriptsize\itshape, align=center, text=gate},
+  ]
+  \node[plane] (human) {\phuman{} --- the human\\[2pt]
+    \scriptsize hand edits · blessings · the one who decides};
+  \node[plane, below=of human] (work) {\pwork{} --- workflow\\[2pt]
+    \scriptsize orchestrator + delegated builders; owns \texttt{exhaust/reports/}};
+  \node[plane, right=32mm of work] (core) {\pcore{} --- core\\[2pt]
+    \scriptsize the reasoning daemon + the vault};
+  \node[plane, above=of core] (edge) {\pedge{} --- edge\\[2pt]
+    \scriptsize network-facing only (forward-provisioned)};
+
+  \node[asset, below=7mm of core] (vault) {the vault (corpus)\\\texttt{0700 ouroboros}};
+  \node[asset, above=7mm of edge] (net) {the network};
+
+  \draw[allow] (human) -- node[font=\scriptsize\sffamily, right=1mm, text=soft]
+    {\texttt{sudo -u} (descending)} (work);
+  \draw[allow] (core) -- (vault);
+  \draw[allow] (edge) -- (net);
+
+  % The two denials that compose.
+  \draw[deny] (edge.south east) .. controls +(18mm,-10mm) and +(18mm,10mm) ..
+    (vault.north east)
+    node[lbl, right=1mm, midway, text width=30mm]
+    {kernel DAC:\\ \pedge{} $\neq$ \pcore{}};
+  \draw[deny] (core.north west) .. controls +(-9mm,9mm) and +(-9mm,-9mm) ..
+    ([xshift=-3mm]net.west)
+    node[lbl, left=1mm, midway, text width=27mm]
+    {pf anchor on uid\\ (\texttt{lo0} carved out first)};
+
+  \node[lbl, below=4mm of vault, text width=95mm, text=inkblue]
+    {The component holding private data has no network; the component holding the
+     network has no private data --- and they are \emph{different uids}, so no single
+     process can hold both.};
+\end{tikzpicture}
