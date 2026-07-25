@@ -228,8 +228,16 @@ WHAT A STREAM WOULD BUY THAT FILES DO NOT (the honest gap analysis):
   section, or dn-agent-workflow.
 
 open questions:
-  - Is `sector` a new field, or is `track:` already the topic? (The board has track coordinates; a
-    finding does not carry one today. Reusing `track` would be cheaper and DRY-er.)
+  - ~~Is `sector` a new field, or is `track:` already the topic?~~ **RULED (owner, 2026-07-25):
+    `track:` IS the topic** — "from the main queue it's easy to see the track and work and route
+    appropriately." So findings gain a `track:` coordinate (the same vocabulary the board and the
+    manifests already use), and NO new `sector` field is minted. Consequences: the routing key is
+    already validated (a track must equal a `docs/tracks/<slug>.md` manifest), the derived
+    per-consumer inbox is a group-by over an existing field, sector-expert subscription is
+    "subscribe to track X", and the board gains a findings column for free. Cheapest possible
+    answer and DRY ([[owner-dry-strictness]]). Open sub-question: a finding raised BEFORE its track
+    exists (as five of tonight's were — the ops track was minted after them) needs an `untracked`
+    default plus a sweep, not a hard requirement.
   - Does consumer-offset-as-derived-state actually work, or does a consumer need to record an
     explicit acknowledgement? (Derived is preferable — it cannot drift — but "I saw it and decided
     it does not apply to me" may not be inferrable from artifacts alone.)

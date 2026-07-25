@@ -62,9 +62,24 @@ sensing loop has positive feedback with no damping.
 
 Coalesce at enqueue: for kinds declared idempotent-collapsible (`chat_sync`, `vault_sync`,
 `code_sync`, `chat_events`), if a job of that kind is already `queued`, do not insert a second —
-optionally bump its `created_at`/priority instead. A partial unique index on
+optionally bump its `created_at`/priority instead. ~~A partial unique index on
 `(kind, state) WHERE state = 'queued'` makes it structural rather than conventional, per the
-standing rule that a property is only real when something enforces it.
+standing rule that a property is only real when something enforces it.~~
+
+**[banner: correction — 2026-07-25, by the bp-101 builder, measured]** Two errors above:
+
+1. **The counts were wrong.** The real backlog is **882 `chat_sync` + 882 `vault_sync` + 1 `dream`
+   + 1 `curate` = 1,766**, not 883/883. Measured against a copy of the live 302,010-row queue.
+2. **⚑ THE SUGGESTED PARTIAL UNIQUE INDEX CANNOT BE CREATED, AND WOULD HAVE BRICKED STARTUP.**
+   `CREATE UNIQUE INDEX … WHERE state = 'queued'` **raises** against the 882 already-identical rows
+   sitting in the live queue — so the migration would fail on open and **make the daemon
+   unstartable**. The structural-enforcement instinct was right; the mechanism was unrunnable
+   against real data, and only a dry-run against the live file exposed it.
+   ⇒ Coalescing is enforced in `enqueue` instead (correct and sufficient); the index is **deferred**
+   until the restart clears the duplicates, and that deferral is recorded beside `_MIGRATIONS`.
+   ⇒ Lesson, consistent with this session's theme: a proposed enforcement mechanism is itself an
+   unmeasured premise until it is run against production-shaped data. This one would have converted
+   a queue-hygiene defect into an outage.
 
 Care needed for kinds that carry a distinguishing `payload` — collapse must key on
 `(kind, payload)`, not `kind` alone, or a payload-bearing job could be silently dropped.

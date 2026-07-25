@@ -101,6 +101,61 @@ which the membership design reasons about. Not blocking (the design is about the
 file's current shape), but step 2 should read the MERGED state, not the pre-build state, or it will
 ground itself on code that no longer exists.
 
+## 2026-07-25 (addendum) — the post-build schedule, and what it actually waits on
+
+```capsule
+topic: design-pass-routing (scheduling the wave after bp-100/101/102)
+date: 2026-07-25 (session-44, ~03:10)
+
+warrant (owner): "what do you need from me to outline the rest of the build after the current
+builds? just to easily schedule the work"
+
+⚑ THE BOTTLENECK IS NOT AGENT THROUGHPUT — IT IS OWNER-GATE COUNT.
+  The chain is: [AGENT: panel → design pass → /graduate → proposed] → [OWNER: ratify · bless] →
+  [AGENT: build → seal] → [OWNER: deskcheck]. Everything up to `proposed` is agent-side and needs
+  NOTHING from the owner. So the schedule should be organized to BATCH THE GATES, not to maximize
+  agent parallelism — this file's parent brainstorm (decision-routing) already names owner attention
+  as the scarcest budgeted resource.
+  Current gate debt, measured: **39 open findings · 19 open owner-questions · 4 owed deskchecks ·
+  3 drafts awaiting panel-then-ratification** — before this wave adds anything.
+
+THE SEQUENCE (agent-side work, runnable without further input):
+  S1. bp-100/101/102 return → diff review → sequenced merges (one at a time) → independent audit
+      pass at reviewer tier (delegate skill D2) → seals with cost.actual.
+  S2. RESTART CHECKLIST → `palace up` → watch the RATE → the backfill completes → code-ingest
+      deskcheck becomes demonstrable.
+  S3. ops design note (NEW NOTE 1) — writable NOW, in parallel with S1/S2; its Tier-1 half is
+      being built, so the note covers Tier 2 + doctrine.
+  S4. dn-vector-membership-store: adversarial panel + fold all of Cluster B in ONE pass.
+      **Must read the MERGED vectorstore.py, so gated behind S1.**
+  S5. local-model-runtime note (NEW NOTE 2, small, specification-shaped) + f-0174 folded.
+  S6. dn-integrator-densification panel (absorb the lexical-bridge evidence).
+  S7. the pre-existing queue: dn-sector-experts panel · workflow-taxonomy (now also carrying
+      f-0175's session-state format) · reconciliation-audit · evaluation-harness.
+  Each of S3-S7 ends at `draft` or `proposed` — i.e. parked ON A GATE, by design.
+
+⚑ WHAT IS ACTUALLY NEEDED FROM THE OWNER — three decisions, not a plan:
+  1. **Confirm or reorder S3-S7.** The proposed order is defensible but not the only one; the
+     runtime note (S5) could reasonably jump ahead since f-0174 makes the ceiling untrustworthy TODAY.
+  2. **Rule oq-0035** (shutdown escalation: bounded SIGKILL / worker-enforced job budgets / both).
+     Small, and without it the ops note carries a parked decision in a load-bearing section.
+  3. **Say whether the 4 owed deskchecks clear in this wave or defer.** They need ONLY the owner and
+     they are what actually closes tracks — no amount of agent work substitutes.
+  Optional 4th: anything the owner wants pulled forward that is NOT in the queue (the ouroboros.toml
+  rename, f-0162, has been queued for days and is isolated/cheap).
+
+⚑ AND THE STRUCTURAL ANSWER TO "just to easily schedule the work": DO NOT HAND-WRITE THE SCHEDULE.
+  The artifacts already encode it — status, track, depends_on, warrant, re_entry, blocking flags.
+  A schedule maintained by hand is another `resume-brief.md` (f-0175): a mutable blob that drifts
+  from its sources. **The schedule should be a DERIVED VIEW** — the docket/board pattern a third
+  time — showing per-track: what is owed, by whom (agent vs owner), and what it is blocked on.
+  `scripts/board.py` already computes track × phase; adding "blocked-on" and "gate vs agent" turns
+  it into the scheduler the owner is asking for, and it cannot drift.
+  ⇒ This is the same conclusion as the findings-stream capsule (decision-routing, same session) and
+    the same as f-0175: **append-only substrate + derived projection.** Fourth arrival. It should be
+    a named principle before it is re-derived again.
+```
+
 open questions:
   - Does the ops note absorb finding-0165 (background starvation) and the tier-scheduling question,
     or do those stay scheduler-local? They are "cost as a first-class concern" in different clothes.
