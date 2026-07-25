@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-103
 track: ops
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/temporal-code-corpus.md
 contract: builder
@@ -17,7 +17,31 @@ cost:
   estimate:
     model: opus
     tokens: 80k
-  actual: null
+  actual:
+    model: opus              # claude-opus-5, delegated builder in a worktree, session-45
+    tokens: 175k             # harness-measured (174,551); 113 tool calls; 40.6 min wall
+    ratio: 2.18              # vs 80k — empirical probing + the mutation check + two-sided ratchet
+                             # counting, none of which were plan line items. Worth it.
+    session_delta: one delegated builder; all 3 items met; all 4 falsifiers fired-and-did-not-trip
+    notes: >-
+      finding-0169's re-entry condition is SATISFIED. Materializations per supersede_source:
+      2 (HEAD) -> 1 (bp-100) -> 0. The cost ratchet is now an ordinary green test and STILL FAILS
+      against the old code, proven by mutation (stash vectorstore.py, keep tests => 4 targeted
+      failures). limit(0) empirically confirmed unlimited BEFORE any code (137 rows returned 137,
+      not the default cap of 10) and pinned as its own ratchet. The deliberate deviation held:
+      count_rows(where), not UpdateResult.rows_updated; pyproject.toml untouched; rationale written
+      into both docstrings so it is not "corrected" back.
+      CAUGHT A FALSE GREEN THE PLAN WOULD HAVE SHIPPED: bp-100's meter counts only
+      to_arrow().to_pylist(), but the new pushdown reads via scan().to_list() — a route the meter
+      could not see. Removing the xfail markers against a blind instrument would have measured the
+      METER, not the store. It widened the instrument, kept both original assertions, and added
+      assertions that the bound is now ZERO rather than merely equal.
+      Also self-caught the worktree-base staleness that became finding-0182. Two findings filed and
+      correctly NOT fixed in place: 0180 (pre-bp-099 stores now RAISE — left loud, because the old
+      silence left both the superseded version AND the new HEAD current) and 0181 (falsified two
+      written claims in bp-102's snapshot.py; left that figure to bp-102 as its deliverable).
+      Combined-tree suite after merge: 2034 passed, 13 skipped, ZERO xfailed.
+    week_delta: +1%          # weekly 6%→7% (resets Jul 31)
 depends_on:
   - bp-100
 parallelizable_with:

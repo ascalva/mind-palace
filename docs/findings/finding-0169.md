@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0169
-status: open
+status: resolved
 created: 2026-07-25
 updated: 2026-07-25
 links:
@@ -13,7 +13,7 @@ links:
 ftype: spec-defect
 origin_plan: orchestrator
 route: builder
-resolution: null
+resolution: bp-103 (merged fe32b59) — supersede_source is one in-place update; materializations 2 -> 1 -> 0, proven by a ratchet that is now an ordinary green test and still fails against the old code (mutation-verified). Combined suite 2034 passed, 0 xfailed. Daemon restart unblocked.
 ---
 
 # `supersede_source` is O(total store), not O(depth) — the history backfill cannot complete
