@@ -14,13 +14,16 @@ Deterministic, hand-built vectors; temp stores only; no embedder, no network, no
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 import pyarrow as pa
+import pytest
 
 from core.kernel.provenance import Provenance
 from core.stores.vectorstore import LAYER_CODE_AST, TABLE, VectorStore
+from core.typedshims.lancedb import UpdateResult, VectorTable
 
 DIM = 4
 
@@ -142,6 +145,70 @@ def test_a_path_with_a_quote_is_read_and_superseded_correctly(tmp_path: Path) ->
     assert vs.count() == 5
 
 
+def test_a_path_deeper_than_any_default_limit_is_fully_read_and_fully_flipped(
+        tmp_path: Path) -> None:
+    """Item 2's OTHER falsifier (bp-103), and the sharper of the two. The pushdown reads and writes
+    through a query builder, and LanceDB's vector search caps at 10 rows by default; the pushdown
+    relies on `limit(0)` meaning UNLIMITED. If that is ever wrong, a deep path is silently
+    HALF-superseded — some rows flipped, some left `current=true` — which is worse than the O(N)
+    cost bp-103 removed, because a half-flipped path corrupts the current-view (D3) permanently and
+    silently. 137 rows: an order of magnitude past the default cap.
+
+    (The `update` half needs no `limit` at all — it takes a predicate, not a query. This test pins
+    that too: it is exactly the asymmetry that would let the READ truncate while the WRITE did
+    not, leaving `rows_for_source` reporting a path that looks shorter than it is.)"""
+    deep = 137
+    vs = _store(tmp_path)
+    vs.add([_row(f"d:{i}", "deep.py", seed=i) for i in range(deep)])
+    vs.add([_row("other:0", "b.py", seed=1)])
+
+    assert len(vs.rows_for_source("deep.py")) == deep       # the READ is not truncated
+
+    assert vs.supersede_source("deep.py") == deep           # ...and neither is the count
+    rows = vs.rows_for_source("deep.py")
+    assert len(rows) == deep and all(r["current"] is False for r in rows), (
+        f"only {sum(1 for r in rows if r['current'] is False)} of {deep} rows flipped — a deep "
+        "path was silently half-superseded (bp-103 §10: limit(0) is not unlimited here)"
+    )
+    assert vs.count() == deep + 1                           # keep-and-link: nothing deleted
+    assert vs.rows_for_source("b.py")[0]["current"] is True  # neighbour untouched
+    assert vs.supersede_source("deep.py") == 0              # idempotent at depth
+
+
+def test_supersede_never_reads_or_rewrites_the_vector_column(tmp_path: Path) -> None:
+    """bp-103's structural guarantee, distinct from the byte-equality test above. That one proves
+    the vectors came back unchanged; this one proves they were never NAMED — `update` writes only
+    the columns it is given, so `vector` is not read, not marshalled, and not written. A future
+    re-land regression would still pass byte-equality on a good day and fail here always: the
+    store's own table proxy records which columns the write touched."""
+    vs = _store(tmp_path)
+    vs.add([_row(f"a:{i}", "a.py", seed=i) for i in range(3)])
+
+    written: list[set[str]] = []
+    inner = type(vs)._table
+
+    class _Spy:
+        """Records which columns each `update` names, forwarding everything else untouched."""
+
+        def __init__(self, raw: VectorTable) -> None:
+            self._raw = raw
+
+        def update(self, where: str, values: Mapping[str, object]) -> UpdateResult:
+            written.append(set(values))
+            return self._raw.update(where, values)
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self._raw, name)
+
+    def spied() -> VectorTable:
+        return _Spy(inner(vs))
+
+    vs._table = spied       # type: ignore[method-assign]  # test instrument, instance-scoped
+
+    assert vs.supersede_source("a.py") == 3
+    assert written == [{"current"}], f"the flip wrote columns beyond `current`: {written}"
+
+
 def test_delete_source_with_a_quote_deletes_exactly_that_path(tmp_path: Path) -> None:
     """`delete_source` no longer materializes the table to build an id list; it deletes on the
     `source_path` predicate. Same rows, hostile path included — and nobody else's."""
@@ -209,3 +276,55 @@ def test_supersede_works_on_a_store_migrated_from_the_pre_current_schema(tmp_pat
     for rid in before:
         assert after[rid]["vector"] == before[rid]["vector"]
         assert after[rid]["current"] is False
+
+
+def test_rows_for_source_still_works_on_an_unmigrated_pre_current_store(tmp_path: Path) -> None:
+    """The read pushes down on `source_path`, a column EVERY schema version has (it predates both
+    the layer and the `current` migrations). So `rows_for_source` is schema-agnostic and unchanged
+    by bp-103 on a legacy store — which matters, because `code_corpus.sync` reads before it
+    writes."""
+    path = tmp_path / "v.lance"
+    legacy = pa.schema([
+        ("id", pa.string()), ("digest", pa.string()), ("title", pa.string()),
+        ("source_path", pa.string()), ("chunk_index", pa.int32()),
+        ("provenance", pa.string()), ("text", pa.string()),
+        ("vector", pa.list_(pa.float32(), DIM)),
+    ])
+    pre = VectorStore(path, dim=DIM)
+    pre._db.create_table(TABLE, schema=legacy).add([
+        {"id": "a:0", "digest": "d1", "title": "a.py", "source_path": "a.py", "chunk_index": 0,
+         "provenance": Provenance.CODE.value, "text": "x", "vector": [1.0, 2.0, 3.0, 4.0]},
+    ])
+
+    rows = VectorStore(path, dim=DIM).rows_for_source("a.py")
+    assert [r["id"] for r in rows] == ["a:0"]
+    assert "current" not in rows[0]                 # honestly reflects the un-migrated schema
+
+
+def test_supersede_on_an_unmigrated_pre_current_store_fails_loudly(tmp_path: Path) -> None:
+    """[banner: correction] A RECORDED behavior change from bp-103, pinned so it cannot drift
+    unnoticed.
+
+    The pushed-down predicate names `current`, so on a pre-bp-099 store whose schema has no such
+    column it RAISES. The old body silently returned 0 — and that silence was the worse outcome:
+    `code_corpus.sync` supersedes BEFORE it adds, and the `add` that follows arms
+    `_migrate_current_if_needed`, which stamps every existing row `current=true`. So the old path
+    left the superseded version AND the new HEAD both current — silent D3 current-view corruption,
+    reported as a clean `superseded_rows=0`. Failing loudly is strictly better.
+
+    Whether `supersede_source` should instead ARM the migration is a design question (it would
+    reintroduce a full materialization on the first call of each instance, the exact O(N) term
+    finding-0169 is about), routed as **finding-0180** rather than settled here. If that decision
+    lands, this test changes with it — visibly."""
+    path = tmp_path / "v.lance"
+    legacy = pa.schema([
+        ("id", pa.string()), ("source_path", pa.string()),
+        ("vector", pa.list_(pa.float32(), DIM)),
+    ])
+    pre = VectorStore(path, dim=DIM)
+    pre._db.create_table(TABLE, schema=legacy).add(
+        [{"id": "a:0", "source_path": "a.py", "vector": [1.0, 2.0, 3.0, 4.0]}]
+    )
+
+    with pytest.raises(Exception, match="(?i)current"):
+        VectorStore(path, dim=DIM).supersede_source("a.py")

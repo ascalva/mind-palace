@@ -184,18 +184,23 @@ class VectorStore:
         projection. The amendment path (ingest-identity §4) reads this to REUSE unchanged chunks'
         vectors instead of re-embedding, so this read must keep carrying the `vector` column.
 
-        [banner: correction] The old docstring justified the Python-side filter as avoiding "a
-        quoting hazard on arbitrary source paths". That premise was false — `_sql_str` solves the
-        hazard, as `delete_source` always did three lines below — and the filter is the read half of
-        finding-0169: a full Arrow→Python materialization of the whole table, vectors included, to
-        return one path's rows. It is still a full scan HERE only because pushing it down needs
-        LanceDB surface (`search(None).where(...).limit(0)`) that the §2.5 typedshim does not yet
-        expose and bp-100's write_scope does not reach — see **finding-0176**, which carries the
-        exact patch. The predicate itself is written and tested; only the shim is missing."""
+        [banner: correction] Was: materialize the WHOLE table Arrow→Python, vectors included, and
+        keep the rows whose `source_path` matched — the read half of finding-0169. Two premises of
+        that shape were wrong. The first, that a Python-side filter avoided "a quoting hazard on
+        arbitrary source paths", died with bp-100: `_sql_str` solves the hazard. The second, that
+        the predicate could not be pushed down, died with bp-103: `scan()` (the shim's honest name
+        for LanceDB's `search(None)`) takes the predicate server-side, so only the matched path's
+        rows ever cross into Python. `limit(0)` means UNLIMITED — verified empirically against the
+        installed 0.33.0 on a 137-row path, and pinned by a ratchet in
+        `tests/unit/test_typedshim_lancedb.py`, because a silently reintroduced default cap would
+        under-read a deep path and corrupt the amendment it feeds.
+
+        NO `select()` projection here, deliberately: `vector` is the column the caller came for."""
         if TABLE not in self._db.list_tables().tables:
             return []
-        return [r for r in self._table().to_arrow().to_pylist()
-                if r.get("source_path") == source_path]
+        return [dict(r) for r in
+                self._table().scan().where(f"source_path = {_sql_str(source_path)}")
+                .limit(0).to_list()]
 
     def delete_source(self, source_path: str) -> None:
         """Drop every derived row for one source document, by `source_path` (the stable doc identity
@@ -218,36 +223,47 @@ class VectorStore:
         `source_path` to `current=false` while RETAINING it — a superseded code version is never
         deleted. Returns the number of rows flipped (0 if the path had no current rows).
 
-        Implemented as read → delete-whole-path → re-add, the store's portable re-index idiom
-        (`relabel_provenance`): every one of the path's rows (all versions) is dropped and
-        re-landed, the still-current ones now `current=false`, already-superseded rows unchanged —
-        **vectors carried through the move, never recomputed** (§8), which is the invariant
-        `test_vectorstore_supersede.py` asserts byte-for-byte. Deleting the whole path in one pass,
-        then re-adding, sidesteps the id collision a version-scoped delete would hit (an unchanged
-        chunk keeps its content-addressed id across versions, so ids are no longer unique once
-        history is retained). Idempotent: a path with nothing current returns 0 and writes nothing.
+        ONE predicate, pushed down: a filtered `count_rows` for the return value, then a single
+        in-place `update`. **No read, no re-land, nothing materialized into Python** — the cost is
+        a function of the matched rows, never of the store's size, which is exactly finding-0169's
+        bound and the condition on the daemon restart. Idempotent by construction: a path with
+        nothing current counts 0, skips the write entirely, and returns 0.
 
-        [banner: correction] The old docstring claimed this idiom stays "portable — no dependency on
-        a LanceDB in-place `update`". **That claim is false at the pinned version** (bp-100 Q3,
-        checked against the installed package, not the docs): `lancedb` 0.33.0 offers
-        `Table.update(where, values) -> UpdateResult(rows_updated, version)`, under a `>=0.10` pin.
-        The whole method should be ONE such call — no read, no re-land, cost a function of the
-        matched rows, and vectors unreadable-hence-unchangeable by construction.
+        The `vector` column is never named, so it is never read, so it **cannot** be re-derived or
+        dropped (§8). That is a strictly STRONGER guarantee than the byte-equality assertion in
+        `test_vectorstore_supersede.py` — which is kept anyway, as a regression net on the shape of
+        the method rather than on this implementation of it.
 
-        [cross-ref: extension] Until then the idiom is retained, with its cost now bounded and
-        TESTED rather than assumed: **one** full materialization per call, not two — the delete no
-        longer re-scans to rebuild an id list it was handed. That is a 2× improvement on a term that
-        is still O(total store); the remaining O(N) needs the typedshim widening in
-        **finding-0176** and is pinned by two `xfail(strict=True)` ratchets in
-        `tests/unit/test_store_cost_ratchet.py` that will fail loudly the moment it lands."""
-        rows = self.rows_for_source(source_path)    # the ONE scan (finding-0169: it used to be two)
-        flipped = sum(1 for r in rows if r.get("current"))
-        if flipped == 0:
+        [banner: correction] Was: read the whole path → delete it → re-add every row with the flag
+        flipped, justified as staying "portable — no dependency on a LanceDB in-place `update`".
+        **That portability claim was false at the pinned version** (bp-100 Q3, re-verified by
+        bp-103 against the installed package rather than the docs): `lancedb` 0.33.0 has
+        `Table.update(where, values)`, and the re-land was paying a full O(total store)
+        materialization — vectors and all — to flip one boolean. The re-land is now **deleted
+        entirely**, not merely bounded; bp-100's interim `[cross-ref: extension]` note (which
+        recorded it as retained-but-halved, blocked on the typedshim) is retired with it. Warrant
+        **finding-0176**; the two `xfail(strict=True)` ratchets it cites are now ordinary green
+        tests in `tests/unit/test_store_cost_ratchet.py`.
+
+        The count comes from `count_rows(where)` and NOT from `update(...).rows_updated`:
+        `UpdateResult` is the 0.33 return shape, while `pyproject.toml:12` pins `lancedb>=0.10`, a
+        range whose older members returned `None`. A filtered count is server-side and materializes
+        nothing, so portability costs no scan (bp-103 §11, first parked decision — re-entry is a
+        plan that owns `pyproject.toml` and raises the floor).
+
+        [cross-ref: extension] The predicate names `current`, so unlike the old body this raises on
+        a PRE-bp-099 store whose schema has no such column (the migrations arm on `add`, and
+        `code_corpus.sync` supersedes before it adds). The old body silently returned 0 there and
+        then let `add` stamp every row `current=true` — leaving the superseded version AND the new
+        HEAD both current, i.e. silent D3 corruption. Failing loudly is the improvement; see
+        finding-0180 for the migration-arming question, which is a design call, not a builder's."""
+        if TABLE not in self._db.list_tables().tables:
             return 0
-        self.delete_source(source_path)             # predicate-scoped; drops all versions' rows
-        for r in rows:
-            r["current"] = False
-        self.add(rows)                              # re-land ALL as current=false (vectors intact)
+        table = self._table()
+        where = f"source_path = {_sql_str(source_path)} AND current = true"
+        flipped = table.count_rows(where)     # portable: do NOT rely on UpdateResult (bp-103 §11)
+        if flipped:
+            table.update(where, {"current": False})
         return flipped
 
     def relabel_provenance(self, old: str, new: str) -> int:
