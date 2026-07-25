@@ -145,6 +145,31 @@ The four pytest failures, each attributed:
 i.e. +20 = my 21 new tests less the one that is red by design. Item 2's falsifier fired
 **statically only** (mypy), never at runtime — see finding-0201.
 
+### The three owed lines were VERIFIED, not assumed
+
+"Land three lines and it goes green" is a claim, so I measured it instead of asserting it. `git
+archive HEAD` into a throwaway tree under the session scratchpad (outside the repo — no repo file
+was touched and `write_scope` was not stretched), the three patches from finding-0200 /
+finding-0201 applied there, `uv sync --extra dev`, then the same six legs:
+
+| leg | verification copy |
+|---|---|
+| `ruff check .` | PASS |
+| `scripts/check_imports.py` | **PASS** — "audited loopback exceptions: core/models/llama_server_client.py, core/models/ollama_client.py, core/sealing.py" |
+| `mypy core agents eval ops scheduler scripts` | **Success: no issues found in 257 source files** |
+| `mypy` (argless) | **69** — exactly the pinned tests baseline |
+| `python -m ops.type_gate` | PASS |
+| `pytest tests/integrity/test_import_firewall.py tests/unit/test_inference_seam.py` | **25 passed** |
+
+The full-suite run in that copy shows 10 failures, and ⚑ **9 of them are artifacts of the
+verification harness, not of the code**: `git archive` produces a tree with no `.git`, so
+`test_code_ingest_wiring.py` and `test_temporal_view_live.py` die on
+`subprocess.CalledProcessError: Command '['git', 'rev-parse', '--show-toplevel']' returned
+non-zero exit status 128`. The tenth is the pre-existing self-containment ratchet. **None of the
+three blocking failures survives the patch**, which is the thing that needed proving.
+
+So the residual risk on the owed lines is not "will it work" but only "will someone write them".
+
 ## Findings filed
 
 - **`finding-0200`** (`spec-defect`, route builder) — the `write_scope` omits
@@ -191,9 +216,10 @@ Neither is a `blocker`: the session proceeded and finished the plan's code.
 ## Owed at seal (orchestrator, not the builder)
 
 - Land finding-0200's two patches and finding-0201's one line under a plan that can reach those
-  files, then re-run all six gate legs. Expected: ruff pass, check_imports pass, Tier-2 mypy 0,
-  argless mypy **69**, type_gate pass, pytest with only the pre-existing self-containment ratchet
-  red (deselected by the green gate).
+  files, then re-run all six gate legs. **Measured** in a scratch copy (see above), not merely
+  expected: ruff pass, check_imports pass, Tier-2 mypy **0**, argless mypy **69**, type_gate pass,
+  and the 25 tests across `test_import_firewall.py` + `test_inference_seam.py` all green. Only the
+  pre-existing self-containment ratchet stays red, and the green gate deselects it by policy.
 - `finding-0174` is cross-referenced by this work, **not closed** — bp-116 closes it structurally.
 - A deskcheck cannot be offered for this plan on its own: its acceptance is "nothing changed",
   which is shown by the gate, not by a demo.
