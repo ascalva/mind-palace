@@ -17,7 +17,8 @@ plan-faithful. The build is **not green**, and every red is traceable to exactly
 changes in three files that bp-115's `write_scope` does not contain. They are written out
 verbatim in `finding-0200` (two of them) and `finding-0201` (one). Nothing else is owed. Do not
 re-derive: read those two findings, land the three lines under a plan that can reach them, and
-the gate is expected green with no further code change.
+the gate goes green with no further code change — **measured in a throwaway copy, not assumed**
+(see "The three owed lines were VERIFIED" below).
 
 ## Pre-build notes (kept — every one of them held)
 
