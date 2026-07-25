@@ -171,7 +171,8 @@ def test_delete_source_needs_no_full_materialization(tmp_path: Path) -> None:
     vs = _store_with(tmp_path, depth=4, unrelated=25)
     meter = _instrument(vs)
     vs.delete_source("hot.py")
-    assert meter.materializations == 0, f"delete_source scanned {meter.sizes} rows to build an id list"
+    assert meter.materializations == 0, \
+        f"delete_source scanned {meter.sizes} rows just to rebuild an id list"
     assert vs.count() == 25
 
 

@@ -68,6 +68,16 @@ _NOTE_LAYER_DEFAULTS: dict[str, Any] = {
 }
 
 
+def _sql_str(value: str) -> str:
+    """One arbitrary string as a SQL literal for a LanceDB predicate — single quotes doubled.
+
+    The ONE escaping idiom in this module (it used to live inline in `delete_source`), so a
+    predicate over user-controlled text — a `source_path` with an apostrophe, say — is written the
+    same way everywhere. Filtering in Python "to avoid a quoting hazard" was never the alternative
+    to this; it was the alternative to *doing this once* (finding-0169)."""
+    return "'" + value.replace("'", "''") + "'"
+
+
 @dataclass
 class VectorStore:
     path: Path
@@ -163,17 +173,25 @@ class VectorStore:
         """Drop all derived rows for a source note (by its raw-store digest). Idempotent.
 
         The incremental watcher uses this to retire stale embeddings when a note changes or is
-        deleted — derived layer only; the raw blob is untouched (§8). `digest` is a hex SHA-256
-        (no quoting hazard)."""
+        deleted — derived layer only; the raw blob is untouched (§8). `digest` is a hex SHA-256, so
+        the escaping is belt-and-braces rather than load-bearing."""
         if TABLE not in self._db.list_tables().tables:
             return
-        self._table().delete(f"digest = '{digest}'")
+        self._table().delete(f"digest = {_sql_str(digest)}")
 
     def rows_for_source(self, source_path: str) -> list[dict[str, Any]]:
         """Every stored chunk row for one source document (by `source_path`) — the note's current
         projection. The amendment path (ingest-identity §4) reads this to REUSE unchanged chunks'
-        vectors instead of re-embedding. Python-side filter (single-user scale; avoids a quoting
-        hazard on arbitrary source paths, matching `all_rows`)."""
+        vectors instead of re-embedding, so this read must keep carrying the `vector` column.
+
+        [banner: correction] The old docstring justified the Python-side filter as avoiding "a
+        quoting hazard on arbitrary source paths". That premise was false — `_sql_str` solves the
+        hazard, as `delete_source` always did three lines below — and the filter is the read half of
+        finding-0169: a full Arrow→Python materialization of the whole table, vectors included, to
+        return one path's rows. It is still a full scan HERE only because pushing it down needs
+        LanceDB surface (`search(None).where(...).limit(0)`) that the §2.5 typedshim does not yet
+        expose and bp-100's write_scope does not reach — see **finding-0175**, which carries the
+        exact patch. The predicate itself is written and tested; only the shim is missing."""
         if TABLE not in self._db.list_tables().tables:
             return []
         return [r for r in self._table().to_arrow().to_pylist()
@@ -181,13 +199,19 @@ class VectorStore:
 
     def delete_source(self, source_path: str) -> None:
         """Drop every derived row for one source document, by `source_path` (the stable doc identity
-        an amendment replaces a projection under — §4). Idempotent. Deletes by the rows' own ids
-        with single-quotes escaped, so an arbitrary source path never breaks the predicate."""
-        rows = self.rows_for_source(source_path)
-        if not rows:
+        an amendment replaces a projection under — §4). Idempotent.
+
+        [banner: correction] Was: materialize the WHOLE table (`rows_for_source`), rebuild an
+        `id IN (…)` list from it, delete by that. The path is itself a predicate — pushing it down
+        removes the scan entirely (finding-0169, and this is the note-amendment hot path at
+        `core/ingest/index.py:87`, not only the code lane). Selecting on the same `source_path`
+        column the Python filter used, it deletes exactly the same rows — and strictly fewer in the
+        one case they differ: an `id` is `{doc_id}:{chunk_hash}` where `doc_id` may diverge from
+        `source_path` (a rename, an `id::` property), so the old id-list could reach a row belonging
+        to another path."""
+        if TABLE not in self._db.list_tables().tables:
             return
-        ids = ", ".join("'" + str(r["id"]).replace("'", "''") + "'" for r in rows)
-        self._table().delete(f"id IN ({ids})")
+        self._table().delete(f"source_path = {_sql_str(source_path)}")
 
     def supersede_source(self, source_path: str) -> int:
         """Keep-and-link (dn-temporal-code-corpus D2, bp-099): flip every CURRENTLY-current row of
@@ -195,17 +219,32 @@ class VectorStore:
         deleted. Returns the number of rows flipped (0 if the path had no current rows).
 
         Implemented as read → delete-whole-path → re-add, the store's portable re-index idiom
-        (`relabel_provenance`): every one of the path's rows (all versions) is dropped by id and
-        re-landed, with the still-current ones now `current=false` and any already-superseded rows
-        unchanged — vectors carried through the move (§8). Deleting the whole path in one pass, then
-        re-adding, sidesteps the id collision a version-scoped delete would hit (an unchanged chunk
-        keeps its content-addressed id across versions, so ids are no longer unique once history is
-        retained). Idempotent: a path with nothing current re-lands identical rows (a no-op)."""
-        rows = self.rows_for_source(source_path)
+        (`relabel_provenance`): every one of the path's rows (all versions) is dropped and
+        re-landed, the still-current ones now `current=false`, already-superseded rows unchanged —
+        **vectors carried through the move, never recomputed** (§8), which is the invariant
+        `test_vectorstore_supersede.py` asserts byte-for-byte. Deleting the whole path in one pass,
+        then re-adding, sidesteps the id collision a version-scoped delete would hit (an unchanged
+        chunk keeps its content-addressed id across versions, so ids are no longer unique once
+        history is retained). Idempotent: a path with nothing current returns 0 and writes nothing.
+
+        [banner: correction] The old docstring claimed this idiom stays "portable — no dependency on
+        a LanceDB in-place `update`". **That claim is false at the pinned version** (bp-100 Q3,
+        checked against the installed package, not the docs): `lancedb` 0.33.0 offers
+        `Table.update(where, values) -> UpdateResult(rows_updated, version)`, under a `>=0.10` pin.
+        The whole method should be ONE such call — no read, no re-land, cost a function of the
+        matched rows, and vectors unreadable-hence-unchangeable by construction.
+
+        [cross-ref: extension] Until then the idiom is retained, with its cost now bounded and
+        TESTED rather than assumed: **one** full materialization per call, not two — the delete no
+        longer re-scans to rebuild an id list it was handed. That is a 2× improvement on a term that
+        is still O(total store); the remaining O(N) needs the typedshim widening in
+        **finding-0175** and is pinned by two `xfail(strict=True)` ratchets in
+        `tests/unit/test_store_cost_ratchet.py` that will fail loudly the moment it lands."""
+        rows = self.rows_for_source(source_path)    # the ONE scan (finding-0169: it used to be two)
         flipped = sum(1 for r in rows if r.get("current"))
         if flipped == 0:
             return 0
-        self.delete_source(source_path)             # drop all versions' rows (id-IN, collisions ok)
+        self.delete_source(source_path)             # predicate-scoped; drops all versions' rows
         for r in rows:
             r["current"] = False
         self.add(rows)                              # re-land ALL as current=false (vectors intact)
