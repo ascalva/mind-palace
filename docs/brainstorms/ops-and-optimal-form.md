@@ -162,3 +162,77 @@ open questions:
     the theory of WHY the ratchet's residuals matter. Possibly a section of the ops design note
     rather than a note of its own.
 ```
+
+## 2026-07-25 — "have I embedded this before?" — and why membership makes the check intrinsic
+
+```capsule
+topic: ops-and-optimal-form (ingest cost) · bears on finding-0167, finding-0168
+date: 2026-07-25 (session-44, ~02:45)
+
+warrant (owner, verbatim): "you can even optimize if you've seen token by maybe using something
+like a bloom filter to check if it's been seen before, or maybe that's possible before embedding if
+the tokenizer knows if the token has been seen before, it would need a cheap way of checking"
+
+FIRST — THE INSTINCT IS RIGHT, AND IS ALREADY AN OWED FINDING (his own).
+  finding-0167 is exactly this, warranted by his earlier question 2026-07-23 ("if only one line
+  changed, only that vector should re-embed"). Grounded there: the temporal code corpus is efficient
+  at FILE grain (unchanged blob = zero embeds) but NOT at CHUNK grain — on a changed blob,
+  `_embed_and_land` embeds EVERY chunk of the new version, "even though ~most chunks carry a
+  content_hash identical to the prior version's rows sitting in the store with vectors." The NOTE
+  lane already has the reuse discipline (`vec_by_hash`); the CODE lane does not. So the missing
+  piece is not the idea — it is the port.
+
+SECOND — THE BLOOM FILTER IS THE WRONG TOOL HERE, for a specific and checkable reason.
+  A Bloom filter's error is ONE-SIDED: no false negatives, but false POSITIVES. In this application
+  a false positive reads as "I have seen this chunk" when it has never been embedded ⇒ the embed is
+  SKIPPED ⇒ **a vector that should exist silently does not.** That directly violates the owner's own
+  bar in f-0168: "a vector that doesn't change is never duplicated; once stored it's always in the
+  history." A probabilistic skip trades correctness for a lookup that is, at this scale, free.
+  ⇒ The CORRECT Bloom usage is the inverse: as a NEGATIVE pre-filter in front of an exact store.
+    "Definitely not present" is exact, so a Bloom miss ⇒ certainly new ⇒ embed immediately, no disk
+    lookup. A Bloom hit ⇒ fall through to the exact index. This is the LSM/SSTable pattern
+    (RocksDB/LevelDB) and it is sound — it just is not needed yet (below).
+  ⇒ SCALE CHECK (the discipline this session keeps re-learning — measure, do not assume): the store
+    holds **22,621 rows**. An exact in-memory set of sha256 chunk hashes at that size is trivial;
+    even low MILLIONS of chunks is ~100 MB. **The exact structure fits in RAM by orders of
+    magnitude, so the probabilistic structure buys nothing and costs correctness.** Re-entry
+    condition for Bloom: the chunk index no longer fits in memory, or the lookup is MEASURED to be
+    a material fraction of ingest time. Neither is true today.
+
+THIRD — GRAIN MATTERS, and "token" is the wrong level.
+  At TOKEN grain a seen-check is vacuous: the vocabulary is ~10^5 and essentially every token has
+  been seen after the first few documents — the filter would answer "yes" always and save nothing.
+  The value lives at CHUNK grain, where the space is astronomically large and a repeat is
+  semantically meaningful (an unchanged function across two commits). Between the two sits
+  n-gram/shingle grain, which is MinHash/LSH territory — relevant to near-duplicate detection
+  (see text-keypoints-and-chunk-grain.md), not to embed-skipping.
+
+⚑ FOURTH — AND THIS IS THE INTERESTING PART: under finding-0168 the check is NOT AN OPTIMIZATION,
+  IT IS INTRINSIC.
+  In the membership model, ingesting a chunk REQUIRES resolving whether that content-addressed
+  chunk already exists — because that is how the membership edge is created (point at the existing
+  vector, or mint one). The lookup is not bolted on to save work; it is the operation. Reuse falls
+  out for free, and "have I seen this?" stops being a question the pipeline asks and becomes the
+  shape of what the pipeline does.
+  ⇒ Exactly the same move as addendum 4 (rename detection stops being a mechanism and becomes an
+    observation). That is twice now that the membership model has absorbed a thing we were about to
+    implement separately. Worth stating as a design heuristic in the f-0168 pass: **if membership
+    makes a mechanism disappear, that is evidence the model is right.**
+
+⚑ FIFTH — HONEST CALIBRATION, so this is not mis-sold: THIS WOULD NOT HAVE FIXED TONIGHT.
+  During the failed backfill, `llama-server` was measured at **0.3% CPU** while the worker sat at
+  99% — embedding was NOT the bottleneck; the quadratic re-land (f-0169) was. Chunk-level reuse is a
+  STEADY-STATE INGEST win (and a large one once history is dense: most chunks of a changed file are
+  unchanged), not an incident fix. Sequencing unchanged: bp-100 first.
+
+open questions:
+  - Where does the chunk-hash index live — a column/index on the vector store, a sidecar sqlite, or
+    (post-f-0168) the membership table itself? The last is the only one that is not a second source
+    of truth.
+  - Does the reuse path need to verify the retrieved vector's dimension/model provenance? A chunk
+    hash matching under a DIFFERENT embedder is a false reuse — ties to
+    embedding-space-specialization.md (a model change must invalidate every reuse).
+  - Measure first: what FRACTION of chunks on a changed blob are actually unchanged? f-0167 asserts
+    "~most" — that number has not been measured, and this session's recurring lesson is that
+    unmeasured quantitative premises are where the defects live.
+```
