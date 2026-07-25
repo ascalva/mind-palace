@@ -77,7 +77,7 @@ the unblock is copy-paste for whoever owns the widened scope. I did **not** edit
 ### What landed instead
 
 Everything the existing shim surface allows, which is real but partial: **2 full materializations
-per `supersede_source` → 1**, and **`delete_source` 1 → 0**.
+per `supersede_source` → 1**, and **`delete_source` 1 → 0**. Commit `e22347a`.
 
 ### Item 1 — the cost ratchet · DONE, proven RED at HEAD
 
@@ -105,6 +105,71 @@ broken".
 The two O(N)-bound ratchets carry `@pytest.mark.xfail(strict=True)` citing finding-0175, because
 they cannot go green without the shim. **strict=True is the point**: the day the pushdown lands they
 XPASS and fail the suite, forcing the marker off. They are not skipped, not deleted, not weakened.
+
+### Items 2–3 · DONE to the scope ceiling (commit `e22347a`)
+
+`core/stores/vectorstore.py`:
+
+* **`_sql_str(value)`** — the escaping idiom, previously inline in `delete_source`, lifted to one
+  module-level helper (plan §2's DRY audit asked exactly this). Used by `delete_source` and
+  `delete(digest=…)`.
+* **`delete_source`** — now `delete(f"source_path = {_sql_str(path)}")`. **Zero** materializations
+  (was one full table). Same rows as the Python filter selected — same column — and strictly fewer
+  in the one case they differ: an `id` is `{doc_id}:{chunk_hash}` and `doc_id` need not equal
+  `source_path` (a rename, an `id::` property), so two paths CAN share an id and the old
+  `id IN (…)` list could delete another path's row. That is now
+  `test_delete_source_does_not_reach_rows_of_another_path`, **verified red at HEAD** (`git stash`
+  demo: `assert (0 == 1)` — HEAD deleted both rows).
+* **`supersede_source`** — one scan, not two. Unchanged semantics; the delete no longer re-scans to
+  rebuild an id list its caller already holds.
+* Docstrings carry `[banner: correction]` on `rows_for_source` (the "quoting hazard" premise was
+  false — `delete_source` refuted it three lines below) and on `supersede_source` (the "no
+  dependency on a LanceDB in-place `update`" claim is false at the pinned version), plus
+  `[cross-ref: extension]` recording the retained-but-bounded idiom, exactly as plan §4 directs.
+
+`tests/unit/test_vectorstore_supersede.py` (new, 11 tests) pins the semantics the cost work must
+not disturb — this is the file that must stay green through the finding-0175 rewrite:
+
+* `test_vectors_are_byte_identical_across_a_supersede` — **Item 3's falsifier, and the one that
+  matters most.** Every row of the path, every float, exact equality before vs after; plus every
+  non-`current` field unchanged. It did **not** fire.
+* keep-and-link retention (nothing deleted, neighbours untouched); idempotence (2nd call returns 0,
+  rows byte-identical); already-superseded rows carried through unchanged; no-ops on an unknown
+  path and on a store with no table.
+* **Item 2's falsifier** — `source_path = "notes/it's a  café/π.md"` (apostrophe + double space +
+  non-ASCII) against a `notes/it` prefix decoy, through both `rows_for_source` and `delete_source`.
+* the pre-bp-099 `_migrate_current_if_needed` path still works and supersedes normally afterwards.
+
+Stop-and-raise conditions checked, none triggered except the write_scope one:
+
+* vector-equality falsifier — did not fire.
+* no consumer depends on `rows_for_source` returning the whole table (census above).
+* cost still grows with N — but Q3 resolved to "in-place update IS available", so this is the
+  write_scope block, not the "f-0168 must come first" branch the plan feared.
+
+### Green gate (each leg run separately, never `&&`-chained)
+
+```
+uv run ruff check .                              → All checks passed!
+uv run mypy core agents eval ops scheduler scripts → Success: no issues found in 255 source files
+uv run mypy                                       → Found 69 errors in 20 files (checked 536)   [baseline 69 ✓]
+uv run python -m ops.type_gate                    → Tier-2 membership: OK / Bare-ignore scan: OK
+uv run python scripts/check_imports.py            → Import firewall (I2): OK
+uv run pytest -q                                  → 1 failed, 1949 passed, 15 skipped,
+                                                     2 xfailed in 1375.21s (0:22:55)
+```
+
+The one failure is `test_core_self_containment.py::test_core_imports_nothing_outside_core` — the
+**RED-by-design** bp-066 ratchet (PROGRESS.md: *"'green' = the ONLY failure is
+`test_core_imports_nothing_outside_core` AND its count is monotone non-increasing"*). Verified
+non-increasing rather than assumed: violations at my base `150a190` = **21**, after my change =
+**21**. None of the listed violations is `core/stores/vectorstore.py`; the change adds no import.
+The `2 xfailed` are my two O(N) ratchets.
+
+Note for a fresh agent: the full `pytest -q` blocks on `/tmp/mp-live-ollama-*.lock`, a cross-process
+flock the live-model tests serialize on. With sibling builders (bp-101/bp-102) running their own
+suites in parallel worktrees, it queues for tens of minutes at ~0% CPU. `sample <pid>` showing
+`fcntl_flock_impl` is that queue, not a hang.
 
 ### Next actions for a fresh agent
 
