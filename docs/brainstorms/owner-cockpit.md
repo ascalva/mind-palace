@@ -696,3 +696,55 @@ Same move as the `§`-anchor validation: the convention defends itself, or it de
 
 Open for the owner: whether journals count as prose (they are `docs/`, but they are also the
 handoff surface a fresh agent reads cold, which argues for qualified).
+
+### Owner — don't force `gf`; and the binding question
+
+Verbatim: *"you don't have to force it into gf if it won't work, this could be a different binded
+action, a more powerful one."* Then, self-corrected: *"jf could also be nice, jump-to-file"* →
+*"oh wait, that's a nav binding, so I cant."*
+
+**The self-correction is right:** `j` is motion-down, so any `j`-prefixed mapping makes every `j`
+press wait `timeoutlen` for a possible second key. That is a tax on the most-used key in the editor.
+(The common `jk`-as-escape trick accepts exactly this cost; here it buys nothing.)
+
+#### ⚑ Releasing `gf` retroactively makes the COLON FREE — the thread's oldest debate dissolves
+
+The entire hyphen-vs-colon argument (two reversals, several capsules) turned on one fact: `:` is not
+in nvim's default `isfname`, so `gf` could not grab it.
+
+**That constraint only exists if the mechanism is `includeexpr`.** A custom action grabs the token
+itself — `expand('<cWORD>')` plus a pattern — and `isfname` never enters into it. So:
+
+- **no `isfname` change**, hence no risk to the 1,753 `path:line` refs, hence the last remaining
+  objection to `:` is gone;
+- `gf`/`gF` keep working **exactly as today** on real paths — zero regression surface;
+- the separator choice becomes purely a *legibility* decision, which is how the owner was choosing
+  it anyway.
+
+`includeexpr` was always the weak vehicle: it returns a **filename and nothing else**, so it cannot
+express an anchor jump, a picker, an in-buffer motion (`::§10` opens no file at all), or a preview.
+Every interesting part of this standard was fighting that ceiling.
+
+#### What the dedicated action can do that `gf` cannot
+
+1. Parse the full grammar — type/name/anchor, elision, `::self`.
+2. **Jump to the anchor**, not just the file.
+3. **In-buffer motion** for `::§10` — no file opened.
+4. **Picker on ambiguity** — the pragmatic answer for the thousands of legacy bare refs that will
+   never be rewritten: offer the candidates instead of guessing.
+5. ⚑ **Gloss without leaving the buffer** — this is the owner's ORIGINAL complaint (*"sometimes I
+   forget what a file did with just the name"*). Jumping answers it; a hover that renders the
+   target's frontmatter (title, type, status) answers it **faster and without losing your place**.
+
+#### Binding proposal
+
+| key | action | note |
+|---|---|---|
+| **`gf`, markdown-only** | the smart ref jump, falling back to built-in `gf` when the token is a plain path | keeps existing muscle memory — the ask that started this thread was literally *"I like that when I type gf over a build plan file, it goes there"*. Rebinding the KEY is not the same as forcing the MECHANISM. |
+| **`K`, markdown-only** | the gloss/hover | thematically exact (`K` = "what is this"), and free in markdown where there is no LSP hover |
+| `<leader>`-prefixed | picker / open-in-split | which-key discoverable, zero conflict |
+
+Avoid `gr`/`gd` (LSP: references/definition) and anything on a motion prefix.
+
+Recommendation: **`gf` + `K`, scoped to markdown via ftplugin.** Nothing new to memorize, nothing
+shadowed outside `docs/`.
