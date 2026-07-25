@@ -29,7 +29,9 @@ asserted mechanically in the tests rather than merely claimed.
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -171,6 +173,12 @@ class QueueStats:
     last_failure: JobFailure | None
     rows_read: int
     queries: int
+    # The one datum here that is NOT from the `jobs` table (bp-105 Item 1, finding-0188): seconds
+    # since the vector store was last written. Every other figure in this class is a job-BOUNDARY
+    # count, and the wedge is INTRA-job — so on their own they cannot separate a healthy backfill
+    # from a wedged one. This is the intra-job derivative that can, and it lives here because this
+    # is where the anomaly predicates live. None = not measured (no store, or an unreadable path).
+    store_idle_s: float | None = None
 
     @property
     def in_rate_per_min(self) -> float:
@@ -188,6 +196,45 @@ class QueueStats:
         return self.in_rate_per_min - self.out_rate_per_min
 
     @property
+    def embedding(self) -> bool | None:
+        """Is the RUNNING job demonstrably landing rows? `True` / `False` / `None` = unknown.
+
+        **The discriminator bp-102 was missing** (finding-0188). Every other figure in this class
+        counts job BOUNDARIES, and `code_backfill_handler` makes one synchronous non-checkpointing
+        call while `Supervisor.tick` waits (`scheduler/supervisor.py:87`, no job timeout), so a
+        perfectly healthy multi-hour backfill emits zero terminal transitions — indistinguishable
+        from the wedge, which is exactly what shipped.
+
+        The test is threshold-free, which is what makes it trustworthy: **was the vector store
+        written after the running job started?** If yes, that job has landed rows and is working.
+        If the last write PREDATES the job's own start, the job has landed nothing since it began.
+        No magic constant, no tuned window — the job's own elapsed is the denominator.
+
+        Conservative on purpose: with several rows RUNNING it compares against the *youngest*
+        job's elapsed, so an ambiguous multi-job state reads as NOT progressing. A false alarm
+        costs a second look; a false green is what the incident already cost.
+
+        Honest limitation, stated rather than papered over: this senses the *embedding* lane. A
+        long non-embedding job (`dream`, `curate`) legitimately never touches the vector store and
+        so reads as not-progressing — no worse than today, where it also trips both flags."""
+        floor = self.youngest_running_elapsed_s
+        if self.store_idle_s is None or floor is None:
+            return None
+        return self.store_idle_s < floor
+
+    @property
+    def youngest_running_elapsed_s(self) -> float | None:
+        """Elapsed of the most recently STARTED running job — `embedding`'s denominator, exposed so
+        the render prints the same number the predicate decided on rather than recomputing it."""
+        elapsed = [j.elapsed_s for j in self.running if j.elapsed_s is not None]
+        return min(elapsed) if elapsed else None
+
+    @property
+    def progressing(self) -> bool:
+        """Demonstrably making progress — the one state in which an anomaly flag must stay quiet."""
+        return self.embedding is True
+
+    @property
     def stalled(self) -> bool:
         """ZERO DRAIN: work is waiting and **nothing completed** in the whole window.
 
@@ -195,14 +242,21 @@ class QueueStats:
         (it belongs in `out_rate`, which must stay a true d(depth)/dt term) but it is not
         progress — and at the exact moment the owner sampled the incident, one job HAD just
         failed. Counting that as drain would have silenced this flag at 03:45:07, which is
-        precisely when it needed to fire."""
-        return self.depth > 0 and self.done_in_window == 0
+        precisely when it needed to fire.
+
+        Suppressed while `progressing` (bp-102 §10, discharged by bp-105): a long healthy backfill
+        drains nothing at the job boundary for hours, and an instrument that cries wolf through all
+        of it will be ignored during the next incident."""
+        return self.depth > 0 and self.done_in_window == 0 and not self.progressing
 
     @property
     def wedged(self) -> bool:
         """A job is RUNNING and yet nothing has COMPLETED all window — the worker is busy doing
-        the wrong kind of work (99% CPU, 0.3% embedder). Level + derivative, together."""
-        return bool(self.running) and self.done_in_window == 0
+        the wrong kind of work (99% CPU, 0.3% embedder). Level + derivative, together.
+
+        Now genuinely a WEDGE test rather than a long-job test: a running job that is landing rows
+        is working, not wedged (finding-0188)."""
+        return bool(self.running) and self.done_in_window == 0 and not self.progressing
 
     @property
     def failure_in_window(self) -> bool:
@@ -219,7 +273,8 @@ _EMPTY_QUEUE_STATS = QueueStats(
 
 def read_queue_stats(path: Path, *, now: datetime | None = None,
                      window_minutes: float = STATUS_WINDOW_MINUTES,
-                     max_kinds: int = 6) -> QueueStats:
+                     max_kinds: int = 6,
+                     store_idle_s: float | None = None) -> QueueStats:
     """Read the rate/budget block off the durable queue — **read-only and O(1) in rows returned**.
 
     Opened with a `file:…?mode=ro` URI so this can never create or mutate `queue.sqlite`: `status`
@@ -284,7 +339,7 @@ def read_queue_stats(path: Path, *, now: datetime | None = None,
         exists=True, depth=lifetime.get(QUEUED, 0), window_minutes=window_minutes,
         enqueued_in_window=enqueued, done_in_window=done_w, failed_in_window=failed_w,
         lifetime=lifetime, running=running, queued_by_kind=by_kind, last_failure=last_failure,
-        rows_read=rows_read, queries=queries,
+        rows_read=rows_read, queries=queries, store_idle_s=store_idle_s,
     )
 
 
@@ -321,6 +376,40 @@ class StoreStats:
     for a mysterious reason would be worst. The render says which figure is missing and why."""
 
     vector_rows: int | None
+
+
+def store_idle_seconds(store_dir: Path, *, now: float | None = None) -> float | None:
+    """Seconds since anything was last written under the vector store — `None` if it is absent or
+    unreadable. The prior sample finding-0188 asks for, taken from the filesystem's own clock.
+
+    **Why a directory walk and not a stored sample.** The obvious channel — have the supervisor
+    write a periodic `(t, vector_rows)` sample that `status` differences — cannot work here:
+    `Supervisor.tick` calls `handler(job)` synchronously with no timeout, so the launcher's serve
+    loop is BLOCKED for the entire duration of the very job being diagnosed. Nothing on that loop
+    can emit while it matters. The filesystem, however, is written by the embed itself, from
+    inside the blocked call. It is the one channel the wedge cannot mute.
+
+    **Cost is a correctness property** (finding-0169, one level up), so this stats DIRECTORIES
+    only, never files: a lance write adds a fragment, a manifest and a transaction record, each of
+    which bumps its parent directory's mtime. Measured against the real 22,621-row store —
+    **8 directories, 0.80 ms**, and byte-identical to the full-tree maximum (897 files, 3.9 ms).
+    O(directories), independent of row count, which is the same bound `read_queue_stats` carries.
+
+    Best-effort like every other probe here: `status` must survive a half-built or corrupt data
+    directory, because an incident is exactly when the store is the thing that is broken."""
+    try:
+        if not store_dir.exists():
+            return None
+        latest = store_dir.stat().st_mtime
+        for dirpath, dirnames, _ in os.walk(store_dir):
+            for name in dirnames:
+                try:
+                    latest = max(latest, os.stat(os.path.join(dirpath, name)).st_mtime)
+                except OSError:
+                    continue          # a fragment dir vanishing mid-walk is not a status failure
+    except OSError:
+        return None
+    return max(0.0, (now if now is not None else time.time()) - latest)
 
 
 def read_store_stats(*, vector_store: _CountableStore | None = None) -> StoreStats:
@@ -362,6 +451,14 @@ def _queue_payload(qs: QueueStats) -> dict[str, Any]:
             "id": qs.last_failure.id, "kind": qs.last_failure.kind,
             "error": qs.last_failure.error, "finished_at": qs.last_failure.finished_at,
             "age_s": None if qs.last_failure.age_s is None else round(qs.last_failure.age_s, 1),
+        },
+        # The finding-0188 discriminator, carried in the payload so the render is not the only
+        # place it exists. Deliberately NOT under `anomalies`: `embedding: true` is the opposite
+        # of an anomaly — it is the evidence that suppresses two of them.
+        "progress": {
+            "store_idle_s": None if qs.store_idle_s is None else round(qs.store_idle_s, 1),
+            # tri-state: True = the running job is landing rows, False = it is not, None = unknown
+            "embedding": qs.embedding,
         },
         "anomalies": {"stalled": qs.stalled, "wedged": qs.wedged,
                       "recent_failure": qs.failure_in_window},

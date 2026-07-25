@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-105
 track: ops
-status: ready
+status: in-progress
 design_ref: []
 contract: builder
 write_scope:
@@ -21,7 +21,7 @@ cost:
 depends_on: []
 parallelizable_with: []
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-25   # session-47: ready -> in-progress
 links:
   - docs/audits/ops-wave-2026-07-25.md
   - docs/findings/finding-0186.md

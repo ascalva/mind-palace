@@ -256,15 +256,30 @@ def test_the_whole_incident_block_renders_every_anomaly(tmp_path, monkeypatch, c
 
 def test_a_running_row_under_a_LIVE_daemon_is_not_called_orphaned(tmp_path, monkeypatch, capsys):
     """The false-alarm guard for the orphan flag: with the daemon genuinely alive, the same
-    running row is a long job, not an orphan, and must be flagged as such and no worse."""
+    running row is a long job, not an orphan, and must be flagged as such and no worse.
+
+    The wedge assertion below is NOT a claim that a long-running job is wedged — finding-0188
+    caught bp-102 encoding exactly that cry-wolf as EXPECTED. This fixture has no vector store, so
+    bp-105's discriminator reads `embedding: unknown` and the flags fall back to bp-102's
+    behaviour, which is the honest answer when nothing can be measured. The state where the
+    discriminator IS available, and stays quiet, is
+    `tests/unit/test_restart_trustworthy.py::test_the_healthy_backfill_raises_no_anomaly_flag_at_all`."""
     out = _status_out(tmp_path, monkeypatch, capsys, pid=os.getpid())
     assert "ORPHANED" not in out
+    assert "embedding: unknown" in out                    # the measurement is genuinely absent
     assert "running while NOTHING completed this window" in out
 
 
-def test_a_healthy_system_raises_no_flags(tmp_path, monkeypatch, capsys):
-    """The false-alarm guard for Item 2: an idle, drained queue must read CLEAN. An instrument
-    that flags a healthy system will be ignored during the next incident."""
+def test_an_idle_drained_queue_raises_no_flags(tmp_path, monkeypatch, capsys):
+    """The false-alarm guard for Item 2 — the IDLE case, and only that.
+
+    Kept, but no longer claimed to be more than it is. finding-0188: with `depth == 0` and no
+    running row, `stalled` and `wedged` are unreachable **by construction**, so mutating either to
+    fire unconditionally passed all nine of bp-102's tests. The non-trivial guard — `depth > 0`
+    WITH a running job, where both predicates' preconditions are genuinely satisfied and the
+    mutation is caught — is bp-105's
+    `tests/unit/test_restart_trustworthy.py::test_the_healthy_backfill_raises_no_anomaly_flag_at_all`.
+    This one still earns its place: an idle drained queue must read clean too."""
     now = datetime.now(UTC).replace(tzinfo=None)
     rows = [(1, "vault_sync", "router", 8192, 100, "done", None,
              _at(now, minutes=1), _at(now, seconds=50), _at(now, seconds=40))]

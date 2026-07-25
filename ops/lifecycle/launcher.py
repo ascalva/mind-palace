@@ -23,6 +23,7 @@ import subprocess
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
@@ -40,6 +41,7 @@ from ops.lifecycle.snapshot import (
     read_queue_stats,
     read_store_stats,
     run_state,
+    store_idle_seconds,
 )
 
 if TYPE_CHECKING:  # annotations only — the real modules stay lazily imported at runtime
@@ -120,6 +122,94 @@ def _pid_alive(pid: int) -> bool:
     except PermissionError:
         return True            # exists but owned by another user
     return True
+
+
+# `started_at` is written at whole-second resolution (`runs.py:106`, timespec="seconds"), so a
+# supervisor that opened its row 0.3 s after spawning reads as having been created up to a second
+# AFTER it. 5 s absorbs that truncation plus clock jitter; a genuine pid recycle needs the pid
+# counter to wrap (~99k spawns) and is therefore never seconds away from the row it lands on.
+_CLOCK_SLACK_S = 5.0
+
+
+def _process_identity(pid: int) -> tuple[float | None, str | None]:
+    """`(create_time_epoch, process_name)` for `pid` — either component None when unreadable.
+
+    warrant(finding-0198): this is a raw `psutil` touch outside `core/typedshims/psutil.py`, the
+    ONE module that is supposed to own it (type-system-as-core-audit §2.5). The shim is not in
+    bp-105's `write_scope`, so rather than route around the boundary the probe is quarantined here
+    behind a single narrow function and the move is recorded as a hand-off on finding-0198.
+
+    Never raises. Unreadable is reported as None, which `_supervisor_alive` treats as ambiguity —
+    and ambiguity REFUSES, per the owner ruling on finding-0186."""
+    try:
+        import psutil  # type: ignore[import-untyped]  # noqa: PLC0415  # warrant: see finding-0198
+
+        proc = psutil.Process(pid)
+    except Exception:  # noqa: BLE001 — an unreadable process is ambiguity, never a crash
+        return (None, None)
+    created: float | None = None
+    name: str | None = None
+    try:
+        created = float(proc.create_time())
+    except Exception:  # noqa: BLE001
+        created = None
+    try:
+        # `name()` and not `cmdline()`: on macOS `cmdline()` raises AccessDenied for a foreign
+        # owner (measured against pid 1) while `name()`/`exe()` read fine — and a foreign owner is
+        # exactly the deployed case, the daemon running as the `ouroboros` principal.
+        name = str(proc.name())
+    except Exception:  # noqa: BLE001
+        name = None
+    return (created, name)
+
+
+def _supervisor_alive(run: RunRecord, *,
+                      pid_alive: Callable[[int], bool] = _pid_alive,
+                      identity: Callable[[int], tuple[float | None, str | None]]
+                      = _process_identity) -> bool:
+    """True unless `run.pid`'s current occupant is POSITIVELY DISPROVEN to be that run's supervisor.
+
+    `_pid_alive` alone is pid-EXISTENCE, and it deliberately reports a foreign owner as ALIVE
+    (`test_pid_alive_treats_a_foreign_owner_as_ALIVE`). After an unclean exit the OS may recycle
+    the dead supervisor's pid to an unrelated process; a fail-closed `start` keyed on existence
+    alone would then refuse FOREVER — under launchd `KeepAlive`, a self-inflicted brick, with
+    `--force` (the very flag being closed) as the only escape.
+
+    So liveness is identity-checked. The owner's ruling (finding-0186, 2026-07-25) fixes the
+    default — *"on ambiguity, refuse"* — and the carve-out fires only on a positive disproof:
+
+      **D1 — the process postdates the row.** A process created after `started_at` cannot have
+      written a row that already existed. `start()` stamps `pid=os.getpid()` from inside itself,
+      so the genuine supervisor always predates its own row (finding-0198 corrects the plan's
+      inverted statement of this, which would have built a guard that never fires).
+
+      **D2 — the process is not a Python interpreter.** The supervisor always is: the plist runs
+      `uv run scripts/palace.py start` and the pid recorded is the python child's. D1 cannot clear
+      a stale row whose pid wrapped onto a long-lived process (`launchd`, `systemd`) — such a
+      process *predates* the row, so D1 stays silent and the system bricks on the very case the
+      ruling's trap section is about. D2 is what closes it, and it is uptime-independent.
+
+    Anything else — AccessDenied, a vanished process, an unparseable `started_at`, a python
+    process created before the row — refuses. Refusing wrongly is recoverable with `palace stop`;
+    starting wrongly rewrites a live worker's rows (finding-0186).
+
+    Both probes are INJECTED, the same discipline `snapshot.run_state` applies to `pid_alive`: it
+    keeps the decision pure and lets a test pin a process shape the host cannot be made to have
+    (a recycled pid, a denied `create_time`) without patching the OS.
+    """
+    if not pid_alive(run.pid):
+        return False
+    created, name = identity(run.pid)
+    if created is not None:
+        try:
+            opened = datetime.fromisoformat(run.started_at).replace(tzinfo=UTC).timestamp()
+        except ValueError:
+            opened = None                      # unparseable timestamp ⇒ D1 unavailable ⇒ ambiguous
+        if opened is not None and created > opened + _CLOCK_SLACK_S:
+            return False                       # D1: it postdates the row it would have written
+    if name is not None and "python" not in name.lower():
+        return False                           # D2: the supervisor is always a python process
+    return True                                # not disproven ⇒ refuse (the ruling)
 
 
 def _git_branch(repo_root: Path) -> str:
@@ -503,6 +593,23 @@ class Launcher:
 
     # --- start ------------------------------------------------------------------------------
     def start(self, *, force: bool = False, max_ticks: int | None = None) -> int:
+        # SINGLE-INSTANCE GATE — first, and NOT bypassable by --force (finding-0186, owner ruling
+        # 2026-07-25: "start should refuse outright if there is any potential for an issue to
+        # occur... the system deeming an unrunnable state"). `--force` overrides *preflight*, not
+        # *safety*. A second supervisor over a live one is not contention: `sweep_orphans` reclaims
+        # the live run's in-flight rows, so the first worker's job is re-queued (double execution)
+        # or written FAILED with a fabricated cause under it (a lying ledger).
+        #
+        # Ahead of preflight deliberately — an unrunnable state should not first cost the operator
+        # preflight's uncosted 120 s Ollama probe (finding-0195). Same shape as `reset()`'s guard
+        # (:1124), with liveness identity-checked so a recycled pid cannot brick start forever.
+        prev = self.runs.last()
+        if prev is not None and prev.active and _supervisor_alive(prev):
+            print(f"refusing to start — run #{prev.id} (pid {prev.pid}) is live. "
+                  "`palace stop` first. (--force does not bypass this: a second supervisor over a "
+                  "live one rewrites its in-flight jobs — finding-0186.)")
+            return 1
+
         pf = self.preflight_fn(self.cfg)
         print("preflight:")
         print(pf.render())
@@ -525,8 +632,16 @@ class Launcher:
         clean = False
         try:
             if recovery:
+                # The remedy is `palace stop`, NOT `start --force` (finding-0186). This recovery
+                # run is itself a live supervisor, so a second `start` — force or not — now
+                # refuses at the single-instance gate above; printing it as the escape would send
+                # the operator into a wall. A graceful stop closes this row CLEAN, so the
+                # successor comes up normally with no flag at all (under launchd KeepAlive the
+                # stop IS the restart).
                 print("recovery mode: scheduler halted, watcher off, read-only. Inspect the "
-                      "stores, then `start --force` to resume normally once the cause is cleared.")
+                      "stores, then `palace stop` once the cause is cleared — this run closes "
+                      "clean and the next start is normal. (`start --force` will NOT get you out "
+                      "of here: it does not bypass the single-instance gate — finding-0186.)")
                 self._install_signal_handlers()
                 self._idle(max_ticks)
             else:
@@ -1005,8 +1120,13 @@ class Launcher:
 
         ops_view = OpsView.over(open_attestation_store(self.cfg), open_ledger(self.cfg))
         dreams_view = DreamsView.over(open_derived_store(self.cfg))
+        # The intra-job derivative (bp-105 Item 1 / finding-0188), read BEFORE the queue so the
+        # anomaly predicates are computed with it rather than corrected afterwards. A directory
+        # stat — 0.80 ms over the real store, O(directories) not O(rows) — so the Item-2 cost
+        # falsifier still holds: nothing here grows with the corpus.
         qs = read_queue_stats(self.cfg.paths.data_dir / "queue.sqlite",
-                              window_minutes=self.status_window_minutes)
+                              window_minutes=self.status_window_minutes,
+                              store_idle_s=store_idle_seconds(self.cfg.paths.vector_store))
         store = read_store_stats(vector_store=self._open_vector_store_if_present())
         mem_gb = round(psutil.virtual_memory().available / (1024 ** 3), 2)
         data = build_status(ops_view=ops_view, dreams_view=dreams_view, queue_depth=qs.depth,
@@ -1038,6 +1158,21 @@ class Launcher:
                 # No budget fraction: no job-level timeout exists (bp-102 Q4 / finding-0174).
                 print(f"  running: #{j.id} {j.kind} — elapsed "
                       f"{humanize_seconds(j.elapsed_s)} (no enforced job budget){flag}")
+            # THE LINE THAT SEPARATES A HEALTHY BACKFILL FROM A WEDGED ONE (finding-0188). Without
+            # it the two states render identically and every flag above fires through a perfectly
+            # healthy multi-hour backfill — the false alarm bp-102 §10 called disqualifying.
+            if qs.embedding is True:
+                print(f"  embedding: YES — rows last landed "
+                      f"{humanize_seconds(qs.store_idle_s)} ago, inside the running job's "
+                      f"{humanize_seconds(qs.youngest_running_elapsed_s)}. "
+                      "The job is working, not wedged.")
+            elif qs.embedding is False:
+                print(f"  embedding: NO — the vector store has not been written in "
+                      f"{humanize_seconds(qs.store_idle_s)}, which PREDATES the running job. "
+                      "It has landed nothing since it started.  ⚠ WEDGED")
+            else:
+                print("  embedding: unknown (no readable vector store) — a healthy backfill and a "
+                      "wedged job are indistinguishable without it.")
         else:
             print("  running: (none)")
         if qs.queued_by_kind:
