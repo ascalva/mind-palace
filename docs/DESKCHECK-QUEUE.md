@@ -13,7 +13,7 @@
 | 1 | Agentic loop | profile constructors + zone lattice test + exhaust⊂dialogue + origin(e); confirm delivered, not just sealed (bp-086/087/088) | PENDING |
 | 2 | Fiber geometry | the survey readings (M1–M8) with honest nulls; owed S-rows (M2/M4/M5/M8, re-run w/ embed headroom) (bp-085) | PENDING |
 | 3 | Inner/outer core | the live two-ring ratchet (INNER=37) green + the map — genuinely demonstrable-working (bp-083/089, M0+S1) | PENDING |
-| 4 | Ops | sealed work (deskcheck-pending); confirm delivered | PENDING |
+| 4 | Ops | demo `sweep_orphans` firing on real stranded job 300246 at `palace start`; show the rate block distinguishing a healthy backfill from a wedge (finding-0188 — it currently cannot); `current` column confirmed (finding-0180, closed) | PENDING |
 | 5 | Sync/diac dreamers | the sealed dispatch machinery + that it is NOT wired ([dream_rnd]=false, f-0141); decision owed — wire live, or accept dormant | PENDING |
 
 ## Owed on completion — the current build tracks
