@@ -16,7 +16,7 @@ dod:
   - OPS-7 the local model RUNTIME and model SELECTION — llama.cpp-direct migration, residency owned by palace code, and choosing the model against measured performance limits (owner 2026-07-25; docs/brainstorms/local-model-runtime.md, warrant finding-0174)
   - OPS-8 detection LAG is measured, not asserted — the reconciliation-audit's central model made self-measuring (owner 2026-07-25 "we will need to also measure lag"; substrate blocked on finding-0175)
   - the restart PROVES it — daemon back up, backfill completes to ~1,542 versions, rate observable throughout (owner-visible run, not merely built)
-backlog_deskcheck: null
+backlog_deskcheck: sweep_orphans on real stranded 300246; the rate block telling healthy backfill from wedge; `start` fail-closed vs live supervisor (bp-105; demo = its journal Ckpt 4)
 links:
   - docs/brainstorms/command-center.md
   - docs/brainstorms/ops-and-optimal-form.md

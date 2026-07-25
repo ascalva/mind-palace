@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0188
-status: open
+status: resolved
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-25   # /triage session-49: DISCHARGED by bp-105 Item 1
 links:
   - docs/audits/ops-wave-2026-07-25.md
   - ops/lifecycle/snapshot.py
@@ -12,7 +12,18 @@ links:
 ftype: spec-defect
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: |
+  DISCHARGED by bp-105 Item 1 (`2add267`). The design call this finding routed to the
+  orchestrator (difference `vector_rows` vs add a per-job heartbeat) was settled at build
+  time by grounding: every channel the plan listed was eliminated, and the discriminator
+  built is the store's OWN FILESYSTEM CLOCK — a derivative, not a level, which is the
+  finding-0172 defect this finding named. A healthy multi-hour backfill now reads
+  `embedding: YES` and raises no flag; `⚠ WEDGED` fires only when embedding genuinely
+  stops. Verified by mutation: 8 planted, 8 caught, including N1-N3 mutating each
+  predicate to a permanent alarm (bp-105 journal, Checkpoint 3).
+  The two bp-102 tests this finding named were ANNOTATED, not quietly deleted — including
+  `test_a_running_row_under_a_LIVE_daemon_is_not_called_orphaned`, which had encoded the
+  cry-wolf string as EXPECTED.
 ---
 
 # The wedge detector cannot distinguish a healthy backfill from a wedged one — the plan's stated purpose
