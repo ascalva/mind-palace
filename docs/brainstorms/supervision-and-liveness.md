@@ -131,6 +131,74 @@ escalation timer bounds the damage of a wedge without ever making the system abl
       is not the blocked loop — which is the same seam again, from the monitoring side.
 ```
 
+## 2026-07-25 — ⚑⚑ the bar is UNREPRESENTABLE, not detected (owner, same session)
+
+```capsule
+topic: supervision-and-liveness
+date: 2026-07-25 (session-47, issued mid-pass to the Fable design worker)
+
+owner, verbatim: "the ultimate goal for the system OS/scheduler is to make this class of error
+impossible, unrepresentable if possible"
+
+and: "we do not want something that is going to allow us to shoot ourselves in the foot without
+realizing, the system's OS needs to maintain the consistency and accuracy of the system with
+precision and appropriate guard rails"
+
+⚑ THIS SUPERSEDES the first capsule's framing. That capsule reasons in terms of DETECTION — four
+failure modes, four mechanisms. Detection is now the FALLBACK, not the goal. A design whose answer
+is "a better detector" does not meet the bar.
+
+This is not a new principle. It is non-negotiable #1's discipline applied one layer down:
+"Sealed core has zero network egress. ENFORCE STRUCTURALLY, NOT BY CONVENTION." The OS/scheduler
+layer should be designed the way the sealed core was.
+
+--- the tier ladder every proposed mechanism must be ranked on ---
+
+  1. UNREPRESENTABLE — no value inhabits the bad state (a RUNNING job cannot exist without a
+     deadline, because `claim()` returns something that carries one).
+  2. CAPABILITY — the component is never given the means (hand the handler no store writer, and
+     "handler interleaves writes" is not a thing it CAN do).
+  3. PROTOCOL — an external authority enforces it (an OS exclusive lock/lease on the queue, so
+     "two supervisors" is held-or-not, not check-then-act).
+  4. RATCHET — a test/scan that fails CI. Proven, not trusted.
+  5. RUNTIME CHECK — what bp-105 built. WEAKEST: the bad state is still constructible and the check
+     can be deleted. finding-0187 is the proof — deleting the sweep call left 85/85 green.
+
+⚑⚑ OVERCLAIMING IS ITSELF THE FOOT-GUN. A design that says "unrepresentable" and delivers a tier-5
+runtime check is exactly "shoot ourselves in the foot without realizing," one level up. Python
+constrains this — mypy is static, the checked region is two-tier — so much will land at tier 2/3.
+That is fine. MISREPORTING WHICH TIER IS NOT.
+
+--- two reframings this bar produces (issued to the design pass as verify-or-refute) ---
+
+A. **The compute/land split is a CAPABILITY restriction, not a discipline.** The first capsule
+   framed it as convention. Stronger: if the handler is never handed a store writer, "handler
+   interleaves writes" is tier-2 unrepresentable rather than tier-5 policed — and oq-0035's stated
+   crux is then not mitigated but NONEXISTENT. The I1 handler survey decides whether it generalizes.
+
+B. **Invert liveness into a DEAD-MAN'S SWITCH.** Today the system ASSERTS health. Invert the
+   polarity: the supervisor must continuously renew a lease, and every reader treats a stale lease
+   as DOWN by default. Then "a blocked supervisor still reporting healthy" has no representation —
+   health is not asserted, it DECAYS unless refreshed, and a blocked loop physically cannot
+   refresh it. This attacks the HUNG mode (which capsule 1 calls undetectable) by changing the
+   SIGNAL'S POLARITY rather than by adding a detector. Applied to the run ledger, a leased active
+   row expires by construction — making the orphan sweep, and its "someone must remember to call
+   it" failure (finding-0187), unnecessary rather than tested.
+   Honest caveat: the renewer must still live off the blocked path, so this does not escape the
+   seam. It changes what the seam BUYS — from "add observation" to "make absence meaningful."
+
+--- the unrepresentability targets handed to the pass (accept / refute / replace) ---
+
+  - "a RUNNING job with no deadline"
+  - "a handler that writes to the store"
+  - "a run row marked active whose process is gone"
+  - "two supervisors on one queue"  ← bp-105 made this REFUSED, not unrepresentable
+  - "a supervisor that has stopped supervising while still reporting healthy"
+
+  For each: the tier reachable, the cost, and what would show the mechanism is WRONG (the owner
+  ratifies falsifiers, not proofs).
+```
+
 open questions:
   - Is "supervision" its own design note, or the load-bearing half of NEW NOTE 1 (the ops note)?
     The routing map assumed one ops note; this capsule is large enough to reopen that.
