@@ -118,3 +118,71 @@ references:
   - docs/inbox/owner-questions.md                # absorbed/adjacent: the docket generalizes this
   - LazyVim · tmux focus-events · diffview.nvim · render-markdown.nvim   # the toolchain
 ```
+
+---
+
+## 2026-07-25 UTC (session-49)
+
+### Owner ask — `gf` should resolve an ARTIFACT ID, not just a path
+
+Verbatim: *"I like that when I type gf over a build plan file, it goes there, can you make it such
+that that is the behavior everywhere else? sometimes I forget what a file did with just the name,
+so something like dn-supervision-and-liveness should route and open the correct file if I 'gf'
+when cursor is on top of the path/filename, so that I can easily find files and read context, it
+would be useful for reading the context manifest."*
+
+**Why this is load-bearing, not convenience.** It is the editor-side twin of the standing
+`gloss IDs inline` rule (never make the owner hunt for what an id means). That rule fixes the
+*chat* surface; this fixes the *reading* surface. The stated use case is the decisive one: a build
+plan's **§2 context manifest** is a dense list of ids, and today reading it means leaving the file
+to go look each one up. `gf` on the id collapses that to one keystroke — which is exactly the
+"focused way of reading the relevant thing" the original cockpit capture asked for.
+
+### The mechanism — `includeexpr`, not a plugin
+
+`gf` already does most of the work: it grabs the token under the cursor using `isfname`, passes it
+through **`includeexpr`**, then resolves the result against `path` with `suffixesadd`. So the whole
+feature is one transform function. No plugin, no keymap override, and `gf` keeps working on real
+paths for free (return the input unchanged when it doesn't match an id pattern).
+
+Sketch of the routing table, as the ids actually appear in the corpus:
+
+| id form | target |
+|---|---|
+| `bp-NNN` | `docs/build-plans/bp-NNN/plan.md` |
+| `bp-NNN` + `journal` in context | `docs/build-plans/bp-NNN/journal.md` |
+| `finding-NNNN`, `f-NNNN` | `docs/findings/finding-NNNN.md` |
+| `dn-<slug>` | `docs/design-notes/dn-<slug>.md` |
+| track slug | `docs/tracks/<slug>.md` |
+| brainstorm topic | `docs/brainstorms/<topic>.md` |
+| `oq-NNNN` | ⚠ NOT a file — a **section** of `docs/inbox/owner-questions.md` |
+| `dc-NNN` | ⚠ NOT a file — lives in a track manifest / `DESKCHECK-QUEUE.md` |
+
+### ⚑ Two problems a naive prefix map gets wrong — both found by looking, not assumed
+
+1. **Design-note naming is NOT uniformly `dn-` prefixed, and bare slugs COLLIDE.** Verified:
+   `docs/brainstorms/supervision-and-liveness.md` + `docs/design-notes/dn-supervision-and-liveness.md`
+   (prefixed, unambiguous) but `docs/brainstorms/inner-outer-core.md` +
+   `docs/design-notes/inner-outer-core.md` — **the same bare slug in two directories**. So a bare
+   slug cannot be resolved by prefix alone. Options: (a) precedence order (design-note wins, since
+   the ratified artifact outranks the brainstorm that fed it), (b) fall back to a picker when >1
+   hit, (c) normalize the naming so every design note carries `dn-`. **(c) is the real fix** — the
+   inconsistency is a corpus defect that this feature merely surfaces; it probably also confuses
+   grep-based lookups and the routing map. Worth a finding on its own.
+2. **`oq-` and `dc-` are section anchors, not files.** `gf` opens files. Resolving these needs an
+   open-then-search (jump to the heading), which `includeexpr` alone cannot express — it needs a
+   small wrapper mapping on `gf` that special-cases them, or accept "opens the file, you search."
+
+### Where it should live
+
+**Project-local, committed with the repo** — the routing table is a function of the artifact
+layout, so it should version alongside it rather than rot in personal dotfiles. nvim's `exrc`
+supports a repo-root `.nvim.lua` (trusted once via `:trust`). That also means it only fires inside
+the palace, and a layout change updates the resolver in the same commit.
+
+Open: whether to scope it to `markdown` only (an ftplugin) or repo-wide.
+
+### Status
+
+Captured, not built. Small and self-contained — one lua function plus `.nvim.lua`. The corpus
+question in problem 1 should be settled first, since the resolver encodes whatever answer we pick.
