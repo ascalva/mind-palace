@@ -15,7 +15,7 @@ Two ratchets, deliberately separate:
 * `test_supersede_cost_is_independent_of_unrelated_store_size` — the REAL bound (O(d), not O(N)).
   It is `xfail(strict=True)` today: closing it needs a store-side predicate + projection, i.e. new
   LanceDB surface on `core/typedshims/lancedb.py`, which is OUTSIDE bp-100's write_scope
-  (finding-0175). Strict xfail means the day the fix lands this test XPASSes and FAILS the suite,
+  (finding-0176). Strict xfail means the day the fix lands this test XPASSes and FAILS the suite,
   forcing the marker off — a ratchet that cannot be quietly left behind.
 * `test_supersede_makes_at_most_one_full_materialization` — the half bp-100 can land in scope.
   RED at HEAD (2 materializations: `rows_for_source` directly, then again inside `delete_source`).
@@ -122,7 +122,7 @@ def _cost_of_supersede(tmp_path: Path, *, depth: int, unrelated: int) -> Meter:
 
 @pytest.mark.xfail(
     strict=True,
-    reason="blocked on the typedshim widening (finding-0175): a store-side predicate + column "
+    reason="blocked on the typedshim widening (finding-0176): a store-side predicate + column "
            "projection needs new LanceDB surface on core/typedshims/lancedb.py, outside bp-100's "
            "write_scope. Remove this marker the moment the pushdown lands.",
 )
@@ -140,7 +140,7 @@ def test_supersede_cost_is_independent_of_unrelated_store_size(tmp_path: Path) -
 
 @pytest.mark.xfail(
     strict=True,
-    reason="blocked on the typedshim widening (finding-0175) — same pushdown as the row ratchet.",
+    reason="blocked on the typedshim widening (finding-0176) — same pushdown as the row ratchet.",
 )
 def test_supersede_does_not_marshal_the_vector_column_of_unrelated_rows(tmp_path: Path) -> None:
     """Q2 of the plan: the measured cost is Arrow->Python marshalling of the embedding column

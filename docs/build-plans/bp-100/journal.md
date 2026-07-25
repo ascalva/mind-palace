@@ -71,7 +71,7 @@ honest in-scope substitute:
 
 Per the plan's stop-and-raise ("Any temptation to widen scope… file a finding, do not edit") and the
 delegation brief ("STOP and raise if you would need to write outside write_scope"): **filed
-finding-0175** with the exact 4-line shim patch and the exact `vectorstore.py` body it unblocks, so
+finding-0176** with the exact 4-line shim patch and the exact `vectorstore.py` body it unblocks, so
 the unblock is copy-paste for whoever owns the widened scope. I did **not** edit the shim.
 
 ### What landed instead
@@ -102,7 +102,7 @@ The 1 pass is the deliberate **negative control** (`test_the_instrument_actually
 — it proves the proxy is wired to something real, so a green ratchet cannot mean "instrument
 broken".
 
-The two O(N)-bound ratchets carry `@pytest.mark.xfail(strict=True)` citing finding-0175, because
+The two O(N)-bound ratchets carry `@pytest.mark.xfail(strict=True)` citing finding-0176, because
 they cannot go green without the shim. **strict=True is the point**: the day the pushdown lands they
 XPASS and fail the suite, forcing the marker off. They are not skipped, not deleted, not weakened.
 
@@ -128,7 +128,7 @@ XPASS and fail the suite, forcing the marker off. They are not skipped, not dele
   `[cross-ref: extension]` recording the retained-but-bounded idiom, exactly as plan §4 directs.
 
 `tests/unit/test_vectorstore_supersede.py` (new, 11 tests) pins the semantics the cost work must
-not disturb — this is the file that must stay green through the finding-0175 rewrite:
+not disturb — this is the file that must stay green through the finding-0176 rewrite:
 
 * `test_vectors_are_byte_identical_across_a_supersede` — **Item 3's falsifier, and the one that
   matters most.** Every row of the path, every float, exact equality before vs after; plus every
@@ -174,7 +174,7 @@ suites in parallel worktrees, it queues for tens of minutes at ~0% CPU. `sample 
 ### Next actions for a fresh agent
 
 1. If write_scope is widened to include `core/typedshims/lancedb.py`: apply the patch in
-   finding-0175 §"The exact unblock", rewrite `supersede_source` to the single `update()` call,
+   finding-0176 §"The exact unblock", rewrite `supersede_source` to the single `update()` call,
    `rows_for_source` to `search(None).where(...)`, delete both `xfail` markers, re-run the gate.
 2. If not: bp-100 lands as the 2x improvement above and the O(N) term stays; the daemon restart
    decision is the orchestrator's, but finding-0169's re-entry condition ("cost independent of total

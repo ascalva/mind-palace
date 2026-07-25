@@ -190,7 +190,7 @@ class VectorStore:
         finding-0169: a full Arrow→Python materialization of the whole table, vectors included, to
         return one path's rows. It is still a full scan HERE only because pushing it down needs
         LanceDB surface (`search(None).where(...).limit(0)`) that the §2.5 typedshim does not yet
-        expose and bp-100's write_scope does not reach — see **finding-0175**, which carries the
+        expose and bp-100's write_scope does not reach — see **finding-0176**, which carries the
         exact patch. The predicate itself is written and tested; only the shim is missing."""
         if TABLE not in self._db.list_tables().tables:
             return []
@@ -238,7 +238,7 @@ class VectorStore:
         TESTED rather than assumed: **one** full materialization per call, not two — the delete no
         longer re-scans to rebuild an id list it was handed. That is a 2× improvement on a term that
         is still O(total store); the remaining O(N) needs the typedshim widening in
-        **finding-0175** and is pinned by two `xfail(strict=True)` ratchets in
+        **finding-0176** and is pinned by two `xfail(strict=True)` ratchets in
         `tests/unit/test_store_cost_ratchet.py` that will fail loudly the moment it lands."""
         rows = self.rows_for_source(source_path)    # the ONE scan (finding-0169: it used to be two)
         flipped = sum(1 for r in rows if r.get("current"))

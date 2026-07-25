@@ -2,7 +2,7 @@
 quoting identity (bp-100 Items 2–3, warrant finding-0169).
 
 bp-100 changed HOW these three cost what they cost, not WHAT they mean. This module pins the
-"what" so the "how" can keep moving — including through the typedshim widening in finding-0175,
+"what" so the "how" can keep moving — including through the typedshim widening in finding-0176,
 which replaces the re-land with an in-place `update()` and must leave every assertion here true.
 
 The load-bearing one is `test_vectors_are_byte_identical_across_a_supersede`. A re-land that
