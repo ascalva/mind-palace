@@ -41,7 +41,7 @@ THE STRUCTURE: TWO CLUSTERS, NOT ONE BODY.
 | f-0172 command center (Tier 2) | A | **NEW NOTE 1** (ops) |
 | f-0171 unbounded drain / job budgets | A | oq-0035 OPEN (owner) + **NEW NOTE 1** once ruled |
 | command-center.md (macro axes) | A | **NEW NOTE 1** |
-| ops-and-optimal-form c2 (structured residuals) | A | **NEW NOTE 1** — as an instrument requirement |
+| ops-and-optimal-form c2 (structured residuals) | A | **NEW NOTE 1** — instrument requirement |
 | reconciliation-audit addendum (detection lag) | A | **NEW NOTE 1** + the audit's own queued pass |
 | f-0174 ceiling ignores the embedder | A/B | **NEW NOTE 2** (runtime) — it is a required input |
 | local-model-runtime addendum | A/B | **NEW NOTE 2** — direction decided 2026-07-22, no note yet |
@@ -50,7 +50,7 @@ THE STRUCTURE: TWO CLUSTERS, NOT ONE BODY.
 | text-keypoints c1 + c2 (detector, grain) | B | FOLD → dn-vector-membership-store (grain §) |
 | ops-and-optimal-form c1 + c3 (compression, seen-check) | B | FOLD → dn-vector-membership-store |
 | doc-code addendum: lexical bridge | B→ | FOLD → dn-integrator-densification (historical window) |
-| doc-code addendum: code as labeled subgraph | X | FOLD → the evaluation-harness pass (sigma labels) |
+| doc-code addendum: code as labeled subgraph | X | FOLD → evaluation-harness pass (sigma labels) |
 
 ⚑ THE ANSWER TO "HOW MANY NEW NOTES": **TWO, not four** — and one of them is small.
 
@@ -164,4 +164,73 @@ open questions:
   - Is "detection lag" measurable from the corpora the palace already holds (git + findings + chat)?
     If yes it belongs in NEW NOTE 1 as a real gauge; if no, it stays a framing device — and that
     difference should be settled BEFORE the note claims it.
+```
+
+## 2026-07-25 (session-48) — the map reconciled after graduation: THREE notes, and NEW NOTE 1 shrank
+
+```capsule
+topic: design-pass-routing
+date: 2026-07-25 (session-48, at `/graduate` on both ratified ops notes)
+
+WHY THIS CAPSULE EXISTS. The graduate pass owed a re-scope of NEW NOTE 1 (completion-claims
+honesty): `dn-supervision-and-liveness` SPLIT OUT of it and reduced it. The map above is NOT
+edited — both notes reconcile with it in their own §1.1, and this capsule records the resulting
+state so a future reader is not left comparing three documents to work out what is still owed.
+
+⚑ THE COUNT IS THREE, NOT TWO.
+  1. `dn-supervision-and-liveness` — RATIFIED (`3945d9f`). Split out of NEW NOTE 1 deliberately:
+     it is a PREREQUISITE, not a sibling. Three of NEW NOTE 1's scoped items (liveness as a macro
+     axis, detection lag as a tracked metric, anomaly as a computable predicate) all need a
+     continuous probe, and a continuous probe needs a home that is not the blocked serve loop.
+     That home is the execution model, which this note decides. GRADUATED → bp-108..bp-114.
+  2. `dn-local-model-runtime` — RATIFIED (`56dcee4`). This IS NEW NOTE 2 (S5), with f-0174 folded
+     in as the map required. GRADUATED → bp-107 (already minted) + bp-115..bp-119.
+  3. **NEW NOTE 1 — still unwritten, and now SMALLER.** See its reduced scope below.
+
+⚑ NEW NOTE 1'S SCOPE, AFTER THE SPLIT (this supersedes the bullet in the wave-1 section above).
+  RETAINED, unchanged:
+    · cost as a CHECKABLE property — the perf-ratchet suite generalized beyond one method; scale
+      witnesses (OPS-6)
+    · the command center TIER 2 — macro axes: corpus completeness · history realized (incl.
+      n(v)/Zipf) · causal density by grade · drift · headroom · liveness AS A RENDERED AXIS
+    · the level-vs-derivative layout rule
+    · anomaly as a computable predicate
+    · structured residuals as an instrument requirement ("a diverging ETA is a measurement, not a
+      bad number")
+    · detection lag as a TRACKED metric — but see below: its DEFINITION moved out
+  MOVED OUT to `dn-supervision-and-liveness`:
+    · the four-mode failure taxonomy (GONE / STUCK-IN-LANE / SLOW / HUNG)
+    · the one-seam finding and the compute/land split
+    · the oq-0035 ruling package and the shutdown/job-budget contract (OPS-4's design half)
+    · finding-0165 (background starvation) — fairness is a property of the BATCH UNIT, i.e. of the
+      execution model, not of the instrument layer
+    · detection lag's four-mode DEFINITION (§2.9 there defines the four numbers; NEW NOTE 1 renders
+      and tracks them)
+  NO LONGER BLOCKED:
+    · the shutdown contract was "BLOCKED on oq-0035". oq-0035 is RULED — (c) both, `941785d`. The
+      ruling's evidence package is the supervision note, and its build half is bp-110 + bp-112.
+      **NEW NOTE 1 no longer carries a parked decision in a load-bearing section**, which is the
+      condition `:140` of this map set for it.
+  Warrants after the split: f-0169..0173 minus what moved, plus f-0188's rendering half.
+  Panel: unchanged — systems + core (security low-threshold: it reads everything).
+
+⚑ TWO OF THIS MAP'S OWN OPEN QUESTIONS ARE NOW ANSWERED.
+  · "Does the ops note absorb finding-0165, or does it stay scheduler-local?" → ANSWERED: it moves
+    to `dn-supervision-and-liveness` (its §1.1), because fairness between lanes is a property of the
+    batch unit — the execution model, not the instrument layer.
+  · "Should `local-model-runtime.md` move under `track: ops`?" → ANSWERED by the note itself:
+    `dn-local-model-runtime` carries `track: ops`, and the ops track manifest gained OPS-7 for it.
+  · STILL OPEN: "Is detection lag measurable from the corpora the palace already holds?" — and it
+    is now MORE answerable, because §2.9 of the supervision note gives the four quantities concrete
+    definitions (lease ttl · landing-batch interval · the expectation window · batch budget +
+    escalation deadline). Three of the four become measurable once bp-111/bp-112 land. The fourth
+    (SLOW) is explicitly PARKED there for want of a denominator — so NEW NOTE 1 must not claim it
+    as a gauge, only as a parked axis with a stated re-entry condition.
+
+⚑ WHAT THIS MEANS FOR THE QUEUE. The panel/ratification queue was the map's stated real
+  constraint, and it is now SHORTER than the wave-1 estimate rather than longer despite the note
+  count going 2 → 3: two of the three are ratified, and the third arrives without a parked
+  decision inside it. Sequencing: NEW NOTE 1 is the only design work left on the ops track, and it
+  is best written AFTER bp-111/bp-112 land, when three of its four detection-lag numbers exist as
+  measurements instead of definitions.
 ```
