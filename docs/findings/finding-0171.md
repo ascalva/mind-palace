@@ -66,6 +66,14 @@ The fix is not purely mechanical — it is a policy choice about what the system
 - **(b) Worker-enforced job budgets.** Each job carries a wall-clock budget the *worker* enforces
   from outside, so no job can exceed it and the drain boundary is always reachable. Stronger — it
   fixes the class rather than the shutdown symptom — but needs a cancellation seam in the handlers.
+  **[banner: correction — 2026-07-25, bp-102 builder]** This option was written as if a budget
+  existed and merely needed enforcing at shutdown. **It does not: `Supervisor.tick` calls
+  `handler(job)` synchronously and unbounded, and there is NO job-level timeout anywhere.** The
+  ~75-minute figure this finding cites was a `socket.timeout` on one embed call
+  (`[ollama] request_timeout_s = 120`), escaping `OllamaClient._post`'s `except URLError` because
+  `TimeoutError` is not a `URLError` subclass. So (b) is **build**, not tune — and the projection in
+  §What that the wedged process would "exit at its own ~75-minute timeout, ~57 minutes away" was
+  **false**: nothing would have stopped it. The `kill -9` was the only exit, not an impatient one.
 - **(c) Both**: (b) as the real fix, (a) as the fail-safe behind it.
 
 My recommendation is (c), with `down` reporting honestly in the interim. But the escalation

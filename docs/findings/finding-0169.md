@@ -86,9 +86,27 @@ reality is worse, because the scan is not scoped to the path's depth at all — 
    the structural enforcement, per the standing rule that a property is only real when a test
    proves it.
 
-Also owed, separately: the job timeout knob that killed the backfill (~4,490 s) was not locatable
+~~Also owed, separately: the job timeout knob that killed the backfill (~4,490 s) was not locatable
 in `config/defaults.toml` or `scheduler/` during triage. It should be named, configurable, and
-surfaced in status as elapsed-vs-budget.
+surfaced in status as elapsed-vs-budget.~~
+
+**[banner: correction — 2026-07-25, by the bp-102 builder, measured]** **The knob was not locatable
+because IT DOES NOT EXIST. There is no job-level timeout anywhere in the system.**
+`Supervisor.tick` calls `handler(job)` **synchronously and unbounded**. What actually killed job
+300240 was a **`socket.timeout` from one embed call** exceeding `[ollama] request_timeout_s = 120` —
+raised from `urllib`'s socket read at the 74m50s mark. `TimeoutError('timed out')` is **not** a
+`urllib.error.URLError` subclass, so it escaped `OllamaClient._post`'s `except URLError` un-wrapped
+and propagated up as a raw job failure.
+
+Two consequences, both larger than the original note:
+1. **The "~75-minute job budget" never existed** — it was an artifact of when an embed call happened
+   to hang. Every statement in this session's record that a wedged job "will exit at its own
+   timeout" was **wrong**; a wedged job runs until something external stops it. That makes the
+   owner-authorized `kill -9` of run #35 the *only* available exit, not a shortcut past a wait.
+2. **finding-0171's option (b) changes from "tune" to "BUILD".** Worker-enforced job budgets are not
+   a parameter to set; they are machinery that does not exist. oq-0035 should be re-read with that
+   in mind.
+Also surfaced: the un-wrapped `socket.timeout` is its own defect — `OllamaError` wrapping has a gap.
 
 ## Re-entry condition
 
