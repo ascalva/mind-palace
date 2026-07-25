@@ -27,17 +27,45 @@ incorporated:
   findings: []             # none incorporated as content in Chapter 1
 
 pending:                   # DEBT for later chapters — the next /scribe reads this
-  architecture:            # MECHANISM of the session-36 trust-boundary designs
-    - dn-session-handoff-gate    # ratified — Stop-audit clause (e); artifact-chain example
-    - dn-exhaust-lane            # ratified — the exhaust lane layout/writer
-    - dn-ouroboros-principal     # ratified — the uid principal + LaunchDaemon (mechanism)
-    - the zone / boundary notes  # the-sacred-boundary (mechanism), the-edge-model, etc.
-  mathematics:
+                           # ⚑ READ THIS BEFORE ADDING A LINE. Every id listed under a
+                           # chapter here is a CITABLE source, i.e. `status: ratified` or
+                           # `status: superseded` at HEAD. Draft notes are BARRED from the
+                           # book (dn-agent-workflow §3) and must never appear in this
+                           # block — that is the trap finding-0117 caught in bp-077 (four
+                           # draft ids listed as Chapter-1 sources) and it was still live
+                           # in this file's `architecture` row until bp-104 corrected it.
+                           # Draft theses go under `forward-referenced` below, never here.
+  architecture: []         # DONE this edition (bp-104) — see `incorporated` above.
+  mathematics:             # CITABLE ids only (see the banner above)
+    - dn-temporal-retrieval-algebra   # ratified — the retrieval math home
+    - dn-magnetic-laplacian           # ratified
+    - dn-fiber-geometry               # ratified
+    - dn-connectivity-instruments     # ratified
+    - dn-core-graph-instruments       # ratified
     - the coboundary framing and derived instruments (canonical write-up)
-    - dn-authorship-distance-axis  # DRAFT — barred until ratified (finding-0117)
   intuition: []
   future-work:
     - the parked decisions of the record, verbatim with re-entry conditions
+    # Ch.2 already contributes: dn-inner-outer-core P1/P2/P8, dn-plane-principals §5,
+    # dn-capability-scope CS-a..CS-e, dn-type-system-as-core-audit PD-1..PD-4,
+    # dn-track-board-and-deskcheck-gate P-WF1..P-WF5.
+
+forward-referenced:        # DRAFT theses — NAMED in the book, never CITED, never asserted.
+                           # A draft note is barred as a source (dn-agent-workflow §3); the
+                           # book may say "this argument is being developed" and point at the
+                           # chapter that will carry it once the owner ratifies. `\fwdthesis`
+                           # (preamble.tex) is the macro that makes the distinction mechanical.
+                           # Each row: <draft id>  # what the book withholds -> lands in
+  - dn-the-sacred-boundary       # the three-channel taxonomy of writes crossing the core
+                                 #   boundary (verdict / ingestion / effects) -> ch:architecture.
+                                 #   Ch.2 §2.7 gives only the RATIFIED partial: dn-capability-scope's
+                                 #   A = P x W_Sigma x W_world authority product. Ch.1's forward
+                                 #   promise was repaired to a \fwdthesis at bp-104 (finding-0180).
+  - dn-the-edge-model            # the edge zone's own model -> ch:architecture. Ch.2 §2.4 gives
+                                 #   only the ratified `ouroboros-edge` plane (dn-plane-principals
+                                 #   §3.1/§3.4) and says the tenancy question is open.
+  - dn-authorship-distance-axis  # the graded authorship coordinate -> ch:math (finding-0117).
+  - dn-founding-corpus           # the naming claim of memory `ouroboros-naming` (bp-077 Q2).
 
 chapters-present: [01-philosophy]
 chapters-stubbed: [02-architecture, 03-mathematics, 04-intuition, 05-future-work]
