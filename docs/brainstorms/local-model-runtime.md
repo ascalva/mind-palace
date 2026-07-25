@@ -215,3 +215,60 @@ cold-start hole; partial (ps() returns NAMES, so a model outside the registry ca
 must not be reported as full accounting). Worth weighing BEFORE the restart, since the restart is
 a fresh supervisor coming up against an Ollama that has held models since run #35.
 ```
+
+## 2026-07-25 — ⚑ owner ruling: equivalence is a CUTOVER GATE, not a footnote
+
+```capsule
+topic: local-model-runtime
+date: 2026-07-25 (session-47, issued mid-pass to the llama.cpp design worker)
+
+owner, verbatim: "I agree with the non-goal of swapping models, first we need to make sure the
+same model produces the same results as our baseline"
+
+Two rulings in one sentence:
+  1. The model-swap non-goal is OWNER-STATED, not [INFERENCE]. Runtime migration ≠ model change.
+  2. ⚑ Equivalence is an ACCEPTANCE GATE the cutover must pass — the harness, its tolerance and
+     its falsifier are prerequisites, not documentation.
+
+--- the hazard being prevented (state it in the note; it is the whole reason) ---
+
+A partial or unvalidated cutover leaves `data/vectors.lance` holding vectors from TWO RUNTIMES.
+Every cosine comparison across that boundary is then subtly wrong and NOTHING detects it — not the
+drift gauge, not `status`, not any ratchet. The corpus degrades silently and the first symptom is
+bad retrieval months later. That is "shoot ourselves in the foot without realizing" landing on the
+one asset the system cannot rebuild from git.
+⇒ design consequence, and a position the note must take: cutover is ALL-OR-NOTHING PER LANE, or it
+  is gated on measured equivalence, or it forces a full re-embed. Pick one, say why.
+
+--- the bar DIFFERS BY LANE (one number is wrong) ---
+
+  EMBEDDINGS — the corpus-safety case, strict. Deterministic given the same GGUF + input, so the
+    bar is near-identity (cosine ≈ 1.0 between an Ollama-produced and a llama.cpp-produced vector
+    for the same text and blob). MEASURE the distribution and propose the tolerance FROM DATA;
+    report the WORST CASE, not the mean — one outlier chunk is a corpus defect. Bit-identity is
+    unlikely (different backends, batching, flash-attn, KV handling); the note must say what
+    deviation is acceptable and what is disqualifying.
+  GENERATION — behavioural, looser. Sampled/stochastic, so exact equality is the WRONG bar. Use
+    seed-pinned greedy decoding for a determinism check and the golden set for behaviour. Do not
+    report "outputs differ" as failure without first controlling sampling.
+
+--- ⚑ the baseline instrument already exists; do not invent one ---
+
+`eval/golden.py` + `eval/golden/`: its OWN synthetic fixture corpus (`corpus/`, so it does not
+depend on the live vault and is reproducible anywhere), `golden_set.json` (queries),
+`baseline.json` (hand-blessed), and `evaluate(golden, retriever) -> GoldenReport` (golden.py:98).
+
+WHY it is the RIGHT instrument, not merely a convenient one: non-negotiable #9 makes the golden set
+a FIXED POINT — never auto-modified, human-only, deliberate, logged. It is therefore stable ACROSS
+the migration BY CONSTRUCTION, which is exactly the property a cross-runtime baseline needs.
+`eval/golden/**` + `eval/golden.py` are foundation-denylist: RUN them, never WRITE them.
+
+--- the dependency that makes the tolerance have to be tight ---
+
+`config/defaults.toml:267-272`: `similarity_threshold` IS σ = **0.62**, inside a bound
+σ ∈ [0.55, 0.75] that is explicitly "corpus- and embedder-specific." `[dreaming] sigma = 0.62`
+(:286) matches; the merge threshold (:275) needs ≥ 0.90. If the runtime shifts vectors AT ALL,
+σ's calibration is no longer known-good. So "the runtime is retrieval-neutral" is not merely a
+retrieval claim — it is what keeps every σ-thresholded instrument valid (thought-graph edges,
+theme clustering, merge detection). That is why "close enough" is not a tolerance.
+```
