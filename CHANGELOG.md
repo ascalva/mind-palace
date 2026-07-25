@@ -1,3 +1,10 @@
+# [1.18.0](https://github.com/ascalva/mind-palace/compare/v1.17.0...v1.18.0) (2026-07-25)
+
+
+### Features
+
+* **code-ingest:** the temporal code corpus — history embedded, keep-and-link, supersession edges (bp-099) ([1df3ca0](https://github.com/ascalva/mind-palace/commit/1df3ca02be8001bd29d028623856c543e594048f))
+
 # [1.17.0](https://github.com/ascalva/mind-palace/compare/v1.16.0...v1.17.0) (2026-07-22)
 
 
