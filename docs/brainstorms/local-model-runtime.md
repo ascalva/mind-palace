@@ -76,3 +76,71 @@ references:
     MLX / `mlx-lm` (Apple-native, Metal, OpenAI-compatible server); vLLM (CUDA-first —
     ruled out for Apple Silicon)
 ```
+
+## 2026-07-25 — the embedder question is DOWNSTREAM of this migration (and f-0174)
+
+```capsule
+topic: local-model-runtime (the embedder's residency)
+date: 2026-07-25 (session-44, ~02:00)
+
+how it came up: the owner asked whether there is "another embedder model that would be a genuinely
+good idea to migrate to". The orchestrator answered partly from a MEMORY-CEILING argument — that an
+8B embedder would compete with the 27B chat model for the two slots — and the owner pushed back
+correctly: "why do we need to run both models at the same time, the scheduler should be able to
+adequately manage between models, and this also feels like it ties into the conversation of
+migrating to llama.cpp". Both halves of that push were right, and checking produced a finding.
+
+WHAT THE GROUNDING SHOWED:
+  · The owner is right that co-residency is not required. The scheduler ALREADY does swap-avoidance
+    within a priority band over a two-slot loader (scheduler/queue.py:174, :188;
+    scheduler/supervisor.py:4-9 counts worker-slot swaps as "the cost to minimize"), and
+    `vault_sync` routes to the PINNED tier precisely because it "calls the embedder directly — so
+    making it resident is a no-op and the worker slot is never evicted"
+    (scheduler/vault_sync.py:9-11). The embedder does NOT contend for the worker slot.
+  · ⚑ BUT the check turned up worse than the claim it refuted: **the embedder is not in the memory
+    accounting AT ALL.** `[embedding]` (config/defaults.toml:112-119) has no `resident_gb` and is
+    not a `[[models]]` entry, so `MemoryLoader` (core/models/loader.py:40-41, :58-64) never sums it.
+    Stretch tier 23.0 GB (declared, evicts_pinned) + embedder ~2.5 GB (real, warm 30m, invisible)
+    = 25.5 GB against usable_ram_gb = 24.0 — and the gate approves, because it is summing an
+    incomplete set. **Filed as finding-0174.** Non-negotiable 8 is enforced over a model of memory,
+    not memory.
+
+⚑ THE SEQUENCING CONCLUSION (the point of this capsule):
+  **The embedder-migration question is DOWNSTREAM of the runtime migration, and cannot be answered
+  honestly before it.** "Can we afford an 8B embedder?" is unanswerable today in EITHER direction,
+  because under Ollama residency is opaque — Ollama decides when the embedder loads and unloads on
+  its own keep-alive, invisible to the palace. Under llama.cpp-direct the embedder becomes a
+  `llama-server` process the palace starts and stops with an explicit budget and lifetime, and the
+  accounting becomes REAL rather than declared. This capsule's own earlier open question — "exact
+  re-grounding of resident_gb / max_resident_models against llama.cpp's REAL load/unload semantics"
+  — is finding-0174 stated in advance; f-0174 is its measured instance.
+  ⇒ ORDER: llama.cpp-direct design pass (with f-0174 folded in as a required input) → residency and
+    the embedder budget become explicit and testable → THEN the embedder-choice question
+    (docs/brainstorms/embedding-space-specialization.md) becomes computable rather than a guess.
+
+the embedder-choice research, parked here so it is not lost (grounded 2026-07-25, web-verified):
+  · current: `qwen3-embedding:4b`, 2560 dims — near-frontier, not a compromise. Qwen3-Embedding-8B
+    scored 70.58 on MTEB multilingual and held #1; the 4B is one tier below, same family.
+  · candidates: Qwen3-Embedding-8B (~5 GB Q4, same family); NVIDIA Llama-Embed-Nemotron-8B
+    (reported multilingual MTEB leader, fully open-weight); BGE-M3 (MIT, 100+ languages, 8K ctx,
+    1024 dims) — whose interesting property is NOT its dense score but **hybrid dense + sparse +
+    multi-vector retrieval**. Dense embeddings are weak at exact-token matching (identifiers,
+    symbols, error strings); the palace now embeds code as a first-class source, so sparse is a
+    CAPABILITY difference, not a leaderboard delta. That is the candidate worth testing.
+  · API embedders (Voyage, Cohere, OpenAI) are ARCHITECTURALLY FORBIDDEN — sealed core, zero egress.
+  · cheap lever before any migration: Qwen3-Embedding supports Matryoshka-style variable dimensions
+    (truncate 2560 → 1024 or fewer) — a compression knob with NO model change, squarely ops-track.
+  · caveat that must not be skipped: MTEB v2 (2026) scores are NOT comparable to v1, and benchmark
+    gains routinely fail to transfer to a specific corpus. A migration costs a full re-embed (§8)
+    + sigma recalibration (sigma in [0.55,0.75] is EMBEDDER-specific, defaults.toml:268-271) +
+    revalidation of every downstream instrument. Migrating on a leaderboard number would be
+    f-0163/f-0169/f-0174's failure mode a fourth time. Build the retrieval eval FIRST.
+
+open questions:
+  - Does the llama.cpp pass now need to model THREE processes (pinned + worker + embedder) rather
+    than two slots? `max_resident_models = 2` may itself be the wrong shape once the embedder is
+    counted honestly.
+  - Should `docs/brainstorms/local-model-runtime.md` move under the new `ops` track
+    (docs/tracks/ops.md, minted 2026-07-25)? It is runtime/residency/performance — ops-shaped by
+    every criterion in that manifest, and it currently has no track coordinate at all.
+```
