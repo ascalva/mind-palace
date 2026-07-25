@@ -330,3 +330,57 @@ Captured, not adopted. This is an **authoring-convention change**, so it touches
 (1) settle the two decisions above → (2) write the convention into `CONVENTIONS.md` + templates →
 (3) `scripts/check_refs.py` + gate → (4) the `.nvim.lua` resolver. The editor feature is LAST; it
 is the payoff, not the foundation.
+
+### Owner refinement — GRADUATED precision, and what it costs
+
+Verbatim: *"something that allows us to be exact about the file, or even exact about a specific line
+ref if we need to be more specific."*
+
+Confirms the optional tail in the grammar above. Worth naming the property directly: a reference
+carries **exactly as much specificity as the author needs, and no more** —
+
+| ref | precision |
+|---|---|
+| `dn:supervision-and-liveness` | the artifact — "this note" |
+| `dn:supervision-and-liveness.md` | the exact file |
+| `dn:supervision-and-liveness:42` | the exact line |
+| `src:scheduler/queue.py:222` | the exact line of code |
+
+Each level is a strict refinement, so an author can start loose and tighten without changing form —
+and `gf` / `gF` do the right thing at every level.
+
+#### ⚑ But line precision DECAYS, and this corpus has already been bitten
+
+A file ref is stable under edits; **a line ref is correct only until the file changes.** Not
+hypothetical here — grounded, `bp:105/journal` Checkpoint 1:
+
+> *"`ops/lifecycle/snapshot.py:574,585` → the file is **431 lines**. `stalled` is at
+> `snapshot.py:191`, `wedged` at `snapshot.py:202`. Same predicates, different lines; `f:0188`
+> carries the same stale refs."*
+
+Two artifacts (a build plan's §2 manifest **and** a finding) both cited line numbers that pointed
+past the end of the file. The builder re-anchored by reading — which is exactly the manual lookup
+this whole standard exists to abolish.
+
+⚑ **This is what the validator can and cannot do.** `scripts/check_refs.py` can prove a *file*
+exists. It **cannot** prove a line number still points at the thing meant — `:574` in a 431-line
+file is catchable (out of range), but `:191` drifting to `:202` is not. So a naive validator would
+have caught one of the two failures above and issued a clean bill for the corpus that still
+contained the other.
+
+Options, in increasing strength:
+1. **Range check only.** Cheap, catches gross rot (out-of-range), silent on drift. Better than
+   nothing; do not let it read as "refs verified."
+2. **Symbol anchors** — `src:scheduler/queue.py#_effective_priority` instead of `:222`. Stable
+   under insertion/deletion, and checkable *by name*, which is the property line numbers lack. Costs
+   a symbol-resolution step in the resolver; only works where a named symbol exists.
+3. **Commit-pinned lines** — `src:queue.py:222@33defda`. Exact and honest ("true as of this commit")
+   but immediately archaeological, and `gf` can't open a past blob without extra machinery.
+
+**Recommend (2) for code, (1) as the floor for everything.** Line numbers stay legal — sometimes
+there is no symbol — but the convention should prefer a symbol anchor when one exists, precisely
+because the failure above was two artifacts drifting off the same two predicates that *did* have
+names. Line-precision is the level to reach for last, not first.
+
+Open for the owner: whether the standard should actively **discourage** bare line refs in docs
+(as opposed to code comments), given the decay evidence.
