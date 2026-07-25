@@ -22,6 +22,7 @@ import pytest
 
 from config.loader import load_config
 from ops.lifecycle.launcher import Components, Launcher, _supervisor_alive
+from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld
 from ops.lifecycle.preflight import Check, Preflight
 from ops.lifecycle.runs import RunLedger, RunRecord
 from ops.lifecycle.snapshot import store_idle_seconds
@@ -567,3 +568,173 @@ def test_an_absent_store_says_unknown_rather_than_claiming_either_state(tmp_path
     block = _system_block(_status_render(tmp_path, monkeypatch, capsys))
     assert "embedding: unknown" in block
     assert "⚠ running while NOTHING completed this window" in block
+
+
+# =================================================================================================
+# bp-108 Item 3 — the supervisor role is KERNEL-exclusive (dn-supervision-and-liveness §2.6)
+# =================================================================================================
+#
+# The gate above is now the DIAGNOSTIC layer: it can say WHICH run is live, but it is a probe with
+# a check-then-act window, and it is blind to a claimant that never opened a run row. The lock is
+# the guarantee. These tests assert the WIRING — that `start()` acquires it, refuses on it, and
+# releases it. The kernel semantics themselves (cross-process exclusion, death-frees-it, the
+# `flock`-vs-`lockf` choice) are proven in `tests/unit/test_supervisor_lock.py`; deliberately not
+# restated here, so each layer is asserted exactly once.
+
+
+def _lock_path(tmp_path: Path) -> Path:
+    return tmp_path / "supervisor.lock"
+
+
+def _someone_holds_the_lock(tmp_path: Path) -> bool:
+    """Probe by attempting a real acquire. On this platform `flock` is per-open-file-description,
+    so this answers correctly even from inside the process that holds it (measured, bp-108 Item 1)
+    — which is what lets a test observe the launcher's own lock mid-`start()`."""
+    probe = SupervisorLock(_lock_path(tmp_path))
+    try:
+        probe.acquire()
+    except SupervisorLockHeld:
+        return True
+    probe.release()
+    return False
+
+
+def test_start_refuses_when_something_already_holds_the_supervisor_lock(tmp_path, monkeypatch,
+                                                                       capsys):
+    """⚑ NAMED FALSIFIER (finding-0186's OPEN half). The run ledger is EMPTY here, so the identity
+    gate has nothing to refuse on and waves this start through. That is exactly `scripts/watch.py`'s
+    shape — a claimant that never opened a run row — and the lock is what stops it."""
+    runs = RunLedger(tmp_path / "runs.sqlite")
+    assert runs.last() is None                          # the gate cannot help; only the lock can
+    holder = SupervisorLock(_lock_path(tmp_path))
+    holder.acquire()
+    try:
+        launcher, probes = _launcher(tmp_path, runs, monkeypatch=monkeypatch)
+        assert launcher.start(max_ticks=1) == 1
+        out = capsys.readouterr().out
+        assert "supervisor lock" in out                  # the message NAMES the mechanism
+        assert str(_lock_path(tmp_path)) in out          # ...and the file, so it can be found
+        assert probes["preflight"] == 0                  # refused before the 120 s Ollama probe
+        assert runs.last() is None                       # and before any run row was opened
+    finally:
+        holder.release()
+
+
+def test_force_does_not_bypass_the_supervisor_lock(tmp_path, monkeypatch, capsys):
+    """⚑ THE INVARIANT, restated one layer down. §4 of the note: "a mutual-exclusion guarantee
+    behind a flag is a contradiction". `--force` overrides preflight, never exclusivity."""
+    runs = RunLedger(tmp_path / "runs.sqlite")
+    holder = SupervisorLock(_lock_path(tmp_path))
+    holder.acquire()
+    try:
+        launcher, _ = _launcher(tmp_path, runs, monkeypatch=monkeypatch)
+        assert launcher.start(force=True, max_ticks=1) == 1
+        assert "supervisor lock" in capsys.readouterr().out
+        assert runs.last() is None
+    finally:
+        holder.release()
+
+
+def test_the_lock_is_held_before_the_sweep_and_released_after_shutdown(tmp_path, monkeypatch):
+    """⚑ ORDERING, not mere presence. `sweep_orphans` is the operation that rewrites another
+    claimant's rows, so acquiring AFTER it would leave the finding-0186 window wide open. And the
+    release must happen — a lock still held after `start()` returns would refuse every successor."""
+    runs = RunLedger(tmp_path / "runs.sqlite")
+    seen: dict[str, bool] = {}
+
+    def _observing_sweep(_self, run_id):
+        seen["held_at_sweep"] = _someone_holds_the_lock(tmp_path)
+        return _Swept(run_id)
+
+    monkeypatch.setattr(_NullQueue, "sweep_orphans", _observing_sweep)
+    launcher, _ = _launcher(tmp_path, runs, monkeypatch=monkeypatch,
+                            on_shutdown=lambda _clean: seen.__setitem__(
+                                "held_at_shutdown", _someone_holds_the_lock(tmp_path)))
+
+    assert launcher.start(max_ticks=1) == 0
+    assert seen["held_at_sweep"] is True                 # acquired BEFORE the sweep ran
+    assert seen["held_at_shutdown"] is True              # still held while shutting down
+    assert _someone_holds_the_lock(tmp_path) is False    # and dropped by the time start() returns
+
+
+def test_recovery_mode_holds_the_lock_too(tmp_path, monkeypatch):
+    """A recovery run is read-only, but it IS a live supervisor (`launcher.py`'s `_idle` branch),
+    and `start` prints `palace stop` as the way out of it. If recovery did not hold the lock, a
+    second supervisor could come up beneath the very run the operator is inspecting."""
+    runs = RunLedger(tmp_path / "runs.sqlite")
+    runs.open_run(commit_sha="old000000000", dirty=False, pid=DEAD_PID)   # unclean → recovery
+    held: dict[str, bool] = {}
+    launcher, _ = _launcher(tmp_path, runs, monkeypatch=monkeypatch,
+                            on_shutdown=lambda _c: held.__setitem__(
+                                "during", _someone_holds_the_lock(tmp_path)))
+
+    assert launcher.start(max_ticks=1) == 0
+    last = runs.last()
+    assert last is not None and last.recovery           # we really did take the recovery branch
+    assert held["during"] is True
+    assert _someone_holds_the_lock(tmp_path) is False
+
+
+def test_a_failed_preflight_still_releases_the_lock(tmp_path, monkeypatch, capsys):
+    """The early-return path that has no `_shutdown` to clean up after it. A preflight failure that
+    leaked the lock would make the FIRST bad start poison every later one — and under launchd
+    KeepAlive that is an unrecoverable restart loop, not an inconvenience."""
+    runs = RunLedger(tmp_path / "runs.sqlite")
+    failing = Preflight((Check("ollama", required=True, ok=False, detail="down"),))
+    launcher, _ = _launcher(tmp_path, runs, monkeypatch=monkeypatch)
+    launcher.preflight_fn = lambda _c: failing
+
+    assert launcher.start(max_ticks=1) == 1
+    assert "preflight failed" in capsys.readouterr().out
+    assert _someone_holds_the_lock(tmp_path) is False    # released despite the early return
+
+
+def test_the_lockfile_sits_beside_the_queue_not_in_the_repo(tmp_path, monkeypatch):
+    """§11's parked decision, pinned. In the repo it would scope exclusion to a CHECKOUT, so two
+    worktrees over one data dir would both start; in /tmp it would be cleared by the OS and not
+    co-located with the resource it guards."""
+    runs = RunLedger(tmp_path / "runs.sqlite")
+    launcher, _ = _launcher(tmp_path, runs, monkeypatch=monkeypatch)
+    assert launcher.start(max_ticks=1) == 0
+    assert _lock_path(tmp_path).exists()
+    assert _lock_path(tmp_path).parent == launcher.cfg.paths.data_dir
+
+
+def test_shutdown_relinquishes_the_role_on_its_own(tmp_path, monkeypatch):
+    """`_shutdown` is `start`'s NORMAL release site (plan §7 Item 3); `start`'s own `finally` is
+    only the net for paths that never reach it. Driven directly so the two are pinned
+    independently — a mutation drill showed that with only the net asserted, deleting
+    `_shutdown`'s release is completely invisible.
+
+    The release is deliberately the LAST thing `_shutdown` does, after `mark_stopped`. Releasing
+    earlier would open a window where a successor holds the lock while this run's row is still
+    active, so its `sweep_orphans` would find live rows to reclaim — finding-0186 reintroduced by
+    an ordering mistake."""
+    runs = RunLedger(tmp_path / "runs.sqlite")
+    launcher, _ = _launcher(tmp_path, runs, monkeypatch=monkeypatch)
+    run = runs.open_run(commit_sha="abc123456789", dirty=False, pid=os.getpid())
+    launcher._run_id = run.id
+    launcher._lock = SupervisorLock(_lock_path(tmp_path))
+    launcher._lock.acquire()
+    assert _someone_holds_the_lock(tmp_path) is True
+
+    launcher._shutdown(clean=True)
+
+    assert _someone_holds_the_lock(tmp_path) is False
+    closed = runs.last()
+    assert closed is not None and not closed.active      # the row was closed before the release
+
+
+def test_shutdown_releases_even_when_there_is_no_run_to_close(tmp_path, monkeypatch):
+    """`_shutdown` early-returns when no run row was opened. It must still drop the lock on the
+    way out — otherwise a start that acquired and then failed before `open_run` would hold the
+    role with nothing to show for it."""
+    runs = RunLedger(tmp_path / "runs.sqlite")
+    launcher, _ = _launcher(tmp_path, runs, monkeypatch=monkeypatch)
+    launcher._lock = SupervisorLock(_lock_path(tmp_path))
+    launcher._lock.acquire()
+    assert launcher._run_id is None                       # nothing to close down
+
+    launcher._shutdown(clean=False)
+
+    assert _someone_holds_the_lock(tmp_path) is False

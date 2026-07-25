@@ -27,6 +27,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
+from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld
 from ops.lifecycle.preflight import Preflight, run_preflight
 from ops.lifecycle.runs import RunLedger, RunRecord, git_state
 
@@ -595,6 +596,11 @@ class Launcher:
     _run_id: int | None = field(default=None, init=False)
     _run: RunRecord | None = field(default=None, init=False)  # the active RunRecord (for snapshots)
     _components: Components | None = field(default=None, init=False)
+    # The supervisor lock, held for the whole serve lifetime (§2.6). Not injectable and not
+    # configurable on purpose: its path is derived from `cfg.paths.data_dir` so it is always
+    # beside the queue it guards, and a mutual-exclusion guarantee with a seam for tests to
+    # disable it is not a guarantee. Tests get isolation from `data_dir` being a tmp_path.
+    _lock: SupervisorLock | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         # A system-domain Launcher controls launchd via `sudo launchctl` and installs its plist to
@@ -609,12 +615,22 @@ class Launcher:
 
     # --- start ------------------------------------------------------------------------------
     def start(self, *, force: bool = False, max_ticks: int | None = None) -> int:
-        # SINGLE-INSTANCE GATE — first, and NOT bypassable by --force (finding-0186, owner ruling
-        # 2026-07-25: "start should refuse outright if there is any potential for an issue to
-        # occur... the system deeming an unrunnable state"). `--force` overrides *preflight*, not
-        # *safety*. A second supervisor over a live one is not contention: `sweep_orphans` reclaims
-        # the live run's in-flight rows, so the first worker's job is re-queued (double execution)
-        # or written FAILED with a fabricated cause under it (a lying ledger).
+        # SINGLE-INSTANCE **DIAGNOSTIC** — first, and NOT bypassable by --force (finding-0186,
+        # owner ruling 2026-07-25: "start should refuse outright if there is any potential for an
+        # issue to occur... the system deeming an unrunnable state"). `--force` overrides
+        # *preflight*, not *safety*. A second supervisor over a live one is not contention:
+        # `sweep_orphans` reclaims the live run's in-flight rows, so the first worker's job is
+        # re-queued (double execution) or written FAILED with a fabricated cause under it (a lying
+        # ledger).
+        #
+        # ⚑ This gate is NO LONGER what enforces exclusivity — the supervisor lock below is
+        # (dn-supervision-and-liveness §2.6, bp-108). Kept, and deliberately kept FIRST, because
+        # the two answer different questions: the lock is held-or-not and can only say "no", while
+        # this gate can say WHICH run is live and with what pid. Guarantee and diagnostic. On the
+        # note's enforcement ladder the gate is tier 5 (a runtime probe someone must remember to
+        # make, with a check-then-act window between the probe and the start) and the lock is
+        # tier 3 (a kernel fact, acquired atomically). Deleting the gate would lose the
+        # explanation, not the exclusion — so it stays.
         #
         # Ahead of preflight deliberately — an unrunnable state should not first cost the operator
         # preflight's uncosted 120 s Ollama probe (finding-0195). Same shape as `reset()`'s guard
@@ -626,6 +642,37 @@ class Launcher:
                   "live one rewrites its in-flight jobs — finding-0186.)")
             return 1
 
+        # THE GUARANTEE — the supervisor role is kernel-exclusive from here on (§2.6). Acquired
+        # before `sweep_orphans` (the first thing that can rewrite another claimant's rows) and
+        # before preflight (same 120 s argument as the gate). Unconditional and unflagged: §4 of
+        # the note is explicit that "a mutual-exclusion guarantee behind a flag is a
+        # contradiction", so there is no `--force` path past this and no config key to disable it.
+        #
+        # It catches precisely what the gate above cannot: a claimant with no active run row at
+        # all (`scripts/watch.py` — finding-0186's open half), and the gate's own check-then-act
+        # window. Recovery mode holds it too — a recovery run is a live supervisor.
+        self._lock = SupervisorLock(self.cfg.paths.data_dir / "supervisor.lock")
+        try:
+            self._lock.acquire()
+        except SupervisorLockHeld:
+            path, self._lock = self._lock.path, None
+            print(f"refusing to start — another process holds the supervisor lock ({path}). "
+                  "Something is already supervising this data dir. `palace stop` first, or find "
+                  "the holder with `lsof` on that path. (--force does not bypass this either: "
+                  "exclusivity is not a preference — dn-supervision-and-liveness §2.6.)")
+            return 1
+
+        try:
+            return self._start_locked(force=force, max_ticks=max_ticks)
+        finally:
+            # `_shutdown` is the normal release site; this covers the paths that never reach it
+            # (a failed preflight returns before any run row is opened). `release()` is
+            # idempotent, so the double call on the normal path is a no-op.
+            self._release_lock()
+
+    def _start_locked(self, *, force: bool, max_ticks: int | None) -> int:
+        """`start`'s body, with the supervisor lock already held. Split out so the acquisition has
+        exactly one paired release (`start`'s `finally`) rather than one per early return."""
         pf = self.preflight_fn(self.cfg)
         print("preflight:")
         print(pf.render())
@@ -769,6 +816,11 @@ class Launcher:
             except Exception:  # noqa: BLE001
                 pass
         self.runs.mark_stopped(run_id, clean=clean)
+        # LAST — the supervisor role is not free until the ledger says this run is over. Releasing
+        # earlier would open a window in which a successor holds the lock while this run's row is
+        # still active, so its `sweep_orphans` would see live rows to reclaim: the finding-0186
+        # hazard, reintroduced by an ordering mistake.
+        self._release_lock()
         print(f"run #{run_id} stopped ({'clean' if clean else 'UNCLEAN'}).")
 
     def _install_signal_handlers(self) -> None:
