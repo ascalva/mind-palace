@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-100
 track: ops
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/temporal-code-corpus.md
 contract: builder
@@ -15,7 +15,26 @@ cost:
   estimate:
     model: opus
     tokens: 120k
-  actual: null
+  actual:
+    model: opus              # claude-opus-5, single delegated builder in a worktree, session-44
+    tokens: 138k             # harness-measured (137,814); 73 tool calls; 36.2 min wall
+    ratio: 1.15              # vs 120k — well-pinned; the overrun is the shim investigation, not the code
+    session_delta: one delegated builder; Item 1 closed, Items 2–3 PARTIAL — stopped at a capability boundary
+    notes: >-
+      ⚑ THE PLAN IS complete; ITS OBJECTIVE IS NOT MET. finding-0169 stays OPEN and now points at
+      bp-103. Do NOT read this `complete` as "the backfill is unblocked" — supersede_source went
+      from 2 full-table materializations to 1 and delete_source from 1 to 0, which moves the wall
+      out ~2× rather than removing it. Q3 resolved and INVERTED the plan's premise: the docstring's
+      portability claim is FALSE — lancedb 0.33.0 does support in-place Table.update, verified
+      empirically. But that surface must cross core/typedshims/lancedb.py per the plan's own §2.6,
+      and §5 did not make the shim writable. The builder did not edit it, rejected three in-scope
+      workarounds (pyarrow filter, KNN masquerade, local Protocol + cast), and filed finding-0176
+      carrying the complete patch — the stop-and-raise contract working as designed. Bonus catch,
+      red at HEAD and stash-verified: an id is {doc_id}:{chunk_hash} and doc_id need not equal
+      source_path, so the old `id IN (…)` delete could remove ANOTHER PATH'S ROWS — latent data
+      loss, now tested. The two ratchets encoding the real bound are committed xfail(strict=True),
+      so they XPASS-FAIL the suite when bp-103 lands: a forcing function, not a TODO.
+    week_delta: +4%          # weekly 2%→6% across the 3-builder wave spawn→seal (resets Jul 31)
 depends_on: []
 parallelizable_with:
   - bp-101

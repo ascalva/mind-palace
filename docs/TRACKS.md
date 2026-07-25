@@ -38,10 +38,10 @@
 | Inner/outer core | bp-089 — S1′: the temporal math enters the ring (math↔persistence splits, map +7 → 37) | deskcheck-pending · complete | opus |
 | Inner/outer core | bp-090 — K1: the born inner ring moves to `core/kernel/**` (M2 wave 1, physical migration) | deskcheck-pending · complete | opus |
 | Inner/outer core | bp-091 — K3: the S1 seven join the kernel (M2 wave 2) | deskcheck-pending · complete | opus |
-| Ops | bp-100 — bp-100: make `supersede_source` cost-independent of store size (the backfill blocker) | build · ready | opus |
-| Ops | bp-101 — bp-101: queue hygiene — enqueue coalescing and orphaned-job reclaim | build · ready | opus |
-| Ops | bp-102 — bp-102: status tells the truth — liveness, failures, and rates (command center, Tier 1) | build · ready | opus |
-| Ops | bp-103 — bp-103: widen the LanceDB typedshim so `supersede_source` becomes one in-place update | graduate · proposed | Fable/Opus |
+| Ops | bp-100 — bp-100: make `supersede_source` cost-independent of store size (the backfill blocker) | deskcheck-pending · complete | opus |
+| Ops | bp-101 — bp-101: queue hygiene — enqueue coalescing and orphaned-job reclaim | deskcheck-pending · complete | opus |
+| Ops | bp-102 — bp-102: status tells the truth — liveness, failures, and rates (command center, Tier 1) | deskcheck-pending · complete | opus |
+| Ops | bp-103 — bp-103: widen the LanceDB typedshim so `supersede_source` becomes one in-place update | build · ready | opus |
 | Reference bookkeeper | the async F-consistency agent (finding-0145/0154) | design-pass | FABLE |
 | Sync/diac dreamers | bp-079 — D-0: the DreamCharter dispatch record + the materialization boundary | deskcheck-pending · complete | opus |
 | Sync/diac dreamers | bp-080 — D-1: the ARROW-READ synchronic dispatch (the clock-free v1) | deskcheck-pending · complete | opus |

@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-101
 track: ops
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/temporal-code-corpus.md
 contract: builder
@@ -15,7 +15,23 @@ cost:
   estimate:
     model: opus
     tokens: 110k
-  actual: null
+  actual:
+    model: opus              # claude-opus-5, single delegated builder in a worktree, session-44
+    tokens: 144k             # harness-measured (144,200); 89 tool calls; 36.7 min wall
+    ratio: 1.31              # vs 110k — inflated by the live-queue dry-run, which was worth every token
+    session_delta: one delegated builder; all 3 items closed, both falsifiers held, 23 new tests
+    notes: >-
+      Falsified its own warrant: finding-0170's proposed partial UNIQUE INDEX cannot be created —
+      it raises against the 882 identical queued rows and would make the daemon UNSTARTABLE.
+      Banner-corrected f-0170 (58919fc); coalescing enforced in enqueue instead, index deferred
+      until the restart clears duplicates. Also corrected the counts (882+882+1+1 = 1,766, not
+      883/883) and found the module header's state machine was ALREADY wrong (checkpoint() has
+      always driven RUNNING→QUEUED). Deviations surfaced not hidden: match key adds tier/num_ctx
+      (strictly narrower ⇒ can only create a row, never drop one); collapse promotes priority,
+      never demotes; `ambassador` excluded conservatively with reasoning. Builder finding
+      renumbered 0175→0177 at integration (three-way id collision). Its hand-off — the sweep had
+      no caller — was closed by the orchestrator integration commit be225fd.
+    week_delta: +4%          # weekly 2%→6% across the 3-builder wave spawn→seal (resets Jul 31)
 depends_on: []
 parallelizable_with:
   - bp-100

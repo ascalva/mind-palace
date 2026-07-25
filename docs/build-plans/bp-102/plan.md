@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-102
 track: ops
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/temporal-code-corpus.md
 contract: builder
@@ -18,7 +18,25 @@ cost:
   estimate:
     model: opus
     tokens: 140k
-  actual: null
+  actual:
+    model: opus              # claude-opus-5, single delegated builder in a worktree, session-44
+    tokens: 241k             # harness-measured (241,456); 143 tool calls; 45.4 min wall
+    ratio: 1.72              # vs 140k — the highest of the wave; Q4 was a code-reading hunt, not a knob lookup
+    session_delta: one delegated builder; all 3 items advanced and closed, 38 new tests
+    notes: >-
+      Its cost falsifier FIRED and it obeyed: the "ledger target" figure was implemented, MEASURED
+      at 3.42–3.64 s against the real 2.3 GB store, and REMOVED — so embedded-version coverage and
+      the current split are deliberately NOT reported, and status says so plainly. Added cost is
+      68 ms / 7 queries / 13 rows, size-independent. Q4 resolved by reading: THERE IS NO
+      JOB-LEVEL TIMEOUT anywhere — Supervisor.tick calls handler(job) synchronously and unbounded;
+      job 300240 died from a socket.timeout on one embed call escaping OllamaClient._post's
+      `except URLError` (TimeoutError is not a URLError subclass). The "~75-minute job budget"
+      never existed; banners applied to f-0169/f-0171 (9553792), and f-0171 option (b) changes
+      from TUNE to BUILD. defaults.toml deliberately untouched (no knob to add). Two side catches
+      worth more than the feature — status previously CREATED queue.sqlite (a read command with a
+      write side effect), and the 3.5 s DISTINCT it refused to pay is already paid on every daemon
+      start via _code_backfill_incomplete. Findings renumbered 0175→0178, 0176→0179 at integration.
+    week_delta: +4%          # weekly 2%→6% across the 3-builder wave spawn→seal (resets Jul 31)
 depends_on: []
 parallelizable_with:
   - bp-100
