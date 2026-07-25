@@ -208,3 +208,83 @@ open questions:
     the daemon; a scale witness on the store primitive) — the answer picks the first instrument to
     build, and the three are not equally cheap.
 ```
+
+## 2026-07-25 — scale changes REVEAL; audits only check what was CLAIMED
+
+```capsule
+topic: reconciliation-audit (the complement — what surfaces the undeclared)
+date: 2026-07-25 (session-44, ~02:50)
+
+warrant (owner, verbatim): "it's interesting that a macro change, like how history of git needs to
+be properly embedded, lead to a crash, that led us to optimizing and correcting micro/sub systems, a
+micro change"
+
+⚑ THE CORRECTION WORTH MAKING: THE MACRO CHANGE DID NOT CAUSE THE DEFECTS — IT REVEALED THEM.
+  Every one of tonight's five findings was TRUE YESTERDAY:
+    · `supersede_source` was always O(total store) — it had simply never run in a per-version loop.
+    · the queue always lacked coalescing — the worker had never been pinned long enough to matter.
+    · `down` always had an unbounded drain — no job had ever wedged.
+    · `status` always reported levels not rates — nothing had gone wrong while someone was watching.
+    · the ceiling always ignored the embedder — nobody had asked it to.
+  Nothing was introduced. **The operating REGIME changed** — from file grain (one version per path)
+  to history grain (~1,542 versions) — and five latent defects crossed from quietly wrong to loudly
+  wrong in ninety minutes. **bp-099 was a load test nobody designed as one.**
+  ⇒ In this file's own vocabulary: those defects had detection lags of WEEKS TO FOREVER. The macro
+    change collapsed all five to ONE NIGHT. A regime change is a detection-lag COLLAPSER — the most
+    powerful one observed so far, and it is not an instrument we built. It is a side effect of
+    shipping.
+
+⚑⚑ AND THE ARROW DOES NOT STOP AT MICRO — IT CLOSED THE LOOP UPWARD:
+    macro change (embed history) → micro failure (5 defects) → micro fixes (bp-100/101/102)
+      → **MACRO REVISION**: the ops TRACK was created by this; f-0169 became independent evidence
+        for f-0168's membership store; f-0175 indicted the session-state format itself; two new
+        design notes were routed.
+  ⇒ The cycle is macro→micro→macro, not macro→micro. And the upward leg is where the DESIGN
+    improved — the fixes are just repairs; the track, the membership evidence, and the state-format
+    finding are the actual yield.
+
+⚑ THE ARCHITECTURAL POINT: **THE OPS TRACK WAS NAMED BY THE INCIDENT, NOT BY PLANNING.**
+  Five defects clustered in one concern and NONE of them had an owning track — which is exactly why
+  none of them had an owner. You cannot derive the right subsystem boundaries a priori; you find
+  them by pushing the system into a regime where the wrong ones break. The boundary announced
+  itself.
+
+⚑ THE COMPLEMENT TO THIS FILE'S THESIS (the reason this capsule belongs HERE):
+  The reconciliation audit is designed to check **declared decisions against their enforcement**. But
+  **none of tonight's five defects had a declared claim to violate** — there was no stated cost bound
+  on `supersede_source`, no queue-growth invariant, no shutdown-time guarantee, no throughput
+  expectation. An audit over declarations would have returned CLEAN.
+  ⇒ So the audit is necessary and NOT sufficient. It catches drift from what we SAID. Regime change
+    catches what we never thought to say. The instruments are complementary, and the audit's design
+    should say so rather than implying completeness.
+  ⇒ Practical consequence: **scale witnesses are the bridge** — they convert an undeclared
+    assumption ("this is fast enough") into a declared, auditable claim ("measured at N=X"), which
+    then falls INSIDE the audit's reach. That is why OPS-6 (the ratchet suite) is the highest-leverage
+    item on the ops track: it moves defects from the "regime change will find it eventually" class
+    into the "the audit finds it on Tuesday" class.
+
+⚑ EPISTEMIC NOTE — a priori analysis got the SHAPE right and the MAGNITUDE wrong:
+  finding-0167 (2026-07-23) READ the code and predicted "supersede_source O(depth) re-land bound
+  owed." Directionally correct. But the measured reality was O(TOTAL TABLE), not O(depth of one
+  path) — wrong by a whole order of structure, because `rows_for_source` scans everything. Reading
+  gave the shape; RUNNING gave the magnitude, and the magnitude was the part that mattered (a bounded
+  O(depth) cost would have finished the backfill). Vindicates deploy-then-measure over
+  theorize-then-trust — and is a third instance of the pattern this file exists to name.
+
+the mirror image, observed the SAME NIGHT (worth recording as the symmetric case):
+  the incident was a macro change EXPOSING micro machinery. The membership model (f-0168) is a macro
+  change DISSOLVING micro machinery — rename detection and the seen-before check both stop being
+  mechanisms and become properties of the data model (addendum 4; ops-and-optimal-form capsule 3).
+  ⇒ Both directions crossed scale in one session. Heuristic recorded there and repeated here: **if a
+    representation change makes a mechanism disappear, that is evidence the representation is right.**
+
+open questions:
+  - Can a regime change be STAGED deliberately rather than suffered? (A "scale rehearsal": run the
+    next grain jump against a copy at 10x before shipping it.) That would convert the most powerful
+    detection-lag collapser from a side effect into an instrument.
+  - Should every macro/grain change carry a REQUIRED scale-witness section — "what operating point
+    does this move, and what is measured at the new point" — in the design-note template?
+  - Is there a way to enumerate undeclared assumptions BEFORE a regime change exposes them, or is
+    "ship it and watch" genuinely the cheapest detector? (Suspect the latter, which is itself an
+    argument for making the watching good — the command center.)
+```
