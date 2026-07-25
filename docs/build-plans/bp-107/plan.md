@@ -261,11 +261,22 @@ form; only its *inputs* become measured rather than believed.
 
 ## 11. Parked decisions
 
-| Decision | Default recorded | Rejected alternatives (why) | Re-entry |
-|---|---|---|---|
-| `ps()` probe fails | Degrade to today's belief; `reconciled=False`; do NOT refuse | **Refuse all loads** — an unreachable Ollama already fails every load, so refusing adds only a brick risk | A probe failure is ever observed while loads still succeed |
-| Unknown-name policy | Fail-closed for non-pinned; pinned always allowed | **Refuse everything** (outage); **ignore unknowns** (restores the defect) | The embedder enters the registry, shrinking "unknown" to genuinely foreign models |
-| Where "partial" is surfaced | On `ReconcileReport`; callers render it | **Print from the loader** — core does not own presentation | A caller ships that ignores the flag |
+| Decision | Default recorded |
+|---|---|
+| `ps()` probe fails | degrade to today's belief; `reconciled=False`; do NOT refuse |
+| unknown-name policy | fail-closed for non-pinned; the pinned model is always allowed |
+| where "partial" is surfaced | on `ReconcileReport`; callers render it |
+
+**Rejected alternatives and re-entry conditions**, per row:
+
+- **`ps()` probe fails.** Rejected: *refuse all loads.* An unreachable Ollama already fails every
+  load, so refusing adds nothing but a brick risk. Re-entry: a probe failure is ever observed
+  while loads still succeed.
+- **Unknown-name policy.** Rejected: *refuse everything* (an outage, not a guard — and the
+  embedder is always unknown, §3); *ignore unknowns* (restores the defect exactly). Re-entry: the
+  embedder enters the registry, shrinking "unknown" to genuinely foreign models.
+- **Where "partial" is surfaced.** Rejected: *print it from the loader* — core does not own
+  presentation. Re-entry: a caller ships that ignores the flag.
 
 ## 12. Dependency & ordering summary
 
