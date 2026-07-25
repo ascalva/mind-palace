@@ -516,3 +516,65 @@ Propose **`#` for anchors**, keeping `:` for the residual numeric line case:
 
 ⇒ The grammar's optional tail is now **`#<anchor>` preferred, `:<line>` tolerated**. The earlier
 capsule's line-centric framing is superseded.
+
+### Owner ask — jump on a bare `§3`. ⚑ And the reason he "forgets" is a CORPUS DEFECT, not memory
+
+Verbatim: *"sometimes I also easily forget when you use a symbol like §3, so being able to move my
+cursor over and jump to file would be amazing."*
+
+The feature is right. But grounding it turned up something more important: **a bare `§N` in this
+corpus is genuinely ambiguous about WHICH DOCUMENT it indexes**, so the difficulty is a property of
+the notation, not of the reader.
+
+#### The evidence — one file, bare `§N`, two different targets
+
+`docs/build-plans/bp-110/plan.md`:
+
+| line | ref | actually means |
+|---|---|---|
+| 69, 71 | `§2.3`, `§2.7`, `§2.10` | **the design note's** sections (`dn-supervision-and-liveness`) |
+| 82, 109, 131, 152 | `§10` | **the plan's own** §10 (Stop-and-raise) |
+| 105 | `§2.3` | the note's — recoverable only from the prose *"The note's §2.3"* |
+| 237 | `§2.3` | the note's — **inside a docstring, with no qualifier at all** |
+
+The same token means different files depending on surrounding sentence. Line 237 is the sharp case:
+it survives into shipped source, where the disambiguating prose does not travel with it.
+
+⚑ **No editor feature can resolve this.** A jump-to-section keymap over line 237's `§2.3` has no way
+to know it means the note rather than the plan. **The notation has to be fixed first; the tooling is
+downstream of that.** This is the same shape as the `dn-`/`bs-` slug collision that started the
+thread — ambiguity in the *reference*, discovered because someone tried to make it executable.
+
+#### What the standard should say
+
+Bare `§N` = **the current document**, always. Crossing documents **requires** qualification:
+
+    §10                                  -- this document's §10
+    dn:supervision-and-liveness#§2.3     -- explicit, unambiguous, resolvable
+    bp:110#§10                           -- explicit even when self-referential
+
+That makes `bp-110`'s line 237 read `dn:supervision-and-liveness#§2.3` — self-contained, and it
+still means the right thing after it is copied into a docstring. It also lets the validator check
+cross-document `§` refs, which today are unverifiable by construction.
+
+⇒ This directly extends the standing `gloss IDs inline` rule (never make the owner hunt for what an
+id means) from ids to **section references**, which are the denser and more frequent case: 673 ×
+`§3`, 580 × `§6`.
+
+#### The two jumps — different mechanisms
+
+1. **Bare `§N` → intra-document motion.** Not `gf` (nothing to open): a keymap that searches the
+   current buffer for `^#+ N\.` / `^#+ §N`. Cheap, and it works on the corpus **as it stands today**
+   — no convention change required, which makes it the right thing to build first.
+2. **Qualified `<type>:<name>#§N` → open + jump.** The resolver from the capsules above; same
+   open-then-search path already required for `oq:` / `dc:`.
+
+Build (1) immediately for the reading-room win; (1) is also the honest partial answer while the
+notation question is still open. (2) lands with the standard.
+
+#### ⚑ Worth escalating separately
+
+The bp-110 line-237 case is a live hazard, not a hypothetical: a builder reading that docstring has
+no local way to know which document's §2.3 is meant, and bp-110 is **blessed-pending and about to
+be built**. Candidate for a finding against the plan (spec-fidelity), independent of whether the
+reference standard is ever adopted.
