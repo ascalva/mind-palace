@@ -118,6 +118,11 @@ _RESET_GUARD = ("vault", "runs.sqlite", "selfmod_ledger.sqlite", "telemetry.duck
 # when the foreground gate is clear (the supervisor's HEAVY_TIERS check), so this is a ceiling.
 _HOUSEKEEPING_INTERVAL_S = 6 * 3600
 
+# K — the drain bound (bp-108 Item 4 / §11). Public and module-level because `scripts/watch.py`
+# builds its own supervisor loop and must use the SAME bound: two serve loops with two different
+# duty cycles would be two answers to one question.
+DEFAULT_DRAIN_MAX_TICKS = 64
+
 
 def _pid_alive(pid: int) -> bool:
     try:
@@ -544,7 +549,7 @@ class Launcher:
     # §11's: if a single job routinely exceeds the tick budget, a count bound stops helping and
     # the note's time-boxed drain becomes the right fix (it needs `scheduler/supervisor.py`,
     # deliberately out of this plan's scope).
-    drain_max_ticks: int = 64
+    drain_max_ticks: int = DEFAULT_DRAIN_MAX_TICKS
     housekeeping_interval_s: float = _HOUSEKEEPING_INTERVAL_S
     health_interval_s: float = 60.0                            # OS-health sense cadence
     snapshot_interval_s: float = 5.0                           # edge-monitor snapshot cadence

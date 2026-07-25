@@ -227,3 +227,219 @@ guard as standard.
   `close_fds=True`), both asserted in
   `test_the_lock_descriptor_is_not_inherited_by_spawned_children`, so a future `close_fds=False`
   reddens instead of quietly bricking restarts.
+
+---
+
+## Item 3 — `start()` acquires the lock; the gate is re-documented as a diagnostic ✅
+
+Committed `8d873a0`. `start`'s body moved into a new `_start_locked` so the acquisition has **one**
+paired release rather than one per early return; `start` itself is now gate → lock → delegate →
+`finally: _release_lock()`.
+
+**Placement, and why it is not merely "before `sweep_orphans`".** The plan requires the acquire
+before `sweep_orphans` (`:653`). It is placed earlier still — immediately after the identity gate
+and *before preflight* — for the gate's own stated reason (finding-0195): an unrunnable state must
+not first cost the operator preflight's uncosted 120 s Ollama probe. Ordering is therefore
+**gate (explains) → lock (guarantees) → preflight → sweep**, which is also the order §4 of the plan
+describes ("the gate ... sitting ahead of the kernel-held lock").
+
+**The gate's comment block was corrected, not deleted** (§4's banner). It claimed to be the
+"SINGLE-INSTANCE GATE ... NOT bypassable by --force"; the first half of that is now false. It reads
+`SINGLE-INSTANCE **DIAGNOSTIC**`, names both ladder tiers (gate = 5, a probe with a check-then-act
+window; lock = 3, atomic), and says explicitly that deleting the gate would lose the *explanation*,
+not the *exclusion*. Behaviour at that site is unchanged — all of bp-105's 24 tests still pass
+untouched, and **no assertion in `test_restart_trustworthy.py` was weakened** (§10's fourth STOP
+condition). The only edits to existing code there were widening two fake supervisors' signatures.
+
+**Release ordering is load-bearing.** `_shutdown` releases **after** `runs.mark_stopped`.
+Releasing earlier would open a window where a successor holds the lock while this run's row is
+still active — so the successor's `sweep_orphans` would find live rows to reclaim, which is
+finding-0186 reintroduced by an ordering mistake. `start`'s `finally` is the net for paths that
+never reach `_shutdown` (a failed preflight returns before `open_run`); without it, one bad start
+would poison every later one, and under launchd `KeepAlive` that is an unrecoverable restart loop
+rather than an inconvenience.
+
+### The falsifier, exercised — and one mutation that initially caught NOTHING
+
+Item 3's named falsifier is *"deleting the `acquire()` call leaves the suite green"* — finding-0187's
+exact failure mode reproduced in a new mechanism.
+
+| mutation | tests reddened |
+|---|---|
+| **L1** the `acquire()` call deleted outright | **5** |
+| **L2** the release in `_shutdown` deleted | **0** → then **1** (see below) |
+| **L3** acquisition genuinely MOVED to after the sweep | **4** |
+
+⚑ **L2 reddened nothing on the first pass, and that was a real coverage gap, not a false alarm.**
+Because `start`'s `finally` also releases, deleting `_shutdown`'s release changed no observable
+behaviour — so the plan's own acceptance criterion ("released in `_shutdown`") was an *untested
+claim*. Rather than delete the redundant call, the behaviour is now pinned directly:
+`test_shutdown_relinquishes_the_role_on_its_own` and
+`test_shutdown_releases_even_when_there_is_no_run_to_close` drive `_shutdown` on its own. L2 now
+reds. Keeping both sites is deliberate — `_shutdown` is the semantic release point (the role is
+relinquished when the run ends), `start`'s `finally` is the safety net — and each is now
+independently asserted.
+
+L3 was rewritten mid-drill: the first version replaced the acquire with `pass` and so was just a
+duplicate of L1. The real relocation removes it from its site **and re-inserts it after
+`sweep_orphans`**, so the lock still exists and still excludes — just too late. It reds 4 tests,
+including `probes["preflight"] == 0` (a lock acquired after preflight refuses too slowly).
+
+---
+
+## Item 4 — the drain is bounded, and the sleep stops being unconditional ✅
+
+Committed `c22058f`. `scheduler/supervisor.py` is **untouched**, as §5 requires — `run` already
+took `max_ticks`; only `launcher.py:676` was wrong.
+
+`SupervisorLike` was widened from `run() -> object` to `run(*, max_ticks=None) -> int`, because
+`_serve` now uses **both** halves: the bound returns control at a job boundary, and the returned
+dispatch count is what makes the sleep conditional.
+
+K lives in **one** place — `DEFAULT_DRAIN_MAX_TICKS = 64` in `launcher.py`, with
+`Launcher.drain_max_ticks` defaulting to it and `scripts/watch.py` importing it. Two serve loops
+with two different duty cycles would be two answers to one question. It is a field, not config:
+the config loader is schema'd and drops unknown sections, so a `[scheduler]` key would be inert
+today (finding-0174) and that schema change belongs to bp-110.
+
+⚑ **`drain_max_ticks` is NOT `start(max_ticks=…)`.** The plan's invariant, honoured and commented
+at both sites: the outer value bounds serve-loop *iterations* and is the test seam; the inner one
+bounds *dispatches*. Conflating them would make a test's `max_ticks=1` silently mean "dispatch one
+job".
+
+`_idle` keeps its unconditional sleep, deliberately and now with a test
+(`test_recovery_mode_keeps_its_unconditional_sleep`): recovery halts the scheduler entirely, so
+there is never a drain to be idle after. Without that test, a future "unify the two loops" tidy-up
+would silently spin recovery mode at 100 % CPU.
+
+### The falsifier, exercised — both halves, mutated separately
+
+| mutation | tests reddened |
+|---|---|
+| **L4** the bound removed (back to a bare `run()`) | **3** |
+| **L5** the sleep made unconditional again | **2** |
+
+The throughput falsifier is measured in wall-clock, not asserted in the abstract:
+`test_a_no_op_backlog_does_not_take_N_times_tick_seconds` drains the plan's own **1,766** no-ops
+through a fake that honours `max_ticks` exactly as the real `Supervisor.run` does (and treats
+`max_ticks=None` as "drain until empty", which is the pre-fix behaviour — that fidelity is what
+makes L4 red). At K = 64 the backlog needs ⌈1766/64⌉ = **28** passes, every one of which must skip
+the sleep. Both mutations red it.
+
+---
+
+## Item 5 — `watch.py` cannot be the second claimant ✅
+
+`scripts/watch.py` now: acquires the same `SupervisorLock` **first** — before the queue, the
+loader, the supervisor or the watcher exist — opens a real run row, sweeps orphans with that id,
+drains with the daemon's own K, and releases the role after `mark_stopped`.
+
+⚑ **The falsifier drove the design.** Item 5's named falsifier is *"it acquires the lock but still
+runs with `active_run_id = None`"* — the lock stops a *second* claimant but does nothing about the
+NULL stamp when this script is the *only* one, and a NULL stamp is by definition reclaimable. So
+the plan's acceptance ("acquire + bound") is **not sufficient on its own**, and the falsifier says
+so: it must "either call `sweep_orphans` or refuse". That is why the run ledger appears here at
+all — `sweep_orphans` needs a run id to adopt, and the only honest source of one is a real row.
+
+**Consequence recorded in the docstring, because it is a behaviour change an operator can see:**
+while `watch.py` runs, `palace status` shows it as the live run, and killing it uncleanly leaves an
+unclean row so the next `palace start` comes up in recovery mode. That is the honest accounting of
+what the script is — a supervisor — rather than a quiet exception to it.
+
+The module docstring was rewritten per §4's banner: it now states the hazard (a second `Supervisor`
+over the shared queue, NULL-stamping rows the daemon's sweep can reclaim), both closures, and that
+V7 is unresolved — which is why it is bounded rather than deleted (§9, §10). **The script is not
+deleted.**
+
+### Acceptance, end to end and for real
+
+The literal criterion — *"Running it while the daemon is up exits non-zero **without claiming a
+single row**"* — was executed, not just unit-tested. A separate process held the lock; the real
+script was then run:
+
+```
+$ uv run scripts/watch.py   -> rc=1  (1.0s)
+refusing to start — another process holds the supervisor lock (…/data/supervisor.lock).
+The palace daemon supervises this queue and runs this watcher itself, so there is nothing for
+this script to do while it is up. Check with `palace status`; stop it with `palace stop` …
+
+  exits non-zero:             True
+  names the lock:             True
+  claimed NOTHING (no queue): True     <- queue.sqlite was never even created
+  opened NO run row:          True     <- runs.sqlite likewise
+```
+
+**A risk this introduced, checked rather than assumed:** `main()` now imports
+`ops.lifecycle.launcher` (for K) *after* `seal()` has monkeypatched the process. The script never
+imported `ops` before, so the sealed-import path is new. Verified explicitly — every import in
+`main()` resolves under the seal, `K = 64`.
+
+### Enforcement, and its honest limit
+
+An end-to-end happy-path test is **not** available in this plan's write scope: `main()` calls
+`seal()` (a process-wide monkeypatch that would follow the rest of the suite) and reads the real
+`data_dir` with no injection seam, and Item 5's `Files:` list is `scripts/watch.py` alone. What is
+pinned instead — in `tests/integration/test_lifecycle.py`, which IS in scope — are four **AST-level
+ratchets** over the real source, one per hazard: the acquire precedes both `JobQueue(` and
+`Supervisor(`; the `SupervisorLockHeld` handler returns non-zero; `open_run` → `sweep_orphans` →
+first `run` in that order; and the drain reuses `DEFAULT_DRAIN_MAX_TICKS` rather than re-declaring
+a literal. These are structural, not behavioural — stated plainly in the test module so nobody
+mistakes them for the stronger thing. The refusal path *is* covered behaviourally, by the
+end-to-end run above.
+
+---
+
+## Green gate — all six legs, run separately
+
+| leg | result |
+|---|---|
+| `uv run ruff check .` | **All checks passed!** |
+| `uv run python scripts/check_imports.py` | **OK** — core imports no zone or networking module |
+| `uv run mypy core agents eval ops scheduler scripts` | **Success: no issues found in 256 source files** |
+| `uv run mypy` (argless) | **69 errors in 20 files** — exactly the pinned tests/ baseline, unmoved |
+| `uv run python -m ops.type_gate` | **OK** — Tier-2 membership + bare-ignore scan |
+| `uv run pytest -q` | 1 failed, **2088 passed**, 15 skipped |
+
+The single failure is `tests/unit/test_core_self_containment.py::test_core_imports_nothing_outside_core`
+— the finding-0105 decision-A **intentional red**, which is the one node `Launcher.gate_cmd`
+deselects (`launcher.py`, unchanged by this plan). Under the gate's own selection:
+
+```
+uv run pytest -q -m "not live and not podman and not needs_vault and not needs_restic" \
+  --deselect tests/unit/test_core_self_containment.py::test_core_imports_nothing_outside_core
+2072 passed, 11 skipped, 21 deselected, 12 warnings in 38.51s
+```
+
+**The 12 warnings are new and mine**, so they are named rather than left to be discovered:
+`DeprecationWarning: This process is multi-threaded, use of fork() may lead to deadlocks in the
+child`, from `test_supervisor_lock.py`'s `os.fork()`. The fork is deliberate — it is the strongest
+form of the Item 2 falsifier (a child that shares everything) — and the children do only
+`os.open`/`flock`/`os._exit`, never allocation-heavy or ObjC work. `filterwarnings` has no `error`
+entry, so this does not fail the suite today; it would become a problem only if CPython promotes
+it. The cross-process claim is *also* covered by a fresh-interpreter subprocess test, so if that
+day comes the fork tests can be dropped without losing the guarantee.
+
+---
+
+## Owed at seal — closure evidence for the orchestrator
+
+**finding-0186 (`blocker`, its OPEN half).** The finding's re-entry condition says: *"do NOT run
+`scripts/watch.py` against the shared queue concurrently."* That is now structurally impossible
+rather than a standing instruction — evidence above under Item 5 (rc=1, nothing claimed, no run
+row). The route it named (`watch.py:39-47` building a second `Supervisor` with `active_run_id=None`)
+is closed twice over: the lock denies the concurrency, and the run row + sweep deny the NULL stamp.
+The builder has **not** edited the finding.
+
+**finding-0187 (`spec-defect`).** Its lesson — an untested switch is a claim, not a mechanism — was
+applied as a procedure, not a citation: every new mechanism here was mutation-drilled, and the one
+that reddened nothing (L2) was treated as a coverage gap and fixed. Not closed by this plan; the
+leased-rows ratchet it asks for is bp-109's.
+
+**New findings filed:** finding-0200 (`discovery` — `uv run` forks rather than execs; bp-111's
+lease-home decision keys on it) and finding-0201 (`discovery` — a mutation drill can silently run
+stale bytecode; asks whether the drill procedure should carry a `__pycache__` sweep as standard).
+
+**V7 remains unanswered and is NOT parked-blocking.** Nothing in the repository imports or invokes
+`scripts/watch.py`; the daemon builds its own vault watcher. Whether a human still runs it by hand
+needs an owner statement. Item 5's action was the one available without that answer, so no
+criterion is parked and no re-entry condition is owed.

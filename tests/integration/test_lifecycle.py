@@ -593,3 +593,95 @@ def test_recovery_mode_keeps_its_unconditional_sleep(tmp_path, monkeypatch):
     assert launcher.start(max_ticks=3) == 0
     assert _last(runs).recovery
     assert slept == [1.0, 1.0, 1.0]                        # every idle pass, unconditionally
+
+
+# =================================================================================================
+# bp-108 Item 5 — `scripts/watch.py` cannot be the second claimant (finding-0186's open half)
+# =================================================================================================
+#
+# The script is a SUPERVISOR: it builds its own `Supervisor` over the shared queue. Its hazards are
+# structural and ORDERED, so they are asserted structurally and in order, against the real source.
+# An end-to-end test is not available here — `main()` calls `seal()`, a process-wide monkeypatch
+# that would follow the rest of the suite, and the script reads the real `data_dir` with no
+# injection seam. What CAN be pinned without either is the shape of `main()` itself, which is
+# exactly where all four properties live.
+
+
+def _watch_main_ast():
+    import ast as _ast
+    src = (Path(__file__).resolve().parents[2] / "scripts" / "watch.py").read_text()
+    tree = _ast.parse(src)
+    main = next(n for n in tree.body if isinstance(n, _ast.FunctionDef) and n.name == "main")
+    return _ast, main
+
+
+def _first_line(_ast, node, predicate) -> int | None:
+    """Line number of the first call in `node` satisfying `predicate`, or None."""
+    lines = [c.lineno for c in _ast.walk(node) if isinstance(c, _ast.Call) and predicate(c)]
+    return min(lines) if lines else None
+
+
+def _callee(_ast, call) -> str:
+    f = call.func
+    if isinstance(f, _ast.Attribute):
+        return f.attr
+    return getattr(f, "id", "")
+
+
+def test_watch_py_takes_the_supervisor_lock_before_it_builds_a_supervisor():
+    """⚑ ORDERING. `scripts/watch.py:39-46` used to construct a `JobQueue` and a second
+    `Supervisor` with no exclusion at all. Acquiring after any of that would leave a window in
+    which this process has already touched the queue the daemon owns."""
+    _ast, main = _watch_main_ast()
+    acquired = _first_line(_ast, main, lambda c: _callee(_ast, c) == "acquire")
+    supervisor_built = _first_line(_ast, main, lambda c: _callee(_ast, c) == "Supervisor")
+    queue_built = _first_line(_ast, main, lambda c: _callee(_ast, c) == "JobQueue")
+
+    assert acquired is not None, "watch.py never acquires the supervisor lock"
+    assert supervisor_built is not None and queue_built is not None
+    assert acquired < queue_built, "the queue is opened before the role is claimed"
+    assert acquired < supervisor_built, "a second Supervisor is built before the role is claimed"
+
+
+def test_watch_py_refuses_with_a_non_zero_exit_when_the_lock_is_held():
+    """"Exits non-zero WITHOUT claiming a single row" — the refusal must be a `return 1` inside the
+    `SupervisorLockHeld` handler, not a warning that carries on regardless."""
+    _ast, main = _watch_main_ast()
+    handlers = [h for h in _ast.walk(main) if isinstance(h, _ast.ExceptHandler)
+                and "SupervisorLockHeld" in _ast.dump(h.type or _ast.Pass())]
+    assert handlers, "watch.py does not handle SupervisorLockHeld"
+    returns = [n for h in handlers for n in _ast.walk(h) if isinstance(n, _ast.Return)]
+    assert returns, "the SupervisorLockHeld handler falls through instead of refusing"
+    assert all(isinstance(r.value, _ast.Constant) and r.value.value != 0 for r in returns), (
+        "the refusal must exit non-zero")
+
+
+def test_watch_py_adopts_a_run_id_rather_than_stamping_rows_NULL():
+    """⚑ NAMED FALSIFIER (plan §7 Item 5): *it acquires the lock but still runs with
+    `active_run_id = None`.* The lock stops concurrency; it does not stop a NULL stamp, and a NULL
+    stamp is by definition reclaimable — so a lock-holding NULL-stamping claimant is the same lying
+    ledger one step later. It must open a run row and sweep with it, BEFORE the first claim."""
+    _ast, main = _watch_main_ast()
+    opened = _first_line(_ast, main, lambda c: _callee(_ast, c) == "open_run")
+    swept = _first_line(_ast, main, lambda c: _callee(_ast, c) == "sweep_orphans")
+    drained = _first_line(_ast, main, lambda c: _callee(_ast, c) == "run")
+
+    assert opened is not None, "watch.py never opens a run row — every claim would stamp NULL"
+    assert swept is not None, "watch.py never sweeps, so it never adopts its run id"
+    assert opened < swept, "the sweep needs the run id that open_run returns"
+    assert drained is not None and swept < drained, "the sweep must precede the first claim"
+
+
+def test_watch_pys_drain_carries_the_same_bound_as_the_daemon():
+    """One system, one duty cycle. Two serve loops with two different bounds would be two answers
+    to one question, so the constant has a single home in `launcher.py`."""
+    from ops.lifecycle.launcher import DEFAULT_DRAIN_MAX_TICKS
+
+    _ast, main = _watch_main_ast()
+    drains = [c for c in _ast.walk(main)
+              if isinstance(c, _ast.Call) and _callee(_ast, c) == "run" and c.keywords]
+    bounds = [k.value for c in drains for k in c.keywords if k.arg == "max_ticks"]
+    assert bounds, "watch.py's supervisor.run() is unbounded — the pre-bp-108 defect"
+    assert all(isinstance(b, _ast.Name) and b.id == "DEFAULT_DRAIN_MAX_TICKS" for b in bounds), (
+        "watch.py must reuse the launcher's K, not re-declare a literal")
+    assert Launcher.__dataclass_fields__["drain_max_ticks"].default == DEFAULT_DRAIN_MAX_TICKS
