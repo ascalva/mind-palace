@@ -90,7 +90,7 @@ uv wrapper still un-reaped at that moment: False
 ```
 
 The wrapper exits as soon as its child dies, and it held nothing regardless. Filed as
-**finding-0200** (`discovery`, route builder, resolved in-plan) so bp-111 inherits the
+**finding-0201** (`discovery`, route builder, resolved in-plan) so bp-111 inherits the
 measured mechanism instead of the assumed one — the lease-home decision (§2.6: "a row in
 `runs.sqlite` **or** the lockfile's mtime") keys on exactly this.
 
@@ -187,7 +187,7 @@ kill+reap in `finally`; the child re-points fds 0/1/2 at `/dev/null` immediately
 so a leaked child can never hold a capture pipe; and the child self-terminates after 60 s. Any
 one of the three would have prevented the hang — a failing test must never be able to hang.
 
-**(2) ⚑ The mutation drill silently ran STALE BYTECODE. Filed as finding-0201.** After the
+**(2) ⚑ The mutation drill silently ran STALE BYTECODE. Filed as finding-0202.** After the
 harness restored a byte-identical original, the suite still reported `1 failed, 14 passed`, and
 kept doing so on a fresh invocation. `inspect.getsource` showed correct source. Spying on
 `fcntl.flock` revealed it was **never called**:
@@ -204,7 +204,7 @@ neither, within the same mtime second. The interpreter kept the M3 bytecode. Eve
 above was re-taken after adding a `__pycache__` sweep between mutations; the restored run is now
 `rc=0, 15 passed`. **This matters beyond bp-108:** every plan here discharges named falsifiers
 by planting mutations, and this failure mode reports a *false* verdict in the direction of
-confidence. finding-0201 asks the orchestrator whether the drill procedure should carry the
+confidence. finding-0202 asks the orchestrator whether the drill procedure should carry the
 guard as standard.
 
 ### Deliberate design choices, and what would show them wrong
@@ -435,8 +435,8 @@ applied as a procedure, not a citation: every new mechanism here was mutation-dr
 that reddened nothing (L2) was treated as a coverage gap and fixed. Not closed by this plan; the
 leased-rows ratchet it asks for is bp-109's.
 
-**New findings filed:** finding-0200 (`discovery` — `uv run` forks rather than execs; bp-111's
-lease-home decision keys on it) and finding-0201 (`discovery` — a mutation drill can silently run
+**New findings filed:** finding-0201 (`discovery` — `uv run` forks rather than execs; bp-111's
+lease-home decision keys on it) and finding-0202 (`discovery` — a mutation drill can silently run
 stale bytecode; asks whether the drill procedure should carry a `__pycache__` sweep as standard).
 
 **V7 remains unanswered and is NOT parked-blocking.** Nothing in the repository imports or invokes

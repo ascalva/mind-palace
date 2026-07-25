@@ -6,82 +6,84 @@ created: 2026-07-25
 updated: 2026-07-25
 links:
   - docs/build-plans/bp-108/plan.md
-  - CLAUDE.md
-  - docs/templates/build-plan.md
+  - docs/design-notes/dn-supervision-and-liveness.md
+  - ops/lifecycle/com.mind-palace.palace.plist
+  - ops/lifecycle/lock.py
 ftype: discovery
 origin_plan: bp-108
 route: builder
 resolution: >
-  Resolved for bp-108 by clearing `__pycache__` between every mutation and re-running the
-  drill (results changed; the first run's verdict was false). Unresolved GENERALLY — every
-  plan in this repo carries "plant the mutation and record that it reddens" as a named
-  falsifier, and nothing in the workflow tells a builder that the drill can silently lie.
+  Resolved in-plan. V8 PASSES, but by a different mechanism than bp-108 §3 Q7(b)
+  assumed: `uv run` FORKS, it does not exec. The lock is nonetheless held by the
+  python process alone (lsof shows no wrapper fd), so the guarantee stands. Item 2
+  built on the measured mechanism, not the assumed one.
 ---
 
-# A mutation drill can silently run the PREVIOUS bytecode — the falsifier says "green" and
-# the builder believes it
+# V8 measured: `uv run` forks rather than execs — the lock still lands on python, for a
+# different reason than the plan assumed
 
 ## What
-Named falsifiers in this workflow are routinely discharged by planting a mutation, running
-the suite, and recording that it reddens (bp-108 §7 Items 2 and 3 both demand exactly this).
-That procedure has a silent failure mode.
+bp-108 §3 Q7(b) grounds the supervisor lock on an assumption it explicitly flagged as
+needing observation: *"whether the lock is held by the **supervisor's** python process
+rather than a `uv run` wrapper that exits — `uv run` execs into python on this platform,
+but that must be observed, not assumed."*
 
-CPython invalidates a cached `.pyc` on **(source mtime, source size)** — not on content
-hash, by default. A mutation that changes neither is therefore *ignored*: the interpreter
-loads the stale bytecode and the drill measures the wrong program. Two of the three
-mutations used on `ops/lifecycle/lock.py` are exactly that shape:
-
-| original | mutation | same size? |
-|---|---|---|
-| `fcntl.flock(fd, fcntl.LOCK_EX \| fcntl.LOCK_NB)` | `fcntl.lockf(fd, ...)` | yes — `flock`/`lockf` are both 5 chars |
-| `fcntl.flock(fd, fcntl.LOCK_EX \| fcntl.LOCK_NB)` | `... fcntl.LOCK_SH ...` | yes — `LOCK_EX`/`LOCK_SH` are both 7 chars |
-
-A scripted drill writes the mutation, runs pytest, and restores the original within the same
-mtime *second*, so the restore is invisible too. Observed here: after the harness restored a
-byte-identical original, the suite reported `1 failed, 14 passed` and kept doing so on
-re-run. The source on disk was correct — `inspect.getsource` confirmed it — while the loaded
-module was still the mutant. It was only caught by spying on `fcntl.flock` and noticing it
-was **never called at all**:
+Measured on APFS (`/dev/disk3s5`, `data/`), macOS 25.5.0, uv from `/opt/homebrew/bin/uv`:
 
 ```
-a.acquire():
-  open(PosixPath('.../supervisor.lock'), flags=514) -> fd 3
-b.acquire():
-  open(PosixPath('.../supervisor.lock'), flags=514) -> fd 4
- -> GRANT                      # and no flock(...) line anywhere
+$ uv run python v8_holder.py <lockfile>
+wrapper(uv)=30413  python=30414          <- TWO pids: uv does NOT exec in place
+$ lsof <lockfile>
+COMMAND     PID    USER   FD   TYPE  NAME
+python3.1 30414 ascalva    3u   REG  .../data/v8-throwaway.lock
+=> wrapper 30413 appears in lsof: False  <- but the wrapper holds NO fd
 ```
 
-Adding `shutil.rmtree` of every non-`.venv` `__pycache__` before each run fixed it, and the
-drill's verdict changed.
+**The exec claim is false; the conclusion it was supporting is true.** `uv run` spawns a
+child python and waits on it. The lockfile fd is opened *by python, after the fork*, so
+the wrapper never holds it and cannot outlive it. The falsifier as stated in Item 1 —
+*"`uv run` holds the lock from a wrapper process that outlives or precedes python"* —
+does not fire: the wrapper neither holds nor precedes the lock.
+
+Supporting measurements (all in `docs/build-plans/bp-108/journal.md` with commands):
+
+| observation | result |
+|---|---|
+| second process, `LOCK_EX\|LOCK_NB`, while held | `BLOCKED errno=35 EAGAIN` |
+| SIGKILL the holder → successor acquires | 17-19 ms, no residue, zero-byte file remains |
+| kill python only, wrapper un-reaped → successor | acquires (wrapper holds nothing) |
+| same-process second `open()` + flock | `BLOCKED errno=35` — flock is per-open-file-description |
 
 ## Why it matters
-The failure direction is **toward false confidence**, in the one procedure whose entire job
-is to prevent false confidence:
+Two downstream consumers key on *which process* owns the lockfile, and both would be
+mis-grounded by the exec claim:
 
-* **A mutation that "fails to red" reads as a weak test.** A builder who plants a deletion,
-  sees green, and concludes "my test does not pin this" may go and write a *worse* test, or
-  file a spurious spec-defect — when in fact the mutation never ran.
-* **Worse, and the reason this is filed:** the same mechanism can make a drill report the
-  *previous* mutation's result. In the first run here, M3's row was produced with M2 possibly
-  resident. The numbers differed so M3 was genuine, but nothing in the procedure would have
-  revealed it if they had matched — and "M2 and M3 red the same tests" is precisely the
-  result a builder would find unremarkable.
-* This is the finding-0187 shape one level up. There, an untested switch was a claim rather
-  than a mechanism. Here, an *un-run* mutation makes a test look like a mechanism when the
-  drill proved nothing.
+1. **bp-111 (the supervisor lease).** `dn-supervision-and-liveness` §2.6 offers "a row in
+   `runs.sqlite` **or** the lockfile's mtime" as the lease home, and V9 picks between them.
+   If the lease is the lockfile's mtime, the renewer is the python process — the same one
+   that records `pid=os.getpid()` in the run ledger. Consistent, but only because of the
+   fork-and-hold-in-child shape measured here, not because of an exec.
+2. **launchd KeepAlive restart ordering** (bp-108 §10's second STOP condition). launchd
+   watches the *top* process, which is `uv` (`ProgramArguments = [uv, run,
+   scripts/palace.py, start]`, `KeepAlive=true`, `ThrottleInterval=10`). Because uv waits
+   on its python child, the lock holder is **always dead before launchd observes the job
+   exit**, and `ThrottleInterval=10` adds a 10 s floor on top of a measured 19 ms release.
+   The restart-outage STOP condition therefore cannot fire — but that argument depends on
+   the fork shape. Under a hypothetical exec, the reasoning would be simpler; under a
+   wrapper that *retained* an fd it would be false.
 
-The cheap, complete guard is one line at the top of any mutation loop — drop `__pycache__`,
-or run with `PYTHONDONTWRITEBYTECODE=1`. The point of filing it is that a builder can only
-apply a guard they know about, and this one is invisible until it bites.
+The correction is small but it is the kind that fails silently: a future reader who trusts
+the exec claim would conclude "one process, nothing to reason about" and would not notice
+if a `uv` version change started holding a descriptor.
 
 ## Re-entry condition
-Nothing is parked; bp-108 proceeded with the guard in place. Re-entry is for the
-orchestrator: decide whether the **checkpoint/build-plan skill** should carry "clear
-`__pycache__` (or set `PYTHONDONTWRITEBYTECODE=1`) before every mutation run" as part of the
-standard falsifier-drill procedure. A one-line addition to the skill would retire the hazard
-repo-wide; without it, the next builder rediscovers it or — much more likely — does not.
+None — nothing is parked. This is a grounding correction recorded so bp-111 inherits the
+measured mechanism rather than the assumed one. Re-measure if the uv version changes such
+that `pgrep -fl` shows the wrapper holding an fd on the lockfile.
 
 ## Routing
-`discovery`, route `builder` — no design question and no owner input needed; the technical
-fact is settled and applied. Surfaced to the orchestrator only for the process half (should
-the drill procedure carry the guard), which is a skill edit outside this builder's scope.
+`discovery` on a builder-resolvable grounding detail → route `builder`. Resolved within
+bp-108: Item 2 is built against the measured behaviour and Item 1's acceptance criterion
+(b) — *"the holder pid **is** the python process, not a wrapper (`lsof <lockfile>`)"* — is
+satisfied as written. No owner input needed. Flagged to the orchestrator only so the
+plan's §3 Q7 text is not carried forward verbatim into bp-111's grounding.
