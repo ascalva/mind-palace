@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0186
-status: open
+status: routed
 created: 2026-07-25
 updated: 2026-07-25
 links:
@@ -55,3 +55,34 @@ reusing `reset()`'s check) is clear, but the DESIGN question is the owner's: sho
 Blocks nothing on a single-supervisor start. Until ruled on: do NOT `start --force`
 over a live supervisor, and do NOT run `scripts/watch.py` against the shared queue
 concurrently. Re-entry: owner rules on refuse-vs-skip, then a plan owns the guard.
+
+## Owner ruling — 2026-07-25
+
+**`start` refuses outright.** Verbatim: *"the start should refuse outright if there is
+any potential for an issue to occur, it is the system deeming an unrunable state, which
+helps us not shoot ourselves in the foot."*
+
+Fail-closed. `--force` must NOT bypass the guard — it overrides *preflight*, not
+*safety*. The recovery message at `launcher.py:528-529`, which currently prints
+`start --force` as the remedy, must instead direct the operator to `palace stop`.
+
+### The trap the ruling must survive (surfaced at ruling time, not discovered later)
+
+`_pid_alive` is pure pid-EXISTENCE (`os.kill(pid, 0)`) and deliberately reports a
+foreign owner as ALIVE — an explicit passing test,
+`test_pid_alive_treats_a_foreign_owner_as_ALIVE`. After an unclean exit the OS may
+recycle the dead supervisor's pid to an unrelated process. A fail-closed `start` keyed on
+existence alone would then refuse **forever**, and under launchd `KeepAlive` that is a
+self-inflicted brick — the system correctly deeming itself unrunnable, for a false reason,
+with `--force` (the very flag being closed) as the only escape.
+
+Resolution: liveness must be **identity-checked**. A process created BEFORE its own run
+row cannot be that run's supervisor. `psutil>=5.9` is already a dependency
+(`pyproject.toml:11`) with a §2.5 typedshim, so `Process(pid).create_time()` compared
+against `run.started_at` needs no new dependency and no subprocess.
+
+**On ambiguity, refuse** — that is the ruling applied. The recycled-pid carve-out fires
+only when identity is *positively disproven*.
+
+Implementation: **bp-105 Item 2** (`docs/build-plans/bp-105/plan.md`), with the
+recycled-pid case as a required named falsifier, not an afterthought.
