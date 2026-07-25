@@ -8,15 +8,15 @@ updated: 2026-07-25
 links:
   - docs/brainstorms/supervision-and-liveness.md       # the commissioning capsule (session-47)
   - docs/brainstorms/design-pass-routing.md            # the routing map this note amends (see §1.1)
-  - docs/brainstorms/local-model-runtime.md            # NEW NOTE 2 — shared boundary (§2.6)
+  - docs/brainstorms/local-model-runtime.md            # NEW NOTE 2 — shared boundary (§2.7)
   - docs/audits/ops-wave-2026-07-25.md                 # the audit that produced the warrants
   - docs/findings/finding-0171.md                      # unbounded drain (oq-0035's origin)
   - docs/findings/finding-0178.md                      # there is no job timeout
   - docs/findings/finding-0188.md                      # the wedge detector's ceiling
   - docs/findings/finding-0165.md                      # background starvation under a long job
   - docs/findings/finding-0174.md                      # the ceiling ignores the embedder
-  - docs/findings/finding-0191.md                      # write_scope is not a partition (graduation input)
-  - docs/build-plans/bp-105/journal.md                 # why nothing on the loop can emit during a wedge
+  - docs/findings/finding-0191.md                      # write_scope is not a partition
+  - docs/build-plans/bp-105/journal.md                 # why the loop cannot emit mid-wedge
 supersedes: null
 superseded_by: null
 warrant: docs/findings/finding-0188.md
@@ -31,13 +31,36 @@ warrant: docs/findings/finding-0188.md
 **Owner's mandate (2026-07-25, verbatim):** *"the general liveness probe … is the OS side of the
 system, it manages state, manages runs, manages memory, manages that the system runs as expected,
 and the system's demands will only increase as we keep stacking features, density, runs, etc, so
-we have to get this right"* — and the acceptance bar: *"we do not want something that is going to
+we have to get this right"* — the acceptance bar: *"we do not want something that is going to
 allow us to shoot ourselves in the foot without realizing; the system's OS needs to maintain the
-consistency and accuracy of the system with precision and appropriate guard rails."*
+consistency and accuracy of the system with precision and appropriate guard rails"* — and the
+escalation (same day): *"the ultimate goal for the system OS/scheduler is to make this class of
+error impossible, unrepresentable if possible."*
 
-Read "without realizing" as the design test throughout: a bad state entered **silently** fails
-this note even if the bad state is rare. Fail-closed beats fail-open; structurally-enforced beats
-conventionally-observed; a loud wrong answer beats a quiet one.
+Read the escalation as the design test throughout: **detection is the fallback, not the goal.**
+For each failure mode the first question is whether the bad state can be denied a representation
+at all; a detector is what remains when it cannot. This is non-negotiable #1's discipline applied
+one layer down — "enforce structurally, not by convention" — and the OS layer should be designed
+the way the sealed core was.
+
+### The enforcement ladder (every mechanism in this note is ranked on it, explicitly)
+
+| tier | name | meaning |
+|---|---|---|
+| 1 | unrepresentable | no value inhabits the bad state |
+| 2 | capability | the component is never given the means |
+| 3 | protocol | an external authority enforces it — held-or-not |
+| 4 | ratchet | a test/scan proves the property in CI |
+| 5 | runtime check | the bad state is constructible; a check looks for it |
+
+Tier 3's authority is the kernel, the clock or the filesystem — the point is that it is
+*held-or-not*, never check-then-act. Tier 5 is the **weakest** and the standing proof is
+finding-0187: deleting bp-105's sweep call left 85/85 green.
+
+Overclaiming a tier is itself the foot-gun — "unrepresentable" delivered as a tier-5 check is
+"shoot ourselves in the foot without realizing," one level up. Python bounds what tier 1 can
+mean here (mypy is static and two-tier; SQLite cannot retrofit CHECK constraints), so most of
+this note lands honestly at tiers 2–3 — each claim below says which, and what would falsify it.
 
 ## 1. Purpose and scope
 
@@ -73,7 +96,7 @@ reconciliation it asked for. Three reasons:
 axes: corpus completeness · history realized · causal density · drift · headroom · liveness *as a
 rendered axis*); the level-vs-derivative layout rule; cost as a checkable property / the
 perf-ratchet suite generalized (OPS-6); structured residuals as an instrument requirement;
-detection lag as a *tracked metric* (its four-mode refinement is defined here, §2.8, and handed
+detection lag as a *tracked metric* (its four-mode refinement is defined here, §2.9, and handed
 to NEW NOTE 1 to render). **What moves here:** the four-mode taxonomy, the one-seam finding, the
 compute/land split, the oq-0035 ruling package, the shutdown escalation contract (OPS-4's design
 half), and — answering the routing map's open Q2 — **finding-0165 (background starvation)**,
@@ -89,7 +112,7 @@ of the instrument layer.
 - **NOT the command-center Tier 2 / macro-axis rendering.** Retained by NEW NOTE 1 (§1.1).
 - **NOT the local model runtime.** llama.cpp-direct migration, embedder residency re-grounding,
   and `resident_gb` semantics are NEW NOTE 2's (finding-0174 folds there). This note only flags
-  the shared boundary (§2.6) and constrains its own design to not foreclose it.
+  the shared boundary (§2.7) and constrains its own design to not foreclose it.
 - **NOT a retry / dead-letter / backoff policy redesign.** `[INFERENCE]` The queue's existing
   terminal states and `attempts` counter stay as they are; a killed job's disposition is decided
   here (§2.4) but a general retry policy is not designed. Inferred out-of-scope: no artifact
@@ -111,10 +134,15 @@ Four modes, four different mechanisms — the taxonomy survives verification and
 
 | mode | definition | mechanism today | status |
 |---|---|---|---|
-| 1 GONE | process dead, ledger says RUNNING | pid liveness + identity (`_supervisor_alive`, launcher.py:166-212; `run_state`, snapshot.py:91) | ✅ have |
-| 2 STUCK-IN-LANE | job alive, landing nothing in its lane | store-clock side channel (snapshot.py:199-223) | ⚠️ embedding lane only (bp-105's stated ceiling) |
-| 3 SLOW | progressing, too slowly to matter | a rate AND an expectation | ❌ none (no denominator exists — §2.8, Q3) |
-| 4 HUNG | thread wedged, stopped cooperating | external observation + the power to act | ❌ none, and impossible without §2.2 |
+| 1 GONE | process dead, ledger says RUNNING | pid liveness + identity | ✅ tier 5, pull-only |
+| 2 STUCK-IN-LANE | alive, landing nothing in lane | store-clock channel | ⚠️ tier 5, one lane |
+| 3 SLOW | progressing, too slowly to matter | a rate AND an expectation | ❌ none |
+| 4 HUNG | thread wedged, stopped cooperating | outside view + power to act | ❌ none, needs §2.2 |
+
+Citations and qualifications, by mode. **1** — `_supervisor_alive` (`launcher.py:166-212`) and
+`run_state` (`snapshot.py:91`). **2** — the store-clock (`snapshot.py:199-223`); the "one lane"
+caveat is bp-105's own stated ceiling, embedding only. **3** — nothing exists because no
+denominator does (§2.9, Q3). **4** — impossible while the handler owns the loop (§2.2).
 
 The trap stands verified: a cooperative heartbeat detects (3) and not (4), because a wedge IS a
 handler that stopped cooperating. bp-105's own build record proves the stronger form: **nothing
@@ -123,6 +151,15 @@ tick and housekeeping tick all live on the loop the handler blocks
 (`launcher.py:675-695`), and even `Supervisor._record` runs only *after* `handler(job)` returns
 (`supervisor.py:96, 109-115`). The one channel that worked (the store's filesystem mtime) worked
 precisely because it is written from *inside* the blocked call (bp-105 journal, Checkpoint 3).
+
+Under the escalated mandate the taxonomy is re-read with the unrepresentability question FIRST,
+detector second. The answers this note reaches: mode 1's bad state (dead-but-reported-RUNNING)
+loses its representation under the dead-man inversion (§2.6 — liveness stops being a stored bit
+anyone can fail to update); mode 2's detector generalizes into an in-band signal (the landing
+cadence, §2.5) whose *absence* is the alarm — no per-lane probe exists to rot; mode 4 splits in
+two: a hung **worker** becomes kernel-boundable (§2.5) and a hung **supervisor** becomes loud by
+lease decay (§2.6); mode 3 (SLOW) is the one mode that irreducibly needs a detector plus an
+expectation, and it stays parked until a denominator exists (Parked decisions).
 
 ### 2.2 The structural finding, confirmed: one seam, and it is worse than one job
 
@@ -144,19 +181,29 @@ Every registered kind in the daemon's handler map (`ops/lifecycle/launcher.py:45
 for whether it computes-then-writes or irreducibly interleaves. "Land" = short store write(s)
 terminal to one item; "compute" = the long span (model call / embed / parse / scan).
 
-| kind | route | per-item shape | split verdict |
-|---|---|---|---|
-| `vault_sync` | vault_sync.py:31 → core/ingest/sync.py:83,146 | raw.add → parse+embed → 5-store landing (see below) | splittable; landing = 5 ordered short writes |
-| `chat_sync` | chat_sync.py:40 → ops/chat_sensor.py:289-341 | parse (model-free) → add_text + add_batch (:310,:329) | splittable, trivially (compute is cheap) |
-| `code_sync` | code_sync.py:37 → code_corpus.py:280-301 | derive+embed (:272-277) → supersede+add (:298-300) | **splittable — already separate statements** |
-| `code_backfill` | code_sync.py:53 → code_corpus.py:309-338 | parse+embed → store.add (:333); then diff capture | splittable; the hours-long lane that matters most |
-| `chat_events` | cron.py:106 → core/chat_events.py:199-215 | pure `extract_events` → `replace_session` (:215) | splittable, trivially; capped 50/pass |
-| `integrate` | cron.py:126 → core/integrator.py:97-116 | pure resolution (:118-146) → `replace_session` (:113) | splittable, trivially; capped 50/pass |
-| `dream` | cron.py:50 → core/dreaming/dreamer.py:126-165 | model calls (long) → attest + derived.add (:143-162) | splittable per theme; writes terminal per iteration |
-| `curate` | cron.py:58 → core/curator/curator.py:156-179 | all findings computed (:159), then a write-only loop | **already compute-then-write** |
-| `ambassador` | interface.py:45 → core/interface.py:57-77 | model call → atomic response-file write + unlink | near-target; writes ARE the handoff, id-idempotent |
-| `ambassador_task` | scheduler/interface.py:53-59 | pure compute; returns text, SUPERVISOR lands it (supervisor.py:94-95) | **already exactly the target shape** |
-| `research` | cron.py:147 → scheduler/research.py:76-93 | airlock.emit (the diode) → collect → rank (pure) → returns text | near-pure; nothing lost on interruption |
+| kind | per-item shape | split verdict |
+|---|---|---|
+| `vault_sync` | raw.add → parse+embed → 5-store landing | splittable; landing = 5 short writes |
+| `chat_sync` | parse (model-free) → add_text + add_batch | splittable, trivially |
+| `code_sync` | derive+embed → supersede+add | **already separate statements** |
+| `code_backfill` | parse+embed → store.add; then diff capture | splittable; the lane that matters |
+| `chat_events` | pure extract → `replace_session` | splittable; capped 50/pass |
+| `integrate` | pure resolution → `replace_session` | splittable; capped 50/pass |
+| `dream` | model calls (long) → attest + derived.add | splittable per theme |
+| `curate` | all findings computed, then a write loop | **already compute-then-write** |
+| `ambassador` | model call → atomic file write + unlink | near-target; writes ARE the handoff |
+| `ambassador_task` | pure compute; returns text | **already exactly the target shape** |
+| `research` | emit → collect → rank (pure); returns text | near-pure; nothing lost on interrupt |
+
+Routes, in the same order: `vault_sync.py:31` → `core/ingest/sync.py:83,146` · `chat_sync.py:40` →
+`ops/chat_sensor.py:289-341` (writes at `:310,:329`) · `code_sync.py:37` →
+`code_corpus.py:280-301` (embed `:272-277`, land `:298-300`) · `code_sync.py:53` →
+`code_corpus.py:309-338` (land `:333`) · `cron.py:106` → `core/chat_events.py:199-215` (`:215`) ·
+`cron.py:126` → `core/integrator.py:97-116` (resolve `:118-146`, land `:113`) · `cron.py:50` →
+`core/dreaming/dreamer.py:126-165` (land `:143-162`) · `cron.py:58` →
+`core/curator/curator.py:156-179` (compute `:159`) · `interface.py:45` →
+`core/interface.py:57-77` · `scheduler/interface.py:53-59` — **and here the supervisor already
+lands the result, `supervisor.py:94-95`** · `cron.py:147` → `scheduler/research.py:76-93`.
 
 `vault_sync`'s per-note landing, in order: raw.add (`sync.py:92`, idempotent archive, pre-compute)
 · delete+add (`index.py:87-88`) · catalog.record (`sync.py:119`) · attestor.emit (`:122`) ·
@@ -174,6 +221,19 @@ compute/land split is not an invention; it is the system's own existing pattern,
 (Fifth arrival of "returns data, never actions" — after non-negotiables #3/#4, the airlock, and
 the append-only-substrate principle.)
 
+**And the survey licenses the stronger reading (reframing A, verified): the split is a
+CAPABILITY restriction, not a discipline.** Because no handler irreducibly *needs* a store
+writer, the compute half can be constructed without one — the worker is handed sources, blobs,
+and an embedder client, never a `VectorStore`/`VaultCatalog`/ledger handle. "Handler interleaves
+writes" then stops being a rule handlers follow and becomes a thing the compute side *cannot
+express* — **tier 2**, and honestly not tier 1: the stores are files on a shared disk, and a
+worker that independently called `open_vector_store` could still write. Two backings close that:
+a tier-4 ratchet (the worker entrypoint's import graph contains no store-opening constructor —
+the `check_imports.py` species, applied to a new boundary) now, and tier 3 under the
+dn-plane-principals split (the worker principal simply lacks filesystem write permission to
+`data/`) later. The in-process interim, before any worker exists, is tier 5 and must be reported
+as such.
+
 Honest qualifications, so the survey cannot be quoted stronger than it is:
 
 - `vault_sync`'s landing is a five-store ordered sequence per note, including an internal
@@ -187,19 +247,23 @@ Honest qualifications, so the survey cannot be quoted stronger than it is:
 - `code_sync`, `code_backfill` and `vault_sync` have **no iteration cap** (unlike
   chat_events/integrate/dream), which is why they are the hours-long lanes.
 
-### 2.4 The position on oq-0035: **(c) both** — and the stated crux is an artifact
+### 2.4 The position on oq-0035: **(c) both** — and the stated crux dissolves under the split
 
 oq-0035's crux as written: *"whether an interrupted store write is acceptable to guarantee
 availability. That trades data integrity against a shutdown guarantee."*
 
-**Verified: for every registered handler, that trade does not exist at the span where
-interruption matters.** The survey (§2.3) shows the hours-long spans are compute; the writes are
-short and item-terminal. Interrupting between items interrupts a *computation* and loses nothing
-but the in-flight item's re-derivable work. The only genuine partial-write windows (vault's
+**Verified — and under reframing A the crux is not mitigated but NONEXISTENT for the registered
+kinds.** The survey (§2.3) shows the hours-long spans are compute; the writes are short and
+item-terminal. With the compute side constructed store-less (tier 2), the interruptible region
+contains no writes *by construction*: interrupting the worker interrupts a computation that holds
+nothing to corrupt. "Is an interrupted store write acceptable?" stops being a trade to rule on
+because the actor being interrupted cannot write. The only genuine partial-write windows (vault's
 delete→add, code's supersede→add) are seconds wide, already self-healing under idempotent re-run,
-and close structurally once landing is supervisor-owned. So the ruling the owner was asked for —
-"is data loss acceptable?" — was conditioned on an architecture, not on physics. Change the
-architecture and the question dissolves for the registered kinds.
+and move into the supervisor's landing step — where the interrupting party is no longer this
+design's escalation (which targets only the worker) but a power loss or an operator `kill -9` of
+the supervisor itself, the same residual every store write in the system already carries. So the
+ruling the owner was asked for — "is data loss acceptable?" — was conditioned on an architecture,
+not on physics. Change the architecture and the question dissolves for the registered kinds.
 
 The recommendation, in dependency order:
 
@@ -217,7 +281,7 @@ The recommendation, in dependency order:
   making the system able to *see* one — modes (3) and (4) stay undetected forever, which fails
   "without realizing" by construction.
 
-What each half would NOT catch (the falsifier duty, per mechanism, in §2.9): the split does not
+What each half would NOT catch (the falsifier duty, per mechanism, in §2.10): the split does not
 detect a wedge, it makes one killable and observable; the escalation does not explain a wedge, it
 bounds it. Both, together, or the mandate is not met.
 
@@ -245,7 +309,13 @@ The capsule's Q1 (thread vs subprocess vs cooperative batch), decided with evide
   trusted core code — the isolation is borrowed for liveness, not for privilege reduction.
 
 **Decision:** one worker subprocess per dispatched job; the handler's compute half runs there and
-returns bounded batches (IPC); the supervisor lands each batch and owns all clocks:
+returns bounded batches (IPC); the supervisor lands each batch and owns all clocks. Tier
+accounting for this mechanism, stated plainly: the *no-writes-in-the-worker* property is tier 2
+(capability, §2.3) with a tier-4 import-ratchet backing; the *cancellability* property is tier 3
+— the process boundary makes "stop" a kernel operation (SIGKILL is enforced by the OS, an
+authority outside the wedge), where an in-process cancel flag would be tier-5 cooperation with
+the very code that stopped cooperating. The escalation policy itself (when to fire) is runtime
+logic and cannot be higher than tier 5 — what the ladder buys is that when it fires, it *works*:
 
 1. **Batch budget** — a batch that exceeds its deadline ⇒ escalation (a). The batch is also the
    fairness unit: between batches the supervisor may claim other-lane work (closes
@@ -260,9 +330,87 @@ returns bounded batches (IPC); the supervisor lands each batch and owns all cloc
 
 Interim step, independently valuable and cheap: `_serve` should call `run(max_ticks=K)` (or a
 time-boxed drain) so the health/snapshot/housekeeping ticks run at job boundaries again even
-before any handler is split (§2.2's sharpening; falsifier in §2.9).
+before any handler is split (§2.2's sharpening; falsifier in §2.10). Tier 5, reported as such.
 
-### 2.6 The memory ceiling (non-negotiable #8) under the worker model
+### 2.6 The dead-man inversion (reframing B, verified with one correction) and the five targets
+
+Today the system **asserts** health: `stopped_at IS NULL` means running (`runs.py:72-74`),
+`state = 'running'` means working (`queue.py:47`), and every incident in this track's history is
+a stored assertion outliving the actor that made it. Reframing B inverts the polarity: nothing
+asserts health; health **decays** unless renewed, and every reader treats staleness as DOWN by
+default. Then "a blocked supervisor still reporting healthy" loses its representation — there is
+no "I am healthy" bit left to lie with. Verified as the right move, with the caveat named
+honestly: **the inversion does not escape the seam (§2.2).** A lease renewer must live off the
+blocked path, which only the worker split provides — so B *depends on* §2.5; it does not replace
+it. What B changes is what the seam buys: not "the supervisor can now observe" but "the
+supervisor's own absence becomes meaningful." A wedged landing step, the split's one residual
+blocking hazard, now reads DOWN/AILING instead of silent-green — the loud wrong answer the
+mandate prefers.
+
+Three concrete mechanisms, then the five targets ranked:
+
+- **The supervisor lock (two-supervisors, upgraded tier 5 → tier 3).** An OS-exclusive `flock`
+  on a lockfile beside the queue, acquired before `sweep_orphans` and held for the supervisor's
+  lifetime. Held-or-not is a kernel fact: it dies with the process (no stale-lock state exists),
+  and acquisition is atomic (no check-then-act race — bp-105's gate at `launcher.py:606-611`
+  probes then proceeds, a TOCTOU the lock does not have). It guards the **supervisor role**
+  (sweep + claim), NOT queue writes — CLI enqueues (`palace code-seed`, launcher.py:882-907)
+  legitimately insert concurrently and stay lock-free under WAL. This also closes the
+  `scripts/watch.py:39-47` second-supervisor route structurally (the open half of
+  finding-0186): a second claimant fails to acquire, whatever entrypoint built it. bp-105's
+  identity gate stays as the *diagnostic* layer (it can say WHY, the lock can only say no).
+- **The supervisor lease (health polarity).** The serve loop renews a small lease (a row in
+  `runs.sqlite` or the lockfile's mtime) every tick; `status`, `start`, and any future
+  continuous probe compute liveness as `lease_age < ttl`. Renewal has exactly one site — the
+  loop body, never a handler, never the landing step's interior — so the signal means "the
+  supervisory loop cycled recently" and nothing weaker. Tier 3 (the clock and filesystem are
+  the authority; no reader trusts a stored bit). Single-host, so clock skew reduces to
+  wall-vs-monotonic care, not distributed-systems lease semantics.
+- **Leased RUNNING rows (jobs).** `claim()` — already the queue's only RUNNING-constructor
+  (`queue.py:292-324`) — stamps a deadline on every row it takes; readers treat an
+  expired-deadline row as orphaned *by definition*, whatever its `state` byte says. The orphan
+  sweep stops being a call someone must remember to make (finding-0187's exact failure: deleting
+  the call left 85/85 green) and becomes a derived view plus a lazy reap. SQLite cannot make an
+  undeadlined RUNNING row uninhabitable (no retrofitted CHECK, additive-only migration), so this
+  is tier 2 (single constructor) + tier 4 (a ratchet asserting no RUNNING row lacks a deadline),
+  NOT tier 1 — claimed as such.
+
+**The five unrepresentability targets, ranked** (tier reached · cost · what shows it wrong):
+
+| target | tier | cost |
+|---|---|---|
+| RUNNING job, no deadline | 2 + 4 | additive column; reader change |
+| handler writes the store | 2 + 4 (3 under principals) | the §2.5 split |
+| active run row, process gone | 3 for reporting | one renewal site + readers |
+| two supervisors, one queue | 3 (kernel flock), was 5 | lockfile + acquire-or-exit |
+| stopped supervising, reads healthy | 3 | needs §2.5 (renewer off loop) |
+
+**The tier, justified, and the falsifier that would show each wrong** — the owner ratifies
+falsifiers, so this half is prose, not a cell:
+
+- **RUNNING job, no deadline** — tier 2 because `claim()` becomes the sole constructor of a RUNNING
+  row, plus tier 4 (a ratchet asserting none lacks a deadline). SQLite bars tier 1: no retrofitted
+  CHECK on an additive-only migration. *Wrong if:* a RUNNING row is minted outside `claim()`, or a
+  reader still trusts `state` alone.
+- **handler writes the store** — tier 2 by capability (the worker is handed no store), tier 4 by an
+  import ratchet; tier 3 if separate principals land. *Wrong if:* the worker imports a store
+  constructor, or landing p95 approaches the tick budget.
+- **active run row, process gone** — tier 3: liveness is never stored, it decays. *Wrong if:* a
+  second renewal site appears, or a reader keys on `stopped_at IS NULL` alone.
+- **two supervisors, one queue** — tier 3 via kernel `flock`; bp-105's gate drops to tier 5
+  diagnostic. *Wrong if:* a claimant sits outside the lock (`watch.py` — V7), or flock's semantics
+  fail verification (V8).
+- **stopped supervising, reads healthy** — tier 3: health is computed from lease age, never
+  asserted. *Wrong if:* renewal happens from inside compute/landing, or the ttl cries wolf
+  (bp-102 §10's disqualifier).
+
+The honest summary the ladder forces: **nothing here reaches tier 1.** Python and SQLite bound
+the reachable tiers at 2–3 for every target; what changes is that today's tier-5 checks (probe
+the pid, remember to sweep, trust the row) become kernel facts, decaying signals, and absent
+capabilities. bp-105's runtime checks are kept, demoted to diagnostics — the layer that explains,
+not the layer that guarantees.
+
+### 2.7 The memory ceiling (non-negotiable #8) under the worker model
 
 What actually changes and what does not, against `core/models/loader.py`:
 
@@ -274,7 +422,7 @@ What actually changes and what does not, against `core/models/loader.py`:
   belief (`loader.py:33`) that nothing reconciles against Ollama's actual residency
   (`OllamaClient.ps()` exists and is read only for the status embedder line,
   `launcher.py:1080-1098`). finding-0174's embedder is one unaccounted consumer; the general
-  defect is that *no* reconciliation of belief-vs-`ps()` exists anywhere (§2.7). NEW NOTE 2 owns
+  defect is that *no* reconciliation of belief-vs-`ps()` exists anywhere (§2.8). NEW NOTE 2 owns
   the accounting redesign; this note's obligation is only to not widen the gap.
 - **What the split adds: two new consumers and one new hazard.** The worker's own Python RSS
   (+ the serialized batch in flight) is a new unaccounted term — small, but it must be *declared*
@@ -284,43 +432,62 @@ What actually changes and what does not, against `core/models/loader.py`:
   claim a second model-using job, and `ensure_tier` for job B would evict the model job A is
   mid-generation on. **Rule: at most one in-flight model-using job; while one is out, the
   supervisor may dispatch only jobs sharing its `load_key` or doing landing/housekeeping.**
-  That keeps ceiling semantics identical with zero new accounting.
+  That keeps ceiling semantics identical with zero new accounting. Tier accounting: a dispatch
+  guard at the one claim site — tier 5 with a tier-4 test, stated as such; the ceiling *refusal*
+  itself stays where it is (`_check_ceiling` raising before any load, tier 5 today, unchanged
+  by this note — its upgrade belongs to NEW NOTE 2's accounting redesign).
 - **The shared boundary with NEW NOTE 2, flagged not resolved:** "is the embedder a third
   process or an unaccounted ghost" is the same question from two directions. If NEW NOTE 2 makes
   the embedder a palace-owned process, the worker's embed calls route there and the worker gets
   *thinner*; nothing in this note's design forecloses that, and neither note should resolve the
   embedder's residency without the other.
 
-### 2.7 I5 — "consistency and accuracy", mechanically
+### 2.8 I5 — "consistency and accuracy", mechanically
 
 The owner named consistency as the OS's job. The concrete pairs this layer owns, and whether
 anything detects divergence today:
 
 | consistency pair | detector today | gap |
 |---|---|---|
-| run ledger vs process reality | `run_state` + `_supervisor_alive` (pull, at `status`/`start`) | continuous detection has no home — the blocked loop (§2.2); closes with §2.5 |
-| queue RUNNING rows vs a live claimant | `sweep_orphans` at start (queue.py:350-394); ORPHANED render (launcher.py:1146-1157) | nothing while live: a wedged-but-alive job is visible only via the embedding store-clock |
-| queue QUEUED uniqueness vs coalescing | conventional (enqueue-time); the partial UNIQUE index is parked until the restart clears 1,766 dups (queue.py:121-126) | the consistency claim exists; its structural enforcement is a queued hand-off |
-| store vs code ledger (versions embedded) | `_code_backfill_incomplete` at start only (launcher.py:343-362) | not in `status` (no cheap reader — the 3.5 s scan, snapshot.py:355-376; finding-0178 hand-off) |
-| vector store vs vault catalog | `rescan` re-derives and repairs silently every pass | self-healing but not *reporting* — divergence is fixed without ever being said [INFERENCE: acceptable, because raw is the substrate and the repair is the contract] |
-| loader `_resident` books vs Ollama actual | **none** | belief-only accounting; `ps()` is never reconciled against the books — the finding-0174 class, generalized (input to NEW NOTE 2) |
-| second-supervisor exclusion | `start` gate (launcher.py:606-611) | `scripts/watch.py:39-47` still builds a second Supervisor on the shared queue — the un-lifted half of finding-0186 |
+| run ledger vs process reality | `run_state`, `_supervisor_alive` | pull-only; no continuous home |
+| queue RUNNING vs a live claimant | `sweep_orphans` at start | nothing while live |
+| queue QUEUED vs coalescing | conventional, enqueue-time | structural version parked |
+| store vs code ledger (versions) | start-time probe only | absent from `status` |
+| vector store vs vault catalog | `rescan` repairs each pass | self-healing, never reports |
+| loader `_resident` vs Ollama | **none** | belief-only accounting |
+| second-supervisor exclusion | `start` gate | a second claimant route remains |
+
+Per row: **run ledger** — pull-only at `status`/`start`; continuous detection has no home while the
+loop is blocked (§2.2), and closes with §2.5. **queue RUNNING** — `queue.py:350-394` plus the
+ORPHANED render; a wedged-but-alive job surfaces only via the store-clock. **QUEUED uniqueness** —
+the partial UNIQUE index is parked at `queue.py:121-126`; the claim exists, the enforcement is a
+queued hand-off. **store vs code ledger** — `_code_backfill_incomplete` (`launcher.py:343-362`)
+runs at start only; no cheap reader exists (the 3.5 s scan, finding-0178). **vector store vs
+catalog** — [INFERENCE: acceptable; raw is the substrate and repair is the contract]. **loader
+`_resident`** — `ps()` is never reconciled; finding-0174 generalized, and now **finding-0199**,
+which traces a ceiling breach on the crash-restart path. Input to NEW NOTE 2.
+**second-supervisor** — the gate is `launcher.py:606-611`, but `scripts/watch.py:39-47` still
+builds a second `Supervisor`: finding-0186's un-lifted half.
 
 The class, named: **every ops ledger is written by the actor whose failure it must record.**
 Reconciliation exists at boundaries (start, pull-time status) and nowhere continuously — and the
 reason it is not continuous is the same one seam (§2.2). The bp-105 orphan was one instance;
-this table is the class. The worker model gives continuous reconciliation a home; NEW NOTE 1's
+this table is the class. The escalated mandate's answer to the class is §2.6: stop storing the
+assertions (liveness becomes lease-derived; RUNNING becomes deadline-bounded by its only
+constructor) so most of the table's left column stops being *checkable state* and becomes
+*derived fact*. What remains genuinely stored-and-reconciled — the loader books vs `ps()`, the
+store-vs-ledger coverage — gets its continuous home from the worker model, and NEW NOTE 1's
 instruments then have something to render.
 
-### 2.8 Detection lag gets four numbers, not one (handed to NEW NOTE 1)
+### 2.9 Detection lag gets four numbers, not one (handed to NEW NOTE 1)
 
-Per the capsule's Q4, the taxonomy prices lag per mode: GONE = time-to-next-pull (unbounded
-today; becomes one tick under §2.5); STUCK = one landing-batch interval (in-band, lane-agnostic);
+Per the capsule's Q4, the taxonomy prices lag per mode: GONE = the lease ttl under §2.6 (today:
+time-to-next-pull, unbounded); STUCK = one landing-batch interval (in-band, lane-agnostic);
 SLOW = the expectation window (needs Q3's denominator — parked, see Parked decisions); HUNG = the
 batch budget + escalation deadline (bounded for the first time). NEW NOTE 1 tracks these as four
 metrics; this note defines them.
 
-### 2.9 Falsifiers (the owner ratifies falsifiers, not proofs)
+### 2.10 Falsifiers (the owner ratifies falsifiers, not proofs)
 
 Per mechanism: the observable that would show it WRONG, and what it would NOT catch.
 
@@ -341,7 +508,7 @@ Per mechanism: the observable that would show it WRONG, and what it would NOT ca
   healthy 14-hour backfill dies at hour N on schedule); *does not catch:* anything — it detects
   nothing, explains nothing; it only bounds. An escalation that fires must always mint a finding,
   or the kill is the silent state-change the mandate forbids.
-- **Single-model-in-flight rule (§2.6)** — *wrong if:* it serializes the system back to
+- **Single-model-in-flight rule (§2.7)** — *wrong if:* it serializes the system back to
   one-job-at-a-time in practice because every lane is model-using (then the fairness win of the
   batch unit is theatre for model lanes; measure the interleave actually achieved).
 - **`run(max_ticks=K)` interim** — *wrong if:* no-op drain throughput collapses (1,766 queued
@@ -366,8 +533,15 @@ Per mechanism: the observable that would show it WRONG, and what it would NOT ca
 - **V6** — the checkpoint/coalescing collision: confirm a checkpointed `_IDEMPOTENT_KINDS` row
   can swallow a follow-up request (bp-105 CP1's reading), and pin the fix (exclude rows with a
   non-NULL `checkpoint` from the coalesce key) before any batch-yield lands.
-- **V7** — enumerate `scripts/watch.py`'s users; either wire it through the single-instance gate
-  or retire it (the open half of finding-0186).
+- **V7** — enumerate `scripts/watch.py`'s users; either bring it under the supervisor lock or
+  retire it (the open half of finding-0186 — under §2.6 the lock, not the gate, is the closure).
+- **V8** — verify `flock` semantics where they will actually run: APFS, under launchd, across
+  `uv run` process trees (the lock must be held by the supervisor python process, not a wrapper
+  that exits). Advisory locking is only as good as every claimant acquiring it — V7 enumerates
+  the claimants; V8 proves the kernel behavior.
+- **V9** — measure lease-renewal cost and pick the clock (file mtime vs a `runs.sqlite` row;
+  wall vs monotonic). Settles the ttl floor: the ttl must comfortably exceed the loop's worst
+  honest tick (including a p99 landing step, V1) or the dead-man cries wolf — the §2.6 falsifier.
 
 ## 3. Consequences
 
@@ -380,15 +554,18 @@ builder plans with disjoint scopes, plus one **integrator plan** whose write_sco
 seam files (the supervisor dispatch path + the worker protocol), carrying a named falsifier per
 hand-off. The last commit before the wave's seal must never be the first commit of a behaviour.
 
-**Sequencing:** the interim `run(max_ticks=K)` fix and the escalation fail-safe (a) are small and
-independent; the split (b) proceeds lane-by-lane, longest-lane first (`code_backfill`,
-`code_sync`, `vault_sync` — the uncapped three, §2.3), with `ambassador_task` as the existing
-in-repo reference shape. bp-105's store-clock stays in place throughout as the independent
-corroboration channel (it needs no cooperation from any of this to keep working).
+**Sequencing:** three small independent pieces first — the supervisor lock (tier 3, upgrades the
+bp-105 gate), the interim `run(max_ticks=K)` fix, and leased RUNNING rows (additive column +
+derived readers) — none waits on the worker protocol. Then the split (b) lane-by-lane,
+longest-lane first (`code_backfill`, `code_sync`, `vault_sync` — the uncapped three, §2.3), with
+`ambassador_task` as the existing in-repo reference shape; the supervisor lease and escalation
+fail-safe (a) land with the first split lane (the lease's renewer needs the unblocked loop,
+§2.6). bp-105's store-clock and identity gate stay in place throughout as the diagnostic layer
+(they need no cooperation from any of this to keep working).
 
 **Findings this bears on:** closes the design half of finding-0171/0178 (via the oq-0035 ruling);
 gives finding-0165 its structural home (the batch unit); generalizes finding-0188's mode-2
-detection past the embedding lane; adds the loader-reconciliation gap (§2.7) as an input NEW
+detection past the embedding lane; adds the loader-reconciliation gap (§2.8) as an input NEW
 NOTE 2 must account for.
 
 ## 4. Wiring & enablement
@@ -396,11 +573,16 @@ NOTE 2 must account for.
 **How it wires:** a `[scheduler]` config section (schema'd in the config loader — unknown
 sections are dropped silently, bp-102/finding-0174's lesson, so the schema change is part of the
 deliverable, not a follow-up): `worker_mode = "inproc" | "subprocess"` (default `inproc` at
-first landing), `batch_deadline_s`, `job_budget_s` per-kind overrides, `escalation_grace_s`.
-`palace status` renders the worker pid, current batch age vs deadline, and last landing time —
-replacing the "(no enforced job budget)" line (`launcher.py:1158-1160`) with the budget it now
-has. `down`/`stop` gain the bounded-drain report (what was signalled, what was verified, within
-what bound). The interim `run(max_ticks=K)` ships wired, not flagged.
+first landing), `batch_deadline_s`, `job_budget_s` per-kind overrides, `escalation_grace_s`,
+`lease_ttl_s`. The supervisor lock (§2.6) ships **unconditional, not flagged** — a mutual-
+exclusion guarantee behind a flag is a contradiction; it wires into `start` before
+`sweep_orphans` and into whatever `scripts/watch.py` becomes (V7). The lease renewal wires into
+the serve loop's tick; `status` computes liveness from lease age (falling back to the bp-105
+identity probe when no lease exists yet — old ledgers must not read as DOWN forever) and renders
+the worker pid, current batch age vs deadline, and last landing time — replacing the "(no
+enforced job budget)" line (`launcher.py:1158-1160`) with the budget it now has. `down`/`stop`
+gain the bounded-drain report (what was signalled, what was verified, within what bound). The
+interim `run(max_ticks=K)` ships wired, not flagged.
 
 **What it takes to flip it on:** (a) a build lands the worker protocol + one lane
 (`code_backfill`) split, behind `worker_mode = "subprocess"`; (b) the owner flips
@@ -421,6 +603,9 @@ demonstrable. The flip is owner-visible and reversible per lane — no lane is f
 - **Escalation deadline values** (N seconds SIGTERM→SIGKILL): owner call at ratification;
   default proposal 30 s grace after a missed batch deadline, logged + finding-minted on every
   firing. Re-entry: the oq-0035 ruling itself.
+- **Lease ttl** (`lease_ttl_s`): blocked on V9's measured tick ceiling; default proposal
+  3× the worst honest tick. Too tight is the cry-wolf falsifier (§2.6); too loose re-widens
+  GONE-mode detection lag toward today's pull-only bound. Re-entry: V9.
 - **Whether `ambassador`'s reactive path also moves out-of-process**: default NO — it is the
   conversational front door, latency-sensitive, holds no store handles, and its writes are the
   handoff files themselves. Re-entry: only if a wedged Ambassador model call is ever observed
