@@ -117,12 +117,29 @@ class _FakeWatcher:
         self.stopped = True
 
 
+class _FakeSweep:
+    """Stands in for `scheduler.queue.OrphanSweep` — the launcher only calls `.render()`."""
+
+    def __init__(self, run_id):
+        self.run_id = run_id
+
+    def render(self):
+        return f"orphan sweep: nothing stranded (run #{self.run_id})"
+
+
 class _FakeQueue:
     def __init__(self):
         self.closed = False
+        self.swept_for = None          # the run id the sweep was called with, or None
 
     def close(self):
         self.closed = True
+
+    def sweep_orphans(self, active_run_id):
+        # bp-101/finding-0177: the supervisor sweeps stranded RUNNING rows before the first
+        # claim(). Recorded so a test can assert the call happened AND adopted the run id.
+        self.swept_for = active_run_id
+        return _FakeSweep(active_run_id)
 
 
 def _launcher(tmp_path, **kw):

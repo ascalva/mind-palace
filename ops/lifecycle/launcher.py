@@ -66,11 +66,20 @@ class WatcherLike(Protocol):
     def stop(self) -> None: ...
 
 
+class SweepLike(Protocol):
+    """`scheduler.queue.OrphanSweep`'s surface here — structural, so `ops` keeps no import-time
+    dependency on `scheduler` (the QueueLike pattern, bp-101/finding-0177)."""
+
+    def render(self) -> str: ...
+
+
 class QueueLike(Protocol):
-    """`scheduler.queue.JobQueue`'s real surface here (only `.close()` is called through
-    `Components.queue` — `build_components` calls `.depth()` on its own `JobQueue` directly)."""
+    """`scheduler.queue.JobQueue`'s real surface here (`.close()` and, since bp-101/bp-103
+    integration, `.sweep_orphans()` are called through `Components.queue` — `build_components`
+    calls `.depth()` on its own `JobQueue` directly)."""
 
     def close(self) -> None: ...
+    def sweep_orphans(self, active_run_id: int) -> SweepLike: ...  # bp-101 / findings 0173, 0177
 
 
 class ChildLike(Protocol):
@@ -522,6 +531,11 @@ class Launcher:
                 self._idle(max_ticks)
             else:
                 self._components = self.components_factory(self.cfg)
+                # Reclaim rows stranded RUNNING by an unclean exit, BEFORE the first claim()
+                # (bp-101, findings 0173/0177). Not cosmetic: this call is also what adopts the
+                # run id, so without it `claimed_by_run` stays NULL forever and the next sweep
+                # has nothing to key on.
+                print(self._components.queue.sweep_orphans(run.id).render())
                 self._components.enqueue_catchup()        # reconcile / rebuild an empty cache
                 self._install_signal_handlers()
                 self._serve(max_ticks)
