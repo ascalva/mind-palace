@@ -186,3 +186,60 @@ Open: whether to scope it to `markdown` only (an ftplugin) or repo-wide.
 
 Captured, not built. Small and self-contained — one lua function plus `.nvim.lua`. The corpus
 question in problem 1 should be settled first, since the resolver encodes whatever answer we pick.
+
+### Owner refinement, same session — a TYPED REFERENCE instead of a rename
+
+Verbatim: *"you can also just refer to brainstorms with a bs- prefix, so if a document has a path,
+easy, if it has the name of the file, add the prefix, or some prefix, something like
+`<doc-type>:<name-with-or-without-extension>`, so `dn:supervision-and-liveness` is acceptable."*
+
+**This is the better idea and it retires the rename proposal.** The disambiguation moves out of the
+*filename* and into the *reference*. `inner-outer-core` stops being ambiguous not because we renamed
+a file but because the citation now says which plane it means. Corollary: the design-note naming
+inconsistency (`dn-` on some, bare on others) stops being load-bearing — still worth tidying, no
+longer blocking.
+
+It is really two things, and they should not be conflated:
+1. **An authoring convention** — how ids are written in docs from now on. Touches CONVENTIONS /
+   the templates / the `gloss IDs inline` rule.
+2. **A resolver** — the `includeexpr` that turns a typed reference into a path.
+
+The resolver must accept **both** typed and bare forms regardless: the corpus already contains
+thousands of bare `dn-…` / `finding-NNNN` / `bp-NNN` references and they are not getting rewritten.
+Typed wins when present (unambiguous); bare falls back to precedence + picker.
+
+#### ⚑ The separator matters more than it looks — MEASURED, not assumed
+
+| form | isfname change | collision risk |
+|---|---|---|
+| **`bs-supervision-and-liveness`** (hyphen — the owner's own first phrasing) | **none** — `-` is already in `isfname` | none |
+| `bs:supervision-and-liveness` (colon) | **required** — `:` is NOT in the default | ⚑ real, see below |
+
+Measured this session: nvim's default is `isfname=@,48-57,/,.,-,_,+,,,#,$,%,~,=` — **no colon**.
+So `gf` on `dn:supervision-and-liveness` today grabs only one side of the colon.
+
+And the cost of adding it is not hypothetical: **1,753 `path:line` references** live in
+`docs/build-plans/` + `docs/design-notes/` alone (the §3 grounding convention — `queue.py:222`,
+`launcher.py:676`). Putting `:` in `isfname` makes `gf` swallow the `:222` on every one of them,
+breaking the plain-path case that **works correctly today**. That is a regression traded for a
+cosmetic gain.
+
+Mitigable — `includeexpr` can strip a trailing `:%d+`, and **`gF` already jumps to file+line
+natively**, so `path:line` arguably wants `gF` anyway. But it is added machinery in service of a
+separator, not of the feature.
+
+#### Recommendation
+
+**Take the hyphen form: `bs-<slug>`, `dn-<slug>`, `bp-NNN`, `finding-NNNN`, `oq-NNNN`, `tr-<slug>`.**
+- Zero editor surgery; `-` is already a filename char.
+- Consistent with every id the corpus already uses — `bp-108` and `finding-0199` are ALREADY
+  virtual ids that don't match their filenames (`bp-108` → `docs/build-plans/bp-108/plan.md`), so
+  `bs-<slug>` → `docs/brainstorms/<slug>.md` introduces no new concept.
+- Leaves the 1,753 `path:line` refs untouched and working.
+
+The colon reads slightly better as "typed reference", and if that legibility is what the owner
+wants, it is buildable — the cost is the `isfname` change plus a strip rule, and it should be a
+deliberate trade, not a side effect. **Owner's call; recommendation is hyphen.**
+
+Unchanged from the capsule above: `oq-` and `dc-` resolve to **section anchors, not files**, so
+they need an open-then-search wrapper either way.
