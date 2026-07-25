@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-100
 track: ops
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/temporal-code-corpus.md
 contract: builder
