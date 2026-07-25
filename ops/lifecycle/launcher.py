@@ -29,6 +29,19 @@ from typing import TYPE_CHECKING, Protocol
 from ops.lifecycle.preflight import Preflight, run_preflight
 from ops.lifecycle.runs import RunLedger, RunRecord, git_state
 
+# snapshot.py is stdlib-only (no store/model imports), so this is a cheap module-level import and
+# there is no cycle: snapshot never imports launcher — it takes `_pid_alive` as an argument.
+from ops.lifecycle.snapshot import (
+    STATUS_WINDOW_MINUTES as _STATUS_WINDOW_MINUTES,
+)
+from ops.lifecycle.snapshot import (
+    build_status,
+    humanize_seconds,
+    read_queue_stats,
+    read_store_stats,
+    run_state,
+)
+
 if TYPE_CHECKING:  # annotations only — the real modules stay lazily imported at runtime
     from config.loader import Config
     from core.ingest.code_corpus import CodeCorpusSync
@@ -453,6 +466,16 @@ class Launcher:
     # unless set explicitly (risk (a)).
     launchctl: Callable[[list[str]], subprocess.CompletedProcess[str]] = _run_launchctl
     installed_plist: Path = field(default_factory=_default_installed_agent_plist)
+    # How long `down` OBSERVES the process after the bootout before it reports (bp-102 Item 3 /
+    # finding-0171). This is a VERIFICATION window, not an escalation deadline: nothing is
+    # signalled again and nothing is killed when it elapses — the command simply stops claiming a
+    # state it has not seen. A graceful drain that ends at a job boundary normally completes well
+    # inside it; a wedged job never will, and that is the fact `down` must print.
+    stop_verify_s: float = 5.0
+    stop_poll_s: float = 0.25
+    # W for the status rate block. Field, not config: `core/config/loader.py` is schema'd and
+    # drops unknown sections, so a `[status]` key would be inert (bp-102 §11 / finding-0174).
+    status_window_minutes: float = _STATUS_WINDOW_MINUTES
     _stopping: bool = field(default=False, init=False)
     _run_id: int | None = field(default=None, init=False)
     _run: RunRecord | None = field(default=None, init=False)  # the active RunRecord (for snapshots)
@@ -666,19 +689,53 @@ class Launcher:
 
     # --- stop / status ----------------------------------------------------------------------
     def stop(self) -> int:
+        """SIGTERM the live run and report **what was verified**, not what was requested.
+
+        The old line — "it will drain + mark clean" — asserted a future the command cannot see.
+        The drain finishes at the in-flight job's boundary and has no time bound (finding-0171),
+        so a wedged job means the process outlives the signal indefinitely. This now says which
+        of the two happened. NO escalation is added: SIGKILL / job budgets are the owner's open
+        decision (finding-0171 (a)/(b)/(c)); this command only signals, observes, and reports."""
         run = self.runs.last()
         if run is None or not run.active:
             print("no active run to stop.")
             return 1
-        try:
-            os.kill(run.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            # the process is gone but never marked stopped — a crash; record it as unclean.
+        if not _pid_alive(run.pid):
+            # ledger says active, the OS says otherwise — the finding-0172 stale row. Close it.
             self.runs.mark_stopped(run.id, clean=False, note="stop: process already gone")
             print(f"run #{run.id} (pid {run.pid}) was not alive — marked unclean.")
             return 1
-        print(f"sent SIGTERM to run #{run.id} (pid {run.pid}); it will drain + mark clean.")
+        try:
+            os.kill(run.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            # raced us between the liveness probe and the signal — same conclusion.
+            self.runs.mark_stopped(run.id, clean=False, note="stop: process already gone")
+            print(f"run #{run.id} (pid {run.pid}) was not alive — marked unclean.")
+            return 1
+        if self._await_exit(run.pid, self.stop_verify_s):
+            print(f"stop: SIGTERM sent to run #{run.id} (pid {run.pid}) — process exited. "
+                  "Under launchd KeepAlive this is a RESTART, not a down (`palace down`).")
+            return 0
+        print(f"stop: SIGTERM sent to run #{run.id} (pid {run.pid}) — STILL ALIVE after "
+              f"{self.stop_verify_s:.0f}s. The drain ends at the in-flight job's boundary and has "
+              "no time bound (finding-0171), so this may be a long job or a wedged one. Check "
+              f"`ps -o pid=,stat=,etime=,%cpu= -p {run.pid}`; escalation is an owner decision, "
+              "not this command's.")
         return 0
+
+    def _await_exit(self, pid: int, seconds: float) -> bool:
+        """Poll `_pid_alive` for up to `seconds`; True iff the process is gone by then.
+
+        Observation only — it never signals and never escalates. `_pid_alive` is the ONE liveness
+        primitive (reused, not re-implemented); note it reports True on `PermissionError`, so a
+        process owned by another principal is correctly seen as alive rather than as exited."""
+        deadline = time.monotonic() + max(0.0, seconds)
+        while True:
+            if not _pid_alive(pid):
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(min(self.stop_poll_s, max(0.0, deadline - time.monotonic())) or 0.01)
 
     # --- ingest-chat (on-demand chat sensor run, bp-068) -------------------------------------
     def ingest_chat(self) -> int:
@@ -754,20 +811,47 @@ class Launcher:
         """Maintenance-down that OUTLASTS KeepAlive (finding-0066): `launchctl bootout`. Plain
         `stop` only SIGTERMs and launchd immediately relaunches it — so a true down boots the
         agent out. Idempotent (already-out reports and returns 0); if the agent isn't installed
-        there is no KeepAlive to outlast, so fall back to a plain `stop`."""
+        there is no KeepAlive to outlast, so fall back to a plain `stop`.
+
+        **`down` no longer claims a state it has not observed (finding-0171).** Observed
+        2026-07-25: it printed its success line while pid 96950 kept running at 96% CPU and
+        `launchctl print` showed `active count = 1` pending — the launchd JOB was unloaded, the
+        PROCESS was not. Booting the agent out and the process exiting are two different facts, so
+        this now reports them separately: it verifies the pid for `stop_verify_s` and, if the
+        process outlives the bootout, says so by pid/run/elapsed and returns non-zero. The
+        escalation policy (SIGTERM→SIGKILL, job budgets) remains the owner's open decision
+        (finding-0171 (a)/(b)/(c)); nothing here kills anything."""
         if not self.installed_plist.exists():
             print("down: not installed as a LaunchAgent — no KeepAlive to outlast; plain stop.")
             return self.stop()
         if not self._managed():
             print("down: already down (agent booted out).")
             return 0
+        run = self.runs.last()
         rc = self.launchctl(["bootout", self.domain.target(self.launchd_label)]).returncode
         if rc != 0:
             print(f"down: `launchctl bootout` failed (rc={rc}). The agent may still be live.")
             return rc
-        print(f"down: booted out {self.launchd_label} — stays down past KeepAlive. "
-              "`palace up` to bring it back.")
-        return 0
+        booted = f"down: booted out {self.launchd_label}"
+        if run is None or not run.active:
+            print(f"{booted} — stays down past KeepAlive. (No live run in the ledger, so there "
+                  "was no process to verify.) `palace up` to bring it back.")
+            return 0
+        if not _pid_alive(run.pid):
+            print(f"{booted}; run #{run.id}'s pid {run.pid} was already gone (a stale ledger row "
+                  "— it closes on the next start) — verified down. `palace up` to bring it back.")
+            return 0
+        if self._await_exit(run.pid, self.stop_verify_s):
+            print(f"{booted} AND pid {run.pid} exited — verified down, past KeepAlive. "
+                  "`palace up` to bring it back.")
+            return 0
+        print(f"{booted}, but pid {run.pid} (run #{run.id}, started {run.started_at}) is STILL "
+              f"ALIVE {self.stop_verify_s:.0f}s later — the system is NOT down. launchd will not "
+              "relaunch it, but the graceful drain waits on the in-flight job's boundary and has "
+              "no time bound (finding-0171). Check "
+              f"`ps -o pid=,stat=,etime=,%cpu= -p {run.pid}`; escalation is an owner decision, "
+              "not this command's.")
+        return 1
 
     def up(self) -> int:
         """Bring the agent back: `launchctl bootstrap`. Idempotent (already-up reports, returns
@@ -789,30 +873,57 @@ class Launcher:
 
     def restart(self) -> int:
         """A plain down→up cycle. NOT `deploy` — no HEAD promotion, no test/CI gate; this just
-        cycles the running code as-is (a deploy is the gated ratchet onto HEAD)."""
+        cycles the running code as-is (a deploy is the gated ratchet onto HEAD).
+
+        Because `down` is now honest, a `down` that could not verify the process exited returns
+        non-zero and this refuses to bring the agent back — which is the point: bootstrapping a
+        successor while the predecessor still runs is the double-instance hazard, and the old
+        code would have done exactly that on the strength of a success line it had not earned."""
         rc = self.down()
         if rc != 0:
+            print("restart: REFUSED to bring the agent back up — `down` did not complete. "
+                  "Resolve the still-running process first (see the line above).")
             return rc
         return self.up()
 
     def status(self) -> int:
+        """The read-only truth report. Two properties are load-bearing (finding-0172):
+
+        (1) **Liveness is tested, never assumed.** A ledger row marked active whose pid is gone
+        renders `DEAD (stale ledger row)` and suppresses the `running HEAD` banner — the exact
+        false green the owner read through a 90-minute incident.
+
+        (2) **Derivatives, not just levels.** `_report_snapshot` adds rates, budgets, failures.
+
+        Read-only in the strict sense: it opens nothing it would have to create (previously it
+        constructed a `JobQueue`, which CREATES `queue.sqlite`), enqueues nothing, and is safe to
+        run with the daemon down — which is when it matters most.
+        """
+        pf = self.preflight_fn(self.cfg)                  # probed ONCE; reused for the embedder
         print("preflight:")
-        print(self.preflight_fn(self.cfg).render())
+        print(pf.render())
         runs = self.runs.recent(5)
         if not runs:
             print("\nno runs recorded yet.")
             return 0
         print("\nrecent runs:")
         for r in runs:
-            state = ("RUNNING" if r.active else ("clean" if r.clean_shutdown else "UNCLEAN"))
+            state, _alive = run_state(r, pid_alive=_pid_alive)
             rec = " [recovery]" if r.recovery else ""
+            pid = f" (pid {r.pid})" if r.active else ""
             print(f"  #{r.id} {r.commit_sha[:12]}{' (dirty)' if r.dirty else ''} "
-                  f"started {r.started_at} — {state}{rec}")
+                  f"started {r.started_at} — {state}{rec}{pid}")
         # running-code-vs-HEAD gap: a live run pinned to a commit behind HEAD hasn't picked up the
-        # latest deploy (finding-0066 lag). Only meaningful while a run is live.
+        # latest deploy (finding-0066 lag). Only meaningful while a run is genuinely live — a
+        # HEAD banner over a dead pid is the finding-0172 lie, so liveness gates it.
         live = self.runs.last()
         head_commit, head_dirty = git_state(self.repo_root)
-        if live is not None and live.active:
+        liveness = run_state(live, pid_alive=_pid_alive)
+        if live is not None and live.active and liveness[1] is False:
+            print(f"\n⚠ run #{live.id} is marked active in the run ledger but pid {live.pid} is "
+                  "NOT alive — the daemon is DOWN and the row is stale (it closes on the next "
+                  "start). `palace up` under launchd, or `palace start`.")
+        elif live is not None and live.active:
             if live.commit_sha != head_commit:
                 print(f"\n⚠ running {live.commit_sha[:12]} — HEAD is {head_commit[:12]}"
                       f"{' (dirty)' if head_dirty else ''}: run #{live.id} is behind. "
@@ -820,41 +931,129 @@ class Launcher:
             else:
                 print(f"\nrunning HEAD ({head_commit[:12]}"
                       f"{' — dirty tree' if head_dirty else ''}).")
-        self._report_snapshot(live)                       # the enriched read-only system snapshot
+        self._report_snapshot(live, liveness=liveness, preflight_ok=pf.ok)
         return 0
 
-    def _report_snapshot(self, run: RunRecord | None) -> None:
-        """Pretty-print the `build_status` payload (bp-030 Item 3): queue depth, health/RAM
-        headroom, drift, dream + tidy-suggestion counts, action activity. Read-only — reuses the
-        same views the edge-monitor snapshot fed; every datum traces to `build_status`."""
+    def _open_vector_store_if_present(self):  # noqa: ANN201 — a `_CountableStore` (snapshot.py)
+        """The vector store ONLY if its directory already exists.
+
+        `lancedb.connect` creates its directory, and `status` must not write; an absent store is
+        simply an absent figure. The returned object is used for `count()` and nothing else."""
+        p = self.cfg.paths.vector_store
+        if not p.exists():
+            return None
+        try:
+            from core.stores.vectorstore import open_vector_store
+            return open_vector_store(self.cfg)
+        except Exception:  # noqa: BLE001 — a probe failure is a missing figure, never a crash
+            return None
+
+    def _embedder_state(self, preflight_ok: bool) -> str | None:
+        """`'<model> resident'` / `'<model> NOT resident'` / None when unknown.
+
+        The incident's "99% CPU with a 0.3% embedder" signal in the form actually available: is the
+        embedding model loaded in the local Ollama? Reuses `OllamaClient.ps()` (DRY — no second
+        client) and is attempted ONLY when preflight already reached Ollama, so it adds no new
+        failure mode or hang class beyond the probe `status` already performs. The load-bearing
+        anomaly remains `wedged` (a running job with zero terminal transitions all window) — this
+        line is corroboration, not the alarm."""
+        if not preflight_ok:
+            return None
+        try:
+            from core.models.ollama_client import OllamaClient
+            model = self.cfg.embedding.model
+            resident = OllamaClient(self.cfg.ollama).ps()
+            here = any(m == model or m.startswith(f"{model}:") for m in resident)
+            return f"{model} {'resident' if here else 'NOT resident'}"
+        except Exception:  # noqa: BLE001 — unknown is an honest answer; never fail status
+            return None
+
+    def _report_snapshot(self, run: RunRecord | None,
+                         liveness: tuple[str, bool | None] | None = None,
+                         preflight_ok: bool = False) -> None:
+        """Pretty-print the `build_status` payload: queue depth, health/RAM headroom, drift,
+        dream + tidy-suggestion counts, action activity — plus (bp-102) the RATE/BUDGET block:
+        in-rate vs out-rate over W, windowed throughput, per-kind oldest age, running-job elapsed,
+        the last failure, and the metadata-only store figures.
+
+        Every datum traces to `build_status` — that is the single seam, so nothing is printed
+        beside it. Read-only and CHEAP by construction: bounded SQL aggregates over the queue,
+        `count()` (lance fragment metadata) over the vector table, one `COUNT(DISTINCT …)` over
+        the code ledger. Nothing here materializes the `vector` column or scans a payload; a
+        status command that repeats finding-0169 one level up has failed even if every number
+        is right (bp-102 Item 2 falsifier, asserted in tests/unit/test_status_cost_bound.py)."""
         from core.attestation.store import open_attestation_store
         from core.dreams_view import DreamsView
         from core.ops_view import OpsView
         from core.stores.derived import open_derived_store
         from core.typedshims import psutil
         from ops.ledger import open_ledger
-        from ops.lifecycle.snapshot import build_status
-        from scheduler.queue import JobQueue
 
         ops_view = OpsView.over(open_attestation_store(self.cfg), open_ledger(self.cfg))
         dreams_view = DreamsView.over(open_derived_store(self.cfg))
-        queue = JobQueue(self.cfg.paths.data_dir / "queue.sqlite")
-        try:
-            depth = queue.depth()
-        finally:
-            queue.close()
+        qs = read_queue_stats(self.cfg.paths.data_dir / "queue.sqlite",
+                              window_minutes=self.status_window_minutes)
+        store = read_store_stats(vector_store=self._open_vector_store_if_present())
         mem_gb = round(psutil.virtual_memory().available / (1024 ** 3), 2)
-        data = build_status(ops_view=ops_view, dreams_view=dreams_view, queue_depth=depth,
-                            run=run, mem_available_gb=mem_gb)
+        data = build_status(ops_view=ops_view, dreams_view=dreams_view, queue_depth=qs.depth,
+                            run=run, mem_available_gb=mem_gb, liveness=liveness,
+                            queue_stats=qs, store_stats=store,
+                            embedder=self._embedder_state(preflight_ok))
         h, p, a = data["health"], data["patterns"], data["activity"]
+        rates, w = data["rates"], qs.window_minutes
         print("\nsystem:")
-        print(f"  queue depth: {data['queue_depth']}")
+        drain = "  ⚠ ZERO DRAIN (0 completed)" if qs.stalled else ""
+        print(f"  queue depth: {data['queue_depth']}   "
+              f"(in {rates['in_rate_per_min']:.1f}/min · out {rates['out_rate_per_min']:.1f}/min "
+              f"· net {rates['net_rate_per_min']:+.1f}/min over {w:.0f} min){drain}")
+        thru = "  ⚠ nothing completed" if qs.stalled else ""
+        print(f"  throughput: {qs.done_in_window} done, {qs.failed_in_window} failed "
+              f"in the last {w:.0f} min{thru}")
+        # A RUNNING row is only meaningful if a live worker owns it. With the daemon dead the row
+        # is an ORPHAN (finding-0173) and its ever-growing "elapsed" would otherwise read as work
+        # in progress — the same false-green shape as the RUNNING banner, one level down.
+        daemon_alive = liveness is not None and liveness[1] is True
+        if qs.running:
+            for j in qs.running:
+                if not daemon_alive:
+                    flag = "  ⚠ ORPHANED — no live daemon owns this row"
+                elif qs.wedged:
+                    flag = "  ⚠ running while NOTHING completed this window"
+                else:
+                    flag = ""
+                # No budget fraction: no job-level timeout exists (bp-102 Q4 / finding-0174).
+                print(f"  running: #{j.id} {j.kind} — elapsed "
+                      f"{humanize_seconds(j.elapsed_s)} (no enforced job budget){flag}")
+        else:
+            print("  running: (none)")
+        if qs.queued_by_kind:
+            waiting = " · ".join(f"{k.kind} {k.count}, oldest {humanize_seconds(k.oldest_age_s)}"
+                                 for k in qs.queued_by_kind)
+            print(f"  waiting: {waiting}")
+        if qs.last_failure is not None:
+            f = qs.last_failure
+            recent = "  ⚠" if qs.failure_in_window else ""
+            print(f"  last failure: #{f.id} {f.kind} {humanize_seconds(f.age_s)} ago "
+                  f"— {f.error[:160]}{recent}")
+        else:
+            print("  last failure: (none recorded)")
+        life = " · ".join(f"{v} {k}" for k, v in sorted(qs.lifetime.items())) or "(empty queue)"
+        print(f"  lifetime: {life}")
         print(f"  memory available: {h['memory_available_gb']} GB")
         print(f"  drift within tolerance: {h['drift_within_tolerance']}   "
               f"constitution intact: {h['constitution_intact']}")
         print(f"  dreams: {p['dreams']}   tidy suggestions: {p['tidy_suggestions']}")
         print(f"  actions logged: {a['actions_logged']}   "
               f"pending approvals: {a['pending_approvals']}")
+        # Store: metadata-only, and only the ONE figure that is. Code-version coverage (embedded
+        # vs ledger target, current/superseded split) is deliberately NOT shown: neither side has
+        # a cheap reader today (the ledger side measures 3.5 s — a full scan), and paying that on
+        # every `status` would be finding-0169 all over again. See snapshot.StoreStats /
+        # finding-0175 for the two readers that would make it cheap.
+        rows = "?" if store.vector_rows is None else f"{store.vector_rows:,}"
+        print(f"  store: {rows} vector rows "
+              "(code-version coverage has no metadata-only reader — not shown)")
+        print(f"  embedder: {data['embedder'] or 'unknown'}")
 
     # --- reset (the fresh-start wipe) -------------------------------------------------------
     def reset_targets(self) -> list[Path]:
