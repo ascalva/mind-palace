@@ -149,3 +149,90 @@ references:
   - ops/lifecycle/launcher.py                     # deploy-gate precedent for policy-checked action
   - docs/findings/finding-0105.md                 # precedent: surgical gate mechanics, falsifier style
 ```
+
+## 2026-07-25 — findings as a stream: the shape is right, the broker is not
+
+```capsule
+topic: decision-routing (findings as a typed event stream)
+date: 2026-07-25 (session-44, ~03:00)
+
+warrant (owner, verbatim): "the finding system is starting to look like it could benefit a
+queue/stream, something like kafka? which would route them to the appropriate topic?"
+
+⚑ THE DIAGNOSIS IS CORRECT, AND THE PRESSURE IS MEASURABLE:
+  149 findings total, **39 open**. The session brief has been reporting "unswept findings: 58".
+  In stream vocabulary that is **CONSUMER LAG** — findings produced, typed, and routed, but not yet
+  consumed by the party they were routed to. Nobody measures it, and it is the same species as the
+  DETECTION LAG this session made a first-class concern (reconciliation-audit 2026-07-25):
+    detection lag = defect exists -> defect observed
+    **routing lag = finding filed -> finding consumed**
+  Both are (event -> acknowledgement) intervals, both currently unmeasured, both computable from
+  timestamps the artifacts already carry. **Routing lag belongs on the command center beside
+  detection lag** — that is the cheap, immediate win from this observation.
+
+⚑ AND THE PRESSURE IS ABOUT TO INCREASE — this session added PRODUCERS:
+  · the command-center agent pane files findings, review-comment style (owner ruling, same session)
+  · dn-sector-experts (draft) has a standing community of experts, each producing findings for its
+    sector on touch-triggered review
+  A one-writer, one-`route:`-field design was adequate when the orchestrator and one builder were the
+  only producers. It will not stay adequate.
+
+WHAT A STREAM WOULD BUY THAT FILES DO NOT (the honest gap analysis):
+  Findings ALREADY have most of it — `docs/findings/` is append-only, ordered by id, typed (`ftype`),
+  routed (`route`), lifecycle-tracked (`status: open -> routed -> resolved | promoted`), committed,
+  and ingested. **Git is already the log.** What is genuinely missing is the CONSUMER side:
+    1. **No consumer offset.** Nothing records "which findings has THIS consumer not yet seen." The
+       39 open / 58 unswept backlog is the symptom of exactly that absence.
+    2. **No subscription.** `route:` names a consumer ON THE FINDING (push). A sector expert wants to
+       SUBSCRIBE TO ITS SECTOR (pull) — the sector IS the topic, and the producer should not have to
+       know who cares.
+    3. **No fan-out.** One `route:` value = one consumer. A security-relevant codebase finding is
+       legitimately of interest to the builder AND the security auditor AND the ops track.
+
+⚑ BUT KAFKA SPECIFICALLY IS THE WRONG TOOL, and for reasons this session already rehearsed twice:
+  · SCALE: 149 findings over months. Kafka is engineered for millions of events/sec across a cluster.
+    This is the Bloom-filter answer again (ops-and-optimal-form capsule 3) — right instinct, wrong
+    structure, and a probabilistic/distributed mechanism bought for a problem an exact local one
+    solves for free. **Measure before adopting: what IS the finding rate? ~149/6 months.**
+  · ARCHITECTURE: a broker is a running service. The sealed core has ZERO network egress and the
+    memory ceiling is already contested (f-0174). Adding infrastructure to route ~1 event/day is the
+    opposite of the structural-simplicity ethos.
+  · ARTIFACT INTEGRITY: findings are ARTIFACTS, not events — human-readable, git-versioned, owner-
+    reviewable, ingested into the corpus, warrant-linkable from design notes. Moving them into a
+    broker makes them opaque to every one of those. The chain requires "no decision lives only in a
+    transcript"; a broker topic is a transcript with extra steps.
+
+⚑ THE RIGHT-SIZED ANSWER — the pattern this system keeps converging on:
+  **Keep the append-only artifact substrate; add DERIVED PROJECTIONS over it.** Exactly what
+  `scripts/docket.py` and `scripts/board.py` already do ("a DERIVED view, recomputed from the
+  artifact tree on every run: NO persisted state, so it cannot drift"). Concretely:
+    · a **derived per-consumer inbox** — findings by route/ftype/sector with age, the docket pattern
+      applied to findings rather than to owner-gates;
+    · **routing lag as a gauge** — max/median age of unconsumed findings per consumer;
+    · a **`sector` (topic) field** on the finding + subscriber manifests in the sector-expert briefs,
+      giving pull-based subscription and fan-out WITHOUT a broker;
+    · consumer offsets as derived state, not stored state — computed from `status` + the consumer's
+      own journal, so it cannot drift.
+  If a real queue is ever needed, the repo ALREADY HAS ONE: `scheduler/queue.py` — durable SQLite,
+  priorities, tiers, anti-starvation aging. Reuse before re-implementing ([[owner-dry-strictness]]).
+
+⚑⚑ THE STRUCTURAL OBSERVATION WORTH KEEPING: this is the THIRD independent arrival at the same
+  architecture in one session —
+    · **f-0168**: append-only vector plane + membership/lineage as derived structure
+    · **f-0175**: append-only session-state events + a derived current-state view
+    · **here**: append-only findings + derived per-consumer projections
+  **Append-only substrate + derived projections is becoming this system's universal answer**, and it
+  is the same answer git gives. That it keeps being re-derived from unrelated starting points is
+  evidence it is structural rather than stylistic — and it deserves to be stated ONCE, as a named
+  principle, rather than re-discovered a fourth time. Candidate home: the ops design note's doctrine
+  section, or dn-agent-workflow.
+
+open questions:
+  - Is `sector` a new field, or is `track:` already the topic? (The board has track coordinates; a
+    finding does not carry one today. Reusing `track` would be cheaper and DRY-er.)
+  - Does consumer-offset-as-derived-state actually work, or does a consumer need to record an
+    explicit acknowledgement? (Derived is preferable — it cannot drift — but "I saw it and decided
+    it does not apply to me" may not be inferrable from artifacts alone.)
+  - What SHOULD the routing-lag budget be? An unconsumed finding at 58 backlog is a fact; without a
+    declared threshold it is not yet an inconsistency (this session's own thesis).
+```
