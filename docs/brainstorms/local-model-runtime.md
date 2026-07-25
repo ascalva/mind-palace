@@ -144,3 +144,74 @@ open questions:
     (docs/tracks/ops.md, minted 2026-07-25)? It is runtime/residency/performance — ops-shaped by
     every criterion in that manifest, and it currently has no track coordinate at all.
 ```
+
+## 2026-07-25 — ⚑ promoted: the runtime is what decides supervision's achievable TIER
+
+```capsule
+topic: local-model-runtime
+date: 2026-07-25 (session-47, from the supervision design pass)
+
+owner, verbatim: "you mention the ollama effort, is this a place to say that it's worth it to
+continue also along the llama.ccp track? we manage the model loading, inference, scheduling,
+memory, all by ourselves, like a true OS"
+
+VERDICT: yes, and stronger than "also worth continuing." The supervision pass produced MEASURED
+evidence that promotes NEW NOTE 2 from "small, queued, direction-already-decided" to **the note
+that decides how far the OS-layer mandate can actually be taken.**
+
+--- the two things that forced the promotion ---
+
+1. V3 IS ONLY ASKABLE BECAUSE WE DO NOT OWN THE RUNTIME. dn-supervision-and-liveness leaves open:
+   "does Ollama abort its work when the client dies?" If it does not, killing a wedged worker stops
+   the ACCOUNTING but not the BURN — the fail-safe half of oq-0035(c) is weaker than it reads. That
+   question is a property of someone else's software, answerable only empirically and re-answerable
+   on every version bump. On the tier ladder it is a **tier-5 dependency inside a design whose
+   whole mandate is tiers 1-2.** Own the runtime and it is not answered — it is DELETED: we hold
+   the cancellation token, and "worker killed, compute continues" loses its representation.
+
+2. THE CEILING IS ALREADY BREACHABLE, SILENTLY — finding-0199 (filed this session, code-traced).
+   `TwoSlotLoader._resident` starts EMPTY on every construction; nothing reconciles it against
+   Ollama; `ps()` is called from exactly ONE place in the repo (the cosmetic status line), never
+   from the accounting path. Ollama outlives the supervisor, pinned models load keep_alive=-1
+   (never timer-evicted), workers 30m. So after an unclean exit + automatic launchd restart inside
+   that window: `_check_ceiling` sums only what THIS process loaded, the eviction loop iterates an
+   empty dict and never tells Ollama to drop the stale model, and actual residency can exceed BOTH
+   max_resident_models and usable_ram_gb WHILE THE GUARD PASSES.
+   ⇒ non-negotiable #8 is enforced against a belief, and is silent about being wrong. That is the
+   owner's disqualifying shape ("shoot ourselves in the foot without realizing") landing on an
+   INVIOLABLE KERNEL item, on the crash-restart path, which launchd exercises automatically.
+
+--- the unifying claim (the runtime twin of the supervision note's class) ---
+
+supervision note: "every ops ledger is written by the actor whose failure it must record."
+runtime:          "the memory ledger is maintained by an actor that CANNOT OBSERVE what it
+                   accounts for, and that a third party can invalidate unilaterally."
+
+Same defect class, one layer down. Owning the runtime converts residency from a BELIEF ABOUT
+ANOTHER PROCESS into a FACT WE HOLD — tier 5 → tier 1-2 — and removes the third-party eviction
+timer that can invalidate the books at any moment.
+
+--- ⚑ what it does NOT buy (be precise; do not oversell) ---
+
+Supervision is NOT blocked on the runtime. The compute/land split, job deadlines, the lease and
+the dead-man's switch all work fine with Ollama behind an HTTP boundary. The runtime is not a
+PREREQUISITE — it RAISES THE ACHIEVABLE TIER on exactly two targets: cancellation and memory.
+Sequencing follows from that: supervision can proceed now; the runtime decides how good it gets.
+
+--- the costs, stated (an OS owns every bug in what it manages) ---
+
+  - Owning inference means owning a C++ dependency's crash modes, memory behaviour, upgrade path,
+    quantization handling and concurrency. Ollama does real work for us today.
+  - It changes what sits inside the seal (non-negotiables #1/#4). dn-supervision-and-liveness's V4
+    already flags that the seal is a per-process monkeypatch a spawned worker must re-assert —
+    in-process vs spawned inference interacts with that directly. The two notes must agree here.
+  - It does NOT fix f-0163/f-0169/f-0174's failure mode (migrating on a number). The retrieval
+    eval still comes first — that constraint from the 2026-07-22 capsule stands unchanged.
+
+--- immediate, cheap, independent of the migration ---
+
+Reconcile `_resident` against `ps()` at loader construction / before `_check_ceiling`. Closes the
+cold-start hole; partial (ps() returns NAMES, so a model outside the registry cannot be costed —
+must not be reported as full accounting). Worth weighing BEFORE the restart, since the restart is
+a fresh supervisor coming up against an Ollama that has held models since run #35.
+```
