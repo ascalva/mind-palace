@@ -61,9 +61,12 @@ signature** [GROUNDED docs/brainstorms/autopilot-mode.md:40-59]; **the two bless
 split** — `proposed→ready` is delegable because it decides execution of upstream-settled
 intent, `draft→ratified` never is [GROUNDED docs/brainstorms/autopilot-mode.md:61-77];
 **the MFA code binds to a content hash, not an occasion**
-[GROUNDED docs/brainstorms/autopilot-mode.md:79-96]. Where this note goes beyond the
-brainstorm — chiefly the intent capsule (§2.2), which resolves a tension between the
-gate-split argument and the owner's refinement — it argues the departure explicitly.
+[GROUNDED docs/brainstorms/autopilot-mode.md:79-96]. Three owner capsules landed *after*
+this note's first draft — SMART as the readback form, the loop, the router
+[GROUNDED docs/brainstorms/autopilot-mode.md:224-401] — and the first draft's "intent
+capsule" had converged on the readback mechanism independently; §2.2 now reconciles the
+two explicitly (SMART is the capsule's field structure; loop and router are load-bearing).
+Where this note still goes beyond the brainstorm, it argues the departure explicitly.
 
 ### 1.2 Non-goals — read these aloud at ratification
 
@@ -107,9 +110,9 @@ unreachable by every agent, autopilot included, regardless of MFA [GROUNDED CLAU
 The blessing gates exist for **comprehension**, not authentication — the failures they
 catch are readable-only: a bare `§2.3` in pinned docstring text resolving to a different
 document [GROUNDED docs/findings/finding-0203.md:29-48], a `write_scope` structurally
-unable to reach its own §7 acceptance (finding-0204 — referenced and confirmed-by-running
-at `docs/build-plans/bp-115/plan.md:173-175`; the finding file itself is not yet minted in
-`docs/findings/`, an honesty note for the ratifier), and wrong non-goals that nothing
+unable to reach its own §7 acceptance [GROUNDED docs/findings/finding-0204.md — minted
+with bp-115's merge and since resolved via the amended-write_scope route recorded at
+`docs/build-plans/bp-115/plan.md:172-178`], and wrong non-goals that nothing
 downstream ever detects [GROUNDED docs/findings/finding-0150.md:44-51]. A design that
 swaps the read for a signature deletes exactly the defect class with no other detector.
 
@@ -127,7 +130,7 @@ finding-0204 were caught by agents reading, not by the owner or by any test. The
 not that auditors replace the owner; it is that the owner's read was always doing two
 different jobs, only one of which requires him. [DERIVED]
 
-### 2.2 The intent capsule — what makes the understanding-check checkable
+### 2.2 The intent capsule — a SMART readback, looped until fillable, routed at the mouth
 
 The owner's refinement locates the grant at the moment he believes the agent understands
 — in conversation, before any plan exists. Taken literally, that is a grant against a
@@ -139,30 +142,97 @@ It also quietly breaks Refinement 1's own justification: the gate-split argument
 no parent note. For QoL work, intent is settled in conversation or nowhere.
 
 **Position: the conversational understanding is where comprehension is *formed*; it becomes
-*checkable* only when reified as a text the grant can bind to.** The decision:
+*checkable* only when reified as a text the grant can bind to.** This note's first draft
+and the owner converged on that mechanism from opposite directions — his **SMART readback**
+[GROUNDED docs/brainstorms/autopilot-mode.md:224-305] and the draft's "intent capsule" are
+one artifact. Reconciled: the capsule keeps its name (it is the thing hashed, granted
+against, and embedded); **SMART is its field structure**, plus the three fields SMART
+lacks. The owner's two follow-on corrections — the loop and the router — are incorporated
+below as load-bearing, not decorative.
 
-- At the end of the conversation, the agent emits an **intent capsule**: goal, explicit
-  non-goals (any inferred one graded `[INFERENCE]`, per the finding-0150 obligation),
-  definition-of-done (the exact thing the later deskcheck evaluates), a one-line
-  write-surface summary, budget ceiling, base commit, and the §2.4 predicate results.
-  Hard size cap: **≤ 40 lines / ≈ 300 words** — a capsule too long to genuinely read on a
-  phone defeats the read. [DERIVED]
-- The capsule renders to the phone; **the owner reads the capsule, and the MFA code is
-  issued from that reading, bound to `sha256(capsule)`** — Refinement 2's property with
-  the capsule as its object: *"the read is preserved, only its location moves"*
-  [GROUNDED docs/brainstorms/autopilot-mode.md:84-92].
-- The capsule is then embedded **verbatim** as the plan's §1 objective and §9 non-goals.
-  The plan may elaborate execution; it may not exceed the capsule. "Does not exceed" is
-  audited, not trusted: Gate A (§2.5) checks every write_scope entry, acceptance item, and
-  action for traceability to the capsule, and any excess is a halt.
+**Form.** Each SMART letter is this repo's existing vocabulary renamed
+[GROUNDED docs/brainstorms/autopilot-mode.md:235-248], and the brainstorm's three gaps
+[GROUNDED docs/brainstorms/autopilot-mode.md:275-288] are filled by standing obligations:
+
+| capsule field | SMART letter | existing home |
+|---|---|---|
+| goal, one sentence | Specific | graduate skill: "statable in one sentence" |
+| definition-of-done, runnable — the exact thing the deskcheck later evaluates | Measurable | graduate skill: runnable acceptance |
+| write-surface summary + §2.4 predicate results + no open decisions | Achievable | acceptance-reachability check; `session_budget: 1` |
+| trace to settled intent (sharpened below) | Relevant | `design_ref`; §1.2 discipline |
+| budget ceiling + base commit + TTL | Time-bound | `session_budget` / `cost.estimate`; §2.6 |
+| **named falsifier** — the observation that would prove the run wrong | gap 1 | §7's standing acceptance-AND-falsifier rule |
+| **explicit non-goals**, inferred ones graded `[INFERENCE]` | gap 2 | the finding-0150 obligation |
+| the readback close — owner recognition (grant path, below) | gap 3 | closed-loop readback |
+
+Hard size cap: **≤ 40 lines / ≈ 300 words** — a capsule too long to genuinely read on a
+phone defeats the read. [DERIVED]
+
+**Loop — a rejection is a work order, not a verdict.** An unfillable field names,
+specifically rather than as vague unease, the decision that is still open; the unfillable
+fields ARE the brainstorm agenda [GROUNDED docs/brainstorms/autopilot-mode.md:307-328]:
+
+    attempt → unfillable fields name the open decisions → resolve in conversation
+        → re-attempt → fillable → the owner reads → grant
+
+An unfillable field is a **parked decision with a re-entry condition** — already legal
+artifact vocabulary (§11 + `re_entry`), nothing new to invent
+[GROUNDED docs/brainstorms/autopilot-mode.md:330-339]. One artifact therefore does three
+jobs: readiness test, agenda generator, and — once filled — the thing the MFA signs. The
+loop runs pre-grant, in attended conversation (later, optionally, through the Ambassador:
+*"what is missing from the SMART statement for X?"* is its archetypal query
+[GROUNDED docs/brainstorms/autopilot-mode.md:341-352]); it is never autopilot's to run
+alone, so non-goal 3 is untouched.
+
+**Router — a failure has two meanings, and which letter fails names the lane**
+[GROUNDED docs/brainstorms/autopilot-mode.md:357-388]. Three outcomes, not two:
+**pass → the grant path** · **fail-undecided → the loop** · **fail-too-big → the full
+ceremony**, discriminated by the graduate skill's session-sizing heuristic surfaced early:
+Specific fails ("the objective needs an 'and'") ⇒ decompose · Measurable fails (acceptance
+not runnable) ⇒ design pass · Achievable fails on open decisions ⇒ loop · Achievable fails
+on zone-sprawl ⇒ too big · Relevant fails ⇒ design note first · Time-bound fails
+(> 1 session) ⇒ decompose. This is the safety argument, not just ergonomics: **the chain
+remains the default; autopilot is a fast path for the provably small subset, and the
+capsule is the gate at its mouth** [GROUNDED docs/brainstorms/autopilot-mode.md:390-401].
+An autopilot absorbing design-scale work has failed its own entrance test, and the
+entrance test is the thing that notices.
+
+**Relevant without a parent note — the one letter this note must sharpen.** For QoL work
+no `design_ref` can exist, yet the router sends "no design_ref, novel intent" to a design
+note first. The reconciliation: Relevant passes iff the ask **executes settled intent** —
+either a ratified note covers it, or the ask is **design-inert**: it changes no designed
+contract, boundary, or behavior of the system (the spell-check class; §2.4's P2 already
+walls off the design and enforcement surfaces mechanically). Relevant fails when the ask
+carries novel design intent with no note — the `gf`/reference-standard case, an authoring
+convention for the whole corpus wearing a keybinding's clothes. For the design-inert
+class, the owner's grant is itself the relevance ruling. [INFERENCE — "design-inert" as
+the pass condition for note-less QoL work is this note's proposal; the owner should
+confirm or replace it at ratification, since it is the boundary of what autopilot may
+accept at all.]
+
+**Grant path.** The capsule renders to the phone; the owner reads it and either
+**corrects** — the loop repeats, and a correction is *information*, disagreement surfaced
+before any work exists — or **recognises the statement as his own goal**, and **the MFA
+code is issued from that reading, bound to `sha256(capsule)`** — Refinement 2's property
+with the capsule as its object: *"the read is preserved, only its location moves"*
+[GROUNDED docs/brainstorms/autopilot-mode.md:84-92, :289-305]. The capsule is the
+conversation's **terminating condition**; the gate is the owner's recognition.
+
+The capsule is then embedded **verbatim** as the plan's §1 objective and §9 non-goals.
+The plan may elaborate execution; it may not exceed the capsule. "Does not exceed" is
+audited, not trusted: Gate A (§2.5) checks every write_scope entry, acceptance item, and
+action for traceability to the capsule, and any excess is a halt.
 
 Why the capsule is the agent's text and not the owner's: it is the **demonstration of
-understanding itself** — the agent restates, the owner verifies the restatement. That is
-the direction that catches misunderstanding at the one layer where the owner alone is
-competent. "I believe you understand" becomes four checkable facts: a text exists; the
-owner read that text (the code was issued from its render); everything downstream is
-mechanically comparable against that text (hash + verbatim embedding + Gate A); and the
-deskcheck later evaluates against the DoD stated in that same text. [DERIVED]
+understanding itself** — the agent restates, the owner verifies the restatement
+(readback-hearback, the aviation/medicine pattern for exactly this problem). This is what
+closes SMART's third gap: an agent can emit a flawless SMART restatement of an ask it
+misread, but a misread restatement is exactly what the recognition step catches — SMART
+is the FORM of the readback; the owner's recognition is the CONTENT. "I believe you
+understand" becomes four checkable facts: a text exists; the owner read that text (the
+code was issued from its render); everything downstream is mechanically comparable
+against that text (hash + verbatim embedding + Gate A); and the deskcheck later evaluates
+against the DoD stated in that same text. [DERIVED]
 
 What the owner does **not** read by default: the full plan. That is deliberate and argued,
 not elided — a 200-line plan "read" on a phone under-reads in practice, and a fake read is
@@ -187,6 +257,17 @@ large one; he should confirm or reverse this default at ratification.]
 - The code may transit **any** channel, untrusted included: it is useless without a
   matching artifact hash and it expires. The channel is not the security boundary; the
   binding is. [DERIVED]
+- **The grant record carries an attestation no model can mint.** On successful code
+  verification, the verifier writes into the grant record (§2.7) a full-width
+  `HMAC(secret, "record" ‖ capsule-hash ‖ issued-at)` — domain-separated from the code's
+  own derivation, so the stored tag reveals nothing about any code, past or future. HMAC
+  is a PRF: the tag is recomputable offline by anything holding the Keychain secret and
+  unforgeable by anything that does not — which is every model (NN-10). Without this
+  field a well-formed grant record is just prose an agent could write, and the post-hoc
+  check below would bless a forged one; with it, laundering-proof is a property of the
+  record rather than a hope. Single-use is verifier-enforced: the verifier records each
+  consumed capsule-hash on its own side, and a second presentation fails. [DERIVED —
+  this closes a hole in the first draft, which stored no verifiable material at all]
 - **Expiry** (brainstorm open question 4): the hash alone is not enough, because the world
   can move while the text stands still. The grant is void at the earliest of: a TTL
   (default 72 h, parked for owner tuning), or **base drift** — any file in the plan's
@@ -206,9 +287,11 @@ occasion" with "verify against the fixed text." Enforcement mirrors A8's two lay
   not an exception *for agents* but a new legitimate *actor*, like the owner's own hand.
 - **Post-hoc:** the Stop-gate clause (c) contract gains one narrow exception: a committed
   `proposed→ready` flip is legitimate **iff** the same commit carries a grant record whose
-  recorded hash matches the plan's capsule at flip time — verifiable offline, after the
-  fact, laundering-proof in the same sense as A8 (an edit-after-approval breaks the hash
-  chain and reads as an unauthorized flip). All other agent-side flips remain violations.
+  recorded hash matches the plan's capsule at flip time **and whose attestation tag
+  re-verifies against the Keychain secret** — verifiable offline, after the fact,
+  laundering-proof in the same sense as A8 (an edit-after-approval breaks the hash chain;
+  a fabricated record fails the tag; either way it reads as an unauthorized flip). All
+  other agent-side flips remain violations.
 
 **What this amends upstream.** `dn-agent-workflow` §2(4) ("automating a blessing gate
 would put an expected-value step inside a bright line") and §10(2) are amended for the
@@ -339,9 +422,11 @@ completed, leaves:
 
 1. **The grant record** — `docs/build-plans/<id>/grant.md`: capsule text verbatim, its
    sha256, base commit, TTL, budget, predicate results (P1–P5), issued-at and verified-at
-   timestamps. **Never the code or the secret** (NN-10): the code is verified and
-   discarded; the record proves the binding, not the credential. Committed in the same
-   commit as the `proposed→ready` flip (§2.3), which is what makes the flip
+   timestamps, and **the verifier's attestation tag** (§2.3). **Never the code or the
+   secret** (NN-10): the code is verified and discarded; the attestation is a
+   domain-separated HMAC that reveals neither and cannot be produced without the Keychain
+   secret — the record proves the binding *checkably*, not by narrative. Committed in the
+   same commit as the `proposed→ready` flip (§2.3), which is what makes the flip
    post-hoc-verifiable.
 2. **The journal** — the standing obligation, unchanged; every semantic boundary.
 3. **Audit records** — Gate A and Gate B verdicts filed in `docs/audits/` (ops-wave
@@ -386,6 +471,8 @@ NN-5: gated → validated → reversible, no step skipped [GROUNDED CLAUDE.md:21
 7. Ambiguity — in routing, in a verdict, in a hash check — always resolves toward halting.
 8. The deskcheck evaluates capsule-DoD, not plan-DoD, if the two ever diverge (they cannot,
    by invariant 3, but the tie-break is stated so the check has a defined answer).
+9. A grant record without a re-verifiable attestation tag is not a grant record — the flip
+   it accompanies reads as unauthorized (§2.3, H7). Narrative alone never proves a grant.
 
 ## 3. Consequences
 
@@ -449,6 +536,7 @@ trivial ask (the spell-check class) deskchecked end-to-end before a second grant
 | inbound code channel | shell entry (SSH/Tailscale) | phone-chat-surface note ratified and its capture inbox built |
 | owner reads full plan vs capsule-only default | capsule-only, full render on request | owner reverses at ratification if he wants the full-plan read (see §2.2 [INFERENCE]) |
 | H1 routing vocabulary | conservative: any not-unambiguously-builder finding halts | finding-0193 ruling lands; then route on the authoritative set |
+| "design-inert" as Relevant's pass condition for note-less QoL work | as proposed in §2.2 [INFERENCE] | owner confirms or replaces the boundary at ratification |
 
 Each row's prose argument lives in the named section; nothing here is decided by the table.
 
@@ -456,7 +544,9 @@ Each row's prose argument lives in the named section; nothing here is decided by
 
 - `docs/brainstorms/autopilot-mode.md` — the source thread: ask verbatim (:12-18), the
   read-not-signature principle (:40-59), Refinements 1–2 (:61-96), the withdrawn
-  Refinement 3 and its correction (:98-126, :157-172), the two-notes split (:215-223).
+  Refinement 3 and its correction (:98-126, :157-172), the two-notes split (:215-223),
+  the SMART readback (:224-305), the loop (:307-355), the router (:357-401) — the last
+  three landed after this note's first draft and are incorporated in §2.2.
 - `docs/design-notes/agent-workflow.md` — the constitution amended: Principle 1 (:48),
   Principle 4 (:51), §6 hook contracts (:131-159), §10 gates (:200-206), **A8**
   (:138-140, :286-305), A9 precedent for amendment mechanics (:306-327).
@@ -467,9 +557,9 @@ Each row's prose argument lives in the named section; nothing here is decided by
 - `docs/findings/finding-0150.md` — non-goals fail silently; the §1.2 read-aloud rule.
 - `docs/findings/finding-0193.md` — the disjoint ftype vocabularies constraint (§2.4, H1).
 - `docs/findings/finding-0203.md` — the read-only defect class, instance 1.
-- finding-0204 — instance 2 (write_scope cannot reach acceptance); referenced at
-  `docs/build-plans/bp-115/plan.md:173-175` and in the brainstorm; **file not yet minted**
-  in `docs/findings/` as of 2026-07-25.
+- `docs/findings/finding-0204.md` — instance 2 (write_scope cannot reach acceptance);
+  minted with bp-115's merge, `status: resolved` 2026-07-25 via the amended-write_scope
+  route (`docs/build-plans/bp-115/plan.md:172-178`).
 - `.claude/skills/delegate/SKILL.md` — audit right-sizing (:41-59), fable delegation.
 - `docs/brainstorms/phone-chat-surface.md` — the inbound lane's future home; the exhaust
   lane's existence (:24-30).
