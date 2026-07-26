@@ -1337,3 +1337,84 @@ references:
   - scheduler/interface.py         # the Ambassador precedent for the seam shape
   - docs/findings/finding-0011.md  # max reachable effector tier is NONE
 ```
+
+## 2026-07-26T07:14:00Z
+
+```capsule
+topic: autopilot-mode
+date: 2026-07-26
+
+decisions:
+  - ⚑ FIVE OWNER RULINGS (2026-07-26). Several close parked rows that carried NO agent default.
+  - RULING 1 -- GRANULARITY: SCOPE, AND SCOPE IS PER *ROLE*. Owner verbatim: "from a set of
+    potential claude agents, you construct each for its role, one is the sub-orchestrator, one is
+    an auditor (build plan reviews and merge reviews), the others are the builders, at least some
+    type of delegated role to make write scopes very specific per use case."
+    ⇒ The unit of approval is neither the edit nor the whole build: it is a ROLE-SCOPED SURFACE.
+    ⚑ THIS MAPS EXACTLY ONTO THE EFFECT CATALOG: "a hand is EXPRESSIBLE iff it is cataloged"
+    (ops/effect_catalog.py), so A ROLE IS A CATALOG SUBSET -- auditor = read hands only; builder =
+    edit-within-write_scope; sub-orchestrator = mint-plan. Granularity becomes structural
+    (typed capability per role) instead of procedural (approve each action).
+  - RULING 2 -- RAISE THE EFFECTOR CEILING: YES ("yes, go for it"). This authorizes moving off
+    ε=0. ⚑ finding-0011 currently records "max reachable effector tier is NONE, not SENSING" --
+    that finding must be UPDATED, not silently contradicted. RECOMMENDATION (agent, not ruled):
+    raise it PER ROLE / PER CLASS, staged, never globally in one flip; class 3 (irreversible /
+    JIT-credential) stays unreachable since build actions are class 2.
+  - RULING 3 -- GRANTS ARE PER *WAVE*, AND RATIFICATION IS THE GRANT. Owner verbatim: "per wave,
+    it's ratifying a design note which triggers the set of potential build plans minted."
+    ⇒ This UN-PARKS the ratified note's batch-grant row (which said "not allowed ... after 5 clean
+    single-plan runs") and overrides non-goal 9 ("one grant, one plan"). The superseding note must
+    carry this explicitly as a supersession, not slip it in.
+  - ⚑⚑ RULINGS 1 + 3 COMPOSE INTO THE NOTE'S OWN TWO-GATE STRUCTURE, INSTANTIATED AS ROLES:
+        owner ratifies the note (by hand)          = THE WAVE GRANT
+        sub-orchestrator mints the plan set        = graduation, delegated
+        auditor reviews the plans                  = GATE A (intent fidelity, pre-build, §2.5)
+        builders execute within role-scoped scopes = the work
+        auditor reviews the merges                 = GATE B (mechanism, post-build, §2.5)
+    ⚑ AND THIS ANSWERS THE AGENT'S OWN OBJECTION from 05:33Z -- that "ratification blesses the
+    DESIGN, not the DECOMPOSITION", so a wave grant blesses N decompositions sight-unseen. It does
+    -- but the decomposition is CHECKED, by an adversarial auditor rather than by the owner. That
+    is precisely what §2.5 argued for: "the adversarial audit pair occupies the reviewer seat he
+    would have occupied at the keyboard." The objection stands and is ANSWERED, not waived.
+  - ⚑ CONSEQUENCE FOR THE PASSKEY: it now signs the WAVE, not each plan. If ratification IS the
+    grant and ratification is owner-by-hand, the passkey's job is ratifying REMOTELY (AFK) --
+    ONE signature per wave instead of N per plan. This is strictly simpler than what the session
+    spent hours designing, and it removes the "eight taps for an eight-plan wave" problem outright.
+  - RULING 5 -- GITLAB IS LEGACY, NOT CONSEQUENTIAL. Closes the phone-chat-surface 04:02Z parked
+    row. ⇒ The "publicly auditable authority record" property rests on GITHUB ALONE, and that is
+    fine -- but state it as a named dependency rather than leaving it implicit.
+  - RULING 4 -- bp-110 BLESSED (committed `5f29db9`); bp-111 / bp-113 / bp-114 now open.
+
+parked:
+  - decision: what the concrete role set is, and each role's catalog subset.
+    default: three named by the owner -- sub-orchestrator (mint plans), auditor (plan reviews +
+    merge reviews), builder (edit within write_scope). Others may be warranted.
+    re_entry: the design note. Each role's hands need the §8 audit metadata the catalog requires
+    ("a half-audited hand cannot be added silently").
+  - decision: how far to raise ε, and in what stages.
+    default: per role / per class, staged; class 3 stays unreachable.
+    re_entry: the design note; and finding-0011 must be updated in the same change.
+
+open_questions:
+  - ⚑ Does the AUDITOR role need to be a different MODEL or tier from the builders? §2.5 requires
+    independence (fresh session, own worktree, no shared context, never the builder's journal).
+    Role-typing gives independence of CONTEXT; it does not by itself give independence of
+    JUDGMENT if the same model reviews its own species of work.
+  - If the sub-orchestrator mints plans, the graduate skill's "graduate in a single context"
+    park (§14) must be lifted for it -- that is a second parked rule this direction un-parks.
+  - Does a wave grant need a BOUND (max plans, max spend, TTL)? "Ratify a note, N plans execute"
+    is unbounded as stated; the ratified note's §2.6 H4 makes budget non-self-extendable for a
+    single run, and the same reasoning applies harder to a wave.
+
+next_steps:
+  - The superseding note now carries: wave-level grant (supersedes non-goal 9), role-scoped
+    capability via catalog subsets, the two gates as auditor roles, and the passkey signing the
+    wave. This is SIMPLER than the per-plan design the session built up to.
+  - finding-0011 must be updated when ε is raised.
+
+references:
+  - ops/effect_catalog.py                     # "expressible iff cataloged" -- roles as subsets
+  - docs/findings/finding-0011.md             # ε=0 today; must be updated under ruling 2
+  - docs/design-notes/dn-autopilot-and-delegated-blessing.md  # §2.5 gates, non-goal 9, Parked table
+  - .claude/skills/graduate/SKILL.md          # §14 single-context park, un-parked by ruling 1
+```
