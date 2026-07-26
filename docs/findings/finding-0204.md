@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0204
-status: open
+status: resolved
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-25   # /triage session-49: DISCHARGED by bp-115
 links:
   - docs/build-plans/bp-115/plan.md                    # §5 write_scope vs §7 Items 1 and 3
   - core/models/ollama_client.py                       # needs `healthy()` — NOT in write_scope
@@ -14,7 +14,19 @@ links:
 ftype: spec-defect
 origin_plan: bp-115
 route: builder
-resolution: null
+resolution: |
+  DISCHARGED by bp-115 (`909a6bf`), via the remedy this finding itself prescribed.
+  The owner granted the widening verbatim -- "i grant you, the orchestrator, to make the edits
+  to the write scope of bp-115" -- and `b44376d` amended §5 (+core/models/ollama_client.py,
+  +ops/import_lint.py, +tests/e2e/test_ollama_live.py) with each addition's reason recorded.
+  Both patches then landed UNDER THE PLAN, which is the re-entry through the artifact chain
+  finding-0191 requires: a finding whose resolution is a code change is never discharged by a
+  bare orchestrator commit. `healthy()` is an ADDED method (Item 1's falsifier did not fire);
+  `llama_server_client.py` is now enrolled in NETWORK_ALLOWLIST on the record, and the import
+  firewall reports it as an audited loopback exception.
+  ⚑ The THIRD instance of finding-0191's pattern this wave (with 0177, 0191). The systemic fix
+  is the graduate skill's new acceptance-reachability check (`e7915c2`, owner-approved): every
+  §7 criterion must be buildable from §5, checked BEFORE the blessing where it costs one line.
 ---
 
 # bp-115's `write_scope` omits the two files its own §7 acceptance requires

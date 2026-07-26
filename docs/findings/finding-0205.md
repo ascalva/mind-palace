@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0205
-status: open
+status: resolved
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-25   # /triage session-49: DISCHARGED by bp-115
 links:
   - docs/build-plans/bp-115/plan.md                    # §7 Item 2 falsifier, §10 STOP condition
   - tests/e2e/test_ollama_live.py                      # :46 — the single call site
@@ -13,7 +13,13 @@ links:
 ftype: discovery
 origin_plan: bp-115
 route: builder
-resolution: null
+resolution: |
+  DISCHARGED by bp-115 (`909a6bf`). Item 2's falsifier fired exactly once, statically, and the
+  §10 STOP was honoured -- the builder investigated and did NOT edit the test to make it pass.
+  The one-line remedy landed under the amended write_scope: the residency question moves from
+  the inference handle to `core.models.loader.client`, with a comment so it is not "simplified"
+  back. Only such call site in the repo. The argless mypy tests baseline returned to exactly
+  **69**, which was the entirety of its cost.
 ---
 
 # bp-115 Item 2's falsifier fired — and the investigation says the widening is right
