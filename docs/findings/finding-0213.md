@@ -19,6 +19,26 @@ resolution: null
 
 # `check_pf_anchor` reports PASS on a pf anchor that enforces nothing — three independent false-green paths
 
+> **Update 2026-07-26, same session — the owner completed oq-0046 and TWO of the three paths are now
+> closed on this machine, empirically.** Verified by hand: pf reports `Status: Enabled`, the main
+> ruleset carries `anchor "mind-palace/ouroboros" all` (so it is genuinely *referenced*, not merely
+> loaded), and the anchor holds the expected three normalized rules with the **lo0 pass first**.
+> ⇒ **Path 3 is now the only live false-green path — and it is the worst one.** pf was enabled with
+> `pfctl -e` and **does not auto-enable at boot**, while `/etc/pf.conf` *does* auto-load. So after the
+> next restart the rules will be present, referenced, and **unenforced**, and `check_pf_anchor` will
+> still report PASS with nothing in the repo changed to explain it. The check is currently reporting a
+> true green for a reason that expires at reboot.
+> Also: pf was enabled with `-e` rather than the reference-counted `-E` that `/etc/pf.conf` itself
+> recommends, so any component calling `-d`/`-X` can switch it off — a second way the green decays
+> without a diff.
+>
+> **⚑ A fourth path, found in the verified output: the rule is uid-pinned, not name-pinned.** The loaded
+> rules read `user = 550`, not `user = ouroboros` — pf resolved the account name to a uid at load time.
+> So the guard protects **uid 550**, and if that account were ever deleted and recreated with a
+> different uid (which the plane migration runbook could plausibly do), the anchor would silently
+> protect the wrong principal, or nothing, with **no error, no diff, and a green check**. Any fix should
+> assert the loaded uid still resolves to `ouroboros`.
+
 ## What
 
 Surfaced live while the owner enacted oq-0046 (loading the core-egress pf anchor). `check_pf_anchor`

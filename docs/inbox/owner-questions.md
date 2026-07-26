@@ -1537,7 +1537,7 @@ asserted.
 ---
 
 ## oq-0046 — Core can reach the Vault HTTP client in two hops, and the only unconditional guard is not loaded (finding-0190)
-- status: answered   # 2026-07-26 — (a) load the anchor; commands supplied, owner-run and NOT yet executed
+- status: swept   # 2026-07-26 — ENACTED and hand-verified by the owner; `-sr` output recorded below
 - origin: docs/findings/finding-0190.md
 - blocking: false
 - question: The chain is intact today: `core/factory/factory.py:182 → config.secrets_backend →
@@ -1584,8 +1584,36 @@ asserted.
   **The import-inversion half** (`core/factory/factory.py:182 → config.secrets_backend → hvac`) is
   unchanged and stays with finding-0103's programme; the closure walk that would *detect* such chains
   is oq-0045.
-  **Re-entry:** the owner runs the commands (then this flips to swept with the `-sr` output recorded);
-  or oq-0041's core-plane migration lands and makes the anchor live.
+  **ENACTED 2026-07-26 — the owner ran it and hand-verified.** `/etc/pf.conf` backed up, the two
+  loader lines appended, `pfctl -f /etc/pf.conf` clean (only the generic `-f` warning and the harmless
+  `No ALTQ support in kernel` notice — ALTQ is the queueing subsystem macOS does not compile in).
+  Verified state:
+  ```
+  $ sudo pfctl -s info | head -1
+  Status: Enabled for 0 days 00:00:04           Debug: Urgent
+  $ sudo pfctl -sr | grep -i mind-palace
+  anchor "mind-palace/ouroboros" all
+  $ sudo pfctl -a mind-palace/ouroboros -sr
+  pass out quick on lo0 all flags S/SA keep state
+  block drop out quick proto tcp all user = 550
+  block drop out quick proto udp all user = 550
+  ```
+  ⚑ **Both properties the design cared about are confirmed:** the **lo0 pass comes FIRST** (so core's
+  loopback model traffic to `127.0.0.1:11434` is never dropped — the ordering the conf header calls
+  load-bearing), and pfctl **normalized `proto { tcp udp }` into two rules**, exactly as
+  `check_pf_anchor`'s docstring anticipated. The anchor is also genuinely **referenced** from the main
+  ruleset, which is what makes it evaluated rather than merely present.
+  ⚑ **`user = 550`, not `user = ouroboros`** — pf resolved the name to a uid at load time, so the guard
+  is pinned to **uid 550**. If that account were ever deleted and recreated with a different uid, the
+  rule would silently protect the wrong principal (or nothing) with no error and no diff. Recorded on
+  finding-0213.
+  **Residuals, both non-blocking and both recorded on finding-0213:** pf was enabled with `-e` rather
+  than the reference-counted `-E` that `/etc/pf.conf` itself recommends, so another component calling
+  `-d`/`-X` can switch it off; and **pf does not auto-enable at boot**, so after a restart the rules are
+  present, referenced, and unenforced.
+  **Standing scope, unchanged:** uid 550 is `ouroboros`, and **nothing runs as it** — the daemon runs as
+  `ascalva` and no system LaunchDaemon is installed. The guard is correctly installed and enforces
+  nothing until oq-0041's core-plane migration lands. That was stated before the owner ran it.
 
 ---
 
