@@ -265,3 +265,67 @@ references:
   - .gitignore                            # :13 raw corpus never committed
   - config/defaults.toml                  # :46 vault path, outside the repo
 ```
+
+## 2026-07-26T06:52:00Z
+
+```capsule
+topic: phone-chat-surface
+date: 2026-07-26
+
+decisions:
+  - OWNER PRINCIPLE, extending the 04:02Z public-presence stance (verbatim, 2026-07-26): "the
+    system already is explainable, and explainable in a public manner, no tricks, no
+    obfuscation, security through transparency." Recorded as a STANDING DESIGN STANCE, not a
+    one-off ruling.
+  - THE DISCARDED FRAMING AND WHY IT WAS RIGHT TO DISCARD IT. The owner floated "notary as a
+    service -- sell publicly verifiable facts", then self-corrected ("that sounds dumb ...
+    starting to sound like the NFT craze"). The correction is right for a sharper reason than
+    the resemblance: A NOTARY SELLS TRUST IN ASSERTIONS ABOUT THE WORLD, TO THIRD PARTIES WHO
+    WERE NOT THERE. Ouroboros asserts nothing about the world -- it records THE PROVENANCE OF
+    ITS OWN REASONING. The verifiability is internal-facing: the property is that the OWNER can
+    check it later and that a forgery must be public to work. Integrity property, not a product.
+    Do not resurrect the service framing.
+  - ⚑ WHERE THE TRANSPARENCY IS ALREADY LOAD-BEARING (not decorative) -- all surfaced this
+    session:
+      * the single-key-slot design's security IS its publicity: forging authority requires a
+        PUBLIC COMMIT with an author and timestamp, in a history the owner can diff (03:05Z);
+      * the attestation tag is UNFORGEABLE AND REVEALS NOTHING (HMAC as a PRF) -- transparency
+        without leakage, as an engineering property;
+      * `ops/effect_catalog.py` is fail-closed AND public: "a half-audited hand cannot be added
+        silently" -- the action surface is a reviewed diff anyone can read;
+      * the CT-log ruling landed here too: publishing the name stopped being a cost and became
+        the assertion (03:31Z -> 04:18Z).
+  - ⚑ THE NECESSARY QUALIFIER, WITH THIS SESSION'S OWN EVIDENCE. Transparency is NOT security by
+    itself; it is security when paired with ONE UNFORGEABLE SECRET and A CHECKABLE INVARIANT.
+    finding-0206 is precisely the counterexample: a committed `proposed->ready` flip in a FULLY
+    PUBLIC repo, carrying no grant record, is INDISTINGUISHABLE from a forged one. Publicity did
+    not make the property checkable -- a signature did. So the precise form of the principle is:
+    EVERYTHING PUBLIC EXCEPT THE ONE THING THAT MUST NOT BE, AND EVERY CLAIM REDUCIBLE TO A
+    CHECK. Kerckhoffs, not sunlight.
+  - ⚑ THE CAPSULES ARE THE EXPLAINABILITY ARTIFACT, AND THEY INCLUDE THE ERRORS. This session's
+    public record contains two agent claims refuted by external verification (Secure Enclave
+    residency; HMAC-in-Shortcuts), a misread of owner intent that had to be withdrawn (05:14Z ->
+    05:33Z), and a priority inversion caught before it shipped. A reader can audit not only what
+    was decided but WHERE THE REASONING WENT WRONG AND WHAT CORRECTED IT. Most systems that
+    claim explainability publish conclusions; this one publishes retractions. That is the
+    property worth protecting when the capture discipline feels expensive.
+  - THE ASYMMETRY IS THE DESIGN, NOT A GAP: machinery and reasoning are PUBLIC; the CORPUS never
+    is (vault outside the repo, `.gitignore:13` "raw corpus lives elsewhere, never committed").
+    Transparency about HOW IT THINKS; hard privacy about WHAT IT KNOWS.
+
+open_questions:
+  - Does the stance imply anything the system does NOT yet do? Candidate: an outside reader
+    cannot today verify a claim END-TO-END without a checkout (the derived views and the
+    attestations are in-repo). Whether that matters depends on whether "publicly explainable"
+    means "auditable by anyone who clones" (true today) or "auditable without cloning"
+    (not true, and possibly not wanted).
+  - Does it constrain the phone-chat-surface capture inbox? An inbox that writes owner-authored
+    text into the PUBLIC repo would extend transparency to raw INPUT, not just reasoning --
+    a different and probably unwanted thing. Reinforces the 04:02Z open question.
+
+references:
+  - docs/brainstorms/phone-chat-surface.md   # 04:02Z the public-presence principle this extends
+  - docs/findings/finding-0206.md            # the counterexample: public but not checkable
+  - ops/effect_catalog.py                    # fail-closed + public action surface
+  - .gitignore                               # :13 the corpus asymmetry
+```
