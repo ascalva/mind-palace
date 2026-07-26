@@ -45,9 +45,21 @@ description: How and when to commit in this repo — the CONVENTIONS §Commits h
   Damage is **not** repairable by amending: the code-sensor ingests the body at commit time,
   so `code_snapshots.sqlite` keeps the mutilated text either way. Record a correction instead
   (precedent: `docs/build-plans/bp-095/journal.md`, `cffe515`).
-- ⚑ **Stage explicit paths, not `git add -A`**, whenever the owner might be editing plan
-  statuses in parallel — a blessing flip absorbed into an unrelated commit is invisible to
-  the Stop gate's clause (c), which only compares the worktree against HEAD (finding-0222).
+- ⚑⚑ **`git add -A` and `git add .` are BANNED. Stage every path by name.** Owner rule,
+  2026-07-26, after `cffe515` absorbed two of his blessings into a commit about something
+  else. Unconditional on purpose: the earlier version of this rule said "whenever the owner
+  might be editing in parallel", and a rule you must first decide whether to apply is the
+  kind that failed twice in one session (finding-0222).
+  **Before staging, run `git status --short`. A file you did not touch appearing there means
+  STOP** — it is probably an owner hand-edit, and if it is a blessing it needs its own
+  `bless(...)` commit after you verify the diff is the status line alone.
+  Why naming paths is sufficient: you cannot absorb a file you never named, so the hazard is
+  closed by construction rather than by vigilance. It also preserves grouping — a fix and the
+  test that proves it stay in ONE bisectable commit, which strict one-file-per-commit would
+  break (the fix would land without its test, or the test would land red), and which merge
+  commits cannot honour at all.
+  ⚑ Note `git merge` does **not** accept `-F -`: write the message to the scratchpad and pass
+  `git merge -F <file>`.
 - **Body**: the *why*, plus what the diff can't say — the constraint honored, the
   invariant touched, the alternative rejected.
 - **Co-Authored-By trailer** (owner preference, 2026-07-11): include it ONLY on commits
