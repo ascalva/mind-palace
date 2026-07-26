@@ -784,3 +784,60 @@ references:
   - pyproject.toml                         # :128-134 the Tier-2 floor the slot would sit in
   - docs/design-notes/agent-workflow.md    # A8's HEAD-keyed post-hoc check; §6 fail-open/fail-loud posture
 ```
+
+## 2026-07-26T03:31:00Z
+
+```capsule
+topic: autopilot-mode
+date: 2026-07-26
+
+decisions:
+  - ⚑ OWNER RULING -- THE CERTIFICATE-TRANSPARENCY PRIVACY COST IS ACCEPTED. Owner, verbatim:
+    "on the CT-logs: do it". This CLOSES the last blocking ruling on the superseding note.
+    The parked row in the 02:52Z capsule (which deliberately recorded NO agent default) is
+    hereby resolved: the local-HTTPS / WebAuthn delivery path proceeds, and the permanent
+    publication of the device FQDN to the public append-only CT ledger is an accepted cost.
+  - WHAT WAS KNOWN AT THE TIME OF THE RULING (so the decision is auditable rather than
+    merely recorded): the owner had been shown Tailscale's own verbatim warning ("Do not
+    enable the HTTPS feature if any of your machine names contain sensitive information"),
+    that the leak is the NAMES rather than content or reachability, and that it is permanent
+    and un-retractable. He ruled with that in hand.
+  - ⚑ CONSEQUENT ACTION, ORDERING-CRITICAL -- FREE TODAY, UNRECOVERABLE TOMORROW. The
+    machine's current names were measured at ruling time:
+        ComputerName:   Alberto's MacBook Pro
+        LocalHostName:  Albertos-MacBook-Pro
+        hostname:       Albertos-MacBook-Pro.local
+    So the FQDN entering the permanent public ledger would be
+    `albertos-macbook-pro.<tailnet>.ts.net` -- i.e. the owner's FIRST NAME, plus the tailnet
+    name (commonly derived from an email or domain, which would link the two). This is
+    EXACTLY the case Tailscale's warning names.
+    ⇒ RENAME THE MACHINE **BEFORE** ISSUING THE CERT, if it is to be renamed at all.
+    Renaming AFTERWARD is expensive on two counts: the rpId is baked into every credential,
+    so a later rename PERMANENTLY INVALIDATES EVERY ENROLLED PASSKEY (02:52Z capsule); and
+    the CT entry for the old name never goes away regardless. Pick the name ONCE, then
+    enroll. Surfaced to the owner at ruling time; he had not responded when the session
+    closed.
+
+parked:
+  - decision: whether to rename the machine / tailnet before enrollment.
+    default: NONE recorded -- the owner was given the measured names and the ordering
+    argument and has not yet answered. Do NOT assume "keep the current name".
+    re_entry: BEFORE the first `tailscale cert` invocation, and therefore before any build
+    plan that enrolls a credential. This is the last reversible moment.
+
+open_questions:
+  - The tailnet name itself was NOT measured (only the machine names were). It is the other
+    half of the published FQDN and should be checked with the owner before enrollment, since
+    tailnet names are frequently email- or domain-derived.
+
+next_steps:
+  - The superseding note is now FULLY UNBLOCKED: Ruling 2 (CT) is answered here, and Ruling 1
+    (staging -> stable) gates only the token-minting paragraph, because the 03:18Z sum-type
+    shape is invariant across all three candidate ceremonies.
+  - Carry the rename-before-enroll ordering into the note's wiring section as a hard
+    prerequisite, not a footnote.
+
+references:
+  - https://tailscale.com/kb/1153/enabling-https   # the CT-log warning, verbatim
+  - docs/brainstorms/autopilot-mode.md             # 02:52Z verification capsule (rpId/rename cost)
+```
