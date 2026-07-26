@@ -220,3 +220,86 @@ framing, since he is present anyway.
 
 Conflating them was the orchestrator's error, not the owner's: they share an authentication
 primitive (MFA from the phone) and nothing else. **Different risk, different gate, different note.**
+
+### ⚑⚑ Owner proposal — SMART as the CHECKABLE form of the understanding-check
+
+Verbatim: *"are you familiar with SMART goals? I have to read write them for my job's yearly check
+in… but they could make sense here, if you can answer those few questions, based on our
+conversation, then there is enough here, else, not enough."* (Specific · Measurable · Achievable ·
+Relevant · Time-bound — the acronym is correct.)
+
+**This is the answer to the crux.** The open question was: *what makes an understanding-check
+checkable rather than vibes?* SMART supplies a **completeness predicate over the conversation** —
+five fields that are either fillable from what was said or are not. Unfillable ⇒ not ready.
+
+#### ⚑ It is not a foreign framework — it is already this repo's vocabulary, renamed
+
+Each letter has an existing artifact home. That is what makes it cheap to adopt and hard to fake:
+
+| SMART | already exists here as | source |
+|---|---|---|
+| **Specific** | *"a single coherent objective statable in one sentence"*; split when *"the objective needs an 'and'"* | graduate skill, session-sizing |
+| **Measurable** | *"acceptance criteria that are **runnable** — a test passes, a file exists and parses, a command exits 0 — not 'looks good'"* | graduate skill |
+| **Achievable** | **the acceptance-reachability check** — every §7 criterion buildable from §5 (`e7915c2`) — plus `session_budget: 1` | graduate skill |
+| **Relevant** | `design_ref` — does it trace to a ratified note? — and §1.2 non-goals | build-plan front matter |
+| **Time-bound** | `session_budget`, `cost.estimate`, and (for autopilot) **the stopping condition** | build-plan front matter |
+
+⇒ A SMART statement is **the build plan's skeleton written early**, not extra ceremony. It is a
+pre-flight rendering of §1 + §7 + §5, short enough to read on a phone.
+
+#### ⚑ THE EMPIRICAL TEST — run it on this session's two candidate asks. It DISCRIMINATES.
+
+The owner named two: *"even having spell check, or reinvent the `gf` binding."* Filling SMART from
+the conversation as it actually stands:
+
+**(a) The `gf` / reference standard — SMART FAILS at Achievable, correctly.**
+
+| field | fillable from the conversation? |
+|---|---|
+| Specific | ✅ resolve `<type>:<name>[:<anchor>]`; a validator plus an editor action |
+| Measurable | ✅ `scripts/check_refs.py` exits 0 over `docs/`; every typed ref resolves; `gf`/`K` resolve `dn:x`, `bp:108`, `::§10` |
+| **Achievable** | ❌ **NO — four decisions are still open** (uniform vs typed-only-where-ambiguous · retrofit · whether to discourage bare line refs · journals-as-prose). The resolver hardcodes whichever answer is chosen, so it cannot be built yet. |
+| Relevant | ⚠ traces to `owner-cockpit.md` — **a brainstorm, not a ratified note.** No `design_ref` exists. |
+| Time-bound | ❌ unknown |
+
+⚑ **The predicate rejects it — and rejects it for exactly the reason the orchestrator had already
+identified independently** (*"four decisions before anything gets built"*). That is the strongest
+evidence available that SMART has real discriminating power here rather than being a formality:
+**two independent methods reached the same verdict.**
+
+**(b) Spell-check — SMART plausibly PASSES.** Specific (spell-check `docs/**` prose); Measurable (a
+script exits 0 / a dictionary-diff is empty); Achievable (a new script plus a gate leg — a scope a
+reviewer holds in their head); Relevant (QoL, no design dependency); Time-bound (one session).
+⇒ The two examples land on **opposite sides** of the same test. The predicate separates them.
+
+#### ⚑ Where SMART is NOT sufficient — three gaps, all of which this repo already covers
+
+Adopt it as *necessary*, never as *the whole gate*:
+
+1. **SMART has no FALSIFIER.** §7 requires acceptance **and a named falsifier** — *what observation
+   would prove this wrong*. Measurable ≠ falsifiable: a goal can be perfectly measurable with no
+   designed disproof. This repo's epistemology (falsifiers, not proofs) is strictly stronger than
+   SMART, so **SMART + falsifier**, always.
+2. **SMART has no NON-GOALS.** "Relevant" says what it is *for*, never what it is *not*. `f:0150`:
+   **wrong non-goals fail silently forever.** This is the most dangerous gap and the least
+   auto-checkable — it stays owner-read.
+3. ⚑ **SMART checks the GOAL, not the UNDERSTANDING.** The subtle one. An agent can emit a flawless
+   SMART restatement of an ask it *misread*. Well-formedness is not comprehension.
+
+#### The resolution — SMART is the FORM of a readback; the owner's recognition is the CONTENT
+
+Gap 3 dissolves once the mechanism is stated properly. This is **closed-loop / readback-hearback**,
+the technique aviation and medicine use for exactly this problem:
+
+1. converse until the idea is formed;
+2. the agent emits a **SMART statement** — five short fields, phone-readable;
+3. the owner reads it and either **corrects** (the loop repeats — and a correction is *information*,
+   the disagreement surfaces cheaply, before any work) or **recognises it as his own goal**;
+4. **the MFA binds to `sha256(SMART statement)`** — Refinement 2, unchanged. Any edit invalidates it.
+5. autopilot executes *that statement* and nothing else; it becomes the plan's §1/§7 seed.
+
+The owner's *"once I believe you understand"* is therefore not vibes: it is a **structured readback
+he confirms**, and the confirmed artifact is small, hashed, and binding. **The read is preserved,
+shrunk to five fields, and made portable.**
+
+⇒ Supersedes the crux as an open question. The Fable design pass has been sent this capsule.
