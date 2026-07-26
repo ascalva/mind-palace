@@ -196,3 +196,72 @@ artifacts classified as non-vault (a *cheaper* and probably correct move, but st
 ⇒ **Next step is a read of `dn-ambassador-as-reasoning-agent` in full plus whatever defines π_MR**,
 before any plan. The capture-inbox stage (write-only, stage 1 above) is unaffected by this question
 and can proceed independently — another argument for shipping it first.
+
+## 2026-07-26T04:02:00Z
+
+```capsule
+topic: phone-chat-surface
+date: 2026-07-26
+
+decisions:
+  - ⚑ SETTLED -- THE OPEN QUESTION "Is `origin` GitHub (changes the NN-11 calculus)?" IS
+    ANSWERED. Measured 2026-07-26: `origin` = git@github.com:ascalva/mind-palace.git, and
+    `gh repo view` reports **isPrivate: false, visibility: PUBLIC**. There is also a GitLab
+    mirror remote (`gitlab` = git@gitlab.com:ascalva-projects/mind-palace.git). The repo is
+    PUBLIC.
+  - ⚑ THE NN-11 BOUNDARY HOLDS CLEANLY, and is verifiable rather than asserted. NN-11 reads
+    "The interface may transit a third party; the corpus never does." The public repo carries
+    the MACHINERY and the REASONING (code, design notes, brainstorms, findings, plans); the
+    CORPUS is outside it -- .gitignore:13 states verbatim "Local runtime state (regenerable;
+    raw corpus lives elsewhere, never committed)", and the vault path is `~/.mind-palace/vault`
+    (config/defaults.toml:46). So "public repo" is NOT an NN-11 violation; the two planes were
+    already separated by construction.
+  - OWNER PRINCIPLE (verbatim, 2026-07-26): "ouroboros is grounded to reality, the code is
+    visible, public, so why shouldn't its presence?" -- i.e. the system's PRESENCE being
+    publicly visible is consistent with its code being publicly visible. Recorded as a
+    standing stance, not a one-off ruling.
+  - ⚑ CONSEQUENCE FOR THE AUTOPILOT CT-LOG RULING (autopilot-mode.md 03:31Z): the concern
+    LARGELY DISSOLVES. The agent weighed publishing a hostname to a public append-only ledger
+    while the entire design, every capsule, and the reasoning behind it were ALREADY readable
+    by anyone. A CT entry adds essentially nothing to a repo that publishes the mechanism
+    itself. The ruling stands and is now better-grounded than when it was made.
+  - ⚑ A PUBLIC REPO UPGRADES THE KEY-SLOT DESIGN rather than compromising it. A committed
+    PUBLIC key in a PUBLIC repo is a public, timestamped, append-only AUTHORITY RECORD:
+    forging it would require a public commit, with an author and a timestamp, in a history
+    anyone can audit and the owner can diff. That is the strongest available form of the
+    "loud rather than silent" property the single self-destructing slot was reaching for
+    (autopilot-mode.md 03:05Z). Kerckhoffs's principle taken seriously -- everything public
+    except the private key, which never touches the repo by construction.
+
+parked:
+  - decision: whether the GitLab mirror is also public, and whether it receives the same
+    pushes.
+    default: unknown -- only the GitHub remote's visibility was measured.
+    re_entry: before anything relies on "the authority record is publicly auditable", since
+    two divergent public mirrors would weaken the audit story.
+
+open_questions:
+  - ⚑ AGENT SELF-REPORT, owner should know: while reasoning about whether to expose a
+    hostname via CT logs, the agent MEASURED and then COMMITTED the owner's machine name
+    (`Albertos-MacBook-Pro`) into a capsule and a commit message, and pushed it to this
+    PUBLIC repo -- same permanence, same public enumerability as the thing being avoided.
+    Low sensitivity, and consistent with the owner's stated principle, but it was done while
+    advising against exactly that. Flagged rather than left to be discovered. No action
+    proposed; git history is not rewritable without cost.
+  - Does the public-repo fact change the phone-chat-surface staging? The write-only capture
+    inbox (stage 1) would land owner-authored text into a PUBLIC repo unless the inbox path
+    is gitignored or routed to the vault. THIS NEEDS AN EXPLICIT DECISION before stage 1 is
+    built -- it is the same corpus/machinery boundary, applied to a new inbound channel.
+  - Does `ouroboros.ascalva.com` collide with the photography site's existing DNS/AWS setup?
+    Still unchecked (carried from autopilot-mode.md 03:42Z).
+
+next_steps:
+  - Carry the settled origin fact into the phone-chat-surface note when it is written; the
+    NN-11 calculus it was waiting on is now resolved.
+  - ⚑ Decide the capture-inbox visibility question BEFORE stage 1, not during it.
+
+references:
+  - docs/brainstorms/autopilot-mode.md   # 03:31Z CT ruling, 03:05Z single-slot, 03:42Z domain
+  - .gitignore                            # :13 raw corpus never committed
+  - config/defaults.toml                  # :46 vault path, outside the repo
+```
