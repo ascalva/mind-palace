@@ -342,4 +342,25 @@ single-instance guard now answers correctly on both platforms, and CI is green. 
 been exercised is the guard against a genuinely recycled pid on the live host — that remains, as
 before this plan, covered by fixtures rather than by an observed incident.
 
+---
+
+## Session close — post-commit note (uncommitted by design; `/triage` commits it with the seal)
+
+Written *after* the final commit, so it can record what no in-commit text could:
+
+- **Three commits, all pushed:** `e79f337` (finding-0214) · `e49a715` (the build) · `b0b2e2d`
+  (Checkpoint 3, the seal entry).
+- **CI green on BOTH pushed heads** — `e49a715` (run 30192902613, the acceptance) and `b0b2e2d`
+  (run 30193018024, the docs-only follow-up). The board is left green, not merely turned green
+  once; a red follow-up run would have re-blocked deploy just as effectively.
+- **The `.claude/state/active-plan` pointer is deliberately left set** to this plan. bp-121 is
+  still `in-progress` — `scope-guard` should keep enforcing its `write_scope` until the
+  orchestrator flips it to `complete`.
+
+⚑ **Why this section is uncommitted:** the Stop gate's clause (a) requires
+`mtime(journal) >= last_commit`, so a journal whose final write is itself committed can never
+satisfy it — the last write must follow the last commit. This note is that write. It is in-scope
+per clause (b) (`journal.md` is always allowed), and `/triage` sweeps it up with the seal.
+This is the gate's designed end state, not a skipped step.
+
 ## Markers

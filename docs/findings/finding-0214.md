@@ -10,11 +10,17 @@ links:
   - config/local.toml                          # :47 — the owner's oq-0024 σ enactment, GITIGNORED
   - config/defaults.toml                       # keeps 0.62, which is why CI never sees this
   - docs/findings/finding-0212.md              # the same seam, opposite sign
-ftype: codebase
+ftype: blocker
 origin_plan: bp-121
 route: builder
 resolution: null
 ---
+
+> ⚑ **ESCALATED to `blocker` — 2026-07-26, same day, on the owner's report that deploy is
+> blocked.** `Launcher.deploy`'s gate 5 (`launcher.py:586-597`, `gate_cmd`) is *byte-for-byte the
+> local tier these two tests fail*. So this is not builder friction: **it will refuse
+> `mind-palace deploy` on the owner's machine**, and it is the next gate he hits after starting the
+> daemon. Original write-up (filed as `codebase`) below, unchanged.
 
 # Two self-mod tests read the owner's gitignored config overlay, so the local suite is red while CI is green
 
@@ -59,6 +65,26 @@ exist only on the owner's machine.
 Secondarily, it is a hermeticity defect in its own right. An integration test that reads the
 machine-local overlay has no fixed expected value — the assertion is `0.62` today because of a
 config file that is not in the repository, so the test cannot be reasoned about from the tree.
+
+## ⚑ The deploy consequence (added on escalation)
+
+`Launcher.deploy` has six gates in order (`launcher.py:868-908`): a live run exists · tree clean ·
+on `main` · HEAD ≠ the live run's commit · **the local ratchet is green (`gate_cmd`)** · the
+ci-witness attests a green remote HEAD.
+
+`gate_cmd` is `uv run pytest -q -m 'not live and not podman and not needs_vault and not
+needs_restic' --deselect …test_core_imports_nothing_outside_core` — *identical* to the tier these
+two tests fail on. So the sequence the owner is about to walk is:
+
+1. gate 1 refuses today (`deploy: no live run — nothing to cycle`) because the daemon is down;
+2. he starts the daemon, clearing gate 1;
+3. **gate 5 then refuses on these two tests**, and the only documented escape is `--skip-tests`,
+   which drops the *whole* gate — local ratchet *and* ci-witness — for a config-overlay artifact.
+
+That is the shape worth naming: a false red on a gate whose only bypass is total. It converts an
+unrelated test-hermeticity defect into pressure to deploy with no verification at all. `bp-121`
+cleared the *remote* half of the gate (ci-witness); this is the *local* half, and it was hidden
+behind the remote failure until now.
 
 ## Re-entry condition
 
