@@ -15,6 +15,9 @@ write_scope:
   - core/kernel/config/loader.py
   - config/defaults.toml
   - tests/unit/test_inference_seam.py
+  - core/models/ollama_client.py
+  - ops/import_lint.py
+  - tests/e2e/test_ollama_live.py
 session_budget: 1
 cost:
   estimate:
@@ -165,6 +168,24 @@ the second implementation. `core/models/server.py`, `core/models/__init__.py` an
 `core/ingest/embed.py` carry the annotation widening and the factory.
 `core/kernel/config/loader.py` + `config/defaults.toml` carry the `[runtime]` schema.
 `tests/unit/test_inference_seam.py` is new.
+
+⚑ **AMENDED 2026-07-25 (session-49), by explicit owner grant** — verbatim: *"i grant you, the
+orchestrator, to make the edits to the write scope of bp-115."* Three files added, because §7
+Items 1 and 3 are **unreachable without them** (finding-0204, confirmed by running the gate, not
+inferred). This is the remedy finding-0204 itself prescribes — *"they should land under an amended
+`write_scope` … not as ungoverned lines"* — and it is what finding-0191 requires: a finding whose
+resolution is a code change re-enters the artifact chain rather than being discharged by an
+orchestrator commit.
+- **`core/models/ollama_client.py`** — `healthy()` is a **protocol member**, so structural
+  conformance requires it on the *class*. §6 already says it "is the one addition" to
+  `OllamaClient`'s surface; the class's file simply was never listed. An ADDED method only — no
+  existing body is touched, so Item 1's falsifier does not fire.
+- **`ops/import_lint.py`** — `NETWORK_ALLOWLIST` is the audited loopback exception. A third
+  loopback client must be enrolled **on the record**; evading the scan is the alternative and is
+  not acceptable. The new entry is a deliberate widening of an audited exception, and carries the
+  same one-line rationale the existing two do.
+- **`tests/e2e/test_ollama_live.py`** — a single call site asking a *residency* question
+  (`list_models`) through the inference handle; the only such site in the repo (finding-0205).
 
 ⚑ Deliberately OUT of scope, each for a stated reason:
 - **`core/models/loader.py`** — manager operations only (§3 Q2); bp-107 is landing on it and
