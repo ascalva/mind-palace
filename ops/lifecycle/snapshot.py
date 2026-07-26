@@ -15,7 +15,7 @@ pid. This module therefore also carries:
                     exactly one `_pid_alive`, in `ops/lifecycle/launcher.py`; this module never
                     writes a second one, and taking it as an argument also avoids an import cycle);
   * `read_queue_stats` — windowed throughput / in-rate / out-rate / per-kind oldest age / running
-                    elapsed / last failure, read from the `jobs` schema
+                    elapsed / lease-derived orphanhood / last failure, read from the `jobs` schema
                     (`scheduler/queue.py:62+`) over a **read-only** connection;
   * `read_store_stats` — the METADATA-ONLY store figures.
 
@@ -37,6 +37,14 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol
+
+# The ONE implementation of "has this deadline passed?", imported rather than re-derived. The
+# state-name constants below are deliberately kept local (they are schema literals, and this module
+# reads the `jobs` table with raw SQL rather than through `JobQueue`), but the lease POLARITY is a
+# semantic rule, not a literal: `NULL ⇒ not expired` is what keeps a pre-migration queue file — the
+# live one, 302,010 rows, every deadline NULL — from reading as 300k orphans. Two copies of that
+# rule would be two chances to invert it, so there is one (bp-109 §6).
+from scheduler.queue import deadline_lapsed
 
 # --- the rate window W ---------------------------------------------------------------------
 # bp-102 §11 parked decision, resolved here. 20 minutes: long enough to smooth the chat watcher's
@@ -64,6 +72,13 @@ def _parse(ts: str | None) -> datetime | None:
         return datetime.fromisoformat(ts)
     except ValueError:
         return None
+
+
+def _lease_of(row: sqlite3.Row) -> str | None:
+    """`row["lease_expires_at"]`, or None when the row came off a pre-bp-109 queue file whose
+    projection could not include the column. One helper rather than a repeated `in row.keys()`
+    test at each of the two use sites."""
+    return row["lease_expires_at"] if "lease_expires_at" in row.keys() else None
 
 
 def _age_s(ts: str | None, now: datetime) -> float | None:
@@ -125,12 +140,22 @@ class RunningJob:
     There is deliberately NO budget fraction: **no job-level timeout exists anywhere in the
     system** (bp-102 Q4, finding-0174). The 2026-07-25 `TimeoutError` was the `[ollama]`
     `request_timeout_s` socket timeout on one embed call after 74m50s of elapsed work, not a job
-    budget firing. Printing `elapsed / budget` would require inventing the denominator."""
+    budget firing. Printing `elapsed / budget` would require inventing the denominator.
+
+    `lease_expired` is where "the queue *believes* it is RUNNING" stops being the end of the story
+    (bp-109 Item 3): a row whose claim deadline has passed is orphaned by definition, and this
+    reader says so with **no sweep having run** — the sweep stops being a call someone must
+    remember to make (finding-0187's exact failure). Computed at read time from the same `now` as
+    `elapsed_s`, because this dataclass is a snapshot, not a live row. It is False whenever the
+    deadline is NULL, which is every row a pre-bp-109 daemon wrote and every kind with no budget
+    configured — so on today's live file every one of these reads exactly as it did before."""
 
     id: int
     kind: str
     started_at: str | None
     elapsed_s: float | None
+    lease_expires_at: str | None = None
+    lease_expired: bool = False
 
 
 @dataclass(frozen=True)
@@ -223,6 +248,25 @@ class QueueStats:
         return self.store_idle_s < floor
 
     @property
+    def orphaned_running(self) -> tuple[RunningJob, ...]:
+        """The RUNNING rows whose claim deadline has demonstrably lapsed — **the derived view**
+        (bp-109 Item 3 / dn-supervision-and-liveness §2.6). No sweep has to have run for this to be
+        populated; orphanhood is read off the row, not off whether anybody remembered to reclaim it.
+
+        Empty on every queue file written before the lease column existed, and empty for every kind
+        with no configured budget (which is all of them by default) — so this is strictly NEW
+        information, never a reinterpretation of an old row.
+
+        Deliberately NOT folded into `wedged` / `stalled` / `embedding`. Every candidate way of
+        doing that makes an existing flag QUIETER (excluding an orphan from `wedged`'s `running`
+        test, or from `youngest_running_elapsed_s`'s min, both let a state that flags today go
+        unflagged), and the render that would carry the orphan reason instead
+        (`launcher.py:1271-1285`, keyed on daemon liveness) belongs to a later plan's write scope.
+        A trade of one loud imprecise flag for one silent precise one is a false green, which is the
+        failure this whole track exists to remove — so the sharpening waits for the render."""
+        return tuple(j for j in self.running if j.lease_expired)
+
+    @property
     def youngest_running_elapsed_s(self) -> float | None:
         """Elapsed of the most recently STARTED running job — `embedding`'s denominator, exposed so
         the render prints the same number the predicate decided on rather than recomputing it."""
@@ -311,11 +355,31 @@ def read_queue_stats(path: Path, *, now: datetime | None = None,
                        (DONE, cutoff))[0][0])
         failed_w = int(q("SELECT count(*) FROM jobs WHERE state = ? AND finished_at > ?",
                          (FAILED, cutoff))[0][0])
+        running_sql = ("SELECT id, kind, started_at, lease_expires_at FROM jobs WHERE state = ? "
+                       "ORDER BY started_at LIMIT 10")
+        try:
+            running_rows = q(running_sql, (RUNNING,))
+        except sqlite3.OperationalError:
+            # A queue file written before bp-109's migration has no `lease_expires_at`, and this
+            # connection is `mode=ro` on purpose, so it cannot add one — `status` is the first thing
+            # anyone runs after an incident and must never mutate the file it is describing. Fall
+            # back to the pre-change projection; every row then reports no deadline, which is
+            # precisely what a row without the column means (NULL ⇒ not expired).
+            # A `PRAGMA table_info(jobs)` probe would be the obvious alternative and is deliberately
+            # NOT used: every statement this function issues must be an aggregate or carry a LIMIT,
+            # asserted by test_status_cost_bound.py::test_every_queue_statement_is_bounded, and a
+            # PRAGMA is neither. The legacy form is derived from the new one rather than spelt
+            # twice, so the projection cannot drift between the two paths.
+            running_rows = q(running_sql.replace(", lease_expires_at", ""), (RUNNING,))
         running = tuple(
             RunningJob(id=int(r["id"]), kind=str(r["kind"]), started_at=r["started_at"],
-                       elapsed_s=_age_s(r["started_at"], now))
-            for r in q("SELECT id, kind, started_at FROM jobs WHERE state = ? "
-                       "ORDER BY started_at LIMIT 10", (RUNNING,))
+                       elapsed_s=_age_s(r["started_at"], now),
+                       lease_expires_at=_lease_of(r),
+                       # `state = RUNNING` is already this query's own WHERE clause, so the state
+                       # half of `scheduler.queue.lease_expired`'s conjunction holds by construction
+                       # and only the clock half is left to evaluate.
+                       lease_expired=deadline_lapsed(_lease_of(r), now))
+            for r in running_rows
         )
         by_kind = tuple(
             QueuedKind(kind=str(r["kind"]), count=int(r["n"]),

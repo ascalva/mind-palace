@@ -11,6 +11,12 @@ Three guards are load-bearing here, each with its own test:
   follow-up pass silently never happens;
 * **the key is `(kind, payload)`** — distinct payloads must produce distinct rows;
 * **the FIRST row wins** — `created_at` is what anti-starvation aging measures (Q3).
+
+A fourth guard was added by **bp-109 Item 4 (V6)**, as a correction rather than a feature: a
+CHECKPOINTED row is QUEUED and so matched every clause above, meaning a request for a full
+re-derivation was answered with a half-advanced resume. `test_a_checkpointed_row_is_not_a_collapse_
+target` is that falsifier. Every test above it passes unedited, which is the acceptance condition
+the plan attaches to the fix (it may only ever create a row, never drop one).
 """
 
 from __future__ import annotations
@@ -159,6 +165,51 @@ def test_a_different_tier_or_window_does_not_collapse(q):
     other_tier = q.enqueue("chat_sync", "routine", 8192)
     other_ctx = q.enqueue("chat_sync", "pinned", 16384)
     assert len({pinned.id, other_tier.id, other_ctx.id}) == 3
+
+
+def test_a_checkpointed_row_is_not_a_collapse_target(q):
+    """⚑ bp-109 Item 4's FALSIFIER (V6) — *the checkpointed row is returned.* That is the defect
+    verbatim: `checkpoint` re-queues a partially-advanced job with its resume token still on the
+    row, so it matched every clause of the collapse key. A caller asking for a full re-derivation
+    was silently handed a resume from mid-pass, with nothing left to cover the units the earlier
+    pass had already skipped past. Read off the code in bp-105 journal CP1 and confirmed by
+    `dn-supervision-and-liveness` V6, which blocks batch-yield until this clause exists."""
+    first = q.enqueue("code_backfill", "pinned", 8192, priority=PRIORITY_BACKGROUND)
+    claimed = q.claim()
+    assert claimed is not None and claimed.id == first.id
+    q.checkpoint(first.id, "cursor:12000")
+    yielded = q.get(first.id)
+    assert yielded.state == QUEUED and yielded.checkpoint == "cursor:12000"
+
+    second = q.enqueue("code_backfill", "pinned", 8192, priority=PRIORITY_BACKGROUND)
+
+    assert second.id != first.id                     # a FRESH full pass, as asked for
+    assert second.state == QUEUED and second.checkpoint is None
+    untouched = q.get(first.id)                      # and the resume is left alone
+    assert untouched.checkpoint == "cursor:12000"
+    assert untouched.state == QUEUED
+    assert untouched.priority == yielded.priority    # not even promoted
+    assert q.depth() == 2                            # the fix only ever CREATES a row
+
+
+def test_two_checkpointed_rows_do_not_collapse_onto_each_other(q):
+    """The exclusion is on the row being collapsed ONTO, so it holds however many resumes are
+    waiting: three checkpointed rows plus a fresh request are four distinct jobs, and the fresh
+    request never inherits one of their cursors."""
+    resumes = []
+    for cursor in ("a", "b", "c"):
+        # Each `enqueue` must MISS the resumes already parked, which is the property under test —
+        # so the loop itself only terminates with three distinct ids if the exclusion works.
+        job = q.enqueue("chat_sync", "pinned", 8192)
+        assert job.id not in resumes
+        q.checkpoint(job.id, cursor)
+        resumes.append(job.id)
+    assert len(set(resumes)) == 3
+
+    fresh = q.enqueue("chat_sync", "pinned", 8192)
+    assert fresh.id not in resumes and fresh.checkpoint is None
+    assert q.enqueue("chat_sync", "pinned", 8192).id == fresh.id   # …but it IS a target itself
+    assert q.depth() == 4
 
 
 def test_a_reclaimed_orphan_is_a_collapse_target_again(q):
