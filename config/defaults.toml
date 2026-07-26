@@ -364,3 +364,47 @@ grace_s = 5.0                  # SIGTERM -> SIGKILL window. The escalation is RE
                                # optional: llama-server was measured wedging on SIGTERM
                                # mid-request (>3.5 min), and an inference server is stateless,
                                # so SIGKILL loses only in-flight tokens.
+
+[scheduler]
+# THE SUPERVISOR'S EXECUTION MODEL — who owns the thread while a job runs
+# (dn-supervision-and-liveness §2.5, §4 Wiring). Today `Supervisor.tick` calls `handler(job)`
+# synchronously and unbounded, so cancellation and observation are the same missing seam: you
+# cannot budget a synchronous in-process call from outside it, and you cannot observe from a loop
+# it blocks. The compute/land split opens that seam — the compute half runs in a worker
+# subprocess holding NO store handle, and the supervisor lands every batch itself.
+#
+# Every default below is TODAY'S BEHAVIOUR. Nothing observable changes by this section existing:
+# dispatch stays in-process, no deadline fires, no budget is enforced, no lease is stamped. The
+# flip is the OWNER'S, per lane, in config/ouroboros.toml, after a parallel-run deskcheck (note §4).
+#
+# The WHOLE section is defined here even though bp-111/bp-112 consume the last three keys, because
+# the overlay merges by section NAME: a [scheduler] block in ouroboros.toml with no schema behind
+# it is silently DROPPED (the bp-102 / finding-0174 mechanism). A half-defined section is worse
+# than none — a knob that looks applied but never took is the exact failure mode this design
+# exists to end.
+worker_mode = "inproc"       # "inproc" | "subprocess". `inproc` is today's path and the default
+                             # at first landing (note §4); no lane is force-migrated.
+batch_deadline_s = 0.0       # 0 = no deadline. The batch, not the job, is the unit a deadline may
+                             # bound: a per-job-elapsed deadline kills a healthy 14-hour backfill
+                             # at hour N on schedule — bp-102 §10's cry-wolf disqualifier.
+escalation_grace_s = 30.0    # SIGTERM -> N -> SIGKILL, aimed ONLY at the worker, NEVER at the
+                             # supervisor: killing the supervisor mid-landing is how you create
+                             # the partial write oq-0035 worried about. Consumed by bp-112.
+lease_ttl_s = 0.0            # 0 = no lease. The ttl must comfortably exceed the loop's worst
+                             # honest tick or the dead-man cries wolf (§2.6). Blocked on V9's
+                             # measured tick ceiling; consumed by bp-111.
+
+# Per-KIND wall-clock budget, in seconds, for a claim of that kind — the deadline `claim()` stamps
+# on the row it takes (`lease_expires_at = started_at + job_budgets[kind]`, scheduler/queue.py:435).
+# EMPTY BY DEFAULT, and empty means every claim stamps a NULL deadline: byte-for-byte today's
+# behaviour. finding-0178 established there is no job timeout anywhere in the system today, and no
+# number is invented here to fill the gap — the live `code_backfill` lane legitimately runs for
+# hours, so a guessed value would kill a healthy pass on schedule. The value is a PARKED decision
+# (bp-109 §11) whose re-entry condition is bp-112 landing escalation with a MEASURED budget
+# (per-kind p50 from the queue's own history — the note's Q3 denominator).
+#
+# Per-kind, not a single number, because that is the shape the consumer already has: `claim()`
+# looks the budget up BY KIND. Example, once a number is earned:
+#   [scheduler.job_budgets]
+#   dream = 1800.0
+[scheduler.job_budgets]

@@ -339,6 +339,43 @@ class RuntimeConfig:
 
 
 @dataclass(frozen=True)
+class SchedulerConfig:
+    """The supervisor's execution model (dn-supervision-and-liveness §4 Wiring).
+
+    Landed WHOLE, including the keys bp-111 (lease) and bp-112 (escalation) consume, because
+    `_overlay` merges by section NAME: a `[scheduler]` block in `ouroboros.toml` with no dataclass
+    behind it is silently DROPPED (the bp-102 / finding-0174 mechanism). A half-defined section is
+    worse than none — the owner flips a knob, the flip looks applied, and it never took. Same
+    reasoning, same shape, as `RuntimeConfig` above.
+
+    Every default here is TODAY'S BEHAVIOUR: `inproc` dispatch, no deadlines, no budgets, no
+    lease. Nothing observable changes by this section existing.
+
+    ⚑ `job_budgets` is a PER-KIND MAP, not the scalar `job_budget_s` bp-110 §6 pinned — a
+    deliberate, recorded correction (finding-0228, `[banner: correction]`). The consumer that
+    already exists is `JobQueue.job_budgets: Mapping[str, float]` (`scheduler/queue.py:296`, used
+    at `:435` to stamp `lease_expires_at = started_at + job_budgets[kind]`), and a scalar cannot
+    be expressed in it: `claim()` looks the budget up BY KIND, so a single number would have to be
+    fanned out over every kind at construction, or merged with a second per-kind source — which is
+    the parallel budget source finding-0225 exists to prevent. The design note's own §4 says
+    "`job_budget_s` **per-kind overrides**"; the scalar in §6 is the drafting slip. An unconsumable
+    key would be an inert knob that looks live, which is precisely the failure this whole section
+    is schema'd to avoid.
+
+    Empty map = every claim stamps a NULL deadline = byte-for-byte today's behaviour. No number is
+    invented here: the value is a parked decision (bp-109 §11) whose re-entry is bp-112 landing
+    escalation with a MEASURED budget. The live `code_backfill` lane legitimately runs for hours,
+    so a guessed value would kill a healthy pass on schedule — bp-102 §10's cry-wolf disqualifier.
+    """
+
+    worker_mode: str = "inproc"        # "inproc" | "subprocess"; default per note §4
+    batch_deadline_s: float = 0.0      # 0 = no deadline (today's behaviour)
+    job_budgets: dict[str, float] = field(default_factory=dict)  # kind -> seconds; {} = no budget
+    escalation_grace_s: float = 30.0   # SIGTERM -> N -> SIGKILL; consumed by bp-112
+    lease_ttl_s: float = 0.0           # 0 = no lease; consumed by bp-111 after V9  (lease plan)
+
+
+@dataclass(frozen=True)
 class ModelConfig:
     name: str
     tier: str
@@ -372,6 +409,7 @@ class Config:
     effectors: EffectorsConfig = field(default_factory=EffectorsConfig)
     code_ingest: CodeIngestConfig = field(default_factory=CodeIngestConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)  # bp-115 inference backend
+    scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)  # bp-110 execution model
 
     def model_for_tier(self, tier: str) -> ModelConfig:
         for m in self.models:
@@ -469,6 +507,7 @@ def load_config(path: Path | None = None) -> Config:
     eff = raw.get("effectors", {})
     ci = raw.get("code_ingest", {})
     rt = raw.get("runtime", {})
+    sch = raw.get("scheduler", {})
     return Config(
         ollama=OllamaConfig(
             host=o["host"],
@@ -633,6 +672,13 @@ def load_config(path: Path | None = None) -> Config:
             pinned_build=str(rt.get("pinned_build", "")),
             embed_ctx=int(rt.get("embed_ctx", 8192)),
             grace_s=float(rt.get("grace_s", 5.0)),
+        ),
+        scheduler=SchedulerConfig(
+            worker_mode=str(sch.get("worker_mode", "inproc")),
+            batch_deadline_s=float(sch.get("batch_deadline_s", 0.0)),
+            job_budgets={str(k): float(v) for k, v in sch.get("job_budgets", {}).items()},
+            escalation_grace_s=float(sch.get("escalation_grace_s", 30.0)),
+            lease_ttl_s=float(sch.get("lease_ttl_s", 0.0)),
         ),
         models=tuple(
             ModelConfig(
