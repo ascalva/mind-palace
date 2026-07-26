@@ -7,6 +7,24 @@ updated: 2026-07-26
 
 # Journal — bp-121 (D2's interpreter probe goes platform-robust)
 
+> ## ⚑ BUILD COMPLETE — do NOT `/resume` this plan
+> Both items are built and the acceptance is **met on the authority that counts**: the remote
+> `ratchet` job is **green on `e49a715`** — all five CI jobs green, `2096 passed, 0 failed`. That
+> is the first green `main` since `0206043` (2026-07-25T16:59Z), ending **55+ consecutive red runs
+> over ~14 hours**.
+>
+> The plan is left at `status: in-progress` deliberately. Flipping it to `complete` is the
+> ORCHESTRATOR's single-writer duty and the seal is owed at `/triage` — a builder does not
+> self-declare done.
+>
+> **What `/triage` owes:** flip bp-121 → `complete` + seal with `cost.actual` · close
+> **finding-0211** (its re-entry condition is discharged verbatim, including "CI's ratchet job is
+> green on the runner") · route **finding-0214** (filed this session) · note on **finding-0198**
+> that its shim hand-off now covers three psutil accessors, not two · **finding-0212 is now
+> actionable** — its remedy (compare the local gate against the authoritative host at seal time)
+> has a live worked example in Checkpoint 2 · ⚑ **the deploy gate is unblocked**: `main` finally
+> has an attestable green HEAD, so the owner-owed code-ingest deploy can proceed.
+
 Session-53. Contract: `builder`. Ordering per §12: **Item 1 → Item 2**, strictly sequential —
 though the *falsifier demo* Item 2 requires had to run against pre-change code, so the tests were
 authored first, run RED, and only then was Item 1 applied. Both items' code is now in the tree.
@@ -252,5 +270,76 @@ self-declare done.
 
 None owner-level. Carried to `/triage`: finding-0214 · finding-0198's hand-off now covers three
 psutil accessors rather than two · oq-0024's gitignored enactment has a second consequence.
+
+---
+
+## Checkpoint 3 — SEAL. Remote acceptance MET: `ratchet` green on `e49a715`
+
+### Status
+
+`gh run watch 30192902613 --exit-status` → **success**, all five jobs:
+
+```
+✓ vault-axis 35s   ✓ gitleaks 9s   ✓ ratchet 1m52s   ✓ type-gate 27s   ✓ semgrep 28s
+2096 passed, 13 skipped, 21 deselected in 92.76s
+```
+
+The arithmetic checks out exactly: the previous run was `3 failed, 2088 passed`; `2088 + 3` fixed
+`+ 5` new = **2096**. So all three named failures went green and nothing else moved — which is
+also the negative half of Item 1's falsifier ("fails on only one or two of the three"). It did not
+partially fix; the diagnosis held.
+
+Two commits, both pushed: `e79f337` (finding-0214) · `e49a715` (the build).
+
+### Read-map
+
+```
+docs/findings/finding-0211.md:37: the diagnosis — D1 arithmetically excluded, D2 the branch
+ops/lifecycle/launcher.py:175: THE FIX's warrant — why exe() over name(), and why basename
+ops/lifecycle/launcher.py:183: the one line that was the bug: exe() basename, empty ⇒ None
+ops/lifecycle/launcher.py:187: the name() fallback, and why it is load-bearing not defensive
+ops/lifecycle/launcher.py:223: D2's docstring correction — premise stands, probe was wrong
+ops/lifecycle/launcher.py:247: D2 itself, unchanged in meaning; only its input got honest
+tests/unit/test_restart_trustworthy.py:201: why the gap existed — every prior test INJECTS
+tests/unit/test_restart_trustworthy.py:214: _FakeProc — None means the accessor RAISES
+tests/unit/test_restart_trustworthy.py:249: ⚑ the regression pin, run RED before the fix
+tests/unit/test_restart_trustworthy.py:263: the fallback pin — systemd, the brick trap
+tests/unit/test_restart_trustworthy.py:272: empty exe() ⇒ unreadable, mutation-discriminating
+docs/findings/finding-0214.md:1: the incidental find — local-red/CI-green, 0212's mirror
+```
+
+Counted, not listed: the `interpreter` rename across both functions (mechanical), the two
+remaining new tests (double-denial and unconstructable-process — branch coverage, not falsifiers),
+and this journal.
+
+## Follow-through
+
+- **Built?** Yes, both items. Item 1: `_process_identity` reports the basename of the executed
+  binary (`exe()` first, `name()` fallback, empty treated as unreadable). Item 2: five tests
+  driving the real probe against a faked `psutil.Process`; the regression pin was demonstrated RED
+  against the pre-change code and reproduced the runner's own `assert False is True`.
+- **Wired / delivered (or why dormant)?** Delivered, and this one has no dormant switch — it is a
+  correction to code already on the live path (`launcher.py:671`, inside `start()`), effective the
+  moment it is on `main`. No flag, no config, nothing to enable.
+- **Does a consumer use it?** Yes: `Launcher.start()` is the single production call site (verified
+  by grep — nothing else in the tree calls either function). Its consumer is every `palace start`,
+  including launchd's `KeepAlive` restarts.
+- **Track state (what remains on this track)?** The `ops` track's open threads are unchanged by
+  this plan and none are blocked by it: **finding-0198**'s shim move (now three accessors),
+  **finding-0212**'s seal-vs-authoritative-gate duty, **finding-0214** (filed here), and §11's
+  parked D1 timezone question. ⚑ What this *unblocks* is bigger than the track: `main` has an
+  attestable green HEAD for the first time in ~14 h, so the owner-owed code-ingest deploy is no
+  longer gated.
+- **Opened a new track/finding?** One finding, **finding-0214** — two self-mod integration tests
+  assert σ against the merged live config, so the owner's gitignored oq-0024 overlay makes them red
+  locally and green on CI. Not a new track; `codebase`-routed, bounded, and out of this plan's
+  `write_scope`.
+
+### ⚑ Not claimed
+
+This plan is **not deskchecked**, and DONE ≠ sealed. What is demonstrable: `palace start`'s
+single-instance guard now answers correctly on both platforms, and CI is green. What has *not*
+been exercised is the guard against a genuinely recycled pid on the live host — that remains, as
+before this plan, covered by fixtures rather than by an observed incident.
 
 ## Markers
