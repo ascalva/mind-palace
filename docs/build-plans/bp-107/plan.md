@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-107
 track: ops
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/dn-local-model-runtime.md
 contract: builder
@@ -24,7 +24,7 @@ cost:
 depends_on: []
 parallelizable_with: []
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - docs/findings/finding-0199.md
   - docs/findings/finding-0174.md

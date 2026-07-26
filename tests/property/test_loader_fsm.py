@@ -8,6 +8,14 @@ in ALL of them, and that a load is refused EXACTLY when it would breach. Enumera
 proof that no sequence of loads can sneak the loader into an over-ceiling state.
 
 Run with warm=False so no Ollama call is made (the ceiling is checked before any load).
+
+bp-107 retrofit — and this file is the one where it matters most. The loader now measures residency
+at construction (finding-0199), and this test's refusal oracle (`_check_all_transitions`) is
+computed from `cfg` alone: it is structurally blind to residency the config does not describe. On a
+machine whose Ollama holds anything, `refused=True` against `would_breach=False` fails every run
+— measured. The enumeration therefore needs an EMPTY world to enumerate over, which is what
+`loader_for`'s hermetic client gives it. The properties themselves are untouched: same BFS, same
+invariants, same IFF. What changed is that the empty world is now guaranteed instead of assumed.
 """
 
 from __future__ import annotations
@@ -16,12 +24,12 @@ import dataclasses
 
 from config.loader import Config, load_config
 from core.models.loader import TwoSlotLoader
-from core.models.ollama_client import OllamaClient
-from core.models.registry import MemoryCeilingError, Registry
+from core.models.registry import MemoryCeilingError
+from tests.unit.test_loader_reconcile import loader_for
 
 
 def _loader(cfg: Config) -> TwoSlotLoader:
-    return TwoSlotLoader(config=cfg, client=OllamaClient(cfg.ollama), registry=Registry(cfg))
+    return loader_for(cfg)
 
 
 def _drive(cfg: Config, sequence: list[str]) -> TwoSlotLoader:

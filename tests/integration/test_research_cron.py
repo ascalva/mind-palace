@@ -4,6 +4,9 @@ Proves: `"research"` routes to the synthesis tier at BACKGROUND priority; the su
 foreground gate keeps it QUEUED while the owner is present and runs it in a trough (§13); and
 draining the queue invokes the Item-23 driver (emit → collect → rank), returning a plain
 reading list. Deterministic: warm=False, a fake airlock, a stubbed note retrieval, no Ollama.
+
+bp-107: "no Ollama" now needs a hermetic client to stay true — the loader probes `ps()` at
+construction (finding-0199). `loader_for` is that client; nothing else here changed.
 """
 
 from __future__ import annotations
@@ -13,9 +16,6 @@ from typing import cast
 import core.research.rank as rank_mod
 from config.loader import load_config
 from core.ingest.embed import Embedder
-from core.models.loader import TwoSlotLoader
-from core.models.ollama_client import OllamaClient
-from core.models.registry import Registry
 from core.research.airlock import ResearchAirlock, ResearchResult
 from core.research.criteria import Paper, ResearchCriteria, deidentify
 from core.stores.vectorstore import VectorStore
@@ -25,6 +25,7 @@ from scheduler.queue import DONE, PRIORITY_BACKGROUND, QUEUED, JobQueue
 from scheduler.research import RESEARCH_KIND
 from scheduler.router import Router
 from scheduler.supervisor import Supervisor
+from tests.unit.test_loader_reconcile import loader_for
 
 
 class FakeEmbedder:
@@ -79,7 +80,7 @@ def _airlock(al: FakeAirlock) -> ResearchAirlock:
 
 
 def _loader(cfg):
-    return TwoSlotLoader(config=cfg, client=OllamaClient(cfg.ollama), registry=Registry(cfg))
+    return loader_for(cfg)
 
 
 def _present(active):

@@ -2,6 +2,13 @@
 
 These exercise the eviction/accounting logic with warm=False, so no live Ollama is
 needed — the ceiling is checked before any server call.
+
+bp-107 retrofit: the loader now probes `ps()` at construction (finding-0199 — residency is
+measured, not believed), so "no live Ollama is needed" had to become "no live Ollama is
+CONSULTED". Built on a real `OllamaClient` these tests would read whatever the developer's Ollama
+happens to hold: measured here, `test_ceiling_refuses_breaching_load` errors on its first line and
+the FSM oracle diverges as soon as anything is warm. `loader_for` supplies a hermetic client whose
+`ps()` is empty, which is exactly the state these tests always assumed. Not one assertion changed.
 """
 
 import dataclasses
@@ -9,14 +16,12 @@ import dataclasses
 import pytest
 
 from config.loader import load_config
-from core.models.loader import TwoSlotLoader
-from core.models.ollama_client import OllamaClient
-from core.models.registry import MemoryCeilingError, Registry
+from core.models.registry import MemoryCeilingError
+from tests.unit.test_loader_reconcile import loader_for
 
 
 def _loader(cfg=None):
-    cfg = cfg or load_config()
-    return TwoSlotLoader(config=cfg, client=OllamaClient(cfg.ollama), registry=Registry(cfg))
+    return loader_for(cfg)
 
 
 def test_pinned_and_worker_coexist():
