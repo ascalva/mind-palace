@@ -1041,3 +1041,72 @@ references:
   - docs/brainstorms/autopilot-mode.md     # 04:18Z identity-assertion framing this protects
   - CLAUDE.md                              # NN-3, NN-4, NN-10
 ```
+
+## 2026-07-26T04:58:00Z
+
+```capsule
+topic: autopilot-mode
+date: 2026-07-26
+
+decisions:
+  - ⚑ NO COLLISION -- the open question carried since 03:42Z is CLOSED. Measured against the
+    live account (read-only, owner-granted): hosted zone `ascalva.com.`
+    (Z04459637698U9GB7PGC, PUBLIC, 15 records). There is NO `ouroboros.ascalva.com` record
+    and NO wildcard `*.ascalva.com`. The name is free.
+  - THE ZONE IS IN ROUTE53 AND AUTHORITATIVE (NS delegated to awsdns nameservers), so DNS-01
+    IS the clean path: an ACME client writes the challenge TXT directly via the Route53 API.
+    No registrar-elsewhere complication.
+  - WHY NOT ACM, stated so it is not re-asked: an ACM cert already exists for the CloudFront
+    distribution (the `_32830031...` acm-validations CNAME). ACM CERTIFICATES CANNOT BE
+    EXPORTED, so they are unusable on a non-AWS host. Let's Encrypt is not a workaround here
+    -- it is the correct tool for a local box.
+  - ⚑ THE LEAST-PRIVILEGE ARGUMENT IS NOW CONCRETE, NOT THEORETICAL. The same zone carries the
+    owner's EMAIL AUTHENTICATION: MX -> inbound-smtp.us-east-1.amazonaws.com, SPF
+    ("v=spf1 include:amazonses.com -all"), DMARC (p=quarantine), an _amazonses verification
+    TXT, and THREE DKIM CNAMEs to amazonses.com. So a zone-wide write credential could not
+    merely forge the identity assertion -- IT COULD REWRITE MX AND DKIM AND TAKE OVER MAIL FOR
+    ascalva.com. Scoping the ACME principal to `_acme-challenge.*` TXT records is the
+    difference between "can prove domain control for a cert" and "can receive and sign the
+    owner's email". This upgrades the 04:41Z parked role decision from hygiene to a real
+    blast-radius control.
+  - ⚑ THE GITHUB/GITLAB ASYMMETRY -- partially answers the mirror question parked at
+    phone-chat-surface.md 04:02Z. `mind-palace.ascalva.com` is a CNAME to
+    ascalva-projects.gitlab.io (GitLab Pages), plus a gitlab-pages-verification-code TXT.
+    Fetching it redirects to gitlab.com/users/sign_in and returns HTTP 403 -- i.e. PAGES
+    ACCESS CONTROL IS ON, which strongly implies the GitLab project is PRIVATE. So: the
+    GitHub repo is PUBLIC, the GitLab mirror appears PRIVATE. Whether that asymmetry is
+    intended is unknown. NOTE this IMPLIES rather than PROVES the project's visibility.
+  - NAMING COHERENCE (unplanned, worth keeping): the zone already distinguishes
+    `mind-palace.ascalva.com` (the FRAMEWORK's docs) from what `ouroboros.ascalva.com` would
+    be (the LIVE system's front door) -- exactly the owner's own mind-palace/Ouroboros
+    distinction, now expressed in DNS.
+  - RENAME COMPLETE AND VERIFIED (do not re-check): ComputerName / LocalHostName / hostname
+    are ALL `ouroboros`. `Albertos-MacBook-Pro.local` no longer resolves. Tailscale override
+    held throughout.
+
+parked:
+  - decision: what else lives in the zone that a cert/DNS change could disturb.
+    default: leave the photography stack alone entirely -- ascalva.com, www, and resume all
+    ALIAS to the same CloudFront distribution (d3ray14yid02ad.cloudfront.net). A new
+    `ouroboros` record touches none of them.
+    re_entry: only if the approval host ever needs to be fronted by CloudFront rather than
+    served from the tailnet.
+
+open_questions:
+  - Is the GitHub-public / GitLab-private asymmetry INTENDED? If the GitLab mirror is meant
+    to be the private one, the "publicly auditable authority record" property (04:02Z) rests
+    on GitHub alone -- which is fine, but should be stated rather than assumed.
+  - Should the `ouroboros.ascalva.com` A record be PUBLIC (pointing at the Tailscale IP
+    100.97.85.13, which is CGNAT and unroutable off-tailnet) or held only in tailnet DNS?
+    Public costs nothing functionally and is consistent with the identity-assertion framing;
+    tailnet-only reveals less. NOT the agent's call.
+
+next_steps:
+  - Fold the measured zone facts into the superseding note's wiring section.
+  - The ACME principal's IAM policy can now be written concretely against zone
+    Z04459637698U9GB7PGC with a resource-record-set condition on `_acme-challenge.*`.
+
+references:
+  - docs/brainstorms/autopilot-mode.md         # 04:41Z the two-principal role shape this sharpens
+  - docs/brainstorms/phone-chat-surface.md     # 04:02Z the mirror-visibility question
+```
