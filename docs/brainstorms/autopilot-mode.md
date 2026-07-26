@@ -153,3 +153,70 @@ to his phone and the auditable half handed to something better at it than a huma
 
 ⇒ Needs a design note before any plan. This is an amendment to the operating constitution, and the
 `draft→ratified` gate on *that note* is emphatically not delegable to the mechanism it describes.
+
+### ⚑ CORRECTION — "disaster recovery" meant OWNER-PRESENT. Refinement 3 was aimed at the wrong scenario.
+
+Owner clarified, verbatim: *"what I meant by disaster recovery: if we are working, migrating, etc,
+and the system is failing in some way and requires immediate action, I can give you my approval to
+stop the bleeding."*
+
+**The orchestrator misread this and the objection above is largely withdrawn.** Refinement 3 argued
+against *unsupervised* recovery — autopilot alone, artifacts possibly invalidated by the breakage,
+no human. The actual proposal is the opposite: **the owner is present, live, watching the bleed.**
+The MFA is not substituting for his judgment; it is substituting for the **ceremony** — the lazygit
+blessing flip, the artifact round-trip, the normal pace of the chain — at the moment those are the
+thing standing between a diagnosis and a stop.
+
+The "auditor reads artifacts that may be untrustworthy" argument does not apply, because the
+auditor is not the one deciding. The owner is. Keep the earlier text as the record of a wrong
+reading, not as live guidance.
+
+### ⚑ But the correction exposes a better question: WHICH GATE IS ACTUALLY IN THE WAY?
+
+Worth asking before designing anything, because the answer may be *none*. Stop-the-bleeding actions
+in this system are overwhelmingly **operational, not artifact-gated**:
+
+| real incident | what stopped/would stop the bleeding | gate involved |
+|---|---|---|
+| session-44: `code_backfill` at 99% CPU for 74m50s, died on TimeoutError (`command-center.md`) | `palace stop` | none — lifecycle command |
+| session-49: daemon down, 1,766 duplicate queued jobs | `palace up` after dropping idempotent re-syncs | none — owner rule, not a blessing |
+| a bad merge on main | `git revert` | none |
+| a runaway lane | flag off / kill the job | none |
+
+⇒ **`draft→ratified` and `proposed→ready` are rarely what blocks an emergency.** They gate *new
+design* and *new work*, and an incident usually needs neither — it needs an operational lever
+pulled now. The genuinely gated emergency action is `deploy`, which is owner-in-loop **by standing
+rule** and already assumes the owner is present.
+
+So the emergency case may not need blessing-delegation at all. What it plausibly needs is
+**operational authority that is fast to exercise and provably bounded** — a different mechanism
+from the autopilot gate question, and cleaner for not being entangled with it.
+
+### ⚑ The principle worth designing to: PRE-AUTHORIZE THE PLAYBOOK, NOT THE IMPROVISATION
+
+Fast approval of a *novel* action under stress is how incidents compound. Fast execution of a
+*rehearsed* one is how they stop. The asymmetry is the whole design:
+
+- **Pre-enumerate the stop-the-bleeding action set** — `palace stop`, kill a job, revert a merge,
+  flag off a lane, drain the queue — each with its blast radius and reversibility stated.
+- **Adversarially review that list at leisure**, when nothing is on fire. That is when the thinking
+  is good and the artifacts are trustworthy. The review that Refinement 3 worried could not happen
+  mid-incident **happens beforehand instead** — which resolves the objection rather than accepting
+  it.
+- **MFA authorizes firing one item from the reviewed list**, not authoring a new action. Bound to
+  the action id, logged, with the incident state captured at fire time.
+- **A post-incident finding is mandatory** — the artifact chain re-entered after the fact, so the
+  emergency path never becomes a hole in the record. (This is the same shape as `f:0191`'s lesson:
+  the failure was never the urgency, it was work that never re-entered the chain.)
+
+Anything **not** on the list still stops for a live decision — which is exactly the owner's own
+framing, since he is present anyway.
+
+⇒ Splits the original proposal cleanly in two, and they should probably be separate design notes:
+1. **Autopilot** — unattended, low-stakes, `proposed→ready` only, adversarial auditor, deskcheck
+   mandatory. (Refinements 1 and 2 above stand unchanged.)
+2. **The emergency lever** — owner-present, pre-reviewed bounded action set, MFA-fired, mandatory
+   post-incident finding. Not a blessing-delegation mechanism at all.
+
+Conflating them was the orchestrator's error, not the owner's: they share an authentication
+primitive (MFA from the phone) and nothing else. **Different risk, different gate, different note.**
