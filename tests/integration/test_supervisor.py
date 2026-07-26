@@ -9,18 +9,17 @@ from collections.abc import Callable
 import pytest
 
 from config.loader import load_config
-from core.models.loader import TwoSlotLoader
-from core.models.ollama_client import OllamaClient
-from core.models.registry import Registry
 from scheduler.presence import Presence
 from scheduler.queue import DEFERRED, DONE, FAILED, QUEUED, JobQueue
 from scheduler.supervisor import Supervisor
 from tests.fixtures.secrets import fake_vault
+from tests.unit.test_loader_reconcile import loader_for
 
 
 def _loader(cfg=None):
-    cfg = cfg or load_config()
-    return TwoSlotLoader(config=cfg, client=OllamaClient(cfg.ollama), registry=Registry(cfg))
+    # bp-107: hermetic `ps()`. The loader measures residency at construction (finding-0199), so a
+    # real client would make these tests read the developer's live Ollama. Assertions unchanged.
+    return loader_for(cfg)
 
 
 def _present(active: bool) -> Presence:

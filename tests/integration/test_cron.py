@@ -3,15 +3,15 @@
 Proves: dream/curate route to the synthesis tier; the supervisor's foreground gate keeps them
 QUEUED while the owner is present and runs them in a trough — *never concurrent with
 foreground use* (§13). Deterministic: warm=False, fake agents, no Ollama.
+
+bp-107: "no Ollama" now needs a hermetic client to stay true — the loader probes `ps()` at
+construction (finding-0199). `loader_for` is that client; nothing else here changed.
 """
 
 from types import SimpleNamespace
 from typing import cast
 
 from config.loader import load_config
-from core.models.loader import TwoSlotLoader
-from core.models.ollama_client import OllamaClient
-from core.models.registry import Registry
 from scheduler.cron import (
     CURATE_KIND,
     DREAM_KIND,
@@ -23,6 +23,7 @@ from scheduler.presence import Presence
 from scheduler.queue import QUEUED, Job, JobQueue
 from scheduler.router import Router
 from scheduler.supervisor import Supervisor
+from tests.unit.test_loader_reconcile import loader_for
 
 
 class FakeDreamer:
@@ -44,7 +45,7 @@ class FakeCurator:
 
 
 def _loader(cfg):
-    return TwoSlotLoader(config=cfg, client=OllamaClient(cfg.ollama), registry=Registry(cfg))
+    return loader_for(cfg)
 
 
 def _present(active):

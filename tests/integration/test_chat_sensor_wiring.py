@@ -1,6 +1,8 @@
 """The chat sensor wired to RUN — the daemon job path + the `palace ingest-chat` verb (bp-068 §7.2).
 
-Two integration seams, both deterministic (warm=False, no Ollama; temp stores; local files only):
+Two integration seams, both deterministic (warm=False, no Ollama — bp-107 makes "no Ollama" real
+with a hermetic `ps()`, since the loader now measures residency at construction per finding-0199;
+temp stores; local files only):
   1. A real `Supervisor` with the `chat_sync` handler registered drains an `enqueue_chat_sync` job
      on the always-pinned tier and the OBSERVED chatlog store gains rows (the daemon's ingest path —
      the sensor bp-063 built but nothing invoked, now invoked).
@@ -23,8 +25,6 @@ from config.loader import load_config
 from core.ingest.watch import DirectoryWatcher
 from core.kernel.stores.rawstore import RawStore
 from core.models.loader import TwoSlotLoader
-from core.models.ollama_client import OllamaClient
-from core.models.registry import Registry
 from core.stores.chatlog import ChatlogStore
 from ops.chat_sensor import ChatSecretGuard, ChatSensor
 from ops.lifecycle.launcher import build_launcher
@@ -38,6 +38,7 @@ from scheduler.presence import Presence
 from scheduler.queue import DONE, JobQueue
 from scheduler.router import Router
 from scheduler.supervisor import Supervisor
+from tests.unit.test_loader_reconcile import loader_for
 
 
 def _seeded_sensor(tmp_path: Path) -> ChatSensor:
@@ -59,7 +60,7 @@ def _seeded_sensor(tmp_path: Path) -> ChatSensor:
 
 
 def _loader(cfg: Any) -> TwoSlotLoader:
-    return TwoSlotLoader(config=cfg, client=OllamaClient(cfg.ollama), registry=Registry(cfg))
+    return loader_for(cfg)
 
 
 # --- 1. the daemon path: enqueue + drain + rows land -------------------------------------------
