@@ -129,6 +129,106 @@ def test_the_sweep_adopts_the_run_so_later_claims_are_stamped(q):
     assert q.get(claimed.id).state == RUNNING
 
 
+# =================================================================================================
+# bp-109 — the lease does NOT widen what the sweep reclaims
+# =================================================================================================
+#
+# A reclaim that races a live worker is worse than the orphan it fixes (this file's second test).
+# bp-109 gives a row a deadline, and a lapsed deadline is NOT evidence that the holder is dead — a
+# hung-but-alive worker has exactly that shape. So `claimed_by_run == active_run_id` stays an
+# absolute VETO that no deadline overrides: such rows are counted into `OrphanSweep.lease_expired`
+# and reported, never touched (plan §9 — stamping is here, killing is a later plan's).
+
+def test_a_lapsed_deadline_on_this_runs_own_row_is_reported_not_reclaimed(q):
+    """⚑ THE WIDENING FALSIFIER. The row is RUNNING, owned by the LIVE run, and hours past its
+    deadline. It must still be RUNNING afterwards: this run's stamp says a worker holds it, and the
+    only thing the sweep may do about a lapsed lease is say so."""
+    q.sweep_orphans(LIVE_RUN)
+    q.enqueue("code_sync", "pinned", 8192)
+    live = q.claim()
+    assert live is not None and live.claimed_by_run == LIVE_RUN
+    q._conn.execute("UPDATE jobs SET lease_expires_at = ? WHERE id = ?",
+                    ["2020-01-01T00:00:00", live.id])
+    q._conn.commit()
+
+    swept = q.sweep_orphans(LIVE_RUN)
+
+    assert swept.requeued == () and swept.failed == ()     # nothing MOVED …
+    assert swept.lease_expired == (live.id,)               # … and the lapse is visible
+    assert swept.total == 0                                # `total` counts what it did
+    assert "reported, NOT reclaimed" in swept.render()
+    still = q.get(live.id)
+    assert still.state == RUNNING
+    assert still.claimed_by_run == LIVE_RUN
+    assert still.started_at == live.started_at
+    assert still.attempts == live.attempts                 # not re-attempted behind its back
+
+
+def test_a_live_workers_checkpointed_row_is_never_reclaimable(q):
+    """⚑ The composite case bp-109 must not create: a worker that has checkpointed once and been
+    re-claimed is mid-resume on a PARTIALLY ADVANCED row. Reclaiming that hands the same cursor to a
+    second worker — double execution over already-covered units. Two independent things stop it:
+    the row is owned by the live run (the veto above), and `checkpoint` clears the lease so the
+    intermediate QUEUED state carries no deadline to lapse in the first place.
+
+    The whole sequence is exercised, including a sweep at the yielded moment — the window a second
+    supervisor's defensive sweep would land in."""
+    q.sweep_orphans(LIVE_RUN)
+    q.enqueue("code_backfill", "pinned", 8192)
+    first = q.claim()
+    assert first is not None
+    q.checkpoint(first.id, "cursor:12000")
+
+    # (a) yielded: QUEUED, holding a token, holding NO deadline. A sweep here examines only RUNNING
+    #     rows, so it cannot see it at all — and there is no lapsed lease to see even if it could.
+    yielded = q.get(first.id)
+    assert yielded.state == QUEUED and yielded.checkpoint == "cursor:12000"
+    assert yielded.lease_expires_at is None
+    assert q.sweep_orphans(LIVE_RUN) == OrphanSweep()
+    assert q.get(first.id).checkpoint == "cursor:12000"
+
+    # (b) re-claimed and mid-resume, with an artificially lapsed deadline: still untouchable.
+    resumed = q.claim()
+    assert resumed is not None and resumed.id == first.id
+    assert resumed.checkpoint == "cursor:12000"            # the cursor survived the re-claim
+    q._conn.execute("UPDATE jobs SET lease_expires_at = ? WHERE id = ?",
+                    ["2020-01-01T00:00:00", resumed.id])
+    q._conn.commit()
+
+    swept = q.sweep_orphans(LIVE_RUN)
+
+    assert swept.requeued == () and swept.failed == ()
+    assert swept.lease_expired == (resumed.id,)            # reported …
+    live = q.get(resumed.id)
+    assert live.state == RUNNING                           # … never reclaimed
+    assert live.claimed_by_run == LIVE_RUN
+    assert live.checkpoint == "cursor:12000"               # and the cursor is not rewound
+    assert live.attempts == resumed.attempts
+
+
+def test_a_lapsed_deadline_does_not_change_the_set_the_sweep_acts_on(q):
+    """The set is decided by the stamp and by nothing else. Four rows — live/lapsed, live/fresh,
+    dead/lapsed, dead/fresh — and the reclaimed set is exactly the two dead ones, deadlines
+    irrelevant. If a deadline ever moves a row across this line, this test fails."""
+    q.sweep_orphans(LIVE_RUN)
+    ids = {}
+    for label, owner, deadline in (("live_lapsed", LIVE_RUN, "2020-01-01T00:00:00"),
+                                   ("live_fresh", LIVE_RUN, "2099-01-01T00:00:00"),
+                                   ("dead_lapsed", DEAD_RUN, "2020-01-01T00:00:00"),
+                                   ("dead_fresh", DEAD_RUN, "2099-01-01T00:00:00")):
+        job_id = _running_row(q, "code_sync", owner=owner)
+        q._conn.execute("UPDATE jobs SET lease_expires_at = ? WHERE id = ?", [deadline, job_id])
+        ids[label] = job_id
+    q._conn.commit()
+
+    swept = q.sweep_orphans(LIVE_RUN)
+
+    assert set(swept.requeued) == {ids["dead_lapsed"], ids["dead_fresh"]}
+    assert swept.lease_expired == (ids["live_lapsed"],)
+    assert q.get(ids["live_lapsed"]).state == RUNNING
+    assert q.get(ids["live_fresh"]).state == RUNNING
+
+
 def test_a_reclaimed_job_keeps_the_age_it_earned(q):
     """`created_at` must survive the reclaim — anti-starvation aging measures wait from it (Q3),
     so resetting it would push a repeatedly-orphaned job to the back of the line forever."""
