@@ -277,7 +277,7 @@ def test_current_column_additive_migration_preserves_rows(tmp_path):
     old (pre-`current`) schema is migrated in place on the next add — every row preserved
     bit-identically, stamped current=true (correct while the store is HEAD-only), vectors/ids
     untouched. The legacy table is built with raw lancedb (no `current` column)."""
-    import lancedb  # type: ignore[import-untyped]
+    import lancedb  # type: ignore[import-untyped]  # typedshim-exempt: builds a pre-bp-099 legacy table the shim cannot model (the migration under test)  # noqa: E501
 
     from core.stores.vectorstore import TABLE
     path = tmp_path / "v.lance"
