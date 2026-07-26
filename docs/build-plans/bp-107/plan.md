@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-107
 track: ops
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/dn-local-model-runtime.md
 contract: builder
@@ -20,7 +20,45 @@ cost:
   estimate:
     model: opus
     tokens: 110k
-  actual: null
+  actual:
+    model: opus
+    tokens: unmeasured
+    ratio: n/a
+    session_delta: unmeasured
+    week_delta: unmeasured
+    notes: >-
+      DELEGATED builder in a worktree (session-53); merged `b152b3a`. The memory ceiling now
+      MEASURES residency instead of believing the registry. Verified against **live Ollama
+      0.31.2**, read-only: synthesis **REFUSE (27.0 > 24.0)**, stretch **REFUSE (33.0 >
+      24.0)** — finding-0174's corrected `23.0 + 10.0 = 33.0` exactly. Two tiers moved ADMIT
+      to REFUSE, none the other way. Falsifier against the stashed pre-change loader: the old
+      code left **32.3 GB** resident and **ADMITTED a real 29.7 GB**. finding-0199 was banner-
+      corrected by the orchestrator at merge (`935fda4`) — it had UNDERSTATED the harm. ⚑
+      SEALED WITH A LIVE CONSEQUENCE OPEN: **finding-0226** — that same admitted 29.7 GB load
+      is `tests/e2e/test_dream_v2_live.py`, which is now red BECAUSE this plan is right. The
+      file was last touched by bp-090 and `e2e` is nowhere in this plan's write_scope, so the
+      builder could not have carried it. Not a defect in what shipped; a hard input to
+      oq-0050's owed dreamer-wiring plan. Also open: **oq-0056**, confirming the ceiling
+      carve-out's NARROW scope (`core/models/loader.py:262`) — the blanket reading would have
+      been undetectable by the FSM property test. `FakeOllama` sits in
+      `tests/unit/test_loader_reconcile.py` because `tests/fixtures/` was out of scope —
+      relocate when a plan owns that path.
+
+      ALL SIX gate legs orchestrator-verified on the MERGED tree at `5d42b65`: ruff · import-
+      firewall · tier-2 mypy (259 files) · argless mypy baseline EXACTLY 69 · `ops.type_gate`
+      · full `uv run pytest -q` = **2 failed, 2249 passed, 12 skipped in 955.61s**. ⚑ BOTH
+      failures are explained and neither is this plan's:
+      `test_core_imports_nothing_outside_core` is the finding-0103 INTENTIONAL-RED ratchet
+      (deselected by the green-gate policy), and `tests/e2e/test_dream_v2_live.py` is
+      **finding-0226**, filed this sweep — bp-107's correct ceiling tightening refusing a real
+      29.7 GB load. ⚑ The expected-failure set is now TWO, not the ONE that bp-108/bp-115's
+      seals attest; that drift is finding-0226's third limb.
+
+      ⚑ COST IS UNMEASURED BY LOSS, NOT BY CONSTRUCTION. The completion notification's usage
+      figure was not carried across the session-53 to session-54 boundary and no journal
+      records one. The only aggregate on record — "four builders ~760k total, 160k-243k each"
+      — is NOT attributable per plan and is deliberately NOT split into invented per-plan
+      numbers (the finding-0200 discipline, applied at cost to itself).
 depends_on: []
 parallelizable_with: []
 created: 2026-07-25

@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-106
 track: ops
-status: in-progress
+status: complete
 design_ref: []
 contract: builder
 write_scope:
@@ -17,7 +17,43 @@ cost:
   estimate:
     model: opus
     tokens: 120k
-  actual: null
+  actual:
+    model: opus
+    tokens: unmeasured
+    ratio: n/a
+    session_delta: unmeasured
+    week_delta: unmeasured
+    notes: >-
+      DELEGATED builder in a worktree (session-53); merged `243fc4d`. psutil quarantined into
+      `core/typedshims/psutil.py` — THREE accessors, not the two the plan pinned (it was
+      written before bp-121 made the launcher read `exe`); the builder moved exactly the moved
+      set and recorded a `[banner: correction]`. Semantics proven three ways: 37 restart tests
+      **byte-untouched**, a **151-shape differential** of pre-move body vs post-move
+      composition with **0 divergences**, and four mutations reddening four distinct tests. ⚑
+      Its own §10 STOP fired on a violation the ORCHESTRATOR created
+      (`tests/unit/test_restart_trustworthy.py:21`, the `import psutil` bp-121 added hours
+      earlier, in the one file bp-106's §5 puts out of scope). The builder neither self-waived
+      nor reddened CI: it parked ONLY `main()`'s exit-code vote and moved enforcement into
+      `tests/unit/test_type_gate.py`. Verified empirically, not believed — a planted raw
+      import in `ops/type_gate.py` reddened the live-tree test naming the planted site;
+      reverting restored green; it also reddens when the parked violation is FIXED, so it
+      self-clears. Re-entry: **finding-0223**.
+
+      ALL SIX gate legs orchestrator-verified on the MERGED tree at `5d42b65`: ruff · import-
+      firewall · tier-2 mypy (259 files) · argless mypy baseline EXACTLY 69 · `ops.type_gate`
+      · full `uv run pytest -q` = **2 failed, 2249 passed, 12 skipped in 955.61s**. ⚑ BOTH
+      failures are explained and neither is this plan's:
+      `test_core_imports_nothing_outside_core` is the finding-0103 INTENTIONAL-RED ratchet
+      (deselected by the green-gate policy), and `tests/e2e/test_dream_v2_live.py` is
+      **finding-0226**, filed this sweep — bp-107's correct ceiling tightening refusing a real
+      29.7 GB load. ⚑ The expected-failure set is now TWO, not the ONE that bp-108/bp-115's
+      seals attest; that drift is finding-0226's third limb.
+
+      ⚑ COST IS UNMEASURED BY LOSS, NOT BY CONSTRUCTION. The completion notification's usage
+      figure was not carried across the session-53 to session-54 boundary and no journal
+      records one. The only aggregate on record — "four builders ~760k total, 160k-243k each"
+      — is NOT attributable per plan and is deliberately NOT split into invented per-plan
+      numbers (the finding-0200 discipline, applied at cost to itself).
 depends_on: []
 parallelizable_with: []
 created: 2026-07-25

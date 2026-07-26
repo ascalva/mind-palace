@@ -5537,3 +5537,91 @@ express *irreversible but bounded blast radius*, and provider sandbox limits are
 has a warrant and a repeal path, the weight is the price of disposable sessions — but the real
 pathology is **process artifacts no mechanism reads**, of which this sweep found four, and the test is
 *name the reader*).
+
+## 2026-07-26 (session-54, OPUS @ high) — SIX PLANS SEALED + the triage sweep + finding-0226
+
+**Sealed `in-progress → complete`, all six merged earlier and each carrying a written journal SEAL:
+bp-106** (psutil quarantined into its shim; 151-shape differential, **0 divergences**; 37 restart
+tests byte-untouched) · **bp-107** (the memory ceiling MEASURES instead of believing; two tiers moved
+ADMIT→REFUSE against live Ollama) · **bp-109** (a RUNNING row carries its own deadline; dry-run on a
+copy of the real **302,010-row** `queue.sqlite`, digest identical, 7 falsifiers all redden) ·
+**bp-120** (AP1 the intent capsule) · **bp-121** (CI unblocked after ~14 h red) · **bp-122** (the two
+self-mod tests made hermetic; **deploy gate 5 clear**).
+
+⚑ **bp-123 deliberately NOT sealed** — its own journal says seal "only after Item 2's readings are
+in", and **finding-0216** records Item 3 as *partial by plan flaw*: its grep spanned 8 directories
+while `write_scope` granted 3 files inside them, so **13 live instructions survive in 6 files, three
+emitted at RUNTIME** (`ops/backup/run.py:25`, `scripts/build_sandbox_image.sh:17`, and
+`ops/apply.py:33-34`, which bakes the dead name into every generated `levers.toml` header).
+
+**⚑ THE GATE READING CHANGED AND THE SEALS SAY SO.** Full suite on the merged tree at `5d42b65`:
+**2 failed, 2249 passed, 12 skipped in 955.61s**, with all five other legs green (argless mypy
+**exactly 69**). Recent seals (bp-108, bp-115) attest "**1 failed** — the finding-0103 ratchet". That
+sentence is now false, and it became false with **nothing noticing**, because the expected-failure set
+lives in *prose inside seal notes* rather than in a deselect list or a strict `xfail`. Every seal
+written this sweep names **both** failures explicitly.
+
+**The second failure is new: finding-0226.** `tests/e2e/test_dream_v2_live.py` fails at
+`core/models/loader.py:247` — `MemoryCeilingError: would use 29.7 GB > usable budget 24.0 GB
+(qwen3.5:2b, qwen3.6:27b + 10.0 GB measured non-registry)`. ⚑ **Not a regression — bp-107 working.**
+finding-0199 records the pre-change loader ADMITTING a real 29.7 GB; this is that load, now correctly
+refused. The file was last touched by bp-090 and `e2e` is nowhere in bp-107's `write_scope`, so the
+builder could not have carried it — **the finding-0223 shape, second instance in three days: a
+correct tightening leaves a red in a file the tightening plan was not allowed to touch.**
+⚑ It lands directly on **oq-0050**, answered the same week (*wire the dreamers live*): on this
+machine the synthesis-tier dream path cannot load while the embedder is warm. The condition is
+**transient, so it is scheduling and not capacity** — the embedder self-evicts, and without it
+2.7 + 17.0 = **19.7 GB fits comfortably**. Three levers recorded, with the third flagged as the one to
+distrust: order the work · shrink the embedder's residency (it is 10.0 GB largely because it loads at
+`CONTEXT 40960`, unquestioned for a 4b model) · raise `usable_ram_gb` (a non-negotiable-#8 number, not
+a tuning knob).
+
+**Cost: all six sealed `unmeasured`, by LOSS not by construction.** The completion notifications died
+with session-53's context and no journal records a token count. The one aggregate on record — "four
+builders ≈760k total, 160k–243k each" — is **not attributable per plan** and was deliberately not
+split into invented per-plan numbers. The finding-0200 discipline, applied at cost to itself.
+
+**Findings: 9 routed, 1 filed, 1 closed.** ⚑ **finding-0214 (`blocker`) → `resolved`, verified
+empirically rather than on report**: the two self-mod tests run against the owner's real gitignored
+overlay (σ=0.58) → **18 passed in 0.18s**. Routed to the orchestrator: 0206/0207 (same defect class —
+an autopilot grant check asserted rather than mechanised; they want a design pass, not a ruling),
+0217/0218, 0219, 0221, **0224** (→ **bp-112's graduation**, which is where the live-run veto is ruled
+on), **0225** (→ **bp-110**, which owns the `[scheduler]` schema that is its missing enable path).
+
+**Owner questions: 5 batched (oq-0052 … oq-0056), only oq-0055 blocking.** 0052 impersonation (⚑
+orthogonal to oq-0051's retractability ruling — a message under his name is retractable as a
+*resource* and unretractable as a *relationship*) · 0053 does the unretractable tier stay CLOSED until
+confidence is EARNED · 0054 the intent capsule's cap bounds *shape*, not bytes (38,122 characters pass
+`validate`) · **0055 BLOCKING bp-095** — both halves of the S↔F join are *provably empty*, so its gate
+would open on a seeded corpus and pass **vacuously over an empty set**; two acts behind it are the
+owner's · 0056 confirm the bp-107 ceiling carve-out's narrow scope (the blanket reading would have
+been **undetectable** by the FSM property test).
+⚑ **Closed without being asked again:** bp-111…bp-119's batch blessing DID land — all nine are
+`ready`, zero `proposed` remain. The inherited brief still listed it as owed; corrected.
+
+**Captured:** `docs/brainstorms/effect-catalog-missing-axes.md` — three independent arrivals in one
+day on the same defect, so one capsule rather than three findings: the catalog reads reversibility off
+the **resource**, and authority needs it read off the **world**. A1 irreversible-but-bounded · A2
+bounded-by-construction-and-externally-verifiable (the falsifier for A1, without which "bounded" is
+self-asserted) · A3 technically-reversible-but-socially-irreversible. ⚑ A3 is **oq-0051's own gap 2**
+and the ruling's likeliest failure mode: the retractable tier is AUTONOMOUS, so reading retractability
+off the resource silently swallows socially-irreversible acts.
+
+**⚑ THIS DUTY'S OWN LAPSE, RE-MEASURED.** The 12-plan checkpoint debt recorded at session-43 is
+**unchanged** — bp-010, bp-074, bp-075, bp-077, bp-100, bp-101, bp-102, bp-103, bp-104, bp-105,
+bp-108, bp-115 still carry no entry (each needs its journal read). This entry discharges only the six
+sealed today. Debt stated, not hidden.
+
+**In flight at write time:** **bp-110**, THE INTEGRATOR (worker protocol + dispatch seam), delegated
+to a worktree builder off `f9c22f3`. It is the wave's bottleneck — six plans depend on it — and its
+prompt carries the three things the plan could not know: that bp-123 rewrote
+`core/kernel/config/loader.py` beneath it, that finding-0225's lease switch must be **reused not
+re-invented** (⚑ §6 pins `job_budget_s` as a scalar while the built `JobQueue.job_budgets` is per-kind
+`Mapping[str, float]` — a scalar cannot express what the built field consumes), and that finding-0224
+is **not its to settle**.
+
+**Deskchecks: 5 owed, 0 records** (`docs/DESKCHECK-QUEUE.md`, regenerated this sweep after the six
+status flips). `docs/deskchecks/` still holds only `README.md` — the gate bp-096/097 built has
+**never been exercised**. ⚑ The **sync/diac** entry is no longer routine: oq-0050's ruling landed, so
+its demonstrable changed from "show it is not wired" to **"show it running"** — and finding-0226 is
+now a hard input to that.

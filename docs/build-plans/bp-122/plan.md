@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-122
 track: ops
-status: in-progress
+status: complete
 design_ref: []
 contract: builder
 write_scope:
@@ -13,7 +13,38 @@ cost:
   estimate:
     model: sonnet
     tokens: 30k
-  actual: null
+  actual:
+    model: sonnet
+    tokens: unmeasured
+    ratio: n/a
+    session_delta: unmeasured
+    week_delta: unmeasured
+    notes: >-
+      Built in-session (session-53); merged `475a484`. Made the two self-mod integration tests
+      hermetic, so the deploy gate stops lying. **Deploy gate 5 is CLEAR** — verified in the
+      MAIN checkout against the real sigma=0.58 overlay at merge time (`2099 passed, 0
+      failed`, the exact `gate_cmd`). ⚑ Re-verified independently at this sweep rather than
+      carried on report: `uv run pytest tests/integration/test_selfmod.py
+      tests/integration/test_selfmod_cli.py -q` gives **18 passed in 0.18s** against the
+      owner's real gitignored overlay. **finding-0214 (`blocker`) flipped to `resolved`** on
+      that evidence. The owner is now stopped at deploy gate 1 (daemon down, `uv run
+      scripts/palace.py up`), not gate 5. **Never deploy autonomously.**
+
+      ALL SIX gate legs orchestrator-verified on the MERGED tree at `5d42b65`: ruff · import-
+      firewall · tier-2 mypy (259 files) · argless mypy baseline EXACTLY 69 · `ops.type_gate`
+      · full `uv run pytest -q` = **2 failed, 2249 passed, 12 skipped in 955.61s**. ⚑ BOTH
+      failures are explained and neither is this plan's:
+      `test_core_imports_nothing_outside_core` is the finding-0103 INTENTIONAL-RED ratchet
+      (deselected by the green-gate policy), and `tests/e2e/test_dream_v2_live.py` is
+      **finding-0226**, filed this sweep — bp-107's correct ceiling tightening refusing a real
+      29.7 GB load. ⚑ The expected-failure set is now TWO, not the ONE that bp-108/bp-115's
+      seals attest; that drift is finding-0226's third limb.
+
+      ⚑ COST IS UNMEASURED BY LOSS, NOT BY CONSTRUCTION. The completion notification's usage
+      figure was not carried across the session-53 to session-54 boundary and no journal
+      records one. The only aggregate on record — "four builders ~760k total, 160k-243k each"
+      — is NOT attributable per plan and is deliberately NOT split into invented per-plan
+      numbers (the finding-0200 discipline, applied at cost to itself).
 depends_on: []
 parallelizable_with: [bp-123]
 created: 2026-07-26

@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-109
 track: ops
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/dn-supervision-and-liveness.md
 contract: builder
@@ -19,11 +19,45 @@ cost:
   estimate:
     model: opus
     tokens: 180k
-  actual: null
+  actual:
+    model: opus
+    tokens: unmeasured
+    ratio: n/a
+    session_delta: unmeasured
+    week_delta: unmeasured
+    notes: >-
+      DELEGATED builder in a worktree (session-53); merged `e377196`. A RUNNING row carries
+      its own deadline, and the sweep still cannot touch a live worker. Migration dry-run on a
+      **copy of the real 302,010-row `data/queue.sqlite`** — digest identical before/after,
+      live file untouched. **7 falsifiers planted, all redden.** Reclaim predicate **byte-for-
+      byte unchanged**; a live worker's checkpointed row proven unreclaimable by two
+      independent guards. **No number was invented**: `job_budgets` defaults empty so every
+      claim stamps NULL, i.e. today's behaviour exactly. Two findings: **0224** (§4's "second,
+      independent reason a row is reclaimable" contradicts §9/§7 — the builder built the SAFE
+      reading and fenced the other with tests; **bp-112's graduation rules on it**, and
+      bp-110's builder was told not to settle it) and **0225** (the lease's ON switch stops at
+      `JobQueue(job_budgets=...)` with no `[scheduler]` section to reach it — handed to
+      bp-110, which owns the schema).
+
+      ALL SIX gate legs orchestrator-verified on the MERGED tree at `5d42b65`: ruff · import-
+      firewall · tier-2 mypy (259 files) · argless mypy baseline EXACTLY 69 · `ops.type_gate`
+      · full `uv run pytest -q` = **2 failed, 2249 passed, 12 skipped in 955.61s**. ⚑ BOTH
+      failures are explained and neither is this plan's:
+      `test_core_imports_nothing_outside_core` is the finding-0103 INTENTIONAL-RED ratchet
+      (deselected by the green-gate policy), and `tests/e2e/test_dream_v2_live.py` is
+      **finding-0226**, filed this sweep — bp-107's correct ceiling tightening refusing a real
+      29.7 GB load. ⚑ The expected-failure set is now TWO, not the ONE that bp-108/bp-115's
+      seals attest; that drift is finding-0226's third limb.
+
+      ⚑ COST IS UNMEASURED BY LOSS, NOT BY CONSTRUCTION. The completion notification's usage
+      figure was not carried across the session-53 to session-54 boundary and no journal
+      records one. The only aggregate on record — "four builders ~760k total, 160k-243k each"
+      — is NOT attributable per plan and is deliberately NOT split into invented per-plan
+      numbers (the finding-0200 discipline, applied at cost to itself).
 depends_on: [bp-108]
 parallelizable_with: [bp-115]
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - docs/findings/finding-0187.md
   - docs/findings/finding-0173.md

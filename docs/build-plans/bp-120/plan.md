@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-120
 track: workflow
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/dn-autopilot-and-delegated-blessing.md
 contract: builder
@@ -15,7 +15,39 @@ cost:
   estimate:
     model: opus
     tokens: 150k
-  actual: null
+  actual:
+    model: opus
+    tokens: unmeasured
+    ratio: n/a
+    session_delta: unmeasured
+    week_delta: unmeasured
+    notes: >-
+      DELEGATED builder in a worktree (session-53); merged `bf1b703`. AP1 the intent capsule —
+      typed, stable-hashed, stdlib-only, 4 items, **2153 passed / 0 failed** at build time. ⚑
+      Item 3's falsifier FIRED and was **correctly not fixed**: eight filled fields plus 30
+      lines of seven 180-char tokens = 39 lines / 227 words (inside both caps) and **38,122
+      characters**, and `validate` passes it. `<=40 lines / <=300 words` bounds **shape, not
+      size** — a "word" has no maximum length. §6 pins both counts and §11 row 3 pins them
+      non-configurable, so a third cap is a **design act** and became **finding-0219**, now
+      batched as **oq-0054** with three candidates. It cannot rot: the boundary is a PASSING
+      test whose docstring says a future cap flips it to failing. The ruling lands naturally
+      at this plan's deskcheck.
+
+      ALL SIX gate legs orchestrator-verified on the MERGED tree at `5d42b65`: ruff · import-
+      firewall · tier-2 mypy (259 files) · argless mypy baseline EXACTLY 69 · `ops.type_gate`
+      · full `uv run pytest -q` = **2 failed, 2249 passed, 12 skipped in 955.61s**. ⚑ BOTH
+      failures are explained and neither is this plan's:
+      `test_core_imports_nothing_outside_core` is the finding-0103 INTENTIONAL-RED ratchet
+      (deselected by the green-gate policy), and `tests/e2e/test_dream_v2_live.py` is
+      **finding-0226**, filed this sweep — bp-107's correct ceiling tightening refusing a real
+      29.7 GB load. ⚑ The expected-failure set is now TWO, not the ONE that bp-108/bp-115's
+      seals attest; that drift is finding-0226's third limb.
+
+      ⚑ COST IS UNMEASURED BY LOSS, NOT BY CONSTRUCTION. The completion notification's usage
+      figure was not carried across the session-53 to session-54 boundary and no journal
+      records one. The only aggregate on record — "four builders ~760k total, 160k-243k each"
+      — is NOT attributable per plan and is deliberately NOT split into invented per-plan
+      numbers (the finding-0200 discipline, applied at cost to itself).
 depends_on: []
 parallelizable_with: [bp-121]
 created: 2026-07-25
