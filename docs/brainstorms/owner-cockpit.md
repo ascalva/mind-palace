@@ -748,3 +748,92 @@ Avoid `gr`/`gd` (LSP: references/definition) and anything on a motion prefix.
 
 Recommendation: **`gf` + `K`, scoped to markdown via ftplugin.** Nothing new to memorize, nothing
 shadowed outside `docs/`.
+
+## 2026-07-26T06:12:00Z
+
+```capsule
+topic: owner-cockpit
+date: 2026-07-26
+
+decisions:
+  - ⚑ OWNER INSIGHT (2026-07-26): "doesn't mind-palace have a scheduler? maybe there's just
+    two lanes". YES -- and LANE 1 ALREADY SOLVES THE STATED PROBLEM. The complaint was
+    "stop relying on the claude code cli to schedule and hope that it passes the correct
+    model and effort". `scheduler/router.py` already does deterministic kind -> tier ->
+    model: `Router.plan(kind)` returns `Plan(kind, tier, num_ctx, priority)` resolved via
+    `config.model_for_tier(tier)` (:81-95), with `tier_for()` (:67-72) mapping over
+    `_ROUTER_KINDS` / `_PINNED_KINDS` / `_SYNTHESIS_KINDS` / default routine. WHICH MODEL
+    RUNS A PIECE OF WORK IS DECIDED BY CODE FROM THE JOB KIND, IN CONFIG. That is exactly
+    what the CLI delegation path cannot give.
+  - ⚑ WHY THE CLI PATH IS STRUCTURALLY UNFIXABLE (the warrant for all of this). The delegate
+    skill records it field-proven (2026-07-13): two spawns both printed "claude-fable-5 --
+    fable tier, confirmed" while the UI showed OPUS. The agent echoes the model named in its
+    injected prompt; it cannot introspect what is actually executing. So the skill's only
+    objective checks are (a) a HUMAN READING THE UI INDICATOR and (b) post-hoc completion
+    usage. Orchestration correctness currently depends on a human reading a status line.
+    It is also a COST-INTEGRITY problem: fable and opus draw from SPLIT BUDGET POOLS, so a
+    silent downgrade bills the wrong pool and corrupts the estimate/actual seal ledger.
+  - THE TWO LANES ARE THE SAME ROUTER WITH A DIFFERENT SCARCE RESOURCE:
+      LANE 1 (local, EXISTS + COMPLETE): tier -> resident model + num_ctx; scarce resource is
+        RAM (`TwoSlotLoader`, <=2 resident, NN-8); gated by `Presence` (heavy tiers deferred
+        while the owner is at the keyboard); context assembled by `scheduler/budget.py`
+        (deterministic, code-not-model).
+      LANE 2 (remote/API agents, MISSING): tier -> model id + EFFORT; scarce resource is
+        TOKENS/$ (the weekly pool); NO TwoSlotLoader AT ALL -- nothing to load.
+  - ⚑ LANE 2 NEEDS *LESS* MACHINERY, NOT MORE, AND THE PRECEDENT IS IN-FILE. `_PINNED_KINDS`
+    exists partly so MODEL-LESS maintenance kinds (`vault_sync`, `chat_sync`, `code_sync`)
+    make `ensure_tier` a NO-OP and never evict the worker slot (router.py:36-46). A remote
+    agent job is the same species: no residency question, no eviction.
+  - ⚑ THE EXTENSION POINT IS bp-115, SEALED THIS SAME SESSION. `core/models/inference.py` is
+    a backend-agnostic chat/embed/health protocol with two implementations (Ollama,
+    llama-server). An Anthropic-backed client is a THIRD. The seam blessed and sealed today
+    is what makes lane 2 cheap rather than a new subsystem.
+  - ⇒ THIS DISPLACES THE "ADOPT AN ORCHESTRATION LIBRARY" DIRECTION. Reaching for
+    claude-agent-sdk / an external orchestrator when the palace already owns a queue,
+    supervisor, router, presence gate, budgeter and telemetry is precisely the duplication
+    the owner's core-self-containment rule treats as a defect.
+
+parked:
+  - decision: where the Anthropic-backed inference client lives.
+    default: `edge/` -- NN-1 seals core against network egress; only edge touches the
+    network. Directionally legal (edge may import core's Protocol; core never imports edge),
+    so `edge/models/<name>.py` implementing `core.models.inference`'s protocol type-checks.
+    re_entry: design note. ⚑ Worth a deliberate look rather than an assumption: the
+    PROTOCOL's home is core while its only NETWORKED implementation lives outside it. That
+    may be exactly right (the seam is the point) or may argue the protocol should move.
+  - decision: whether Presence gating applies to lane 2.
+    default: unresolved. Lane 1 defers heavy tiers while the owner is present to protect RAM
+    and responsiveness. Lane 2 consumes neither -- but it does consume BUDGET, and the owner
+    may want remote spend deferred to the trough for different reasons.
+    re_entry: the design note; decide alongside the budget gate.
+
+open_questions:
+  - ⚑ NN-2 BOUNDARY, MUST BE STATED AS A LANE PROPERTY: "network and private data never share
+    a component". A lane-2 job that BOTH calls Anthropic AND reads the vault breaches it. For
+    BUILD work this is naturally satisfied (builders work the repo, not the corpus) -- but the
+    moment a lane-2 job wants corpus context the boundary is gone. This needs to be an
+    enforced property, not a convention, or it will be violated by the first useful exception.
+  - How does the existing `scheduler/budget.py` (a deterministic CONTEXT budgeter -- tokenizer
+    + assembler for fitting a model's window) relate to a SPEND budgeter for lane 2? Same
+    word, different object. Do not conflate them; the name collision will mislead a builder.
+  - Does lane 2 subsume the delegate skill's pre-flight budget gate (`claude -p "/usage"`), or
+    sit alongside it? If the scheduler owns remote spend, the manual probe becomes redundant.
+  - What is a lane-2 job's HANDLER? Supervisor takes `handlers: dict[str, Handler]` with
+    `Handler = Callable[[Job], str | None]`. A remote agent run is long and multi-turn -- does
+    it fit the "run to completion or one checkpointed step" contract, or does it need the
+    lease/checkpoint machinery bp-109/bp-110 are building?
+
+next_steps:
+  - This is design-note-first, not graduatable. It touches NN-1/NN-2 and the scheduler's
+    core contract.
+  - Verify the claude-agent-sdk hook contract BEFORE choosing between "lane 2 in the palace
+    scheduler" and "adopt the SDK" -- but note the scheduler direction now looks stronger on
+    the owner's own DRY/self-containment grounds.
+
+references:
+  - scheduler/router.py            # :25-46 kind sets, :67-72 tier_for, :81-95 plan()
+  - scheduler/supervisor.py        # :1-16 the loop contract; handlers dict
+  - scheduler/budget.py            # the CONTEXT budgeter (not a spend budgeter)
+  - core/models/inference.py       # bp-115's seam -- the lane-2 extension point
+  - .claude/skills/delegate/SKILL.md  # the fable<->opus mismatch, field-proven
+```
