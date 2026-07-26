@@ -89,3 +89,58 @@ not a validated capability** — the same posture as the dreams themselves today
 - Home of the formalized answer: the `edge-dynamics` **Lane B** math successor (core-query-protocol
   §2.5's parked temporal algebra). Re-entry: the first plan that needs the temporal operator built.
 - Not a build. A design seed for the frontier.
+
+## 2026-07-26T16:30:00Z — what a dreamer IS (owner refinement)
+
+```capsule
+topic: dreamer-and-graph-direction
+date: 2026-07-26
+
+decisions:
+  - THE OWNER'S DEFINITION (2026-07-26, verbatim): "the dreamers are the tool through which the system
+    is better able to understand itself, it analysis the appropriate strata subset/set/layers such that
+    it can form an opinion/belief from what exists".
+    ⇒ Three load-bearing words, and each already has machinery behind it:
+      · "APPROPRIATE STRATA SUBSET" is **Σ** — the scope grammar's first coordinate (which material),
+        alongside E (which relations), T (as of when), A (with what power). So "choosing the right
+        subset" is not a heuristic the dreamer improvises; it is a GRANT, already typed.
+      · "OPINION/BELIEF" — deliberately not *knowledge*. A belief is defeasible, revisable, and can be
+        wrong without the system being broken. That is the correct epistemic status for a dream output
+        and it is why an adjudicator exists rather than an oracle.
+      · "FROM WHAT EXISTS" — the constraint that separates a belief from a confabulation.
+  - ⚑ "FROM WHAT EXISTS" IS EXACTLY WHAT §2.7's CONDITIONING LAW ENFORCES, and the owner's phrasing and
+    the ratified law turn out to be the same sentence. The law exists to stop **hypothesis laundering
+    through dream exhaust** (`dn-synchronic-diachronic-dreamer` §2.7, which EXTENDS
+    `dn-recursive-dreaming-bounded-by-grounding`'s four safety rules with a fifth). A belief conditioned
+    on prior dream output is a belief formed from what does *not* exist. So the difference between an
+    opinion and a confabulation is not the reasoning quality — it is whether the substrate was real.
+    That is a structural property, checkable, and already law.
+  - ⚑ CONSEQUENCE FOR THE CALIBRATION LEDGER (see `prediction-market-sensor-fusion.md`): if a dreamer
+    forms a *belief*, then scoring it is BELIEF REVISION, not grading. The ledger should record the
+    belief, the strata it was formed over (its Σ), and what a later cut revealed — because a belief that
+    was wrong *given its Σ* is a different failure from one that was wrong because its Σ was too narrow.
+    ⚑ Those two are the interesting signal and a single scalar score destroys the distinction. "The more
+    you know, the better the view gets" is precisely the claim that widening Σ improves the belief — so
+    the ledger MUST carry Σ, or it cannot test the project's own thesis.
+  - And the ledger must stay READ-ONLY with respect to dreamer inputs, or it becomes a laundering
+    channel itself — the fifth safety rule applied to the instrument that grades it.
+
+open_questions:
+  - Does the existing adjudicator (`core/dreaming/adjudicator.py`) already record enough to reconstruct
+    a belief's Σ after the fact? If yes, the ledger is a read over existing state rather than new
+    bookkeeping. ⚑ Check before designing storage.
+  - Is there a difference between "understand itself" and "understand its corpus"? The corpus is the
+    owner's self-map, so a dreamer forming beliefs about it is forming beliefs about HIM — which is the
+    same seam `acting-as-the-owner.md` raises, one layer down and without any world-facing risk.
+
+next_steps:
+  - No build. This refines the ledger's SHAPE (carry Σ, record revision, stay read-only) before anything
+    is written, which is the cheap moment to get it right.
+
+references:
+  - docs/design-notes/synchronic-diachronic-dreamer.md   # §2.7 the conditioning law — "from what exists", as law
+  - docs/design-notes/recursive-dreaming-bounded-by-grounding.md  # the four safety rules the fifth extends
+  - core/dreaming/adjudicator.py                         # does it already record Σ?
+  - docs/brainstorms/prediction-market-sensor-fusion.md  # the ledger this reshapes
+  - docs/brainstorms/acting-as-the-owner.md              # beliefs about the corpus are beliefs about him
+```
