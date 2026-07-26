@@ -132,3 +132,54 @@ references:
   - docs/design-notes/observed-stratum-spike.md     # the precedent for a spike-typed note
   - docs/BUILD-SPEC.md                              # NN-7 (consequential advice) · NN-8 (memory ceiling)
 ```
+
+## 2026-07-26T14:40:00Z
+
+```capsule
+topic: legal-corpus-sibling
+date: 2026-07-26
+
+decisions:
+  - THE OVERLAY RENAME IS THE FIRST MULTI-TENANCY MOVE, AND THE OWNER SAID SO OUT LOUD. Verbatim:
+    "stop using local.toml, it will be ouroboros.toml" ... "and also, this is how we get our test
+    mind-palace instance that is specialized in common law to test".
+    ⇒ The rename is NOT cosmetic. `local.toml` names a MACHINE; `ouroboros.toml` names an INSTANCE.
+    That is the conceptual half of multi-tenancy, and it costs one line (`loader.py:29`). A common-law
+    sibling then reads its own overlay under the same convention. Carried by bp-123 (blessed `ready`,
+    2026-07-26).
+  - ⚑ THE PARKED QUESTION IN bp-123 §11 IS THE ONE THIS ANSWERS -- fixed filename vs instance-DERIVED
+    name. bp-123 ships the fixed name deliberately, because deriving it requires deciding WHERE
+    instance identity comes from (env var? hostname? CLI flag? a committed instance.toml?), and that is
+    a design question, not a build detail. The rename makes the seam VISIBLE; the lookup is the sibling
+    plan's job. bp-123 was not re-scoped after blessing.
+  - This tightens the note's own next_steps: the MULTI-TENANCY AUDIT ("can a second instance stand up by
+    config alone?") now has a concrete first finding waiting for it -- every hardcoded path that assumes
+    one instance. bp-123's guard is the first such singleton made explicit rather than implicit.
+
+parked:
+  - decision: how a second instance's overlay name is resolved
+    default: fixed `ouroboros.toml` (bp-123). A sibling would need a resolution mechanism that does not
+      exist yet, and inventing one ahead of the audit is the mechanism-before-measurement mistake.
+    re_entry: the multi-tenancy audit runs, OR a common-law sibling is actually stood up -- whichever
+      first. At that point this is the audit's first real requirement, not a hypothetical.
+
+open_questions:
+  - Does the sibling share the embedder process or run its own? NN-8 (memory ceiling, <=2 resident
+    models, ~20-24 GB) makes two embedders a breach, and finding-0174 already measured the embedder at
+    10.0 GB under Ollama. Sharing implies the process manager (bp-116/bp-118) is a PREREQUISITE, not an
+    optimization -- the sibling becomes its second consumer.
+  - Does instance identity belong in a COMMITTED file (so the repo knows what instances exist) or a
+    gitignored one (so an instance is purely local state)? The answer decides whether "what instances
+    exist" is auditable.
+
+next_steps:
+  - Build bp-123 (in flight, 2026-07-26). Its fail-loud guard is the template for how every other
+    single-instance assumption should announce itself rather than silently mis-resolve.
+  - THEN the multi-tenancy audit, with bp-123's guard as the first entry in its findings list.
+
+references:
+  - docs/build-plans/bp-123/plan.md                 # the rename + fail-loud migration guard
+  - core/kernel/config/loader.py                    # :29 the one operative line
+  - docs/brainstorms/process-weight.md              # the Kafka observation this all grew from
+  - docs/findings/finding-0174.md                   # embedder = 10.0 GB; the two-instance ceiling
+```
