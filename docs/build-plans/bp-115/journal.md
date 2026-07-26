@@ -12,13 +12,16 @@ worktree branched from `origin/main` @ `7b37453`.
 
 ## Status in one paragraph (read this first)
 
-All four items are **implemented and committed**; the code is complete and the design is
-plan-faithful. The build is **not green**, and every red is traceable to exactly three one-line
-changes in three files that bp-115's `write_scope` does not contain. They are written out
-verbatim in `finding-0204` (two of them) and `finding-0205` (one). Nothing else is owed. Do not
-re-derive: read those two findings, land the three lines under a plan that can reach them, and
-the gate goes green with no further code change — **measured in a throwaway copy, not assumed**
-(see "The three owed lines were VERIFIED" below).
+**Complete and GREEN.** All four items are implemented, all four §7 acceptance criteria are met,
+and the six-leg gate passes on the merged tree (main @ `510714b`, bp-108 included). The scope gap
+that parked Items 1/2/4 is resolved: the owner granted the `write_scope` widening (plan §5,
+amended session-49), the three lines finding-0204 and finding-0205 prescribed landed **under the
+plan**, and the gate went green exactly as the pre-verification predicted. Nothing is owed except
+the orchestrator's closure of those two findings at seal.
+
+⚑ **Findings were renumbered at integration** (`0c70100`): this journal's `finding-0204` and
+`finding-0205` were filed as 0200/0201 in the build session. Both worktrees independently minted
+a 0200 and main already had a different one. Only the new ids are used below.
 
 ## Pre-build notes (kept — every one of them held)
 
@@ -115,9 +118,60 @@ which keeps `dn-local-model-runtime`'s `Cross-references` citations valid and le
 
 **Status: code complete and green on its own.**
 
-## Gate — measured, not asserted
+## Gate — FINAL, on the merged tree (session-49, the resolution)
 
-Six legs, run separately, at commit `HEAD` of this worktree:
+Six legs, run separately on `main` merged in (bp-108's supervisor lock included), after the three
+owed lines landed. **This table supersedes the build-session table below**, which is kept because
+it is the evidence finding-0204 rests on.
+
+| leg | result |
+|---|---|
+| `uv run ruff check .` | **PASS** — "All checks passed!" (exit 0) |
+| `uv run python scripts/check_imports.py` | **PASS** (exit 0) — "audited loopback exceptions: core/models/llama_server_client.py, core/models/ollama_client.py, core/sealing.py" |
+| `uv run mypy core agents eval ops scheduler scripts` | **PASS** — "Success: no issues found in 258 source files" (exit 0) |
+| `uv run mypy` (argless) | **"Found 69 errors in 20 files (checked 550 source files)"** — exactly the pinned tests baseline. Exit 1 is expected: this leg always exits 1 at the baseline |
+| `uv run python -m ops.type_gate` | **PASS** (exit 0) — membership OK, bare-ignore scan OK |
+| `uv run pytest -q` | **1 failed, 2109 passed, 15 skipped in 502.00s** |
+
+The single failure is the expected one:
+`tests/unit/test_core_self_containment.py::test_core_imports_nothing_outside_core`, the labelled
+**INTENTIONAL RED** ratchet (finding-0103, owner ruling) that the green gate deselects by policy.
+⚑ Its count is **20**, unchanged from the pre-build baseline, and **not one of the 20 is a file
+bp-115 touched** (they are in `core/dreaming/shadow.py`, `core/effect_proposal.py`,
+`core/factory/factory.py`, `core/ingest/code_corpus.py`, `core/interface.py`, `core/ops_view.py`,
+`core/reference_view.py`, `core/sensing.py`, `core/temporal/spine.py`). Checked explicitly because
+this plan writes into `core/`, so a moved count would have been mine.
+
+⚑ The pytest exit code was captured directly (`> file 2>&1; echo $?`), **not** through a `tail`
+pipe, which would have reported the pipe's status instead of the suite's.
+
+### What the three landed lines were
+
+1. `core/models/ollama_client.py` — `healthy()` **added** (`return bool(self.version())`). No
+   existing body touched, so Item 1's falsifier still does not fire.
+2. `ops/import_lint.py` — `NETWORK_ALLOWLIST` gains `core/models/llama_server_client.py` with the
+   same one-line rationale style the other two carry; the docstring's "the two audited
+   loopback/seal modules" becomes three, and its honesty clause moves with it.
+3. `tests/e2e/test_ollama_live.py` — `core.models.client.list_models()` →
+   `core.models.loader.client.list_models()`, with a comment saying why so it is not "simplified"
+   back.
+
+### Acceptance now met
+
+- **Item 1** — `OllamaClient` satisfies `InferenceClient`; mypy accepts it where the protocol is
+  required (Tier-2 clean), and `test_ollama_client_satisfies_the_protocol` passes. **Met.**
+- **Item 2** — unchanged and still met; the argless baseline is back to 69, which was the whole of
+  finding-0205's cost. **Met.**
+- **Item 3** — the client is enrolled on the audited allowlist; `check_imports.py` and both
+  integrity tests pass. **Met** (chat still wire-contract only — that limit is permanent until
+  V-B, not a parked item).
+- **Item 4** — unchanged and still met. **Met.**
+
+---
+
+## Gate — the build session (superseded, kept as finding-0204's evidence)
+
+Six legs, run separately, at the build session's HEAD **before** the write_scope amendment:
 
 | leg | result |
 |---|---|
@@ -171,6 +225,11 @@ three blocking failures survives the patch**, which is the thing that needed pro
 
 So the residual risk on the owed lines is not "will it work" but only "will someone write them".
 
+⚑ **The pre-verification was accurate.** It predicted Tier-2 mypy clean, argless mypy 69,
+check_imports pass, and the three blocking failures gone. The real merged tree delivered exactly
+that — the only difference is source-file counts (257→258, 548→550) and the pass count
+(2074→2109), both from bp-108 merging in between.
+
 ## Findings filed
 
 - **`finding-0204`** (`spec-defect`, route builder) — the `write_scope` omits
@@ -181,6 +240,13 @@ So the residual risk on the owed lines is not "will it work" but only "will some
   `tests/e2e/test_ollama_live.py:46`; the investigation §10 demands, plus the one-line remedy.
 
 Neither is a `blocker`: the session proceeded and finished the plan's code.
+
+⚑ **Both are RESOLVED IN CODE as of session-49, but neither is closed here** — a builder may not
+edit an existing finding; the orchestrator closes them at seal. The resolution to record against
+each: finding-0204 → the owner granted the `write_scope` widening (plan §5) and both patches
+landed under the plan, exactly the remedy the finding itself prescribed and the re-entry through
+the artifact chain finding-0191 requires; finding-0205 → the one-line fix landed and the argless
+mypy tests baseline is back to **69**, which was the entirety of its cost.
 
 ## Decisions I made that the plan did not pin (all annotated inline)
 
@@ -216,11 +282,29 @@ Neither is a `blocker`: the session proceeded and finished the plan's code.
 
 ## Owed at seal (orchestrator, not the builder)
 
-- Land finding-0204's two patches and finding-0205's one line under a plan that can reach those
-  files, then re-run all six gate legs. **Measured** in a scratch copy (see above), not merely
-  expected: ruff pass, check_imports pass, Tier-2 mypy **0**, argless mypy **69**, type_gate pass,
-  and the 25 tests across `test_import_firewall.py` + `test_inference_seam.py` all green. Only the
-  pre-existing self-containment ratchet stays red, and the green gate deselects it by policy.
+- ~~Land finding-0204's two patches and finding-0205's one line~~ — **DONE session-49**, under the
+  amended `write_scope`. The final six-leg gate is at the top of this journal.
+- **Close `finding-0204` and `finding-0205`** (resolutions drafted under "Findings filed"). The
+  builder may not edit a finding; this is the orchestrator's at seal.
 - `finding-0174` is cross-referenced by this work, **not closed** — bp-116 closes it structurally.
+  Nothing here reduced the embedder's 10.0 GB footprint; P1 built the seam that makes the
+  structural fix possible.
 - A deskcheck cannot be offered for this plan on its own: its acceptance is "nothing changed",
-  which is shown by the gate, not by a demo.
+  which is shown by the gate, not by a demo. The first deskcheckable artifact in this wave is
+  bp-117's equivalence report.
+- Flip `status` to `complete` — owner/orchestrator's, never a builder's.
+
+## Where the next builder picks up
+
+bp-116 (the process manager) is the direct successor and inherits three things from here, all
+already written down rather than needing re-derivation:
+
+1. **The port question.** `LlamaServerClient(port=...)` is constructor-injected with a default of
+   8080 precisely so the manager can assign a port per process; `[runtime]` deliberately has no
+   port key (journal decision 3).
+2. **The call site finding-0205 found.** `core/models/loader.py` is the manager's to replace, and
+   `tests/e2e/test_ollama_live.py` reaches its client for `list_models` — that reach must move
+   with the loader.
+3. **The schema is already there.** `server_binary`, `pinned_build`, `embed_ctx` and `grace_s`
+   are landed, defaulted and documented in `config/defaults.toml`; bp-116 consumes them without
+   touching the config loader.
