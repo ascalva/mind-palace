@@ -142,7 +142,11 @@ _CLOCK_SLACK_S = 5.0
 
 
 def _process_identity(pid: int) -> tuple[float | None, str | None]:
-    """`(create_time_epoch, process_name)` for `pid` — either component None when unreadable.
+    """`(create_time_epoch, interpreter_name)` for `pid` — either component None when unreadable.
+
+    `interpreter_name` is the basename of the binary the process is actually EXECUTING, which is
+    the string D2 asks *"is this a Python interpreter?"* of. It is deliberately not "the process's
+    name" — see the `exe()`/`name()` warrant below.
 
     warrant(finding-0198): this is a raw `psutil` touch outside `core/typedshims/psutil.py`, the
     ONE module that is supposed to own it (type-system-as-core-audit §2.5). The shim is not in
@@ -158,7 +162,7 @@ def _process_identity(pid: int) -> tuple[float | None, str | None]:
     except Exception:  # noqa: BLE001 — an unreadable process is ambiguity, never a crash
         return (None, None)
     created: float | None = None
-    name: str | None = None
+    interpreter: str | None = None
     try:
         created = float(proc.create_time())
     except Exception:  # noqa: BLE001
@@ -167,10 +171,28 @@ def _process_identity(pid: int) -> tuple[float | None, str | None]:
         # `name()` and not `cmdline()`: on macOS `cmdline()` raises AccessDenied for a foreign
         # owner (measured against pid 1) while `name()`/`exe()` read fine — and a foreign owner is
         # exactly the deployed case, the daemon running as the `ouroboros` principal.
-        name = str(proc.name())
+        #
+        # ⚑ warrant(finding-0211): and `exe()` in preference to BOTH. `name()` reports the
+        # comm/argv0 basename, which depends on HOW the interpreter was invoked — under
+        # `uv run pytest` on Linux it resolves to the console script, containing no "python", so
+        # D2 disproved a live interpreter and CI was red for 55 consecutive pushes while the same
+        # tests passed on macOS (`name()` -> 'Python'). `exe()` reports the binary actually
+        # executed, which is the question D2 means to ask. The BASENAME and not the whole path:
+        # an interpreter living under `~/python-projects/` would otherwise make every binary on
+        # that path read as one, and D2 could never fire.
+        interpreter = Path(str(proc.exe())).name or None
     except Exception:  # noqa: BLE001
-        name = None
-    return (created, name)
+        interpreter = None
+    if interpreter is None:
+        # `name()` is retained as the FALLBACK, and it is load-bearing rather than defensive: on
+        # Linux `/proc/<pid>/exe` is unreadable for a foreign owner while `name()` reads fine, so
+        # without it a stale pid recycled onto `systemd` would leave D2 unavailable, the verdict
+        # ambiguous, and `start` refusing forever — finding-0186's brick trap, reopened.
+        try:
+            interpreter = str(proc.name())
+        except Exception:  # noqa: BLE001
+            interpreter = None
+    return (created, interpreter)
 
 
 def _supervisor_alive(run: RunRecord, *,
@@ -198,6 +220,11 @@ def _supervisor_alive(run: RunRecord, *,
       a stale row whose pid wrapped onto a long-lived process (`launchd`, `systemd`) — such a
       process *predates* the row, so D1 stays silent and the system bricks on the very case the
       ruling's trap section is about. D2 is what closes it, and it is uptime-independent.
+      ⚑ warrant(finding-0211): the premise stands, the original PROBE was wrong. `name()` reports
+      an invocation-dependent basename (a console script under `uv run` on Linux) and D2 read it
+      as "not an interpreter" against a live one; `_process_identity` therefore reads `exe()`
+      first — the binary actually executed — and falls back to `name()` only when it is
+      unreadable. `cmdline()` stays rejected for the AccessDenied reason recorded there.
 
     Anything else — AccessDenied, a vanished process, an unparseable `started_at`, a python
     process created before the row — refuses. Refusing wrongly is recoverable with `palace stop`;
@@ -209,7 +236,7 @@ def _supervisor_alive(run: RunRecord, *,
     """
     if not pid_alive(run.pid):
         return False
-    created, name = identity(run.pid)
+    created, interpreter = identity(run.pid)
     if created is not None:
         try:
             opened = datetime.fromisoformat(run.started_at).replace(tzinfo=UTC).timestamp()
@@ -217,7 +244,7 @@ def _supervisor_alive(run: RunRecord, *,
             opened = None                      # unparseable timestamp ⇒ D1 unavailable ⇒ ambiguous
         if opened is not None and created > opened + _CLOCK_SLACK_S:
             return False                       # D1: it postdates the row it would have written
-    if name is not None and "python" not in name.lower():
+    if interpreter is not None and "python" not in interpreter.lower():
         return False                           # D2: the supervisor is always a python process
     return True                                # not disproven ⇒ refuse (the ruling)
 

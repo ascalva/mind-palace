@@ -18,10 +18,16 @@ import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import psutil  # type: ignore[import-untyped]  # untyped upstream; same warrant as launcher.py
 import pytest
 
 from config.loader import load_config
-from ops.lifecycle.launcher import Components, Launcher, _supervisor_alive
+from ops.lifecycle.launcher import (
+    Components,
+    Launcher,
+    _process_identity,
+    _supervisor_alive,
+)
 from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld
 from ops.lifecycle.preflight import Check, Preflight
 from ops.lifecycle.runs import RunLedger, RunRecord
@@ -188,6 +194,105 @@ def test_an_unparseable_started_at_refuses():
     """D1 needs the row's timestamp. Garbage in it is ambiguity, not a licence to proceed."""
     row = _Run(pid=1234, started_at="not-a-timestamp")
     assert _supervisor_alive(row, pid_alive=_alive, identity=_ident(1.0, "python3.13")) is True
+
+
+# --- the identity PROBE itself, against a faked psutil (warrant finding-0211) -------------------
+#
+# ⚑ Every test above INJECTS `identity`, so none of them reaches `_process_identity` — and that
+# is exactly where the platform bug lived. `name()` answers "what is this process's comm/argv0
+# basename?", which varies with HOW the interpreter was invoked: on the Linux runner a
+# `uv run pytest` process reads as the console script, with no "python" in it, so D2 disproved a
+# live interpreter and CI was red for 55 consecutive pushes while the same file was 32-passed
+# locally. The host cannot be made to have the other platform's shape, so the probe is driven
+# against a faked `psutil.Process` — pinning the shape rather than the host is what makes this
+# unable to regress silently on *either* platform.
+
+_ROW_AT = "2026-07-25T12:00:00"
+_PREDATES = _epoch("2026-07-25T11:58:30")     # 90 s before the row: the genuine-supervisor shape
+
+
+class _FakeProc:
+    """A `psutil.Process` stand-in. `None` for `exe`/`name` means that accessor RAISES — the
+    unreadable case (`AccessDenied` against a foreign owner), which is the branch the fallback
+    exists for and which no injected-tuple test can reach."""
+
+    def __init__(self, *, exe: str | None, name: str | None, created: float):
+        self._exe, self._name, self._created = exe, name, created
+
+    def create_time(self) -> float:
+        return self._created
+
+    def exe(self) -> str:
+        if self._exe is None:
+            raise PermissionError("psutil.AccessDenied")
+        return self._exe
+
+    def name(self) -> str:
+        if self._name is None:
+            raise PermissionError("psutil.AccessDenied")
+        return self._name
+
+
+def _fake_psutil(monkeypatch, **kw) -> None:
+    """Patch `Process` on the REAL psutil module. `_process_identity` imports psutil lazily inside
+    its own body (warrant finding-0198), so it resolves the attribute at call time and the patch
+    lands without replacing the module."""
+    monkeypatch.setattr(psutil, "Process", lambda _pid: _FakeProc(**kw))
+
+
+def _probed(pid: int, started_at: str = _ROW_AT) -> bool:
+    """`_supervisor_alive` over the REAL probe — the composition the injected tests skip."""
+    return _supervisor_alive(_Run(pid=pid, started_at=started_at),
+                             pid_alive=_alive, identity=_process_identity)
+
+
+def test_a_console_script_invocation_still_reads_as_a_python_interpreter(monkeypatch):
+    """⚑ NAMED FALSIFIER (finding-0211) — the regression pin, and the shape that broke CI.
+
+    `uv run pytest` on Linux leaves a real CPython interpreter whose `name()` is the console
+    script. Probing that, D2 positively disproves a *live* supervisor — fail-OPEN on a
+    fail-closed guard, which is finding-0186's hazard reintroduced by a probe choice. The
+    executed binary is what D2 is actually asking about.
+
+    Verified RED against the pre-change probe before the fix landed (journal, Checkpoint 1)."""
+    _fake_psutil(monkeypatch, exe="/home/runner/work/mind-palace/.venv/bin/python3.13",
+                 name="pytest", created=_PREDATES)
+    assert _probed(1234) is True
+
+
+def test_an_unreadable_exe_falls_back_to_the_invocation_name(monkeypatch):
+    """The fallback is load-bearing, not defensive padding. On Linux `/proc/<pid>/exe` is
+    unreadable for a foreign owner while `name()` reads fine, and a stale pid recycled onto
+    `systemd` is precisely finding-0186's brick trap: drop the fallback and D2 goes unavailable
+    there, the verdict is ambiguous, and a fail-closed `start` refuses forever."""
+    _fake_psutil(monkeypatch, exe=None, name="systemd", created=_epoch("2026-07-09T04:36:50"))
+    assert _probed(1) is False
+
+
+def test_an_empty_exe_is_treated_as_unreadable_not_as_an_answer(monkeypatch):
+    """psutil reports `''` — not a raise — when a process's executable cannot be determined. An
+    empty string is evidence of nothing, and taking it as the answer makes D2 fire on every such
+    process (mutation: drop the emptiness guard and this goes False)."""
+    _fake_psutil(monkeypatch, exe="", name="python3.13", created=_PREDATES)
+    assert _probed(1234) is True
+
+
+def test_both_probes_unreadable_still_refuses(monkeypatch):
+    """finding-0186's ruling at the probe layer this time: `exe()` AND `name()` denied is
+    ambiguity, and ambiguity REFUSES. The fallback must not become a permissive shortcut."""
+    _fake_psutil(monkeypatch, exe=None, name=None, created=_PREDATES)
+    assert _probed(1234) is True
+
+
+def test_an_unconstructable_process_is_ambiguity_not_a_crash(monkeypatch):
+    """`psutil.Process(pid)` itself raising (a vanished process) must degrade to (None, None) —
+    the probe is on `start`'s critical path and may never be the thing that kills it."""
+    def _boom(_pid):
+        raise psutil.NoSuchProcess(_pid)
+
+    monkeypatch.setattr(psutil, "Process", _boom)
+    assert _process_identity(1234) == (None, None)
+    assert _probed(1234) is True
 
 
 # --- the gate, in `start()` --------------------------------------------------------------------
