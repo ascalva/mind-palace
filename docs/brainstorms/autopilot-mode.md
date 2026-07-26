@@ -705,3 +705,82 @@ references:
   - docs/findings/finding-0207.md                # the secret-reachability finding this supersedes in spirit
   - docs/design-notes/agent-workflow.md          # A8's HEAD-keyed post-hoc check, the anti-rewind precedent
 ```
+
+## 2026-07-26T03:18:00Z
+
+```capsule
+topic: autopilot-mode
+date: 2026-07-26
+
+decisions:
+  - THE KEY SLOT IS A SUM TYPE, not a struct with a mode flag (owner, 2026-07-26): "the
+    object has to be of two forms, where each form has its own sub-behaviour". Two variants,
+    each carrying DIFFERENT CAPABILITIES -- make illegal states unrepresentable.
+  - ⚑ THE SHARPEST CONSEQUENCE: `verify` EXISTS ONLY ON `Stable`. "No grant verifies in
+    staging" stops being a runtime check someone can forget and becomes a thing that cannot
+    be expressed -- there is no `Staging.verify` to call. Likewise `Staging` has NO KEY
+    FIELD, rather than `key: Optional[...]`: an optional invites `if slot.key is not None`
+    scattered across call sites, and ONE missing check is the whole hole.
+  - ⚑ THE TRANSITION SIGNATURES ENCODE THE SECURITY RULE:
+        Staging.enroll(key, authority: OwnerDeclaration) -> Stable    # only route in
+        Stable.enroll(key, ...)                          -> Staging   # THE SELF-DESTRUCT
+        Stable.verify(challenge, signature)              -> bool
+        Staging.verify                                                # does not exist
+    `Stable.enroll` RETURNING `Staging` *IS* destroy-without-install (reading (a), pinned
+    in the 03:05Z capsule) -- written into the TYPE rather than into prose a later reader
+    must honor. No signature for destroy-and-replace could be written that was not visibly
+    a different function.
+  - ⚑ THIS MECHANISES RULING 1 INSTEAD OF ASSERTING IT -- which was finding-0207's entire
+    complaint ("asserted, not mechanised"). The `authority` parameter must NOT be a bool or
+    a string an agent supplies: it is a TOKEN WHOSE CONSTRUCTION IS GUARDED, so the only way
+    to obtain one is the out-of-band ceremony. PRECEDENTED IN-REPO, not invented:
+    core/stores/authored_supersession.py guards `OwnerDeclaration` construction behind a
+    module-private token and raises `MachineAuthorityRefused` otherwise (:43-45, :48-52,
+    :55-69). The owner's ruling then narrows to WHICH ceremony mints the token -- Touch ID,
+    passphrase, key-signs-key -- and THE TYPE SHAPE IS IDENTICAL UNDER ALL THREE, so the
+    note can be written before that ruling lands.
+  - ⚑ HONEST BOUNDARY, so this is not oversold: types are checked by mypy at AUTHORING time.
+    They make illegal states unrepresentable and mistakes impossible -- but an agent that
+    EDITS THE MODULE ITSELF is not stopped by a type. What stops that is unchanged:
+    scope-guard on write_scope, plus a HEAD-keyed post-hoc check in A8's shape. TYPES KILL
+    ACCIDENTS AND MAKE ATTACKS LOUD; THEY DO NOT KILL ATTACKS. Same pre-hoc-porous /
+    post-hoc-tight posture §6 already takes -- state it that way in the note.
+
+parked:
+  - decision: mypy strictness tier for the key-slot module.
+    default: request a PER-MODULE STRICT OVERRIDE in [tool.mypy]. The slot lives in the
+    WORKFLOW plane, which is Tier-2 (check_untyped_defs + disallow_any_generics,
+    pyproject.toml:128-134), not Tier-1 strict -- and workflow tooling may not import `core`
+    (docket.py:16, board.py:13), so it cannot borrow core's guarded types either. For a
+    module whose entire job is an authority boundary, Tier 2 is too loose.
+    re_entry: the build plan for the verifier; decide with the owner at blessing.
+  - decision: exhaustiveness enforcement across the variants.
+    default: `assert_never` in the match, so a future THIRD variant cannot be silently
+    unhandled. Works at Tier 2 as well as Tier 1, so it is free either way.
+    re_entry: none needed -- adopt unless a third form is deliberately open-ended.
+
+open_questions:
+  - Does the type live in one module with the verifier, or in its own? Arguing for its own:
+    the write_scope that grants edit rights to the AUTHORITY TYPE should be narrower than
+    the one that grants edit rights to verification logic, so a plan touching the verifier
+    does not implicitly get the power to redefine the slot.
+  - Serialization boundary: the two forms must round-trip to/from whatever on-disk shape
+    the committed slot takes WITHOUT an intermediate state that is neither Staging nor
+    Stable (e.g. a half-written file). A partial write must parse as STAGING (fail-closed),
+    never as a Stable with a garbage key.
+  - Does the same two-form treatment want to apply to the GRANT itself (granted / spent),
+    so a consumed grant is a different TYPE rather than a boolean flag? That would make
+    single-use un-forgettable in the same way. Not proposed by the owner -- agent question.
+
+next_steps:
+  - Fold into the superseding note as the enrollment section's mechanism, alongside the
+    03:05Z single-slot semantics.
+  - The note can now be WRITTEN before Ruling 1 lands, since the type shape is invariant
+    across all three candidate ceremonies -- only the token-minting paragraph waits.
+
+references:
+  - core/stores/authored_supersession.py   # OwnerDeclaration + MachineAuthorityRefused -- the precedent
+  - docs/findings/finding-0207.md          # "asserted, not mechanised" -- what this answers
+  - pyproject.toml                         # :128-134 the Tier-2 floor the slot would sit in
+  - docs/design-notes/agent-workflow.md    # A8's HEAD-keyed post-hoc check; §6 fail-open/fail-loud posture
+```
