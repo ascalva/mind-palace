@@ -314,17 +314,17 @@ def test_the_client_binds_a_loopback_literal_and_never_spawns():
 # ---------------------------------------------------------------------------------------
 
 
-def test_runtime_section_survives_the_local_overlay(tmp_path: Path, monkeypatch: Any):
-    """⚑ §7 Item 4's named falsifier: *a `[runtime]` key in `local.toml` is silently ignored.*
+def test_runtime_section_survives_the_instance_overlay(tmp_path: Path, monkeypatch: Any):
+    """⚑ §7 Item 4's named falsifier: *a `[runtime]` key in `ouroboros.toml` is silently ignored.*
 
     That is finding-0174's exact mechanism — `_overlay` merges by SECTION NAME and `Config` had
     no catch-all, so a section with no dataclass behind it vanished. Constructing
     `RuntimeConfig()` directly would pass while the overlay path stayed broken, so this drives
-    the REAL path: `load_config()` with no argument, with both overlay files redirected into
-    tmp_path (the owner's actual local.toml must not be able to affect the assertions).
+    the REAL path: `load_config()` with no argument, with all three overlay paths redirected into
+    tmp_path (the owner's actual overlay must not be able to affect the assertions).
     """
-    local = tmp_path / "local.toml"
-    local.write_text(
+    overlay = tmp_path / "ouroboros.toml"
+    overlay.write_text(
         "[runtime]\n"
         'embedding_backend = "llamacpp"\n'
         'server_binary = "/opt/homebrew/bin/llama-server"\n'
@@ -336,8 +336,11 @@ def test_runtime_section_survives_the_local_overlay(tmp_path: Path, monkeypatch:
         'router = "llamacpp"\n',
         encoding="utf-8",
     )
-    monkeypatch.setattr(config_loader, "_LOCAL", local)
+    monkeypatch.setattr(config_loader, "_INSTANCE_OVERLAY", overlay)
     monkeypatch.setattr(config_loader, "LEVERS_OVERLAY", tmp_path / "absent-levers.toml")
+    # bp-123: the migration guard refuses while a real `config/local.toml` is present — a machine
+    # fact, not a [runtime] fact, so redirect it too and keep this case hermetic.
+    monkeypatch.setattr(config_loader, "_LEGACY_OVERLAY", tmp_path / "absent-legacy.toml")
 
     runtime = config_loader.load_config().runtime
     assert runtime.embedding_backend == "llamacpp"
@@ -393,7 +396,7 @@ def test_a_chat_tier_selects_llamacpp_independently():
 
 
 def test_an_unknown_backend_refuses_rather_than_defaulting():
-    """Fail loudly. A typo in local.toml that silently fell back to Ollama would reproduce the
+    """Fail loudly. A typo in ouroboros.toml that silently fell back to Ollama would reproduce the
     class of bug this whole section exists to end."""
     config = _with_runtime(RuntimeConfig(embedding_backend="mlx"))
     with pytest.raises(ValueError, match="mlx"):

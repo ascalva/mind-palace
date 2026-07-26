@@ -28,19 +28,22 @@ def _cfg(*, enabled: bool):
 
 def test_secrets_disabled_in_shipped_defaults():
     # The committed defaults.toml has [secrets] OFF — a deployment opts in via the gitignored
-    # config/local.toml overlay, not by editing the shared default. Asserted against defaults
-    # DIRECTLY (load_config bypasses the overlay for an explicit path), so an owner's local.toml
+    # config/ouroboros.toml overlay, not by editing the shared default. Asserted against defaults
+    # DIRECTLY (load_config bypasses the overlay for an explicit path), so an owner's overlay
     # enabling secrets can't mask a regression in the shipped safe default.
     assert load_config(_DEFAULTS).secrets.enabled is False
     assert build_secrets_backend(_cfg(enabled=False)) is None
 
 
-def test_local_toml_overlay_enables_a_section(tmp_path, monkeypatch):
-    # The gitignored config/local.toml overlays defaults section-by-section: it names only the keys
-    # it changes, and every other shipped default survives the shallow merge.
-    local = tmp_path / "local.toml"
-    local.write_text("[secrets]\nenabled = true\n")
-    monkeypatch.setattr(loader, "_LOCAL", local)
+def test_instance_overlay_enables_a_section(tmp_path, monkeypatch):
+    # The gitignored config/ouroboros.toml overlays defaults section-by-section: it names only the
+    # keys it changes, and every other shipped default survives the shallow merge.
+    overlay = tmp_path / "ouroboros.toml"
+    overlay.write_text("[secrets]\nenabled = true\n")
+    monkeypatch.setattr(loader, "_INSTANCE_OVERLAY", overlay)
+    # bp-123: redirect the guard's legacy probe too, so the case does not depend on whether this
+    # machine still has a pre-rename config/local.toml.
+    monkeypatch.setattr(loader, "_LEGACY_OVERLAY", tmp_path / "absent-legacy.toml")
     cfg = load_config()                                  # default path -> overlay applies
     assert cfg.secrets.enabled is True
     assert cfg.secrets.kv_mount == "kv"                  # untouched default preserved
@@ -68,7 +71,7 @@ def test_enabled_wiring_picks_up_custom_addr_and_mount():
 
 def test_get_secret_with_token_but_backend_disabled_raises(monkeypatch):
     # A token passed while [secrets] is disabled is a hard error — no insecure fallback to env.
-    # Force the disabled path so an owner's local.toml (which may enable secrets) can't mask it.
+    # Force the disabled path so an owner's overlay (which may enable secrets) can't mask it.
     monkeypatch.setattr("config.secrets_backend.build_secrets_backend", lambda config=None: None)
     with pytest.raises(RuntimeError):
         get_secret("anything", token="some-token")

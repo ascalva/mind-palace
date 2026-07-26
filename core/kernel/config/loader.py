@@ -15,23 +15,38 @@ from typing import Any
 
 # bp-067: the LOADER moved into core.config (core owns its config-loading code — self-contained,
 # stdlib-only, network-free). The config DATA (the tomls) stays in the repo-root `config/` dir — its
-# gitignore entries (`config/local.toml`, `config/levers.toml`) are path-specific and out of this
-# plan's write_scope, so relocating the data would strand them; the loader reads them by path
+# gitignore entries (`config/ouroboros.toml`, `config/levers.toml`) are path-specific and out of
+# this plan's write_scope, so relocating the data would strand them; the loader reads them by path
 # instead (a filesystem read, no first-party import — self-containment is about IMPORTS, not data).
 # kernel/config/loader.py → core/kernel/config → core/kernel → core → <repo> (K1, bp-090)
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 _CONFIG_DIR = REPO_ROOT / "config"                          # the committed + per-machine toml data
 _DEFAULTS = _CONFIG_DIR / "defaults.toml"
-# Deployment-specific overrides: a gitignored config/local.toml that overlays the committed
+# Deployment-specific overrides: a gitignored config/ouroboros.toml that overlays the committed
 # defaults section-by-section (e.g. `[secrets] enabled = true` on a machine where Vault is stood
 # up, or `[attestation] enabled = true` once signing keys are placed). Keeps the shipped repo
-# safe-by-default — a fresh clone / CI has no local.toml, so those flags stay off.
-_LOCAL = _CONFIG_DIR / "local.toml"
+# safe-by-default — a fresh clone / CI has no ouroboros.toml, so those flags stay off.
+#
+# Named for the INSTANCE (owner ruling, 2026-07-26): `mind-palace` is the framework, Ouroboros is
+# this live instance, so the instance's own overlay carries the instance's name rather than the
+# generic "local". The file was called `local.toml` before that date — see `_LEGACY_OVERLAY`.
+_INSTANCE_OVERLAY = _CONFIG_DIR / "ouroboros.toml"
+# The pre-2026-07-26 name. Retained ONLY so the loader can REFUSE (`_refuse_on_legacy_overlay`)
+# rather than silently ignore an un-migrated overlay; it is never read as config. Delete this
+# constant and its guard once every instance has migrated (bp-123 §11).
+_LEGACY_OVERLAY = _CONFIG_DIR / "local.toml"
 # Machine-owned knob overlay, written ONLY by the self-modification loop (ops/apply.py) through
-# the §14 gate. Overlaid UNDER local.toml below, so a human override in local.toml always wins
-# over a loop-tuned knob — human authority stays supreme. Gitignored; deleting it reverts every
-# tuned knob to its committed default.
+# the §14 gate. Overlaid UNDER ouroboros.toml below, so a human override in ouroboros.toml always
+# wins over a loop-tuned knob — human authority stays supreme. Gitignored; deleting it reverts
+# every tuned knob to its committed default.
 LEVERS_OVERLAY = _CONFIG_DIR / "levers.toml"
+
+
+class ConfigMigrationError(RuntimeError):
+    """The per-machine overlay is in a state where loading would apply the WRONG values.
+
+    Raised, never warned: see `_refuse_on_legacy_overlay`.
+    """
 
 
 @dataclass(frozen=True)
@@ -223,7 +238,7 @@ class SecretsConfig:
     aws_mount: str = "aws"
     # Agent roles that receive an ephemeral scoped credential grant when minted (§2 lifecycle).
     # FAIL-CLOSED EMPTY: a minted agent holds NO credential unless its role is listed here (grant
-    # the minimum; the owner opts in per role in local.toml). vault-runtime-auth.md §3 is the
+    # the minimum; the owner opts in per role in ouroboros.toml). vault-runtime-auth.md §3 is the
     # recommended set (e.g. correlator, advisor) — each must have a matching Vault token role.
     grant_roles: frozenset[str] = frozenset()
     token_ttl: str = "10m"   # TTL of a minted agent token — short; the grant expires by itself
@@ -234,7 +249,7 @@ class BackupConfig:
     """restic → S3 encrypted backups (BUILD-SPEC §16b). restic encrypts + deduplicates CLIENT-SIDE,
     so AWS never sees plaintext; the bucket's SSE-KMS is defense in depth. `enabled` gates the
     scheduled job only. The repo password and the backup AWS key live in Keychain (named here, never
-    stored here). Off by default — turn on per machine via config/local.toml once the bucket is
+    stored here). Off by default — turn on per machine via config/ouroboros.toml once the bucket is
     applied and Keychain is placed."""
 
     enabled: bool = False
@@ -259,7 +274,7 @@ class SelfModConfig:
     `enabled` is the master switch for the whole propose→approve→execute→validate→rollback loop;
     `unattended_enabled` separately gates the ONLY path that acts without human approval (the §14
     'safe levers'). Both OFF by default — a fresh clone can't self-modify, and never unattended,
-    until the owner deliberately turns each on in config/local.toml."""
+    until the owner deliberately turns each on in config/ouroboros.toml."""
 
     enabled: bool = False
     unattended_enabled: bool = False
@@ -299,10 +314,10 @@ class RuntimeConfig:
     """Which local inference RUNTIME serves each role (dn-local-model-runtime §4).
 
     Landed WHOLE, including the keys the process manager (bp-116) and the cutover (bp-118)
-    consume, because `_overlay` merges by section NAME: a `[runtime]` block in `local.toml`
+    consume, because `_overlay` merges by section NAME: a `[runtime]` block in `ouroboros.toml`
     with no dataclass behind it is silently DROPPED (the bp-102 / finding-0174 mechanism), so a
     half-defined section is worse than none. Every default here is TODAY'S behaviour — the seam
-    changes nothing at landing, and each flip is the owner's, per role, in `config/local.toml`.
+    changes nothing at landing, and each flip is the owner's, per role, in `config/ouroboros.toml`.
 
     `chat_backend` is a plain dict rather than this file's usual immutable tuple/frozenset: the
     per-tier override map is pinned as `dict[str, str]` by bp-115 §6. `Config` is consequently
@@ -389,15 +404,59 @@ def _overlay(raw: dict[str, Any], path: Path) -> None:
             raw[section] = values
 
 
+def _refuse_on_legacy_overlay() -> None:
+    """Refuse to load while a pre-2026-07-26 `local.toml` would be silently ignored (bp-123).
+
+    ⚑ This RAISES; it deliberately does not warn. A warning on the config path is a false green one
+    level down: the process would come up on the committed defaults — the wrong σ, and every flag
+    the owner enabled in his overlay silently off — and he would learn about it from behaviour weeks
+    later instead of from an error. Refusing costs one `mv`; warning costs a silent config reversion
+    on the live instance.
+
+    Three states:
+      legacy present, current absent -> the overlay would be ignored outright. REFUSE, name the mv.
+      both present                   -> authority is ambiguous. REFUSE; do not guess a winner.
+      neither present                -> a fresh clone or CI. Silent by design: committed defaults
+                                        only, so a guard for a one-time migration never breaks a
+                                        machine that has nothing to migrate.
+    """
+    if not _LEGACY_OVERLAY.exists():
+        return
+    if _INSTANCE_OVERLAY.exists():
+        raise ConfigMigrationError(
+            f"two per-machine config overlays are present, and which one carries authority is "
+            f"ambiguous:\n"
+            f"    {_LEGACY_OVERLAY}  (the pre-2026-07-26 name)\n"
+            f"    {_INSTANCE_OVERLAY}  (the current name)\n"
+            f"Refusing to load rather than guess which one wins. Merge whatever you still need out "
+            f"of local.toml into ouroboros.toml by hand, then remove the legacy file:\n"
+            f"    rm {_LEGACY_OVERLAY}"
+        )
+    raise ConfigMigrationError(
+        f"the per-machine config overlay was renamed local.toml -> ouroboros.toml on 2026-07-26, "
+        f"and this machine has not been migrated:\n"
+        f"    {_LEGACY_OVERLAY}  exists (the old name — NO LONGER READ)\n"
+        f"    {_INSTANCE_OVERLAY}  is missing (the name the loader reads)\n"
+        f"Loading now would silently ignore every setting in local.toml and come up on the "
+        f"committed defaults instead. Refusing to load. Move the file — `mv`, never rewrite, the "
+        f"bytes are an owner ruling:\n"
+        f"    mv {_LEGACY_OVERLAY} {_INSTANCE_OVERLAY}"
+    )
+
+
 def load_config(path: Path | None = None) -> Config:
     raw = tomllib.loads((path or _DEFAULTS).read_text(encoding="utf-8"))
     # Overlay precedence (only for the default path — an explicit `path`, as tests pass, is taken
-    # verbatim): defaults ← levers.toml ← local.toml. The machine-tuned knobs land first; the
-    # owner's hand-authored local.toml lands LAST so a human override always wins over a loop-tuned
-    # knob (human authority supreme — the §14 ceiling). See LEVERS_OVERLAY / _LOCAL above.
+    # verbatim): defaults ← levers.toml ← ouroboros.toml. The machine-tuned knobs land first; the
+    # owner's hand-authored ouroboros.toml lands LAST so a human override always wins over a
+    # loop-tuned knob (human authority supreme — the §14 ceiling). See LEVERS_OVERLAY /
+    # _INSTANCE_OVERLAY above. The legacy guard runs first: an un-migrated overlay must refuse here,
+    # not sail past and hand back defaults. An explicit `path` bypasses the whole chain, guard
+    # included — it is a verbatim read of the file the caller named.
     if path is None:
+        _refuse_on_legacy_overlay()
         _overlay(raw, LEVERS_OVERLAY)
-        _overlay(raw, _LOCAL)
+        _overlay(raw, _INSTANCE_OVERLAY)
     o, r, p = raw["ollama"], raw["resources"], raw["paths"]
     v, e, s = raw["vault"], raw["embedding"], raw["sandbox"]
     itf, dr, rnd = raw["interface"], raw["dreaming"], raw["dream_rnd"]
