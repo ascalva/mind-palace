@@ -21,9 +21,20 @@ GOOD = lambda lever, value: ValidationResult(True, True, {"v": value})        # 
 BAD = lambda lever, value: ValidationResult(False, True, {"v": value})        # noqa: E731
 
 
+# σ this file PINS and its σ assertion reads back (finding-0214) — see the fuller note in the
+# sibling test_selfmod.py. Kept as an independent constant rather than imported from that module:
+# these two suites are deliberately not coupled. Both the fixture and the render assertion must use
+# it, or a stale literal reintroduces the machine-dependent red.
+_SIGMA = 0.62
+
+
 def _loop(tmp_path, validator=GOOD):
     cfg = get_config()
-    cfg = dataclasses.replace(cfg, selfmod=dataclasses.replace(cfg.selfmod, enabled=True))
+    cfg = dataclasses.replace(
+        cfg,
+        selfmod=dataclasses.replace(cfg.selfmod, enabled=True),
+        dreaming=dataclasses.replace(cfg.dreaming, similarity_threshold=_SIGMA),
+    )
     return SelfModLoop(
         config=cfg,
         ledger=ProposalLedger(tmp_path / "ledger.sqlite"),
@@ -35,7 +46,7 @@ def _loop(tmp_path, validator=GOOD):
 def test_propose_list_show_history(tmp_path):
     loop = _loop(tmp_path)
     out = cmd_propose(loop, "dream_similarity_threshold", 0.66, "tighten themes")
-    assert "proposed #1" in out and "0.62 -> 0.66" in out
+    assert "proposed #1" in out and f"{_SIGMA} -> 0.66" in out
 
     assert "tighten themes" in cmd_list(loop.ledger)
     assert "#1 [proposed]" in cmd_show(loop.ledger, 1)
