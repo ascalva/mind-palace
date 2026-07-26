@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0153
-status: open
+status: promoted
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 links:
   - docs/design-notes/agent-workflow.md                # the artifact-chain spec a deskcheck gate extends
   - docs/findings/finding-0148.md                      # K1 never minted — a "wave complete" that wasn't done
@@ -14,10 +14,21 @@ links:
   - docs/DESKCHECK-QUEUE.md                            # the deskcheck-pending action-list view of the board
 ftype: design
 route: orchestrator
-resolution: null
+resolution: promoted — dn-track-board-and-deskcheck-gate (ratified, warrant: this finding) + bp-096/bp-097 (complete)
 ---
 
 # Adopt a DESKCHECK gate + queue — "done" means demonstrated and owner-accepted, not sealed
+
+> **Triage 2026-07-26 (session-52) — PROMOTED.** Fully absorbed into ratified design and shipped
+> code. `dn-track-board-and-deskcheck-gate` is `status: ratified` with `warrant:` = this finding, and
+> both plans it licensed (**bp-096** WF-1, **bp-097** WF-2) are `complete`. Live in the tree: the
+> derived board and queue (`docs/TRACKS.md`, `docs/DESKCHECK-QUEUE.md`, both GENERATED banners, both
+> git-tracked), the record store + template, the **third owner-only gate** (`_lib.py:635` denies an
+> agent writing `verdict: approved|needs-work` pre-hoc), the clause-(f) seal tooth (`:711-731`), and
+> `/triage` surfacing (`.claude/commands/triage.md:32-38`). Nine track manifests exist.
+> **⚑ The mechanism has never been exercised, and that is now the live item — not a reopening of this
+> finding:** `docs/deskchecks/` holds only `README.md`, i.e. **0 deskcheck records against 5 tracks
+> owed**, and there is no `/deskcheck` command. Surfaced to the owner as an inbox item.
 
 ## The problem (owner-named 2026-07-21)
 

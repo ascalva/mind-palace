@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0146
-status: open
+status: resolved
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 links:
   - ops/code_sensor.py                            # the model-less structural sensor (the defect's home)
   - core/ingest/pipeline.py                        # the embed path — vault .md only, no code
@@ -13,10 +13,24 @@ links:
   - docs/brainstorms/code-as-sensor-stream.md      # the sensor framing being revisited
 ftype: design
 route: orchestrator        # OWNER RULED this a bug (2026-07-21); needs a design pass, likely a note correction
-resolution: null
+resolution: resolved — two-plane model superseded 9d53927; dn-code-ingest-pipeline ratified 0c2deae; built + default-ON
 ---
 
 # The code corpus is not vectorized at all (source + docstrings + comments), and code→doc references are literal-path-only — OWNER-RULED A BUG
+
+> **Triage 2026-07-26 (session-52) — RESOLVED.** The owner's 2026-07-21 ruling (*code not vectorized
+> is a bug; the two-plane structural-only-OBSERVED boundary is rejected*) has landed in the design
+> record **and** in code, store, and config. All three filed defects are closed:
+> 1. **Not vectorized** → `Provenance.CODE` exists (`core/kernel/provenance.py:79`), the code lane is
+>    `core/ingest/code_corpus.py`, and `data/vectors.lance` is **244 MB** (was 28 chunk rows).
+> 2. **`#` comments dropped** → `ops/code_snapshot.py:90-97` mints a `comments` table via a stdlib
+>    `tokenize` pass whose own comment cites this finding; the live table holds **1,562,964 rows**.
+> 3. **Shorthand resolvers** → `_RE_DN_SLUG` / `_RE_FINDING_ID` (`ops/code_sensor.py:159-160`),
+>    `L2B_PATTERNS` incl. `paired-section` (`:153`), plus the tree-existence check (`:78`).
+> Record: `dn-code-observation-projection` is `superseded` → `dn-code-ingest-pipeline` (flip
+> `9d53927`; note ratified `0c2deae`/`4eb80c8`, warrant this finding); `config/defaults.toml:96-110`
+> has `[code_ingest] enabled = true` (default-ON per oq-0034); bp-092/093/094/098/099 all complete.
+> **Still owed, but not by this finding:** the code-ingest track **deskcheck**.
 
 ## Owner ruling (2026-07-21)
 

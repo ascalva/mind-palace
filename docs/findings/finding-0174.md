@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0174
-status: open
+status: routed
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - config/defaults.toml                               # [embedding] has no resident_gb; [[models]] tiers do
   - core/models/loader.py                              # the ceiling gate — sums resident_gb over TIER models only
@@ -13,10 +13,27 @@ links:
 ftype: spec-defect
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: routed — arithmetic CORRECTED (23.0 + 10.0 = 33.0 vs usable 24.0); closes at bp-118's seal, and only if the flip happened
 ---
 
 # The memory ceiling is enforced over an incomplete accounting — the embedder is invisible to the loader
+
+> **Triage 2026-07-26 (session-52) — the defect is unchanged and this finding UNDERSTATED it by ~4×.**
+> Still live: `config/defaults.toml:112-119` `[embedding]` carries only `model`/`dim`/
+> `query_instruction` — **no `resident_gb`, no `tier`, not a `[[models]]` entry** — and
+> `core/models/loader.py:40-41,58-64` still sums `resident_gb` over `self._resident` only.
+> **⚑ MAGNITUDE CORRECTION.** The real embedder cost is **10.0 GB, not 2.5**: under Ollama at
+> model-default ctx 40960, because `OllamaClient.embed()` passes no `num_ctx`
+> (`core/models/ollama_client.py:97-104`). The same blob is RSS **3.69 GB** under a palace-launched
+> `llama-server` at ctx 8192 (`bp-116/plan.md:92-96`, `bp-118/plan.md:88-91`). So this finding's
+> `23.0 + 2.5 = 25.5` should read **`23.0 + 10.0 = 33.0` against `usable_ram_gb = 24.0`** — and the
+> mechanism is **context, not weights**, which also invalidates a weights-only `resident_gb` as the
+> fix shape (`bp-116/plan.md:97-100`).
+> **Re-entry advanced but not closed:** `dn-local-model-runtime` is `ratified`; bp-115 `complete`;
+> bp-116/117/118/119 `proposed`. **Closes at bp-118's seal, and only if the embedder role has
+> actually flipped to llama-server** — not at bp-116's seal, which makes the accounting possible but
+> flips nothing.
+> **Sibling, do not cross-close:** finding-0199 (crash-restart breach), interim in bp-107.
 
 ## What
 

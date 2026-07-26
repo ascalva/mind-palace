@@ -45,14 +45,14 @@
 | Ops | bp-105 — the restart is trustworthy: a discriminating instrument and a fail-closed start | deskcheck-pending · complete | opus |
 | Ops | bp-106 — the boundary shim is real: quarantine psutil, and make the one-file rule enforceable | build · ready | opus |
 | Ops | bp-107 — the memory ceiling stops guarding a belief (finding-0199's interim reconcile) | build · ready | opus |
-| Ops | bp-108 — the supervisor role becomes exclusive, and the loop keeps its duty cycle | build · ready | opus |
-| Ops | bp-109 — a RUNNING row carries its own deadline, and a checkpointed row stops being swallowed | graduate · proposed | Fable/Opus |
-| Ops | bp-110 — THE INTEGRATOR: the worker protocol and the dispatch seam | graduate · proposed | Fable/Opus |
+| Ops | bp-108 — the supervisor role becomes exclusive, and the loop keeps its duty cycle | deskcheck-pending · complete | opus |
+| Ops | bp-109 — a RUNNING row carries its own deadline, and a checkpointed row stops being swallowed | build · ready | opus |
+| Ops | bp-110 — THE INTEGRATOR: the worker protocol and the dispatch seam | build · ready | opus |
 | Ops | bp-111 — the dead-man inversion: health decays instead of being asserted | graduate · proposed | Fable/Opus |
 | Ops | bp-112 — the teeth: budgets that are enforced, and a kill that is bounded and loud | graduate · proposed | Fable/Opus |
 | Ops | bp-113 — the code lanes compute out-of-process and land in the supervisor | graduate · proposed | Fable/Opus |
 | Ops | bp-114 — the vault lane computes out-of-process; its five-store landing becomes one step | graduate · proposed | Fable/Opus |
-| Ops | bp-115 — P1: the inference client seam (the whole reversibility story) | build · ready | opus |
+| Ops | bp-115 — P1: the inference client seam (the whole reversibility story) | deskcheck-pending · complete | opus |
 | Ops | bp-116 — P2: the process manager — residency becomes a kernel fact | graduate · proposed | Fable/Opus |
 | Ops | bp-117 — P3: the equivalence gate (the owner-ruled cutover precondition) | graduate · proposed | Fable/Opus |
 | Ops | bp-118 — P4: the embedder cuts over first (biggest win, smallest risk, provable) | graduate · proposed | Fable/Opus |
@@ -66,6 +66,7 @@
 | Workflow / tooling | bp-096 — WF-1: the board substrate | deskcheck-pending · complete | opus |
 | Workflow / tooling | bp-097 — WF-2: the deskcheck gate | deskcheck-pending · complete | opus |
 | Workflow / tooling | bp-104 — bp-104: book sync, Chapter 2 (Architecture) — the boundaries, told from ratified mechanism | deskcheck-pending · complete | opus |
+| Workflow / tooling | bp-120 — AP1: the intent capsule as a typed artifact with a stable hash | build · ready | opus |
 
 ## Definition of done (per track — the deskcheck evaluates against this)
 

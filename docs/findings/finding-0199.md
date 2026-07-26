@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0199
-status: open
+status: routed
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - core/models/loader.py                              # _resident: the unreconciled books
   - core/models/ollama_client.py                       # ps() exists; the loader never calls it
@@ -15,10 +15,24 @@ links:
 ftype: design
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: routed — re-entry SATISFIED on both clauses (note ratified + interim minted); the code defect is live until bp-107 lands
 ---
 
 # The memory ceiling (non-negotiable #8) can be breached on the crash-restart path while its guard reports OK
+
+> **Triage 2026-07-26 (session-52) — re-entry fired and discharged into plans; the code defect is
+> unchanged.** `TwoSlotLoader` never reconciles `_resident` against Ollama: a repo-wide search finds
+> **no `.ps()` caller in `core/models/loader.py` at all**, and the only production caller is the
+> cosmetic embedder status line (`ops/lifecycle/launcher.py:1192` — drifted from the cited `:1094`,
+> same role). `loader.py:33,77-78,83-86` still early-returns and evicts over an empty dict.
+> **Discharge:** `dn-local-model-runtime` is `ratified` (`warrant:` this finding) and its §2.8 rules
+> the interim fix be minted separately, *"NOW"* — that plan is **bp-107 (`ready`)**, with bp-116 the
+> durable fix (residency becomes a kernel fact).
+> **⚑ This finding's own "Status of the evidence" section is now STALE:** `bp-107/plan.md:49` records
+> it was **REPRODUCED LIVE, all three phases** (corroborated `dn-local-model-runtime:112`).
+> **Closure:** when `loader.py` reconciles against `ps()` before `_check_ceiling`. **Sequencing:**
+> bp-107 must merge before bp-116 is spawned — both land on `core/models/loader.py`
+> (`bp-115/plan.md:133` already records the de-confliction).
 
 ## What
 

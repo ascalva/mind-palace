@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0064
-status: open
+status: resolved
 created: 2026-07-13
-updated: 2026-07-13
+updated: 2026-07-26
 links:
   - docs/build-plans/bp-026/plan.md
   - tests/unit/test_interpreter_versions.py
@@ -11,10 +11,14 @@ links:
 ftype: spec-defect
 origin_plan: bp-026
 route: builder
-resolution: null
+resolution: resolved — `tests/unit/test_interpreter_versions.py:65-68` pins phi_code 1.1.0 / sha256 a218c71d…60709ee, which matches `source_fingerprint` over the tree today and `ops/code_sensor.py:71`
 ---
 
 # bp-026's Item 19/20 source edit needs a phi_code source-hash RE-PIN (not a version bump)
+
+> **Triage 2026-07-26 (session-52) — CLOSED on evidence.** This finding was routed to `builder` and the fix landed, but nobody flipped it, so it has been inflating the open backlog. Closed here as bookkeeping, not as an orchestrator resolution of builder work — the citation in `resolution:` is the code or commit that contradicts the finding as filed. It was one of **10 stale-open** builder findings found this sweep (against **13 orphaned** ones that stay open); the lane's missing mechanism is **finding-0209**.
+>
+> **Residual, recorded not lost:** bp-026 reverted the over-bump; bp-094 then bumped 1.1.0 deliberately and re-derived the hash, explicitly citing this finding's re-pin-vs-bump doctrine (`bp-094/journal.md:47-57`).
 
 ## What
 

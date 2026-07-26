@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0154
-status: open
+status: routed
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 links:
   - docs/findings/finding-0145.md                      # the reference-sensor sizing (this EXPANDS its scope)
   - docs/brainstorms/reference-integrator.md           # the reference-sensor track's home brainstorm
@@ -12,10 +12,22 @@ links:
   - docs/findings/finding-0153.md                      # this track is a deskcheck-queue item (built vs done)
 ftype: design
 route: orchestrator
-resolution: null
+resolution: routed — unchanged; the last unstarted member of the AFTER-builds Fable queue
 ---
 
 # The reference track is a BOOKKEEPER agent, not a current-view pass — async, librarian-like, owns F-edge consistency across all sources incl. external research
+
+> **Triage 2026-07-26 (session-52) — unchanged and unstarted.** The only artifact carrying this is a
+> track manifest that says so outright: `docs/tracks/reference-bookkeeper.md:20-22` — *"No design note
+> or plan carries this slug yet."* Board row present (`docs/TRACKS.md:60`), with the info line
+> *"manifest `reference-bookkeeper` has no plan/note members yet"* (`:121`). No design note matching
+> bookkeeper/reference exists. `grep finding-0154` across `owner-questions.md`, `PROGRESS.md` and every
+> plan → **zero hits**.
+> **Re-entry unchanged:** a Fable design pass (capture → note → owner ratify → graduate). It closes
+> only when a ratified note covers deferred resolution, external-citation endpoint kinds, and
+> finding-0145's materialize/serve/prune half.
+> **Sequencing:** it now also owns finding-0145's scope (which this finding supersedes) and it is the
+> **last** of the three-item AFTER-builds Fable queue to start (0153 done, 0151 drafted, 0154 not).
 
 ## Owner reframing (2026-07-21)
 

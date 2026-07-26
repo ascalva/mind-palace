@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0143
-status: open
+status: routed
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 links:
   - docs/design-notes/agentic-loop.md   # §2.8 M-3/M-6 owed rows; PD-3's precondition
   - core/integrator.py                  # CoverageGauge / coverage_gauge (M-3)
@@ -15,10 +15,22 @@ links:
 ftype: discovery
 origin_plan: bp-087
 route: orchestrator                     # direction — records baselines dn-agentic-loop §2.8 owes
-resolution: null
+resolution: routed — re-entry narrowed to M-6c only; the §2.8 checkpoint the finding asked for is NOT executable (A8)
 ---
 
 # AL-2 baselines: M-3 (C-coverage) and M-6 (gap-instrument battery), 2026-07-21, live `data/`
+
+> **Triage 2026-07-26 (session-52) — still live, and the finding's own routing instruction is
+> impossible.** `dn-agentic-loop` §2.8 still reads M-3 *"gauge built, reading not yet taken"*
+> (`agentic-loop.md:488`) and M-6 *"owed"* (`:491`). The finding asserted "nothing here is ratified
+> text" — but that note was **ratified in the same blessing commit `fbea48d`**, so A8 makes the table
+> agent-immutable and **the requested checkpoint cannot be written at all.**
+> ⇒ **finding-0143 is therefore the baseline record of record**: M-3 = 0.8996, M-6a = 0 long-lived
+> holes, M-6b = 0.3391 doc_coverage.
+> **Re-entry, narrowed to one item:** M-6c (drift-vs-anchor) was never run — `measure_drift` still
+> exists at `eval/drift.py:210`. Run it against `eval/golden.py`'s golden set +
+> `eval/golden/baseline.json` in the first session with a live retriever, then amend or succeed this
+> finding with D(t). A wired inference seam (bp-115/bp-118) is the cheapest home.
 
 ## What
 

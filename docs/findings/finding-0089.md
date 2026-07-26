@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0089
-status: open
+status: resolved
 created: 2026-07-16
-updated: 2026-07-16
+updated: 2026-07-26
 links:
   - docs/build-plans/bp-049/plan.md
   - docs/design-notes/evaluation-harness.md
@@ -11,9 +11,21 @@ links:
 ftype: spec-fidelity
 origin_plan: bp-049 (sweep-engine, Item 14)
 route: orchestrator
+resolution: resolved — dn-sigma-sweep-experiment §2.2 pins `select_pipeline = dream_v2` by name
 ---
 
 # bp-049 §6/§8 under-specify which pipeline the optimizer selects on
+
+> **Triage 2026-07-26 (session-52) — RESOLVED.** The re-entry condition ("the design note pins the
+> selection-pipeline semantics") is satisfied structurally, not by default:
+> `docs/design-notes/sigma-sweep-experiment.md:76-77` (**ratified**) pins `select_pipeline = dream_v2`
+> **by name, citing this finding**, and `eval/harness/sweep.py:171-176` raises `SweepSpecError` when
+> `select_pipeline` is not among the declared pipelines — so the silent-wrong-lane failure is now
+> impossible, not merely unlikely. Covered both ways by `tests/unit/test_sweep.py:140,183-185`;
+> run 1 executed under it (finding-0096:22).
+> **Not carried as an open finding:** the general nicety (a required field, or a lever→pipeline map
+> instead of positional-last) has no caller today and re-arises only when a second multi-pipeline
+> sweep is specced on a different lever. File fresh then.
 
 ## What
 The sweep spec (§6) declares `pipelines = ["phase7", "dream_v2"]` — the runner produces BOTH per

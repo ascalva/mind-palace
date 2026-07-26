@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0108
-status: open
+status: resolved
 created: 2026-07-18
-updated: 2026-07-18
+updated: 2026-07-26
 links:
   - ops/chat_sensor.py                             # build_chat_sensor + _default_transcripts_dir ALREADY exist (bp-063), unused
   - scheduler/chat_sync.py                         # bp-068: KIND/handler/enqueue only (NO duplicate builder)
@@ -13,10 +13,14 @@ re_entry: owner/orchestrator — decide whether the transcripts dir needs TOML-o
 ftype: spec-fidelity
 origin_plan: bp-068
 route: builder
-resolution: resolved-in-plan (bp-068) — reused the existing builder + enqueued on the pinned tier in-scope; config field deferred
+resolution: resolved — G1/G2 resolved inside bp-068; follow-up #2 landed (`scheduler/router.py:43-44` `_PINNED_KINDS` includes `chat_sync`)
 ---
 
 # bp-068 grounding gaps: `build_chat_sensor` already existed, and `chat_sync` pinning needs a router edge out of scope
+
+> **Triage 2026-07-26 (session-52) — CLOSED on evidence.** This finding was routed to `builder` and the fix landed, but nobody flipped it, so it has been inflating the open backlog. Closed here as bookkeeping, not as an orchestrator resolution of builder work — the citation in `resolution:` is the code or commit that contradicts the finding as filed. It was one of **10 stale-open** builder findings found this sweep (against **13 orphaned** ones that stay open); the lane's missing mechanism is **finding-0209**.
+>
+> **Residual, recorded not lost:** Follow-up #1 (a TOML `chat_transcripts_dir` field) remains unimplemented but was framed as a deferred enhancement — "nothing is lost for v1".
 
 ## What (two grounding gaps caught at build start — [[ground-before-building]])
 

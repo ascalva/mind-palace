@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0184
-status: open             # open → routed → resolved | promoted
+status: routed
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - docs/build-plans/bp-104/plan.md
   - docs/research/security-planes.md
@@ -13,10 +13,19 @@ links:
 ftype: spec-defect
 origin_plan: bp-104
 route: orchestrator
-resolution: null
+resolution: routed → owner (oq-0044b); security-planes.md is draft yet a ratified note AND the live denylist stand on it
 ---
 
 # The three-plane security composition is load-bearing but lives in a DRAFT research note
+
+> **Triage 2026-07-26 (session-52) — batched to `oq-0044` part (b).**
+> `docs/research/security-planes.md:2-4` is still `type: research, status: draft` — while two things
+> already stand on it: **ratified** `dn-type-system-as-core-audit` takes its three-plane composition
+> as doctrine, and the **live foundation denylist cites it as its origin** —
+> `.claude/hooks/_lib.py:27` reads verbatim *"(design-note §6, §10; origin: security-planes.md)"*,
+> with `DENYLIST` at `:35-39` holding three entries, **narrower than the note's candidate
+> enumeration**, exactly as this finding predicted. `oq-0012` ratified only the *extension*, never the
+> base note. Unratified means its falsifier can never be a plan's acceptance criterion.
 
 ## What
 

@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0145
-status: open
+status: resolved
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 links:
   - docs/brainstorms/reference-integrator.md    # the reference sensor's warrant (PD-5)
   - docs/design-notes/agentic-loop.md            # PD-5; G-F (X_cite staleness); §2.8 M-5 (deferred second half)
@@ -13,10 +13,23 @@ links:
 ftype: discovery
 origin_plan: null                                # a standalone measure-first reading (owner-requested)
 route: orchestrator                              # direction — sizes PD-5 / the reference-sensor track
-resolution: null
+resolution: resolved-as-subsumed — finding-0154 supersedes the sizing; the prune half is void under finding-0164
 ---
 
 # The X_cite staleness gap, measured — sizing the reference sensor (PD-5 / G-F)
+
+> **Triage 2026-07-26 (session-52) — RESOLVED as subsumed.** Re-measured this session: the store now
+> holds **1,530,904 rows across 1,135 commit snapshots** (was 943,374 / 899), and there is still no
+> current-view surface (`core/stores/reference_edges.py:299,329` expose only `all()` and
+> `for_commit()`). So the measurement's *direction* holds and has worsened — but its *disposition* is
+> superseded on both halves:
+> - **finding-0154** explicitly supersedes this finding's "small pass" sizing: the reference track is
+>   a **bookkeeper agent**, not a current-view projection.
+> - The **prune/compact half is now void** under owner ruling finding-0164 (*every ingest path must
+>   keep-and-link, never delete-and-replace*).
+> Sequence with finding-0154; do not close 0154 on this one's resolution.
+> **Stale surface to fix elsewhere:** `docs/PARKING-LOT.md:181`'s `ref-sensor` row still says
+> "MEASURE the staleness gap first" — it is measured.
 
 ## What — the reading (live `data/reference_edges.sqlite`, read-only, 2026-07-21)
 

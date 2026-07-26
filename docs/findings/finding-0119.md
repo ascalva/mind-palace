@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0119
-status: open
+status: routed
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-07-26
 links:
   - CLAUDE.md                                          # "two blessing gates are owner-only, by hand"
   - docs/design-notes/agent-workflow.md                # the workflow constitution this bears on
@@ -14,10 +14,20 @@ re_entry: null
 ftype: discovery
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: routed → owner (oq-0040); `palace bless` is flip-only, so the atomic ceremony is partial
 ---
 
 # The mint→bless→commit handoff is clumsy — an untracked bless welds two actors' commits into one un-committable state
+
+> **Triage 2026-07-26 (session-52) — batched to `oq-0040`.** The mechanism is unchanged and the
+> ordering hazard is still reachable. `palace bless` **exists but is flip-only**
+> (`scripts/palace.py:50-118`): it refuses in agent sessions, requires exactly `proposed`, and
+> rewrites only `status:`/`updated:` — it does **not** mint-if-untracked, stage, or commit, so
+> candidate 2's atomic ceremony is partial. Candidate 1 was never adopted; candidate 3 does not
+> exist. `_untracked_blessing` still blocks a from-nothing `ready` (`_lib.py:618-637`, `:860-867`).
+> **⚑ New and load-bearing since filing:** the ceremony now has the *agent* commit the owner's hand
+> flip, so a committed from-nothing `ready` is byte-indistinguishable from an agent forgery — this is
+> `oq-0036`'s crux in its cheapest form. Sequence `oq-0040` with `oq-0036`.
 
 ## What
 Observed live this session (session-37, re-graduating bp-076 → bp-078). The normal

@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0183
-status: open             # open → routed → resolved | promoted
+status: routed
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - docs/build-plans/bp-104/plan.md
   - docs/book/chapters/01-philosophy.tex
@@ -14,10 +14,18 @@ links:
 ftype: spec-defect
 origin_plan: bp-104
 route: orchestrator
-resolution: null
+resolution: routed → owner (oq-0044a); dn-the-sacred-boundary still draft, so the three-channel taxonomy has no ratified home
 ---
 
 # Chapter 1 forward-promised a taxonomy that only a DRAFT note carries — Chapter 2 cannot deliver it
+
+> **Triage 2026-07-26 (session-52) — batched to `oq-0044` part (a).**
+> `docs/design-notes/the-sacred-boundary.md:4` is still `status: draft` (untouched since `66c3e6f`,
+> no 2026-07 commit), and `verdict-authority.md:4` is also `draft` — so the three-channel taxonomy
+> (verdict authorization · ingestion · effects) still has **no ratified home**, and five subsystem
+> notes hang off an unblessed spine. bp-104's interim repair is holding:
+> `01-philosophy.tex:99` uses `\fwdthesis{the sacred boundary}{ch:architecture}` and `SYNC.md:100-104`
+> carries the `forward-referenced:` row.
 
 ## What
 

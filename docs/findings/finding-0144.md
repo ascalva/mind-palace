@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0144
-status: open
+status: resolved
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 links:
   - docs/build-plans/bp-084/plan.md         # S1 — the plan this blocks
   - docs/design-notes/inner-outer-core.md   # §2.6b the ruling; Appendix A the +7 preview
@@ -18,10 +18,19 @@ links:
 ftype: spec-fidelity
 origin_plan: bp-084
 route: orchestrator        # needs a write_scope amendment + one design decision — beyond builder capability
-resolution: null
+resolution: resolved — bp-089 (complete) landed all three write_scope additions; bp-084 superseded
 ---
 
 # bp-084 (S1) cannot deliver the atomic +7 as written — three write-scope / grounding gaps
+
+> **Triage 2026-07-26 (session-52) — RESOLVED.** All three gaps were remediated by the successor
+> plan: `bp-084` is `status: superseded` (warrant: this finding) and **bp-089 is `complete`** with
+> `core/temporal_view.py`, `core/stores/claim_ops.py` and `core/integrator_math.py` all in its
+> `write_scope`. Issue C's naming correction executed: `core/kernel/rings.py:58ff` lists
+> `core.kernel.integrator_math` in `INNER` with `core.integrator` correctly absent.
+> **Standing erratum (no action, do not edit):** `dn-inner-outer-core:372,586` still name
+> `core.integrator` in the +7. That note is `ratified` and therefore agent-immutable under A8 — this
+> finding is its erratum of record, per the oq-0025/0026/0028 discipline.
 
 ## TL;DR
 

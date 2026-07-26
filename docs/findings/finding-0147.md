@@ -1,19 +1,30 @@
 ---
 type: finding
 id: finding-0147
-status: open
+status: resolved
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 links:
   - docs/design-notes/code-ingest-pipeline.md      # the audited artifact (draft, corrected in place)
   - docs/findings/finding-0146.md                  # the note's warrant
   - docs/findings/finding-0145.md                  # sibling measurement the note cites
 ftype: spec-fidelity
 route: orchestrator            # feeds the owner's ratification decision on dn-code-ingest-pipeline
-resolution: null
+resolution: resolved — 16 corrections applied 5990957; note ratified 0c2deae; the fable-provenance lesson ratified into dn-track-board-and-deskcheck-gate:233
 ---
 
 # Audit log — fable line-by-line audit of `dn-code-ingest-pipeline` (opus-authored, untrusted)
+
+> **Triage 2026-07-26 (session-52) — RESOLVED.** The audit's purpose (feed the owner's ratification
+> decision) is discharged and the corrections survived into the now-**ratified** text. Spot-verified:
+> correction 2 (five→six provenance classes) at `code-ingest-pipeline.md:298,313`; correction 9 (the
+> DRY seam is `chunk_text`, not `derive_chunks`) at `:150`; correction 7 (F-CI2 → the L0a cover check)
+> at `:572,611`; correction 1 (the false "Composed at fable" banner) at `:28-40` verbatim.
+> Commits: corrections `5990957`, draft `625a058`, blessing `0c2deae`/`4eb80c8`.
+> **The durable lesson is now ratified law, not memory:** *harness report, never self-report* —
+> `dn-track-board-and-deskcheck-gate:233`.
+> **Do not read this audit as covering finding-0156** (a later drift in bp-092's pins, which it
+> predates).
 
 ## Why this audit ran
 

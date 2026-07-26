@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0121
-status: open
+status: routed
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-07-26
 links:
   - .claude/skills/delegate/SKILL.md               # "worktrees are cheap" — cleanup is convention, not enforced
   - .claude/hooks/journal-gate.sh                  # the Stop-gate family a reaper-audit would join
@@ -12,10 +12,23 @@ re_entry: null
 ftype: discovery
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: open — no reaper exists; leak re-accumulated to 4.3 GB. Closing act = a `proposed` tooling plan
 ---
 
 # Delegated-build worktrees leak — 10 stale trees (~7 GB) accumulated with no reaper; workspace hygiene is convention, not enforcement
+
+> **Triage 2026-07-26 (session-52) — still exactly true, and re-accumulated.** No reaper exists
+> anywhere: `grep -rEn "worktree (remove|prune|gc)|worktree-gc"` over `scripts/ .claude/` returns
+> **zero hits**. `.claude/worktrees/` holds 8 directories totalling **4.3 GB**; `git worktree list`
+> registers 7 agent trees, **all 7 branches merged to `main` and clean**; 16 `worktree-agent-*`
+> branches exist (8 merged). One directory (`agent-a75921da9dde8c99d`, Jul 22) is **not registered at
+> all** — a `git worktree prune` candidate.
+> **No owner ruling needed** (the direction "keep our workspace clean" was already given). The
+> closing act is a `proposed` tooling plan with this finding as warrant:
+> `scripts/palace.py worktree-gc` (remove merged+clean, report unmerged/dirty, never force) + wiring
+> (a `/triage` call and/or a journal-gate Stop clause) + the `.venv`-sharing investigation.
+> **Interim:** reap the 7 merged trees and prune the unregistered dir — but confirm no sibling agent
+> of the current wave is live in one first.
 
 ## What
 Surfaced by the owner (2026-07-20) mid plane-migration: `.claude/worktrees/` held **10 stale

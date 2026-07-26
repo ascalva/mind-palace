@@ -5435,3 +5435,105 @@ born-sliced, structural fix owed). **OWED: owner deploy** (after the running see
 until deployed the live daemon still delete+replaces on every commit) → the catch-up probe then
 AUTO-enqueues the history backfill; then the code-ingest DESKCHECK (keep-and-link + backfill + a
 resolved supersession edge on the real store) and the dn-integrator-densification ratification.
+
+---
+
+**/triage SESSION-52 CHECKPOINT (2026-07-26) — the four-session backlog swept, plus two owner
+rulings.** The first `/triage` since session-47. Entered with **63 unswept findings / 20 open owner
+questions**; exited with **15 open findings / 31 open questions**, every disposition re-verified
+against the tree at `3e88bae` by a seven-agent read-only fan-out (no agent held a write tool; all
+writes are the orchestrator's).
+
+**Two owner rulings recorded.** (1) **The ε raise → finding-0011 UPDATED, not contradicted** (the
+owner's explicit instruction). The finding's factual claim still holds — nothing is wired, max
+reachable tier is still NONE — so what changed is its *disposition*: the interim obligation is the
+`hands-and-the-effector-layer.md:306` reword ("the wired ceiling is ε = SENSING"), the terminal
+resolution is the wiring itself. ⚑ And the 2026-07-08 park reason is **stale**: that triage deferred
+the reword as owner-gated, but **A8** (ratified three days later) made a `draft` note agent-writable,
+and that note is `draft` — so the reword needs a plan, not the owner's hand. Staging recommendation
+(not ruled): per role / per class, class 3 unreachable. (2) **The auditor is the most expensive role**
+— captured to `docs/brainstorms/autopilot-mode.md`. It answers the 07:14Z open question (tier buys
+independence of *judgment*; role-typing only buys independence of *context*), and it added a **third
+review surface**: the owner enumerated "plans, builds, **deliveries**", where ruling 1's composition
+had only GATE A/B. Consistency note: the context-economy tier table already assigns *merge scrutiny*
+to top tier + xhigh, so the auditor **is** that row — no new vocabulary. ⚑ But the tier must be
+*enforced* (`scheduler/router.py:81-88` is the seam), because a silent downgrade of the auditor leaves
+the gate standing while removing what the gate was for.
+
+**Findings: 10 resolved · 1 promoted · 27 re-routed with corrected re-entries · 10 stale-open closed ·
+2 filed.** Resolved on cited evidence: 0089, 0144, 0145 (subsumed by 0154; its prune half **void**
+under owner ruling 0164), 0146 (code-vectorization ruling fully landed — `9d53927`/`0c2deae`, comments
+table at 1,562,964 rows), 0147, 0148, 0149, 0150, 0152. Promoted: **0153** (deskcheck gate — ratified
+note + bp-096/097 complete). Substantive corrections made to live findings rather than left standing:
+**0103** recounted **19 → 20** violations (the 20th is `core/ingest/code_corpus.py:56 → ops.code_snapshot`,
+`4acb9f0`) and re-weighted as a **safety** discharge, not hygiene; **0174**'s arithmetic corrected
+**23.0 + 2.5 = 25.5 → 23.0 + 10.0 = 33.0** against `usable_ram_gb = 24.0` (the embedder costs 10 GB
+under Ollama's default ctx 40960, 3.69 GB under llama-server at 8192 — the mechanism is **context, not
+weights**, which invalidates a weights-only `resident_gb` as the fix); **0175**'s comparison table has
+two wrong cells (`docket.md` is derived-but-**un**versioned, not both; the 49 KB figure is a reading,
+not a property) and its bp-100/101/102 gate has **opened**; **0143**'s requested §2.8 checkpoint is
+**not executable** (A8 froze the note), so 0143 *is* the baseline record; **0190**'s pf-anchor citation
+corrected to `verify_planes.py:270-291` (SKIP, not PENDING). Two promotions **proposed for owner
+ratification, never edited**: **0109** (ratified `dn-chat-sensor` still forbids the realtime sensing
+that is built and wired — §6's non-goal must be named, not just §4's park) and **0191**
+(`write_scope` must partition the wave diff — an amendment to ratified `dn-agent-workflow`, with
+0182's half folded in; instances 2/3/4 are the evidence package).
+
+**⚑ The sweep's own discovery — filed as `finding-0209`: the builder-routed lane has no bookkeeping,
+and 23 of 23 open findings in it were mis-stated.** 13 are **orphans** (still live, and *no* plan
+references them, so no future session will ever see them: 0073, 0076, 0106, 0107, 0130, 0179, **0189**,
+0194, 0195, 0197, 0202, 0203, 0208) and 10 were **fixed weeks ago and never flipped** (closed this
+sweep with citations: 0046, 0059, 0064, 0108, 0170, 0172, 0173, 0176, 0177, 0201). So the backlog was
+lying in both directions at once. ⚑ **finding-0189 is the sharp one**: it is the missing monotonicity
+pin on `test_core_self_containment.py` — the ratchet on which non-negotiable #1's static tier is
+*conditional* (finding-0185) — it regressed undetected, the green gate **deselects** it, and it has
+zero plan references. Sequence it before any further core-adjacent build. Remedy shape: a **derived
+orphan register** in `scripts/board.py` (which already parses both sides, and would finally consume the
+`audit_refs` field finding-0208 shows is parsed and discarded), surfaced by `/triage` — derived and
+raised, the deskcheck-queue pattern, never remembered. Also filed **`finding-0210`**: capsule
+timestamps drift ahead of the clock (`autopilot-mode.md`'s last labels run ~90 min past the commit that
+carries them) while the standing reading rule is "later capsules supersede earlier ones" — so a label
+that runs ahead inverts the only ordering signal a reader has.
+
+**Owner questions: 4 swept · 11 batched (oq-0038 … oq-0048), none blocking.** Swept: **oq-0020**
+(covering-only `supersedes` = *adopt*; ⚑ the invariant already **holds empirically** — the G-A survey
+measured D at 19 docs / **0 triangles** — only the validator is owed), **oq-0027**, **oq-0032** (both
+session-39 notes ratified at `fbea48d`; its two *prose* residuals deliberately re-batched as oq-0041 and
+oq-0042 rather than dropped), **oq-0034** (code-ingest default-ON, verified at
+`config/defaults.toml:96-110`). New: 0038 `scripts/` tidy · 0039 four Chapter-1 draft theses · 0040
+`/graduate` commits the mint (the cheap half of oq-0036) · 0041 headless-daemon secret bootstrap ·
+0042 fable-capable headless credential · 0043 the fiber survey's unmeasured S rows · 0044 two
+unratified frames the manual **and the live denylist** already stand on · 0045 should the import
+firewall walk the closure · 0046 core→`hvac` in two hops, pf anchor not loaded · 0047 the two disjoint
+`ftype` vocabularies (**blocks the autopilot routing tier**; time it with the superseding note) · 0048
+the cost-ledger holes (⚑ the filed diagnosis was **too narrow** — bp-108 was *delegated* and still
+sealed `unmeasured`, so deferred sealing, not in-session work, is the cause; the pad that protects
+every future delegation calibrates off this).
+
+**⚑ THIS DUTY'S OWN LAPSE, MEASURED.** `docs/PROGRESS.md` ended at bp-099 (session-43): **12 completed
+plans carry no checkpoint** — bp-010, bp-074, bp-075, bp-077, bp-100, bp-101, bp-102, bp-103, bp-104,
+bp-105, bp-108, bp-115 — including bp-108 and bp-115, sealed at `185f16e` with no entry here at all.
+Not backfilled in this sweep (each needs its journal read); recorded as a **sized** debt rather than an
+invisible one. No plan became `complete` this sweep, so nothing new was owed a seal.
+
+**Deskchecks: 5 owed, 0 records.** The queue reads 5 tracks owed and `docs/deskchecks/` holds only
+`README.md` — so the gate that bp-096/097 built has **never been exercised**, and there is no
+`/deskcheck` command. Kept raised; the verdict is owner-only, by hand, like the two blessings.
+
+**Book debt:** finding-0196 (Chapter 2 — the outer ring mis-stated as `core/** minus core/kernel/**`
+when six `INNER` members live outside that subtree, plus two unqualified "unconditionally" claims that
+`core/sealing.py:16-17` contradicts) is a **scribe** fix needing no ruling — and it is **invisible to
+the next scribe**, absent from `SYNC.md`'s `open:` list while siblings 0183/0184/0185 are in it. Queue
+it as item 1 of the next `/scribe`, carrying finding-0185's Chapter-2 item in the same pass.
+
+**Also captured this sitting (owner ideas, standing capture authority):**
+`docs/brainstorms/public-diffusion-markers.md` (three capsules — markers in published work, the probe
+agent and the **external graph**, and the safety constraint that inverts the architecture from
+API-fan-out to **offline index sweep**: pull the haystack, never broadcast the needle; DNS canaries
+**rejected**; design public, marker values private) · `ouroboros-email-identity.md` (SES analysis, then
+the owner's own correction that it was exploratory — two findings survive it: the effect catalog cannot
+express *irreversible but bounded blast radius*, and provider sandbox limits are guardrails) ·
+`process-weight.md` (the Kafka critique: the chain is common law rather than Kafka because every gate
+has a warrant and a repeal path, the weight is the price of disposable sessions — but the real
+pathology is **process artifacts no mechanism reads**, of which this sweep found four, and the test is
+*name the reader*).

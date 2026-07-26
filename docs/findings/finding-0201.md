@@ -1,9 +1,9 @@
 ---
 type: finding
-status: open
+status: resolved
 id: finding-0201
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - docs/build-plans/bp-108/plan.md
   - docs/design-notes/dn-supervision-and-liveness.md
@@ -12,7 +12,7 @@ links:
 ftype: discovery
 origin_plan: bp-108
 route: builder
-resolution: >
+resolution: resolved — self-resolved in bp-108: Item 2 was built on the measured fork-not-exec mechanism rather than the assumed one (`bp-108/journal.md:93,438`)
   Resolved in-plan. V8 PASSES, but by a different mechanism than bp-108 §3 Q7(b)
   assumed: `uv run` FORKS, it does not exec. The lock is nonetheless held by the
   python process alone (lsof shows no wrapper fd), so the guarantee stands. Item 2
@@ -20,6 +20,10 @@ resolution: >
 ---
 
 # V8 measured: `uv run` forks rather than execs — the lock still lands on python, for a
+
+> **Triage 2026-07-26 (session-52) — CLOSED on evidence.** This finding was routed to `builder` and the fix landed, but nobody flipped it, so it has been inflating the open backlog. Closed here as bookkeeping, not as an orchestrator resolution of builder work — the citation in `resolution:` is the code or commit that contradicts the finding as filed. It was one of **10 stale-open** builder findings found this sweep (against **13 orphaned** ones that stay open); the lane's missing mechanism is **finding-0209**.
+>
+> **Residual, recorded not lost:** bp-111 (`proposed`) does not repeat the false exec claim, so nothing downstream is mis-grounded today.
 # different reason than the plan assumed
 
 ## What

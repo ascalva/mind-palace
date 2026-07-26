@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0185
-status: open             # open → routed → resolved | promoted
+status: routed
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - docs/build-plans/bp-104/plan.md
   - ops/import_lint.py
@@ -14,10 +14,22 @@ links:
 ftype: discovery
 origin_plan: bp-104
 route: orchestrator
-resolution: null
+resolution: routed → owner (oq-0045); the firewall's closure claim is checked only against DIRECT imports
 ---
 
 # The import firewall's global claim is conditional on core self-containment — the two ratchets are one theorem
+
+> **Triage 2026-07-26 (session-52) — all three legs hold; re-weighted as SAFETY.**
+> `ops/import_lint.py:1-9` motivates itself with a **closure** claim (*"if no module under `core/` can
+> **reach** a network-capable module, then no egress path exists"*) while `scan_core` (`:107-112`) is
+> one AST walk per file over **direct** imports only (`:80,93`) — no traversal. Neither docstring
+> carries the modulo note this finding asked for. The ratchet is still red at **20** sites across 9
+> files (`ops` 9 · `config` 9 · `eval` 7 · `edge` 2 · `scheduler` 1 · `agents` 1, counting
+> function-level imports), matching finding-0189's recount.
+> **⇒ Non-negotiable #1/#2's *static* tier is therefore CONDITIONAL on a red ratchet.** The book
+> already carries the conditional honestly as `Proposition 2.1/2.2`
+> (`02-architecture.tex:1112`). Proposal 3 enacted here: finding-0103 is re-weighted on the board as a
+> **safety-discharge** item, not hygiene. No plan or note anywhere proposes a closure-walking lint.
 
 ## What
 

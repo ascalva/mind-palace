@@ -1,19 +1,26 @@
 ---
 type: finding
 id: finding-0114
-status: open             # open → routed → resolved | promoted
+status: routed
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-07-26
 links:
   - scripts/                                       # the drawer that has drifted
   - CONVENTIONS.md                                 # §Language / package-boundary practice
 ftype: discovery         # blocker | spec-defect | question | discovery
 origin_plan: bp-072
 route: orchestrator      # direction — repo organization; owner's call, not a builder edit
-resolution: null
+resolution: routed → owner (oq-0038); re-measured 38 files / 4077 LOC
 ---
 
 # `scripts/` has drifted into three drawers under one label — a tidy is worth considering
+
+> **Triage 2026-07-26 (session-52) — batched to `oq-0038`.** Still live and larger than filed:
+> `scripts/` now holds **38 files / 4077 LOC** (was 34 / ~2.8k). No `archive/` subdir exists; every
+> named drawer-2 one-off (`migrate_chunk_keys.py`, `migrate_provenance_split.py`,
+> `reembed_bodyonly.py`, `purge_raw.py`, `ingest*.py`, `snapshot_code.py`) and every drawer-3 harness
+> (`experiment.py`, `review.py`, `tune.py`, `sweep.py`, `report.py`, `verdict.py`, `fibers.py`,
+> `eval.py`) is still in place. `CONVENTIONS.md` states no `scripts/` vs `eval/` boundary.
 
 ## What
 Surfaced by the owner mid-bp-072 ("the scripts dir is getting overly crowded"). `scripts/`

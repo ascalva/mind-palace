@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0175
-status: open
+status: routed
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - .claude/state/resume-brief.md                      # the artifact (gitignored — not in the tree)
   - scripts/docket.py                                  # the DERIVED-view precedent, with its falsifier
@@ -14,10 +14,28 @@ links:
 ftype: spec-defect
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: routed — durable claims hold; TWO table cells are factually wrong and the bp-100/101/102 gate has OPENED
 ---
 
 # The resume brief is the last destructively-overwritten artifact in a system that has outlawed destructive overwrite
+
+> **Triage 2026-07-26 (session-52) — claims hold; the comparison table has two wrong cells.** The
+> durable defect is real: the brief is hand-produced, destructively overwritten, historyless, and
+> gitignored (`.claude/state/.gitignore:5`), consumed by `session-brief.sh:39,46` and demanded by
+> `_lib.py:909-917`. No append-only state log exists.
+> **⚑ WRONG ROWS — fix before the design note quotes this table:**
+> 1. **`docket.md`** is listed `in git: yes` / `in the corpus: yes`. **Both false.**
+>    `docs/inbox/docket.md` does not exist; `docket.py --write` targets `.claude/state/docket.md`
+>    (`scripts/docket.py:20`), which the same `*` ignore rule covers. It is derived-but-**un**versioned.
+> 2. **`size: 49,311 bytes`** is a session-instantaneous reading, not a property (the brief is 9,363
+>    bytes right now). Say *"unbounded within a session"* instead.
+> **The honest framing:** *derived* and *versioned* are two **independent** axes. `TRACKS.md` and
+> `DESKCHECK-QUEUE.md` are genuinely both (GENERATED banners **and** `git ls-files`); the brief fails
+> both; `docket.md` fails only the second. Split the table into two columns.
+> **⚑ The gate has OPENED:** the re-entry *"do NOT build while builders run; bp-100/101/102 must merge
+> first"* is **satisfied** — all three are `complete`. Record that rather than leaving a stale
+> precondition standing. The note amends **ratified** `dn-agent-workflow`, so it must be a new or
+> superseding note, never an edit.
 
 ## What
 

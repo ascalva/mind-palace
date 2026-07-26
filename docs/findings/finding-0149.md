@@ -1,18 +1,29 @@
 ---
 type: finding
 id: finding-0149
-status: open
+status: resolved
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 links:
   - docs/findings/finding-0147.md                  # the deep audit of dn-code-ingest-pipeline (16 corrections)
   - docs/findings/finding-0148.md                  # the M2/K1 un-minted follow-through (owner-flagged)
 ftype: discovery
 route: orchestrator
-resolution: null
+resolution: resolved — both enumerated gaps closed (finding-0147 · finding-0148); systemic banner rule ratified
 ---
 
 # Audit rollup — the 2026-07-18→21 design corpus + its build plans, audited at fable (main loop)
+
+> **Triage 2026-07-26 (session-52) — RESOLVED.** This rollup enumerated exactly two "what slipped
+> through" items and its third was *"Nothing else"* — so it has no residual re-entry condition once
+> both close, and both now have:
+> 1. the `dn-code-ingest-pipeline` defects → corrected `5990957`, note ratified `0c2deae`
+>    (finding-0147, resolved this sweep);
+> 2. the M2/K1 migration → built by bp-090/bp-091, `core/kernel/` on disk (finding-0148, resolved
+>    this sweep).
+> Its **systemic** observation (a self-reported provenance banner is the forgery vector) is now
+> ratified text at `dn-track-board-and-deskcheck-gate:233`, not merely a memory.
+> **Kept as the dated audit record** for the 2026-07-18→21 ratified cohort; no new work.
 
 ## Why
 

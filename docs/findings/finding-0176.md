@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0176
-status: open
+status: resolved
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - docs/build-plans/bp-100/plan.md                    # §2.6 mandates the shim; §5 write_scope omits it
   - core/typedshims/lancedb.py                         # the §2.5 boundary that must be widened
@@ -13,10 +13,14 @@ links:
 ftype: spec-defect
 origin_plan: bp-100
 route: builder
-resolution: null
+resolution: resolved — bp-103: `core/typedshims/lancedb.py:54-97` declares UpdateResult/VectorQuery/update/scan and `core/stores/vectorstore.py:221-236` implements `supersede_source` as one pushed-down `update()` with no read
 ---
 
 # bp-100 cannot reach its own objective inside its write_scope — the LanceDB typedshim is the fix, and it is not writable
+
+> **Triage 2026-07-26 (session-52) — CLOSED on evidence.** This finding was routed to `builder` and the fix landed, but nobody flipped it, so it has been inflating the open backlog. Closed here as bookkeeping, not as an orchestrator resolution of builder work — the citation in `resolution:` is the code or commit that contradicts the finding as filed. It was one of **10 stale-open** builder findings found this sweep (against **13 orphaned** ones that stay open); the lane's missing mechanism is **finding-0209**.
+>
+> **Residual, recorded not lost:** Both `xfail(strict=True)` ratchets came off (`tests/unit/test_store_cost_ratchet.py:12`). ⚑ But see finding-0192: the meter does not watch `update`/`count_rows`, so the ratchet's green is carried by a semantic assertion, not by the counter.
 
 ## What
 

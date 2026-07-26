@@ -1,19 +1,23 @@
 ---
 type: finding
 id: finding-0046
-status: open
+status: resolved
 created: 2026-07-12
-updated: 2026-07-12
+updated: 2026-07-26
 links:
   - tests/e2e/test_scheduler_live.py
   - docs/build-plans/bp-016/journal.md
 ftype: codebase
 origin_plan: bp-016
 route: builder
-resolution: null
+resolution: resolved — fixed by bp-023: `tests/e2e/conftest.py:31-64` autouse `_serialize_live_axis` holds a cross-process `fcntl.flock` around every `live`-marked test
 ---
 
 # Live e2e test races its own clean-slate unload — flaky empty-text failure
+
+> **Triage 2026-07-26 (session-52) — CLOSED on evidence.** This finding was routed to `builder` and the fix landed, but nobody flipped it, so it has been inflating the open backlog. Closed here as bookkeeping, not as an orchestrator resolution of builder work — the citation in `resolution:` is the code or commit that contradicts the finding as filed. It was one of **10 stale-open** builder findings found this sweep (against **13 orphaned** ones that stay open); the lane's missing mechanism is **finding-0209**.
+>
+> **Residual, recorded not lost:** The cross-worktree residual is NOT this finding — it is oq-0018 (still open).
 
 ## What
 

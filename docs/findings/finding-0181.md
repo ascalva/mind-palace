@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0181
-status: open
+status: routed
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - ops/lifecycle/snapshot.py                          # the stale docstring + the parked figures
   - core/typedshims/lancedb.py                         # `count_rows(filter)` now exists (bp-103)
@@ -13,10 +13,23 @@ links:
 ftype: codebase
 origin_plan: bp-103
 route: orchestrator
-resolution: null
+resolution: routed — both stale docstring claims still in the tree; absorb into bp-109 or bp-111 (both already own the file)
 ---
 
 # bp-103 half-lifted a blocker bp-102 parked — and left two of bp-102's docstring claims false
+
+> **Triage 2026-07-26 (session-52) — still live, and the re-entry already fired once and was missed.**
+> `ops/lifecycle/snapshot.py:348-350` still lists `rows_for_source` among the methods that "do a full
+> `to_pylist()`", but `core/stores/vectorstore.py:182-198` now pushes the `source_path` predicate down
+> via `scan().where(…).limit(0)`. And `:362-367` still says the metadata reader *"**would be**
+> `count_rows(filter=…)`"* — which **exists** (`core/typedshims/lancedb.py:87,128-131`).
+> `git log -- ops/lifecycle/snapshot.py` shows `2add267` (bp-105) landed **after** filing without
+> correcting them — the "belongs to whoever owns `ops/**` next" re-entry is not self-executing.
+> **Cheap half:** absorb the docstring correction into **bp-109** (`ready`) or **bp-111**
+> (`proposed`) — both already carry `ops/lifecycle/snapshot.py` in `write_scope` — and fix
+> finding-0194's mis-citation in the same block (`snapshot.py:374` says finding-0178; it means 0179).
+> **Substantive half un-homed:** `count_current` + the `StoreStats` field — no pending plan owns
+> `core/stores/vectorstore.py` (bp-100/bp-103 both `complete`).
 
 ## What
 

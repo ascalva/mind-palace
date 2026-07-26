@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0170
-status: open
+status: resolved
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - scheduler/queue.py                                 # enqueue() — the bare INSERT
   - scheduler/chat_sync.py                             # build_chat_watcher's unconditional on_change
@@ -12,10 +12,14 @@ links:
 ftype: spec-defect
 origin_plan: orchestrator
 route: builder
-resolution: null
+resolution: resolved — bp-101: `scheduler/queue.py:232-271` collapses onto an existing QUEUED row for `_IDEMPOTENT_KINDS`, keyed on (kind, payload, tier, num_ctx)
 ---
 
 # The job queue has no enqueue coalescing — idempotent syncs stack without bound
+
+> **Triage 2026-07-26 (session-52) — CLOSED on evidence.** This finding was routed to `builder` and the fix landed, but nobody flipped it, so it has been inflating the open backlog. Closed here as bookkeeping, not as an orchestrator resolution of builder work — the citation in `resolution:` is the code or commit that contradicts the finding as filed. It was one of **10 stale-open** builder findings found this sweep (against **13 orphaned** ones that stay open); the lane's missing mechanism is **finding-0209**.
+>
+> **Residual, recorded not lost:** Implemented as application-level coalescing rather than the partial-unique-index the finding first proposed — per its own banner correction.
 
 ## What
 

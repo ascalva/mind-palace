@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0142
-status: open
+status: routed
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 links:
   - docs/design-notes/fiber-geometry.md            # §2.6 the M1–M10 battery; §2.5 PD-a re-entry; §2.4 phase model
   - docs/build-plans/bp-085/plan.md                # G-A — the survey plan this reading fulfils
@@ -12,10 +12,20 @@ links:
 ftype: discovery
 origin_plan: bp-085
 route: orchestrator                                # math | direction
-resolution: null
+resolution: routed → owner (oq-0043); the S deferral is unchanged and needs embed headroom, not code
 ---
 
 # Fiber-geometry measure-first survey (M1–M8): the recorded classes measured, the S (computed) class deferred; D-integrity holds; C is no longer empty
+
+> **Triage 2026-07-26 (session-52) — batched to `oq-0043`.** Both live items hold. The similarity (S)
+> deferral is unchanged — `eval/harness/fiber_survey.py:336-356` still carries the identical
+> embedder-contention path, and no later artifact records an S run. The cause is confirmed
+> independently by **finding-0174** (the embedder is invisible to the memory-ceiling loader), so this
+> needs **embed headroom, not code**: the survey upgrades itself once it has one.
+> **Standing erratum (no fourth erratum OQ minted, per the oq-0025/0026/0028 discipline):** the
+> ratified premise *"the C live census read came back empty"* (`dn-fiber-geometry:96`, repeated
+> `:386,:414,:523`) is now false — C is a populated fiber (237 nodes / 1193 edges). The note is
+> A8-frozen since `fbea48d`; **this finding is its erratum of record.**
 
 ## What
 

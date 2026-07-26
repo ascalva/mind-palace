@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0178
-status: open
+status: routed
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - scheduler/supervisor.py                            # tick() — the unbounded synchronous handler call
   - core/models/ollama_client.py                       # _post — the socket timeout that actually fired
@@ -14,10 +14,24 @@ links:
 ftype: discovery
 origin_plan: bp-102
 route: orchestrator
-resolution: null
+resolution: routed — design half RULED (oq-0035 = both); two mechanical pieces live, one now DUPLICATED and un-homed
 ---
 
 # There is no job timeout — the "~75-minute budget" never existed, and one socket timeout is doing its job
+
+> **Triage 2026-07-26 (session-52) — design half ruled, mechanics still live.** `oq-0035` was answered
+> **(c) BOTH** (owner, 2026-07-25) and the design landed in ratified `dn-supervision-and-liveness`
+> (`3945d9f`). Both mechanical pieces in the re-entry remain, and one has been **duplicated**:
+> - piece 1: `core/models/ollama_client.py:56,66` still catches only `urllib.error.URLError`, so
+>   `TimeoutError`/`socket.timeout` still escapes un-wrapped — **and bp-115 copied the pattern into
+>   `core/models/llama_server_client.py:143-147,164-166`**, so the fix now needs *both* clients and
+>   **no pending plan owns that file**.
+> - piece 2: `scheduler/supervisor.py:89` still does `queue.fail(job.id, repr(e))` with no kind and no
+>   elapsed — absorbable by bp-110/bp-112, which both own that file.
+> No job budget exists anywhere (`grep job_budget` → 0 hits); bp-110/bp-112 both carry
+> `job_budget_s: float = 0.0`.
+> **⚑ Guard at merge:** do not let bp-112 delete `launcher.py:1158-1160`'s honest *"(no enforced job
+> budget)"* string without actually landing the budget.
 
 ## What
 

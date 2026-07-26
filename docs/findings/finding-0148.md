@@ -1,19 +1,31 @@
 ---
 type: finding
 id: finding-0148
-status: open
+status: resolved
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 links:
   - docs/design-notes/inner-outer-core.md          # the note whose M2 stage is at issue
   - docs/build-plans/bp-083/plan.md                # M0 — rings enforced in place (sealed)
   - docs/build-plans/bp-089/plan.md                # S1 — temporal math splits, INNER 30→37 (sealed)
 ftype: direction
 route: orchestrator          # owner-flagged; the re-entry is a /graduate pass minting K1
-resolution: null
+resolution: resolved — bp-090 (K1) + bp-091 (K3) complete; core/kernel/ exists, rings recomputed at build HEAD
 ---
 
 # The physical inner/outer reorganization (M2/K1) was never minted — owner-flagged; entry gates opened only this morning
+
+> **Triage 2026-07-26 (session-52) — RESOLVED.** The re-entry condition (a `/graduate` pass minting
+> K1) is satisfied and the work is built: `core/kernel/` exists with the full subtree, and
+> `core/kernel/rings.py:21-24` records `INNER` as "recomputed at build HEAD after the K1 (bp-090) and
+> K3 (bp-091) physical relocations", enumerating 29 born + 7 S1 kernel members plus the five
+> split-package outer residues. **bp-090 and bp-091 are both `complete`**, each carrying this finding
+> as `warrant`.
+> **Its §3 caveat materialized** — the CI-1↔K1 `chunk_text` sequencing collision it warned about
+> became finding-0156 (bp-092's write_scope/pins drifted under the relocation), already `resolved`.
+> That is the caveat working, not a miss.
+> **For the deskcheck:** the Inner/outer-core queue row still reads "bp-083/089, M0+S1" and should
+> name K1/K3 when demoed.
 
 ## What the owner observed (2026-07-21)
 

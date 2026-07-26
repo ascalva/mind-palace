@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0177
-status: open
+status: resolved
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - scheduler/queue.py                                 # JobQueue.sweep_orphans — built, public, UNCALLED
   - ops/lifecycle/launcher.py                          # the call site owed (bp-102 owns this file)
@@ -13,10 +13,14 @@ links:
 ftype: spec-defect
 origin_plan: bp-101
 route: builder
-resolution: null
+resolution: resolved — `be225fd` wired it: `QueueLike` declares `sweep_orphans` (`launcher.py:83-89`) and it is called at `:721`, before catchup and signal handlers
 ---
 
 # The orphan sweep is built but not wired — `sweep_orphans` has no caller (hand-off to bp-102)
+
+> **Triage 2026-07-26 (session-52) — CLOSED on evidence.** This finding was routed to `builder` and the fix landed, but nobody flipped it, so it has been inflating the open backlog. Closed here as bookkeeping, not as an orchestrator resolution of builder work — the citation in `resolution:` is the code or commit that contradicts the finding as filed. It was one of **10 stale-open** builder findings found this sweep (against **13 orphaned** ones that stay open); the lane's missing mechanism is **finding-0209**.
+>
+> **Residual, recorded not lost:** ⚑ That call site is itself finding-0197 (unguarded, pre-signal-handler) — still OPEN and orphaned; see finding-0209.
 
 ## What
 

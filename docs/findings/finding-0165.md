@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0165
-status: open
+status: routed
 created: 2026-07-22
-updated: 2026-07-22
+updated: 2026-07-26
 links:
   - scheduler/code_sync.py                             # the long-running BACKGROUND job class
   - core/ingest/watch.py                               # DirectoryWatcher poll-enqueue cadence
@@ -12,10 +12,25 @@ links:
 ftype: discovery         # observed live during the first code seed
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: routed — re-entry rewritten: the bp-099 decision is spent; the live condition is bp-113/bp-114 or a code_sync slice loop
 ---
 
 # Long-running BACKGROUND jobs starve the pinned-tier queue; poll-enqueues pile up behind them
+
+> **Triage 2026-07-26 (session-52) — re-entry rewritten (the old one is spent).** The stated re-entry
+> (the bp-099 decision) is discharged and **direction 2 shipped** — `scheduler/queue.py:25,113,123`
+> coalesces an idempotent kind onto the QUEUED row already waiting (bp-101, `complete`). Two halves
+> remain live:
+> - **direction 1 (slicing) absent:** `grep "checkpoint\|slice\|batch\|max_per\|requeue"
+>   scheduler/code_sync.py` → **zero hits**.
+> - **direction 3 CONFIRMED:** `core/ingest/watch.py:104-107` is
+>   `while not stop.wait(poll_interval_s): self.on_change()` — the watcher fires **unconditionally**,
+>   with no change detection.
+> **Live re-entry:** bp-113/bp-114 (out-of-process compute, both `proposed`, both `warrant:` this
+> finding) landing **with their measurement actually run** (`bp-113/plan.md:287`), or a small plan
+> giving `scheduler/code_sync.py` a `checkpoint` + re-enqueue slice loop.
+> **⚑ Do not merge bp-113/bp-114 claiming this closed unless bp-113 §7's measurement ran.** It has no
+> ops-track dod line yet — add one so it cannot be "closed without saying which".
 
 ## What (observed live, 2026-07-22, during the first code seed)
 

@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0172
-status: open
+status: resolved
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - ops/lifecycle/launcher.py                          # status — the reporting surface
   - docs/brainstorms/command-center.md                 # the owner's TUI vision this warrants
@@ -12,10 +12,14 @@ links:
 ftype: discovery
 origin_plan: orchestrator
 route: builder
-resolution: null
+resolution: resolved — bp-102 shipped Tier 1: `ops/lifecycle/launcher.py:1116-1300` does liveness-gated RUNNING, failure surface, in/out rates, throughput, per-kind oldest age, wedged/orphan detection; the docstring at `:1117-1123` cites this finding
 ---
 
 # `palace status` reports state, but every symptom of a live incident was a rate
+
+> **Triage 2026-07-26 (session-52) — CLOSED on evidence.** This finding was routed to `builder` and the fix landed, but nobody flipped it, so it has been inflating the open backlog. Closed here as bookkeeping, not as an orchestrator resolution of builder work — the citation in `resolution:` is the code or commit that contradicts the finding as filed. It was one of **10 stale-open** builder findings found this sweep (against **13 orphaned** ones that stay open); the lane's missing mechanism is **finding-0209**.
+>
+> **Residual, recorded not lost:** Tier 2 (a real-time command-center TUI) is unbuilt, but the finding's own two-tier split routes that as future design work via capture→note→graduate, not a code defect here.
 
 ## What
 

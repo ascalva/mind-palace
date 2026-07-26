@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0200
-status: open             # open → routed → resolved | promoted
+status: routed
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - docs/build-plans/bp-105/plan.md
   - .claude/skills/delegate/SKILL.md
@@ -11,10 +11,25 @@ links:
 ftype: spec-defect       # blocker | spec-defect | question | discovery
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: routed → owner (oq-0048); the filed diagnosis is TOO NARROW — deferred sealing defeats delegated builds too
 ---
 
 # The cost ledger can only see delegated work — in-session builds seal with a hole
+
+> **Triage 2026-07-26 (session-52) — batched to `oq-0048`, and the filed diagnosis is too narrow.**
+> The in-session/delegated split is **not** the operative cause. **bp-108 was a delegated worktree
+> builder and still sealed `tokens: unmeasured`** — because the completion notification's figure was
+> never carried into the next session's resume brief (`bp-108/plan.md:23-30`). bp-115 was also
+> delegated, got its token figure, and still sealed **both** deltas `unmeasured` (`:26-35`). So
+> **factor 2 (deferred sealing) defeats delegated builds too**, and a fixer aimed at the in-session
+> half would miss it.
+> No convention has landed in either governing skill: `grep "in-session|unmeasured|session_delta|
+> week_delta"` over the delegate and context-economy skills → **zero hits**; both assume the
+> notification figure is available. **Seven plans now read `unmeasured`** (bp-006, 012, 105, 108, 110,
+> 115, 119).
+> **Why it matters:** the delegate skill's pre-flight budget gate spawns only if
+> `padded_estimate ≲ available`, and the pad is calibrated from this ledger's own estimate/actual
+> pairs — so the holes degrade the gate that protects every future delegation.
 
 ## What
 The enriched `cost.actual` block (`model` / `tokens` / `ratio` / `session_delta` /

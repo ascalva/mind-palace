@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0196
-status: open
+status: routed
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - docs/audits/ops-wave-2026-07-25.md
   - docs/book/chapters/02-architecture.tex
@@ -13,10 +13,28 @@ links:
 ftype: spec-defect
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: routed — a SCRIBE fix, not a design change; and it is invisible to the next scribe (absent from SYNC.md)
 ---
 
 # Two Chapter 2 assertions outrun their mechanism at the edition ref
+
+> **Triage 2026-07-26 (session-52) — both defects live, verbatim, and the chapter is untouched.**
+> (a) `INNER` has exactly **43** members of which **six** are not under `core/kernel/` — computed
+> live: `core`, `core.complex`, `core.ingest`, `core.stores`, `core.temporal`, `core.typedshims`,
+> declared permanent split-package residue at `core/kernel/rings.py:46-57`. But
+> `02-architecture.tex:586-590` and `figures/core-rings.tex:38-39` both define the outer ring as
+> `core/**` minus `core/kernel/**`, **mis-locating those six**.
+> (b) *"unconditionally"* is still unqualified at `02-architecture.tex:263-264` and `:1114`, while
+> `core/sealing.py:16-17` states the native-extension bypass the chapter itself quotes 50 lines later.
+> **No owner ruling and no design change needed** — the ratified source (`dn-inner-outer-core` §2.5
+> present-tense vs §2.7/M3 end-state) already says the right thing; the chapter mis-tensed it.
+> **⚑ And it is invisible to the next scribe:** `grep 0196 docs/book/SYNC.md` → **zero hits**, while
+> siblings 0183/0184/0185 are all in the `open:` block (`:139-158`).
+> **Queue as item 1 of the next `/scribe` sync plan**, `write_scope` covering
+> `02-architecture.tex`, `figures/core-rings.tex`, `SYNC.md` — restate the outer ring as
+> `core/** minus INNER` naming the six residues, replace both "unconditionally" sites with this
+> finding's weaker-true phrasing, and **add finding-0196 to `SYNC.md`'s `open:` list**. Carry
+> finding-0185's Chapter-2 item in the same pass — one file, one visit.
 
 ## What
 (a) RING GEOMETRY — `02-architecture.tex:586-594` and `figures/core-rings.tex:33,38` state

@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0125
-status: open
+status: routed
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-07-26
 links:
   - docs/design-notes/plane-principals.md         # the four-plane model; §3.2 workflow principal
   - docs/findings/finding-0120.md                 # the setup-token OAuth resolution that caused this
@@ -20,10 +20,21 @@ re_entry: >
 ftype: direction
 origin_plan: null
 route: orchestrator
-resolution: null
+resolution: routed → owner (oq-0042); primary question answered by the hybrid, two residuals live
 ---
 
 # The workflow-plane `setup-token` auth silently removes fable-tier access — design/gate passes can't run on fable under `ouroboros-work`
+
+> **Triage 2026-07-26 (session-52) — batched to `oq-0042`.** The chosen hybrid is fully built and the
+> default swapped (`scripts/orchestrator-launch.sh:35` `PLANE="${PLANE:-ascalva}"`, banner citing this
+> finding at `:86`), and fable access via the human plane is confirmed in practice
+> (`dn-integrator-densification:32`, a real Fable pass under the new default). So the **primary**
+> question is answered. Two residuals are live:
+> 1. option 3 (a fable-capable *headless* credential) is undecided — so the workflow-plane isolation
+>    bp-078 delivered is **dormant by default**, one flag away (`PLANE=workflow`);
+> 2. **ratified** `dn-plane-principals:160` still asserts *"the interactive orchestrator session runs
+>    as `ouroboros-work`"*, which the tree no longer does — unannotated, and `grep finding-0125`
+>    across `docs/design-notes/` returns zero hits.
 
 ## What
 Surfaced 2026-07-20 (session-38, right after the workflow plane went live). The orchestrator pane now

@@ -1,19 +1,30 @@
 ---
 type: finding
 id: finding-0152
-status: open
+status: resolved
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 links:
   - docs/design-notes/session-handoff-gate.md          # the Stop-audit clause family this interacts with
   - .claude/hooks/journal-gate.sh                        # clause (c) blessing-transition audit
   - docs/design-notes/blessing-ceremony-lazygit.md      # (if present) the blessing ergonomics
 ftype: direction
 route: orchestrator
-resolution: null
+resolution: resolved — bp-097 D6 landed the gate-aware yield (_lib.py:844-850, :803-814) + the 2026-07-25 agent-commits-the-flip rule
 ---
 
 # The bless/ratification handoff is clunky — the agent burns tokens polling for a commit the owner is about to make by hand
+
+> **Triage 2026-07-26 (session-52) — RESOLVED.** Both halves are closed. The gate-aware fix the
+> finding named as its real target shipped in **bp-097 (`complete`)**: clause (c) now emits the yield
+> posture instead of the commit-or-revert nag — `.claude/hooks/_lib.py:844-850`, *"if it is the
+> owner's staged hand, say so once and YIELD … do not poll, do not re-ask"* — and the (b2) sibling
+> gap found during that build got its own additive-front-matter yield (`:803-814`), deliberately
+> conservative (any body change still hard-blocks, `:676`). The D6 design ruling is
+> `dn-track-board-and-deskcheck-gate:216`.
+> The **ergonomic** half is closed by the 2026-07-25 ceremony rule (the agent commits the owner's
+> staged flip after verifying the diff is the status line alone) — there is no longer anything to
+> poll across.
 
 ## The friction (owner-reported 2026-07-21)
 

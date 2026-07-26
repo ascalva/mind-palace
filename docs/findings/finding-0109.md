@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0109
-status: open
+status: routed
 created: 2026-07-18
-updated: 2026-07-18
+updated: 2026-07-26
 links:
   - ops/chat_sensor.py                             # sync() freezes a session by id (Q4) → open sessions lost
   - docs/design-notes/chat-sensor.md               # RATIFIED — CS-4/Q4 "freeze once, mid-append out of v1"
@@ -12,10 +12,33 @@ re_entry: owner-DECIDED (2026-07-18) — growth-aware append + a LIVE transcript
 ftype: design
 origin_plan: bp-068
 route: owner
-resolution: decided (owner) — reverse Q4 freeze-once → growth-aware + live watcher; warrants bp-069
+resolution: routed — PROMOTE: a superseding note for ratified dn-chat-sensor (realtime sensing is BUILT; the record still forbids it)
 ---
 
 # Chat freeze-once is lossy — a session left open (hours / overnight) drops its tail. UNACCEPTABLE.
+
+> **Triage 2026-07-26 (session-52) — PROMOTION PROPOSED (owner ratifies; agent never edits a ratified
+> note).** Both halves of the owner's decision are **built and wired**:
+> - growth-aware append + torn-line tolerance — `ops/chat_sensor.py:28-34` (its own comment: *"the
+>   freeze-once fix, bp-069 … This AMENDS ratified dn-chat-sensor Q4"*), `:117-119` (torn line skipped
+>   and counted, not raised), `:238`, `:330`, `:354-362` (freeze-once REMOVED);
+> - the live watcher — `core/ingest/watch.py:40` `DirectoryWatcher`, wired at
+>   `ops/lifecycle/launcher.py:501-503`, started `:733`, stopped `:802`. Only this process's own
+>   transcript is excluded (`chat_sensor.py:281,344`), so **other open sessions are ingested
+>   mid-flight**. bp-069 and bp-071 are both `complete`.
+> **⚑ What is still live is the RECORD.** Ratified `dn-chat-sensor` still parks realtime/mid-session
+> sensing with default *"batch at session close"* (`:166`) and still lists **"No realtime sensing"** as
+> a **non-goal** (`:185`) — both false at HEAD, in a note with `superseded_by: null`, agent-immutable
+> under A8. `dn-agent-taxonomy` (ratified, `:145-147`) already carries the amended law, so a reader of
+> *that* note gets the right record and a reader of `dn-chat-sensor` alone does not.
+> **Proposed supersession, one sentence:** *the chat stratum is sensed continuously — growth-aware
+> re-projection keyed on `(session_id, turn_index)` plus a live `DirectoryWatcher` on the transcripts
+> dir — which retires §4's "realtime / mid-session sensing → batch at session close" park and §6's
+> "No realtime sensing" non-goal, while leaving CS-4's cut legality untouched (certified cuts still
+> exclude open sessions).*
+> ⚑ Because a non-goal is load-bearing and read explicitly at ratification, **§6:185 must be named in
+> the supersession**, not just §4. Cite `dn-agent-taxonomy` as the authority rather than re-deriving.
+> The `OBSERVED_DIALOGUE` row in §4 is a different, still-valid park and must survive intact.
 
 ## What
 bp-063's `ChatSensor.sync()` FREEZES a session once its id is in the store (Q4:

@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0103
-status: open
+status: routed
 created: 2026-07-17
-updated: 2026-07-17
+updated: 2026-07-26
 links:
   - CONVENTIONS.md                                 # where the self-containment + DRY rules will be stated
   - docs/findings/finding-0101.md                  # the graph-instruments instance (resolved by bp-065)
@@ -13,10 +13,23 @@ re_entry: RULED (owner 2026-07-17) config IS in-scope — strict, no wiggle room
 ftype: discovery
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: open — the ratchet must reach 0; recount 2026-07-26 gives 20, not 19 (a silent regression)
 ---
 
 # core is not self-contained: 106 imports from sibling packages (full audit)
+
+> **Triage 2026-07-26 (session-52) — still live, and WORSE than recorded.** An independent AST
+> recount using the test's own algorithm gives **20** violations at `3e88bae`, not 19:
+> `ops` 9 · `eval` 7 · `config` 3 · `agents` 1. The 20th is
+> `core/ingest/code_corpus.py:56 → ops.code_snapshot`, introduced by **`4acb9f0`** (bp-092, CI-1).
+> **Why it went unnoticed:** the documented green gate **deselects this ratchet**
+> (`bp-103/journal.md:235`, finding-0105:46) — so the ratchet cannot catch a regression it is not run
+> against. finding-0189 (route: builder, in **no plan**) already reports this 19→20 slip and proposes
+> the one-line `len(violations) <= 20` pin. **Sequence that before any further core-adjacent build**,
+> or the next inversion is free too.
+> **Re-weighted:** per finding-0185, this ratchet is the (⋆) discharge for non-negotiable #1 — it is a
+> **safety** item, not hygiene. Stale "19" persists at `docs/PROGRESS.md:5333` and in **ratified**
+> `dn-inner-outer-core:614,629` (A8-frozen ⇒ standing erratum, never an agent edit).
 
 ## What
 Owner principle (2026-07-17): **`core/` is the processing unit; it must import nothing from the

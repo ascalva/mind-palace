@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0173
-status: open
+status: resolved
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - scheduler/queue.py                                 # no reclaim/lease on RUNNING rows
   - docs/findings/finding-0171.md                      # the kill that orphaned the row
@@ -11,10 +11,12 @@ links:
 ftype: spec-defect
 origin_plan: orchestrator
 route: builder
-resolution: null
+resolution: resolved — bp-101 + `be225fd`: `scheduler/queue.py:350-394` `sweep_orphans` reclaims stranded RUNNING rows and is called at supervisor start before the first claim (`ops/lifecycle/launcher.py:717-721`)
 ---
 
 # A killed worker orphans its `running` job row — no lease, no reclaim, no requeue
+
+> **Triage 2026-07-26 (session-52) — CLOSED on evidence.** This finding was routed to `builder` and the fix landed, but nobody flipped it, so it has been inflating the open backlog. Closed here as bookkeeping, not as an orchestrator resolution of builder work — the citation in `resolution:` is the code or commit that contradicts the finding as filed. It was one of **10 stale-open** builder findings found this sweep (against **13 orphaned** ones that stay open); the lane's missing mechanism is **finding-0209**.
 
 ## What
 

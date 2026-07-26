@@ -559,7 +559,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0020 — Covering-only `supersedes` as a checked A6 invariant? (dn-magnetic-laplacian decision 3)
-- status: open
+- status: swept   # 2026-07-26 /triage — ruling ADOPT folded to origin (dn-magnetic-laplacian decision 3). The invariant currently HOLDS empirically: the G-A fiber survey measured supersession D at 19 docs / **0 triangles** ⇒ covering-only integrity clean. Still owed: the additive validator beside F2 in the A6 invariant list (`recursive-strata-amendment`) — a small plan, no gate.
 - origin: docs/design-notes/magnetic-laplacian.md § Owner rulings (decision 3)
 - blocking: false
 - question: The magnetic-Laplacian pass (Q1c) surfaced a cheap data-integrity rider: rule that
@@ -716,7 +716,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0027 — the Fable design pass shipped THREE draft notes with three different blessing stakes: ratification review requested (σ-fibers · Res(π) algebra amendment · cross-strata fork)
-- status: ANSWERED (2026-07-16) — **ALL FOUR notes hand-ratified by the owner** same session
+- status: swept   # 2026-07-26 /triage — all four notes hand-ratified by the owner 2026-07-16; answer is self-contained, nothing left to fold. (Do not confuse with oq-0032, which batched two DIFFERENT drafts.)
   (frontmatter flips observed on disk; the chat rulings in the answer field below are the recorded
   rationale, folded into the notes pre-flip). /graduate is unlocked per dn-global-event-clock §3.1;
   dn-cross-strata-dreamer's ratification licenses NO build by its own terms (G1–G4 still front any
@@ -939,7 +939,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   thread — NOT re-blocking, tracked independently.
 
 ## oq-0032 — Ratify the two session-39 draft notes (dn-fiber-geometry · dn-inner-outer-core), and rule the taste calls each carries
-- status: open
+- status: swept   # 2026-07-26 /triage — both session-39 notes ratified by the owner's hand at `fbea48d` (dn-fiber-geometry · dn-inner-outer-core). ⚑ Its two PROSE RESIDUALS are not dropped: the headless-daemon-secret-bootstrap ratification and the finding-0125 Opus re-read are now batched explicitly as **oq-0041** and **oq-0042**.
 - origin: session-39 (2026-07-21) — the dreamer track build wave + the fable synthesis pass
 - blocking: false
 - default_if_unanswered: both notes stay `draft`; `/graduate` refuses them; the next build waves
@@ -982,7 +982,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   wrong-tier design note before then.
 
 ## oq-0034 — Should code-ingest be ON by default (defaults.toml), not opt-in per-instance (local.toml)?
-- status: answered
+- status: swept   # 2026-07-26 /triage — ruling ENACTED and verified live: `config/defaults.toml:96-110` carries `[code_ingest] enabled = true` with the comment citing finding-0161/oq-0034; folded to finding-0146 (resolved this sweep).
 - blocking: false
 - origin: docs/findings/finding-0161.md (raised 2026-07-22, at the code-ingest enable step)
 - question: `[code_ingest].enabled` ships `false` in defaults.toml; this Mac opts in via local.toml
@@ -1164,3 +1164,343 @@ actor runs the verifier, where the secret lives, and how invariant 1 gets *prove
 asserted.
 
 **answer:** _(pending)_
+
+---
+
+# ════════════════════════════════════════════════════════════════════════════
+# BATCH — /triage session-52, 2026-07-26.  oq-0038 … oq-0048.
+# Eleven questions from the four-session finding backlog (63 unswept findings
+# re-verified against the tree this session). **None is blocking.** Each carries a
+# default with a park condition, so leaving the whole batch unanswered costs you
+# nothing but time. Every ID is glossed inline — you should never have to look one up.
+# Suggested sitting order, because several genuinely sequence:
+#   oq-0047 (ftype) → oq-0044 (two draft frames) → oq-0045 + oq-0046 (firewall pair)
+#   → oq-0042 → oq-0041 (plane pair)  ·  oq-0040 with oq-0036  ·  the rest standalone.
+# ════════════════════════════════════════════════════════════════════════════
+
+---
+
+## oq-0038 — Tidy `scripts/`, and does the package boundary apply to the eval-flavoured harnesses? (finding-0114)
+- status: open
+- origin: docs/findings/finding-0114.md (you flagged it mid-bp-072, 2026-07-19)
+- blocking: false
+- question: `scripts/` now holds **38 files / 4077 LOC** (up from 34 / ~2.8k when you flagged it),
+  in three kinds. **Durable entrypoints:** `palace.py`, `cockpit.sh`, `docket.py`, `board.py`.
+  **Spent one-off migrations** that already ran and are now archaeology: `migrate_chunk_keys.py`,
+  `migrate_provenance_split.py`, `reembed_bodyonly.py`, `purge_raw.py`, `ingest*.py`,
+  `snapshot_code.py`. **Substantial eval-flavoured harnesses:** `experiment.py`, `review.py`,
+  `tune.py`, `sweep.py`, `report.py`, `verdict.py`, `fibers.py`, `eval.py` — which arguably belong in
+  `eval/` under your own math→core / notebook→eval boundary. Nothing is broken; `CONVENTIONS.md`
+  states no `scripts/` vs `eval/` rule at all.
+  - **(a) Archive + relocate** — drawer 2 → `scripts/archive/` (or delete; git keeps history),
+    drawer 3 → `eval/`, repointing docs/CI paths. Sharpens the same boundary the core
+    self-containment ratchet enforces from the other side. Costs one small plan and touches `eval/`,
+    which is outside every current `write_scope`.
+  - **(b) Archive only** — retire the spent migrations, leave the harnesses; they are operator
+    entrypoints, not library code. Cheapest; the boundary question stays open.
+  - **(c) Won't-do** — the flat drawer is preferred; record that in `CONVENTIONS.md` so it stops
+    resurfacing every few sweeps.
+- default_if_unanswered: no tidy plan is minted; `scripts/` stays flat and finding-0114 stays open.
+  Park condition — revisit at the next `/triage` after another spent one-off lands, or when someone
+  next edits an eval-flavoured script. Pairs naturally with the worktree reaper (finding-0121) as one
+  tidy/tooling wave.
+- answer:
+
+---
+
+## oq-0039 — Ratify the four Chapter-1 draft theses, or confirm forward-referencing is the standing answer? (finding-0117)
+- status: open
+- origin: docs/findings/finding-0117.md (bp-077, reaffirmed by bp-104)
+- blocking: false
+- question: The manual's Philosophy chapter rests on four design notes still at `status: draft`:
+  **`dn-authorship-distance-axis`** (the graded authorship coordinate — "every stratum is self-data,
+  at a distance"), **`dn-the-sacred-boundary`** (model-advises / code-acts in its purest form),
+  **`dn-recursive-strata`** (the dreamer-as-a-map framing), **`dn-founding-corpus`** (the Ouroboros
+  naming claim). A *ratified* note — `dn-agent-workflow` — bars draft notes from the book, and the
+  book skill says so outright ("Draft notes never enter the book"), so the scribe cannot cite them as
+  authorities. bp-104 (complete) made the workaround structural: they are listed under
+  `forward-referenced:` in `docs/book/SYNC.md` and named via `\fwdthesis`, never cited.
+  - **(a) Ratify some or all four** — a hand `draft → ratified` flip each; a `/scribe` run can then
+    cite them and deepen Philosophy (and Mathematics, for the authorship coordinate).
+  - **(b) Confirm forward-referencing stands** — drafts stay named-but-uncited until ratified;
+    finding-0117 flips to `resolved` with `SYNC.md`'s banner as the mechanism of record.
+  - **(c) Ratify only `dn-the-sacred-boundary`** — the one the Architecture chapter already needs
+    (see oq-0044a) — and leave the other three forward-referenced.
+- default_if_unanswered: (b) — the forward-ref treatment stands, the four notes stay draft and
+  uncitable, nothing in the book changes. Park condition — revisit at the next `/scribe`, or if
+  oq-0044 forces the sacred-boundary taxonomy first.
+- answer:
+
+---
+
+## oq-0040 — Should `/graduate` always commit the `proposed` mint, so a blessing is always a tracked one-line diff? (finding-0119; the cheap half of oq-0036)
+- status: open
+- origin: docs/findings/finding-0119.md (observed live re-graduating bp-076 → bp-078)
+- blocking: false
+- question: Blessing is two acts by two actors: the orchestrator mints a plan at `status: proposed`,
+  you hand-flip it to `ready`. **Nothing forces the mint to be committed first.** When you bless an
+  uncommitted mint, the plan exists only as an untracked file already at `ready` — the Stop gate
+  correctly blocks it as a "from-nothing" blessing, and once committed it carries no `proposed`
+  predecessor at all. ⚑ That is exactly **oq-0036**'s crux (*what legitimises a committed
+  `proposed→ready` flip carrying no grant record?*) in its cheapest form, because our ceremony has
+  the **agent** commit your hand flip. Note `palace bless` today is **flip-only**
+  (`scripts/palace.py:50-118`): it refuses in agent sessions, requires exactly `proposed`, and
+  rewrites only the status/updated lines — it does not mint-if-untracked, stage, or commit.
+  - **(a) Mint-commit discipline** — `/graduate` commits each new plan at `proposed` before
+    reporting. One line in the graduate skill; every bless becomes a small tracked diff with a real
+    predecessor. No code, no gate change.
+  - **(b) (a) plus make `palace bless` the sole atomic path** — extend it to mint-if-untracked, flip,
+    and stage only that plan. Small build; removes the hazard even when you bless out of order or away
+    from the keyboard.
+  - **(c) Leave it** — the friction is real but rare, and every gate fired correctly each time.
+- default_if_unanswered: (a) adopted as orchestrator discipline at the next `/graduate` — a committed
+  `proposed` mint is strictly safer and changes nothing you do — with **no** amendment written into
+  `dn-agent-workflow` until you rule. Park condition — revisit when oq-0036 is answered, since its
+  answer decides whether (b) becomes mandatory.
+- answer:
+
+---
+
+## oq-0041 — Ratify the headless-daemon secret-bootstrap design, or keep the core plane parked? (finding-0123)
+- status: open
+- origin: docs/findings/finding-0123.md (bp-078, mid plane-migration)
+- blocking: false
+- question: The **core-plane half** of the plane migration (runbook §7–§11: move the palace daemon and
+  Vault to the headless `ouroboros` role account, chown the vault `0700`, pf egress) is still blocked.
+  Its bootstrap reads the Vault **unseal key** from a *login* keychain
+  (`ops/vault/vault-unseal.sh:31`, `security find-generic-password`) — and a role account has no login
+  keychain; the daemon plist even lists that migration as a precondition it cannot meet. A design pass
+  answered it — **`dn-headless-daemon-secret-bootstrap`** (System keychain with an ACL · an
+  `ouroboros`-only file · a hybrid where Vault stays `ascalva`-operated · a boot-time unseal helper) —
+  but that note is still **`status: draft`**, so `/graduate` refuses it and nothing can be built.
+  - **(a) Re-read, then ratify** — one Fable pass over the draft (fable now works from the `ascalva`
+    plane), then the hand flip; §7–§11 re-graduate and the core plane lands.
+  - **(b) Ratify as-is** — accept the Opus product, flip, graduate. Fastest; accepts that the secrets
+    architecture was designed one tier below policy.
+  - **(c) Keep the core plane parked** — the workflow plane already delivers day-to-day isolation;
+    revisit when the Vault posture actually changes.
+- default_if_unanswered: (c) — the core plane stays parked, the note stays `draft`, the runbook keeps
+  its §7 stop banner, and `ouroboros`/`ouroboros-edge` stay forward-provisioned (no work lost). Park
+  condition — revisit the next time you touch Vault, or immediately after oq-0042's Opus re-read.
+  ⚑ **Sequence oq-0042 first** — its residual is the gate on this ratification.
+- answer:
+
+---
+
+## oq-0042 — Chase a fable-capable headless credential, or record the dormant workflow plane in the design record? (finding-0125)
+- status: open
+- origin: docs/findings/finding-0125.md (session-38, right after the workflow plane went live)
+- blocking: false
+- question: The role account **`ouroboros-work`** — the constrained principal agents were meant to run
+  as — cannot reach the **fable** tier: its headless `claude setup-token` credential carries a
+  narrower model entitlement than your interactive login. You chose the hybrid, we built the `PLANE`
+  toggle, then you swapped its default to `ascalva` (`scripts/orchestrator-launch.sh:35`). So the
+  workflow-plane isolation bp-078 delivered is **dormant by default**, one flag away
+  (`PLANE=workflow`). Fable access via the human plane is confirmed in practice (a real Fable pass ran
+  under the new default). Two residuals: option 3 (a fable-capable *headless* credential) is
+  undecided, and **ratified `dn-plane-principals:160` still asserts the orchestrator runs as
+  `ouroboros-work`** — which the tree no longer does, unannotated.
+  - **(a) Chase option 3** — a scoped read-only investigation (or an upstream ask) into a headless
+    credential carrying fable; if it works, `PLANE=workflow` becomes the default again and isolation
+    stops being dormant.
+  - **(b) Accept the dormancy, fix the record** — a short superseding note stating that the role
+    principal is *not* model-equivalent to the human login and that isolation is opt-in.
+    `dn-plane-principals` is ratified and agent-immutable (A8), so this is a **new note, never an
+    edit**.
+  - **(c) Both, in order** — (a) first, then write (b) around whatever it finds.
+- default_if_unanswered: neither runs — the toggle stays as built, `dn-plane-principals` §3.2 stays
+  stale, the finding stays open. Park condition — revisit when you want the isolated plane as the
+  default again, or at the next plane-touching build.
+- also owed under this finding (tracked with oq-0041): re-read `dn-headless-daemon-secret-bootstrap`
+  as an **Opus** product before ratifying it — prior "fable" subagents actually ran on Opus, and a
+  subagent cannot exceed its parent's model access.
+- answer:
+
+---
+
+## oq-0043 — The fiber survey's similarity (S) rows are still unmeasured: grant an embed window now, or park them until the embedder moves out-of-process? (finding-0142)
+- status: open
+- origin: docs/findings/finding-0142.md (G-A survey, bp-085, sealed 2026-07-21)
+- blocking: false
+- question: The read-only fiber survey (`eval/harness/fiber_survey.py`) measured the **recorded**
+  fibers — citation F (207 nodes / 593 edges), causal C (237 / 1193), supersession D (19 docs,
+  **0 triangles** ⇒ covering-only integrity clean, which also discharges oq-0020's invariant
+  empirically) — but every **similarity (S)** row deferred (M2/M4/M5/M8, plus the S columns of
+  M1/M3/M7). Cause, now independently confirmed by finding-0174: the eval-side embedder shares the one
+  Ollama with the live daemon, both model slots are held (non-negotiable #8, ≤2 resident models), so a
+  single embed trips the 120 s fail-fast timeout. **No code change is needed** — it needs embed
+  headroom, and the survey upgrades itself once it has one.
+  - **(a) Grant a one-time embed window now** — you pause the daemon
+    (`uv run scripts/palace.py down`), the survey re-runs, then `up`. Closes the survey's re-entry
+    conditions 1–2 (is the fiber support non-degenerate / is the mismatch structure real), feeds the
+    hop-priced-functional question oq-0024 owes, and gives the phase model its first look — today.
+    Cost: one deliberate daemon outage.
+  - **(b) Park the S rows until bp-118 lands** (the plan where the embedder cuts over to a
+    palace-owned `llama-server` process). Then the re-run is free, repeatable, no outage, no owner
+    act. Cost: it slips behind an 8-plan inference program.
+  - **(c) Run against a scratch store with its own embedder** — no daemon contact, but a second
+    embedder breaches the memory ceiling unless the daemon is down anyway, so it collapses into (a)
+    with extra steps.
+- default_if_unanswered: (b) — park the S rows on bp-118. Park condition — finding-0142 stays open as
+  the record and the Fiber-geometry deskcheck row stays PENDING (it already names the owed S-rows);
+  re-entry — bp-118 seals, or you grant a window sooner.
+- note (no decision asked): the ratified premise *"the C live census read came back empty"*
+  (`dn-fiber-geometry:96`, repeated `:386,:414,:523`) is now **false** — C is a populated fiber
+  (1193 edges). A8 freezes the note; per the oq-0025/0026/0028 discipline **finding-0142 is the
+  standing erratum** unless you choose to hand-annotate.
+- answer:
+
+---
+
+## oq-0044 — Two unratified frames that the manual and a live hook already depend on (finding-0183 · finding-0184)
+- status: open
+- origin: docs/findings/finding-0183.md · docs/findings/finding-0184.md (both opened by bp-104)
+- blocking: false
+- question: **(a) `docs/design-notes/the-sacred-boundary.md` is still `draft`.** It is the *only* place
+  the record states the three channels crossing the core boundary — verdict authorization, ingestion,
+  effects — and it calls itself a spine note indexing five subsystem notes. Chapter 1 of the manual
+  promised that taxonomy; drafts are barred as book sources, so Chapter 2 gave only the ratified
+  partial (`dn-capability-scope`'s `A = P × W_Σ × W_world`) and the promise was downgraded to a
+  forward reference. **Options:** (1) ratify as-is — cheapest, but its §1 predates both the plane split
+  and the ring split (2026-07-04), so it may describe a mechanism that has since moved; (2) ratify a
+  **successor** stating the taxonomy against today's mechanism (likelier right, one design pass);
+  (3) leave draft — the book keeps a visible hole at its centre and five notes keep hanging off an
+  unblessed spine.
+  **(b) `docs/research/security-planes.md` is `draft`, and two things already stand on it.** A
+  *ratified* note (`dn-type-system-as-core-audit`) takes its three-plane composition as doctrine, and
+  the **foundation-file denylist enforced against every session — orchestrator included — cites it as
+  its origin**: `.claude/hooks/_lib.py:27` reads verbatim *"(design-note §6, §10; origin:
+  security-planes.md)"*, with the live `DENYLIST` at `:35-39` holding three entries — **narrower than
+  the note's candidate enumeration**, exactly as finding-0184 predicted. Its own header asks to be
+  promoted to `docs/design-notes/`. Unratified means its falsifier ("the composition claim fails if a
+  demonstrated attack crosses planes") can never be a plan's acceptance criterion. **Options:**
+  (1) promote to a design note and ratify, recording the reconciliation between its predicted
+  foundation set and the three entries actually enforced — its §2 asked for exactly this check and it
+  is now cheap; (2) ratify unchanged and file the reconciliation separately; (3) leave as research.
+  Note oq-0012 ratified only the *extension*, never this base note.
+- default_if_unanswered: both stay `draft`. Chapter 2 keeps the ratified partial plus its own reading
+  of the composition; `SYNC.md` keeps the `forward-referenced:` row. Park condition — you ratify (then
+  one `/scribe` run restores Chapter 1's citation, amends Chapter 2, and clears the row), or a
+  cross-plane defect appears that the composition claim would have named.
+- answer:
+
+---
+
+## oq-0045 — Should the import firewall walk the closure, or is the self-containment ratchet the intended discharge path? (finding-0185; oq-0046 is the live instance)
+- status: open
+- origin: docs/findings/finding-0185.md
+- blocking: false
+- question: `ops/import_lint.py` motivates itself with a **closure** claim — *"if no module under
+  `core/` can **reach** a network-capable module, then no egress path exists"* — but it checks only
+  **direct** imports, one AST walk per file, no traversal. The gap is not theoretical: `core/factory/
+  factory.py:182 → config.secrets_backend → hvac` reaches a Vault HTTP client that the lint's own list
+  marks *"never core"* (that is oq-0046). ⚑ So **non-negotiable #1/#2's *static* tier is conditional**
+  on `tests/unit/test_core_self_containment.py` reaching zero — and it is at **20** violations today,
+  having silently regressed 19→20 because the documented green gate deselects that very ratchet.
+  - **(a) Make the lint walk the first-party closure** (~40 lines; `tests/unit/test_inner_ring.py`'s
+    fixed-point scanner already does this walk). The claim becomes unconditional **today**, and the
+    ratchet reverts to being hygiene rather than a safety dependency.
+  - **(b) Keep the lint local and treat the ratchet cleanup (finding-0103) as the discharge path** —
+    no new code, but the invariant stays conditional for as long as the ratchet is red, which has now
+    been months.
+  - **(c) Both** — closure lint now, ratchet continues as hygiene.
+- default_if_unanswered: the lint stays direct-only and the record keeps the conditional (the book
+  already documents it honestly as `Proposition 2.1/2.2`). Park condition — you rule here, or a new
+  `core → sibling → network` chain is found. Also enacted by this triage regardless: finding-0103 is
+  re-weighted on the board as a **safety-discharge** item, not hygiene.
+- answer:
+
+---
+
+## oq-0046 — Core can reach the Vault HTTP client in two hops, and the only unconditional guard is not loaded (finding-0190)
+- status: open
+- origin: docs/findings/finding-0190.md
+- blocking: false
+- question: The chain is intact today: `core/factory/factory.py:182 → config.secrets_backend →
+  hvac.Client(...)`. **Three things stand between a `[secrets]`-enabled core process and off-host
+  egress, and none is a boundary:** (1) `hvac` is an *uninstalled optional extra* — a packaging
+  accident; (2) `core/sealing.py`'s socket monkeypatch, whose own docstring concedes a native
+  extension bypasses it; (3) the kernel **`pf` anchor** on the `ouroboros` uid — the one unconditional
+  guard — which is committed but **owner-loaded**, and `scripts/verify_planes.py:270-291` can only
+  report **SKIP** (*"pfctl … unreadable (needs root) — owner verifies with sudo"*) until you load it.
+  Non-negotiable #1 says enforce structurally, not by convention. ⚑ The inert anchor is currently
+  tracked **nowhere** — no owner question, no track, no board row.
+  - **(a) Load the pf anchor now** — one sudo command; makes the guard real and turns the SKIP into a
+    PASS. Leave the import inversion to finding-0103's programme.
+  - **(b) (a) plus promote the `core/factory → config.secrets_backend` inversion into the next ops
+    wave as a *safety* item**, not hygiene.
+  - **(c) Accept and record** — the guard stays a packaging accident and the record says so plainly.
+- default_if_unanswered: the anchor stays inert and the chain stays reachable-in-principle. Park
+  condition — you load the anchor, or `[secrets]` is enabled on a host with `hvac` installed, which
+  would make this live rather than latent. ⚑ Rule this **together with oq-0045** — same mechanism, two
+  halves.
+- answer:
+
+---
+
+## oq-0047 — Which `ftype` vocabulary is authoritative? The template's and CLAUDE.md's are disjoint sets (finding-0193; unblocks the autopilot routing tier)
+- status: open
+- origin: docs/findings/finding-0193.md
+- blocking: false
+- question: A finding's `ftype` field has **two competing vocabularies and they do not overlap.**
+  `docs/templates/finding.md:9` offers `blocker | spec-defect | question | discovery` (a
+  severity/kind axis). `CLAUDE.md:51-54` — the routing rule that binds every session — routes on
+  `design | math | direction | codebase | spec-fidelity` (a subject-matter axis). The `finding` skill
+  prints both without reconciling them, **disjoint within one file**. In practice the corpus uses the
+  **union**: across 182 findings — `discovery` 54 · `spec-defect` 54 · `spec-fidelity` 23 ·
+  `direction` 24 · `design` 13 · `math` 5 · `codebase` 5 · `question` 3 · `blocker` 1. So "correctly
+  typed and routed" is undecidable, and **no hook validates it** (`grep ftype` over hooks/scripts →
+  zero). `dn-autopilot-and-delegated-blessing` §2.4 has its routing tier parked on exactly this, with
+  two Parked rows whose re-entry is literally *"finding-0193 resolved by owner ruling"*.
+  - **(a) Two orthogonal fields** — keep `ftype` = severity/kind (template set) and add `subject` =
+    the routing axis (CLAUDE.md set). Nothing existing is wrong, both axes stay expressible, a hook can
+    validate each. Costs a front-matter field and a 182-file backfill.
+  - **(b) CLAUDE.md's set wins; the template is corrected** — `ftype` becomes the routing axis only;
+    `blocker` degrades to a boolean or a `status`. Smallest vocabulary, directly enforceable. Loses the
+    severity distinction, and 112 findings must be retyped.
+  - **(c) The template's set wins; the routing rule is rewritten to route on `route:` alone** — which
+    is already the field every finding actually carries and honours (111 `orchestrator` / 47 `builder` /
+    2 `owner`). Zero retyping, matches observed behaviour. Concedes that the subject-matter axis stops
+    being typed at all, which is what the autopilot tier wanted.
+- default_if_unanswered: (c) — route on the existing `route:` field, `ftype` stays advisory prose, no
+  sweep, no hook. Park condition — the autopilot routing tier stays at its conservative default (*any
+  not-unambiguously-builder finding halts*) and no `ftype` validation hook is built. Re-entry — this
+  ruling, or the first autopilot plan that needs typed routing. ⚑ **Time this with the autopilot
+  superseding note**, which is in flight anyway.
+- answer:
+
+---
+
+## oq-0048 — The per-plan cost ledger has holes, and the cause is deferred sealing — not in-session work (finding-0200; the delegation budget gate calibrates off this ledger)
+- status: open
+- origin: docs/findings/finding-0200.md
+- blocking: false
+- question: The `cost.actual` block (`model`/`tokens`/`ratio`/`session_delta`/`week_delta`) is filled
+  at seal from the harness's completion-notification usage figure. That figure exists only for a
+  **delegated** agent, and only while the session that received it is alive. It was filed as "in-session
+  builds seal with a hole" — but the tree shows worse: **bp-108 was delegated and still sealed
+  `tokens: unmeasured`**, because the notification figure was never carried into the next session's
+  resume brief. bp-115, also delegated, got tokens but lost **both** deltas. **Seven plans now read
+  `unmeasured`** (bp-006, 012, 105, 108, 110, 115, 119). This matters because the delegate skill's
+  pre-flight budget gate spawns a worker only if `padded_estimate ≲ available`, and the pad is
+  calibrated from this ledger's own estimate/actual pairs — so the holes degrade the gate protecting
+  every future delegation.
+  - **(a) Make the figure a mandatory checkpoint field** — the moment a delegated agent's notification
+    arrives, the orchestrator writes tokens/tool-calls/duration into the plan's **journal**, before any
+    resume brief, so the seal reads the journal rather than memory. Also bracket `/usage` around
+    in-session builds. Fixes both halves; costs one journal write per completion.
+  - **(b) Declare the field N/A by construction for anything not sealed in its building session** —
+    `tokens: n/a (deferred seal)` becomes a first-class ledger category, and the pad is calibrated only
+    from same-session-sealed delegated pairs. Honest, zero cost; permanently abandons the
+    plan-pinning-ratio hypothesis (well-pinned ~0.5× / loose ~1.5×), since deferred sealing is the norm.
+  - **(c) Seal in the building session, always** — best data; conflicts with ending sessions at unit
+    boundaries when a merge or gate run spans sessions.
+- default_if_unanswered: (b) — mark the gaps `n/a` rather than `unmeasured`, and state in the delegate
+  skill that the pad is delegated-and-same-session calibrated. Park condition — the pinning-ratio
+  hypothesis stays unfalsifiable and the pad keeps its current empirical range; re-entry — the next
+  in-session seal, or the next time the pad is re-tuned.
+- the one thing NOT on the table: estimating a missing figure from the pinning heuristic. That feeds a
+  prediction back into the ledger as an observation and would calibrate the next pad against the very
+  heuristic it exists to test. bp-105 and bp-108 were both sealed `unmeasured` deliberately for this
+  reason.
+- answer:

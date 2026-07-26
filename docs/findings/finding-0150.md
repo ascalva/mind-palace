@@ -1,19 +1,31 @@
 ---
 type: finding
 id: finding-0150
-status: open
+status: resolved
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 links:
   - docs/design-notes/code-ingest-pipeline.md          # §5-3 (partial vs full) — ANSWERED: FULL
   - docs/design-notes/code-observation-projection.md   # the superseded note
   - docs/findings/finding-0146.md                      # the warrant chain
 ftype: design
 route: orchestrator
-resolution: recorded
+resolution: resolved — the projection note's status flip landed 9d53927; the process lesson is folded to the workflow-taxonomy pass
 ---
 
 # Owner ruling — FULL supersession of dn-code-observation-projection (answers §5-3), and the non-goal lesson
+
+> **Triage 2026-07-26 (session-52) — RESOLVED.** The finding's only stated remainder — the optional
+> status flip of the projection note `ratified → superseded` — landed by the owner's own hand:
+> `docs/design-notes/code-observation-projection.md:4` is `status: superseded` with
+> `superseded_by: dn-code-ingest-pipeline` (`:20`), flip commit **`9d53927`**.
+> **⚑ Residual, deliberately NOT this finding's re-entry, and worth naming so it is not lost:** the
+> *process* lesson — that an inferred non-goal must carry `[INFERENCE]` and §1.2 gets an explicit
+> ratification read — **has no structural home**. `docs/templates/design-note.md:22` is still bare,
+> and `INFERENCE` appears nowhere in the graduate or build-plan skills; the rule survives only in
+> standing memory plus hand-copied §3 lines in bp-105/106/107. Per the standing rule that a property
+> is real only when something proves it, this is folded into the queued workflow-taxonomy design pass
+> as a template + skill amendment.
 
 ## The ruling (2026-07-21, at ratification)
 

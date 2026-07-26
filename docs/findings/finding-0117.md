@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0117
-status: open
+status: routed
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-07-26
 links:
   - docs/build-plans/bp-077/plan.md
   - docs/design-notes/agent-workflow.md
@@ -14,10 +14,18 @@ links:
 ftype: spec-defect
 origin_plan: bp-077
 route: orchestrator
-resolution: null
+resolution: routed → owner (oq-0039); all four Chapter-1 source notes still draft
 ---
 
 # bp-077's Chapter-1 sources are draft, but a ratified note bars draft notes from the book
+
+> **Triage 2026-07-26 (session-52) — batched to `oq-0039`.** All four notes are **still `draft`**
+> (`authorship-distance-axis`, `the-sacred-boundary`, `recursive-strata`, `founding-corpus`) and the
+> bar is still ratified law (`dn-agent-workflow`; `.claude/skills/book/SKILL.md:40` *"Draft notes
+> never enter the book"*). bp-104 (`complete`) converted the workaround into structure — the
+> `forward-referenced:` block at `docs/book/SYNC.md:100-109` plus `\fwdthesis` — so only the owner's
+> confirm-or-ratify remains. **One shape change:** `dn-ouroboros-principal` is now `superseded` by
+> `dn-plane-principals`, so Chapter 1's naming citation moved (`SYNC.md:128-135`).
 
 ## What
 

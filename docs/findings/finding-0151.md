@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0151
-status: open
+status: routed
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 links:
   - docs/design-notes/code-ingest-pipeline.md          # §2.5b / §2.3-1 — the code→dialogue authorship channel
   - docs/design-notes/agentic-loop.md                  # §2.4b / G-E — the C-fiber, thin; the integrator's home
@@ -13,10 +13,22 @@ links:
   - docs/build-plans/bp-093/plan.md                    # PD-J pulled here
 ftype: design
 route: orchestrator
-resolution: null
+resolution: routed — re-entry narrowed: the design pass RAN; what remains is owner ratification of dn-integrator-densification, then /graduate
 ---
 
 # The code→dialogue authorship channel is integrator-gated — a proper integrator design pass is required, and it completes the code-ingest program
+
+> **Triage 2026-07-26 (session-52) — re-entry narrowed; do not re-run the design pass.** Ruling items
+> 1, 2 and 4 are discharged: the PD-J reader was pulled (`bp-093/plan.md:141` *"MOVED OUT to the
+> integrator track"*) and **the Fable design pass RAN**, producing
+> `docs/design-notes/integrator-densification.md` (`warrant:` this finding, `track: code-ingest`).
+> Item 3 is what is live: the note is still **`status: draft`**, so nothing is ratified and no plan
+> carries the design. The code-ingest track dod still carries it open
+> (`docs/tracks/code-ingest.md:14`).
+> **⚑ Do not confuse it with bp-110**, which is a *different* integrator
+> (`design_ref: dn-supervision-and-liveness`, `track: ops`, the supervisor worker protocol).
+> **Re-entry:** owner ratification of `dn-integrator-densification`, then `/graduate`; closes when the
+> code-ingest dod line is discharged.
 
 ## The gap (verified 2026-07-21)
 

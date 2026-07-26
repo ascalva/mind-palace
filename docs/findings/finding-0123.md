@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0123
-status: open
+status: routed
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-07-26
 links:
   - docs/design-notes/plane-principals.md          # §3.2 — grounded the workflow cred, not the daemon's
   - docs/design-notes/vault-runtime-auth.md         # the Vault the daemon unseals
@@ -21,10 +21,19 @@ re_entry: >
 ftype: spec-defect
 origin_plan: bp-078
 route: orchestrator
-resolution: null
+resolution: routed → owner (oq-0041); the design pass happened but its note is still draft, so §7–§11 cannot re-graduate
 ---
 
 # The `ouroboros` daemon's secret bootstrap is keychain-based — incompatible with a headless role-account LaunchDaemon; §7–§11 (the core-plane move) are blocked
+
+> **Triage 2026-07-26 (session-52) — batched to `oq-0041`.** Still blocked, unchanged in substance.
+> The design pass *did* happen — `dn-headless-daemon-secret-bootstrap` exists with `warrant:` this
+> finding — but it is **`status: draft`**, so `/graduate` refuses it and runbook §7–§11 (the core
+> plane) cannot re-graduate. The mechanism it must replace is untouched:
+> `ops/vault/vault-unseal.sh:31` still reads the unseal key from a *login* keychain via
+> `security find-generic-password`, and the daemon plist still lists that migration as a precondition
+> a role account cannot meet.
+> **Sequencing:** finding-0125's Opus-residual gates this ratification — answer `oq-0042` first.
 
 ## What
 Surfaced mid-migration (2026-07-20, right after `finding-0120`). Runbook §7 tells the migration to

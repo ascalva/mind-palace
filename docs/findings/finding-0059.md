@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0059
-status: open
+status: resolved
 created: 2026-07-12
-updated: 2026-07-12
+updated: 2026-07-26
 links:
   - docs/build-plans/bp-020/plan.md
   - docs/build-plans/bp-019/plan.md
@@ -11,10 +11,14 @@ links:
 ftype: spec-fidelity
 origin_plan: bp-020
 route: builder
-resolution: resolved
+resolution: resolved — bp-020 re-grounded the baseline to 8 plans and the falsifier re-passed (`bp-020/journal.md:138-142,282`); frontmatter already carried `resolution: resolved`
 ---
 
 # V3's "11 pre-rule, zero-cost-block" baseline is stale — bp-006/007/009 carry backfilled `actual`-only cost blocks
+
+> **Triage 2026-07-26 (session-52) — CLOSED on evidence.** This finding was routed to `builder` and the fix landed, but nobody flipped it, so it has been inflating the open backlog. Closed here as bookkeeping, not as an orchestrator resolution of builder work — the citation in `resolution:` is the code or commit that contradicts the finding as filed. It was one of **10 stale-open** builder findings found this sweep (against **13 orphaned** ones that stay open); the lane's missing mechanism is **finding-0209**.
+>
+> **Residual, recorded not lost:** Optional residual the finding itself marked non-required: the stale "11 pre-rule" phrase survives at `bp-019/plan.md:95` and `bp-020/plan.md:62`.
 
 ## What
 

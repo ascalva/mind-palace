@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0182
-status: open
+status: routed
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - .claude/skills/delegate/SKILL.md                   # the skill that should carry this
   - docs/build-plans/bp-103/journal.md                 # where it was caught
@@ -11,10 +11,24 @@ links:
 ftype: spec-defect
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: routed — neither half landed; the rule lives only in user-level memory, which does not reach a spawned worktree agent
 ---
 
 # Worktree agents branch from `origin/main`, so an unpushed wave is invisible to them — and the failure is silent
+
+> **Triage 2026-07-26 (session-52) — neither half landed, and the gap is sharper than filed.**
+> `.claude/skills/delegate/SKILL.md` contains **no** push-before-spawn or base-verification guidance
+> (its only "push" hit, `:162`, is about CI after push; last touched `f0bf7f6`, predating this
+> finding), `docs/design-notes/agent-workflow.md` has **zero** occurrences of "wave", "merge-base",
+> "origin/main" or "baseRef", and no hook asserts a worker's base.
+> **⚑ The rule exists only in the orchestrator's user-level memory — which is not a repo artifact and
+> does not reach a spawned worktree agent at all.** Practice is being followed ad hoc
+> (`bp-108/journal.md:13` records the expected base), which is exactly the convention-not-enforcement
+> shape the project rejects.
+> **Land the cheap half now:** one paragraph in the delegate skill beside the pre-flight budget gate —
+> `git push` immediately before spawning, state the expected base SHA in the spawn prompt, and have
+> the worker assert `git merge-base --is-ancestor HEAD origin/main` + fast-forward at start. The
+> `dn-agent-workflow` half is owner-gated and should ride finding-0191's amendment.
 
 ## What
 

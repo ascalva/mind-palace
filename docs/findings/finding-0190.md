@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0190
-status: open
+status: routed
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - docs/audits/ops-wave-2026-07-25.md
   - ops/import_lint.py
@@ -13,10 +13,23 @@ links:
 ftype: discovery
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: routed → owner (oq-0046); the two-hop chain to hvac is intact and the one unconditional guard is not loaded
 ---
 
 # `hvac` is reachable from core in two hops the direct-only import lint cannot see
+
+> **Triage 2026-07-26 (session-52) — the chain is intact.**
+> `core/factory/factory.py:182` → `from config.secrets_backend import build_secrets_backend`;
+> `config/secrets_backend.py:136,151` → `import hvac` inside `VaultClient` methods and
+> `hvac.Client(url=self.addr)`. `hvac` is listed in `ops/import_lint.py:52` `NETWORK_MODULES` with the
+> comment *"config/scheduler only, never core"* — and the lint is direct-only, so it cannot see it.
+> `core/factory/factory.py:178-182` already records the deferral (*"left RED on purpose"*).
+> **⚑ Citation correction to this finding:** the pf-anchor check is `check_pf_anchor` at
+> `scripts/verify_planes.py:270-291` and reports **SKIP** (*"pfctl -a … -sr unreadable (needs root) —
+> owner verifies with sudo"*), **not** "PENDING at `:171`" (`:171` is `check_users_exist`). The
+> substance holds: the anchor is owner-loaded and unverifiable from an unprivileged run.
+> **⚑ And the inert pf anchor is tracked NOWHERE** — zero hits across `owner-questions.md`,
+> `TRACKS.md`, `docs/tracks/*.md`. Now batched as `oq-0046`.
 
 ## What
 `ops/import_lint.py::scan_core` performs one AST walk per file and tests only the
