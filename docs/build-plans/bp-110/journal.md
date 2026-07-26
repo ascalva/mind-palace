@@ -9,6 +9,97 @@ updated: 2026-07-26
 
 ---
 
+## SEAL — all five items closed, gate green, four findings filed, no §10 STOP fired
+
+`dn-supervision-and-liveness`'s integrator plan is built. A job's compute half can now be
+dispatched to a subprocess that **cannot** open a store, and the supervisor performs every landing
+itself. It ships **default-off** (`worker_mode = "inproc"`), with no lane migrated and no
+production handler touched — so the first real lane (bp-113) meets a protocol that has already run
+in production shape, honouring §12's wave rule that *"the last commit before the wave's seal must
+never be the first commit of a behaviour."*
+
+Commits on `worktree-agent-a1a8d30858012771f`: `e7a9324` (Item 1) · `c181a6d` (Items 2, 5) ·
+`213dc00` (Items 3, 4).
+
+### The three tier claims, stated exactly (§2's ladder; overclaiming is the note's own foot-gun)
+
+| claim | tier reached | backing |
+|---|---|---|
+| the worker cannot write a store | **2**, capability | tier-4 ratchet, both falsifiers planted |
+| the worker is cancellable | **3**, kernel | SIGTERM→SIGKILL; deadline enforced *during* the read |
+| the worker is sealed | asserted, not inherited | proven from inside the process (V4, MUT-1) |
+| one model in flight | **5**, dispatch guard | tier-4 test; window currently empty (f-0229) |
+
+```read-map
+docs/findings/finding-0229.md:1: READ FIRST — what this plan does NOT deliver: synchronous dispatch means cancellability, not yet liveness
+docs/findings/finding-0228.md:1: the §6 pin that was wrong — job budget is per-kind, not scalar; discharges finding-0225's wiring half
+docs/findings/finding-0227.md:1: every lane module imports a store CLASS — bp-113/bp-114 are larger than they look
+docs/findings/finding-0226.md:1: V5 measured — "starves the loop" is throughput (2150x), not liveness (still 133 Hz)
+scheduler/worker.py:87: ReadOnlyRows — the read surface §2.3's wording is silent about (§3 Q3's gap, resolved)
+scheduler/worker.py:195: RowsProxy — why non-leaking is STRUCTURAL here and impossible in-process in Python
+scheduler/worker.py:248: the registry is STATIC — a dotted handler path would make the tier-4 ratchet theatre
+scheduler/worker.py:369: main() — seal() then assert_sealed() as the first two statements (V4)
+scheduler/worker.py:137: _wait_readable — the bug: a bound checked between frames bounds nothing
+scripts/check_imports.py:53: forbidden set as PACKAGES + NAME SHAPES, so the rule cannot rot as stores are added
+scripts/check_imports.py:100: _imported_symbols — a second projection, NOT a second walker (the DRY mandate)
+scheduler/supervisor.py:220: _dispatch_to_worker — the landing stays here; no timeout_s, deliberately (f-0224)
+scheduler/supervisor.py:137: model_blocked_tiers — §2.7 verbatim, kept OFF blocked_tiers() so neither rule is overloaded
+core/kernel/config/loader.py:342: SchedulerConfig — the whole section, and why job_budgets is a map
+config/defaults.toml:368: the [scheduler] section in the file's voice — why each bound exists
+tests/unit/test_worker_protocol.py:122: the V4 falsifier — egress attempted from INSIDE the worker
+tests/unit/test_worker_protocol.py:206: the function-local ratchet falsifier — bp-105's exact hole
+tests/unit/test_worker_protocol.py:95: the wall-clock test that asserts ELAPSED TIME, not just the exception
+tests/integration/test_supervisor.py:163: the parallel-run proof — both modes through one landing sink
+tests/integration/test_supervisor.py:365: Item 4's acceptance — only the in-flight tier and the pinned tier stay claimable
+```
+
+Mechanical coverage counted, not listed: **+21 tests** (14 in `test_worker_protocol.py`, 7 new in
+`test_supervisor.py`); 5 are on the map. The 9 pre-existing supervisor tests are unchanged.
+
+## Follow-through
+
+- **Built?** Yes, all five items. Item 1's three measurements are in Checkpoint 1 (V1 p95 landing
+  20.27 ms = 2.0% of the tick budget; V2 IPC 3.55% of compute; V5 2150× GIL degradation). Item 2's
+  worker seals itself and streams batches. Item 3's seam dispatches and lands. Item 4's rule is
+  enforced at the one claim site. Item 5's ratchet is in the CI gate. Every named falsifier was
+  **planted and watched go red** — MUT-1 (seal removed), MUT-2 (module-level store import), MUT-3
+  (function-local store import) — not merely asserted.
+- **Wired / delivered (or why dormant)?** ⚑ **Wired but deliberately OFF, and the ON switch
+  EXISTS** — the "wiring is part of finishing" bar. `config/defaults.toml` `[scheduler]` →
+  `SchedulerConfig` → `Supervisor.worker_mode`, flippable in `config/ouroboros.toml`. Dormant by
+  design (note §4: `inproc` at first landing, no lane force-migrated). ⚑ **Honest limit: with no
+  lane registered, flipping `worker_mode` alone changes nothing** — the seam needs a registered
+  compute half too, which is bp-113/bp-114's. That is the intended safe state, not an oversight.
+  The `build_components` construction site that would pass `job_budgets` into `JobQueue` is out of
+  scope by §5 and remains bp-111/bp-112's, exactly as finding-0225's re-entry condition specifies.
+- **Does a consumer use it?** **Not yet in production, by design — and I am not claiming
+  otherwise.** The consumers are bp-113/bp-114 (lanes) and bp-111/bp-112 (lease, escalation), all
+  downstream. In-repo the protocol is exercised end-to-end by 21 tests driving real subprocesses,
+  and the parallel-run proof shows both dispatch modes landing identical rows. finding-0227 warns
+  those consumers are larger than they look: every lane module must take `ReadOnlyRows` before it
+  can register.
+- **Track state (what remains on this track)?** ops / OPS-4. Remaining on the wave: **bp-111**
+  (lease + the `build_components` wiring), **bp-112** (escalation — and it must rule on
+  finding-0224, which this plan deliberately left open, and on finding-0229's non-blocking
+  dispatch), **bp-113 / bp-114** (the lanes, parallelizable with each other once this merges).
+  ⚑ **Not delivered by this plan and must not be reported as landed:** liveness (§1's "so the
+  supervisor stays live"), the batch as the fairness unit (finding-0165), and batch landing as the
+  in-band progress signal (§2.9's STUCK lag). All three ride on non-blocking dispatch —
+  finding-0229.
+- **Opened a new track/finding?** Four findings, no new track. **finding-0226** (`spec-defect` →
+  orchestrator, V5's prose overstates), **finding-0227** (`discovery` → orchestrator, lane modules
+  import store classes; bp-113/114 sizing), **finding-0228** (`spec-defect` → builder, §6's scalar
+  vs the per-kind field; discharges finding-0225's wiring half), **finding-0229** (`spec-defect` →
+  orchestrator, synchronous dispatch defers liveness; a sequencing decision).
+
+**Ready to deskcheck.** Suggested walk: `uv run python scripts/check_imports.py` (watch the tier-4
+line), then plant `from core.stores.vectorstore import open_vector_store` inside any function in
+`scheduler/worker.py` and watch it red, then
+`uv run pytest tests/unit/test_worker_protocol.py::test_the_worker_process_is_sealed_and_blocks_a_non_loopback_connect -q`
+— that one spawns a real worker and proves a Zone-A subprocess refuses egress from inside itself.
+
+---
+
 ## Checkpoint 3 — Items 3 and 4 CLOSED. All five items done; gate green; three findings filed.
 
 **Status.** The dispatch seam is in, behind a default-off flag, with the parallel-run proof
