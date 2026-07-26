@@ -983,3 +983,61 @@ references:
   - docs/brainstorms/phone-chat-surface.md         # 04:02Z the public-presence principle
   - docs/archive/PROGRESS-phases-0-10.md           # :403 Syncthing pinned to IP, not hostname
 ```
+
+## 2026-07-26T04:41:00Z
+
+```capsule
+topic: autopilot-mode
+date: 2026-07-26
+
+decisions:
+  - OWNER INTENT (2026-07-26, parked by him): "I'll probably have to create a role for you to
+    use with more limited access to the resources, but that can be parked for now." Recorded
+    because it is a CAPABILITY decision, and because the current state is the thing his own
+    non-negotiables exist to prevent.
+  - CURRENT STATE, stated plainly: the only AWS principal available to an agent is profile
+    `alberto-sso` -> account 054942746160, role **AdministratorAccess**, us-east-1
+    (~/.aws/config). That is FULL WRITE on the account. NN-3 ("the model advises; code acts;
+    no model holds a shell, raw secrets, or direct infra mutation") and NN-4 ("executed code
+    is powerless: no creds, no network, no vault") both point away from it. Today the only
+    thing keeping the agent read-only is the agent's own stated restraint -- i.e. CONVENTION,
+    which the structural-enforcement rule says is not a guarantee.
+  - ⚑ THE SHAPE IS NOT OPEN-ENDED -- IT WANTS TWO PRINCIPALS, NOT ONE:
+      (1) AGENT READ ROLE -- route53:List*/Get*, s3:List*/GetObject, cloudfront:Get*,
+          describe-*. Read-only. This is what makes "I will only read" STRUCTURAL rather than
+          a promise.
+      (2) ACME SERVICE ROLE -- narrow WRITE, and ⚑ THE AGENT MUST NEVER HOLD IT. DNS-01 gives
+          it a precise minimal shape: route53:ChangeResourceRecordSets scoped to ONE hosted
+          zone and, via a condition key, to `_acme-challenge.*` TXT records only. A standard
+          least-privilege pattern, not novel work.
+  - ⚑ WHY THE SEPARATION IS LOAD-BEARING AND NOT HYGIENE. Under the 04:18Z identity-assertion
+    framing, the domain IS the claim of authorship -- so whatever can rewrite the zone can
+    rewrite the claim at its root. That argument only holds if the cert-renewal credential
+    lives with the RENEWAL PROCESS and never with the agent. A single combined "limited role"
+    would quietly undo it. This is the finding-0207 class (capability the agent can reach),
+    applied to AWS rather than to Keychain.
+
+parked:
+  - decision: create the scoped IAM role(s) and switch the agent off AdministratorAccess.
+    default: PARKED BY THE OWNER -- AdministratorAccess remains the only profile, and the
+    agent's read-only posture is convention, not enforcement.
+    re_entry: OWNER'S CALL. Concretely forced at the moment the ACME/DNS-01 path is built,
+    since that build must create principal (2) anyway -- so creating (1) alongside it is
+    nearly free, and that is the cheapest moment.
+
+open_questions:
+  - Does anything else in the repo already assume AdministratorAccess (Terraform, the deploy
+    path, the CI witness)? Not checked. A narrowed agent role must not break `mind-palace
+    deploy`, which is owner-fired and separately gated.
+  - Should the agent read role be a distinct SSO permission set, or an assumable IAM role the
+    agent chains into from the existing session? The latter is easier to revoke.
+
+next_steps:
+  - Not blocking anything today. Fold principal (2) into the cert/DNS-01 build plan when the
+    superseding note graduates; raise principal (1) at the same time.
+
+references:
+  - docs/findings/finding-0207.md          # the same class: capability the agent can reach
+  - docs/brainstorms/autopilot-mode.md     # 04:18Z identity-assertion framing this protects
+  - CLAUDE.md                              # NN-3, NN-4, NN-10
+```
