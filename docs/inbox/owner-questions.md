@@ -1485,7 +1485,7 @@ asserted.
 ---
 
 ## oq-0045 — Should the import firewall walk the closure, or is the self-containment ratchet the intended discharge path? (finding-0185; oq-0046 is the live instance)
-- status: open
+- status: answered   # 2026-07-26 — (a) walk the closure; the palace-as-oracle recorded as successor, not authority
 - origin: docs/findings/finding-0185.md
 - blocking: false
 - question: `ops/import_lint.py` motivates itself with a **closure** claim — *"if no module under
@@ -1506,12 +1506,38 @@ asserted.
   already documents it honestly as `Proposition 2.1/2.2`). Park condition — you rule here, or a new
   `core → sibling → network` chain is found. Also enacted by this triage regardless: finding-0103 is
   re-weighted on the board as a **safety-discharge** item, not hygiene.
-- answer:
+- answer: **(a) — MAKE THE LINT WALK THE FIRST-PARTY CLOSURE.** Owner, 2026-07-26: *"yeah, I think
+  so, or even better yet, use ouroboros, or find a way to use it, after some of the coming work, it
+  might be able to trace an import path?"*
+  ⇒ Two things, and they must not be conflated. **The ruling** is (a): the closure walk lands in
+  `ops/import_lint.py`, so non-negotiable #1/#2's static tier stops being *conditional* on a red
+  ratchet. ~40 lines, and the walker already exists as precedent — `tests/unit/test_inner_ring.py`
+  does a fixed-point first-party scan. On landing, the `test_core_self_containment` ratchet reverts
+  from a safety dependency to hygiene (which also removes the awkwardness that CI **deselects** the
+  very ratchet the invariant leans on, `.github/workflows/ci.yml:50`).
+  **The larger idea** — let the palace answer its own reachability question — is captured in full at
+  `docs/brainstorms/autopilot-mode.md` (08:20Z capsule). Why it is sound: the AST-derived structural
+  plane already holds the graph (`ops/code_snapshot.py`, `ops/code_sensor.py`,
+  `reference_edges.sqlite` at ~1.53M edges over 1,135 commit snapshots), so "can core reach a
+  network-capable module?" is a **reachability query over data that already exists**, not a new
+  subsystem. Two hard constraints recorded there, both of which a future session will be tempted to
+  erode: **(i) STRUCTURAL edges only, never semantic** — an invariant check must be sound, and a
+  similarity answer admits false negatives; **(ii) THE LINT STAYS THE AUTHORITY** — a self-referential
+  guard fails *silently* when its own graph is incomplete (a missed dynamic import, a stale snapshot),
+  so the palace is a second opinion and a discovery tool, kept honest by a completeness ratchet (every
+  edge the lint finds must also appear in the palace's graph).
+  **Sequencing, matching the owner's "after some of the coming work":** the closure walk is startable
+  now and closes this question; the oracle rides the reference-bookkeeper track (finding-0154), because
+  the store has 1.53M accumulated edges and **no materialized current view**
+  (`core/stores/reference_edges.py:299,329`) — a reachability query today would rebuild one per call.
+  **Enacted by this triage regardless of the walk:** finding-0103 re-weighted on the board as a
+  safety-discharge item, not hygiene.
+  **Rule together with oq-0046** — same mechanism, two halves. Not yet minted as a plan.
 
 ---
 
 ## oq-0046 — Core can reach the Vault HTTP client in two hops, and the only unconditional guard is not loaded (finding-0190)
-- status: open
+- status: answered   # 2026-07-26 — (a) load the anchor; commands supplied, owner-run and NOT yet executed
 - origin: docs/findings/finding-0190.md
 - blocking: false
 - question: The chain is intact today: `core/factory/factory.py:182 → config.secrets_backend →
@@ -1532,7 +1558,34 @@ asserted.
   condition — you load the anchor, or `[secrets]` is enabled on a host with `hvac` installed, which
   would make this live rather than latent. ⚑ Rule this **together with oq-0045** — same mechanism, two
   halves.
-- answer:
+- answer: **(a) — LOAD THE pf ANCHOR.** Owner, 2026-07-26: *"sounds like a easy win to me, give me
+  the command to execute."* Commands supplied same session; this is an **owner-run sudo step and has
+  NOT been executed** — the anchor is still inert.
+  **Preconditions verified before the commands were handed over** (so the parse cannot fail on the
+  documented "unknown user ouroboros" trap): the `ouroboros` account **exists**, uid 550
+  (`dscl . -read /Users/ouroboros UniqueID`); `/etc/pf.conf` currently carries **no** `mind-palace`
+  anchor lines, so persistence is a separate edit; whether pf itself is enabled could not be checked
+  without sudo (`pfctl -e` if not).
+  ```
+  sudo pfctl -n -f ops/network/ouroboros-egress.pf.conf                       # parse only, loads nothing
+  sudo pfctl -a mind-palace/ouroboros -f ops/network/ouroboros-egress.pf.conf # load the sub-anchor
+  sudo pfctl -a mind-palace/ouroboros -sr                                     # verify: 2 rules, lo0 pass FIRST
+  ```
+  then the two `/etc/pf.conf` loader lines from the conf file's own header, and
+  `sudo pfctl -f /etc/pf.conf`.
+  **⚑ HONEST SCOPE — it buys less than "easy win" implies, and this was stated to the owner before he
+  ran anything.** The anchor blocks the **`ouroboros` uid**, and *nothing currently runs as
+  `ouroboros`*: only user LaunchAgents are installed (`~/Library/LaunchAgents/com.mind-palace.*`) and
+  there is **no** `/Library/LaunchDaemons/com.mind-palace.*`, so the daemon runs as `ascalva`.
+  ⇒ Loading it turns `scripts/verify_planes.py:270-291`'s **SKIP into PASS** and pre-positions the
+  guard, but it does **not** protect today's running daemon. It becomes load-bearing only when the
+  core-plane migration lands — which is precisely what **oq-0041** is blocking. Real, cheap, correct
+  to do now; not a hole closing today, and the record must not later read as if it were.
+  **The import-inversion half** (`core/factory/factory.py:182 → config.secrets_backend → hvac`) is
+  unchanged and stays with finding-0103's programme; the closure walk that would *detect* such chains
+  is oq-0045.
+  **Re-entry:** the owner runs the commands (then this flips to swept with the `-sr` output recorded);
+  or oq-0041's core-plane migration lands and makes the anchor live.
 
 ---
 
