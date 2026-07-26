@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0219
-status: open
+status: routed
 created: 2026-07-26
 updated: 2026-07-26
 links:
@@ -12,7 +12,8 @@ links:
 ftype: spec-defect
 origin_plan: bp-120
 route: orchestrator
-resolution: null
+resolution: >-
+  Batched to the owner as **oq-0054** at the 2026-07-26 sweep (three candidates carried verbatim: (a) character cap, (b) max token length, (c) accept + amend §2.2). Not applied: §2.2 is agent-immutable (A8), so any cap change is a superseding note or an owner-ratified amendment. Ruling lands naturally at bp-120's deskcheck.
 ---
 
 # The capsule's "too long to genuinely read" cap is unbounded in characters — a 38 KB capsule passes `validate` on 39 lines and 227 words

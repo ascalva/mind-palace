@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0207
-status: open
+status: routed
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - docs/design-notes/dn-autopilot-and-delegated-blessing.md   # §2.3 secret bullet, §2.9 invariant 1
   - core/kernel/config/loader.py                               # :605-619 get_secret == os.environ.get
@@ -12,7 +12,8 @@ links:
 ftype: spec-defect
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: >-
+  Routed at the 2026-07-26 sweep; pairs with finding-0206 for the same `dn-autopilot-and-delegated-blessing` revision. The asserted-not-mechanised secret boundary is real; it is not owner-batched yet because the question is 'what mechanism', which is a design pass, not a ruling.
 ---
 
 # "The model never sees the secret" is asserted, not mechanised — and because the verifier is a Python script, Keychain ACL pinning cannot enforce it

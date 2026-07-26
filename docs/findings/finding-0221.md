@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0221
-status: open
+status: routed
 created: 2026-07-26
 updated: 2026-07-26
 links:
@@ -12,7 +12,8 @@ links:
 ftype: blocker
 origin_plan: bp-095
 route: orchestrator
-resolution: null
+resolution: >-
+  Batched to the owner as **oq-0055** at the 2026-07-26 sweep. Carries both halves: the gate-completeness ask (widen bp-095's `re_entry` to a CONJUNCTION - informative M-C4 AND non-trivial F-population) and the two owner-owed acts behind it (the CI-1 seed run; enabling `ENABLED_L2B_PATTERNS`). bp-095 stays `ready` and un-started. Remains a `blocker` for bp-095 alone; nothing else is gated.
 ---
 
 # bp-095's M-C4 gate is UNREAD (not degenerate) — and both S↔F populations are provably empty, so the gate needs a second clause

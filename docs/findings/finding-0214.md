@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0214
-status: open
+status: resolved
 created: 2026-07-26
 updated: 2026-07-26
 links:
@@ -13,7 +13,8 @@ links:
 ftype: blocker
 origin_plan: bp-121
 route: builder
-resolution: null
+resolution: >-
+  Discharged by bp-122 (the two self-mod tests made hermetic) and VERIFIED EMPIRICALLY by the orchestrator at the 2026-07-26 sweep, not taken on report: `uv run pytest tests/integration/test_selfmod.py tests/integration/test_selfmod_cli.py -q` in the MAIN checkout, against the owner's real gitignored overlay (sigma=0.58) -> **18 passed in 0.18s**. The local suite and CI now agree; deploy gate 5 is clear.
 ---
 
 > ⚑ **ESCALATED to `blocker` — 2026-07-26, same day, on the owner's report that deploy is

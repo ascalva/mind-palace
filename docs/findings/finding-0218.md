@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0218
-status: open
+status: routed
 created: 2026-07-26
 updated: 2026-07-26
 links:
@@ -13,7 +13,8 @@ links:
 ftype: design
 origin_plan: orchestrator          # design-tier session authoring dn-world-facing-agency
 route: orchestrator
-resolution: null
+resolution: >-
+  Routed at the 2026-07-26 sweep; batched as the enforcement half of **oq-0052** (the impersonation ruling). ⚑ It is INDEPENDENT of how the owner rules: `ActuatorSpec` carries no actor-identity field, so 'excluded by kind' is currently unenforceable because the kind is not in the type. It closes on a property test, not on wording - and it must close either way, since a disclosed-instrument rule needs the same field a bright line would.
 ---
 
 # Actor identity is inexpressible in the effect catalog type — the non-impersonation bright line cannot be structurally enforced

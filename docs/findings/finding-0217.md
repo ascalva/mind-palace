@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0217
-status: open
+status: routed
 created: 2026-07-26
 updated: 2026-07-26
 links:
@@ -16,7 +16,8 @@ links:
 ftype: discovery
 origin_plan: orchestrator          # 2026-07-26 dispatched fable design pass (scored-beliefs note)
 route: orchestrator
-resolution: null
+resolution: >-
+  Routed at the 2026-07-26 sweep; its substance is carried into **oq-0053** (whether the unretractable tier stays closed until confidence is EARNED). Its decisive result is preserved there: Σ is NOT recoverable today - `DreamCharter.grant` types it fully (`charter.py:155-222`) but never persists it, so the ledger is new bookkeeping, not a read. The contamination law and the `c(κ)`-is-not-a-probability axis stay with the `dn-scored-beliefs` draft.
 ---
 
 # A belief's Σ is not recoverable after the fact: the charter is never persisted, and every persisted record carries the support set, not the visibility set

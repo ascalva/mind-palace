@@ -1838,3 +1838,133 @@ asserted.
   amendment text). ⚑ The amendment itself lands in `CONSTITUTION.md` / `BUILD-SPEC.md` §3, both of
   which are **owner-hand-only** — `CONSTITUTION.md` is on the foundation denylist. An agent may draft
   the wording; only the owner applies it. Ratification of the note remains his hand too.
+
+## oq-0052 — IMPERSONATION: is "never speaks as you" a bright line, or a per-act permission like the unretractable tier?
+
+- status: open
+- origin: oq-0051 gap 1 · docs/design-notes/world-facing-agency.md (`draft`) ·
+  docs/brainstorms/acting-as-the-owner.md · docs/findings/finding-0218.md
+- blocking: false   # blocks the owed `dn-world-facing-agency` revision, not any build
+- question: Your retractability ruling (oq-0051) settles *what* the system may do on its own. It
+  does **not** settle *whose voice it does it in* — and the two axes are genuinely orthogonal. A
+  message sent under your name is **retractable as a resource** (delete it) and **unretractable as
+  a relationship** (it cannot be un-received, and the counterparty now believes you said it), so
+  retractability cannot decide it. The `acting-as-the-owner` capsule separated three senses of
+  "act as me": (1) **decide as you would** — the mirror's whole purpose, uncontroversial;
+  (2) **act on your behalf, disclosed** — "I am Alberto's assistant", counterparty keeps recourse;
+  (3) **speak AS you**, undisclosed — impersonation, and unbounded. The `draft` note proposes
+  **non-impersonation as a bright line**, argued on safety rather than etiquette: disclosure is what
+  preserves a counterparty's ability to verify, escalate, or refuse. So: is sense (3) **excluded by
+  kind** (a bright line, alongside the other non-negotiables), or is it **sense-(1)-style permitted
+  under the same per-act permission** that governs unretractable effects?
+- default_if_unanswered: **non-impersonation is a bright line** — the system acts only as a
+  disclosed instrument, under its own identity. Park condition: `dn-world-facing-agency` is revised
+  to state it as a bright line with `[INFERENCE]` on the clause, and the revision cannot be ratified
+  until you either confirm it or replace it. finding-0218 is the enforcement half and is independent
+  of the ruling: `ActuatorSpec` has **no actor-identity field**, so "excluded by kind" is currently
+  **unenforceable — the kind is not in the type**. It closes on a property test, not on wording.
+- answer:
+
+## oq-0053 — Does the unretractable tier stay CLOSED until "high-confidence" is earned rather than self-awarded?
+
+- status: open
+- origin: oq-0051 gap 3 · docs/design-notes/scored-beliefs-and-earned-entitlement.md (`draft`) ·
+  docs/findings/finding-0217.md
+- blocking: false   # nothing is wired; this fixes the ORDER in which it may become wired
+- question: Your ruling grants unretractable action *"via my permission"* **and** conditions it on
+  *"high-confidence"*. Two readings, and they differ in exactly the way that matters: **(A)** your
+  permission is the whole gate — you are the one judging confidence at the moment you approve, so
+  the system's own confidence estimate is advisory. **(B)** both must hold — the system must ALSO
+  clear an earned confidence bar, so it cannot bring you a weak proposal wearing a confident face.
+  ⚑ The reason to prefer (B): self-assessed confidence is precisely the quantity that cannot be
+  trusted, and asking you to supply the calibration turns your permission into the system's error
+  budget. The `dn-scored-beliefs` draft exists to make confidence **earned per-domain against
+  outside resolution**; until it lands, "high-confidence" is a word, not a gate. ⚑ Note the fable
+  pass established the ledger is **new bookkeeping, not a read**: Σ (what the system could see) is
+  typed by `DreamCharter.grant` (`charter.py:155-222`) but never persisted, so today nothing can
+  reconstruct it. Also: built `c(κ)` is **not a probability**, so a Brier score needs a separately
+  elicited credence — three axes, collapse forbidden.
+- default_if_unanswered: **(B), and the unretractable tier stays closed** until a per-domain
+  calibration record exists. Park condition: any plan that would wire an irreversible effector
+  carries `re_entry` naming a scored-belief record for that domain; the retractable/autonomous tier
+  and the right to decline are unaffected and may proceed. Chosen as default because the failure it
+  prevents is asymmetric — a wrongly-closed tier costs latency, a wrongly-opened one costs an
+  unretractable act.
+- answer:
+
+## oq-0054 — The intent capsule's cap bounds SHAPE, not bytes: (a) character cap, (b) max token length, or (c) accept and amend
+
+- status: open
+- origin: docs/findings/finding-0219.md · bp-120 (the AP1 intent capsule) ·
+  docs/design-notes/dn-autopilot-and-delegated-blessing.md §2.2
+- blocking: false   # bp-120 is built, green, and the boundary is a PASSING test that cannot rot
+- question: §2.2's cap on an intent capsule — the thing you read before approving a delegated
+  action — is `≤ 40 lines / ≤ 300 words`, and its stated purpose is "too long to genuinely read".
+  bp-120's own falsifier fired and was **correctly not fixed**: eight filled fields plus 30 lines of
+  seven 180-character tokens is 39 lines / 227 words (inside both caps) and **38,122 characters**,
+  and `validate` passes it. A "word" has no maximum length, so the caps bound shape and not size.
+  Adding a third cap changes a §6-pinned interface and §11 forbids making caps configurable — a
+  design act, not a builder's. Options, cheapest first: **(a)** add a character cap (e.g. ≤ 2,000
+  canonical characters — a realistic 1 KB capsule clears it with room); **(b)** add a max token
+  length (no non-whitespace run > ~60 chars — kills the pathological case without capping honest
+  length, and doubles as a paste-accident detector, but bounds nothing on its own); **(c)** accept
+  it and amend §2.2 to say the cap bounds shape, not bytes, with your read as the backstop.
+- default_if_unanswered: **(a)+(b)**, the builder's read of the intent — but NOT applied, because
+  §2.2 is agent-immutable (A8) so any cap change is a superseding note or an owner-ratified
+  amendment, never an edit. Park condition: the ruling lands naturally at **bp-120's deskcheck**
+  (§11 row 3 already anticipates you tuning the cap); until then AP3 (the capsule render to the
+  exhaust lane) must not assume a byte bound. `scripts/capsule.py` and
+  `docs/templates/intent-capsule.md` change **together**, under a plan whose write_scope names both.
+- answer:
+
+## oq-0055 — bp-095's survey gate: widen its `re_entry` to a conjunction, and the two acts behind it are yours
+
+- status: open
+- origin: docs/findings/finding-0221.md (`blocker`) · bp-095 (`ready`, un-started) · bp-093 journal ·
+  docs/PROGRESS.md:5382-5411
+- blocking: true   # bp-095 is `ready` and cannot honestly start
+- question: bp-095 (the S↔F fiber-geometry survey) refused at its own §10 gate and built nothing —
+  correctly. Its entry gate reads a single condition: that bp-093's **M-C4** verdict be
+  `informative`. But **both halves of the S↔F join are provably EMPTY, for two independent
+  reasons**: **S** — no vectorstore directory exists under `~/.mind-palace/` (the corpus was never
+  seeded); **F** — `reference_edges.sqlite` is **0 bytes**, because `ops/code_sensor.py:154` ships
+  `ENABLED_L2B_PATTERNS = frozenset()`, i.e. disabled. ⚑ The gate encodes only the first. An
+  informative M-C4 is a geometry reading over *vectors*, so it would go **green on a seeded corpus
+  while F was still zero** — the gate opens, the lens builds, and §7's acceptance passes
+  **vacuously over an empty set** while §8's keep-condition stays unevaluable. §8:117 already names
+  "F-population non-trivial" as a validity condition; the front-matter `re_entry` omits it. **The
+  ask: widen `re_entry` to a conjunction** (informative M-C4 **AND** non-trivial F-population).
+  ⚑ Behind it sit two acts the builder correctly refused to perform, because doing either would be
+  manufacturing the signal that licenses the build (§9's exact inversion): the **CI-1 seed run**
+  (one idle daemon run with Ollama — `qwen3-embedding:4b` is present and Ollama is reachable, so
+  the blocker is the act, not the tooling), and **enabling `ENABLED_L2B_PATTERNS`** (bp-094 Item 2's
+  owner-gated M-C6 act).
+- default_if_unanswered: **widen the gate to the conjunction** and leave bp-095 `ready` and
+  un-started. Park condition: bp-095 does not begin until both clauses hold; if you decline the
+  F-population clause, it drops and bp-095 proceeds on M-C4 alone **with an all-null first read
+  expected and sealed as such** — which is an honest outcome but a much weaker survey. Nothing else
+  is blocked by this.
+- answer:
+
+## oq-0056 — Confirm the ceiling carve-out's SCOPE: "the pinned model is never refused" is not a blanket bypass of the arithmetic
+
+- status: open
+- origin: docs/findings/finding-0220.md · bp-107 · core/models/loader.py:262 ·
+  docs/design-notes/dn-local-model-runtime.md
+- blocking: false   # built and merged; this is a confirmation, and reversing it is a one-function change
+- question: bp-107 (the memory-ceiling gate that now *measures* residency instead of believing the
+  registry) stated its ceiling rule three times, and two phrasings would have weakened
+  non-negotiable #8 (the ≤2-resident-models / ~20–24 GB ceiling). The builder resolved all three
+  toward **more** enforcement. The one worth your eye: **"the pinned model is never refused" is
+  scoped to the FAIL-CLOSED-on-unknown rule, NOT a blanket bypass of the arithmetic ceiling.** I
+  verified this in code rather than taking the report — `core/models/loader.py:262`: *"this rule
+  never refuses the pinned model, but the ARITHMETIC ceiling still"* applies. §6 and §10 of the plan
+  both scope it that way; only Item 2's invariant list drops the scope, which is where the ambiguity
+  came from. ⚑ **The blanket reading would have been undetectable**: the FSM property test has no
+  reachable state where a pinned load breaches the ceiling, so nothing would have caught it. Did you
+  mean the narrow scope (arithmetic still binds the pinned model), or the blanket one?
+- default_if_unanswered: **the narrow scope stands** — it is what shipped and it is the stronger
+  reading. Park condition: none; nothing is blocked. If you meant the blanket bypass, it is a
+  one-function change in `core/models/loader.py` plus a plan to carry it, and finding-0220 holds the
+  re-entry.
+- answer:

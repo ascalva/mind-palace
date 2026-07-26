@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0206
-status: open
+status: routed
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - docs/design-notes/dn-autopilot-and-delegated-blessing.md   # §2.3 post-hoc rule, §2.9 invariant 9
   - .claude/hooks/_lib.py                                      # the (c) clause this rule assumes
@@ -12,7 +12,8 @@ links:
 ftype: spec-defect
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: >-
+  Routed at the 2026-07-26 sweep. Belongs to the `dn-autopilot-and-delegated-blessing` revision, alongside finding-0207 - both are about the same defect class (a grant check asserted rather than mechanised). Not owner-batched: it needs a design pass to produce a rulable question first, and the autopilot ceiling in force today (blessings owner-by-hand, `gate-guard` pre-hoc, Stop-gate post-hoc) does not depend on it.
 ---
 
 # The autopilot note's post-hoc grant check has no existing rule to be an "exception" to — and as written it cannot distinguish the owner's committed hand-flip from a forged one

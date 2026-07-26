@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0225
-status: open
+status: routed
 created: 2026-07-26
 updated: 2026-07-26
 links:
@@ -13,7 +13,8 @@ links:
 ftype: question
 origin_plan: bp-109
 route: builder
-resolution: null
+resolution: >-
+  Handed to **bp-110** at the 2026-07-26 sweep - it owns `config/defaults.toml` and `core/kernel/config/loader.py`, i.e. the `[scheduler]` schema that is the missing enable path. Its prompt pins REUSE, not re-invention, and flags the live shape tension: §6 pins `job_budget_s` as a scalar float while the built `JobQueue.job_budgets` (`scheduler/queue.py:296`) is per-kind `Mapping[str, float]`. A scalar cannot express what the built field consumes; whichever lands must be recorded, and changing the §6-pinned shape is a `spec-defect` + `[banner: correction]`, never a silent redefinition.
 ---
 
 # The lease's ON switch stops at `JobQueue(job_budgets=…)` — no config key reaches it, so nothing

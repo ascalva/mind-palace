@@ -1,7 +1,7 @@
 ---
 type: finding
 id: finding-0224
-status: open
+status: routed
 created: 2026-07-26
 updated: 2026-07-26
 links:
@@ -13,7 +13,8 @@ links:
 ftype: spec-defect
 origin_plan: bp-109
 route: orchestrator
-resolution: null
+resolution: >-
+  Routed at the 2026-07-26 sweep to **bp-112's graduation**, which is where the live-run veto is ruled on. bp-109 built the SAFE reading (the deadline is stamped, never enforced) and fenced the other with tests, so nothing is at risk in the meantime. ⚑ bp-110's builder was explicitly instructed NOT to settle this in either direction while it owns the adjacent seam.
 ---
 
 # bp-109 §4 calls the lease "a second, independent reason a row is **reclaimable**"; §9 forbids
