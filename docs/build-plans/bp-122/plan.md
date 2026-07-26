@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-122
 track: ops
-status: proposed
+status: ready
 design_ref: []
 contract: builder
 write_scope:
