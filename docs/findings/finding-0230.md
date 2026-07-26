@@ -1,6 +1,6 @@
 ---
 type: finding
-id: finding-0226
+id: finding-0230
 status: open
 created: 2026-07-26
 updated: 2026-07-26
@@ -14,6 +14,17 @@ origin_plan: bp-110
 route: orchestrator
 resolution: null
 ---
+
+> ⚑ **RENUMBERED 0226 → 0230 BY THE ORCHESTRATOR AT MERGE (2026-07-26).** It was filed as
+> `finding-0226` inside bp-110's worktree while the orchestrator concurrently filed a *different*
+> `finding-0226` on `main` (the live dream path refused at 29.7 GB). Two isolated trees, one
+> counter, no coordination — neither author was at fault. ⚑ **Provenance wrinkle, recorded rather
+> than hidden:** this branch's commit `e7a9324` carries the subject *"Item 1 — V1/V2/V5 measured;
+> no STOP fires; finding-0226"*, and that string now points at the orchestrator's finding, not this
+> one. The message is NOT amendable (the code sensor ingests bodies at commit time), so the
+> correction of record is here and in the merge commit. **The underlying id-allocation race is
+> itself worth a finding** — concurrent worktrees cannot safely allocate finding ids from a
+> `ls | tail` scan.
 
 # V5 measured: a pure-CPU thread starves the supervisor loop's THROUGHPUT 2150×, but leaves it
 # cycling at ~133 Hz — so "starves the loop" is not a liveness claim, and the thread rejection

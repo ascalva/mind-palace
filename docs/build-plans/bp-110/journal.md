@@ -34,7 +34,7 @@ Commits on `worktree-agent-a1a8d30858012771f`: `e7a9324` (Item 1) · `c181a6d` (
 docs/findings/finding-0229.md:1: READ FIRST — what this plan does NOT deliver: synchronous dispatch means cancellability, not yet liveness
 docs/findings/finding-0228.md:1: the §6 pin that was wrong — job budget is per-kind, not scalar; discharges finding-0225's wiring half
 docs/findings/finding-0227.md:1: every lane module imports a store CLASS — bp-113/bp-114 are larger than they look
-docs/findings/finding-0226.md:1: V5 measured — "starves the loop" is throughput (2150x), not liveness (still 133 Hz)
+docs/findings/finding-0230.md:1: V5 measured — "starves the loop" is throughput (2150x), not liveness (still 133 Hz)
 scheduler/worker.py:87: ReadOnlyRows — the read surface §2.3's wording is silent about (§3 Q3's gap, resolved)
 scheduler/worker.py:195: RowsProxy — why non-leaking is STRUCTURAL here and impossible in-process in Python
 scheduler/worker.py:248: the registry is STATIC — a dotted handler path would make the tier-4 ratchet theatre
@@ -86,7 +86,7 @@ Mechanical coverage counted, not listed: **+21 tests** (14 in `test_worker_proto
   supervisor stays live"), the batch as the fairness unit (finding-0165), and batch landing as the
   in-band progress signal (§2.9's STUCK lag). All three ride on non-blocking dispatch —
   finding-0229.
-- **Opened a new track/finding?** Four findings, no new track. **finding-0226** (`spec-defect` →
+- **Opened a new track/finding?** Four findings, no new track. **finding-0230** (`spec-defect` →
   orchestrator, V5's prose overstates), **finding-0227** (`discovery` → orchestrator, lane modules
   import store classes; bp-113/114 sizing), **finding-0228** (`spec-defect` → builder, §6's scalar
   vs the per-kind field; discharges finding-0225's wiring half), **finding-0229** (`spec-defect` →
@@ -282,7 +282,7 @@ is the intended safe state.
 
 ## Open questions
 
-- **finding-0226** (`spec-defect` → orchestrator) — V5's "starves the loop" is throughput, not
+- **finding-0230** (`spec-defect` → orchestrator) — V5's "starves the loop" is throughput, not
   liveness. Decision unaffected.
 - **finding-0227** (`discovery` → orchestrator) — every lane module imports a store class at module
   level; bp-113/bp-114 sizing, and whether `ReadOnlyRows` needs widening before they graduate.
@@ -556,7 +556,7 @@ the **real** `Supervisor.tick()` over a real SQLite-backed `JobQueue`.
 ```
 
 **Verdict: the §10 STOP does NOT fire — but not for the reason a quick read would give, and the
-difference is recorded as finding-0226 rather than smoothed over.**
+difference is recorded as finding-0230 rather than smoothed over.**
 
 The throughput claim is confirmed hard: **2150× degradation, 0.05% of the uncontended rate**, and
 per-tick latency clamped at ~7.5 ms ≈ `sys.getswitchinterval()` — the textbook GIL-starvation
@@ -575,7 +575,7 @@ secondary quantity. Python threads cannot be cancelled; that is a language fact 
 move, and it is what makes the process boundary tier 3 (SIGKILL is enforced by an authority
 outside the wedge) where an in-process cancel flag would be tier-5 cooperation with the code that
 stopped cooperating. **Subprocess stands, on its load-bearing leg.** The over-strong phrasing is
-filed as finding-0226 (`design` → orchestrator) so the note cannot later be quoted for a liveness
+filed as finding-0230 (`design` → orchestrator) so the note cannot later be quoted for a liveness
 claim it does not own. No criterion is parked on it.
 
 ## Completed
@@ -600,7 +600,7 @@ connect and observing `SealedCoreEgressError` — not by reading the code.
 
 ## Open questions
 
-- **finding-0226** (`design` → orchestrator) — the note's "starves the supervisor loop" is a
+- **finding-0230** (`design` → orchestrator) — the note's "starves the supervisor loop" is a
   throughput claim, not a liveness claim; measured 2150× degradation but a still-live 153 Hz loop.
   Decision unaffected (cancellability is the load-bearing leg). Not parking anything.
 - **finding-0224 is OPEN and NOT this plan's to settle** — bp-109 §4 vs §9 on whether a lapsed
