@@ -1110,3 +1110,74 @@ references:
   - docs/brainstorms/autopilot-mode.md         # 04:41Z the two-principal role shape this sharpens
   - docs/brainstorms/phone-chat-surface.md     # 04:02Z the mirror-visibility question
 ```
+
+## 2026-07-26T05:14:00Z
+
+```capsule
+topic: autopilot-mode
+date: 2026-07-26
+
+decisions:
+  - OWNER QUESTION: "did we ever finalize the capture->bless->ready pipeline? it feels like
+    we'll have a lot of small, one offs that is mostly just a session between us to hash it
+    out". ANSWER: DESIGNED YES (the ratified note's §2.2 capsule + router IS exactly that
+    pipeline -- the capsule reifies "a session between us to hash it out" into a text the
+    owner can recognize and bless). BUILT: NO.
+  - ⚑ THE MECHANICAL GAP, GROUNDED. `.claude/commands/graduate.md:9-11` HARD-REFUSES any note
+    whose status is not `ratified` ("STOP and report ... Do not proceed"). And "design-inert"
+    appears NOWHERE in `.claude/` or in `docs/design-notes/agent-workflow.md` -- it exists
+    only as prose inside the ratified autopilot note. SO TODAY A SMALL ONE-OFF STILL REQUIRES
+    A FULL DESIGN NOTE PLUS A RATIFICATION CEREMONY. That is precisely the friction the owner
+    is feeling, and it is unrelieved.
+  - ⚑⚑ PRIORITY INVERSION IN THE RATIFIED NOTE'S §3 -- catch it BEFORE graduation, not after.
+    §3 licenses the mfa-verifier, capsule templates, the P1-P5 predicate check, the halt-list
+    supervisor, the journal-gate exception, the exhaust render -- i.e. THE REMOTE MACHINERY.
+    It does NOT license the command/skill change that would make the note-less design-inert
+    route REACHABLE. Graduating §3 as written would build all the hard cryptography AND STILL
+    LEAVE THE CEREMONY HEAVY FOR THE CASE THAT MOTIVATED THE WHOLE DESIGN.
+  - ⚑ THE REFRAME: THE ATTENDED PIPELINE NEEDS ZERO CRYPTOGRAPHY. Passkeys, the key slot, the
+    HMAC/signature question, CT logs, the enrollment ceremony -- ALL of it exists solely for
+    the AFK/remote case. Attended, the loop is complete with pieces that already exist:
+        session to hash it out -> agent emits a capsule -> owner reads it at the keyboard
+        -> owner blesses by hand (the existing lazygit ceremony) -> ready
+    And bp-120 (AP1, the intent capsule) BUILDS THE CAPSULE ARTIFACT -- it is already blessed
+    `ready` (a14e682) and startable now. The ONLY genuinely missing link is a route from
+    capsule -> plan that does not demand a design note.
+  - ⇒ SEQUENCING CHANGES: the note-less ATTENDED path is SMALLER than the identity work and
+    delivers more of what the owner actually asked for. Build it first. The remote/passkey
+    layer becomes a later addition to a pipeline already earning its keep, rather than a
+    prerequisite for any of it.
+
+parked:
+  - decision: what exactly substitutes for `design_ref` on a design-inert plan.
+    default: the capsule itself -- plan front-matter carries a `capsule:` path (and its
+    hash) where `design_ref` would otherwise point, so the provenance chain is unbroken and
+    still greppable.
+    re_entry: the superseding note; it must ALSO amend `.claude/commands/graduate.md`'s gate
+    and the graduate skill, or the route stays unreachable no matter what the note says.
+  - decision: whether the design-inert route needs its own command (e.g. `/capsule`) or is a
+    mode of `/graduate`.
+    default: a mode of `/graduate` -- fewer surfaces, and the sizing/reachability checks are
+    identical.
+    re_entry: the superseding note.
+
+open_questions:
+  - Does the design-inert route weaken the artifact chain's "no decision lives only in a
+    transcript" principle (agent-workflow.md:48)? Argued NO -- the capsule IS the artifact,
+    and it is hashed, embedded, and blessed. But this should be stated explicitly in the
+    note rather than assumed, since it is the strongest objection to the whole route.
+  - Who decides an ask is design-inert, and is that decision itself recorded? If the agent
+    self-certifies design-inertness, that is the eligibility hole §2.4 was written to close
+    -- the same failure mode, moved to a new field.
+
+next_steps:
+  - The superseding note must license the ATTENDED note-less route explicitly, not just the
+    remote machinery, and must amend the /graduate gate.
+  - bp-120 is buildable NOW and is on the critical path for this, independent of every open
+    identity question.
+
+references:
+  - .claude/commands/graduate.md               # :9-11 the hard ratified-note gate
+  - docs/build-plans/bp-120/plan.md            # the capsule artifact, blessed ready
+  - docs/design-notes/dn-autopilot-and-delegated-blessing.md   # §2.2 router, §2.4 eligibility, §3 consequences
+```
