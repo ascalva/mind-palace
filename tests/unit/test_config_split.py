@@ -10,6 +10,8 @@ import ast
 import inspect
 from pathlib import Path
 
+import pytest
+
 from ops.import_lint import NETWORK_MODULES, scan_file
 
 _REPO_ROOT = next(p for p in Path(__file__).resolve().parents if (p / "pyproject.toml").exists())
@@ -27,7 +29,7 @@ def test_config_values_resolve_under_repo_root() -> None:
     assert cfg.paths.data_dir == _REPO_ROOT / "data"            # defaults.toml data_dir="data"
     assert cfg.paths.derived_store == _REPO_ROOT / "data" / "derived.sqlite"
     assert cfg.paths.derived_store.parent == cfg.paths.data_dir
-    # against the COMMITTED defaults (bypassing an owner's local.toml overlay, which may enable it):
+    # against the COMMITTED defaults (bypassing an owner's overlay, which may enable it):
     assert load_config(_DEFAULTS).secrets.enabled is False      # shipped-safe default preserved
 
 
@@ -92,3 +94,112 @@ def test_outside_facade_stays_token_capable() -> None:
     # the pure public API is re-exported (one source of truth — defined in core.config.loader)
     for name in ("get_config", "load_config", "Config", "REPO_ROOT", "LEVERS_OVERLAY"):
         assert hasattr(facade, name), f"facade missing {name}"
+
+
+# --- bp-123: the local.toml -> ouroboros.toml migration guard ------------------------------------
+#
+# The per-machine overlay was renamed on 2026-07-26 (owner ruling: mind-palace is the framework,
+# Ouroboros is the live instance). The rename itself is one line; the RISK is that a machine still
+# holding a `local.toml` would come up on committed defaults with every owner-enabled flag off and
+# σ reverted — a silent config reversion nobody would notice until behaviour drifted. So the loader
+# refuses. These cases pin both refusal branches, and the invariant that a tree with NEITHER file
+# (a fresh clone, CI) still loads cleanly — a guard that breaks a fresh clone is worse than the
+# problem it solves.
+
+
+def _isolated_config_dir(monkeypatch, tmp_path: Path):
+    """Redirect every PER-MACHINE config path into `tmp_path`, and hand back the loader module.
+
+    ⚑ The three overlay constants are derived from `_CONFIG_DIR` at IMPORT time, so patching
+    `_CONFIG_DIR` alone would be a no-op — the derived constants would still point at the real
+    `config/`. All four are patched, and that is what makes these cases hermetic: the guard must
+    never be exercised against the owner's live overlay (plan §6/§10 — the file is gitignored,
+    exists in one copy, and carries an owner ruling).
+
+    `_DEFAULTS` is deliberately NOT redirected: the committed defaults are the baseline being
+    overlaid, and every assertion here is about the overlay chain, not about the defaults.
+    """
+    from core.kernel.config import loader
+
+    monkeypatch.setattr(loader, "_CONFIG_DIR", tmp_path)
+    monkeypatch.setattr(loader, "_INSTANCE_OVERLAY", tmp_path / "ouroboros.toml")
+    monkeypatch.setattr(loader, "_LEGACY_OVERLAY", tmp_path / "local.toml")
+    monkeypatch.setattr(loader, "LEVERS_OVERLAY", tmp_path / "levers.toml")
+    return loader
+
+
+def test_legacy_overlay_alone_refuses_and_names_the_move(monkeypatch, tmp_path: Path) -> None:
+    """Branch 1 — legacy present, current absent: the overlay would be silently ignored.
+
+    ⚑ REFUSES, does not warn. A warning would be a false green one level down: the process comes up
+    on defaults with the wrong σ and the owner learns from behaviour, not from an error. The message
+    is the owner's only instruction at that moment, so it must name BOTH files and the exact `mv`.
+    """
+    from core.kernel.config.loader import ConfigMigrationError
+
+    loader = _isolated_config_dir(monkeypatch, tmp_path)
+    (tmp_path / "local.toml").write_text("[dreaming]\nsimilarity_threshold = 0.58\n")
+
+    with pytest.raises(ConfigMigrationError) as excinfo:
+        loader.load_config()
+
+    message = str(excinfo.value)
+    assert "local.toml" in message                    # the file the owner has
+    assert "ouroboros.toml" in message                # the file the loader wants
+    assert f"mv {tmp_path / 'local.toml'} {tmp_path / 'ouroboros.toml'}" in message
+
+
+def test_both_overlays_present_refuses_as_ambiguous(monkeypatch, tmp_path: Path) -> None:
+    """Branch 2 — both present: authority is ambiguous, so the loader must not guess a winner.
+
+    Picking one silently is the same failure mode as branch 1 with an extra coin flip: whichever
+    file lost would have its owner-authored settings discarded without a word.
+    """
+    from core.kernel.config.loader import ConfigMigrationError
+
+    loader = _isolated_config_dir(monkeypatch, tmp_path)
+    (tmp_path / "local.toml").write_text("[dreaming]\nsimilarity_threshold = 0.58\n")
+    (tmp_path / "ouroboros.toml").write_text("[dreaming]\nsimilarity_threshold = 0.61\n")
+
+    with pytest.raises(ConfigMigrationError) as excinfo:
+        loader.load_config()
+
+    message = str(excinfo.value)
+    assert "local.toml" in message and "ouroboros.toml" in message
+    assert "ambiguous" in message
+
+
+def test_neither_overlay_present_loads_committed_defaults(monkeypatch, tmp_path: Path) -> None:
+    """⚑ Item 1's named invariant: a tree with NEITHER file must still load cleanly.
+
+    That is CI and every fresh clone. The guard exists for a one-time migration and must be
+    completely silent on a machine that has nothing to migrate.
+    """
+    loader = _isolated_config_dir(monkeypatch, tmp_path)
+
+    cfg = loader.load_config()                              # no overlay files exist in tmp_path
+    assert cfg.dreaming.similarity_threshold == 0.62        # the committed default, untouched
+    assert cfg.secrets.enabled is False                     # shipped-safe flags stay off
+
+
+def test_renaming_the_overlay_away_refuses_instead_of_reverting(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """§7 Item 1's falsifier, run entirely against a COPY in tmp_path (never the real overlay).
+
+    First prove the overlay is genuinely being read (σ = 0.58, the owner's retune under oq-0024),
+    then put the file back under its legacy name and prove the loader REFUSES rather than quietly
+    handing back σ = 0.62. If it returned 0.62 here the guard would be decorative and the silent
+    reversion risk would still be live.
+    """
+    from core.kernel.config.loader import ConfigMigrationError
+
+    loader = _isolated_config_dir(monkeypatch, tmp_path)
+    overlay = tmp_path / "ouroboros.toml"
+    overlay.write_text("[dreaming]\nsimilarity_threshold = 0.58\n")
+
+    assert loader.load_config().dreaming.similarity_threshold == 0.58   # the overlay IS read
+
+    overlay.rename(tmp_path / "local.toml")                 # the un-migrated machine's state
+    with pytest.raises(ConfigMigrationError):
+        loader.load_config()                                # refuses; does NOT return 0.62

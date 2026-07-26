@@ -76,7 +76,7 @@ def build_inference_client(config: Config, *, tier: str | None = None) -> Infere
     that is what makes the embedder cutover (P4) a real, independently reversible step.
 
     Defaults return `OllamaClient` for every role, so this changes nothing at landing. Flipping
-    is the owner's, in `config/local.toml`, at P4/P5 — never here (plan §9).
+    is the owner's, in `config/ouroboros.toml`, at P4/P5 — never here (plan §9).
     """
     # Imported here, not at module scope: the protocol must not drag its implementations into
     # every importer, and `llama_server_client` is inert unless a role is actually flipped.

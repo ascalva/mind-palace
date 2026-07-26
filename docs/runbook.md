@@ -34,7 +34,7 @@ mind-palace start                                                  # re-ingests 
 # --- ONE-TIME ENABLEMENT ----------------------------------------------------------------------
 mind-palace ingest-self-knowledge      # so "how do you work?" answers from docs
 mind-palace build-sandbox-image        # data-analysis libs image (numpy/scipy/…)
-#   then set [sandbox] image = "mind-palace-sandbox:latest" in config/local.toml — see "Code-exec sandbox"
+#   then set [sandbox] image = "mind-palace-sandbox:latest" in config/ouroboros.toml — see "Code-exec sandbox"
 
 # --- INSTALL THE ALWAYS-ON DAEMON (supersedes com.mind-palace.watch) — see "One-command lifecycle"
 cp ops/lifecycle/com.mind-palace.palace.plist ~/Library/LaunchAgents/
@@ -57,7 +57,7 @@ mind-palace check-imports                     # the import-firewall lint, standa
 mind-palace purge-raw <digest> --confirm      # owner-gated TRUE deletion of a tombstoned blob
 
 # --- ALREADY-LIVE LAYERS (reference; turn on/operate as needed) -------------------------------
-#   Vault (unseal LaunchAgent), Backups ([backup] in local.toml + restic), Self-mod gate
+#   Vault (unseal LaunchAgent), Backups ([backup] in ouroboros.toml + restic), Self-mod gate
 #   ([selfmod] enabled + ops/selfmod_cli.py), Attestation signing ([attestation] above).
 #   The provenance-split migration is now MOOT (the fresh start re-tags everything authored-solo);
 #   `mind-palace migrate-provenance` still exists if you ever need it again.
@@ -120,6 +120,27 @@ sufficient.
 ```
 uv sync --extra dev
 ```
+
+### The per-machine config overlay — `config/ouroboros.toml`
+Every "enable it for THIS machine" step below writes to one gitignored file that overlays the
+committed `config/defaults.toml` section-by-section, naming only the keys it changes. Precedence is
+`defaults ← levers.toml ← ouroboros.toml`, so your hand-authored value always beats a self-mod
+loop-tuned one. A fresh clone and CI have no overlay at all, which is why the shipped repo is
+safe-by-default. The file is never committed and has no version-control backup — it is the one piece
+of this setup worth keeping a copy of.
+
+> ⚑ **Renamed 2026-07-26 (bp-123): `config/local.toml` → `config/ouroboros.toml`.** `mind-palace` is
+> the framework; **Ouroboros** is this live instance, so the instance's overlay carries the
+> instance's name. If a machine still has the old file, **config loading refuses outright** rather
+> than ignoring it — an ignored overlay would silently revert σ and turn every flag you enabled back
+> off, and you would find out from behaviour instead of from an error. The fix is one move, and the
+> error message states it:
+> ```sh
+> mv config/local.toml config/ouroboros.toml     # `mv`, never rewrite — the bytes are your ruling
+> ```
+> If *both* files exist the loader also refuses, as ambiguous: merge what you need into
+> `ouroboros.toml` by hand, then `rm config/local.toml`. The guard is temporary scaffolding for this
+> one migration and gets deleted once every instance you run has been moved.
 
 ## Verify Phase 0
 ```
@@ -579,7 +600,7 @@ vault policy write backup ops/vault/policies/backup.hcl       # (or re-run ops/v
 vault token create -policy=backup -period=768h -orphan -field=token   # copy it
 security add-generic-password -U -a mind-palace -s vault-backup-token -w            # paste it
 
-# 5. Enable [backup] for THIS machine in config/local.toml (gitignored), with the repo URL:
+# 5. Enable [backup] for THIS machine in config/ouroboros.toml (gitignored), with the repo URL:
 #    [backup]
 #    enabled = true
 #    repository = "<terraform output restic_repository>"
@@ -610,7 +631,7 @@ physically cannot express a code or infrastructure change (a `ProposedChange` ha
 path/diff/command). The loop ships **OFF**; activating and driving it is owner work.
 
 ```sh
-# 1. Activate the loop on THIS machine — add to config/local.toml (gitignored):
+# 1. Activate the loop on THIS machine — add to config/ouroboros.toml (gitignored):
 #    [selfmod]
 #    enabled = true
 #    # unattended_enabled stays false: every change goes through you at the gate.
@@ -627,7 +648,7 @@ uv run python -m ops.selfmod_cli history                     # full audit trail
 ```
 
 Tuned values land in `config/levers.toml` (machine-owned, gitignored); your hand-authored
-`config/local.toml` always overrides them (human authority is supreme). Delete `config/levers.toml`
+`config/ouroboros.toml` always overrides them (human authority is supreme). Delete `config/levers.toml`
 to revert every tuned knob to its committed default.
 
 **Registered levers** (hard bounds enforced — an out-of-range target is refused): `dream_similarity_threshold` [0.55–0.75],
@@ -878,7 +899,8 @@ comes up in **recovery mode** — scheduler halted, watcher off, read-only — a
 fail-closed half.)
 
 **How self-mod knob changes persist across runs** (your question): the tuned value is written to the
-`config/levers.toml` overlay (merged `defaults ← levers.toml ← local.toml`, so your `local.toml` always
+`config/levers.toml` overlay (merged `defaults ← levers.toml ← ouroboros.toml`, so your `ouroboros.toml`
+always
 wins and deleting `levers.toml` reverts every knob); the propose→approve→validate→rollback *history* is
 the SQLite ledger `data/selfmod_ledger.sqlite`. No new store — a restart re-reads `levers.toml` and picks
 up exactly where it left off. The **run ledger** adds which commit each run executed under, so a tuned
@@ -902,7 +924,7 @@ mind-palace reset --confirm                                       # hard-wipe th
 mind-palace start                                                 # re-ingests everything as authored-solo
 ```
 
-`[vault] path` is set to `~/.mind-palace/vault/janus_notes` (config/local.toml) so only that synced
+`[vault] path` is set to `~/.mind-palace/vault/janus_notes` (config/ouroboros.toml) so only that synced
 subdir is ingested — old/stray files in the vault root are ignored. A fresh re-ingest tags everything
 `authored-solo` natively, so the provenance-split migration is **not needed** after a reset.
 
@@ -911,7 +933,7 @@ subdir is ingested — old/stray files in the vault root are ignored. A fresh re
 palace supervises a SEPARATE child process (Invariant 2 — network-facing can't share the sealed core)
 that serves a small dashboard + chat surface. It reads the core-emitted status snapshot and relays chat
 over the interface handoff; it never imports core or reads a store. **Off by default.** To turn it on,
-add to `config/local.toml` and bind to this Mac's **Tailscale IP** (the tailnet is the auth boundary —
+add to `config/ouroboros.toml` and bind to this Mac's **Tailscale IP** (the tailnet is the auth boundary —
 do NOT use `0.0.0.0`):
 
 ```toml
@@ -955,7 +977,7 @@ it downloads the wheels, which are then baked in so the sandbox needs NO network
 
 ```sh
 ./scripts/build_sandbox_image.sh                 # -> mind-palace-sandbox:latest
-#   then in config/local.toml:
+#   then in config/ouroboros.toml:
 #   [sandbox]
 #   image = "mind-palace-sandbox:latest"
 ```
@@ -971,7 +993,7 @@ path, place a WASI build of CPython and point config at it:
 ```sh
 # 1. (already done) pip install wasmtime  — into .venv
 # 2. obtain a WASI python (a python.wasm) and place it, e.g. ~/.mind-palace/python.wasm
-# 3. config/local.toml:
+# 3. config/ouroboros.toml:
 #    [sandbox]
 #    runtime = "routing"                       # WASM for pure-compute python, else podman
 #    wasm_module = "~/.mind-palace/python.wasm"

@@ -70,11 +70,16 @@ path = "~/.mind-palace/exhaust"   # system-written, owner-read
 # runbook). These keys are consumed by scripts/verify_planes.py + the tests/unit/test_plane_migration.py
 # ratchets — NOT by get_config(): core/config/loader.py is schema'd and drops unknown sections, so
 # there is deliberately no PlanesConfig; the verifier/ratchets read this block via a direct tomllib
-# parse (with the local.toml overlay honored). `enabled` is the COARSE master switch for the
+# parse. `enabled` is the COARSE master switch for the
 # per-plane ratchets; the PRIMARY signal is self-configuring on real ownership (stat().st_uid), so
 # a lane migrates its own ratchet from skip→enforce with no manual flip — this flag just lets the
 # owner force-disable the whole set mid-migration if needed. It stays false until the migration is
-# complete (flip it in config/local.toml, not here).
+# complete.
+# ⚑ bp-123 / finding-0216: the previous text here read "with the local.toml overlay honored" and
+# "flip it in config/local.toml, not here". Both are wrong INDEPENDENTLY of the ouroboros.toml
+# rename — the only reader of this block (tests/unit/test_plane_migration.py) parses defaults.toml
+# DIRECTLY and honors no overlay at all, so a [planes] flip in the per-machine overlay is inert.
+# Where the flip should actually live is a design call, not a comment fix; see the finding.
 core_home = "/var/ouroboros"            # ouroboros:      the reasoning daemon + the vault
 work_home = "/var/ouroboros-work"       # ouroboros-work: the orchestrator + delegated builders
 edge_home = "/var/ouroboros-edge"       # ouroboros-edge: network-facing (forward-provisioned; §9)
@@ -102,7 +107,7 @@ integrate_max_per_pass = 50     # integrator proven-edge pass cap per tick (bp-0
 # deliberate `palace code-seed` triggers that immediately. Safe as a default: the daemon refuses to
 # start without a live Ollama (preflight), so a fresh clone/CI never auto-embeds without an embedder;
 # CI/test runs don't start the housekeeping loop. The KIND + handler live in scheduler/code_sync.py.
-# An instance may opt OUT with `[code_ingest] enabled = false` in config/local.toml.
+# An instance may opt OUT with `[code_ingest] enabled = false` in config/ouroboros.toml.
 # `max_chars`/`overlap_chars` mirror the note chunker so L0a oversized-splits and L0b windows match
 # the corpus-wide budget.
 enabled = true
@@ -237,7 +242,7 @@ kv_mount = "kv"          # kv-v2 mount point for static secrets
 aws_mount = "aws"        # dynamic AWS secrets engine mount point (bridge/airlock roles)
 # Agent roles minted WITH an ephemeral scoped credential grant (§2 lifecycle). FAIL-CLOSED EMPTY:
 # a minted agent gets a Vault token only if its role is listed here AND `enabled = true`. Grant
-# the minimum and opt in per role in local.toml — recommended set (vault-runtime-auth.md §3):
+# the minimum and opt in per role in ouroboros.toml — recommended set (vault-runtime-auth.md §3):
 #   grant_roles = ["correlator", "advisor"]
 grant_roles = []
 token_ttl = "10m"        # short TTL — the per-interaction grant expires on its own
@@ -245,7 +250,7 @@ token_ttl = "10m"        # short TTL — the per-interaction grant expires on it
 [backup]
 # restic → S3 encrypted backups (BUILD-SPEC §16b). restic encrypts + deduplicates CLIENT-SIDE, so
 # AWS never sees plaintext; the bucket's SSE-KMS is defense in depth. OFF by default — enable per
-# machine via config/local.toml after `cloud/terraform/backups` is applied and the restic password
+# machine via config/ouroboros.toml after `cloud/terraform/backups` is applied and the restic password
 # + backup AWS key are placed in Keychain. The repo password and AWS key are NEVER stored here.
 enabled = false
 repository = ""          # terraform output restic_repository (s3:s3.<region>.amazonaws.com/<bucket>)
@@ -304,7 +309,7 @@ sbm_k_max = 8                 # model-selection cap for the SBM theme count (>= 
 #                          human at the gate. Turn this on only deliberately, per machine.
 # The writable surface is knobs ONLY — the lever registry (ops/levers.py) holds bounded numeric
 # config knobs and physically cannot express a code or infrastructure change. Tuned values are
-# written to the machine-owned config/levers.toml overlay, never to your local.toml.
+# written to the machine-owned config/levers.toml overlay, never to your ouroboros.toml.
 enabled = false
 unattended_enabled = false
 ledger_db = "data/selfmod_ledger.sqlite"   # durable SQLite propose/approve/validate ledger
@@ -318,7 +323,7 @@ ledger_db = "data/selfmod_ledger.sqlite"   # durable SQLite propose/approve/vali
 #            python.wasm at wasm_module) | "routing" (wasm for pure-compute python, else podman).
 #   image:   the language image. For data analysis build the libs image (numpy/scipy/pandas/
 #            scikit-learn/cryptography) — `scripts/build_sandbox_image.sh` — and point here, e.g.
-#            via config/local.toml: image = "mind-palace-sandbox:latest". Default stays slim so a
+#            via config/ouroboros.toml: image = "mind-palace-sandbox:latest". Default stays slim so a
 #            fresh clone works with stdlib-only code.
 runtime = "podman"
 image = "python:3.12-slim"
@@ -337,12 +342,12 @@ warm_pool_size = 1           # warm containers kept ready to avoid cold start
 # stays the standing fallback until every role has flipped and a deskcheck passes.
 #
 # Every default below is TODAY'S BEHAVIOUR: Ollama serves every role, and nothing observable
-# changes by this section existing. Flips are the OWNER'S, per role, in config/local.toml —
+# changes by this section existing. Flips are the OWNER'S, per role, in config/ouroboros.toml —
 # first the embedder (its blob is portable and cross-runtime cosine was measured at 0.999990),
 # later the chat tiers one at a time, each gated on golden + drift.
 #
 # The WHOLE section is defined here even though some keys are consumed later, because the
-# overlay merges by section NAME: a [runtime] block in local.toml with no schema behind it is
+# overlay merges by section NAME: a [runtime] block in ouroboros.toml with no schema behind it is
 # silently DROPPED (the bp-102 / finding-0174 mechanism). A half-defined section is worse than
 # none — a flip that looks applied but never took is exactly the failure this migration exists
 # to end.
