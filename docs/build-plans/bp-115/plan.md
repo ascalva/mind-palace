@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-115
 track: ops
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/dn-local-model-runtime.md
 contract: builder
@@ -23,7 +23,39 @@ cost:
   estimate:
     model: opus
     tokens: 220k
-  actual: null
+  actual:
+    model: opus              # claude-opus-5, DELEGATED builder in a worktree (session-49),
+                             # resumed once after the owner-granted write_scope amendment
+    tokens: ~167k            # harness-measured (delegated work has per-plan accounting)
+    ratio: 0.76              # 167k/220k — well-pinned side; ratio tracks PLAN PINNING, not
+                             # delegated-vs-self
+    session_delta: unmeasured  # the pre-spawn probe reading was not carried into the session-50
+                             # resume brief, so no true delta is derivable (finding-0200
+                             # discipline: never invent one)
+    week_delta: unmeasured   # same cause; AT-SEAL readings recorded instead, below
+    notes: >-
+      SEALED at session-51. Merged into main during session-49; the later commits on the branch
+      are docs-only. All six gate legs orchestrator-verified on the MERGED tree: ruff ·
+      import-firewall (`scripts/check_imports.py`) · tier-2 mypy (258 files) · argless mypy
+      baseline exactly 69 · `ops.type_gate` · full `uv run pytest -q`. The pytest leg was the last
+      one outstanding and completed 2026-07-25: **1 failed, 2112 passed, 12 skipped in 21:34**.
+      The single failure is `test_core_imports_nothing_outside_core` — the finding-0103
+      INTENTIONAL-RED ratchet, reading **exactly 20** forbidden imports (unchanged, and the ratchet
+      may only ever decrease). The green gate deselects that node by policy, so the merge is green.
+      The builder's own in-worktree gate agreed: 1 failed, 2109 passed, 15 skipped in 8m22s.
+      ⚑ AT-SEAL usage probe (2026-07-25 21:44, `claude -p "/usage"`): session 28% · week-all 24% ·
+      week-Fable 13% (resets Jul 31). Recorded as readings, NOT as a delta.
+      ⚑ REUSABLE PRECEDENT — the amended-write_scope route. The builder hit a file outside its
+      `write_scope` (filed as finding-0204), did NOT route around the denial, and parked. The owner
+      granted an explicit scope amendment, recorded VERBATIM in this plan's §5 and committed as
+      `b44376d`; the builder was then resumed against the amended scope. This is the
+      finding-0191-compliant re-entry, and it is the shape to copy: a denial narrows the scope or
+      files a finding — it never becomes a workaround.
+      Findings filed by the builder: finding-0204 and finding-0205, both closed to `resolved` at
+      `a61060a` (a builder may not edit an existing finding, so the orchestrator closed them).
+      ⚑ NO DESKCHECK is owed for this plan. The Ops track is still in `build`; the wave's first
+      deskcheckable artifact is bp-117's equivalence report. Nothing observable changed at landing
+      — that was the acceptance bar (§0), not a caveat.
 depends_on: []
 parallelizable_with: [bp-108, bp-109]
 created: 2026-07-25

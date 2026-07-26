@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-108
 track: ops
-status: ready
+status: complete
 design_ref:
   - docs/design-notes/dn-supervision-and-liveness.md
 contract: builder
@@ -20,7 +20,49 @@ cost:
   estimate:
     model: opus
     tokens: 200k
-  actual: null
+  actual:
+    model: opus              # claude-opus-5, DELEGATED builder in a worktree (session-49)
+    tokens: unmeasured       # ⚑ the completion notification's usage figure was not carried into
+                             # the session-50 resume brief, and the journal records none
+    ratio: n/a               # not derivable without a token figure — an estimate here would
+                             # corrupt the ledger the delegation budget gate reads (finding-0200)
+    session_delta: unmeasured
+    week_delta: unmeasured
+    notes: >-
+      SEALED at session-51. Merged into main at `510714b` during session-49. ALL SIX gate legs
+      orchestrator-verified on the merged tree: ruff · import-firewall · tier-2 mypy · argless mypy
+      baseline exactly 69 · `ops.type_gate` · full `uv run pytest -q` (**1 failed, 2089 passed, 14
+      skipped in 22:34**). The single failure is `test_core_imports_nothing_outside_core`, the
+      finding-0103 INTENTIONAL-RED ratchet, which the green gate deselects by policy.
+      ⚑ COST FIGURES ARE UNMEASURED BY LOSS, NOT BY CONSTRUCTION. Unlike bp-105 (built in-session,
+      where the blind spot is structural), this was delegated work that DID produce a harness usage
+      figure — it simply was not carried across the session boundary into the resume brief, and the
+      reading is now gone. That is the finding-0200 discipline applied at cost to itself: no figure
+      is invented to fill the field. The operational lesson is a handoff one — a delegated plan's
+      usage reading must be written into the journal at merge, not left in a notification.
+      ⚑ THE `⛔` CONSTRAINT IS NOW CLOSED ON BOTH HALVES. bp-105 closed the `start --force` route;
+      Item 5 here closes the `scripts/watch.py` half (it built a second `Supervisor` on the shared
+      queue with `active_run_id=None`). Evidence in the journal: rc=1, nothing claimed, no run row.
+      Structurally impossible now rather than a standing instruction — which is what discharges the
+      OPEN half of finding-0186 (`blocker`); the builder correctly did not edit the finding itself.
+      finding-0187 (`spec-defect`) is NOT closed by this plan — the leased-rows ratchet it asks for
+      is bp-109's — but its lesson (an untested switch is a claim, not a mechanism) was applied as
+      procedure: every new mechanism was mutation-drilled, and the one that reddened nothing (L2)
+      was treated as a coverage gap and fixed.
+      New findings filed by the builder: finding-0201 (`discovery` — `uv run` forks rather than
+      execs; bp-111's lease-home decision keys on it) and finding-0202 (`discovery` — a mutation
+      drill can silently run stale bytecode).
+      ⚑ V7 REMAINS UNANSWERED and is deliberately NOT parked-blocking: nothing in the repository
+      imports or invokes `scripts/watch.py`, so whether a human still runs it by hand needs an
+      owner statement. Item 5 took the action available without that answer, so no criterion is
+      parked and no re-entry condition is owed.
+      ⚑ The 12 new suite warnings are named in the journal, not left to be discovered:
+      `DeprecationWarning: fork() in a multi-threaded process`, from `test_supervisor_lock.py`'s
+      deliberate `os.fork()` (the strongest form of the Item 2 falsifier). The same cross-process
+      claim is also covered by a fresh-interpreter subprocess test, so the fork tests are droppable
+      without losing the guarantee if CPython ever promotes the warning to an error.
+      ⚑ NO DESKCHECK is owed — the Ops track is still in `build`; bp-117's equivalence report is
+      the wave's first deskcheckable artifact.
 depends_on: []
 parallelizable_with: [bp-115]
 created: 2026-07-25
