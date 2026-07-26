@@ -93,10 +93,27 @@ def test_a_read_crosses_the_boundary_and_is_served_by_the_supervisor():
 
 
 def test_a_wedged_worker_is_bounded_by_the_wall_clock_and_escalated():
+    """⚑ The elapsed-time assertion is the whole test; `pytest.raises` alone is a FALSE GREEN.
+
+    This first passed while taking 30 s to enforce a 1 s deadline: `_recv` blocked in `readline()`
+    and the deadline was only checked *between* frames, so the bound fired after the worker
+    finished sleeping on its own. A timeout that only times out things that were going to finish
+    anyway bounds nothing — and a wedged worker, which emits nothing at all, is precisely the case
+    it exists for. Assert the WALL CLOCK, not just the exception type.
+    """
+    import time as _time
+
     from scheduler.worker import SELFTEST_SLEEP_KIND
+
+    t0 = _time.monotonic()
     with pytest.raises(WorkerTimeout):
         list(run_batches(_job(SELFTEST_SLEEP_KIND, seconds=30.0), FakeRows(),
                          timeout_s=1.0, grace_s=2.0))
+    elapsed = _time.monotonic() - t0
+    assert elapsed < 5.0, (
+        f"the 1s deadline took {elapsed:.1f}s to fire against a silent worker — the bound is "
+        "being checked between frames instead of during the read"
+    )
 
 
 # --- Item 2's falsifier: V4, the seal, asserted from INSIDE the worker process -----------------

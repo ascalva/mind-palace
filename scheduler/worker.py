@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import os
+import select
 import signal
 import subprocess
 import sys
@@ -129,13 +130,61 @@ def _send(stream: IO[bytes], payload: dict[str, Any]) -> None:
     stream.flush()
 
 
-def _recv(stream: IO[bytes]) -> dict[str, Any] | None:
-    """Read one frame. None = the peer closed cleanly (EOF between frames)."""
+class _DeadlinePassed(Exception):
+    """Internal: the read deadline elapsed while waiting for the peer. Never escapes this module."""
+
+
+def _wait_readable(stream: IO[bytes], deadline: float | None) -> None:
+    """Block until `stream` has bytes, or raise `_DeadlinePassed`.
+
+    ⚑ This exists because a plain blocking read makes a wall-clock bound UNENFORCEABLE against
+    the exact failure it is for. A wedged worker emits nothing, so a `readline()` parks forever
+    and a deadline checked only *between* frames is never reached — the bound would appear to
+    work (it fires eventually, once the worker finishes on its own) while bounding nothing. That
+    is a false green of the worst kind: a timeout that only times out things that were going to
+    finish anyway. Caught by watching the test take 30 s to bound a 1 s deadline.
+
+    Polls in short slices rather than one long `select`, so the deadline is honoured within
+    ~0.25 s regardless of how far away it is.
+    """
+    if deadline is None:
+        return
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise _DeadlinePassed
+        if select.select([stream], [], [], min(remaining, 0.25))[0]:
+            return
+
+
+def _recv(stream: IO[bytes], *, deadline: float | None = None) -> dict[str, Any] | None:
+    """Read one frame. None = the peer closed cleanly (EOF between frames).
+
+    The body is read in deadline-checked slices: a batch of a few MB is split across several pipe
+    writes by the OS (one `write` is atomic only under PIPE_BUF), so bounding the header alone
+    would leave a worker that wedges mid-frame unbounded. The header itself is `<digits>\\n` and
+    is written in the same syscall as the start of the body, so it never arrives partially.
+    """
+    _wait_readable(stream, deadline)
     header = stream.readline()
     if not header:
         return None
-    body = stream.read(int(header.decode("ascii").strip()))
-    parsed: dict[str, Any] = json.loads(body.decode("utf-8"))
+    want = int(header.decode("ascii").strip())
+    chunks: list[bytes] = []
+    got = 0
+    while got < want:
+        _wait_readable(stream, deadline)
+        # warrant(T3): typeshed types a pipe as `IO[bytes]`, which declares no `read1`, but both
+        # `Popen.stdout` and `sys.stdin.buffer` are `BufferedReader` at runtime. `read1` is
+        # load-bearing here rather than cosmetic: a plain `read(n)` blocks until all n bytes
+        # arrive, which re-opens the unbounded wait this loop exists to close (see
+        # `_wait_readable`). One underlying read per slice keeps the deadline checkable.
+        chunk: bytes = stream.read1(want - got)  # type: ignore[attr-defined]
+        if not chunk:
+            return None                      # EOF mid-frame: the peer died holding the pen
+        chunks.append(chunk)
+        got += len(chunk)
+    parsed: dict[str, Any] = json.loads(b"".join(chunks).decode("utf-8"))
     return parsed
 
 
@@ -425,10 +474,14 @@ def run_batches(job: Job, rows: ReadOnlyRows, *, timeout_s: float = 0.0,
     try:
         _send(proc.stdin, {"op": "run", "job": _spec_from_job(job)})
         while True:
-            if deadline is not None and time.monotonic() > deadline:
+            # The deadline is passed INTO the read, not merely checked around it. A wedged worker
+            # emits nothing, so a bound checked only between frames never fires while the wedge is
+            # happening — the one case it exists for. See `_wait_readable`.
+            try:
+                msg = _recv(proc.stdout, deadline=deadline)
+            except _DeadlinePassed:
                 _terminate(proc, grace_s)
-                raise WorkerTimeout(timeout_s)
-            msg = _recv(proc.stdout)
+                raise WorkerTimeout(timeout_s) from None
             if msg is None:
                 stderr = (proc.stderr.read().decode("utf-8", "replace") if proc.stderr else "")
                 raise WorkerFailure("WorkerDied",

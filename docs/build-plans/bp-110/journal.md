@@ -9,6 +9,222 @@ updated: 2026-07-26
 
 ---
 
+## Checkpoint 3 — Items 3 and 4 CLOSED. All five items done; gate green; three findings filed.
+
+**Status.** The dispatch seam is in, behind a default-off flag, with the parallel-run proof
+passing and every pre-existing supervisor test green **unedited**. The `[scheduler]` section is
+schema'd whole. The single-model-in-flight rule is enforced at the one claim site. All five items
+are closed. No §10 STOP fired at any point.
+
+### Item 3 — the dispatch seam
+
+`Supervisor` gains three additive, defaulted fields: `compute`, `worker_mode` (§6 verbatim) and
+`rows` (the `ReadOnlyRows` this process serves the worker's reads from — needed because §6's
+facade has to be answered by someone). The seam is six lines in `tick`, and **where** it sits is
+the load-bearing part: after `ensure_tier`, so the ceiling gate still refuses before anything
+spawns (§3 Q6, §2.7 — asserted by
+`test_the_ceiling_gate_still_refuses_BEFORE_any_worker_is_spawned`, whose compute half raises if
+it is ever reached).
+
+It is gated on **both** `worker_mode == "subprocess"` **and** the kind having a registered compute
+half, so an unmigrated kind cannot be routed through a protocol it was never written for just
+because a sibling lane migrated. That is what keeps migration per-lane and reversible (note §4).
+
+**The flag-off invariant — Item 3's more dangerous falsifier — holds.** Every pre-existing test in
+`tests/integration/test_supervisor.py` passes with no edit, as do all six other `Supervisor(`
+sites. Measured together before any new test was added: **54 passed**. Nothing needed touching, so
+the change is additive and the "no behaviour change at landing" claim stands.
+
+**The parallel-run proof** (`test_the_same_job_lands_the_same_rows_in_BOTH_dispatch_modes`): the
+same job, same payload, run once `inproc` and once `subprocess`, with **both paths funnelling into
+the same landing sink** — so the assertion compares dispatch paths, not two hand-written
+expectations. `landed_subprocess == landed_inproc == [{"text": "answer(…)"}]`.
+
+⚑ **Deviation from Item 3's literal wording, recorded not smoothed.** The plan names the
+production `ambassador_task` handler as the proof lane. Its compute half **cannot** move in this
+plan: `core/librarian/librarian.py:33,36` imports `RawStore` and `VectorStore` at module level,
+which reds Item 5's ratchet, and both that file and `scheduler/interface.py` are outside
+write_scope (§5, "owns the seam and NO lane"). Moving them would be the finding-0191 failure
+repeated inside the plan written to prevent it. The proof therefore runs on a bring-up kind
+carrying `ambassador_task`'s exact shape (payload `{"query": …}`, pure compute, returns text,
+writes nothing — §2.3's "already exactly the target shape"). **finding-0227** carries the
+mechanism and hands the lane migration to bp-113/bp-114.
+
+One consequence worth stating so nobody reads the proof as stronger than it is: because §6 pins
+`Lander -> None`, the protocol carries no result string back, so a subprocess job completes with a
+supervisor-authored summary (`"worker: landed N rows in M batch(es)"`) rather than the handler's
+return value. The equivalence proven is therefore over **what lands** — the data — which is what
+"no behaviour change at landing" means. The `result` column differs by construction between modes.
+
+### Item 3 — a REAL BUG found and fixed: the wall-clock bound bounded nothing
+
+Caught only by looking at test durations: `test_a_wedged_worker_is_bounded_by_the_wall_clock`
+passed while taking **30.08 s to enforce a 1 s deadline**. `_recv` blocked in `readline()`, so the
+deadline was checked only *between* frames — meaning it fired after the worker finished sleeping
+on its own. **A timeout that only times out things that were going to finish anyway bounds
+nothing, and a wedged worker (which emits nothing at all) is precisely the case it exists for.**
+A green test asserting `pytest.raises(WorkerTimeout)` was reporting a working bound.
+
+Fixed: `_wait_readable` + a deadline-checked slice read (`select`, 0.25 s slices), with the
+deadline passed **into** the read rather than checked around it. The body is read in slices too,
+because a multi-MB batch is split across pipe writes by the OS, so bounding the header alone would
+leave a mid-frame wedge unbounded. The test now **asserts the wall clock** (`elapsed < 5.0`), not
+just the exception type — the assertion that would have caught it originally. 30.08 s → **1.01 s**;
+the file went 30.75 s → 1.67 s.
+
+This is a `codebase` issue in my own new code, found and resolved inside the session, so it is
+annotated here rather than filed as a finding (findings are the channel *between* sessions).
+
+### Item 3 — the `[scheduler]` config section
+
+Landed WHOLE (§3's additional risks: a half-defined section is silently dropped), following
+`RuntimeConfig`'s in-repo precedent exactly — that dataclass's docstring already states the
+`_overlay`-merges-by-section-NAME reasoning, so `[scheduler]` states it the same way.
+`SchedulerConfig` + `Config.scheduler` + `raw.get("scheduler", {})` parsing +
+`config/defaults.toml`'s section in the file's established voice (a comment saying *why* each
+bound exists, as `[ollama]:11-16` does).
+
+⚑ **`job_budgets` is per-kind, not the scalar §6 pinned — finding-0228, `[banner: correction]`.**
+The consumer bp-109 already built is `JobQueue.job_budgets: Mapping[str, float]`
+(`scheduler/queue.py:296`, used at `:435`), and `claim()` looks the budget up **by kind**. A scalar
+has no expression in it: it would have to be fanned out over every kind, or merged with a second
+per-kind source — the parallel budget source finding-0225 exists to prevent. The design note's own
+§4 says "`job_budget_s` **per-kind overrides**", so the note and the code agree and only §6's arity
+was wrong. The scalar was deliberately **not** also shipped: an unconsumable key is an inert knob
+that looks live, the exact failure schema'ing the section prevents. This **discharges the wiring
+half of finding-0225** — the enable path now exists end to end except the `build_components`
+construction site, which is bp-111/bp-112's by §5, exactly as 0225's re-entry says.
+
+⚑ **The round-trip test does NOT write `config/local.toml`.** bp-123 renamed the overlay to
+`ouroboros.toml` on 2026-07-26 (the plan predates it and says `local.toml`), and
+`_refuse_on_legacy_overlay` now RAISES on a `local.toml`. Writing either real file would trip that
+guard or mutate the live instance. The test monkeypatches `_INSTANCE_OVERLAY` to a tmp file
+instead.
+
+### Item 4 — one model in flight
+
+`model_blocked_tiers()` implements §2.7's rule verbatim, enforced at the **one claim site** via
+`claim`'s existing `blocked_tiers` — **no new queue API** (Item 4's invariant). The pinned tier is
+never blocked (always resident; the pinned router never evicts the worker slot — that is the
+rule's "landing/housekeeping" carve-out).
+
+⚑ **It is a SEPARATE method from `blocked_tiers()`, deliberately.** Item 4's invariant says the
+foreground gate "keeps its meaning and is not overloaded"; two different reasons to refuse a tier
+conflated into one predicate is how a later reader cannot tell which rule refused a job. They are
+unioned at the call site. `test_the_foreground_gate_is_not_overloaded_by_the_model_rule` pins it.
+
+`_in_flight_key` is armed at dispatch and cleared in a `finally`, so a worker that dies mid-flight
+cannot strand the gate closed — a guard that fails closed forever is its own outage
+(`test_a_crashed_worker_does_not_strand_the_model_gate_closed`).
+
+⚑ **Honest scope limit, and it contradicts the plan's §3 Q7 — finding-0229.** Q7 asserts the §2.7
+hazard "arises with this plan". Under the **synchronous** dispatch this plan ships
+(`_dispatch_to_worker` streams to completion inside one `tick`), it does not arise at all: there is
+no instant at which the supervisor can claim while a worker is out. Item 4's rule is therefore
+built, tested and enforced, but the window it guards is **currently empty**. It shipped anyway on
+Q7's own reasoning ("shipping the split without it is a regression"), so concurrency cannot later
+be introduced without the guard already in place, and the limitation is written into
+`model_blocked_tiers`' docstring rather than left to be discovered.
+
+finding-0229 records the larger point: **this plan delivers the protocol, the capability
+restriction and cancellability — not yet liveness.** §1's "so the supervisor stays live" needs
+non-blocking dispatch, which needs the serve loop (`ops/lifecycle/launcher.py`), which §5 puts
+explicitly out of scope. Two of the note's wins ride along with it and must not be reported as
+landed: the batch as the *fairness* unit (finding-0165) and batch landing as the *in-band progress
+signal* (§2.9's STUCK lag). Routed to the orchestrator because it is a sequencing/write_scope
+decision, which finding-0191's own lesson puts at graduation, not build time.
+
+### The gate — every leg run separately
+
+```
+LEG 1  ruff check .                                     All checks passed!
+LEG 2  python scripts/check_imports.py                  I2 OK; Worker boundary (tier 4) OK
+LEG 3  mypy core agents eval ops scheduler scripts      Success: no issues found in 260 source files
+LEG 4  mypy            (argless)                        Found 69 errors in 20 files  <- baseline HELD
+LEG 5  python -m ops.type_gate                          EXIT=0 (known parked psutil row, finding-0223)
+LEG 6  pytest -q  (documented green gate)               2258 passed, 11 skipped, 21 deselected
+```
+
+LEG 4 needed work: the new test files first pushed the tests baseline to **74**. Five errors
+(2 `type-arg`, 3 `func-returns-value` from `lambda j: ran.append(...) or "ok"`) were fixed rather
+than absorbed, returning it to exactly **69**.
+
+⚑ **A bare `uv run pytest -q` shows 2 failures; both are pre-existing/environmental, and I verified
+that rather than asserting it.**
+- `tests/unit/test_core_self_containment.py::test_core_imports_nothing_outside_core` — the
+  finding-0103/0105 ratchet the green gate deselects by standing decision.
+- `tests/e2e/test_dream_v2_live.py::…_live` (`pytestmark = pytest.mark.live`) —
+  `MemoryCeilingError: would use 29.7 GB > usable budget 24.0 GB (qwen3.5:2b, qwen3.6:27b + 10.0 GB
+  measured non-registry)`. The live Ollama is holding the 10 GB embedder, so the 27b synthesis
+  model would breach the ceiling; **Invariant 8 refusing breaching work is correct behaviour, not a
+  regression.** Verified by `git stash`ing all seven changed files and re-running: **identical
+  failure at base**. Nothing I touched is in that arithmetic.
+  Note for honesty: Item 1's V2 measurement made one embed call, which refreshed the embedder's
+  30-minute keep-alive. It was already resident before that call (checked via `api/ps` first), so
+  this did not cause the residency — but it did extend it, and the test is time-sensitive.
+
+## Completed
+
+- **Item 1** — V1/V2/V5 measured (Checkpoint 1). Commit `e7a9324`.
+- **Item 2** — the sealed worker + protocol; V4 planted (MUT-1) and reddened. Commit `c181a6d`.
+- **Item 5** — the tier-4 ratchet; both falsifiers planted (MUT-2 module-level, MUT-3
+  function-local) and reddened on the real gate. Commit `c181a6d`.
+- **Item 3** — the dispatch seam + `[scheduler]` schema; parallel-run proof; flag-off invariant
+  held across 54 pre-existing tests, unedited.
+- **Item 4** — one model in flight, at the one claim site, no new queue API.
+
+## In-flight
+
+Nothing. All five items closed.
+
+## Next action
+
+**Orchestrator: review the diff and merge.** Nothing remains for a builder on this plan. The
+merge sequencing matters — §12 flags `core/kernel/config/loader.py` + `config/defaults.toml` as
+the wave's second contended file pair (this plan lands `[scheduler]`, bp-115 lands `[runtime]`;
+`[runtime]` is already at base, so this is additive to it, but they must not run as concurrent
+worktrees).
+
+Then: **ready to deskcheck** — the flip is `worker_mode = "subprocess"` in `config/ouroboros.toml`
+plus a registered compute half; with no lane registered, flipping it alone changes nothing, which
+is the intended safe state.
+
+## Open questions
+
+- **finding-0226** (`spec-defect` → orchestrator) — V5's "starves the loop" is throughput, not
+  liveness. Decision unaffected.
+- **finding-0227** (`discovery` → orchestrator) — every lane module imports a store class at module
+  level; bp-113/bp-114 sizing, and whether `ReadOnlyRows` needs widening before they graduate.
+- **finding-0228** (`spec-defect` → builder) — §6's scalar `job_budget_s` vs the per-kind field
+  bp-109 built; landed per-kind. If the orchestrator wants the plan text to match what shipped,
+  the §6 block is the one line to correct — a builder may not edit a plan's pinned interfaces.
+- **finding-0229** (`spec-defect` → orchestrator) — synchronous dispatch means liveness/fairness
+  are NOT yet delivered; which plan owns non-blocking dispatch is a graduation decision.
+- **finding-0224 remains OPEN and untouched by this plan**, deliberately. bp-109 §4 vs §9 on
+  whether a lapsed lease licenses reclamation is bp-112's graduation to rule on. This plan defines
+  the budget key and **consumes none of it** — `_dispatch_to_worker` passes no `timeout_s`
+  precisely so that wiring a deadline here could not settle that question by side effect.
+
+## Context-manifest delta (additions since Checkpoint 1)
+
+- `core/models/registry.py:20-35` — `Registry.config.models` is how `model_blocked_tiers`
+  enumerates tiers without a new API.
+- `core/librarian/librarian.py:1-45,207-219` — established that the proof lane's production
+  compute half imports `VectorStore`/`RawStore` at module level (finding-0227) and that
+  `build_librarian` constructs the store, so the lane is injection-shaped but not yet
+  protocol-shaped.
+- `core/stores/vectorstore.py:289-327` — the real `all_rows`/`search` signatures; note they are
+  kw-only with `Iterable[Provenance]`, whereas §6's facade pins `set[str]` and positional `k`.
+  The supervisor's `_serve_read` adapts between them, which is why the real store is not required
+  to satisfy the Protocol structurally.
+- `pyproject.toml:79` — `addopts = "-m 'not longitudinal'"`, i.e. a bare `pytest -q` does **not**
+  deselect `live`. The documented green gate does.
+
+Proved irrelevant: `core/complex/temporal.py`, `ops/effect_ledger.py` — enumerated only to ground
+the ratchet's forbidden set; neither is reachable from the worker.
+
+---
+
 ## Checkpoint 2 — Items 2 and 5 CLOSED: a sealed worker exists, and a ratchet proves it holds no store
 
 **Status.** `scheduler/worker.py` exists, seals itself, streams batches, and dies typed. The
