@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-105
 track: ops
-status: in-progress
+status: complete
 design_ref: []
 contract: builder
 write_scope:
@@ -17,11 +17,40 @@ cost:
   estimate:
     model: opus
     tokens: 180k
-  actual: null
+  actual:
+    model: opus              # claude-opus-5, built IN-SESSION at root (session-47), NOT delegated
+    tokens: unmeasured       # ⚑ see notes — in-session builds get no per-plan harness accounting
+    ratio: n/a               # not derivable without a token figure; plan was well-pinned (~0.5x
+                             # expected by the pinning heuristic, but that is a PREDICTION, not a
+                             # measurement, and is not recorded here as one)
+    session_delta: unmeasured
+    week_delta: unmeasured
+    notes: >-
+      SEALED at session-49. Built and pushed in session-47 (`2add267` + `3ad6ad3`), left
+      `in-progress` deliberately because `complete` is the orchestrator's single-writer duty.
+      All three items met; all three warrants discharged. Verified by mutation: 17 planted,
+      17 caught. Green gate at seal time: 2043 passed, 8 skipped.
+      Discharges finding-0186 (Item 2), finding-0187 (Item 3), finding-0188 (Item 1) — all three
+      closed to `resolved` in this same sweep, since a builder may not edit an existing finding.
+      Item 1 settled an orchestrator-routed DESIGN call at build time by grounding rather than
+      escalating: every channel the plan listed was eliminated, and the discriminator built is the
+      store's own filesystem clock — a DERIVATIVE, not a level, which is precisely the finding-0172
+      defect finding-0188 charged. Checkpoint 1 also caught the plan's own §6 identity rule stated
+      BACKWARDS; the rule implemented is two one-sided disproofs, refuse on ambiguity.
+      ⚑ COST-LEDGER BLIND SPOT (structural, not an oversight): the enriched `cost.actual` block is
+      fed by the completion notification's harness-measured usage, which only exists for DELEGATED
+      work. A plan built in-session has no per-plan accounting, and `/usage` reports per-session and
+      per-week aggregates that cannot be attributed back to one plan. Session-47's boundary reading
+      is gone, so ratio/session_delta/week_delta are recorded as `unmeasured` rather than estimated
+      — an invented figure would corrupt the estimate/actual ledger the delegation budget gate
+      reads. Filed as finding-0200.
+      ⚑ SCOPE BOUNDARY carried forward: this plan closed the `start --force` route ONLY.
+      `scripts/watch.py` still builds a second `Supervisor` on the shared queue with
+      `active_run_id=None`; that half of the `⛔` constraint stands until bp-108 Item 5.
 depends_on: []
 parallelizable_with: []
 created: 2026-07-25
-updated: 2026-07-25   # session-47: ready -> in-progress
+updated: 2026-07-25   # session-49: in-progress -> complete (sealed)
 links:
   - docs/audits/ops-wave-2026-07-25.md
   - docs/findings/finding-0186.md

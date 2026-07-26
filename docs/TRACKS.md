@@ -42,6 +42,21 @@
 | Ops | bp-101 — bp-101: queue hygiene — enqueue coalescing and orphaned-job reclaim | deskcheck-pending · complete | opus |
 | Ops | bp-102 — bp-102: status tells the truth — liveness, failures, and rates (command center, Tier 1) | deskcheck-pending · complete | opus |
 | Ops | bp-103 — bp-103: widen the LanceDB typedshim so `supersede_source` becomes one in-place update | deskcheck-pending · complete | opus |
+| Ops | bp-105 — the restart is trustworthy: a discriminating instrument and a fail-closed start | deskcheck-pending · complete | opus |
+| Ops | bp-106 — the boundary shim is real: quarantine psutil, and make the one-file rule enforceable | build · ready | opus |
+| Ops | bp-107 — the memory ceiling stops guarding a belief (finding-0199's interim reconcile) | build · ready | opus |
+| Ops | bp-108 — the supervisor role becomes exclusive, and the loop keeps its duty cycle | build · ready | opus |
+| Ops | bp-109 — a RUNNING row carries its own deadline, and a checkpointed row stops being swallowed | graduate · proposed | Fable/Opus |
+| Ops | bp-110 — THE INTEGRATOR: the worker protocol and the dispatch seam | graduate · proposed | Fable/Opus |
+| Ops | bp-111 — the dead-man inversion: health decays instead of being asserted | graduate · proposed | Fable/Opus |
+| Ops | bp-112 — the teeth: budgets that are enforced, and a kill that is bounded and loud | graduate · proposed | Fable/Opus |
+| Ops | bp-113 — the code lanes compute out-of-process and land in the supervisor | graduate · proposed | Fable/Opus |
+| Ops | bp-114 — the vault lane computes out-of-process; its five-store landing becomes one step | graduate · proposed | Fable/Opus |
+| Ops | bp-115 — P1: the inference client seam (the whole reversibility story) | build · ready | opus |
+| Ops | bp-116 — P2: the process manager — residency becomes a kernel fact | graduate · proposed | Fable/Opus |
+| Ops | bp-117 — P3: the equivalence gate (the owner-ruled cutover precondition) | graduate · proposed | Fable/Opus |
+| Ops | bp-118 — P4: the embedder cuts over first (biggest win, smallest risk, provable) | graduate · proposed | Fable/Opus |
+| Ops | bp-119 — P5: the chat tiers, per-tier, each reversible (PARKED on V-B) | graduate · proposed | Fable/Opus |
 | Reference bookkeeper | the async F-consistency agent (finding-0145/0154) | design-pass | FABLE |
 | Sync/diac dreamers | bp-079 — D-0: the DreamCharter dispatch record + the materialization boundary | deskcheck-pending · complete | opus |
 | Sync/diac dreamers | bp-080 — D-1: the ARROW-READ synchronic dispatch (the clock-free v1) | deskcheck-pending · complete | opus |

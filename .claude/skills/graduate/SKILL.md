@@ -70,10 +70,10 @@ Every plan copies the signatures, schemas, and invariants its builder must honor
 infer design. This is the single most common decomposition defect; get it right
 here. (Details: build-plan skill.)
 
-## Write-scope authoring (two teeth the guard cannot recover from)
+## Write-scope authoring (three teeth the guard cannot recover from)
 
 The `write_scope` is the builder's *capability*, parsed by `scope-guard` pre-hoc.
-Author it so the guard grants exactly the plan's intent — two habits break it:
+Author it so the guard grants exactly the plan's intent — three habits break it:
 
 - **No inline comments on `write_scope` globs** (finding-0085). `scope-guard` reads
   each unquoted list entry literally, so `- eval/metrics.py  # absorbed` is stored
@@ -90,6 +90,23 @@ Author it so the guard grants exactly the plan's intent — two habits break it:
   emitting: **scan the retrofit target's test files** (`grep` the changed symbols in
   `tests/`) and add every test file that asserts the touched surface to `write_scope`.
   Name them in §5 as "carried because they pin the surface this plan moves."
+- ⚑ **The acceptance-reachability check — every §7 criterion must be BUILDABLE from
+  §5** (findings 0177/0191/0204 — three instances in the ops wave alone, so this is
+  the recurring failure, not an edge case). For **each** §7 acceptance criterion,
+  enumerate the files it must modify to pass, and assert every one appears in
+  `write_scope`. A criterion whose files are not all in scope is **unbuildable**: the
+  builder's only lawful moves are to file a finding and stop, or route around the
+  guard — and routing around is forbidden, so the plan strands its own acceptance.
+  Watch for the non-obvious targets a surface read misses:
+  - a **protocol member** the plan says to add (structural conformance requires it on
+    the *class*, so the class's file is in play even when the plan only names the
+    protocol — bp-115's `healthy()` on `OllamaClient`);
+  - an **allowlist / registry / manifest** the new code must be enrolled in before a
+    gate leg passes (`ops/import_lint.py`'s `NETWORK_ALLOWLIST`, `[tool.mypy].files`);
+  - a **call site in a test outside the plan's own test file** that asks the changed
+    surface a question it can no longer answer.
+  Cheapest place to catch this is here — before the blessing, where widening the scope
+  costs one line. After blessing it costs an owner round trip or a follow-up plan.
 
 ## Procedure
 
@@ -111,14 +128,18 @@ Author it so the guard grants exactly the plan's intent — two habits break it:
    interfaces pinned inline (§6). **Every template section is present**; an
    inapplicable one is `N/A — <reason>`, never omitted. Create the plan's
    `journal.md` (alive).
-6. **Estimate the cost** (front-matter `cost.estimate`): pick the builder tier by the
+6. ⚑ **Run the acceptance-reachability check** (see *Write-scope authoring*): walk each
+   §7 criterion, enumerate the files it must modify, and confirm every one is in §5.
+   Do this **before** the plan leaves your hands — it is the last point where a missing
+   entry is a one-line fix rather than a stranded build.
+7. **Estimate the cost** (front-matter `cost.estimate`): pick the builder tier by the
    delegate skill's verification-complexity table, and an order-of-magnitude token count
    calibrated against the seal ledger's actuals (2026-07-11 baselines: sonnet grind
    ≈650k/1.7h; fable spike ≈150k/35min; survey ≈85k). Estimates are honest guesses —
    the estimate-vs-actual gap in seals is the forecasting dataset, so never tune an
    estimate after work starts.
-7. Cross-link every plan to the note (`design_ref`, `links`).
-8. Emit `proposed` only. The proposed→ready blessing is the owner's, by hand.
+8. Cross-link every plan to the note (`design_ref`, `links`).
+9. Emit `proposed` only. The proposed→ready blessing is the owner's, by hand.
 
 ## Supersession, not editing
 

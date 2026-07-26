@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0186
-status: routed
+status: resolved
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-25   # /triage session-49: DISCHARGED by bp-105 Item 2
 links:
   - docs/audits/ops-wave-2026-07-25.md
   - scheduler/queue.py
@@ -11,7 +11,16 @@ links:
 ftype: blocker
 origin_plan: orchestrator
 route: orchestrator
-resolution: null
+resolution: |
+  DISCHARGED by bp-105 Item 2 (`2add267`). `start` is fail-closed over a live
+  supervisor and `--force` cannot bypass the guard; the recycled-pid trap the owner
+  ruling named is closed by identity-checked liveness (create_time vs run.started_at,
+  two one-sided disproofs, refuse on ambiguity). Verified by mutation: 9 planted,
+  9 caught (bp-105 journal, Checkpoint 2).
+  SCOPE BOUNDARY — this finding is about the `start --force` route only. `scripts/watch.py`
+  building a SECOND `Supervisor` on the shared queue with `active_run_id=None` is a
+  separate route, untouched by bp-105 and STILL OPEN; it is owned by bp-108 Item 5.
+  Do not read this closure as clearing that hazard.
 ---
 
 # `start --force` sweeps a still-live run's in-flight jobs: double execution and false failures
