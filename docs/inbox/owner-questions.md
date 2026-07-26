@@ -1742,3 +1742,46 @@ asserted.
   wellbeing-scoped. This ruling narrows the *interpretation* without amending the *text*, which is the
   same latent-divergence shape as finding-0109 (a ratified note forbidding what is built and wired).
   A wording amendment belongs in a design pass, not in a sweep — record it, do not edit the spec here.
+
+## oq-0050 — The sync/diac deskcheck decision: wire the dreamers live, or accept dormant? — RULED: WIRE
+
+- status: answered   # 2026-07-26 — the owed deskcheck decision, ruled in chat; sweep axis below
+- origin: docs/tracks/sync-diac-dreamers.md (standing owed deskcheck) · docs/findings/finding-0141.md
+- blocking: false
+- question: The sync/diac dispatch machinery is sealed (bp-079/080/081/082) but not reachable from
+  any live entry point. The track's definition of done requires an owner decision: **wire it live, or
+  accept dormant.** It had been surfacing as routine queue maintenance; it is not — a predictor that
+  never runs cannot be scored, so this decision gates the entire scored-beliefs direction
+  (`dn-scored-beliefs-and-earned-entitlement`, drafted 2026-07-26).
+- answer: **WIRE.** Owner, 2026-07-26, verbatim: *"yes the dreamers should be wired and we should
+  start testing them and finalizing them soon"*.
+- ⚑ WHAT THIS RULING CAN AND CANNOT BUY, grounded in the code before minting anything:
+  - **It is NOT a flag flip.** `[dream_rnd] enabled = false` is only half. finding-0141's measurement
+    still holds at HEAD: a grep of `ops/lifecycle/launcher.py` + `scheduler/` for
+    `charter|influence|force` returns **zero live constructions**, and `rnd.py`'s own docstring says
+    it "is never wired into the live path". **The entry point does not exist and must be built.**
+    That is the "wiring is part of finishing" rule applied: the ON switch is functionality.
+  - ⚑ **A theme dreamer IS ALREADY LIVE — do not conflate them.** `launcher.py:408`
+    (`from core.dreaming import build_dreamer`), `:525` (`cron_handlers(build_dreamer(cfg), ...)`)
+    and `:533` (`enqueue_dream(queue, router)`) run a dream pass in the trough housekeeping today.
+    What is dormant is the **R&D sync/diac** machinery specifically. finding-0141 exists precisely
+    because a brainstorm conflated these two halves once already.
+  - ⚑ **SYNCHRONIC ONLY.** `dn-synchronic-diachronic-dreamer` §2.8 parks **diachronic execution**, and
+    finding-0126 restated its re-entry to (a) the graph-at-a-past-cut instrument family graduating
+    AND (b) D-1 sealed — the stale "G3 materializes" may not be cited as licence. So the temporal
+    half of "predicts based on temporal patterns" is gated by a documented park and this ruling does
+    not open it. The synchronic read IS built (`core/graph/census.py`, arrow-aware census at one
+    certified cut — "direction is time's residue in the synchronic graph").
+  - ⚑ **A memory-ceiling dependency I asserted in chat and then DISPROVED — recorded so nobody
+    re-derives the wrong version.** I suspected wiring would breach NN-8 (≤ 2 resident models,
+    ~20–24 GB; finding-0174's corrected 23.0 + 10.0 = 33.0 vs 24.0) and would therefore have to wait
+    on bp-107. It does not: `core/dreaming/interpreters.py:10` states *"All are model-free — the §9
+    deterministic floor; the model is earned only for narration/judging."* The panel is deterministic.
+    A ceiling interaction is confined to the narration/judging step, not to dispatch. **bp-107 is not
+    a blocker.**
+- what is owed next: a scoped plan for the live entry point. Its open design choices — which grant
+  the dispatch supplies (`dreamer_scope` is a **grant value**, not a mode, per the ratified note), the
+  cadence, and whether it rides the existing trough pass or takes its own job kind — are real and
+  should be pinned in the plan rather than improvised by a builder. ⚑ The deskcheck itself remains
+  owed and its demonstrable CHANGES with this ruling: it is no longer "show that it is not wired",
+  it is "show it running".
