@@ -1418,3 +1418,88 @@ references:
   - docs/design-notes/dn-autopilot-and-delegated-blessing.md  # §2.5 gates, non-goal 9, Parked table
   - .claude/skills/graduate/SKILL.md          # §14 single-context park, un-parked by ruling 1
 ```
+
+## 2026-07-26T06:05:00Z
+
+> **Ordering note (read this before trusting the labels above):** this capsule's heading is the
+> *true* UTC clock. The four preceding capsules' labels run **ahead** of it — the `07:14Z` capsule
+> was committed as `3e88bae` at `2026-07-26 01:44:37 -0400` = **05:44Z**. So in this file, ordering
+> is by **position**, not by label. Filed as a finding this session, because the standing convention
+> is "later capsules supersede earlier ones and say so" — a label that runs ahead inverts that.
+
+```capsule
+topic: autopilot-mode
+date: 2026-07-26
+
+decisions:
+  - RULING 6 -- THE AUDITOR IS THE MOST EXPENSIVE ROLE. Owner verbatim: "on the auditor, yes,
+    unfortunately, the auditor will have to be the most expensive, razor sharp reviews of the
+    build, to plans, to builds, to deliveries, the others we know understand their budgets and
+    their model types/requirements."
+    ⇒ This ANSWERS the 07:14Z open question ("does the AUDITOR role need a different MODEL or
+    tier from the builders?") with YES. Role-typing buys independence of CONTEXT; the tier is
+    what buys independence of JUDGMENT. The auditor is the one role where paying up is the point.
+  - ⚑ THREE REVIEW SURFACES, NOT TWO. The owner enumerated "plans, builds, deliveries". Ruling 1's
+    composition named only two: GATE A (plans, pre-build) and GATE B (merges, post-build).
+    "DELIVERIES" is a THIRD surface -- the wave as the owner actually receives it (the phone build
+    report, the deskcheck-facing deliverable), whose artifact differs in kind from a merge diff.
+    ⇒ The superseding note must either carry GATE C explicitly or fold delivery into GATE B and
+    SAY it folded. ⚑ GATE C does NOT replace the owner's deskcheck verdict: finding-0153's rule is
+    that a track is done only when DESKCHECKED and the owner has final say. GATE C is the auditor
+    standing between the builders and the deskcheck queue -- it raises what reaches the queue; it
+    never closes an item. Deskcheck approval stays owner-only, like the two blessings.
+  - ⚑ THE TIER ALREADY EXISTS IN POLICY -- this is a CONSISTENCY, not a new exception. The
+    context-economy tier table already assigns **merge scrutiny** to top tier (Fable) + xhigh
+    (`.claude/skills/context-economy/SKILL.md:33`). The auditor role IS that row; builders are the
+    Supervision/Grind rows, right-sized by the four-axis rubric (`:48-51`). ⇒ The note should CITE
+    the existing table rather than mint a second tier vocabulary. This is what the owner's second
+    clause means: "the others we know understand their budgets and their model types/requirements"
+    -- the other roles' tiers are settled BY DEFERRING TO EXISTING POLICY, not by new rules.
+  - ⚑⚑ AND THE TIER MUST BE ENFORCED, NOT REQUESTED. The fable↔opus delegation mismatch is
+    field-proven, and an agent's self-report of its own tier is worthless (it echoes its injected
+    prompt). The auditor is precisely the role where a silent downgrade to the builders' tier is
+    both invisible and total -- it would leave the gate standing while removing what the gate was
+    for. ⇒ The role catalog must carry tier as a CHECKED property. The seam already exists:
+    `scheduler/router.py:81-88` (`Router.plan`) resolves kind → tier → model deterministically.
+    A prompt string is not a tier guarantee; a router rule is.
+  - COST CONSEQUENCE, and it SHARPENS a still-open question. An auditor at top tier reviewing
+    every plan, every merge, and every delivery in a wave is the wave's dominant spend line:
+    N plans × 3 surfaces at xhigh. This does not answer "does a wave grant need a BOUND?" -- but
+    it raises its stakes, because the unbounded wave grant is now unbounded over the MOST
+    EXPENSIVE role. The bound (max plans / max spend / TTL) is worth more after this ruling than
+    before it.
+
+parked:
+  - decision: is delivery review a third gate (GATE C) or a widening of GATE B?
+    default: name it GATE C explicitly -- the owner enumerated three surfaces, and a delivered
+    report is a different artifact from a merge diff, so a shared gate would blur what is checked.
+    re_entry: the superseding note.
+  - decision: how the auditor's tier is ENFORCED rather than merely requested.
+    default: route the auditor through `scheduler/router.py`'s deterministic kind→tier→model
+    rather than a spawn-time prompt, so a downgrade is a config defect and not a silent one.
+    re_entry: the superseding note; the role catalog's §8 audit metadata ("a half-audited hand
+    cannot be added silently").
+
+open_questions:
+  - CARRIED, still open: does a wave grant need a BOUND (max plans, max spend, TTL)? Sharper now
+    -- see the cost consequence above.
+  - CARRIED, still open: the graduate skill's §14 "graduate in a single context" park must be
+    lifted for the sub-orchestrator (un-parked by ruling 1, not yet resolved).
+  - NEW: who audits the auditor? GATE A and GATE B are both held by one role at one tier. The
+    ratified note's §2.5 wanted an "adversarial audit PAIR"; a single auditor holding both gates
+    is a single point of judgment even at the top tier.
+
+next_steps:
+  - The superseding note now carries, in addition to the 07:14Z set: the auditor as the top-tier
+    role (citing the existing tier table, not a new one), THREE review surfaces with GATE C's
+    relationship to the owner's deskcheck stated, and tier-as-checked-property via the router.
+  - finding-0011 updated this session under ruling 2 (the ε raise) -- done, see the finding.
+
+references:
+  - .claude/skills/context-economy/SKILL.md:33          # merge scrutiny = top tier + xhigh, already policy
+  - .claude/skills/context-economy/SKILL.md:48-51       # the four-axis right-sizing rubric for the others
+  - scheduler/router.py:81-88                            # Router.plan -- the tier-enforcement seam
+  - docs/findings/finding-0153.md                        # deskcheck: owner has final say; GATE C cannot close
+  - docs/findings/finding-0011.md                        # updated this session under ruling 2
+  - docs/design-notes/dn-autopilot-and-delegated-blessing.md   # §2.5 gates, the Parked table
+```
