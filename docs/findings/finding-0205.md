@@ -1,6 +1,6 @@
 ---
 type: finding
-id: finding-0201
+id: finding-0205
 status: open
 created: 2026-07-25
 updated: 2026-07-25
@@ -9,7 +9,7 @@ links:
   - tests/e2e/test_ollama_live.py                      # :46 — the single call site
   - core/models/server.py                              # ModelServer.client, now protocol-typed
   - core/models/loader.py                              # where residency questions belong (§3 Q2)
-  - docs/findings/finding-0200.md                      # the sibling write_scope gap
+  - docs/findings/finding-0204.md                      # the sibling write_scope gap
 ftype: discovery
 origin_plan: bp-115
 route: builder
@@ -99,6 +99,6 @@ confirming the tail reads 69 again.
 
 ## Routing
 
-`codebase` → the builder resolves. Blocked here only by `write_scope`, like finding-0200; the two
+`codebase` → the builder resolves. Blocked here only by `write_scope`, like finding-0204; the two
 should be discharged together, since both are one-line edits in files bp-115 cannot reach and
 both must land before the plan's own acceptance can be claimed.

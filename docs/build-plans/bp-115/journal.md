@@ -15,7 +15,7 @@ worktree branched from `origin/main` @ `7b37453`.
 All four items are **implemented and committed**; the code is complete and the design is
 plan-faithful. The build is **not green**, and every red is traceable to exactly three one-line
 changes in three files that bp-115's `write_scope` does not contain. They are written out
-verbatim in `finding-0200` (two of them) and `finding-0201` (one). Nothing else is owed. Do not
+verbatim in `finding-0204` (two of them) and `finding-0205` (one). Nothing else is owed. Do not
 re-derive: read those two findings, land the three lines under a plan that can reach them, and
 the gate goes green with no further code change — **measured in a throwaway copy, not assumed**
 (see "The three owed lines were VERIFIED" below).
@@ -51,7 +51,7 @@ note): `tier=None` is the embedding role, a tier name reads `chat_backend`. Impl
 imported *inside* the function so the protocol module does not drag them into every importer.
 
 **Status: code complete; acceptance NOT met** — `OllamaClient` does not satisfy the protocol
-because `healthy()` has no home (finding-0200a).
+because `healthy()` has no home (finding-0204a).
 
 ### Item 2 — the widening (`core/ingest/embed.py`, `core/models/server.py`)
 
@@ -71,7 +71,7 @@ parked; it is annotated inline in `core/models/server.py`.
 ⚑ **Item 2's falsifier FIRED — once — and §10's STOP was honoured**: I investigated and did not
 edit the test. `tests/e2e/test_ollama_live.py:46` asks a residency question
 (`core.models.client.list_models()`) through the inference handle. Full investigation and the
-one-line remedy are in **finding-0201**; the short version is that the widening is *correct* and
+one-line remedy are in **finding-0205**; the short version is that the widening is *correct* and
 the call site was always reaching through the wrong handle. It is the only such site in the repo.
 
 ### Item 3 — `LlamaServerClient` (`core/models/llama_server_client.py`)
@@ -91,7 +91,7 @@ rather than a silent truncation. `think` maps to `chat_template_kwargs.enable_th
 mapping is **unverified** against a loaded model (V-B) and says so in the docstring.
 
 **Status: code complete; blocked from green only by the import-firewall allowlist**
-(finding-0200b).
+(finding-0204b).
 
 ### Item 4 — `[runtime]` (`core/kernel/config/loader.py`, `config/defaults.toml`)
 
@@ -122,18 +122,18 @@ Six legs, run separately, at commit `HEAD` of this worktree:
 | leg | result |
 |---|---|
 | `uv run ruff check .` | **PASS** — "All checks passed!" |
-| `uv run python scripts/check_imports.py` | **FAIL** — 2 violations, both finding-0200b |
-| `uv run mypy core agents eval ops scheduler scripts` | **FAIL** — 2 errors, both finding-0200a |
-| `uv run mypy` (argless) | **70**, not the pinned 69. The +1 is finding-0201, exactly |
+| `uv run python scripts/check_imports.py` | **FAIL** — 2 violations, both finding-0204b |
+| `uv run mypy core agents eval ops scheduler scripts` | **FAIL** — 2 errors, both finding-0204a |
+| `uv run mypy` (argless) | **70**, not the pinned 69. The +1 is finding-0205, exactly |
 | `uv run python -m ops.type_gate` | **PASS** — membership OK, bare-ignore scan OK |
 | `uv run pytest -q` | **4 failed / 2074 passed / 15 skipped** in 569s — itemised below |
 
 The four pytest failures, each attributed:
 
-1. `tests/integrity/test_import_firewall.py::test_core_has_no_forbidden_imports` — finding-0200b
+1. `tests/integrity/test_import_firewall.py::test_core_has_no_forbidden_imports` — finding-0204b
 2. `tests/integrity/test_import_firewall.py::test_allowlist_files_exist_and_are_the_only_network_importers`
-   — finding-0200b (same missing allowlist entry; this one fails in both directions by design)
-3. `tests/unit/test_inference_seam.py::test_ollama_client_satisfies_the_protocol` — finding-0200a.
+   — finding-0204b (same missing allowlist entry; this one fails in both directions by design)
+3. `tests/unit/test_inference_seam.py::test_ollama_client_satisfies_the_protocol` — finding-0204a.
    Mine, and deliberately not skipped: it IS §7 Item 1's acceptance criterion.
 4. `tests/unit/test_core_self_containment.py::test_core_imports_nothing_outside_core` — ⚑ **fails
    on a clean tree too** (20 pre-existing violations in `core/dreaming/shadow.py`,
@@ -144,14 +144,14 @@ The four pytest failures, each attributed:
 
 ⚑ **Zero existing tests broke.** Baseline before any edit was 2054 passed; it is now 2074 passed,
 i.e. +20 = my 21 new tests less the one that is red by design. Item 2's falsifier fired
-**statically only** (mypy), never at runtime — see finding-0201.
+**statically only** (mypy), never at runtime — see finding-0205.
 
 ### The three owed lines were VERIFIED, not assumed
 
 "Land three lines and it goes green" is a claim, so I measured it instead of asserting it. `git
 archive HEAD` into a throwaway tree under the session scratchpad (outside the repo — no repo file
-was touched and `write_scope` was not stretched), the three patches from finding-0200 /
-finding-0201 applied there, `uv sync --extra dev`, then the same six legs:
+was touched and `write_scope` was not stretched), the three patches from finding-0204 /
+finding-0205 applied there, `uv sync --extra dev`, then the same six legs:
 
 | leg | verification copy |
 |---|---|
@@ -173,11 +173,11 @@ So the residual risk on the owed lines is not "will it work" but only "will some
 
 ## Findings filed
 
-- **`finding-0200`** (`spec-defect`, route builder) — the `write_scope` omits
+- **`finding-0204`** (`spec-defect`, route builder) — the `write_scope` omits
   `core/models/ollama_client.py` (needs the 3-line `healthy()`) and `ops/import_lint.py` (needs
   the `NETWORK_ALLOWLIST` entry for the new client). Both patches written out verbatim. This is
   the third instance of finding-0191's pattern in this wave.
-- **`finding-0201`** (`discovery`, route builder) — Item 2's falsifier fired at
+- **`finding-0205`** (`discovery`, route builder) — Item 2's falsifier fired at
   `tests/e2e/test_ollama_live.py:46`; the investigation §10 demands, plus the one-line remedy.
 
 Neither is a `blocker`: the session proceeded and finished the plan's code.
@@ -216,7 +216,7 @@ Neither is a `blocker`: the session proceeded and finished the plan's code.
 
 ## Owed at seal (orchestrator, not the builder)
 
-- Land finding-0200's two patches and finding-0201's one line under a plan that can reach those
+- Land finding-0204's two patches and finding-0205's one line under a plan that can reach those
   files, then re-run all six gate legs. **Measured** in a scratch copy (see above), not merely
   expected: ruff pass, check_imports pass, Tier-2 mypy **0**, argless mypy **69**, type_gate pass,
   and the 25 tests across `test_import_firewall.py` + `test_inference_seam.py` all green. Only the
