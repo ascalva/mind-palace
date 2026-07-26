@@ -500,3 +500,123 @@ references:
   - docs/build-plans/bp-120/plan.md                            # §2 DRY entry (now stale), §11 row 1 (now un-parked)
   - core/attestation/crypto.py                                 # Ed25519 sign/verify already in the tree
 ```
+
+## 2026-07-26T02:52:00Z
+
+```capsule
+topic: autopilot-mode
+date: 2026-07-26
+
+decisions:
+  - EXTERNAL VERIFICATION RUN on the passkey direction (delegated research pass, primary
+    sources only: W3C WebAuthn L3, MDN, Apple developer docs, WebKit source, Tailscale KB,
+    the Public Suffix List itself). The DIRECTION SURVIVES, but two agent claims were
+    REFUTED and the security story is materially different from what was told to the
+    owner. Corrections below are load-bearing -- do not re-assert the originals.
+  - ⚑ REFUTED #1 -- "the private key sits in the Secure Enclave, not extractable by
+    hardware". WRONG as stated. Apple PASSKEYS are NOT Secure-Enclave-bound: WebKit's
+    LocalAuthenticator.mm creates credential keychain items with
+    `kSecAttrSynchronizable: @YES` and there is NO `kSecAttrTokenIDSecureEnclave` anywhere
+    in the file. SE keys are non-exportable by construction, which is flatly incompatible
+    with iCloud Keychain sync. So the private key is an iCloud-Keychain-synced,
+    end-to-end-encrypted P-256 key present on EVERY device in the owner's iCloud Keychain
+    -- including, notably, THIS MAC. The real security story is "possession of the Apple
+    ID + iCloud Keychain + device unlock", NOT "possession of this specific iPhone".
+    [GROUNDED WebKit LocalAuthenticator.mm; Apple "Protecting keys with the Secure Enclave"]
+  - ⚑ WHAT ACTUALLY STOPS THE AGENT, restated honestly. Not key secrecy -- the credential
+    may well be resident on the same Mac the agent runs on. The boundary is the OS-enforced
+    USER-VERIFICATION gesture (Touch ID / device unlock) that WebAuthn requires and that an
+    agent cannot perform. That is still FAR stronger than a shared secret in an environment
+    variable (finding-0207), because it is enforced by the platform rather than by an ACL
+    the agent shares -- but it is a DIFFERENT claim and the note must state THIS one.
+  - ⚑ REFUTED #2 -- "HMAC is easy in an iOS Shortcut". WRONG. Shortcuts ships "Generate
+    Hash" (MD5/SHA-1/SHA-256/SHA-512) and Base64, and NO HMAC action or keyed-hash
+    primitive of any kind. Hand-rolling HMAC needs byte-level XOR against 0x5c/0x36 and
+    raw-byte concatenation; Shortcuts' Hash action consumes text/files and returns a HEX
+    STRING, with no byte-array or XOR primitive exposed. Impractical without a helper app.
+    ⚑ This STRENGTHENS the passkey direction rather than weakening it: the passkey path
+    needs no Shortcuts crypto at all -- the phone just opens the local HTTPS page and
+    Safari/AuthenticationServices does the signing.
+  - CONFIRMED -- ES256 ONLY on Apple platform authenticators. Apple's
+    `ASCOSEAlgorithmIdentifier` has EXACTLY ONE case (ES256); WebKit hard-codes the check
+    and throws NotSupportedError if `pubKeyCredParams` lacks alg -7. Ed25519 (COSE -8) is
+    NOT supported. ⚑ THEREFORE core/attestation/crypto.py (Ed25519) is NOT REUSABLE for
+    the verification path -- the earlier "DRY flip" capsule was wrong on this point and is
+    corrected here. What is needed is P-256 ECDSA verification over
+    `authenticatorData || SHA-256(clientDataJSON)`, with the public key arriving as a
+    COSE_Key (kty:2, alg:-7, crv:1, x, y).
+  - CONFIRMED + STRONGER THAN CLAIMED -- WebAuthn needs a secure context, and there are TWO
+    independent gates. (1) Secure Context: the potentially-trustworthy origin algorithm
+    admits https/wss, 127.0.0.0/8, ::1/128, localhost, file:, browser-internal schemes --
+    and NOTHING ELSE. Tailscale's 100.64.0.0/10 CGNAT range gets no special treatment.
+    (2) WebAuthn's own scheme rule: origin scheme must be https, OR host == localhost with
+    http. ⚑ AND: a RAW TAILSCALE IP ORIGIN FAILS EVEN WITH VALID TLS -- §5.1.3 requires the
+    origin's effective domain be a valid DOMAIN, throwing SecurityError otherwise ("issues
+    with using direct IP address identification in concert with PKI-based security"). The
+    MagicDNS name is MANDATORY, not merely convenient.
+  - CONFIRMED -- `sudo tailscale cert <machine>.<tailnet>.ts.net` issues a real
+    Let's-Encrypt, publicly-TRUSTED (not publicly REACHABLE) cert. Prereqs: MagicDNS on,
+    HTTPS enabled in the admin console, acknowledgement of public publication.
+  - CONFIRMED -- `ts.net` IS on the Public Suffix List (PRIVATE DOMAINS section), and the
+    scheme still works. Use the FULL FQDN `machine.tailnet.ts.net` as rpId: it equals the
+    effective domain and is legal under every reading. `ts.net` alone is ILLEGAL (equals
+    its own public suffix). The PSL entry is PROTECTIVE -- it stops another tailnet
+    claiming `ts.net` as an rpId and harvesting the credential.
+
+parked:
+  - decision: ⚑ THE CERTIFICATE-TRANSPARENCY PRIVACY COST -- an OWNER call, newly surfaced.
+    default: NONE -- this is not the agent's to default.
+    re_entry: OWNER RULES BEFORE ANY BUILD. Tailscale's own docs warn verbatim: "Do not
+    enable the HTTPS feature if any of your machine names contain sensitive information."
+    All TLS certs land in the public, append-only CT ledger INCLUDING the fully-qualified
+    device name -- so the Mac's machine name and the tailnet name become permanently and
+    publicly enumerable, un-retractably. Not the content, not reachability: the NAMES.
+    For a system whose stated default is private/local/Tailscale (NN-11), this is a real
+    and permanent cost that must be accepted deliberately, not absorbed silently.
+  - decision: certificate renewal ownership.
+    default: unresolved. `tailscale cert` does NOT auto-renew (the daemon cannot know where
+    the files were installed); 90-day expiry; and frequent re-requests can trip Let's
+    Encrypt rate limits into a 34-hour lockout.
+    re_entry: the superseding note's wiring section -- either an owned cron/launchd renewal
+    or delegate TLS to `tailscale serve` / caddy-tailscale, which DO auto-renew.
+  - decision: whether true device-binding is wanted.
+    default: no -- accept iCloud-Keychain-synced credentials.
+    re_entry: if the owner wants "this iPhone specifically" rather than "my Apple ID", that
+    needs a different mechanism (device-bound keys / the devicePubKey extension / a hardware
+    security key), and the note must NOT claim Secure Enclave residency either way.
+
+open_questions:
+  - ⚑ THE VERIFIER MUST CHECK THE CHALLENGE INSIDE clientDataJSON. The authenticator signs
+    `authenticatorData || SHA-256(clientDataJSON)`; the challenge appears INSIDE
+    clientDataJSON (base64url), so the capsule hash is bound TRANSITIVELY, never signed
+    directly. The verifier must parse clientDataJSON and check type == "webauthn.get",
+    origin == the exact https origin, AND challenge == base64url(SHA-256(capsule)) before
+    verifying the ECDSA signature. Skipping the challenge-equality check BREAKS THE ENTIRE
+    BINDING and silently reduces the design to "Alberto approved something".
+  - rpId is baked into the credential: renaming the Mac or the tailnet PERMANENTLY
+    invalidates every existing passkey. Pin both names before enrollment.
+  - Residual uncertainty flagged by the verifier and NOT resolved: browsers differ in
+    whether they consult the PSL PRIVATE section for rpId validation. Affects only whether
+    `ts.net` / `tailnet.ts.net` are legal -- the full FQDN sidesteps it entirely, which is
+    another reason to pin the FQDN.
+  - Enrollment and revocation remain open from the previous capsule and are UNTOUCHED by
+    this verification: what stops an agent enrolling its OWN public key, and what happens
+    when the phone is lost.
+
+next_steps:
+  - The superseding note states the OS-user-verification boundary, NOT a Secure Enclave
+    claim, and does NOT reuse core's Ed25519.
+  - Owner rules on the CT-log privacy cost before any build.
+  - Verification pass cost: ~65k tokens, 32 tool calls. It refuted two agent claims and
+    surfaced three constraints (IP-origin refusal, no cert auto-renewal, CT-log leakage)
+    that no amount of in-context reasoning would have produced. Externally grounding a
+    mechanism BEFORE the note is written earned its cost here.
+
+references:
+  - https://www.w3.org/TR/webauthn-3/                        # secure context, rpId, §5.1.3 domain rule
+  - https://publicsuffix.org/list/public_suffix_list.dat     # ts.net, PRIVATE DOMAINS section
+  - https://tailscale.com/kb/1153/enabling-https             # tailscale cert, CT-log warning
+  - https://developer.apple.com/documentation/authenticationservices/ascosealgorithmidentifier
+  - https://github.com/WebKit/WebKit/blob/main/Source/WebKit/UIProcess/WebAuthentication/Cocoa/LocalAuthenticator.mm
+  - docs/findings/finding-0207.md                            # the secret-reachability finding this reframes
+```
