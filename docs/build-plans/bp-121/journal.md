@@ -363,4 +363,23 @@ satisfy it — the last write must follow the last commit. This note is that wri
 per clause (b) (`journal.md` is always allowed), and `/triage` sweeps it up with the seal.
 This is the gate's designed end state, not a skipped step.
 
+### Post-close addendum — finding-0214 escalated to `blocker` (`532921f`)
+
+The owner reported deploy blocked. Tracing `Launcher.deploy` showed its gate 5 (`gate_cmd`,
+`launcher.py:586-597`) is *byte-for-byte* the local tier finding-0214 turns red — so that finding
+refuses `mind-palace deploy`, it does not merely annoy a builder. Escalated `codebase` → `blocker`
+and the deploy consequence written up on the finding itself.
+
+⚑ **bp-121 cleared the REMOTE half of the deploy gate (ci-witness). The LOCAL half is still red**,
+and it was invisible until the remote half went green. Worth stating plainly so no one reads
+"CI green" as "deploy unblocked": the gates are `live run · clean tree · on main · HEAD ≠ live
+commit · local ratchet · ci-witness`, and today the owner is stopped at the first (daemon down),
+with the fifth waiting behind it.
+
+Owner also ruled this session: **`config/local.toml` becomes `config/ouroboros.toml`** — the
+instance overlay takes the live system's name (the mind-palace/Ouroboros split). Not actioned: one
+functional line (`core/kernel/config/loader.py:29`), `.gitignore:25`, the on-disk file, and ~10
+comment references across `config/defaults.toml`, `loader.py`, and `core/models/inference.py` —
+all outside bp-121's `write_scope`, so it needs its own plan.
+
 ## Markers
