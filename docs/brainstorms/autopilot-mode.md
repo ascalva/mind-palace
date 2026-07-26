@@ -1253,3 +1253,87 @@ references:
   - .claude/skills/graduate/SKILL.md                           # "graduation ... is where scope is set"
   - docs/build-plans/bp-120/plan.md                            # live evidence of decomposition choices absent from the note
 ```
+
+## 2026-07-26T06:34:00Z
+
+```capsule
+topic: autopilot-mode
+date: 2026-07-26
+
+decisions:
+  - ⚑ OWNER PROPOSAL (2026-07-26): "create an agent interface, where claude, a third party, is
+    the cloud agent that interacts with the interface; it enforces the actions and applies the
+    scheduling, and maintains a healthy build state." VERIFIED: THIS IS TRACK G, ALREADY BUILT
+    AND DELIBERATELY UNWIRED. Not new machinery -- a composition of three existing pieces.
+  - THE THREE CLAUSES EACH ALREADY HAVE A HOME:
+      "enforces the actions" -> `ops/effect_catalog.py` + `ops/effect_gate`. The catalog is
+        fail-closed: "a hand is EXPRESSIBLE iff it is cataloged (get_actuator is fail-closed)";
+        adding an action is a REVIEWED DIFF. The gate "denies unless a matching, unexpired,
+        per-action scoped capability was minted -- no ambient authority exists to fire one."
+      "applies the scheduling" -> the lane-2 router (owner-cockpit.md 06:12Z capsule).
+      "maintains a healthy build state" -> `ops/effect_ledger` + attestation + NN-5's
+        gated/validated/reversible chain.
+  - ⚑ NN-3 IS ALREADY ENFORCED BY TYPE, NOT CONVENTION. `core/effect_proposal.py` states it in
+    its own docstring: "composing the proposal ('the model advises') is strictly separate from
+    acting on it ('code acts', after the gate: ops/effect_gate -> ops/effect_ledger -> the edge
+    effector)". The composer is TYPED to return a `ProposedEffect`; it has no send path and
+    "constructs no Effect". This is the inversion the owner is asking for, already implemented.
+  - THE SHAPE HAS A PRECEDENT IN-REPO: `scheduler/interface.py` -- the Ambassador "never imports
+    the scheduler (it stays pure + testable), so the delegation seam (task -> gate -> queue) and
+    the completed-result surfacing are injected from here as plain closures over the queue."
+    The build agent would get the SAME treatment the conversational agent already has.
+  - ⚑ BUILD ACTIONS ARE CLASS 2 (REVERSIBLE), NOT CLASS 3 -- the EASY half of Track G. The
+    catalog's hard case is irreversible send/pay/post, which needs `ops/effect_exec.py`'s JIT
+    scoped credential. But edit/test/commit are REVERSIBLE BY GIT -- which is exactly the
+    predicate the ratified autopilot note already uses for eligibility ("work is low-stakes iff
+    its complete rollback is a git operation", §2.4). So: no credential minting, no exec path,
+    no confused-deputy problem. The whole irreversible apparatus is out of scope.
+  - ⚑⚑ THE AUTOPILOT GRANT AND THE EFFECT-LEDGER APPROVAL ARE THE SAME OBJECT. The catalog's
+    path is propose -> a human approves (LIGHT, `EffectLedger.approve`) -> an `Effect` is
+    constructed UNDER THAT APPROVAL -> the edge effector acts. The owner's passkey signature
+    over a capsule hash IS that approval. Two designs treated separately all session are one
+    mechanism -- the superseding note should say so rather than specifying a parallel grant path.
+  - "MINT SCOPE, NOT A CREDENTIAL" is already the catalog's stated move (§8.4), and `write_scope`
+    IS a scope. The approval grants a BOUNDED SURFACE, not an enumerated list of edits.
+
+parked:
+  - decision: ⚑ GRANULARITY -- a build is hundreds of edits, not one effect.
+    default: NONE recorded. This is the design's load-bearing open question.
+    re_entry: BEFORE any build plan. If every edit is a cataloged effect needing approval the
+    system is unusable ceremony; if the whole build is ONE effect the gate's granularity is
+    gone and the catalog stops meaning anything. The SCOPE concept is the likely answer (approve
+    a bounded surface once; every action inside it is admitted by the scope, not individually)
+    -- but "likely" is not "decided", and getting it wrong makes the difference between a
+    workable design and a mechanism nobody uses.
+  - decision: raising the effector ceiling.
+    default: unchanged -- ε=0. The catalog states the acting classes are "cataloged but
+    UNREACHABLE in the wired system (EffectView ceiling ε=0)", matching finding-0011 ("max
+    reachable effector tier is NONE, not SENSING").
+    re_entry: OWNER RULING. Wiring build actions REQUIRES raising it. This is a deliberate,
+    high-stakes flip of a deliberately-closed valve -- not a config toggle, and not something to
+    fold quietly into a build plan.
+
+open_questions:
+  - Does a lane-2 remote agent PROPOSE effects (and the palace executes), or does it execute
+    directly within a scope? The former is the pure NN-3 reading and matches Track G; the latter
+    is what Claude Code does today. The former is slower per action but the only one where "the
+    model never holds the shell" is literally true.
+  - What are the cataloged build hands? Candidates: `edit_file`, `run_tests`, `commit`,
+    `create_branch`. Each needs the §8 audit metadata the catalog requires -- "a half-audited
+    hand cannot be added silently."
+  - How does this interact with `scope-guard`? Today write_scope is enforced by a Claude Code
+    hook. Under Track G it would be enforced by the catalog + gate. Two enforcement layers for
+    the same property is either defence-in-depth or a drift hazard -- decide which.
+
+next_steps:
+  - This composes with, and may SIMPLIFY, the superseding autopilot note -- fold the
+    grant/approval unification in rather than specifying two mechanisms.
+  - Design-note-first. It touches NN-3, NN-5, the effector ceiling, and the scheduler contract.
+
+references:
+  - core/effect_proposal.py        # propose-never-send, NN-3 enforced by type
+  - ops/effect_catalog.py          # fail-closed registry; ε=0 ceiling; mint-scope-not-credential
+  - ops/effect_exec.py             # the class-3 JIT path -- OUT OF SCOPE for build actions
+  - scheduler/interface.py         # the Ambassador precedent for the seam shape
+  - docs/findings/finding-0011.md  # max reachable effector tier is NONE
+```
