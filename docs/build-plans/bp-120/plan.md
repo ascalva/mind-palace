@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-120
 track: workflow
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/dn-autopilot-and-delegated-blessing.md
 contract: builder
@@ -19,7 +19,7 @@ cost:
 depends_on: []
 parallelizable_with: [bp-121]
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - docs/brainstorms/autopilot-mode.md
   - docs/findings/finding-0207.md
