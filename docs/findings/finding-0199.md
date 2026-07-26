@@ -87,6 +87,30 @@ That is the runtime-layer twin of `dn-supervision-and-liveness`'s
 
 ## Status of the evidence — read this before acting
 
+> ## ⚑ SUPERSEDED BY MEASUREMENT — 2026-07-26 (orchestrator, at bp-107's merge `b152b3a`)
+>
+> **This section is no longer true and is kept only for the record.** The breach sequence has now been
+> **empirically reproduced**, and the finding *understated* the harm. bp-107's builder ran all three
+> phases against the stashed pre-change loader and separately verified the fixed loader against a
+> **live Ollama 0.31.2** (read-only — `GET /api/ps` only, no load or unload, daemon untouched):
+>
+> | claim | as filed | as measured |
+> |---|---|---|
+> | the stretch path's resident total | 25.7 GB | **32.3 GB** — the 9b was never evicted either |
+> | the embedder case | derived from control flow | **ADMITTED a real 29.7 GB** |
+> | post-eviction reload | inferred | no load issued at all |
+> | fail-closed on an uncostable name | inferred | admitted a non-pinned load |
+>
+> With the embedder resident, the fixed ceiling now reports: router ADMIT · routine ADMIT ·
+> **synthesis REFUSE (27.0 > 24.0)** · **stretch REFUSE (33.0 > 24.0)** — matching finding-0174's
+> corrected `23.0 + 10.0 = 33.0` against `usable_ram_gb = 24.0` exactly. Two tiers moved
+> ADMIT → REFUSE; none moved the other way.
+>
+> The experiment described below was effectively run, in a safer form than proposed (no live load, no
+> unload). ⚑ The lesson this section states — *"an overstated record is its own defect"* — held in the
+> honest direction: filing at the strength the evidence actually had did not delay the fix, and the
+> measurement came in **worse** than the conservative claim.
+
 **Code-traced, NOT empirically reproduced.** Every citation above was read; the breach sequence is
 derived from the control flow, not observed on a live system. The audit's standing lesson is that
 an overstated record is its own defect, so this is filed at the strength it actually has.
