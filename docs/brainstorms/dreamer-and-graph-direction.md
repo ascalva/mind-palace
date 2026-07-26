@@ -144,3 +144,46 @@ references:
   - docs/brainstorms/prediction-market-sensor-fusion.md  # the ledger this reshapes
   - docs/brainstorms/acting-as-the-owner.md              # beliefs about the corpus are beliefs about him
 ```
+
+### 2026-07-26T16:40:00Z — the VOICE of a belief (owner illustration)
+
+```capsule
+topic: dreamer-and-graph-direction
+date: 2026-07-26
+
+decisions:
+  - THE OWNER ILLUSTRATED THE OUTPUT SHAPE, verbatim: *"I think this will happen, I think I see this
+    pattern in the data that is becoming relevant in problem solving, ... etc"*.
+    ⇒ Not a throwaway — it is a specification of REGISTER, and register is a design decision here rather
+    than a styling one. Four properties are visible in that one sentence:
+      · FIRST PERSON AND HEDGED -- "I think", twice. The output asserts a belief and marks it as one.
+        An unhedged dream output would misrepresent its own epistemic status (see the prior capsule:
+        opinion, not knowledge).
+      · FORWARD-LOOKING -- "this will happen". A claim with a future truth value, i.e. SCORABLE. The
+        register and the calibration ledger are the same requirement seen from two sides.
+      · EVIDENCE-INDEXED -- "I see this pattern in the data". The belief points at its substrate, which
+        is what makes "from what exists" auditable rather than merely asserted.
+      · ⚑ RELEVANCE-INDEXED TO A CURRENT PROBLEM -- "becoming relevant in problem solving". This is the
+        most easily-missed clause and possibly the most important: the belief is not free-floating, it is
+        surfaced BECAUSE it bears on something live. A dreamer that emits true-but-inert beliefs fails
+        `process-weight.md`'s test (NAME THE READER) even when every belief is correct.
+  - ⚑ CONSEQUENCE: "becoming relevant" implies a COUPLING between belief formation and whatever the
+    system currently has in hand. That is a retrieval/salience relation, and it is a different object
+    from the belief itself. Worth naming before it gets built implicitly: a belief has a Σ (what it was
+    formed over) AND an occasion (what made it worth saying now). The ledger records the first; the
+    second decides whether it is ever surfaced at all.
+
+open_questions:
+  - Is "becoming relevant" a property the system can compute, or does it require knowing the owner's
+    current problem? If the latter, it needs an input the dreamer does not have today — and that input
+    is suspiciously close to the ambassador thread's inbound channel
+    (`ambassador-thread-and-the-afk-loop.md`). Two ideas from the same day may share a dependency.
+  - Does an unhedged rendering already exist anywhere in the dream surface? If dream output is currently
+    presented as fact rather than belief, that is a register defect with epistemic consequences, and it
+    is checkable today against `core/dreaming/` and the exhaust renderers.
+
+references:
+  - docs/brainstorms/process-weight.md                  # NAME THE READER — the test an inert belief fails
+  - docs/brainstorms/prediction-market-sensor-fusion.md # the ledger; register and scorability are one requirement
+  - docs/brainstorms/ambassador-thread-and-the-afk-loop.md  # the possible source of "current problem"
+```
