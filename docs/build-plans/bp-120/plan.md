@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-120
 track: workflow
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/dn-autopilot-and-delegated-blessing.md
 contract: builder
