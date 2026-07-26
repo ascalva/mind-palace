@@ -2,7 +2,7 @@
 type: design-note
 id: dn-autopilot-and-delegated-blessing
 track: workflow
-status: draft
+status: ratified
 created: 2026-07-25
 updated: 2026-07-25
 links:
