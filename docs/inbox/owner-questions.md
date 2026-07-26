@@ -514,7 +514,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0019 — bp-031 rename-stable identity: which `doc_id` mechanism? (the A6 prerequisite)
-- status: open
+- status: answered   # 2026-07-26 — (B) stands (already enacted by bp-034); the membership-store route recorded as the successor mechanism
 - origin: docs/build-plans/bp-031/plan.md §11
 - blocking: false
 - question: `dn-temporal-retrieval-algebra`'s A6 ruling made rename-stable note identity a HARD
@@ -540,7 +540,35 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   bp-031 §11; re-entry — owner rules here at `proposed → ready`, or a measured rename+edit frequency
   warrants escalating to (B) mint-into-vault (which makes it exact but requires an explicit vault-write
   grant).
-- answer: **(B) — mint a stable `id::` into each note as the durable identity (owner ruling,
+- answer: **(B) STANDS — and it is already ENACTED, which the owner's 2026-07-26 recollection
+  reframes rather than reverses.** Two corrections to the state this entry recorded:
+  **1. ⚑ This is no longer a pending choice. `bp-034` is `status: complete`** — the `id::` mint into
+  the authored corpus already ran, and its consequences are on the record: it measurably shifted the
+  mirror similarity graph (finding-0077: mirror edges 5 → 9 at σ=0.62), which is what forced the
+  strip-properties-before-embed fix (bp-036) and, downstream, this session's σ retune (oq-0024). So
+  the orchestrator draft below was never confirmed, but the world moved to (B) anyway.
+  **2. The owner's recollection is substantively right, and it names a genuinely FOURTH mechanism.**
+  Owner, 2026-07-26: *"didn't we argue something like the vector membership store would help us with
+  identifying renames, like git, where after some threshold, its considered a new document?"*
+  Verified: `docs/design-notes/vector-membership-store.md` exists and its model supports exactly
+  this. Meaning lives in **membership** — which `(path, blob_sha)` versions contain an atom — and
+  cross-path sharing is first-class (`:111-112`: *"one atom, two memberships … forks"*). ⇒ A rename is
+  then **high overlap between two membership fibers across a path change**, and "after some threshold
+  it is a new document" is git's own similarity heuristic (`-M`, 50% by default) expressed in the
+  membership model. The note itself frames the design as *"git's content-addressed model, one level
+  down"* (`:24`).
+  **Why that matters even though (B) already shipped:** the membership route needs **no `id::` in the
+  authored corpus at all** — it derives identity from content occupancy rather than from a stamped
+  token. That is strictly better on the axis that made (B) expensive (a deliberate write into the
+  owner's own notes, plus the embedding pollution it caused). It is the **successor mechanism**, not a
+  live alternative: the mint is done and its lineage re-key is spent.
+  **⚑ Two gates before it can be relied on, neither of which is close:** the note is `status: draft`,
+  and it carries **`adversarial_review: OWED`** — the expert-panel gate the owner instituted on
+  2026-07-23 (core + systems + math, BEFORE ratification). Nothing graduates until that panel runs.
+  **Re-entry:** the adversarial review, then ratification, then a plan that derives rename/fork
+  identity from fiber overlap; at that point the `id::` tokens become belt-and-suspenders rather than
+  the mechanism, and whether to stop minting them is a separate, cheap decision.
+  **Kept open on nothing** — this entry is answered; the successor work is tracked on the note.
   2026-07-14).** _[ORCHESTRATOR DRAFT at owner direction; owner confirms by flipping `status: open →
   answered`.]_ Rationale: B is the only mechanism exact in **all** cases, including rename+edit (A/C fork
   there); it is idiomatic to Logseq (`id::` is native); and it is the "front-matter uuid"
@@ -642,7 +670,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 ---
 
 ## oq-0024 — Re-tune σ (dreaming threshold) on the clean graph, and build a σ-sweep harness? (finding-0079)
-- status: open
+- status: partially-answered   # 2026-07-26 — interim σ SET to 0.58 (owner-authorized); the sweep/benchmark axis stays OPEN
 - origin: docs/findings/finding-0079.md
 - blocking: false
 - question: σ = `dreaming.similarity_threshold` = 0.62 was implicitly calibrated on the id::-polluted
@@ -665,6 +693,28 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   (finding-0087): (1) register `[dream_rnd]` knobs as levers [orchestrator's lean — most faithful here];
   (2) fix ShadowRunner to read `[dreaming]`; (3) widen the sweep grammar past the lever registry [weak].
   This BLOCKS graduating E3a-1 (bp-046 reserved); E3a-2 (bp-047) + E6 (bp-048) graduated regardless.
+- answer (2026-07-26, part a — the σ VALUE, interim): **σ = 0.62 → 0.58**, owner-authorized:
+  *"set it to a reasonable value for now, until we can perform another proper benchmark/experiment."*
+  Applied as an **instance overlay** in `config/local.toml` `[dreaming] similarity_threshold = 0.58`,
+  NOT to the shipped default — `config/defaults.toml:272` keeps 0.62 so a fresh clone and CI are
+  unchanged, and reverting is deleting three lines. Registered lever:
+  `config/tuning.toml:16 [tuning.dream_similarity_threshold]`.
+  **Rationale for 0.58 specifically:** stripping `key::` property lines before embedding (bp-036)
+  dropped every pairwise cosine ~5%, so the *same* σ silently became stricter than the value it was
+  calibrated at. 0.58 gives back approximately that 5% — restoring the operating point rather than
+  hunting for clusters. It readmits the two near-core recursion notes, measured at 0.005–0.018 below
+  0.62 (≈0.602–0.615), so any σ ≤ 0.60 suffices.
+  **⚑ CORRECTION TO finding-0079, which this ruling exposes:** the finding claims ~0.56–0.58
+  *"recovers the art theme"*. It does not. The art/creation cluster sits at content cosines
+  **0.46–0.57**, so it is not readmitted at 0.58, nor at 0.56, and only its top sliver at 0.57.
+  Recovering that theme needs σ ≈ 0.50 — **below the documented bound σ ∈ [0.55, 0.75]** for this
+  embedder (`config/defaults.toml:268`, gap G7). So either the art theme is not a σ problem, or the
+  bound is wrong; both are questions for the sweep, and neither is settled by picking a number.
+  **Timing note:** the daemon is DOWN, so nothing recomputes until `palace up` — the change takes
+  effect on the next dream run, and the existing graph is untouched until then.
+  **⚑ THIS OQ STAYS OPEN** on part (b): the σ-sweep harness (bp-046, gated on the WHICH-KNOB answer
+  below) is what replaces this judgement with a curve. 0.58 is an operating point, not a finding.
+
 - answer (2026-07-16, the WHICH-KNOB fork only): owner chose **register the `[dream_rnd]` knobs as
   levers** (finding-0087 option 1) — the sweep varies what the runner reads, every swept knob stays a
   registered lever inside the §14 gate. E3a-1 (bp-046) graduates against this next session. The σ VALUE
@@ -1109,7 +1159,31 @@ predicate check, the `[autopilot]` config schema, the halt-list supervisor, the 
 the journal-gate / post-hoc-verification plan is parked**, and it is not minted until you rule. No
 plan asserts the post-hoc rule as buildable before then.
 
-**answer:** _(pending)_
+- answer: **DEFERRED TO A FABLE DESIGN PASS — not an evasion, a tier call.** Owner, 2026-07-26:
+  *"I don't actually know, and it may require a fable pass to get that tricky part right."*
+  Recorded as the ruling on *how this gets decided*, not on the substance. Both questions sit on a
+  bright line (`CLAUDE.md:62`, NN-5) and both are cryptographic/authority reasoning, which is exactly
+  the "design / gates / scrutiny" row the tier table reserves the top tier for
+  (`.claude/skills/context-economy/SKILL.md:33`).
+  **Re-entry condition:** a Fable-tier session (owner re-tiers in place — the session cannot flip its
+  own model, and this must NOT be delegated to a subagent: design-note work is never delegated, and a
+  subagent cannot exceed its parent's model access, which is exactly how the finding-0125/0147
+  "fable" passes turned out to be Opus products).
+  **What is already grounded and must not be re-derived in that pass:** the externally-verified
+  primitives (Apple passkeys are iCloud-synced P-256, NOT Secure-Enclave-bound — the real boundary is
+  the OS user-verification gesture; **ES256 only**, so core's Ed25519 is not reusable; Shortcuts has
+  no HMAC; a raw Tailscale IP origin fails WebAuthn even with valid TLS; `rpId` must be the full
+  FQDN), and the 14 capsules in `docs/brainstorms/autopilot-mode.md` — several of which supersede
+  earlier ones and say so.
+  **Blast radius while parked (unchanged, deliberately narrow):** graduation continues for every unit
+  that does not depend on these two; only the journal-gate/post-hoc-verification plan (oq-0036) and
+  the verifier wiring/deployment plan (oq-0037) stay unminted. The verifier's **pure core** (HMAC
+  derivation, the domain-separated attestation tag, capsule hashing, P1–P5 predicates) is testable
+  with an injected secret behind a provider seam — the bp-115 shape — so the later decision is a
+  config flip, not a rewrite.
+  ⚑ **oq-0040 is the cheap half of oq-0036** and does NOT need the Fable pass: making `/graduate`
+  commit the `proposed` mint gives every blessing a real tracked predecessor, which is a precondition
+  for any post-hoc rule being enforceable at all.
 
 ## oq-0037 — ⚑ What actually stops the agent from reading the autopilot secret? (finding-0207; the design's load-bearing assumption)
 
@@ -1163,7 +1237,31 @@ decision later is a config flip, not a rewrite. **Only the wiring/deployment pla
 actor runs the verifier, where the secret lives, and how invariant 1 gets *proven* rather than
 asserted.
 
-**answer:** _(pending)_
+- answer: **DEFERRED TO A FABLE DESIGN PASS — not an evasion, a tier call.** Owner, 2026-07-26:
+  *"I don't actually know, and it may require a fable pass to get that tricky part right."*
+  Recorded as the ruling on *how this gets decided*, not on the substance. Both questions sit on a
+  bright line (`CLAUDE.md:62`, NN-5) and both are cryptographic/authority reasoning, which is exactly
+  the "design / gates / scrutiny" row the tier table reserves the top tier for
+  (`.claude/skills/context-economy/SKILL.md:33`).
+  **Re-entry condition:** a Fable-tier session (owner re-tiers in place — the session cannot flip its
+  own model, and this must NOT be delegated to a subagent: design-note work is never delegated, and a
+  subagent cannot exceed its parent's model access, which is exactly how the finding-0125/0147
+  "fable" passes turned out to be Opus products).
+  **What is already grounded and must not be re-derived in that pass:** the externally-verified
+  primitives (Apple passkeys are iCloud-synced P-256, NOT Secure-Enclave-bound — the real boundary is
+  the OS user-verification gesture; **ES256 only**, so core's Ed25519 is not reusable; Shortcuts has
+  no HMAC; a raw Tailscale IP origin fails WebAuthn even with valid TLS; `rpId` must be the full
+  FQDN), and the 14 capsules in `docs/brainstorms/autopilot-mode.md` — several of which supersede
+  earlier ones and say so.
+  **Blast radius while parked (unchanged, deliberately narrow):** graduation continues for every unit
+  that does not depend on these two; only the journal-gate/post-hoc-verification plan (oq-0036) and
+  the verifier wiring/deployment plan (oq-0037) stay unminted. The verifier's **pure core** (HMAC
+  derivation, the domain-separated attestation tag, capsule hashing, P1–P5 predicates) is testable
+  with an injected secret behind a provider seam — the bp-115 shape — so the later decision is a
+  config flip, not a rewrite.
+  ⚑ **oq-0040 is the cheap half of oq-0036** and does NOT need the Fable pass: making `/graduate`
+  commit the `proposed` mint gives every blessing a real tracked predecessor, which is a precondition
+  for any post-hoc rule being enforceable at all.
 
 ---
 
@@ -1439,7 +1537,7 @@ asserted.
 ---
 
 ## oq-0047 — Which `ftype` vocabulary is authoritative? The template's and CLAUDE.md's are disjoint sets (finding-0193; unblocks the autopilot routing tier)
-- status: open
+- status: answered   # 2026-07-26 — owner: use ftype to route
 - origin: docs/findings/finding-0193.md
 - blocking: false
 - question: A finding's `ftype` field has **two competing vocabularies and they do not overlap.**
@@ -1467,7 +1565,34 @@ asserted.
   not-unambiguously-builder finding halts*) and no `ftype` validation hook is built. Re-entry — this
   ruling, or the first autopilot plan that needs typed routing. ⚑ **Time this with the autopilot
   superseding note**, which is in flight anyway.
-- answer:
+- answer: **YES — `ftype` BECOMES THE ROUTING AXIS. Option (b).** Owner, 2026-07-26: *"yes,
+  definitely start using ftypes to route findings appropriately around the system."*
+  **Reading, stated explicitly because (a) and (b) both sound like "use ftype":** the ruling is (b),
+  not (a). In (a) `ftype` would have STAYED the severity axis with a new `subject:` field doing the
+  routing; the owner asked for *ftype* to route, so `CLAUDE.md:51-54`'s vocabulary
+  (`design | math | direction | codebase | spec-fidelity`) is authoritative and
+  `docs/templates/finding.md:9` is the surface that gets corrected. Option (c) (route on `route:`,
+  `ftype` stays prose) is rejected by the same sentence.
+  **Enactment, in dependency order — none of it done yet, and it is deliberately NOT being swept in
+  the ruling session:**
+  1. Correct `docs/templates/finding.md:9` and reconcile `.claude/skills/finding/SKILL.md:12-23`
+     against `:25-32` (today they are disjoint *within one file*).
+  2. Decide where `blocker` goes — see the residual below.
+  3. Backfill: **112 findings** carry a value outside the routing vocabulary
+     (`spec-defect` 54 · `discovery` 54 · `question` 3 · `blocker` 1). Mechanical but not free, and it
+     rewrites `updated:` on every one of them unless done deliberately.
+  4. Only then a validation hook (`grep ftype .claude/hooks/ scripts/` is currently **zero** — nothing
+     mechanically checks this today, which is why the two vocabularies could diverge unnoticed).
+  **⚑ RESIDUAL SUB-DECISION, defaulted not ruled:** `blocker` is a *severity*, not a subject, so it
+  cannot survive as an `ftype` under (b). Default: it becomes a **boolean field** (`blocking: true`),
+  which is what `owner-questions.md` entries already use — so the vocabulary shrinks and nothing is
+  lost. Re-entry: the owner objects, or the backfill reaches the one `blocker`-typed finding.
+  **⚑ WHAT THIS UNBLOCKS:** `dn-autopilot-and-delegated-blessing` §2.4's routing tier, whose two
+  Parked rows (`:535`, `:538`) have re-entry conditions that read literally *"finding-0193 resolved by
+  owner ruling"*. Time the enactment with the autopilot superseding note so the tier is designed
+  against the settled vocabulary rather than around it. Also relevant to finding-0209: the
+  builder-routed orphan register cannot be derived reliably until "is this builder-routed?" is
+  decidable, which this ruling makes true.
 
 ---
 
