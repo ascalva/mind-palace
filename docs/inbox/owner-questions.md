@@ -1066,3 +1066,101 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
 
   Follow-through owed: reflect this ruling onto finding-0171, and carry it into
   `/graduate dn-supervision-and-liveness` (the escalation contract is OPS-4's design half).
+
+## oq-0036 — What legitimises a COMMITTED `proposed→ready` flip that carries no grant record? (finding-0206; blocks one autopilot plan, not the graduation)
+
+**Raised:** 2026-07-25, session-51, during the `/graduate` grounded pass on
+`dn-autopilot-and-delegated-blessing` — *before* any plan was minted, which is where this class is
+cheapest to catch.
+
+**What the note assumed.** §2.3 says the Stop-gate clause (c) *"gains one narrow exception: a
+committed `proposed→ready` flip is legitimate **iff** the same commit carries a grant record…"*.
+Grounding says (c) never looks at committed flips at all — `.claude/hooks/_lib.py:826-833` and
+`:852-858` both state it outright (*"a committed blessing … must self-clear"*, *"a committed
+blessing (tracked, in HEAD) never trips it"*). So this is not an exception carved out of an
+existing block; it is a **new, stricter post-hoc check** and a partial reversal of amendment A1.
+
+**⚑ The part that actually blocks.** §2.3 ends *"All other agent-side flips remain violations"* —
+but a commit carries no trustworthy agent-vs-owner signal. The author is you in **both** cases,
+because our own blessing ceremony has the **agent commit your hand-made flip**. That is not
+hypothetical: you ratified the autopilot note by hand this session and I committed it as `b27142d`.
+So "committed flip, no grant record" is at once the signature of **every legitimate blessing you
+have ever made** and of **the forgery the rule exists to catch**. Enforce it literally and your own
+blessings read as unauthorized; relax it and the hole reopens.
+
+**Options** (detail and trade-offs in `docs/findings/finding-0206.md`):
+
+- **(a) Two legitimisers** — grant record **or** a genuine owner signature (commit signing, or an
+  owner-side attestation over the flip). Closes it properly; costs friction in the by-hand ceremony
+  you like precisely because it is frictionless.
+- **(b) Scope the check to capsule-bearing plans only** — plans that never carried a capsule keep
+  A1's committed-self-clears. Cheap; leaves the hole open for any plan an agent simply declines to
+  give a capsule, which is every plan it would want to forge.
+- **(c) Drop §2.3's post-hoc clause** — keep (c) uncommitted-only, check the grant tag at *use*
+  rather than at Stop. Smallest build; gives up the offline post-hoc detection §2.3 wanted.
+
+**Recommendation withheld.** This sits on a bright line (`CLAUDE.md:62`, NN-5), and the note is now
+agent-immutable under A8 — so whichever way you rule, the note itself changes by a **superseding
+note**, never an edit.
+
+**park condition / blast radius:** deliberately narrow. Graduation proceeds now for every unit that
+does not depend on the post-hoc rule — the verifier crypto, the capsule + templates, the P1–P5
+predicate check, the `[autopilot]` config schema, the halt-list supervisor, the audit gates. **Only
+the journal-gate / post-hoc-verification plan is parked**, and it is not minted until you rule. No
+plan asserts the post-hoc rule as buildable before then.
+
+**answer:** _(pending)_
+
+## oq-0037 — ⚑ What actually stops the agent from reading the autopilot secret? (finding-0207; the design's load-bearing assumption)
+
+**Raised:** 2026-07-25, session-51, during the `/graduate` grounded pass on
+`dn-autopilot-and-delegated-blessing` — before any plan was minted.
+
+**The assumption.** §2.3 / invariant 1: *"The shared secret lives in Keychain (NN-10); **the model
+never sees it.** A small verifier script recomputes and compares."* That is the rule restated, not
+a mechanism — and the whole design stands on it. The §2.3 HMAC attestation tag (the audit's best
+catch, the thing that makes a grant record unforgeable rather than mere prose) is unforgeable only
+relative to a secret the forger cannot reach.
+
+**What grounding found — both obvious mechanisms fail.**
+
+1. **Env-carried.** `core/kernel/config/loader.py:605-619` shows `get_secret(name)` is literally
+   `os.environ.get(name)` — the repo's standing pattern is env-carried, Keychain-populated. But the
+   verifier reads the secret *at invocation*, and **the agent is the invoker** (it runs
+   `mfa-verifier --code …` after relaying your code). Secret in the invoker's env ⇒ the agent can
+   read it.
+2. **⚑ Keychain ACL pinning — fails for a non-obvious reason.** The natural fix is
+   `security add-generic-password -T /path/to/verifier`. But §4 specifies the verifier as a
+   **script**, and a script is not a binary: the ACL can only trust the **interpreter**
+   (`python3`), which is exactly what the agent runs for everything else. Pinning the ACL to the
+   interpreter grants the agent precisely what it grants the verifier.
+
+**Measured safely** (names only, never values — NN-10 forbids a model reading or logging a secret):
+your agent shell today carries **zero** secret-ish env var names; and the `security` CLI **is**
+reachable non-interactively from it (a lookup for a deliberately nonexistent service returned
+"item could not be found" — the search ran and was permitted). **This is not a live vulnerability**
+— no secret, no verifier, nothing built. It is a gap caught at the cheapest possible moment.
+
+**Options** (detail in `docs/findings/finding-0207.md`):
+
+- **(a) The verifier becomes a separate actor** — a launchd service holds the secret in its own
+  environment; the agent may only *drop a request* (capsule hash + code) and read a verdict, never
+  run the code that holds the secret. Satisfies NN-3 structurally instead of by convention. Best
+  fidelity to your intent; most build.
+- **(b) Verification moves to the phone** — the phone holds the secret, verifies its own code, and
+  pushes the flip + grant record. The secret never exists on this machine, so the question
+  dissolves. Strongest; largest change, and entangles the parked phone-side work.
+- **(c) State a weaker property honestly** — keep the script, and say plainly that the boundary is
+  your Keychain ACL plus macOS's approval prompt: it resists a careless agent, not a determined
+  one. Cheapest; but it means amending invariant 1 to say what it really guarantees, which is a
+  constitutional change and must not happen quietly.
+
+**park condition / blast radius — deliberately narrow, and graduation continues.** The verifier's
+**pure core** (HMAC derivation, the domain-separated attestation tag, capsule hashing, P1–P5
+predicate evaluation) is fully testable with an **injected** secret and needs no ruling; it is
+planned now behind a provider seam — the same shape bp-115 used for the inference client, so your
+decision later is a config flip, not a rewrite. **Only the wiring/deployment plan is parked**: what
+actor runs the verifier, where the secret lives, and how invariant 1 gets *proven* rather than
+asserted.
+
+**answer:** _(pending)_
