@@ -11,12 +11,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from core.kernel.config import Config, EmbeddingConfig
-from core.models.ollama_client import OllamaClient
+from core.models.inference import InferenceClient
 
 
 @dataclass
 class Embedder:
-    client: OllamaClient
+    # bp-115: this annotation was the LAST place the corpus pipeline named a vendor. Widening it
+    # from `OllamaClient` to the protocol is what makes the runtime migration reversible — the
+    # embedder cutover becomes a config flip rather than an edit here. The widening is strictly
+    # more permissive, so every existing construction site and test stub still satisfies it, and
+    # `Embedder`'s public surface below is byte-identical (30+ test files depend on it).
+    client: InferenceClient
     config: EmbeddingConfig
 
     @property
@@ -36,6 +41,11 @@ class Embedder:
 
 def build_embedder(config: Config | None = None) -> Embedder:
     from core.kernel.config import get_config
+    from core.models.inference import build_inference_client
 
     cfg = config or get_config()
-    return Embedder(client=OllamaClient(cfg.ollama), config=cfg.embedding)
+    # The embedding ROLE picks its own backend (`[runtime] embedding_backend`), independently of
+    # the chat tiers — that is what makes the embedder cutover a real, separately reversible step
+    # (dn-local-model-runtime §2.6 P4). Default is `ollama`, so this returns exactly what it
+    # returned before bp-115.
+    return Embedder(client=build_inference_client(cfg), config=cfg.embedding)

@@ -79,6 +79,18 @@ class OllamaClient:
         """Names of models currently loaded (resident in memory)."""
         return [m["name"] for m in self._get("/api/ps").get("models", [])]
 
+    def healthy(self) -> bool:
+        """Up and serving — the readiness member of `core.models.inference.InferenceClient`.
+
+        ADDED by bp-115, the one method the seam needs beyond this client's existing surface;
+        no existing body was touched (Item 1's falsifier). Ollama has no readiness transition to
+        express — a model is either served or the request blocks — so a non-empty version string
+        IS its liveness signal. llama-server's form is `/health` 503→200 during load, which is
+        exactly why the protocol carries `healthy()` rather than `version()`: a caller that read
+        "responded" as "ready" would dispatch into a still-loading server.
+        """
+        return bool(self.version())
+
     # --- model lifecycle ---------------------------------------------------------
     def load(self, model: str, *, num_ctx: int | None = None,
              keep_alive: str | int = "30m") -> None:

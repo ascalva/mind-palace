@@ -16,15 +16,18 @@ Two rules, of different strength:
      a filesystem handoff, never an import (CONVENTIONS).
 
   2. **Networking primitives (allowlisted).** No `core/` module may import a networking
-     module (`socket`, `ssl`, `http`, `urllib`, `requests`, …) EXCEPT the two audited
+     module (`socket`, `ssl`, `http`, `urllib`, `requests`, …) EXCEPT the three audited
      loopback/seal modules:
        * `core/sealing.py` — imports `socket` precisely to WRAP and seal it (the guard).
-       * `core/models/ollama_client.py` — the single sanctioned loopback IPC channel to the
+       * `core/models/ollama_client.py` — the sanctioned loopback IPC channel to the
          local Ollama server (127.0.0.1), which the egress guard permits.
+       * `core/models/llama_server_client.py` — the second inference backend behind the same
+         seam (bp-115), speaking loopback HTTP to a local `llama-server`. Enrolled here rather
+         than evading the scan: widening an audited exception must happen ON THE RECORD.
      Every *other* core module is thereby statically proven free of networking imports. We
-     state this honestly: the guarantee is "exactly these two audited files touch networking
-     primitives, both loopback-only", not "no core file imports http" — overclaiming the
-     latter would be dishonest (the Ollama channel is real).
+     state this honestly: the guarantee is "exactly these three audited files touch networking
+     primitives, all loopback-only", not "no core file imports http" — overclaiming the
+     latter would be dishonest (the inference channel is real).
 
 Run: `python -m ops.import_lint` (or `scripts/check_imports.py`); also asserted in
 `tests/test_import_firewall.py` and wired into CI.
@@ -52,8 +55,9 @@ NETWORK_MODULES: frozenset[str] = frozenset({
 # The ONLY core modules permitted to import a networking primitive (audited, loopback-only).
 # Paths are relative to the repo root, POSIX-style.
 NETWORK_ALLOWLIST: frozenset[str] = frozenset({
-    "core/sealing.py",                 # wraps socket to seal it
-    "core/models/ollama_client.py",    # loopback Ollama IPC channel (127.0.0.1)
+    "core/sealing.py",                       # wraps socket to seal it
+    "core/models/ollama_client.py",          # loopback Ollama IPC channel (127.0.0.1)
+    "core/models/llama_server_client.py",    # loopback llama-server channel (127.0.0.1)
 })
 
 

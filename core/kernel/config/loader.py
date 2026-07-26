@@ -295,6 +295,35 @@ class SandboxConfig:
 
 
 @dataclass(frozen=True)
+class RuntimeConfig:
+    """Which local inference RUNTIME serves each role (dn-local-model-runtime §4).
+
+    Landed WHOLE, including the keys the process manager (bp-116) and the cutover (bp-118)
+    consume, because `_overlay` merges by section NAME: a `[runtime]` block in `local.toml`
+    with no dataclass behind it is silently DROPPED (the bp-102 / finding-0174 mechanism), so a
+    half-defined section is worse than none. Every default here is TODAY'S behaviour — the seam
+    changes nothing at landing, and each flip is the owner's, per role, in `config/local.toml`.
+
+    `chat_backend` is a plain dict rather than this file's usual immutable tuple/frozenset: the
+    per-tier override map is pinned as `dict[str, str]` by bp-115 §6. `Config` is consequently
+    no longer hashable — nothing hashes it (no `lru_cache` takes a Config; `get_config` caches
+    on no arguments), and `dataclasses.replace` is unaffected.
+    """
+
+    embedding_backend: str = "ollama"        # "ollama" | "llamacpp"; default UNCHANGED
+    chat_backend: dict[str, str] = field(default_factory=dict)  # per-tier; empty = ollama
+    server_binary: str = ""                  # llama-server path; "" = not configured (bp-116)
+    pinned_build: str = ""                   # asserted at spawn (bp-116); "" = unpinned
+    embed_ctx: int = 8192                    # §2.3: right-sized from the model default 40960
+    grace_s: float = 5.0                     # SIGTERM -> SIGKILL window (bp-116)
+
+    def chat_backend_for(self, tier: str) -> str:
+        """Backend serving one chat tier. An unlisted tier stays on `ollama` — per-ROLE
+        selection is what makes the embedder cutover (P4) independently reversible."""
+        return self.chat_backend.get(tier, "ollama")
+
+
+@dataclass(frozen=True)
 class ModelConfig:
     name: str
     tier: str
@@ -327,6 +356,7 @@ class Config:
     selfmod: SelfModConfig = field(default_factory=SelfModConfig)
     effectors: EffectorsConfig = field(default_factory=EffectorsConfig)
     code_ingest: CodeIngestConfig = field(default_factory=CodeIngestConfig)
+    runtime: RuntimeConfig = field(default_factory=RuntimeConfig)  # bp-115 inference backend
 
     def model_for_tier(self, tier: str) -> ModelConfig:
         for m in self.models:
@@ -379,6 +409,7 @@ def load_config(path: Path | None = None) -> Config:
     sm = raw.get("selfmod", {})
     eff = raw.get("effectors", {})
     ci = raw.get("code_ingest", {})
+    rt = raw.get("runtime", {})
     return Config(
         ollama=OllamaConfig(
             host=o["host"],
@@ -535,6 +566,14 @@ def load_config(path: Path | None = None) -> Config:
             enabled=bool(ci.get("enabled", False)),
             max_chars=int(ci.get("max_chars", 1200)),
             overlap_chars=int(ci.get("overlap_chars", 150)),
+        ),
+        runtime=RuntimeConfig(
+            embedding_backend=str(rt.get("embedding_backend", "ollama")),
+            chat_backend={str(k): str(v) for k, v in rt.get("chat_backend", {}).items()},
+            server_binary=str(rt.get("server_binary", "")),
+            pinned_build=str(rt.get("pinned_build", "")),
+            embed_ctx=int(rt.get("embed_ctx", 8192)),
+            grace_s=float(rt.get("grace_s", 5.0)),
         ),
         models=tuple(
             ModelConfig(

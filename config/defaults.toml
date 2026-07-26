@@ -329,3 +329,33 @@ cpus = 1.0
 pids_limit = 128
 max_concurrency = 1          # one sandbox at a time — respect the RAM ceiling (Invariant 8)
 warm_pool_size = 1           # warm containers kept ready to avoid cold start
+
+[runtime]
+# WHICH LOCAL INFERENCE RUNTIME SERVES EACH ROLE (dn-local-model-runtime §4). The seam behind
+# these keys is the migration's reversibility story: inference is reached through a protocol, so
+# rolling a phase back is flipping a value here — not a revert. [ollama] above is untouched and
+# stays the standing fallback until every role has flipped and a deskcheck passes.
+#
+# Every default below is TODAY'S BEHAVIOUR: Ollama serves every role, and nothing observable
+# changes by this section existing. Flips are the OWNER'S, per role, in config/local.toml —
+# first the embedder (its blob is portable and cross-runtime cosine was measured at 0.999990),
+# later the chat tiers one at a time, each gated on golden + drift.
+#
+# The WHOLE section is defined here even though some keys are consumed later, because the
+# overlay merges by section NAME: a [runtime] block in local.toml with no schema behind it is
+# silently DROPPED (the bp-102 / finding-0174 mechanism). A half-defined section is worse than
+# none — a flip that looks applied but never took is exactly the failure this migration exists
+# to end.
+embedding_backend = "ollama"   # "ollama" | "llamacpp" — the embedder's runtime
+chat_backend = {}              # per-tier overrides, e.g. { router = "llamacpp" }; empty = ollama
+# Consumed by the process manager, not by the client seam. Kept schema'd from the start:
+server_binary = ""             # llama-server path; "" = not configured, so nothing can spawn
+pinned_build = ""              # build string asserted at spawn; "" = unpinned. NEVER auto-updated
+                               # — being un-pinnable is the exact property Ollama.app lacks.
+embed_ctx = 8192               # right-sized DOWN from the model default 40960: chunks cap at
+                               # max_chars=1200, far under 8k tokens, and the measured saving is
+                               # ~6.3 GB of resident memory (10.0 GB -> 3.69 GB RSS).
+grace_s = 5.0                  # SIGTERM -> SIGKILL window. The escalation is REQUIRED, not
+                               # optional: llama-server was measured wedging on SIGTERM
+                               # mid-request (>3.5 min), and an inference server is stateless,
+                               # so SIGKILL loses only in-flight tokens.

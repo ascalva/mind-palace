@@ -5,12 +5,22 @@ lives here; the *agent* lifecycle (the factory + registry) arrives in Phase 5. N
 is baked into Ollama — personas and params are injected at request time.
 """
 
+from core.models.inference import InferenceClient, build_inference_client
+from core.models.llama_server_client import (
+    ContextOverflowError,
+    LlamaServerClient,
+    LlamaServerError,
+)
 from core.models.loader import TwoSlotLoader
 from core.models.ollama_client import Message, OllamaClient, OllamaError
 from core.models.registry import MemoryCeilingError, Registry, get_registry
 from core.models.server import ModelServer, build_model_server
 
 __all__ = [
+    "ContextOverflowError",
+    "InferenceClient",
+    "LlamaServerClient",
+    "LlamaServerError",
     "Message",
     "MemoryCeilingError",
     "ModelServer",
@@ -18,6 +28,7 @@ __all__ = [
     "OllamaError",
     "Registry",
     "TwoSlotLoader",
+    "build_inference_client",
     "build_model_server",
     "get_registry",
 ]

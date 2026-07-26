@@ -43,7 +43,10 @@ def _hermetic_cfg(tmp_path):
 def test_model_responds_through_sealed_core(tmp_path):
     core = runtime.bootstrap(_hermetic_cfg(tmp_path))  # seals the process, then wires services
     assert len(core.constitution_fingerprint) == 64
-    if PINNED not in core.models.client.list_models():
+    # Through the LOADER's client, not the ModelServer's: `list_models` is a residency-manager
+    # operation, deliberately off the inference protocol (bp-115 §3 Q1 — llama.cpp has no
+    # counterpart). Same object at runtime; do not "simplify" this back (finding-0205).
+    if PINNED not in core.models.loader.client.list_models():
         pytest.skip(f"{PINNED} not pulled")
     agent = core.make_agent("trivial", "You are a terse Phase 0 test agent.", tier="router")
     out, check = agent.respond("Reply with exactly the word: ready", think=False)
