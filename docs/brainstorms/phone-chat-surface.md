@@ -125,3 +125,74 @@ implementation detail. `bp-116`'s process manager is the component that would ar
 3. **Then** the smaller specialized model, once `bp-116`'s process manager can arbitrate residency.
 
 The orchestrator keeps orchestrating throughout; this surface never dispatches builds.
+
+### Owner refinement — "a small Claude agent is my insider, that for now can also take the role of the ambassador"
+
+Verbatim: *"in other words, a small claude agent is my insider, that for now, can also take the
+role of the ambassador, I know there is risk, but the agent would be outside the core, and it's
+true purpose is to only communicate with me via messages, and it would track conversations,
+potentially dispatch a finding, jot down a brainstorm, answer a question I have about the latest
+build, etc."*
+
+⚑⚑ **This is not a new agent. It is the Ambassador — already ratified — plus a transport.**
+
+`dn-ambassador-as-reasoning-agent` (**`status: ratified`**, Track B, warrant finding-0022) opens
+by specifying:
+
+> *"a pinned-scope agent (𝒜) that **reads only the mirror (π_MR)** and **proposes tasks through
+> the gate** (family 3); a light consumer of the reasoning complex."*
+
+and
+
+> *"The Ambassador is a reasoning agent that is **computationally light, not cognitively shallow**.
+> It is an agent, not a router."* … *"holds no heavy work inline; delegates expensive jobs to the
+> async scheduler."*
+
+Line up the owner's four verbs against that spec:
+
+| owner's ask | already specified as |
+|---|---|
+| *"answer a question about the latest build"* | reads **only the mirror** (π_MR) — never the raw vault |
+| *"dispatch a finding" / "jot down a brainstorm"* | **proposes through the gate**, never acts directly |
+| *"a small model"* | **computationally light**, delegates heavy work to the scheduler |
+| *"track conversations"* | history handling is one of the open questions that note explicitly resolves |
+
+⇒ **Settles open question (a) above: this is the Ambassador growing a phone transport, not a new
+track.** Do not design a second agent; read the ratified note first.
+
+#### ⚑ Naming the risk precisely — it is NN-2, and "outside the core" is necessary but NOT sufficient
+
+The owner said *"I know there is risk, but the agent would be outside the core."* Correct instinct,
+incomplete as stated. **Non-negotiable 2**: *"Network and private data never share a component.
+Only `edge/` touches the network; it never reads the vault."*
+
+Outside-the-core means it lives in `edge/` — and NN-2 then **forbids that same component from
+reading the vault**. So the risk is not diffuse; it is one specific, already-legislated boundary:
+*a component cannot be both the thing that talks to the phone and the thing that reads private
+data.* A single "insider" that messages the owner **and** reads the corpus to answer him would
+violate NN-2 directly, no matter how small the model is or how good its intentions.
+
+**The resolution already exists and is the same one the note specifies:** split along the mirror.
+- the **transport** sits in `edge/` (`edge/interface` and `edge/bridge` already exist) and holds
+  **no** corpus access;
+- the **Ambassador** reasons over **π_MR — the mirror projection, not the vault** — and proposes;
+- they meet at a bounded seam, exactly like the effector layer's propose-never-send with
+  `MirrorView` tailoring.
+
+This is the same shape as NN-3 (*the model advises; code acts*) and the existing `ObservedView` /
+`MirrorView` seams. Nothing new has to be invented — the design's whole job is to say **what π_MR
+must carry** for the questions the owner actually wants answered.
+
+#### ⚑ The one genuinely open design question this exposes
+
+*"Answer a question I have about the latest build"* is only satisfiable if **build state is inside
+the mirror**. Much of what the owner would ask about — `docs/TRACKS.md`, the resume brief, a plan's
+§7, a journal — is **repo material, not vault material**, so it plausibly sits on the permitted
+side of NN-2 without any widening. But that has to be **established, not assumed**: the note says
+π_MR, and if π_MR today projects only the corpus, then answering build questions either needs the
+projection widened (a design change with a constitutional argument attached) or needs the build
+artifacts classified as non-vault (a *cheaper* and probably correct move, but still a ruling).
+
+⇒ **Next step is a read of `dn-ambassador-as-reasoning-agent` in full plus whatever defines π_MR**,
+before any plan. The capture-inbox stage (write-only, stage 1 above) is unaffected by this question
+and can proceed independently — another argument for shipping it first.
