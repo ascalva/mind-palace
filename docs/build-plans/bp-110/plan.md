@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-110
 track: ops
-status: ready
+status: in-progress
 design_ref:
   - docs/design-notes/dn-supervision-and-liveness.md
 contract: builder
