@@ -327,3 +327,33 @@ config overlay is a non-event here — the worktree has **neither** `config/loca
   `uv run python -m ops.type_gate` (three scans, the third naming its one parked violation) plus
   `palace start` refusing over a live supervisor with the probe now reading through the shim.
 
+
+## Orchestrator note — 2026-07-26, merge-time correction to `243fc4d`'s commit message
+
+⚑ **Second occurrence of the same defect in one session, and the more interesting one.**
+`243fc4d`'s body has two holes: I passed the merge message via `git commit -m "…"` and zsh
+command-substituted two backticked `import psutil` references, deleting them (`(eval):1: command not
+found: import`, twice). The damaged passages should read:
+
+- *"The fourth is `tests/unit/test_restart_trustworthy.py:21` — the **`import psutil`** I added hours
+  earlier in bp-121 (`e49a715`)…"*
+- *"…planted a raw **`import psutil`** in `ops/type_gate.py` and
+  `test_the_live_tree_has_exactly_the_one_known_parked_violation` went RED…"*
+
+**Why this is worth more than a correction line.** The identical defect happened at `7ab5187`
+earlier today, and I responded by writing the lesson into `docs/build-plans/bp-095/journal.md` and
+the resume brief. Then I did it again, within hours, in this very merge. A journal note is not a
+control. That is finding-0222's thesis — *a convention you wrote down is not enforcement* —
+demonstrating itself against its own author, on the same day it was filed.
+
+**So the rule moved to where it actually loads**: `.claude/skills/commit/SKILL.md`, which is read
+when committing rather than when reading a journal. Precise statement of the hazard, since the loose
+version ("be careful with backticks") is what failed: **zsh substitutes backticks inside double
+quotes; a quoted heredoc delimiter (`<<'EOF'`) makes the body literal.** `-m "…"` is the hazard,
+`-F -` with `<<'EOF'` is the fix. Not amended, for the same reason as `cffe515`: the code-sensor
+ingested the mutilated body at commit time, so amending would tidy `git log` while leaving both
+versions in the queryable ledger.
+
+Not filed as a new finding — finding-0222 already names the mechanism (commit hygiene by convention),
+and this is a second instance of it rather than a new defect. Worth folding into that finding's
+evidence at `/triage`.

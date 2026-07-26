@@ -31,6 +31,23 @@ description: How and when to commit in this repo — the CONVENTIONS §Commits h
   `bp-005`, `triage`). Subject: imperative, ≤ 72 chars, no trailing period, states the
   *change* ("add X"), never the activity ("worked on X").
 - **One logical change per commit** — if the subject needs "and" twice, split the commit.
+- ⚑ **ALWAYS pass the message via `git commit -F -` with a QUOTED heredoc (`<<'EOF'`). Never
+  `-m "…"`.** In zsh, backticks inside double quotes are command-substituted, so a message
+  citing `` `code refs` `` — which this repo's style demands constantly — is silently
+  mutilated *before git sees it*: the backticked words are deleted and replaced with the
+  (empty) output of running them as commands. You get `command not found: …` on stderr,
+  amid normal hook output, and a commit whose body has holes. A quoted heredoc delimiter
+  makes the body literal; that is the whole fix.
+  This happened **twice in session-53**, the second time hours after the lesson was written
+  into a journal — which is why the rule lives here, in the file that loads when you commit,
+  rather than in a journal nobody re-reads. It is also finding-0222's thesis in miniature:
+  a convention you wrote down is not enforcement.
+  Damage is **not** repairable by amending: the code-sensor ingests the body at commit time,
+  so `code_snapshots.sqlite` keeps the mutilated text either way. Record a correction instead
+  (precedent: `docs/build-plans/bp-095/journal.md`, `cffe515`).
+- ⚑ **Stage explicit paths, not `git add -A`**, whenever the owner might be editing plan
+  statuses in parallel — a blessing flip absorbed into an unrelated commit is invisible to
+  the Stop gate's clause (c), which only compares the worktree against HEAD (finding-0222).
 - **Body**: the *why*, plus what the diff can't say — the constraint honored, the
   invariant touched, the alternative rejected.
 - **Co-Authored-By trailer** (owner preference, 2026-07-11): include it ONLY on commits
