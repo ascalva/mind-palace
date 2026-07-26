@@ -32,6 +32,15 @@ BAD_CAPABILITY = lambda lever, value: ValidationResult(False, True, {"v": value}
 FROZEN_CATCHES = lambda lever, value: ValidationResult(False, True, {"v": value})  # noqa: E731
 
 
+# σ the fixtures PIN and the assertions read back (finding-0214). Load-bearing, not decorative:
+# `get_config()` merges the machine-local `config/local.toml`, which is gitignored, so an unpinned
+# fixture asserts against whatever σ this machine happens to hold — red on the owner's box (his
+# oq-0024 σ is 0.58) and green in CI, forever. Pinning here makes the expectation readable from the
+# tree. It must be referenced by BOTH the fixture below and every assertion on σ: a literal left in
+# an assertion re-creates the same two-places-one-fact defect one layer in.
+_SIGMA = 0.62
+
+
 def _cfg(*, enabled=True, unattended=False):
     cfg = get_config()
     return dataclasses.replace(
@@ -39,6 +48,7 @@ def _cfg(*, enabled=True, unattended=False):
         selfmod=dataclasses.replace(
             cfg.selfmod, enabled=enabled, unattended_enabled=unattended
         ),
+        dreaming=dataclasses.replace(cfg.dreaming, similarity_threshold=_SIGMA),
     )
 
 
@@ -73,7 +83,7 @@ def test_out_of_bounds_proposal_never_reaches_the_ledger(tmp_path):
 def test_good_change_traverses_the_gate_and_is_kept(tmp_path):
     loop = _loop(tmp_path, GOOD)
     p = loop.propose(_change(), proposer="watchdog")
-    assert p.status is LedgerStatus.PROPOSED and p.current_value == 0.62
+    assert p.status is LedgerStatus.PROPOSED and p.current_value == _SIGMA
 
     loop.approve(p.id, approver="owner")
     final = loop.execute_and_validate(p.id)
