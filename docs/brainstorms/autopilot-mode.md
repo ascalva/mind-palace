@@ -841,3 +841,72 @@ references:
   - https://tailscale.com/kb/1153/enabling-https   # the CT-log warning, verbatim
   - docs/brainstorms/autopilot-mode.md             # 02:52Z verification capsule (rpId/rename cost)
 ```
+
+## 2026-07-26T03:42:00Z
+
+```capsule
+topic: autopilot-mode
+date: 2026-07-26
+
+decisions:
+  - ⚑ OWNER DIRECTION: the approval origin becomes `ouroboros.ascalva.com` -- the owner's own
+    domain -- NOT the Tailscale MagicDNS name. This SUPERSEDES the ts.net origin assumed by
+    the 02:52Z verification capsule and the 03:31Z ruling capsule.
+  - ⚑ IT IS A STRICT PRIVACY IMPROVEMENT ON A COST ALREADY ACCEPTED. The 03:31Z ruling
+    accepted CT-log publication of `albertos-macbook-pro.<tailnet>.ts.net`. The new origin
+    publishes NO MACHINE NAME and NO TAILNET NAME -- exactly the two things Tailscale's
+    warning was about. CT exposure remains (any publicly-trusted cert lands there), but what
+    lands changes from "Alberto's laptop is on a tailnet called X" to "a host called
+    ouroboros exists under a domain already in WHOIS", and the string is one the owner chose.
+  - ⚑ THE RENAME-BEFORE-ENROLL PREREQUISITE IS NOW MOOT and is WITHDRAWN. The 03:31Z capsule
+    parked "rename the machine before `tailscale cert`" as the last reversible moment. The
+    FQDN no longer derives from the machine name, so the machine may be renamed freely at
+    any time without touching the credential. The tailnet-name open question is likewise
+    withdrawn.
+  - `tailscale cert` CANNOT ISSUE THIS. That command is scoped to MagicDNS `*.ts.net` names
+    only. The path for an owner-controlled domain is Let's Encrypt via **DNS-01**, which
+    proves control with a TXT record and requires NO PUBLIC REACHABILITY -- the host stays
+    tailnet-only. The A record can ALSO stay private (tailnet-side DNS override), so public
+    DNS never advertises where it points; only the transient DNS-01 TXT challenge is public.
+  - ⚑ THIS CLOSES THE CERT-RENEWAL PARKED ROW from the 02:52Z capsule. That row was parked
+    unresolved because `tailscale cert` does not auto-renew (90-day expiry; frequent retries
+    can trip a 34-hour Let's Encrypt rate-limit lockout). DNS-01 driven by Caddy (or
+    lego/acme.sh) auto-renews as a matter of course. Switching domains RESOLVES that row
+    rather than adding work.
+  - rpId DECISION: use `ouroboros.ascalva.com`, NOT `ascalva.com`. Both are legal (`.com` is
+    an ICANN suffix, so `ascalva.com` is registrable and either passes the registrable-suffix
+    rule), but the broader value would scope the credential to EVERYTHING on `ascalva.com`
+    -- including the owner's photography site. Narrowest wins. NOTE this also retires the
+    02:52Z residual uncertainty about browsers consulting the PSL PRIVATE section: that
+    concern was specific to `ts.net` and does not arise for a `.com` subdomain.
+
+parked:
+  - decision: private CA instead of a publicly-trusted cert, to avoid CT entirely.
+    default: NO -- proceed with Let's Encrypt DNS-01, per the owner's accepted-CT ruling.
+    re_entry: if the owner decides CT exposure of even the chosen name is unwanted. A
+    private root trusted on Mac + iPhone would give HTTPS with ZERO public ledger entry.
+    ⚑ UNVERIFIED, and flagged as such to the owner rather than asserted: WebAuthn's
+    secure-context requirement keys on the BROWSER'S TRUST STORE, so a manually trusted root
+    SHOULD satisfy it -- but iOS requires the root be installed AND explicitly enabled in
+    Settings > General > About > Certificate Trust Settings, and it is NOT confirmed that no
+    additional WebAuthn-specific constraint applies. Two agent claims were already refuted
+    this session; do not lean on this one without a verification pass.
+
+open_questions:
+  - Where does the ACME client run, and does it hold a DNS-provider API credential? That
+    credential is a new secret with write access to the owner's DNS zone -- it must NOT be
+    reachable by an agent, and it is a strictly BIGGER capability than the passkey it exists
+    to serve. This is a NEW instance of the finding-0207 class and must not be waved through.
+  - Does `ouroboros.ascalva.com` collide with any existing use of the domain (the
+    photography site / its AWS infrastructure)? Not checked.
+
+next_steps:
+  - The superseding note's wiring section specifies: origin `https://ouroboros.ascalva.com`,
+    rpId `ouroboros.ascalva.com`, Let's Encrypt DNS-01 with auto-renewal, A record private to
+    the tailnet.
+  - Offer the owner a verification pass on the private-CA option before it is dismissed.
+
+references:
+  - docs/brainstorms/autopilot-mode.md   # 02:52Z verification (rpId rules, renewal caveat), 03:31Z CT ruling
+  - docs/findings/finding-0207.md        # the secret-reachability class the ACME credential re-raises
+```
