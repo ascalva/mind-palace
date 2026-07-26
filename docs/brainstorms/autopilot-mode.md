@@ -353,3 +353,48 @@ are load-bearing for each other.
 
 ⇒ Revised claim: SMART is not the gate. **SMART is the conversation's terminating condition**, and
 the gate is the owner recognising the filled statement as his own goal.
+
+### ⚑ Owner completion — a SMART failure has TWO meanings. The predicate is a ROUTER.
+
+Verbatim: *"and it's ok that some ideas won't pass SMART, they might be bigger ideas that then
+require a full proper design/build plan ceremony."*
+
+This closes the model. A failure is not one thing:
+
+| failure mode | meaning | correct response |
+|---|---|---|
+| **not yet decided** | the shape is small, but open decisions block it | **loop** — the unfillable field is the agenda; resolve in conversation, re-attempt |
+| **too big** | it is genuinely design-note-scale work | **the full ceremony** — brainstorm → design note → ratify → graduate → build |
+
+⇒ SMART is not only a readiness test, it is **triage at the entrance**. Three outcomes, not two:
+*pass → autopilot lane* · *fail-undecided → back into conversation* · *fail-too-big → the chain*.
+
+#### ⚑ WHICH letter fails tells you WHICH lane — and the discriminator already exists
+
+The graduate skill's session-sizing heuristic already distinguishes these; SMART just surfaces it
+earlier and in the owner's own vocabulary:
+
+| letter that fails | why | lane |
+|---|---|---|
+| **Specific** — *"the objective needs an 'and'"* | it is more than one thing | **too big** → decompose, full ceremony |
+| **Measurable** — acceptance is not runnable | the outcome is not yet understood well enough to state | **design pass** |
+| **Achievable** — *open decisions* | shape is fine, inputs are missing | **loop** |
+| **Achievable** — *write_scope sprawls across zones* | genuinely large | **too big** → full ceremony |
+| **Relevant** — no `design_ref`, novel intent | there is no ratified intent to execute | **design note first** |
+| **Time-bound** — exceeds one session | oversized by construction | **too big** → decompose |
+
+So *"what is missing?"* has a sharper answer than "something": it names the letter, and the letter
+names the lane. `gf` failed **Achievable on open decisions** ⇒ loop, not ceremony — which matches
+the independent judgment that four rulings unblock it.
+
+#### ⚑ Why this matters for the design's safety, not just its ergonomics
+
+**Autopilot does not replace the artifact chain — it is a fast path for the provably small subset,
+and SMART is the gate at its mouth.** Everything that fails routes back into the *ordinary*
+ceremony, unchanged. That is the structural answer to the obvious worry (*"does autopilot erode the
+chain?"*): the chain remains the **default**, and the only way to leave it is to satisfy a
+five-field predicate the owner reads and signs.
+
+It also bounds autopilot's ambition honestly: the owner named spell-check and an editor keybinding.
+**Those are the size of thing this is for.** An autopilot that starts absorbing design-scale work
+has failed its own entrance test, and the entrance test is the thing that notices.
