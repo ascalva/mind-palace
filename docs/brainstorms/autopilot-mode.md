@@ -910,3 +910,76 @@ references:
   - docs/brainstorms/autopilot-mode.md   # 02:52Z verification (rpId rules, renewal caveat), 03:31Z CT ruling
   - docs/findings/finding-0207.md        # the secret-reachability class the ACME credential re-raises
 ```
+
+## 2026-07-26T04:18:00Z
+
+```capsule
+topic: autopilot-mode
+date: 2026-07-26
+
+decisions:
+  - ⚑ THE ORIGIN'S RATIONALE INVERTS. Owner, verbatim: "it ties my identity into it, proof my
+    existance in relation to it". The 03:42Z capsule recorded `ouroboros.ascalva.com` as a
+    PRIVACY IMPROVEMENT (it hides the machine name and tailnet name). That framing is
+    SUPERSEDED. The domain is chosen as a DELIBERATE ASSERTION OF AUTHORSHIP: ascalva.com is
+    the owner's name, so placing Ouroboros under it publicly claims the relation between
+    owner and system. Under this reading the CT-log entry is NOT AN ACCEPTED COST -- it is
+    THE MECHANISM DOING WHAT IS WANTED: a public, timestamped, third-party-witnessed record
+    that this system exists in relation to him. Write the note's argument this way; "it leaks
+    less" is the weaker and now-wrong justification.
+  - ⚑ THE NAME AND THE CRYPTOGRAPHY EXPRESS THE SAME RELATION TWICE. WebAuthn credentials are
+    SCOPED TO AN ORIGIN -- a passkey minted at `ouroboros.ascalva.com` is unusable anywhere
+    else, by construction. So the rpId is not an implementation detail: IT IS THE BINDING.
+    The DNS name asserts the owner-system relation publicly; the credential proves it
+    cryptographically; they are the same claim in two registers. This is the note's real
+    argument for the origin choice, and it also re-justifies pinning rpId to the FULL
+    subdomain rather than `ascalva.com` -- the narrower scope is the more precise assertion,
+    not merely the safer one.
+  - COHERENCE WITH THE WHOLE DESIGN: the autopilot mechanism exists to answer "prove it's
+    me". The origin choice answers the same question at the naming layer. Owner principle
+    from phone-chat-surface.md 04:02Z ("ouroboros is grounded to reality, the code is
+    visible, public, so why shouldn't its presence?") is the same stance one level up.
+  - TAILNET NAME MEASURED -- the 03:31Z open question is CLOSED FAVOURABLY. It is
+    `taila1a702`, a Tailscale-generated random string, NOT email- or domain-derived. The old
+    FQDN was therefore `albertos-macbook-pro.taila1a702.ts.net`: the owner's first name, and
+    nothing else identifying.
+  - ⚑ THE MACHINE IS RENAMED -- executed 2026-07-26 on the owner's explicit instruction
+    ("change it right now ... so that Alberto-... doesn't resolve anything"):
+    `tailscale set --hostname=ouroboros` (rc=0). Device name is now `ouroboros`; MagicDNS is
+    `ouroboros.taila1a702.ts.net`; `albertos-macbook-pro.taila1a702.ts.net` NO LONGER
+    RESOLVES. The Tailscale IP is UNCHANGED at 100.97.85.13.
+  - PRE-FLIGHT THAT MADE THE RENAME SAFE (recorded so it is not re-derived): Syncthing peers
+    are pinned to the TAILSCALE IP, not the hostname
+    (`tcp://100.97.85.13:22000` / `tcp://100.74.4.2:22000` --
+    docs/archive/PROGRESS-phases-0-10.md:403), and renaming does not change the IP. A
+    repo-wide grep found NO code reference to the hostname -- only documentation. So nothing
+    depended on the old name.
+  - ORDERING NOTE: because `tailscale set --hostname` sets an EXPLICIT override, a subsequent
+    macOS rename will NOT clobber the Tailscale name back to the OS-derived value.
+
+parked:
+  - decision: the macOS-level names (ComputerName / LocalHostName / HostName).
+    default: STILL `Albertos-MacBook-Pro` -- NOT yet changed. They require `sudo`, which the
+    agent cannot drive through an interactive password prompt.
+    re_entry: the owner runs
+    `sudo scutil --set ComputerName ouroboros && sudo scutil --set LocalHostName ouroboros &&
+    sudo scutil --set HostName ouroboros`. `LocalHostName` is the one that stops
+    `Albertos-MacBook-Pro.local` (mDNS) resolving. Handed to him 2026-07-26; unconfirmed at
+    capture time.
+
+open_questions:
+  - Renaming does NOT retract what is already published: the old name persists in this
+    repo's git history (public) and in the archive doc. The owner has accepted this ("on your
+    accident, that's fine"); the rename is FORWARD-LOOKING only. No history rewrite proposed.
+  - Does `ouroboros.ascalva.com` collide with the photography site's DNS/AWS setup? STILL
+    UNCHECKED -- carried from 03:42Z, and now more urgent since the name is being committed to.
+  - The GitLab mirror's visibility remains unmeasured (phone-chat-surface.md 04:02Z).
+
+next_steps:
+  - The superseding note argues the origin from IDENTITY-ASSERTION, not privacy.
+  - Confirm the macOS rename landed before any cert is issued.
+
+references:
+  - docs/brainstorms/phone-chat-surface.md         # 04:02Z the public-presence principle
+  - docs/archive/PROGRESS-phases-0-10.md           # :403 Syncthing pinned to IP, not hostname
+```
