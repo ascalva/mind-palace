@@ -620,3 +620,88 @@ references:
   - https://github.com/WebKit/WebKit/blob/main/Source/WebKit/UIProcess/WebAuthentication/Cocoa/LocalAuthenticator.mm
   - docs/findings/finding-0207.md                            # the secret-reachability finding this reframes
 ```
+
+## 2026-07-26T03:05:00Z
+
+```capsule
+topic: autopilot-mode
+date: 2026-07-26
+
+decisions:
+  - ENROLLMENT SOLVED (owner design, 2026-07-26): the system holds AT MOST ONE key, with
+    two modes. STAGING = no key held (the key is dropped/absent). STABLE = exactly one key;
+    you cannot add a second on top of it -- an attempt KILLS the current key.
+  - ⚑ THE PROPERTY IT BUYS, stated precisely: it converts SILENT FORGERY into LOUD
+    DENIAL-OF-SERVICE. Under a multi-key allowlist an agent enrolls its own key ALONGSIDE
+    the owner's, both verify, the owner's approvals keep working, and he never notices --
+    the silent-forever failure class (finding-0150's layer). Under a single self-destructing
+    slot, an agent grabbing for authority DISARMS the system instead of CAPTURING it: the
+    slot drops to staging, no grant verifies at all, and the owner's very next approval
+    fails in his face. Detection is forced, not hoped for.
+  - RESONANCE WITH AN EXISTING REPO INSTINCT: core/stores/versions.py:146 already refuses
+    to merge two lineages outright (RekeyRefusedError; ":158 -- Append-only history is never
+    merged") rather than picking a winner. The owner's rule is that same principle applied
+    to AUTHORITY: never two roots of trust; REFUSE rather than reconcile.
+  - REVOCATION IS ANSWERED FOR FREE -- it was an open question from the 02:31Z capsule and
+    is now closed by construction. Lost phone -> attempt an enrollment -> the old key dies
+    -> re-enroll from the new phone. Revocation is not a separate mechanism; it is the kill
+    half of the same operation.
+  - STAGING IS THE CORRECT FAIL-CLOSED DEFAULT: a fresh clone, a new machine, or a restored
+    backup all start with NO key, so autopilot cannot run until deliberately armed. This
+    also means the enable flag alone still authorizes nothing (consistent with the ratified
+    note §4).
+  - PINNED READING -- (a) DESTROY-WITHOUT-INSTALL. A second enrollment kills the existing
+    key and installs NOTHING, dropping the system to staging: a tamper-evident seal.
+    REJECTED reading (b) destroy-and-replace, where the new key takes the slot -- that is
+    mere replacement and a trivial ONE-step takeover. The owner's phrasing ("can't add on
+    top of it or else kills the current key") reads as (a); (a) is the reading with the
+    property. Stated to him for confirmation; write as (a) unless he overrules.
+
+parked:
+  - decision: ⚑ WHAT AUTHORIZES staging -> stable. THE SINGLE MOST LOAD-BEARING DECISION IN
+    THE DESIGN -- all remaining risk concentrates here.
+    default: NONE -- not the agent's to set.
+    re_entry: OWNER RULES. If enrolling into an EMPTY slot needs no authority, then
+    "kill, then enroll" is a TWO-STEP TAKEOVER and the agent can perform both halves. The
+    scheme therefore rests entirely on the enrollment ceremony being OWNER-PHYSICAL and
+    OUT-OF-BAND -- something an agent structurally cannot do. Candidates: Touch ID at the
+    keyboard; a passphrase the owner types; a key-signs-key rotation chain (which fails if
+    the old key is lost, so it needs a break-glass path). The superseding note must state
+    this explicitly rather than leave it implied.
+  - decision: whether a kill is recorded as a committed append-only event.
+    default: YES -- a disarm should be LOUD and ATTRIBUTABLE, visible in git history and
+    pinned to a commit, not merely a missing file.
+    re_entry: the superseding note's audit-trail section; folds into the same append-only
+    event-log substrate the handoff redesign (finding-0175) needs.
+  - decision: repeated kills as a cheap denial-of-service.
+    default: ACCEPTED, named rather than discovered later. An agent could keep autopilot
+    permanently disarmed by re-killing the slot. Annoying, not dangerous -- it removes
+    capability, never grants it, and every kill is visible.
+    re_entry: if it ever happens in practice, rate-limit or require owner-physical action
+    to kill as well as to enroll.
+
+open_questions:
+  - Does STAGING mean "the file is absent" or "a file exists declaring staging"? The latter
+    is preferable: an absent file is indistinguishable from a broken checkout, while an
+    explicit staging marker is a positive assertion the verifier can read and refuse on.
+  - Where does the single key live such that the KILL is enforceable? If it is a committed
+    file, an agent can `git checkout` its way back to a prior key -- so the kill must be
+    keyed to something an agent cannot rewind, or the post-hoc check must compare against
+    HEAD the way A8 does for ratified notes.
+  - Interaction with worktrees: .claude/state/ is per-worktree and blanket-gitignored
+    (".gitignore:1-3 -- Regenerable, per-worktree, never shared"), so a per-worktree key
+    slot would let each worktree hold a DIFFERENT authority. The slot probably must be
+    repo-global and committed, NOT in .claude/state/.
+
+next_steps:
+  - Fold into the superseding note as the enrollment section; it closes the enrollment
+    open question from the 02:31Z capsule and the revocation one outright.
+  - The staging->stable authorization is the remaining owner ruling, alongside the
+    Certificate-Transparency privacy cost (02:52Z capsule).
+
+references:
+  - core/stores/versions.py                      # :146 refuse-to-merge-lineages, the same instinct
+  - core/stores/authored_supersession.py         # MachineAuthorityRefused -- owner-gated retirement
+  - docs/findings/finding-0207.md                # the secret-reachability finding this supersedes in spirit
+  - docs/design-notes/agent-workflow.md          # A8's HEAD-keyed post-hoc check, the anti-rewind precedent
+```
