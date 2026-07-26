@@ -176,3 +176,27 @@ docs/findings/finding-0221.md:1: the disposition — blocker/direction, the two-
 disposition*, not a delivery; bp-095 is not `complete` and must not be flipped so. It is the
 orchestrator's to re-open once the gate reads. Do not add this to `docs/DESKCHECK-QUEUE.md`;
 the track's already-queued code-ingest deskcheck (the seed run) is what unblocks it.
+
+## Orchestrator note — 2026-07-26, merge-time correction to `7ab5187`'s commit message
+
+⚑ **`7ab5187`'s body is corrupted and this is the correction of record.** I passed that merge message
+via an inline `-m` string containing backticks, and zsh performed command substitution on them, so two
+words were silently deleted before the commit was written (`(eval):1: command not found: superseded` /
+`... not found: ready`). The two damaged sentences should read:
+
+- *"It also declined to flip **`superseded`**, because `re_entry` licenses that only on a DEGENERATE
+  reading — and unread is not degenerate."*
+- *"Plan left **`ready`**, untouched."*
+
+Both statements are true of the merged tree: `docs/build-plans/bp-095/plan.md` is still
+`status: ready` and nothing was flipped.
+
+**Not amended deliberately.** A force-push would rewrite a pushed commit on `main` while two sibling
+builders are live, and it would *not* clean the code-sensor ledger — `code_snapshots.sqlite` already
+ingested the corrupted body at commit time, so amending would leave both versions there and only
+tidy `git log`. Recording the correction where a reader of bp-095 will find it keeps the record
+honest in both places, which is the standing preference here (auditability over tidiness).
+
+**The lesson, for the next session:** every other commit today used `git commit -F -` with a heredoc
+and was fine. This one was inlined. **Use `-F -` whenever a message contains backticks** — the repo's
+commit style is full of `code refs`, so the hazard is structural rather than incidental.
