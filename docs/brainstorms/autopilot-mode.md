@@ -1181,3 +1181,75 @@ references:
   - docs/build-plans/bp-120/plan.md            # the capsule artifact, blessed ready
   - docs/design-notes/dn-autopilot-and-delegated-blessing.md   # §2.2 router, §2.4 eligibility, §3 consequences
 ```
+
+## 2026-07-26T05:33:00Z
+
+```capsule
+topic: autopilot-mode
+date: 2026-07-26
+
+decisions:
+  - ⚑ CORRECTION TO THE 05:14Z CAPSULE -- IT MISREAD OWNER INTENT. Owner, verbatim: "I must
+    have mispoken, I just meant that the machinery will help automate a few things, like
+    being able to go from design ratified to ready to build would be really nice."
+    The 05:14Z capsule read "small one offs ... a session between us to hash it out" as a
+    request for a NOTE-LESS route for design-inert work, and built a priority-inversion
+    argument on it. THAT WAS THE AGENT'S TANGENT, NOT THE OWNER'S ASK. The ask is narrower:
+    AUTOMATE `ratified note -> plans at ready`, i.e. remove the hand-flipping of N plans
+    after a note is already blessed.
+  - WHAT SURVIVES FROM 05:14Z (the finding, not the framing): the mechanical gap is REAL and
+    independently true -- `.claude/commands/graduate.md:9-11` hard-refuses a non-ratified
+    note, and "design-inert" is unwired anywhere outside the ratified note's prose. Keep that
+    as a grounded observation. DISCARD its claim that this was what the owner wanted built
+    first, and discard the "build the attended path first" sequencing that rested on it.
+  - THE REAL ASK MAPS ONTO THE NOTE'S CORE CLAIM. Refinement 1 splits the two gates on
+    exactly this reasoning: `proposed->ready` is delegable BECAUSE its parent note was
+    already read and blessed by the owner. So the ratified design already argues the owner's
+    case; it is not a new requirement.
+  - ⚑ FRICTION 1, AND IT IS SUBSTANTIVE NOT TECHNICAL: RATIFICATION BLESSES THE DESIGN, NOT
+    THE DECOMPOSITION. The graduate skill states that graduation "is the translation, and it
+    is where scope is set". Plan boundaries, write_scope grants, acceptance criteria and
+    blast-radius ordering DO NOT EXIST IN THE NOTE. So `proposed->ready` is not a rubber
+    stamp on something already approved -- it approves HOW THE AGENT CUT THE DESIGN INTO
+    SESSIONS. Live evidence from this same session: the autopilot note said nothing about
+    bp-120's template NAME, its canonical hashing rule, or its three-file write_scope; the
+    agent chose all three.
+  - ⚑ FRICTION 2: THE NOTE AS RATIFIED GIVES PER-PLAN GRANTS, NOT WAVE GRANTS. Non-goal 9 --
+    "One grant, one plan. Batch grants (a wave under one capsule) are parked, not designed."
+    And the Parked table: "batch grants (one capsule, N plans) | not allowed | after 5 clean
+    single-plan runs with zero intent-level dissents." So "ratify once, whole wave goes
+    ready" is PRECISELY what the note parks, behind an experience gate.
+  - ⇒ THIS NEEDS AN OWNER RULING, not a build: either (a) UN-PARK batch grants earlier than
+    the five-clean-runs condition, or (b) accept per-plan grants and let the machinery reduce
+    each to ONE APPROVAL ACT rather than a hand edit of a status line. The mechanism that
+    makes (b) safe rather than merely convenient already exists in the design: GATE A, the
+    cold-read auditor that checks a plan against its parent for scope creep -- for a
+    ratified-note plan it checks plan-against-NOTE instead of plan-against-capsule.
+
+parked:
+  - decision: does the intent capsule apply at all when a RATIFIED NOTE is the parent?
+    default: NO -- the capsule exists for the note-less case (§2.2 is explicit that for QoL
+    work "intent is settled in conversation or nowhere"). When a ratified note exists, THE
+    NOTE IS THE READ ARTIFACT and the capsule would be redundant ceremony.
+    re_entry: the superseding note; if capsules ARE wanted per-plan even under a note, say
+    why, because it doubles the reading the owner does per wave.
+
+open_questions:
+  - Under (b), what is the "one approval act"? A single MFA/passkey approval per plan is
+    still N approvals for an N-plan wave -- lighter than N hand-edits, but not obviously
+    light enough to be the "really nice" the owner is after. Worth asking him directly
+    whether per-plan approval at low friction is sufficient, or whether wave-level is the
+    actual requirement.
+  - Does Gate A's audit change when the parent is a note rather than a capsule? A note is far
+    longer than a 40-line capsule, so "find how this plan exceeds or misreads its parent" is
+    a materially harder read. The auditor sizing (§2.5) was argued for capsules.
+
+next_steps:
+  - Put the (a)-vs-(b) ruling to the owner explicitly; it shapes the superseding note's §2.2.
+  - Do NOT carry 05:14Z's "build the attended path first" sequencing forward unexamined.
+
+references:
+  - docs/design-notes/dn-autopilot-and-delegated-blessing.md   # Refinement 1, non-goal 9, Parked table, §2.5 Gate A
+  - .claude/skills/graduate/SKILL.md                           # "graduation ... is where scope is set"
+  - docs/build-plans/bp-120/plan.md                            # live evidence of decomposition choices absent from the note
+```
