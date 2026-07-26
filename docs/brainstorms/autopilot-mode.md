@@ -1503,3 +1503,84 @@ references:
   - docs/findings/finding-0011.md                        # updated this session under ruling 2
   - docs/design-notes/dn-autopilot-and-delegated-blessing.md   # §2.5 gates, the Parked table
 ```
+
+## 2026-07-26T08:20:00Z
+
+```capsule
+topic: autopilot-mode
+date: 2026-07-26
+
+decisions:
+  - OWNER ANSWER on oq-0045 (should the import firewall walk the closure): "yeah, I think so, or even
+    better yet, use ouroboros, or find a way to use it, after some of the coming work, it might be able
+    to trace an import path?"
+    ⇒ (a) The closure walk is APPROVED in principle. (b) A second, larger idea rides along: let the
+    palace answer its own reachability question.
+  - ⚑⚑ THE IDEA IS SOUND, AND THE REASON IS SPECIFIC: THE PALACE ALREADY HOLDS AN AST-DERIVED CODE
+    GRAPH. `ops/code_snapshot.py` mints structural facts from a real stdlib parse (its `comments` table
+    alone holds ~1.56M rows), `ops/code_sensor.py` resolves references, and `reference_edges.sqlite`
+    holds ~1.53M edges over 1,135 commit snapshots. An import is an edge; "can core reach a
+    network-capable module?" is a REACHABILITY QUERY on that graph. So this is not a new subsystem --
+    it is a query over a graph that is already built and already versioned per commit.
+  - ⚑⚑ BUT THE DISTINCTION THAT MAKES OR BREAKS IT: **STRUCTURAL PLANE, NEVER SEMANTIC.** An invariant
+    check must be SOUND -- no false negatives, ever. A vector/similarity answer ("these modules look
+    related") is not sound and must never be load-bearing for a non-negotiable. The AST-derived
+    structural plane CAN be sound, because it is the same kind of evidence `ops/import_lint.py` already
+    uses. ⇒ If this is built, it is a query over the structural edges only, and the note must say so in
+    as many words, because the tempting version (ask the retriever) is the unsound one.
+  - ⚑⚑ AND THE BOOTSTRAP PROBLEM, WHICH DECIDES THE ARCHITECTURE: a self-referential guard can fail
+    silently. If the palace's own graph is incomplete -- a missed dynamic import, a stale snapshot, an
+    un-ingested commit -- the invariant PASSES while the hole exists, and the failure is invisible
+    precisely because the instrument that would find it is the thing that is broken. ⇒ THE LINT STAYS
+    THE AUTHORITY. The palace becomes a SECOND OPINION and a DISCOVERY tool: it can find chains the
+    lint's direct-only check cannot see (`core/factory/factory.py:182 → config.secrets_backend → hvac`
+    is exactly such a chain, finding-0190), and it can be wrong without weakening the guarantee. A
+    cheap ratchet keeps them honest: **every edge the lint finds must also appear in the palace's
+    graph** -- if the palace's graph is missing a lint-known edge, the graph is incomplete and says so.
+    That is a falsifier for the instrument, which is what makes it trustworthy enough to consult.
+  - ⇒ SEQUENCING, and it matches the owner's "after some of the coming work": the closure walk is ~40
+    lines against a scanner that already exists (`tests/unit/test_inner_ring.py`'s fixed-point walker
+    is the precedent) and it closes oq-0045 NOW; the palace-as-oracle rides the code-ingest track once
+    the reference bookkeeper (finding-0154) gives the graph a current view -- today it has 1.53M
+    accumulated edges and NO materialized latest view (`core/stores/reference_edges.py:299,329`), so a
+    reachability query would have to reconstruct one per call.
+  - ⚑ THE PAYOFF BEYOND THIS ONE INVARIANT, and it is the interesting part: an invariant expressed as a
+    QUERY over the corpus rather than as a bespoke script is an invariant the system can be asked about
+    -- "what else reaches the network?", "when did this edge appear?" (the graph is per-commit, so
+    diachronic queries are free), "which invariants does this proposed change touch?". That is the
+    self-map doing load-bearing work rather than describing itself, which is the strongest argument yet
+    for the code corpus being vectorized at all (the owner's own 2026-07-21 ruling, finding-0146).
+
+parked:
+  - decision: does the palace-as-oracle ever become authoritative, replacing the lint?
+    default: NO. The lint stays the authority indefinitely; the oracle is a second opinion and a
+    discovery tool. Promotion would require the completeness ratchet above to be green over a
+    sustained period, and even then it trades a 100-line sound checker for a subsystem.
+    re_entry: the design note; not before the completeness ratchet exists.
+  - decision: which plane answers the query.
+    default: STRUCTURAL (AST) edges only. The semantic plane is explicitly not admissible for an
+    invariant check.
+    re_entry: the design note -- and this row should be quoted in it verbatim, since it is the row a
+    future session is most likely to erode.
+
+open_questions:
+  - Does the reachability query need the reference bookkeeper's current view first (finding-0154,
+    undesigned), or can it run against `for_commit(HEAD)` today at acceptable cost?
+  - Does a per-commit graph let us answer "when did core first reach the network?" retroactively over
+    the 1,135 snapshots? If yes, that is a genuinely new capability -- an archaeology of invariant
+    violations -- and it would be the first thing the temporal code corpus buys that a lint cannot.
+
+next_steps:
+  - Land oq-0045's closure walk as a small scoped plan (the lint, not the palace). That is the answer to
+    the question actually asked.
+  - The palace-as-oracle belongs in the code-ingest / reference-bookkeeper design pass, carrying the
+    structural-only constraint and the completeness ratchet as hard requirements.
+
+references:
+  - ops/import_lint.py                        # the authority; direct-only today (:107-112)
+  - tests/unit/test_inner_ring.py             # an existing fixed-point closure walker -- the precedent
+  - ops/code_sensor.py · ops/code_snapshot.py # the AST-derived structural plane
+  - core/stores/reference_edges.py            # 1.53M edges / 1,135 snapshots; no current view (:299,:329)
+  - docs/findings/finding-0190.md             # the two-hop chain a closure walk would catch
+  - docs/findings/finding-0154.md             # the reference bookkeeper this would ride
+```
