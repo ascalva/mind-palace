@@ -303,3 +303,53 @@ he confirms**, and the confirmed artifact is small, hashed, and binding. **The r
 shrunk to five fields, and made portable.**
 
 ⇒ Supersedes the crux as an open question. The Fable design pass has been sent this capsule.
+
+### ⚑ Owner correction — SMART is a LOOP, not a filter. The unfillable field IS the agenda.
+
+Verbatim: *"but that is the point of the SMART, it would correctly deny the 'gf' and raise all its
+questions, it would chew on the ideas, and once all those decisions are met, then it meets the
+criteria, and I can ask the you what you feel is missing, which could lead us to brainstorm about
+the resolution."*
+
+**The capsule above framed the `gf` rejection as evidence the predicate *discriminates*. That
+undersold it.** A rejection is not a verdict, it is a **work order**: the field that cannot be
+filled names — specifically, not as vague unease — the decision that is still open.
+
+    attempt SMART → unfillable fields name the open decisions → those ARE the brainstorm agenda
+        → resolve in conversation → re-attempt → fillable → grant
+
+⇒ The same artifact does three jobs: **readiness test**, **agenda generator**, and once filled,
+**the thing the MFA signs**. That is why it is worth adopting over any equally-good checklist.
+
+Re-read the `gf` failure in that light. It did not say *"no."* It said: **Achievable is blocked on
+four named decisions** (uniform vs typed-only-where-ambiguous · retrofit · discourage bare line
+refs · journals-as-prose) **and Relevant is weak because no ratified note exists yet.** That is a
+precise, actionable list — which is exactly what the orchestrator had produced by hand, so the
+predicate **mechanises a judgment that previously required a careful reader.**
+
+#### ⚑ An unfillable SMART field ≡ a PARKED DECISION with a re-entry condition
+
+Again not a new concept — the existing vocabulary, reached from a new direction. The build-plan
+template already carries §11 *Parked decisions* and a `re_entry` field, and the rule is that a
+parked item **without** a re-entry condition is not allowed. An unfillable field states its own
+re-entry condition:
+
+> *Achievable: unfillable. Re-entry — when the four naming decisions are ruled.*
+
+So the loop's output is **already a legal artifact**, not a new format to invent.
+
+#### The interaction this creates — cheap, and the highest-value one in the whole design
+
+*"I can ask you what you feel is missing"* is a first-class move, not an aside. The agent reports
+**which fields are unfillable and why**; the owner either supplies the missing decision on the spot
+or says "let's brainstorm that." Short, phone-sized, and it front-loads disagreement to **before**
+any work exists — the cheapest possible place to find it.
+
+This is also precisely the job description of the phone surface's Ambassador
+(`docs/brainstorms/phone-chat-surface.md`): reads the mirror, proposes, cannot act. **"What is
+missing from the SMART statement for X?" is the archetypal Ambassador query** — it needs the
+briefing files, no vault access, and it returns a proposal rather than an action. The two designs
+are load-bearing for each other.
+
+⇒ Revised claim: SMART is not the gate. **SMART is the conversation's terminating condition**, and
+the gate is the owner recognising the filled statement as his own goal.
