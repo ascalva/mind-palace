@@ -202,3 +202,74 @@ references:
   - ops/effect_catalog.py                           # the catalog that cannot express the class
   - docs/brainstorms/process-weight.md              # "name the reader" — the test this ledger must pass
 ```
+
+## 2026-07-26T16:15:00Z
+
+```capsule
+topic: prediction-market-sensor-fusion
+date: 2026-07-26
+
+decisions:
+  - ⚑ THE OWNER CLOSED THE LOOP ONTO EXISTING RATIFIED DESIGN. Verbatim: "predictions are dream-like, a
+    diachronic dreamer predicts based on temporal patterns, a synchronic dreamer predicts patterns on
+    graph patterns along a cut."
+    ⇒ Checked against the tree, and it lands squarely on `dn-synchronic-diachronic-dreamer`, which is
+    **ratified**. So the "calibration ledger" proposed earlier today needs NO new predictor. The
+    dreamers ARE the predictors, and prediction was already designed -- it was just never scored.
+  - ⚑ AND IT IS NOT A SUBSYSTEM, IT IS A GRANT VALUE. The ratified note asked exactly the question this
+    idea would otherwise re-ask -- "second dreamer mode, or a distinct diachronic interpreter?" -- and
+    answered: **"neither -- a grant value"** (`dreamer_scope`, `core/agent_scope.py:143-158`). Synchronic
+    is the point window `pt(cut)`; diachronic is the cut-pair window `[c1, c2]`. That is a large
+    simplification: a forecasting capability is a SCOPE on an existing role, not a new agent.
+  - ⚑ THE TWO HALVES ARE ASYMMETRIC, AND THE FORECASTING HALF IS THE PARKED ONE. Measured:
+      · SYNCHRONIC is BUILT -- `core/graph/census.py` reads an arrow-aware census at ONE certified cut,
+        and its own comment states the mechanism precisely: *"Direction is time's residue in the
+        synchronic graph"*, so it "can read temporal structure without touching the parked diachronic
+        execution (§2.8)."
+      · DIACHRONIC EXECUTION IS PARKED at §2.8 -- cross-cut windows are not built.
+    ⇒ So "predict from temporal patterns" is exactly the capability that does not exist yet, while
+    "infer structure at a cut" does. Any near-term prediction work must be synchronic or it is blocked.
+  - ⚑ THE SYNCHRONIC DREAMER IS ALREADY SCORABLE WITH NO MARKET, NO MONEY AND NO NETWORK -- and this is
+    now the best first experiment on the table. A synchronic claim is "here is structure implied at this
+    cut that is not stated." **Later certified cuts resolve it.** That gives every property the earlier
+    capsule demanded of a scoreboard except one: falsifiable (a claim with a truth value), externally
+    resolved *in time* (a future cut the predictor did not author), domain-matched, bounded (nothing
+    leaves the machine). It directly tests "the more you know, the better the view gets" against the
+    owner's own corpus. Polymarket becomes a LATER, harder scoreboard rather than the first one.
+  - The diachronic park has a RESTATED re-entry, so the path is documented rather than vague:
+    finding-0126 (resolved) replaced the stale "G3 materializes" -- G3 shipped with bp-055's temporal
+    quartet -- with (a) the graph-at-a-past-cut instrument family graduating AND (b) D-1 sealed. ⚑ The
+    stale re-entry "can no longer be cited as license", so nobody may claim diachronic is unblocked.
+
+open_questions:
+  - ⚑ THIS DIRECTION NOW DEPENDS ON A DECISION ALREADY SITTING IN THE DESKCHECK QUEUE. The dreamers are
+    **NOT wired** (`[dream_rnd] = false`, finding-0141) and the owed deskcheck's decision is exactly
+    "wire it live, or accept dormant" (`docs/tracks/sync-diac-dreamers.md`). A predictor that never runs
+    cannot be scored, so the calibration ledger's precondition is that decision -- not any new build.
+    That makes an already-owed deskcheck load-bearing for the whole prediction ambition.
+  - Does scoring synchronic claims against later cuts leak into hypothesis laundering? The ratified note
+    has a **conditioning law** whose stated purpose is stopping "hypothesis laundering through dream
+    exhaust" (§2.7). A scoring ledger that feeds scores back as conditioning input is precisely that
+    hazard, so the ledger must be READ-ONLY with respect to the dreamer's inputs. Design constraint,
+    found before building rather than after.
+  - Is a Brier score even the right rule for a structural claim? "Edge (a,b) exists but is unstated" is
+    binary and scorable; "this cluster is a theme" is not obviously so. The scoring rule may have to
+    differ per claim type, which is a real design question and not a detail.
+
+next_steps:
+  - REORDERED, and this supersedes the previous capsule's ordering: the first experiment is SYNCHRONIC
+    CLAIMS SCORED AGAINST LATER CERTIFIED CUTS. Internal, free, no market, no credential, no frame
+    amendment -- and it is the same object any later external scoreboard would plug into.
+  - Its precondition is the owed sync/diac DESKCHECK decision (wire live vs accept dormant). Surface it
+    as such at the next `/triage` -- it has been reading as routine and is not.
+  - The Polymarket work stays parked behind that, and the cheap kill test (10 resolved markets vs the
+    corpus) stays the gate on it.
+
+references:
+  - docs/design-notes/synchronic-diachronic-dreamer.md   # RATIFIED — scope not subsystem; §2.8 the park; §2.7 the conditioning law
+  - core/graph/census.py                                 # the synchronic read, built — "direction is time's residue"
+  - core/agent_scope.py                                  # :143-158 dreamer_scope, the grant value
+  - docs/findings/finding-0126.md                        # the park's RESTATED re-entry (G3 already shipped)
+  - docs/findings/finding-0141.md                        # dreamers not wired, [dream_rnd]=false
+  - docs/tracks/sync-diac-dreamers.md                    # the owed deskcheck whose decision now gates this
+```
