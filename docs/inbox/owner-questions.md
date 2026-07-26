@@ -1785,3 +1785,56 @@ asserted.
   should be pinned in the plan rather than improvised by a builder. ⚑ The deskcheck itself remains
   owed and its demonstrable CHANGES with this ruling: it is no longer "show that it is not wired",
   it is "show it running".
+
+## oq-0051 — THE FRAME QUESTION: does "the mirror, not the oracle" still hold if the mirror acts? — RULED
+
+- status: answered   # 2026-07-26 — the ruling the world-facing-agency draft was written to receive
+- origin: docs/brainstorms/acting-as-the-owner.md · docs/design-notes/world-facing-agency.md (`draft`)
+- blocking: false   # nothing was waiting on it; it unblocks a design revision, not a build
+- question: The manual's Chapter 1 opens with *"The mirror, not the oracle"* and §1.3 is *"One
+  subject, at a distance"*. A mirror that acts in the world has stopped being one — and, more
+  precisely (the fable pass's sharper framing), **acting changes the SUBJECT-COUNT**: a counterparty
+  is a non-consenting second subject entering a moral surface NN-2 and NN-11 were derived under the
+  assumption of one. So: amend the founding frame deliberately, or let it stand and treat all
+  world-facing action as excluded by design rather than deferred?
+- default_if_unanswered: the frame stands; the system stays inward-facing; world-facing ideas are
+  excluded by design. (Chosen as the default precisely because the failure mode to avoid is drift —
+  a capability arriving incrementally with nobody having said the frame changed: finding-0109.)
+- answer: **THE MIRROR MAY ACT, BOUNDED BY RETRACTABILITY.** Owner, 2026-07-26, verbatim: *"i think
+  it can perform high-confidence, unretractable actions via my permission, it can make retractable
+  decisions on its own, and as you said, it's also allowed to not act"*.
+  ⇒ A **three-tier structure keyed on retractability**, not on domain or on confidence alone:
+  | tier | authority |
+  |---|---|
+  | **unretractable** action | **the owner's permission, per action** — and only when high-confidence |
+  | **retractable** decision | the system's own, autonomously |
+  | **not acting** | always permitted — declining is a legitimate outcome, never a failure |
+  ⚑ **This largely RATIFIES what Track G already built** rather than asking for something new:
+  reversible writes are propose-never-send with a `MirrorView`, and irreversible effects go through
+  the JIT-credential executor. The owner's axis and the built taxonomy are the same axis. Max
+  reachable tier is still NONE and nothing is wired (finding-0011) — this ruling authorizes design,
+  not a flag flip.
+- ⚑ WHAT IT SETTLES: the mirror/oracle tension is resolved in favour of acting; retractability is
+  the governing axis; permission is the gate on the irreversible; and **the right to decline is
+  explicitly preserved** (the owner affirmed it unprompted — worth keeping, since a system that must
+  always produce an action is a system that will act on weak evidence).
+- ⚑⚑ WHAT IT DOES **NOT** SETTLE — three gaps, and the first is the sharp one:
+  1. **IMPERSONATION IS ORTHOGONAL TO RETRACTABILITY AND REMAINS UNRULED.** `dn-world-facing-agency`
+     (`draft`) proposes **non-impersonation as a bright line** — the system acts as a *disclosed
+     instrument*, under its own identity, never as the owner. Retractability does not decide this: a
+     message sent under his name is "retractable" as a resource (delete it) and unretractable as a
+     *relationship*. So sense (3) of "as me" — speaking AS him — is **not** covered by this ruling and
+     must be ruled on separately.
+  2. **"Retractable" must mean retractable IN THE WORLD, not in the store.** This is today's third
+     effect-catalog gap: a sent message can be deleted and cannot be unsent; a cancelled order was
+     still placed. If "retractable" is read off the resource, the autonomous tier silently includes
+     socially-irreversible acts — which is the ruling's most likely failure mode in practice.
+  3. **"High-confidence" needs a definition the system cannot self-award.** Self-assessed confidence
+     is precisely what cannot be trusted; `dn-scored-beliefs-and-earned-entitlement` (`draft`) exists
+     to make it earned, per-domain, against outside resolution. Until then "high-confidence" is a
+     word, not a gate.
+- what is owed next: a **revision pass on `dn-world-facing-agency`** to seat this ruling as its
+  governing structure (it was drafted to *receive* a ruling and currently proposes its own frame
+  amendment text). ⚑ The amendment itself lands in `CONSTITUTION.md` / `BUILD-SPEC.md` §3, both of
+  which are **owner-hand-only** — `CONSTITUTION.md` is on the foundation denylist. An agent may draft
+  the wording; only the owner applies it. Ratification of the note remains his hand too.
