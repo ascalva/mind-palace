@@ -1,4 +1,4 @@
-"""The `type-gate` CI job's two mechanical scans (B-2, `type-system-as-core-audit.md`).
+"""The `type-gate` CI job's three mechanical scans (B-2, `type-system-as-core-audit.md`).
 
 `type-system-as-core-audit.md` §2.5 draws the two-tier checked region and states the
 membership rule as a mechanical invariant, not a judgment call: **a top-level package
@@ -13,15 +13,29 @@ one, provable by reading the AST" move `ops/import_lint.py` already performs for
 (that module's `_imported_names`/`scan_file`/`Violation` shape is the direct pattern
 this module generalizes to a second invariant).
 
-Two scans, each importable and CLI-runnable:
+§2.5 draws a THIRD mechanical line, the boundary-wrapper rule: a dependency with no
+`py.typed` gets one thin typed shim, and that shim is the ONE module permitted to
+import it raw, so `Any` is quarantined at one file per dependency instead of smeared
+through the checked region. Until bp-106 that rule had **zero enforcement** — nothing
+in this module, `ops/import_lint.py`, `scripts/check_imports.py`, the hooks, CI or
+`[tool.ruff]` mentioned `typedshims` at all, so it was a docstring sentence. bp-105
+then imported raw `psutil` in `ops/lifecycle/launcher.py` and it was authored,
+reviewed, gated and merged with nothing objecting (**finding-0198**). `raw_shim_imports`
+is the ratchet that makes the rule decidable from the AST, which is the same
+"promote a convention to a static property" move the other two scans make.
+
+Three scans, each importable and CLI-runnable:
 
   * `membership()` — walks every top-level package's `.py` files; a package that
     imports `core` anywhere but is absent from `[tool.mypy].files` is a violation.
   * `bare_ignores()` — regexes every checked-region `.py` file for a `# type: ignore`
     with no bracketed error code, which is a T3 discipline violation (§2.3: "every
     ignore carries an error code and a warrant comment").
+  * `raw_shim_imports()` — walks the whole repo; a raw import of a shimmed dependency
+    from anywhere but its own shim, without an inline `# typedshim-exempt: <reason>`,
+    is a violation (§2.5 boundary wrappers; bp-106 Item 4, warrant finding-0198).
 
-Both scans are read-only (no writes, no network, no subprocess) — they only read
+All three scans are read-only (no writes, no network, no subprocess) — they only read
 source text and (for membership) `pyproject.toml`.
 
 Run: `python -m ops.type_gate` (also `uv run python -m ops.type_gate`). Wired into
@@ -69,6 +83,20 @@ class BareIgnoreViolation:
 
     def __str__(self) -> str:
         return f"{self.path}:{self.lineno}: bare `# type: ignore` (no error code) — {self.text}"
+
+
+@dataclass(frozen=True)
+class RawShimImportViolation:
+    path: str        # repo-relative file path
+    lineno: int
+    dependency: str  # the shimmed package imported raw (e.g. "psutil")
+    shim: str        # the ONE module permitted to import it
+
+    def __str__(self) -> str:
+        return (
+            f"{self.path}:{self.lineno}: raw `{self.dependency}` import outside {self.shim} "
+            f"— route through the shim, or warrant it inline with `# {_WAIVER} <reason>`"
+        )
 
 
 def _top_level_packages(repo_root: Path) -> list[str]:
@@ -199,10 +227,125 @@ def bare_ignores(repo_root: Path | None = None) -> list[BareIgnoreViolation]:
     return violations
 
 
+# ═══ scan 3 — the §2.5 boundary-wrapper rule (bp-106 Item 4, warrant finding-0198) ═══════════
+#
+# Dependency -> the ONE module permitted to import it raw (§2.5 boundary wrappers).
+# `duckdb` is deliberately ABSENT although §2.5 lists it as a candidate: it resolves TYPED, so it
+# needs no shim (bp-106 §3 Q2 — it is in neither the shim list nor the `ignore_missing_imports`
+# override at `pyproject.toml:155-157`, and the Tier-2 floor is 0 errors, which is impossible if an
+# unshimmed untyped `duckdb` were imported by `core/stores/telemetry.py`). §2.5's list is the
+# CANDIDATE list; V2 evidently cleared duckdb. Adding a shim for it would be cargo-culting the
+# candidate list over its own finding.
+_SHIMMED: dict[str, str] = {
+    "psutil":    "core/typedshims/psutil.py",
+    "lancedb":   "core/typedshims/lancedb.py",
+    "sknetwork": "core/typedshims/sknetwork.py",
+}
+
+# The waiver deliberately mirrors the bare-ignore scan's shape: that rule is "every `# type:
+# ignore` carries an error code", this one is "every raw shimmed import outside its shim carries a
+# REASON". Inline at the import site, never a central path list — a path list outlives the reason
+# and nobody rereads it, and it moves the justification away from the code (bp-106 §11).
+_WAIVER = "typedshim-exempt:"
+
+# `\S` after the colon: the token alone is not a waiver. A bare `# typedshim-exempt` carrying no
+# reason is a violation, on the same principle the sibling scan applies to an unqualified ignore
+# directive — the whole point is that an exemption has to SAY something.
+#
+# (Written without quoting that directive verbatim: this is a real COMMENT token, so quoting it
+# here would make this module fail its own `bare_ignores` scan. Caught live while building this
+# scan — the docstring hazard `_bare_ignore_comments` documents, one token type over.)
+_WAIVER_RE = re.compile(re.escape(_WAIVER) + r"\s*\S")
+
+
+def _repo_py_files(repo_root: Path) -> list[Path]:
+    """Every `.py` file in the repo, skipping `_EXCLUDED_DIRS` at ANY depth.
+
+    Whole-repo and not checked-region-scoped: `tests/` is in scope on purpose. The one legitimate
+    test violation is waived explicitly (`test_code_corpus.py`, bp-106 §3 Q4), which is more honest
+    than a blanket `tests/` exemption that would silently hide future real ones — and a blanket
+    exemption is precisely how this rule decayed into a docstring in the first place (§11)."""
+    return [
+        p for p in sorted(repo_root.rglob("*.py"))
+        if not (_EXCLUDED_DIRS & set(p.relative_to(repo_root).parts))
+    ]
+
+
+def _waived_lines(path: Path) -> set[int]:
+    """Line numbers carrying a warranted `# typedshim-exempt: <reason>` COMMENT.
+
+    `tokenize`, not raw text, for the same reason `_bare_ignore_comments` uses it: a `#` inside a
+    string literal is not a comment, and a module documenting the protocol (this one) would
+    otherwise self-match."""
+    out: set[int] = set()
+    try:
+        with path.open("rb") as f:
+            for tok in tokenize.tokenize(f.readline):
+                if tok.type == tokenize.COMMENT and _WAIVER_RE.search(tok.string):
+                    out.add(tok.start[0])
+    except (tokenize.TokenError, SyntaxError, UnicodeDecodeError, IndentationError):
+        return set()
+    return out
+
+
+def raw_shim_imports(repo_root: Path | None = None) -> list[RawShimImportViolation]:
+    """§2.5 boundary-wrapper invariant: a shimmed dependency is imported raw ONLY by its own shim.
+
+    Reuses `_imported_roots`, which walks the whole AST — so a FUNCTION-LOCAL `import psutil` is
+    caught. That is not incidental: bp-105's violation *was* function-local (inside
+    `_process_identity`), so a walker that inspected only module level would reproduce the exact
+    hole this scan exists to close (bp-106 §7 Item 4 invariant).
+
+    A violation is waived by an inline `# {_WAIVER} <reason>` on the import line, and only with a
+    reason. Read-only, like its two siblings."""
+    repo_root = repo_root or Path(__file__).resolve().parent.parent
+    violations: list[RawShimImportViolation] = []
+    for path in _repo_py_files(repo_root):
+        rel = path.relative_to(repo_root).as_posix()
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        roots = [(ln, r) for ln, r in _imported_roots(tree) if r in _SHIMMED]
+        if not roots:
+            continue
+        waived = _waived_lines(path)
+        for lineno, dependency in roots:
+            if rel == _SHIMMED[dependency] or lineno in waived:
+                continue
+            violations.append(RawShimImportViolation(
+                path=rel, lineno=lineno, dependency=dependency, shim=_SHIMMED[dependency]))
+    return violations
+
+
+# ⚑ PARKED, and the only thing standing between detection and enforcement. bp-106 §10 says: *"the
+# scan finds violations beyond the two in §3 Q3 ⇒ STOP, enumerate them, and file before waiving
+# anything. A ratchet whose first act is to grant itself waivers is not a ratchet."* It found a
+# third: `tests/unit/test_restart_trustworthy.py:21`, added the same day by `e49a715` (bp-121) —
+# AFTER bp-106 was authored, so §3 Q3's census could not have known. It is legitimate (it patches
+# `psutil.Process` and names `psutil.NoSuchProcess` to pin process shapes the host cannot have;
+# the shim cannot hand those over without becoming the laundering proxy its own test forbids) and
+# it needs exactly one waiver comment — but that file is deliberately OUTSIDE bp-106's
+# `write_scope` (§5) and Item 2's acceptance requires it byte-untouched, so this plan may neither
+# waive it nor edit it. Self-waiving via a hardcoded exception is what §10 forbids; reddening the
+# authoritative gate is worse. So the scan REPORTS and does not yet vote on the exit code.
+#
+# Detection is NOT parked, and enforcement is not on the honour system: the scan is fully
+# unit-tested on planted fixtures (`tests/unit/test_type_gate.py`), including a reproduction of
+# bp-105's exact import line, and a live-tree test there asserts the repo contains that ONE known
+# violation and nothing else — so a new bp-105-shaped import goes red in CI's `ratchet` job today.
+#
+# RE-ENTRY (one line): once `tests/unit/test_restart_trustworthy.py:21` carries
+# `# typedshim-exempt: <reason>`, flip this to True and delete the live-tree test's parked branch.
+# Owed to `/triage` — see `docs/findings/finding-0223.md`.
+_RAW_SHIM_SCAN_IS_FATAL = False
+
+
 def main() -> int:
     repo_root = Path(__file__).resolve().parent.parent
     membership_violations = membership(repo_root)
     ignore_violations = bare_ignores(repo_root)
+    raw_import_violations = raw_shim_imports(repo_root)
 
     ok = True
     if membership_violations:
@@ -223,6 +366,22 @@ def main() -> int:
     else:
         print("Bare-ignore scan: OK — every `# type: ignore` in the checked region "
               "carries an error code")
+
+    if raw_import_violations:
+        if _RAW_SHIM_SCAN_IS_FATAL:
+            ok = False
+        print("Raw shimmed-dependency imports (type-gate) "
+              f"{'VIOLATIONS' if _RAW_SHIM_SCAN_IS_FATAL else 'REPORTED (parked, non-fatal)'} "
+              "— §2.5 says one shim per dependency owns the raw import:")
+        for rv in raw_import_violations:
+            print(f"  {rv}")
+        if not _RAW_SHIM_SCAN_IS_FATAL:
+            print("  ^ non-fatal pending finding-0223 (bp-106 §10): the remaining violation needs a"
+                  " one-line waiver in a file outside bp-106's write_scope. Detection is enforced"
+                  " by tests/unit/test_type_gate.py, which reddens on any NEW violation.")
+    else:
+        print("Raw shimmed-dependency imports: OK — every shimmed package is imported raw only by "
+              "its own shim (or waived inline with a reason)")
 
     return 0 if ok else 1
 

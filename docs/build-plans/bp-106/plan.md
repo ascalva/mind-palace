@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-106
 track: ops
-status: ready
+status: in-progress
 design_ref: []
 contract: builder
 write_scope:
@@ -21,7 +21,7 @@ cost:
 depends_on: []
 parallelizable_with: []
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 links:
   - docs/findings/finding-0198.md
   - docs/findings/finding-0176.md

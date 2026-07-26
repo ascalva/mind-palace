@@ -148,50 +148,42 @@ def _process_identity(pid: int) -> tuple[float | None, str | None]:
     the string D2 asks *"is this a Python interpreter?"* of. It is deliberately not "the process's
     name" — see the `exe()`/`name()` warrant below.
 
-    warrant(finding-0198): this is a raw `psutil` touch outside `core/typedshims/psutil.py`, the
-    ONE module that is supposed to own it (type-system-as-core-audit §2.5). The shim is not in
-    bp-105's `write_scope`, so rather than route around the boundary the probe is quarantined here
-    behind a single narrow function and the move is recorded as a hand-off on finding-0198.
+    Both probes go through `core/typedshims/psutil.py`, the ONE module in the repo that touches raw
+    psutil (type-system-as-core-audit §2.5, enforced since bp-106 by `ops.type_gate`). bp-105 read
+    psutil directly here because the shim was not in its `write_scope`; bp-106 discharged that
+    hand-off (**finding-0198**) as a pure move — no behaviour changed, and the shim absorbs the
+    psutil exception types so nothing below has to name them.
 
     Never raises. Unreadable is reported as None, which `_supervisor_alive` treats as ambiguity —
-    and ambiguity REFUSES, per the owner ruling on finding-0186."""
-    try:
-        import psutil  # type: ignore[import-untyped]  # noqa: PLC0415  # warrant: see finding-0198
+    and ambiguity REFUSES, per the owner ruling on finding-0186.
 
-        proc = psutil.Process(pid)
-    except Exception:  # noqa: BLE001 — an unreadable process is ambiguity, never a crash
-        return (None, None)
-    created: float | None = None
-    interpreter: str | None = None
-    try:
-        created = float(proc.create_time())
-    except Exception:  # noqa: BLE001
-        created = None
-    try:
-        # `name()` and not `cmdline()`: on macOS `cmdline()` raises AccessDenied for a foreign
-        # owner (measured against pid 1) while `name()`/`exe()` read fine — and a foreign owner is
-        # exactly the deployed case, the daemon running as the `ouroboros` principal.
-        #
-        # ⚑ warrant(finding-0211): and `exe()` in preference to BOTH. `name()` reports the
-        # comm/argv0 basename, which depends on HOW the interpreter was invoked — under
-        # `uv run pytest` on Linux it resolves to the console script, containing no "python", so
-        # D2 disproved a live interpreter and CI was red for 55 consecutive pushes while the same
-        # tests passed on macOS (`name()` -> 'Python'). `exe()` reports the binary actually
-        # executed, which is the question D2 means to ask. The BASENAME and not the whole path:
-        # an interpreter living under `~/python-projects/` would otherwise make every binary on
-        # that path read as one, and D2 could never fire.
-        interpreter = Path(str(proc.exe())).name or None
-    except Exception:  # noqa: BLE001
-        interpreter = None
+    ⚑ **The ORDER is load-bearing in both directions — do not simplify either probe away**
+    (warrant finding-0211):
+
+    * `exe()` FIRST. `name()` reports the comm/argv0 basename, which depends on HOW the interpreter
+      was invoked — under `uv run pytest` on Linux it resolves to the console script, containing no
+      "python", so D2 disproved a *live* interpreter and CI was red for 55 consecutive pushes while
+      the same tests passed on macOS (`name()` -> 'Python'). `exe()` reports the binary actually
+      executed, which is the question D2 means to ask. Reversing the order re-breaks Linux CI.
+    * `name()` as the FALLBACK, and load-bearing rather than defensive padding: on Linux
+      `/proc/<pid>/exe` is unreadable for a foreign owner while `name()` reads fine, so without it
+      a stale pid recycled onto `systemd` would leave D2 unavailable, the verdict ambiguous, and
+      `start` refusing forever — finding-0186's brick trap, reopened.
+    * The fallback triggers on an UNREADABLE *or EMPTY* `exe()` — psutil returns `''` rather than
+      raising when a process's executable cannot be determined, and `process_exe_name` folds that
+      to None precisely so this branch is reached (see its docstring).
+
+    `cmdline()` stays rejected for the AccessDenied reason recorded on `process_exe_name`."""
+    from core.typedshims.psutil import (  # noqa: PLC0415 — lazy: keeps psutil off `start`'s import path
+        process_create_time,
+        process_exe_name,
+        process_name,
+    )
+
+    created = process_create_time(pid)
+    interpreter = process_exe_name(pid)
     if interpreter is None:
-        # `name()` is retained as the FALLBACK, and it is load-bearing rather than defensive: on
-        # Linux `/proc/<pid>/exe` is unreadable for a foreign owner while `name()` reads fine, so
-        # without it a stale pid recycled onto `systemd` would leave D2 unavailable, the verdict
-        # ambiguous, and `start` refusing forever — finding-0186's brick trap, reopened.
-        try:
-            interpreter = str(proc.name())
-        except Exception:  # noqa: BLE001
-            interpreter = None
+        interpreter = process_name(pid)
     return (created, interpreter)
 
 
