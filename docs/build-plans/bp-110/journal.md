@@ -9,6 +9,158 @@ updated: 2026-07-26
 
 ---
 
+## Checkpoint 2 — Items 2 and 5 CLOSED: a sealed worker exists, and a ratchet proves it holds no store
+
+**Status.** `scheduler/worker.py` exists, seals itself, streams batches, and dies typed. The
+tier-4 ratchet is in the CI gate and both of Item 5's named falsifiers were planted and watched
+go red. Item 5 was built early per §12 ("it is the item that makes the design's central claim
+true"). Next is Item 3, the dispatch seam.
+
+### Item 2 — `scheduler/worker.py`
+
+Built as §6 pins it, verbatim: `Batch`, `ComputeHandler`, `Lander`, `ReadOnlyRows`. Both ends of
+the wire live in this one module (§3 Q4 — they must share a module for the ratchet to mean
+anything): the worker entrypoint, and `run_batches()`, the supervisor-side driver.
+
+Three decisions worth a fresh agent's attention, none of them inferable from §6:
+
+1. **⚑ The compute registry is STATIC, and this is load-bearing, not a convenience.** The obvious
+   design — a dotted handler path in the job spec, `importlib.import_module(spec["handler"])` —
+   would make the tier-4 ratchet **theatre**: a static AST walk cannot see a dynamically imported
+   module, so the worker could be handed `core.stores.vectorstore` at runtime with every gate
+   green. Kinds resolve only from names `worker.py` statically imports. bp-113/bp-114 register
+   their lanes by adding them there.
+2. **⚑ The `ReadOnlyRows` facade is an RPC proxy, and that is what makes §10's non-leaking
+   requirement *structural* instead of argued.** `RowsProxy` sends each read back over the pipe;
+   the supervisor answers from the real store. In the worker process **no store object exists**,
+   so there is nothing for `getattr`, pickling, a closure, or `gc.get_referrers` to recover.
+   Worth stating plainly because it is the deeper reason §2.5 chose a process: **an in-process
+   facade over a live store can NEVER satisfy §6 in Python** — a closure cell is always reachable
+   via `__closure__`, and `gc.get_referrers` defeats any attribute-hiding scheme. Had this plan
+   tried to ship an in-process facade, §10's STOP would have fired. It did not fire because the
+   process boundary answers the question the wrapper could not.
+   The supervisor's read server (`_serve_read`) dispatches a **closed verb set** — never
+   `getattr(store, verb)`, which would turn it into an arbitrary method-call channel and hand back
+   exactly the capability being removed.
+3. **Subprocess lifetime reuses `core/sandbox/runner.py:65-80`'s DISCIPLINE, not its harness**
+   (§2's mandatory reuse). Discipline borrowed: a wall-clock deadline, destroy on expiry,
+   SIGTERM → grace → SIGKILL, a typed timed-out result. Harness NOT borrowed, and the reason is
+   forced: `subprocess.run(timeout=…)` cannot stream, and a batch protocol is a stream. `Popen`
+   with the same discipline is one implementation each, not two timeout harnesses. `_terminate`
+   carries the note's rule that escalation targets **only the worker** — killing the supervisor
+   mid-landing is how you create the partial write oq-0035 worried about.
+
+Also: the worker is spawned with a **pruned environment** (PATH/HOME/LANG/TMPDIR/PYTHONPATH/
+VIRTUAL_ENV only). Invariant 10 — a process with no business holding secrets is not handed the
+parent's environment.
+
+### Item 2's falsifier — V4, and it was PLANTED, not asserted
+
+`test_the_worker_process_is_sealed_and_blocks_a_non_loopback_connect` spawns a real worker whose
+payload attempts a connect to a routable non-loopback literal (`93.184.216.34:80`, an IP literal —
+never a name, since resolving one is itself egress) and asserts the guard refused it **from inside
+that process**. Two supporting tests: an AST test that `seal(); assert_sealed()` are literally the
+first two statements of `main` (a guard with a statement in front of it has a hole the runtime test
+cannot see), and a control test that a spawned child does **not** inherit the seal — so V4's
+premise is re-derived rather than assumed.
+
+**MUT-1 planted:** replaced `seal(); assert_sealed()` in `main` with `pass`.
+**Result — reddened, as required:**
+
+```
+FAILED tests/unit/test_worker_protocol.py::test_the_worker_process_is_sealed_and_blocks_a_non_loopback_connect
+FAILED tests/unit/test_worker_protocol.py::test_the_seal_is_the_first_thing_the_entrypoint_does
+2 failed, 6 passed in 32.62s
+```
+
+Restored; 8/8 green. The most serious failure available to this plan is now one that cannot land
+silently.
+
+### Item 5 — the tier-4 ratchet, in the existing walker
+
+`scripts/check_imports.py` gains `scan_worker_boundary()`. **No second walker was written** (§2's
+DRY mandate): the traversal reuses `ops.import_lint._imported_names` for module edges and its
+`Violation` record for reporting. One addition, `_imported_symbols`, is a second **projection over
+the same AST**, not a second walker — needed because `_imported_names` returns the MODULE for
+`from M import S` (all I2 ever needed) while this rule must let `from scheduler.queue import Job`
+pass and `from scheduler.queue import JobQueue` fail. Module granularity cannot draw that line.
+
+⚑ **The forbidden set is stated as PACKAGES + NAME SHAPES, not a list of class names** — a name
+list is precisely the thing that rots (the next store lands in `core/stores/` and a list silently
+stops covering it: §1.2's "N ad-hoc detectors, each with its own rot"). Packages:
+`core.stores`, `core.kernel.stores`, `ops.effect_ledger`, `ops.ledger`. Shapes: `*Store`,
+`*Catalog`, `*Ledger`, `open_*store`, plus exact `JobQueue`/`open_store`.
+
+⚑ **Reported as TIER 4 and the module comment says so explicitly.** The *property* ("the worker
+cannot write a store") is tier 2; this scan is its tier-4 backing. Not tier 1 (stores are files on
+a shared disk), not tier 2 (a scan is not a capability). Overclaiming is the note's own named
+foot-gun and the comment is written to be unquotable in the wrong direction.
+
+### Item 5's falsifiers — BOTH planted, on the real file, through the real gate
+
+**MUT-2, module-level** (Item 5's named falsifier, verbatim):
+```
+scheduler/worker.py:476: imports 'core.stores.vectorstore' (worker-store-module firewall)
+scheduler/worker.py:476: imports 'core.stores.vectorstore.open_vector_store' (worker-store-symbol firewall)
+EXIT=1
+```
+**MUT-3, FUNCTION-LOCAL** (the subtler one — bp-105's raw `import psutil` was function-local and
+passed every gate; finding-0198 records it as the exact hole):
+```
+scheduler/worker.py:241: imports 'core.stores.vectorstore' (worker-store-module firewall)
+scheduler/worker.py:241: imports 'core.stores.vectorstore.open_vector_store' (worker-store-symbol firewall)
+EXIT=1
+```
+Both restored; gate `EXIT=0`. The function-local case reddens because `ast.walk` descends into
+function bodies — the same idiom `_imported_names` already used, which is why reuse was the right
+call rather than a coincidence.
+
+The falsifiers are also **encoded as tests**, not left as a one-time manual check — `scan_worker_
+boundary()` takes `repo_root`/`entry` so the plants run against a synthetic tree in CI. A ratchet
+nobody has watched go red is an assertion, not a ratchet (finding-0187: deleting bp-105's sweep
+call left 85/85 green). One harness bug was caught doing this: the transitive-reach test passed a
+mangled path and reported GREEN for the wrong reason; fixed, then confirmed red-for-the-right-
+reason.
+
+`tests/unit/test_worker_protocol.py`: **14 passed**. Existing I2 rules unchanged and still passing
+(asserted by `test_the_existing_I2_firewall_rules_are_unchanged_and_still_pass`).
+
+### finding-0227 filed (`discovery` → orchestrator)
+
+Surveying what happens when a lane *does* register: **every** lane module in §2.3's table imports
+a store CLASS at module level (`sync.py:34-37` four of them, `dreamer.py:35-37` three,
+`curator.py:39-41` three, `librarian.py:33,36` two, and so on). They are annotations, not
+constructions — every one already takes its stores by injection — but the ratchet cannot tell an
+annotation from a constructor, and must not try.
+
+**This does NOT trip §10's STOP**, and the distinction is the finding's content: §10 fires when a
+store import is *unavoidable*, and these are avoidable — `ReadOnlyRows` is the seam that avoids
+them. §2.3's capability claim survives intact. What it changes is **plan sizing**: bp-113/bp-114
+each carry a protocol-parameterization pass over their lane module *before* they can register, and
+some lanes reach read surfaces `ReadOnlyRows` does not cover (`VaultCatalog`, `VersionStore`,
+`EdgeStore`) — which is a §6 pin their graduation must write, not something a builder should
+discover against a red ratchet.
+
+It is also **why Item 3's proof lane is a worker-side bring-up handler rather than the production
+`ambassador_task` compute half**: `librarian.py:33,36` would red the ratchet, and both
+`core/librarian/` and `scheduler/interface.py` are outside write_scope (§5, "owns the seam and NO
+lane"). Migrating them would have been the finding-0191 failure repeated inside the plan written
+to prevent it.
+
+## Next action
+
+Build **Item 3** — the dispatch seam in `scheduler/supervisor.py` behind `worker_mode`, plus the
+`[scheduler]` config section in `core/kernel/config/loader.py` + `config/defaults.toml`.
+
+⚑ **Before editing `tests/integration/test_supervisor.py`, the flag-off invariant is the one that
+matters**: every existing supervisor test must pass UNEDITED, and the six other `Supervisor(`
+sites (listed in Checkpoint 1's manifest delta) must stay green. If one reds, that is a §10 STOP
+— the change was not additive — not a scope widening.
+
+⚑ **The `[scheduler]` schema carries a live tension to resolve deliberately** (see Open questions).
+
+---
+
 ## Checkpoint 1 — Item 1 CLOSED: V1, V2, V5 measured. No §10 STOP trips.
 
 **Status.** Item 1 complete; the three numbers the note says block this design are taken, not
