@@ -1710,3 +1710,35 @@ asserted.
   heuristic it exists to test. bp-105 and bp-108 were both sealed `unmeasured` deliberately for this
   reason.
 - answer:
+
+## oq-0049 — Does NN-7 (consequential advice defers) forbid an acting effector in a financial domain? — ANSWERED AT ASK TIME
+
+- status: answered   # 2026-07-26 — ruled in the same exchange it was raised; sweep axis below
+- origin: docs/brainstorms/prediction-market-sensor-fusion.md
+- blocking: false
+- question: Raised by the agent while capturing the prediction-market idea. Non-negotiable #7 reads
+  *"Consequential advice (health/financial/legal) defers, not withheld — substantive, honest about
+  uncertainty, refuses dangerous specifics; the final decision is the owner's and a professional's."*
+  A system that **trades** is not deferring; it is deciding. So does NN-7 rule out a financial
+  effector outright, or does it govern only *advice given to a human*?
+  - **(a) NN-7 governs advice to a human only** — the clause is about not substituting for a doctor or
+    a lawyer where the owner's own life is at stake. A bounded, owner-authorized action in a market is
+    a different object and is governed by the effector layer's gates (NN-3/NN-4), not by NN-7.
+  - **(b) NN-7 forbids any acting effector in health/financial/legal domains** — "defers" is a property
+    of the whole system, not of one output channel.
+- default_if_unanswered: (b), the conservative read — no financial effector is designed or built.
+- answer: **(a).** Owner, 2026-07-26, verbatim: *"no, NN-7 does not forbid, the intention of that was
+  to not advise me on medical or legal advice, where my own life is the concern"*.
+  ⇒ **NN-7's scope is the owner's own wellbeing**, not any topic that happens to be financial. It is a
+  clause about not substituting for a professional in decisions about *his life*; it is not a blanket
+  prohibition on the system acting in a domain that has money in it. The gates that *do* govern an
+  acting effector are **NN-3** (the model advises; code acts), **NN-4** (executed code is powerless —
+  no creds, no network, no vault absent an explicit scoped grant), and Track G's authorization tiers.
+  ⚑ **This does not authorize anything.** It removes a *false* blocker and hands the question back to
+  the effector layer, where it belongs. Max reachable effector tier is still **NONE** with nothing
+  wired at any tier (finding-0011).
+- ⚑ sweep axis (still owed): NN-7's text in `docs/BUILD-SPEC.md §3` and the digest in `CLAUDE.md §Domain
+  non-negotiables` both read as topic-scoped ("health/financial/legal") rather than
+  wellbeing-scoped. This ruling narrows the *interpretation* without amending the *text*, which is the
+  same latent-divergence shape as finding-0109 (a ratified note forbidding what is built and wired).
+  A wording amendment belongs in a design pass, not in a sweep — record it, do not edit the spec here.

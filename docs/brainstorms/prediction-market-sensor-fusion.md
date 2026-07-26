@@ -110,3 +110,95 @@ references:
   - docs/BUILD-SPEC.md                              # NN-3 · NN-4 · NN-7 · NN-11
   - docs/inbox/owner-questions.md                   # oq-0031 (instruments can't discriminate at 13 docs)
 ```
+
+## 2026-07-26T15:35:00Z
+
+```capsule
+topic: prediction-market-sensor-fusion
+date: 2026-07-26
+
+decisions:
+  - ⚑ THE OWNER RE-AIMED THIS AT A MUCH BETTER QUESTION. Verbatim: "the reason I bring up $100 is that
+    it's a toy problem with real stakes, how can the system gain the confidence to act?"
+    ⇒ So this was never a trading proposal. **$100 is a CALIBRATION LADDER for the effector layer**, and
+    the domain is chosen because it has a scoreboard. The previous capsule's framing (Polymarket as a
+    scoreboard for the instruments) was directionally right but too small: the thing being graded is not
+    the dreamer's retrieval quality, it is the system's ENTITLEMENT TO ACT.
+  - NN-7 RULED — see oq-0049. Verbatim: "no, NN-7 does not forbid, the intention of that was to not
+    advise me on medical or legal advice, where my own life is the concern." NN-7 is **wellbeing-scoped,
+    not topic-scoped**. It removes a false blocker; it authorizes nothing. The gates that actually govern
+    an acting effector are NN-3, NN-4 and Track G's tiers, and the max reachable tier is still NONE
+    (finding-0011).
+  - ⚑ THE ANSWER TO "HOW DOES IT GAIN CONFIDENCE TO ACT" — four properties, and the interesting part is
+    that three are already built:
+      (1) FALSIFIABLE — a proper scoring rule (Brier), not a posture. The project's own doctrine is
+          "ratify falsifiers, not proofs"; an entitlement to act should obey the same rule.
+      (2) EXTERNALLY RESOLVED — it cannot grade its own homework. This is the property no internal
+          eval can ever have, and it is the whole reason to reach outside at all.
+      (3) DOMAIN-MATCHED — ⚑ calibration DOES NOT TRANSFER. Being well-calibrated on "will X resolve by
+          Y" says nothing about whether it should send an email or edit code. A single global "trust
+          score" would be exactly the unfalsifiable posture this project rejects. The ladder must be
+          PER-DOMAIN, per-class.
+      (4) BOUNDED AND REVOCABLE — the bound enforced by the world, not by trusting the agent; and
+          revocable, because a market is non-stationary and adversarial, so a track record DECAYS.
+    ⇒ Track G already has (1)'s gate machinery (the 72-state gate), (4)'s executor (irreversible JIT
+    credential) and (4)'s revocation signal (the blast-radius drift axis, `eval/effector_drift.py`).
+    **What is missing is the LEDGER: predictions recorded before resolution and scored against an
+    outside answer.** That is the one new object, and it is what turns a flag-flip into an earned grant.
+  - ⚑ THE PALACE ALREADY MAKES PREDICTIONS IT NEVER SCORES, and this is the finding that makes the idea
+    valuable with ZERO market involvement. The dreamer proposes themes. The self-mod loop proposes lever
+    changes and a validator passes or fails them. Findings assert mechanisms. **None of these is scored
+    against external reality with a proper scoring rule** — they are adjudicated internally or by the
+    owner's judgement. A calibration ledger would grade the system's EXISTING outputs. Polymarket is
+    then merely the first external scoreboard plugged into a ledger that should exist anyway.
+  - ⚑ SCORE AGAINST THE MARKET PRICE, NOT THE OUTCOME — and this is a Goodhart guard that falls out for
+    free. If a score gates power, the system has an incentive to pick easy questions. Scoring against
+    market price removes it: an easy market has a confident price, so beating it is not easier. The
+    difficulty adjustment is automatic and needs no policing of market selection.
+  - ⚑ THE REAL BLAST RADIUS IS NOT $100 — IT IS WHAT THE CREDENTIAL CAN REACH. A hot wallet holding
+    exactly $100 is genuinely bounded: the world enforces the cap. An exchange API key is NOT bounded by
+    the balance if it can withdraw, or trade on margin, or touch a funding source. So "bounded" has to
+    be a CUSTODY property, structurally verified — segregated wallet, no margin, no withdrawal scope —
+    and that is the actual hard part of the $100, not the trading logic. NN-4's "no creds" is what makes
+    this a design question rather than a configuration one.
+
+parked:
+  - decision: does a calibration ledger require market access at all for v1
+    default: NO. Build it against the system's OWN existing predictions first (dreamer themes, self-mod
+      proposals, finding claims). It is useful immediately, needs no `edge/`, no third party, no money,
+      and it is the object every later stage depends on.
+    re_entry: the ledger exists and has scored something; only then does an external scoreboard add
+      information rather than complexity.
+  - decision: whether an earned grant is per-domain or global
+    default: PER-DOMAIN, per-effect-class. A global trust score is rejected on the grounds above.
+    re_entry: never, unless someone produces evidence that calibration transfers across action classes
+
+open_questions:
+  - Does the 72-state gate's authorization input have anywhere to *put* a score? If authorization is
+    purely flag-derived today, then "earned grant" is a new input to a ratified mechanism, which is a
+    design-note change, not a build.
+  - What is the minimum track record? A Brier score needs N resolved predictions to mean anything, and
+    N is a statistical question with a real answer — not a taste call. It should be computed, and stated
+    in the design, before any grant is defined in terms of it.
+  - How does the ledger avoid becoming the 5th artifact nothing reads (`process-weight.md`'s test:
+    NAME THE READER)? The reader here is the authorization gate — which is a good answer, but only once
+    the gate actually consumes it.
+
+next_steps:
+  - Nothing touches money, a key, a wallet, or `edge/`.
+  - FIRST: the cheap kill test from the prior capsule still stands and still comes first — list 10
+    resolved markets, ask by hand whether the corpus speaks to any. Independent of everything below.
+  - THEN, and this is the reordered priority: a CALIBRATION LEDGER over the system's own existing
+    predictions. It is the missing object, it needs no market, and it is what any later entitlement
+    would have to be defined against.
+  - STILL OWED regardless: file the "irreversible but bounded blast radius" effect-class gap against
+    Track G, citing this note, `ouroboros-email-identity.md`, and now the custody point above — which
+    sharpens it from "bounded" to "bounded by construction, verifiable from outside the agent".
+
+references:
+  - docs/inbox/owner-questions.md                   # oq-0049 — the NN-7 ruling
+  - docs/findings/finding-0011.md                   # effector tier NONE; nothing wired at any tier
+  - eval/effector_drift.py                          # the revocation signal, already built
+  - ops/effect_catalog.py                           # the catalog that cannot express the class
+  - docs/brainstorms/process-weight.md              # "name the reader" — the test this ledger must pass
+```
