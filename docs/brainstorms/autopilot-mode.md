@@ -398,3 +398,105 @@ five-field predicate the owner reads and signs.
 It also bounds autopilot's ambition honestly: the owner named spell-check and an editor keybinding.
 **Those are the size of thing this is for.** An autopilot that starts absorbing design-scale work
 has failed its own entrance test, and the entrance test is the thing that notices.
+
+## 2026-07-26T02:31:42Z
+
+```capsule
+topic: autopilot-mode
+date: 2026-07-26
+
+decisions:
+  - THE PRIMITIVE CHANGES: HMAC -> asymmetric signature. The ratified note's §2.3 uses a
+    shared symmetric secret (HMAC code + attestation tag). That cannot give the property
+    the design needs, because a shared secret proves "someone who knows K", never
+    "Alberto" -- and if both the owner and the agent hold K, K identifies exactly the set
+    the verifier must tell apart.
+  - HOTP DOES NOT RESCUE IT (owner proposal, answered). One-time-ness stops REPLAY, not
+    FORGERY. An agent holding K never replays: it computes HOTP(K, counter+1), a fresh,
+    never-used, perfectly valid code. Burning consumed counters is irrelevant. The same
+    defect carries into the owner's "stamp in a file" idea: a code in a file proves only
+    that SOMETHING WITH K wrote it -- which is finding-0206 restated.
+  - THE FIX: the phone holds a PRIVATE key; the repo holds only the PUBLIC key, committed
+    in the clear and freely readable by any agent. The owner signs the capsule hash; the
+    verifier checks with the public key. Signing and verifying are different capabilities,
+    so the agent verifies and cannot forge -- and there is NO shared secret on the machine
+    at all, which dissolves the question rather than mitigating it.
+  - ONE MECHANISM CLOSES BOTH OPEN RULINGS: oq-0037 dissolves (no secret to reach);
+    oq-0036 gets its answer (the owner's committed flip carries a signature, a forged one
+    cannot). Two owner questions collapse into one design decision.
+  - PUSH-TO-APPROVE *IS* THE SIGNATURE (owner instinct, converged). Duo/Okta-style push
+    works precisely because the phone signs a server challenge with a device key; the tap
+    + biometric is the human gate in front of it. So "authenticator app pings my phone"
+    and "asymmetric signature" are the same mechanism, one wearing better UX.
+  - REJECTED -- off-the-shelf third-party authenticator push: drags in a third party, a
+    network dependency, and an account (against NN-11's private default), and it signs
+    THEIR challenge rather than our capsule hash -- proving "Alberto approved something at
+    9:42pm" instead of "Alberto approved THIS TEXT". The hash binding is the whole point
+    of §2.3 and would quietly go missing.
+  - PROPOSED SHAPE -- a passkey (WebAuthn) against a tiny LOCAL page over Tailscale:
+    private key in the Secure Enclave (not extractable by hardware, not by policy -- a far
+    stronger claim than "the Keychain ACL should stop the agent"); Face ID / passcode is
+    the owner's "behind a password"; THE CHALLENGE IS THE CAPSULE HASH, so the signature
+    binds to that text and no other; no third party, no egress, own machine over own
+    tailnet.
+  - BONUS -- this closes the invariant-2 delivery gap for free. bp-120 §11 row 1 parked
+    "how does the capsule reach the phone such that the hash is derivable from the text
+    the owner SAW?" If the local page renders the capsule and derives the WebAuthn
+    challenge from those same bytes client-side, then the text read and the thing signed
+    are ONE OBJECT BY CONSTRUCTION. Un-parks that decision instead of deferring it.
+  - SHORTCUTS KEEP A ROLE, correctly scoped: trigger and transport (open the approval
+    page, relay the signature), NOT the crypto. This also dissolves the note's parked
+    "Shortcut vs tiny app" question -- the answer is "Shortcut for ergonomics, browser for
+    the key".
+  - ⚑ THIS FLIPS THE DRY FINDING recorded in bp-120 §2 and its journal. That entry says
+    core/attestation/crypto.py:1-9 (Ed25519 sign/verify over base64 seeds, already tested,
+    already in the tree) is NOT reusable because §2.3 specified HMAC. Under signatures it
+    becomes EXACTLY the right primitive. The note picked the weaker primitive and the
+    grounding pass took that as given rather than questioning it. bp-120's DRY entry is
+    now stale and needs a correction banner (bp-120 is otherwise unaffected -- it only
+    hashes a text).
+
+parked:
+  - decision: WebAuthn needs a secure context (HTTPS), so the local page needs a cert on
+    the tailnet.
+    default: `tailscale cert` + MagicDNS, with the relying-party ID matching the hostname
+    actually browsed to.
+    re_entry: VERIFY before the owner commits -- stated to him as believed-but-unconfirmed,
+    NOT asserted. (Session-51 already produced one unverified-from-memory claim; this one
+    is flagged deliberately.)
+  - decision: what serves the approval page while the owner is away from the keyboard.
+    default: unresolved -- something must be running; candidate is the existing supervisor
+    or a small launchd service.
+    re_entry: the superseding note's wiring section.
+  - decision: whether Ed25519 (core's existing primitive) or WebAuthn's own key types
+    (ES256/RS256) is what actually gets verified.
+    default: WebAuthn's ES256, since the Secure Enclave dictates the curve -- which means
+    core/attestation's Ed25519 may be the right IDEA but not literally the right code.
+    re_entry: the superseding note; re-run the DRY audit honestly against ES256 rather
+    than assuming the flip lands on core's existing helper.
+
+open_questions:
+  - Does the owner want the approval page to show the FULL capsule (≤40 lines by bp-120's
+    cap) or a digest of it? Invariant 2 argues for the full text, since the point is that
+    he read it.
+  - Enrollment ceremony: how the public key gets into the repo, and what prevents an agent
+    from enrolling ITS OWN public key as a second credential -- the forgery hole moves from
+    "mint a code" to "register a key" and must be closed at that step, not assumed away.
+  - Revocation: what happens if the phone is lost. A committed public key with no
+    revocation path is a permanent authority.
+
+next_steps:
+  - Write the SUPERSEDING note (dn-autopilot-and-delegated-blessing is ratified and
+    agent-immutable under A8 -- this is a §2.3 + invariant-1 sized change and CANNOT be an
+    edit). It closes oq-0036 and oq-0037 together.
+  - Verify the Tailscale-HTTPS/WebAuthn path before it hardens into an assumption.
+  - Then resume graduation at bp-121 (the verifier core), whose shape changes: it verifies
+    a signature rather than recomputing an HMAC, and holds no secret at all.
+
+references:
+  - docs/design-notes/dn-autopilot-and-delegated-blessing.md   # §2.3, §2.9 invariants 1-3
+  - docs/findings/finding-0206.md                              # committed-flip indistinguishability
+  - docs/findings/finding-0207.md                              # "model never sees the secret" unmechanised
+  - docs/build-plans/bp-120/plan.md                            # §2 DRY entry (now stale), §11 row 1 (now un-parked)
+  - core/attestation/crypto.py                                 # Ed25519 sign/verify already in the tree
+```
