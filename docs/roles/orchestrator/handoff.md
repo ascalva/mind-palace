@@ -32,7 +32,7 @@ Status tally: complete 110 · in-progress 2 · ready 10 · superseded 6
 ## Awaiting the owner
 
 - bless (proposed→ready): none
-- ratify (draft notes): 43 — alignment-subsystem, attestation-layer, authorship-distance-axis, core-integrity, dialogue-ingest-and-recursion, dn-headless-daemon-secret-bootstrap …
+- ratify (draft notes): 42 — alignment-subsystem, attestation-layer, authorship-distance-axis, core-integrity, dialogue-ingest-and-recursion, dn-headless-daemon-secret-bootstrap …
 - answer (open owner questions): 33 — oq-0003, oq-0004, oq-0005, oq-0006, oq-0007, oq-0008, oq-0009, oq-0010 …
 
 ## Deskchecks owed
@@ -62,6 +62,7 @@ Status tally: complete 110 · in-progress 2 · ready 10 · superseded 6
 | 2026-07-27T06:35Z | `python3 scripts/handoff.py --role orchestrator --check, six induced failure modes` | ImportError / RuntimeError / SyntaxError each exit **1** — identical to a genui… |
 | 2026-07-27T07:02Z | `python3 scripts/handoff.py --role orchestrator --check, with `dest` forced outside ROOT at the staleness print` | rc 1; stderr echoes the SOURCE line `print(f"{dest… |
 | 2026-07-27T14:53Z | `sqlite3 "file:data/chatlog.sqlite?mode=ro" — speaker census over chat_utterances` | Rows beginning literally `Stop hook feedback:` and attributed to `speaker='owner… |
+| 2026-07-27T15:36Z | `sqlite3 "file:data/queue.sqlite?mode=ro" — job state census` | ⚑ QUEUE WEDGED. queued 1766 · running 1 · done 300242 · failed 1. The single running job is 300246 (c… |
 | 2026-07-27T06:08Z | `uv run mypy` | 69 errors in 20 files of 559 checked — EXACTLY the pinned tests/ baseline, rc 1 as expected; zero in the changed files |
 | 2026-07-27T06:06Z | `uv run mypy core agents eval ops scheduler scripts` | Success: no issues in 261 source files — the floor holds at 0 |
 | 2026-07-27T06:40Z | `uv run pytest -q` | 2 failed / 2313 passed / 15 skipped in 238.63s — the SAME two pre-existing failures (finding-0103 ratchet, finding-0226 dream-v2 live). schedule… |
