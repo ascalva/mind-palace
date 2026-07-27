@@ -64,3 +64,30 @@ Minted 2026-07-26 by `/graduate`, decomposing ratified `dn-role-state-and-scoped
 - Collateral brief references in `docs/PROGRESS.md`, `docs/PARKING-LOT.md` and
   `docs/book/chapters/02-architecture.tex` are **out of role** for a builder — file them for the
   orchestrator sweep and the next `/scribe`.
+
+---
+
+## ⚑⚑ RE-ENTRY CONDITION ADDED BY THE ORCHESTRATOR AT MERGE — 2026-07-26
+
+**THIS PLAN'S INPUT CHANGED WHILE IT WAS BEING PLANNED. Re-ground §3 before building.**
+
+bp-125 migrates the live resume brief's non-derivable content into the seat. It was graduated
+against a **568-line** `.claude/state/resume-brief.md`. While this graduation was in flight, the
+orchestrator **cleared and rewrote that brief to 83 lines** on the owner's instruction
+(*"clear the handoff right now"*), restructuring it into the four panes this note's own design
+prescribes — DERIVED / MEASURED / NARRATIVE / RULES-elsewhere.
+
+**Consequence for the builder:** §3's grounding describes a document that no longer exists. Any
+line count, section name, or content census in this plan must be **re-taken against the live file**
+before Item 1. Do not trust a quoted figure.
+
+**The work is smaller, not different.** The narrative/readings/rules separation this plan performs
+by hand has largely been done once already, manually — so the migration is now closer to
+"formalize an existing structure" than "impose one on prose." That is a scope *reduction*, and the
+`cost.estimate` is now likely high. Record the actual at seal; do not tune the estimate now
+(the estimate/actual gap is the forecasting dataset).
+
+⚑ **This is finding-0191's exact shape** — *a plan's §3 census silently perished between authoring
+and build* — arriving again, **caused by the orchestrator**, in the same session it was cited as a
+known hazard. It is recorded here rather than only in the merge commit because the builder reads
+the journal, not the merge log.
