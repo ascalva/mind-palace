@@ -105,13 +105,22 @@ scarce top tier without waste.
 
 ## Pre-flight budget gate (owner rule, 2026-07-13)
 
-Before spawning **any** delegated worker, gate the spawn against the remaining budget. The
-fable/subscription token pool is scarce and has **no query API** — the owner reads it (`/usage`
-or `/cost`; the agent cannot run slash commands) and relays the number. The gate prevents the
-failure this repo has logged repeatedly: a worker that dies at the usage limit mid-run, burning
-the tokens it already spent for nothing.
+Before spawning **any** delegated worker, gate the spawn against the remaining budget. The gate
+prevents the failure this repo has logged repeatedly: a worker that dies at the usage limit
+mid-run, burning the tokens it already spent for nothing.
 
-- **Get `available`** from the owner (exact, or an estimate with headroom).
+- **Probe it yourself — the gate is SELF-SERVE** (verified 2026-07-19; corrected here by bp-125,
+  which found the stale claim below still in this file). `claude -p "/usage"` as a one-shot
+  renders the figures, so the agent does **not** need the owner in the loop to read a budget.
+  Owner-relay (`/usage` or `/cost` read off their screen) is the **fail-closed fallback** for when
+  the probe itself fails — not the primary path.
+  ⚑ The superseded claim, recorded so it is not re-derived: this file previously said the pool
+  "has **no query API** — the owner reads it … the agent cannot run slash commands." The second
+  half is true of an *interactive* slash command and false of the one-shot form, and the
+  difference had already been established in practice while this file still said otherwise.
+- **Re-probe before EVERY spawn, not once per session.** A figure read before the previous
+  worker ran is not a budget; a wave that spawns three builders probes three times.
+- **Get `available`** (exact, or an estimate with headroom).
 - **Pad the estimate by the measured overrun margin — estimates run OVER.** This wave's builders
   came in at ~1.5–1.6× their graduation estimate (bp-020 1.50×, bp-026 1.56×). Gate on
   `estimate × ~1.6`, not the raw estimate — or quote a pre-padded estimate and compare directly.
@@ -127,6 +136,11 @@ the tokens it already spent for nothing.
 - One builder per plan, each in its **own worktree** (`Agent` tool `isolation:
   "worktree"`); parallel builders require **disjoint `write_scope`** — that is what
   `parallelizable_with` in the plan front-matter asserts; verify it before spawning.
+- ⚑ **A blessing removes the WAIT, not the ORDERING.** Several plans reaching `ready` together is
+  permission for each to *start*, never permission to fan them out: `depends_on` still binds, and
+  plans sharing a `write_scope` glob are still mutually exclusive whatever their status says. A
+  blessed wave whose members all hold one glob is **strictly serial**, and its own
+  `parallelizable_with: []` says so. Read the two fields, not the green lights.
 - Builders commit on their worktree branch (CONVENTIONS §Commits headers; the code
   sensor ingests their work when it lands on main, not before).
 - **Merge to main broadcasts**: when anything merges to main, every ACTIVE builder
@@ -160,6 +174,22 @@ the tokens it already spent for nothing.
   argless run covers `[tool.mypy].files` *including* `tests/**` — the easily-missed
   tooth; any new tests file can shift the count. Put this command set **verbatim in
   every delegation prompt**. CI green after push (the witness attests it).
+
+- ⚑ **A bare `pytest -q` has TWO expected failures — report the count exactly, never round it.**
+  The finding-0103 core-self-containment ratchet and `tests/e2e/test_dream_v2_live.py`
+  (finding-0226) both fail by design on a full local run. **Both carry `pytest.mark.live` and are
+  therefore absent from CI and the deploy gate**, which run
+  `-m "not live and not podman and not needs_vault and not needs_restic"` — which is why the local
+  full run and the pipeline disagree, and why the disagreement is not a regression. A *third*,
+  `tests/e2e/test_scheduler_live.py`, is a known flake (finding-0219). **Anything beyond these is a
+  regression.** Two seals reported "1 failed" and were wrong; a miscounted gate is a false green,
+  so state the numbers as observed rather than as remembered.
+
+- ⚑ **Never pipe a gate leg to `tail` — `pytest -q | tail` returns TAIL's exit code**, so a red
+  suite reports success, and the pipe buffers everything until the run completes so you watch
+  nothing for the whole run. **Redirect to a file** (`> /tmp/…/pytest.txt 2>&1`) and read it after.
+  This cost two 18-minute runs. The same trap applies to any leg whose exit code you intend to
+  believe.
 - A builder that stalls or drifts is stopped and its worktree inspected — resume beats
   restart (journal), restart beats rescue (worktrees are cheap).
 - Findings remain the only channel from build back to design: a delegated builder files
@@ -167,6 +197,29 @@ the tokens it already spent for nothing.
 - **Record the economics**: the completion notification's measured usage (tokens, tool
   calls, duration, model) goes into the plan's seal entry — the per-plan cost ledger
   (context-economy skill).
+
+## A sub-orchestrator that owns a wave owns its merges (owner ruling, 2026-07-26)
+
+An orchestrator may delegate a whole *wave* — not just its builders — to a **sub-orchestrator**,
+which then owns the wave end to end. Owner ruling, verbatim: *"sub-orchestrator will handle the
+merge and stand up its own auditor to review before merging, **it manages the merge, not you**."*
+
+- **What transfers:** spawning the wave's builders, standing up **its own auditor** for the
+  pre-merge review, and performing the merges to main, in the wave's dependency order.
+- **What the root seat does instead:** nothing to that wave. The instinct of a fresh orchestrator
+  is to audit and merge whatever it finds `ready`-and-built; against a delegated wave that instinct
+  is **wrong**, and acting on it races the owner of the wave for the merge — the one operation this
+  repo already serializes on purpose ("never two simultaneous merges to main," above).
+- **If the sub-orchestrator dies mid-wave, do NOT silently take over.** Inspect the worktrees, say
+  plainly what state the wave is in, and **ask the owner** whether to re-spawn it or drive the rest
+  directly. A half-merged wave is the bad outcome; a takeover that guesses at which halves landed
+  makes it worse. Resume beats restart here as everywhere, but the *decision* is the owner's
+  because the failure is mid-flight and its blast radius is main.
+- **Write it down, in the artifact, not in the session.** This rule reached the point of being
+  obeyed from an agent's working memory alone, recorded in no artifact anywhere — which is exactly
+  the failure mode the rules-live-in-skills discipline exists to end (a rule loads at the moment of
+  use or it does not hold). It is recorded here by `bp-125`; whether the delegation *contract*
+  wants a formal amendment beyond this is an open owner-level question.
 
 ## What never loosens
 

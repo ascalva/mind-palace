@@ -1,9 +1,9 @@
 ---
 type: finding
 id: finding-0175
-status: routed
+status: promoted
 created: 2026-07-25
-updated: 2026-07-26
+updated: 2026-07-27
 links:
   - .claude/state/resume-brief.md                      # the artifact (gitignored — not in the tree)
   - scripts/docket.py                                  # the DERIVED-view precedent, with its falsifier
@@ -14,7 +14,7 @@ links:
 ftype: spec-defect
 origin_plan: orchestrator
 route: orchestrator
-resolution: routed — durable claims hold; TWO table cells are factually wrong and the bp-100/101/102 gate has OPENED
+resolution: promoted into docs/design-notes/role-state-and-scoped-handoff.md (ratified 2026-07-26), which carries this finding as its `warrant:`. Its append-only direction lands in §2.7 (the seat is versioned, the sitting is not) and §2.8 (compaction by supersession capsule, keep-and-link); the migration of the live artifact is bp-125. Prior state, kept for the record — "routed — durable claims hold; TWO table cells are factually wrong and the bp-100/101/102 gate has OPENED"
 ---
 
 # The resume brief is the last destructively-overwritten artifact in a system that has outlawed destructive overwrite
