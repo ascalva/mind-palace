@@ -2083,3 +2083,40 @@ asserted.
   that opens `docket.py`. **Park condition:** re-entry fires the next time any plan puts
   `scripts/docket.py` in `write_scope`; that plan inherits the dedup as a required item.
 - answer:
+
+---
+
+## oq-0060 — ⚑⚑ SEVERE: 39 rows in the live corpus attribute the Stop hook's words to YOU. Amending CS-3 is owner-only.
+
+- status: open
+- origin: `.claude/state/resume-brief.md` (unfiled, rescued to
+  `docs/archive/resume-brief-final-2026-07-27.md` before bp-126's cutover) ·
+  `docs/design-notes/trace-retrieval.md` (`draft`, gap G1) ·
+  `docs/design-notes/chat-sensor.md` (**ratified**, CS-3)
+- blocking: false
+- ⚑ **This is a live data defect in production data, not a workflow gripe**, and it is raised to you
+  because the fix **amends a ratified design note** (`dn-chat-sensor` CS-3) — an owner-only act that
+  no agent may perform.
+- question: `data/chatlog.sqlite` holds **39 hook-feedback rows attributed to `speaker='owner'`**.
+  The corpus therefore believes **you said things the Stop hook said**. That is **authority
+  laundering already present in stored data** — criterion 4 of the destructive-loop signature — and
+  it corrupts any query that trusts speaker attribution, including the succession path that
+  `dn-trace-retrieval` is being written to enable. A retrieval system that cannot distinguish the
+  owner's voice from a hook's is worse than none, because it is confidently wrong about authority.
+  `dn-trace-retrieval`'s census names the fix as gap **G1**: channel closure plus a
+  `speaker='system'` kind. Both halves touch CS-3's speaker taxonomy, which is ratified.
+  ⚑ The same census found a second defect of the same family: **queue-operation and system rows are
+  structurally invisible** to the sensor — an approximately **40% blind spot**, found independently
+  by two agents on the same night, which is weak evidence it is real rather than an artifact of one
+  agent's reasoning.
+  Options: **(a)** amend CS-3 by hand to add `speaker='system'` and the channel-closure rule, then a
+  plan back-corrects the 39 rows and closes the blind spot; **(b)** amend CS-3 but leave the stored
+  rows as they are, accepting a permanently mis-attributed tail and documenting it; **(c)** treat the
+  taxonomy as adequate and fix only the ingest path, leaving CS-3 untouched — cheapest, but the
+  laundering recurs the next time a hook writes.
+- default_if_unanswered: **(a) is not assumed** — nothing is amended and nothing is back-corrected
+  without you, because both halves need a ratified note changed. **Park condition:** re-entry fires
+  when `dn-trace-retrieval` is opened for ratification; CS-3's amendment is a precondition of that
+  note's own build, so this question is answered in that same sitting. Until then the defect stands
+  **recorded and unrepaired**, and any consumer of speaker attribution must be treated as untrusted.
+- answer:
