@@ -36,6 +36,56 @@ marked superseded — retained, readable, non-binding.
 
 ---
 
+## 2026-07-27 — delta: the input moved while it was being migrated
+
+> **Why this is a second entry and not an edit to the one below.** Append-only means keep and
+> link, so the entry below stands exactly as written and this one carries the correction. The
+> migration read a snapshot; the seat's occupant kept writing to the live file *while the
+> migration ran*, and this entry carries what arrived after the snapshot was taken. `finding-0241`
+> records the race and what `bp-126` must do about it.
+
+**Status line.** One owner ruling and one correction landed in the outgoing artifact after it had
+been snapshotted for migration; both are carried here, because the artifact holding them is
+scheduled for deletion and the capture backing them is untracked.
+
+**Completed.** The delta is migrated. Nothing else in the entry below changes.
+
+**In-flight.**
+
+⚑ **A ruling on commit economy — RULED, and deliberately NOT yet in force.** The owner ruled on
+the question the entry below records as unanswered (there called "a ruling wanted before more
+documents are minted"). Two parts, and the second gates the first:
+
+- **R1:** plans and notes commit at **status transitions only**; brainstorms batch.
+- **R2:** **decouple the code sensor first** — it should read artifacts and edit events rather
+  than commit bodies.
+- ⚑ **R2 gates R1 behind a build.** Commit practice therefore changes **nothing** right now. *Do
+  not read this ruling and start committing less tomorrow.* The next artifact this wants is a
+  design note for the sensor decoupling; until that note is written, ratified and graduated, the
+  current commit discipline stands unchanged.
+
+The reasoning is captured in `docs/brainstorms/commit-economy-and-the-succession-path.md` — which
+is **untracked**, like three of the four captures named in the entry below. This ruling currently
+exists only in that untracked file and in an artifact `bp-126` is about to delete; that is why it
+is transcribed here, into something git keeps.
+
+**Next action.** Unchanged from the entry below: read `handoff.md` and continue the topmost unit
+it names. Before `bp-126` deletes the outgoing artifact, re-read it against `finding-0241` — the
+migration cannot have caught anything written after it ran.
+
+**Open questions.** The owed list in the entry below is **one shorter**: the commit-economy
+question is ruled and off it. The remaining owed items — the merge-ownership rule's formal
+standing, the gate-clause misattribution, the inbox repairs — are unchanged. The still-unanswered
+structural question about the graduation-and-blessing chain is also unchanged.
+
+**Context-manifest delta.** A second snapshot of the outgoing artifact, taken after the first was
+found to have been superseded mid-build. The two snapshots were diffed rather than re-read, so
+only genuinely new content was migrated and nothing already carried was duplicated.
+
+**Markers.** None.
+
+---
+
 ## 2026-07-27 — the outgoing brief's judgement, migrated into the seat
 
 > **Provenance, stated plainly.** This entry is a **transcription**, not an authorship. The
