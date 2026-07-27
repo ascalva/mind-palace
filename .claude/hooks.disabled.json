@@ -1,0 +1,60 @@
+{
+  "_note": "DISABLED 2026-07-27 by owner ruling — the agent-hook layer is off. This is the verbatim `hooks` block lifted out of .claude/settings.json so that NO hooks key exists there and nothing registers, for the session OR any subagent it spawns (the OUROBOROS_HOOKS_OFF env flag could not do this: subagents inherit the parent process environment, fixed at launch). Preserved so the staged retirement under dn-typed-workflow-registry stage (iv) still has something real to retire, guarantee by guarantee, behind parity tests. To re-arm: paste this hooks object back into settings.json.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-brief.sh\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/staleness-nudge.sh\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/scope-guard.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/gate-guard.sh\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/journal-gate.sh\""
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/compaction-marker.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}
