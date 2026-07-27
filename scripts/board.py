@@ -9,6 +9,10 @@ records:
     docs/TRACKS.md          -- the board: swim lanes = tracks; per member its computed phase
     docs/DESKCHECK-QUEUE.md -- the owed-deskcheck inbox: deskcheck-pending tracks + standing backlog
 
+Coordinate integrity (F-WF1) now also covers findings and owner questions that declare a `track:`
+(bp-124, dn-role-state-and-scoped-handoff §2.3). `scripts/handoff.py` reuses these scan functions;
+its own renderings are its concern, not this module's.
+
 Front-matter parsing is REUSED from `.claude/hooks/_lib.py` (DRY, plan §2 audit) — this script
 never re-derives a YAML parser and never imports `core` (repo-workflow tooling, mirror docket).
 
@@ -204,9 +208,10 @@ def scan_findings(root: Path) -> list[tuple[str, str, str]]:
 
 # An owner question is a `## oq-NNNN — title` section of ONE file whose body is `- key: value`
 # bullets — it has no front matter of its own, so its `track:` is a bullet like its `status:`.
-# ⚑ DRY: `scripts/docket.py:114` carries an identical header regex for its own oq scan. Two
-# copies of one pattern is a duplication, recorded as a finding rather than fixed by importing a
-# sibling script (plan §6 pins handoff.py's imports to stdlib + `_lib` + `board`).
+# ⚑ DRY: `scripts/docket.py:114` carries an identical header regex for its own oq scan. Two copies
+# of one FORMAT CONTRACT is a duplication — recorded as `finding-0237` rather than fixed here,
+# because docket.py is outside bp-124's write_scope and importing it would couple two peer scripts
+# through a private name. The re-entry condition is in that finding.
 _OQ_HEADER = re.compile(r"(?m)^##\s+(oq-\d+)\b[ \t]*[—-]*[ \t]*(.*)$")
 _OQ_FIELD = re.compile(r"(?m)^-\s*([a-z_]+):[ \t]*(.*)$")
 
@@ -253,6 +258,26 @@ def _attach_notes(root: Path, tracks: dict[str, Track]) -> list[str]:
         else:
             orphans.append(_orphan(stem, slug))
     return orphans
+
+
+def _finding_orphans(root: Path, tracks: dict[str, Track]) -> list[str]:
+    """F-WF1 for findings (bp-124 Item 4). The note's §2.3 asserted the existing orphan check
+    covered findings "for free"; it did not — `_build` scanned four globs and this was not among
+    them (`finding-0234` correction 3). It is covered here instead of assumed.
+
+    ⚑ An ABSENT `track:` is NORMAL, never an orphan: the key is optional on a finding and no
+    existing finding is back-filled with one. Treating absence as an orphan would flood the
+    coordinate check with a false row for every finding in the tree."""
+    return [_orphan(stem, slug) for stem, _st, slug in scan_findings(root)
+            if slug and slug not in tracks]
+
+
+def _oq_orphans(root: Path, tracks: dict[str, Track]) -> list[str]:
+    """F-WF1 for owner questions. An oq is a section of ONE file rather than a file of its own, so
+    its `track:` is an entry bullet beside `status:` — absent on every entry today, and normal."""
+    return [_orphan(oid, _text(fields.get("track")))
+            for oid, _title, fields in scan_oqs(root)
+            if _text(fields.get("track")) and _text(fields.get("track")) not in tracks]
 
 
 def _scan_deskchecks(root: Path) -> list[DeskCheck]:
@@ -472,7 +497,11 @@ def render_queue(tracks: dict[str, Track], dcs: list[DeskCheck]) -> str:
 # ── driver ──────────────────────────────────────────────────────
 def _build(root: Path) -> tuple[dict[str, Track], list[DeskCheck], list[str]]:
     tracks = _scan_manifests(root)
-    orphans = _attach_plans(root, tracks) + _attach_notes(root, tracks)
+    # Plans and notes ATTACH (they are board members and drive the phase); findings and owner
+    # questions only get their coordinate checked (bp-124 Item 4) — a `track:` on one of them is
+    # a membership claim the board must be able to falsify, not a card to render in a lane.
+    orphans = (_attach_plans(root, tracks) + _attach_notes(root, tracks)
+               + _finding_orphans(root, tracks) + _oq_orphans(root, tracks))
     dcs = _scan_deskchecks(root)
     return tracks, dcs, orphans
 

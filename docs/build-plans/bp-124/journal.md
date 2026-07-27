@@ -7,6 +7,61 @@ updated: 2026-07-27
 
 # Journal — bp-124 (the orchestrator seat substrate and its handoff generator)
 
+## 2026-07-27 — Item 4 closed: the coordinate check reaches findings and owner questions
+
+**Status line.** F-WF1 now covers the two artifact classes `_build` never scanned, and **the no-op
+falsifier did not fire** — the real board rendering is byte-identical before and after.
+
+**Completed — Item 4.**
+- `board._build` now appends `_finding_orphans(root, tracks)` and `_oq_orphans(root, tracks)` to
+  the orphan list. A `track:` on a finding or an owner question that names no manifest is reported
+  with the *same* message every other class uses (extracted as `board._orphan`, so the check reads
+  identically however it is reached).
+- **The falsifier, measured the only way it can honestly be measured:**
+  `board_text(ROOT)` and `queue_text(ROOT)` captured **before** the Item 4 edit and compared
+  **after** → `TRACKS render unchanged by Item 4: True`, `DESKCHECK render unchanged: True`,
+  `queue_count unchanged: True`. The real tree carries exactly **one** orphan row before and after,
+  and it is the pre-existing `finding-0235` phantom (a ratified note's `track:` value with an
+  inline `#` comment glued into the slug). I did not touch it: the file is a **ratified** design
+  note, agent-immutable under A8, and `finding-0235` records that the fix is an owner hand-edit.
+- ⚑ **Why NOT against the committed `docs/TRACKS.md`:** that file is already stale by four rows
+  (bp-124…bp-127, never regenerated after graduation + blessing). Comparing against it would have
+  reported a false failure. See the previous entry's Markers.
+- `board.py`'s CLI contract is unchanged: `--queue-count` still prints one integer (`5`, same as
+  before), `--write` still writes exactly the two board files, the no-flag path still renders both
+  views to stdout. `docs/TRACKS.md` / `docs/DESKCHECK-QUEUE.md` are **not** in write_scope and are
+  untouched in the diff (`git status --short` on both → empty).
+- Docstring line added verbatim from plan §4's reconciliation.
+- Four new tests in `tests/unit/test_board.py`: an orphaned finding **and** an orphaned oq surface
+  in the coordinate check; five findings and two oqs with **no** `track:` change the rendering by
+  exactly nothing (the over-reach falsifier as a standing test); a finding/oq whose slug *resolves*
+  is silent and does not become a lane row; and the scan surface returns plans that declare no
+  track at all (which the board filters and a role-scoped handoff must not).
+
+**Design note recorded — findings/oqs get their coordinate CHECKED, not ATTACHED.** They do not
+become members of `Track.plans` / `Track.note_statuses` and do not appear as board cards. Two
+reasons: the board's lanes render *units of work*, and the "(info) manifest `x` has no plan/note
+members yet" line says **plan/note** literally, so a finding-only track would still be truthfully
+described. The track-scoped *join* over all four artifact classes — which is what note §2.3 asks
+for — is `scripts/handoff.py --track <slug>`, built in Item 2, and it reads the same scanners.
+
+**Filed.** `docs/findings/finding-0237.md` (`codebase` → builder): `board.scan_oqs` and
+`docket._scan_oqs` now each carry a copy of the `## oq-NNNN` header regex. Not fixed in place —
+`scripts/docket.py` is outside this plan's write_scope, and having `board` import `docket` would
+couple two peer scripts through a private name for one pattern. Re-entry is a plan holding both
+files, or any change to the oq entry shape.
+
+**In-flight.** Nothing. All five items are closed.
+
+**Next action.** Run the six-leg local gate (each leg separately, output to a file), append the
+readings, regenerate `handoff.md`, and seal.
+
+**Open questions.** None.
+
+**Context-manifest delta.** None beyond the earlier entries.
+
+**Markers.** None.
+
 ## 2026-07-27 — Items 2, 3 and 5 closed: the generator, its queue pane, its structured answer
 
 **Status line.** `scripts/handoff.py` renders every scope the contract pins; the idempotence pin

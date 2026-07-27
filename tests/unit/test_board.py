@@ -54,6 +54,24 @@ def _note(root: Path, stem: str, track: str, status: str) -> None:
     _write(root / "docs" / "design-notes" / f"{stem}.md", fm + f"\n# {stem}\n")
 
 
+def _finding(root: Path, fid: str, track: str | None = None) -> None:
+    """A finding, with or without the OPTIONAL `track:` key (bp-124 Item 4)."""
+    fm = f"---\ntype: finding\nid: {fid}\nstatus: open\n"
+    fm += f"track: {track}\n" if track else ""
+    _write(root / "docs" / "findings" / f"{fid}.md", fm + "---\n\n# a finding\n")
+
+
+def _oqs(root: Path, entries: list[tuple[str, str | None]]) -> None:
+    """`docs/inbox/owner-questions.md` — `## oq-NNNN` sections whose fields are `- key: value`
+    bullets (the real file's shape; an oq has no front matter of its own)."""
+    out = ["# Owner questions", ""]
+    for oid, track in entries:
+        out += ["---", "", f"## {oid} — a question", "- status: open", "- blocking: false"]
+        out += [f"- track: {track}"] if track else []
+        out += [""]
+    _write(root / "docs" / "inbox" / "owner-questions.md", "\n".join(out) + "\n")
+
+
 def _dc(root: Path, dcid: str, track: str, verdict: str) -> None:
     fm = f"---\ntype: deskcheck\nid: {dcid}\ntrack: {track}\nverdict: {verdict}\n---\n"
     _write(root / "docs" / "deskchecks" / f"{dcid}.md", fm + f"\n# {dcid}\n")
@@ -130,6 +148,59 @@ def test_orphan_report_lists_slug_with_no_manifest(tmp_path):
     assert "ghost" in b and "no docs/tracks/ghost.md manifest" in b
     tracks, dcs, orphans = board._build(tmp_path)
     assert any("ghost" in o for o in orphans)
+
+
+def test_orphan_report_covers_findings_and_owner_questions(tmp_path):
+    """bp-124 Item 4 — F-WF1 reaches the two artifact classes `_build` never scanned. The note's
+    §2.3 claimed this came "for free"; `finding-0234` correction (3) records that it did not."""
+    _fixture(tmp_path)
+    _finding(tmp_path, "finding-0900", track="phantom")
+    _oqs(tmp_path, [("oq-0900", "spectre"), ("oq-0901", None)])
+    b = board.board_text(tmp_path)
+    coords = b.split("## Coordinate check")[1]
+    assert "finding-0900 → track: phantom (no docs/tracks/phantom.md manifest)" in coords
+    assert "oq-0900 → track: spectre (no docs/tracks/spectre.md manifest)" in coords
+    assert "oq-0901" not in b, "an oq with no `track:` is not an orphan and is not a member"
+
+
+def test_an_absent_track_key_is_normal_not_an_orphan(tmp_path):
+    """⚑ The whole falsifier for Item 4: `track:` is OPTIONAL on a finding and is not back-filled.
+    If absence were treated as an orphan the coordinate check would gain a false row for every
+    finding in the repo — the exact over-reach the plan names."""
+    _fixture(tmp_path)
+    before = board.board_text(tmp_path)
+    for n in range(5):
+        _finding(tmp_path, f"finding-08{n:02d}")
+    _oqs(tmp_path, [("oq-0800", None), ("oq-0801", None)])
+    assert board.board_text(tmp_path) == before, "artifacts with no `track:` must change nothing"
+
+
+def test_a_resolving_track_on_a_finding_is_not_an_orphan_and_is_not_a_lane_row(tmp_path):
+    """A finding that names a REAL manifest passes the coordinate check silently — and does not
+    become a board card: the lanes render plans, and a track-scoped join over findings is
+    `scripts/handoff.py --track`'s job, not this view's."""
+    _fixture(tmp_path)
+    before = board.board_text(tmp_path)
+    _finding(tmp_path, "finding-0901", track="alpha")
+    _oqs(tmp_path, [("oq-0902", "beta")])
+    assert board.board_text(tmp_path) == before
+
+
+def test_scanners_expose_every_artifact_with_its_declared_slug(tmp_path):
+    """The scan surface `scripts/handoff.py` reuses — plans with NO `track:` are included (the
+    board filters them; a role-scoped handoff must not)."""
+    _fixture(tmp_path)
+    _write(tmp_path / "docs" / "build-plans" / "bp-800" / "plan.md",
+           "---\ntype: build-plan\nid: bp-800\nstatus: ready\n---\n\n# Build Plan — untracked\n")
+    _finding(tmp_path, "finding-0902", track="alpha")
+    _oqs(tmp_path, [("oq-0903", "beta")])
+    plans = dict((p.id, slug) for p, slug in board.scan_plans(tmp_path))
+    assert plans["bp-800"] == "" and plans["bp-201"] == "alpha"
+    assert board.scan_plans(tmp_path)[0][0].title == "bp-201 the thing"  # the H1 prefix is stripped
+    assert ("finding-0902", "open", "alpha") in board.scan_findings(tmp_path)
+    oid, title, fields = board.scan_oqs(tmp_path)[0]
+    assert oid == "oq-0903" and title == "a question"
+    assert fields == {"status": "open", "blocking": "false", "track": "beta"}
 
 
 def test_generated_banner_present(tmp_path):
