@@ -16,7 +16,8 @@ supersedes: null
 superseded_by: null
 warrant: docs/brainstorms/cross-strata-substrate-sweep.md
 amendments:
-  [A1 (oq-0060)]
+  [A1 (oq-0060),
+   A2 (oq-0060, erratum against A1's count)]
 ---
 
 # The chat sensor: the dialogue stream as a sensed stratum — retaining the derivation, not just the result
@@ -253,3 +254,35 @@ row carrying prose that matches no enumerated channel and is dropped without an 
 does not re-extract history. Both are **build work** requiring a plan against this amended CS-3;
 until such a plan lands, **every consumer of speaker attribution must treat stored rows as
 untrusted**. A1 changes what the design *says*; it does not change what the store *holds*.
+
+## Amendment A2 — erratum against A1's count: it is 139, not 39
+
+**Warrant:** `oq-0060` · census of the live store, 2026-07-27T14:53Z, recorded in the orchestrator
+seat's readings pane. **Owner-made, by hand** — CS-3 is ratified and no agent may amend it.
+
+⚑ **A1 states "39 hook-feedback rows attributed to `speaker='owner'`". That figure is wrong and is
+retracted.** It is **139**.
+
+**Evidence.** `sqlite3 "file:data/chatlog.sqlite?mode=ro"` over `chat_utterances`: rows whose text
+begins literally `Stop hook feedback:` and whose `speaker` is `owner` — **139**. A broader match
+(hook text anywhere in an owner-attributed row) yields **146**. Four were sampled and confirmed to
+be genuine hook output (`(b) foundation files modified: [...]`), not the owner or an agent quoting
+a hook in prose.
+
+**Provenance of the error, recorded because the shape matters more than the digit.** `39` was
+`dn-trace-retrieval`'s census figure for the **clause-(e) subset** — hook feedback of one kind. It
+was generalised to *all* hook feedback at an **unmarked hop**, by an agent drafting A1's text, and
+reached this ratified note without being re-derived against the store. That is the exact defect
+catalogued in `docs/brainstorms/the-unchecked-claim.md`: *a claim citing a secondary source, with
+the hop unmarked, becomes true by being written down.* The retrospective was authored the same day
+this amendment was drafted; the error was committed anyway.
+
+⚑ **This amendment is retained, not rewritten.** A1's text is left exactly as it stands and this
+erratum points at it — the keep-and-link idiom (`finding-0164`, `finding-0168` ruling 3, and
+`dn-erratum-relation`'s composition `correction = supersession ∧ erratum`). Editing A1 in place
+would erase the evidence that the error occurred, which is the only thing that makes it
+instructive. A reader of A1 must reach A2 before relying on the figure.
+
+**Scope, unchanged by A2.** The taxonomy (`A1.1`) and the channel closure (`A1.2`) stand exactly as
+ratified. A2 corrects one quantity and nothing else. The stored rows remain uncorrected and every
+consumer of speaker attribution remains untrusted until a build plan lands against the amended CS-3.
