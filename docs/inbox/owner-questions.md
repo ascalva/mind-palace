@@ -2019,3 +2019,67 @@ asserted.
   running Phase 1 — with **finding-0232's recovery-path hardening as step 0**, before any hardware
   token is registered on root. Then a design note superseding
   `dn-headless-daemon-secret-bootstrap`'s four LOCAL options with the KMS path.
+
+---
+
+## oq-0058 — The handoff renders ONE computation TWO ways. Amend the ratified note, or let finding-0236 stand as the correction?
+
+- status: open
+- origin: docs/findings/finding-0236.md · docs/findings/finding-0238.md (the bp-124 pre-merge
+  audit) · docs/design-notes/role-state-and-scoped-handoff.md (`ratified`, §2.5 / §2.9 / §2.11)
+- blocking: false
+- question: The ratified note pins the handoff rendering as **a pure function of the artifact
+  tree** (§2.9) while *also* listing a **live `data/queue.sqlite` read** and an **age** display
+  among its inputs (§2.5, §2.9). Those cannot both hold. The queue is gitignored, absent in a
+  fresh worktree, and mutated by the daemon — so a queue count inside the committed
+  `handoff.md` would make two regenerations of an **unchanged tree** differ, and bp-126's
+  staleness clause (e′) would then fire on **daemon activity rather than on the work**. That is
+  precisely the failure the whole family exists to prevent.
+  bp-124's builder resolved it without an owner in the loop, and flagged the resolution as *"a
+  builder decision against a gap in a ratified note, not a reading of it"*: it renders **one
+  computation two ways** — `--write` / `--check` / `--json` are tree-pure (verified: no queue,
+  no wall clock, no HEAD sha, no environment, stable across `PYTHONHASHSEED`), while a **bare**
+  render to stdout is live and shows the queue and the age.
+  The independent audit confirmed by execution that this **defuses** clause (e′) rather than
+  re-arming it: with a populated queue planted beside a pristine export, `--write` produced a
+  file **byte-identical** to the no-queue render. So the code is right. The **note is now
+  factually wrong** about its own artifact, and the question is which record becomes true:
+  **(a)** amend the note by hand — §2.5's "with its age" and §2.9's queue-read-as-input become
+  the two-path rule — folding it into the A10 / finding-0235 sitting you already owe;
+  **(b)** let `finding-0236` stand as the standing correction and leave the note's text alone,
+  accepting that the note and the artifact disagree in the record;
+  **(c)** something else — you consider the split itself wrong and want the rendering to be
+  live everywhere, with clause (e′) re-specified so staleness is not daemon-driven.
+  ⚑ Only **you** can do (a): `draft→ratified` blessings and edits to a ratified note are
+  owner-only by hand, and no agent may perform them.
+- default_if_unanswered: **(b)** — finding-0236 stands as the correction and the note is left
+  untouched. The built code does not change under any option, so nothing is blocked. **Park
+  condition:** re-entry fires when the note is next opened for the A10 / finding-0235
+  amendment sitting; at that point §2.5 and §2.9 are corrected in the same pass, and this
+  question is answered by the act.
+- answer:
+
+---
+
+## oq-0059 — finding-0237's dedup has no home: give it one, or record that it stands?
+
+- status: open
+- origin: docs/findings/finding-0237.md · docs/findings/finding-0238.md §"Things the seal did
+  not mention" (6)
+- blocking: false
+- question: bp-124 **introduced** a duplicate: `scripts/board.py`'s `scan_oqs` and
+  `scripts/docket.py`'s `_scan_oqs` now each carry their own `## oq-NNNN` header regex. The
+  builder could not dedupe it — `scripts/docket.py` was outside bp-124's `write_scope` — and
+  typed it `codebase` with a builder route, which is correct. But the audit noted the route has
+  **no destination**: no `ready` plan holds `scripts/docket.py`, so the re-entry condition may
+  never fire and the duplication would simply persist.
+  This is raised to you rather than silently parked because your standing rule is that
+  duplicated code is **a defect, not a nit** — two copies drift — and this one was created, not
+  inherited. Options: **(a)** mint a small cleanup plan that owns both files and lifts the
+  regex to one shared home; **(b)** attach the dedup to the next plan that legitimately opens
+  `scripts/docket.py`, accepting an unbounded wait; **(c)** record a deliberate decision that
+  the two copies stand, with the reason.
+- default_if_unanswered: **(b)** — the finding keeps its builder route and waits for a plan
+  that opens `docket.py`. **Park condition:** re-entry fires the next time any plan puts
+  `scripts/docket.py` in `write_scope`; that plan inherits the dedup as a required item.
+- answer:
