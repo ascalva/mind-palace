@@ -1968,3 +1968,54 @@ asserted.
   one-function change in `core/models/loader.py` plus a plan to carry it, and finding-0220 holds the
   re-entry.
 - answer:
+
+## oq-0057 — The KMS invocation split: unattended for the ops pattern, MFA gate for everything else — RULED
+
+- status: answered   # 2026-07-26 — ruled in chat, same exchange it was raised
+- origin: docs/findings/finding-0232.md · docs/design-notes/headless-daemon-secret-bootstrap.md
+  (`draft`) · docs/design-notes/secrets-management-evolution.md (superseded, but its "Option A —
+  auto-unseal via AWS KMS (recommended)" is the path now taken)
+- blocking: false
+- ⚑⚑ **DO NOT CONFUSE THIS RULING'S "(c)" WITH oq-0041's "(c)".** They are different lettered sets
+  in the same subject area and they mean **opposite** things. oq-0041's (c) is *"keep the core plane
+  parked"*. THIS (c) is *"split the decrypt path by consequence"* — an active build. oq-0041's
+  ratification question (re-read with Fable / ratify as-is / stay parked) is **still open and
+  unanswered**. Recording the disambiguation because logging this against oq-0041 would invert the
+  owner's intent.
+- question: Given a KMS-held key, what gates its *use*? Non-exportability protects the key material
+  but not its invocation — an agent with shell on the daemon's host can call `kms:Decrypt` even
+  though it can never read the key. Options were **(a)** unattended decrypt plus CloudTrail
+  detection; **(b)** require `aws:MultiFactorAuthPresent` on every decrypt (prevents unattended use,
+  and breaks headless boot / launchd KeepAlive restarts); **(c)** split by consequence — operational
+  secrets decrypt unattended, consequential ones require a human factor.
+- answer: **(c).** Owner, 2026-07-26, verbatim: *"I like (c) too, we shouldn't need my code every
+  time the daemon needs to decrypt, but if it doesn't follow a specific ops pattern, it needs to go
+  through the MFA gate"*.
+  ⚑ **The mechanism is KMS *encryption context*** — a key-value map cryptographically bound to the
+  ciphertext (it is the AAD) and conditionable in IAM/key policy via `kms:EncryptionContext:<k>`:
+  | context | role | gate |
+  |---|---|---|
+  | `{"purpose":"daemon-boot"}` | daemon role | unattended |
+  | `{"purpose":"effector"}` | effector role | `aws:MultiFactorAuthPresent` |
+  The daemon role **cannot** decrypt an effector secret — KMS refuses on context mismatch. The
+  boundary is cryptographic, not policy-by-convention, which is what "a specific ops pattern"
+  requires to be a control rather than a habit.
+- ⚑ SETTLED ALONGSIDE, same exchange: **Vault `seal "awskms"` auto-unseal**, which means *no unseal
+  key exists to store* and dissolves oq-0041's original blocker (a login-keychain secret a role
+  account cannot read) rather than relocating it. Two roles — **admin** (MFA, rare, owner) and
+  **use** (`kms:Decrypt` on one key ARN, daemon). **Root stays in the key policy** (removing every
+  principal can permanently brick a CMK) but is never authenticated. **Phase 1 now** (key + policy +
+  role split + CloudTrail alarm); **Phase 2 deferred** (VPC + PrivateLink + Tailscale subnet router)
+  until another AWS resource justifies a VPC — the owner concurred that a subnet router would add a
+  hard dependency where the daemon cannot boot if Tailscale is down.
+- ⚑ ARCHITECTURAL CONSTRAINT that any build must pin: **sealed core has zero network egress (NN-1)
+  and KMS is a network call**, so the decrypt CANNOT happen inside sealed core. It runs in `edge/`,
+  or at bootstrap before `seal()`.
+- ⚑ OPEN SUB-DECISION (raised 2026-07-26, not yet ruled): **should the effector gate be Touch ID
+  rather than AWS MFA?** A Secure-Enclave key with `userPresence` requires a fingerprint *per
+  signature*, which binds an unattended agent, needs no network, and survives AWS being unreachable
+  — the same boundary enforced closer to the action. Recorded in the owner queue as a spike.
+- what is owed next: an **owner-build session** (the new session type named in this same exchange)
+  running Phase 1 — with **finding-0232's recovery-path hardening as step 0**, before any hardware
+  token is registered on root. Then a design note superseding
+  `dn-headless-daemon-secret-bootstrap`'s four LOCAL options with the KMS path.
