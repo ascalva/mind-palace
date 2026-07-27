@@ -36,6 +36,44 @@ marked superseded — retained, readable, non-binding.
 
 ---
 
+## 2026-07-27 — a count without its predicate is not a coordinate
+
+**Status line.** A graduation landed and waits on the owner's hand; a second is still running; the
+terminal plan of the handoff family is sealed and its successor deliberately unopened on budget
+grounds. The seat learned that watching its own fuel gauge costs it a journal entry each time.
+
+**Completed.** The correction relation was decomposed along the seam its own note draws between
+what is settled and what waits on a design still under revision. The parts that would have pinned a
+storage layout were parked rather than guessed, so a later fold into a corpus-wide table is a
+migration and not a redesign.
+
+**In-flight.** ⚑ **The grounding pass prevented a corruption no plan would have caught.** The
+obvious way to make a correction visible — route the live readers through the corrected view — would
+have silently redefined what "consecutive turns" means in the spine's chain, because both live
+readers want *what was believed*, not *what survives*. The plan's objective became **declare which
+axis you read**, not filter. That is the difference between a wave that repairs a defect and one
+that trades it for a quieter one.
+
+**Next action.** ⚑ **Do not report a count without the predicate that produced it.** A figure this
+seat recorded was re-derived by another agent, which measured a different predicate, got a different
+number, and correctly concluded the record did not reproduce. Both numbers were right; the row was
+under-specified. The re-checkable-coordinate rule this seat has been citing all day applies to its
+own readings pane, and did not survive first contact with someone actually checking.
+
+**Open questions.** Whether the fuel gauge should be readable without disturbing the tank. Measuring
+usage spawns a nested session that rewrites the very marker the close gate reads, so every probe
+costs a journal entry — the gate is not wrong, but the instrument and the instrumented are the same
+object, and the seat now pays that toll on request.
+
+**Context-manifest delta.** A correction wave and a delegated-blessing wave now both wait on the same
+hand, which is the bottleneck the second one exists to remove. Whichever is blessed first should be
+the one that makes the next blessing cheaper.
+
+**Markers.** No compaction capsule yet; the segment remains past its own threshold. The next
+`/triage` here owes one and should treat it as the work it is.
+
+---
+
 ## 2026-07-27 — the panel earned its gate, and I proved the retrospective on myself
 
 **Status line.** An adversarial panel ran against the membership note under the owner's own
