@@ -11,6 +11,7 @@ attached). This file is the third: DERIVED.
     uv run scripts/handoff.py --role orchestrator --write    # docs/roles/orchestrator/handoff.md
     uv run scripts/handoff.py --role orchestrator --check    # byte-compare; exit 0 == identical
     uv run scripts/handoff.py --role orchestrator --json     # the structured answer, to stdout
+    uv run scripts/handoff.py --role orchestrator --lint     # F1b purity + future-dated readings
     uv run scripts/handoff.py --track <slug>                 # stdout only — no standing file
     uv run scripts/handoff.py --plan <id>                    # stdout only — no standing file
 
@@ -43,7 +44,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sqlite3
+import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -171,22 +174,30 @@ def _members(root: Path, scope: Scope) -> tuple[
     return plans, notes, findings, oqs
 
 
+def row_cells(line: str) -> tuple[str, str, str] | None:
+    """One MEASURED row's three cells, or None if the line is not a row.
+
+    ⚑ THE single definition of "what a reading IS", shared by the rendering pane
+    (`read_readings`) and by the future-dated lint (`_row_stamp`). Two copies of this predicate
+    would drift, and the drift would mean the lint checks rows the pane never renders — or misses
+    ones it does (CONVENTIONS §Language: a duplicated implementation is a defect, not a nit).
+    """
+    s = line.strip()
+    if not s.startswith("|"):
+        return None
+    cells = [c.strip() for c in s.strip("|").split("|")]
+    if len(cells) != 3 or cells[0].lower() == "timestamp" or not set(cells[0]) - set("-: "):
+        return None  # the table header and its separator row are not readings
+    return cells[0], cells[1], cells[2]
+
+
 def read_readings(path: Path) -> list[tuple[str, str, str]]:
     """The MEASURED log as `(timestamp, command, result)` rows, in file order (append-only)."""
-    rows: list[tuple[str, str, str]] = []
     try:
         text = path.read_text(encoding="utf-8")
     except OSError:
-        return rows
-    for ln in text.splitlines():
-        s = ln.strip()
-        if not s.startswith("|"):
-            continue
-        cells = [c.strip() for c in s.strip("|").split("|")]
-        if len(cells) != 3 or cells[0].lower() == "timestamp" or not set(cells[0]) - set("-: "):
-            continue  # the table header and its separator row are not readings
-        rows.append((cells[0], cells[1], cells[2]))
-    return rows
+        return []
+    return [row for row in (row_cells(ln) for ln in text.splitlines()) if row is not None]
 
 
 def latest_per_command(rows: list[tuple[str, str, str]]) -> list[tuple[str, str, str]]:
@@ -238,6 +249,204 @@ def _age(stamp: str, now: datetime) -> str:
             return f"{int(hours * 60)}m ago"
         return f"{int(hours)}h ago" if hours < 48 else f"{int(hours / 24)}d ago"
     return "age unknown"
+
+
+# ── F1b: the narrative purity lint (note §2.11, bp-127 Item 15) ─
+#
+# ⚑ DIRECTION. §2.11 lints "the seat journal's authoritative segment", and §2.8 defines that
+# segment TEMPORALLY: "the latest capsule plus all entries after it". The seat journal is
+# **newest-first** — "entries are added at the top" — so "after" (later in time) is *higher in the
+# file*, and the journal's own preamble states the physical rule the tooling must implement:
+# "the latest such heading plus every entry ABOVE it; everything below it is history. … Tooling
+# that lints or bounds this file keys on that exact heading."
+#
+# So the segment is `lines[: first_capsule + 1]`, NOT `lines[first_capsule :]`. Implementing the
+# temporal sentence physically inverts the lint — it would check the history nobody may edit and
+# ignore the live narrative anyone can write — and it would do so while reporting GREEN, which is
+# what makes that mistake dangerous rather than merely wrong (finding-0249's vacuous-pass class).
+# `test_handoff_purity.py` pins both directions with the same token above and below a capsule.
+#
+# ⚑ ANCHORING. The marker is matched at line start. Unanchored, `## CAPSULE` also matches the
+# journal's own prose *defining* the marker — 4 such lines on a file with 0 capsules
+# (finding-0242, finding-0251) — so the lint would bound itself to an arbitrary fragment and pass
+# green while checking almost nothing.
+CAPSULE_RE = re.compile(r"^## CAPSULE\b")
+
+# The lintable class, and no more (note §2.11 + residual R2). `\b` is load-bearing: without it the
+# pattern matches hex-letter runs *inside* ordinary words, the lint fires on legitimate judgement,
+# and people learn to ignore it — worse than no lint (Item 15's falsifier).
+HEX_RE = re.compile(r"\b[0-9a-f]{7,40}\b")
+_STATUSES = "proposed|ready|in-progress|complete|draft|ratified|superseded"
+# Two shapes only. A `status:` field naming a status, and an ARROW between two statuses. The
+# English form ("moved from proposed to ready") is deliberately NOT matched: `to` collides with
+# ordinary narrative ("ready to complete the sweep") and a lint that cries wolf gets suppressed.
+# That is the honest tier this lint claims — see LINT_TIER.
+STATUS_FIELD_RE = re.compile(rf"\bstatus\s*:\s*(?:{_STATUSES})\b", re.IGNORECASE)
+STATUS_ARROW_RE = re.compile(rf"\b(?:{_STATUSES})\s*(?:→|-+>)\s*(?:{_STATUSES})\b", re.IGNORECASE)
+
+LINT_TIER = (
+    "F1b covers the LINTABLE CLASS ONLY (note §2.11 residual R2): word-bounded hex-shaped tokens "
+    "and two status-transition shapes. A smuggled count, a `path:line`, or a status written out "
+    "in English prose is NOT caught here — only review or the §2.11 drill catches those. This is "
+    "not a general purity guarantee and must never be reported as one."
+)
+
+# §2.8's compaction trigger: "a working threshold — default ~300 lines … it is a knob, not an
+# invariant". finding-0245: nothing measured it, so it could not be enforced or falsified (V2's
+# re-entry needs exactly this number). Surfaced in the LIVE render and in `--json`.
+SEGMENT_THRESHOLD = 300
+
+
+@dataclass(frozen=True)
+class Violation:
+    line: int  # 1-based, in the WHOLE file — so the report is a clickable path:line
+    kind: str  # "hex" | "status"
+    token: str
+    text: str
+
+    def render(self, path: str) -> str:
+        return f"{path}:{self.line}: {self.kind}: {self.token!r} — {self.text.strip()[:100]}"
+
+
+@dataclass(frozen=True)
+class LintResult:
+    """One lint verdict. `vacuous` is the false-success guard: a segment with no narrative in it
+    has nothing to be pure ABOUT, so "no violations" is not evidence of anything. An inverted
+    direction, a mis-anchored marker, or an empty file all land here, and the CLI reports them as
+    INDETERMINATE (rc 3) rather than clean (rc 0)."""
+
+    path: str
+    segment_lines: int
+    capsule_line: int | None  # 1-based line of the bounding capsule heading; None == no capsule
+    violations: tuple[Violation, ...]
+    vacuous: bool
+
+    @property
+    def ok(self) -> bool:
+        return not self.violations and not self.vacuous
+
+
+def authoritative_segment(lines: list[str]) -> tuple[list[str], int | None]:
+    """The lines a fresh occupant is bound by, and the 1-based line of the capsule that bounds
+    them. See the DIRECTION note above: newest-first ⇒ capsule + everything ABOVE it. A journal
+    with no capsule is wholly authoritative (the normal state until the first compaction —
+    finding-0242(a)), which is why this returns the whole file rather than nothing."""
+    for i, ln in enumerate(lines):
+        if CAPSULE_RE.match(ln):
+            return lines[: i + 1], i + 1
+    return list(lines), None
+
+
+def lint_narrative(text: str, path: str = "") -> LintResult:
+    """F1b, as a pure function of the file's text — no clock, no git, no tree."""
+    lines = text.splitlines()
+    segment, capsule = authoritative_segment(lines)
+    body = segment[:-1] if capsule is not None else segment
+    violations: list[Violation] = []
+    for offset, ln in enumerate(segment, start=1):
+        for token in HEX_RE.findall(ln):
+            violations.append(Violation(offset, "hex", token, ln))
+        for pat in (STATUS_FIELD_RE, STATUS_ARROW_RE):
+            for m in pat.finditer(ln):
+                violations.append(Violation(offset, "status", m.group(0), ln))
+    return LintResult(path, len(segment), capsule, tuple(violations),
+                      vacuous=not any(ln.strip() for ln in body))
+
+
+# ── the future-dated readings lint (finding-0243, bp-127 Item 15) ─
+#
+# A MEASURED row asserts "this was run at T". If T is after the commit that INTRODUCED the row,
+# the row cannot have been clock-read — it was composed. bp-124's seed rows run up to 55 minutes
+# ahead of their own commit and bp-126's seal repeated it. The failure is unambiguous and the
+# check is mechanical, which is why it belongs beside F1b: both make a seat property observable
+# instead of remembered.
+#
+# It is the one half of `--lint` that is NOT pure — it needs `git blame` to learn which commit
+# introduced each line. Kept thin and separated from the comparison so the comparison stays
+# testable without a repo, and so the blame PARSE gets its own test against a real one.
+_BLAME_SHA_RE = re.compile(r"^([0-9a-f]{40}) ")
+_UNCOMMITTED = "0" * 40
+_TS_FORMATS = ("%Y-%m-%dT%H:%MZ", "%Y-%m-%dT%H:%M:%SZ")
+
+# Rows are stamped to MINUTE precision (`readings.md`'s own row-shape rule), so a stamp that was
+# honestly clock-read can still sit up to a minute ahead of the instant it was read if the author
+# rounded rather than truncated. Flag only a lead LARGER than one stamp-quantum. This is a
+# representation allowance, fixed by the format and argued independently of any outcome — not a
+# threshold tuned until the artifact passes: the live file's leads run to 55 minutes and stay red.
+STAMP_PRECISION_SECONDS = 60
+
+
+@dataclass(frozen=True)
+class BlamedRow:
+    line: int  # 1-based
+    stamp: str  # the row's own timestamp cell, verbatim
+    commit: str  # the sha that introduced the line ("0"*40 == not yet committed)
+    commit_epoch: int
+
+
+def blame_readings(root: Path, path: Path) -> list[BlamedRow] | None:
+    """Every MEASURED row with the commit that introduced it. `None` means the question could not
+    be asked (no git, not a repo, unreadable) — INDETERMINATE, never a silent pass."""
+    try:
+        out = subprocess.run(  # noqa: S603 — fixed argv, no shell, repo-workflow tooling
+            ["git", "blame", "--line-porcelain", "--", str(path)],
+            cwd=str(root), capture_output=True, text=True, timeout=60, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        return None
+    rows: list[BlamedRow] = []
+    sha, epoch, lineno = "", 0, 0
+    for ln in out.stdout.splitlines():
+        m = _BLAME_SHA_RE.match(ln)
+        if m:
+            sha = m.group(1)
+            parts = ln.split()
+            lineno = int(parts[2]) if len(parts) > 2 else 0
+        elif ln.startswith("committer-time "):
+            epoch = int(ln.split()[1])
+        elif ln.startswith("\t"):
+            stamp = _row_stamp(ln[1:])
+            if stamp is not None:
+                rows.append(BlamedRow(lineno, stamp, sha, epoch))
+    return rows
+
+
+def _row_stamp(line: str) -> str | None:
+    """The timestamp cell of a MEASURED row — `row_cells`' first field, never a second copy of its
+    predicate, so the lint and the pane can never disagree about what counts as a row."""
+    cells = row_cells(line)
+    return cells[0] if cells else None
+
+
+def future_dated(rows: list[BlamedRow]) -> list[tuple[BlamedRow, int]]:
+    """The rows whose stamp is AHEAD of their introducing commit, with the lead in seconds. Pure —
+    the git call is `blame_readings`'s job. Uncommitted lines are skipped: they have no introducing
+    commit yet, so the question is not yet askable for them."""
+    bad: list[tuple[BlamedRow, int]] = []
+    for row in rows:
+        if row.commit == _UNCOMMITTED:
+            continue
+        when = _parse_stamp(row.stamp)
+        if when is None:
+            continue
+        lead = int(when.timestamp()) - row.commit_epoch
+        if lead > STAMP_PRECISION_SECONDS:
+            bad.append((row, lead))
+    return bad
+
+
+def _lead(seconds: int) -> str:
+    return f"{seconds}s" if seconds < 120 else f"{seconds // 60} min"
+
+
+def _parse_stamp(stamp: str) -> datetime | None:
+    for fmt in _TS_FORMATS:
+        try:
+            return datetime.strptime(stamp, fmt).replace(tzinfo=UTC)
+        except ValueError:
+            continue
+    return None
 
 
 # ── the derivation ──────────────────────────────────────────────
@@ -371,6 +580,16 @@ def render(root: Path, scope: Scope, view: _View) -> str:
 
     out.append("## The narrative")
     out.append("")
+    if scope.kind == "role" and view.live:
+        # ⚑ LIVE ONLY, on purpose. The committed rendering is the subject of clause (e′) check 1;
+        # a value that moves on every journal append would arm that check on every narrative
+        # entry. `--json` carries the same number for a machine (tree-pure, uncommitted).
+        seg = journal_segment_lines(root, _seat_of(scope))
+        over = " ⚑ OVER — a compaction capsule is owed at the next `/triage` (§2.8)" \
+            if seg > SEGMENT_THRESHOLD else ""
+        out.append(f"Active segment: **{seg} lines** against the ~{SEGMENT_THRESHOLD}-line "
+                   f"compaction threshold (§2.8, a knob not an invariant).{over}")
+        out.append("")
     out.append(
         f"Judgement lives in `docs/roles/{_seat_of(scope)}/journal.md` — read its **authoritative "
         f"segment**: the latest `## CAPSULE — <date>` heading plus every entry above it. This "
@@ -383,6 +602,18 @@ def render(root: Path, scope: Scope, view: _View) -> str:
     out.append("_Derived by `scripts/handoff.py` from artifact front matter + the seat's readings "
                "log. Never hand-edit; edit the sources and regenerate._")
     return "\n".join(out) + "\n"
+
+
+def journal_segment_lines(root: Path, role: str) -> int:
+    """How long the seat journal's authoritative segment currently is — §2.8's compaction trigger
+    made READABLE (finding-0245: the threshold had already been crossed and nothing measured it;
+    it was known only because an agent ran `wc -l` by hand three times). A missing journal is 0,
+    never an error: a seat may exist before its narrative does."""
+    try:
+        text = (seat_dir(root, role) / "journal.md").read_text(encoding="utf-8")
+    except OSError:
+        return 0
+    return len(authoritative_segment(text.splitlines())[0])
 
 
 def _seat_of(scope: Scope) -> str:
@@ -398,9 +629,14 @@ def handoff_text(root: Path, scope: Scope, *, live: bool = False) -> str:
 
 def answer_json(root: Path, scope: Scope) -> str:
     """The structured answer — sorted keys, fixed indent, no clock, no sha: byte-identical across
-    two invocations over an unchanged tree, exactly like the document it summarizes."""
-    return json.dumps(derive(root, scope).as_dict(), indent=2, sort_keys=True,
-                      ensure_ascii=False) + "\n"
+    two invocations over an unchanged tree, exactly like the document it summarizes.
+
+    `journal_segment_lines` is **added for finding-0245's threshold instrument (bp-127)**, not for
+    the F2 compare, which reads `unit_in_flight` and `next_action` only. It is a pure function of
+    the seat journal, so the byte-stability property is unchanged."""
+    payload = derive(root, scope).as_dict()
+    payload["journal_segment_lines"] = journal_segment_lines(root, _seat_of(scope))
+    return json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 
 def _parse(argv: list[str]) -> argparse.Namespace:
@@ -417,7 +653,79 @@ def _parse(argv: list[str]) -> argparse.Namespace:
                    help="byte-compare a fresh render against the committed file (exit 1 on drift)")
     p.add_argument("--json", action="store_true", dest="as_json",
                    help="emit the structured answer instead of the document")
+    p.add_argument("--lint", action="store_true",
+                   help="F1b narrative purity + the future-dated readings check "
+                        "(exit 0 clean, 1 violations, 3 indeterminate)")
     return p.parse_args(argv)
+
+
+# Exit codes for --lint. 3 is the one that earns its keep: a check that could not RUN must never
+# be indistinguishable from a check that ran and found nothing (the false-success rule).
+LINT_CLEAN, LINT_VIOLATION, LINT_INDETERMINATE = 0, 1, 3
+
+
+def cmd_lint(root: Path, role: str) -> int:
+    """F1b over the seat journal + the future-dated check over the seat readings.
+
+    Reports both halves always — a lint that stops at the first failure teaches its reader that
+    one fix is enough. Neither half writes anything."""
+    seat = seat_dir(root, role)
+    verdicts: list[int] = []
+    print(f"handoff --lint {role}: {LINT_TIER}", flush=True)
+
+    jpath = seat / "journal.md"
+    try:
+        res = lint_narrative(jpath.read_text(encoding="utf-8"),
+                             str(jpath.relative_to(root)))
+    except OSError as exc:
+        print(f"journal: INDETERMINATE — cannot read {jpath}: {exc}", file=sys.stderr)
+        verdicts.append(LINT_INDETERMINATE)
+    else:
+        bound = (f"bounded by the capsule at line {res.capsule_line}"
+                 if res.capsule_line else "no capsule yet — the WHOLE file is authoritative")
+        print(f"journal: authoritative segment = {res.segment_lines} lines ({bound})", flush=True)
+        if res.vacuous:
+            # The degenerate input, named and reddened: an empty segment has nothing to be pure
+            # about, so "0 violations" is not evidence. An inverted direction and a mis-anchored
+            # marker both land here.
+            print("journal: INDETERMINATE — the authoritative segment carries no narrative; "
+                  "a clean verdict over an empty segment proves nothing", file=sys.stderr)
+            verdicts.append(LINT_INDETERMINATE)
+        elif res.violations:
+            for v in res.violations:
+                print(v.render(res.path), file=sys.stderr)
+            print(f"journal: FAIL — {len(res.violations)} violation(s) of the §2.5 purity rule. "
+                  f"Name the artifact by its stable id; the derivable value belongs in the "
+                  f"DERIVED pane.", file=sys.stderr)
+            verdicts.append(LINT_VIOLATION)
+        else:
+            print(f"journal: OK — 0 violations in {res.segment_lines} lines", flush=True)
+
+    rpath = seat / "readings.md"
+    blamed = blame_readings(root, rpath) if rpath.exists() else None
+    if blamed is None:
+        print(f"readings: INDETERMINATE — `git blame` could not answer for {rpath}",
+              file=sys.stderr)
+        verdicts.append(LINT_INDETERMINATE)
+    else:
+        ahead = future_dated(blamed)
+        if ahead:
+            for row, lead in ahead:
+                print(f"{rpath.relative_to(root)}:{row.line}: future-dated: stamp {row.stamp} is "
+                      f"{_lead(lead)} ahead of the commit that introduced it "
+                      f"({row.commit[:8]}) — the row was composed, not clock-read",
+                      file=sys.stderr)
+            print(f"readings: FAIL — {len(ahead)} of {len(blamed)} rows are future-dated "
+                  f"(finding-0243). Read the stamp from `date -u` at the moment of the run.",
+                  file=sys.stderr)
+            verdicts.append(LINT_VIOLATION)
+        else:
+            print(f"readings: OK — 0 of {len(blamed)} rows future-dated", flush=True)
+    # Precedence: an actionable violation outranks an unanswerable check, which outranks clean.
+    for code in (LINT_VIOLATION, LINT_INDETERMINATE):
+        if code in verdicts:
+            return code
+    return LINT_CLEAN
 
 
 def main(argv: list[str]) -> int:
@@ -429,12 +737,14 @@ def main(argv: list[str]) -> int:
     except ScopeError as exc:
         print(f"handoff: {exc}", file=sys.stderr)
         return 2
-    if kind != "role" and (args.write or args.check or args.as_json):
+    if kind != "role" and (args.write or args.check or args.as_json or args.lint):
         # §2.9: standing files exist for the role scope only, so there is no fleet of generated
-        # files to go unregenerated — and nothing for --check to compare against.
-        print(f"handoff: --write/--check/--json apply to --role only; a {kind} scope renders to "
-              f"stdout on demand", file=sys.stderr)
+        # files to go unregenerated — and nothing for --check to compare against or --lint to read.
+        print(f"handoff: --write/--check/--json/--lint apply to --role only; a {kind} scope "
+              f"renders to stdout on demand", file=sys.stderr)
         return 2
+    if args.lint:
+        return cmd_lint(ROOT, scope.id)
     if args.as_json:
         sys.stdout.write(answer_json(ROOT, scope))
         return 0

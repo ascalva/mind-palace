@@ -20,9 +20,11 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 import re
 import sqlite3
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -329,3 +331,323 @@ def test_dry_no_core_import_and_reuses_board_and_lib():
     assert "board" in imported, "handoff must reuse board's scanners, not re-derive them"
     assert "_lib" in imported, "handoff must reuse _lib's front-matter machinery"
     assert "yaml" not in imported, "no second YAML parser"
+
+
+# ═══════════════════════════════════════════════════════════════
+# F2 — the fresh-agent drill (bp-127 Item 17). `scripts/handoff_drill.py`.
+#
+# Every test below runs WITHOUT a spawn: the plan requires the parse/compare/judge/exit-code logic
+# to be testable without spending tokens, and a harness whose logic is only ever exercised by a
+# live agent is a harness nobody can safely change.
+#
+# ⚑ Written to the false-success rule. The drill is a gate, so each check names the input on which
+# it would pass WITHOUT testing its claim, and asserts it reddens:
+#   * a bundle that quietly carries more than the scope says          -> the "nothing else" test
+#   * an agent reply with no UNIT line at all                         -> must FAIL, not pass
+#   * an isolation probe that produced no reply                       -> INDETERMINATE, not "holds"
+#   * a judge that says PRESENT but cannot quote it                   -> counted ABSENT
+#   * a reply carrying hallucinated tool-call syntax                  -> INDETERMINATE, not scored
+#   * a containment restore of a file that did not exist              -> unlink, not rewrite
+# ═══════════════════════════════════════════════════════════════
+
+import handoff_drill as drill  # type: ignore[import-not-found]  # noqa: E402
+
+
+def _seat(root: Path, journal: str,
+          handoff_md: str = "# handoff\nUnit in flight: bp-203\n") -> None:
+    _write(root / "docs" / "roles" / "orchestrator" / "journal.md", journal)
+    _write(root / "docs" / "roles" / "orchestrator" / "handoff.md", handoff_md)
+
+
+def _reply(text: str, *, cost: float = 0.01, rc: int = 0) -> drill.Spawn:
+    return drill.Spawn(text, cost, 1000, rc, text)
+
+
+# ── the bundle is EXACTLY the scope, and nothing else ───────────
+def test_the_role_bundle_carries_handoff_and_the_journal_SEGMENT_only(tmp_path):
+    """§2.11's word is "exactly". Anything extra is a source the drill silently stops testing the
+    absence of — and the drill's whole value is knowing what a successor does NOT have."""
+    _fixture(tmp_path)
+    _seat(tmp_path, "top of the journal\n\n## CAPSULE — 2026-07-27\n\nDEMOTED HISTORY\n")
+    _write(tmp_path / "docs" / "SECRET-EXTRA.md", "THIS MUST NOT APPEAR IN A BUNDLE\n")
+    bundle = drill.build_bundle(tmp_path, _role(tmp_path))
+    assert "top of the journal" in bundle          # live narrative is in
+    assert "DEMOTED HISTORY" not in bundle          # history below the capsule is NOT
+    assert "THIS MUST NOT APPEAR" not in bundle     # nothing else in the tree is
+    assert bundle.count("=== BUNDLE FILE:") == 2, "exactly two files for a role scope"
+
+
+def test_the_plan_bundle_is_plan_plus_journal(tmp_path):
+    _fixture(tmp_path)
+    _write(tmp_path / "docs" / "build-plans" / "bp-203" / "journal.md", "the plan journal\n")
+    bundle = drill.build_bundle(tmp_path, handoff.resolve(tmp_path, "plan", "bp-203"))
+    assert "the plan journal" in bundle and "bp-203" in bundle
+    assert bundle.count("=== BUNDLE FILE:") == 2
+
+
+def test_a_plan_with_no_journal_says_so_rather_than_crashing(tmp_path):
+    _fixture(tmp_path)
+    bundle = drill.build_bundle(tmp_path, handoff.resolve(tmp_path, "plan", "bp-201"))
+    assert "does not exist" in bundle
+
+
+# ── parse ───────────────────────────────────────────────────────
+def test_parse_extracts_the_three_probe_outputs():
+    p = drill.parse_reply("UNIT: bp-123\nNEXT: `/resume bp-123`\n"
+                          "BLOCKED: what is owed?\nBLOCKED: who blesses it?\n")
+    assert p.unit == "bp-123"
+    assert p.next_action == "`/resume bp-123`"
+    assert p.blocked == ("what is owed?", "who blesses it?")
+
+
+def test_parse_tolerates_the_numbered_form_an_agent_may_emit():
+    p = drill.parse_reply("(1) UNIT: bp-9\n(2) NEXT: /triage\n")
+    assert (p.unit, p.next_action) == ("bp-9", "/triage")
+
+
+def test_parse_reports_absence_as_none_not_as_empty_string():
+    """⚑ A missing line must be distinguishable from an empty answer, or `compare` cannot tell
+    "the agent said nothing" from "the agent said the right nothing"."""
+    p = drill.parse_reply("I am afraid I cannot help with that.")
+    assert p.unit is None and p.next_action is None and p.blocked == ()
+
+
+# ── compare: the mechanical half (V1's subject) ─────────────────
+def _expected(unit="bp-123", nxt="/resume bp-123"):
+    return {"scope": "role:orchestrator", "unit_in_flight": unit, "next_action": nxt}
+
+
+def test_an_exact_match_passes():
+    v = drill.compare(drill.parse_reply("UNIT: bp-123\nNEXT: /resume bp-123\n"), _expected())
+    assert v.matched and v.code == drill.PASS
+
+
+@pytest.mark.parametrize("rendered", [
+    "`/resume bp-123`", " /resume bp-123 ", "/resume  bp-123", "/RESUME bp-123",
+    "**/resume bp-123**", "/resume bp-123.",
+])
+def test_formatting_is_not_content(rendered):
+    """`_canon` is a REPRESENTATION allowance — backticks, case, spacing, emphasis are how a model
+    renders a command, not what the command IS."""
+    v = drill.compare(drill.parse_reply(f"UNIT: bp-123\nNEXT: {rendered}\n"), _expected())
+    assert v.matched, v.mismatches
+
+
+@pytest.mark.parametrize("wrong", [
+    "/resume bp-124", "/build bp-123", "/triage", "resume bp-123x",
+    # ⚑ THE SUBSTRING DIRECTION, which mutation proved was untested: an answer that CONTAINS the
+    # right command plus more is not the right answer. §2.11 asks for "the SINGLE concrete next
+    # action", and a compare that accepts a superstring is the loosening §10 forbids — it would
+    # pass an agent that listed every plausible action and let one of them be correct.
+    "/resume bp-123 and then /triage",
+    "first /resume bp-123, or possibly /build bp-202",
+    "maybe /resume bp-123?  I am not sure.",
+])
+def test_a_genuinely_different_answer_still_fails(wrong):
+    """⚑ The allowance must not become a loosening. No substring, prefix or fuzzy match exists, so
+    a compare tuned until it passes — the one thing a falsifier must never be — is impossible."""
+    v = drill.compare(drill.parse_reply(f"UNIT: bp-123\nNEXT: {wrong}\n"), _expected())
+    assert not v.matched and v.code == drill.FAIL
+
+
+def test_a_missing_UNIT_line_fails_rather_than_passing_vacuously():
+    """⚑ THE DEGENERATE INPUT for the compare: no answer at all. `None == None` would be a pass."""
+    v = drill.compare(drill.parse_reply("NEXT: /resume bp-123\n"), _expected())
+    assert not v.matched
+    assert any("emitted no UNIT line" in m for m in v.mismatches)
+
+
+def test_a_reply_that_answers_nothing_fails_on_both_fields():
+    v = drill.compare(drill.parse_reply("sorry!"), _expected())
+    assert len(v.mismatches) == 2 and v.code == drill.FAIL
+
+
+# ── the verdict ladder ──────────────────────────────────────────
+def test_a_genuinely_absent_unknown_is_a_pass_with_a_defect_report():
+    """§2.11: *"A `BLOCKED:` line whose answer is genuinely absent is a pass with a defect
+    report — the drill found under-specified state, which is its job."*"""
+    v = drill.Verdict("role:orchestrator", matched=True, genuinely_absent=["what is owed?"])
+    assert v.code == drill.PASS
+    assert "defect report" in v.one_line()
+
+
+def test_a_re_asked_question_is_a_failure():
+    v = drill.Verdict("role:orchestrator", matched=True,
+                      answered_in_bundle=[("what is owed?", "it is owed a deskcheck")])
+    assert v.code == drill.FAIL
+
+
+def test_fabricated_tool_syntax_makes_the_run_indeterminate_not_a_pass(tmp_path, monkeypatch):
+    """⚑ MEASURED: a tool-less agent under pressure may hallucinate a tool call and invent an
+    answer instead of emitting `BLOCKED:` (finding-0254). Scoring such a reply would let the drill
+    PASS on an answer never derived from the bundle."""
+    _fixture(tmp_path)
+    _seat(tmp_path, "narrative\n")
+    monkeypatch.setattr(drill, "spawn", lambda *_a, **_k: _reply(
+        'Bash(command: "grep -rn NONCE .", description: "x")\n  ⎿ ./token.env:NONCE=93f6\n'
+        "UNIT: bp-203\nNEXT: /resume bp-203\n"))
+    monkeypatch.setattr(drill._Containment, "gate_verdict", lambda _s: "ALLOW")
+    v = drill.run_drill(tmp_path, _role(tmp_path))
+    assert v.code == drill.INDETERMINATE
+    assert "FABRICATED" in v.one_line()
+
+
+def test_a_clean_reply_is_scored_normally(tmp_path, monkeypatch):
+    """The other side of the guard: an ordinary reply must NOT be swallowed by it."""
+    _fixture(tmp_path)
+    _seat(tmp_path, "narrative\n")
+    monkeypatch.setattr(drill, "spawn", lambda *_a, **_k: _reply("UNIT: bp-203\n"
+                                                                "NEXT: /resume bp-203\n"))
+    monkeypatch.setattr(drill._Containment, "gate_verdict", lambda _s: "ALLOW")
+    assert drill.run_drill(tmp_path, _role(tmp_path)).code == drill.PASS
+
+
+# ── containment (finding-0246 / finding-0247) ───────────────────
+def _baseline(root: Path) -> Path:
+    return root / ".claude" / "state" / "session-baseline"
+
+
+def test_containment_unlinks_a_baseline_that_did_not_exist_before(tmp_path, monkeypatch):
+    """⚑ The correction the naive `cp -p` recipe cannot express: in a fresh worktree the file is
+    ABSENT, and a spawn that creates it must be undone by REMOVING it."""
+    monkeypatch.setattr(drill._Containment, "gate_verdict", lambda _s: "ALLOW")
+    _baseline(tmp_path).parent.mkdir(parents=True)
+    with drill._Containment(tmp_path) as c:
+        _baseline(tmp_path).write_text("deadbeefcafe\n", encoding="utf-8")  # the spawn's damage
+    assert not _baseline(tmp_path).exists()
+    assert c.verify() is None
+
+
+def test_containment_restores_content_and_mtime(tmp_path, monkeypatch):
+    monkeypatch.setattr(drill._Containment, "gate_verdict", lambda _s: "ALLOW")
+    path = _baseline(tmp_path)
+    path.parent.mkdir(parents=True)
+    path.write_text("original\n", encoding="utf-8")
+    os.utime(path, (1_700_000_000, 1_700_000_000))
+    with drill._Containment(tmp_path):
+        path.write_text("HEAD-moved\n", encoding="utf-8")  # the SessionStart rewrite
+    assert path.read_text(encoding="utf-8") == "original\n"
+    assert int(path.stat().st_mtime) == 1_700_000_000, "mtime is half the damage (check 2 arms)"
+
+
+def test_containment_reports_a_changed_VERDICT_even_when_the_bytes_match(tmp_path, monkeypatch):
+    """⚑ The bytes are the mechanism; the VERDICT is the claim. A restore that produced identical
+    bytes but a different gate answer is still a drill that perturbed what it measures."""
+    _baseline(tmp_path).parent.mkdir(parents=True)
+    verdicts = iter(["ALLOW", "BLOCK: (e′) …"])
+    monkeypatch.setattr(drill._Containment, "gate_verdict", lambda _s: next(verdicts))
+    with drill._Containment(tmp_path) as c:
+        pass
+    breach = c.verify()
+    assert breach is not None and "VERDICT changed" in breach
+
+
+def test_a_containment_breach_voids_the_run(tmp_path, monkeypatch):
+    _fixture(tmp_path)
+    _seat(tmp_path, "narrative\n")
+    verdicts = iter(["ALLOW", "BLOCK: something"])
+    monkeypatch.setattr(drill._Containment, "gate_verdict", lambda _s: next(verdicts))
+    monkeypatch.setattr(drill, "spawn", lambda *_a, **_k: _reply("UNIT: bp-203\n"
+                                                                "NEXT: /resume bp-203\n"))
+    v = drill.run_drill(tmp_path, _role(tmp_path))
+    assert v.code == drill.FAIL and any("CONTAINMENT BREACH" in m for m in v.mismatches)
+
+
+# ── the drill's own falsifier ───────────────────────────────────
+def test_isolation_is_broken_when_the_agent_produces_the_nonce(tmp_path, monkeypatch):
+    """The falsifier's RED path: an agent that returns the nonce read a file outside the bundle,
+    so every PASS the drill would ever report is void."""
+    monkeypatch.setattr(drill._Containment, "gate_verdict", lambda _s: "ALLOW")
+    _baseline(tmp_path).parent.mkdir(parents=True)
+
+    def read_the_file_like_a_tooled_agent_would(_prompt, *, cwd, **_kw):
+        nonce = (Path(cwd) / "OUTSIDE-THE-BUNDLE.md").read_text(encoding="utf-8")
+        return _reply(f"The value is {nonce.split('=', 1)[1].strip()}")
+
+    monkeypatch.setattr(drill, "spawn", read_the_file_like_a_tooled_agent_would)
+    ok, message = drill.verify_isolation(tmp_path)
+    assert not ok and "ISOLATION BROKEN" in message
+
+
+def test_isolation_holds_when_the_agent_reports_blocked(tmp_path, monkeypatch):
+    monkeypatch.setattr(drill._Containment, "gate_verdict", lambda _s: "ALLOW")
+    _baseline(tmp_path).parent.mkdir(parents=True)
+    monkeypatch.setattr(drill, "spawn",
+                        lambda *_a, **_k: _reply("BLOCKED: what is NONCE_TOKEN?"))
+    ok, message = drill.verify_isolation(tmp_path)
+    assert ok and "isolation holds" in message
+
+
+def test_an_empty_reply_is_UNPROVEN_isolation_not_held(tmp_path, monkeypatch):
+    """⚑ THE DEGENERATE INPUT for the falsifier itself: an empty reply contains no nonce, so a
+    failed spawn would otherwise report success. Unproven is not the same as held."""
+    monkeypatch.setattr(drill._Containment, "gate_verdict", lambda _s: "ALLOW")
+    _baseline(tmp_path).parent.mkdir(parents=True)
+    for reply in (_reply("", rc=127), _reply("   \n"), _reply("anything", rc=1)):
+        monkeypatch.setattr(drill, "spawn", lambda *_a, _r=reply, **_k: _r)
+        ok, message = drill.verify_isolation(tmp_path)
+        assert not ok and "UNPROVEN" in message
+
+
+# ── the judge: subjective, but its evidence is checked ──────────
+def test_the_judge_must_quote_the_bundle_verbatim(tmp_path, monkeypatch):
+    bundle = "=== BUNDLE FILE: j.md ===\nthe deskcheck for bp-201 is owed to the owner\n"
+    monkeypatch.setattr(drill, "spawn", lambda *_a, **_k: _reply(
+        "PRESENT: the deskcheck for bp-201 is owed to the owner"))
+    answered, absent, notes, cost = drill.judge_blocked(bundle, ("who owes the deskcheck?",),
+                                                        cwd=tmp_path)
+    assert len(answered) == 1 and absent == [] and cost > 0
+
+
+def test_a_judge_that_cannot_quote_it_is_counted_ABSENT(tmp_path, monkeypatch):
+    """⚑ THE DEGENERATE INPUT for the judge: a confident PRESENT with no evidence. The quote check
+    turns a hallucination into a mechanical failure instead of a believed verdict — a FAIL that
+    would otherwise be manufactured out of nothing."""
+    bundle = "=== BUNDLE FILE: j.md ===\nnothing relevant at all\n"
+    monkeypatch.setattr(drill, "spawn", lambda *_a, **_k: _reply(
+        "PRESENT: the answer is obviously that the owner blesses it"))
+    answered, absent, notes, _cost = drill.judge_blocked(bundle, ("who blesses it?",),
+                                                         cwd=tmp_path)
+    assert answered == [] and absent == ["who blesses it?"]
+    assert notes and "could not quote it" in notes[0]
+
+
+def test_an_absent_verdict_is_taken_at_face_value(tmp_path, monkeypatch):
+    monkeypatch.setattr(drill, "spawn", lambda *_a, **_k: _reply("ABSENT"))
+    answered, absent, _n, _c = drill.judge_blocked("bundle", ("q?",), cwd=tmp_path)
+    assert answered == [] and absent == ["q?"]
+
+
+# ── the MEASURED row the drill owes ─────────────────────────────
+def test_the_recorded_row_is_clock_read_and_survives_the_future_dated_lint(tmp_path):
+    """The drill records its own result (§2.11). ⚑ Its timestamp is read from the clock, never
+    composed — `handoff.py --lint` checks exactly this, and the drill must not be the thing that
+    trips it."""
+    _write(tmp_path / "docs" / "roles" / "orchestrator" / "readings.md",
+           "| timestamp | command | result |\n|---|---|---|\n")
+    drill.record(tmp_path, "orchestrator", "uv run scripts/handoff_drill.py", "PASS on x | y")
+    rows = handoff.read_readings(tmp_path / "docs" / "roles" / "orchestrator" / "readings.md")
+    assert len(rows) == 1
+    stamp, command, result = rows[0]
+    assert handoff._parse_stamp(stamp) is not None, "the row must carry a parseable clock read"
+    now = datetime.now(UTC)
+    assert abs((handoff._parse_stamp(stamp) - now).total_seconds()) < 300
+    assert "|" not in result, "a pipe in the result would corrupt the table"
+
+
+def test_the_spawn_flags_ARE_the_isolation_mechanism():
+    """⚑ `_SPAWN_FLAGS` is not configuration — it IS the barrier. Dropping `--tools ""` yields a
+    fully-tooled agent that can read the whole repo; dropping `--safe-mode` lets `SessionStart`
+    fire and launder the very gate the drill must not perturb. Either edit makes every future PASS
+    meaningless (the plan's Item 17 falsifier, verbatim) — and an audit mutant that gutted the
+    tuple to `("-p", "--output-format", "json")` left the suite GREEN, because nothing referenced
+    it. finding-0249's rule turned on my own diff: the property is real only where something
+    proves it. `--verify-isolation` catches this too, but it costs a live spawn and is therefore
+    absent from the automated gate."""
+    flags = drill._SPAWN_FLAGS
+    for required in ("-p", "--safe-mode", "--no-session-persistence", "--strict-mcp-config"):
+        assert required in flags, f"{required} is load-bearing — see this test's docstring"
+    assert "--tools" in flags, "no --tools means every tool, which is no isolation at all"
+    assert flags[flags.index("--tools") + 1] == "", \
+        '--tools must be followed by the EMPTY STRING — the CLI\'s own "disable all tools" form'
+    assert drill.GRIND_MODEL == "sonnet", "§2.11 prices the drill at the grind row"
