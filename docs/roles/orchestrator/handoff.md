@@ -29,12 +29,17 @@
 | bp-130 | proposed | graduate | the `(I − Ε)` factor: `π_valid`, and transport-invariance made checkable |
 | bp-131 | proposed | graduate | the chat lane's belief/validity split, and the E8 tripwire |
 | bp-132 | proposed | graduate | every chat consumer declares its axis: belief or validity |
+| bp-135 | proposed | graduate | AP2: the reviewer's seat leaves a record — the audit pair as a typed artifact the board actually consumes |
+| bp-136 | proposed | graduate | AP3: the halt list is a total predicate over a declared run state, and every unknown halts |
+| bp-137 | proposed | graduate | AP4: "low stakes" becomes a conjunctive structural predicate that refuses on absence exactly as it refuses on violation |
+| bp-138 | proposed | graduate | AP5: the grant's pure core — code derivation, the domain-separated attestation tag, and expiry, with the secret behind an injection-only seam |
+| bp-139 | proposed | graduate | AP6: the ON switch — `[autopilot]` reaches a caller, and the capsule reaches the phone as bytes it can hash |
 
-Status tally: complete 111 · in-progress 1 · proposed 4 · ready 10 · superseded 6
+Status tally: complete 111 · in-progress 1 · proposed 9 · ready 10 · superseded 6
 
 ## Awaiting the owner
 
-- bless (proposed→ready): bp-129, bp-130, bp-131, bp-132
+- bless (proposed→ready): bp-129, bp-130, bp-131, bp-132, bp-135, bp-136, bp-137, bp-138, bp-139
 - ratify (draft notes): 42 — alignment-subsystem, attestation-layer, authorship-distance-axis, core-integrity, dialogue-ingest-and-recursion, dn-headless-daemon-secret-bootstrap …
 - answer (open owner questions): 33 — oq-0003, oq-0004, oq-0005, oq-0006, oq-0007, oq-0008, oq-0009, oq-0010 …
 
@@ -50,7 +55,7 @@ Status tally: complete 111 · in-progress 1 · proposed 4 · ready 10 · superse
 
 ## Open findings
 
-50 open — most recent: finding-0256, finding-0257, finding-0258, finding-0259, finding-0260, finding-0261
+52 open — most recent: finding-0258, finding-0259, finding-0260, finding-0261, finding-0262, finding-0263
 
 ## Readings (MEASURED — latest per command)
 
@@ -71,6 +76,7 @@ Status tally: complete 111 · in-progress 1 · proposed 4 · ready 10 · superse
 | 2026-07-27T06:35Z | `python3 scripts/handoff.py --role orchestrator --check, six induced failure modes` | ImportError / RuntimeError / SyntaxError each exit **1** — identical to a genui… |
 | 2026-07-27T07:02Z | `python3 scripts/handoff.py --role orchestrator --check, with `dest` forced outside ROOT at the staleness print` | rc 1; stderr echoes the SOURCE line `print(f"{dest… |
 | 2026-07-27T14:53Z | `sqlite3 "file:data/chatlog.sqlite?mode=ro" — speaker census over chat_utterances` | Rows beginning literally `Stop hook feedback:` and attributed to `speaker='owner… |
+| 2026-07-27T16:07Z | `sqlite3 "file:data/chatlog.sqlite?mode=ro" — three predicates over speaker='owner', reconciling an earlier row` | PREFIX `text LIKE 'Stop hook feedback%'` = 139 · S… |
 | 2026-07-27T15:36Z | `sqlite3 "file:data/queue.sqlite?mode=ro" — job state census` | ⚑ QUEUE WEDGED. queued 1766 · running 1 · done 300242 · failed 1. The single running job is 300246 (c… |
 | 2026-07-27T15:44Z | `uv run mypy` | 69 errors in 20 files of 562 checked — EXACTLY the pinned tests/ baseline, rc 1 as expected; zero in the changed files |
 | 2026-07-27T15:44Z | `uv run mypy core agents eval ops scheduler scripts` | Success: no issues in 262 source files — the floor holds at 0 with handoff_drill.py enrolled |
