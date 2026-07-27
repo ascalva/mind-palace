@@ -32,7 +32,7 @@ Status tally: complete 110 · in-progress 2 · ready 10 · superseded 6
 ## Awaiting the owner
 
 - bless (proposed→ready): none
-- ratify (draft notes): 42 — alignment-subsystem, attestation-layer, authorship-distance-axis, core-integrity, dialogue-ingest-and-recursion, dn-headless-daemon-secret-bootstrap …
+- ratify (draft notes): 43 — alignment-subsystem, attestation-layer, authorship-distance-axis, core-integrity, dialogue-ingest-and-recursion, dn-headless-daemon-secret-bootstrap …
 - answer (open owner questions): 33 — oq-0003, oq-0004, oq-0005, oq-0006, oq-0007, oq-0008, oq-0009, oq-0010 …
 
 ## Deskchecks owed
@@ -47,7 +47,7 @@ Status tally: complete 110 · in-progress 2 · ready 10 · superseded 6
 
 ## Open findings
 
-40 open — most recent: finding-0246, finding-0247, finding-0248, finding-0249, finding-0250, finding-0251
+41 open — most recent: finding-0247, finding-0248, finding-0249, finding-0250, finding-0251, finding-0252
 
 ## Readings (MEASURED — latest per command)
 
