@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# ⚡ OWNER ESCAPE HATCH — `export OUROBOROS_HOOKS_OFF=1` disables every hook here;
+# `unset` restores. No restart needed (unlike renaming the settings.json `hooks` key,
+# which is snapshotted at session start). Deliberately ABOVE the fail-loud EXIT trap
+# below: an exit after it fires fail_loud and sprays HOOK-FAILURE on every call.
+# `exit 0` is the permissive posture for every event type.
+if [ -n "${OUROBOROS_HOOKS_OFF:-}" ]; then exit 0; fi
 # scope-guard — PreToolUse(Edit|Write|MultiEdit): deny out-of-scope file writes.
 # The pre-hoc half of the two-layer write enforcement (design-note §6). Reads the
 # active plan's write_scope capability; denies anything outside it (+ the plan's

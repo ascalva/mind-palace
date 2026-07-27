@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# ⚡ OWNER ESCAPE HATCH — `export OUROBOROS_HOOKS_OFF=1` disables every hook here;
+# `unset` restores. No restart needed (unlike renaming the settings.json `hooks` key,
+# which is snapshotted at session start). Deliberately ABOVE the fail-loud EXIT trap
+# below: an exit after it fires fail_loud and sprays HOOK-FAILURE on every call.
+# `exit 0` is the permissive posture for every event type.
+if [ -n "${OUROBOROS_HOOKS_OFF:-}" ]; then exit 0; fi
 # session-brief — SessionStart: emit world-state into context and record the
 # close-of-session audit baseline. This is what makes a bare `claude` at root
 # land oriented as orchestrator (design-note §6): plans by status, unswept
