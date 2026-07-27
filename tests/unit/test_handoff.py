@@ -633,3 +633,21 @@ def test_the_recorded_row_is_clock_read_and_survives_the_future_dated_lint(tmp_p
     now = datetime.now(UTC)
     assert abs((handoff._parse_stamp(stamp) - now).total_seconds()) < 300
     assert "|" not in result, "a pipe in the result would corrupt the table"
+
+
+def test_the_spawn_flags_ARE_the_isolation_mechanism():
+    """⚑ `_SPAWN_FLAGS` is not configuration — it IS the barrier. Dropping `--tools ""` yields a
+    fully-tooled agent that can read the whole repo; dropping `--safe-mode` lets `SessionStart`
+    fire and launder the very gate the drill must not perturb. Either edit makes every future PASS
+    meaningless (the plan's Item 17 falsifier, verbatim) — and an audit mutant that gutted the
+    tuple to `("-p", "--output-format", "json")` left the suite GREEN, because nothing referenced
+    it. finding-0249's rule turned on my own diff: the property is real only where something
+    proves it. `--verify-isolation` catches this too, but it costs a live spawn and is therefore
+    absent from the automated gate."""
+    flags = drill._SPAWN_FLAGS
+    for required in ("-p", "--safe-mode", "--no-session-persistence", "--strict-mcp-config"):
+        assert required in flags, f"{required} is load-bearing — see this test's docstring"
+    assert "--tools" in flags, "no --tools means every tool, which is no isolation at all"
+    assert flags[flags.index("--tools") + 1] == "", \
+        '--tools must be followed by the EMPTY STRING — the CLI\'s own "disable all tools" form'
+    assert drill.GRIND_MODEL == "sonnet", "§2.11 prices the drill at the grind row"

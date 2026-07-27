@@ -186,9 +186,21 @@ def _read_or(path: Path, default: str = "(this file does not exist)") -> str:
 class _Containment:
     """The session-baseline snapshot, as an INVARIANT around any spawn.
 
-    ⚑ The claim is the VERDICT, not the bytes. `verify()` re-evaluates the Stop gate and compares
-    it to the reading taken before the spawn; matching bytes with a changed verdict would still
-    mean the drill perturbed what it measures."""
+    ⚑ The claim is the VERDICT, not the bytes — and the two are checked at different strengths,
+    which is worth stating precisely rather than implying they are equal:
+
+      * `verify()` runs **after** `__exit__` has already restored existence, content and mtime. Its
+        two byte-level checks are therefore **post-restore assertions on the restore itself** — they
+        can only fire if `__exit__` is broken, and they are unreachable as failures while it is
+        correct. (`__exit__` being broken is pinned directly by the containment tests, which assert
+        the file's state after the block rather than through `verify()`.)
+      * The **verdict** check is the live, non-vacuous one, and it is the one §2.11 actually
+        requires: it re-evaluates the Stop gate and compares it to the reading taken before the
+        spawn. Bytes are the mechanism; the verdict is the claim.
+
+    Deliberately NOT moved inside the `with`: there, the file is still in its perturbed state (the
+    whole point — `SessionStart` has rewritten it), so the byte checks would report a breach on
+    every ordinary run and the invariant would invert into a permanent false alarm."""
 
     root: Path
     existed: bool = False
