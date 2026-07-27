@@ -1,7 +1,7 @@
 ---
 type: design-note
 id: dn-erratum-relation
-status: draft            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
+status: ratified            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 created: 2026-07-27
 updated: 2026-07-27
 links:
