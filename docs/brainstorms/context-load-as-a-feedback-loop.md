@@ -39,6 +39,14 @@ seed: |
 | mandatory frame | **~5.8k tok** | CONSTITUTION+CLAUDE+CONVENTIONS — NOT the cost |
 | code-sensor ledger | **1,204 → 1,230** in one evening | the corpus ingesting commits about the corpus |
 
+⚑ **CORRECTION (owner-intent audit, 2026-07-27) — the clearing row dates the instruction to when it
+was OBEYED, not when it was GIVEN.** The owner first granted it a full day earlier: *"also, I give
+you permission to wipe the resume, you don't need a handoff right now"* (`2026-07-26T03:16:25Z`,
+session `a73e8b34`, typed while the agent was mid-turn). It was not acted on, and he re-issued it
+three times on the evening of 2026-07-26 before it was. ⇒ **The 17 clause-(e) firings measured above
+were paid AFTER the intervention was already authorised** — they are the cost of the delay, not the
+cost of the loop being undiagnosed. See `docs/brainstorms/owner-intent-audit.md` (L-4).
+
 ⚑ **The measurements disagree with the intuition, which is why they matter.** The obvious suspect
 is the mandatory frame; it is ~6k tokens and irrelevant. The actual load is **re-derivation** —
 agents rediscovering the same ground, and a hand-maintained summary restating what git already holds.
