@@ -49,12 +49,18 @@ Status tally: complete 107 · in-progress 1 · ready 13 · superseded 6
 
 ## Open findings
 
-26 open — most recent: finding-0230, finding-0231, finding-0232, finding-0233, finding-0234, finding-0235
+28 open — most recent: finding-0232, finding-0233, finding-0234, finding-0235, finding-0236, finding-0237
 
 ## Readings (MEASURED — latest per command)
 
 | when | command | result |
 |---|---|---|
+| 2026-07-27T04:47Z | `uv run mypy` | 69 errors in 20 files of 559 — exactly the recorded tests baseline, none in new code |
+| 2026-07-27T04:44Z | `uv run mypy core agents eval ops scheduler scripts` | Success: no issues in 261 files — the floor holds at 0 |
+| 2026-07-27T04:56Z | `uv run pytest -q` | 2 failed / 2301 passed / 15 skipped in 356s — BOTH pre-existing: the finding-0103 core-self-containment ratchet and the finding-0226 dream-v2 li… |
+| 2026-07-27T04:49Z | `uv run python -m ops.type_gate` | OK — tier-2 membership + bare-ignore scan clean; one parked non-fatal shim report (finding-0223) |
+| 2026-07-27T04:42Z | `uv run python scripts/check_imports.py` | OK — import firewall + worker boundary both clean (rc 0) |
+| 2026-07-27T04:41Z | `uv run ruff check .` | All checks passed (rc 0) |
 | 2026-07-27T03:36Z | `uv sync --frozen --extra dev` | ok — dev extras resolved in a fresh worktree venv |
 
 ## Queue (an input, never the substrate)

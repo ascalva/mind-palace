@@ -259,3 +259,146 @@ and in each plan's §12. **Not started.**
   V1 landing early and bp-127's drill degrades to judge-only.
 - Record whether the inline queue read stayed under ~15 lines (§3 Q5); if not, the
   `ops.lifecycle.snapshot` import earns its place and a `codebase` finding should say so.
+
+---
+
+## SEAL — 2026-07-27: all five items closed; the pin holds and V1 lands positive
+
+> Entry order in this file: the three per-item entries above are newest-first under the H1; this
+> SEAL is at the **tail**, where `_journal_tail_has_followthrough` looks for it.
+
+**Status line.** bp-124 is built and verified. The orchestrator seat has its three artifacts,
+`scripts/handoff.py` renders every scope the contract pins, the coordinate check reaches findings
+and owner questions, and **no falsifier in the plan fired**. The plan's `status:` is deliberately
+left at `ready` — flipping it is the orchestrator's act on merge, not a builder's.
+
+**What was built, against each acceptance criterion.**
+
+| item | criterion | evidence |
+|---|---|---|
+| 1 | seat artifacts exist, tracked, seven sections, zero hex | both files committed; `grep -nEo '\b[0-9a-f]{7,40}\b'` → rc 1, no matches |
+| 2 | two `--write` runs byte-identical; committed == fresh; rows ≤190; banner; no sha/timestamp | `cmp` clean over two runs; `--check` rc 0; widest row **190 chars** exactly (194 *bytes* — `_cap` counts characters, as `test_board` always has); banner first line |
+| 3 | absent queue → rc 0 + `queue: unavailable in this checkout`; fixture queue renders rows; `mode=ro` asserted; nothing left behind | four tests, incl. a standing proof that a `mode=ro` open of a missing path **raises** rather than creating |
+| 4 | orphaned finding/oq surface; absent `track:` is not an orphan; board CLI + rendering unchanged | render captured before the edit, compared after → **byte-identical**; `--queue-count` still `5` |
+| 5 | `--json` parseable, `unit_in_flight` + `next_action` tree-derived, byte-stable | two invocations `diff` clean; both fields fall out of `derive()`; a test pins doc↔JSON agreement |
+
+**Gate — every leg run separately, output to a file, not piped.**
+
+| leg | result |
+|---|---|
+| `uv run ruff check .` | **All checks passed** (rc 0) |
+| `uv run python scripts/check_imports.py` | **OK** — import firewall + worker boundary (rc 0) |
+| `uv run mypy core agents eval ops scheduler scripts` | **Success: no issues found in 261 source files** — floor 0 (rc 0) |
+| `uv run mypy` (argless) | **Found 69 errors in 20 files (checked 559)** — exactly the recorded baseline; **none in `scripts/handoff.py`, `scripts/board.py`, or either new test file** |
+| `uv run python -m ops.type_gate` | **OK** (rc 0); one parked non-fatal shim report (finding-0223), unchanged |
+| `uv run pytest -q` | **2 failed, 2301 passed, 15 skipped** in 356s |
+
+⚑ **The exact failure count, stated so no one has to re-derive it: TWO, and both pre-existing.**
+`tests/unit/test_core_self_containment.py::test_core_imports_nothing_outside_core` (the
+finding-0103 ratchet) and `tests/e2e/test_dream_v2_live.py::test_dream_v2_synthesizes_grounded_
+themes_live` (finding-0226). Neither is in CI or the deploy gate; neither is touched by this diff.
+The third known-fragile one, `tests/e2e/test_scheduler_live.py`, **passed** this run.
+
+**Answers the family is waiting on.**
+
+1. **⚑ V1 (note §2.12) — `next_action` IS DERIVABLE from the artifact tree. It was never
+   hand-written.** `handoff.derive` walks `_LADDER`: an `in-progress` plan (lowest id) →
+   `/resume <id>`; else a `ready` plan (lowest id) → `/build <id>`; else `/triage`. A `plan` scope
+   answers from its own status. The emitted value is a **bare command string** chosen to make a
+   mechanical compare viable. **bp-127's F2 JSON compare survives contact and does NOT degrade to
+   judge-only.** Two caveats for that plan, so it is not surprised: (a) the ladder encodes a
+   *policy* — in-flight beats available, and an owner-only gate is never an agent's next action —
+   so a disagreeing answer is disagreeing with the policy, not with the tree; (b) compare
+   `unit_in_flight` as a bare id (`"bp-123"` / `"none"`) and treat `unit_title` as non-normative.
+2. **The inline queue read is 13 body lines** (`read_queue`, plus two module-level SQL constants) —
+   **under §3 Q5's ~15-line threshold**, so the `ops.lifecycle.snapshot` import does not earn its
+   place and **no `codebase` finding is owed on that question**. It was independently blocked
+   anyway: Item 2's invariant pins handoff's imports to stdlib + `_lib` + `board`.
+3. **⚑ The compaction-capsule marker is `## CAPSULE — <date>`**, pinned in
+   `docs/roles/orchestrator/journal.md:32`. The **authoritative segment** is the latest such
+   heading plus every entry **above** it (that file is newest-first, so §2.8's "entries after the
+   capsule" reads as "above" there). Nothing else in that file uses the heading. **bp-127's F1b
+   lint should key on exactly that string.**
+4. **⚑ bp-126 must not re-implement `--check`.** The committed rendering is tree-pure by
+   construction and the live queue/age panes are stdout-only — see `finding-0236` for why that was
+   forced, and what would break if the probe were moved back into `--write`.
+
+**Findings filed.**
+- `docs/findings/finding-0236.md` (`spec-defect` → orchestrator): the queue pane and the age
+  display cannot live in the committed rendering without breaking the idempotence pin; how bp-124
+  resolved it and what bp-126/bp-127 must do.
+- `docs/findings/finding-0237.md` (`codebase` → builder): `board.scan_oqs` and `docket._scan_oqs`
+  now each carry the `## oq-NNNN` header regex; not fixable inside this write_scope.
+
+**Left for the orchestrator (not builder acts, deliberately not done).**
+- **`docs/TRACKS.md` is stale by four rows** (bp-124…bp-127) — pre-existing, from the graduation
+  and blessing commits. Run `uv run scripts/board.py --write` after the merge. It is outside this
+  plan's write_scope and is untouched in the diff.
+- `docs/roles/orchestrator/handoff.md` will need one regeneration after the merge, because the
+  merge changes plan statuses. By the pin, that regeneration converges in exactly one step.
+- The plan `status:` flip and the `docs/DESKCHECK-QUEUE.md` row.
+
+**In-flight.** Nothing.
+
+**Next action.** Merge review. Nothing in this plan is left half-done.
+
+**Open questions.** None blocking; both findings are routed.
+
+**Context-manifest delta.** Consolidated from the per-item entries: `docs/findings/finding-0235.md`
+(filed after the plan was written; it explains the single pre-existing orphan row Item 4 must not
+disturb), `.claude/hooks/_lib.py:169-244` (the parser's `#`-handling — the reason Item 4 must NOT
+strip comments from a `track:` value), `.claude/hooks/_lib.py:710-718` + `:925-937` (clause (f)'s
+tail semantics, which is why this SEAL sits at the file's end), `scheduler/queue.py` state
+constants (lowercase), `pyproject.toml` `[tool.mypy]` (confirmed enrolment; no edit), and
+`docs/inbox/owner-questions.md`'s entry shape. Nothing in the manifest proved irrelevant.
+
+```read-map
+docs/findings/finding-0236.md:1: THE design decision of this plan — the queue pane and the age display cannot sit in the committed rendering without breaking the idempotence pin; read before bp-126
+scripts/handoff.py:20: the two-view resolution stated at the top of the module — why --write/--check/--json are tree-pure and a bare render is live
+scripts/handoff.py:79: _LADDER — the whole of `next_action`, and therefore the whole of V1's answer
+scripts/handoff.py:202: read_queue — 13 lines, `file:…?mode=ro`, missing-file-is-a-value; the single-writer boundary in code
+scripts/handoff.py:244: derive() — the one computation both the document and the JSON are views of
+scripts/handoff.py:290: render() — the section set; note the `view.live` branches at the queue and readings panes
+scripts/board.py:12: the docstring line plan §4 required — the widened coordinate surface and the sibling that reuses these scanners
+scripts/board.py:163: _orphan() — one phrasing for the F-WF1 message across all four artifact classes
+scripts/board.py:174: scan_plans/scan_notes/scan_findings/scan_oqs — the shared scan surface; output-neutral extraction, proven by byte-compare
+scripts/board.py:263: _finding_orphans / _oq_orphans — Item 4 proper; the "absent track: is normal" clause is the load-bearing line
+scripts/board.py:498: _build — where the two new orphan sources join, and the comment on why findings are CHECKED not ATTACHED
+docs/roles/orchestrator/journal.md:32: the compaction-capsule marker bp-127's F1b lint must key on
+tests/unit/test_handoff.py:95: the idempotence falsifier — two renders byte-equal
+tests/unit/test_handoff.py:102: the "excluding itself" half of the pin
+tests/unit/test_handoff.py:209: F1c — absent queue exits 0 and creates nothing
+tests/unit/test_handoff.py:233: the connection string is asserted to be mode=ro
+tests/unit/test_handoff.py:248: proof that a mode=ro open of a missing path RAISES rather than creating it
+tests/unit/test_handoff.py:290: the doc and the JSON cannot drift apart
+tests/unit/test_board.py:153: Item 4's positive case — an orphaned finding AND an orphaned oq surface
+tests/unit/test_board.py:166: Item 4's falsifier as a standing test — artifacts with no `track:` change the rendering by nothing
+```
+
+## Follow-through
+- **Built?** Yes, all five items. `docs/roles/orchestrator/{journal,readings,handoff}.md`,
+  `scripts/handoff.py` (the generator, all five CLI forms), the `scripts/board.py` scan-surface
+  extraction plus the findings/oq coordinate check, and 24 + 4 new tests. Gate green on every leg;
+  the only two suite failures are the two pre-existing ones named above.
+- **Wired / delivered (or why dormant)?** Wired as far as this plan is permitted to wire it, and
+  no further **by design**. The generator is runnable today (`uv run scripts/handoff.py --role
+  orchestrator --write|--check|--json`) and the artifacts are tracked, so they are present in
+  every checkout. It is **not** yet on any gate or hook: clause (e′) is bp-126's atomic diff, and
+  `session-brief.sh` still surfaces the old brief. That is this plan's stated overlapping window
+  (§0), not an unfinished switch — the ON switch for *this* deliverable is the CLI, and it exists.
+- **Does a consumer use it?** Not yet — and that is the honest answer. Today's consumer is a human
+  running the command. The mechanical consumers are bp-126 (clause (e′) calls `--check`) and
+  bp-127 (F1a/F1b/F1c and the F2 drill compare against `--json`). Both are `ready` and both read
+  this journal, which is why the four answers above are stated flatly rather than hedged. The old
+  resume brief is still the live handoff surface until bp-125 and bp-126 land.
+- **Track state (what remains on this track)?** `workflow`. bp-124 done; **bp-125** (migrate the
+  brief — MAIN CHECKOUT ONLY, finding-0234), then **bp-126** (the cutover: clause (e′), the
+  re-point, the deletion), then **bp-127** (F1b/F1c/F2). The dependency edges are load-bearing:
+  bp-126 deletes the brief, so bp-125 must have migrated it first. bp-095, bp-111…bp-119 remain
+  `ready` on other tracks and are unaffected — none holds `.claude/hooks/**` or `scripts/board.py`.
+- **Opened a new track/finding?** No new track. Two findings: `finding-0236` (`spec-defect` →
+  orchestrator — the idempotence/queue collision, with bp-126 and bp-127 instructions) and
+  `finding-0237` (`codebase` → builder — the duplicated oq header regex). `finding-0234` and
+  `finding-0235` both remain open and are unaffected by this diff; `finding-0235`'s phantom orphan
+  is the one row Item 4 deliberately left in place, since fixing it is an owner hand-edit on a
+  ratified note.
