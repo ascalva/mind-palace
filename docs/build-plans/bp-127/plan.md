@@ -117,6 +117,17 @@ Read exactly these, in order, before any work:
     start or it will find a phantom capsule on day one, silently lint only a fragment of the
     file, and pass green while checking almost nothing — the exact vacuous-pass shape
     finding-0238's mutation audit flagged elsewhere in this family.
+12. `docs/findings/finding-0243.md` — ⚑ **a lint this plan should add while it is in F1b's file.**
+    bp-124's seed rows in `readings.md` carry timestamps up to **56 minutes ahead of the commit
+    that introduced them** (rows to 04:56Z; `f9f333a` landed 04:00Z), which means they were
+    never actually clock-read — they were written as plausible-looking values. That is Item 8's
+    own falsifier firing one artifact over, on seed data nothing was checking.
+    A **future-dated readings lint** is mechanical and its failure is unambiguous: no row's
+    timestamp may exceed the commit time of the commit that introduces it. It belongs beside
+    F1b because both are purity lints over seat artifacts, and because a readings pane that
+    silently carries invented numbers defeats the measurement discipline the whole seat exists
+    to support. If you judge it out of scope, say so in the journal and file a finding naming
+    the plan that should carry it — do not simply leave it unbuilt.
 
 **Does `core/` already implement this? (the DRY audit.)** No, and it must not. F1b is a regex
 lint over markdown; F1c is an integration test; F2 is a harness that spawns a process and
