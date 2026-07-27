@@ -36,6 +36,48 @@ marked superseded — retained, readable, non-binding.
 
 ---
 
+## 2026-07-27 — the topology and the subject matter turned out to be the same shape
+
+**Status line.** No builds moved. The session's second half was architecture: the owner worked
+through what a palace *is* when there is more than one of them, and the conclusions are captured but
+not yet design. A Fable pass is mid-flight expanding the authorship axis to carry them.
+
+**Completed.** Seven capsules, cross-linked because several answer questions the others open. The
+arc: the framework is not the instance, an instance is a node, and **a node is just another node in
+a graph** — so the system's topology and its subject matter have the same shape. A trusted third
+party lets two instances authenticate without knowing each other; the role is bound to an enclave
+and assumable by exactly one node; and the anchor is needed only at unseal, which is what keeps it
+out of the running path and makes an outage survivable.
+
+**In-flight.** ⚑ **The correction that outranks the rest: authorship distance and node trust are
+orthogonal, and merging them fails in both directions.** "Far from me implies distrusted" makes
+another instance useless; "trusted node implies my authorship" is the mis-attribution defect this
+seat has been repairing all week — another speaker's words filed as the owner's because the channel
+was legitimate. ⇒ **Trust gates the query; authorship annotates the answer.** A received claim needs
+both coordinates, and the taxonomy has a member for neither.
+
+**Next action.** ⚑ The axis note is `draft` and a pass is expanding it **in its own worktree** —
+`.claude/worktrees/agent-a047d7c8e412ed99b`. If that agent is orphaned by a session boundary, **its
+work is on disk and recoverable**: read the note there, judge whether its added class belongs on the
+axis or is the frame change the brief flagged, and either finish or re-spawn. Do not assume the
+partial file is coherent — it was written across a death and a resume.
+
+**Open questions.** Whether the axis is one line with instances strung along it, or one axis per
+author. The owner named four authors; if each carries its own frame, cross-instance content is a
+change of frame rather than a longer distance, and the note's total order does not survive intact.
+That is the pass's central question and it was not settled when this entry was written.
+
+**Context-manifest delta.** Isolation gained a mechanical form: with node as a scope axis, *the
+graph is contained to its node* becomes a sentence that **cannot be constructed** rather than a rule
+an agent must remember. The hardware tokens are ordered and arrive tomorrow, which converts the
+root-recovery hardening from an open item into a dated one — it must precede registration, and the
+offsite token is the recovery path for the enclave-bound role.
+
+**Markers.** No compaction capsule. The segment is far past its threshold and this entry worsens it.
+⚑ The next `/triage` here should write one before anything else.
+
+---
+
 ## 2026-07-27 — I gave two agents the same room and no key
 
 **Status line.** The handoff family's terminal plan is merged and sealed; its successor is held
