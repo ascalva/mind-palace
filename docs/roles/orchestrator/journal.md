@@ -36,6 +36,284 @@ marked superseded — retained, readable, non-binding.
 
 ---
 
+## 2026-07-27 — the compaction paid the debt, and blinded the instrument that measured it
+
+**Status line.** The seat's first compaction capsule is written, and the emitted surface fell by more
+than half — the measurement, before and after, is in `readings.md`. The backlog that existed only in
+transcript is filed. `bp-128`'s manifest is widened without its blessing being touched.
+
+**Completed.** The capsule carries every still-live judgement from the entries below it and names the
+range it supersedes; what was dropped is enumerated inside it, as classes with reasons, so the
+omission reads as a decision. Four findings were filed and one owner question answered from a channel
+nobody had swept.
+
+**In-flight.** ⚑ **Writing the first capsule broke the two instruments that watch this file, and both
+now report green.** The emitter takes the capsule *and its body*; the linter takes everything *above*
+the marker. With the capsule newest-at-top those two sets are nearly disjoint, so the purity lint now
+checks the preamble and passes, and the §2.8 threshold gauge measures the wrong side of the marker and
+can never fire again. ⚑ **It also silently "fixed" a real FAIL** — the purity violations this file
+carried are now below the capsule and invisible, none of them repaired. Found by mutation, not by
+reading: an impurity planted inside the capsule body **survived**; the same impurity above it was
+caught. `finding-0267`.
+
+⚑ **And the readings log quietly ate the measurement while I was taking it.** A command cell
+containing an escaped pipe — which is how any size or count measurement is written — is discarded by
+the parser with no warning, so three of this pass's rows, including the compaction before/after
+itself, were never recorded while appearing to have been. The census disagreed with the file and
+nothing said so. Rewritten to avoid the pipe; nothing was lost from the record in the end.
+`finding-0268`. ⇒ **Describe a pipeline in words in a readings command, never with a pipe**, until
+that parser refuses loudly instead of silently.
+
+**Next action.** Unchanged and still honest: `/resume bp-123`, Item 2. ⚑ `bp-128` should be read as a
+**three-direction** repair now, not one — its §2 says so and says who appended it.
+
+**Open questions.** Whether the capsule's own body is authoritative content. Practically it must be —
+it is what a fresh occupant is bound by and what the emitter ships — but the specified sentence,
+read against the append-at-top convention, puts it outside the segment. The specification licenses
+both readings and needs to pick one before the next capsule is written.
+
+**Context-manifest delta.** Two of the three mechanical inbox repairs this pass was sent to make were
+**already done** by an earlier hand, and one claim about which finding carries which direction of the
+gate defect did not survive checking. ⇒ **Re-derive before relying, including on your own briefing.**
+The one repair genuinely outstanding was recoverable only because a *different* channel had been
+swept — the ruling was never lost, it was where nobody looked.
+
+**Markers.** ⚑ Expect the close gate to ask for an entry after this: measuring the surface means
+running the hook, which rewrites the marker the gate reads. That is the known observer effect, not a
+new defect.
+
+---
+
+## CAPSULE — 2026-07-27
+
+**What this supersedes, and what that means.** Every entry below it: the range from `the seat is
+opened` (2026-07-26, the oldest) through `the frame problem is already in the store` (the newest) —
+**including the 2026-07-27 entry mis-filed beneath the trailing `## Markers` section**, which the
+session brief's emitter has never shown to anyone. Those entries are **retained, readable, and
+non-binding**. This capsule is the binding one; where it and an entry below disagree, this wins.
+
+⚑ **Why it exists, and why it is late.** The emitted seat surface had grown to roughly twice §2.8's
+working threshold with zero capsules ever written, and *five consecutive entries flagged the debt
+without paying it*. Compaction is a **re-compression, not a summary**: every judgement below that is
+still live is carried here in a form a fresh occupant can act on; the spent ones are dropped on
+purpose, and the classes dropped are named in the Context-manifest delta so the omission reads as a
+decision rather than a loss. The before/after measurement is in `readings.md` with its stamp.
+
+**Status line.** No build is moving. `bp-123` is the unit in flight with Item 2 owed — true and
+surfaced since the day this seat opened. Nearly everything else of consequence waits on the owner's
+hand: two blessing gates, a ratification queue, an inbox, and a wedged ingest lane. The seat's own
+work this week was the artifact chain auditing itself, and it kept finding, in itself, the defects it
+was built to detect.
+
+**Completed — the durable rules, which are the part worth inheriting.**
+
+- ⚑ **Mutate the constants that carry a property, not only the behaviour that uses them.** A wave
+  that ran a large mutation campaign, and caught two of its own suites being vacuous, still shipped
+  its single most load-bearing surface unpinned: the constant that *is* the isolation mechanism. Its
+  author read that tuple as configuration rather than as mechanism, so it never entered the frame
+  being mutated. **The rule as previously written invites mutating behaviour; a datum that carries
+  the property looks inert.**
+- ⚑ **Mutate the argument the docstring is proudest of.** A carefully justified choice attracts prose
+  instead of tests, precisely because the prose feels like proof. Where a check can deny a close,
+  budget for mutation rather than for a re-read. Both of these rules are **owed on the build-plan
+  skill surface** beside the false-success rule, and neither has landed.
+- ⚑ **A check that passes without testing its claim** is the week's most durable output
+  (`finding-0249`). Both surviving mutants across the whole wave were found by mutating and running,
+  neither by reading, both after careful review. Its proposal — a gate or lint item's acceptance must
+  name the degenerate input and assert the check *reddens* on it — belongs in the build-plan skill
+  and still needs a plan.
+- ⚑ **Identify a failure positively; never infer it from a tool's failure.** The close gate could not
+  tell a stale rendering from a crashed generator, so it blocked and then instructed a recovery that
+  would have failed identically — every session unable to close. The set of ways a tool *succeeds* is
+  closed and knowable; the set of ways it *fails* is open-ended. ⇒ **A gate that fails closed on a
+  broken tool is worse than the problem it guards, because it also traps whoever is repairing the
+  tool.** Read any future enforcement on this surface against that rule *before* adding it.
+- ⚑ **Do not report a count without the predicate that produced it.** A figure this seat recorded was
+  re-derived by another agent against a different predicate; both numbers were right and the row was
+  under-specified. This binds `readings.md` rows specifically.
+- ⚑ **Knowing the failure mode is not protection from it.** The correction relation's first customer
+  was the amendment authorizing it — a figure taken from another artifact rather than from the store,
+  committed before it was re-derived, by the author of that same day's retrospective naming exactly
+  that defect. The repair is to **point at** the error, never to rewrite it.
+- **Independent convergence is the strongest evidence this process can produce.** Three seats
+  attacked the membership design without contact; two found the same revert defect from different
+  directions and all three found the same stale citation. That is available only because the owner
+  made adversarial review a **gate** rather than a courtesy.
+
+**In-flight — the hazards that will bite a fresh occupant.**
+
+- ⚑ **The close gate's journal clause is wrong in both directions at once.** It **accepts** a journal
+  that merely *mentions* what it requires — it matches a substring, so the sentence documenting the
+  rule satisfies it — and it **rejects** one that plainly *meets* it, discovered when a correct seal
+  addendum moved the anchor past the very block it was adding. `bp-128` was written against only the
+  first half, and against a shallower framing of it than has since been measured.
+- ⚑ **Watching the fuel gauge re-arms the clause that judges the close.** Any nested one-shot
+  `claude` invocation — and the mandated budget probe is exactly one — overwrites this worktree's
+  SessionStart baseline. It moves the session-start key forward, so narrative already written this
+  session is retroactively judged as belonging to a previous one; and it resets the
+  commits-this-session guard, so the gate reports a clean close it has not earned. **The more
+  faithfully a session follows the delegation rule, the more reliably it disarms its own handoff
+  gate.** Running the session-start hook by hand to measure it does the same. `finding-0246`, routed
+  for a ruling and deliberately unpatched — the file has three consumers. Anything needing to see
+  what a session start produces should render the pieces directly, or run a copy against a scratch
+  root, never the live hook in the live checkout.
+- ⚑ **The identifier space is not safe under concurrency: first-to-remote wins, not
+  first-to-commit** (`finding-0261`). Re-derive the true maxima immediately before writing and again
+  before pushing. An agent that will write artifacts **needs its own room**; warn a colliding agent
+  before it commits, and never renumber someone else's work for it.
+- ⚑ **A ratified sentence is not a repaired store.** An amendment to a ratified note changes what the
+  design *says* and nothing else. The speaker taxonomy is now correct on paper; the store still holds
+  every mis-attributed row, the extraction path still has no notion of the new speaker kind, and the
+  transcripts that would feed it are un-ingested. **Treat every consumer of speaker attribution as
+  untrusted** until one plan has both back-corrected the store and closed the channel set — and say
+  so plainly rather than let a ratified sentence stand in for a repair.
+- ⚑ **Belief and validity are different axes, and routing a live reader through the corrected view
+  corrupts the one it needs.** Both live readers of the chat spine want *what was believed*, not
+  *what survives*; filtering would have silently redefined what "consecutive turns" means. ⇒ **Every
+  consumer declares which axis it reads.** That is the objective `bp-132` carries, and it is the
+  difference between repairing a defect and trading it for a quieter one.
+- ⚑ **Authorship distance and node trust are orthogonal; merging them fails in both directions.**
+  "Far from me implies distrusted" makes another instance useless; "trusted node implies my
+  authorship" is the mis-attribution defect this seat spent the week repairing — another speaker's
+  words filed as the owner's because the channel was legitimate. ⇒ **Trust gates the query;
+  authorship annotates the answer.** A received claim needs both coordinates.
+- ⚑ **The authorship axis is a frame bundle, and the frame problem is already live here.** One chain
+  per author; the pre-existing axis is the projection onto the owner's frame; cross-author content is
+  a **change of frame**, not a longer distance. The argument that carried it is the one to preserve,
+  and it is not the elegant one: **flattening a foreign author's coordinates destroys the sender
+  frame at the boundary, and the correction relation already needs that frame** — a counterparty
+  retracts what *it* authored, and a flattened receiver cannot say which rows the retraction covers.
+  **Foreign authors already hold rows in this store**, so this is not a cross-instance hypothetical;
+  the problem exists before the second instance does. Node-as-axis and node-as-stratum were both
+  **rejected with evidence** rather than adopted for their elegance: a node is a **principal**.
+- ⚑ **The owner types on three channels, not one.** Filtering for user-typed string content — the
+  obvious sweep, and the one every previous sweep used — sees only a fraction of his words. The rest
+  arrive as queue operations typed *mid-turn*, and as structured question answers. Half the lost
+  intents the audit found came in on the queue channel; structurally, that is the channel he uses
+  when the house is burning. **Any future sweep that ignores it will miss the same half.** The
+  backlog was cleared against one channel only: 2026-07-20 through 2026-07-24 had no queue-channel
+  pass, and sub-agent and worktree transcripts are entirely unswept. That is a **declared gap, not a
+  completed sweep.**
+- ⚑ **Deskcheck is narrower than this seat had been treating it**, stated by the owner three times:
+  the unit is the **track or arc**, the trigger is *demonstrably working*, and a sealed plan is never
+  itself deskcheck-ready.
+- ⚑ **The sub-orchestrator owns its wave's merge; the root seat does not.** A fresh occupant's
+  instinct will be to audit and merge — that instinct is wrong here. If a sub-orchestrator goes dead
+  mid-wave, do **not** silently take over: inspect the worktrees, say plainly what state the wave is
+  in, and ask the owner whether to re-spawn it or drive it directly. A half-merged wave is the bad
+  outcome and guessing makes it worse. The rule loads at spawn time from the delegate skill; whether
+  the delegation *contract* needs a formal amendment is an owner-level question, now filed.
+- ⚑ **A commit-economy ruling is RULED and deliberately NOT in force.** **R1:** plans and notes
+  commit at their transitions only; brainstorms batch. **R2:** decouple the code sensor first — it
+  should read artifacts and edit events rather than commit bodies. **R2 gates R1 behind a build**, so
+  commit practice changes *nothing* right now. *Do not read this ruling and start committing less
+  tomorrow.* The next artifact it wants is a design note for the sensor decoupling; until that note
+  is written, ratified and graduated, current commit discipline stands unchanged. The reasoning is
+  `docs/brainstorms/commit-economy-and-the-succession-path.md`.
+
+**Next action.**
+
+1. ⚑ **`/resume bp-123`** — Item 2 is owed. It has been the honest next unit since the seat opened.
+2. **`bp-128` must not be opened until its §2 manifest carries `finding-0252`** (the substring half)
+   alongside `finding-0248` (the other direction). An **additive** manifest entry on a blessed plan
+   is permitted **with disclosure** — the precedent is this week's wave, where several such
+   amendments landed, each revertable alone, no criterion and no `write_scope` touched. `bp-127`'s
+   journal is a ready-made fixture for both directions of the defect.
+3. **`bp-111` is the safe next ops build.** The ops plans are strictly serial — they collide on
+   `ops/lifecycle/launcher.py` — and per `finding-0227` both `bp-113` and `bp-114` are
+   **under-priced**: each needs a `ReadOnlyRows` signature refactor as a precondition that neither
+   estimate includes.
+4. The **membership note needs a revision pass, not a patch**: its central thesis is falsified by
+   where the chunkers put the path, and the fix is a decision about a **non-goal** rather than an
+   edit. Whoever takes it should carry the measured finding that the efficiency motive and the
+   semantic taxonomy come apart — one survives without the fix and the other does not.
+5. The **retrospective template returns a form, not a document** — validate it against the three
+   retrospectives that already exist before adopting it; they were written by the need, and will show
+   where the form deforms them.
+
+**Open questions.**
+
+*Owed by the owner — parked with re-entries, none blocking. Do not re-ask what is already on his
+phone.*
+
+- ⚑ **Harden the AWS root recovery mailbox _before_ registering any key.** The three 5C NFC tokens
+  are ordered and arriving, so that ordering constraint is now **dated** rather than open; the
+  offsite token is the recovery path for the enclave-bound role.
+- ⚑ `oq-0055` **alone blocks** `bp-095`: that plan cannot honestly start, because both halves of the
+  join it is built on are provably empty.
+- ⚑ `oq-0041` and `oq-0057` each carry an option **"(c)", and they mean opposite things** — parking
+  the core plane versus splitting the decrypt path. A ruling on one is **not** a ruling on the other.
+  `oq-0041`'s ratification question is still unanswered.
+- `finding-0235` needs his hand: a ratified note carries an inline comment inside a front-matter
+  value, corrupting the slug so the board reports a phantom orphan. Ratified means no agent may fix
+  it.
+- Amendment **A10** is drafted verbatim in `bp-126`'s seal for a one-paste landing, and drafting it
+  surfaced **two stale citations inside A9 itself**; the partial-supersession log entry is owed with
+  it. Separately, the amendment to `dn-agent-workflow` naming this seat is drafted and not landed,
+  and drafting *that* found two statements in that note already false of the tree.
+- `oq-0058`, `oq-0059`, `oq-0060` remain parked with re-entries. `oq-0054` is answered and now
+  recorded as such.
+- On the authorship axis: whether the expansion stays in the base note or becomes a **companion** — a
+  clean seam was left and named rather than chosen for him — plus one defaulted question the pass
+  declined to settle quietly. Whoever ratifies should read the note's own admission that its
+  containment claim is true **vacuously** today.
+
+*Owed as design calls, not builder calls.*
+
+- ⚑ Whether a close-gate clause should **latch** once reported when its only resolution is
+  owner-only. **A correct clause and an incorrect one cost the same when neither can be cleared from
+  inside the session**, and this seat has now measured both. Filed this sweep; it is live input to
+  whatever replaces the journal clause.
+- Whether the SessionStart baseline should become **session-scoped** (fixing both halves of
+  `finding-0246` at the source), or whether the two signals should be split with the trigger honestly
+  documented as defeasible.
+- Whether the close gate should key on **who authored** the commits that trip it (`finding-0244`). It
+  does not and never did, so a session that merely commits on another agent's behalf is asked to
+  freshen this seat. The ratified specification reproduces that trigger unchanged.
+- Whether surfacing this seat **only** to sessions in orchestrator posture is right — one line to
+  revert, flagged for veto.
+- Whether a **retrospective may re-enter design** or is terminal evidence. Findings are deliberately
+  the only channel back, and a second should not be minted casually.
+- Whether perishable capture lists belong in this journal or become brainstorm files immediately
+  (parked as V4). Resolve it by noticing which choice a successor thanks you for, not by habit.
+- ⚑ *"Are we getting rid of graduate, YOU BLESS, build?"* — asked, acknowledged, never durably
+  answered. Now filed as an owner question; `dn-autopilot-and-delegated-blessing` already answers
+  half of it.
+
+**Context-manifest delta.**
+
+- ⚑ **What this capsule deliberately drops**, so the omission reads as a decision: per-plan ledgers,
+  status tallies and open-item counts (all derivable — `handoff.md` is right by construction, and a
+  hand-carried tally in this file had already drifted below the truth once); every measurement and
+  figure (they belong in `readings.md` with a stamp, and are re-derivable); commit identifiers and
+  physical file positions (the §2.5 purity rule); and the **discharged** next-actions of finished
+  waves — the cutover merged, the ephemeral brief is deleted, its template retired, and the
+  fresh-agent test is now executable as a purity lint, an availability test, and a spawning drill.
+  The re-entry for the authorship pass is dropped because that pass **landed**; its ruling is carried
+  above instead.
+- ⚑ **This file is not read in the order it claims.** A 2026-07-27 entry sits physically *beneath*
+  the trailing `## Markers` section, and the emitter stops at that heading — so that entry has never
+  been emitted to any occupant, and a fresh occupant found the entry that mattered most only by
+  grepping structure rather than following the file's stated convention. Its still-live content is
+  carried above. **Never append beneath a standing section.**
+- The **ingest lane is wedged behind a stranded job**; reclaiming it is an owner operation, not a
+  seat one. The reclaim tooling was built and never demonstrated — the deskcheck discipline's own
+  argument arriving as a bill.
+- A **retrospective is an approved artifact type that still has no template.** The correction
+  relation is ratified and names how a false record and its repair coexist; its storage-layout parts
+  were **parked rather than guessed**, so a later fold into a corpus-wide table is a migration and
+  not a redesign.
+- The archived copy of the retired brief is the best surviving picture of what that file held —
+  including a retraction of a false claim about the reference substrate that exists nowhere else in
+  tracked form.
+- Isolation gained a **mechanical** form: with node as a scope axis, *the graph is contained to its
+  node* becomes a sentence that **cannot be constructed**, rather than a rule an agent must remember.
+
+**Markers.** The first compaction capsule this journal has carried. The debt named by `finding-0245`
+and by five consecutive entries is paid here.
+
+---
+
 ## 2026-07-27 — the frame problem is already in the store
 
 ⚑ **Deliberately short: a compaction pass is restructuring this file in another worktree, and this

@@ -55,7 +55,7 @@ Status tally: complete 111 · in-progress 1 · proposed 9 · ready 10 · superse
 
 ## Open findings
 
-52 open — most recent: finding-0258, finding-0259, finding-0260, finding-0261, finding-0262, finding-0263
+57 open — most recent: finding-0263, finding-0264, finding-0265, finding-0266, finding-0267, finding-0268
 
 ## Readings (MEASURED — latest per command)
 
@@ -63,6 +63,9 @@ Status tally: complete 111 · in-progress 1 · proposed 9 · ready 10 · superse
 |---|---|---|
 | 2026-07-27T06:00Z | `bash .claude/hooks/session-brief.sh --standalone (with vs without the seat present)` | seat surface = 287 lines / 18074 bytes at SessionStart (handoff.md 74 lines /… |
 | 2026-07-27T07:08Z | `bash .claude/hooks/session-brief.sh --standalone (with vs without the seat)` | seat surface 439 lines / 28942 bytes; emitted segment 355 lines, zero capsules. ⚑ 355… |
+| 2026-07-27T19:52Z | `bash .claude/hooks/session-brief.sh --standalone, line count (AFTER the first capsule)` | ⚑ 346 lines — a 407-line drop, 54% of the whole surface, from one artifact… |
+| 2026-07-27T19:51Z | `bash .claude/hooks/session-brief.sh --standalone, line count (BEFORE the first capsule)` | ⚑ 753 lines / 52806 bytes emitted at SessionStart, of which the seat jour… |
+| 2026-07-27T20:04Z | `bash .claude/hooks/session-brief.sh --standalone, line count (FINAL, after this session's own journal entry)` | 399 lines. ⚑ Supersedes the 386 row above by append,… |
 | 2026-07-27T15:44Z | `claude --help (session-baseline contained)` | Settles bp-127 §3 Q3: all three §2.11 requirements EXIST as flags. `-p/--print` one-shot; `--tools ""` disables every… |
 | 2026-07-27T06:24Z | `claude -p "/usage"` | session 71% · week 50% all-models · Fable 25%; week resets Jul 31 20:00 ET. Probed at bp-126's seal |
 | 2026-07-27T15:50Z | `claude -p "/usage" (session-baseline contained)` | session 61% · week 59% all-models · Fable 31%; session resets Jul 27 15:40 ET. ⚑ The spawn DID create `.claude/st… |
@@ -75,6 +78,7 @@ Status tally: complete 111 · in-progress 1 · proposed 9 · ready 10 · superse
 | 2026-07-27T05:58Z | `python3 scripts/handoff.py --role orchestrator --check (7 runs, wall clock)` | min 130.5 / median 137.0 / max 143.2 ms on the real tree, against a Stop-audit baseli… |
 | 2026-07-27T06:35Z | `python3 scripts/handoff.py --role orchestrator --check, six induced failure modes` | ImportError / RuntimeError / SyntaxError each exit **1** — identical to a genui… |
 | 2026-07-27T07:02Z | `python3 scripts/handoff.py --role orchestrator --check, with `dest` forced outside ROOT at the staleness print` | rc 1; stderr echoes the SOURCE line `print(f"{dest… |
+| 2026-07-27T19:48Z | `sqlite3 "file:data/chatlog.sqlite?mode=ro" — Stop-hook clause census by session` | `(b2)`-labelled firings cluster 6 / 4 / 1 across three sessions (the 6 spanning t… |
 | 2026-07-27T14:53Z | `sqlite3 "file:data/chatlog.sqlite?mode=ro" — speaker census over chat_utterances` | Rows beginning literally `Stop hook feedback:` and attributed to `speaker='owner… |
 | 2026-07-27T16:07Z | `sqlite3 "file:data/chatlog.sqlite?mode=ro" — three predicates over speaker='owner', reconciling an earlier row` | PREFIX `text LIKE 'Stop hook feedback%'` = 139 · S… |
 | 2026-07-27T15:36Z | `sqlite3 "file:data/queue.sqlite?mode=ro" — job state census` | ⚑ QUEUE WEDGED. queued 1766 · running 1 · done 300242 · failed 1. The single running job is 300246 (c… |
@@ -87,6 +91,7 @@ Status tally: complete 111 · in-progress 1 · proposed 9 · ready 10 · superse
 | 2026-07-27T15:13Z | `uv run pytest tests/unit/test_handoff_purity.py -q` | 59 passed. Covers both segment directions, both anchoring failures, four degenerate inputs asserted to redden,… |
 | 2026-07-27T15:44Z | `uv run python -m ops.type_gate` | OK (rc 0) — tier-2 membership + bare-ignore scan clean; the parked finding-0223 shim report unchanged |
 | 2026-07-27T15:44Z | `uv run python scripts/check_imports.py` | OK (rc 0) — import firewall + worker boundary both clean |
+| 2026-07-27T19:53Z | `uv run python — lint_narrative() mutation probe, impurity planted above vs inside the capsule body` | ⚑ 1 of 2 SURVIVED, and it is the load-bearing one. A hex token… |
 | 2026-07-27T15:44Z | `uv run ruff check .` | All checks passed (rc 0) — bp-127's three items |
 | 2026-07-27T15:13Z | `uv run scripts/handoff.py --role orchestrator --lint` | rc 1. journal: FAIL, 6 hex violations on 2 lines of a 465-line segment (0 capsules, so the whole file is aut… |
 | 2026-07-27T15:50Z | `uv run scripts/handoff_drill.py --scope plan:bp-127 (first plan-scope drill)` | ⚑ FAIL on both fields, and the agent was NOT wrong. It read the NARRATIVE (`In-fligh… |
