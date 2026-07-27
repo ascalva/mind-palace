@@ -36,7 +36,49 @@ marked superseded — retained, readable, non-binding.
 
 ---
 
-## 2026-07-27 — delta: the input moved while it was being migrated
+## 2026-07-27 — the cutover landed: this seat is now what the Stop gate reads
+
+**Status line.** `bp-126` built the clause that judges every future orchestrator close, re-pointed
+SessionStart to read this seat instead of the retired brief, and retired the brief's template —
+in one diff, on a delegated builder's branch. Not merged. The live brief's own deletion is
+**deliberately withheld** from that branch and is owed by hand at merge.
+
+**Completed.** The gate the occupant of this seat must satisfy is no longer a demand for prose
+that cannot be written yet. It is two mechanical facts: the derived rendering must be a no-op to
+regenerate, and this journal must carry an entry from the session that is closing. Both are
+dischargeable at any moment by one act each, and neither can be re-armed by a later commit — that
+last property is the whole point, and it was proven by making the sequence fail on purpose first.
+
+**In-flight.** ⚑ **`.claude/state/resume-brief.md` still exists in the main checkout and is the
+last unversioned copy of judgement in this system.** The builder was forbidden to delete it and
+declined the vacuous pass its plan offered. Whoever merges must delete it **by hand, in the main
+checkout, taking a snapshot at that exact moment** — not before, because the file keeps being
+written and has drifted underneath a build once already. It has no history; there is nothing to
+recover it from afterwards. An archive copy is already tracked, which closes the catastrophic
+case but does not close the drift between that copy and the moment of deletion.
+
+**Next action.** Merge the cutover, then perform that deletion with a fresh snapshot. Immediately
+after: the first `## CAPSULE` this journal has ever carried is owed — the emission at SessionStart
+grew rather than shrank, and compaction is the designed and never-exercised remedy.
+
+**Open questions.**
+- Whether the gate should key on **who authored** the commits that trip it. It does not, and it
+  never did; sessions that merely commit on another agent's behalf are asked to freshen this seat.
+  The ratified specification reproduces that trigger unchanged, so it was implemented unchanged
+  and named in `finding-0244` rather than quietly narrowed.
+- Whether surfacing this seat only to sessions in orchestrator posture is right. The builder made
+  that call to stop every worktree builder inheriting the orchestrator's state, mirroring the same
+  posture test the gate itself uses. It is one line to revert and is flagged for veto.
+- The amendment to `dn-agent-workflow` naming this seat is drafted and **not landed** — no agent
+  may touch a ratified note. It is owed by the owner's hand after the merge, and the draft found
+  two statements in that note that are already false of the tree, independently of this wave.
+
+**Context-manifest delta.** The archived brief is the best surviving picture of what the live file
+holds, and reading it is now the cheapest way to understand what this seat replaced — including a
+retraction of a false claim about the reference substrate that exists nowhere else in tracked form.
+Read it before the deletion, not after.
+
+**Markers.** None.
 
 > **Why this is a second entry and not an edit to the one below.** Append-only means keep and
 > link, so the entry below stands exactly as written and this one carries the correction. The

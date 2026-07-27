@@ -47,20 +47,22 @@ Status tally: complete 109 · in-progress 2 · ready 10 · superseded 6
 
 ## Open findings
 
-32 open — most recent: finding-0236, finding-0237, finding-0238, finding-0241, finding-0242, finding-0243
+34 open — most recent: finding-0238, finding-0241, finding-0242, finding-0243, finding-0244, finding-0245
 
 ## Readings (MEASURED — latest per command)
 
 | when | command | result |
 |---|---|---|
-| 2026-07-27T05:20Z | `claude -p "/usage"` | session 59% · week 49% all-models · Fable 25%; week resets Jul 31 20:00 ET. Probed at bp-125's re-seal — supersedes the migrated `unknown`-age… |
+| 2026-07-27T06:00Z | `bash .claude/hooks/session-brief.sh --standalone (with vs without the seat present)` | seat surface = 287 lines / 18074 bytes at SessionStart (handoff.md 74 lines /… |
+| 2026-07-27T06:24Z | `claude -p "/usage"` | session 71% · week 50% all-models · Fable 25%; week resets Jul 31 20:00 ET. Probed at bp-126's seal |
 | unknown | `owner-intent transcript sweep (literal command not recorded)` | the obvious user-string filter sees only ~60% of the owner's words; ~86 mid-turn queue-operation rows plus str… |
-| 2026-07-27T05:20Z | `uv run mypy` | 69 errors in 20 files of 559 checked — EXACTLY the pinned tests/ baseline, rc 1 as expected |
-| 2026-07-27T05:20Z | `uv run mypy core agents eval ops scheduler scripts` | Success: no issues in 261 source files — the floor holds at 0 |
-| 2026-07-27T05:24Z | `uv run pytest -q` | 2 failed / 2301 passed / 15 skipped in 255s — the SAME two pre-existing failures (finding-0103 ratchet, finding-0226 dream-v2 live); scheduler-l… |
-| 2026-07-27T05:20Z | `uv run python -m ops.type_gate` | OK (rc 0) — tier-2 membership + bare-ignore scan clean; the parked finding-0223 shim report unchanged |
-| 2026-07-27T05:20Z | `uv run python scripts/check_imports.py` | OK (rc 0) — import firewall + worker boundary both clean |
-| 2026-07-27T05:20Z | `uv run ruff check .` | All checks passed (rc 0) — re-run after the audit fixes; clock-read stamp |
+| 2026-07-27T05:58Z | `python3 scripts/handoff.py --role orchestrator --check (7 runs, wall clock)` | min 130.5 / median 137.0 / max 143.2 ms on the real tree, against a Stop-audit baseli… |
+| 2026-07-27T06:08Z | `uv run mypy` | 69 errors in 20 files of 559 checked — EXACTLY the pinned tests/ baseline, rc 1 as expected; zero in the changed files |
+| 2026-07-27T06:06Z | `uv run mypy core agents eval ops scheduler scripts` | Success: no issues in 261 source files — the floor holds at 0 |
+| 2026-07-27T06:22Z | `uv run pytest -q` | 2 failed / 2308 passed / 15 skipped in 349s — the SAME two pre-existing failures (finding-0103 core-self-containment ratchet; finding-0226 dream… |
+| 2026-07-27T06:09Z | `uv run python -m ops.type_gate` | OK (rc 0) — tier-2 membership + bare-ignore scan clean; the parked finding-0223 shim report unchanged |
+| 2026-07-27T06:05Z | `uv run python scripts/check_imports.py` | OK (rc 0) — import firewall + worker boundary both clean |
+| 2026-07-27T06:04Z | `uv run ruff check .` | All checks passed (rc 0) — bp-126's cutover diff |
 | 2026-07-27T03:36Z | `uv sync --frozen --extra dev` | ok — dev extras resolved in a fresh worktree venv |
 
 ## Queue (an input, never the substrate)
