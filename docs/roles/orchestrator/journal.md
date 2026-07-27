@@ -36,6 +36,46 @@ marked superseded — retained, readable, non-binding.
 
 ---
 
+## 2026-07-27 — I gave two agents the same room and no key
+
+**Status line.** The handoff family's terminal plan is merged and sealed; its successor is held
+deliberately, not forgotten. A correction wave and a delegated-blessing wave both wait on the owner.
+⚑ **This seat's pane is rendering a tree one merge behind origin** — a rebase is blocked by a live
+agent's untracked files and I would not disturb them mid-write. Regenerate after the rebase; do not
+trust the pane's plan states until then.
+
+**Completed.** The close gate's journal clause is now understood in both directions at once: it
+accepts a journal that merely *mentions* what it requires, and rejects one that plainly *meets* it —
+the second discovered when a correct seal addendum moved the anchor past the very block it was
+adding. The plan already queued to repair it was written against only the first half.
+
+**In-flight.** ⚑ **The mutation discipline has a blind spot the rule's own wording creates.** A wave
+that ran forty mutants, and caught two of its own suites being vacuous, still shipped its most
+load-bearing surface unpinned — a constant that *is* the isolation mechanism. Its author's answer
+when asked was oversight: the tuple read as configuration rather than as mechanism. ⇒ *Mutate the
+constants that carry the property, not only the behaviour that uses them.*
+
+**Next action.** ⚑ **I spawned two graduating agents into the primary checkout with no worktree
+isolation, and they collided with a third wave over identifier space.** Nothing is lost — the
+collision surfaced as an aborted rebase rather than a clobber — but the lesson is mine: **an agent
+that will write artifacts needs its own room, and identifier allocation is not safe under
+concurrency.** First-to-remote wins, not first-to-commit. Warn before they commit, never renumber
+someone else's work for them.
+
+**Open questions.** Whether the seat's own entries are being read in the order it claims. A fresh
+occupant reported passing on content and nearly failing on ordering: the entry that mattered most
+sat below the trailing sections in a newest-first file, and was found only by grepping structure
+rather than following the file's stated convention.
+
+**Context-manifest delta.** The membership design has been through its adversarial gate and revised;
+the owner's identity ruling is its spine, and the revision measured that the ruling alone was not
+sufficient. Nothing there is buildable until he reads the one extension it flagged for him.
+
+**Markers.** No compaction capsule; the segment is well past its threshold and this entry makes it
+worse. The next `/triage` here owes one and should treat it as the work it is.
+
+---
+
 ## 2026-07-27 — a count without its predicate is not a coordinate
 
 **Status line.** A graduation landed and waits on the owner's hand; a second is still running; the
