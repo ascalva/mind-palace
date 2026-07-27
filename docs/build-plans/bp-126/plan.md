@@ -101,6 +101,18 @@ Read exactly these, in order, before any work:
    Clause (e′) check 1 consumes `--check`; the builder must know its exit contract.
 7. `docs/findings/finding-0234.md` — correction (1) is why the re-point lands here.
 8. `docs/findings/finding-0233.md` — why amendment A10 is **not** attempted in this plan.
+9. `docs/findings/finding-0236.md` — ⚑ **binding on clause (e′) check 1.** bp-124 renders one
+   computation **two ways**: `--write` / `--check` / `--json` are pure functions of the
+   artifact tree (no queue state, no wall clock, no HEAD sha, no environment), while a bare
+   render to stdout is live. This is what keeps (e′) computed off **the work** rather than off
+   **the daemon** — a queue count in the committed artifact would make two regenerations of an
+   unchanged tree differ, and staleness would fire on daemon activity. Check 1 must therefore
+   **shell out to `--check`** and must never re-implement the compare over a live render.
+10. `docs/findings/finding-0238.md` — bp-124's independent pre-merge audit. Two operational
+    facts for this plan: the `--check` exit contract is verified end to end (0 = up to date,
+    non-zero = stale, and regeneration converges in **exactly one step**); and the rendering
+    reads `readings.md`, so appending a reading *after* regenerating re-arms check 1 once —
+    regenerate the handoff **last**, after all other artifact writes.
 
 **Does `core/` already implement this? (the DRY audit.)** N/A in the algorithmic sense — no
 algorithm or primitive is introduced. The DRY constraint that *does* bind is the owner rule

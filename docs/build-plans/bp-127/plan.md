@@ -87,6 +87,23 @@ Read exactly these, in order, before any work:
    CLI (`claude --model … --effort … --permission-mode …`). Read for the flag forms; note what
    it does **not** demonstrate (§3 Q3).
 8. `docs/findings/finding-0234.md` — the graduation-time corrections carried by this family.
+9. `docs/findings/finding-0236.md` — ⚑ **binding on Item 16.** The note's §2.9 pins the
+   rendering as a pure function of the artifact tree while §2.5/§2.9 also list a live queue
+   read and an *age* display among its inputs. bp-124 resolved the contradiction by rendering
+   one computation **two ways**: `--write` / `--check` / `--json` are tree-pure (no queue, no
+   clock, no sha), while a **bare** render to stdout is live. F1c therefore lives on the
+   **stdout path** and Item 16's acceptance command is already written that way — assert it
+   against `uv run scripts/handoff.py --role orchestrator`, **never** `--check`. `--check`
+   exits 0 in a fresh worktree without ever touching the queue path, so asserting F1c against
+   it is a green test that proves nothing.
+10. `docs/findings/finding-0238.md` — bp-124's independent pre-merge audit. §"V1" confirms
+    `next_action` is **derived** from artifact state (`handoff.derive` / `_LADDER`), never a
+    stored string, so Item 17's mechanical JSON compare is sound and need not degrade to
+    judge-only. Compare on `unit_in_flight` (a bare plan id); treat `unit_title` as prose.
+    Note also its §"Things the seal did not mention" item 2: `scripts/handoff.py` mutates
+    `sys.path` at import time and `scripts/eval.py` shadows the `eval` **package**, so after
+    `import handoff` an `import eval.golden` raises `ModuleNotFoundError` — F2's harness
+    imports `handoff`, so prefer a subprocess invocation over an in-process import.
 
 **Does `core/` already implement this? (the DRY audit.)** No, and it must not. F1b is a regex
 lint over markdown; F1c is an integration test; F2 is a harness that spawns a process and
