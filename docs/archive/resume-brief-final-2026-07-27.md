@@ -4,38 +4,43 @@ id: archive-resume-brief-final
 status: frozen
 created: 2026-07-27
 source: .claude/state/resume-brief.md
-source_sha256: 7068b1a9ba64a162a06b3fddfd0ee083d4b4a57b9fd1ee35784196c0977286f6
+source_sha256: bb24d2c72567586f0578e5daa9cdb130e42ca2d547079e1fb6fe42f132b09655
 source_lines: 163
 source_bytes: 11622
-taken_by: orchestrator (pre-emptive, before bp-126's cutover)
+taken_by: orchestrator, at the moment of deletion (bp-126 cutover)
+supersedes_sha256: 7068b1a9ba64a162a06b3fddfd0ee083d4b4a57b9fd1ee35784196c0977286f6
 ---
 
-# ARCHIVE — the resume brief, preserved verbatim before its deletion
+# ARCHIVE — the resume brief, preserved verbatim at the moment it was deleted
 
-**Why this file exists.** `.claude/state/resume-brief.md` is **gitignored and was never tracked**,
-so its deletion by bp-126 has no git safety net at all: once removed there is no `git show`, no
-reflog, and no recovery. `finding-0241` established that the hazard is live rather than theoretical
-— during bp-125's migration the file changed underneath the build, and the delta carried an owner
-ruling whose only other copy was, at that moment, untracked.
+**Why this file exists.** `.claude/state/resume-brief.md` was **gitignored and never tracked**, so
+its deletion by bp-126 had no git safety net: no `git show`, no reflog, no recovery. `finding-0241`
+established the hazard is live rather than theoretical — during bp-125's migration the file changed
+underneath the build, and the delta carried an owner ruling whose only other copy was, at that
+moment, untracked.
 
-This copy is taken **pre-emptively by the orchestrator**, ahead of the cutover, so that the
-catastrophic case is closed before any builder touches the file. It does **not** discharge
-bp-126's obligation: that plan must still take its own snapshot **at the moment of the deleting
-commit**, because the live file may drift between this copy and that commit. A digest match against
-this file is evidence, not permission.
+**This copy is the one taken at the deleting commit**, which is what `finding-0241`'s addendum
+required. An earlier pre-emptive copy (sha256 `7068b1a9…`) was taken hours before as a safety net;
+it is superseded by this one.
 
-**Content that exists only here and in the live file** (in no bp-125 migration snapshot):
+⚑ **The tripwire fired, and the archive is why that was useful.** The digest at deletion
+(`bb24d2c7…`) does **not** match the pre-emptive copy. Because the earlier copy was **tracked**, the
+delta could be **computed** rather than merely detected: it is exactly one line — the header's
+context hash, `75cb5cc` → `ebaca0a`. Had the earlier copy not existed, a digest mismatch would have
+told us *that* something changed and nothing about *what*. That is the difference between a
+tripwire and a recovery, and it is the whole argument of `finding-0241`.
+
+**Content that exists only here** (in no bp-125 migration snapshot):
 
 1. ⚑ A **retraction of a false claim** — the reference substrate does **not** lack
    `corpus_to_corpus` edges. **644,785 exist** (bp-026 built them after the 2026-07-13 capsule the
    false claim was quoting). The real gap is **typing**: `ops/code_sensor.py:131-139` collapses
    `warrant` / `supersedes` / `links` / `depends_on` into a single `note-citation`, so zero typed
-   rows exist. **If this retraction is lost, the false version is what survives** — precisely the
-   laundering failure this wave exists to prevent.
+   rows exist. **Had this been lost, the false version is what would have survived.**
 2. A **severe unfiled data defect** — 39 hook-feedback rows attributed to `speaker='owner'`.
    Escalated to `oq-0060`; it amends a ratified note, so only the owner may set it.
 3. The **measured clause-(e) data** — 108 firings / 99 fork-deduped over 8 days, 16 sessions,
-   302 brief file-operations, peak day 36. Live input to clause (e)'s replacement.
+   302 brief file-operations, peak day 36. Live input to clause (e′), which this cutover installed.
 4. A **fence against re-deriving the ratified query language**
    (`dn-core-query-protocol`, `dn-capability-scope`, `dn-chat-sensor`).
 
@@ -43,7 +48,7 @@ Verbatim copy follows the rule. Nothing below is edited.
 
 ---
 
-# Orchestrator handoff — `75cb5cc` · opus[5]/high
+# Orchestrator handoff — `ebaca0a` · opus[5]/high
 
 ## ⚑⚑ FIRST: A SUB-ORCHESTRATOR OWNS THE ACTIVE WAVE. **YOU DO NOT MERGE IT.**
 
