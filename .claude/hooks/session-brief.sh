@@ -35,16 +35,54 @@ trap 'rc=$?; [ "$HOOK_INTENTIONAL" = 1 ] || fail_loud "unexpected exit rc=$rc"' 
 
 [ "${1:-}" = "--standalone" ] && shift
 
-# Auto-surface the orchestrator's self-resume brief (finding-0035, bp-014 Item 3):
-# if the worktree-local .claude/state/resume-brief.md exists, emit it at the TOP of
-# the SESSION BRIEF so a fresh session reads its own re-prompt FIRST, zero owner
-# action. Resolved under the worktree-aware ROOT (above). Fail-open: a missing or
-# unreadable brief never errors the hook — done Bash-side so _lib.py's cmd_brief
-# stays pure, and the absent-file case is byte-identical to before (no marker, no
-# leading blank line). Only the hook piece of finding-0035 lands here; the template
-# + context-economy rule route at /triage (finding-0035 is partially-addressed).
-_RB="$ROOT/.claude/state/resume-brief.md"
-if [ -r "$_RB" ]; then cat "$_RB"; echo; fi
+# Auto-surface the ORCHESTRATOR SEAT (dn-role-state-and-scoped-handoff §2.9, bp-126 Item 13).
+# ⚑ SUPERSEDES the self-resume surface (finding-0035, bp-014 Item 3), which emitted a
+# worktree-local, gitignored state file here. That artifact and its template are retired in the
+# same diff as this re-point — necessarily so: a missing brief read as *infinitely stale* to the
+# Stop-gate clause that demanded it, so any intermediate state deadlocked every orchestrator
+# close. The seat replaces it with two typed halves, emitted at the TOP of the SESSION BRIEF so
+# a fresh occupant reads the seat's own state FIRST, zero owner action:
+#   DERIVED   docs/roles/orchestrator/handoff.md   — regenerated, never hand-edited
+#   NARRATIVE docs/roles/orchestrator/journal.md   — its AUTHORITATIVE SEGMENT only
+#
+# ⚑ POSTURE-GATED, and this is a behavioural choice worth stating. The retired brief lived in
+# .claude/state/ — gitignored and per-worktree — so a builder's worktree simply had none and saw
+# nothing. The seat artifacts are TRACKED, so they exist in every checkout, and emitting them
+# unconditionally would push the orchestrator's state into every builder session that has no use
+# for it. The guard mirrors _lib.py's `plan is None` test exactly (empty or absent
+# .claude/state/active-plan): a session sees at its START precisely the artifacts clause (e′)
+# will judge at its CLOSE. That symmetry, and the preserved property, are the whole reason.
+#
+# Authoritative segment (§2.8): entries are newest-at-top, so it is every entry from the top of
+# the entry list down to and INCLUDING the latest `## CAPSULE — <date>` entry; everything below
+# that capsule is history — readable, non-binding. No capsule yet ⇒ the whole entry list. Front
+# matter and preamble are not entries and are skipped, and neither is the trailing `## Markers`
+# section (a mechanical hook log, not judgement — and emitting it would put the literal string
+# HOOK-FAILURE into every session brief from its own explanatory comment). The capsule match is
+# HEADING-ANCHORED (`^## CAPSULE `) because the preamble names the marker in prose
+# (finding-0242): an unanchored grep would find a capsule on day one and truncate the segment.
+#
+# Fail-open, preserved verbatim from the retired block: a missing or unreadable file never errors
+# the hook — done Bash-side so _lib.py's cmd_brief stays pure, and the absent-file case is
+# byte-identical to before (no marker, no leading blank line).
+_SEAT="$ROOT/docs/roles/orchestrator"
+_AP=""
+[ -r "$ROOT/.claude/state/active-plan" ] &&
+  _AP="$(tr -d '[:space:]' < "$ROOT/.claude/state/active-plan")"
+if [ -z "$_AP" ]; then
+  if [ -r "$_SEAT/handoff.md" ]; then cat "$_SEAT/handoff.md"; echo; fi
+  if [ -r "$_SEAT/journal.md" ]; then
+    printf '═══ SEAT JOURNAL — authoritative segment (docs/roles/orchestrator/journal.md) ═══\n\n'
+    awk '
+      !started && /^## / { started = 1 }
+      !started           { next }
+      /^## Markers/      { exit }
+      /^## /             { if (capsule) exit; if ($0 ~ /^## CAPSULE /) capsule = 1 }
+                         { print }
+    ' "$_SEAT/journal.md" 2>/dev/null || true
+    echo
+  fi
+fi
 
 python3 "$LIB" brief; rc=$?
 

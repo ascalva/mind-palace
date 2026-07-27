@@ -36,7 +36,161 @@ marked superseded — retained, readable, non-binding.
 
 ---
 
-## 2026-07-27 — delta: the input moved while it was being migrated
+## 2026-07-27 — mutate the argument you are proudest of
+
+**Status line.** A re-audit closed the last gap in the close gate: its most carefully reasoned
+choice — the one whose justification fills a paragraph of the docstring — turned out to be pinned
+by no behavioural test at all. Only its spelling was checked, never its consequence.
+
+**Completed.** The gap is closed by a test that builds the spoof the reasoning had only imagined:
+a crash arranged to fail at the very line whose text the check looks for, so the check's own
+evidence appears in the wreckage. Written first as a reproduction, then as a test. The reasoning
+was right; it had simply never been run.
+
+**In-flight.** ⚑ **The lesson generalizes past this gate: mutate the argument the docstring is
+proudest of.** A carefully justified choice attracts prose instead of tests, precisely because
+the prose feels like proof. Both defects found in this build's last two passes were of that
+shape, invisible to review and obvious to a mutant. Where a check can deny a close, budget for
+mutation rather than for a re-read.
+
+**Next action.** Unchanged: merge, then the withheld deletion by hand with a fresh snapshot. ⚑
+This entry pushes the seat past the compaction threshold, so the first capsule is **owed at the
+next sweep**, not merely near — and the sweep that writes it should note that the seat crossed
+that line inside a single build.
+
+**Open questions.** Two equivalent mutants survive here deliberately — a redundant guard kept as a
+statement of intent, and a defensive half kept for a change that has not happened yet. Both are
+untestable by construction rather than untested by omission, which is worth distinguishing in any
+future coverage claim, because the two look identical in a mutation score.
+
+⚑ **A practical trap, learned the third time it bit.** Measuring what the session-start hook emits
+**by running it** rewrites the very marker the close gate reads — so the act of observing the
+handoff surface corrupts the freshness signal, and the close then reports clear for the wrong
+reason. Twice a mandated budget probe did this; this time it was my own measurement. Anything that
+needs to see what a session start produces should render the pieces directly, or run a copy
+pointed at a scratch root — never the live hook in the live checkout. This is the routed defect
+wearing ordinary clothes, and it is why that ruling should not wait.
+
+**Context-manifest delta.** None.
+
+**Markers.** None.
+
+## 2026-07-27 — the close gate could have wedged every session, and only mutation found it
+
+**Status line.** An independent pre-merge audit caught a defect in the new close gate that I did
+not: its derived-freshness check could not tell a **stale** rendering from a **crashed** generator,
+because the tool reports both the same way. It therefore blocked — and the recovery it instructed
+would have failed identically, leaving the session unable to close at all. Fixed, and the fix is
+the more interesting artifact than the bug.
+
+**Completed.** Staleness is now identified **positively**, by the generator's own rendered
+staleness sentence, rather than inferred from the fact that it failed. That inversion is the
+lesson worth keeping: the set of ways a tool succeeds is closed and knowable, the set of ways it
+fails is open-ended, so a gate that acts on failure will eventually act on a failure nobody
+listed. Every unrecognised outcome now lets the close through. Verified by inducing each failure
+mode rather than reasoning about it, including one that required watching a deliberately hung
+process time out.
+
+**In-flight.** ⚑ **A gate that fails closed on a broken tool is worse than the problem it
+guards** — it also traps whoever is trying to repair the tool. Any future enforcement added here
+should be read against that rule before it is added, not after.
+
+⚑ Two of the three defects found in this build were caught by **mutating working code and
+re-running**, never by reading it, and both had passed a careful review first. Neither the author
+nor the auditor found them by inspection. Where a gate is load-bearing, budget for mutation.
+
+**Next action.** Unchanged: merge, then the withheld deletion by hand with a fresh snapshot, then
+the first compaction capsule — which is now roughly one entry away rather than two, because this
+seat has grown faster than the artifact it replaced.
+
+**Open questions.** Whether the close gate's own passing verdicts can be trusted at all while a
+nested invocation can reset the session marker underneath it. Twice now, a verdict of "clear to
+close" was produced not because the seat was in order but because the marker had been overwritten
+— once by a mandated budget probe, once by running the session-start hook by hand to measure it.
+Both are ordinary things to do. That is the open half of the defect already routed for a ruling.
+
+**Context-manifest delta.** None.
+
+**Markers.** None.
+
+## 2026-07-27 — the new gate blocked its own author, and a budget probe made the block vanish
+
+**Status line.** Written *because* the gate installed today refused to let its own builder close,
+which is the best evidence available that it works — and then something that is not work made the
+refusal disappear without satisfying it. That second half is the part to carry forward.
+
+**Completed.** The refusal itself behaved exactly as designed: it named the artifact, named the one
+act that discharges it, and pointed at the clause. No hunting, no re-reading the note. The recovery
+is this entry.
+
+**In-flight.** ⚑ **Any nested one-shot `claude` invocation overwrites this worktree's SessionStart
+baseline** — the record of where the session started. Two consequences, both verified by running
+it rather than by reading the code. It moves the *session-start* key forward, so narrative already
+written this session is retroactively judged as belonging to a previous one. Worse, it resets the
+*commits-this-session* guard to the current commit, so the gate stops being able to see that the
+session committed at all and reports a clean close it has not earned. **The mandated budget probe
+is exactly such an invocation**, so the more faithfully a session follows the delegation rule, the
+more reliably it disarms its own handoff gate. The silencing half is not new and was never noticed;
+it has been true of the outgoing gate for as long as that gate has existed. Filed as
+`finding-0246`, routed for a ruling, deliberately not patched here — the file has three consumers
+and changing when it is written is not a one-line fix in the diff that also replaces the clause
+reading it.
+
+**Next action.** This must be settled **before the drill harness is built**, because that harness
+spawns agents from inside a session and will meet this on its first run — and a drill that quietly
+disarms the gate it exists to validate produces a green result that means nothing.
+
+**Open questions.** Whether the baseline should become session-scoped (fixing both halves at the
+source) or whether the two signals should be split, with the trigger then honestly documented as
+defeasible. That is a design call, not a builder's.
+
+**Context-manifest delta.** None — this came from running the thing, not from reading anything.
+
+**Markers.** None.
+
+## 2026-07-27 — the cutover landed: this seat is now what the Stop gate reads
+
+**Status line.** `bp-126` built the clause that judges every future orchestrator close, re-pointed
+SessionStart to read this seat instead of the retired brief, and retired the brief's template —
+in one diff, on a delegated builder's branch. Not merged. The live brief's own deletion is
+**deliberately withheld** from that branch and is owed by hand at merge.
+
+**Completed.** The gate the occupant of this seat must satisfy is no longer a demand for prose
+that cannot be written yet. It is two mechanical facts: the derived rendering must be a no-op to
+regenerate, and this journal must carry an entry from the session that is closing. Both are
+dischargeable at any moment by one act each, and neither can be re-armed by a later commit — that
+last property is the whole point, and it was proven by making the sequence fail on purpose first.
+
+**In-flight.** ⚑ **`.claude/state/resume-brief.md` still exists in the main checkout and is the
+last unversioned copy of judgement in this system.** The builder was forbidden to delete it and
+declined the vacuous pass its plan offered. Whoever merges must delete it **by hand, in the main
+checkout, taking a snapshot at that exact moment** — not before, because the file keeps being
+written and has drifted underneath a build once already. It has no history; there is nothing to
+recover it from afterwards. An archive copy is already tracked, which closes the catastrophic
+case but does not close the drift between that copy and the moment of deletion.
+
+**Next action.** Merge the cutover, then perform that deletion with a fresh snapshot. Immediately
+after: the first `## CAPSULE` this journal has ever carried is owed — the emission at SessionStart
+grew rather than shrank, and compaction is the designed and never-exercised remedy.
+
+**Open questions.**
+- Whether the gate should key on **who authored** the commits that trip it. It does not, and it
+  never did; sessions that merely commit on another agent's behalf are asked to freshen this seat.
+  The ratified specification reproduces that trigger unchanged, so it was implemented unchanged
+  and named in `finding-0244` rather than quietly narrowed.
+- Whether surfacing this seat only to sessions in orchestrator posture is right. The builder made
+  that call to stop every worktree builder inheriting the orchestrator's state, mirroring the same
+  posture test the gate itself uses. It is one line to revert and is flagged for veto.
+- The amendment to `dn-agent-workflow` naming this seat is drafted and **not landed** — no agent
+  may touch a ratified note. It is owed by the owner's hand after the merge, and the draft found
+  two statements in that note that are already false of the tree, independently of this wave.
+
+**Context-manifest delta.** The archived brief is the best surviving picture of what the live file
+holds, and reading it is now the cheapest way to understand what this seat replaced — including a
+retraction of a false claim about the reference substrate that exists nowhere else in tracked form.
+Read it before the deletion, not after.
+
+**Markers.** None.
 
 > **Why this is a second entry and not an edit to the one below.** Append-only means keep and
 > link, so the entry below stands exactly as written and this one carries the correction. The
