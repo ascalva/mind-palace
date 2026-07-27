@@ -79,6 +79,37 @@ this session, and **reddens** on the degenerate input that currently passes it.
 | 5 | `.claude/skills/checkpoint/SKILL.md` §9 | the journal contract clause (f) is auditing — the source of truth for "compliant entry" |
 | 6 | `docs/build-plans/bp-126/journal.md` | the live instance; the reproduction case |
 | 7 | `docs/design-notes/session-handoff-gate.md` | ratified; what the gate is *supposed* to guarantee |
+| 8 | `docs/findings/finding-0252.md` | ⚑ **REQUIRED — the second vacuity mechanism.** Clause (f) matches a **substring**, not a heading, so the sentence documenting the rule satisfies the check for the rule. **Survives the fix §3 currently describes.** |
+| 9 | `docs/build-plans/bp-127/journal.md` | a second live fixture, and the **only** one exhibiting the rejection direction (row 10) as well as the acceptance one |
+| 10 | `docs/findings/finding-0267.md` | the same root error on the seat journal: a check keyed on **physical file position** in a file whose convention is **temporal**. Confirms the class is not hook-local |
+
+⚑ **DISCLOSURE — three additive manifest entries appended after blessing (2026-07-27).** Rows 8–10
+were added to a `ready` plan by the orchestrator. **Nothing else was touched**: no criterion, no
+`write_scope`, no status, no objective. Each row is revertable alone. The precedent is this week's
+handoff wave, where four such additive amendments landed on `bp-127` under the same constraint. The
+reason for disclosing rather than silently adding: §2 is the plan's grounding contract, and a builder
+must be able to tell what the owner blessed from what was appended afterwards.
+
+⚑ **WHY THIS MATTERS BEFORE THE PLAN IS OPENED — §3's framing is too narrow.** §3 is written against
+*"clause (f) reads the wrong end"* and evaluates three candidates for **finding recency**. That
+framing is necessary but **not sufficient**, because the defect is now measured in **both
+directions at once**:
+
+- **Acceptance (too permissive), two independent mechanisms.** `finding-0248` — the anchor lands on a
+  trailing standing section rather than the newest entry. `finding-0252` — and then the final test is
+  `"## Follow-through" in tail`, a plain substring over that region, satisfied by a backticked
+  mention, a fenced code block, or mid-line prose. ⚑ **Fixing recency alone leaves the substring
+  mechanism intact**, so a plan that closes only `finding-0248` will report success while the check
+  is still vacuous — exactly `finding-0249`'s class, on the plan built to repair it.
+- **Rejection (too strict), unfiled until now.** During `bp-127`'s merge, a **correct** seal addendum
+  moved the anchor past the very block it was adding, so a journal **visibly carrying** the
+  requirement was judged as missing it. ⚑ This direction is recorded in the orchestrator seat journal
+  and in `bp-127`'s journal, and is **not** carried by `finding-0248` (verified 2026-07-27 —
+  `finding-0248` covers position/acceptance only). A candidate in §3 that fixes acceptance but
+  reintroduces or ignores rejection is not a fix; **Q1 and Q2 should be answered against both.**
+
+Q2's fail-open requirement is unchanged and still governs — a clause that fails closed on a tooling
+error wedges every close, including the session trying to fix it.
 
 ⚑ **Does core already have this?** Checked: recency-vs-position is a hook-local concern; there is no
 existing helper in `_lib.py` for entry extraction to reuse or extend. Confirm at Item 1 rather than
