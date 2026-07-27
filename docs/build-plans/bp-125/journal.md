@@ -261,15 +261,21 @@ been destroyed with no history to recover it.
 | 8 | every reading a `(timestamp, command, result)` row; unknown marked, never invented | `7a369e7` | no |
 | 9 | every durable rule has exactly one home, or is marked already-home | `a7bf5d9` | no |
 | 10 | checkpoint gains the seat; context-economy's brief section replaced; per-plan text intact | `a7bf5d9` | no |
-| 11 | `finding-0175` promoted; unswept count actually drops | `31f95e2` | no |
+| 11 | `finding-0175` promoted; unswept count actually drops | `31f95e2` | no — but see the measured sequence below |
 | — | the delta migration (not a planned item; forced by the input moving) | `54c87e5` | — |
 | — | gate readings + handoff regenerated LAST, convergence proven | `bd9f811` | — |
 
 ### Item 9's deliverable — the rule → home table
 
-Eleven durable rules were found. **Six were already home and were dropped rather than copied** —
-copying an already-homed rule creates the second copy that drifts, which is the defect being
-removed.
+Eleven durable rules were found: **six MOVED, one REPLACED, four ALREADY HOME** (6 + 1 + 4 = 11).
+The four already-home rules were **dropped rather than copied** — copying an already-homed rule
+creates the second copy that drifts, which is the defect being removed.
+
+> ⚑ **Correction (audit, `finding-0242` item 3).** This paragraph first read *"six were already
+> home"*, contradicting the table directly below it, which lists four (R4, R7, R8, R9). The wrong
+> figure reached the orchestrator's report to the owner before it was caught. The commit message on
+> `a7bf5d9` carries the same error and is not amendable — the code sensor ingested the body at
+> commit time — so the correction is recorded here instead, per the `cffe515` precedent.
 
 | # | rule | home | action |
 |---|---|---|---|
@@ -290,6 +296,22 @@ both of its candidate rules were already there. Carrying the scope was still cor
 criterion is unbuildable if the home cannot be written, and "no edit needed" is a finding, not a
 failure.
 
+### The minority-content promise, kept (audit, `finding-0242` item 4)
+
+The Item 6 entry states that mixed lines are assigned their dominant class and *"their minority
+content is recorded separately below."* One line's minority content was **not** in fact recorded,
+and the audit was right to call it: **brief line 33 also carried "the four plans estimate ≈1.9M
+tokens."** The line was classified RULES on its dominant content (the spawn-refusal rule); the
+estimate is neither a rule nor narrative — it is a **DERIVED aggregate**, and it belonged in the
+DERIVED drop table with a named replacement source.
+
+Recorded now, with its source: **the aggregate is recomputable from `cost.estimate.tokens` in the
+front matter of `bp-124`…`bp-127`.** Nothing is lost — but "nothing is lost" is a claim the audit
+trail is supposed to *show*, not one a reader should have to re-derive. The drop table has thirteen
+named facts; this is the fourteenth, and it was missing because a mixed line's minority half is
+exactly what a dominant-class census is structurally prone to swallow. That is the honest limit of
+the dominant-class method, now on the record.
+
 ⚑ **One eviction became a correction, and it is the plan's sharpest vindication.** R4 was already
 home in delegate's budget gate — but that section still claimed the pool *"has **no query API** —
 the owner reads it … the agent cannot run slash commands"*, while the brief's copy of the same rule
@@ -297,6 +319,31 @@ said to re-probe with `claude -p "/usage"`. **The brief's copy was the correct o
 drifted and the *durable* one was the stale one. Verified live at this seal: `claude -p "/usage"`
 returned the figures directly, no owner in the loop. The superseded claim is recorded in place
 rather than silently deleted.
+
+### Item 11's criterion, measured per commit (audit, `finding-0242` item 6)
+
+The seal originally asserted the criterion without recording a figure. Measured now at every commit
+on the branch, which is what the criterion actually needs:
+
+| commit | unswept (`open` + `routed`) | what moved |
+|---|---|---|
+| `7ad779a` (base) | 112 | — |
+| `782f6bc` | 112 | `finding-0239`/`0240` filed **`resolved`** — terminal, so no change. Confirms the counter's state list. |
+| `31f95e2` | **111** | `finding-0175` `routed` → `promoted`. **The drop. This is the criterion, and it holds.** |
+| `54c87e5` | 112 | `finding-0241` filed `open` — a *new* unswept item, unrelated to the flip |
+| `4c4d886` | 112 | seal, no findings |
+| `076f046` (tip) | 113 | the auditor's own `finding-0242` filed `open` |
+
+**The criterion as worded — "the count drops by one" — is true of the flip and false of the tip**,
+and the difference is not a defect: the counter measures *unswept findings in the tree*, not *this
+plan's effect on them*. Three findings were legitimately opened after the flip (two mine, one the
+auditor's), each of which correctly *raises* the count. `promoted` is genuinely terminal — proven by
+the isolated 112 → 111 at `31f95e2`, where nothing else changed.
+
+The lesson for a future criterion: **a whole-tree counter is the wrong instrument for a
+single-artifact claim**, because any concurrent write moves it. The falsifier should have been
+"`finding-0175` is not counted at the tip" — which is directly checkable and true — rather than a
+delta on a shared global.
 
 ### The capsule marker — bp-127 reads this section for it
 
@@ -370,15 +417,17 @@ diff-before-delete, because this build proved the file moves mid-window.
 
 ### Read map
 
-```
-docs/roles/orchestrator/journal.md:41: the migrated NARRATIVE — the plan's actual product; purity-clean by measurement, not by claim
-docs/roles/orchestrator/journal.md:11: the delta entry — the owner ruling that arrived mid-build and would have been destroyed
-docs/findings/finding-0241.md:36: the digest pin and the diff-before-delete instruction bp-126 must honour
-.claude/skills/delegate/SKILL.md:113: the budget-gate CORRECTION — two copies drifted and the durable one was stale
-.claude/skills/delegate/SKILL.md:186: a sub-orchestrator that owns a wave owns its merges (the rule that lived nowhere)
-.claude/skills/context-economy/SKILL.md:68: the correction banner — a prior ratified discipline replaced, not drifted from
-.claude/skills/checkpoint/SKILL.md:79: the seat-journal section; the per-plan contract above it is byte-identical
-docs/build-plans/bp-125/journal.md:88: the re-grounded census and the thirteen named DERIVED drops
+```read-map
+docs/roles/orchestrator/journal.md:89: the migrated NARRATIVE — the plan's actual product; purity-clean by measurement, not by claim
+docs/roles/orchestrator/journal.md:39: the delta entry — the owner ruling that arrived mid-build and would have been destroyed
+docs/findings/finding-0241.md:84: copy-to-a-tracked-path — the instruction bp-126 must honour; a digest alone is a tripwire, not a recovery
+docs/findings/finding-0243.md:41: why a fabricated timestamp defeats the age display — the stalest row advertising itself as the freshest
+.claude/skills/delegate/SKILL.md:112: the budget-gate CORRECTION — two copies drifted and the durable one was the stale one
+.claude/skills/delegate/SKILL.md:201: a sub-orchestrator that owns a wave owns its merges (the rule that lived nowhere)
+.claude/skills/context-economy/SKILL.md:70: the correction banner — a prior ratified discipline replaced, not drifted from
+.claude/skills/checkpoint/SKILL.md:84: the seat-journal section; the per-plan contract above it is byte-identical
+docs/build-plans/bp-125/journal.md:143: the re-grounded census and the named DERIVED drops
+docs/roles/orchestrator/readings.md:35: the non-monotonic caveat — file order is authoritative for "latest", not the timestamp column
 ```
 
 ### cost.actual
@@ -435,3 +484,114 @@ signal it carries.
 
 ⚑ **This plan is `in-progress` and I have NOT flipped it.** The status flip and the merge are the
 orchestrator's. **Ready to deskcheck** once merged — file into `docs/DESKCHECK-QUEUE.md`.
+
+---
+
+## 2026-07-27 — RE-SEAL: the six audit conditions closed
+
+**Status line.** The independent pre-merge audit (`finding-0242`) returned **MERGE WITH
+CONDITIONS**; all six were inside `write_scope` and all six are closed, one of them by discovering a
+further defect in a *merged* artifact rather than in mine.
+
+**Completed.**
+
+| # | audit finding | verdict on re-check | closed by |
+|---|---|---|---|
+| 1 | `context-economy:66` — "say so in **the brief**", a dangling referent | **confirmed** — my Item 10 grep tested `resume-brief\|resume brief` and never saw the bare word | re-pointed to the seat entry; the two softer holes judged and closed too |
+| 2 | `readings.md` lost its ordering invariant; the week probe never landed as a row | **confirmed, and the cause was NOT mine** — see below | fixed by **appending**, never rewriting; `finding-0243` filed |
+| 3 | "six were already home" contradicts my own table (four) | **confirmed** | corrected in place with a banner; the wrong figure had already reached the owner's report |
+| 4 | the ≈1.9M aggregate dropped with no named source, breaking the minority-content promise | **confirmed** | named, with its replacement source, as the fourteenth drop |
+| 5 | read map exits 1 (bare fence) and 5 of 8 targets wrong | **confirmed** | `read-map` fence + ten verified targets; `readmap.py` now exits **0** |
+| 6 | Item 11's criterion does not hold at the tip | **confirmed as worded** | per-commit table recorded; the criterion's *instrument* was wrong, and that is now on the record |
+
+The audit was right on all six. Two are worth more than a fix:
+
+⚑ **Condition 2 inverted on inspection, and the finding is the valuable part.** The audit read my
+appended rows as older than the ones they shadow, and they are — but the cause is not my ordering.
+`bp-124`'s seed rows carry stamps up to **56 minutes ahead of the commit that introduced them**
+(rows to `04:56Z`, committed `04:00Z`), so they cannot have been clock-read. Mine (`04:41Z`–`04:53Z`,
+committed `04:55Z`) are internally consistent. **This is exactly the failure Item 8's falsifier
+names** — it did not fire during the migration, where I marked two genuinely-unknown stamps
+`unknown`; it fired one artifact over, on the seed data, where nothing was checking. `finding-0243`
+carries it, routed to the orchestrator because `bp-124` is merged and its rows are another plan's
+record that append-only forbids me to rewrite. The invariant is restored the only legal way: fresh
+clock-read rows **appended**, plus a standing caveat in the file's own preamble. Verified: for every
+command, last-in-file is now also the newest stamp.
+
+⚑ **Condition 6's real lesson is about the instrument, not the count.** The criterion said "the
+unswept count drops by one." A whole-tree counter cannot measure a single-artifact claim, because
+any concurrent write moves it — and three legitimate findings were opened after the flip (two mine,
+one the auditor's), each correctly *raising* it. The substance holds: `promoted` is terminal, proven
+by the isolated 112 → 111 at `31f95e2`. The criterion should have read *"`finding-0175` is not
+counted at the tip"* — directly checkable, and true.
+
+**Also amended, on the audit's observation rather than its condition:** `finding-0241` pinned two
+digests whose referent lives only in a disposable scratchpad, so at cutover `bp-126` could have
+*detected* a delta but never *computed* it. That is a tripwire, not a recovery. The finding now
+carries the stronger instruction directly: **copy the brief to a tracked path and commit it in the
+same diff that deletes it** — an unversioned artifact cannot be retired safely by a plan that only
+reads it.
+
+**In-flight.** Nothing. Branch complete, **not merged, not pushed**.
+
+**Next action.** The orchestrator re-reviews and merges. `bp-126` must read `finding-0241` —
+specifically its addendum — before deleting anything.
+
+**Open questions.** `finding-0243` (`discovery`, **routed to the orchestrator**) — recommends
+`bp-127` lint future-dated readings, since the check is mechanical and the failure unambiguous.
+`finding-0241`, `finding-0242` remain open pending `bp-126`.
+
+**Context-manifest delta.** `scripts/readmap.py` (the `read-map` fence regex — the reason the block
+exited 1), and `git log --format=%at` over `bp-124`'s commits to settle whether its timestamps or my
+ordering was at fault.
+
+**Gate, re-run after the fixes** (markdown-only diff; run separately, redirected to files):
+
+| leg | rc | result |
+|---|---|---|
+| `ruff check .` | 0 | All checks passed |
+| `check_imports.py` | 0 | firewall + worker boundary clean |
+| `mypy core agents eval ops scheduler scripts` | 0 | no issues, 261 files |
+| `mypy` (argless) | 1 | **exactly 69** errors in 20 files — the pinned baseline |
+| `ops.type_gate` | 0 | clean; parked `finding-0223` shim report unchanged |
+| `pytest -q` | 1 | **2 failed / 2301 passed / 15 skipped** in 255s — the same two pre-existing (`finding-0103` ratchet, `finding-0226` dream-v2 live); scheduler-live flake passed |
+| `readmap.py bp-125` | **0** | ten targets, all verified to resolve |
+| `handoff.py --check` | 0 | converged after the final regen |
+
+### cost.actual — updated at re-seal
+
+| field | value |
+|---|---|
+| model | opus (self-reported `claude-opus-5[1m]`) |
+| estimate | 400k tokens — **left untuned, per instruction** |
+| actual (tokens) | ⚑ still **not self-measurable**; the notification's `<usage>` is authoritative |
+| session_delta | 30% at first seal → **59%** at re-seal (the audit cycle and this rework) |
+| week_delta | 43% (migrated reading) → 46% (first seal) → **49%** all-models; Fable **25%**. Wave-wide, not this build alone. Probed independently rather than copied from the auditor's figure. |
+| observable proxies | 9 commits, ~60 tool calls, two full suite runs (234s + 255s) |
+
+**The estimate was high** — measured cause unchanged: the input's tree-derivable share was 4.1%
+against the ~33% the plan was written for. The audit cycle consumed roughly as much again as the
+build, which is itself a datum: for a docs-tier plan, verification cost parity with construction.
+
+**Markers.** None.
+
+## Follow-through
+
+- **Built?** Yes, and now audited. All six items plus the unplanned delta migration; all six audit
+  conditions closed.
+- **Wired / delivered (or why dormant)?** Wired. The two edited skills load on invocation; the seat
+  artifacts are tracked; the rendering converges (`--check` rc 0) and the read map now executes
+  (`readmap.py` rc 0) — both previously-asserted properties are now *demonstrated*.
+- **Does a consumer use it?** Yes. `handoff.py` consumes `readings.md` (verified in the regenerated
+  pane), `readmap.py` consumes the seal block, the two skills are consumed by every session, and
+  `bp-126`/`bp-127` consume this plan's output — `bp-126` via `finding-0241`'s addendum, `bp-127`
+  via the capsule-marker answer and `finding-0243`'s lint recommendation.
+- **Track state (what remains on this track)?** Unchanged: `bp-126` (the atomic cutover) and
+  `bp-127` (the executable falsifier) remain, plus amendment **A10** as an owner hand-act after
+  `bp-126`, plus the design's stage (c) first-live-use. **Ready to deskcheck** once merged.
+- **Opened a new track/finding?** One new finding, no new track. **`finding-0243`** (`discovery`,
+  routed to the orchestrator) — `bp-124`'s seed readings carry fabricated timestamps. Found *by*
+  the audit's condition 2, but it is a defect in a merged artifact, not in this plan's diff.
+
+⚑ **Status still `in-progress`; I have not flipped it.** The flip and the merge are the
+orchestrator's.
