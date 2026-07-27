@@ -24,11 +24,11 @@
 | bp-118 | ready | build | P4: the embedder cuts over first (biggest win, smallest risk, provable) |
 | bp-119 | ready | build | P5: the chat tiers, per-tier, each reversible (PARKED on V-B) |
 | bp-123 | in-progress | build | the per-machine overlay becomes `config/ouroboros.toml`, and cannot be silently lost |
-| bp-125 | ready | build | migrate the live brief into the seat, and re-home its rules |
+| bp-125 | in-progress | build | migrate the live brief into the seat, and re-home its rules |
 | bp-126 | ready | build | the cutover: clause (e′), the re-point, and the brief's retirement |
 | bp-127 | ready | build | the fresh-agent test made executable: F1b, F1c, and the F2 drill |
 
-Status tally: complete 108 · in-progress 1 · ready 12 · superseded 6
+Status tally: complete 108 · in-progress 2 · ready 11 · superseded 6
 
 ## Awaiting the owner
 
