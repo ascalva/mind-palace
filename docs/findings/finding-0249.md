@@ -32,7 +32,7 @@ same defect: **a check that returns green without ever exercising the thing it c
 | 2 | bp-125 | Item 10's criterion was `grep -c 'resume-brief' = 0`. It proved **absence**, not **coherence** — a dangling `"say so in the brief"` survived in a live contract file. |
 | 3 | bp-126 | Item 14's live-file deletion would have been **"satisfied vacuously"** in a worktree, by the plan's own admission — deleting a file that was never there. |
 | 4 | bp-126 | `_handoff_is_stale` keyed on `rc == 1`, which Python also returns for **any unhandled exception** — so a crash read as staleness. |
-| 5 | bp-126 | Clause (f) reads the **oldest** entry of a newest-first journal (`finding-0248`). Satisfied on one build by a backticked mention in pre-build notes. |
+| 5 | bp-126 | Clause (f) keys on **physical file position**, not recency, so any journal whose last `## ` section is standing boilerplate passes vacuously — the ordinary shape of a template-minted journal (`finding-0248`). |
 | 6 | bp-127 | F2's drill **spawns an agent in-tree**, which silences the very gate it is drilling. A green F2 would have proven nothing. |
 | 7 | bp-127 | An **unanchored** `## CAPSULE` grep matches the journal's own prose *defining* the marker — linting a fragment while reporting success. |
 
@@ -74,6 +74,20 @@ not catch either.
 Review establishes that code *reads* correctly. Only mutation establishes that a test would
 *notice* if it stopped being correct. For a check whose green result will be consumed as evidence
 by a human or a downstream agent, the second property is the one that matters.
+
+## ⚑ A postscript that is itself evidence
+
+`finding-0248` — instance 5 above — was **first filed by the orchestrator on a false premise**
+(that journals are newest-first; they are oldest-first). The premise was wrong, the conclusion was
+right, and the true defect turned out to be **wider** than the wrong reason implied.
+
+That is not the vacuous-pass shape, but it is its close cousin and it belongs in the record: **a
+claim that reached a durable artifact without anything checking it.** It was caught the same way
+everything else in this wave was caught — by someone re-deriving it rather than re-reading it.
+
+The lesson generalises past tests. *Green becomes evidence for green* has a prose analogue:
+**plausible becomes evidence for true.** The countermeasure is the same in both cases — construct
+the case that would distinguish them, and run it.
 
 ## Proposed action
 

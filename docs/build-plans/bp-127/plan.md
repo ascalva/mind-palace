@@ -143,6 +143,27 @@ Read exactly these, in order, before any work:
     cleanup step. A drill that perturbs the state it is measuring is not a drill.
     ⚑ Verify the restoration by asserting the gate's verdict is **unchanged** across the spawn —
     not merely that the file's bytes match. The bytes are the mechanism; the verdict is the claim.
+14. `docs/findings/finding-0245.md` — ⚑⚑ **ITS ESCALATION CONDITION HAS ALREADY FIRED, AND THE
+    THRESHOLD HAS NO INSTRUMENT.** Measured on bp-126's branch before that plan even merged:
+    active segment **355 lines** against the note's ~300 threshold, total SessionStart surface
+    **439 lines**, **+169% versus the retired brief**, and **zero capsules**. The seat crossed its
+    own retention threshold *inside a single build*, before the artifact it replaces was deleted.
+    ⚑ **Why nobody noticed is the actionable part.** In the builder's words: *"nothing measures or
+    surfaces segment length. I know it only because I measured by hand three times. That's
+    convention, not enforcement."* This repo's standard is that **a property is real only when
+    something proves it**, so a retention threshold no instrument reads is not a threshold.
+    ⚑ **And it makes the note's own V2 unresolvable.** V2 parks the ~300-line threshold as "a knob,
+    not an invariant" with a re-entry of *"the first three compactions are the measurement."* But
+    nothing tells anyone when to compact, so the three compactions may never happen and V2 can
+    never resolve. The parked decision is waiting on evidence that the missing instrument is the
+    only thing that could produce.
+    **You hold `scripts/handoff.py`, `tests/unit/test_handoff_purity.py` and `docs/roles/**`, so
+    this is buildable here:** surface the active-segment line count as a measured value (rendered,
+    or exposed via `--json` alongside the existing keys), so the threshold becomes readable rather
+    than remembered. Pair it with the future-dated readings lint in entry 12 — both are the same
+    act of making a seat property observable.
+    If you judge it out of scope, say so in the journal and file a finding naming the plan that
+    carries it. Do **not** leave a threshold that only a human with a `wc -l` can enforce.
 
 **Does `core/` already implement this? (the DRY audit.)** No, and it must not. F1b is a regex
 lint over markdown; F1c is an integration test; F2 is a harness that spawns a process and

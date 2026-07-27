@@ -6,7 +6,8 @@ created: 2026-07-27
 updated: 2026-07-27
 links:
   - .claude/hooks/_lib.py                          # cmd_stop_audit clause (f) — the tail extraction
-  - .claude/skills/checkpoint/SKILL.md             # §9 — the newest-first journal contract it audits
+  - .claude/skills/checkpoint/SKILL.md             # §9 — the journal contract it audits
+  - docs/templates/build-plan.md                   # the minted shape whose trailing sections defeat it
   - docs/build-plans/bp-126/journal.md             # where it was observed, and self-corrected
   - docs/findings/finding-0246.md                  # the other Stop-gate integrity defect from this wave
   - docs/findings/finding-0249.md                  # the class this belongs to
@@ -16,62 +17,79 @@ route: orchestrator
 resolution: null
 ---
 
-# Clause (f) reads the WRONG END of a newest-first journal, so it has been passing vacuously repo-wide
+# Clause (f) keys on PHYSICAL FILE POSITION, so any journal with trailing standing sections passes it vacuously
 
-## What was observed
+## ⚑ Correction notice — this finding was first filed on a false premise
 
-Stop-gate clause (f) verifies that a session's journal carries a fresh entry. It extracts the
-journal's tail — the content following the **last** non-Follow-through `## ` heading — and checks
-that for the required shape.
+**As originally filed (2026-07-27) this finding claimed §9 journals are *newest-first*, and that
+clause (f) therefore always reads the oldest entry. That premise is wrong and is retracted.**
+Journals are **oldest-first**. The observed tail was the pre-build notes simply because those are
+the original file body.
 
-But `§9` journals are written **newest-first**. The last `## ` heading in the file is therefore the
-**oldest** entry, not the newest. Clause (f) has been auditing the wrong end of every newest-first
-journal in the repository.
+**The conclusion survives the retraction, and the true defect is WIDER than first stated.** The
+correction is recorded here rather than silently rewritten, because a wrong reason that arrives at
+a right conclusion is durable misinformation — and leaving it inside the very finding that reports
+`finding-0249`'s class would be an instance of that class.
 
-Observed concretely during bp-126: the builder's clause (f) check was satisfied by a **backticked
-mention inside its own pre-build notes** — text that predates the build entirely and asserts nothing
-about whether the session did any work.
+## The actual defect
 
-## Why this matters more than the individual case
+Clause (f) verifies that a session's journal carries a fresh entry by extracting the **tail** — the
+content after the **last** non-Follow-through `## ` heading — and checking it for the required
+shape.
+
+That extraction assumes **the newest entry is physically last in the file**. Clause (f) has no
+notion of recency at all; it keys purely on **file position**.
+
+Therefore **any journal whose last `## ` section is not its newest entry satisfies clause (f)
+vacuously** — the check reads standing boilerplate and reports that the session did its work.
+
+⚑ **This is not an exotic shape. It is the ordinary shape of a template-minted journal**, which
+carries standing sections below the entry area. The defect is a mismatch between what the clause
+*measures* (position) and what it *claims* (recency), and it is latent in the default artifact the
+templates produce — not a quirk of one ordering convention.
+
+Observed concretely during bp-126: the clause was satisfied by a **backticked mention inside
+pre-build notes** — text predating the build entirely, asserting nothing about whether the session
+did any work.
+
+## Why this matters
 
 Clause (f) is one of the checks that makes a Stop-gate BLOCK meaningful. A gate that accepts
-non-compliant journals is not merely useless — it is **actively harmful**, because it issues a
-green verdict that a human or a downstream agent will read as evidence. The journal contract exists
-so that a fresh agent can resume from artifacts alone; a clause that passes on the oldest entry in
-the file certifies precisely the sessions least likely to satisfy that bar.
+non-compliant journals is worse than an absent one, because it issues a green verdict that a human
+or a downstream agent will read as evidence. The journal contract exists so a fresh agent can
+resume from artifacts alone; a clause satisfied by boilerplate certifies precisely the sessions
+least likely to meet that bar.
 
-This is the same failure shape as `finding-0246` (the gate silenced by a nested SessionStart) and
-belongs to the class catalogued in `finding-0249`: **a check that passes without testing its
-claim**.
+Same failure shape as `finding-0246` (a gate silenced by an ordinary act), and a member of the
+class in `finding-0249`: **a check that passes without testing its claim**.
 
-## Scope of the defect
+## Scope
 
-**Repo-wide.** bp-126's builder fixed *its own file* by moving the required block to the physical
-end of the journal, which satisfies the clause as currently written. It correctly declined to fix
-the clause itself — `.claude/hooks/_lib.py` was in its `write_scope` but the general defect was
-outside its items, and widening scope mid-build is exactly what the wave's discipline forbids.
-
-That decision was right, and it is why this finding exists: *"pre-existing and outside my scope"*
-is the case a finding is **for**. Until this is filed and homed, the defect lives nowhere but a
-transcript — which is the failure mode `finding-0241` was raised about.
+**Repo-wide, and broader than any single ordering convention.** bp-126's builder fixed *its own
+file* by moving the required block to the physical end, which satisfies the clause as written. It
+correctly declined to fix the clause itself — the general defect was outside its items, and
+widening scope mid-build is what this wave's discipline forbids. That decision is why this finding
+exists: *"pre-existing and outside my scope"* is the case a finding is **for**.
 
 ## What is NOT claimed
 
-- Not that any specific past seal was dishonest. The clause passing vacuously means those seals
-  were **unverified**, not that they were false.
+- Not that any past seal was dishonest. A vacuous pass means those seals were **unverified**, not
+  that they were false.
 - Not that bp-126 introduced this. It is pre-existing and independent of clause (e) → (e′).
-- Not that the fix is obvious. Reading the *first* `## ` heading instead is not automatically
-  correct either: the physical-end convention some journals now follow would then break. The fix
-  must decide **which end is authoritative** and enforce that decision, rather than silently
-  assuming one.
+- Not that the fix is obvious. Reading the *first* `## ` heading is not automatically correct
+  either. The fix must decide **what makes an entry authoritative** — position, an explicit marker,
+  or a timestamp — and enforce that decision, rather than silently assuming a layout.
 
 ## Route and re-entry
 
-Routed to the **orchestrator** rather than a builder because it currently has **no home**: bp-126
-holds `.claude/hooks/**` and is completing, and no `ready` plan carries that surface afterwards.
-The same homelessness that `finding-0237` and `oq-0059` describe.
+Routed to the **orchestrator** because it has **no home**: bp-126 holds `.claude/hooks/**` and is
+completing, and no `ready` plan carries that surface afterwards — the same homelessness
+`finding-0237` and `oq-0059` describe.
 
 **Re-entry condition:** the next plan that puts `.claude/hooks/_lib.py` in `write_scope` inherits
-this as a required item — and its acceptance must be a test that **reddens on a newest-first
-journal whose newest entry is non-compliant**, not merely a green run. A fix verified only by the
-clause going green would reproduce the defect it repairs.
+this as a required item.
+
+⚑ **Its acceptance must name the degenerate input and assert the clause REDDENS on it** — a journal
+whose newest entry is non-compliant while its trailing standing section is compliant. A fix
+verified only by the clause going green would reproduce the defect it repairs, which is the whole
+lesson of `finding-0249`.
