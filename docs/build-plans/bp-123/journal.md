@@ -299,3 +299,77 @@ those are bp-122's, not this plan's.
   finding-0216's follow-up.
 - **Deskcheck**: per the deskcheck rule this is not done until shown working. The natural deskcheck
   is Item 2's before/after σ readings on the real machine plus a `palace start` that comes up.
+
+---
+
+## Checkpoint 4 — Item 2's readings, taken in the main checkout. ⚑ The move had ALREADY been performed; only the record was owed
+
+Orchestrator session, main checkout, 2026-07-27. Checkpoint 3 handed this over as "run the runbook";
+what I found is that **steps 0–6 of that runbook had already been executed** — by an earlier hand, on
+2026-07-26, without recording anything. So this checkpoint is not a build; it is the **recovery of an
+unrecorded measurement**, and it is exactly the failure §3 predicted: git cannot witness this move, so
+an unrecorded one is unauditable.
+
+### What the tree showed before I touched anything
+
+| probe | observed |
+|---|---|
+| `config/ouroboros.toml` | present, 2914 bytes, mtime 2026-07-26 02:48 |
+| `config/local.toml` | absent |
+| `.gitignore` covers the new name | yes — `git check-ignore -v` → `.gitignore:28` |
+| scratchpad backup at the prescribed path | present — `~/ouroboros-overlay-backup-2026-07-26.toml`, same size, same mtime (`cp -p` preserves it) |
+| Item 1 landed on main | yes — `core/kernel/config/loader.py` carries `_INSTANCE_OVERLAY`, `_LEGACY_OVERLAY`, `ConfigMigrationError`, `_guard_legacy_overlay` |
+| build branch merged | yes — `git log main..worktree-agent-a385f65305e0f74a5` empty, `git diff --stat main...` empty |
+| daemon | DOWN (no `data/*.pid`, no supervisor process) — §10's first stop condition still clear |
+
+### ⚑ A wrong turn worth recording, because the next reader will take it too
+
+I first grepped **`config/loader.py`**, found no guard, and concluded Item 1 had never landed. That
+file is a **facade** (bp-067/finding-0103) — a thin re-export whose docstring still names `_LOCAL`.
+The real loader, and the plan's `write_scope` path, is **`core/kernel/config/loader.py`**. The
+write_scope was right; I went to the wrong file because the facade has the more obvious name. The
+facade's line 11 docstring mentioning `_LOCAL` is a **stale instructional reference** of exactly the
+class Item 3 was meant to clear — and it sits outside Item 3's acceptance grep, which is
+finding-0216's point restated from a new direction.
+
+### The readings (§7 Item 2's acceptance)
+
+| Reading | Expected | Actual |
+|---|---|---|
+| σ before the move | `0.58` | **`0.58`** — ⚑ see the caveat below; read from the pre-move file, not through the loader |
+| sha256 before | (record it) | `a61cbc9d2d661afdd4c9abf5ebaf53955bf9c640e8ae954b43d6acecab960079` (of the `cp -p` backup) |
+| σ after the move | `0.58` | **`0.58`** — through `get_config()`, in the live checkout |
+| sha256 after | identical to before | **identical** — `cmp` rc 0, byte-for-byte |
+| `get_config()` raises after? | no | **no** |
+
+⚑ **The σ-before reading is a reconstruction, not the measurement the plan asked for.** Nobody took
+it through the loader pre-merge, and it is now unrecordable — `config/local.toml` no longer exists
+and the guard would refuse anyway. What I read is σ **as carried by the pre-move file**, via the
+plan's own documented `tomllib` fallback applied to the backup. That proves the *file* carried 0.58;
+it does not prove the *loader* returned 0.58 before the merge. Recorded as reconstructed rather than
+quietly presented as taken.
+
+### The falsifier is refuted, and by a stronger reading than the plan specified
+
+Item 2's falsifier is "σ reads `0.62` after the move ⇒ the overlay is no longer read." What makes the
+σ-after reading dispositive is that **`config/defaults.toml:277` carries `similarity_threshold = 0.62`**
+and `config/ouroboros.toml:44` carries `0.58`. So the two hypotheses — *overlay read* vs *silent
+reversion to committed defaults* — predict **different** values, and the loader returns the overlay's.
+Q4's silent-reversion risk is closed by measurement, independent of the missing pre-reading.
+
+### Still owed at the moment of writing
+
+`uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'` with the
+finding-0103 deselect (runbook step 7) is **in flight** and not yet reported. Expected per the
+seat's readings log: the two known live failures (finding-0103 core-self-containment,
+finding-0226 dream-v2). Checkpoint 3 also predicts the two finding-0214 `test_selfmod*.py` failures
+**reappear** here now that config loads again — those are bp-122's, not this plan's. **`complete` is
+not earned until that run is reported in this journal**, so the status flip is deliberately not made
+in this checkpoint.
+
+### Next action
+
+Report the suite, then seal: flip `bp-123 → complete` with `cost.actual`, write the `## Follow-through`
+block, and route `finding-0216`. The deskcheck remains Item 2's σ readings on the real machine plus a
+`palace start` that comes up — **not run here**, because starting the daemon is owner-gated and §10
+wanted it down for the duration.
