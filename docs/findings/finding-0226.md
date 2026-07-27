@@ -93,6 +93,32 @@ lives in **prose inside seal notes** rather than in a deselect list or a marker.
 copying the established wording would attest a green that is not there. ⚑ This is finding-0222's
 thesis in a third costume: *a note is not a control.*
 
+> ⚑ **UPDATE 2026-07-26, at bp-110's merge — the third limb is worse than filed, because one member
+> of the set is INTERMITTENT.** A post-merge full run showed a **third** failure,
+> `tests/e2e/test_scheduler_live.py::test_supervisor_dispatches_a_real_job` (3 failed / 2275
+> passed). It did **not reproduce in four subsequent runs**: in isolation (1 passed, 18.93 s),
+> across the whole `tests/e2e/` set, with three models deliberately left warm (1 passed, 50.95 s),
+> and in a second full suite (2 failed / **2276** passed — it passed). Its own docstring names the
+> mechanism: it unloads every model for a clean slate, so a cold generation *"can queue behind a
+> load and time out"*. It is a **flake, not a regression** — bp-110's Item 4 rule was ruled out by
+> reading the code (`model_blocked_tiers()` returns empty unless `_in_flight_key` is set, and that
+> is assigned only on the subprocess path, which `inproc` never takes), and the
+> `MemoryCeilingError → defer` path was verified pre-existing at `ff51028`.
+> **Why this sharpens the limb rather than being a separate finding:** an expected-failure set
+> recorded as prose can at least be diffed. A set with an intermittent member cannot be — "2 failed"
+> and "3 failed" are *both* correct readings of a healthy tree, so no wording can be right, and the
+> next seal author has no way to tell a flake from a regression except by doing what this sweep did
+> (five runs and a code read). That is not a control; it is diligence, and diligence does not scale.
+>
+> ⚑ **A SEVERITY CORRECTION I owe against my own filing above.** This finding's original text
+> implies these failures weaken the gate. They do not: **both** e2e failures carry
+> `pytest.mark.live`, and the deploy gate and CI both run
+> `-m "not live and not podman and not needs_vault and not needs_restic"`
+> (`ops/lifecycle/launcher.py:578-588`). Neither is in the attestable-green gate at all — they
+> surface only in a bare `pytest -q`. The real defect is narrower and stands: **the bare-suite
+> reading is what seals quote, and it is unstable and unenforced.** The fix (a deselect list or a
+> strict `xfail`, limb 3's ask) is unchanged; its justification is corrected.
+
 ## Re-entry condition
 
 Nothing is parked and no build is blocked — bp-110 is unaffected (it touches neither the loader nor

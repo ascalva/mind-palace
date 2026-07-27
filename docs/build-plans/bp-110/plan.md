@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-110
 track: ops
-status: in-progress
+status: complete
 design_ref:
   - docs/design-notes/dn-supervision-and-liveness.md
 contract: builder
@@ -19,7 +19,91 @@ cost:
   estimate:
     model: opus
     tokens: 400k
-  actual: null
+  actual:
+    model: opus              # claude-opus-5[1m], DELEGATED builder in a worktree (session-54)
+    tokens: 327552           # HARNESS-MEASURED from the completion notification, 160 tool uses,
+                             # ~50 min. The builder SELF-reported ~285k; the harness figure is
+                             # recorded because a self-report is not an independent measurement.
+    ratio: 0.82              # 327552/400k — the well-pinned side, as expected for a plan whose
+                             # §6 carried every interface verbatim
+    session_delta: unmeasured
+    week_delta: unmeasured   # AT-SEAL readings: session 1% at spawn (fresh window), week 38%,
+                             # Fable 19% (resets Jul 31 8pm ET)
+    notes: >-
+      SEALED session-54. Merged `--no-ff` after an orchestrator audit that VERIFIED THE TWO
+      LOAD-BEARING FALSIFIERS EMPIRICALLY rather than taking them on report. MUT-1 (the most
+      serious — a spawned worker starts UNSEALED on macOS and the failure is silent): deleting
+      `seal()` from the entrypoint reddened SEVEN tests including
+      `test_the_worker_process_is_sealed_and_blocks_a_non_loopback_connect` and
+      `test_the_seal_is_the_first_thing_the_entrypoint_does`; restored, 14 passed. MUT-3 (the
+      subtle one — bp-105's function-local `import psutil` passed every gate at the time): a
+      FUNCTION-LOCAL store import planted in `scheduler/worker.py` made `scripts/check_imports.py`
+      exit 1, naming the line and both the module and symbol firewalls; removed, exit 0. Reported
+      as tier 4, not overclaimed.
+
+      Scope clean — every path in `write_scope`, plus its own journal and new findings. bp-123's
+      overlay guards UNTOUCHED (the loader diff is purely additive: `SchedulerConfig`, a defaulted
+      `Config.scheduler`, one `raw.get`; `_refuse_on_legacy_overlay` still runs first).
+      finding-0224 left open and untouched as instructed — `_dispatch_to_worker` passes no
+      `timeout_s`, so no deadline could settle it by side effect.
+
+      ⚑ THE §6 SHAPE TENSION RESOLVED CORRECTLY (finding-0228, `[banner: correction]`): §6 pinned
+      `job_budget_s: float` but bp-109 built `JobQueue.job_budgets: Mapping[str, float]`, looked up
+      BY KIND at `queue.py:435`. A scalar is unconsumable there without fanning it over every kind
+      or adding a second budget source — the exact parallel source finding-0225 exists to prevent.
+      Landed per-kind; the scalar deliberately NOT also shipped. Discharges finding-0225's wiring
+      half.
+
+      ⚑ A REAL BUG CAUGHT BY TEST DURATION, not by a failing assertion: the wall-clock bound took
+      30.08 s to enforce a 1 s deadline because `_recv` blocked in `readline()` and the deadline
+      was checked only BETWEEN frames — a green `pytest.raises(WorkerTimeout)` was attesting a
+      bound that did not work. Fixed by passing the deadline into the read; the test now asserts
+      elapsed time. 30.08 s -> 1.01 s.
+
+      GATE, all six legs on the MERGED tree, each run separately: ruff · import-firewall
+      (INCLUDING the new tier-4 worker boundary, "scanned transitively; module-level AND
+      function-local") · tier-2 mypy 260 source files · argless mypy EXACTLY 69 · `ops.type_gate` ·
+      bare `uv run pytest -q` = **2 failed, 2276 passed, 12 skipped in 1024.15s**. Both failures
+      are pre-existing and explained, neither is this plan's: the finding-0103 INTENTIONAL-RED
+      ratchet, and `tests/e2e/test_dream_v2_live.py` (finding-0226 — bp-107's correct ceiling
+      refusing a real 29.7 GB load).
+
+      ⚑ A THIRD FAILURE APPEARED ONCE AND IS A FLAKE, NOT A REGRESSION — recorded because a silent
+      intermittent is exactly what a future seal would misread. The first post-merge run showed
+      `tests/e2e/test_scheduler_live.py::test_supervisor_dispatches_a_real_job` failing (3 failed /
+      2275 passed). It did NOT reproduce in FOUR subsequent runs: in isolation (1 passed, 18.93s),
+      across the whole e2e set (only the known dream failure), with three models deliberately left
+      warm (1 passed, 50.95s), and in a second full suite (2 failed / 2276 passed — it passed).
+      Its own docstring names the mechanism: it unloads every model for a clean slate, so a cold
+      generation "can queue behind a load and time out". Item 4's rule was RULED OUT as the cause
+      by reading the code, not by assuming — `model_blocked_tiers()` returns `frozenset()` unless
+      `_in_flight_key` is set, and that is assigned ONLY on the subprocess path, which
+      `worker_mode = "inproc"` never takes. The `MemoryCeilingError -> defer` path in `tick` was
+      verified PRE-EXISTING at `ff51028`.
+
+      ⚑ SEVERITY NOTE that the earlier reading of this got wrong: BOTH e2e failures are marked
+      `pytest.mark.live` and the deploy gate / CI run `-m "not live and not podman and not
+      needs_vault and not needs_restic"`, so neither is in the attestable-green gate at all. They
+      surface only in a bare `pytest -q`. The builder's own green-gate run (2258 passed, 11
+      skipped, 21 deselected) was correctly, honestly green.
+
+      FOUR FINDINGS FILED, and 0229 is the one that matters: bp-110 ships SYNCHRONOUS dispatch, so
+      it delivers cancellability but NOT liveness — `_dispatch_to_worker` iterates to completion
+      inside one `tick()`, so a 14-hour backfill still stalls the serve loop. §1's objective
+      sentence promises "the supervisor stays live"; no ITEM asks for non-blocking dispatch, so
+      nothing shipped is wrong and the gap is between the objective and the items. Consequently
+      §2.7's hazard does not arise yet and Item 4's guard, though built and tested, currently
+      guards an EMPTY window — recorded in the docstring rather than left to be discovered.
+      0227 `discovery`: EVERY lane module imports a store class at module level, so bp-113/bp-114
+      need a `ReadOnlyRows` signature refactor as a PRECONDITION their estimates do not price.
+      0228: the per-kind correction above. 0230 (filed as 0226, renumbered at merge — see
+      finding-0231 for the id-allocation race): V5 measured, a pure-CPU thread costs 2150x
+      THROUGHPUT but leaves the loop at ~153 Hz, clearing a 1 s cadence by two orders of magnitude,
+      so "starves the loop" is true as throughput and false as liveness and the thread rejection
+      rests on non-cancellability — which is why no §10 STOP fired. The ratified decision stands.
+
+      Ships DEFAULT-OFF: `worker_mode = "inproc"`, every existing handler unchanged, every existing
+      supervisor test passing unedited.
 depends_on: [bp-108, bp-109]
 parallelizable_with: []
 created: 2026-07-25

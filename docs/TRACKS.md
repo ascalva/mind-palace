@@ -47,7 +47,7 @@
 | Ops | bp-107 — the memory ceiling stops guarding a belief (finding-0199's interim reconcile) | deskcheck-pending · complete | opus |
 | Ops | bp-108 — the supervisor role becomes exclusive, and the loop keeps its duty cycle | deskcheck-pending · complete | opus |
 | Ops | bp-109 — a RUNNING row carries its own deadline, and a checkpointed row stops being swallowed | deskcheck-pending · complete | opus |
-| Ops | bp-110 — THE INTEGRATOR: the worker protocol and the dispatch seam | build · ready | opus |
+| Ops | bp-110 — THE INTEGRATOR: the worker protocol and the dispatch seam | deskcheck-pending · complete | opus |
 | Ops | bp-111 — the dead-man inversion: health decays instead of being asserted | build · ready | opus |
 | Ops | bp-112 — the teeth: budgets that are enforced, and a kill that is bounded and loud | build · ready | opus |
 | Ops | bp-113 — the code lanes compute out-of-process and land in the supervisor | build · ready | opus |
