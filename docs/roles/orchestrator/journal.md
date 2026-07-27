@@ -402,3 +402,64 @@ supposed to preserve.
 ## Markers
 
 <!-- Mechanical lines appended by hooks (compactions, audits, HOOK-FAILUREs) live here. -->
+
+## 2026-07-27 — the wave landed three of four; bp-127 is NOT started, and why
+
+**State.** bp-124, bp-125, bp-126 are `complete` and merged. **bp-127 is `ready` and un-started.**
+Head `16299a5`, pushed, working tree clean apart from `docs/design-notes/trace-retrieval.md`, which
+another session is actively revising and which is **not mine to touch**.
+
+**The cutover is done.** `.claude/state/resume-brief.md` is deleted, `docs/templates/resume-brief.md`
+is retired, clause (e) is now (e′), and `session-brief.sh` points at this seat. Verified after
+deleting: `session-brief.sh` rc 0 with no brief present and `handoff --check` rc 0 — the deadlock
+the atomicity requirement guarded against does **not** occur.
+
+**Why bp-127 was not started.** My session measured **97% used** at the moment the cutover landed
+(week 53%). bp-127 is estimated 550k, and this wave's measured audit-at-parity ratio puts the real
+figure near **1.1M**. Starting a plan I cannot supervise through build → audit → possible return →
+merge would strand a worktree with nobody to land it. Ending at a unit boundary is the rule, and
+bp-126's completion is a clean one. **This is a deliberate stop, not an interruption.**
+
+**What a fresh orchestrator needs to know about bp-127.** It is fully pinned. Four manifest entries
+were added to it after blessing (`5acea73`, `f4c61ec`, `20ba385`, `a982e7a`, `9518fc8` — each
+additive, each revertable alone, no criterion or `write_scope` touched):
+- **entry 11** — F1b must treat "no capsule" as *lint the whole file*, and must **anchor**
+  `^## CAPSULE`, or it matches the journal's own prose defining the marker.
+- **entry 12** — add the future-dated readings lint (`finding-0243`).
+- **entry 13** — ⚑ **F2 will launder the gate unless contained.** It spawns an agent in-tree, which
+  fires SessionStart and rewrites `session-baseline`. Snapshot **content and mtime**, restore both,
+  and assert the gate's **verdict** is unchanged across the spawn — not merely that bytes match.
+- **entry 14** — surface the active-segment line count, because the retention threshold has no
+  instrument.
+
+**⚑ The measurement that should decide something.** The seat surface is **568 lines** — *exactly the
+size of the resume brief when bp-125 was graduated against it*. Journal segment **404 lines** against
+a ~300 threshold, **zero capsules**, in **one day**. The accumulator did not stay behind with the
+brief; it moved house and reached the same size within a day. `finding-0245`'s escalation fired
+before bp-126 even merged, and the pre-capsule reading is the falsifier I named for the
+"accumulator moved house" hypothesis. It is no longer a hypothesis.
+**The first `## CAPSULE` is owed at the next `/triage` and is now a real task, not housekeeping.**
+
+**Owner queue, all parked with re-entries, none blocking:** oq-0058 (amend the ratified note, or let
+`finding-0236` stand), oq-0059 (`finding-0237` has no home), oq-0060 (⚑ severe — 39 rows attribute
+the Stop hook's words to the owner; amends ratified CS-3, owner-only), oq-0054 (a ruling that exists
+only in a transcript; recoverable from the owner in one line).
+
+**Owner hand-acts owed:** amendment **A10** is drafted verbatim in bp-126's seal for a one-paste
+landing — and drafting it surfaced **two stale citations inside A9 itself**. Also the
+partial-supersession log entry.
+
+**Open findings that need homes, not answers:** `finding-0248` (clause (f) keys on physical file
+position, so any journal with trailing standing sections passes it vacuously — repo-wide, homeless
+after bp-126 releases `.claude/hooks/**`) and `finding-0246` (an ordinary act silences the gate; it
+fired three times today, twice from the mandated budget probe and once from measuring the hook by
+running it — an observer effect in the gate).
+
+**`finding-0249` is the wave's most durable output.** Seven instances of *a check that passes
+without testing its claim*, and the measured lesson: **both surviving mutants across the whole wave
+were found by mutating and running, neither by reading, both after careful review.** Its proposal —
+that a gate/lint item's acceptance must name the degenerate input and assert the check reddens on
+it — belongs in the build-plan skill and needs a plan.
+
+**Next action is unchanged and still honest: `/resume bp-123`.** It has been in-progress since
+2026-07-26 with Item 2 owed. The seat surfaced it on day one and it has stayed surfaced ever since.

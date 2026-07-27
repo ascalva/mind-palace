@@ -5792,3 +5792,69 @@ bp-125 has just proven that hazard is **live rather than theoretical**. The wave
 bp-126 (cutover) and bp-127 (executable falsifier) remain `ready` and un-built, A10 is drafted for
 the owner's hand but must land only after bp-126, and oq-0058/0059 are open. Deskchecks: still 5
 owed, 0 records — bp-124/125 earn their row when the wave's track flips.
+
+---
+
+## 2026-07-27 (session-55) — bp-126 THE CUTOVER merged; the brief is deleted; bp-127 deliberately NOT started
+
+**bp-126 `complete`**, merged at `1f723ec`, cutover performed at `16299a5`. Three of the wave's four
+plans are done. **bp-127 remains `ready` and un-started — a deliberate stop at a unit boundary**,
+because this session measured 97% used and bp-127's real cost is near 1.1M at the wave's measured
+audit-at-parity ratio. Starting a plan I could not supervise to merge would strand a worktree.
+
+**The cutover.** Clause (e) → (e′), `session-brief.sh` re-pointed to the seat, six regression cases
+re-expressed (6 → 20 tests), the template retired, and `.claude/state/resume-brief.md` **deleted by
+hand in the main checkout** — an act withheld from the builder because bp-126 §5 admits it is
+"satisfied vacuously" in a worktree. Verified after deletion: `session-brief.sh` rc 0 with no brief,
+`handoff --check` rc 0. The deadlock does not occur.
+
+**⚑ THE GATE COULD WEDGE EVERY SESSION AND NOW CANNOT.** `_handoff_is_stale` keyed on
+`returncode == 1` — which Python also returns for **any unhandled exception** — so a *crashing*
+generator was indistinguishable from a *stale* one: it blocked, `--write` failed identically, and
+the close wedged, **including the close of the session trying to fix it**. Three of six failure
+modes failed closed. Returned to the builder rather than merged. It now blocks only on **positive
+identification** of staleness, **seat-qualified**, matched on **both streams**.
+⚑ The qualifier is not decoration: if the generator raises *at its own staleness print*, the
+traceback echoes that source line carrying the bare marker — so a bare probe is **spoofable by the
+exact failure class being fixed**. Reconstructed and run: bare probe reproduces the wedge,
+seat-qualified does not. Sent back a **second** time for the one behavioural test pinning that
+choice, because merging it would have been the eighth instance of `finding-0249`'s own class.
+
+**⚑ finding-0241 vindicated on the exact file it was raised about.** At deletion the live brief's
+digest did **not** match the pre-emptive archive taken hours earlier. Because that copy was
+**tracked**, the delta was **computed, not merely detected**: exactly one line, the header hash.
+Without it a mismatch would have said *that* something changed and nothing about *what*. That is the
+difference between a tripwire and a recovery. The retraction of the `corpus_to_corpus` error — the
+substrate has **644,785** such edges; the gap is *typing* at `ops/code_sensor.py:131-139` — survives
+in tracked git in three places. The false claim cannot be what survives.
+
+**⚑⚑ THE ACCUMULATOR MOVED HOUSE, AND THE NUMBER IS EXACT.** The seat surface is **568 lines** —
+*precisely the size of the resume brief when bp-125 was graduated against it*. Journal segment
+**404** against a ~300 threshold, **zero capsules**, in **one day**. `finding-0245`'s escalation
+fired before bp-126 merged. The named falsifier for the "one-time cutover cost" reading was the
+pre-capsule measurement; it breached. This is no longer a hypothesis, and nothing measures segment
+length — it was known only by measuring three times by hand. bp-127 entry 14 now asks for the
+instrument, because a threshold no instrument reads is not a threshold.
+
+**Findings filed this session:** 0244 (authorship blindness carried forward, named not hidden),
+0245, 0246 (⚑ an ordinary act silences the gate — it fired **three times today**, twice from the
+mandated budget probe, once from measuring the hook by running it: an **observer effect in the
+gate**), 0247 + 0250 (the two bp-126 audits), 0248 (clause (f) keys on **physical file position**,
+so any journal with trailing standing sections passes vacuously — ⚑ **I filed this on a false
+premise and corrected it in place with an explicit retraction**), and **0249** — the wave's most
+durable output.
+
+**⚑ finding-0249 — seven instances of a check that passes without testing its claim**, in one wave.
+The measured lesson: **both surviving mutants across the entire wave were found by mutating and
+running — neither by reading, both after careful review.** Its proposal is that a gate/lint item's
+acceptance must name the **degenerate input** on which the check would trivially pass and assert it
+**reddens** there — *a falsifier says what failure looks like; this says what a false success looks
+like*. That belongs in the build-plan skill and needs a plan.
+
+**Cost.** Week 43% → **53%** across four builds, four audits, and two returns. Session 97%.
+Two plans were sent back rather than merged; both returns found real defects.
+
+**Owner queue:** oq-0058, oq-0059, **oq-0060** (⚑ severe — 39 rows attribute the Stop hook's words
+to the owner; amends ratified CS-3), oq-0054 (a ruling that exists only in a transcript). All parked
+with re-entries. **A10 drafted for one-paste landing** — and drafting it surfaced two stale citations
+inside A9 itself. **Deskchecks: 5 owed, 0 records**; bp-124/125/126 are ready to deskcheck.
