@@ -1,8 +1,8 @@
 ---
 type: journal
 plan: bp-125
-started: null
-updated: 2026-07-26
+started: 2026-07-27
+updated: 2026-07-27
 ---
 
 # Journal — bp-125 (migrate the live brief into the seat, and re-home its rules)
@@ -91,3 +91,154 @@ by hand has largely been done once already, manually — so the migration is now
 and build* — arriving again, **caused by the orchestrator**, in the same session it was cited as a
 known hazard. It is recorded here rather than only in the merge commit because the builder reads
 the journal, not the merge log.
+
+---
+
+## 2026-07-27 — Item 6 closed: the brief re-grounded and classified
+
+**Status line.** The live brief was snapshotted, re-measured against every figure this plan quotes
+(all three were stale), and classified line-by-line into the four-way split; the census sums
+exactly to the file's length and every DERIVED drop has a named replacement source.
+
+**Completed.**
+
+*Item 6 — classify the live brief against the four-way split.*
+
+⚑ **The plan ran in a WORKTREE, not the main checkout.** §0 and §10's first stop-and-raise
+condition demand the main checkout because the brief is gitignored and absent from a fresh
+checkout. The orchestrator discharged that condition the sanctioned way — §0's second branch, *"or
+have the orchestrator copy the brief into the worktree before spawn and say so in the journal"* —
+by handing over the absolute path to the live file in the main checkout. **Step 0 was to snapshot
+it outside the repo before reading anything**, per the pre-build note: the brief has no history and
+a mis-step is unrecoverable.
+
+Base commit verified `7ad779a`, as the delegation stated.
+
+Snapshot, taken before any other act:
+
+```
+     122    8196 …/scratchpad/resume-brief.SNAPSHOT.md
+0a5bbfb28b829ed1a7203fd568f97d146415a31c9cb713309ec137f3bd547057
+```
+
+**All work below is against the snapshot, never the live file.** The live file was opened once, to
+copy it, and never again — my session and the orchestrator's are concurrent and it is rewritten
+under load.
+
+### The three stale figures — every one of them, confirmed
+
+| source | claimed | actual | delta |
+|---|---|---|---|
+| plan §0 ("Verified 2026-07-26") | 498 lines / 36,701 bytes | 122 lines / 8,196 bytes | −376 lines |
+| plan §3 Q2 (the note's census base) | 405 lines | 122 lines | −283 lines |
+| journal re-entry condition | 568 → cleared to 83 lines | 122 lines | +39 since the clear |
+
+Not one figure in this plan's §3 survived contact with the artifact. The re-entry condition was
+right that they were stale and *itself* went stale in the same day — the file has been written
+twice more since the clear. **No quoted figure was carried forward**; every number below is
+re-measured. This is finding-0191's shape a third time in one wave, and its lesson is now
+mechanical rather than cautionary: a plan that quotes a size for a gitignored file is quoting a
+reading, not a property.
+
+### The re-grounded §3 census (Item 6's deliverable — sums to 122)
+
+| class | lines | share | line numbers |
+|---|---|---|---|
+| structural (blank + headings) | 39 | 32.0% | 29 blank, 10 headings |
+| **DERIVED** (dropped) | 5 | 4.1% | 12, 20, 21, 68, 69 |
+| **MEASURED** | 1 | 0.8% | 34 |
+| **NARRATIVE** | 50 | 41.0% | 8–10, 26–31, 39–44, 59–62, 70, 74–87, 91–103, 115–117, 119–122 |
+| **RULES** | 27 | 22.1% | 5–6, 14–16, 23–24, 33, 35, 48–58, 63–64, 107–109, 113–114 |
+| **total** | **122** | **100%** | verified by script: sum == wc -l |
+
+Mixed lines are assigned their **dominant** class and their minority content is recorded
+separately below, so nothing is lost to a rounding decision.
+
+### What the census means — the hand-restructure already did the DERIVED eviction
+
+Set beside the note's §2.2 census of the 405-line reading, the shape has changed radically, and
+the change is evidence *for* the design rather than drift against it:
+
+| class | note §2.2 (405 lines) | this reading (122 lines) |
+|---|---|---|
+| tree-derivable | ~33% | **4.1%** |
+| execution-derived | ~7% | 0.8% |
+| judgement | ~44% | 41.0% |
+| durable rules | ~11% | **22.1%** |
+| headers/blank | ~4% | 32.0% |
+
+The DERIVED share **collapsed by a factor of eight** because the orchestrator's hand-restructure
+replaced the hash lists, status tables and finding/oq digests with a five-line `## STATE —
+regenerate, do not trust this snapshot` block that names the *commands* instead of their output.
+That is §2.5's DERIVED rule applied by hand, and it worked: the pane that used to hold ~135 lines
+of rotting facts now holds one instruction. The RULES and structural shares rose because the
+absolute counts barely moved while the denominator fell — the rules are the residue that a manual
+compaction cannot evict, because they have nowhere to go until *this* plan gives them one.
+
+**The orchestrator's judgement that "the work is smaller, not different" is confirmed and can be
+sharpened:** the DERIVED half of the migration was already done by hand; what remained was the
+RULES eviction (which needs write access to four skills, so no manual pass could have done it) and
+the NARRATIVE transcription. That is why the estimate is high, and it is recorded at seal rather
+than tuned.
+
+### Every DERIVED fact dropped, with the source that now supplies it
+
+⚑ Item 6's falsifier is *"a fact classified DERIVED that the generator does not in fact render."*
+It **fires literally, on the sha subclass**, and the reconciliation is `finding-0239`: the design
+note §2.9 excludes shas from the rendering **on purpose** and names `git log` as their replacement
+view. The DERIVED class therefore has two replacement sources, not one. Verified fact by fact:
+
+| # | dropped fact | line | replacement source | verified |
+|---|---|---|---|---|
+| 1 | HEAD sha in the title | 1 | `git log --oneline -1` | §2.9 pin — never rendered, by design |
+| 2 | sub-orchestrator "alive as of" sha | 10 | `git log` | same |
+| 3 | bp-124 is complete | 12 | handoff → `Status tally: complete 108 …` | YES — rendered |
+| 4 | bp-124 merge + seal shas | 12 | `git log` | §2.9 pin |
+| 5 | finding-0238 exists | 12 | handoff → `Open findings` most-recent list | YES — rendered |
+| 6 | bp-125/126/127 statuses | 20 | handoff → `Units of work` table | YES — rendered |
+| 7 | the two blessing shas | 20 | `git log` | §2.9 pin |
+| 8 | deskchecks owed | 69 | handoff → `Deskchecks owed` (5 rows) | YES — rendered |
+| 9 | open owner-question count ("~25") | 69 | handoff → `answer (open owner questions): 31` | YES — **and the brief's figure had rotted by six** |
+| 10 | ops wave bp-111…bp-119 available | 70 | handoff → `Units of work` table | YES — rendered |
+| 11 | oq-0035 ruled but still open | 92–93 | handoff → `Awaiting the owner` count | YES — as a count, not per-question |
+| 12 | the sha attached to that ruling | 93 | `git log` | §2.9 pin |
+| 13 | the regenerate-command list | 68 | handoff's own GENERATED banner | YES — the instruction is the artifact |
+
+**Nothing was dropped to memory, to prose, or to nothing.** Item 6's substantive invariant —
+*nothing is dropped without a named replacement source* — holds for all thirteen. Fact 9 is the
+migration paying for itself immediately: the hand-carried count was six low, and the rendering is
+right by construction.
+
+**Completed.** Item 6's acceptance is discharged: the census table sums to the live brief's line
+count (122, verified by script, not by hand), and every DERIVED drop is named with its replacement
+source and checked against a live run of the generator.
+
+**In-flight.** Nothing mid-motion. Items 7–11 are untouched; no destination file has been written
+yet. `handoff.md` is currently **converged** — `--check` exits 0 at `7ad779a`, measured before any
+edit — so any staleness from here is mine to fix, and it is fixed LAST, after every other artifact
+write, per the delegation's ordering constraint.
+
+**Next action.** Item 7: append the migrated NARRATIVE to `docs/roles/orchestrator/journal.md` as
+a new entry ABOVE bp-124's `## 2026-07-26 — the seat is opened`, obeying the purity rule (the
+whole file is the authoritative segment — no `## CAPSULE — <date>` marker exists yet, so the F1b
+scope is the entire file, and it currently lints clean at zero hex tokens).
+
+**Open questions.** Two, both filed and both `spec-fidelity`, both resolved by me and not routed:
+- `finding-0239` — Item 6's acceptance names one replacement source; the design names two, the
+  second being `git log`. Resolved: census records the source per fact.
+- `finding-0240` — Item 6 files the census in the seat journal, whose purity lint (Item 7) forbids
+  exactly the sha list that makes it an audit trail. Jointly unsatisfiable. Resolved: the audit
+  trail lands **here**, in the plan journal, which this journal's own "Owed at seal" section
+  already demands.
+
+**Context-manifest delta.**
+- Read beyond the manifest: `scripts/handoff.py` (whole — needed to verify DERIVED drops actually
+  render, which no other artifact could tell me), `.claude/hooks/_lib.py:920-943` (clause (f)'s
+  tail grep — to place entries so the seal lands in the tail) and `:955-984` (the unswept counter's
+  state list, for Item 11's falsifier), `docs/roles/orchestrator/handoff.md` (bp-124's render).
+- Proved irrelevant: nothing. The manifest was accurate; only its *figures* were stale.
+- ⚑ Not in the manifest and load-bearing: `docs/roles/orchestrator/journal.md` and `readings.md`
+  already carry bp-124's content, so Items 7 and 8 are **appends, not creations**. The plan's verbs
+  ("write the first entry", "seed the log") predate bp-124's merge.
+
+**Markers.** None.
