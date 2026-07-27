@@ -37,3 +37,9 @@ derived view of commits.
 | 2026-07-27T04:56Z | uv run pytest -q | 2 failed / 2301 passed / 15 skipped in 356s — BOTH pre-existing: the finding-0103 core-self-containment ratchet and the finding-0226 dream-v2 live e2e. The finding-0219 scheduler-live flake passed this run |
 | unknown | claude -p "/usage" | session 52% · week 43% of allowance, resetting Jul 31 20:00 ET. Migrated from the outgoing brief by bp-125, which recorded the figures but NOT when they were taken — the age is genuinely unknown, not zero. Re-probe before any spawn rather than trusting this row |
 | unknown | owner-intent transcript sweep (literal command not recorded) | the obvious user-string filter sees only ~60% of the owner's words; ~86 mid-turn queue-operation rows plus structured question answers are invisible to it. Migrated by bp-125 from a sweep whose own record is still untracked; timestamp and command were both unrecorded, and are marked so rather than reconstructed |
+| 2026-07-27T04:41Z | uv run ruff check . | All checks passed (rc 0) — bp-125's worktree |
+| 2026-07-27T04:43Z | uv run python scripts/check_imports.py | OK (rc 0) — import firewall clean; worker boundary opens no store |
+| 2026-07-27T04:47Z | uv run mypy core agents eval ops scheduler scripts | Success: no issues in 261 source files — the floor holds at 0 |
+| 2026-07-27T04:50Z | uv run mypy | 69 errors in 20 files of 559 checked — EXACTLY the pinned tests/ baseline, rc 1 as expected; none in new code |
+| 2026-07-27T04:44Z | uv run python -m ops.type_gate | OK (rc 0) — tier-2 membership + bare-ignore scan clean; the one parked non-fatal shim report (finding-0223) unchanged |
+| 2026-07-27T04:53Z | uv run pytest -q | 2 failed / 2301 passed / 15 skipped in 234s — BOTH pre-existing and expected: the finding-0103 core-self-containment ratchet and the finding-0226 dream-v2 live e2e. The finding-0219 scheduler-live flake passed. No regressions |

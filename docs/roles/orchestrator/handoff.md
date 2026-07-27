@@ -48,18 +48,20 @@ Status tally: complete 108 · in-progress 2 · ready 11 · superseded 6
 
 ## Open findings
 
-29 open — most recent: finding-0233, finding-0234, finding-0235, finding-0236, finding-0237, finding-0238
+30 open — most recent: finding-0234, finding-0235, finding-0236, finding-0237, finding-0238, finding-0241
 
 ## Readings (MEASURED — latest per command)
 
 | when | command | result |
 |---|---|---|
-| 2026-07-27T04:47Z | `uv run mypy` | 69 errors in 20 files of 559 — exactly the recorded tests baseline, none in new code |
-| 2026-07-27T04:44Z | `uv run mypy core agents eval ops scheduler scripts` | Success: no issues in 261 files — the floor holds at 0 |
-| 2026-07-27T04:56Z | `uv run pytest -q` | 2 failed / 2301 passed / 15 skipped in 356s — BOTH pre-existing: the finding-0103 core-self-containment ratchet and the finding-0226 dream-v2 li… |
-| 2026-07-27T04:49Z | `uv run python -m ops.type_gate` | OK — tier-2 membership + bare-ignore scan clean; one parked non-fatal shim report (finding-0223) |
-| 2026-07-27T04:42Z | `uv run python scripts/check_imports.py` | OK — import firewall + worker boundary both clean (rc 0) |
-| 2026-07-27T04:41Z | `uv run ruff check .` | All checks passed (rc 0) |
+| unknown | `claude -p "/usage"` | session 52% · week 43% of allowance, resetting Jul 31 20:00 ET. Migrated from the outgoing brief by bp-125, which recorded the figures but NOT when they… |
+| unknown | `owner-intent transcript sweep (literal command not recorded)` | the obvious user-string filter sees only ~60% of the owner's words; ~86 mid-turn queue-operation rows plus str… |
+| 2026-07-27T04:50Z | `uv run mypy` | 69 errors in 20 files of 559 checked — EXACTLY the pinned tests/ baseline, rc 1 as expected; none in new code |
+| 2026-07-27T04:47Z | `uv run mypy core agents eval ops scheduler scripts` | Success: no issues in 261 source files — the floor holds at 0 |
+| 2026-07-27T04:53Z | `uv run pytest -q` | 2 failed / 2301 passed / 15 skipped in 234s — BOTH pre-existing and expected: the finding-0103 core-self-containment ratchet and the finding-022… |
+| 2026-07-27T04:44Z | `uv run python -m ops.type_gate` | OK (rc 0) — tier-2 membership + bare-ignore scan clean; the one parked non-fatal shim report (finding-0223) unchanged |
+| 2026-07-27T04:43Z | `uv run python scripts/check_imports.py` | OK (rc 0) — import firewall clean; worker boundary opens no store |
+| 2026-07-27T04:41Z | `uv run ruff check .` | All checks passed (rc 0) — bp-125's worktree |
 | 2026-07-27T03:36Z | `uv sync --frozen --extra dev` | ok — dev extras resolved in a fresh worktree venv |
 
 ## Queue (an input, never the substrate)
