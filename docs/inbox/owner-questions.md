@@ -1898,7 +1898,7 @@ asserted.
 
 ## oq-0054 — The intent capsule's cap bounds SHAPE, not bytes: (a) character cap, (b) max token length, or (c) accept and amend
 
-- status: open
+- status: answered
 - origin: docs/findings/finding-0219.md · bp-120 (the AP1 intent capsule) ·
   docs/design-notes/dn-autopilot-and-delegated-blessing.md §2.2
 - blocking: false   # bp-120 is built, green, and the boundary is a PASSING test that cannot rot
@@ -1920,17 +1920,41 @@ asserted.
   exhaust lane) must not assume a byte bound. `scripts/capsule.py` and
   `docs/templates/intent-capsule.md` change **together**, under a plan whose write_scope names both.
 - answer:
-  ⚑ **NOT RECORDED, AND THE ORCHESTRATOR WILL NOT INVENT ONE.** The retiring resume brief listed
-  *"record oq-0054 as answered"* among its owed mechanical inbox fixes, so a ruling was evidently
-  made in conversation on 2026-07-26 — but **no answer text was ever written to this entry**, and
-  the brief did not carry the ruling's content either, only the instruction to record it. The
-  status is therefore left `open` rather than flipped, because flipping it would assert a decision
-  whose content nobody can now state. Noted 2026-07-27 while draining the brief's owed list ahead
-  of bp-126's cutover; the brief itself is preserved verbatim at
-  `docs/archive/resume-brief-final-2026-07-27.md`.
-  ⚑ **This is the transcript-only-ruling failure in miniature** — the same class as `finding-0241`,
-  where a ruling survived only because a builder re-diffed a gitignored file at seal. The decision
-  is recoverable only from the owner: **(a)**, **(b)** or **(c)** on the cap, restated in one line.
+  ⚑ **RECOVERED AND RECORDED VERBATIM, 2026-07-27.** The owner's words, in full:
+
+  > *"oq-0054: ok, provide the design note when ready"*
+
+  Provenance: `2026-07-27T02:22:58Z`, session `61710eca`, queue-row 918 — **channel 2**, typed
+  while an agent was mid-turn. Recovered by the owner-intent audit
+  (`docs/brainstorms/owner-intent-audit.md`, L-3), which is the artifact of record for the
+  derivation.
+
+  ⚑ **He did not pick (a), (b) or (c), and this entry does not pretend he did.** His disposition is
+  a *fourth* one that none of the offered options names: **accept the parked default, and ask for a
+  design note.** That is almost certainly why it was never pattern-matched as a ruling — the sweep
+  was looking for one of three letters. Recording it as "(c), plus a note owed" would be putting
+  words in his mouth; recording what he actually said is the correct move, and is what is done here.
+
+  **What this obliges.** A design note on the intent capsule's cap is **owed to him** — that is the
+  live half of this ruling, and it is the thing to deliver, not another question. Until that note is
+  written and ratified, §2.2 is unchanged and the park condition below still governs: `scripts/capsule.py`
+  and `docs/templates/intent-capsule.md` change **together**, under a plan whose `write_scope` names
+  both, and AP3 must not assume a byte bound.
+
+  ⚑ **Kept for the lesson, because it cost a real day.** This entry previously read *"NOT RECORDED,
+  AND THE ORCHESTRATOR WILL NOT INVENT ONE"* — and that was the **right call at the time**: the
+  retiring resume brief carried the instruction *"record oq-0054 as answered"* without the ruling's
+  content, so flipping the status then would have asserted a decision nobody could state. The
+  refusal to guess is what kept this recoverable. What unblocked it was not a better guess but a
+  **new channel**: the audit that reads queue-typed input. This is the transcript-only-ruling failure
+  in miniature (the `finding-0241` class), and its resolution is the three-channel lesson —
+  the answer was never lost, it was in the channel nobody swept. The brief itself remains preserved
+  verbatim at `docs/archive/resume-brief-final-2026-07-27.md`.
+
+  ⚑ **Owner-visible remnant, one line, not fixed here:** `~/.mind-palace/exhaust/owner-queue.md`
+  still lists `oq-0054` under RULINGS OWED, so the phone queue is asking for something already
+  given. That file is outside the repo and outside this pass's write surface; it is corrected the
+  next time the exhaust queue is placed.
 
 ## oq-0055 — bp-095's survey gate: widen its `re_entry` to a conjunction, and the two acts behind it are yours
 
@@ -2134,4 +2158,56 @@ asserted.
   when `dn-trace-retrieval` is opened for ratification; CS-3's amendment is a precondition of that
   note's own build, so this question is answered in that same sitting. Until then the defect stands
   **recorded and unrepaired**, and any consumer of speaker attribution must be treated as untrusted.
+- answer:
+
+## oq-0061 — ⚑ "Are we getting rid of `graduate → YOU BLESS → build`?" — your question from 2026-07-27, owed a durable answer
+
+- status: open
+- origin: docs/brainstorms/owner-intent-audit.md (L-2) · docs/design-notes/dn-autopilot-and-delegated-blessing.md (ratified 2026-07-25) · docs/findings/finding-0264.md
+- blocking: false
+- question: ⚑ **This is not a new question — it is yours, unanswered for a day.** On
+  `2026-07-27T02:18:37Z` (session `61710eca`, row 868) you asked:
+
+  > *"I thought we were getting rid of this transition: graduate → YOU BLESS → build, so I'm not in
+  > the loop? or did we never get a chance to finalizing something?"*
+
+  Two minutes later the agent wrote, of this exact question, that it *"deserves a durable answer,
+  not just a chat reply."* **No such answer was ever written.** It is written here.
+
+  **The honest answer, in three parts.**
+
+  **(1) Half of it already happened, and it is ratified.** `dn-autopilot-and-delegated-blessing`
+  (`status: ratified`, 2026-07-25 — the note on letting you bless from your phone under an
+  authenticated grant) **splits the two blessing gates**, verbatim: *"`proposed→ready` is delegable
+  because it decides execution of upstream-settled intent, `draft→ratified` never is."* It amends
+  `dn-agent-workflow` §2(4) and §10(2) **for the `proposed→ready` half only**, and reaffirms
+  `draft→ratified` as *"permanently manual."*
+
+  **(2) ⚑ You are not out of the loop, and the note is explicit that you never were.** In its own
+  words the amendment *"does not automate the blessing. The decision remains human, per-occasion,
+  deliberate, and made on a read text."* What the note changes is only: **where** you read (phone),
+  **what** you read (a bounded intent capsule), and **who types the flip** (a verifier, acting on
+  your authenticated instruction). The gate is *the read, not the signature* — that is the note's
+  founding position. So the answer to *"so I'm not in the loop?"* is **no: you are still the loop.
+  The keyboard stops being the place you have to be standing.**
+
+  **(3) ⚛ "Did we never get a chance to finalize something?" — correct, and this is the real gap.**
+  The note is ratified; **none of it is built.** Its build chain is graduated but sitting unblessed:
+  `bp-135` (the reviewer's seat as a typed audit artifact), `bp-136` (the halt list as a total
+  predicate), `bp-137` ("low stakes" as a conjunctive structural predicate), `bp-138` (the grant's
+  pure core — code derivation, attestation tag, expiry), and `bp-139` (**the ON switch** —
+  `[autopilot]` reaches a caller and the capsule reaches your phone as bytes it can hash). All five
+  read `proposed`, which means **they are waiting on the very gate this question is about.** Today,
+  therefore, nothing is delegated and every flip is still yours by hand — exactly as `CLAUDE.md`
+  says. **Nothing was silently removed; a path was licensed and never walked.**
+
+  **What is actually being asked of you here.** Not to re-decide the design — you ratified it. Only:
+  do you want that chain **built now** (bless some or all of `bp-135`..`bp-139`, `bp-139` last since
+  it is the switch), or does it stay parked while the ops and handoff tracks run? A one-line answer
+  is enough.
+- default_if_unanswered: **the chain stays parked and every blessing stays manual at the keyboard**
+  — which is the status quo, costs nothing, and violates nothing. **Park condition:** re-entry fires
+  when you next bless a wave by hand and find the ceremony expensive, or when `bp-139`'s ON switch is
+  wanted for a phone-side review. ⚑ **The durable answer above stands regardless of your ruling** —
+  recording it is the point of this entry, so the question cannot be lost a second time.
 - answer:
