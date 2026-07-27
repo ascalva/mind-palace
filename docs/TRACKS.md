@@ -73,7 +73,7 @@
 | Workflow / tooling | bp-120 — AP1: the intent capsule as a typed artifact with a stable hash | deskcheck-pending · complete | opus |
 | Workflow / tooling | bp-124 — the orchestrator seat substrate and its handoff generator | deskcheck-pending · complete | opus |
 | Workflow / tooling | bp-125 — migrate the live brief into the seat, and re-home its rules | deskcheck-pending · complete | opus |
-| Workflow / tooling | bp-126 — the cutover: clause (e′), the re-point, and the brief's retirement | build · ready | opus |
+| Workflow / tooling | bp-126 — the cutover: clause (e′), the re-point, and the brief's retirement | build · in-progress | opus |
 | Workflow / tooling | bp-127 — the fresh-agent test made executable: F1b, F1c, and the F2 drill | build · ready | opus |
 
 ## Definition of done (per track — the deskcheck evaluates against this)
