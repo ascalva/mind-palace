@@ -9,6 +9,10 @@ records:
     docs/TRACKS.md          -- the board: swim lanes = tracks; per member its computed phase
     docs/DESKCHECK-QUEUE.md -- the owed-deskcheck inbox: deskcheck-pending tracks + standing backlog
 
+Coordinate integrity (F-WF1) now also covers findings and owner questions that declare a `track:`
+(bp-124, dn-role-state-and-scoped-handoff §2.3). `scripts/handoff.py` reuses these scan functions;
+its own renderings are its concern, not this module's.
+
 Front-matter parsing is REUSED from `.claude/hooks/_lib.py` (DRY, plan §2 audit) — this script
 never re-derives a YAML parser and never imports `core` (repo-workflow tooling, mirror docket).
 
@@ -19,6 +23,7 @@ never re-derives a YAML parser and never imports `core` (repo-workflow tooling, 
 
 from __future__ import annotations
 
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -155,28 +160,88 @@ def _scan_manifests(root: Path) -> dict[str, Track]:
 _PLAN_PREFIX = "Build Plan — "
 
 
+def _orphan(artifact: str, slug: str) -> str:
+    """The F-WF1 coordinate-split message: a `track:` value with no manifest behind it.
+    ONE phrasing for every artifact class so the check reads the same however it is reached."""
+    return f"{artifact} → track: {slug} (no docs/tracks/{slug}.md manifest)"
+
+
+# ── the shared scan surface ─────────────────────────────────────
+# These return EVERY artifact of their class with its declared `track:` slug ("" when the key
+# is absent — absent is normal, never an orphan). The attach/orphan functions below filter;
+# `scripts/handoff.py` reuses the same scanners for its own per-scope renderings, which is why
+# they are named without a leading underscore and return the raw rows rather than a view.
+def scan_plans(root: Path) -> list[tuple[Plan, str]]:
+    """Every build plan as `(Plan, track-slug)`, id-ascending (the glob is sorted by path)."""
+    out: list[tuple[Plan, str]] = []
+    for plan in sorted(root.glob("docs/build-plans/*/plan.md")):
+        text = _read(plan)
+        fm = parse_front_matter(text)
+        title = _first_h1(text)
+        if title.startswith(_PLAN_PREFIX):
+            title = title[len(_PLAN_PREFIX):]
+        out.append((
+            Plan(id=str(fm.get("id") or plan.parent.name), title=title, status=_status(fm) or "?"),
+            _text(fm.get("track")),
+        ))
+    return out
+
+
+def scan_notes(root: Path) -> list[tuple[str, str, str]]:
+    """Every design note as `(stem, status, track-slug)`."""
+    return [
+        (note.stem, _status(fm) or "?", _text(fm.get("track")))
+        for note in sorted(root.glob("docs/design-notes/*.md"))
+        for fm in (parse_front_matter(_read(note)),)
+    ]
+
+
+def scan_findings(root: Path) -> list[tuple[str, str, str]]:
+    """Every finding as `(stem, status, track-slug)`. The `track:` key is OPTIONAL on a finding
+    and is not back-filled — an absent key yields "" and is normal (bp-124 Item 4)."""
+    return [
+        (f.stem, _status(fm) or "?", _text(fm.get("track")))
+        for f in sorted(root.glob("docs/findings/*.md"))
+        for fm in (parse_front_matter(_read(f)),)
+    ]
+
+
+# An owner question is a `## oq-NNNN — title` section of ONE file whose body is `- key: value`
+# bullets — it has no front matter of its own, so its `track:` is a bullet like its `status:`.
+# ⚑ DRY: `scripts/docket.py:114` carries an identical header regex for its own oq scan. Two copies
+# of one FORMAT CONTRACT is a duplication — recorded as `finding-0237` rather than fixed here,
+# because docket.py is outside bp-124's write_scope and importing it would couple two peer scripts
+# through a private name. The re-entry condition is in that finding.
+_OQ_HEADER = re.compile(r"(?m)^##\s+(oq-\d+)\b[ \t]*[—-]*[ \t]*(.*)$")
+_OQ_FIELD = re.compile(r"(?m)^-\s*([a-z_]+):[ \t]*(.*)$")
+
+
+def scan_oqs(root: Path) -> list[tuple[str, str, dict[str, str]]]:
+    """Every owner question as `(id, title, fields)` — `fields` are the entry's `- key: value`
+    bullets (`status`, `blocking`, `track`, …), first occurrence wins, values un-normalized."""
+    text = _read(root / "docs" / "inbox" / "owner-questions.md")
+    out: list[tuple[str, str, dict[str, str]]] = []
+    matches = list(_OQ_HEADER.finditer(text))
+    for i, m in enumerate(matches):
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        fields: dict[str, str] = {}
+        for fm_ in _OQ_FIELD.finditer(text[m.end():end]):
+            fields.setdefault(fm_.group(1), fm_.group(2).strip())
+        out.append((m.group(1), m.group(2).strip(), fields))
+    return out
+
+
 def _attach_plans(root: Path, tracks: dict[str, Track]) -> list[str]:
     """Attach each plan to its track; return the list of orphan slugs (a `track:` value with
     no manifest — the F-WF1 coordinate-split signal)."""
     orphans: list[str] = []
-    for plan in sorted(root.glob("docs/build-plans/*/plan.md")):
-        text = _read(plan)
-        fm = parse_front_matter(text)
-        slug = _text(fm.get("track"))
+    for p, slug in scan_plans(root):
         if not slug:
             continue
-        title = _first_h1(text)
-        if title.startswith(_PLAN_PREFIX):
-            title = title[len(_PLAN_PREFIX):]
-        p = Plan(
-            id=str(fm.get("id") or plan.parent.name),
-            title=title,
-            status=_status(fm) or "?",
-        )
         if slug in tracks:
             tracks[slug].plans.append(p)
         else:
-            orphans.append(f"{p.id} → track: {slug} (no docs/tracks/{slug}.md manifest)")
+            orphans.append(_orphan(p.id, slug))
     for t in tracks.values():
         t.plans.sort(key=lambda p: p.id)
     return orphans
@@ -185,17 +250,34 @@ def _attach_plans(root: Path, tracks: dict[str, Track]) -> list[str]:
 def _attach_notes(root: Path, tracks: dict[str, Track]) -> list[str]:
     """Attach design-note statuses to their track; return orphan-note messages."""
     orphans: list[str] = []
-    for note in sorted(root.glob("docs/design-notes/*.md")):
-        fm = parse_front_matter(_read(note))
-        slug = _text(fm.get("track"))
+    for stem, st, slug in scan_notes(root):
         if not slug:
             continue
-        st = _status(fm) or "?"
         if slug in tracks:
             tracks[slug].note_statuses.append(st)
         else:
-            orphans.append(f"{note.stem} → track: {slug} (no docs/tracks/{slug}.md manifest)")
+            orphans.append(_orphan(stem, slug))
     return orphans
+
+
+def _finding_orphans(root: Path, tracks: dict[str, Track]) -> list[str]:
+    """F-WF1 for findings (bp-124 Item 4). The note's §2.3 asserted the existing orphan check
+    covered findings "for free"; it did not — `_build` scanned four globs and this was not among
+    them (`finding-0234` correction 3). It is covered here instead of assumed.
+
+    ⚑ An ABSENT `track:` is NORMAL, never an orphan: the key is optional on a finding and no
+    existing finding is back-filled with one. Treating absence as an orphan would flood the
+    coordinate check with a false row for every finding in the tree."""
+    return [_orphan(stem, slug) for stem, _st, slug in scan_findings(root)
+            if slug and slug not in tracks]
+
+
+def _oq_orphans(root: Path, tracks: dict[str, Track]) -> list[str]:
+    """F-WF1 for owner questions. An oq is a section of ONE file rather than a file of its own, so
+    its `track:` is an entry bullet beside `status:` — absent on every entry today, and normal."""
+    return [_orphan(oid, _text(fields.get("track")))
+            for oid, _title, fields in scan_oqs(root)
+            if _text(fields.get("track")) and _text(fields.get("track")) not in tracks]
 
 
 def _scan_deskchecks(root: Path) -> list[DeskCheck]:
@@ -415,7 +497,11 @@ def render_queue(tracks: dict[str, Track], dcs: list[DeskCheck]) -> str:
 # ── driver ──────────────────────────────────────────────────────
 def _build(root: Path) -> tuple[dict[str, Track], list[DeskCheck], list[str]]:
     tracks = _scan_manifests(root)
-    orphans = _attach_plans(root, tracks) + _attach_notes(root, tracks)
+    # Plans and notes ATTACH (they are board members and drive the phase); findings and owner
+    # questions only get their coordinate checked (bp-124 Item 4) — a `track:` on one of them is
+    # a membership claim the board must be able to falsify, not a card to render in a lane.
+    orphans = (_attach_plans(root, tracks) + _attach_notes(root, tracks)
+               + _finding_orphans(root, tracks) + _oq_orphans(root, tracks))
     dcs = _scan_deskchecks(root)
     return tracks, dcs, orphans
 
