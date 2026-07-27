@@ -61,6 +61,7 @@ Status tally: complete 111 · in-progress 1 · proposed 9 · ready 10 · superse
 
 | when | command | result |
 |---|---|---|
+| 2026-07-27T20:08Z | `CORRECTION — reconciling this pass's own surface figures, all four re-derived` | ⚑ **Two figures I published were composed, not read, and this row corrects both by… |
 | 2026-07-27T06:00Z | `bash .claude/hooks/session-brief.sh --standalone (with vs without the seat present)` | seat surface = 287 lines / 18074 bytes at SessionStart (handoff.md 74 lines /… |
 | 2026-07-27T07:08Z | `bash .claude/hooks/session-brief.sh --standalone (with vs without the seat)` | seat surface 439 lines / 28942 bytes; emitted segment 355 lines, zero capsules. ⚑ 355… |
 | 2026-07-27T19:52Z | `bash .claude/hooks/session-brief.sh --standalone, line count (AFTER the first capsule)` | ⚑ 346 lines — a 407-line drop, 54% of the whole surface, from one artifact… |
