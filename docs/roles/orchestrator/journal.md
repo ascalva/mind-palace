@@ -36,6 +36,46 @@ marked superseded — retained, readable, non-binding.
 
 ---
 
+## 2026-07-27 — the panel earned its gate, and I proved the retrospective on myself
+
+**Status line.** An adversarial panel ran against the membership note under the owner's own
+pre-ratification gate, a correction mechanism was designed and ratified, and a fresh sub-orchestrator
+now holds its graduation. The seat also learned that its close gate can fire without bound when the
+only actor who can clear a clause has stepped away.
+
+**Completed.** Three independent seats attacked the membership design; two returned block verdicts
+and the third amendments. What matters is not the verdicts but that they **converged without
+contact** — two seats found the same revert defect from different directions, and all three found the
+same stale citation. Independent convergence is the strongest evidence this process can produce, and
+it is only available because the owner made the review a gate rather than a courtesy.
+
+**In-flight.** ⚑ **The correction mechanism's first customer was the amendment that authorizes it.**
+I drafted an amendment to a ratified note carrying a figure I had taken from another artifact rather
+than from the store, and it was committed before I re-derived it. The retrospective naming exactly
+that defect was written by me the same day. ⇒ **Knowing the failure mode is not protection from it.**
+The repair was to point at the error rather than rewrite it, so the wrong figure and its correction
+both stand — which is the mechanism doing what it was designed to do, on itself, within hours of
+being designed.
+
+**Next action.** The membership note needs a revision pass, not a patch; its central thesis is
+falsified by where the chunkers put the path, and the fix is a decision about a non-goal rather than
+an edit. Whoever takes it should carry the measured finding that the efficiency motive and the
+semantic taxonomy come apart — one survives without the fix and the other does not.
+
+**Open questions.** Whether a close gate should latch once reported when its resolution is
+owner-only. A correct clause and an incorrect one cost the same when neither can be cleared from
+inside the session, and the seat has now seen both.
+
+**Context-manifest delta.** A correction is no longer improvised per artifact: the relation is
+ratified and names how a false record and its repair coexist. The store's ingest lane is wedged
+behind a stranded job — the reclaim tooling for it was built and never demonstrated, which is the
+deskcheck discipline's own argument arriving as a bill.
+
+**Markers.** Still no compaction capsule, and the emitted segment remains past the threshold the
+seat's own finding names. The next `/triage` here owes one.
+
+---
+
 ## 2026-07-27 — a ratified sentence is not a repaired store
 
 **Status line.** The wave that built this seat is done and the seat is carrying its first fresh

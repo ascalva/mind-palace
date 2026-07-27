@@ -370,7 +370,7 @@ verifies the quote is a literal substring — so a hallucinated PRESENT is caugh
 stronger than a cold score against *fabrication* and weaker than an A/B against *drift*. Filed with
 three options rather than silently adopted.
 
-**`finding-0255`** records a third thing worth the owner's eye: for a `role` scope the bundle
+**`finding-0259`** records a third thing worth the owner's eye: for a `role` scope the bundle
 contains `handoff.md`, which literally renders "The answer" — so the mechanical half is largely a
 staleness check that duplicates F1a, and the drill's unique value at that scope is the defect
 report. It is a genuine derivation test for `plan:` and `track:` scopes.
@@ -385,7 +385,7 @@ it would have required routing a finding rather than routing around `scope-guard
 acts — this builder performed neither).
 
 **Open questions.** None blocking. Three `design` findings are routed to the orchestrator
-(`finding-0253`, `finding-0254`, `finding-0255`); none blocks the plan and each carries a concrete
+(`finding-0253`, `finding-0254`, `finding-0259`); none blocks the plan and each carries a concrete
 re-entry condition.
 
 **Context-manifest delta.** §3 Q3 and §11's "spawn mechanism" row are both **settled by
@@ -424,7 +424,7 @@ measurement** and recorded as MEASURED readings. §11's V1 row resolves to "the 
 - **Opened a new track/finding?** Three findings, all `design`, all routed to the orchestrator:
   **finding-0253** (the judge is quote-verified, not baseline-A/B'd),
   **finding-0254** (a tool-less agent may fabricate rather than report a blocking unknown),
-  **finding-0255** (F2's mechanical half is near-tautological for a role scope).
+  **finding-0259** (F2's mechanical half is near-tautological for a role scope).
   **finding-0251 stays OPEN** — F1b measures the defect it describes but does not repair it, and
   the repair is a capsule-shaped judgement for the seat's occupant, not a builder in a worktree.
   No new track.
@@ -434,7 +434,7 @@ measurement** and recorded as MEASURED readings. §11's V1 row resolves to "the 
 ## 2026-07-27 — seal addendum: the plan-scope drill, and the final gate
 
 **Status line.** Two things landed after the Item 17 commit: a live `plan:` scope drill that
-settles `finding-0255` on its own terms, and the seal gate run.
+settles `finding-0259` on its own terms, and the seal gate run.
 
 **⚑ The plan-scope drill FAILED, and the failure is the most informative result of the session.**
 `--scope plan:bp-127`, $0.2679, 51 s:
@@ -449,13 +449,13 @@ items are closed."* The generator read the plan's front matter, still `status: i
 because the flip is the orchestrator's act and a builder must never perform it. Two conclusions:
 
 1. **The plan-scope compare is a GENUINE derivation test** — not tautological like the role scope
-   (finding-0255), and it produced a real disagreement on its first run. That is the drill earning
+   (finding-0259), and it produced a real disagreement on its first run. That is the drill earning
    its keep.
 2. ⚑ **The mechanical compare disagrees with a *correct* reader whenever narrative and status
    legitimately diverge**, and that window is not rare: it is exactly the interval between a
    builder sealing and the orchestrator flipping — which is *precisely when* §2.11's mandatory
    cadence fires ("mandatorily in any build plan that touches the handoff machinery"). Recorded as
-   an addendum to `finding-0255` with two candidate resolutions, neither built: both touch
+   an addendum to `finding-0259` with two candidate resolutions, neither built: both touch
    `handoff.derive`'s ladder, which is bp-124's contract and a design call.
 
 ⚑ I did **not** "fix" this by loosening the compare or by editing the journal to agree with the
@@ -523,8 +523,8 @@ case genuinely needs an **unlink** — which the `cp -p` recipe cannot express.
   enablement is complete **except the owner's two hand-acts**: amendment A10 (`finding-0233`), and
   the first live session that resumes from `handoff.md` + the journal alone and says so (§4(c)).
   **Ready to deskcheck.**
-- **Opened a new track/finding?** `finding-0253`, `finding-0254`, `finding-0255` — all `design`,
+- **Opened a new track/finding?** `finding-0253`, `finding-0254`, `finding-0259` — all `design`,
   all routed to the orchestrator, none blocking. `finding-0251` stays **open**: F1b measures the
   defect it describes but does not repair it, and the repair is a capsule-shaped judgement for the
-  seat's occupant. Added at seal by the sub-orchestrator: **`finding-0256`** (the audit's untested
-  surfaces) and **`finding-0257`** (concurrent sessions race the finding id space). No new track.
+  seat's occupant. Added at seal by the sub-orchestrator: **`finding-0260`** (the audit's untested
+  surfaces) and **`finding-0261`** (concurrent sessions race the finding id space). No new track.

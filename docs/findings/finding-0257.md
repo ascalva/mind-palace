@@ -5,103 +5,96 @@ status: open
 created: 2026-07-27
 updated: 2026-07-27
 links:
-  - docs/findings/                          # the flat, monotonically-numbered id space
-  - .claude/skills/finding/SKILL.md          # where allocation is described
-  - .claude/skills/delegate/SKILL.md         # parallel builders / sub-orchestrators
-ftype: design
-origin_plan: bp-127
+  - docs/design-notes/temporal-retrieval-algebra.md
+  - docs/design-notes/erratum-relation.md
+  - core/kernel/temporal/operators.py
+  - core/temporal_view.py
+  - docs/build-plans/bp-130/plan.md
+ftype: discovery
+origin_plan: orchestrator
 route: orchestrator
 resolution: null
 ---
 
-# Concurrent sessions race the finding id space — four collisions in one day, and the loser is whoever commits second
+# The temporal algebra is real code with no production caller — so `(I − Ε)` lands on a dead surface
 
 ## What
 
-Finding ids are allocated by reading `docs/findings/` and taking the next integer. That is a
-**read-then-write with no reservation**, so any two agents who read before either writes allocate
-the *same* id. With one session at a time this never fires. This repo now runs several concurrently
-— parallel builders in worktrees, sub-orchestrators owning waves, and independent sessions in the
-primary checkout.
+Grounding `dn-erratum-relation` §4 before graduating it established three facts that together
+change what a plan against that section can honestly claim.
 
-**Measured today, 2026-07-27, in a single wave:**
+**1. The algebra was built.** `dn-temporal-retrieval-algebra`'s front matter still reads
+`implementation: design-only` (`docs/design-notes/temporal-retrieval-algebra.md:5`). That is
+**stale**: bp-032/bp-033 shipped the operators. They exist as executable numpy/scipy:
 
-| id | claimant A | claimant B | resolution |
-|---|---|---|---|
-| `0252` | sub-orchestrator (clause (f) substring defect) | `bp-127` builder in its worktree | builder renumbered to `0254` on instruction |
-| `0253` | `bp-127` builder (judge is quote-verified) | another session in the primary checkout (grant-code attempt bound) | **unresolved at merge** |
-| `0254` | `bp-127` builder (tool-less agent fabricates) | another session (`touches_stored_data` predicate) | **unresolved at merge** |
-| `0255` | `bp-127` builder (F2 mechanically tautological) | another session (`dn-erratum-relation` §5 mis-cite) | **unresolved at merge** |
+| symbol | path:line |
+|---|---|
+| `π_active` | `core/kernel/temporal/operators.py:55` `active_projection` |
+| `σ_*` (0-chains) | `:63` `pushforward_0` |
+| `σ_*` (1-chains) | `:75` `pushforward_1` |
+| `σ^*` | `:112` `pullback_0` |
+| `T_active` | `:121` `t_active` |
+| `[d,τ]` curvature | `core/kernel/temporal/superconnection.py:40` |
 
-The first collision was caught only because the sub-orchestrator happened to inspect the builder's
-worktree before it sealed. The other three surfaced as a **merge abort** —
-*"untracked working tree files would be overwritten by merge"* — which is a lucky failure mode: git
-refused rather than silently clobbering three findings that had never been committed.
+**2. Almost none of it is called.** A repo-wide search excluding `tests/` and
+`.claude/worktrees/` finds **zero production callers** for `active_projection`, `pushforward_0`,
+`pushforward_1`, `pullback_0`, and `t_active` — only the re-exports at
+`core/kernel/temporal/__init__.py:31,37` and `tests/unit/test_temporal_operators.py:21`.
+`sigma_node_map` (`:32`) is the sole algebra symbol with a live caller
+(`core/temporal_view.py:223`).
 
-⚑ **The near-miss is the point.** Had the other session committed first, `git merge` would have
-reported a content conflict in three files whose *ids match and whose subjects are unrelated*, and
-the natural resolution — take one side — silently destroys a finding. Findings are the **only**
-channel from build back to design. A lost one is a lost design input with no trace that it existed.
+**3. The one place the algebra meets a store has no consumer either.** `TemporalView`
+(`core/temporal_view.py:158`) is scope-declared, anchor-resolving, read-only — and grep for
+`TemporalView|open_coherence|open_rotation` outside `tests/` returns exactly one hit: a *docstring
+mention* at `core/temporal/acquire.py:53`. **No production code calls it.**
+
+**The actual retrieval path is algebra-free.** `core/ingest/index.py:122` `semantic_search` →
+`core/stores/vectorstore.py:303` `VectorStore.search`, whose active projection is a literal SQL
+prefilter — `clauses.append("current = true")` at `:321` — plus
+`core/verdict/dispositions.py:101` `retracted()`, applied by `core/dreams_view.py:70`.
 
 ## Why it matters
 
-The id is not decoration; it is the **join key**. `finding-0248` is cited by plans, journals,
-readings rows, commit bodies, and design-note residuals. Two artifacts sharing an id do not merely
-collide at the filesystem — every downstream citation becomes ambiguous, and the ambiguity is
-undetectable by reading either one.
+`dn-erratum-relation:188` states: *"The extension is exactly the `(I − Ε)` factor — nothing else
+changes."* That sentence is **true of the operator algebra and false as a statement about
+observable retrieval behavior**, and the difference is not a quibble:
 
-This is a **structural-enforcement gap**, the class this repo has repeatedly ruled on: *a property
-is real only when something proves it.* Uniqueness is currently a property of **timing**, held by
-convention, and the convention silently stopped holding the moment concurrency became routine.
-Nothing lints it, and nothing could have — the colliding artifacts do not coexist in any one tree
-until the merge.
+- A plan that adds `(I − Ε)` to `operators.py` is a ~5-line mathematically-correct change that
+  **changes nothing any query returns**, because nothing reads `π_active`.
+- A seal reporting "the validity projection is built" would be **literally true and practically
+  misleading** — precisely the false-success shape `docs/brainstorms/the-false-success-rule.md`
+  names, arrived at without anyone writing a false word.
+- A user-visible `π_valid` is a **second SQL predicate** on `VectorStore.search`, not a matrix
+  product. The note's "nothing else changes" is right about the algebra and wrong about the wiring
+  — those are two different insertion points, and only one of them exists as a live path.
 
-Note also that the resolution rule that actually applied — **first to commit keeps the id** — was
-invented at the merge by the agent holding it, not read from anywhere. That is the
-rules-live-in-an-agent's-working-memory failure the delegate skill was amended to end.
-
-## What is NOT claimed
-
-- **Not that anyone erred.** Every claimant read the directory correctly and took the next free
-  number. The allocator is the defect, not its users.
-- **Not that renumbering is expensive.** It is cheap *when caught* — a `git mv` and a front-matter
-  edit. The cost is entirely in the not-catching.
-- **Not that a lock is the answer.** Several mechanisms are plausible and none is ruled here.
-- **Not measured:** whether any historical finding was already lost this way. Four collisions in one
-  day is the first time anyone looked; the id space has never been audited for gaps or duplicates.
-
-## Candidate mechanisms — recorded so the next author does not re-derive them, none chosen
-
-1. **Content-addressed or timestamped ids** (`finding-20260727-a3f`) — collision-free by
-   construction, but breaks the human-readable monotonic sequence every existing citation uses, and
-   the id is the join key, so this is a corpus-wide rename. Almost certainly too expensive.
-2. **Per-agent id ranges** — a sub-orchestrator reserves a block before spawning. Cheap, no format
-   change, no coordination at write time; wastes ids and needs a place to record the reservation.
-3. **A uniqueness ratchet in CI plus a merge-time check** — does not *prevent* the collision, but
-   converts it from silent to loud, which is the property that actually matters. Cheapest by far,
-   and it composes with any of the others.
-4. **Allocate at merge, not at write** — findings are drafted with a placeholder and numbered by the
-   merging orchestrator. Correct by construction; adds a step to every merge and breaks in-flight
-   cross-references between findings filed in the same session.
-
-`[INFERENCE]` (3) is the right first move regardless of which of the others is eventually chosen: it
-is the only one that makes the failure *observable*, and every other option is easier to evaluate
-once the collision rate is measured rather than anecdotal.
+This also touches the standing owner rule *"wiring is part of finishing"* (flag-off ≠ done; the ON
+switch must exist as part of the deliverable). The algebra shipped in bp-032/bp-033 without a
+consumer, and this finding is the first time that has been written down as a gap rather than
+observed and forgotten.
 
 ## Re-entry condition
 
-**Immediate and concrete:** three ids (`0253`, `0254`, `0255`) are live duplicates the moment the
-other session commits. `bp-127`'s versions are **merged to main first**, so by the first-to-commit
-rule the uncommitted copies renumber. ⚑ **The other session must be told** — it cannot discover this
-except by a failed pull, and it did not choose to lose the race.
+`bp-130` proceeds and lands the factor **unwired**, matching `π_active`'s existing state. It says
+so in its §0 rather than letting a seal imply live effect, and its §11 PD-E parks the wiring with
+this finding as the carrier.
 
-**Structural:** the next plan holding `.claude/skills/finding/SKILL.md`, or any plan that touches CI
-composition, inherits mechanism (3) — a duplicate-id check — as a required item. It should assert on
-the **committed corpus**, so it fires at merge, which is the only moment both claimants exist in one
-tree.
+Re-entry: **when a plan exists that gives `TemporalView` (or the vector-search path) a real
+consumer.** At that point `π_valid` is wired in the same act — and per PD-E, the vector-search
+route is a genuine blast radius needing its own plan and its own acceptance, not a rider on the
+operator change.
+
+Separately: `dn-temporal-retrieval-algebra:5`'s `implementation: design-only` front matter is
+**stale and should be corrected** — it is a ratified note, so owner's hand.
 
 ## Routing
 
-`design` → the orchestrator, because choosing among the four mechanisms is a design ruling, not a
-codebase fix. Filed at `bp-127`'s seal by the sub-orchestrator that hit all four collisions while
-merging.
+`discovery` bearing on design ⇒ **route: orchestrator**. Two owner-level questions are batched
+rather than blocking:
+
+1. Should `dn-temporal-retrieval-algebra`'s `implementation:` field be amended to reflect that
+   bp-032/bp-033 shipped it? (owner-hand; ratified note)
+2. Is an unwired operator algebra acceptable as a resting state, or does the "wiring is part of
+   finishing" rule apply retroactively to bp-032/bp-033's output — i.e. is a consumer **owed**?
+
+Neither blocks the erratum wave. `bp-130` is honest about what it delivers either way.

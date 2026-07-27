@@ -5,109 +5,102 @@ status: open
 created: 2026-07-27
 updated: 2026-07-27
 links:
-  - docs/findings/finding-0249.md          # the vacuous-pass class and the mutation rule this refines
-  - docs/brainstorms/the-false-success-rule.md
-  - scripts/handoff_drill.py               # _SPAWN_FLAGS — the constant that WAS the mechanism
-  - .claude/skills/build-plan/SKILL.md     # where the refined mutation guidance belongs
-ftype: design
-origin_plan: bp-127
+  - docs/design-notes/chat-sensor.md
+  - docs/design-notes/erratum-relation.md
+  - docs/roles/orchestrator/readings.md
+  - docs/build-plans/bp-131/plan.md
+ftype: spec-defect
+origin_plan: orchestrator
 route: orchestrator
 resolution: null
 ---
 
-# The mutation rule invites mutating BEHAVIOUR; a constant that IS the mechanism reads as inert and never gets mutated
+# The mis-attribution class is broader than the 139 — and A1.2's "closed" channel set omits a channel
 
 ## What
 
-`finding-0249` established: *where a gate is load-bearing, budget for mutation* — because both
-surviving mutants of the preceding wave were found by mutating and running, neither by reading.
+Re-deriving the chat census read-only at graduation (`sqlite3 "file:data/chatlog.sqlite?mode=ro"`,
+2026-07-27) produced **two** results that do not match the record.
 
-`bp-127` honoured that rule seriously: **40 mutants across three campaigns**, which found two of its
-own test suites to be vacuous (the F1c suite reported "8 passed" while catching **0 of 5**
-property-destroying mutants, because it tested the last commit rather than the working tree).
+**1. The broader-match figure does not reproduce.** The seat's readings pane
+(`docs/roles/orchestrator/readings.md`, row `2026-07-27T14:53Z`) records:
 
-**And it still shipped its single highest-value surface untested.** `scripts/handoff_drill.py`'s
-`_SPAWN_FLAGS` — `("-p", "--safe-mode", "--tools", "", "--no-session-persistence",
-"--strict-mcp-config", "--output-format", "json")` — **is** the drill's isolation mechanism.
-`--tools ""` is the structural barrier that makes the fresh-agent test a test at all; `--safe-mode`
-is what stops the spawn firing `SessionStart` and laundering the gate the drill exists to protect.
+> Rows beginning literally `Stop hook feedback:` and attributed to `speaker='owner'`: 139
+> (broader match, hook text anywhere in an owner row: **146**).
 
-The independent pre-merge audit gutted that tuple to `("-p", "--output-format", "json")` and the
-suite stayed **green — 120 passed**. `grep -rn "_SPAWN_FLAGS\|--tools\|safe-mode" tests/` returned
-nothing.
+Measured now:
 
-⚑ **The builder's own diagnosis, asked for directly and worth more than the fix:** it was
-**oversight, not a deliberate call** — *"the flag tuple read to me as configuration rather than as
-mechanism, so it fell outside the frame I was mutating in."* Its generalization:
-**"my campaign's blind spot was that I mutated behaviour and not constants."**
+| predicate | count |
+|---|---|
+| `speaker='owner' AND text LIKE 'Stop hook feedback:%'` | **139** ✓ (matches) |
+| `speaker='owner' AND text LIKE '%Stop hook feedback%'` | **141** ✗ (pane says 146) |
+| `speaker='owner' AND text LIKE '%hook feedback%'` | 141 |
+| `speaker='owner' AND text LIKE '%Stop hook%'` | 141 |
+| `speaker='agent' AND text LIKE '%Stop hook feedback%'` | 0 |
+
+The **139** — the figure A2 ratifies and the whole wave depends on — **reproduces exactly**
+(33 distinct sessions, `interpreter` uniformly `1.0.0`, `observed_at` 2026-07-18…07-25, of 9,145
+total utterances; sampled rows are genuine hook output). Only the parenthetical broader figure
+does not. No predicate tried yields 146; the pane's own row does not record which one it used.
+
+**2. The 2 extra rows are a *different* mis-attribution channel.** Inspecting the two rows that
+*contain* `Stop hook feedback` without *beginning* with it: both are the **`update-config` skill's
+own documentation text**, injected into a user-role record —
+
+```
+# Update Config Skill | | Modify Claude Code configuration by updating settings.json files. |
+| ## When Hooks Are Required (Not Memory) | ...
+```
+
+— at `turn_index` 10 and 1 of two different sessions. This is machine-injected harness text stored
+as `speaker='owner'`. It merely *mentions* "Stop hook"; it is not hook feedback.
+
+⇒ **The rows the corpus wrongly attributes to the owner are a strictly larger set than the 139.**
+Skill/harness injection is a further source, and `dn-chat-sensor` A1.2 states the channel set is
+**closed and enumerated** at three (ordinary turn / queued prompt / structured answer), with the
+falsifier: *"any stored row whose `speaker` is `owner` or `agent` while its text originates from a
+hook, gate, or harness notice."* These rows trip that falsifier while matching channel 1
+structurally.
 
 ## Why it matters
 
-This is `finding-0249`'s class reproducing **inside the plan written to honour `finding-0249`**, by
-an agent that had the rule in front of it, applied it 40 times, and wrote the sentence *a property
-is real only where something proves it* — while leaving the constant carrying that property unpinned.
-
-That is not carelessness; it is a **frame defect in the rule as stated**. "Mutate the code" reads as
-"mutate the logic". Conditionals, comparisons and branches present themselves as mutable; a tuple of
-flags, a regex constant, a threshold, a path, a model name present themselves as *data* — inert,
-declarative, obviously-correct-by-inspection. But when the mechanism **is** the datum, mutating the
-logic around it proves nothing about it.
-
-The consequence here would have been exactly the plan's own Item 17 falsifier: a future edit
-dropping `--tools ""` yields a fully-tooled agent reading the whole repo, **with the suite still
-green** — *"every future PASS is meaningless because it manufactures confidence."*
-
-## The concrete residue — three untested surfaces, recorded so they are not rediscovered
-
-Fixed before merge:
-
-- **`_SPAWN_FLAGS` unpinned** → now `test_the_spawn_flags_ARE_the_isolation_mechanism`, asserting
-  each flag by index and `--tools` paired with the empty string. Verified against the mutant that
-  found it: re-applied → `1 failed, 61 passed`, failing on exactly that test; restored → `62 passed`.
-
-Carried open, none blocking:
-
-- **`--lint` precedence is documented in a comment and pinned by nothing.** The rule *"an actionable
-  violation outranks an unanswerable check"* is reachable (journal unreadable + readings
-  future-dated returns 3 instead of 1) and untested. No automated consumer yet.
-- **⚑ `gate_verdict()` is never exercised for real.** Every containment test monkeypatches it. If
-  `_lib.py`'s `stop-audit` dispatch were renamed, `gate_verdict()` would return the same usage
-  string on both calls and the verdict compare — the load-bearing half of F2's containment
-  invariant — would **silently become vacuous**, with no test noticing. Not broken today (dispatch
-  confirmed present). The builder ranks this the highest of the three, and it is the same
-  **self-masking** shape as the anchoring guard its own campaign found: two protections hiding each
-  other from the mutation frame.
-- **`_canon` normalisation-loosening is untested where substring-loosening is caught.** §11's V1
-  names *normalisation* alongside fuzzy and substring as the forbidden resolution. Crude punctuation
-  widenings die on existing negatives, but one collapsing a **structural** distinction (stripping
-  `/` and `-` so `/resume bp-123` canonicalises equal to `resume bp123`) is pinned by nothing. One
-  parametrized negative closes it.
-
-## What is NOT claimed
-
-- **Not that the mutation rule is wrong** — it worked, twice, on this very diff, finding defects that
-  survived careful review by two competent agents. The claim is that its *scope* is under-specified.
-- **Not that every constant deserves a mutant.** The rule must stay proportionate, which is what
-  makes the refinement non-trivial: the test is not "is it a constant" but **"does the property the
-  check claims live in this datum rather than in the logic around it?"**
-- **Not measured:** whether other load-bearing constants in the repo are similarly unpinned. This
-  finding names one instance and one mechanism; the sweep is not done.
+- **A1.2's closure claim is incomplete.** The enumeration is asserted closed; a channel outside it
+  demonstrably produces owner-attributed rows. Closure is the property the whole taxonomy rests on
+  — an unenumerated channel means *"every consumer of speaker attribution must treat stored rows as
+  untrusted"* stays true even after the 139 are corrected.
+- **It is direct evidence for PD-1** (`dn-erratum-relation` §3: enumerate targets at assertion, keep
+  the generating predicate as *evidence* only). A predicate (`LIKE '%Stop hook feedback%'`) would
+  have swept these 2 rows into the erratum's target set. They are mis-attributed, but they are
+  **not** what A2's warrant covers, and an authority's assertion must not silently widen past what
+  was examined. The parked act must enumerate the **139**, not re-run a predicate.
+- **It is the 39→139 error recursing one level out.** A2 corrected a count within a class; this
+  finds the *class itself* was drawn too narrowly. Same shape, same cause: a census generalized at
+  an unmarked hop (`the-unchecked-claim`).
+- **A reading in the seat's MEASURED pane does not reproduce.** That pane's contract is that its
+  rows are results of *running* something. One row's parenthetical is unreproducible and its
+  literal command is unrecorded. Small, but the pane's value is that it can be trusted without
+  re-derivation.
 
 ## Re-entry condition
 
-A plan holding `.claude/skills/build-plan/SKILL.md` — the same surface the false-success rule is
-owed on (`docs/brainstorms/the-false-success-rule.md`, owner-agreed and not yet written). **Both
-should land together**, because they are the same instrument seen twice: the false-success rule asks
-*what does a false success look like*, and this asks *where does the property actually live*.
+No criterion is parked. The wave proceeds on the **139**, which reproduces exactly.
 
-Proposed wording, one line beside the existing mutation guidance: **"Mutate the constants that carry
-the property, not only the logic that reads them. A flag tuple, a regex, a threshold or a path that
-IS the mechanism is a mutation target; that it looks like configuration is exactly why it is missed."**
-
-The three surfaces above re-enter with the next plan holding `scripts/handoff_drill.py`.
+Three concrete re-entry points:
+1. **`bp-131`** carries the 2 rows as **decoy fixtures** — rows that contain the hook text but must
+   *survive* the correction, proving enumeration rather than predication (its §7 Item 2).
+2. **A full census of the mis-attribution class** — every owner-attributed row whose text did not
+   originate with the owner — is owed before any φ_chat 2.0.0 plan claims to close the gap. That
+   census is **not** this wave's work.
+3. **A1.2's closure** re-enters at the owner's hand if he judges the omitted channel worth an
+   amendment.
 
 ## Routing
 
-`design` → the orchestrator. Filed at seal by the sub-orchestrator that merged `bp-127`, from its
-auditor's mutation campaign and the builder's own answer to a direct question about why the gap
-existed. The builder's self-diagnosis is the load-bearing part and is quoted rather than paraphrased.
+`spec-defect` against a **ratified** note (`dn-chat-sensor` A1.2) ⇒ **route: orchestrator**, and
+owner-level: only his hand can amend a ratified note, and only he can decide whether "closed and
+enumerated" should be re-opened to admit a harness-injection channel. Batched to
+`docs/inbox/owner-questions.md` rather than blocking — the wave's 139-row basis is unaffected.
+
+The readings-pane discrepancy is separately trivial to settle: append a fresh row with the literal
+command, per that file's own append-only *"a row is never edited to refresh it"* rule. ⚑ Not done
+here — `docs/roles/**` is outside this sub-orchestrator's write scope while another wave holds it.

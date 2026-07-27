@@ -25,12 +25,16 @@
 | bp-119 | ready | build | P5: the chat tiers, per-tier, each reversible (PARKED on V-B) |
 | bp-123 | in-progress | build | the per-machine overlay becomes `config/ouroboros.toml`, and cannot be silently lost |
 | bp-128 | ready | build | clause (f) must key on RECENCY, not on physical file position |
+| bp-129 | proposed | graduate | the erratum relation: a warranted, append-only, unary disposition store |
+| bp-130 | proposed | graduate | the `(I − Ε)` factor: `π_valid`, and transport-invariance made checkable |
+| bp-131 | proposed | graduate | the chat lane's belief/validity split, and the E8 tripwire |
+| bp-132 | proposed | graduate | every chat consumer declares its axis: belief or validity |
 
-Status tally: complete 111 · in-progress 1 · ready 10 · superseded 6
+Status tally: complete 111 · in-progress 1 · proposed 4 · ready 10 · superseded 6
 
 ## Awaiting the owner
 
-- bless (proposed→ready): none
+- bless (proposed→ready): bp-129, bp-130, bp-131, bp-132
 - ratify (draft notes): 42 — alignment-subsystem, attestation-layer, authorship-distance-axis, core-integrity, dialogue-ingest-and-recursion, dn-headless-daemon-secret-bootstrap …
 - answer (open owner questions): 33 — oq-0003, oq-0004, oq-0005, oq-0006, oq-0007, oq-0008, oq-0009, oq-0010 …
 
@@ -46,7 +50,7 @@ Status tally: complete 111 · in-progress 1 · ready 10 · superseded 6
 
 ## Open findings
 
-46 open — most recent: finding-0252, finding-0253, finding-0254, finding-0255, finding-0256, finding-0257
+50 open — most recent: finding-0256, finding-0257, finding-0258, finding-0259, finding-0260, finding-0261
 
 ## Readings (MEASURED — latest per command)
 
@@ -67,6 +71,7 @@ Status tally: complete 111 · in-progress 1 · ready 10 · superseded 6
 | 2026-07-27T06:35Z | `python3 scripts/handoff.py --role orchestrator --check, six induced failure modes` | ImportError / RuntimeError / SyntaxError each exit **1** — identical to a genui… |
 | 2026-07-27T07:02Z | `python3 scripts/handoff.py --role orchestrator --check, with `dest` forced outside ROOT at the staleness print` | rc 1; stderr echoes the SOURCE line `print(f"{dest… |
 | 2026-07-27T14:53Z | `sqlite3 "file:data/chatlog.sqlite?mode=ro" — speaker census over chat_utterances` | Rows beginning literally `Stop hook feedback:` and attributed to `speaker='owner… |
+| 2026-07-27T15:36Z | `sqlite3 "file:data/queue.sqlite?mode=ro" — job state census` | ⚑ QUEUE WEDGED. queued 1766 · running 1 · done 300242 · failed 1. The single running job is 300246 (c… |
 | 2026-07-27T15:44Z | `uv run mypy` | 69 errors in 20 files of 562 checked — EXACTLY the pinned tests/ baseline, rc 1 as expected; zero in the changed files |
 | 2026-07-27T15:44Z | `uv run mypy core agents eval ops scheduler scripts` | Success: no issues in 262 source files — the floor holds at 0 with handoff_drill.py enrolled |
 | 2026-07-27T15:44Z | `uv run pytest -q` | 3 failed / 2419 passed / 15 skipped in 391.85s. The two pre-existing (finding-0103 ratchet, finding-0226 dream-v2 live) PLUS the finding-0219 sc… |
