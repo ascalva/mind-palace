@@ -38,6 +38,14 @@ DENYLIST = [
     "eval/golden.py",
 ]
 
+# The seat whose typed state clause (e′) judges at an orchestrator close
+# (dn-role-state-and-scoped-handoff §2.4 — the role registry is closed, and
+# `scheduler`'s state is already typed and durable in data/queue.sqlite, so it has no
+# narrative artifacts and no seat directory). Named rather than inlined so the three
+# places that resolve the seat — docs/roles/<seat>/{handoff,journal}.md and the
+# generator's `--role` argument — cannot drift apart.
+SEAT_ROLE = "orchestrator"
+
 
 # --------------------------------------------------------------------------- #
 # Repo root + path normalization
@@ -731,6 +739,50 @@ def _journal_tail_has_followthrough(journal_rel: str) -> bool:
     return "## Follow-through" in tail
 
 
+def _handoff_is_stale() -> bool:
+    """Clause (e′) check 1 — is the seat's DERIVED rendering out of date?
+
+    Shells out to the ONE implementation of the compare
+    (``scripts/handoff.py --role <seat> --check``) rather than re-deriving it here. Two
+    reasons, both load-bearing:
+
+    * **finding-0236.** ``--write`` / ``--check`` / ``--json`` render TREE-PURE — no queue
+      read, no wall clock, no HEAD sha, no environment — while a bare render to stdout is
+      live. Comparing against the tree-pure render is what keeps this gate computed off the
+      **work** rather than off the **daemon**: a queue count in the committed artifact would
+      let a mutating supervisor re-arm the gate, which is the (e) circularity in new clothes.
+      Re-implementing the compare here over a live render would reintroduce exactly that.
+    * DRY: the generator's own ``--check`` and this gate are then provably the same check.
+
+    Exit contract (verified end to end, finding-0238): ``0`` = up to date, ``1`` = stale, and
+    regeneration converges in **exactly one step**. **Fail open on anything else** — a missing
+    generator, an import error, a usage error (2), a timeout: enforcement never crashes a
+    close, and a checkout without the generator is simply not gated on it.
+
+    Not ``uv run``: the generator is stdlib-only and a Stop hook must not pay an environment
+    resolve. Measured cost of the spawn on a real tree: ~137 ms (§3 Q2's open question,
+    settled in favour of the subprocess form; the import form would have inverted the
+    established ``scripts/* -> _lib`` dependency direction for ~50 ms).
+    """
+    try:
+        proc = subprocess.run(
+            [
+                sys.executable or "python3",
+                os.path.join(ROOT, "scripts", "handoff.py"),
+                "--role",
+                SEAT_ROLE,
+                "--check",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+            timeout=30,
+        )
+    except Exception:
+        return False  # fail-open: the signal cannot be evaluated, so it never blocks
+    return proc.returncode == 1
+
+
 def cmd_stop_audit(diff_file: str | None) -> int:
     reasons = []
     plan = active_plan_path()
@@ -828,9 +880,9 @@ def cmd_stop_audit(diff_file: str | None) -> int:
     # *committed* blessing is accountable to its commit author (§10, "deliberate,
     # logged") and must self-clear; only an *uncommitted* in-flight flip is
     # flagged. session-baseline is deliberately not consulted by (c) here (which
-    # diffs against HEAD); its second consumer is clause (e) below — the
-    # session-handoff gate (dn-session-handoff-gate) — where its content is the
-    # commits-this-session guard for the orchestrator resume-brief check.
+    # diffs against HEAD); its second consumer is clause (e′) below — the session-handoff
+    # gate (dn-role-state-and-scoped-handoff §2.10) — which reads it TWICE: its content is
+    # the commits-this-session guard, and its MTIME is check 2's session-start key.
     if diff_file:
         try:
             with open(diff_file, encoding="utf-8") as fh:
@@ -889,34 +941,92 @@ def cmd_stop_audit(diff_file: str | None) -> int:
     except Exception:
         pass  # fail-open, fail-loud is the .sh's job; a missing/unreadable pointer never blocks
 
-    # (e) session-handoff gate (dn-session-handoff-gate §2.2) -> orchestrator
-    # posture only (no active plan; builder sessions carry one and are governed by
-    # (a)). BLOCK when commits landed THIS session (HEAD moved past the SessionStart
-    # baseline) but the resume brief is stale (mtime older than the last commit) or
-    # absent (a missing brief is infinitely stale). Fail-open on a missing/unreadable
-    # session-baseline: the signal can't be evaluated, so no block (note §2.5). The
-    # block reason IS the automation — it instructs writing the brief.
+    # (e′) session-handoff gate -> orchestrator posture only (no active plan; builder
+    # sessions carry one and are governed by (a)).
+    #
+    # ⚑ THIS CLAUSE SUPERSEDES clause (e) of `dn-session-handoff-gate` §2.2-2.3 — a prior
+    # RATIFIED decision, replaced deliberately and named here so a reader of this file can
+    # see what was replaced and by what. Warrant: `dn-role-state-and-scoped-handoff` §2.10
+    # (D8), which supersedes only §2.2-2.3 of the gate note; that note's §1 purpose and §2.4
+    # scope key survive unchanged and still govern.
+    #
+    # (e) blocked unless an UNVERSIONED state file's mtime was >= the last-commit time, and
+    # its reason instructed a hand-authored rewrite of that file "citing the final commit
+    # hashes". Both halves were circular: EVERY post-write commit re-armed the mtime, and the
+    # instructed CONTENT could not be written before the commits it had to cite. That artifact
+    # is retired by bp-126 and deliberately not named here — the gate note holds the record;
+    # this file keeps no live pointer to a deleted path. Measured cost of the circularity:
+    # 108 firings (99 fork-deduped) over 8 days across 16 sessions, 302 file-operations on it,
+    # peak day 36 (dn-trace-retrieval Part 1).
+    #
+    # The TRIGGER is unchanged — commits landed THIS session (HEAD moved past the SessionStart
+    # baseline). What changed is WHAT is demanded, and that each demand is dischargeable by
+    # construction:
+    #
+    #   1. DERIVED = idempotence, not mtime. Block unless regenerating the seat's handoff
+    #      rendering is a byte-identical no-op (`_handoff_is_stale`, which shells out to the
+    #      generator's own `--check` and never re-implements the compare). Because the
+    #      rendering embeds no sha and no timestamp (note §2.9's idempotence pin), the recovery
+    #      converges in EXACTLY ONE step: regenerate, commit, close — the regen commit does not
+    #      re-arm the check. Upgrades the signal from a launderable mtime (tier 5) to a content
+    #      compare (tier 4).
+    #   2. NARRATIVE = an entry for THIS session. Block unless the seat journal's mtime >= the
+    #      mtime of `.claude/state/session-baseline` (written at session-brief.sh:65).
+    #      Deliberately keyed to SESSION START rather than to last-commit: the narrative
+    #      contains no commit-derived facts (the §2.5 purity rule), so an entry written
+    #      mid-session before a final seal commit is still truthful, and a late commit cannot
+    #      re-arm this check. That is the circularity cut by re-spec rather than by trust.
+    #   3. MEASURED = NOT gated, deliberately (§2.10.3). `docs/roles/<seat>/readings.md` is
+    #      never consulted here. Gating the freshness of a 17-minute suite reading at every
+    #      close would either block honest closes or train `touch`-laundering — the cry-wolf
+    #      disqualifier. ⚑ Adding a readings check here is a widening the note forbids.
+    #
+    # Fail-open wherever the signal cannot be evaluated — enforcement never crashes a close,
+    # matching the `except` posture of (d) at :889-890 and of (e) before it: a missing or
+    # unreadable `session-baseline`, an absent seat directory (a checkout with no seat has
+    # nothing to be fresh about), or ANY generator error. ⚑ No second `git` subprocess: the
+    # trigger reuses `head_sha` from the shared call at :744-755 (owner DRY rule, :738-743).
+    #
+    # Accepted residuals, carried knowingly and not overclaimed (note §2.10): R1 — a session
+    # may commit AFTER its last narrative entry and close, so the final commits are
+    # mechanically visible while the judgement about them may be missing (the same "existence,
+    # not quality" stance the ratified gate note takes). R2 — narrative purity is tier 4 only
+    # for the lintable class (hash-shaped strings, status-transition phrasing); a smuggled
+    # count is caught by review or the §2.11 drill, not here. And a Bash `touch` still defeats
+    # check 2, the identical porosity clauses (a) and (e) accept: pre-hoc porous, post-hoc
+    # tight targets forgetting, not adversarial evasion.
+    #
+    # Both block reasons ARE the automation — each states its exact one-step recovery.
     if plan is None:
+        baseline_abs = os.path.join(ROOT, ".claude", "state", "session-baseline")
         try:
-            with open(
-                os.path.join(ROOT, ".claude", "state", "session-baseline"),
-                encoding="utf-8",
-            ) as fh:
+            with open(baseline_abs, encoding="utf-8") as fh:
                 baseline = fh.read().strip()
         except Exception:
             baseline = ""  # missing/unreadable baseline -> fail-open (skip)
-        if baseline and head_sha and head_sha != baseline:
-            brief_abs = os.path.join(ROOT, ".claude", "state", "resume-brief.md")
-            try:
-                brief_fresh = os.path.getmtime(brief_abs) >= last_commit
-            except OSError:
-                brief_fresh = False  # missing brief = infinitely stale
-            if not brief_fresh:
+        seat_abs = os.path.join(ROOT, "docs", "roles", SEAT_ROLE)
+        if baseline and head_sha and head_sha != baseline and os.path.isdir(seat_abs):
+            if _handoff_is_stale():
                 reasons.append(
-                    "(e) commits landed this session but the resume brief is stale "
-                    "or missing — write .claude/state/resume-brief.md (the resume-"
-                    "brief shape, context-economy skill) citing the final commit "
-                    "hashes, then close again (dn-session-handoff-gate)."
+                    f"(e′) commits landed this session and docs/roles/{SEAT_ROLE}/handoff.md "
+                    f"is stale — run `uv run scripts/handoff.py --role {SEAT_ROLE} --write`, "
+                    f"commit it, then close again. The rendering embeds no sha and no "
+                    f"timestamp, so that converges in ONE step; regenerate it LAST, after any "
+                    f"readings append (dn-role-state-and-scoped-handoff §2.9-2.10)."
+                )
+            try:
+                narrative_fresh = os.path.getmtime(
+                    os.path.join(seat_abs, "journal.md")
+                ) >= os.path.getmtime(baseline_abs)
+            except OSError:
+                narrative_fresh = False  # the seat exists but its journal does not -> owed
+            if not narrative_fresh:
+                reasons.append(
+                    f"(e′) commits landed this session but docs/roles/{SEAT_ROLE}/journal.md "
+                    f"carries no entry from this session — append one (the checkpoint entry "
+                    f"shape; judgement only — no shas, no counts, no statuses, per the §2.5 "
+                    f"purity rule), then close again. It is keyed to session START, so a later "
+                    f"commit cannot re-arm it (dn-role-state-and-scoped-handoff §2.10)."
                 )
 
     # (f) seal follow-through (bp-097; design-note D5) -> every posture. A plan
