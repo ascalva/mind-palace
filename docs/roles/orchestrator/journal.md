@@ -1015,3 +1015,53 @@ it — belongs in the build-plan skill and needs a plan.
 
 **Next action is unchanged and still honest: `/resume bp-123`.** It has been in-progress since
 2026-07-26 with Item 2 owed. The seat surfaced it on day one and it has stayed surfaced ever since.
+
+## 2026-07-27 — the enforcement layer got a design, and the gates held against me
+
+**The reframe that did the work.** The owner arrived with two apparent projects — a typed central
+registry, and blessing-by-auth-code — and they are one mechanism. `blessing-auth-gate` had already
+ruled *sign the transition, not the act*; what made that awkward is that a transition is not a
+**thing** in the markdown world, only an archaeological claim reconstructed from a diff. An
+append-only event log makes it an object, and then enforcement-outside-hooks, MFA-overrule,
+serial minting and audit-by-query stop being four asks and become one primitive. I should have
+seen it before spending a pass treating them as separate.
+
+**Act-based → sign-based is the owner's phrase and it is better than mine.** A hook asks *may you
+do this* at the instant of the act; a signature asks *does this state carry a warrant*, answerable
+later, offline, by anyone. That is why the registry can retire hooks rather than reimplement them.
+
+**What I got wrong, twice, and both times the owner corrected the direction rather than the fact.**
+First on the mail tiers: I put the admin mailbox on the custom domain; he had already designed the
+foundation as provider-native with the domain minted on top — stricter than my correction, and
+acyclic where mine merely avoided one loop. Second on self-containment: the design pass and I both
+read the sacred-core rule as forbidding the import, when it forbids **outward** edges from core and
+says nothing about inward ones. Two standing rules that looked in tension were never in tension;
+the direction of the arrow had simply been left implicit. Worth remembering that when two of this
+repo's principles appear to collide, the likeliest explanation is an unstated direction, not a
+real conflict.
+
+**A defect class showed up twice in one session, independently.** A mailbox whose recovery points
+at the account it recovers; a domain whose expiry warnings are delivered to an address that only
+exists while the domain does. Same shape, different substrates, and it is the same shape as the
+laundering defects measured this month — a thing vouching for itself. Naming it once as a rule with
+a checklist is worth more than catching it a fourth time.
+
+**The design pass earned its tier.** It decomposed the Stop gate clause by clause rather than
+waving at it, kept one hook and argued for it (a warrant cannot travel with a context window), and
+stated its own losses instead of claiming a clean sweep. Its most valuable output is something
+neither the owner nor I had seen: **the ratified notes name the hooks as their enforcement
+mechanisms, so the hooks cannot be removed until those notes are amended by hand.** The dismantling
+is gated on the owner, not on build capacity. That is the kind of finding that only comes from
+reading the ratified text instead of assuming it.
+
+**The irony is worth recording because it is evidence, not a joke.** The owner asked me to mint
+plans to dismantle the workflow so we stop fighting it; the workflow refused, because the design
+note is a draft and graduation demands ratification. Then this gate stopped me at close for a
+journal entry. Both refusals are correct, and one of them enforces the rule he had just made
+permanently un-automatable an hour earlier. The system fighting him and the system working are not
+distinguishable from inside a single session — which is the actual argument for moving enforcement
+off the hot path rather than removing it.
+
+**Where I declined to be helpful.** I did not mint from a draft note. The fastest honest path was
+to say so, point at the two hand edits that unblock everything, and hand him the escape hatch he
+had already built for the relief he wanted tonight.

@@ -6,8 +6,8 @@
 
 ## The answer
 
-- **Unit in flight:** bp-123 — the per-machine overlay becomes `config/ouroboros.toml`, and cannot be silently lost
-- **Next action:** `/resume bp-123`
+- **Unit in flight:** bp-095 — CI-4: the S↔F code↔design lens (M-C7, read-only survey)
+- **Next action:** `/build bp-095`
 - **Blocking unknowns:** none
 
 ## Units of work
@@ -23,7 +23,6 @@
 | bp-117 | ready | build | P3: the equivalence gate (the owner-ruled cutover precondition) |
 | bp-118 | ready | build | P4: the embedder cuts over first (biggest win, smallest risk, provable) |
 | bp-119 | ready | build | P5: the chat tiers, per-tier, each reversible (PARKED on V-B) |
-| bp-123 | in-progress | build | the per-machine overlay becomes `config/ouroboros.toml`, and cannot be silently lost |
 | bp-128 | ready | build | clause (f) must key on RECENCY, not on physical file position |
 | bp-129 | proposed | graduate | the erratum relation: a warranted, append-only, unary disposition store |
 | bp-130 | proposed | graduate | the `(I − Ε)` factor: `π_valid`, and transport-invariance made checkable |
@@ -35,12 +34,12 @@
 | bp-138 | proposed | graduate | AP5: the grant's pure core — code derivation, the domain-separated attestation tag, and expiry, with the secret behind an injection-only seam |
 | bp-139 | proposed | graduate | AP6: the ON switch — `[autopilot]` reaches a caller, and the capsule reaches the phone as bytes it can hash |
 
-Status tally: complete 111 · in-progress 1 · proposed 9 · ready 10 · superseded 6
+Status tally: complete 112 · proposed 9 · ready 10 · superseded 6
 
 ## Awaiting the owner
 
 - bless (proposed→ready): bp-129, bp-130, bp-131, bp-132, bp-135, bp-136, bp-137, bp-138, bp-139
-- ratify (draft notes): 42 — alignment-subsystem, attestation-layer, authorship-distance-axis, core-integrity, dialogue-ingest-and-recursion, dn-headless-daemon-secret-bootstrap …
+- ratify (draft notes): 43 — alignment-subsystem, attestation-layer, authorship-distance-axis, core-integrity, dialogue-ingest-and-recursion, dn-headless-daemon-secret-bootstrap …
 - answer (open owner questions): 33 — oq-0003, oq-0004, oq-0005, oq-0006, oq-0007, oq-0008, oq-0009, oq-0010 …
 
 ## Deskchecks owed
@@ -55,7 +54,7 @@ Status tally: complete 111 · in-progress 1 · proposed 9 · ready 10 · superse
 
 ## Open findings
 
-57 open — most recent: finding-0263, finding-0264, finding-0265, finding-0266, finding-0267, finding-0268
+59 open — most recent: finding-0265, finding-0266, finding-0267, finding-0268, finding-0269, finding-0270
 
 ## Readings (MEASURED — latest per command)
 
