@@ -403,7 +403,10 @@ def test_e_prime_converges_in_exactly_one_step(handoff_repo):
 def test_e_prime_fails_open_when_the_generator_is_absent(handoff_repo):
     """Check 1 delegates to a subprocess, so it must fail OPEN on any generator error — a
     checkout without the generator is simply not gated on it. Check 2 still governs, so the
-    fresh entry below is what carries the ALLOW."""
+    fresh entry below is what carries the ALLOW.
+
+    This is the rc-2 path, and it is also what stops the discriminator being widened to
+    ``rc != 0``: an absent script exits 2, which must not read as staleness."""
     h = handoff_repo
     h["session_start"]()
     h["commit"]()
@@ -413,6 +416,114 @@ def test_e_prime_fails_open_when_the_generator_is_absent(handoff_repo):
     out = h["run"]()
     assert out.strip() == "ALLOW", f"an absent generator must fail open: {out!r}"
     assert "(e′)" not in out, f"(e′) must skip an unevaluable signal: {out!r}"
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("label", "body"),
+    [
+        ("ImportError", "import a_module_that_does_not_exist_anywhere\n"),
+        ("RuntimeError", 'raise RuntimeError("boom")\n'),
+        ("SyntaxError", "def broken(:\n"),
+    ],
+)
+def test_e_prime_fails_open_when_the_generator_crashes(handoff_repo, label, body):
+    """⚑ The wedge case, and the reason this clause may not key on the return code alone.
+
+    **CPython exits 1 on any unhandled exception**, and ``--check`` exits 1 on drift — so by rc
+    a crashing generator is byte-identical to a stale one. Keying on ``rc == 1`` made a broken
+    generator read as STALE and BLOCK; the instructed recovery (``--write``) would then fail
+    identically, and the close would be **wedged**, because a Stop BLOCK is a hard deny. That
+    is strictly worse than the staleness it prevents: it also wedges the session trying to
+    repair the generator.
+
+    Staleness is therefore identified POSITIVELY, by the generator's own rendered signature.
+    Every crash mode — enumerated or not — falls through to fail-open."""
+    h = handoff_repo
+    h["session_start"]()
+    h["commit"]()
+    h["write_journal_entry"](this_session=True)
+    h["stale_the_handoff"]()  # genuinely stale, so only the crash can be what is observed
+    (h["root"] / "scripts" / "handoff.py").write_text(body)
+
+    # The premise, asserted rather than assumed: this really does exit 1, like a stale render.
+    crash = h["handoff"]("--check")
+    assert crash.returncode == 1, f"{label} must exit 1 for this test to mean anything"
+    assert _lib_module().HANDOFF_STALE_SIGNATURE not in (crash.stderr + crash.stdout), (
+        f"{label}'s output must not carry the staleness signature"
+    )
+
+    out = h["run"]()
+    assert out.strip() == "ALLOW", (
+        f"a generator crashing with {label} exits 1 exactly as a stale render does; keying on "
+        f"the return code alone WEDGES every close. Got: {out!r}"
+    )
+    assert "(e′)" not in out, f"(e′) must skip an unevaluable signal: {out!r}"
+
+
+def _lib_module():
+    """Import the hook library in-process. Deliberately lazy and function-local: only the two
+    tests below need it, and ``_lib`` is a bare top-level module name, so keeping the
+    ``sys.path`` insert out of import time keeps it from leaking into unrelated collection.
+    Only ``.claude/hooks`` is inserted — never ``scripts/``, which shadows the ``eval`` package
+    (finding-0238)."""
+    import sys
+
+    p = str(_REPO / ".claude" / "hooks")
+    if p not in sys.path:
+        sys.path.insert(0, p)
+    import _lib  # type: ignore[import-not-found]
+
+    return _lib
+
+
+@pytest.mark.integration
+def test_e_prime_fails_open_when_the_subprocess_cannot_be_LAUNCHED(monkeypatch):
+    """The ``except`` arm of check 1, exercised directly — it had NO coverage at all (the
+    auditor's surviving mutation N1), which meant the fail-open branch the whole clause leans
+    on was unproven.
+
+    The launch failures it guards — a missing or non-executable interpreter, a vanished cwd, a
+    timeout — cannot be provoked end-to-end from a fixture without either breaking the test
+    runner's own interpreter or sleeping out a 30-second timeout, so the branch is driven at
+    the seam instead: any exception from ``subprocess.run`` must yield 'not stale'."""
+    lib = _lib_module()
+
+    for exc in (OSError("cannot launch"), TimeoutError("hung"), MemoryError()):
+        def boom(*_a, _exc=exc, **_kw):
+            raise _exc
+
+        monkeypatch.setattr(lib.subprocess, "run", boom)
+        assert lib._handoff_is_stale() is False, (
+            f"{type(exc).__name__} from the launch must fail OPEN — enforcement never crashes "
+            f"a close, and it must never be reported as staleness"
+        )
+
+
+@pytest.mark.integration
+def test_the_staleness_signature_is_what_the_real_generator_actually_renders(handoff_repo):
+    """Pins the contract between the hook and `scripts/handoff.py`, which is out of bp-126's
+    write_scope and can therefore move without this file noticing.
+
+    The signature is seat-qualified on purpose: were the generator to raise AT its own staleness
+    `print`, the traceback would echo that line's SOURCE, which contains the f-string template
+    `{dest.relative_to(ROOT)}: STALE` — so a bare ": STALE" probe could be satisfied by a crash.
+    Only the rendered form carries `<seat>/handoff.md: STALE`."""
+    h = handoff_repo
+    sig = _lib_module().HANDOFF_STALE_SIGNATURE
+    assert sig == "orchestrator/handoff.md: STALE"
+
+    h["stale_the_handoff"]()
+    r = h["handoff"]("--check")
+    assert r.returncode == 1
+    assert sig in (r.stderr + r.stdout), (
+        f"the real generator no longer renders {sig!r}; clause (e′) check 1 has silently "
+        f"degraded to fail-open. Re-derive the signature from the generator's message."
+    )
+
+    h["regen_handoff"]()
+    ok = h["handoff"]("--check")
+    assert ok.returncode == 0 and sig not in (ok.stderr + ok.stdout)
 
 
 @pytest.mark.integration

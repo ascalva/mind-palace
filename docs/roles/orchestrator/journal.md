@@ -36,6 +36,44 @@ marked superseded — retained, readable, non-binding.
 
 ---
 
+## 2026-07-27 — the close gate could have wedged every session, and only mutation found it
+
+**Status line.** An independent pre-merge audit caught a defect in the new close gate that I did
+not: its derived-freshness check could not tell a **stale** rendering from a **crashed** generator,
+because the tool reports both the same way. It therefore blocked — and the recovery it instructed
+would have failed identically, leaving the session unable to close at all. Fixed, and the fix is
+the more interesting artifact than the bug.
+
+**Completed.** Staleness is now identified **positively**, by the generator's own rendered
+staleness sentence, rather than inferred from the fact that it failed. That inversion is the
+lesson worth keeping: the set of ways a tool succeeds is closed and knowable, the set of ways it
+fails is open-ended, so a gate that acts on failure will eventually act on a failure nobody
+listed. Every unrecognised outcome now lets the close through. Verified by inducing each failure
+mode rather than reasoning about it, including one that required watching a deliberately hung
+process time out.
+
+**In-flight.** ⚑ **A gate that fails closed on a broken tool is worse than the problem it
+guards** — it also traps whoever is trying to repair the tool. Any future enforcement added here
+should be read against that rule before it is added, not after.
+
+⚑ Two of the three defects found in this build were caught by **mutating working code and
+re-running**, never by reading it, and both had passed a careful review first. Neither the author
+nor the auditor found them by inspection. Where a gate is load-bearing, budget for mutation.
+
+**Next action.** Unchanged: merge, then the withheld deletion by hand with a fresh snapshot, then
+the first compaction capsule — which is now roughly one entry away rather than two, because this
+seat has grown faster than the artifact it replaced.
+
+**Open questions.** Whether the close gate's own passing verdicts can be trusted at all while a
+nested invocation can reset the session marker underneath it. Twice now, a verdict of "clear to
+close" was produced not because the seat was in order but because the marker had been overwritten
+— once by a mandated budget probe, once by running the session-start hook by hand to measure it.
+Both are ordinary things to do. That is the open half of the defect already routed for a ruling.
+
+**Context-manifest delta.** None.
+
+**Markers.** None.
+
 ## 2026-07-27 — the new gate blocked its own author, and a budget probe made the block vanish
 
 **Status line.** Written *because* the gate installed today refused to let its own builder close,

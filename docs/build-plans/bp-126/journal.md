@@ -405,64 +405,117 @@ same commit. 4. Land A10 and the partial-supersession log entry by hand. 5. Rege
 
 **Markers.** None.
 
-## Follow-through
+## 2026-07-27 — audit response: check 1 failed CLOSED on a crashing generator (merge-blocking, fixed)
 
-- **Built?** Yes, and proven rather than asserted: clause (e′) with both checks, the SessionStart
-  re-point, and the template's retirement, in one commit. The central claim — one-step convergence
-  — is demonstrated as a sequence in a throwaway repo, and four adversarial mutations were run
-  against the suite, one of which survived and forced a real test to be added.
-- **Wired, or dormant?** **Fully wired, and unavoidably so** — this is not a flag-off deliverable.
-  `journal-gate` (Stop) and `session-brief` (SessionStart) are already registered in
-  `.claude/settings.json`; this plan edits their bodies, so the moment it merges, **every**
-  orchestrator session's start reads the seat and every close is judged by (e′). There is no ON
-  switch to build and none to forget. The one thing that is *not* wired is the live file's
-  deletion, and that is deliberate: it is withheld for the orchestrator's hand.
-- **Who consumes it?** Every agent, at every SessionStart, and every orchestrator session at every
-  close. `bp-127` consumes it directly: F1c asserts the post-cutover checkout and F1b lints the
-  authoritative segment this gate keys on. Its entry condition is now met.
-- **Track state?** `workflow`. This is stage (b) of `dn-role-state-and-scoped-handoff` §4's
-  enablement sequence; **stage (c) is `bp-127`, which is `ready` and unblocked by this merge.** The
-  note is not fully discharged until F1b, F1c and the F2 drill land. ⚑ Two owner hand-acts stand
-  between this plan and a clean record: the A10 amendment and the partial-supersession log entry.
-- **New track or finding?** Three findings, no new track: `finding-0244` (`spec-fidelity` →
-  builder, resolved in place, with a design-level re-entry), `finding-0245` (`discovery` →
-  orchestrator, discharged by the first compaction capsule), and `finding-0246` (`spec-defect` →
-  orchestrator). None blocks the merge. **`finding-0246` is the one that must be settled before
-  `bp-127`** — its F2 drill spawns agents from inside a session and meets the defect immediately.
+**Status line.** The independent pre-merge audit returned MERGE WITH CONDITIONS with one
+merge-blocking defect in my code. It is real, I reproduced it, and it is fixed. Two smaller items
+in the same pass. Nothing else in the diff changed.
 
-### ⚑ Post-seal addendum — the gate blocked its own author, and a budget probe laundered the block
+### The defect, stated exactly
 
-I ran the new clause against my own close as a final check. It **blocked**, correctly and usefully:
+`_handoff_is_stale` keyed on `proc.returncode == 1`. **CPython exits 1 on any unhandled
+exception**, and `--check` exits 1 on drift — so *a crashing generator was byte-identical to a
+stale one*. The consequence is worse than a false positive: check 1 read STALE and **BLOCKED**,
+the instructed recovery `--write` then failed the same way, and the close was **wedged** — a Stop
+BLOCK is a hard deny. **A gate that fails CLOSED on a tooling error also wedges the session trying
+to repair the tooling.** My Item 12 fail-open invariant was therefore not met, and my own
+docstring's claim that an import error fails open was simply false.
+
+Reproduced before fixing, rather than accepted from the report:
 
 ```
-BLOCK: (e′) commits landed this session but docs/roles/orchestrator/journal.md carries no entry
-from this session — append one … then close again. It is keyed to session START, so a later
-commit cannot re-arm it.
+genuine stale : rc 1, stderr "docs/roles/orchestrator/handoff.md: STALE — regenerate with …"
+RuntimeError  : rc 1, stderr "Traceback (most recent call last): …"   <-- same rc
 ```
 
-The reason names the artifact, the act, and the clause — the "block reason IS the automation"
-contract, discharged. But the *cause* was not that I had forgotten: my seat entry was written at
-`02:02:49` and the baseline's mtime was `02:04:56`, and what moved the baseline was the
-`claude -p "/usage"` **budget probe** run between them. A nested one-shot fires SessionStart.
-Confirmed by direct experiment (`claude -p "reply with the single word: ok"`): the baseline's mtime
-jumped `02:04:56 → 02:09:03` and its **content** was reset to current HEAD. Immediately after, the
-same `stop-audit` printed **`ALLOW`** with the seat journal *still* stale — the block was not
-satisfied, it was **laundered**, because the commits-this-session guard had been reset.
+### The discriminator I chose, and why
 
-Three honest consequences, all recorded in `finding-0246`:
+**Positive identification of staleness, never inference from failure:** block only when
+`rc == 1` **and** the generator's own rendered staleness line appears in its output. Constant:
+`HANDOFF_STALE_SIGNATURE = f"{SEAT_ROLE}/handoff.md: STALE"` → `orchestrator/handoff.md: STALE`.
 
-1. The **silencing** half is **pre-existing** and applies to clause (e) exactly as it does to (e′);
-   this plan did not introduce it and, on this evidence, nobody had noticed it.
-2. The **spurious arming** half **is** introduced here, by check 2's new dependence on the
-   baseline's *mtime*. That is a cry-wolf path — the failure mode §2.10.3 rules out for MEASURED —
-   arriving through NARRATIVE.
-3. **I did not patch it**, though `session-brief.sh` is in `write_scope` and the fix was reachable.
-   Item 13's invariants pin the baseline write as untouched, the file has three consumers, and each
-   obvious one-line guard breaks a different one. Filed and routed instead.
+Three choices inside that, each defensible on its own grounds:
 
-I did not attempt to close under a laundered ALLOW. The entry that discharges check 2 honestly is
-in the seat journal, and it carries this discovery — which is exactly the judgement a generator
-could not have written.
+1. **Positive match, not negative ("no `Traceback`").** The success mode is a **closed set of
+   one**; crash modes are **open-ended**. A negative match enumerates failures and is wrong the
+   first time something fails in a shape nobody listed (a C-level abort, a killed process, an
+   `argparse` error). A positive match is correct against failures that do not exist yet. It also
+   puts the burden of proof on the signal we *act* on, which is the right place for a gate that
+   can deny a close.
+2. **Seat-qualified, not a bare `": STALE"`.** ⚑ This is not cosmetic. If the generator ever
+   raised *at its own staleness `print`*, the traceback would echo that line's **source**, which
+   contains the f-string template `{dest.relative_to(ROOT)}: STALE` — so a bare probe is
+   **spoofable by a crash**, which is the very failure being fixed. Only the *rendered* message
+   contains `orchestrator/handoff.md: STALE`. Mutation N4 below proves the distinction is live.
+3. **Both streams searched.** The stream is an incidental detail; the wording is the contract. A
+   stream change keeps working; a **wording** change degrades to **fail-open** (the safe
+   direction) *and* reddens `test_e_prime_blocks_on_a_stale_derived_rendering`, which drives the
+   **real** generator (the loud direction). Safe plus loud is the pair I want, and it is the
+   honest answer to `scripts/handoff.py` being outside my `write_scope`: I cannot pin its exit
+   codes, so I pin its observable contract and make the coupling fail visibly.
+
+**Not widened to `rc != 0`**, exactly as the audit asks: rc 2 (absent / usage / scope) is an
+error, not staleness. Mutation N2 proves that widening is caught.
+
+### The six modes, re-measured BY EXECUTION at the fixed tip
+
+Throwaway repo, seat genuinely stale so only the generator's behaviour decides the verdict, check
+2 pre-satisfied so check 1 is isolated:
+
+| # | mode | `--check` rc | clause (e′) check 1 |
+|---|---|---|---|
+| 0 | **genuine stale** (control) | 1 | **CLOSED — blocks** ✅ |
+| 1 | ImportError | 1 | **OPEN — allows** ✅ |
+| 2 | RuntimeError | 1 | **OPEN — allows** ✅ |
+| 3 | SyntaxError | 1 | **OPEN — allows** ✅ |
+| 4 | usage / scope error | 2 | **OPEN — allows** ✅ |
+| 5 | absent generator | 2 | **OPEN — allows** ✅ |
+| 6 | **timeout** (a generator sleeping 90 s) | n/a | **OPEN — allows** ✅ |
+| 7 | up to date (control) | 0 | **OPEN — allows** ✅ |
+
+Mode 6's evidence is the arithmetic, not an rc: the probe took **120 s** = 90 s for the direct
+`--check` (which merely sleeps then exits) **+ 30 s** for the hook to hit its own `timeout=30` and
+fall into the fail-open arm. All three previously fail-closed modes (1–3) now fail open; nothing
+that used to block stopped blocking.
+
+### The two smaller items
+
+- **Mutation N1 — the `except` arm had NO coverage.** True, and worth dwelling on: the branch the
+  entire fix now leans on was unproven. It cannot be provoked end-to-end from a fixture without
+  breaking the runner's own interpreter or sleeping out the 30 s timeout, so it is driven at the
+  seam — `test_e_prime_fails_open_when_the_subprocess_cannot_be_LAUNCHED` monkeypatches
+  `subprocess.run` to raise `OSError`, `TimeoutError` and `MemoryError` and asserts
+  `_handoff_is_stale()` is `False` for each. Inverting that arm now reddens it.
+- **The docstring is corrected** to describe what the code does, including why rc alone is unsafe
+  and the measured open/closed verdict per mode.
+
+### Mutation campaign, re-run against the fix — 5 of 5 caught
+
+| mutant | caught by |
+|---|---|
+| **N1** — fail-open `except` arm inverted (*previously survived*) | the new launch test |
+| **N2** — widen to `rc != 0` | all three crash tests |
+| **N3** — drop the signature check, keep `rc == 1` (**the original defect**) | all three crash tests |
+| **N4** — bare `": STALE"` signature (traceback-spoofable) | the signature-contract test |
+| **C** — check 2 keyed to `last_commit` (the original survivor) | the session-start test |
+
+**Convergence re-confirmed**: `test_e_prime_converges_in_exactly_one_step` passes in isolation.
+Suite **13 → 18 passed**.
+
+### finding-0245 is already stale in its own favour
+
+Re-measured at this tip: the SessionStart seat surface is **366 lines / 23,852 bytes** — **+203
+lines (+125%)** against the retired brief, up from 287 at the seal, with the emitted segment at
+**286 lines** and still **zero** capsules. §2.8's ~300-line threshold is **about one entry away at
+merge**, not two. The finding carries the addendum; the estimate of ~70 lines per entry held
+exactly, so the trigger date is predictable rather than surprising.
+
+**finding-0244 sharpened** per the audit: the ratified spec is the load-bearing reason not to
+narrow the authorship key and now leads; the DRY argument is demoted and explicitly labelled the
+weak one — widening the shared format string to `%H %ct %ae` is mechanically free, so **cost is
+not the objection, the spec is**.
+
+**Markers.** None.
 - **Deskcheck.** ⚑ **Ready to deskcheck.** The demo is two commands: `bash
   .claude/hooks/session-brief.sh --standalone` in the main checkout (the seat is surfaced, the
   brief is gone), and a close after a commit (the gate names its one-step recovery). DONE is not
@@ -531,3 +584,86 @@ Minted 2026-07-26 by `/graduate`, decomposing ratified `dn-role-state-and-scoped
   `docs/roles/orchestrator/readings.md`, and repeated here.
 - Re-verify at `/build` time that **no other plan holds `.claude/hooks/**`.** Scanned clean at
   graduation (2026-07-26) across bp-111…bp-119 and bp-123, but the ops wave is live.
+
+## Follow-through
+
+- **Built?** Yes, and proven rather than asserted: clause (e′) with both checks, the SessionStart
+  re-point, and the template's retirement, in one commit. The central claim — one-step convergence
+  — is demonstrated as a sequence in a throwaway repo. **Nine adversarial mutations across two
+  passes; two survived and each forced a real test**: check 2's session-start key (found by me),
+  and the fail-open `except` arm (found by the pre-merge audit). The audit also found the one
+  merge-blocking defect — check 1 keying on `rc == 1`, which conflates *stale* with *crashed* and
+  **wedged** the close — now fixed by positively identifying staleness from the generator's own
+  rendered signature, with all six failure modes re-measured by execution as fail-open.
+  ⚑ **Neither survivor was found by reading; both came from mutating and running.**
+- **Wired, or dormant?** **Fully wired, and unavoidably so** — this is not a flag-off deliverable.
+  `journal-gate` (Stop) and `session-brief` (SessionStart) are already registered in
+  `.claude/settings.json`; this plan edits their bodies, so the moment it merges, **every**
+  orchestrator session's start reads the seat and every close is judged by (e′). There is no ON
+  switch to build and none to forget. The one thing that is *not* wired is the live file's
+  deletion, and that is deliberate: it is withheld for the orchestrator's hand.
+- **Who consumes it?** Every agent, at every SessionStart, and every orchestrator session at every
+  close. `bp-127` consumes it directly: F1c asserts the post-cutover checkout and F1b lints the
+  authoritative segment this gate keys on. Its entry condition is now met.
+- **Track state?** `workflow`. This is stage (b) of `dn-role-state-and-scoped-handoff` §4's
+  enablement sequence; **stage (c) is `bp-127`, which is `ready` and unblocked by this merge.** The
+  note is not fully discharged until F1b, F1c and the F2 drill land. ⚑ Two owner hand-acts stand
+  between this plan and a clean record: the A10 amendment and the partial-supersession log entry.
+- **New track or finding?** Three findings, no new track: `finding-0244` (`spec-fidelity` →
+  builder, resolved in place, with a design-level re-entry), `finding-0245` (`discovery` →
+  orchestrator, discharged by the first compaction capsule), and `finding-0246` (`spec-defect` →
+  orchestrator). None blocks the merge. **`finding-0246` is the one that must be settled before
+  `bp-127`** — its F2 drill spawns agents from inside a session and meets the defect immediately.
+
+### ⚑ Post-seal addendum — the gate blocked its own author, and a budget probe laundered the block
+
+I ran the new clause against my own close as a final check. It **blocked**, correctly and usefully:
+
+```
+BLOCK: (e′) commits landed this session but docs/roles/orchestrator/journal.md carries no entry
+from this session — append one … then close again. It is keyed to session START, so a later
+commit cannot re-arm it.
+```
+
+The reason names the artifact, the act, and the clause — the "block reason IS the automation"
+contract, discharged. But the *cause* was not that I had forgotten: my seat entry was written at
+`02:02:49` and the baseline's mtime was `02:04:56`, and what moved the baseline was the
+`claude -p "/usage"` **budget probe** run between them. A nested one-shot fires SessionStart.
+Confirmed by direct experiment (`claude -p "reply with the single word: ok"`): the baseline's mtime
+jumped `02:04:56 → 02:09:03` and its **content** was reset to current HEAD. Immediately after, the
+same `stop-audit` printed **`ALLOW`** with the seat journal *still* stale — the block was not
+satisfied, it was **laundered**, because the commits-this-session guard had been reset.
+
+Three honest consequences, all recorded in `finding-0246`:
+
+1. The **silencing** half is **pre-existing** and applies to clause (e) exactly as it does to (e′);
+   this plan did not introduce it and, on this evidence, nobody had noticed it.
+2. The **spurious arming** half **is** introduced here, by check 2's new dependence on the
+   baseline's *mtime*. That is a cry-wolf path — the failure mode §2.10.3 rules out for MEASURED —
+   arriving through NARRATIVE.
+3. **I did not patch it**, though `session-brief.sh` is in `write_scope` and the fix was reachable.
+   Item 13's invariants pin the baseline write as untouched, the file has three consumers, and each
+   obvious one-line guard breaks a different one. Filed and routed instead.
+
+I did not attempt to close under a laundered ALLOW. The entry that discharges check 2 honestly is
+in the seat journal, and it carries this discovery — which is exactly the judgement a generator
+could not have written.
+
+### ⚑ A third vacuity, noticed while relocating this block — reported, not filed
+
+This section was physically **above** the audit-response entry until now, and clause (f) still
+reported satisfied. It should not have: `_journal_tail_has_followthrough` takes the tail from the
+**last** `## ` heading that is not Follow-through/Markers, and this journal is written
+**newest-first** (§9's "newest entry first"), so its tail is the *oldest* content — the pre-build
+notes. What satisfied the grep was the sentence *"A `## Follow-through` block is required by
+clause (f)"* in the "Owed at seal" list: **a backticked prose mention of the header, in a section
+written before the build started.**
+
+So (f) is satisfiable, in any newest-first journal, by a file that mentions the header without
+ever carrying the block. `_lib.py` already calls the clause "grep-class … the (a)-staleness family
+of crude post-hoc checks", so the weakness is acknowledged in kind — but *this* instance is a
+genuine vacuous pass, and it is the third one this build has met (the withheld deletion, the
+`--check` rc, and now this). **Fixed here by moving the block to the physical end of the file**, so
+what satisfies the clause is the real block. Not filed as a fourth finding: it is pre-existing,
+out of this plan's items, and the auditor holds the merge — flagged to them for the call.
+

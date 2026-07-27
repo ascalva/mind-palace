@@ -47,22 +47,26 @@ Status tally: complete 109 · in-progress 2 · ready 10 · superseded 6
 
 ## Open findings
 
-35 open — most recent: finding-0241, finding-0242, finding-0243, finding-0244, finding-0245, finding-0246
+36 open — most recent: finding-0242, finding-0243, finding-0244, finding-0245, finding-0246, finding-0247
 
 ## Readings (MEASURED — latest per command)
 
 | when | command | result |
 |---|---|---|
 | 2026-07-27T06:00Z | `bash .claude/hooks/session-brief.sh --standalone (with vs without the seat present)` | seat surface = 287 lines / 18074 bytes at SessionStart (handoff.md 74 lines /… |
+| 2026-07-27T06:37Z | `bash .claude/hooks/session-brief.sh --standalone (with vs without the seat)` | seat surface now 366 lines / 23852 bytes — up from 287 / 18074 at the seal, and +203… |
 | 2026-07-27T06:24Z | `claude -p "/usage"` | session 71% · week 50% all-models · Fable 25%; week resets Jul 31 20:00 ET. Probed at bp-126's seal |
+| 2026-07-27T06:37Z | `mutation campaign vs tests/integration/test_handoff_gate.py` | 5 of 5 caught: rc!=0 widening, the rc==1-only original defect, the inverted fail-open except arm, a b… |
 | unknown | `owner-intent transcript sweep (literal command not recorded)` | the obvious user-string filter sees only ~60% of the owner's words; ~86 mid-turn queue-operation rows plus str… |
 | 2026-07-27T05:58Z | `python3 scripts/handoff.py --role orchestrator --check (7 runs, wall clock)` | min 130.5 / median 137.0 / max 143.2 ms on the real tree, against a Stop-audit baseli… |
+| 2026-07-27T06:35Z | `python3 scripts/handoff.py --role orchestrator --check, six induced failure modes` | ImportError / RuntimeError / SyntaxError each exit **1** — identical to a genui… |
 | 2026-07-27T06:08Z | `uv run mypy` | 69 errors in 20 files of 559 checked — EXACTLY the pinned tests/ baseline, rc 1 as expected; zero in the changed files |
 | 2026-07-27T06:06Z | `uv run mypy core agents eval ops scheduler scripts` | Success: no issues in 261 source files — the floor holds at 0 |
-| 2026-07-27T06:22Z | `uv run pytest -q` | 2 failed / 2308 passed / 15 skipped in 349s — the SAME two pre-existing failures (finding-0103 core-self-containment ratchet; finding-0226 dream… |
+| 2026-07-27T06:40Z | `uv run pytest -q` | 2 failed / 2313 passed / 15 skipped in 238.63s — the SAME two pre-existing failures (finding-0103 ratchet, finding-0226 dream-v2 live). schedule… |
+| 2026-07-27T06:33Z | `uv run pytest tests/integration/test_handoff_gate.py -q` | 18 passed in 5.88s (13 -> 18: the three generator-crash modes, the launch-failure seam, and the signature… |
 | 2026-07-27T06:09Z | `uv run python -m ops.type_gate` | OK (rc 0) — tier-2 membership + bare-ignore scan clean; the parked finding-0223 shim report unchanged |
 | 2026-07-27T06:05Z | `uv run python scripts/check_imports.py` | OK (rc 0) — import firewall + worker boundary both clean |
-| 2026-07-27T06:04Z | `uv run ruff check .` | All checks passed (rc 0) — bp-126's cutover diff |
+| 2026-07-27T06:33Z | `uv run ruff check .` | All checks passed (rc 0) — after bp-126's audit fix to clause (e′) check 1 |
 | 2026-07-27T03:36Z | `uv sync --frozen --extra dev` | ok — dev extras resolved in a fresh worktree venv |
 
 ## Queue (an input, never the substrate)

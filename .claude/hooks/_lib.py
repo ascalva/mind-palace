@@ -46,6 +46,12 @@ DENYLIST = [
 # generator's `--role` argument — cannot drift apart.
 SEAT_ROLE = "orchestrator"
 
+# Clause (e′) check 1's positive staleness signature — the substring the generator renders when
+# the committed handoff genuinely differs from a fresh render. Exported (not underscore-private)
+# because it is a CONTRACT with `scripts/handoff.py`, and because the gate test asserts on it.
+# Seat-qualified deliberately: see `_handoff_is_stale` for why a bare ": STALE" is unsafe.
+HANDOFF_STALE_SIGNATURE = f"{SEAT_ROLE}/handoff.md: STALE"
+
 
 # --------------------------------------------------------------------------- #
 # Repo root + path normalization
@@ -754,10 +760,36 @@ def _handoff_is_stale() -> bool:
       Re-implementing the compare here over a live render would reintroduce exactly that.
     * DRY: the generator's own ``--check`` and this gate are then provably the same check.
 
+    ⚑ **The return code alone is NOT a safe signal, and keying on it was a real defect
+    (caught in bp-126's pre-merge audit).** ``--check`` exits 1 on drift — but **CPython also
+    exits 1 on any unhandled exception**, so a *crashing* generator is byte-identical to a
+    *stale* one by rc. Keying on ``rc == 1`` therefore made an ImportError, a RuntimeError or a
+    SyntaxError in the generator read as STALE and **BLOCK**; ``--write`` would then fail the
+    same way, leaving the close **wedged** (a Stop BLOCK is a hard deny). A gate that fails
+    CLOSED on a tooling error is worse than the staleness it prevents, because it also wedges
+    the session trying to repair it.
+
+    So staleness must be **positively identified**, never inferred from a failure:
+    ``rc == 1`` **and** the generator's own rendered staleness line is present in its output.
+    The burden of proof is on the signal we act on — the success mode is a closed set of one,
+    while crash modes are open-ended, so a positive match is the only form that stays correct
+    against failures nobody has enumerated. Anything else fails open.
+
+    **Why this exact signature.** The generator renders
+    ``docs/roles/<seat>/handoff.md: STALE — regenerate with …``. The seat-qualified prefix is
+    load-bearing: if the generator ever raised *at that very print statement*, the traceback
+    would echo its **source** line, which contains the f-string template
+    ``{dest.relative_to(ROOT)}: STALE`` — so a bare ``": STALE"`` probe could be satisfied by a
+    crash. ``"<seat>/handoff.md: STALE"`` can only be produced by the rendered message. Both
+    streams are searched: the stream is an incidental detail, while the wording is the
+    contract. If bp-124 ever reworded it, this degrades to fail-open (the safe direction) and
+    ``test_e_prime_blocks_on_a_stale_derived_rendering`` reddens (the loud one) — that test
+    runs the REAL generator, which is what keeps this coupling honest.
+
     Exit contract (verified end to end, finding-0238): ``0`` = up to date, ``1`` = stale, and
-    regeneration converges in **exactly one step**. **Fail open on anything else** — a missing
-    generator, an import error, a usage error (2), a timeout: enforcement never crashes a
-    close, and a checkout without the generator is simply not gated on it.
+    regeneration converges in **exactly one step**. Measured fail-open/closed verdict per mode:
+    absent generator (rc 2), usage/scope error (rc 2), timeout, ImportError, RuntimeError and
+    SyntaxError (all rc 1 + traceback) → **all fail OPEN**.
 
     Not ``uv run``: the generator is stdlib-only and a Stop hook must not pay an environment
     resolve. Measured cost of the spawn on a real tree: ~137 ms (§3 Q2's open question,
@@ -780,7 +812,9 @@ def _handoff_is_stale() -> bool:
         )
     except Exception:
         return False  # fail-open: the signal cannot be evaluated, so it never blocks
-    return proc.returncode == 1
+    if proc.returncode != 1:
+        return False  # 0 = up to date; anything else is an error -> fail open
+    return HANDOFF_STALE_SIGNATURE in ((proc.stderr or "") + (proc.stdout or ""))
 
 
 def cmd_stop_audit(diff_file: str | None) -> int:

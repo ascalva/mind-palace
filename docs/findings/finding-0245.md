@@ -98,8 +98,24 @@ this finding:
   segment's line count somewhere an orchestrator sees it (the DERIVED pane is the natural home,
   and it is derivable from the artifact tree, so it does not violate the §2.9 purity pin).
 
-⚑ Re-enter **immediately, ahead of `/triage`,** if the segment passes ~300 lines, which at the
-observed rate of ~70 lines per entry is roughly **two more entries away**.
+⚑ Re-enter **immediately, ahead of `/triage`,** if the segment passes ~300 lines.
+
+### ⚑ Addendum — this finding went stale in its own favour before the branch even merged
+
+Re-measured at the branch tip, after the two further seat entries this build wrote (the audit
+response and the `finding-0246` discovery), by the same method:
+
+| | lines | bytes |
+|---|---|---|
+| seat surface at the seal | 287 | 18,074 |
+| **seat surface at the tip** | **366** | **23,852** |
+| against the retired brief | **+203 (+125%)** | **+12,230 (+105%)** |
+
+The emitted segment is now **286 lines** and `grep -c '^## CAPSULE'` is still **0**. The ~300-line
+threshold in §2.8 is therefore **roughly one entry away, at merge** — not two. The growth rate
+this finding estimated (~70 lines per entry) held exactly, which is the part worth noting: the
+curve is predictable, so the trigger date is predictable, and there is no reason to be surprised
+by it. **The first capsule is owed at the first `/triage` after merge, not at the second.**
 
 ## Routing
 

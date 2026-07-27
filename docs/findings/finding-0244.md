@@ -81,15 +81,16 @@ Only the second is a live concern, and it is a design question, not a code fix.
 Narrowing the trigger — by commit authorship (`%an`/`%ae`), or by exempting paths an active plan
 holds — was **not** implemented. Three reasons:
 
-1. It is a change to a **ratified** note's specification (§2.10 pins the trigger), which a builder
-   may not make.
+1. **The load-bearing reason: §2.10 is a ratified specification and it pins the trigger.** A
+   builder may not narrow a ratified predicate, and this one is not an implementation detail —
+   it decides which sessions the gate governs. Everything else below is secondary to this.
 2. `bp-126` §9 names *"No widening of what (e′) gates"* as a non-goal; narrowing is the same class
    of unilateral move in the other direction.
-3. An authorship key would need a **second `git` call** (`%an` is not in the shared
-   `git log -1 --format=%H %ct` at `_lib.py:744-755`) or a widening of that format string —
-   touching the one line the owner's DRY rule in that file explicitly protects. Cheap, but it is a
-   decision, not an implementation detail. *(The format string could carry `%an` at zero extra
-   cost; that is the obvious mechanism if the ruling goes that way.)*
+3. *(The weakest of the three, stated only for completeness — it should not be read as an
+   obstacle.)* An authorship key is not in the shared `git log -1 --format=%H %ct`, so it would
+   need that format string widened to `%H %ct %ae`. That is **mechanically free** — one string,
+   no second `git` call, so the owner's DRY rule is not actually in tension. **If the ruling goes
+   toward authorship, cost is not the objection; the spec is.**
 
 ## Re-entry condition
 
