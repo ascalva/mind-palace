@@ -7,6 +7,109 @@ updated: 2026-07-27
 
 # Journal — bp-124 (the orchestrator seat substrate and its handoff generator)
 
+## 2026-07-27 — Items 2, 3 and 5 closed: the generator, its queue pane, its structured answer
+
+**Status line.** `scripts/handoff.py` renders every scope the contract pins; the idempotence pin
+holds and **Item 2's falsifier did not fire** — but only because the queue pane and the age display
+were moved off the committed artifact, which is a builder decision against a gap in the ratified
+note and is filed as `finding-0236`.
+
+**⚑ The one real design collision, and how it was settled.** §2.9 pins the rendering as *a pure
+function of the artifact tree* and, in the same breath, lists a read of `data/queue.sqlite` among
+its inputs and an *age* beside each reading. `data/queue.sqlite` is not the artifact tree: it is
+gitignored, absent from every worktree, and mutated continuously by a live supervisor. Queue counts
+in the committed file would make two regenerations of an *unchanged tree* differ — Item 2's
+falsifier, fired by the daemon rather than by any work — and would re-arm bp-126's clause (e′)
+forever, which is the exact circularity this design exists to remove. An age is the same defect: a
+clock read in an artifact that must have a fixed point. **Resolution:** one computation, two view
+modes (`handoff._View.live`). `--write` / `--check` / `--json` render **tree-pure** (queue → a
+pointer line; readings → their own timestamps, which §2.9 calls "data"); a bare `--role/--track/
+--plan` renders **live** to stdout (the real probe; `queue: unavailable in this checkout` when the
+file is absent; `18h ago` beside a reading). Every written acceptance criterion of Items 2/3/5 is
+still discharged, because Item 3's lines and F1c both live on the stdout path. Full argument,
+and the instructions bp-126/bp-127 need, are in `docs/findings/finding-0236.md`.
+
+**Completed — Item 2 (`scripts/handoff.py`).**
+- `uv run scripts/handoff.py --role orchestrator --write` twice over an unchanged tree → `cmp`
+  reports **byte-identical** (3695 bytes). `--check` → `docs/roles/orchestrator/handoff.md: up to
+  date`, rc 0.
+- *Excluding itself*: appending garbage to `handoff.md` and re-rendering reproduces the reference
+  byte-for-byte — the generator never reads its own output (nothing globs `docs/roles/**`).
+- `grep -nEo '\b[0-9a-f]{7,40}\b'` over the rendering → **no matches** (rc 1). No generation
+  timestamp: the only timestamp in the file is a reading's own, carried from `readings.md`.
+- Widest rendered table row: **119** chars (`board.MAX_ROW` is 190). Capping reuses `board._cap`.
+- Generator home per §3 Q1: a sibling importing `board`. `board.py`'s CLI and both its renderings
+  are untouched by this item.
+
+**Completed — Item 3 (the queue pane).**
+- Absent queue: `handoff.main(["--role","orchestrator"])` → rc **0**, output contains
+  `queue: unavailable in this checkout`, and **no `data/queue.sqlite` exists afterwards**
+  (asserted in `test_absent_queue_degrades_and_creates_nothing`; also true of the real run in this
+  worktree, which has no `data/` directory at all).
+- Present queue (fixture): `queue: depth 2 · running 1` + a `RUNNING 3 · dream · lease …` row.
+- The connection string is asserted to be exactly `file:{path}?mode=ro`
+  (`test_the_queue_is_opened_with_a_readonly_uri`, a spy over `handoff.sqlite3.connect`).
+- The **dry-run the plan asks for is now a standing test**: a `mode=ro` open of a *missing* path
+  raises `sqlite3.OperationalError` and leaves no file behind — proof the generator is
+  structurally incapable of creating the queue, not merely careful not to.
+- A file that exists but is not a database degrades to `queue: present but unreadable — …`
+  rather than raising.
+- **§3 Q5, answered: the inline read is 13 body lines** (`read_queue`, plus two module-level SQL
+  constants) — **under the ~15-line threshold**, so the `ops.lifecycle.snapshot` import does NOT
+  earn its place and no `codebase` finding is owed on that point. Importing it was also blocked
+  independently: Item 2's invariant pins handoff's imports to stdlib + `_lib` + `board`.
+- V3 stays parked exactly as §11 records it: no test pretends to exercise WAL contention.
+
+**Completed — Item 5 (`--json`).**
+- `uv run scripts/handoff.py --role orchestrator --json` on the real tree emits
+  `{"blocking_unknowns": [], "next_action": "/resume bp-123", "scope": "role:orchestrator",
+  "unit_in_flight": "bp-123", "unit_title": "…"}`; two invocations `diff` clean.
+- **⚑ V1 — `next_action` IS DERIVABLE. It was never hand-written.** See the dedicated note below;
+  bp-127's mechanical compare survives.
+- The JSON and the document are two views of one call to `derive()`, and a test asserts the
+  document literally contains the JSON's `next_action` and `unit_in_flight` strings, so they
+  cannot drift apart.
+
+**⚑ V1 (note §2.12) — the answer bp-127 needs, stated plainly.** **`next_action` proved DERIVABLE
+from the artifact tree.** It is a three-rung ladder over plan statuses, computed in
+`handoff.derive` / `handoff._LADDER`: an `in-progress` plan (lowest id) → `/resume <id>`; else a
+`ready` plan (lowest id) → `/build <id>`; else `/triage`. For a `plan` scope the plan's own status
+decides (`complete` → deskcheck owed, `proposed` → owner blessing owed, …). Nothing is hand-set,
+and the emitted form is a **bare command string** (`"/resume bp-123"`) chosen specifically to make
+a string compare viable. **bp-127's F2 JSON compare therefore survives contact — it does not
+degrade to judge-only.** Two honesty caveats for that plan: (a) the ladder encodes a *policy*
+(in-flight beats available; owner-only gates are never an agent's next action), so an agent that
+answers "bless bp-124" instead of "/resume bp-123" is disagreeing with the policy, not with the
+tree — the compare tests conformance to the ladder, which is what makes it mechanical; (b)
+`unit_in_flight` is a bare id (`"bp-123"` / `"none"`), so compare on the id and treat the title as
+non-normative prose.
+
+**In-flight.** Item 4 — the coordinate check over findings and owner questions.
+
+**Next action.** Extend `board._build`'s orphan surface to `docs/findings/*.md` and
+`docs/inbox/owner-questions.md` using the already-added `board.scan_findings` / `board.scan_oqs`,
+add the docstring line from plan §4, extend `tests/unit/test_board.py`, then re-run the byte-
+identity check below.
+
+**Open questions.** None blocking. `finding-0236` is filed and routed to the orchestrator.
+
+**Context-manifest delta.** No new reads beyond the previous entry's list.
+
+**Markers.**
+- ⚑ **`docs/TRACKS.md` is ALREADY STALE in the committed tree, and it was stale before I touched
+  anything.** A fresh `board.board_text()` at the pre-refactor commit differs from the committed
+  file by exactly **four added rows** — bp-124, bp-125, bp-126, bp-127 — because the graduation and
+  blessing commits never regenerated the board. `docs/TRACKS.md` is **not** in this plan's
+  write_scope, so it is deliberately left alone; the orchestrator should run
+  `uv run scripts/board.py --write` after the merge. **Consequence for Item 4's falsifier:** it
+  must be measured as *render-before == render-after*, never as *render == the committed file*,
+  or a pre-existing staleness would masquerade as this plan's regression.
+- **The `board.py` scan refactor is proven output-neutral.** `scan_plans` / `scan_notes` were
+  extracted so `handoff.py` can reuse them (§4's docstring promise); the post-refactor
+  `board_text(ROOT)` is byte-identical to the pre-refactor one (captured by `git stash`, compared,
+  confirmed `True`). `scan_findings` / `scan_oqs` were added in the same pass but are not yet
+  wired into `_build` — that wiring is Item 4, so the board's behavior is still unchanged.
+
 ## 2026-07-27 — Item 1 closed: the seat directory and its two hand-authored artifacts
 
 **Status line.** `docs/roles/orchestrator/{journal,readings}.md` exist, are tracked, and the

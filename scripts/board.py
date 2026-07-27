@@ -19,6 +19,7 @@ never re-derives a YAML parser and never imports `core` (repo-workflow tooling, 
 
 from __future__ import annotations
 
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -155,28 +156,87 @@ def _scan_manifests(root: Path) -> dict[str, Track]:
 _PLAN_PREFIX = "Build Plan — "
 
 
+def _orphan(artifact: str, slug: str) -> str:
+    """The F-WF1 coordinate-split message: a `track:` value with no manifest behind it.
+    ONE phrasing for every artifact class so the check reads the same however it is reached."""
+    return f"{artifact} → track: {slug} (no docs/tracks/{slug}.md manifest)"
+
+
+# ── the shared scan surface ─────────────────────────────────────
+# These return EVERY artifact of their class with its declared `track:` slug ("" when the key
+# is absent — absent is normal, never an orphan). The attach/orphan functions below filter;
+# `scripts/handoff.py` reuses the same scanners for its own per-scope renderings, which is why
+# they are named without a leading underscore and return the raw rows rather than a view.
+def scan_plans(root: Path) -> list[tuple[Plan, str]]:
+    """Every build plan as `(Plan, track-slug)`, id-ascending (the glob is sorted by path)."""
+    out: list[tuple[Plan, str]] = []
+    for plan in sorted(root.glob("docs/build-plans/*/plan.md")):
+        text = _read(plan)
+        fm = parse_front_matter(text)
+        title = _first_h1(text)
+        if title.startswith(_PLAN_PREFIX):
+            title = title[len(_PLAN_PREFIX):]
+        out.append((
+            Plan(id=str(fm.get("id") or plan.parent.name), title=title, status=_status(fm) or "?"),
+            _text(fm.get("track")),
+        ))
+    return out
+
+
+def scan_notes(root: Path) -> list[tuple[str, str, str]]:
+    """Every design note as `(stem, status, track-slug)`."""
+    return [
+        (note.stem, _status(fm) or "?", _text(fm.get("track")))
+        for note in sorted(root.glob("docs/design-notes/*.md"))
+        for fm in (parse_front_matter(_read(note)),)
+    ]
+
+
+def scan_findings(root: Path) -> list[tuple[str, str, str]]:
+    """Every finding as `(stem, status, track-slug)`. The `track:` key is OPTIONAL on a finding
+    and is not back-filled — an absent key yields "" and is normal (bp-124 Item 4)."""
+    return [
+        (f.stem, _status(fm) or "?", _text(fm.get("track")))
+        for f in sorted(root.glob("docs/findings/*.md"))
+        for fm in (parse_front_matter(_read(f)),)
+    ]
+
+
+# An owner question is a `## oq-NNNN — title` section of ONE file whose body is `- key: value`
+# bullets — it has no front matter of its own, so its `track:` is a bullet like its `status:`.
+# ⚑ DRY: `scripts/docket.py:114` carries an identical header regex for its own oq scan. Two
+# copies of one pattern is a duplication, recorded as a finding rather than fixed by importing a
+# sibling script (plan §6 pins handoff.py's imports to stdlib + `_lib` + `board`).
+_OQ_HEADER = re.compile(r"(?m)^##\s+(oq-\d+)\b[ \t]*[—-]*[ \t]*(.*)$")
+_OQ_FIELD = re.compile(r"(?m)^-\s*([a-z_]+):[ \t]*(.*)$")
+
+
+def scan_oqs(root: Path) -> list[tuple[str, str, dict[str, str]]]:
+    """Every owner question as `(id, title, fields)` — `fields` are the entry's `- key: value`
+    bullets (`status`, `blocking`, `track`, …), first occurrence wins, values un-normalized."""
+    text = _read(root / "docs" / "inbox" / "owner-questions.md")
+    out: list[tuple[str, str, dict[str, str]]] = []
+    matches = list(_OQ_HEADER.finditer(text))
+    for i, m in enumerate(matches):
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        fields: dict[str, str] = {}
+        for fm_ in _OQ_FIELD.finditer(text[m.end():end]):
+            fields.setdefault(fm_.group(1), fm_.group(2).strip())
+        out.append((m.group(1), m.group(2).strip(), fields))
+    return out
+
+
 def _attach_plans(root: Path, tracks: dict[str, Track]) -> list[str]:
     """Attach each plan to its track; return the list of orphan slugs (a `track:` value with
     no manifest — the F-WF1 coordinate-split signal)."""
     orphans: list[str] = []
-    for plan in sorted(root.glob("docs/build-plans/*/plan.md")):
-        text = _read(plan)
-        fm = parse_front_matter(text)
-        slug = _text(fm.get("track"))
+    for p, slug in scan_plans(root):
         if not slug:
             continue
-        title = _first_h1(text)
-        if title.startswith(_PLAN_PREFIX):
-            title = title[len(_PLAN_PREFIX):]
-        p = Plan(
-            id=str(fm.get("id") or plan.parent.name),
-            title=title,
-            status=_status(fm) or "?",
-        )
         if slug in tracks:
             tracks[slug].plans.append(p)
         else:
-            orphans.append(f"{p.id} → track: {slug} (no docs/tracks/{slug}.md manifest)")
+            orphans.append(_orphan(p.id, slug))
     for t in tracks.values():
         t.plans.sort(key=lambda p: p.id)
     return orphans
@@ -185,16 +245,13 @@ def _attach_plans(root: Path, tracks: dict[str, Track]) -> list[str]:
 def _attach_notes(root: Path, tracks: dict[str, Track]) -> list[str]:
     """Attach design-note statuses to their track; return orphan-note messages."""
     orphans: list[str] = []
-    for note in sorted(root.glob("docs/design-notes/*.md")):
-        fm = parse_front_matter(_read(note))
-        slug = _text(fm.get("track"))
+    for stem, st, slug in scan_notes(root):
         if not slug:
             continue
-        st = _status(fm) or "?"
         if slug in tracks:
             tracks[slug].note_statuses.append(st)
         else:
-            orphans.append(f"{note.stem} → track: {slug} (no docs/tracks/{slug}.md manifest)")
+            orphans.append(_orphan(stem, slug))
     return orphans
 
 
