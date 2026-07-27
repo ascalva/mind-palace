@@ -15,6 +15,8 @@ links:
 supersedes: null
 superseded_by: null
 warrant: docs/brainstorms/cross-strata-substrate-sweep.md
+amendments:
+  [A1 (oq-0060)]
 ---
 
 # The chat sensor: the dialogue stream as a sensed stratum — retaining the derivation, not just the result
@@ -202,3 +204,52 @@ No uuid-identity design (consumer registration only). No build before ratificati
 - **Source of record for the ephemerality claim:** the CLI's transcript retention setting
   (`cleanupPeriodDays`) — transcripts are pruned by default; the palace must not outsource its
   own memory to a tool's cache policy.
+
+## Amendment A1 — the speaker taxonomy admits `system`, and the channel set is closed
+
+**Warrant:** `oq-0060` (owner-answered 2026-07-27) · `docs/design-notes/trace-retrieval.md` gap G1 ·
+census evidence in that note's Part 1. **Owner-made, by hand** — CS-3 is ratified and no agent may
+amend it.
+
+**What forced it.** `data/chatlog.sqlite` holds **39 hook-feedback rows attributed to
+`speaker='owner'`**. The corpus therefore believes the owner said things the **Stop hook** said.
+That is authority laundering already present in stored data, and it corrupts any query that trusts
+speaker attribution — including the succession path `dn-trace-retrieval` exists to enable. A
+retrieval system that cannot distinguish the owner's voice from a hook's is worse than none,
+because it is confidently wrong about *authority*.
+
+**A1.1 — `speaker` admits a third value: `system`.** CS-3's extraction grain
+`(session_id, turn_index, speaker, text)` stands unchanged. The `speaker` domain is
+**`owner | agent | system`**. `system` carries machine-authored text that appears in the transcript
+without a human or a model having uttered it: **hook feedback, gate verdicts, harness notices, and
+command stdout surfaced into the turn**. Attributing such text to `owner` or `agent` is a defect,
+not a rounding.
+
+⚑ **`system` rows are never promotable.** CS-2 already lands every row `Provenance.OBSERVED` and
+forbids machine authorship-inference; A1.1 makes that concrete for this class — a `system` row is
+ineligible for promotion to any authored class **by construction**, not by policy.
+
+**A1.2 — the channel set is closed, and enumerated.** CS-3 extracted from one transcript channel.
+A census of the live store found that the owner's words arrive on **three**, and that filtering on
+the obvious one recovers roughly **60%** of them:
+
+| # | channel | shape | status before A1 |
+|---|---|---|---|
+| 1 | ordinary turn | `type=="user"`, `content` a string | extracted |
+| 2 | **queued prompt** | `type=="queue-operation"` / `operation=="enqueue"` | **structurally invisible** |
+| 3 | **structured answer** | `AskUserQuestion` tool_result | **structurally invisible** |
+
+⇒ **Extraction must cover all three, and the enumeration is closed:** a transcript row that carries
+owner or agent prose and matches **no** listed channel is a **defect that fails loudly** — it is
+never silently dropped. Channel 2 is not an edge case; it is the channel the owner uses while an
+agent is mid-turn, which is precisely when the highest-value corrections are typed.
+
+*Falsifiers for A1:* any stored row whose `speaker` is `owner` or `agent` while its text originates
+from a hook, gate, or harness notice; an owner utterance present in a transcript on channel 2 or 3
+and absent from extraction; a `system` row promoted to any `MIRROR_READABLE` class; a transcript
+row carrying prose that matches no enumerated channel and is dropped without an error.
+
+**What A1 does NOT do.** It does not back-correct the 39 mis-attributed rows already stored, and it
+does not re-extract history. Both are **build work** requiring a plan against this amended CS-3;
+until such a plan lands, **every consumer of speaker attribution must treat stored rows as
+untrusted**. A1 changes what the design *says*; it does not change what the store *holds*.
