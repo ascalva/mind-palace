@@ -5625,3 +5625,87 @@ status flips). `docs/deskchecks/` still holds only `README.md` — the gate bp-0
 **never been exercised**. ⚑ The **sync/diac** entry is no longer routine: oq-0050's ruling landed, so
 its demonstrable changed from "show it is not wired" to **"show it running"** — and finding-0226 is
 now a hard input to that.
+
+---
+
+## 2026-07-27 (session-55, OPUS @ high) — bp-124 BUILT, INDEPENDENTLY AUDITED, MERGED: the orchestrator seat
+
+**bp-124 `ready → complete`**, merged at `7df1841`, the first plan of the four-plan role-state wave
+(bp-124 substrate → bp-125 skills → bp-126 cutover → bp-127 executable falsifier). Delivered by a
+delegated worktree builder, then **audited by a second, independent agent before merge** — the
+builder's own green gate was explicitly not accepted as the audit. 10 files, 1700 insertions, every
+path inside `write_scope`, zero deletions, zero lines removed from any test.
+
+**What it built.** A narrative journal and readings log for the orchestrator role
+(`docs/roles/orchestrator/`), `scripts/handoff.py` — a generator whose rendering is a **fixed point
+over the artifact tree** — an orphan check in `scripts/board.py` that now reaches findings and owner
+questions, and a `--json` face that makes bp-127's mechanical compare possible.
+
+**⚑ THE KEYSTONE HOLDS, AND IT WAS VERIFIED TWICE.** Two `--write` passes over an unchanged tree are
+byte-identical. The audit re-proved it *independently* against a pristine `git archive HEAD` export
+carrying **no `.git` at all**, at a different absolute path: no clock (replacing `handoff.datetime`
+with a raise-on-attribute object leaves the tree-pure render unchanged — and the same probe **does**
+raise on the live render, so it is not a tautology), no sqlite, no HEAD sha (`grep` for hex → rc 1),
+no environment (identical across `TZ`/`LANG`/`HOME`/`cwd` and `PYTHONHASHSEED` 0/1/12345/99999),
+and independent of its own prior content across four states of its own file.
+
+**⚑ A BUILDER DECISION AGAINST A GAP IN A RATIFIED NOTE — finding-0236.** The note pins the rendering
+as a pure function of the artifact tree while *also* listing a live `data/queue.sqlite` read and an
+**age** display among its inputs. Those cannot both hold: the queue is gitignored, worktree-absent
+and daemon-mutated, so a queue count in the committed file would make two regenerations of an
+unchanged tree differ, and **bp-126's clause (e′) would fire on daemon activity rather than on the
+work** — exactly the failure this family exists to prevent. The builder resolved it by rendering
+**one computation two ways** (`--write`/`--check`/`--json` tree-pure; a bare stdout render live) and
+correctly flagged it as *"a builder decision against a gap in a ratified note, not a reading of it."*
+The audit settled it by execution: with a populated queue (2 queued, 1 leased) planted beside the
+pristine export, `--write` produced a file **byte-identical** to the no-queue render. **Clause (e′)
+is defused, not re-armed.** Routed to the owner as **oq-0058** — the code is right, the *note* is now
+factually wrong about its own artifact, and only the owner may amend a ratified note.
+
+**Gate, re-run leg by leg by the auditor** (not merely re-reported): ruff 0 · import firewall 0 ·
+scoped mypy **0 errors / 261 files** · argless mypy **exactly 69** with **zero in the four changed
+files** · type_gate 0 · `pytest -q` **3 failed, 2300 passed, 15 skipped in 304.93s**. The three are
+the finding-0103 ratchet, `test_dream_v2_live` (finding-0226), and the known `test_scheduler_live`
+flake — which passed for the builder and failed for the auditor, hence 2300 vs 2301. **No new
+failure.** The two new test files: 41 tests, green in 1.26s. Counts are stated exactly, not rounded
+to "1 failed" as two earlier seals wrongly did.
+
+**What the audit found that the seal did not.** A 25-mutant pass caught **19**; the six survivors are
+display/secondary, and one is a genuine **vacuous pass** — the `GENERATED_BANNER` assertion is
+tautological in its own constant (the pre-existing board test has the identical shape). Also:
+`scripts/handoff.py` mutates `sys.path` at import time and `scripts/eval.py` shadows the `eval`
+**package**, so after `import handoff` an `import eval.golden` raises — latent today but **bp-127's
+F2 harness imports `handoff`**, so it must subprocess instead. Both carried into bp-127's manifest.
+
+**V1 answered — bp-127 is safe.** `next_action` is genuinely **derived** (`derive`/`_LADDER` walks
+front-matter statuses); hard-coding it and reversing the ladder are both caught. bp-127's mechanical
+JSON compare survives and does not degrade to judge-only.
+
+**⚑ `docs/TRACKS.md` had been stale by four rows** (bp-124…bp-127) since graduation, and the audit
+isolated it properly: running the **base** `board.py` and the **HEAD** `board.py` against the same
+tree gave byte-identical output, proving the staleness entirely pre-existing. Regenerated post-merge.
+The single orphan row remains the finding-0235 phantom, from a design note; 210 findings and 57 owner
+questions scanned, **zero** carry `track:`.
+
+**⚑ THE SEAT'S FIRST HONEST REPORT NAMES A STALLED UNIT.** `next_action` derives to **`/resume
+bp-123`** — in-progress since 2026-07-26 10:11, its Checkpoint 3 recording *"⚑ Item 2, owed on merge:
+the orchestrator's runbook"*. The instrument surfaced the debt on day one, unprompted. It is the
+wave's first real evidence of working.
+
+**Amendments to two BLESSED plans, disclosed.** `5acea73` adds finding-0236/0238 to bp-126's and
+bp-127's §2 manifests — purely additive, no status flipped, no criterion or `write_scope` touched,
+and isolated in its own commit so it can be reverted alone. Their substance was already right
+(bp-127's Item 16 already targets the bare render and requires the `queue: unavailable` string
+`--check` never emits); what was missing was the *reason*, without which a builder could switch
+commands and ship a green test that proves nothing.
+
+**Owner queue: oq-0058** (amend the note, or let finding-0236 stand) and **oq-0059** (finding-0237's
+duplicate oq-header regex across `board.py`/`docket.py` has no home — no `ready` plan holds
+`docket.py`; raised rather than parked because duplication here is a defect, and this one was
+*created*, not inherited). Both default to a park with a re-entry; neither blocks the wave.
+
+**Deskchecks: still 5 owed, 0 records.** bp-124 earns no row yet — the queue derives from track
+manifests, and the row lands when the wave's track flips to `deskcheck-pending`. The generator is
+demonstrable now and is **ready to deskcheck**.
+
+**Cost.** bp-124 build ~240k tokens (est. 450k — well under), audit ~194k. Week moved 43% → 45%.
