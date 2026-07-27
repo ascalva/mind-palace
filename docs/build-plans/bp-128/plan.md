@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-128
 track: workflow
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/session-handoff-gate.md
 contract: builder
