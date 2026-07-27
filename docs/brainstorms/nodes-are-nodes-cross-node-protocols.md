@@ -229,3 +229,41 @@ answer arrives from another author, that guarantee is doing considerably more wo
   `speaker='system'`? The two problems look identical at different scales.
 - ⚑ **Nothing here is buildable until a second instance exists.** Until then the protocol has one
   endpoint, and a protocol with one endpoint is a design that cannot be falsified.
+
+## 2026-07-27T21:30:00Z — DESIGN PASS: integrated into dn-authorship-distance-axis §§11–15
+
+```capsule
+topic: nodes-are-nodes-cross-node-protocols
+date: 2026-07-27
+kind: design-pass record (fable, claude-fable-5)
+status: the capsule's questions above are now RULED in the draft note; ratification is the owner's
+```
+
+Where each thread landed (`docs/design-notes/authorship-distance-axis.md`, still `draft`):
+
+- **One axis per author — RULED YES (§11).** The axis is a frame bundle; §1's single axis is the
+  projection onto the owner's frame; cross-instance content is a frame change, not a longer
+  distance. Shown, not asserted: flattening destroys the sender-frame coordinate the first named
+  consumer (erratum/correction processing) needs. Costs recorded, incl. no order across frames.
+- **Attributed testimony — a₄, one new base class + a mandatory attestation record (§12).** One
+  class for ALL foreign authors (resident agent, node system, remote instance) — discrimination by
+  attribution metadata, never enum growth. `a_self` (dn-agentic-loop G-C) resolved as w(a₄)
+  restricted to resident-agent attribution. ρ unchanged for now: derived view over (ρ, speaker).
+- **The §1 dialogue-counterparty edge case — RESOLVED**, and B-4 answered at source: counterparty
+  words are a₀ on the claude/dev frame, a₄ on the owner's; landing zone is CS-2/A1's
+  OBSERVED+speaker, already stored. The old "at best a₃" reading retired as the flattening error.
+- **Authorship ⊥ trust — the two-axis law (§13).** Trust gates the sentence; authorship annotates
+  the answer. No function derives one axis from the other. The 139-row defect is the worked example.
+- **Node-as-stratum — REJECTED; node is a principal (§14).** Three homes: addressing (edge-side,
+  pre-query), granting (a scope computed for the principal, default ⊥), landing (a₄ rows in an
+  excluded-by-default local stratum, the EXHAUST precedent). The containment sentence is today
+  vacuously true (degenerate input named per the-false-success-rule); the named refusal is
+  recorded: foreign vocabulary is never admitted into Σ.
+- **Divergence expected; no cross-node erratum authority** (E1's form). Retroactive
+  trust-revocation errata flagged as a missing authority lane (PD-11).
+- **The fence (§15):** nothing cross-node buildable before a second instance; the non-vacuous
+  check available TODAY is the conversational census B-10 over data/chatlog.sqlite.
+
+⚑ The self-similarity risk was confronted, not absorbed: the frame ruling IS the concession — a
+single total order does not survive across instances, and the walk rule dissolved into "cross-node
+edges are not edges of this graph; enforce at the landing path."
