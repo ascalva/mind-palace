@@ -128,6 +128,21 @@ Read exactly these, in order, before any work:
     silently carries invented numbers defeats the measurement discipline the whole seat exists
     to support. If you judge it out of scope, say so in the journal and file a finding naming
     the plan that should carry it — do not simply leave it unbuilt.
+13. `docs/findings/finding-0246.md` and `docs/findings/finding-0247.md` — ⚑⚑ **BINDING ON ITEM 17
+    (F2). YOUR DRILL WILL LAUNDER THE GATE UNLESS YOU CONTAIN IT.**
+    A nested agent invocation fires `SessionStart`, which rewrites
+    `.claude/state/session-baseline`: its **content** jumps to HEAD (**silencing** clause (e′) —
+    a stale handoff stops blocking) and its **mtime** jumps to now (**spuriously arming**
+    check 2). Both halves were reproduced by execution; silencing is pre-existing, arming is new
+    with (e′).
+    F2 **spawns an agent inside this tree**, so running it as written would silence the very gate
+    this family exists to install, and a green F2 would prove nothing about a session that had
+    actually done its work. This needs **no owner ruling** — containment is mechanical:
+    **snapshot `session-baseline` (its content *and* its mtime) before the spawn and restore both
+    afterwards**, and write that restoration into Item 17 as an explicit **invariant**, not as a
+    cleanup step. A drill that perturbs the state it is measuring is not a drill.
+    ⚑ Verify the restoration by asserting the gate's verdict is **unchanged** across the spawn —
+    not merely that the file's bytes match. The bytes are the mechanism; the verdict is the claim.
 
 **Does `core/` already implement this? (the DRY audit.)** No, and it must not. F1b is a regex
 lint over markdown; F1c is an integration test; F2 is a harness that spawns a process and
