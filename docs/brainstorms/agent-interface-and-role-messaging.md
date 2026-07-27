@@ -12,6 +12,66 @@ seed: |
   resulting claude agent, segmented from you through code process, a code process that we track,
   the queue, you can also broadcast or one-to-one messaging queue to relevant party/role."
 
+⚑⚑ THE PURPOSE, stated afterwards and it REFRAMES the whole thing: |
+  Owner: "this is for the purpose of creating independence on how we prep a claude agent with a
+  given model and effort, the correct amount of context, a haiku model doesn't need to know how the
+  laplace core code is implemented, that's a hyperbole."
+
+  ⇒ The interface is not primarily scheduling. It is **PROVISIONING**. The deliverable is a
+  **prep triple — (model, effort, context bundle)** — chosen per job, independently:
+
+    model    today: chosen by habit, guided by the delegate skill's verification-complexity table
+    effort   today: NEVER CHOSEN. `output_config.effort` (low|medium|high|xhigh|max) is a real knob
+                    and nothing in this repo sets it per delegation. "Use low for subagents or
+                    simple tasks" is documented guidance we do not follow.
+    context  today: NOT PROVISIONED AT ALL. The agent is handed a prompt and left to discover.
+
+⚑ THE MEASURED WASTE IS DISCOVERY, NOT THE MANDATORY FRAME: |
+  The instinct is to protect a cheap model from the constitution. **Measured, that worry is wrong:**
+
+    CONSTITUTION.md   46 lines   ~1,263 tok      <- NN-6 mandatory floor, every agent
+    CLAUDE.md         86 lines   ~1,594 tok
+    CONVENTIONS.md    69 lines   ~2,905 tok
+                                 ~5,800 tok TOTAL — trivial even in Haiku's 200K window
+
+  So **NN-6 is NOT in tension with context minimization** — the inviolable frame is ~6k and must
+  never be trimmed anyway ("every agent inherits CONSTITUTION.md as its outermost frame"). The cost
+  is somewhere else entirely:
+
+    docs/PROGRESS.md  5,627 lines  ~70k tok estimated  <- a THIRD of Haiku's window, one file
+    resume-brief.md   ~500 lines                       <- read at every session start
+
+  ⚑ And the sharpest datum, from THIS session: the Fable design pass self-reported ≈90k tokens
+  consumed, and named the cause — *"grounding reads dominated: the 405-line brief, queue.py,
+  board.py, _lib.py, four design notes, skills, PROGRESS tail."* **Roughly all of its context went
+  to FINDING things, not reasoning about them.** A prepped bundle hands that over instead.
+
+⚑ THE BUNDLE ALREADY HAS A DESIGN — it is the ratified note's handoff, pointed the other way: |
+  `dn-role-state-and-scoped-handoff` (ratified 2026-07-26) defines scope as `(kind, id)` with kinds
+  `role | plan | track`, and a generator that renders a scoped bundle for **a fresh occupant of a
+  seat**. **An agent being spawned IS a fresh occupant.** So the handoff bundle and the agent-prep
+  bundle are the same object, and the note's `--role --track --plan` generator is the prep tool.
+  ⇒ Do NOT design a second context-bundling mechanism. That would be the duplicated-mechanism
+  defect the owner treats as a bug.
+
+  Three layers, and only the third varies much by tier:
+    FLOOR       CONSTITUTION.md + the safety digest — NON-NEGOTIABLE, ~6k, never trimmed (NN-6)
+    ROLE FRAME  the seat's scoped state (the note's bundle)
+    TASK SLICE  the plan, its write_scope files, the named findings — the part a Haiku sweep can
+                have narrow and an Opus integrator needs wide
+
+open_questions_added:
+  - ⚑ Is dilution real, or only cost? The stated intuition is that a small model given a large
+    irrelevant frame performs WORSE, not merely more expensively. That is an empirical claim about
+    our own harness and it is measurable — and it is exactly the shape the SPIKE artifact exists
+    for. Do not assert it in a design note until measured.
+  - Haiku's window is 200K vs 1M for Opus/Sonnet/Fable, so at the cheap tier the bundle is a **hard
+    constraint**, not a preference. Does the generator need a token budget per tier, and does it
+    REFUSE to render a bundle that cannot fit?
+  - Who chooses the triple — the plan (a `cost.estimate` already names a model), the orchestrator at
+    spawn, or the queue from the job kind? A plan-declared default the orchestrator can override is
+    the cheapest thing that could work.
+
 ⚑⚑ THE UNCOMFORTABLE PART, AND IT IS THE STRONGEST ARGUMENT FOR THE IDEA: |
   **NN-3 says "The model advises; code acts. No model holds a shell, raw secrets, or direct infra
   mutation." The orchestrator holds a shell.** Right now the orchestrating MODEL runs `git commit`,
