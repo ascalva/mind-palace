@@ -461,6 +461,80 @@ def test_e_prime_fails_open_when_the_generator_crashes(handoff_repo, label, body
     assert "(e′)" not in out, f"(e′) must skip an unevaluable signal: {out!r}"
 
 
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "vector",
+    [
+        "the-real-generator-raises-at-its-own-STALE-print",
+        "a-synthetic-crash-carrying-the-bare-marker",
+    ],
+)
+def test_e_prime_is_not_spoofed_by_a_crash_that_merely_MENTIONS_stale(handoff_repo, vector):
+    """⚑ The behavioural pin for the **seat qualifier** — the single most subtle choice in check 1,
+    and the one that was previously proved only by a string-identity assertion on the constant.
+
+    Mutation A2 (drop the qualifier at the **use site**: `": STALE" in output`) survived all
+    eighteen preceding tests, because every crash fixture here produces a traceback containing no
+    form of the marker at all — so none of them could tell a bare probe from a qualified one. This
+    test supplies the discriminating input.
+
+    **The vector is real, not contrived.** `--check`'s staleness branch is
+    ``print(f"{dest.relative_to(ROOT)}: STALE — regenerate with …")``. If `dest` is ever outside
+    `ROOT`, `relative_to` raises **at that line**, and CPython echoes the line's **source** into
+    the traceback — source that contains the f-string *template* ``{dest.relative_to(ROOT)}:
+    STALE``. So a crash can emit a bare ``": STALE"`` while the rendered
+    ``orchestrator/handoff.md: STALE`` never existed. Under a bare probe that reads as staleness
+    and BLOCKS; `--write` then dies the same way, and the close is **wedged** — the exact failure
+    the whole fix exists to remove, walking back in through the discriminator.
+
+    Two vectors: the faithful reconstruction against the **real** generator (proves the vector is
+    reachable in the shipped code), and a synthetic crash carrying the marker (survives any
+    reshaping of that source line, so the behaviour stays pinned even if the reconstruction's
+    anchor goes stale)."""
+    h = handoff_repo
+    sig = _lib_module().HANDOFF_STALE_SIGNATURE
+    src_path = h["root"] / "scripts" / "handoff.py"
+
+    h["session_start"]()
+    h["commit"]()
+    h["write_journal_entry"](this_session=True)  # isolate check 1
+    h["stale_the_handoff"]()  # genuinely stale, so only the crash decides the verdict
+
+    if vector.startswith("the-real-generator"):
+        src = src_path.read_text()
+        anchor = '        print(f"{dest.relative_to(ROOT)}: STALE'
+        assert src.count(anchor) == 1, (
+            "the generator's staleness branch no longer matches this reconstruction; re-derive "
+            "the anchor from scripts/handoff.py before trusting this test"
+        )
+        # `dest` outside ROOT -> relative_to raises AT the print, echoing its source verbatim.
+        src_path.write_text(
+            src.replace(anchor, '        dest = Path("/nowhere") / "handoff.md"\n' + anchor)
+        )
+    else:
+        src_path.write_text(
+            'raise RuntimeError("regenerating: STALE — a crash, not a staleness report")\n'
+        )
+
+    crash = h["handoff"]("--check")
+    combined = crash.stderr + crash.stdout
+    assert crash.returncode == 1, f"the spoof must exit 1, like a stale render: {crash!r}"
+    assert ": STALE" in combined, (
+        f"this test is vacuous unless the crash really does carry the bare marker: {combined!r}"
+    )
+    assert sig not in combined, (
+        f"the crash must NOT carry the seat-qualified signature, or it proves nothing: {combined!r}"
+    )
+
+    out = h["run"]()
+    assert out.strip() == "ALLOW", (
+        f"a crash that merely MENTIONS ': STALE' must not be read as staleness — that wedges the "
+        f"close, since the instructed `--write` recovery fails identically. This is why the "
+        f"signature is seat-qualified ({sig!r}) rather than a bare ': STALE'. Got: {out!r}"
+    )
+    assert "(e′)" not in out, f"(e′) must skip an unevaluable signal: {out!r}"
+
+
 def _lib_module():
     """Import the hook library in-process. Deliberately lazy and function-local: only the two
     tests below need it, and ``_lib`` is a bare top-level module name, so keeping the

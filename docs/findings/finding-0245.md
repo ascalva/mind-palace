@@ -117,6 +117,36 @@ this finding estimated (~70 lines per entry) held exactly, which is the part wor
 curve is predictable, so the trigger date is predictable, and there is no reason to be surprised
 by it. **The first capsule is owed at the first `/triage` after merge, not at the second.**
 
+### ⚑⚑ Second addendum — the threshold has now been CROSSED, before merge
+
+The re-audit response added one more seat entry, and the prediction above resolved immediately:
+
+| | segment | seat surface | capsules |
+|---|---|---|---|
+| at the seal | 212 | 287 lines / 18,074 B | 0 |
+| after the audit response | 286 | 366 lines / 23,852 B | 0 |
+| **at the tip** | **355** | **439 lines / 28,942 B** | **0** |
+
+**355 > ~300.** This finding's own escalation condition — *"re-enter immediately, ahead of
+`/triage`, if the segment passes ~300 lines"* — **has fired**, and it fired inside the very build
+that filed it. Against the retired brief the SessionStart payload is now **+276 lines (+169%)**.
+
+Three things follow, and the third is the uncomfortable one:
+
+1. **The compaction capsule is owed at the NEXT sweep, not "soon".** It is no longer a prediction.
+2. **The estimate held to within a few lines across three measurements**, so the mechanism is
+   understood and nothing here is a surprise — which is the good news.
+3. ⚑ **The seat crossed its retention threshold within a single build, on its second day of
+   existence, with no compaction ever having run.** The threshold is documented as *"a knob, not
+   an invariant"*, and it may well be the knob that is wrong rather than the growth. But the
+   honest reading is that the append-only seat accumulates faster than the ~300-line default
+   anticipated, and **nothing measures or surfaces the segment length** — I only know this
+   because I measured it by hand, three times, because I had filed a finding about it. A bound
+   that is only checked when someone remembers to check it is the convention-not-enforcement
+   posture this system explicitly rejects. **That is the part worth a design answer**, and it is
+   the discharging form (b) above: render the segment length in the DERIVED pane, where it is
+   both derivable from the artifact tree and impossible to forget.
+
 ## Routing
 
 `discovery` → **orchestrator**. Compaction is a `/triage` act on an artifact the orchestrator

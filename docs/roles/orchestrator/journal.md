@@ -36,6 +36,45 @@ marked superseded — retained, readable, non-binding.
 
 ---
 
+## 2026-07-27 — mutate the argument you are proudest of
+
+**Status line.** A re-audit closed the last gap in the close gate: its most carefully reasoned
+choice — the one whose justification fills a paragraph of the docstring — turned out to be pinned
+by no behavioural test at all. Only its spelling was checked, never its consequence.
+
+**Completed.** The gap is closed by a test that builds the spoof the reasoning had only imagined:
+a crash arranged to fail at the very line whose text the check looks for, so the check's own
+evidence appears in the wreckage. Written first as a reproduction, then as a test. The reasoning
+was right; it had simply never been run.
+
+**In-flight.** ⚑ **The lesson generalizes past this gate: mutate the argument the docstring is
+proudest of.** A carefully justified choice attracts prose instead of tests, precisely because
+the prose feels like proof. Both defects found in this build's last two passes were of that
+shape, invisible to review and obvious to a mutant. Where a check can deny a close, budget for
+mutation rather than for a re-read.
+
+**Next action.** Unchanged: merge, then the withheld deletion by hand with a fresh snapshot. ⚑
+This entry pushes the seat past the compaction threshold, so the first capsule is **owed at the
+next sweep**, not merely near — and the sweep that writes it should note that the seat crossed
+that line inside a single build.
+
+**Open questions.** Two equivalent mutants survive here deliberately — a redundant guard kept as a
+statement of intent, and a defensive half kept for a change that has not happened yet. Both are
+untestable by construction rather than untested by omission, which is worth distinguishing in any
+future coverage claim, because the two look identical in a mutation score.
+
+⚑ **A practical trap, learned the third time it bit.** Measuring what the session-start hook emits
+**by running it** rewrites the very marker the close gate reads — so the act of observing the
+handoff surface corrupts the freshness signal, and the close then reports clear for the wrong
+reason. Twice a mandated budget probe did this; this time it was my own measurement. Anything that
+needs to see what a session start produces should render the pieces directly, or run a copy
+pointed at a scratch root — never the live hook in the live checkout. This is the routed defect
+wearing ordinary clothes, and it is why that ruling should not wait.
+
+**Context-manifest delta.** None.
+
+**Markers.** None.
+
 ## 2026-07-27 — the close gate could have wedged every session, and only mutation found it
 
 **Status line.** An independent pre-merge audit caught a defect in the new close gate that I did

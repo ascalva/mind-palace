@@ -455,7 +455,18 @@ Three choices inside that, each defensible on its own grounds:
    codes, so I pin its observable contract and make the coupling fail visibly.
 
 **Not widened to `rc != 0`**, exactly as the audit asks: rc 2 (absent / usage / scope) is an
-error, not staleness. Mutation N2 proves that widening is caught.
+error, not staleness.
+
+> ⚑ **Correction (re-audit, condition 2) — this paragraph originally said "mutation N2 proves
+> that widening is caught". That was true of the code and loose about the evidence, and the
+> looser claim is already in commit `a62e5f1`'s message, which is not rewritten.** N2 drops the
+> rc pin **and** the signature *together*, so what it demonstrates is the pair, not the pin.
+> The **isolated** widening (drop `if proc.returncode != 1` and keep the signature check) is an
+> **equivalent mutant**: I re-ran it here and it survives all 20 tests with a byte-identical
+> six-mode matrix. That is not a coverage gap — with the signature required, no error mode can
+> produce a block, so the rc pin is genuinely redundant *for correctness* and is kept as a cheap
+> narrowing and a statement of intent. **What is actually shown:** the *signature* check is what
+> makes the widening safe; the rc pin is belt to its braces.
 
 ### The six modes, re-measured BY EXECUTION at the fixed tip
 
@@ -494,10 +505,16 @@ that used to block stopped blocking.
 | mutant | caught by |
 |---|---|
 | **N1** — fail-open `except` arm inverted (*previously survived*) | the new launch test |
-| **N2** — widen to `rc != 0` | all three crash tests |
+| **N2** — widen to `rc != 0` **and** drop the signature (the two together) | all three crash tests |
 | **N3** — drop the signature check, keep `rc == 1` (**the original defect**) | all three crash tests |
-| **N4** — bare `": STALE"` signature (traceback-spoofable) | the signature-contract test |
+| **N4** — bare `": STALE"` **constant** (traceback-spoofable) | the signature-contract test |
 | **C** — check 2 keyed to `last_commit` (the original survivor) | the session-start test |
+
+⚑ **N4 was weaker than it looked, and the re-audit was right to say so.** It mutates the
+*constant*, and the test that catches it does so by `assert sig == "orchestrator/handoff.md:
+STALE"` — a **string identity**, not a behaviour. The sibling mutation **A2**, which drops the
+qualifier at the **use site** and leaves the constant untouched, therefore **survived all 18
+tests**. See the next entry: that gap is now closed.
 
 **Convergence re-confirmed**: `test_e_prime_converges_in_exactly_one_step` passes in isolation.
 Suite **13 → 18 passed**.
@@ -520,6 +537,82 @@ not the objection, the spec is**.
   .claude/hooks/session-brief.sh --standalone` in the main checkout (the seat is surfaced, the
   brief is gone), and a close after a commit (the gate names its one-step recovery). DONE is not
   sealed and not deskchecked; the owner has the final say.
+
+## 2026-07-27 — re-audit condition 1: the seat qualifier now has a behavioural pin
+
+**Status line.** The re-audit's one condition is closed. The suite is **20 passed**; mutation **A2
+now reddens**. No production code changed in this pass — the gap was entirely in the evidence.
+
+### The gap, stated exactly
+
+The seat qualifier is the most subtle choice in the whole fix, and the re-audit proved it is
+load-bearing by **reconstructing the spoof against the real generator**. Yet nothing behavioural
+pinned it. `HANDOFF_STALE_SIGNATURE` was proved only by `assert sig == "orchestrator/handoff.md:
+STALE"` — the constant's **spelling**, not its **consequence** — and all three crash fixtures
+produce tracebacks containing *no* form of the marker, so none of them could tell a bare probe
+from a qualified one. Mutation **A2** (drop the qualifier at the **use site**, leave the constant
+alone) therefore survived all eighteen tests. **A check that passes without testing its claim,
+inside the gate — the same shape as `finding-0249`.**
+
+### Reproduced before fixing, both halves
+
+The vector, built against the **real** generator (`dest` forced outside `ROOT` immediately before
+the staleness `print`, so `relative_to` raises **at** that line with its source byte-untouched):
+
+```
+rc 1
+stderr:  print(f"{dest.relative_to(ROOT)}: STALE — regenerate with "        <- the ECHOED SOURCE
+         ValueError: '/nowhere/handoff.md' is not in the subpath of '…'
+contains ": STALE"                            -> yes
+contains "orchestrator/handoff.md: STALE"     -> no
+```
+
+- delivered (seat-qualified) discriminator → **ALLOW** ✅
+- under **A2** (bare probe) → **BLOCK**, and `--write` dies identically, so the close is **wedged**
+- A2 against the delivered 18-test suite → **18 passed** (it survived, exactly as reported)
+
+### The test
+
+`test_e_prime_is_not_spoofed_by_a_crash_that_merely_MENTIONS_stale`, beside the crash tests,
+parametrized over **two** vectors: the faithful reconstruction against the real generator (proves
+the vector is *reachable in shipped code*), and a synthetic crash carrying the bare marker
+(survives any reshaping of that source line, so the behaviour stays pinned even if the
+reconstruction's anchor goes stale). Both assert the crash exits 1, that its output **does**
+contain `": STALE"` and **does not** contain the qualified form — so the test cannot pass
+vacuously — and that the close is **ALLOW**.
+
+### Mutation campaign, third pass — and two equivalent mutants confirmed independently
+
+| mutant | verdict |
+|---|---|
+| **A2** — drop the qualifier at the use site (*was surviving*) | **CAUGHT** — both new vectors redden |
+| **A3** — stdout-only (drops the stderr half) | **CAUGHT** — 3 tests redden |
+| **A4** — stderr-only | **survives** — equivalent against today's generator |
+| **A1** — isolated widening: drop the rc pin, keep the signature | **survives** — equivalent |
+| N1 / N3 / C | caught, as before |
+
+I re-ran A1, A3 and A4 myself rather than accept the classification. **A3 being caught while A4
+survives is the useful pair**: it proves the **stderr half is the load-bearing one** (that is where
+the generator actually writes), and that the stdout half is defensive — carried deliberately so a
+future move of the message to stdout keeps working, at the cost of being untestable today. Both
+survivors are equivalent mutants, not coverage gaps.
+
+### ⚑ A correction to my own clause-(f) note in the entry above
+
+That note says this journal is *"written newest-first (§9's 'newest entry first'), so its tail is
+the oldest content"*. **The premise is wrong and I should not have asserted it without looking.**
+These entries run **oldest-first**, top to bottom. The tail was the pre-build notes for a duller
+reason: that section is the original file body, and my entries accumulated *above* it.
+
+The conclusion survives and generalizes better than the wrong premise did:
+**`_journal_tail_has_followthrough` keys on physical file position, so any journal whose last
+`## ` section is not its newest entry can satisfy clause (f) vacuously** — whether because it is
+newest-first, or because a static section sits at the bottom, which is the ordinary shape of every
+journal minted from the template. That is a wider hole than "newest-first journals", not a
+narrower one. Still reported rather than filed: pre-existing, outside this plan's items, and the
+auditor holds the merge.
+
+**Markers.** None.
 
 # Journal — bp-126 (the cutover: clause (e′), the re-point, and the brief's retirement)
 
