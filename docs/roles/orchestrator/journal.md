@@ -36,6 +36,38 @@ marked superseded — retained, readable, non-binding.
 
 ---
 
+## 2026-07-27 — the frame problem is already in the store
+
+⚑ **Deliberately short: a compaction pass is restructuring this file in another worktree, and this
+entry exists to satisfy the close gate without adding to what that pass must carry.**
+
+**Status line.** The authorship axis is revised and awaits the owner. No builds moved.
+
+**Completed.** The axis is ruled a **frame bundle** — one chain per author, with the existing axis
+being the projection onto the owner's frame — and cross-author content is a *change of frame*, not
+a longer distance. The dialogue-counterparty case, flagged unresolved in that note since it was
+written, is resolved rather than re-parked: the speaker field **is** the frame tag.
+
+**In-flight.** ⚑ **The argument that carried it was not the elegant one.** Flattening a foreign
+author's coordinates destroys the sender frame at the boundary, and the correction relation already
+*needs* that frame — a counterparty retracts what **it** authored, and a flattened receiver cannot
+say which rows the retraction covers. ⇒ **This is not a cross-instance hypothetical: foreign authors
+already hold rows here.** The problem exists before the second instance does.
+
+**Next action.** Two structural candidates were **rejected with evidence** rather than adopted for
+their elegance; a node is a principal, not vocabulary this instance evaluates. Whoever ratifies
+should read the note's own admission that its containment claim is true *vacuously* today, and
+decide the one defaulted question it declined to settle quietly.
+
+**Open questions.** Whether the expansion belongs in the base note or a companion — the pass left a
+clean seam and named it rather than choosing for the owner.
+
+**Context-manifest delta.** None beyond the note itself.
+
+**Markers.** ⚑ A compaction capsule is being written now, in another worktree, against this file.
+
+---
+
 ## 2026-07-27 — the topology and the subject matter turned out to be the same shape
 
 **Status line.** No builds moved. The session's second half was architecture: the owner worked
