@@ -2,7 +2,7 @@
 type: design-note
 id: dn-typed-workflow-registry
 track: workflow
-status: draft
+status: ratified
 created: 2026-07-27
 updated: 2026-07-27
 links:
