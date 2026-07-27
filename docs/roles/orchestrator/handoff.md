@@ -25,12 +25,13 @@
 | bp-119 | ready | build | P5: the chat tiers, per-tier, each reversible (PARKED on V-B) |
 | bp-123 | in-progress | build | the per-machine overlay becomes `config/ouroboros.toml`, and cannot be silently lost |
 | bp-127 | ready | build | the fresh-agent test made executable: F1b, F1c, and the F2 drill |
+| bp-128 | proposed | graduate | clause (f) must key on RECENCY, not on physical file position |
 
-Status tally: complete 110 · in-progress 1 · ready 10 · superseded 6
+Status tally: complete 110 · in-progress 1 · proposed 1 · ready 10 · superseded 6
 
 ## Awaiting the owner
 
-- bless (proposed→ready): none
+- bless (proposed→ready): bp-128
 - ratify (draft notes): 42 — alignment-subsystem, attestation-layer, authorship-distance-axis, core-integrity, dialogue-ingest-and-recursion, dn-headless-daemon-secret-bootstrap …
 - answer (open owner questions): 33 — oq-0003, oq-0004, oq-0005, oq-0006, oq-0007, oq-0008, oq-0009, oq-0010 …
 
