@@ -24,10 +24,10 @@
 | bp-118 | ready | build | P4: the embedder cuts over first (biggest win, smallest risk, provable) |
 | bp-119 | ready | build | P5: the chat tiers, per-tier, each reversible (PARKED on V-B) |
 | bp-123 | in-progress | build | the per-machine overlay becomes `config/ouroboros.toml`, and cannot be silently lost |
-| bp-127 | ready | build | the fresh-agent test made executable: F1b, F1c, and the F2 drill |
+| bp-127 | in-progress | build | the fresh-agent test made executable: F1b, F1c, and the F2 drill |
 | bp-128 | ready | build | clause (f) must key on RECENCY, not on physical file position |
 
-Status tally: complete 110 · in-progress 1 · ready 11 · superseded 6
+Status tally: complete 110 · in-progress 2 · ready 10 · superseded 6
 
 ## Awaiting the owner
 
@@ -61,6 +61,7 @@ Status tally: complete 110 · in-progress 1 · ready 11 · superseded 6
 | 2026-07-27T05:58Z | `python3 scripts/handoff.py --role orchestrator --check (7 runs, wall clock)` | min 130.5 / median 137.0 / max 143.2 ms on the real tree, against a Stop-audit baseli… |
 | 2026-07-27T06:35Z | `python3 scripts/handoff.py --role orchestrator --check, six induced failure modes` | ImportError / RuntimeError / SyntaxError each exit **1** — identical to a genui… |
 | 2026-07-27T07:02Z | `python3 scripts/handoff.py --role orchestrator --check, with `dest` forced outside ROOT at the staleness print` | rc 1; stderr echoes the SOURCE line `print(f"{dest… |
+| 2026-07-27T14:53Z | `sqlite3 "file:data/chatlog.sqlite?mode=ro" — speaker census over chat_utterances` | Rows beginning literally `Stop hook feedback:` and attributed to `speaker='owner… |
 | 2026-07-27T06:08Z | `uv run mypy` | 69 errors in 20 files of 559 checked — EXACTLY the pinned tests/ baseline, rc 1 as expected; zero in the changed files |
 | 2026-07-27T06:06Z | `uv run mypy core agents eval ops scheduler scripts` | Success: no issues in 261 source files — the floor holds at 0 |
 | 2026-07-27T06:40Z | `uv run pytest -q` | 2 failed / 2313 passed / 15 skipped in 238.63s — the SAME two pre-existing failures (finding-0103 ratchet, finding-0226 dream-v2 live). schedule… |
