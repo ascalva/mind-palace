@@ -56,6 +56,40 @@ over-correction (drop field (1)/(2) for role scopes) would throw it away:
    the first live run it produced one genuine defect report — *"What is Item 2 owed on bp-123?"* —
    which is precisely the drill finding under-specified state.
 
+## ⚑ The re-entry condition FIRED during the same session — and it settles this finding
+
+The re-entry condition below asked for "the first `plan:<id>` drill run". It was run. MEASURED
+2026-07-27, `--scope plan:bp-127`, $0.2679, 51 s:
+
+| | agent (reading `plan.md` + the journal) | generator (`--json`) |
+|---|---|---|
+| `unit_in_flight` | `none` | `bp-127` |
+| `next_action` | *"the sub-orchestrator's audit, then the two status flips"* | `/resume bp-127` |
+
+**FAIL on both fields — and the agent was not wrong.** The journal's last entry says, in as many
+words, *"**In-flight.** Nothing. All three items are closed."* and *"**Next action.** The
+sub-orchestrator's audit, then the two status flips."* The agent read the NARRATIVE. The generator
+read the plan's front matter, which still says `status: in-progress`, because flipping it is the
+orchestrator's act and not the builder's.
+
+Two conclusions, and the second is the more useful one.
+
+1. **The plan-scope compare is a genuine derivation test.** It is not tautological, and it produced
+   a real disagreement on its very first run. That confirms the claim above and makes option C
+   concrete: the derivation claim belongs on `plan:`/`track:` scopes.
+2. ⚑ **The mechanical compare disagrees with a CORRECT reader whenever narrative and status
+   legitimately diverge** — and that window is not an edge case. It is exactly the interval between
+   a builder sealing its journal and the orchestrator flipping the status, which is *precisely when
+   §2.11's mandatory cadence fires* (*"mandatorily in any build plan that touches the handoff
+   machinery"*). A drill run at its own mandated moment will report FAIL for a state that is
+   correct and expected.
+
+`[INFERENCE]` The clean resolutions are (i) treat a `plan:` scope whose journal carries a
+`## Follow-through` block as sealed-pending-flip and expect `next_action` to be the flip, or (ii)
+run the mandatory drill *after* the flip rather than at seal. Neither is ruled and neither is built;
+(i) changes `handoff.derive`'s ladder, which is bp-124's contract and a design decision, not a
+builder's.
+
 ## What is NOT claimed
 
 - **Not that §2.9 should stop rendering `## The answer`.** It is the most useful thing in the

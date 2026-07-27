@@ -428,3 +428,60 @@ measurement** and recorded as MEASURED readings. §11's V1 row resolves to "the 
   **finding-0251 stays OPEN** — F1b measures the defect it describes but does not repair it, and
   the repair is a capsule-shaped judgement for the seat's occupant, not a builder in a worktree.
   No new track.
+
+---
+
+## 2026-07-27 — seal addendum: the plan-scope drill, and the final gate
+
+**Status line.** Two things landed after the Item 17 commit: a live `plan:` scope drill that
+settles `finding-0255` on its own terms, and the seal gate run.
+
+**⚑ The plan-scope drill FAILED, and the failure is the most informative result of the session.**
+`--scope plan:bp-127`, $0.2679, 51 s:
+
+| | the agent (given `plan.md` + this journal) | the generator (`--json`) |
+|---|---|---|
+| `unit_in_flight` | `none` | `bp-127` |
+| `next_action` | "the sub-orchestrator's audit, then the two status flips" | `/resume bp-127` |
+
+**The agent was not wrong.** It read this journal's own words — *"In-flight. Nothing. All three
+items are closed."* The generator read the plan's front matter, still `status: in-progress`,
+because the flip is the orchestrator's act and a builder must never perform it. Two conclusions:
+
+1. **The plan-scope compare is a GENUINE derivation test** — not tautological like the role scope
+   (finding-0255), and it produced a real disagreement on its first run. That is the drill earning
+   its keep.
+2. ⚑ **The mechanical compare disagrees with a *correct* reader whenever narrative and status
+   legitimately diverge**, and that window is not rare: it is exactly the interval between a
+   builder sealing and the orchestrator flipping — which is *precisely when* §2.11's mandatory
+   cadence fires ("mandatorily in any build plan that touches the handoff machinery"). Recorded as
+   an addendum to `finding-0255` with two candidate resolutions, neither built: both touch
+   `handoff.derive`'s ladder, which is bp-124's contract and a design call.
+
+⚑ I did **not** "fix" this by loosening the compare or by editing the journal to agree with the
+front matter. Either would be the tuned-until-green move. The FAIL is a true reading of a real
+divergence and it is recorded as one.
+
+**The gate, on the committed tree, each leg run separately and read:**
+
+| leg | observed |
+|---|---|
+| `uv run ruff check .` | All checks passed (rc 0) |
+| `uv run python scripts/check_imports.py` | OK (rc 0) — firewall + worker boundary clean |
+| `uv run mypy core agents eval ops scheduler scripts` | Success: no issues in **262** source files (floor 0) |
+| `uv run mypy` (argless) | **69 errors in 20 files** of 562 checked — exactly the pinned tests/ baseline, rc 1 by design |
+| `uv run python -m ops.type_gate` | OK (rc 0); the parked finding-0223 shim report unchanged |
+| `uv run pytest -q` | **2 failed / 2420 passed / 15 skipped** in 273.95s |
+
+The two failures are the two known live ones (finding-0103 ratchet; finding-0226 dream-v2 live).
+⚑ **An earlier full run showed THREE**, the third being `test_scheduler_live.py::test_supervisor_dispatches_a_real_job`; it passed on an isolated re-run and passed again in the seal run, confirming
+the finding-0219 flake rather than a regression. Reported as observed both times, not as remembered.
+Baseline 2313 → 2420 is exactly this plan's new tests.
+
+**⚑ Containment, proved by a real creation event.** The `/usage` probe (plain `claude -p`, hooks
+enabled) **did create** `.claude/state/session-baseline` in this worktree, where it had been
+absent. The wrapper unlinked it and the Stop gate's verdict was `ALLOW` before and `ALLOW` after.
+That is live confirmation of both halves: finding-0246/0247's hazard is real, and the absent-file
+case genuinely needs an **unlink** — which the `cp -p` recipe cannot express.
+
+**Next action.** Nothing. Awaiting the sub-orchestrator's audit and the two status flips.

@@ -57,6 +57,7 @@ Status tally: complete 110 · in-progress 2 · ready 10 · superseded 6
 | 2026-07-27T07:08Z | `bash .claude/hooks/session-brief.sh --standalone (with vs without the seat)` | seat surface 439 lines / 28942 bytes; emitted segment 355 lines, zero capsules. ⚑ 355… |
 | 2026-07-27T15:44Z | `claude --help (session-baseline contained)` | Settles bp-127 §3 Q3: all three §2.11 requirements EXIST as flags. `-p/--print` one-shot; `--tools ""` disables every… |
 | 2026-07-27T06:24Z | `claude -p "/usage"` | session 71% · week 50% all-models · Fable 25%; week resets Jul 31 20:00 ET. Probed at bp-126's seal |
+| 2026-07-27T15:50Z | `claude -p "/usage" (session-baseline contained)` | session 61% · week 59% all-models · Fable 31%; session resets Jul 27 15:40 ET. ⚑ The spawn DID create `.claude/st… |
 | 2026-07-27T15:44Z | `isolation red/green discrimination probe (same prompt, tools ON vs OFF)` | ⚑ tools ON returned the REAL nonce ($0.0861); tools OFF did NOT ($0.0136) — so `--tools "… |
 | 2026-07-27T15:20Z | `mutation campaign vs tests/integration/test_handoff_availability.py (5 mutants)` | ⚑ Pass 1: 0 CAUGHT / 5 SURVIVED at "8 passed" — the suite ran the CHECKED-OUT gen… |
 | 2026-07-27T06:37Z | `mutation campaign vs tests/integration/test_handoff_gate.py` | 5 of 5 caught: rc!=0 widening, the rc==1-only original defect, the inverted fail-open except arm, a b… |
@@ -69,6 +70,7 @@ Status tally: complete 110 · in-progress 2 · ready 10 · superseded 6
 | 2026-07-27T15:44Z | `uv run mypy` | 69 errors in 20 files of 562 checked — EXACTLY the pinned tests/ baseline, rc 1 as expected; zero in the changed files |
 | 2026-07-27T15:44Z | `uv run mypy core agents eval ops scheduler scripts` | Success: no issues in 262 source files — the floor holds at 0 with handoff_drill.py enrolled |
 | 2026-07-27T15:44Z | `uv run pytest -q` | 3 failed / 2419 passed / 15 skipped in 391.85s. The two pre-existing (finding-0103 ratchet, finding-0226 dream-v2 live) PLUS the finding-0219 sc… |
+| 2026-07-27T15:50Z | `uv run pytest -q (seal run, committed tree)` | 2 failed / 2420 passed / 15 skipped in 273.95s — EXACTLY the two known live failures (finding-0103 core-self-containm… |
 | 2026-07-27T15:20Z | `uv run pytest tests/integration/test_handoff_availability.py -q` | 9 passed. F1c in a REAL `git worktree add --detach` checkout: seat artifacts present, generator e… |
 | 2026-07-27T07:06Z | `uv run pytest tests/integration/test_handoff_gate.py -q` | 20 passed (18 -> 20: the seat-qualifier spoof pinned over two vectors). Mutation pass 3: A2 now CAUGHT; A… |
 | 2026-07-27T15:13Z | `uv run pytest tests/unit/test_handoff_purity.py -q` | 59 passed. Covers both segment directions, both anchoring failures, four degenerate inputs asserted to redden,… |
@@ -76,6 +78,7 @@ Status tally: complete 110 · in-progress 2 · ready 10 · superseded 6
 | 2026-07-27T15:44Z | `uv run python scripts/check_imports.py` | OK (rc 0) — import firewall + worker boundary both clean |
 | 2026-07-27T15:44Z | `uv run ruff check .` | All checks passed (rc 0) — bp-127's three items |
 | 2026-07-27T15:13Z | `uv run scripts/handoff.py --role orchestrator --lint` | rc 1. journal: FAIL, 6 hex violations on 2 lines of a 465-line segment (0 capsules, so the whole file is aut… |
+| 2026-07-27T15:50Z | `uv run scripts/handoff_drill.py --scope plan:bp-127 (first plan-scope drill)` | ⚑ FAIL on both fields, and the agent was NOT wrong. It read the NARRATIVE (`In-fligh… |
 | 2026-07-27T15:44Z | `uv run scripts/handoff_drill.py --scope role:orchestrator (first live run)` | PASS with a defect report. Mechanical compare matched on BOTH unit_in_flight and next_… |
 | 2026-07-27T15:44Z | `uv run scripts/handoff_drill.py --verify-isolation` | isolation holds — the agent replied `BLOCKED: state the value of NONCE_TOKEN...` and never produced the nonce.… |
 | 2026-07-27T03:36Z | `uv sync --frozen --extra dev` | ok — dev extras resolved in a fresh worktree venv |
