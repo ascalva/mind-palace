@@ -373,3 +373,153 @@ Report the suite, then seal: flip `bp-123 → complete` with `cost.actual`, writ
 block, and route `finding-0216`. The deskcheck remains Item 2's σ readings on the real machine plus a
 `palace start` that comes up — **not run here**, because starting the daemon is owner-gated and §10
 wanted it down for the duration.
+
+---
+
+## Checkpoint 5 — direction changed by the owner: hold bp-128, do a design pass. Suite still in flight
+
+Same orchestrator session as Checkpoint 4. Nothing about Item 2's readings changed; this records a
+**direction change** and two findings filed since, so the seal that follows is not mistaken for a
+quiet continuation of the old plan.
+
+### The owner's ruling (2026-07-27, mid-session)
+
+> "stop before bp-128, we need a proper design pass again, we are just digging ourselves into a hole"
+
+`bp-128` is therefore **left blessed, `ready`, and unopened.** It is not superseded and not wrong — the
+hold is about **sequencing**, not merit. No sub-orchestrator was spawned; the delegation this session
+was scoped to end at bp-123's seal.
+
+### Findings filed from this checkout, both out of this plan's subject matter but on its path
+
+- **`finding-0269`** — Stop clause (a) (`_lib.py:848`) compares journal mtime against **last commit**.
+  The prescribed order is write-then-commit, so committing the journal re-arms the clause that
+  demanded it. ⚑ Clause (e) had the identical circularity; it was diagnosed, **measured** (108
+  firings / 8 days / 16 sessions / 302 file-operations) and repaired by re-keying to
+  `session-baseline` — and the comment recording that repair sits ~130 lines above the unrepaired
+  line. Measured here: **three firings in this one session**, each immediately after a correct
+  checkpoint-and-commit. Clause (a) has no recovery that converges; its only dischargeable path is to
+  end a session with the journal **uncommitted**, inverting the discipline it enforces.
+- **`finding-0270`** — `scope-guard` stripped the leading `/` from an absolute path and judged
+  `/private/tmp/.../scratchpad/...` as repo-relative, denying it as out-of-write_scope. A builder
+  cannot use its own session scratchpad, and the workaround the denial pushes an agent toward is
+  writing intermediate files **into the protected tree**.
+
+⚑ Both are the same defect as `finding-0267`/`finding-0268`: **a check answering its question by
+manipulating a string instead of consulting a typed model of the thing it judges.** That class
+observation, not the individual repairs, is what the design pass is for.
+
+### ⚑ The guard denials in this session were CORRECT and should not be read as more breakage
+
+`scope-guard` refused to let this builder-contracted session write a design note. That is the
+contract working: a design note is not a builder artifact. The note is held until `bp-123` seals and
+the active-plan pointer clears. Worth separating explicitly, because the surrounding narrative is
+about machinery misbehaving: the **capability** guards are structural and sound; it is the
+**journal-reading** clauses that are ad hoc. `finding-0270` is a path-normalisation bug inside a
+guard that is otherwise doing its job.
+
+### Suite status — running, healthy, and the runtime is itself evidence
+
+Runbook step 7 has been executing ~12 minutes against a historical baseline of 273–392 s. It is
+**not wedged**: `ps` shows 11:26 CPU against 11:53 elapsed, state `R`. ⚑ The longer runtime is the
+**expected consequence of Item 2 succeeding** — Checkpoint 3 recorded that 59 test files reach the
+default config path and that the checkout stays broadly red until the `mv`; those files previously
+failed at import and now load config and execute their real work. A *short* run would have been the
+surprising result.
+
+### Next action
+
+Unchanged: report the suite in this journal, then seal — flip `bp-123 → complete` with
+`cost.actual`, write the `## Follow-through` block, route `finding-0216`, and clear
+`.claude/state/active-plan`. Then, in orchestrator posture, land
+`dn-journal-as-a-parsed-artifact` as `draft` for the owner's ratification.
+
+---
+
+## Checkpoint 6 — SEAL. Runbook step 7 reported; Item 2 accepted; the one failure is not this plan's
+
+### The suite (runbook step 7)
+
+```
+1 failed, 2406 passed, 10 skipped, 21 deselected, 12 warnings in 855.73s (0:14:15)
+```
+
+Item 2's acceptance is **satisfied**: config loads, `get_config()` does not raise, and 2406 tests
+execute against the real overlay. Compare Checkpoint 3's prediction that the checkout stays
+"broadly RED" until the `mv` — 59 test files reach the default config path. They pass.
+
+**The two expected live failures did not appear, and that is a selection artefact, not a repair:**
+`finding-0103`'s `test_core_imports_nothing_outside_core` was `--deselect`ed by the runbook command
+itself, and `finding-0226`'s dream-v2 case is marked `live`, which `-m 'not live'` excludes. Neither
+was fixed here. ⚑ Checkpoint 3 also predicted the two `finding-0214` `test_selfmod*.py` failures
+would reappear once config loaded again. **They did not.** That prediction was bp-122's, is now
+falsified, and nobody should carry it forward as a known-red.
+
+### ⚑ The single failure is NOT bp-123's, and main is currently red for an unrecorded reason
+
+```
+FAILED tests/integration/test_handoff_availability.py::test_the_generator_reads_the_worktree_s_own_seat_not_the_main_checkout
+E  AssertionError: the generator measured a journal that is not the one it was pointed at
+E  assert 87 == (87 + 2)
+```
+
+The test appends a line to a **fresh worktree's** seat journal and asserts the generator's
+`journal_segment_lines` moves by +2. It did not move at all.
+
+**Attribution — bp-123 cannot be the cause.** This plan's `write_scope` is the config loader,
+`defaults.toml`, `inference.py`, `.gitignore`, `runbook.md` and five test files. It touches neither
+`scripts/handoff.py` nor the seat journal, and the failing test reads only those.
+
+**Most likely cause, stated as a hypothesis with its evidence, not as a finding of fact:** the
+compaction capsule (`5f7b742`). The seat's readings log records this file green — `uv run pytest
+tests/integration/test_handoff_availability.py -q` → "9 passed" at 2026-07-27T15:20Z — and the
+capsule landed *after* that, at ~19:52Z. Appending at the file tail no longer moves the measured
+segment, which is the same boundary shift `finding-0267` describes for the emitter and the purity
+lint. ⚑ **Unconfirmed:** I did not re-run this test against the pre-capsule tree, so the correlation
+is temporal, not demonstrated. Whoever picks it up should bisect rather than trust this paragraph.
+
+**Consequence worth stating plainly:** `finding-0267` recorded that the capsule broke two instruments
+and that "both now report green." A third instrument went **red** and no one ran it. The seal run
+that would have caught it (2026-07-27T15:50Z) predates the capsule.
+
+### Readings, consolidated (Item 2 acceptance)
+
+| Reading | Expected | Actual |
+|---|---|---|
+| σ before the move | `0.58` | `0.58` — reconstructed from the pre-move backup, not taken through the loader (Ckpt 4) |
+| sha256 before | (record it) | `a61cbc9d2d661afdd4c9abf5ebaf53955bf9c640e8ae954b43d6acecab960079` |
+| σ after the move | `0.58` | **`0.58`** through `get_config()`, against a committed default of `0.62` |
+| sha256 after | identical | **identical** (`cmp` rc 0) |
+| `get_config()` raises after? | no | **no** |
+| suite returns | green-ish | 1 failed / 2406 passed — the failure attributed above, not to this plan |
+
+### Cost
+
+⚑ `cost.actual` is recorded **without** a `/usage` probe. The mandated pre-flight probe is a nested
+one-shot `claude` invocation, which `finding-0246` shows overwrites this worktree's SessionStart
+baseline and disarms the close gate; no builder was spawned this session, so the probe's only purpose
+would have been the ledger. Session/week deltas are therefore **unrecorded rather than estimated** —
+a missing figure is honest, a composed one is not (the capsule's own rule).
+
+## Follow-through
+
+- **Built?** Yes. Items 1 and 3 landed in the delegated worktree build and are merged to `main`
+  (`core/kernel/config/loader.py` carries `_INSTANCE_OVERLAY`/`_LEGACY_OVERLAY`/`ConfigMigrationError`;
+  branch `worktree-agent-a385f65305e0f74a5` diffs empty against `main`). Item 2 — the filesystem move
+  — was performed 2026-07-26 and is measured above.
+- **Wired or dormant?** **Wired and live**, with no flag. The loader reads `config/ouroboros.toml`
+  on every start; the migration guard refuses ambiguous states loudly. There is no ON switch to flip
+  and nothing dormant.
+- **Consumer?** Every config reader in the tree — 2406 passing tests plus the daemon and `palace`.
+  The overlay's σ=0.58 (owner ruling oq-0024) is demonstrably reaching `DreamingConfig`.
+- **Track state?** `ops`. This plan closes; the track does **not**. Its deskcheck is owed and is
+  listed in `docs/DESKCHECK-QUEUE.md` — the natural demo is the σ before/after on the real machine
+  plus a `palace start` that comes up. **Not run here:** starting the daemon is owner-gated, and §10
+  required it down for the duration.
+- **New track or finding?** Three findings from this seat: `finding-0269` (Stop clause (a)'s
+  circularity, measured at three firings this session), `finding-0270` (`scope-guard` mangles
+  absolute paths, so a builder cannot use its scratchpad), and the **unconfirmed capsule/availability
+  regression** recorded above, which is `finding-0267`'s territory and is deliberately left as a
+  journal note rather than a fourth finding until someone bisects it. `finding-0216` (Item 3's
+  unsatisfiable acceptance grep) remains **open and routed** — its mechanical residue is a one-item
+  follow-up plan and its `[planes]` master-switch half needs an owner ruling.

@@ -61,8 +61,10 @@ So the gate's only dischargeable-by-construction path is *end the session with t
 uncommitted*. A gate meant to guarantee a committed checkpoint structurally rewards leaving the
 checkpoint out of the commit.
 
-Observed live twice in one session (2026-07-27, bp-123's close): fired, journal written and committed
-in response, fired again on identical grounds.
+**Measured: three firings in one session** (2026-07-27, bp-123's close). Each followed a *correct*
+response to the previous firing — journal written, journal committed — and each was re-armed by that
+very commit. The clause cannot be cleared from inside a session that is also committing work, which
+is every working session.
 
 ## The class, not just the instance
 

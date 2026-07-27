@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-123
 track: ops
-status: in-progress
+status: complete
 design_ref: []
 contract: builder
 write_scope:
@@ -21,11 +21,21 @@ cost:
   estimate:
     model: sonnet
     tokens: 60k
-  actual: null
+  actual:
+    model: opus            # delegated worktree build (Items 1+3) + an orchestrator close (Item 2)
+    tokens: unrecorded     # ⚑ no /usage probe: finding-0246 — a nested one-shot claude disarms the
+                           # close gate, and no builder was spawned, so the probe had no other use.
+                           # Unrecorded rather than composed.
+    sessions: 2            # the delegated build (2026-07-26) + this close (2026-07-27)
+    note: >-
+      Item 2's filesystem move was performed 2026-07-26 and left unrecorded; this close RECOVERED
+      the measurement rather than performing the move. Runbook step 7 ran 855.73s (0:14:15) against
+      a 273-392s historical baseline — expected, since 59 test files that previously died at import
+      now load config and do real work.
 depends_on: []
 parallelizable_with: [bp-122]
 created: 2026-07-26
-updated: 2026-07-26
+updated: 2026-07-27
 links:
   - docs/brainstorms/legal-corpus-sibling.md
 re_entry: null
