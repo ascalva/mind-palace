@@ -219,3 +219,79 @@ one-minute stamp-precision allowance), across two commits, not 6 in one.
   from the format and is outcome-independent — the live leads run to 55 minutes and stay red.
 - The English "X to Y" status form is deliberately **not** matched (`to` collides with ordinary
   judgement). Recorded in `LINT_TIER` and in a test, so it reads as a decision, not an oversight.
+
+---
+
+## 2026-07-27 — Item 16 CLOSED: F1c, and the vacuous test that mutation caught
+
+**Status line.** `tests/integration/test_handoff_availability.py`, 9 tests, green. The first
+version of it was **vacuous** and only mutation revealed that.
+
+**Completed.**
+
+- A REAL `git worktree add --detach` checkout, cleaned up in a `finally`. Asserted: the three seat
+  artifacts are present and non-empty (and `git ls-files` tracks them — the claim starts with
+  "tracked"); the generator exits 0 rendering `queue: unavailable`; it creates no queue file under
+  `--role` / `--json` / `--check`; the worktree has no `data/` and nothing in `.claude/state/` but
+  its `.gitignore`.
+- Asserted on the LIVE stdout path, never `--check` — finding-0236: `--check` exits 0 in a fresh
+  worktree without reaching the queue at all, so F1c against it is green and proves nothing.
+
+**⚑ THE FINDING OF THIS ITEM. The suite was testing HEAD, not the diff.** `git worktree add HEAD`
+checks out the last **commit**, so running the checked-out `handoff.py` reports on HEAD and is
+completely blind to the working tree. A five-mutant campaign — hard-code the queue pane, make the
+degradation path raise, honour `CLAUDE_PROJECT_DIR`, resolve the seat from the CWD — came back
+**0 caught / 5 survived, at "8 passed"**. Every mutation destroyed the property under test and the
+suite reported success, because the mutated file was never the file being executed. This is
+`finding-0249`'s shape exactly: green became evidence for green. **Reading the test would never
+have found it** — it reads correctly.
+
+Fixed three ways, and the campaign re-run gives **4 caught / 1 survived**:
+1. The working tree's `handoff.py` / `board.py` / `_lib.py` are **overlaid** onto the checkout. The
+   checkout supplies the tracked artifacts and the absence of runtime state; the working tree
+   supplies the code whose behaviour is asserted. A guard test asserts the overlay actually
+   happened — otherwise the overlay is itself a false-success surface.
+2. `CLAUDE_PROJECT_DIR` is set to the MAIN checkout in the subprocess env — the literal
+   `finding-0031` bleed, supplied deliberately instead of avoided.
+3. The CWD is the worktree's PARENT, so anything resolved relative to `.` rather than to `ROOT`
+   breaks visibly.
+The surviving mutant (a read-write `sqlite3.connect`) is **not** equivalent and **not** a gap: it
+is unreachable from this suite because `read_queue` returns before connecting when the file is
+absent, and bp-124's `test_the_queue_is_opened_with_a_readonly_uri` catches it. Verified by running
+that mutant against the unit suite rather than assuming it.
+
+**Two deviations from the plan's literal wording, both strengthening, both flagged:**
+- The worktree is built from **HEAD, not `origin/main`.** A test against `origin/main` passes no
+  matter what the working tree contains — delete the seat on this branch and it still goes green.
+  It also may not be fetched in a shallow clone. HEAD is what this checkout is about to publish.
+- **`--check` is asserted to reach a DEFINITE verdict (rc 0 or 1), not rc 0.** Whether `handoff.md`
+  is currently regenerated is the last committer's hygiene, and clause (e′) check 1 is where the
+  note put that duty. Asserting rc 0 makes the suite red whenever a regen is owed — cry-wolf, and
+  effectively CI wiring, which §9 excludes.
+
+**⚑ TWO HAZARDS I HIT, both worth carrying forward.**
+- **A mutation campaign can have side effects outside the file it mutates.** The N5 mutant
+  (`seat_dir` resolved from the CWD) made `--write` in bp-124's unit suite write **fixture content
+  into the real `docs/roles/orchestrator/handoff.md`**. The harness restored the mutated source in
+  its `finally` and did not notice the collateral write. Caught by `git status`, restored from HEAD.
+  Run campaigns on a clean tree and diff afterwards.
+- **I composed a timestamp — while building the lint that detects composed timestamps.** I wrote
+  `15:33Z` into two `readings.md` rows when `date -u` said `15:19Z`. Corrected before commit. The
+  point is not the slip; it is that composing a plausible-looking value is the *default* behaviour
+  even with the defect in full view, which is the strongest possible argument that finding-0243
+  needs an executable check rather than a rule. It now has one.
+
+**In-flight.** Item 17 (F2), starting with §3 Q3 empirically.
+
+**Next action.** Probe the agent CLI's `--help` for a non-interactive, history-less, tool-restricted
+spawn — with `session-baseline` containment around it (snapshot exists/content/mtime; restore, or
+UNLINK if it was absent).
+
+**Open questions.** None blocking.
+
+**Context-manifest delta.** None.
+
+**Markers.**
+- The overlay pattern (checkout for artifacts, working tree for code) is reusable by any future
+  test that runs repo tooling inside a generated checkout. Anything of that shape that does NOT
+  overlay is reporting on HEAD.
