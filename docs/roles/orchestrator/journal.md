@@ -36,6 +36,49 @@ marked superseded — retained, readable, non-binding.
 
 ---
 
+## 2026-07-27 — a ratified sentence is not a repaired store
+
+**Status line.** The wave that built this seat is done and the seat is carrying its first fresh
+occupant, who owns the two remaining plans in order. The session's own work was archaeology, not
+building: recovering what the owner said and checking whether it landed anywhere durable.
+
+**Completed.** Two transcript-only threads captured before they were lost. An audit of the owner's
+own words against the artifact tree, which found that he types on three channels and that the
+obvious sweep sees only one of them — the channel he uses while an agent is mid-turn is the one
+that gets buried, and it is where his corrections arrive. Two rules he agreed to, both written
+down: the degenerate-input rule for anything that delivers a gate, and its prose twin. A homeless
+finding was given a plan, and that plan is the first thing built under the new rule.
+
+**In-flight.** ⚑ **The judgement worth inheriting: an amendment to a ratified note changes what the
+design says and nothing else.** `oq-0060` was answered by the owner's hand and the taxonomy is now
+correct on paper — and the store still holds every mis-attributed row, the extraction path still
+has no notion of the new speaker kind, and the transcripts that would feed it more are sitting
+un-ingested. The temptation was to report the amendment as the fix. It authorizes the fix. Whoever
+picks this up should treat any consumer of speaker attribution as untrusted until a plan has both
+back-corrected the store and closed the channel set — and should say so plainly rather than let a
+ratified sentence stand in for a repaired store.
+
+**Next action.** The Fable pass designing the retrospective template returns a form, not a document
+— validate it against the three retrospectives that already exist before adopting it, because they
+were written by the need and will show where the form deforms them. The succession-path work stays
+blocked behind its own note's ratification, and behind the sensor being decoupled from commit
+bodies, which is the owner's stated ordering and not a scheduling accident.
+
+**Open questions.** Whether a retrospective may re-enter design, or is terminal evidence — findings
+are deliberately the only channel back, and a second one should not be minted casually. Whether the
+prose half of the degenerate-input rule belongs to the skills that govern findings and journals.
+
+**Context-manifest delta.** A retrospective is now an approved artifact type without a template yet.
+Deskcheck was re-stated by the owner for the third time and is narrower than this seat had been
+treating it: the unit is the track or arc, the trigger is *demonstrably working*, and a sealed plan
+is never itself deskcheck-ready. This seat reported three plans as ready for one; they were not.
+
+**Markers.** None. No compaction capsule has been written yet, and the emitted segment has already
+crossed the threshold that `finding-0245` names — the first `/triage` to sit down here owes one,
+and should treat it as work rather than housekeeping.
+
+---
+
 ## 2026-07-27 — mutate the argument you are proudest of
 
 **Status line.** A re-audit closed the last gap in the close gate: its most carefully reasoned
