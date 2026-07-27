@@ -104,6 +104,19 @@ Read exactly these, in order, before any work:
     `sys.path` at import time and `scripts/eval.py` shadows the `eval` **package**, so after
     `import handoff` an `import eval.golden` raises `ModuleNotFoundError` — F2's harness
     imports `handoff`, so prefer a subprocess invocation over an in-process import.
+11. `docs/findings/finding-0242.md` — ⚑ **binding on Item 15 (F1b).** Two facts measured on the
+    real seat journal after bp-125 landed its migration:
+    **(a) There is no capsule yet, and F1b must handle that case.** The seat journal contains
+    **zero** `^## CAPSULE` headings — correctly, since the journal is young and nothing has been
+    compacted. So "no capsule marker" is the *normal* state on day one, not an error: F1b must
+    treat it as **lint the whole file**, and that whole-file lint has a **green baseline**
+    (0 hex tokens, 0 status phrasing) — verify that yourself before writing the assertion, so a
+    red baseline is never mistaken for a lint defect.
+    **(b) ⚑ ANCHOR THE PATTERN.** An *unanchored* grep for `## CAPSULE` matches the journal's
+    own preamble prose, which defines the marker in text. F1b must match `^## CAPSULE` at line
+    start or it will find a phantom capsule on day one, silently lint only a fragment of the
+    file, and pass green while checking almost nothing — the exact vacuous-pass shape
+    finding-0238's mutation audit flagged elsewhere in this family.
 
 **Does `core/` already implement this? (the DRY audit.)** No, and it must not. F1b is a regex
 lint over markdown; F1c is an integration test; F2 is a harness that spawns a process and

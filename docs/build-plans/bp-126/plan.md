@@ -113,6 +113,21 @@ Read exactly these, in order, before any work:
     non-zero = stale, and regeneration converges in **exactly one step**); and the rendering
     reads `readings.md`, so appending a reading *after* regenerating re-arms check 1 once —
     regenerate the handoff **last**, after all other artifact writes.
+11. `docs/findings/finding-0241.md` and `docs/findings/finding-0242.md` — ⚑⚑ **BINDING ON THE
+    DELETION, AND THE MOST IMPORTANT THING IN THIS MANIFEST.** `.claude/state/resume-brief.md`
+    is **gitignored and was never tracked**, so once you delete it there is no `git show`, no
+    reflog, and no recovery — the artifact chain's usual safety net does not exist here.
+    bp-125 migrated the brief's non-derivable content out, but it worked from a **snapshot**,
+    and the live file **changed underneath it mid-build**: the delta carried an owner ruling on
+    commit economy whose only other copy was, at that moment, an untracked file. It was rescued
+    only because bp-125's builder re-diffed at seal.
+    **Therefore, before you delete anything:** (a) `cp` the live brief to a **tracked** path and
+    commit it in the same diff as the deletion, so the pre-deletion state has git history;
+    (b) diff the live file against bp-125's snapshot digests (pinned in finding-0241) and
+    migrate anything that arrived after the snapshot; (c) if the digest does not match, the
+    finding gives you a tripwire but **not** a recovery — a delta is detectable and not
+    computable — so step (a) is what makes this safe, not step (b).
+    ⚑ Do **not** treat a matching digest as permission to skip (a).
 
 **Does `core/` already implement this? (the DRY audit.)** N/A in the algorithmic sense — no
 algorithm or primitive is introduced. The DRY constraint that *does* bind is the owner rule
