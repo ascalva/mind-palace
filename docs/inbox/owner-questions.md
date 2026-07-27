@@ -1061,7 +1061,7 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   default-on auto-seed-on-first-housekeeping — a ratified-note amendment for you. See finding-0161.
 
 ## oq-0035 — Graceful shutdown has no bound: bounded SIGKILL escalation, worker-enforced job budgets, or both? (finding-0171)
-- status: open
+- status: answered   # ruled 2026-07-25 at `941785d`; the answer landed, the status flip did not
 - blocking: false
 - origin: docs/findings/finding-0171.md (raised 2026-07-25, during the post-deploy incident)
 - question: `palace down` returned success while the daemon kept running at 96% CPU. The graceful
@@ -1118,6 +1118,8 @@ Entry shape: `status`, `origin`, `blocking` (bool), `question`, `default_if_unan
   `/graduate dn-supervision-and-liveness` (the escalation contract is OPS-4's design half).
 
 ## oq-0036 — What legitimises a COMMITTED `proposed→ready` flip that carries no grant record? (finding-0206; blocks one autopilot plan, not the graduation)
+
+- status: open   # field added 2026-07-27; absent since it was raised, so the board could not see it
 
 **Raised:** 2026-07-25, session-51, during the `/graduate` grounded pass on
 `dn-autopilot-and-delegated-blessing` — *before* any plan was minted, which is where this class is
@@ -1186,6 +1188,8 @@ plan asserts the post-hoc rule as buildable before then.
   for any post-hoc rule being enforceable at all.
 
 ## oq-0037 — ⚑ What actually stops the agent from reading the autopilot secret? (finding-0207; the design's load-bearing assumption)
+
+- status: open   # field added 2026-07-27; absent since it was raised, so the board could not see it
 
 **Raised:** 2026-07-25, session-51, during the `/graduate` grounded pass on
 `dn-autopilot-and-delegated-blessing` — before any plan was minted.
@@ -1916,6 +1920,17 @@ asserted.
   exhaust lane) must not assume a byte bound. `scripts/capsule.py` and
   `docs/templates/intent-capsule.md` change **together**, under a plan whose write_scope names both.
 - answer:
+  ⚑ **NOT RECORDED, AND THE ORCHESTRATOR WILL NOT INVENT ONE.** The retiring resume brief listed
+  *"record oq-0054 as answered"* among its owed mechanical inbox fixes, so a ruling was evidently
+  made in conversation on 2026-07-26 — but **no answer text was ever written to this entry**, and
+  the brief did not carry the ruling's content either, only the instruction to record it. The
+  status is therefore left `open` rather than flipped, because flipping it would assert a decision
+  whose content nobody can now state. Noted 2026-07-27 while draining the brief's owed list ahead
+  of bp-126's cutover; the brief itself is preserved verbatim at
+  `docs/archive/resume-brief-final-2026-07-27.md`.
+  ⚑ **This is the transcript-only-ruling failure in miniature** — the same class as `finding-0241`,
+  where a ruling survived only because a builder re-diffed a gitignored file at seal. The decision
+  is recoverable only from the owner: **(a)**, **(b)** or **(c)** on the cap, restated in one line.
 
 ## oq-0055 — bp-095's survey gate: widen its `re_entry` to a conjunction, and the two acts behind it are yours
 
