@@ -2,7 +2,7 @@
 type: build-plan
 id: bp-124
 track: workflow
-status: proposed
+status: ready
 design_ref:
   - docs/design-notes/role-state-and-scoped-handoff.md
 contract: builder
