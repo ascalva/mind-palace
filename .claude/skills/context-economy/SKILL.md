@@ -63,7 +63,7 @@ The duty is unchanged and was never wrong; only its container moved (the recomme
 judgement about the *next* unit, so it is NARRATIVE and no generator can render it). A session that
 discovers mid-flight it is under-tiered for an emergent design question does not strain:
 it notes the question for a top-tier session and continues its own lane. Over-tiered is
-the silent failure — notice it at the next boundary and say so in the brief.
+the silent failure — notice it at the next boundary and say so in that same entry.
 
 ## The handoff pair — the seat's DERIVED rendering + its NARRATIVE segment (dn-role-state-and-scoped-handoff §2.9)
 
@@ -112,10 +112,15 @@ from, which is the constraint that decided the substrate.
 - **Declare the next session's tier in the narrative entry** — see the tier duty above; it is one
   of the judgements a generator cannot make, so the seat journal is its home.
 
-⚑ **During the cutover window** the *previous* Stop-gate clause is still the one installed, and it
-still demands the outgoing ephemeral artifact at close; its own block message names the file and
-the act. That double bookkeeping is deliberate and ends when `bp-126` lands the replacement clause,
-retires the outgoing artifact and its template together, and re-points the session-brief hook.
+⚑ **During the cutover window, a close owes BOTH halves.** The *previous* Stop-gate clause is still
+the one installed, so at close you must (1) write the seat pair above **and** (2) satisfy that
+clause, which still demands the outgoing ephemeral artifact. **If it blocks, its message names the
+exact file and the act — follow it verbatim rather than improvising**; this skill deliberately does
+not restate that path, because the artifact is being retired and a second copy of a dying
+instruction is how the last one rotted. Doing only (1) deadlocks the close; doing only (2) leaves
+the seat empty. That double bookkeeping is deliberate and ends when `bp-126` lands the replacement
+clause, retires the outgoing artifact and its template together, and re-points the session-brief
+hook.
 
 ## Rules do not live in handoff state
 

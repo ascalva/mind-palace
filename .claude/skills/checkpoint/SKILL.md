@@ -16,6 +16,13 @@ section names one:
 - **the seat journal** — `docs/roles/<role>/journal.md`, never sealed because a
   seat is never finished. See "The seat journal" below.
 
+⚑ **The two `## Seal entries …` sections below are PLAN-JOURNAL ONLY**, because
+only a plan seals. A seat journal never carries a read-map block and never
+carries a `## Follow-through` block, and Stop-gate clause (f) — which greps a
+sealed plan's journal tail for that verbatim header — never applies to it. A
+seat's equivalent of a seal is a **compaction capsule**, which is a different act
+with a different shape.
+
 ## When to write — semantic boundaries, not a feeling
 
 Write at every semantic boundary:

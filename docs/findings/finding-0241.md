@@ -69,6 +69,29 @@ If it does not, the difference is unmigrated content and must be carried before 
 removed. **This check is cheap, mechanical, and the last chance** — after the deletion there is no
 history to recover from.
 
+### ⚑ Addendum — a digest is a tripwire, not a recovery (audit, `finding-0242`)
+
+The pinned digests above are **not sufficient**, and the gap is worth stating plainly because it
+inverts what the check is worth. The snapshots they name live in a **disposable session
+scratchpad**, outside the repo. They will not exist when `bp-126` runs. So at cutover the digests
+let a builder **detect** that a delta arrived — they do not let it **compute what the delta was**.
+The file is gitignored and has never been tracked, so there is no other copy to diff against.
+Detection without recovery, on a file about to be deleted, buys only the knowledge that something
+was lost.
+
+**Therefore the operative instruction for `bp-126` is stronger than a digest compare:**
+
+> **Copy `.claude/state/resume-brief.md` to a TRACKED path and commit it, in the same diff that
+> deletes it.** Only then is the deletion reversible. Diff that tracked copy against what `bp-125`
+> migrated, carry anything new into the seat journal, and the digests above become what they should
+> have been from the start — a fast *confirmation* that the tracked copy holds no surprises, rather
+> than the only evidence that a surprise occurred.
+
+The general form, which belongs in the note rather than here: **an unversioned artifact cannot be
+retired safely by a plan that only reads it — the retiring plan must first make it versioned.**
+That is the same keep-and-link ruling (`finding-0164` / `finding-0168`) applied to a deletion:
+delete the *live* path, retain the *content*.
+
 ## Re-entry condition
 
 Resolved when `bp-126` either (a) carries the delete-time diff check as an acceptance criterion,

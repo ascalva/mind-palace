@@ -26,6 +26,20 @@ it, because a bare count invites the next reader to re-run it to find out whethe
 lint-checked for hash-shaped tokens. Name the artifact, not the sha — `git log` is already the
 derived view of commits.
 
+⚑ **A timestamp is READ from `date -u` at the moment of the run — never composed.** A future-dated
+stamp renders a near-zero age, so the stalest row in the pane advertises itself as the freshest —
+the exact impersonation the age display exists to prevent. If the moment is genuinely unrecorded,
+write `unknown`: the shape supports it natively (`_age()` returns "age unknown", and
+`latest_per_command` orders by file position, not by parsing a clock).
+
+⚑ **Known caveat — this file is NOT monotonic in timestamp.** The seed block written by `bp-124`
+carries stamps up to 56 minutes **ahead of the commit that introduced them**, so four of its rows
+postdate their own commit and cannot have been clock-read. They are **retained unaltered**
+(append-only: keep and link, never delete and replace) and `finding-0243` carries the analysis.
+**File order is authoritative for "latest", not the timestamp column** — which is what
+`latest_per_command` implements, so the pane is correct today. Any future consumer that sorts these
+rows by timestamp must read `finding-0243` first.
+
 | timestamp | command | result |
 |---|---|---|
 | 2026-07-27T03:36Z | uv sync --frozen --extra dev | ok — dev extras resolved in a fresh worktree venv |
@@ -43,3 +57,10 @@ derived view of commits.
 | 2026-07-27T04:50Z | uv run mypy | 69 errors in 20 files of 559 checked — EXACTLY the pinned tests/ baseline, rc 1 as expected; none in new code |
 | 2026-07-27T04:44Z | uv run python -m ops.type_gate | OK (rc 0) — tier-2 membership + bare-ignore scan clean; the one parked non-fatal shim report (finding-0223) unchanged |
 | 2026-07-27T04:53Z | uv run pytest -q | 2 failed / 2301 passed / 15 skipped in 234s — BOTH pre-existing and expected: the finding-0103 core-self-containment ratchet and the finding-0226 dream-v2 live e2e. The finding-0219 scheduler-live flake passed. No regressions |
+| 2026-07-27T05:20Z | claude -p "/usage" | session 59% · week 49% all-models · Fable 25%; week resets Jul 31 20:00 ET. Probed at bp-125's re-seal — supersedes the migrated `unknown`-age 43% row above, which had no recorded time |
+| 2026-07-27T05:20Z | uv run ruff check . | All checks passed (rc 0) — re-run after the audit fixes; clock-read stamp |
+| 2026-07-27T05:20Z | uv run python scripts/check_imports.py | OK (rc 0) — import firewall + worker boundary both clean |
+| 2026-07-27T05:20Z | uv run mypy core agents eval ops scheduler scripts | Success: no issues in 261 source files — the floor holds at 0 |
+| 2026-07-27T05:20Z | uv run mypy | 69 errors in 20 files of 559 checked — EXACTLY the pinned tests/ baseline, rc 1 as expected |
+| 2026-07-27T05:20Z | uv run python -m ops.type_gate | OK (rc 0) — tier-2 membership + bare-ignore scan clean; the parked finding-0223 shim report unchanged |
+| 2026-07-27T05:24Z | uv run pytest -q | 2 failed / 2301 passed / 15 skipped in 255s — the SAME two pre-existing failures (finding-0103 ratchet, finding-0226 dream-v2 live); scheduler-live flake passed. Re-run after the audit fixes; markdown-only diff, no regressions |
