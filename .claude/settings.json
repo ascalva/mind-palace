@@ -1,5 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "OUROBOROS_HOOKS_OFF": "1"
+  },
   "hooks": {
     "SessionStart": [
       {
