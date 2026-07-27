@@ -79,6 +79,45 @@ and should treat it as work rather than housekeeping.
 
 ---
 
+## 2026-07-27 — the wave's own instruments caught the wave, and a rule was found to be under-scoped
+
+**Status line.** `bp-127` is merged and sealed — the family's terminal node. The fresh-agent test is
+executable: a purity lint, an availability test, and a drill that spawns a history-less, tool-less
+agent and compares its answers to the generator's. The mechanical compare survived contact on both
+fields, so the parked uncertainty resolved in the strong direction rather than degrading.
+
+**Completed.** Three items, nothing deferred, nothing degraded. The two lints the manifest asked for
+beyond the note — future-dated readings stamps, and the segment-length gauge the retention threshold
+never had — were built rather than filed away. An independent auditor stood up before the merge, and
+the merge was performed by the same seat that spawned the builder.
+
+**In-flight.** ⚑ **The most valuable thing this build produced is a correction to a rule, not code.**
+The plan applied the mutation discipline seriously — forty mutants, which caught two of its own test
+suites being vacuous, including one that reported success while catching none of five
+property-destroying changes. And it still shipped its single most load-bearing surface unpinned: the
+constant that *is* the isolation mechanism. Asked why, the builder's answer was that the flag tuple
+read to it as configuration rather than as mechanism, so it never entered the frame it was mutating
+in. **The rule as written invites mutating behaviour; a datum that carries the property looks inert.**
+That belongs beside the false-success rule, on the same skill surface, and both are owed.
+
+**Next action.** `bp-128` is deliberately **left `ready` and unopened** — a budget decision, not a
+judgement about the plan. Opening it would mean a builder plus a full audit cycle against a session
+window that does not reset for hours, and a worker that dies at the cap burns everything it already
+spent. It loses nothing by waiting, and it gained something today: a second defect in the same clause
+was measured while grounding it, which is deeper than the framing the plan was written against.
+
+**Open questions.** The seat's own artifacts keep reproducing the defects the seat is being built to
+detect. The clause that audits a journal's seal both **accepted** a journal that merely mentioned the
+requirement and **rejected** one that met it — the second happened during this merge, unprompted, on
+the terminal plan of the family built to make these artifacts trustworthy. Two of the day's findings
+are that clause seen from opposite sides. The repair exists as a blessed plan and is the next unit.
+
+**Context-manifest delta.** The finding id space is not safe under concurrency — four collisions in
+one day, three of them still live against another session's uncommitted work, and the resolution rule
+that settled them was invented at the merge rather than read from anywhere.
+
+**Markers.** None.
+
 ## 2026-07-27 — mutate the argument you are proudest of
 
 **Status line.** A re-audit closed the last gap in the close gate: its most carefully reasoned

@@ -24,10 +24,9 @@
 | bp-118 | ready | build | P4: the embedder cuts over first (biggest win, smallest risk, provable) |
 | bp-119 | ready | build | P5: the chat tiers, per-tier, each reversible (PARKED on V-B) |
 | bp-123 | in-progress | build | the per-machine overlay becomes `config/ouroboros.toml`, and cannot be silently lost |
-| bp-127 | in-progress | build | the fresh-agent test made executable: F1b, F1c, and the F2 drill |
 | bp-128 | ready | build | clause (f) must key on RECENCY, not on physical file position |
 
-Status tally: complete 110 · in-progress 2 · ready 10 · superseded 6
+Status tally: complete 111 · in-progress 1 · ready 10 · superseded 6
 
 ## Awaiting the owner
 
@@ -47,7 +46,7 @@ Status tally: complete 110 · in-progress 2 · ready 10 · superseded 6
 
 ## Open findings
 
-44 open — most recent: finding-0250, finding-0251, finding-0252, finding-0253, finding-0254, finding-0255
+46 open — most recent: finding-0252, finding-0253, finding-0254, finding-0255, finding-0256, finding-0257
 
 ## Readings (MEASURED — latest per command)
 

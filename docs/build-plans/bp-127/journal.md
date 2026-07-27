@@ -485,3 +485,46 @@ That is live confirmation of both halves: finding-0246/0247's hazard is real, an
 case genuinely needs an **unlink** — which the `cp -p` recipe cannot express.
 
 **Next action.** Nothing. Awaiting the sub-orchestrator's audit and the two status flips.
+
+## Follow-through
+
+> ⚑ **Re-appended verbatim by the sealing sub-orchestrator, and the reason is itself the evidence.**
+> The block above (written with the seal) was displaced from the journal *tail* when the builder
+> correctly appended a seal addendum after it. Clause (f) anchors its tail at the **last** `## `
+> heading that is neither `## Follow-through` nor `## Markers`, so the addendum became the tail and
+> the block fell out of it: `_journal_tail_has_followthrough` returned **False** on a journal that
+> visibly carries the block, and the seal would have been BLOCKED.
+>
+> That is `finding-0248` firing, unprompted, on the terminal plan of the family built to make
+> handoff artifacts trustworthy — and it is the second live reproduction today, after
+> `finding-0252` (which records that this same journal, in its pre-build state, *passed* the clause
+> on a backticked mention of the marker). The clause is wrong in both directions at once: it accepts
+> a journal that only mentions the requirement, and rejects one that meets it.
+>
+> Carried forward rather than moved, per append-only (`finding-0164` / `finding-0168`): the
+> original block stays where it was written. **`bp-128` is the repair** and is deliberately left
+> `ready` and unopened; this entry is a fixture for its Item 3.
+
+- **Built?** Yes, all three items — F1b (+ the future-dated readings lint and the segment gauge) as
+  `scripts/handoff.py --lint`; F1c as `tests/integration/test_handoff_availability.py`; F2 as
+  `scripts/handoff_drill.py`. Gate verified independently by the merging sub-orchestrator, not
+  taken from the builder's report: ruff clean, import firewall clean, mypy floor 0 at 262 files,
+  argless mypy at exactly the pinned 69 errors in 20 files over 562, type_gate clean with only the
+  parked finding-0223 report, pytest 3 failed / 2419 passed / 15 skipped — the finding-0103
+  ratchet, the finding-0226 dream-v2 live e2e, and the finding-0219 scheduler-live flake.
+- **Wired / delivered (or why dormant)?** Wired as far as this plan is licensed to wire it: both
+  lints and the drill are runnable commands with real verdicts, and the drill has been run live with
+  its result recorded as a MEASURED reading. Deliberately **not** in CI and **not** in any hook —
+  §9 excludes both. The cadence obligation and the checkpoint-skill pointer are owed to the
+  orchestrator, whose surface they are.
+- **Does a consumer use it?** F1a's consumer is clause (e′), unchanged. F1b/F1c/F2 have no
+  automatic consumer yet, by design. The first real consumer is the `/triage` cadence.
+- **Track state (what remains on this track)?** bp-127 is the family's terminal node. The note's §4
+  enablement is complete **except the owner's two hand-acts**: amendment A10 (`finding-0233`), and
+  the first live session that resumes from `handoff.md` + the journal alone and says so (§4(c)).
+  **Ready to deskcheck.**
+- **Opened a new track/finding?** `finding-0253`, `finding-0254`, `finding-0255` — all `design`,
+  all routed to the orchestrator, none blocking. `finding-0251` stays **open**: F1b measures the
+  defect it describes but does not repair it, and the repair is a capsule-shaped judgement for the
+  seat's occupant. Added at seal by the sub-orchestrator: **`finding-0256`** (the audit's untested
+  surfaces) and **`finding-0257`** (concurrent sessions race the finding id space). No new track.
