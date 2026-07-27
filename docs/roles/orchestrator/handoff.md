@@ -47,7 +47,7 @@ Status tally: complete 109 · in-progress 2 · ready 10 · superseded 6
 
 ## Open findings
 
-34 open — most recent: finding-0238, finding-0241, finding-0242, finding-0243, finding-0244, finding-0245
+35 open — most recent: finding-0241, finding-0242, finding-0243, finding-0244, finding-0245, finding-0246
 
 ## Readings (MEASURED — latest per command)
 

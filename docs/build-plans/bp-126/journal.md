@@ -354,6 +354,7 @@ suite grew from 6 cases to 13. No other test moved.
 |---|---|---|---|
 | `finding-0244` | `spec-fidelity` | **builder** (resolved in place, build continued) | (e′) inherits (e)'s **authorship blindness** — the trigger still keys on commits-in-session. The measurement that warranted this family says the replacement *"should key on who authored the commit"*; §2.10 reproduces the trigger unchanged, so it shipped unchanged and is named rather than silently narrowed. The re-arming half **is** fixed; the misattribution half is not |
 | `finding-0245` | `discovery` | **orchestrator** | the SessionStart payload grew **+124 lines / +56%**, in the wave whose warrant is context load. Cause: §2.8 compaction has never been exercised and the seat journal has no capsule. Two discharging forms, both cheap |
+| `finding-0246` | `spec-defect` | **orchestrator** | ⚑ found by **dogfooding, after the seal commit**: a nested one-shot `claude -p` fires SessionStart and clobbers `session-baseline`, which **silences** the gate (its content resets to HEAD, destroying the commits-this-session guard) and **spuriously arms** check 2 (its mtime jumps forward). The **mandated budget probe is exactly such an invocation.** The silencing half is *pre-existing* — true of clause (e) since A9 — and was never noticed; the arming half is new with check 2's mtime key. Not patched: `session-brief.sh`'s baseline write is pinned untouched by Item 13's invariants, the file has three consumers, and every one-line guard is wrong in a different direction |
 
 ### Owed at seal — every item from the plan's own list, discharged or explicitly owed
 
@@ -423,10 +424,45 @@ same commit. 4. Land A10 and the partial-supersession log entry by hand. 5. Rege
   enablement sequence; **stage (c) is `bp-127`, which is `ready` and unblocked by this merge.** The
   note is not fully discharged until F1b, F1c and the F2 drill land. ⚑ Two owner hand-acts stand
   between this plan and a clean record: the A10 amendment and the partial-supersession log entry.
-- **New track or finding?** Two findings, no new track: `finding-0244` (`spec-fidelity` → builder,
-  resolved in place, with a design-level re-entry) and `finding-0245` (`discovery` → orchestrator,
-  discharged by the first compaction capsule). Neither blocks the merge; **`finding-0245`'s
-  re-entry is the nearest one to fire** — roughly two seat-journal entries away.
+- **New track or finding?** Three findings, no new track: `finding-0244` (`spec-fidelity` →
+  builder, resolved in place, with a design-level re-entry), `finding-0245` (`discovery` →
+  orchestrator, discharged by the first compaction capsule), and `finding-0246` (`spec-defect` →
+  orchestrator). None blocks the merge. **`finding-0246` is the one that must be settled before
+  `bp-127`** — its F2 drill spawns agents from inside a session and meets the defect immediately.
+
+### ⚑ Post-seal addendum — the gate blocked its own author, and a budget probe laundered the block
+
+I ran the new clause against my own close as a final check. It **blocked**, correctly and usefully:
+
+```
+BLOCK: (e′) commits landed this session but docs/roles/orchestrator/journal.md carries no entry
+from this session — append one … then close again. It is keyed to session START, so a later
+commit cannot re-arm it.
+```
+
+The reason names the artifact, the act, and the clause — the "block reason IS the automation"
+contract, discharged. But the *cause* was not that I had forgotten: my seat entry was written at
+`02:02:49` and the baseline's mtime was `02:04:56`, and what moved the baseline was the
+`claude -p "/usage"` **budget probe** run between them. A nested one-shot fires SessionStart.
+Confirmed by direct experiment (`claude -p "reply with the single word: ok"`): the baseline's mtime
+jumped `02:04:56 → 02:09:03` and its **content** was reset to current HEAD. Immediately after, the
+same `stop-audit` printed **`ALLOW`** with the seat journal *still* stale — the block was not
+satisfied, it was **laundered**, because the commits-this-session guard had been reset.
+
+Three honest consequences, all recorded in `finding-0246`:
+
+1. The **silencing** half is **pre-existing** and applies to clause (e) exactly as it does to (e′);
+   this plan did not introduce it and, on this evidence, nobody had noticed it.
+2. The **spurious arming** half **is** introduced here, by check 2's new dependence on the
+   baseline's *mtime*. That is a cry-wolf path — the failure mode §2.10.3 rules out for MEASURED —
+   arriving through NARRATIVE.
+3. **I did not patch it**, though `session-brief.sh` is in `write_scope` and the fix was reachable.
+   Item 13's invariants pin the baseline write as untouched, the file has three consumers, and each
+   obvious one-line guard breaks a different one. Filed and routed instead.
+
+I did not attempt to close under a laundered ALLOW. The entry that discharges check 2 honestly is
+in the seat journal, and it carries this discovery — which is exactly the judgement a generator
+could not have written.
 - **Deskcheck.** ⚑ **Ready to deskcheck.** The demo is two commands: `bash
   .claude/hooks/session-brief.sh --standalone` in the main checkout (the seat is surfaced, the
   brief is gone), and a close after a commit (the gate names its one-step recovery). DONE is not

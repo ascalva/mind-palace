@@ -36,6 +36,41 @@ marked superseded — retained, readable, non-binding.
 
 ---
 
+## 2026-07-27 — the new gate blocked its own author, and a budget probe made the block vanish
+
+**Status line.** Written *because* the gate installed today refused to let its own builder close,
+which is the best evidence available that it works — and then something that is not work made the
+refusal disappear without satisfying it. That second half is the part to carry forward.
+
+**Completed.** The refusal itself behaved exactly as designed: it named the artifact, named the one
+act that discharges it, and pointed at the clause. No hunting, no re-reading the note. The recovery
+is this entry.
+
+**In-flight.** ⚑ **Any nested one-shot `claude` invocation overwrites this worktree's SessionStart
+baseline** — the record of where the session started. Two consequences, both verified by running
+it rather than by reading the code. It moves the *session-start* key forward, so narrative already
+written this session is retroactively judged as belonging to a previous one. Worse, it resets the
+*commits-this-session* guard to the current commit, so the gate stops being able to see that the
+session committed at all and reports a clean close it has not earned. **The mandated budget probe
+is exactly such an invocation**, so the more faithfully a session follows the delegation rule, the
+more reliably it disarms its own handoff gate. The silencing half is not new and was never noticed;
+it has been true of the outgoing gate for as long as that gate has existed. Filed as
+`finding-0246`, routed for a ruling, deliberately not patched here — the file has three consumers
+and changing when it is written is not a one-line fix in the diff that also replaces the clause
+reading it.
+
+**Next action.** This must be settled **before the drill harness is built**, because that harness
+spawns agents from inside a session and will meet this on its first run — and a drill that quietly
+disarms the gate it exists to validate produces a green result that means nothing.
+
+**Open questions.** Whether the baseline should become session-scoped (fixing both halves at the
+source) or whether the two signals should be split, with the trigger then honestly documented as
+defeasible. That is a design call, not a builder's.
+
+**Context-manifest delta.** None — this came from running the thing, not from reading anything.
+
+**Markers.** None.
+
 ## 2026-07-27 — the cutover landed: this seat is now what the Stop gate reads
 
 **Status line.** `bp-126` built the clause that judges every future orchestrator close, re-pointed
