@@ -5709,3 +5709,86 @@ manifests, and the row lands when the wave's track flips to `deskcheck-pending`.
 demonstrable now and is **ready to deskcheck**.
 
 **Cost.** bp-124 build ~240k tokens (est. 450k — well under), audit ~194k. Week moved 43% → 45%.
+
+---
+
+## 2026-07-27 (session-55) — bp-125 BUILT, AUDITED, RETURNED, RE-SEALED, MERGED: the brief's content reaches the seat
+
+**bp-125 `in-progress → complete`**, merged at `a9aee83`. Second of the four-plan role-state wave.
+Delegated to a worktree builder, independently audited, **sent back on six conditions**, re-sealed,
+and only then merged. 13 files, 1662 insertions, every path in `write_scope`; `commit/SKILL.md` was
+in scope and verifiably untouched.
+
+**What it moved.** The live resume brief's judgement into `docs/roles/orchestrator/journal.md`, its
+readings into `readings.md`, and **eleven durable rules** out to the four skills that load them at
+the moment of use — five moved, one replaced, four dropped as already-home (each of the four
+verified in its destination by the audit; three are *stronger* there than in the brief).
+
+**⚑ The owner's own hand-restructure had already done most of the work.** Tree-derivable content
+measured **4.1%** against the note's estimated ~33% — an eight-fold collapse, because the hash lists
+and status tables had become a block naming *commands* instead of output. What remained was
+judgement (41%) and rules (22%), and that part required write access to four skills, so no manual
+pass could have finished it. One drop repaid the migration immediately: the hand-carried open-oq
+count was **six low**.
+
+**⚑⚑ THE MIGRATION RACED ITS OWN INPUT AND WON — finding-0241.** `.claude/state/resume-brief.md` is
+gitignored and **was never tracked**. It changed underneath the build (122 lines / `0a5bbfb2…` at
+snapshot → 125 / `e8860173…` at seal), and the four-hunk delta carried an **owner ruling on commit
+economy** (R1 status-transitions-only; R2 decouple-the-sensor-first, which gates R1 behind a build
+so practice changes nothing yet). Its only other copy was, at that moment, an **untracked file**.
+It survived only because the builder re-diffed at seal. The audit verified every clause of the
+ruling reached the tracked seat journal faithfully, nothing added or sharpened.
+
+**The lesson generalised, and it is now binding on bp-126.** A gitignored file has **no git safety
+net**: a digest mismatch at cutover is *detectable but not computable*, so finding-0241's pinned
+digests are a **tripwire, not a recovery**. The finding now carries the stronger instruction and it
+is pinned in bp-126's manifest: **copy the brief to a TRACKED path and commit it in the same diff
+that deletes it**, and a matching digest is explicitly not permission to skip that step.
+
+**⚑ One eviction became a correction — the durable copy was the stale one.**
+`.claude/skills/delegate/SKILL.md` claimed the usage pool *"has no query API — the agent cannot run
+slash commands."* The brief said to re-probe with `claude -p "/usage"`. **The brief was right**; the
+auditor ran it (rc 0, figures printed, no owner in the loop) and confirmed no second stale copy
+survives anywhere in the repo. Exactly the drift the DRY rule predicts, caught only because two
+copies were forced into contact.
+
+**The audit found what the gate could not.** Item 10's criterion was `grep -c 'resume-brief|resume
+brief'` = 0 — which proves **absence**, not **coherence**. A bare `\bbrief\b` found a survivor:
+`context-economy/SKILL.md:66`, *"say so in the brief"*, whose antecedent had been deleted in the
+same diff. A hole in a live contract file every session loads. Returned and fixed, with two softer
+holes closed alongside it.
+
+**Two conditions returned more than a fix.**
+⚑ **The readings-ordering defect was bp-124's, not bp-125's** — bp-124's seed rows carry timestamps
+up to **56 minutes ahead of the commit that introduced them** (rows to 04:56Z; `f9f333a` landed
+04:00Z), so they were never clock-read. That is Item 8's own falsifier firing one artifact over, on
+seed data nothing was checking. **finding-0243** (`discovery` → orchestrator) recommends bp-127 lint
+future-dated readings. Fixed **append-only**: bp-124's rows are another plan's record.
+⚑ **Item 11 exposed an instrument defect, not a count error.** Unswept findings went 112 → 112 →
+**111 at `31f95e2`** → 112 → 112 → 113. `promoted` *is* terminal, proven by the isolated 112→111.
+What failed is that **a whole-tree counter cannot measure a single-artifact claim** — findings that
+legitimately open afterward each correctly raise it. The criterion should have read *"finding-0175
+is not counted at the tip."*
+
+**Gate, re-run by the auditor and again after the fixes:** ruff 0 · firewall 0 · scoped mypy **0 /
+261 files** · argless mypy **exactly 69 in 20 files** · type_gate 0 · pytest **2 failed / 2301
+passed / 15 skipped**, the expected pair only, `test_scheduler_live` passing. `readmap` 0 and
+`handoff --check` 0 after regenerating last. No regressions.
+
+**⚑ THE VERIFICATION COST AS MUCH AS THE CONSTRUCTION.** The builder's session went 30% → 59% across
+the audit-and-return cycle — parity, on a **docs-tier** plan. bp-126 and bp-127 must be priced with
+that ratio, not from the build estimate alone. Recorded as the wave's most useful cost datum.
+
+**Untracked artifacts rescued this session, same exposure class as finding-0241.** `55c2f79`
+committed 972 lines across four brainstorms — including
+`commit-economy-and-the-succession-path.md`, the ruling's *other* home. `75cb5cc` committed
+`dn-trace-retrieval` (396 lines, `draft`), the note R2 names as owed, carrying the clause-(e) census
+and store readings of 9,145 utterances / 173 sessions, 22,031 chat events, and 1,826,639 reference
+edges of which **zero** are design-ref, dn-slug, or finding-id. Another session is actively revising
+it; it now has history either way.
+
+**⚑ HELD AT bp-126, DELIBERATELY.** bp-126 is the content-destroying plan and the owner is away.
+bp-125 has just proven that hazard is **live rather than theoretical**. The wave is *not* complete:
+bp-126 (cutover) and bp-127 (executable falsifier) remain `ready` and un-built, A10 is drafted for
+the owner's hand but must land only after bp-126, and oq-0058/0059 are open. Deskchecks: still 5
+owed, 0 records — bp-124/125 earn their row when the wave's track flips.
