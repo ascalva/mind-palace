@@ -812,6 +812,58 @@ was not aimed at.
    *decomposition itself*, the auditor is grading its own commissioner. ⚑ Worth an explicit rule
    rather than an assumption, since the failure is silent and reads as agreement.
 
+## ⚑⚑ INGESTION MOVES TO THE EDGE, AND READS ONLY `origin/main`
+
+> *"ingestion is now an edge agent, it only ingests from github remote/main directly, you can't
+> accidentally slip something on the local main"*
+
+⚑ **The property this buys: the corpus contains only what survived the merge gate.** Ingestion source
+becomes `origin/main`, which is by construction the set of artifacts the owner approved. The
+knowledge graph stops being "whatever was on this disk" and becomes "what was authorized."
+
+### ⚑ Measured tonight — the accident is not hypothetical
+
+`git config core.hooksPath` → `.githooks`, and `.githooks/post-commit` runs `scripts/snapshot_code.py`
+on **every local commit**. Observed across this session: the code-sensor ledger moved
+**1330 → 1346** — ⚑ **sixteen ingestions, every one from local `main`, none gated by anything.**
+
+That included commits nobody reviewed, and both captures where the orchestrator reasoned wrongly
+before being corrected (§the-hash-is-an-address, §there-is-no-third-place). ⇒ **Two wrong readings
+entered the corpus as knowledge**, and only the *later* correction entered too — the strata now holds
+both with nothing marking which superseded which. The owner's rule closes exactly this.
+
+### ⚑ It is the LAST act-based hook in the loop, and it goes the same way as the others
+
+`.githooks/post-commit` is a git hook rather than an agent hook, so it survived tonight's disabling
+untouched — but it is the same shape: **an act (commit) triggering a consequence (ingest), on the hot
+path, with no warrant between them.** Replacing it with an edge lane triggered by *merge to
+`origin/main`* is act-based → sign-based applied one final time. ⚑ The pattern has now consumed every
+hook in the system.
+
+### ⚑⚑ THE BOUNDARY THAT MUST BE DRAWN CAREFULLY — NN-2
+
+**NN-2: *"Network and private data never share a component. Only `edge/` touches the network; it
+never reads the vault."*** ⚑ *"Ingestion is an edge agent"* is safe or fatal depending on where the
+line falls:
+
+| shape | NN-2 |
+|---|---|
+| ⚑ **edge FETCHES from GitHub → hands bytes inward → core INGESTS and writes the stores** | ✅ the boundary holds |
+| edge fetches **and** writes embeddings/stores itself | ⚑ **VIOLATION** — one component touching the network and the private stores, exactly what NN-2 forbids |
+
+⇒ **The edge agent is a fetcher, not an ingester** — the same courier/authority distinction already
+pinned for the notary (§above), arriving independently at the same shape. `[INFERENCE]` The naming
+matters more than usual here: calling it "the ingestion edge agent" invites the fatal shape; calling
+it **"the fetch lane"** does not.
+
+### The bonus property — the corpus becomes reproducible
+
+Ingesting from public, immutable git history means **what was ingested can be reconstructed by
+anyone**, from the same source, and checked. A corpus built from a local working tree is
+unreproducible by construction — nobody else ever had those bytes. ⚑ This is the same property the
+hash-as-content-address gives the auth loop (§above): **public + immutable = independently
+verifiable**, and it is now load-bearing in two places.
+
 ## OPEN — remaining owner rulings, not guesses
 
 1. **Sequencing against tomorrow's keys.** ⚑ Recommendation: **do not block key onboarding on the
