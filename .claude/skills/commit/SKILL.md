@@ -65,7 +65,7 @@ description: How and when to commit in this repo — the CONVENTIONS §Commits h
 - **Co-Authored-By trailer** (owner preference, 2026-07-11): include it ONLY on commits
   that are substantially agent-authored CODE (feat/fix/refactor touching source). Omit it
   on routine orchestration commits — triage sweeps, seals, captures, inbox deliveries,
-  journal/PROGRESS updates. Attribution where it informs; silence where it's ceremony.
+  journal updates. Attribution where it informs; silence where it's ceremony.
   (The attestation chain and the run ledger carry machine provenance regardless.)
 - **The machine consumers are real**: semantic-release versions from `type`; the
   code-sensor ledger (`data/code_snapshots.sqlite`) parses the header into

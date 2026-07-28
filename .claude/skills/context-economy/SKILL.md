@@ -10,7 +10,7 @@ model-tier × effort**, and the prompt cache only softens gaps under ~5 minutes.
 marathon session at the top tier is the single most expensive object in the system —
 measured 2026-07-11: one all-day orchestrator session dominated the entire day's spend,
 exceeding every delegated build combined. The constitution already built the fix: the
-fresh-agent test means state lives in artifacts (plan + journal + PROGRESS + findings),
+fresh-agent test means state lives in artifacts (plan + journal + findings + merged PRs),
 so **a session that ends loses nothing it was supposed to keep.**
 
 ## The decision rule
@@ -23,7 +23,7 @@ so **a session that ends loses nothing it was supposed to keep.**
   the cost.
 - **COMPACT mid-unit** when work must continue (uncommitted state, live supervision) but
   the conversation carries dead threads. **Journal before compact** — compaction is lossy;
-  anything load-bearing that lives only in chat gets checkpointed to the journal/PROGRESS
+  anything load-bearing that lives only in chat gets checkpointed to the journal
   first, then compaction is safe by construction.
 - **CONTINUE** only when the thread is genuinely live and the cache is warm.
 
@@ -147,8 +147,8 @@ the next session inspects `.claude/worktrees/` and the plan journals.
 ## The usage ledger
 
 Every delegated build's completion notification carries measured token usage — record it
-in the plan's SEAL entry (tokens, tool calls, duration, model). PROGRESS checkpoints for
-heavy days note session shape (how many sessions, which tiers). Two weeks of seals = a
+in the plan's SEAL entry (tokens, tool calls, duration, model). Heavy days note session
+shape (how many sessions, which tiers) in the seal or the PR body. Two weeks of seals = a
 real per-plan cost table; the evolution study gains an economics axis.
 
 ## Anti-patterns (all field-observed)

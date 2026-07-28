@@ -47,8 +47,9 @@ through the same gate brainstorms do — never by side effect.
 ## Roles
 - **Orchestrator** — the default posture of a bare session at root. Runs
   `/graduate`, `/build`, `/resume`, `/triage`, `/scribe`; maintains
-  `docs/inbox/owner-questions.md` and `docs/PROGRESS.md`; flips plan status on
-  completion. Single-writer of those files.
+  `docs/inbox/owner-questions.md`; flips plan status on completion. Work lands by
+  PR — the merge log is the build log, and merge is the serialization point
+  (owner ruling 2026-07-28; role-state Amendment A1).
 - **Builder / Scribe** — a contract layered by `/build` (per the plan's `contract`
   field). Writable surfaces are exactly three: the plan's `write_scope`, its own
   `journal.md`, and new files in `docs/findings/`. Everything else is denied.
@@ -81,7 +82,9 @@ through the same gate brainstorms do — never by side effect.
 `/triage` · `/scribe`. Skills: **graduate**, **build-plan**, **finding**,
 **checkpoint**, **commit**, **delegate**, **context-economy**, **book**.
 Templates: `docs/templates/`. Sessions are disposable, artifacts are not — end at
-unit boundaries with a resume brief (context-economy skill; owner rule 2026-07-11).
+unit boundaries (context-economy skill; owner rule 2026-07-11). Successors onboard
+by traversal of the artifact chain — the resume-brief mechanism is retired
+(owner realization 2026-07-28: briefs transferred posture without warrant).
 Run commands via `uv run` (CONVENTIONS §Language) — never `./.venv/bin/...` paths.
 The orchestrator may spawn supervised parallel builders in worktrees for `ready`
 plans (owner rule 2026-07-11; depth + right-sizing in the **delegate** skill).
