@@ -1114,8 +1114,12 @@ What this retires and what it clarifies:
   description (what the author claimed at writing time), never a gate. One gate remains in
   the whole system, and it is the merge.
 - **PR granularity, owner-stated:** design-note proposals get PRs; code lands as merges
-  that may bundle one-to-many build plans of the SAME track — the owner reviews tracks,
-  not atoms. (The plan remains the builder's contract; the track-merge is the audit unit.)
+  that may bundle one-to-many build plans of the SAME track. Sharpened moments later,
+  near-verbatim: *"code merges contain the relevant code for the design to succeed in
+  implementation"* — the criterion, not just the granularity. The reviewable unit is the
+  DESIGN, REALIZED: plans are the means, wiring included per the finishing rule, and the
+  owner judges one question at merge — does this implement the design? (The plan remains
+  the builder's contract; the design-merge is the audit unit.)
 - **Audit is layered:** agent auditors may review before the owner; the owner always
   reviews; only the owner merges.
 - Downstream cleanups this implies (not performed here): gate-guard/Stop-gate flip

@@ -18,7 +18,9 @@ your PR body becomes the permanent record of the files and the reason.
    Naming: `<type>/<slug>` — observed types: `fix/`, `design/dn-<name>`, `docs/`,
    `workflow/`, `amend/<note>-a<N>`, `capture/`. One logical change per PR — a design-note
    proposal, a fix, a capture batch, or a code merge bundling one-to-many build plans of
-   the SAME track (the owner reviews tracks, not atoms).
+   the SAME track. The code-merge criterion, owner-stated: the merge contains **the
+   relevant code for the design to succeed in implementation** — the reviewable unit is
+   the design, realized, wiring included (a design that lands un-runnable did not succeed).
 2. **Commit per the commit skill** (header format, stage by exact filename — `git add -A`
    is banned — message via `git commit -F -` with a quoted heredoc, trailer policy).
 3. **Verify before opening**, proportional to surface: docs-only → a read-through; code →
