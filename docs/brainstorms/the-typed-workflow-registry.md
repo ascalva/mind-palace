@@ -700,6 +700,77 @@ already public this is mostly consistent — but an audit that surfaces a *secur
 published before it is fixed. Worth a rule (private advisory for that class, public for everything
 else) rather than discovering it the first time an auditor finds something sharp.
 
+## ⚑⚑ THE FULL PIPELINE — two merge stages, six actors, and where each authorization lives
+
+> *"merges happen at least in two stages: draft->ratify, and on PRs, the suborchestrator … mints the
+> plans, merges its changes, and then opens the PR(s), from there, I can spawn an auditor (or the
+> sub-orch does) to then review the request and comment directly in the PR, and once feedback cycle
+> finishes, it gets raised for me to approve and merge, only then can a track be deskchecked, when
+> ALL of its designs are merged (unless it's one of the long running tracks like workflow, that one
+> can be a deskcheck after each design->merge)"*
+
+| # | stage | actor | the act | warrant |
+|---|---|---|---|---|
+| 1 | `draft → ratified` | ⚑ **owner** | notarize | hardware signature over a content hash |
+| 2 | graduate + build | sub-orchestrator, builders | mint plans, write code | none — proposals |
+| 3 | ⚑ **integrate** | sub-orchestrator | assemble the PR | none — still a proposal |
+| 4 | audit | auditor agent | review comments **in the PR** | none — advisory |
+| 5 | `approve + merge` | ⚑ **owner** | merge (⇒ deploy) | the GitHub merge button |
+| 6 | deskcheck | ⚑ **owner** | track verdict | ⚑ **unspecified — see below** |
+
+### ⚑ "The sub-orchestrator merges its changes" does NOT contradict "no local main-merges"
+
+Worth stating because the two sentences look opposed. The sub-orchestrator is the **integrator**:
+
+```
+builder branches  ──merge──▶  sub-orch integration branch  ──PR──▶  main   (owner merges)
+```
+
+Builders merge into **it**, never into `main`. What the sub-orch merges is *its own* assembly; what it
+opens is a proposal. ⇒ The forbidden act is specifically `git merge <branch>` **into main, locally**
+— unchanged, and this hierarchy is fully consistent with it. ⚑ It also gives the `finding-0271`
+collision a natural resolution point: **integration is where id conflicts surface and are fixed**,
+one level below the owner's attention, which is where it belongs.
+
+### ⚑⚑ DESKCHECK IS NOW THE THIRD OWNER GATE — and the only one without a venue
+
+Ratify has a venue (the signature). Merge has a venue (the PR). **Deskcheck has neither**, and it is
+the gate that decides a track is actually done — the one the owner has already ruled is never
+self-declarable (`deskcheck-discipline`; the dreamer/reference/K1 slips).
+
+⚑ The design note **parked** deskcheck-verdict signing (*"unsigned, owner-by-hand as today"*). That
+default was reasonable when it stood alone; with stages 1 and 5 both becoming warranted acts, an
+unsigned third gate is now the **odd one out**, and it is the gate guarding the strongest claim in
+the system ("this track is done"). ⇒ **The parked decision deserves re-opening**, not because
+anything broke, but because the surrounding structure changed underneath it.
+
+### The new gating rule, and its exception
+
+> **A track may be deskchecked only when ALL of its designs are merged** — *except* long-running
+> tracks (`workflow`), which deskcheck **after each design→merge**.
+
+⚑ The exception is load-bearing, not a convenience: `workflow` never reaches "all designs merged"
+because it is the track that keeps redesigning the system that builds it. Without the carve-out its
+deskcheck is unreachable by construction — ⚑ and an unreachable gate is a gate that quietly stops
+being applied, which is how *"DONE ≠ sealed"* gets violated without anyone deciding to violate it.
+
+⚑ **And "all of its designs are merged" is a QUERY over the event log** — not a status field anyone
+maintains. That is the **fifth** ceremony the log absorbs (amendments · merges · audits · reviews ·
+now deskcheck-eligibility), and the fifth time the owner's opening ask arrives from a direction it
+was not aimed at.
+
+### ⚑ TWO RISKS IN THE CYCLE, stated so they are designed rather than discovered
+
+1. ⚑ **The feedback cycle has no termination condition.** auditor → builder → auditor → … can loop,
+   and each round costs a full agent. It needs a bound: *N* rounds, or "auditor declares clean", or
+   escalate to the owner with the disagreement stated. `[INFERENCE]` Escalation-on-disagreement is
+   probably right — a second opinion the owner never sees is a cost with no decision attached.
+2. **If the sub-orchestrator spawns its own auditor**, the audit is independent of the *builder* —
+   which is the property the delegate skill actually requires — but **not** of the orchestrator that
+   scoped the work. For a spec-fidelity audit that is fine; for anything questioning the
+   *decomposition itself*, the auditor is grading its own commissioner. ⚑ Worth an explicit rule
+   rather than an assumption, since the failure is silent and reads as agreement.
+
 ## OPEN — remaining owner rulings, not guesses
 
 1. **Sequencing against tomorrow's keys.** ⚑ Recommendation: **do not block key onboarding on the
