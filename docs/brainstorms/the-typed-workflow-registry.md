@@ -396,6 +396,85 @@ re-keying anything.
 signing capability* — plus its falsifier: any code path by which the scheduler could produce a valid
 transition signature without a hardware touch.
 
+## ⚑⚑ THE HUB SEES ONLY HASHES — which is why it can live anywhere
+
+> *"the scheduler can be any node in the system, it is not an agent, but it is another hub node, the
+> scheduler can be deployed to AWS, claude agents submit their work through a client that enforces
+> types, the client is the one that computes the hash of the doc, such that it sends that, not the
+> file, it uses the hash to tell me the file with hash needs my seal, the claude agent produces the
+> file into the local system as usual, but when I sign, you compare the hashes pre and post sign,
+> pre needs to match, [post]'s hash is stored, this scheduler is not even the ouroboros scheduler,
+> it performs document processing and routing"*
+
+⚑ **The document never leaves the machine. Only its hash transits.** That is what makes the earlier
+"scheduler side of Ouroboros" answer provisional and this one general — and it resolves the
+placement question that has been circling all night.
+
+### ⚑ It satisfies NN-11 structurally, not by policy
+
+> *"The interface may transit a third party; the corpus never does."*
+
+A hash **is not the corpus**. So a hub node in AWS — reachable from the phone, outside the house,
+run by a third party — carries **zero content**. NN-11 is not "respected by configuration"; it is
+unviolatable by the data flow. ⚑ This is the same standard the repo holds everywhere else: a
+property is real when something *proves* it, and here the proof is that the hub has nothing to leak.
+
+⇒ **And it makes "the notary is a courier, never an authority" a fact rather than a rule.** The hub
+cannot judge a document's contents **because it structurally cannot see them.** The invariant pinned
+in the section above stops needing enforcement — it is a consequence of the wire format.
+
+### ⚑⚑ THE PRE/POST HASH COMPARISON IS A TOCTOU DEFENCE — name it as one
+
+The subtle half, and it closes a real hole:
+
+```
+1. agent writes the file locally
+2. client computes  hash_pre , submits ONLY that
+3. hub → owner: "the file with hash_pre needs your seal"
+4. owner signs
+5. ⚑ re-hash the local file NOW → hash_post
+6. hash_pre == hash_post ?  →  sign & store hash_post
+                          ✗  →  REFUSE; the request is stale, resubmit
+```
+
+⚑ **Without step 5–6 there is a window between "please sign hash X" and the signature landing, in
+which an agent can rewrite the file.** The owner would be signing content he never saw — a
+time-of-check-to-time-of-use attack, and the highest-value one in the system, since its prize is a
+forged ratification. The pre/post comparison closes it, and the failure mode is a stale request
+rather than a silent bad signature.
+
+⇒ It is also the **same arithmetic** as the re-auth loop (§above): a warrant binds to a content
+hash, so any divergence — mid-ceremony or years later — lapses it. **One mechanism, three jobs:**
+ratification, tamper-evidence, and TOCTOU defence.
+
+### The layering this settles
+
+| component | sees | where it may live |
+|---|---|---|
+| **client** — type enforcement, hashing, submission | ⚑ **content** | local, in-process with the agent |
+| **store / event log** — source of truth | ⚑ **content** | local, no daemon (§placement, unchanged) |
+| **hub** — document processing, routing, seal requests | ⚑ **hashes only** | **any node — AWS, a phone-reachable service, anywhere** |
+| **notary** — the owner + hardware key | content, locally | outside every process |
+
+⚑ **Explicitly NOT the Ouroboros scheduler.** Different concern (document routing, not job
+execution), different data (hashes, not the corpus), different deployment. Conflating them would
+re-couple workflow liveness to the model daemon — the mistake §placement was written to avoid.
+
+### ⚑ THE HONEST TENSION — a hash cannot be read
+
+The hub can tell the owner *that* something needs a seal. It **cannot show him what he is signing**,
+because it does not have it. ⇒ Informed consent requires reading the document **locally**.
+
+⚑ This is consistent with the standing rule (*blessings stay at the keyboard*) and it explains
+**why** that rule is right rather than merely conservative: away from the machine, signing is
+necessarily **blind**. The hub's phone role is therefore **notification, never signature** — "you
+owe a seal on dn-X" is a legitimate push; "tap to approve hash abc123" is blind signing wearing a
+convenience costume.
+
+⇒ **Owed to the design note:** the hub's wire format (hashes only) as an invariant with its
+falsifier — *any hub payload carrying document content is a defect, not an optimization* — and the
+pre/post comparison as a named acceptance criterion on `bp-145`.
+
 ## OPEN — remaining owner rulings, not guesses
 
 1. **Sequencing against tomorrow's keys.** ⚑ Recommendation: **do not block key onboarding on the
