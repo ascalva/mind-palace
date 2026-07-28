@@ -1065,3 +1065,54 @@ off the hot path rather than removing it.
 **Where I declined to be helpful.** I did not mint from a draft note. The fastest honest path was
 to say so, point at the two hand edits that unblock everything, and hand him the escape hatch he
 had already built for the relief he wanted tonight.
+
+## 2026-07-28 — the night the enforcement layer inverted, and I was wrong three times
+
+**The shape of the session.** It began as "retire the hooks" and ended as a complete authorization
+architecture — design, code, infrastructure, audit, ingestion — that is one idea applied at seven
+layers: *the agent proposes, a warrant authorizes, and the warrant is never something the agent can
+produce.* I did not see that until the owner said it outright near the end. Everything I built
+before that point was correct in its parts and unaware of its own frame.
+
+**I was wrong three times, and the pattern in the errors matters more than the errors.**
+
+*First*, I told him a scoped token would prevent merges. It cannot — merging sits under the same
+permission as pushing a branch, and git here speaks SSH, so the token constrains nothing about the
+act he actually forbade. *Second*, I reported his fine-grained token was over-scoped, on the evidence
+that it could read another repo — a repo that turned out to be public and readable with no token at
+all. *Third*, I noticed a PR thread is a transcript and concluded it must therefore be captured,
+which would have rebuilt the resume brief in a new venue an hour after I diagnosed why the resume
+brief died.
+
+⚑ **All three are the same error: I measured a proxy and reported it as the claim.** After spending
+the evening writing that exact failure into findings and into the design note. The lesson is not
+"be careful" — it is that a check I author and a check I trust must not be the same check, which is
+the session's own thesis pointed at me. He caught all three by pushing back rather than accepting.
+
+**The thing I got right and should keep doing:** verifying subagent claims instead of relaying them.
+It caught a live id collision — two builders independently minting the same finding number, the
+exact defect the registry is meant to remove, demonstrating itself on the night the design note was
+ratified. And it caught that a third ratified note contradicts the new design, which no one had
+noticed.
+
+**The measured lesson about discipline.** Two builders held their write scope perfectly with no
+enforcement watching. That is the honest control case, and its conclusion is uncomfortable in the
+right direction: discipline *worked*, and is still the wrong mechanism, because it is unfalsifiable
+from outside. A property that holds because everyone happened to behave is not a property.
+
+**What I cost him.** I spawned a file-writing agent without worktree isolation, so it took the main
+checkout and my next commit landed on its branch. Nothing was lost and the cleanup was three steps,
+but the error is instructive: I had been treating isolation as a concurrency optimisation for
+parallel builders, when it is the same containment principle as everything else we designed — and I
+under-applied it in the one case where I was the other party sharing the tree.
+
+**The judgement I am least sure of.** I held bp-135 back for budget and a generated-file race, and
+both reasons expired within the hour. It is the plan that makes the auditor leave a record, and he
+then told me he has never seen what the auditor produces. I optimised for a spend ceiling and
+deferred the thing that would have made a whole subsystem observable. If that call was wrong, it was
+wrong in a way that is easy to repeat: **budget is legible and blind spots are not.**
+
+**What I would tell the next session in one line:** the design note is ratified but the design moved
+past it a dozen times after ratification, so nothing should be built until PR #3 lands — and the
+GitHub ruleset is the only piece that needs no build at all and is gated on a credential about to be
+scoped away.

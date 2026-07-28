@@ -28,18 +28,29 @@
 | bp-130 | proposed | graduate | the `(I − Ε)` factor: `π_valid`, and transport-invariance made checkable |
 | bp-131 | proposed | graduate | the chat lane's belief/validity split, and the E8 tripwire |
 | bp-132 | proposed | graduate | every chat consumer declares its axis: belief or validity |
-| bp-135 | proposed | graduate | AP2: the reviewer's seat leaves a record — the audit pair as a typed artifact the board actually consumes |
-| bp-136 | proposed | graduate | AP3: the halt list is a total predicate over a declared run state, and every unknown halts |
-| bp-137 | proposed | graduate | AP4: "low stakes" becomes a conjunctive structural predicate that refuses on absence exactly as it refuses on violation |
-| bp-138 | proposed | graduate | AP5: the grant's pure core — code derivation, the domain-separated attestation tag, and expiry, with the secret behind an injection-only seam |
-| bp-139 | proposed | graduate | AP6: the ON switch — `[autopilot]` reaches a caller, and the capsule reaches the phone as bytes it can hash |
+| bp-135 | ready | build | AP2: the reviewer's seat leaves a record — the audit pair as a typed artifact the board actually consumes |
+| bp-136 | ready | build | AP3: the halt list is a total predicate over a declared run state, and every unknown halts |
+| bp-137 | ready | build | AP4: "low stakes" becomes a conjunctive structural predicate that refuses on absence exactly as it refuses on violation |
+| bp-138 | ready | build | AP5: the grant's pure core — code derivation, the domain-separated attestation tag, and expiry, with the secret behind an injection-only seam |
+| bp-139 | ready | build | AP6: the ON switch — `[autopilot]` reaches a caller, and the capsule reaches the phone as bytes it can hash |
+| bp-140 | proposed | graduate | The registry store: typed events, serial minting, refs, idempotency |
+| bp-141 | proposed | graduate | Degraded mode: the pending file, provisional refs, reconcile, recovery import |
+| bp-142 | proposed | graduate | The export renderer, the idempotence pin, and the `export == working tree` ratchet |
+| bp-143 | proposed | graduate | The front-matter migration: every artifact ingested, not one byte rewritten |
+| bp-144 | proposed | graduate | The signed transition: a canonical five-tuple, verified with the existing Ed25519 layer |
+| bp-145 | proposed | graduate | Signed admission: no unsigned path to `ratified`, verified twice |
+| bp-146 | proposed | graduate | Land-time admission: `write_scope` as a per-unit enforcement level |
+| bp-147 | proposed | graduate | The journal-gate clause map made real: typed seal, land-time judgement, unit state |
+| bp-148 | proposed | graduate | Resume-brief deprecation: the doctrine edits and the fresh-agent drill |
+| bp-149 | proposed | graduate | Staged hook retirement: one guarantee at a time, each behind its green parity test |
+| bp-150 | proposed | graduate | The derived views re-pointed: `board.py` and `handoff.py` derive from the registry |
 
-Status tally: complete 112 · proposed 9 · ready 10 · superseded 6
+Status tally: complete 112 · proposed 15 · ready 15 · superseded 6
 
 ## Awaiting the owner
 
-- bless (proposed→ready): bp-129, bp-130, bp-131, bp-132, bp-135, bp-136, bp-137, bp-138, bp-139
-- ratify (draft notes): 43 — alignment-subsystem, attestation-layer, authorship-distance-axis, core-integrity, dialogue-ingest-and-recursion, dn-headless-daemon-secret-bootstrap …
+- bless (proposed→ready): bp-129, bp-130, bp-131, bp-132, bp-140, bp-141, bp-142, bp-143, bp-144, bp-145, bp-146, bp-147, bp-148, bp-149, bp-150
+- ratify (draft notes): 42 — alignment-subsystem, attestation-layer, authorship-distance-axis, core-integrity, dialogue-ingest-and-recursion, dn-headless-daemon-secret-bootstrap …
 - answer (open owner questions): 33 — oq-0003, oq-0004, oq-0005, oq-0006, oq-0007, oq-0008, oq-0009, oq-0010 …
 
 ## Deskchecks owed
@@ -54,7 +65,7 @@ Status tally: complete 112 · proposed 9 · ready 10 · superseded 6
 
 ## Open findings
 
-59 open — most recent: finding-0265, finding-0266, finding-0267, finding-0268, finding-0269, finding-0270
+61 open — most recent: finding-0267, finding-0268, finding-0269, finding-0270, finding-0275, finding-0276
 
 ## Readings (MEASURED — latest per command)
 
