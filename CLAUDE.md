@@ -80,7 +80,8 @@ through the same gate brainstorms do — never by side effect.
 ## Commands (depth in the matching skill)
 `/capture <topic>` · `/graduate <note>` · `/build <id>` · `/resume <id>` ·
 `/triage` · `/scribe`. Skills: **graduate**, **build-plan**, **finding**,
-**checkpoint**, **commit**, **delegate**, **context-economy**, **book**.
+**checkpoint**, **commit**, **pr** (ALL work lands by PR — read it before opening one),
+**delegate**, **context-economy**, **book**.
 Templates: `docs/templates/`. Sessions are disposable, artifacts are not — end at
 unit boundaries (context-economy skill; owner rule 2026-07-11). Successors onboard
 by traversal of the artifact chain — the resume-brief mechanism is retired
