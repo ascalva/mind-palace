@@ -1077,3 +1077,24 @@ What this settles and what it opens:
   MERGES; the live shared file dissolves. Reconciling that is an amendment/erratum matter
   for the owner at the workflow re-warrant's ratification (PR #3 is the venue), never a
   chat-side reinterpretation.
+
+## 2026-07-28T16:43Z (bg orchestrator session — owner grant: the guardrails apply; no chains, only authority walls)
+
+Owner, near-verbatim, granting the lattice: *"yes, write the amendment — if the note is
+already ratified and merged, open a PR to amend. Yes, apply all these guardrails. Yes: we are
+now working in harmony — no chains, only authority walls via third parties, only trusted to
+enforce transitions."*
+
+- **"No chains, only authority walls" is the constitutional sentence of the new regime.**
+  Chains restrain the worker mid-motion (hooks, local guards — the things that "bog down");
+  walls stand at TRANSITIONS and are held by a third party trusted precisely because it is
+  outside every session's identity. The old line was "the model advises; code acts." The
+  regime adds: the agent proposes; the third party enforces transitions.
+- **Rollout is phased against a self-deadlock** (all current PRs are authored by the owner's
+  own token; GitHub forbids self-approval; no bypass actors is non-negotiable): phase 1 —
+  ruleset requiring PRs (zero approvals), force-push and deletion blocked, pushes to main
+  illegal NOW while every open PR stays owner-mergeable; phase 2 after the CI-on-PRs merge —
+  required status checks (the ratchet's verdict precedes every landing); phase 3 after the
+  owner's identity-split ceremony — required approvals + code-owner review: the wall.
+- This capsule rides the LAST direct push to main. Every capture after it goes through the
+  door like everything else.
