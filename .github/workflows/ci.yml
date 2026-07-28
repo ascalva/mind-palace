@@ -56,7 +56,12 @@ jobs:
 
   denylist:
     # The constitutional wall (owner ruling 2026-07-28): writes to the fixed points are
-    # HARD NOs — enforced as a PR verdict, never a local chain. Red iff the diff touches
+    # HARD NOs — enforced as a PR verdict, never a local chain.
+    # PR SURFACE ONLY: on push, event.before is pre-merge main, so the job would re-judge
+    # an owner-merged diff post-hoc and red main forever after any legitimate, gated
+    # retirement (proven by the very first merge under the wall). The gate is the required
+    # check on the PR; a landed merge is by definition owner-approved.
+    if: github.event_name == 'pull_request' Red iff the diff touches
     # a denylist path. Required by the main ruleset, so a PR touching the constitution
     # cannot merge; loosening this requires deliberately editing THIS job and the ruleset
     # — human-only, deliberate, logged (NN-9). Denylist: CONSTITUTION.md, eval/golden.py,
