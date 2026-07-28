@@ -580,6 +580,66 @@ change how orchestrator doc-commits reach main. `[INFERENCE]` A ruleset that req
 *merges* while leaving direct commits alone is the shape that matches the narrowing above; whether
 GitHub can express exactly that split is worth checking before promising it.
 
+## ⚑⚑ THE DEPLOY PATH — plan is proposal, apply is CI, and the agent never holds AWS
+
+> *"the point here, you can generate the plan, but can't deploy with terraform, and github gives
+> unlimited CI minutes for public repos, and github has well understood integration with amazon"*
+
+⚑ **This is the third instance of tonight's single pattern**, and the one that finally makes NN-3
+(*"the model advises; code acts — no model holds a shell, raw secrets, or direct infra mutation"*)
+structural rather than procedural:
+
+| layer | the agent produces | the warrant | who acts |
+|---|---|---|---|
+| design | an edited note | hardware signature | the owner notarizes |
+| code | a branch + PR | the merge button | the owner merges |
+| ⚑ **infrastructure** | ⚑ **`terraform plan`** | **the same merge** | ⚑ **GitHub Actions applies** |
+
+⇒ **`plan` : `apply` :: proposal : authorization.** Terraform already ships the split this whole
+design has been reinventing all night — a plan is a *reviewable statement of intent* that changes
+nothing, and apply is the authorized act. Using it as-is beats building an equivalent.
+
+### ⚑ The agent holds NO AWS credentials — that is the whole point
+
+`apply` runs **in CI, not on this machine**, so there is nothing to scope, rotate, or leak locally.
+`[INFERENCE — the "well understood integration" is GitHub Actions OIDC → an AWS IAM role trusted by
+this repo: short-lived, assumed per-run, no long-lived keys stored even as Actions secrets. Verify
+the trust-policy shape before building; do not build from this sentence.]`
+
+⚑ **This also retires a standing exception.** `mind-palace deploy` has been *"the ONE owner-in-loop
+gate, never run autonomously"* — a rule held by discipline. Under merge-triggered deploy it stops
+being a command anyone could run and becomes a **consequence of an authorization already given**.
+The rule does not need to be obeyed; it becomes unexpressible locally.
+
+### Economics — verified
+
+`gh api repos/:owner/:repo --jq .private` → **`false`**. The repo is public, so Actions minutes are
+unmetered. The CI-as-the-apply-plane design costs nothing, which is why it can be adopted now rather
+than budgeted for.
+
+### ⚑ THE COST OF PUBLIC, AND IT IS NOT ZERO — plan output leaks topology
+
+A public repo means **`terraform plan` output posted to a PR is world-readable**. Plans routinely
+disclose account ids, resource ARNs, bucket and function names, security-group rules — the shape of
+the infrastructure, even when no secret value appears.
+
+⇒ **A decision is owed, and it should not be made by default:**
+- **(a)** accept it — the topology is public, and the security model rests on credentials and OIDC
+  trust policies rather than on obscurity;
+- **(b)** post the plan as a **check summary or artifact** rather than a PR comment, narrowing who
+  sees it;
+- **(c)** redact — brittle, and a redactor that silently misses a field is worse than (a).
+
+`[INFERENCE]` (a) is defensible and probably correct — this repo already publishes its design notes,
+findings and account-level decisions, and hiding topology while publishing the design that describes
+it is not a coherent boundary. ⚑ But it should be *chosen*, because the first plan output posts
+whatever it posts and cannot be unpublished.
+
+⚑ Note this composes with §"the hash is a content address": the *reason* remote verification works
+is that these artifacts are already public. Publicness is load-bearing for the auth loop and a leak
+surface for infrastructure — the same property, cutting both ways, and worth naming as such rather
+than treating each in isolation.
+
 ## OPEN — remaining owner rulings, not guesses
 
 1. **Sequencing against tomorrow's keys.** ⚑ Recommendation: **do not block key onboarding on the
