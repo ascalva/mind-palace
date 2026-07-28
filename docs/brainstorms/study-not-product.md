@@ -19,6 +19,69 @@ seed (owner, verbatim): |
   this is feeling like more of a study than a product"
 ```
 
+## ⚑⚑⚑ THE FRAME THAT SUBSUMES THE REST — "the project is also about being in control of my own identity"
+
+> Owner, closing the session: *"the project is also about being in control of my own identity"*
+
+⚑ **Identity has been the through-line all night, treated as four unrelated problems.** It is one:
+
+| layer | what it means here | tonight's instance |
+|---|---|---|
+| **cognitive** | the corpus is a map of how the owner thinks | the self-map; *"mining my own brain"* |
+| **credential** | who may act as him | Proton tiers, the YubiKey pair, the recovery DAG |
+| **attributional** | who did what | the agent-vs-owner GitHub split; commit authorship |
+| **authorial** | what he built, under his name, publicly | `ascalva.com`; the public record |
+
+### ⚑⚑ AND EVERY DEFECT TONIGHT WAS THE SAME DEFECT — an identity borrowed, collapsed, or hostage
+
+| defect | the identity failure |
+|---|---|
+| the agent is indistinguishable from the owner on GitHub | ⚑ **attribution collapse** — one principal wearing two roles |
+| `ascalva@gmail.com` as AWS's only recovery | ⚑ **credential identity hostage** to a party he does not control |
+| the corpus ingesting unreviewed drafts | ⚑ **cognitive identity polluted** by moments that were not his thinking |
+| a rented address as his public identity | ⚑ **authorial identity leased**, not owned |
+
+⇒ **Every fix was also the same fix: make it distinct, and make it his.** That is why the evening's
+threads kept converging — they were never separate threads.
+
+### ⚑ THIS IS WHY LETTING GO OF LOCAL-FIRST COST NOTHING
+
+Local-first *felt* like control, and was a reasonable proxy for it. But:
+
+> ⚑ **Location is not control. Custody is not control. AUTHORITY is control.**
+
+Tonight moved **location** away from the machine (hub in AWS, apply in CI, record on GitHub) while
+moving **authority** toward the owner at every single layer (the signature, the merge button, the
+notary, the capability limits). ⇒ Those are not in tension, and the discomfort of "it stopped being
+local-first" dissolves once they are separated. **Keeping mail on Gmail cedes control; running a
+router in AWS does not — because the keys and the name stay his.**
+
+### ⚑⚑ THE SHARPEST CONSEQUENCE — corpus integrity IS identity integrity
+
+If the corpus is a map of the owner's reasoning, then **what gets ingested becomes part of his
+self-model.** Tonight, per-commit ingestion put **the orchestrator's two wrong readings into that
+map** — not as flagged errors, but as content that retrieval will surface with equal standing to his
+own thinking. `[GROUNDED — §the-veins records the measured 1330→1351 ledger movement; the corrected
+readings and their corrections are both in there, unmarked.]`
+
+⇒ ⚑ **The merge-gated ingestion lane is not a signal-to-noise improvement. It is preventing a
+defective agent from writing into the owner's self-model.** That is a categorically stronger reason
+than corpus hygiene, and it should be what `bp-140`'s successor cites — it changes the work's
+priority, not just its rationale.
+
+### ⚑ THE PERMANENT TENSION, named so it is not mistaken for a bug
+
+Control means being in the loop. Being in the loop means **being the constraint.** Tonight the owner
+was the gate five or more times, and every design decision made him the gate *more* deliberately, not
+less.
+
+⇒ The autopilot track exists to serve this tension, **not to remove it**: it delegates the gate whose
+judgement is mechanical and reversible (`proposed→ready`) and permanently forecloses the one that is
+neither (`draft→ratified`). ⚑ Read as "reduce owner involvement," autopilot would drift toward
+exactly the thing this project is against. Read as "spend the owner's attention only where identity
+is actually at stake," it is the correct instrument. **The distinction should be written into the
+autopilot note's purpose, not left to be inferred.**
+
 ## ⚑⚑ "LOCAL-FIRST STOPPED" IS NOT A PRINCIPLE LOST — it is a correction of which one was load-bearing
 
 Worth stating plainly, because it would be easy to read tonight as a compromise. It was not.
