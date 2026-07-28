@@ -1050,3 +1050,30 @@ references:
   - docs/design-notes/distributed-ecosystem.md (PR #7, draft — speciation at instance
     scale; this capsule is the same law at session scale)
 ```
+
+## 2026-07-28T16:25Z (bg orchestrator session — owner refinement: no common state; GitHub as the peering glass)
+
+Owner, near-verbatim: *"no common 'state' — they all problem-solve and can uncover relevant
+details. GitHub is how I can more easily peer through, using an external, valid system for
+managing merges with authority."*
+
+What this settles and what it opens:
+
+- **The seat-journal open question above is ANSWERED: no common state, full stop.** The only
+  shared thing among orchestrators is merged nature — origin/main, pinned by hash. Each
+  session uncovers relevant details independently, and redundant rediscovery is a FEATURE:
+  two independent orchestrators converging on the same fact is confirmation, the
+  multi-perspective pattern applied to orchestration itself. (Tonight's evidence: three
+  design agents independently corrected the dispatching orchestrator's brief five times by
+  traversal alone.)
+- **GitHub's role is dual: authority AND observability.** "Peer through" — the PR list is
+  the fleet dashboard; merge management is delegated to an external, VALID system whose
+  legitimacy comes precisely from not sharing identity with the things it gates
+  (finding-0276's lesson, stated positively). The hub carries pointers; GitHub is the hub
+  with an authority model attached.
+- **⚑ Flagged, not resolved: tension with ratified dn-role-state-and-scoped-handoff.** That
+  note's frame — the seat journal as the seat's memory, every successor inheriting it —
+  assumed one live seat per role. Under no-common-state, seat memory lives only in what
+  MERGES; the live shared file dissolves. Reconciling that is an amendment/erratum matter
+  for the owner at the workflow re-warrant's ratification (PR #3 is the venue), never a
+  chat-side reinterpretation.
