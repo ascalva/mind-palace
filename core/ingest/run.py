@@ -32,7 +32,7 @@ def run_ingest(config: Config | None = None, *, rebuild: bool = True) -> IngestS
     if rebuild:
         store.reset()
     embedder = build_embedder(cfg)
-    records = ingest_vault(cfg.vault.path, raw, pattern=cfg.vault.pattern)
+    records = ingest_vault(cfg.ingestion.vault.path, raw, pattern=cfg.ingestion.vault.pattern)
     added = index_records(records, embedder, store)
     return IngestSummary(
         notes=len(records),

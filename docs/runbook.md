@@ -234,10 +234,10 @@ session log, including a concurrency bug found and fixed during verification.
 Re-ingests changed notes through the Phase-1 pipeline, idempotently (content-addressing):
 unchanged = no-op, changed = re-embed, deleted = **tombstone** (derived dropped, raw kept).
 ```
-uv run scripts/watch.py     # seals the core, then watches [vault].path
+uv run scripts/watch.py     # seals the core, then watches [ingestion.vault].path
 ```
 Real-time via `watchdog` (FSEvents) if installed (`uv pip install watchdog`); without
-it the watcher **falls back to polling** every `[vault].watch_poll_interval_s`. Either way the
+it the watcher **falls back to polling** every `[ingestion.vault].watch_poll_interval_s`. Either way the
 trigger just enqueues a background `vault_sync` job and the supervisor runs the idempotent
 rescan — missed/duplicate events are harmless. It is core-side and reaches no network (the
 import-lint proves it); only the local filesystem and local stores are touched.
@@ -941,7 +941,7 @@ mind-palace reset --confirm                                       # hard-wipe th
 mind-palace start                                                 # re-ingests everything as authored-solo
 ```
 
-`[vault] path` is set to `~/.mind-palace/vault/janus_notes` (config/ouroboros.toml) so only that synced
+`[ingestion.vault] path` is set to `~/.mind-palace/vault/janus_notes` (config/ouroboros.toml) so only that synced
 subdir is ingested — old/stray files in the vault root are ignored. A fresh re-ingest tags everything
 `authored-solo` natively, so the provenance-split migration is **not needed** after a reset.
 

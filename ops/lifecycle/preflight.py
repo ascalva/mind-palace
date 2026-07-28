@@ -90,8 +90,8 @@ def check_own(cfg) -> list[Check]:
     data = cfg.paths.data_dir
     data.mkdir(parents=True, exist_ok=True)
     checks.append(Check("data_dir", required=True, ok=data.is_dir(), detail=str(data)))
-    vp = cfg.vault.path
-    notes = list(vp.glob(cfg.vault.pattern)) if vp.is_dir() else []
+    vp = cfg.ingestion.vault.path
+    notes = list(vp.glob(cfg.ingestion.vault.pattern)) if vp.is_dir() else []
     # warn-only: on a first start before the re-export/sync there are simply no notes yet.
     checks.append(Check(
         "vault_notes", required=False, ok=bool(notes),

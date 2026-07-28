@@ -57,8 +57,8 @@ def build_vault_watcher(
         enqueue_vault_sync(queue, router)
 
     return DirectoryWatcher(
-        path=cfg.vault.path,
+        path=cfg.ingestion.vault.path,
         on_change=_on_change,
-        debounce_s=cfg.vault.watch_debounce_s,
-        poll_interval_s=cfg.vault.watch_poll_interval_s,
+        debounce_s=cfg.ingestion.vault.watch_debounce_s,
+        poll_interval_s=cfg.ingestion.vault.watch_poll_interval_s,
     )

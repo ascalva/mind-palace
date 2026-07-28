@@ -47,7 +47,7 @@ def _ingest_source_roots(cfg: object) -> list[Path]:
     exhaust invariant (note §2.2) forbids from lying inside the exhaust lane. Two today, each
     grep-verified against its live consumer:
 
-      * ``cfg.vault.path`` — the authored corpus (core/ingest/*, scheduler/vault_sync.py).
+      * ``cfg.ingestion.vault.path`` — the authored corpus (core/ingest/*, scheduler/vault_sync.py).
       * the chat transcripts dir — the dialogue sensor's source (scheduler/chat_sync.py), resolved
         via the sensor's OWN ``_default_transcripts_dir()`` when unset (finding-0108 G1), so this
         test reuses the real resolver rather than re-deriving ``~/.claude/projects/<slug>``.
@@ -58,8 +58,8 @@ def _ingest_source_roots(cfg: object) -> list[Path]:
     from ops.chat_sensor import _default_transcripts_dir
 
     return [
-        cfg.vault.path,  # type: ignore[attr-defined]
-        cfg.chat.transcripts_dir or _default_transcripts_dir(),  # type: ignore[attr-defined]
+        cfg.ingestion.vault.path,  # type: ignore[attr-defined]
+        cfg.ingestion.transcripts.transcripts_dir or _default_transcripts_dir(),  # type: ignore[attr-defined]
     ]
 
 
@@ -85,7 +85,9 @@ def test_the_invariant_check_catches_a_source_inside_exhaust(tmp_path: Path) -> 
     bad = dataclasses.replace(
         cfg,
         exhaust=dataclasses.replace(cfg.exhaust, path=exhaust),
-        vault=dataclasses.replace(cfg.vault, path=planted_source),
+        ingestion=dataclasses.replace(
+            cfg.ingestion,
+            vault=dataclasses.replace(cfg.ingestion.vault, path=planted_source)),
     )
     offenders = _sources_inside_exhaust(bad)
     assert _resolved(planted_source) in offenders

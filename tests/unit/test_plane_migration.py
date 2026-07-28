@@ -97,7 +97,7 @@ def _migrated_probe(cfg, *, vault_readable=False, pf_loaded=True, daemon="ourobo
     """A FULLY-migrated fixture: the three users + palace group exist, every lane has the right
     owner:group+mode, the daemon plist declares ouroboros, git signing is repo-local, home is
     traversable. Knobs flip individual lanes to prove the falsifiers."""
-    vault = Path(cfg.vault.path).expanduser()
+    vault = Path(cfg.ingestion.vault.path).expanduser()
     exhaust = Path(cfg.exhaust.path).expanduser()
     data_dir = Path(cfg.paths.data_dir)
     owners = {
@@ -290,7 +290,7 @@ def _uid(name: str) -> int | None:
 def test_ratchet_vault_unreadable_from_test_uid():
     """The corpus wall: once the vault is ouroboros-owned, a non-ouroboros posture (this test's
     uid) CANNOT read it. Keyed on real ownership — SKIPS until the vault is migrated."""
-    vault = Path(get_config().vault.path).expanduser()
+    vault = Path(get_config().ingestion.vault.path).expanduser()
     core = _uid(vp.CORE)
     if core is None or not vault.exists() or vault.stat().st_uid != core:
         pytest.skip("pre-migration: vault not yet ouroboros-owned")

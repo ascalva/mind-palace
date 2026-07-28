@@ -86,8 +86,14 @@ class PathsConfig:
 
 @dataclass(frozen=True)
 class VaultConfig:
+    """The AUTHOR-CORPUS ingestion agent — the owner's markdown vault (`vault_sync`).
+
+    `enabled` gates every path this agent uses: its DirectoryWatcher and the startup catch-up
+    reconcile. See `IngestionConfig` for why each agent carries its own lever."""
+
     path: Path
     pattern: str
+    enabled: bool = True
     watch_debounce_s: float = 1.0
     watch_poll_interval_s: float = 5.0
 
@@ -105,20 +111,27 @@ class ExhaustConfig:
 
 
 @dataclass(frozen=True)
-class ChatConfig:
-    """The dialogue sensor over the local Claude Code transcripts (bp-069). Plain fields — the
-    self-containment ratchet stays 19 (no first-party import into core.config). `transcripts_dir` is
-    the finding-0108 G1 override: None ⇒ the resolved default `_default_transcripts_dir()`
-    (`~/.claude/projects/<repo-slug>`); set it when the canonical repo path differs from a worktree.
-    A small `watch_debounce_s` (0.5s) makes ingestion "immediate" to a human (Q4).
-    `events_max_per_pass` caps the L1 action-log projector per pass (Item 3);
-    `integrate_max_per_pass` caps the integrator's proven-edge pass per tick (bp-071 Item 2)."""
+class TranscriptIngestConfig:
+    """The TRANSCRIPT-SYNC ingestion agent — the dialogue sensor over the local Claude Code
+    transcripts (bp-069, φ_chat; the sensor itself is `ops/chat_sensor.py`). Plain fields — the
+    self-containment ratchet stays 19 (no first-party import into core.config).
 
+    `enabled` gates the whole agent, which is BOTH of its job kinds: `chat_sync` (embed transcript
+    text) and `chat_events` (project the L1 action log from those same transcripts). They are one
+    agent, so they share one lever (owner ruling 2026-07-28). Every path is covered — the live
+    watcher, the housekeeping pass, and the startup catch-up backfill — because a gate that misses
+    the catch-up unpauses itself on the next daemon start, which is exactly deploy time.
+
+    `transcripts_dir` is the finding-0108 G1 override: None ⇒ the resolved default
+    `_default_transcripts_dir()` (`~/.claude/projects/<repo-slug>`); set it when the canonical repo
+    path differs from a worktree. A small `watch_debounce_s` (0.5s) makes ingestion "immediate" to a
+    human (Q4). `events_max_per_pass` caps the L1 action-log projector per pass (Item 3)."""
+
+    enabled: bool = True
     transcripts_dir: Path | None = None
     watch_debounce_s: float = 0.5
     watch_poll_interval_s: float = 5.0
     events_max_per_pass: int = 50
-    integrate_max_per_pass: int = 50
 
 
 @dataclass(frozen=True)
@@ -283,17 +296,50 @@ class SelfModConfig:
 
 @dataclass(frozen=True)
 class CodeIngestConfig:
-    """The code embed lane (dn-code-ingest-pipeline / bp-092..094; enable path wired by bp-098).
-    OFF by default — a fresh clone does not ingest its own code until the owner deliberately turns
-    it on (finding-0146: code is a first-class semantic source; finding-0159: the ON switch is part
-    of finishing). `enabled` gates the daemon's INCREMENTAL housekeeping sync only; the one-time
-    heavy SEED (every HEAD blob) is the deliberate owner-visible `palace code-seed`, never auto-run
-    from a flag flip (note §2.7). `max_chars`/`overlap_chars` mirror the note chunker budget so L0b
-    windows and L1 prose chunks share the corpus-wide grain (note §2.2)."""
+    """The CODE-SYNC ingestion agent (dn-code-ingest-pipeline / bp-092..094; enable path bp-098).
+
+    `enabled` gates the agent's automatic paths — the INCREMENTAL housekeeping sync (`code_sync`)
+    and the startup catch-up history backfill (`code_backfill`). The one-time heavy SEED stays the
+    deliberate owner-visible `palace code-seed`, never auto-run from a flag flip (note §2.7).
+    `max_chars`/`overlap_chars` mirror the note chunker budget so L0b windows and L1 prose chunks
+    share the corpus-wide grain (note §2.2)."""
 
     enabled: bool = False
     max_chars: int = 1200
     overlap_chars: int = 150
+
+
+@dataclass(frozen=True)
+class IntegrateConfig:
+    """The INTEGRATOR — its own agent type, deliberately NOT an ingestion agent (owner ruling
+    2026-07-28). It ingests nothing: it derives C-fiber proven edges from the already-ingested L1
+    action log and the ledger (bp-071). That is why it sits outside `[ingestion]` and carries its
+    own lever, rather than riding on the transcript agent's the way `chat_events` does."""
+
+    enabled: bool = True
+    max_per_pass: int = 50
+
+
+@dataclass(frozen=True)
+class IngestionConfig:
+    """The ingestion agents, one subsection each (owner ruling 2026-07-28: *"it should be per
+    agent... the code-sync ingestion agent is its own ingestion section, the transcript-sync
+    ingestion is its own ingestion section, the author corpus ingestion (vault) is its own
+    ingestion section"*).
+
+    Each agent owns exactly one `enabled` lever, and that lever gates EVERY path the agent uses —
+    watcher, housekeeping pass, and startup catch-up. One flag spanning several agents was rejected
+    for the reason this grouping fixes: a lever has to say which agent it stops, and a section has
+    to contain only what its lever governs. `chat_events` rides the transcript agent because it is
+    part of transcript ingestion; `integrate` does not, because it is a different kind of agent.
+
+    Mirrors `[ingestion.*]` in the TOML exactly, so `cfg.ingestion.code.enabled` and
+    `[ingestion.code] enabled` are the same name twice rather than two names that must be kept in
+    sync by hand."""
+
+    vault: VaultConfig
+    transcripts: TranscriptIngestConfig = field(default_factory=TranscriptIngestConfig)
+    code: CodeIngestConfig = field(default_factory=CodeIngestConfig)
 
 
 @dataclass(frozen=True)
@@ -390,7 +436,8 @@ class Config:
     ollama: OllamaConfig
     resources: ResourceConfig
     paths: PathsConfig
-    vault: VaultConfig
+    # The ingestion agents, one subsection each — mirrors `[ingestion.*]` in the TOML.
+    ingestion: IngestionConfig
     exhaust: ExhaustConfig
     embedding: EmbeddingConfig
     dreaming: DreamingConfig
@@ -400,14 +447,13 @@ class Config:
     airlock: AirlockConfig
     models: tuple[ModelConfig, ...]
     # Default keeps direct Config(...) construction (e.g. in tests) working without this section.
-    chat: ChatConfig = field(default_factory=ChatConfig)   # bp-069 dialogue sensor
+    integrate: IntegrateConfig = field(default_factory=IntegrateConfig)  # bp-071, not an ingestor
     ambassador: AmbassadorConfig = field(default_factory=AmbassadorConfig)
     attestation: AttestationConfig = field(default_factory=AttestationConfig)
     secrets: SecretsConfig = field(default_factory=SecretsConfig)
     backup: BackupConfig = field(default_factory=BackupConfig)
     selfmod: SelfModConfig = field(default_factory=SelfModConfig)
     effectors: EffectorsConfig = field(default_factory=EffectorsConfig)
-    code_ingest: CodeIngestConfig = field(default_factory=CodeIngestConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)  # bp-115 inference backend
     scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)  # bp-110 execution model
 
@@ -430,16 +476,37 @@ def _resolve(p: str) -> Path:
     return path if path.is_absolute() else REPO_ROOT / path
 
 
+def _deep_merge(base: dict[str, Any], incoming: dict[str, Any]) -> None:
+    """Recursively merge `incoming` into `base` in place: table-vs-table recurses, anything else
+    replaces. Depth matters as soon as a section has SUBSECTIONS (`[ingestion.transcripts]`).
+
+    A one-level `base[section].update(values)` is wrong there, and wrong SILENTLY. An overlay
+    saying only
+
+        [ingestion.transcripts]
+        enabled = false
+
+    parses as `{"ingestion": {"transcripts": {"enabled": False}}}`, and a shallow update replaces
+    the whole `transcripts` table — dropping `transcripts_dir`, `watch_debounce_s`,
+    `events_max_per_pass`. Nothing raises: every reader below uses `.get(key, default)`, so the
+    instance silently falls back to the dataclass defaults instead of the committed defaults.toml
+    values. That is the same class of failure `_refuse_on_legacy_overlay` refuses one level up —
+    a config reversion learned about from behaviour weeks later — so it is fixed here rather than
+    documented as a footgun."""
+    for key, value in incoming.items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
+
+
 def _overlay(raw: dict[str, Any], path: Path) -> None:
-    """Shallow per-section merge of `path` onto `raw` in place — the overlay names just the keys
-    it changes (e.g. `[secrets]\nenabled = true`), leaving every other default intact."""
+    """Per-section merge of `path` onto `raw` in place — the overlay names just the keys it
+    changes (e.g. `[secrets]\nenabled = true`), leaving every other default intact. Recursive, so
+    a nested `[ingestion.code]` overlay merges into that subsection instead of replacing it."""
     if not path.exists():
         return
-    for section, values in tomllib.loads(path.read_text(encoding="utf-8")).items():
-        if isinstance(values, dict) and isinstance(raw.get(section), dict):
-            raw[section].update(values)
-        else:
-            raw[section] = values
+    _deep_merge(raw, tomllib.loads(path.read_text(encoding="utf-8")))
 
 
 def _refuse_on_legacy_overlay() -> None:
@@ -496,16 +563,18 @@ def load_config(path: Path | None = None) -> Config:
         _overlay(raw, LEVERS_OVERLAY)
         _overlay(raw, _INSTANCE_OVERLAY)
     o, r, p = raw["ollama"], raw["resources"], raw["paths"]
-    v, e, s = raw["vault"], raw["embedding"], raw["sandbox"]
+    e, s = raw["embedding"], raw["sandbox"]
     itf, dr, rnd = raw["interface"], raw["dreaming"], raw["dream_rnd"]
     al, at = raw["airlock"], raw.get("attestation", {})
-    ch = raw.get("chat", {})
+    # The ingestion agents live under one nested table, one subsection per agent.
+    ing = raw.get("ingestion", {})
+    v, ch, ci = ing.get("vault", {}), ing.get("transcripts", {}), ing.get("code", {})
+    integ = raw.get("integrate", {})
     amb = raw.get("ambassador", {})
     sec = raw.get("secrets", {})
     bak = raw.get("backup", {})
     sm = raw.get("selfmod", {})
     eff = raw.get("effectors", {})
-    ci = raw.get("code_ingest", {})
     rt = raw.get("runtime", {})
     sch = raw.get("scheduler", {})
     return Config(
@@ -533,12 +602,30 @@ def load_config(path: Path | None = None) -> Config:
             attestation_store=_resolve(p.get("attestation_store", "data/attestations.sqlite")),
             curated_store=_resolve(p.get("curated_store", "data/research_curated.lance")),
         ),
-        vault=VaultConfig(
-            # ~ expands to $HOME; the vault is the owner's source corpus, outside the repo.
-            path=Path(v["path"]).expanduser(),
-            pattern=str(v["pattern"]),
-            watch_debounce_s=float(v.get("watch_debounce_s", 1.0)),
-            watch_poll_interval_s=float(v.get("watch_poll_interval_s", 5.0)),
+        ingestion=IngestionConfig(
+            vault=VaultConfig(
+                # ~ expands to $HOME; the vault is the owner's source corpus, outside the repo.
+                path=Path(v["path"]).expanduser(),
+                pattern=str(v["pattern"]),
+                enabled=bool(v.get("enabled", True)),
+                watch_debounce_s=float(v.get("watch_debounce_s", 1.0)),
+                watch_poll_interval_s=float(v.get("watch_poll_interval_s", 5.0)),
+            ),
+            transcripts=TranscriptIngestConfig(
+                enabled=bool(ch.get("enabled", True)),
+                # transcripts_dir override (finding-0108 G1): ~ expands to $HOME; unset ⇒ None ⇒
+                # the sensor's resolved default. Other fields are plain knobs (ratchet stays 19).
+                transcripts_dir=(Path(ch["transcripts_dir"]).expanduser()
+                                 if ch.get("transcripts_dir") else None),
+                watch_debounce_s=float(ch.get("watch_debounce_s", 0.5)),
+                watch_poll_interval_s=float(ch.get("watch_poll_interval_s", 5.0)),
+                events_max_per_pass=int(ch.get("events_max_per_pass", 50)),
+            ),
+            code=CodeIngestConfig(
+                enabled=bool(ci.get("enabled", False)),
+                max_chars=int(ci.get("max_chars", 1200)),
+                overlap_chars=int(ci.get("overlap_chars", 150)),
+            ),
         ),
         # ~ expands to $HOME; the exhaust dir is the owner's outbound sync, outside the repo.
         exhaust=ExhaustConfig(path=Path(raw["exhaust"]["path"]).expanduser()),
@@ -590,15 +677,9 @@ def load_config(path: Path | None = None) -> Config:
             poll_interval_s=int(al["poll_interval_s"]),
             poll_timeout_s=int(al["poll_timeout_s"]),
         ),
-        chat=ChatConfig(
-            # transcripts_dir override (finding-0108 G1): ~ expands to $HOME; unset ⇒ None ⇒ the
-            # sensor's resolved default. Every other field is a plain knob (ratchet stays 19).
-            transcripts_dir=(Path(ch["transcripts_dir"]).expanduser()
-                             if ch.get("transcripts_dir") else None),
-            watch_debounce_s=float(ch.get("watch_debounce_s", 0.5)),
-            watch_poll_interval_s=float(ch.get("watch_poll_interval_s", 5.0)),
-            events_max_per_pass=int(ch.get("events_max_per_pass", 50)),
-            integrate_max_per_pass=int(ch.get("integrate_max_per_pass", 50)),
+        integrate=IntegrateConfig(
+            enabled=bool(integ.get("enabled", True)),
+            max_per_pass=int(integ.get("max_per_pass", 50)),
         ),
         ambassador=AmbassadorConfig(
             retrieval_k=int(amb.get("retrieval_k", 5)),
@@ -659,11 +740,6 @@ def load_config(path: Path | None = None) -> Config:
             ledger_db=_resolve(eff.get("ledger_db", "data/effectors/effects.sqlite")),
             drafts_dir=_resolve(eff.get("drafts_dir", "data/effectors/drafts")),
             jit_credential_ttl=str(eff.get("jit_credential_ttl", "60s")),
-        ),
-        code_ingest=CodeIngestConfig(
-            enabled=bool(ci.get("enabled", False)),
-            max_chars=int(ci.get("max_chars", 1200)),
-            overlap_chars=int(ci.get("overlap_chars", 150)),
         ),
         runtime=RuntimeConfig(
             embedding_backend=str(rt.get("embedding_backend", "ollama")),

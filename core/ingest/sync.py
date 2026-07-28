@@ -189,12 +189,12 @@ def build_vault_sync(config: Config | None = None) -> VaultSync:
 
     cfg = config or get_config()
     return VaultSync(
-        vault=cfg.vault.path,
+        vault=cfg.ingestion.vault.path,
         raw=RawStore(cfg.paths.raw_store),
         store=VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim),
         catalog=VaultCatalog(cfg.paths.vault_catalog),
         embedder=build_embedder(cfg),
-        pattern=cfg.vault.pattern,
+        pattern=cfg.ingestion.vault.pattern,
         attestor=build_attestor(cfg),
         version_store=open_version_store(cfg),   # each (re)ingest appends a note version (§4A)
     )
