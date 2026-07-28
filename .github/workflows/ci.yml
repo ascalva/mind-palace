@@ -80,7 +80,14 @@ jobs:
             echo "$CHANGED"
             exit 1
           fi
-          echo "denylist clean — no fixed-point paths touched"
+          FROZEN="$(git diff --name-only "$BASE" HEAD -- docs/PROGRESS.md docs/findings/ docs/inbox/owner-questions.md)"
+          if [ -n "$FROZEN" ]; then
+            echo "FROZEN-SURFACE WRITE — retired history is read-only (owner ruling 2026-07-28):"
+            echo "$FROZEN"
+            echo "(findings/questions are GitHub issues now — the issue skill; progress is the merge log)"
+            exit 1
+          fi
+          echo "denylist clean — no fixed-point or frozen-surface paths touched"
 
   type-gate:
     # The type gate (bp-008): a red type check, a Tier-2 membership violation, or a bare
