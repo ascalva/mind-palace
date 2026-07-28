@@ -589,10 +589,11 @@ class Launcher:
         # so a REAL scanner/import regression still blocks the gate.
         "--deselect", "tests/unit/test_core_self_containment.py::test_core_imports_nothing_outside_core",  # noqa: E501
     )
-    # remote half of the gate + release-on-deploy (ops/ci_witness.py). Subprocesses, not
-    # imports: the witness talks to api.github.com and must stay outside this sealed process.
+    # remote half of the gate (ops/ci_witness.py). A subprocess, not an import: the witness
+    # talks to api.github.com and must stay outside this sealed process. There is no
+    # release-on-deploy counterpart any more — the release follows the MERGE, not the deploy
+    # (owner ruling 2026-07-28); .github/workflows/release.yml is triggered by `ci` on main.
     ci_check_cmd: tuple[str, ...] | None = ("uv", "run", "scripts/ci_witness.py", "check")
-    ci_release_cmd: tuple[str, ...] | None = ("uv", "run", "scripts/ci_witness.py", "release")
     deploy_wait_s: float = 60.0
     deploy_poll_s: float = 0.5
     launchd_label: str = "com.mind-palace.palace"
@@ -926,9 +927,6 @@ class Launcher:
                 if new.commit_sha == commit:
                     print(f"deploy: OK — {run.commit_sha[:12]} → {commit[:12]} "
                           f"(run #{run.id} → #{new.id}, pid {new.pid}).")
-                    if self.ci_release_cmd is not None:
-                        # release-on-deploy: best-effort, never fails a verified deploy
-                        subprocess.run([*self.ci_release_cmd, commit], cwd=self.repo_root)
                     return 0
             time.sleep(self.deploy_poll_s)
         print(f"deploy: TIMED OUT after {self.deploy_wait_s:.0f}s waiting for the successor "

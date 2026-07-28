@@ -1,32 +1,59 @@
 name: release
 
-# semantic-release, relocated from the GitLab manual pipeline job to a workflow_dispatch
-# workflow (dn-ci-platform-and-runner-strategy D3/D4 end-state; bp-016 Item 10). Never
-# push-triggered: the witness (ops/ci_witness.py release <sha>) dispatches it after
-# confirming an attested green `ci` run for the sha — exact parity with the old
-# manual-play gate — or the owner dispatches it by hand from the Actions UI. Commit-back
-# (@semantic-release/git: CHANGELOG.md, package.json, terraform versions.tf) lands on
-# main, which is only coherent because GitHub IS origin (P5 — this file landed only
-# after the owner's origin re-point, 2026-07-12). The GITHUB_TOKEN-authenticated
-# commit-back does not re-trigger `ci` (GitHub's actor loop guard, plan Q9) — release
-# shas carry no ci verdict, same as GitLab's chore(release) skip; deploy-at-a-release-sha
-# stays refused-by-absent.
+# semantic-release. THE RELEASE FOLLOWS THE MERGE (owner ruling 2026-07-28) — it is no
+# longer dispatched by the running system after a deploy.
+#
+# History: bp-016 Item 10 relocated semantic-release from the GitLab manual play to a
+# workflow_dispatch workflow, and `ops/ci_witness.py release <sha>` dispatched it at the
+# end of `palace deploy` — the deploy was what minted a version. Under the merge-gated
+# regime that inverted: main is PR-only (ruleset 19912132), so the merge is the
+# serialization point and the only event that can change what main IS. Ouroboros deploying
+# ONTO main is downstream of that, not the cause of it. Tying the version to the deploy
+# also made releases dependent on the owner running a local command.
+#
+# It also stopped working. The first release attempt after the ruleset went up (run
+# 30394042590, 2026-07-28) computed v1.19.0 correctly and then died pushing it:
+# @semantic-release/git's `git push --tags <url> HEAD:main` was rejected GH013 — "changes
+# must be made through a pull request". The commit-back is gone (see .releaserc.json), so
+# nothing here writes to a branch any more; the tag lands on refs/tags/*, which the
+# branch ruleset does not govern, and the changelog lives on the Releases page.
+#
+# Trigger: `workflow_run` after `ci` completes on main, gated on conclusion == success.
+# This deliberately preserves the property the witness existed to enforce — never release
+# an unattested sha — by moving it into the workflow itself. The PR surface already proved
+# the diff green before the merge (5 required checks); this re-confirms the merge commit.
+# workflow_dispatch is kept for a by-hand cut.
 
-on: workflow_dispatch
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
-  contents: write # @semantic-release/git commit-back + tag push
+  contents: write # tag push + GitHub Release creation (@semantic-release/github)
 
 concurrency: release # never two releases interleaved
 
 jobs:
   release:
+    # Only a GREEN ci run may mint a version. A by-hand dispatch carries the owner's
+    # judgement instead and needs no workflow_run context to inspect.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
+          # `ref: main` on purpose, not the triggering sha: semantic-release matches the
+          # checked-out branch NAME against .releaserc `branches` (["main"]), and a
+          # workflow_run checkout would otherwise land detached and release nothing.
+          # `concurrency: release` serialises, so a fast second merge is batched into the
+          # next run rather than lost.
+          ref: main
           fetch-depth: 0 # semantic-release reads full tag history to compute the next version
-          persist-credentials: true # commit-back pushes with GITHUB_TOKEN
       - uses: pnpm/action-setup@v6 # reads the packageManager field (pnpm 9.15.0)
       - uses: actions/setup-node@v6
         with:

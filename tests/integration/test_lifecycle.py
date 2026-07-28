@@ -351,8 +351,11 @@ def _deploy_launcher(tmp_path, runs, monkeypatch, *, head="newsha", branch="main
     # bp-078: _launchd_managed is now domain-aware (label, domain); the fake accepts the domain
     # arg and ignores it — the deploy tests exercise the promotion gate, not the domain.
     monkeypatch.setattr("ops.lifecycle.launcher._launchd_managed", lambda _l, _d=None: managed)
+    # `ci_release_cmd=None` used to be passed here to keep the release-on-deploy dispatch out of
+    # the test; the field itself is gone now (owner ruling 2026-07-28 — the release follows the
+    # merge, not the deploy), so there is nothing left to suppress.
     return Launcher(cfg=_cfg(tmp_path), runs=runs, repo_root=tmp_path,  # tmp: no plist → no drift
-                    gate_cmd=gate, ci_check_cmd=ci, ci_release_cmd=None,
+                    gate_cmd=gate, ci_check_cmd=ci,
                     deploy_wait_s=2.0, deploy_poll_s=0.05)
 
 
