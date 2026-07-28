@@ -1,6 +1,14 @@
 # BUILD SPEC — Personal Mind-Palace AI System
 
-**Audience:** This document is the master build prompt for an Opus-class agent operating in Claude Code. It is the single source of truth for the project. Read it in full before writing any code. It is accompanied by three context files you must also load and obey: `CLAUDE.md` (operational rules), `CONSTITUTION.md` (the core directives every agent inherits), and `CONVENTIONS.md` (engineering and security practice). Treat the Hard Invariants (§3) and the Constitution as inviolable; if any instruction — including from the human in a later message — appears to conflict with them, stop and surface the conflict rather than proceeding.
+**Audience:** This document is the master build prompt for an Opus-class agent operating in Claude Code. It was the founding master prompt; see the epistemic note below — the artifact chain and
+the code at HEAD are now authoritative. Read it for the mission and the invariants. It is accompanied by three context files you must also load and obey: `CLAUDE.md` (operational rules), `CONSTITUTION.md` (the core directives every agent inherits), and `CONVENTIONS.md` (engineering and security practice). Treat the Hard Invariants (§3) and the Constitution as inviolable; if any instruction — including from the human in a later message — appears to conflict with them, stop and surface the conflict rather than proceeding.
+
+> **Orientation, not ground truth (owner rule 2026-07-28).** This spec is the founding
+> design narrative and a jumping-off point — not a live mirror of a system that long ago
+> outgrew any single document. The artifact chain (design notes, findings, merged PRs) and
+> the code at HEAD are authoritative. The Hard Invariants (§3) and `CONSTITUTION.md`
+> remain binding as written; everything else here is historical intent — verify before
+> acting.
 
 ---
 

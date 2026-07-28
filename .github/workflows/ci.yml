@@ -54,6 +54,41 @@ jobs:
           # existing / the assertion goes green either way), and CI regains full strength.
           uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic' --deselect 'tests/unit/test_core_self_containment.py::test_core_imports_nothing_outside_core' --cov --cov-report=term
 
+  denylist:
+    # The constitutional wall (owner ruling 2026-07-28): writes to the fixed points are
+    # HARD NOs — enforced as a PR verdict, never a local chain. Red iff the diff touches
+    # a denylist path. Required by the main ruleset, so a PR touching the constitution
+    # cannot merge; loosening this requires deliberately editing THIS job and the ruleset
+    # — human-only, deliberate, logged (NN-9). Denylist: CONSTITUTION.md, eval/golden.py,
+    # eval/golden/**.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Denylist (the fixed points are hard NOs)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          git cat-file -e "$BASE^{commit}" 2>/dev/null || BASE="$(git rev-parse HEAD~1 2>/dev/null || echo HEAD)"
+          CHANGED="$(git diff --name-only "$BASE" HEAD -- CONSTITUTION.md eval/golden.py eval/golden/)"
+          if [ -n "$CHANGED" ]; then
+            echo "DENYLIST VIOLATION — the fixed points are hard NOs (NN-9):"
+            echo "$CHANGED"
+            exit 1
+          fi
+          FROZEN="$(git diff --name-only "$BASE" HEAD -- docs/PROGRESS.md docs/findings/ docs/inbox/owner-questions.md)"
+          if [ -n "$FROZEN" ]; then
+            echo "FROZEN-SURFACE WRITE — retired history is read-only (owner ruling 2026-07-28):"
+            echo "$FROZEN"
+            echo "(findings/questions are GitHub issues now — the issue skill; progress is the merge log)"
+            exit 1
+          fi
+          echo "denylist clean — no fixed-point or frozen-surface paths touched"
+
   type-gate:
     # The type gate (bp-008): a red type check, a Tier-2 membership violation, or a bare
     # `# type: ignore` blocks the pipeline. mypy runs TWICE — once over everything except

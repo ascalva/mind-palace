@@ -1098,3 +1098,91 @@ enforce transitions."*
   owner's identity-split ceremony — required approvals + code-owner review: the wall.
 - This capsule rides the LAST direct push to main. Every capture after it goes through the
   door like everything else.
+
+## 2026-07-28T17:27Z (bg orchestrator session — owner ruling: the blessing IS the merge)
+
+Owner, near-verbatim: *"if it wasn't obvious — flipping draft→ratify or proposed→ready is no
+longer needed. You or I don't flip anything: you create a PR, an agent can audit, I also
+audit, review, and eventually merge if acceptable. PRs are opened on design-note proposals,
+and on the merging of code — which can include one to many build plans of the same track."*
+
+What this retires and what it clarifies:
+
+- **The two flip ceremonies are gone — for everyone.** Not moved behind a PR: DISSOLVED.
+  Position in the merge topology is the status: an unmerged branch is a proposal; a thing
+  the owner merged is blessed. Status fields in artifact frontmatter become provenance
+  description (what the author claimed at writing time), never a gate. One gate remains in
+  the whole system, and it is the merge.
+- **PR granularity, owner-stated:** design-note proposals get PRs; code lands as merges
+  that may bundle one-to-many build plans of the SAME track. Sharpened moments later,
+  near-verbatim: *"code merges contain the relevant code for the design to succeed in
+  implementation"* — the criterion, not just the granularity. The reviewable unit is the
+  DESIGN, REALIZED: plans are the means, wiring included per the finishing rule, and the
+  owner judges one question at merge — does this implement the design? (The plan remains
+  the builder's contract; the design-merge is the audit unit.)
+- **Audit is layered:** agent auditors may review before the owner; the owner always
+  reviews; only the owner merges.
+- Downstream cleanups this implies (not performed here): gate-guard/Stop-gate flip
+  machinery is now guarding a retired ceremony; the A8 status-guard semantics reduce to
+  "agents never edit status fields"; the typed-workflow-registry re-warrant (PR #3) is the
+  natural home for the full rewrite at the owner's review.
+
+## 2026-07-28T17:30Z (bg orchestrator session — owner corollary: no hard write scopes, no write ceremony)
+
+Owner, near-verbatim: *"which means no hard write scopes, no mandatory action-based ceremony
+for file writes."*
+
+- **Enforcement leaves the write path entirely.** scope-guard, journal-gate, per-write
+  checkpoint rituals: retired. Agents write freely on branches; scope becomes a REVIEW
+  question (a plan's write_scope is reviewer guidance: did the merge stay in its design's
+  lane). The record obligation moves to the PR body — files + reason + verification.
+- **finding-0280 is now fully moot by architecture** (its suite guards retired machinery),
+  and the 2026-07-27 hooks-key removal is retroactively the right half of this ruling.
+- **Deferred dismantling (its own PR, not this one):** delete/retire the hook scripts under
+  .claude/hooks/, retire the worktree-enforcement test suite or repoint it at the ruleset
+  (a wall test, not a chain test), close finding-0280 as mooted, sweep remaining
+  write_scope-as-capability language from skills/templates.
+- **One carve-out preserved pending owner veto:** the NN-9 fixed points (CONSTITUTION.md,
+  eval/golden) stay outside agent authorship absent explicit owner direction — recorded in
+  the CLAUDE.md rewrite as the single surviving line, because a constitution that can be
+  proposed-around by its own subjects is the 0276 shape again. The owner may strike even
+  this; it is stated, not assumed.
+
+## 2026-07-28T17:32Z (bg orchestrator session — owner ruling: findings collapse into issues)
+
+Owner, near-verbatim: *"findings can now collapse into issues — what type of issue, what
+track is it based on / routed to; questions, investigations, standing rulings. No more id
+collisions."* And: *"that can be its own skill."*
+
+- **The collision plague ends structurally.** Four renumber commits in one night's history
+  ("finding-0271 → 0274, a live id collision between isolated worktrees") — parallel
+  agents minting ids from a file-count can only collide; GitHub's counter is atomic. The
+  same counter numbers PRs, so cross-references share one namespace.
+- **The taxonomy becomes labels** (type:question/investigation/defect/direction/ruling/
+  blocker · route:owner/orchestrator/builder · track:<slug> lazily · parked-with-re-entry
+  in the body). The old disciplines survive intact in label form: settle-what-you-can,
+  never-block, park-only-with-re-entry, promotion into design via a warrant-linked PR
+  whose merge is simultaneously ratification and `closes #N`.
+- **The inbox lane collapses too:** owner questions are `type:question route:owner` issues;
+  `docs/inbox/owner-questions.md` freezes beside `docs/findings/`. `type:ruling` filed
+  closed IS the standing-ruling record.
+- **Own skill:** `issue` beside `pr` — two doors, two SOPs; the finding skill is a
+  supersession stub pointing at it.
+- **The owner closes the loop in place** (owner, moments later): *"I can resolve owner
+  question findings by just commenting and resolving."* His closing comment IS the ruling —
+  warrant-grade, citable as #N; agents pick rulings up from closed question issues at
+  spawn, not from chat. The oq- relay dies; the peering glass answers back.
+
+## 2026-07-28T17:35Z (bg orchestrator session — owner ruling: constitution writes are HARD NOs, denylist, as a CI job)
+
+Owner, three beats, near-verbatim: *"on write scopes — writes to constitution are HARD NOs"*
+· *"deny list approach"* · *"that can be a github action job."*
+
+The final shape of write governance, complete in three sentences: everything is free on the
+branch; a small denylist (the NN-9 fixed points: CONSTITUTION.md, eval/golden) is denied
+outright; and the denial is a VERDICT — a `denylist` CI job that reds any PR touching the
+paths, required by the ruleset, so the merge is refused mechanically. No local chain, no
+scope algebra, no ceremony: allow-by-default, deny-by-list, enforce-by-wall. Changing the
+constitution now requires deliberately changing the wall itself — human-only, deliberate,
+logged, exactly NN-9's sentence made structural. (Sequencing as with phase 2: the job rides
+the regime PR; it joins the ruleset's required checks after that PR merges.)

@@ -4,6 +4,12 @@ Loaded every session; the operational layer. Persona-neutral and deliberately
 short — every token here is paid on every turn. Depth lives in skills and loads
 only when invoked. Spec: `docs/design-notes/agent-workflow.md`.
 
+**Orientation, not ground truth (owner rule 2026-07-28).** This file and its siblings
+(CONVENTIONS, BUILD-SPEC, runbook) are jumping-off points for investigation, not live
+state — verify operational claims against the system and the artifact chain at HEAD
+before acting. The exception is the bright lines: the §Domain non-negotiables digest and
+`CONSTITUTION.md` bind as written, always.
+
 **Domain frame (unchanged, still authoritative).** Your outermost frame is
 `CONSTITUTION.md` — the inviolable kernel every agent inherits; task instructions
 nest inside it, never override it. The system's full design is `docs/BUILD-SPEC.md`;
@@ -41,46 +47,61 @@ through the same gate brainstorms do — never by side effect.
 ## Roles
 - **Orchestrator** — the default posture of a bare session at root. Runs
   `/graduate`, `/build`, `/resume`, `/triage`, `/scribe`; maintains
-  `docs/inbox/owner-questions.md` and `docs/PROGRESS.md`; flips plan status on
-  completion. Single-writer of those files.
+  `docs/inbox/owner-questions.md`; flips plan status on completion. Work lands by
+  PR — the merge log is the build log, and merge is the serialization point
+  (owner ruling 2026-07-28; role-state Amendment A1).
 - **Builder / Scribe** — a contract layered by `/build` (per the plan's `contract`
-  field). Writable surfaces are exactly three: the plan's `write_scope`, its own
-  `journal.md`, and new files in `docs/findings/`. Everything else is denied.
+  field). The plan's `write_scope` names the intended lane for the reviewer;
+  writes are free on the branch and judged at the merge (owner ruling 2026-07-28).
 
 ## Rules that bind every session
-- **Routing.** Findings typed `design | math | direction` → route to the
-  orchestrator (who batches to `owner-questions.md` if the owner is needed).
-  Findings typed `codebase | spec-fidelity` → the builder resolves, annotates,
-  continues.
-- **Note-taking obligation.** Checkpoint the journal at every semantic boundary
-  (criterion closed, commit made, finding filed) — §9, the **checkpoint** skill.
-  The bar is the fresh-agent test: a new session with only plan + journal +
-  write-scope files must continue without re-asking. Resume beats compaction.
+- **Findings are GitHub issues (owner ruling 2026-07-28).** File discoveries,
+  questions, investigations, and standing rulings as issues, typed and routed by
+  label (the **issue** skill). Atomic numbering ends id collisions. Settle what
+  you can (`route:builder`, close with resolution); escalate design/direction
+  (`route:orchestrator`); only what needs the owner is `route:owner`.
+  `docs/findings/` and the owner-questions inbox are frozen history. A PR that
+  resolves an issue says `closes #N`.
+- **The record obligation is the PR body.** Every merge carries the files and
+  the reason — what, why, verification (the **pr** skill). Journals remain the
+  seat's narrative at the agent's judgment, not a per-write mandate. The bar is
+  unchanged: the fresh-agent test — a successor re-grounds from merged artifacts
+  alone. Resume beats compaction.
 - **Never block on the owner.** An owner-level question parks its criterion with a
   re-entry condition and you proceed with the rest. Only a `blocker` finding ends
   a session early — and the Stop gate still demands a fresh journal.
-- **Two blessing gates are owner-only, by hand.** `draft→ratified` (a design note)
-  and `proposed→ready` (a plan split) are never done in a session. `gate-guard`
-  denies them pre-hoc and the Stop-gate audit blocks any Bash-mediated flip.
-- **Write discipline is a capability, not a suggestion.** `scope-guard` enforces
-  the active plan's `write_scope` pre-hoc; the `journal-gate` diff audit catches
-  Bash writes post-hoc. A foundation denylist (`CONSTITUTION.md`, `eval/golden/**`,
-  `eval/golden.py`) is never writable, orchestrator included. Design notes are
-  status-guarded (A8): `draft` is agent-writable working material;
-  `ratified`/`superseded` are agent-immutable (HEAD-keyed, laundering-proof).
-  A denial means narrow the scope or file a finding — never route around.
+- **The blessing IS the merge (owner ruling 2026-07-28).** The old flip ceremonies
+  (`draft→ratified`, `proposed→ready`) are retired — nobody flips a status, agent or
+  owner. A PR carries the proposal (a design note, or code spanning one-to-many build
+  plans of the same track); agents may audit, the owner audits, reviews, and merges if
+  acceptable. Landing on main by the owner's merge IS ratification/readiness. Status
+  fields in artifacts are provenance description, never a gate — agents still never
+  edit them.
+- **Write freedom on the branch; audit at the merge (owner ruling 2026-07-28).**
+  Hard write scopes and per-write ceremony are retired — no scope-guard, no
+  journal-gate, no action-based rituals. Agents write freely in their worktrees;
+  the PR review is where scope is judged (a plan's `write_scope` is reviewer
+  guidance — did this merge stay in its design's lane — never an enforced
+  capability). One HARD NO stands, by denylist
+  (owner ruling 2026-07-28): the fixed points — `CONSTITUTION.md`, `eval/golden/**`,
+  `eval/golden.py` — are never written, authored, or proposed by an agent. Enforced
+  as a verdict: the `denylist` CI job reds any PR that touches them and the ruleset
+  refuses the merge. The merge gate enforces everything else.
 
 ## Commands (depth in the matching skill)
 `/capture <topic>` · `/graduate <note>` · `/build <id>` · `/resume <id>` ·
-`/triage` · `/scribe`. Skills: **graduate**, **build-plan**, **finding**,
-**checkpoint**, **commit**, **delegate**, **context-economy**, **book**.
+`/triage` · `/scribe`. Skills: **graduate**, **build-plan**, **issue** (findings are issues now),
+**checkpoint**, **commit**, **pr** (ALL work lands by PR — read it before opening one),
+**delegate**, **context-economy**, **book**.
 Templates: `docs/templates/`. Sessions are disposable, artifacts are not — end at
-unit boundaries with a resume brief (context-economy skill; owner rule 2026-07-11).
+unit boundaries (context-economy skill; owner rule 2026-07-11). Successors onboard
+by traversal of the artifact chain — the resume-brief mechanism is retired
+(owner realization 2026-07-28: briefs transferred posture without warrant).
 Run commands via `uv run` (CONVENTIONS §Language) — never `./.venv/bin/...` paths.
 The orchestrator may spawn supervised parallel builders in worktrees for `ready`
 plans (owner rule 2026-07-11; depth + right-sizing in the **delegate** skill).
 Gates unchanged: blessings owner-by-hand, denylist binds every builder.
 
-If a hook prints `HOOK-FAILURE …`, enforcement did not apply: rerun the named
-script standalone (`bash .claude/hooks/<name>.sh --standalone …`), reconcile, then
-proceed.
+Local hooks are retired as enforcement (owner ruling 2026-07-28) — the wall is
+external. If a stray `HOOK-FAILURE` line ever appears, it is legacy machinery
+talking; note it and proceed by the **pr** skill.

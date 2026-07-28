@@ -2,6 +2,10 @@
 
 Engineering and security practice for this repo. Binding unless the full `docs/BUILD-SPEC.md` says otherwise. The goal is **efficient, secure, open-source code, with thin custom logic where we want ownership** — a flexible system we expand as needs grow.
 
+> **Jumping-off point (owner rule 2026-07-28).** The practices here bind as defaults; the
+> descriptive details (versions, tool states, decision outcomes) are not maintained as
+> live truth — verify against the repo at HEAD before relying on them.
+
 ## Language & style
 - **Python** for orchestration, agents, stores access, and the supervisor — the owner's strongest language and the native home of the ML/embedding ecosystem.
 - Performance-critical deterministic stream math (EWMA, z-scores, changepoint) uses **Polars/NumPy**; it may later move to Rust if it becomes a bottleneck. Don't prematurely optimize.

@@ -1,5 +1,11 @@
 # Build Progress
 
+> **RETIRED — frozen as historical record (owner ruling 2026-07-28).** Progress is now
+> handled by GitHub: progress is *appended* on every PR merge, and each entry already holds
+> the files and the reason (the diff and the PR). An append-only build log by construction —
+> this file is no longer maintained and must not be appended to; the entries below are the
+> pre-regime history, kept per keep-and-link.
+
 Terse, append-only log maintained by the building agent. **One entry per phase/checkpoint:** what was built, what was verified against the gate, what's next, and any decisions made. A fresh build session resumes from this file + `CLAUDE.md` + the current phase's section of `docs/BUILD-SPEC.md` — not by replaying chat history.
 
 Keep entries short. Cite paths, not contents.
