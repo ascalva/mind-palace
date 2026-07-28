@@ -201,7 +201,13 @@ def test_the_generator_reads_the_worktree_s_own_seat_not_the_main_checkout(fresh
     import json
     first = json.loads(_run(fresh_worktree, "--role", "orchestrator", "--json").stdout)
     journal = fresh_worktree / SEAT / "journal.md"
-    journal.write_text(journal.read_text(encoding="utf-8") + "\nan appended line\n",
+    # ⚑ Prepend at the TOP — the newest-first journal's authoritative end. This probe originally
+    # appended at the BOTTOM, which landed below the first `## CAPSULE` heading the moment one
+    # existed (2026-07-27): outside the authoritative segment, so the count stayed flat and this
+    # test went red against a CORRECT generator. It was green only in the pre-first-compaction
+    # state (`authoritative_segment` returns the whole file when no capsule exists) — a latent
+    # geometry dependence. Mutate where a real entry lands and the probe is capsule-proof.
+    journal.write_text("a prepended probe line\n\n" + journal.read_text(encoding="utf-8"),
                        encoding="utf-8")
     second = json.loads(_run(fresh_worktree, "--role", "orchestrator", "--json").stdout)
     assert second["journal_segment_lines"] == first["journal_segment_lines"] + 2, \

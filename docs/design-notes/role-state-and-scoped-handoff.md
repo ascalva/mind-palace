@@ -578,3 +578,41 @@ workflow tooling, `mind-palace deploy` is not involved.
   `.claude/skills/context-economy/SKILL.md` (the brief being retired; session typing for F2's
   grind-tier spawn)
 - Keep-and-link discipline: `docs/findings/finding-0164.md`, `docs/findings/finding-0168.md`
+
+## Amendment A1 — seat memory under the merge-gated, no-common-state regime
+
+**Warrant:** owner ruling 2026-07-28 (near-verbatim: *"multiple orchestrators… all independent,
+no common 'state'; they work in worktrees, spawn workers, produce PRs; auditor(s) and I review —
+that is the gate, enforced externally"*), captured in `docs/brainstorms/the-typed-workflow-registry.md`
+(the 2026-07-28 capsules) · ruleset 19912132 applied and falsified the same day (a direct push to
+main was rejected by the remote — pushes are illegal, proven) · `docs/findings/finding-0276.md`
+(merge is not a separable permission — the identity analysis behind the external gate).
+**Authority basis, self-describing:** the prior amendment precedent (`chat-sensor.md` A1) was
+owner-made by hand because ratified notes are agent-immutable. This amendment is agent-DRAFTED and
+lands only by the owner's merge of its PR — under the regime it records, **the merge is the hand**.
+If it is in the ratified file, the owner put it there.
+
+**What changes.** This note's frame assumed one live seat per role: a single shared journal file as
+the seat's memory, single-writer, every successor inheriting the live file. Under the
+no-common-state regime that reading retires:
+
+- **The authoritative seat memory is the MERGED record on origin/main** — never a live shared
+  file. Concurrent orchestrator sessions each write their own journal entries on their own
+  branches; **merge is the serialization point**, and concurrent seat writes surface as merge
+  conflicts in the PR, resolved in the audit venue like every other conflict.
+- **Single-writer becomes per-branch trivial.** The invariant this note defended (no two writers
+  interleaving in one journal) is now enforced by construction: a branch has one writer, and main
+  admits only merges.
+- **Inheritance is traversal of merged main.** The fresh-agent test is unchanged and strengthened:
+  a successor reads what was audited and landed, never a predecessor's uncommitted live state —
+  the same hygiene bar the 2026-07-28 dreamer capsule named (posture without provenance dies with
+  the session; facts land through the gate).
+
+**What does not change.** The journal's shape and discipline (newest-first, the CAPSULE compaction
+law §2.8, the F1b lint); the fresh-agent bar itself; keep-and-link retention; and the handoff
+generator — which reads *a checkout*, any checkout, which is precisely the availability property
+§2.11/F1c pinned (a generator that needed a live daemon or a privileged seat would break under
+this regime; the one that shipped does not).
+
+**Consonance.** This is the session-scale instance of role-under-lease (`dn-distributed-ecosystem`,
+draft, PR #7): the seat is not a lock on a file — it is a role whose memory is the merged record.
