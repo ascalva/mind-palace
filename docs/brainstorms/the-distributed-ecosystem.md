@@ -180,3 +180,82 @@ references:
   - dn-agent-taxonomy (the G3 global-event-clock park)
   - CLAUDE.md NN-10, NN-11
 ```
+
+## 2026-07-28T03:41Z (bg orchestrator session — owner seed: the rendezvous ratchet)
+
+### The seed
+
+Owner, near-verbatim: *"what if the port an agent picks is somehow correlated to their own
+asymmetrical keys, such that the one it picks should be expected for where to listen to next?
+A secret efficient handshake — you only know which port to pick when you have an established
+relationship."*
+
+### Orchestrator scrutiny (chat-side — connections offered, not decided)
+
+- **Ground truth (this tailnet, measured).** The machine is already named `ouroboros`
+  (100.97.85.13); the phone holds a direct WireGuard path (UDP 41641, the Tailscale default,
+  confirmed bound). Three port layers: control plane 443 (keys/ACLs only), discovery STUN
+  3478 + DERP 443 fallback, data plane WireGuard UDP 41641 — one authenticated port carries
+  everything. Inside the tunnel: ollama 11434; Vault 8200 bound to 127.0.0.1 — loopback-only,
+  not even on the tailnet interface (NN-10 made topological).
+- **Lineage.** Lamarr frequency-hopping (the sequence is the secret) → port knocking → TOTP →
+  moving-target defense. The naive form (derive from the public key alone) gates nothing —
+  any pubkey holder predicts the sequence. The pairwise form is TOTP-for-rendezvous:
+  `port_n = 1024 + HMAC(K_ab, n) mod 64511` with K_ab the ECDH shared secret — each
+  relationship its own private rhythm.
+- **The strongest form: chain through the transcript.** `s_{n+1} = KDF(s_n, transcript_n)`,
+  port from s. Now key possession is insufficient — presence at every exchange is required.
+  Signal's double ratchet applied to *rendezvous* instead of encryption: the relationship's
+  history IS the credential. Diachronic identity as a network primitive — you only know where
+  to meet next if you were there for everything before.
+- **Honest assessment: not confidentiality — state-integrity signaling.** Inside a tailnet,
+  WireGuard already authenticates every packet and an insider scans 64k ports in seconds;
+  ACLs are the real gate, so as secrecy this is ceremonial. Its true value: a peer knocking
+  on the wrong port has DIVERGED — stale-backup restore, rollback, or stolen keys without
+  the history. The impostor knocks on yesterday's door. Rollback detection as a passive
+  tripwire, zero payload bytes — exactly what a fleet of individuals needs for maximum
+  skepticism at the transport seam.
+- **Clockwork, literally.** Each successful contact advances the counter: the port sequence
+  is the pairwise Lamport clock made physical. The prior capsule's "meshing events" get
+  their mechanism — where-to-meet-next is a function of everything-we've-done.
+- **The sharp edge is a feature.** Transcript ratchet ⇒ losing state = losing the
+  relationship. Re-keying must be an explicit, logged, owner-visible ceremony — relationship
+  repair should be LOUD, not silent. (Skew/missed-step handling: TOTP-style ±1 window;
+  EADDRINUSE between pairs: probe forward; audit must log derivation inputs; Tailscale ACLs
+  are port-ranged, so the listening range is declared even though the point within it hops.)
+
+```capsule
+topic: the-distributed-ecosystem
+date: 2026-07-28
+
+decisions:
+  - Frame sharpened: the rendezvous ratchet's value is relationship-integrity (rollback/
+    divergence detection, presence-as-credential), NOT confidentiality — inside a tailnet
+    WireGuard + ACLs already own secrecy.
+
+parked:
+  - decision: whether the rendezvous ratchet becomes part of the inter-instance protocol
+    default: no second instance exists; nothing binds beyond ollama 11434 / vault 8200
+      (loopback); the tailnet carries only the exhaust lane
+    re_entry: the ecosystem's deployment park re-opens (a second individual is minted)
+
+open_questions:
+  - Is the transcript the message log or its hash chain — and does the hash chain double as
+    the pair's shared event clock (one structure, both uses)?
+  - Re-keying ceremony: owner-mediated for instance pairs (parallel to the blessing gates),
+    or peer-negotiable with owner notification?
+  - Does the ±1 skew window weaken divergence detection enough to matter, or is a knock at
+    n-1 within tolerance while n-k (k>1) is the tripwire?
+
+next_steps:
+  - None until the deployment park re-opens; this capsule waits with the rest of the
+    ecosystem thread.
+
+references:
+  - tailnet measured 2026-07-28: ouroboros 100.97.85.13, WireGuard UDP 41641, vault 8200
+    loopback-only, ollama 11434
+  - Signal double ratchet (rendezvous analogue); TOTP (RFC 6238) as the pairwise base case
+  - docs/brainstorms/the-distributed-ecosystem.md §like-clockwork (the meshing-events
+    capsule this mechanizes)
+  - CLAUDE.md NN-10, NN-11
+```
