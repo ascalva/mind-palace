@@ -605,3 +605,75 @@ references:
     NN-8 (the ceiling philosophy, applied to imagination)
   - keep-and-link retention of the warranted chain (the asymmetry's other half)
 ```
+
+## 2026-07-28T05:49Z (bg orchestrator session — owner seed: TTL is clocked by the castle's own timescale)
+
+### The seed
+
+Owner, near-verbatim: *"we don't care about every prediction under the sun, but we do care
+that strong, sound ideas are allowed to evolve. Timescales are just another clock for
+diachronic dreamers — it can make a prediction for the future, or for 5 minutes from now — so
+TTL is a dynamic value based on the timescale(s) of the derived castle."*
+
+### Orchestrator scrutiny (chat-side — connections offered, not decided)
+
+- **The global knob dissolves.** No single TTL constant: each castle derives its lease tempo
+  from its own characteristic timescale — the target stratum's clock (code ticks fast,
+  design-notes tick slow; the velocity-and-clocks thread) composed with the declared horizon
+  of its threads. A reflex gets a reflex's scaffolding window; a cathedral gets a
+  cathedral's. The prior capsule's lease floor was already timescale-proportional by
+  accident (falsification date scales with horizon); this makes the CONSTRUCTION window
+  proportional on purpose.
+- **One machinery, differently clocked.** "Timescales are just another clock" is a
+  uniformity claim: the 5-minute prediction and the year prediction are the same dreamer,
+  the same castle type, the same grading geometry — only the clock parameter differs. No
+  separate short-term predictor exists. Everything downstream inherits the clock:
+  registration-watch cadence (you do not poll a year-scale castle every minute), flinch
+  tempo (a 5-minute castle's flinch is immediate posture; a year castle's is slow
+  reweighting), renewal window size.
+- **Timescale(s), plural — castles span clocks.** Short-horizon prediction nodes (the
+  synchronic's 5-minute bricks) can stack into a long-horizon thread; each layer carries
+  its own sub-lease, the castle's outer lease derives from the slowest load-bearing layer.
+- **Selection lives in attention, not in wall-time.** The resolution of "not every
+  prediction under the sun" vs "strong ideas allowed to evolve": the clock only sets the
+  UNITS of survival; the dreamer's touch budget does the selecting. A year-scale castle is
+  not granted a free year — it is granted year-scale renewal windows, and renewals cost
+  touches, and touches are budgeted dream-attention that flows toward earned standing
+  (early sub-predictions registering well, foundations with strong Σ, coherence). Strong
+  ideas evolve because dreams keep choosing them; the TTL just translates that choice into
+  survival at the right tempo. Scarcity is attention; the clock is merely its unit
+  conversion.
+
+```capsule
+topic: synchronic-diachronic-dreamer
+date: 2026-07-28
+
+decisions:
+  - TTL is derived, never configured: construction window and renewal size scale with the
+    castle's characteristic timescale (target-stratum clock × declared horizon; multi-layer
+    castles inherit from the slowest load-bearing layer).
+  - Uniformity: one dreamer, one castle type, one grading geometry at every horizon — the
+    clock is a parameter, not a fork.
+  - Selection is attention-budgeted, not clock-budgeted: renewals cost touches; touch
+    budget flows toward earned standing.
+
+parked: []
+
+open_questions:
+  - What is "earned standing" pre-grade, mechanically — registration trend of
+    sub-predictions, Σ of foundations, touch diversity (many distinct dreams vs one
+    looping)? Pick the falsifiable subset at graduation.
+  - Does the k in TTL = k × timescale live in the levers overlay (self-mod knob
+    discipline), making the dreamer's patience itself tunable-and-audited?
+
+next_steps:
+  - Folds into the dreamer graduation; this capsule parameterizes the lifecycle capsule
+    before it.
+
+references:
+  - this file, tonight's lifecycle capsule (the state machine this clocks)
+  - docs/brainstorms/temporal-clocks-and-strata.md; docs/brainstorms/clock-curvature.md;
+    docs/brainstorms/velocity-and-clocks-fable-pass.md (the clock substrate)
+  - docs/brainstorms/the-distributed-ecosystem.md (per-strata clocks over a global clock —
+    the same reframe, third appearance tonight)
+```
