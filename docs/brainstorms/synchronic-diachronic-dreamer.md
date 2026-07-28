@@ -346,3 +346,96 @@ references:
   - tests/integration/test_handoff_availability.py::test_the_generator_reads_the_worktree_s_own_seat_not_the_main_checkout
   - docs/brainstorms/the-identity-foundation.md
 ```
+
+## 2026-07-28T05:34Z (bg orchestrator session — owner seed: the dreamer predicts supersession, and the flinch)
+
+### The seed
+
+Owner, near-verbatim, last thought before sleep: *"the diachronic dreamer operates mostly with
+causal and supersession edges for its predictions, and maybe in the interpretive realm it
+builds a castle, a 'palace', where based on temporal observations it stacks causal edges that
+can include the synchronic's prediction nodes — weave a prediction thread such that it
+predicts a supersession. I.e. diachronic dreamers predict supersession: 'I saw this pattern
+loosely occur so I think it will happen at this time like this.' 'The current graph cut says
+something is happening — how do I think this will evolve as I get more sensor data? Can I act
+retractively to prepare me for potentially something?' A flinch."*
+
+### Orchestrator scrutiny (chat-side — connections offered, not decided)
+
+- **Supersession is the falsifiable unit the forecaster capsule was missing.** The 2026-07-21
+  seed made the dreamer a falsifiable forecaster; this names WHAT it forecasts: supersession
+  events — that a belief/artifact/edge will be superseded, roughly when, roughly by what
+  shape. And supersession is already a first-class typed relation with its own store
+  (authored-supersession; keep-and-link) — so every prediction is gradeable against the
+  ledger itself. Predicted-vs-actual supersessions over time is a proper scoring rule: the
+  dreamer's skill becomes a MEASURED curve, not a vibe. Study-not-product, applied to
+  dreaming.
+- **The castle is the hypothetical subspace with an address.** Prediction threads are stacked
+  causal edges through time that may include the synchronic dreamer's prediction NODES —
+  speculative material entering the graph as first-class nodes. The castle is the bounded
+  interpretive zone where they live: its stratum carries its own authority tier, so the
+  scoped-context authority bound includes or excludes it explicitly. Warrant discipline
+  survives dreaming — a prediction can never masquerade as a ratified fact, because the
+  query that retrieves it says which realm it came from. (Prior art: the
+  hypothetical-subspace capture, session-39.)
+- **"Loosely occur" is trajectory retrieval, not node retrieval.** The pattern match is over
+  edge-SEQUENCES — motifs of causal/supersession threads — time-warped onto the current cut.
+  Case-based forecasting: retrieve an analogous past thread, align its tempo, extend the
+  present one. The derived store's hyperedge machinery is the natural substrate; thread
+  embeddings would be a new derived object (the single-scale chunk-grain decision stands —
+  this is a DERIVED grain, not a re-embedding).
+- **The flinch is the first motor primitive, and it is bidirectional in time.** Forward: a
+  low-cost, reversible, internal-only preparation for a predicted event — prefetch context,
+  warm an index, raise a sensor's sampling cadence, draft the owner question early. Backward
+  (the owner's "retractively," read as retro-): re-read history under the new thread —
+  retrodiction, re-annotating past observations a hypothesis now explains. Both directions
+  never cross the actuation boundary: a flinch is posture, not action. In Track G's
+  blast-radius language it sits BELOW every effector tier — internal-only, no external
+  effect, cost-asymmetric by design (cheap flinches justify false positives exactly the way
+  biology justifies them). "The model advises; code acts" is untouched: the dreamer's
+  strongest output is a prepared stance and a graded forecast, never an effect.
+- **The clock requirement is intervals, not a master clock.** "It will happen at THIS TIME
+  like THIS" needs per-strata clocks plus motif tempo — more evidence for tonight's
+  clockwork reframe (per-individual clocks, meshing at contact) over the parked global
+  event clock.
+
+```capsule
+topic: synchronic-diachronic-dreamer
+date: 2026-07-28
+
+decisions:
+  - The diachronic dreamer's prediction unit is the SUPERSESSION EVENT, graded against the
+    authored-supersession ledger — the falsifiable-forecaster capsule gets its scoring rule.
+  - Prediction threads live in the castle: an interpretive stratum with its own authority
+    tier; synchronic prediction nodes are admissible material; the authority bound keeps
+    dreams out of warranted retrieval unless asked for.
+  - The flinch is the dreamer's only motor form: internal, reversible, cost-asymmetric,
+    bidirectional (pre-position forward, retrodict backward), below every effector tier.
+
+parked:
+  - decision: thread/motif embedding as a derived grain (how trajectories are retrieved)
+    default: none built; the hyperedge machinery is the candidate substrate
+    re_entry: the dreamer track graduates (same gate as the reference-signal capsule)
+
+open_questions:
+  - Scoring horizon: when is a predicted supersession judged failed — fixed window, or the
+    prediction carries its own expiry (a forecast that names its falsification date is the
+    honest form)?
+  - Do flinches leave typed traces (a flinch ledger), so the cost asymmetry is itself
+    measurable — how many flinches per landed prediction?
+  - Can a flinch include queueing a dream (the dreamer flinching by scheduling more of
+    itself on the relevant fiber) without that becoming a runaway loop — budget from the
+    NN-8-style resource model?
+
+next_steps:
+  - None wired; joins the dreamer track behind the clock reframe ruling.
+
+references:
+  - this file, 2026-07-21T02:20Z (the falsifiable forecaster) and 2026-07-28 (the
+    reference-signal capsule this completes)
+  - docs/brainstorms/the-distributed-ecosystem.md (the clockwork reframe; per-strata clocks)
+  - docs/brainstorms/scoped-context-queries.md (the authority bound that fences the castle)
+  - core/stores/authored_supersession.py, core/stores/derived.py (the ledger and the
+    hyperedge substrate, both live)
+  - Track G blast-radius tiers (the floor the flinch sits beneath)
+```
