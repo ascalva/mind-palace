@@ -856,6 +856,42 @@ pinned for the notary (§above), arriving independently at the same shape. `[INF
 matters more than usual here: calling it "the ingestion edge agent" invites the fatal shape; calling
 it **"the fetch lane"** does not.
 
+### ⚑⚑ THE STRONGER ARGUMENT — a commit is a MOMENT, a merge is a UNIT
+
+> *"we only merge when the product that we want to merge is ready, it ingesting on EVERY SINGLE
+> COMMIT is difficult"*
+
+⚑ The section above framed per-commit ingestion as an **authorization** problem. That under-weights
+it. The bigger defect is **what gets ingested**: a commit is a *moment* in a working process — half-
+finished code, a refactor that gets reverted two commits later, a reading that turns out to be wrong.
+A merge is a *coherent unit* that someone decided was ready.
+
+⇒ **Ingesting commits means ingesting moments; ingesting merges means ingesting units.** The corpus
+is supposed to hold knowledge, and an intermediate state is not knowledge — it is work in progress
+wearing knowledge's clothes.
+
+### ⚑ And the retrieval pathology is concrete, from tonight
+
+This one brainstorm was committed **ten times** in a single session, each version a superset of the
+last. Under per-commit ingestion the corpus now holds ~10 near-duplicate embeddings of one evolving
+document — ⚑ and the early ones contain the two readings that were subsequently *corrected*
+(§the-hash-is-an-address, §there-is-no-third-place).
+
+⇒ Two failure modes, both live:
+1. **Near-duplicate flooding.** A single night's drafting can dominate a retrieval result set with
+   ten versions of one idea, crowding out genuinely different sources. `[INFERENCE — the source-set
+   relation (`core/stores/sourceset.py`, group-by-digest) exists precisely to handle multi-version
+   sources and may already mitigate this; whether it does at *retrieval* rank is worth measuring
+   rather than assuming.]`
+2. ⚑ **Superseded content persists as peer knowledge.** The corrected readings are in there
+   alongside their corrections, with **nothing marking which won.** A future retrieval can surface
+   the refuted version with equal standing — which is the *"a claim becomes true by being stated"*
+   defect, arriving through the ingestion lane instead of through an artifact.
+
+⚑ Merge-triggered ingestion fixes both at once, and for the same reason: **the merge is the moment
+someone decided the thing was coherent.** Everything before it is drafting, and drafting belongs in
+the strata (§there-is-no-third-place) — not in the corpus.
+
 ### The bonus property — the corpus becomes reproducible
 
 Ingesting from public, immutable git history means **what was ingested can be reconstructed by
