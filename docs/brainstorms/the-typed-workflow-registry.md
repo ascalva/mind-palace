@@ -1147,3 +1147,24 @@ for file writes."*
   the CLAUDE.md rewrite as the single surviving line, because a constitution that can be
   proposed-around by its own subjects is the 0276 shape again. The owner may strike even
   this; it is stated, not assumed.
+
+## 2026-07-28T17:32Z (bg orchestrator session — owner ruling: findings collapse into issues)
+
+Owner, near-verbatim: *"findings can now collapse into issues — what type of issue, what
+track is it based on / routed to; questions, investigations, standing rulings. No more id
+collisions."* And: *"that can be its own skill."*
+
+- **The collision plague ends structurally.** Four renumber commits in one night's history
+  ("finding-0271 → 0274, a live id collision between isolated worktrees") — parallel
+  agents minting ids from a file-count can only collide; GitHub's counter is atomic. The
+  same counter numbers PRs, so cross-references share one namespace.
+- **The taxonomy becomes labels** (type:question/investigation/defect/direction/ruling/
+  blocker · route:owner/orchestrator/builder · track:<slug> lazily · parked-with-re-entry
+  in the body). The old disciplines survive intact in label form: settle-what-you-can,
+  never-block, park-only-with-re-entry, promotion into design via a warrant-linked PR
+  whose merge is simultaneously ratification and `closes #N`.
+- **The inbox lane collapses too:** owner questions are `type:question route:owner` issues;
+  `docs/inbox/owner-questions.md` freezes beside `docs/findings/`. `type:ruling` filed
+  closed IS the standing-ruling record.
+- **Own skill:** `issue` beside `pr` — two doors, two SOPs; the finding skill is a
+  supersession stub pointing at it.

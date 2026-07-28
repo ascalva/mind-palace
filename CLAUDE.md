@@ -55,10 +55,13 @@ through the same gate brainstorms do — never by side effect.
   writes are free on the branch and judged at the merge (owner ruling 2026-07-28).
 
 ## Rules that bind every session
-- **Routing.** Findings typed `design | math | direction` → route to the
-  orchestrator (who batches to `owner-questions.md` if the owner is needed).
-  Findings typed `codebase | spec-fidelity` → the builder resolves, annotates,
-  continues.
+- **Findings are GitHub issues (owner ruling 2026-07-28).** File discoveries,
+  questions, investigations, and standing rulings as issues, typed and routed by
+  label (the **issue** skill). Atomic numbering ends id collisions. Settle what
+  you can (`route:builder`, close with resolution); escalate design/direction
+  (`route:orchestrator`); only what needs the owner is `route:owner`.
+  `docs/findings/` and the owner-questions inbox are frozen history. A PR that
+  resolves an issue says `closes #N`.
 - **The record obligation is the PR body.** Every merge carries the files and
   the reason — what, why, verification (the **pr** skill). Journals remain the
   seat's narrative at the agent's judgment, not a per-write mandate. The bar is
@@ -86,7 +89,7 @@ through the same gate brainstorms do — never by side effect.
 
 ## Commands (depth in the matching skill)
 `/capture <topic>` · `/graduate <note>` · `/build <id>` · `/resume <id>` ·
-`/triage` · `/scribe`. Skills: **graduate**, **build-plan**, **finding**,
+`/triage` · `/scribe`. Skills: **graduate**, **build-plan**, **issue** (findings are issues now),
 **checkpoint**, **commit**, **pr** (ALL work lands by PR — read it before opening one),
 **delegate**, **context-economy**, **book**.
 Templates: `docs/templates/`. Sessions are disposable, artifacts are not — end at
