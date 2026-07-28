@@ -304,6 +304,98 @@ and forcing it is not free.**
 since a dispatcher that constructs workers is not a chokepoint that blocks them mid-flight). Drafted
 alongside A11 — see `docs/inbox/amendment-A11-draft.md` §A11.3.
 
+## ⚑⚑ THE LOOP CLOSES — write freely, resubmit for re-auth, the owner notarizes
+
+> *"so you can write to the file, and you're allowed to resubmit for re-auth, which gets routed to
+> me (through the system), and I'm on the other end, not claude, to approve, I interact with the
+> system as my seal of approval, my notary"*
+
+⚑ **Editing a ratified artifact is not a violation. It is a PROPOSAL, and it is self-announcing.**
+The edit changes the content hash, which invalidates the signature that made it ratified. Nothing
+had to detect the edit — the warrant simply stops matching, and the artifact drops out of
+`ratified` by arithmetic. The agent then **resubmits for re-auth**; the system routes it to the
+owner; the owner notarizes.
+
+| | old model | ⚑ this model |
+|---|---|---|
+| ratified note | **agent-immutable** — the edit must be prevented | **agent-writable** — the edit invalidates its own warrant |
+| what detects tampering | a hook diffing against HEAD | ⚑ **nothing needs to. The hash stops matching.** |
+| an edited ratified note is | a violation to be blocked | **a proposal awaiting re-auth** |
+| the gate | prevent the act | **withhold the signature** |
+
+### ⚑ "Notary" is the right word, and it is sharper than "blessing"
+
+A notary does not author the document and does not judge its contents. They attest that **the named
+party actually signed it**. That is exactly what a hardware-key touch proves and exactly what
+`draft→ratified` needs — which is why it is permanently un-automatable: ⚑ **a notary who is a
+program is not a notary.** *"I'm on the other end, not claude"* is the whole security property, and
+it means the auth channel must be structurally unreachable by any agent — the same
+put-the-check-outside-the-thing-being-checked rule [[aws-as-the-authorization-spine]] already
+established.
+
+### ⚑⚑ THIS DISSOLVES THE A-SERIES AMENDMENT CEREMONY
+
+The lettered amendment log (A1–A10, and the A11 drafted tonight) exists **only because ratified
+notes cannot be edited.** Unable to change the text, the repo grew a parallel artifact that
+describes the change it cannot make, plus a build plan to land it, plus a §1.1 explaining the
+protocol.
+
+⇒ **Remove immutability and the entire apparatus is unnecessary.** You edit the note. The warrant
+lapses. You resubmit. The owner notarizes. **The event log IS the amendment history** — every prior
+ratification, every lapse, every re-auth, in order, queryable.
+
+⚑ **Which is the owner's opening ask arriving from the other direction:** *"audits are performed
+using query algebra to uncover chain of events."* The amendment log was a hand-maintained,
+prose-shaped, ceremony-laden cache of exactly that chain — the same defect as the resume brief
+(§resume-brief above), in a different costume. Both dissolve into the same event log.
+
+⇒ **Owed to the design note:** §2.5.1's "no unsigned path to `ratified`" is unchanged and correct,
+but its framing of ratified artifacts as *immutable* should become *warrant-bearing* — the artifact
+is mutable, the **warrant** is not transferable across a content change. And `bp-145`'s acceptance
+should test the lapse-on-edit path, not only the no-unsigned-path-in.
+
+⚑ **Tonight's A11 draft is therefore a transitional artifact**, correct under today's rules and
+obsolete under the registry. Recorded so its successor is not mistaken for missing work.
+
+## ⚑ WHERE THE NOTARY LIVES — the scheduler side of Ouroboros, "for now"
+
+> *"that notary, is the scheduler side of ouroboros (for now..)"*
+
+⚑ **This does not contradict §placement's "do not couple the registry to the daemon" — because the
+notary and the registry are different components with opposite availability profiles**, and keeping
+them distinct is what makes both placements right:
+
+| component | needed when | placement |
+|---|---|---|
+| **registry** (store · minting · events · folds) | ⚑ **every agent action** — in a worktree, in CI, with the palace down | local file, no daemon (§placement) |
+| **notary** (route the re-auth request · carry the signature back · record it) | ⚑ **only at auth moments** — rare, and by definition the owner is present | `scheduler/` is fine |
+
+⇒ Auth is **out of the steady-state path**, which is the owner's own refinement from
+[[aws-as-the-authorization-spine]] (*"aws only needed for unseals"*) applied to a second layer. A
+scheduler outage stops *notarization*, not work — and blocking is the correct behaviour for the one
+operation where blocking is correct. `[GROUNDED — same reasoning, same conclusion, different
+component.]`
+
+### ⚑⚑ THE CONSTRAINT THAT MUST BE PINNED — the notary is a COURIER, never an authority
+
+*"I'm on the other end, not claude"* is the security property, and it survives only if the notary
+**cannot sign**. It carries the request to the human and carries the signature back; the signing
+capability lives in the YubiKey, physically outside every process.
+
+⇒ Compromising the scheduler therefore buys an attacker **denial of service** — dropped, delayed or
+reordered requests — and **never forgery**. ⚑ If the notary ever holds signing material "for
+convenience," compromising the scheduler becomes compromising ratification, and Ouroboros becomes
+able to bless its own design. That is the one line in this design that must not be crossed, and it
+is worth writing into the note as an invariant rather than leaving as an implicit property.
+
+`[INFERENCE]` The `(for now..)` reads as anticipating the notary's promotion to its own node — which
+the courier constraint makes cheap, since a courier holds no secrets and can be relocated without
+re-keying anything.
+
+⇒ **Owed to the design note:** a §2.4 invariant — *the notary routes and records; it never holds
+signing capability* — plus its falsifier: any code path by which the scheduler could produce a valid
+transition signature without a hardware touch.
+
 ## OPEN — remaining owner rulings, not guesses
 
 1. **Sequencing against tomorrow's keys.** ⚑ Recommendation: **do not block key onboarding on the
