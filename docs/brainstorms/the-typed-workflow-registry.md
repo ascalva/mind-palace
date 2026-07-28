@@ -970,3 +970,83 @@ things.**
    and the offsite location is a real decision, not a detail. `[INFERENCE]` PIV slot 9c (digital
    signature, PIN+touch policy) is the conventional home for a signing key; FIDO2/`hmac-secret` is
    the alternative if the design wants challenge-response rather than raw signatures.
+
+## 2026-07-28T16:24Z (bg orchestrator session — owner seed: multiple orchestrators, and the external gate)
+
+### The seed
+
+Owner, near-verbatim, while reading the night's design PRs: *"this IS becoming a beautiful
+system: the intent now is that there can be multiple orchestrators — I spawn them as I go,
+multiple sessions, all independent, no hooks to bog them down; they work in worktrees, they
+spawn workers, and they produce PRs. Auditor(s) and I review — that is the gate. The gate is
+enforced externally, which means now I have to make pushes to main illegal on the GitHub
+side."*
+
+### Orchestrator scrutiny (chat-side — connections offered, not decided)
+
+- **This is the ecosystem pattern at session scale.** Multiple independent orchestrators
+  spawned at will, each in a worktree, each producing PRs = speciation of SESSIONS: same
+  nature (the repo at origin/main), separate nurture (each session's thread), merge as the
+  only ingestion. The single-writer seat model dissolves without conflict: seat writes ride
+  branches, and the collision surface moves to merge — where the auditor and the owner
+  already are.
+- **Hooks demote from gate to hygiene.** finding-0280 (the enforcement suite red in live
+  checkouts, green in CI) stops being an emergency the moment the binding gate is external:
+  local guards become ergonomics, and the enforcement that matters lives where no session's
+  state can contaminate it. The night's own arc — the enforcement layer inverted — lands
+  here.
+- **"Illegal pushes" has a binding form and a tripwire form; the difference is identity
+  (finding-0276).** A ruleset on main under today's shared admin credential is a TRIPWIRE —
+  real friction, loud violations, but the agent-as-owner-admin can edit the ruleset. The
+  BINDING lattice is three pieces: (1) ruleset on main — require PR, require code-owner
+  approval, require status checks, block force pushes and deletions, NO bypass actors (the
+  owner blocks himself too; he merges through the same door he audits); (2) CODEOWNERS
+  naming the owner, so only his approval satisfies the review gate — a machine identity
+  cannot approve its own work; (3) the identity split — agents move to a scoped credential
+  (machine user or fine-grained PAT: contents and PR write, NO administration), so the
+  ruleset cannot be edited by the thing it binds. Only then is merge-gated ingestion a wall.
+- **Sequencing constraint: CI must move to the PR surface FIRST.** ci.yml triggers on push
+  to main only (the parked Item 11b); with pushes illegal, merges need verdicts, so
+  pull_request triggers become load-bearing, and the ruleset's required-status-check line
+  points at the ratchet. Order: CI-on-PRs, then the ruleset, then the identity split.
+- **Self-referential consequence, accepted:** capture-to-main pushes (this very commit's
+  kind) end under the new regime — sessions end with a captures PR. The artifact chain
+  gains one more gate and loses nothing: lossy capture still beats no capture; the audit
+  just moves to where every other audit lives.
+
+```capsule
+topic: the-typed-workflow-registry
+date: 2026-07-28
+
+decisions:
+  - Frame adopted (owner-stated): many independent orchestrators, worktree-bound,
+    PR-producing; audit at merge (auditors + owner) is THE gate; enforcement is external.
+
+parked:
+  - decision: the binding lattice (ruleset + CODEOWNERS + identity split) and its rollout
+    default: main remains push-open under the shared credential; nothing flipped by an agent
+    re_entry: the owner executes the sequence — CI-on-PRs first, ruleset second, identity
+      split third; the identity ceremony (machine user / scoped PAT) is owner-only
+
+open_questions:
+  - Do multiple concurrent orchestrators share one seat journal via merge, or does the seat
+    fork per-session with a journal-merge discipline at PR time?
+  - What does the auditor role look like as a typed agent — a review contract with its own
+    scope signature, per dn-agent-taxonomy (role = scope signature)?
+  - Does the capture lane get a fast path (auto-mergeable label after auditor pass) so
+    brainstorm ingestion latency stays near zero under the new gate?
+
+next_steps:
+  - Owner: the three-step rollout above, at the keyboard.
+  - Orchestrator: a PR adding pull_request triggers to ci.yml can precede everything and
+    breaks nothing (Item 11b's park condition is long gone).
+
+references:
+  - docs/findings/finding-0276.md (merge is not separable; identity is the difference
+    between tripwire and wall)
+  - docs/findings/finding-0280.md (the local-red ambiguity this architecture moots)
+  - docs/brainstorms/the-attributed-transcript.md (the PR as audit venue — the arc this
+    completes)
+  - docs/design-notes/distributed-ecosystem.md (PR #7, draft — speciation at instance
+    scale; this capsule is the same law at session scale)
+```
