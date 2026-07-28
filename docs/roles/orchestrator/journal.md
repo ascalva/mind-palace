@@ -36,6 +36,36 @@ marked superseded — retained, readable, non-binding.
 
 ---
 
+## 2026-07-28 — the revival night: the daemon, the fixes, and seven capsules
+
+The three-day outage ended tonight, and every layer of it taught something. The daemon died
+on the night of the last release because the battery ran to one percent under deploy load —
+the machine never went down, the embedder starved under critical-battery throttle, the code
+lanes wedged, and nothing supervised the corpse. Revival: recovery mode is a deliberate hold
+(scheduler halted, read-only), and its exit is *stop*, not force — the runbook, the launcher
+docstring, and my own memory all said the opposite; all three corrected. The orphan sweep
+requeued the stranded job on the next start; the backlog of seventeen hundred drained in an
+hour; the dreamer dreamed for the first time in three days. The same battery event nearly
+recurred mid-revival — caught at eight percent, zero casualties this time, KeepAlive
+underneath. Filed finding-0279: energy is an unmodeled resource axis.
+
+The red streak on main was two defects, both root-caused, both proven, shipped as PR 4. The
+seat probe mutated the journal's *bottom* — outside the authoritative segment the moment this
+seat's first capsule existed, so the first compaction in history armed a latent geometry
+dependence and redded a correct generator. And the worker's wall-clock bound crashed above
+the fd ceiling on loaded runners instead of firing — moved to selectors, falsified directly
+at fd twelve-hundred. During verification the enforcement suite showed three local-only
+failures that pass in CI — fail-closed violations printed in a live checkout. That ambiguity
+(hermeticity contamination vs a live enforcement gap) is finding-0280 and it is the most
+important open thread from tonight.
+
+The owner and I also grew the distributed-ecosystem brainstorm by five capsules in one
+sitting (plus a dreamer capsule and a scoped-context-queries note): speciation not
+replication, the roaming role under exclusive lease, panic-seals, in-memory stores with
+ciphertext-only disk, the rendezvous ratchet, and the physical overlay. Two owner-only
+rulings are parked in it explicitly. The deploy waits for the owner at a green main —
+merge PR 4 first, then deploy from the keyboard.
+
 ## 2026-07-27 — the compaction paid the debt, and blinded the instrument that measured it
 
 **Status line.** The seat's first compaction capsule is written, and the emitted surface fell by more
