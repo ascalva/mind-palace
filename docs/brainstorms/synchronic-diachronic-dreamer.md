@@ -526,3 +526,82 @@ The geometry, named. Three things the four words add to the capsule above:
 
 (Capsule-less stub by design: the owner's compression IS the content. Folds into the
 graduation with the two capsules above.)
+
+## 2026-07-28T05:46Z (bg orchestrator session — owner seed: castle lifecycle, TTL unless touched)
+
+### The seed
+
+Owner, near-verbatim: *"prediction space has TTL unless touched; a castle can take many dreams
+to build. Is a castle under development or abandoned — or is it already making a prediction?"*
+
+### Orchestrator scrutiny (chat-side — connections offered, not decided)
+
+- **The retention asymmetry, named as law: evidence is permanent, interpretation is leased.**
+  The warranted corpus is keep-and-link forever (append-only, never rewritten); the castle
+  realm expires by default and lives only while touched. An interpretation nothing returns
+  to has no living warrant to exist. This is also the noise-floor control for union-bound
+  queries: dead layers evaporate, so registration is computed against living conjecture
+  only. And it is NN-8's philosophy applied to imagination — the resource ceiling for the
+  interpretive space is a lease, not a landfill.
+- **"Touched" = any citation event.** A dream extending it, a flinch citing it, a
+  registration update against it, a union-bound query hit that returns it — all renew the
+  lease. Attention is the mortar; castles survive by earning it. Memory reconsolidation
+  dynamics, implemented as garbage collection.
+- **The castle state machine — the artifact-chain discipline reaching into dream-space:**
+  `under-construction → predicting → graded`, with `abandoned` reachable from the first two
+  by lease expiry. The promotion gate is MECHANICAL, not blessed: a castle is `predicting`
+  the moment its thread carries the self-grading triple (target stratum, falsification
+  date, alignment tolerance) — falsifiability is the promotion criterion, no owner gate in
+  dream-space (the blessing gates guard the warranted chain; dreams promote themselves by
+  becoming gradeable). State is a queryable field: interpretive material is addressed by
+  (authority tier, castle state) — the query can ask "predicting castles over the code
+  stratum" as a WHERE clause.
+- **A predicting castle cannot expire before its own falsification date.** The lease floor
+  of the predicting state IS the forecast's expiry — a prediction must survive long enough
+  to be wrong. Under-construction castles ride the sliding touch-window; predicting castles
+  hold a term lease.
+- **Grades outlive castles.** When a castle is graded — registration converged, or the
+  falsification date passed — the castle may evaporate, but its GRADE crosses into the
+  permanent realm: the outcome is evidence (of the dreamer's skill), and evidence is
+  forever. Dreams are mortal; the track record is immortal. The skill curve from the
+  supersession capsule is computed over exactly this residue. Abandonment needs no
+  tombstones — a started-vs-finished aggregate (the dreamer's focus ratio) is a cheap
+  telemetry row, not a kept corpse.
+- **This closes the flinch-runaway question from two capsules ago.** A flinch may queue a
+  dream; the dream renews a castle's lease; but leases + the dream budget bound the loop —
+  a castle that only ever gets flinch-touched without advancing toward its grading triple
+  is spending lease renewals, not earning promotion, and the focus-ratio telemetry makes
+  that visible.
+
+```capsule
+topic: synchronic-diachronic-dreamer
+date: 2026-07-28
+
+decisions:
+  - Retention law: evidence permanent, interpretation leased (TTL unless touched; touch =
+    any citation event).
+  - Castle lifecycle: under-construction → predicting → graded, abandoned by expiry;
+    promotion to predicting is mechanical (the self-grading triple), never blessed; state
+    is a queryable field.
+  - Lease floor: a predicting castle lives at least until its own falsification date.
+  - Grades are permanent residue; castles evaporate, the track record does not.
+
+parked: []
+
+open_questions:
+  - Lease lengths: construction window and renewal amounts — fixed knobs, or themselves
+    subject to the drift/self-mod knob discipline (levers overlay)?
+  - Can two castles overlay the same target stratum with rival predictions, and is their
+    co-existence a feature (ensemble) or a conflict the dreamer must resolve before
+    promotion?
+
+next_steps:
+  - Folds into the dreamer graduation with tonight's five capsules.
+
+references:
+  - this file, tonight's supersession/flinch capsule + scope-sweep addendum + the
+    overlay/registration stub (the lifecycle completes them)
+  - CLAUDE.md (everything is a typed file with a state machine — now including dreams);
+    NN-8 (the ceiling philosophy, applied to imagination)
+  - keep-and-link retention of the warranted chain (the asymmetry's other half)
+```
