@@ -507,12 +507,12 @@ def build_components(cfg: Config) -> Components:
         # chat_sync. Re-extracts WHAT was performed (typed events, structural refs) from the raw
         # transcripts at housekeeping cadence, incrementally by transcript_digest.
         CHAT_EVENTS_KIND: chat_events_handler(build_chat_event_projector(cfg),
-                                              max_per_pass=cfg.chat.events_max_per_pass),
+                                              max_per_pass=cfg.ingestion.transcripts.events_max_per_pass),
         # The chat↔code↔doc integrator (bp-071): the first full integrator role — model-less like
         # chat_events, one tick behind it (it reads the L1 that pass produces). Resolves L1 refs
         # against the commit ledger into witnessed C-fiber proven edges; pinned, trough cadence.
         INTEGRATE_KIND: integrate_handler(build_integrator(cfg),
-                                          max_per_pass=cfg.chat.integrate_max_per_pass),
+                                          max_per_pass=cfg.integrate.max_per_pass),
         AMBASSADOR_KIND: ambassador_inbox_handler(inbox),
         AMBASSADOR_TASK_KIND: ambassador_task_handler(task_librarian),
         RESEARCH_KIND: research_handler(airlock, task_librarian.embedder, task_librarian.store),
@@ -521,21 +521,34 @@ def build_components(cfg: Config) -> Components:
     supervisor = Supervisor(queue=queue, loader=loader, handlers=handlers, telemetry=telemetry)
     # One watcher per watched dir: the owner's vault + the Claude Code transcripts (bp-069). Both
     # are generic DirectoryWatchers; on a change each enqueues its own model-less background job.
-    watchers = [build_vault_watcher(queue, router, cfg), build_chat_watcher(queue, router, cfg)]
+    # Each is gated by ITS OWN agent's lever — a watcher left running would re-ingest on every file
+    # write, so a pause that covered only the periodic passes below would pause nothing in practice.
+    watchers = []
+    if cfg.ingestion.vault.enabled:
+        watchers.append(build_vault_watcher(queue, router, cfg))
+    if cfg.ingestion.transcripts.enabled:
+        watchers.append(build_chat_watcher(queue, router, cfg))
 
+    # Each ingestion agent is gated in ALL THREE of its paths — watcher (above), housekeeping, and
+    # catch-up (below). The catch-up is the one that matters most for a deliberate pause: it runs on
+    # every daemon start, so an agent gated only in housekeeping unpauses itself at the next deploy.
     def _housekeeping() -> None:
         enqueue_dream(queue, router)
         enqueue_curate(queue, router)
-        enqueue_chat_sync(queue, router)    # periodic chat ingest (growth-aware, bp-068/069)
-        enqueue_chat_events(queue, router)  # L1 action-log projection — the delayed rate (bp-069)
-        enqueue_integrate(queue, router)    # C-fiber proven edges from L1 + the ledger (bp-071)
-        if cfg.code_ingest.enabled:         # code embed lane, opt-in (bp-098 / note §2.7):
+        if cfg.ingestion.transcripts.enabled:  # ONE transcript-sync agent, BOTH its kinds:
+            enqueue_chat_sync(queue, router)    # periodic chat ingest (growth-aware, bp-068/069)
+            enqueue_chat_events(queue, router)  # L1 action-log projection — its delayed rate
+        if cfg.integrate.enabled:           # its own agent type — derives, never ingests (bp-071)
+            enqueue_integrate(queue, router)  # C-fiber proven edges from L1 + the ledger
+        if cfg.ingestion.code.enabled:      # code embed lane, opt-in (bp-098 / note §2.7):
             enqueue_code_sync(queue, router)  # INCREMENTAL only; the heavy SEED is `code-seed`
 
     def _catchup() -> None:
-        enqueue_vault_sync(queue, router)   # reconcile the corpus; the Job return is discarded
-        enqueue_chat_sync(queue, router)    # startup backfill of every closed chat session (bp-068)
-        if cfg.code_ingest.enabled and _code_backfill_incomplete(cfg, code_driver):
+        if cfg.ingestion.vault.enabled:
+            enqueue_vault_sync(queue, router)  # reconcile the corpus; the Job return is discarded
+        if cfg.ingestion.transcripts.enabled:
+            enqueue_chat_sync(queue, router)  # startup backfill of every closed session (bp-068)
+        if cfg.ingestion.code.enabled and _code_backfill_incomplete(cfg, code_driver):
             enqueue_code_backfill(queue, router)   # history not yet fully embedded (bp-099 D1)
 
     # The edge monitor (a supervised child PROCESS fed by a status-snapshot JSON, Invariant 2) was

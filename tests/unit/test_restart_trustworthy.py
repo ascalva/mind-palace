@@ -46,8 +46,10 @@ def _cfg(tmp_path):
         derived_store=tmp_path / "d.sqlite", attestation_store=tmp_path / "att.sqlite",
         telemetry_db=tmp_path / "t.duckdb")
     selfmod = dataclasses.replace(base.selfmod, ledger_db=tmp_path / "selfmod.sqlite")
-    vault = dataclasses.replace(base.vault, path=tmp_path / "vault")
-    return dataclasses.replace(base, paths=paths, selfmod=selfmod, vault=vault)
+    ingestion = dataclasses.replace(
+        base.ingestion,
+        vault=dataclasses.replace(base.ingestion.vault, path=tmp_path / "vault"))
+    return dataclasses.replace(base, paths=paths, selfmod=selfmod, ingestion=ingestion)
 
 
 class _FakeSupervisor:

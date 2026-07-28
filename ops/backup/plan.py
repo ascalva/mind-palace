@@ -136,7 +136,7 @@ def build_backup_plan(config: Config | None = None) -> BackupPlan:
     data_dir = Path(cfg.paths.data_dir)
     return BackupPlan(
         repository=bak.repository,
-        paths=(str(cfg.vault.path), str(data_dir)),
+        paths=(str(cfg.ingestion.vault.path), str(data_dir)),
         # config excludes (transient/regenerable basenames) + the live raft dir (snapshotted apart).
         excludes=(*bak.exclude, str(data_dir / "vault")),
         tags=(DEFAULT_TAG,),

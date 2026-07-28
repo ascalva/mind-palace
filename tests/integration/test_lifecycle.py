@@ -52,8 +52,10 @@ def _cfg(tmp_path):
                                 derived_store=tmp_path / "d.sqlite",
                                 attestation_store=tmp_path / "att.sqlite",
                                 telemetry_db=tmp_path / "t.duckdb")
-    vault = dataclasses.replace(base.vault, path=tmp_path / "vault")
-    return dataclasses.replace(base, paths=paths, vault=vault)
+    ingestion = dataclasses.replace(
+        base.ingestion,
+        vault=dataclasses.replace(base.ingestion.vault, path=tmp_path / "vault"))
+    return dataclasses.replace(base, paths=paths, ingestion=ingestion)
 
 
 def test_preflight_fails_closed_on_a_required_check(tmp_path):

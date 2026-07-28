@@ -389,7 +389,7 @@ def build_chat_sensor(config: Config | None = None, *,
 
     cfg = config or get_config()
     return ChatSensor(
-        transcripts_dir=cfg.chat.transcripts_dir or _default_transcripts_dir(),
+        transcripts_dir=cfg.ingestion.transcripts.transcripts_dir or _default_transcripts_dir(),
         rawstore=RawStore(cfg.paths.raw_store),
         store=open_chatlog_store(cfg),
         guard=ChatSecretGuard(),

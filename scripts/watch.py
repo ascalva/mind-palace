@@ -104,7 +104,8 @@ def main() -> int:
 
         watcher = build_vault_watcher(queue, router, cfg)
         backend = watcher.start()
-        print(f"run #{run.id}: watching {cfg.vault.path} (backend={backend}); Ctrl-C to stop")
+        print(f"run #{run.id}: watching {cfg.ingestion.vault.path} "
+              f"(backend={backend}); Ctrl-C to stop")
         try:
             while True:
                 # The same bounded drain + conditional sleep as the daemon's serve loop (bp-108

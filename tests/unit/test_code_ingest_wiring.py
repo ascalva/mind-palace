@@ -1,12 +1,12 @@
 """The code embed lane wired to RUN (bp-098) — the enable path CI-1..4 (bp-092..094) deferred.
 
-CI-1..4 shipped the code embed lane but with an INERT flag (`[code_ingest].enabled` read by
+CI-1..4 shipped the code embed lane but with an INERT flag (`[ingestion.code].enabled` read by
 nothing), no daemon enqueue of the `code_sync` KIND, and no CLI — flipping the flag did nothing
 (finding-0159: the ON switch is part of finishing). These tests pin the three seams that make it
 runnable through the proper discipline, all deterministic (no Ollama, no network; temp stores;
 embedders build lazily so `build_components` runs fully offline):
 
-  1. `CodeIngestConfig` — the loader now schemas `[code_ingest]`: ON by default (finding-0161/
+  1. `CodeIngestConfig` — the loader now schemas `[ingestion.code]`: ON by default (finding-0161/
      oq-0034 — the Ouroboros ingests its own code natively), and an ouroboros.toml override opts
      out.
   2. `build_components` REGISTERS `code_sync` unconditionally (like vault_sync it eagerly opens the
@@ -40,7 +40,7 @@ def test_code_ingest_default_on() -> None:
     now embeds code by default — finding-0161/oq-0034 (2026-07-22): the Ouroboros ingests its own
     code natively; gating-off was a not-yet, now flipped on. `max_chars`/`overlap_chars` mirror the
     note chunker (§2.2)."""
-    ci = load_config(REPO_ROOT / "config" / "defaults.toml").code_ingest
+    ci = load_config(REPO_ROOT / "config" / "defaults.toml").ingestion.code
     assert ci.enabled is True
     assert ci.max_chars == 1200
     assert ci.overlap_chars == 150
@@ -51,14 +51,14 @@ def test_code_ingest_instance_override_can_opt_out(tmp_path, monkeypatch) -> Non
     `[code_ingest] enabled=false` turns it off for one instance, honoring the overlay precedence
     (defaults ← levers ← ouroboros, loader.py) — the reverse of the old enable-flip."""
     overlay = tmp_path / "ouroboros.toml"
-    overlay.write_text("[code_ingest]\nenabled = false\n", encoding="utf-8")
+    overlay.write_text("[ingestion.code]\nenabled = false\n", encoding="utf-8")
     monkeypatch.setattr("core.kernel.config.loader._INSTANCE_OVERLAY", overlay)
     # bp-123: keep this hermetic — the migration guard refuses while a real `config/local.toml`
     # exists, which is a fact about the machine, not about code_ingest.
     monkeypatch.setattr(
         "core.kernel.config.loader._LEGACY_OVERLAY", tmp_path / "absent-legacy.toml"
     )
-    assert load_config().code_ingest.enabled is False
+    assert load_config().ingestion.code.enabled is False
 
 
 # --- temp-config fixture (mirrors tests/integration/test_lifecycle.py::_cfg) -----------------
@@ -66,16 +66,18 @@ def test_code_ingest_instance_override_can_opt_out(tmp_path, monkeypatch) -> Non
 
 def _cfg(root: Path, *, enabled: bool):
     """A fully temp-pathed Config (every store under `root`) so build_components runs in isolation,
-    with `code_ingest.enabled` set. Mirrors the test_lifecycle `_cfg` path set exactly."""
+    with `ingestion.code.enabled` set. Mirrors the test_lifecycle `_cfg` path set exactly."""
     root.mkdir(parents=True, exist_ok=True)
     base = load_config()
     paths = dataclasses.replace(
         base.paths, data_dir=root, raw_store=root / "raw", vector_store=root / "v.lance",
         vault_catalog=root / "cat.sqlite", derived_store=root / "d.sqlite",
         attestation_store=root / "att.sqlite", telemetry_db=root / "t.duckdb")
-    vault = dataclasses.replace(base.vault, path=root / "vault")
-    code_ingest = dataclasses.replace(base.code_ingest, enabled=enabled)
-    return dataclasses.replace(base, paths=paths, vault=vault, code_ingest=code_ingest)
+    ingestion = dataclasses.replace(
+        base.ingestion,
+        vault=dataclasses.replace(base.ingestion.vault, path=root / "vault"),
+        code=dataclasses.replace(base.ingestion.code, enabled=enabled))
+    return dataclasses.replace(base, paths=paths, ingestion=ingestion)
 
 
 def _housekeeping_kinds(comps) -> list[str]:

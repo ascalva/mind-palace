@@ -71,8 +71,8 @@ def build_chat_watcher(
         enqueue_chat_sync(queue, router)
 
     return DirectoryWatcher(
-        path=cfg.chat.transcripts_dir or _default_transcripts_dir(),
+        path=cfg.ingestion.transcripts.transcripts_dir or _default_transcripts_dir(),
         on_change=_on_change,
-        debounce_s=cfg.chat.watch_debounce_s,
-        poll_interval_s=cfg.chat.watch_poll_interval_s,
+        debounce_s=cfg.ingestion.transcripts.watch_debounce_s,
+        poll_interval_s=cfg.ingestion.transcripts.watch_poll_interval_s,
     )

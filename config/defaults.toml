@@ -39,10 +39,28 @@ attestation_store = "data/attestations.sqlite"  # append-only attestation record
 # Under data/ + *.lance/ → gitignored by construction (Inv 11: the full text never enters git).
 curated_store = "data/research_curated.lance"
 
-[vault]
-# The SOURCE corpus the system ingests FROM — read-only, AUTHORED, never committed.
-# `~` expands to $HOME. Point at a Logseq/Obsidian markdown vault, or export notes here.
-# (§20.8: narrow `pattern`, or point `path` at a subgraph, to scope which notes ingest.)
+# ════════════════════════════════════════════════════════════════════════════════════════════
+# INGESTION AGENTS — one subsection per agent (owner ruling 2026-07-28).
+#
+# Each agent gets its own section and its own `enabled` lever, because they are different
+# ingestion systems with different sensor agents. A lever must say WHICH agent it stops, and a
+# section must contain only what its lever governs — one shared `enabled` sitting above knobs it
+# did not gate was the failure this layout replaces.
+#
+# Every `enabled` here gates EVERY path its agent uses: the live watcher, the housekeeping pass,
+# AND the startup catch-up. Missing the catch-up would silently unpause the agent on the next
+# daemon start — which is exactly deploy time, the moment the pause is for.
+#
+# `integrate` is NOT here: it ingests nothing, deriving edges from already-ingested material, so
+# it is its own agent type with its own `[integrate]` section below.
+# ════════════════════════════════════════════════════════════════════════════════════════════
+
+[ingestion.vault]
+# The AUTHOR-CORPUS ingestion agent (`vault_sync`). The SOURCE corpus the system ingests FROM —
+# read-only, AUTHORED, never committed. `~` expands to $HOME. Point at a Logseq/Obsidian markdown
+# vault, or export notes here. (§20.8: narrow `pattern`, or point `path` at a subgraph, to scope
+# which notes ingest.)
+enabled = true
 path = "~/.mind-palace/vault"
 pattern = "**/*.md"
 # Local watcher (core-side, filesystem only — no network). On change → a background
@@ -51,6 +69,41 @@ pattern = "**/*.md"
 # `watch_poll_interval_s`. `watch_debounce_s` coalesces a burst of saves into one re-ingest.
 watch_debounce_s = 1.0
 watch_poll_interval_s = 5.0
+
+[ingestion.transcripts]
+# The TRANSCRIPT-SYNC ingestion agent — the dialogue sensor over the local Claude Code transcripts
+# (bp-069, φ_chat). Growth-aware + real-time: a live DirectoryWatcher (core-side, filesystem only —
+# no network) enqueues a background `chat_sync` on every transcript change, so a session left open
+# ingests its tail immediately (finding-0109 — freeze-once removed).
+#
+# `enabled` covers BOTH of this agent's job kinds — `chat_sync` (embed transcript text) and
+# `chat_events` (project the L1 action log from those same transcripts). They are one agent, so
+# they share one lever.
+#
+# `transcripts_dir` is the finding-0108 G1 OVERRIDE: leave unset to use the resolved default
+# (~/.claude/projects/<repo-slug>); set it only when the canonical repo path differs from a
+# worktree's.
+enabled = true
+# transcripts_dir = "~/.claude/projects/-Users-you-mind-palace"
+watch_debounce_s = 0.5          # coalesce one turn's write into one re-ingest ("immediate", Q4)
+watch_poll_interval_s = 5.0     # fallback cadence when watchdog isn't available
+events_max_per_pass = 50        # L1 action-log projector cap per pass (Item 3)
+
+[ingestion.code]
+# The CODE-SYNC ingestion agent (dn-code-ingest-pipeline / bp-092..094; enable path bp-098). ON by default
+# (finding-0161 / oq-0034, 2026-07-22): the Ouroboros ingests its own code natively — code is a
+# first-class semantic source (finding-0146), and gating-off was only ever a "not-yet" safeguard,
+# now flipped on to stay on. When enabled, the daemon enqueues the INCREMENTAL code_sync at
+# housekeeping cadence; on a cold store the first pass embeds every HEAD .py (= the seed), and the
+# deliberate `palace code-seed` triggers that immediately. Safe as a default: the daemon refuses to
+# start without a live Ollama (preflight), so a fresh clone/CI never auto-embeds without an embedder;
+# CI/test runs don't start the housekeeping loop. The KIND + handler live in scheduler/code_sync.py.
+# An instance may opt OUT with `[ingestion.code] enabled = false` in config/ouroboros.toml.
+# `max_chars`/`overlap_chars` mirror the note chunker so L0a oversized-splits and L0b windows match
+# the corpus-wide budget.
+enabled = true
+max_chars = 1200
+overlap_chars = 150
 
 [exhaust]
 # The OUTBOUND lane (dn-exhaust-lane): system-emitted artifacts the owner reads on his phone
@@ -85,34 +138,13 @@ work_home = "/var/ouroboros-work"       # ouroboros-work: the orchestrator + del
 edge_home = "/var/ouroboros-edge"       # ouroboros-edge: network-facing (forward-provisioned; §9)
 enabled = false                          # false until the owner completes the migration
 
-[chat]
-# The dialogue sensor over the local Claude Code transcripts (bp-069). Growth-aware + real-time:
-# a live DirectoryWatcher (core-side, filesystem only — no network) enqueues a background
-# `chat_sync` on every transcript change, so a session left open ingests its tail immediately
-# (finding-0109 — freeze-once removed). `transcripts_dir` is the finding-0108 G1 OVERRIDE: leave
-# unset to use the resolved default (~/.claude/projects/<repo-slug>); set it only when the
-# canonical repo path differs from a worktree's.
-# transcripts_dir = "~/.claude/projects/-Users-you-mind-palace"
-watch_debounce_s = 0.5          # coalesce one turn's write into one re-ingest ("immediate", Q4)
-watch_poll_interval_s = 5.0     # fallback cadence when watchdog isn't available
-events_max_per_pass = 50        # L1 action-log projector cap per pass (Item 3)
-integrate_max_per_pass = 50     # integrator proven-edge pass cap per tick (bp-071 Item 2)
-
-[code_ingest]
-# The code embed lane (dn-code-ingest-pipeline / bp-092..094; enable path bp-098). ON by default
-# (finding-0161 / oq-0034, 2026-07-22): the Ouroboros ingests its own code natively — code is a
-# first-class semantic source (finding-0146), and gating-off was only ever a "not-yet" safeguard,
-# now flipped on to stay on. When enabled, the daemon enqueues the INCREMENTAL code_sync at
-# housekeeping cadence; on a cold store the first pass embeds every HEAD .py (= the seed), and the
-# deliberate `palace code-seed` triggers that immediately. Safe as a default: the daemon refuses to
-# start without a live Ollama (preflight), so a fresh clone/CI never auto-embeds without an embedder;
-# CI/test runs don't start the housekeeping loop. The KIND + handler live in scheduler/code_sync.py.
-# An instance may opt OUT with `[code_ingest] enabled = false` in config/ouroboros.toml.
-# `max_chars`/`overlap_chars` mirror the note chunker so L0a oversized-splits and L0b windows match
-# the corpus-wide budget.
+[integrate]
+# The INTEGRATOR — its own agent TYPE, deliberately NOT an ingestion agent (owner ruling
+# 2026-07-28). It ingests nothing: it derives C-fiber proven edges from the already-ingested L1
+# action log and the ledger (bp-071), which is why it sits outside [ingestion] with its own lever
+# rather than riding on the transcript agent's the way `chat_events` does.
 enabled = true
-max_chars = 1200
-overlap_chars = 150
+max_per_pass = 50               # integrator proven-edge pass cap per tick (bp-071 Item 2)
 
 [embedding]
 # Embedding quality is load-bearing (retrieval, dreaming, matching) — owner chose the

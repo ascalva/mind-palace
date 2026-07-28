@@ -73,7 +73,7 @@ def test_no_secret_can_appear_in_argv():
 def test_build_backup_plan_backs_up_vault_and_data_excluding_live_raft():
     cfg = get_config()
     plan = build_backup_plan(cfg)
-    assert plan.paths == (str(cfg.vault.path), str(cfg.paths.data_dir))
+    assert plan.paths == (str(cfg.ingestion.vault.path), str(cfg.paths.data_dir))
     # The live Vault raft store is excluded — it's captured via a consistent snapshot instead.
     assert str(Path(cfg.paths.data_dir) / "vault") in plan.excludes
     assert plan.keep_daily == cfg.backup.keep_daily

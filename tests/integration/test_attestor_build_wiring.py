@@ -28,8 +28,10 @@ def _cfg_in(tmp_path):
         vault_catalog=tmp_path / "catalog.sqlite",
         attestation_store=tmp_path / "attestations.sqlite",
     )
-    vault = dataclasses.replace(cfg.vault, path=tmp_path / "vault")
-    return dataclasses.replace(cfg, paths=paths, vault=vault)
+    ingestion = dataclasses.replace(
+        cfg.ingestion,
+        vault=dataclasses.replace(cfg.ingestion.vault, path=tmp_path / "vault"))
+    return dataclasses.replace(cfg, paths=paths, ingestion=ingestion)
 
 
 def test_build_curator_wires_an_attestor(tmp_path):

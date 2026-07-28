@@ -93,7 +93,8 @@ def test_chat_watcher_enqueues_chat_sync_on_a_change(tmp_path: Path) -> None:
     router = Router(cfg)
     watcher = build_chat_watcher(queue, router, cfg)
     assert isinstance(watcher, DirectoryWatcher)
-    assert watcher.debounce_s == cfg.chat.watch_debounce_s      # sourced from [chat] (Q4 immediacy)
+    # sourced from [ingestion.transcripts] (Q4 immediacy)
+    assert watcher.debounce_s == cfg.ingestion.transcripts.watch_debounce_s
     assert queue.depth() == 0
     watcher.on_change()                                     # a debounced transcript change fired
     assert queue.depth() == 1                                    # one background chat_sync enqueued

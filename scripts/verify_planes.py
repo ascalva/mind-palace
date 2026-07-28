@@ -146,7 +146,7 @@ class Lane:
 
 
 def lanes(cfg: Any) -> list[Lane]:
-    vault = Path(cfg.vault.path).expanduser()
+    vault = Path(cfg.ingestion.vault.path).expanduser()
     exhaust = Path(cfg.exhaust.path).expanduser()
     data_dir = Path(cfg.paths.data_dir)
     return [
@@ -226,7 +226,7 @@ def check_lane(probe: SystemProbe, lane: Lane) -> Check:
 
 
 def check_ascalva_cannot_read_vault(probe: SystemProbe, cfg: Any) -> Check:
-    vault = Path(cfg.vault.path).expanduser()
+    vault = Path(cfg.ingestion.vault.path).expanduser()
     owner = probe.owner(vault)
     core_uid = probe.user_uid(CORE)
     if owner is None or core_uid is None or owner.uid != core_uid:
