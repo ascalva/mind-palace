@@ -1126,3 +1126,24 @@ What this retires and what it clarifies:
   machinery is now guarding a retired ceremony; the A8 status-guard semantics reduce to
   "agents never edit status fields"; the typed-workflow-registry re-warrant (PR #3) is the
   natural home for the full rewrite at the owner's review.
+
+## 2026-07-28T17:30Z (bg orchestrator session — owner corollary: no hard write scopes, no write ceremony)
+
+Owner, near-verbatim: *"which means no hard write scopes, no mandatory action-based ceremony
+for file writes."*
+
+- **Enforcement leaves the write path entirely.** scope-guard, journal-gate, per-write
+  checkpoint rituals: retired. Agents write freely on branches; scope becomes a REVIEW
+  question (a plan's write_scope is reviewer guidance: did the merge stay in its design's
+  lane). The record obligation moves to the PR body — files + reason + verification.
+- **finding-0280 is now fully moot by architecture** (its suite guards retired machinery),
+  and the 2026-07-27 hooks-key removal is retroactively the right half of this ruling.
+- **Deferred dismantling (its own PR, not this one):** delete/retire the hook scripts under
+  .claude/hooks/, retire the worktree-enforcement test suite or repoint it at the ruleset
+  (a wall test, not a chain test), close finding-0280 as mooted, sweep remaining
+  write_scope-as-capability language from skills/templates.
+- **One carve-out preserved pending owner veto:** the NN-9 fixed points (CONSTITUTION.md,
+  eval/golden) stay outside agent authorship absent explicit owner direction — recorded in
+  the CLAUDE.md rewrite as the single surviving line, because a constitution that can be
+  proposed-around by its own subjects is the 0276 shape again. The owner may strike even
+  this; it is stated, not assumed.
