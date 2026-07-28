@@ -894,9 +894,13 @@ the graceful shutdown / ASG-style lifecycle hook. State lives in the stores/file
 just resumes.
 
 **Recovery:** if the previous run never marked itself stopped (crash / `kill -9` / power loss), `start`
-comes up in **recovery mode** — scheduler halted, watcher off, read-only — and asks you to inspect, then
-`start --force` to resume. (The full graduated tamper response is Track A / A4; this is the boot-time
-fail-closed half.)
+comes up in **recovery mode** — scheduler halted, watcher off, read-only. Inspect the stores, then
+`palace stop` once the cause is cleared: the recovery run closes **clean**, so the next start is normal
+(under KeepAlive the stop IS the restart, and the boot-time orphan sweep requeues any job rows the dead
+run stranded). `start --force` does NOT exit a live recovery run — it cannot bypass the single-instance
+gate (finding-0186); its only use is skipping recovery at a fresh boot after an inspection already
+happened. Exercised end-to-end 2026-07-28 (runs #35→#37). (The full graduated tamper response is
+Track A / A4; this is the boot-time fail-closed half.)
 
 **How self-mod knob changes persist across runs** (your question): the tuned value is written to the
 `config/levers.toml` overlay (merged `defaults ← levers.toml ← ouroboros.toml`, so your `ouroboros.toml`

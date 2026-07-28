@@ -9,9 +9,11 @@ the run CLEAN). `stop` signals the live run's pid. `status` shows preflight + th
 
 Recovery (nervous-system-and-ambassador.md §1): if the *previous* run never marked itself stopped
 (crash / kill -9 / power loss), `start` comes up in **recovery mode** — scheduler halted, watcher
-off, read-only — and asks the owner to inspect, then `--force` to resume. State itself lives in
-the stores/files, so a clean restart just resumes; recovery is the cautious response to an
-*unclean* exit, not the normal path.
+off, read-only — and asks the owner to inspect, then `palace stop` once the cause is cleared: the
+recovery run closes CLEAN, so the next start is normal (under KeepAlive the stop IS the restart).
+`--force` does not exit a live recovery run (single-instance gate, finding-0186); it only skips
+recovery at a fresh boot. State itself lives in the stores/files, so a clean restart just resumes;
+recovery is the cautious response to an *unclean* exit, not the normal path.
 """
 
 from __future__ import annotations
