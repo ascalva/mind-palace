@@ -59,6 +59,9 @@ your PR body becomes the permanent record of the files and the reason.
   owner's MERGE is the blessing; a status line is provenance description only. Amendments
   to ratified notes are agent-drafted and land by the owner's merge: the merge is the hand.
 - **Never self-approve** or arrange approval. Reviews belong to the owner and auditors.
+- **Never touch the denylist paths.** `CONSTITUTION.md`, `eval/golden/**`,
+  `eval/golden.py` are HARD NOs (owner ruling 2026-07-28) — not authored, not proposed.
+  The `denylist` CI job reds any PR that tries; the ruleset refuses the merge.
 
 ## Why it is this way
 

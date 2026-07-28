@@ -1172,3 +1172,17 @@ collisions."* And: *"that can be its own skill."*
   question findings by just commenting and resolving."* His closing comment IS the ruling —
   warrant-grade, citable as #N; agents pick rulings up from closed question issues at
   spawn, not from chat. The oq- relay dies; the peering glass answers back.
+
+## 2026-07-28T17:35Z (bg orchestrator session — owner ruling: constitution writes are HARD NOs, denylist, as a CI job)
+
+Owner, three beats, near-verbatim: *"on write scopes — writes to constitution are HARD NOs"*
+· *"deny list approach"* · *"that can be a github action job."*
+
+The final shape of write governance, complete in three sentences: everything is free on the
+branch; a small denylist (the NN-9 fixed points: CONSTITUTION.md, eval/golden) is denied
+outright; and the denial is a VERDICT — a `denylist` CI job that reds any PR touching the
+paths, required by the ruleset, so the merge is refused mechanically. No local chain, no
+scope algebra, no ceremony: allow-by-default, deny-by-list, enforce-by-wall. Changing the
+constitution now requires deliberately changing the wall itself — human-only, deliberate,
+logged, exactly NN-9's sentence made structural. (Sequencing as with phase 2: the job rides
+the regime PR; it joins the ruleset's required checks after that PR merges.)

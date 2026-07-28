@@ -82,10 +82,11 @@ through the same gate brainstorms do — never by side effect.
   journal-gate, no action-based rituals. Agents write freely in their worktrees;
   the PR review is where scope is judged (a plan's `write_scope` is reviewer
   guidance — did this merge stay in its design's lane — never an enforced
-  capability). One authorship carve-out stands: the fixed points
-  (`CONSTITUTION.md`, `eval/golden/**`, `eval/golden.py`) are NN-9 sacred — agents
-  do not author changes to them absent explicit owner direction; the merge gate
-  enforces everything else.
+  capability). One HARD NO stands, by denylist
+  (owner ruling 2026-07-28): the fixed points — `CONSTITUTION.md`, `eval/golden/**`,
+  `eval/golden.py` — are never written, authored, or proposed by an agent. Enforced
+  as a verdict: the `denylist` CI job reds any PR that touches them and the ruleset
+  refuses the merge. The merge gate enforces everything else.
 
 ## Commands (depth in the matching skill)
 `/capture <topic>` · `/graduate <note>` · `/build <id>` · `/resume <id>` ·
