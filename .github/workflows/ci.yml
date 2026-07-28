@@ -7,11 +7,16 @@ name: ci
 # firewall (Invariant 2, BUILD-SPEC §3) lives inside ratchet via scripts/check_imports.py
 # (finding-0014). Live (Ollama) / podman / needs_restic axes stay LOCAL by design — the
 # runner has no pulled models, no nested virt, no restic repo (docs/runbook.md §Verifying).
-# No paths: filters anywhere: every main sha yields a verdict (P2). No pull_request until
-# the D4 origin re-point lands (parked, bp-016 Item 11b).
+# No paths: filters anywhere: every main sha yields a verdict (P2). pull_request added
+# 2026-07-28 (Item 11b un-parked: its condition — the D4 origin re-point — landed 2026-07-12,
+# and the merge-gated regime makes PR verdicts load-bearing: the main ruleset's required
+# status checks read the `ratchet` job on the PR surface, so every merge carries a verdict
+# BEFORE it lands rather than discovering one after).
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 

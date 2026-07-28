@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import json
 import os
-import select
+import selectors
 import signal
 import subprocess
 import sys
@@ -149,12 +149,19 @@ def _wait_readable(stream: IO[bytes], deadline: float | None) -> None:
     """
     if deadline is None:
         return
-    while True:
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            raise _DeadlinePassed
-        if select.select([stream], [], [], min(remaining, 0.25))[0]:
-            return
+    # `selectors` (kqueue/epoll/poll), never `select.select`: the classic API raises
+    # `ValueError: filedescriptor out of range in select()` on any fd ≥ FD_SETSIZE (1024).
+    # A loaded CI runner — thousands of tests deep, coverage files open — hands this exact
+    # pipe an fd above the cap, and the bound dies with a crash instead of firing (the
+    # 2026-07-27 red streak's second failure). The short-slice poll is unchanged.
+    with selectors.DefaultSelector() as sel:
+        sel.register(stream, selectors.EVENT_READ)
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise _DeadlinePassed
+            if sel.select(min(remaining, 0.25)):
+                return
 
 
 def _recv(stream: IO[bytes], *, deadline: float | None = None) -> dict[str, Any] | None:
