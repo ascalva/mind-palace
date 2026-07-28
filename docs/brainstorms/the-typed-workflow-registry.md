@@ -900,6 +900,62 @@ unreproducible by construction — nobody else ever had those bytes. ⚑ This is
 hash-as-content-address gives the auth loop (§above): **public + immutable = independently
 verifiable**, and it is now load-bearing in two places.
 
+## ⚑⚑ THE VEINS — the hub carries POINTERS, never payloads, and that is now three uses converging
+
+> *"github can then trigger a notification via aws which can get routed to ouroboros to ingest
+> whenever, preferably at night or on demand, that router that we mentioned can also route
+> notifications along the system, its veins"*
+
+⚑ **"Veins" is structurally exact, not decorative.** A circulatory system carries *signals and
+supply* — never organs. Everything the hub has been asked to carry tonight is a **pointer**:
+
+| use | what crosses the wire | what never does |
+|---|---|---|
+| seal request | content hash + commit ref | the document |
+| merge → deploy | the merged ref | the code |
+| ⚑ **ingestion notice** | **the new head sha** | **the corpus** |
+
+⇒ **Three independent uses, arrived at separately, converging on one wire format: addresses only.**
+That is strong evidence it is the right format rather than a constraint tolerated three times. ⚑ It
+should be written into the design note as **the hub's single invariant** — *any hub payload carrying
+content is a defect, not an optimization* — with the falsifier being any message whose body is not
+resolvable-by-reference.
+
+### ⚑ Deferred ingestion fits two existing constraints, not just convenience
+
+*"whenever, preferably at night or on demand"* is doing more work than it looks:
+
+- ⚑ **NN-8, the memory ceiling** (≤2 resident models, ~20–24 GB). Embedding is expensive and
+  contends with interactive work. Merge-time ingestion would fire whenever the owner happens to
+  merge — often mid-session. **Night ingestion moves the cost to where there is headroom.**
+- ⚑ **The dreamer already owns the night.** Ingestion joins an existing scheduled lane rather than
+  inventing a second one, and the two are natural neighbours: ingest the day's merged units, then
+  dream over them. `[INFERENCE]` Ordering matters — dreaming *before* ingesting means dreaming over
+  yesterday's corpus; worth pinning rather than leaving to whichever fires first.
+
+⇒ And it makes ingestion **restartable**: a notice is a ref, so a missed or failed run is caught by
+the next one. Nothing is lost by deferring, which is what makes "whenever" safe.
+
+### ⚑⚑ PULL, NOT PUSH — do not open an inbound path to the house
+
+`[INFERENCE — the shape matters more than the mechanism here.]` "AWS routes a notification to
+Ouroboros" has two readings, and only one is compatible with the frame:
+
+| shape | consequence |
+|---|---|
+| AWS **pushes** to the laptop | ⚑ requires an inbound path — a listener, a tunnel, or Tailscale ingress — into the machine holding the vault |
+| ⚑ AWS **enqueues**; the edge fetch lane **drains** it on its own schedule | no inbound hole; the house initiates every connection |
+
+⇒ **The pull shape is strictly better and costs nothing**, because the design already wants deferral
+("at night or on demand") — a queue the edge drains at 3am is the same feature with none of the
+exposure. ⚑ And it keeps NN-1 clean: core neither reaches out nor is reachable; only the edge lane
+moves, outward, on a timer.
+
+⚑ This is the **third** time tonight the courier/authority distinction has decided a design (notary ·
+edge fetch lane · now the notification bus). Worth stating once as a general rule rather than
+rediscovering it a fourth time: **components that move things must not also be components that hold
+things.**
+
 ## OPEN — remaining owner rulings, not guesses
 
 1. **Sequencing against tomorrow's keys.** ⚑ Recommendation: **do not block key onboarding on the
