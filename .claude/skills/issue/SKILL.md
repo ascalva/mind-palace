@@ -47,7 +47,11 @@ the counter is GitHub's now.
 
 A `type:direction`/`type:defect` that changes design promotes the same way as ever, through
 the gate: a **design-note proposal PR** warrant-linked to the issue. The PR body says
-`closes #N`; the owner's merge is simultaneously the ratification and the resolution. For
-everything else: close with the resolution in a comment (link or text) — a closed issue
-with no stated resolution is a false green. Related: the **pr** skill (the door), CLAUDE.md
+`closes #N`; the owner's merge is simultaneously the ratification and the resolution. **The owner
+resolves questions by commenting and closing** — his closing comment IS the ruling,
+warrant-grade and citable as `#N`; a parked criterion whose re-entry was "owner answers
+#N" reopens the moment he closes it. On spawn, check the issues relevant to your work
+(`gh issue list --label route:<yours>`, recently closed included) — rulings land there,
+not in chat. For everything else: close with the resolution in a comment (link or text) —
+a closed issue with no stated resolution is a false green. Related: the **pr** skill (the door), CLAUDE.md
 §Routing.

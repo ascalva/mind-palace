@@ -1168,3 +1168,7 @@ collisions."* And: *"that can be its own skill."*
   closed IS the standing-ruling record.
 - **Own skill:** `issue` beside `pr` — two doors, two SOPs; the finding skill is a
   supersession stub pointing at it.
+- **The owner closes the loop in place** (owner, moments later): *"I can resolve owner
+  question findings by just commenting and resolving."* His closing comment IS the ruling —
+  warrant-grade, citable as #N; agents pick rulings up from closed question issues at
+  spawn, not from chat. The oq- relay dies; the peering glass answers back.
