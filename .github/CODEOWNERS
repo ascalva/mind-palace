@@ -1,0 +1,5 @@
+# Every path: the owner is the sole code owner. Load-bearing at ruleset phase 3
+# (require_code_owner_review): only the owner's review satisfies the merge gate,
+# so a machine identity can never approve its own work (finding-0276's wall).
+# Inert before phase 3; harmless always.
+* @ascalva
