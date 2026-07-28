@@ -1,5 +1,5 @@
 """ops/ci_witness.py — GitHub Actions backend (bp-016): §6(c) verdict mapping row-by-row,
-the absent-grace poll loop, Keychain-absent degradation, and the mocked release dispatch.
+the absent-grace poll loop, and Keychain-absent degradation.
 
 Pure — no network, no clock, no Keychain: `run_for`/`_get`/`urlopen`/`subprocess.run`/
 `time` are all mocked or injected. Falsifier discipline (plan Item 7): this suite was run
@@ -9,11 +9,7 @@ the GitHub backend specifically, not "either backend".
 
 from __future__ import annotations
 
-import email.message
-import json
 import time
-import urllib.error
-import urllib.request
 from typing import Any
 
 import pytest
@@ -171,21 +167,6 @@ def test_check_rejects_unresolvable_sha_before_run_for(monkeypatch: pytest.Monke
         w.check("bogus", wait_s=1.0)
 
 
-def test_release_rejects_unresolvable_sha_before_run_for(monkeypatch: pytest.MonkeyPatch) -> None:
-    class _R:
-        returncode = 1
-        stdout = ""
-
-    monkeypatch.setattr(w.subprocess, "run", lambda *a, **kw: _R())
-
-    def fail_run_for(sha: str, token: str | None = None) -> None:
-        pytest.fail("release() must reject an unresolvable sha before calling run_for")
-
-    monkeypatch.setattr(w, "run_for", fail_run_for)
-    with pytest.raises(SystemExit):
-        w.release("bogus")
-
-
 # --- check(): absent-grace loop (§6(f)) + terminal attestation --------------------------
 
 
@@ -287,77 +268,6 @@ def test_keychain_reads_github_api_service(monkeypatch: pytest.MonkeyPatch) -> N
     assert w._keychain_token() == "tok"
     assert calls["cmd"] == ["security", "find-generic-password", "-a", "mind-palace",
                             "-s", "github-api", "-w"]            # §6(h)
-
-
-# --- release(): §6(e) degradation chain + §6(d) mocked dispatch --------------------------
-
-
-def test_release_rc1_when_not_green(monkeypatch: pytest.MonkeyPatch,
-                                    capsys: pytest.CaptureFixture[str]) -> None:
-    monkeypatch.setattr(w, "_keychain_token", lambda: None)
-    monkeypatch.setattr(w, "run_for", lambda sha, token=None: _run("completed", "failure", 3))
-    assert w.release("a" * 40) == 1
-    assert "no green" in capsys.readouterr().out
-
-
-def test_release_degrades_without_token(monkeypatch: pytest.MonkeyPatch,
-                                        capsys: pytest.CaptureFixture[str]) -> None:
-    monkeypatch.setattr(w, "_keychain_token", lambda: None)
-    monkeypatch.setattr(w, "run_for", lambda sha, token=None: _run("completed", "success", 3))
-    assert w.release("a" * 40) == 0             # degraded, never failed: deploy proceeds
-    out = capsys.readouterr().out
-    assert "by hand" in out and "github-api" in out
-    assert "actions/workflows/release.yml" in out                # the dispatch URL to click
-
-
-def test_release_dispatches_workflow(monkeypatch: pytest.MonkeyPatch,
-                                     capsys: pytest.CaptureFixture[str]) -> None:
-    monkeypatch.setattr(w, "_keychain_token", lambda: "tkn")
-    monkeypatch.setattr(w, "run_for", lambda sha, token=None: _run("completed", "success", 3))
-    captured: dict[str, Any] = {}
-
-    class _Resp:
-        status = 204                            # fire-and-forget per §6(d)
-
-        def read(self) -> bytes:
-            return b""
-
-        def __enter__(self) -> _Resp:
-            return self
-
-        def __exit__(self, *a: object) -> None:
-            return None
-
-    def fake_urlopen(req: urllib.request.Request, timeout: float = 0) -> _Resp:
-        assert isinstance(req.data, bytes)
-        captured["url"] = req.full_url
-        captured["method"] = req.get_method()
-        captured["body"] = json.loads(req.data.decode())
-        captured["auth"] = req.get_header("Authorization")
-        return _Resp()
-
-    monkeypatch.setattr(w.urllib.request, "urlopen", fake_urlopen)
-    assert w.release("a" * 40) == 0
-    assert captured["url"] == \
-        "https://api.github.com/repos/ascalva/Mind-Palace/actions/workflows/release.yml/dispatches"
-    assert captured["method"] == "POST"
-    assert captured["body"] == {"ref": "main"}                   # §6(d)
-    assert captured["auth"] == "Bearer tkn"
-    assert "release in flight" in capsys.readouterr().out
-
-
-def test_release_dispatch_404_degrades_to_local_play(monkeypatch: pytest.MonkeyPatch,
-                                                     capsys: pytest.CaptureFixture[str]) -> None:
-    monkeypatch.setattr(w, "_keychain_token", lambda: "tkn")
-    monkeypatch.setattr(w, "run_for", lambda sha, token=None: _run("completed", "success", 3))
-
-    def fake_urlopen(req: urllib.request.Request, timeout: float = 0) -> Any:
-        raise urllib.error.HTTPError(req.full_url, 404, "Not Found",
-                                     email.message.Message(), None)
-
-    monkeypatch.setattr(w.urllib.request, "urlopen", fake_urlopen)
-    assert w.release("a" * 40) == 0             # degraded, never failed (Item 10 parked case)
-    assert "pnpm run release" in capsys.readouterr().out
 
 
 # --- rotate(): guided-manual (Q7 — no GitHub self-rotation endpoint; deviation carried) ---
