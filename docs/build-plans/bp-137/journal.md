@@ -84,7 +84,7 @@ precedent); `docs/templates/build-plan.md:1-20,100-120`; `docs/templates/intent-
 
 **Delivered** (both files new, both inside `write_scope`; nothing else in the tree was
 touched — `git status` shows exactly `scripts/autopilot_eligibility.py`,
-`tests/unit/test_autopilot_eligibility.py`, `docs/findings/finding-0271.md`, and this
+`tests/unit/test_autopilot_eligibility.py`, `docs/findings/finding-0274.md`, and this
 journal):
 
 - `scripts/autopilot_eligibility.py` — `Result` (3-valued), `Term`, `Evaluation`,
@@ -175,7 +175,7 @@ five (`achievable: 3 globs; P1 pass P2 pass P3 pass P4 pass(lexical) P5 pass; �
   a folded flag leaves its item with no bullet-anchored line, so the item is `UNDETERMINED`
   and the plan FAILs; it can never produce a false PASS, not even on a folded `Yes`. I did
   **not** widen the regex (§6 is the pinned authoritative form; §4 forbids silent
-  re-interpretation). **Filed `finding-0271`**, routed to the orchestrator with three options.
+  re-interpretation). **Filed `finding-0274`**, routed to the orchestrator with three options.
 - **Item 16 — "P4 fires on a plan that merely mentions `deploy`."** *Fires, as predicted, and
   is recorded rather than tuned away.* 27 of 137 plans FAIL P4. Most are true positives
   (plans that genuinely shell out or deploy). The clearest false fire is **`bp-137` itself**:
@@ -210,7 +210,7 @@ fails under both and is a worktree-nesting artifact of running inside a worktree
 this plan's `write_scope` and untouched by it. `test_core_imports_nothing_outside_core` is the
 standing finding-0105 deselect the CI form already carries.
 
-**Findings filed:** `finding-0271` (spec-defect → orchestrator, non-blocking) — P3's
+**Findings filed:** `finding-0274` (spec-defect → orchestrator, non-blocking) — P3's
 bullet-anchored regex vs the folded-flag authoring form, with the 9-plan measurement, the
 safety argument, and three options for the owner batched onto `finding-0263`.
 
