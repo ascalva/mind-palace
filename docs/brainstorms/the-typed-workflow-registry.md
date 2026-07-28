@@ -460,16 +460,67 @@ ratification, tamper-evidence, and TOCTOU defence.
 execution), different data (hashes, not the corpus), different deployment. Conflating them would
 re-couple workflow liveness to the model daemon — the mistake §placement was written to avoid.
 
-### ⚑ THE HONEST TENSION — a hash cannot be read
+### ~~THE HONEST TENSION — a hash cannot be read~~ ⚑⚑ CORRECTED BY THE OWNER — the hash is a POINTER, and the document is already PUBLISHED
 
-The hub can tell the owner *that* something needs a seal. It **cannot show him what he is signing**,
-because it does not have it. ⇒ Informed consent requires reading the document **locally**.
+> *"each document is not personal data, it is a document you produced that's already published, all
+> you have to do is git checkout, find the file, compute hash, or from a hash (of course you also
+> get metadata) you know 'when' to checkout (from what commit, that is), and if you can recompute
+> the hash, you prove it, and design notes and plans actually SHOULD stay, because that's how you
+> can do a safe lookup from ANYWHERE"*
 
-⚑ This is consistent with the standing rule (*blessings stay at the keyboard*) and it explains
-**why** that rule is right rather than merely conservative: away from the machine, signing is
-necessarily **blind**. The hub's phone role is therefore **notification, never signature** — "you
-owe a seal on dn-X" is a legitimate push; "tap to approve hash abc123" is blind signing wearing a
-convenience costume.
+**The orchestrator's "blind signing" tension above was wrong, and the error is worth keeping visible:
+it assumed the hash was an opaque token. It is a content ADDRESS.** The document is already
+committed and pushed — public, retrievable, and (with the metadata the hub carries) locatable to the
+exact commit.
+
+```
+hub sends:  hash + metadata (commit ref, artifact id, type)
+owner:      git fetch / view at that commit  →  recompute the hash
+            match  → this is provably the document, byte for byte  → sign
+            differ → do not sign
+```
+
+### ⚑⚑ THE PROPERTY THAT MAKES THIS STRONG — the retrieval path need not be trusted
+
+Because the hash **is** the integrity check, it does not matter where the bytes come from: GitHub, a
+mirror, a cached copy, a hostile network. A tampered document simply fails to recompute. ⇒ **The
+owner can verify from anywhere, over anything, with no trusted transport** — the same property that
+makes content-addressed storage work, applied to the blessing ceremony.
+
+⇒ **This dissolves the tension rather than managing it. Informed consent does NOT require being at
+the machine — it requires being able to retrieve and recompute.**
+
+### ⚑ AND IT REFRAMES THE EXPORT — files in git are the VERIFICATION SUBSTRATE
+
+*"design notes and plans actually SHOULD stay"* is not a legacy concession to `nvim` and ingestion.
+⚑ **Published files are what make a hash resolvable at all.** A registry-only artifact with no
+committed form is a hash pointing at nothing retrievable from outside the machine that holds it.
+
+⇒ D4's ground 3 (*"the artifact chain requires typed files"*) was **more right than §A11's reading
+credited** — it has a justification D4 itself never stated: files-in-git are the substrate that makes
+remote verification possible. The A11 draft should be updated to say so, and the export stops being
+a convenience with a ratchet attached and becomes **load-bearing for the auth loop**.
+
+### ⚑ THE BOUNDARY THAT MUST BE STATED — "already published" is a PRECONDITION, not a property of all artifacts
+
+The whole argument rests on *"not personal data … already published."* True of design notes, build
+plans, findings, journals. ⚑ **Not true of anything carrying corpus or vault content**, and the hub's
+metadata (title, id, commit ref) leaks even when the payload does not.
+
+⇒ **Invariant owed to the design note:** only artifact types that are *published by construction*
+may transit the hub. A future document type that touches the vault does **not** get this channel by
+default, and the type system — the client's job — is where that is enforced.
+
+### ⚑ CONSEQUENCE — "blessings stay at the keyboard" may now be relaxable
+
+`[INFERENCE — owner ruling required; the standing rule is explicit and this does not override it.]`
+The rule exists because remote signing was blind. It is no longer: content is retrievable,
+identity is provable, and a YubiKey 5 NFC / 5C can sign against a phone. The remaining requirement is
+that the owner actually *performs* the recompute rather than trusting the notification — which is a
+ceremony design question, not a security impossibility.
+
+⇒ Worth an explicit ruling rather than silent drift: the rule was correct for its reason, and the
+reason has changed.
 
 ⇒ **Owed to the design note:** the hub's wire format (hashes only) as an invariant with its
 falsifier — *any hub payload carrying document content is a defect, not an optimization* — and the
