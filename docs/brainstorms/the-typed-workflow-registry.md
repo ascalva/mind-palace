@@ -1098,3 +1098,27 @@ enforce transitions."*
   owner's identity-split ceremony — required approvals + code-owner review: the wall.
 - This capsule rides the LAST direct push to main. Every capture after it goes through the
   door like everything else.
+
+## 2026-07-28T17:27Z (bg orchestrator session — owner ruling: the blessing IS the merge)
+
+Owner, near-verbatim: *"if it wasn't obvious — flipping draft→ratify or proposed→ready is no
+longer needed. You or I don't flip anything: you create a PR, an agent can audit, I also
+audit, review, and eventually merge if acceptable. PRs are opened on design-note proposals,
+and on the merging of code — which can include one to many build plans of the same track."*
+
+What this retires and what it clarifies:
+
+- **The two flip ceremonies are gone — for everyone.** Not moved behind a PR: DISSOLVED.
+  Position in the merge topology is the status: an unmerged branch is a proposal; a thing
+  the owner merged is blessed. Status fields in artifact frontmatter become provenance
+  description (what the author claimed at writing time), never a gate. One gate remains in
+  the whole system, and it is the merge.
+- **PR granularity, owner-stated:** design-note proposals get PRs; code lands as merges
+  that may bundle one-to-many build plans of the SAME track — the owner reviews tracks,
+  not atoms. (The plan remains the builder's contract; the track-merge is the audit unit.)
+- **Audit is layered:** agent auditors may review before the owner; the owner always
+  reviews; only the owner merges.
+- Downstream cleanups this implies (not performed here): gate-guard/Stop-gate flip
+  machinery is now guarding a retired ceremony; the A8 status-guard semantics reduce to
+  "agents never edit status fields"; the typed-workflow-registry re-warrant (PR #3) is the
+  natural home for the full rewrite at the owner's review.

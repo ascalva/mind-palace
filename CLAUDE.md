@@ -66,9 +66,13 @@ through the same gate brainstorms do — never by side effect.
 - **Never block on the owner.** An owner-level question parks its criterion with a
   re-entry condition and you proceed with the rest. Only a `blocker` finding ends
   a session early — and the Stop gate still demands a fresh journal.
-- **Two blessing gates are owner-only, by hand.** `draft→ratified` (a design note)
-  and `proposed→ready` (a plan split) are never done in a session. `gate-guard`
-  denies them pre-hoc and the Stop-gate audit blocks any Bash-mediated flip.
+- **The blessing IS the merge (owner ruling 2026-07-28).** The old flip ceremonies
+  (`draft→ratified`, `proposed→ready`) are retired — nobody flips a status, agent or
+  owner. A PR carries the proposal (a design note, or code spanning one-to-many build
+  plans of the same track); agents may audit, the owner audits, reviews, and merges if
+  acceptable. Landing on main by the owner's merge IS ratification/readiness. Status
+  fields in artifacts are provenance description, never a gate — agents still never
+  edit them.
 - **Write discipline is a capability, not a suggestion.** `scope-guard` enforces
   the active plan's `write_scope` pre-hoc; the `journal-gate` diff audit catches
   Bash writes post-hoc. A foundation denylist (`CONSTITUTION.md`, `eval/golden/**`,

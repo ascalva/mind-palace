@@ -16,7 +16,9 @@ your PR body becomes the permanent record of the files and the reason.
 1. **Branch from origin/main.** `git fetch origin` first; never branch from an unpushed
    local state (worktree agents inherit origin/main — unpushed work is invisible to them).
    Naming: `<type>/<slug>` — observed types: `fix/`, `design/dn-<name>`, `docs/`,
-   `workflow/`, `amend/<note>-a<N>`, `capture/`. One logical change per PR.
+   `workflow/`, `amend/<note>-a<N>`, `capture/`. One logical change per PR — a design-note
+   proposal, a fix, a capture batch, or a code merge bundling one-to-many build plans of
+   the SAME track (the owner reviews tracks, not atoms).
 2. **Commit per the commit skill** (header format, stage by exact filename — `git add -A`
    is banned — message via `git commit -F -` with a quoted heredoc, trailer policy).
 3. **Verify before opening**, proportional to surface: docs-only → a read-through; code →
@@ -50,9 +52,10 @@ your PR body becomes the permanent record of the files and the reason.
   credential permits. Merging is the owner's act; it is the gate itself.
 - **Never push to main.** The remote rejects it; a rejection means use a PR — never look
   for a way around (that includes editing the ruleset, which is owner-only surface).
-- **Never flip statuses** (`draft→ratified`, `proposed→ready`) anywhere in a PR — those
-  are owner blessings. An amendment to a ratified note is agent-DRAFTED and lands only by
-  the owner's merge: the merge is the hand.
+- **Never edit a status field.** The flip ceremonies are retired (owner ruling
+  2026-07-28): nobody — agent or owner — flips `draft→ratified` or `proposed→ready`. The
+  owner's MERGE is the blessing; a status line is provenance description only. Amendments
+  to ratified notes are agent-drafted and land by the owner's merge: the merge is the hand.
 - **Never self-approve** or arrange approval. Reviews belong to the owner and auditors.
 
 ## Why it is this way
