@@ -526,6 +526,60 @@ reason has changed.
 falsifier — *any hub payload carrying document content is a defect, not an optimization* — and the
 pre/post comparison as a named acceptance criterion on `bp-145`.
 
+## ⚑⚑ LANDING IS AN AUTHORIZATION ACT — no local main-merges, a merge train, an MR queue
+
+> *"machine merges are never allowed, builds now open a PR with the proper docs and reasoning, I
+> merge from github, removes you from that loop too"* · *"by this, I mean local main-merges do not
+> happen locally"* · *"we perform a merge train"* · *"if a merge is 'staged', everyone rebases"* ·
+> *"that's how we solidify the MR queue"*
+
+⚑ **The same move as the notary, applied to code.** A design note becomes ratified by a hardware
+signature; a branch becomes main by the owner pressing merge. In both cases **the agent is removed
+from the authorization loop entirely** — not restrained within it.
+
+| | design artifacts | code |
+|---|---|---|
+| the seal | hardware-key signature over a content hash | ⚑ **the GitHub merge button** |
+| the agent may | write, propose, resubmit | **push a branch, open a PR** |
+| the agent may not | make a warrant | ⚑ **land anything on main** |
+
+⚑ **Scope of the rule, per the owner's own narrowing:** it is *local main-merges* that are
+forbidden — `git merge <build-branch>` into main on this machine, never. Orchestrator commits of
+captures, findings and seat files directly to main are a different act and are unaffected.
+
+### The train, and why STAGED is the right trigger
+
+- PRs land **in sequence**, never independently.
+- ⚑ **When a merge is *staged* — queued, not yet landed — every other active branch rebases.**
+
+This is **earlier** than the existing rule in the delegate skill (*"when anything merges to main,
+every ACTIVE builder merges main into its branch"*). Staging-as-trigger removes the window in which
+a branch is still building on a base that is already known to be stale. ⇒ The skill's text is owed
+an update; the owner's version strictly dominates it.
+
+⇒ **That is what "solidifies the MR queue":** an ordered queue whose members are continuously
+rebased onto the head of the train is one where *"it passed"* keeps meaning something. Without it,
+green is measured against a base that no longer exists by the time the PR lands.
+
+### ⚑ The MR queue is event-log-shaped — it is not a second mechanism
+
+`staged → rebased → landed` are **events on an artifact**, ordered, append-only, with a warrant on
+the terminal one. That is the registry's native shape, not an adjacent system needing integration.
+⇒ *"audits via query algebra over chain of events"* covers the merge history for free, exactly as it
+covers the amendment history (§above).
+
+### ⚑ IT IS CONVENTION TODAY, NOT A CONTROL — verified this pass
+
+`gh api repos/:owner/:repo/branches/main/protection` → **404, "Branch not protected."** Nothing
+prevents a local merge to main and a push. The rule currently rests on the agent's discipline, which
+is exactly the assurance level tonight proved is not a mechanism.
+
+⇒ **The structural version is branch protection** (require a PR, forbid direct pushes to main), and
+it is an owner act — it constrains the owner's own tooling as well as the agent's, and it would
+change how orchestrator doc-commits reach main. `[INFERENCE]` A ruleset that requires PRs for
+*merges* while leaving direct commits alone is the shape that matches the narrowing above; whether
+GitHub can express exactly that split is worth checking before promising it.
+
 ## OPEN — remaining owner rulings, not guesses
 
 1. **Sequencing against tomorrow's keys.** ⚑ Recommendation: **do not block key onboarding on the
