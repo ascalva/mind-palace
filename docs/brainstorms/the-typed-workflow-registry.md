@@ -640,6 +640,66 @@ is that these artifacts are already public. Publicness is load-bearing for the a
 surface for infrastructure — the same property, cutting both ways, and worth naming as such rather
 than treating each in isolation.
 
+## ⚑⚑ THE PR IS THE AUDIT VENUE — and the deliberation becomes part of the record
+
+> *"the reviewers can be the auditors and me, I can also give feedback on the PR, so even our
+> messages and feedback is public, a more true representation of the ecosystem we have built"*
+
+⚑ **The audit finally gets a home that matches its shape.** The delegate skill already demands that
+an audit be *"a named artifact, not a vibe"* — an independent pass at the reviewer's tier, recorded
+so the board's `audit: present/owed` flag has a basis. A PR review **is** that, natively: attributed,
+timestamped, anchored to the exact lines, and threaded against the diff it judges. No separate
+artifact has to be invented to carry it.
+
+### ⚑ And it makes the DELIBERATION public, which nothing else in the chain does
+
+Today the repo publishes conclusions — design notes, findings, seals — while the *arguing* stays
+invisible: what the auditor doubted, what the builder answered, where the owner overruled. On a PR
+that becomes the record. ⇒ *"a more true representation of the ecosystem"* is exact: the artifact
+chain currently shows the **outputs** of a deliberative system without showing that it deliberates.
+
+### ⚑⚑ THE UNPRICED PAYOFF — it is `finding-0276`'s identity work paying a second time
+
+A review record is only legible if the reviewers are **distinguishable**. With one identity, a PR
+authored, reviewed and merged by `ascalva` is an unbroken tautology — it records that a person agreed
+with themselves.
+
+| with one identity | with separate identities |
+|---|---|
+| author `ascalva`, reviewer `ascalva`, merger `ascalva` | author `builder-bot`, auditor `auditor-bot`, approver `ascalva` |
+| ⚑ proves nothing | ⚑ **a real chain of custody, publicly verifiable** |
+
+⇒ The identity separation was justified in `finding-0276` purely as merge-prevention. **This is a
+second, independent reason to want it** — and arguably the more durable one, since it is what makes
+the audit trail mean anything to a reader who is not the owner.
+
+### ⚑⚑ THE TRAP — a PR thread is a TRANSCRIPT, and it lives outside git
+
+The constitution's first principle is *"everything is a typed file with a state machine — no decision
+lives only in a transcript."* ⚑ **A PR review thread is a transcript, in a new venue, in GitHub's
+database — not in the repo, not in `git log`, not ingestable, and gone if the repo ever moves.**
+
+⇒ Adopting PR review without a rule reintroduces the exact failure the artifact chain was built to
+prevent, wearing a better costume. **The discipline that keeps it honest:**
+
+- the PR thread is the **venue for deliberation** — argue there, freely, publicly;
+- anything that becomes a **decision** must land in an artifact — a finding, a journal entry, an
+  amendment — exactly as a chat decision must today;
+- ⚑ the review **events** (`reviewed` · `changes-requested` · `approved` · `merged`) are events on
+  an artifact, so **the registry ingests them** rather than treating GitHub as the system of record.
+
+⇒ Which is the same absorption as the merge train (§above) and the amendment log (§above): *"audits
+via query algebra over chain of events"* covers the review history too. ⚑ **Three separate
+ceremonies — amendments, merges, audits — all turn out to be the same event log.** That convergence
+is the strongest evidence yet that the log is the right primitive.
+
+### Open, and not to be defaulted
+
+`[INFERENCE]` **Public review means self-disclosed defects are public in real time.** For a repo
+already public this is mostly consistent — but an audit that surfaces a *security* weakness would be
+published before it is fixed. Worth a rule (private advisory for that class, public for everything
+else) rather than discovering it the first time an auditor finds something sharp.
+
 ## OPEN — remaining owner rulings, not guesses
 
 1. **Sequencing against tomorrow's keys.** ⚑ Recommendation: **do not block key onboarding on the
