@@ -507,3 +507,22 @@ references:
   - docs/brainstorms/the-distributed-ecosystem.md capsule 5 (authority as jurisdiction —
     the axis's second duty)
 ```
+
+## 2026-07-28T05:42Z (bg orchestrator session — owner, final compression: the name)
+
+Owner, verbatim: *"prediction strata overlayed against target strata."*
+
+The geometry, named. Three things the four words add to the capsule above:
+
+1. **The pairing is typed.** Not predictions-in-a-bucket: each prediction stratum names its
+   TARGET stratum — the fiber it forecasts. (prediction ⟶ target) is itself a typed relation
+   in the strata graph, alongside the refinement relations AL-3 already built. Per-stratum
+   dreaming, per-stratum grading.
+2. **Grading is registration.** Two strata over the same base coordinates, one epistemic
+   offset apart; the alignment metric open-question gets its proper name from imaging:
+   prediction error is MISREGISTRATION of the overlay.
+3. **The flinch-watcher watches registration drift** — the standing union-bound query,
+   restated as: look through both layers and flinch when they stop lining up.
+
+(Capsule-less stub by design: the owner's compression IS the content. Folds into the
+graduation with the two capsules above.)
