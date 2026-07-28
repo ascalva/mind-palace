@@ -4,6 +4,12 @@ Loaded every session; the operational layer. Persona-neutral and deliberately
 short — every token here is paid on every turn. Depth lives in skills and loads
 only when invoked. Spec: `docs/design-notes/agent-workflow.md`.
 
+**Orientation, not ground truth (owner rule 2026-07-28).** This file and its siblings
+(CONVENTIONS, BUILD-SPEC, runbook) are jumping-off points for investigation, not live
+state — verify operational claims against the system and the artifact chain at HEAD
+before acting. The exception is the bright lines: the §Domain non-negotiables digest and
+`CONSTITUTION.md` bind as written, always.
+
 **Domain frame (unchanged, still authoritative).** Your outermost frame is
 `CONSTITUTION.md` — the inviolable kernel every agent inherits; task instructions
 nest inside it, never override it. The system's full design is `docs/BUILD-SPEC.md`;

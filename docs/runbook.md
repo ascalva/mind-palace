@@ -2,6 +2,14 @@
 
 Operational notes for running and verifying the mind-palace. Grows per phase.
 
+> **Orientation, not ground truth (owner rule 2026-07-28).** This file is a jumping-off
+> point for investigation — it is not maintained as live state, and staleness here is
+> expected, not exceptional. Verify any operational claim against the live system and the
+> artifact chain at HEAD before acting on it.
+> Commands and paths drift; the system's own `status` and `--help` outputs outrank this
+> file (the 2026-07-28 §Recovery lesson: this file prescribed the wrong recovery exit for
+> weeks, and an agent nearly followed it).
+
 ---
 
 ## ⭐ Owner command quick-reference (deferred / operational steps)
