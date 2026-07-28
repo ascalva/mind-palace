@@ -36,6 +36,81 @@ times, from three separate directions.
 now enforced by wire format rather than by policy — is the part that mattered. `[GROUNDED — the
 three convergences are recorded in [[the-typed-workflow-registry]] §the-veins.]`
 
+## ⚑⚑⚑ THE THESIS — local controls fail because the controller and the controlled share a principal
+
+> *"I thought I could set up all these rules to be local first, but when you have access to my
+> machine, there's no real security, we need to be clever, but when you make it a matter of public
+> record with external and vetted 3rd parties, then you get real transparency and security from a
+> defective agent"*
+
+⚑ **This is the night's actual argument, and everything else was a corollary.** It also states the
+threat model correctly, which almost nothing does: not a *malicious* agent — a **defective** one.
+Confused, drifting, or simply wrong. ⚑ Tonight produced two live instances (the orchestrator's
+blind-signing reading and its capture-the-transcript remedy), both wrong, both corrected only
+because a human was reading.
+
+### ⚑ Every local control tonight failed the SAME test
+
+Not several unrelated weaknesses — one weakness, six times:
+
+| control | how it fails | shared principal? |
+|---|---|---|
+| agent hooks | the agent can `export OUROBOROS_HOOKS_OFF=1`, or edit the hook script | ✅ |
+| `scope-guard` | reads `write_scope` from a file the agent can write | ✅ |
+| `gate-guard` | denies `Edit`, not a `Bash` heredoc to the same path | ✅ |
+| the escape hatch | the agent could have armed it unilaterally | ✅ |
+| git authorship | agent commits are authored as the owner | ✅ |
+| the GitHub token | it *was* the owner's own admin credential | ✅ |
+
+⇒ **A control cannot bind a principal it shares an identity with.** Cleverness does not fix this;
+it only raises the cost of the bypass, and a *defective* agent isn't trying to bypass anything — it
+walks through the gap by accident, which is worse, because accident has no motive to detect.
+
+### ⚑⚑ WHY "EXTERNAL AND VETTED" IS THE OPERATIVE PHRASE
+
+GitHub and AWS are not trusted here because they are benevolent. They are useful because they are
+**independent of the agent** and **externally accountable**: ⚑ *the agent cannot rewrite GitHub's
+record of what was merged.* That is the whole property. A third party's value is not its virtue —
+it is that it is **not us**, and that its record is not ours to revise.
+
+⇒ ⚑ **Publicness stops being a communication choice and becomes an integrity mechanism.** The record
+is append-only *because it is held elsewhere*. A defective agent's actions become visible and
+**unrevisable** — even the agent that made the error cannot quietly unmake it.
+
+### ⚑⚑ AND THIS IS WHY "STUDY" AND "SECURITY" ARRIVED THE SAME NIGHT — they are one requirement
+
+A study needs a **public, checkable, externally-held record** so a reader can verify its claims.
+Security-from-a-defective-agent needs a **public, unalterable, externally-held record** so a defect
+cannot be hidden. ⚑ **They want the identical artifact.** The reframe (§below) and the architecture
+are not two developments that happened to coincide — they are one requirement seen from two sides.
+
+### ⚑ THE HONEST SHARPENING — public record DETECTS; it does not PREVENT
+
+Worth stating precisely, because the difference decides what gets built next. Three mechanisms, three
+distinct jobs:
+
+| mechanism | job | tonight's instance |
+|---|---|---|
+| **capability limits** | ⚑ **prevent** — the agent never holds the credential | dispatch-time scope; no AWS creds locally; `apply` in CI |
+| **warrants** | make unauthorized states **meaningless** | the hardware signature; the merge button |
+| **public record** | ⚑ **detect**, and make damage **recoverable** | git, PRs, the event log |
+
+⇒ Public record alone is **accountability**, not security. Paired with capability limits it becomes
+security. ⚑ A defective agent can still act; what the record guarantees is that you *find out*, and
+that history survives outside the machine that was wrong. **Do not let the transparency win obscure
+the fact that prevention is still capability work.**
+
+### ⚑ THE DEPENDENCY THIS CREATES — and it is exactly what the identity work protects
+
+An externally-held record is only as durable as the account that holds it. Lose the GitHub account
+and the record providing security-from-a-defective-agent is gone. ⚑ ⇒ **The identity foundation
+([[the-identity-foundation]]: tier-0 breakglass, the YubiKey pair, the offsite envelope) is not a
+side quest — it is what protects the integrity mechanism itself.**
+
+Two threads that looked separate tonight are one: the recovery ceremony guards the public record,
+and the public record guards against the agent. `[GROUNDED — the two captures were written hours
+apart, for unrelated reasons, and meet here.]`
+
 ## ⚑⚑ THE STUDY WAS ALREADY RUNNING — the apparatus gives it away
 
 *"More of a study than a product"* reads as a discovery, but the evidence says it has been true for
