@@ -16,11 +16,9 @@ or as a subprocess of `palace deploy` (whose own process IS sealed; the witness 
 is not).
 
 Auth: run metadata on this public repo needs no token, but unauthenticated reads are
-rate-limited (60/h/IP — one 600 s poll at 10 s intervals consumes the hour) and
-dispatching the release workflow requires one — read from Keychain (`security
-find-generic-password -a mind-palace -s github-api -w`), never from config or argv.
-Absent a token, reads degrade to unauthenticated and `release` degrades to printing
-the dispatch URL for a by-hand play (runbook §CI witness).
+rate-limited (60/h/IP — one 600 s poll at 10 s intervals consumes the hour) — read from
+Keychain (`security find-generic-password -a mind-palace -s github-api -w`), never from
+config or argv. Absent a token, reads degrade to unauthenticated (runbook §CI witness).
 """
 
 from __future__ import annotations
@@ -28,7 +26,6 @@ from __future__ import annotations
 import json
 import re
 import subprocess
-import urllib.error
 import urllib.request
 from typing import Any
 
@@ -37,7 +34,6 @@ API = "https://api.github.com/repos/" + REPO
 # The gate workflow, queried BY FILE PATH (immune to display-name edits — plan Q3);
 # the release workflow the witness dispatches after green (§6(d)).
 WORKFLOW = "ci.yml"
-RELEASE_WORKFLOW = "release.yml"
 
 _FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 
@@ -181,40 +177,8 @@ def rotate() -> int:
     return 1
 
 
-def release(sha: str) -> int:
-    """Dispatch the release workflow after confirming the sha is green (token required).
-
-    Degradation chain (§6(e), parity with the GitLab manual-play predecessor):
-    not green → rc 1 · no token → print the dispatch URL for a by-hand play, rc 0 ·
-    dispatch 404 (release workflow not landed) → print the local play, rc 0 —
-    degraded, never failed: deploy proceeds.
-    """
-    sha = _full_sha(sha)
-    token = _keychain_token()
-    run = run_for(sha, token)
-    if verdict(run) != "green":
-        print(f"ci-witness: no green ci run for {sha[:12]} — nothing to release.")
-        return 1
-    if token is None:
-        print("ci-witness: no github-api token in Keychain — dispatch the release by hand:\n"
-              f"  https://github.com/{REPO}/actions/workflows/{RELEASE_WORKFLOW}\n"
-              "  (one-time setup: security add-generic-password -U -a mind-palace "
-              "-s github-api -w <fine-grained PAT, Actions read+write>)")
-        return 0                                    # degraded, not failed: deploy proceeds
-    req = urllib.request.Request(
-        f"{API}/actions/workflows/{RELEASE_WORKFLOW}/dispatches",
-        data=json.dumps({"ref": "main"}).encode(),
-        headers={**_headers(token), "Content-Type": "application/json"},
-        method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=20):  # noqa: S310 — fixed https host
-            pass                                       # 204 No Content: fire-and-forget
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            print("ci-witness: release workflow not found on GitHub (bp-016 Item 10 "
-                  "parked?) — cut locally: `pnpm run release` (D4 interim)")
-            return 0                                # degraded, not failed
-        raise
-    print(f"ci-witness: dispatched {RELEASE_WORKFLOW} (ref main) — release in flight:\n"
-          f"  https://github.com/{REPO}/actions/workflows/{RELEASE_WORKFLOW}")
-    return 0
+# `release(sha)` lived here until 2026-07-28: it dispatched release.yml at the end of
+# `palace deploy`, so the running system minted its own versions. Retired by owner ruling —
+# the release follows the MERGE now, and .github/workflows/release.yml triggers itself off
+# a green `ci` on main. The witness keeps ONLY its attestation job (`check`). Nothing about
+# the green-sha requirement was loosened: that condition moved into the workflow's `if:`.

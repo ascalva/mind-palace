@@ -823,7 +823,7 @@ commit, so "what was live when" is always answerable.
 
 ## CI witness — attested remote verdicts for the deploy gate (owner-operated)
 
-`ops/ci_witness.py` (CLI: `uv run scripts/ci_witness.py check|release <sha>` · `rotate`)
+`ops/ci_witness.py` (CLI: `uv run scripts/ci_witness.py check <sha>` · `rotate`)
 turns "CI is green" from a memory of a web page into an **attested fact**: it polls the
 GitHub `ci` workflow (`.github/workflows/ci.yml`, queried by file path) for the commit's
 newest run and emits `ci_witness / pipeline_green|pipeline_red` with the sha as input and
@@ -857,8 +857,7 @@ security find-generic-password -a mind-palace -s github-api
 ```
 
 Without the token the witness still works **degraded**: reads are unauthenticated
-(rate-limited 60/h/IP — fine for a single check, tight for repeated polling) and
-`release` prints the dispatch URL for a by-hand play instead of dispatching.
+(rate-limited 60/h/IP — fine for a single check, tight for repeated polling).
 
 **Rotation is manual on GitHub** — there is no self-rotation API for user fine-grained
 PATs (unlike GitLab's `/personal_access_tokens/self/rotate`; verified 2026-07-12,
@@ -866,13 +865,19 @@ bp-016). `uv run scripts/ci_witness.py rotate` prints the re-mint play above and
 printing instructions is not rotating. Re-mint in the web UI, re-store with the same
 `add-generic-password -U` command.
 
-**Release path:** `release <sha>` confirms the sha is green, then POSTs
-`workflow_dispatch` for `.github/workflows/release.yml` (`ref: main`) — semantic-release
-runs there and commits back to main. Degradation chain: not green → rc 1; no token →
-prints the dispatch URL, rc 0; workflow missing (404) → prints the local play
-(`pnpm run release`), rc 0 — degraded is never failed, so deploy proceeds. **No release
-is ever cut agent-side**: dispatch happens inside owner-initiated `deploy`, or by the
-owner's hand.
+**Release path — the release follows the MERGE, not the deploy** (owner ruling
+2026-07-28). The witness no longer has a `release` verb and `palace deploy` no longer
+dispatches one. `.github/workflows/release.yml` triggers itself on `workflow_run` after
+`ci` completes on main, gated on `conclusion == success`; the merge is the serialization
+point, so the merge is what mints a version. The green-sha requirement did not loosen — it
+moved from the witness into the workflow's `if:`. To cut one by hand, dispatch `release`
+from the Actions UI.
+
+Under the merge-gated ruleset the old shape could not work anyway: `@semantic-release/git`
+pushed the changelog commit-back straight to main and was rejected GH013 ("changes must be
+made through a pull request") on the first attempt after the wall went up. The commit-back
+is gone; tags land on `refs/tags/*`, which the branch ruleset does not govern. **The
+changelog is now the GitHub Releases page** — in-repo `CHANGELOG.md` is frozen at v1.18.0.
 
 ## One-command lifecycle — `palace start | stop | status | reset` (owner-operated)
 

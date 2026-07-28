@@ -1,3 +1,9 @@
+> **Frozen at v1.18.0 (2026-07-28).** This file is history, not the changelog. Releases are
+> cut by `.github/workflows/release.yml` on merge, and semantic-release no longer commits
+> back to `main` — the merge-gated ruleset makes that push illegal, and punching a hole in
+> the wall for a bot was not worth an in-repo copy of notes GitHub already renders. **The
+> changelog now lives on the [Releases page](https://github.com/ascalva/mind-palace/releases).**
+
 # [1.18.0](https://github.com/ascalva/mind-palace/compare/v1.17.0...v1.18.0) (2026-07-25)
 
 
