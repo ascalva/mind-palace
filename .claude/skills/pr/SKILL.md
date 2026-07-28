@@ -32,7 +32,11 @@ your PR body becomes the permanent record of the files and the reason.
    - **Body** = the build-log entry: what changed, why (cite the warrant — owner ruling,
      finding, brainstorm capsule, with ids glossed inline), how it was verified (name the
      falsifier if there is one), and anything the reviewer must rule on, called out
-     loudly (e.g. pending owner rulings are PRESENTED, never resolved).
+     loudly (e.g. pending owner rulings are PRESENTED, never resolved). **Link and
+     resolve the relevant issues**: `closes #N` / `fixes #N` for issues this PR
+     resolves (the owner's merge then resolves them atomically), plain `#N` references
+     for context — a PR with no issue linkage should be the exception that explains
+     itself, not the default.
    - End the body with these two lines exactly:
 
      🤖 Generated with [Claude Code](https://claude.com/claude-code)
