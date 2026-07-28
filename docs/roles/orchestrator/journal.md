@@ -36,6 +36,23 @@ marked superseded — retained, readable, non-binding.
 
 ---
 
+## 2026-07-28 — the design series: three fable drafts, three PRs, and the brief corrected five times
+
+After the captures, the owner ordered the night's threads graduated toward design: fable
+agents, in series (budget unproven, fail-closed), each note its own PR. Three delivered, all
+draft, all structurally scrutinized: the scoped-context note (the question compiles to a
+scope; the authority bound ruled a refinement reading, not a new axis), the prediction-castles
+note (extending the ratified dreamer note; castles stage into the already-built hypothetical
+overlay so the influence instrument doubles as the misregistration meter), and the ecosystem
+note (speciation not replication; the two owner-only rulings fenced in their own section,
+presented never resolved). Every agent corrected my brief while grounding — the clock reality,
+a resolved finding I cited as live, a mislocated lock, a store path, and one genuine design
+defect in my own capsule (a watcher whose reads would immortalize what it watches). The
+night's thesis proved on its author again: traversal beats inherited framing. The daemon
+finished its backfill mid-series; the queue reached zero for the first time in four days.
+Seven PRs now await the owner's hand; the deploy waits behind the green-main merge; the
+touch-definition ruling joins the queue of owner decisions.
+
 ## 2026-07-28 — the revival night: the daemon, the fixes, and seven capsules
 
 The three-day outage ended tonight, and every layer of it taught something. The daemon died
