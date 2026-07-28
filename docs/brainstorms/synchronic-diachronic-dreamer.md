@@ -439,3 +439,71 @@ references:
     hyperedge substrate, both live)
   - Track G blast-radius tiers (the floor the flinch sits beneath)
 ```
+
+## 2026-07-28T05:41Z (bg orchestrator session — owner addendum: grading is the same query at two scopes)
+
+### The seed
+
+Owner, near-verbatim: *"you can compare a prediction [to] reality by changing the scope of
+the same query — at least the core logic chain should look the same-ish. Under what bound are
+both predictions and evidence returned by the same query?"*
+
+### Orchestrator scrutiny (chat-side)
+
+- **Grading = query invariance under authority-scope change.** Hold the semantic and temporal
+  bounds fixed; sweep the authority bound. `q(s, t, castle)` returns the predicted thread;
+  `q(s, t, evidence)` returns what happened; the prediction error IS the difference between
+  the two projections. No bespoke comparison machinery — the three-bound query compiler from
+  scoped-context-queries is already the grading instrument. The authority axis becomes the
+  epistemic axis you differentiate along.
+- **The answer to the owner's question — the union bound, under three conditions.** Both
+  realms return from one query when: (1) authority is widened to the union
+  {warranted, interpretive}; (2) every atom still carries its realm tag — tonight's
+  never-bare-text rule is exactly what makes the union non-contaminating; (3) the castle is
+  built in the SAME coordinate system as the corpus — same embedding space, same strata
+  clocks, different authority tier. Condition (3) is the architectural requirement this
+  question surfaces: if the interpretive realm had its own representation, no single query
+  could span prediction and evidence, and grading would need a translator. Same base space,
+  different fiber — comparison is projection, not translation.
+- **Who runs the union view: the flinch-watcher.** The interleaved view — predicted thread
+  and arriving evidence in one result set — is where divergence becomes visible AS it
+  develops. The flinch trigger is a standing union-bound query whose two projections are
+  drifting apart.
+- **"Same-ish" makes the prediction self-grading.** The alignment tolerance (how much
+  structural deviation still counts) must be DECLARED in the prediction, alongside its
+  expiry — else the forecast can be gamed vague-then-graded-loose. The honest forecast
+  artifact carries (thread, falsification date, alignment tolerance): everything needed to
+  grade it travels with it.
+- **Noted for the record: the authority bound now serves three duties in one night** — trust
+  tier (retrieval hygiene), jurisdiction (host-side vs core-side under encryption), and
+  epistemic status (prediction vs evidence). One axis, three loads. It is becoming the
+  load-bearing dimension of the whole design and should be treated as such at graduation.
+
+```capsule
+topic: synchronic-diachronic-dreamer
+date: 2026-07-28
+
+decisions:
+  - Grading is scope-sweep: same query, semantic+temporal fixed, authority swept
+    castle→evidence; the diff of projections is the prediction error.
+  - The union bound is legal only with realm tags attached and a shared coordinate system
+    (same embeddings, same clocks) — the castle is a fiber over the same base, never a
+    separate space.
+  - A forecast carries its own falsification date AND alignment tolerance.
+
+parked: []
+
+open_questions:
+  - Is the alignment metric graph-structural (motif/edit distance), embedding-geometric
+    (thread distance in the shared space), or both with declared weights?
+
+next_steps:
+  - Folds into the dreamer graduation with the rest of tonight's capsules.
+
+references:
+  - this file, TONIGHT's supersession/flinch capsule (the scoring rule this mechanizes)
+  - docs/brainstorms/scoped-context-queries.md (the three-bound compiler, now also the
+    grading instrument)
+  - docs/brainstorms/the-distributed-ecosystem.md capsule 5 (authority as jurisdiction —
+    the axis's second duty)
+```
