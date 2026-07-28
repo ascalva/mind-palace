@@ -673,25 +673,66 @@ with themselves.
 second, independent reason to want it** — and arguably the more durable one, since it is what makes
 the audit trail mean anything to a reader who is not the owner.
 
-### ⚑⚑ THE TRAP — a PR thread is a TRANSCRIPT, and it lives outside git
+### ~~THE TRAP — a PR thread is a transcript that must be tracked~~ ⚑⚑ OWNER CORRECTION — THERE IS NO THIRD PLACE
 
-The constitution's first principle is *"everything is a typed file with a state machine — no decision
-lives only in a transcript."* ⚑ **A PR review thread is a transcript, in a new venue, in GitHub's
-database — not in the repo, not in `git log`, not ingestable, and gone if the repo ever moves.**
+> *"what survives is the product, not us talking, us talking/transcripts never get uploaded, they
+> live in the strata as well, but briefs didn't, in the same way how PR feedback doesn't need to be
+> tracked, the builder will publish its code changes with an appropriate commit message that
+> explains the change"*
 
-⇒ Adopting PR review without a rule reintroduces the exact failure the artifact chain was built to
-prevent, wearing a better costume. **The discipline that keeps it honest:**
+**The orchestrator's reading above was wrong in its remedy.** It correctly noticed a PR thread is a
+transcript, then concluded the transcript must be *captured*. That is backwards, and it would have
+rebuilt the resume brief in a new venue.
 
-- the PR thread is the **venue for deliberation** — argue there, freely, publicly;
-- anything that becomes a **decision** must land in an artifact — a finding, a journal entry, an
-  amendment — exactly as a chat decision must today;
-- ⚑ the review **events** (`reviewed` · `changes-requested` · `approved` · `merged`) are events on
-  an artifact, so **the registry ingests them** rather than treating GitHub as the system of record.
+⚑ **The system has exactly two homes, and nothing lives between them:**
 
-⇒ Which is the same absorption as the merge train (§above) and the amendment log (§above): *"audits
-via query algebra over chain of events"* covers the review history too. ⚑ **Three separate
-ceremonies — amendments, merges, audits — all turn out to be the same event log.** That convergence
-is the strongest evidence yet that the log is the right primitive.
+| home | holds | fate |
+|---|---|---|
+| **product** — git, public | design notes · plans · findings · code · ⚑ **commit messages** | survives, permanently |
+| **strata** — Ouroboros, local, private | transcripts, chat, deliberation | ⚑ **ingested as memory, never published** |
+| ~~in between~~ | ⚑ **nothing** | ⚑ **rots** |
+
+⇒ *"no decision lives only in a transcript"* does **not** mean *record the transcript*. It means
+**the decision must be visible in the product.** A commit message that explains the change **is** the
+decision landing in an artifact. The argument that produced it needs no preservation — it is already
+in the strata, where talking belongs.
+
+### ⚑⚑ AND THIS IS THE RESUME BRIEF'S AUTOPSY, IN ONE LINE
+
+> *"transcripts … live in the strata as well, but briefs didn't"*
+
+⚑ **The brief was homeless.** Not product (it described work rather than being it), not strata (it
+was authored, not ingested). It occupied the in-between, and the in-between has no keeper — so it
+went stale between the writing and the reading, every time. ⇒ The §resume-brief diagnosis above
+("a hand-maintained cache of a derivable fact") was right about the *mechanism*; **this is the
+structural cause**, and it generalizes: **anything that is neither product nor strata will rot,
+whatever discipline is applied to it.** That is the test to apply to any future artifact before
+inventing it — including PR-feedback tracking, which fails it.
+
+### ⚑ THE COST, AND IT IS REAL — the commit message becomes load-bearing
+
+If deliberation is deliberately ephemeral, **the commit message is the only surviving record of
+*why***. That raises the bar on it considerably: it stops being a label for a diff and becomes the
+carrier of the reasoning the review produced.
+
+⇒ The discipline is therefore **not** "track the feedback" but ⚑ **"the commit message must carry
+what the feedback changed"** — what the auditor questioned, what the answer was, what the builder
+altered as a result. A commit reading `fix: address review comments` **destroys** the record that
+this design just decided to keep in exactly one place.
+
+`[INFERENCE]` This is the strongest argument yet for CONVENTIONS §Commits being enforced rather than
+encouraged — under the old model a thin commit message was recoverable from the surrounding
+artifacts; under this one it is the only copy.
+
+### What the registry still absorbs
+
+The review **events** (`reviewed` · `approved` · `merged`) remain events on an artifact and belong in
+the log — ⚑ but as **occurrence, not content**: *that* an audit happened, by whom, with what verdict.
+Not what was said. ⇒ The board's `audit: present/owed` flag gets its basis without the system
+becoming a transcript archive.
+
+⚑ Amendments · merges · audit-occurrence — three ceremonies, one event log. The convergence holds; it
+is the *contents* of the deliberation that were never the log's business.
 
 ### Open, and not to be defaulted
 
