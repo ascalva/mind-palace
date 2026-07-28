@@ -257,6 +257,53 @@ limitation. A later "the system got good enough to ratify its own design notes" 
 foreclosed at the frame, which is the correct place to foreclose it (NN-9: the fixed points are
 sacred).
 
+## ⚑⚑ OWNER RULING (2026-07-27, post-ratification) — AUTH REPLACES RESTRAINT; THE REGISTRY DISPATCHES
+
+> *"you can edit a ratified note all you want, if you can't auth, it won't matter, it won't [be] an
+> acceptable document, and the central system dispatches the workers with claude sdk, which means
+> the system enforces that way, no need to force the hand of an agent, as we've seen, it cripples
+> them"*
+
+⚑ **This is the act-based → sign-based shift carried all the way, and the design note did not carry
+it far enough.** The note retired hooks but kept asking *"how do we stop the agent from writing
+X?"* — a question that is still act-shaped. The owner's reading dissolves it:
+
+| | act-based | sign-based, fully |
+|---|---|---|
+| the question | how do we stop the write? | ⚑ **is the result a document?** |
+| an unauthorized edit is | a denied act | **an act with no warrant — a file, not an artifact** |
+| what enforces | interception, mid-work | **the absence of a signature, at read time** |
+
+⇒ **You cannot forge a ratified note by editing bytes, because ratification is a signed transition,
+not a line in a file.** Editing it produces something the system does not recognize. No guard is
+needed to prevent it, and a guard that tried would only cost the agent its hands.
+
+### ⚑⚑ THE SECOND HALF IS ARCHITECTURAL — the registry is the DISPATCHER
+
+The registry does not merely record; it **spawns the workers** (Claude SDK). That changes what
+enforcement *is*:
+
+- `write_scope` is not a rule the worker is told and checked against — it is **the permission set
+  the worker is constructed with**.
+- The role ceiling (A11.3) is not admission-checked — it is **the agent definition the dispatcher
+  builds**.
+- ⚑ The agent is never forbidden a path. **It is never given one.** Capability, not prohibition.
+
+⇒ **This supersedes §2.6's `write_scope` decision in the ratified note.** That section weighed two
+options — land-time admission (default) and worktree-as-scope (high blast radius) — and both still
+*tell an agent no*, one during the work and one after it. Dispatch-time capability does neither, and
+is strictly better than both: no mid-flight friction, no late discovery, no reliance on discipline.
+
+⚑ **Tonight is the evidence for both halves.** Two builders held their write scope perfectly with
+**no hook watching** — good discipline, and precisely the assurance level that should never have
+been the mechanism. Meanwhile the hook layer that *did* force the agent's hand is the thing the
+owner turned off because it *"cripples them."* The measured lesson: **restraint is not a control,
+and forcing it is not free.**
+
+⇒ **Amendment owed to `dn-typed-workflow-registry` §2.6** (and it relaxes §2.9's deadlock concern,
+since a dispatcher that constructs workers is not a chokepoint that blocks them mid-flight). Drafted
+alongside A11 — see `docs/inbox/amendment-A11-draft.md` §A11.3.
+
 ## OPEN — remaining owner rulings, not guesses
 
 1. **Sequencing against tomorrow's keys.** ⚑ Recommendation: **do not block key onboarding on the
