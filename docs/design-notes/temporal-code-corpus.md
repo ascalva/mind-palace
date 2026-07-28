@@ -17,6 +17,15 @@ warrant: docs/findings/finding-0163.md
 
 # Design note — the temporal code corpus
 
+> **⚑ Config surface superseded (owner ruling 2026-07-28).** The TOML section this note names
+> moved when the ingestion agents were split one-section-per-agent: **`[code_ingest]` →
+> `[ingestion.code]`**, read in Python as `cfg.ingestion.code`. Each agent now carries its own
+> `enabled` lever, gating *every* path it uses — watcher, housekeeping, and startup catch-up.
+> `integrate` was moved out of the transcript section entirely: it derives from already-ingested
+> material rather than ingesting, so it is its own agent type with its own `[integrate]` section.
+> Everything below about the *design* stands; only the config names have moved. See
+> `config/defaults.toml` → the INGESTION AGENTS banner.
+
 > The code corpus is not a snapshot; it is a graph that evolves over time. Every code version is a
 > semantic node; every code change is a supersession edge; the integrator's causal chain
 > (conversation → commit → code change) terminates ON those edges. HEAD-only embedding made that

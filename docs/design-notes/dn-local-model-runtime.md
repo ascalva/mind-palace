@@ -498,7 +498,7 @@ num_ctx, stream=False) · `core/models/registry.py` · `core/sealing.py:69-108` 
 monkeypatch; native-extension caveat in its docstring) · `core/runtime.py:37-48` (seal-first
 bootstrap) · `core/sandbox/runner.py:65-86` (subprocess+timeout+destroy precedent) ·
 `core/ingest/sync.py:122` (attestor emit) · `config/defaults.toml:5-27,96-119,126-153,267-277`
-(`[ollama]`, `[resources]`, `[code_ingest]`, `[embedding]`, `[[models]]`, σ bounds) ·
+(`[ollama]`, `[resources]`, `[ingestion.code]`, `[embedding]`, `[[models]]`, σ bounds) ·
 `eval/golden.py:26-32,98-131` (fixture paths, evaluate, regressions — foundation denylist,
 read/run only).
 

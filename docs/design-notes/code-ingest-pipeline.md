@@ -25,6 +25,15 @@ warrant: docs/findings/finding-0146.md
 
 # The code ingest pipeline — three layers: the code, its documentation, and the bridge into the corpus
 
+> **⚑ Config surface superseded (owner ruling 2026-07-28).** The TOML section this note names
+> moved when the ingestion agents were split one-section-per-agent: **`[code_ingest]` →
+> `[ingestion.code]`**, read in Python as `cfg.ingestion.code`. Each agent now carries its own
+> `enabled` lever, gating *every* path it uses — watcher, housekeeping, and startup catch-up.
+> `integrate` was moved out of the transcript section entirely: it derives from already-ingested
+> material rather than ingesting, so it is its own agent type with its own `[integrate]` section.
+> Everything below about the *design* stands; only the config names have moved. See
+> `config/defaults.toml` → the INGESTION AGENTS banner.
+
 > Composed by an orchestrator-dispatched worker (2026-07-21, design pass on finding-0146 —
 > the owner ruled the un-vectorized code corpus a **critical bug**, not an open question).
 > **Provenance correction (audit):** the worker was spawned `fable/max` but its completion

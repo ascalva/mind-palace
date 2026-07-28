@@ -22,6 +22,15 @@ amendments:
 
 # The chat sensor: the dialogue stream as a sensed stratum — retaining the derivation, not just the result
 
+> **⚑ Config surface superseded (owner ruling 2026-07-28).** The TOML section this note names
+> moved when the ingestion agents were split one-section-per-agent: **`[chat]` →
+> `[ingestion.transcripts]`**, read in Python as `cfg.ingestion.transcripts`. Each agent now
+> carries its own `enabled` lever, gating *every* path it uses — watcher, housekeeping, and
+> startup catch-up. `integrate` was moved out of the transcript section entirely: it derives from
+> already-ingested material rather than ingesting, so it is its own agent type with its own
+> `[integrate]` section. Everything below about the *design* stands; only the config names have
+> moved. See `config/defaults.toml` → the INGESTION AGENTS banner.
+
 > Composed at **fable** (`claude-fable-5`/xhigh, 2026-07-17, owner-chartered in-session: "can you
 > actually formalize it into a design note? … it has now become a crucial part of the system").
 > Filed as `draft`; ratification owner-by-hand. **Design only; no build authorized.** The warrant
