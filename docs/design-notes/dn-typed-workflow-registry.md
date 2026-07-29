@@ -14,6 +14,7 @@ links:
   - docs/design-notes/agent-workflow.md
   - docs/design-notes/attestation-layer.md
   - docs/design-notes/dn-role-state-and-scoped-handoff.md
+  - docs/brainstorms/study-not-product.md
   - scripts/handoff.py
   - .claude/hooks/_lib.py
 supersedes: null
@@ -30,9 +31,20 @@ warrant: null
 > **This note nests inside `dn-autopilot-and-delegated-blessing` (ratified).**
 > Where the two collide, the ratified note wins; every collision is *recorded*
 > here (§2.5.3), never resolved. It also proposes amendments to
-> `dn-agent-workflow` (ratified) — those amendments are licensed only by this
-> note's own ratification and are executed by the owner's hand, never by this
-> note's existence.
+> `dn-agent-workflow` (ratified) — under §2.10's revision protocol those are
+> direct edits whose PRs the owner merges; the lettered A-series ceremony this
+> header previously invoked is dissolved (§2.10).
+>
+> **Revision notice (2026-07-27, post-ratification — the warrant is lapsed).**
+> This note was ratified early on 2026-07-27 and the owner then ruled for several
+> hours past it. It is edited directly under the owner's own re-auth model:
+> editing a ratified artifact is a *proposal*, not a violation — the edit lapses
+> the warrant that made it ratified, and the author resubmits for
+> re-authorization [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:307-324].
+> The pull request carrying this revision is the resubmission; the owner's merge
+> is the re-ratification. `status: ratified` is deliberately untouched — status
+> is the registry's business, not this file's (§2.3); what lapsed is the warrant,
+> and no field edit can express that.
 
 ## 1. Purpose and scope
 
@@ -65,6 +77,24 @@ halves are the same primitive [GROUNDED docs/brainstorms/the-typed-workflow-regi
 7. **Placement and the deadlock question** — local, single-file, no-daemon, machine-level,
    outside the repo; reads never block; a specified degraded mode; a surviving escape
    hatch (§2.8, §2.9).
+8. **The surrounding pipeline, under the same frame** (added in the 2026-07-27
+   post-ratification revision; each entry is a recorded owner ruling, not new design):
+   the hub that carries pointers and never content, and the notary that routes and never
+   signs (§2.4.5–2.4.6); the revision protocol that replaces the A-series amendment
+   ceremony (§2.10); landing, audit, and deploy as authorization acts (§2.11); merge-gated
+   edge ingestion (§2.12); deskcheck gating (§2.13). Kept in this one note deliberately:
+   its subject is how work moves, and these are the same movement governed by the same
+   act-based→sign-based frame.
+
+**Reprioritization, stated here rather than buried (owner, 2026-07-27).** The corpus is a
+self-map of the owner's reasoning, so **corpus integrity is identity integrity**. The
+merge-gated ingestion lane (§2.12) is therefore not signal-to-noise hygiene — it prevents a
+defective agent from writing into the owner's self-model. Measured instance: per-commit
+ingestion put two *later-corrected* orchestrator readings into the corpus, unmarked,
+retrievable with equal standing to the owner's own thinking
+[GROUNDED docs/brainstorms/study-not-product.md:59-70; the ledger movement is measured at
+docs/brainstorms/the-typed-workflow-registry.md:824-833]. This changes the work's priority,
+not just its rationale.
 
 The through-line, named by the owner and adopted here as the design's organizing frame:
 **the shift from act-based security to sign-based security**
@@ -94,12 +124,15 @@ of interception.** What this dissolves, and what it honestly does not, is §2.6'
    Reaffirmed from the ratified note's non-goal 2 and strengthened: the registry's schema
    itself has no unsigned path to `ratified` (§2.5.1), so a later "the system got good
    enough" argument has no mechanism to attach to (NN-9: the fixed points are sacred).
-5. **The corpus boundary is unchanged.** Workflow *outputs* (design notes, findings,
-   plans) remain ingestable by Ouroboros exactly as the markdown exports they already
-   are; the registry's administrative event log is **not** part of the semantic corpus
-   and is not embedded. [INFERENCE — the owner allowed either ("its own knowledge graph
-   if possible, or ouroboros could still work"); this note takes the smaller reading and
-   parks the administrative-graph question (§Parked) rather than deciding it.]
+5. **The corpus embedding pipeline is unchanged; its *source* is not.** Workflow
+   *outputs* (design notes, findings, plans) remain ingestable by Ouroboros exactly as the
+   markdown exports they already are — but the lane that reads them moves to `origin/main`
+   only, merge-gated (§2.12; a change from this section's ratified text, which called the
+   boundary unchanged). The registry's administrative event log is **not** part of the
+   semantic corpus and is not embedded. [INFERENCE — the owner allowed either ("its own
+   knowledge graph if possible, or ouroboros could still work"); this note takes the
+   smaller reading and parks the administrative-graph question (§Parked) rather than
+   deciding it.]
 6. **No cloud service, no daemon coupling, no core residency** — argued, not just
    asserted, in §2.8.
 7. **Historical prose is not migrated.** Migration moves frontmatter *fields* into the
@@ -316,6 +349,92 @@ Default: one touch per ratified note; batch-signature (one signature over a set 
 five-tuples) is parked with a recorded default of "not built until the owner hits the
 friction." [INFERENCE]
 
+#### 2.4.5 The notary is a courier, never an authority
+
+The notary — the component that routes a re-auth request to the owner, carries the
+signature back, and records it — lives on the scheduler side of Ouroboros "for now"
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:360-377]. That placement does not
+contradict §2.8's "do not couple the registry to the daemon", because the two components
+have opposite availability profiles: the registry must answer at **every agent action**
+(local file, no daemon); the notary is needed only at **auth moments** — rare, and by
+definition the owner is present. A scheduler outage stops *notarization*, not work, and
+blocking is the correct behaviour for the one operation where blocking is correct.
+
+**The invariant, pinned rather than left implicit: the notary routes and records; it never
+holds signing capability.** The signing capability lives in the YubiKey, physically outside
+every process. Compromising the scheduler therefore buys an attacker denial of service —
+dropped, delayed, or reordered requests — and **never forgery**. If the notary ever holds
+signing material "for convenience," compromising the scheduler becomes compromising
+ratification, and Ouroboros becomes able to bless its own design
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:379-393]. Falsifier F9: any code
+path by which the scheduler could produce a valid transition signature without a hardware
+touch. [INFERENCE — the owner's "(for now..)" reads as anticipating the notary's promotion
+to its own node; the courier constraint makes that cheap, since a courier holds no secrets.]
+
+#### 2.4.6 The hub carries pointers, never content — and pre/post hashing is a TOCTOU defence
+
+The hub — a document-processing and routing node, **explicitly not the Ouroboros
+scheduler** — may live anywhere (AWS, a phone-reachable service) because it structurally
+cannot see content [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:399-424,
+450-461]. **Its single invariant: the hub carries pointers only, never content.** Three
+independent uses converged on that wire format, which is evidence it is the right format
+rather than a constraint tolerated three times
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:903-922]:
+
+| use | what crosses the wire | what never does |
+|---|---|---|
+| seal request | content hash + commit ref | the document |
+| merge → deploy (§2.11) | the merged ref | the code |
+| ingestion notice (§2.12) | the new head sha | the corpus |
+
+Falsifier F10: any hub payload whose body is not resolvable-by-reference. This satisfies
+NN-11 ("the interface may transit a third party; the corpus never does") structurally, not
+by policy — the hub has nothing to leak.
+
+**The hash is a content address, not an opaque token.** The artifacts in question are
+already committed and pushed — public, retrievable, locatable to the exact commit by the
+metadata the hub carries (commit ref, artifact id, type). The owner verifies by retrieving
+at that commit and recomputing the hash; because the hash *is* the integrity check, the
+retrieval path need not be trusted — a tampered copy simply fails to recompute
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:463-491]. Consequence for §2.3:
+the export stops being a convenience with a ratchet attached and becomes **load-bearing for
+the auth loop** — published files are what make a hash resolvable at all
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:493-502].
+
+**The precondition, stated as an invariant:** the argument rests on "not personal data —
+already published." Only artifact types that are *published by construction* (design notes,
+plans, findings, journals) may transit the hub; a future type touching corpus or vault
+content does not get this channel by default, and the client's type system is where that is
+enforced [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:504-512].
+
+**The pre/post hash comparison is a TOCTOU (time-of-check-to-time-of-use) defence — named
+as one** [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:426-448]:
+
+```
+1. agent writes the file locally
+2. client computes  hash_pre , submits ONLY that
+3. hub → owner: "the file with hash_pre needs your seal"
+4. owner verifies (retrieve + recompute) and signs
+5. re-hash the local file NOW → hash_post
+6. hash_pre == hash_post ?  →  accept; store hash_post
+                          ✗  →  REFUSE — the request is stale; resubmit
+```
+
+Without steps 5–6 there is a window between "please sign hash X" and the signature landing
+in which an agent can rewrite the file — the owner would be signing content he never saw,
+and the prize is a forged ratification. The failure mode is a stale request, never a silent
+bad signature. It is the same arithmetic as the warrant lapse (§2.5.1): a warrant binds to
+a content hash, so any divergence — mid-ceremony or years later — lapses it. One mechanism,
+three jobs: ratification, tamper-evidence, TOCTOU defence. **This is a named acceptance
+criterion owed to `bp-145`** (the signed-admission plan): its acceptance must exercise the
+pre≠post refusal path. Falsifier F11.
+
+[INFERENCE — owner ruling required, recorded not decided: the standing "blessings stay at
+the keyboard" rule was written when remote signing was blind. It no longer is — content is
+retrievable, identity provable, and a YubiKey NFC can sign against a phone. The rule stands
+until the owner rules; the reason it rested on has changed
+(docs/brainstorms/the-typed-workflow-registry.md:514-523).]
+
 ### 2.5 The gate asymmetry — and the independence it creates
 
 #### 2.5.1 The ruling, made structural
@@ -326,14 +445,36 @@ gates split.
 
 | gate | signature? | automatable? | why |
 |---|---|---|---|
-| `draft → ratified` | **yes** | **never — permanently** | design judgement: semantic, effectively irreversible (ratified notes agent-immutable), inherited downstream |
+| `draft → ratified` | **yes** | **never — permanently** | design judgement: semantic, effectively irreversible (restoring a lapsed warrant takes the owner's key), inherited |
 | `proposed → ready` | **no** | yes — this is what autopilot delegates | a judgement about readiness: mechanical, checkable, reversible (`ready → proposed` costs nothing) |
 
 Foreclosure at the frame, not as a current limitation: the registry schema admits **no
 unsigned path** to `ratified` — there is no flag, no config, no privileged role that
 waives the signature. An unsigned `→ratified` event is malformed input, rejected at the
-type level. Softening this would require amending a ratified note at the owner's hand,
-which is precisely the ceremony such a change deserves.
+type level. Softening this would require the owner's re-authorization of this very
+section — the §2.10 loop applied to itself.
+
+**Ratified is warrant-bearing, not immutable (owner ruling, 2026-07-27 — revises this
+section's ratified framing).** The earlier model — ratified artifacts as agent-immutable,
+an edit as a violation to be blocked — is retired. A ratified artifact is *mutable*; what
+cannot survive a content change is the **warrant**: the signature binds to the content
+hash, so an edit lapses it by arithmetic. Nothing needs to detect tampering — the hash
+stops matching, the artifact drops out of `ratified` in the fold, and the edit stands as a
+self-announcing **proposal awaiting re-auth**
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:307-324]:
+
+| | old model | this model |
+|---|---|---|
+| ratified note | agent-immutable — the edit must be prevented | agent-writable — the edit invalidates its own warrant |
+| what detects tampering | a hook diffing against HEAD | nothing needs to; the hash stops matching |
+| an edited ratified note is | a violation to be blocked | a proposal awaiting re-auth |
+| the gate | prevent the act | withhold the signature |
+
+§2.10 gives the full loop. **Consequence for `bp-145`** (the signed-admission plan): its
+acceptance must test the **lapse-on-edit path** — edit a ratified artifact, observe the
+fold report the warrant lapsed, re-auth restores it — not only the no-unsigned-path-in
+direction. Falsifier F13: an edited ratified artifact that still folds to `ratified`
+without re-auth has a warrant that survived a content change it must not survive.
 
 #### 2.5.2 The discriminator generalizes
 
@@ -342,10 +483,13 @@ Reversibility ∧ semantic depth — not "is it a gate." This is the same axis
 is the real axis and not an ad-hoc split
 [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:243-247]. It also cleanly
 classifies the third owner-only gate: a deskcheck verdict (`pending→approved|needs-work`)
-is semantically deep but *reversible* (a verdict can be re-run); default: owner-by-hand
-as today, **unsigned**, revisit only if verdict forgery is ever observed. [INFERENCE —
-the deskcheck classification is this note's extension of the ruling; the owner should
-confirm at ratification.]
+is semantically deep but *reversible* (a verdict can be re-run). The ratified text parked
+verdict signing with a default of "unsigned, owner-by-hand, revisit only on observed
+forgery"; **that parked decision is re-opened, not silently kept** — with ratify (§2.4)
+and merge (§2.11) both becoming warranted acts, the unsigned third gate is the odd one
+out, and it guards the strongest claim in the system. See §2.13 and §Parked. [INFERENCE —
+the classification is this note's extension of the ruling; the re-opened decision stays
+the owner's.]
 
 **Consequence — two independent tracks, stated so nobody serializes them:** `bp-138` /
 `bp-139` (autopilot delegated blessing, AP5/AP6) automate the gate with **no** signing
@@ -384,6 +528,20 @@ this note would *want* and what it *defers to*:
    is not a collision but is restated because this note strengthens it from a rule to a
    schema property (§2.5.1) — a strengthening, which nesting permits; the weaker text
    stays authoritative until amended.
+5. **Warrant-bearing vs agent-immutability (added in the 2026-07-27 revision).** The
+   ratified autopilot note — and CLAUDE.md's A8 status guard — frame ratified artifacts as
+   *agent-immutable*; §2.5.1 now makes them *warrant-bearing*. The guarantee is preserved
+   and strengthened (an edit cannot *pass as* ratified), but the named mechanism
+   ("agent-immutable, HEAD-keyed, laundering-proof") is contradicted. **Recorded, not
+   resolved:** until the owner re-warrants the surrounding texts, their rule governs agent
+   conduct and this note's model governs the registry's schema.
+6. **`dn-role-state-and-scoped-handoff` §2.6 D4** (the ratified role-state note) ruled
+   "files as source; the queue as an input, never the source." The registry inverts the
+   first half: registry as source, files as its export. The owner directed that note's
+   amendment (2026-07-27, verbatim in its §2.6); the fold rides this same PR under §2.10's
+   protocol, preserving the three D4 grounds that still bind. Both re-auths are the same
+   merge — if the owner rejects one, he rejects both, which is the correct coupling since
+   the two rulings are one decision.
 
 ### 2.6 Hook retirement — the disposition table, honestly
 
@@ -400,7 +558,7 @@ read this pass: .claude/hooks/_lib.py, *.sh].
 | `session-brief` (SessionStart) | orientation + close-audit baseline | **replaced by query.** Orientation is a registry read; no denial semantics remain (a read cannot clog) |
 | `staleness-nudge` (UserPromptSubmit) | derived views drifted | **dissolved.** Views derive from the store on read; there is nothing to go stale |
 | `compaction-marker` (PreCompact) | post-compaction turn re-verifies vs journal | **kept — the one surviving hook.** Interception-shaped; no registry equivalent (argued below) |
-| `scope-guard` (PreToolUse) | writes outside `write_scope` denied; foundation denylist | **moved to land-time admission, per-unit level** — the hard one, argued below |
+| `scope-guard` (PreToolUse) | writes outside `write_scope` denied; denylist | **dissolved.** Writes unconstrained mid-flight; bright lines → PR denylist check; rest is review (below) |
 
 **The journal-gate clause map** (each clause is a distinct guarantee; none silently
 dropped):
@@ -408,16 +566,17 @@ dropped):
 | clause | today | in the registry |
 |---|---|---|
 | (a) journal staleness vs last commit | mtime check at Stop | land/seal submission *requires* the unit's judgement entry; unlanded staleness costs nothing landing won't demand |
-| (b) out-of-scope worktree changes | git-status sweep at Stop | land-time admission: the landing's diff is checked against the unit's declared scope |
-| (b2) ratified-note immutability, HEAD-keyed | diff vs HEAD at Stop | ratified content hash is registry state; the ratchet reddens on divergence; laundering has no target |
+| (b) out-of-scope worktree changes | git-status sweep at Stop | review judgement at the PR: the diff is questioned against declared intent (§2.6); denylist paths checked by the Action |
+| (b2) ratified-note immutability, HEAD-keyed | diff vs HEAD at Stop | reframed by §2.5.1: divergence is a warrant *lapse* — a proposal awaiting re-auth; nothing passes as ratified |
 | (c) uncommitted / untracked blessing flips | diff + untracked scan | unrepresentable: a blessing exists only as an accepted event; bytes in a file are not a blessing |
 | (d) cross-checkout state bleed | main-checkout pointer check | dissolves with its substrate: `active-plan` becomes a registry ref; no per-checkout state file remains |
 | (e′) session-handoff freshness | handoff `--check` + seat-journal mtime | DERIVED rendering becomes a registry query; the NARRATIVE demand moves into land/seal like (a) |
 | (f) seal follow-through block | journal-tail grep at Stop | a **typed field on the seal event** — submission refuses a seal without the five answers; grep upgraded to schema |
 
-**Honest loss in the (a)/(b) family, stated:** Stop fires at session close; land-time
-admission fires at landing. A session that never lands can leave a dirty tree that no
-gate ever examined. Backstops: the CI ratchet (nothing merges un-reconciled) and the fact
+**Honest loss in the (a)/(b) family, stated:** Stop fires at session close; the PR-side
+checks and review fire at submission for merge. A session that never opens a PR can leave
+a dirty tree that no gate ever examined. Backstops: the CI ratchet (nothing merges
+un-reconciled), the denylist Action (nothing merges over a bright line), and the fact
 that an unlanded worktree is, by the disposable-sessions doctrine, discardable state.
 The guarantee's *location* moves from "before close" to "before consequence"; the window
 between them is exactly the window in which nothing has happened yet. [INFERENCE — this
@@ -433,28 +592,64 @@ is the honest residue of the interception model. [GROUNDED — behavior verified
 .claude/hooks/compaction-marker.sh; the disposition matches the brainstorm's own
 assessment at docs/brainstorms/the-typed-workflow-registry.md:91.]
 
-**`write_scope` — an enforcement level, not a global choice.** A store cannot stop a
-`Write` to an arbitrary path; the two honest options
-[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:94-103]:
+**`write_scope` — superseded twice in one night, and the halves separate (owner rulings,
+2026-07-27; revises this section's ratified decision).** The ratified text weighed two
+options — (a) land-time admission and (b) worktree-as-scope, per-unit as an enforcement
+*level* [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:94-103]. Both are
+retired, in two steps that must be recorded separately because they now govern different
+things:
 
-- **(a) land-time admission** — the registry refuses a landing whose diff touches paths
-  outside the unit's declared scope. Unbypassable (landing goes through the registry),
-  but the violation is discovered after the work, not during it.
-- **(b) worktree-as-scope** — the agent physically cannot see files it may not write.
-  Structural in the strongest sense; costs a worktree per unit and complicates read-only
-  context.
+1. **Dispatch-time capability — and it stands, for credentials.** The registry is not
+   merely a recorder; it **dispatches the workers** (Claude SDK), so a capability is what a
+   worker is *constructed with*: no AWS key, no merge ability, no signing material — the
+   agent is never forbidden them, it is never given them. There is no legitimate need to
+   overrule this half, which is what marks it as capability work rather than judgement work
+   [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:260-301 — "the central system
+   dispatches the workers with claude sdk … no need to force the hand of an agent, as
+   we've seen, it cripples them"].
+2. **File writes go unconstrained — an allowlist is a prediction; a denylist is a bright
+   line.** The final ruling: *"no more write scopes, or at least it's more of a denylist
+   than an allow list, github action on PR to check 0 writes to specific files, only I can
+   overrule … let the builder do what it needs to do, don't limit it, we then question via
+   PR review"* [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:959-1025]. An
+   allowlist encodes a *prediction* about what the work will need; predictions are wrong,
+   and a wrong one blocks legitimate work — mechanically how `write_scope` clogged the
+   machinery it protected, re-guessed across all 137 plans. A denylist encodes only what
+   must never happen, a set that is small, stable, and actually knowable. Judgement does
+   not compress to a glob; the new model puts judgement back where it lives — a reviewer
+   who can ask *"why did you touch this?"* at the PR (§2.11). **General rule, stated once:
+   mechanism for the absolute, judgement for the contextual.**
 
-Decision: **per-unit, not global — `write_scope` becomes an enforcement *level* declared
-at graduation.** Default level = (a). Level (b) for units whose blast radius the
-delegation rubric already scores full-strength (enforcement surfaces, core invariants,
-migrations) — the axis exists and is in use; graduation assigns the level the way it
-already assigns model tier. The **foundation denylist** (`CONSTITUTION.md`,
-`eval/golden/**`, `eval/golden.py`) binds at admission for every unit at every level, and
-additionally stays covered by the CI ratchet, so it is enforced twice with neither
-enforcement on the write hot path. What is honestly given up at level (a): the mid-flight
-"you are about to stray" signal. A builder discovers the mis-scope at land time with the
-exact offending diff in hand — later than today, cheaper than today's per-write tax.
-[INFERENCE — that the trade is net-positive is the design bet; falsifier F7.]
+The mechanics that follow:
+
+- **The foundation denylist** — `CONSTITUTION.md`, `eval/golden/**`, `eval/golden.py`,
+  **and `.github/workflows/**`** — is enforced by a **GitHub Action on every PR** (zero
+  writes to those paths), a required check only the owner can overrule. The Action is an
+  external principal: it does not share an identity with the agent it binds, unlike
+  `scope-guard`, which read a file the agent could write
+  [GROUNDED docs/brainstorms/study-not-product.md:102-141 — a control cannot bind a
+  principal it shares an identity with].
+- **The self-protection interlock:** `.github/workflows/**` is on the denylist because the
+  check lives there — a constraint the constrained party can remove is decoration. Third
+  instance of the pattern (agent token minus `Administration`, `finding-0276`; now this);
+  generalized: **every external control must deny writes to itself**
+  [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:1004-1012].
+- **`write_scope` the *field* survives with a new job: a declaration of intent.** The PR
+  diff is questioned against it in review — "you said X, you touched Y, why?" It becomes a
+  hypothesis, not a fence; divergence is a question, never a denial. [INFERENCE — arguably
+  more useful than its enforcement role: a stated intent the work contradicts is a genuine
+  review signal, where a denial was merely an obstacle.]
+- **Knock-ons, recorded:** `bp-146` (the graduated plan making `write_scope` a per-unit
+  enforcement level) is **largely obsolete** — it graduated hours before the ruling against
+  a mechanism now retired, and must be superseded explicitly, not left pointing at a dead
+  design. `finding-0275`'s clearing condition changes: `scope-guard` is not coming back,
+  so its three red enforcement tests are answered by the CI denylist check, not by parity
+  tests. (Recorded here; neither artifact is edited by this note.)
+- **The honest residual:** the denylist check fires at the PR, and dispatch-time
+  capability binds only workers the dispatcher constructs. An interactive session at the
+  owner's keyboard is bound by neither mid-flight; for it, the warrant model is the
+  backstop — an unauthorized write produces a file without a warrant, not an artifact
+  (§2.5.1). [INFERENCE — this note's honesty clause, not the ruling's; falsifier F7.]
 
 **The `HOOK-FAILURE` / `OUROBOROS_HOOKS_OFF` escape-hatch spirit** carries forward as
 §2.9's registry escape hatch — the property (the owner can always get out) is preserved
@@ -484,6 +679,16 @@ was I" by query: *open units, their open criteria, their parked items, in depend
 order*. The fresh-agent test stops being a discipline the journal strains to satisfy and
 becomes the registry's ordinary read path.
 
+**The structural cause, named by the owner — "there is no third place" (2026-07-27,
+sharpening the diagnosis above).** The system has exactly two homes: **product** (git,
+public — notes, plans, findings, code, and commit messages) and **strata** (Ouroboros,
+local, private — transcripts and deliberation, ingested as memory, never published).
+Anything in between rots, whatever discipline is applied to it. The resume brief was
+homeless: not product (it described work rather than being it), not strata (authored, not
+ingested) — so it went stale between the writing and the reading, every time
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:687-710]. This is the test to
+apply to any proposed artifact before inventing it; PR-feedback tracking fails it (§2.11).
+
 **The journal narrows to judgement.** Status was always the registry's job; the journal
 carried it under protest. What remains is what no store can derive: the why, the
 surprises, the approaches discarded and the reason. Shorter, and the part that was
@@ -499,7 +704,7 @@ licensed by ratification and executed under plans, none by this note):
 | `.claude/skills/checkpoint/SKILL.md` | sections 1–6 split: status/completed/in-flight/next become registry unit fields; entry keeps judgement + markers |
 | `.claude/skills/context-economy/SKILL.md` | clearing boundary: "write the handoff pair" → "submit unit state; append judgement entry" |
 | `.claude/skills/resume/SKILL.md` (`/resume`) | resumes from registry query + prose files, not from a journal narrative |
-| `.claude/skills/build-plan/SKILL.md` + `docs/templates/build-plan.md` | frontmatter fields move to registry submission; `write_scope` gains its enforcement level |
+| `.claude/skills/build-plan/SKILL.md` + `docs/templates/build-plan.md` | frontmatter fields move to registry submission; `write_scope` re-typed as declared intent (§2.6) |
 | `.claude/skills/delegate/SKILL.md` | builders mint IDs/refs via the registry; push-before-spawn gains "registry ref, not eyeballed ID" |
 | `docs/design-notes/agent-workflow.md` §6, §9, §13 | owner-ratified amendment: hook contracts retired per §2.6; §9 re-worded |
 | `docs/design-notes/dn-role-state-and-scoped-handoff.md` | DERIVED rendering becomes a registry query; NARRATIVE/MEASURED unchanged — owner-ratified amendment |
@@ -539,6 +744,20 @@ for CI.** Justified against each constraint explicitly:
   time) is this note's mechanism for making CI hermetic; its exact format is a build
   decision.]
 
+**The portability clause (folded from the deleted A11 draft; owner-directed 2026-07-27).**
+The machine-level placement makes minting serial on one machine — and makes the registry
+*absent* everywhere else: a fresh clone, a worktree on another machine, a CI runner has no
+registry. In such a checkout **the export is authoritative and read-only**: it may be
+read, built in, and reasoned from; it may **not** mint, transition, or seal. Those
+operations require the registry and **fail closed with a named error, never a silent
+local fallback** — a registry-less checkout that quietly wrote frontmatter would fork the
+truth into two divergent sources with no reconciliation, invisible until it corrupts. The
+fresh-agent drill doubles as this clause's falsifier: it must still pass in a checkout
+with only the export (F8). [GROUNDED — the clause is the A11.2 draft in substance
+(docs/inbox/amendment-A11-draft.md, deleted in this revision); the multi-machine hole it
+closes was left open by this section's ratified text, which argued only the
+one-machine/parallel-worktree case.]
+
 **Why SQLite specifically:** single file (owner-openable, backup = copy), no server, and
 WAL mode gives the concurrency shape §2.9 requires — readers do not block the writer and
 the writer does not block readers [GROUNDED — external: SQLite WAL documentation,
@@ -575,6 +794,11 @@ mechanism [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:156-167]:
    system, it has reproduced the defect it was built to remove; these two hatches are the
    proof obligation, and falsifier F3 is their test.
 
+The dispatch role (§2.6) does not sharpen this concern — it relaxes it: a dispatcher
+constructs workers at spawn and sits on no mid-flight path, so a registry outage delays
+*new* workers and never blocks running ones
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:303-305].
+
 **Invariants, stated explicitly:**
 
 1. No event is ever mutated or deleted; corrections are events.
@@ -584,20 +808,211 @@ mechanism [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:156-167]:
    byte-identical.
 5. Reads degrade to the export; they never wait on a writer and never fail closed.
 6. A degraded-mode blessing is queued, not effective; authority never degrades.
-7. The foundation denylist binds at admission for every unit at every enforcement level.
+7. The foundation denylist — `CONSTITUTION.md`, `eval/golden/**`, `eval/golden.py`,
+   `.github/workflows/**` — is enforced by an external-principal check on every PR; only
+   the owner can overrule it, and the check denies writes to itself (§2.6).
 8. A hook is retired only after a registry-side test proves its guarantee's parity.
 9. The registry holds no secret: not the MFA secret (oq-0037, parked), not key material —
    public keys and signatures only (NN-10).
+10. The hub carries pointers only — a content hash, a commit ref, a head sha; a payload
+    whose body is not resolvable-by-reference is malformed (§2.4.6).
+11. Only artifact types published by construction may transit the hub (§2.4.6).
+12. The notary routes and records; it never holds signing capability (§2.4.5).
+13. A checkout without the registry reads the export and fails closed, with a named
+    error, on mint/transition/seal (§2.8).
+14. A warrant never survives a content change: edit ⇒ lapse ⇒ re-auth, with no path that
+    re-attaches a signature to bytes the owner did not see (§2.5.1, §2.4.6).
+
+### 2.10 The revision protocol — the A-series amendment ceremony dissolves
+
+**The loop (owner ruling, 2026-07-27):** an agent may edit any artifact, ratified ones
+included. The edit changes the content hash, which lapses the warrant by arithmetic
+(§2.5.1); the agent **resubmits for re-auth**; the system routes the request to the owner
+(§2.4.5); the owner notarizes — *"I interact with the system as my seal of approval, my
+notary"* [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:307-334]. "Notary" is
+exact: a notary neither authors nor judges content — they attest that the named party
+signed. That is what a hardware touch proves, and why `draft→ratified` is permanently
+un-automatable: a notary who is a program is not a notary.
+
+**Consequence: the lettered amendment ceremony (A1–A10, and the A11 drafted the same
+night) dissolves.** It existed only because ratified notes could not be edited — unable to
+change the text, the repo grew a parallel artifact describing the change it could not
+make, plus a build plan to land it, plus a protocol section explaining itself. Remove
+immutability and the apparatus is unnecessary: you edit the note, the warrant lapses, you
+resubmit, the owner notarizes. **The event log is the amendment history** — every prior
+ratification, every lapse, every re-auth, in order, queryable — which is the owner's
+"audits via query algebra" ask arriving from the other direction; the amendment log was a
+hand-maintained, ceremony-laden cache of exactly that chain, the resume brief's defect in
+a different costume [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:336-355].
+
+**Until the registry exists, the PR is the venue:** the diff is the amendment, the merge
+is the re-auth, GitHub's record is the interim event log — held by a party the agent
+cannot rewrite [GROUNDED docs/brainstorms/study-not-product.md:132-141]. This note's own
+revision is the protocol's first exercise. The transitional A11 draft
+(`docs/inbox/amendment-A11-draft.md`) is deleted in this revision, its content folded
+where it belongs (§2.6, §2.8, and `dn-role-state-and-scoped-handoff` §2.6) — recorded so
+its successor is not mistaken for missing work
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:357-358].
+
+### 2.11 Landing is an authorization act — the integrator, the merge train, the audit venue, the deploy plane
+
+**No local main-merges (owner ruling, 2026-07-27).** *"Machine merges are never allowed;
+builds now open a PR with the proper docs and reasoning; I merge from GitHub."* The same
+move as the notary, applied to code: a note becomes ratified by a hardware signature; a
+branch becomes main by the owner pressing merge — the agent is removed from the
+authorization loop, not restrained within it. Scope, per the owner's own narrowing: the
+forbidden act is `git merge <branch>` into main *locally*; orchestrator doc-commits
+directly to main are a different act and are unaffected
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:529-548].
+
+**The sub-orchestrator is the integrator.** Builders merge into *its* integration branch,
+never into main; it assembles and opens the PR; the owner merges. Integration is also
+where id collisions surface and are fixed — one level below the owner's attention, where
+that belongs [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:744-774]:
+
+| # | stage | actor | act | warrant |
+|---|---|---|---|---|
+| 1 | `draft → ratified` | owner | notarize | hardware signature over a content hash |
+| 2 | graduate + build | sub-orchestrator, builders | mint plans, write code | none — proposals |
+| 3 | integrate | sub-orchestrator | assemble the PR | none — still a proposal |
+| 4 | audit | auditor agent | review comments in the PR | none — advisory |
+| 5 | approve + merge | owner | merge (⇒ deploy) | the GitHub merge button |
+| 6 | deskcheck (§2.13) | owner | track verdict | re-opened — see §Parked |
+
+**The merge train: staging, not landing, triggers the rebase.** PRs land in sequence,
+never independently, and **when a merge is *staged* — queued, not yet landed — every
+other active branch rebases**. This is deliberately earlier than the delegate skill's
+current on-land trigger, which it strictly dominates (the skill's text is owed the
+update): staging-as-trigger removes the window in which a branch builds on a base already
+known to be stale, which is what keeps "it passed" meaning something
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:556-569]. The queue is
+event-log-shaped — `staged → rebased → landed` are ordered events with a warrant on the
+terminal one — not a second mechanism. **Honesty note:** today this is convention, not
+control — branch protection was verified absent this pass (`gh api …/branches/main/protection`
+→ 404); the structural version is an owner act, and whether GitHub can require PRs for
+merges while leaving direct doc-commits alone must be checked before it is promised
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:571-581].
+
+**The PR is the audit venue.** A PR review is natively what the delegate skill demands an
+audit be — attributed, timestamped, anchored to the exact lines, threaded against the
+diff it judges — and it makes the *deliberation* public, which nothing else in the chain
+does. Review events enter the registry log as **occurrence, not content**: *that* an
+audit happened, by whom, with what verdict — never what was said
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:643-659, 727-735]. There is no
+third place (§2.7): the arguing lives in the strata, the decision lands in the product.
+**The cost, and it is real: the commit message becomes the only surviving record of
+*why*.** It stops being a label for a diff and becomes the carrier of what the review
+changed — what the auditor questioned, what the answer was, what the builder altered. A
+commit reading `fix: address review comments` destroys the record this design keeps in
+exactly one place [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:712-721].
+[INFERENCE — this is the strongest argument yet for CONVENTIONS §Commits being enforced
+rather than encouraged; under the old model a thin message was recoverable from
+surrounding artifacts, under this one it is the only copy.]
+
+Two risks recorded so they are designed rather than discovered
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:803-813]: (i) the
+auditor↔builder feedback cycle has no termination condition and needs a bound
+([INFERENCE] escalate-to-owner-on-disagreement is probably right; parked); (ii) a
+sub-orchestrator-spawned auditor is independent of the *builder* but not of the
+orchestrator that scoped the work — fine for spec-fidelity, wrong for auditing the
+decomposition itself; needs an explicit rule, since the failure reads as agreement.
+
+**The deploy plane: `plan : apply :: proposal : authorization`.** The agent may generate
+`terraform plan` — a reviewable statement of intent that changes nothing — and may not
+apply it. `apply` runs in GitHub Actions, triggered by the owner's merge, so the third
+layer joins the pattern: design is notarized, code is merged, infrastructure is applied
+by the same merge. **The agent holds no AWS credentials — that is the whole point**;
+there is nothing local to scope, rotate, or leak
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:583-607; the OIDC trust-policy
+shape is [INFERENCE] there and must be verified before building]. This retires
+`mind-palace deploy` as a discipline-held rule: the deploy stops being a command anyone
+could run and becomes a consequence of an authorization already given — unexpressible
+locally rather than forbidden
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:609-612]. NN-3 ("the model
+advises; code acts") becomes structural rather than procedural. **Open, deliberately not
+defaulted:** on a public repo, posted plan output leaks topology (ARNs, account ids,
+security-group shapes); accept / narrow to a check artifact / redact is the owner's
+decision *before* the first plan posts, because the first post cannot be unpublished
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:614-641].
+
+### 2.12 Ingestion moves to the edge and reads only `origin/main`
+
+**The ruling:** *"ingestion is now an edge agent, it only ingests from github remote/main
+directly, you can't accidentally slip something on the local main"*
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:815-822]. The property bought:
+**the corpus contains only what survived the merge gate** — "what was authorized," not
+"whatever was on this disk." Why this is priority work and not hygiene is §1.1: corpus
+integrity is identity integrity.
+
+**The measured defect (not hypothetical):** `.githooks/post-commit` snapshots on every
+local commit; sixteen ingestions were counted in a single session, none gated, including
+two orchestrator readings that were *later corrected* — both the wrong reading and its
+correction now sit in the corpus with equal standing, nothing marking which superseded
+which. The same session committed one evolving brainstorm ten times, so the corpus holds
+~10 near-duplicate embeddings of one document
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:824-833, 873-889; whether
+`core/stores/sourceset.py`'s group-by-digest already mitigates the duplicate flooding at
+*retrieval* rank is worth measuring, not assuming]. The deeper argument: **a commit is a
+moment; a merge is a unit.** Ingesting commits ingests work-in-progress wearing
+knowledge's clothes; the merge is the moment someone decided the thing was coherent
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:859-871]. This is also the last
+act-based hook in the loop — an act (commit) triggering a consequence (ingest) with no
+warrant between them — retired the same way as the other six.
+
+**The NN-2 boundary, drawn before it can be drawn wrong:** NN-2 forbids network and
+private data sharing a component. So the lane is a **fetch lane, not an "ingestion edge
+agent"**: edge *fetches* from `origin/main` and hands bytes inward; core *ingests* and
+writes the stores. A single component doing both would be the violation, and the naming
+invites it [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:843-857]. Falsifier
+F12.
+
+**Deferred and pull-shaped:** merge-triggered via a notification whose payload is the new
+head sha (a pointer — §2.4.6), drained by the edge lane on its own schedule, at night or
+on demand. Night ingestion respects the memory ceiling (NN-8) and joins the dreamer's
+existing lane ([INFERENCE — pin the ordering: ingest the day's merged units, then dream
+over them]). **Pull, not push:** AWS enqueues; the house initiates every connection; no
+listener, tunnel, or ingress into the machine holding the vault
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:924-952]. Restartable for free:
+a notice is a ref, so a missed run is caught by the next one. Stated once as the general
+rule, third convergence of the night (notary, fetch lane, notification bus):
+**components that move things must not also be components that hold things**
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:954-957].
+
+### 2.13 Deskcheck gating — the third owner gate, and its parked venue re-opened
+
+**The rule (owner, 2026-07-27):** a track may be deskchecked only when **all** of its
+designs are merged — *except* long-running tracks (`workflow`), which deskcheck **after
+each design→merge**. The exception is load-bearing, not a convenience: `workflow` never
+reaches "all designs merged" because it is the track that keeps redesigning the system
+that builds it; without the carve-out its deskcheck is unreachable by construction, and
+an unreachable gate quietly stops being applied — how "DONE ≠ sealed" gets violated
+without anyone deciding to
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:744-751, 788-796].
+"All designs merged" is a **query over the event log**, not a status field anyone
+maintains — the fifth ceremony the log absorbs (amendments, merges, audits, reviews,
+deskcheck-eligibility) [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:798-801].
+
+**Deskcheck is now the third owner gate and the only one without a venue.** Ratify has
+the signature; merge has the PR; deskcheck has neither, and it guards the strongest claim
+in the system ("this track is done") — the gate the owner has already ruled is never
+self-declarable. This note parked verdict signing when the gate stood alone; with stages
+1 and 5 both warranted, the unsigned third gate is the odd one out. **The parked decision
+is re-opened, not silently kept** (§Parked) — re-opened because the surrounding structure
+changed underneath it, not because anything broke; the decision remains the owner's
+[GROUNDED docs/brainstorms/the-typed-workflow-registry.md:776-786].
 
 ## 3. Consequences
 
 **On ratification of this note, and not before:**
 
-1. **Amendments, owner-ratified, to two ratified notes:** `dn-agent-workflow` (§6 hook
-   contracts, §9 note-taking, §2/§10 gate wording — the registry becomes the named
+1. **Revisions, under §2.10's protocol, to two ratified notes:** `dn-agent-workflow` (§6
+   hook contracts, §9 note-taking, §2/§10 gate wording — the registry becomes the named
    enforcement substrate) and `dn-autopilot-and-delegated-blessing` (the §2.5.3 recorded
-   collisions: flip-executor mechanics and the hook-named enforcement layers). Until each
-   amendment lands, the text it amends governs and the corresponding hook stays.
+   collisions: flip-executor mechanics, the hook-named enforcement layers, and the
+   agent-immutability framing). Executed as direct edits whose PRs the owner merges — the
+   A-series ceremony is dissolved. Until each revision merges, the text it revises governs
+   and the corresponding hook stays. (`dn-role-state-and-scoped-handoff` §2.6 D4 is
+   revised in this same PR, §2.5.3 item 6.)
 2. **A one-sentence-scale edit to `CLAUDE.md`** — the write-discipline and note-taking
    rules re-pointed at the registry; the resume-brief sentence deleted (§2.7's table).
 3. **Graduation licenses, in dependency order (each session-sized, split at graduation):**
@@ -613,6 +1028,22 @@ mechanism [GROUNDED docs/brainstorms/the-typed-workflow-registry.md:156-167]:
    above; nothing here blocks them and they block nothing here (§2.5.2).
 6. **Book chapter, eventually:** act-based → sign-based is a real constitutional idea;
    it enters the workflow chapter after the mechanism survives contact.
+7. **Landing discipline (§2.11):** branch protection and the required denylist check are
+   owner acts; the delegate skill's rebase trigger updates from on-land to on-staged; the
+   CONVENTIONS §Commits text gains the load-bearing-message clause. The denylist GitHub
+   Action (§2.6) is buildable immediately — it needs no registry.
+8. **The deploy plane (§2.11):** a GitHub-Actions apply lane replaces local deploy;
+   `mind-palace deploy` (and its standing never-run-autonomously rule) retires when that
+   lane lands; the plan-output-visibility decision is the owner's before the first plan
+   posts.
+9. **The fetch lane (§2.12):** graduation adds an edge fetch-lane plan; the
+   `.githooks/post-commit` snapshot lane retires in its favor; a plan is owed for marking
+   the already-ingested superseded content (the two corrected readings and the
+   near-duplicates are in the corpus *now*).
+10. **Plan-ledger corrections (§2.6):** `bp-146` (write_scope as per-unit enforcement
+    level) is proposed for explicit supersession; `finding-0275`'s clearing condition is
+    re-pointed at the CI denylist check. Both are owner-visible follow-ups, not silent
+    edits.
 
 **Explicitly not licensed:** the identity-foundation ceremony (owner-run, separately
 captured), any answer to `oq-0037`, any `draft→ratified` tooling, an administrative
@@ -621,11 +1052,13 @@ knowledge graph (parked), any change to blessing semantics.
 ## 4. Wiring & enablement
 
 **How it wires:** a registry library + CLI as repo-workflow tooling (`scripts/`-side, run
-via `uv run`; **never** importing `core` unless the owner rules otherwise per §2.4.3),
-speaking to the machine-level store; a path override (env var) so tests and drills use a
-scratch store; the export subcommand (regenerate + byte-compare, `handoff.py --check`'s
-shape) wired into the local CI gate and remote CI; the signed-transition verifier beside
-the CLI with the §2.4.3 parity test; per-stage rollout switches — stage (i) minting is
+via `uv run`; importing `core.attestation.crypto` directly per §2.4.3's ruling — the
+dependency arrow points inward, which is the permitted direction), speaking to the
+machine-level store; a path override (env var) so tests and drills use a scratch store;
+the export subcommand (regenerate + byte-compare, `handoff.py --check`'s shape) wired
+into the local CI gate and remote CI; the signed-transition verifier beside the CLI; the
+denylist GitHub Action (§2.6) as a required PR check, registry-independent and buildable
+first; per-stage rollout switches — stage (i) minting is
 live the moment the CLI exists (it changes no enforcement); stages (ii)–(iv) each flip by
 an owner-visible edit to `.claude/settings.json` (removing a hook registration) **only
 after** the corresponding parity test is green in CI; the pending-file degraded path and
@@ -649,8 +1082,12 @@ finding mint from two parallel worktrees, deskchecked before anything is retired
 | YubiKey applet/slot + algorithm; key #2's offsite location | none — owner ceremony decides | the key-onboarding ceremony (identity-foundation capsule) |
 | batch signature over a set of transitions | not built | owner hits the per-touch friction on a real batch |
 | administrative knowledge graph vs event-log-as-graph | event log + query algebra only | a real admin query the log's algebra cannot answer |
-| write_scope level assignment heuristics | (a) default; (b) at full-strength blast radius | first post-registry graduation wave reviews the assignments |
-| deskcheck-verdict signing | unsigned, owner-by-hand as today | any observed verdict forgery, or owner ruling at ratification (§2.5.2 [INFERENCE]) |
+| ~~write_scope level assignment~~ ⚑ **SUPERSEDED 2026-07-27** | denylist + review; `write_scope` is declared intent (§2.6) | resolved by owner ruling; `bp-146` supersession is §3(10) |
+| deskcheck-verdict signing | ⚑ **RE-OPENED 2026-07-27 (§2.13)** — the unsigned third gate is now the odd one out | owner decides at this revision's re-auth |
+| PR feedback-cycle termination rule | escalate to owner on disagreement [INFERENCE] | first audit cycle that loops past two rounds (§2.11) |
+| terraform-plan output visibility on a public repo | none — owner decision, not a default | before the first Actions-posted plan (§2.11) |
+| "blessings stay at the keyboard" relaxation | the standing rule stands | owner ruling; remote verify is now possible (§2.4.6 [INFERENCE]) |
+| dream/ingest night ordering | ingest, then dream [INFERENCE] | the fetch-lane build plan (§2.12) |
 | exact store filename / snapshot format | decided at stage (i) build | stage (i) plan |
 | ~~core-import vs parity-test for crypto reuse~~ ⚑ **OWNER RULED 2026-07-27 — IMPORT IT** | workflow tooling **imports `core.attestation.crypto` directly**; no parity-tested sibling, no duplicated verifier | resolved; see §2.4.3 note below |
 | `compaction-marker` retention | kept as the one surviving hook | harness-level compaction hooks change, or the hook fires zero times over a measured month |
@@ -676,6 +1113,25 @@ finding mint from two parallel worktrees, deskchecked before anything is retired
 - **F6 (resume by query):** a fresh-agent drill — new session, registry + prose files
   only — cannot continue an in-flight unit without re-asking. The resume-brief
   replacement (§2.7) is then not yet real, and the deprecation halts at the skills edit.
-- **F7 (land-time admission):** measured post-adoption, mis-scoped work discovered at
-  land time costs more (rework, abandoned diffs) than today's per-write denials cost in
-  friction. The §2.6 write_scope default then flips toward level (b) per-unit isolation.
+- **F7 (denylist + capability):** a PR touching a denylist path merges without the
+  owner's explicit overrule; or the denylist check is removable by an agent-authored
+  change (the `.github/workflows/**` interlock failing); or a dispatcher-constructed
+  worker acts with a credential it was not constructed with. Any of the three voids
+  §2.6's claim that mechanism covers the absolute.
+- **F8 (registry-less checkout):** a checkout without the registry can mint, transition,
+  or seal — or refuses silently instead of with a named error — or the fresh-agent drill
+  fails in a checkout holding only the export. The §2.8 portability clause has failed.
+- **F9 (courier notary):** any code path by which the scheduler/hub could produce a valid
+  transition signature without a hardware touch. §2.4.5's invariant has failed and
+  Ouroboros can bless its own design.
+- **F10 (pointers-only hub):** any hub payload whose body is not resolvable-by-reference
+  — content where an address belongs. §2.4.6's single invariant has failed, and NN-11 is
+  back to being policy instead of structure.
+- **F11 (TOCTOU):** a signature is accepted over content whose signing-time hash differs
+  from the requested pre-image — the pre/post comparison failed to refuse a stale
+  request. Named acceptance criterion on `bp-145` (§2.4.6).
+- **F12 (fetch/ingest split):** any single component in the ingestion lane that both
+  touches the network and writes the corpus stores. §2.12's NN-2 boundary has failed.
+- **F13 (warrant lapse):** an edited ratified artifact still folds to `ratified` without
+  re-auth. The warrant survived a content change it must not survive (§2.5.1); the
+  lapse-on-edit acceptance on `bp-145` is the test.
