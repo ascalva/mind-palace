@@ -193,14 +193,24 @@ heritable.** Speciation stays; the inheritance is richer. A clone is a new indiv
 knowing the shape of the parent's mind and none of its contents. [DERIVED: capsule +
 ecosystem capsule 1]
 
-The owner's second-pass name is the operative one: the clone is a **projection** —
-"Ouroboros can project itself." The word earns its place mathematically and politically:
-the seed is literally a projection operator applied to home's state (payloads forgotten,
-geometry kept), and "projection" carries the asymmetries that "clone" hides — directional,
-lossy, revocable by its source. Anatomy travels with it: the harness (everything
-surrounding the core — its skin, the safe extensions) ships as the same flesh around a new
-instance of the mind. Both words appear below; projection is the load-bearing one.
-[owner seeds 2026-07-30]
+The owner's second-pass names settle the vocabulary as a triple, and the words compose
+mathematically rather than compete: the **projection** is the act — π, Ouroboros
+projecting itself (payloads forgotten, geometry kept); the **image** is what lands on the
+other side — im(π), the individual, *"a mirror image of Ouroboros"*; the **seed** is the
+artifact that carries it. "Projection" carries the asymmetries that "clone" hides
+(directional, lossy, revocable by its source); "image" carries the rest: the constitution
+calls the system a mirror onto the owner's mind, so the image is the mirror mirrored; in
+the optical sense it is a *real* image — formed at a distance, where the rays actually
+converge on a screen (the cloud body is the screen; memories formed at a distance); and a
+mirror image is chiral — same structure, never superimposable on the original, which is
+speciation's divergence-is-expected said in one word. The pun is load-bearing, not
+accidental: the image ships *as* an image (the container image / AMI is nature made
+executable, §2.6) — prose below says "container image" when it means the artifact and
+"image" alone when it means the individual. One calibration stands over all three words:
+a mirror shows everything, and this one reflects shape, never words — the amnesia frame
+remains the honest fidelity claim. Anatomy travels with it: the harness (everything
+surrounding the core — its skin, the safe extensions) ships as the same flesh around a
+new instance of the mind. [owner seeds 2026-07-30]
 
 **Identity and constitution.** The clone has its own name, its own instance overlay, its
 own vault (initially empty), its own keys (aligned secrets: same constitution, zero shared
