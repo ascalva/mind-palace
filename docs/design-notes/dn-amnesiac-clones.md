@@ -4,7 +4,7 @@ id: dn-amnesiac-clones
 track: deployed-instances
 status: draft            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 created: 2026-07-29
-updated: 2026-07-29
+updated: 2026-07-30
 links:
   - docs/design-notes/dn-key-fabric.md
   - docs/brainstorms/ouroboros-cloud-clones.md
@@ -150,6 +150,12 @@ The honest statement: tiers **bound** the leak; none zero it (§6, F2–F3). The
 metaphor calibrated — T2 is less "lost the memories" than "lost the words but kept the
 shape of every thought."
 
+The frame is not exotic (owner seed 2026-07-30): **modern AI already ships this way** — a
+trained model is structure distilled from a corpus that does not travel with it; the seed
+is Ouroboros's weights. The analogy carries its caveat honestly: weights memorize at the
+margins (training-data extraction) exactly as embeddings invert at the margins — the
+field's answer is measured disclosure, and the tiers are ours.
+
 **The store-level cut at HEAD** (owner framing, 2026-07-30: the seed is a *selective,
 least-privilege choice per store* — vectors and relationships, never plaintext). The store
 layout already draws most of that line; the exporter *projects* the mixed stores and
@@ -186,6 +192,15 @@ and enlarges nature by one element: **the structure seed — acquired geometry m
 heritable.** Speciation stays; the inheritance is richer. A clone is a new individual born
 knowing the shape of the parent's mind and none of its contents. [DERIVED: capsule +
 ecosystem capsule 1]
+
+The owner's second-pass name is the operative one: the clone is a **projection** —
+"Ouroboros can project itself." The word earns its place mathematically and politically:
+the seed is literally a projection operator applied to home's state (payloads forgotten,
+geometry kept), and "projection" carries the asymmetries that "clone" hides — directional,
+lossy, revocable by its source. Anatomy travels with it: the harness (everything
+surrounding the core — its skin, the safe extensions) ships as the same flesh around a new
+instance of the mind. Both words appear below; projection is the load-bearing one.
+[owner seeds 2026-07-30]
 
 **Identity and constitution.** The clone has its own name, its own instance overlay, its
 own vault (initially empty), its own keys (aligned secrets: same constitution, zero shared
@@ -244,26 +259,38 @@ oq-0057 mechanism — encryption context splitting the decrypt path by consequen
 network call), so the unwrap happens at bootstrap before `seal()` or edge-side — the same
 constraint kms-threat-layering pinned for home. [ESTABLISHED: oq-0057 + kms-threat-layering ⚑]
 
-**Letters home are the clone's only durability.** Each committed clone write emits an
-encrypted log record — WAL-shipping, exactly the ecosystem capsule-6 mechanism — signed by
-the clone, encrypted to home's letter-box key, written by clone-core to the handoff dir,
-shipped by clone-edge to a per-clone S3 mailbox prefix. Clone-edge carries ciphertext it
-cannot read (NN-2 clean). The clone therefore needs **no backup of its own**: home holds
-the clone's entire history; a dead clone loses only the interval since its last letter.
-Bodies are ephemeral; letters are durable. [DERIVED]
+**Letters home.** Each committed projection write emits an encrypted log record —
+WAL-shipping, exactly the ecosystem capsule-6 mechanism — signed by the projection,
+encrypted to home's letter-box key, written by its core to the handoff dir, shipped by its
+edge to a per-projection S3 mailbox prefix. The edge carries ciphertext it cannot read
+(NN-2 clean). Grain resolves the parked capsule-6 question (re-entry was *at graduation*):
+**per-committed-write records at store-event grain, batched into one letter per shipping
+interval**; snapshots, if ever wanted, are home-side derivations, never a second shipping
+mechanism. One property holds in every mode: **the projection has no secrets from home;
+home has every secret from the projection.** NN-11 is untouched — it protects home's
+corpus from leaving; the projection's nurture flowing home is the design's purpose, not a
+leak. [DERIVED; resolves the ecosystem capsule-6 park]
 
-**Letter grain and fidelity.** The ecosystem thread parked "per-write log record vs
-periodic snapshot, per store" with re-entry *at graduation into the design note* — that
-re-entry fires here, so it is resolved here: **per-committed-write records at store-event
-grain, batched into one letter per shipping interval** (a config knob; default coarse).
-Snapshots, if ever wanted, are home-side derivations of the log, never a second shipping
-mechanism. Fidelity is full — including payload text of the clone's *own* field corpus —
-because letters-as-durability requires it (home cannot hold a history it cannot read),
-and the direction makes it safe: the flow is into the most-trusted place. Stated as a
-property so nobody rediscovers it as a surprise: **the clone has no secrets from home;
-home has every secret from the clone.** NN-11 is untouched — it protects home's corpus
-from leaving; the clone's nurture flowing home is the design's purpose, not a leak.
-[DERIVED; resolves the ecosystem capsule-6 park]
+**Letter tiers and the durability switch** (owner refinement 2026-07-30). Letter *content*
+is a dial, symmetric to the seed's, named per projection at birth:
+
+| Tier | Carries | Posture |
+|---|---|---|
+| L0 | Histograms of **vector membership** per graph cut along the projection's temporal direction — occupancy counts over the inherited structure's regions, per time slice | The study silhouette: home watches which parts of its own map are filling, and how fast — content-free, membership expressed in seed ids (natively the home-grown language) |
+| L1 | Cross-relationships only: new edges touching inherited structure, plus the local endpoint vectors they need to mean anything | "A new relationship between the local corpus and the headless remote corpus, in the home-grown language" — the pinned embedder IS the shared language. Local-only substructure stays local. Owner's lean. |
+| L2 | Full fidelity: every committed write, including the projection's own corpus payloads | Letters-as-durability mode only |
+
+The tier couples to the **durability switch**: either the projection persists nothing
+(structure lives in RAM only; then L2 letters are its durability — home cannot hold a
+history it cannot read), or — the owner's optional switch — it writes its own corpus to
+local disk as **ciphertext under its KMS-wrapped keys**, and steady-state traffic drops to
+L1 or L0, with the projection's full knowledge recovered only post-mortem through the
+brick-recovery ceremony. Plaintext never touches disk in any mode. And in every mode **the
+projection updates only its own overlay stores — the inherited seed is immutable
+substrate** (enforced by the same ratchet family as payload-freedom; new edges may
+*reference* seed nodes, never rewrite them — the mirror of home's own overlay-not-ingest
+posture toward the projection). [owner seeds 2026-07-30; the capsule's second section is
+the warrant]
 
 ### 2.5 Trip, flinch, brick — the lifecycle
 
@@ -280,13 +307,19 @@ from leaving; the clone's nurture flowing home is the design's purpose, not a le
 - **Flinch.** The trip's reflex: zeroize the in-RAM data keys and structure. The body is
   instantly inert ciphertext; disk was never plaintext. The flinch is cheap because the
   panic-seal design already made every death a seal event.
-- **Brick.** The owner-side act: disable the clone's KMS key at the spine
-  (`DisableKey` — retained but unusable, reversible; distinct from `ScheduleKeyDeletion`,
-  7–30-day destruction) [ESTABLISHED: AWS KMS semantics — verify exact API at build]. The
-  capsule's "AWS keeps the key but disables it" is exactly this. Post-mortem: the owner
-  re-enables under ceremony, decrypts the remains, and the remains re-enter home **only
-  through the letters gate** — parsed as a₄ testimony like any letter, never grafted raw
-  (§2.7).
+- **Brick.** "It decides when to brick the projection" (owner seed 2026-07-30) — home
+  holds brick authority, and the authority type-checks against the owner's own standing
+  rule (oq-0051: retractable actions need no per-action permission): `DisableKey` is
+  reversible [ESTABLISHED: AWS KMS; distinct from `ScheduleKeyDeletion`, 7–30-day
+  destruction — verify exact API at build], so a *defined trip* observed home-side in the
+  letter stream (divergence, standing anomaly, silence beyond the lease window) may
+  auto-brick through deterministic code — the flinch at fleet scale, failing toward dark.
+  The model advises the trip inventory; code executes it (NN-3). **Re-enabling and
+  deletion remain owner-ceremony-only: the system may put a projection to sleep; only the
+  owner wakes or destroys one.** The capsule's "AWS keeps the key but disables it" is
+  exactly this. Post-mortem: the owner re-enables under ceremony, decrypts the remains,
+  and the remains re-enter home **only through the letters gate** — parsed as a₄ testimony
+  like any letter, never grafted raw (§2.7).
 - **Revocation asymmetry, honestly.** The spine can stop actions; it cannot un-store data
   (the authorization-spine ⚑). This design's answer is to shrink what "stored" means: at
   rest the clone is ciphertext under a disableable key; in RAM it is structure at the
@@ -304,6 +337,13 @@ subnet-router lean already recorded in the ecosystem park). Two integration fact
   with roles reversed (clone writes, home fetches). No home listener; home-edge polls the
   mailbox; home-core never touches the network (NN-1 both sides). Transport via tailnet
   instead is parked (default: S3 mailbox — spine-governed, no new ingress surface).
+- **The mailbox is a void, not a conversation** (owner seed 2026-07-30: "communicate to
+  the void … read this only, we never interact with, we study"). The projection's IAM on
+  its mailbox prefix is **put-only — no List, no Get, no Delete** — so it cannot observe
+  whether, when, or by whom a letter is read; and there are no semantic acknowledgments in
+  any mode. Even the one-bit "home is consuming" side channel is closed by IAM
+  construction (`dn-key-fabric` §4 provisions it). Home's posture toward a live projection
+  is a researcher's: read-only, at a distance, studying the accumulation.
 - **Location is a trust modifier, never an authenticator** (owner law, ecosystem capsule
   7). Being inside the VPC or tailnet grants reach, never access: letters are accepted on
   signature, node standing at the spine, and the ±window of the rendezvous discipline if
@@ -339,6 +379,14 @@ graft path existing. [DERIVED: from §11/§13 two-axis law]
 protocol defines it. A clone with a stale seed is not updated; a successor clone is minted
 with a newer seed and the old body is retired through the normal lifecycle. Seed refresh =
 re-speciation. One-way purity is never traded for freshness. [DERIVED]
+
+**Local clocks.** Memories form at a distance: each individual runs its own temporal
+spine, and the ecosystem has no global clock (owner seed 2026-07-30; kinship: the G3
+park's per-individual-clock direction and the ecosystem thread's meshing events). A letter
+carries its **formed-at** time on the projection's clock; the a₄ attestation record adds
+**received-at** on home's clock — two coordinates, never conflated, and letters are the
+only meshing events the ecosystem has. Ordering across individuals is partial by design;
+any analysis wanting a total order must construct it explicitly and say so. [DERIVED]
 
 ### 2.8 Non-negotiable readings
 
@@ -433,8 +481,10 @@ by design.
   says what the first one is *for* (a field scout over a named public corpus; a continuity
   seed; something else). D2 has no denominator until this is named — the tier worth paying
   depends on the job — and DI-5 cannot pin the clone's functional interior (its job table,
-  sensors, ingest roots) without it. Not an architecture decision: a sentence or two at
-  ruling time suffices. (Rec: rule D6 before D2.)
+  sensors, ingest roots) without it. The mission also names, at birth: the letter tier
+  (L0/L1/L2, §2.4) and the durability switch — the owner's recorded lean is minimal
+  traffic (L1, or L0 for a pure study) with the disk switch ON. Not an architecture
+  decision: a sentence or two at ruling time suffices. (Rec: rule D6 before D2.)
 
 ## Parked decisions
 
@@ -475,6 +525,12 @@ by design.
   run on the clone's hardware (or its cloud cost is unacceptable — measurement, not
   architecture), the clone cannot extend the inherited space and the seed decays to a
   static map. The build-1 benchmark must run on clone-class hardware.
+- **F7 — L0's value and privacy claims are both untested.** Whether membership histograms
+  alone carry study value is as unmeasured as F4 — and aggregates are not automatically
+  private: repeated occupancy counts over a growing graph can reveal join structure and
+  event timing. If L0 becomes a load-bearing mode, both directions get the F4 treatment —
+  a defined benefit metric and a defined leakage bound — before anyone calls it "just a
+  histogram."
 
 ## Cross-references
 

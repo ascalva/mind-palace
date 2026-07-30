@@ -4,7 +4,7 @@ id: dn-key-fabric
 track: deployed-instances
 status: draft            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 created: 2026-07-29
-updated: 2026-07-29
+updated: 2026-07-30
 links:
   - docs/design-notes/dn-amnesiac-clones.md
   - docs/brainstorms/kms-threat-layering.md
@@ -177,13 +177,18 @@ meaningful.
   credentials are destroyed at retirement so a zombie ex-body cannot act; its registry
   standing flips to retired (letters cease counting); its CMK is disabled after the last
   letter is acknowledged. Its history is already home — letters were its durability.
-- **Brick (unplanned death, owner-side).** Two acts, distinguished because they answer
-  different failures: `DisableKey` on the individual's CMK (**stop-reading** — at-rest
-  remains locked but recoverable) and registry standing revocation (**stop-trusting** —
-  no future letter counts, even signed ones, covering signing-key theft). The clone-side
-  flinch (trip → zeroize) needs no spine participation — RAM is gone by physics.
-  Post-mortem recovery re-enables the CMK under owner ceremony and replays the remains
-  through the letters gate as testimony, never as a graft (`dn-amnesiac-clones` §2.5).
+- **Brick (unplanned death).** Two acts, distinguished because they answer different
+  failures: `DisableKey` on the individual's CMK (**stop-reading** — at-rest remains
+  locked but recoverable) and registry standing revocation (**stop-trusting** — no future
+  letter counts, even signed ones, covering signing-key theft). Authority (aligned with
+  `dn-amnesiac-clones` §2.5, owner seed 2026-07-30): home may **auto-brick** through
+  deterministic code on defined trips — `DisableKey` is reversible, so it types as
+  retractable under oq-0051 and needs no per-action human gate; **re-enable and
+  `ScheduleKeyDeletion` are owner-ceremony-only** (the system sleeps a projection; only
+  the owner wakes or destroys one). The projection-side flinch (trip → zeroize) needs no
+  spine participation — RAM is gone by physics. Post-mortem recovery re-enables the CMK
+  under owner ceremony and replays the remains through the letters gate as testimony,
+  never as a graft (`dn-amnesiac-clones` §2.5).
 
 ### 2.5 The registry
 
@@ -244,9 +249,10 @@ is the point (law 4). Consequences, stated so nobody discovers them angry:
 **How it wires:** (a) **`cloud/terraform/keyfabric/` — its own isolated deployment**
 (owner directive 2026-07-30): separate backend/state and blast radius, peer to
 `bootstrap/`, `airlock/`, `backups/`; owns per-individual CMKs + aliases, key policies
-(admin/use split, encryption-context conditions), the registry substrate, and the
-brick/retire IAM actions — so unseal/minting/destruction key material never rides a
-fetcher or bucket change, and a `terraform plan` on this stack is *readable as a key-
+(admin/use split, encryption-context conditions), the registry substrate, per-projection
+mailbox IAM (**put-only: no List/Get/Delete** — the void property,
+`dn-amnesiac-clones` §2.6), and the brick/retire IAM actions — so
+unseal/minting/destruction key material never rides a fetcher or bucket change, and a `terraform plan` on this stack is *readable as a key-
 lifecycle diff and nothing else*. (b) `ops/keys/` tooling: mint/retire/brick scripts with
 verifiers (owner-run, NN-3). (c) `palace` CLI verbs (`mint-individual`, `retire`, `brick`)
 that *drive* the scripts — advise-and-display, never holding AWS credentials themselves.
