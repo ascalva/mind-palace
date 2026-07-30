@@ -63,9 +63,10 @@ warrant: null
 - **The security thesis in one line:** bound what a total compromise of the body yields to
   the disclosure tier of the seed. Tiers T0/T1/T2 make that bound explicit and priced;
   embedding inversion means T2 is never "no data" (§2.2, §6).
-- **Five owner decisions are surfaced, none resolved** (§5). The sharpest is D2 — plaintext
+- **Six owner decisions are surfaced, none resolved** (§5). The sharpest is D2 — plaintext
   *structure* in rented RAM — which is the standing "vectors are payload, fail-closed" park
-  being re-entered deliberately, with the leak quantified instead of assumed away.
+  being re-entered deliberately, with the leak quantified instead of assumed away; D6 (the
+  first clone's mission) gives D2 its denominator.
 
 ## 1. Purpose and scope
 
@@ -251,6 +252,19 @@ cannot read (NN-2 clean). The clone therefore needs **no backup of its own**: ho
 the clone's entire history; a dead clone loses only the interval since its last letter.
 Bodies are ephemeral; letters are durable. [DERIVED]
 
+**Letter grain and fidelity.** The ecosystem thread parked "per-write log record vs
+periodic snapshot, per store" with re-entry *at graduation into the design note* — that
+re-entry fires here, so it is resolved here: **per-committed-write records at store-event
+grain, batched into one letter per shipping interval** (a config knob; default coarse).
+Snapshots, if ever wanted, are home-side derivations of the log, never a second shipping
+mechanism. Fidelity is full — including payload text of the clone's *own* field corpus —
+because letters-as-durability requires it (home cannot hold a history it cannot read),
+and the direction makes it safe: the flow is into the most-trusted place. Stated as a
+property so nobody rediscovers it as a surprise: **the clone has no secrets from home;
+home has every secret from the clone.** NN-11 is untouched — it protects home's corpus
+from leaving; the clone's nurture flowing home is the design's purpose, not a leak.
+[DERIVED; resolves the ecosystem capsule-6 park]
+
 ### 2.5 Trip, flinch, brick — the lifecycle
 
 - **Boot-sealed, unseal by ceremony.** Every boot comes up sealed (panic-seal inheritance:
@@ -345,9 +359,15 @@ boundary-touching step waits for its ruling:
 
 1. **The structure seed exporter + payload-freedom ratchet** (home-side only; no cloud, no
    NN-11 exposure; the export artifact never leaves the laptop until D1/D2 are ruled).
-   This plan also carries the **value falsifier F4**: define the retrieval benchmark
-   *before* building — does seeded organization of a fresh corpus beat unseeded? If the
-   seed buys nothing measurable, the clone program stops here, cheaply.
+   This plan also carries the **value falsifier F4**, criteria pinned here so no builder
+   invents eval design: a paired A/B — two fresh instances, identical framework and
+   embedder pin, one seeded at tier, one blank, ingesting the *same* held-out corpus never
+   seen by home; a pre-registered primary metric (organization/retrieval quality on the
+   new corpus) with a stated margin; seeded must beat blank on the primary with no
+   regression on secondaries; and the run executes on clone-class hardware so F6 (embedder
+   feasibility + cost reading) rides along. If seeded ≤ blank, the program stops here,
+   cheaply. Metric implementation and the corpus choice are plan-level; the shape above is
+   design and is not a builder's to change.
 2. **Instance identity in config** — the precondition discovery (§6 F5, issue #25): an
    `instance` identity with per-instance backup/letter namespaces must exist before any
    second body boots anywhere, cloud or not.
@@ -376,7 +396,7 @@ job kinds in the scheduler (clone: emit/ship; home: fetch/land); (d) `cloud/terr
 (daemon + core/edge containers) and its systemd/launchd-equivalent units. The ON switch is
 part of the deliverable, not a later step.
 
-**What it takes to flip it on:** (a) builds 1–4 above land; (b) the owner rules D1–D5;
+**What it takes to flip it on:** (a) builds 1–4 above land; (b) the owner rules D1–D6;
 (c) the owner runs `terraform apply` for the clone stack, runs
 `palace seed-export --tier <T>` at home, and boots the clone body with the seed URI —
 owner-initiated, like every unseal ceremony. Until (b), nothing in this note is runnable
@@ -409,6 +429,12 @@ by design.
   named. The consequence-split shape: unattended unseal-to-structure (loss bounded by D2),
   human-present gate for anything effector-shaped, same as home. Rule it explicitly so the
   bound is chosen, not drifted into.
+- **D6 — The first clone's mission.** These notes design what a clone *is*; only the owner
+  says what the first one is *for* (a field scout over a named public corpus; a continuity
+  seed; something else). D2 has no denominator until this is named — the tier worth paying
+  depends on the job — and DI-5 cannot pin the clone's functional interior (its job table,
+  sensors, ingest roots) without it. Not an architecture decision: a sentence or two at
+  ruling time suffices. (Rec: rule D6 before D2.)
 
 ## Parked decisions
 

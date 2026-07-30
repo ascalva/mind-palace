@@ -62,7 +62,7 @@ deskcheck discipline, this track cannot be deskchecked while it merely *could* w
   work until a second instance exists; DI-6 is the fence's exit, so that work re-enters
   through this track's sequencing, never around it.
 
-**Owed:** WORK, not a deskcheck. Both notes are `draft`; the owner decisions D1–D5 are
+**Owed:** WORK, not a deskcheck. Both notes are `draft`; the owner decisions D1–D6 are
 presented in `dn-amnesiac-clones` and unruled (`dn-key-fabric` adds none of its own).
 Nothing in this track is buildable past DI-1, DI-2, and DI-3's home side until they are —
 and nothing flips ON without the owner's ceremonies.
