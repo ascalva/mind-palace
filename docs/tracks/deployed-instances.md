@@ -7,13 +7,15 @@ warrant: null
 audit_refs: []
 dod:
   - DI-1 structure-seed exporter + payload-freedom ratchet + the F4 value benchmark (home-side only; stops the program cheaply if seeded ≤ unseeded)
-  - DI-2 instance identity in config — per-instance backup/letter namespaces before any second body boots (the F5 precondition)
-  - DI-3 letters lane, home side — a₄ landing behind the handoff gate (gated on dn-authorship-distance-axis ratification)
-  - DI-4 clone runtime image + plane split + clone Terraform (gated on owner decisions D1–D3, D5)
-  - DI-5 first clone boot — exits the second-instance fence; owner-initiated ceremony
+  - DI-2 instance identity in config — per-instance backup/letter namespaces before any second body boots (the F5 precondition, issue #25)
+  - DI-3 the key fabric — identity keys on the attestation primitive, per-clone letter-box mint, registry + placement-audit ratchet, and the ISOLATED cloud/terraform/keyfabric/ stack (dn-key-fabric)
+  - DI-4 letters lane, home side — a₄ landing behind the handoff gate (gated on dn-authorship-distance-axis ratification)
+  - DI-5 clone runtime image + plane split + clone Terraform, consuming keyfabric CMKs (gated on owner decisions D1–D3, D5)
+  - DI-6 first clone boot — exits the second-instance fence; owner-initiated ceremony
 backlog_deskcheck: null
 links:
   - docs/design-notes/dn-amnesiac-clones.md
+  - docs/design-notes/dn-key-fabric.md
   - docs/brainstorms/ouroboros-cloud-clones.md
   - docs/brainstorms/the-distributed-ecosystem.md
   - docs/brainstorms/palace-instances-as-nodes.md
@@ -25,7 +27,8 @@ The identity card for the deployed-instances track. **Scope:** spawning mind-pal
 instances beyond the laptop — seeded with Ouroboros's learned structure, never its corpus
 payloads — and the one-way learning loop that brings what they learn home as attributed
 testimony. Members are the artifacts declaring `track: deployed-instances`
-(`dn-amnesiac-clones` first).
+(`dn-amnesiac-clones` and its substrate companion `dn-key-fabric` first — one proposal,
+two notes).
 
 **Why this track exists.** The distributed-ecosystem thread accumulated seven capsules of
 design (speciation, panic-seal, WAL-shipping, the overlay law) with no track coordinate and
@@ -44,7 +47,8 @@ seed.
 
 **Definition of done** (a deskcheck evaluates against the `dod` list): DI-1 proves the
 value claim or stops the program; DI-2 makes a second body *nameable* before one exists;
-DI-3..5 land in ruling order, and the first clone boot is the demonstration — per the
+DI-3 lays the key substrate (information flow as key placement, its own Terraform state);
+DI-4..6 land in ruling order, and the first clone boot is the demonstration — per the
 deskcheck discipline, this track cannot be deskchecked while it merely *could* work.
 
 ## Relationship to other tracks
@@ -55,9 +59,10 @@ deskcheck discipline, this track cannot be deskchecked while it merely *could* w
   nature. The framework-vs-instance line (palace-instances) is exactly what DI-2 makes
   mechanical.
 - **The cross-node protocol fence** — `dn-authorship-distance-axis` §15 parks cross-node
-  work until a second instance exists; DI-5 is the fence's exit, so that work re-enters
+  work until a second instance exists; DI-6 is the fence's exit, so that work re-enters
   through this track's sequencing, never around it.
 
-**Owed:** WORK, not a deskcheck. The design note is `draft`; the owner decisions D1–D5 are
-presented in it and unruled. Nothing in this track is buildable past DI-1/DI-2 until they
-are.
+**Owed:** WORK, not a deskcheck. Both notes are `draft`; the owner decisions D1–D5 are
+presented in `dn-amnesiac-clones` and unruled (`dn-key-fabric` adds none of its own).
+Nothing in this track is buildable past DI-1, DI-2, and DI-3's home side until they are —
+and nothing flips ON without the owner's ceremonies.
