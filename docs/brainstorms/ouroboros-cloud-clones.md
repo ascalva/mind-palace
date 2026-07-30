@@ -191,3 +191,35 @@ references:
   - docs/brainstorms/type-trips-runtime-invariant-alarms.md — prior art for the trip/flinch vocabulary
   - BUILD-SPEC §3 non-negotiables 1, 2, 11 — the bright lines this idea must be read against
 ```
+
+## 2026-07-30T04:29Z
+
+```capsule
+topic: ouroboros-cloud-clones
+date: 2026-07-30
+
+seed (owner, verbatim): |
+  "maybe it should be called an image, a mirror image of ouroboros"
+
+the read (orchestrator): |
+  The word completes a triple rather than replacing one — the three nouns name three
+  different things and compose mathematically: the PROJECTION is the act/operator (pi:
+  Ouroboros projecting itself), the IMAGE is what lands on the other side (im(pi) — the
+  individual, the mirror image of Ouroboros), the SEED is the artifact that carries it.
+  Resonances: (1) the constitution calls the system a mirror onto the owner's mind — the
+  image is the mirror mirrored; (2) optics — a REAL image is formed at a distance where
+  the rays actually converge on a screen (the cloud body is the screen; "memories formed
+  at a distance"); (3) a mirror image is chiral — same structure, not superimposable on
+  the original (speciation's divergence-is-expected, said in one word); (4) the pun is
+  load-bearing: the image ships AS an image (container image / AMI — nature made
+  executable). One honesty note: "mirror" slightly oversells fidelity (a mirror shows
+  everything; this one reflects shape, never words) — the amnesia frame stays as the
+  calibration.
+
+decisions:
+  - none — vocabulary integrated into dn-amnesiac-clones §2.3 (PR #26); whether the NOTE
+    itself is renamed (dn-ouroboros-image or similar) is the owner's call at merge — ids
+    are stable handles, renames are cheap now and expensive later.
+
+next_steps:
+  - vocabulary triple added to the note; rename option surfaced on the PR.
