@@ -6,6 +6,7 @@ status: draft            # draft → ratified → superseded.  draft→ratified 
 created: 2026-07-29
 updated: 2026-07-29
 links:
+  - docs/design-notes/dn-key-fabric.md
   - docs/brainstorms/ouroboros-cloud-clones.md
   - docs/brainstorms/the-distributed-ecosystem.md
   - docs/brainstorms/palace-instances-as-nodes.md
@@ -222,6 +223,12 @@ the signing half; confidentiality needs the complementary half]:
 | Clone signing pair | clone core only (born at first unseal) | home + the spine | Letters are authentic; the spine can attribute and revoke. This is the pair the capsule described. |
 | Home letter-box pair | home core plane only | ships with the clone | Letters are confidential: encrypted to home, unreadable by AWS, the clone's own edge — or the clone itself, a moment after writing. |
 
+The key classes, their placement laws, ceremonies (birth, unseal, retirement, brick), the
+registry, and the isolated `cloud/terraform/keyfabric/` stack are designed in the
+companion note **`dn-key-fabric`** (same proposal PR) — including one refinement adopted
+from it: the letter-box pair is **per relationship, not global** (one pair per clone, so a
+home-side compromise or rotation touches one stream, not the fleet).
+
 Non-reciprocity, precisely: the clone holds **no decryption key for anything of home's and
 no verification key for home** — it cannot read home's material, and it cannot even
 authenticate a message claiming to be from home, so it is structurally deaf: there is no
@@ -344,11 +351,16 @@ boundary-touching step waits for its ruling:
 2. **Instance identity in config** — the precondition discovery (§6 F5, issue #25): an
    `instance` identity with per-instance backup/letter namespaces must exist before any
    second body boots anywhere, cloud or not.
-3. **The letters lane, home side** (a₄ landing behind the handoff gate) — gated on
+3. **The key fabric, home side + its isolated Terraform stack** (`dn-key-fabric`, same
+   proposal): identity keys on the attestation primitive, per-clone letter-box mint, the
+   registry, the placement-audit ratchet, `cloud/terraform/keyfabric/` — the substrate
+   everything cloud-shaped consumes.
+4. **The letters lane, home side** (a₄ landing behind the handoff gate) — gated on
    `dn-authorship-distance-axis` ratification.
-4. **Clone runtime image + plane split** (the containers) and **clone Terraform**
-   (VPC, mailbox prefixes, per-clone KMS, IAM) — gated on D1–D3, D5.
-5. **First clone boot** — exits the second-instance fence; the cross-node protocol work
+5. **Clone runtime image + plane split** (the containers) and **clone Terraform**
+   (VPC, mailbox prefixes, per-clone CMKs consumed from the keyfabric stack, IAM) —
+   gated on D1–D3, D5.
+6. **First clone boot** — exits the second-instance fence; the cross-node protocol work
    that fence parks becomes falsifiable for the first time.
 
 The "revive Ouroboros first" priority ruling stands: these plans mint `proposed` and enter
@@ -447,6 +459,9 @@ by design.
   (a₄, two-axis law, the fence); `kms-threat-layering.md` (oq-0057 ruled substrate, ⚑ NN-1/KMS
   pin); `aws-as-the-authorization-spine.md` (spine authorizes the node, revocation asymmetry);
   `type-trips-runtime-invariant-alarms.md` (trip/flinch prior art).
+- Companion: `dn-key-fabric` (same proposal PR) — the key classes, placement laws,
+  ceremonies, registry, and the isolated `cloud/terraform/keyfabric/` stack that §2.4 and
+  §2.5 consume.
 - Rulings and notes: oq-0057 (`f52821e`); `dn-authorship-distance-axis` (draft — §11 one axis
   per author, §12 a₄, §13 two-axis law, §14 node-as-principal); `dn-plane-principals`
   (ratified — planes, pf rule); `dn-exhaust-lane` (ratified — lane isolation precedent);
