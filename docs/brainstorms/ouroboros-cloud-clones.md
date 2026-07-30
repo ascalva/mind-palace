@@ -99,3 +99,95 @@ references:
   - docs/brainstorms/type-trips-runtime-invariant-alarms.md — prior art for the trip/flinch vocabulary
   - BUILD-SPEC §3 non-negotiables 1, 2, 11 — the bright lines this idea must be read against
 ```
+
+## 2026-07-30T04:13Z
+
+```capsule
+topic: ouroboros-cloud-clones
+date: 2026-07-30
+
+seed (owner, verbatim): |
+  "we're not reinventing the wheel, modern AI doesn't ship with all its training data
+  included, so why should ouroboros? the clone's corpus will send back encrypted copies of
+  clone corpus's data, its sensor data is compounded in relation to the headless
+  intelligence that preexists, ouroboros can project itself: its clone
+
+  it decides when to brick the projection, memories formed at a distance, both have their
+  own global clocks, in other words, the ecosystem runs on local clocks
+
+  the harness: everything that surrounds the core, safe extensions of the core, its skin
+
+  flesh and bone, that is what mind palace, the core is its mind, a mind that can project
+  itself and learn at a distance without giving anything away, it can even communicate to
+  the void and then we just go look for that needle in the haystack of encrypted data,
+  read this only, we never interact with, we study
+
+  the agent can never give anything away except its vector store and edge store(s), and it
+  should only update its own stores, never save to disk, an agent is kept alive for as
+  long as needed, but the projection is then bricked, and as you said, a deaf agent can't
+  hear, so that instance truly bricks itself, only aws kms/asymmetrical keys are securely
+  stored for backup and for decrypting its store changes and decrypting its corpus, maybe
+  the projection just writes its real corpus to disk (optional switch) vs.
+  reading/ingestion, tracks changes and encrypts messages back, minimal traffic, it's only
+  sharing that a new relationship between the local corpus and the headless remote corpus
+  was found, describing it in the same home grown language
+
+  it even could only need to transmit its histogram, that's it, the histogram of every
+  graph cut along its temporal direction"
+
+seed addendum (owner, verbatim, moments later): |
+  "histogram of vector membership, that is"
+
+the read (orchestrator restructure): |
+  Eight moves, all revising or extending the open proposal (PR #26):
+  1. The trained-model analogy — modern AI ships weights without training data; the seed
+     is Ouroboros's weights. Legitimizes headless shipping (with the extraction-attack
+     caveat as the honest twin of embedding inversion).
+  2. PROJECTION as the operative noun: Ouroboros projects itself; the seed is a projection
+     operator (payloads forgotten, geometry kept); directional, lossy, revocable — what
+     "clone" hides.
+  3. Brick authority moves to home: "it decides when to brick the projection" — and it
+     type-checks under oq-0051 (DisableKey reversible = retractable = automatable by code
+     on defined trips; deletion/re-enable stay owner-only).
+  4. LOCAL CLOCKS: each individual its own temporal spine, no ecosystem-global clock;
+     letters carry formed-at (projection clock), a4 records add received-at (home clock) —
+     the meshing events. Kinship: the G3 park.
+  5. Anatomy vocabulary: the harness is the skin — safe extensions surrounding the core;
+     core is the mind; flesh and bone is mind-palace. (Book-worthy framing.)
+  6. THE VOID: the letters channel is write-only, no acknowledgments ever; home reads and
+     STUDIES, never interacts. Enforce by construction: projection mailbox IAM = put-only
+     (no List/Get/Delete — even "was it read" is unobservable).
+  7. The letter dial: L2 full copies (durability-by-letters) / L1 cross-relationships only
+     (new local<->seed edges + their endpoint vectors, described in the home-grown
+     language = the pinned shared embedding space) / L0 histograms. Coupled to the
+     DURABILITY SWITCH: optionally the projection persists its own corpus to disk as
+     ciphertext (KMS-recoverable post-mortem), and steady-state traffic drops to L1/L0.
+     Plaintext never touches disk in any mode; the projection updates only its own overlay
+     stores — the seed is immutable substrate.
+  8. L0 sharpened by the addendum: histograms of VECTOR MEMBERSHIP per graph cut along the
+     temporal direction — occupancy counts over the inherited structure's regions per time
+     slice; home watches which parts of its own map are filling, and how fast, content-free.
+
+decisions:
+  - none here — chat capture; the revisions land as commits on PR #26 (same session).
+
+open_questions:
+  - does L0 alone carry study value, and what is its actual leakage bound (repeated
+    aggregates over a growing graph are not automatically private)? — F7 in the note.
+  - under the disk-durability switch, the brick-recovery ceremony becomes the sole reader
+    of the projection's full knowledge — its security posture deserves its own scrutiny.
+
+next_steps:
+  - applied to dn-amnesiac-clones (letter tiers + durability switch, brick authority,
+    local clocks, the void, projection vocabulary, F7) and dn-key-fabric (put-only mailbox
+    IAM, auto-brick alignment) on the design branch, PR #26.
+
+references:
+  - docs/design-notes/dn-amnesiac-clones.md · docs/design-notes/dn-key-fabric.md (PR #26)
+  - oq-0051 — retractable vs unretractable actions (the owner's own per-action-permission rule)
+  - docs/brainstorms/palace-instances-as-nodes.md
+  - docs/brainstorms/nodes-are-nodes-cross-node-protocols.md
+  - docs/brainstorms/kms-threat-layering.md — oq-0057 RULED: KMS encryption context, awskms seal
+  - docs/brainstorms/type-trips-runtime-invariant-alarms.md — prior art for the trip/flinch vocabulary
+  - BUILD-SPEC §3 non-negotiables 1, 2, 11 — the bright lines this idea must be read against
+```
