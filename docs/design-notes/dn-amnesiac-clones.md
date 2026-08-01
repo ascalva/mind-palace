@@ -4,7 +4,7 @@ id: dn-amnesiac-clones
 track: deployed-instances
 status: draft            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 created: 2026-07-29
-updated: 2026-07-30
+updated: 2026-07-31
 links:
   - docs/design-notes/dn-key-fabric.md
   - docs/brainstorms/ouroboros-cloud-clones.md
@@ -304,19 +304,37 @@ the warrant]
 
 ### 2.5 Trip, flinch, brick — the lifecycle
 
-- **Boot-sealed, unseal by ceremony.** Every boot comes up sealed (panic-seal inheritance:
-  plaintext only in RAM, mlock/no-swap in the spec, crash = seal by physics). Unsealing
-  unwraps the clone's data keys via its KMS key under the spine's node identity; whether
-  that may happen unattended is D5, and the oq-0057 consequence-split gives the shape:
-  unseal-to-*structure* is the low-consequence path (its worst case is bounded by D2's
-  tier), effector credentials stay human-gated exactly as at home.
+- **Boot-sealed; unseal once, ever — the one-shot rule (owner seed 2026-07-31).** Every
+  boot comes up sealed (panic-seal inheritance: plaintext only in RAM, mlock/no-swap in
+  the spec, crash = seal by physics). On a remote body the unseal is **one-shot**: a
+  birth-scoped **boot key** — unique, disjoint from the recovery CMK, oq-0057's
+  consequence-split applied a third time (boot and recovery are different consequence
+  classes) — unwraps the data keys at bootstrap, before `seal()`, never inside sealed
+  core; then the capability self-destructs, both halves one-way: the wrapped blob is
+  shredded body-side at unseal, and home's code disables the birth key on receipt of the
+  **first letter** — *the birth cry closes the door* (observation-triggered, retractable,
+  automatable per oq-0051; nothing flows back). Steady state holds no invocable unseal
+  key anywhere; **every reboot is a death and succession is the only restart** — crash =
+  seal-by-physics hardens into crash = brick-by-construction. What it buys: restart-class
+  attacks (evil-maid, cold-boot-and-reharvest) become void, and the row-3
+  unattended-key window shrinks from the image's lifetime to one birth moment. What it
+  does not buy, honestly: live-RAM compromise is unchanged — D2's tier is still the
+  bound. Updates and maintenance become successor mints; availability is deliberately
+  brittle, toward dark. The birth window itself is F8 (§6). Effector credentials stay
+  human-gated exactly as at home, unchanged.
 - **Trip.** Illegal-state detectors, clone-local: an egress attempt from core, an
   attestation failure, a scope violation, tamper signals — the type-trips runtime-alarm
   frame applied to the body. Detectors are code in the clone's supervisor; the model
   advises, code trips (NN-3). [INFERENCE — detector inventory is build-plan work]
 - **Flinch.** The trip's reflex: zeroize the in-RAM data keys and structure. The body is
   instantly inert ciphertext; disk was never plaintext. The flinch is cheap because the
-  panic-seal design already made every death a seal event.
+  panic-seal design already made every death a seal event — and under the one-shot rule
+  it is also **final from the body's side**: no re-unseal path exists, so self-seal is
+  self-brick. This is the image's one un-retractable act, and it types under oq-0051 by
+  **pre-declaration**: the trip inventory in the owner-blessed birth manifest *is* the
+  authorization, granted before the body ever runs. The irreversibility is bounded to the
+  live process alone — everything the image knows survives as ciphertext it can no longer
+  read; knowledge stays recoverable, only continuity does not. [owner seed 2026-07-31]
 - **Brick.** "It decides when to brick the projection" (owner seed 2026-07-30) — home
   holds brick authority, and the authority type-checks against the owner's own standing
   rule (oq-0051: retractable actions need no per-action permission): `DisableKey` is
@@ -482,11 +500,14 @@ by design.
   entirely. A per-stratum include mask in the export manifest costs nothing to build and
   leaves this a pure owner taste call at export time. (Rec: build the mask; default
   chat-structure OFF.)
-- **D5 — Unattended unseal posture for a field node.** A clone that survives reboots alone
-  is the point; a key invocable without a human is the row-3 hole kms-threat-layering
-  named. The consequence-split shape: unattended unseal-to-structure (loss bounded by D2),
-  human-present gate for anything effector-shaped, same as home. Rule it explicitly so the
-  bound is chosen, not drifted into.
+- **D5 — birth presence, under the one-shot default.** Mostly dissolved by the owner's
+  one-shot-unseal rule (2026-07-31, §2.5): the unseal capability self-destructs after its
+  single use, so "a key invocable without a human" — the row-3 hole — exists for one boot
+  moment, not a lifetime, and every reboot is a death. What remains to rule: (a) is the
+  owner present at each birth (rec: yes — birth is already a ceremony), and (b) is
+  one-shot mandatory for every remote mission, or a per-mission line in the D6 manifest
+  (rec: default ON; any override recorded in the manifest with its reason). Effector
+  credentials stay human-gated as at home, unchanged.
 - **D6 — The first clone's mission.** These notes design what a clone *is*; only the owner
   says what the first one is *for* (a field scout over a named public corpus; a continuity
   seed; something else). D2 has no denominator until this is named — the tier worth paying
@@ -541,6 +562,12 @@ by design.
   event timing. If L0 becomes a load-bearing mode, both directions get the F4 treatment —
   a defined benefit metric and a defined leakage bound — before anyone calls it "just a
   histogram."
+- **F8 — the birth window.** "Deleted immediately after" is exactly-once *approximated*:
+  between the unseal and home's receipt of the first letter, the birth credential is live
+  and the door is open. The window is minutes and bounded (short-TTL birth credential;
+  home-side timeout: no first letter within T → auto-disable and investigate), but it is
+  not zero. A reviewer should attack it directly: boot the body, suppress its first
+  letter, and see how long the door can be held open.
 
 ## Cross-references
 

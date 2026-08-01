@@ -4,7 +4,7 @@ id: dn-key-fabric
 track: deployed-instances
 status: draft            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 created: 2026-07-29
-updated: 2026-07-30
+updated: 2026-07-31
 links:
   - docs/design-notes/dn-amnesiac-clones.md
   - docs/brainstorms/kms-threat-layering.md
@@ -60,6 +60,10 @@ warrant: null
 - **oq-0057 extends without reinterpretation**: per-individual CMKs, the encryption-context
   consequence-split applied *within* each individual, the admin/use role split applied
   *per* individual, brick = one `DisableKey` (§2.6).
+- **One-shot unseal on rented bodies (law 7, owner seed 2026-07-31):** the boot
+  capability dies at its first use — blob shredded body-side at unseal, birth key
+  disabled spine-side on the first letter. Steady state holds no invocable unseal key;
+  every reboot is a death; boot and recovery never share a key (§2.3, §2.4).
 - **Its own Terraform stack** (owner directive): `cloud/terraform/keyfabric/` — isolated
   state, isolated blast radius, peer to `bootstrap/`/`airlock/`/`backups/`. Unseal,
   minting, and destruction key material never rides along with fetcher or bucket changes
@@ -114,6 +118,7 @@ survey at `174d06c`] The ecosystem's capsules assumed this layer; nothing design
 | **Channel / letter-box** (per relationship-direction) | asymmetric sealed box (HPKE-class) | the *receiver's* core plane (home's Vault, for clone→home) | ships in the sender's seed manifest | receiver deletes the private half — the stream goes dark unreadably |
 | **Data keys** (per store × consequence class) | symmetric envelope | in RAM at unseal, only ever wrapped at rest | n/a | flinch zeroizes RAM copies; brick disables the wrapping root |
 | **Wrapping roots** (per individual) | KMS CMK, non-exportable | KMS (the spine) | n/a | `DisableKey` (reversible) / `ScheduleKeyDeletion` (terminal, 7–30d) [ESTABLISHED: AWS — verify API at build] |
+| **Boot key** (per birth, remote bodies only) | birth-scoped wrapped blob + short-TTL birth credential | on the body until its first unseal — then shredded | n/a — it exists to die | its own use (law 7): shred at unseal body-side; birth key disabled spine-side on the first letter |
 
 Two jurisdictions, cleanly: identity and channel keys are **local** cryptography — the
 spine never holds either half, so **no cloud actor can be compelled to open or forge a
@@ -152,6 +157,15 @@ simultaneously (§2.7). Per-pair cost is zero; the registry carries the mapping.
 6. **Every key names its owner-plane and its revocation act at mint time** (the table
    above is the schema). A key without a named revocation act is unmintable — the fabric's
    analogue of "no park without re-entry."
+7. **One-shot unseal on rented bodies** (owner seed 2026-07-31). The capability to unseal
+   does not survive its first use: the wrapped boot blob is shredded body-side at unseal,
+   and the birth key is disabled spine-side on receipt of the first letter — *the birth
+   cry closes the door* (home acting on observation; nothing flows back; retractable and
+   therefore automatable per oq-0051). Steady state holds no invocable unseal key
+   anywhere; every reboot is a death and succession is the only restart. Boot and
+   recovery never share a key — the recovery CMK is a different consequence class behind
+   an owner ceremony (oq-0057's split, applied again). The residual exposure is the birth
+   window itself (`dn-amnesiac-clones` §6 F8).
 
 ### 2.4 Ceremonies
 
@@ -164,15 +178,19 @@ meaningful.
   spine registry and home's mirror; home mints the per-relationship letter-box pair,
   stores the private half in Vault, places the public half plus the embedder pin and
   disclosure tier into the seed manifest; the keyfabric stack (§4) provisions the
-  individual's CMK and its use-role. The manifest is signed by home's *attestation* key so
+  individual's CMK, its use-role, and — for a remote body — the birth-scoped boot key
+  with its short-TTL credential (one-shot, law 7). The manifest is signed by home's
+  *attestation* key so
   a body can verify its own seed — the one legitimate use of a home-held signing key in a
   clone's life, consumed once at birth, before the body is deaf. [DERIVED; the seed is
   verified at birth precisely because it can never be re-verified later]
-- **Unseal (per body class).** Home: Keychain + owner presence, unchanged. Clone: the
-  body's node identity authenticates to the spine; KMS unwraps the data keys at bootstrap,
-  before `seal()` — never inside sealed core (the oq-0057 ⚑ pin). Attended vs unattended
-  posture is D5, presented in the clones note; the fabric only fixes *where* the unwrap
-  happens, not *who must be present*.
+- **Unseal (per body class).** Home: Keychain + owner presence, unchanged. Remote body:
+  **once, ever** (law 7) — the boot key unwraps the data keys at bootstrap, before
+  `seal()`, never inside sealed core (the oq-0057 ⚑ pin); the blob is shredded in the
+  same act, and home's code disables the birth key when the first letter arrives (with a
+  home-side timeout: no first letter within T → auto-disable and investigate). Birth
+  presence is D5's residue, presented in the clones note; the fabric fixes *where* the
+  unwrap happens and *that it can never happen twice*.
 - **Retirement (planned death).** The fencing-token discipline: the body's spine
   credentials are destroyed at retirement so a zombie ex-body cannot act; its registry
   standing flips to retired (letters cease counting); its CMK is disabled after the last
