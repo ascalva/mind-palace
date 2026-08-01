@@ -304,6 +304,23 @@ the warrant]
 
 ### 2.5 Trip, flinch, brick — the lifecycle
 
+- **The egg (deployment form; owner seed 2026-07-31).** What lands on the remote disk is
+  a sealed egg: a **ciphertext yolk** — the container image, instance config, birth
+  manifest, and the seed + store ciphertext — wrapped around by the only plaintext part,
+  its **shell: a small bootstrap shell script** (the pun is load-bearing). The yolk has
+  two compartments by consequence class: code + config under the boot key only
+  (unrecoverable after birth; home has the repo, nothing is lost), and the seed + stores
+  dual-wrapped under boot key *and* recovery CMK (the post-mortem door stays open). Hatch
+  sequence: the shell presents the birth credential, receives the boot key, decrypts the
+  yolk into tmpfs — the creature runs from RAM — and execs; the palace then decrypts the
+  shipped DBs in memory; the first letter flies. In every phase of the body's existence —
+  before birth, during life, after death — its disk holds shell + ciphertext, nothing
+  else: "plaintext never rests" completed from data to the entire body. Deliberately
+  *not* native encrypted EBS/AMI: platform-transparent decryption is a **standing**
+  capability tied to the instance profile — exactly what the one-shot rule kills; the
+  egg's app-level unseal is strictly stronger [INFERENCE — verify at build]. The RAM cost
+  of the resident decrypted image joins the NN-8 node-ceiling arithmetic. The shell's own
+  integrity is F9 (§6).
 - **Boot-sealed; unseal once, ever — the one-shot rule (owner seed 2026-07-31).** Every
   boot comes up sealed (panic-seal inheritance: plaintext only in RAM, mlock/no-swap in
   the spec, crash = seal by physics). On a remote body the unseal is **one-shot**: a
@@ -568,6 +585,15 @@ by design.
   home-side timeout: no first letter within T → auto-disable and investigate), but it is
   not zero. A reviewer should attack it directly: boot the body, suppress its first
   letter, and see how long the door can be held open.
+- **F9 — the shell is the residual plaintext trust root.** The classic bootstrap problem,
+  relocated but not removed: a tampered shell can exfiltrate the boot key it receives.
+  Two bounds hold it: the one-shot rule collapses the shell's entire threat life to the
+  pre-birth window (after the single hatch no key ever arrives again — tampering a spent
+  shell is worthless), and if that window itself must close, platform measured boot
+  (NitroTPM-class attestation of the boot chain, gating the birth credential) is the
+  escalation [INFERENCE — verify platform support at build]. The reviewer's attack:
+  swap the shell between egg placement and birth. Keep the shell tiny, hash-pinned in the
+  birth manifest, and boring.
 
 ## Cross-references
 

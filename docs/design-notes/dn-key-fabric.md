@@ -118,7 +118,7 @@ survey at `174d06c`] The ecosystem's capsules assumed this layer; nothing design
 | **Channel / letter-box** (per relationship-direction) | asymmetric sealed box (HPKE-class) | the *receiver's* core plane (home's Vault, for clone→home) | ships in the sender's seed manifest | receiver deletes the private half — the stream goes dark unreadably |
 | **Data keys** (per store × consequence class) | symmetric envelope | in RAM at unseal, only ever wrapped at rest | n/a | flinch zeroizes RAM copies; brick disables the wrapping root |
 | **Wrapping roots** (per individual) | KMS CMK, non-exportable | KMS (the spine) | n/a | `DisableKey` (reversible) / `ScheduleKeyDeletion` (terminal, 7–30d) [ESTABLISHED: AWS — verify API at build] |
-| **Boot key** (per birth, remote bodies only) | birth-scoped wrapped blob + short-TTL birth credential | on the body until its first unseal — then shredded | n/a — it exists to die | its own use (law 7): shred at unseal body-side; birth key disabled spine-side on the first letter |
+| **Boot key** (per birth, remote bodies only) | birth-scoped wrapped blob + short-TTL birth credential | on the body until its first unseal — then shredded | n/a — it exists to die | its own use (law 7): shred at unseal body-side; birth key disabled spine-side on the first letter. Scope: the whole egg yolk — code+config (boot-key only) and seed+stores (dual-wrapped with the recovery CMK) |
 
 Two jurisdictions, cleanly: identity and channel keys are **local** cryptography — the
 spine never holds either half, so **no cloud actor can be compelled to open or forge a
@@ -179,7 +179,10 @@ meaningful.
   stores the private half in Vault, places the public half plus the embedder pin and
   disclosure tier into the seed manifest; the keyfabric stack (§4) provisions the
   individual's CMK, its use-role, and — for a remote body — the birth-scoped boot key
-  with its short-TTL credential (one-shot, law 7). The manifest is signed by home's
+  with its short-TTL credential (one-shot, law 7). The remote deliverable is packaged as
+  **the egg** (`dn-amnesiac-clones` §2.5): ciphertext yolk in two compartments
+  (code+config boot-key-only; seed+stores dual-wrapped with the recovery CMK), plaintext
+  bootstrap shell, hash-pinned in the manifest. The manifest is signed by home's
   *attestation* key so
   a body can verify its own seed — the one legitimate use of a home-held signing key in a
   clone's life, consumed once at birth, before the body is deaf. [DERIVED; the seed is
