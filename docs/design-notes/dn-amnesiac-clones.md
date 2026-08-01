@@ -393,6 +393,27 @@ subnet-router lean already recorded in the ecosystem park). Two integration fact
   7). Being inside the VPC or tailnet grants reach, never access: letters are accepted on
   signature, node standing at the spine, and the ±window of the rendezvous discipline if
   adopted — never on source address. [ESTABLISHED: capsule 7]
+- **The model complement is mission-tiered — models are labor, not nature (owner seed
+  2026-07-31).** The seed is the intelligence; the LLM is labor, and labor tiers with the
+  mission, declared in the birth manifest: **scout** = the pinned embedder only (the one
+  non-negotiable resident — it *is* the shared language; relationship-finding is largely
+  geometric and lives in code, so an L0/L1 mission may need no generative model at all);
+  **analyst** = embedder + one small quantized worker for interpretation; **full** =
+  home's two-slot stack, the expensive body. NN-8 is already a node property — the
+  image's scheduler refuses complement breaches like any other residency. Two adjacent
+  options, both explicit: **pooling one model server across images is structurally
+  illegal as inherited** (core speaks loopback only; prompts are plaintext, so a shared
+  or edge-proxied server puts content where NN-2 forbids it, and a pool node would read
+  every image's working attention) — parked, never solved around; and **API models for
+  public-material missions are constitutionally coherent** under NN-11's own category —
+  interactions transit a third party, the corpus never does; seed ids are hash-blinded
+  and vectors never enter prompts — an opt-in line in the D6 manifest with the leak
+  classified as adapter-grade. The cost pattern that fits the mayfly is **shifts, not
+  always-on**: an image born for a work window and retired after it — between shifts
+  there is no image, only ciphertext and letters, and idle RAM is never paid for. The
+  economics of shifts live or die on D5(b)'s lineage question. Instance-class numbers are
+  measurement, not architecture: DI-1's benchmark on clone-class hardware is where the
+  embedder reading comes from. [DERIVED]
 
 ### 2.7 The learning loop — one-way, and lazy
 
@@ -521,18 +542,27 @@ by design.
   one-shot-unseal rule (2026-07-31, §2.5): the unseal capability self-destructs after its
   single use, so "a key invocable without a human" — the row-3 hole — exists for one boot
   moment, not a lifetime, and every reboot is a death. What remains to rule: (a) is the
-  owner present at each birth (rec: yes — birth is already a ceremony), and (b) is
-  one-shot mandatory for every remote mission, or a per-mission line in the D6 manifest
-  (rec: default ON; any override recorded in the manifest with its reason). Effector
-  credentials stay human-gated as at home, unchanged.
+  owner present at each birth (rec: yes for the *first* birth of a lineage), and (b) the
+  **lineage question**, which the shift economics (§2.6) hang on: may the owner bless a
+  lineage once — mission + tier + model complement + TTL envelope — such that successor
+  births *within* that envelope are automated, with only the first-of-lineage a hand
+  ceremony? Without lineages, one-shot unseal makes every work shift a hand-attended
+  mint and the cheap batch pattern dies; with them, the standing warrant is the blessing
+  and each successor is code executing it. (Rec: lineages yes, envelope narrow, any
+  envelope change = a new first birth.) Also: is one-shot mandatory for every remote
+  mission, or a per-mission manifest line (rec: default ON; overrides recorded with
+  reason). Effector credentials stay human-gated as at home, unchanged.
 - **D6 — The first clone's mission.** These notes design what a clone *is*; only the owner
   says what the first one is *for* (a field scout over a named public corpus; a continuity
   seed; something else). D2 has no denominator until this is named — the tier worth paying
   depends on the job — and DI-5 cannot pin the clone's functional interior (its job table,
   sensors, ingest roots) without it. The mission also names, at birth: the letter tier
-  (L0/L1/L2, §2.4) and the durability switch — the owner's recorded lean is minimal
-  traffic (L1, or L0 for a pure study) with the disk switch ON. Not an architecture
-  decision: a sentence or two at ruling time suffices. (Rec: rule D6 before D2.)
+  (L0/L1/L2, §2.4), the durability switch, the **model complement** (scout / analyst /
+  full, §2.6 — the cost dial), and — for public-material missions only — whether API
+  models are opted in under the NN-11 adapter category. The owner's recorded lean is
+  minimal traffic (L1, or L0 for a pure study) with the disk switch ON. Not an
+  architecture decision: a sentence or two at ruling time suffices. (Rec: rule D6 before
+  D2.)
 
 ## Parked decisions
 
@@ -544,6 +574,7 @@ by design.
 | Access-pattern leakage (ORAM) | Accept and classify as an adapter property (ecosystem capsule 5) | The adapter classification is challenged at D1 |
 | Letters transport | S3 mailbox (airlock shape) | A latency-sensitive use appears that polling cannot serve |
 | Rendezvous ratchet on the letters lane | Not adopted (tailnet + signatures suffice) | A second instance exists and relationship-integrity tripwires are wanted (its own park's condition) |
+| Model pooling across images | Illegal as inherited (NN-1 loopback-only core; NN-2 — prompts are plaintext) | Its own design note + an owner ruling; never an ops workaround |
 | Private rotation at T1 | Quantization only; rotation optional | The exporter build plan prices it; honest limit (§2.2) stands either way |
 
 ## 6. Honest edges / falsifiers
