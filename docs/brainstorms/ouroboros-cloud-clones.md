@@ -270,3 +270,44 @@ decisions:
 next_steps:
   - dn-amnesiac-clones: one-shot unseal in §2.5, D5 rewritten; dn-key-fabric: boot key as
     a key class, law 7, birth/unseal ceremonies updated (PR #26).
+
+## 2026-08-01T01:22Z
+
+```capsule
+topic: ouroboros-cloud-clones
+date: 2026-08-01
+
+seed (owner, verbatim): |
+  "also, for deployments, does it make sense to have the payload encrypted? with only a
+  small shell script that performs the bootstrap? it recieves the key(s) necessary to
+  decrypt and unseal, which also tells the OS to run in memory, and from there, it loads
+  and decrypts the local DBs that also shipped"
+
+the read (orchestrator): |
+  THE EGG — and yes, it makes sense; it completes "plaintext never rests" from data to
+  the entire body. The deployment artifact becomes: a tiny plaintext bootstrap (the only
+  plaintext part of the egg is its SHELL — a shell script; the pun is load-bearing) around
+  a ciphertext yolk. Two compartments by consequence class: code+config under the boot key
+  only (unrecoverable after birth — home has the repo, nothing lost) and the seed + store
+  ciphertext under boot key AND recovery CMK (post-mortem door intact). Hatch sequence:
+  shell receives the birth credential, decrypts the yolk into tmpfs (the OS runs the
+  creature from RAM), execs, the palace decrypts the shipped DBs in memory, first letter
+  flies, the birth cry closes the door (law 7). Disk in every phase of life — before
+  birth, during, after death — is shell + ciphertext.
+  Why not native encrypted EBS/AMI: platform-transparent decryption is a STANDING
+  capability tied to the instance profile — exactly what law 7 kills; the egg's app-level
+  one-shot is strictly stronger. [INFERENCE — verify at build]
+  The honest edge: the shell is the residual plaintext trust root (classic bootstrap
+  problem — a tampered loader can exfiltrate the keys it receives). Two bounds: the
+  one-shot rule collapses the loader's whole threat life to the pre-birth window (after
+  the single hatch, no key ever arrives again — tampering a spent shell is worthless),
+  and platform measured boot (NitroTPM-class) can attest the shell if the window itself
+  must close. RAM cost: the decrypted image joins the NN-8 node-ceiling arithmetic.
+
+decisions:
+  - none — integrated as the deployment form (not a new owner decision: strictly better
+    modulo RAM cost, which the node ceiling already governs); F9 added for the shell.
+
+next_steps:
+  - dn-amnesiac-clones: the egg bullet in §2.5, F9; dn-key-fabric: egg packaging in the
+    birth ceremony, boot-key scope = the yolk (PR #26).
