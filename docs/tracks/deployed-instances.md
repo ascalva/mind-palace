@@ -12,6 +12,7 @@ dod:
   - DI-4 letters lane, home side — a₄ landing behind the handoff gate (gated on dn-authorship-distance-axis ratification)
   - DI-5 clone runtime image + plane split + clone Terraform, consuming keyfabric CMKs (gated on owner decisions D1–D3, D5)
   - DI-6 first clone boot — exits the second-instance fence; owner-initiated ceremony
+  - DI-7 the shared embedder service (dn-embedder-service) — stateless text→vector as fleet infra; sealed-to-attested-enclave, control-queue + data-plane; public-material clean, private material gated on the Nitro-frontier ruling
 backlog_deskcheck: null
 links:
   - docs/design-notes/dn-amnesiac-clones.md

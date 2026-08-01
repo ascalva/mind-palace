@@ -414,6 +414,44 @@ subnet-router lean already recorded in the ecosystem park). Two integration fact
   economics of shifts live or die on D5(b)'s lineage question. Instance-class numbers are
   measurement, not architecture: DI-1's benchmark on clone-class hardware is where the
   embedder reading comes from. [DERIVED]
+- **The shared embedder — the one poolable model (owner seed 2026-08-01; refines the
+  pooling line above).** "Inference from one point": one AWS node exposes the pinned
+  embedder as a stateless service, and every scout borrows it instead of carrying a GPU.
+  The correction stated plainly: the flat ban above is right for a *general* model server
+  (stateful, holds working context, reasons) — but the embedder is the exception, because
+  it is a **stateless pure function** (text → vector) that holds no corpus, no seed,
+  nothing persistent; compromised at rest it yields nothing, and only in-flight content
+  during its window is ever exposed. Encryption-in-transit is not the crux — embedding is
+  a function of *plaintext* (FHE on a transformer is not real today), so the node must
+  decrypt in RAM. The two questions that matter, answered:
+  - **Edge never sees plaintext.** Core seals the text to the embedder's public key
+    *locally* (crypto_box_seal — pure CPU, no network, NN-1 clean; the same primitive as
+    the letters); edge ships ciphertext it cannot read (NN-2 clean); the embedder returns
+    the vector sealed to the image's ephemeral response key. Edge is a blind courier both
+    ways — this is the letters mechanism pointed at a compute service instead of home.
+  - **The embedder-node exposure splits by material.** Public-material scouts: clean —
+    NN-11's adapter category, identical to the API-model opt-in. Private material:
+    requires an **attested enclave** (Nitro; the payload is sealed to the ephemeral pubkey
+    in the enclave's attestation document, decryptable only inside that exact instance),
+    and even then **concentrates blast radius** — one enclave compromise exposes every
+    image's in-flight content, where per-image embedders isolate it. That trade re-enters
+    the parked Nitro frontier (ecosystem capsule 4), owner-only, now with the
+    stateless-pure-function argument attached.
+
+  Mechanism, as read: a **control queue** carries the request descriptor + the image's
+  response pubkey (never the payload — SQS is 256 KB and batches exceed it); its response
+  is "how to reach the embedder: a different connection" — endpoint + one-time credential
+  + the enclave attestation document, which the image verifies *before* sealing anything.
+  Then the **data plane** (direct, batched) carries the sealed payload. Rendezvous
+  establishes trust, then data flows — the rendezvous-ratchet shape. **A bonus the ban
+  obscured:** a shared embedder makes the pinned coordinate system literally one machine,
+  which *kills* per-image embedder drift (F6) — coherence becomes infrastructure. It is
+  home's pinned model exposed as a network-facing stateless deployment (not home's core
+  embedder, which has zero egress); home can always embed authoritatively as fallback, so
+  the service is offload, never a new authority. Availability-coupled, so it fits **batch
+  scouts, not interactive bodies**. As fleet infrastructure this graduates into its own
+  note (`dn-embedder-service`, a DI item) — pinned here as consumed, its security
+  construction fixed, not fully spec'd. [DERIVED; owner seed the warrant]
 
 ### 2.7 The learning loop — one-way, and lazy
 
@@ -574,7 +612,8 @@ by design.
 | Access-pattern leakage (ORAM) | Accept and classify as an adapter property (ecosystem capsule 5) | The adapter classification is challenged at D1 |
 | Letters transport | S3 mailbox (airlock shape) | A latency-sensitive use appears that polling cannot serve |
 | Rendezvous ratchet on the letters lane | Not adopted (tailnet + signatures suffice) | A second instance exists and relationship-integrity tripwires are wanted (its own park's condition) |
-| Model pooling across images | Illegal as inherited (NN-1 loopback-only core; NN-2 — prompts are plaintext) | Its own design note + an owner ruling; never an ops workaround |
+| Model pooling across images (general, stateful server) | Illegal as inherited (NN-1 loopback-only core; NN-2 — prompts are plaintext) | Its own design note + an owner ruling; never an ops workaround |
+| The shared embedder (the stateless exception, §2.6) | Public-material scouts only, no enclave, NN-11 adapter | Private material → the parked Nitro-enclave frontier ruling; the service itself → `dn-embedder-service` |
 | Private rotation at T1 | Quantization only; rotation optional | The exporter build plan prices it; honest limit (§2.2) stands either way |
 
 ## 6. Honest edges / falsifiers
@@ -603,7 +642,10 @@ by design.
 - **F6 — the embedder is a dependency of the whole idea.** If the pinned embedder cannot
   run on the clone's hardware (or its cloud cost is unacceptable — measurement, not
   architecture), the clone cannot extend the inherited space and the seed decays to a
-  static map. The build-1 benchmark must run on clone-class hardware.
+  static map. The build-1 benchmark must run on clone-class hardware. The shared-embedder
+  service (§2.6) is the mitigation *and* a coherence win — one pinned model for the fleet
+  removes per-image drift — at the cost of an availability dependency; if that service is
+  the plan, F6 becomes "does the round-trip latency/cost beat a resident embedder."
 - **F7 — L0's value and privacy claims are both untested.** Whether membership histograms
   alone carry study value is as unmeasured as F4 — and aggregates are not automatically
   private: repeated occupancy counts over a growing graph can reveal join structure and
