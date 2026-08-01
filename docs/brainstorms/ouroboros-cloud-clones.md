@@ -223,3 +223,50 @@ decisions:
 
 next_steps:
   - vocabulary triple added to the note; rename option surfaced on the PR.
+
+## 2026-08-01T01:17Z
+
+```capsule
+topic: ouroboros-cloud-clones
+date: 2026-08-01
+
+seed (owner, verbatim): |
+  "what if on remote deployments, the key used to unseal is immediately deleted after? of
+  course this relies on what that key covers, is it a unique key for unsealing? does that
+  gain any security? if something trips it seals itself? that is the action it would need
+  to decide on, un-retractable action"
+
+the read (orchestrator): |
+  ONE-SHOT UNSEAL (the mayfly rule) — and it holds. Answers to the seed's three questions:
+  1. Unique key: yes, by construction — the boot path gets its own birth-scoped key,
+     disjoint from the recovery CMK (oq-0057's consequence-split applied a third time:
+     boot vs recovery are different consequence classes). Recovery of the ciphertext
+     remains stays owner-ceremony; only the BOOT capability self-destructs.
+  2. Security gain: real. (a) The standing unattended-unseal capability — the row-3 hole,
+     the hardest part of D5 — exists for one boot moment instead of the image's whole
+     life; steady state has NO key invocable by anyone. (b) Restart-oriented attacks
+     (evil-maid, cold-boot-then-reharvest) are structurally void: there is no next unseal
+     to attack. (c) Post-boot disk theft yields ciphertext with no body-resident unwrap
+     path. Non-gain, stated honestly: live-RAM compromise is unchanged (D2's tier bound).
+  3. Trip -> self-seal as the image's un-retractable action: zeroize + no re-unseal path
+     = self-brick, final from the body's side, no spine participation needed. It types
+     under oq-0051 via two facts: the authority is PRE-DECLARED at birth (the trip
+     inventory in the owner-blessed mission manifest — pre-authorization, not runtime
+     permission), and the only casualty is the live process itself — everything it knows
+     survives as ciphertext it can no longer read (knowledge stays retractable; only
+     continuity is not).
+  Mechanism for "deleted immediately after", both halves one-way: body-side, the wrapped
+  boot blob is shredded at first unseal; spine-side, THE BIRTH CRY CLOSES THE DOOR — the
+  first letter received is the boot signal, and home's code auto-disables the birth key on
+  it (retractable act, automatable per oq-0051; no ack ever flows back). Exactly-once
+  unseal approximated by short-TTL birth credential + blob shredding + birth-cry disable.
+  Costs, deliberate: every reboot is a death; updates/maintenance = successor minting;
+  availability is brittle toward dark. The image's life is one unbroken run.
+
+decisions:
+  - none here — integrated into the notes as the DEFAULT posture for remote bodies
+    (owner may override per-mission in the D6 manifest); D5 shrinks to birth-presence.
+
+next_steps:
+  - dn-amnesiac-clones: one-shot unseal in §2.5, D5 rewritten; dn-key-fabric: boot key as
+    a key class, law 7, birth/unseal ceremonies updated (PR #26).
