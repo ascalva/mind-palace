@@ -311,3 +311,46 @@ decisions:
 next_steps:
   - dn-amnesiac-clones: the egg bullet in §2.5, F9; dn-key-fabric: egg packaging in the
     birth ceremony, boot-key scope = the yolk (PR #26).
+
+## 2026-08-01T01:33Z
+
+```capsule
+topic: ouroboros-cloud-clones
+date: 2026-08-01
+
+seed (owner, verbatim): |
+  "now, the only tricky part is, will every machine have to carry its own model(s)? that's
+  a heafty package to load to memory, which means it aint cheap"
+
+the read (orchestrator): |
+  The model complement is MISSION-TIERED, not constant — the seed is the intelligence,
+  the LLM is labor, and labor tiers:
+  - SCOUT: embedder only (the one non-negotiable resident — the pinned embedder IS the
+    shared language; embedders are small). Relationship-finding is largely geometric
+    (neighbors, cluster membership, reference resolution) — code, not model. An L0/L1
+    mission may need no generative model at all.
+  - ANALYST: embedder + one small quantized worker for interpretation/narration.
+  - FULL: home's two-slot stack — the expensive body, needing a real memory/GPU instance.
+  Declared in the birth manifest (D6); NN-8 is already a node property, the image's
+  scheduler refuses breaches.
+  Pooling one model server across images: STRUCTURALLY ILLEGAL as inherited — core
+  speaks loopback only (NN-1), prompts are plaintext so an edge-proxied or shared server
+  puts content where NN-2 forbids it, and a pool node would read every image's working
+  attention. Parked, not solved-around: re-entry is its own design note + owner ruling.
+  API models (Claude et al.) for PUBLIC-material missions: constitutionally coherent
+  under NN-11's own category — interactions transit a third party, the corpus never does;
+  seed ids are hash-blinded and vectors never enter prompts. A per-mission opt-in line in
+  the D6 manifest, leak classified as adapter-grade.
+  The cost pattern that fits the mayfly: SHIFTS, not always-on. An image born for a work
+  window and retired after — between shifts there is no image, only ciphertext + letters;
+  idle RAM is never paid for. Tension surfaced: one-shot unseal makes every shift a
+  successor mint, so batch economics live or die on D5's birth-presence residue —
+  proposed option: the owner blesses a LINEAGE once (mission + tier + TTL envelope) and
+  successor births within it are automated; first-of-lineage stays a ceremony.
+  Numbers: measurement, not architecture (the repo has been wrong about every inherited
+  number) — DI-1's benchmark on clone-class hardware is where the embedder reading comes
+  from; instance-class shapes only until then.
+
+decisions:
+  - none — integrated: model complement + API opt-in into D6, lineage envelope into D5,
+    pooling into the parked table (PR #26).
