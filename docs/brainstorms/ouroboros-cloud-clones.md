@@ -354,3 +354,73 @@ the read (orchestrator): |
 decisions:
   - none — integrated: model complement + API opt-in into D6, lineage envelope into D5,
     pooling into the parked table (PR #26).
+
+## 2026-08-01T01:39Z
+
+```capsule
+topic: ouroboros-cloud-clones
+date: 2026-08-01
+
+seed (owner, verbatim): |
+  "an interesting problem then falls out: can we perform inferance from one single point?
+  think of it as our own form of embedding as a service, one machine that gets deployed in
+  AWS, it accepts encrypted packages, it infers, then encrypts and ships back? which means
+  it would just need to send to a queue? and the queue response also includes how to get in
+  contact with the embedder: different connection"
+
+the read (orchestrator): |
+  EMBEDDER-AS-A-SERVICE — and it partially REVERSES the flat "pooling is illegal" I wrote
+  in capsule-6's integration (§2.6). The honest correction: my ban was right for a general
+  model server (stateful, holds working context, reasons) — but the EMBEDDER is the one
+  special case where pooling is defensible, for one reason: it is a STATELESS PURE FUNCTION
+  (text -> vector). It holds no corpus, no seed, nothing persistent; at rest it leaks
+  nothing; only in-flight content during its window is exposed. It is the safest possible
+  thing to share.
+  Why encryption-in-transit is NOT the crux: embedding is a function of PLAINTEXT (FHE on a
+  transformer is not real in 2026), so the embedder must decrypt in RAM and see plaintext.
+  So the real questions are (a) does edge ever see plaintext, and (b) is the embedder node
+  seeing plaintext acceptable.
+  (a) NO edge exposure, and it is constructible cleanly: core seals the text to the
+  embedder's public key LOCALLY (libsodium crypto_box_seal is pure CPU, no network — the
+  same primitive the letters use, NN-1 clean); edge ships ciphertext it cannot read (NN-2
+  clean); the embedder returns the vector sealed to the image's ephemeral response key.
+  Edge is a blind courier both ways. This is the letters mechanism pointed at a compute
+  service instead of home.
+  (b) The embedder-node exposure splits by material: PUBLIC-material scouts -> clean, it is
+  NN-11's adapter category (same logic as the API-model opt-in); PRIVATE material ->
+  requires an ATTESTED ENCLAVE (Nitro) and even then concentrates blast radius (one enclave
+  compromise exposes everyone's in-flight content vs per-image isolation) -> re-enters the
+  parked Nitro frontier (ecosystem capsule 4), owner-only.
+  The two-channel mechanism, as I read it: CONTROL plane = a queue (image posts a request
+  descriptor + its response pubkey, NOT the payload); the response carries "how to reach the
+  embedder: a different connection" = an endpoint + one-time credential + THE ENCLAVE'S
+  ATTESTATION DOCUMENT (with its ephemeral pubkey). The image verifies the attestation
+  (AWS Nitro root signature) BEFORE sealing anything, then opens the DATA plane (direct,
+  higher-bandwidth, batched) and seals the payload to the attested ephemeral pubkey — so
+  it is decryptable only inside that exact enclave instance. Rendezvous-establishes-trust-
+  then-data, the rendezvous-ratchet shape, and it is also why a queue alone cannot carry it
+  (256KB SQS limit; batches need the side channel).
+  BONUS the ban obscured: a shared embedder GUARANTEES fleet coordinate-system coherence —
+  the pinned embedder becomes literally one machine, killing per-image embedder drift (F6).
+  It is home's own pinned model exposed as a stateless service (NOT home's core embedder,
+  which has zero egress — a separate network-facing deployment of the same weights).
+  Availability coupling: an image round-tripping per ingest is latency/uptime-bound to the
+  service -> fits BATCH scouts, not interactive bodies; home can always embed authoritatively
+  as fallback (the service is offload, not a new authority).
+  Residuals that remain even enclave'd: blast-radius concentration (irreducible for any
+  sharing), access-pattern/tempo leak across the fleet (adapter-grade, classify or pad).
+
+decisions:
+  - none — integrated into §2.6 as the "shared embedder" complement option with the sealed-
+    to-attested-enclave construction; the pooling park refined (embedder is the re-entry
+    case); flagged to GRADUATE INTO ITS OWN NOTE (dn-embedder-service) as fleet infra.
+
+open_questions:
+  - own-note-now vs graduate-later for the embedder service (owner call at review).
+  - does the fleet run ONE shared embedder for private material (enclave, blast-radius
+    accepted) or only for public-material scouts (no enclave needed)? -> the parked Nitro
+    frontier ruling, now with the stateless-pure-function argument attached.
+
+next_steps:
+  - dn-amnesiac-clones §2.6 shared-embedder paragraph + pooling park row refined; F6 note
+    that a shared embedder is the coherence fix (PR #26).
