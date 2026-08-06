@@ -22,13 +22,28 @@ store, embedder, and group-by-digest machinery the notes use, discriminated by a
     char-window (`chunk_text`, the ONE window machinery — NOT `derive_chunks`, whose Logseq
     property-strip must not run on code) over the RAW source; bodies and `#` comments flow together.
   * **L1 — the prose reading** (`layer=codedoc`): module + symbol docstrings + inline comments in
-    source order with coordinate headers, chunked like a note — it lives in the note neighbourhood.
+    source order, windowed as CANONICAL (header-free) prose and prefixed for retrieval by a single
+    `# {path}` line — it lives in the note neighbourhood.
 
 The three are joined by line-range coordinates carried ON the rows (the §2.4 L2a fiber — no edge
 rows). `digest` = the git blob sha (git is already the content-addressed raw store for code), so
 group-by-digest gives file = source object, chunks = members, UNCHANGED. Derivation is a PURE
 function of (path, source): re-running yields bit-identical chunks (F-CI2 re-derivability). All
 embedding is LOCAL (the core embedder) — zero network egress (non-negotiable #1).
+
+[banner: correction] A chunk's IDENTITY (`content_hash`) hashed its full embed text — coordinate
+header included — so a `git mv` re-hashed every chunk of the file and every `(path, slot)` lineage
+chain through it severed, on an operation this repo performs constantly (dn-vector-membership-store
+§0.1 F1/F2). CORRECTED per D0 (owner-ruled 2026-07-27, `strip-headers-from-the-atom-hash`):
+**identity is the header-free CANONICAL body; the embed text still carries its header** (retrieval
+context is untouched, R7). L1 additionally cuts its windows over the canonical prose — stripping at
+hash time alone leaves window boundaries computed over header-bearing text, so a path-length change
+still recuts them. Measured over all 580 tracked `.py` files at 45c4a15, renaming every one of them:
+**11,096** atoms minted under the old identity → **2,373** under strip-at-hash-only → **3** under
+this pin (those 3 are the parked oversize-threshold residue, issue #31); a one-line top-of-file
+insert in every file: 2,114 → 2,114 → **0**. Consequence, named: identity now differs from embed
+text, so a shared atom's stored text/vector is its FIRST-LANDED rendering and display coordinates
+resolve from memberships, never from the stored text.
 
 [banner: supersession] The incremental sync's delete+replace contract (old §2.7) is REVERSED to
 keep-and-link per `dn-temporal-code-corpus` D2 (warrant finding-0163, bp-099): a superseded code
@@ -68,17 +83,29 @@ class _Embedder(Protocol):
 @dataclass(frozen=True)
 class CodeChunk:
     """One embeddable code chunk with its fiber coordinates. `layer` discriminates the projection;
-    `(qualname, line_start, line_end)` are the §2.4 backpointers carried on the row."""
+    `(qualname, line_start, line_end)` are the §2.4 backpointers carried on the row.
+
+    TWO renderings, deliberately different (D0): `text` is the EMBED rendering and KEEPS its
+    coordinate header (retrieval context, R7); `canonical_body` is the IDENTITY input and is
+    header-free. Every chunker passes the canonical body from the site that already holds it — it
+    is NEVER re-derived by re-parsing `text`, so a body line that legitimately begins with `#` can
+    never be mistaken for a coordinate header (a wrong strip is silent identity corruption)."""
 
     layer: str
     qualname: str
     line_start: int
     line_end: int
-    text: str
+    text: str                # the embed rendering: header + body (headerless for L0b)
+    canonical_body: str      # the identity input: header-free (== text for L0b)
 
     @property
     def content_hash(self) -> str:
-        return sha256(self.text.encode("utf-8")).hexdigest()
+        """[banner: correction] Identity = the CANONICAL (header-free) body, never the embed text
+        (D0, owner-ruled 2026-07-27; this hashed `self.text` before). A filename is mutable: with
+        the coordinate header inside the hash, a rename re-hashes every chunk and every
+        (path, slot) occupancy chain through the file severs — on an operation this repo performs
+        constantly. Embed text may keep headers; identity may not."""
+        return sha256(self.canonical_body.encode("utf-8")).hexdigest()
 
 
 # ── L0a: the structural (AST) reading — per-symbol slices + module shell (byte-cover) ────
@@ -116,11 +143,18 @@ def _l0a_chunks(path: str, lines: list[str], shape: FileShape, *,
         header, ls, le = coords[key]
         body = "\n".join(lines[i - 1] for i in owned[key])
         full = f"{header}\n{body}"
+        # identity = the header-free body (D0); the header rides only on the embed text.
+        # KNOWN RESIDUE (issue #31, parked): this ONE cut is still decided over header-bearing
+        # length, so a rename that crosses the budget flips a slice whole↔windowed and mints 1
+        # atom — the L1 mechanism surviving here. Deciding on len(body) is out of D0's bounds
+        # (§9: no other chunker behavior changes); it is the orchestrator's call, pinned by
+        # test_l0a_oversize_threshold_is_the_one_rename_residue.
         if len(full) <= max_chars:
-            out.append(CodeChunk(LAYER_CODE_AST, key, ls, le, full))
+            out.append(CodeChunk(LAYER_CODE_AST, key, ls, le, text=full, canonical_body=body))
         else:  # oversized slice: hard-split the body via the ONE window machinery, re-headered
             for piece in chunk_text(body, max_chars=max_chars, overlap_chars=overlap_chars):
-                out.append(CodeChunk(LAYER_CODE_AST, key, ls, le, f"{header}\n{piece.text}"))
+                out.append(CodeChunk(LAYER_CODE_AST, key, ls, le,
+                                     text=f"{header}\n{piece.text}", canonical_body=piece.text))
     return out
 
 
@@ -153,7 +187,8 @@ def _l0b_chunks(source: str, lines: list[str], *,
     cursor = 0
     for c in chunk_text(source, max_chars=max_chars, overlap_chars=overlap_chars):
         ls, le, cursor = _locate_span(c.text, lines, cursor)
-        out.append(CodeChunk(LAYER_CODE_TEXT, "", ls, le, c.text))
+        # headerless by construction, so the window IS its own canonical body (D0)
+        out.append(CodeChunk(LAYER_CODE_TEXT, "", ls, le, text=c.text, canonical_body=c.text))
     return out
 
 
@@ -161,20 +196,32 @@ def _l0b_chunks(source: str, lines: list[str], *,
 
 def _l1_chunks(path: str, n_lines: int, shape: FileShape, *,
                max_chars: int, overlap_chars: int) -> list[CodeChunk]:
-    items: list[tuple[int, str]] = []   # (source line, "header\nbody") in source order
+    """[banner: correction] Per-item coordinate headers (`# {path}`, `# {path}:{qualname}`,
+    `# {path}:{lineno}`) were INTERLEAVED into the prose BEFORE windowing, so window boundaries were
+    computed over header-bearing text: a rename that changed the path's length, or a line shift that
+    moved a comment's lineno, RECUT every window downstream and re-minted its atoms — stripping at
+    hash time alone could not fix that (measured at 45c4a15: renaming every tracked `.py` file still
+    minted 2,373 atoms under strip-at-hash-only, essentially ALL of them L1 recuts, vs 3 under this
+    pin; a one-line top-of-file insert, 2,114 vs 0). CORRECTED per D0: windows are cut over the
+    CANONICAL (header-free) prose, and that window is both the identity input and the embed body,
+    prefixed for retrieval by a single `# {path}` line — exactly the L0a shape, one strippable line.
+    Per-item linenos are deliberately NOT re-introduced: occupancy coordinates live in memberships
+    (bp-152), not in the text. L1 stays slotless (`qualname=''`, R4) — no quiet re-slot (PD-5)."""
+    items: list[tuple[int, str]] = []   # (source line, canonical body) in source order — NO header
     if shape.docstring:
-        items.append((1, f"# {path}\n{shape.docstring}"))
+        items.append((1, shape.docstring))
     for s in shape.symbols:
         if s.docstring:
-            items.append((s.lineno, f"# {path}:{s.qualname}\n{s.docstring}"))
+            items.append((s.lineno, s.docstring))
     for c in shape.comments:
         body = c.text.lstrip("#").strip() or c.text
-        items.append((c.lineno, f"# {path}:{c.lineno}\n{body}"))
+        items.append((c.lineno, body))
     if not items:
         return []
     items.sort(key=lambda t: t[0])
     prose = "\n\n".join(block for _, block in items)
-    return [CodeChunk(LAYER_CODEDOC, "", 1, n_lines, c.text)
+    return [CodeChunk(LAYER_CODEDOC, "", 1, n_lines,
+                      text=f"# {path}\n{c.text}", canonical_body=c.text)
             for c in chunk_text(prose, max_chars=max_chars, overlap_chars=overlap_chars)]
 
 
@@ -203,6 +250,9 @@ def code_rows(path: str, blob_sha: str, chunks: Sequence[CodeChunk],
     is `(source_path, layer, chunk_hash)` — doc+layer-scoped and content-addressed, so an unchanged
     chunk keeps its point across versions and two layers with identical text stay distinct. `digest`
     is the git blob sha, so group-by-digest yields file = source object, its chunks = members.
+    As of D0 the hash is CANONICAL-BODY-scoped (header-free), so a renamed file's chunks keep their
+    point too — the id SHAPE still carries the path; the path-free `(layer, hash)` atom id is D1's
+    change (bp-152), not this one.
 
     `current` (dn-temporal-code-corpus D2, bp-099) marks whether this version is the path's HEAD
     projection: the sync lands the new version `current=True` and flips the superseded one to False

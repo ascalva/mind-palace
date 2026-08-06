@@ -1,15 +1,21 @@
-"""core/ingest/code_corpus.py — the code embed lane (bp-092 Items 2–3).
+"""core/ingest/code_corpus.py — the code embed lane (bp-092 Items 2–3; bp-151 D0).
 
 Pure derivation (L0a byte-cover + bit-identical re-derivability = F-CI2; L0b window reuse; L1
 prose), the STRUCTURAL CODE mint (F-CI1: no provenance parameter anywhere), and blob-sha-keyed
 incremental sync (the falsifier: an unchanged file must re-embed NOTHING). No Ollama — a
 deterministic fake embedder.
+
+bp-151 adds the D0 section: identity (`content_hash`) is the header-free CANONICAL body while the
+embed `text` keeps its coordinate header, so a rename or a line shift mints ZERO atoms
+(dn-vector-membership-store §8(h)(i), owner-ruled 2026-07-27).
 """
 
 from __future__ import annotations
 
 import inspect
 import subprocess
+from collections import Counter
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -29,6 +35,7 @@ from core.stores.vectorstore import (
     LAYER_CODEDOC,
     VectorStore,
 )
+from ops.code_snapshot import parse_source
 from tests.fixtures.embedding import DIM, FakeEmbedder
 
 _SRC = (
@@ -109,6 +116,178 @@ def test_parse_error_file_still_embeds_as_text_plus_shell():
     layers = {c.layer for c in chunks}
     assert LAYER_CODE_TEXT in layers                 # L0b windows always land
     assert LAYER_CODE_AST in layers                  # a module-shell L0a covers the whole file
+
+
+# ── D0 (bp-151): identity is the header-free canonical body, embed text keeps its header ─
+
+_BIG_SRC = "def huge():\n" + "\n".join(f"    x{i} = {i}" for i in range(400)) + "\n"
+_FILLER = "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor"
+
+
+def _prose_src(n_comments: int = 30) -> str:
+    """A prose-heavy fixture: enough docstrings + comments that L1 spans ≥2 windows at the DEFAULT
+    budget, so there is a real window boundary to move. A 0–1-item file is §8(i)'s named degenerate
+    input and would pass every claim below vacuously."""
+    lines = [f'"""Module doc: {_FILLER}."""', "import json", ""]
+    for i in range(n_comments):
+        lines.append(f"# comment {i}: {_FILLER}")
+        lines.append(f"X{i} = {i}")
+    lines += ["", "def worker(a, b):", f'    """Worker doc: {_FILLER}."""', "    return a + b"]
+    return "\n".join(lines) + "\n"
+
+
+def _at(path: str, src: str, layer: str, **kw: int) -> list[CodeChunk]:
+    return [c for c in derive_code_chunks(path, src, **kw) if c.layer == layer]
+
+
+def _atoms(chunks: list[CodeChunk]) -> set[tuple[str, str]]:
+    """The ATOM identity D0 pins: (layer, canonical content hash). NB the store row id still carries
+    the path (`{path}:{layer}:{hash}`) — the path-free id is D1's change, bp-152, not this one."""
+    return {(c.layer, c.content_hash) for c in chunks}
+
+
+def _raw_atoms(chunks: list[CodeChunk]) -> set[tuple[str, str]]:
+    """The PRE-D0 identity — sha256 over the full embed text — kept only as the counterfactual that
+    gives the acceptance tests teeth: '0 minted' says nothing unless the old rule DID mint."""
+    return {(c.layer, sha256(c.text.encode("utf-8")).hexdigest()) for c in chunks}
+
+
+def test_l0a_identity_is_the_canonical_body_while_the_embed_text_keeps_its_header():
+    """Item 1: the same bytes at two different paths give L0a chunks with EQUAL content_hash and
+    UNEQUAL text. Falsified if the hashes differ (the header is still inside identity) or if `text`
+    goes header-free (the embed rendering must keep its retrieval context, R7)."""
+    here, moved = "pkg/thing.py", "pkg/deeper/renamed_thing.py"
+    a = {c.qualname: c for c in _at(here, _SRC, LAYER_CODE_AST)}
+    b = {c.qualname: c for c in _at(moved, _SRC, LAYER_CODE_AST)}
+    # PRECONDITION: a non-empty, identical symbol set at both paths — an empty derivation satisfies
+    # every equality below vacuously.
+    assert a and set(a) == set(b)
+    assert len(here) != len(moved)                        # a LENGTH-changing move, the hard case
+    for q, ca in a.items():
+        cb = b[q]
+        assert ca.content_hash == cb.content_hash         # identity survives the move (D0)
+        assert ca.canonical_body == cb.canonical_body
+        assert ca.text != cb.text                         # ...the embed rendering does not
+        assert ca.text.startswith(f"# {here}")            # the header rides ON the embed text
+        assert cb.text.startswith(f"# {moved}")
+        assert here not in ca.canonical_body              # ...and never inside identity
+
+
+def test_l1_windows_are_cut_over_canonical_prose_so_a_rename_recuts_nothing():
+    """Item 2: L1 window boundaries no longer depend on path length. Falsified if the hash SETS
+    differ at two paths — that is strip-at-hash-only (the note measured a residual 7 atoms there),
+    not the windowing pin."""
+    src = _prose_src()
+    here, moved = "pkg/thing.py", "pkg/much/deeper/renamed_thing_module.py"
+    a, b = _at(here, src, LAYER_CODEDOC), _at(moved, src, LAYER_CODEDOC)
+    # PRECONDITION: the prose spans ≥2 windows at both paths — one window has no interior boundary
+    # to move and would pass vacuously.
+    assert len(a) >= 2 and len(b) >= 2
+    assert {c.content_hash for c in a} == {c.content_hash for c in b}
+    assert len(a) == len(b)                               # same window count: boundaries held
+    for chunks, p in ((a, here), (b, moved)):
+        for c in chunks:
+            assert c.text.startswith(f"# {p}\n")          # ONE strippable coordinate line
+            assert c.text.count(f"# {p}") == 1            # no per-item headers (they live in
+            assert f"# {p}:" not in c.text                # memberships now, bp-152)
+            assert c.qualname == ""                       # L1 stays slotless (R4) — no re-slot
+
+
+def test_rename_mints_zero_new_atoms_across_all_three_layers():
+    """§8(h), the spine: rename an embedded file (same bytes, new path) → 0 new atoms. The measured
+    ladder on the REAL chunkers over `core/ingest/code_corpus.py` at 45c4a15: **38** atoms minted
+    under headers-in-hash (the note's probe number), **10** under strip-at-hash-only, **0** here."""
+    src = _prose_src()
+    here, moved = "core/thing.py", "core/renamed_thing_module.py"
+    before, after = derive_code_chunks(here, src), derive_code_chunks(moved, src)
+    # PRECONDITION: the atoms pre-exist in ALL THREE layers. §8(h)'s named degenerate input is a
+    # never-embedded file — it mints 0 trivially.
+    layers = Counter(c.layer for c in before)
+    assert layers[LAYER_CODE_AST] and layers[LAYER_CODE_TEXT] and layers[LAYER_CODEDOC]
+    assert len(here) != len(moved)                        # the path LENGTH changed (recut pressure)
+    assert {c.text for c in after} != {c.text for c in before}   # the rename IS observable
+    assert _atoms(after) - _atoms(before) == set()        # ← the claim: nothing minted
+    assert _atoms(after) == _atoms(before)
+    # ...and it has TEETH: the SAME rename mints under the pre-D0 identity.
+    assert len(_raw_atoms(after) - _raw_atoms(before)) > 0
+
+
+def _n_prose_items(path: str, src: str) -> int:
+    """The L1 item count — module docstring + symbol docstrings + inline comments."""
+    shape = parse_source(path, "", src)
+    return ((1 if shape.docstring else 0)
+            + sum(1 for s in shape.symbols if s.docstring) + len(shape.comments))
+
+
+def test_top_of_file_insert_mints_zero_codedoc_atoms():
+    """§8(i) — finding-0167's owed L1 line-header check, discharged. One line inserted at the top of
+    the code (after the module docstring, so the docstring stays one) shifts every prose item's
+    lineno without changing any prose: under the old interleaved `# {path}:{lineno}` headers that
+    alone recut and re-minted every downstream window (the note measured 10)."""
+    path = "core/thing.py"
+    src = _prose_src()
+    head, rest = src.split("\n", 1)                       # line 1 is the module docstring
+    shifted = f"{head}\nimport os\n{rest}"                # ← the one-line insert at the top
+    before, after = derive_code_chunks(path, src), derive_code_chunks(path, shifted)
+    l1_before = [c for c in before if c.layer == LAYER_CODEDOC]
+    # PRECONDITION 1 (§8(i)'s named degenerate input): ≥2 prose items — a 0–1-item file passes
+    # vacuously. PRECONDITION 2: those items span ≥2 windows, so a recut is possible at all.
+    assert _n_prose_items(path, src) >= 2
+    assert len(l1_before) >= 2
+    # PRECONDITION 3: the edit was REAL and prose-neutral — every prose item's source line moved,
+    # the file's other layers noticed, and no prose item was added or removed. Without this, "0 new
+    # codedoc atoms" could just mean nothing happened.
+    assert (parse_source(path, "", shifted).comments[0].lineno
+            == parse_source(path, "", src).comments[0].lineno + 1)
+    assert _n_prose_items(path, shifted) == _n_prose_items(path, src)
+    assert ({c.content_hash for c in after if c.layer == LAYER_CODE_AST}
+            != {c.content_hash for c in before if c.layer == LAYER_CODE_AST})
+    doc_before = {c.content_hash for c in l1_before}
+    doc_after = {c.content_hash for c in after if c.layer == LAYER_CODEDOC}
+    assert doc_after - doc_before == set()                # ← 0 new codedoc atoms
+    assert doc_after == doc_before
+
+
+def test_every_chunk_pairs_a_headered_embed_text_with_a_header_free_canonical_body():
+    """The structural ratchet on D0's two renderings: for the HEADERED layers (L0a, L1) `text` is
+    exactly one coordinate line + `canonical_body`; for the headerless layer (L0b) they are the
+    same string. A construction site that ever passed the wrong canonical body — silent identity
+    corruption, the exact failure class D0 exists to remove — reddens HERE, at every site."""
+    path = "pkg/mod.py"
+    prose = _prose_src()
+    # PRECONDITION: the fixtures together reach all four construction sites — L0a whole, L0a
+    # oversized (the re-headered window branch), L0b window, L1 window.
+    assert {c.layer for c in derive_code_chunks(path, _SRC)} == {LAYER_CODE_AST, LAYER_CODE_TEXT,
+                                                                 LAYER_CODEDOC}
+    assert len(_at(path, _BIG_SRC, LAYER_CODE_AST)) > 1
+    assert len(_at(path, prose, LAYER_CODEDOC)) >= 2
+    for src in (_SRC, _BIG_SRC, prose):
+        for c in derive_code_chunks(path, src):
+            if c.layer == LAYER_CODE_TEXT:
+                assert c.canonical_body == c.text         # headerless by construction
+            else:
+                header, sep, rest = c.text.partition("\n")
+                assert sep == "\n" and rest == c.canonical_body
+                assert header.startswith(f"# {path}")
+                assert path not in c.canonical_body       # the mutable coordinate stays out
+
+
+def test_l0a_oversize_threshold_is_the_one_rename_residue():
+    """PARKED — issue #31, the single case where §8(h) does NOT hold as built. The oversize cut is
+    decided over the HEADER-BEARING length (`len(header + body) <= max_chars`), so a slice sitting
+    at the budget flips whole↔windowed when the path lengthens and mints one atom. Characterization,
+    not endorsement: deciding that cut over the canonical body is out of D0's bounds (§9, no other
+    chunker behavior changes) and is the orchestrator's call. RE-ENTRY: if #31 is ruled that way,
+    this expectation becomes 0 and this test reddens — that redness is the tripwire."""
+    here, moved = "a/m.py", "a/much_longer_module_name.py"
+    body = "def f():\n    y = 1\n\n    return y"
+    budget = len(f"# {here}:f()") + 1 + len(body)         # exactly at the budget at the short path
+    # PRECONDITION: the rename really straddles the threshold — that IS the mechanism under test.
+    assert len(f"# {here}:f()") + 1 + len(body) <= budget < len(f"# {moved}:f()") + 1 + len(body)
+    a = _at(here, body + "\n", LAYER_CODE_AST, max_chars=budget)
+    b = _at(moved, body + "\n", LAYER_CODE_AST, max_chars=budget)
+    assert len(a) == 1                                    # whole at the short path
+    assert len({c.content_hash for c in b} - {c.content_hash for c in a}) == 1   # ← issue #31
 
 
 # ── the STRUCTURAL CODE mint (F-CI1: no provenance parameter anywhere) ──────────────────
