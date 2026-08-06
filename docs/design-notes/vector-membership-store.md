@@ -103,9 +103,13 @@ plane. A revert or copy-paste costs zero geometry — metadata only.
 - **AMENDED (owner ruling, 2026-07-27):** the first draft's non-goal *"atoms are whatever the
   (unchanged) chunkers emit"* is **struck** — it was the clause forcing the header defect (§0.1
   F1/F2). Its replacement, exactly bounded: identity hashes the header-free canonical body, and
-  L1 windows are cut over canonical prose (D0). **No other chunker behavior changes.**
+  L1 windows are cut over canonical prose (D0). ~~**No other chunker behavior changes.**~~
+  **RE-AMENDED 2026-08-06 — see Amendment A1 below; the enumeration was incomplete and the
+  clause is replaced by a PRINCIPLE.**
   `[INFERENCE — the ruling pins identity only; the L1 windowing pin is this note's derivation
   from the measured rename probe (D0), for the owner's eye here]`
+  `[The [INFERENCE] marker was the warning: an enumeration derived by this note, not ruled, is
+  exactly the thing that turns out incomplete. It did — A1.]`
 
 ## 2. Decisions
 
@@ -459,3 +463,97 @@ the first draft's (a) and D7 inequality were both offenders).
 
 Graduation: likely two session-plans (store+land+read; rebuild+gauges+probe+compaction) — split
 at /graduate against the then-current tree.
+
+## Amendment A1 — path-independence is the principle; "no other chunker changes" was an incomplete enumeration
+
+**Warrant:** owner ruling 2026-08-06 (*"so the function depending on len(path) would mean a rename
+can cause chunks to be of different size? … ok, so this needs to be addressed immediately"*),
+prompted by issue #31 — the residue discovered while building bp-151 and measured on the real
+chunkers at `45c4a15`.
+
+**Authority basis, self-describing:** agent-drafted; lands only by the owner's merge of its PR.
+Under the merge-gated regime the merge is the hand. If it is in the ratified file, the owner put
+it there.
+
+### A1.1 — What was wrong, and why the marker predicted it
+
+§1.2's replacement clause bounded D0 by **enumerating** the chunker changes it licensed: identity
+hashes the canonical body, and L1 windows are cut over canonical prose — *"No other chunker
+behavior changes."* The enumeration carried an `[INFERENCE]` marker precisely because the L1
+windowing pin was **this note's derivation** from a rename probe, not the owner's ruling.
+
+That marker was the warning, and it was right. An enumeration derived from one measured probe
+covers what the probe happened to touch. The probe measured a rename of
+`core/ingest/code_corpus.py`; it never straddled an **oversize threshold**, so a third site went
+unenumerated:
+
+`_l0a_chunks` decides whether a symbol slice is oversized on the **header-bearing** length —
+`len(f"{header}\n{body}") <= max_chars`, where `header = "# {path}:{qualname}{signature}"`. **The
+path's length participates in a cut decision.** Same bytes, longer path, and a slice flips
+whole↔windowed, changing its canonical body and therefore its identity.
+
+`max_chars` is **1200 characters** — the per-chunk budget (`core/kernel/ingest/chunk.py:44`;
+characters are the current proxy, token-aware sizing is a later refinement), not a file-size limit.
+That is roughly 30–40 lines: **squarely inside the normal size distribution of a Python function**,
+not a rare tail. Which symbols sit near the line is arbitrary, and each is a coin-flip on identity.
+
+### A1.2 — The clause is replaced by a principle
+
+> **D0's bound is PATH-INDEPENDENCE, not a list.** A chunker behavior may change if and only if the
+> change is required to make a chunk's **identity** independent of the file's path. Everything else
+> about the chunkers stays fixed: no re-slotting (PD-5), no L0b span rework, no `max_chars` retune,
+> no new layers, no embed-text redesign beyond the header prefix D0 already pins.
+
+This is strictly better than the enumeration it replaces, for the reason the enumeration failed: a
+principle covers sites nobody has thought of yet, and this design has now been surprised twice by
+the *same* mechanism (L1 windowing, then the L0a threshold) at two different places. A third is not
+excluded by anything except the principle.
+
+**Licensed by A1.2 and nothing else:** the L0a oversize cut is decided over the **canonical body** —
+`len(body) <= max_chars` — so the whole↔windowed decision stops depending on the path. One token.
+
+### A1.3 — Blast radius, stated before it is paid
+
+Measured at `45c4a15`: the change moves chunk boundaries for **123 L0a groups across 95 files**.
+Those atoms take new identities and must be re-embedded. This is why sequencing matters and is
+recorded here rather than left to the plan:
+
+- **Before bp-153's rebuild** (which re-embeds the corpus anyway) the marginal cost is ≈ 0.
+- **After** it costs a second re-embed pass plus a window in which the store holds atoms cut under
+  two different rules.
+- **Before bp-152**, because bp-152's premise is corpus-wide dedup (PD-1, owner-ruled in) and this
+  residue is a hole in exactly that. Building the membership store on a known-holey identity and
+  then changing identity underneath it is backwards. They also share `core/ingest/code_corpus.py`,
+  so they are serial regardless.
+
+Revised order: **bp-151 (landed) → bp-155 (this) → bp-152 → bp-153.**
+
+### A1.4 — Why this is not merely cosmetic (the general form of issue #31)
+
+The defect is **not** rename-specific — renames are only its most visible instance. Its general
+form: **two files containing identical code, at paths of different lengths, chunk differently and
+therefore do not dedup**, when the slice sits near the budget. No rename is required; two files
+that never move are enough.
+
+That lands on the design's own instruments:
+
+- **PD-1 (cross-file dedup) is RULED IN** — "one atom, n memberships, fork semantics". This is a
+  silent hole in exactly that.
+- **§8(b)'s fork criterion** uses a fixture and therefore cannot see the hole by construction.
+- **D6's `|M|/|V|`** is the standing gauge that makes the dedup factor observable *forever*, and
+  §8(g)'s falsifier depends on it. Under this residue it under-reports by an unknown amount, and
+  nothing in the design can distinguish "dedup working, corpus diverse" from "dedup silently missed
+  the slices near the budget." **An unobservable bias in the number the design uses to prove
+  itself** is the real cost — not the three atoms.
+
+### A1.5 — Falsifiers
+
+- **A rename still mints an atom.** After A1.2, the aggregate rename cost over all tracked `.py`
+  files must be **0**, not 3. Any residue means a *fourth* site exists and the principle has not
+  been fully applied.
+- **The 123-group boundary change is wrong in kind.** If re-cutting on `len(body)` changes any
+  chunk's boundaries for a file whose largest slice is nowhere near `max_chars`, the change did
+  something other than what it claims.
+- **The principle is over-read.** If a builder cites A1.2 to license a chunker change that is not
+  required for path-independence (a `max_chars` retune, a re-slot), the principle has become the
+  blank cheque the enumeration was trying to prevent — and that is a spec defect, not a licence.
