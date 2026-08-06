@@ -185,7 +185,9 @@ Three stores, one truth each:
   imported by kernel code, D3)** — one row per occupancy, **key = the occupancy's coordinates
   `(path, blob_sha, layer, chunk_index)`** (derivation is a pure function of `(path, source)`,
   `code_corpus.py:181-194`, so `chunk_index` is well-defined and re-derivable), columns
-  `content_id`, `slot`, `line_start`, `line_end`, `current`, `tombstoned`. **Multiset honesty
+  `content_id`, `slot`, `slot_line_start`, `slot_line_end` (**renamed from `line_start`/`line_end`
+  by Amendment A2 — they are the SLOT's extent, never the atom's text coverage**), `current`,
+  `tombstoned`. **Multiset honesty
   (the F5 pin): two identical windows in one blob are two rows with distinct `chunk_index`** —
   no occupancy vanishes by key collision; the two n(v) readings are D6's. `slot` = qualname for
   **L0a only**: as built, L1 chunks carry `qualname=''` exactly like L0b (`code_corpus.py:177`),
@@ -557,3 +559,84 @@ That lands on the design's own instruments:
 - **The principle is over-read.** If a builder cites A1.2 to license a chunker change that is not
   required for path-independence (a `max_chars` retune, a re-slot), the principle has become the
   blank cheque the enumeration was trying to prevent — and that is a spec defect, not a licence.
+
+## Amendment A2 — the occupancy coordinates are named for what they measure
+
+**Warrant:** owner ruling 2026-08-06 (*"do the rename"*), on issue #34 — the coordinate mismatch
+found while explaining L0a chunking and verified on the real chunkers at `45c4a15`.
+
+**Authority basis, self-describing:** agent-drafted; lands only by the owner's merge of its PR.
+Under the merge-gated regime the merge is the hand.
+
+### A2.1 — What was wrong
+
+D1 named the membership row's coordinate columns `line_start` / `line_end` without saying what they
+measure. They measure the **slot's declared extent** — where the symbol lives — and **not** the
+atom's text coverage. The two diverge, and the divergence is invisible in the common case:
+
+L0a partitions a file by **innermost owner** (`core/ingest/code_corpus.py`, `_innermost_owner`:
+"every line has exactly one owner ... so the slices byte-cover the file"), so nested symbols carve
+their lines **out of** the parent — but the emitted coordinates are `owner.lineno,
+owner.end_lineno`, the owner's full declared span. Measured on a 19-line demo:
+
+| qualname | coordinates | text actually held |
+|---|---|---|
+| `Foo` | 5–14 | class stmt + docstring + `LIMIT` + one comment — **not** `bar`, **not** `baz` |
+| `''` (module shell) | 1–18 | module docstring + `import os` — 4 lines |
+| `Foo.bar` | 9–10 | exactly 9–10 — **these agree** |
+
+The module shell is the degenerate case: its extent is the **entire file** by construction. Compose
+that with D0's consequence note (*"coordinates for display always resolve from memberships, never
+from the stored text"*) and a "jump to this occupancy" consumer renders code belonging to **other
+atoms** — for the shell, the whole file.
+
+### A2.2 — The rename, and why naming is the fix rather than new data
+
+**`line_start` → `slot_line_start`, `line_end` → `slot_line_end`** on the membership row. The
+**stored values do not change.** What changes is that the misreading loses the name it was hiding
+behind: nobody reads a field called `slot_line_start` as "where this atom's text is."
+
+This is the enforcement ladder applied to a naming decision (`dn-supervision-and-liveness` §0): a
+documented invariant is tier 5 — a consumer may still get it wrong and no machinery notices. Naming
+the field for the thing it measures moves the guarantee toward tier 1, because the bad reading is
+no longer expressible in the vocabulary. Same reasoning that made bp-151's `canonical_body` a
+**field** carried from the site that holds it rather than a property re-deriving it: prefer making
+the error unrepresentable over documenting that it would be an error.
+
+Rejected: **storing the atom's exact line coverage.** Owned lines are non-contiguous for any symbol
+with nested children, so that is a *set* per membership row, not a range — heavy for a precision no
+named consumer needs, when the atom's exact content is already available as its stored `text`.
+
+Also rejected: **`min..max` of the owned lines** as a cheaper approximation. Measured, it barely
+helps — blank lines are assigned to whatever encloses them, so a symbol's owned lines are scattered
+across its whole span (`Foo` runs 5–12 against a declared 5–14) and the module shell's `min..max`
+is still ≈ `1..n`. It would trade one imprecise range for another while implying a precision it
+does not have.
+
+### A2.3 — Scope, stated exactly
+
+The rename applies to **the membership row and the chunker field that feeds it**, and nowhere else:
+
+- **`memberships.slot_line_start` / `slot_line_end`** — the durable occupancy record (D1, above).
+- **`CodeChunk.line_start` / `line_end` → `slot_line_start` / `slot_line_end`**
+  (`core/ingest/code_corpus.py`). This is where the ambiguity *originates* — the values are
+  `owner.lineno, owner.end_lineno` — and it has exactly **one** consumer (`code_corpus.py:274-275`,
+  writing the vector row), in a file already in bp-152's write scope. Renaming the store but not
+  its source would leave `slot_line_start=ch.line_start` at the boundary: the same ambiguity, one
+  layer down, now with a name that disagrees with itself.
+- **NOT the vector-row Arrow columns** (`core/stores/vectorstore.py:51-52`). That schema is shared
+  with the prose lane, where there is no slot concept and the columns are the vacuous `0`
+  (`:67`) — and D1 sheds them from code atom rows anyway, so after this design they carry nothing
+  for either lane. Renaming a shared schema column to a code-only concept would be the wrong
+  direction; the translation happens at `code_rows`, which is the right place for it.
+
+### A2.4 — Falsifiers
+
+- **The rename lands but the reading is still untested.** A rename without the degenerate-input
+  assertion (a class with methods + a module shell) is cosmetic: every leaf-symbol fixture passes
+  either way. bp-152 Item 2 carries the assertion; the name and the test are one change.
+- **A consumer treats the span as content anyway.** If someone renders `slot_line_start..slot_line_end`
+  and calls it the atom, the naming-tier fix failed and the answer is to carry explicit coverage
+  after all (A2.2's rejected option, re-entered).
+- **The vector-row columns get renamed too.** That would be over-reading this amendment (A2.3) and
+  would push a code-only concept into the prose lane's schema.

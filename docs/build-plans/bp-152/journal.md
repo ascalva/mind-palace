@@ -57,8 +57,14 @@
   This needs its own test case: a suite that only ever exercises one embedder cannot see the
   bug.
 
-- ⚑ **`line_start`/`line_end` are the SLOT's extent, NOT the atom's text coverage** (issue #34,
-  pinned in §6, asserted in Item 2). L0a partitions by *innermost owner*, so a class's chunk holds
+- ⚑ **`slot_line_start`/`slot_line_end` are the SLOT's extent, NOT the atom's text coverage**
+  (issue #34; Amendment **A2** renamed them for exactly this reason, and **the rename is half the
+  fix** — the other half is the test below. A rename without the degenerate-input assertion is
+  cosmetic, since every leaf-symbol fixture passes either way). **Rename both halves together:**
+  the membership columns AND `CodeChunk.line_start`/`line_end` → `slot_line_*`
+  (`core/ingest/code_corpus.py`, one consumer at `:274-275`). The vector-row Arrow keys
+  `"line_start"`/`"line_end"` **stay** — that schema is shared with the prose lane, which has no
+  slot concept (A2.3). L0a partitions by *innermost owner*, so a class's chunk holds
   the class statement, its docstring, its attributes — **but not its methods**, which became their
   own chunks. Yet the coordinates are the owner's full declared span. Measured: `Foo` carries
   `lines 5-14` while its text holds only lines 5–7 and 13; the **module shell carries the entire
