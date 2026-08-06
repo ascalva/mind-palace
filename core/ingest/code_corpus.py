@@ -144,12 +144,12 @@ def _l0a_chunks(path: str, lines: list[str], shape: FileShape, *,
         body = "\n".join(lines[i - 1] for i in owned[key])
         full = f"{header}\n{body}"
         # identity = the header-free body (D0); the header rides only on the embed text.
-        # KNOWN RESIDUE (issue #31, parked): this ONE cut is still decided over header-bearing
-        # length, so a rename that crosses the budget flips a slice whole↔windowed and mints 1
-        # atom — the L1 mechanism surviving here. Deciding on len(body) is out of D0's bounds
-        # (§9: no other chunker behavior changes); it is the orchestrator's call, pinned by
-        # test_l0a_oversize_threshold_is_the_one_rename_residue.
-        if len(full) <= max_chars:
+        # The whole↔windowed cut is decided over the CANONICAL body (Amendment A1.2,
+        # dn-vector-membership-store): len(body), not len(full). This closes issue #31 — a
+        # rename that crossed the budget used to flip a slice whole↔windowed on path length
+        # alone, minting a spurious atom. The decision is now path-independent; the embed text
+        # emitted below is unchanged (`text=full`) so L0a text still keeps its header (D0/R7).
+        if len(body) <= max_chars:
             out.append(CodeChunk(LAYER_CODE_AST, key, ls, le, text=full, canonical_body=body))
         else:  # oversized slice: hard-split the body via the ONE window machinery, re-headered
             for piece in chunk_text(body, max_chars=max_chars, overlap_chars=overlap_chars):
