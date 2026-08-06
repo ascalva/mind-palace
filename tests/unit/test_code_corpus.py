@@ -272,22 +272,28 @@ def test_every_chunk_pairs_a_headered_embed_text_with_a_header_free_canonical_bo
                 assert path not in c.canonical_body       # the mutable coordinate stays out
 
 
-def test_l0a_oversize_threshold_is_the_one_rename_residue():
-    """PARKED — issue #31, the single case where §8(h) does NOT hold as built. The oversize cut is
-    decided over the HEADER-BEARING length (`len(header + body) <= max_chars`), so a slice sitting
-    at the budget flips whole↔windowed when the path lengthens and mints one atom. Characterization,
-    not endorsement: deciding that cut over the canonical body is out of D0's bounds (§9, no other
-    chunker behavior changes) and is the orchestrator's call. RE-ENTRY: if #31 is ruled that way,
-    this expectation becomes 0 and this test reddens — that redness is the tripwire."""
+def test_l0a_oversize_cut_is_canonical_body_scoped():
+    """bp-151's deliberate tripwire, formerly `test_l0a_oversize_threshold_is_the_one_rename_
+    residue`: it pinned issue #31, the single case where §8(h) did NOT hold as built — the
+    oversize cut was decided over the HEADER-BEARING length (`len(header + body) <= max_chars`),
+    so a slice sitting at the budget flipped whole↔windowed when the path lengthened, minting one
+    spurious atom. Its docstring named its own re-entry verbatim: "if #31 is ruled that way, this
+    expectation becomes 0 and this test reddens — that redness is the tripwire." Amendment A1.2
+    (dn-vector-membership-store) ruled it that way 2026-08-06; bp-155 landed the one-token fix
+    (`len(body) <= max_chars`) and this test reddened exactly as designed. Converted here to
+    assert the residue is GONE, guarding that the cut stays canonical-body-scoped going forward."""
     here, moved = "a/m.py", "a/much_longer_module_name.py"
     body = "def f():\n    y = 1\n\n    return y"
     budget = len(f"# {here}:f()") + 1 + len(body)         # exactly at the budget at the short path
-    # PRECONDITION: the rename really straddles the threshold — that IS the mechanism under test.
+    # PRECONDITION: the rename still straddles the threshold under the OLD (header-bearing) rule —
+    # that IS the mechanism under test. Without this, "0 minted" could mean the fixture never
+    # crossed the budget at either path, and the test would prove nothing.
     assert len(f"# {here}:f()") + 1 + len(body) <= budget < len(f"# {moved}:f()") + 1 + len(body)
     a = _at(here, body + "\n", LAYER_CODE_AST, max_chars=budget)
     b = _at(moved, body + "\n", LAYER_CODE_AST, max_chars=budget)
     assert len(a) == 1                                    # whole at the short path
-    assert len({c.content_hash for c in b} - {c.content_hash for c in a}) == 1   # ← issue #31
+    assert len(b) == 1                                    # ...and now still whole at the long one
+    assert len({c.content_hash for c in b} - {c.content_hash for c in a}) == 0   # issue #31, closed
 
 
 # ── the STRUCTURAL CODE mint (F-CI1: no provenance parameter anywhere) ──────────────────
