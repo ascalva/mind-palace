@@ -147,8 +147,31 @@ Read in order:
   contradicts its role, and it is a stop-and-raise (§10), never an `INNER` hand-edit
   (`rings.py:24` — "never hand-edit toward green").
 
+- **Q10 — What do `line_start`/`line_end` on a membership row actually describe?** The **slot's
+  declared extent**, NOT the atom's text coverage — and the two diverge in a way no fixture in this
+  plan would catch (issue #34, verified on the real chunkers 2026-08-06). L0a partitions by
+  **innermost owner** (`core/ingest/code_corpus.py`, `_innermost_owner`: "every line has exactly one
+  owner ... so the slices byte-cover the file"), so nested symbols carve their lines out of the
+  parent — but the emitted coordinates are `owner.lineno, owner.end_lineno`, the owner's **full
+  declared span**. Measured on a 19-line demo:
+
+  | qualname | coords | text actually held |
+  |---|---|---|
+  | `Foo` | lines 5–14 | class stmt + docstring + `LIMIT` + one stray comment — **not** `bar`, **not** `baz` |
+  | `''` (module shell) | lines 1–18 | module docstring + `import os` (4 lines) |
+  | `Foo.bar` | lines 9–10 | exactly lines 9–10 — **these agree** |
+
+  The module shell is the degenerate case: its span is the **entire file** by construction
+  (`coords.setdefault(key, (f"# {path}", 1, n))`). Related property: owned lines are
+  **non-contiguous** for any symbol with nested children, so `"\n".join(owned_lines)` welds together
+  lines far apart in the source — the embedder sees text that never existed in that form.
+
 **Additional risks or questions surfaced during reading:**
 
+- **⚠ Every acceptance fixture in this plan would pass vacuously on Q10.** §8(b)'s fork case and the
+  rest use leaf-symbol fixtures, where span and text coverage coincide **exactly**. The divergence
+  is invisible to them by construction. This is why Item 2 carries an explicit degenerate-input
+  assertion rather than trusting the existing cases.
 - **`by_id.setdefault` silently drops duplicates within a file.** At `:229` two identical
   L0b windows in one blob collapse to one row. Under D1's multiset honesty ("two identical
   windows in one blob are two rows with distinct `chunk_index`") the *membership* side must
@@ -233,6 +256,21 @@ note-lane ingest paths (PD-2 — prose is untouched), and the fixed points
 membership-only, honestly chainless (R4). A version's projection = the fiber
 `M(path, blob_sha)`. **Multiset honesty:** two identical windows in one blob are two rows
 with distinct `chunk_index` — no occupancy vanishes by key collision.
+
+**⚑ The reading of `line_start`/`line_end` (issue #34 — pinned here because D1 names the columns
+but not their meaning):**
+
+> On a membership row, `line_start`/`line_end` are the **SLOT's declared extent** — where the symbol
+> lives — **never the atom's text coverage**. They coincide for leaf symbols. For a symbol with
+> nested children, and maximally for the module shell (whose extent is the entire file), the atom's
+> text is a **strict subset** of its span.
+
+This is the *intended* reading, not a defect to fix: for lineage the slot is what matters, and for
+navigation "jump to the symbol" is the right behavior. A consumer needing the atom's exact content
+uses the stored `text`; a consumer needing "where is this" uses the span. **The hazard is composing
+this with D0's consequence note** ("coordinates for display always resolve from memberships, never
+from the stored text") and concluding that rendering the range shows the atom — for the module shell
+that renders the whole file. Carried as an assertion in Item 2, not as a comment.
 
 **The vector row (D1):** `id = "{layer}:{content_hash}"`, plus `layer`, `text`, `vector`,
 `provenance` (**stays** — the firewall is a row prefilter and holds only if the column is
@@ -348,7 +386,13 @@ observe `|V|` decrease (except across a logged purge).
 - **Files:** `core/stores/memberships.py`, `tests/unit/test_memberships.py`
 - **Acceptance test:** writing a fiber for `(path, blob_sha)` and reading it back yields
   exactly the chunks derived for that blob, in `chunk_index` order; `Σ fiber sizes = |M|`
-  holds on the fixture.
+  holds on the fixture. **Plus the §6 coordinate reading, on the degenerate input** (issue #34):
+  the fixture must include **a class with methods and a module shell**, and the test asserts both
+  that the span equals the *symbol's* declared extent AND that the atom's text coverage is a
+  **strict subset** of that span — i.e. the divergence is pinned as intended behavior.
+- **Precondition to assert first:** the fixture actually contains a nested symbol and a non-empty
+  module shell. A leaf-only fixture makes the subset assertion vacuous (span == coverage), which is
+  exactly how this went unnoticed until issue #34.
 - **Falsifier:** **a blob containing two byte-identical L0b windows stores one membership
   row instead of two.** That is the multiset-honesty violation the atom-side dedup invites
   (§3, `by_id.setdefault` at `:229`) — the atom side must dedup and the membership side must
@@ -414,7 +458,10 @@ observe `|V|` decrease (except across a logged purge).
   superseded one, and a shared atom resolves to all its current homes.
 - **Falsifier:** the fork precondition passes on a store that never dedups — then "the
   other file's fiber untouched" is vacuous. Likewise an all-current fixture makes the
-  current-filter test vacuous. Either means the test proves nothing.
+  current-filter test vacuous. Either means the test proves nothing. **Also:** any read-path helper
+  that presents a resolved occupancy as though the span *were* the atom's content (issue #34) — for
+  the module shell that would render the entire file as one atom's location. Resolving coordinates
+  is correct; equating them with content is not.
 - **Invariant(s) it must not violate:** the mirror firewall — an AUTHORED-scoped search
   still cannot surface a CODE atom. Flat retrieval behavior is preserved for existing
   consumers.
@@ -544,6 +591,8 @@ observe `|V|` decrease (except across a logged purge).
 | L1 slotting (PD-5) | L1 stays windowed + slotless (R4) | Re-slot L1 — rejected: a quiet re-slot is exactly what R4 forbids | A consumer needs docstring/comment lineage |
 | Read-path join latency (R2) | Measure in T4 before optimizing; `current_any` prefilter keeps the ANN set lean | Pre-optimize the join now — rejected as unmeasured | T4 shows the k×SQLite lookups dominate |
 | Where the Item 3 guard lives | On the shed side, in `core/stores/` | Inside `core/kernel/stores/sourceset.py` — rejected: out of scope, and a kernel edit for an outer-ring concern | The guard proves impossible outside the kernel (→ §10) |
+| Column names for the slot extent (issue #34) | Keep D1's `line_start`/`line_end`; pin the reading in §6 and assert it in Item 2 | Rename to `slot_line_start`/`slot_line_end` — genuinely better (it makes the misreading structurally unavailable instead of merely documented, which is this repo's enforcement-ladder preference), but **D1 names these columns verbatim**, so a rename is a design amendment and not a builder's call | A consumer misreads the span as content despite the pin — then the documentation-tier fix has failed and the rename is warranted |
+| Storing the atom's exact line coverage | Not stored — the atom's `text` already is its content | Carry the owned-line set per membership row — rejected: owned lines are non-contiguous for nested symbols, so this is a set per row, not a range; heavy for a precision no named consumer needs | A consumer needs exact per-atom line coverage (e.g. precise highlighting) |
 
 ## 12. Dependency & ordering summary
 
