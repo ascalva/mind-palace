@@ -249,21 +249,36 @@ note-lane ingest paths (PD-2 — prose is untouched), and the fixed points
 
 ## 6. Interfaces pinned inline
 
-**The membership schema (D1, verbatim from the note):** one row per occupancy, key =
-`(path, blob_sha, layer, chunk_index)`, columns `content_id`, `slot`, `line_start`,
-`line_end`, `current`, `tombstoned`. `slot` = qualname for **L0a only** — L0b and L1 carry
+**The membership schema (D1 as amended by A2, verbatim from the note):** one row per occupancy,
+key = `(path, blob_sha, layer, chunk_index)`, columns `content_id`, `slot`, **`slot_line_start`,
+`slot_line_end`** (renamed from `line_start`/`line_end` by Amendment A2 — see the reading pinned
+below), `current`, `tombstoned`. `slot` = qualname for **L0a only** — L0b and L1 carry
 `qualname=''` (`code_corpus.py:177`), so L0a is the only slotted layer and L0b/L1 are
 membership-only, honestly chainless (R4). A version's projection = the fiber
 `M(path, blob_sha)`. **Multiset honesty:** two identical windows in one blob are two rows
 with distinct `chunk_index` — no occupancy vanishes by key collision.
 
-**⚑ The reading of `line_start`/`line_end` (issue #34 — pinned here because D1 names the columns
-but not their meaning):**
+**⚑ The reading of `slot_line_start`/`slot_line_end` (issue #34; the columns are NAMED for it by
+Amendment A2, and the name is half the fix):**
 
-> On a membership row, `line_start`/`line_end` are the **SLOT's declared extent** — where the symbol
-> lives — **never the atom's text coverage**. They coincide for leaf symbols. For a symbol with
-> nested children, and maximally for the module shell (whose extent is the entire file), the atom's
-> text is a **strict subset** of its span.
+> On a membership row, `slot_line_start`/`slot_line_end` are the **SLOT's declared extent** — where
+> the symbol lives — **never the atom's text coverage**. They coincide for leaf symbols. For a
+> symbol with nested children, and maximally for the module shell (whose extent is the entire
+> file), the atom's text is a **strict subset** of its span.
+
+**The rename is end-to-end (A2.3), and its scope is exact:**
+
+- `memberships.slot_line_start` / `slot_line_end` — the durable occupancy record.
+- `CodeChunk.line_start` / `line_end` → **`slot_line_start` / `slot_line_end`**
+  (`core/ingest/code_corpus.py`). This is where the ambiguity originates — the values are
+  `owner.lineno, owner.end_lineno` — and it has exactly **one** consumer (`code_corpus.py:274-275`,
+  writing the vector row). Renaming the store but not its source would leave
+  `slot_line_start=ch.line_start` at the boundary: the same ambiguity one layer down, with a name
+  that disagrees with itself.
+- **NOT the vector-row Arrow columns** (`core/stores/vectorstore.py:51-52`). That schema is shared
+  with the prose lane, where there is no slot concept and the columns are the vacuous `0` (`:67`) —
+  and D1 sheds them from code atom rows anyway. Renaming a shared column to a code-only concept is
+  the wrong direction; `code_rows` is the translation point.
 
 This is the *intended* reading, not a defect to fix: for lineage the slot is what matters, and for
 navigation "jump to the symbol" is the right behavior. A consumer needing the atom's exact content
@@ -382,8 +397,15 @@ observe `|V|` decrease (except across a logged purge).
 ### Item 2 — the membership store and the fiber
 
 - **Objective:** `core/stores/memberships.py` exists and can write/read a version's fiber
-  under the D1 key.
-- **Files:** `core/stores/memberships.py`, `tests/unit/test_memberships.py`
+  under the D1 key, with the occupancy coordinates named for what they measure (A2).
+- **Files:** `core/stores/memberships.py`, `core/ingest/code_corpus.py`,
+  `tests/unit/test_memberships.py`, `tests/unit/test_code_corpus.py`
+- **The A2 rename, both halves (do them together — half a rename is worse than none):**
+  (a) the membership columns are `slot_line_start` / `slot_line_end`;
+  (b) `CodeChunk.line_start` / `line_end` are renamed to `slot_line_start` / `slot_line_end`
+  (`core/ingest/code_corpus.py`), with its one consumer updated at `:274-275` — where the
+  vector-row Arrow keys `"line_start"` / `"line_end"` **stay as they are** (A2.3: shared with the
+  prose lane, so `code_rows` is the translation point, not a rename site).
 - **Acceptance test:** writing a fiber for `(path, blob_sha)` and reading it back yields
   exactly the chunks derived for that blob, in `chunk_index` order; `Σ fiber sizes = |M|`
   holds on the fixture. **Plus the §6 coordinate reading, on the degenerate input** (issue #34):
@@ -396,7 +418,11 @@ observe `|V|` decrease (except across a logged purge).
 - **Falsifier:** **a blob containing two byte-identical L0b windows stores one membership
   row instead of two.** That is the multiset-honesty violation the atom-side dedup invites
   (§3, `by_id.setdefault` at `:229`) — the atom side must dedup and the membership side must
-  not. Also falsified if the store is importable from `core/kernel/**`.
+  not. Also falsified if the store is importable from `core/kernel/**`. **And for the rename:**
+  the vector-row Arrow columns get renamed too (A2.4's third falsifier — that pushes a code-only
+  concept into the prose lane's shared schema), or the rename lands *without* the degenerate-input
+  assertion, which is cosmetic — every leaf-symbol fixture passes either way, so the name and the
+  test are one change, not two.
 - **Invariant(s) it must not violate:** no kernel import (the C5/D3 ring pin); `slot` is
   populated for L0a only, `''` for L0b/L1 (R4 — never a quiet re-slot).
 - **Touches stored data?** Yes — new SQLite store, created beside the vault catalog.
@@ -591,7 +617,7 @@ observe `|V|` decrease (except across a logged purge).
 | L1 slotting (PD-5) | L1 stays windowed + slotless (R4) | Re-slot L1 — rejected: a quiet re-slot is exactly what R4 forbids | A consumer needs docstring/comment lineage |
 | Read-path join latency (R2) | Measure in T4 before optimizing; `current_any` prefilter keeps the ANN set lean | Pre-optimize the join now — rejected as unmeasured | T4 shows the k×SQLite lookups dominate |
 | Where the Item 3 guard lives | On the shed side, in `core/stores/` | Inside `core/kernel/stores/sourceset.py` — rejected: out of scope, and a kernel edit for an outer-ring concern | The guard proves impossible outside the kernel (→ §10) |
-| Column names for the slot extent (issue #34) | Keep D1's `line_start`/`line_end`; pin the reading in §6 and assert it in Item 2 | Rename to `slot_line_start`/`slot_line_end` — genuinely better (it makes the misreading structurally unavailable instead of merely documented, which is this repo's enforcement-ladder preference), but **D1 names these columns verbatim**, so a rename is a design amendment and not a builder's call | A consumer misreads the span as content despite the pin — then the documentation-tier fix has failed and the rename is warranted |
+| ~~Column names for the slot extent~~ | **CLOSED — the rename was ruled in** (owner, 2026-08-06) and lands as Amendment A2 + §7 Item 2. The park is kept as a record of the reasoning, not as an open decision | Keeping `line_start`/`line_end` with a documented reading — rejected: documentation is tier 5 and a consumer can still get it wrong with nothing noticing; naming the field for what it measures removes the vocabulary the misreading hides in | — (closed) |
 | Storing the atom's exact line coverage | Not stored — the atom's `text` already is its content | Carry the owned-line set per membership row — rejected: owned lines are non-contiguous for nested symbols, so this is a set per row, not a range; heavy for a precision no named consumer needs | A consumer needs exact per-atom line coverage (e.g. precise highlighting) |
 
 ## 12. Dependency & ordering summary
