@@ -632,3 +632,130 @@ Artifacts: the commissioning capsule (`docs/brainstorms/supervision-and-liveness
 0186, 0187, 0188, 0191, 0198 · `docs/build-plans/bp-105/journal.md` (Checkpoints 1 and 3 carry
 the channel eliminations this note builds on) · `docs/audits/ops-wave-2026-07-25.md` ·
 `docs/tracks/ops.md` (OPS-4 is this note's DoD row).
+
+## Amendment A1 — the power axis: the scheduler learns to see the battery
+
+**Warrant:** issue #12 (`energy: the scheduler cannot see the battery`, `type:direction`,
+`route:orchestrator`, migrated from frozen `docs/findings/finding-0279.md`) · **three** measured
+emergencies, not the two its title names — Jul 24 (drained to 1% during the v1.18.0 deploy night;
+the embedder starved under critical-battery throttle, `code_backfill` timed out, **`code_sync`
+wedged**, the daemon died unwitnessed and stayed dead three days), Jul 28 (100%→8% in 2h40m during
+the revival's backlog drain, `Python:100%` throughout; caught at the wire, zero casualties under
+launchd KeepAlive), and **Aug 1 (fatal — the machine died mid-run; run #39 came up in recovery)**.
+Battery hardware is healthy and stays healthy — re-measured 2026-08-05: Condition Normal, 95%
+maximum capacity, 128 cycles. **The drain is load, not degradation.** The scheduler is the defect.
+
+**Authority basis, self-describing:** this amendment is agent-DRAFTED and lands only by the owner's
+merge of its PR — under the merge-gated regime, **the merge is the hand**. If it is in the ratified
+file, the owner put it there. It extends this note rather than founding a new one because the
+refusal it adds is a new *dimension* on machinery this note already decided (§2.7's dispatch-time
+refusal), not a new subsystem.
+
+**What changes.** This note's §2.7 gave the supervisor exactly one resource axis to refuse on —
+**memory** (non-negotiable #8, "the scheduler refuses breaching work"). That principle is not
+memory-specific; it was simply never given a second axis. Amendment: **the same dispatch-time
+refusal grows a POWER axis.** The machine's remaining energy is a schedulable resource, and work
+that would spend the last of it is breaching work.
+
+### A1.1 — The shed mechanism already exists; this adds a predicate, not machinery
+
+`scheduler/supervisor.py` already sheds heavy lanes under a condition: `HEAVY_TIERS =
+frozenset({"synthesis", "stretch"})` (`:59`), gated by `blocked_tiers()` on
+`presence.foreground_active()` (`:130-135`), and composed with the single-model rule at **the ONE
+claim site** — `blocked_tiers=self.blocked_tiers() | self.model_blocked_tiers()` (`:177`, and `:153`
+pins it: *"Enforced at the ONE claim site, via `claim`'s existing `blocked_tiers` — no new queue"*).
+
+**Pin, and it is the load-bearing constraint of this amendment: the power axis is its OWN
+predicate — `power_blocked_tiers()` — never folded into `blocked_tiers()`.** This note already
+ruled on that shape and the reasoning is quoted from the code it produced (`:131-134`):
+
+> THE FOREGROUND GATE, and nothing else. Deliberately not extended with the single-model-in-flight
+> rule (bp-110 §7 Item 4's invariant: *"the foreground gate keeps its meaning and is not
+> overloaded"*) — **two different reasons to refuse a tier, conflated into one predicate, is how a
+> reader later cannot tell which rule refused a job.**
+
+A power refusal and a presence refusal answer different questions ("is the owner here?" vs "is
+there energy?") and must stay separately readable. Composition happens only at `:177`, by union.
+
+### A1.2 — The sensor mirrors `Presence`, including its fail-closed default
+
+`scheduler/presence.py:46-59` is the template, and it is adopted deliberately rather than
+re-invented: an injectable probe (so the gate is testable with no hardware), a threshold, and —
+the idiom that matters — **`assume_present_when_unknown: bool = True`**: when the probe returns
+`None`, assume the *restrictive* state.
+
+The power sensor takes the same shape: an injectable probe over `pmset -g batt`, a floor
+(~20%), and **`assume_discharging_when_unknown = True`** — an unreadable battery is treated as
+discharging. Fail-closed is the whole point: the failure mode being designed against is the
+machine dying, and a sensor that fails open re-creates it precisely when the system is least
+healthy.
+
+**The rule:** on `discharging`, shed the embedder-bound lanes. Below the floor, **close the ledger
+clean and hold for AC** — a clean stop, never a death. Note the asymmetry with the foreground gate:
+presence shedding is politeness and may be advisory; power shedding below the floor is a
+*shutdown obligation*, because the alternative is an unclean exit and a recovery run.
+
+### A1.3 — The sensor lives in the daemon, NOT in preflight
+
+Issue #12's direction text says *"health/preflight reads `pmset -g batt`"*. **Amended:
+preflight is the wrong home**, and open issue #19 is the standing proof — `status` reports
+`sandbox: present` while every live run booted with it off, because **preflight runs in the
+caller's environment, not the daemon's** (`scripts/palace.py`). A power axis built there would
+report the state of whoever typed `palace status`, not the constraint the daemon is actually
+under. The refusal must bind where dispatch happens (`scheduler/`), which is also where the
+memory ceiling already binds. Preflight may *display* power state; it may never be the thing that
+enforces it.
+
+### A1.4 — Enforcement tier, stated honestly
+
+**Tier 5 (runtime check) with a tier-4 test** — deliberately identical to what §2.7 claims for the
+memory ceiling itself (*"a dispatch guard at the one claim site — tier 5 with a tier-4 test, stated
+as such"*). Power state is a sampled reading of the physical world; no value can be made to not
+inhabit "the battery is low", so tier 1 is unreachable and claiming it would be exactly the
+overclaim §0's ladder names as the foot-gun. What tier 4 buys: a test proving the union at `:177`
+actually includes the power predicate, and that the probe's `None` path fails closed.
+
+**The honest limit, recorded:** a refusal at dispatch cannot stop a job *already running* from
+draining the battery — Jul 24's `code_backfill` was already in flight when the throttle hit. This
+amendment bounds what is *started*, not what is *in flight*; in-flight energy bounding needs the
+job-timeout machinery (finding-0178) and is **not** designed here (§A1.6).
+
+### A1.5 — The sampler is promoted out of `/tmp`
+
+`/tmp/mind-palace-battery-watch.sh` — the ad-hoc sampler that produced the Jul 28 evidence — **no
+longer exists**: `/tmp` was cleared by the Aug 1 reboot. The tool built to diagnose the battery
+problem was destroyed by the battery problem, which is the argument for promotion in its sharpest
+form. A telemetry sensor that does not survive the event it observes is not a sensor.
+
+Constrained by this note's own §1.2 non-goal — *"NOT a per-lane mtime probe for each store… N
+ad-hoc detectors, each with its own falsifier and its own rot, is the failure mode this note exists
+to avoid."* The power sensor is therefore **one** sensor feeding **one** predicate, in the
+`Presence` mould, not a family.
+
+### A1.6 — Non-goals (load-bearing — read at ratification)
+
+- **NOT in-flight energy bounding.** Only dispatch-time refusal is designed (§A1.4's honest limit).
+  Killing or suspending a running job on power state needs the job-timeout machinery (finding-0178)
+  and is separable. `[INFERENCE — no artifact scopes it; separability is this amendment's claim]`
+- **NOT thermal, CPU, or any third axis.** Power only. The pattern generalizes; the design does not
+  pre-build for axes nobody has measured a failure on.
+- **NOT the embedder's residency or runtime.** §2.7's boundary with `dn-local-model-runtime` (NEW
+  NOTE 2) is unchanged: this amendment decides *whether an embedder-bound lane is dispatched*, never
+  *where the embedder lives* or what it costs.
+- **NOT a config-driven policy engine.** One floor, one discharging rule, in the `Presence` mould
+  (a dataclass with defaults). `[INFERENCE — proportionality; no artifact requests configurability]`
+- **NOT the deploy gate.** `palace deploy` stays the owner's single in-loop act, untouched.
+
+### A1.7 — Falsifiers (the owner ratifies falsifiers, not proofs)
+
+- **The predicate is conflated.** If the power rule lands inside `blocked_tiers()` rather than
+  beside it, this amendment failed at its one load-bearing pin — a reader can no longer tell which
+  rule refused a job (`:131-134`).
+- **The sensor fails open.** If an unreadable/absent `pmset` yields "not discharging" and work
+  dispatches, the design is inverted: it will fail exactly when the machine is least healthy.
+- **A fourth emergency.** If the machine drains again under palace compute with this landed, the
+  dispatch-time refusal was the wrong altitude and §A1.4's honest limit was the real problem — the
+  answer is then in-flight bounding (finding-0178), not a lower floor.
+- **The floor is never reached in practice.** If gauges show the discharging-shed alone always
+  prevents approach to the floor, the hold-for-AC branch is dead code claiming safety it never
+  provides — and should be cut or proven by injection.
