@@ -26,6 +26,31 @@ warrant: docs/findings/finding-0163.md
 > Everything below about the *design* stands; only the config names have moved. See
 > `config/defaults.toml` → the INGESTION AGENTS banner.
 
+> **⚑ Row model partially superseded — two mechanism re-homes (2026-08-01).**
+> `dn-vector-membership-store` (§6) replaces this note's **D1/D2 row model** — digest-stamped
+> rows duplicated per version, `current` carried on the vector row — with an **atom + membership**
+> split: one vector row per distinct idea-atom `(layer, content_hash)` over the header-free
+> canonical body, and a membership relation carrying all occupancy.
+>
+> **What STANDS, unchanged:** keep-and-link semantics, history embedded, the `commit_diffs`
+> design, current-view default retrieval, and the flag-less wiring posture. The supersession is
+> **partial and mechanical** — it changes where two facts are *stored*, not what this note decides.
+>
+> **The two re-homes**, each banner-ed inline at the passage it corrects, because a shed column
+> would otherwise break them silently:
+> 1. **§3's incompleteness probe** (`:150-153`) reads "the store's distinct code-digest count".
+>    That column leaves atom rows → the probe re-homes to the membership store's distinct
+>    `(path, blob_sha)` **fiber count** — the same number, a sturdier home. **The backfill
+>    TRIGGERS stand unchanged; only the probe's data source moves.**
+> 2. **D5's supersession-edge endpoints** (`:134-135`) are "resolvable by digest in the vector
+>    store" → re-home to **fiber existence**: an endpoint is resolvable ⇔ `M(path, blob)` is
+>    non-empty.
+>
+> Graduated as bp-151 → bp-152 → bp-153; the mechanical re-home lands in bp-153 Item 5.
+> **D6 below (the embedder axis) is untouched and becomes load-bearing** — its
+> reset + re-embed-from-raw-on-change rule is exactly the embedder pin that governs the new
+> model's embed reuse (owner confirmation, 2026-08-01).
+
 > The code corpus is not a snapshot; it is a graph that evolves over time. Every code version is a
 > semantic node; every code change is a supersession edge; the integrator's causal chain
 > (conversation → commit → code change) terminates ON those edges. HEAD-only embedding made that
@@ -131,6 +156,12 @@ missing is the *cheap, uncaptured* diff: finding-0111 named it. New module **`op
 
 ### D5 — The realized supersession edge (the integrator's landing surface)
 
+> **⚑ Re-home (2026-08-01, `dn-vector-membership-store` §6, F6):** "resolvable **by digest in the
+> vector store**" no longer holds — `digest` is shed from code-atom rows by the atom+membership
+> split. The endpoint test re-homes to **fiber existence**: an endpoint is resolvable ⇔
+> `M(path, blob)` is non-empty. The edge itself — the `(old_blob, new_blob)` pair from
+> `commit_diffs` — is unchanged.
+
 The semantic supersession edge is the pair `(old_blob, new_blob)` from `commit_diffs` **with both
 endpoints resolvable by digest in the vector store** (D1/D2 guarantee resolution). The causal path
 the owner named — *conversation → commit → code change* — becomes traversable today at the
@@ -145,6 +176,13 @@ not just HEAD — cost grows with history but remains thousands of chunks, and t
 (content changed vs worldview changed) stay unconflated. `[ESTABLISHED]`
 
 ## 3. Wiring & enablement (required §)
+
+> **⚑ Re-home (2026-08-01, `dn-vector-membership-store` §6):** the catch-up probe below compares
+> "the store's distinct code-digest count" against the ledger's distinct-version count. That
+> column leaves atom rows under the atom+membership split, so the probe's **data source**
+> re-homes to the membership store's distinct `(path, blob_sha)` **fiber count** — the same
+> number, a sturdier home. **Both backfill TRIGGERS — startup catch-up and `palace
+> code-backfill` — stand exactly as written.** Mechanical change: bp-153 Item 5.
 
 **How it wires:** keep-and-link is the sync's semantics, not a feature — it is live for every
 `code_sync` run at the deploy that carries this build. The backfill wires twice: (a) **startup
