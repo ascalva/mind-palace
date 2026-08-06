@@ -57,6 +57,17 @@
   This needs its own test case: a suite that only ever exercises one embedder cannot see the
   bug.
 
+- ⚑ **`line_start`/`line_end` are the SLOT's extent, NOT the atom's text coverage** (issue #34,
+  pinned in §6, asserted in Item 2). L0a partitions by *innermost owner*, so a class's chunk holds
+  the class statement, its docstring, its attributes — **but not its methods**, which became their
+  own chunks. Yet the coordinates are the owner's full declared span. Measured: `Foo` carries
+  `lines 5-14` while its text holds only lines 5–7 and 13; the **module shell carries the entire
+  file** (`1..n`) for four lines of text. Leaf functions agree exactly, which is why **every other
+  fixture in this plan is blind to it** — build the class-with-methods + module-shell fixture, and
+  assert the strict-subset relation explicitly. The trap: composing this with D0's "coordinates for
+  display always resolve from memberships" and concluding that rendering the span shows the atom.
+  For the module shell that renders the whole file.
+
 - ⚑ **Every acceptance criterion has a named degenerate input. Assert the precondition
   first.** A do-nothing lander lands zero vectors (so §8(a) *must* assert currency). A store
   that never dedups makes the fork test vacuous (so §8(b) asserts `|V| < Σ chunks` first). An
