@@ -31,12 +31,18 @@
   finishing the plan. File it and say so. Do not adjust the measurement until it reads what you
   want.
 
-- ⚑ **Expect chunk counts to go DOWN slightly, and some `text` to exceed 1200.** Slices in the band
-  between `max_chars - len(header)` and `max_chars` are now emitted whole where they were previously
-  windowed, so their embed text is up to `len(header)` over the budget. That is accepted and parked
-  (§11): the budget bounds the identity body, and the header was always additive on top. Trimming
-  the body to compensate would reintroduce path-dependence through the back door — i.e. it would
-  re-create the entire defect.
+- ⚑ **Expect chunk counts to go DOWN slightly. Do NOT treat `text` > 1200 as a regression — it is
+  already true today, and by more than this change adds.** Measured 2026-08-06 over 400 repo files:
+  the greedy packer seeds each new chunk with `overlap_chars` of tail plus a whole block, so chunks
+  already reach `1200 + 150 + 2 = 1352` (observed L0b/L1 max is exactly 1352), and L0a reaches
+  **1647** with its header. `max_chars` is a packing budget, not a hard cap. Trimming the body to
+  compensate would reintroduce path-dependence through the back door — i.e. re-create the defect.
+
+- ⚑ **Why this defect is not a rare tail — the number that makes the case.** Measured over the same
+  400 files: L0a median chunk is **563** chars but **p90 is 1175**, against a 1200 budget, and
+  **11.5% of symbols (591/5,139) already hit the budget and split.** The distribution piles up
+  right against the threshold. So a ~30-character change in header length does not nudge some
+  outlier — it moves a real population of symbols across a line they are already sitting on.
 
 - ⚑ **Already-windowed slices must not change.** `chunk_text(body, ...)` was always called on the
   header-free body, so the windowing itself was already path-independent. Only the whole↔windowed

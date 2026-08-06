@@ -98,10 +98,18 @@ Read in order:
   (§7 Item 1's falsifier).
 - **A slice between `max_chars - len(header)` and `max_chars`** is the affected band. After the
   fix, slices in that band are emitted **whole** where they were previously windowed — so chunk
-  count goes *down* slightly and individual chunks get slightly larger, up to
-  `max_chars + len(header)` in embed-text terms. That is acceptable (the budget bounds the
-  identity body, and the header was always additive on top), but it should be stated in the PR so
-  a reviewer is not surprised by a chunk whose `text` exceeds 1200.
+  count goes *down* slightly and individual chunks get slightly larger.
+- **`max_chars` is NOT a hard cap today, and this plan does not make it one** (measured
+  2026-08-06, orchestrator, over 400 repo files). `chunk_text`'s greedy packer emits a chunk and
+  then seeds the next with `overlap_chars` of tail **plus** a whole block, so a chunk reaches
+  `max_chars + overlap_chars + 2` = **1352**; the observed L0b/L1 maximum is exactly 1352, which
+  confirms the mechanism. L0a adds its header on top — observed max **1647** against a nominal
+  1200. Measured distribution: L0a median **563**, p90 **1175**; L0b median 1001, p90 1198; L1
+  median 1094, p90 1184. **11.5% of symbols (591/5,139) already hit the budget and split.**
+  Two consequences for this plan: (a) a reviewer must NOT treat "text > 1200" as evidence of a
+  regression — it is pre-existing and larger than what this change adds; (b) the L0a p90 of 1175
+  against a 1200 budget is *why* this defect matters — the distribution piles up against the
+  threshold, so a ~30-char header delta moves a real population across it, not a rare tail.
 
 ## 4. Reconciliation
 
@@ -253,7 +261,7 @@ N/A — no mathematical object is implemented. The change is a predicate's argum
 
 | Decision | Default recorded | Rejected alternatives (why) | Re-entry condition |
 |---|---|---|---|
-| Embed text may exceed `max_chars` by `len(header)` | Accepted — the budget bounds the identity body; the header was always additive | Trim the body to keep `text` ≤ budget — rejected: reintroduces path-dependence through the back door, which is the entire defect | A downstream consumer breaks on a chunk longer than the budget |
+| Embed text may exceed `max_chars` | Accepted, and **not new** — chunks already reach 1352 (`max_chars + overlap_chars + 2`) via overlap seeding, and 1647 at L0a with the header (measured 2026-08-06). The budget bounds the identity body; the header was always additive | Trim the body to keep `text` ≤ budget — rejected: reintroduces path-dependence through the back door, which is the entire defect | A downstream consumer breaks on a chunk longer than the budget |
 | `max_chars` value (1200) | Unchanged | Retune while here — rejected: explicitly outside A1.2 and named in A1.5 | A measured retrieval-quality result, in its own plan |
 
 ## 12. Dependency & ordering summary
