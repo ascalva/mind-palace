@@ -40,6 +40,7 @@ from typing import Any, Protocol, cast
 from core.ingest.embed import Embedder
 from core.ingest.index import semantic_search
 from core.kernel.provenance import MIRROR_READABLE, Provenance
+from core.stores.memberships import MembershipStore
 from core.stores.vectorstore import (
     LAYER_CODE_AST,
     LAYER_CODE_TEXT,
@@ -78,14 +79,22 @@ def cosine(a: Sequence[float], b: Sequence[float]) -> float:
 # ── M-C3: retrieval quality — code lane vs docstring-only baseline ─────────────────────────
 
 def ranked_paths(query: str, embedder: _QueryEmbedder, store: VectorStore, *,
-                 layers: Iterable[str], pool: int = _DEFAULT_POOL) -> list[tuple[str, float]]:
+                 layers: Iterable[str], pool: int = _DEFAULT_POOL,
+                 memberships: MembershipStore | None = None) -> list[tuple[str, float]]:
     """The ranked, path-deduplicated retrieval for one query restricted to `layers`. Pulls `pool`
     flat code chunks via an EXPLICIT `provenances={CODE}` search (never the mirror default — §7),
     filters to the requested layers, and collapses to one entry per source path at its best
     (lowest-distance) hit, preserving rank. Returns `[(path, distance)]` best-first.
 
     The Python-side layer filter + path dedup mirrors the store's single-user-scale posture
-    (`all_rows`/`rows_for_source`): pull a generous pool, refine in Python."""
+    (`all_rows`/`rows_for_source`): pull a generous pool, refine in Python.
+
+    [cross-ref: extension] Under the atom+membership split (dn-vector-membership-store D1, bp-152)
+    a code hit is an ATOM and carries no `source_path` — occupancy lives in the membership store,
+    and the D3 read path resolves it by JOIN. Pass `memberships` and each hit contributes every
+    path it currently occupies, which is the honest reading of a shared atom: one idea genuinely
+    living in two files ranks both, at the same distance. Without it the pre-split reading is
+    unchanged (rows that still carry `source_path` resolve to themselves), so this is additive."""
     allowed = set(layers)
     hits = semantic_search(query, cast(Embedder, embedder), store, k=pool,
                            provenances={Provenance.CODE})
@@ -94,14 +103,27 @@ def ranked_paths(query: str, embedder: _QueryEmbedder, store: VectorStore, *,
     for h in hits:
         if h.get("layer") not in allowed:
             continue
-        path = str(h["source_path"])
         dist = float(h.get("_distance", 0.0))
-        if path not in best:
-            best[path] = dist
-            order.append(path)
-        elif dist < best[path]:
-            best[path] = dist
+        for path in _hit_paths(h, memberships):
+            if path not in best:
+                best[path] = dist
+                order.append(path)
+            elif dist < best[path]:
+                best[path] = dist
     return [(p, best[p]) for p in order]
+
+
+def _hit_paths(hit: dict[str, Any], memberships: MembershipStore | None) -> list[str]:
+    """Where one hit lives: its own `source_path` for a pre-split row, or its CURRENT occupancies
+    resolved through the membership join for a shed atom row (D3). An atom with no membership
+    resolves nowhere and contributes no path — correct, not silent: dormant geometry from an
+    interrupted land is not in any file yet."""
+    own = str(hit.get("source_path") or "")
+    if own:
+        return [own]
+    if memberships is None:
+        return []
+    return list(dict.fromkeys(m.path for m in memberships.occupancies(str(hit.get("id", "")))))
 
 
 def _rank_of(paths: Sequence[tuple[str, float]], answers: frozenset[str]) -> int | None:
@@ -176,7 +198,8 @@ def run_mc3(embedder: _QueryEmbedder, store: VectorStore, *,
             probes: tuple[CodeProbe, ...] = PROBES,
             lane_layers: Iterable[str] = LANE_LAYERS,
             baseline_layers: Iterable[str] = BASELINE_LAYERS,
-            k: int = _DEFAULT_K, pool: int = _DEFAULT_POOL) -> MC3Result:
+            k: int = _DEFAULT_K, pool: int = _DEFAULT_POOL,
+            memberships: MembershipStore | None = None) -> MC3Result:
     """M-C3: per-probe rank in the code lane vs the docstring-only baseline; the majority-beat
     verdict (F-CI3). Reproducible: deterministic given (probes, embedder, store, k, pool). A
     *catastrophic regression* is a probe the baseline finds within top-k but the lane misses
@@ -184,8 +207,10 @@ def run_mc3(embedder: _QueryEmbedder, store: VectorStore, *,
     readings: list[ProbeReading] = []
     catastrophic = 0
     for p in probes:
-        lane = ranked_paths(p.query, embedder, store, layers=lane_layers, pool=pool)
-        base = ranked_paths(p.query, embedder, store, layers=baseline_layers, pool=pool)
+        lane = ranked_paths(p.query, embedder, store, layers=lane_layers, pool=pool,
+                            memberships=memberships)
+        base = ranked_paths(p.query, embedder, store, layers=baseline_layers, pool=pool,
+                            memberships=memberships)
         lr, br = _rank_of(lane, p.answer_paths), _rank_of(base, p.answer_paths)
         readings.append(ProbeReading(p.probe_id, lr, br))
         if br is not None and br <= k and lr is None:
