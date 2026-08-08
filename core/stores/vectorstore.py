@@ -23,6 +23,10 @@ from core.typedshims.lancedb import VectorTable, connect
 
 TABLE = "chunks"
 
+# How many ids one `id IN (...)` predicate may name before `set_current_any` starts a new batch.
+# Bounds the SQL string, never the semantics: the batches are independent in-place updates.
+_ID_PREDICATE_CHUNK = 400
+
 
 # The layer coordinate (dn-code-ingest-pipeline §2.2): note rows default 'prose'; the code embed
 # lane discriminates its three projections. One shared table, one additive schema — the fiber
@@ -50,12 +54,18 @@ def _schema(dim: int) -> pa.Schema:
         ("qualname", pa.string()),      # code fiber: the symbol ('' for note/L0b/module-shell rows)
         ("line_start", pa.int32()),     # code fiber: first source line (0 for note rows)
         ("line_end", pa.int32()),       # code fiber: last source line (0 for note rows)
-        # The temporal-corpus flag (dn-temporal-code-corpus D2/D3, bp-099): is this row part of the
-        # source path's CURRENT (HEAD) projection? A superseded code version is RETAINED with
-        # current=false (keep-and-link, never deleted); note rows carry the vacuous current=true.
-        # Additive: a pre-bp-099 store (no `current`) is migrated in place by
-        # `_migrate_current_if_needed` (every row stamped current=true — correct while the store
-        # holds only HEAD code + note rows, which is why the migration lands BEFORE any backfill).
+        # [banner: correction] The temporal-corpus flag (dn-temporal-code-corpus D2/D3, bp-099)
+        # WAS one reading: is this row part of the source path's CURRENT (HEAD) projection? Under
+        # dn-vector-membership-store D1 (bp-152) this ONE column now carries TWO readings, because
+        # the two lanes store different objects under one schema:
+        #   * NOTE rows (and any pre-D1 per-version code row) keep the old reading — the vacuous
+        #     current=true for prose, keep-and-link current=false for a superseded code version.
+        #   * CODE-ATOM rows read it as **`current_any`**: does ANY current membership contain this
+        #     atom? An atom is not a version, so "is this the HEAD projection" is not a question it
+        #     can answer; `current_any` is the cheap ANN prefilter over membership truth (D3), and
+        #     the membership SQLite store is the reference truth it caches (D8, R3).
+        # Both readings are served by the ONE `current = true` prefilter clause in `search` — which
+        # is exactly why D1 re-reads the column instead of adding a second one.
         ("current", pa.bool_()),
         ("vector", pa.list_(pa.float32(), dim)),
     ])
@@ -66,6 +76,30 @@ def _schema(dim: int) -> pa.Schema:
 _NOTE_LAYER_DEFAULTS: dict[str, Any] = {
     "layer": LAYER_PROSE, "qualname": "", "line_start": 0, "line_end": 0, "current": True,
 }
+
+# The occupancy columns a CODE-ATOM row sheds (dn-vector-membership-store D1, bp-152). They are
+# shed from the ROW, never from the schema — note rows still carry them, so every prose-lane
+# consumer is untouched. The empty values are load-bearing, not cosmetic: `delete_source` /
+# `index_amendment` are `source_path`-scoped and can never match `''` (the note's D1 shed-safety
+# claim, verified at `core/ingest/index.py:87`), and `is_code_atom_row` reads them as the shed
+# marker. `provenance` is NOT here — it STAYS, because the mirror firewall is a row PREFILTER
+# (`search`, below) and shedding the column would not weaken the firewall, it would REMOVE it.
+ATOM_ROW_SHED: dict[str, Any] = {
+    "digest": "", "source_path": "", "chunk_index": 0, "qualname": "",
+    "line_start": 0, "line_end": 0,
+}
+
+
+def is_code_atom_row(row: dict[str, Any]) -> bool:
+    """Is this row a shed CODE **atom** row (D1) rather than a source-object chunk row?
+
+    An atom row is geometry with no occupancy: its occupancy lives in the membership relation
+    (`core/stores/memberships.py`), so it carries no `source_path` and no `digest`. This predicate
+    is the ONE place that reading is spelled out, so `all_rows`' structural guard and the
+    membership store's repair pass cannot drift apart."""
+    return (row.get("provenance") == Provenance.CODE.value
+            and not str(row.get("source_path") or "")
+            and not str(row.get("digest") or ""))
 
 
 def _sql_str(value: str) -> str:
@@ -287,18 +321,91 @@ class VectorStore:
         return len(rows)
 
     def all_rows(self, *,
-                 provenances: Iterable[Provenance] | None = None) -> list[dict[str, Any]]:
+                 provenances: Iterable[Provenance] | None = None,
+                 include_atom_rows: bool = False) -> list[dict[str, Any]]:
         """Full scan, optionally restricted to provenance classes — the read the dreaming
         agent clusters over. The clustering itself is deterministic and model-free (§9), so
         the mirror passes `provenances={AUTHORED}` and observed exhaust never seeds a dream.
-        Single-user corpus scale; filtered in Python after the Arrow scan for portability."""
+        Single-user corpus scale; filtered in Python after the Arrow scan for portability.
+
+        [banner: correction] **The shed-atom guard (bp-152 Item 3, the note's §3 Q5 gap).** An
+        UNSCOPED read (`provenances=None`) now excludes shed CODE-atom rows unless the caller asks
+        for them by name. The reason is a silent corruption, not tidiness: every structural
+        group-by-`digest` consumer keys on a column an atom row does not have.
+        `core/kernel/stores/sourceset.py`'s `source_sets(store)` defaults to ALL strata by design
+        ("a structural grouping utility, not a mirror read"), and `group_sources` keys on
+        `r["digest"]` — so shed rows, all carrying `digest=''`, would collapse into ONE bogus
+        SourceSet keyed `''`. `MixedProvenanceError` cannot catch it (it needs a digest spanning
+        *several* provenances; these rows are uniformly CODE), so it fails with no visible error at
+        all. `core/curator/curator.py`'s `prune_candidates` has the identical shape and would
+        report the whole atom plane as one orphaned digest.
+
+        The guard is here rather than in `sourceset` deliberately: the kernel module may never
+        learn about the outer-ring membership store (the C5/D3 ring pin — an import would demote
+        `sourceset` from the inner-ring fixed point), so the shed side owns the consequence of its
+        own shed. Excluding is the fail-closed half of the note's "excludes them or raises": a
+        structural grouping over geometry-without-occupancy is not a smaller answer, it is a wrong
+        one, and a code consumer reaches source objects through membership fibers (D3) — never
+        through group-by-digest.
+
+        A caller that genuinely wants the whole physical table passes `include_atom_rows=True`;
+        a caller that wants the code lane passes `provenances={CODE}`, which is how
+        `CodeCorpusSync` and the eval battery already read it, and is unaffected."""
         if TABLE not in self._db.list_tables().tables:
             return []
         rows = self._table().to_arrow().to_pylist()
         if provenances is None:
-            return rows
+            if include_atom_rows:
+                return rows
+            return [r for r in rows if not is_code_atom_row(r)]
         allowed = {Provenance(p).value for p in provenances}
         return [r for r in rows if r.get("provenance") in allowed]
+
+    def atom_rows(self) -> list[dict[str, Any]]:
+        """Every shed CODE-atom row (D1) — the vector plane V, as rows. `len(atom_rows())` is |V|
+        for the append-only invariant (§4: no test may ever observe |V| decrease except across a
+        logged purge)."""
+        return [r for r in self.all_rows(provenances={Provenance.CODE}) if is_code_atom_row(r)]
+
+    def set_current_any(self, ids: Iterable[str], value: bool) -> int:
+        """Set `current_any` on exactly the named atom rows (D2 step 5). Returns rows written.
+
+        `current` is a lance column, so a flip rewrites fragments — which is why D2 step 5 and the
+        note's §3 pin say *only the atoms whose current-membership count crossed 0↔1*. This method
+        takes the crossing set and nothing else; computing it is the lander's job (it is pure
+        membership arithmetic and belongs in SQLite, not here). An empty set writes nothing.
+
+        Predicates are chunked so a large crossing set cannot build an unbounded SQL string."""
+        wanted = list(dict.fromkeys(ids))
+        if not wanted or TABLE not in self._db.list_tables().tables:
+            return 0
+        table = self._table()
+        written = 0
+        for start in range(0, len(wanted), _ID_PREDICATE_CHUNK):
+            batch = wanted[start:start + _ID_PREDICATE_CHUNK]
+            where = f"id IN ({', '.join(_sql_str(i) for i in batch)})"
+            # portable count (do NOT rely on UpdateResult — bp-103 §11), then one in-place update
+            n = table.count_rows(where)
+            if n:
+                table.update(where, {"current": value})
+                written += n
+        return written
+
+    def delete_atom(self, content_id: str) -> int:
+        """Delete one atom row by its `(layer, content_hash)` id — the D5 PURGE path, and the ONLY
+        machinery in this module that removes a vector row (finding-0164; owner-gated, privacy
+        outranks lineage). Returns rows deleted, so a purge that silently no-ops is observable:
+        "never deletes" is satisfied vacuously by a purge that does nothing, so the count is the
+        thing a test asserts on. The membership half of the hole (tombstoning) is the membership
+        store's — see `core.stores.memberships.purge_atom`, which owns both halves."""
+        if TABLE not in self._db.list_tables().tables:
+            return 0
+        table = self._table()
+        where = f"id = {_sql_str(content_id)}"
+        n = table.count_rows(where)
+        if n:
+            table.delete(where)
+        return n
 
     def search(self, vector: list[float], *, k: int = 5,
                provenances: Iterable[Provenance] | None = None,
@@ -309,7 +416,14 @@ class VectorStore:
         Default retrieval is CURRENT-VIEW (dn-temporal-code-corpus D3, bp-099): a superseded code
         version (`current=false`, kept by keep-and-link) never surfaces unasked, so every existing
         consumer is unchanged (note rows carry the vacuous current=true). A temporal consumer opts
-        into history with `include_superseded=True`."""
+        into history with `include_superseded=True`.
+
+        Under D1 (bp-152) the same clause serves the atom plane with the `current_any` reading —
+        "does ANY current membership contain this atom" — so an atom whose every occupancy is
+        superseded drops out of the default search exactly as a superseded version used to. This
+        search returns ATOMS; resolving each hit to its occupancies `(path, blob, slot, lines)` is
+        the membership join (D3, `core.stores.memberships.resolve_occupancies`), and the join is
+        where a code consumer learns *where* a hit lives."""
         if TABLE not in self._db.list_tables().tables:
             return []
         q = self._table().search(vector).metric("cosine")

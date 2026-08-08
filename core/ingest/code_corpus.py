@@ -25,11 +25,20 @@ store, embedder, and group-by-digest machinery the notes use, discriminated by a
     source order, windowed as CANONICAL (header-free) prose and prefixed for retrieval by a single
     `# {path}` line — it lives in the note neighbourhood.
 
-The three are joined by line-range coordinates carried ON the rows (the §2.4 L2a fiber — no edge
-rows). `digest` = the git blob sha (git is already the content-addressed raw store for code), so
-group-by-digest gives file = source object, chunks = members, UNCHANGED. Derivation is a PURE
-function of (path, source): re-running yields bit-identical chunks (F-CI2 re-derivability). All
-embedding is LOCAL (the core embedder) — zero network egress (non-negotiable #1).
+Derivation is a PURE function of (path, source): re-running yields bit-identical chunks (F-CI2
+re-derivability). All embedding is LOCAL (the core embedder) — zero network egress
+(non-negotiable #1).
+
+[banner: correction] The three projections WERE joined by line-range coordinates carried ON the
+vector rows, and `digest` (the git blob sha) made group-by-digest yield "file = source object,
+chunks = members". **Neither is true of a code row any more** (dn-vector-membership-store D1,
+bp-152). The vector plane holds ONE row per distinct idea-atom `(layer, content_hash)`,
+corpus-wide and append-only; ALL occupancy — which `(path, blob_sha)` version holds which atom, at
+which slot and lines, and whether that occupancy is current — moved into the membership relation
+(`core/stores/memberships.py`). A version is a FIBER `M(path, blob_sha)`, the source object is
+that fiber, and a code consumer resolves a hit through the membership join (D3), never through
+group-by-digest. The measured payoff is the reason: 52,755 duplicated embeds over the full ledger
+history become 22,502 atoms (2.34×, D7), and a revert or a `git mv` costs zero geometry.
 
 [banner: correction] A chunk's IDENTITY (`content_hash`) hashed its full embed text — coordinate
 header included — so a `git mv` re-hashed every chunk of the file and every `(path, slot)` lineage
@@ -55,14 +64,21 @@ history (D1) — so every code version is a semantic node and the causal graph's
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from hashlib import sha256
 from pathlib import Path
 from typing import Any, Protocol
 
 from core.kernel.ingest.chunk import chunk_text
 from core.kernel.provenance import Provenance
+from core.stores.memberships import (
+    CurrencyReport,
+    EmbedderIdentity,
+    Membership,
+    MembershipStore,
+)
 from core.stores.vectorstore import (
+    ATOM_ROW_SHED,
     LAYER_CODE_AST,
     LAYER_CODE_TEXT,
     LAYER_CODEDOC,
@@ -83,18 +99,33 @@ class _Embedder(Protocol):
 @dataclass(frozen=True)
 class CodeChunk:
     """One embeddable code chunk with its fiber coordinates. `layer` discriminates the projection;
-    `(qualname, line_start, line_end)` are the §2.4 backpointers carried on the row.
+    `(qualname, slot_line_start, slot_line_end)` are the §2.4 backpointers, and they travel to the
+    MEMBERSHIP row now (bp-152 D1), not to the vector row.
 
     TWO renderings, deliberately different (D0): `text` is the EMBED rendering and KEEPS its
     coordinate header (retrieval context, R7); `canonical_body` is the IDENTITY input and is
     header-free. Every chunker passes the canonical body from the site that already holds it — it
     is NEVER re-derived by re-parsing `text`, so a body line that legitimately begins with `#` can
-    never be mistaken for a coordinate header (a wrong strip is silent identity corruption)."""
+    never be mistaken for a coordinate header (a wrong strip is silent identity corruption).
+
+    [banner: correction] `line_start` / `line_end` are RENAMED to `slot_line_start` /
+    `slot_line_end` (dn-vector-membership-store Amendment A2, owner-ruled 2026-08-06 on issue #34).
+    The stored values do not change; the name does, because the old name licensed a wrong reading.
+    **They are the SLOT's declared extent — where the symbol lives — never the atom's text
+    coverage.** L0a partitions by INNERMOST OWNER, so a class's chunk holds the class statement,
+    its docstring and its attributes but NOT its methods (which became their own chunks) — while
+    the emitted coordinates are `owner.lineno, owner.end_lineno`, the owner's full declared span.
+    They coincide exactly for leaf symbols, which is why every leaf-symbol fixture is blind to the
+    divergence; the module shell is the maximal case, carrying `1..n` (the ENTIRE file) for a few
+    lines of preamble. The values are also non-contiguous in general: a symbol with nested children
+    owns lines scattered across its span. A consumer that wants "where is this symbol" reads the
+    span; a consumer that wants the atom's content reads `text`. This is the intended behavior, not
+    a defect to fix — the fix was to stop letting the field name hide the difference."""
 
     layer: str
     qualname: str
-    line_start: int
-    line_end: int
+    slot_line_start: int
+    slot_line_end: int
     text: str                # the embed rendering: header + body (headerless for L0b)
     canonical_body: str      # the identity input: header-free (== text for L0b)
 
@@ -125,7 +156,7 @@ def _l0a_chunks(path: str, lines: list[str], shape: FileShape, *,
     n = len(lines)
     # group source-line numbers by innermost owner (qualname, or '' for the module shell)
     owned: dict[str, list[int]] = {}
-    coords: dict[str, tuple[str, int, int]] = {}   # qualname -> (header, line_start, line_end)
+    coords: dict[str, tuple[str, int, int]] = {}   # qualname -> (header, slot extent start/end)
     for i in range(1, n + 1):
         owner = _innermost_owner(shape.symbols, i)
         if owner is None:
@@ -161,10 +192,10 @@ def _l0a_chunks(path: str, lines: list[str], shape: FileShape, *,
 # ── L0b: the windowed textual reading — chunk_text over raw source ───────────────────────
 
 def _locate_span(chunk_body: str, lines: list[str], cursor: int) -> tuple[int, int, int]:
-    """Best-effort (line_start, line_end, next_cursor) for an L0b window — located by matching the
-    window's first/last non-blank line back into the source (windows overlap by design, so the
-    cursor only hints, never hard-bounds). (0, 0) when unlocatable. L0b coords feed only the
-    [INFERENCE]-graded M-C8 join, so best-effort is the right cost here."""
+    """Best-effort (slot_line_start, slot_line_end, next_cursor) for an L0b window — located by
+    matching the window's first/last non-blank line back into the source (windows overlap by
+    design, so the cursor only hints, never hard-bounds). (0, 0) when unlocatable. L0b coords feed
+    only the [INFERENCE]-graded M-C8 join, so best-effort is the right cost here."""
     body = [ln.strip() for ln in chunk_body.split("\n") if ln.strip()]
     if not body:
         return (0, 0, cursor)
@@ -243,58 +274,225 @@ def derive_code_chunks(path: str, source: str, *,
 
 # ── the structural CODE mint — row assembly with NO provenance parameter (F-CI1) ─────────
 
-def code_rows(path: str, blob_sha: str, chunks: Sequence[CodeChunk],
-              vectors: Sequence[list[float]], *, current: bool = True) -> list[dict[str, Any]]:
-    """Assemble vector-store rows for one file version. Provenance is HARDCODED `CODE` — there is
-    NO parameter, so a caller physically cannot launder code into an authored class (F-CI1). `id`
-    is `(source_path, layer, chunk_hash)` — doc+layer-scoped and content-addressed, so an unchanged
-    chunk keeps its point across versions and two layers with identical text stay distinct. `digest`
-    is the git blob sha, so group-by-digest yields file = source object, its chunks = members.
-    As of D0 the hash is CANONICAL-BODY-scoped (header-free), so a renamed file's chunks keep their
-    point too — the id SHAPE still carries the path; the path-free `(layer, hash)` atom id is D1's
-    change (bp-152), not this one.
+def atom_id(chunk: CodeChunk) -> str:
+    """The atom's identity (D1): `"{layer}:{content_hash}"` — PATH-FREE and corpus-wide.
 
-    `current` (dn-temporal-code-corpus D2, bp-099) marks whether this version is the path's HEAD
-    projection: the sync lands the new version `current=True` and flips the superseded one to False
-    (keep-and-link — never a delete); a history backfill lands each version `current = (blob is
-    HEAD's blob)`. `current` is a KEEP-AND-LINK flag, not a provenance parameter (F-CI1 intact)."""
+    The one place the id shape is spelled, so the vector row and the membership row can never
+    disagree about what an atom is. Dropping the path from the id is the whole atom model in one
+    character-level change: it promotes `code_rows`' old per-path dedup to corpus-wide dedup, so
+    the same body in two files is ONE point with two memberships (PD-1, owner-ruled in). The layer
+    stays inside identity because two layers with identical text are different readings, not the
+    same idea (the D1 stratum fence, carried as a test invariant)."""
+    return f"{chunk.layer}:{chunk.content_hash}"
+
+
+def code_rows(chunks: Sequence[CodeChunk], vectors: Sequence[list[float]], *,
+              current: bool = False) -> list[dict[str, Any]]:
+    """Assemble ATOM rows — one per distinct `(layer, content_hash)` (D1). Provenance is HARDCODED
+    `CODE`: there is NO parameter, so a caller physically cannot launder code into an authored class
+    (F-CI1).
+
+    [banner: correction] The old docstring said `id` is `(source_path, layer, chunk_hash)` —
+    "doc+layer-scoped" — and that `digest` is the git blob sha "so group-by-digest yields file =
+    source object, its chunks = members". **Both clauses stop being true here.** Under D1 the id is
+    `(layer, content_hash)`, corpus-wide; the source object is now the MEMBERSHIP FIBER
+    `M(path, blob_sha)` (`code_memberships`, below), and group-by-digest is not the code lane's
+    path at all — `VectorStore.all_rows` structurally keeps shed atom rows out of it, because a
+    grouping keyed on a column these rows do not have produces one bogus set rather than an error
+    (bp-152 Item 3; the note's §3 Q5).
+
+    **The shed, stated exactly.** The occupancy columns — `source_path`, `digest`, `title`,
+    `chunk_index`, `qualname`, `line_*` — leave the ROW, not the schema: note rows still carry
+    them and no prose-lane consumer changes. (`title` is shed with them because on a code row it
+    WAS the path under another name; leaving it would stamp each shared atom with its first-landed
+    path — a coordinate that lies for every other occupancy, which is exactly what D0's consequence
+    note forbids relying on. Occupancy resolves from memberships, never from the row.)
+    **`provenance` STAYS**, and that is load-bearing rather than incidental: the mirror firewall is
+    a row PREFILTER — `provenance IN (...)` with `prefilter=True` in `VectorStore.search` — so
+    shedding the column would not weaken the firewall, it would REMOVE it, silently and with no
+    failing call anywhere.
+
+    **The dedup here is the atom side and ONLY the atom side.** `by_id.setdefault` collapses
+    duplicates, which is correct for geometry — two identical bodies are one idea — and WRONG for
+    occupancy: two byte-identical L0b windows in one blob are TWO memberships with distinct
+    `chunk_index` (the F5 multiset pin). `code_memberships` therefore builds its own list and never
+    reuses this dict.
+
+    `current` is the `current_any` reading now (D1): does ANY current membership contain this atom?
+    A freshly landed atom defaults to **False** — it has no occupancy yet at insert time, since D8
+    puts the vector insert BEFORE the fiber write — and the lander raises it in step 5 for exactly
+    the atoms whose current-membership count crossed 0→1."""
     by_id: dict[str, dict[str, Any]] = {}
-    for idx, (ch, vec) in enumerate(zip(chunks, vectors, strict=True)):
-        rid = f"{path}:{ch.layer}:{ch.content_hash}"
+    for ch, vec in zip(chunks, vectors, strict=True):
+        rid = atom_id(ch)
         row: dict[str, Any] = {
+            **ATOM_ROW_SHED,                         # occupancy lives in memberships now (D1)
             "id": rid,
-            "digest": blob_sha,
-            "title": path,
-            "source_path": path,
-            "chunk_index": idx,
+            "title": "",
             "provenance": Provenance.CODE.value,     # ← hardcoded; no parameter anywhere above
             "text": ch.text,
             "layer": ch.layer,
-            "qualname": ch.qualname,
-            "line_start": ch.line_start,
-            "line_end": ch.line_end,
             "current": current,
             "vector": vec,
         }
-        by_id.setdefault(rid, row)                   # one point per (path, layer, content)
+        by_id.setdefault(rid, row)                   # one point per (layer, content) — corpus-wide
     return list(by_id.values())
+
+
+def code_memberships(path: str, blob_sha: str,
+                     chunks: Sequence[CodeChunk]) -> list[Membership]:
+    """The version's FIBER: one membership row per chunk, in derivation order (D1/D2 step 3).
+
+    This is the A2 translation point — `CodeChunk.slot_line_*` becomes `Membership.slot_line_*`
+    with the name intact, so the "declared extent, not text coverage" reading survives the trip to
+    storage instead of being re-lost at the boundary.
+
+    **One row per CHUNK, never per distinct atom.** `chunk_index` is the position in
+    `derive_code_chunks`' output, which is a pure deterministic function of `(path, source)`
+    (F-CI2), so the key `(path, blob_sha, layer, chunk_index)` is stable and re-derivable — and two
+    identical windows in one blob keep both occupancies instead of colliding. Rows land
+    `current=False`; currency is not a property of the fiber's construction but of reconciliation
+    against the path's HEAD (D2 step 4), which is the only place that decides it."""
+    return [
+        Membership(
+            path=path, blob_sha=blob_sha, layer=ch.layer, chunk_index=idx,
+            content_id=atom_id(ch),
+            slot=ch.qualname,                       # L0a's symbol; '' for L0b/L1 (R4, no re-slot)
+            slot_line_start=ch.slot_line_start, slot_line_end=ch.slot_line_end,
+            current=False, tombstoned=False,
+        )
+        for idx, ch in enumerate(chunks)
+    ]
+
+
+# ── land(): the D2 write path — five steps, and step 4 is the one that must never be skipped ──
+
+@dataclass(frozen=True)
+class LandReport:
+    """What one `land()` actually did. `atoms_embedded == 0` on a re-land is the reuse claim; the
+    CURRENCY numbers are what prove idempotence, because a do-nothing lander also embeds zero."""
+
+    atoms_embedded: int = 0
+    atoms_reused: int = 0
+    membership_rows: int = 0        # NEW occupancy rows; 0 on a re-land — the fiber already stands
+    currency: CurrencyReport = field(default_factory=CurrencyReport)
+    current_any_raised: int = 0
+    current_any_lowered: int = 0
+
+
+@dataclass
+class CodeLander:
+    """`land(path, blob_sha, chunks)` — the D2 write path, in the D8 order.
+
+    Vector inserts FIRST (append-only; an unreferenced atom is dormant geometry, harmless), the
+    membership fiber SECOND (one SQLite transaction — the reference truth), currency reconciliation
+    and `current_any` maintenance LAST (both re-derivable, so a crash anywhere is repaired by the
+    next land or by `repair_current_any`).
+
+    ⚑ **Re-landing is idempotent BECAUSE reconciliation converges, not because the call
+    short-circuits.** Step 4 runs even when step 3 wrote nothing. The tempting "the fiber already
+    exists, so return" is the C1 bug in its exact original form: on A → B → A the fiber for blob A
+    already exists carrying `current=false`, so a short-circuit leaves **B** marked HEAD — silent
+    corruption of every default (current-view) read, with nothing raised and nothing logged. The
+    repo already learned this once at note grain (`core/stores/versions.py:22-27`)."""
+
+    vectors: VectorStore
+    memberships: MembershipStore
+    embedder: _Embedder
+    embedder_identity: EmbedderIdentity
+
+    def land(self, path: str, blob_sha: str, chunks: Sequence[CodeChunk], *,
+             head_blob_sha: str | None = None) -> LandReport:
+        """Land one file version. `head_blob_sha` names the path's CURRENT HEAD blob — it defaults
+        to the version being landed (the incremental case) and is passed explicitly by a history
+        backfill, where the version being landed is usually NOT head."""
+        head = blob_sha if head_blob_sha is None else head_blob_sha
+
+        # (1) canonical identity per chunk — D0/bp-151: the hash is over the header-free body, so a
+        #     rename mints nothing and the atom survives `git mv`.
+        ids = [atom_id(ch) for ch in chunks]
+
+        # (2) insert only the atoms absent from the plane — the embed step; everything else is
+        #     reuse by construction. Presence is keyed to (layer, content_hash) AND the embedder
+        #     identity: a model change must invalidate every reuse, or two geometries share one ANN
+        #     space and no downstream measurement can tell.
+        known = self.memberships.known_atoms(ids, self.embedder_identity)
+        fresh: dict[str, CodeChunk] = {}
+        for ch, cid in zip(chunks, ids, strict=True):
+            if cid not in known:
+                fresh.setdefault(cid, ch)            # atoms dedup here; memberships never do
+        reused = len(set(ids)) - len(fresh)
+        if fresh:
+            vecs = self.embedder.embed_documents([c.text for c in fresh.values()])
+            # current=False: at insert time the atom has no occupancy yet (D8 puts vectors first),
+            # so `current_any` is false until step 5 sees it cross 0→1.
+            self.vectors.add(code_rows(list(fresh.values()), vecs, current=False))
+            self.memberships.record_atoms(
+                [(cid, ch.layer) for cid, ch in fresh.items()], self.embedder_identity)
+
+        # The step-5 "before" reading, taken BEFORE the fiber write. The candidate set is the
+        # atoms this land could possibly move: the version's own atoms plus everything already
+        # occupying this path (reconciliation is path-scoped, so nothing else can cross).
+        candidates = set(ids) | self.memberships.atom_ids_of_path(path)
+        before = self.memberships.currently_held(candidates)
+
+        # (3) write the fiber; an existing fiber's rows STAND (pure derivation ⇒ fiber equality)
+        written = self.memberships.write_fiber(code_memberships(path, blob_sha, chunks))
+
+        # (4) currency reconciliation — NEVER skipped, even when (3) was a no-op (the C1 case)
+        currency = self.memberships.reconcile_currency(path, head)
+
+        # (5) maintain `current_any` on exactly the atoms whose current-membership count crossed
+        #     0↔1 — `current` is a lance column, so an unconditional flip would rewrite fragments
+        #     for every atom of every landing (the §3 physical-maintenance pin).
+        after = self.memberships.currently_held(candidates)
+        raised = self.vectors.set_current_any(after - before, True)
+        lowered = self.vectors.set_current_any(before - after, False)
+
+        return LandReport(atoms_embedded=len(fresh), atoms_reused=reused,
+                          membership_rows=written, currency=currency,
+                          current_any_raised=raised, current_any_lowered=lowered)
+
+    def reconcile(self, path: str, head_blob_sha: str) -> LandReport:
+        """Steps 4–5 alone, for a path whose HEAD fiber already stands.
+
+        This exists so the incremental sync can honor the C1 rule without re-deriving chunks for
+        every unchanged file on every pass. "Unchanged blob ⇒ skip the path entirely" is the same
+        short-circuit at one level up: after A → B → A the HEAD fiber exists, the file looks
+        unchanged, and B is left current forever. Reconciliation is two counting queries per path,
+        so convergence costs nothing worth trading for that."""
+        candidates = self.memberships.atom_ids_of_path(path)
+        before = self.memberships.currently_held(candidates)
+        currency = self.memberships.reconcile_currency(path, head_blob_sha)
+        after = self.memberships.currently_held(candidates)
+        return LandReport(currency=currency,
+                          current_any_raised=self.vectors.set_current_any(after - before, True),
+                          current_any_lowered=self.vectors.set_current_any(before - after, False))
+
+    def supersede_path(self, path: str) -> LandReport:
+        """A vanished file: every fiber of `path` goes `current=false`, nothing is deleted
+        (keep-and-link, D2). Expressed as reconciliation against a blob no fiber has, so there is
+        ONE currency mechanism rather than a second, subtly different one."""
+        return self.reconcile(path, "")
 
 
 # ── incremental sync + the seed — blob-sha-keyed, unchanged file = zero embeds ───────────
 
 @dataclass
 class CodeSyncReport:
-    embedded_rows: int = 0
+    embedded_rows: int = 0          # ATOM rows inserted (D1) — an unchanged/duplicate atom is 0
     changed_files: int = 0
     unchanged_files: int = 0
     deleted_files: int = 0
-    superseded_rows: int = 0        # rows flipped current=true→false, RETAINED (keep-and-link, D2)
+    superseded_rows: int = 0        # MEMBERSHIP rows flipped current=true→false, RETAINED (D2)
     parse_failures: int = 0         # blobs that failed AST-parse → L0b-only, still embedded (D1)
+    membership_rows: int = 0        # new occupancies recorded this pass
 
     def __str__(self) -> str:
         return (f"embedded_rows={self.embedded_rows} changed={self.changed_files} "
                 f"unchanged={self.unchanged_files} deleted={self.deleted_files} "
-                f"superseded_rows={self.superseded_rows} parse_failures={self.parse_failures}")
+                f"superseded_rows={self.superseded_rows} parse_failures={self.parse_failures} "
+                f"membership_rows={self.membership_rows}")
 
 
 @dataclass
@@ -311,43 +509,59 @@ class CodeCorpusSync:
     repo: Path
     store: VectorStore
     embedder: _Embedder
+    memberships: MembershipStore
+    embedder_identity: EmbedderIdentity
     max_chars: int = _DEFAULT_MAX_CHARS
     overlap_chars: int = _DEFAULT_OVERLAP_CHARS
 
-    def _embed_and_land(self, path: str, blob_sha: str, source: str, *,
-                        current: bool = True) -> int:
-        """Derive → embed → land one file version's rows. Keep-and-link (D2): it NEVER deletes the
-        path's prior projection — the caller flips the superseded version to `current=false` first
-        (`store.supersede_source`). `current` marks whether this version is HEAD's projection."""
+    @property
+    def lander(self) -> CodeLander:
+        return CodeLander(vectors=self.store, memberships=self.memberships,
+                          embedder=self.embedder, embedder_identity=self.embedder_identity)
+
+    def _land(self, path: str, blob_sha: str, source: str, *,
+              head_blob_sha: str | None = None) -> LandReport:
+        """Derive → land one file version through the D2 write path."""
         chunks = derive_code_chunks(path, source,
                                     max_chars=self.max_chars, overlap_chars=self.overlap_chars)
         if not chunks:
-            return 0
-        vectors = self.embedder.embed_documents([c.text for c in chunks])
-        rows = code_rows(path, blob_sha, chunks, vectors, current=current)
-        return self.store.add(rows)
+            return LandReport()
+        return self.lander.land(path, blob_sha, chunks, head_blob_sha=head_blob_sha)
 
     def sync(self) -> CodeSyncReport:
+        """[banner: correction] The D-fiber state WAS the store's own set of CODE
+        `(source_path, digest)` pairs. Atom rows carry neither column (D1), so the state re-homes
+        to the membership store's `(path, blob_sha)` fibers — the same number, a sturdier home
+        (the note's §6 re-home (1), applied here; the daemon's incompleteness probe is bp-153's).
+
+        A path whose HEAD fiber already stands is UNCHANGED and re-derives nothing — but it is
+        still reconciled. Skipping it outright is the C1 short-circuit one level up: after
+        A → B → A the HEAD fiber exists, the file reads as unchanged, and B stays current."""
         report = CodeSyncReport()
         head = list_py_blobs(self.repo, "HEAD")       # [(path, blob_sha)]
-        code_now = self.store.all_rows(provenances={Provenance.CODE})
-        present_pd = {(str(r["source_path"]), str(r["digest"])) for r in code_now}
-        present_paths = {str(r["source_path"]) for r in code_now}
+        present_fibers = set(self.memberships.fibers())
+        present_paths = {p for p, _ in present_fibers}
+        lander = self.lander
 
-        changed = [(p, b) for p, b in head if (p, b) not in present_pd]
+        changed = [(p, b) for p, b in head if (p, b) not in present_fibers]
         report.changed_files = len(changed)
         report.unchanged_files = len(head) - len(changed)
 
         deleted = present_paths - {p for p, _ in head}
-        for p in deleted:                        # vanished file: keep rows, flip current=false (D2)
-            report.superseded_rows += self.store.supersede_source(p)
+        for p in sorted(deleted):                # vanished file: keep rows, flip current=false (D2)
+            report.superseded_rows += lander.supersede_path(p).currency.superseded
         report.deleted_files = len(deleted)
+
+        for path, blob_sha in head:              # converge EVERY head version (the C1 rule)
+            if (path, blob_sha) in present_fibers:
+                report.superseded_rows += lander.reconcile(path, blob_sha).currency.superseded
 
         blobs = read_py_blobs(self.repo, sorted({b for _, b in changed}))
         for path, blob_sha in changed:
-            report.superseded_rows += self.store.supersede_source(path)  # keep the old version (D2)
-            report.embedded_rows += self._embed_and_land(path, blob_sha, blobs[blob_sha],
-                                                         current=True)
+            landed = self._land(path, blob_sha, blobs[blob_sha])
+            report.embedded_rows += landed.atoms_embedded
+            report.membership_rows += landed.membership_rows
+            report.superseded_rows += landed.currency.superseded
         return report
 
     def seed(self) -> CodeSyncReport:
@@ -365,12 +579,17 @@ class CodeCorpusSync:
         `current = (blob is that path's HEAD blob)`, so backfilling into an un-seeded store also
         marks HEAD correctly and every superseded version `current=false`. A parse-fail blob still
         embeds (L0b windows + module shell, `derive_code_chunks` degrades — never a hard stop) and
-        is counted. Store writes stay on the caller (the supervisor handler), single-writer kept."""
+        is counted. Store writes stay on the caller (the supervisor handler), single-writer kept.
+
+        [banner: correction] "Already in the store" is now "already has a FIBER" (D1 — the atom row
+        carries no `(source_path, digest)` to test). Idempotence is unchanged in kind and stronger
+        in fact: a re-run derives nothing for a version whose fiber stands, and a version whose
+        atoms are all already in the plane costs zero embeds even the FIRST time it is landed —
+        which is the whole point of the split (D7's 52,755 → 22,502 measured)."""
         report = CodeSyncReport()
         head = dict(list_py_blobs(self.repo, "HEAD"))          # path -> HEAD blob_sha
-        code_now = self.store.all_rows(provenances={Provenance.CODE})
-        present_pd = {(str(r["source_path"]), str(r["digest"])) for r in code_now}
-        todo = [(p, b) for (p, b) in dict.fromkeys(versions) if (p, b) not in present_pd]
+        present_fibers = set(self.memberships.fibers())
+        todo = [(p, b) for (p, b) in dict.fromkeys(versions) if (p, b) not in present_fibers]
         if not todo:
             return report
         blobs = read_py_blobs(self.repo, sorted({b for _, b in todo}))
@@ -380,21 +599,27 @@ class CodeCorpusSync:
                 continue
             if parse_source(path, blob_sha, source).parse_error:
                 report.parse_failures += 1
-            landed = self._embed_and_land(path, blob_sha, source,
-                                          current=head.get(path) == blob_sha)
-            if landed:
-                report.embedded_rows += landed
+            landed = self._land(path, blob_sha, source,
+                                head_blob_sha=head.get(path, blob_sha))
+            if landed.membership_rows:
+                report.embedded_rows += landed.atoms_embedded
+                report.membership_rows += landed.membership_rows
+                report.superseded_rows += landed.currency.superseded
                 report.changed_files += 1
         return report
 
 
 def build_code_corpus_sync(config: Any = None, *, repo: Path | None = None,
                            embedder: _Embedder | None = None) -> CodeCorpusSync:
-    """Wire a CodeCorpusSync against the configured vector store + local embedder + repo root."""
+    """Wire a CodeCorpusSync against the configured vector store, membership store, local embedder
+    and repo root. The membership store and the embedder identity are REQUIRED fields rather than
+    optional ones: a lander without an occupancy record is not a lander, and a reuse decision
+    without an embedder identity is the geometry-mixing bug (D2 step 2's pin) waiting to happen."""
     import subprocess
 
     from core.ingest.embed import build_embedder
     from core.kernel.config import get_config
+    from core.stores.memberships import open_membership_store
 
     cfg = config or get_config()
     root = repo or Path(subprocess.run(["git", "rev-parse", "--show-toplevel"],
@@ -403,4 +628,6 @@ def build_code_corpus_sync(config: Any = None, *, repo: Path | None = None,
         repo=root,
         store=VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim),
         embedder=embedder or build_embedder(cfg),
+        memberships=open_membership_store(cfg),
+        embedder_identity=EmbedderIdentity.from_config(cfg),
     )

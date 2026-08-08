@@ -13,8 +13,9 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from core.ingest.code_corpus import code_rows, derive_code_chunks
+from core.ingest.code_corpus import code_memberships, code_rows, derive_code_chunks
 from core.kernel.provenance import Provenance
+from core.stores.memberships import MembershipStore
 from core.stores.vectorstore import VectorStore
 from eval.code_probes import PROBES, CodeProbe, probe_set_hash
 from eval.harness.code_retrieval import (
@@ -63,12 +64,19 @@ def test_probe_set_hash_is_stable_and_order_independent():
 
 # ── M-C3: retrieval — code lane vs docstring-only baseline ────────────────────────────────
 
-def _seed_code(store: VectorStore, sources: dict[str, str], embedder: HashingEmbedder) -> None:
+def _seed_code(store: VectorStore, memberships: MembershipStore, sources: dict[str, str],
+               embedder: HashingEmbedder) -> None:
+    """[banner: correction] Seeds ATOM rows plus their membership fibers (bp-152 D1). The atom row
+    carries no `source_path`, so the M-C3 ranking resolves paths through the membership join (D3)
+    — which is also why a SHARED atom would now rank every file it occupies, the intended reading
+    of one idea living in two places."""
     for path, src in sources.items():
         chunks = derive_code_chunks(path, src)
         vecs = embedder.embed_documents([c.text for c in chunks])
         blob = hashlib.sha256(src.encode()).hexdigest()
-        store.add(code_rows(path, blob, chunks, vecs))
+        store.add(code_rows(chunks, vecs, current=True))
+        memberships.write_fiber(code_memberships(path, blob, chunks))
+        memberships.reconcile_currency(path, blob)
 
 
 # The query terms live ONLY in identifiers/bodies (not docstrings/comments), so the
@@ -172,9 +180,10 @@ def test_mc3_no_signal_when_lane_equals_baseline(tmp_path):
     """F-CI3 path: with the lane restricted to the baseline layers every probe ties, so the
     majority-beat fails and the verdict is NO_SIGNAL — a result, not a crash (still seals)."""
     store = VectorStore(tmp_path / "v.lance", dim=_DIM)
+    memberships = MembershipStore(tmp_path / "m.sqlite")
     emb = HashingEmbedder(dim=_DIM)
-    _seed_code(store, _SOURCES, emb)
-    res = run_mc3(emb, store, probes=_PROBES3, pool=50,
+    _seed_code(store, memberships, _SOURCES, emb)
+    res = run_mc3(emb, store, probes=_PROBES3, pool=50, memberships=memberships,
                   lane_layers=BASELINE_LAYERS, baseline_layers=BASELINE_LAYERS)
     assert res.lane_wins == 0 and res.baseline_wins == 0
     assert res.verdict is MC3Verdict.NO_SIGNAL
@@ -182,13 +191,33 @@ def test_mc3_no_signal_when_lane_equals_baseline(tmp_path):
 
 def test_ranked_paths_dedupes_by_source_and_filters_layer(tmp_path):
     store = VectorStore(tmp_path / "v.lance", dim=_DIM)
+    memberships = MembershipStore(tmp_path / "m.sqlite")
     emb = HashingEmbedder(dim=_DIM)
-    _seed_code(store, _SOURCES, emb)
+    _seed_code(store, memberships, _SOURCES, emb)
+    # PRECONDITION: the rows really are shed atom rows, so this exercises the D3 JOIN and not a
+    # leftover `source_path` on the row — without it the test would pass on the pre-split shape.
+    assert all(not str(r["source_path"]) for r in store.atom_rows())
     lane = ranked_paths("nearest neighbour embedded chunks lancedb", emb, store,
-                        layers=LANE_LAYERS, pool=50)
+                        layers=LANE_LAYERS, pool=50, memberships=memberships)
     paths = [p for p, _ in lane]
-    assert paths[0] == "core/store.py"
+    assert paths and paths[0] == "core/store.py"
     assert len(paths) == len(set(paths)), "one entry per source path"
+    assert set(paths) <= set(_SOURCES)
+
+
+def test_ranked_paths_without_memberships_resolves_no_path_for_an_atom_row(tmp_path):
+    """The join is not optional decoration: an atom row has no occupancy ON it, so a caller that
+    does not hand in the membership store gets nothing back rather than a silently wrong path.
+    Failing empty is the honest shape — a shed row simply does not know where it lives."""
+    store = VectorStore(tmp_path / "v.lance", dim=_DIM)
+    memberships = MembershipStore(tmp_path / "m.sqlite")
+    emb = HashingEmbedder(dim=_DIM)
+    _seed_code(store, memberships, _SOURCES, emb)
+    with_join = ranked_paths("nearest neighbour embedded chunks lancedb", emb, store,
+                             layers=LANE_LAYERS, pool=50, memberships=memberships)
+    assert with_join                                   # PRECONDITION: the query DOES retrieve
+    assert ranked_paths("nearest neighbour embedded chunks lancedb", emb, store,
+                        layers=LANE_LAYERS, pool=50) == []
 
 
 # ── M-C4: cross-space geometry — informative vs degenerate ────────────────────────────────

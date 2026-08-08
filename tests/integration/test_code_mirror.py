@@ -17,12 +17,13 @@ from __future__ import annotations
 import hashlib
 from typing import cast
 
-from core.ingest.code_corpus import code_rows, derive_code_chunks
+from core.ingest.code_corpus import code_memberships, code_rows, derive_code_chunks
 from core.ingest.embed import Embedder
 from core.ingest.index import _chunk_row, semantic_search
 from core.kernel.ingest.chunk import Chunk
 from core.kernel.ingest.pipeline import IngestRecord
 from core.kernel.provenance import MIRROR_READABLE, Provenance
+from core.stores.memberships import MembershipStore
 from core.stores.vectorstore import VectorStore
 from eval.code_probes import PROBES
 from eval.harness.code_retrieval import (
@@ -47,7 +48,10 @@ def _seed_notes(store: VectorStore, emb: HashingEmbedder) -> None:
     store.add([_chunk_row(rec, c, v) for c, v in zip(rec.chunks, vecs, strict=True)])
 
 
-def _seed_code(store: VectorStore, emb: HashingEmbedder) -> None:
+def _seed_code(store: VectorStore, memberships: MembershipStore, emb: HashingEmbedder) -> None:
+    """Land one code file as ATOM rows + its membership fiber (bp-152 D1). Occupancy no longer
+    rides on the vector row, so the harness resolves paths through the membership join (D3) — the
+    firewall assertions below are unchanged in kind and are read through the new path."""
     src = (
         '"""State container."""\n'
         "def search_nearest_neighbour_embedded_chunks_lancedb(vector):\n"
@@ -56,21 +60,24 @@ def _seed_code(store: VectorStore, emb: HashingEmbedder) -> None:
     chunks = derive_code_chunks("core/store.py", src)
     vecs = emb.embed_documents([c.text for c in chunks])
     blob = hashlib.sha256(src.encode()).hexdigest()
-    store.add(code_rows("core/store.py", blob, chunks, vecs))
+    store.add(code_rows(chunks, vecs, current=True))
+    memberships.write_fiber(code_memberships("core/store.py", blob, chunks))
+    memberships.reconcile_currency("core/store.py", blob)
 
 
-def _mixed_store(tmp_path) -> tuple[VectorStore, HashingEmbedder]:
+def _mixed_store(tmp_path) -> tuple[VectorStore, MembershipStore, HashingEmbedder]:
     store = VectorStore(tmp_path / "v.lance", dim=_DIM)
+    memberships = MembershipStore(tmp_path / "m.sqlite")
     emb = HashingEmbedder(dim=_DIM)
     _seed_notes(store, emb)
-    _seed_code(store, emb)
-    return store, emb
+    _seed_code(store, memberships, emb)
+    return store, memberships, emb
 
 
 def test_default_search_still_surfaces_no_code(tmp_path):
     """The harness's substrate: the MIRROR_READABLE default never returns code (bp-092 F-CI1,
     re-checked at the boundary this plan reads from)."""
-    store, emb = _mixed_store(tmp_path)
+    store, _memberships, emb = _mixed_store(tmp_path)
     hits = semantic_search("nearest neighbour embedded chunks lancedb",
                            cast(Embedder, emb), store, k=10)
     assert hits, "sanity: the authored notes are retrievable"
@@ -80,17 +87,18 @@ def test_default_search_still_surfaces_no_code(tmp_path):
 def test_ranked_paths_returns_only_code_paths(tmp_path):
     """Both the lane AND the docstring-only baseline read the code lane via provenances={CODE} —
     never the note mirror. So every returned path is a code source, never a note."""
-    store, emb = _mixed_store(tmp_path)
+    store, memberships, emb = _mixed_store(tmp_path)
     for layers in (LANE_LAYERS, BASELINE_LAYERS):
         ranked = ranked_paths("nearest neighbour embedded chunks lancedb", emb, store,
-                              layers=layers, pool=50)
+                              layers=layers, pool=50, memberships=memberships)
+        assert ranked, "sanity: the code lane is reachable at all through the explicit CODE set"
         assert all(not p.endswith(".md") for p, _ in ranked)
         assert all(p == "core/store.py" for p, _ in ranked)
 
 
 def test_mc3_over_a_mixed_store_never_ranks_a_note(tmp_path):
-    store, emb = _mixed_store(tmp_path)
-    res = run_mc3(emb, store, probes=PROBES[:3], pool=50)
+    store, memberships, emb = _mixed_store(tmp_path)
+    res = run_mc3(emb, store, probes=PROBES[:3], pool=50, memberships=memberships)
     # the harness completes and every reading is a rank into code paths only (never a note leak)
     assert len(res.readings) == 3
 
@@ -99,7 +107,7 @@ def test_mc4_reads_each_class_through_its_own_provenance(tmp_path):
     """M-C4's cross-space read uses explicit provenance sets: the note side (MIRROR_READABLE) holds
     no code, the code side holds no note — the deliberate cross-space read never routes through the
     mirror default (§7)."""
-    store, _emb = _mixed_store(tmp_path)
+    store, _memberships, _emb = _mixed_store(tmp_path)
     code = store.all_rows(provenances={Provenance.CODE})
     notes = store.all_rows(provenances=set(MIRROR_READABLE))
     assert code and notes
