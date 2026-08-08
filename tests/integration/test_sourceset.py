@@ -17,7 +17,7 @@ from core.kernel.stores.sourceset import (
     source_set,
     source_sets,
 )
-from core.stores.vectorstore import VectorStore
+from core.stores.vectorstore import VectorStore, is_code_atom_row
 
 
 def _row(digest, idx, vec, prov, title="t"):
@@ -140,3 +140,62 @@ def test_mixed_provenance_digest_raises():
             _row("x", 0, [1.0], Provenance.AUTHORED_SOLO),
             _row("x", 1, [1.0], Provenance.OBSERVED),
         ])
+
+
+# ── the shed-atom guard (bp-152 Item 3, the note's §3 Q5 gap) ──
+
+def _atom_row(rid, vec):
+    """A shed CODE-ATOM row (dn-vector-membership-store D1): geometry with NO occupancy — no
+    `source_path`, no `digest`, because those live in the membership relation now."""
+    return {"id": rid, "digest": "", "title": "", "source_path": "", "chunk_index": 0,
+            "provenance": Provenance.CODE.value, "text": rid, "layer": "code_ast",
+            "qualname": "", "line_start": 0, "line_end": 0, "vector": vec}
+
+
+def test_shed_code_atom_rows_never_collapse_into_a_bogus_source_set(tmp_path):
+    """`source_sets(store)` defaults to ALL STRATA by design — "a structural grouping utility, not
+    a mirror read" — and `group_sources` keys on `digest`. Shed atom rows all carry `digest=''`, so
+    without a guard every code atom in the corpus collapses into ONE SourceSet keyed `''`.
+
+    It fails SILENTLY: `MixedProvenanceError` needs a digest spanning several provenances and these
+    rows are uniformly CODE, so a test that merely asserts "no exception" is itself vacuous and is
+    deliberately not written. The guard lives on the SHED side (`VectorStore.all_rows`) because
+    `sourceset` is a kernel module that may never learn about the outer-ring membership store (the
+    C5/D3 ring pin)."""
+    vs = VectorStore(tmp_path / "v.lance", dim=3)
+    vs.add([
+        _row("a", 0, [1.0, 0.0, 0.0], Provenance.AUTHORED_SOLO),
+        _row("a", 1, [0.0, 1.0, 0.0], Provenance.AUTHORED_SOLO),
+        _atom_row("code_ast:aaaa", [0.0, 0.0, 1.0]),
+        _atom_row("code_ast:bbbb", [0.0, 0.0, 0.5]),
+        _atom_row("code_text:cccc", [0.5, 0.0, 0.5]),
+    ])
+    # PRECONDITION: the store really holds ≥2 shed code atom rows. Without this the check below
+    # passes on a store that simply had no code in it.
+    shed = [r for r in vs.all_rows(provenances={Provenance.CODE}) if is_code_atom_row(r)]
+    assert len(shed) >= 2
+
+    # THE FALSIFIER, REPRODUCED: grouping the physical table DOES produce the bogus '' set — so
+    # the guard below is load-bearing, not a claim about a bug that could not happen.
+    bogus = {s.digest: s for s in group_sources(vs.all_rows(include_atom_rows=True))}
+    assert "" in bogus and len(bogus[""]) == len(shed)
+
+    # THE GUARD: the default (all-strata) read excludes them, so no such set is returned.
+    sets = {s.digest: s for s in source_sets(vs)}
+    assert "" not in sets
+    assert set(sets) == {"a"} and len(sets["a"]) == 2
+    # ...and the code lane still reads its own rows by asking for them by name (the sync path)
+    assert len(vs.all_rows(provenances={Provenance.CODE})) == len(shed)
+
+
+def test_the_guard_leaves_a_legacy_per_version_code_row_alone(tmp_path):
+    """The guard keys on the SHED (`is_code_atom_row`), never on the provenance: a pre-D1 code row
+    still carries its `(source_path, digest)` and is still a legitimate source object, so it keeps
+    grouping. Without this, the guard would silently disappear the live store's existing code rows
+    from every structural consumer before bp-153 has rebuilt anything."""
+    vs = VectorStore(tmp_path / "v.lance", dim=3)
+    legacy = {**_atom_row("m.py:code_ast:dddd", [1.0, 0.0, 0.0]),
+              "digest": "blob1", "source_path": "m.py", "title": "m.py"}
+    vs.add([legacy, _atom_row("code_ast:eeee", [0.0, 1.0, 0.0])])
+    assert not is_code_atom_row(legacy)                      # PRECONDITION: it is NOT shed
+    assert {s.digest for s in source_sets(vs)} == {"blob1"}

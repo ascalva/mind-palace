@@ -15,6 +15,7 @@ from __future__ import annotations
 import inspect
 import subprocess
 from collections import Counter
+from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
 
@@ -24,16 +25,19 @@ from core.ingest import code_corpus
 from core.ingest.code_corpus import (
     CodeChunk,
     CodeCorpusSync,
+    atom_id,
     code_rows,
     derive_code_chunks,
 )
 from core.kernel.ingest.chunk import chunk_text
 from core.kernel.provenance import MIRROR_READABLE, Provenance
+from core.stores.memberships import EmbedderIdentity, MembershipStore
 from core.stores.vectorstore import (
     LAYER_CODE_AST,
     LAYER_CODE_TEXT,
     LAYER_CODEDOC,
     VectorStore,
+    is_code_atom_row,
 )
 from ops.code_snapshot import parse_source
 from tests.fixtures.embedding import DIM, FakeEmbedder
@@ -86,7 +90,8 @@ def test_l0a_headers_name_the_symbol():
     assert "import json" in by_qual[""].text
     assert "# inner comment" in by_qual["Thing.method"].text
     # fiber coordinates carried on the chunk
-    assert (by_qual["Thing.method"].line_start, by_qual["Thing.method"].line_end) == (9, 12)
+    assert (by_qual["Thing.method"].slot_line_start,
+            by_qual["Thing.method"].slot_line_end) == (9, 12)
 
 
 def test_l0a_oversized_slice_hard_splits_via_chunk_text():
@@ -300,11 +305,61 @@ def test_l0a_oversize_cut_is_canonical_body_scoped():
 
 def test_code_rows_hardcode_code_provenance():
     chunks = derive_code_chunks("m.py", _SRC)
-    rows = code_rows("m.py", "blobsha", chunks, [[0.0] * DIM for _ in chunks])
+    rows = code_rows(chunks, [[0.0] * DIM for _ in chunks])
     assert {r["provenance"] for r in rows} == {Provenance.CODE.value}
     assert Provenance.CODE not in MIRROR_READABLE    # ∉ the mirror set
-    assert all(r["digest"] == "blobsha" for r in rows)
-    # ids are (path, layer, content)-scoped so identical text in two layers stays distinct
+    # ids are (layer, content)-scoped so identical text in two layers stays distinct
+    assert len({r["id"] for r in rows}) == len(rows)
+
+
+# ── D1 (bp-152) Item 1: the atom row — path-free identity, occupancy shed, provenance KEPT ──
+
+def test_the_same_body_at_two_paths_is_one_atom_row_keyed_layer_and_hash():
+    """Item 1's acceptance. The same chunk body appearing in two different FILES yields ONE row,
+    whose id is `f"{layer}:{content_hash}"`. That single character-level change — dropping the path
+    from the id — IS the atom model: it promotes `code_rows`' old per-path dedup to corpus-wide
+    dedup (PD-1, owner-ruled in).
+
+    *Falsifier:* two rows appear, i.e. the id still carries the path."""
+    body = "def shared_helper(x):\n    return x * 2\n"
+    a = [c for c in derive_code_chunks("pkg/one.py", body) if c.layer == LAYER_CODE_AST]
+    b = [c for c in derive_code_chunks("pkg/much_deeper/two.py", body)
+         if c.layer == LAYER_CODE_AST]
+    # PRECONDITION: the two derivations really are at DIFFERENT paths of different length, and
+    # each emits the same non-empty symbol set — otherwise "one row" is trivially true.
+    assert a and {c.qualname for c in a} == {c.qualname for c in b}
+    assert len("pkg/one.py") != len("pkg/much_deeper/two.py")
+
+    rows_a = code_rows(a, [[0.1] * DIM for _ in a])
+    rows_b = code_rows(b, [[0.1] * DIM for _ in b])
+    assert {r["id"] for r in rows_a} == {r["id"] for r in rows_b}      # ← ONE atom, not two
+    for r, c in zip(rows_a, a, strict=True):
+        assert r["id"] == f"{c.layer}:{c.content_hash}" == atom_id(c)
+        assert "pkg/one.py" not in str(r["id"])                       # the path is GONE from the id
+
+
+def test_every_atom_row_keeps_its_provenance_and_sheds_its_occupancy():
+    """Item 1's other half, and its falsifier is the worse outcome: `provenance` absent or empty on
+    an atom row would not weaken the mirror firewall, it would REMOVE it — the firewall is a row
+    prefilter (`provenance IN (...)`, `prefilter=True`) and holds only if the column is there to
+    filter. So this asserts presence AND equality to CODE on every row, and asserts the occupancy
+    columns really did go (otherwise "shed" would be a docstring claim)."""
+    chunks = derive_code_chunks("m.py", _SRC)
+    rows = code_rows(chunks, [[0.2] * DIM for _ in chunks])
+    assert rows                                                        # PRECONDITION: rows exist
+    for r in rows:
+        assert r["provenance"] == Provenance.CODE.value                # present AND correct
+        assert (r["source_path"], r["digest"], r["title"]) == ("", "", "")
+        assert (r["chunk_index"], r["qualname"]) == (0, "")
+        assert (r["line_start"], r["line_end"]) == (0, 0)
+        assert is_code_atom_row(r)
+    # one-layer-one-provenance: an atom never spans strata (the PD-2 fence, as a test invariant)
+    by_layer: dict[str, set[str]] = {}
+    for r in rows:
+        by_layer.setdefault(str(r["layer"]), set()).add(str(r["provenance"]))
+    assert set(by_layer) == {LAYER_CODE_AST, LAYER_CODE_TEXT, LAYER_CODEDOC}
+    assert all(v == {Provenance.CODE.value} for v in by_layer.values())
+    # ...and identity keeps the layer inside it, so the same text in two layers stays two atoms
     assert len({r["id"] for r in rows}) == len(rows)
 
 
@@ -336,6 +391,19 @@ def _git(repo: Path, *args: str) -> str:
                           capture_output=True, text=True).stdout
 
 
+def _sync(repo: Path, tmp_path: Path, embedder) -> CodeCorpusSync:
+    """A wired sync driver. `memberships` and `embedder_identity` are REQUIRED fields (bp-152):
+    the lander cannot record occupancy without the first, and cannot decide reuse honestly without
+    the second — a reuse across two embedders mixes geometries in one ANN space."""
+    return CodeCorpusSync(
+        repo=repo,
+        store=VectorStore(tmp_path / "v.lance", dim=DIM),
+        embedder=embedder,
+        memberships=MembershipStore(tmp_path / "m.sqlite"),
+        embedder_identity=EmbedderIdentity(model="fake", dim=DIM),
+    )
+
+
 @pytest.fixture
 def repo(tmp_path) -> Path:
     r = tmp_path / "repo"
@@ -351,27 +419,29 @@ def repo(tmp_path) -> Path:
 
 
 def test_seed_then_unchanged_resync_embeds_nothing(repo, tmp_path):
-    store = VectorStore(tmp_path / "v.lance", dim=DIM)
     emb = _CountingEmbedder()
-    sync = CodeCorpusSync(repo=repo, store=store, embedder=emb)
+    sync = _sync(repo, tmp_path, emb)
+    store = sync.store
 
     seeded = sync.seed()
     assert seeded.changed_files == 2 and seeded.embedded_rows > 0
     after_seed = emb.embedded_texts
     code_count = len(store.all_rows(provenances={Provenance.CODE}))
     assert code_count == store.count()               # only code rows in this store
+    fibers = set(sync.memberships.fibers())
+    assert {p for p, _ in fibers} == {"a.py", "b.py"}   # the D-fiber state is the fiber set now
 
     # a second sync with NO change: zero new embeds, store unchanged (the incremental claim)
     again = sync.sync()
     assert again.changed_files == 0 and again.embedded_rows == 0
     assert emb.embedded_texts == after_seed
     assert len(store.all_rows(provenances={Provenance.CODE})) == code_count
+    assert set(sync.memberships.fibers()) == fibers
 
 
 def test_changed_blob_reembeds_only_that_file(repo, tmp_path):
-    store = VectorStore(tmp_path / "v.lance", dim=DIM)
     emb = _CountingEmbedder()
-    sync = CodeCorpusSync(repo=repo, store=store, embedder=emb)
+    sync = _sync(repo, tmp_path, emb)
     sync.seed()
     baseline = emb.embedded_texts
 
@@ -382,73 +452,84 @@ def test_changed_blob_reembeds_only_that_file(repo, tmp_path):
     report = sync.sync()
     assert report.changed_files == 1 and report.unchanged_files == 1
     assert emb.embedded_texts > baseline             # a.py re-embedded
-    a_rows = [r for r in store.all_rows(provenances={Provenance.CODE})
-              if r["source_path"] == "a.py"]
-    assert any("changed" in str(r["text"]) for r in a_rows)
+    # [banner: correction] the changed text is found through the MEMBERSHIP fiber now — the atom
+    # row carries no `source_path` to filter on (D1). Same claim, resolved through the join (D3).
+    head = _git(repo, "rev-parse", "HEAD:a.py").strip()
+    by_id = {str(r["id"]): r for r in sync.store.all_rows(provenances={Provenance.CODE})}
+    a_texts = [str(by_id[m.content_id]["text"]) for m in sync.memberships.fiber("a.py", head)]
+    assert any("changed" in t for t in a_texts)
 
 
 def test_vanished_file_is_retained_but_marked_superseded(repo, tmp_path):
     """Keep-and-link (dn-temporal-code-corpus D2, bp-099 — reverses the old delete): a vanished
     file's rows are RETAINED (never deleted) but flipped current=false, so the current-view no
     longer surfaces them while history is preserved."""
-    store = VectorStore(tmp_path / "v.lance", dim=DIM)
-    sync = CodeCorpusSync(repo=repo, store=store, embedder=FakeEmbedder())
+    sync = _sync(repo, tmp_path, FakeEmbedder())
     sync.seed()
+    b_head = _git(repo, "rev-parse", "HEAD:b.py").strip()
+    v_before = len(sync.store.atom_rows())
+    assert sync.memberships.fiber("b.py", b_head)     # PRECONDITION: b.py really landed
     (repo / "b.py").unlink()
     _git(repo, "add", "-A")
     _git(repo, "commit", "-qm", "drop b")
     report = sync.sync()
     assert report.deleted_files == 1
-    assert report.superseded_rows > 0                # b.py's rows flipped, not deleted
-    all_code = store.all_rows(provenances={Provenance.CODE})
-    # b.py is RETAINED (the falsifier: a superseded row must never be deleted)
-    assert {r["source_path"] for r in all_code} == {"a.py", "b.py"}
-    b_rows = [r for r in all_code if r["source_path"] == "b.py"]
-    assert b_rows and all(r["current"] is False for r in b_rows)
-    a_rows = [r for r in all_code if r["source_path"] == "a.py"]
-    assert all(r["current"] is True for r in a_rows)
+    assert report.superseded_rows > 0                # b.py's OCCUPANCIES flipped, not deleted
+    # b.py is RETAINED (the falsifier: a superseded occupancy must never be deleted), and the
+    # ATOMS are untouched — append-only means a vanished file removes no geometry at all.
+    b_fiber = sync.memberships.fiber("b.py", b_head)
+    assert b_fiber and not any(m.current for m in b_fiber)
+    assert not any(m.tombstoned for m in b_fiber)     # superseded is not purged
+    a_head = _git(repo, "rev-parse", "HEAD:a.py").strip()
+    assert all(m.current for m in sync.memberships.fiber("a.py", a_head))
+    assert len(sync.store.atom_rows()) == v_before    # |V| never decreases (§4)
 
 
 def test_changed_blob_keeps_and_links_old_version(repo, tmp_path):
     """D2: on a changed blob the OLD version survives current=false (same ids, vectors intact) and
     the NEW version lands current=true. The falsifier: any superseded row deleted."""
-    store = VectorStore(tmp_path / "v.lance", dim=DIM)
-    sync = CodeCorpusSync(repo=repo, store=store, embedder=FakeEmbedder())
+    sync = _sync(repo, tmp_path, FakeEmbedder())
     sync.seed()
-    before = {(r["id"], r["digest"], tuple(r["vector"]))
-              for r in store.all_rows(provenances={Provenance.CODE})
-              if r["source_path"] == "a.py"}
+    old_blob = _git(repo, "rev-parse", "HEAD:a.py").strip()
+    old_fiber = sync.memberships.fiber("a.py", old_blob)
+    before = {(str(r["id"]), tuple(r["vector"])) for r in sync.store.atom_rows()}
+    assert old_fiber and before                            # PRECONDITION: v1 really landed
 
     (repo / "a.py").write_text("def a():\n    return 1 + 1  # changed\n")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-qm", "two")
     report = sync.sync()
     assert report.superseded_rows > 0
+    new_blob = _git(repo, "rev-parse", "HEAD:a.py").strip()
+    assert new_blob != old_blob
 
-    a_rows = [r for r in store.all_rows(provenances={Provenance.CODE})
-              if r["source_path"] == "a.py"]
-    old = [r for r in a_rows if r["current"] is False]
-    new = [r for r in a_rows if r["current"] is True]
-    assert old and new                                     # BOTH versions retained
-    assert any("changed" in str(r["text"]) for r in new)   # the new version is current
-    assert not any("changed" in str(r["text"]) for r in old)
-    # the old rows survive with the SAME ids/digest/vectors (vectors carried through the flip)
-    after_old = {(r["id"], r["digest"], tuple(r["vector"])) for r in old}
-    assert before <= after_old
+    # BOTH versions retained as fibers — the old one superseded, never deleted
+    now_old = sync.memberships.fiber("a.py", old_blob)
+    now_new = sync.memberships.fiber("a.py", new_blob)
+    assert now_old == [replace(m, current=False) for m in old_fiber]   # same rows, flag flipped
+    assert now_new and all(m.current for m in now_new)
+    by_id = {str(r["id"]): r for r in sync.store.atom_rows()}
+    assert any("changed" in str(by_id[m.content_id]["text"]) for m in now_new)
+    assert not any("changed" in str(by_id[m.content_id]["text"]) for m in now_old)
+    # every atom that existed before survives with its vector intact (append-only, section 4)
+    assert before <= {(str(r["id"]), tuple(r["vector"])) for r in sync.store.atom_rows()}
 
 
 def test_default_search_is_current_view_history_is_opt_in(repo, tmp_path):
     """D3: a superseded version never surfaces on the default search; include_superseded=True
     returns it. A deterministic fake embedder + a real temp lance store (no Ollama)."""
-    store = VectorStore(tmp_path / "v.lance", dim=DIM)
     emb = FakeEmbedder()
-    sync = CodeCorpusSync(repo=repo, store=store, embedder=emb)
+    sync = _sync(repo, tmp_path, emb)
+    store = sync.store
     sync.seed()
     (repo / "a.py").write_text("def a():\n    return 42  # newtoken\n")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-qm", "two")
     sync.sync()
 
+    # PRECONDITION (the named degenerate input): an atom whose every occupancy is superseded must
+    # EXIST, or the current-filter below passes vacuously.
+    assert any(not bool(r["current"]) for r in store.atom_rows())
     q = emb.embed_documents(["def a"])[0]
     current_only = store.search(q, k=50, provenances={Provenance.CODE})
     assert current_only and all(r["current"] is True for r in current_only)
@@ -467,15 +548,19 @@ def test_current_column_additive_migration_preserves_rows(tmp_path):
     from core.stores.vectorstore import TABLE
     path = tmp_path / "v.lance"
     chunks = derive_code_chunks("m.py", _SRC)
-    landed = code_rows("m.py", "blob0", chunks, [[0.1] * DIM for _ in chunks])
+    # a LEGACY (pre-D1) code row still carries its occupancy columns — that IS the shape being
+    # migrated, and restoring it here is what lets the migration assertion mean anything.
+    landed = [{**r, "id": f"m.py:{r['id']}", "source_path": "m.py", "digest": "blob0",
+               "title": "m.py"}
+              for r in code_rows(chunks, [[0.1] * DIM for _ in chunks])]
     legacy = [{k: v for k, v in r.items() if k != "current"} for r in landed]   # strip current
 
     raw = lancedb.connect(str(path))
     raw.create_table(TABLE, data=legacy)                       # a pre-bp-099 (no-current) table
 
     store = VectorStore(path, dim=DIM)                         # opens the legacy table
-    store.add(code_rows("n.py", "blob1", derive_code_chunks("n.py", _SRC),
-                        [[0.2] * DIM for _ in derive_code_chunks("n.py", _SRC)]))
+    n_chunks = derive_code_chunks("n.py", _SRC)
+    store.add(code_rows(n_chunks, [[0.2] * DIM for _ in n_chunks]))
     rows = store.all_rows(provenances={Provenance.CODE})
     assert all("current" in r for r in rows)
     m_rows = [r for r in rows if r["source_path"] == "m.py"]

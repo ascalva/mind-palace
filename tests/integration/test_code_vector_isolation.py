@@ -40,10 +40,13 @@ def _note_rows(store: VectorStore) -> int:
 
 
 def _add_code(store: VectorStore) -> int:
+    """Land ATOM rows (bp-152 D1): occupancy is shed, `provenance` STAYS. The firewall these tests
+    guard is a row PREFILTER over `provenance`, so shedding that column would not weaken it — it
+    would remove it, silently. That is exactly what F-CI1/F-CI5 below still re-check, unchanged."""
     src = '"""doc about vectors and dreaming."""\ndef f():\n    return 1\n'
     chunks = derive_code_chunks("m.py", src)
     vecs = FakeEmbedder().embed_documents([c.text for c in chunks])
-    return store.add(code_rows("m.py", "blob1", chunks, vecs))
+    return store.add(code_rows(chunks, vecs, current=True))
 
 
 # ── F-CI1: CODE is unreachable through the mirror surfaces ───────────────────────────────
@@ -119,7 +122,7 @@ def test_layer_migration_preserves_note_rows_bit_identically(tmp_path):
     store2 = VectorStore(tmp_path / "v.lance", dim=DIM)
     _add_code(store2)
 
-    rows = store2.all_rows()
+    rows = store2.all_rows(include_atom_rows=True)
     assert TABLE in store2._db.list_tables().tables
     notes = {r["id"]: r for r in rows if r["provenance"] == Provenance.AUTHORED_SOLO.value}
     assert set(notes) == {"n:0", "n:1"}                # both note rows survived
