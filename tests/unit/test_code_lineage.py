@@ -16,8 +16,8 @@ from pathlib import Path
 import pytest
 
 from core.ingest.code_corpus import CodeCorpusSync
-from core.kernel.provenance import Provenance
 from core.kernel.temporal.boundary import delta_D_squared_is_zero, poset_from_chains
+from core.stores.memberships import EmbedderIdentity, MembershipStore
 from core.stores.vectorstore import VectorStore
 from ops.code_lineage import (
     capture_commit_diffs,
@@ -154,43 +154,57 @@ def _first_commit(repo: Path) -> str:
 
 # ── the history backfill: current flags · idempotent · parse-fail counted ──────────────────
 
+def _sync(repo, tmp_path) -> CodeCorpusSync:
+    return CodeCorpusSync(
+        repo=repo, store=VectorStore(tmp_path / "v.lance", dim=DIM), embedder=FakeEmbedder(),
+        memberships=MembershipStore(tmp_path / "m.sqlite"),
+        embedder_identity=EmbedderIdentity(model="fake", dim=DIM))
+
+
 def test_backfill_embeds_history_with_current_flags(ledger, repo, tmp_path):
-    store = VectorStore(tmp_path / "v.lance", dim=DIM)
-    sync = CodeCorpusSync(repo=repo, store=store, embedder=FakeEmbedder())
+    """[banner: correction] The per-version state re-homes from the vector row's
+    `(source_path, digest)` to the MEMBERSHIP fiber (bp-152 D1): an atom row carries neither
+    column, and a version IS its fiber. Same three claims — three versions land, exactly HEAD is
+    current, a re-run embeds nothing — read at their new home."""
+    sync = _sync(repo, tmp_path)
 
     report = sync.backfill(ledger_versions(ledger))
     assert report.embedded_rows > 0
     assert report.parse_failures >= 1                   # broken.py counted, still embedded
 
-    code = store.all_rows(provenances={Provenance.CODE})
-    # f.py: three versions embedded; exactly the HEAD blob is current=true, the older two false
-    f_by_digest = {r["digest"]: r["current"] for r in code if r["source_path"] == "f.py"}
-    assert len(f_by_digest) == 3
+    m = sync.memberships
+    # f.py: three versions land as three fibers; exactly the HEAD blob's is current
+    f_blobs = m.blobs_of("f.py")
+    assert len(f_blobs) == 3
     head_f = _git(repo, "rev-parse", "HEAD:f.py").strip()
-    assert f_by_digest[head_f] is True
-    assert sum(1 for c in f_by_digest.values() if c is True) == 1
-    assert sum(1 for c in f_by_digest.values() if c is False) == 2
+    current = [b for b in f_blobs if all(x.current for x in m.fiber("f.py", b))]
+    assert current == [head_f]
+    assert all(not any(x.current for x in m.fiber("f.py", b))
+               for b in f_blobs if b != head_f)
     # broken.py embedded despite the parse failure (L0b windows + module shell)
-    assert any(r["source_path"] == "broken.py" for r in code)
+    assert m.blobs_of("broken.py")
 
-    # idempotent: a re-run embeds nothing
+    # idempotent: a re-run embeds nothing and adds no occupancy
+    m_before = m.count()
     again = sync.backfill(ledger_versions(ledger))
-    assert again.embedded_rows == 0
+    assert again.embedded_rows == 0 and again.membership_rows == 0
+    assert m.count() == m_before
 
 
 def test_composed_supersession_edge_resolves_to_embedded_nodes(ledger, repo, tmp_path):
     """D5, the realized edge: a `commit_diffs` modify row's old_blob AND new_blob both resolve to
     embedded rows in the backfilled store — the integrator's landing surface."""
-    store = VectorStore(tmp_path / "v.lance", dim=DIM)
-    sync = CodeCorpusSync(repo=repo, store=store, embedder=FakeEmbedder())
+    sync = _sync(repo, tmp_path)
     sync.backfill(ledger_versions(ledger))
     capture_commit_diffs(ledger, repo, ledger_commits(ledger))
 
-    embedded_digests = {str(r["digest"])
-                        for r in store.all_rows(provenances={Provenance.CODE})}
+    # [banner: correction] The note's section 6 re-home (2), F6: an endpoint is resolvable IFF its
+    # membership fiber is non-empty. "By digest in the vector store" cannot be asked of an atom
+    # row — the column left it — and the fiber is the same fact at a sturdier home.
     modify = ledger.execute(
         "SELECT path, old_blob, new_blob FROM commit_diffs "
         "WHERE old_blob != '' AND new_blob != '' LIMIT 1").fetchone()
     assert modify is not None
-    _path, old_blob, new_blob = modify
-    assert old_blob in embedded_digests and new_blob in embedded_digests
+    path, old_blob, new_blob = modify
+    assert sync.memberships.fiber(path, old_blob)
+    assert sync.memberships.fiber(path, new_blob)
