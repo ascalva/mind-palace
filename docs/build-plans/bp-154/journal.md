@@ -93,8 +93,9 @@ the diff. No status field, no blessing, no `deploy`, no fixed point.
 
 ### Next action
 
-The owner's review of the PR. On merge, `#12` closes (the PR body carries the unbackticked keyword)
-and `#40` remains parked with its re-entry condition.
+The owner's review of **PR #41** (`https://github.com/ascalva/mind-palace/pull/41`). On merge, #12
+closes (the body carries the keyword unbackticked — verified after opening, since GitHub does not
+parse it inside a code span) and #40 remains parked with its re-entry condition.
 
 ### Open questions
 
