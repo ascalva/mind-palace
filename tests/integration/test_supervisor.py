@@ -10,6 +10,7 @@ edit. If one of them ever needs editing to stay green, the change was not additi
 "no behaviour change at landing" claim is false (bp-110 §7 Item 3's falsifier)."""
 
 import dataclasses
+import inspect
 from collections.abc import Callable
 
 import pytest
@@ -17,8 +18,9 @@ import pytest
 from config.loader import load_config
 from scheduler.presence import Presence
 from scheduler.queue import DEFERRED, DONE, FAILED, QUEUED, JobQueue
-from scheduler.supervisor import SUBPROCESS, Supervisor
+from scheduler.supervisor import HEAVY_TIERS, SUBPROCESS, Supervisor
 from scheduler.worker import SELFTEST_ANSWER_KIND, Batch
+from tests.fixtures.power import on_ac, on_battery, unreadable
 from tests.fixtures.secrets import fake_vault
 from tests.unit.test_loader_reconcile import loader_for
 
@@ -34,12 +36,20 @@ def _present(active: bool) -> Presence:
     return Presence(idle_probe=lambda: 0.0 if active else 10_000.0)
 
 
-def _supervisor(tmp_path, handlers, *, active=False, loader=None, secrets=None):
+def _supervisor(tmp_path, handlers, *, active=False, loader=None, secrets=None, power=None,
+                queue=None):
     return Supervisor(
-        queue=JobQueue(tmp_path / "q.db"),
+        queue=queue or JobQueue(tmp_path / "q.db"),
         loader=loader or _loader(),
         handlers=handlers,
         presence=_present(active),
+        # bp-154: `Supervisor.power` fails CLOSED by default (an unreadable battery reads as
+        # discharging), so a default-constructed supervisor here would decide heavy-tier dispatch
+        # from whatever the host's battery is doing — or, on CI, from the absence of `pmset`.
+        # Injecting an on-AC sensor restores each test's intended subject, exactly as `_present`
+        # already does for HID idle time. The power tests at the bottom of the file inject their
+        # own; injecting `on_ac()` into one of THOSE would hide the feature (Item 5's falsifier).
+        power=power or on_ac(),
         warm=False,
         secrets=secrets,
     )
@@ -90,7 +100,8 @@ def test_ceiling_breach_defers_job(tmp_path):
     ld = _loader(cfg)
     ld.ensure_pinned(warm=False)                       # 2.7 GB of a 5 GB budget
     sup = Supervisor(queue=JobQueue(tmp_path / "q.db"), loader=ld,
-                     handlers={"k": lambda j: None}, presence=_present(False), warm=False)
+                     handlers={"k": lambda j: None}, presence=_present(False), power=on_ac(),
+                     warm=False)
     j = sup.queue.enqueue("k", "synthesis", 32768)     # 2.7 + 17 > 5 -> refused
     sup.run()
     deferred = sup.queue.get(j.id)
@@ -283,7 +294,7 @@ def test_the_ceiling_gate_still_refuses_BEFORE_any_worker_is_spawned(tmp_path):
     ld = _loader(cfg)
     ld.ensure_pinned(warm=False)
     sup = Supervisor(queue=JobQueue(tmp_path / "q.db"), loader=ld, handlers={},
-                     presence=_present(False), warm=False)
+                     presence=_present(False), power=on_ac(), warm=False)
     sup.worker_mode = SUBPROCESS
     sup.compute[SELFTEST_ANSWER_KIND] = (
         lambda j, c: (_ for _ in ()).throw(AssertionError("spawned past the ceiling gate")),
@@ -417,3 +428,67 @@ def test_a_crashed_worker_does_not_strand_the_model_gate_closed(tmp_path):
     sup.run()
     assert sup._in_flight_key is None                  # released despite the worker's death
     assert sup.model_blocked_tiers() == frozenset()
+
+
+# ==============================================================================================
+# bp-154 Item 2 — the power axis, as its OWN predicate (dn-supervision-and-liveness A1)
+# ==============================================================================================
+
+
+def test_the_heavy_lanes_are_shed_while_discharging(tmp_path):
+    """⚑ Item 2's acceptance. On battery, `power_blocked_tiers()` sheds exactly the existing heavy
+    set — READ, never reshaped, so there is one shed vocabulary rather than two (A1's parked
+    selector decision)."""
+    sup = _supervisor(tmp_path, {}, power=on_battery(55.0))
+    # Non-vacuity, twice over: the shed set is not empty (an empty `HEAVY_TIERS` would make every
+    # assertion below trivially true), and 55% is well above the floor, so what refuses here is the
+    # DISCHARGING rule and not the floor.
+    assert HEAVY_TIERS == frozenset({"synthesis", "stretch"})
+    assert sup.power.below_floor() is False
+    assert sup.power_blocked_tiers() == HEAVY_TIERS
+
+
+def test_on_AC_the_power_axis_refuses_nothing(tmp_path):
+    """The rule is not a permanent shed dressed up as a safety property: plugged in, it says
+    nothing at all."""
+    sup = _supervisor(tmp_path, {}, power=on_ac())
+    assert sup.power_blocked_tiers() == frozenset()
+
+
+def test_an_unreadable_battery_sheds_the_heavy_lanes(tmp_path):
+    """⚑ Fail closed, at the supervisor's altitude rather than only the sensor's (A1.7's named
+    falsifier: "the sensor fails open"). A host that cannot read `pmset` at all — CI, a non-macOS
+    worker, a failed exec — refuses heavy work rather than dispatching it blind."""
+    sup = _supervisor(tmp_path, {}, power=unreadable())
+    assert sup.power.state() is None                   # precondition: genuinely unreadable
+    assert sup.power_blocked_tiers() == HEAVY_TIERS
+
+
+@pytest.mark.parametrize("discharging", [True, False])
+@pytest.mark.parametrize("active", [True, False])
+def test_the_foreground_gate_is_byte_identical_under_every_power_state(tmp_path, active,
+                                                                      discharging):
+    """⚑ Item 2's invariant, and A1.1's one load-bearing pin. `blocked_tiers()` is THE FOREGROUND
+    GATE and nothing else: its answer is a function of presence alone, unchanged by the power axis
+    under all four combinations. Two different reasons to refuse a tier, conflated into one
+    predicate, is how a reader later cannot tell which rule refused a job."""
+    power = on_battery(55.0) if discharging else on_ac()
+    sup = _supervisor(tmp_path, {}, active=active, power=power)
+    assert sup.blocked_tiers() == (HEAVY_TIERS if active else frozenset())
+    # ... and the power predicate is independently correct at the same time, so the two rules are
+    # provably separate answers rather than one answer read twice.
+    assert sup.power_blocked_tiers() == (HEAVY_TIERS if discharging else frozenset())
+
+
+def test_the_power_rule_is_not_folded_into_the_foreground_gate(tmp_path):
+    """The pin, read off the SOURCE — behaviour alone cannot distinguish "a separate predicate"
+    from "one predicate that happens to agree today", and it is the shape, not the answer, that
+    A1.1 fixes. Each of the three predicates reads its own sensor and no other's."""
+    foreground = inspect.getsource(Supervisor.blocked_tiers).split('"""')[-1]
+    power = inspect.getsource(Supervisor.power_blocked_tiers).split('"""')[-1]
+    # Non-vacuity: the token IS findable by this search where it legitimately appears, so its
+    # absence from `blocked_tiers`'s body is evidence and not an artifact of a search that matches
+    # nothing anywhere.
+    assert "self.power." in inspect.getsource(Supervisor)
+    assert "self.power." not in foreground and "self.presence." in foreground
+    assert "self.presence." not in power and "self.power." in power
