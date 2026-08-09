@@ -492,3 +492,61 @@ def test_the_power_rule_is_not_folded_into_the_foreground_gate(tmp_path):
     assert "self.power." in inspect.getsource(Supervisor)
     assert "self.power." not in foreground and "self.presence." in foreground
     assert "self.presence." not in power and "self.power." in power
+
+
+# ==============================================================================================
+# bp-154 Item 3 — composed at the ONE claim site (the tier-4 test)
+# ==============================================================================================
+
+
+def test_a_heavy_job_is_NOT_claimed_while_discharging_and_IS_once_back_on_AC(tmp_path):
+    """⚑ Item 3's acceptance, and the whole reason Items 2 and 3 are separate. A predicate that is
+    green in isolation but never composed into `claim` is decorative — the finding-0187 shape
+    (deleting bp-105's sweep call left 85/85 green). This test fails if the
+    `| self.power_blocked_tiers()` term is deleted from the union in `tick`, which is the property
+    that makes the guard real rather than present.
+
+    The SAME queue is drained twice — once on battery, once on AC — so the only difference between
+    "left QUEUED" and "ran" is the power reading."""
+    ran: list[str] = []
+    queue = JobQueue(tmp_path / "q.db")
+    sup = _supervisor(tmp_path, {"k": lambda j: ran.append(j.tier)}, active=False,
+                      power=on_battery(55.0), queue=queue)
+    sup.loader.ensure_pinned(warm=False)
+    sup.queue.enqueue("k", "routine", 16384)
+    syn = sup.queue.enqueue("k", "synthesis", 32768)
+
+    # ⚑ Non-vacuity: NEITHER of the other two refusal rules is armed, and the floor is not reached.
+    # Without these four assertions the test would pass just as well if the foreground gate (or the
+    # model rule, or the floor) were what left the synthesis job QUEUED — i.e. it would not be a
+    # test of the power term at all.
+    assert sup.blocked_tiers() == frozenset()          # the owner is idle: the gate is open
+    assert sup.model_blocked_tiers() == frozenset()    # no worker is out
+    assert sup.power.below_floor() is False            # 55% — the floor is not what refuses
+    assert sup.power_blocked_tiers() == HEAVY_TIERS    # this rule, and only this rule, refuses
+
+    assert sup.run() == 1
+    assert ran == ["routine"]                          # the light lane still drains
+    assert sup.queue.get(syn.id).state == QUEUED       # the heavy one waits for mains
+
+    # Plugged back in: the same queue, the same job, dispatched. The rule defers, never drops.
+    on_mains = _supervisor(tmp_path, {"k": lambda j: ran.append(j.tier)}, active=False,
+                           power=on_ac(), queue=queue)
+    on_mains.loader.ensure_pinned(warm=False)
+    assert on_mains.run() == 1
+    assert ran == ["routine", "synthesis"]
+    assert queue.get(syn.id).state == DONE
+
+
+def test_the_power_term_composes_WITH_the_foreground_gate_rather_than_replacing_it(tmp_path):
+    """The union is a union: adding a term must not weaken the terms already there. On AC with the
+    owner present, the foreground gate alone must still refuse the heavy lane — the regression a
+    rewritten claim line could silently introduce."""
+    ran: list[str] = []
+    sup = _supervisor(tmp_path, {"k": lambda j: ran.append(j.tier)}, active=True, power=on_ac())
+    sup.loader.ensure_pinned(warm=False)
+    sup.queue.enqueue("k", "routine", 16384)
+    syn = sup.queue.enqueue("k", "synthesis", 32768)
+    assert sup.power_blocked_tiers() == frozenset()    # precondition: power refuses nothing here
+    assert sup.run() == 1
+    assert ran == ["routine"] and sup.queue.get(syn.id).state == QUEUED
