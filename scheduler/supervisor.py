@@ -1,8 +1,12 @@
 """The supervisor — one loop owns the queue and the worker slot (BUILD-SPEC §13; roadmap §7).
 
 Cooperative, job-boundary scheduling:
+  0. refuse to start anything at all while the battery is below the floor (the POWER axis,
+     `dn-supervision-and-liveness` Amendment A1) — the refusal sits ahead of the claim, so no
+     RUNNING row is minted for a machine that may not survive to close it;
   1. claim the next eligible job (priority; swap-avoidance within a priority band; heavy
-     tiers gated while the owner is present — the foreground check);
+     tiers gated while the owner is present — the foreground check — and shed while the machine
+     is on battery — the power check);
   2. make its (tier, window) resident via the two-slot loader, which refuses any load that
      would breach the RAM ceiling (Invariant 8) — such a job is deferred, not crashed;
   3. dispatch it, in ONE OF TWO MODES (see below), counting *worker* swaps
