@@ -216,9 +216,17 @@ class Supervisor:
         return HEAVY_TIERS if self.power.discharging() else frozenset()
 
     def tick(self) -> bool:
-        """Dispatch at most one job. Returns False when nothing is runnable right now."""
+        """Dispatch at most one job. Returns False when nothing is runnable right now.
+
+        ⚑ **THE ONE CLAIM SITE.** All three refusal predicates — presence, single-model, power —
+        compose HERE, by union, and nowhere else (`model_blocked_tiers`'s pin: "Enforced at the ONE
+        claim site, via `claim`'s existing `blocked_tiers` — no new queue API"). Each stays
+        separately readable so a reader can still tell which rule refused a job; the union is the
+        only place they are indistinguishable, and it is one line long."""
         job = self.queue.claim(loaded_key=self._worker_key,
-                               blocked_tiers=self.blocked_tiers() | self.model_blocked_tiers())
+                               blocked_tiers=(self.blocked_tiers()
+                                              | self.model_blocked_tiers()
+                                              | self.power_blocked_tiers()))
         if job is None:
             return False
 
