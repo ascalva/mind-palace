@@ -80,3 +80,42 @@ references:
   - Green, Karvounarakis, Tannen — "Provenance Semirings" (PODS 2007) [FROM
     MEMORY — verify before any book-grade citation]
 ```
+
+## 2026-08-09T05:12:00Z
+
+```capsule
+topic: mathematical-foundations
+date: 2026-08-09
+
+seed (owner, paraphrase): the capture-as-theorem framing prompts a second move —
+should we ADOPT research-community terminology and formats outright? Refresh the
+templates and skills so framing and terminology reflect the research community.
+Three motives, in the owner's order of weight: (1) personal — a way to learn
+mathematical/CS research language properly; (2) credibility; (3) most important,
+accessibility — it makes the project legible to technical research communities.
+And the deskcheck could BE the research artifact: a LaTeX PDF formatted like a
+journal/conference paper.
+
+decisions:
+  - graduate immediately: owner directed the full design treatment this session
+    (ultracode) — a design note as the artifact, fully audited, PR-ready, with
+    issues raised alongside. This capsule is the warrant trail; the substance
+    lives in the note (dn PR to follow, cites this file).
+
+open_questions:
+  - carried by the design note rather than duplicated here (claim ladder, where
+    the lexicon lives, deskcheck-paper mechanics, the still-unwritten owner-only
+    research Question that a research idiom makes conspicuous).
+
+next_steps:
+  - land the design-note PR; file residual questions/risks as GitHub issues per
+    the issue skill.
+
+references:
+  - the 2026-08-09T04:51Z capsule above (the first seed: axioms, bridges,
+    falsifiers-before-proofs)
+  - docs/templates/deskcheck.md (the artifact a paper format would evolve —
+    same dc- lifecycle, never a parallel ritual)
+  - docs/design-notes/track-board-and-deskcheck-gate.md (the ratified gate the
+    evolution must stay coherent with)
+```
