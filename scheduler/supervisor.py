@@ -45,6 +45,7 @@ from config.secrets_backend import MintedToken, SecretsBackend
 from core.models import MemoryCeilingError
 from core.models.loader import TwoSlotLoader
 from core.stores.telemetry import TelemetryWriter
+from scheduler.power import Power
 from scheduler.presence import Presence
 from scheduler.queue import RUNNING, Job, JobQueue
 from scheduler.worker import (
@@ -92,6 +93,13 @@ class Supervisor:
     loader: TwoSlotLoader
     handlers: dict[str, Handler]
     presence: Presence = field(default_factory=Presence)
+    # The POWER axis (`dn-supervision-and-liveness` Amendment A1). Defaulted exactly like
+    # `presence`, so every existing construction site — `launcher.py:521`, `scripts/watch.py:95`,
+    # the test sites — gets the guard with no edit; a resource refusal wired only where someone
+    # remembered to pass it is a refusal the daemon does not have. Its default probe FAILS CLOSED
+    # (an unreadable battery reads as discharging), which is why tests that dispatch a heavy tier
+    # inject an on-AC sensor rather than inheriting the host's real battery.
+    power: Power = field(default_factory=Power)
     telemetry: TelemetryWriter | None = None
     secrets: SecretsBackend | None = None  # vault-runtime-auth.md; Phase 5 wires per-job use
     warm: bool = True                      # tests pass warm=False (no Ollama calls)
@@ -131,7 +139,11 @@ class Supervisor:
         """THE FOREGROUND GATE, and nothing else. Deliberately not extended with the
         single-model-in-flight rule (bp-110 §7 Item 4's invariant: "the foreground gate keeps its
         meaning and is not overloaded") — two different reasons to refuse a tier, conflated into
-        one predicate, is how a reader later cannot tell which rule refused a job."""
+        one predicate, is how a reader later cannot tell which rule refused a job.
+
+        The siblings, so all THREE are findable from any one of them: `model_blocked_tiers` ("is a
+        model already out?") and `power_blocked_tiers` ("is there energy?", Amendment A1). Three
+        predicates, three questions, composed only by union at the ONE claim site in `tick`."""
         return HEAVY_TIERS if self.presence.foreground_active() else frozenset()
 
     def model_blocked_tiers(self) -> frozenset[str]:
@@ -170,6 +182,38 @@ class Supervisor:
             m.tier for m in self.loader.registry.config.models
             if m.tier not in (in_flight_tier, self._pinned_tier)
         )
+
+    def power_blocked_tiers(self) -> frozenset[str]:
+        """THE POWER AXIS, and nothing else (`dn-supervision-and-liveness` Amendment A1; issue
+        #12): on battery, shed the heavy lanes.
+
+        ⚑ **The third sibling, deliberately NOT folded into `blocked_tiers()`** — the amendment's
+        one load-bearing pin, for exactly the reason that method's docstring already gives about
+        the model rule. A power refusal and a presence refusal answer different questions ("is
+        there energy?" vs "is the owner here?"), and a reader who cannot tell which rule refused a
+        job cannot fix the one that is wrong. Composition happens only at the ONE claim site.
+
+        `HEAVY_TIERS` is READ here, never reshaped: the shed vocabulary is the existing one, so
+        there is a single answer to "which lanes are heavy?" rather than two that can drift (A1's
+        parked selector decision — `load_key` was rejected as the default because it introduces a
+        second, finer vocabulary whose interaction with this set nobody has designed).
+
+        Tier accounting, stated honestly per A1.4: a dispatch guard — **tier 5 with a tier-4
+        test**, deliberately identical to what §2.7 claims for the memory ceiling. Power is a
+        sampled reading of the physical world, so no value can be made to not inhabit "the battery
+        is low": tier 1 is unreachable here and claiming it would be the overclaim §0's ladder
+        names as *the* foot-gun. What the tier-4 test buys is `tests/integration/test_supervisor.py`
+        proving the union in `tick` actually contains this term, and that the probe's `None` path
+        fails closed — a predicate nobody calls is the finding-0187 shape (deleting bp-105's sweep
+        call left 85/85 green).
+
+        ⚑ **The honest limit, recorded rather than hidden (A1.4):** this bounds what is STARTED,
+        never what is already running. Jul 24's `code_backfill` was in flight when the throttle
+        hit, so this would not have prevented that emergency outright. In-flight energy bounding
+        needs the job-timeout machinery (finding-0178) and is not designed here; nothing in this
+        path ever kills a running job.
+        """
+        return HEAVY_TIERS if self.power.discharging() else frozenset()
 
     def tick(self) -> bool:
         """Dispatch at most one job. Returns False when nothing is runnable right now."""
