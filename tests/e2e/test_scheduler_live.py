@@ -9,6 +9,7 @@ from core.models.ollama_client import OllamaClient
 from scheduler.presence import Presence
 from scheduler.queue import DONE, JobQueue
 from scheduler.supervisor import Supervisor
+from tests.fixtures.power import on_ac
 
 pytestmark = pytest.mark.live
 
@@ -43,6 +44,9 @@ def test_supervisor_dispatches_a_real_job(tmp_path):
         loader=server.loader,
         handlers={"ping": handler},
         presence=Presence(idle_probe=lambda: 10_000.0),  # idle => nothing gated
+        # bp-154: on mains, so this live gate measures Ollama and the loader — not whatever the
+        # developer's battery happens to be doing while the suite runs.
+        power=on_ac(),
     )
     j = sup.queue.enqueue("ping", "router", cfg.pinned_model.num_ctx)
     assert sup.run() == 1

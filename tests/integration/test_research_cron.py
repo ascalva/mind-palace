@@ -25,6 +25,7 @@ from scheduler.queue import DONE, PRIORITY_BACKGROUND, QUEUED, JobQueue
 from scheduler.research import RESEARCH_KIND
 from scheduler.router import Router
 from scheduler.supervisor import Supervisor
+from tests.fixtures.power import on_ac
 from tests.unit.test_loader_reconcile import loader_for
 
 
@@ -105,9 +106,12 @@ def test_research_is_gated_during_foreground_then_runs_in_a_trough(tmp_path, mon
     handler = research_handler(_airlock(airlock), _emb(), store=_store())
 
     def make_supervisor(active):
+        # bp-154: an on-AC power sensor, injected for the same reason `_present` is — this test's
+        # subject is the FOREGROUND gate on a synthesis-tier job, and `Supervisor.power` defaults
+        # to a sensor that fails closed (on CI, where `pmset` is absent, that means discharging).
         return Supervisor(queue=queue, loader=_loader(cfg),
                           handlers={RESEARCH_KIND: handler},
-                          presence=_present(active), warm=False)
+                          presence=_present(active), power=on_ac(), warm=False)
 
     job = enqueue_research(queue, router, criteria)
     # The enqueued payload is de-identified — no raw query text crosses into the queue (Inv 11).

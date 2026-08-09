@@ -23,6 +23,7 @@ from scheduler.presence import Presence
 from scheduler.queue import QUEUED, Job, JobQueue
 from scheduler.router import Router
 from scheduler.supervisor import Supervisor
+from tests.fixtures.power import on_ac
 from tests.unit.test_loader_reconcile import loader_for
 
 
@@ -66,9 +67,13 @@ def test_cron_jobs_are_gated_during_foreground_then_run_in_a_trough(tmp_path):
     queue = JobQueue(tmp_path / "q.db")
 
     def make_supervisor(active):
+        # bp-154: an on-AC power sensor, injected for the same reason `_present` is — this test's
+        # subject is the FOREGROUND gate, and `Supervisor.power` defaults to a sensor that fails
+        # closed, so a default construction would decide these synthesis-tier dispatches from the
+        # host's battery (or, on CI, from the absence of `pmset`).
         return Supervisor(queue=queue, loader=_loader(cfg),
                           handlers=cron_handlers(dreamer, curator),
-                          presence=_present(active), warm=False)
+                          presence=_present(active), power=on_ac(), warm=False)
 
     d = enqueue_dream(queue, router)
     c = enqueue_curate(queue, router)

@@ -38,6 +38,7 @@ from scheduler.presence import Presence
 from scheduler.queue import DONE, JobQueue
 from scheduler.router import Router
 from scheduler.supervisor import Supervisor
+from tests.fixtures.power import on_ac
 from tests.unit.test_loader_reconcile import loader_for
 
 
@@ -72,6 +73,7 @@ def test_daemon_runs_a_chat_sync_job_and_the_store_gains_rows(tmp_path: Path) ->
         queue=queue, loader=_loader(cfg),
         handlers={CHAT_SYNC_KIND: chat_sync_handler(sensor)},
         presence=Presence(idle_probe=lambda: 10_000.0),   # owner idle → nothing gated
+        power=on_ac(),                                    # bp-154: on mains → nothing shed either
         warm=False,
     )
     sup.loader.ensure_pinned(warm=False)                  # pinned tier resident, no Ollama call
