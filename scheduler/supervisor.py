@@ -223,6 +223,28 @@ class Supervisor:
         claim site, via `claim`'s existing `blocked_tiers` — no new queue API"). Each stays
         separately readable so a reader can still tell which rule refused a job; the union is the
         only place they are indistinguishable, and it is one line long."""
+        # ⚑ THE POWER FLOOR (Amendment A1.2), and note it sits BEFORE `claim`. Below the floor the
+        # answer stops being "shed the heavy lanes" and becomes "start nothing at all": every tier
+        # is refused, including the light ones the shed above leaves alone. Refusing before the
+        # claim is what closes the ledger clean — no RUNNING row is minted, so nothing is left for
+        # a machine that may not survive to close it, and the orphan sweep of whatever run follows
+        # has nothing to reclaim. Claiming here would reproduce the Aug 1 shape exactly: the
+        # machine died mid-run and run #39 came up in recovery.
+        #
+        # ⚑ The hold for AC is the ABSENCE of dispatch, not a wait loop. Returning False ends the
+        # drain, and the launcher's existing conditional sleep is the duty cycle
+        # (`ops/lifecycle/launcher.py`: "sleep only when the drain came back idle"), so the next
+        # tick re-reads the battery and dispatch resumes by itself once mains are back. An
+        # in-process sleep/wait here was the rejected alternative (A1's parked hold-for-AC
+        # decision): it would hold the supervisor lock while doing nothing and would itself drain
+        # the battery it is protecting.
+        #
+        # ⚑ And nothing is killed. This bounds what is STARTED; a job already in flight runs to its
+        # own completion or checkpoint (A1.4's honest limit — in-flight energy bounding is
+        # finding-0178's job-timeout machinery, not this).
+        if self.power.below_floor():
+            return False
+
         job = self.queue.claim(loaded_key=self._worker_key,
                                blocked_tiers=(self.blocked_tiers()
                                               | self.model_blocked_tiers()
@@ -314,7 +336,12 @@ class Supervisor:
 
     def run(self, *, max_ticks: int | None = None) -> int:
         """Drain the queue cooperatively. Returns the number of jobs dispatched. Stops when
-        nothing is runnable (e.g. only heavy jobs remain while the owner is present)."""
+        nothing is runnable (e.g. only heavy jobs remain while the owner is present, or while the
+        machine is on battery — and, below the power floor, when nothing at all may start).
+
+        Below the floor this returns 0 on the FIRST tick and returns control; it never loops or
+        sleeps waiting for mains. That is the hold, and it is deliberately the caller's duty cycle
+        rather than one invented here (Amendment A1's parked hold-for-AC decision)."""
         n = 0
         while max_ticks is None or n < max_ticks:
             if not self.tick():

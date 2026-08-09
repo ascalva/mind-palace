@@ -16,8 +16,9 @@ from collections.abc import Callable
 import pytest
 
 from config.loader import load_config
+from scheduler.power import Power, PowerState
 from scheduler.presence import Presence
-from scheduler.queue import DEFERRED, DONE, FAILED, QUEUED, JobQueue
+from scheduler.queue import DEFERRED, DONE, FAILED, QUEUED, RUNNING, JobQueue
 from scheduler.supervisor import HEAVY_TIERS, SUBPROCESS, Supervisor
 from scheduler.worker import SELFTEST_ANSWER_KIND, Batch
 from tests.fixtures.power import on_ac, on_battery, unreadable
@@ -550,3 +551,101 @@ def test_the_power_term_composes_WITH_the_foreground_gate_rather_than_replacing_
     assert sup.power_blocked_tiers() == frozenset()    # precondition: power refuses nothing here
     assert sup.run() == 1
     assert ran == ["routine"] and sup.queue.get(syn.id).state == QUEUED
+
+
+# ==============================================================================================
+# bp-154 Item 4 — the floor: close the ledger clean and hold for AC
+# ==============================================================================================
+
+
+def test_below_the_floor_nothing_starts_and_the_ledger_is_left_CLEAN(tmp_path):
+    """⚑ Item 4's acceptance. Below the floor the answer is not "shed the heavy lanes" but "start
+    nothing at all", and the refusal happens BEFORE `claim` — so no RUNNING row is minted for a
+    machine that may not survive to close it.
+
+    The falsifier is the Aug 1 shape: a stop that leaves the queue as a crash would (a stale
+    RUNNING row) reproduces the recovery run this exists to prevent. So the test asserts the ledger
+    is closed CLEAN — a following run's orphan sweep finds nothing to reclaim and nothing to
+    strand-fail."""
+    ran: list[int] = []
+    sup = _supervisor(tmp_path, {"k": lambda j: ran.append(j.id)}, active=False,
+                      power=on_battery(5.0))
+    sup.loader.ensure_pinned(warm=False)
+    job = sup.queue.enqueue("k", "routine", 16384)
+
+    # ⚑ Non-vacuity: the job is on a LIGHT tier, so the discharging shed does not cover it. Without
+    # this the test would pass against the Item 2/3 shed alone and prove nothing about the floor.
+    assert job.tier not in HEAVY_TIERS
+    assert sup.power_blocked_tiers() == HEAVY_TIERS     # the shed is armed but does not reach here
+    assert sup.power.below_floor() is True             # the floor is what refuses
+
+    assert sup.run() == 0
+    assert ran == []
+    assert sup.queue.get(job.id).state == QUEUED       # waiting, not running, not failed
+    assert sup.queue.list(RUNNING) == []               # ⚑ nothing was claimed and abandoned
+
+    # THE CLEAN CLOSE, asserted as the next run would experience it: a fresh run's sweep has
+    # nothing to reclaim or fail, which is what "the following start is not a recovery run" means
+    # at the queue's altitude.
+    sweep = sup.queue.sweep_orphans(9999)
+    assert (sweep.requeued, sweep.failed, sweep.total) == ((), (), 0)
+
+
+def test_the_floor_does_not_strand_work_that_already_finished(tmp_path):
+    """A job that ran BEFORE the battery reached the floor must be left DONE, not stranded — the
+    supervisor stops starting work, it does not abandon work it already landed."""
+    ran: list[int] = []
+    queue = JobQueue(tmp_path / "q.db")
+    on_mains = _supervisor(tmp_path, {"k": lambda j: ran.append(j.id)}, power=on_ac(), queue=queue)
+    on_mains.loader.ensure_pinned(warm=False)
+    first = queue.enqueue("k", "routine", 16384)
+    assert on_mains.run() == 1 and ran == [first.id]    # precondition: it really did run
+
+    second = queue.enqueue("k", "routine", 16384)
+    drained = _supervisor(tmp_path, {"k": lambda j: ran.append(j.id)}, power=on_battery(3.0),
+                          queue=queue)
+    drained.loader.ensure_pinned(warm=False)
+    assert drained.run() == 0
+    assert queue.get(first.id).state == DONE            # the finished job is untouched
+    assert queue.get(second.id).state == QUEUED         # the new one simply never started
+    assert queue.list(RUNNING) == []
+
+
+def test_mains_returning_resumes_dispatch_without_intervention(tmp_path):
+    """The hold is a hold, not a wedge: the same queue drains as soon as a later reading says AC.
+    Under launchd KeepAlive a restart re-evaluates the same way — this is the "come back, look
+    again" shape, with no state to reset."""
+    ran: list[int] = []
+    queue = JobQueue(tmp_path / "q.db")
+    job = queue.enqueue("k", "routine", 16384)
+
+    held = _supervisor(tmp_path, {"k": lambda j: ran.append(j.id)}, power=on_battery(5.0),
+                       queue=queue)
+    held.loader.ensure_pinned(warm=False)
+    assert held.run() == 0 and queue.get(job.id).state == QUEUED
+
+    resumed = _supervisor(tmp_path, {"k": lambda j: ran.append(j.id)}, power=on_ac(), queue=queue)
+    resumed.loader.ensure_pinned(warm=False)
+    assert resumed.run() == 1 and ran == [job.id]
+    assert queue.get(job.id).state == DONE
+
+
+def test_the_hold_does_not_spin_and_does_not_drain_what_it_protects(tmp_path):
+    """⚑ Item 4's second falsifier: "falsified if the hold spins hot — holding for AC must not
+    itself consume the battery it is protecting."
+
+    Counting the probe is how that becomes checkable. A ten-tick drain request must cost exactly
+    ONE reading and return immediately: `run` breaks on the first refusal instead of looping, and
+    there is no in-process sleep holding the supervisor lock while doing nothing (the rejected
+    alternative in A1's parked hold-for-AC decision)."""
+    readings: list[int] = []
+
+    def counting_probe():
+        readings.append(1)
+        return PowerState(discharging=True, percent=5.0)
+
+    sup = _supervisor(tmp_path, {"k": lambda j: "ok"}, power=Power(power_probe=counting_probe))
+    sup.loader.ensure_pinned(warm=False)
+    sup.queue.enqueue("k", "routine", 16384)
+    assert sup.run(max_ticks=10) == 0
+    assert readings == [1], f"the floor branch sampled {len(readings)} times for one drain"
