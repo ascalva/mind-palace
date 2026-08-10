@@ -16,6 +16,7 @@ links:
   - docs/book/preamble.tex                               # the house claim registry + citation macros the paper format factors and extends
   - .claude/skills/book/SKILL.md                         # LaTeX conventions authority — reused, not forked
   - .claude/skills/issue/SKILL.md                        # the label taxonomy the claim ladder maps onto
+  - docs/design-notes/dn-mathematical-foundations.md    # THE SIBLING — same PR #47; consumes the §2.3 labels; carries the laws ledger (docs/LAWS.md) + the Lean L0–L4 ladder
 supersedes: null           # PARTIAL overlay on dn-track-board-and-deskcheck-gate D3 — template/body shape only (§2.4); D3's pre-regime verdict-hook mechanics are not propagated; D2's board, the dc- lifecycle, and the queue are untouched
 superseded_by: null
 warrant: docs/brainstorms/mathematical-foundations.md    # owner seed 2, 2026-08-09 — quoted in the opening blockquote; reaches main via PR #42, sequenced first
@@ -103,11 +104,13 @@ DoD rows that make this work visible to the lane's own deskcheck.
 5. **The research Question is not authored here.** Study-not-product: the Question is
    owner-only. This note builds the slot and leaves it empty, labeled empty.
    [ESTABLISHED — owner-only authorship is a standing rule.]
-6. **Lean / proof-assistant adoption stays parked.** Re-entry unchanged from the
-   warrant capsule: a claim a property test cannot falsify. Consequence for the ladder:
-   "Theorem" is expected to be rare-to-absent, and its absence is honest (§2.3).
-   [ESTABLISHED once the warrant lands — the capsule park, restated not reopened; the
-   capsule is this note's warrant and is sequenced first (PR #42, see Sequencing).]
+6. **Lean adoption is not decided here — the sibling carries it.** The warrant
+   capsule's flat park is superseded by the L0–L4 ladder of
+   dn-mathematical-foundations (§2.4 there; investigation: issue #48). Consequence
+   for the ladder unchanged in spirit: "Theorem" stays rare until L2 discharge makes
+   *Theorem (machine-checked, `formal/...`)* honestly reachable, and its absence
+   meanwhile is honest (§2.3).
+   [ESTABLISHED — the park's disposition moved to the sibling, riding this same PR.]
 7. **No second LaTeX stack.** The paper format factors the book's preamble and extends
    its notation registry; it duplicates nothing. Two copies drift. [ESTABLISHED — DRY
    is a defect, not a nit.]
@@ -118,20 +121,22 @@ DoD rows that make this work visible to the lane's own deskcheck.
    [INFERENCE — "evolved, never paralleled" is this note's reading of the owner's seed
    against the regime's retirement of ceremony; the owner confirms at ratification.]
 9. **The laws-ledger sweep is not licensed here.** The per-component
-   claimed-structure + laws + falsifier sweep belongs to the sibling mathematical-
-   foundations arc (§1.3); this note only specifies the labels that sweep will consume.
-   [INFERENCE — sibling boundary drawn so neither arc balloons.]
+   claimed-structure + laws + falsifier sweep belongs to the sibling,
+   dn-mathematical-foundations (§1.3 — same PR); this note only specifies the labels
+   that sweep consumes. [ESTABLISHED — the boundary is owner-directed (seed 3,
+   2026-08-09) and both notes ride PR #47.]
 10. **The dormant deskcheck-gate machinery is not retired here.** `gate-guard.sh`,
     `_lib.py`'s verdict clauses, and `tests/integration/test_deskcheck_gate.py` stay
     untouched; the carrier keeps their expected shape so they stay green. Disposition
     is parked, and filed as a `parked` issue with this PR so it cannot silently rot.
     [INFERENCE — a format change and a trust-boundary change never share a plan.]
 
-### 1.3 The sibling note — flagged, not resolved
+### 1.3 The sibling note — named, landing beside this one
 
 The warrant capsule carries two arcs. This note is the register arc. The foundations
 arc — structure-instantiation as the bridge, the laws ledger, memberships first —
-becomes **NEW NOTE — mathematical foundations and the laws ledger**, not yet written.
+is **dn-mathematical-foundations**
+(`docs/design-notes/dn-mathematical-foundations.md`), landing in this same PR.
 One shared boundary, flagged: the claim-ladder labels of §2.3 are *consumed* by the
 laws ledger (each law lands as a labeled claim with a falsifier); neither note should
 redefine the labels without the other. The float-epsilon caveat (float addition is
@@ -346,7 +351,8 @@ Two guards on the rung agents will use most, because a plausible-but-wrong inlin
    its proof inline. Wired as template teaching comments, not new frontmatter.
 2. **The deskcheck paper** — its Definitions-and-claims section (§2.4.3) is written in
    ladder labels; its Evaluation section discharges every Claim or says so honestly.
-3. **The laws ledger** (sibling arc, when built) — each algebraic law lands as a
+3. **The laws ledger** (dn-mathematical-foundations §2.2, `docs/LAWS.md`) — each
+   algebraic law lands as a
    labeled claim (typically Claim, or Proposition with its paired falsifier) with one
    falsifier per law; the label column is specified here so the sibling note consumes
    it, never redefines it.
@@ -640,7 +646,8 @@ note's own lane. Closing the workflow lane still requires an approved dc naming
 manifest's RR rows — the board's phase function does not care which pipeline the dc was
 typed in.
 
-**Explicitly NOT licensed:** the laws-ledger sweep (sibling arc); Lean; authoring the
+**Explicitly NOT licensed:** the laws-ledger sweep (dn-mathematical-foundations
+MF-1..MF-3); Lean beyond the sibling's L-ladder (its MF-4..MF-6); authoring the
 Question; retiring the HTML phone report; disposing of the dormant gate machinery;
 book chapter content beyond the registry extension; any parser change.
 
@@ -678,7 +685,7 @@ not involved.
 
 | decision | default recorded | re-entry condition |
 |---|---|---|
-| Lean / proof-assistant adoption | not adopted; "Theorem" stays effectively unreachable | a claim a property test cannot falsify (capsule park, unchanged) |
+| Lean / proof-assistant adoption | L0 — ladder specified in dn-mathematical-foundations §2.4 (L1 = its MF-4 unit) | for L1: the laws ledger's first laws exist to state (issue #48) |
 | external venue / arXiv / DOI | none — internally reviewed technical reports only | the owner authors the Question and wants external referees |
 | brainstorm capsules adopting the register | chat stays vernacular; capture template gains only the Conjecture gloss (RR-1) | owner asks, after living with RR-1 |
 | HTML phone build report | kept for mid-track build waves; the dc PDF absorbs the track-closure role | two paper deskchecks delivered → owner reviews the overlap |
