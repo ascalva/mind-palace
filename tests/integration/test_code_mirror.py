@@ -15,6 +15,7 @@ never reaches code through the MIRROR_READABLE default — it reads the code lan
 from __future__ import annotations
 
 import hashlib
+from datetime import timedelta
 from typing import cast
 
 from core.ingest.code_corpus import code_memberships, code_rows, derive_code_chunks
@@ -33,6 +34,7 @@ from eval.harness.code_retrieval import (
     run_mc3,
     run_mc4,
 )
+from ops.code_rebuild import retire_legacy_rows
 from tests.fixtures.fakes import HashingEmbedder
 
 _DIM = 64
@@ -94,6 +96,47 @@ def test_ranked_paths_returns_only_code_paths(tmp_path):
         assert ranked, "sanity: the code lane is reachable at all through the explicit CODE set"
         assert all(not p.endswith(".md") for p, _ in ranked)
         assert all(p == "core/store.py" for p, _ in ranked)
+
+
+def test_the_firewall_survives_the_rebuilds_physical_maintenance(tmp_path):
+    """bp-153 Item 6: compaction and legacy-row retirement are PHYSICAL, and the mirror firewall
+    is a row prefilter — so the one thing that could quietly break it is a physical rewrite that
+    drops or rewrites the `provenance` column.
+
+    The named degenerate input is a store where the default search returns nothing anyway: an empty
+    result satisfies "no code leaked" without testing anything. So the notes are asserted
+    RETRIEVABLE before and after, and the code lane is asserted still reachable through its own
+    explicit provenance set — a firewall that held by deleting the corpus is not a firewall."""
+    store, memberships, emb = _mixed_store(tmp_path)
+    query = "nearest neighbour embedded chunks lancedb"
+
+    before = semantic_search(query, cast(Embedder, emb), store, k=10)
+    assert before, "PRECONDITION: the mirror returns something, so 'no code' is not vacuous"
+    assert all(h["provenance"] != Provenance.CODE.value for h in before)
+    code_before = ranked_paths(query, emb, store, layers=LANE_LAYERS, pool=50,
+                               memberships=memberships)
+    assert code_before, "PRECONDITION: the code lane is reachable before the rewrite"
+    rows_before = store.count()
+    versions_before = store.dataset_versions()
+    assert versions_before > 1, "PRECONDITION: there are dataset versions to compact away"
+
+    # this store's code rows are already SHED atom rows, so there is no duplicated model to
+    # retire — asserted rather than assumed, so the compaction below is what is under test
+    assert retire_legacy_rows(store) == 0
+    report = store.compact(older_than=timedelta(0))
+
+    assert report.rows_preserved, "compaction removed a logical row"
+    assert report.versions_dropped > 0, "...and it must actually have compacted something"
+    assert store.count() == rows_before, "no row was deleted"
+
+    after = semantic_search(query, cast(Embedder, emb), store, k=10)
+    assert [h["id"] for h in after] == [h["id"] for h in before], "the mirror answer is unchanged"
+    assert all(h["provenance"] != Provenance.CODE.value for h in after)
+    assert ranked_paths(query, emb, store, layers=LANE_LAYERS, pool=50,
+                        memberships=memberships) == code_before
+
+    # the firewall is a PREFILTER, so the column it filters on must still be there to filter
+    assert all(str(r.get("provenance") or "") for r in store.project(["id", "provenance"]))
 
 
 def test_mc3_over_a_mixed_store_never_ranks_a_note(tmp_path):
