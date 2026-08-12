@@ -49,7 +49,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -343,6 +343,65 @@ class MembershipStore:
             f"WHERE content_id = ? AND tombstoned = 0 {clause}", [content_id]).fetchone()
         return int(row[0]) if row else 0
 
+    def n_doc_counts(self, *, layer: str | None = None,
+                     current_only: bool = False) -> dict[str, int]:
+        """`n_doc(v)` for EVERY atom at once — one GROUP BY instead of |V| point queries.
+
+        Defaults to the LIFETIME reading (`current_only=False`), because that is the variant the
+        rank-frequency histogram is defined over (D6): the corpus's vocabulary shape is a property
+        of everything it has ever held, not of one cut. Atoms with no occupancy do not appear —
+        their `n_doc` is 0 by definition, and materializing a zero per orphan would make the
+        histogram's tail an artifact of the ledger rather than of the corpus."""
+        clause = "AND current = 1" if current_only else ""
+        lane = "AND layer = ?" if layer else ""
+        params = [layer] if layer else []
+        return {str(r["content_id"]): int(r["n"]) for r in self._conn.execute(
+            f"SELECT content_id, count(DISTINCT path) AS n FROM memberships "
+            f"WHERE tombstoned = 0 {clause} {lane} GROUP BY content_id", params).fetchall()}
+
+    def rank_frequency(self, *, layer: str | None = None,
+                       current_only: bool = False) -> list[int]:
+        """The rank-frequency histogram of lifetime `n_doc(v)`: frequencies sorted DESCENDING, so
+        index *i* is rank *i+1* (D6, §4).
+
+        Returned as plain data rather than a plot: Zipf conformance is a falsifiable corpus
+        property and must be CHECKED, never assumed (T2/T4), and a caller that wants the check
+        needs the numbers. The gauge earns its keep only if a shape anomaly localizes something
+        real — boilerplate consolidation, vocabulary flux; if it never does, D6 says cut it."""
+        return sorted(self.n_doc_counts(layer=layer, current_only=current_only).values(),
+                      reverse=True)
+
+    def occupied_atoms(self, *, layer: str | None = None) -> int:
+        """Distinct atoms with at least one (un-tombstoned) occupancy — the denominator that makes
+        `embeds_avoided` honest. NOT the same as `|V|`: the plane may hold an orphan atom that no
+        fiber references (D8's crash window), and counting it as occupied would understate the
+        reuse this store is here to measure."""
+        lane = "AND layer = ?" if layer else ""
+        params = [layer] if layer else []
+        row = self._conn.execute(
+            f"SELECT count(DISTINCT content_id) FROM memberships WHERE tombstoned = 0 {lane}",
+            params).fetchone()
+        return int(row[0]) if row else 0
+
+    def occupancy_count(self, *, layer: str | None = None) -> int:
+        """`|M|` restricted to one lane (or the whole relation) — the numerator of `|M|/|V|`."""
+        lane = "WHERE layer = ?" if layer else ""
+        params = [layer] if layer else []
+        row = self._conn.execute(
+            f"SELECT count(*) FROM memberships {lane}", params).fetchone()
+        return int(row[0]) if row else 0
+
+    def lane_gauges(self) -> dict[str, LaneGauge]:
+        """Per-layer `(|M|, atoms)` in ONE aggregate query — the per-lane half of `|M|/|V|` (D6).
+
+        Kept as a store method rather than a query written at the gauge site so the two counts are
+        taken at the same cut, from the same scan: computing them separately is how a `|M|` from
+        after a landing gets divided by a `|V|` from before it."""
+        return {str(r["layer"]): LaneGauge(occupancies=int(r["n"]), atoms=int(r["v"]))
+                for r in self._conn.execute(
+                    "SELECT layer, count(*) AS n, count(DISTINCT content_id) AS v "
+                    "FROM memberships WHERE tombstoned = 0 GROUP BY layer").fetchall()}
+
     def atom_ids_of_path(self, path: str) -> set[str]:
         return {str(r["content_id"]) for r in self._conn.execute(
             "SELECT DISTINCT content_id FROM memberships WHERE path = ?", [path]).fetchall()}
@@ -482,6 +541,80 @@ def resolve_occupancies(memberships: MembershipStore, hits: Sequence[dict[str, o
                if is_code_atom_row(dict(h)) else ())
         out.append(ResolvedHit(row=h, occupancies=occ))
     return out
+
+
+@dataclass(frozen=True)
+class LaneGauge:
+    """One lane's frequency-plane reading."""
+
+    occupancies: int = 0            # |M| restricted to this lane
+    atoms: int = 0                  # distinct atoms holding an occupancy here
+
+    @property
+    def dedup_factor(self) -> float:
+        """Occupancies per atom — how much reuse this lane is actually buying."""
+        return (self.occupancies / self.atoms) if self.atoms else 0.0
+
+    @property
+    def embeds_avoided(self) -> int:
+        """Occupancies past the first for each atom: the embeds the duplicated model would have
+        paid and this one does not."""
+        return max(0, self.occupancies - self.atoms)
+
+
+@dataclass(frozen=True)
+class FrequencyGauges:
+    """The D6 standing gauges: `|M|`, `|V|`, the dedup factor, and embeds-avoided — per lane and
+    over the whole plane.
+
+    ⚑ **`dedup_factor` IS the D7 falsifier, kept observable forever rather than measured once**
+    (the S5 amendment). It fails its keep by sitting at ≈1.0 after a full rebuild: that would mean
+    the membership model bought nothing and D7's economics are false. Reading ≈1.0 is therefore not
+    "a low number", it is the design being wrong, and the gauge exists to say so out loud.
+
+    `plane_atoms` is `|V|` — every atom row in the plane — while `atoms` counts only the atoms some
+    fiber references. They differ by exactly the orphans (D8's crash window), and keeping them
+    separate is what stops a repair-pass bug from quietly moving the dedup factor."""
+
+    occupancies: int = 0
+    atoms: int = 0
+    plane_atoms: int = 0
+    per_layer: dict[str, LaneGauge] = field(default_factory=dict)
+
+    @property
+    def dedup_factor(self) -> float:
+        """`|M|/|V|` (D6) — occupancies per atom in the plane."""
+        return (self.occupancies / self.plane_atoms) if self.plane_atoms else 0.0
+
+    @property
+    def embeds_avoided(self) -> int:
+        return max(0, self.occupancies - self.atoms)
+
+    @property
+    def orphans(self) -> int:
+        return max(0, self.plane_atoms - self.atoms)
+
+    def __str__(self) -> str:
+        lanes = " · ".join(f"{k} {v.dedup_factor:.2f}×" for k, v in sorted(self.per_layer.items()))
+        return (f"|M|={self.occupancies} |V|={self.plane_atoms} "
+                f"dedup={self.dedup_factor:.2f}× ({lanes}) "
+                f"embeds_avoided={self.embeds_avoided} orphans={self.orphans}")
+
+
+def frequency_gauges(vectors: VectorStore, memberships: MembershipStore) -> FrequencyGauges:
+    """Read the D6 gauges. Cheap and read-only: three aggregate SQL queries plus one server-side
+    row count — no vector crosses into Python, which is what makes this registrable on a cadence
+    beside the drift-gauge family rather than an occasional investigation.
+
+    Every figure here is a QUERY. That is the issue #28 defect class stated as a rule: this repo
+    already carries docstrings quoting an edge count 8.4× off the live store, and a gauge whose
+    numbers were baked in at authoring time is that same defect with a dashboard on it."""
+    return FrequencyGauges(
+        occupancies=memberships.count(),
+        atoms=memberships.occupied_atoms(),
+        plane_atoms=vectors.atom_row_count(),
+        per_layer=memberships.lane_gauges(),
+    )
 
 
 def repair_current_any(vectors: VectorStore, memberships: MembershipStore) -> tuple[int, int]:
