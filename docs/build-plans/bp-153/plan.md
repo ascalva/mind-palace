@@ -14,6 +14,8 @@ write_scope:
   - core/typedshims/lancedb.py
   - core/ingest/code_corpus.py
   - scripts/palace.py
+  - ops/lifecycle/launcher.py
+  - scheduler/code_sync.py
   - tests/unit/test_code_rebuild.py
   - tests/unit/test_code_lineage.py
   - tests/unit/test_memberships.py
@@ -171,6 +173,18 @@ Production files:
   named so the builder is not denied mid-slice.
 - `scripts/palace.py` — the owner-visible `code-rebuild` verb. (Note: `down`/`up`/`restart`/
   `deploy` live here, **not** on the `mind-palace` wrapper.)
+
+**Amended at build (2026-08-12, bp-153 session 1)** — two files the §7 items name but the
+`write_scope` list omitted, added above so the reviewer's lane matches the work:
+
+- `ops/lifecycle/launcher.py` — Item 5's whole target. The probe being re-homed is
+  `_code_backfill_incomplete` (`:374-393`) with its one call site (`:551`); the file was never
+  listed. Item 7's verb also needs its `Launcher` method and its handler registration here. (Third
+  instance of this omission this wave — the graduation checklist should derive `write_scope` from
+  the items' cited `file:line`s rather than restating it.)
+- `scheduler/code_sync.py` — Item 7's verb must ENQUEUE, and the job kind + checkpointing handler
+  belong beside their two siblings (`code_sync`, `code_backfill`) rather than in a new module that
+  splits one lane across two homes.
 
 Test files carried: `tests/unit/test_code_rebuild.py` (new),
 `tests/unit/test_code_lineage.py` (pins chain behavior + the corrected docstring),
