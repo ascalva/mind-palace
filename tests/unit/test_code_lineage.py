@@ -208,3 +208,80 @@ def test_composed_supersession_edge_resolves_to_embedded_nodes(ledger, repo, tmp
     path, old_blob, new_blob = modify
     assert sync.memberships.fiber(path, old_blob)
     assert sync.memberships.fiber(path, new_blob)
+
+
+# ── bp-153 Item 5 — the `:139` docstring says what the code does ─────────────────────────
+
+@pytest.fixture
+def revert_repo(tmp_path) -> Path:
+    """A repo whose single file goes v0 -> v1 -> **back to v0** — a real revert shape.
+
+    Kept separate from the `repo` fixture above deliberately: that history is strictly increasing,
+    and on a strictly increasing history adjacent-collapse and distinct-collapse are the SAME
+    function. A revert is the only input that tells them apart, which is exactly why the docstring
+    could contradict the behavior for so long without any test noticing."""
+    r = tmp_path / "revert_repo"
+    r.mkdir()
+    _git(r, "init", "-q", "-b", "main")
+    _git(r, "config", "user.email", "t@t")
+    _git(r, "config", "user.name", "t")
+    v0 = "def f():\n    return 0\n"
+    v1 = "def f():\n    return 1\n"
+    for text, msg in ((v0, "c1"), (v1, "c2 edit"), (v0, "c3 revert")):
+        (r / "f.py").write_text(text)
+        _git(r, "add", "-A")
+        _git(r, "commit", "-qm", msg)
+    return r
+
+
+def test_a_revert_threads_as_three_runs_two_edges_not_two_distinct_blobs(revert_repo, tmp_path):
+    """§4 / F4 (file grain): `[A, B, A]` is PRESERVED — a revert stays visible.
+
+    The named degenerate input is a history with no revert (the `repo` fixture above), where every
+    chain is strictly increasing and the claim is untestable. Here the chain is asserted to
+    genuinely revisit a blob first, and then both readings are computed side by side so the
+    assertion is a DIFFERENCE between them rather than a property one of them happens to have."""
+    db = open_snapshot_db(tmp_path / "revert_snapshots.sqlite")
+    try:
+        ledger_backfill(db, revert_repo)
+        capture_commit_diffs(db, revert_repo, ledger_commits(db))
+        chain = supersession_chains(db)["f.py"]
+        versions = {b for p, b in ledger_versions(db) if p == "f.py"}
+    finally:
+        db.close()
+
+    # PRECONDITION: the history really reverts — two distinct blobs, one of them re-occupied
+    assert len(set(chain)) == 2, "the fixture must revisit a blob, or the two readings coincide"
+    assert chain[0] == chain[2] != chain[1]
+
+    # the behavior: ADJACENT collapse keeps three runs and two edges
+    assert len(chain) == 3
+    assert len(chain) - 1 == 2, "|edges| = |runs| - 1 (§4)"
+
+    # the counterfactual, COMPUTED rather than described: a distinct collapse erases the revert
+    distinct = list(dict.fromkeys(chain))
+    assert distinct == [chain[0], chain[1]]
+    assert len(distinct) - 1 == 1, "...one edge, and the revert is gone"
+    assert len(chain) != len(distinct), "the two readings differ on exactly this input"
+
+    # the ledger is unaffected either way: a revert re-uses a blob, it does not mint a version
+    assert versions == set(chain)
+    assert len(versions) == 2
+
+
+def test_the_supersession_chains_docstring_does_not_contradict_its_own_code():
+    """The `:139` correction, pinned as a ratchet (bp-153 Item 5).
+
+    The docstring said a chain is "the ordered DISTINCT sequence of its blobs". The code collapses
+    only ADJACENT repeats, so the sentence described a different function — and the design note
+    cites this very behavior as evidence in its F4 dispute, which means the prose was contradicting
+    the argument that rests on it. This is the issue #28 defect class (a docstring drifting from
+    the thing it documents) caught where it was load-bearing, so it gets a test rather than a fix
+    and a hope.
+
+    Degenerate input: asserting the word "adjacent" appears somewhere. The old text could have
+    gained that word and kept the wrong claim, so the CONTRADICTING phrase is asserted absent."""
+    doc = supersession_chains.__doc__ or ""
+    assert "adjacent" in doc.lower(), "the docstring must name the collapse it performs"
+    assert "distinct sequence" not in doc.lower(), "...and must not claim the one it does not"
+    assert "[A, B, A]" in doc, "the revert case is the point, so it is spelled out"

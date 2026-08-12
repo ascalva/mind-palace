@@ -374,17 +374,32 @@ class Components:
 def _code_backfill_incomplete(cfg: Config, code_driver: CodeCorpusSync) -> bool:
     """The catch-up incompleteness probe (dn-temporal-code-corpus §3, bp-099): is the store missing
     any ledger code version? Compares DISTINCT `(path, blob_sha)` versions on BOTH sides — the
-    store's embedded code versions vs the ledger's `ledger_versions` — so a COMPLETE store is
-    exactly equal and the probe enqueues NOTHING (no loop). (§6's shorthand `distinct digests <
-    distinct versions` would false-positive forever — 1,472 distinct blobs < 1,542 distinct
-    (path,blob) pairs even when complete; the falsifier forbids that loop, so the probe is
-    like-to-like — finding-0166.) Cheap scans, no embed. A missing ledger → not incomplete."""
-    from core.kernel.provenance import Provenance
+    versions the store holds vs the ledger's `ledger_versions` — so a COMPLETE store is exactly
+    equal and the probe enqueues NOTHING (no loop). (§6's shorthand `distinct digests < distinct
+    versions` would false-positive forever — 1,472 distinct blobs < 1,542 distinct (path,blob)
+    pairs even when complete; the falsifier forbids that loop, so the probe is like-to-like —
+    finding-0166.) Cheap scans, no embed. A missing ledger → not incomplete.
+
+    [banner: correction] The store side read the vector rows' `(source_path, digest)` pairs. Under
+    dn-vector-membership-store D1 a code ATOM row carries neither column — both are shed to `''`
+    (`ATOM_ROW_SHED`) — so against a rebuilt store every atom row collapses to the SINGLE tuple
+    `('', '')` and the probe reads `1 < 1,663`: true forever, enqueueing a backfill on every daemon
+    start, for ever. That is finding-0166's named falsifier reappearing through a different door,
+    and bp-152 shipped the shed knowing this re-home was bp-153's to make.
+
+    **The same number, a sturdier home** (the note's §6 re-home (1)): occupancy is the membership
+    relation's now, and a version IS its fiber `M(path, blob_sha)`, so the store-side count is
+    `memberships.fibers()` — distinct `(path, blob_sha)` pairs, which is precisely what the old
+    read was approximating with columns that happened to hold those two values. It is also the
+    honest reading of the F6 re-home: a version is present iff its fiber is non-empty.
+
+    ⚑ **The backfill TRIGGERS are unchanged** and must stay so (§6): the cadence, the call site,
+    the `cfg.ingestion.code.enabled` gate and the enqueued job kind are all exactly as they were.
+    Only the probe's DATA SOURCE moved. Any trigger-level change here would be out of design."""
     from ops.code_lineage import ledger_versions
     from ops.code_snapshot import open_snapshot_db
 
-    store_versions = {(str(r["source_path"]), str(r["digest"]))
-                      for r in code_driver.store.all_rows(provenances={Provenance.CODE})}
+    store_versions = set(code_driver.memberships.fibers())
     db = open_snapshot_db(cfg.paths.data_dir / "code_snapshots.sqlite")
     try:
         ledger = set(ledger_versions(db))
@@ -420,8 +435,10 @@ def build_components(cfg: Config) -> Components:
     )
     from scheduler.code_sync import (
         CODE_BACKFILL_KIND,
+        CODE_REBUILD_KIND,
         CODE_SYNC_KIND,
         code_backfill_handler,
+        code_rebuild_handler,
         code_sync_handler,
         enqueue_code_backfill,
         enqueue_code_sync,
@@ -503,6 +520,12 @@ def build_components(cfg: Config) -> Components:
         # Registered unconditionally (same species as code_sync); ENQUEUED only by the catch-up
         # incompleteness probe or the deliberate `palace code-backfill`. Idempotent, BACKGROUND.
         CODE_BACKFILL_KIND: code_backfill_handler(code_driver, code_snapshots_db, code_driver.repo),
+        # The D7 rebuild (bp-153 / dn-vector-membership-store): the ONE deliberate migration into
+        # the atom+membership model, run as CHECKPOINTED slices with a per-slice time budget so the
+        # lane that wedged on 2026-07-25 cannot wedge on this. Registered unconditionally (same
+        # species again); ENQUEUED only by the deliberate `palace code-rebuild` — never by a probe,
+        # because a rebuild is an owner-visible act, not a catch-up.
+        CODE_REBUILD_KIND: code_rebuild_handler(code_driver, code_snapshots_db, queue),
         # The L1 action-log projector (bp-069 Item 3): the sensor's DELAYED rate, model-less like
         # chat_sync. Re-extracts WHAT was performed (typed events, structural refs) from the raw
         # transcripts at housekeeping cadence, incrementally by transcript_digest.
@@ -1059,6 +1082,66 @@ class Launcher:
                  if live else
                  "no daemon is running — the job waits in the durable queue until `palace start`.")
         print(f"code backfill: enqueued code_backfill job #{job.id}; {where}")
+        return 0
+
+    # --- code-rebuild (the D7 atom+membership migration, bp-153) ------------------------------
+    def code_rebuild(self, *, dry_run: bool = False) -> int:
+        """The owner-visible enable act for dn-vector-membership-store D7.
+
+        `--dry-run` runs the READ-ONLY baseline in this process and prints it — Σ per-version
+        chunks against distinct atoms at the CURRENT ledger cut, the ratio, the carry-forward seed,
+        and whether that seed's embedder identity still matches the live config. It writes nothing,
+        which is the point: the design's economics were measured on a July cut and the corpus grows,
+        so the ratio is the portable claim and this is where it gets re-derived before anything is
+        spent (§8 g).
+
+        Without the flag it ENQUEUES one `code_rebuild` job and returns. It does not run the
+        rebuild here, and it emphatically does not stop the daemon: D7 requires the migration to
+        ride the single-writer supervisor as checkpointed background slices, and the job class it
+        enlarges is the one that wedged. `deploy` remains the separate owner-in-loop gate and is
+        untouched by this verb."""
+        if dry_run:
+            import sqlite3
+
+            from core.ingest.code_corpus import build_code_corpus_sync
+            from ops.code_rebuild import measure_baseline, pending_commits
+            # `repo=self.repo_root`, not the default: `build_code_corpus_sync` otherwise resolves
+            # the repo from the CWD's git toplevel, so the measurement would silently describe
+            # whichever checkout the command was typed in rather than the one this run is pinned to.
+            sync = build_code_corpus_sync(self.cfg, repo=self.repo_root)
+            db_path = self.cfg.paths.data_dir / "code_snapshots.sqlite"
+            if not db_path.exists():
+                print(f"code rebuild --dry-run: no ledger at {db_path} — nothing to measure.")
+                return 0
+            db = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)   # read-only, said and meant
+            try:
+                base = measure_baseline(sync, db)
+                pending = len(pending_commits(db))
+            finally:
+                db.close()
+            print(f"code rebuild --dry-run (READ-ONLY; nothing was written)\n  {base}")
+            if base.embedder is not None:
+                print(f"  embedder: live={base.embedder.live} stored_dim="
+                      f"{base.embedder.stored_dim} dim_match={base.embedder.dim_match} "
+                      f"ledger_mismatched={base.embedder.ledger_mismatched} "
+                      f"unrecorded_rows={base.embedder.unrecorded_rows}")
+            print(f"  step 0: {pending} ledger commits still need commit_diffs capture")
+            return 0
+
+        from scheduler.code_sync import enqueue_code_rebuild
+        from scheduler.queue import JobQueue
+        from scheduler.router import Router
+        queue = JobQueue(self.cfg.paths.data_dir / "queue.sqlite")
+        try:
+            job = enqueue_code_rebuild(queue, Router(self.cfg))
+        finally:
+            queue.close()
+        run = self.runs.last()
+        live = run is not None and run.active
+        where = ("the daemon will drain it as checkpointed BACKGROUND slices — `palace queue` to "
+                 "watch." if live else
+                 "no daemon is running — the job waits in the durable queue until `palace start`.")
+        print(f"code rebuild: enqueued code_rebuild job #{job.id}; {where}")
         return 0
 
     # --- down / up / restart (KeepAlive-aware maintenance control, finding-0066) -------------

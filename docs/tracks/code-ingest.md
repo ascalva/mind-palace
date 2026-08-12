@@ -13,7 +13,7 @@ dod:
   - CI-wiring the ENABLE path — CodeIngestConfig + daemon enqueue + `palace code-seed` (bp-098, warrant finding-0159)
   - the seed run PROVES it works — code is actually embedded + retrievable (not just built); owner-visible run
   - integrator densification (finding-0151) — design-pass, FABLE, after the build plans
-backlog_deskcheck: null
+backlog_deskcheck: "The vector-membership arc (dn-vector-membership-store; bp-151 → bp-155 → bp-152 → bp-153, all merged) is READY TO DESKCHECK on bp-153's merge. Demo: `palace code-rebuild --dry-run` reporting the measured factor at the live cut (2.280x over 1,663 versions: 52,200 chunks vs 22,897 atoms, 15,186-atom carry-forward seed); the standing `|M|/|V|` gauge reproducing it after a run; the re-homed incompleteness probe reading fibers instead of the shed `('','')` tuple. NOTE the live rebuild itself has NOT run — it is owner-gated behind the deploy (issue #39), so the deskcheck is of the machinery + the measurement, and the arc is not closed until the live run lands. The REST of the code-ingest track (bp-095, the seed run, integrator densification) remains work-owed, not deskcheck-owed."
 links:
   - docs/design-notes/code-ingest-pipeline.md
   - docs/findings/finding-0151.md
@@ -38,3 +38,11 @@ working as expected" ([[deskcheck-discipline]]); this track cannot be deskchecke
 — bp-095 (gated on M-C4), bp-098 (the wiring), the seed run, and integrator densification remain.
 It becomes deskcheck-ready only once it demonstrably ingests code. Do NOT surface this as
 "deskcheck-owed" until then; surface it as work-owed.
+
+**One ARC inside the track is deskcheck-ready** (bp-153, 2026-08-12): the vector-membership store —
+`dn-vector-membership-store`, plans bp-151 → bp-155 → bp-152 → bp-153 — is a complete three-plan
+family whose machinery and measurement can be shown working. It is carried in
+`backlog_deskcheck` above rather than by flipping the track's phase, precisely because the rest of
+the track is still work-owed and a track-level flip would over-claim. ⚑ The arc's own closing act,
+the LIVE rebuild, has not run: it is owner-gated behind the deploy (issue #39). So the deskcheck is
+of the machinery + the measured baseline, and the arc is not closed until the live run lands.
