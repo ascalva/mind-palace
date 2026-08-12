@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import subprocess
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -127,7 +128,7 @@ def repo(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def ledger(repo: Path, tmp_path: Path) -> sqlite3.Connection:
+def ledger(repo: Path, tmp_path: Path) -> Iterator[sqlite3.Connection]:
     db = open_snapshot_db(tmp_path / "code_snapshots.sqlite")
     ledger_backfill(db, repo)
     yield db
@@ -433,7 +434,7 @@ def test_killing_the_rebuild_mid_slice_and_resuming_lands_exactly_once(
     mid_m = sliced.memberships.count()
     assert mid_m > 0
 
-    token = progress.token
+    token: str | None = progress.token
     guard = 0
     while token is not None:
         guard += 1
