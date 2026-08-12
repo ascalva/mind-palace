@@ -45,6 +45,7 @@ from core.stores.memberships import (
     Membership,
     MembershipStore,
     current_any_drift,
+    frequency_gauges,
     purge_atom,
     repair_current_any,
     resolve_occupancies,
@@ -685,3 +686,127 @@ def test_the_vector_plane_never_shrinks_except_across_a_purge(degenerate: Fixtur
     report = purge_atom(b.vectors, b.memberships, degenerate.shared_id)
     assert report.vector_rows_deleted == 1                 # the ONE exception, and it is logged
     assert b.n_vectors() == before - 1
+
+
+# ── bp-153 Item 4 — the frequency-plane gauges (D6) ──────────────────────────────────────
+
+def test_n_doc_and_n_occ_differ_on_the_duplicate_window_pair(degenerate: Fixture) -> None:
+    """D6/F5: the two counts are different QUESTIONS and must never be conflated.
+
+    The named degenerate input is a corpus with no repeated window — there `n_doc == n_occ` for
+    every atom, and a conflated implementation passes every assertion. So the DUPLICATE L0b PAIR
+    is asserted to exist first: `dup` occupies blob A's fiber twice with distinct `chunk_index`
+    (the multiset pin), in ONE path. That is the only shape on which the two readings can be told
+    apart, and on it they must disagree: `n_occ` counts both rows, `n_doc` counts one path."""
+    m = degenerate.bench.memberships
+    dup = degenerate.dup_id
+
+    # PRECONDITION — without a duplicate pair in a single fiber this test cannot see the defect.
+    pair = [x for x in m.fiber("pkg/w.py", "A") if x.content_id == dup]
+    assert len(pair) == 2, "fixture must hold a duplicate L0b window pair"
+    assert {x.chunk_index for x in pair} == {2, 3}, "...as TWO rows, distinct by chunk_index"
+    assert len({x.path for x in pair}) == 1, "...inside ONE path, so n_doc cannot see them both"
+
+    # the claim: the multiset reading counts both occupancies, the document reading counts one path
+    assert m.n_occ(dup) == 2
+    assert m.n_doc(dup) == 1
+    assert m.n_occ(dup) != m.n_doc(dup)
+
+    # lifetime, where every fiber that ever held it counts: A, B and the side branch S
+    assert m.n_occ(dup, current_only=False) == 6
+    assert m.n_doc(dup, current_only=False) == 1
+
+    # the control that makes the inequality mean something: a NON-repeated atom agrees on both
+    # readings in one path, so the difference above is the repetition and not an off-by-one
+    assert m.n_occ(degenerate.shared_id) == m.n_doc(degenerate.shared_id)
+
+
+def test_the_dedup_factor_is_the_d7_falsifier_kept_observable(degenerate: Fixture) -> None:
+    """D6/S5: `|M|/|V|` IS the dedup factor, so D7's economics stay checkable forever.
+
+    It fails its keep by sitting at ≈1.0 after a rebuild — the model bought nothing. A test that
+    only asserted `dedup > 1` on a fixture that happens to share atoms would not establish that,
+    so the CONTROL is built explicitly: a second store where every landing is a fresh atom reads
+    ≈1.0, and the gauge separates the two."""
+    b = degenerate.bench
+    g = frequency_gauges(b.vectors, b.memberships)
+
+    # PRECONDITION: real reuse exists — occupancies outnumber atoms, and a shared atom spans paths
+    assert g.occupancies > g.atoms, "fixture must actually reuse atoms"
+    assert b.memberships.n_doc(degenerate.shared_id, current_only=False) == 2
+
+    assert g.occupancies == b.memberships.count()          # |M| is the relation, whole
+    assert g.plane_atoms == b.n_vectors()                  # |V| is the plane, whole
+    assert g.dedup_factor == pytest.approx(g.occupancies / g.plane_atoms)
+    assert g.dedup_factor > 1.0
+    assert g.embeds_avoided == g.occupancies - g.atoms
+    assert g.orphans == 0                                  # every atom here has an occupancy
+
+    # per lane, and the lanes genuinely differ: L0b holds the duplicate pair, so its factor is the
+    # higher one — a gauge reporting one number for both lanes could not show that.
+    assert set(g.per_layer) == {LAYER_CODE_AST, LAYER_CODE_TEXT}
+    assert g.per_layer[LAYER_CODE_TEXT].dedup_factor > g.per_layer[LAYER_CODE_AST].dedup_factor
+    for lane in g.per_layer.values():
+        assert lane.embeds_avoided == lane.occupancies - lane.atoms
+
+    # THE CONTROL: a store that never reuses anything reads ≈1.0 — this is what "the model bought
+    # nothing" looks like, and it is the reading the falsifier names.
+    fresh_v = VectorStore(b.vectors.path.parent / "control.lance", dim=DIM)
+    fresh_m = MembershipStore(b.memberships.path.parent / "control.sqlite")
+    control = CodeLander(vectors=fresh_v, memberships=fresh_m,
+                         embedder=_CountingEmbedder(), embedder_identity=_EMB)
+    for i, blob in enumerate(("c1", "c2", "c3")):
+        control.land("only.py", blob, [_chunk("f", f"def f():\n    return {i}\n")],
+                     head_blob_sha=blob)
+    control_gauges = frequency_gauges(fresh_v, fresh_m)
+    assert control_gauges.occupancies == 3 and control_gauges.plane_atoms == 3
+    assert control_gauges.dedup_factor == pytest.approx(1.0)
+    assert control_gauges.embeds_avoided == 0
+
+
+def test_the_rank_frequency_histogram_renders_over_lifetime_n_doc(degenerate: Fixture) -> None:
+    """D6/§4: the rank-frequency plot of LIFETIME `n_doc(v)`, per lane, checked not assumed.
+
+    The degenerate input is a corpus where every atom sits in exactly one path — the histogram is
+    then flat and any implementation "renders" it, including one that returns a constant. So the
+    fixture is asserted to hold a spread (a shared atom at n_doc 2 beside singletons) before the
+    shape is read."""
+    m = degenerate.bench.memberships
+
+    counts = m.n_doc_counts(current_only=False)
+    # PRECONDITION: the distribution is not flat, so "sorted descending" carries information
+    assert max(counts.values()) > min(counts.values()), "fixture must hold a frequency spread"
+
+    hist = m.rank_frequency()
+    assert hist == sorted(hist, reverse=True)              # rank i -> the i-th largest n_doc
+    assert len(hist) == len(counts) == m.occupied_atoms()
+    assert hist[0] == counts[degenerate.shared_id] == 2    # the shared atom tops the ranking
+    assert sum(hist) == sum(counts.values())
+
+    # per lane: L0b holds exactly one atom (the duplicated window), in one path
+    assert m.rank_frequency(layer=LAYER_CODE_TEXT) == [1]
+    assert len(m.rank_frequency(layer=LAYER_CODE_AST)) == 4
+
+    # the CURRENT-cut variant is a different reading and is kept separate (D6): the side branch and
+    # the superseded revision drop out of it, so it is strictly smaller here.
+    assert sum(m.rank_frequency(current_only=True)) < sum(hist)
+
+
+def test_current_any_is_equivalent_to_a_positive_n_doc_across_the_gauges(
+        degenerate: Fixture) -> None:
+    """The carried invariant `current_any(v) ⇔ n_doc(v, t) > 0` (D6/R3), read through the batch
+    gauge rather than the point query — the two spellings must agree, or the cheap gauge is
+    reporting something the expensive truth does not."""
+    m = degenerate.bench.memberships
+    batch = m.n_doc_counts(current_only=True)
+
+    # PRECONDITION: the fixture holds BOTH a current and a fully-superseded atom, so the
+    # equivalence is not being read on an all-current store.
+    assert any(v > 0 for v in batch.values())
+    superseded = [cid for cid in m.n_doc_counts(current_only=False) if batch.get(cid, 0) == 0]
+    assert superseded, "fixture must hold an atom whose every occupancy is superseded"
+
+    for row in degenerate.bench.vectors.atom_rows():
+        cid = str(row["id"])
+        assert bool(row["current"]) == (batch.get(cid, 0) > 0)
+        assert batch.get(cid, 0) == m.n_doc(cid)          # batch and point query agree
