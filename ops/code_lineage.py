@@ -134,9 +134,23 @@ def supersession_chains(db: sqlite3.Connection) -> dict[str, list[str]]:
     """Per-path blob supersession chains `{path: [blob v0, v1, …]}` in ledger commit order (D4/D5).
 
     Threaded from `commit_diffs` walked in the `snapshots` capture order (rowid): a path's chain is
-    the ordered distinct sequence of its blobs — the initial `old_blob` (if the file pre-existed the
-    window) then each `new_blob` as the file evolves; a delete (`new_blob=''`) ends presence without
-    adding a version, and a rename's add starts the new path's own chain (PD-1). The result is plain
+    its blobs in commit order with only **ADJACENT** repeats collapsed — the initial `old_blob` (if
+    the file pre-existed the window) then each `new_blob` as the file evolves; a delete
+    (`new_blob=''`) ends presence without adding a version, and a rename's add starts the new
+    path's own chain (PD-1).
+
+    [banner: correction] This said "the ordered **distinct** sequence of its blobs", which is not
+    what `:155` does and not what the design needs. The collapse is adjacent-only, so a revert
+    survives: A → B → A threads `[A, B, A]` — three runs, two edges — where a distinct-collapse
+    would thread `[A, B]` and erase the revert entirely. The distinction is load-bearing rather
+    than pedantic: dn-vector-membership-store's F4 dispute rests on exactly it (the file-grain half
+    of the panel's "the atom view is cyclic" finding is DISPUTED on this code), and §4's
+    per-slot `|edges| = |runs| - 1` is the same formulation at slot grain
+    (`core.stores.memberships.slot_runs`). A docstring contradicting the behavior its own design
+    cites as evidence is the issue #28 defect class in miniature. Verified against the real ledger
+    (bp-153 Item 2, first successful capture over 1,377 commits): `ops/lifecycle/launcher.py`
+    re-occupies one blob at NON-adjacent run positions, which a distinct-collapse would have lost.
+    The result is plain
     data for `core.kernel.temporal.boundary.poset_from_chains` (a chain = a total order; the corpus
     is the disjoint union of chains — a forest, §8). NB the poset core's contract is
     `dict[str, list[int]]` (version_seq, `acquire.py`) and it re-sorts its values, so a temporal
