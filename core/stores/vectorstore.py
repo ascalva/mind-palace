@@ -10,8 +10,9 @@ Vectors are a derived, regenerable layer; the raw store remains the source of tr
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -88,6 +89,36 @@ ATOM_ROW_SHED: dict[str, Any] = {
     "digest": "", "source_path": "", "chunk_index": 0, "qualname": "",
     "line_start": 0, "line_end": 0,
 }
+
+
+@dataclass(frozen=True)
+class CompactionReport:
+    """What `VectorStore.compact` physically did (§3).
+
+    Both a BEFORE and an AFTER row count are carried on purpose. Compaction's whole contract is
+    that it is semantically invisible, and the only way to assert invisibility without asserting it
+    vacuously is to have the two numbers side by side and require them equal WHILE the version
+    count fell — a compaction that no-ops leaves every number equal, including the one that is
+    supposed to move."""
+
+    rows_before: int = 0
+    rows_after: int = 0
+    versions_before: int = 0
+    versions_after: int = 0
+
+    @property
+    def rows_preserved(self) -> bool:
+        """The invariant: compaction removes no logical row."""
+        return self.rows_before == self.rows_after
+
+    @property
+    def versions_dropped(self) -> int:
+        return max(0, self.versions_before - self.versions_after)
+
+    def __str__(self) -> str:
+        return (f"rows {self.rows_before}->{self.rows_after} "
+                f"versions {self.versions_before}->{self.versions_after} "
+                f"({self.versions_dropped} dropped)")
 
 
 def is_code_atom_row(row: dict[str, Any]) -> bool:
@@ -236,6 +267,51 @@ class VectorStore:
                 self._table().scan().where(f"source_path = {_sql_str(source_path)}")
                 .limit(0).to_list()]
 
+    def project(self, columns: Sequence[str], *, where: str | None = None,
+                limit: int = 0) -> list[dict[str, Any]]:
+        """A projected, predicate-pushed read — the named columns and nothing else.
+
+        The generalization of `rows_for_source`' shape, and it exists for one measurable reason:
+        `vector` is 2560 floats per row, so a scan that does not name it costs a small fraction of
+        one that does. The rebuild's baseline (`ops/code_rebuild.py`) reads `id`/`layer`/`text`
+        over the whole code lane to re-derive the dedup economics and must never pay for geometry
+        it does not read; the carry-forward seed names `vector` precisely because copying it is the
+        point. `limit(0)` means UNLIMITED (verified empirically against the installed 0.33.0 and
+        pinned by the shim ratchet, exactly as `rows_for_source` documents).
+
+        `where` is a raw LanceDB predicate and is the CALLER's to build — use `_sql_str` for any
+        value that is not a literal this module wrote itself."""
+        if TABLE not in self._db.list_tables().tables:
+            return []
+        q = self._table().scan().select(list(columns))
+        if where is not None:
+            q = q.where(where)
+        return [dict(r) for r in q.limit(limit).to_list()]
+
+    def supersede_legacy_code_rows(self) -> int:
+        """Flip every PRE-D1 duplicated code row to `current=false`, retaining it. Returns rows
+        flipped (0 when the store holds none — so a second call is a no-op).
+
+        The predicate is the exact complement of `is_code_atom_row` within the code lane: a row is
+        legacy iff it is CODE and still carries the occupancy coordinates an atom row sheds. The
+        rebuild lands the atom plane into the same table as the rows it replaces, so without this
+        both models answer the default current-view search and the dedup is bought but not served.
+
+        This is keep-and-link (`supersede_source`'s mechanism, D2) pointed at the retired ROW MODEL
+        rather than at a superseded version: one pushed-down predicate, a filtered count, one
+        in-place `update`. **Nothing is deleted** — `|V|` cannot decrease here, and D5's "purge is
+        the ONE removal" is untouched — and because the rows remain, the step is reversible by the
+        same update in the other direction."""
+        if TABLE not in self._db.list_tables().tables:
+            return 0
+        table = self._table()
+        where = (f"provenance = {_sql_str(Provenance.CODE.value)} "
+                 "AND source_path <> '' AND current = true")
+        flipped = table.count_rows(where)     # portable: do NOT rely on UpdateResult (bp-103 §11)
+        if flipped:
+            table.update(where, {"current": False})
+        return flipped
+
     def delete_source(self, source_path: str) -> None:
         """Drop every derived row for one source document, by `source_path` (the stable doc identity
         an amendment replaces a projection under — §4). Idempotent.
@@ -367,6 +443,20 @@ class VectorStore:
         logged purge)."""
         return [r for r in self.all_rows(provenances={Provenance.CODE}) if is_code_atom_row(r)]
 
+    def atom_row_count(self) -> int:
+        """`|V|` — how many shed CODE-atom rows the plane holds, as a SERVER-SIDE count.
+
+        The same number `len(atom_rows())` gives, without the scan: `atom_rows` materializes every
+        row INCLUDING its 2560-float vector, which is the right cost for the repair pass (it reads
+        the flag on each row) and entirely the wrong cost for a gauge that runs on a cadence. The
+        predicate is `is_code_atom_row` written as SQL — the one place those two spellings must
+        agree, which is why the Python predicate is the documented reading and this cites it."""
+        if TABLE not in self._db.list_tables().tables:
+            return 0
+        return self._table().count_rows(
+            f"provenance = {_sql_str(Provenance.CODE.value)} "
+            "AND source_path = '' AND digest = ''")
+
     def set_current_any(self, ids: Iterable[str], value: bool) -> int:
         """Set `current_any` on exactly the named atom rows (D2 step 5). Returns rows written.
 
@@ -406,6 +496,46 @@ class VectorStore:
         if n:
             table.delete(where)
         return n
+
+    def dataset_versions(self) -> int:
+        """How many dataset versions the table still retains (§3). One per write batch, and D2 makes
+        `current_any` flips routine — so this is the number compaction is measured against."""
+        if TABLE not in self._db.list_tables().tables:
+            return 0
+        return len(self._table().list_versions())
+
+    def compact(self, *, older_than: timedelta | None = None) -> CompactionReport:
+        """Physical maintenance: compact fragments, then drop old dataset versions (§3).
+
+        [cross-ref: extension] No compaction path existed in this module (the note verified it), and
+        §3 makes it part of the store's semantics rather than an operational afterthought: the lance
+        dataset accumulates a version per write batch — 298 versions / 245 MB measured 2026-07-27
+        against ~232 MB of raw payload — and `current_any` flips are updates that rewrite fragments.
+        The rebuild ends with this, and housekeeping runs the cleanup half on cadence.
+
+        **Compaction is PHYSICAL, never logical.** It removes no row and changes no vector, so row
+        count and search results are invariant across it — the acceptance asserts BOTH, because
+        "nothing changed" is also what a compaction that silently did nothing produces. The version
+        count dropping is the other half, and it is the half that makes the assertion non-vacuous.
+
+        `older_than=None` takes the package's own retention default. Passing `timedelta(0)` reclaims
+        every superseded version immediately, which is what the rebuild wants (it has just written
+        thousands of batches) and what a test needs to observe a drop at all — but it forfeits
+        time-travel to any earlier version, so it is the caller's explicit choice, never the
+        default. `current_any` stays in lance throughout: the ANN prefilter needs it (D1/§3)."""
+        if TABLE not in self._db.list_tables().tables:
+            return CompactionReport()
+        table = self._table()
+        before_rows, before_versions = table.count_rows(None), len(table.list_versions())
+        # ONE call does both halves. The deprecated `compact_files`/`cleanup_old_versions` pair
+        # routes through `Table.to_lance()` and raises ImportError without the optional `pylance`
+        # package (found by running it, not by reading about it) — see the shim's note.
+        table.optimize(cleanup_older_than=older_than, delete_unverified=False)
+        after_rows, after_versions = table.count_rows(None), len(table.list_versions())
+        return CompactionReport(
+            rows_before=before_rows, rows_after=after_rows,
+            versions_before=before_versions, versions_after=after_versions,
+        )
 
     def search(self, vector: list[float], *, k: int = 5,
                provenances: Iterable[Provenance] | None = None,

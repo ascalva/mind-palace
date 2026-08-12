@@ -29,6 +29,7 @@ the checked region — the exact hole this module exists to close.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from datetime import timedelta
 from typing import Any, Protocol
 
 import lancedb  # type: ignore[import-untyped]  # warrant: no py.typed upstream (V2); Any quarantined to this shim
@@ -96,6 +97,30 @@ class VectorTable(Protocol):
 
     def scan(self) -> VectorQuery: ...
 
+    # [cross-ref: extension] bp-153 brings the PHYSICAL maintenance calls
+    # (dn-vector-membership-store §3): the dataset accumulates a version per write batch, and D2
+    # makes `current_any` flips routine, so the rebuild ends with compaction + old-version cleanup
+    # and housekeeping runs cleanup on cadence.
+    #
+    # ⚑ The note's §3 Q5 splits into two cases and only one is a finding. Widening THIS Protocol is
+    # ordinary in-scope work — the shim is our code. The finding case would be the pinned lancedb
+    # release having no such capability underneath, where widening conjures nothing. It does NOT
+    # apply, and the check is the bp-103 rule (read the INSTALLED package, never the docs): 0.33.0's
+    # `lancedb.table.Table` exposes `optimize` and `list_versions`, both verified to run here.
+    #
+    # `optimize` is named rather than the `compact_files` + `cleanup_old_versions` pair the API also
+    # carries, for a reason found by running it: BOTH of those are deprecated as of 0.21.0 and route
+    # through `Table.to_lance()`, which raises `ImportError` unless the optional `pylance` package
+    # is installed — not a dependency of this project, and adding one to reach a deprecated path
+    # would be the wrong direction. `optimize` (modeled on PostgreSQL's VACUUM) does both halves in
+    # one call, on the supported path, with no extra package. Measured on a 7-version table: 7 -> 1
+    # versions, row count unchanged.
+
+    def optimize(self, *, cleanup_older_than: timedelta | None = ...,
+                 delete_unverified: bool = ..., retrain: bool = ...) -> None: ...
+
+    def list_versions(self) -> list[dict[str, object]]: ...
+
 
 class VectorDB(Protocol):
     """The slice of a LanceDB connection the store calls."""
@@ -154,6 +179,24 @@ class _Table:
         ordering. This is `search(None)`, whose overload the shim absorbs rather than leaks."""
         q: VectorQuery = self._raw.search(None)
         return q
+
+    def optimize(self, *, cleanup_older_than: timedelta | None = None,
+                 delete_unverified: bool = False, retrain: bool = False) -> None:
+        """Compact fragments and drop superseded dataset versions — the VACUUM-shaped call (§3).
+
+        PHYSICAL only: it removes no logical row, so row count and search results are invariant
+        across it — the property the compaction test asserts rather than assumes. A `None` window
+        takes the package's own retention default; choosing a window is the caller's policy
+        (`VectorStore.compact`), never the boundary shim's. Returns nothing in 0.33.0, which is why
+        the store measures the effect with `list_versions` instead of trusting a return value."""
+        self._raw.optimize(cleanup_older_than=cleanup_older_than,
+                           delete_unverified=delete_unverified, retrain=retrain)
+
+    def list_versions(self) -> list[dict[str, object]]:
+        """Every dataset version the table still retains — the measurement that makes "the version
+        count DROPPED" checkable instead of asserted."""
+        versions: list[dict[str, object]] = self._raw.list_versions()
+        return versions
 
 
 class _DB:
