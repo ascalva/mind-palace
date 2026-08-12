@@ -231,3 +231,187 @@ def test_palace_usage_lists_code_backfill() -> None:
     with redirect_stdout(buf):
         assert palace.main(["--help"]) == 0
     assert "code-backfill" in buf.getvalue()
+
+
+# --- bp-153 Item 5: the probe re-homes to membership fibers ---------------------------------
+
+
+def _seed_ledger_two_versions(cfg) -> int:
+    """A ledger holding TWO distinct `(path, blob_sha)` versions. Two, not one, because the
+    counterfactual below turns on `1 < N`: with a single version the shed store's collapsed count
+    (1) equals the ledger's (1) and the old probe's false-positive is invisible."""
+    from ops.code_snapshot import backfill as ledger_backfill
+    from ops.code_snapshot import open_snapshot_db
+    repo = cfg.paths.data_dir / "src"
+    repo.mkdir(parents=True, exist_ok=True)
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "t@t")
+    _git(repo, "config", "user.name", "t")
+    (repo / "m.py").write_text("def m():\n    return 1\n")
+    (repo / "n.py").write_text("def n():\n    return 2\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "one")
+    db = open_snapshot_db(cfg.paths.data_dir / "code_snapshots.sqlite")
+    try:
+        ledger_backfill(db, repo)
+    finally:
+        db.close()
+    return 2
+
+
+def test_the_probe_does_not_false_positive_against_a_rebuilt_store(tmp_path) -> None:
+    """bp-153 Item 5 / the note's §6 re-home (1): the catch-up probe reads MEMBERSHIP FIBERS.
+
+    This is finding-0166's named falsifier reappearing through a different door. bp-152 shed
+    `source_path` and `digest` from code atom rows, so the OLD probe — which counted distinct
+    `(source_path, digest)` pairs over the code lane — sees a rebuilt store collapse to the single
+    tuple `('', '')`. It then reads `1 < N` on every daemon start and enqueues a backfill FOREVER.
+
+    Degenerate input: a store with no atom rows at all. The probe is then correct for the wrong
+    reason and this test would pass against the un-re-homed code. So the store here is REBUILT —
+    shed atom rows plus a complete set of fibers — and the OLD reading is computed alongside the
+    new one and asserted to be WRONG. Without that counterfactual the assertion is just "the probe
+    says complete", which the old code could also produce on some other input."""
+    from core.ingest.code_corpus import code_memberships, code_rows, derive_code_chunks
+    from core.kernel.provenance import Provenance
+    from core.stores.memberships import EmbedderIdentity, open_membership_store
+    from core.stores.vectorstore import VectorStore
+    from ops.code_lineage import ledger_versions
+    from ops.code_snapshot import open_snapshot_db
+    from ops.lifecycle.launcher import _code_backfill_incomplete
+    from tests.fixtures.embedding import DIM, FakeEmbedder
+
+    cfg = _cfg(tmp_path / "rebuilt", enabled=True)
+    n_versions = _seed_ledger_two_versions(cfg)
+    repo = cfg.paths.data_dir / "src"
+
+    db = open_snapshot_db(cfg.paths.data_dir / "code_snapshots.sqlite")
+    try:
+        versions = ledger_versions(db)
+    finally:
+        db.close()
+    assert len(versions) == n_versions, "PRECONDITION: the ledger holds more than one version"
+
+    # rebuild the store into the atom+membership model, exactly as bp-153's walk leaves it
+    vectors = VectorStore(cfg.paths.vector_store, dim=DIM)
+    memberships = open_membership_store(cfg)
+    embedder = FakeEmbedder()
+    for path, blob in versions:
+        source = _git(repo, "cat-file", "-p", blob)
+        chunks = derive_code_chunks(path, source)
+        vectors.add(code_rows(chunks, embedder.embed_documents([c.text for c in chunks])))
+        memberships.write_fiber(code_memberships(path, blob, chunks))
+        memberships.reconcile_currency(path, blob)
+
+    # PRECONDITION: the store really is rebuilt — shed atom rows, and a fiber per ledger version
+    assert vectors.atom_row_count() > 0
+    assert set(memberships.fibers()) == set(versions)
+
+    # THE COUNTERFACTUAL: the old store-side reading collapses to ONE tuple and would loop forever
+    old_reading = {(str(r["source_path"]), str(r["digest"]))
+                   for r in vectors.all_rows(provenances={Provenance.CODE})}
+    assert old_reading == {("", "")}, "the shed collapses every atom row to one bogus pair"
+    assert len(old_reading) < len(versions), "...so the OLD probe reads incomplete, forever"
+
+    # the re-homed probe reads the fibers, and a complete store is exactly equal → no enqueue
+    from core.ingest.code_corpus import CodeCorpusSync
+    driver = CodeCorpusSync(repo=repo, store=vectors, embedder=embedder,
+                            memberships=memberships,
+                            embedder_identity=EmbedderIdentity(model="fake", dim=DIM))
+    assert _code_backfill_incomplete(cfg, driver) is False
+
+    # ...and it still says INCOMPLETE when a version is genuinely missing (it did not simply
+    # become a constant `False`, which would be the other way to stop the loop and be useless)
+    missing_cfg = _cfg(tmp_path / "missing", enabled=True)
+    _seed_ledger_two_versions(missing_cfg)
+    empty_driver = CodeCorpusSync(
+        repo=missing_cfg.paths.data_dir / "src",
+        store=VectorStore(missing_cfg.paths.vector_store, dim=DIM), embedder=embedder,
+        memberships=open_membership_store(missing_cfg),
+        embedder_identity=EmbedderIdentity(model="fake", dim=DIM))
+    assert _code_backfill_incomplete(missing_cfg, empty_driver) is True
+
+
+def test_the_backfill_triggers_are_unchanged_by_the_re_home(tmp_path) -> None:
+    """§6's fence: only the probe's DATA SOURCE moves. The cadence, the gate and the enqueued kind
+    stand — a trigger-level change would be out of design, and is the falsifier for Item 5."""
+    inc = _cfg(tmp_path / "inc", enabled=True)
+    _seed_ledger(inc)
+    comps = build_components(inc)
+    try:                        # still enqueued by CATCH-UP, still exactly one, still the same kind
+        assert _catchup_kinds(comps).count(CODE_BACKFILL_KIND) == 1
+    finally:
+        comps.queue.close()
+
+    off_cfg = _cfg(tmp_path / "off", enabled=False)     # still gated by ingestion.code.enabled
+    _seed_ledger(off_cfg)
+    off = build_components(off_cfg)
+    try:
+        assert _catchup_kinds(off).count(CODE_BACKFILL_KIND) == 0
+    finally:
+        off.queue.close()
+
+
+# --- bp-153 Item 7: palace code-rebuild -> a queued code_rebuild job ------------------------
+
+
+def test_code_rebuild_enqueues_one_job_and_registers_its_handler(tmp_path) -> None:
+    """Item 7: the verb ENQUEUES (single-writer: a job insert, never a store write from the CLI),
+    and the kind it enqueues has a handler registered — a job with no handler is a verb that
+    reaches nothing, which is the flag-off-is-not-done failure with extra steps."""
+    from scheduler.code_sync import CODE_REBUILD_KIND
+
+    cfg = _cfg(tmp_path, enabled=False)
+    launcher = Launcher(cfg=cfg, runs=RunLedger(tmp_path / "runs.sqlite"),
+                        repo_root=Path(".").resolve())
+    assert launcher.code_rebuild() == 0
+    q = JobQueue(cfg.paths.data_dir / "queue.sqlite")
+    try:
+        assert [j.kind for j in q.list()].count(CODE_REBUILD_KIND) == 1
+    finally:
+        q.close()
+
+    comps = build_components(_cfg(tmp_path / "wired", enabled=False))
+    try:
+        assert CODE_REBUILD_KIND in comps.supervisor.handlers  # type: ignore[attr-defined]
+    finally:
+        comps.queue.close()
+
+
+def test_code_rebuild_dry_run_writes_nothing_and_enqueues_nothing(tmp_path) -> None:
+    """`--dry-run` is Item 1's read-only pass. Degenerate input: a dry-run over an absent ledger
+    trivially writes nothing, so a REAL ledger is seeded first and the pass is asserted to have
+    measured it — while the queue stays empty and the stores stay untouched."""
+    cfg = _cfg(tmp_path, enabled=True)
+    _seed_ledger_two_versions(cfg)
+    launcher = Launcher(cfg=cfg, runs=RunLedger(tmp_path / "runs.sqlite"),
+                        repo_root=cfg.paths.data_dir / "src")
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert launcher.code_rebuild(dry_run=True) == 0
+    out = buf.getvalue()
+
+    assert "READ-ONLY" in out and "nothing was written" in out
+    assert "versions=2" in out, "the pass actually measured the seeded ledger"
+    assert "ratio=" in out and "step 0:" in out
+
+    q = JobQueue(cfg.paths.data_dir / "queue.sqlite")
+    try:
+        assert q.list() == [], "a dry run must enqueue NOTHING"
+    finally:
+        q.close()
+
+
+def test_palace_usage_lists_code_rebuild() -> None:
+    """The ON switch must be reachable (finding-0159): the verb is in USAGE and in `--help`."""
+    spec = importlib.util.spec_from_file_location(
+        "palace_cli", REPO_ROOT / "scripts" / "palace.py")
+    assert spec and spec.loader
+    palace = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(palace)
+    assert "code-rebuild" in palace.USAGE
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert palace.main(["--help"]) == 0
+    assert "code-rebuild" in buf.getvalue()

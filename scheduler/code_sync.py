@@ -30,6 +30,7 @@ if TYPE_CHECKING:  # the sync driver is INJECTED into the handler — no runtime
 
 CODE_SYNC_KIND = "code_sync"
 CODE_BACKFILL_KIND = "code_backfill"     # the history backfill (bp-099) — sibling of code_sync
+CODE_REBUILD_KIND = "code_rebuild"       # the D7 atom+membership rebuild (bp-153) — checkpointed
 
 Handler = Callable[[Job], "str | None"]
 
@@ -68,6 +69,50 @@ def code_backfill_handler(sync: CodeCorpusSync, db_path: Path, repo: Path) -> Ha
             db.close()
         return f"code backfill: {report}; commit_diffs+={n_commits} commits"
     return handle
+
+
+def code_rebuild_handler(sync: CodeCorpusSync, db_path: Path, queue: JobQueue, *,
+                         capture_budget_s: float = 60.0,
+                         rebuild_budget_s: float = 120.0) -> Handler:
+    """The D7 rebuild (dn-vector-membership-store, bp-153) as a CHECKPOINTED background job.
+
+    This is the first handler in the system to use the queue's `checkpoint`/resume protocol, and it
+    is the one the protocol was built for: the same lane wedged on 2026-07-25 because the whole
+    history rode one unbounded job (`code_sync` 300246, with 1,766 jobs queued behind it), and D7's
+    answer is slices with resume tokens and a per-slice time budget — never a monolith, and never a
+    daemon stop.
+
+    One dispatch runs ONE slice. If work remains, the handler persists its resume token and
+    re-queues itself through `queue.checkpoint`, which also CLEARS the lease — so a yielded row
+    reads as waiting rather than as an orphan, and the next `claim` stamps a fresh per-batch
+    deadline (the shape §2.10 requires: "a healthy 14-hour backfill" must not die at hour N on a
+    per-job deadline). The supervisor completes the job only when it is still RUNNING after the
+    handler returns, so returning after a checkpoint yields rather than finishes.
+
+    ⚑ It NEVER calls `CodeCorpusSync.backfill` — the old duplicated backfill is 52,755 embeds
+    against 22,502 atoms, 2.34× measured waste (D7), and this whole plan exists to not pay it."""
+    def handle(job: Job) -> str | None:
+        from ops.code_rebuild import rebuild_step
+        from ops.code_snapshot import open_snapshot_db
+        db = open_snapshot_db(db_path)
+        try:
+            step = rebuild_step(sync, db, token=job.checkpoint,
+                                capture_budget_s=capture_budget_s,
+                                rebuild_budget_s=rebuild_budget_s)
+        finally:
+            db.close()
+        if not step.done:
+            queue.checkpoint(job.id, step.token or "")
+        return f"code rebuild [{step.phase}]: {step.message}"
+    return handle
+
+
+def enqueue_code_rebuild(queue: JobQueue, router: Router) -> Job:
+    """Enqueue the D7 rebuild. Same pinned-tier, BACKGROUND species as its two siblings (it is a
+    model-less embed lane), and idempotent in the strong sense: every phase converges, so a
+    duplicate job re-derives at worst and re-lands nothing."""
+    plan = router.plan(CODE_SYNC_KIND, priority=PRIORITY_BACKGROUND)
+    return queue.enqueue(CODE_REBUILD_KIND, plan.tier, plan.num_ctx, priority=plan.priority)
 
 
 def enqueue_code_backfill(queue: JobQueue, router: Router) -> Job:

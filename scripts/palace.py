@@ -13,6 +13,7 @@
     uv run scripts/palace.py ingest-chat    # on-demand: ingest the local Claude Code transcripts
     uv run scripts/palace.py code-seed      # on-demand: seed the code embed lane (HEAD .py blobs)
     uv run scripts/palace.py code-backfill  # on-demand: embed the full code history (bp-099)
+    uv run scripts/palace.py code-rebuild   # the D7 atom+membership rebuild (bp-153); --dry-run
     uv run scripts/palace.py bless <id>     # owner-only: flip a plan proposed -> ready (gate)
 
 `start` seals the core (Invariant 1 — loopback only), runs preflight (ensures our own
@@ -43,8 +44,8 @@ _ROOT = Path(__file__).resolve().parent.parent  # repo root, for the bless path 
 
 USAGE = ("usage: palace.py "
          "{start|stop|down|up|restart|status|queue|reset|deploy|ingest-chat|code-seed|"
-         "code-backfill|bless} "
-         "[--force] [--confirm] [--skip-tests] [<plan-id>]")
+         "code-backfill|code-rebuild|bless} "
+         "[--force] [--confirm] [--skip-tests] [--dry-run] [<plan-id>]")
 
 
 def bless(plan_id: str) -> int:
@@ -240,6 +241,10 @@ def main(argv: list[str]) -> int:
         return launcher.code_seed()
     if cmd == "code-backfill":
         return launcher.code_backfill()
+    if cmd == "code-rebuild":
+        # ENQUEUES (or, with --dry-run, only measures). Never stops the daemon: D7 runs the
+        # migration as checkpointed queue slices under the single writer.
+        return launcher.code_rebuild(dry_run="--dry-run" in flags)
     print(USAGE)
     return 2
 
