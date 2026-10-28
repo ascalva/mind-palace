@@ -556,8 +556,9 @@ def build_components(cfg: Config) -> Components:
     # catch-up (below). The catch-up is the one that matters most for a deliberate pause: it runs on
     # every daemon start, so an agent gated only in housekeeping unpauses itself at the next deploy.
     def _housekeeping() -> None:
-        enqueue_dream(queue, router)
-        enqueue_curate(queue, router)
+        if cfg.dreaming.scheduled:              # False = the big model wakes only on demand
+            enqueue_dream(queue, router)
+            enqueue_curate(queue, router)
         if cfg.ingestion.transcripts.enabled:  # ONE transcript-sync agent, BOTH its kinds:
             enqueue_chat_sync(queue, router)    # periodic chat ingest (growth-aware, bp-068/069)
             enqueue_chat_events(queue, router)  # L1 action-log projection — its delayed rate
@@ -1301,6 +1302,8 @@ class Launcher:
         line is corroboration, not the alarm."""
         if not preflight_ok:
             return None
+        if self.cfg.runtime.embedding_backend == "llamacpp":
+            return self._llamacpp_embedder_state()
         try:
             from core.models.ollama_client import OllamaClient
             model = self.cfg.embedding.model
@@ -1309,6 +1312,23 @@ class Launcher:
             return f"{model} {'resident' if here else 'NOT resident'}"
         except Exception:  # noqa: BLE001 — unknown is an honest answer; never fail status
             return None
+
+    def _llamacpp_embedder_state(self) -> str | None:
+        """The llama.cpp embedder's residency from its `/props` (`is_sleeping`), which a sleeping
+        server answers without loading the model. None when it can't be read."""
+        import json
+        import urllib.request
+
+        from core.models.llama_server_client import DEFAULT_PORT, LOOPBACK_HOST
+        port = self.cfg.runtime.port_for("embedding") or DEFAULT_PORT
+        model = self.cfg.embedding.model
+        try:
+            with urllib.request.urlopen(f"http://{LOOPBACK_HOST}:{port}/props", timeout=5) as r:  # noqa: S310 — loopback
+                asleep = bool(json.loads(r.read()).get("is_sleeping", False))
+        except Exception:  # noqa: BLE001 — unknown is an honest answer; never fail status
+            return None
+        state = "asleep (loads on the next request)" if asleep else "resident"
+        return f"{model} {state} — llama.cpp :{port}"
 
     def _report_snapshot(self, run: RunRecord | None,
                          liveness: tuple[str, bool | None] | None = None,
@@ -1417,6 +1437,35 @@ class Launcher:
               "(code-version coverage has no metadata-only reader — not shown)")
         print(f"  embedder: {data['embedder'] or 'unknown'}")
 
+    # --- on demand (no daemon) ----------------------------------------------------------------
+    def _refuse_if_live(self, what: str) -> bool:
+        """A live daemon is the single writer; an on-demand pass beside it would be a second."""
+        run = self.runs.last()
+        if run is not None and run.active and _pid_alive(run.pid):
+            print(f"refusing {what} — run #{run.id} (pid {run.pid}) is live; it owns the stores. "
+                  "Stop it first, or let its scheduler run the job.")
+            return True
+        return False
+
+    def dream_now(self) -> int:
+        """One dreaming pass, on demand — the trigger when `[dreaming] scheduled = false`."""
+        if self._refuse_if_live("dream"):
+            return 1
+        from core.dreaming.dreamer import build_dreamer
+        themes = build_dreamer(self.cfg).dream()
+        grounded = sum(1 for t in themes if t.check.passed)
+        print(f"dreamed {len(themes)} theme(s); {grounded} grounded")
+        return 0
+
+    def vault_sync_now(self) -> int:
+        """One full vault-lane rescan, on demand: raw, vectors (chunk-level amendment), catalog,
+        versions and attestations — the same lane the daemon's `vault_sync` job runs."""
+        if self._refuse_if_live("vault-sync"):
+            return 1
+        from core.ingest.sync import build_vault_sync
+        print(f"vault sync: {build_vault_sync(self.cfg).rescan()}")
+        return 0
+
     # --- reset (the fresh-start wipe) -------------------------------------------------------
     def reset_targets(self) -> list[Path]:
         """The corpus + its derived/chain layer + the stale queue. Computed from cfg.paths;
@@ -1461,6 +1510,9 @@ class Launcher:
             # (bp-071): a pure function of retained L1 + the ledger (the floor invariant), so wiped
             # with the corpus and rebuilt by re-integration. Structural refs only; no content.
             p.data_dir / "causal_edges.sqlite",
+            # The membership relation M ⊆ V × O is CORPUS-side too (bp-152): every row is an
+            # occupancy of a vector-plane atom, so left behind it would point into a wiped plane.
+            p.data_dir / "memberships.sqlite",
         ]
         out: list[Path] = []
         for c in candidates:

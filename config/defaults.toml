@@ -312,6 +312,8 @@ max_clusters = 8              # cap syntheses per dream run (the inference slot 
 # A much tighter σ: near-identical, not merely related. BOUND: ≥ 0.90 so a merge candidate is
 # a true duplicate, never two distinct notes on one topic.
 near_dup_threshold = 0.93     # cosine >= this flags two authored notes as a merge candidate
+scheduled = true              # the daemon's trough passes enqueue dream + curate (every 6 h);
+                              # false = only on demand, via `palace dream`
 
 [dream_rnd]
 # Dream-phase R&D track (docs/design-notes/dream-phase-rnd-charter.md) — the interpreter panel
@@ -392,6 +394,11 @@ pinned_build = ""              # build string asserted at spawn; "" = unpinned. 
 embed_ctx = 8192               # right-sized DOWN from the model default 40960: chunks cap at
                                # max_chars=1200, far under 8k tokens, and the measured saving is
                                # ~6.3 GB of resident memory (10.0 GB -> 3.69 GB RSS).
+ports = {}                     # owner-launched servers, per role: { embedding = 8081, synthesis =
+                               # 8080 }. Empty = the llama-server default port for every role.
+                               # Interim until bp-116's process manager assigns ports at spawn.
+api_key_env = ""               # NAME of an env var holding a bearer key for those servers
+                               # (e.g. lmtune's `--api-key`); "" = none. Never the key itself.
 grace_s = 5.0                  # SIGTERM -> SIGKILL window. The escalation is REQUIRED, not
                                # optional: llama-server was measured wedging on SIGTERM
                                # mid-request (>3.5 min), and an inference server is stateless,

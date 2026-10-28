@@ -317,7 +317,18 @@ class TwoSlotLoader:
         return candidate
 
     def ensure_tier(self, tier: str, *, warm: bool = True) -> ModelConfig:
+        if self.config.runtime.chat_backend_for(tier) == "llamacpp":
+            return self.registry.by_tier(tier)
         return self.ensure(self.registry.by_tier(tier).name, warm=warm)
 
     def ensure_pinned(self, *, warm: bool = True) -> ModelConfig:
-        return self.ensure(self.registry.pinned.name, warm=warm)
+        pinned = self.registry.pinned
+        if self.config.runtime.chat_backend_for(pinned.tier) == "llamacpp":
+            return pinned
+        return self.ensure(pinned.name, warm=warm)
+
+    # A tier flipped to `llamacpp` never touches Ollama: its residency is the external
+    # llama-server's (one model per server, loaded on first request, unloaded when idle — the
+    # owner-launched interim before bp-116's process manager), so there is nothing to load,
+    # evict or cost here. With every tier flipped, Ollama holds no chat model, and the two-slot
+    # discipline is the server topology itself: one chat server + one embedder.

@@ -147,6 +147,7 @@ class _StubServer(ThreadingHTTPServer):
 
     routes: dict[str, tuple[int, dict[str, Any]]]
     seen: list[tuple[str, str, dict[str, Any] | None]]
+    auth: list[str | None]
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -172,6 +173,7 @@ class _Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length)
         self.server.seen.append(("POST", self.path, json.loads(raw or b"{}")))
+        self.server.auth.append(self.headers.get("Authorization"))
         self._reply(self.path)
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -183,6 +185,7 @@ def stub() -> Any:
     server = _StubServer((LOOPBACK_HOST, 0), _Handler)
     server.routes = {}
     server.seen = []
+    server.auth = []
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -359,6 +362,8 @@ def test_shipped_defaults_are_todays_behaviour():
     assert runtime.server_binary == ""      # nothing is configured to spawn
     assert runtime.embed_ctx == 8192        # §2.3, down from the model default 40960
     assert runtime.grace_s == 5.0
+    assert runtime.ports == {}              # every role on the llama-server default port
+    assert runtime.api_key_env == ""        # no bearer key
 
 
 def test_an_unlisted_tier_stays_on_ollama():
@@ -401,3 +406,45 @@ def test_an_unknown_backend_refuses_rather_than_defaulting():
     config = _with_runtime(RuntimeConfig(embedding_backend="mlx"))
     with pytest.raises(ValueError, match="mlx"):
         build_inference_client(config)
+
+
+# ---------------------------------------------------------------------------------------
+# Owner-launched servers: a port per role, and a bearer key named by an env var
+# ---------------------------------------------------------------------------------------
+
+
+def test_ports_route_each_role_to_its_own_server():
+    """Two servers at once (the embedder and a chat model) need two ports; one default port
+    would put both roles on whichever server happens to own it."""
+    config = _with_runtime(RuntimeConfig(
+        embedding_backend="llamacpp",
+        chat_backend={"synthesis": "llamacpp", "router": "llamacpp"},
+        ports={"embedding": 8081, "synthesis": 8080},
+    ))
+    embed = build_inference_client(config)
+    synth = build_inference_client(config, tier="synthesis")
+    router = build_inference_client(config, tier="router")
+    assert isinstance(embed, LlamaServerClient) and embed.base_url == "http://127.0.0.1:8081"
+    assert isinstance(synth, LlamaServerClient) and synth.base_url == "http://127.0.0.1:8080"
+    assert isinstance(router, LlamaServerClient) and router.port == 8080  # unlisted: the default
+
+
+def test_the_bearer_key_comes_from_the_named_env_var_and_reaches_the_wire(stub: _StubServer,
+                                                                          monkeypatch: Any):
+    monkeypatch.setenv("TEST_LLAMA_KEY", "k-123")
+    config = _with_runtime(RuntimeConfig(embedding_backend="llamacpp",
+                                         ports={"embedding": stub.server_address[1]},
+                                         api_key_env="TEST_LLAMA_KEY"))
+    stub.routes["/v1/embeddings"] = (200, {"data": [{"embedding": _vec(0.1), "index": 0}]})
+    build_inference_client(config).embed("m", ["hello"])
+    assert stub.auth == ["Bearer k-123"]
+
+
+def test_no_key_configured_sends_no_authorization_header(stub: _StubServer):
+    stub.routes["/v1/embeddings"] = (200, {"data": [{"embedding": _vec(0.1), "index": 0}]})
+    _client(stub).embed("m", ["hello"])
+    assert stub.auth == [None]
+
+
+def test_the_key_never_appears_in_the_clients_repr():
+    assert "s3cret" not in repr(LlamaServerClient(api_key="s3cret"))

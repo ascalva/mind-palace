@@ -47,8 +47,35 @@ class Preflight:
 
 
 # --- the real checks (each best-effort; never raises — a probe failure IS the signal) ---------
+def _role_backends(cfg) -> dict[str, str]:
+    """Backend per inference role: `embedding` plus every configured chat tier."""
+    rt = cfg.runtime
+    tiers = {m.tier: rt.chat_backend_for(m.tier) for m in cfg.models}
+    return {"embedding": rt.embedding_backend, **tiers}
+
+
+def check_llama_servers(cfg, roles: dict[str, str]) -> Check:
+    """Every llama.cpp role's server answers `/health` (lmtune answers it without waking a
+    sleeping model). Ollama is not required when no role uses it."""
+    from core.models.llama_server_client import DEFAULT_PORT, LlamaServerClient
+    ports: dict[int, list[str]] = {}
+    for role, backend in roles.items():
+        if backend == "llamacpp":
+            ports.setdefault(cfg.runtime.port_for(role) or DEFAULT_PORT, []).append(role)
+    down = [f":{p} ({', '.join(r)})" for p, r in sorted(ports.items())
+            if not LlamaServerClient(port=p, request_timeout_s=5.0).healthy()]
+    listing = ", ".join(f":{p} {'+'.join(r)}" for p, r in sorted(ports.items()))
+    if down:
+        return Check("inference", required=True, ok=False,
+                     detail=f"llama-server not answering at {', '.join(down)} — start it")
+    return Check("inference", required=True, ok=True, detail=f"llama.cpp up ({listing})")
+
+
 def check_ollama(cfg) -> Check:
     from core.models.ollama_client import OllamaClient
+    roles = _role_backends(cfg)
+    if "ollama" not in roles.values():
+        return check_llama_servers(cfg, roles)
     try:
         v = OllamaClient(cfg.ollama).version()
         return Check("ollama", required=True, ok=True, detail=f"up ({v})")

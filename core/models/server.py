@@ -40,6 +40,13 @@ class ModelServer:
     def chat(self, tier: str, messages: list[Message], *,
              think: bool | None = None, temperature: float | None = None) -> str:
         model = self.loader.ensure_tier(tier)
+        if self.config.runtime.chat_backend_for(tier) == "llamacpp":
+            # Per-tier dispatch (the P5 shape): the tier's own llama-server, at its configured
+            # port; `num_ctx`/`keep_alive` are Ollama residency knobs and are not sent.
+            from core.models.inference import build_inference_client
+
+            return build_inference_client(self.config, tier=tier).chat(
+                model.name, messages, think=think, temperature=temperature)
         return self.client.chat(
             model.name,
             messages,
