@@ -62,10 +62,14 @@ INTERPRETERS: dict[str, Interp] = {
     # code-observation content. Same commit, different versioned output ⇒ a bump (plan Q5);
     # re-projection/backfill under 1.1.0 is owed (owner-nod). The new shorthand/AST reference-edge
     # patterns are UNVERSIONED (edge-lane only, gated off) and do NOT justify the bump on their own.
+    # Re-pinned same-version at bp-094 Item 2 (2026-10-28): the M-C6 census fixed the gated
+    # code_to_code resolver (re-exports followed to the defining file, function-header calls kept
+    # out of the function, one-name-two-definitions dropped). Edge lane only, behind the closed
+    # gate; references_out and the observation content are byte-identical — a DECLARED REFACTOR.
     "phi_code": Interp(version_attr=("ops.code_sensor", "INTERPRETER_VERSION"),
                        sources=("ops/code_sensor.py", "ops/code_snapshot.py"),
                        version="1.1.0",
-                       sha256="a218c71daacc55fda5ed9aa8b0f324ab9357ebb6367f27931cc5fbfcd60709ee"),
+                       sha256="19626236448f9e929c05ccd80250b4a0bc26fd017a533e472beb220daf1fde1f"),
     # bp-019 Item 7: phi_self over the cost stream (dn-self-sensing.md §2.2/§2.4).
     # Re-pinned same-version once in-session (orchestrator scrutiny catch: §6(f) warning
     # path was unimplemented) — a DECLARED REFACTOR, not a worldview change: the projection

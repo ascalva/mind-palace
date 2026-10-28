@@ -47,6 +47,7 @@ from __future__ import annotations
 import ast
 import re
 import sqlite3
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -189,6 +190,40 @@ def _module_to_path(module: str, level: int, current_path: str) -> str | None:
     tail = module.replace(".", "/") if module else ""
     joined = "/".join([*base, tail]) if tail else "/".join(base)
     return f"{joined}.py" if joined else None
+
+
+def _module_definitions(tree: ast.Module) -> set[str]:
+    """The names a module DEFINES at its top level — def/class, or a plain/annotated assignment
+    to a bare name. An imported name is not a definition here; it is a re-export
+    (`_module_reexports`), followed to where it is defined."""
+    out: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            out.add(node.name)
+        elif isinstance(node, ast.Assign):
+            out.update(t.id for t in node.targets if isinstance(t, ast.Name))
+        elif isinstance(node, ast.AnnAssign) and node.value is not None \
+                and isinstance(node.target, ast.Name):
+            out.add(node.target.id)
+    return out
+
+
+def _module_reexports(tree: ast.Module, path: str) -> dict[str, tuple[str, str]]:
+    """`local_name → (module .py path, imported_name)` for the module's TOP-LEVEL
+    `from m import x [as y]` statements — what a facade or a package `__init__` re-exports.
+    Imports nested in `if`/`try`/functions are not followed (a conditional binding is not a static
+    answer; precision-first). A later statement rebinding the same name wins, as at runtime."""
+    out: dict[str, tuple[str, str]] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        target = _module_to_path(node.module or "", node.level, path)
+        if target is None:
+            continue
+        for alias in node.names:
+            if alias.name != "*":
+                out[alias.asname or alias.name] = (target, alias.name)
+    return out
 
 
 def _split_front_matter(text: str) -> tuple[str | None, str, int]:
@@ -644,29 +679,36 @@ class CodeSensor:
         return edges
 
     # ── L0a: code_to_code inherits/calls AST edges (bp-094/CI-3, §2.1) ───────────────────
-    def _import_map(self, sha: str) -> dict[str, dict[str, tuple[str, str, int]]]:
-        """Per-file `local_name → (module, imported_name, level)` from bp-092's full
+    def _import_map(self, sha: str) -> dict[str, dict[str, list[tuple[str, str, int]]]]:
+        """Per-file `local_name → [(module, imported_name, level), …]` from bp-092's full
         `import_records` (the cross-module resolution precondition this plan CONSUMES). Only
         FROM-imports bind a bare name usable as a base/callee (`from a.b import X [as Y]` →
         Y or X); whole-module `import a.b` binds `a`, reached only via an attribute chain
-        (dropped, PD-I), so `name==''` rows are skipped."""
-        out: dict[str, dict[str, tuple[str, str, int]]] = {}
+        (dropped, PD-I), so `name==''` rows are skipped. EVERY binding of a name is kept: a file
+        that imports one name from two places (two functions' local imports, a try/except
+        fallback) is ambiguous unless both lead to one definition, and the resolver decides
+        that — not whichever row came last (bp-094 Item 2's M-C6 census)."""
+        out: dict[str, dict[str, list[tuple[str, str, int]]]] = {}
         for path, module, name, asname, level in self.db.execute(
                 "SELECT path, module, name, asname, level FROM import_records "
                 "WHERE commit_sha=?", (sha,)):
             if not name:
                 continue
-            out.setdefault(path, {})[asname or name] = (module, name, level)
+            out.setdefault(path, {}).setdefault(asname or name, []).append((module, name, level))
         return out
 
     def _code_to_code_edges(self, sha: str) -> list[ReferenceEdge]:
         """§2.1 L0a: mint `inherits` (class → base) and `calls` (function → callee)
         code_to_code edges, STATICALLY RESOLVABLE ONLY (precision-first, PD-I). A bare base/
         callee name resolves EITHER module-internally (a top-level def/class of the same file)
-        OR via an explicit FROM-import to a defining `.py` present in the tree at `sha`
-        (existence-checked). Attribute-chain / dynamic-dispatch targets are dropped, never
-        guessed. Each pattern mints only when in `ENABLED_L2B_PATTERNS` (M-C6, F-CI6). Parsed
-        from the commit's OWN blobs (§2.2), no model in the path."""
+        OR via an explicit FROM-import to the `.py` that DEFINES it, present in the tree at
+        `sha` (existence-checked). An import of a re-exported name — a facade's or a package
+        `__init__`'s top-level `from m import x` — is followed to the definition; a chain that
+        leaves the tree, loops, or ends where the name is not defined is dropped, and so is a
+        name the file imports from places that lead to different definitions. Attribute-chain /
+        dynamic-dispatch targets are dropped, never guessed. Each pattern mints only when in
+        `ENABLED_L2B_PATTERNS` (M-C6, F-CI6). Parsed from the commit's OWN blobs (§2.2), no
+        model in the path."""
         active = ENABLED_L2B_PATTERNS
         want_inherits, want_calls = "inherits" in active, "calls" in active
         if self.reference_edges is None or not (want_inherits or want_calls):
@@ -675,27 +717,53 @@ class CodeSensor:
         known_py = {p for p, _ in py}
         sources = read_py_blobs(self.repo, sorted({b for _, b in py}))
         import_map = self._import_map(sha)
-        edges: list[ReferenceEdge] = []
+        trees: dict[str, ast.Module] = {}
         for path, blob in py:
             try:
-                tree = ast.parse(sources.get(blob, ""))
+                trees[path] = ast.parse(sources.get(blob, ""))
             except SyntaxError:
+                continue
+        defines = {p: _module_definitions(t) for p, t in trees.items()}
+        reexports = {p: _module_reexports(t, p) for p, t in trees.items()}
+
+        def existing(tp: str | None) -> str | None:
+            """A module path as the tree has it: `a/b.py`, else the package `a/b/__init__.py`."""
+            if tp is None or tp in known_py:
+                return tp
+            package = tp.removesuffix(".py") + "/__init__.py"
+            return package if package in known_py else None
+
+        def defining(tp: str | None, name: str) -> tuple[str, str] | None:
+            seen: set[tuple[str, str]] = set()
+            while tp is not None and (tp, name) not in seen:
+                seen.add((tp, name))
+                if name in defines.get(tp, ()):
+                    return tp, name
+                hop = reexports.get(tp, {}).get(name)
+                if hop is None:
+                    return None
+                tp, name = existing(hop[0]), hop[1]
+            return None                                    # left the tree, or a re-export loop
+
+        edges: list[ReferenceEdge] = []
+        for path, _blob in py:
+            tree = trees.get(path)
+            if tree is None:
                 continue
             top_level = {c.name for c in ast.iter_child_nodes(tree)
                          if isinstance(c, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef)}
             imports = import_map.get(path, {})
 
             def resolve(name: str, path: str = path, top_level: set[str] = top_level,
-                        imports: dict[str, tuple[str, str, int]] = imports,
+                        imports: dict[str, list[tuple[str, str, int]]] = imports,
                         ) -> tuple[str, str] | None:
                 if name in top_level:
                     return path, name                      # module-internal (highest precision)
-                if name in imports:
-                    module, realname, level = imports[name]
-                    tp = _module_to_path(module, level, path)
-                    if tp is not None and tp in known_py:
-                        return tp, realname                # explicit-import cross-module
-                return None                                # unresolved ⇒ dropped (PD-I)
+                found = {defining(existing(_module_to_path(module, level, path)), realname)
+                         for module, realname, level in imports.get(name, ())}
+                if len(found) == 1:
+                    return found.pop()                     # one definition (maybe via re-exports)
+                return None                                # unresolved/ambiguous ⇒ dropped (PD-I)
 
             self._walk_code_to_code(tree, "", None, path, sha, resolve,
                                     want_inherits, want_calls, edges)
@@ -703,12 +771,18 @@ class CodeSensor:
 
     def _walk_code_to_code(self, node: ast.AST, prefix: str, enclosing_func: str | None,
                            path: str, sha: str, resolve: Any, want_inherits: bool,
-                           want_calls: bool, edges: list[ReferenceEdge]) -> None:
+                           want_calls: bool, edges: list[ReferenceEdge],
+                           children: Iterable[ast.AST] | None = None) -> None:
         """Recursive AST walk carrying the qualname prefix and the innermost enclosing function
         (calls attribute to the function they sit in; module/class-level calls have no function
-        source and are skipped). Self-edges (recursion, a class named as its own base — the
-        latter impossible) are dropped."""
-        for child in ast.iter_child_nodes(node):
+        source and are skipped). A function's HEADER — decorators, argument defaults and
+        annotations, the return annotation — runs at definition time in the ENCLOSING scope, so
+        its calls belong to the enclosing function (none at module or class level), never to
+        the function itself: `@skipif(not _models_present())` is not a call the test makes
+        (bp-094 Item 2's M-C6 census). Self-edges (recursion, a class named as its own base —
+        the latter impossible) are dropped. `children` overrides the nodes walked (default:
+        every child of `node`)."""
+        for child in ast.iter_child_nodes(node) if children is None else children:
             if isinstance(child, ast.ClassDef):
                 qual = prefix + child.name
                 if want_inherits:
@@ -720,8 +794,12 @@ class CodeSensor:
                                         want_inherits, want_calls, edges)
             elif isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef):
                 qual = prefix + child.name
+                header = [*child.decorator_list, child.args,
+                          *([child.returns] if child.returns is not None else [])]
+                self._walk_code_to_code(child, prefix, enclosing_func, path, sha, resolve,
+                                        want_inherits, want_calls, edges, children=header)
                 self._walk_code_to_code(child, qual + ".", qual, path, sha, resolve,
-                                        want_inherits, want_calls, edges)
+                                        want_inherits, want_calls, edges, children=child.body)
             else:
                 if want_calls and enclosing_func is not None and isinstance(child, ast.Call) \
                         and isinstance(child.func, ast.Name):

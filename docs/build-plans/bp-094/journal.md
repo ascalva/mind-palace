@@ -93,3 +93,60 @@ Full attestable-green gate (each leg separately; pytest foreground; FORCE_COLOR 
   owner's nod; (c) Item 2 M-C6 hand-checked samples + enable (owner-visible).
 
 ready to deskcheck
+
+## 2026-10-28 — Item 2: the M-C6 samples (enable pending the owner's yes)
+
+Owner direction (2026-10-28): "they should all be ready to be used, if not, implemented design
+wherever needed". Run against the ledger's HEAD `16cb027` with the probe
+`docs/build-plans/bp-094/m_c6_sample.py` — it opens the gate in-process only and never writes an
+edge. Samples are stratified by the source's top-level directory, seed 94, n = 30 per pattern
+(all of a smaller population); the bar is bp-011's: 100% in-sample.
+
+**Candidates at HEAD** (what each pattern would mint): dn-slug 183, finding-id 286,
+paired-section 306, inherits 11, calls 10,003 (9,716 before the resolver fix below).
+
+| pattern | sample | hits | verdict |
+|---|---|---|---|
+| dn-slug (code→corpus) | 30 of 183 | 30 | **clears** |
+| finding-id (code→corpus) | 30 of 286 | 30 | **clears** |
+| paired-section (code→corpus, `§N` anchor) | 30 of 306 | 15 | **below bar — dropped** |
+| inherits (code→code) | 11 of 11 (census) | 11 | **clears** |
+| calls (code→code) | 30 of 10,003, after the fix | 30 | **clears** |
+
+**paired-section misses** — the "one cited note" pairing does not hold in this codebase's
+docstrings: the `§` usually belongs to a document the shorthand patterns cannot resolve (a build
+plan, `bp-022 §6(c)`; "plan §7 Item 3"; "the note's §2.3" inside a finding-only docstring; "(dn
+§3.2)"). 15 of the 30 bind a section to the wrong document (11 plain from the docstring, 4
+judged from context); none of the 15 has a matching heading in the target, while 13 of the 15
+hits do. Stays out of `ENABLED_L2B_PATTERNS`. Re-entry would need the bp-NNN / plan
+shorthand resolved first, so that "exactly one cited document" is true when the pairing claims it.
+
+**calls: a census before the sample.** Beyond the 30-sample, the probe's `--census` ran mechanical
+checks over EVERY code→code edge (does the target file define the name; is the call in the
+function's decorators/defaults; is the name rebound locally; does the binding import live in
+another function; do two imports lead to different definitions). The first census, on the shipped
+resolver, found two real error classes the first 30-sample (also 30/30) had missed:
+- **11 header calls**: `@pytest.mark.skipif(not _models_present(), …)` attributed to the test it
+  decorates. A decorator, default or annotation runs at definition time in the enclosing scope.
+- **182 re-export targets**: the edge pointed at a facade that only imports the name
+  (`config/loader.py::get_config` 110, `load_config` 66, `refresh_config` 3,
+  `ops/effect_gate.py::get_actuator` 2, `core/agent.py::self_evaluate` 1), not the `.py` that
+  defines it — against §2.1's "to a defining `.py`".
+
+The fix (resolver only, edge lane, behind the gate; `tests/unit/test_code_sensor_l2b.py` adds a
+fixture test for each case): the function header is walked in the enclosing scope; an import of a
+re-exported name follows the facade's or package `__init__`'s top-level `from m import x` to the
+defining file (a chain that leaves the tree or loops is dropped); a package import `from pkg
+import x` now reaches `pkg/__init__.py`; and a name the file imports from places that lead to
+different definitions is dropped rather than resolved by whichever import row came last. φ_code
+re-pinned at 1.1.0 (references_out unchanged — the file's re-pin precedent).
+
+Re-census on the fixed resolver: 10,003 calls, 11 inherits; **0 header calls, 0 re-export
+targets, 0 local shadows**, and 2 "two routes" flags (`ops/lifecycle/launcher.py` imports
+`build_dreamer` from `core.dreaming` and from `core.dreaming.dreamer`) checked by hand: both lead
+to the one definition, which is where the edge points. The fresh 30-sample above was drawn after
+the fix.
+
+**Enable (pending):** `ENABLED_L2B_PATTERNS = {"dn-slug", "finding-id", "inherits", "calls"}`.
+The sensor walks `main`, so the first mint is the code-observe pass after the branch merges —
+about 10,483 edges at that commit, forward-only (no history backfill).
