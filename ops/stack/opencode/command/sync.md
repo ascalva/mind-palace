@@ -1,5 +1,5 @@
 ---
-description: Pull new Open WebUI chats and changed notes into the palace.
+description: Pull new Open WebUI chats, OpenCode sessions and changed notes into the palace.
 agent: ambassador
 ---
 

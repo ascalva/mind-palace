@@ -139,6 +139,11 @@ class EmbeddingConfig:
     model: str
     dim: int
     query_instruction: str
+    # The model family's prompt formats. Defaults are Qwen3-Embedding's (instruction on the query,
+    # plain documents) — today's behaviour; another family is a config edit, e.g. EmbeddingGemma:
+    # "task: search result | query: {text}" and "title: none | text: {text}".
+    query_template: str = "Instruct: {instruction}\nQuery: {text}"
+    document_template: str = "{text}"
 
 
 @dataclass(frozen=True)
@@ -648,6 +653,8 @@ def load_config(path: Path | None = None) -> Config:
             model=str(e["model"]),
             dim=int(e["dim"]),
             query_instruction=str(e["query_instruction"]),
+            query_template=str(e.get("query_template", "Instruct: {instruction}\nQuery: {text}")),
+            document_template=str(e.get("document_template", "{text}")),
         ),
         dreaming=DreamingConfig(
             similarity_threshold=float(dr["similarity_threshold"]),

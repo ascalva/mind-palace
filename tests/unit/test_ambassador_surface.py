@@ -319,3 +319,66 @@ def test_a_failing_tool_is_an_error_result_not_a_crash(monkeypatch: pytest.Monke
     assert reply is not None
     assert reply["result"]["isError"] is True
     assert "refused" in reply["result"]["content"][0]["text"]
+
+
+def test_the_opencode_reader_keeps_text_parts_of_top_level_sessions(tmp_path: Path) -> None:
+    from edge.opencode_sessions import export_sessions
+
+    db = tmp_path / "opencode.db"
+    con = sqlite3.connect(db)
+    con.execute(
+        "create table session (id text, parent_id text, title text, time_updated int, "
+        "time_archived int)"
+    )
+    con.execute("create table message (id text, session_id text, data text, time_created int)")
+    con.execute(
+        "create table part (id text, message_id text, session_id text, data text, time_created int)"
+    )
+    con.execute("insert into session values ('s1', null, 'talk', 3, null)")
+    con.execute("insert into session values ('s2', 's1', 'subagent', 3, null)")
+    con.execute("insert into message values ('m1', 's1', ?, 1000)", (json.dumps({"role": "user"}),))
+    con.execute(
+        "insert into message values ('m2', 's1', ?, 2000)", (json.dumps({"role": "assistant"}),)
+    )
+    for pid, mid, data in [
+        ("p1", "m1", {"type": "text", "text": "what did I write?"}),
+        ("p2", "m2", {"type": "reasoning", "text": "hidden thoughts"}),
+        ("p3", "m2", {"type": "tool", "tool": "palace_search"}),
+        ("p4", "m2", {"type": "text", "text": "you wrote about recursion"}),
+    ]:
+        con.execute("insert into part values (?, ?, 's1', ?, 1)", (pid, mid, json.dumps(data)))
+    con.commit()
+    (session,) = export_sessions(db)
+    assert session["chat_id"] == "s1"
+    assert [(t["role"], t["content"]) for t in session["turns"]] == [
+        ("user", "what did I write?"),
+        ("assistant", "you wrote about recursion"),
+    ]
+    assert export_sessions(tmp_path / "missing.db") == []
+
+
+def test_embedder_templates_follow_the_model_family() -> None:
+    import dataclasses
+
+    from core.ingest.embed import Embedder
+    from core.kernel.config import loader
+
+    sent: list[list[str]] = []
+
+    class Client:
+        def embed(self, model: str, inputs: list[str], **_: Any) -> list[list[float]]:
+            sent.append(inputs)
+            return [[0.0] for _ in inputs]
+
+    base = loader.load_config().embedding
+    Embedder(client=cast("Any", Client()), config=base).embed_query("q")
+    gemma = dataclasses.replace(
+        base,
+        query_template="task: search result | query: {text}",
+        document_template="title: none | text: {text}",
+    )
+    e = Embedder(client=cast("Any", Client()), config=gemma)
+    e.embed_query("q")
+    e.embed_documents(["d"])
+    assert sent[0] == [f"Instruct: {base.query_instruction}\nQuery: q"]  # today's default
+    assert sent[1:] == [["task: search result | query: q"], ["title: none | text: d"]]

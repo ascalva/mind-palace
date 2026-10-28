@@ -18,6 +18,8 @@
     uv run scripts/palace.py vault-sync     # on-demand: one full vault-lane rescan (no daemon)
     uv run scripts/palace.py dialogue-sync  # on-demand: Open WebUI chats -> the dialogue stratum
     uv run scripts/palace.py relate         # on-demand: signed relation edges (wakes the model)
+    uv run scripts/palace.py lanes [code-observe|code-embed|dialogue]  # on-demand edge lanes
+    uv run scripts/palace.py reembed --confirm  # re-embed everything with the configured model
     uv run scripts/palace.py bless <id>     # owner-only: flip a plan proposed -> ready (gate)
 
 `start` seals the core (Invariant 1 — loopback only), runs preflight (ensures our own
@@ -48,7 +50,7 @@ _ROOT = Path(__file__).resolve().parent.parent  # repo root, for the bless path 
 
 USAGE = ("usage: palace.py "
          "{start|stop|down|up|restart|status|queue|reset|deploy|ingest-chat|code-seed|"
-         "code-backfill|code-rebuild|dream|vault-sync|dialogue-sync|relate|bless} "
+         "code-backfill|code-rebuild|dream|vault-sync|dialogue-sync|relate|lanes|reembed|bless} "
          "[--force] [--confirm] [--skip-tests] [--dry-run] [<plan-id>]")
 
 
@@ -253,6 +255,10 @@ def main(argv: list[str]) -> int:
         return launcher.dialogue_sync_now()
     if cmd == "relate":
         return launcher.relate_now()
+    if cmd == "reembed":
+        return launcher.reembed_now(confirm="--confirm" in flags)
+    if cmd == "lanes":
+        return launcher.lanes_now({a for a in argv[1:] if not a.startswith("-")} or None)
     if cmd == "code-rebuild":
         # ENQUEUES (or, with --dry-run, only measures). Never stops the daemon: D7 runs the
         # migration as checkpointed queue slices under the single writer.
