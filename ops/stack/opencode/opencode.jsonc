@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // lmtune owns opencode.json (provider, model, media MCP) and rewrites it; this file is merged on
+  // top and holds the Ouroboros ecosystem: the palace as a local MCP server. stdio only — no
+  // listener; the server seals itself before opening a store. Agents, skills and commands live
+  // beside this file in agent/, skills/ and command/.
+  "mcp": {
+    "palace": {
+      "type": "local",
+      "command": ["uv", "run", "--quiet", "--project", "/Users/ascalva/mind-palace",
+                  "python", "/Users/ascalva/mind-palace/scripts/palace_mcp.py"],
+      "enabled": true,
+      // dream/relate call lmtune's chat server, which requires its key; passed by file, never inline
+      "environment": { "LMTUNE_API_KEY": "{file:/Users/ascalva/.config/lmtune/api-key}" }
+    }
+  }
+}

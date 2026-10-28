@@ -1457,6 +1457,52 @@ class Launcher:
         print(f"dreamed {len(themes)} theme(s); {grounded} grounded")
         return 0
 
+    def dialogue_sync_now(self, *, container: str = "lmtune-webui") -> int:
+        """Pull the owner's Open WebUI chats into the dialogue stratum, idempotently.
+
+        Two processes, one handoff file: the edge reader (`python -m edge.openwebui`, no core
+        imports, read-only inside the container) writes `data/handoff/dialogue/openwebui.json`;
+        this side reads it and captures each turn — owner turns as `authored-dialogue`, the
+        model's as `observed` — keyed by `openwebui/<chat>/<message>` so a re-sync adds only
+        what is new."""
+        if self._refuse_if_live("dialogue-sync"):
+            return 1
+        import json
+        import subprocess
+        import sys
+
+        handoff = self.cfg.paths.data_dir / "handoff" / "dialogue" / "openwebui.json"
+        edge = subprocess.run([sys.executable, "-m", "edge.openwebui", "--out", str(handoff),
+                               "--container", container], cwd=self.repo_root,
+                              capture_output=True, text=True, timeout=180)
+        if edge.returncode != 0:
+            print(f"edge reader failed: {edge.stderr.strip()[-400:]}")
+            return 1
+        from core.ingest.dialogue import build_dialogue_capture
+        capture = build_dialogue_capture(self.cfg)
+        doc = json.loads(handoff.read_text())
+        new = seen = 0
+        for chat in doc.get("chats", []):
+            for turn in chat.get("turns", []):
+                ts = turn.get("timestamp")
+                at = datetime.fromtimestamp(ts, UTC).isoformat(timespec="seconds") if ts else None
+                _, created = capture.capture_turn(
+                    turn["content"], conversation=f"openwebui/{chat['chat_id']}",
+                    turn_id=str(turn["id"]), role=str(turn["role"]), at=at)
+                new += created
+                seen += 1
+        print(f"dialogue sync: {len(doc.get('chats', []))} chat(s), {seen} turn(s), {new} new")
+        return 0
+
+    def relate_now(self, *, max_pairs: int = 24) -> int:
+        """Signed relation edges, on demand: the owner's `supports::/contradicts::/
+        contextualizes::` properties, then the model-mediated detector over σ-backbone pairs."""
+        if self._refuse_if_live("relate"):
+            return 1
+        from core.relations import build_relation_detector
+        print(f"relate: {build_relation_detector(self.cfg, max_pairs=max_pairs).run()}")
+        return 0
+
     def vault_sync_now(self) -> int:
         """One full vault-lane rescan, on demand: raw, vectors (chunk-level amendment), catalog,
         versions and attestations — the same lane the daemon's `vault_sync` job runs."""
