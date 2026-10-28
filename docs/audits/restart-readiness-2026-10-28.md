@@ -211,3 +211,30 @@ dreaming and models wake only when needed; one command sets the whole stack up. 
 5. **Code seed + lift the pauses** (§2.2).
 6. **One-command setup**: launchd for the embedder, lmtune serve, the palace on demand, the OpenCode
    harness, verify probes — the "declarative services" idea in lmtune's backlog.
+
+## 4. Where this stands — resume here (end of 2026-10-28)
+
+Branch `ouroboros/ambassador-infra` (local; `main` = `16cb027`, ahead of origin by 1, never pushed;
+the owner asked for local merges, no PRs). Commits on the branch: `a25fc25` (query algebra,
+relations, dialogue capture, MCP), `be8ed78` (OpenCode sessions, `lanes`, `reembed`, embedder
+templates), `d36e4d5` (config-driven embedder service, CORS, bench report, bridge capture).
+
+Running when this was written: the embedder benchmark's last candidate (the 4B incumbent; results
+land in `docs/experiments/embedder-bench-2026-10-28.json`), and `palace lanes code-observe` (875 /
+1,459 ledger commits re-projected, 1,042,396 reference edges so far).
+
+Next, in order:
+1. Read the 4B result + σ transfer from the JSON; decide the embedder. On the evidence so far
+   EmbeddingGemma-2 leads (0.849 / 0.367 nDCG@10, 24.3 docs/s, 0.57 GB, multimodal).
+2. If switching: `[embedding]` model/dim/query_template/document_template + σ and near-dup by the
+   measured quantile transfer (interim; the pre-registered σ sweep is the proper re-calibration)
+   in `config/ouroboros.toml`; `[embedder]` model/alias/pooling in `config/stack.toml`; the owner
+   re-runs `mind-palace stack up` once (the plist changed to the config-driven form); then
+   `mind-palace reembed --confirm`.
+3. `mind-palace lanes code-embed dialogue` (memberships; chatlog → L1 → integrator → causal edges).
+4. `mind-palace relate` (the 27B; embedder asleep first), then an OpenCode `ambassador` run end to
+   end (`opencode run --agent ambassador …`), then `mind-palace stack check`.
+5. Full deterministic tier, fill §2.6 counts, merge the branch into `main` locally.
+
+Open proposals: `docs/brainstorms/ambassador-open-webui-bridge.md` (Qwen inside Open WebUI calling
+palace tools); a separate session to evaluate Hermes Agent as a phone gateway.

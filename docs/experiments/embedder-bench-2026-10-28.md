@@ -40,7 +40,7 @@ the GPU, but it may have cost the throughput figures a few percent. The 8B ran f
 | Qwen3-Embedding-8B (Q4_K_M) | 4.68 GB | 0.786 | **0.409** | 0.9 | 6.04 GB | 4096 |
 | **EmbeddingGemma-2 (Q8_0)** | 0.31 GB | **0.849** | 0.367 | **24.3** | **0.57 GB** | 768 |
 | Qwen3-Embedding-0.6B (Q8_0) | 0.64 GB | 0.701 | 0.360 | 12.6 | 1.72 GB | 1024 |
-| Qwen3-VL-Embedding-2B (Q8_0) | 1.83 GB | _pending_ | | | | 2048 |
+| Qwen3-VL-Embedding-2B (Q8_0) | 1.83 GB | 0.732 | 0.328 | 4.6 | 2.91 GB | 2048 |
 | Qwen3-Embedding-4B (Q4_K_M) — **incumbent** | 2.50 GB | _pending_ | | | | 2560 |
 
 Recall@10 and the raw per-model pair cosines are in the JSON.
