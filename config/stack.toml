@@ -1,0 +1,30 @@
+# The Ouroboros stack — the services around the palace, managed by `mind-palace stack`.
+#
+#   mind-palace stack up       install/refresh everything below (idempotent)
+#   mind-palace stack status   what is running, asleep, wired
+#   mind-palace stack check    end to end: embedder → palace MCP → a real query
+#   mind-palace stack down     stop the embedder service (lmtune's chat server is lmtune's)
+#
+# Models wake on demand and sleep when idle; the palace itself is not a daemon here — it runs as a
+# stdio MCP server that the harness spawns, plus the on-demand verbs (dream, relate, *-sync).
+
+[embedder]
+label = "com.mind-palace.embedder"          # launchd label (a LaunchAgent in ~/Library/LaunchAgents)
+binary = "/opt/homebrew/bin/llama-server"
+model = "~/models/qwen3-embedding/Qwen3-Embedding-4B-Q4_K_M.gguf"
+alias = "qwen3-embedding:4b"
+pooling = "last"
+port = 8081                                  # must match [runtime] ports.embedding in ouroboros.toml
+ctx = 8192
+parallel = 4
+ubatch = 2048
+gpu_layers = 99                              # 0 = CPU only (keeps Metal free for the 27B)
+sleep_idle_s = 60                            # unload quickly: the 27B and the embedder share the GPU
+log = "~/Library/Logs/mind-palace/embedder.log"
+
+[chat]
+# lmtune owns this server (install with `lmtune serve install`); the stack only checks it.
+url = "http://127.0.0.1:8080"
+
+[opencode]
+config_dir = "~/.config/opencode"            # ops/stack/opencode/* is installed here

@@ -16,6 +16,8 @@
     uv run scripts/palace.py code-rebuild   # the D7 atom+membership rebuild (bp-153); --dry-run
     uv run scripts/palace.py dream          # on-demand: one dreaming pass (no daemon needed)
     uv run scripts/palace.py vault-sync     # on-demand: one full vault-lane rescan (no daemon)
+    uv run scripts/palace.py dialogue-sync  # on-demand: Open WebUI chats -> the dialogue stratum
+    uv run scripts/palace.py relate         # on-demand: signed relation edges (wakes the model)
     uv run scripts/palace.py bless <id>     # owner-only: flip a plan proposed -> ready (gate)
 
 `start` seals the core (Invariant 1 — loopback only), runs preflight (ensures our own
@@ -46,7 +48,7 @@ _ROOT = Path(__file__).resolve().parent.parent  # repo root, for the bless path 
 
 USAGE = ("usage: palace.py "
          "{start|stop|down|up|restart|status|queue|reset|deploy|ingest-chat|code-seed|"
-         "code-backfill|code-rebuild|dream|vault-sync|bless} "
+         "code-backfill|code-rebuild|dream|vault-sync|dialogue-sync|relate|bless} "
          "[--force] [--confirm] [--skip-tests] [--dry-run] [<plan-id>]")
 
 
@@ -247,6 +249,10 @@ def main(argv: list[str]) -> int:
         return launcher.dream_now()
     if cmd == "vault-sync":
         return launcher.vault_sync_now()
+    if cmd == "dialogue-sync":
+        return launcher.dialogue_sync_now()
+    if cmd == "relate":
+        return launcher.relate_now()
     if cmd == "code-rebuild":
         # ENQUEUES (or, with --dry-run, only measures). Never stops the daemon: D7 runs the
         # migration as checkpointed queue slices under the single writer.

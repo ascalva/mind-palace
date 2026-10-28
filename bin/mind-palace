@@ -38,6 +38,12 @@ SECURITY / AUDIT
   check-imports                                          the import-firewall lint (Invariant 2)
   run-with-secrets <cmd...>                              inject Keychain secrets, then exec <cmd...>
 
+OUROBOROS STACK (on demand — models wake when needed)
+  stack up|status|check|down                             embedder service + OpenCode wiring + checks
+  mcp                                                    the Ambassador's MCP server on stdio
+  dream | relate                                         one dreaming pass | signed relation edges
+  vault-sync | dialogue-sync                             re-ingest notes | pull Open WebUI chats
+
 EVAL / OPS
   eval [--bless]                                         score the frozen golden set
   build-sandbox-image [tag]                              build the scientific-libs sandbox image
@@ -54,6 +60,10 @@ if [ "$#" -gt 0 ]; then shift; fi
 case "$verb" in
   ""|help|-h|--help) usage ;;
   start|stop|status|reset|deploy)  py "$SCRIPTS/palace.py" "$verb" "$@" ;;
+  dream|relate|vault-sync|dialogue-sync|queue|ingest-chat|code-seed|code-backfill|code-rebuild)
+                            py "$SCRIPTS/palace.py" "$verb" "$@" ;;
+  stack)                    py "$SCRIPTS/stack.py" "$@" ;;
+  mcp)                      py "$SCRIPTS/palace_mcp.py" "$@" ;;
   talk)                     py "$SCRIPTS/talk.py" "$@" ;;
   supersede)                py "$SCRIPTS/supersede.py" "$@" ;;
   monitor)                  py "$SCRIPTS/monitor.py" "$@" ;;
