@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""The Ouroboros stack, one command: `mind-palace stack {up|status|check|down}`.
+"""The Ouroboros stack, one command: `mind-palace stack {up|status|check|restart|down}`.
 
 Declared in `config/stack.toml`; everything is idempotent. `up` installs the embedder as a launchd
 LaunchAgent (llama-server, sleeps when idle), installs the OpenCode workflow from
@@ -44,45 +44,57 @@ def _get(url: str, timeout: float = 3.0) -> dict[str, Any] | None:
 # ── the embedder service ────────────────────────────────────────────────────────────────────────
 
 
+def embedder_argv() -> list[str]:
+    """llama-server's argv, read from config/stack.toml at every (re)start — the plist below never
+    names a model, so switching embedders is a config edit plus `stack restart`."""
+    e = CFG["embedder"]
+    return [
+        e["binary"], "-m", str(_x(e["model"])), "--embedding", "--pooling", e["pooling"],
+        "-c", str(e["ctx"]), "-np", str(e["parallel"]),
+        "-b", str(e["ctx"]), "-ub", str(e["ubatch"]),
+        "-ngl", str(e["gpu_layers"]), "-fa", "on", "--host", "127.0.0.1", "--port", str(e["port"]),
+        "--cors-origins", e.get("cors_origins", "localhost"),
+        "--alias", e["alias"], "--sleep-idle-seconds", str(e["sleep_idle_s"]),
+    ]  # fmt: skip
+
+
 def _plist() -> dict[str, Any]:
+    """Stable across model switches: launchd runs `stack serve-embedder`, which reads the config and
+    execs llama-server — so the plist (and with it the persistence approval) never changes."""
     e = CFG["embedder"]
     log = _x(e["log"])
+    uv = shutil.which("uv") or "/opt/homebrew/bin/uv"
     return {
         "Label": e["label"],
-        "ProgramArguments": [
-            e["binary"],
-            "-m",
-            str(_x(e["model"])),
-            "--embedding",
-            "--pooling",
-            e["pooling"],
-            "-c",
-            str(e["ctx"]),
-            "-np",
-            str(e["parallel"]),
-            "-b",
-            str(e["ctx"]),
-            "-ub",
-            str(e["ubatch"]),
-            "-ngl",
-            str(e["gpu_layers"]),
-            "-fa",
-            "on",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            str(e["port"]),
-            "--alias",
-            e["alias"],
-            "--sleep-idle-seconds",
-            str(e["sleep_idle_s"]),
-        ],
+        "ProgramArguments": [uv, "run", "--quiet", "--directory", str(ROOT), "python",
+                             str(ROOT / "scripts" / "stack.py"), "serve-embedder"],
         "RunAtLoad": True,
         "KeepAlive": True,
         "ProcessType": "Background",
         "StandardOutPath": str(log),
         "StandardErrorPath": str(log),
     }
+
+
+def serve_embedder() -> None:
+    """The LaunchAgent's entry point: become llama-server (exec — launchd supervises the server
+    itself, and its stop signal reaches it directly)."""
+    argv = embedder_argv()
+    os.execv(argv[0], argv)
+
+
+def embedder_restart() -> str:
+    """Apply a config/stack.toml change to the installed service: kick it so it re-reads."""
+    if not _loaded():
+        return "✗ embedder: the service is not installed — run `mind-palace stack up`"
+    subprocess.run(["launchctl", "kickstart", "-k", f"gui/{UID}/{CFG['embedder']['label']}"],
+                   capture_output=True)
+    port = CFG["embedder"]["port"]
+    for _ in range(60):
+        if _get(f"http://127.0.0.1:{port}/health") is not None:
+            return f"✓ embedder restarted: {CFG['embedder']['alias']} on :{port}"
+        time.sleep(1)
+    return f"✗ embedder: no /health on :{port} after restart — see {CFG['embedder']['log']}"
 
 
 def _agent_path() -> Path:
@@ -241,8 +253,12 @@ def palace_preflight() -> str:
 
 def main(argv: list[str]) -> int:
     cmd = argv[0] if argv else "status"
+    if cmd == "serve-embedder":           # the LaunchAgent's entry point; never returns
+        serve_embedder()
     if cmd == "up":
         lines = [chat_status(), embedder_up(), opencode_up(), palace_preflight()]
+    elif cmd == "restart":
+        lines = [embedder_restart()]
     elif cmd == "down":
         lines = [embedder_down()]
     elif cmd == "status":
