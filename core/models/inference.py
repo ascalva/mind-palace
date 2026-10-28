@@ -88,7 +88,13 @@ def build_inference_client(config: Config, *, tier: str | None = None) -> Infere
     if backend == "ollama":
         return OllamaClient(config.ollama)
     if backend == "llamacpp":
-        return LlamaServerClient()
+        import os
+
+        port = runtime.port_for("embedding" if tier is None else tier)
+        key = os.environ.get(runtime.api_key_env) if runtime.api_key_env else None
+        if port is None:
+            return LlamaServerClient(api_key=key)
+        return LlamaServerClient(port=port, api_key=key)
     raise ValueError(
         f"unknown inference backend {backend!r} for role {tier or 'embedding'!r} "
         f"(expected 'ollama' or 'llamacpp')"

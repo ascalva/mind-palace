@@ -36,7 +36,7 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, cast
 
 from core.kernel.constitution import Message
@@ -119,6 +119,9 @@ class LlamaServerClient:
     host: str = LOOPBACK_HOST
     request_timeout_s: float = 120.0      # control-plane ops (health, embed) — fail fast
     generation_timeout_s: float = 600.0   # chat generation — a heavy tier legitimately runs minutes
+    # Bearer key for a server started with `--api-key` (e.g. lmtune's). Kept out of repr so it
+    # can never reach a log line through an f-string of the client (Invariant 10).
+    api_key: str | None = field(default=None, repr=False)
 
     @property
     def base_url(self) -> str:
@@ -127,11 +130,14 @@ class LlamaServerClient:
     # --- transport ------------------------------------------------------------------
     def _post(self, path: str, payload: dict[str, Any], *,
               timeout: float | None = None) -> dict[str, Any]:
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
         req = urllib.request.Request(
             f"{self.base_url}{path}",
             data=json.dumps(payload).encode("utf-8"),
             method="POST",
-            headers={"Content-Type": "application/json"},
+            headers=headers,
         )
         try:
             with urllib.request.urlopen(

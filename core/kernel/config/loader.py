@@ -147,6 +147,8 @@ class DreamingConfig:
     min_cluster_size: int
     max_clusters: int
     near_dup_threshold: float     # cosine to flag two notes as a near-duplicate candidate
+    scheduled: bool = True        # the daemon's trough passes enqueue dream + curate; False =
+                                  # on demand only (`palace dream`)
 
 
 @dataclass(frozen=True)
@@ -377,11 +379,24 @@ class RuntimeConfig:
     pinned_build: str = ""                   # asserted at spawn (bp-116); "" = unpinned
     embed_ctx: int = 8192                    # §2.3: right-sized from the model default 40960
     grace_s: float = 5.0                     # SIGTERM -> SIGKILL window (bp-116)
+    # Owner-launched llama-servers (interim, until bp-116 assigns ports at spawn): the port each
+    # role's server listens on — `embedding` or a tier name. Empty = every role on the
+    # llama-server default port, today's behaviour.
+    ports: dict[str, int] = field(default_factory=dict)
+    # NAME of an environment variable holding a bearer key for those servers ("" = no key). The
+    # value is read from the environment at client build time and never from a file or this
+    # config (Invariant 10).
+    api_key_env: str = ""
 
     def chat_backend_for(self, tier: str) -> str:
         """Backend serving one chat tier. An unlisted tier stays on `ollama` — per-ROLE
         selection is what makes the embedder cutover (P4) independently reversible."""
         return self.chat_backend.get(tier, "ollama")
+
+    def port_for(self, role: str) -> int | None:
+        """The configured llama-server port for `role` (`embedding` or a tier), or None for the
+        client's default."""
+        return self.ports.get(role)
 
 
 @dataclass(frozen=True)
@@ -639,6 +654,7 @@ def load_config(path: Path | None = None) -> Config:
             min_cluster_size=int(dr["min_cluster_size"]),
             max_clusters=int(dr["max_clusters"]),
             near_dup_threshold=float(dr["near_dup_threshold"]),
+            scheduled=bool(dr.get("scheduled", True)),
         ),
         dream_rnd=DreamRnDConfig(
             enabled=bool(rnd["enabled"]),
@@ -748,6 +764,8 @@ def load_config(path: Path | None = None) -> Config:
             pinned_build=str(rt.get("pinned_build", "")),
             embed_ctx=int(rt.get("embed_ctx", 8192)),
             grace_s=float(rt.get("grace_s", 5.0)),
+            ports={str(k): int(v) for k, v in rt.get("ports", {}).items()},
+            api_key_env=str(rt.get("api_key_env", "")),
         ),
         scheduler=SchedulerConfig(
             worker_mode=str(sch.get("worker_mode", "inproc")),
