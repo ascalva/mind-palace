@@ -31,11 +31,15 @@ class Embedder:
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
+        template = self.config.document_template
+        if template != "{text}":
+            texts = [template.format(text=t) for t in texts]
         return self.client.embed(self.config.model, texts)
 
     def embed_query(self, text: str) -> list[float]:
-        # Qwen3-Embedding query format: "Instruct: <task>\nQuery: <text>".
-        wrapped = f"Instruct: {self.config.query_instruction}\nQuery: {text}"
+        # The model family's query format; Qwen3-Embedding's is "Instruct: <task>\nQuery: <text>".
+        wrapped = self.config.query_template.format(instruction=self.config.query_instruction,
+                                                    text=text)
         return self.client.embed(self.config.model, [wrapped])[0]
 
 

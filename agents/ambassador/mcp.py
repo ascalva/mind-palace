@@ -292,7 +292,7 @@ TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
     ),
     (
         "sync_dialogue",
-        "Pull new Open WebUI chats into the dialogue stratum (owner turns "
+        "Pull new Open WebUI chats and OpenCode sessions into the dialogue stratum (owner turns "
         "authored, model turns observed). Idempotent.",
         _schema({}, []),
         "sync_dialogue",

@@ -154,6 +154,12 @@ model = "qwen3-embedding:4b"
 dim = 2560
 # Qwen3-Embedding is instruction-aware on the QUERY side; documents embed plain.
 query_instruction = "Given a question, retrieve the owner's notes relevant to it"
+# The model family's prompt formats ({instruction} and {text} are filled in). These are
+# Qwen3-Embedding's; another family is a config edit, e.g. EmbeddingGemma:
+#   query_template = "task: search result | query: {text}"
+#   document_template = "title: none | text: {text}"
+query_template = "Instruct: {instruction}\nQuery: {text}"
+document_template = "{text}"
 
 # --- Model lineup: two-slot discipline (BUILD-SPEC §5); §20.1 resolved 2026-06-25. ---
 # Personas and per-call params are injected at REQUEST time via the Ollama API, never

@@ -33,7 +33,7 @@ answer — semantic, structural, temporal — follows from the verb.
 
 ## Writing
 
-- `palace_sync_dialogue()` pulls the owner's Open WebUI chats in (their turns stay authored, yours
+- `palace_sync_dialogue()` pulls the owner's Open WebUI chats and OpenCode sessions in (their turns stay authored, yours
   are observed). Run it when the owner refers to a recent chat you cannot find.
 - `palace_sync_notes()` re-ingests the notes vault after the owner says they wrote something new.
 - `palace_capture(text)` stores something YOU were asked to remember. It is filed as observed, never
