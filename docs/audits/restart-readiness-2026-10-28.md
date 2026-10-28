@@ -219,22 +219,33 @@ the owner asked for local merges, no PRs). Commits on the branch: `a25fc25` (que
 relations, dialogue capture, MCP), `be8ed78` (OpenCode sessions, `lanes`, `reembed`, embedder
 templates), `d36e4d5` (config-driven embedder service, CORS, bench report, bridge capture).
 
-Running when this was written: the embedder benchmark's last candidate (the 4B incumbent; results
-land in `docs/experiments/embedder-bench-2026-10-28.json`), and `palace lanes code-observe` (875 /
-1,459 ledger commits re-projected, 1,042,396 reference edges so far).
+**Done since (evening of 2026-10-28):**
+- `palace lanes code-observe`: all 1,459 ledger commits re-projected in 2 h 04 min —
+  **6,990,291 code observations** (3.4 GB) and **2,619,022 reference edges** (0.96 GB):
+  corpus→code path-mention 1,267,496 · corpus→corpus note-citation 974,923 · code→corpus
+  path-mention 356,250 · code→corpus note-citation 20,353.
+- The embedder benchmark finished (`docs/experiments/embedder-bench-2026-10-28.md`): quality
+  splits between EmbeddingGemma-2 and the 4B (SciFact 0.849 vs 0.778, NFCorpus 0.367 vs 0.406);
+  Gemma is 14× faster in a sixth of the memory. Recommendation: switch, σ = 0.785, near-dup 0.93.
+- Deterministic tier on the branch: **2,534 passed, 10 skipped, 1 failed in 143 s** — the one
+  failure is §2.9's inherited `test_core_imports_nothing_outside_core` (20 import sites, none from
+  this branch).
+- bp-094 Item 2 (the M-C6 samples for the gated reference-edge patterns): dn-slug, finding-id,
+  inherits and calls clear the 100% bar; paired-section (15/30) does not and stays off. A census
+  over every code→code edge found two resolver bugs (decorator calls, facade targets), now fixed
+  and tested. The enable itself waits on the owner (journal, 2026-10-28).
 
 Next, in order:
-1. Read the 4B result + σ transfer from the JSON; decide the embedder. On the evidence so far
-   EmbeddingGemma-2 leads (0.849 / 0.367 nDCG@10, 24.3 docs/s, 0.57 GB, multimodal).
-2. If switching: `[embedding]` model/dim/query_template/document_template + σ and near-dup by the
-   measured quantile transfer (interim; the pre-registered σ sweep is the proper re-calibration)
-   in `config/ouroboros.toml`; `[embedder]` model/alias/pooling in `config/stack.toml`; the owner
-   re-runs `mind-palace stack up` once (the plist changed to the config-driven form); then
-   `mind-palace reembed --confirm`.
+1. Owner: the embedder. If switching: `[embedder]` model/alias/pooling in `config/stack.toml`;
+   the owner runs `mind-palace stack up` once (the plist moves to the config-driven form); then
+   `[embedding]` model/dim/templates and `[dreaming]` σ in `config/ouroboros.toml`, the σ lever
+   bound in `ops/levers.py` → [0.772, 0.867], and `mind-palace reembed --confirm`.
+2. Owner: the edge enable (`ENABLED_L2B_PATTERNS`, four patterns).
 3. `mind-palace lanes code-embed dialogue` (memberships; chatlog → L1 → integrator → causal edges).
 4. `mind-palace relate` (the 27B; embedder asleep first), then an OpenCode `ambassador` run end to
    end (`opencode run --agent ambassador …`), then `mind-palace stack check`.
-5. Full deterministic tier, fill §2.6 counts, merge the branch into `main` locally.
+5. Merge the branch into `main` locally, then `palace lanes code-observe` once more: the sensor
+   walks `main`, so that pass mints the enabled patterns' edges (~10,483) at the merge commit.
 
 Open proposals: `docs/brainstorms/ambassador-open-webui-bridge.md` (Qwen inside Open WebUI calling
 palace tools); a separate session to evaluate Hermes Agent as a phone gateway.
