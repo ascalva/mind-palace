@@ -80,16 +80,27 @@ stored vectors). Left:
   diff") is now met. Deskcheck owed.
 - No ANN index is configured; at 38 rows (and ~23k atoms for code) brute force is fine.
 
-### 2.3 Query algebra — **not usable by an agent yet**
+### 2.3 Query algebra — **built and wired (update, same day)**
 
-`dn-core-query-protocol` and `dn-temporal-retrieval-algebra` are ratified and `design-only`;
-`capability-scope-algebra` likewise ("the five Views exist but carry no explicit scope type"). What
-exists: the typed views (`MirrorView`, `ObservedView`, `OpsView`, `EffectView`), `ReferenceView`,
-`TemporalView`, `origin()`, and the kernel's `Authority = P × W_Σ × W_world` lattice
-(`core/kernel/scope.py`). What does not: one typed query surface over them, a client scope that a
-query is checked against, and anything an external agent can call. Left: graduate the note into
-build plans; first the §2.3 archetype (a deterministic, single-stratum, no-model reference agent),
-then the surface the Ambassador's MCP tools will expose.
+_First pass found it "not usable by an agent". The notes' `design-only` fields were stale: the whole
+typing layer was already built in `core/kernel/scope.py` (the scope lattice, firewall ideals,
+`req_admissible`, the zone law, `Inv`/`Rate`/`Res`). What was missing was the sentence layer._
+
+`core/query.py` adds it: a `Query(verb, grant, …)` whose construction IS the admissibility check
+(`req(verb) ⊑ some granted scope`, else `IllScopedQuery`); a grant as **one scope per clock plane**
+(semantic on the projection-event clock, structural/causal on the commit clock, temporal on the
+per-stratum ledger — `TimeScope.⊑` compares one clock, and cross-clock joins are constructor errors
+until N materializes, so one scope cannot hold all three); mode derived from scope (§2.4); and the
+operators: SEARCH (K_sem over the provenance classes Σ names), REACH (F reachability through
+`ReferenceView`), DIFFUSE (the TRA §2.1 RSP free-energy curve on the σ-backbone, β the single dial,
+z := γ = 0.5 from `core/kernel/recursion.py` — the convergence condition the note ties to the γ
+ceiling), HYBRID (K_sem ⊙ K_struct), HISTORY (σ_*/σ^* along the version chain, resolved through the
+catalog's doc_id), RELATED (signed edges), ORIGIN (the C ∘ commit-keying join). Every result is
+`Inv`. Verified on the live store: search, the β dial changing neighbourhoods (β = 0.1 vs 50),
+hybrid, history, and an ill-scoped history sentence refused at construction.
+
+Left: the §2.3 *reference agent archetype* as its own deterministic client with the §2.6 self-grading
+oracle; `Rate` results (none yet); the multi-stratum SLICE cut is a single-read token today.
 
 ### 2.4 Dreaming — **live path works on demand**
 
@@ -126,10 +137,19 @@ seed, lift pause (§2.2), bp-095.
 | causal C-fiber | `causal_edges.sqlite` | integrator over L1 | empty until the dialogue lane runs |
 | memberships (fibers) | `memberships.sqlite` | code lane (bp-152) | empty until code seed |
 
-### 2.7 Integrators — **built, starved**
+**Update (same day): every edge type now has a producer you can run.** Signed relations:
+`core/relations.py` — authored `supports::/contradicts::/contextualizes:: [[Note]]` properties
+(provenance authored-solo) plus an on-demand model-mediated detector over σ-backbone pairs
+(provenance interpreted), `palace relate`. Reference edges: `palace lanes code-observe` re-projects
+the kept snapshot ledger (`backfill_observations`, the re-projection a corpus reset needs).
+Memberships: `palace lanes code-embed`. Causal C-fibers: `palace lanes dialogue` (chat sensor → L1
+→ integrator). K₀ supersessions stay owner-asserted (`mind-palace supersede`). Counts after the
+first runs are in §4.
+
+### 2.7 Integrators — **built; fed by `palace lanes dialogue`**
 
 The integrator (bp-071, dispatch seam bp-110) derives C-fiber edges from the L1 action log; L1 comes
-from the transcripts lane, which is paused. Nothing to integrate until §3's dialogue lane runs.
+from the transcripts lane. The daemon's lever stays paused; the on-demand lane runs it in-process.
 
 ### 2.8 Clocks — **built; green**
 
