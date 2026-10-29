@@ -28,6 +28,19 @@ sleep_idle_s = 60                            # unload quickly: the 27B and the e
 cors_origins = "localhost"                   # browsers may not call it from other origins
 log = "~/Library/Logs/mind-palace/embedder.log"
 
+[bridge]
+# Qwen in Open WebUI → the palace (docs/brainstorms/ambassador-open-webui-bridge.md): MCP over HTTP
+# on loopback (edge/mcp_http.py — Zone B, no store handle) → the filesystem handoff → a sealed
+# responder (scripts/palace_mcp_handoff.py) that starts on the first call and exits when idle.
+label = "com.mind-palace.webui-bridge"     # launchd label (a LaunchAgent the owner installs: `stack up`)
+port = 8096                                # 127.0.0.1 only; lmtune's relay forwards Open WebUI here
+key_file = "~/.config/mind-palace/webui-bridge.key"   # 0600, made by `stack up`; lmtune reads it
+extra_hosts = ["10.153.1.2:8096"]          # the Host Open WebUI sends: lmtune-relay's app address
+handoff_dir = "data/handoff/mcp"           # requests/ + responses/ — the edge's only way in
+call_timeout_s = 300                       # past that, the model gets an error, never a guess
+responder_idle_exit_s = 600                # the responder (and its open stores) leaves when idle
+log = "~/Library/Logs/mind-palace/webui-bridge.log"
+
 [chat]
 # lmtune owns this server (install with `lmtune serve install`); the stack only checks it.
 url = "http://127.0.0.1:8080"
