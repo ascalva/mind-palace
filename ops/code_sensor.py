@@ -151,8 +151,12 @@ _RE_FRONT_MATTER_LIST_ITEM = re.compile(r"^\s*-\s+(.*)$")
 # code↔corpus/corpus↔corpus extraction (VALIDATED_PATTERNS / CORPUS_TO_CORPUS_VALIDATED) is
 # unaffected. The existence-check on `note-citation` corpus targets is NOT in this gate: it is
 # a standing correctness fix (§2.4-3), applied whenever the sensor supplies a `known_corpus`.
+# Item 2 (2026-10-28, owner's yes; samples in docs/build-plans/bp-094/journal.md): dn-slug 30/30,
+# finding-id 30/30, inherits 11/11 (the whole population), calls 30/30 plus a census of all 10,003
+# — enabled. paired-section 15/30 — below the bar, dropped (its `§N` usually belongs to a build
+# plan the shorthand cannot resolve, so "exactly one cited note" does not hold).
 L2B_PATTERNS: tuple[str, ...] = ("dn-slug", "finding-id", "paired-section", "inherits", "calls")
-ENABLED_L2B_PATTERNS: frozenset[str] = frozenset()   # Item 2 flips per sample; empty = all off
+ENABLED_L2B_PATTERNS: frozenset[str] = frozenset({"dn-slug", "finding-id", "inherits", "calls"})
 
 # Shorthand tokens (code→corpus). Resolutions are deterministic + tree-existence-checked
 # (unresolved ⇒ dropped, never guessed; §2.4-1). `dn-<slug>` strips the `dn-` id-prefix to the

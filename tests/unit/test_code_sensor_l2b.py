@@ -104,9 +104,15 @@ def test_projection_drops_absent_note_citation_from_observations(repo, tmp_path)
                    for e in sensor.reference_edges.all())
 
 
-# --- shorthand resolvers: gated OFF by default, resolve+drop when enabled --------------------
-def test_shorthand_mints_nothing_while_disabled(repo, tmp_path):
-    assert cs.ENABLED_L2B_PATTERNS == frozenset()          # the shipped default: all off
+# --- shorthand resolvers: gated per M-C6 sample, resolve+drop when enabled -------------------
+def test_the_shipped_gate_is_exactly_the_patterns_that_cleared_m_c6():
+    # bp-094 Item 2 (journal 2026-10-28): four cleared the bar; paired-section (15/30) did not.
+    assert cs.ENABLED_L2B_PATTERNS == frozenset({"dn-slug", "finding-id", "inherits", "calls"})
+    assert "paired-section" not in cs.ENABLED_L2B_PATTERNS
+
+
+def test_shorthand_mints_nothing_while_disabled(repo, tmp_path, monkeypatch):
+    monkeypatch.setattr(cs, "ENABLED_L2B_PATTERNS", frozenset())   # a closed gate
     sensor = _sensor(repo, tmp_path)
     sensor.sync()
     assert sensor.reference_edges is not None

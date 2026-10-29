@@ -77,7 +77,11 @@ Gemma's cosines run higher overall (median pair 0.655 against 0.314), which is w
   three quarters of the σ-backbone, so a switch changes which themes form at the margin, not the
   core.
 - **Recommendation: switch to EmbeddingGemma-2** with σ = 0.785 (quantile-matched, interim until
-  the pre-registered σ sweep, oq-0024 / bp-046), near-dup 0.93 (unchanged, inside Gemma's gap) and
-  the σ lever bound moved to [0.772, 0.867]. The NFCorpus loss is the price; if retrieval over the
+  the pre-registered σ sweep, oq-0024 / bp-046) and near-dup 0.93 (unchanged, inside Gemma's gap).
+  The σ lever's bound in `ops/levers.py` stays the 4B's [0.55, 0.75] — it is code, shared with the
+  shipped defaults — so a σ sweep under Gemma fails closed until the sweep re-derives it (the
+  quantile map gives [0.772, 0.867]). The NFCorpus loss is the price; if retrieval over the
   owner's notes turns out to look more like NFCorpus (broad questions, many relevant notes) than
   SciFact, the 4B stays one config edit away.
+
+**Decision (owner, 2026-10-29): switch.**
