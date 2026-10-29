@@ -90,10 +90,10 @@ class ReferenceView:
         `commit_sha` differs from the anchor — the stale-union bug is structurally excluded."""
 
         def edges_to(ref: str) -> list[ReferenceEdge]:
-            return [e for e in store.all(target_ref=ref) if e.commit_sha == commit]
+            return store.all(target_ref=ref, commit_sha=commit)   # filtered in SQL, (ref, commit)
 
         def edges_from(ref: str) -> list[ReferenceEdge]:
-            return [e for e in store.all(source_ref=ref) if e.commit_sha == commit]
+            return store.all(source_ref=ref, commit_sha=commit)
 
         return cls(_edges_to=edges_to, _edges_from=edges_from, commit=commit)
 
@@ -145,7 +145,10 @@ def _resolve_default_commit(cfg: Config) -> str:
         last = ledger.last()
     finally:
         ledger.close()
-    if last is not None and last.commit_sha and last.commit_sha != "unknown":
+    # Only a run that is still going anchors the view: a stopped run's commit is history (on an
+    # on-demand palace the last run can be days old — 2026-10-29, a run stopped on 10-22 had pinned
+    # every REACH to a pre-reset commit). Otherwise the view reads HEAD.
+    if last is not None and last.active and last.commit_sha and last.commit_sha != "unknown":
         return last.commit_sha
     sha, _dirty = git_state(REPO_ROOT)
     return sha

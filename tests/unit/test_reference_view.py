@@ -121,6 +121,32 @@ def test_factory_anchors_at_the_active_run_commit(tmp_path):
     assert {e.target_ref for e in view.references_from("docs/a.md")} == {"docs/b.md"}
 
 
+def test_a_stopped_run_no_longer_anchors_the_view(tmp_path):
+    """A run that has stopped is history: the anchor falls back to git HEAD. (2026-10-29: a run
+    stopped days earlier had pinned every REACH to a pre-reset commit on an on-demand palace.)"""
+    from config.loader import REPO_ROOT
+    from ops.lifecycle.runs import git_state, open_run_ledger
+
+    cfg = SimpleNamespace(paths=SimpleNamespace(data_dir=tmp_path))
+    ledger = open_run_ledger(cfg)  # type: ignore[arg-type]
+    run = ledger.open_run(commit_sha="old_run_commit", dirty=False, pid=1234)
+    ledger.mark_stopped(run.id, clean=True)
+    ledger.close()
+    view = open_reference_view(cfg)  # type: ignore[arg-type]
+    assert view.commit == git_state(REPO_ROOT)[0]
+
+
+def test_the_store_filters_a_ref_to_one_commit_in_sql(tmp_path):
+    store = ReferenceEdgeStore(tmp_path / "reference_edges.sqlite")
+    store.add_batch([_c2c("docs/a.md", "docs/b.md", commit="C1"),
+                     _c2c("docs/a.md", "docs/c.md", commit="C2")])
+    assert {e.target_ref for e in store.all(source_ref="docs/a.md", commit_sha="C2")} == {
+        "docs/c.md"}
+    names = {r[0] for r in store._conn.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'index'")}
+    assert {"reference_edges_target_commit", "reference_edges_source_commit"} <= names
+
+
 def test_factory_falls_back_to_git_head_when_no_run(tmp_path):
     """With no run recorded, the anchor falls back to git HEAD (`git_state(REPO_ROOT)`)."""
     from config.loader import REPO_ROOT
