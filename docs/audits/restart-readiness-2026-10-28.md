@@ -235,20 +235,28 @@ templates), `d36e4d5` (config-driven embedder service, CORS, bench report, bridg
   over every code→code edge found two resolver bugs (decorator calls, facade targets), now fixed
   and tested. The enable itself waits on the owner (journal, 2026-10-28).
 
-Next, in order (updated 2026-10-29):
-1. ~~Owner: the embedder~~ — **yes**: `config/stack.toml` serves EmbeddingGemma-2. Owner runs
-   `mind-palace stack up` once (the plist moves to the config-driven form); then in
-   `config/ouroboros.toml`: `[embedding]` model `embeddinggemma-2`, dim 768, query_template
-   `task: search result | query: {text}`, document_template `title: none | text: {text}`;
-   `[dreaming] similarity_threshold = 0.785`; then `mind-palace reembed --confirm`. The σ lever's
-   bound in `ops/levers.py` stays the 4B's: a σ sweep fails closed until it re-derives one.
-2. ~~Owner: the edge enable~~ — **done** (606e5f2): first mint at the 8 new `main` commits,
-   10,719 new-pattern edges per commit (bp-094 journal, 2026-10-29).
-3. `mind-palace lanes code-embed dialogue` (memberships; chatlog → L1 → integrator → causal edges).
-4. `mind-palace relate` (the 27B; embedder asleep first), then an OpenCode `ambassador` run end to
-   end (`opencode run --agent ambassador …`), then `mind-palace stack check`.
-5. ~~Merge~~ — **done**: `ouroboros/ambassador-infra` merged into local `main` (953f401, no-ff,
-   the merge message carries the record). Nothing pushed.
+**State at the end of 2026-10-29** (every step of the list that stood here is done):
+- **Embedder: EmbeddingGemma-2** on the stack's LaunchAgent (:8081, 768-dim, 0.5 GB resident);
+  `[embedding]` + σ 0.785 in the overlay; `reembed --confirm`: 29 notes → 38 chunks, 13 dialogue
+  turns → 29 chunks (67 rows, 5 s). Retrieval spot-check unchanged (the 07-11/07-12 notes).
+- **Lanes:** code-embed 17,256 atom rows from 598 HEAD files, 17,508 memberships, 0 parse
+  failures; dialogue: 9 transcripts, 481 utterances → L1 → **196 causal C-fiber edges** (3 commit
+  events left unresolved: `unparsed-sha`). Both lanes 615 s together.
+- **relate:** 24 σ-backbone pairs judged by Qwen3.8-27B → **14 supports, 6 contradicts** (146 s).
+- **Every edge type now holds data:** reference (2.7 M per-commit readings, incl. the four L2b
+  patterns), versions, derivation (dreams), signed relations, causal, memberships.
+- **Open WebUI → palace bridge built** (`docs/brainstorms/ambassador-open-webui-bridge.md`,
+  2026-10-29) and verified from inside Open WebUI's container; lmtune wired through a generic
+  `[[stack.tool_servers]]`. The edge runs from the build session until the owner's next
+  `mind-palace stack up` installs it as `com.mind-palace.webui-bridge`.
+
+Left (none blocks use):
+1. Owner: `mind-palace stack up` once more (installs the bridge service).
+2. bp-116 process manager (GPU sequencing, failed-backend detection) — Gemma makes the OOM rarer.
+3. The σ sweep under Gemma (oq-0024 / bp-046); the σ lever's bound is still the 4B's.
+4. paired-section re-entry (needs a bp-/plan shorthand resolver); the integrator's
+   `unparsed-sha` commit events; `[dream_rnd]` persistence floors for Gemma.
+5. Inherited: `test_core_imports_nothing_outside_core` (bp-067/068).
 
 Open proposals: `docs/brainstorms/ambassador-open-webui-bridge.md` (Qwen inside Open WebUI calling
 palace tools); a separate session to evaluate Hermes Agent as a phone gateway.
