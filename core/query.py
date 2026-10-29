@@ -93,6 +93,16 @@ class InadmissibleGrant(PermissionError):
     """A grant that names a firewalled stratum or breaks the zone law (Σ-breadth ⊥ world reach)."""
 
 
+class OutOfScopeTarget(LookupError):
+    """The sentence's target lives in a stratum its verb does not walk (outside req(verb)'s Σ): a
+    curated paper handed to a verb over the owner's notes. Refused with where to go instead,
+    never answered with an empty result that reads like "nothing there"."""
+
+
+CURATED_REF = "reference:"   # a curated paper's ref (scripts/curate_local.py), never a note path
+_NOTE_GRAPH_VERBS = frozenset({"diffuse", "hybrid", "related", "history"})
+
+
 # ── Scopes ──────────────────────────────────────────────────────────────────────────────────────
 
 
@@ -387,6 +397,10 @@ class QueryEngine:
         return self._cache[name]
 
     def ask(self, q: Query) -> Answer:
+        if q.verb.value in _NOTE_GRAPH_VERBS and (q.target or "").startswith(CURATED_REF):
+            raise OutOfScopeTarget(
+                f"{q.target!r} is a curated paper; {q.verb.value} walks the owner's notes only. "
+                'For papers: search with strata ["curated"], or read the ref.')
         return {
             Verb.SEARCH: self._search,
             Verb.REACH: self._reach,
