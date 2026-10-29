@@ -62,4 +62,28 @@ owner (verbatim, later the same day): |
     histogram and Zipf and Heaps statistics, lexical search beside dense search (hybrid
     retrieval), and cross-strata links through shared rare terms (IDF weighting; the Zipf head
     is mostly stopwords that carry little signal).
+
+measured 2026-10-29 (eval/storage_census.py → data/eval/storage-census.json):
+  - Exact duplicate chunks: notes, dialogue, observed 0%; code 0.63% (17,256 rows); papers 0.56%
+    (148,240 rows); no text appears in two strata. A content-addressed table would save ~3 MB
+    today. Code is already content-addressed (dn-vector-membership-store; current view: code_ast
+    9,164 occupancies over 8,912 atoms), so its savings land across commits, not within one.
+  - Where sharing does pay: versions (an edited note keeps its unchanged chunks' vectors; the
+    prose lanes re-embed a whole note today), and model changes (re-embed unique chunks only).
+  - Where the bytes are: the vectors themselves, 508.6 MB as float32 at 768 dimensions, most of
+    each store on disk. The state-of-the-art levers, to measure as recall@10 against float32 on
+    the palace's own queries before choosing: int8 scalar quantization (4x, ~127 MB); binary
+    quantization with float rescoring (32x, ~16 MB plus a rescoring pass); product quantization
+    (IVF-PQ, native to LanceDB); Matryoshka truncation to 512/256/128 dimensions if
+    EmbeddingGemma-2 keeps v1's Matryoshka training (verify first).
+  - Common language lives in the vocabulary, not in shared vectors: 87% of the words the owner's
+    notes use at least twice also appear in the papers and 82% in the code (observed: 85% and
+    82%). That is the token layer's case: an inverted index across strata, hybrid lexical and
+    dense retrieval, and cross-strata links through shared rare terms.
+  - Zipf, per stratum (rank-frequency fitted over the top 2,000 ranks): papers slope -1.10 (power
+    law R² 0.987 vs exponential 0.837); code -1.00 (0.981 vs 0.862); notes -0.88 (0.969 vs 0.735);
+    observed -0.75 (0.957 vs 0.726). A power law in every stratum; the small strata run flatter
+    with half their vocabulary used once. Maximum-likelihood α of the frequency distribution
+    1.45–2.47 (KS 0.04–0.19; the small strata fit worst): a proper tail analysis (likelihood-ratio
+    tests against lognormal and stretched exponential, Clauset et al.) is still to do.
 ```
