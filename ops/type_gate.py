@@ -24,7 +24,13 @@ reviewed, gated and merged with nothing objecting (**finding-0198**). `raw_shim_
 is the ratchet that makes the rule decidable from the AST, which is the same
 "promote a convention to a static property" move the other two scans make.
 
-Three scans, each importable and CLI-runnable:
+A fourth line is the owner's (2026-10-29, verbatim: "no type ignores allowed in the inner
+core"): the inner ring (`core.kernel.rings.INNER`, the computed fixed point) carries NO `# type:
+ignore` at all — not even a coded, warranted one. The founding language must type-check on its
+own terms; where a stub is wrong, the kernel spells the operation so the stub is right (the first
+such repair: `core/kernel/complex/curvature.py`'s support indicator).
+
+Four scans, each importable and CLI-runnable:
 
   * `membership()` — walks every top-level package's `.py` files; a package that
     imports `core` anywhere but is absent from `[tool.mypy].files` is a violation.
@@ -34,8 +40,10 @@ Three scans, each importable and CLI-runnable:
   * `raw_shim_imports()` — walks the whole repo; a raw import of a shimmed dependency
     from anywhere but its own shim, without an inline `# typedshim-exempt: <reason>`,
     is a violation (§2.5 boundary wrappers; bp-106 Item 4, warrant finding-0198).
+  * `inner_ring_ignores()` — every `# type: ignore` comment, coded or not, in a module of
+    the inner ring is a violation (owner ruling 2026-10-29).
 
-All three scans are read-only (no writes, no network, no subprocess) — they only read
+All four scans are read-only (no writes, no network, no subprocess) — they only read
 source text and (for membership) `pyproject.toml`.
 
 Run: `python -m ops.type_gate` (also `uv run python -m ops.type_gate`). Wired into
@@ -83,6 +91,18 @@ class BareIgnoreViolation:
 
     def __str__(self) -> str:
         return f"{self.path}:{self.lineno}: bare `# type: ignore` (no error code) — {self.text}"
+
+
+@dataclass(frozen=True)
+class InnerRingIgnoreViolation:
+    module: str  # the inner-ring module name (e.g. "core.kernel.clearance")
+    path: str    # repo-relative file path
+    lineno: int
+    text: str    # the offending comment token's text, stripped
+
+    def __str__(self) -> str:
+        return (f"{self.path}:{self.lineno}: `# type: ignore` in the inner ring ({self.module}) — "
+                f"{self.text}")
 
 
 @dataclass(frozen=True)
@@ -227,6 +247,49 @@ def bare_ignores(repo_root: Path | None = None) -> list[BareIgnoreViolation]:
     return violations
 
 
+# ═══ scan 4 — no ignores in the inner ring (owner ruling 2026-10-29) ════════════════════════════
+
+_ANY_IGNORE_RE = re.compile(r"type:\s*ignore")
+
+
+def _module_file(repo_root: Path, module: str) -> Path | None:
+    """`core.kernel.scope` → `core/kernel/scope.py`, a package → its `__init__.py`."""
+    base = repo_root.joinpath(*module.split("."))
+    for candidate in (base.with_suffix(".py"), base / "__init__.py"):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def inner_ring_ignores(repo_root: Path | None = None, *,
+                       inner: frozenset[str] | None = None) -> list[InnerRingIgnoreViolation]:
+    """Every `# type: ignore` comment — coded or bare — in an inner-ring module.
+
+    `inner` defaults to the declared map `core.kernel.rings.INNER`, which
+    `tests/unit/test_inner_ring.py` forces equal to the computed fixed point, so a module that
+    becomes pure is covered the moment the map claims it. Comment tokens only (`tokenize`), so a
+    docstring that names the phrase is never flagged. Read-only, like its siblings."""
+    repo_root = repo_root or Path(__file__).resolve().parent.parent
+    if inner is None:
+        from core.kernel.rings import INNER
+        inner = INNER
+    violations: list[InnerRingIgnoreViolation] = []
+    for module in sorted(inner):
+        path = _module_file(repo_root, module)
+        if path is None:
+            continue
+        try:
+            with path.open("rb") as f:
+                for tok in tokenize.tokenize(f.readline):
+                    if tok.type == tokenize.COMMENT and _ANY_IGNORE_RE.search(tok.string):
+                        violations.append(InnerRingIgnoreViolation(
+                            module=module, path=path.relative_to(repo_root).as_posix(),
+                            lineno=tok.start[0], text=tok.string.strip()))
+        except (tokenize.TokenError, SyntaxError, UnicodeDecodeError, IndentationError):
+            continue
+    return violations
+
+
 # ═══ scan 3 — the §2.5 boundary-wrapper rule (bp-106 Item 4, warrant finding-0198) ═══════════
 #
 # Dependency -> the ONE module permitted to import it raw (§2.5 boundary wrappers).
@@ -346,6 +409,7 @@ def main() -> int:
     membership_violations = membership(repo_root)
     ignore_violations = bare_ignores(repo_root)
     raw_import_violations = raw_shim_imports(repo_root)
+    inner_violations = inner_ring_ignores(repo_root)
 
     ok = True
     if membership_violations:
@@ -382,6 +446,14 @@ def main() -> int:
     else:
         print("Raw shimmed-dependency imports: OK — every shimmed package is imported raw only by "
               "its own shim (or waived inline with a reason)")
+
+    if inner_violations:
+        ok = False
+        print("Inner-ring `# type: ignore` (type-gate) VIOLATIONS — the inner core carries none:")
+        for nv in inner_violations:
+            print(f"  {nv}")
+    else:
+        print("Inner-ring ignore scan: OK — no `# type: ignore` in core.kernel.rings.INNER")
 
     return 0 if ok else 1
 

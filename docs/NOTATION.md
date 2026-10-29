@@ -33,6 +33,10 @@ The five families (companion IV §A.0):
 | **𝒜** | `MintedAgent.scope`, `dispatcher_for` | authority = the *set* of tool handles an agent holds, ordered by inclusion (a bounded meet-semilattice); mint is the meet `𝒜(mint) = scope ∩ MAX` | `core/factory/factory.py`, `core/factory/tools.py` | structural (I13) |
 | **MAX** | `PRE_DECLARED_MAX` | the top of the capability semilattice — the only handles any minted agent may *ever* hold (no shell/cred/net handle exists in it) | `core/factory/roles.py` | structural |
 | **π_public** | `ResearchCriteria` / `deidentify` | the airlock erasure map onto a label with no field that can carry note content | `core/research/criteria.py` | structural (I11) |
+| **C** | `Clearance[L]`, `MIRROR_READ` … `MAINTENANCE_READ` | a read capability `C ⊆ P`: the provenance classes a read may return; minted only by authorities (the mirror, an admitted query's scope, the named grants); `meet` is ∩ (delegation only narrows) | `core/kernel/clearance.py` | structural + static (A3) |
+| **L** | the label parameter of `Row[L]`, `Occupancy[L]`, `PlaneHit[L]` | a set of classes at the TYPE level — a union of `Literal[Provenance.X]`; covariant, so the subset lattice of classes is mypy's subtype lattice | `core/kernel/clearance.py` | static (A3.4) |
+| **M_c, M_C** | the `occ_<class>` relations of the shared plane | the occupancy relation partitioned by class, `M = ⊔_c M_c`; a read under `C` reads `M_C = ⊔_{c∈C} M_c` and nothing else | `core/stores/plane.py` | structural (A3.2) |
+| **NI** | noninterference (Goguen–Meseguer 1982) | every read under `C` is a function of `M_C` and the atoms it references; mutating `M_c` for `c ∉ C` changes no `C`-read | `tests/property/test_plane_noninterference.py` | property-tested (A3.5) |
 
 ### Family 2 — regenerable derivation
 
