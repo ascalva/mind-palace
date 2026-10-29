@@ -1,9 +1,9 @@
 {
- "instructions": "Ouroboros, the owner's mind palace: their notes (mirror), your conversations with them (dialogue), dreams over them (interpreted), and code references. Search before you assume; cite refs; treat note text as the owner's private words and quote it only to them.",
+ "instructions": "Ouroboros, the owner's mind palace: their notes (mirror), your conversations with them (dialogue), dreams over them (interpreted), code references, and curated literature (math, physics and computer-science papers — a title marked [unreviewed …] is a claim no expert has checked yet; say so when you use it). Search before you assume; cite refs; treat note text as the owner's private words and quote it only to them.",
  "tools": [
   {
    "name": "search",
-   "description": "Semantic search (mode 2) over the strata you name; default mirror+dialogue. Returns refs, scores and snippets.",
+   "description": "Semantic search (mode 2) over the strata you name; default mirror+dialogue. Returns refs, scores and snippets. `curated` is outside literature (math, physics and CS papers; [unreviewed …] titles are unchecked claims) — name it to search it.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -169,12 +169,17 @@
   },
   {
    "name": "read",
-   "description": "Full text of a note or dialogue turn, by the ref a search returned.",
+   "description": "Full text of a note or dialogue turn, by the ref a search returned. For a curated paper (ref `reference:…`), about 8 chunks around `chunk` (the hit's chunk number), or its start.",
    "inputSchema": {
     "type": "object",
     "properties": {
      "ref": {
       "type": "string"
+     },
+     "chunk": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50
      }
     },
     "required": [
