@@ -66,10 +66,13 @@ INTERPRETERS: dict[str, Interp] = {
     # code_to_code resolver (re-exports followed to the defining file, function-header calls kept
     # out of the function, one-name-two-definitions dropped). Edge lane only, behind the closed
     # gate; references_out and the observation content are byte-identical — a DECLARED REFACTOR.
+    # Re-pinned again, same version, at the Item 2 enable (owner's yes, 2026-10-29): the gate opens
+    # to dn-slug/finding-id/inherits/calls. New edges in the UNVERSIONED edge lane, minted forward
+    # from the next projection; references_out unchanged — no bump, no re-projection.
     "phi_code": Interp(version_attr=("ops.code_sensor", "INTERPRETER_VERSION"),
                        sources=("ops/code_sensor.py", "ops/code_snapshot.py"),
                        version="1.1.0",
-                       sha256="19626236448f9e929c05ccd80250b4a0bc26fd017a533e472beb220daf1fde1f"),
+                       sha256="d3ee7e8d744224e14808b236c23e5a6944202bd3c6114f35bf4b5caf5caa832a"),
     # bp-019 Item 7: phi_self over the cost stream (dn-self-sensing.md §2.2/§2.4).
     # Re-pinned same-version once in-session (orchestrator scrutiny catch: §6(f) warning
     # path was unimplemented) — a DECLARED REFACTOR, not a worldview change: the projection
