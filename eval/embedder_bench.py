@@ -117,11 +117,11 @@ def load_beir(
     import pyarrow.parquet as pq
 
     corpus = {
-        r["_id"]: (r.get("title") or "", r["text"])
+        str(r["_id"]): (str(r.get("title") or ""), str(r["text"]))
         for r in pq.read_table(DATA / ds / "corpus-00000-of-00001.parquet").to_pylist()
     }
     queries = {
-        r["_id"]: r["text"]
+        str(r["_id"]): str(r["text"])
         for r in pq.read_table(DATA / ds / "queries-00000-of-00001.parquet").to_pylist()
     }
     qrels: dict[str, dict[str, int]] = {}

@@ -2,7 +2,7 @@
 name = "mind-palace"
 version = "0.0.0"
 description = "Sealed, offline-first personal AI — a mind palace. Built phase by phase."
-requires-python = ">=3.13"
+requires-python = ">=3.15"
 # Runtime deps are intentionally minimal. The sealed core (Zone A) must not pull in
 # any package that can reach the network (CONVENTIONS: "no import path that can reach
 # the network"); HTTP to the local Ollama server uses the stdlib only.
@@ -102,7 +102,10 @@ exclude_also = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+# py314, not py315: the project runs on 3.15, but ruff 0.15.20 marks its 3.15 target "under
+# development" (preview only) and warns on every run. The target only selects syntax rules, and
+# everything valid for 3.14 is valid for 3.15. Raise it when ruff's 3.15 support is stable.
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
@@ -126,6 +129,10 @@ select = ["E", "F", "I", "B", "UP"]
 # for why their errors don't surface when pulled in transitively by Tier-2 importers.
 # Report-only until B-2 wires the gate.
 files = ["core", "agents", "config", "eval", "ops", "scheduler", "scripts", "tests"]
+# Local stubs for dependencies that ship no py.typed (stubs/<package>/*.pyi): typed without a
+# `type: ignore` and without a stub package. First tenant: pyarrow 26, which dropped the py.typed
+# that 24 shipped when the project moved to Python 3.15 (2026-10-29).
+mypy_path = "$MYPY_CONFIG_FILE_DIR/stubs"
 explicit_package_bases = true       # scripts/ are entry points, not a package: scripts/eval.py
                                     # must resolve as scripts.eval, not collide with eval/
 check_untyped_defs = true

@@ -57,7 +57,7 @@ class _FakeLaunchctl:
         return [c[0] for c in self.calls]
 
 
-def _reap_in_background(proc: "subprocess.Popen[bytes]") -> None:
+def _reap_in_background(proc: subprocess.Popen[bytes]) -> None:
     """Reap the child the instant it exits.
 
     A test artefact, not a property of the system: an unreaped child of *this* process lingers as
