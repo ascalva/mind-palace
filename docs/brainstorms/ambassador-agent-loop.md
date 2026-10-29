@@ -58,10 +58,11 @@ new senses asked for:
   - Calendar and mail, read-only: local readers. Calendar through EventKit (a small Swift CLI; macOS
     asks the owner once). Mail through Mail.app or IMAP with a Keychain app password. Live queries
     by default; ingesting them into a stratum (with retention) only if the owner wants.
-  - Quick decisions: Jev is hosted-only — no open weights, and no local "Tev" exists as of
-    2026-10-29. Palace content never goes to it (Invariant 11). For typed decisions over private
-    data, a small local model with grammar-constrained output (the router slot); Jev for decisions
-    over public or owner-cleared state (reflex's pattern).
+  - Quick decisions: Jev is hosted-only. CORRECTED the same day (next capsule): local Jev-style
+    decision models do exist (tev1 and nimble on Ollama's /v1/systemone; Clef's open weights), so
+    "no local Tev exists" was wrong. Palace content never goes to Jev (Invariant 11): typed
+    decisions over private data go to a local decision model; Jev decides over public or
+    owner-cleared state (reflex's pattern).
 
 owner ruling — Jev (2026-10-29, verbatim): |
   "handing off tasks to jev should be fine whenever with my written permission, or when browsing
@@ -107,4 +108,90 @@ open questions (owner), with defaults:
     Default: live and read-only, nothing stored.
   - Tick cadence and quiet hours. Default: every 30 minutes, quiet 23:00–07:00.
   - Skill drafts: approval required (default) or automatic.
+```
+
+## 2026-10-29 (later): phase 1 built, the heartbeat
+
+```capsule
+topic: ambassador-agent-loop / heartbeat
+date: 2026-10-29
+
+owner (verbatim, while it was being built): |
+  "let's build it smart: the heartbeat should need to trigger a model load, it can be pure code
+  making a decision, or even a jev call, does the current state require a model/agent wake up? is
+  battery in good state? are there ongoing/background tasks? are reminders overdue for a
+  notification? etc" (read as: should NOT need to trigger a model load)
+  "make sure it is extremely efficient, reliable, and can easily be disabled if not needed
+  (temporarily of course), test thoroughly for bugs and security, utilizing state of the art
+  patterns where necessary and call them out by name when in use for easier debugging/research in
+  the future, also since ouroboros ingests its own code"
+
+built (ops/heartbeat.py; `mind-palace tick`; LaunchAgent com.mind-palace.tick, every 15 minutes):
+  rule: the tick never loads a model to decide whether to load one.
+  reads (plain code, no model): power, battery and Low Power Mode (pmset); a thermal warning; the
+    chat model's state (llama-server /props, then /slots only when it is awake, so the probe never
+    wakes a sleeping model); the embedder's state; palace jobs (the ledger and the process table);
+    due items; each dialogue source's newest change against its high-water mark; free disk; the
+    circuit breaker (read off the ledger).
+  decision table (`decide`, a pure function):
+    notify         an item came due and was not pushed yet          → wakes nothing
+    sync-dialogue  a source changed since its last good sync, the   → wakes the embedder, for
+                   breaker is closed, and nothing blocks: AC or a      new turns only
+                   battery ≥ 40%, no Low Power Mode, no thermal
+                   warning (unreadable counts as one), the embedder
+                   up, the chat model not mid-answer, no palace job
+                   running, ≥ 10 GB free
+    wake-agent     never in phase 1: no scheduled work needs        → (the chat model)
+                   reasoning; phase 3 adds rows (scheduled agent
+                   runs, chartered dreams)
+  kill switch: `mind-palace tick pause 2h [reason]` (30m, 1d, or until a local time; 7 days at
+    most), `tick resume`, `tick status`; a row off for good: config/stack.toml [tick] actions;
+    everything off: `mind-palace stack down`.
+  notifications: macOS Notification Center on ouroboros, once per due time (a moved reminder is
+    pushed again); the text goes to a fixed AppleScript as arguments, never as script. janus (the
+    phone) remains phase 3's channel question.
+  the date: the bridge adds "Today is <weekday>, <date>." to the instructions. Day resolution keeps
+    llama-server's prompt cache warm. The e2e had shown Qwen stamping a capture "2026-07-14".
+  measured: a beat costs 0.37 s wall, 0.24 s CPU, 37 MB peak; a paused beat reads nothing.
+
+patterns in use, by name (the module docstring lists where each lives): the sense-decide-act
+  control loop; functional core, imperative shell; ports and adapters; decision table, with
+  decision-table testing (86,400 rows) and property-based tests (Hypothesis; the safety invariant
+  is monotonicity: a blocker only takes permission away); fail-safe defaults; high-water mark;
+  scatter-gather; circuit breaker with exponential backoff (Nygard, Release It!); reconciliation
+  loop; at-least-once delivery; kill switch with expiry (a time-boxed feature flag); single-instance
+  lock (flock); atomic write; watchdog (stale beats; notices older than 3 hours dropped); lazy
+  loading; cache-stable prompt prefix.
+
+decided while building (open defaults above): cadence 15 minutes, not 30 (a beat costs 0.3 s and
+  wakes nothing); no quiet hours in code, since macOS Focus already holds notifications at night.
+
+decision models (facts checked 2026-10-29; vendor numbers, not verified here):
+  - Ollama ≥ 0.35 serves Jev-style decision models on /v1/systemone (Ollama blog, 2026-09-29):
+    tev1 (Together AI; Qwen3.5 4B and 0.8B; 4.4 GB and ~0.8 GB; the fine-tuned weights' license is
+    not final) and nimble (Bespoke Labs; 9B; Apache-2.0). Ollama 0.40.6 runs on ouroboros, with no
+    model pulled yet.
+  - Clef (Cloudflare, 2026-10-01): Clef (on Qwen3.8-27B) and Clef-flash (on Qwen3.5-9B),
+    Apache-2.0, weights on Hugging Face, Jev-API-compatible; a routing head plus adapters, so not a
+    plain GGUF.
+  - Mean accuracy over 13 public datasets (Ollama's runs): Jev 1.13 76.0%, nimble 75.7%, tev1 4B
+    73.3%, tev1 0.8B 63.5%.
+owner direction (verbatim): |
+  "we can use the local decision models potentially for the heartbeat decisions, and jev for more
+  complex decisions and browsing/research"
+  "or even local models could be used (if efficient and fast) for quick branch/edge predictions?
+  not sure if that's possible due to it not being trained on the local data"
+  tiering: exact inputs → code (free and certain); a judgment over language → a local decision
+  model (private data stays on the Mac); harder judgments, browsing and research → Jev, under the
+  ruling above. Every heartbeat row today reads exact inputs, so code decides them. First
+  candidates for a local model: a commitment in new turns that the Ambassador did not record
+  ("remind me…" with no remind call); a failed job's log, transient or needing the owner; mail and
+  calendar (phase 2).
+  edges and branches: a decision model judges the state it is shown (both texts in the request),
+  so it needs no training on palace data; the palace supplies the context per question. Two fits:
+  (1) the relate lane (supports / contradicts / neither) at a reported 40–200 ms a pair, against
+  the 27B's seconds, so hundreds of pairs a pass instead of 24; (2) pruning in lazy evaluation,
+  where REACH and DIFFUSE ask "does this neighbor bear on the question?" before expanding (the
+  rerank pattern). Gate: a labeled sample at the code sensor's bar (bp-011: 100% precision on 30)
+  before any proposed edge lands; every such edge records its model and probability.
 ```

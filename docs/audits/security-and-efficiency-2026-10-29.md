@@ -73,3 +73,24 @@ commit in SQL, and two (ref, commit) indexes make each lookup a seek.
 | docs/design-notes/agentic-loop.md | 22.6 s | 0.00 / 0.02 / 0.06 s (46 / 380 / 926 refs) |
 | ops/code_sensor.py | 8.8 s | 0.00 / 0.01 / 0.06 s |
 | core/kernel/scope.py | 3.5 s | 0.00 / 0.01 / 0.03 s |
+
+## The heartbeat (added the same day)
+
+Phase 1's `palace tick` (ops/heartbeat.py, LaunchAgent `com.mind-palace.tick`), reviewed and
+tested as it was built:
+
+| concern | control | proof |
+|---|---|---|
+| Egress | runs under `seal()`; its only sockets are two loopback probes; the edge readers run as their own processes, as in the sync | the import firewall still passes; no new network module in core |
+| Shell injection | every subprocess is a fixed argv with a deadline (pmset, ps, osascript, the readers) | review |
+| AppleScript injection | a reminder's text reaches osascript as an argument to a constant script | test: a title carrying `do shell script` stays inert text |
+| SQL injection | the ledger's queries are parameterized | test: a `DROP TABLE` title is stored verbatim |
+| Secrets | lmtune's key is read from its 0600 file for the loopback probe only | test: a planted sentinel key appears in no file the tick writes and not in its output |
+| Trust boundary (edge) | the notices file must be a list from the last 3 hours, not the future; lines capped at 240 characters, newlines flattened | tests; the first run found a string read as a list of characters, and a forged future timestamp that would never expire |
+| A stuck switch | a pause always ends (7 days at most); an unreadable or forged pause file counts as none | property test over arbitrary bytes |
+| Failure loops | fail-safe readings; a circuit breaker with backoff stops a failing sync from retrying every beat; errors land in `data/tick.json` and exit non-zero | tests |
+
+Efficiency (measured on ouroboros): a beat costs 0.37 s wall, 0.24 s CPU and 37 MB peak; a paused
+beat returns before reading anything. The launcher (~190 ms of imports, duckdb behind it) loads only
+when a sync runs. The two source checks run in parallel; Open WebUI's 0.4 s `podman exec`
+dominates. No model is touched unless a sync has new turns and a good moment.

@@ -46,6 +46,9 @@ MAX_BODY = 1_000_000
 # The handoff's wire shape, mirrored (not imported) from agents/ambassador/handoff.py.
 REQUESTS, RESPONSES, LOCK = "requests", "responses", "responder.lock"
 STALE_RESPONSE_S = 3600   # an answer nobody waited for (the call timed out) is swept after this
+NOTICES_MAX_AGE_S = 3 * 3600   # older means the heartbeat stopped: show none rather than stale
+NOTICES_HEADER = "Pending for the owner (raise briefly, once; then only if asked):"
+NOTICE_LINE_MAX = 240   # one line each, never a wall of text in the system prompt
 RESPAWN_COOLDOWN_S = 15.0  # a responder takes a few seconds to import; don't stack spawns
 
 
@@ -117,6 +120,14 @@ def _atomic_write_json(path: Path, obj: dict[str, Any]) -> None:
     tmp.replace(path)   # the responder never reads a partial request
 
 
+def today_line(now: datetime | None = None) -> str:
+    """The date, for a model with no clock ("remind me tomorrow" needs one). Day resolution on
+    purpose (a cache-stable prefix): the instructions open the system prompt, so a line that
+    changed every minute would void llama-server's prompt cache for the tool schemas after it."""
+    d = now or datetime.now()
+    return f"\n\nToday is {d:%A}, {d:%Y-%m-%d}."
+
+
 class Handoff:
     """Drop a request, make sure a responder is up, wait for its answer."""
 
@@ -168,6 +179,22 @@ class Handoff:
             time.sleep(self.poll_s)
         req.unlink(missing_ok=True)   # never picked up: withdraw it
         return f"the palace did not answer within {self.timeout_s:.0f} s", True
+
+    def notices(self) -> str:
+        """The lines the core published for the model (`notices.json`, written by the heartbeat
+        and the task tools), as an instructions suffix — empty when there are none, or when
+        they are too old to trust. Open WebUI re-initializes per request, so they stay current."""
+        try:
+            doc = json.loads((self.root / "notices.json").read_text(encoding="utf-8"))
+            age = time.time() - datetime.fromisoformat(doc["generated_at"]).timestamp()
+            raw = doc["lines"]
+        except (OSError, ValueError, KeyError, TypeError):
+            return ""
+        # the trust boundary checks shape, not just syntax: a list, from the recent past
+        if not isinstance(raw, list) or not raw or not -60 <= age <= NOTICES_MAX_AGE_S:
+            return ""
+        lines = [" ".join(str(x).split())[:NOTICE_LINE_MAX] for x in raw[:10]]
+        return "\n\n" + NOTICES_HEADER + "\n" + "\n".join(f"- {line}" for line in lines)
 
     def _sweep(self) -> None:
         cutoff = time.time() - STALE_RESPONSE_S
@@ -233,7 +260,8 @@ class Mcp:
                 "protocolVersion": asked if asked in PROTOCOL_VERSIONS else PROTOCOL_VERSIONS[0],
                 "capabilities": {"tools": {"listChanged": False}},
                 "serverInfo": SERVER_INFO,
-                "instructions": self.manifest["instructions"],
+                "instructions": (self.manifest["instructions"] + today_line()
+                                 + self.handoff.notices()),
             }
         if method == "ping" or method.startswith("notifications/"):
             return {}

@@ -47,3 +47,15 @@ url = "http://127.0.0.1:8080"
 
 [opencode]
 config_dir = "~/.config/opencode"            # ops/stack/opencode/* is installed here
+
+[tick]
+# The heartbeat (ops/heartbeat.py): every interval, plain code reads power, the models, the palace
+# jobs, due reminders and the dialogue sources, then decides whether anything deserves a wake-up.
+# It never loads a model to decide; only the dialogue sync (new turns, a good moment) wakes the
+# embedder. Due reminders are pushed to macOS Notification Center, once.
+label = "com.mind-palace.tick"              # launchd label (a LaunchAgent the owner installs: `stack up`)
+interval_s = 900
+min_battery_pct = 40                       # on battery below this, models stay asleep
+min_free_gb = 10.0                         # below this nothing writes, and the owner hears of it
+chat_key_file = "~/.config/lmtune/api-key" # lmtune's /props and /slots need it (read, never printed)
+log = "~/Library/Logs/mind-palace/tick.log"
