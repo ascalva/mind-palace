@@ -1,0 +1,36 @@
+# The Ouroboros stack — the services around the palace, managed by `mind-palace stack`.
+#
+#   mind-palace stack up       install/refresh everything below (idempotent)
+#   mind-palace stack status   what is running, asleep, wired
+#   mind-palace stack check    end to end: embedder → palace MCP → a real query
+#   mind-palace stack restart  apply an [embedder] edit to the running service (no reinstall)
+#   mind-palace stack down     stop the embedder service (lmtune's chat server is lmtune's)
+#
+# Models wake on demand and sleep when idle; the palace itself is not a daemon here — it runs as a
+# stdio MCP server that the harness spawns, plus the on-demand verbs (dream, relate, *-sync).
+
+[embedder]
+label = "com.mind-palace.embedder"          # launchd label (a LaunchAgent in ~/Library/LaunchAgents)
+binary = "/opt/homebrew/bin/llama-server"
+# EmbeddingGemma-2 (owner's switch 2026-10-29; docs/experiments/embedder-bench-2026-10-28.md):
+# quality splits with the 4B it replaces, at 14x the speed in a sixth of the memory. Its GGUF
+# reads context_length 262144, pooling_type mean, 768-dim output. The palace side
+# ([embedding] in ouroboros.toml) must name the same model and dim.
+model = "~/models/embeddinggemma-2/embeddinggemma-2-Q8_0.gguf"
+alias = "embeddinggemma-2"
+pooling = "mean"
+port = 8081                                  # must match [runtime] ports.embedding in ouroboros.toml
+ctx = 8192
+parallel = 4
+ubatch = 2048
+gpu_layers = 99                              # 0 = CPU only (keeps Metal free for the 27B)
+sleep_idle_s = 60                            # unload quickly: the 27B and the embedder share the GPU
+cors_origins = "localhost"                   # browsers may not call it from other origins
+log = "~/Library/Logs/mind-palace/embedder.log"
+
+[chat]
+# lmtune owns this server (install with `lmtune serve install`); the stack only checks it.
+url = "http://127.0.0.1:8080"
+
+[opencode]
+config_dir = "~/.config/opencode"            # ops/stack/opencode/* is installed here

@@ -1457,6 +1457,144 @@ class Launcher:
         print(f"dreamed {len(themes)} theme(s); {grounded} grounded")
         return 0
 
+    def dialogue_sync_now(self, *, container: str = "lmtune-webui") -> int:
+        """Pull the owner's conversations with the local model — Open WebUI chats and OpenCode
+        sessions — into the dialogue stratum, idempotently.
+
+        Two processes, one handoff file: the edge reader (`python -m edge.openwebui`, no core
+        imports, read-only inside the container) writes `data/handoff/dialogue/openwebui.json`;
+        this side reads it and captures each turn — owner turns as `authored-dialogue`, the
+        model's as `observed` — keyed by `openwebui/<chat>/<message>` so a re-sync adds only
+        what is new."""
+        if self._refuse_if_live("dialogue-sync"):
+            return 1
+        import json
+        import subprocess
+        import sys
+
+        sources = {   # source -> the edge reader's argv (each its own process, no core imports)
+            "openwebui": ["-m", "edge.openwebui", "--container", container],
+            "opencode": ["-m", "edge.opencode_sessions"],
+        }
+        from core.ingest.dialogue import build_dialogue_capture
+        capture = build_dialogue_capture(self.cfg)
+        failed = False
+        for source, argv in sources.items():
+            handoff = self.cfg.paths.data_dir / "handoff" / "dialogue" / f"{source}.json"
+            edge = subprocess.run([sys.executable, *argv, "--out", str(handoff)],
+                                  cwd=self.repo_root, capture_output=True, text=True, timeout=180)
+            if edge.returncode != 0:
+                print(f"{source}: edge reader failed: {edge.stderr.strip()[-300:]}")
+                failed = True
+                continue
+            doc = json.loads(handoff.read_text())
+            new = seen = 0
+            for chat in doc.get("chats", []):
+                for turn in chat.get("turns", []):
+                    ts = turn.get("timestamp")
+                    at = (datetime.fromtimestamp(ts, UTC).isoformat(timespec="seconds")
+                          if ts else None)
+                    _, created = capture.capture_turn(
+                        turn["content"], conversation=f"{source}/{chat['chat_id']}",
+                        turn_id=str(turn["id"]), role=str(turn["role"]), at=at)
+                    new += created
+                    seen += 1
+            print(f"dialogue sync ({source}): {len(doc.get('chats', []))} conversation(s), "
+                  f"{seen} turn(s), {new} new")
+        return 1 if failed else 0
+
+    def reembed_now(self, *, confirm: bool) -> int:
+        """Re-embed every vector from the raw store with the CONFIGURED embedder — BUILD-SPEC §8:
+        "re-embedding from raw on a model change is a config edit, not a rewrite". Vault notes go
+        through `run_ingest(rebuild=True)`; dialogue turns (not in the vault) are re-indexed from
+        the catalog + raw store under their recorded provenance. Code atoms re-land on the next
+        `lanes code-embed`. The catalog, versions and every edge store are untouched: identity and
+        history do not depend on the embedding model."""
+        if self._refuse_if_live("reembed"):
+            return 1
+        from core.kernel.provenance import Provenance
+        from core.stores.catalog import VaultCatalog
+        catalog = VaultCatalog(self.cfg.paths.vault_catalog)
+        dialogue = [e for e in catalog.active_entries()
+                    if e.provenance in (Provenance.AUTHORED_DIALOGUE.value,
+                                        Provenance.OBSERVED.value)]
+        model, dim = self.cfg.embedding.model, self.cfg.embedding.dim
+        if not confirm:
+            print(f"DRY RUN — would reset the vector store and re-embed the vault plus "
+                  f"{len(dialogue)} dialogue turn(s) with {model} (dim {dim}). "
+                  "Re-run with --confirm.")
+            return 0
+        from core.ingest.embed import build_embedder
+        from core.ingest.index import index_records
+        from core.ingest.run import run_ingest
+        from core.kernel.ingest.logseq import ParsedNote
+        from core.kernel.ingest.pipeline import ingest_note
+        from core.kernel.stores.rawstore import RawStore
+        from core.stores.vectorstore import VectorStore
+        print(f"vault: {run_ingest(self.cfg, rebuild=True)}")
+        raw = RawStore(self.cfg.paths.raw_store)
+        store = VectorStore(self.cfg.paths.vector_store, dim=dim)
+        embedder = build_embedder(self.cfg)
+        added = 0
+        for e in dialogue:
+            data = raw.get(e.digest)
+            parsed = ParsedNote(source_path=e.source_path, title=e.title,
+                                text=data.decode("utf-8", errors="replace"),
+                                tags=frozenset({"dialogue"}), links=frozenset(), properties={},
+                                raw_bytes=data)
+            record = ingest_note(parsed, raw, provenance=Provenance(e.provenance))
+            added += index_records([record], embedder, store)
+        print(f"dialogue: re-embedded {len(dialogue)} turn(s) as {added} chunk(s); "
+              f"store now {store.count()} rows with {model}")
+        return 0
+
+    LANES = ("code-observe", "code-embed", "dialogue")
+
+    def lanes_now(self, which: set[str] | None = None) -> int:
+        """The ingestion lanes that produce edges, on demand and in-process (this process is the
+        single writer — refused while a daemon owns the stores).
+
+        code-observe — model-less: git → the snapshot ledger (new commits), then the ledger's WHOLE
+            history re-projected into observations + doc↔code reference edges
+            (`backfill_observations`, the re-projection a corpus reset needs; owner nod 2026-10-28).
+        code-embed — HEAD `.py` blobs → idea-atoms + their memberships (bp-152), one sync; the seed
+            on a cold store. Wakes the embedder.
+        dialogue — Claude Code transcripts → chatlog (observed) → the L1 action log → the
+            integrator's C-fiber causal edges. Wakes the embedder."""
+        lanes = set(which or self.LANES)
+        unknown = lanes - set(self.LANES)
+        if unknown:
+            print(f"unknown lane(s) {sorted(unknown)}; choose from {list(self.LANES)}")
+            return 2
+        if self._refuse_if_live("lanes"):
+            return 1
+        if "code-observe" in lanes:
+            from ops.code_sensor import build_code_sensor
+            sensor = build_code_sensor(self.cfg)
+            print(f"code sensor: {sensor.sync()}")
+            print(f"code observations: re-projected {sensor.backfill_observations()} commit(s)")
+        if "code-embed" in lanes:
+            from core.ingest.code_corpus import build_code_corpus_sync
+            print(f"code embed: {build_code_corpus_sync(self.cfg).sync()}")
+        if "dialogue" in lanes:
+            from core.chat_events import build_chat_event_projector
+            from core.integrator import build_integrator
+            from ops.chat_sensor import build_chat_sensor
+            print(f"chat sensor: {build_chat_sensor(self.cfg).sync()}")
+            n = build_chat_event_projector(self.cfg).project(max_sessions=100_000)
+            print(f"L1 action log: projected {n} session(s)")
+            print(f"integrator: {build_integrator(self.cfg).integrate(max_sessions=100_000)}")
+        return 0
+
+    def relate_now(self, *, max_pairs: int = 24) -> int:
+        """Signed relation edges, on demand: the owner's `supports::/contradicts::/
+        contextualizes::` properties, then the model-mediated detector over σ-backbone pairs."""
+        if self._refuse_if_live("relate"):
+            return 1
+        from core.relations import build_relation_detector
+        print(f"relate: {build_relation_detector(self.cfg, max_pairs=max_pairs).run()}")
+        return 0
+
     def vault_sync_now(self) -> int:
         """One full vault-lane rescan, on demand: raw, vectors (chunk-level amendment), catalog,
         versions and attestations — the same lane the daemon's `vault_sync` job runs."""

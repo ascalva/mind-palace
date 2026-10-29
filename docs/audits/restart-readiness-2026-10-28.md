@@ -80,16 +80,27 @@ stored vectors). Left:
   diff") is now met. Deskcheck owed.
 - No ANN index is configured; at 38 rows (and ~23k atoms for code) brute force is fine.
 
-### 2.3 Query algebra — **not usable by an agent yet**
+### 2.3 Query algebra — **built and wired (update, same day)**
 
-`dn-core-query-protocol` and `dn-temporal-retrieval-algebra` are ratified and `design-only`;
-`capability-scope-algebra` likewise ("the five Views exist but carry no explicit scope type"). What
-exists: the typed views (`MirrorView`, `ObservedView`, `OpsView`, `EffectView`), `ReferenceView`,
-`TemporalView`, `origin()`, and the kernel's `Authority = P × W_Σ × W_world` lattice
-(`core/kernel/scope.py`). What does not: one typed query surface over them, a client scope that a
-query is checked against, and anything an external agent can call. Left: graduate the note into
-build plans; first the §2.3 archetype (a deterministic, single-stratum, no-model reference agent),
-then the surface the Ambassador's MCP tools will expose.
+_First pass found it "not usable by an agent". The notes' `design-only` fields were stale: the whole
+typing layer was already built in `core/kernel/scope.py` (the scope lattice, firewall ideals,
+`req_admissible`, the zone law, `Inv`/`Rate`/`Res`). What was missing was the sentence layer._
+
+`core/query.py` adds it: a `Query(verb, grant, …)` whose construction IS the admissibility check
+(`req(verb) ⊑ some granted scope`, else `IllScopedQuery`); a grant as **one scope per clock plane**
+(semantic on the projection-event clock, structural/causal on the commit clock, temporal on the
+per-stratum ledger — `TimeScope.⊑` compares one clock, and cross-clock joins are constructor errors
+until N materializes, so one scope cannot hold all three); mode derived from scope (§2.4); and the
+operators: SEARCH (K_sem over the provenance classes Σ names), REACH (F reachability through
+`ReferenceView`), DIFFUSE (the TRA §2.1 RSP free-energy curve on the σ-backbone, β the single dial,
+z := γ = 0.5 from `core/kernel/recursion.py` — the convergence condition the note ties to the γ
+ceiling), HYBRID (K_sem ⊙ K_struct), HISTORY (σ_*/σ^* along the version chain, resolved through the
+catalog's doc_id), RELATED (signed edges), ORIGIN (the C ∘ commit-keying join). Every result is
+`Inv`. Verified on the live store: search, the β dial changing neighbourhoods (β = 0.1 vs 50),
+hybrid, history, and an ill-scoped history sentence refused at construction.
+
+Left: the §2.3 *reference agent archetype* as its own deterministic client with the §2.6 self-grading
+oracle; `Rate` results (none yet); the multi-stratum SLICE cut is a single-read token today.
 
 ### 2.4 Dreaming — **live path works on demand**
 
@@ -126,10 +137,19 @@ seed, lift pause (§2.2), bp-095.
 | causal C-fiber | `causal_edges.sqlite` | integrator over L1 | empty until the dialogue lane runs |
 | memberships (fibers) | `memberships.sqlite` | code lane (bp-152) | empty until code seed |
 
-### 2.7 Integrators — **built, starved**
+**Update (same day): every edge type now has a producer you can run.** Signed relations:
+`core/relations.py` — authored `supports::/contradicts::/contextualizes:: [[Note]]` properties
+(provenance authored-solo) plus an on-demand model-mediated detector over σ-backbone pairs
+(provenance interpreted), `palace relate`. Reference edges: `palace lanes code-observe` re-projects
+the kept snapshot ledger (`backfill_observations`, the re-projection a corpus reset needs).
+Memberships: `palace lanes code-embed`. Causal C-fibers: `palace lanes dialogue` (chat sensor → L1
+→ integrator). K₀ supersessions stay owner-asserted (`mind-palace supersede`). Counts after the
+first runs are in §4.
+
+### 2.7 Integrators — **built; fed by `palace lanes dialogue`**
 
 The integrator (bp-071, dispatch seam bp-110) derives C-fiber edges from the L1 action log; L1 comes
-from the transcripts lane, which is paused. Nothing to integrate until §3's dialogue lane runs.
+from the transcripts lane. The daemon's lever stays paused; the on-demand lane runs it in-process.
 
 ### 2.8 Clocks — **built; green**
 
@@ -191,3 +211,41 @@ dreaming and models wake only when needed; one command sets the whole stack up. 
 5. **Code seed + lift the pauses** (§2.2).
 6. **One-command setup**: launchd for the embedder, lmtune serve, the palace on demand, the OpenCode
    harness, verify probes — the "declarative services" idea in lmtune's backlog.
+
+## 4. Where this stands — resume here (end of 2026-10-28)
+
+Branch `ouroboros/ambassador-infra` (local; `main` = `16cb027`, ahead of origin by 1, never pushed;
+the owner asked for local merges, no PRs). Commits on the branch: `a25fc25` (query algebra,
+relations, dialogue capture, MCP), `be8ed78` (OpenCode sessions, `lanes`, `reembed`, embedder
+templates), `d36e4d5` (config-driven embedder service, CORS, bench report, bridge capture).
+
+**Done since (evening of 2026-10-28):**
+- `palace lanes code-observe`: all 1,459 ledger commits re-projected in 2 h 04 min —
+  **6,990,291 code observations** (3.4 GB) and **2,619,022 reference edges** (0.96 GB):
+  corpus→code path-mention 1,267,496 · corpus→corpus note-citation 974,923 · code→corpus
+  path-mention 356,250 · code→corpus note-citation 20,353.
+- The embedder benchmark finished (`docs/experiments/embedder-bench-2026-10-28.md`): quality
+  splits between EmbeddingGemma-2 and the 4B (SciFact 0.849 vs 0.778, NFCorpus 0.367 vs 0.406);
+  Gemma is 14× faster in a sixth of the memory. Recommendation: switch, σ = 0.785, near-dup 0.93.
+- Deterministic tier on the branch: **2,534 passed, 10 skipped, 1 failed in 143 s** — the one
+  failure is §2.9's inherited `test_core_imports_nothing_outside_core` (20 import sites, none from
+  this branch).
+- bp-094 Item 2 (the M-C6 samples for the gated reference-edge patterns): dn-slug, finding-id,
+  inherits and calls clear the 100% bar; paired-section (15/30) does not and stays off. A census
+  over every code→code edge found two resolver bugs (decorator calls, facade targets), now fixed
+  and tested. The enable itself waits on the owner (journal, 2026-10-28).
+
+Next, in order:
+1. Owner: the embedder. If switching: `[embedder]` model/alias/pooling in `config/stack.toml`;
+   the owner runs `mind-palace stack up` once (the plist moves to the config-driven form); then
+   `[embedding]` model/dim/templates and `[dreaming]` σ in `config/ouroboros.toml`, the σ lever
+   bound in `ops/levers.py` → [0.772, 0.867], and `mind-palace reembed --confirm`.
+2. Owner: the edge enable (`ENABLED_L2B_PATTERNS`, four patterns).
+3. `mind-palace lanes code-embed dialogue` (memberships; chatlog → L1 → integrator → causal edges).
+4. `mind-palace relate` (the 27B; embedder asleep first), then an OpenCode `ambassador` run end to
+   end (`opencode run --agent ambassador …`), then `mind-palace stack check`.
+5. Merge the branch into `main` locally, then `palace lanes code-observe` once more: the sensor
+   walks `main`, so that pass mints the enabled patterns' edges (~10,483) at the merge commit.
+
+Open proposals: `docs/brainstorms/ambassador-open-webui-bridge.md` (Qwen inside Open WebUI calling
+palace tools); a separate session to evaluate Hermes Agent as a phone gateway.

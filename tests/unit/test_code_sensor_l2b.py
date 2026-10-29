@@ -104,9 +104,15 @@ def test_projection_drops_absent_note_citation_from_observations(repo, tmp_path)
                    for e in sensor.reference_edges.all())
 
 
-# --- shorthand resolvers: gated OFF by default, resolve+drop when enabled --------------------
-def test_shorthand_mints_nothing_while_disabled(repo, tmp_path):
-    assert cs.ENABLED_L2B_PATTERNS == frozenset()          # the shipped default: all off
+# --- shorthand resolvers: gated per M-C6 sample, resolve+drop when enabled -------------------
+def test_the_shipped_gate_is_exactly_the_patterns_that_cleared_m_c6():
+    # bp-094 Item 2 (journal 2026-10-28): four cleared the bar; paired-section (15/30) did not.
+    assert cs.ENABLED_L2B_PATTERNS == frozenset({"dn-slug", "finding-id", "inherits", "calls"})
+    assert "paired-section" not in cs.ENABLED_L2B_PATTERNS
+
+
+def test_shorthand_mints_nothing_while_disabled(repo, tmp_path, monkeypatch):
+    monkeypatch.setattr(cs, "ENABLED_L2B_PATTERNS", frozenset())   # a closed gate
     sensor = _sensor(repo, tmp_path)
     sensor.sync()
     assert sensor.reference_edges is not None
@@ -168,6 +174,74 @@ def test_code_to_code_edges_resolve_static_targets(repo, tmp_path, monkeypatch):
     assert not any("getcwd" in e.target_detail or "unknown" in e.target_detail or
                    (e.source_ref == e.target_ref and e.source_detail == e.target_detail)
                    for e in sensor.reference_edges.all() if e.direction == "code_to_code")
+
+
+# --- the M-C6 census fixes (bp-094 Item 2): definition-time calls, re-exports, ambiguity ------
+_RESOLVE_FILES = {
+    "impl.py": "def work():\n    pass\n\n\nclass Thing:\n    pass\n",
+    "other.py": "def work():\n    pass\n",
+    "facade.py": "from impl import Thing, work\n",            # re-exports only, defines nothing
+    "pkg/__init__.py": "from pkg.mod import task\n",          # a package re-export
+    "pkg/mod.py": "def task():\n    pass\n",
+    "outside.py": "from os.path import join\n",               # re-exports from outside the tree
+    "user.py": (
+        "from facade import Thing, work\n"
+        "from pkg import task\n"
+        "from outside import join\n\n\n"
+        "def gate():\n    return True\n\n\n"
+        "def deco(flag):\n    return lambda f: f\n\n\n"
+        "class Sub(Thing):\n    pass\n\n\n"
+        "def use():\n    work()\n    task()\n    join()\n\n\n"
+        "@deco(gate())\n"
+        "def decorated():\n    pass\n\n\n"
+        "def outer():\n"
+        "    def inner(flag=gate()):\n        pass\n"
+        "    return inner\n"
+    ),
+    "two.py": (                                               # one name, two definitions
+        "def first():\n    from impl import work\n    work()\n\n\n"
+        "def second():\n    from other import work\n    work()\n"
+    ),
+    "same.py": (                                              # two routes, one definition
+        "def first():\n    from impl import work\n    work()\n\n\n"
+        "def second():\n    from facade import work\n    work()\n"
+    ),
+}
+
+
+@pytest.fixture
+def resolve_repo(tmp_path) -> Path:
+    r = tmp_path / "resolve"
+    (r / "pkg").mkdir(parents=True)
+    _git(r, "init", "-q", "-b", "main")
+    _git(r, "config", "user.email", "t@t")
+    _git(r, "config", "user.name", "t")
+    for rel, text in _RESOLVE_FILES.items():
+        (r / rel).write_text(text)
+    _git(r, "add", "-A")
+    _git(r, "commit", "-qm", "feat: plant resolver fixtures")
+    return r
+
+
+def test_code_to_code_follows_reexports_and_keeps_header_calls_out(resolve_repo, tmp_path,
+                                                                   monkeypatch):
+    monkeypatch.setattr(cs, "ENABLED_L2B_PATTERNS", frozenset({"inherits", "calls"}))
+    sensor = _sensor(resolve_repo, tmp_path)
+    sensor.sync()
+    assert sensor.reference_edges is not None
+    got = {(e.ref_type, e.source_ref, e.source_detail, e.target_ref, e.target_detail)
+           for e in sensor.reference_edges.all() if e.direction == "code_to_code"}
+    assert got == {
+        ("inherits", "user.py", "Sub", "impl.py", "Thing"),     # through the facade
+        ("calls", "user.py", "use", "impl.py", "work"),         # through the facade
+        ("calls", "user.py", "use", "pkg/mod.py", "task"),      # through the package __init__
+        ("calls", "user.py", "outer", "user.py", "gate"),       # inner's default runs in outer
+        ("calls", "same.py", "first", "impl.py", "work"),       # two routes, one definition
+        ("calls", "same.py", "second", "impl.py", "work"),
+    }
+    # DROPPED: the decorator's calls (definition time, module scope — not `decorated`'s),
+    # `inner`'s default as inner's own call, join() (the chain leaves the tree), and two.py's
+    # `work` (one name, two definitions in one file).
 
 
 def test_module_to_path_absolute_and_relative():

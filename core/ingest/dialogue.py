@@ -69,6 +69,34 @@ class DialogueCapture:
         return record.digest
 
 
+    def capture_turn(self, text: str, *, conversation: str, turn_id: str, role: str,
+                     at: str | None = None) -> tuple[str, bool]:
+        """Store one turn of an external chat (e.g. Open WebUI) idempotently; return
+        `(digest, created)`. The path is deterministic — `dialogue/<conversation>/<turn_id>` — so a
+        re-sync of the same turn is a no-op. Provenance is fixed by ROLE, never by the text: the
+        owner's turns are `authored-dialogue` (mirror-readable, their own words); the model's are
+        `observed` (recallable as context, never in the mirror or the baselines)."""
+        source_path = f"dialogue/{conversation}/{turn_id}"
+        data = text.encode("utf-8")
+        prev = self.catalog.get(source_path)
+        if prev is not None and prev.active and prev.digest == hashlib.sha256(data).hexdigest():
+            return prev.digest, False
+        provenance = Provenance.AUTHORED_DIALOGUE if role == "user" else Provenance.OBSERVED
+        title = f"dialogue/{conversation}/{at or _compact_ts()} ({role})"
+        parsed = ParsedNote(
+            source_path=source_path, title=title, text=text,
+            tags=frozenset({"dialogue", role}), links=frozenset(), properties={}, raw_bytes=data,
+        )
+        record = ingest_note(parsed, self.raw, provenance=provenance)
+        self.store.delete(digest=record.digest)
+        index_records([record], self.embedder, self.store)
+        self.catalog.record(source_path, record.digest, title, provenance=provenance)
+        if self.attestor is not None:
+            self.attestor.emit(agent_role="ambassador", action="capture",
+                               input_hashes=[record.digest], output_hashes=[record.digest])
+        return record.digest, True
+
+
 def build_dialogue_capture(config: Config | None = None) -> DialogueCapture:
     """Wire a DialogueCapture against the configured stores + embedder."""
     from core.attestation import build_attestor
