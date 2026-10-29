@@ -14,7 +14,9 @@ import ast
 import http.client
 import json
 import threading
+import time
 from collections.abc import Iterator
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -234,3 +236,47 @@ def test_a_silent_palace_is_an_error_never_a_guess(tmp_path):
         stop.set()
         httpd.shutdown()
         httpd.server_close()
+
+
+# --- the instructions: the brief, then the date, then the notices -----------------------------
+def _notices(root: Path, lines: list[str], *, age_s: float = 0.0) -> None:
+    root.mkdir(parents=True, exist_ok=True)
+    at = datetime.fromtimestamp(time.time() - age_s).isoformat()
+    (root / "notices.json").write_text(json.dumps({"generated_at": at, "lines": lines}))
+
+
+def test_notices_reach_the_instructions_only_while_fresh(tmp_path):
+    h = mcp_http.Handoff(tmp_path, 5.0, lambda: None)
+    assert h.notices() == ""                                     # none yet
+    _notices(tmp_path, ["#1 reminder due 2026-10-29T09:00: call the dentist"])
+    assert mcp_http.NOTICES_HEADER in h.notices()
+    assert h.notices().endswith("- #1 reminder due 2026-10-29T09:00: call the dentist")
+    _notices(tmp_path, ["old"], age_s=mcp_http.NOTICES_MAX_AGE_S + 60)
+    assert h.notices() == ""                                     # the heartbeat stopped: none
+    _notices(tmp_path, [f"line {n}" for n in range(25)])
+    assert h.notices().count("\n- ") == 10                       # capped
+    now = datetime.now().isoformat()
+    for junk in ("", "{", "[]", '{"lines": ["x"]}', '{"generated_at": "never", "lines": ["x"]}',
+                 json.dumps({"generated_at": now, "lines": "a string, not a list"}),
+                 json.dumps({"generated_at": "2099-01-01T00:00:00", "lines": ["forged"]})):
+        (tmp_path / "notices.json").write_text(junk)
+        assert h.notices() == "", junk
+    _notices(tmp_path, ["a\nmulti-line   " + "x" * 1000])
+    (line,) = h.notices().splitlines()[3:]
+    assert line.startswith("- a multi-line x") and len(line) == 2 + mcp_http.NOTICE_LINE_MAX
+
+
+def test_the_date_line_changes_once_a_day():
+    a = mcp_http.today_line(datetime(2026, 10, 29, 0, 1))
+    assert a == "\n\nToday is Thursday, 2026-10-29."
+    assert mcp_http.today_line(datetime(2026, 10, 29, 23, 59)) == a   # a cache-stable prefix
+    assert mcp_http.today_line(datetime(2026, 10, 30, 0, 0)) != a
+
+
+def test_initialize_serves_the_brief_then_the_date_then_the_notices(bridge, tmp_path):
+    _notices(tmp_path / "handoff", ["#2 task due 2026-10-29T10:00: file taxes"])
+    _, init, _ = _post(bridge, {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                                "params": {"protocolVersion": "2025-03-26"}})
+    text = init["result"]["instructions"]
+    assert text.startswith(web_manifest()["instructions"])
+    assert text.index("Today is") < text.index("file taxes")

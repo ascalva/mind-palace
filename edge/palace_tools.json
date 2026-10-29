@@ -1,9 +1,9 @@
 {
- "instructions": "Ouroboros, the owner's mind palace: their notes (mirror), your conversations with them (dialogue), dreams over them (interpreted), code references, and curated literature (math, physics and computer-science papers — a title marked [unreviewed …] is a claim no expert has checked yet; say so when you use it). Search before you assume; cite refs; treat note text as the owner's private words and quote it only to them.",
+ "instructions": "Ouroboros (palace_* tools) is the owner's memory. Search it before answering anything about the\nowner; read before quoting; cite refs. Recent research or open problems: strata [\"curated\"]\n([unreviewed] = claim, not fact). General knowledge: no search. Capture only when asked. Jobs,\nimports, what is due: palace_status. Tasks and reminders: palace_task_* and palace_remind. Never\nput palace content in web searches.",
  "tools": [
   {
    "name": "search",
-   "description": "Semantic search (mode 2) over the strata you name; default mirror+dialogue. Returns refs, scores and snippets. `curated` is outside literature (math, physics and CS papers; [unreviewed …] titles are unchecked claims) — name it to search it.",
+   "description": "Semantic search; strata default mirror+dialogue, curated = math/physics/CS papers ([unreviewed] = unchecked claim). k defaults to 5. Returns refs, scores, snippets.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -34,13 +34,12 @@
     },
     "required": [
      "query"
-    ],
-    "additionalProperties": false
+    ]
    }
   },
   {
    "name": "neighbors",
-   "description": "Notes near a note along the structural β-curve (mode 1): small beta = diffuse, large beta = shortest-path.",
+   "description": "Notes structurally near a note (beta small = diffuse, large = shortest path).",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -59,13 +58,12 @@
     },
     "required": [
      "note"
-    ],
-    "additionalProperties": false
+    ]
    }
   },
   {
    "name": "hybrid",
-   "description": "Notes that are BOTH near the query and structurally near an anchor note (K_sem ⊙ K_struct).",
+   "description": "Notes near both a query and an anchor note.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -88,13 +86,12 @@
     "required": [
      "query",
      "note"
-    ],
-    "additionalProperties": false
+    ]
    }
   },
   {
    "name": "history",
-   "description": "A note's version chain (mode 3): forward = σ_*, back = σ^*.",
+   "description": "A note's version chain.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -110,13 +107,12 @@
     },
     "required": [
      "note"
-    ],
-    "additionalProperties": false
+    ]
    }
   },
   {
    "name": "related",
-   "description": "Signed relations of a note: supports / contradicts / contextualizes.",
+   "description": "A note's supports / contradicts / contextualizes relations.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -126,13 +122,12 @@
     },
     "required": [
      "note"
-    ],
-    "additionalProperties": false
+    ]
    }
   },
   {
    "name": "reach",
-   "description": "Code/doc references reachable from a ref (mode 1a).",
+   "description": "Code and doc refs linked to a ref, within depth hops.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -147,13 +142,12 @@
     },
     "required": [
      "ref"
-    ],
-    "additionalProperties": false
+    ]
    }
   },
   {
    "name": "origin",
-   "description": "Which witnessed commit minted a reference edge (C-fiber).",
+   "description": "The commit that minted a reference edge.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -163,13 +157,12 @@
     },
     "required": [
      "edge_id"
-    ],
-    "additionalProperties": false
+    ]
    }
   },
   {
    "name": "read",
-   "description": "Full text of a note or dialogue turn, by the ref a search returned. For a curated paper (ref `reference:…`), about 8 chunks around `chunk` (the hit's chunk number), or its start.",
+   "description": "Full text of a ref a search returned; for a paper (reference:…), ~5 chunks around the hit's chunk.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -178,49 +171,41 @@
      },
      "chunk": {
       "type": "integer",
-      "minimum": 1,
-      "maximum": 50
+      "minimum": 0
      }
     },
     "required": [
      "ref"
-    ],
-    "additionalProperties": false
+    ]
    }
   },
   {
    "name": "overview",
-   "description": "Counts per stratum and relation type, and your own grant.",
+   "description": "Counts per stratum and relation type; your grant.",
    "inputSchema": {
     "type": "object",
-    "properties": {},
-    "required": [],
-    "additionalProperties": false
+    "properties": {}
    }
   },
   {
    "name": "sync_dialogue",
-   "description": "Pull new Open WebUI chats and OpenCode sessions into the dialogue stratum (owner turns authored, model turns observed). Idempotent.",
+   "description": "Sync new Open WebUI and OpenCode chats into the palace now.",
    "inputSchema": {
     "type": "object",
-    "properties": {},
-    "required": [],
-    "additionalProperties": false
+    "properties": {}
    }
   },
   {
    "name": "sync_notes",
-   "description": "Re-ingest the owner's notes vault (changed notes only).",
+   "description": "Re-ingest the owner's changed notes now.",
    "inputSchema": {
     "type": "object",
-    "properties": {},
-    "required": [],
-    "additionalProperties": false
+    "properties": {}
    }
   },
   {
    "name": "capture",
-   "description": "Remember text YOU relay (a summary, a decision). Stored as observed, never as the owner's words.",
+   "description": "Remember text you relay (stored as observed, not the owner's words).",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -233,8 +218,101 @@
     },
     "required": [
      "text"
-    ],
-    "additionalProperties": false
+    ]
+   }
+  },
+  {
+   "name": "status",
+   "description": "Palace processes and jobs (ingestion, imports) with progress, models, services, store sizes, open and due items.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "task_list",
+   "description": "The owner's open tasks and reminders, and running jobs.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "include_done": {
+      "type": "boolean"
+     }
+    }
+   }
+  },
+  {
+   "name": "task_add",
+   "description": "Track a task for the owner; due is optional.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "title": {
+      "type": "string"
+     },
+     "detail": {
+      "type": "string"
+     },
+     "due": {
+      "type": "string",
+      "description": "local ISO time (2026-10-30T09:00) or +30m, +2h, +1d"
+     }
+    },
+    "required": [
+     "title"
+    ]
+   }
+  },
+  {
+   "name": "task_update",
+   "description": "Change a task or reminder: status open/waiting/done/dropped, a note, or a new due.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000000000
+     },
+     "status": {
+      "enum": [
+       "open",
+       "waiting",
+       "done",
+       "dropped"
+      ]
+     },
+     "note": {
+      "type": "string"
+     },
+     "due": {
+      "type": "string",
+      "description": "local ISO time (2026-10-30T09:00) or +30m, +2h, +1d"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   }
+  },
+  {
+   "name": "remind",
+   "description": "Remind the owner at a time.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "at": {
+      "type": "string",
+      "description": "local ISO time (2026-10-30T09:00) or +30m, +2h, +1d"
+     }
+    },
+    "required": [
+     "text",
+     "at"
+    ]
    }
   }
  ]

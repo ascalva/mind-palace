@@ -40,6 +40,8 @@ REQUESTS, RESPONSES, LOCK = "requests", "responses", "responder.lock"
 WEB_TOOLS = frozenset({
     "search", "neighbors", "hybrid", "history", "related", "reach", "origin", "read", "overview",
     "capture", "sync_dialogue", "sync_notes",
+    # the loop's bookkeeping (phase 1): status, and the owner's tasks and reminders
+    "status", "task_list", "task_add", "task_update", "remind",
 })
 
 _ID = re.compile(r"[0-9a-f]{32}")   # the edge's uuid4().hex; anything else never names a file

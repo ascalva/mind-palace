@@ -22,19 +22,17 @@ import json
 import sys
 import traceback
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "mind-palace", "version": "0.1.0"}
-INSTRUCTIONS = (
-    "Ouroboros, the owner's mind palace: their notes (mirror), your conversations with them "
-    "(dialogue), dreams over them (interpreted), code references, and curated literature (math, "
-    "physics and computer-science papers — a title marked [unreviewed …] is a claim no expert has "
-    "checked yet; say so when you use it). Search before you assume; cite refs; treat note text as "
-    "the owner's private words and quote it only to them."
-)
+# The brief (agents/ambassador/brief.md) IS the server's MCP `instructions`: a harness that honours
+# them — Open WebUI appends them to the system message whenever the palace tools are on — loads it
+# on every chat with no prompt to paste. One text for every client and for eval/ambassador_e2e.py.
+INSTRUCTIONS = (Path(__file__).with_name("brief.md")).read_text(encoding="utf-8").strip()
 
-_READ_WINDOW = 8   # chunks of a curated paper per `read` (~8K characters): a whole paper won't fit
+_READ_WINDOW = 5   # chunks of a curated paper per `read` (~5K characters): a whole paper won't fit
 
 _STRATA_NAMES = ("mirror", "dialogue", "interpreted", "curated", "observed", "reference")
 
@@ -225,26 +223,120 @@ class Ambassador:
             "provenance": "interpreted",
         }
 
+    # the loop's bookkeeping (docs/brainstorms/ambassador-agent-loop.md, phase 1) ----------------
+    def status(self) -> dict[str, Any]:
+        """The ecosystem at a glance, read-only and local: jobs (ledger and live processes),
+        models, services, store sizes, and what is open or due."""
+        from core.stores.tasks import OPEN, now_local, open_task_store
+        from ops.heartbeat import chat_key, last_tick, load_policy, model_state, palace_processes
+
+        cfg = self.engine.config
+        policy = load_policy()
+        store = open_task_store(cfg)
+        try:
+            running = [j.brief() for j in store.select(kinds=("job",), statuses=("running",))]
+            recent = [j.brief() for j in store.finished(limit=20) if j.kind == "job"][:5]
+            open_n = len(store.select(kinds=("task", "reminder"), statuses=OPEN, limit=500))
+            due = [i.brief() for i in store.due()]
+        finally:
+            store.close()
+        return {
+            "now": now_local().isoformat(timespec="minutes"),
+            "jobs_running": running,
+            "palace_processes": palace_processes(),
+            "jobs_recent": recent,
+            "tasks_open": open_n,
+            "due": due,
+            "models": {
+                "chat": model_state(cfg.runtime.port_for("routine") or 8080,
+                                    key=chat_key(policy)),
+                "embedder": model_state(cfg.runtime.port_for("embedding") or 8081),
+            },
+            "heartbeat": last_tick(cfg.paths.data_dir, interval_s=policy.interval_s),
+            "services": _launch_agents(),
+            "stores": {
+                "vectors": self.engine._get("vectors").count(),
+                "literature_chunks": self.engine._get("curated").count(),
+                "relation_edges": len(self.engine._get("edges").all()),
+            },
+        }
+
+    def task_add(self, title: str, detail: str = "", due: str = "") -> dict[str, Any]:
+        """Track a task for the owner, with an optional deadline."""
+        from core.stores.tasks import parse_when
+
+        return self._ledger(lambda s: {"added": s.add(
+            "task", title, detail=detail, due_at=parse_when(due) if due else None).brief()})
+
+    def remind(self, text: str, at: str) -> dict[str, Any]:
+        """Bring something up at a moment: it appears among the due items from then on."""
+        from core.stores.tasks import parse_when
+
+        return self._ledger(lambda s: {"reminder": s.add(
+            "reminder", text, due_at=parse_when(at)).brief()})
+
+    def task_list(self, include_done: bool = False) -> dict[str, Any]:
+        """Open tasks and reminders, running jobs; recently finished ones on request."""
+        from core.stores.tasks import OPEN
+
+        return self._ledger(lambda s: {"items": [
+            i.brief() for i in [*s.select(statuses=(*OPEN, "running")),
+                                *(s.finished(limit=10) if include_done else [])]]})
+
+    def task_update(self, id: int, status: str = "", note: str = "",
+                    due: str = "") -> dict[str, Any]:
+        """Change an item's status, add a note, or move its deadline."""
+        from core.stores.tasks import parse_when
+
+        return self._ledger(lambda s: {"updated": s.update(
+            int(id), status=status or None, note=note or None,
+            due_at=parse_when(due) if due else None).brief()})
+
+    def _ledger(self, op: Callable[[Any], dict[str, Any]]) -> dict[str, Any]:
+        """Run one ledger operation, then refresh the notices the bridge shows the model."""
+        from core.stores.tasks import now_local, open_task_store, write_notices
+
+        store = open_task_store(self.engine.config)
+        try:
+            out = op(store)
+            write_notices(store)
+        finally:
+            store.close()
+        return {**out, "now": now_local().isoformat(timespec="minutes")}
+
+
+def _launch_agents() -> list[dict[str, str]]:
+    """The stack's LaunchAgents: running (pid) or idle, and the last exit status."""
+    import subprocess
+
+    out = subprocess.run(["launchctl", "list"], capture_output=True, text=True).stdout
+    agents = []
+    for line in out.splitlines():
+        parts = line.split("\t")
+        if len(parts) == 3 and parts[2].startswith("com.mind-palace."):
+            pid, last_exit, label = parts
+            agents.append({"name": label.removeprefix("com.mind-palace."),
+                           "state": "running" if pid != "-" else "idle", "last_exit": last_exit})
+    return agents
+
 
 def _schema(props: dict[str, Any], required: list[str]) -> dict[str, Any]:
-    return {
-        "type": "object",
-        "properties": props,
-        "required": required,
-        "additionalProperties": False,
-    }
+    """Lean on purpose: every request carries every schema (the fixed cost of a turn), and the
+    dispatch already refuses unknown arguments, so `additionalProperties` buys nothing here."""
+    return {"type": "object", "properties": props, **({"required": required} if required else {})}
 
 
 _S = {"type": "string"}
 _I = {"type": "integer", "minimum": 1, "maximum": 50}
+_C = {"type": "integer", "minimum": 0}   # a chunk index: papers run to hundreds, from 0
 _B = {"type": "number", "exclusiveMinimum": 0}
+_WHEN = {"type": "string", "description": "local ISO time (2026-10-30T09:00) or +30m, +2h, +1d"}
 
 TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
     (
         "search",
-        "Semantic search (mode 2) over the strata you name; default mirror+dialogue. "
-        "Returns refs, scores and snippets. `curated` is outside literature (math, physics and "
-        "CS papers; [unreviewed …] titles are unchecked claims) — name it to search it.",
+        "Semantic search; strata default mirror+dialogue, curated = math/physics/CS papers "
+        "([unreviewed] = unchecked claim). k defaults to 5. Returns refs, scores, snippets.",
         _schema(
             {
                 "query": _S,
@@ -258,75 +350,102 @@ TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
     ),
     (
         "neighbors",
-        "Notes near a note along the structural β-curve (mode 1): small beta = "
-        "diffuse, large beta = shortest-path.",
+        "Notes structurally near a note (beta small = diffuse, large = shortest path).",
         _schema({"note": _S, "beta": _B, "k": _I}, ["note"]),
         "neighbors",
     ),
     (
         "hybrid",
-        "Notes that are BOTH near the query and structurally near an anchor note "
-        "(K_sem ⊙ K_struct).",
+        "Notes near both a query and an anchor note.",
         _schema({"query": _S, "note": _S, "beta": _B, "k": _I}, ["query", "note"]),
         "hybrid",
     ),
     (
         "history",
-        "A note's version chain (mode 3): forward = σ_*, back = σ^*.",
+        "A note's version chain.",
         _schema({"note": _S, "direction": {"enum": ["forward", "back"]}}, ["note"]),
         "history",
     ),
     (
         "related",
-        "Signed relations of a note: supports / contradicts / contextualizes.",
+        "A note's supports / contradicts / contextualizes relations.",
         _schema({"note": _S}, ["note"]),
         "related",
     ),
     (
         "reach",
-        "Code/doc references reachable from a ref (mode 1a).",
+        "Code and doc refs linked to a ref, within depth hops.",
         _schema({"ref": _S, "depth": _I}, ["ref"]),
         "reach",
     ),
     (
         "origin",
-        "Which witnessed commit minted a reference edge (C-fiber).",
+        "The commit that minted a reference edge.",
         _schema({"edge_id": _S}, ["edge_id"]),
         "origin",
     ),
     (
         "read",
-        "Full text of a note or dialogue turn, by the ref a search returned. For a curated paper "
-        "(ref `reference:…`), about 8 chunks around `chunk` (the hit's chunk number), or its "
-        "start.",
-        _schema({"ref": _S, "chunk": _I}, ["ref"]),
+        "Full text of a ref a search returned; for a paper (reference:…), ~5 chunks around "
+        "the hit's chunk.",
+        _schema({"ref": _S, "chunk": _C}, ["ref"]),
         "read",
     ),
     (
         "overview",
-        "Counts per stratum and relation type, and your own grant.",
+        "Counts per stratum and relation type; your grant.",
         _schema({}, []),
         "overview",
     ),
     (
         "sync_dialogue",
-        "Pull new Open WebUI chats and OpenCode sessions into the dialogue stratum (owner turns "
-        "authored, model turns observed). Idempotent.",
+        "Sync new Open WebUI and OpenCode chats into the palace now.",
         _schema({}, []),
         "sync_dialogue",
     ),
     (
         "sync_notes",
-        "Re-ingest the owner's notes vault (changed notes only).",
+        "Re-ingest the owner's changed notes now.",
         _schema({}, []),
         "sync_notes",
     ),
     (
         "capture",
-        "Remember text YOU relay (a summary, a decision). Stored as observed, "
-        "never as the owner's words.",
+        "Remember text you relay (stored as observed, not the owner's words).",
         _schema({"text": _S, "conversation": _S}, ["text"]),
         "capture",
+    ),
+    (
+        "status",
+        "Palace processes and jobs (ingestion, imports) with progress, models, services, "
+        "store sizes, open and due items.",
+        _schema({}, []),
+        "status",
+    ),
+    (
+        "task_list",
+        "The owner's open tasks and reminders, and running jobs.",
+        _schema({"include_done": {"type": "boolean"}}, []),
+        "task_list",
+    ),
+    (
+        "task_add",
+        "Track a task for the owner; due is optional.",
+        _schema({"title": _S, "detail": _S, "due": _WHEN}, ["title"]),
+        "task_add",
+    ),
+    (
+        "task_update",
+        "Change a task or reminder: status open/waiting/done/dropped, a note, or a new due.",
+        _schema({"id": _I | {"maximum": 10**9}, "status": {"enum": ["open", "waiting", "done",
+                 "dropped"]}, "note": _S, "due": _WHEN}, ["id"]),
+        "task_update",
+    ),
+    (
+        "remind",
+        "Remind the owner at a time.",
+        _schema({"text": _S, "at": _WHEN}, ["text", "at"]),
+        "remind",
     ),
     (
         "link",

@@ -45,6 +45,7 @@ OUROBOROS STACK (on demand — models wake when needed)
   vault-sync | dialogue-sync                             re-ingest notes | pull Open WebUI chats
   lanes [code-observe|code-embed|dialogue]               edge-producing lanes, in-process
   reembed --confirm                                      re-embed everything (model change)
+  tick [pause <30m|2h|1d> | resume | status]             the heartbeat: one beat, or its kill switch
 
 EVAL / OPS
   eval [--bless]                                         score the frozen golden set
@@ -62,7 +63,7 @@ if [ "$#" -gt 0 ]; then shift; fi
 case "$verb" in
   ""|help|-h|--help) usage ;;
   start|stop|status|reset|deploy)  py "$SCRIPTS/palace.py" "$verb" "$@" ;;
-  dream|relate|lanes|reembed|vault-sync|dialogue-sync|queue|ingest-chat|code-seed|code-backfill|code-rebuild)
+  dream|relate|lanes|reembed|vault-sync|dialogue-sync|tick|queue|ingest-chat|code-seed|code-backfill|code-rebuild)
                             py "$SCRIPTS/palace.py" "$verb" "$@" ;;
   stack)                    py "$SCRIPTS/stack.py" "$@" ;;
   mcp)                      py "$SCRIPTS/palace_mcp.py" "$@" ;;
