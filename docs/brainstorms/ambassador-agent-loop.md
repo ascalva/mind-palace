@@ -63,6 +63,30 @@ new senses asked for:
     data, a small local model with grammar-constrained output (the router slot); Jev for decisions
     over public or owner-cleared state (reflex's pattern).
 
+owner ruling — Jev (2026-10-29, verbatim): |
+  "handing off tasks to jev should be fine whenever with my written permission, or when browsing
+  for something (research or upon my request), jev could be used in the actuation/agent/action
+  decision loop, taking in context, sensor data with respect to domain"
+  Read as three grants: (1) any hand-off the owner approves in writing; (2) browsing and research,
+  on public content, or on the owner's request; (3) the action-decision loop (actuation, agents),
+  given the decision's context and its domain's sensor data. Proposed boundary, to confirm: a Jev
+  request carries the minimum state the decision needs — never bulk palace content — and every
+  call is logged with what was sent (reflex's audit JSONL is the pattern).
+
+chartered dreams (owner, 2026-10-29): |
+  "qwen could also kick off a dreaming scenario, where i might want to give it certain
+  topics/params, then it would research and gather external temporary/persistent context, and use
+  that temporary context in relation to persistent context and dream over them with both types of
+  dreamers to investigate relationships"
+  Maps onto ratified dn-synchronic-diachronic-dreamer: the request IS a DreamCharter (SD-2: scope
+  grant, instrument grant, budget, gauge) — built in core/dreaming/charter.py, but no live entry
+  constructs one (dn-agentic-loop gap G-A). Temporary context → the HYPOTHETICAL staging store
+  (SD-6: append-only, no promotion path to any durable store, by construction); persistent context
+  → the curated store. Synchronic dreaming is live; the diachronic dreamer is designed in full and
+  parked (SD-8) — "both dreamers" needs SD-8's execution. Build: a `dream_charter` tool (OpenCode
+  and the owner's confirmation only — a dream holds the 27B for minutes), research staged through
+  the airlock, the charter dispatched as a queued job, the result narrated by the Ambassador.
+
 phases (proposal):
   1. Heartbeat and bookkeeping: `palace tick` (dialogue auto-sync, which the brief already
      promises; due checks), a task and reminder ledger with tools (task_add, task_list,
@@ -70,7 +94,8 @@ phases (proposal):
   2. Senses and delegation: calendar and mail readers; delegation through an egress gate (local
      OpenCode agents; Claude Code headless for larger work; Jev for non-private decisions); the
      local quick-decision model.
-  3. Learning and a channel: lessons, approved skill drafts, a push channel to janus.
+  3. Learning and a channel: lessons, approved skill drafts, a push channel to janus; chartered
+     dreams (wiring G-A; SD-8's diachronic execution).
 
 open questions (owner), with defaults:
   - Channel: how does Qwen reach you away from the Mac? ntfy on the tailnet, iMessage to janus, a
