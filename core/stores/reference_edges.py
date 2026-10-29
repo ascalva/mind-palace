@@ -149,6 +149,11 @@ CREATE TABLE IF NOT EXISTS reference_edges (
 CREATE INDEX IF NOT EXISTS reference_edges_commit ON reference_edges(commit_sha);
 CREATE INDEX IF NOT EXISTS reference_edges_source_ref ON reference_edges(source_ref);
 CREATE INDEX IF NOT EXISTS reference_edges_target_ref ON reference_edges(target_ref);
+-- A commit-anchored read (ReferenceView) asks for one ref AT one commit; with readings per commit,
+-- the single-column ref index alone scans every commit's rows for that ref (2026-10-29: 3–23 s per
+-- REACH hop at depth 2). The pairs make each lookup an index seek.
+CREATE INDEX IF NOT EXISTS reference_edges_target_commit ON reference_edges(target_ref, commit_sha);
+CREATE INDEX IF NOT EXISTS reference_edges_source_commit ON reference_edges(source_ref, commit_sha);
 """
 
 
@@ -298,7 +303,7 @@ class ReferenceEdgeStore:
 
     def all(self, *, direction: str | None = None, ref_type: str | None = None,
             source_ref: str | None = None, target_ref: str | None = None,
-            ) -> list[ReferenceEdge]:
+            commit_sha: str | None = None) -> list[ReferenceEdge]:
         """`direction` filters on the DERIVED value (source_kind_to_target_kind), computed
         server-side from the two kind columns — no stored direction column exists.
         `source_ref`/`target_ref` are bp-026's addition: the "references TO doc X" query
@@ -321,6 +326,9 @@ class ReferenceEdgeStore:
         if target_ref is not None:
             clauses.append("target_ref = ?")
             params.append(target_ref)
+        if commit_sha is not None:
+            clauses.append("commit_sha = ?")
+            params.append(commit_sha)
         if clauses:
             sql += " WHERE " + " AND ".join(clauses)
         sql += " ORDER BY edge_id"
