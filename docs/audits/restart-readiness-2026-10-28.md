@@ -235,17 +235,20 @@ templates), `d36e4d5` (config-driven embedder service, CORS, bench report, bridg
   over every code→code edge found two resolver bugs (decorator calls, facade targets), now fixed
   and tested. The enable itself waits on the owner (journal, 2026-10-28).
 
-Next, in order:
-1. Owner: the embedder. If switching: `[embedder]` model/alias/pooling in `config/stack.toml`;
-   the owner runs `mind-palace stack up` once (the plist moves to the config-driven form); then
-   `[embedding]` model/dim/templates and `[dreaming]` σ in `config/ouroboros.toml`, the σ lever
-   bound in `ops/levers.py` → [0.772, 0.867], and `mind-palace reembed --confirm`.
-2. Owner: the edge enable (`ENABLED_L2B_PATTERNS`, four patterns).
+Next, in order (updated 2026-10-29):
+1. ~~Owner: the embedder~~ — **yes**: `config/stack.toml` serves EmbeddingGemma-2. Owner runs
+   `mind-palace stack up` once (the plist moves to the config-driven form); then in
+   `config/ouroboros.toml`: `[embedding]` model `embeddinggemma-2`, dim 768, query_template
+   `task: search result | query: {text}`, document_template `title: none | text: {text}`;
+   `[dreaming] similarity_threshold = 0.785`; then `mind-palace reembed --confirm`. The σ lever's
+   bound in `ops/levers.py` stays the 4B's: a σ sweep fails closed until it re-derives one.
+2. ~~Owner: the edge enable~~ — **done** (606e5f2): first mint at the 8 new `main` commits,
+   10,719 new-pattern edges per commit (bp-094 journal, 2026-10-29).
 3. `mind-palace lanes code-embed dialogue` (memberships; chatlog → L1 → integrator → causal edges).
 4. `mind-palace relate` (the 27B; embedder asleep first), then an OpenCode `ambassador` run end to
    end (`opencode run --agent ambassador …`), then `mind-palace stack check`.
-5. Merge the branch into `main` locally, then `palace lanes code-observe` once more: the sensor
-   walks `main`, so that pass mints the enabled patterns' edges (~10,483) at the merge commit.
+5. ~~Merge~~ — **done**: `ouroboros/ambassador-infra` merged into local `main` (953f401, no-ff,
+   the merge message carries the record). Nothing pushed.
 
 Open proposals: `docs/brainstorms/ambassador-open-webui-bridge.md` (Qwen inside Open WebUI calling
 palace tools); a separate session to evaluate Hermes Agent as a phone gateway.

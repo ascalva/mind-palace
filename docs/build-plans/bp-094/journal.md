@@ -150,3 +150,17 @@ the fix.
 **Enable (pending):** `ENABLED_L2B_PATTERNS = {"dn-slug", "finding-id", "inherits", "calls"}`.
 The sensor walks `main`, so the first mint is the code-observe pass after the branch merges —
 about 10,483 edges at that commit, forward-only (no history backfill).
+
+## 2026-10-29 — enabled; first mint
+
+Owner's yes (2026-10-29). `ENABLED_L2B_PATTERNS = {dn-slug, finding-id, inherits, calls}`
+(606e5f2), merged to local `main` (953f401). The next `palace lanes code-observe` snapshotted the 8
+new `main` commits (ledger 1,467) and projected each in 107 s; edges are per-commit readings (the
+identity includes `commit_sha`), so every commit got its own full set. At the tip (953f401):
+**calls 10,237 · finding-id 286 · dn-slug 185 · inherits 11** (the census at 16cb027 plus the new
+code — 234 more calls, 2 more dn-slug). Across the 8 commits: calls 81,687, finding-id 2,288,
+dn-slug 1,480, inherits 88. Forward-only: the 1,459 earlier commits keep their pre-enable readings.
+
+Cost, measured: a commit's reading is now 14,537 reference edges (was ~1,800), and
+`reference_edges.sqlite` grew 44.4 MB over the 8 commits — about 5.5 MB per commit (0.96 → 1.01
+GB). At the last 30 days' pace (38 commits on `main`) that is about 210 MB a month.
