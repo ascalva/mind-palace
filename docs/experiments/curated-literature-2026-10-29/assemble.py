@@ -60,7 +60,8 @@ def _inline(path: Path, root: Path, seen: set[Path]) -> str:
     def sub(m: re.Match[str]) -> str:
         name = m.group(1).strip()
         target = (root / name) if name.endswith(".tex") else (root / f"{name}.tex")
-        return _inline(target.resolve(), root, seen) if target.resolve().is_relative_to(root) else ""
+        resolved = target.resolve()
+        return _inline(resolved, root, seen) if resolved.is_relative_to(root) else ""
 
     def subdoc(m: re.Match[str]) -> str:
         target = (root / f"{m.group(1).strip()}.tex").resolve()
@@ -92,7 +93,8 @@ def _body(tex: str) -> str:
 
 def _readme_title(readme: Path, fallback: str) -> str:
     if readme.is_file():
-        m = re.search(r"^#\s*\[(.+?)\]\(", readme.read_text(encoding="utf-8", errors="replace"), re.M)
+        text = readme.read_text(encoding="utf-8", errors="replace")
+        m = re.search(r"^#\s*\[(.+?)\]\(", text, re.M)
         if m:
             return m.group(1).strip()
     return fallback.replace("-", " ")

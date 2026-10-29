@@ -20,6 +20,8 @@
     uv run scripts/palace.py relate         # on-demand: signed relation edges (wakes the model)
     uv run scripts/palace.py lanes [code-observe|code-embed|dialogue]  # on-demand edge lanes
     uv run scripts/palace.py reembed --confirm  # re-embed everything with the configured model
+    uv run scripts/palace.py tick           # the heartbeat: sense, decide, act (every 15 min)
+    uv run scripts/palace.py tick pause 2h  # kill switch with expiry (7 days max); `tick resume`
     uv run scripts/palace.py bless <id>     # owner-only: flip a plan proposed -> ready (gate)
 
 `start` seals the core (Invariant 1 — loopback only), runs preflight (ensures our own
@@ -50,7 +52,8 @@ _ROOT = Path(__file__).resolve().parent.parent  # repo root, for the bless path 
 
 USAGE = ("usage: palace.py "
          "{start|stop|down|up|restart|status|queue|reset|deploy|ingest-chat|code-seed|"
-         "code-backfill|code-rebuild|dream|vault-sync|dialogue-sync|relate|lanes|reembed|bless} "
+         "code-backfill|code-rebuild|dream|vault-sync|dialogue-sync|relate|lanes|reembed|tick|"
+         "bless} "
          "[--force] [--confirm] [--skip-tests] [--dry-run] [<plan-id>]")
 
 
@@ -221,6 +224,9 @@ def main(argv: list[str]) -> int:
             return 2
         return bless(argv[1])
     seal()  # structural egress guard first (Invariant 1); the launcher works within it (loopback)
+    if argv[0] == "tick":   # the heartbeat (ops/heartbeat.py) builds the launcher only to sync
+        from ops.heartbeat import main as heartbeat
+        return heartbeat(argv[1:])
     from ops.lifecycle.launcher import build_launcher
 
     cmd, flags = argv[0], set(argv[1:])
@@ -247,18 +253,24 @@ def main(argv: list[str]) -> int:
         return launcher.code_seed()
     if cmd == "code-backfill":
         return launcher.code_backfill()
-    if cmd == "dream":
-        return launcher.dream_now()
-    if cmd == "vault-sync":
-        return launcher.vault_sync_now()
-    if cmd == "dialogue-sync":
-        return launcher.dialogue_sync_now()
-    if cmd == "relate":
-        return launcher.relate_now()
-    if cmd == "reembed":
-        return launcher.reembed_now(confirm="--confirm" in flags)
-    if cmd == "lanes":
-        return launcher.lanes_now({a for a in argv[1:] if not a.startswith("-")} or None)
+    # the long on-demand verbs run under a ledger record, so the Ambassador can say how they went
+    from core.stores.tasks import run_as_job
+    lanes = sorted(a for a in argv[1:] if not a.startswith("-"))
+    tracked = {
+        "dream": ("dreaming pass", launcher.dream_now),
+        "vault-sync": ("vault sync", launcher.vault_sync_now),
+        "dialogue-sync": ("dialogue sync", launcher.dialogue_sync_now),
+        "relate": ("relation edges", launcher.relate_now),
+        "lanes": ("lanes: " + (", ".join(lanes) or "all"),
+                  lambda: launcher.lanes_now(set(lanes) or None)),
+    }
+    if cmd in tracked:
+        title, fn = tracked[cmd]
+        return run_as_job(title, fn)
+    if cmd == "reembed":   # recorded only when it runs; the bare refusal is no job
+        if "--confirm" not in flags:
+            return launcher.reembed_now(confirm=False)
+        return run_as_job("re-embed", lambda: launcher.reembed_now(confirm=True))
     if cmd == "code-rebuild":
         # ENQUEUES (or, with --dry-run, only measures). Never stops the daemon: D7 runs the
         # migration as checkpointed queue slices under the single writer.

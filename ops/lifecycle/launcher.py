@@ -1457,7 +1457,8 @@ class Launcher:
         print(f"dreamed {len(themes)} theme(s); {grounded} grounded")
         return 0
 
-    def dialogue_sync_now(self, *, container: str = "lmtune-webui") -> int:
+    def dialogue_sync_now(self, *, container: str = "lmtune-webui",
+                          only: set[str] | None = None) -> int:
         """Pull the owner's conversations with the local model — Open WebUI chats and OpenCode
         sessions — into the dialogue stratum, idempotently.
 
@@ -1465,7 +1466,8 @@ class Launcher:
         imports, read-only inside the container) writes `data/handoff/dialogue/openwebui.json`;
         this side reads it and captures each turn — owner turns as `authored-dialogue`, the
         model's as `observed` — keyed by `openwebui/<chat>/<message>` so a re-sync adds only
-        what is new."""
+        what is new. A source captured in full leaves `<source>.synced` (the newest change it
+        saw): the heartbeat's mark for "anything new since?". `only` limits the sources."""
         if self._refuse_if_live("dialogue-sync"):
             return 1
         import json
@@ -1480,6 +1482,8 @@ class Launcher:
         capture = build_dialogue_capture(self.cfg)
         failed = False
         for source, argv in sources.items():
+            if only is not None and source not in only:
+                continue
             handoff = self.cfg.paths.data_dir / "handoff" / "dialogue" / f"{source}.json"
             edge = subprocess.run([sys.executable, *argv, "--out", str(handoff)],
                                   cwd=self.repo_root, capture_output=True, text=True, timeout=180)
@@ -1501,6 +1505,11 @@ class Launcher:
                     seen += 1
             print(f"dialogue sync ({source}): {len(doc.get('chats', []))} conversation(s), "
                   f"{seen} turn(s), {new} new")
+            mark = handoff.with_suffix(".synced")   # written only once every turn is captured
+            mark.write_text(json.dumps({
+                "latest": max((int(c.get("updated_at") or 0) for c in doc.get("chats", [])),
+                              default=0),
+                "at": datetime.now(UTC).isoformat(timespec="seconds")}))
         return 1 if failed else 0
 
     def reembed_now(self, *, confirm: bool) -> int:

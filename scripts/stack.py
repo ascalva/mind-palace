@@ -2,8 +2,9 @@
 """The Ouroboros stack, one command: `mind-palace stack {up|status|check|restart|down}`.
 
 Declared in `config/stack.toml`; everything is idempotent. `up` installs the embedder as a launchd
-LaunchAgent (llama-server, sleeps when idle) and the Open WebUI bridge as another (a stdlib HTTP
-edge on loopback; its sealed responder starts per use and exits idle), installs the OpenCode
+LaunchAgent (llama-server, sleeps when idle), the Open WebUI bridge as another (a stdlib HTTP
+edge on loopback; its sealed responder starts per use and exits idle) and the heartbeat as a third
+(`palace tick` every 15 minutes: plain-code decisions, models only on need), installs the OpenCode
 workflow from `ops/stack/opencode/` (the palace MCP server, the Ambassador agent, the `palace`
 skill, the commands), and runs the palace preflight. `check` proves both chains end to end with a
 real query: the MCP server over stdio, and the bridge over HTTP with its key. Secrets never pass
@@ -272,6 +273,56 @@ def bridge_roundtrip(query: str = "what have I been thinking about?") -> str:
 # ── OpenCode ────────────────────────────────────────────────────────────────────────────────────
 
 
+# ── the heartbeat ───────────────────────────────────────────────────────────────────────────────
+
+
+def _tick_plist() -> dict[str, Any]:
+    t = CFG["tick"]
+    log = _x(t["log"])
+    uv = shutil.which("uv") or "/opt/homebrew/bin/uv"
+    return {
+        "Label": t["label"],
+        "ProgramArguments": [uv, "run", "--quiet", "--directory", str(ROOT), "python",
+                             "scripts/palace.py", "tick"],
+        # pmset and ps live in /usr/bin; podman (the Open WebUI check) in Homebrew
+        "EnvironmentVariables": {"PATH": "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"},
+        "StartInterval": int(t["interval_s"]),   # a missed beat (the Mac asleep) runs on wake
+        "RunAtLoad": True,
+        "ProcessType": "Background",
+        "LowPriorityIO": True,
+        "StandardOutPath": str(log),
+        "StandardErrorPath": str(log),
+    }
+
+
+def tick_up() -> str:
+    t = CFG["tick"]
+    _x(t["log"]).parent.mkdir(parents=True, exist_ok=True)
+    how, err = _install(t["label"], _tick_plist())
+    if err:
+        return f"✗ heartbeat: {err}"
+    return f"✓ heartbeat: `palace tick` every {int(t['interval_s']) // 60} min ({how})"
+
+
+def tick_down() -> str:
+    if _loaded(CFG["tick"]["label"]):
+        subprocess.run(["launchctl", "bootout", f"gui/{UID}/{CFG['tick']['label']}"],
+                       capture_output=True)
+        return "✓ heartbeat stopped (the LaunchAgent stays installed; `stack up` starts it again)"
+    return "· heartbeat was not running"
+
+
+def tick_status() -> str:
+    if not _loaded(CFG["tick"]["label"]):
+        return "✗ heartbeat: agent not installed (`mind-palace stack up`)"
+    try:
+        rec = json.loads((ROOT / "data" / "tick.json").read_text())
+    except (OSError, ValueError):
+        return "· heartbeat: installed, no tick recorded yet"
+    said = "; ".join(f"{d['action']} {'yes' if d['go'] else 'no'}" for d in rec["decisions"])
+    return f"✓ heartbeat: last tick {rec['at'][:16]} ({rec['took_s']} s): {said}"
+
+
 def opencode_up() -> str:
     src, dst = ROOT / "ops" / "stack" / "opencode", _x(CFG["opencode"]["config_dir"])
     copied = 0
@@ -380,13 +431,15 @@ def main(argv: list[str]) -> int:
     if cmd == "serve-embedder":           # the LaunchAgent's entry point; never returns
         serve_embedder()
     if cmd == "up":
-        lines = [chat_status(), embedder_up(), bridge_up(), opencode_up(), palace_preflight()]
+        lines = [chat_status(), embedder_up(), bridge_up(), tick_up(), opencode_up(),
+                 palace_preflight()]
     elif cmd == "restart":
         lines = [embedder_restart()]
     elif cmd == "down":
-        lines = [embedder_down(), bridge_down()]
+        lines = [embedder_down(), bridge_down(), tick_down()]
     elif cmd == "status":
-        lines = [chat_status(), embedder_status(), bridge_status(), palace_preflight()]
+        lines = [chat_status(), embedder_status(), bridge_status(), tick_status(),
+                 palace_preflight()]
     elif cmd == "check":
         lines = [chat_status(), embedder_status(), mcp_roundtrip(), bridge_roundtrip()]
     else:

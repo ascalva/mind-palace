@@ -602,6 +602,6 @@ def _hit_from_row(r: dict[str, Any], *, score: float) -> Hit:
         score=round(score, 4),
         stratum=_STRATUM_OF.get(prov, ""),
         provenance=prov,
-        text=str(r.get("text", ""))[:600],
+        text=str(r.get("text", ""))[:300],
         detail={"chunk": int(r.get("chunk_index", 0) or 0)},
     )

@@ -10,7 +10,9 @@ itself (Invariant 1), reads those text files, and writes `provenance="curated"` 
 SEPARATE curated store (`open_curated_store`) — never the mirror — in the row shape of
 `core.research.persist.persist_keepers`. Every chunk's title carries the manifest's tag (e.g.
 `[unreviewed · OpenAI 2026-10-25] …`), so every search hit says what kind of claim it is.
-Idempotent: a document whose text digest is already in the store is skipped.
+Idempotent: a document whose text digest is already in the store is skipped. A real run keeps a
+ledger record with progress (`core.stores.tasks.job_record`), so the Ambassador's status tool and
+the heartbeat can say how far it got.
 """
 
 from __future__ import annotations
@@ -21,7 +23,9 @@ import json
 import os
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))  # repo root on path
@@ -41,8 +45,6 @@ def main(argv: list[str] | None = None) -> int:
 
     from core.ingest.embed import build_embedder
     from core.kernel.config import get_config
-    from core.kernel.ingest.chunk import chunk_text
-    from core.kernel.provenance import Provenance
     from core.stores.curated_store import open_curated_store
 
     cfg = get_config()
@@ -50,10 +52,25 @@ def main(argv: list[str] | None = None) -> int:
     docs = json.loads(args.manifest.read_text(encoding="utf-8"))
     store = open_curated_store(cfg)
     have = {str(r["digest"]) for r in store.project(["digest"])}
-    embedder = None if args.dry_run else build_embedder(cfg)
+    if args.dry_run:
+        return _embed(args, docs, store, have, data, None, None)
+    from core.stores.tasks import job_record
+
+    title = f"curated import: {args.manifest.parent.name}/{args.manifest.name}"
+    with job_record(title) as progress:
+        return _embed(args, docs, store, have, data, build_embedder(cfg), progress)
+
+
+def _embed(args: argparse.Namespace, docs: list[dict[str, Any]], store: Any, have: set[str],
+           data: Path, embedder: Any, progress: Callable[[str], None] | None) -> int:
+    from core.kernel.ingest.chunk import chunk_text
+    from core.kernel.provenance import Provenance
+
     added = skipped = n_chunks = 0
     t0 = time.monotonic()
     for i, d in enumerate(docs, 1):
+        if progress is not None:
+            progress(f"{i - 1}/{len(docs)} documents · {n_chunks} chunks")
         path = Path(str(d["path"])).resolve()
         if not path.is_relative_to(data):
             raise SystemExit(f"refusing {path}: curated sources must live under {data}")

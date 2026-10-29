@@ -49,6 +49,27 @@ json.dump(out, sys.stdout)
 """
 
 
+_LATEST = r"""
+import sqlite3, sys
+con = sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True)
+print(con.execute("select max(updated_at) from chat where archived = 0").fetchone()[0] or 0)
+"""
+
+
+def latest_update(
+    container: str, *, runner: list[str] | None = None, db: str = CONTAINER_DB
+) -> int:
+    """When the newest chat last changed (Open WebUI's `updated_at`, epoch seconds) — one tiny
+    read-only query, so the heartbeat can tell whether a sync has anything to do."""
+    argv = runner or ["podman", "exec", "-i", container, "python3"]
+    proc = subprocess.run(
+        [*argv, "-", db], input=_LATEST, capture_output=True, text=True, timeout=30
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"reading Open WebUI failed: {proc.stderr.strip()[:300]}")
+    return int(float(proc.stdout.strip() or 0))
+
+
 def export_chats(
     container: str, *, runner: list[str] | None = None, db: str = CONTAINER_DB
 ) -> list[dict]:
@@ -65,9 +86,16 @@ def export_chats(
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="edge.openwebui")
-    ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--out", type=Path)
     ap.add_argument("--container", default="lmtune-webui")
+    ap.add_argument("--latest", action="store_true",
+                    help="print when the newest chat last changed, and nothing else")
     args = ap.parse_args(argv)
+    if args.latest:
+        print(json.dumps({"latest": latest_update(args.container)}))
+        return 0
+    if args.out is None:
+        ap.error("--out is required")
     chats = export_chats(args.container)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     tmp = args.out.with_suffix(".part")

@@ -18,6 +18,7 @@ import statistics
 import sys
 import time
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -77,7 +78,7 @@ def main(argv: list[str] | None = None) -> int:
     bench("history forward", lambda: amb.history(note), hits)
     bench("related", lambda: amb.related(note), hits)
     for depth in (1, 2, 3):
-        bench(f"reach   depth={depth}", lambda d=depth: amb.reach(code_ref, depth=d), hits)
+        bench(f"reach   depth={depth}", partial(amb.reach, code_ref, depth=depth), hits)
     if edge is not None:
         bench("origin", lambda: amb.origin(edge.edge_id), hits)
 
