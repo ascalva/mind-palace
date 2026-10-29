@@ -107,6 +107,8 @@ def _embed(args: argparse.Namespace, docs: list[dict[str, Any]], store: Any, hav
             rate = n_chunks / max(time.monotonic() - t0, 1e-9)
             print(f"{i}/{len(docs)} documents · {n_chunks} chunks · {rate:.1f} chunks/s",
                   flush=True)
+    if progress is not None:
+        progress(f"{len(docs)}/{len(docs)} documents · {n_chunks} chunks")
     verb = "would embed" if args.dry_run else "embedded"
     print(f"{verb} {len(docs) - skipped} document(s) as {n_chunks} chunk(s); {skipped} already "
           f"stored; curated store now {store.count()} rows ({time.monotonic() - t0:.0f} s)")
