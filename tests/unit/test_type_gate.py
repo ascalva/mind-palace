@@ -18,9 +18,11 @@ from pathlib import Path
 
 from ops.type_gate import (
     BareIgnoreViolation,
+    InnerRingIgnoreViolation,
     MembershipViolation,
     RawShimImportViolation,
     bare_ignores,
+    inner_ring_ignores,
     membership,
     raw_shim_imports,
 )
@@ -401,3 +403,35 @@ def test_the_live_tree_has_exactly_the_one_known_parked_violation():
         "Flip `_RAW_SHIM_SCAN_IS_FATAL` to True in ops/type_gate.py and replace this test with "
         "`assert raw_shim_imports(REPO_ROOT) == []`."
     )
+
+
+# --------------------------------------------------------------------------- inner-ring ignores
+# Owner ruling 2026-10-29, verbatim: "no type ignores allowed in the inner core".
+
+def test_a_coded_ignore_in_an_inner_module_is_a_violation(tmp_path):
+    """Coded, warranted, it does not matter: the inner ring carries none."""
+    _write(tmp_path / "core" / "kernel" / "m.py",
+           "x: int = 'a'  # type: ignore[assignment]  # warrant: a good reason\n")
+    got = inner_ring_ignores(tmp_path, inner=frozenset({"core.kernel.m"}))
+    assert got == [InnerRingIgnoreViolation(
+        module="core.kernel.m", path="core/kernel/m.py", lineno=1,
+        text="# type: ignore[assignment]  # warrant: a good reason")]
+
+
+def test_a_package_init_in_the_ring_is_scanned_too(tmp_path):
+    _write(tmp_path / "core" / "kernel" / "pkg" / "__init__.py", "y = 1  # type: ignore\n")
+    got = inner_ring_ignores(tmp_path, inner=frozenset({"core.kernel.pkg"}))
+    assert [v.path for v in got] == ["core/kernel/pkg/__init__.py"]
+
+
+def test_an_outer_module_and_docstring_prose_are_not_flagged(tmp_path):
+    """Outer modules follow the coded-ignore rule (scan 2), not this one; prose is not a comment."""
+    _write(tmp_path / "core" / "stores" / "outer.py", "z = 1  # type: ignore[misc]\n")
+    _write(tmp_path / "core" / "kernel" / "clean.py",
+           '"""Mentions # type: ignore in prose only."""\nS = "# type: ignore"\n')
+    got = inner_ring_ignores(tmp_path, inner=frozenset({"core.kernel.clean"}))
+    assert got == []
+
+
+def test_the_live_inner_ring_has_no_ignores():
+    assert inner_ring_ignores(REPO_ROOT) == []

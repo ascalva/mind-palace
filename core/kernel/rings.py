@@ -40,7 +40,7 @@ MATH_3P: frozenset[str] = frozenset({"numpy", "scipy"})
 # there). Membership stays computed — the lever is the predicate, not any module's assignment.
 PLUMBING_STDLIB: frozenset[str] = frozenset({"sqlite3"})
 
-# The inner ring — the strict-v2 fixed point over the post-K1+K3 ``core/**`` tree (43 members).
+# The inner ring — the strict-v2 fixed point over the post-K1+K3 ``core/**`` tree (44 members).
 # **K1 (bp-090): the born inner ring physically moved to ``core/kernel/**``.** The 30 born members
 # (37 pre-move − the S1 seven) were relocated ``core.X → core.kernel.X`` (subpaths preserved),
 # except ``core`` (the root package) which stays. The move MINTED five new pure package modules the
@@ -55,6 +55,8 @@ PLUMBING_STDLIB: frozenset[str] = frozenset({"sqlite3"})
 # eval-coupled ``spine.py``, and ``atlas.py`` stay OUTER by design (the S1 seam invariant, §2.6b) —
 # so a new docstring-only ``core.temporal`` residue init is claimed as the 6th split-package marker.
 # Net: 42 − 6 old S1 names + 7 kernel names = 43. Module names, not paths (survives renames).
+# **A3 (2026-10-29): `core.kernel.clearance` computes pure** (stdlib + provenance + scope) and is
+# claimed: 43 + 1 = 44.
 INNER: frozenset[str] = frozenset({
     "core",                       # the root package init (import-free; does not move — §2.3)
     # ── the kernel subtree: 29 born (K1) + 7 S1 (K3) relocated members + the kernel package init ──
@@ -66,6 +68,7 @@ INNER: frozenset[str] = frozenset({
     "core.kernel.complex.hodge",
     "core.kernel.complex.laplacian",
     "core.kernel.complex.support",
+    "core.kernel.clearance",      # A3 (2026-10-29): the clearance lattice; computed pure
     "core.kernel.complex_types",
     "core.kernel.config",
     "core.kernel.config.loader",
