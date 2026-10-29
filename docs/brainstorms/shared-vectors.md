@@ -86,4 +86,49 @@ measured 2026-10-29 (eval/storage_census.py → data/eval/storage-census.json):
     with half their vocabulary used once. Maximum-likelihood α of the frequency distribution
     1.45–2.47 (KS 0.04–0.19; the small strata fit worst): a proper tail analysis (likelihood-ratio
     tests against lognormal and stretched exponential, Clauset et al.) is still to do.
+
+build plan (owner, 2026-10-29, verbatim: "yes, implement the efficient vector storage for all
+strata layers, where the atoms are shared, but you're right, do it in a way that does not leak";
+"the lean ladder ... should follow the vector storage changes, that is the more important work"):
+  A. Amend dn-vector-membership-store (still draft; ratification stays the owner's hand) to
+     re-design the PD-2 fence (§D1: "an atom never spans strata"):
+     1. Atom identity for prose = (content_hash, embedder); the code layers keep D0's header-free
+        body identity. The atom (vector) row carries no provenance.
+     2. Provenance and access move to the membership (occupancy) row. The mirror firewall stays a
+        row prefilter, now per class: boolean currency columns on the atom row (current_authored,
+        current_dialogue, current_observed, current_code: D3's current_any, split by class),
+        kept in step by the landing path (D2) and the R3 ratchet. A mirror query prefilters on
+        current_authored = true (today: vectorstore.py:317-324 filters the row's provenance).
+     3. The no-leak invariant, tested adversarially: a hit's attribution lists only memberships
+        the grant may read. An atom reached through an authored membership never reveals that
+        its text also occurs in a dialogue, observed or curated document. Sourceset's
+        one-stratum axiom (core/kernel/stores/sourceset.py:58-62) holds per membership fiber,
+        not per atom.
+     4. Papers stay physically apart (dn-external-grounding §2.2, ratified): the curated store
+        gets its own atoms and memberships (dedupe and versions inside the literature). Across
+        the two stores, an embedding cache keyed by (content_hash, embedder) embeds a text once
+        even when both store it. Merging the stores is the owner's decision, not this build's.
+  B. Build (tests first, adversarial first):
+     - Landings: vault notes (core/ingest/index.py: index_amendment / delete_source become
+       membership landings; an edit keeps unchanged chunks' atoms, writes the new version's
+       reference set and a supersession record), dialogue (core/ingest/dialogue.py
+       capture_turn), observed captures, curated (scripts/curate_local.py,
+       core/research/persist.py).
+     - Reads: VectorStore.search prefilters by class column; QueryEngine attribution through
+       memberships filtered by the grant (core/query.py `_hit_from_row`, `_search`).
+     - Migration on D7's pattern (sliced, checkpointed, resumable), rebuilt from the raw store;
+       archive the old tables under ~/mind-palace-archive/ first.
+     - Gauges: per-class n_doc, n_occ, |M|/|V| and embeds-avoided (extend lane_gauges).
+     - Tests: a mirror query never surfaces an atom whose only current memberships are observed
+       or curated, and never lists a non-authored membership; the D4/D5 laws over reference sets
+       and supersession chains as Hypothesis properties; tests/integrity stays green.
+  C. Then the storage lever: int8, binary with float rescoring, IVF-PQ and Matryoshka 256,
+     each measured as recall@10 against float32 on the palace's own queries.
+  D. Then the Lean ladder. Ready: formal/ (untracked; Mathlib 9d581dff of 2026-10-27, Lean
+     v4.36.0-rc2, 7.2 GB cache). Mathlib's names have drifted from the foundations note: the PSD
+     lemma is SimpleGraph.posSemidef_lapMatrix (the note cites isPosSemidef_lapMatrix);
+     components-equal-nullity is card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix.
+  Decision models: tev1:0.8b pulled (1.5 GB file; 2.0 GB resident on MLX; 2.2 s cold). First
+     probe, a LanceDB commit-conflict log: choice "concurrency" 0.97; noul "a retry would fix it"
+     0.46, unsettled. Heartbeat rows should pass keep_alive 0 so it unloads at once.
 ```
