@@ -48,3 +48,27 @@ open questions for the owner:
   - Bearer key in Keychain vs a 0600 file (lmtune uses files; the palace's Invariant 10 prefers
     Keychain/env).
 ```
+
+## 2026-10-29 — built
+
+Owner (2026-10-29): "build the connection(s)/mcp as well to be able to have qwen on open webui be
+able to see and interact with ouroboros". Built as shaped above; merged to local `main` (f40398a).
+
+- **Edge** `edge/mcp_http.py`: stdlib MCP over streamable HTTP (JSON responses) on
+  127.0.0.1:8096, lmtune's media-worker gate (Host allowlist with the relay's `10.153.1.2:8096`,
+  Origin refused, bearer key, `/mcp` only). No store handle, no private-zone import (test-pinned);
+  `tools/list` from `edge/palace_tools.json`, pinned to the core's manifest by a test.
+- **Responder** `agents/ambassador/handoff.py` + `scripts/palace_mcp_handoff.py`: sealed, started
+  by the edge on the first call, one at a time (`responder.lock`), exits after 10 idle minutes.
+  The stdio server's own dispatch behind `WEB_TOOLS`.
+- **lmtune**: a generic `[[stack.tool_servers]]` (relay port + tool-server secret entry + three
+  verify probes), the palace as its first entry in `~/.config/lmtune/stack.toml`.
+- **The open questions, answered by default** (owner asked to proceed; re-open any of them):
+  (1) Open WebUI's Qwen sees what the OpenCode Ambassador sees, its own observed turns included;
+  (2) chats are saved on demand ("save this chat" → `sync_dialogue`), no timer;
+  (3) the key is a 0600 file, `~/.config/mind-palace/webui-bridge.key` (lmtune's convention).
+  The tool set is narrower than OpenCode's: no `dream`, `relate` or `link` from a chat window.
+
+Verified: from inside the `lmtune-webui` container with its own seeded connection, through the
+relay → initialize, 12 tools, a real search (5.4 s cold); Qwen3.8-27B, given the tools as
+`palace_*` functions, called `palace_search` unprompted and went on to read the top note.

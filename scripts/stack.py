@@ -17,6 +17,7 @@ import json
 import os
 import plistlib
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -198,10 +199,27 @@ def _bridge_key() -> str:
     return ensure_key(_x(CFG["bridge"]["key_file"]))
 
 
+def _hand_started_bridges(port: int) -> list[int]:
+    """Bridges started by hand (`python -m edge.mcp_http`, e.g. while testing) that hold the port
+    the service needs; nothing else on the port is ever touched."""
+    r = subprocess.run(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+                       capture_output=True, text=True)
+    out = []
+    for pid in {int(p) for p in r.stdout.split()}:
+        cmd = subprocess.run(["ps", "-o", "command=", "-p", str(pid)], capture_output=True,
+                             text=True).stdout
+        if "edge.mcp_http" in cmd:
+            out.append(pid)
+    return out
+
+
 def bridge_up() -> str:
     b = CFG["bridge"]
     _bridge_key()   # created once, 0600; lmtune reads the same file into Open WebUI's secret
     _x(b["log"]).parent.mkdir(parents=True, exist_ok=True)
+    if not _loaded(b["label"]):   # first install: a hand-started bridge yields the port
+        for pid in _hand_started_bridges(b["port"]):
+            os.kill(pid, signal.SIGTERM)
     how, err = _install(b["label"], _bridge_plist())
     if err:
         return f"✗ bridge: {err}"
