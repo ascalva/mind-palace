@@ -2,11 +2,13 @@
 """The Ouroboros stack, one command: `mind-palace stack {up|status|check|restart|down}`.
 
 Declared in `config/stack.toml`; everything is idempotent. `up` installs the embedder as a launchd
-LaunchAgent (llama-server, sleeps when idle), installs the OpenCode workflow from
-`ops/stack/opencode/` (the palace MCP server, the Ambassador agent, the `palace` skill, the
-commands), and runs the palace preflight. `check` proves the chain end to end with a real query
-through the MCP server over stdio. Secrets never pass through here: lmtune's key reaches the palace
-by file reference in the OpenCode config, and by env var NAME in the palace config.
+LaunchAgent (llama-server, sleeps when idle) and the Open WebUI bridge as another (a stdlib HTTP
+edge on loopback; its sealed responder starts per use and exits idle), installs the OpenCode
+workflow from `ops/stack/opencode/` (the palace MCP server, the Ambassador agent, the `palace`
+skill, the commands), and runs the palace preflight. `check` proves both chains end to end with a
+real query: the MCP server over stdio, and the bridge over HTTP with its key. Secrets never pass
+through here: lmtune's key reaches the palace by file reference in the OpenCode config, and by env
+var NAME in the palace config; the bridge's key is a 0600 file this script creates but never prints.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ import subprocess
 import sys
 import time
 import tomllib
+import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -85,7 +88,7 @@ def serve_embedder() -> None:
 
 def embedder_restart() -> str:
     """Apply a config/stack.toml change to the installed service: kick it so it re-reads."""
-    if not _loaded():
+    if not _loaded(CFG["embedder"]["label"]):
         return "✗ embedder: the service is not installed — run `mind-palace stack up`"
     subprocess.run(["launchctl", "kickstart", "-k", f"gui/{UID}/{CFG['embedder']['label']}"],
                    capture_output=True)
@@ -97,17 +100,33 @@ def embedder_restart() -> str:
     return f"✗ embedder: no /health on :{port} after restart — see {CFG['embedder']['log']}"
 
 
-def _agent_path() -> Path:
-    return Path.home() / "Library" / "LaunchAgents" / f"{CFG['embedder']['label']}.plist"
+def _agent_path(label: str) -> Path:
+    return Path.home() / "Library" / "LaunchAgents" / f"{label}.plist"
 
 
-def _loaded() -> bool:
+def _loaded(label: str) -> bool:
     return (
-        subprocess.run(
-            ["launchctl", "print", f"gui/{UID}/{CFG['embedder']['label']}"], capture_output=True
-        ).returncode
+        subprocess.run(["launchctl", "print", f"gui/{UID}/{label}"], capture_output=True).returncode
         == 0
     )
+
+
+def _install(label: str, plist: dict[str, Any]) -> tuple[str, str | None]:
+    """Write the plist if it changed and (re)bootstrap it: ("reinstalled"|"unchanged", error)."""
+    path, want = _agent_path(label), plistlib.dumps(plist)
+    changed = not path.exists() or path.read_bytes() != want
+    if changed:
+        path.write_bytes(want)
+    if changed and _loaded(label):
+        subprocess.run(["launchctl", "bootout", f"gui/{UID}/{label}"], capture_output=True)
+        time.sleep(1)
+    if not _loaded(label):
+        r = subprocess.run(
+            ["launchctl", "bootstrap", f"gui/{UID}", str(path)], capture_output=True, text=True
+        )
+        if r.returncode != 0:
+            return "", f"launchctl bootstrap failed: {r.stderr.strip()}"
+    return ("reinstalled" if changed else "unchanged"), None
 
 
 def embedder_up() -> str:
@@ -115,34 +134,121 @@ def embedder_up() -> str:
     if not _x(e["model"]).exists():
         return f"✗ embedder model missing: {e['model']}"
     _x(e["log"]).parent.mkdir(parents=True, exist_ok=True)
-    path, want = _agent_path(), plistlib.dumps(_plist())
-    changed = not path.exists() or path.read_bytes() != want
-    if changed:
-        path.write_bytes(want)
-    if changed and _loaded():
-        subprocess.run(["launchctl", "bootout", f"gui/{UID}/{e['label']}"], capture_output=True)
-        time.sleep(1)
-    if not _loaded():
-        r = subprocess.run(
-            ["launchctl", "bootstrap", f"gui/{UID}", str(path)], capture_output=True, text=True
-        )
-        if r.returncode != 0:
-            return f"✗ embedder: launchctl bootstrap failed: {r.stderr.strip()}"
+    how, err = _install(e["label"], _plist())
+    if err:
+        return f"✗ embedder: {err}"
     for _ in range(60):
         if _get(f"http://127.0.0.1:{e['port']}/health") is not None:
-            how = "reinstalled" if changed else "unchanged"
             return f"✓ embedder: {e['alias']} on :{e['port']} ({how})"
         time.sleep(1)
     return f"✗ embedder: no /health on :{e['port']} after 60 s — see {e['log']}"
 
 
 def embedder_down() -> str:
-    if _loaded():
+    if _loaded(CFG["embedder"]["label"]):
         subprocess.run(
             ["launchctl", "bootout", f"gui/{UID}/{CFG['embedder']['label']}"], capture_output=True
         )
         return "✓ embedder stopped (the LaunchAgent stays installed; `stack up` starts it again)"
     return "· embedder was not running"
+
+
+# ── the Open WebUI bridge ───────────────────────────────────────────────────────────────────────
+
+
+def _bridge_plist() -> dict[str, Any]:
+    b = CFG["bridge"]
+    log = _x(b["log"])
+    uv = shutil.which("uv") or "/opt/homebrew/bin/uv"
+    return {
+        "Label": b["label"],
+        "ProgramArguments": [uv, "run", "--quiet", "--directory", str(ROOT), "python", "-m",
+                             "edge.mcp_http"],
+        # the responder's `sync_dialogue` reads Open WebUI's chats through podman (Homebrew)
+        "EnvironmentVariables": {"PATH": "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"},
+        "RunAtLoad": True,
+        "KeepAlive": True,
+        "ProcessType": "Background",
+        "StandardOutPath": str(log),
+        "StandardErrorPath": str(log),
+    }
+
+
+def _bridge_post(msg: dict[str, Any], *, key: str | None,
+                 timeout: float = 10.0) -> tuple[int, dict[str, Any] | None]:
+    """One MCP message to the bridge over HTTP: (status, JSON reply or None)."""
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{CFG['bridge']['port']}/mcp", json.dumps(msg).encode(),
+        {"Content-Type": "application/json", "Accept": "application/json, text/event-stream",
+         **({"Authorization": f"Bearer {key}"} if key else {})})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            body = r.read()
+            return r.status, (json.loads(body) if body else None)
+    except urllib.error.HTTPError as e:
+        return e.code, None
+    except OSError:
+        return 0, None
+
+
+def _bridge_key() -> str:
+    sys.path.insert(0, str(ROOT))
+    from edge.mcp_http import ensure_key
+
+    return ensure_key(_x(CFG["bridge"]["key_file"]))
+
+
+def bridge_up() -> str:
+    b = CFG["bridge"]
+    _bridge_key()   # created once, 0600; lmtune reads the same file into Open WebUI's secret
+    _x(b["log"]).parent.mkdir(parents=True, exist_ok=True)
+    how, err = _install(b["label"], _bridge_plist())
+    if err:
+        return f"✗ bridge: {err}"
+    ping = {"jsonrpc": "2.0", "id": 1, "method": "ping"}
+    for _ in range(60):
+        if _bridge_post(ping, key=None, timeout=2.0)[0] == 401:   # answering, and gated
+            return f"✓ bridge: MCP for Open WebUI on 127.0.0.1:{b['port']}/mcp ({how})"
+        time.sleep(1)
+    return f"✗ bridge: no answer on :{b['port']} after 60 s — see {b['log']}"
+
+
+def bridge_down() -> str:
+    if _loaded(CFG["bridge"]["label"]):
+        subprocess.run(["launchctl", "bootout", f"gui/{UID}/{CFG['bridge']['label']}"],
+                       capture_output=True)
+        return "✓ bridge stopped (the LaunchAgent stays installed; `stack up` starts it again)"
+    return "· bridge was not running"
+
+
+def bridge_status() -> str:
+    b = CFG["bridge"]
+    code, _ = _bridge_post({"jsonrpc": "2.0", "id": 1, "method": "ping"}, key=None, timeout=2.0)
+    if code != 401:
+        agent = "agent loaded" if _loaded(b["label"]) else "agent not installed"
+        return f"✗ bridge: not answering on :{b['port']} ({agent})"
+    return f"✓ bridge: answering on :{b['port']}, key required"
+
+
+def bridge_roundtrip(query: str = "what have I been thinking about?") -> str:
+    """Through the edge, the handoff and the sealed responder (started on demand) — the path
+    Open WebUI's tool calls take, minus the relay."""
+    key = _bridge_key()
+    code, init = _bridge_post({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                               "params": {"protocolVersion": "2025-06-18"}}, key=key)
+    if code != 200 or not init:
+        return f"✗ bridge: initialize answered {code or 'nothing'} — is it up? (`stack up`)"
+    _, listed = _bridge_post({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}, key=key)
+    call = {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
+            "params": {"name": "search", "arguments": {"query": query, "k": 3}}}
+    _, reply = _bridge_post(call, key=key, timeout=float(CFG["bridge"]["call_timeout_s"]) + 10)
+    result = (reply or {}).get("result") or {}
+    if not result or result.get("isError"):
+        return f"✗ bridge: search failed — {str(result or reply)[:300]}"
+    hits = json.loads(result["content"][0]["text"])["hits"]
+    tools = len(((listed or {}).get("result") or {}).get("tools", []))
+    return (f"✓ bridge: {tools} tools over HTTP; a real search through the handoff returned "
+            f"{len(hits)} hit(s)")
 
 
 # ── OpenCode ────────────────────────────────────────────────────────────────────────────────────
@@ -189,7 +295,7 @@ def embedder_status() -> str:
     e = CFG["embedder"]
     props = _get(f"http://127.0.0.1:{e['port']}/props")
     if props is None:
-        agent = "agent loaded" if _loaded() else "agent not loaded"
+        agent = "agent loaded" if _loaded(e["label"]) else "agent not loaded"
         return f"✗ embedder: not answering on :{e['port']} ({agent})"
     return f"✓ embedder: {'asleep' if props.get('is_sleeping') else 'loaded'} on :{e['port']}"
 
@@ -256,15 +362,15 @@ def main(argv: list[str]) -> int:
     if cmd == "serve-embedder":           # the LaunchAgent's entry point; never returns
         serve_embedder()
     if cmd == "up":
-        lines = [chat_status(), embedder_up(), opencode_up(), palace_preflight()]
+        lines = [chat_status(), embedder_up(), bridge_up(), opencode_up(), palace_preflight()]
     elif cmd == "restart":
         lines = [embedder_restart()]
     elif cmd == "down":
-        lines = [embedder_down()]
+        lines = [embedder_down(), bridge_down()]
     elif cmd == "status":
-        lines = [chat_status(), embedder_status(), palace_preflight()]
+        lines = [chat_status(), embedder_status(), bridge_status(), palace_preflight()]
     elif cmd == "check":
-        lines = [chat_status(), embedder_status(), mcp_roundtrip()]
+        lines = [chat_status(), embedder_status(), mcp_roundtrip(), bridge_roundtrip()]
     else:
         print(__doc__)
         return 2

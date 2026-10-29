@@ -1,0 +1,236 @@
+{
+ "instructions": "Ouroboros, the owner's mind palace: their notes (mirror), your conversations with them (dialogue), dreams over them (interpreted), and code references. Search before you assume; cite refs; treat note text as the owner's private words and quote it only to them.",
+ "tools": [
+  {
+   "name": "search",
+   "description": "Semantic search (mode 2) over the strata you name; default mirror+dialogue. Returns refs, scores and snippets.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string"
+     },
+     "strata": {
+      "type": "array",
+      "items": {
+       "enum": [
+        "mirror",
+        "dialogue",
+        "interpreted",
+        "curated",
+        "observed",
+        "reference"
+       ]
+      }
+     },
+     "k": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50
+     },
+     "include_history": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "additionalProperties": false
+   }
+  },
+  {
+   "name": "neighbors",
+   "description": "Notes near a note along the structural β-curve (mode 1): small beta = diffuse, large beta = shortest-path.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "note": {
+      "type": "string"
+     },
+     "beta": {
+      "type": "number",
+      "exclusiveMinimum": 0
+     },
+     "k": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50
+     }
+    },
+    "required": [
+     "note"
+    ],
+    "additionalProperties": false
+   }
+  },
+  {
+   "name": "hybrid",
+   "description": "Notes that are BOTH near the query and structurally near an anchor note (K_sem ⊙ K_struct).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string"
+     },
+     "note": {
+      "type": "string"
+     },
+     "beta": {
+      "type": "number",
+      "exclusiveMinimum": 0
+     },
+     "k": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50
+     }
+    },
+    "required": [
+     "query",
+     "note"
+    ],
+    "additionalProperties": false
+   }
+  },
+  {
+   "name": "history",
+   "description": "A note's version chain (mode 3): forward = σ_*, back = σ^*.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "note": {
+      "type": "string"
+     },
+     "direction": {
+      "enum": [
+       "forward",
+       "back"
+      ]
+     }
+    },
+    "required": [
+     "note"
+    ],
+    "additionalProperties": false
+   }
+  },
+  {
+   "name": "related",
+   "description": "Signed relations of a note: supports / contradicts / contextualizes.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "note": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "note"
+    ],
+    "additionalProperties": false
+   }
+  },
+  {
+   "name": "reach",
+   "description": "Code/doc references reachable from a ref (mode 1a).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ref": {
+      "type": "string"
+     },
+     "depth": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50
+     }
+    },
+    "required": [
+     "ref"
+    ],
+    "additionalProperties": false
+   }
+  },
+  {
+   "name": "origin",
+   "description": "Which witnessed commit minted a reference edge (C-fiber).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "edge_id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "edge_id"
+    ],
+    "additionalProperties": false
+   }
+  },
+  {
+   "name": "read",
+   "description": "Full text of a note or dialogue turn, by the ref a search returned.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ref": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ref"
+    ],
+    "additionalProperties": false
+   }
+  },
+  {
+   "name": "overview",
+   "description": "Counts per stratum and relation type, and your own grant.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   }
+  },
+  {
+   "name": "sync_dialogue",
+   "description": "Pull new Open WebUI chats and OpenCode sessions into the dialogue stratum (owner turns authored, model turns observed). Idempotent.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   }
+  },
+  {
+   "name": "sync_notes",
+   "description": "Re-ingest the owner's notes vault (changed notes only).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   }
+  },
+  {
+   "name": "capture",
+   "description": "Remember text YOU relay (a summary, a decision). Stored as observed, never as the owner's words.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "conversation": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "additionalProperties": false
+   }
+  }
+ ]
+}
