@@ -28,9 +28,13 @@ PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "mind-palace", "version": "0.1.0"}
 INSTRUCTIONS = (
     "Ouroboros, the owner's mind palace: their notes (mirror), your conversations with them "
-    "(dialogue), dreams over them (interpreted), and code references. Search before you assume; "
-    "cite refs; treat note text as the owner's private words and quote it only to them."
+    "(dialogue), dreams over them (interpreted), code references, and curated literature (math, "
+    "physics and computer-science papers — a title marked [unreviewed …] is a claim no expert has "
+    "checked yet; say so when you use it). Search before you assume; cite refs; treat note text as "
+    "the owner's private words and quote it only to them."
 )
+
+_READ_WINDOW = 8   # chunks of a curated paper per `read` (~8K characters): a whole paper won't fit
 
 _STRATA_NAMES = ("mirror", "dialogue", "interpreted", "curated", "observed", "reference")
 
@@ -99,14 +103,25 @@ class Ambassador:
     def origin(self, edge_id: str) -> dict[str, Any]:
         return self._ask("origin", target=edge_id)
 
-    def read(self, ref: str) -> dict[str, Any]:
-        """The full text of a note or dialogue turn named by a hit's `ref`."""
+    def read(self, ref: str, chunk: int | None = None) -> dict[str, Any]:
+        """The full text of a note or dialogue turn named by a hit's `ref` — or, for a curated paper
+        (`reference:…`), a window of it around `chunk` (from the hit; its start when absent)."""
         from pathlib import Path
 
         from core.kernel.stores.rawstore import RawStore
         from core.stores.catalog import VaultCatalog
 
         cfg = self.engine.config
+        if ref.startswith("reference:"):
+            rows = sorted(self.engine._get("curated").rows_for_source(ref),
+                          key=lambda r: int(r.get("chunk_index", 0) or 0))
+            if not rows:
+                raise LookupError(f"no curated reference {ref!r}")
+            start = 0 if chunk is None else max(0, int(chunk) - 2)
+            window = rows[start:start + _READ_WINDOW]
+            return {"ref": ref, "title": rows[0].get("title", ""), "provenance": "curated",
+                    "chunks": f"{start}–{start + len(window) - 1} of {len(rows)}",
+                    "text": "\n".join(str(r.get("text", "")) for r in window)}
         entry = VaultCatalog(cfg.paths.vault_catalog).get(ref)
         if entry is None or not entry.active:
             raise LookupError(f"no active note or dialogue turn {ref!r}")
@@ -228,7 +243,8 @@ TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
     (
         "search",
         "Semantic search (mode 2) over the strata you name; default mirror+dialogue. "
-        "Returns refs, scores and snippets.",
+        "Returns refs, scores and snippets. `curated` is outside literature (math, physics and "
+        "CS papers; [unreviewed …] titles are unchecked claims) — name it to search it.",
         _schema(
             {
                 "query": _S,
@@ -280,8 +296,10 @@ TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
     ),
     (
         "read",
-        "Full text of a note or dialogue turn, by the ref a search returned.",
-        _schema({"ref": _S}, ["ref"]),
+        "Full text of a note or dialogue turn, by the ref a search returned. For a curated paper "
+        "(ref `reference:…`), about 8 chunks around `chunk` (the hit's chunk number), or its "
+        "start.",
+        _schema({"ref": _S, "chunk": _I}, ["ref"]),
         "read",
     ),
     (
