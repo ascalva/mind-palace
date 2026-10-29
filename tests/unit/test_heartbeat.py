@@ -87,6 +87,8 @@ def test_palace_processes_counts_commands_not_their_wrappers():
         f"  {me} {parent} 00:01 /repo/.venv/bin/python scripts/palace.py tick",
         f"  {parent} 1 00:01 /opt/homebrew/bin/uv run python scripts/palace.py tick",
         "  700 1 10:00 /usr/bin/python3 -m http.server",
+        "  800 1 00:02 /repo/.venv/bin/python /repo/scripts/palace.py status",
+        "  801 1 00:02 /repo/.venv/bin/python scripts/palace.py queue",
         "garbage line",
     ])
     found = hb.palace_processes(_runner(ps=ps), skip={600})

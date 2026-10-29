@@ -78,6 +78,7 @@ MAX_PAUSE = timedelta(days=7)   # "temporarily": every pause ends
 BREAKER_AFTER = 3               # failed heartbeat syncs in a row before the breaker opens
 BREAKER_MAX_HOURS = 8
 _PALACE_COMMANDS = ("scripts/palace.py", "scripts/curate_local.py", "eval/")
+_READ_ONLY = re.compile(r"scripts/palace\.py\s+(status|queue|tick)\b")   # quick reads, not work
 _NOTIFY_SCRIPT = ("osascript", "-e", "on run argv",
                   "-e", "display notification (item 3 of argv) with title (item 1 of argv) "
                         "subtitle (item 2 of argv)",
@@ -270,7 +271,8 @@ def palace_processes(run: Runner = _run, *, skip: set[int] | None = None) -> lis
         exe = os.path.basename(command.split(None, 1)[0])
         if pid in skip or pid in parents or not (exe.startswith("python") or exe == "uv"):
             continue   # a shell or `time` wrapping a palace command is not the command
-        if "python" in command and any(c in command for c in _PALACE_COMMANDS):
+        if ("python" in command and any(c in command for c in _PALACE_COMMANDS)
+                and not _READ_ONLY.search(command)):
             what = command.split("python", 1)[-1].strip()[:120]
             found.setdefault(what, {"pid": str(pid), "elapsed": etime, "what": what})
     return list(found.values())

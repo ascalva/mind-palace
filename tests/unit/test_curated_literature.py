@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from agents.ambassador.mcp import _READ_WINDOW, Ambassador
 from core.kernel.provenance import Provenance
 from core.kernel.scope import Stratum
@@ -74,3 +76,19 @@ def test_reading_a_paper_returns_a_window_around_the_hit():
     assert out["text"].split("\n") == [f"c{i}" for i in range(8, 8 + _READ_WINDOW)]
     assert out["chunks"] == f"8–{8 + _READ_WINDOW - 1} of 20" and out["provenance"] == "curated"
     assert amb.read(PAPER)["text"].startswith("c0\nc1")
+
+
+def test_note_graph_verbs_refuse_a_paper_and_say_where_to_go():
+    """A paper's ref handed to a verb over the owner's notes is refused with directions, before
+    any store opens; never a bare LookupError, never an empty "0 hits" that reads as no history."""
+    from agents.ambassador.mcp import Ambassador
+    from core.query import OutOfScopeTarget
+
+    amb = Ambassador()
+    ref = "reference:openai-math:A-counterexample-to-Hadwigers-conjecture-September-23-2026"
+    calls = (lambda: amb.related(ref), lambda: amb.history(ref),
+             lambda: amb.neighbors(ref, beta=1.0, k=5), lambda: amb.hybrid("x", ref, beta=1.0, k=5))
+    for call in calls:
+        with pytest.raises(OutOfScopeTarget, match=r'strata \["curated"\]'):
+            call()
+    assert amb.engine._cache == {}                       # refused before any store opened
