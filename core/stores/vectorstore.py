@@ -40,7 +40,7 @@ LAYER_CODEDOC = "codedoc"    # L1 — docstrings + comments as prose
 
 
 def _schema(dim: int) -> pa.Schema:
-    return pa.schema([
+    fields: list[tuple[str, pa.DataType]] = [
         ("id", pa.string()),            # doc-scoped content id: f"{source_path}:{chunk_hash}" (§4)
         ("digest", pa.string()),        # raw-store identity of the source note's CURRENT version
         ("title", pa.string()),
@@ -69,7 +69,8 @@ def _schema(dim: int) -> pa.Schema:
         # is exactly why D1 re-reads the column instead of adding a second one.
         ("current", pa.bool_()),
         ("vector", pa.list_(pa.float32(), dim)),
-    ])
+    ]
+    return pa.schema(fields)
 
 
 # The default coordinates a NOTE row (or any pre-code row) carries for the code-only columns.

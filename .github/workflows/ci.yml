@@ -27,15 +27,20 @@ concurrency:
 jobs:
   ratchet:
     # The deterministic ratchet: ruff + import-firewall (Invariant 2 static proof,
-    # finding-0014) + the model-free pytest tier. 3.13 = the newest Python scikit-network
-    # (the Track-H graph dep) ships linux wheels for (cp310–cp313; no cp314 yet); CI runs the
-    # declared floor (requires-python >=3.13) on real wheels — no source builds.
+    # finding-0014) + the model-free pytest tier, on the declared floor (requires-python >=3.15).
+    # 2026-10-29 (owner: "upgrade the python version of the project if possible to the latest
+    # version that can resolve all dependencies"): 3.15 resolves, and the CI tier passed on it,
+    # with four packages built from their locked sdists because no cp315 wheel exists yet —
+    # scikit-network 0.33.5 (wheels stop at cp313), ripser 0.6.15 (cp314), watchdog 6.0.0 (cp313,
+    # macOS), hopcroftkarp 1.2.5 (pure Python, sdist only). This retires the earlier wheels-only
+    # rule, which had pinned CI to 3.13 for scikit-network alone. The sdists are hash-locked in
+    # uv.lock and setup-uv caches the built wheels, so the builds are reproducible and paid once.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v8.3.2 # exact tag: no moving `v8` major alias exists (Item 5 wiring fix)
         with:
-          python-version: "3.13"
+          python-version: "3.15"
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Ratchet (ruff · import-firewall · model-free pytest tier)
@@ -107,7 +112,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v8.3.2 # exact tag: no moving `v8` major alias exists (Item 5 wiring fix)
         with:
-          python-version: "3.13"
+          python-version: "3.15"
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Type gate (Tier-2 floor + tests/ baseline + membership scans)
@@ -145,7 +150,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v8.3.2 # exact tag: no moving `v8` major alias exists (Item 5 wiring fix)
         with:
-          python-version: "3.13"
+          python-version: "3.15"
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Vault axis (needs_vault against a real dev-server)
@@ -164,7 +169,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v8.3.2 # exact tag: no moving `v8` major alias exists (Item 5 wiring fix)
         with:
-          python-version: "3.13"
+          python-version: "3.15"
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Semgrep (p/default, report-only — GitLab-SAST parity, oq-0015)

@@ -98,12 +98,13 @@ def test_fci5_mirror_path_results_bit_identical_with_and_without_code(tmp_path):
 # ── the layer-column migration: an old 8-col store rebuilds preserving note rows ─────────
 
 def _old_schema(dim: int) -> pa.Schema:
-    return pa.schema([
+    fields: list[tuple[str, pa.DataType]] = [
         ("id", pa.string()), ("digest", pa.string()), ("title", pa.string()),
         ("source_path", pa.string()), ("chunk_index", pa.int32()),
         ("provenance", pa.string()), ("text", pa.string()),
         ("vector", pa.list_(pa.float32(), dim)),
-    ])
+    ]
+    return pa.schema(fields)
 
 
 def test_layer_migration_preserves_note_rows_bit_identically(tmp_path):

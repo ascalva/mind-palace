@@ -251,14 +251,15 @@ def test_supersede_works_on_a_store_migrated_from_the_pre_current_schema(tmp_pat
     runs once per instance on a store whose schema predates the `current` column; a store that came
     through it must supersede normally, vectors intact."""
     path = tmp_path / "v.lance"
-    legacy = pa.schema([
+    legacy_fields: list[tuple[str, pa.DataType]] = [
         ("id", pa.string()), ("digest", pa.string()), ("title", pa.string()),
         ("source_path", pa.string()), ("chunk_index", pa.int32()),
         ("provenance", pa.string()), ("text", pa.string()),
         ("layer", pa.string()), ("qualname", pa.string()),
         ("line_start", pa.int32()), ("line_end", pa.int32()),
         ("vector", pa.list_(pa.float32(), DIM)),
-    ])
+    ]
+    legacy = pa.schema(legacy_fields)
     pre = VectorStore(path, dim=DIM)
     pre._db.create_table(TABLE, schema=legacy).add(
         [{k: v for k, v in _row("a:0", "a.py", seed=1).items() if k != "current"}]
@@ -284,12 +285,13 @@ def test_rows_for_source_still_works_on_an_unmigrated_pre_current_store(tmp_path
     by bp-103 on a legacy store — which matters, because `code_corpus.sync` reads before it
     writes."""
     path = tmp_path / "v.lance"
-    legacy = pa.schema([
+    legacy_fields: list[tuple[str, pa.DataType]] = [
         ("id", pa.string()), ("digest", pa.string()), ("title", pa.string()),
         ("source_path", pa.string()), ("chunk_index", pa.int32()),
         ("provenance", pa.string()), ("text", pa.string()),
         ("vector", pa.list_(pa.float32(), DIM)),
-    ])
+    ]
+    legacy = pa.schema(legacy_fields)
     pre = VectorStore(path, dim=DIM)
     pre._db.create_table(TABLE, schema=legacy).add([
         {"id": "a:0", "digest": "d1", "title": "a.py", "source_path": "a.py", "chunk_index": 0,
