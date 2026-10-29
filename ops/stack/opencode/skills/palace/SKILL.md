@@ -13,8 +13,9 @@ answer — semantic, structural, temporal — follows from the verb.
 
 | You want | Tool | Notes |
 |---|---|---|
-| Notes or turns about a topic | `palace_search(query, strata?, k?)` | Start here. Default strata = mirror + dialogue. Add `interpreted` for dreams, `reference` for code. `include_history: true` also returns superseded versions. |
-| The full text of a hit | `palace_read(ref)` | Search returns snippets; read before you quote. |
+| Notes or turns about a topic | `palace_search(query, strata?, k?)` | Start here. Default strata = mirror + dialogue. Add `interpreted` for dreams, `reference` for code, `curated` for outside literature (math, physics, CS papers). `include_history: true` also returns superseded versions. |
+| The full text of a hit | `palace_read(ref, chunk?)` | Search returns snippets; read before you quote. For a paper (`reference:…` ref) pass the hit's `chunk` to get the passage around it — a whole paper won't fit. |
+| Mathematics, physics, CS | `palace_search(query, strata: ["curated"])` | 718 OpenAI Math Release manuscripts (LaTeX) and Anthropic's Fermat and Riemann-zeta documents. A title tagged `[unreviewed …]` is a claim no expert has checked: say so, and never present it as settled mathematics. |
 | Notes near a given note | `palace_neighbors(note, beta?, k?)` | Structural, along the β-curve. `beta` 0.1 = diffuse neighbourhood (many weak paths); 10+ = the shortest-path chain. Default 1. |
 | Near a topic AND near a note | `palace_hybrid(query, note, beta?, k?)` | Product of semantic and structural closeness. Good for "what else connects to this idea". |
 | How a note changed | `palace_history(note, direction?)` | `forward` = from first version; `back` = newest first. |

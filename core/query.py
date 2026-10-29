@@ -354,6 +354,10 @@ class QueryEngine:
                 from core.stores.vectorstore import VectorStore
 
                 self._cache[name] = VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim)
+            elif name == "curated":
+                from core.stores.curated_store import open_curated_store
+
+                self._cache[name] = open_curated_store(cfg)
             elif name == "embedder":
                 from core.ingest.embed import build_embedder
 
@@ -404,6 +408,11 @@ class QueryEngine:
         rows = self._get("vectors").search(
             vec, k=q.k, provenances=provs, include_superseded="D" in q.req.edges.fibers
         )
+        if Provenance.CURATED in provs:
+            # Literature lives in its OWN store (dn-external-grounding §2.2), physically apart from
+            # the mirror; a sentence whose Σ admits CURATED reads it too, merged by distance.
+            lit = self._get("curated").search(vec, k=q.k, provenances={Provenance.CURATED})
+            rows = sorted([*rows, *lit], key=lambda r: float(r.get("_distance", 0.0)))[: q.k]
         hits = tuple(_hit_from_row(r, score=1.0 - float(r.get("_distance", 0.0))) for r in rows)
         return Answer(
             q.verb,
