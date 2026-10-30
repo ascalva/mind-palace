@@ -10,6 +10,7 @@ path + a counting embedder (to prove no re-embed); deterministic, no model, no n
 from __future__ import annotations
 
 from core.ingest.sync import VaultSync
+from core.kernel.clearance import MAINTENANCE_READ
 from core.kernel.ingest.amend import chunk_point_id
 from core.kernel.ingest.chunk import chunk_text
 from core.kernel.stores.rawstore import RawStore
@@ -45,7 +46,7 @@ def _sync(tmp_path, embedder):
 
 
 def _by_chunk(store):
-    return {r["chunk_index"]: r for r in store.all_rows()}
+    return {r["chunk_index"]: r for r in store.all_rows(clearance=MAINTENANCE_READ)}
 
 
 def test_amending_one_chunk_reembeds_only_that_chunk(tmp_path):

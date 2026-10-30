@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -196,7 +197,7 @@ class ObservedView:
     two views PARTITION the tiers with no representable overlap (Invariant 6, both directions).
     """
 
-    _rows: tuple[dict[str, Any], ...] = ()
+    _rows: tuple[Mapping[str, Any], ...] = ()
 
     def __post_init__(self) -> None:
         bad = [r.get("provenance") for r in self._rows
@@ -218,8 +219,8 @@ class ObservedView:
         return cls(_rows=tuple(o.to_row() for o in observations))
 
     def rows(self) -> list[dict[str, Any]]:
-        """The observed rows (a fresh list; the view is immutable)."""
-        return list(self._rows)
+        """The observed rows, as fresh plain dicts (the view itself stays immutable)."""
+        return [dict(r) for r in self._rows]
 
     def __len__(self) -> int:
         return len(self._rows)

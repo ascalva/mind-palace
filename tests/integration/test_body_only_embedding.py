@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 from core.ingest.sync import VaultSync
+from core.kernel.clearance import MAINTENANCE_READ
 from core.kernel.ingest.logseq import parse_note, strip_properties
 from core.kernel.ingest.verify import verify_rows_against_raw
 from core.kernel.stores.rawstore import RawStore
@@ -59,7 +60,7 @@ def test_stored_chunks_are_body_only_and_pass_integrity(tmp_path: Path):
     note.write_text(_NOTE, encoding="utf-8")
     sync.sync_path(note)
 
-    rows = sync.store.all_rows()
+    rows = sync.store.all_rows(clearance=MAINTENANCE_READ)
     assert rows, "the note should have produced chunk rows"
     for r in rows:
         assert "id::" not in r["text"] and "date::" not in r["text"]   # metadata not in vectors
@@ -102,7 +103,7 @@ def test_note_with_no_properties_is_unchanged_by_the_strip(tmp_path: Path):
     note = sync.vault / "p.md"
     note.write_text("Just prose, no properties, links to [[x]].\n", encoding="utf-8")
     sync.sync_path(note)
-    rows = sync.store.all_rows()
+    rows = sync.store.all_rows(clearance=MAINTENANCE_READ)
     verified, dropped = verify_rows_against_raw(rows, sync.raw)
     assert dropped == [] and len(verified) == len(rows)
 

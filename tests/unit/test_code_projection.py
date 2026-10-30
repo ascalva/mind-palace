@@ -18,6 +18,7 @@ import pytest
 
 from core.attestation.attestor import StoreAttestor
 from core.attestation.store import AttestationStore
+from core.kernel.clearance import MAINTENANCE_READ, Clearance
 from core.kernel.mirror import MirrorView, NonMirrorRowError
 from core.kernel.provenance import Provenance
 from core.sensing import CodeSensingHandoff, ObservedView
@@ -73,8 +74,10 @@ def test_sync_projects_symbol_grain_rows_for_each_new_commit(repo, tmp_path):
     c1 = obs.rows_for(shas[0])
     assert [(r["qualname"], r["kind"]) for r in c1] == [("", "module"), ("a", "function")]
     assert c1[0]["docstring"] == "Module A." and c1[1]["docstring"] == "Does a."  # real, not ''
-    assert all(r["provenance"] == Provenance.OBSERVED.value for r in obs.all_rows())
-    assert all(r["references_out"] == [] for r in obs.all_rows())   # B-b emits empty; B-c fills
+    assert all(r["provenance"] == Provenance.OBSERVED.value for r in obs.all_rows(
+        clearance=MAINTENANCE_READ))
+    # B-b emits empty; B-c fills
+    assert all(r["references_out"] == [] for r in obs.all_rows(clearance=MAINTENANCE_READ))
     c2_kinds = {(r["path"], r["qualname"], r["kind"]) for r in obs.rows_for(shas[1])}
     assert ("b.py", "B", "class") in c2_kinds and ("b.py", "B.m", "function") in c2_kinds
 
@@ -122,13 +125,15 @@ def test_mirror_view_refuses_a_source_containing_observation_rows(repo, tmp_path
     class _LeakySource:
         """A buggy RowSource that ignores the provenance filter — the §2.6 attack shape."""
 
-        def all_rows(self, *, provenances: Any = None) -> list[dict[str, Any]]:
-            return store.all_rows()                        # leaks observed rows regardless
+        def all_rows(self, *, clearance: Clearance[Provenance]) -> list[dict[str, Any]]:
+            # leaks observed rows regardless of the clearance it was handed
+            return [dict(r) for r in store.all_rows(clearance=MAINTENANCE_READ)]
 
     with pytest.raises(NonMirrorRowError):
         MirrorView.project(_LeakySource())                 # refused: OBSERVED is mirror-opaque
     assert len(MirrorView.project(obs)) == 0               # honest π_MR: excluded entirely
-    assert len(ObservedView(_rows=tuple(obs.all_rows()))) == obs.count()   # the sanctioned tier
+    # the sanctioned tier
+    assert len(ObservedView(_rows=tuple(obs.all_rows(clearance=MAINTENANCE_READ)))) == obs.count()
 
 
 # --- seam healing: a batch left in the handoff (crash) is collected on the next sync ---------

@@ -27,7 +27,10 @@ def forman(A: sp.csr_matrix) -> dict[tuple[int, int], float]:
 
     Negative on bridges (high endpoint degree, low triangle support); positive inside
     triangle-dense communities. Exact and deterministic — pure degree/triangle combinatorics."""
-    B = (A != 0).astype(np.int64)  # type: ignore[attr-defined]  # warrant: sparse __ne__ returns a matrix at runtime; stubs over-narrow to bool (T3)
+    # The support indicator: a stored nonzero (negatives and NaN included) becomes 1, a stored zero
+    # becomes 0 and is dropped by `eliminate_zeros` below. Spelled as `astype(bool)` rather than
+    # `A != 0` because the stubs type sparse `__ne__` as a bool; equal on 400 random matrices.
+    B = A.astype(bool).astype(np.int64)
     B = B.tocsr()
     B.setdiag(0)
     B.eliminate_zeros()

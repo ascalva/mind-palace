@@ -36,6 +36,9 @@ from typing import Any
 
 import numpy as np
 
+from core.kernel.clearance import MAINTENANCE_READ
+from core.stores.vectorstore import open_vector_store
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root on path
 
 MODELS = Path.home() / "models"
@@ -117,11 +120,11 @@ def load_beir(
     import pyarrow.parquet as pq
 
     corpus = {
-        r["_id"]: (r.get("title") or "", r["text"])
+        str(r["_id"]): (str(r.get("title") or ""), str(r["text"]))
         for r in pq.read_table(DATA / ds / "corpus-00000-of-00001.parquet").to_pylist()
     }
     queries = {
-        r["_id"]: r["text"]
+        str(r["_id"]): str(r["text"])
         for r in pq.read_table(DATA / ds / "queries-00000-of-00001.parquet").to_pylist()
     }
     qrels: dict[str, dict[str, int]] = {}
@@ -137,10 +140,9 @@ def load_beir(
 
 def palace_chunks() -> list[str]:
     from config.loader import load_config
-    from core.stores.vectorstore import VectorStore
 
     cfg = load_config()
-    rows = VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim).all_rows()
+    rows = open_vector_store(cfg).all_rows(clearance=MAINTENANCE_READ)
     return [str(r["text"]) for r in rows if r.get("text")]
 
 

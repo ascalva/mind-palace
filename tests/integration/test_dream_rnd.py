@@ -27,6 +27,7 @@ from core.dreaming.interpreters import (
     Claim,
 )
 from core.graph.census import Arc, census
+from core.kernel.clearance import Clearance
 from core.kernel.mirror import MirrorView
 from core.kernel.provenance import Provenance
 from core.kernel.selfcheck import grounding_score
@@ -172,13 +173,10 @@ def test_observed_rows_cannot_enter_the_panel():
     # Even if a row source carries observed exhaust, the MirrorView projection drops it before
     # the panel ever sees it (Invariant 6, structural) — so no observed digest reaches a claim.
     class MixedStore:
-        def all_rows(self, *, provenances=None):
+        def all_rows(self, *, clearance: Clearance[Provenance]):
             rows = ROWS + [{"digest": "OBS", "title": "obs", "provenance": "observed",
                             "vector": [0.5, 0.5, 0.5]}]
-            if provenances is None:
-                return rows
-            allowed = {str(p) for p in provenances}
-            return [r for r in rows if r["provenance"] in allowed]
+            return [r for r in rows if clearance.admits(r["provenance"])]
 
     view = MirrorView.project(MixedStore())
     supports = {d for c in run_panel(view, config=_on_config()) for d in c.support}

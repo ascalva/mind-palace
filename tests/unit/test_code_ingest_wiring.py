@@ -26,6 +26,7 @@ import subprocess
 from contextlib import redirect_stdout
 from pathlib import Path
 
+from core.kernel.clearance import CODE_READ
 from core.kernel.config import REPO_ROOT, load_config
 from ops.lifecycle.launcher import Launcher, build_components
 from ops.lifecycle.runs import RunLedger
@@ -273,7 +274,6 @@ def test_the_probe_does_not_false_positive_against_a_rebuilt_store(tmp_path) -> 
     new one and asserted to be WRONG. Without that counterfactual the assertion is just "the probe
     says complete", which the old code could also produce on some other input."""
     from core.ingest.code_corpus import code_memberships, code_rows, derive_code_chunks
-    from core.kernel.provenance import Provenance
     from core.stores.memberships import EmbedderIdentity, open_membership_store
     from core.stores.vectorstore import VectorStore
     from ops.code_lineage import ledger_versions
@@ -309,7 +309,7 @@ def test_the_probe_does_not_false_positive_against_a_rebuilt_store(tmp_path) -> 
 
     # THE COUNTERFACTUAL: the old store-side reading collapses to ONE tuple and would loop forever
     old_reading = {(str(r["source_path"]), str(r["digest"]))
-                   for r in vectors.all_rows(provenances={Provenance.CODE})}
+                   for r in vectors.all_rows(clearance=CODE_READ)}
     assert old_reading == {("", "")}, "the shed collapses every atom row to one bogus pair"
     assert len(old_reading) < len(versions), "...so the OLD probe reads incomplete, forever"
 

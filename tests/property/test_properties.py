@@ -17,6 +17,7 @@ from hypothesis import strategies as st
 from core.factory.factory import AgentFactory
 from core.factory.roles import PRE_DECLARED_MAX, RoleTemplate
 from core.factory.tools import ToolRegistry, ToolSpec
+from core.kernel.clearance import Clearance
 from core.kernel.mirror import MirrorView
 from core.kernel.provenance import MIRROR_READABLE, Provenance
 from core.kernel.recursion import claim_confidence, decay_bound
@@ -41,11 +42,8 @@ class _Source:
     def __init__(self, rows):
         self.rows = rows
 
-    def all_rows(self, *, provenances=None):
-        if provenances is None:
-            return list(self.rows)
-        allowed = {str(p) for p in provenances}
-        return [r for r in self.rows if r["provenance"] in allowed]
+    def all_rows(self, *, clearance: Clearance[Provenance]):
+        return [r for r in self.rows if clearance.admits(r.get("provenance"))]
 
 
 @given(st.lists(_row, max_size=30))

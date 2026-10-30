@@ -20,15 +20,16 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from core.ingest.embed import Embedder
 from core.ingest.index import semantic_search
+from core.kernel.clearance import MIRROR_READ, Clearance
 from core.kernel.config import Config
 from core.kernel.constitution import Message, frame_context
 from core.kernel.ingest.verify import verify_rows_against_raw
-from core.kernel.provenance import MIRROR_READABLE, Provenance
+from core.kernel.provenance import Provenance
 from core.kernel.selfcheck import SelfCheck, Source, SubjectiveJudge, self_evaluate
 from core.kernel.stores.rawstore import RawStore
 from core.models import ModelServer
@@ -135,14 +136,14 @@ class Librarian:
     raw: RawStore | None = None
 
     def retrieve(self, query: str, *,
-                 provenances: Iterable[Provenance] | None = MIRROR_READABLE) -> list[Retrieval]:
-        """Semantic retrieval over the thought-graph. Defaults to the mirror
-        (AUTHORED-only); the assistant tier (Phase 3+) may widen `provenances`.
+                 clearance: Clearance[Provenance] = MIRROR_READ) -> list[Retrieval]:
+        """Semantic retrieval over the thought-graph. Defaults to the mirror (the owner's own
+        words); a wider read needs a wider clearance, minted by an authority (A3.4).
 
         With a `raw` store wired, each hit is verified to reproduce from its content-addressed
         source before it is returned (fail-closed integrity, audit G9.5): a tampered/unreproducible
         row is dropped (logged) rather than cited to the model under a clean digest."""
-        rows = semantic_search(query, self.embedder, self.store, k=self.k, provenances=provenances)
+        rows = semantic_search(query, self.embedder, self.store, k=self.k, clearance=clearance)
         if self.raw is not None:
             rows, dropped = verify_rows_against_raw(rows, self.raw)
             for d in dropped:
@@ -172,10 +173,10 @@ class Librarian:
         )
 
     def answer(self, query: str, *, history: list[Message] | None = None,
-               provenances: Iterable[Provenance] | None = MIRROR_READABLE,
+               clearance: Clearance[Provenance] = MIRROR_READ,
                judge: SubjectiveJudge | None = None,
                think: bool | None = None) -> LibrarianAnswer:
-        retrievals = self.retrieve(query, provenances=provenances)
+        retrievals = self.retrieve(query, clearance=clearance)
         messages = self.context_for(query, retrievals, history=history)
         output = self.server.chat(self.tier, messages, think=think)
         # The retrieved notes are the only legitimate citation targets; resolve by stable

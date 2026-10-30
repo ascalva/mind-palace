@@ -31,8 +31,8 @@ from core.attestation import Attestor
 from core.dreams_view import DreamsView
 from core.factory.roles import RoleTemplate
 from core.ingest.dialogue import DialogueCapture
+from core.kernel.clearance import CURATED_READ, MIRROR_READ
 from core.kernel.constitution import Message, frame_context
-from core.kernel.provenance import MIRROR_READABLE, Provenance
 from core.kernel.selfcheck import SelfCheck, Source, self_evaluate
 from core.librarian import Librarian, Retrieval
 from core.ops_view import OpsView
@@ -160,9 +160,9 @@ class Ambassador:
     # --- dispatch -----------------------------------------------------------------------------
     def _dispatch(self, intent: Intent, text: str, conversation: str):
         if intent is Intent.RETRIEVE:
-            return self._answer(text, conversation, provenances=MIRROR_READABLE)
+            return self._answer(text, conversation, clearance=MIRROR_READ)
         if intent is Intent.EXPLAIN:
-            return self._answer(text, conversation, provenances={Provenance.CURATED})
+            return self._answer(text, conversation, clearance=CURATED_READ)
         if intent is Intent.STATUS:
             self._attest("read")
             return self.ops_view.narrate(), (), None
@@ -174,10 +174,10 @@ class Ambassador:
         # CAPTURE: the storing happens in respond(); here we just acknowledge.
         return "Noted — I've saved that to your corpus.", (), None
 
-    def _answer(self, text: str, conversation: str, *, provenances):
+    def _answer(self, text: str, conversation: str, *, clearance):
         """RETRIEVE / EXPLAIN: reuse the Librarian's retrieval, assemble through the budgeter
         (B5), render on the pinned tier, and self-check grounding before returning."""
-        retrievals = self.librarian.retrieve(text, provenances=provenances)
+        retrievals = self.librarian.retrieve(text, clearance=clearance)
         budgeted = self._assemble(text, retrievals, conversation)
         output = self.server.chat(self.tier, budgeted.messages)
         sources = [Source(title=r.title, digest=r.digest) for r in retrievals]

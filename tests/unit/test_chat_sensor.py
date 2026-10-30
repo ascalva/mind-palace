@@ -22,6 +22,7 @@ from typing import Any
 
 import pytest
 
+from core.kernel.clearance import MAINTENANCE_READ
 from core.kernel.provenance import Provenance
 from core.kernel.stores.rawstore import RawStore
 from core.stores.chatlog import ChatlogStore
@@ -149,7 +150,7 @@ def test_transcript_retained_byte_for_byte_and_utterances_recoverable(tmp_path: 
     assert report.transcripts_retained == 1
     # every stored utterance is recoverable from its transcript_digest (the raw contains it).
     raw_text = s.rawstore.get(digest).decode("utf-8")
-    for row in s.store.all_rows():
+    for row in s.store.all_rows(clearance=MAINTENANCE_READ):
         assert row["text"] in raw_text
 
 
@@ -242,7 +243,8 @@ def test_every_stored_row_is_observed(tmp_path: Any) -> None:
     _write_transcript(s.transcripts_dir, "s1",
                       [_rec("user", "owner prose"), _rec("assistant", [_text("agent prose")])])
     s.backfill()
-    assert {r["provenance"] for r in s.store.all_rows()} == {Provenance.OBSERVED.value}
+    assert {r["provenance"] for r in s.store.all_rows(
+        clearance=MAINTENANCE_READ)} == {Provenance.OBSERVED.value}
 
 
 def test_sync_skips_already_ingested_sessions(tmp_path: Any) -> None:

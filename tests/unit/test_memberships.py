@@ -39,6 +39,7 @@ from core.ingest.code_corpus import (
     code_rows,
     derive_code_chunks,
 )
+from core.kernel.clearance import CODE_READ
 from core.kernel.provenance import Provenance
 from core.stores.memberships import (
     EmbedderIdentity,
@@ -56,6 +57,7 @@ from core.stores.vectorstore import (
     VectorStore,
 )
 from ops.code_snapshot import parse_source
+from tests.fixtures.clearances import grant
 from tests.fixtures.embedding import DIM, FakeEmbedder
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -84,7 +86,7 @@ class Bench:
 
     def n_vectors(self) -> int:
         """|V| — atom rows only."""
-        return len(self.vectors.atom_rows())
+        return len(self.vectors.atom_rows(clearance=CODE_READ))
 
 
 @pytest.fixture
@@ -217,7 +219,8 @@ def test_a_blob_with_two_identical_windows_stores_two_membership_rows(bench: Ben
     bench.vectors.add(code_rows(chunks, [[0.5] * DIM, [0.5] * DIM]))
     bench.memberships.write_fiber(code_memberships("m.py", "blob1", chunks))
 
-    assert len(bench.vectors.atom_rows()) == 1              # the ATOM side dedups (one geometry)
+    # the ATOM side dedups (one geometry)
+    assert len(bench.vectors.atom_rows(clearance=CODE_READ)) == 1
     fiber = bench.memberships.fiber("m.py", "blob1")
     assert len(fiber) == 2                                  # ← the MEMBERSHIP side does not
     assert [m.chunk_index for m in fiber] == [0, 1]
@@ -415,9 +418,9 @@ def test_retrieval_resolves_current_occupancies_and_history_is_opt_in(bench: Ben
     # the atom whose only home is superseded has current_any=false and drops out of the default
     # search; `include_superseded=True` lifts the prefilter and surfaces it.
     q = bench.embedder.embed_query(only_y.text)
-    default_hits = bench.vectors.search(q, k=50, provenances={Provenance.CODE})
+    default_hits = bench.vectors.search(q, k=50, clearance=CODE_READ)
     assert atom_id(only_y) not in {str(h["id"]) for h in default_hits}
-    with_history = bench.vectors.search(q, k=50, provenances={Provenance.CODE},
+    with_history = bench.vectors.search(q, k=50, clearance=CODE_READ,
                                         include_superseded=True)
     assert atom_id(only_y) in {str(h["id"]) for h in with_history}
 
@@ -454,7 +457,7 @@ def test_purge_is_the_only_vector_removal_and_it_leaves_a_recorded_hole(bench: B
 
     # the note-lane removal paths ACT (so this is not "the calls were no-ops")...
     bench.vectors.delete_source("notes/n.md")
-    assert len(bench.vectors.all_rows(provenances={Provenance.AUTHORED_SOLO})) == 0
+    assert len(bench.vectors.all_rows(clearance=grant(Provenance.AUTHORED_SOLO))) == 0
     bench.vectors.delete(digest="noteD")
     bench.vectors.delete_source("x.py")                    # a path an atom row cannot carry
     # ...and reach NO atom row: `source_path`/`digest` are shed, so the predicates cannot match
@@ -466,7 +469,8 @@ def test_purge_is_the_only_vector_removal_and_it_leaves_a_recorded_hole(bench: B
     assert report.vector_rows_deleted == 1                 # ← the purge OBSERVABLY acted
     assert report.memberships_tombstoned == 2              # ...on both of the shared atom's homes
     assert bench.n_vectors() == v_before - 1               # the ONE admitted |V| decrease
-    assert atom_id(shared) not in {str(r["id"]) for r in bench.vectors.atom_rows()}
+    assert atom_id(shared) not in {str(r["id"]) for r in bench.vectors.atom_rows(
+        clearance=CODE_READ)}
 
     # the hole is RECORDED, not silent: the occupancies survive, tombstoned and not current
     holes = bench.memberships.occupancies(atom_id(shared), include_superseded=True)
@@ -503,7 +507,7 @@ def test_a_crash_between_the_vector_insert_and_the_fiber_write_repairs_on_reland
     # search because `current_any` is false at insert (D8's write order is what makes this safe)
     orphans = bench.memberships.orphan_atom_ids()
     assert orphans and orphans == {atom_id(c) for c in chunks}
-    assert all(not bool(r["current"]) for r in bench.vectors.atom_rows())
+    assert all(not bool(r["current"]) for r in bench.vectors.atom_rows(clearance=CODE_READ))
     assert current_any_drift(bench.vectors, bench.memberships) == []
 
     # the idempotent re-land REPAIRS: it adopts the orphans (zero re-embeds) and nothing dangles
@@ -656,7 +660,7 @@ def test_current_any_is_equivalent_to_a_positive_current_document_count(
     """§4/R3: `current_any(v) ⇔ n_doc(v, t) > 0`. The fixture holds BOTH kinds of atom (asserted),
     so the equivalence is not satisfied by a store where every atom is current."""
     b = degenerate.bench
-    rows = b.vectors.atom_rows()
+    rows = b.vectors.atom_rows(clearance=CODE_READ)
     assert any(bool(r["current"]) for r in rows) and any(not bool(r["current"]) for r in rows)
 
     for r in rows:
@@ -806,7 +810,7 @@ def test_current_any_is_equivalent_to_a_positive_n_doc_across_the_gauges(
     superseded = [cid for cid in m.n_doc_counts(current_only=False) if batch.get(cid, 0) == 0]
     assert superseded, "fixture must hold an atom whose every occupancy is superseded"
 
-    for row in degenerate.bench.vectors.atom_rows():
+    for row in degenerate.bench.vectors.atom_rows(clearance=CODE_READ):
         cid = str(row["id"])
         assert bool(row["current"]) == (batch.get(cid, 0) > 0)
         assert batch.get(cid, 0) == m.n_doc(cid)          # batch and point query agree

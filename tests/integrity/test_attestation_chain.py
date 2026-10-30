@@ -14,6 +14,8 @@ from __future__ import annotations
 from core.attestation import AttestationStore
 from core.curator import Curator
 from core.dreaming import Dreamer
+from core.kernel.clearance import Clearance
+from core.kernel.provenance import Provenance
 from core.stores.derived import DREAM, FINDING, DerivedStore
 from tests.fixtures.attestation import TEST_FINGERPRINT, attestor_with_store
 from tests.fixtures.stores import raw_store
@@ -25,11 +27,8 @@ class _FakeVectorStore:
     def __init__(self, rows):
         self._rows = rows
 
-    def all_rows(self, *, provenances=None):
-        if provenances is None:
-            return list(self._rows)
-        allowed = {str(p) for p in provenances}
-        return [r for r in self._rows if r["provenance"] in allowed]
+    def all_rows(self, *, clearance: Clearance[Provenance]):
+        return [r for r in self._rows if clearance.admits(r.get("provenance"))]
 
 
 def _corpus(tmp_path):

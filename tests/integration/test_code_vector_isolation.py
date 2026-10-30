@@ -20,6 +20,7 @@ import pytest
 from core.ingest.code_corpus import code_rows, derive_code_chunks
 from core.ingest.embed import Embedder
 from core.ingest.index import _chunk_row, semantic_search
+from core.kernel.clearance import CODE_READ, MAINTENANCE_READ
 from core.kernel.ingest.chunk import Chunk
 from core.kernel.ingest.pipeline import IngestRecord
 from core.kernel.mirror import MirrorView
@@ -62,7 +63,7 @@ def test_fci1_code_never_surfaces_through_default_search(tmp_path):
     assert all(h["provenance"] != Provenance.CODE.value for h in hits)
     # the deliberate opt-in CAN reach code
     code_hits = semantic_search("vectors and dreaming", emb, store, k=10,
-                                provenances={Provenance.CODE})
+                                clearance=CODE_READ)
     assert code_hits and all(h["provenance"] == Provenance.CODE.value for h in code_hits)
 
 
@@ -98,12 +99,13 @@ def test_fci5_mirror_path_results_bit_identical_with_and_without_code(tmp_path):
 # ── the layer-column migration: an old 8-col store rebuilds preserving note rows ─────────
 
 def _old_schema(dim: int) -> pa.Schema:
-    return pa.schema([
+    fields: list[tuple[str, pa.DataType]] = [
         ("id", pa.string()), ("digest", pa.string()), ("title", pa.string()),
         ("source_path", pa.string()), ("chunk_index", pa.int32()),
         ("provenance", pa.string()), ("text", pa.string()),
         ("vector", pa.list_(pa.float32(), dim)),
-    ])
+    ]
+    return pa.schema(fields)
 
 
 def test_layer_migration_preserves_note_rows_bit_identically(tmp_path):
@@ -122,7 +124,7 @@ def test_layer_migration_preserves_note_rows_bit_identically(tmp_path):
     store2 = VectorStore(tmp_path / "v.lance", dim=DIM)
     _add_code(store2)
 
-    rows = store2.all_rows(include_atom_rows=True)
+    rows = store2.all_rows(include_atom_rows=True, clearance=MAINTENANCE_READ)
     assert TABLE in store2._db.list_tables().tables
     notes = {r["id"]: r for r in rows if r["provenance"] == Provenance.AUTHORED_SOLO.value}
     assert set(notes) == {"n:0", "n:1"}                # both note rows survived

@@ -9,8 +9,8 @@ non-default `provenances={CURATED}` retrieval can — and vice versa. Same firew
 from pathlib import Path
 
 from core.ingest.curated import curated_sources, ingest_curated
+from core.kernel.clearance import CURATED_READ, MIRROR_READ
 from core.kernel.mirror import MirrorView
-from core.kernel.provenance import MIRROR_READABLE, Provenance
 from core.kernel.stores.rawstore import RawStore
 from core.librarian import Librarian
 from core.stores.catalog import VaultCatalog
@@ -44,10 +44,10 @@ def _ingest_curated_doc(tmp_path):
 
 def test_curated_docs_are_tagged_curated_and_excluded_from_the_mirror(tmp_path):
     store, _ = _ingest_curated_doc(tmp_path)
-    curated = store.all_rows(provenances={Provenance.CURATED})
+    curated = store.all_rows(clearance=CURATED_READ)
     assert curated and all(r["provenance"] == "curated" for r in curated)
     # the firewall: a mirror-scoped scan sees NONE of it
-    assert store.all_rows(provenances=MIRROR_READABLE) == []
+    assert store.all_rows(clearance=MIRROR_READ) == []
     # and a MirrorView cannot hold it (projection drops every curated row)
     assert len(MirrorView.project(store)) == 0
 
@@ -57,7 +57,7 @@ def test_explain_path_retrieves_curated_only_via_explicit_provenance(tmp_path):
     lib = Librarian(server=ReplyServer(), embedder=embedder, store=store, k=5)
 
     # The "explain yourself" path: deliberate, non-default provenances={CURATED}.
-    explained = lib.retrieve("how does the Ambassador work", provenances={Provenance.CURATED})
+    explained = lib.retrieve("how does the Ambassador work", clearance=CURATED_READ)
     assert explained and all(r.provenance == "curated" for r in explained)
 
     # The DEFAULT (mirror) retrieval never surfaces curated material.

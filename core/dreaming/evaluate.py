@@ -49,6 +49,7 @@ from typing import Any, Protocol
 
 from core.dreaming.charter import Budget
 from core.kernel.agent_scope import ConformanceError, HandleInventory, assert_conforms
+from core.kernel.clearance import clearance_of
 from core.kernel.mirror import RowSource
 from core.kernel.scope import DENYLIST_IDEAL, Scope, Window, WindowKind, admissible
 
@@ -185,7 +186,7 @@ class Evaluator:
             raise ConformanceError(
                 "force refused: a multi-stratum point read needs a cut (SLICE) — none supplied"
             )
-        return list(self.source.all_rows())
+        return [dict(r) for r in self.source.all_rows(clearance=clearance_of(grant))]
 
     def materialize(
         self,

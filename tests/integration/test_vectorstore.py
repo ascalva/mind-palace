@@ -1,3 +1,4 @@
+
 """LanceDB vector store: nearest-neighbour search, the provenance firewall, dim guard.
 
 Deterministic — hand-built vectors, no Ollama needed.
@@ -5,14 +6,16 @@ Deterministic — hand-built vectors, no Ollama needed.
 
 import pytest
 
+from core.kernel.clearance import MAINTENANCE_READ
 from core.kernel.provenance import Provenance
 from core.stores.vectorstore import VectorStore
+from tests.fixtures.clearances import grant
 
 
 def _row(rid, vec, prov, title="t"):
     return {
-        "id": rid, "digest": rid, "title": title, "source_path": "p",
-        "chunk_index": 0, "provenance": prov.value, "text": "x", "vector": vec,
+        "id": rid, "digest": rid, "title": title, "source_path": f"p/{rid}",
+        "chunk_index": 0, "provenance": prov.value, "text": f"x-{rid}", "vector": vec,
     }
 
 
@@ -24,7 +27,7 @@ def test_search_returns_nearest(tmp_path):
         _row("c", [0.0, 0.0, 1.0], Provenance.AUTHORED_SOLO),
     ])
     assert vs.count() == 3
-    res = vs.search([0.9, 0.1, 0.0], k=1)
+    res = vs.search([0.9, 0.1, 0.0], k=1, clearance=MAINTENANCE_READ)
     assert res[0]["id"] == "a"
 
 
@@ -34,7 +37,7 @@ def test_provenance_filter_is_the_mirror_firewall(tmp_path):
         _row("auth", [1.0, 0.0, 0.0], Provenance.AUTHORED_SOLO),
         _row("obs", [1.0, 0.0, 0.0], Provenance.OBSERVED),  # identical vector, observed
     ])
-    res = vs.search([1.0, 0.0, 0.0], k=5, provenances={Provenance.AUTHORED_SOLO})
+    res = vs.search([1.0, 0.0, 0.0], k=5, clearance=grant(Provenance.AUTHORED_SOLO))
     assert {r["id"] for r in res} == {"auth"}  # observed excluded from the mirror
 
 
@@ -44,15 +47,15 @@ def test_all_rows_scans_everything_and_filters_by_provenance(tmp_path):
         _row("auth", [1.0, 0.0, 0.0], Provenance.AUTHORED_SOLO),
         _row("interp", [0.0, 1.0, 0.0], Provenance.INTERPRETED),
     ])
-    assert {r["id"] for r in vs.all_rows()} == {"auth", "interp"}
+    assert {r["id"] for r in vs.all_rows(clearance=MAINTENANCE_READ)} == {"auth", "interp"}
     # The dreaming agent clusters over the AUTHORED mirror only (the firewall).
-    mirror = vs.all_rows(provenances={Provenance.AUTHORED_SOLO})
+    mirror = vs.all_rows(clearance=grant(Provenance.AUTHORED_SOLO))
     assert {r["id"] for r in mirror} == {"auth"}
     assert mirror[0]["vector"] == [1.0, 0.0, 0.0]      # vectors come back as plain lists
 
 
 def test_all_rows_is_empty_before_any_write(tmp_path):
-    assert VectorStore(tmp_path / "v.lance", dim=3).all_rows() == []
+    assert VectorStore(tmp_path / "v.lance", dim=3).all_rows(clearance=MAINTENANCE_READ) == []
 
 
 def test_dim_mismatch_raises(tmp_path):

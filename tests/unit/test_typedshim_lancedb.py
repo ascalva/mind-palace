@@ -41,12 +41,13 @@ NASTY = "notes/it's a  café/π.md"
 
 
 def _schema() -> pa.Schema:
-    return pa.schema([
+    fields: list[tuple[str, pa.DataType]] = [
         ("id", pa.string()),
         ("source_path", pa.string()),
         ("current", pa.bool_()),
         ("vector", pa.list_(pa.float32(), DIM)),
-    ])
+    ]
+    return pa.schema(fields)
 
 
 def _sql_str(value: str) -> str:

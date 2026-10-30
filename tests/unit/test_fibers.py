@@ -31,6 +31,7 @@ import pytest
 from config.loader import get_config
 from core.dreaming.graph import MirrorGraph
 from core.dreaming.interpreters import community_interpreter
+from core.kernel.clearance import Clearance
 from core.kernel.mirror import MirrorView
 from core.kernel.provenance import Provenance
 from core.stores.runledger import claim_id, polarity_for
@@ -52,11 +53,8 @@ class _RowSource:
     def __init__(self, rows: list[dict[str, Any]]) -> None:
         self._rows = rows
 
-    def all_rows(self, *, provenances: Any = None) -> list[dict[str, Any]]:
-        if provenances is None:
-            return list(self._rows)
-        allowed = {Provenance(p).value for p in provenances}
-        return [r for r in self._rows if r.get("provenance") in allowed]
+    def all_rows(self, *, clearance: Clearance[Provenance]) -> list[dict[str, Any]]:
+        return [r for r in self._rows if clearance.admits(r.get("provenance"))]
 
 
 def _bare_edge_rows(cos: float) -> list[dict[str, Any]]:

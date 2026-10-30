@@ -34,6 +34,7 @@ from core.dreaming.cluster import (
     note_centroids,
     note_snippets,
 )
+from core.kernel.clearance import MAINTENANCE_READ
 from core.kernel.config import Config
 from core.kernel.mirror import MirrorView
 from core.kernel.stores.rawstore import RawStore
@@ -109,7 +110,8 @@ class Curator:
         if self.raw is None:
             return []
         orphans: dict[str, str] = {}
-        for r in self.store.all_rows():       # all provenances — dead derived weight is dead
+        # every class (maintenance): orphaned derived weight is dead regardless of provenance
+        for r in self.store.all_rows(clearance=MAINTENANCE_READ):
             d = r["digest"]
             if d not in orphans and not self.raw.exists(d):
                 orphans[d] = r.get("title", "")

@@ -17,7 +17,9 @@ from core.effect_proposal import (
     NotAReversibleWriteError,
     ReversibleWriteProposer,
 )
+from core.kernel.clearance import Clearance
 from core.kernel.mirror import MirrorView, NonMirrorRowError
+from core.kernel.provenance import Provenance
 from edge.effectors.writes import (
     EffectorsDisabled,
     NotStageableError,
@@ -33,9 +35,8 @@ class _Source:
     def __init__(self, rows):
         self._rows = rows
 
-    def all_rows(self, *, provenances=None):
-        allowed = {p.value for p in provenances} if provenances is not None else None
-        return [r for r in self._rows if allowed is None or r.get("provenance") in allowed]
+    def all_rows(self, *, clearance: Clearance[Provenance]):
+        return [r for r in self._rows if clearance.admits(r.get("provenance"))]
 
 
 def _authored_mirror() -> MirrorView:

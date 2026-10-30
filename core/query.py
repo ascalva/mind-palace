@@ -34,15 +34,16 @@ Every result is `Inv` (it depends only on the event set read); no Rate is minted
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Literal
 
 import numpy as np
 
+from core.kernel.clearance import MIRROR_READ, clearance_of
 from core.kernel.config import Config, get_config
-from core.kernel.provenance import MIRROR_READABLE, Provenance
+from core.kernel.provenance import Provenance
 from core.kernel.recursion import DEFAULT_GAMMA
 from core.kernel.scope import (
     ANCHOR,
@@ -188,18 +189,9 @@ AMBASSADOR = Grant(
     )
 )
 
-# Which provenance classes a stratum's kernel rows carry (mode 2 reads rows by provenance).
-_PROVENANCES: dict[Stratum, frozenset[Provenance]] = {
-    Stratum.MIRROR: MIRROR_READABLE,
-    Stratum.MIRROR_AUTHORED: MIRROR_READABLE,
-    Stratum.CURATED: frozenset({Provenance.CURATED}),
-    Stratum.INTERPRETED: frozenset({Provenance.INTERPRETED}),
-    Stratum.OBSERVED: frozenset({Provenance.OBSERVED}),
-    Stratum.DIALOGUE: frozenset({Provenance.OBSERVED, Provenance.AUTHORED_DIALOGUE}),
-    Stratum.DIALOGUE_TRANSCRIPT: frozenset({Provenance.OBSERVED, Provenance.AUTHORED_DIALOGUE}),
-    Stratum.REFERENCE: frozenset({Provenance.CODE}),
-    Stratum.REFERENCE_REPO: frozenset({Provenance.CODE}),
-}
+# Which provenance classes a stratum's rows carry lives in the kernel now
+# (`core.kernel.clearance.STRATUM_CLASSES`), so the query engine and every other mint read one
+# table; a sentence's clearance is `clearance_of(q.req)` — minted only after admission.
 _STRATUM_OF: dict[str, str] = {
     Provenance.AUTHORED_SOLO: "mirror",
     Provenance.AUTHORED_DIALOGUE: "dialogue",
@@ -361,9 +353,9 @@ class QueryEngine:
         if name not in self._cache:
             cfg = self.config
             if name == "vectors":
-                from core.stores.vectorstore import VectorStore
+                from core.stores.vectorstore import open_vector_store
 
-                self._cache[name] = VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim)
+                self._cache[name] = open_vector_store(cfg)
             elif name == "curated":
                 from core.stores.curated_store import open_curated_store
 
@@ -415,17 +407,17 @@ class QueryEngine:
     def _search(self, q: Query) -> Answer:
         if not q.text:
             raise ValueError("search needs text")
-        provs: set[Provenance] = set()
-        for s in q.strata:
-            provs |= _PROVENANCES.get(s, frozenset())
+        # The sentence was admitted at construction (req ⊑ some granted scope), so the classes its
+        # Σ names are exactly what it may read: the clearance is minted from the ADMITTED scope.
+        clearance = clearance_of(q.req)
         vec = self._get("embedder").embed_query(q.text)
         rows = self._get("vectors").search(
-            vec, k=q.k, provenances=provs, include_superseded="D" in q.req.edges.fibers
+            vec, k=q.k, clearance=clearance, include_superseded="D" in q.req.edges.fibers
         )
-        if Provenance.CURATED in provs:
+        if clearance.admits(Provenance.CURATED):
             # Literature lives in its OWN store (dn-external-grounding §2.2), physically apart from
             # the mirror; a sentence whose Σ admits CURATED reads it too, merged by distance.
-            lit = self._get("curated").search(vec, k=q.k, provenances={Provenance.CURATED})
+            lit = self._get("curated").search(vec, k=q.k, clearance=clearance)
             rows = sorted([*rows, *lit], key=lambda r: float(r.get("_distance", 0.0)))[: q.k]
         hits = tuple(_hit_from_row(r, score=1.0 - float(r.get("_distance", 0.0))) for r in rows)
         return Answer(
@@ -433,13 +425,13 @@ class QueryEngine:
             q.mode,
             "cosine over the embedding Gram kernel K_sem",
             Inv(hits),
-            (f"provenances={sorted(p.value for p in provs)}",),
+            (f"provenances={sorted(p.value for p in clearance.classes)}",),
         )
 
     # mode 1 ----------------------------------------------------------------------------------
     def _note_graph(self) -> tuple[list[dict[str, Any]], np.ndarray, np.ndarray]:
         """Authored notes (chunks averaged per source), their unit vectors, and the σ-backbone."""
-        rows = self._get("vectors").all_rows(provenances=MIRROR_READABLE)
+        rows = self._get("vectors").all_rows(clearance=MIRROR_READ)
         by_src: dict[str, list[dict[str, Any]]] = {}
         for r in rows:
             by_src.setdefault(str(r["source_path"]), []).append(r)
@@ -608,7 +600,7 @@ class QueryEngine:
         return Answer(q.verb, q.mode, "C ∘ commit-keying (two-hop join)", Inv(hits))
 
 
-def _hit_from_row(r: dict[str, Any], *, score: float) -> Hit:
+def _hit_from_row(r: Mapping[str, Any], *, score: float) -> Hit:
     prov = str(r.get("provenance", ""))
     return Hit(
         ref=str(r.get("source_path", r.get("id", ""))),

@@ -23,6 +23,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from core.kernel.clearance import MAINTENANCE_READ
+from core.stores.vectorstore import open_vector_store
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root on path
 
 from core.sealing import seal
@@ -35,15 +38,15 @@ def main(argv: list[str]) -> int:
     seal()  # structural egress guard first (Invariant 1) — this touches local stores only
     from config.loader import get_config
     from core.stores.catalog import VaultCatalog
-    from core.stores.vectorstore import VectorStore
 
     apply = "--apply" in argv
     cfg = get_config()
-    store = VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim)
+    store = open_vector_store(cfg)
     catalog = VaultCatalog(cfg.paths.vault_catalog)
 
     # Dry-run counts: how many rows still carry the legacy tag.
-    vec_legacy = sum(1 for r in store.all_rows() if r.get("provenance") == OLD)
+    vec_legacy = sum(1 for r in store.all_rows(clearance=MAINTENANCE_READ)
+                     if r.get("provenance") == OLD)
     cat_legacy = catalog._conn.execute(  # noqa: SLF001 (admin script, read-only count)
         "SELECT count(*) FROM vault_files WHERE provenance = ?", [OLD]
     ).fetchone()[0]

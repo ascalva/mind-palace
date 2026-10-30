@@ -40,7 +40,43 @@ TOP_RANKS = 2000   # fit over the head and body; the far tail is all hapaxes (fr
 
 
 def _rows(store: Any) -> list[dict[str, Any]]:
-    return list(store.project(["id", "provenance", "layer", "source_path", "text"]))
+    """Every record row's stratum and text, never a vector (A3): the physical rows that carry a
+    class (code, and prose not yet on the plane), plus the plane's current occupancies joined to
+    their atom's text. Classless physical rows are the shared atoms themselves — not records."""
+    from core.kernel.clearance import MAINTENANCE_READ
+
+    rows = [r for r in store.project(["id", "provenance", "layer", "source_path", "text"],
+                                     clearance=MAINTENANCE_READ) if r.get("provenance")]
+    occ = store.plane.reader(MAINTENANCE_READ).occupancies()
+    ids = sorted({o.atom_id for o in occ})
+    text: dict[str, str] = {}
+    for i in range(0, len(ids), 400):
+        where = "id IN (" + ", ".join("'" + a.replace("'", "''") + "'"
+                                      for a in ids[i:i + 400]) + ")"
+        text.update({str(r["id"]): str(r["text"]) for r in store.project(
+            ["id", "text"], clearance=MAINTENANCE_READ, where=where)})
+    rows += [{"id": f"{o.source_path}:{o.atom_id.split(':', 1)[1]}",
+              "provenance": o.provenance.value, "layer": o.atom_id.split(":", 1)[0],
+              "source_path": o.source_path, "text": text[o.atom_id]}
+             for o in occ if o.atom_id in text]
+    return rows
+
+
+def plane(store: Any, dim: int) -> dict[str, Any]:
+    """The shared plane's own reading (A3, D6): atoms stored vs current occupancies per class, and
+    what the vectors cost with sharing against what they would cost without it."""
+    from core.kernel.clearance import MAINTENANCE_READ
+
+    gauges = store.plane.reader(MAINTENANCE_READ).gauges()
+    atoms = len(store.plane.atoms.ids())
+    occ = sum(g.occupancies for g in gauges.values())
+    return {"atoms": atoms, "occupancies": occ,
+            "dedup_factor": round(occ / atoms, 4) if atoms else 0.0,
+            "vector_mb": round(atoms * dim * 4 / 1e6, 2),
+            "vector_mb_without_sharing": round(occ * dim * 4 / 1e6, 2),
+            "per_class": {k.value: {"occupancies": g.occupancies, "atoms": g.atoms,
+                                    "documents": g.documents, "embeds_avoided": g.embeds_avoided}
+                          for k, g in gauges.items() if g.occupancies}}
 
 
 def _stratum(row: dict[str, Any], store: str) -> str:
@@ -144,17 +180,18 @@ def main(argv: list[str] | None = None) -> int:
     seal()
     from core.kernel.config import get_config
     from core.stores.curated_store import open_curated_store
-    from core.stores.vectorstore import VectorStore
+    from core.stores.vectorstore import open_vector_store
 
     cfg = get_config()
-    rows = {"vectors": _rows(VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim)),
-            "curated": _rows(open_curated_store(cfg))}
+    stores = {"vectors": open_vector_store(cfg), "curated": open_curated_store(cfg)}
+    rows = {name: _rows(st) for name, st in stores.items()}
     dups = duplicates(rows, cfg.embedding.dim)
     texts: dict[str, list[str]] = defaultdict(list)
     for store, rs in rows.items():
         for r in rs:
             texts[_stratum(r, store)].append(str(r["text"]))
-    report = {"duplicates": dups, "zipf": zipf(texts), "shared_vocabulary": vocabulary(texts),
+    report = {"plane": {name: plane(st, cfg.embedding.dim) for name, st in stores.items()},
+              "duplicates": dups, "zipf": zipf(texts), "shared_vocabulary": vocabulary(texts),
               "vector_bytes": {"dim": cfg.embedding.dim, "float32_mb": round(
                   sum(len(r) for r in rows.values()) * cfg.embedding.dim * 4 / 1e6, 1)}}
     a.json.parent.mkdir(parents=True, exist_ok=True)
@@ -167,6 +204,10 @@ def main(argv: list[str] | None = None) -> int:
     print("across strata:", dups["cross_strata"])
     print("shared vocabulary:", report["shared_vocabulary"])
     print("vectors as float32:", report["vector_bytes"])
+    for name, pl in report["plane"].items():
+        print(f"plane {name:8} {pl['atoms']:>8} atoms for {pl['occupancies']:>8} occupancies "
+              f"({pl['dedup_factor']}x) · {pl['vector_mb']} MB vs "
+              f"{pl['vector_mb_without_sharing']} MB unshared")
     for stratum, z in report["zipf"].items():
         print(f"{stratum:18} {z['tokens']:>9} words, vocab {z['vocabulary']:>6}, hapax "
               f"{z['hapax_pct']}% · log-log slope {z['zipf_slope_loglog']} (R² {z['r2_power_law']})"

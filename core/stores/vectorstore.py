@@ -6,20 +6,37 @@ filtered by provenance class — this is what makes the mirror=AUTHORED-only fir
 mirror query passes `provenances={AUTHORED}` and cannot surface observed exhaust.
 
 Vectors are a derived, regenerable layer; the raw store remains the source of truth.
+
+[banner: extension] dn-vector-membership-store Amendment A3 (2026-10-29): every PROSE stratum now
+lands in the shared plane (`core/stores/plane.py`) — one atom row per distinct chunk text in this
+table, classless, and its occupancies in one relation per provenance class beside it. Every read
+takes a `Clearance` (a capability minted only by an authority, `core/kernel/clearance.py`) and
+returns `Row[L]` values built by a sealed constructor that re-checks the class, so a row the
+clearance does not admit cannot exist. CODE keeps its own atom plane (D1) and membership store.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections import defaultdict
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pyarrow as pa
 
+from core.kernel.clearance import _MINT, MAINTENANCE_READ, Clearance, ClearanceViolation, Row
 from core.kernel.config import Config
 from core.kernel.provenance import Provenance
+from core.stores.plane import (
+    PLANE_CLASSES,
+    AtomRecord,
+    Candidate,
+    Fingerprint,
+    PlaneReader,
+    SharedPlane,
+)
 from core.typedshims.lancedb import VectorTable, connect
 
 TABLE = "chunks"
@@ -40,7 +57,7 @@ LAYER_CODEDOC = "codedoc"    # L1 — docstrings + comments as prose
 
 
 def _schema(dim: int) -> pa.Schema:
-    return pa.schema([
+    fields: list[tuple[str, pa.DataType]] = [
         ("id", pa.string()),            # doc-scoped content id: f"{source_path}:{chunk_hash}" (§4)
         ("digest", pa.string()),        # raw-store identity of the source note's CURRENT version
         ("title", pa.string()),
@@ -68,14 +85,22 @@ def _schema(dim: int) -> pa.Schema:
         # Both readings are served by the ONE `current = true` prefilter clause in `search` — which
         # is exactly why D1 re-reads the column instead of adding a second one.
         ("current", pa.bool_()),
+        # [A3] The shared plane's ANN prefilter cache: on a PROSE ATOM row, the classes whose
+        # relations hold a current (`held`) / any (`held_ever`) occupancy of it; `[]` on every
+        # other row. A CACHE of `core/stores/plane.py`'s relations — it narrows candidates and never
+        # decides what a reader receives (a stale entry drops results, never widens them).
+        ("held", pa.list_(pa.string())),
+        ("held_ever", pa.list_(pa.string())),
         ("vector", pa.list_(pa.float32(), dim)),
-    ])
+    ]
+    return pa.schema(fields)
 
 
 # The default coordinates a NOTE row (or any pre-code row) carries for the code-only columns.
 # `current=True` is the vacuous note-row default (D3) and the HEAD default for a landed code row.
 _NOTE_LAYER_DEFAULTS: dict[str, Any] = {
     "layer": LAYER_PROSE, "qualname": "", "line_start": 0, "line_end": 0, "current": True,
+    "held": [], "held_ever": [],
 }
 
 # The occupancy columns a CODE-ATOM row sheds (dn-vector-membership-store D1, bp-152). They are
@@ -121,7 +146,7 @@ class CompactionReport:
                 f"({self.versions_dropped} dropped)")
 
 
-def is_code_atom_row(row: dict[str, Any]) -> bool:
+def is_code_atom_row(row: Mapping[str, Any]) -> bool:
     """Is this row a shed CODE **atom** row (D1) rather than a source-object chunk row?
 
     An atom row is geometry with no occupancy: its occupancy lives in the membership relation
@@ -143,16 +168,70 @@ def _sql_str(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
+# A shared PROSE atom row (A3): classless and occupancy-free; its occupancies live in the plane's
+# per-class relations. No class gate admits it (`provenance IN (…)` never matches ''), which is how
+# every record read stays clear of raw atoms.
+_PROSE_ATOM = "provenance = '' AND source_path = '' AND digest = ''"
+_EMPTY_LIST = "arrow_cast(make_array(), 'List(Utf8)')"
+_ALL_CLASSES = frozenset(Provenance)
+_PLANE_VALUES = frozenset(p.value for p in PLANE_CLASSES)
+
+
+def _gate(clearance: Clearance[Provenance]) -> str:
+    """The physical-row predicate for a clearance: its classes, spelled from the clearance alone."""
+    return "provenance IN (" + ", ".join(_sql_str(c.value) for c in clearance) + ")"
+
+
+def _id_in(ids: Sequence[str]) -> str:
+    return f"id IN ({', '.join(_sql_str(i) for i in ids)})"
+
+
+def _sql_list(values: Iterable[str]) -> str:
+    """A list<string> literal for an update's `values_sql` — empty lists only work this way."""
+    items = sorted(values)
+    return f"make_array({', '.join(_sql_str(v) for v in items)})" if items else _EMPTY_LIST
+
+
 @dataclass
 class VectorStore:
     path: Path
     dim: int
+    # The configured embedder geometry (A3). `open_vector_store`/`open_curated_store` always pass
+    # it; None (unit tests) records and checks nothing.
+    embedder: Fingerprint | None = None
 
     def __post_init__(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._db = connect(str(self.path))
         self._schema_checked = False
         self._current_checked = False
+        if self.embedder is not None and self.embedder.dim != self.dim:
+            raise ValueError(f"embedder dim {self.embedder.dim} != store dim {self.dim}")
+        # A3: the shared prose plane lives in this store's own directory — its per-class relations
+        # in `plane.sqlite` beside the LanceDB tables, its atoms as rows of the one shared table.
+        self._plane = SharedPlane(self.path, _LanceAtoms(self), fingerprint=self.embedder)
+
+    @property
+    def plane(self) -> SharedPlane:
+        """The shared prose plane (A3) — maintenance and the typed readers go through it."""
+        return self._plane
+
+    def reader[L: Provenance](self, clearance: Clearance[L]) -> PlaneReader[L]:
+        """A typed reader of the plane under `clearance`: `Occupancy[L]`, `PlaneHit[L]`, rows."""
+        return self._plane.reader(clearance)
+
+    def plane_enabled(self) -> bool:
+        """Does this store land prose in the shared plane? True for a new store (its table is
+        created with the plane schema) and for one `migrate_to_plane` converted; False for a table
+        that predates A3 (no `held` column), which keeps the pre-A3 row model until migrated."""
+        if TABLE not in self._db.list_tables().tables:
+            return True
+        return "held" in self._table().schema_names()
+
+    def known_atoms(self, atom_ids: Sequence[str]) -> set[str]:
+        """Which atoms the plane already holds under this store's geometry — the embeds a landing
+        may skip (a row for a known atom may omit its vector). Empty before the plane exists."""
+        return self._plane.known(atom_ids) if self.plane_enabled() else set()
 
     def _table(self) -> VectorTable:
         if TABLE in self._db.list_tables().tables:
@@ -205,87 +284,132 @@ class VectorStore:
         self._table().add(migrated)             # recreates the schema + `current`, vectors intact
 
     def add(self, rows: Iterable[dict[str, Any]]) -> int:
+        """Land rows; returns the number landed.
+
+        [banner: extension] A3 (dn-vector-membership-store): rows of a PROSE class — every class
+        but CODE — land in the shared plane: one atom per distinct chunk text, an occupancy in the
+        row's class relation, the path's currency reconciled, a supersession edge when its head
+        changed. A prose row may omit its vector when the plane already holds the atom
+        (`known_atoms`) — that is the embed the plane saves. CODE rows keep the code lane's
+        physical path (`_add_physical`), unchanged. A table that predates the plane schema lands
+        prose the pre-A3 way (`_legacy_land`) until `migrate_to_plane` converts it."""
         rows = list(rows)
         if not rows:
             return 0
         for r in rows:  # fail fast on a model/config dimension mismatch
-            if len(r["vector"]) != self.dim:
+            vec = r.get("vector")
+            if vec is None:
+                if r.get("provenance") not in _PLANE_VALUES:
+                    raise ValueError("a physical row lands with its vector")
+                continue
+            if len(vec) != self.dim:
                 raise ValueError(
-                    f"vector dim {len(r['vector'])} != configured {self.dim}; "
+                    f"vector dim {len(vec)} != configured {self.dim}; "
                     "re-embed from raw or fix config (§8)"
                 )
+        # A plane class lands in the plane; CODE — and any retired label (the pre-§1 'authored'),
+        # which no clearance admits — stays physical, for `relabel_provenance` to bring across.
+        prose = [r for r in rows if r.get("provenance") in _PLANE_VALUES]
+        code = [r for r in rows if r.get("provenance") not in _PLANE_VALUES]
+        if prose:
+            if self.plane_enabled():
+                self._plane.land(prose)
+            else:
+                self._legacy_land(prose)
+        if code:
+            self._add_physical(code)
+        return len(rows)
+
+    def _add_physical(self, rows: list[dict[str, Any]]) -> None:
         # Default the code-only columns (layer/qualname/line_start/line_end) on any row that omits
         # them — so every legacy 8-key caller (a note row, a test row) lands as a valid layer-schema
         # row (layer='prose') without change, and the code lane's explicit values pass through.
         rows = [{**_NOTE_LAYER_DEFAULTS, **r} for r in rows]
         self._migrate_layer_if_needed()             # bring an old 8-col store to the layer schema
         self._migrate_current_if_needed()       # then bring a pre-bp-099 store to temporal schema
+        if TABLE in self._db.list_tables().tables:
+            # A table from before A3 has no `held`/`held_ever`: land only the columns it has.
+            names = set(self._table().schema_names())
+            rows = [{k: v for k, v in r.items() if k in names} for r in rows]
         self._table().add(rows)
-        return len(rows)
+
+    def _legacy_land(self, rows: list[dict[str, Any]]) -> None:
+        """The pre-A3 prose landing, for a table not yet migrated to the plane: replace each
+        path's rows (what the retired delete-then-index callers did by hand)."""
+        if any(r.get("vector") is None for r in rows):
+            raise ValueError("a store without the plane schema needs every row's vector")
+        if TABLE in self._db.list_tables().tables:
+            for path in sorted({str(r.get("source_path") or "") for r in rows} - {""}):
+                self._table().delete(f"source_path = {_sql_str(path)}")
+        self._add_physical(rows)
 
     def count(self) -> int:
-        if TABLE not in self._db.list_tables().tables:
-            return 0
-        return self._table().count_rows()
+        """Rows a full read would see: every physical row that is not a shared prose atom, plus the
+        plane's current occupancies — the number the pre-A3 store reported for the same content."""
+        physical = 0
+        if TABLE in self._db.list_tables().tables:
+            physical = self._table().count_rows(f"NOT ({_PROSE_ATOM})")
+        return physical + self._plane.reader(MAINTENANCE_READ).count()
 
     def reset(self) -> None:
-        """Drop the vector table. Vectors are derived (§8): a full re-ingest rebuilds
-        them from the raw corpus, so this is the idempotent path for re-indexing."""
+        """Drop the vector table and the plane's relations. Vectors are derived (§8): a full
+        re-ingest rebuilds them from the raw corpus, so this is the idempotent path for re-indexing
+        (and the only way to change a plane's embedder geometry)."""
         if TABLE in self._db.list_tables().tables:
             self._db.drop_table(TABLE)
+        self._plane.reset()
 
     def delete(self, *, digest: str) -> None:
-        """Drop all derived rows for a source note (by its raw-store digest). Idempotent.
+        """PURGE every derived row of one raw digest — the owner-gated privacy path
+        (core/ingest/purge.py). Idempotent.
 
-        The incremental watcher uses this to retire stale embeddings when a note changes or is
-        deleted — derived layer only; the raw blob is untouched (§8). `digest` is a hex SHA-256, so
-        the escaping is belt-and-braces rather than load-bearing."""
-        if TABLE not in self._db.list_tables().tables:
-            return
-        self._table().delete(f"digest = {_sql_str(digest)}")
+        [banner: correction] A3: this used to double as an "idempotent re-index" (delete by digest,
+        then index) in the dialogue, curated and founding writers. Under shared content that was
+        wrong twice: it deleted EVERY document's rows with the same bytes (an owner turn and a model
+        turn that say the same words), and it deleted by the NEW digest, so an edited document's
+        old version stayed current. Landing is idempotent by reconciliation now, those callers are
+        gone, and this keeps one meaning: physical rows of the digest go, and the plane purges its
+        occupancies, its supersession entries and the atoms nothing else holds."""
+        if not digest:
+            raise ValueError("a purge names a digest")
+        if TABLE in self._db.list_tables().tables:
+            self._table().delete(f"digest = {_sql_str(digest)}")
+        self._plane.purge(digest)
 
-    def rows_for_source(self, source_path: str) -> list[dict[str, Any]]:
-        """Every stored chunk row for one source document (by `source_path`) — the note's current
-        projection. The amendment path (ingest-identity §4) reads this to REUSE unchanged chunks'
-        vectors instead of re-embedding, so this read must keep carrying the `vector` column.
+    def rows_for_source[L: Provenance](self, source_path: str, *,
+                                       clearance: Clearance[L]) -> list[Row[L]]:
+        """One document's current rows, vectors included, as far as `clearance` admits its class.
 
-        [banner: correction] Was: materialize the WHOLE table Arrow→Python, vectors included, and
-        keep the rows whose `source_path` matched — the read half of finding-0169. Two premises of
-        that shape were wrong. The first, that a Python-side filter avoided "a quoting hazard on
-        arbitrary source paths", died with bp-100: `_sql_str` solves the hazard. The second, that
-        the predicate could not be pushed down, died with bp-103: `scan()` (the shim's honest name
-        for LanceDB's `search(None)`) takes the predicate server-side, so only the matched path's
-        rows ever cross into Python. `limit(0)` means UNLIMITED — verified empirically against the
-        installed 0.33.0 on a 137-row path, and pinned by a ratchet in
-        `tests/unit/test_typedshim_lancedb.py`, because a silently reintroduced default cap would
-        under-read a deep path and corrupt the amendment it feeds.
+        Physical rows (code, and prose not yet migrated) are read with the path pushed down
+        (`scan().where(...)`, finding-0169/bp-103; `limit(0)` is UNLIMITED, pinned by the shim
+        ratchet); plane rows come from the cleared relations. NO `select()` projection: `vector`
+        is a column callers come for."""
+        out = [Row(clearance, r, mint=_MINT)
+               for r in self._physical(clearance, f"source_path = {_sql_str(source_path)}")]
+        out.extend(self._plane.reader(clearance).rows(source_path=source_path))
+        return out
 
-        NO `select()` projection here, deliberately: `vector` is the column the caller came for."""
-        if TABLE not in self._db.list_tables().tables:
+    def project(self, columns: Sequence[str], *, clearance: Clearance[Provenance],
+                where: str | None = None, limit: int = 0) -> list[dict[str, Any]]:
+        """A projected, predicate-pushed PHYSICAL read — the named columns and nothing else.
+
+        It exists for one measurable reason: `vector` is many floats per row, so a scan that does
+        not name it costs a small fraction of one that does (the code rebuild's baseline, the
+        census). `limit(0)` means UNLIMITED (pinned by the shim ratchet).
+
+        [banner: extension] A3: physical rows include the shared prose ATOMS, which carry no class
+        — so this read is gated: under any clearance short of maintenance, only rows whose
+        `provenance` the clearance admits come back (no atom ever does); `MAINTENANCE_READ` sees the
+        whole physical table. `where` is the caller's raw predicate, ANDed after the gate; build it
+        with `_sql_str` for any value this module did not write."""
+        if TABLE not in self._db.list_tables().tables or not clearance.classes:
             return []
-        return [dict(r) for r in
-                self._table().scan().where(f"source_path = {_sql_str(source_path)}")
-                .limit(0).to_list()]
-
-    def project(self, columns: Sequence[str], *, where: str | None = None,
-                limit: int = 0) -> list[dict[str, Any]]:
-        """A projected, predicate-pushed read — the named columns and nothing else.
-
-        The generalization of `rows_for_source`' shape, and it exists for one measurable reason:
-        `vector` is 2560 floats per row, so a scan that does not name it costs a small fraction of
-        one that does. The rebuild's baseline (`ops/code_rebuild.py`) reads `id`/`layer`/`text`
-        over the whole code lane to re-derive the dedup economics and must never pay for geometry
-        it does not read; the carry-forward seed names `vector` precisely because copying it is the
-        point. `limit(0)` means UNLIMITED (verified empirically against the installed 0.33.0 and
-        pinned by the shim ratchet, exactly as `rows_for_source` documents).
-
-        `where` is a raw LanceDB predicate and is the CALLER's to build — use `_sql_str` for any
-        value that is not a literal this module wrote itself."""
-        if TABLE not in self._db.list_tables().tables:
-            return []
-        q = self._table().scan().select(list(columns))
+        clauses = [] if clearance.classes == _ALL_CLASSES else [_gate(clearance)]
         if where is not None:
-            q = q.where(where)
+            clauses.append(f"({where})")
+        q = self._table().scan().select(list(columns))
+        if clauses:
+            q = q.where(" AND ".join(clauses))
         return [dict(r) for r in q.limit(limit).to_list()]
 
     def supersede_legacy_code_rows(self) -> int:
@@ -313,135 +437,157 @@ class VectorStore:
         return flipped
 
     def delete_source(self, source_path: str) -> None:
-        """Drop every derived row for one source document, by `source_path` (the stable doc identity
-        an amendment replaces a projection under — §4). Idempotent.
-
-        [banner: correction] Was: materialize the WHOLE table (`rows_for_source`), rebuild an
-        `id IN (…)` list from it, delete by that. The path is itself a predicate — pushing it down
-        removes the scan entirely (finding-0169, and this is the note-amendment hot path at
-        `core/ingest/index.py:87`, not only the code lane). Selecting on the same `source_path`
-        column the Python filter used, it deletes exactly the same rows — and strictly fewer in the
-        one case they differ: an `id` is `{doc_id}:{chunk_hash}` where `doc_id` may diverge from
-        `source_path` (a rename, an `id::` property), so the old id-list could reach a row belonging
-        to another path."""
-        if TABLE not in self._db.list_tables().tables:
-            return
-        self._table().delete(f"source_path = {_sql_str(source_path)}")
+        """A document is gone (a vault delete): drop its physical rows by `source_path` (pushed
+        down, finding-0169) and retire its plane occupancies — superseded, history kept, a
+        `head → ''` edge recorded (A3: keep-and-link for prose; the raw store stays sacred).
+        Idempotent."""
+        if TABLE in self._db.list_tables().tables and source_path:
+            self._table().delete(f"source_path = {_sql_str(source_path)}")
+        self._plane.retire(source_path)
 
     def supersede_source(self, source_path: str) -> int:
         """Keep-and-link (dn-temporal-code-corpus D2, bp-099): flip every CURRENTLY-current row of
-        `source_path` to `current=false` while RETAINING it — a superseded code version is never
-        deleted. Returns the number of rows flipped (0 if the path had no current rows).
+        `source_path` to `current=false` while RETAINING it. Returns rows flipped (0 if none).
 
-        ONE predicate, pushed down: a filtered `count_rows` for the return value, then a single
-        in-place `update`. **No read, no re-land, nothing materialized into Python** — the cost is
-        a function of the matched rows, never of the store's size, which is exactly finding-0169's
-        bound and the condition on the daemon restart. Idempotent by construction: a path with
-        nothing current counts 0, skips the write entirely, and returns 0.
+        ONE pushed-down predicate: a filtered `count_rows` for the return value, then a single
+        in-place `update` — nothing materialized into Python, the cost a function of the matched
+        rows (finding-0169, finding-0176). The count comes from `count_rows(where)`, never from
+        `UpdateResult` (bp-103 §11). The predicate names `current`, so this raises on a pre-bp-099
+        store rather than silently leaving two versions current (finding-0180).
 
-        The `vector` column is never named, so it is never read, so it **cannot** be re-derived or
-        dropped (§8). That is a strictly STRONGER guarantee than the byte-equality assertion in
-        `test_vectorstore_supersede.py` — which is kept anyway, as a regression net on the shape of
-        the method rather than on this implementation of it.
-
-        [banner: correction] Was: read the whole path → delete it → re-add every row with the flag
-        flipped, justified as staying "portable — no dependency on a LanceDB in-place `update`".
-        **That portability claim was false at the pinned version** (bp-100 Q3, re-verified by
-        bp-103 against the installed package rather than the docs): `lancedb` 0.33.0 has
-        `Table.update(where, values)`, and the re-land was paying a full O(total store)
-        materialization — vectors and all — to flip one boolean. The re-land is now **deleted
-        entirely**, not merely bounded; bp-100's interim `[cross-ref: extension]` note (which
-        recorded it as retained-but-halved, blocked on the typedshim) is retired with it. Warrant
-        **finding-0176**; the two `xfail(strict=True)` ratchets it cites are now ordinary green
-        tests in `tests/unit/test_store_cost_ratchet.py`.
-
-        The count comes from `count_rows(where)` and NOT from `update(...).rows_updated`:
-        `UpdateResult` is the 0.33 return shape, while `pyproject.toml:12` pins `lancedb>=0.10`, a
-        range whose older members returned `None`. A filtered count is server-side and materializes
-        nothing, so portability costs no scan (bp-103 §11, first parked decision — re-entry is a
-        plan that owns `pyproject.toml` and raises the floor).
-
-        [cross-ref: extension] The predicate names `current`, so unlike the old body this raises on
-        a PRE-bp-099 store whose schema has no such column (the migrations arm on `add`, and
-        `code_corpus.sync` supersedes before it adds). The old body silently returned 0 there and
-        then let `add` stamp every row `current=true` — leaving the superseded version AND the new
-        HEAD both current, i.e. silent D3 corruption. Failing loudly is the improvement; see
-        finding-0180 for the migration-arming question, which is a design call, not a builder's."""
-        if TABLE not in self._db.list_tables().tables:
-            return 0
-        table = self._table()
-        where = f"source_path = {_sql_str(source_path)} AND current = true"
-        flipped = table.count_rows(where)     # portable: do NOT rely on UpdateResult (bp-103 §11)
-        if flipped:
-            table.update(where, {"current": False})
-        return flipped
+        [banner: extension] A3: a prose path's occupancies are retired in the plane as well."""
+        flipped = 0
+        if TABLE in self._db.list_tables().tables:
+            table = self._table()
+            where = f"source_path = {_sql_str(source_path)} AND current = true"
+            flipped = table.count_rows(where)   # portable: do NOT rely on UpdateResult (bp-103 §11)
+            if flipped:
+                table.update(where, {"current": False})
+        return flipped + self._plane.retire(source_path)
 
     def relabel_provenance(self, old: str, new: str) -> int:
         """Rewrite every row's provenance from `old` to `new`. Returns rows relabeled.
 
-        Used by the §1 spectrum-split migration to relabel the legacy `'authored'` rows to
-        `'authored-solo'`. This is a SAME-TRUST-TIER relabel (both are mirror-readable), not a
-        promotion across the §8 firewall — so it is a safe, deterministic data migration, not a
-        gated provenance change. Idempotent by construction: a second run finds no `old` rows
-        and is a no-op. Implemented as delete-then-re-add (the store's existing re-index idiom)
-        so it stays portable — no dependency on a LanceDB in-place `update`."""
-        if old == new or TABLE not in self._db.list_tables().tables:
+        Used by the §1 spectrum-split migration (legacy `'authored'` → `'authored-solo'`): a
+        SAME-TRUST-TIER relabel, not a promotion across the §8 firewall. Idempotent: a second run
+        finds no `old` rows. Physical rows go delete-then-re-add (the store's re-index idiom); the
+        plane moves the class's relation wholesale (A3: the one deliberate move between strata)."""
+        if old == new:
             return 0
-        rows = [r for r in self._table().to_arrow().to_pylist() if r.get("provenance") == old]
-        if not rows:
-            return 0
-        for r in rows:
-            r["provenance"] = new
-        self._table().delete(f"provenance = '{old}'")
-        self.add(rows)
-        return len(rows)
+        moved = 0
+        if TABLE in self._db.list_tables().tables:
+            rows = [r for r in self._table().to_arrow().to_pylist() if r.get("provenance") == old]
+            if rows:
+                for r in rows:
+                    r["provenance"] = new
+                self._table().delete(f"provenance = {_sql_str(old)}")
+                self.add(rows)
+                moved = len(rows)
+        try:
+            src, dst = Provenance(old), Provenance(new)
+        except ValueError:
+            return moved
+        if src is not Provenance.CODE and dst is not Provenance.CODE:
+            moved += self._plane.relabel(src, dst)
+        return moved
 
-    def all_rows(self, *,
-                 provenances: Iterable[Provenance] | None = None,
-                 include_atom_rows: bool = False) -> list[dict[str, Any]]:
-        """Full scan, optionally restricted to provenance classes — the read the dreaming
-        agent clusters over. The clustering itself is deterministic and model-free (§9), so
-        the mirror passes `provenances={AUTHORED}` and observed exhaust never seeds a dream.
-        Single-user corpus scale; filtered in Python after the Arrow scan for portability.
+    def all_rows[L: Provenance](self, *, clearance: Clearance[L], include_atom_rows: bool = False,
+                                include_superseded: bool = False) -> list[Row[L]]:
+        """Every row `clearance` admits — the read the dreaming agent clusters over (the mirror
+        passes `MIRROR_READ`, so observed exhaust never seeds a dream).
 
-        [banner: correction] **The shed-atom guard (bp-152 Item 3, the note's §3 Q5 gap).** An
-        UNSCOPED read (`provenances=None`) now excludes shed CODE-atom rows unless the caller asks
-        for them by name. The reason is a silent corruption, not tidiness: every structural
-        group-by-`digest` consumer keys on a column an atom row does not have.
-        `core/kernel/stores/sourceset.py`'s `source_sets(store)` defaults to ALL strata by design
-        ("a structural grouping utility, not a mirror read"), and `group_sources` keys on
-        `r["digest"]` — so shed rows, all carrying `digest=''`, would collapse into ONE bogus
-        SourceSet keyed `''`. `MixedProvenanceError` cannot catch it (it needs a digest spanning
-        *several* provenances; these rows are uniformly CODE), so it fails with no visible error at
-        all. `core/curator/curator.py`'s `prune_candidates` has the identical shape and would
-        report the whole atom plane as one orphaned digest.
+        [banner: extension] A3: the permission is a CAPABILITY now, not a free provenance set —
+        every row comes back as a `Row[L]`, built by the sealed constructor that re-checks its
+        class, and plane rows come only from the cleared relations. Prose atoms are never rows:
+        their occupancies are. Superseded plane occupancies come back only on
+        `include_superseded=True` (the physical rows keep their own `current` column as before).
 
-        The guard is here rather than in `sourceset` deliberately: the kernel module may never
-        learn about the outer-ring membership store (the C5/D3 ring pin — an import would demote
-        `sourceset` from the inner-ring fixed point), so the shed side owns the consequence of its
-        own shed. Excluding is the fail-closed half of the note's "excludes them or raises": a
-        structural grouping over geometry-without-occupancy is not a smaller answer, it is a wrong
-        one, and a code consumer reaches source objects through membership fibers (D3) — never
-        through group-by-digest.
+        [banner: correction] **The shed-atom guard (bp-152 Item 3, the note's §3 Q5 gap).** A
+        maintenance-wide read (the old unscoped `provenances=None`) excludes shed CODE-atom rows
+        unless asked by name: every structural group-by-`digest` consumer keys on a column an atom
+        row does not have, so shed rows (all `digest=''`) would collapse into ONE bogus SourceSet
+        that `MixedProvenanceError` cannot catch. A read that admits CODE but not every class — the
+        code lane's own read — gets the atoms, as `provenances={CODE}` always did."""
+        code_atoms = clearance.admits(Provenance.CODE) and (
+            include_atom_rows or clearance.classes != _ALL_CLASSES)
+        out = [Row(clearance, r, mint=_MINT) for r in self._physical(clearance)
+               if code_atoms or not is_code_atom_row(dict(r))]
+        out.extend(self._plane.reader(clearance).rows(include_superseded=include_superseded))
+        return out
 
-        A caller that genuinely wants the whole physical table passes `include_atom_rows=True`;
-        a caller that wants the code lane passes `provenances={CODE}`, which is how
-        `CodeCorpusSync` and the eval battery already read it, and is unaffected."""
+    def has_digest(self, digest: str, *, clearance: Clearance[Provenance]) -> bool:
+        """Does any row `clearance` admits come from this raw digest? A pushed-down count and an
+        indexed plane lookup — never a scan of vectors."""
+        where = f"{_gate(clearance)} AND digest = {_sql_str(digest)}"
+        if self._physical_possible(clearance) and self._table().count_rows(where):
+            return True
+        return self._plane.reader(clearance).has_digest(digest)
+
+    def digests(self, *, clearance: Clearance[Provenance],
+                include_superseded: bool = False) -> set[str]:
+        """The raw digests of every document version `clearance` admits (current ones unless asked)
+        — what an importer dedupes against without reading a vector."""
+        out = {str(r["digest"]) for r in self._physical(clearance)}
+        out |= {o.digest for o in self._plane.reader(clearance).occupancies(
+            include_superseded=include_superseded)}
+        return out
+
+    def table_version(self) -> int:
+        """The physical dataset's current version (0 before the table exists): a migration reads it
+        before and after its work, and a change it did not make aborts the swap."""
         if TABLE not in self._db.list_tables().tables:
-            return []
-        rows = self._table().to_arrow().to_pylist()
-        if provenances is None:
-            if include_atom_rows:
-                return rows
-            return [r for r in rows if not is_code_atom_row(r)]
-        allowed = {Provenance(p).value for p in provenances}
-        return [r for r in rows if r.get("provenance") in allowed]
+            return 0
+        return self._table().version()
 
-    def atom_rows(self) -> list[dict[str, Any]]:
-        """Every shed CODE-atom row (D1) — the vector plane V, as rows. `len(atom_rows())` is |V|
-        for the append-only invariant (§4: no test may ever observe |V| decrease except across a
-        logged purge)."""
-        return [r for r in self.all_rows(provenances={Provenance.CODE}) if is_code_atom_row(r)]
+    def physical_pages(self, *, clearance: Clearance[Provenance], where: str | None = None,
+                       page: int = 2000) -> Iterator[list[dict[str, Any]]]:
+        """The physical table in pages of at most `page` rows, vectors included — bounded memory
+        however large the store (the A3 migration copies a 148k-row store through it). Gated like
+        `project`: short of maintenance, only rows whose class the clearance admits."""
+        if TABLE not in self._db.list_tables().tables or not clearance.classes:
+            return
+        clauses = [] if clearance.classes == _ALL_CLASSES else [_gate(clearance)]
+        if where is not None:
+            clauses.append(f"({where})")
+        offset = 0
+        while True:
+            q = self._table().scan()
+            if clauses:
+                q = q.where(" AND ".join(clauses))
+            rows = [dict(r) for r in q.offset(offset).limit(page).to_list()]
+            if rows:
+                yield rows
+            if len(rows) < page:
+                return
+            offset += page
+
+    def _physical_possible(self, clearance: Clearance[Provenance]) -> bool:
+        """Can the physical table hold a record this clearance admits? On the plane, a physical
+        record is CODE (prose lands in the plane; a retired label is admitted by no clearance), so
+        a read that does not admit CODE skips the physical scan entirely — measured on the paper
+        store, that scan was 21 ms of a 62 ms search for rows that cannot exist."""
+        if TABLE not in self._db.list_tables().tables or not clearance.classes:
+            return False
+        return clearance.admits(Provenance.CODE) or not self.plane_enabled()
+
+    def _physical(self, clearance: Clearance[Provenance],
+                  where: str | None = None) -> list[dict[str, object]]:
+        """Physical RECORD rows whose class `clearance` admits, with `where` pushed down beside the
+        gate. The gate applies even under maintenance: a classless prose atom, or a row still under
+        a retired label, is not a record any clearance reads (`project` / `physical_pages` are the
+        physical views)."""
+        if not self._physical_possible(clearance):
+            return []
+        clause = _gate(clearance) + (f" AND ({where})" if where else "")
+        return self._table().scan().where(clause).limit(0).to_list()
+
+    def atom_rows[L: Provenance](self, *, clearance: Clearance[L]) -> list[Row[L]]:
+        """Every shed CODE-atom row (D1) — the code plane V, as rows. `len(atom_rows())` is |V| for
+        the append-only invariant (§4). A code read: `clearance` must admit CODE."""
+        if not clearance.admits(Provenance.CODE):
+            raise ClearanceViolation(f"code atoms are not readable under {clearance!r}")
+        return [Row(clearance, r, mint=_MINT) for r in self._physical(
+            clearance, "source_path = '' AND digest = ''") if is_code_atom_row(dict(r))]
 
     def atom_row_count(self) -> int:
         """`|V|` — how many shed CODE-atom rows the plane holds, as a SERVER-SIDE count.
@@ -537,40 +683,139 @@ class VectorStore:
             versions_before=before_versions, versions_after=after_versions,
         )
 
-    def search(self, vector: list[float], *, k: int = 5,
-               provenances: Iterable[Provenance] | None = None,
-               include_superseded: bool = False) -> list[dict[str, Any]]:
-        """Nearest-neighbour search, optionally restricted to provenance classes.
-        `provenances=None` searches everything; the mirror passes {AUTHORED}.
+    def search[L: Provenance](self, vector: list[float], *, k: int = 5, clearance: Clearance[L],
+                              include_superseded: bool = False) -> list[Row[L]]:
+        """The k nearest rows `clearance` admits.
 
-        Default retrieval is CURRENT-VIEW (dn-temporal-code-corpus D3, bp-099): a superseded code
-        version (`current=false`, kept by keep-and-link) never surfaces unasked, so every existing
-        consumer is unchanged (note rows carry the vacuous current=true). A temporal consumer opts
-        into history with `include_superseded=True`.
+        Default retrieval is CURRENT-VIEW (dn-temporal-code-corpus D3, bp-099): a superseded
+        version never surfaces unasked; `include_superseded=True` opts into history. Physical rows
+        (code atoms read as `current_any`, D1) are searched with their class pushed down as a
+        PREFILTER, so the k nearest are taken from the permitted set, not after.
 
-        Under D1 (bp-152) the same clause serves the atom plane with the `current_any` reading —
-        "does ANY current membership contain this atom" — so an atom whose every occupancy is
-        superseded drops out of the default search exactly as a superseded version used to. This
-        search returns ATOMS; resolving each hit to its occupancies `(path, blob, slot, lines)` is
-        the membership join (D3, `core.stores.memberships.resolve_occupancies`), and the join is
-        where a code consumer learns *where* a hit lives."""
-        if TABLE not in self._db.list_tables().tables:
+        [banner: extension] A3: prose comes from the shared plane — the k nearest atoms that a
+        CLEARED relation holds, one row per cleared occupancy — and the two lists merge by
+        distance. Resolving a code hit to its occupancies `(path, blob, slot, lines)` remains the
+        membership join (D3, `core.stores.memberships.resolve_occupancies`)."""
+        out: list[Row[L]] = []
+        if self._physical_possible(clearance):
+            clause = _gate(clearance) + ("" if include_superseded else " AND current = true")
+            q = self._table().search(vector).metric("cosine").where(clause, prefilter=True)
+            out = [Row(clearance, r, mint=_MINT) for r in q.limit(k).to_list()]
+        if self.plane_enabled():
+            out.extend(self._plane.reader(clearance).search_rows(
+                vector, k=k, include_superseded=include_superseded))
+        out.sort(key=lambda r: float(r.get("_distance", 0.0)))
+        return out[:k]
+
+
+_BATCH = 400
+
+
+def _batched(items: Sequence[str]) -> Iterable[Sequence[str]]:
+    for i in range(0, len(items), _BATCH):
+        yield items[i:i + _BATCH]
+
+
+@dataclass
+class _LanceAtoms:
+    """The plane's `AtomTable` over this store's one LanceDB table (A3). Plain data in and out;
+    which rows a reader may receive is decided by the plane's cleared relations, never here."""
+
+    store: VectorStore
+
+    def _exists(self) -> bool:
+        return TABLE in self.store._db.list_tables().tables
+
+    def _scan(self, where: str, columns: list[str]) -> list[dict[str, object]]:
+        if not self._exists():
             return []
-        q = self._table().search(vector).metric("cosine")
-        clauses: list[str] = []
-        if provenances is not None:
-            allowed = ", ".join(f"'{Provenance(p).value}'" for p in provenances)
-            clauses.append(f"provenance IN ({allowed})")
-        if not include_superseded:
-            clauses.append("current = true")        # current-view default (D3)
-        if clauses:
-            # prefilter so the k nearest are taken from the permitted set, not after.
-            q = q.where(" AND ".join(clauses), prefilter=True)
-        return q.limit(k).to_list()
+        return self.store._table().scan().select(columns).where(where).limit(0).to_list()
+
+    def present(self, atom_ids: Sequence[str]) -> set[str]:
+        out: set[str] = set()
+        for batch in _batched(list(atom_ids)):
+            out |= {str(r["id"]) for r in self._scan(f"{_id_in(batch)} AND {_PROSE_ATOM}", ["id"])}
+        return out
+
+    def insert(self, atoms: Sequence[AtomRecord]) -> int:
+        rows = [{"id": a.atom_id, "digest": "", "title": "", "source_path": "", "chunk_index": 0,
+                 "provenance": "", "text": a.text, "layer": a.layer, "qualname": "",
+                 "line_start": 0, "line_end": 0, "current": False, "held": [], "held_ever": [],
+                 "vector": list(a.vector)} for a in atoms]
+        if not rows:
+            return 0
+        for r in rows:
+            if len(cast(list[float], r["vector"])) != self.store.dim:
+                raise ValueError(f"atom vector dim != configured {self.store.dim}")
+        self.store._table().add(rows)
+        return len(rows)
+
+    def payload(self, atom_ids: Sequence[str]) -> dict[str, tuple[str, Sequence[float]]]:
+        out: dict[str, tuple[str, Sequence[float]]] = {}
+        for batch in _batched(list(atom_ids)):
+            for r in self._scan(f"{_id_in(batch)} AND {_PROSE_ATOM}", ["id", "text", "vector"]):
+                out[str(r["id"])] = (str(r["text"]), cast(list[float], r["vector"]))
+        return out
+
+    def nearest(self, vector: Sequence[float], *, classes: Sequence[str], superseded: bool,
+                limit: int) -> list[Candidate]:
+        if not self._exists() or not classes:
+            return []
+        col = "held_ever" if superseded else "held"
+        pred = f"array_has_any({col}, [{', '.join(_sql_str(c) for c in classes)}])"
+        rows = (self.store._table().search(list(vector)).metric("cosine")
+                .where(pred, prefilter=True).select(["id", "text", "vector", "_distance"])
+                .limit(limit)
+                .to_list())
+        return [Candidate(atom_id=str(r["id"]), text=str(r["text"]),
+                          vector=cast(list[float], r["vector"]),
+                          distance=float(cast(float, r["_distance"]))) for r in rows]
+
+    def held(self, atom_ids: Sequence[str]) -> dict[str, tuple[frozenset[str], frozenset[str]]]:
+        out: dict[str, tuple[frozenset[str], frozenset[str]]] = {}
+        for batch in _batched(list(atom_ids)):
+            for r in self._scan(f"{_id_in(batch)} AND {_PROSE_ATOM}",
+                                ["id", "held", "held_ever"]):
+                out[str(r["id"])] = (frozenset(cast(list[str] | None, r["held"]) or ()),
+                                     frozenset(cast(list[str] | None, r["held_ever"]) or ()))
+        return out
+
+    def set_held(self, updates: Mapping[str, tuple[frozenset[str], frozenset[str]]]) -> int:
+        groups: dict[tuple[tuple[str, ...], tuple[str, ...]], list[str]] = defaultdict(list)
+        for a, (h, e) in updates.items():
+            groups[(tuple(sorted(h)), tuple(sorted(e)))].append(a)
+        written = 0
+        for (held, ever), ids in groups.items():
+            for batch in _batched(ids):
+                self.store._table().update(f"{_id_in(batch)} AND {_PROSE_ATOM}", values_sql={
+                    "held": _sql_list(held), "held_ever": _sql_list(ever),
+                    "current": "true" if held else "false"})
+                written += len(batch)
+        return written
+
+    def delete(self, atom_ids: Sequence[str]) -> int:
+        deleted = 0
+        for batch in _batched(list(atom_ids)):
+            where = f"{_id_in(batch)} AND {_PROSE_ATOM}"
+            n = self.store._table().count_rows(where) if self._exists() else 0
+            if n:
+                self.store._table().delete(where)
+                deleted += n
+        return deleted
+
+    def ids(self) -> set[str]:
+        return {str(r["id"]) for r in self._scan(_PROSE_ATOM, ["id"])}
+
+
+def fingerprint_of(config: Config) -> Fingerprint:
+    """The configured embedder geometry: model, document template, dimension (A3)."""
+    e = config.embedding
+    return Fingerprint(model=e.model, template=e.document_template, dim=e.dim)
 
 
 def open_vector_store(config: Config | None = None) -> VectorStore:
     from core.kernel.config import get_config
 
     cfg = config or get_config()
-    return VectorStore(path=cfg.paths.vector_store, dim=cfg.embedding.dim)
+    return VectorStore(path=cfg.paths.vector_store, dim=cfg.embedding.dim,
+                       embedder=fingerprint_of(cfg))

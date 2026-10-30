@@ -4,7 +4,7 @@ id: dn-vector-membership-store
 track: code-ingest
 status: draft            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 created: 2026-07-23
-updated: 2026-07-27      # adversarial-panel revision pass (§0.1)
+updated: 2026-10-29      # Amendment A3 (shared prose plane, typed clearances); 2026-07-27 adversarial-panel pass (§0.1)
 links:
   - docs/findings/finding-0168.md                      # the warrant — FIVE owner rulings, verbatim (addendum 4: rename-as-membership-edge)
   - docs/findings/finding-0167.md                      # the interim reuse port this subsumes; its owed L1 line-header check discharges in D0
@@ -173,7 +173,9 @@ Three stores, one truth each:
   **one-layer-one-provenance is carried as a test invariant, so an atom never spans strata** —
   the PD-2 fence: cross-stratum sharing would break both the prefilter and sourceset's
   one-stratum axiom (`core/kernel/stores/sourceset.py:58-62`), so it is unrepresentable until
-  PD-2 re-designs that boundary. **The occupancy columns (`source_path`, `digest`, `qualname`,
+  PD-2 re-designs that boundary. **[AMENDED for prose by A3 (draft, 2026-10-29): the fence moves
+  from the atom row to the occupancy relation — one relation per class, read only through a typed
+  clearance; code atoms stay one-stratum as above.]** **The occupancy columns (`source_path`, `digest`, `qualname`,
   `line_*`, `chunk_index`) are shed from CODE-ATOM ROWS, not from the schema**: note rows still
   carry them and every prose-lane consumer is untouched — `index_amendment`/`delete_source` are
   `source_path`-scoped and never match an atom row's empty path (`core/ingest/index.py:87`);
@@ -416,7 +418,7 @@ finding-0167's mechanical port is subsumed (do not build it separately if this r
 | PD | Decision | Default recorded | Re-entry condition |
 |---|---|---|---|
 | PD-1 | cross-file dedup scope | RULED IN (owner) — one atom, n memberships, fork semantics | — (closed at capture) |
-| PD-2 | notes-lane adoption | code-first; prose untouched by D7; atoms never span strata (D1 fence) | notes keep-and-link lands (f-0164) AND the prefilter is redesigned for sharing |
+| PD-2 | notes-lane adoption | code-first; prose untouched by D7; atoms never span strata (D1 fence) | notes keep-and-link lands (f-0164) AND the prefilter is redesigned for sharing — **RE-ENTERED by Amendment A3 (draft, 2026-10-29)** |
 | PD-3 | materialized slot-edge view | derived on read | a consumer needs edge queries at a rate joins can't serve |
 | PD-4 | IDF-weighted retrieval | gauge only, no ranking change | a retrieval-quality experiment (T4) shows lift |
 | PD-5 | L1 slotting | L1 stays windowed + slotless (R4) | a consumer needs docstring/comment lineage — then per-item L1 chunks, a deliberate re-chunk |
@@ -640,3 +642,192 @@ The rename applies to **the membership row and the chunker field that feeds it**
   after all (A2.2's rejected option, re-entered).
 - **The vector-row columns get renamed too.** That would be over-reading this amendment (A2.3) and
   would push a code-only concept into the prose lane's schema.
+
+## Amendment A3 — one plane for every stratum: shared atoms, occupancy partitioned by class, typed clearances
+
+**Warrant:** owner rulings 2026-10-29, verbatim:
+
+> "vector data needs to be stored efficiently, since ingesting/embedded tokens will be common,
+> common words and phrases will occur … if doc A and B both are composed of 10 vectors, and 5 are
+> the same, then A and B have pointers to those vectors in common, but if one of those changes in
+> A, then a supersession edge from the doc is created to the updated doc with the new vector
+> reference set"
+
+> "papers, dialogues, monologues can also reference the same vectors, that's how we connect the
+> full stratum as well, common language use exists"
+
+> "yes, implement the efficient vector storage for all strata layers, where the atoms are shared,
+> but you're right, do it in a way that does not leak"
+
+> "it shouldn't just be a simple condition, accessible records without the correct permission
+> should be unrepresentable, and also enforced by the type system"
+
+**Authority basis, self-describing:** agent-drafted 2026-10-29. `status` stays `draft`; ratification
+is the owner's hand edit. Measurements: `eval/storage_census.py` → `data/eval/storage-census.json`
+and `docs/brainstorms/shared-vectors.md`.
+
+### A3.1 — What changes and what stands
+
+- **Re-enters PD-2** (notes-lane adoption). Both re-entry conditions now hold: keep-and-link for
+  notes lands here (the supersession log, A3.2), and the prefilter is redesigned for sharing (A3.4).
+- **Supersedes, for prose only, D1's fence** "one-layer-one-provenance … an atom never spans
+  strata". The fence existed because the prefilter and sourceset's axiom both read provenance off
+  the vector row; A3 keeps both protections and moves them to where sharing cannot break them.
+- **Code is unchanged:** D0 identity, its own membership store, one class (CODE) by structural
+  minting.
+- **Stands for prose:** D2 (a land reconciles; never short-circuit), D4 (supersession lives on the
+  document chain, never on the vector), D5 (purge is the one removal), D6 (two counts), D8 (write
+  order; caches are repairable).
+
+### A3.2 — The objects (the prose plane)
+
+1. **Atom** = `(layer, content_hash)`, with `content_hash` the SHA-256 of the chunk text
+   (`Chunk.content_hash`, the identity the prose lane already computes). Each plane holds **one
+   embedder fingerprint**: model, dim and the document template, because the template changes the
+   vector. (The code lane's `EmbedderIdentity` omits the template; that is a finding to carry.) The
+   atom row sheds provenance and occupancy, exactly as D1 sheds code atoms.
+2. **Occupancy, partitioned by class:** `M = ⊔_c M_c`, one relation per provenance class
+   (`occ_<class>`), keyed by `(source_path, digest, chunk_index)`. **An occupancy's class is the
+   relation it lives in, not a column a read filters on.**
+3. **A version is a fiber** `(source_path, digest)`. Currency is per path (D2 step 4): a land makes
+   its fiber current and supersedes the path's other fibers.
+4. **Supersession log, per class:** `(source_path, seq) ↦ (old_digest → new_digest, at)`, appended
+   exactly when a path's head changes. A retire writes `new_digest = ''`. It is keyed by position,
+   not content (C1): A→B→A gives two edges, and per path `|edges| = |runs| − 1` over its heads. This
+   is the owner's "supersession edge from the doc … to the updated doc with the new vector
+   reference set"; the reference set is the new fiber.
+5. **Repeats within one document** keep the prose lane's rule of one occupancy per canonical chunk
+   (ingest-identity §3). The F5 multiset pin is a code-lane pin and is not imported here.
+6. **Corroboration (R1/§7)** keeps its intent. `core/kernel/ingest/amend.py` says two notes sharing
+   a verbatim paragraph "keep BOTH points"; both documents still keep their occupancy. Sharing the
+   vector turns the corroboration into a count, `n_doc(v) ≥ 2`, instead of two identical rows.
+
+### A3.3 — Code and papers
+
+- **Code and prose atoms are disjoint identity spaces.** A vector can be shared only by identical
+  embed texts, and D0's header prefix makes every code embed text differ from every prose chunk.
+- **Papers get their own plane** (atoms plus relations) in their own directory, physically apart as
+  dn-external-grounding §2.2 (ratified) requires.
+- **No cross-store embedding cache.** The census measured 0 texts shared between the two stores.
+  A cache keyed by text across the firewall would also be a membership oracle: it answers "does the
+  other store hold this exact text?" for whoever can ask.
+
+### A3.4 — The permission boundary: unrepresentable, and typed (ruling 4)
+
+- **`Clearance[L]` is a capability** whose label `L` is a set of provenance classes at the type
+  level: a union of `Literal` members of the `Provenance` enum. The subset lattice of classes *is*
+  mypy's subtype lattice on those unions, with `L` covariant. Measured on mypy 2.2.0:
+  - `Occupancy[Literal[AUTHORED_SOLO]]` flows into an `Occupancy[MirrorClass]` sink.
+  - `Occupancy[Literal[OBSERVED]]`, a mixed label, and the top label `Occupancy[Provenance]` are all
+    rejected there.
+
+  The records are `@final` slotted classes with read-only properties. A frozen dataclass makes `L`
+  invariant on 3.13+, because the synthesized `__replace__` takes `L` as a parameter (measured).
+- **Minting follows object-capability discipline: no ambient authority.** Clearances come only from:
+  - `MIRROR`, the firewall's own definition (`MIRROR_READABLE`);
+  - a query's **admitted** scope (`core/query.py`; the admission check *is* the permission);
+  - named deliberate grants (`CURATED`, `CODE`, `DIALOGUE`, `OBSERVED`, `MAINTENANCE`). The modules
+    allowed to import each grant are pinned by an AST allowlist test (`tests/integrity`), the way the
+    import firewall pins the network allowlist.
+- **Every read requires a clearance.** There is no default and no `None`. A reader generates SQL
+  only over `occ_<c>` for `c` in its clearance, so a mirror read cannot even name the observed
+  relation.
+- **Records have sealed constructors.** `Occupancy[L]`, `PlaneHit[L]` and the dict-shaped `Row[L]`
+  take a private mint token and re-check `class ∈ clearance` at construction. This is the
+  `MirrorView` move, generalized from the mirror set to every clearance.
+  - A `PlaneHit` exists only with at least one cleared occupancy.
+  - `Row[L]` is immutable (a `dict` subclass that refuses writes), so a cleared record cannot be
+    relabeled in place. A copy (`dict(row)`) is a plain dict and carries no label.
+- **Static flow.** A consumer that may hold only mirror data annotates `Row[MirrorClass]`.
+  `narrow(x, to=clearance)` is the only checked way down ("parse, don't validate"). The binary
+  `Authored`/`Derived` shadow (bp-009 §11's recorded default) is this lattice's two-point quotient.
+  A3 re-enters that parked grain decision with the set lattice, which needs no order (G8).
+- **The ANN prefilter is a cache, not the boundary.** Each atom row has two list columns, `held`
+  and `held_ever`, naming the classes that hold a current, or any, occupancy of it. A stale entry
+  can only drop a result (the join through the cleared relations finds nothing) or miss one
+  (repaired by the R3 ratchet). It can never widen what a reader receives.
+
+### A3.5 — The no-leak law: noninterference (Goguen & Meseguer, 1982)
+
+**For every clearance `C`, every read under `C` is a function of the cleared relations `M_C` and
+the atoms they reference. Mutating any relation outside `C` leaves every `C`-read unchanged.**
+
+- It is tested as a Hypothesis property: random planes, random mutations of uncleared relations,
+  identical reads.
+- Atom text is content-addressed, so an atom reached under `C` carries exactly the text its
+  `C`-occupancy holds.
+
+Residual channels, named rather than hidden:
+
+1. An ANN index trained over the whole plane makes approximate recall depend on atoms outside `C`.
+   Flat search, which both stores use today, is exact.
+2. An embedder that is not bit-deterministic across batch compositions makes a shared atom's
+   low-order bits depend on who landed it first.
+3. Gauges across classes (`n_doc` over every class) are `MAINTENANCE` reads.
+4. A read's latency depends on the size of the shared atom table.
+
+### A3.6 — Sourceset's axiom
+
+"A source lives at exactly one stratum" now holds per fiber, by construction:
+
+- A fiber lives in exactly one relation. Landing a path into a second class raises; a relabel is the
+  one deliberate move between classes.
+- An owner turn and a model turn with identical bytes are two fibers and two `SourceId`s (a digest
+  at a stratum).
+- Grouping keys on `SourceId = (digest, provenance)`.
+
+### A3.7 — Writers: one retired idiom, two existing defects (verified in code, 2026-10-29)
+
+- **Delete-by-digest as an "idempotent re-index" is retired.** It appears in
+  `core/ingest/dialogue.py:62,91`, `curated.py:61` and `founding.py:109`, and under shared content
+  it is wrong twice:
+  - It deletes the rows of *every* document with the same bytes. Two identical chat turns: the
+    earlier turn loses its vectors. A model reply that repeats the owner's message replaces the
+    owner's rows with observed ones, so they drop out of the mirror.
+  - In curated ingest it deletes by the *new* digest, so an edited document's old version stays
+    current beside the new one.
+
+  Landing is idempotent by reconciliation, so the idiom is no longer needed.
+- **`delete(digest)` keeps one meaning: the purge.** It removes that digest's occupancies in every
+  relation and its supersession entries, then any atom nobody still holds (vector and text). No
+  tombstone keeps a content hash of purged private text. D5's recorded hole is for code, which is
+  public in git; for prose, privacy outranks lineage.
+
+### A3.8 — Migration (per store; D7's pattern, scaled down)
+
+1. Archive the store directory under `~/mind-palace-archive/`.
+2. Convert legacy per-document prose rows into atoms and relations, carrying vectors bit-identically.
+3. Before the swap, verify by reconstituting every legacy row: id, text, vector bytes, provenance,
+   digest, path, chunk index and title.
+4. The old directory stays archived, never deleted.
+
+Measured 2026-10-29:
+- **Main store:** 67 prose rows (38 authored-solo, 7 authored-dialogue, 22 observed) beside 17,256
+  code rows.
+- **Curated store:** 148,240 rows, 823 of them duplicates.
+
+**A shared atom keeps one representative vector** (D0's "first-landed rendering", now for prose).
+The embedder is not bit-deterministic across batches, so two separately embedded copies of one
+text differ in their last bits. Measured on the live paper store: 818 texts held more than once
+(1,641 rows). Of 823 duplicate copies, 107 were bit-identical and the rest within cosine 0.9999984
+of the first, a distance of at most 1.6e-6 and far below retrieval resolution. The migration
+therefore verifies every unshared row bit for bit. It accepts a holder's representative only
+within cosine 1 − 1e-5 (about 6× the measured jitter), counted in its report. Anything wider
+refuses the swap.
+
+### A3.9 — Falsifiers (each names its degenerate input)
+
+- **Noninterference** reddens on a seeded leak (a reader that also reads one uncleared relation).
+  *Degenerate input:* an empty plane. The generator guarantees occupancies in a cleared and an
+  uncleared class.
+- **Static:** a mypy negative test. A mirror sink fed `Row[Literal[OBSERVED]]` must fail
+  type-checking, and a mutation that drops the label must make the test redden.
+- **Cache fail-closed:** set `held` to every class on every atom; mirror reads stay unchanged.
+- **Revert:** A→B→A on one note gives 2 supersession edges, fiber A current, B superseded, and 0 new
+  atoms on the third land.
+- **Shared atoms:** two documents sharing k chunks store them once (`|V| < Σ chunks` asserted
+  first), and each document reconstitutes exactly.
+- **Identical turns:** an owner turn and a model turn with the same text both survive, each at its
+  own stratum. A mirror read returns the owner's turn and never the model's.
+- **Migration round-trip:** every legacy row reconstitutes bit-identically (vector bytes compared,
+  not approximately).

@@ -45,7 +45,7 @@ from core.kernel.provenance import Provenance
 from core.kernel.stores.rawstore import RawStore
 from core.stores.authored_supersession import AuthoredSupersessionStore, owner_declaration
 from core.stores.catalog import VaultCatalog
-from core.stores.vectorstore import VectorStore
+from core.stores.vectorstore import VectorStore, open_vector_store
 
 
 class UndatedFoundingItem(ValueError):
@@ -106,7 +106,6 @@ def ingest_founding(items: Iterable[FoundingItem], raw: RawStore, store: VectorS
         parsed = parse_text(text, source_path=item.source_path, title=item.title,
                             raw_bytes=text.encode("utf-8"))
         record = ingest_note(parsed, raw, provenance=Provenance.AUTHORED_SOLO)
-        store.delete(digest=record.digest)                 # idempotent re-index (the curated idiom)
         report.chunks += index_records([record], embedder, store)
         catalog.record(record.source_path, record.digest, record.title,
                        provenance=Provenance.AUTHORED_SOLO)
@@ -147,7 +146,7 @@ def build_and_ingest_founding(items: Iterable[FoundingItem],
     return ingest_founding(
         items,
         raw=RawStore(cfg.paths.raw_store),
-        store=VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim),
+        store=open_vector_store(cfg),
         embedder=build_embedder(cfg),
         catalog=VaultCatalog(cfg.paths.vault_catalog),
         supersession_store=open_authored_supersession_store(cfg),

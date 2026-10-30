@@ -83,6 +83,7 @@ from core.stores.vectorstore import (
     LAYER_CODE_TEXT,
     LAYER_CODEDOC,
     VectorStore,
+    open_vector_store,
 )
 from ops.code_snapshot import FileShape, Symbol, list_py_blobs, parse_source, read_py_blobs
 
@@ -626,7 +627,7 @@ def build_code_corpus_sync(config: Any = None, *, repo: Path | None = None,
                                        check=True, capture_output=True, text=True).stdout.strip())
     return CodeCorpusSync(
         repo=root,
-        store=VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim),
+        store=open_vector_store(cfg),
         embedder=embedder or build_embedder(cfg),
         memberships=open_membership_store(cfg),
         embedder_identity=EmbedderIdentity.from_config(cfg),

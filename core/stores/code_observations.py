@@ -50,6 +50,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from core.kernel.clearance import _MINT, Clearance, Row
 from core.kernel.config import Config
 from core.kernel.provenance import Provenance
 from core.stores.observation_history import ObservationHistoryStore
@@ -253,18 +254,15 @@ class CodeObservationStore:
         return added, superseded
 
     # --- reads (view-compatible dict rows) ----------------------------------------------
-    def all_rows(self, *,
-                 provenances: Iterable[Provenance] | None = None) -> list[dict[str, Any]]:
+    def all_rows[L: Provenance](self, *, clearance: Clearance[L]) -> list[Row[L]]:
         """Full scan, optionally restricted to provenance classes (the `RowSource` shape).
         Every stored row is `observed`, so a filter containing OBSERVED sees ALL rows and
         any filter excluding it sees NONE — there is no third case."""
-        rows = [self._row(r) for r in self._conn.execute(
+        if not clearance.admits(Provenance.OBSERVED):
+            return []        # every stored row is `observed`: a clearance without it reads nothing
+        return [Row(clearance, self._row(r), mint=_MINT) for r in self._conn.execute(
             "SELECT * FROM code_observations ORDER BY commit_sha, path, qualname"
         ).fetchall()]
-        if provenances is None:
-            return rows
-        allowed = {Provenance(p).value for p in provenances}
-        return [r for r in rows if r["provenance"] in allowed]
 
     def rows_for(self, commit_sha: str) -> list[dict[str, Any]]:
         return [self._row(r) for r in self._conn.execute(

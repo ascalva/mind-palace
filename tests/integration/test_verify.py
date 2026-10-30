@@ -1,3 +1,4 @@
+
 """Retrieval content-integrity (`core.ingest.verify`, prompt-integrity audit G9.5).
 
 A retrieved chunk is verified to reproduce from the immutable, content-addressed raw store before
@@ -6,6 +7,8 @@ check is exact (the same `raw → _decode → chunk_text` derivation ingest used
 always passes and only tampered/unreproducible text is dropped fail-closed. Deterministic — a real
 RawStore and the real chunker, no model.
 """
+
+from typing import Any
 
 from core.kernel.ingest.chunk import chunk_text
 from core.kernel.ingest.logseq import ParsedNote
@@ -92,7 +95,7 @@ class _Store:
     def __init__(self, rows):
         self.rows = rows
 
-    def search(self, _vector, *, k=5, provenances=None):
+    def search(self, _vector, *, k=5, clearance: Any = None):
         return self.rows[:k]
 
 

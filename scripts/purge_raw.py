@@ -13,6 +13,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from core.stores.vectorstore import open_vector_store
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root on path
 
 from core.sealing import seal
@@ -24,7 +26,6 @@ def main(argv: list[str]) -> int:
     from core.ingest.purge import PurgeRefusedError, purge_raw
     from core.kernel.stores.rawstore import RawStore
     from core.stores.catalog import VaultCatalog
-    from core.stores.vectorstore import VectorStore
 
     cfg = get_config()
     catalog = VaultCatalog(cfg.paths.vault_catalog)
@@ -49,7 +50,7 @@ def main(argv: list[str]) -> int:
         result = purge_raw(
             digest,
             raw=RawStore(cfg.paths.raw_store),
-            store=VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim),
+            store=open_vector_store(cfg),
             catalog=catalog,
             confirm=confirm,
         )

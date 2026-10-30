@@ -86,6 +86,7 @@ from typing import TYPE_CHECKING
 # pure-core (or eval) module with no network path (`ops/import_lint` forbids only edge/cloud/net;
 # `core/dreaming/shadow.py` already imports `eval.harness.store`).
 from core.attestation.store import AttestationStore
+from core.kernel.clearance import MAINTENANCE_READ
 
 # `Clock` is READ-ONLY vocabulary here (the registered clock hierarchy); bp-056 owns changes to it.
 from core.kernel.scope import Clock
@@ -431,7 +432,7 @@ class _Builder:
         `MirrorView` never sees it."""
         self.present.append("chatlog")
         prev_by_session: dict[str, str] = {}
-        for row in store.all_rows():
+        for row in store.all_rows(clearance=MAINTENANCE_READ):
             session_id, turn_index = str(row["session_id"]), int(row["turn_index"])
             eid = self._add("chatlog", session_id, turn_index, produces=(), consumes=())
             prev = prev_by_session.get(session_id)

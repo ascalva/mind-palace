@@ -21,9 +21,10 @@ from typing import cast
 from core.ingest.code_corpus import code_memberships, code_rows, derive_code_chunks
 from core.ingest.embed import Embedder
 from core.ingest.index import _chunk_row, semantic_search
+from core.kernel.clearance import CODE_READ, MAINTENANCE_READ, MIRROR_READ
 from core.kernel.ingest.chunk import Chunk
 from core.kernel.ingest.pipeline import IngestRecord
-from core.kernel.provenance import MIRROR_READABLE, Provenance
+from core.kernel.provenance import Provenance
 from core.stores.memberships import MembershipStore
 from core.stores.vectorstore import VectorStore
 from eval.code_probes import PROBES
@@ -135,8 +136,16 @@ def test_the_firewall_survives_the_rebuilds_physical_maintenance(tmp_path):
     assert ranked_paths(query, emb, store, layers=LANE_LAYERS, pool=50,
                         memberships=memberships) == code_before
 
-    # the firewall is a PREFILTER, so the column it filters on must still be there to filter
-    assert all(str(r.get("provenance") or "") for r in store.project(["id", "provenance"]))
+    # the firewall is a PREFILTER, so the column it filters on must still be there to filter: every
+    # RECORD row carries its class. A3: the shared prose ATOMS carry none by design (their class
+    # lives in the plane's relations) — and no clearance short of maintenance can reach one.
+    physical = store.project(["id", "provenance", "source_path", "digest"],
+                             clearance=MAINTENANCE_READ)
+    records = [r for r in physical if r.get("source_path") or r.get("digest")
+               or r.get("provenance")]
+    assert records and all(str(r.get("provenance") or "") for r in records)
+    assert all(r.get("provenance") for r in store.project(["id", "provenance"],
+                                                          clearance=MIRROR_READ))
 
 
 def test_mc3_over_a_mixed_store_never_ranks_a_note(tmp_path):
@@ -151,8 +160,8 @@ def test_mc4_reads_each_class_through_its_own_provenance(tmp_path):
     no code, the code side holds no note — the deliberate cross-space read never routes through the
     mirror default (§7)."""
     store, _memberships, _emb = _mixed_store(tmp_path)
-    code = store.all_rows(provenances={Provenance.CODE})
-    notes = store.all_rows(provenances=set(MIRROR_READABLE))
+    code = store.all_rows(clearance=CODE_READ)
+    notes = store.all_rows(clearance=MIRROR_READ)
     assert code and notes
     assert all(r["provenance"] == Provenance.CODE.value for r in code)
     assert all(r["provenance"] != Provenance.CODE.value for r in notes)

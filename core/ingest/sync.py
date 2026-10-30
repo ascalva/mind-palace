@@ -33,7 +33,7 @@ from core.kernel.ingest.logseq import DEFAULT_EXCLUDE_DIRS, iter_vault, parse_no
 from core.kernel.ingest.pipeline import ingest_note
 from core.kernel.stores.rawstore import RawStore
 from core.stores.catalog import VaultCatalog
-from core.stores.vectorstore import VectorStore
+from core.stores.vectorstore import VectorStore, open_vector_store
 from core.stores.versions import VersionStore
 
 
@@ -110,12 +110,11 @@ class VaultSync:
                 if match is not None:
                     resolved_doc_id = match[1]
 
-        # Chunk-level amendment (ingest-identity-and-amendment.md §4): reuse the vectors of chunks
-        # whose content is unchanged (NO re-embed), embed only changed/new chunks, and replace this
-        # note's projection under its stable `source_path`. Keyed by (source_path, chunk_hash), so a
-        # note's unchanged parts keep their point ids across edits — the §4 gap this closes.
-        existing = self.store.rows_for_source(source_path)
-        index_amendment(record, existing, self.embedder, self.store)
+        # Chunk-level amendment (ingest-identity-and-amendment.md §4): embed only chunks the plane
+        # does not hold, land the new version, supersede the old one with an edge (A3: the old
+        # version's occupancies stay, history kept). Unchanged chunks keep their atoms — no re-embed
+        # and no read of the old rows needed, so the writer never reads what it does not own.
+        index_amendment(record, [], self.embedder, self.store)
         self.catalog.record(source_path, digest, record.title, doc_id=resolved_doc_id)
         if self.attestor is not None:
             # input == output == the content digest: for AUTHORED content the bytes read and the
@@ -191,7 +190,7 @@ def build_vault_sync(config: Config | None = None) -> VaultSync:
     return VaultSync(
         vault=cfg.ingestion.vault.path,
         raw=RawStore(cfg.paths.raw_store),
-        store=VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim),
+        store=open_vector_store(cfg),
         catalog=VaultCatalog(cfg.paths.vault_catalog),
         embedder=build_embedder(cfg),
         pattern=cfg.ingestion.vault.pattern,

@@ -30,6 +30,8 @@ from core.dreaming.evaluate import (
     compose,
 )
 from core.kernel.agent_scope import ConformanceError, Handle, dreamer_scope
+from core.kernel.clearance import Clearance
+from core.kernel.provenance import Provenance
 from core.kernel.scope import (
     Authority,
     Clock,
@@ -54,7 +56,7 @@ class CountingRowSource:
     _rows: list[dict[str, Any]] = field(default_factory=list)
     reads: int = 0
 
-    def all_rows(self, *, provenances: Any = None) -> list[dict[str, Any]]:
+    def all_rows(self, *, clearance: Clearance[Provenance]) -> list[dict[str, Any]]:
         self.reads += 1
         return list(self._rows)
 

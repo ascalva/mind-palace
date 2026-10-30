@@ -20,6 +20,7 @@ from pathlib import Path
 
 import pytest
 
+from core.kernel.clearance import Clearance
 from core.kernel.mirror import MirrorView, NonMirrorRowError
 from core.kernel.provenance import MIRROR_READABLE, Provenance
 from core.sensing import NonObservedRowError, ObservedView, SensedObservation
@@ -68,11 +69,8 @@ def test_a_store_of_sensed_rows_projects_to_an_empty_mirror():
         def __init__(self, rows):
             self._rows = rows
 
-        def all_rows(self, *, provenances=None):
-            if provenances is None:
-                return list(self._rows)
-            allowed = {str(p) for p in provenances}
-            return [r for r in self._rows if r["provenance"] in allowed]
+        def all_rows(self, *, clearance: Clearance[Provenance]):
+            return [r for r in self._rows if clearance.admits(r.get("provenance"))]
 
     store = FakeStore([_observation().to_row(), _observation("more exhaust").to_row()])
     view = MirrorView.project(store)
