@@ -519,8 +519,7 @@ class VectorStore:
         """Does any row `clearance` admits come from this raw digest? A pushed-down count and an
         indexed plane lookup — never a scan of vectors."""
         where = f"{_gate(clearance)} AND digest = {_sql_str(digest)}"
-        if (TABLE in self._db.list_tables().tables and clearance.classes
-                and self._table().count_rows(where)):
+        if self._physical_possible(clearance) and self._table().count_rows(where):
             return True
         return self._plane.reader(clearance).has_digest(digest)
 
@@ -562,13 +561,22 @@ class VectorStore:
                 return
             offset += page
 
+    def _physical_possible(self, clearance: Clearance[Provenance]) -> bool:
+        """Can the physical table hold a record this clearance admits? On the plane, a physical
+        record is CODE (prose lands in the plane; a retired label is admitted by no clearance), so
+        a read that does not admit CODE skips the physical scan entirely — measured on the paper
+        store, that scan was 21 ms of a 62 ms search for rows that cannot exist."""
+        if TABLE not in self._db.list_tables().tables or not clearance.classes:
+            return False
+        return clearance.admits(Provenance.CODE) or not self.plane_enabled()
+
     def _physical(self, clearance: Clearance[Provenance],
                   where: str | None = None) -> list[dict[str, object]]:
         """Physical RECORD rows whose class `clearance` admits, with `where` pushed down beside the
         gate. The gate applies even under maintenance: a classless prose atom, or a row still under
         a retired label, is not a record any clearance reads (`project` / `physical_pages` are the
         physical views)."""
-        if TABLE not in self._db.list_tables().tables or not clearance.classes:
+        if not self._physical_possible(clearance):
             return []
         clause = _gate(clearance) + (f" AND ({where})" if where else "")
         return self._table().scan().where(clause).limit(0).to_list()
@@ -689,7 +697,7 @@ class VectorStore:
         distance. Resolving a code hit to its occupancies `(path, blob, slot, lines)` remains the
         membership join (D3, `core.stores.memberships.resolve_occupancies`)."""
         out: list[Row[L]] = []
-        if TABLE in self._db.list_tables().tables and clearance.classes:
+        if self._physical_possible(clearance):
             clause = _gate(clearance) + ("" if include_superseded else " AND current = true")
             q = self._table().search(vector).metric("cosine").where(clause, prefilter=True)
             out = [Row(clearance, r, mint=_MINT) for r in q.limit(k).to_list()]
