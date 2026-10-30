@@ -1,0 +1,3868 @@
+{
+ "date": "2026-10-30",
+ "k": 10,
+ "seed": 20261030,
+ "embedder": "embeddinggemma-2|task: search result | query: {text}|768",
+ "numpy": "2.5.4",
+ "corpora": {
+  "papers": {
+   "vectors": 147417,
+   "dim": 768,
+   "norms": {
+    "min": 1.0,
+    "mean": 1.0,
+    "max": 1.0
+   },
+   "queries": {
+    "real": 2,
+    "titles": 727,
+    "owner": 47,
+    "self": 500
+   },
+   "numpy": [
+    {
+     "scheme": "float32",
+     "bytes_per_vector": 3072,
+     "mb": 452.9,
+     "note": "control: the ground truth against itself",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "float16",
+     "bytes_per_vector": 1536,
+     "mb": 226.4,
+     "note": "half precision",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.9986,
+       "perfect": 0.9862,
+       "min": 0.9,
+       "top1": 0.9986,
+       "ci95": [
+        0.9977,
+        0.9993
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.9988,
+       "perfect": 0.988,
+       "min": 0.9,
+       "top1": 0.998,
+       "ci95": [
+        0.9978,
+        0.9996
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "int8",
+     "bytes_per_vector": 768,
+     "mb": 113.2,
+     "note": "per-dimension min\u2013max codes, float query",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.9931,
+       "perfect": 0.9312,
+       "min": 0.9,
+       "top1": 0.9917,
+       "ci95": [
+        0.9912,
+        0.9949
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.9894,
+       "perfect": 0.8936,
+       "min": 0.9,
+       "top1": 1.0,
+       "ci95": [
+        0.9809,
+        0.9979
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.991,
+       "perfect": 0.91,
+       "min": 0.9,
+       "top1": 0.996,
+       "ci95": [
+        0.9884,
+        0.9934
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "int8 \u2192 rescore \u00d72",
+     "bytes_per_vector": 768,
+     "mb": 113.2,
+     "note": "20 int8 candidates rescored in float32",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary",
+     "bytes_per_vector": 96.0,
+     "mb": 14.2,
+     "note": "sign bits, Hamming distance",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.2,
+       "perfect": 0.0,
+       "min": 0.2,
+       "top1": 0.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.5988,
+       "perfect": 0.0069,
+       "min": 0.1,
+       "top1": 0.6671,
+       "ci95": [
+        0.585,
+        0.6117
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.1681,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0426,
+       "ci95": [
+        0.1277,
+        0.2149
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.4684,
+       "perfect": 0.002,
+       "min": 0.0,
+       "top1": 0.524,
+       "ci95": [
+        0.4524,
+        0.4844
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary \u2192 rescore \u00d72",
+     "bytes_per_vector": 96.0,
+     "mb": 14.2,
+     "note": "20 Hamming candidates rescored in float32 (vectors on disk)",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.4,
+       "perfect": 0.0,
+       "min": 0.3,
+       "top1": 0.5
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.7402,
+       "perfect": 0.1431,
+       "min": 0.1,
+       "top1": 0.9862,
+       "ci95": [
+        0.7259,
+        0.7547
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.2298,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.4043,
+       "ci95": [
+        0.1745,
+        0.2894
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.6112,
+       "perfect": 0.056,
+       "min": 0.1,
+       "top1": 0.938,
+       "ci95": [
+        0.5932,
+        0.6292
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary \u2192 rescore \u00d74",
+     "bytes_per_vector": 96.0,
+     "mb": 14.2,
+     "note": "40 Hamming candidates rescored in float32 (vectors on disk)",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.45,
+       "perfect": 0.0,
+       "min": 0.3,
+       "top1": 0.5
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.826,
+       "perfect": 0.326,
+       "min": 0.2,
+       "top1": 0.9917,
+       "ci95": [
+        0.8122,
+        0.8389
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.3191,
+       "perfect": 0.0213,
+       "min": 0.0,
+       "top1": 0.4894,
+       "ci95": [
+        0.2511,
+        0.3894
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.7284,
+       "perfect": 0.138,
+       "min": 0.2,
+       "top1": 0.956,
+       "ci95": [
+        0.7112,
+        0.7458
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary \u2192 rescore \u00d78",
+     "bytes_per_vector": 96.0,
+     "mb": 14.2,
+     "note": "80 Hamming candidates rescored in float32 (vectors on disk)",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.6,
+       "perfect": 0.0,
+       "min": 0.6,
+       "top1": 0.5
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.8846,
+       "perfect": 0.4759,
+       "min": 0.2,
+       "top1": 0.9945,
+       "ci95": [
+        0.8736,
+        0.8961
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.4128,
+       "perfect": 0.0213,
+       "min": 0.0,
+       "top1": 0.5319,
+       "ci95": [
+        0.3404,
+        0.4872
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.822,
+       "perfect": 0.268,
+       "min": 0.3,
+       "top1": 0.974,
+       "ci95": [
+        0.8068,
+        0.8354
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary \u2192 rescore \u00d716",
+     "bytes_per_vector": 96.0,
+     "mb": 14.2,
+     "note": "160 Hamming candidates rescored in float32 (vectors on disk)",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.7,
+       "perfect": 0.0,
+       "min": 0.7,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.9265,
+       "perfect": 0.63,
+       "min": 0.3,
+       "top1": 0.9972,
+       "ci95": [
+        0.9175,
+        0.9356
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.4979,
+       "perfect": 0.0638,
+       "min": 0.0,
+       "top1": 0.5745,
+       "ci95": [
+        0.4234,
+        0.5766
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.8928,
+       "perfect": 0.432,
+       "min": 0.4,
+       "top1": 0.986,
+       "ci95": [
+        0.8816,
+        0.903
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary \u2192 rescore \u00d732",
+     "bytes_per_vector": 96.0,
+     "mb": 14.2,
+     "note": "320 Hamming candidates rescored in float32 (vectors on disk)",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.85,
+       "perfect": 0.0,
+       "min": 0.8,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.9579,
+       "perfect": 0.7428,
+       "min": 0.4,
+       "top1": 0.9972,
+       "ci95": [
+        0.9514,
+        0.9641
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.6255,
+       "perfect": 0.1277,
+       "min": 0.2,
+       "top1": 0.7021,
+       "ci95": [
+        0.5596,
+        0.6915
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.9388,
+       "perfect": 0.61,
+       "min": 0.5,
+       "top1": 0.996,
+       "ci95": [
+        0.9306,
+        0.9466
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary, centred",
+     "bytes_per_vector": 96.0,
+     "mb": 14.2,
+     "note": "sign bits of x \u2212 corpus mean",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.4,
+       "perfect": 0.0,
+       "min": 0.4,
+       "top1": 0.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.6598,
+       "perfect": 0.0138,
+       "min": 0.1,
+       "top1": 0.6946,
+       "ci95": [
+        0.6472,
+        0.6713
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.2149,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.1277,
+       "ci95": [
+        0.1638,
+        0.2702
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.552,
+       "perfect": 0.004,
+       "min": 0.0,
+       "top1": 0.604,
+       "ci95": [
+        0.5366,
+        0.568
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary, centred \u2192 rescore \u00d74",
+     "bytes_per_vector": 96.0,
+     "mb": 14.2,
+     "note": "40 candidates rescored in float32",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.55,
+       "perfect": 0.0,
+       "min": 0.5,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.8869,
+       "perfect": 0.5021,
+       "min": 0.2,
+       "top1": 0.9959,
+       "ci95": [
+        0.8755,
+        0.8978
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.4085,
+       "perfect": 0.0638,
+       "min": 0.0,
+       "top1": 0.5106,
+       "ci95": [
+        0.3277,
+        0.4851
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.827,
+       "perfect": 0.278,
+       "min": 0.3,
+       "top1": 0.986,
+       "ci95": [
+        0.8124,
+        0.8402
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary, centred \u2192 rescore \u00d716",
+     "bytes_per_vector": 96.0,
+     "mb": 14.2,
+     "note": "160 candidates rescored in float32",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.85,
+       "perfect": 0.5,
+       "min": 0.7,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.9615,
+       "perfect": 0.773,
+       "min": 0.4,
+       "top1": 0.9972,
+       "ci95": [
+        0.9549,
+        0.9677
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.6191,
+       "perfect": 0.1489,
+       "min": 0.2,
+       "top1": 0.7872,
+       "ci95": [
+        0.551,
+        0.6894
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.9504,
+       "perfect": 0.674,
+       "min": 0.5,
+       "top1": 0.998,
+       "ci95": [
+        0.9424,
+        0.9584
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "Matryoshka 512",
+     "bytes_per_vector": 2048,
+     "mb": 301.9,
+     "note": "first 512 dimensions",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.75,
+       "perfect": 0.0,
+       "min": 0.7,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.8862,
+       "perfect": 0.2283,
+       "min": 0.5,
+       "top1": 0.9188,
+       "ci95": [
+        0.8802,
+        0.8923
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.7021,
+       "perfect": 0.0213,
+       "min": 0.3,
+       "top1": 0.5745,
+       "ci95": [
+        0.6617,
+        0.7383
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.8592,
+       "perfect": 0.16,
+       "min": 0.4,
+       "top1": 0.874,
+       "ci95": [
+        0.8504,
+        0.8674
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "Matryoshka 256",
+     "bytes_per_vector": 1024,
+     "mb": 151.0,
+     "note": "first 256 dimensions",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.45,
+       "perfect": 0.0,
+       "min": 0.4,
+       "top1": 0.5
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.7568,
+       "perfect": 0.0509,
+       "min": 0.1,
+       "top1": 0.8212,
+       "ci95": [
+        0.7462,
+        0.7677
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.4617,
+       "perfect": 0.0,
+       "min": 0.2,
+       "top1": 0.2979,
+       "ci95": [
+        0.4085,
+        0.5128
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.6894,
+       "perfect": 0.022,
+       "min": 0.0,
+       "top1": 0.788,
+       "ci95": [
+        0.6756,
+        0.7032
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "Matryoshka 256 \u2192 rescore \u00d74",
+     "bytes_per_vector": 1024,
+     "mb": 151.0,
+     "note": "40 candidates at 256 dimensions rescored at 768",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.8,
+       "perfect": 0.0,
+       "min": 0.7,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.9635,
+       "perfect": 0.751,
+       "min": 0.3,
+       "top1": 1.0,
+       "ci95": [
+        0.9576,
+        0.9691
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.7787,
+       "perfect": 0.1702,
+       "min": 0.3,
+       "top1": 0.9362,
+       "ci95": [
+        0.7298,
+        0.8256
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.9472,
+       "perfect": 0.65,
+       "min": 0.5,
+       "top1": 1.0,
+       "ci95": [
+        0.9398,
+        0.9542
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "Matryoshka 128",
+     "bytes_per_vector": 512,
+     "mb": 75.5,
+     "note": "first 128 dimensions",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.1,
+       "perfect": 0.0,
+       "min": 0.1,
+       "top1": 0.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.5039,
+       "perfect": 0.0055,
+       "min": 0.0,
+       "top1": 0.5915,
+       "ci95": [
+        0.4882,
+        0.5198
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.1255,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0851,
+       "ci95": [
+        0.0915,
+        0.166
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.4342,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.584,
+       "ci95": [
+        0.4174,
+        0.4514
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "last 256 dimensions",
+     "bytes_per_vector": 1024,
+     "mb": 151.0,
+     "note": "control for Matryoshka 256",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.45,
+       "perfect": 0.0,
+       "min": 0.4,
+       "top1": 0.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.6755,
+       "perfect": 0.0234,
+       "min": 0.1,
+       "top1": 0.7689,
+       "ci95": [
+        0.662,
+        0.6884
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.2638,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.1702,
+       "ci95": [
+        0.2085,
+        0.3256
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.584,
+       "perfect": 0.006,
+       "min": 0.1,
+       "top1": 0.684,
+       "ci95": [
+        0.5696,
+        0.5984
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "random 256 coordinates",
+     "bytes_per_vector": 1024,
+     "mb": 151.0,
+     "note": "control for Matryoshka 256",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.3,
+       "perfect": 0.0,
+       "min": 0.2,
+       "top1": 0.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.6659,
+       "perfect": 0.0289,
+       "min": 0.0,
+       "top1": 0.773,
+       "ci95": [
+        0.6531,
+        0.6792
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.2213,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.2128,
+       "ci95": [
+        0.1787,
+        0.2638
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.5902,
+       "perfect": 0.01,
+       "min": 0.1,
+       "top1": 0.688,
+       "ci95": [
+        0.5748,
+        0.6044
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "random projection 256",
+     "bytes_per_vector": 1024,
+     "mb": 151.0,
+     "note": "control for Matryoshka 256",
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.2,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.6552,
+       "perfect": 0.0151,
+       "min": 0.0,
+       "top1": 0.7607,
+       "ci95": [
+        0.6422,
+        0.6685
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.2617,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.1277,
+       "ci95": [
+        0.217,
+        0.3043
+       ]
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.5804,
+       "perfect": 0.012,
+       "min": 0.1,
+       "top1": 0.674,
+       "ci95": [
+        0.5654,
+        0.5958
+       ]
+      }
+     }
+    }
+   ],
+   "lancedb": [
+    {
+     "index": "flat",
+     "note": "no index: today's search",
+     "data_mb": 453.9,
+     "metric": "cosine",
+     "nprobes": null,
+     "refine": null,
+     "latency_ms": {
+      "p50": 32.43,
+      "p95": 32.91
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      }
+     }
+    },
+    {
+     "index": "flat float16",
+     "note": "float16 vector column, no index",
+     "data_mb": 227.5,
+     "metric": "cosine",
+     "nprobes": null,
+     "refine": null,
+     "latency_ms": {
+      "p50": 19.71,
+      "p95": 20.3
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.9999,
+       "perfect": 0.9986,
+       "min": 0.9,
+       "top1": 1.0,
+       "ci95": [
+        0.9994,
+        1.0
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_FLAT",
+     "partitions": 384,
+     "build_s": 5.4,
+     "index_mb": 454.4,
+     "bytes_per_vector": 3082.3,
+     "metric": "cosine",
+     "nprobes": 8,
+     "refine": null,
+     "latency_ms": {
+      "p50": 1.43,
+      "p95": 2.08
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.9,
+       "perfect": 0.5,
+       "min": 0.8,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.704,
+       "perfect": 0.2283,
+       "min": 0.0,
+       "top1": 0.7428,
+       "ci95": [
+        0.6829,
+        0.7242
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.534,
+       "perfect": 0.1064,
+       "min": 0.1,
+       "top1": 0.5319,
+       "ci95": [
+        0.466,
+        0.6106
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.7275,
+       "perfect": 0.23,
+       "min": 0.1,
+       "top1": 0.795,
+       "ci95": [
+        0.6965,
+        0.759
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_FLAT",
+     "partitions": 384,
+     "build_s": 5.4,
+     "index_mb": 454.4,
+     "bytes_per_vector": 3082.3,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": null,
+     "latency_ms": {
+      "p50": 2.91,
+      "p95": 3.32
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.8708,
+       "perfect": 0.4773,
+       "min": 0.0,
+       "top1": 0.8886,
+       "ci95": [
+        0.8578,
+        0.8845
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.7915,
+       "perfect": 0.2553,
+       "min": 0.4,
+       "top1": 0.7872,
+       "ci95": [
+        0.7426,
+        0.8384
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.9225,
+       "perfect": 0.575,
+       "min": 0.5,
+       "top1": 0.94,
+       "ci95": [
+        0.9065,
+        0.937
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_FLAT",
+     "partitions": 384,
+     "build_s": 5.4,
+     "index_mb": 454.4,
+     "bytes_per_vector": 3082.3,
+     "metric": "cosine",
+     "nprobes": 128,
+     "refine": null,
+     "latency_ms": {
+      "p50": 8.43,
+      "p95": 9.35
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.9708,
+       "perfect": 0.8322,
+       "min": 0.2,
+       "top1": 0.9739,
+       "ci95": [
+        0.9646,
+        0.9765
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.9851,
+       "perfect": 0.8723,
+       "min": 0.8,
+       "top1": 1.0,
+       "ci95": [
+        0.9723,
+        0.9957
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.996,
+       "perfect": 0.96,
+       "min": 0.9,
+       "top1": 1.0,
+       "ci95": [
+        0.993,
+        0.9985
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/96",
+     "partitions": 384,
+     "build_s": 51.6,
+     "index_mb": 16.5,
+     "bytes_per_vector": 111.8,
+     "metric": "cosine",
+     "nprobes": 8,
+     "refine": null,
+     "latency_ms": {
+      "p50": 1.85,
+      "p95": 2.06
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.35,
+       "perfect": 0.0,
+       "min": 0.3,
+       "top1": 0.5
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.5718,
+       "perfect": 0.022,
+       "min": 0.0,
+       "top1": 0.5722,
+       "ci95": [
+        0.552,
+        0.5904
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.3255,
+       "perfect": 0.0,
+       "min": 0.1,
+       "top1": 0.2979,
+       "ci95": [
+        0.2745,
+        0.3788
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.553,
+       "perfect": 0.01,
+       "min": 0.0,
+       "top1": 0.6,
+       "ci95": [
+        0.5245,
+        0.582
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/96",
+     "partitions": 384,
+     "build_s": 51.6,
+     "index_mb": 16.5,
+     "bytes_per_vector": 111.8,
+     "metric": "cosine",
+     "nprobes": 8,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 2.34,
+      "p95": 2.52
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.65,
+       "perfect": 0.0,
+       "min": 0.4,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.6704,
+       "perfect": 0.2201,
+       "min": 0.0,
+       "top1": 0.6905,
+       "ci95": [
+        0.6486,
+        0.6919
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.5213,
+       "perfect": 0.1277,
+       "min": 0.1,
+       "top1": 0.5957,
+       "ci95": [
+        0.4511,
+        0.6
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.71,
+       "perfect": 0.2,
+       "min": 0.0,
+       "top1": 0.755,
+       "ci95": [
+        0.677,
+        0.74
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/96",
+     "partitions": 384,
+     "build_s": 51.6,
+     "index_mb": 16.5,
+     "bytes_per_vector": 111.8,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": null,
+     "latency_ms": {
+      "p50": 4.73,
+      "p95": 5.01
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.35,
+       "perfect": 0.0,
+       "min": 0.3,
+       "top1": 0.5
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.6834,
+       "perfect": 0.0385,
+       "min": 0.0,
+       "top1": 0.6768,
+       "ci95": [
+        0.6689,
+        0.6981
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.3681,
+       "perfect": 0.0,
+       "min": 0.1,
+       "top1": 0.3191,
+       "ci95": [
+        0.317,
+        0.4213
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.663,
+       "perfect": 0.02,
+       "min": 0.1,
+       "top1": 0.69,
+       "ci95": [
+        0.6405,
+        0.685
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/96",
+     "partitions": 384,
+     "build_s": 51.6,
+     "index_mb": 16.5,
+     "bytes_per_vector": 111.8,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 5.27,
+      "p95": 5.56
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.9,
+       "perfect": 0.0,
+       "min": 0.9,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.8435,
+       "perfect": 0.436,
+       "min": 0.0,
+       "top1": 0.8583,
+       "ci95": [
+        0.8287,
+        0.8586
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.6745,
+       "perfect": 0.1489,
+       "min": 0.2,
+       "top1": 0.766,
+       "ci95": [
+        0.6127,
+        0.7362
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.9065,
+       "perfect": 0.5,
+       "min": 0.1,
+       "top1": 0.95,
+       "ci95": [
+        0.888,
+        0.924
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/96",
+     "partitions": 384,
+     "build_s": 51.6,
+     "index_mb": 16.5,
+     "bytes_per_vector": 111.8,
+     "metric": "cosine",
+     "nprobes": 128,
+     "refine": null,
+     "latency_ms": {
+      "p50": 16.28,
+      "p95": 16.92
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.35,
+       "perfect": 0.0,
+       "min": 0.3,
+       "top1": 0.5
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.7325,
+       "perfect": 0.0481,
+       "min": 0.1,
+       "top1": 0.7428,
+       "ci95": [
+        0.7205,
+        0.7435
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.3851,
+       "perfect": 0.0,
+       "min": 0.1,
+       "top1": 0.3191,
+       "ci95": [
+        0.3319,
+        0.4383
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.6865,
+       "perfect": 0.025,
+       "min": 0.2,
+       "top1": 0.715,
+       "ci95": [
+        0.6655,
+        0.7075
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/96",
+     "partitions": 384,
+     "build_s": 51.6,
+     "index_mb": 16.5,
+     "bytes_per_vector": 111.8,
+     "metric": "cosine",
+     "nprobes": 128,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 16.9,
+      "p95": 17.57
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.9,
+       "perfect": 0.0,
+       "min": 0.9,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.9371,
+       "perfect": 0.6451,
+       "min": 0.1,
+       "top1": 0.9601,
+       "ci95": [
+        0.9283,
+        0.9448
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.7277,
+       "perfect": 0.1702,
+       "min": 0.3,
+       "top1": 0.9362,
+       "ci95": [
+        0.6681,
+        0.7894
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.966,
+       "perfect": 0.765,
+       "min": 0.6,
+       "top1": 0.995,
+       "ci95": [
+        0.957,
+        0.9755
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/48",
+     "partitions": 384,
+     "build_s": 25.9,
+     "index_mb": 9.4,
+     "bytes_per_vector": 63.7,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": null,
+     "latency_ms": {
+      "p50": 2.48,
+      "p95": 2.7
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.25,
+       "perfect": 0.0,
+       "min": 0.2,
+       "top1": 0.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.6011,
+       "perfect": 0.011,
+       "min": 0.0,
+       "top1": 0.6245,
+       "ci95": [
+        0.5856,
+        0.6165
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.2319,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.1277,
+       "ci95": [
+        0.1787,
+        0.2851
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.5355,
+       "perfect": 0.005,
+       "min": 0.1,
+       "top1": 0.58,
+       "ci95": [
+        0.51,
+        0.563
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/48",
+     "partitions": 384,
+     "build_s": 25.9,
+     "index_mb": 9.4,
+     "bytes_per_vector": 63.7,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 3.01,
+      "p95": 3.27
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.4,
+       "perfect": 0.0,
+       "min": 0.4,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.8063,
+       "perfect": 0.3563,
+       "min": 0.0,
+       "top1": 0.89,
+       "ci95": [
+        0.7904,
+        0.8224
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.4745,
+       "perfect": 0.0851,
+       "min": 0.1,
+       "top1": 0.6809,
+       "ci95": [
+        0.4043,
+        0.5489
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.813,
+       "perfect": 0.275,
+       "min": 0.2,
+       "top1": 0.945,
+       "ci95": [
+        0.79,
+        0.835
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_SQ",
+     "partitions": 384,
+     "build_s": 7.4,
+     "index_mb": 114.7,
+     "bytes_per_vector": 778.3,
+     "metric": "cosine",
+     "nprobes": 8,
+     "refine": null,
+     "latency_ms": {
+      "p50": 1.0,
+      "p95": 1.28
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.9,
+       "perfect": 0.5,
+       "min": 0.8,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.6868,
+       "perfect": 0.1953,
+       "min": 0.0,
+       "top1": 0.718,
+       "ci95": [
+        0.6649,
+        0.707
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.5191,
+       "perfect": 0.0638,
+       "min": 0.0,
+       "top1": 0.5745,
+       "ci95": [
+        0.4404,
+        0.5936
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.7035,
+       "perfect": 0.175,
+       "min": 0.0,
+       "top1": 0.755,
+       "ci95": [
+        0.6695,
+        0.736
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_SQ",
+     "partitions": 384,
+     "build_s": 7.4,
+     "index_mb": 114.7,
+     "bytes_per_vector": 778.3,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": null,
+     "latency_ms": {
+      "p50": 1.37,
+      "p95": 1.52
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.95,
+       "perfect": 0.5,
+       "min": 0.9,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.8499,
+       "perfect": 0.3645,
+       "min": 0.1,
+       "top1": 0.8748,
+       "ci95": [
+        0.8369,
+        0.8633
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.8,
+       "perfect": 0.1915,
+       "min": 0.4,
+       "top1": 0.8723,
+       "ci95": [
+        0.7574,
+        0.8426
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.9055,
+       "perfect": 0.395,
+       "min": 0.4,
+       "top1": 0.935,
+       "ci95": [
+        0.89,
+        0.92
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_SQ",
+     "partitions": 384,
+     "build_s": 7.4,
+     "index_mb": 114.7,
+     "bytes_per_vector": 778.3,
+     "metric": "cosine",
+     "nprobes": 128,
+     "refine": null,
+     "latency_ms": {
+      "p50": 2.85,
+      "p95": 3.19
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.95,
+       "perfect": 0.5,
+       "min": 0.9,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.9487,
+       "perfect": 0.6314,
+       "min": 0.2,
+       "top1": 0.9697,
+       "ci95": [
+        0.9422,
+        0.9546
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.9298,
+       "perfect": 0.4255,
+       "min": 0.8,
+       "top1": 0.9787,
+       "ci95": [
+        0.9106,
+        0.9489
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.966,
+       "perfect": 0.67,
+       "min": 0.7,
+       "top1": 0.975,
+       "ci95": [
+        0.959,
+        0.973
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/1-bit",
+     "partitions": 384,
+     "build_s": 4.9,
+     "index_mb": 16.8,
+     "bytes_per_vector": 114.3,
+     "metric": "cosine",
+     "nprobes": 8,
+     "refine": null,
+     "latency_ms": {
+      "p50": 1.07,
+      "p95": 1.3
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.5,
+       "perfect": 0.0,
+       "min": 0.3,
+       "top1": 0.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.6252,
+       "perfect": 0.0426,
+       "min": 0.0,
+       "top1": 0.641,
+       "ci95": [
+        0.6056,
+        0.6443
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.3766,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.2979,
+       "ci95": [
+        0.3191,
+        0.4383
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.622,
+       "perfect": 0.025,
+       "min": 0.1,
+       "top1": 0.685,
+       "ci95": [
+        0.5955,
+        0.6485
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/1-bit",
+     "partitions": 384,
+     "build_s": 4.9,
+     "index_mb": 16.8,
+     "bytes_per_vector": 114.3,
+     "metric": "cosine",
+     "nprobes": 8,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 1.55,
+      "p95": 1.71
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.7,
+       "perfect": 0.0,
+       "min": 0.5,
+       "top1": 1.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.6986,
+       "perfect": 0.2435,
+       "min": 0.0,
+       "top1": 0.7428,
+       "ci95": [
+        0.6778,
+        0.7197
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.5277,
+       "perfect": 0.1489,
+       "min": 0.1,
+       "top1": 0.5532,
+       "ci95": [
+        0.4489,
+        0.6085
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.724,
+       "perfect": 0.215,
+       "min": 0.1,
+       "top1": 0.805,
+       "ci95": [
+        0.6935,
+        0.7565
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/1-bit",
+     "partitions": 384,
+     "build_s": 4.9,
+     "index_mb": 16.8,
+     "bytes_per_vector": 114.3,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": null,
+     "latency_ms": {
+      "p50": 1.4,
+      "p95": 1.62
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.55,
+       "perfect": 0.0,
+       "min": 0.5,
+       "top1": 0.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.7378,
+       "perfect": 0.055,
+       "min": 0.0,
+       "top1": 0.7524,
+       "ci95": [
+        0.7239,
+        0.7513
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.4745,
+       "perfect": 0.0,
+       "min": 0.1,
+       "top1": 0.2979,
+       "ci95": [
+        0.4234,
+        0.5255
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.7365,
+       "perfect": 0.055,
+       "min": 0.3,
+       "top1": 0.79,
+       "ci95": [
+        0.717,
+        0.7565
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/1-bit",
+     "partitions": 384,
+     "build_s": 4.9,
+     "index_mb": 16.8,
+     "bytes_per_vector": 114.3,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 1.92,
+      "p95": 2.11
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.85,
+       "perfect": 0.0,
+       "min": 0.8,
+       "top1": 0.5
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.8695,
+       "perfect": 0.4677,
+       "min": 0.0,
+       "top1": 0.8845,
+       "ci95": [
+        0.8561,
+        0.882
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.7468,
+       "perfect": 0.1915,
+       "min": 0.3,
+       "top1": 0.766,
+       "ci95": [
+        0.6872,
+        0.8043
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.9115,
+       "perfect": 0.535,
+       "min": 0.4,
+       "top1": 0.955,
+       "ci95": [
+        0.8945,
+        0.928
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/1-bit",
+     "partitions": 384,
+     "build_s": 4.9,
+     "index_mb": 16.8,
+     "bytes_per_vector": 114.3,
+     "metric": "cosine",
+     "nprobes": 128,
+     "refine": null,
+     "latency_ms": {
+      "p50": 2.81,
+      "p95": 3.17
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.6,
+       "perfect": 0.0,
+       "min": 0.6,
+       "top1": 0.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.7905,
+       "perfect": 0.077,
+       "min": 0.2,
+       "top1": 0.8171,
+       "ci95": [
+        0.7802,
+        0.8003
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.5191,
+       "perfect": 0.0,
+       "min": 0.2,
+       "top1": 0.383,
+       "ci95": [
+        0.4702,
+        0.5639
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.7705,
+       "perfect": 0.06,
+       "min": 0.5,
+       "top1": 0.82,
+       "ci95": [
+        0.7525,
+        0.7865
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/1-bit",
+     "partitions": 384,
+     "build_s": 4.9,
+     "index_mb": 16.8,
+     "bytes_per_vector": 114.3,
+     "metric": "cosine",
+     "nprobes": 128,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 3.3,
+      "p95": 3.67
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.9,
+       "perfect": 0.5,
+       "min": 0.8,
+       "top1": 0.5
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.9645,
+       "perfect": 0.773,
+       "min": 0.4,
+       "top1": 0.978,
+       "ci95": [
+        0.9586,
+        0.97
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.8617,
+       "perfect": 0.4468,
+       "min": 0.5,
+       "top1": 0.9362,
+       "ci95": [
+        0.817,
+        0.9064
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.988,
+       "perfect": 0.89,
+       "min": 0.8,
+       "top1": 0.995,
+       "ci95": [
+        0.983,
+        0.993
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/8-bit",
+     "partitions": 384,
+     "build_s": 6.4,
+     "index_mb": 115.9,
+     "bytes_per_vector": 786.2,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": null,
+     "latency_ms": {
+      "p50": 4.24,
+      "p95": 4.56
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.0,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.0341,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0289,
+       "ci95": [
+        0.0292,
+        0.0393
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.0617,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0638,
+       "ci95": [
+        0.0404,
+        0.0851
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.0325,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.055,
+       "ci95": [
+        0.022,
+        0.0445
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/8-bit",
+     "partitions": 384,
+     "build_s": 6.4,
+     "index_mb": 115.9,
+     "bytes_per_vector": 786.2,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 4.77,
+      "p95": 5.04
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.0,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.0341,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0289,
+       "ci95": [
+        0.0286,
+        0.0398
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.0617,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0638,
+       "ci95": [
+        0.0404,
+        0.0851
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.0325,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.055,
+       "ci95": [
+        0.0225,
+        0.0435
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/8-bit (dot)",
+     "partitions": 384,
+     "build_s": 6.5,
+     "index_mb": 115.9,
+     "bytes_per_vector": 786.2,
+     "metric": "dot",
+     "nprobes": 32,
+     "refine": null,
+     "latency_ms": {
+      "p50": 4.2,
+      "p95": 4.54
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.05,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.0409,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0303,
+       "ci95": [
+        0.0355,
+        0.0462
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.0362,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0426,
+       "ci95": [
+        0.0191,
+        0.0574
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.031,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.025,
+       "ci95": [
+        0.023,
+        0.04
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/8-bit (dot)",
+     "partitions": 384,
+     "build_s": 6.5,
+     "index_mb": 115.9,
+     "bytes_per_vector": 786.2,
+     "metric": "dot",
+     "nprobes": 32,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 4.75,
+      "p95": 5.02
+     },
+     "families": {
+      "real": {
+       "n": 2,
+       "recall@10": 0.05,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0
+      },
+      "titles": {
+       "n": 727,
+       "recall@10": 0.0409,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.033,
+       "ci95": [
+        0.0356,
+        0.0462
+       ]
+      },
+      "owner": {
+       "n": 47,
+       "recall@10": 0.0362,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0426,
+       "ci95": [
+        0.0191,
+        0.0553
+       ]
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.031,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.025,
+       "ci95": [
+        0.0225,
+        0.04
+       ]
+      }
+     }
+    }
+   ],
+   "variance_share_by_256_block": [
+    0.462,
+    0.296,
+    0.242
+   ]
+  },
+  "code": {
+   "vectors": 17256,
+   "dim": 768,
+   "norms": {
+    "min": 1.0,
+    "mean": 1.0,
+    "max": 1.0
+   },
+   "queries": {
+    "probes": 15,
+    "self": 500
+   },
+   "numpy": [
+    {
+     "scheme": "float32",
+     "bytes_per_vector": 3072,
+     "mb": 53.0,
+     "note": "control: the ground truth against itself",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "float16",
+     "bytes_per_vector": 1536,
+     "mb": 26.5,
+     "note": "half precision",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.9998,
+       "perfect": 0.998,
+       "min": 0.9,
+       "top1": 0.994,
+       "ci95": [
+        0.9994,
+        1.0
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "int8",
+     "bytes_per_vector": 768,
+     "mb": 13.3,
+     "note": "per-dimension min\u2013max codes, float query",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.9933,
+       "perfect": 0.9333,
+       "min": 0.9,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.9976,
+       "perfect": 0.976,
+       "min": 0.9,
+       "top1": 0.994,
+       "ci95": [
+        0.9962,
+        0.9988
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "int8 \u2192 rescore \u00d72",
+     "bytes_per_vector": 768,
+     "mb": 13.3,
+     "note": "20 int8 candidates rescored in float32",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary",
+     "bytes_per_vector": 96.0,
+     "mb": 1.7,
+     "note": "sign bits, Hamming distance",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.5933,
+       "perfect": 0.0,
+       "min": 0.3,
+       "top1": 0.2
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.7532,
+       "perfect": 0.036,
+       "min": 0.3,
+       "top1": 0.826,
+       "ci95": [
+        0.7422,
+        0.7646
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary \u2192 rescore \u00d72",
+     "bytes_per_vector": 96.0,
+     "mb": 1.7,
+     "note": "20 Hamming candidates rescored in float32 (vectors on disk)",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.7667,
+       "perfect": 0.1333,
+       "min": 0.5,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.9212,
+       "perfect": 0.514,
+       "min": 0.4,
+       "top1": 0.998,
+       "ci95": [
+        0.912,
+        0.93
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary \u2192 rescore \u00d74",
+     "bytes_per_vector": 96.0,
+     "mb": 1.7,
+     "note": "40 Hamming candidates rescored in float32 (vectors on disk)",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.92,
+       "perfect": 0.4667,
+       "min": 0.6,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.9744,
+       "perfect": 0.816,
+       "min": 0.5,
+       "top1": 1.0,
+       "ci95": [
+        0.9688,
+        0.9798
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary \u2192 rescore \u00d78",
+     "bytes_per_vector": 96.0,
+     "mb": 1.7,
+     "note": "80 Hamming candidates rescored in float32 (vectors on disk)",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.9933,
+       "perfect": 0.9333,
+       "min": 0.9,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.9916,
+       "perfect": 0.942,
+       "min": 0.6,
+       "top1": 1.0,
+       "ci95": [
+        0.9876,
+        0.995
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary \u2192 rescore \u00d716",
+     "bytes_per_vector": 96.0,
+     "mb": 1.7,
+     "note": "160 Hamming candidates rescored in float32 (vectors on disk)",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.9974,
+       "perfect": 0.978,
+       "min": 0.7,
+       "top1": 1.0,
+       "ci95": [
+        0.9956,
+        0.999
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary \u2192 rescore \u00d732",
+     "bytes_per_vector": 96.0,
+     "mb": 1.7,
+     "note": "320 Hamming candidates rescored in float32 (vectors on disk)",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.9988,
+       "perfect": 0.992,
+       "min": 0.7,
+       "top1": 0.998,
+       "ci95": [
+        0.9972,
+        0.9998
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary, centred",
+     "bytes_per_vector": 96.0,
+     "mb": 1.7,
+     "note": "sign bits of x \u2212 corpus mean",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.6267,
+       "perfect": 0.0667,
+       "min": 0.4,
+       "top1": 0.3333
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.7726,
+       "perfect": 0.054,
+       "min": 0.2,
+       "top1": 0.868,
+       "ci95": [
+        0.7604,
+        0.7844
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary, centred \u2192 rescore \u00d74",
+     "bytes_per_vector": 96.0,
+     "mb": 1.7,
+     "note": "40 candidates rescored in float32",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.9333,
+       "perfect": 0.5333,
+       "min": 0.7,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.9822,
+       "perfect": 0.878,
+       "min": 0.7,
+       "top1": 1.0,
+       "ci95": [
+        0.9772,
+        0.9864
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "binary, centred \u2192 rescore \u00d716",
+     "bytes_per_vector": 96.0,
+     "mb": 1.7,
+     "note": "160 candidates rescored in float32",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.9996,
+       "perfect": 0.996,
+       "min": 0.9,
+       "top1": 1.0,
+       "ci95": [
+        0.999,
+        1.0
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "Matryoshka 512",
+     "bytes_per_vector": 2048,
+     "mb": 35.3,
+     "note": "first 512 dimensions",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.9067,
+       "perfect": 0.2667,
+       "min": 0.8,
+       "top1": 0.9333
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.9422,
+       "perfect": 0.518,
+       "min": 0.7,
+       "top1": 0.956,
+       "ci95": [
+        0.9364,
+        0.9484
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "Matryoshka 256",
+     "bytes_per_vector": 1024,
+     "mb": 17.7,
+     "note": "first 256 dimensions",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.7933,
+       "perfect": 0.0,
+       "min": 0.7,
+       "top1": 0.5333
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.8658,
+       "perfect": 0.194,
+       "min": 0.4,
+       "top1": 0.916,
+       "ci95": [
+        0.8568,
+        0.8748
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "Matryoshka 256 \u2192 rescore \u00d74",
+     "bytes_per_vector": 1024,
+     "mb": 17.7,
+     "note": "40 candidates at 256 dimensions rescored at 768",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.9992,
+       "perfect": 0.992,
+       "min": 0.9,
+       "top1": 1.0,
+       "ci95": [
+        0.9984,
+        0.9998
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "Matryoshka 128",
+     "bytes_per_vector": 512,
+     "mb": 8.8,
+     "note": "first 128 dimensions",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.5133,
+       "perfect": 0.0,
+       "min": 0.2,
+       "top1": 0.2
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.7418,
+       "perfect": 0.036,
+       "min": 0.2,
+       "top1": 0.868,
+       "ci95": [
+        0.7288,
+        0.7542
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "last 256 dimensions",
+     "bytes_per_vector": 1024,
+     "mb": 17.7,
+     "note": "control for Matryoshka 256",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.7,
+       "perfect": 0.0667,
+       "min": 0.5,
+       "top1": 0.5333
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.82,
+       "perfect": 0.116,
+       "min": 0.3,
+       "top1": 0.906,
+       "ci95": [
+        0.8088,
+        0.8312
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "random 256 coordinates",
+     "bytes_per_vector": 1024,
+     "mb": 17.7,
+     "note": "control for Matryoshka 256",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.6533,
+       "perfect": 0.0,
+       "min": 0.4,
+       "top1": 0.6
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.8092,
+       "perfect": 0.096,
+       "min": 0.3,
+       "top1": 0.88,
+       "ci95": [
+        0.7982,
+        0.8196
+       ]
+      }
+     }
+    },
+    {
+     "scheme": "random projection 256",
+     "bytes_per_vector": 1024,
+     "mb": 17.7,
+     "note": "control for Matryoshka 256",
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.7067,
+       "perfect": 0.0,
+       "min": 0.4,
+       "top1": 0.6667
+      },
+      "self": {
+       "n": 500,
+       "recall@10": 0.8138,
+       "perfect": 0.104,
+       "min": 0.1,
+       "top1": 0.906,
+       "ci95": [
+        0.803,
+        0.824
+       ]
+      }
+     }
+    }
+   ],
+   "lancedb": [
+    {
+     "index": "flat",
+     "note": "no index: today's search",
+     "data_mb": 53.1,
+     "metric": "cosine",
+     "nprobes": null,
+     "refine": null,
+     "latency_ms": {
+      "p50": 6.48,
+      "p95": 6.92
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      }
+     }
+    },
+    {
+     "index": "flat float16",
+     "note": "float16 vector column, no index",
+     "data_mb": 26.6,
+     "metric": "cosine",
+     "nprobes": null,
+     "refine": null,
+     "latency_ms": {
+      "p50": 4.51,
+      "p95": 4.85
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.9995,
+       "perfect": 0.995,
+       "min": 0.9,
+       "top1": 0.995,
+       "ci95": [
+        0.9985,
+        1.0
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_FLAT",
+     "partitions": 131,
+     "build_s": 0.5,
+     "index_mb": 53.4,
+     "bytes_per_vector": 3097.4,
+     "metric": "cosine",
+     "nprobes": 8,
+     "refine": null,
+     "latency_ms": {
+      "p50": 1.06,
+      "p95": 1.28
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.9733,
+       "perfect": 0.7333,
+       "min": 0.9,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.9525,
+       "perfect": 0.765,
+       "min": 0.4,
+       "top1": 0.97,
+       "ci95": [
+        0.937,
+        0.9665
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_FLAT",
+     "partitions": 131,
+     "build_s": 0.5,
+     "index_mb": 53.4,
+     "bytes_per_vector": 3097.4,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": null,
+     "latency_ms": {
+      "p50": 1.52,
+      "p95": 1.62
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.994,
+       "perfect": 0.945,
+       "min": 0.8,
+       "top1": 1.0,
+       "ci95": [
+        0.99,
+        0.9975
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_FLAT",
+     "partitions": 131,
+     "build_s": 0.5,
+     "index_mb": 53.4,
+     "bytes_per_vector": 3097.4,
+     "metric": "cosine",
+     "nprobes": 128,
+     "refine": null,
+     "latency_ms": {
+      "p50": 3.3,
+      "p95": 3.62
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/96",
+     "partitions": 131,
+     "build_s": 10.3,
+     "index_mb": 2.9,
+     "bytes_per_vector": 167.1,
+     "metric": "cosine",
+     "nprobes": 8,
+     "refine": null,
+     "latency_ms": {
+      "p50": 1.81,
+      "p95": 2.04
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.7267,
+       "perfect": 0.0,
+       "min": 0.5,
+       "top1": 0.4
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.8195,
+       "perfect": 0.145,
+       "min": 0.4,
+       "top1": 0.875,
+       "ci95": [
+        0.8015,
+        0.8375
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/96",
+     "partitions": 131,
+     "build_s": 10.3,
+     "index_mb": 2.9,
+     "bytes_per_vector": 167.1,
+     "metric": "cosine",
+     "nprobes": 8,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 2.22,
+      "p95": 2.4
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.9467,
+       "perfect": 0.6,
+       "min": 0.7,
+       "top1": 0.9333
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.9465,
+       "perfect": 0.71,
+       "min": 0.5,
+       "top1": 0.985,
+       "ci95": [
+        0.931,
+        0.961
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/96",
+     "partitions": 131,
+     "build_s": 10.3,
+     "index_mb": 2.9,
+     "bytes_per_vector": 167.1,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": null,
+     "latency_ms": {
+      "p50": 4.54,
+      "p95": 4.72
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.7333,
+       "perfect": 0.0667,
+       "min": 0.5,
+       "top1": 0.4
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.8365,
+       "perfect": 0.16,
+       "min": 0.5,
+       "top1": 0.88,
+       "ci95": [
+        0.82,
+        0.8515
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/96",
+     "partitions": 131,
+     "build_s": 10.3,
+     "index_mb": 2.9,
+     "bytes_per_vector": 167.1,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 4.97,
+      "p95": 5.21
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.9733,
+       "perfect": 0.8,
+       "min": 0.8,
+       "top1": 0.9333
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.99,
+       "perfect": 0.925,
+       "min": 0.7,
+       "top1": 1.0,
+       "ci95": [
+        0.9845,
+        0.995
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/96",
+     "partitions": 131,
+     "build_s": 10.3,
+     "index_mb": 2.9,
+     "bytes_per_vector": 167.1,
+     "metric": "cosine",
+     "nprobes": 128,
+     "refine": null,
+     "latency_ms": {
+      "p50": 15.36,
+      "p95": 15.94
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.7467,
+       "perfect": 0.0667,
+       "min": 0.5,
+       "top1": 0.4
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.8375,
+       "perfect": 0.165,
+       "min": 0.5,
+       "top1": 0.88,
+       "ci95": [
+        0.8225,
+        0.8525
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/96",
+     "partitions": 131,
+     "build_s": 10.3,
+     "index_mb": 2.9,
+     "bytes_per_vector": 167.1,
+     "metric": "cosine",
+     "nprobes": 128,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 15.85,
+      "p95": 16.43
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.999,
+       "perfect": 0.99,
+       "min": 0.9,
+       "top1": 1.0,
+       "ci95": [
+        0.9975,
+        1.0
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/48",
+     "partitions": 131,
+     "build_s": 4.8,
+     "index_mb": 2.1,
+     "bytes_per_vector": 119.0,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": null,
+     "latency_ms": {
+      "p50": 2.41,
+      "p95": 2.69
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.6133,
+       "perfect": 0.0,
+       "min": 0.4,
+       "top1": 0.4667
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.759,
+       "perfect": 0.08,
+       "min": 0.3,
+       "top1": 0.805,
+       "ci95": [
+        0.7395,
+        0.7775
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_PQ/48",
+     "partitions": 131,
+     "build_s": 4.8,
+     "index_mb": 2.1,
+     "bytes_per_vector": 119.0,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 2.91,
+      "p95": 3.27
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.9733,
+       "perfect": 0.7333,
+       "min": 0.9,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.9715,
+       "perfect": 0.805,
+       "min": 0.5,
+       "top1": 1.0,
+       "ci95": [
+        0.9615,
+        0.9805
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_SQ",
+     "partitions": 131,
+     "build_s": 0.5,
+     "index_mb": 13.7,
+     "bytes_per_vector": 793.4,
+     "metric": "cosine",
+     "nprobes": 8,
+     "refine": null,
+     "latency_ms": {
+      "p50": 0.98,
+      "p95": 1.14
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.88,
+       "perfect": 0.4667,
+       "min": 0.4,
+       "top1": 0.7333
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.9545,
+       "perfect": 0.7,
+       "min": 0.5,
+       "top1": 0.985,
+       "ci95": [
+        0.9425,
+        0.965
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_SQ",
+     "partitions": 131,
+     "build_s": 0.5,
+     "index_mb": 13.7,
+     "bytes_per_vector": 793.4,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": null,
+     "latency_ms": {
+      "p50": 1.08,
+      "p95": 1.17
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.9867,
+       "perfect": 0.8667,
+       "min": 0.9,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.985,
+       "perfect": 0.855,
+       "min": 0.8,
+       "top1": 0.995,
+       "ci95": [
+        0.9795,
+        0.99
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_SQ",
+     "partitions": 131,
+     "build_s": 0.5,
+     "index_mb": 13.7,
+     "bytes_per_vector": 793.4,
+     "metric": "cosine",
+     "nprobes": 128,
+     "refine": null,
+     "latency_ms": {
+      "p50": 1.66,
+      "p95": 1.77
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.9867,
+       "perfect": 0.8667,
+       "min": 0.9,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.9895,
+       "perfect": 0.895,
+       "min": 0.9,
+       "top1": 0.995,
+       "ci95": [
+        0.985,
+        0.9935
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/1-bit",
+     "partitions": 131,
+     "build_s": 0.5,
+     "index_mb": 2.2,
+     "bytes_per_vector": 129.4,
+     "metric": "cosine",
+     "nprobes": 8,
+     "refine": null,
+     "latency_ms": {
+      "p50": 1.03,
+      "p95": 1.25
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.7933,
+       "perfect": 0.0,
+       "min": 0.6,
+       "top1": 0.4667
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.8705,
+       "perfect": 0.215,
+       "min": 0.5,
+       "top1": 0.93,
+       "ci95": [
+        0.856,
+        0.8845
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/1-bit",
+     "partitions": 131,
+     "build_s": 0.5,
+     "index_mb": 2.2,
+     "bytes_per_vector": 129.4,
+     "metric": "cosine",
+     "nprobes": 8,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 1.42,
+      "p95": 1.58
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.96,
+       "perfect": 0.7333,
+       "min": 0.8,
+       "top1": 0.9333
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.951,
+       "perfect": 0.75,
+       "min": 0.5,
+       "top1": 0.99,
+       "ci95": [
+        0.9365,
+        0.9645
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/1-bit",
+     "partitions": 131,
+     "build_s": 0.5,
+     "index_mb": 2.2,
+     "bytes_per_vector": 129.4,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": null,
+     "latency_ms": {
+      "p50": 1.28,
+      "p95": 1.38
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.8133,
+       "perfect": 0.0,
+       "min": 0.7,
+       "top1": 0.4667
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.896,
+       "perfect": 0.275,
+       "min": 0.5,
+       "top1": 0.935,
+       "ci95": [
+        0.8845,
+        0.9085
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/1-bit",
+     "partitions": 131,
+     "build_s": 0.5,
+     "index_mb": 2.2,
+     "bytes_per_vector": 129.4,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 1.74,
+      "p95": 1.89
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.9933,
+       "perfect": 0.9333,
+       "min": 0.9,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.993,
+       "perfect": 0.945,
+       "min": 0.7,
+       "top1": 1.0,
+       "ci95": [
+        0.988,
+        0.997
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/1-bit",
+     "partitions": 131,
+     "build_s": 0.5,
+     "index_mb": 2.2,
+     "bytes_per_vector": 129.4,
+     "metric": "cosine",
+     "nprobes": 128,
+     "refine": null,
+     "latency_ms": {
+      "p50": 2.46,
+      "p95": 2.65
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.8133,
+       "perfect": 0.0,
+       "min": 0.7,
+       "top1": 0.4667
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.898,
+       "perfect": 0.28,
+       "min": 0.7,
+       "top1": 0.935,
+       "ci95": [
+        0.8865,
+        0.9095
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/1-bit",
+     "partitions": 131,
+     "build_s": 0.5,
+     "index_mb": 2.2,
+     "bytes_per_vector": 129.4,
+     "metric": "cosine",
+     "nprobes": 128,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 2.93,
+      "p95": 3.19
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.9933,
+       "perfect": 0.9333,
+       "min": 0.9,
+       "top1": 1.0
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 1.0,
+       "perfect": 1.0,
+       "min": 1.0,
+       "top1": 1.0,
+       "ci95": [
+        1.0,
+        1.0
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/8-bit",
+     "partitions": 131,
+     "build_s": 0.7,
+     "index_mb": 13.8,
+     "bytes_per_vector": 801.8,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": null,
+     "latency_ms": {
+      "p50": 3.85,
+      "p95": 4.05
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.1067,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.1295,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.13,
+       "ci95": [
+        0.11,
+        0.1505
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/8-bit",
+     "partitions": 131,
+     "build_s": 0.7,
+     "index_mb": 13.8,
+     "bytes_per_vector": 801.8,
+     "metric": "cosine",
+     "nprobes": 32,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 4.36,
+      "p95": 4.6
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.1067,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.0
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.1295,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.13,
+       "ci95": [
+        0.1105,
+        0.151
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/8-bit (dot)",
+     "partitions": 131,
+     "build_s": 0.6,
+     "index_mb": 13.8,
+     "bytes_per_vector": 801.8,
+     "metric": "dot",
+     "nprobes": 32,
+     "refine": null,
+     "latency_ms": {
+      "p50": 3.77,
+      "p95": 3.99
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.14,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.1333
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.133,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.135,
+       "ci95": [
+        0.1115,
+        0.1545
+       ]
+      }
+     }
+    },
+    {
+     "index": "IVF_RQ/8-bit (dot)",
+     "partitions": 131,
+     "build_s": 0.6,
+     "index_mb": 13.8,
+     "bytes_per_vector": 801.8,
+     "metric": "dot",
+     "nprobes": 32,
+     "refine": 5,
+     "latency_ms": {
+      "p50": 4.35,
+      "p95": 4.57
+     },
+     "families": {
+      "probes": {
+       "n": 15,
+       "recall@10": 0.14,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.1333
+      },
+      "self": {
+       "n": 200,
+       "recall@10": 0.133,
+       "perfect": 0.0,
+       "min": 0.0,
+       "top1": 0.135,
+       "ci95": [
+        0.1115,
+        0.1555
+       ]
+      }
+     }
+    }
+   ],
+   "variance_share_by_256_block": [
+    0.452,
+    0.304,
+    0.244
+   ]
+  }
+ },
+ "lancedb": "0.33.0"
+}

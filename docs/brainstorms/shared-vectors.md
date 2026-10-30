@@ -166,3 +166,37 @@ built (branch ouroboros/shared-plane):
     SQL trace (a mirror reader never names an uncleared relation); real-LanceDB end-to-end
     (identical turns, edit supersession, purge removes text, corrupted cache fail-closed).
 ```
+
+## 2026-10-30 — step C measured
+
+```capsule
+topic: shared-vectors — step C, the storage lever (docs/experiments/vector-quantization-2026-10-30.md)
+date: 2026-10-30
+
+owner (verbatim): "start step C — the quantization recall@10 experiment (int8, binary+rescore,
+IVF-PQ, Matryoshka-256)"; mid-run: "can you explain these tests and what we're trying to show,
+prove, or decide on?"
+
+measured (eval/quantization_bench.py; recall@10 against today's float32 answers; papers 147,417
+atoms, code 17,256 rows; queries: 2 real, 727 titles, 47 owner, 500 self, 15 code probes):
+  - float16: 0.999–1.000 in every family and both engines; half the bytes (453.9 → 227.5 MB on
+    disk for the papers); flat search faster, 32.4 → 19.7 ms.
+  - int8: 0.989–0.993 (the worst query loses 1 of 10). LanceDB 0.33 keeps int8 only as an index
+    beside the float32 column (IVF_SQ), so it saves no disk.
+  - binary: sign bits 0.17–0.60; rescored ×32 the owner's queries still keep only 0.63. LanceDB's
+    1-bit RaBitQ (IVF_RQ, num_bits=1) refined ×5 tracks IVF_FLAT on titles (0.870 vs 0.871 at
+    nprobes 32) but costs the owner's queries (0.862 vs 0.985 at 128).
+  - Matryoshka (verify-first answered): the first 256 dimensions hold 46% of the variance and beat
+    the last 256 / random 256 / a random projection by 0.08–0.24, so v1's training partly survives
+    in EmbeddingGemma-2 — but 256 dimensions keep 0.46–0.76 of the top ten, 512 keep 0.70–0.89.
+  - IVF: 1.4–8.4 ms at 0.70–1.00 depending on nprobes; every index is extra bytes beside float32;
+    not needed at 147k vectors.
+  - Defect: lancedb 0.33.0 IVF_RQ at its default num_bits=8 returns near-random neighbours
+    (0.03–0.06; refinement inert; negative cosine distances). Kept in the bench as a check.
+  - The owner's queries are the hardest family for every lossy scheme (titles flatter them 1.5–3.6×).
+
+decision (owner's): float16 vector storage recommended — lossless, half the bytes, faster; a
+schema change plus one rewrite on A3's build-beside-and-swap pattern, as its own amendment and
+build. Binary, PQ and Matryoshka: not now. An index (IVF_FLAT, or 1-bit IVF_RQ refined): when the
+paper store is ~10× larger. Then D, the Lean ladder.
+```
