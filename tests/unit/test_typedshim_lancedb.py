@@ -24,6 +24,7 @@ from __future__ import annotations
 import inspect
 from pathlib import Path
 
+import numpy as np
 import pyarrow as pa
 import pytest
 
@@ -231,3 +232,36 @@ def test_the_pre_bp103_surface_still_works_through_the_adapter(tmp_path: Path) -
 
     t.delete("id = 'r1'")
     assert t.count_rows() == 2
+
+
+# ── step C: the compressed-index surface ─────────────────────────────────────────────────
+
+def test_an_arrow_batch_lands_and_every_swept_index_answers(tmp_path: Path) -> None:
+    """Step C's widening, pinned on the installed package: one Arrow batch lands through `add`,
+    each index type the quantization bench sweeps builds through `create_index`, `nprobes` and
+    `refine_factor` chain, and `bypass_vector_index()` still gives the exact flat answer with an
+    index in place — the bench's control that LanceDB's flat search is its ground truth."""
+    n, dim = 1024, 16
+    x = np.random.default_rng(7).standard_normal((n, dim)).astype(np.float32)
+    fields: list[tuple[str, pa.DataType]] = [("id", pa.string()),
+                                             ("vector", pa.list_(pa.float32(), dim))]
+    t = _db(tmp_path).create_table(TABLE, schema=pa.schema(fields))
+    t.add(pa.table({"id": pa.array([f"a{i}" for i in range(n)]),
+                    "vector": pa.FixedSizeListArray.from_arrays(
+                        pa.array(x.ravel(), type=pa.float32()), dim)}))
+    assert t.count_rows() == n
+
+    q = x[3].tolist()
+    flat = [r["id"] for r in t.search(q).metric("cosine").select(["id", "_distance"])
+            .limit(5).to_list()]
+    assert flat[0] == "a3"
+    for kind, sub, bits in (("IVF_FLAT", None, None), ("IVF_PQ", 4, None), ("IVF_SQ", None, None),
+                            ("IVF_RQ", None, 1)):
+        t.create_index(metric="cosine", index_type=kind, num_partitions=8, num_sub_vectors=sub,
+                       num_bits=bits)
+        hits = (t.search(q).metric("cosine").nprobes(8).refine_factor(2)
+                .select(["id", "_distance"]).limit(5).to_list())
+        assert "a3" in [r["id"] for r in hits], kind    # every partition probed: itself returns
+        exact = (t.search(q).metric("cosine").bypass_vector_index()
+                 .select(["id", "_distance"]).limit(5).to_list())
+        assert [r["id"] for r in exact] == flat, kind
