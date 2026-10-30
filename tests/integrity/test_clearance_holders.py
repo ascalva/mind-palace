@@ -56,12 +56,14 @@ HOLDERS: dict[str, dict[str, str]] = {
     "CODE_READ": {
         "core/stores/memberships.py": "the code lane's own atom repair and drift ratchet",
         "eval/harness/code_retrieval.py": "the code-retrieval battery reads the code lane",
+        "eval/quantization_bench.py": "step C measures compressed search over the code lane",
         "ops/code_rebuild.py": "the code rebuild's seed and baseline read the code lane",
     },
     "CURATED_READ": {
         "agents/ambassador/agent.py": "the EXPLAIN intent answers from the curated corpus",
         "agents/ambassador/mcp.py": "palace_read of a `reference:` paper",
         "core/research/curate.py": "the manifest check that an embedded paper is stored",
+        "eval/quantization_bench.py": "step C measures compressed search over every paper atom",
         "scripts/curate_local.py": "the paper importer dedupes against stored digests",
     },
     "DIALOGUE_READ": {},
