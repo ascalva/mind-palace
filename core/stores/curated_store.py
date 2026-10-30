@@ -24,7 +24,7 @@ factory that aims the proven store at the curated path.
 from __future__ import annotations
 
 from core.kernel.config import Config
-from core.stores.vectorstore import VectorStore
+from core.stores.vectorstore import VectorStore, fingerprint_of
 
 
 def open_curated_store(config: Config | None = None) -> VectorStore:
@@ -35,4 +35,5 @@ def open_curated_store(config: Config | None = None) -> VectorStore:
     from core.kernel.config import get_config
 
     cfg = config or get_config()
-    return VectorStore(path=cfg.paths.curated_store, dim=cfg.embedding.dim)
+    return VectorStore(path=cfg.paths.curated_store, dim=cfg.embedding.dim,
+                       embedder=fingerprint_of(cfg))

@@ -59,6 +59,7 @@ from pathlib import Path
 from typing import Any
 
 from core.ingest.code_corpus import CodeCorpusSync, atom_id, derive_code_chunks
+from core.kernel.clearance import CODE_READ
 from core.kernel.provenance import Provenance
 from core.stores.memberships import EmbedderIdentity, MembershipStore
 from core.stores.vectorstore import (
@@ -273,7 +274,7 @@ def _check_embedder(vectors: VectorStore, memberships: MembershipStore,
     Reuse across a model change puts two geometries in ONE ANN space, and no downstream measurement
     can detect it — which is why the owner pinned reuse to the embedder identity and why this runs
     BEFORE Item 3 spends anything."""
-    sample = vectors.project(["vector"], where=f"provenance = '{Provenance.CODE.value}'", limit=1)
+    sample = vectors.project(["vector"], clearance=CODE_READ, limit=1)
     stored_dim = len(list(sample[0]["vector"])) if sample and sample[0].get("vector") else None
     known = memberships.known_atoms(seed_ids, live) if seed_ids else set()
     ledger_all = memberships.ledger_atom_ids() & seed_ids if seed_ids else set()
@@ -295,8 +296,7 @@ def carry_forward_candidates(vectors: VectorStore, *,
     cut under a superseded rule (bp-151's A1.2 threshold change, say) re-hashes to an atom no
     version would ever reference, and counting it would inflate the seed with dead geometry."""
     seed: set[str] = set()
-    for row in vectors.project(["id", "layer", "text", "source_path"],
-                               where=f"provenance = '{Provenance.CODE.value}'"):
+    for row in vectors.project(["id", "layer", "text", "source_path"], clearance=CODE_READ):
         layer = str(row.get("layer") or "")
         if layer not in CARRY_FORWARD_LAYERS:
             continue
@@ -348,7 +348,7 @@ def seed_carry_forward(vectors: VectorStore, memberships: MembershipStore,
     wanted = targets - already
     rows: dict[str, dict[str, Any]] = {}
     for row in vectors.project(["id", "layer", "text", "source_path", "vector"],
-                               where=f"provenance = '{Provenance.CODE.value}'"):
+                               clearance=CODE_READ):
         layer = str(row.get("layer") or "")
         source_path = str(row.get("source_path") or "")
         if layer not in CARRY_FORWARD_LAYERS or not source_path:

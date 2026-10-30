@@ -27,8 +27,9 @@ import pytest
 import core.stores.agent_observations as mod
 import core.stores.observation_history as history_mod
 from config.loader import Config
+from core.kernel.clearance import MAINTENANCE_READ, MIRROR_READ, OBSERVED_READ
 from core.kernel.mirror import MirrorView, NonMirrorRowError
-from core.kernel.provenance import MIRROR_READABLE, Provenance
+from core.kernel.provenance import Provenance
 from core.sensing import ObservedView
 from core.stores.agent_observations import (
     AgentObservation,
@@ -144,23 +145,25 @@ def test_no_public_api_surface_accepts_a_provenance_value() -> None:
 def test_rows_are_minted_observed_with_no_parameter(tmp_path: Any) -> None:
     s = _store(tmp_path)
     s.add_batch([_obs("estimate")], interpreter="1.0.0")
-    assert {r["provenance"] for r in s.all_rows()} == {Provenance.OBSERVED.value}
+    assert {r["provenance"] for r in s.all_rows(
+        clearance=MAINTENANCE_READ)} == {Provenance.OBSERVED.value}
     assert _obs("estimate").to_row()["provenance"] == Provenance.OBSERVED.value
     assert "provenance" not in _obs("estimate").to_dict()  # the wire payload carries no label
     assert "interpreter" not in _obs("estimate").to_dict()  # nor a forgeable worldview coordinate
     # …a superseding generation is minted observed too (never re-classed on replace):
     h = _history(tmp_path)
     s.add_batch([_obs("estimate", payload={"tokens": 2})], interpreter="2.0.0", history=h)
-    assert {r["provenance"] for r in s.all_rows()} == {Provenance.OBSERVED.value}
+    assert {r["provenance"] for r in s.all_rows(
+        clearance=MAINTENANCE_READ)} == {Provenance.OBSERVED.value}
 
 
 # --- reads (view-compatible dict rows) --------------------------------------------------------
 def test_reader_filtered_to_observed_sees_all_rows(tmp_path: Any) -> None:
     s = _store(tmp_path)
     s.add_batch([_obs("estimate"), _obs("actual")], interpreter="1.0.0")
-    assert len(s.all_rows(provenances=[Provenance.OBSERVED])) == 2
-    assert len(s.all_rows()) == 2
-    assert s.all_rows(provenances=MIRROR_READABLE) == []  # nothing here is mirror-readable
+    assert len(s.all_rows(clearance=OBSERVED_READ)) == 2
+    assert len(s.all_rows(clearance=MAINTENANCE_READ)) == 2
+    assert s.all_rows(clearance=MIRROR_READ) == []  # nothing here is mirror-readable
 
 
 def test_payload_round_trips_as_typed_json(tmp_path: Any) -> None:
@@ -175,7 +178,7 @@ def test_payload_round_trips_as_typed_json(tmp_path: Any) -> None:
 def test_observed_view_admits_and_mirror_view_refuses(tmp_path: Any) -> None:
     s = _store(tmp_path)
     s.add_batch([_obs("estimate")], interpreter="1.0.0")
-    rows = tuple(s.all_rows())
+    rows = tuple(s.all_rows(clearance=MAINTENANCE_READ))
     assert len(ObservedView(_rows=rows)) == 1             # the observed tier's typed container
     with pytest.raises(NonMirrorRowError):
         MirrorView(_rows=rows)                            # OBSERVED is mirror-opaque, structurally

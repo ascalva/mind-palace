@@ -11,6 +11,7 @@ import dataclasses
 import subprocess
 
 from config.loader import REPO_ROOT, load_config
+from core.kernel.clearance import CURATED_READ, MAINTENANCE_READ, MIRROR_READ
 from core.kernel.provenance import MIRROR_READABLE, Provenance
 from core.stores.curated_store import open_curated_store
 
@@ -40,21 +41,21 @@ def test_open_curated_store_is_separate_and_roundtrips(tmp_path):
 
     store.add([_curated_row("a", [1.0, 0.0, 0.0])])
     assert store.count() == 1
-    rows = store.all_rows()
+    rows = store.all_rows(clearance=MAINTENANCE_READ)
     assert rows[0]["provenance"] == "curated"
     assert rows[0]["source_path"] == "reference:a"     # curated marker, never a mirror path
 
 
 def test_curated_rows_are_excluded_from_the_mirror_firewall(tmp_path):
     # Structural, not by convention: CURATED is not in MIRROR_READABLE, so a mirror-scoped
-    # read (all_rows / search with provenances=MIRROR_READABLE) cannot surface curated text.
+    # read (all_rows / search with clearance=MIRROR_READ) cannot surface curated text.
     assert Provenance.CURATED not in MIRROR_READABLE
     store = open_curated_store(_cfg_with(tmp_path))
     store.add([_curated_row("a", [1.0, 0.0, 0.0])])
-    assert store.all_rows(provenances=MIRROR_READABLE) == []
-    assert store.search([1.0, 0.0, 0.0], k=5, provenances=MIRROR_READABLE) == []
+    assert store.all_rows(clearance=MIRROR_READ) == []
+    assert store.search([1.0, 0.0, 0.0], k=5, clearance=MIRROR_READ) == []
     assert {r["id"] for r in store.search([1.0, 0.0, 0.0], k=5,
-                                          provenances={Provenance.CURATED})} == {"a"}
+                                          clearance=CURATED_READ)} == {"a"}
 
 
 def test_default_curated_path_is_under_data_and_gitignored():

@@ -29,6 +29,7 @@ from core.ingest.code_corpus import (
     code_rows,
     derive_code_chunks,
 )
+from core.kernel.clearance import CODE_READ
 from core.kernel.ingest.chunk import chunk_text
 from core.kernel.provenance import MIRROR_READABLE, Provenance
 from core.stores.memberships import EmbedderIdentity, MembershipStore
@@ -426,7 +427,7 @@ def test_seed_then_unchanged_resync_embeds_nothing(repo, tmp_path):
     seeded = sync.seed()
     assert seeded.changed_files == 2 and seeded.embedded_rows > 0
     after_seed = emb.embedded_texts
-    code_count = len(store.all_rows(provenances={Provenance.CODE}))
+    code_count = len(store.all_rows(clearance=CODE_READ))
     assert code_count == store.count()               # only code rows in this store
     fibers = set(sync.memberships.fibers())
     assert {p for p, _ in fibers} == {"a.py", "b.py"}   # the D-fiber state is the fiber set now
@@ -435,7 +436,7 @@ def test_seed_then_unchanged_resync_embeds_nothing(repo, tmp_path):
     again = sync.sync()
     assert again.changed_files == 0 and again.embedded_rows == 0
     assert emb.embedded_texts == after_seed
-    assert len(store.all_rows(provenances={Provenance.CODE})) == code_count
+    assert len(store.all_rows(clearance=CODE_READ)) == code_count
     assert set(sync.memberships.fibers()) == fibers
 
 
@@ -455,7 +456,7 @@ def test_changed_blob_reembeds_only_that_file(repo, tmp_path):
     # [banner: correction] the changed text is found through the MEMBERSHIP fiber now — the atom
     # row carries no `source_path` to filter on (D1). Same claim, resolved through the join (D3).
     head = _git(repo, "rev-parse", "HEAD:a.py").strip()
-    by_id = {str(r["id"]): r for r in sync.store.all_rows(provenances={Provenance.CODE})}
+    by_id = {str(r["id"]): r for r in sync.store.all_rows(clearance=CODE_READ)}
     a_texts = [str(by_id[m.content_id]["text"]) for m in sync.memberships.fiber("a.py", head)]
     assert any("changed" in t for t in a_texts)
 
@@ -467,7 +468,7 @@ def test_vanished_file_is_retained_but_marked_superseded(repo, tmp_path):
     sync = _sync(repo, tmp_path, FakeEmbedder())
     sync.seed()
     b_head = _git(repo, "rev-parse", "HEAD:b.py").strip()
-    v_before = len(sync.store.atom_rows())
+    v_before = len(sync.store.atom_rows(clearance=CODE_READ))
     assert sync.memberships.fiber("b.py", b_head)     # PRECONDITION: b.py really landed
     (repo / "b.py").unlink()
     _git(repo, "add", "-A")
@@ -482,7 +483,7 @@ def test_vanished_file_is_retained_but_marked_superseded(repo, tmp_path):
     assert not any(m.tombstoned for m in b_fiber)     # superseded is not purged
     a_head = _git(repo, "rev-parse", "HEAD:a.py").strip()
     assert all(m.current for m in sync.memberships.fiber("a.py", a_head))
-    assert len(sync.store.atom_rows()) == v_before    # |V| never decreases (§4)
+    assert len(sync.store.atom_rows(clearance=CODE_READ)) == v_before    # |V| never decreases (§4)
 
 
 def test_changed_blob_keeps_and_links_old_version(repo, tmp_path):
@@ -492,7 +493,7 @@ def test_changed_blob_keeps_and_links_old_version(repo, tmp_path):
     sync.seed()
     old_blob = _git(repo, "rev-parse", "HEAD:a.py").strip()
     old_fiber = sync.memberships.fiber("a.py", old_blob)
-    before = {(str(r["id"]), tuple(r["vector"])) for r in sync.store.atom_rows()}
+    before = {(str(r["id"]), tuple(r["vector"])) for r in sync.store.atom_rows(clearance=CODE_READ)}
     assert old_fiber and before                            # PRECONDITION: v1 really landed
 
     (repo / "a.py").write_text("def a():\n    return 1 + 1  # changed\n")
@@ -508,11 +509,12 @@ def test_changed_blob_keeps_and_links_old_version(repo, tmp_path):
     now_new = sync.memberships.fiber("a.py", new_blob)
     assert now_old == [replace(m, current=False) for m in old_fiber]   # same rows, flag flipped
     assert now_new and all(m.current for m in now_new)
-    by_id = {str(r["id"]): r for r in sync.store.atom_rows()}
+    by_id = {str(r["id"]): r for r in sync.store.atom_rows(clearance=CODE_READ)}
     assert any("changed" in str(by_id[m.content_id]["text"]) for m in now_new)
     assert not any("changed" in str(by_id[m.content_id]["text"]) for m in now_old)
     # every atom that existed before survives with its vector intact (append-only, section 4)
-    assert before <= {(str(r["id"]), tuple(r["vector"])) for r in sync.store.atom_rows()}
+    assert before <= {(str(r["id"]), tuple(r["vector"])) for r in sync.store.atom_rows(
+        clearance=CODE_READ)}
 
 
 def test_default_search_is_current_view_history_is_opt_in(repo, tmp_path):
@@ -529,11 +531,11 @@ def test_default_search_is_current_view_history_is_opt_in(repo, tmp_path):
 
     # PRECONDITION (the named degenerate input): an atom whose every occupancy is superseded must
     # EXIST, or the current-filter below passes vacuously.
-    assert any(not bool(r["current"]) for r in store.atom_rows())
+    assert any(not bool(r["current"]) for r in store.atom_rows(clearance=CODE_READ))
     q = emb.embed_documents(["def a"])[0]
-    current_only = store.search(q, k=50, provenances={Provenance.CODE})
+    current_only = store.search(q, k=50, clearance=CODE_READ)
     assert current_only and all(r["current"] is True for r in current_only)
-    with_history = store.search(q, k=50, provenances={Provenance.CODE},
+    with_history = store.search(q, k=50, clearance=CODE_READ,
                                 include_superseded=True)
     assert any(r["current"] is False for r in with_history)
 
@@ -561,7 +563,7 @@ def test_current_column_additive_migration_preserves_rows(tmp_path):
     store = VectorStore(path, dim=DIM)                         # opens the legacy table
     n_chunks = derive_code_chunks("n.py", _SRC)
     store.add(code_rows(n_chunks, [[0.2] * DIM for _ in n_chunks]))
-    rows = store.all_rows(provenances={Provenance.CODE})
+    rows = store.all_rows(clearance=CODE_READ)
     assert all("current" in r for r in rows)
     m_rows = [r for r in rows if r["source_path"] == "m.py"]
     assert m_rows and all(r["current"] is True for r in m_rows)   # migrated rows stamped true

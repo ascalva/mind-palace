@@ -12,8 +12,11 @@ integrity concerns, not mere unit behavior:
   * the legacy→`authored-solo` relabel migration round-trips and is IDEMPOTENT (run twice = once).
 """
 
+from typing import Any
+
 import pytest
 
+from core.kernel.clearance import MAINTENANCE_READ, Clearance
 from core.kernel.ingest.logseq import ParsedNote
 from core.kernel.ingest.pipeline import ingest_note
 from core.kernel.mirror import MirrorView, NonMirrorRowError
@@ -21,6 +24,7 @@ from core.kernel.provenance import MIRROR_READABLE, Provenance
 from core.kernel.stores.rawstore import RawStore
 from core.stores.catalog import VaultCatalog
 from core.stores.vectorstore import VectorStore
+from tests.fixtures.clearances import grant
 
 
 def test_spectrum_values_round_trip():
@@ -44,14 +48,11 @@ def test_mirror_readable_is_both_authored_classes_and_excludes_curated():
 class _FakeRowSource:
     def __init__(self, rows):
         self.rows = rows
-        self.last_provenances = "unset"
+        self.last_clearance: Any = "unset"
 
-    def all_rows(self, *, provenances=None):
-        self.last_provenances = provenances
-        if provenances is None:
-            return list(self.rows)
-        allowed = {str(p) for p in provenances}
-        return [r for r in self.rows if r["provenance"] in allowed]
+    def all_rows(self, *, clearance: Clearance[Provenance]):
+        self.last_clearance = clearance
+        return [r for r in self.rows if clearance.admits(r.get("provenance"))]
 
 
 def test_mirror_view_keeps_both_authored_classes_drops_the_rest():
@@ -98,14 +99,14 @@ def test_vectorstore_relabel_is_correct_and_idempotent(tmp_path):
 
     changed = vs.relabel_provenance("authored", "authored-solo")
     assert changed == 2
-    provs = sorted(r["provenance"] for r in vs.all_rows())
+    provs = sorted(r["provenance"] for r in vs.all_rows(clearance=MAINTENANCE_READ))
     assert provs == ["authored-solo", "authored-solo", "observed"]   # observed untouched
     # The relabeled rows are now mirror-readable under the new tag.
-    assert len(vs.all_rows(provenances={Provenance.AUTHORED_SOLO})) == 2
+    assert len(vs.all_rows(clearance=grant(Provenance.AUTHORED_SOLO))) == 2
 
     # Idempotent: a second run finds no legacy rows and changes nothing.
     assert vs.relabel_provenance("authored", "authored-solo") == 0
-    assert sorted(r["provenance"] for r in vs.all_rows()) == provs
+    assert sorted(r["provenance"] for r in vs.all_rows(clearance=MAINTENANCE_READ)) == provs
 
 
 def test_catalog_relabel_is_correct_and_idempotent(tmp_path):

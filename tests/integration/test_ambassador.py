@@ -23,6 +23,7 @@ from core.stores.derived import DREAM, DerivedStore
 from core.stores.vectorstore import VectorStore
 from ops.ledger import ProposalLedger
 from scheduler.budget import Budgeter
+from tests.fixtures.clearances import grant
 from tests.fixtures.fakes import HashingEmbedder, ReplyServer
 
 DIM = 32
@@ -87,7 +88,7 @@ def test_retrieve_reads_the_mirror_and_captures_the_turn(tmp_path):
     assert "slow breathing" in seen["ctx"]                  # mirror chunk reached the model
     assert "computationally light" not in seen["ctx"]       # curated did NOT (firewall)
     # the owner's message landed as authored-dialogue (the capture loop)
-    dialogue = store.all_rows(provenances={Provenance.AUTHORED_DIALOGUE})
+    dialogue = store.all_rows(clearance=grant(Provenance.AUTHORED_DIALOGUE))
     assert any("what did I write about sleep" in r["text"] for r in dialogue)
     # attested: a read (the retrieval) + a capture (the dialogue)
     actions = {a.action for a in att_store.all()}
@@ -124,7 +125,7 @@ def test_dreams_reflects_the_interpreted_layer_mirror_not_oracle(tmp_path):
     assert "[[overwork]]" in turn.reply                     # the spanned notes are cited
     assert "not anything you wrote" in low                  # framed as interpretation (§III.2)
     # DREAMS is about the SYSTEM's read, not the owner's mind — not added to the corpus
-    assert store.all_rows(provenances={Provenance.AUTHORED_DIALOGUE}) == []
+    assert store.all_rows(clearance=grant(Provenance.AUTHORED_DIALOGUE)) == []
     assert any(a.action == "read" for a in att_store.all())  # attested as a read
 
 
@@ -172,7 +173,7 @@ def test_capture_intent_stores_and_acknowledges(tmp_path):
 
     assert turn.intent is Intent.CAPTURE
     assert "saved" in turn.reply.lower() or "noted" in turn.reply.lower()
-    dialogue = store.all_rows(provenances={Provenance.AUTHORED_DIALOGUE})
+    dialogue = store.all_rows(clearance=grant(Provenance.AUTHORED_DIALOGUE))
     assert any("steady and clear" in r["text"] for r in dialogue)
 
 
@@ -180,7 +181,7 @@ def test_status_turn_is_not_captured(tmp_path):
     # STATUS/EXPLAIN are about the SYSTEM, not the owner's mind — not added to the corpus.
     amb, _att, store = _amb(tmp_path)
     amb.respond("are you healthy?")
-    assert store.all_rows(provenances={Provenance.AUTHORED_DIALOGUE}) == []
+    assert store.all_rows(clearance=grant(Provenance.AUTHORED_DIALOGUE)) == []
 
 
 def test_ungrounded_answer_is_flagged_not_hidden(tmp_path):

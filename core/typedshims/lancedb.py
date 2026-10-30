@@ -77,6 +77,8 @@ class VectorQuery(Protocol):
 
     def limit(self, k: int) -> VectorQuery: ...
 
+    def offset(self, n: int) -> VectorQuery: ...
+
     def to_list(self) -> list[Row]: ...
 
 
@@ -89,7 +91,12 @@ class VectorTable(Protocol):
 
     def delete(self, predicate: str) -> None: ...
 
-    def update(self, where: str, values: Mapping[str, object]) -> UpdateResult: ...
+    def update(self, where: str, values: Mapping[str, object] | None = ..., *,
+               values_sql: Mapping[str, str] | None = ...) -> UpdateResult: ...
+
+    def schema_names(self) -> list[str]: ...
+
+    def version(self) -> int: ...
 
     def to_arrow(self) -> ArrowTable: ...
 
@@ -159,12 +166,29 @@ class _Table:
     def delete(self, predicate: str) -> None:
         self._raw.delete(predicate)
 
-    def update(self, where: str, values: Mapping[str, object]) -> UpdateResult:
+    def update(self, where: str, values: Mapping[str, object] | None = None, *,
+               values_sql: Mapping[str, str] | None = None) -> UpdateResult:
         """In-place column write on every row matching `where`. Rows are UPDATED, never
         rewritten by the caller: columns the caller does not name — `vector` above all — are
-        not read, not marshalled, and therefore cannot be re-derived or dropped."""
-        result: UpdateResult = self._raw.update(where, dict(values))
+        not read, not marshalled, and therefore cannot be re-derived or dropped.
+
+        [cross-ref: extension] `values_sql` (A3, the shared plane's `held` cache) sets columns from
+        SQL expressions. It exists for one measured reason: 0.33.0 cannot write an EMPTY list
+        through `values` (`[]` fails Arrow's concat with "requires input of at least one array"),
+        while `arrow_cast(make_array(), 'List(Utf8)')` through `values_sql` works."""
+        result: UpdateResult = self._raw.update(
+            where=where, values=dict(values) if values is not None else None,
+            values_sql=dict(values_sql) if values_sql is not None else None)
         return result
+
+    def schema_names(self) -> list[str]:
+        """The table's column names — how a store tells a schema generation apart (A3's `held`)."""
+        names: list[str] = list(self._raw.schema.names)
+        return names
+
+    def version(self) -> int:
+        """The dataset's current version — how a migration notices a write it did not make."""
+        return int(self._raw.version)
 
     def to_arrow(self) -> ArrowTable:
         table: ArrowTable = self._raw.to_arrow()

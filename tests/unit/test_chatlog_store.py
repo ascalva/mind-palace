@@ -15,8 +15,9 @@ import inspect
 from typing import Any
 
 import core.stores.chatlog as mod
+from core.kernel.clearance import MAINTENANCE_READ, MIRROR_READ, OBSERVED_READ
 from core.kernel.mirror import MirrorView, NonMirrorRowError
-from core.kernel.provenance import MIRROR_READABLE, Provenance
+from core.kernel.provenance import Provenance
 from core.sensing import NonObservedRowError, ObservedView
 from core.stores.chatlog import ChatlogStore, ChatUtterance
 
@@ -37,7 +38,7 @@ def _utt(turn_index: int = 0, speaker: str = "owner", **kw: Any) -> ChatUtteranc
 def test_utterance_round_trips_through_add_batch_and_all_rows() -> None:
     s = _store()
     assert s.add_batch([_utt(0, "owner"), _utt(1, "agent")]) == 2
-    rows = s.all_rows()
+    rows = s.all_rows(clearance=MAINTENANCE_READ)
     assert len(rows) == 2
     assert [r["turn_index"] for r in rows] == [0, 1]
     assert [r["speaker"] for r in rows] == ["owner", "agent"]
@@ -77,7 +78,8 @@ def test_to_row_hardcodes_observed_for_both_speakers() -> None:
 def test_stored_rows_are_all_observed_regardless_of_speaker() -> None:
     s = _store()
     s.add_batch([_utt(0, "owner"), _utt(1, "agent")])
-    assert {r["provenance"] for r in s.all_rows()} == {Provenance.OBSERVED.value}
+    assert {r["provenance"] for r in s.all_rows(
+        clearance=MAINTENANCE_READ)} == {Provenance.OBSERVED.value}
 
 
 # --- the falsifier: no provenance parameter exists anywhere ----------------------------------
@@ -117,7 +119,7 @@ def test_source_never_derives_provenance_from_speaker() -> None:
 def test_observed_view_admits_chat_rows() -> None:
     s = _store()
     s.add_batch([_utt(0, "owner"), _utt(1, "agent")])
-    view = ObservedView(_rows=tuple(s.all_rows()))
+    view = ObservedView(_rows=tuple(s.all_rows(clearance=MAINTENANCE_READ)))
     assert len(view) == 2
     assert all(r["provenance"] == Provenance.OBSERVED.value for r in view.rows())
 
@@ -126,7 +128,7 @@ def test_mirror_view_refuses_chat_rows() -> None:
     s = _store()
     s.add_batch([_utt(0, "owner")])
     try:
-        MirrorView(_rows=tuple(s.all_rows()))
+        MirrorView(_rows=tuple(s.all_rows(clearance=MAINTENANCE_READ)))
     except NonMirrorRowError:
         pass
     else:
@@ -149,6 +151,6 @@ def test_a_hand_forged_authored_chat_row_is_still_refused_by_observed_view() -> 
 def test_reader_filtered_to_observed_sees_all_rows() -> None:
     s = _store()
     s.add_batch([_utt(0), _utt(1)])
-    assert len(s.all_rows(provenances=[Provenance.OBSERVED])) == 2
-    assert len(s.all_rows()) == 2
-    assert s.all_rows(provenances=MIRROR_READABLE) == []   # nothing here is mirror-readable
+    assert len(s.all_rows(clearance=OBSERVED_READ)) == 2
+    assert len(s.all_rows(clearance=MAINTENANCE_READ)) == 2
+    assert s.all_rows(clearance=MIRROR_READ) == []   # nothing here is mirror-readable

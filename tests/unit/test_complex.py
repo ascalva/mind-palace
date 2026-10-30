@@ -16,6 +16,7 @@ import scipy.sparse as sp
 
 from core.complex.build import build_complex, cosine_adjacency
 from core.complex.spectral import diffusion_cluster_notes, fiedler, louvain_labels
+from core.kernel.clearance import Clearance
 from core.kernel.complex.balance import frustration
 from core.kernel.complex.laplacian import laplacian, laplacian_sym
 from core.kernel.complex_types import EdgeSign
@@ -31,11 +32,8 @@ class _Rows:
     def __init__(self, rows: list[dict[str, Any]]):
         self._rows = rows
 
-    def all_rows(self, *, provenances=None) -> list[dict[str, Any]]:
-        if provenances is None:
-            return list(self._rows)
-        allowed = {Provenance(p).value for p in provenances}
-        return [r for r in self._rows if r.get("provenance") in allowed]
+    def all_rows(self, *, clearance: Clearance[Provenance]) -> list[dict[str, Any]]:
+        return [r for r in self._rows if clearance.admits(r.get("provenance"))]
 
 
 def _row(digest: str, vec: list[float]) -> dict[str, Any]:

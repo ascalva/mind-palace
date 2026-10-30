@@ -38,27 +38,33 @@ strata I3 floor-zero posture: the added mode recovers the old behavior exactly w
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from core.kernel.clearance import Clearance
 from core.kernel.provenance import Provenance
 
 
 class RowSource(Protocol):
-    """Anything that yields provenance-filtered chunk rows — the VectorStore, or a test fake.
-    Same shape as `core.mirror.RowSource`; kept local so the store layer doesn't depend on the
-    mirror view."""
+    """Anything that yields the chunk rows a clearance admits — the VectorStore, or a test fake.
+    Same shape as `core.kernel.mirror.RowSource`; kept local so the store layer doesn't depend on
+    the mirror view."""
 
-    def all_rows(self, *,
-                 provenances: Iterable[Provenance] | None = None) -> list[dict[str, Any]]:
+    def all_rows(self, *, clearance: Clearance[Provenance]) -> Sequence[Mapping[str, Any]]:
         ...
 
 
 class MixedProvenanceError(ValueError):
-    """A single source `digest` carried rows of more than one provenance. A source object lives
-    at exactly one stratum, so this is a data-integrity error, not a mergeable state — surfaced
-    rather than silently picking a label (the firewall discipline: fail closed on ambiguity)."""
+    """One version of one document — a fiber `(source_path, digest)` — carried rows of more than one
+    provenance. A source lives at exactly one stratum, so this is a data-integrity error, not a
+    mergeable state — surfaced rather than silently picking a label (fail closed on ambiguity).
+
+    [banner: correction] A3.6: this used to fire on a DIGEST spanning classes. Under the shared
+    plane two documents with identical bytes at two strata — an owner turn and a model turn that
+    say the same words — are legitimately two sources, each a `SourceId` (a digest AT a stratum);
+    the pre-A3 store made that state unrepresentable only by deleting one of them. The integrity
+    claim lives where it is true: per fiber."""
 
 
 @dataclass(frozen=True)
@@ -91,7 +97,7 @@ class SourceSet:
 
     id: SourceId
     title: str
-    members: tuple[dict[str, Any], ...]
+    members: tuple[Mapping[str, Any], ...]
 
     @property
     def digest(self) -> str:
@@ -116,7 +122,7 @@ class SourceSet:
         return len(self.members)
 
 
-def group_sources(rows: Iterable[dict[str, Any]]) -> list[SourceSet]:
+def group_sources(rows: Iterable[Mapping[str, Any]]) -> list[SourceSet]:
     """Group flat chunk rows into source objects by `digest` — the membership relation made
     first-class. This is the one grouping path; callers scope by provenance upstream (or not).
 
@@ -124,42 +130,42 @@ def group_sources(rows: Iterable[dict[str, Any]]) -> list[SourceSet]:
     ranked search result stays ranked by each source's best hit), and members within a source
     are ordered by `chunk_index` (so a complete set reconstructs the note in reading order).
 
-    Every row of a source must share one provenance — a source lives at one stratum — so a
-    `digest` spanning provenances raises `MixedProvenanceError` rather than merging strata."""
-    grouped: dict[str, list[dict[str, Any]]] = {}
+    A source is a `SourceId` — a digest AT a stratum — so rows group by `(digest, provenance)`
+    (A3.6). One fiber `(source_path, digest)` spanning provenances raises `MixedProvenanceError`:
+    a document version lives at exactly one stratum."""
+    grouped: dict[tuple[str, str], list[Mapping[str, Any]]] = {}
+    fiber_class: dict[tuple[str, str], str] = {}
     for r in rows:
-        grouped.setdefault(r["digest"], []).append(r)
-    out: list[SourceSet] = []
-    for digest, members in grouped.items():
-        provs = {m["provenance"] for m in members}
-        if len(provs) > 1:
+        digest, prov = str(r["digest"]), str(r["provenance"])
+        fiber = (str(r.get("source_path", "")), digest)
+        seen = fiber_class.setdefault(fiber, prov)
+        if seen != prov:
             raise MixedProvenanceError(
-                f"source {digest!r} spans provenances {sorted(provs)!r}; a source object lives "
-                "at exactly one stratum"
+                f"{fiber[0]!r}@{digest!r} spans provenances {sorted({seen, prov})!r}; a source "
+                "object lives at exactly one stratum"
             )
-        prov = Provenance(next(iter(provs)))
-        title = next((m.get("title", "") for m in members), "")
-        ordered = tuple(sorted(members, key=lambda m: m.get("chunk_index", 0)))
-        out.append(SourceSet(id=SourceId(digest=digest, provenance=prov), title=title,
-                             members=ordered))
+        grouped.setdefault((digest, prov), []).append(r)
+    out: list[SourceSet] = []
+    for (digest, prov_value), members in grouped.items():
+        title = next((str(m.get("title", "")) for m in members), "")
+        ordered = tuple(sorted(members, key=lambda m: int(m.get("chunk_index", 0) or 0)))
+        out.append(SourceSet(id=SourceId(digest=digest, provenance=Provenance(prov_value)),
+                             title=title, members=ordered))
     return out
 
 
-def source_sets(store: RowSource, *,
-                provenances: Iterable[Provenance] | None = None) -> list[SourceSet]:
-    """Every source object in the store, optionally scoped to provenance classes.
-
-    Default is all strata: this is a structural grouping utility, not a mirror read, so it does
-    not default to `MIRROR_READABLE`. Pass `provenances=MIRROR_READABLE` for the introspective
-    firewall, exactly as with `VectorStore.all_rows`. A non-authored stratum (e.g. `{CURATED}`)
-    works through this same call with no bespoke path."""
-    return group_sources(store.all_rows(provenances=provenances))
+def source_sets(store: RowSource, *, clearance: Clearance[Provenance]) -> list[SourceSet]:
+    """Every source object `clearance` admits. A structural grouping utility, not a mirror read —
+    so it has no default: the caller names its authority (`MIRROR_READ` for the introspective
+    firewall, a deliberate grant such as `CURATED_READ` for another stratum, through this same
+    call with no bespoke path)."""
+    return group_sources(store.all_rows(clearance=clearance))
 
 
 def source_set(store: RowSource, digest: str, *,
-               provenances: Iterable[Provenance] | None = None) -> SourceSet | None:
-    """The one source object identified by `digest`, or None if absent. Scans then filters
-    (single-user corpus scale, the same posture as `VectorStore.all_rows`)."""
-    rows = [r for r in store.all_rows(provenances=provenances) if r["digest"] == digest]
+               clearance: Clearance[Provenance]) -> SourceSet | None:
+    """The one source object identified by `digest` under `clearance`, or None if absent. Scans
+    then filters (single-user corpus scale, the same posture as `VectorStore.all_rows`)."""
+    rows = [r for r in store.all_rows(clearance=clearance) if r["digest"] == digest]
     sets = group_sources(rows)
     return sets[0] if sets else None

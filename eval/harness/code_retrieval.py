@@ -32,13 +32,14 @@ from __future__ import annotations
 
 import math
 import time
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Protocol, cast
 
 from core.ingest.embed import Embedder
 from core.ingest.index import semantic_search
+from core.kernel.clearance import CODE_READ, _mint
 from core.kernel.provenance import MIRROR_READABLE, Provenance
 from core.stores.memberships import MembershipStore
 from core.stores.vectorstore import (
@@ -96,8 +97,7 @@ def ranked_paths(query: str, embedder: _QueryEmbedder, store: VectorStore, *,
     living in two files ranks both, at the same distance. Without it the pre-split reading is
     unchanged (rows that still carry `source_path` resolve to themselves), so this is additive."""
     allowed = set(layers)
-    hits = semantic_search(query, cast(Embedder, embedder), store, k=pool,
-                           provenances={Provenance.CODE})
+    hits = semantic_search(query, cast(Embedder, embedder), store, k=pool, clearance=CODE_READ)
     best: dict[str, float] = {}
     order: list[str] = []
     for h in hits:
@@ -113,7 +113,7 @@ def ranked_paths(query: str, embedder: _QueryEmbedder, store: VectorStore, *,
     return [(p, best[p]) for p in order]
 
 
-def _hit_paths(hit: dict[str, Any], memberships: MembershipStore | None) -> list[str]:
+def _hit_paths(hit: Mapping[str, Any], memberships: MembershipStore | None) -> list[str]:
     """Where one hit lives: its own `source_path` for a pre-split row, or its CURRENT occupancies
     resolved through the membership join for a shed atom row (D3). An atom with no membership
     resolves nowhere and contributes no path — correct, not silent: dormant geometry from an
@@ -239,7 +239,7 @@ class MC4Verdict(StrEnum):
 
 def _vectors(store: VectorStore, provenances: Iterable[Provenance]) -> list[list[float]]:
     return [[float(x) for x in r["vector"]]
-            for r in store.all_rows(provenances=set(provenances))]
+            for r in store.all_rows(clearance=_mint(set(provenances), "eval:code_retrieval"))]
 
 
 def _sample(items: list[list[float]], n: int, seed: int) -> list[list[float]]:
@@ -352,12 +352,12 @@ def run_mc5(embedder: _QueryEmbedder, store: VectorStore, *,
     machine-relative ceiling. Embedder-independent (dominated by row count + vector payload), so a
     synthetic-scale store measures the posture faithfully — not a semantic verdict."""
     t0 = time.perf_counter()
-    rows = store.all_rows(provenances={Provenance.CODE})
+    rows = store.all_rows(clearance=CODE_READ)
     all_rows_s = time.perf_counter() - t0
 
     qv = embedder.embed_query(probe_query)
     t1 = time.perf_counter()
-    store.search(qv, k=10, provenances={Provenance.CODE})
+    store.search(qv, k=10, clearance=CODE_READ)
     search_s = time.perf_counter() - t1
 
     return MC5Result(

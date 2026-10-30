@@ -1,3 +1,4 @@
+
 """The dreaming agent (BUILD-SPEC §9) — deterministic, with fakes for the store + model.
 
 Proves: dreaming reads the AUTHORED mirror only (the firewall); clusters become themes; the
@@ -6,9 +7,12 @@ as INTERPRETED dreams; the pre-return grounding check runs (passes a grounded re
 flags a fabricated citation). The live synthesis run is test_dreaming_live.py.
 """
 
+from typing import Any
+
 from core.dreaming import Dreamer
+from core.kernel.clearance import Clearance
 from core.kernel.constitution import load_constitution
-from core.kernel.provenance import MIRROR_READABLE
+from core.kernel.provenance import MIRROR_READABLE, Provenance
 from core.kernel.selfcheck import FAIL
 from core.stores.derived import DREAM, DerivedStore
 
@@ -25,14 +29,11 @@ ROWS = [
 class FakeStore:
     def __init__(self, rows):
         self.rows = rows
-        self.last_provenances = "unset"
+        self.last_clearance: Any = "unset"
 
-    def all_rows(self, *, provenances=None):
-        self.last_provenances = provenances
-        if provenances is None:
-            return list(self.rows)
-        allowed = {str(p) for p in provenances}
-        return [r for r in self.rows if r["provenance"] in allowed]
+    def all_rows(self, *, clearance: Clearance[Provenance]):
+        self.last_clearance = clearance
+        return [r for r in self.rows if clearance.admits(r.get("provenance"))]
 
 
 class CapturingSynth:
@@ -57,7 +58,8 @@ def _dreamer(tmp_path, reply, rows=ROWS):
 def test_dreaming_reads_the_authored_mirror_only(tmp_path):
     d = _dreamer(tmp_path, "Per [[sleep-1]] and [[sleep-2]], a theme of rest.")
     d.dream()
-    assert d.store.last_provenances == MIRROR_READABLE   # firewall: observed can't seed a dream
+    # firewall: observed can't seed a dream
+    assert d.store.last_clearance.classes == MIRROR_READABLE
 
 
 def test_cluster_becomes_a_grounded_theme_and_is_stored(tmp_path):

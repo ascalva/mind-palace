@@ -1539,10 +1539,10 @@ class Launcher:
         from core.kernel.ingest.logseq import ParsedNote
         from core.kernel.ingest.pipeline import ingest_note
         from core.kernel.stores.rawstore import RawStore
-        from core.stores.vectorstore import VectorStore
+        from core.stores.vectorstore import open_vector_store
         print(f"vault: {run_ingest(self.cfg, rebuild=True)}")
         raw = RawStore(self.cfg.paths.raw_store)
-        store = VectorStore(self.cfg.paths.vector_store, dim=dim)
+        store = open_vector_store(self.cfg)
         embedder = build_embedder(self.cfg)
         added = 0
         for e in dialogue:

@@ -7,6 +7,7 @@ authored corpus but writes only to the derived store (the §8 firewall).
 """
 
 from core.curator import CONTRADICTION, NEAR_DUPLICATE, PRUNE_CANDIDATE, Curator
+from core.kernel.clearance import Clearance
 from core.kernel.provenance import MIRROR_READABLE, Provenance
 from core.stores.derived import FINDING, DerivedStore
 
@@ -24,11 +25,8 @@ class FakeStore:
     def __init__(self, rows):
         self.rows = rows
 
-    def all_rows(self, *, provenances=None):
-        if provenances is None:
-            return list(self.rows)
-        allowed = {str(p) for p in provenances}
-        return [r for r in self.rows if r["provenance"] in allowed]
+    def all_rows(self, *, clearance: Clearance[Provenance]):
+        return [r for r in self.rows if clearance.admits(r.get("provenance"))]
 
 
 class FakeRaw:
@@ -106,11 +104,11 @@ def test_near_duplicates_read_the_mirror_only(tmp_path):
     seen = {}
 
     class Recorder(FakeStore):
-        def all_rows(self, *, provenances=None):
-            seen["prov"] = provenances
-            return super().all_rows(provenances=provenances)
+        def all_rows(self, *, clearance: Clearance[Provenance]):
+            seen["prov"] = clearance
+            return super().all_rows(clearance=clearance)
 
     c = Curator(store=Recorder(list(ROWS)), derived=DerivedStore(tmp_path / "d.sqlite"),
                 near_dup_threshold=0.99)
     c.near_duplicates()
-    assert seen["prov"] == MIRROR_READABLE
+    assert seen["prov"].classes == MIRROR_READABLE

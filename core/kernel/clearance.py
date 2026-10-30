@@ -55,7 +55,7 @@ from types import MappingProxyType
 from typing import Any, Literal, NoReturn, cast, final
 
 from core.kernel.provenance import MIRROR_READABLE, Provenance
-from core.kernel.scope import Stratum
+from core.kernel.scope import Scope, Stratum
 
 # The label `L` (a PEP 695 parameter on each class below) is a set of provenance classes at the type
 # level. It appears only in read-only (return) positions, so mypy infers it COVARIANT: a record
@@ -212,6 +212,15 @@ def classes_of(strata: Iterable[Stratum]) -> frozenset[Provenance]:
     return frozenset(out)
 
 
+def clearance_of(scope: Scope) -> Clearance[Provenance]:
+    """The read classes a scope's Σ names — the bridge from the capability algebra
+    (`core.kernel.scope`). Its holders are pinned: the query engine mints from an ADMITTED
+    sentence's required scope (admission is the permission), the evaluator from its checked
+    grant. Top-labelled, because which classes a runtime scope names is a runtime fact."""
+    strata = ",".join(sorted(s.value for s in scope.sigma.strata))
+    return Clearance(classes_of(scope.sigma.strata), f"scope:{strata}", mint=_MINT)
+
+
 # ── Cleared records ────────────────────────────────────────────────────────────────────────────
 
 @final
@@ -263,19 +272,20 @@ class Occupancy[L: Provenance]:
     document of class `provenance`, at `chunk_index`. Constructed only under a clearance that
     admits the class, by a holder of the private mint (the plane)."""
 
-    __slots__ = ("_atom_id", "_chunk_index", "_current", "_digest", "_provenance",
+    __slots__ = ("_atom_id", "_chunk_index", "_current", "_digest", "_provenance", "_row_id",
                  "_source_path", "_title")
     _atom_id: str
     _chunk_index: int
     _current: bool
     _digest: str
     _provenance: Provenance
+    _row_id: str
     _source_path: str
     _title: str
 
     def __init__(self, clearance: Clearance[L], *, atom_id: str, source_path: str,
                  digest: str, chunk_index: int, title: str, provenance: Provenance | str,
-                 current: bool, mint: _Mint) -> None:
+                 current: bool, row_id: str = "", mint: _Mint) -> None:
         _require_mint(mint)
         if not clearance.admits(provenance):
             raise ClearanceViolation(
@@ -288,6 +298,7 @@ class Occupancy[L: Provenance]:
         set_(self, "_title", title)
         set_(self, "_provenance", Provenance(str(provenance)))
         set_(self, "_current", bool(current))
+        set_(self, "_row_id", row_id or f"{source_path}:{atom_id.split(':', 1)[-1]}")
 
     def __setattr__(self, name: str, value: object) -> NoReturn:
         raise AttributeError("an Occupancy is immutable")
@@ -320,9 +331,14 @@ class Occupancy[L: Provenance]:
     def current(self) -> bool:
         return self._current
 
-    def _key(self) -> tuple[str, str, str, int, str, str, bool]:
+    @property
+    def row_id(self) -> str:
+        """The row id its writer gave this occupancy (`{source_path}:{chunk_hash}` by default)."""
+        return self._row_id
+
+    def _key(self) -> tuple[str, str, str, int, str, str, bool, str]:
         return (self.atom_id, self.source_path, self.digest, self.chunk_index, self.title,
-                self._provenance.value, self.current)
+                self._provenance.value, self.current, self.row_id)
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Occupancy) and other._key() == self._key()
@@ -408,7 +424,7 @@ def narrow_hit[L: Provenance](hit: PlaneHit[Provenance],
     """`hit` with only the occupancies `to` admits, or None when none remain."""
     kept = [Occupancy(to, atom_id=o.atom_id, source_path=o.source_path, digest=o.digest,
                       chunk_index=o.chunk_index, title=o.title, provenance=o.provenance,
-                      current=o.current, mint=_MINT)
+                      current=o.current, row_id=o.row_id, mint=_MINT)
             for o in hit.occupancies if to.admits(o.provenance)]
     if not kept:
         return None

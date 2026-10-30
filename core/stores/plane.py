@@ -228,7 +228,7 @@ class _Fiber:
     digest: str
     provenance: Provenance
     title: str
-    chunks: tuple[tuple[int, str], ...]          # (chunk_index, atom_id), chunk order
+    chunks: tuple[tuple[int, str, str], ...]     # (chunk_index, atom_id, row_id), chunk order
 
 
 def _ddl() -> str:
@@ -241,6 +241,7 @@ CREATE TABLE IF NOT EXISTS {occ} (
     digest      TEXT NOT NULL,
     chunk_index INTEGER NOT NULL,
     atom_id     TEXT NOT NULL,
+    row_id      TEXT NOT NULL,      -- the id its writer gave the row (kept, never re-derived)
     title       TEXT NOT NULL,
     current     INTEGER NOT NULL DEFAULT 0,
     landed_at   TEXT NOT NULL,
@@ -359,7 +360,7 @@ class SharedPlane:
         fibers, vectors = _fibers(rows)
         if not fibers:
             return LandReport()
-        wanted = list(dict.fromkeys(a for f in fibers for _, a in f.chunks))
+        wanted = list(dict.fromkeys(a for f in fibers for _, a, _ in f.chunks))
         with self._writing() as conn:
             self._check_geometry(conn, record=True)
             present = self.atoms.present(wanted)
@@ -401,20 +402,20 @@ class SharedPlane:
         freed = {str(r[0]) for r in conn.execute(
             f"SELECT atom_id FROM {occ} WHERE source_path = ? AND current = 1 AND digest <> ?",
             [f.source_path, f.digest])}
-        existing = {(int(r[0]), str(r[1])) for r in conn.execute(
-            f"SELECT chunk_index, atom_id FROM {occ} WHERE source_path = ? AND digest = ?",
+        existing = {(int(r[0]), str(r[1]), str(r[2])) for r in conn.execute(
+            f"SELECT chunk_index, atom_id, row_id FROM {occ} WHERE source_path = ? AND digest = ?",
             [f.source_path, f.digest])}
         if existing != set(f.chunks):              # new version, or its derivation changed
-            freed |= {a for _, a in existing}      # atoms the old derivation held may lose a class
+            freed |= {a for _, a, _ in existing}   # atoms the old derivation held may lose a class
             was_head = heads == [f.digest]
             conn.execute(f"DELETE FROM {occ} WHERE source_path = ? AND digest = ?",
                          [f.source_path, f.digest])
             now = _now()
             conn.executemany(
-                f"INSERT INTO {occ} (source_path, digest, chunk_index, atom_id, title, current, "
-                "landed_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                [(f.source_path, f.digest, i, a, f.title, int(was_head), now)
-                 for i, a in f.chunks])
+                f"INSERT INTO {occ} (source_path, digest, chunk_index, atom_id, row_id, title, "
+                "current, landed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                [(f.source_path, f.digest, i, a, rid, f.title, int(was_head), now)
+                 for i, a, rid in f.chunks])
         superseded = conn.execute(
             f"UPDATE {occ} SET current = 0 WHERE source_path = ? AND digest <> ? AND current = 1",
             [f.source_path, f.digest]).rowcount
@@ -611,7 +612,7 @@ def _fibers(rows: Sequence[Mapping[str, Any]]) -> tuple[list[_Fiber], dict[str, 
         prov = Provenance(provs.pop())
         if prov not in OCC:
             raise PlaneError("CODE rows land through the code lane, never the prose plane")
-        chunks: list[tuple[int, str]] = []
+        chunks: list[tuple[int, str, str]] = []
         seen: set[int] = set()
         for m in sorted(members, key=lambda m: int(m.get("chunk_index", 0) or 0)):
             idx = int(m.get("chunk_index", 0) or 0)
@@ -621,7 +622,7 @@ def _fibers(rows: Sequence[Mapping[str, Any]]) -> tuple[list[_Fiber], dict[str, 
             layer = str(m.get("layer") or "prose")
             text = str(m["text"])
             a = atom_id(text, layer)
-            chunks.append((idx, a))
+            chunks.append((idx, a, str(m.get("id") or f"{path}:{a.split(':', 1)[1]}")))
             vec = m.get("vector")
             if vec is not None and a not in vectors:
                 vectors[a] = AtomRecord(atom_id=a, layer=layer, text=text, vector=list(vec))
@@ -650,14 +651,15 @@ class PlaneReader[L: Provenance]:
     def _occupancy(self, p: Provenance, r: Sequence[Any]) -> Occupancy[L]:
         return Occupancy(self._clearance, atom_id=str(r[0]), source_path=str(r[1]),
                          digest=str(r[2]), chunk_index=int(r[3]), title=str(r[4]),
-                         provenance=p, current=bool(r[5]), mint=_MINT)
+                         provenance=p, current=bool(r[5]), row_id=str(r[6]), mint=_MINT)
 
     def _select(self, where: str, params: Sequence[Any]) -> list[Occupancy[L]]:
         conn = self._plane._db()
         out: list[Occupancy[L]] = []
         for p, occ, _ in self._tables:
             out.extend(self._occupancy(p, r) for r in conn.execute(
-                f"SELECT atom_id, source_path, digest, chunk_index, title, current FROM {occ} "
+                f"SELECT atom_id, source_path, digest, chunk_index, title, current, row_id "
+                f"FROM {occ} "
                 f"WHERE {where} ORDER BY source_path, digest, chunk_index", list(params)))
         return out
 
@@ -716,7 +718,7 @@ class PlaneReader[L: Provenance]:
     def _row(self, o: Occupancy[L], text: str, vector: Sequence[float],
              distance: float | None) -> Row[L]:
         fields: dict[str, Any] = {
-            "id": f"{o.source_path}:{o.atom_id.split(':', 1)[1]}",
+            "id": o.row_id,
             "digest": o.digest, "title": o.title, "source_path": o.source_path,
             "chunk_index": o.chunk_index, "provenance": o.provenance.value, "text": text,
             "layer": o.atom_id.split(":", 1)[0], "qualname": "", "line_start": 0, "line_end": 0,

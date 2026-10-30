@@ -46,9 +46,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from config.secrets_backend import MintedToken, SecretsBackend
+from core.kernel.clearance import Clearance, Row
+from core.kernel.provenance import Provenance
 from core.models import MemoryCeilingError
 from core.models.loader import TwoSlotLoader
 from core.stores.telemetry import TelemetryWriter
+from core.stores.vectorstore import VectorStore
 from scheduler.power import Power
 from scheduler.presence import Presence
 from scheduler.queue import RUNNING, Job, JobQueue
@@ -70,6 +73,25 @@ INPROC, SUBPROCESS = "inproc", "subprocess"
 Handler = Callable[[Job], "str | None"]
 
 
+@dataclass(frozen=True)
+class ClearedRows:
+    """The `ReadOnlyRows` a supervisor serves a compute half: one store, bound to ONE clearance at
+    wiring time (A3.4). The worker asks for rows; it can never name — let alone widen — the
+    classes it reads, because no verb carries a class."""
+
+    store: VectorStore
+    clearance: Clearance[Provenance]
+
+    def all_rows(self) -> list[Row[Provenance]]:
+        return self.store.all_rows(clearance=self.clearance)
+
+    def rows_for_source(self, source_path: str) -> list[Row[Provenance]]:
+        return self.store.rows_for_source(source_path, clearance=self.clearance)
+
+    def search(self, vector: list[float], k: int) -> list[Row[Provenance]]:
+        return self.store.search(vector, k=k, clearance=self.clearance)
+
+
 class _NoRows:
     """The `ReadOnlyRows` a supervisor with no store wired serves: it answers every verb by
     refusing. Fail-closed — a lane that expected reads gets a typed error naming the missing
@@ -81,7 +103,7 @@ class _NoRows:
             "pass `rows=` to serve a compute half that reads"
         )
 
-    def all_rows(self, *, provenances: set[str] | None = None) -> list[dict[str, Any]]:
+    def all_rows(self) -> list[dict[str, Any]]:
         return self._refuse("all_rows")
 
     def rows_for_source(self, source_path: str) -> list[dict[str, Any]]:

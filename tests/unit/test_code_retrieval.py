@@ -14,6 +14,7 @@ import hashlib
 from pathlib import Path
 
 from core.ingest.code_corpus import code_memberships, code_rows, derive_code_chunks
+from core.kernel.clearance import CODE_READ
 from core.kernel.provenance import Provenance
 from core.stores.memberships import MembershipStore
 from core.stores.vectorstore import VectorStore
@@ -196,7 +197,7 @@ def test_ranked_paths_dedupes_by_source_and_filters_layer(tmp_path):
     _seed_code(store, memberships, _SOURCES, emb)
     # PRECONDITION: the rows really are shed atom rows, so this exercises the D3 JOIN and not a
     # leftover `source_path` on the row — without it the test would pass on the pre-split shape.
-    assert all(not str(r["source_path"]) for r in store.atom_rows())
+    assert all(not str(r["source_path"]) for r in store.atom_rows(clearance=CODE_READ))
     lane = ranked_paths("nearest neighbour embedded chunks lancedb", emb, store,
                         layers=LANE_LAYERS, pool=50, memberships=memberships)
     paths = [p for p, _ in lane]
