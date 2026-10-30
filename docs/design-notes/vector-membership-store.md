@@ -806,6 +806,15 @@ Measured 2026-10-29:
   code rows.
 - **Curated store:** 148,240 rows, 823 of them duplicates.
 
+**A shared atom keeps one representative vector** (D0's "first-landed rendering", now for prose).
+The embedder is not bit-deterministic across batches, so two separately embedded copies of one
+text differ in their last bits. Measured on the live paper store: 818 texts held more than once
+(1,641 rows). Of 823 duplicate copies, 107 were bit-identical and the rest within cosine 0.9999984
+of the first, a distance of at most 1.6e-6 and far below retrieval resolution. The migration
+therefore verifies every unshared row bit for bit. It accepts a holder's representative only
+within cosine 1 − 1e-5 (about 6× the measured jitter), counted in its report. Anything wider
+refuses the swap.
+
 ### A3.9 — Falsifiers (each names its degenerate input)
 
 - **Noninterference** reddens on a seeded leak (a reader that also reads one uncleared relation).

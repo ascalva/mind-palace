@@ -10,7 +10,13 @@ One store at a time, and nothing is deleted:
    superseded with their edges.
 2. VERIFY by reconstituting every old row from the new store: id, digest, path, chunk index,
    class, title, text and the vector bit for bit (float32 survives the round trip exactly). Any
-   difference stops here, the live store untouched.
+   difference stops here, the live store untouched. One exception, by design: when several rows
+   hold the SAME text, the plane keeps one vector for all of them (the atom's first-landed
+   representative, D0), so a holder whose own copy was embedded separately — embedders are not
+   bit-deterministic across batches — gets the representative. That is accepted only within
+   `REPRESENTATIVE_COS` of the row's original vector, and counted; anything wider is a mismatch.
+   Measured on the live paper store (2026-10-29): 823 duplicate copies, 107 bit-identical, the
+   rest at cosine >= 0.9999984 (distance <= 1.6e-6).
 3. SWAP only if the old store's dataset version is still the one read at the start (a writer that
    slipped in is a reason to stop, never to lose its row): the old directory is RENAMED into
    `~/mind-palace-archive/<store>-pre-a3-<UTC>` and the build renamed into its place.
@@ -22,6 +28,7 @@ long-running servers keep the old store's handles open until they restart.
 from __future__ import annotations
 
 import argparse
+import math
 import os
 import shutil
 from collections import defaultdict
@@ -37,6 +44,16 @@ from core.stores.vectorstore import VectorStore, fingerprint_of
 ARCHIVE_ROOT = Path.home() / "mind-palace-archive"
 _PLANE_VALUES = frozenset(p.value for p in PLANE_CLASSES)
 _COMPARED = ("id", "digest", "source_path", "chunk_index", "provenance", "title", "text")
+#: A shared atom's representative vector must sit this close to every holder's original copy —
+#: about 6x the worst jitter measured between separately embedded copies of one text.
+REPRESENTATIVE_COS = 1.0 - 1e-5
+
+
+def _cosine(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
+    na = math.sqrt(sum(x * x for x in a)) or 1.0
+    nb = math.sqrt(sum(y * y for y in b)) or 1.0
+    return dot / (na * nb)
 
 
 @dataclass
@@ -50,6 +67,8 @@ class MigrationReport:
     atoms: int = 0
     multi_version_paths: list[str] = field(default_factory=list)
     mismatches: list[str] = field(default_factory=list)
+    representatives: int = 0                    # holders given their shared atom's vector
+    worst_representative_cos: float = 1.0
     swapped: bool = False
     archive: str = ""
     build: str = ""
@@ -72,7 +91,9 @@ class MigrationReport:
             f"verified, dry run — build left at {self.build}"
         multi = f" ({len(self.multi_version_paths)} paths with several versions)" \
             if self.multi_version_paths else ""
-        return head + tail + multi
+        reps = (f"; {self.representatives} holders share a representative vector (worst cosine "
+                f"{self.worst_representative_cos:.9f})") if self.representatives else ""
+        return head + tail + multi + reps
 
 
 def _set_aside(path: Path, archive_root: Path, label: str) -> Path:
@@ -136,6 +157,9 @@ def migrate(path: Path, *, dim: int, fingerprint: Fingerprint | None,
         report.documents += 1
 
     # 2. verify — every old row, reconstituted from the new store
+    shared_texts: dict[str, int] = defaultdict(int)
+    for r in old.project(["text"], clearance=MAINTENANCE_READ, where=prose_where):
+        shared_texts[str(r["text"])] += 1
     for page in old.physical_pages(clearance=MAINTENANCE_READ, where=prose_where):
         by_doc: dict[str, dict[tuple[str, str, int], Any]] = {}
         for r in page:
@@ -151,7 +175,13 @@ def migrate(path: Path, *, dim: int, fingerprint: Fingerprint | None,
                 if got[col] != r[col]:
                     report.mismatches.append(f"{_key(r)} {col}: {r[col]!r} → {got[col]!r}")
             if list(got["vector"]) != list(r["vector"]):
-                report.mismatches.append(f"{_key(r)} vector differs")
+                shared = shared_texts.get(str(r["text"]), 0) > 1
+                cos = _cosine(list(got["vector"]), list(r["vector"]))
+                if shared and cos >= REPRESENTATIVE_COS:
+                    report.representatives += 1
+                    report.worst_representative_cos = min(report.worst_representative_cos, cos)
+                else:
+                    report.mismatches.append(f"{_key(r)} vector differs (cosine {cos:.9f})")
     code_new = {str(r["id"]): r for page in new.physical_pages(clearance=MAINTENANCE_READ)
                 for r in page if r.get("provenance") not in _PLANE_VALUES
                 and (r.get("provenance") or r.get("source_path") or r.get("digest"))}
