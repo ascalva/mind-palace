@@ -18,6 +18,7 @@ import dataclasses
 from typing import Any
 
 from config.loader import get_config
+from core.kernel.clearance import Clearance
 from core.kernel.provenance import Provenance
 from core.stores.runledger import RunLedger, claim_id, polarity_for
 from eval.harness.store import EvalResultsStore
@@ -41,11 +42,8 @@ class _RowSource:
     def __init__(self, rows: list[dict[str, Any]]):
         self._rows = rows
 
-    def all_rows(self, *, provenances: Any = None) -> list[dict[str, Any]]:
-        if provenances is None:
-            return list(self._rows)
-        allowed = {Provenance(p).value for p in provenances}
-        return [r for r in self._rows if r.get("provenance") in allowed]
+    def all_rows(self, *, clearance: Clearance[Provenance]) -> list[dict[str, Any]]:
+        return [r for r in self._rows if clearance.admits(r.get("provenance"))]
 
 
 def _fake_retriever(query: str, k: int) -> list[dict[str, Any]]:

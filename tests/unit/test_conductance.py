@@ -42,6 +42,7 @@ from core.graph.conductance import (
     effective_conductance,
     sigma_t_profile,
 )
+from core.kernel.clearance import Clearance
 from core.kernel.mirror import MirrorView
 from core.kernel.provenance import Provenance
 from core.stores.versions import VersionStore
@@ -62,11 +63,8 @@ class _Rows:
     def __init__(self, rows: list[dict[str, Any]]):
         self._rows = rows
 
-    def all_rows(self, *, provenances: Any = None) -> list[dict[str, Any]]:
-        if provenances is None:
-            return list(self._rows)
-        allowed = {Provenance(p).value for p in provenances}
-        return [r for r in self._rows if r.get("provenance") in allowed]
+    def all_rows(self, *, clearance: Clearance[Provenance]) -> list[dict[str, Any]]:
+        return [r for r in self._rows if clearance.admits(r.get("provenance"))]
 
 
 def _row(digest: str, vec: list[float]) -> dict[str, Any]:

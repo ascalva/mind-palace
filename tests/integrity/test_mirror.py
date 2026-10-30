@@ -6,8 +6,11 @@ is a type error, not a runtime check. The Hypothesis property (observed never su
 projection, over arbitrary mixed inputs) lives in test_properties.py.
 """
 
+from typing import Any
+
 import pytest
 
+from core.kernel.clearance import Clearance
 from core.kernel.mirror import MirrorView, NonMirrorRowError
 from core.kernel.provenance import MIRROR_READABLE, Provenance
 
@@ -15,14 +18,11 @@ from core.kernel.provenance import MIRROR_READABLE, Provenance
 class FakeStore:
     def __init__(self, rows):
         self.rows = rows
-        self.last_provenances = "unset"
+        self.last_clearance: Any = "unset"
 
-    def all_rows(self, *, provenances=None):
-        self.last_provenances = provenances
-        if provenances is None:
-            return list(self.rows)
-        allowed = {str(p) for p in provenances}
-        return [r for r in self.rows if r["provenance"] in allowed]
+    def all_rows(self, *, clearance: Clearance[Provenance]):
+        self.last_clearance = clearance
+        return [r for r in self.rows if clearance.admits(r.get("provenance"))]
 
 
 MIXED = [
@@ -35,7 +35,7 @@ MIXED = [
 def test_project_applies_the_mirror_projection():
     store = FakeStore(list(MIXED))
     view = MirrorView.project(store)
-    assert store.last_provenances == MIRROR_READABLE            # read restricted to MR
+    assert store.last_clearance.classes == MIRROR_READABLE            # read restricted to MR
     assert {r["provenance"] for r in view.rows()} == {Provenance.AUTHORED_SOLO.value}
     assert len(view) == 1
 

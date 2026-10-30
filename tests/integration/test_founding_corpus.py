@@ -16,9 +16,10 @@ from core.ingest.founding import (
     ingest_founding,
 )
 from core.ingest.index import index_records, semantic_search
+from core.kernel.clearance import MAINTENANCE_READ, MIRROR_READ
 from core.kernel.ingest.logseq import parse_text
 from core.kernel.ingest.pipeline import ingest_note
-from core.kernel.provenance import MIRROR_READABLE, Provenance
+from core.kernel.provenance import Provenance
 from core.kernel.stores.rawstore import RawStore
 from core.stores.authored_supersession import AuthoredSupersessionStore
 from core.stores.catalog import VaultCatalog
@@ -46,7 +47,7 @@ def test_founding_ingests_through_the_shared_path_as_authored_solo(tmp_path):
     assert report.ingested == 2 and report.chunks >= 2
 
     # AUTHORED_SOLO + mirror-readable + retrievable — the shared path, not a bespoke writer.
-    rows = store.all_rows(provenances=MIRROR_READABLE)
+    rows = store.all_rows(clearance=MIRROR_READ)
     assert rows and all(r["provenance"] == Provenance.AUTHORED_SOLO.value for r in rows)
     hits = semantic_search("Langstroth hive", FakeEmbedder(), store)
     assert any("Langstroth" in h["text"] for h in hits)
@@ -55,7 +56,7 @@ def test_founding_ingests_through_the_shared_path_as_authored_solo(tmp_path):
     text = "date:: 2019-03-15\n\nbeekeeping needs a top-bar hive"
     parsed = parse_text(text, source_path="m/1", title="early view", raw_bytes=text.encode())
     expected = ingest_note(parsed, RawStore(tmp_path / "raw2")).digest
-    assert any(r["digest"] == expected for r in store.all_rows())
+    assert any(r["digest"] == expected for r in store.all_rows(clearance=MAINTENANCE_READ))
 
 
 def test_dates_land_in_the_raw_note_permanently(tmp_path):
@@ -99,6 +100,6 @@ def test_founding_is_mechanically_distinct_from_a_curated_control(tmp_path):
                                   raw_bytes=b"a literary probe passage"),
                        raw, provenance=Provenance.CURATED)
     index_records([ctrl], FakeEmbedder(), store)
-    mirror = store.all_rows(provenances=MIRROR_READABLE)
+    mirror = store.all_rows(clearance=MIRROR_READ)
     assert mirror and all(r["provenance"] == Provenance.AUTHORED_SOLO.value for r in mirror)
     assert not any(r["provenance"] == Provenance.CURATED.value for r in mirror)   # control ∉ mirror

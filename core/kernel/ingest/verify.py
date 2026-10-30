@@ -19,7 +19,7 @@ legitimate row always passes and only text that does not reproduce from the sacr
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -36,10 +36,10 @@ class IntegrityDrop:
     reason: str        # "raw-missing" | "text-not-in-raw"
 
 
-def verify_rows_against_raw(
-    rows: Iterable[dict[str, Any]], raw: RawStore, *,
+def verify_rows_against_raw[R: Mapping[str, Any]](
+    rows: Iterable[R], raw: RawStore, *,
     max_chars: int = 1200, overlap_chars: int = 150,
-) -> tuple[list[dict[str, Any]], list[IntegrityDrop]]:
+) -> tuple[list[R], list[IntegrityDrop]]:
     """Split `rows` into (verified, dropped).
 
     A row is verified iff its `text` is one of the chunks re-derived from the raw blob identified by
@@ -62,7 +62,7 @@ def verify_rows_against_raw(
             c.text for c in derive_chunks(blob, max_chars=max_chars, overlap_chars=overlap_chars)
         }
 
-    verified: list[dict[str, Any]] = []
+    verified: list[R] = []
     dropped: list[IntegrityDrop] = []
     for r in ordered:
         digest = r.get("digest", "")

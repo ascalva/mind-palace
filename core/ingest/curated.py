@@ -27,7 +27,7 @@ from core.kernel.ingest.pipeline import ingest_note
 from core.kernel.provenance import Provenance
 from core.kernel.stores.rawstore import RawStore
 from core.stores.catalog import VaultCatalog
-from core.stores.vectorstore import VectorStore
+from core.stores.vectorstore import VectorStore, open_vector_store
 
 
 def curated_sources(repo_root: Path) -> list[Path]:
@@ -53,13 +53,14 @@ def ingest_curated(paths: list[Path], raw: RawStore, store: VectorStore, embedde
                    catalog: VaultCatalog, *, repo_root: Path,
                    attestor: Attestor | None = None) -> CuratedReport:
     """Ingest each doc as CURATED. Titles are repo-relative (e.g. `docs/design-notes/...`).
-    Idempotent: delete-then-index per digest, so re-running after a doc edit re-embeds cleanly."""
+    Idempotent: landing reconciles each path, so a re-run after a doc edit supersedes the old
+    version and embeds only its changed chunks (A3 — the old delete-by-new-digest left the edited
+    document's previous version current beside the new one)."""
     report = CuratedReport()
     for p in paths:
         parsed = parse_note(p, repo_root)
         record = ingest_note(parsed, raw, provenance=Provenance.CURATED)
-        store.delete(digest=record.digest)
-        added = index_records([record], embedder, store)
+        added = index_records([record], embedder, store)     # idempotent: the plane reconciles
         catalog.record(record.source_path, record.digest, record.title,
                        provenance=Provenance.CURATED)
         if attestor is not None:
@@ -81,7 +82,7 @@ def build_and_ingest_curated(config: Config | None = None) -> CuratedReport:
     return ingest_curated(
         curated_sources(REPO_ROOT),
         raw=RawStore(cfg.paths.raw_store),
-        store=VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim),
+        store=open_vector_store(cfg),
         embedder=build_embedder(cfg),
         catalog=VaultCatalog(cfg.paths.vault_catalog),
         repo_root=REPO_ROOT,

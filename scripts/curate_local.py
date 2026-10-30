@@ -27,6 +27,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from core.kernel.clearance import CURATED_READ
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))  # repo root on path
 os.chdir(ROOT)  # config and data paths resolve against the repo root
@@ -51,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
     data = (ROOT / "data").resolve()
     docs = json.loads(args.manifest.read_text(encoding="utf-8"))
     store = open_curated_store(cfg)
-    have = {str(r["digest"]) for r in store.project(["digest"])}
+    have = store.digests(clearance=CURATED_READ)
     if args.dry_run:
         return _embed(args, docs, store, have, data, None, None)
     from core.stores.tasks import job_record

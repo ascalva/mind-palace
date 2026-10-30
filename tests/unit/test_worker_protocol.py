@@ -43,7 +43,7 @@ class FakeRows:
         self.rows = rows or []
         self.calls: list[str] = []
 
-    def all_rows(self, *, provenances: set[str] | None = None) -> list[dict[str, Any]]:
+    def all_rows(self) -> list[dict[str, Any]]:
         self.calls.append("all_rows")
         return list(self.rows)
 

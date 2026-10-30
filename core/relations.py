@@ -23,7 +23,7 @@ wakes a model, so it runs on demand only (`palace relate`).
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -31,11 +31,13 @@ from typing import Any, Protocol
 
 import numpy as np
 
+from core.kernel.clearance import MIRROR_READ, Clearance
 from core.kernel.complex_types import EdgeSign
 from core.kernel.config import Config, get_config
 from core.kernel.constitution import Message
 from core.kernel.ingest.logseq import _LINK, parse_note
-from core.kernel.provenance import MIRROR_READABLE, Provenance
+from core.kernel.provenance import Provenance
+from core.stores.vectorstore import open_vector_store
 
 RELATIONS: dict[str, tuple[EdgeSign, float]] = {  # label -> (sign, weight factor)
     "supports": (EdgeSign.SUPPORT, 1.0),
@@ -106,9 +108,7 @@ class Catalog(Protocol):
 
 
 class Rows(Protocol):
-    def all_rows(
-        self, *, provenances: Iterable[Provenance] | None = None
-    ) -> list[dict[str, Any]]: ...
+    def all_rows(self, *, clearance: Clearance[Provenance]) -> Sequence[Mapping[str, Any]]: ...
 
 
 @dataclass
@@ -161,7 +161,7 @@ class RelationDetector:
 
     # interpreted ------------------------------------------------------------------------------
     def candidates(self, notes: list[Note]) -> list[tuple[Note, Note, float]]:
-        rows = self.vectors.all_rows(provenances=MIRROR_READABLE)
+        rows = self.vectors.all_rows(clearance=MIRROR_READ)
         by_src: dict[str, list[np.ndarray]] = {}
         for r in rows:
             by_src.setdefault(str(r["source_path"]), []).append(
@@ -242,7 +242,6 @@ def build_relation_detector(
 ) -> RelationDetector:
     from core.stores.catalog import VaultCatalog
     from core.stores.edges import open_edge_store
-    from core.stores.vectorstore import VectorStore
 
     cfg = config or get_config()
     chat = None
@@ -255,7 +254,7 @@ def build_relation_detector(
         config=cfg,
         edges=open_edge_store(cfg),
         catalog=VaultCatalog(cfg.paths.vault_catalog),
-        vectors=VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim),
+        vectors=open_vector_store(cfg),
         chat=chat,
         max_pairs=max_pairs,
     )

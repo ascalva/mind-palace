@@ -132,3 +132,37 @@ strata layers, where the atoms are shared, but you're right, do it in a way that
      probe, a LanceDB commit-conflict log: choice "concurrency" 0.97; noul "a retry would fix it"
      0.46, unsettled. Heartbeat rows should pass keep_alive 0 so it unloads at once.
 ```
+
+## 2026-10-29 (later) — built
+
+```capsule
+topic: shared-vectors — what landed (design: dn-vector-membership-store Amendment A3)
+date: 2026-10-29
+
+owner (verbatim, during the build):
+  - "it shouldn't just be a simple condition, accessible records without the correct permission
+    should be unrepresentable, and also enforced by the type system"
+  - "no ratify, just do it" · "be thorough and correct about applying any new modules to the core"
+  - "no type ignores allowed in the inner core" · "don't add a package just for dev only"
+  - "upgrade the python version of the project if possible to the latest version that can resolve
+    all dependencies"
+
+built (branch ouroboros/shared-plane):
+  - Python 3.15 (the newest CPython every dependency resolves on); pyarrow 26 typed by local stubs.
+  - core/kernel/clearance.py — the permission as a capability: Clearance[L] with L a union of
+    Provenance Literals (the subset lattice IS mypy's subtype lattice), sealed Row/Occupancy/PlaneHit,
+    minting pinned by tests/integrity/test_clearance_holders.py; zero ignores in the inner ring,
+    enforced by ops/type_gate.py's fourth scan.
+  - core/stores/plane.py — atoms shared by every prose stratum; occupancy in one relation per class
+    (occ_<class>); position-keyed supersession log per class (sup_<class>); held/held_ever as a
+    fail-closed ANN prefilter cache; flock-serialized writes in D8 order; purge deletes freed atoms
+    first.
+  - VectorStore: every read takes a clearance (no default, no None); prose lands in the plane; the
+    worker pipe binds its clearance at wiring time (a worker can no longer choose its permission).
+  - Writers: delete-by-digest retired (it erased identical turns at other strata and left edited
+    curated docs' old versions current); embed_new embeds only texts the plane lacks.
+  - ops/plane_migrate.py — build beside, verify bit for bit, swap by rename into the archive.
+  - Tests: Hypothesis noninterference + seeded leak; mypy negative test + label-erasure control;
+    SQL trace (a mirror reader never names an uncleared relation); real-LanceDB end-to-end
+    (identical turns, edit supersession, purge removes text, corrupted cache fail-closed).
+```

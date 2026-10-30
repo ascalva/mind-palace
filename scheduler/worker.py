@@ -38,7 +38,7 @@ import signal
 import subprocess
 import sys
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import IO, Any, Protocol
 
@@ -89,11 +89,17 @@ class ReadOnlyRows(Protocol):
     write. It must NOT hold a reachable reference to the writable store — no `._store`, no
     `.__wrapped__`, no closure over the handle that `getattr` or pickling can recover. If the
     writable object is reachable, the capability restriction is decoration, not a capability,
-    and the tier-2 claim in §2.3 is false."""
+    and the tier-2 claim in §2.3 is false.
 
-    def all_rows(self, *, provenances: set[str] | None = ...) -> list[dict[str, Any]]: ...
-    def rows_for_source(self, source_path: str) -> list[dict[str, Any]]: ...
-    def search(self, vector: list[float], k: int) -> list[dict[str, Any]]: ...
+    [banner: correction] dn-vector-membership-store A3.4: the served object is BOUND to one
+    clearance by whoever wires it (`scheduler.supervisor.ClearedRows`), and no verb takes a class
+    argument. `all_rows` used to forward a `provenances` set the WORKER chose — a compute half
+    picking its own read permission across the pipe. A capability the worker can widen is not a
+    capability."""
+
+    def all_rows(self) -> Sequence[Mapping[str, Any]]: ...
+    def rows_for_source(self, source_path: str) -> Sequence[Mapping[str, Any]]: ...
+    def search(self, vector: list[float], k: int) -> Sequence[Mapping[str, Any]]: ...
 
 
 class WorkerFailure(RuntimeError):
@@ -228,9 +234,8 @@ class RowsProxy:
         rows: list[dict[str, Any]] = reply["rows"]
         return rows
 
-    def all_rows(self, *, provenances: set[str] | None = None) -> list[dict[str, Any]]:
-        return self._ask("all_rows",
-                         {"provenances": sorted(provenances) if provenances else None})
+    def all_rows(self) -> list[dict[str, Any]]:
+        return self._ask("all_rows", {})
 
     def rows_for_source(self, source_path: str) -> list[dict[str, Any]]:
         return self._ask("rows_for_source", {"source_path": source_path})
@@ -297,7 +302,7 @@ def _selftest_read(job: Job, ctx: WorkerContext) -> Iterator[Batch]:
     """Read through the facade and hand the result back — proves reads cross the boundary and
     that the compute half never touches a store."""
     rows = ctx.rows.rows_for_source(str(job.payload.get("source_path", "")))
-    yield Batch(rows=tuple(rows), token=None, items_done=len(rows))
+    yield Batch(rows=tuple(dict(r) for r in rows), token=None, items_done=len(rows))
 
 
 def _selftest_egress(job: Job, ctx: WorkerContext) -> Iterator[Batch]:
@@ -420,8 +425,7 @@ def _serve_read(rows: ReadOnlyRows, req: dict[str, Any]) -> dict[str, Any]:
     verb, args = req.get("verb"), dict(req.get("args") or {})
     try:
         if verb == "all_rows":
-            provs = args.get("provenances")
-            out = rows.all_rows(provenances=set(provs) if provs else None)
+            out = rows.all_rows()                    # the clearance was bound at wiring time
         elif verb == "rows_for_source":
             out = rows.rows_for_source(str(args["source_path"]))
         elif verb == "search":
@@ -431,7 +435,7 @@ def _serve_read(rows: ReadOnlyRows, req: dict[str, Any]) -> dict[str, Any]:
                     "message": f"unknown read verb {verb!r}"}
     except Exception as e:                           # noqa: BLE001 — a store error must not wedge
         return {"op": "read_error", "type": type(e).__name__, "message": str(e)}
-    return {"op": "read_result", "id": req.get("id"), "rows": list(out)}
+    return {"op": "read_result", "id": req.get("id"), "rows": [dict(r) for r in out]}
 
 
 def _terminate(proc: subprocess.Popen[bytes], grace_s: float) -> None:

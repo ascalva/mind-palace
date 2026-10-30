@@ -30,7 +30,7 @@ from dataclasses import dataclass
 
 from core.ingest.embed import Embedder
 from core.ingest.index import semantic_search
-from core.kernel.provenance import MIRROR_READABLE
+from core.kernel.clearance import MIRROR_READ
 from core.research.criteria import Paper, ResearchCriteria
 from core.stores.vectorstore import VectorStore
 
@@ -119,7 +119,7 @@ def rank_literature(
     query = criteria.topic + " " + " ".join(criteria.terms)
 
     # The private-corpus centroid — the mirror firewall (AUTHORED-only) holds (Invariant 11).
-    note_rows = semantic_search(query, embedder, store, k=k_notes, provenances=MIRROR_READABLE)
+    note_rows = semantic_search(query, embedder, store, k=k_notes, clearance=MIRROR_READ)
     note_texts = [r.get("text", "") for r in note_rows if r.get("text")]
     note_vectors = embedder.embed_documents(note_texts) if note_texts else []
     centroid = _centroid(note_vectors)

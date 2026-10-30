@@ -25,6 +25,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from core.kernel.clearance import CURATED_READ
+
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "mind-palace", "version": "0.1.0"}
 # The brief (agents/ambassador/brief.md) IS the server's MCP `instructions`: a harness that honours
@@ -111,7 +113,8 @@ class Ambassador:
 
         cfg = self.engine.config
         if ref.startswith("reference:"):
-            rows = sorted(self.engine._get("curated").rows_for_source(ref),
+            rows = sorted(self.engine._get("curated").rows_for_source(
+                              ref, clearance=CURATED_READ),
                           key=lambda r: int(r.get("chunk_index", 0) or 0))
             if not rows:
                 raise LookupError(f"no curated reference {ref!r}")

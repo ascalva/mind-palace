@@ -14,13 +14,14 @@ Deterministic, hand-built vectors; temp stores only; no embedder, no network, no
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 import pyarrow as pa
 import pytest
 
+from core.kernel.clearance import MAINTENANCE_READ
 from core.kernel.provenance import Provenance
 from core.stores.vectorstore import LAYER_CODE_AST, TABLE, VectorStore
 from core.typedshims.lancedb import UpdateResult, VectorTable
@@ -44,7 +45,7 @@ def _row(rid: str, path: str, *, current: bool = True, seed: int = 0) -> dict[st
     }
 
 
-def _by_id(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+def _by_id(rows: Sequence[Mapping[str, Any]]) -> dict[str, Mapping[str, Any]]:
     return {str(r["id"]): r for r in rows}
 
 
@@ -60,11 +61,11 @@ def test_vectors_are_byte_identical_across_a_supersede(tmp_path: Path) -> None:
     is a corpus-integrity one, not a perf one."""
     vs = _store(tmp_path)
     vs.add([_row(f"a:{i}", "a.py", seed=i) for i in range(5)])
-    before = _by_id(vs.rows_for_source("a.py"))
+    before = _by_id(vs.rows_for_source("a.py", clearance=MAINTENANCE_READ))
 
     assert vs.supersede_source("a.py") == 5
 
-    after = _by_id(vs.rows_for_source("a.py"))
+    after = _by_id(vs.rows_for_source("a.py", clearance=MAINTENANCE_READ))
     assert set(after) == set(before)
     for rid, row in after.items():
         assert row["vector"] == before[rid]["vector"], f"vector changed for {rid}"
@@ -83,8 +84,10 @@ def test_supersede_retains_every_row_and_flips_only_current(tmp_path: Path) -> N
 
     assert vs.supersede_source("a.py") == 3
     assert vs.count() == 5                                   # nothing deleted
-    assert all(r["current"] is False for r in vs.rows_for_source("a.py"))
-    assert all(r["current"] is True for r in vs.rows_for_source("b.py"))   # neighbours untouched
+    assert all(r["current"] is False for r in vs.rows_for_source("a.py",
+                                                                 clearance=MAINTENANCE_READ))
+    # neighbours untouched
+    assert all(r["current"] is True for r in vs.rows_for_source("b.py", clearance=MAINTENANCE_READ))
 
 
 def test_supersede_is_idempotent_and_leaves_rows_byte_identical(tmp_path: Path) -> None:
@@ -93,10 +96,10 @@ def test_supersede_is_idempotent_and_leaves_rows_byte_identical(tmp_path: Path) 
     vs = _store(tmp_path)
     vs.add([_row(f"a:{i}", "a.py", seed=i) for i in range(4)])
     assert vs.supersede_source("a.py") == 4
-    after_first = _by_id(vs.rows_for_source("a.py"))
+    after_first = _by_id(vs.rows_for_source("a.py", clearance=MAINTENANCE_READ))
 
     assert vs.supersede_source("a.py") == 0
-    assert _by_id(vs.rows_for_source("a.py")) == after_first
+    assert _by_id(vs.rows_for_source("a.py", clearance=MAINTENANCE_READ)) == after_first
     assert vs.count() == 4
 
 
@@ -106,11 +109,11 @@ def test_already_superseded_rows_are_carried_through_unchanged(tmp_path: Path) -
     vs = _store(tmp_path)
     vs.add([_row("old:0", "a.py", current=False, seed=9)])          # a retained older version
     vs.add([_row(f"new:{i}", "a.py", seed=i) for i in range(2)])    # the HEAD projection
-    old_before = _by_id(vs.rows_for_source("a.py"))["old:0"]
+    old_before = _by_id(vs.rows_for_source("a.py", clearance=MAINTENANCE_READ))["old:0"]
 
     assert vs.supersede_source("a.py") == 2                          # only the 2 current ones
 
-    rows = _by_id(vs.rows_for_source("a.py"))
+    rows = _by_id(vs.rows_for_source("a.py", clearance=MAINTENANCE_READ))
     assert set(rows) == {"old:0", "new:0", "new:1"}
     assert rows["old:0"] == old_before                               # the history row is untouched
     assert all(r["current"] is False for r in rows.values())
@@ -138,10 +141,12 @@ def test_a_path_with_a_quote_is_read_and_superseded_correctly(tmp_path: Path) ->
     vs.add([_row("decoy:0", "notes/it", seed=7)])
     vs.add([_row("other:0", "b.py", seed=8)])
 
-    assert {r["id"] for r in vs.rows_for_source(NASTY)} == {"n:0", "n:1", "n:2"}
+    assert {r["id"] for r in vs.rows_for_source(NASTY,
+        clearance=MAINTENANCE_READ)} == {"n:0", "n:1", "n:2"}
     assert vs.supersede_source(NASTY) == 3
-    assert all(r["current"] is False for r in vs.rows_for_source(NASTY))
-    assert vs.rows_for_source("notes/it")[0]["current"] is True      # the decoy is untouched
+    assert all(r["current"] is False for r in vs.rows_for_source(NASTY, clearance=MAINTENANCE_READ))
+    # the decoy is untouched
+    assert vs.rows_for_source("notes/it", clearance=MAINTENANCE_READ)[0]["current"] is True
     assert vs.count() == 5
 
 
@@ -162,16 +167,18 @@ def test_a_path_deeper_than_any_default_limit_is_fully_read_and_fully_flipped(
     vs.add([_row(f"d:{i}", "deep.py", seed=i) for i in range(deep)])
     vs.add([_row("other:0", "b.py", seed=1)])
 
-    assert len(vs.rows_for_source("deep.py")) == deep       # the READ is not truncated
+    # the READ is not truncated
+    assert len(vs.rows_for_source("deep.py", clearance=MAINTENANCE_READ)) == deep
 
     assert vs.supersede_source("deep.py") == deep           # ...and neither is the count
-    rows = vs.rows_for_source("deep.py")
+    rows = vs.rows_for_source("deep.py", clearance=MAINTENANCE_READ)
     assert len(rows) == deep and all(r["current"] is False for r in rows), (
         f"only {sum(1 for r in rows if r['current'] is False)} of {deep} rows flipped — a deep "
         "path was silently half-superseded (bp-103 §10: limit(0) is not unlimited here)"
     )
     assert vs.count() == deep + 1                           # keep-and-link: nothing deleted
-    assert vs.rows_for_source("b.py")[0]["current"] is True  # neighbour untouched
+    # neighbour untouched
+    assert vs.rows_for_source("b.py", clearance=MAINTENANCE_READ)[0]["current"] is True
     assert vs.supersede_source("deep.py") == 0              # idempotent at depth
 
 
@@ -193,9 +200,13 @@ def test_supersede_never_reads_or_rewrites_the_vector_column(tmp_path: Path) -> 
         def __init__(self, raw: VectorTable) -> None:
             self._raw = raw
 
-        def update(self, where: str, values: Mapping[str, object]) -> UpdateResult:
-            written.append(set(values))
-            return self._raw.update(where, values)
+        def update(self, where: str, values: Mapping[str, object] | None = None, *,
+                   values_sql: Mapping[str, str] | None = None) -> UpdateResult:
+            written.append(set(values or {}) | set(values_sql or {}))
+            return self._raw.update(where, values, values_sql=values_sql)
+
+        def schema_names(self) -> list[str]:
+            return self._raw.schema_names()
 
         def __getattr__(self, name: str) -> Any:
             return getattr(self._raw, name)
@@ -219,8 +230,8 @@ def test_delete_source_with_a_quote_deletes_exactly_that_path(tmp_path: Path) ->
 
     vs.delete_source(NASTY)
 
-    assert vs.rows_for_source(NASTY) == []
-    assert {r["id"] for r in vs.all_rows()} == {"decoy:0", "other:0"}
+    assert vs.rows_for_source(NASTY, clearance=MAINTENANCE_READ) == []
+    assert {r["id"] for r in vs.all_rows(clearance=MAINTENANCE_READ)} == {"decoy:0", "other:0"}
 
 
 def test_delete_source_is_idempotent_and_safe_before_any_write(tmp_path: Path) -> None:
@@ -240,7 +251,7 @@ def test_delete_source_does_not_reach_rows_of_another_path(tmp_path: Path) -> No
     vs.add([{**_row("shared", "a.md", seed=1)}])
     vs.add([{**_row("shared", "b.md", seed=2)}])
     vs.delete_source("a.md")
-    remaining = vs.all_rows()
+    remaining = vs.all_rows(clearance=MAINTENANCE_READ)
     assert len(remaining) == 1 and remaining[0]["source_path"] == "b.md"
 
 
@@ -267,13 +278,13 @@ def test_supersede_works_on_a_store_migrated_from_the_pre_current_schema(tmp_pat
 
     vs = VectorStore(path, dim=DIM)                 # fresh instance → the migration arms
     vs.add([_row("a:1", "a.py", seed=2)])           # ...and fires here
-    rows = _by_id(vs.rows_for_source("a.py"))
+    rows = _by_id(vs.rows_for_source("a.py", clearance=MAINTENANCE_READ))
     assert set(rows) == {"a:0", "a:1"}
     assert all(r["current"] is True for r in rows.values())     # migrated rows stamped current
 
     before = dict(rows)
     assert vs.supersede_source("a.py") == 2
-    after = _by_id(vs.rows_for_source("a.py"))
+    after = _by_id(vs.rows_for_source("a.py", clearance=MAINTENANCE_READ))
     for rid in before:
         assert after[rid]["vector"] == before[rid]["vector"]
         assert after[rid]["current"] is False
@@ -298,7 +309,7 @@ def test_rows_for_source_still_works_on_an_unmigrated_pre_current_store(tmp_path
          "provenance": Provenance.CODE.value, "text": "x", "vector": [1.0, 2.0, 3.0, 4.0]},
     ])
 
-    rows = VectorStore(path, dim=DIM).rows_for_source("a.py")
+    rows = VectorStore(path, dim=DIM).rows_for_source("a.py", clearance=MAINTENANCE_READ)
     assert [r["id"] for r in rows] == ["a:0"]
     assert "current" not in rows[0]                 # honestly reflects the un-migrated schema
 

@@ -40,6 +40,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from core.kernel.clearance import MAINTENANCE_READ
 from core.kernel.provenance import Provenance
 from core.stores.vectorstore import VectorStore
 
@@ -232,7 +233,7 @@ def test_rows_for_source_reads_only_that_paths_rows(tmp_path: Path) -> None:
     vs = _store_with(tmp_path, depth=4, unrelated=200)
     meter = _instrument(vs)
 
-    rows = vs.rows_for_source("hot.py")
+    rows = vs.rows_for_source("hot.py", clearance=MAINTENANCE_READ)
 
     assert len(rows) == 4
     assert meter.materializations == 0, "rows_for_source still pulls the whole table through Arrow"
@@ -254,11 +255,15 @@ def test_delete_source_needs_no_full_materialization(tmp_path: Path) -> None:
 
 def test_the_instrument_actually_sees_a_full_scan(tmp_path: Path) -> None:
     """Negative control #1 — the Arrow route. The counting proxy is wired to something real:
-    `all_rows`, which is honestly a full scan, must register as one. Without this, a green ratchet
-    could mean 'the instrument is broken', not 'the cost is bounded'."""
+    a read that is honestly a full Arrow materialization must register as one. Without this, a
+    green ratchet could mean 'the instrument is broken', not 'the cost is bounded'.
+
+    [banner: correction] A3: `all_rows` now pushes its class gate down (the scan route, control
+    #2's), so the Arrow route's honest full scan is `relabel_provenance`, which still materializes
+    the table to find the rows it rewrites — here none, so it writes nothing."""
     vs = _store_with(tmp_path, depth=2, unrelated=3)
     meter = _instrument(vs)
-    assert len(vs.all_rows()) == 5
+    assert vs.relabel_provenance("authored", "authored-solo") == 0
     assert meter.materializations == 1 and meter.rows == 5
     assert meter.vector_floats == 5 * DIM
 
@@ -272,7 +277,7 @@ def test_the_instrument_also_sees_the_pushed_down_scan_route(tmp_path: Path) -> 
     vs = _store_with(tmp_path, depth=2, unrelated=3)
     meter = _instrument(vs)
 
-    assert len(vs.rows_for_source("hot.py")) == 2
+    assert len(vs.rows_for_source("hot.py", clearance=MAINTENANCE_READ)) == 2
 
     assert meter.scan_reads == 1, "the scan route is invisible to the meter — ratchets are theatre"
     assert meter.materializations == 0                 # and it did NOT go the Arrow route

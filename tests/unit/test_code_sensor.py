@@ -9,6 +9,7 @@ from typing import Any
 
 import pytest
 
+from core.kernel.clearance import MAINTENANCE_READ
 from ops.code_sensor import CodeSensor
 from ops.code_snapshot import open_snapshot_db
 
@@ -140,7 +141,7 @@ def test_version_bump_makes_backfill_reproject_and_archive(repo, tmp_path, monke
     assert sensor.sync().projected == 0     # invariant: sync projects newly-ingested ONLY (Q5)
     assert sensor.backfill_observations() == 2   # the deliberate act: ALL commits eligible again
     assert obs.count() == rows_v1                # latest-per-identity: replaced, never doubled
-    assert {r["interpreter"] for r in obs.all_rows()} == {"2.0.0"}
+    assert {r["interpreter"] for r in obs.all_rows(clearance=MAINTENANCE_READ)} == {"2.0.0"}
     assert hist.count("code") == rows_v1         # every superseded generation archived
     for sha in shas:
         assert obs.is_projected(sha, "2.0.0")    # projected counts it, version-keyed

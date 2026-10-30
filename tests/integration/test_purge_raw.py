@@ -12,6 +12,7 @@ import pytest
 
 from core.ingest.purge import PurgeRefusedError, purge_raw
 from core.ingest.sync import VaultSync
+from core.kernel.clearance import MAINTENANCE_READ
 from core.kernel.stores.rawstore import RawStore
 from core.stores.catalog import VaultCatalog
 from core.stores.vectorstore import VectorStore
@@ -69,4 +70,4 @@ def test_purge_removes_raw_when_confirmed_and_tombstoned(tmp_path):
     assert result.raw_removed is True
     assert not sync.raw.exists(digest)              # raw truly gone
     assert sync.catalog.get(str(sync.vault / "n.md")) is None  # catalog row removed
-    assert all(r["digest"] != digest for r in sync.store.all_rows())
+    assert all(r["digest"] != digest for r in sync.store.all_rows(clearance=MAINTENANCE_READ))

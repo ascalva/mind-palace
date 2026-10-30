@@ -11,6 +11,7 @@ from __future__ import annotations
 import pytest
 
 from core.ingest.index import rekey_preview, rekey_store
+from core.kernel.clearance import MAINTENANCE_READ
 from core.kernel.ingest.amend import chunk_point_id
 from core.kernel.ingest.chunk import Chunk
 from core.stores.vectorstore import VectorStore
@@ -32,7 +33,7 @@ def test_rekey_migrates_old_ids_and_preserves_vectors(tmp_path):
     assert store.count() == 2
 
     assert rekey_store(store) == (2, 2)
-    rows = {r["id"]: r for r in store.all_rows()}
+    rows = {r["id"]: r for r in store.all_rows(clearance=MAINTENANCE_READ)}
     assert set(rows) == {chunk_point_id("a.md", Chunk(0, "hello")),
                          chunk_point_id("a.md", Chunk(1, "world"))}
     # Vectors survive the re-key unchanged — no re-embed (float32 round-trip, hence approx).
@@ -57,7 +58,8 @@ def test_rekey_distinct_sources_sharing_text_keep_both_points(tmp_path):
         _old_row("dig2", 0, "b.md", "shared", [0.1, 0.2]),
     ])
     assert rekey_store(store) == (2, 2)
-    assert {r["source_path"] for r in store.all_rows()} == {"a.md", "b.md"}
+    assert {r["source_path"] for r in store.all_rows(
+        clearance=MAINTENANCE_READ)} == {"a.md", "b.md"}
 
 
 def test_rekey_is_idempotent(tmp_path):

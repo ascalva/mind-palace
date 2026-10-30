@@ -27,7 +27,7 @@ from core.kernel.ingest.pipeline import ingest_note
 from core.kernel.provenance import Provenance
 from core.kernel.stores.rawstore import RawStore
 from core.stores.catalog import VaultCatalog
-from core.stores.vectorstore import VectorStore
+from core.stores.vectorstore import VectorStore, open_vector_store
 
 
 def _compact_ts() -> str:
@@ -45,9 +45,10 @@ class DialogueCapture:
     def capture(self, text: str, *, conversation: str = "default") -> str:
         """Store one owner message as `authored-dialogue`; return its content digest.
 
-        Idempotent on content: identical text is one raw object + one set of vectors (delete-
-        then-index, the store's own re-index idiom); each call still records a distinct catalog
-        entry keyed by timestamp so the conversation's turns are individually tracked."""
+        Idempotent on content: identical text is one raw object and one set of shared atoms
+        (A3 — never a delete-by-digest, which used to erase every other turn with the same bytes);
+        each call still records a distinct catalog entry keyed by timestamp so the conversation's
+        turns are individually tracked."""
         data = text.encode("utf-8")
         short = hashlib.sha256(data).hexdigest()[:8]
         ts = _compact_ts()
@@ -59,8 +60,7 @@ class DialogueCapture:
             properties={}, raw_bytes=data,
         )
         record = ingest_note(parsed, self.raw, provenance=Provenance.AUTHORED_DIALOGUE)
-        self.store.delete(digest=record.digest)          # idempotent re-index
-        index_records([record], self.embedder, self.store)
+        index_records([record], self.embedder, self.store)   # idempotent: the plane reconciles
         self.catalog.record(source_path, record.digest, title,
                             provenance=Provenance.AUTHORED_DIALOGUE)
         if self.attestor is not None:
@@ -88,8 +88,7 @@ class DialogueCapture:
             tags=frozenset({"dialogue", role}), links=frozenset(), properties={}, raw_bytes=data,
         )
         record = ingest_note(parsed, self.raw, provenance=provenance)
-        self.store.delete(digest=record.digest)
-        index_records([record], self.embedder, self.store)
+        index_records([record], self.embedder, self.store)   # idempotent: the plane reconciles
         self.catalog.record(source_path, record.digest, title, provenance=provenance)
         if self.attestor is not None:
             self.attestor.emit(agent_role="ambassador", action="capture",
@@ -106,7 +105,7 @@ def build_dialogue_capture(config: Config | None = None) -> DialogueCapture:
     cfg = config or get_config()
     return DialogueCapture(
         raw=RawStore(cfg.paths.raw_store),
-        store=VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim),
+        store=open_vector_store(cfg),
         embedder=build_embedder(cfg),
         catalog=VaultCatalog(cfg.paths.vault_catalog),
         attestor=build_attestor(cfg),

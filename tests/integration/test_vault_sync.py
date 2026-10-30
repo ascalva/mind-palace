@@ -14,6 +14,7 @@ from pathlib import Path
 from core.attestation import Attestor
 from core.ingest.index import semantic_search
 from core.ingest.sync import SyncOutcome, VaultSync
+from core.kernel.clearance import MAINTENANCE_READ
 from core.kernel.stores.rawstore import RawStore
 from core.stores.catalog import CatalogEntry, VaultCatalog
 from core.stores.vectorstore import VectorStore
@@ -68,8 +69,9 @@ def test_edit_updates_embeddings(tmp_path):
     d2 = _entry(sync, str(p)).digest
     assert d2 != d1
     # New content is searchable; the old content's rows are gone.
-    assert sync.store.all_rows() and all(r["digest"] != d1 for r in sync.store.all_rows())
-    assert any(r["digest"] == d2 for r in sync.store.all_rows())
+    current = sync.store.all_rows(clearance=MAINTENANCE_READ)
+    assert current and all(r["digest"] != d1 for r in current)
+    assert any(r["digest"] == d2 for r in sync.store.all_rows(clearance=MAINTENANCE_READ))
     # Raw is sacred — the previous version's bytes are still kept.
     assert sync.raw.exists(d1)
 
@@ -101,7 +103,7 @@ def test_delete_stops_surfacing_but_keeps_raw(tmp_path):
     # Stops surfacing in search; catalog entry inactive; derived rows gone.
     assert "secret" not in _titles_for(sync, "a memorable unique phrase xyzzy")
     assert _entry(sync, str(p)).active is False
-    assert all(r["digest"] != digest for r in sync.store.all_rows())
+    assert all(r["digest"] != digest for r in sync.store.all_rows(clearance=MAINTENANCE_READ))
     # Raw kept (tombstone, not purge).
     assert sync.raw.exists(digest)
 
@@ -136,13 +138,13 @@ def test_dedup_shared_content_not_dropped_until_last_ref(tmp_path):
     # Deleting one copy must NOT drop the shared derived rows.
     a.unlink()
     sync.handle_deleted(str(a))
-    assert any(r["digest"] == digest for r in sync.store.all_rows())
+    assert any(r["digest"] == digest for r in sync.store.all_rows(clearance=MAINTENANCE_READ))
     assert "b" in _titles_for(sync, "identical twins content")
 
     # Deleting the last copy drops them.
     b.unlink()
     sync.handle_deleted(str(b))
-    assert all(r["digest"] != digest for r in sync.store.all_rows())
+    assert all(r["digest"] != digest for r in sync.store.all_rows(clearance=MAINTENANCE_READ))
 
 
 def test_indexed_emits_a_leaf_ingest_attestation(tmp_path):

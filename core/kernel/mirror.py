@@ -30,10 +30,11 @@ read and correctly does not go through `MirrorView`.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar, Protocol
 
+from core.kernel.clearance import MIRROR_READ, Clearance
 from core.kernel.provenance import MIRROR_READABLE, Provenance
 from core.kernel.scope import (
     ANCHOR,
@@ -52,10 +53,10 @@ _ALLOWED = frozenset(p.value for p in MIRROR_READABLE)
 
 
 class RowSource(Protocol):
-    """Anything that can yield provenance-filtered rows (the VectorStore, or a test fake)."""
+    """Anything that yields the rows a clearance admits (the VectorStore, an observation store, a
+    test fake). The clearance is REQUIRED: a read states its authority (A3.4)."""
 
-    def all_rows(self, *,
-                 provenances: Iterable[Provenance] | None = None) -> list[dict[str, Any]]:
+    def all_rows(self, *, clearance: Clearance[Provenance]) -> Sequence[Mapping[str, Any]]:
         ...
 
 
@@ -81,7 +82,7 @@ class MirrorView:
         tier=Tier.STRUCTURAL,
     )
 
-    _rows: tuple[dict[str, Any], ...] = ()
+    _rows: tuple[Mapping[str, Any], ...] = ()
 
     def __post_init__(self) -> None:
         # Structural backstop: a MirrorView can NEVER hold a non-authored row, however it was
@@ -98,11 +99,11 @@ class MirrorView:
         """π_MR — the mirror projection, and the only sanctioned way to build a MirrorView.
         Reads `source` restricted to MIRROR_READABLE; `__post_init__` then re-checks, so even
         a buggy source cannot smuggle a non-authored row past the type (fail-closed)."""
-        return cls(_rows=tuple(source.all_rows(provenances=MIRROR_READABLE)))
+        return cls(_rows=tuple(source.all_rows(clearance=MIRROR_READ)))
 
     def rows(self) -> list[dict[str, Any]]:
-        """The authored rows (a fresh list; the view is immutable)."""
-        return list(self._rows)
+        """The authored rows, as fresh plain dicts (the view itself stays immutable)."""
+        return [dict(r) for r in self._rows]
 
     def __len__(self) -> int:
         return len(self._rows)

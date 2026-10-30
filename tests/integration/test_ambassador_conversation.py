@@ -11,10 +11,12 @@ import dataclasses
 
 from config.loader import load_config
 from core.ingest.index import semantic_search
-from core.kernel.provenance import MIRROR_READABLE, Provenance
+from core.kernel.clearance import MIRROR_READ
+from core.kernel.provenance import Provenance
 from core.kernel.stores.rawstore import RawStore
 from core.stores.vectorstore import VectorStore
 from scheduler.interface import build_conversation_runtime
+from tests.fixtures.clearances import grant
 from tests.fixtures.fakes import HashingEmbedder, ReplyServer
 
 DIM = 32
@@ -66,10 +68,10 @@ def test_full_conversation_loop(tmp_path):
     assert "your notes" in r1.lower()
 
     # 2) the exchange landed as authored-dialogue, retrievable on a later search (the capture loop)
-    dialogue = store.all_rows(provenances={Provenance.AUTHORED_DIALOGUE})
+    dialogue = store.all_rows(clearance=grant(Provenance.AUTHORED_DIALOGUE))
     assert any("sleep" in r["text"] for r in dialogue)
     hits = semantic_search("what did I write about sleep", emb, store, k=3,
-                           provenances=MIRROR_READABLE)
+                           clearance=MIRROR_READ)
     assert any(h["provenance"] == "authored-dialogue" for h in hits)
 
     # 3) STATUS — plain-language narration of what it's been doing.
@@ -93,6 +95,6 @@ def test_capture_then_recall_across_turns(tmp_path):
     runtime.send("I have been feeling unusually optimistic about the move to the coast")
     # a later retrieval surfaces the captured dialogue turn
     hits = semantic_search("optimistic about the coast move", emb, store, k=3,
-                           provenances=MIRROR_READABLE)
+                           clearance=MIRROR_READ)
     assert hits and any(h["provenance"] == "authored-dialogue" for h in hits)
     runtime.queue.close()

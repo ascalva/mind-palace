@@ -14,7 +14,7 @@ from core.ingest.index import index_records
 from core.kernel.config import Config, get_config
 from core.kernel.ingest.pipeline import ingest_vault
 from core.kernel.stores.rawstore import RawStore
-from core.stores.vectorstore import VectorStore
+from core.stores.vectorstore import open_vector_store
 
 
 @dataclass(frozen=True)
@@ -28,7 +28,7 @@ class IngestSummary:
 def run_ingest(config: Config | None = None, *, rebuild: bool = True) -> IngestSummary:
     cfg = config or get_config()
     raw = RawStore(cfg.paths.raw_store)
-    store = VectorStore(cfg.paths.vector_store, dim=cfg.embedding.dim)
+    store = open_vector_store(cfg)
     if rebuild:
         store.reset()
     embedder = build_embedder(cfg)

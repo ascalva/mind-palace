@@ -29,6 +29,7 @@ from pathlib import Path
 import pytest
 
 from core.ingest.code_corpus import CodeCorpusSync, atom_id, derive_code_chunks
+from core.kernel.clearance import MAINTENANCE_READ
 from core.stores.memberships import EmbedderIdentity, MembershipStore, frequency_gauges
 from core.stores.vectorstore import LAYER_CODE_AST, LAYER_CODE_TEXT, VectorStore
 from ops.code_lineage import ledger_versions, supersession_chains
@@ -566,7 +567,8 @@ def test_compaction_drops_versions_while_rows_and_search_are_unchanged(
 
     query = FakeEmbedder().embed_query("def helper(value):")
     rows_before = bench.vectors.count()
-    hits_before = [str(h["id"]) for h in bench.vectors.search(query, k=5)]
+    hits_before = [str(h["id"]) for h in bench.vectors.search(query, k=5,
+                                                              clearance=MAINTENANCE_READ)]
     atoms_before = bench.vectors.atom_row_count()
     assert hits_before, "PRECONDITION: search returns something to be preserved"
 
@@ -580,7 +582,8 @@ def test_compaction_drops_versions_while_rows_and_search_are_unchanged(
     assert report.rows_before == report.rows_after == rows_before
     assert bench.vectors.count() == rows_before
     assert bench.vectors.atom_row_count() == atoms_before
-    assert [str(h["id"]) for h in bench.vectors.search(query, k=5)] == hits_before
+    assert [str(h["id"]) for h in bench.vectors.search(query, k=5,
+                                                       clearance=MAINTENANCE_READ)] == hits_before
 
     # ...and the membership relation, which compaction never touches, is intact
     assert frequency_gauges(bench.vectors, bench.memberships).orphans == 0
@@ -596,13 +599,15 @@ def test_retiring_the_legacy_rows_supersedes_them_and_deletes_nothing(
     legacy store is asserted first, and the retained-row count is asserted after."""
     legacy = _legacy_store(bench, ledger)
     total_before = legacy.count()
-    legacy_current = len(legacy.project(["id"], where="source_path <> '' AND current = true"))
+    legacy_current = len(legacy.project(["id"], where="source_path <> '' AND current = true",
+                                        clearance=MAINTENANCE_READ))
     assert legacy_current > 0, "PRECONDITION: there are current legacy rows to retire"
 
     flipped = retire_legacy_rows(legacy)
     assert flipped == legacy_current
     assert legacy.count() == total_before, "RETAINED — nothing was deleted (|V| cannot fall)"
-    assert len(legacy.project(["id"], where="source_path <> '' AND current = true")) == 0
+    assert len(legacy.project(["id"], where="source_path <> '' AND current = true",
+                              clearance=MAINTENANCE_READ)) == 0
 
     assert retire_legacy_rows(legacy) == 0                 # idempotent: a second call is a no-op
 

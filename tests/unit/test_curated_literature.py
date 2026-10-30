@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 
 from agents.ambassador.mcp import _READ_WINDOW, Ambassador
+from core.kernel.clearance import Clearance
 from core.kernel.provenance import Provenance
 from core.kernel.scope import Stratum
 from core.query import AMBASSADOR, Query, QueryEngine, Verb
@@ -24,15 +25,16 @@ class _Store:
     def __init__(self, rows: list[dict[str, Any]]) -> None:
         self.rows, self.calls = rows, 0
 
-    def search(self, vector: list[float], *, k: int = 5, provenances: Any = None,
+    def search(self, vector: list[float], *, k: int = 5, clearance: Clearance[Provenance],
                include_superseded: bool = False) -> list[dict[str, Any]]:
         self.calls += 1
-        allowed = None if provenances is None else {Provenance(p).value for p in provenances}
-        hits = [r for r in self.rows if allowed is None or r["provenance"] in allowed]
+        hits = [r for r in self.rows if clearance.admits(r["provenance"])]
         return sorted(hits, key=lambda r: r["_distance"])[:k]
 
-    def rows_for_source(self, source_path: str) -> list[dict[str, Any]]:
-        return [r for r in self.rows if r["source_path"] == source_path]
+    def rows_for_source(self, source_path: str, *,
+                        clearance: Clearance[Provenance]) -> list[dict[str, Any]]:
+        return [r for r in self.rows
+                if r["source_path"] == source_path and clearance.admits(r["provenance"])]
 
 
 class _Embedder:

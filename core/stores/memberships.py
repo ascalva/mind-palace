@@ -48,11 +48,12 @@ quantified over the chain that is handed in, never over all fibers.
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from core.kernel.clearance import CODE_READ
 from core.kernel.config import Config
 from core.stores.vectorstore import LAYER_CODE_AST, VectorStore, is_code_atom_row
 
@@ -524,11 +525,11 @@ class ResolvedHit:
     rendering `slot_line_start..slot_line_end` as "this atom" is wrong, and maximally wrong for the
     module shell, whose extent is the whole file: the atom's content is `row["text"]`."""
 
-    row: dict[str, object]
+    row: Mapping[str, object]
     occupancies: tuple[Membership, ...]
 
 
-def resolve_occupancies(memberships: MembershipStore, hits: Sequence[dict[str, object]], *,
+def resolve_occupancies(memberships: MembershipStore, hits: Sequence[Mapping[str, object]], *,
                         include_superseded: bool = False) -> list[ResolvedHit]:
     """The D3 read-path join: top-k atoms -> their occupancies `(path, blob, slot, lines, ...)`.
 
@@ -623,7 +624,7 @@ def repair_current_any(vectors: VectorStore, memberships: MembershipStore) -> tu
     `current_any` is a cache with a rebuild path, and this is the rebuild path: the flag is
     recomputed as `n_doc(v, t) > 0` over every atom in the plane, and only the DRIFTED rows are
     written. Called after a crash, or on cadence as the R3 ratchet."""
-    rows = vectors.atom_rows()
+    rows = vectors.atom_rows(clearance=CODE_READ)
     ids = [str(r["id"]) for r in rows]
     held = memberships.currently_held(ids)
     to_true = [str(r["id"]) for r in rows if not bool(r.get("current")) and str(r["id"]) in held]
@@ -635,7 +636,7 @@ def repair_current_any(vectors: VectorStore, memberships: MembershipStore) -> tu
 def current_any_drift(vectors: VectorStore, memberships: MembershipStore) -> list[str]:
     """Atom ids where the lance flag disagrees with membership truth — the R3 ratchet's reading,
     and the `current_any(v) ⇔ n_doc(v, t) > 0` invariant as a checkable list (empty ⇒ holds)."""
-    rows = vectors.atom_rows()
+    rows = vectors.atom_rows(clearance=CODE_READ)
     held = memberships.currently_held([str(r["id"]) for r in rows])
     return sorted(str(r["id"]) for r in rows
                   if bool(r.get("current")) != (str(r["id"]) in held))

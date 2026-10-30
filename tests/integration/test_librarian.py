@@ -1,9 +1,12 @@
+
 """Librarian wiring (BUILD-SPEC §9) — deterministic, with fakes for the model + stores.
 
 Proves: retrieval defaults to the AUTHORED mirror; context is Constitution-first with the
 retrieved grounding injected and the query last; the grounding self-check passes a grounded
 answer and flags a fabricated citation. The live end-to-end run is test_librarian_live.py.
 """
+
+from typing import Any
 
 from core.kernel.constitution import load_constitution
 from core.kernel.provenance import MIRROR_READABLE
@@ -29,10 +32,10 @@ class FakeEmbedder:
 class FakeStore:
     def __init__(self, rows):
         self.rows = rows
-        self.last_provenances = "unset"
+        self.last_clearance: Any = "unset"
 
-    def search(self, vector, *, k=5, provenances=None):
-        self.last_provenances = provenances
+    def search(self, vector, *, k=5, clearance: Any):
+        self.last_clearance = clearance
         return self.rows[:k]
 
 
@@ -55,7 +58,8 @@ def test_retrieve_defaults_to_the_authored_mirror():
     lib = _lib("ans")
     rs = lib.retrieve("how to sleep")
     assert [r.title for r in rs] == ["sleep-and-racing-thoughts", "monthly-budget"]
-    assert lib.store.last_provenances == MIRROR_READABLE   # authored-only firewall, structural
+    # authored-only firewall, structural
+    assert lib.store.last_clearance.classes == MIRROR_READABLE
     assert rs[0].distance == 0.4
 
 

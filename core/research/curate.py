@@ -25,6 +25,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from core.kernel.clearance import CURATED_READ
 from core.research.persist import CuratedRecord
 from core.stores.vectorstore import VectorStore
 
@@ -175,7 +176,7 @@ def ingestion_errors(fm: dict[str, Any], *, curated_store: VectorStore | None = 
         if not si.get("retrieved"):
             errs.append("state=embedded but retrieved is null")
         if curated_store is not None and ref:
-            if not any(r.get("digest") == ref for r in curated_store.all_rows()):
+            if not curated_store.has_digest(ref, clearance=CURATED_READ):
                 errs.append(f"state=embedded but no curated vectors for store_ref {ref!r}")
     elif state == "not_fetched" and ref:
         errs.append("state=not_fetched but store_ref is set")

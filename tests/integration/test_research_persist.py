@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import cast
 
 from core.ingest.embed import Embedder
-from core.kernel.provenance import MIRROR_READABLE, Provenance
+from core.kernel.clearance import CURATED_READ, MAINTENANCE_READ, MIRROR_READ
 from core.research.criteria import Paper
 from core.research.persist import persist_keepers
 from core.research.rank import RankedPaper
@@ -49,7 +49,7 @@ def test_open_access_keeper_is_embedded_as_curated(tmp_path):
     assert rec.paper_source == "europepmc"        # the manifest venue
     assert rec.store_ref and len(rec.store_ref) == 64  # sha256 hex
 
-    rows = store.all_rows()
+    rows = store.all_rows(clearance=MAINTENANCE_READ)
     assert len(rows) == rec.n_chunks
     assert {row["provenance"] for row in rows} == {"curated"}
     assert all(row["source_path"] == "reference:europepmc:p1" for row in rows)
@@ -76,16 +76,17 @@ def test_mixed_batch_embeds_only_the_open_access_keeper(tmp_path):
     ]
     records = persist_keepers(ranked, _embedder(), store)
     assert [r.paper_id for r in records] == ["ok"]
-    assert all(row["source_path"] == "reference:europepmc:ok" for row in store.all_rows())
+    assert all(row["source_path"] == "reference:europepmc:ok" for row in store.all_rows(
+        clearance=MAINTENANCE_READ))
 
 
 def test_curated_rows_never_enter_the_mirror(tmp_path):
     store = _store(tmp_path)
     persist_keepers([_ranked(open_access=True, full_text=FULL_TEXT)], _embedder(), store)
-    assert store.all_rows(provenances=MIRROR_READABLE) == []          # firewall: curated ∉ mirror
+    assert store.all_rows(clearance=MIRROR_READ) == []          # firewall: curated ∉ mirror
     query = [1.0] + [0.0] * (DIM - 1)
-    assert store.search(query, k=5, provenances=MIRROR_READABLE) == []
-    assert store.search(query, k=5, provenances={Provenance.CURATED})  # curated query finds them
+    assert store.search(query, k=5, clearance=MIRROR_READ) == []
+    assert store.search(query, k=5, clearance=CURATED_READ)  # curated query finds them
 
 
 def test_store_ref_is_content_addressed(tmp_path):

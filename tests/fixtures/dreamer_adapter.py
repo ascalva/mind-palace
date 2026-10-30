@@ -86,6 +86,7 @@ from core.complex.spectral import diffusion_cluster_notes
 from core.dreaming.adjudicator import AUTHORED_LEAF_DEPTH
 from core.dreaming.cluster import Cluster, cluster_notes, similarity_matrix
 from core.dreaming.dreamer import Clusterer, Dreamer, Theme
+from core.kernel.clearance import Clearance
 from core.kernel.constitution import Message
 from core.kernel.provenance import Provenance
 from core.kernel.recursion import DEFAULT_LAMBDA
@@ -215,11 +216,8 @@ class _RowSource:
     def __init__(self, rows: list[dict[str, Any]]):
         self._rows = rows
 
-    def all_rows(self, *, provenances=None) -> list[dict[str, Any]]:
-        if provenances is None:
-            return list(self._rows)
-        allowed = {Provenance(p).value for p in provenances}
-        return [r for r in self._rows if r.get("provenance") in allowed]
+    def all_rows(self, *, clearance: Clearance[Provenance]) -> list[dict[str, Any]]:
+        return [r for r in self._rows if clearance.admits(r.get("provenance"))]
 
 
 def _grounded_synth(messages: list[Message]) -> str:
