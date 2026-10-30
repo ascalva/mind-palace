@@ -127,3 +127,33 @@ def test_a_writer_during_the_build_refuses_the_swap(tmp_path: Path,
 
 def test_the_cli_names_its_stores() -> None:
     assert plane_migrate.ARCHIVE_ROOT.name == "mind-palace-archive"
+
+
+def _two_copies(store: Path, second: list[float]) -> None:
+    db = connect(str(store))
+    db.create_table(TABLE, schema=_legacy_schema()).add([
+        _row("papers/a", "da", 0, "curated", "the same passage", [1.0, 0.0, 0.0, 0.0]),
+        _row("papers/b", "db", 0, "curated", "the same passage", second),
+    ])
+
+
+def test_a_shared_text_within_embedder_jitter_gets_one_representative(tmp_path: Path) -> None:
+    """Two papers quoting one passage, embedded in different batches: their copies differ in the
+    last bits (measured live: cosine >= 0.9999984). The plane keeps ONE vector; the migration
+    accepts that, counts it, and reports the worst deviation."""
+    store = tmp_path / "curated.lance"
+    _two_copies(store, [1.0, 1e-4, 0.0, 0.0])                       # cosine ≈ 1 - 5e-9
+    report = migrate(store, dim=DIM, fingerprint=None, archive_root=tmp_path / "archive")
+    assert report.verified and report.swapped, str(report)
+    assert report.representatives == 1 and report.atoms == 1
+    assert report.worst_representative_cos > plane_migrate.REPRESENTATIVE_COS
+
+
+def test_a_shared_text_with_genuinely_different_vectors_refuses_the_swap(tmp_path: Path) -> None:
+    """Same text, vectors that disagree beyond jitter: something other than nondeterminism made
+    them (a different embedder, a corrupted row). Never paper over it — no swap."""
+    store = tmp_path / "curated.lance"
+    _two_copies(store, [0.6, 0.8, 0.0, 0.0])                        # cosine 0.6
+    report = migrate(store, dim=DIM, fingerprint=None, archive_root=tmp_path / "archive")
+    assert report.mismatches and not report.swapped
+    assert not VectorStore(store, dim=DIM).plane_enabled()
