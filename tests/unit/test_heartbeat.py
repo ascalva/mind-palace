@@ -23,7 +23,7 @@ from collections.abc import Iterator, Sequence
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -202,7 +202,10 @@ def test_the_decision_table_over_its_whole_grid():
                                              and (power.percent or 0) >= 40))
         moment_ok = (power_ok and not power.low_power and thermal is False and emb != "down"
                      and chat != "busy" and not jobs and free >= 10)
-        assert sync.go == ("sync-dialogue" in actions and any(pending.values())
+        # A product of ten axes is past typeshed's typed overloads (six), so each element types as
+        # `object`; the pending axis is these dicts by construction (`_GRID`, above).
+        flags = cast(dict[str, bool | None], pending)
+        assert sync.go == ("sync-dialogue" in actions and any(flags.values())
                            and not breaker and moment_ok), (s, sync)
         assert agent.go is False
         assert notify.reason and sync.reason and agent.reason
