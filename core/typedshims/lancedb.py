@@ -81,11 +81,27 @@ class VectorQuery(Protocol):
 
     def to_list(self) -> list[Row]: ...
 
+    # [cross-ref: extension] step C (docs/brainstorms/shared-vectors.md; eval/quantization_bench.py)
+    # sweeps the compressed indexes, so it needs their three query knobs. Read off the INSTALLED
+    # 0.33.0, not the docs: on IVF_PQ, IVF_SQ and IVF_RQ indexes each built here, `nprobes` and
+    # `refine_factor` chain and answer, and `bypass_vector_index()` returns the pre-index flat
+    # result exactly.
+
+    def nprobes(self, n: int) -> VectorQuery: ...
+
+    def refine_factor(self, factor: int) -> VectorQuery: ...
+
+    def bypass_vector_index(self) -> VectorQuery: ...
+
 
 class VectorTable(Protocol):
     """The slice of a LanceDB table the store calls."""
 
-    def add(self, rows: Sequence[Mapping[str, object]]) -> None: ...
+    def add(self, rows: Sequence[Mapping[str, object]] | pa.Table) -> None: ...
+
+    def create_index(self, *, metric: str, index_type: str, num_partitions: int | None = ...,
+                     num_sub_vectors: int | None = ..., num_bits: int | None = ...,
+                     replace: bool = ...) -> None: ...
 
     def count_rows(self, filter: str | None = ...) -> int: ...
 
@@ -95,6 +111,8 @@ class VectorTable(Protocol):
                values_sql: Mapping[str, str] | None = ...) -> UpdateResult: ...
 
     def schema_names(self) -> list[str]: ...
+
+    def value_type(self, column: str) -> str: ...
 
     def version(self) -> int: ...
 
@@ -154,8 +172,24 @@ class _Table:
     def __init__(self, raw: Any) -> None:      # `Any` is the quarantined raw lancedb object
         self._raw = raw
 
-    def add(self, rows: Sequence[Mapping[str, object]]) -> None:
+    def add(self, rows: Sequence[Mapping[str, object]] | pa.Table) -> None:
+        """Rows as mappings, or one Arrow table — the bulk path: 147k vectors as Python lists cost
+        gigabytes of boxed floats that an Arrow batch never allocates (step C's scratch copy)."""
         self._raw.add(rows)
+
+    def create_index(self, *, metric: str, index_type: str, num_partitions: int | None = None,
+                     num_sub_vectors: int | None = None, num_bits: int | None = None,
+                     replace: bool = True) -> None:
+        """Build (or replace) the table's vector index. Step C measures IVF_FLAT, IVF_PQ, IVF_SQ and
+        IVF_RQ through this call, each verified on 0.33.0; `None` takes the package's default.
+
+        `num_bits` is forwarded only when given: the package's own default is 8, and for IVF_RQ
+        that choice matters — measured on the 768-dimension paper vectors, 1-bit RaBitQ answers
+        (recall@10 0.72, 0.85 refined) while the 8-bit default returns near-random neighbours."""
+        bits: dict[str, int] = {} if num_bits is None else {"num_bits": num_bits}
+        self._raw.create_index(metric=metric, index_type=index_type,
+                               num_partitions=num_partitions, num_sub_vectors=num_sub_vectors,
+                               replace=replace, **bits)
 
     def count_rows(self, filter: str | None = None) -> int:
         """Row count, optionally restricted by a SQL predicate. Server-side: a filtered count
@@ -185,6 +219,11 @@ class _Table:
         """The table's column names — how a store tells a schema generation apart (A3's `held`)."""
         names: list[str] = list(self._raw.schema.names)
         return names
+
+    def value_type(self, column: str) -> str:
+        """A list column's element type as Arrow names it — `float` (float32), `halffloat`
+        (float16). How a store reads the precision its table was created with (A4)."""
+        return str(self._raw.schema.field(column).type.value_type)
 
     def version(self) -> int:
         """The dataset's current version — how a migration notices a write it did not make."""
