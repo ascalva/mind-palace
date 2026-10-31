@@ -112,6 +112,8 @@ class VectorTable(Protocol):
 
     def schema_names(self) -> list[str]: ...
 
+    def value_type(self, column: str) -> str: ...
+
     def version(self) -> int: ...
 
     def to_arrow(self) -> ArrowTable: ...
@@ -217,6 +219,11 @@ class _Table:
         """The table's column names — how a store tells a schema generation apart (A3's `held`)."""
         names: list[str] = list(self._raw.schema.names)
         return names
+
+    def value_type(self, column: str) -> str:
+        """A list column's element type as Arrow names it — `float` (float32), `halffloat`
+        (float16). How a store reads the precision its table was created with (A4)."""
+        return str(self._raw.schema.field(column).type.value_type)
 
     def version(self) -> int:
         """The dataset's current version — how a migration notices a write it did not make."""

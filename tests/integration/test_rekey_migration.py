@@ -31,14 +31,17 @@ def test_rekey_migrates_old_ids_and_preserves_vectors(tmp_path):
     ])
     assert rekey_preview(store) == (2, 2)     # both old-format ids change; nothing mutated yet
     assert store.count() == 2
+    held = {r["text"]: list(r["vector"]) for r in store.all_rows(clearance=MAINTENANCE_READ)}
 
     assert rekey_store(store) == (2, 2)
     rows = {r["id"]: r for r in store.all_rows(clearance=MAINTENANCE_READ)}
     assert set(rows) == {chunk_point_id("a.md", Chunk(0, "hello")),
                          chunk_point_id("a.md", Chunk(1, "world"))}
-    # Vectors survive the re-key unchanged — no re-embed (float32 round-trip, hence approx).
+    # Vectors survive the re-key unchanged — no re-embed: exactly what the store held before (A4
+    # stores them in float16, so the written 0.1 is held as 0.09998, and the re-key keeps that).
     v0 = rows[chunk_point_id("a.md", Chunk(0, "hello"))]["vector"]
-    assert v0 == pytest.approx([0.1, 0.2], abs=1e-6)
+    assert list(v0) == held["hello"]
+    assert v0 == pytest.approx([0.1, 0.2], abs=1e-3)
 
 
 def test_rekey_coalesces_identical_chunks_within_a_source(tmp_path):
