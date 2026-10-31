@@ -169,7 +169,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v8.3.2 # exact tag: no moving `v8` major alias exists (Item 5 wiring fix)
         with:
-          python-version: "3.15"
+          # Not the project's 3.15 floor: `uvx` installs semgrep in its own environment, so the
+          # scanner needs no project Python. Under 3.15 its engine segfaulted (semgrep-core exit
+          # -11, PR #54, 2026-10-31); under 3.13 it passed on the same ubuntu-26.04 image (10-28).
+          python-version: "3.13"
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Semgrep (p/default, report-only — GitLab-SAST parity, oq-0015)
