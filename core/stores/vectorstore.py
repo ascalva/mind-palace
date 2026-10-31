@@ -18,11 +18,11 @@ clearance does not admit cannot exist. CODE keeps its own atom plane (D1) and me
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import pyarrow as pa
 
@@ -56,7 +56,20 @@ LAYER_CODE_TEXT = "code_text"  # L0b — windowed raw-source reading
 LAYER_CODEDOC = "codedoc"    # L1 — docstrings + comments as prose
 
 
-def _schema(dim: int) -> pa.Schema:
+# [A4] The vector column's precision. A store CREATES its table in float16: measured by step C
+# (docs/experiments/vector-quantization-2026-10-30.md), a float16 column returns today's top ten for
+# every query family (recall@10 1.000) at half the bytes, and flat search runs faster. A table keeps
+# the precision it was created with — reads, writes, and the in-place schema migrations below never
+# change it; `ops/float16_migrate.py` is the one verified path from float32 to float16.
+type Precision = Literal["float16", "float32"]
+DEFAULT_PRECISION: Precision = "float16"
+ELEMENT_BYTES: dict[Precision, int] = {"float16": 2, "float32": 4}
+_ARROW_TYPE: dict[Precision, Callable[[], pa.DataType]] = {"float16": pa.float16,
+                                                           "float32": pa.float32}
+_PRECISION_OF: dict[str, Precision] = {"halffloat": "float16", "float": "float32"}
+
+
+def _schema(dim: int, precision: Precision = DEFAULT_PRECISION) -> pa.Schema:
     fields: list[tuple[str, pa.DataType]] = [
         ("id", pa.string()),            # doc-scoped content id: f"{source_path}:{chunk_hash}" (§4)
         ("digest", pa.string()),        # raw-store identity of the source note's CURRENT version
@@ -91,7 +104,7 @@ def _schema(dim: int) -> pa.Schema:
         # decides what a reader receives (a stale entry drops results, never widens them).
         ("held", pa.list_(pa.string())),
         ("held_ever", pa.list_(pa.string())),
-        ("vector", pa.list_(pa.float32(), dim)),
+        ("vector", pa.list_(_ARROW_TYPE[precision](), dim)),
     ]
     return pa.schema(fields)
 
@@ -199,6 +212,10 @@ class VectorStore:
     # The configured embedder geometry (A3). `open_vector_store`/`open_curated_store` always pass
     # it; None (unit tests) records and checks nothing.
     embedder: Fingerprint | None = None
+    # [A4] The precision of a table this store CREATES. An existing table keeps its own
+    # (`vector_precision`); a migration that rebuilds a store passes the old store's, so only
+    # `ops/float16_migrate.py` ever changes it.
+    precision: Precision = DEFAULT_PRECISION
 
     def __post_init__(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -233,10 +250,23 @@ class VectorStore:
         may skip (a row for a known atom may omit its vector). Empty before the plane exists."""
         return self._plane.known(atom_ids) if self.plane_enabled() else set()
 
+    def vector_precision(self) -> Precision:
+        """The precision the table's vectors are stored in — `self.precision` before it exists."""
+        if TABLE not in self._db.list_tables().tables:
+            return self.precision
+        arrow = self._table().value_type("vector")
+        if arrow not in _PRECISION_OF:
+            raise ValueError(f"vector column of unknown element type {arrow!r}")
+        return _PRECISION_OF[arrow]
+
     def _table(self) -> VectorTable:
         if TABLE in self._db.list_tables().tables:
             return self._db.open_table(TABLE)
-        return self._db.create_table(TABLE, schema=_schema(self.dim))
+        return self._db.create_table(TABLE, schema=_schema(self.dim, self.precision))
+
+    def _recreate(self, rows: list[dict[str, Any]], precision: Precision) -> None:
+        """Re-land an old table's rows under the current schema, in the precision it had."""
+        self._db.create_table(TABLE, schema=_schema(self.dim, precision)).add(rows)
 
     def _migrate_layer_if_needed(self) -> None:
         """Reset+rebuild an old 8-column store to the layer schema (dn-code-ingest-pipeline §2.2),
@@ -253,12 +283,13 @@ class VectorStore:
         rows = self._table().to_arrow().to_pylist()
         if rows and "layer" in rows[0]:
             return                                  # already the layer schema
+        keep = self.vector_precision()
         self._db.drop_table(TABLE)
         if not rows:
             return                                  # empty old table → recreate fresh on next add
         migrated = [{**r, **{k: v for k, v in _NOTE_LAYER_DEFAULTS.items() if k not in r}}
                     for r in rows]
-        self._table().add(migrated)                 # recreates the layer schema, vectors intact
+        self._recreate(migrated, keep)              # the layer schema, vectors intact (A4)
 
     def _migrate_current_if_needed(self) -> None:
         """Additive migration for the `current` column (dn-temporal-code-corpus D2, bp-099) — the
@@ -277,11 +308,12 @@ class VectorStore:
         rows = self._table().to_arrow().to_pylist()
         if rows and "current" in rows[0]:
             return                                  # already the temporal schema
+        keep = self.vector_precision()
         self._db.drop_table(TABLE)
         if not rows:
             return                                  # empty old table → recreate fresh on next add
         migrated = [{**r, "current": True} for r in rows]
-        self._table().add(migrated)             # recreates the schema + `current`, vectors intact
+        self._recreate(migrated, keep)          # the schema + `current`, vectors intact (A4)
 
     def add(self, rows: Iterable[dict[str, Any]]) -> int:
         """Land rows; returns the number landed.
@@ -332,6 +364,20 @@ class VectorStore:
             names = set(self._table().schema_names())
             rows = [{k: v for k, v in r.items() if k in names} for r in rows]
         self._table().add(rows)
+
+    def copy_in(self, rows: Sequence[Mapping[str, Any]]) -> int:
+        """Write rows into the table exactly as given: the storage-level copy a migration makes
+        when it rebuilds a store beside itself (`ops/float16_migrate.py`, A4). No plane routing and
+        no defaults — every row is a row of another store's table, all columns and its vector; the
+        table's own precision is applied to the vector and nothing else changes."""
+        copied = [dict(r) for r in rows]
+        for r in copied:
+            vec = r.get("vector")
+            if vec is None or len(vec) != self.dim:
+                raise ValueError(f"row {r.get('id')!r} has no {self.dim}-dimension vector to copy")
+        if copied:
+            self._table().add(copied)
+        return len(copied)
 
     def _legacy_land(self, rows: list[dict[str, Any]]) -> None:
         """The pre-A3 prose landing, for a table not yet migrated to the plane: replace each

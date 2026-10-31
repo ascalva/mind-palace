@@ -9,8 +9,8 @@ One store at a time, and nothing is deleted:
    were written, so for a path holding several versions the newest ends current and the rest are
    superseded with their edges.
 2. VERIFY by reconstituting every old row from the new store: id, digest, path, chunk index,
-   class, title, text and the vector bit for bit (float32 survives the round trip exactly). Any
-   difference stops here, the live store untouched. One exception, by design: when several rows
+   class, title, text and the vector bit for bit (the build keeps the old store's precision, A4).
+   Any difference stops here, the live store untouched. One exception, by design: when several rows
    hold the SAME text, the plane keeps one vector for all of them (the atom's first-landed
    representative, D0), so a holder whose own copy was embedded separately — embedders are not
    bit-deterministic across batches — gets the representative. That is accepted only within
@@ -125,7 +125,7 @@ def migrate(path: Path, *, dim: int, fingerprint: Fingerprint | None,
     build = path.with_name(path.name + ".a3-build")
     if build.exists():
         _set_aside(build, archive_root, "stale-build")
-    new = VectorStore(build, dim=dim, embedder=fingerprint)
+    new = VectorStore(build, dim=dim, embedder=fingerprint, precision=old.vector_precision())
     report.build = str(build)
 
     # 1a. code (and any row under a retired label) — copied verbatim, page by page

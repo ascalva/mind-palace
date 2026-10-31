@@ -66,14 +66,16 @@ def plane(store: Any, dim: int) -> dict[str, Any]:
     """The shared plane's own reading (A3, D6): atoms stored vs current occupancies per class, and
     what the vectors cost with sharing against what they would cost without it."""
     from core.kernel.clearance import MAINTENANCE_READ
+    from core.stores.vectorstore import ELEMENT_BYTES
 
     gauges = store.plane.reader(MAINTENANCE_READ).gauges()
     atoms = len(store.plane.atoms.ids())
     occ = sum(g.occupancies for g in gauges.values())
-    return {"atoms": atoms, "occupancies": occ,
+    width = dim * ELEMENT_BYTES[store.vector_precision()]      # A4: the bytes as stored
+    return {"atoms": atoms, "occupancies": occ, "precision": store.vector_precision(),
             "dedup_factor": round(occ / atoms, 4) if atoms else 0.0,
-            "vector_mb": round(atoms * dim * 4 / 1e6, 2),
-            "vector_mb_without_sharing": round(occ * dim * 4 / 1e6, 2),
+            "vector_mb": round(atoms * width / 1e6, 2),
+            "vector_mb_without_sharing": round(occ * width / 1e6, 2),
             "per_class": {k.value: {"occupancies": g.occupancies, "atoms": g.atoms,
                                     "documents": g.documents, "embeds_avoided": g.embeds_avoided}
                           for k, g in gauges.items() if g.occupancies}}
@@ -85,7 +87,10 @@ def _stratum(row: dict[str, Any], store: str) -> str:
     return "curated" if store == "curated" else str(row.get("provenance") or "unknown")
 
 
-def duplicates(rows_by_store: dict[str, list[dict[str, Any]]], dim: int) -> dict[str, Any]:
+def duplicates(rows_by_store: dict[str, list[dict[str, Any]]],
+               width: dict[str, int]) -> dict[str, Any]:
+    """Duplicate chunks per stratum and across strata; `width` is each store's bytes per
+    stored vector (A4: its dimension times its precision's element size)."""
     out: dict[str, Any] = {"per_stratum": {}, "cross_strata": {}}
     where: dict[str, set[str]] = defaultdict(set)
     seen_text: dict[str, str] = {}
@@ -108,7 +113,7 @@ def duplicates(rows_by_store: dict[str, list[dict[str, Any]]], dim: int) -> dict
             out["per_stratum"][stratum] = {
                 "rows": rows_n, "unique_texts": unique, "duplicate_rows": dup,
                 "duplicate_pct": round(100 * dup / max(rows_n, 1), 2),
-                "vector_mb_avoidable": round(dup * dim * 4 / 1e6, 2), "most_copied": top}
+                "vector_mb_avoidable": round(dup * width[store] / 1e6, 2), "most_copied": top}
     multi = [s for s in where.values() if len(s) > 1]
     pairs: Counter[str] = Counter(" + ".join(sorted(s)) for s in multi)
     out["cross_strata"] = {"texts_in_several_strata": len(multi), "by_strata": dict(pairs)}
@@ -180,20 +185,22 @@ def main(argv: list[str] | None = None) -> int:
     seal()
     from core.kernel.config import get_config
     from core.stores.curated_store import open_curated_store
-    from core.stores.vectorstore import open_vector_store
+    from core.stores.vectorstore import ELEMENT_BYTES, open_vector_store
 
     cfg = get_config()
     stores = {"vectors": open_vector_store(cfg), "curated": open_curated_store(cfg)}
     rows = {name: _rows(st) for name, st in stores.items()}
-    dups = duplicates(rows, cfg.embedding.dim)
+    precision = {name: st.vector_precision() for name, st in stores.items()}
+    width = {name: cfg.embedding.dim * ELEMENT_BYTES[p] for name, p in precision.items()}
+    dups = duplicates(rows, width)
     texts: dict[str, list[str]] = defaultdict(list)
     for store, rs in rows.items():
         for r in rs:
             texts[_stratum(r, store)].append(str(r["text"]))
     report = {"plane": {name: plane(st, cfg.embedding.dim) for name, st in stores.items()},
               "duplicates": dups, "zipf": zipf(texts), "shared_vocabulary": vocabulary(texts),
-              "vector_bytes": {"dim": cfg.embedding.dim, "float32_mb": round(
-                  sum(len(r) for r in rows.values()) * cfg.embedding.dim * 4 / 1e6, 1)}}
+              "vector_bytes": {"dim": cfg.embedding.dim, "precision": precision, "mb": round(
+                  sum(len(rows[name]) * width[name] for name in rows) / 1e6, 1)}}
     a.json.parent.mkdir(parents=True, exist_ok=True)
     a.json.write_text(json.dumps(report, indent=1))
     for stratum, d in dups["per_stratum"].items():
@@ -203,7 +210,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{'':20}×{t['copies']}: {t['text']}")
     print("across strata:", dups["cross_strata"])
     print("shared vocabulary:", report["shared_vocabulary"])
-    print("vectors as float32:", report["vector_bytes"])
+    print("vectors as stored:", report["vector_bytes"])
     for name, pl in report["plane"].items():
         print(f"plane {name:8} {pl['atoms']:>8} atoms for {pl['occupancies']:>8} occupancies "
               f"({pl['dedup_factor']}x) · {pl['vector_mb']} MB vs "

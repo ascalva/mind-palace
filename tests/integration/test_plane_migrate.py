@@ -69,6 +69,7 @@ def test_a_pre_plane_store_moves_onto_the_plane_bit_for_bit(tmp_path: Path) -> N
 
     vs = VectorStore(store, dim=DIM)
     assert vs.plane_enabled()
+    assert vs.vector_precision() == "float32"     # A4: the build keeps the old precision
     # sharing happened: 7 prose rows, 5 distinct texts → 5 atoms
     assert report.atoms == 5 == len(vs.plane.atoms.ids())
     # every legacy prose row reconstitutes (current view drops only the superseded draft)
