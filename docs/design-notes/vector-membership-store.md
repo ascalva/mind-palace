@@ -4,7 +4,7 @@ id: dn-vector-membership-store
 track: code-ingest
 status: draft            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 created: 2026-07-23
-updated: 2026-10-29      # Amendment A3 (shared prose plane, typed clearances); 2026-07-27 adversarial-panel pass (§0.1)
+updated: 2026-10-30      # Amendment A4 (float16 vectors); A3 2026-10-29 (shared prose plane, typed clearances); 2026-07-27 adversarial-panel pass (§0.1)
 links:
   - docs/findings/finding-0168.md                      # the warrant — FIVE owner rulings, verbatim (addendum 4: rename-as-membership-edge)
   - docs/findings/finding-0167.md                      # the interim reuse port this subsumes; its owed L1 line-header check discharges in D0
@@ -831,3 +831,78 @@ refuses the swap.
   own stratum. A mirror read returns the owner's turn and never the model's.
 - **Migration round-trip:** every legacy row reconstitutes bit-identically (vector bytes compared,
   not approximately).
+
+## Amendment A4 — vectors are stored in float16
+
+**Warrant:** owner, 2026-10-30, verbatim: "start step C — the quantization recall@10 experiment
+(int8, binary+rescore, IVF-PQ, Matryoshka-256)", and on its result, "Build float16 next".
+
+**Authority basis, self-describing:** agent-drafted 2026-10-30. `status` stays `draft`; ratification
+is the owner's hand edit. Measurement: `eval/quantization_bench.py` →
+`docs/experiments/vector-quantization-2026-10-30.md`.
+
+### A4.1 — The decision, and what it was measured against
+
+A store's one LanceDB table holds its vectors as `list<float16>[dim]`. Against today's exact float32
+answers, a float16 column returned the same top ten in LanceDB for every query family (recall@10
+1.000: 727 paper titles, the owner's 47 notes and turns, 200 stored passages, the 2 real palace
+searches, the 15 code probes), and 0.999–1.000 in numpy's flat reading. It halves the bytes on disk
+(papers 453.9 → 227.5 MB, code 53.1 → 26.6 MB) and flat search gets faster (32.4 → 19.7 ms on the
+papers; 6.5 → 4.5 ms on code). Measured and declined: int8 (about 1% of results lost, and not a
+searchable column in lancedb 0.33.0), sign-bit binary, product quantization and Matryoshka 256
+(each loses most on the owner's own queries), and IVF indexes (they add bytes beside the column and
+are not needed at 147k vectors).
+
+### A4.2 — What changes and what stands
+
+- **A table keeps the precision it was created with.** A store creates its table in float16
+  (`DEFAULT_PRECISION`). Reads, writes, the in-place layer and `current` migrations, and A3's
+  `ops/plane_migrate.py` all preserve the precision they find. `ops/float16_migrate.py` is the one
+  path from float32 to float16.
+- **Queries stay float32.** LanceDB scores a float32 query against the float16 column.
+- **What a reader sees:** a stored vector reads back as the float16 rounding of what the embedder
+  returned (relative error at most 2⁻¹¹ per component; cosines move by about 1e-5). A pair within
+  that distance of a threshold (σ = 0.785, near-duplicate 0.93) can cross it. At retrieval the
+  bench puts the size of that at no more than one result in a thousand changing.
+- **Stands:** all of A3 — atoms, relations, the supersession log, clearances. The plane database
+  holds no vectors and carries over byte for byte. Atom identity is the text's hash (D0), never the
+  vector's bytes. The embedder fingerprint (model, template, dim) is unchanged: precision is how the
+  geometry is stored, not a different geometry.
+
+### A4.3 — Migration (per store; A3.8's pattern)
+
+With writers stopped, `uv run python -m ops.float16_migrate --store all`:
+
+1. **Build beside** the live store (`<store>.f16-build/`): every row copied verbatim with its vector
+   cast to float16; then `plane.sqlite` copied whole through SQLite's online backup. The build is
+   compacted before it is verified, so what is verified is what is swapped.
+2. **Verify** that the build is exactly the old store cast: every row reduced to a digest of its
+   non-vector columns and its float16 vector bytes, the two multisets equal (order, duplicates and
+   every column covered); the plane database dumping identically; the build's column float16.
+3. **Swap** only if the old table's version is unchanged since the build began: the old directory is
+   renamed into `~/mind-palace-archive/<store>-pre-f16-<UTC>`, the build into its place.
+
+Revert: stop the stack and rename the archived directory back. The code reads a float32 table as
+float32 (A4.2), so nothing else changes; only a newly created store would be float16.
+
+Rehearsed 2026-10-30 on APFS clones of both live stores, 55 s in all:
+- **Main store:** 17,328 rows verified and swapped, 63.8 → 37.2 MB. For 40 random stored vectors
+  as probes, the top ten under the mirror, dialogue, observed and code clearances were identical
+  before and after (40/40 each).
+- **Curated store:** 147,417 rows, 713.8 → 487.3 MB (the vectors halve; the 160 MB plane database
+  is unchanged). Top ten identical 40/40; warm search 46.2 → 25.3 ms.
+
+### A4.4 — Falsifiers (each names its degenerate input)
+
+- **A new store rounds:** what reads back is exactly the float16 of what was written, and differs
+  from the float32 value (the control that the rounding happened at all).
+- **A table keeps its precision:** a float32 table reopened under the float16 default lands new rows
+  exactly; the 8-column layer migration keeps float32; A3's migration of a float32 store yields a
+  float32 store. *Degenerate input:* a table created by another store with a different default.
+- **The migration is the cast, exactly:** every row's non-vector columns equal and its vector equal
+  to the old one's float16, bit for bit; every clearance's reads unchanged; a search still finds
+  the stored vector first.
+- **Verification has teeth:** one vector off by 0.01 (beyond any rounding) refuses the swap; a plane
+  database not carried over refuses it.
+- **A writer after the build** refuses the swap, and its row stays in the live store.
+- **A store not yet on the plane** is refused and sent to `ops.plane_migrate`.
