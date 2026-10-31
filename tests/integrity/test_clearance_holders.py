@@ -50,6 +50,7 @@ HOLDERS: dict[str, dict[str, str]] = {
         "core/temporal/spine.py": "the structural spine walks every store's chains",
         "eval/embedder_bench.py": "re-embeds the whole corpus to compare models",
         "eval/storage_census.py": "the storage census measures every stratum",
+        "ops/float16_migrate.py": "the A4 migration copies and verifies every row in float16",
         "ops/plane_migrate.py": "the A3 migration converts and verifies every row",
         "scripts/migrate_provenance_split.py": "the §1 relabel migration counts every row",
     },
