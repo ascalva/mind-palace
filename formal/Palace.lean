@@ -7,4 +7,5 @@ import Palace.Heat
 import Palace.Laplacian
 import Palace.Memberships
 import Palace.Plane
+import Palace.Rayleigh
 import Palace.Spectral
