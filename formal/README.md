@@ -22,6 +22,8 @@ the two.
   §2.4): C1 and C2, cuts and their certificates, and proper time (GC-N6).
 - `Palace/Heat.lean`: the heat kernel `e^{−tL}` and the diffusion distance, CND-4
   (`core/graph/conductance.py`).
+- `Palace/Rayleigh.lean`: Rayleigh's monotonicity law, CND-2, and the leave-one-out attribution of
+  the reconnection rider (`core/graph/conductance.py`, `reconnection_scan`).
 - `Palace/Plane.lean`: the shared prose plane (`core/stores/plane.py`, A3): no-leak, noninterference
   (A3.5), the search loop, the `held` cache and purge (A3.7).
 - `Palace/Attack.lean`: `survives` and `refuted`, which run Plausible with a fixed seed and count
@@ -60,6 +62,8 @@ the two.
 | cuts | a set is a cut (a down-set of `≼`) iff no generator edge reads into it from outside; cuts are closed under ∩ and ∪; a frontier cut needs only its cross-store edges checked; certificates compose by the pointwise minimum and maximum of their frontiers | proved; attacks survived 500 each |
 | GC-N6 | proper time, the longest chain, is 0 at a point, at least 1 across a strict step, finite on a finite `N`, satisfies `τ(a, b) + τ(b, c) ≤ τ(a, c)` for `a ≤ b ≤ c`, and is bounded by the tick difference of any strictly monotone clock | proved; the reverse triangle survived 500 random DAGs on the longest-path recursion |
 | CND-4 | `H_t = e^{−tL}` is symmetric, `H_0 = 1`, `H_{s+t} = H_s H_t`; the code's `d_t = √(G_ii + G_jj − 2G_ij)` with `G = H_{2t}` is the Euclidean distance between `H_t eᵢ` and `H_t eⱼ`, so a metric that separates every two vertices for every `t`, across components too; for symmetric `A ≥ 0`, `d_t` is non-increasing in `t` | proved; its two exact steps survived 500 each |
+| CND-2 | Rayleigh's law: adding weight never raises effective resistance (`∞` across components) nor lowers effective conductance (`0` across), so a rise needs a weight-increased edge; through Thomson's principle, `2vᵀx − xᵀMx ≤ vᵀM⁺v` for `v` fixed by `M M⁺`, which by the Penrose equations alone is every `v` orthogonal to `ker M` | proved; attack survived 500 |
+| leave-one-out | reverting an increased edge never raises conductance; with a single increased edge every rise confirms it; a rise carried by two redundant new paths confirms neither | proved, with a witness; attack survived 500 |
 | A3 no-leak | every search hit under `C` is a table atom with a cleared occupancy and carries only rows of classes in `C` that hold it, under any cache: `PlaneHit`'s checks never fire on the plane's own reads | proved; attack survived 484 traces in which any write may crash partway |
 | search | `PlaneReader.search`'s widening loop returns the first `k` atoms of the exact ranking that a cleared relation holds; `\|ps\|` rounds suffice | proved; attack survived 500 |
 | cache | land, retire, purge and repair keep `held`/`held_ever` coherent: `wanted ∪ freed` covers every row a land touches | proved; attack survived 500 traces |
@@ -141,6 +145,13 @@ with ties broken by `(κ, j, i)` within 50; the cut falsifier searching edges ou
 inequality for proper time within 103 (a detour longer than the path through `b`); the Gram
 identity for a non-symmetric matrix within 10, and the Gram triangle for an indefinite one within
 10.
+
+Rayleigh's law (CND-2) has the same exact shadow as `L⁺`. Its reversal, that adding weight never
+raises conductance, is refuted within 5 instances. Leave-one-out completeness, that every rise
+confirms some increased edge, is refuted within 29, on a cycle of new edges, and fails in general
+(`Witness.loo_confirms_nothing`): when the new edges are redundant, `reconnection_scan` reports a
+genuine reconnection with no bridging edge. Its docstring's "never a guess" holds, but an empty
+attribution does not mean the rise is spurious.
 
 ## Build
 
