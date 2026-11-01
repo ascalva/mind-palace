@@ -17,6 +17,8 @@ the two.
 - `Palace/Balance.lean`: signed balance, LAP-5 and LAP-6 (`core/kernel/complex/balance.py`).
 - `Palace/Cut.lean`: conductance, CUT-1 (`core/complex/cut.py`).
 - `Palace/Curvature.lean`: Forman curvature, CRV-1 and CRV-2 (`core/kernel/complex/curvature.py`).
+- `Palace/Plane.lean`: the shared prose plane (`core/stores/plane.py`, A3): no-leak, noninterference
+  (A3.5), the search loop, the `held` cache and purge (A3.7).
 - `Palace/Attack.lean`: `survives` and `refuted`, which run Plausible with a fixed seed and count
   the instances that passed their guards.
 - `Audit.lean`: lists the axioms behind every `Palace` declaration and fails on anything beyond
@@ -47,6 +49,11 @@ the two.
 | CUT-1 | `Φ(S) ∈ [0, 1]` for symmetric `A ≥ 0`, and `Φ(S) = 0` iff no weight crosses, under the code's conventions for a degenerate `S` | proved; attacks survived 500 each |
 | CRV-1 | `Ric_F(u, v) = 4 − deg u − deg v + 3·\|N(u) ∩ N(v)\|` on the support | the definition; agrees with the code's `B @ B` computation on 500 graphs |
 | CRV-2 | two cliques and a bridge: `Ric_F(bridge) = 4 − 2n` for cliques of `n` vertices, the strict unique minimum, negative exactly from `n = 3` | proved for every `n`; checked on every edge for `n` from 1 to 8 |
+| A3 no-leak | every search hit under `C` is a table atom with a cleared occupancy and carries only rows of classes in `C` that hold it, under any cache: `PlaneHit`'s checks never fire on the plane's own reads | proved; attack survived 484 traces in which any write may crash partway |
+| search | `PlaneReader.search`'s widening loop returns the first `k` atoms of the exact ranking that a cleared relation holds; `\|ps\|` rounds suffice | proved; attack survived 500 |
+| cache | land, retire, purge and repair keep `held`/`held_ever` coherent: `wanted ∪ freed` covers every row a land touches | proved; attack survived 500 traces |
+| A3.5 | noninterference: after any trace of writes that keep each path at one stratum, a reader under `C` sees, in its view and in every search, what it would see after the cleared writes, purges and repairs alone | proved by unwinding, under the hypotheses below; attack survived 480 traces with an uncleared write and a cleared hit |
+| A3.7 | after `purge(d)` no row or edge names `d`; every atom `d`'s rows held is deleted or still held; no atom another row holds is freed; re-running finishes a purge interrupted after its atom delete | proved; attack survived 500 |
 
 The binarized forms (0/1 adjacency) reduce to Mathlib's `SimpleGraph.posSemidef_lapMatrix` and
 `card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix` in one line each.
@@ -78,6 +85,37 @@ asymmetric weights no longer matches the code; and CRV-2 with the test's thresho
 `n = 4`, fails at `n = 3`, where the bridge is already `−2`. A mutation of CRV-1's triangle
 coefficient from 3 to 2 leaves every CRV-2 proof intact (no triangle runs through the bridge) and
 is caught only by the attack against the code.
+
+The plane's noninterference (A3.5) holds under four hypotheses the plane's header does not
+state. Each is stated in `Palace/Plane.lean`, and the two the model can break have proved
+witnesses:
+
+- Search is exact, with ties broken by atom id. LanceDB breaks exact distance ties by physical row
+  order, and `set_held` rewrites a row to the end. So an uncleared write that changes a tied
+  cleared atom's held set can swap two tied atoms across the cut (measured on lancedb 0.33.0).
+  On 2026-11-01 no two live prose atoms shared a vector (72 in `vectors.lance`, 147,417 in
+  `research_curated.lance`), so a tie needs a float coincidence today.
+- The table is content-addressed: an atom's text and vector are a function of its id. The first
+  writer's vector is the one stored, so this asks for a deterministic embedder.
+- The cache is complete on `C`. A crash between a land's commit and `_refresh_held` leaves the
+  atom's cache empty and a cleared search misses it (fail-closed). `_refresh_held` rewrites a
+  touched atom's whole held set, so an uncleared land that shares the atom brings the hit back
+  (`drift_interferes`). `repair()` restores completeness.
+- Every path lives at one stratum fixed in advance (A3.6). A land whose path another class holds
+  is refused, and that check reads the uncleared relations: an uncleared document at a path makes
+  a cleared land of the same path fail (`stratum_interferes`).
+
+The plane's controls: lands and retires at arbitrary classes (the stratum channel) are refuted
+within 26 instances, a reader whose join reads every class (the property test's seeded leak)
+within 11, cleared lands that crash before their cache step within 36, a reader that trusts the
+cache in place of the cleared join within 106, `freed` without the old derivation's atoms within
+17, the search loop without its `seen` set within 25 (`[0, 0]`), and a purge without its
+still-held check within 10.
+
+Outside the model: `relabel` and `reset` (each moves or forgets whole classes, a visible act for
+any clearance it names), a land of several fibers in one transaction, and `known()`, which tells
+the write path whether the shared table holds an atom of any class, the deduplication side channel
+of Harnik, Pinkas and Shulman-Peleg (2010). Only ingest calls it (`core/ingest/index.py`).
 
 ## Build
 
