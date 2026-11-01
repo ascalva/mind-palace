@@ -4,4 +4,5 @@ import Palace.Curvature
 import Palace.Cut
 import Palace.Laplacian
 import Palace.Memberships
+import Palace.Plane
 import Palace.Spectral
