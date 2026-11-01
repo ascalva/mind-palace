@@ -14,6 +14,9 @@ the two.
   partial function on coordinate space, and MEM-1 to MEM-5.
 - `Palace/Spectral.lean`: `L_sym` and LAP-4 (`laplacian_sym`), and the pseudo-inverse `L⁺` that
   `core/graph/conductance.py` takes for effective resistance (CND-1).
+- `Palace/Balance.lean`: signed balance, LAP-5 and LAP-6 (`core/kernel/complex/balance.py`).
+- `Palace/Cut.lean`: conductance, CUT-1 (`core/complex/cut.py`).
+- `Palace/Curvature.lean`: Forman curvature, CRV-1 and CRV-2 (`core/kernel/complex/curvature.py`).
 - `Palace/Attack.lean`: `survives` and `refuted`, which run Plausible with a fixed seed and count
   the instances that passed their guards.
 - `Audit.lean`: lists the axioms behind every `Palace` declaration and fails on anything beyond
@@ -39,6 +42,11 @@ the two.
 | LAP-4 | eigenvalues of `L_sym` lie in `[0, 2]`; an isolated vertex has an identity row (eigenvalue 1); `L_sym` annihilates `D^{1/2}·1` | proved; its two identities survived 500 each |
 | `L⁺` | the Moore–Penrose inverse (all four Penrose equations), symmetric, PSD for symmetric `A ≥ 0` | proved; shadow attack survived 500 |
 | CND-1 | `R_eff = L⁺ᵢᵢ + L⁺ⱼⱼ − 2L⁺ᵢⱼ ≥ 0` | proved; inside the shadow attack |
+| LAP-5 | on a connected support, `L̄` has a zero-energy vector (`λ_min = 0`) iff the signed graph is balanced; without connectivity it fails, which is why `signed_spectrum` takes the max over components | proved, with a witness for the failure; attacks survived 468 and 470 connected cases |
+| LAP-6 | a triangle is frustrated iff the product of its signs is negative, iff it has an odd number of negative edges | proved; attack survived 495 |
+| CUT-1 | `Φ(S) ∈ [0, 1]` for symmetric `A ≥ 0`, and `Φ(S) = 0` iff no weight crosses, under the code's conventions for a degenerate `S` | proved; attacks survived 500 each |
+| CRV-1 | `Ric_F(u, v) = 4 − deg u − deg v + 3·\|N(u) ∩ N(v)\|` on the support | the definition; agrees with the code's `B @ B` computation on 500 graphs |
+| CRV-2 | two cliques and a bridge: `Ric_F(bridge) = 4 − 2n` for cliques of `n` vertices, the strict unique minimum, negative exactly from `n = 3` | proved for every `n`; checked on every edge for `n` from 1 to 8 |
 
 The binarized forms (0/1 adjacency) reduce to Mathlib's `SimpleGraph.posSemidef_lapMatrix` and
 `card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix` in one line each.
@@ -62,6 +70,14 @@ shadow `(L + P)⁻¹ − P` over ℚ, with `P` the projector onto the component 
 checks all four Penrose equations on it, so a passing shadow is the Moore–Penrose inverse itself.
 Its control, the connected-graph formula `(L + J/n)⁻¹ − J/n` applied to every graph, fails on the
 first disconnected one.
+
+The third batch's controls: LAP-5's global reading, without connectivity, is refuted on a negative
+self-loop beside isolated vertices (singular, not balanced); LAP-6 as "a balanced triangle has no
+negative edge" fails on two negative edges; CUT-1 on asymmetric weights exceeds 1; CRV-1 on
+asymmetric weights no longer matches the code; and CRV-2 with the test's threshold, negative from
+`n = 4`, fails at `n = 3`, where the bridge is already `−2`. A mutation of CRV-1's triangle
+coefficient from 3 to 2 leaves every CRV-2 proof intact (no triangle runs through the bridge) and
+is caught only by the attack against the code.
 
 ## Build
 
