@@ -16,7 +16,12 @@ the two.
   `core/graph/conductance.py` takes for effective resistance (CND-1).
 - `Palace/Balance.lean`: signed balance, LAP-5 and LAP-6 (`core/kernel/complex/balance.py`).
 - `Palace/Cut.lean`: conductance, CUT-1 (`core/complex/cut.py`).
-- `Palace/Curvature.lean`: Forman curvature, CRV-1 and CRV-2 (`core/kernel/complex/curvature.py`).
+- `Palace/Curvature.lean`: Forman curvature, CRV-1 and CRV-2, and CRV-3, the emission rule of
+  `most_negative_edges` that the Dreamer's bridge lens reads (`core/kernel/complex/curvature.py`).
+- `Palace/Clock.lean`: the clock laws of the global event clock (`global-event-clock.md` §2.3,
+  §2.4): C1 and C2, cuts and their certificates, and proper time (GC-N6).
+- `Palace/Heat.lean`: the heat kernel `e^{−tL}` and the diffusion distance, CND-4
+  (`core/graph/conductance.py`).
 - `Palace/Plane.lean`: the shared prose plane (`core/stores/plane.py`, A3): no-leak, noninterference
   (A3.5), the search loop, the `held` cache and purge (A3.7).
 - `Palace/Attack.lean`: `survives` and `refuted`, which run Plausible with a fixed seed and count
@@ -49,6 +54,12 @@ the two.
 | CUT-1 | `Φ(S) ∈ [0, 1]` for symmetric `A ≥ 0`, and `Φ(S) = 0` iff no weight crosses, under the code's conventions for a degenerate `S` | proved; attacks survived 500 each |
 | CRV-1 | `Ric_F(u, v) = 4 − deg u − deg v + 3·\|N(u) ∩ N(v)\|` on the support | the definition; agrees with the code's `B @ B` computation on 500 graphs |
 | CRV-2 | two cliques and a bridge: `Ric_F(bridge) = 4 − 2n` for cliques of `n` vertices, the strict unique minimum, negative exactly from `n = 3` | proved for every `n`; checked on every edge for `n` from 1 to 8 |
+| CRV-3 | `most_negative_edges` emits the edges with `κ ≤ 0`, or, when every edge is positive, only those at the minimum, never the whole graph; in strictly increasing `(κ, i, j)` order; the `top_k` smallest candidates, `min(top_k, \|candidates\|)` of them, each `top_k` a prefix of the next | proved; attack survived 500 random graphs against a transcription of the code |
+| CRV-2, CRV-3 | on two cliques and a bridge the bridge lens emits exactly the bridge, for every clique size and every `top_k ≥ 1`: by the `κ ≤ 0` rule from two vertices per clique, by the minimum rule for one | proved |
+| C1, C2 | a clock monotone along `≼` (C1) into a partial order has convex fibers (C2), so C2 adds nothing to C1; C1 needs checking only on the generator edges | proved, with witnesses that C2 needs antisymmetric ticks and does not give C1; attack survived 472 |
+| cuts | a set is a cut (a down-set of `≼`) iff no generator edge reads into it from outside; cuts are closed under ∩ and ∪; a frontier cut needs only its cross-store edges checked; certificates compose by the pointwise minimum and maximum of their frontiers | proved; attacks survived 500 each |
+| GC-N6 | proper time, the longest chain, is 0 at a point, at least 1 across a strict step, finite on a finite `N`, satisfies `τ(a, b) + τ(b, c) ≤ τ(a, c)` for `a ≤ b ≤ c`, and is bounded by the tick difference of any strictly monotone clock | proved; the reverse triangle survived 500 random DAGs on the longest-path recursion |
+| CND-4 | `H_t = e^{−tL}` is symmetric, `H_0 = 1`, `H_{s+t} = H_s H_t`; the code's `d_t = √(G_ii + G_jj − 2G_ij)` with `G = H_{2t}` is the Euclidean distance between `H_t eᵢ` and `H_t eⱼ`, so a metric that separates every two vertices for every `t`, across components too; for symmetric `A ≥ 0`, `d_t` is non-increasing in `t` | proved; its two exact steps survived 500 each |
 | A3 no-leak | every search hit under `C` is a table atom with a cleared occupancy and carries only rows of classes in `C` that hold it, under any cache: `PlaneHit`'s checks never fire on the plane's own reads | proved; attack survived 484 traces in which any write may crash partway |
 | search | `PlaneReader.search`'s widening loop returns the first `k` atoms of the exact ranking that a cleared relation holds; `\|ps\|` rounds suffice | proved; attack survived 500 |
 | cache | land, retire, purge and repair keep `held`/`held_ever` coherent: `wanted ∪ freed` covers every row a land touches | proved; attack survived 500 traces |
@@ -116,6 +127,20 @@ Outside the model: `relabel` and `reset` (each moves or forgets whole classes, a
 any clearance it names), a land of several fibers in one transaction, and `known()`, which tells
 the write path whether the shared table holds an atom of any class, the deduplication side channel
 of Harnik, Pinkas and Shulman-Peleg (2010). Only ingest calls it (`core/ingest/index.py`).
+
+The dreamer laws. C2, convex fibers, is not a law of its own: any clock monotone along `≼` into
+partially ordered ticks has them, so a property test of C2 can fail only where one of C1 fails,
+unless the ticks are compared by a preorder that is not antisymmetric. Proper time and the heat
+kernel have no executable form (a supremum over chains; the exponential of a matrix): proper
+time's reverse triangle is attacked on the longest-path recursion a materialized `N` would run,
+and CND-4 on its two exact steps, the Gram identity for the square of a symmetric matrix and the
+triangle inequality of the Gram distance of a positive semidefinite one. The controls: CRV-3
+without its minimum rule is refuted within 6 instances (a lone positive edge emits nothing) and
+with ties broken by `(κ, j, i)` within 50; the cut falsifier searching edges out of the set within
+16; C1 into ticks compared by a preorder that is not antisymmetric within 74; the ordinary triangle
+inequality for proper time within 103 (a detour longer than the path through `b`); the Gram
+identity for a non-symmetric matrix within 10, and the Gram triangle for an indefinite one within
+10.
 
 ## Build
 

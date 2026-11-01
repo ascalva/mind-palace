@@ -1,7 +1,9 @@
 import Palace.Attack
 import Palace.Balance
+import Palace.Clock
 import Palace.Curvature
 import Palace.Cut
+import Palace.Heat
 import Palace.Laplacian
 import Palace.Memberships
 import Palace.Plane
