@@ -84,16 +84,18 @@ theorem posSemidef_lap [Field R] [LinearOrder R] [IsStrictOrderedRing R] [StarRi
     exact dotProduct_lap_nonneg A hA hw x
 
 /-- One term of the signed energy is nonnegative: `|a|(x² + y²) − 2axy ≥ 0`. -/
-private lemma signed_term_nonneg [CommRing R] [LinearOrder R] [IsStrictOrderedRing R]
+theorem signed_term_nonneg [CommRing R] [LinearOrder R] [IsStrictOrderedRing R]
     (a x y : R) : 0 ≤ |a| * (x ^ 2 + y ^ 2) - 2 * a * x * y := by
   rcases le_total 0 a with ha | ha
   · rw [abs_of_nonneg ha]; nlinarith [mul_nonneg ha (sq_nonneg (x - y))]
   · rw [abs_of_nonpos ha]; nlinarith [mul_nonneg (neg_nonneg.mpr ha) (sq_nonneg (x + y))]
 
-/-- **LAP-2** for the signed Laplacian: `xᵀL̄x ≥ 0` for every symmetric `A`, of any sign. -/
-theorem dotProduct_signedLap_nonneg [CommRing R] [LinearOrder R] [IsStrictOrderedRing R]
+/-- The signed energy identity: `2 xᵀL̄x = Σᵢⱼ (|Aᵢⱼ|(xᵢ² + xⱼ²) − 2 Aᵢⱼ xᵢ xⱼ)` for symmetric
+`A`. -/
+theorem two_mul_dotProduct_signedLap [CommRing R] [LinearOrder R] [IsStrictOrderedRing R]
     (A : Matrix V V R) (hA : A.IsSymm) (x : V → R) :
-    0 ≤ x ⬝ᵥ (signedLap A *ᵥ x) := by
+    2 * (x ⬝ᵥ (signedLap A *ᵥ x)) =
+      ∑ i, ∑ j, (|A i j| * (x i ^ 2 + x j ^ 2) - 2 * A i j * x i * x j) := by
   have row : x ⬝ᵥ (signedLap A *ᵥ x) = ∑ i, ∑ j, (|A i j| * x i ^ 2 - A i j * x i * x j) := by
     simp only [dotProduct, signedLap_mulVec_apply, mul_sum]
     exact sum_congr rfl fun i _ ↦ sum_congr rfl fun j _ ↦ by ring
@@ -108,9 +110,13 @@ theorem dotProduct_signedLap_nonneg [CommRing R] [LinearOrder R] [IsStrictOrdere
       ∑ i, ∑ j, (|A i j| * x i ^ 2 - A i j * x i * x j) := by
     rw [sum_comm]
     exact sum_congr rfl fun i _ ↦ sum_congr rfl fun j _ ↦ by rw [hA.apply i j]; ring
-  have energy : 2 * (x ⬝ᵥ (signedLap A *ᵥ x)) =
-      ∑ i, ∑ j, (|A i j| * (x i ^ 2 + x j ^ 2) - 2 * A i j * x i * x j) := by
-    rw [split, swap, row, two_mul]
+  rw [split, swap, row, two_mul]
+
+/-- **LAP-2** for the signed Laplacian: `xᵀL̄x ≥ 0` for every symmetric `A`, of any sign. -/
+theorem dotProduct_signedLap_nonneg [CommRing R] [LinearOrder R] [IsStrictOrderedRing R]
+    (A : Matrix V V R) (hA : A.IsSymm) (x : V → R) :
+    0 ≤ x ⬝ᵥ (signedLap A *ᵥ x) := by
+  have energy := two_mul_dotProduct_signedLap A hA x
   have : 0 ≤ ∑ i, ∑ j, (|A i j| * (x i ^ 2 + x j ^ 2) - 2 * A i j * x i * x j) :=
     sum_nonneg fun i _ ↦ sum_nonneg fun j _ ↦ signed_term_nonneg _ _ _
   linarith
