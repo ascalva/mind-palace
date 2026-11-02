@@ -6,10 +6,10 @@ status: active
 warrant: null
 audit_refs: []
 dod:
-  - MF-1 laws ledger seeded (docs/LAWS.md) — one row per law naming the TRUE structure, ladder-labeled (labels from dn-research-register §2.3); memberships lands multiset, never Boolean algebra
+  - MF-1 laws ledger seeded (docs/LAWS.md) — one row per law naming the TRUE structure, ladder-labeled (labels from dn-research-register §2.3); memberships lands multiset, never Boolean algebra — DONE 2026-11-02 (docs/LAWS.md, 32 rows)
   - MF-2 laplacian/spectral falsifier batch green or counterexamples filed (direct PSD, nullity = components, isolated-node convention) + the minimal ledger checker (anchors + test ids)
   - MF-3 cut/conductance/curvature falsifier batch green or counterexamples filed (direct Φ(S) + both degenerate conventions; most_negative_edges emission rule)
-  - MF-4 formal/ L1 — sibling lake package builds; statements + Plausible attacks; sorry ratchet recorded; zero import coupling with core/ either direction
+  - MF-4 formal/ L1 — sibling lake package builds; statements + Plausible attacks; sorry ratchet recorded; zero import coupling with core/ either direction — DONE 2026-11-01 (#55, #56)
   - MF-5 lean-action advisory CI green on a real PR with the Mathlib cache hitting
   - MF-6 (entry-gated on MF-4) first L2 discharge batch — Theorem (machine-checked, formal/...) claimable for the discharged laws
 backlog_deskcheck: null
