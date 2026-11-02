@@ -17,30 +17,27 @@ receives `meet(parent, template)`, and `scope.py` promises `meet(parent, templat
 always (non-negotiable #6). The enforcement tier rides beside the four coordinates and composes
 by minimum, so that a convention-tier grant cannot launder through a structural wrapper.
 
-What the model shows:
+What the model shows, against the code as fixed on this branch:
 
 * Σ and E meet and join by `∩` and `∪`, and A by the minimum and maximum on each chain. Closure
   under refinement is a closure operator whose closed sets are closed under both. `top()` is not
   their top: it omits `exhaust` and `hypothetical` as well as the denylist (`top_eq`).
 * Windows are ordered by a preorder, not a partial order: `pt(1)` and `[1,1]` lie below each other.
-  Join is the least upper bound of any two windows. Meet is a lower bound of any two, and the
-  greatest one among well-formed windows only: an inverted interval lies under two disjoint
-  windows but not under their meet. Absorption holds up to the preorder, not on the nose.
-* Without an atlas, a scope meet that exists is the greatest lower bound, so delegation is
-  monotone and the tier of any composition is the least tier among its inputs. The meet is partial
-  for a second reason the note does not name: the result must pass the SLICE rule, and two valid
-  scopes on one clock can meet to a multi-stratum point window without a cut (`meet_slices`).
-* With a clock atlas registered (GC-4), a cross-clock meet always exists and lands on clock `N`.
-  Since `⊑` is false across clocks, the delegated scope lies under neither input, for every atlas
-  (`atlas_breaks_delegation`).
+  Join is the least upper bound of any two windows. Meet is a lower bound of any two and the
+  greatest among well-formed ones; the one counterexample, an inverted interval, the constructor
+  now refuses (`le_meet_iff_of_valid`). Absorption holds up to the preorder, not on the nose.
+* Delegation is monotone: a scope meet that exists lies under both inputs and is their greatest
+  lower bound, and any composition carries exactly the least tier of its inputs. `Scope.meet`
+  consults no clock atlas: the atlas completes the time meet on `N`, under neither input
+  (`pullbackMeet_not_le`), so a delegation through it would not be monotone. The meet is partial
+  across clocks and where the result trips the SLICE rule (`meet_slices`); `Grant.meet` skips both,
+  and a cut only one side carries survives when the meet keeps that side's window.
 * Admissibility and the zone law (private reads ⊥ world reach) are downward closed and survive
-  every meet, atlas or not; the zone law does not survive join. Its private set omits `exhaust`,
-  the agent-side dialogue rows, so a grant reading them with world reach is admitted
-  (`exhaust_zone_gap`). Today no record is readable under it, because `STRATUM_CLASSES` gives
-  `exhaust` no class (`world_reach_reads_nothing`); a class for `exhaust` would open the gap.
-* The Ambassador's `search` over the single stratum `reference` raises `SliceError`: its scope
-  counts two strata after closure, but `required` decides the cut from the names before closure
-  (`search_slices_iff`).
+  every meet; the zone law does not survive join. Its private set includes `exhaust`, so a
+  world-reaching scope it admits names only `world`, the denylist and the overlay, and is cleared
+  for no class (`world_reach_reads_nothing`).
+* A search never slices, over any strata (`search_never_slices`): the single-read cut follows the
+  closed strata, so the Ambassador's search over `reference` alone builds and is admitted.
 
 The model is exact. Window bounds are ints or opaque tokens compared by equality (Python's
 `1.0 == 1` is outside it); edge fibers are the three letters every caller uses; the cut is an
@@ -238,6 +235,14 @@ def WF (w : Window) : Prop :=
 
 instance (w : Window) : Decidable (WF w) := by unfold WF; split <;> infer_instance
 
+/-- The shapes `Window.__post_init__` accepts: `∗` and `⊥` carry no bounds, a point has one bound,
+and an int interval is not inverted. -/
+def Valid (w : Window) : Prop :=
+  ((w.kind = .all ∨ w.kind = .empty) → w.lo = .none ∧ w.hi = .none) ∧
+    (w.kind = .point → w.lo = w.hi) ∧ (w.kind = .interval → w.WF)
+
+instance (w : Window) : Decidable (Valid w) := by unfold Valid; infer_instance
+
 end Window
 
 /-- `TimeScope`. -/
@@ -247,27 +252,34 @@ structure Time where
   deriving DecidableEq, Repr
 
 /-- A clock atlas (`ClockAtlas`): which clocks pull back to `N`, the pullback of a window as an
-opaque token, and the meet of two tokens, `none` when empty. -/
+opaque token, the meet of two tokens (`none` when empty), and the token a window carries. -/
 structure Atlas where
   has : Clock → Bool
   pullback : Clock → Window → ℕ
   intersect : ℕ → ℕ → Option ℕ
+  token : Window → Option ℕ
 
 namespace Time
 
+/-- `_pullback_meet`: the event-level meet on `N`, its token wrapped as `[S, S]`. -/
+def pullbackMeet (A : Atlas) (a b : Time) : Time :=
+  ⟨.N, match A.intersect (A.pullback a.clock a.window) (A.pullback b.clock b.window) with
+    | none => .empty
+    | some t => .interval (.tok t) (.tok t)⟩
+
 /-- `TimeScope.meet` under the registered atlas, `none` when none is registered; a `none` result
-is `NoCommonClockError`. -/
+is `NoCommonClockError`. Two `N`-windows of which one carries a token meet as event sets. -/
 def meetVia (A : Option Atlas) (a b : Time) : Option Time :=
-  if a.clock = b.clock then some ⟨a.clock, a.window.meet b.window⟩
-  else
-    match A with
-    | some A =>
-      if A.has a.clock ∧ A.has b.clock then
-        some ⟨.N, match A.intersect (A.pullback a.clock a.window) (A.pullback b.clock b.window) with
-          | none => .empty
-          | some t => .interval (.tok t) (.tok t)⟩
-      else none
-    | none => none
+  match A with
+  | none => if a.clock = b.clock then some ⟨a.clock, a.window.meet b.window⟩ else none
+  | some A =>
+    if a.clock = b.clock then
+      if a.clock = .N ∧ A.has .N = true ∧
+          ((A.token a.window).isSome = true ∨ (A.token b.window).isSome = true) then
+        some (pullbackMeet A a b)
+      else some ⟨a.clock, a.window.meet b.window⟩
+    else if A.has a.clock = true ∧ A.has b.clock = true then some (pullbackMeet A a b)
+    else none
 
 /-- `TimeScope.__le__`: false across clocks. -/
 def Le (a b : Time) : Prop := a.clock = b.clock ∧ a.window.Le b.window
@@ -340,17 +352,22 @@ instance (s : Scope) : Decidable (Valid s) := by unfold Valid; infer_instance
 /-- The constructor: `SliceError` when the SLICE rule fires. -/
 def build (s : Scope) : Except Err Scope := if s.Slices then .error .slice else .ok s
 
-/-- `Scope.meet` under the registered atlas: componentwise meets, the least tier, and the cut the
-two share. -/
-def meetVia (A : Option Atlas) (a b : Scope) : Except Err Scope :=
-  match a.time.meetVia A b.time with
-  | none => .error .noCommonClock
-  | some t =>
-    build ⟨a.sigma ∩ b.sigma, a.edges ∩ b.edges, t, a.authority.meet b.authority,
-      min a.tier b.tier, if a.cut = b.cut then a.cut else none⟩
+/-- `_meet_cut`: the cut both carry; else the one a single side carries, if the meet kept that
+side's window; else none. -/
+def meetCut (a b : Scope) (w : Window) : Option ℕ :=
+  if a.cut = b.cut then a.cut
+  else if b.cut = none ∧ w = a.time.window then a.cut
+  else if a.cut = none ∧ w = b.time.window then b.cut
+  else none
 
-/-- `Scope.meet` with no atlas registered, the default. -/
-def meet (a b : Scope) : Except Err Scope := meetVia none a b
+/-- `Scope.meet`, delegation: componentwise meets on one clock, the least tier, and the cut
+`meetCut` keeps. Across clocks it raises `NoCommonClockError` whatever atlas is registered. -/
+def meet (a b : Scope) : Except Err Scope :=
+  if a.time.clock = b.time.clock then
+    build ⟨a.sigma ∩ b.sigma, a.edges ∩ b.edges,
+      ⟨a.time.clock, a.time.window.meet b.time.window⟩, a.authority.meet b.authority,
+      min a.tier b.tier, meetCut a b (a.time.window.meet b.time.window)⟩
+  else .error .noCommonClock
 
 /-- `Scope.join`: componentwise joins on one clock; across clocks, `NoCommonClockError`. -/
 def join (a b : Scope) : Except Err Scope :=
@@ -378,8 +395,9 @@ def admissible (ιs : List (Finset Stratum)) (s : Scope) : Prop := ∀ ι ∈ ι
 /-- `DENYLIST_IDEAL`. -/
 def denylist : Finset Stratum := {.foundation}
 
-/-- `PRIVATE_STRATA`: the closure of every base stratum but `world`. -/
-def privateStrata : Finset Stratum := close (base.erase .world)
+/-- `PRIVATE_STRATA`: every base stratum but `world`, with every refinement below one, named or
+not, `exhaust` included. -/
+def privateStrata : Finset Stratum := univ.filter fun s ↦ s.parent.getD s ∈ base.erase .world
 
 /-- `zone_admissible`: a scope that reads a private stratum has no world reach. -/
 def zoneOk (s : Scope) : Prop := Disjoint s.sigma privateStrata ∨ s.authority.world = 0
@@ -406,14 +424,11 @@ def isSlice : Except Err Scope → Bool
   | .error .slice => true
   | _ => false
 
-/-- `Grant.meet`: the pairwise meets that exist, skipping cross-clock pairs. A `SliceError` is not
-caught, so it escapes. -/
-def grantMeet (g h : List Scope) : Except Err (List Scope) :=
-  let rs := g.flatMap fun a ↦ h.map fun b ↦ a.meet b
-  if rs.any isSlice then .error .slice
-  else .ok (rs.filterMap fun r ↦ match r with
+/-- `Grant.meet`: the pairwise meets that exist, skipping a pair that raises either error. -/
+def grantMeet (g h : List Scope) : List Scope :=
+  (g.flatMap fun a ↦ h.map fun b ↦ a.meet b).filterMap fun r ↦ match r with
     | .ok m => some m
-    | .error _ => none)
+    | .error _ => none
 
 /-- The query verbs. -/
 inductive Verb
@@ -432,14 +447,14 @@ def mkScope (strata : List Stratum) (fibers : Finset Fiber) (clock : Clock) (w :
   Scope.build ⟨close strata.toFinset, fibers, ⟨clock, w⟩,
     ⟨if propose then 1 else 0, if write then 1 else 0, 0⟩, 1, cut⟩
 
-/-- `required(verb)`: the least scope a sentence needs. `search` decides its cut from the length of
-the strata it is given, before closure. -/
+/-- `required(verb)`: the least scope a sentence needs. `search` sets the single-read cut when
+its strata, closed, number more than one. -/
 def required (v : Verb) (strata : List Stratum) (history authored : Bool) : Except Err Scope :=
   match v with
   | .search =>
     mkScope strata (if history then {.D} else ∅) .projectionEvent
       (if history then .all else .point anchor)
-      (cut := if 1 < strata.length then some singleRead else none)
+      (cut := if 1 < (close strata.toFinset).card then some singleRead else none)
   | .diffuse | .hybrid | .related => mkScope [.mirrorAuthored] {.F} .projectionEvent (.point anchor)
   | .reach => mkScope [.reference] {.F} .commit (.point anchor)
   | .history => mkScope [.mirrorAuthored] {.D} .Ns .all
@@ -593,9 +608,9 @@ outside it. -/
 theorem not_close_subset_top : ¬ close {.exhaust} ⊆ top ∧ ¬ close {.hypothetical} ⊆ top := by
   decide
 
-/-- `PRIVATE_STRATA` is every stratum but `world`, the denylist, the overlay, and `exhaust`. -/
-theorem privateStrata_eq :
-    privateStrata = univ \ {.world, .foundation, .hypothetical, .exhaust} := by decide
+/-- `PRIVATE_STRATA` is every stratum but `world`, the denylist and the overlay; `exhaust` is in. -/
+theorem privateStrata_eq : privateStrata = univ \ {.world, .foundation, .hypothetical} := by
+  decide
 
 end Sigma
 
@@ -927,6 +942,65 @@ theorem wf_meet {a b : Window} (ha : a.WF) (hb : b.WF) : (a.meet b).WF := by
 theorem absorb {a b : Window} (ha : a.WF) : (a.meet (a.join b)).Le a ∧ a.Le (a.meet (a.join b)) :=
   ⟨meet_le_left _ _, le_meet ha (Le.refl a) (le_join_left a b)⟩
 
+theorem Valid.wf {w : Window} (h : w.Valid) : w.WF := by
+  rcases w with ⟨k, lo, hi⟩
+  obtain ⟨h1, h2, h3⟩ := h
+  cases k with
+  | point =>
+    obtain rfl : lo = hi := h2 rfl
+    cases lo <;> simp [WF, ints]
+  | interval => exact h3 rfl
+  | all =>
+    obtain ⟨rfl, rfl⟩ := h1 (Or.inl rfl)
+    simp [WF, ints]
+  | empty =>
+    obtain ⟨rfl, rfl⟩ := h1 (Or.inr rfl)
+    simp [WF, ints]
+
+theorem span_valid {lo hi : ℤ} (h : lo ≤ hi) : (span lo hi).Valid := by
+  unfold span
+  split_ifs <;> simp_all [Valid, point, interval, WF, ints]
+
+theorem valid_empty : empty.Valid := by simp [Valid, empty]
+
+theorem valid_all : all.Valid := by simp [Valid, all]
+
+/-- The meet of two valid windows is valid: the algebra never builds what the constructor
+refuses. -/
+theorem valid_meet {a b : Window} (ha : a.Valid) (hb : b.Valid) : (a.meet b).Valid := by
+  unfold meet
+  split_ifs
+  · exact valid_empty
+  · exact hb
+  · exact ha
+  · exact ha
+  · split
+    · split_ifs with h
+      · exact valid_empty
+      · exact span_valid (by omega)
+    · exact valid_empty
+
+/-- The join of two valid windows is valid. -/
+theorem valid_join {a b : Window} (ha : a.Valid) (hb : b.Valid) : (a.join b).Valid := by
+  unfold join
+  split_ifs
+  · exact valid_all
+  · exact hb
+  · exact ha
+  · exact ha
+  · split
+    · rename_i al ah bl bh hai _
+      have := ha.wf
+      simp only [WF, hai] at this
+      exact span_valid (by omega)
+    · exact valid_all
+
+/-- So on valid windows the meet is the exact greatest lower bound: the constructor refuses the one
+counterexample, an inverted interval. -/
+theorem le_meet_iff_of_valid {x a b : Window} (hx : x.Valid) :
+    x.Le (a.meet b) ↔ x.Le a ∧ x.Le b :=
+  le_meet_iff hx.wf
+
 end Window
 
 /-! ## Time scopes -/
@@ -955,16 +1029,17 @@ theorem le_meet {a b t x : Time} (h : a.meetVia none b = some t) (hx : x.window.
   cases h
   exact ⟨ha.1, Window.le_meet hx ha.2 hb.2⟩
 
-/-- Under an atlas, two covered clocks meet on `N`. -/
-theorem meetVia_atlas (A : Atlas) {a b : Time} (hab : a.clock ≠ b.clock) (ha : A.has a.clock = true)
-    (hb : A.has b.clock = true) : ∃ t, a.meetVia (some A) b = some t ∧ t.clock = .N ∧
-      t.window.kind ≠ .point := by
-  refine ⟨⟨.N, match A.intersect (A.pullback a.clock a.window) (A.pullback b.clock b.window) with
-    | none => .empty
-    | some t => .interval (.tok t) (.tok t)⟩, ?_, rfl, ?_⟩
-  · simp [meetVia, hab, ha, hb]
-  · dsimp only
-    split <;> simp [Window.empty, Window.interval]
+/-- Under an atlas, two covered clocks meet through the event level. -/
+theorem meetVia_atlas (A : Atlas) {a b : Time} (hab : a.clock ≠ b.clock)
+    (ha : A.has a.clock = true) (hb : A.has b.clock = true) :
+    a.meetVia (some A) b = some (pullbackMeet A a b) := by
+  simp [meetVia, hab, ha, hb]
+
+/-- The completion lies on `N`, so under neither input on another clock: why delegation, which
+must stay under the parent, refuses it. -/
+theorem pullbackMeet_not_le (A : Atlas) {a b : Time} (haN : a.clock ≠ .N) (hbN : b.clock ≠ .N) :
+    ¬ (pullbackMeet A a b).Le a ∧ ¬ (pullbackMeet A a b).Le b :=
+  ⟨fun h ↦ haN h.1.symm, fun h ↦ hbN h.1.symm⟩
 
 end Time
 
@@ -1007,59 +1082,39 @@ theorem build_ok {s m : Scope} : s.build = .ok m ↔ ¬ s.Slices ∧ s = m := by
   split_ifs with h <;> simp [h]
 
 /-- What a meet that exists returns. -/
-theorem meetVia_ok {A : Option Atlas} {a b m : Scope} (h : a.meetVia A b = .ok m) :
-    ∃ t, a.time.meetVia A b.time = some t ∧ ¬ m.Slices ∧
-      m = ⟨a.sigma ∩ b.sigma, a.edges ∩ b.edges, t, a.authority.meet b.authority,
-        min a.tier b.tier, if a.cut = b.cut then a.cut else none⟩ := by
-  unfold meetVia at h
-  split at h
-  · simp at h
-  · rename_i t ht
+theorem meet_ok {a b m : Scope} (h : a.meet b = .ok m) : a.time.clock = b.time.clock ∧
+    ¬ m.Slices ∧ m = ⟨a.sigma ∩ b.sigma, a.edges ∩ b.edges,
+      ⟨a.time.clock, a.time.window.meet b.time.window⟩, a.authority.meet b.authority,
+      min a.tier b.tier, meetCut a b (a.time.window.meet b.time.window)⟩ := by
+  by_cases hc : a.time.clock = b.time.clock
+  · simp only [meet, hc, ↓reduceIte] at h
     obtain ⟨hs, rfl⟩ := build_ok.1 h
-    exact ⟨t, ht, hs, rfl⟩
+    exact ⟨hc, hs, by rw [hc]⟩
+  · simp [meet, hc] at h
 
-/-- Monotone delegation: a meet that exists lies under both inputs. -/
+/-- Monotone delegation: a meet that exists lies under both inputs, whatever atlas is registered,
+since `Scope.meet` consults none. -/
 theorem meet_le {a b m : Scope} (h : a.meet b = .ok m) : m.Le a ∧ m.Le b := by
-  obtain ⟨t, ht, -, rfl⟩ := meetVia_ok h
-  obtain ⟨hta, htb⟩ := Time.meet_le ht
-  exact ⟨⟨inter_subset_left, inter_subset_left, hta, Authority.meet_le_left _ _⟩,
-    ⟨inter_subset_right, inter_subset_right, htb, Authority.meet_le_right _ _⟩⟩
+  obtain ⟨hc, -, rfl⟩ := meet_ok h
+  exact ⟨⟨inter_subset_left, inter_subset_left, ⟨rfl, Window.meet_le_left _ _⟩,
+      Authority.meet_le_left _ _⟩,
+    ⟨inter_subset_right, inter_subset_right, ⟨hc, Window.meet_le_right _ _⟩,
+      Authority.meet_le_right _ _⟩⟩
 
 /-- A meet that exists is the greatest lower bound among scopes with well-formed windows. -/
 theorem le_meet {a b m x : Scope} (h : a.meet b = .ok m) (hx : x.time.window.WF) (ha : x.Le a)
     (hb : x.Le b) : x.Le m := by
-  obtain ⟨t, ht, -, rfl⟩ := meetVia_ok h
-  exact ⟨subset_inter ha.1 hb.1, subset_inter ha.2.1 hb.2.1, Time.le_meet ht hx ha.2.2.1 hb.2.2.1,
-    Authority.le_meet ha.2.2.2 hb.2.2.2⟩
+  obtain ⟨-, -, rfl⟩ := meet_ok h
+  exact ⟨subset_inter ha.1 hb.1, subset_inter ha.2.1 hb.2.1,
+    ⟨ha.2.2.1.1, Window.le_meet hx ha.2.2.1.2 hb.2.2.1.2⟩, Authority.le_meet ha.2.2.2 hb.2.2.2⟩
 
-/-- Without an atlas, scopes on two clocks have no meet. -/
+/-- Scopes on two clocks have no meet, atlas or not. -/
 theorem meet_of_ne {a b : Scope} (h : a.time.clock ≠ b.time.clock) :
     a.meet b = .error .noCommonClock := by
-  simp [meet, meetVia, Time.meetVia_none, h]
+  simp [meet, h]
 
-/-- With an atlas, scopes on two covered clocks always meet, on `N`; the SLICE rule never fires,
-since the window is never a point. -/
-theorem meetVia_atlas (A : Atlas) {a b : Scope} (hab : a.time.clock ≠ b.time.clock)
-    (ha : A.has a.time.clock = true) (hb : A.has b.time.clock = true) :
-    ∃ m, a.meetVia (some A) b = .ok m ∧ m.time.clock = .N := by
-  obtain ⟨t, ht, htN, htp⟩ := Time.meetVia_atlas A hab ha hb
-  refine ⟨⟨a.sigma ∩ b.sigma, a.edges ∩ b.edges, t, a.authority.meet b.authority,
-    min a.tier b.tier, if a.cut = b.cut then a.cut else none⟩, ?_, htN⟩
-  unfold meetVia
-  rw [ht]
-  exact build_ok.2 ⟨fun h ↦ htp h.2.1, rfl⟩
-
-/-- So under any atlas, delegation across two covered clocks other than `N` is not monotone: the
-delegated scope lies under neither input, because `⊑` is false across clocks. -/
-theorem atlas_breaks_delegation (A : Atlas) {a b : Scope} (hab : a.time.clock ≠ b.time.clock)
-    (ha : A.has a.time.clock = true) (hb : A.has b.time.clock = true) (haN : a.time.clock ≠ .N)
-    (hbN : b.time.clock ≠ .N) : ∃ m, a.meetVia (some A) b = .ok m ∧ ¬ m.Le a ∧ ¬ m.Le b := by
-  obtain ⟨m, hm, hmN⟩ := meetVia_atlas A hab ha hb
-  exact ⟨m, hm, fun h ↦ haN (hmN ▸ h.2.2.1.1).symm, fun h ↦ hbN (hmN ▸ h.2.2.1.1).symm⟩
-
-theorem meetVia_tier {A : Option Atlas} {a b m : Scope} (h : a.meetVia A b = .ok m) :
-    m.tier = min a.tier b.tier := by
-  obtain ⟨t, -, -, rfl⟩ := meetVia_ok h
+theorem meet_tier {a b m : Scope} (h : a.meet b = .ok m) : m.tier = min a.tier b.tier := by
+  obtain ⟨-, -, rfl⟩ := meet_ok h
   rfl
 
 /-- What a join that exists returns. -/
@@ -1101,10 +1156,10 @@ inductive Expr
 namespace Expr
 
 /-- Evaluate left to right, as Python does; the first error escapes. -/
-def eval (A : Option Atlas) : Expr → Except Err Scope
+def eval : Expr → Except Err Scope
   | leaf s => .ok s
-  | meet e f => (e.eval A).bind fun a ↦ (f.eval A).bind fun b ↦ a.meetVia A b
-  | join e f => (e.eval A).bind fun a ↦ (f.eval A).bind fun b ↦ a.join b
+  | meet e f => e.eval.bind fun a ↦ f.eval.bind fun b ↦ a.meet b
+  | join e f => e.eval.bind fun a ↦ f.eval.bind fun b ↦ a.join b
 
 /-- The scopes an expression composes. -/
 def leaves : Expr → List Scope
@@ -1112,7 +1167,7 @@ def leaves : Expr → List Scope
   | meet e f | join e f => e.leaves ++ f.leaves
 
 /-- No laundering: a composition that exists carries exactly the least tier among its leaves. -/
-theorem tier_eval (A : Option Atlas) (e : Expr) {s : Scope} (h : e.eval A = .ok s) :
+theorem tier_eval (e : Expr) {s : Scope} (h : e.eval = .ok s) :
     (∀ l ∈ e.leaves, s.tier ≤ l.tier) ∧ ∃ l ∈ e.leaves, s.tier = l.tier := by
   induction e generalizing s with
   | leaf t =>
@@ -1121,15 +1176,15 @@ theorem tier_eval (A : Option Atlas) (e : Expr) {s : Scope} (h : e.eval A = .ok 
     simp [leaves]
   | meet e f ihe ihf | join e f ihe ihf =>
     simp only [eval] at h
-    cases he : e.eval A with
+    cases he : e.eval with
     | error _ => simp [he, Except.bind] at h
     | ok a =>
-      cases hf : f.eval A with
+      cases hf : f.eval with
       | error _ => simp [he, hf, Except.bind] at h
       | ok b =>
         simp only [he, hf, Except.bind] at h
         first
-          | rw [Scope.meetVia_tier h]
+          | rw [Scope.meet_tier h]
           | rw [Scope.join_tier h]
         obtain ⟨hae, la, hla, hla'⟩ := ihe he
         obtain ⟨hbf, lb, hlb, hlb'⟩ := ihf hf
@@ -1143,15 +1198,15 @@ theorem tier_eval (A : Option Atlas) (e : Expr) {s : Scope} (h : e.eval A = .ok 
 
 end Expr
 
-/-! ## Firewalls and the zone law survive delegation, atlas or not -/
+/-! ## Firewalls and the zone law survive delegation -/
 
 theorem admissible_of_subset {ιs : List (Finset Stratum)} {s t : Scope} (h : s.sigma ⊆ t.sigma)
     (ht : admissible ιs t) : admissible ιs s :=
   fun ι hι ↦ (ht ι hι).mono_left h
 
-theorem admissible_meetVia {A : Option Atlas} {ιs : List (Finset Stratum)} {a b m : Scope}
-    (h : a.meetVia A b = .ok m) (ha : admissible ιs a) : admissible ιs m := by
-  obtain ⟨t, -, -, rfl⟩ := Scope.meetVia_ok h
+theorem admissible_meet {ιs : List (Finset Stratum)} {a b m : Scope} (h : a.meet b = .ok m)
+    (ha : admissible ιs a) : admissible ιs m := by
+  obtain ⟨-, -, rfl⟩ := Scope.meet_ok h
   exact admissible_of_subset inter_subset_left ha
 
 theorem zoneOk_of_le {s t : Scope} (hσ : s.sigma ⊆ t.sigma)
@@ -1160,34 +1215,46 @@ theorem zoneOk_of_le {s t : Scope} (hσ : s.sigma ⊆ t.sigma)
   · exact Or.inl (ht.mono_left hσ)
   · exact Or.inr (le_antisymm (ht ▸ hw) (Fin.zero_le _))
 
-theorem zoneOk_meetVia {A : Option Atlas} {a b m : Scope} (h : a.meetVia A b = .ok m)
-    (ha : zoneOk a) : zoneOk m := by
-  obtain ⟨t, -, -, rfl⟩ := Scope.meetVia_ok h
+theorem zoneOk_meet {a b m : Scope} (h : a.meet b = .ok m) (ha : zoneOk a) : zoneOk m := by
+  obtain ⟨-, -, rfl⟩ := Scope.meet_ok h
   exact zoneOk_of_le inter_subset_left (min_le_left _ _) ha
 
-/-- Every stratum outside the private set names no class in `STRATUM_CLASSES`. -/
-theorem stratumClasses_of_not_private :
-    ∀ x : Stratum, x ∉ privateStrata → stratumClasses x = ∅ := by decide
-
-/-- A zone-admissible scope with world reach is cleared for no class. -/
-theorem world_reach_reads_nothing {s : Scope} (hz : zoneOk s) (hw : s.authority.world ≠ 0) :
-    classesOf stratumClasses s.sigma = ∅ := by
+/-- A zone-admissible scope with world reach names only strata outside the private set: `world`,
+the denylist and the overlay. -/
+theorem sigma_of_world_reach {s : Scope} (hz : zoneOk s) (hw : s.authority.world ≠ 0) :
+    s.sigma ⊆ {.world, .foundation, .hypothetical} := by
   rcases hz with hz | hz
-  · refine eq_empty_of_forall_notMem fun c hc ↦ ?_
-    obtain ⟨x, hx, hcx⟩ := mem_biUnion.1 hc
-    rw [stratumClasses_of_not_private x (disjoint_left.1 hz hx)] at hcx
-    exact notMem_empty c hcx
+  · intro x hx
+    have hx' := disjoint_left.1 hz hx
+    rw [privateStrata_eq] at hx'
+    simp only [mem_sdiff, mem_univ, true_and, not_not] at hx'
+    exact hx'
   · exact absurd hz hw
+
+/-- `STRATUM_CLASSES` gives those three strata no class. -/
+theorem stratumClasses_outside :
+    stratumClasses .world = ∅ ∧ stratumClasses .foundation = ∅ ∧
+      stratumClasses .hypothetical = ∅ := by decide
+
+/-- So under any table that gives `world`, the denylist and the overlay no class, `STRATUM_CLASSES`
+among them, a world-reaching scope the zone law admits is cleared for no class. Naming `exhaust`
+no longer escapes this, whatever classes `exhaust` is given. -/
+theorem world_reach_reads_nothing (tbl : Stratum → Finset Prov)
+    (htbl : tbl .world = ∅ ∧ tbl .foundation = ∅ ∧ tbl .hypothetical = ∅) {s : Scope}
+    (hz : zoneOk s) (hw : s.authority.world ≠ 0) : classesOf tbl s.sigma = ∅ := by
+  refine eq_empty_of_forall_notMem fun c hc ↦ ?_
+  obtain ⟨x, hx, hcx⟩ := mem_biUnion.1 hc
+  have hx' := sigma_of_world_reach hz hw hx
+  simp only [mem_insert, mem_singleton] at hx'
+  rcases hx' with rfl | rfl | rfl
+  · simp [htbl.1] at hcx
+  · simp [htbl.2.1] at hcx
+  · simp [htbl.2.2] at hcx
 
 /-! ## The query engine -/
 
-theorem grantMeet_ok {g h out : List Scope} (hm : grantMeet g h = .ok out) :
-    ∀ m ∈ out, ∃ a ∈ g, ∃ b ∈ h, a.meet b = .ok m := by
-  dsimp only [grantMeet] at hm
-  split_ifs at hm
-  simp only [Except.ok.injEq] at hm
-  subst hm
-  intro m hm
+theorem mem_grantMeet {g h : List Scope} {m : Scope} (hm : m ∈ grantMeet g h) :
+    ∃ a ∈ g, ∃ b ∈ h, a.meet b = .ok m := by
   obtain ⟨r, hr, hrm⟩ := List.mem_filterMap.1 hm
   obtain ⟨a, ha, hr⟩ := List.mem_flatMap.1 hr
   obtain ⟨b, hb, rfl⟩ := List.mem_map.1 hr
@@ -1196,51 +1263,48 @@ theorem grantMeet_ok {g h out : List Scope} (hm : grantMeet g h = .ok out) :
   · simp_all
   · simp at hrm
 
-/-- A grant's meet that exists lies under both grants, plane by plane. -/
-theorem grantMeet_le {g h out : List Scope} (hm : grantMeet g h = .ok out) :
-    ∀ m ∈ out, (∃ a ∈ g, m.Le a) ∧ ∃ b ∈ h, m.Le b := by
-  intro m hm'
-  obtain ⟨a, ha, b, hb, hab⟩ := grantMeet_ok hm m hm'
+/-- A grant's meet lies under both grants, plane by plane. -/
+theorem grantMeet_le {g h : List Scope} {m : Scope} (hm : m ∈ grantMeet g h) :
+    (∃ a ∈ g, m.Le a) ∧ ∃ b ∈ h, m.Le b := by
+  obtain ⟨a, ha, b, hb, hab⟩ := mem_grantMeet hm
   exact ⟨⟨a, ha, (Scope.meet_le hab).1⟩, b, hb, (Scope.meet_le hab).2⟩
 
 /-- So `InadmissibleGrant` never fires on the meet of a grant. -/
-theorem grantMeet_grantOk {g h out : List Scope} (hg : GrantOk g) (hm : grantMeet g h = .ok out) :
-    GrantOk out := by
-  intro m hm'
-  obtain ⟨a, ha, b, -, hab⟩ := grantMeet_ok hm m hm'
-  exact ⟨admissible_meetVia hab (hg a ha).1, zoneOk_meetVia hab (hg a ha).2⟩
+theorem grantMeet_grantOk {g h : List Scope} (hg : GrantOk g) : GrantOk (grantMeet g h) := by
+  intro m hm
+  obtain ⟨a, ha, b, -, hab⟩ := mem_grantMeet hm
+  exact ⟨admissible_meet hab (hg a ha).1, zoneOk_meet hab (hg a ha).2⟩
 
 /-- And whatever the meet of two grants admits, each grant admits. -/
-theorem admits_of_grantMeet {g h out : List Scope} {r : Scope} (hm : grantMeet g h = .ok out)
-    (hr : admits out r) : admits g r ∧ admits h r := by
-  obtain ⟨m, hm', hrm⟩ := hr
-  obtain ⟨⟨a, ha, hma⟩, b, hb, hmb⟩ := grantMeet_le hm m hm'
+theorem admits_of_grantMeet {g h : List Scope} {r : Scope} (hr : admits (grantMeet g h) r) :
+    admits g r ∧ admits h r := by
+  obtain ⟨m, hm, hrm⟩ := hr
+  obtain ⟨⟨a, ha, hma⟩, b, hb, hmb⟩ := grantMeet_le hm
   exact ⟨⟨a, ha, hrm.trans hma⟩, b, hb, hrm.trans hmb⟩
 
-/-- Of the strata the Ambassador's tools accept, a search without history raises `SliceError` for
-exactly one choice: `reference` alone, whose closure holds two strata while `required` counts
-one name. -/
-theorem search_slices_iff (names : List Name) (authored : Bool) :
-    isSlice (required .search (pick names) false authored) = true ↔ names = [.reference] := by
-  rcases names with _ | ⟨n, _ | ⟨n', rest⟩⟩
-  · revert authored
-    decide
-  · revert authored
-    cases n <;> decide
-  · have : 1 < (pick (n :: n' :: rest)).length := by simp [pick]
-    simp [required, mkScope, Scope.build, Scope.Slices, isSlice, this]
+/-- A search never raises `SliceError`, over any strata, with or without history: the single-read
+cut is set exactly when the closed strata number more than one. -/
+theorem search_never_slices (strata : List Stratum) (history authored : Bool) :
+    isSlice (required .search strata history authored) = false := by
+  simp only [required, mkScope, Scope.build, Scope.Slices]
+  split_ifs <;> simp_all [isSlice]
 
-/-- With history the same search builds, and the Ambassador's grant admits it. -/
-theorem search_reference_history (authored : Bool) :
-    let r : Scope := ⟨close {.reference}, {.D}, ⟨.projectionEvent, .all⟩, ⟨0, 0, 0⟩, 1, none⟩
-    required .search [.reference] true authored = .ok r ∧ admits ambassador r := by
+/-- In particular the Ambassador's search over `reference` alone builds, carries the cut, and the
+Ambassador's grant admits it. -/
+theorem search_reference (authored : Bool) :
+    let r : Scope :=
+      ⟨close {.reference}, ∅, ⟨.projectionEvent, .point anchor⟩, ⟨0, 0, 0⟩, 1, some singleRead⟩
+    required .search [.reference] false authored = .ok r ∧ admits ambassador r := by
   revert authored
   decide
 
-/-- A search over `reference` that carried the single-read cut would be admitted too. -/
-theorem search_reference_with_cut :
-    admits ambassador ⟨close {.reference}, ∅, ⟨.projectionEvent, .point anchor⟩, ⟨0, 0, 0⟩, 1,
-      some singleRead⟩ := by decide
+/-- With history it builds too, and is admitted. -/
+theorem search_reference_history (authored : Bool) :
+    let r : Scope :=
+      ⟨close {.reference}, {.D}, ⟨.projectionEvent, .all⟩, ⟨0, 0, 0⟩, 1, some singleRead⟩
+    required .search [.reference] true authored = .ok r ∧ admits ambassador r := by
+  revert authored
+  decide
 
 /-! ## Roles and conformance -/
 
@@ -1278,13 +1342,13 @@ theorem classesOf_meet {a b m : Scope} (h : a.meet b = .ok m) :
   subset_inter (classesOf_mono _ (Scope.meet_le h).1.1) (classesOf_mono _ (Scope.meet_le h).2.1)
 
 
-/-! ## Witnesses: the measured failures, reproduced by the model -/
+/-! ## Witnesses: what the model found, and what the fixes changed -/
 
 namespace Witness
 
 open Window
 
-/-- `pt(1)` and `[1,1]` lie below each other, yet differ: `⊑` on windows is not antisymmetric. -/
+/-- `pt(1)` and `[1,1]` lie below each other, yet differ: `⊑` on windows is a preorder. -/
 theorem window_not_antisymm :
     (point (.int 1)).Le (interval (.int 1) (.int 1)) ∧
       (interval (.int 1) (.int 1)).Le (point (.int 1)) ∧
@@ -1295,12 +1359,14 @@ theorem absorption_fails :
     (interval (.int 1) (.int 1)).meet ((interval (.int 1) (.int 1)).join (point (.int 5))) =
       point (.int 1) := by decide
 
-/-- The inverted interval `[6,2]` lies under `[0,3]` and `[5,10]`, but not under their meet `⊥`. -/
+/-- The inverted interval `[6,2]` lies under `[0,3]` and `[5,10]`, but not under their meet `⊥`;
+the window constructor now refuses it. -/
 theorem meet_not_glb :
     (interval (.int 6) (.int 2)).Le (interval (.int 0) (.int 3)) ∧
       (interval (.int 6) (.int 2)).Le (interval (.int 5) (.int 10)) ∧
       ¬ (interval (.int 6) (.int 2)).Le
-        ((interval (.int 0) (.int 3)).meet (interval (.int 5) (.int 10))) := by decide
+        ((interval (.int 0) (.int 3)).meet (interval (.int 5) (.int 10))) ∧
+      ¬ (interval (.int 6) (.int 2)).Valid := by decide
 
 /-- A read of two strata on `N_s` over `[1,5]`, with no cut. -/
 def sliceA : Scope :=
@@ -1310,23 +1376,29 @@ def sliceA : Scope :=
 def sliceB : Scope :=
   ⟨{.mirrorAuthored, .curated}, ∅, ⟨.Ns, .interval (.int 5) (.int 9)⟩, ⟨0, 0, 0⟩, 1, none⟩
 
-/-- Both are valid and share a clock, yet their meet raises `SliceError`: the windows meet at the
-point `5`, over two strata, with no cut. `Grant.meet` does not catch it. -/
+/-- Both are valid and share a clock, yet have no meet: the windows meet at the point `5`, over two
+strata, with no cut. `Grant.meet` now skips the pair. -/
 theorem meet_slices : sliceA.Valid ∧ sliceB.Valid ∧ sliceA.meet sliceB = .error .slice ∧
-    grantMeet [sliceA] [sliceB] = .error .slice := by decide
+    grantMeet [sliceA] [sliceB] = [] := by decide
+
+/-- An owner's point grant with a cut, over two strata on `N`. -/
+def pointGrant : Scope :=
+  ⟨close {.ops, .reference}, univ, ⟨.N, .point (.tok 5)⟩, ⟨0, 0, 0⟩, 1, some 5⟩
+
+/-- A dreamer template on the ledger, with no cut. -/
+def ledgerTemplate : Scope := ⟨close {.ops, .reference}, univ, ⟨.N, .all⟩, ⟨0, 0, 0⟩, 1, none⟩
+
+/-- Their meet keeps the point and so the owner's cut; it used to drop the cut and slice. -/
+theorem meet_keeps_one_sided_cut :
+    pointGrant.meet ledgerTemplate = .ok pointGrant ∧ pointGrant.Valid := by decide
 
 /-- A grant that reads only agent exhaust, with irreversible world reach. -/
 def exhaustReach : Scope := ⟨close {.exhaust}, ∅, ⟨.Ns, .all⟩, ⟨0, 0, 3⟩, 1, none⟩
 
-/-- `Grant` accepts it, because `exhaust` is outside the private set; the same grant over its
-sibling `dialogue_transcript` is refused. -/
-theorem exhaust_zone_gap : GrantOk [exhaustReach] ∧
+/-- `Grant` refuses it now, like the same grant over its sibling `dialogue_transcript`; with
+`PRIVATE_STRATA` derived from `top()`, which omits `exhaust`, it was accepted. -/
+theorem exhaust_refused : ¬ GrantOk [exhaustReach] ∧
     ¬ GrantOk [⟨close {.dialogueTranscript}, ∅, ⟨.Ns, .all⟩, ⟨0, 0, 3⟩, 1, none⟩] := by decide
-
-/-- Give `exhaust` its parent's classes, and the same grant is cleared for private records. -/
-theorem exhaust_gap_opens :
-    classesOf (fun s ↦ if s = .exhaust then stratumClasses .dialogue else stratumClasses s)
-      exhaustReach.sigma = {.observed, .authoredDialogue} := by decide
 
 /-- World reach over `world` alone, and a private read with none, on one clock. -/
 def worldOnly : Scope := ⟨{.world}, ∅, ⟨.N, .all⟩, ⟨0, 0, 1⟩, 1, none⟩
@@ -1340,10 +1412,6 @@ theorem zone_join_fails : zoneOk worldOnly ∧ zoneOk mirrorRead ∧
       .ok ⟨{.world, .mirrorAuthored}, ∅, ⟨.N, .all⟩, ⟨0, 0, 1⟩, 1, none⟩ ∧
     ¬ zoneOk ⟨{.world, .mirrorAuthored}, ∅, ⟨.N, .all⟩, ⟨0, 0, 1⟩, 1, none⟩ := by decide
 
-/-- The Ambassador's search over `reference` alone raises `SliceError`. -/
-theorem search_reference_slices : required .search [.reference] false true = .error .slice := by
-  decide
-
 /-- A delegated clearance can be strictly narrower than the meet of the parents' clearances:
 `observed` and `dialogue` share no stratum, yet both carry observed rows. -/
 theorem classesOf_meet_strict :
@@ -1354,16 +1422,23 @@ theorem classesOf_meet_strict :
 
 /-- An atlas covering every clock but wall time and the live present. -/
 def anAtlas : Atlas :=
-  ⟨fun c ↦ decide (c ≠ .wall ∧ c ≠ .now), fun _ _ ↦ 1, fun x y ↦ if x = y then some x else none⟩
+  ⟨fun c ↦ decide (c ≠ .wall ∧ c ≠ .now), fun _ _ ↦ 1, fun x y ↦ if x = y then some x else none,
+    fun _ ↦ none⟩
 
-/-- The delegation the Python probe measured: a parent on `commit`, a template on `N_s`. Under the
-atlas the child exists and lies under neither. -/
+/-- A parent on `commit` and a template on `N_s`, as the Python probe measured. -/
+def commitParent : Scope := ⟨{.curated}, univ, ⟨.commit, .all⟩, ⟨0, 0, 0⟩, 1, none⟩
+
+/-- The template on `N_s`. -/
+def nsTemplate : Scope := ⟨{.curated}, univ, ⟨.Ns, .all⟩, ⟨0, 0, 0⟩, 1, none⟩
+
+/-- Under the atlas the time meet completes on `N`, under neither input; delegation refuses the
+pair. It used to complete it and mint a child under neither parent. -/
 theorem atlas_delegation :
-    ∃ m, (⟨{.curated}, univ, ⟨.commit, .all⟩, ⟨0, 0, 0⟩, 1, none⟩ : Scope).meetVia (some anAtlas)
-      ⟨{.curated}, univ, ⟨.Ns, .all⟩, ⟨0, 0, 0⟩, 1, none⟩ = .ok m ∧
-      ¬ m.Le ⟨{.curated}, univ, ⟨.commit, .all⟩, ⟨0, 0, 0⟩, 1, none⟩ ∧
-      ¬ m.Le ⟨{.curated}, univ, ⟨.Ns, .all⟩, ⟨0, 0, 0⟩, 1, none⟩ :=
-  Scope.atlas_breaks_delegation anAtlas (by decide) (by decide) (by decide) (by decide) (by decide)
+    commitParent.time.meetVia (some anAtlas) nsTemplate.time =
+        some (Time.pullbackMeet anAtlas commitParent.time nsTemplate.time) ∧
+      ¬ (Time.pullbackMeet anAtlas commitParent.time nsTemplate.time).Le commitParent.time ∧
+      ¬ (Time.pullbackMeet anAtlas commitParent.time nsTemplate.time).Le nsTemplate.time ∧
+      commitParent.meet nsTemplate = .error .noCommonClock := by decide
 
 end Witness
 
@@ -1371,8 +1446,8 @@ end Witness
 
 Every law above was attacked before it was proved: windows as the code's constructors build them,
 with int bounds in `[-3, 3]` or tokens, so that ties, degenerate and inverted intervals all occur;
-scopes over random strata, fibers, three clocks, such windows, authorities, tiers and cuts. Each
-`refuted` line is a nearby false law and must be refuted. -/
+raw windows of any shape; scopes over random strata, fibers, three clocks, such windows,
+authorities, tiers and cuts. Each `refuted` line is a nearby false law and must be refuted. -/
 
 namespace Attack
 
@@ -1389,6 +1464,14 @@ def win (c : WCode) : Window :=
   | 1 => .interval (bnd c.2.1 c.2.2.1) (bnd c.2.2.2.1 c.2.2.2.2)
   | 2 => .all
   | _ => .empty
+
+/-- A window of any shape, as direct construction could build it before the constructor checks. -/
+def raw (c : WCode) : Window :=
+  ⟨match c.1.val with
+    | 0 => .point
+    | 1 => .interval
+    | 2 => .all
+    | _ => .empty, bnd c.2.1 c.2.2.1, bnd c.2.2.2.1 c.2.2.2.2⟩
 
 -- The preorder.
 #eval survives (∀ a b c : WCode, (win a).Le (win b) → (win b).Le (win c) → (win a).Le (win c)) 151
@@ -1413,6 +1496,14 @@ def win (c : WCode) : Window :=
 #eval refuted (∀ x a b : WCode, decide (((win a).meet (win b)).Le (win x)) =
   (decide ((win a).Le (win x)) && decide ((win b).Le (win x)))) 156
 
+-- On valid windows the meet is commutative and associative, on the nose.
+#eval survives (∀ a b c : WCode, ((win a).Valid ∧ (win b).Valid ∧ (win c).Valid) →
+  ((win a).meet (win b) = (win b).meet (win a) ∧
+    ((win a).meet (win b)).meet (win c) = (win a).meet ((win b).meet (win c)))) 157
+
+-- Control: commutativity over windows of any shape.
+#eval refuted (∀ a b : WCode, (raw a).meet (raw b) = (raw b).meet (raw a)) 158
+
 /-- One of the three clocks the attacks draw. -/
 def clk (i : Fin 3) : Clock := match i.val with
   | 0 => .N
@@ -1435,32 +1526,36 @@ def scp (c : SCode) : Scope :=
   ⟨close (σ.map fun i ↦ Stratum.nth i.val).toFinset, (es.map fib).toFinset, ⟨clk k, win w⟩,
     ⟨p, sw, wr⟩, t, if cu.val = 0 then none else some cu.val⟩
 
-/-- The meet under an atlas exists. -/
-def okMeet (A : Option Atlas) (a b : Scope) : Bool :=
-  match a.meetVia A b with
+/-- The meet exists. -/
+def okMeet (a b : Scope) : Bool :=
+  match a.meet b with
   | .ok _ => true
   | .error _ => false
 
 /-- The meet, where it exists, lies under both inputs. -/
-def delegates (A : Option Atlas) (a b : Scope) : Bool :=
-  match a.meetVia A b with
+def delegates (a b : Scope) : Bool :=
+  match a.meet b with
   | .ok m => decide (m.Le a ∧ m.Le b)
   | .error _ => true
 
--- Monotone delegation, with no atlas.
-set_option synthInstance.maxSize 4096 in
-#eval survives (∀ a b : SCode, ((scp a).Valid ∧ (scp b).Valid ∧ okMeet none (scp a) (scp b)) →
-  delegates none (scp a) (scp b) = true) 157
+/-- The time meet under an atlas, where it exists, lies under both inputs. -/
+def timeDelegates (A : Atlas) (a b : Time) : Bool :=
+  match a.meetVia (some A) b with
+  | some t => decide (t.Le a ∧ t.Le b)
+  | none => true
 
--- Control: the same under an atlas.
+-- Monotone delegation.
 set_option synthInstance.maxSize 4096 in
-#eval refuted (∀ a b : SCode, ((scp a).Valid ∧ (scp b).Valid ∧
-  okMeet (some Witness.anAtlas) (scp a) (scp b)) →
-  delegates (some Witness.anAtlas) (scp a) (scp b) = true) 158
+#eval survives (∀ a b : SCode, ((scp a).Valid ∧ (scp b).Valid ∧ okMeet (scp a) (scp b)) →
+  delegates (scp a) (scp b) = true) 159
+
+-- Control: the atlas's time completion as a delegation.
+set_option synthInstance.maxSize 4096 in
+#eval refuted (∀ a b : SCode, timeDelegates Witness.anAtlas (scp a).time (scp b).time = true) 160
 
 /-- The zone law holds of the meet, where it exists. -/
-def zoneMeet (A : Option Atlas) (a b : Scope) : Bool :=
-  match a.meetVia A b with
+def zoneMeet (a b : Scope) : Bool :=
+  match a.meet b with
   | .ok m => decide (zoneOk m)
   | .error _ => true
 
@@ -1470,19 +1565,20 @@ def zoneJoin (a b : Scope) : Bool :=
   | .ok j => decide (zoneOk j)
   | .error _ => true
 
--- The zone law survives delegation, even under an atlas.
+-- The zone law survives delegation.
 set_option synthInstance.maxSize 4096 in
-#eval survives (∀ a b : SCode, (zoneOk (scp a) ∧ okMeet (some Witness.anAtlas) (scp a) (scp b)) →
-  zoneMeet (some Witness.anAtlas) (scp a) (scp b) = true) 159
+#eval survives (∀ a b : SCode, (zoneOk (scp a) ∧ okMeet (scp a) (scp b)) →
+  zoneMeet (scp a) (scp b) = true) 161
 
 -- Control: it does not survive join.
 set_option synthInstance.maxSize 4096 in
 #eval refuted (∀ a b : SCode, (zoneOk (scp a) ∧ zoneOk (scp b)) → zoneJoin (scp a) (scp b) = true)
-  160
+  162
 
-/-- The tier of `(a ⊓ b) ⊔ c`, where it exists, against the least tier of the three. -/
+/-- The tier of `(a ⊓ b) ⊔ c`, where it exists, against the least or the greatest tier of the
+three. -/
 def tierOf (a b c : Scope) (least : Bool) : Bool :=
-  match (Expr.join (.meet (.leaf a) (.leaf b)) (.leaf c)).eval none with
+  match (Expr.join (.meet (.leaf a) (.leaf b)) (.leaf c)).eval with
   | .ok s => if least then decide (s.tier = min (min a.tier b.tier) c.tier)
     else decide (s.tier = max (max a.tier b.tier) c.tier)
   | .error _ => true
@@ -1490,20 +1586,20 @@ def tierOf (a b c : Scope) (least : Bool) : Bool :=
 -- No laundering: a composition carries the least tier of its inputs.
 set_option synthInstance.maxSize 4096 in
 #eval survives (∀ a b c : SCode, (Expr.join (.meet (.leaf (scp a)) (.leaf (scp b)))
-  (.leaf (scp c))).eval none |>.toBool → tierOf (scp a) (scp b) (scp c) true = true) 161
+  (.leaf (scp c))).eval.toBool → tierOf (scp a) (scp b) (scp c) true = true) 163
 
 -- Control: the greatest tier.
 set_option synthInstance.maxSize 4096 in
 #eval refuted (∀ a b c : SCode, (Expr.join (.meet (.leaf (scp a)) (.leaf (scp b)))
-  (.leaf (scp c))).eval none |>.toBool → tierOf (scp a) (scp b) (scp c) false = true) 162
+  (.leaf (scp c))).eval.toBool → tierOf (scp a) (scp b) (scp c) false = true) 164
 
 -- Closure is idempotent and closed under refinement.
 #eval survives (∀ l : List (Fin 15), let S := (l.map fun i ↦ Stratum.nth i.val).toFinset;
-  close (close S) = close S ∧ IsDown (close S)) 163
+  close (close S) = close S ∧ IsDown (close S)) 165
 
 -- Control: every named set is already closed.
 #eval refuted (∀ l : List (Fin 15), let S := (l.map fun i ↦ Stratum.nth i.val).toFinset;
-  close S = S) 164
+  close S = S) 166
 
 /-- A strata name from a code. -/
 def nm (i : Fin 6) : Name := match i.val with
@@ -1514,13 +1610,17 @@ def nm (i : Fin 6) : Name := match i.val with
   | 4 => .observed
   | _ => .reference
 
--- A search without history slices exactly when `reference` is the one name.
-#eval survives (∀ l : List (Fin 6), isSlice (required .search (pick (l.map nm)) false true) =
-  decide (l.map nm = [.reference])) 165
+/-- `required(search)` as it was, with the cut decided from the number of names. -/
+def searchByNames (strata : List Stratum) : Except Err Scope :=
+  mkScope strata ∅ .projectionEvent (.point anchor)
+    (cut := if 1 < strata.length then some singleRead else none)
 
--- Control: it never slices.
-#eval refuted (∀ l : List (Fin 6), isSlice (required .search (pick (l.map nm)) false true) = false)
-  166
+-- A search never slices, over any strata.
+#eval survives (∀ l : List (Fin 15), ∀ h : Bool,
+  isSlice (required .search (l.map fun i ↦ Stratum.nth i.val) h true) = false) 167
+
+-- Control: the old rule, over each of the Ambassador's names alone.
+#eval refuted (∀ i : Fin 6, isSlice (searchByNames (pick [nm i])) = false) 168
 
 end Attack
 
