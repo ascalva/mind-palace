@@ -21,8 +21,10 @@ as the model entry for float error "bounded by construction": the two Laplacian 
 degree in different association orders and agree within `4·eps·max(1, max deg)`. Any two
 association orders of at most four nonzero nonnegative binary64 summands agree within `4·eps` of
 either result, which covers every row of the test's fixtures, whatever orders NumPy and SciPy use.
-At eleven summands two orders differ by five ulps, beyond the bound. Between five and ten the bound
-is neither proved nor refuted here. The bound holds for short rows, not by construction.
+At eight summands two orders differ by five ulps, beyond the bound. For five to seven it is neither
+proved nor refuted here: an exhaustive search over every association order of one summand near `1`
+and the rest small multiples of `u/2` found no counterexample. The bound holds for short rows, not
+by construction.
 -/
 
 namespace Palace.Binary64
@@ -281,72 +283,108 @@ theorem leaves_chain (s : SumTree K) (x : K) (n : ℕ) :
   | zero => simp [chain]
   | succ n ih => simp [chain, leaves, ih, List.replicate_succ']
 
-/-- The witness's summand `t = 127 · 2⁻⁶⁰`, just under half an ulp of `1`. -/
-abbrev tw : K := 127 * 2 ^ (-60 : ℤ)
+/-- Near `1` the grid spacing is `2u`, so `1 + 2j·u` is on it. -/
+theorem rn_one_add_grid (j : ℕ) (hj : j < 2 ^ 51) : rn (1 + 2 * j * u : K) = 1 + 2 * j * u :=
+  rn_isFloat ⟨2 ^ 52 + j, -52, by rw [abs_of_nonneg (by positivity)]; omega, by norm_num,
+    by push_cast; norm_num [u]; ring⟩
 
-/-- Absorbing: ten `t`s added to `1` one at a time. -/
-def absorb : SumTree K := chain (leaf 1) tw 10
+/-- `1 + (2j + 1)·u` is a tie between `1 + 2j·u` and `1 + 2(j + 1)·u`; ties to even picks the
+first when `j` is even and the second when `j` is odd. -/
+theorem rn_one_add_tie (j : ℕ) (hj : j < 2 ^ 50) :
+    rn (1 + (2 * j + 1) * u : K) = 1 + 2 * (j + j % 2 : ℕ) * u := by
+  have hju : (2 * j + 1 : K) * u < 1 := by
+    have : (j : K) < 2 ^ 50 := by exact_mod_cast hj
+    norm_num [u]; nlinarith
+  have h0 : (0 : K) ≤ (2 * j + 1) * u := by positivity
+  have h1 : (2 : K) ^ (0 : ℤ) ≤ 1 + (2 * j + 1) * u := by rw [zpow_zero]; linarith
+  have h2 : (1 + (2 * j + 1) * u : K) < 2 ^ (0 + 1 : ℤ) := by rw [zero_add, zpow_one]; linarith
+  rw [rn_of_binade h1 h2 (by norm_num)]
+  have hx : (1 + (2 * j + 1) * u : K) / 2 ^ (0 - 52 : ℤ) = ((2 ^ 52 + j : ℤ) : K) + 1 / 2 := by
+    push_cast; norm_num [u]; ring
+  rw [hx]
+  rcases Nat.mod_two_eq_zero_or_one j with h | h
+  · rw [rne_tie_even (by omega), h]; push_cast; norm_num [u]; ring
+  · rw [rne_tie_odd (by omega), h]; push_cast; norm_num [u]; ring
 
-/-- Gathering: the ten `t`s summed first, then added to `1`. -/
-def gather : SumTree K := node (leaf 1) (chain (leaf tw) tw 9)
+/-- The witness's summands: `1 + 2u`, an odd point of the grid near `1`, then `3u` and six
+`u`. Low: the `3u` first and then the `u`s, one at a time; every tie goes down. -/
+def low : SumTree K := chain (node (leaf (1 + 2 * u)) (leaf (3 * u))) u 6
 
-/-- `1 + t` rounds back to `1` for `0 ≤ t < 2⁻⁵³`. -/
-theorem rn_one_add {t : K} (h0 : 0 ≤ t) (ht : t < 2 ^ (-53 : ℤ)) : rn (1 + t) = 1 := by
-  have ht1 : t < 1 := ht.trans (by norm_num)
-  rw [rn_of_binade (l := 0) (by norm_num; linarith) (by norm_num; linarith) (by norm_num)]
-  have : (1 + t) / (2 : K) ^ (0 - 52 : ℤ) = ((2 ^ 52 : ℤ) : K) + t * 2 ^ 52 := by
-    norm_num; ring
-  have h1 : ((2 ^ 52 : ℤ) : K) ≤ ((2 ^ 52 : ℤ) : K) + t * 2 ^ 52 := by
-    have : (0 : K) ≤ t * 2 ^ 52 := by positivity
-    linarith
-  have h2 : ((2 ^ 52 : ℤ) : K) + t * 2 ^ 52 < ((2 ^ 52 : ℤ) : K) + 1 / 2 := by
-    norm_num at ht ⊢; linarith
-  rw [this, rne_of_lt_half h1 h2]
-  norm_num
+/-- High: the `u`s first, two of the pairs summed before they are added, and the `3u` late;
+three ties go up. -/
+def high : SumTree K :=
+  node (node (node (node (node (leaf (1 + 2 * u)) (leaf u)) (node (leaf u) (leaf u))) (leaf u))
+    (leaf (3 * u))) (node (leaf u) (leaf u))
 
-theorem absorb_fl : (absorb : SumTree K).fl = 1 := by
-  have : ∀ n, (chain (leaf 1) (tw : K) n).fl = 1 := by
+theorem low_fl : (low : SumTree K).fl = 1 + 4 * u := by
+  have hstep : rn (1 + 4 * u + u : K) = 1 + 4 * u := by
+    rw [show (1 + 4 * u + u : K) = 1 + (2 * (2 : ℕ) + 1) * u by push_cast; ring,
+      rn_one_add_tie 2 (by norm_num)]
+    norm_num
+  have h0 : rn (1 + 2 * u + 3 * u : K) = 1 + 4 * u := by
+    rw [show (1 + 2 * u + 3 * u : K) = 1 + 4 * u + u by ring, hstep]
+  have : ∀ n, (chain (node (leaf (1 + 2 * u)) (leaf (3 * u))) (u : K) n).fl = 1 + 4 * u := by
     intro n
     induction n with
-    | zero => rfl
-    | succ n ih =>
-      simp only [chain, fl, ih]
-      exact rn_one_add (by positivity) (by norm_num [tw])
-  exact this 10
+    | zero => exact h0
+    | succ n ih => simp only [chain, fl] at ih ⊢; rw [ih, hstep]
+  exact this 6
 
-theorem chain_tw_fl (n : ℕ) (hn : n ≤ 9) : (chain (leaf (tw : K)) tw n).fl = (n + 1) * tw := by
-  induction n with
-  | zero => simp [chain, fl]
-  | succ n ih =>
-    simp only [chain, fl, ih (by omega)]
-    refine (rn_isFloat ⟨127 * ((n : ℤ) + 2), -60, ?_, by norm_num, by push_cast; ring⟩).trans ?_
-    · rw [abs_of_nonneg (by positivity)]; norm_num; omega
-    · push_cast; ring
-
-theorem gather_fl : (gather : SumTree K).fl = 1 + 5 * 2 ^ (-52 : ℤ) := by
-  simp only [gather, fl, chain_tw_fl 9 le_rfl]
-  rw [rn_of_binade (l := 0) (by norm_num) (by norm_num) (by norm_num)]
-  have : (1 + ((9 : ℕ) + 1) * (tw : K)) / 2 ^ (0 - 52 : ℤ) =
-      ((2 ^ 52 + 4 : ℤ) : K) + 246 / 256 := by
-    norm_num [tw]
-  rw [this, rne_of_gt_half (z := 2 ^ 52 + 4) (by norm_num) (by norm_num)]
-  norm_num
-
-/-- **LAP-1** fails at eleven summands: `1` and ten `t`s, absorbed one at a time or gathered
-first, differ by five ulps of `1`, beyond `4 · eps · max(1, either result)`. -/
-theorem lap1_fails :
-    (absorb : SumTree K).leaves = (gather : SumTree K).leaves ∧ (gather : SumTree K).nz = 11 ∧
-      4 * 2 ^ (-52 : ℤ) * max 1 (max (absorb : SumTree K).fl (gather : SumTree K).fl) <
-        |(absorb : SumTree K).fl - (gather : SumTree K).fl| := by
-  have hl : (gather : SumTree K).leaves = 1 :: List.replicate 10 tw := by
-    simp [gather, leaves, leaves_chain, List.replicate_succ]
-  refine ⟨?_, ?_, ?_⟩
-  · rw [hl]; simp [absorb, leaves_chain, leaves]
-  · rw [nz, hl, List.filter_cons, List.filter_replicate]
-    have : (tw : K) ≠ 0 := by positivity
-    simp [this]
-  · rw [absorb_fl, gather_fl]
+theorem high_fl : (high : SumTree K).fl = 1 + 14 * u := by
+  have h2 : rn ((u : K) + u) = 2 * u := by
+    rw [rn_isFloat (x := (u : K) + u) ⟨1, -52, by norm_num, by norm_num, by norm_num [u]⟩]; ring
+  have s1 : rn (1 + 2 * u + u : K) = 1 + 4 * u := by
+    rw [show (1 + 2 * u + u : K) = 1 + (2 * (1 : ℕ) + 1) * u by push_cast; ring,
+      rn_one_add_tie 1 (by norm_num)]
     norm_num
+  have s2 : rn (1 + 4 * u + 2 * u : K) = 1 + 6 * u := by
+    rw [show (1 + 4 * u + 2 * u : K) = 1 + 2 * (3 : ℕ) * u by push_cast; ring,
+      rn_one_add_grid 3 (by norm_num)]
+    norm_num
+  have s3 : rn (1 + 6 * u + u : K) = 1 + 8 * u := by
+    rw [show (1 + 6 * u + u : K) = 1 + (2 * (3 : ℕ) + 1) * u by push_cast; ring,
+      rn_one_add_tie 3 (by norm_num)]
+    norm_num
+  have s4 : rn (1 + 8 * u + 3 * u : K) = 1 + 12 * u := by
+    rw [show (1 + 8 * u + 3 * u : K) = 1 + (2 * (5 : ℕ) + 1) * u by push_cast; ring,
+      rn_one_add_tie 5 (by norm_num)]
+    norm_num
+  have s5 : rn (1 + 12 * u + 2 * u : K) = 1 + 14 * u := by
+    rw [show (1 + 12 * u + 2 * u : K) = 1 + 2 * (7 : ℕ) * u by push_cast; ring,
+      rn_one_add_grid 7 (by norm_num)]
+    norm_num
+  simp only [high, fl, h2, s1, s2, s3, s4, s5]
+
+/-- **LAP-1** fails at eight summands: the same eight nonnegative binary64 summands, in two
+association orders, differ by five ulps of `1`, beyond `4 · eps · max(1, either result)`. -/
+theorem lap1_fails :
+    (∀ x ∈ (high : SumTree K).leaves, 0 ≤ x ∧ IsFloat x) ∧
+      (low : SumTree K).leaves.Perm (high : SumTree K).leaves ∧ (high : SumTree K).nz = 8 ∧
+      4 * 2 ^ (-52 : ℤ) * max 1 (max (low : SumTree K).fl (high : SumTree K).fl) <
+        |(low : SumTree K).fl - (high : SumTree K).fl| := by
+  have hu : (0 : K) < u := by positivity
+  have hh : (high : SumTree K).leaves = (1 + 2 * u) :: ([u, u, u, u] ++ 3 * u :: [u, u]) := by
+    simp [high, leaves]
+  have hl : (low : SumTree K).leaves = (1 + 2 * u) :: 3 * u :: ([u, u, u, u] ++ [u, u]) := by
+    simp [low, leaves_chain, leaves, List.replicate_succ]
+  have hB : IsFloat (1 + 2 * u : K) :=
+    ⟨2 ^ 52 + 1, -52, by norm_num, by norm_num, by push_cast; norm_num [u]⟩
+  have h1 : IsFloat (u : K) := ⟨1, -53, by norm_num, by norm_num, by simp [u]⟩
+  have h3 : IsFloat (3 * u : K) := ⟨3, -53, by norm_num, by norm_num, by simp [u]⟩
+  have hpos : ∀ x ∈ (high : SumTree K).leaves, 0 < x ∧ IsFloat x := by
+    rw [hh]
+    intro x hx
+    simp only [List.cons_append, List.nil_append, List.mem_cons, List.not_mem_nil, or_false]
+      at hx
+    rcases hx with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+      first | exact ⟨by positivity, hB⟩ | exact ⟨hu, h1⟩ | exact ⟨by positivity, h3⟩
+  refine ⟨fun x hx ↦ ⟨(hpos x hx).1.le, (hpos x hx).2⟩, ?_, ?_, ?_⟩
+  · rw [hl, hh]
+    exact List.Perm.cons _ List.perm_middle.symm
+  · rw [nz, List.filter_eq_self.2 fun x hx ↦ decide_eq_true (hpos x hx).1.ne', hh]
+    rfl
+  · rw [low_fl, high_fl]
+    norm_num [u]
 
 end SumTree
 
@@ -356,8 +394,9 @@ end Reassoc
 
 The theorems hold over the model; these run the same statements in this machine's binary64. LAP-1:
 rows of one to four nonnegative weights, summed left to right, right to left and pairwise, agree
-within `4 · eps` of each result. The control draws the witness's shape, `1` and ten copies of one
-`t` between a quarter and a half ulp of `1`, and must break the bound. CND-6: `k / n == 1.0` exactly
+within `4 · eps` of each result. The control draws eleven summands, `1` and ten copies of one `t`
+between a quarter and a half ulp of `1`, absorbed one at a time or gathered first, and must break
+the bound. CND-6: `k / n == 1.0` exactly
 when `k = n`, below `2^53`. The control asks the same of binary32, whose 24-bit significand rounds
 `(n − 1)/n` to `1` from `n ≈ 2^24` on.
 -/
@@ -432,15 +471,17 @@ def elevenAgree (w : Small) : Bool :=
   | some a, some b => decide (|a - b| ≤ 4 * 2 ^ (-52 : ℤ) * max 1 (max a b))
   | _, _ => false
 
-/- Control, eleven summands of the witness's shape. -/
+/- Control, eleven summands absorbed one at a time or gathered first. -/
 #eval refuted (∀ w : Small, elevenAgree w = true) 138
 
-/-- The witness of `lap1_fails`, `t = 127 · 2⁻⁶⁰`, on this machine: absorbing gives `1`, gathering
-`1 + 5 · 2⁻⁵²`. -/
+/-- The witness of `lap1_fails` on this machine: from `1 + 2u`, the low order gives `1 + 4u` and
+the high order `1 + 14u`. -/
 def lap1Witness : Bool :=
-  let t : Float := 127 / 1152921504606846976
-  toRat? ((List.replicate 10 t).foldl (· + ·) 1) == some 1 &&
-    toRat? (1 + (List.replicate 9 t).foldl (· + ·) t) == some (1 + 5 * 2 ^ (-52 : ℤ))
+  let u : Float := 1 / 9007199254740992
+  let b : Float := 1 + 2 * u
+  let low := (List.replicate 6 u).foldl (· + ·) (b + 3 * u)
+  let high := ((((b + u) + (u + u)) + u) + 3 * u) + (u + u)
+  toRat? low == some (1 + 4 * 2 ^ (-53 : ℤ)) && toRat? high == some (1 + 14 * 2 ^ (-53 : ℤ))
 
 #eval show Lean.CoreM Unit from do
   unless lap1Witness do throwError "the LAP-1 witness does not reproduce on this machine"

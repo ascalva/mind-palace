@@ -127,6 +127,14 @@ theorem rne_tie_odd {z : ℤ} (hz : z % 2 = 1) : rne ((z : K) + 1 / 2) = z + 1 :
   unfold rne
   simp only [ha, hb, hc, ↓reduceIte, hf]
 
+/-- At a tie above an even `z`, `rne` stays at `z`. -/
+theorem rne_tie_even {z : ℤ} (hz : z % 2 = 0) : rne ((z : K) + 1 / 2) = z := by
+  have hf : ⌊(z : K) + 1 / 2⌋ = z := Int.floor_eq_iff.2 ⟨by linarith, by linarith⟩
+  have ha : ¬ Int.fract ((z : K) + 1 / 2) < 1 / 2 := by rw [fract_eq, hf]; simp
+  have hb : ¬ 1 / 2 < Int.fract ((z : K) + 1 / 2) := by rw [fract_eq, hf]; simp
+  unfold rne
+  simp only [ha, hb, hz, ↓reduceIte, hf]
+
 /-- `rne` is odd: ties to even is symmetric under negation. -/
 theorem rne_neg (y : K) : rne (-y) = -rne y := by
   rcases eq_or_ne (Int.fract y) 0 with h | h

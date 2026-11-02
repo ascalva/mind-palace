@@ -508,7 +508,7 @@ names per row:
    `test_graph_boundary.py` doctrine, adopted as the ledger's model entry (LAP-1):
    Laplacian off-diagonals exact, degree sums within 4·eps·max — **AMENDED by A1:
    proved for rows of at most four nonzero weights (every fixture row) and refuted
-   at eleven; the bound holds for short rows and benign weights, not by
+   at eight; the bound holds for short rows and benign weights, not by
    construction** — with the written
    rule that reassociation is not a metric change and O(1) divergence is a P4 stop;
    R_eff route-invariance at rtol 1e-10, "generous over ulp noise, catastrophically
@@ -759,8 +759,10 @@ what float64 computes. Both are proved in `formal/`:
 - **LAP-1.** Any two association orders of the same at most four nonzero nonnegative
   binary64 summands agree within `4·eps` of either result (`agreement`). So the
   boundary test's bound holds on every fixture row, each of which has at most three,
-  whatever orders NumPy and SciPy use. At eleven summands two orders differ by five
-  ulps (`lap1_fails`). Between five and ten the bound is open. Measured with NumPy
+  whatever orders NumPy and SciPy use. At eight summands two orders differ by five
+  ulps (`lap1_fails`). For five to seven the bound is open; an exhaustive search over
+  every association order of one summand near `1` and small multiples of `u/2` found
+  no counterexample. Measured with NumPy
   2.5.4 and SciPy 1.18.1 on 2026-11-01: the test's two routes first break the bound on a
   37-weight star of `1` and weights just under `2⁻⁵³`, and random rows of 8 to 3,000
   weights in `[0.3, 1]` reached at most 0.66 of it.
@@ -786,7 +788,7 @@ NumPy's without modeling NumPy.
 ### A1.3 — What §2.5 said, and what it says now
 
 - Tier 2 called LAP-1's bound float error "bounded by construction". It is bounded for
-  rows of at most four nonzero weights and fails at eleven (A1.1). The tier keeps its
+  rows of at most four nonzero weights and fails at eight (A1.1). The tier keeps its
   name; its model entry now carries the row-length hypothesis.
 - The χ_s aside said `(n−1)/n` rounds below `1.0` "for realistic N_s". The exact
   condition is `N_s < 2⁵⁴`.
