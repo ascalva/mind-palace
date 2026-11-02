@@ -27,6 +27,8 @@ model is written here, small, in Flocq's terms.
 
 Overflow is not modeled, so `rn` is binary64's rounding below `2^1024`. Every basic operation of
 IEEE 754 returns `rn` of its exact result: `a ⊕ b = rn (a + b)`, and likewise for `−`, `×`, `÷`.
+For Lean's own `Float` that is a theorem (`Palace/FloatModel.lean`); the attacks below check it
+against this machine's arithmetic.
 
 The laws: `rn` fixes binary64 numbers, is monotone and odd, lands on binary64, and moves `x` by at
 most half an ulp. On the grid of multiples of `2⁻¹⁰⁷⁴`, where every sum of binary64 numbers lies,
