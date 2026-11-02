@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import dataclasses
 import itertools
+from collections.abc import Hashable
 
 import pytest
 
@@ -158,6 +159,84 @@ def test_same_clock_meet_intersects_windows():
     a = TimeScope(Clock.COMMIT, Window.interval(0, 10))
     b = TimeScope(Clock.COMMIT, Window.interval(4, 20))
     assert a.meet(b) == TimeScope(Clock.COMMIT, Window.interval(4, 10))
+
+
+class _EveryClockAtlas:
+    """A store-free `ClockAtlas`: every clock but wall/now covered, every window pulled back to the
+    same one-event token."""
+
+    def has(self, clock: Clock) -> bool:
+        return clock not in (Clock.WALL, Clock.NOW)
+
+    def pullback(self, clock: Clock, window: Window) -> Hashable:
+        return frozenset({"e"})
+
+    def intersect(self, a: Hashable, b: Hashable) -> Hashable | None:
+        return a if a == b else None
+
+    def token(self, window: Window) -> Hashable | None:
+        return window.lo if isinstance(window.lo, frozenset) else None
+
+
+def test_delegation_stays_partial_across_clocks_under_an_atlas():
+    """With an atlas registered, `TimeScope.meet` completes on N (GC-4), but that result lies under
+    neither input (`⊑` is false across clocks), so `Scope.meet` — delegation — must not use it: a
+    cross-clock delegation still raises, and #6 holds whatever atlas is registered
+    (formal/Palace/Scope.lean, `atlas_breaks_delegation`)."""
+    from core.kernel.scope import register_atlas
+
+    parent = _scope(StratumScope.of(Stratum.CURATED), EdgeScope.top(), Window.all(),
+                    Authority.read_only())
+    template = Scope(StratumScope.of(Stratum.CURATED), EdgeScope.top(),
+                     TimeScope(Clock.N_S, Window.all()), Authority.read_only(),
+                     tier=Tier.STATIC_GUARD)
+    register_atlas(_EveryClockAtlas())
+    try:
+        completed = parent.time.meet(template.time)               # the retrieval completion
+        assert completed.clock is Clock.N
+        assert not (completed <= parent.time) and not (completed <= template.time)
+        with pytest.raises(NoCommonClockError):
+            parent.meet(template)                                 # delegation refuses it
+    finally:
+        register_atlas(None)
+
+
+def test_a_meet_keeps_a_cut_only_one_side_carries_when_it_keeps_that_window():
+    """A cut is consistent for its scope's window and stays consistent on fewer strata, so a meet
+    that keeps the cut-carrying side's window keeps its cut — the owner's point-cut grant met with a
+    dreamer template on `∗` stays constructible. Where the windows meet at a new point, no side's
+    cut covers it: the meet raises `SliceError`."""
+    point_grant = Scope(StratumScope.of(Stratum.OPS, Stratum.REFERENCE), EdgeScope.top(),
+                        TimeScope(Clock.N, Window.point("g5")), Authority.read_only(),
+                        tier=Tier.STATIC_GUARD, cut=("cut-sha", "gen-5"))
+    template = Scope(StratumScope.of(Stratum.OPS, Stratum.REFERENCE), EdgeScope.top(),
+                     TimeScope.ledger(), Authority.read_only(), tier=Tier.STATIC_GUARD)
+    met = point_grant.meet(template)
+    assert met.cut == ("cut-sha", "gen-5") and met <= point_grant and met <= template
+    left = Scope(StratumScope.of(Stratum.OPS, Stratum.REFERENCE), EdgeScope.top(),
+                 TimeScope(Clock.N_S, Window.interval(1, 5)), Authority.read_only(),
+                 tier=Tier.STATIC_GUARD, cut=("cut-sha", "gen-1"))
+    right = Scope(StratumScope.of(Stratum.OPS, Stratum.REFERENCE), EdgeScope.top(),
+                  TimeScope(Clock.N_S, Window.interval(5, 9)), Authority.read_only(),
+                  tier=Tier.STATIC_GUARD)
+    with pytest.raises(SliceError):
+        left.meet(right)                                          # pt(5): neither cut covers it
+
+
+def test_windows_take_only_the_shapes_their_constructors_build():
+    """An inverted interval denotes no point yet sat under two disjoint windows and not under their
+    meet ⊥, the one way `meet` failed to be the greatest lower bound
+    (formal/Palace/Scope.lean, `Witness.meet_not_glb`); it is refused, as are malformed shapes."""
+    from core.kernel.scope import WindowKind
+
+    with pytest.raises(ValueError):
+        Window.interval(6, 2)
+    with pytest.raises(ValueError):
+        Window(WindowKind.POINT, 1, 2)
+    with pytest.raises(ValueError):
+        Window(WindowKind.ALL, 1, None)
+    assert Window.interval(2, 2) <= Window.point(2) <= Window.interval(2, 2)   # ⊑ is a preorder
+    assert Window.interval("a", "b").meet(Window.interval("b", "c")) == Window.empty()
 
 
 def test_common_refinement_poset():
@@ -467,10 +546,11 @@ def test_lattice_laws_hold_over_hypothetical():
 # demands the ADVERSARIAL case: a CONSTRUCTABLE deployed grant with non-⊥ private Σ AND W_world>NONE
 # must be REFUSED — if it cannot be structurally refused, the §2.3 derivation is decorative. It can.
 def test_private_strata_is_every_grantable_stratum_except_world():
-    """PRIVATE_STRATA = ⊤_Σ ∖ {world}: the corpus/vault side. It carries the refinements (so a scope
-    naming only `mirror_authored` counts private) and excludes `world`, FOUNDATION (𝔇, ungrantable),
-    and the HYPOTHETICAL overlay (not a base stratum)."""
-    assert PRIVATE_STRATA == StratumScope.top().strata - {Stratum.WORLD}
+    """PRIVATE_STRATA = ⊤_Σ ∖ {world}, plus `exhaust`: the corpus/vault side. It carries the
+    refinements (so a scope naming only `mirror_authored` counts private), including `exhaust`,
+    which ⊤_Σ omits only because a grant must name it; it excludes `world`, FOUNDATION (𝔇,
+    ungrantable), and the HYPOTHETICAL overlay (not a base stratum)."""
+    assert PRIVATE_STRATA == (StratumScope.top().strata - {Stratum.WORLD}) | {Stratum.EXHAUST}
     assert Stratum.WORLD not in PRIVATE_STRATA
     assert Stratum.FOUNDATION not in PRIVATE_STRATA
     assert Stratum.HYPOTHETICAL not in PRIVATE_STRATA
@@ -478,8 +558,19 @@ def test_private_strata_is_every_grantable_stratum_except_world():
     # kept IN pending the owner's proposed→ready call, plan §3 Q3)
     for s in (Stratum.MIRROR, Stratum.MIRROR_AUTHORED, Stratum.CURATED, Stratum.OBSERVED,
               Stratum.OPS, Stratum.REFERENCE, Stratum.REFERENCE_REPO, Stratum.INTERPRETED,
-              Stratum.DIALOGUE, Stratum.DIALOGUE_TRANSCRIPT, Stratum.DIALOGUE_ARTIFACT):
+              Stratum.DIALOGUE, Stratum.DIALOGUE_TRANSCRIPT, Stratum.DIALOGUE_ARTIFACT,
+              Stratum.EXHAUST):
         assert s in PRIVATE_STRATA
+
+
+def test_zone_law_REFUSES_an_exhaust_read_with_world_reach():
+    """A grant that names only `exhaust` reads the agent-side dialogue rows: with world reach it is
+    refused like any private read. When PRIVATE_STRATA came from ⊤_Σ, which omits `exhaust`, this
+    grant passed (formal/Palace/Scope.lean, `Witness.exhaust_zone_gap`)."""
+    for reach in (WorldReach.SENSING, WorldReach.REVERSIBLE, WorldReach.IRREVERSIBLE):
+        leak = _scope(StratumScope.of(Stratum.EXHAUST), EdgeScope.bottom(), Window.all(),
+                      Authority(Privilege.READ, 0, reach))
+        assert not zone_admissible(leak)
 
 
 def test_zone_law_REFUSES_a_constructable_private_read_with_world_reach():

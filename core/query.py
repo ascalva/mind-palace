@@ -55,6 +55,7 @@ from core.kernel.scope import (
     NoCommonClockError,
     Privilege,
     Scope,
+    SliceError,
     Stratum,
     StratumScope,
     Tier,
@@ -150,13 +151,15 @@ class Grant:
         return any(req_admissible(required, g) for g in self.scopes)
 
     def meet(self, other: Grant) -> Grant:
-        """Safe delegation: the pairwise meets that exist (a cross-clock pair has no meet)."""
+        """Safe delegation: the pairwise meets that exist. A cross-clock pair has no meet, and
+        neither has a pair whose windows meet at a point across several strata with no shared
+        cut (`[1,5] ⊓ [5,9] = pt(5)`): the SLICE rule refuses it (formal/Palace/Scope.lean)."""
         out: list[Scope] = []
         for a in self.scopes:
             for b in other.scopes:
                 try:
                     out.append(a.meet(b))
-                except NoCommonClockError:
+                except (NoCommonClockError, SliceError):
                     continue
         return Grant(tuple(out))
 
@@ -212,12 +215,15 @@ def required(
     """`req(verb)` — the least scope a sentence of this verb needs."""
     if verb is Verb.SEARCH:
         sigma = tuple(strata)
+        # The SLICE rule counts strata after downward closure, and `reference` closes to two
+        # (`reference_repo` below it), so the single-read cut follows the closed set, not the
+        # names: counting names made a search over `reference` alone raise SliceError.
         return scope(
             sigma,
             {"D"} if history else set(),
             Clock.PROJECTION_EVENT,
             _ALL if history else _NOW,
-            cut="single-read" if len(sigma) > 1 else None,
+            cut="single-read" if len(StratumScope.of(*sigma).strata) > 1 else None,
         )
     if verb in (Verb.DIFFUSE, Verb.HYBRID, Verb.RELATED):
         return scope({Stratum.MIRROR_AUTHORED}, {"F"}, Clock.PROJECTION_EVENT, _NOW)

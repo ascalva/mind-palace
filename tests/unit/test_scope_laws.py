@@ -88,18 +88,20 @@ def test_hypothetical_is_not_the_denylist():
 # reads off this declared set — any drift in its membership is a deliberate, reviewed act, exactly
 # like the `_EXPECTED_MEMBERS` pin above. The widest-exclusion default keeps every stratum but
 # `world` (plan §3 Q3: ops/reference IN, owner's call at proposed→ready).
-# `exhaust` is excluded too: it is a default-EXCLUDED refinement (AL-3), so `_downward_close` never
-# auto-adds it to `⊤_Σ` — PRIVATE_STRATA (derived from ⊤_Σ ∖ {world}) is therefore byte-identical to
-# before `exhaust` existed (the additive property, mirroring `hypothetical`).
-_EXPECTED_PRIVATE = _EXPECTED_MEMBERS - {"world", "foundation", "hypothetical", "exhaust"}
+# `exhaust` is IN: it is a default-EXCLUDED refinement (AL-3), so `_downward_close` never auto-adds
+# it to `⊤_Σ`, but it is the agent-side dialogue rows (dn-agentic-loop §2.4b), and a grant that
+# names it reads them. When PRIVATE_STRATA was derived from ⊤_Σ ∖ {world}, such a grant could hold
+# world reach (formal/Palace/Scope.lean, `Witness.exhaust_zone_gap`); it is now taken from the
+# refinement relation, every refinement below a private base stratum.
+_EXPECTED_PRIVATE = _EXPECTED_MEMBERS - {"world", "foundation", "hypothetical"}
 
 
 def test_private_strata_membership_is_pinned():
-    """PRIVATE_STRATA = every grantable stratum (⊤_Σ, refinements included) EXCEPT `world`; excludes
-    `foundation` (𝔇), the `hypothetical` overlay (not a base stratum), and `exhaust` (a default-
-    excluded refinement, never in ⊤_Σ — AL-3 keeps PRIVATE_STRATA byte-identical)."""
+    """PRIVATE_STRATA = every base stratum EXCEPT `world`, with every refinement below one, named or
+    not; excludes `foundation` (𝔇) and the `hypothetical` overlay (not a base stratum), and
+    includes `exhaust` (a default-excluded refinement of `dialogue`, private once named)."""
     assert {s.value for s in PRIVATE_STRATA} == _EXPECTED_PRIVATE
     assert Stratum.WORLD not in PRIVATE_STRATA
     assert Stratum.FOUNDATION not in PRIVATE_STRATA
     assert Stratum.HYPOTHETICAL not in PRIVATE_STRATA
-    assert Stratum.EXHAUST not in PRIVATE_STRATA
+    assert Stratum.EXHAUST in PRIVATE_STRATA

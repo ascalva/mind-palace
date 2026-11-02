@@ -5,7 +5,9 @@
 # INVARIANT: monotone delegation — meet(parent, template) ⊑ parent, ALWAYS (non-negotiable #6);
 #            the foundation denylist 𝔇 is subtracted from ⊤_Σ (CONSTITUTION.md / eval/golden never
 #            grantable); cross-clock meets are a PARTIAL semilattice — a constructor error, never a
-#            silent guess, until the global event clock N materializes (CS-a).
+#            silent guess, until the global event clock N materializes (CS-a); cross-clock
+#            DELEGATION stays one after it does (`Scope.meet`: the atlas result is ⊑ neither
+#            input).
 # ENFORCED:  static (this pure-core typing layer; mypy-checked) + guard (tests/unit/test_scope.py
 #            proves the lattice laws, the partial T-meet, and delegation-monotonicity). This module
 #            wires NO enforcement into any read path — it is vocabulary, not a gate (bp-039 §0).
@@ -27,7 +29,9 @@ whose four coordinates are themselves lattices:
   * **T (`TimeScope`)** — `(clock, window)`. A clock is a monotone coarsening of the ledger causal
     order; the clock poset has the global event clock N (finest, PARKED — not yet materialized) at
     the top. The T-meet is PARTIAL: same clock → intersect windows; different clocks → a constructor
-    error `NoCommonClockError` until N materializes (the honesty the partiality preserves).
+    error `NoCommonClockError` until N materializes (the honesty the partiality preserves). A
+    registered clock atlas completes `TimeScope.meet` on N for retrieval; `Scope.meet`, the
+    delegation law, stays partial across clocks, since that result lies under neither input.
   * **A (`Authority`)** — `P × W_Σ × W_world`: the advisory ladder `P ∈ {READ < READ_PROPOSE}`
     (non-negotiable #3), the projection-write bit `W_Σ ∈ {0 < 1}` (the sensor dual), and the
     effector blast-radius chain `W_world` (`WorldReach`). The seed's single "write" rung conflated
@@ -161,7 +165,10 @@ class StratumScope:
 
     @classmethod
     def top(cls) -> StratumScope:
-        """`⊤_Σ = R ∖ 𝔇` — the fullest grant: every stratum + its refinements, minus FOUNDATION."""
+        """`⊤_Σ` — the fullest ORDINARY grant: every base stratum + its auto-closed refinements.
+        Not all of `R ∖ 𝔇`: besides FOUNDATION it omits the HYPOTHETICAL overlay and the EXHAUST
+        refinement, which a grant holds only by naming them, so a scope that names either is not
+        `⊑ top()` (formal/Palace/Scope.lean, `top_eq`)."""
         return cls(strata=_downward_close(_BASE_STRATA))
 
     @classmethod
@@ -280,11 +287,31 @@ class Window:
     """A window over a clock's index: `pt(a)`, `[a, b]`, `∗` (ALL), or EMPTY (⊥). Bounds are opaque
     tokens (a commit SHA, an event count, …); meet/⊑ handle ALL/EMPTY/equality and int-orderable
     bounds, and are conservative (→ EMPTY / not-⊑) where opaque overlap is indeterminate. Precise
-    window arithmetic is retrieval math (out of scope, dn-capability-scope §1)."""
+    window arithmetic is retrieval math (out of scope, dn-capability-scope §1).
+
+    `⊑` is a preorder, not a partial order: `pt(a)` and `[a, a]` lie under each other yet differ,
+    so the lattice laws hold up to that equivalence (formal/Palace/Scope.lean proves join the least
+    upper bound and meet the greatest lower bound of any two windows the constructors build)."""
 
     kind: WindowKind
     lo: Hashable = None
     hi: Hashable = None
+
+    def __post_init__(self) -> None:
+        """Only the shapes the constructors build: `∗` and ⊥ carry no bounds, a point has one
+        bound, and an int interval is not inverted. An inverted interval denotes no point, yet it
+        sat under two disjoint windows and not under their meet ⊥: the one way `meet` failed to be
+        the greatest lower bound (formal/Palace/Scope.lean, `Witness.meet_not_glb`)."""
+        if self.kind in (WindowKind.ALL, WindowKind.EMPTY) and (
+                self.lo is not None or self.hi is not None):
+            raise ValueError(
+                f"a {self.kind.value} window has no bounds, got ({self.lo!r}, {self.hi!r})")
+        if self.kind is WindowKind.POINT and self.lo != self.hi:
+            raise ValueError(f"a point window has one bound, got ({self.lo!r}, {self.hi!r})")
+        if (self.kind is WindowKind.INTERVAL and isinstance(self.lo, int)
+                and isinstance(self.hi, int) and self.lo > self.hi):
+            raise ValueError(f"an inverted interval [{self.lo}, {self.hi}] — the empty window is "
+                             f"Window.empty()")
 
     @classmethod
     def point(cls, a: Hashable) -> Window:
@@ -377,12 +404,14 @@ class ClockAtlas(Protocol):
     """The injectable clock-pullback seam `TimeScope.meet` consults for a cross-clock meet. `has`
     reports whether a window over κ can be pulled back to N (an exogenous coordinate with no `p_κ` —
     wall, the live-present anchor — is NOT covered); `pullback` maps a κ-window to an opaque,
-    hashable N-window token (the event set `p_κ⁻¹(W)`); `intersect` meets two such tokens. The
-    concrete `SpineAtlas` lives in `core/temporal/atlas.py`; scope.py stays store-free (plan §3)."""
+    hashable N-window token (the event set `p_κ⁻¹(W)`); `intersect` meets two such tokens; `token`
+    recognizes a window that carries one, so two N-windows meet as event sets, not by equality.
+    The concrete `SpineAtlas` lives in `core/temporal/atlas.py`; scope.py stays store-free."""
 
     def has(self, clock: Clock) -> bool: ...
     def pullback(self, clock: Clock, window: Window) -> Hashable: ...      # an N-window token
     def intersect(self, a: Hashable, b: Hashable) -> Hashable | None: ...  # None ⇒ the empty set
+    def token(self, window: Window) -> Hashable | None: ...                # None ⇒ not a token
 
 
 # The process-wide registered atlas — `None` by default (the T-meet is the partial semilattice it
@@ -399,10 +428,19 @@ def register_atlas(atlas: ClockAtlas | None) -> None:
     _ATLAS = atlas
 
 
+def _pullback_meet(atlas: ClockAtlas, a: TimeScope, b: TimeScope) -> TimeScope:
+    """`(N, p_a⁻¹(W_a) ∩ p_b⁻¹(W_b))` through `atlas`: the event-level meet, its token wrapped as
+    the degenerate interval `[S, S]`, and the empty intersection as the EMPTY window."""
+    token = atlas.intersect(atlas.pullback(a.clock, a.window), atlas.pullback(b.clock, b.window))
+    return TimeScope(Clock.N, Window.empty() if token is None else Window.interval(token, token))
+
+
 @dataclass(frozen=True)
 class TimeScope:
     """`T = (clock, window)`. The anchor is first-class: `now = (κ, pt(latest))`, `ledger = (N, ∗)`.
-    The meet is PARTIAL — a cross-clock meet raises `NoCommonClockError` until N materializes."""
+    The meet is PARTIAL — a cross-clock meet raises `NoCommonClockError` until N materializes; with
+    an atlas registered it completes on N (GC-4), for retrieval. `Scope.meet` does not use that
+    completion: delegation across clocks stays an error."""
 
     clock: Clock
     window: Window
@@ -417,9 +455,18 @@ class TimeScope:
         return cls(Clock.N, Window.all())
 
     def meet(self, other: TimeScope) -> TimeScope:
-        if self.clock is other.clock:
-            return TimeScope(self.clock, self.window.meet(other.window))
         atlas = _ATLAS
+        if self.clock is other.clock:
+            if (self.clock is Clock.N and atlas is not None and atlas.has(Clock.N)
+                    and (atlas.token(self.window) is not None
+                         or atlas.token(other.window) is not None)):
+                # An N-window token is an event set: meet it as one. `Window.meet` compares two
+                # tokens for equality and returns ⊥ for different sets, so a meet of two meets
+                # dropped the events they shared and the atlas meet was not associative
+                # (formal/Palace/Scope.lean). Tokens exist only under an atlas, so no meet that is
+                # legal without one changes.
+                return _pullback_meet(atlas, self, other)
+            return TimeScope(self.clock, self.window.meet(other.window))
         if atlas is not None and atlas.has(self.clock) and atlas.has(other.clock):
             # GC-4: both clocks are atlas-covered ⇒ pull each window back to the event level and
             # intersect (T₁ ⊓ T₂ = (N, p₁⁻¹(W₁) ∩ p₂⁻¹(W₂)); dn-global-event-clock §2.5). The
@@ -427,10 +474,7 @@ class TimeScope:
             # grammar; the empty intersection is the EMPTY window, NEVER an error. This branch's
             # domain is EXACTLY the cross-clock path that raised below — no previously-legal (same-
             # clock) meet is touched, and with no atlas registered this is skipped entirely.
-            token = atlas.intersect(atlas.pullback(self.clock, self.window),
-                                    atlas.pullback(other.clock, other.window))
-            return TimeScope(Clock.N,
-                             Window.empty() if token is None else Window.interval(token, token))
+            return _pullback_meet(atlas, self, other)
         if common_refinement(self.clock, other.clock) is None:
             raise NoCommonClockError(
                 f"no common materialized clock for {self.clock.value!r} ⊓ {other.clock.value!r} — "
@@ -577,21 +621,38 @@ class Scope:
             )
 
     def meet(self, other: Scope) -> Scope:
-        """Safe composition — componentwise meet; `tier` = min along the chain. Raises
-        `NoCommonClockError` on a cross-clock T-meet. `meet(parent, template) ⊑ parent` always
-        (monotone delegation — non-negotiable #6)."""
+        """Safe composition — componentwise meet; `tier` = min along the chain. `meet(parent,
+        template) ⊑ parent` whenever it returns (monotone delegation — non-negotiable #6).
+
+        Partial in two ways. Across clocks it raises `NoCommonClockError`, atlas or not: a clock
+        atlas completes `TimeScope.meet` on `N` for retrieval, but that result lies under neither
+        input (`⊑` is false across clocks) and its event-set window depends on what the spine
+        holds, so a delegation through it would be neither monotone nor fixed
+        (formal/Palace/Scope.lean). And it raises `SliceError` when the windows meet at a point
+        over several strata with no consistent cut, as `[1,5] ⊓ [5,9] = pt(5)` does. A cut only
+        one side carries survives when the meet keeps that side's window: a consistent cut stays
+        consistent on fewer strata."""
+        if self.time.clock is not other.time.clock:
+            raise NoCommonClockError(
+                f"no delegation across clocks {self.time.clock.value!r} ⊓ "
+                f"{other.time.clock.value!r}: a clock atlas completes the time meet for retrieval, "
+                f"not for delegation (dn-capability-scope §2.2)"
+            )
+        time = TimeScope(self.time.clock, self.time.window.meet(other.time.window))
         return Scope(
             self.sigma.meet(other.sigma),
             self.edges.meet(other.edges),
-            self.time.meet(other.time),
+            time,
             self.authority.meet(other.authority),
             tier=Tier(min(self.tier, other.tier)),
-            cut=self.cut if self.cut == other.cut else None,
+            cut=_meet_cut(self, other, time.window),
         )
 
     def join(self, other: Scope) -> Scope:
         """A widening — componentwise join; `tier` = min along the chain (a join is no more assured
-        than its weakest input). Grantable only by an authority already holding the join."""
+        than its weakest input). Grantable only by an authority already holding the join. Raises
+        `NoCommonClockError` across clocks, and `SliceError` when the join is a point window over
+        several strata without a shared cut (neither input's cut covers the other's strata)."""
         return Scope(
             self.sigma.join(other.sigma),
             self.edges.join(other.edges),
@@ -609,6 +670,18 @@ class Scope:
                 and self.edges <= other.edges
                 and self.time <= other.time
                 and self.authority <= other.authority)
+
+
+def _meet_cut(a: Scope, b: Scope, window: Window) -> Hashable | None:
+    """The cut a meet carries: the one both share; else the one a single side carries, if the meet
+    kept that side's window; else none, and a multi-stratum point meet raises `SliceError`."""
+    if a.cut == b.cut:
+        return a.cut
+    if b.cut is None and window == a.time.window:
+        return a.cut
+    if a.cut is None and window == b.time.window:
+        return b.cut
+    return None
 
 
 def _join_time_raise(a: TimeScope, b: TimeScope) -> TimeScope:
@@ -688,15 +761,21 @@ DEPLOYED_WORLD_CEILING: WorldReach = WorldReach.NONE
 # asserts a property the code already has by shape; the point is to make it a tested ratchet,
 # not an accident, before any EffectView is ever wired.
 
-# PRIVATE_STRATA — the corpus/vault side of R: every grantable stratum EXCEPT `world` (the sole
-# public/effector coordinate). Derived from `⊤_Σ` (carries refinements too — a scope naming
-# only `mirror_authored` still counts as private) minus WORLD; FOUNDATION (never grantable) and the
-# HYPOTHETICAL overlay (never in an ordinary grant, and any real staged read composes with a durable
-# private stratum that IS in this set) are excluded by construction. This is the WIDEST-exclusion /
-# strongest-law default (plan §3 Q3): whether `ops`/`reference` ought to count as "private" for this
-# law is an OWNER call at proposed→ready — the default keeps them IN (a leak passing is the unsafe
-# direction; over-inclusion only over-constrains a not-yet-wired world reach).
-PRIVATE_STRATA: frozenset[Stratum] = _downward_close(_BASE_STRATA - {Stratum.WORLD})
+# PRIVATE_STRATA — the corpus/vault side of R: every base stratum EXCEPT `world` (the sole
+# public/effector coordinate), with every refinement below one — a scope naming only
+# `mirror_authored` still counts as private, and so does one naming only `exhaust`, the agent-side
+# dialogue rows. Taken from the refinement relation, not from `⊤_Σ`: a default grant never
+# auto-adds `exhaust`, but a grant that names it reads private rows, and deriving this set from
+# `⊤_Σ` let such a grant hold world reach (formal/Palace/Scope.lean, `Witness.exhaust_zone_gap`).
+# FOUNDATION (never grantable) and the HYPOTHETICAL overlay (never in an ordinary grant, and any
+# real staged read composes with a durable private stratum that IS in this set) are excluded by
+# construction. This is the WIDEST-exclusion / strongest-law default (plan §3 Q3): whether
+# `ops`/`reference` ought to count as "private" for this law is an OWNER call at proposed→ready —
+# the default keeps them IN (a leak passing is the unsafe direction; over-inclusion only
+# over-constrains a not-yet-wired world reach).
+PRIVATE_STRATA: frozenset[Stratum] = frozenset(
+    s for s in Stratum if _REFINES.get(s, s) in _BASE_STRATA - {Stratum.WORLD}
+)
 
 
 def zone_admissible(s: Scope) -> bool:

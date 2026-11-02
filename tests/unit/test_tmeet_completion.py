@@ -205,6 +205,56 @@ def test_meet_is_associative_on_covered_triples() -> None:
         assert a.meet(b).meet(c) == a.meet(b.meet(c))
 
 
+_S12, _S23 = frozenset({_A1, _A2}), frozenset({_A2, _A3})
+
+
+def _mixed_scopes() -> list[TimeScope]:
+    """Covered scopes beyond `∗` windows: two on one clock with opaque windows sharing an endpoint,
+    int windows, per-stratum points, and N-windows carrying event-set tokens."""
+    return [
+        *(TimeScope(Clock.COMMIT, w) for w in (Window.all(), Window.empty(), Window.interval(1, 1),
+                                                Window.interval(1, 2), Window.point(2))),
+        *(TimeScope(Clock.DISTINCT_SNAPSHOT, w) for w in (
+            Window.all(), Window.point("s1"), Window.point("s2"),
+            Window.interval("s1", "s2"), Window.interval("s2", "s3"))),
+        *(TimeScope(Clock.N_S, w) for w in (Window.all(), Window.point(("mirror", _A1)),
+                                             Window.point(("mirror", _A3)))),
+        *(TimeScope(Clock.N, w) for w in (Window.all(), Window.point(_A1),
+                                           Window.interval(_S12, _S12),
+                                           Window.interval(_S23, _S23))),
+        TimeScope(Clock.PROJECTION_EVENT, Window.all()),
+    ]
+
+
+def test_meet_is_associative_and_commutative_over_mixed_scopes() -> None:
+    """Every ordered triple of `_mixed_scopes`. Before the fix, `[s1, s2] ⊓ [s2, s3]` met to ⊥ by
+    `Window.meet` while endpoint pullback shared the events at `s2`, and two N-tokens met to ⊥ by
+    equality, so the order of meeting changed the event set (formal/Palace/Scope.lean)."""
+    register_atlas(SpineAtlas(_seed_spine()))
+    pop = _mixed_scopes()
+    for a, b in itertools.product(pop, repeat=2):
+        assert a.meet(b) == b.meet(a)
+    for a, b, c in itertools.product(pop, repeat=3):
+        assert a.meet(b).meet(c) == a.meet(b.meet(c))
+
+
+def test_two_n_tokens_meet_as_event_sets() -> None:
+    """Two N-windows carrying tokens meet as the sets they carry, not by equality, so a meet of two
+    meets keeps the events both kept; with no atlas, `Window.meet` is untouched."""
+    a = TimeScope(Clock.N, Window.interval(_S12, _S12))
+    b = TimeScope(Clock.N, Window.interval(_S23, _S23))
+    assert a.meet(b).window.kind is WindowKind.EMPTY                     # no atlas: by equality
+    register_atlas(SpineAtlas(_seed_spine()))
+    shared = frozenset({_A2})
+    assert a.meet(b) == TimeScope(Clock.N, Window.interval(shared, shared))
+    commit_1 = TimeScope(Clock.COMMIT, Window.interval(1, 1))            # {A1, A2}
+    snap_2 = TimeScope(Clock.DISTINCT_SNAPSHOT, Window.point("s2"))      # {A2, A3}
+    ns_all = TimeScope(Clock.N_S, Window.all())
+    four = commit_1.meet(ns_all).meet(snap_2.meet(ns_all))
+    assert four == commit_1.meet(ns_all).meet(snap_2).meet(ns_all)
+    assert four.window.lo == shared
+
+
 # ── the pullback membership predicate (unit-level, no atlas) ─────────────────────────────────────
 
 
@@ -218,3 +268,15 @@ def test_in_window_predicate() -> None:
     n_window = Window.interval(frozenset({"e1", "e2"}), frozenset({"e1", "e2"}))
     assert _in_window("e1", n_window)                                    # N-window ⇒ set membership
     assert not _in_window("e3", n_window)
+    # an opaque interval holds no tick, its endpoints included: `Window.meet` treats two different
+    # opaque windows as disjoint, so their pullbacks must not share the events at an endpoint
+    assert not _in_window("s1", Window.interval("s1", "s2"))
+    assert not _in_window("s2", Window.interval("s1", "s2"))
+
+
+def test_the_atlas_recognizes_its_own_tokens() -> None:
+    atlas = SpineAtlas(_seed_spine())
+    assert atlas.token(Window.interval(_S12, _S12)) == _S12
+    for w in (Window.all(), Window.empty(), Window.point(_A1), Window.interval(1, 2),
+              Window.interval("s1", "s2")):
+        assert atlas.token(w) is None
