@@ -11,4 +11,5 @@ import Palace.Memberships
 import Palace.Plane
 import Palace.Rayleigh
 import Palace.Roundoff
+import Palace.Scope
 import Palace.Spectral

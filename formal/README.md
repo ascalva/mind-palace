@@ -35,6 +35,11 @@ rounding that is itself attacked against this machine's arithmetic.
   `1.0`, and LAP-1's route agreement between two association orders of a degree sum.
 - `Palace/Plane.lean`: the shared prose plane (`core/stores/plane.py`, A3): no-leak, noninterference
   (A3.5), the search loop, the `held` cache and purge (A3.7).
+- `Palace/Scope.lean`: the capability-scope algebra (`core/kernel/scope.py`, dn-capability-scope),
+  with the query engine's grants and required scopes (`core/query.py`), the role signatures
+  (`core/kernel/agent_scope.py`) and the strata-to-classes table (`core/kernel/clearance.py`):
+  the lattice laws, monotone delegation and where it fails, the tier, the firewalls and the zone
+  law.
 - `Palace/Attack.lean`: `survives` and `refuted`, which run Plausible with a fixed seed and count
   the instances that passed their guards.
 - `Audit.lean`: lists the axioms behind every `Palace` declaration and fails on anything beyond
@@ -84,6 +89,14 @@ rounding that is itself attacked against this machine's arithmetic.
 | CND-6 (float64) | `chi_s = rn(chain / n_s)` is `1.0` exactly when the chain spans the stratum, for every `n_s < 2^54`, and not at `2^54`; `chi_s ≤ 1` for every `n_s`, and `chi_s > 0` up to `2^1074` | proved over `rn`, with the witness; on this machine it survived 500 |
 | LAP-1 (float64) | two association orders of the same at most four nonzero nonnegative binary64 summands agree within `4·eps` of either result, so the boundary test's route-agreement bound holds on every row of its fixtures; at eight summands two orders differ by five ulps, beyond the bound | proved over `rn`, with the witness; on this machine it survived 340 rows that reassociate |
 | A3.7 | after `purge(d)` no row or edge names `d`; every atom `d`'s rows held is deleted or still held; no atom another row holds is freed; re-running finishes a purge interrupted after its atom delete | proved; attack survived 500 |
+| Σ | closure under refinement is a closure operator, and closed sets are closed under ∩ and ∪; `top()` is every stratum but `foundation`, `hypothetical` and `exhaust`, so not the top of the closed sets | proved; attack survived 500 |
+| windows | `⊑` is a preorder, not antisymmetric (`pt(1)` and `[1,1]`); join is the least upper bound of any two windows; meet is a lower bound of any two and the greatest among well-formed ones (an inverted interval breaks it); absorption holds up to the preorder | proved, with witnesses; attacks survived 421, 206 and 500 |
+| delegation | with no atlas, a meet that exists lies under both inputs and is the greatest lower bound for well-formed windows; it is partial across clocks and also where the result trips the SLICE rule | proved, with a witness; attack survived 479 pairs |
+| GC-4 atlas | under every atlas, two scopes on covered clocks other than `N` meet on `N`, and the result lies under neither input | proved, with the measured witness |
+| tier | any composition of meets and joins that exists carries exactly the least tier among its inputs | proved; attack survived 329 |
+| firewalls, zone | admissibility and the zone law are downward closed and survive every meet, atlas or not; a world-reaching scope that passes the zone law is cleared for no class; the zone law does not survive join | proved, with a witness; attack survived 478 |
+| grants | a grant's meet lies under both grants plane by plane, never trips `InadmissibleGrant`, and admits only what both admit; a `SliceError` escapes it | proved, with a witness |
+| `search` | with no history, `search` raises `SliceError` for exactly one choice of the Ambassador's strata: `reference` alone; with history it builds and the Ambassador's grant admits it | proved for every list of names; attack survived 500 |
 
 The binarized forms (0/1 adjacency) reduce to Mathlib's `SimpleGraph.posSemidef_lapMatrix` and
 `card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix` in one line each.
@@ -206,6 +219,46 @@ The two entries settle claims §2.5 makes about float64:
   `[0.3, 1]` reached at most 0.66 of the bound. So the bound holds for short rows and for weights
   of modest range, not by construction. The control, eleven summands absorbed one at a time or
   gathered first, is refuted within 4 instances.
+
+The scope algebra. `Palace/Scope.lean` transcribes `core/kernel/scope.py` and the parts of
+`core/query.py`, `core/kernel/agent_scope.py` and `core/kernel/clearance.py` that build or read
+scopes, and the transcription was checked against the Python by enumeration: every pair of 196
+windows (meet, join and `⊑`, raw windows included), every construction of 450 scopes (the SLICE
+rule, the zone law, admissibility), every pair of the valid ones (meet, join, `⊑`, and which
+error each raises), and `required()` for 43 lists of the Ambassador's strata names, with and
+without history, and its five other verbs: 234,321 results, all identical (2026-11-02). Its
+findings, each reproduced in the model (`Palace.CQ.Witness`):
+
+- The Ambassador's `search` over `reference` alone raises `SliceError`. `required` sets the
+  single-read cut when it is given more than one name, but the slice rule counts strata after
+  closure, and `reference` closes to two (`search_slices_iff`). With history, or with the cut, the
+  same search builds and the Ambassador's grant admits it.
+- A meet is partial for a reason the note does not name. Two valid scopes on one clock can meet to
+  a multi-stratum point window without a cut: `[1,5] ⊓ [5,9] = pt(5)`, or two scopes whose cuts
+  differ. `Scope.meet` then raises `SliceError`, which `Grant.meet` does not catch
+  (`meet_slices`). The test population sits on `commit`, the one cut clock, so it never sees this.
+- With a clock atlas registered (GC-4), monotone delegation fails for every atlas: the cross-clock
+  meet lands on `N`, and `⊑` is false across clocks (`atlas_breaks_delegation`). Measured on an
+  in-memory spine, the atlas meet is also not associative when two operands share a clock with
+  opaque windows: `[s1,s2] ⊓ [s2,s3]` is `⊥` by `Window.meet`, while the atlas's `_in_window`
+  counts an opaque interval's endpoints as members, so meeting the other pair first keeps two
+  events. The atlas tests take only triples on distinct clocks with `∗` windows. No atlas is
+  registered outside tests.
+- `PRIVATE_STRATA` omits `exhaust`, the agent-side dialogue rows (dn-agentic-loop §2.4b), so a
+  grant that reads only them with irreversible world reach passes `Grant` (`exhaust_zone_gap`).
+  `test_scope_laws.py` pins the omission to keep the set byte-identical. Today nothing is readable
+  under such a grant, because `STRATUM_CLASSES` gives `exhaust` no class
+  (`world_reach_reads_nothing`); giving it its parent's classes opens the gap
+  (`exhaust_gap_opens`).
+- `StratumScope.top()` is documented as `R ∖ 𝔇` but also omits `exhaust` and `hypothetical`, so
+  `internal_actor(hypothetical=True)` is not under it, though its docstring says it never widens
+  past top.
+
+The controls: antisymmetry of the window order is refuted within 7 instances (`pt(−3)` and
+`[−3,−3]`), the greatest lower bound without well-formedness within 19, the meet in place of the
+join at once, delegation under an atlas within 6, the zone law across a join within 5, the
+greatest tier in place of the least within 6, every named set already closed within 7, and a
+search that never slices within 113.
 
 ## Build
 
