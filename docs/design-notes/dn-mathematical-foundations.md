@@ -4,7 +4,7 @@ id: dn-mathematical-foundations
 track: mathematical-foundations  # NEW manifest, minted in this PR (docs/tracks/mathematical-foundations.md) — ⚑ the owner renames or rejects the coordinate at the merge
 status: draft                    # provenance description, never a gate (merge-gated regime, 2026-07-28)
 created: 2026-08-09
-updated: 2026-08-09
+updated: 2026-11-02      # Amendment A1 (L3 entered for CND-6 and LAP-1; two §2.5 float claims corrected)
 links:
   - docs/brainstorms/mathematical-foundations.md        # THE WARRANT (PR #42, capture branch — lands first; see Sequencing) — owner seed 1 + the structure-instantiation bridge
   - docs/design-notes/dn-research-register.md           # THE SIBLING (§1.3) — same PR #47; the §2.3 claim ladder consumed here; its parked Lean row now points at §2.4 below
@@ -291,7 +291,7 @@ spectral** (`core/complex/spectral.py`):
 
 | id | law (arithmetic domain) | anchor | label | falsifier |
 |---|---|---|---|---|
-| LAP-1 | L·1 = 0 for L = D − A (exact weights: exact; f64: allclose 1e-8; route agreement ≤ 4·eps·max) | laplacian.py:26 | Proposition | test_complex.py:100; test_graph_boundary.py:69 |
+| LAP-1 | L·1 = 0 for L = D − A (exact weights: exact; f64: allclose 1e-8; route agreement ≤ 4·eps·max for ≤ 4 nonzero weights per row — A1) | laplacian.py:26 | Proposition | test_complex.py:100; test_graph_boundary.py:69 |
 | LAP-2 | xᵀLx = Σ w(x_u−x_v)² ≥ 0 (symmetric A, w ≥ 0); L̄ PSD via its signed identity (laplacian.py:52) | laplacian.py:1 | Conjecture → Prop at MF-2 | GAP — direct PSD untested |
 | LAP-3 | dim ker L = #components (w > 0 on edges; SimpleGraph thm in Mathlib, weighted via support) | laplacian.py:27 | Conjecture (cited) | GAP — nullity never counted → MF-2 |
 | LAP-4 | Spec(L_sym) ⊆ [0,2] (A ≥ 0); D^{−1/2} := 0 at degree 0 (ε = 1e-9, float64) | laplacian.py:33 | Proposition + Definition | test_complex.py:104; convention pointwise → MF-2 |
@@ -312,7 +312,7 @@ spectral** (`core/complex/spectral.py`):
 | CND-3 | every profile carries degeneracy diag corr(R_eff, 1/d_A + 1/d_B); ≥ 0.9 flips authority to finite-t (float64) | conductance.py:256 | Claim | test_conductance.py:150 |
 | CND-4 | d_t² = Σ e^{−2tλ_k}(φ_k[i] − φ_k[j])² over the COMBINATORIAL L; a reading = the (σ×t) grid (f64) | conductance.py:239 | Proposition + Definition | test_conductance.py:163 |
 | CND-5 | w = cos^α·exp(s_lat·a_lat − s_seq·a_seq); signs are law; magnitudes ship 0 ⇒ w = cos (IEEE-exact) | conductance.py:106 | Definition + Claim | test_conductance.py:260 (AST scan) |
-| CND-6 | χ_s = chain/N_s ∈ (0,1] for window=None (the only wired call); None at N_s=0 (ℚ-valued, 1 f64 div) | conductance.py:375 | Proposition | test_conductance.py:314; windowed → MF-3 |
+| CND-6 | χ_s = chain/N_s ∈ (0,1] for window=None (the only wired call); None at N_s=0 (ℚ-valued, 1 f64 div; = 1.0 iff the chain spans, for N_s < 2⁵⁴ — A1) | conductance.py:375 | Proposition | test_conductance.py:314; windowed → MF-3 |
 
 **IV. Curvature** (`core/kernel/complex/curvature.py` — Forman, not Ollivier; §2.3.3):
 
@@ -467,11 +467,14 @@ at this section (§1.3).
   `formal/...`)** — reachable without lowering its price.
 - **L3 — the numerical bridge.** FloatSpec-style float-ε models, entered **per-claim
   only**, where a design claim demands a machine-checked ε-bound. Parked with
-  re-entry (Parked decisions); not licensed (non-goal 2).
+  re-entry (Parked decisions); not licensed (non-goal 2). **ENTERED per claim by
+  Amendment A1 (2026-11-02): CND-6 and LAP-1, over a binary64 model proved equal to
+  Lean's own `Float`.**
 - **L4 — verified kernels.** Parked. No palace claim needs it (issue #48).
 
 **The bridge stays two-sided.** Lean never proves the NumPy (issue #48 Axis B): Lean
-states and proves laws over exact arithmetic; Hypothesis property-tests the Python
+states and proves laws over exact arithmetic (and, for a claim entered at L3, over Lean's
+own float64 — Amendment A1); Hypothesis property-tests the Python
 against the same laws with tolerance bounds; the artifacts cross-reference by law id.
 One law, two independent attack surfaces — the ledger is the join.
 
@@ -503,7 +506,10 @@ names per row:
    claims are licensed here and only here.
 2. **Ulp-classed reassociation — where float error is bounded by construction.** The
    `test_graph_boundary.py` doctrine, adopted as the ledger's model entry (LAP-1):
-   Laplacian off-diagonals exact, degree sums within 4·eps·max — with the written
+   Laplacian off-diagonals exact, degree sums within 4·eps·max — **AMENDED by A1:
+   proved for rows of at most four nonzero weights (every fixture row) and refuted
+   at eleven; the bound holds for short rows and benign weights, not by
+   construction** — with the written
    rule that reassociation is not a metric change and O(1) divergence is a P4 stop;
    R_eff route-invariance at rtol 1e-10, "generous over ulp noise, catastrophically
    failed by any real metric change."
@@ -519,7 +525,8 @@ names per row:
 χ_s sits deliberately *between* tiers, and its row says so: ℚ-valued in substance (a
 ratio of small integers) but computed as one float64 true division
 (`conductance.py:390`) — `= 1.0` and the `≤ 1` bound are exact comparisons (n/n = 1.0
-exactly; (n−1)/n rounds strictly below 1.0 for realistic N_s), general equality is
+exactly; (n−1)/n rounds strictly below 1.0 for every N_s < 2⁵⁴ and not at 2⁵⁴ —
+**AMENDED by A1**, machine-checked), general equality is
 not, and its own falsifier asserts `pytest.approx` (test_conductance.py:329), never
 `==`. (And the (0,1] range law is stated **for `window=None`** — the only wired call;
 a windowed numerator counts full-stratum chains, so the bound there is a stated
@@ -655,7 +662,7 @@ advisory to required, by hand, if he chooses.
 
 | decision | default recorded | re-entry condition |
 |---|---|---|
-| L3 — float-ε formal bridge | not entered; rung specified §2.4 | a design claim demands a machine-checked ε-bound (per-claim entry, one claim at a time) |
+| L3 — float-ε formal bridge | **ENTERED per claim by Amendment A1**: CND-6, LAP-1; further claims one at a time | a design claim demands a machine-checked ε-bound (per-claim entry, one claim at a time) |
 | L4 — verified kernels | parked | a palace claim needs a verified kernel; none does (issue #48) |
 | Ollivier–Ricci formalization | not licensed; Forman is the floor (§2.3.3) | a design claim needs curvature *theorems*, or Mathlib gains OT/W₁ (the KR layer is the on-ramp) |
 | Cheeger-in-Mathlib recheck | absent, verified 2026-08-09 (issue #48) | cheap periodic recheck at each MF-4+ session; or a claim comes to depend on the inequality (CUT-2 leaves Remark) |
@@ -732,3 +739,60 @@ draft` is provenance, never edited); `docs/design-notes/fiber-geometry.md`
 "does not exist yet", false at HEAD; the refresh is parked, non-goal 6);
 `docs/tracks/mathematical-foundations.md` (this note's manifest, minted in this PR —
 ⚑ owner adjudicates the coordinate at the merge).
+
+## Amendment A1 — L3 entered for CND-6 and LAP-1; two §2.5 float claims corrected
+
+*2026-11-02. Agent-drafted on the owner's direction ("continue up the ladder and down the
+rabbit hole", 2026-11-01; "update the design doc", 2026-11-02). It lands by the owner's
+merge.*
+
+### A1.1 — What entered
+
+L3 entered per claim, as §2.4 and non-goal 2 require, for the two claims §2.5 makes about
+what float64 computes. Both are proved in `formal/`:
+
+- **CND-6.** Python divides two ints by rounding their exact quotient once, so
+  `chi_s = rn(chain / n_s)`. It is `1.0` exactly when the chain spans the stratum, for
+  every `n_s < 2⁵⁴`, and not at `2⁵⁴`, where `1 − 2⁻⁵⁴` is a tie that rounds to the even
+  `1.0` (`formal/Palace/Roundoff.lean`: `rn_div_eq_one_iff`, `rn_div_two_pow_54`). `chi_s ≤ 1`
+  holds for every `n_s`, and `chi_s > 0` up to `2¹⁰⁷⁴`.
+- **LAP-1.** Any two association orders of the same at most four nonzero nonnegative
+  binary64 summands agree within `4·eps` of either result (`agreement`). So the
+  boundary test's bound holds on every fixture row, each of which has at most three,
+  whatever orders NumPy and SciPy use. At eleven summands two orders differ by five
+  ulps (`lap1_fails`). Between five and ten the bound is open. Measured with NumPy
+  2.5.4 and SciPy 1.18.1 on 2026-11-01: the test's two routes first break the bound on a
+  37-weight star of `1` and weights just under `2⁻⁵³`, and random rows of 8 to 3,000
+  weights in `[0.3, 1]` reached at most 0.66 of it.
+
+### A1.2 — The substrate, and why not FloatSpec
+
+FloatSpec, issue #48's named substrate, pins Lean v4.34.0-rc2, an older Mathlib and
+cslib (checked 2026-11-01). Adopting it is the pin change this note parks, and Mathlib's
+`FP` module is deprecated without replacement. So the model is in-house and small:
+`formal/Palace/Binary64.lean` defines `rn`, round to nearest with ties to even onto binary64
+(Flocq's FLT format, without overflow), and proves its laws. Its attacks compare it bit
+for bit with this machine's float64.
+
+Lean v4.36 changed what the bridge can be. Core now gives `Float` a logical model:
+`a + b` on `Float` is defined as a bit-level rounding of the exact sum, and compiled code
+runs C's `+` in its place. `formal/Palace/FloatModel.lean` proves that model's `+`, `*`, `/` and
+`Nat.toFloat` round as `rn` does, so both entries are theorems about Lean's own `Float`.
+The trust left is that the compiled C operators agree with the logical model, which is
+attacked bit for bit on this machine. §2.4's "Lean never proves the NumPy" stands:
+LAP-1's theorem quantifies over every association order, which is how it covers
+NumPy's without modeling NumPy.
+
+### A1.3 — What §2.5 said, and what it says now
+
+- Tier 2 called LAP-1's bound float error "bounded by construction". It is bounded for
+  rows of at most four nonzero weights and fails at eleven (A1.1). The tier keeps its
+  name; its model entry now carries the row-length hypothesis.
+- The χ_s aside said `(n−1)/n` rounds below `1.0` "for realistic N_s". The exact
+  condition is `N_s < 2⁵⁴`.
+
+### A1.4 — Falsifier
+
+- **A1-F1:** a law of `rn` contradicted by this machine's float64 on an input the attacks
+  did not draw, or a compiled `Float` operator disagreeing with Lean's logical model.
+  Either reopens the model, and with it every claim entered at L3.
