@@ -1,6 +1,7 @@
 #!/bin/sh
-# The local L1 gate (dn-mathematical-foundations §2.4): build the statements and run their attacks,
-# hold the sorry count to the budget, and keep the axiom escape shut.
+# The L1 gate (dn-mathematical-foundations §2.4), run locally and by the advisory `lean` CI job:
+# build the statements and run their attacks, hold the sorry count to the budget, keep the axiom
+# escape shut, and check the cross-reference between docs/LAWS.md and the statements.
 set -eu
 cd "$(dirname "$0")"
 
@@ -22,5 +23,6 @@ if grep -nwE 'axiom|admit|native_decide' Palace.lean Palace/*.lean; then
   exit 1
 fi
 lake env lean Audit.lean
+python3 ../scripts/check_laws_xref.py
 
-echo "L1 gate green: sorry $count of budget $budget, standard axioms only"
+echo "L1 gate green: sorry $count of budget $budget, standard axioms only, ledger cross-referenced"
