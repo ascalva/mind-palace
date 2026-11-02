@@ -1,5 +1,6 @@
 import Palace.Attack
 import Palace.Balance
+import Palace.Binary64
 import Palace.Clock
 import Palace.Curvature
 import Palace.Cut
@@ -8,4 +9,5 @@ import Palace.Laplacian
 import Palace.Memberships
 import Palace.Plane
 import Palace.Rayleigh
+import Palace.Roundoff
 import Palace.Spectral
