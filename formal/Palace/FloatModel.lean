@@ -22,9 +22,12 @@ file proves the model's arithmetic is `rn`:
   exponent estimate to leave 53 bits of quotient (`divCore_enough`), which it does for a canonical
   dividend.
 * `val_toFloat`: `k.toFloat` is exact below `2^53`.
+* `compare_eq`, `beq_eq_decide`, `le_iff_val_le`: on finite floats core's comparison compares
+  values, so `==` and `≤` are exact.
 
-So `Palace/Roundoff.lean`'s two claims hold of Lean's own `Float`: `val_toFloat_div_eq_one_iff`
-(CND-6) and `SumTree.val_evalF_agreement` (LAP-1). What stays trusted is that the compiled C
+So `Palace/Roundoff.lean`'s two claims hold of Lean's own `Float`: CND-6 as the code compares,
+`k.toFloat / n.toFloat == 1` exactly when `k = n` and the quotient is `≤ 1`
+(`toFloat_div_beq_one`, `toFloat_div_le_one`), and LAP-1 (`SumTree.val_evalF_agreement`). What stays trusted is that the compiled C
 operators agree with the logical model; the attacks at the end test that on this machine.
 -/
 
@@ -988,6 +991,141 @@ theorem val_evalF_agreement {t₁ t₂ : SumTree Float} (hp : t₁.leaves.Perm t
 end SumTree
 
 end LeanFloat
+
+section Compare
+
+/-- A canonical form in a higher binade has the larger value. -/
+theorem lt_of_exponent_lt {m₁ m₂ : ℕ} {e₁ e₂ : ℤ} (h₁ : Canonical m₁ e₁) (h₂ : Canonical m₂ e₂)
+    (he : e₁ < e₂) : (m₁ : K) * 2 ^ e₁ < m₂ * 2 ^ e₂ := by
+  have hm₁ : m₁ < 2 ^ 53 := by rcases h₁ with ⟨-, h, -⟩ | ⟨-, h, -⟩ <;> omega
+  have he₁ : -1074 ≤ e₁ := by rcases h₁ with ⟨-, -, h⟩ | ⟨-, -, h⟩ <;> omega
+  have hm₂ : 2 ^ 52 ≤ m₂ := by
+    rcases h₂ with ⟨h, -, -⟩ | ⟨-, -, h⟩
+    · exact h
+    · omega
+  have c₁ : (m₁ : K) < 2 ^ (53 : ℤ) := by
+    rw [show (2 : K) ^ (53 : ℤ) = ((2 ^ 53 : ℕ) : K) by norm_num]; exact_mod_cast hm₁
+  have c₂ : (2 : K) ^ (52 : ℤ) ≤ m₂ := by
+    rw [show (2 : K) ^ (52 : ℤ) = ((2 ^ 52 : ℕ) : K) by norm_num]; exact_mod_cast hm₂
+  calc (m₁ : K) * 2 ^ e₁ < 2 ^ (53 : ℤ) * 2 ^ e₁ := by gcongr
+    _ = 2 ^ (52 : ℤ) * 2 ^ (e₁ + 1) := by
+      rw [← zpow_add₀ two_ne_zero, ← zpow_add₀ two_ne_zero]; ring_nf
+    _ ≤ 2 ^ (52 : ℤ) * 2 ^ e₂ := by
+      gcongr
+      · exact one_le_two
+      · omega
+    _ ≤ m₂ * 2 ^ e₂ := by gcongr
+
+/-- On canonical forms, comparing `(e, m)` lexicographically compares values. -/
+theorem compare_canonical {m₁ m₂ : ℕ} {e₁ e₂ : ℤ} (h₁ : Canonical m₁ e₁)
+    (h₂ : Canonical m₂ e₂) :
+    (compare e₁ e₂).then (compare m₁ m₂) = compare ((m₁ : K) * 2 ^ e₁) ((m₂ : K) * 2 ^ e₂) := by
+  rcases lt_trichotomy e₁ e₂ with he | rfl | he
+  · rw [Int.compare_eq_lt.mpr he]
+    exact (compare_lt_iff_lt.2 (lt_of_exponent_lt h₁ h₂ he)).symm
+  · rw [Int.compare_eq_eq.mpr rfl]
+    change compare m₁ m₂ = _
+    rcases lt_trichotomy m₁ m₂ with hm | rfl | hm
+    · rw [Nat.compare_eq_lt.mpr hm]
+      exact (compare_lt_iff_lt.2 (by gcongr)).symm
+    · rw [Nat.compare_eq_eq.mpr rfl]; exact (compare_eq_iff_eq.2 rfl).symm
+    · rw [Nat.compare_eq_gt.mpr hm]
+      exact (compare_gt_iff_gt.2 (by gcongr)).symm
+  · rw [Int.compare_eq_gt.mpr he]
+    exact (compare_gt_iff_gt.2 (lt_of_exponent_lt h₂ h₁ he)).symm
+
+omit [FloorRing K] in
+theorem compare_neg_neg (x y : K) : compare (-x) (-y) = (compare x y).swap := by
+  rcases lt_trichotomy x y with h | rfl | h
+  · rw [compare_lt_iff_lt.2 h, compare_gt_iff_gt.2 (neg_lt_neg h)]; rfl
+  · rw [compare_eq_iff_eq.2 rfl, compare_eq_iff_eq.2 rfl]; rfl
+  · rw [compare_gt_iff_gt.2 h, compare_lt_iff_lt.2 (neg_lt_neg h)]; rfl
+
+/-- **Comparisons are exact** On finite floats, core's `compare` compares their values. -/
+theorem compare_eq {a b : UnpackedFloat} (ha : Packable a) (hb : Packable b) :
+    a.compare b = some (compare (value a : K) (value b)) := by
+  have pos : ∀ {m : ℕ} {e : ℤ}, 0 < m → (0 : K) < m * 2 ^ e := fun hm ↦ by positivity
+  match a, b, ha, hb with
+  | .zero _, .zero _, _, _ =>
+    exact congrArg some (compare_eq_iff_eq.2 rfl).symm
+  | .zero _, .finite .positive m e h, _, _ =>
+    exact congrArg some (compare_lt_iff_lt.2 (by simpa [value, sgn] using pos (e := e) h)).symm
+  | .zero _, .finite .negative m e h, _, _ =>
+    exact congrArg some (compare_gt_iff_gt.2 (by simpa [value, sgn] using pos (e := e) h)).symm
+  | .finite .positive m e h, .zero _, _, _ =>
+    exact congrArg some (compare_gt_iff_gt.2 (by simpa [value, sgn] using pos (e := e) h)).symm
+  | .finite .negative m e h, .zero _, _, _ =>
+    exact congrArg some (compare_lt_iff_lt.2 (by simpa [value, sgn] using pos (e := e) h)).symm
+  | .finite .positive m₁ e₁ h₁, .finite .negative m₂ e₂ h₂, _, _ =>
+    refine congrArg some (compare_gt_iff_gt.2 ?_).symm
+    have := pos (e := e₁) h₁; have := pos (e := e₂) h₂
+    simp only [value, sgn]; linarith
+  | .finite .negative m₁ e₁ h₁, .finite .positive m₂ e₂ h₂, _, _ =>
+    refine congrArg some (compare_lt_iff_lt.2 ?_).symm
+    have := pos (e := e₁) h₁; have := pos (e := e₂) h₂
+    simp only [value, sgn]; linarith
+  | .finite .positive m₁ e₁ h₁, .finite .positive m₂ e₂ h₂, ⟨hc₁, _⟩, ⟨hc₂, _⟩ =>
+    refine congrArg some ?_
+    rw [compare_canonical (K := K) hc₁ hc₂]
+    simp only [value, sgn, one_mul]
+  | .finite .negative m₁ e₁ h₁, .finite .negative m₂ e₂ h₂, ⟨hc₁, _⟩, ⟨hc₂, _⟩ =>
+    refine congrArg some ?_
+    rw [compare_canonical (K := K) hc₁ hc₂]
+    simp only [value, sgn, neg_one_mul, compare_neg_neg]
+
+/-- **Comparisons are exact** On finite `Float`s, `==` is equality of values. -/
+theorem beq_eq_decide {a b : Float} (ha : a.isFinite) (hb : b.isFinite) :
+    (a == b) = decide (val (K := K) a = val b) := by
+  change (a.toModel.unpack.compare b.toModel.unpack == some .eq) = _
+  rw [compare_eq (K := K) (packable_toModel ha) (packable_toModel hb), Bool.eq_iff_iff]
+  simp only [beq_iff_eq, Option.some.injEq, compare_eq_iff_eq, decide_eq_true_eq]
+  rfl
+
+/-- **Comparisons are exact** On finite `Float`s, `≤` is the order of values. -/
+theorem le_iff_val_le {a b : Float} (ha : a.isFinite) (hb : b.isFinite) :
+    a ≤ b ↔ val (K := K) a ≤ val b := by
+  change (a.toModel.unpack.compare b.toModel.unpack).any (·.isLE) = true ↔ _
+  rw [compare_eq (K := K) (packable_toModel ha) (packable_toModel hb)]
+  change (compare (val (K := K) a) (val b)).isLE = true ↔ _
+  rcases lt_trichotomy (val (K := K) a) (val b) with h | h | h
+  · rw [compare_lt_iff_lt.2 h]; simp [h.le]
+  · rw [compare_eq_iff_eq.2 h]; simp [h]
+  · rw [compare_gt_iff_gt.2 h]; simp [not_le.2 h]
+
+end Compare
+
+/-- **CND-6 on Lean's `Float`, as the code compares** For `k ≤ n < 2^53`,
+`k.toFloat / n.toFloat == 1` exactly when `k = n`. -/
+theorem toFloat_div_beq_one {k n : ℕ} (hk : k ≤ n) (hn : n < 2 ^ 53) (h0 : 0 < n) :
+    (k.toFloat / n.toFloat == 1) = decide (k = n) := by
+  obtain ⟨hvk, hfk⟩ := val_toFloat (K := ℚ) (lt_of_le_of_lt hk hn)
+  obtain ⟨hvn, hfn⟩ := val_toFloat (K := ℚ) hn
+  obtain ⟨hv1, hf1⟩ := val_toFloat (K := ℚ) (k := 1) (by norm_num)
+  have hov : |rn ((k : ℚ) / n)| < 2 ^ 1024 := by
+    rw [abs_of_nonneg (rn_nonneg (by positivity))]
+    exact (rn_div_le_one hk).trans_lt (one_lt_pow₀ one_lt_two (by norm_num))
+  obtain ⟨hv, hf⟩ := val_div hfk hfn (by rw [hvn]; exact_mod_cast h0.ne')
+    (by rw [hvk, hvn]; exact hov)
+  rw [show (1 : Float) = (1 : ℕ).toFloat from rfl, beq_eq_decide (K := ℚ) hf hf1, hv1, hv, hvk,
+    hvn]
+  exact decide_eq_decide.2 (by push_cast; exact rn_div_eq_one_iff hk (by omega) h0)
+
+/-- **CND-6 on Lean's `Float`, as the code compares** For `k ≤ n < 2^53`,
+`k.toFloat / n.toFloat ≤ 1`. -/
+theorem toFloat_div_le_one {k n : ℕ} (hk : k ≤ n) (hn : n < 2 ^ 53) (h0 : 0 < n) :
+    k.toFloat / n.toFloat ≤ 1 := by
+  obtain ⟨hvk, hfk⟩ := val_toFloat (K := ℚ) (lt_of_le_of_lt hk hn)
+  obtain ⟨hvn, hfn⟩ := val_toFloat (K := ℚ) hn
+  obtain ⟨hv1, hf1⟩ := val_toFloat (K := ℚ) (k := 1) (by norm_num)
+  have hov : |rn ((k : ℚ) / n)| < 2 ^ 1024 := by
+    rw [abs_of_nonneg (rn_nonneg (by positivity))]
+    exact (rn_div_le_one hk).trans_lt (one_lt_pow₀ one_lt_two (by norm_num))
+  obtain ⟨hv, hf⟩ := val_div hfk hfn (by rw [hvn]; exact_mod_cast h0.ne')
+    (by rw [hvk, hvn]; exact hov)
+  rw [show (1 : Float) = (1 : ℕ).toFloat from rfl, le_iff_val_le (K := ℚ) hf hf1, hv1, hv, hvk,
+    hvn]
+  push_cast
+  exact rn_div_le_one hk
 
 /-! ## Attacks: the compiled operators against the logical model
 

@@ -755,7 +755,9 @@ what float64 computes. Both are proved in `formal/`:
   `chi_s = rn(chain / n_s)`. It is `1.0` exactly when the chain spans the stratum, for
   every `n_s < 2⁵⁴`, and not at `2⁵⁴`, where `1 − 2⁻⁵⁴` is a tie that rounds to the even
   `1.0` (`formal/Palace/Roundoff.lean`: `rn_div_eq_one_iff`, `rn_div_two_pow_54`). `chi_s ≤ 1`
-  holds for every `n_s`, and `chi_s > 0` up to `2¹⁰⁷⁴`.
+  holds for every `n_s`, and `chi_s > 0` up to `2¹⁰⁷⁴`. On Lean's `Float`, the comparisons
+  themselves are exact: `== 1` holds exactly when the chain spans, and `≤ 1` always holds
+  (`formal/Palace/FloatModel.lean`: `toFloat_div_beq_one`, `toFloat_div_le_one`).
 - **LAP-1.** Any two association orders of the same at most four nonzero nonnegative
   binary64 summands agree within `4·eps` of either result (`agreement`). So the
   boundary test's bound holds on every fixture row, each of which has at most three,
