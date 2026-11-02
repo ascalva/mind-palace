@@ -28,6 +28,9 @@ rounding that is itself attacked against this machine's arithmetic.
 - `Palace/Binary64.lean`: rung L3's substrate, a model of IEEE 754 binary64 rounding to nearest,
   ties to even (`rn`), its laws, and attacks that check it bit for bit against this machine's
   float64.
+- `Palace/FloatModel.lean`: the bridge from Lean core's logical model of `Float` to `rn`: Lean's
+  `Float` `+`, `*`, `/` and `Nat.toFloat` round as `rn` does, so the two entries hold of Lean's own
+  `Float`; its attacks check the compiled C operators against that logical model.
 - `Palace/Roundoff.lean`: two L3 entries over the model: CND-6's exact comparisons of `chi_s` with
   `1.0`, and LAP-1's route agreement between two association orders of a degree sum.
 - `Palace/Plane.lean`: the shared prose plane (`core/stores/plane.py`, A3): no-leak, noninterference
@@ -70,6 +73,9 @@ rounding that is itself attacked against this machine's arithmetic.
 | CND-4 | `H_t = e^{−tL}` is symmetric, `H_0 = 1`, `H_{s+t} = H_s H_t`; the code's `d_t = √(G_ii + G_jj − 2G_ij)` with `G = H_{2t}` is the Euclidean distance between `H_t eᵢ` and `H_t eⱼ`, so a metric that separates every two vertices for every `t`, across components too; for symmetric `A ≥ 0`, `d_t` is non-increasing in `t` | proved; its two exact steps survived 500 each |
 | CND-2 | Rayleigh's law: adding weight never raises effective resistance (`∞` across components) nor lowers effective conductance (`0` across), so a rise needs a weight-increased edge; through Thomson's principle, `2vᵀx − xᵀMx ≤ vᵀM⁺v` for `v` fixed by `M M⁺`, which by the Penrose equations alone is every `v` orthogonal to `ker M` | proved; attack survived 500 |
 | leave-one-out | reverting an increased edge never raises conductance; with a single increased edge every rise confirms it; a rise carried by two redundant new paths confirms neither | proved, with a witness; attack survived 500 |
+| bridge | Lean's `Float` `+`, `*` and `/` (nonzero divisor) return `rn` of the exact result, for finite operands and results below `2^1024`, and `k.toFloat` is exact below `2^53`: core's logical model of `Float` rounds as `rn` does | proved; the compiled C operators matched the logical model bit for bit on 500 sums, 500 products and 500 quotients |
+| CND-6 (Lean `Float`) | `k.toFloat / n.toFloat` is exactly `1` iff `k = n`, for `k ≤ n < 2^53` | proved over Lean's `Float` |
+| LAP-1 (Lean `Float`) | two association orders, summed in Lean's `Float`, of the same at most four nonzero nonnegative finite summands (exact sum at most `2^1000`) agree within `4·eps` of either result | proved over Lean's `Float` |
 | A3 no-leak | every search hit under `C` is a table atom with a cleared occupancy and carries only rows of classes in `C` that hold it, under any cache: `PlaneHit`'s checks never fire on the plane's own reads | proved; attack survived 484 traces in which any write may crash partway |
 | search | `PlaneReader.search`'s widening loop returns the first `k` atoms of the exact ranking that a cleared relation holds; `\|ps\|` rounds suffice | proved; attack survived 500 |
 | cache | land, retire, purge and repair keep `held`/`held_ever` coherent: `wanted ∪ freed` covers every row a land touches | proved; attack survived 500 traces |
@@ -170,6 +176,17 @@ so each attack decodes the hardware's result bit for bit and compares it with `r
 result. Of the 500 sums seed 131 draws, 313 are exact, 120 are ties, 67 round elsewhere, 25 land in
 the subnormal range and 42 round up into the next binade. Its controls, ties away from zero, a
 52-bit significand and flush to zero, are each refuted by the second instance.
+
+Lean v4.36 gives `Float` a logical model in core: bit patterns, unpacked into a sign, a
+significand and an exponent, with each operation rounding its exact result once through a round
+bit and a sticky bit. `Palace/FloatModel.lean` proves that model's `+`, `*` and `/` are `rn`. The
+proof turns on one invariant: an extended significand represents a value when it is the value's
+floor and its two bits place the value against the midpoint. A right shift halves the represented
+value, and core's ties-to-even choice is `rne` of it. Division also needs core's exponent estimate
+to leave 53 bits of quotient, which it does for a canonical dividend. With the bridge, both entries
+are theorems about Lean's `Float`, and the trust left is that the compiled C operators agree with
+the logical model. That is attacked on this machine. Its control, `+` checked against the model's
+`-`, is refuted on its first instance.
 
 The two entries settle claims §2.5 makes about float64:
 

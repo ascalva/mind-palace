@@ -7,7 +7,7 @@ import Palace.Binary64
 L3 enters one claim at a time, where a design claim demands a machine-checked ε-bound
 (dn-mathematical-foundations §2.4, non-goal 2). The note's §2.5 makes two claims about what float64
 arithmetic computes. Both are settled here over the binary64 model `rn` of `Palace/Binary64.lean`,
-which that file attacks against this machine's arithmetic.
+and `Palace/FloatModel.lean` carries them to Lean's own `Float`.
 
 **CND-6.** `chi_s` (`core/graph/conductance.py:390`) is one true division `chain / n_s` of two
 naturals, and §2.5 calls its comparisons with `1.0` exact: `n/n = 1.0`, and `(n−1)/n` rounds

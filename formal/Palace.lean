@@ -3,6 +3,7 @@ import Palace.Balance
 import Palace.Binary64
 import Palace.Clock
 import Palace.Curvature
+import Palace.FloatModel
 import Palace.Cut
 import Palace.Heat
 import Palace.Laplacian
