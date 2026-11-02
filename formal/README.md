@@ -82,7 +82,7 @@ rounding that is itself attacked against this machine's arithmetic.
 | A3.5 | noninterference: after any trace of writes that keep each path at one stratum, a reader under `C` sees, in its view and in every search, what it would see after the cleared writes, purges and repairs alone | proved by unwinding, under the hypotheses below; attack survived 480 traces with an uncleared write and a cleared hit |
 | `rn` | binary64 rounding to nearest, ties to even, without overflow: it fixes binary64 numbers, is monotone and odd, lands on binary64, and moves `x` by at most half an ulp; on the grid of multiples of `2⁻¹⁰⁷⁴` (every sum of two binary64 numbers), by at most `u\|x\|`, `u = 2⁻⁵³`, subnormals included | the model; on this machine it matched 500 sums, 500 quotients and 500 quotients `k / n` bit for bit |
 | CND-6 (float64) | `chi_s = rn(chain / n_s)` is `1.0` exactly when the chain spans the stratum, for every `n_s < 2^54`, and not at `2^54`; `chi_s ≤ 1` for every `n_s`, and `chi_s > 0` up to `2^1074` | proved over `rn`, with the witness; on this machine it survived 500 |
-| LAP-1 (float64) | two association orders of the same at most four nonzero nonnegative binary64 summands agree within `4·eps` of either result, so the boundary test's route-agreement bound holds on every row of its fixtures; at eleven summands two orders differ by five ulps, beyond the bound | proved over `rn`, with the witness; on this machine it survived 340 rows that reassociate |
+| LAP-1 (float64) | two association orders of the same at most four nonzero nonnegative binary64 summands agree within `4·eps` of either result, so the boundary test's route-agreement bound holds on every row of its fixtures; at eight summands two orders differ by five ulps, beyond the bound | proved over `rn`, with the witness; on this machine it survived 340 rows that reassociate |
 | A3.7 | after `purge(d)` no row or edge names `d`; every atom `d`'s rows held is deleted or still held; no atom another row holds is freed; re-running finishes a purge interrupted after its atom delete | proved; attack survived 500 |
 
 The binarized forms (0/1 adjacency) reduce to Mathlib's `SimpleGraph.posSemidef_lapMatrix` and
@@ -196,13 +196,16 @@ The two entries settle claims §2.5 makes about float64:
   matched `fractions.Fraction` on 200,000 random pairs of up to 80 bits), so `chi_s` is
   `rn(chain / n_s)`. The control, the same law in binary32, is refuted on its first instance.
 - LAP-1. The route-agreement bound is a theorem for rows of at most four nonzero weights; every
-  fixture row has at most three. It fails at eleven (`lap1_fails`, reproduced on this machine), and
-  between five and ten it is open. Measured with NumPy 2.5.4 and SciPy 1.18.1 on 2026-11-01, the
-  two routes in the test first break the bound on a star of 37 weights, `1` and 36 copies of a
-  weight just under `2⁻⁵³`, by five ulps. Random rows of 8 to 3,000 weights in `[0.3, 1]` reached
-  at most 0.66 of the bound. So the bound holds for short rows and for weights of modest range,
-  not by construction. The control, eleven summands of the witness's shape, is refuted within 4
-  instances.
+  fixture row has at most three. It fails at eight (`lap1_fails`, reproduced on this machine). From
+  `1 + 2u`, adding `3u` and then six `u` one at a time loses every tie and ends at `1 + 4u`; pairing
+  them first wins three ties and ends at `1 + 14u`. For five to seven summands it is open, but an
+  exhaustive search over every association order of one summand near `1` and the rest small
+  multiples of `u/2` found no counterexample. Measured with NumPy 2.5.4 and SciPy 1.18.1 on
+  2026-11-01, the two routes in the test first break the bound on a star of 37 weights, `1` and 36
+  copies of a weight just under `2⁻⁵³`, by five ulps. Random rows of 8 to 3,000 weights in
+  `[0.3, 1]` reached at most 0.66 of the bound. So the bound holds for short rows and for weights
+  of modest range, not by construction. The control, eleven summands absorbed one at a time or
+  gathered first, is refuted within 4 instances.
 
 ## Build
 
