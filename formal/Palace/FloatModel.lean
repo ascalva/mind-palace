@@ -27,8 +27,9 @@ file proves the model's arithmetic is `rn`:
 
 So `Palace/Roundoff.lean`'s two claims hold of Lean's own `Float`: CND-6 as the code compares,
 `k.toFloat / n.toFloat == 1` exactly when `k = n` and the quotient is `≤ 1`
-(`toFloat_div_beq_one`, `toFloat_div_le_one`), and LAP-1 (`SumTree.val_evalF_agreement`). What stays trusted is that the compiled C
-operators agree with the logical model; the attacks at the end test that on this machine.
+(`toFloat_div_beq_one`, `toFloat_div_le_one`), and LAP-1 (`SumTree.val_evalF_agreement`). What
+stays trusted is that the compiled C operators agree with the logical model; the attacks at the
+end test that on this machine.
 -/
 
 open Float.Model (UnpackedFloat Format totalExponent)
