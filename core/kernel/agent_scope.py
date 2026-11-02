@@ -180,13 +180,15 @@ def internal_actor(
 ) -> Scope:
     """**Profile IA — the internal actor** (dn-agentic-loop §2.3; the DreamCharter is its built
     constructor, bp-079). Broad private read, no world reach. `Σ =` the granted downset, default
-    to `⊤_Σ` (`R ∖ 𝔇` — broad by grant; the caller passes what the owner declared, this never widens
-    past top), optionally ∪ {HYPOTHETICAL} when staging counterfactuals (`hypothetical=True`
-    — named explicitly, per the overlay's Σ-visibility rule). `E = ⊤` (it reasons over all edge
-    classes); `T = (commit, ∗)` — a CUT clock, so the multi-stratum scope is well-typed and any
-    point read carries the pair-cut (§2.3: "SLICE fires on any multi-stratum point read"); `A =
-    (READ_PROPOSE, W_Σ=1, W_world=NONE)` — interpreted-tier projection-writes (structurally
-    unforgeable: `DerivedStore` has no provenance parameter), zero world reach. Residence: core.
+    to `⊤_Σ` (the fullest ordinary grant — broad by grant; the caller passes what the owner
+    declared, and this never widens past it on its own), optionally ∪ {HYPOTHETICAL} when staging
+    counterfactuals (`hypothetical=True` — named explicitly, per the overlay's Σ-visibility rule;
+    the overlay lies outside `⊤_Σ`, so that scope is not `⊑ top()`). `E = ⊤` (it reasons over
+    all edge classes); `T = (commit, ∗)` — a CUT clock, so the multi-stratum scope is well-typed
+    and any point read carries the pair-cut (§2.3: "SLICE fires on any multi-stratum point
+    read"); `A = (READ_PROPOSE, W_Σ=1, W_world=NONE)` — interpreted-tier projection-writes
+    (structurally unforgeable: `DerivedStore` has no provenance parameter), zero world reach.
+    Residence: core.
 
     Zone-admissible by construction: `W_world = NONE`, so the §2.3 antecedent's consequent holds
     however broad Σ is."""

@@ -10,7 +10,8 @@
 #            is the EMPTY window. Read-only: no store write handle, no model, no socket.
 # ENFORCED:  static (core.* strict mypy) + the cross-clock property tests in
 #            tests/unit/test_tmeet_completion.py (pullback == hand-enumerated fiber intersection;
-#            commutativity / associativity on covered triples; wall/now REFUSE).
+#            commutativity / associativity over covered scopes, same-clock opaque windows and
+#            N-window tokens included; wall/now REFUSE).
 """The concrete clock atlas — `SpineAtlas`, the injectable pullback the T-meet totalizes through.
 
 Register with `core.scope.register_atlas(SpineAtlas(spine))` after building the spine. `has(clock)`
@@ -18,7 +19,12 @@ reports whether a window over that clock can be pulled back to N (wall/now are e
 the repo-backed coarsenings are covered only once their external ticks are injected, bp-053);
 `pullback(clock, window)` returns the pulled-back event set `p_κ⁻¹(W)`; `intersect` meets two such
 sets. Scope.py wraps a non-empty token as a degenerate interval `[S, S]` over `Clock.N` (the
-cut-pair window of note §2.5, opaque in v1) and an empty one as the EMPTY window.
+cut-pair window of note §2.5, opaque in v1) and an empty one as the EMPTY window; `token` recognizes
+that wrapping, so scope.py meets two N-windows as event sets.
+
+The meet is associative only if pulling back commutes with `Window.meet` on each clock:
+`p⁻¹(W₁ ⊓ W₂) = p⁻¹(W₁) ∩ p⁻¹(W₂)`. That is why an interval with opaque bounds pulls back to no
+event (see `_in_window`).
 """
 
 from __future__ import annotations
@@ -46,7 +52,7 @@ _PROBE: Hashable = object()
 class SpineAtlas:
     """A `core.scope.ClockAtlas` backed by a derived `Spine` (bp-053's `p_κ`). Holds a read-only
     spine handle and computes pullbacks by coarsening every event through `spine.p` (`ClockAtlas` is
-    a structural Protocol — no explicit subclassing needed; mypy checks the three methods match)."""
+    a structural Protocol — no explicit subclassing needed; mypy checks the four methods match)."""
 
     def __init__(self, spine: Spine) -> None:
         self._spine = spine
@@ -86,12 +92,22 @@ class SpineAtlas:
         inter = cast("frozenset[str]", a) & cast("frozenset[str]", b)
         return inter if inter else None
 
+    def token(self, window: Window) -> Hashable | None:
+        """The event set an N-window carries — the `[S, S]` scope.py wraps a token in — or None
+        for any other window."""
+        if (window.kind is WindowKind.INTERVAL and isinstance(window.lo, frozenset)
+                and window.lo == window.hi):
+            return window.lo
+        return None
+
 
 def _in_window(tick: Hashable, window: Window) -> bool:
     """Is a `p_κ` tick inside window `W`? ALL ⇒ always; EMPTY ⇒ never; an N-window (a frozenset-
     bounded interval — the event set `[S, S]`) ⇒ set membership; a POINT ⇒ equality; an int-bounded
-    interval ⇒ inclusive range; any other opaque interval ⇒ conservative endpoint membership (opaque
-    bounds are not orderable, mirroring `Window`'s own conservatism — never over-includes)."""
+    interval ⇒ inclusive range; any other interval ⇒ no tick at all. Its bounds are not orderable,
+    and `Window.meet` treats two different such windows as disjoint, so their pullbacks must not
+    overlap. Endpoint membership let `[s1, s2]` and `[s2, s3]` share the events at `s2`, which
+    made the atlas meet non-associative (formal/Palace/Scope.lean, measured on a spine)."""
     if window.kind is WindowKind.EMPTY:
         return False
     if window.kind is WindowKind.ALL:
@@ -101,6 +117,8 @@ def _in_window(tick: Hashable, window: Window) -> bool:
         return tick in lo
     if window.kind is WindowKind.POINT:
         return tick == lo
-    if isinstance(tick, int) and isinstance(lo, int) and isinstance(hi, int):
-        return lo <= tick <= hi
-    return tick == lo or tick == hi
+    if isinstance(lo, int) and isinstance(hi, int):
+        if isinstance(tick, int):
+            return lo <= tick <= hi
+        return tick == lo or tick == hi
+    return False

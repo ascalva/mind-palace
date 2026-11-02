@@ -13,7 +13,7 @@ from typing import Any, cast
 import numpy as np
 import pytest
 
-from core.kernel.scope import Clock, Stratum, Window
+from core.kernel.scope import Clock, SliceError, Stratum, Window
 from core.query import (
     AMBASSADOR,
     Grant,
@@ -78,6 +78,34 @@ def test_delegation_never_widens():
         any(m <= g for g in AMBASSADOR.scopes) and any(m <= n for n in narrow.scopes)
         for m in met.scopes
     )
+
+
+def test_every_search_the_mcp_tool_accepts_is_constructible():
+    """`reference` closes to two strata (`reference_repo` below it) and the SLICE rule counts the
+    closed set, so the single-read cut follows it. Deciding the cut from the names made `search`
+    with `strata=["reference"]` raise SliceError (formal/Palace/Scope.lean, `search_slices_iff`).
+    Every list of the tool's names, alone, paired, or the default, now builds and is admitted."""
+    from agents.ambassador import mcp
+
+    names = ["mirror", "dialogue", "interpreted", "curated", "observed", "reference"]
+    for picked in [[], *([n] for n in names), *([n, m] for n in names for m in names)]:
+        for history in (False, True):
+            Query(Verb.SEARCH, AMBASSADOR, text="x", strata=mcp._strata(picked), history=history)
+    alone = Query(Verb.SEARCH, AMBASSADOR, text="x", strata=(Stratum.REFERENCE,))
+    assert alone.req.sigma.strata == {Stratum.REFERENCE, Stratum.REFERENCE_REPO}
+    assert alone.req.cut == "single-read"
+    assert required(Verb.SEARCH, strata=(Stratum.CURATED,)).cut is None   # one stratum: no cut
+
+
+def test_grant_meet_skips_a_pair_whose_meet_has_no_consistent_cut():
+    """Two valid scopes on one clock can still have no meet: `[1,5] ⊓ [5,9] = pt(5)` across two
+    strata with no cut is refused by the SLICE rule. `Grant.meet` skips that pair as it skips a
+    cross-clock one, instead of letting SliceError escape."""
+    a = scope({Stratum.MIRROR_AUTHORED, Stratum.CURATED}, set(), Clock.N_S, Window.interval(1, 5))
+    b = scope({Stratum.MIRROR_AUTHORED, Stratum.CURATED}, set(), Clock.N_S, Window.interval(5, 9))
+    with pytest.raises(SliceError):
+        a.meet(b)
+    assert Grant((a,)).meet(Grant((b,))).scopes == ()
 
 
 # ── the β-curve ─────────────────────────────────────────────────────────────────────────────────
