@@ -7,6 +7,11 @@ states and proves laws over ℚ and ℝ, Hypothesis tests the floats in Python, 
 the two. Rung L3 enters one claim at a time: float64 claims proved over a model of binary64
 rounding that is itself attacked against this machine's arithmetic.
 
+The ledger, `docs/LAWS.md`, gives each law one row: its statement, structure, code anchor, label
+and Python falsifier, and the declarations here that state it. Each declaration it cites carries
+the law id in bold at the head of its docstring (`/-- **LAP-1** …`), and `check.sh` checks the two
+sides against each other.
+
 ## Layout
 
 - `Palace/Laplacian.lean`: LAP-1, LAP-2 and LAP-3 (`core/kernel/complex/laplacian.py`), with their
@@ -45,8 +50,9 @@ rounding that is itself attacked against this machine's arithmetic.
 - `Audit.lean`: lists the axioms behind every `Palace` declaration and fails on anything beyond
   `propext`, `Classical.choice`, `Quot.sound` and `sorryAx`.
 - `sorry-budget`: the ratchet. The count of `sorry` must equal it; it only goes down.
-- `check.sh`: the local gate. It builds (which runs the attacks), checks the budget, greps for
-  `axiom`, `admit` and `native_decide`, and runs the audit.
+- `check.sh`: the gate. It builds (which runs the attacks), checks the budget, greps for
+  `axiom`, `admit` and `native_decide`, runs the audit, and checks the cross-reference with
+  `docs/LAWS.md` (`scripts/check_laws_xref.py`).
 
 ## Laws
 
@@ -275,3 +281,8 @@ gate:
 lake exe cache get
 ./check.sh
 ```
+
+CI runs the same gate in the advisory `lean` workflow (`.github/workflows/lean.yml`): on every PR
+and push to `main` whose diff touches `formal/`, the ledger, the cross-reference script or the
+workflow itself, and every Monday against drift in the toolchain or the Mathlib cache. Nothing
+requires it yet; that is the owner's call after four green weeks (the note's §2.4).

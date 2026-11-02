@@ -23,6 +23,10 @@ How to read a row:
   Amendment A1). `formal/check.sh` holds every one to zero `sorry` and the three standard axioms.
   A Lean proof is about a model of the code, so it does not move the label.
 
+The cross-reference is two-sided. Each declaration cited here carries its law id in bold at the
+head of its docstring, and every law id so marked in `formal/` has a row here that cites at least
+one declaration. `scripts/check_laws_xref.py` checks both directions, inside `formal/check.sh`.
+
 ## I. Memberships
 
 `core/stores/memberships.py`. Pure ℤ, Bool and strings, with no floats anywhere, so every law
