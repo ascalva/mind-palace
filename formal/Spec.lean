@@ -13,4 +13,5 @@ public import Spec.Plane
 public import Spec.Rayleigh
 public import Spec.Roundoff
 public import Spec.Scope
+public import Spec.SigmaStar
 public import Spec.Spectral
