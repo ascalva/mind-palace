@@ -1,5 +1,6 @@
 module
 
+public import Palace.FloatModel.Defs
 public import Mathlib.Tactic.LinearCombination
 public import Palace.Roundoff
 
@@ -30,13 +31,14 @@ file proves the model's arithmetic is `rn`:
 So `Palace/Roundoff.lean`'s two claims hold of Lean's own `Float`: CND-6 as the code compares,
 `k.toFloat / n.toFloat == 1` exactly when `k = n` and the quotient is `≤ 1`
 (`toFloat_div_beq_one`, `toFloat_div_le_one`), and LAP-1 (`SumTree.val_evalF_agreement`). What
-stays trusted is that the compiled C operators agree with the logical model; the attacks at the
-end test that on this machine.
+stays trusted is that the compiled C operators agree with the logical model; the attacks in
+`PalaceTest/FloatModel.lean` test that on this machine.
 -/
 
 @[expose] public section
 
 open Float.Model (UnpackedFloat Format totalExponent)
+
 open Float.Model.UnpackedFloat (ExtendedMantissa Accuracy Sign)
 
 namespace Palace.Binary64
@@ -172,17 +174,6 @@ theorem Rep.roundedMantissa_eq {em : ExtendedMantissa} {y : K} (h : Rep em y) :
 end Rep
 
 section Round
-
-/-- `±1` for a sign. -/
-def sgn : Sign → K
-  | .positive => 1
-  | .negative => -1
-
-/-- The value of an unpacked float: `±m · 2^e`, and `0` for a zero (and, as junk, for `±∞` and
-NaN). -/
-def value : UnpackedFloat → K
-  | .finite s m e _ => sgn s * (m * 2 ^ e)
-  | _ => 0
 
 /-- `(m, e)` is binary64's canonical form of a nonzero finite number: normal, with a 53-bit
 significand, or subnormal, at the least exponent. -/
@@ -656,9 +647,6 @@ end Arith
 
 section LeanFloat
 
-/-- The value of a Lean `Float`: what its bits encode, `0` for `±∞` and NaN. -/
-def val (f : Float) : K := value f.toModel.unpack
-
 theorem packable_toModel {a : Float} (ha : a.isFinite) : Packable a.toModel.unpack :=
   packable_unpack _ ha
 
@@ -692,7 +680,6 @@ theorem val_mul {a b : Float} (ha : a.isFinite) (hb : b.isFinite)
   obtain ⟨hv, hc⟩ := mul_spec (K := K) (packable_toModel ha) (packable_toModel hb)
   have hp := packable_of_canon hc (by rw [hv]; exact hov)
   exact ⟨(val_ofModel_pack hp).trans hv, isFinite_ofModel_pack hp⟩
-
 
 section Div
 
@@ -903,16 +890,6 @@ theorem val_toFloat_div_eq_one_iff {k n : ℕ} (hk : k ≤ n) (hn : n < 2 ^ 53) 
   exact rn_div_eq_one_iff hk (by omega) h0
 
 namespace SumTree
-
-/-- The order with its summands mapped. -/
-def map {α β : Type*} (f : α → β) : SumTree α → SumTree β
-  | .leaf x => .leaf (f x)
-  | .node l r => .node (l.map f) (r.map f)
-
-/-- The order evaluated in Lean's `Float`, one `Float` addition per node. -/
-def evalF : SumTree Float → Float
-  | .leaf x => x
-  | .node l r => l.evalF + r.evalF
 
 omit [Field K] [LinearOrder K] [IsStrictOrderedRing K] [FloorRing K] in
 theorem leaves_map {α : Type*} (f : α → K) (t : SumTree α) :
@@ -1131,6 +1108,5 @@ theorem toFloat_div_le_one {k n : ℕ} (hk : k ≤ n) (hn : n < 2 ^ 53) (h0 : 0 
     hvn]
   push_cast
   exact rn_div_le_one hk
-
 
 end Palace.Binary64

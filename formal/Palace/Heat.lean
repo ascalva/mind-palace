@@ -1,5 +1,6 @@
 module
 
+public import Palace.Heat.Defs
 public import Mathlib.Analysis.InnerProductSpace.PiL2
 public import Mathlib.Analysis.SpecialFunctions.Exp
 public import Palace.Spectral
@@ -30,22 +31,10 @@ namespace Palace
 
 variable {V : Type*} [Fintype V] [DecidableEq V]
 
-/-- The heat kernel `e^{−tM}` of a real symmetric matrix, by the functional calculus. -/
-noncomputable def heat (M : Matrix V V ℝ) (t : ℝ) : Matrix V V ℝ :=
-  cfc (fun x ↦ Real.exp (-t * x)) M
-
-/-- The vertex `i` seen from time `t`: column `i` of the heat kernel, `H_t eᵢ`, as a point of
-Euclidean space. -/
-noncomputable def heatPoint (M : Matrix V V ℝ) (t : ℝ) (i : V) : EuclideanSpace ℝ V :=
-  WithLp.toLp 2 (heat M t *ᵥ Pi.single i 1)
-
-/-- **CND-4** `_diffusion_distances`: `√(G_ii + G_jj − 2G_ij)` with `G = H_{2t}`. -/
-noncomputable def diffusionDist (M : Matrix V V ℝ) (t : ℝ) (i j : V) : ℝ :=
-  Real.sqrt (rEff (heat M (2 * t)) i j)
-
 section Heat
 
 variable {M : Matrix V V ℝ} (hM : M.IsHermitian)
+
 include hM
 
 /-- `H_0 = 1`. -/

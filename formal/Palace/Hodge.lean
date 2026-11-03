@@ -1,5 +1,6 @@
 module
 
+public import Palace.Hodge.Defs
 public import Mathlib.Combinatorics.SimpleGraph.Basic
 public import Mathlib.Data.Matrix.ColumnRowPartitioned
 public import Mathlib.Algebra.Order.Star.Real
@@ -25,7 +26,7 @@ smaller end, and its 3-cliques as ascending triples. `∂₁ e_ij = δ_j − δ_
   kernel's dimension and the split all carry over.
 
 LAP-8 to LAP-11 hold for any two real matrices with `∂₁ ∂₂ = 0`; LAP-7 is what makes the flag
-complex one. The attacks run over `ℤ` on random graphs of six vertices.
+complex one. The attacks (`PalaceTest/Hodge.lean`) run over `ℤ` on random graphs of six vertices.
 -/
 
 @[expose] public section
@@ -40,35 +41,9 @@ section Complex
 
 variable {V : Type*} [LinearOrder V] [Fintype V] (G : SimpleGraph V) [DecidableRel G.Adj]
 
-/-- The edges, each oriented from its smaller end (`edge_index`). -/
-abbrev Edge := {p : V × V // p.1 < p.2 ∧ G.Adj p.1 p.2}
-
-/-- The filled triangles: the graph's 3-cliques, as ascending triples (`flag_triangles`). -/
-abbrev Tri :=
-  {t : V × V × V // t.1 < t.2.1 ∧ t.2.1 < t.2.2 ∧ G.Adj t.1 t.2.1 ∧ G.Adj t.2.1 t.2.2 ∧
-    G.Adj t.1 t.2.2}
-
 variable {G}
 
-/-- A triangle's edge `ij`. -/
-def edgeIJ (t : Tri G) : Edge G := ⟨(t.1.1, t.1.2.1), t.2.1, t.2.2.2.1⟩
-
-/-- A triangle's edge `ik`. -/
-def edgeIK (t : Tri G) : Edge G := ⟨(t.1.1, t.1.2.2), t.2.1.trans t.2.2.1, t.2.2.2.2.2⟩
-
-/-- A triangle's edge `jk`. -/
-def edgeJK (t : Tri G) : Edge G := ⟨(t.1.2.1, t.1.2.2), t.2.2.1, t.2.2.2.2.1⟩
-
 variable (G)
-
-/-- `∂₁ e_ij = δ_j − δ_i` (`boundary_1`). -/
-def d1 (R : Type*) [Ring R] : Matrix V (Edge G) R :=
-  fun v e ↦ (Pi.single e.1.2 1 - Pi.single e.1.1 1 : V → R) v
-
-/-- `∂₂ t_ijk = e_jk − e_ik + e_ij` (`boundary_2`). -/
-def d2 (R : Type*) [Ring R] : Matrix (Edge G) (Tri G) R :=
-  fun e t ↦ (if e = edgeJK t then 1 else 0) - (if e = edgeIK t then 1 else 0) +
-    (if e = edgeIJ t then 1 else 0)
 
 /-- **LAP-7** A boundary has no boundary: `∂₁ ∂₂ = 0`, exactly, over any ring. -/
 theorem d1_mul_d2 (R : Type*) [Ring R] : d1 G R * d2 G R = 0 := by
@@ -86,10 +61,6 @@ end Complex
 section Hodge
 
 variable {V E T : Type*} [Fintype V] [Fintype E] [Fintype T]
-
-/-- `L₁ = ∂₁ᵀ ∂₁ + ∂₂ ∂₂ᵀ` (`hodge_laplacian_1`). -/
-def lap1 {R : Type*} [CommRing R] (B₁ : Matrix V E R) (B₂ : Matrix E T R) : Matrix E E R :=
-  B₁ᵀ * B₁ + B₂ * B₂ᵀ
 
 variable (B₁ : Matrix V E ℝ) (B₂ : Matrix E T ℝ)
 

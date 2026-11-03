@@ -1,5 +1,6 @@
 module
 
+public import Palace.Roundoff.Defs
 public import Mathlib.Algebra.BigOperators.Group.List.Basic
 public import Palace.Binary64
 
@@ -113,30 +114,7 @@ end Chi
 
 section Reassoc
 
-/-- A summation order: a binary tree over the summands, each node one rounded addition. -/
-inductive SumTree (K : Type*) where
-  | leaf (x : K)
-  | node (l r : SumTree K)
-
 namespace SumTree
-
-/-- The exact sum. -/
-def exact : SumTree K → K
-  | leaf x => x
-  | node l r => l.exact + r.exact
-
-/-- The float64 sum, rounding after each addition. -/
-def fl : SumTree K → K
-  | leaf x => x
-  | node l r => rn (l.fl + r.fl)
-
-/-- The summands, left to right. -/
-def leaves : SumTree K → List K
-  | leaf x => [x]
-  | node l r => l.leaves ++ r.leaves
-
-/-- The number of nonzero summands. -/
-def nz (t : SumTree K) : ℕ := (t.leaves.filter (· ≠ 0)).length
 
 omit [LinearOrder K] [IsStrictOrderedRing K] [FloorRing K] in
 theorem exact_eq_sum (t : SumTree K) : t.exact = t.leaves.sum := by
@@ -275,11 +253,6 @@ theorem agreement {t₁ t₂ : SumTree K} (hp : t₁.leaves.Perm t₂.leaves)
   rw [show (4 : K) * 2 ^ (-52 : ℤ) = 8 * u by norm_num [u], abs_le]
   constructor <;> nlinarith
 
-/-- `n` more additions of `x` onto the order `s`, one at a time. -/
-def chain (s : SumTree K) (x : K) : ℕ → SumTree K
-  | 0 => s
-  | n + 1 => node (chain s x n) (leaf x)
-
 omit [Field K] [LinearOrder K] [IsStrictOrderedRing K] [FloorRing K] in
 theorem leaves_chain (s : SumTree K) (x : K) (n : ℕ) :
     (chain s x n).leaves = s.leaves ++ List.replicate n x := by
@@ -309,16 +282,6 @@ theorem rn_one_add_tie (j : ℕ) (hj : j < 2 ^ 50) :
   rcases Nat.mod_two_eq_zero_or_one j with h | h
   · rw [rne_tie_even (by omega), h]; push_cast; norm_num [u]; ring
   · rw [rne_tie_odd (by omega), h]; push_cast; norm_num [u]; ring
-
-/-- The witness's summands: `1 + 2u`, an odd point of the grid near `1`, then `3u` and six
-`u`. Low: the `3u` first and then the `u`s, one at a time; every tie goes down. -/
-def low : SumTree K := chain (node (leaf (1 + 2 * u)) (leaf (3 * u))) u 6
-
-/-- High: the `u`s first, two of the pairs summed before they are added, and the `3u` late;
-three ties go up. -/
-def high : SumTree K :=
-  node (node (node (node (node (leaf (1 + 2 * u)) (leaf u)) (node (leaf u) (leaf u))) (leaf u))
-    (leaf (3 * u))) (node (leaf u) (leaf u))
 
 theorem low_fl : (low : SumTree K).fl = 1 + 4 * u := by
   have hstep : rn (1 + 4 * u + u : K) = 1 + 4 * u := by
@@ -393,6 +356,5 @@ theorem lap1_fails :
 end SumTree
 
 end Reassoc
-
 
 end Palace.Binary64

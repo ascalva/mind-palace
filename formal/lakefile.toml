@@ -29,3 +29,8 @@ name = "Palace"
 # The Plausible attacks and negative controls, one module per `Palace` module.
 [[lean_lib]]
 name = "PalaceTest"
+
+# The laws as statements, each proof left as `sorry`: the challenge `lake comparator` judges the
+# `Palace` library against (comparator.json). It imports only the model, `Palace/*/Defs.lean`.
+[[lean_lib]]
+name = "Spec"

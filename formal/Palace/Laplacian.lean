@@ -1,5 +1,6 @@
 module
 
+public import Palace.Laplacian.Defs
 public import Mathlib.Combinatorics.SimpleGraph.LapMatrix
 
 /-!
@@ -17,16 +18,6 @@ open Matrix Finset
 namespace Palace
 
 variable {V R : Type*} [Fintype V] [DecidableEq V]
-
-/-- The weighted degree: the row sums of `A` (`laplacian.py`, `_degree`). -/
-def degree [AddCommMonoid R] (A : Matrix V V R) (i : V) : R := ∑ j, A i j
-
-/-- The combinatorial Laplacian `L = D − A` (`laplacian.py`, `laplacian`). -/
-def lap [Ring R] (A : Matrix V V R) : Matrix V V R := diagonal (degree A) - A
-
-/-- The signed Laplacian `L̄ = D̄ − A`, `D̄ᵢᵢ = Σⱼ |Aᵢⱼ|` (`laplacian.py`, `signed_laplacian`). -/
-def signedLap [Ring R] [LinearOrder R] (A : Matrix V V R) : Matrix V V R :=
-  diagonal (fun i ↦ ∑ j, |A i j|) - A
 
 /-- **LAP-1** `L·1 = 0`, for every `A`: no symmetry, sign or weight condition is needed. -/
 theorem lap_mulVec_one [Ring R] (A : Matrix V V R) : lap A *ᵥ 1 = 0 := by
@@ -144,11 +135,6 @@ theorem card_components_eq_nullity_adjMatrix (G : SimpleGraph V) [DecidableRel G
     Fintype.card G.ConnectedComponent =
       Module.finrank ℝ (LinearMap.ker (lap (G.adjMatrix ℝ)).toLin') := by
   rw [lap_adjMatrix]; exact G.card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix
-
-/-- The support graph of a weight matrix: `i ~ j` iff `i ≠ j` and `Aᵢⱼ ≠ 0` or `Aⱼᵢ ≠ 0`. A
-self-loop is no edge: its weight enters `D` and `A` alike and cancels in `L`. -/
-def support [Zero R] (A : Matrix V V R) : SimpleGraph V :=
-  SimpleGraph.fromRel fun i j ↦ A i j ≠ 0
 
 /-- The house reduction behind weighted LAP-3 (dn-mathematical-foundations §2.4): for symmetric
 nonnegative `A`, `L·x = 0` iff `x` takes one value across every edge of nonzero weight. -/

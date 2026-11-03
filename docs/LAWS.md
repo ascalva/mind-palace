@@ -18,15 +18,21 @@ How to read a row:
   at Conjecture, and the arrow names the unit that is to close it. Labels upgrade only as tests
   land (the note's §3, MF-2).
 - **falsifier**: the pytest node id that would catch the law false, or `GAP`.
-- **formal**: the Lean declarations that state the law, as `file::name` under `formal/Palace/`
-  (with as many namespaces as it takes to pick out one, as in `Window.join_le_iff`), or `—`. They
-  state it over exact arithmetic, or over binary64 where marked L3 (the note's Amendment A1).
-  `formal/check.sh` holds every one to zero `sorry` and the three standard axioms. A Lean proof is
-  about a model of the code, so it does not move the label.
+- **formal**: the Lean declarations that state the law, as `file::name` for a family's file under
+  `formal/Palace/` (with as many namespaces as it takes to pick out one, as in
+  `Window.join_le_iff`), or `—`. They state it over exact arithmetic, or over binary64 where
+  marked L3 (the note's Amendment A1). `formal/check.sh` holds every one to zero `sorry` and the
+  three standard axioms. A Lean proof is about a model of the code, so it does not move the label.
 
 The cross-reference is two-sided. Each declaration cited here carries its law id in bold at the
 head of its docstring, and every law id so marked in `formal/` has a row here that cites at least
 one declaration. `scripts/check_laws_xref.py` checks both directions, inside `formal/check.sh`.
+
+What a cited theorem says is fixed in one place. Each is restated, its proof left out, in the
+family's `formal/Spec/` file, over the family's definitions in `formal/Palace/*/Defs.lean`, and
+`lake comparator` checks that the library proves exactly that statement from the standard axioms.
+To check that a row's formal column says what its statement says, read those two files against
+the row; no other file can change what is proved (`formal/README.md`, "From a row to a proof").
 
 ## I. Memberships
 
