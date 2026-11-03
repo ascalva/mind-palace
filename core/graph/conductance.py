@@ -81,7 +81,7 @@ import scipy.sparse as sp
 
 from core.dreaming.graph import MirrorGraph
 from core.kernel.complex.laplacian import laplacian as _combinatorial_laplacian
-from core.temporal.spine import Spine
+from core.temporal.spine import Order, Spine
 
 _MIRROR_STRATUM = "mirror"              # the σ-graph is cut over the mirror stratum
 
@@ -355,30 +355,37 @@ def sigma_t_profile(
 
 
 def _longest_chain(stratum_spine: Spine, event_ids: Sequence[str]) -> int:
-    """The longest ≼-chain (in EVENT count) among `event_ids` within a stratum-restricted spine.
-    `proper_time(a,b)` returns the max-chain length of the causal interval `[a,b]`; the maximum over
-    all comparable pairs is the global longest chain (its endpoints are the chain's bottom/top). A
-    single event is a 1-chain. finding-0090 note: we use the CHAIN length here as the numerator; the
-    budget itself (below) uses N_s COUNTS, sidestepping the proper-time-exactness erratum."""
-    if not event_ids:
-        return 0
-    longest = 1
-    for a in event_ids:
-        for b in event_ids:
-            if a == b:
-                continue
-            length, _complete = stratum_spine.proper_time(a, b)
-            longest = max(longest, length)
-    return longest
+    """The longest ≼-chain (in EVENT count) whose events all lie in `event_ids`, within a
+    stratum-restricted spine: the height of the sub-poset the events induce. Two events are
+    comparable when `≼` relates them, through events outside `event_ids` or not, but only
+    `event_ids` are counted, so the chain never exceeds their number (CND-6: a window's chain once
+    counted `proper_time` across the whole stratum's interval, and a window of a 3-chain's two ends
+    read 3/2). Taken in order of how many of the events precede each, a strict predecessor has
+    strictly fewer, so each event's longest chain extends one already computed. A single event is a
+    1-chain. finding-0090 note: we use the CHAIN length here as the numerator; the budget itself
+    (below) uses N_s COUNTS, sidestepping the proper-time-exactness erratum."""
+    below: dict[str, set[str]] = {e: set() for e in event_ids}
+    for i, a in enumerate(event_ids):
+        for b in event_ids[i + 1:]:
+            order = stratum_spine.order(a, b)
+            if order is Order.BEFORE:
+                below[b].add(a)
+            elif order is Order.AFTER:
+                below[a].add(b)
+    chain: dict[str, int] = {}
+    for e in sorted(below, key=lambda x: len(below[x])):
+        chain[e] = 1 + max((chain[p] for p in below[e]), default=0)
+    return max(chain.values(), default=0)
 
 
 def chi_s(spine: Spine, stratum: str, *, window: Sequence[str] | None = None) -> float | None:
     r"""The CN-4 sequentiality statistic `χ_s(W) = longest-chain / N_s(W) ∈ (0,1]` for a stratum
     over a window W (v1: the whole stratum unless `window` restricts the event ids). `N_s(W)` = the
     per-stratum event COUNT (finding-0090: a count, not the proper-time metric — the erratum does
-    not gate this). `χ_s = 1` iff the window-events are totally ordered; the depth budget
-    `longest-chain ≤ N_s(W)` is exactly `χ_s ≤ 1`. Returns `None` when `N_s(W) = 0` (χ_s undefined
-    with no events)."""
+    not gate this), and the longest chain is counted among W's own events. `χ_s = 1` iff the
+    window-events are totally ordered; the depth budget `longest-chain ≤ N_s(W)` is exactly
+    `χ_s ≤ 1`, and it holds for every W: a chain of W's events has at least one and at most N_s(W)
+    of them. Returns `None` when `N_s(W) = 0` (χ_s undefined with no events)."""
     stratum_spine = spine.n_s(stratum)
     ids = [e.event_id for e in stratum_spine.events()]
     if window is not None:

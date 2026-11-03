@@ -24,12 +24,15 @@ from __future__ import annotations
 import ast
 import itertools
 import math
+from collections import Counter
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from core.dreaming.cluster import NoteVector
 from core.dreaming.graph import MirrorGraph
@@ -336,20 +339,39 @@ def test_chi_s_is_in_the_half_open_unit_interval() -> None:
         assert 0.0 < value <= 1.0
 
 
-@pytest.mark.xfail(strict=True, reason="CND-6's windowed hypothesis is false: `_longest_chain` "
-                   "measures chains through events the window leaves out, so a window holding "
-                   "the two ends of a 3-chain reads 3/2 (docs/LAWS.md, CND-6)")
 def test_chi_s_stays_in_the_unit_interval_under_a_window() -> None:
-    """CND-6's windowed law, the χ_s hypothesis (dn-mathematical-foundations §2.5): the docstring
-    states `χ_s(W) ∈ (0,1]` for a window `W` too. A window that keeps a chain's two ends and skips
-    its middle falsifies it: the numerator counts the full-stratum chain between them. `window` has
-    no wired caller (`chi_s_all` passes none), so the defect is latent; this marker is strict, so a
-    fix turns it into a failure that asks for the marker and the ledger row to change."""
+    """CND-6 for a window, on the counterexample that once falsified it (dn-mathematical-foundations
+    §2.5, the χ_s hypothesis): a window that keeps a 3-chain's two ends and skips its middle. Its
+    two events are ordered, so `χ_s(W) = 2/2 = 1`; the chain through the skipped middle, which read
+    3/2, is not counted."""
     spine = _one_doc_spine(versions=3)
     ids = [e.event_id for e in spine.n_s("mirror").events()]
-    value = chi_s(spine, "mirror", window=[ids[0], ids[-1]])
-    assert value is not None
-    assert 0.0 < value <= 1.0
+    assert chi_s(spine, "mirror", window=[ids[0], ids[-1]]) == 1.0
+
+
+@settings(deadline=None, max_examples=150)
+@given(versions=st.lists(st.integers(min_value=1, max_value=4), min_size=1, max_size=4),
+       data=st.data())
+def test_a_window_counts_only_its_own_events(versions: list[int], data: st.DataObject) -> None:
+    """CND-6 for every window: the mirror stratum's versions are one chain per document, the
+    documents concurrent, so `χ_s(W)` is the most of W's events one document holds, over `|W|`; in
+    `(0, 1]`, and `1.0` exactly when W lies in one document. Without a window it reads as it always
+    did: the longest `proper_time` in the stratum over `N_s`."""
+    vs = VersionStore(_MEM)
+    for d, n in enumerate(versions):
+        for v in range(n):
+            vs.record(f"doc{d}", f"DIG{d}-{v}")
+    spine = Spine.derive(SpineSources(versions=vs), cut_sources=CutSources(commit_sha="deadbeef"))
+    stratum = spine.n_s("mirror")
+    ids = [e.event_id for e in stratum.events()]
+    window = data.draw(st.lists(st.sampled_from(ids), min_size=1, unique=True))
+    per_doc = Counter(e.split(":")[1] for e in window)
+    value = chi_s(spine, "mirror", window=window)
+    assert value == pytest.approx(max(per_doc.values()) / len(window))
+    assert value is not None and 0.0 < value <= 1.0
+    assert (value == 1.0) == (len(per_doc) == 1)
+    longest = max(stratum.proper_time(a, b)[0] for a in ids for b in ids)
+    assert chi_s(spine, "mirror") == pytest.approx(longest / len(ids))
 
 
 def test_chi_s_is_none_when_the_stratum_is_empty() -> None:
