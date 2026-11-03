@@ -1,0 +1,61 @@
+# The BENCH instance: a disposable palace for benchmarks (`ops/container/README.md`).
+#
+# Selected by `MIND_PALACE_OVERLAY=config/instances/bench.toml` (the bench image sets it). A named
+# overlay replaces the whole per-machine chain, so nothing of Ouroboros's `ouroboros.toml` or
+# `levers.toml` reaches this instance: it is a different individual, not a copy (DI-2, #25).
+#
+# The bench runs core IN-PROCESS (`python -m eval.harness.bench`): no daemon, so no tick, no
+# Ambassador bridge and no sandbox are ever started. The flags below turn off what a stray code path
+# could still reach for, so the instance has nothing to back up, sign, fetch or tune.
+
+# The embedder is llama-server in the `embedder` container, reached on loopback: the two containers
+# share one network namespace with no interface but `lo` (compose.yaml), so the seal's
+# loopback-only rule holds unchanged.
+[runtime]
+embedding_backend = "llamacpp"
+ports = { embedding = 8081 }
+
+# Ouroboros's embedder, so a bench number speaks for the live geometry.
+[embedding]
+model = "embeddinggemma-2"
+dim = 768
+query_template = "task: search result | query: {text}"
+document_template = "title: none | text: {text}"
+
+# σ for EmbeddingGemma, as Ouroboros runs it. The structural verbs (hybrid, diffuse) read it.
+[dreaming]
+similarity_threshold = 0.785
+scheduled = false
+
+[dream_rnd]
+sigma = 0.785
+
+# The harness writes each haystack's notes and points ingestion at them; nothing watches a vault.
+[ingestion.vault]
+path = "/app/data/vault"
+enabled = false
+
+[ingestion.transcripts]
+enabled = false
+
+[ingestion.code]
+enabled = false
+
+[integrate]
+enabled = false
+
+[backup]
+enabled = false
+
+[secrets]
+enabled = false
+
+[attestation]
+enabled = false
+
+[selfmod]
+enabled = false
+unattended_enabled = false
+
+[effectors]
+enabled = false

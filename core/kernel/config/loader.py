@@ -40,12 +40,25 @@ _LEGACY_OVERLAY = _CONFIG_DIR / "local.toml"
 # wins over a loop-tuned knob — human authority stays supreme. Gitignored; deleting it reverts
 # every tuned knob to its committed default.
 LEVERS_OVERLAY = _CONFIG_DIR / "levers.toml"
+# Instance selection at run time (DI-2, #25; the bench deployment, `ops/container/README.md`). When
+# this variable is set it names the ONE overlay the loader reads, in place of BOTH files above: a
+# named instance is a different individual, so it must not inherit Ouroboros's hand overlay or the
+# knobs Ouroboros's own self-modification loop tuned. Unset, the chain is exactly as before.
+OVERLAY_ENV = "MIND_PALACE_OVERLAY"
 
 
 class ConfigMigrationError(RuntimeError):
     """The per-machine overlay is in a state where loading would apply the WRONG values.
 
     Raised, never warned: see `_refuse_on_legacy_overlay`.
+    """
+
+
+class InstanceOverlayError(RuntimeError):
+    """`MIND_PALACE_OVERLAY` names an overlay that is not a file.
+
+    Raised, never warned, for the same reason as `ConfigMigrationError`: falling back to the
+    committed defaults would bring a named instance up on the wrong embedder and σ, silently.
     """
 
 
@@ -581,6 +594,23 @@ def _refuse_on_legacy_overlay() -> None:
     )
 
 
+def _named_overlay() -> Path | None:
+    """The overlay `MIND_PALACE_OVERLAY` names, or None when it is unset or empty. A relative path
+    resolves against the repo root, like every path in the tomls; one that is not a file refuses."""
+    named = os.environ.get(OVERLAY_ENV, "")
+    if not named:
+        return None
+    path = Path(named).expanduser()
+    path = path if path.is_absolute() else REPO_ROOT / path
+    if not path.is_file():
+        raise InstanceOverlayError(
+            f"{OVERLAY_ENV}={named!r} names no file ({path}). Refusing to load: the committed "
+            f"defaults are not this instance's configuration. Unset {OVERLAY_ENV} to load the "
+            f"default chain, or point it at the instance's overlay."
+        )
+    return path
+
+
 def load_config(path: Path | None = None) -> Config:
     raw = tomllib.loads((path or _DEFAULTS).read_text(encoding="utf-8"))
     # Overlay precedence (only for the default path — an explicit `path`, as tests pass, is taken
@@ -590,10 +620,17 @@ def load_config(path: Path | None = None) -> Config:
     # _INSTANCE_OVERLAY above. The legacy guard runs first: an un-migrated overlay must refuse here,
     # not sail past and hand back defaults. An explicit `path` bypasses the whole chain, guard
     # included — it is a verbatim read of the file the caller named.
+    #
+    # A named instance (`MIND_PALACE_OVERLAY`) replaces the chain: defaults ← its own overlay, and
+    # nothing of Ouroboros's. The legacy guard is about Ouroboros's file name, so it does not run.
     if path is None:
-        _refuse_on_legacy_overlay()
-        _overlay(raw, LEVERS_OVERLAY)
-        _overlay(raw, _INSTANCE_OVERLAY)
+        named = _named_overlay()
+        if named is not None:
+            _overlay(raw, named)
+        else:
+            _refuse_on_legacy_overlay()
+            _overlay(raw, LEVERS_OVERLAY)
+            _overlay(raw, _INSTANCE_OVERLAY)
     o, r, p = raw["ollama"], raw["resources"], raw["paths"]
     e, s = raw["embedding"], raw["sandbox"]
     itf, dr, rnd = raw["interface"], raw["dreaming"], raw["dream_rnd"]
