@@ -145,7 +145,7 @@ and §2.2.
 
 `core/graph/sigma_star.py`, connectivity-instruments CN-2: σ* and the one maximum spanning forest
 that realizes it for every pair. Family VIII extends the seed (owner, 2026-11-03: "continue with
-σ*").
+σ*"; the SIG prefix, "prefixes are ok").
 
 | law | statement | structure | anchor | label | falsifier | formal |
 |---|---|---|---|---|---|---|
@@ -159,7 +159,7 @@ that realizes it for every pair. Family VIII extends the seed (owner, 2026-11-03
 Laws that join two families' structures, so that what one family proves serves the other
 (`formal/Palace/Bridges.lean`). None has a Python test of its own yet, so each is a GAP and stays a
 Conjecture until MF-2 or MF-3 writes one; the formal column says what is proved. Family IX extends
-the seed (owner, 2026-11-03: "let's also focus on the bridges").
+the seed (owner, 2026-11-03: "let's also focus on the bridges"; the BRG prefix, "prefixes are ok").
 
 | law | statement | structure | anchor | label | falsifier | formal |
 |---|---|---|---|---|---|---|
