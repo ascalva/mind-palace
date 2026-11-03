@@ -1,5 +1,9 @@
-import Mathlib.Testing.Plausible.Sampleable
-import Palace.Laplacian
+module
+
+public import Mathlib.Testing.Plausible.Sampleable
+public import Palace.Laplacian
+public meta import Mathlib.Testing.Plausible.Sampleable
+public meta import Palace.Laplacian
 
 /-!
 # Conductance: CUT-1
@@ -8,6 +12,8 @@ import Palace.Laplacian
 (dn-mathematical-foundations §2.2, seed table III): `0` when `S` is empty or everything, and `0`
 when either side has zero volume.
 -/
+
+@[expose] public section
 
 open Matrix Finset
 

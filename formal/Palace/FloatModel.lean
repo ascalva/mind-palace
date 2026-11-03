@@ -1,5 +1,9 @@
-import Mathlib.Tactic.LinearCombination
-import Palace.Roundoff
+module
+
+public import Mathlib.Tactic.LinearCombination
+public import Palace.Roundoff
+public meta import Mathlib.Tactic.LinearCombination
+public meta import Palace.Roundoff
 
 /-!
 # Lean's `Float` rounds as `rn` does
@@ -31,6 +35,8 @@ So `Palace/Roundoff.lean`'s two claims hold of Lean's own `Float`: CND-6 as the 
 stays trusted is that the compiled C operators agree with the logical model; the attacks at the
 end test that on this machine.
 -/
+
+@[expose] public section
 
 open Float.Model (UnpackedFloat Format totalExponent)
 open Float.Model.UnpackedFloat (ExtendedMantissa Accuracy Sign)

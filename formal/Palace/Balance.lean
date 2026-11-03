@@ -1,4 +1,7 @@
-import Palace.Spectral
+module
+
+public import Palace.Spectral
+public meta import Palace.Spectral
 
 /-!
 # Signed balance: LAP-5 and LAP-6
@@ -7,6 +10,8 @@ Statements of the ledger's balance laws (dn-mathematical-foundations §2.2, seed
 mirroring `core/kernel/complex/balance.py`. A signed graph is balanced when its vertices split into
 two camps, every positive edge inside a camp and every negative edge across.
 -/
+
+@[expose] public section
 
 open Matrix Finset
 

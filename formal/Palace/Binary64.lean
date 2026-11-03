@@ -1,15 +1,35 @@
-import Mathlib.Algebra.Order.Field.Power
-import Mathlib.Algebra.Order.Round
-import Mathlib.Data.Int.Log
-import Mathlib.Data.Rat.Floor
-import Mathlib.Tactic.FieldSimp
-import Mathlib.Tactic.GCongr
-import Mathlib.Tactic.IntervalCases
-import Mathlib.Tactic.Linarith
-import Mathlib.Tactic.Positivity
-import Mathlib.Tactic.Ring
-import Mathlib.Testing.Plausible.Sampleable
-import Palace.Attack
+module
+
+public import Mathlib.Algebra.Order.Field.Power
+public import Mathlib.Algebra.Order.Round
+public import Mathlib.Algebra.Order.Floor.Defs
+public import Mathlib.Algebra.Ring.CharZero
+public import Mathlib.Order.Lattice
+public import Mathlib.Data.Int.Log
+public import Mathlib.Data.Rat.Floor
+public import Mathlib.Tactic.FieldSimp
+public import Mathlib.Tactic.GCongr
+public import Mathlib.Tactic.IntervalCases
+public import Mathlib.Tactic.Linarith
+public import Mathlib.Tactic.Positivity
+public import Mathlib.Tactic.Ring
+public import Mathlib.Testing.Plausible.Sampleable
+public import Palace.Attack
+public meta import Mathlib.Algebra.Order.Field.Power
+public meta import Mathlib.Algebra.Order.Round
+public meta import Mathlib.Algebra.Order.Floor.Defs
+public meta import Mathlib.Algebra.Ring.CharZero
+public meta import Mathlib.Order.Lattice
+public meta import Mathlib.Data.Int.Log
+public meta import Mathlib.Data.Rat.Floor
+public meta import Mathlib.Tactic.FieldSimp
+public meta import Mathlib.Tactic.GCongr
+public meta import Mathlib.Tactic.IntervalCases
+public meta import Mathlib.Tactic.Linarith
+public meta import Mathlib.Tactic.Positivity
+public meta import Mathlib.Tactic.Ring
+public meta import Mathlib.Testing.Plausible.Sampleable
+public meta import Palace.Attack
 
 /-!
 # The binary64 rounding model: L3's substrate
@@ -34,6 +54,8 @@ The laws: `rn` fixes binary64 numbers, is monotone and odd, lands on binary64, a
 most half an ulp. On the grid of multiples of `2⁻¹⁰⁷⁴`, where every sum of binary64 numbers lies,
 it moves `x` by at most `u|x|` with `u = 2⁻⁵³`, subnormals included.
 -/
+
+@[expose] public section
 
 namespace Palace.Binary64
 

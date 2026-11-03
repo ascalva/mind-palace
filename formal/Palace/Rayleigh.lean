@@ -1,5 +1,9 @@
-import Mathlib.Tactic.FinCases
-import Palace.Balance
+module
+
+public import Mathlib.Tactic.FinCases
+public import Palace.Balance
+public meta import Mathlib.Tactic.FinCases
+public meta import Palace.Balance
 
 /-!
 # Rayleigh's monotonicity law: CND-2
@@ -23,6 +27,8 @@ with a single increased edge every rise confirms it. But a rise carried by two r
 confirms neither (`Witness.loo_confirms_nothing`): the rider then reports a genuine reconnection
 with no bridging edge.
 -/
+
+@[expose] public section
 
 open Matrix Finset
 

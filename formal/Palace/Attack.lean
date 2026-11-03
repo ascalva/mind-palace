@@ -1,4 +1,7 @@
-import Plausible
+module
+
+public import Plausible
+public meta import Plausible
 
 /-!
 # Counterexample attacks
@@ -13,6 +16,8 @@ retries but count: `survives` fails the build on a counterexample and also when 
 unless a counterexample is found, which shows that an attack of the same shape catches a
 mis-stated law. The seed is fixed, so a build is reproducible.
 -/
+
+@[expose] public section
 
 open Plausible Plausible.Decorations
 

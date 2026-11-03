@@ -1,10 +1,19 @@
-import Mathlib.Combinatorics.SimpleGraph.Finite
-import Mathlib.Combinatorics.SimpleGraph.Maps
-import Mathlib.Data.Finset.Sort
-import Mathlib.Logic.Equiv.Fin.Basic
-import Mathlib.Order.Prod.Lex.Basic
-import Mathlib.Testing.Plausible.Sampleable
-import Palace.Laplacian
+module
+
+public import Mathlib.Combinatorics.SimpleGraph.Finite
+public import Mathlib.Combinatorics.SimpleGraph.Maps
+public import Mathlib.Data.Finset.Sort
+public import Mathlib.Logic.Equiv.Fin.Basic
+public import Mathlib.Order.Prod.Lex.Basic
+public import Mathlib.Testing.Plausible.Sampleable
+public import Palace.Laplacian
+public meta import Mathlib.Combinatorics.SimpleGraph.Finite
+public meta import Mathlib.Combinatorics.SimpleGraph.Maps
+public meta import Mathlib.Data.Finset.Sort
+public meta import Mathlib.Logic.Equiv.Fin.Basic
+public meta import Mathlib.Order.Prod.Lex.Basic
+public meta import Mathlib.Testing.Plausible.Sampleable
+public meta import Palace.Laplacian
 
 /-!
 # Forman–Ricci curvature: CRV-1, CRV-2 and CRV-3
@@ -15,6 +24,8 @@ of `test_planted_bridge_is_negative_and_clique_edges_positive`, and the emission
 `most_negative_edges`, which the Dreamer's bridge lens reads (`core/dreaming/interpreters.py`).
 Exact, over ℤ.
 -/
+
+@[expose] public section
 
 open Finset
 

@@ -1,8 +1,15 @@
-import Mathlib.Data.Finset.Card
-import Mathlib.Data.Finset.Union
-import Mathlib.Data.Fintype.Basic
-import Mathlib.Order.Basic
-import Palace.Attack
+module
+
+public import Mathlib.Data.Finset.Card
+public import Mathlib.Data.Finset.Union
+public import Mathlib.Data.Fintype.Basic
+public import Mathlib.Order.Basic
+public import Palace.Attack
+public meta import Mathlib.Data.Finset.Card
+public meta import Mathlib.Data.Finset.Union
+public meta import Mathlib.Data.Fintype.Basic
+public meta import Mathlib.Order.Basic
+public meta import Palace.Attack
 
 /-!
 # The capability-scope algebra (CQ-scope)
@@ -46,9 +53,15 @@ window and scope meets, joins and orders, constructions under the SLICE rule, th
 `required()` over the Ambassador's strata names (`formal/README.md`).
 -/
 
+@[expose] public section
+
 open Finset
 
 namespace Palace.CQ
+
+-- An equality test on `Except` that `decide` can unfold: Batteries' instance does not expose its
+-- body to importers under the module system.
+deriving instance DecidableEq for Except
 
 /-! ## Σ: the stratum-refinement forest -/
 

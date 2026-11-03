@@ -282,6 +282,12 @@ lake exe cache get
 ./check.sh
 ```
 
+Every file is a module of Lean's module system, which Mathlib asks of the files that import it
+(Lake warns otherwise). Each file imports its dependencies twice, as `public import` and again as
+`public meta import`, because the attacks run their code while the file builds. One instance is
+derived locally: `decide` must unfold `DecidableEq (Except ε α)`, and Batteries does not expose its
+instance's body to importers (`Palace/Scope.lean`).
+
 CI runs the same gate in the advisory `lean` workflow (`.github/workflows/lean.yml`): on every PR
 and push to `main` whose diff touches `formal/`, the ledger, the cross-reference script or the
 workflow itself, and every Monday against drift in the toolchain or the Mathlib cache. Nothing

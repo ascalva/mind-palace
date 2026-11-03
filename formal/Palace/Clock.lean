@@ -1,7 +1,13 @@
-import Mathlib.Data.ENat.Lattice
-import Mathlib.Logic.Relation
-import Mathlib.Order.RelSeries
-import Palace.Attack
+module
+
+public import Mathlib.Data.ENat.Lattice
+public import Mathlib.Logic.Relation
+public import Mathlib.Order.RelSeries
+public import Palace.Attack
+public meta import Mathlib.Data.ENat.Lattice
+public meta import Mathlib.Logic.Relation
+public meta import Mathlib.Order.RelSeries
+public meta import Palace.Attack
 
 /-!
 # The global event clock: C1, C2, cuts and proper time
@@ -28,6 +34,8 @@ program order). A clock is a map `p : Ev → I`.
 C3 and C4 (read-clocks borrow the write frontier; wall time is no clock of `Ev`) say what may be
 registered as a clock, with nothing to prove.
 -/
+
+@[expose] public section
 
 open Relation
 
