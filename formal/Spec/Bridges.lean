@@ -3,7 +3,7 @@ module
 public import Palace.Bridges.Defs
 
 /-!
-# Bridges between the families: BRG-1 to BRG-5, the statements
+# Bridges between the families: BRG-1 to BRG-6, the statements
 
 Theorems that join two families' structures, so that a fact proved in one serves the other:
 
@@ -19,6 +19,9 @@ Theorems that join two families' structures, so that a fact proved in one serves
   reachability preorder, Mathlib's `LowerSet`s, a completely distributive lattice.
 * BRG-5: delegation cannot leak through the plane: a delegated scope's clearance lies within its
   parent's, and the plane's noninterference holds of it.
+* BRG-6: Forman's curvature of `Palace/Curvature.lean` is the Weitzenböck term of `L₁`, the
+  diagonal entry less the absolute values of the rest of the row: the curvature is read off the
+  Hodge Laplacian of `Palace/Hodge.lean`.
 
 These are the bridges of `Palace/Bridges.lean` as the ledger cites them, each with its proof
 left as `sorry`. `lake comparator` checks that the `Palace` library proves each one exactly as
@@ -172,5 +175,23 @@ theorem delegation_noninterference {parent template m : CQ.Scope}
   sorry
 
 end Delegation
+
+/-! ## BRG-6: Forman's curvature is the Weitzenböck term of `L₁` -/
+
+section Weitzenbock
+
+open Palace.Hodge Finset
+
+variable {V : Type*} [LinearOrder V] [Fintype V] {G : SimpleGraph V} [DecidableRel G.Adj]
+
+/-- **BRG-6** Forman's augmented curvature of an edge, `4 − deg i − deg j + 3·|△(i, j)|` (CRV-1),
+is the Weitzenböck term of the Hodge Laplacian `L₁` on the flag complex (LAP-8):
+`L₁ e e − Σ_{e' ≠ e} |L₁ e e'|`. The diagonal is `2 + |△|`; off it, the down and up adjacencies
+cancel exactly between edges that share a triangle, and each other edge at an end counts once. -/
+theorem forman_eq_weitzenbock (e : Edge G) :
+    forman G e.1.1 e.1.2 = weitzenbock (lap1 (d1 G ℤ) (d2 G ℤ)) e :=
+  sorry
+
+end Weitzenbock
 
 end Palace.Bridges

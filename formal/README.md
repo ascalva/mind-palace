@@ -75,9 +75,10 @@ Roundoff and FloatModel, so it has no statements of its own):
   forest, σ* is an ultrametric, and σ* read off the forest is the union-find sweep over the graph.
 - `Bridges`: theorems that join two families, so that what one proves serves the other: BRG-1
   the Laplacian as `∂₁ ∂₁ᵀ`, BRG-2 Euler and Poincaré on the flag complex, BRG-3 Thomson's
-  principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, and
-  BRG-5 delegation's noninterference through the plane.
-- `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the 148 cited
+  principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
+  delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
+  term of `L₁`.
+- `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the 149 cited
   theorems, and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself.
@@ -161,7 +162,7 @@ Roundoff and FloatModel, so it has no statements of its own):
 | BRG-3 | Thomson's principle on edge flows: energy at least `vᵀ M⁺ v`, attained only by the gradient flow; the effective resistance is at most every unit flow's energy | proved |
 | BRG-4 | the clock's cuts and scope's closed strata are lower sets of reachability preorders | proved |
 | BRG-5 | a delegated scope is cleared for less, sees less, and noninterference holds of it | proved |
-| BRG-6 | Forman's curvature is the Weitzenböck term of `L₁` | attack survived 500 graphs, every edge; not yet proved |
+| BRG-6 | Forman's curvature is the Weitzenböck term of `L₁` | proved; attack survived 500 graphs, every edge |
 
 The binarized forms (0/1 adjacency) reduce to Mathlib's `SimpleGraph.posSemidef_lapMatrix` and
 `card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix` in one line each.
@@ -345,9 +346,9 @@ instances; keeping every edge breaks the forest count within 10; the raw similar
 ultrametric, within 35; and snapping up to the grid in place of down, within 5.
 
 The bridges are attacked where they compute: BRG-1 over `ℤ` on the Hodge batch's random graphs,
-its control the signless Laplacian `D + A`, refuted within 19 instances; and BRG-6, not yet proved,
-on every edge of each random graph, its control the down Laplacian `∂₁ᵀ ∂₁` alone, which misses the
-triangles, refuted within 73. The others are over `ℝ`, over sets, or over the plane's traces, and
+its control the signless Laplacian `D + A`, refuted within 19 instances; and BRG-6 on every edge
+of each random graph, its control the down Laplacian `∂₁ᵀ ∂₁` alone, which misses the triangles,
+refuted within 73. The others are over `ℝ`, over sets, or over the plane's traces, and
 do not run.
 
 ## Build
@@ -375,7 +376,7 @@ another module, and without it 68 proofs in seven files fail. One instance is wr
 to importers (`Palace/Scope.lean`).
 
 The kernel re-check. `Export.lean` writes every `Palace` declaration and everything it uses, from
-`Init` up (41,549 declarations), and `check.sh` replays that export from nothing through Lean's
+`Init` up (41,587 declarations), and `check.sh` replays that export from nothing through Lean's
 kernel and the five independent checkers bundled with Lean: `leanchecker-paranoid`, `lean4lean` (a
 kernel written in Lean), `nanoda` (one written in Rust), and `con-leche`, whose acceptance carries a
 machine-checked theorem that the environment holds no proof of `False`, with `con-ron`, its port.
@@ -385,7 +386,7 @@ export route replays strictly more. The compiler's `_unsafe_rec` helpers stay ou
 nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
-does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the 148
+does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the 149
 statements reach (40,398 declarations). Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.

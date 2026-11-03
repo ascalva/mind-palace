@@ -10,7 +10,7 @@ public import Palace.Rayleigh
 public import Palace.Scope
 
 /-!
-# Bridges between the families: BRG-1 to BRG-5
+# Bridges between the families: BRG-1 to BRG-6
 
 Theorems that join two families' structures, so that a fact proved in one serves the other:
 
@@ -26,6 +26,9 @@ Theorems that join two families' structures, so that a fact proved in one serves
   reachability preorder, Mathlib's `LowerSet`s, a completely distributive lattice.
 * BRG-5: delegation cannot leak through the plane: a delegated scope's clearance lies within its
   parent's, and the plane's noninterference holds of it.
+* BRG-6: Forman's curvature of `Palace/Curvature.lean` is the Weitzenböck term of `L₁`, the
+  diagonal entry less the absolute values of the rest of the row: the curvature is read off the
+  Hodge Laplacian of `Palace/Hodge.lean`.
 -/
 
 @[expose] public section
@@ -312,5 +315,236 @@ theorem delegation_noninterference {parent template m : CQ.Scope}
     fun ops _ _ hs ht hv hops ↦ Plane.noninterference ops hs ht hv hops⟩
 
 end Delegation
+
+/-! ## BRG-6: Forman's curvature is the Weitzenböck term of `L₁` -/
+
+section Weitzenbock
+
+open Palace.Hodge Finset
+
+variable {V : Type*} [LinearOrder V] [Fintype V] {G : SimpleGraph V} [DecidableRel G.Adj]
+
+/-- A sum over the flag complex's edges, as a sum over ordered pairs of vertices. -/
+theorem sum_edge {M : Type*} [AddCommMonoid M] (f : Edge G → M) :
+    ∑ e, f e = ∑ k, ∑ l, if h : k < l ∧ G.Adj k l then f ⟨(k, l), h⟩ else 0 := by
+  let g (p : V × V) : M := if h : p.1 < p.2 ∧ G.Adj p.1 p.2 then f ⟨p, h⟩ else 0
+  calc ∑ e, f e = ∑ e : Edge G, g e.1 := Finset.sum_congr rfl fun e _ ↦
+        (dite_eq_left (t := fun h ↦ f ⟨e.1, h⟩) e.2).symm
+    _ = ∑ p ∈ univ.filter fun p : V × V ↦ p.1 < p.2 ∧ G.Adj p.1 p.2, g p :=
+        (Finset.sum_subtype _ (fun p ↦ by simp) g).symm
+    _ = ∑ p, g p := Finset.sum_filter_of_ne fun p _ hp ↦ by
+        by_contra h; exact hp (dite_eq_right h)
+    _ = _ := Fintype.sum_prod_type g
+
+/-- A sum over the flag complex's triangles, as a sum over ordered triples of vertices. -/
+theorem sum_tri {M : Type*} [AddCommMonoid M] (f : V × V × V → M) :
+    ∑ t : Tri G, f t.1 = ∑ a, ∑ b, ∑ c,
+      if a < b ∧ b < c ∧ G.Adj a b ∧ G.Adj b c ∧ G.Adj a c then f (a, b, c) else 0 := by
+  rw [← Finset.sum_subtype (univ.filter fun t : V × V × V ↦ t.1 < t.2.1 ∧ t.2.1 < t.2.2 ∧
+    G.Adj t.1 t.2.1 ∧ G.Adj t.2.1 t.2.2 ∧ G.Adj t.1 t.2.2) (fun t ↦ by simp) f,
+    Finset.sum_filter, Fintype.sum_prod_type]
+  simp only [Fintype.sum_prod_type]
+
+/-- The triangles on `ij` are counted by the common neighbours of its ends. -/
+theorem card_common (i j : V) : ((G.neighborFinset i ∩ G.neighborFinset j).card : ℤ) =
+    ∑ w, if G.Adj i w ∧ G.Adj j w then 1 else 0 := by
+  rw [← Finset.natCast_card_filter]
+  congr 2
+  ext w
+  simp
+
+omit [DecidableRel G.Adj] in
+/-- The entries of `∂₁ᵀ ∂₁`: `e_ij · e_kl = [j = l] − [j = k] − [i = l] + [i = k]`. -/
+theorem transpose_mul_d1_apply (e e' : Edge G) :
+    ((d1 G ℤ)ᵀ * d1 G ℤ) e e' =
+      (if e.1.2 = e'.1.2 then 1 else 0) - (if e.1.2 = e'.1.1 then 1 else 0) -
+        (if e.1.1 = e'.1.2 then 1 else 0) + (if e.1.1 = e'.1.1 then 1 else 0) := by
+  simp only [Matrix.mul_apply, transpose_apply, d1, Pi.sub_apply, Pi.single_apply, sub_mul,
+    mul_sub, ite_mul, one_mul, zero_mul, Finset.sum_sub_distrib, Finset.sum_ite_eq',
+    Finset.mem_univ, ite_true]
+  ring
+
+omit [Fintype V] [DecidableRel G.Adj] in
+/-- `∂₂`'s entries, read off the ends: `e` is the triangle's edge `jk`, `ik` or `ij`. -/
+theorem d2_apply (e : Edge G) (t : Tri G) :
+    d2 G ℤ e t = (if e.1 = (t.1.2.1, t.1.2.2) then 1 else 0) -
+      (if e.1 = (t.1.1, t.1.2.2) then 1 else 0) + (if e.1 = (t.1.1, t.1.2.1) then 1 else 0) := by
+  simp [d2, edgeJK, edgeIK, edgeIJ, Subtype.ext_iff]
+
+/-- A sum over the triangles weighted by `∂₂`'s entries on `e = ij` is a sum over the third
+vertex `w`: the triangle `wij` with sign `+`, `iwj` with `−` and `ijw` with `+`. -/
+theorem sum_d2_mul (e : Edge G) (f : V × V × V → ℤ) :
+    ∑ t : Tri G, d2 G ℤ e t * f t.1 =
+      ∑ w, ((if w < e.1.1 ∧ G.Adj w e.1.1 ∧ G.Adj w e.1.2 then f (w, e.1.1, e.1.2) else 0) -
+        (if e.1.1 < w ∧ w < e.1.2 ∧ G.Adj e.1.1 w ∧ G.Adj w e.1.2 then f (e.1.1, w, e.1.2)
+          else 0) +
+        (if e.1.2 < w ∧ G.Adj e.1.2 w ∧ G.Adj e.1.1 w then f (e.1.1, e.1.2, w) else 0)) := by
+  obtain ⟨⟨i, j⟩, hij, hadj⟩ := e
+  simp only [d2_apply]
+  refine (sum_tri (G := G) fun p ↦ ((if (i, j) = (p.2.1, p.2.2) then 1 else 0) -
+    (if (i, j) = (p.1, p.2.2) then 1 else 0) + (if (i, j) = (p.1, p.2.1) then 1 else 0)) *
+      f p).trans ?_
+  -- `e` is one edge of the triangle `abc`, which pins two of its vertices to `i` and `j`
+  have h (a b c : V) : (if a < b ∧ b < c ∧ G.Adj a b ∧ G.Adj b c ∧ G.Adj a c then
+      ((if (i, j) = (b, c) then (1 : ℤ) else 0) - (if (i, j) = (a, c) then 1 else 0) +
+        (if (i, j) = (a, b) then 1 else 0)) * f (a, b, c) else 0) =
+      (if i = b then if j = c then
+        (if a < i ∧ G.Adj a i ∧ G.Adj a j then f (a, i, j) else 0) else 0 else 0) -
+      (if i = a then if j = c then
+        (if i < b ∧ b < j ∧ G.Adj i b ∧ G.Adj b j then f (i, b, j) else 0) else 0 else 0) +
+      (if i = a then if j = b then
+        (if j < c ∧ G.Adj j c ∧ G.Adj i c then f (i, j, c) else 0) else 0 else 0) := by
+    by_cases hb : i = b <;> by_cases hc : j = c <;> by_cases ha : i = a <;>
+      by_cases hb' : j = b <;> subst_vars <;> simp_all [neg_ite]
+  simp only [h, Finset.sum_add_distrib, Finset.sum_sub_distrib, Finset.sum_ite_irrel,
+    Finset.sum_const_zero, Finset.sum_ite_eq, Finset.mem_univ, ite_true]
+
+/-- The entries of `∂₂ ∂₂ᵀ`, as a sum over the third vertex of the triangles on `e`. -/
+theorem d2_mul_transpose_apply (e e' : Edge G) :
+    (d2 G ℤ * (d2 G ℤ)ᵀ) e e' = ∑ w,
+      ((if w < e.1.1 ∧ G.Adj w e.1.1 ∧ G.Adj w e.1.2 then
+          (if e'.1 = (e.1.1, e.1.2) then 1 else 0) - (if e'.1 = (w, e.1.2) then 1 else 0) +
+            (if e'.1 = (w, e.1.1) then 1 else 0) else 0) -
+        (if e.1.1 < w ∧ w < e.1.2 ∧ G.Adj e.1.1 w ∧ G.Adj w e.1.2 then
+          (if e'.1 = (w, e.1.2) then 1 else 0) - (if e'.1 = (e.1.1, e.1.2) then 1 else 0) +
+            (if e'.1 = (e.1.1, w) then 1 else 0) else 0) +
+        (if e.1.2 < w ∧ G.Adj e.1.2 w ∧ G.Adj e.1.1 w then
+          (if e'.1 = (e.1.2, w) then 1 else 0) - (if e'.1 = (e.1.1, w) then 1 else 0) +
+            (if e'.1 = (e.1.1, e.1.2) then 1 else 0) else 0)) := by
+  rw [Matrix.mul_apply]
+  simp only [transpose_apply, d2_apply e']
+  exact sum_d2_mul e fun p ↦ (if e'.1 = (p.2.1, p.2.2) then 1 else 0) -
+    (if e'.1 = (p.1, p.2.2) then 1 else 0) + (if e'.1 = (p.1, p.2.1) then 1 else 0)
+
+/-- `L₁`'s diagonal: `2` from the ends, and one for each triangle on the edge. -/
+theorem lap1_apply_self (e : Edge G) :
+    lap1 (d1 G ℤ) (d2 G ℤ) e e =
+      2 + ((G.neighborFinset e.1.1 ∩ G.neighborFinset e.1.2).card : ℤ) := by
+  rw [lap1, Matrix.add_apply, transpose_mul_d1_apply, d2_mul_transpose_apply]
+  obtain ⟨⟨i, j⟩, hij, hadj⟩ := e
+  dsimp only at hij hadj ⊢
+  -- each common neighbour `w` closes one triangle on `ij`, whichever side of `i` and `j` it lies
+  have h (w : V) : ((if w < i ∧ G.Adj w i ∧ G.Adj w j then
+          (if (i, j) = (i, j) then (1 : ℤ) else 0) - (if (i, j) = (w, j) then 1 else 0) +
+            (if (i, j) = (w, i) then 1 else 0) else 0) -
+        (if i < w ∧ w < j ∧ G.Adj i w ∧ G.Adj w j then
+          (if (i, j) = (w, j) then 1 else 0) - (if (i, j) = (i, j) then 1 else 0) +
+            (if (i, j) = (i, w) then 1 else 0) else 0) +
+        (if j < w ∧ G.Adj j w ∧ G.Adj i w then
+          (if (i, j) = (j, w) then 1 else 0) - (if (i, j) = (i, w) then 1 else 0) +
+            (if (i, j) = (i, j) then 1 else 0) else 0)) =
+      if G.Adj i w ∧ G.Adj j w then 1 else 0 := by
+    rcases lt_trichotomy w i with hw | rfl | hw
+    · simp [hw, hw.ne', hw.not_gt, (hw.trans hij).not_gt, G.adj_comm]
+    · simp
+    · rcases lt_trichotomy w j with hw' | rfl | hw'
+      · simp [hw, hw', hw.ne, hw'.ne', hw.not_gt, hw'.not_gt, neg_ite, G.adj_comm]
+      · simp [G.adj_comm]
+      · simp [hw', hw'.ne, hw.not_gt, hw'.not_gt, and_comm, G.adj_comm]
+  rw [card_common, Finset.sum_congr rfl fun w _ ↦ h w]
+  simp [hij.ne, hij.ne']
+
+/-- Off the diagonal, the triangles' part: a triangle on `e` and `e'` gives `−1` where they meet
+tail to tail or head to head, and `+1` where one's head is the other's tail. -/
+theorem d2_mul_transpose_apply_of_ne {e e' : Edge G} (h : e ≠ e') :
+    (d2 G ℤ * (d2 G ℤ)ᵀ) e e' =
+      -(if e'.1.2 = e.1.2 ∧ G.Adj e.1.1 e'.1.1 then 1 else 0) -
+        (if e'.1.1 = e.1.1 ∧ G.Adj e.1.2 e'.1.2 then 1 else 0) +
+        (if e'.1.2 = e.1.1 ∧ G.Adj e'.1.1 e.1.2 then 1 else 0) +
+        (if e'.1.1 = e.1.2 ∧ G.Adj e.1.1 e'.1.2 then 1 else 0) := by
+  rw [d2_mul_transpose_apply]
+  obtain ⟨⟨i, j⟩, hij, hadj⟩ := e
+  obtain ⟨⟨k, l⟩, hkl, hadj'⟩ := e'
+  dsimp only at hij hadj hkl hadj' ⊢
+  have hne : ¬(k = i ∧ l = j) := fun ⟨h1, h2⟩ ↦ h (by subst h1 h2; rfl)
+  -- only the triangles whose third vertex is `k` or `l` count
+  rw [Fintype.sum_eq_add k l hkl.ne fun w hw ↦ by
+    simp [hne, Ne.symm hw.1, Ne.symm hw.2]]
+  rcases eq_or_ne l j with rfl | hlj
+  · have hki : k ≠ i := fun h' ↦ hne ⟨h', rfl⟩
+    rcases lt_or_gt_of_ne hki with hk | hk
+    · simp [hk, hkl, hadj', hki, hij.ne', hkl.ne, hkl.ne', hk.not_gt, G.adj_comm, neg_ite]
+    · simp [hk, hkl, hadj', hki, hij.ne', hkl.ne, hkl.ne', hk.not_gt, G.adj_comm]
+  rcases eq_or_ne l i with rfl | hli
+  · simp [hkl, hadj', hij.ne, hkl.ne, hkl.ne', (hkl.trans hij).ne, hij.not_gt, G.adj_comm]
+  rcases eq_or_ne k i with rfl | hki
+  · rcases lt_or_gt_of_ne hlj with hl | hl
+    · simp [hl, hkl, hadj', hlj, hli, hij.ne, hkl.ne, hl.not_gt, G.adj_comm]
+    · simp [hl, hkl, hadj', hlj, hli, hij.ne, hkl.ne, hl.not_gt, G.adj_comm, neg_ite]
+  rcases eq_or_ne k j with rfl | hkj
+  · simp [hkl, hadj', hlj, hli, hki, hkl.ne, hij.not_gt, G.adj_comm]
+  · simp [hlj, hli, hki, hkj, hkl.ne, hkl.ne']
+
+/-- Off the diagonal, `|L₁ e e'|` is `1` when `e = ij` and `e' = kl` share an end and their other
+ends are not adjacent, and `0` otherwise: on a triangle the two parts cancel exactly. -/
+theorem abs_lap1_apply_of_ne {e e' : Edge G} (h : e ≠ e') :
+    |lap1 (d1 G ℤ) (d2 G ℤ) e e'| =
+      (if e'.1.2 = e.1.2 ∧ ¬G.Adj e.1.1 e'.1.1 then 1 else 0) +
+      (if e'.1.1 = e.1.1 ∧ ¬G.Adj e.1.2 e'.1.2 then 1 else 0) +
+      (if e'.1.2 = e.1.1 ∧ ¬G.Adj e'.1.1 e.1.2 then 1 else 0) +
+      (if e'.1.1 = e.1.2 ∧ ¬G.Adj e.1.1 e'.1.2 then 1 else 0) := by
+  rw [lap1, Matrix.add_apply, transpose_mul_d1_apply, d2_mul_transpose_apply_of_ne h]
+  obtain ⟨⟨i, j⟩, hij, hadj⟩ := e
+  obtain ⟨⟨k, l⟩, hkl, hadj'⟩ := e'
+  dsimp only at hij hadj hkl hadj' ⊢
+  have hne : ¬(k = i ∧ l = j) := fun ⟨h1, h2⟩ ↦ h (by subst h1 h2; rfl)
+  rcases eq_or_ne l j with rfl | hlj
+  · have hki : k ≠ i := fun h' ↦ hne ⟨h', rfl⟩
+    by_cases ha : G.Adj i k <;> simp [ha, hki, hki.symm, hkl.ne, hkl.ne', hij.ne, hij.ne']
+  rcases eq_or_ne l i with rfl | hli
+  · by_cases ha : G.Adj k j <;>
+      simp [ha, hkl.ne, hkl.ne', hij.ne, hij.ne', (hkl.trans hij).ne, (hkl.trans hij).ne']
+  rcases eq_or_ne k i with rfl | hki
+  · by_cases ha : G.Adj j l <;> simp [ha, hlj, hlj.symm, hli, hli.symm, hij.ne, hij.ne']
+  rcases eq_or_ne k j with rfl | hkj
+  · by_cases ha : G.Adj i l <;> simp [ha, hlj, hlj.symm, hli, hli.symm, hki, hij.ne]
+  · simp [hlj, hlj.symm, hli, hli.symm, hki, hki.symm, hkj, hkj.symm]
+
+/-- **BRG-6** Forman's augmented curvature of an edge, `4 − deg i − deg j + 3·|△(i, j)|` (CRV-1),
+is the Weitzenböck term of the Hodge Laplacian `L₁` on the flag complex (LAP-8):
+`L₁ e e − Σ_{e' ≠ e} |L₁ e e'|`. The diagonal is `2 + |△|`; off it, the down and up adjacencies
+cancel exactly between edges that share a triangle, and each other edge at an end counts once. -/
+theorem forman_eq_weitzenbock (e : Edge G) :
+    forman G e.1.1 e.1.2 = weitzenbock (lap1 (d1 G ℤ) (d2 G ℤ)) e := by
+  rw [weitzenbock, lap1_apply_self, Finset.filter_ne', Finset.sum_congr rfl fun e' he' ↦
+    abs_lap1_apply_of_ne (Finset.ne_of_mem_erase he').symm,
+    Finset.sum_erase_eq_sub (Finset.mem_univ e), sum_edge]
+  obtain ⟨⟨i, j⟩, hij, hadj⟩ := e
+  dsimp only at hij hadj ⊢
+  -- each edge `kl` counts at the end it shares with `ij`
+  have hk (k l : V) : (if _ : k < l ∧ G.Adj k l then
+      (if l = j ∧ ¬G.Adj i k then (1 : ℤ) else 0) + (if k = i ∧ ¬G.Adj j l then 1 else 0) +
+        (if l = i ∧ ¬G.Adj k j then 1 else 0) + (if k = j ∧ ¬G.Adj i l then 1 else 0) else 0) =
+      (if l = j then if k < j ∧ G.Adj k j ∧ ¬G.Adj i k then 1 else 0 else 0) +
+      (if k = i then if i < l ∧ G.Adj i l ∧ ¬G.Adj j l then 1 else 0 else 0) +
+      (if l = i then if k < i ∧ G.Adj k i ∧ ¬G.Adj k j then 1 else 0 else 0) +
+      (if k = j then if j < l ∧ G.Adj j l ∧ ¬G.Adj i l then 1 else 0 else 0) := by
+    by_cases h1 : l = j <;> by_cases h2 : k = i <;> by_cases h3 : l = i <;>
+      by_cases h4 : k = j <;> simp_all [ite_and, hij.not_gt]
+  simp only [hk, Finset.sum_add_distrib, Finset.sum_ite_irrel, Finset.sum_const_zero,
+    Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+  -- the edges at `j` other than `ij` whose far end misses `i`, and likewise at `i`
+  have hj (w : V) : (if w < j ∧ G.Adj w j ∧ ¬G.Adj i w then (1 : ℤ) else 0) +
+      (if j < w ∧ G.Adj j w ∧ ¬G.Adj i w then 1 else 0) =
+      (if G.Adj j w then 1 else 0) - (if G.Adj i w ∧ G.Adj j w then 1 else 0) := by
+    by_cases hb : G.Adj j w
+    · rcases lt_or_gt_of_ne (G.ne_of_adj hb).symm with hw | hw <;>
+        by_cases ha : G.Adj i w <;> simp [hw, hw.not_gt, ha, hb, hb.symm]
+    · simp [hb, G.adj_comm w j]
+  have hi (w : V) : (if i < w ∧ G.Adj i w ∧ ¬G.Adj j w then (1 : ℤ) else 0) +
+      (if w < i ∧ G.Adj w i ∧ ¬G.Adj w j then 1 else 0) =
+      (if G.Adj i w then 1 else 0) - (if G.Adj i w ∧ G.Adj j w then 1 else 0) := by
+    by_cases ha : G.Adj i w
+    · rcases lt_or_gt_of_ne (G.ne_of_adj ha) with hw | hw <;>
+        by_cases hb : G.Adj j w <;> simp [hw, hw.not_gt, ha, hb, ha.symm, G.adj_comm w j]
+    · simp [ha, G.adj_comm w i]
+  have hsum := Finset.sum_congr rfl fun w (_ : w ∈ univ) ↦ congrArg₂ (· + ·) (hj w) (hi w)
+  simp only [Finset.sum_add_distrib, Finset.sum_sub_distrib] at hsum
+  rw [forman, SimpleGraph.degree_eq_sum_if_adj (G := G) (R := ℤ) i,
+    SimpleGraph.degree_eq_sum_if_adj (G := G) (R := ℤ) j, card_common]
+  simp only [G.irrefl, hij.ne, hij.ne', not_false_eq_true, and_true, false_and, ↓reduceIte]
+  linarith
+
+end Weitzenbock
 
 end Palace.Bridges
