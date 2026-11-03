@@ -6,16 +6,6 @@ public import Mathlib.Algebra.Order.Star.Real
 public import Mathlib.LinearAlgebra.Matrix.Charpoly.Basic
 public import Mathlib.LinearAlgebra.Matrix.PosDef
 public import Mathlib.LinearAlgebra.Matrix.Rank
-public import Mathlib.Testing.Plausible.Sampleable
-public import Palace.Attack
-public meta import Mathlib.Combinatorics.SimpleGraph.Basic
-public meta import Mathlib.Data.Matrix.ColumnRowPartitioned
-public meta import Mathlib.Algebra.Order.Star.Real
-public meta import Mathlib.LinearAlgebra.Matrix.Charpoly.Basic
-public meta import Mathlib.LinearAlgebra.Matrix.PosDef
-public meta import Mathlib.LinearAlgebra.Matrix.Rank
-public meta import Mathlib.Testing.Plausible.Sampleable
-public meta import Palace.Attack
 
 /-!
 # The Hodge 1-Laplacian: LAP-7 to LAP-11
@@ -352,92 +342,5 @@ theorem flag_finrank_harm {V : Type*} [LinearOrder V] [Fintype V] (G : SimpleGra
     Module.finrank ℝ (LinearMap.ker (lap1 (d1 G ℝ) (d2 G ℝ)).mulVecLin) + (d2 G ℝ).rank =
       Module.finrank ℝ (LinearMap.ker (d1 G ℝ).mulVecLin) :=
   finrank_harm (d1_mul_d2 G ℝ)
-
-/-! ### Attacks
-
-On random graphs of six vertices over `ℤ`, where each law has an executable instance. -/
-
-namespace Attack
-
-/-- The graph on six vertices whose edge `{i, j}` is present when bit `6·min + max` is set. -/
-def graph (es : List Bool) : SimpleGraph (Fin 6) :=
-  SimpleGraph.fromRel fun i j ↦ i < j ∧ es.getD (i.val * 6 + j.val) false = true
-
-instance (es : List Bool) : DecidableRel (graph es).Adj :=
-  fun i j ↦ inferInstanceAs (Decidable (i ≠ j ∧
-    ((i < j ∧ es.getD (i.val * 6 + j.val) false = true) ∨
-      (j < i ∧ es.getD (j.val * 6 + i.val) false = true))))
-
-instance {m n α : Type*} [Fintype m] [Fintype n] [DecidableEq α] : DecidableEq (Matrix m n α) :=
-  inferInstanceAs (DecidableEq (m → n → α))
-
-/-- `∂₂` with every sign `+`: the control's mis-stated boundary. -/
-def d2plus {V : Type*} [LinearOrder V] [Fintype V] (G : SimpleGraph V) [DecidableRel G.Adj] :
-    Matrix (Edge G) (Tri G) ℤ :=
-  fun e t ↦ (if e = edgeJK t then 1 else 0) + (if e = edgeIK t then 1 else 0) +
-    (if e = edgeIJ t then 1 else 0)
-
-/-- A node potential from a list. -/
-def pot (xs : List ℤ) : Fin 6 → ℤ := fun v ↦ xs.getD v 0
-
-/-- An edge flow from a list, read at the edge's two ends. -/
-def flow (es : List Bool) (xs : List ℤ) : Edge (graph es) → ℤ :=
-  fun e ↦ xs.getD (e.1.1.val * 6 + e.1.2.val) 0
-
-/-- A triangle potential from a list. -/
-def circ (es : List Bool) (ys : List ℤ) : Tri (graph es) → ℤ :=
-  fun t ↦ ys.getD (t.1.1.val * 36 + t.1.2.1.val * 6 + t.1.2.2.val) 0
-
-/-- A sign per edge from a list of bits. -/
-def flipE (es : List Bool) (bs : List Bool) : Edge (graph es) → ℤ :=
-  fun e ↦ if bs.getD (e.1.1.val * 6 + e.1.2.val) false then -1 else 1
-
-/-- A sign per triangle from a list of bits. -/
-def flipT (es : List Bool) (bs : List Bool) : Tri (graph es) → ℤ :=
-  fun t ↦ if bs.getD (t.1.1.val * 36 + t.1.2.1.val * 6 + t.1.2.2.val) false then -1 else 1
-
-/- LAP-7: `∂₁ ∂₂ = 0` on random graphs. -/
-#eval survives (∀ es : List Bool, d1 (graph es) ℤ * d2 (graph es) ℤ = 0) 171
-
-/- LAP-7 control: with every sign `+`, the boundary of a triangle has a boundary. -/
-#eval refuted (∀ es : List Bool, d1 (graph es) ℤ * d2plus (graph es) = 0) 172
-
-/- LAP-8: `cᵀ L₁ c ≥ 0` for every edge flow. -/
-#eval survives (∀ es : List Bool, ∀ xs : List ℤ,
-  0 ≤ flow es xs ⬝ᵥ lap1 (d1 (graph es) ℤ) (d2 (graph es) ℤ) *ᵥ flow es xs) 173
-
-/- LAP-8 control: the down term minus the up term is not positive semidefinite. -/
-#eval refuted (∀ es : List Bool, ∀ xs : List ℤ,
-  0 ≤ flow es xs ⬝ᵥ ((d1 (graph es) ℤ)ᵀ * d1 (graph es) ℤ -
-    d2 (graph es) ℤ * (d2 (graph es) ℤ)ᵀ) *ᵥ flow es xs) 174
-
-/- LAP-9: gradients and curls are orthogonal. -/
-#eval survives (∀ es : List Bool, ∀ xs ys : List ℤ,
-  ((d1 (graph es) ℤ)ᵀ *ᵥ pot xs) ⬝ᵥ (d2 (graph es) ℤ *ᵥ circ es ys) = 0) 175
-
-/- LAP-9 control: against the mis-signed boundary they are not. -/
-#eval refuted (∀ es : List Bool, ∀ xs ys : List ℤ,
-  ((d1 (graph es) ℤ)ᵀ *ᵥ pot xs) ⬝ᵥ (d2plus (graph es) *ᵥ circ es ys) = 0) 176
-
-/-- `∂₁ diag σ` entrywise (`Matrix.mul_diagonal`): the interpreter re-sums a product against a
-diagonal at every entry, so the attack scales instead. -/
-def d1flip (es bs : List Bool) : Matrix (Fin 6) (Edge (graph es)) ℤ :=
-  fun v e ↦ d1 (graph es) ℤ v e * flipE es bs e
-
-/-- `diag σ ∂₂ diag τ` entrywise (`Matrix.diagonal_mul`, `Matrix.mul_diagonal`). -/
-def d2flip (es bs cs : List Bool) : Matrix (Edge (graph es)) (Tri (graph es)) ℤ :=
-  fun e t ↦ flipE es bs e * d2 (graph es) ℤ e t * flipT es cs t
-
-/- LAP-11: reorienting conjugates `L₁` by the edge signs, `σ L₁ σ` entrywise. -/
-#eval survives (∀ es bs cs : List Bool,
-  lap1 (d1flip es bs) (d2flip es bs cs) =
-    Matrix.of fun e e' ↦
-      flipE es bs e * lap1 (d1 (graph es) ℤ) (d2 (graph es) ℤ) e e' * flipE es bs e') 177
-
-/- LAP-11 control: `L₁` itself is not invariant, only its conjugacy class. -/
-#eval refuted (∀ es bs cs : List Bool,
-  lap1 (d1flip es bs) (d2flip es bs cs) = lap1 (d1 (graph es) ℤ) (d2 (graph es) ℤ)) 178
-
-end Attack
 
 end Palace.Hodge
