@@ -29,6 +29,7 @@ import pytest
 from core.dreaming.graph import MirrorGraph
 from core.graph.sigma_star import (
     MaxSpanningForest,
+    SigmaStar,
     acquire_mirror_cut,
     build_max_spanning_tree,
     cut_fingerprint,
@@ -199,6 +200,23 @@ def test_ultrametric_inequality_on_sampled_real_triples() -> None:
         assert ac >= min(ab, bc) - 1e-12
         checked += 1
     assert checked > 0                                    # the corpus actually exercised the law
+
+
+def test_sigma_star_of_a_node_with_itself_is_the_strictest_grid_point() -> None:
+    """Falsifier (SIG-4): a node's path to itself has no edge, so σ*(A, A) is the strictest grid
+    point, which is what the union-find oracle says (every σ links a node to itself), and the chain
+    is the node alone. It raised ValueError, a minimum over an empty path. An isolated node too."""
+    grid = (0.2, 0.4, 0.6, 0.8, 0.95)
+    graph = MirrorGraph.build(_two_cluster_view(), sigma=grid[0])
+    forest = build_max_spanning_tree(graph)
+    for a in (graph.digest(i) for i in range(graph.n)):
+        ss = sigma_star(forest, a, a, grid=grid)
+        assert ss.sigma_star == grid[-1] == _sigma_star_via_union_find(graph, a, a, grid)
+        assert ss.chain == (a,)
+    rows = [_row("x", [1.0, 0, 0, 0]), _row("y", [0.0, 1, 0, 0])]
+    isolated = build_max_spanning_tree(MirrorGraph.build(_view(rows), sigma=0.5))
+    assert sigma_star(isolated, "x", "x", grid=(0.5, 0.9)) == SigmaStar(
+        a="x", b="x", sigma_star=0.9, chain=("x",))
 
 
 def test_unconnected_pair_reports_not_connected_within_grid() -> None:

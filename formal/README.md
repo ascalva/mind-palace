@@ -155,7 +155,7 @@ Roundoff and FloatModel, so it has no statements of its own):
 | SIG-1 | Kruskal's forest has, at every threshold, the graph's components: one forest yields every pairwise σ* | proved; attack survived 500 |
 | SIG-2 | what the loop keeps is a forest, `\|F\| + c(F) = \|V\|`, and its labels are its components | proved; attack survived 500 |
 | SIG-3 | σ* is a symmetric ultrametric | proved; attack survived 500 |
-| SIG-4 | for distinct vertices, the forest's bottleneck snapped to the grid is the union-find sweep's σ*, `None` exactly when they are unconnected | proved; attack survived 495 |
+| SIG-4 | the forest's bottleneck snapped to the grid is the union-find sweep's σ*, the strictest grid point for a vertex and itself, `None` exactly when unconnected | proved; attack survived 500 |
 | BRG-1 | `∂₁ ∂₁ᵀ = D − A`: the graph Laplacian is the Hodge complex's vertex end | proved; attack survived 500 |
 | BRG-2 | Euler and Poincaré on the flag complex, `\|V\| − \|E\| + \|T\| = b₀ − b₁ + b₂`, and `b₀ = \|V\| − rank ∂₁` | proved |
 | BRG-3 | Thomson's principle on edge flows: energy at least `vᵀ M⁺ v`, attained only by the gradient flow; the effective resistance is at most every unit flow's energy | proved |
