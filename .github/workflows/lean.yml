@@ -21,7 +21,8 @@ name: lean
 # The drift run needs a cold fetch to notice that cache going away, and a .lake entry per sha would
 # be several GB against the repository's 10 GB of cache, which ci.yml's uv caches share. The Palace
 # modules then build from source. The whole gate takes 226 s on the owner's Mac (2026-11-03): the
-# library 15 s, the attacks 110 s, the export and its six kernels about 3 min; here, 11 to 14 min.
+# library 15 s, the attacks 110 s, the export and its six kernels about 3 min; here, 11 to 18 min,
+# the slowest run slower in every phase alike, so the runner's speed and not the work.
 
 on:
   push:
