@@ -6,6 +6,7 @@ import Palace.Curvature
 import Palace.FloatModel
 import Palace.Cut
 import Palace.Heat
+import Palace.Hodge
 import Palace.Laplacian
 import Palace.Memberships
 import Palace.Plane

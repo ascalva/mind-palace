@@ -26,6 +26,9 @@ sides against each other.
   `most_negative_edges` that the Dreamer's bridge lens reads (`core/kernel/complex/curvature.py`).
 - `Palace/Clock.lean`: the clock laws of the global event clock (`global-event-clock.md` §2.3,
   §2.4): C1 and C2, cuts and their certificates, and proper time (GC-N6).
+- `Palace/Hodge.lean`: the Hodge 1-Laplacian (`core/kernel/complex/hodge.py`), LAP-7 to LAP-11: the
+  flag complex and `∂₁ ∂₂ = 0`; for any complex, `L₁` PSD, the three-way split, the Betti number
+  and orientation.
 - `Palace/Heat.lean`: the heat kernel `e^{−tL}` and the diffusion distance, CND-4
   (`core/graph/conductance.py`).
 - `Palace/Rayleigh.lean`: Rayleigh's monotonicity law, CND-2, and the leave-one-out attribution of
@@ -62,6 +65,11 @@ sides against each other.
 | LAP-2 | `xᵀLx ≥ 0` and `L` PSD, for symmetric `A ≥ 0` | proved; attack survived 500 |
 | LAP-2 | `xᵀL̄x ≥ 0` for symmetric `A` of any sign | proved; attack survived 500 |
 | LAP-3 | `dim ker L` = components of the support, for symmetric `A ≥ 0` | proved; attacks survived 221 and 252 non-constant kernel cases |
+| LAP-7 | `∂₁ ∂₂ = 0` on the flag complex of any graph, over any ring | proved; attack survived 500 random graphs |
+| LAP-8 | `cᵀL₁c = ‖∂₁c‖² + ‖∂₂ᵀc‖²`, so `L₁` is PSD and `L₁ c = 0` iff `∂₁ c = 0` and `∂₂ᵀ c = 0` | proved; attack survived 500 |
+| LAP-9 | gradients, curls and harmonic flows are mutually orthogonal, and every flow splits into the three uniquely | proved; orthogonality attack survived 500 |
+| LAP-10 | `dim ker L₁ + rank ∂₂ = dim ker ∂₁`: `L₁ = M Mᵀ` for `M = [∂₁ᵀ \| ∂₂]`, whose blocks' ranges meet only in `0` | proved |
+| LAP-11 | reorienting by signs `σ`, `τ` gives `σ L₁ σ`: the same characteristic polynomial, kernel dimension and split | proved; attack survived 500 |
 | MEM-1 | the atom projection is a multiset (multiplicity = row count); `n_doc ≤ n_occ` | proved; attack survived 500 |
 | MEM-2 | the version fibers are disjoint, non-empty, and their sizes sum to `\|M\|` | proved; attack survived 500 |
 | MEM-3 | runs are the adjacent-collapse encoding: one edge per change of occupant, `\|edges\| = \|runs\| − 1`, edge ends differ, a revert stays visible | proved; attacks survived 500 each, one of them against a transcription of `slot_runs`' loop |
@@ -270,6 +278,14 @@ join at once, commutativity over windows of any shape within 16, the atlas's tim
 delegation within 9, the zone law across a join within 22, the greatest tier in place of the
 least within 5, every named set already closed within 6, and the old search rule within 26
 (`reference`).
+
+The Hodge batch (LAP-7 to LAP-11) is attacked over `ℤ` on random graphs of six vertices, each
+graph a bit per vertex pair. Its controls: `∂₂` with every sign `+` has a boundary, refuted within
+57 instances; the down term minus the up term is not positive semidefinite, within 106; gradients
+are not orthogonal to the mis-signed curls, within 70; and `L₁` itself changes under reorientation,
+within 30. The reorientation attack writes the products with diagonal sign matrices entrywise
+(`Matrix.mul_diagonal`): as products, the interpreter re-sums them at every entry, and that one
+attack took 110 s.
 
 ## Build
 
