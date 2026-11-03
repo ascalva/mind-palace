@@ -4,6 +4,8 @@ public import Palace.Balance
 public import Palace.Balance.Defs
 public import Palace.Binary64
 public import Palace.Binary64.Defs
+public import Palace.Bridges
+public import Palace.Bridges.Defs
 public import Palace.Clock
 public import Palace.Clock.Defs
 public import Palace.Curvature

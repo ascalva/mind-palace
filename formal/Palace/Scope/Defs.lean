@@ -403,6 +403,21 @@ inductive Prov
   | authoredSolo | authoredDialogue | curated | interpreted | derivedStratum | observed | code
   deriving DecidableEq, Repr
 
+instance : Fintype Prov :=
+  Fintype.ofList (open Prov in
+    [authoredSolo, authoredDialogue, curated, interpreted, derivedStratum, observed, code])
+    fun x ↦ by cases x <;> simp
+
+/-- `STRATUM_CLASSES`: the classes a stratum's rows carry; an absent stratum names none. -/
+def stratumClasses : Stratum → Finset Prov
+  | .mirror | .mirrorAuthored => {.authoredSolo, .authoredDialogue}
+  | .curated => {.curated}
+  | .interpreted => {.interpreted}
+  | .observed => {.observed}
+  | .dialogue | .dialogueTranscript => {.observed, .authoredDialogue}
+  | .reference | .referenceRepo => {.code}
+  | _ => ∅
+
 /-- `classes_of`, and `clearance_of` on a scope's Σ, under a table of classes. -/
 def classesOf (tbl : Stratum → Finset Prov) (S : Finset Stratum) : Finset Prov := S.biUnion tbl
 
