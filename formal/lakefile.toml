@@ -2,6 +2,12 @@ name = "formal"
 version = "0.1.0"
 keywords = ["math"]
 defaultTargets = ["Palace"]
+# Mathlib's own arrangement: `lake test` builds the attacks, `lake lint` runs the environment
+# linters over the library, and a pinned Mathlib supports only the toolchain it is built with.
+testDriver = "PalaceTest"
+lintDriver = "batteries/runLinter"
+lintDriverArgs = ["Palace"]
+fixedToolchain = true
 
 [leanOptions]
 pp.unicode.fun = true # pretty-prints `fun a ↦ b`
@@ -16,5 +22,10 @@ name = "mathlib"
 scope = "leanprover-community"
 rev = "v4.36.0-rc2"
 
+# The statements and their proofs. Nothing in it runs at build time.
 [[lean_lib]]
 name = "Palace"
+
+# The Plausible attacks and negative controls, one module per `Palace` module.
+[[lean_lib]]
+name = "PalaceTest"

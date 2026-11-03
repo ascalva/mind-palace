@@ -4,12 +4,6 @@ public import Mathlib.Data.Finset.Card
 public import Mathlib.Data.Finset.Union
 public import Mathlib.Data.Fintype.Basic
 public import Mathlib.Order.Basic
-public import Palace.Attack
-public meta import Mathlib.Data.Finset.Card
-public meta import Mathlib.Data.Finset.Union
-public meta import Mathlib.Data.Fintype.Basic
-public meta import Mathlib.Order.Basic
-public meta import Palace.Attack
 
 /-!
 # The capability-scope algebra (CQ-scope)
@@ -59,9 +53,14 @@ open Finset
 
 namespace Palace.CQ
 
--- An equality test on `Except` that `decide` can unfold: Batteries' instance does not expose its
--- body to importers under the module system.
-deriving instance DecidableEq for Except
+/-- An equality test on `Except` that `decide` can unfold. Batteries derives one, but the module
+system does not expose its body to importers, so `decide` cannot reduce it. -/
+instance instDecidableEqExcept {ε α : Type*} [DecidableEq ε] [DecidableEq α] :
+    DecidableEq (Except ε α)
+  | .error a, .error b => decidable_of_iff (a = b) (by simp)
+  | .ok a, .ok b => decidable_of_iff (a = b) (by simp)
+  | .error _, .ok _ => isFalse (by simp)
+  | .ok _, .error _ => isFalse (by simp)
 
 /-! ## Σ: the stratum-refinement forest -/
 
@@ -172,8 +171,11 @@ inductive Kind
 
 /-- `Window`: a kind and two bounds. The constructors below build every window the code makes. -/
 structure Window where
+  /-- The window's kind. -/
   kind : Kind
+  /-- The lower bound. -/
   lo : Bound
+  /-- The upper bound. -/
   hi : Bound
   deriving DecidableEq, Repr
 
@@ -260,16 +262,22 @@ end Window
 
 /-- `TimeScope`. -/
 structure Time where
+  /-- The clock the window is read on. -/
   clock : Clock
+  /-- The window on that clock. -/
   window : Window
   deriving DecidableEq, Repr
 
 /-- A clock atlas (`ClockAtlas`): which clocks pull back to `N`, the pullback of a window as an
 opaque token, the meet of two tokens (`none` when empty), and the token a window carries. -/
 structure Atlas where
+  /-- Whether a clock pulls back to `N`. -/
   has : Clock → Bool
+  /-- The pullback of a window on a clock to `N`, as an opaque token. -/
   pullback : Clock → Window → ℕ
+  /-- The meet of two tokens; `none` when it is empty. -/
   intersect : ℕ → ℕ → Option ℕ
+  /-- The token a window carries, if any. -/
   token : Window → Option ℕ
 
 namespace Time
@@ -307,8 +315,11 @@ end Time
 reach (`NONE < SENSING < REVERSIBLE < IRREVERSIBLE`). `__post_init__`'s check that `W_Σ` is a bit is
 the type `Fin 2`. -/
 structure Authority where
+  /-- The privilege: `READ` (0) or `READ_PROPOSE` (1). -/
   privilege : Fin 2
+  /-- The projection-write bit `W_Σ`. -/
   storeWrite : Fin 2
+  /-- World reach: `NONE`, `SENSING`, `REVERSIBLE` or `IRREVERSIBLE` (0 to 3). -/
   world : Fin 4
   deriving DecidableEq, Repr
 
@@ -335,11 +346,17 @@ end Authority
 /-- `Scope`: the four coordinates, the tier (`CONVENTION < STATIC_GUARD < STRUCTURAL`), and the
 explicit cut, an opaque token. Tier and cut are outside `==` and `⊑`. -/
 structure Scope where
+  /-- `Σ`: the strata the scope reads. -/
   sigma : Finset Stratum
+  /-- `E`: the edge fibers the scope reaches. -/
   edges : Finset Fiber
+  /-- `T`: the clock and window. -/
   time : Time
+  /-- `A`: the authority. -/
   authority : Authority
+  /-- The tier: `CONVENTION`, `STATIC_GUARD` or `STRUCTURAL` (0 to 2). -/
   tier : Fin 3
+  /-- The explicit cut, an opaque token. -/
   cut : Option ℕ
   deriving DecidableEq
 
@@ -530,8 +547,11 @@ def externalExecutor (reach : Fin 4) : Scope := ⟨∅, ∅, ⟨.now, .all⟩, �
 
 /-- A store handle an agent holds (`Handle`). -/
 structure Handle where
+  /-- The stratum the handle reads. -/
   stratum : Stratum
+  /-- Whether it writes that stratum's projection. -/
   writesStratum : Bool
+  /-- The edge fiber it writes, if any. -/
   writesFiber : Option Fiber
 
 /-- `assert_conforms` passes: every handle stays inside the declared scope. -/
@@ -1465,187 +1485,5 @@ theorem atlas_delegation :
       commitParent.meet nsTemplate = .error .noCommonClock := by decide
 
 end Witness
-
-/-! ## Attacks
-
-Every law above was attacked before it was proved: windows as the code's constructors build them,
-with int bounds in `[-3, 3]` or tokens, so that ties, degenerate and inverted intervals all occur;
-raw windows of any shape; scopes over random strata, fibers, three clocks, such windows,
-authorities, tiers and cuts. Each `refuted` line is a nearby false law and must be refuted. -/
-
-namespace Attack
-
-/-- A bound from a code: an int in `[-3, 3]`, or a token. -/
-def bnd (t : Bool) (z : Fin 7) : Bound := if t then .tok z.val else .int (z.val - 3)
-
-/-- A window code: the kind, then two bound codes. -/
-abbrev WCode := Fin 4 × Bool × Fin 7 × Bool × Fin 7
-
-/-- The window a code builds, by the code's own constructors. -/
-def win (c : WCode) : Window :=
-  match c.1.val with
-  | 0 => .point (bnd c.2.1 c.2.2.1)
-  | 1 => .interval (bnd c.2.1 c.2.2.1) (bnd c.2.2.2.1 c.2.2.2.2)
-  | 2 => .all
-  | _ => .empty
-
-/-- A window of any shape, as direct construction could build it before the constructor checks. -/
-def raw (c : WCode) : Window :=
-  ⟨match c.1.val with
-    | 0 => .point
-    | 1 => .interval
-    | 2 => .all
-    | _ => .empty, bnd c.2.1 c.2.2.1, bnd c.2.2.2.1 c.2.2.2.2⟩
-
--- The preorder.
-#eval survives (∀ a b c : WCode, (win a).Le (win b) → (win b).Le (win c) → (win a).Le (win c)) 151
-
--- Control: antisymmetry.
-#eval refuted (∀ a b : WCode, (win a).Le (win b) → (win b).Le (win a) → win a = win b) 152
-
--- The meet is the greatest lower bound among well-formed windows (the empty window aside, which
--- lies under everything).
-#eval survives (∀ x a b : WCode, ((win x).WF ∧ (win x).kind ≠ .empty ∧ (win x).Le (win a) ∧
-  (win x).Le (win b)) → (win x).Le ((win a).meet (win b))) 153
-
--- Control: the same without well-formedness.
-#eval refuted (∀ x a b : WCode, ((win x).kind ≠ .empty ∧ (win x).Le (win a) ∧
-  (win x).Le (win b)) → (win x).Le ((win a).meet (win b))) 154
-
--- The join is the least upper bound of any two windows.
-#eval survives (∀ x a b : WCode, decide (((win a).join (win b)).Le (win x)) =
-  (decide ((win a).Le (win x)) && decide ((win b).Le (win x)))) 155
-
--- Control: the meet in its place.
-#eval refuted (∀ x a b : WCode, decide (((win a).meet (win b)).Le (win x)) =
-  (decide ((win a).Le (win x)) && decide ((win b).Le (win x)))) 156
-
--- On valid windows the meet is commutative and associative, on the nose.
-#eval survives (∀ a b c : WCode, ((win a).Valid ∧ (win b).Valid ∧ (win c).Valid) →
-  ((win a).meet (win b) = (win b).meet (win a) ∧
-    ((win a).meet (win b)).meet (win c) = (win a).meet ((win b).meet (win c)))) 157
-
--- Control: commutativity over windows of any shape.
-#eval refuted (∀ a b : WCode, (raw a).meet (raw b) = (raw b).meet (raw a)) 158
-
-/-- One of the three clocks the attacks draw. -/
-def clk (i : Fin 3) : Clock := match i.val with
-  | 0 => .N
-  | 1 => .Ns
-  | _ => .commit
-
-/-- A fiber from a code. -/
-def fib (i : Fin 3) : Fiber := match i.val with
-  | 0 => .F
-  | 1 => .D
-  | _ => .C
-
-/-- A scope code: strata to close, fibers, a clock, a window, an authority, a tier, a cut. -/
-abbrev SCode :=
-  List (Fin 15) × List (Fin 3) × Fin 3 × WCode × (Fin 2 × Fin 2 × Fin 4) × Fin 3 × Fin 3
-
-/-- The scope a code builds. -/
-def scp (c : SCode) : Scope :=
-  let (σ, es, k, w, (p, sw, wr), t, cu) := c
-  ⟨close (σ.map fun i ↦ Stratum.nth i.val).toFinset, (es.map fib).toFinset, ⟨clk k, win w⟩,
-    ⟨p, sw, wr⟩, t, if cu.val = 0 then none else some cu.val⟩
-
-/-- The meet exists. -/
-def okMeet (a b : Scope) : Bool :=
-  match a.meet b with
-  | .ok _ => true
-  | .error _ => false
-
-/-- The meet, where it exists, lies under both inputs. -/
-def delegates (a b : Scope) : Bool :=
-  match a.meet b with
-  | .ok m => decide (m.Le a ∧ m.Le b)
-  | .error _ => true
-
-/-- The time meet under an atlas, where it exists, lies under both inputs. -/
-def timeDelegates (A : Atlas) (a b : Time) : Bool :=
-  match a.meetVia (some A) b with
-  | some t => decide (t.Le a ∧ t.Le b)
-  | none => true
-
--- Monotone delegation.
-set_option synthInstance.maxSize 4096 in
-#eval survives (∀ a b : SCode, ((scp a).Valid ∧ (scp b).Valid ∧ okMeet (scp a) (scp b)) →
-  delegates (scp a) (scp b) = true) 159
-
--- Control: the atlas's time completion as a delegation.
-set_option synthInstance.maxSize 4096 in
-#eval refuted (∀ a b : SCode, timeDelegates Witness.anAtlas (scp a).time (scp b).time = true) 160
-
-/-- The zone law holds of the meet, where it exists. -/
-def zoneMeet (a b : Scope) : Bool :=
-  match a.meet b with
-  | .ok m => decide (zoneOk m)
-  | .error _ => true
-
-/-- The zone law holds of the join, where it exists. -/
-def zoneJoin (a b : Scope) : Bool :=
-  match a.join b with
-  | .ok j => decide (zoneOk j)
-  | .error _ => true
-
--- The zone law survives delegation.
-set_option synthInstance.maxSize 4096 in
-#eval survives (∀ a b : SCode, (zoneOk (scp a) ∧ okMeet (scp a) (scp b)) →
-  zoneMeet (scp a) (scp b) = true) 161
-
--- Control: it does not survive join.
-set_option synthInstance.maxSize 4096 in
-#eval refuted (∀ a b : SCode, (zoneOk (scp a) ∧ zoneOk (scp b)) → zoneJoin (scp a) (scp b) = true)
-  162
-
-/-- The tier of `(a ⊓ b) ⊔ c`, where it exists, against the least or the greatest tier of the
-three. -/
-def tierOf (a b c : Scope) (least : Bool) : Bool :=
-  match (Expr.join (.meet (.leaf a) (.leaf b)) (.leaf c)).eval with
-  | .ok s => if least then decide (s.tier = min (min a.tier b.tier) c.tier)
-    else decide (s.tier = max (max a.tier b.tier) c.tier)
-  | .error _ => true
-
--- No laundering: a composition carries the least tier of its inputs.
-set_option synthInstance.maxSize 4096 in
-#eval survives (∀ a b c : SCode, (Expr.join (.meet (.leaf (scp a)) (.leaf (scp b)))
-  (.leaf (scp c))).eval.toBool → tierOf (scp a) (scp b) (scp c) true = true) 163
-
--- Control: the greatest tier.
-set_option synthInstance.maxSize 4096 in
-#eval refuted (∀ a b c : SCode, (Expr.join (.meet (.leaf (scp a)) (.leaf (scp b)))
-  (.leaf (scp c))).eval.toBool → tierOf (scp a) (scp b) (scp c) false = true) 164
-
--- Closure is idempotent and closed under refinement.
-#eval survives (∀ l : List (Fin 15), let S := (l.map fun i ↦ Stratum.nth i.val).toFinset;
-  close (close S) = close S ∧ IsDown (close S)) 165
-
--- Control: every named set is already closed.
-#eval refuted (∀ l : List (Fin 15), let S := (l.map fun i ↦ Stratum.nth i.val).toFinset;
-  close S = S) 166
-
-/-- A strata name from a code. -/
-def nm (i : Fin 6) : Name := match i.val with
-  | 0 => .mirror
-  | 1 => .dialogue
-  | 2 => .interpreted
-  | 3 => .curated
-  | 4 => .observed
-  | _ => .reference
-
-/-- `required(search)` as it was, with the cut decided from the number of names. -/
-def searchByNames (strata : List Stratum) : Except Err Scope :=
-  mkScope strata ∅ .projectionEvent (.point anchor)
-    (cut := if 1 < strata.length then some singleRead else none)
-
--- A search never slices, over any strata.
-#eval survives (∀ l : List (Fin 15), ∀ h : Bool,
-  isSlice (required .search (l.map fun i ↦ Stratum.nth i.val) h true) = false) 167
-
--- Control: the old rule, over each of the Ambassador's names alone.
-#eval refuted (∀ i : Fin 6, isSlice (searchByNames (pick [nm i])) = false) 168
-
-end Attack
 
 end Palace.CQ

@@ -14,8 +14,7 @@ sides against each other.
 
 ## Layout
 
-- `Palace/Laplacian.lean`: LAP-1, LAP-2 and LAP-3 (`core/kernel/complex/laplacian.py`), with their
-  attacks and controls at the end.
+- `Palace/Laplacian.lean`: LAP-1, LAP-2 and LAP-3 (`core/kernel/complex/laplacian.py`).
 - `Palace/Memberships.lean`: the membership relation (`core/stores/memberships.py`) as a finite
   partial function on coordinate space, and MEM-1 to MEM-5.
 - `Palace/Spectral.lean`: `L_sym` and LAP-4 (`laplacian_sym`), and the pseudo-inverse `L⁺` that
@@ -48,14 +47,18 @@ sides against each other.
   (`core/kernel/agent_scope.py`) and the strata-to-classes table (`core/kernel/clearance.py`):
   the lattice laws, monotone delegation and where it fails, the tier, the firewalls and the zone
   law.
-- `Palace/Attack.lean`: `survives` and `refuted`, which run Plausible with a fixed seed and count
-  the instances that passed their guards.
+- `PalaceTest/`: the attacks, one module per `Palace` module, as Mathlib keeps its tests in
+  `MathlibTest`. `lake test` builds them, which runs every attack and negative control.
+  `PalaceTest/Attack.lean` holds `survives` and `refuted`, which run Plausible with a fixed seed and
+  count the instances that passed their guards.
 - `Audit.lean`: lists the axioms behind every `Palace` declaration and fails on anything beyond
   `propext`, `Classical.choice`, `Quot.sound` and `sorryAx`.
 - `sorry-budget`: the ratchet. The count of `sorry` must equal it; it only goes down.
-- `check.sh`: the gate. It builds (which runs the attacks), checks the budget, greps for
-  `axiom`, `admit` and `native_decide`, runs the audit, and checks the cross-reference with
-  `docs/LAWS.md` (`scripts/check_laws_xref.py`).
+- `check.sh`: the gate. It builds the library, runs the attacks (`lake test`) and Batteries'
+  environment linters (`lake lint`), checks that `Palace.lean` and `PalaceTest.lean` import every
+  module (Mathlib's `mk_all`), checks the budget, greps for `axiom`, `admit` and `native_decide`,
+  runs the audit, and checks the cross-reference with `docs/LAWS.md`
+  (`scripts/check_laws_xref.py`).
 
 ## Laws
 
@@ -299,9 +302,16 @@ lake exe cache get
 ./check.sh
 ```
 
+The package follows Mathlib's own arrangement (`lakefile.toml`): `lake test` builds `PalaceTest`,
+`lake lint` runs Batteries' `runLinter` over `Palace`, and `fixedToolchain` records that a pinned
+Mathlib supports only the toolchain it is built with.
+
 Every file is a module of Lean's module system, which Mathlib asks of the files that import it
-(Lake warns otherwise). Each file imports its dependencies twice, as `public import` and again as `public meta import`,
-because the attacks run their code while the file builds. One instance is derived locally:
+(Lake warns otherwise). The library runs nothing while it builds, so it imports plainly; each
+attack module imports its dependencies twice, as `public import` and again as `public meta import`,
+because its attacks run code while it builds. Definitions are exposed throughout
+(`@[expose] public section`): the laws are about them and their proofs unfold them, often from
+another module, and without it 68 proofs in seven files fail. One instance is written here:
 `decide` must unfold `DecidableEq (Except ε α)`, and Batteries does not expose its instance's body
 to importers (`Palace/Scope.lean`).
 

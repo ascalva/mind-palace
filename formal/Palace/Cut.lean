@@ -1,9 +1,6 @@
 module
 
-public import Mathlib.Testing.Plausible.Sampleable
 public import Palace.Laplacian
-public meta import Mathlib.Testing.Plausible.Sampleable
-public meta import Palace.Laplacian
 
 /-!
 # Conductance: CUT-1
@@ -93,28 +90,5 @@ theorem conductance_eq_zero_iff (A : Matrix V V R) (hA : A.IsSymm) (hw : ∀ i j
     exact div_eq_zero_iff.trans (or_iff_left hm)
 
 end Bounds
-
-/-! ## Attacks
-
-On `Fin 5` over ℚ, with `S` drawn as a list of vertices, so the empty set and the whole vertex set
-both occur and the conventions are exercised. -/
-
-namespace Attack
-
-/- CUT-1: `Φ(S) ∈ [0, 1]` on symmetric nonnegative weights. -/
-#eval survives (∀ es : List (Fin 5 × Fin 5 × ℕ), ∀ ss : List (Fin 5),
-  0 ≤ conductance (ofEdges (nonneg es)) ss.toFinset ∧
-    conductance (ofEdges (nonneg es)) ss.toFinset ≤ 1) 61
-
-/- CUT-1: `Φ(S) = 0` iff no weight crosses. -/
-#eval survives (∀ es : List (Fin 5 × Fin 5 × ℕ), ∀ ss : List (Fin 5),
-  (conductance (ofEdges (nonneg es)) ss.toFinset = 0 ↔
-    boundary (ofEdges (nonneg es)) ss.toFinset = 0)) 62
-
-/- CUT-1 control: asymmetric weights, where `w(∂S)` can exceed `vol S̄`. -/
-#eval refuted (∀ es : List (Fin 5 × Fin 5 × ℕ), ∀ ss : List (Fin 5),
-  conductance (ofArcs (nonneg es)) ss.toFinset ≤ 1) 63
-
-end Attack
 
 end Palace
