@@ -10,7 +10,7 @@ dod:
   - MF-2 laplacian/spectral falsifier batch green or counterexamples filed (direct PSD, nullity = components, isolated-node convention) + the minimal ledger checker (anchors + test ids)
   - MF-3 cut/conductance/curvature falsifier batch green or counterexamples filed (direct Φ(S) + both degenerate conventions; most_negative_edges emission rule)
   - MF-4 formal/ L1 — sibling lake package builds; statements + Plausible attacks; sorry ratchet recorded; zero import coupling with core/ either direction — DONE 2026-11-01 (#55, #56)
-  - MF-5 lean-action advisory CI green on a real PR with the Mathlib cache hitting
+  - MF-5 lean-action advisory CI green on a real PR with the Mathlib cache hitting — DONE 2026-11-03 (#59, run 41580747081: green, all 9,081 Mathlib files from the cache)
   - MF-6 (entry-gated on MF-4) first L2 discharge batch — Theorem (machine-checked, formal/...) claimable for the discharged laws
 backlog_deskcheck: null
 links:
