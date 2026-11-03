@@ -18,6 +18,7 @@
     "Palace.Bridges.energy_eq_iff",
     "Palace.Bridges.energy_ge",
     "Palace.Bridges.euler_poincare",
+    "Palace.Bridges.forman_eq_weitzenbock",
     "Palace.Bridges.gradient_flow",
     "Palace.Bridges.isCut_iff_isLowerSet",
     "Palace.Bridges.isDown_iff_isCut",
