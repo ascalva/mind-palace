@@ -1,8 +1,8 @@
 #!/bin/sh
 # The L1 gate (dn-mathematical-foundations §2.4), run locally and by the advisory `lean` CI job:
 # build the library and its specification, run the attacks, lint, hold the sorry count to the
-# budget, keep the axiom escape shut, judge the library against the specification, and check the
-# cross-reference between docs/LAWS.md and the statements.
+# budget, keep the axiom escape shut, replay the library through the kernel, judge it against the
+# specification, and check the cross-reference between docs/LAWS.md and the statements.
 set -eu
 cd "$(dirname "$0")"
 
@@ -33,6 +33,24 @@ if grep -nwE 'axiom|admit|native_decide' Palace.lean Palace/*.lean Palace/*/*.le
 fi
 lake env lean Audit.lean
 
+# The kernel re-check: every Palace declaration and everything it uses, from Init up, exported and
+# replayed from nothing through Lean's kernel and the five independent checkers bundled with Lean,
+# two of them formally verified (con-leche, con-ron). (`leanchecker Palace`, which replays each
+# module on top of its imports, crashes in its import loader on this layout, 4.36.0-rc2.)
+export=$(mktemp -t palace-export)
+trap 'rm -f "$export" "$export.nanoda.json"' EXIT
+lake env lean --run Export.lean > "$export"
+lake env leanchecker --silent --from-export "$export"
+lake env leanchecker-paranoid --silent --from-export "$export"
+lake env lean4lean --import "$export" > /dev/null
+lake env con-leche "$export"
+lake env con-ron "$export"
+printf '{"use_stdin": false, "export_file_path": "%s", "permitted_axioms": %s, %s}' "$export" \
+  '["propext", "Quot.sound", "Classical.choice"]' \
+  '"unpermitted_axiom_hard_error": true, "nat_extension": true, "string_extension": true' \
+  > "$export.nanoda.json"
+lake env nanoda_bin "$export.nanoda.json" > /dev/null
+echo "kernel re-check: Lean's kernel, leanchecker-paranoid, lean4lean, con-leche, con-ron and nanoda accept"
 # The judge (comparator.json): the library proves exactly the statements in Spec/, from the
 # standard axioms, and everything those statements reach passes Lean's kernel and, with
 # --paranoid, five independent checkers. It builds and exports both sides in a bwrap sandbox,
@@ -45,5 +63,5 @@ else
 fi
 python3 ../scripts/check_laws_xref.py
 
-echo "L1 gate green: sorry $count of budget $budget, standard axioms only, the specification" \
-  "judged, ledger cross-referenced"
+echo "L1 gate green: sorry $count of budget $budget, standard axioms only, the kernel replayed," \
+  "the specification judged, ledger cross-referenced"
