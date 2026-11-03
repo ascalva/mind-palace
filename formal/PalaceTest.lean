@@ -15,4 +15,5 @@ public import PalaceTest.Plane
 public import PalaceTest.Rayleigh
 public import PalaceTest.Roundoff
 public import PalaceTest.Scope
+public import PalaceTest.SigmaStar
 public import PalaceTest.Spectral

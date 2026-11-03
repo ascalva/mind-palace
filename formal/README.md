@@ -70,7 +70,10 @@ Roundoff and FloatModel, so it has no statements of its own):
   (`core/kernel/agent_scope.py`) and the strata-to-classes table (`core/kernel/clearance.py`):
   the lattice laws, monotone delegation and where it fails, the tier, the firewalls and the zone
   law.
-- `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the 127 cited
+- `SigmaStar`: σ*, the abstraction ultrametric (`core/graph/sigma_star.py`, connectivity-
+  instruments CN-2), SIG-1 to SIG-4: Kruskal's forest keeps every threshold's components, it is a
+  forest, σ* is an ultrametric, and σ* read off the forest is the union-find sweep over the graph.
+- `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the 136 cited
   theorems, and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself.
@@ -145,6 +148,10 @@ Roundoff and FloatModel, so it has no statements of its own):
 | SCO-6 (firewalls, zone) | admissibility and the zone law are downward closed and survive every meet; a world-reaching scope that passes the zone law names only `world`, the denylist and the overlay, so is cleared for no class under any table that gives those three none; the zone law does not survive join | proved, with a witness; attack survived 306 |
 | SCO-7 (grants) | a grant's meet skips the pairs with no meet, lies under both grants plane by plane, never trips `InadmissibleGrant`, and admits only what both admit | proved, with a witness |
 | SCO-8 (`search`) | `search` never raises `SliceError`, over any strata, with or without history; over `reference` alone it builds with the single-read cut and the Ambassador's grant admits it | proved; attack survived 500 |
+| SIG-1 | Kruskal's forest has, at every threshold, the graph's components: one forest yields every pairwise σ* | proved; attack survived 500 |
+| SIG-2 | what the loop keeps is a forest, `\|F\| + c(F) = \|V\|`, and its labels are its components | proved; attack survived 500 |
+| SIG-3 | σ* is a symmetric ultrametric | proved; attack survived 500 |
+| SIG-4 | for distinct vertices, the forest's bottleneck snapped to the grid is the union-find sweep's σ*, `None` exactly when they are unconnected | proved; attack survived 495 |
 
 The binarized forms (0/1 adjacency) reduce to Mathlib's `SimpleGraph.posSemidef_lapMatrix` and
 `card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix` in one line each.
@@ -321,6 +328,12 @@ within 30. The reorientation attack writes the products with diagonal sign matri
 (`Matrix.mul_diagonal`): as products, the interpreter re-sums them at every entry, and that one
 attack took 110 s.
 
+The σ* batch (SIG-1 to SIG-4) is attacked on random edge lists over five vertices with weights in
+`Fin 4`, so ties, repeated edges and self-loops all occur. Its controls: the loop run in ascending
+order, a minimum spanning forest, loses components at high thresholds, refuted within 43
+instances; keeping every edge breaks the forest count within 10; the raw similarity is no
+ultrametric, within 35; and snapping up to the grid in place of down, within 5.
+
 ## Build
 
 The toolchain is pinned in `lean-toolchain` (elan resolves it); Mathlib is pinned in
@@ -356,7 +369,7 @@ export route replays strictly more. The compiler's `_unsafe_rec` helpers stay ou
 nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
-does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the 127
+does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the 136
 statements reach (40,239 declarations). Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.
