@@ -171,10 +171,10 @@ def main() -> int:
             if full not in theorems:
                 continue  # a definition: it belongs to the model, Palace/*/Defs.lean
             cited_theorems.add(full)
-            markers = spec.get(file, {}).get(full)
-            if markers is None:
+            stated_markers = spec.get(file, {}).get(full)
+            if stated_markers is None:
                 problems.append(f"{law}: {full} is not stated in formal/Spec/{file}")
-            elif not any(law in law_id.findall(mk) for mk in markers):
+            elif not any(law in law_id.findall(mk) for mk in stated_markers):
                 problems.append(f"{law}: formal/Spec/{file}::{name} is not marked {law}")
             if full not in judged:
                 problems.append(f"{law}: {full} is not in formal/comparator.json")
@@ -192,10 +192,11 @@ def main() -> int:
             for name, markers in decls.items():
                 for law in {law for mk in markers for law in law_id.findall(mk)}:
                     marked.add(law)
+                    at = f"{where}/{file}::{name} is marked {law}"
                     if law not in rows:
-                        problems.append(f"{where}/{file}::{name} is marked {law}, which has no ledger row")
+                        problems.append(f"{at}, which has no ledger row")
                     elif not rows[law]:
-                        problems.append(f"{where}/{file}::{name} is marked {law}, whose row cites nothing")
+                        problems.append(f"{at}, whose row cites nothing")
 
     for problem in problems:
         print(problem, file=sys.stderr)
