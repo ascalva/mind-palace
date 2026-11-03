@@ -37,7 +37,7 @@ lake env lean Audit.lean
 # replayed from nothing through Lean's kernel and the five independent checkers bundled with Lean,
 # two of them formally verified (con-leche, con-ron). (`leanchecker Palace`, which replays each
 # module on top of its imports, crashes in its import loader on this layout, 4.36.0-rc2.)
-export=$(mktemp -t palace-export)
+export=$(mktemp "${TMPDIR:-/tmp}/palace-export.XXXXXX")
 trap 'rm -f "$export" "$export.nanoda.json"' EXIT
 lake env lean --run Export.lean > "$export"
 lake env leanchecker --silent --from-export "$export"
