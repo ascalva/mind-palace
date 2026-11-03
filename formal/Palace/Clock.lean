@@ -266,6 +266,38 @@ theorem properTime_le_tick {p : E → ℕ} (hp : StrictMono p) (a b : E) :
 
 end ProperTime
 
+/-! ### `≼` is a partial order -/
+
+section Order
+
+variable {E : Type*} {g : E → E → Prop}
+
+/-- **CLK-4** Acyclic generators give a partial order: `≼`, the reflexive-transitive closure of
+the generator edges, is antisymmetric when no event reaches itself along a nonempty chain. -/
+theorem antisymm_of_acyclic (h : ∀ a, ¬ TransGen g a a) {a b : E} (hab : ReflTransGen g a b)
+    (hba : ReflTransGen g b a) : a = b := by
+  rcases reflTransGen_iff_eq_or_transGen.1 hab with h1 | h1
+  · exact h1.symm
+  rcases reflTransGen_iff_eq_or_transGen.1 hba with h2 | h2
+  · exact h2
+  exact absurd (h1.trans h2) (h a)
+
+/-- **CLK-4** The partial order `≼` of acyclic generators (`Spine.derive`'s topological sort). -/
+@[instance_reducible]
+def spineOrder (h : ∀ a, ¬ TransGen g a a) : PartialOrder E where
+  le := ReflTransGen g
+  le_refl _ := ReflTransGen.refl
+  le_trans _ _ _ := ReflTransGen.trans
+  le_antisymm _ _ := antisymm_of_acyclic h
+
+/-- **CLK-4** A cycle through two events breaks antisymmetry, which is why `derive` refuses one. -/
+theorem cycle_not_antisymm :
+    ∃ g : Bool → Bool → Prop, ReflTransGen g true false ∧ ReflTransGen g false true ∧
+      true ≠ false :=
+  ⟨fun a b ↦ a ≠ b, ReflTransGen.single (by decide), ReflTransGen.single (by decide), by decide⟩
+
+end Order
+
 /-! ## Attacks
 
 On random generator graphs over `Fin 6`, with `≼` decided by Warshall's closure over arrays.
@@ -383,6 +415,19 @@ def triangleHolds (forward : Bool) (es : List (Fin 6 × Fin 6)) : Bool :=
 
 /- Control, the ordinary triangle inequality: a long detour beats the path through `b`. -/
 #eval refuted (∀ es : List (Fin 6 × Fin 6), triangleHolds true es = true) 107
+
+/-- Does no pair of distinct events reach each other in the closure? -/
+def antisymmHolds (es : List (Fin 6 × Fin 6)) : Bool :=
+  let R := reach es
+  (List.finRange 6).all fun a ↦ (List.finRange 6).all fun b ↦
+    a == b || !((R[a.val]!)[b.val]! && (R[b.val]!)[a.val]!)
+
+/- CLK-4: forward generator edges, acyclic by construction, give an antisymmetric closure. -/
+#eval survives (∀ es : List (Fin 6 × Fin 6),
+  antisymmHolds (es.filter fun e ↦ e.1 < e.2) = true) 179
+
+/- CLK-4 control: keep the backward edges, and a cycle makes two events reach each other. -/
+#eval refuted (∀ es : List (Fin 6 × Fin 6), antisymmHolds es = true) 180
 
 end Attack
 

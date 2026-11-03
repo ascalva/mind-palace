@@ -97,7 +97,7 @@ LAP-7 to LAP-11 are the degree-1 lift, `core/kernel/complex/hodge.py` (dn-edge-d
 
 ## V. The global event clock
 
-`core/temporal/spine.py`, the clock laws and cuts of dn-global-event-clock §2.3 and §2.4. Families
+`core/temporal/spine.py`, the clock laws, cuts and order of dn-global-event-clock §2.3 and §2.4. Families
 V to VII extend the seed (owner, 2026-11-02).
 
 | law | statement | structure | anchor | label | falsifier | formal |
@@ -105,6 +105,7 @@ V to VII extend the seed (owner, 2026-11-02).
 | CLK-1 | a clock monotone along `≼` (C1) has convex fibers (C2) whenever its ticks are partially ordered, so C2 adds nothing to C1; C1 holds along `≼` iff it holds on the generator edges (exact: finite orders) | monotone maps of a partial order; order-convex fibers | `core/temporal/spine.py::Spine.is_fiber_convex` | Claim | `tests/unit/test_clock_maps.py::test_c1_monotone_commit_map_holds_but_inversion_is_caught`, `tests/unit/test_clock_maps.py::test_c2_range_map_is_convex_but_a_gap_skipping_map_is_caught`, `tests/unit/test_clock_maps.py::test_c1_c2_hold_for_randomized_monotone_commit_maps` | `Clock.lean::convexFibers_of_monotone`, `Clock.lean::MonotoneAlong.closure` |
 | CLK-2 | a set of events is a cut (a down-set of `≼`) iff no generator edge reads into it from outside; cuts are closed under `∩` and `∪`; a frontier cut needs only its cross-store edges checked; certificates compose by the pointwise minimum and maximum of their frontiers (exact: finite orders) | the lattice of down-sets of a partial order | `core/temporal/spine.py::Spine.cut_at`, `core/temporal/spine.py::Spine.crossing_edges` | Claim | `tests/unit/test_chat_clock.py::test_observed_cut_composes_trough_and_has_no_crossing`, `tests/unit/test_connectivity.py::test_acquire_mirror_cut_sources_commit_and_asserts_no_crossings` | `Clock.lean::isCut_iff_not_crossed`, `Clock.lean::IsCut.inter`, `Clock.lean::IsCut.union`, `Clock.lean::isCut_frontierCut_iff`, `Clock.lean::IsCut.frontier_inf` |
 | CLK-3 | proper time, the longest chain from `a` to `b` (GC-N6), is 0 at a point, at least 1 across a strict step, finite on a finite `N`, satisfies `τ(a, b) + τ(b, c) ≤ τ(a, c)` for `a ≼ b ≼ c`, and is bounded by the tick difference of any strictly monotone clock (exact, ℕ) | the longest chains of a finite partial order | `core/temporal/spine.py::Spine.proper_time` | Claim | `tests/unit/test_clock_maps.py::test_proper_time_is_exact_on_a_total_chain`, `tests/unit/test_clock_maps.py::test_proper_time_concurrent_pair_reports_no_chain` | `Clock.lean::properTime_self`, `Clock.lean::one_le_properTime`, `Clock.lean::properTime_lt_top`, `Clock.lean::properTime_add_le`, `Clock.lean::properTime_le_tick` |
+| CLK-4 | `≼`, the reflexive-transitive closure of the generator edges, is a partial order when the generators have no cycle; `derive` refuses a cycle, fail-closed (exact: finite orders) | the reachability order of a directed acyclic graph | `core/temporal/spine.py::Spine.derive` | Claim | `tests/integrity/test_spine_invariants.py::test_forged_cycle_makes_derive_fail_closed`, `tests/integrity/test_spine_invariants.py::test_acyclicity_on_a_seeded_multi_store_graph` | `Clock.lean::antisymm_of_acyclic`, `Clock.lean::spineOrder`, `Clock.lean::cycle_not_antisymm` |
 
 ## VI. The shared prose plane
 
