@@ -1,6 +1,11 @@
-import Mathlib.Combinatorics.SimpleGraph.LapMatrix
-import Mathlib.Testing.Plausible.Sampleable
-import Palace.Attack
+module
+
+public import Mathlib.Combinatorics.SimpleGraph.LapMatrix
+public import Mathlib.Testing.Plausible.Sampleable
+public import Palace.Attack
+public meta import Mathlib.Combinatorics.SimpleGraph.LapMatrix
+public meta import Mathlib.Testing.Plausible.Sampleable
+public meta import Palace.Attack
 
 /-!
 # The Laplacian family: LAP-1, LAP-2, LAP-3
@@ -9,6 +14,8 @@ Statements of the ledger's first Laplacian laws (dn-mathematical-foundations §2
 mirroring `core/kernel/complex/laplacian.py`. `A` is any square matrix over a ring; the Python
 builds it from a sparse adjacency and allows self-loops, so nothing here assumes a zero diagonal.
 -/
+
+@[expose] public section
 
 open Matrix Finset
 

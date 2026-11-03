@@ -1,8 +1,17 @@
-import Mathlib.Analysis.Matrix.HermitianFunctionalCalculus
-import Mathlib.Analysis.Matrix.PosDef
-import Mathlib.Analysis.Real.Sqrt
-import Mathlib.Testing.Plausible.Sampleable
-import Palace.Laplacian
+module
+
+public import Mathlib.Analysis.Matrix.HermitianFunctionalCalculus
+public import Mathlib.Analysis.Matrix.PosDef
+public import Mathlib.Analysis.Real.Sqrt
+public import Mathlib.Algebra.Order.Star.Real
+public import Mathlib.Testing.Plausible.Sampleable
+public import Palace.Laplacian
+public meta import Mathlib.Analysis.Matrix.HermitianFunctionalCalculus
+public meta import Mathlib.Analysis.Matrix.PosDef
+public meta import Mathlib.Analysis.Real.Sqrt
+public meta import Mathlib.Algebra.Order.Star.Real
+public meta import Mathlib.Testing.Plausible.Sampleable
+public meta import Palace.Laplacian
 
 /-!
 # The normalized Laplacian and the pseudo-inverse: LAP-4, L_sym PSD, L⁺
@@ -11,6 +20,8 @@ import Palace.Laplacian
 (`core/kernel/complex/laplacian.py`, `laplacian_sym`), and the Moore–Penrose pseudo-inverse `L⁺`
 that `core/graph/conductance.py` takes with `np.linalg.pinv` for effective resistance (CND-1).
 -/
+
+@[expose] public section
 
 open Matrix Finset Unitary
 

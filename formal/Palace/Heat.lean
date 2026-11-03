@@ -1,6 +1,11 @@
-import Mathlib.Analysis.InnerProductSpace.PiL2
-import Mathlib.Analysis.SpecialFunctions.Exp
-import Palace.Spectral
+module
+
+public import Mathlib.Analysis.InnerProductSpace.PiL2
+public import Mathlib.Analysis.SpecialFunctions.Exp
+public import Palace.Spectral
+public meta import Mathlib.Analysis.InnerProductSpace.PiL2
+public meta import Mathlib.Analysis.SpecialFunctions.Exp
+public meta import Palace.Spectral
 
 /-!
 # The heat kernel and the diffusion distance: CND-4
@@ -19,6 +24,8 @@ triple product (`Matrix.IsHermitian.cfc_eq`).
 * For symmetric `A ≥ 0` the distances shrink as `t` grows, since `e^{−2tλ}` decreases on the
   nonnegative spectrum.
 -/
+
+@[expose] public section
 
 open Matrix
 

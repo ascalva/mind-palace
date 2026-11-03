@@ -1,5 +1,9 @@
-import Mathlib.Algebra.BigOperators.Group.List.Basic
-import Palace.Binary64
+module
+
+public import Mathlib.Algebra.BigOperators.Group.List.Basic
+public import Palace.Binary64
+public meta import Mathlib.Algebra.BigOperators.Group.List.Basic
+public meta import Palace.Binary64
 
 /-!
 # Two float64 claims of the laws ledger, machine-checked: CND-6 and LAP-1
@@ -26,6 +30,8 @@ proved nor refuted here: an exhaustive search over every association order of on
 and the rest small multiples of `u/2` found no counterexample. The bound holds for short rows, not
 by construction.
 -/
+
+@[expose] public section
 
 namespace Palace.Binary64
 

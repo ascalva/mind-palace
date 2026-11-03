@@ -1,8 +1,15 @@
-import Mathlib.Data.Finset.Sort
-import Mathlib.Data.Finset.Union
-import Mathlib.Data.Fintype.Basic
-import Mathlib.Order.Prod.Lex.Basic
-import Palace.Attack
+module
+
+public import Mathlib.Data.Finset.Sort
+public import Mathlib.Data.Finset.Union
+public import Mathlib.Data.Fintype.Basic
+public import Mathlib.Order.Prod.Lex.Basic
+public import Palace.Attack
+public meta import Mathlib.Data.Finset.Sort
+public meta import Mathlib.Data.Finset.Union
+public meta import Mathlib.Data.Fintype.Basic
+public meta import Mathlib.Order.Prod.Lex.Basic
+public meta import Palace.Attack
 
 /-!
 # The shared plane: no-leak and noninterference (A3, A3.5)
@@ -32,6 +39,8 @@ Rushby's unwinding form (1992), under hypotheses the code does not state:
 The model is exact and finite: classes, paths, digests and atoms are any finite or ordered types,
 and a land carries one fiber (the code lands several in one transaction).
 -/
+
+@[expose] public section
 
 open Finset
 

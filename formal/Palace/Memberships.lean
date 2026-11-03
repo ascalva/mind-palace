@@ -1,7 +1,13 @@
-import Mathlib.Algebra.BigOperators.Group.Finset.Basic
-import Mathlib.Data.List.Destutter
-import Mathlib.Testing.Plausible.Sampleable
-import Palace.Attack
+module
+
+public import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+public import Mathlib.Data.List.Destutter
+public import Mathlib.Testing.Plausible.Sampleable
+public import Palace.Attack
+public meta import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+public meta import Mathlib.Data.List.Destutter
+public meta import Mathlib.Testing.Plausible.Sampleable
+public meta import Palace.Attack
 
 /-!
 # The membership relation: MEM-1, MEM-2, MEM-3, MEM-4, MEM-5
@@ -15,6 +21,8 @@ atom and its two flags) is the value at that coordinate. Keying is therefore str
 function has one value per coordinate, so two rows can never share a key. The family is exact
 throughout, with no floats anywhere.
 -/
+
+@[expose] public section
 
 open Finset
 
