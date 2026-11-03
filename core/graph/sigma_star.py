@@ -174,11 +174,13 @@ def _tree_path_bottleneck(
                 prev[v] = u
                 pw[v] = w
                 stack.append(v)
-    # Reconstruct the path ib → ia, then reverse; the bottleneck is the min edge cosine on it.
+    # Reconstruct the path ib → ia, then reverse; the bottleneck is the min edge cosine on it. A
+    # node's path to itself has no edge, so its bottleneck is +inf: every σ links a node to itself,
+    # and `_grid_snap` takes +inf to the strictest grid point (SIG-4).
     path: list[int] = [ib]
     while path[-1] != ia:
         path.append(prev[path[-1]])
-    bottleneck = min(pw[node] for node in path[:-1])   # every node except ia carries a parent edge
+    bottleneck = min((pw[node] for node in path[:-1]), default=float("inf"))
     path.reverse()
     return path, float(bottleneck)
 

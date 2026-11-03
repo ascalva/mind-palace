@@ -78,7 +78,7 @@ def snapUp (grid : List (Fin 4)) (x : Fin 4) : Option (Fin 4) := (grid.filter (x
 
 /- SIG-4: σ* read off the forest is the union-find sweep over the graph. -/
 #eval survives (∀ L : List (Edge (Fin 5) (Fin 4)), ∀ grid : List (Fin 4), ∀ a b : Fin 5,
-  a ≠ b → sigmaStarForest (kruskal L).1 grid a b = sigmaStar L grid a b) 187
+  sigmaStarForest (kruskal L).1 grid a b = sigmaStar L grid a b) 187
 
 /- SIG-4 control: snapping up instead of down. -/
 #eval refuted (∀ L : List (Edge (Fin 5) (Fin 4)), ∀ grid : List (Fin 4), ∀ a b : Fin 5,

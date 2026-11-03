@@ -73,9 +73,10 @@ def bottleneck [DecidableEq V] [LinearOrder W] (F : List (Edge V W)) (a b : V) :
 /-- `_grid_snap`: the largest grid point at or below `x`. -/
 def snap [LinearOrder W] (grid : List W) (x : W) : Option W := (grid.filter (· ≤ x)).max?
 
-/-- `sigma_star`: the forest's bottleneck between `a` and `b`, snapped to the grid. -/
+/-- `sigma_star`: the forest's bottleneck between `a` and `b`, snapped to the grid. A vertex's
+path to itself has no edge, so its bottleneck is `+∞`, which snaps to the strictest grid point. -/
 def sigmaStarForest [DecidableEq V] [LinearOrder W] (F : List (Edge V W)) (grid : List W)
     (a b : V) : Option W :=
-  (bottleneck F a b).bind (snap grid)
+  if a = b then grid.max? else (bottleneck F a b).bind (snap grid)
 
 end Palace.SigmaStar

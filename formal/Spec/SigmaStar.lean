@@ -18,8 +18,9 @@ is not modeled: in a forest, the least edge on the unique path between two verti
 of the forest's weights at which they stay connected, which is how `bottleneck` is defined here.
 `_grid_snap`'s `1e-12` tolerance is left out, the model's weights being exact, and so is its
 answer below the grid, `grid[0]`, which the code never reaches: it builds the forest at `grid[0]`.
-The statements are for distinct vertices: `sigma_star(forest, a, a)` raises `ValueError`, the
-minimum of an empty path, and `pairwise_sigma_star`, its one caller, asks only distinct pairs.
+A vertex's path to itself has no edge; its least edge is `+∞` (`min(..., default=inf)`), which
+snaps to the strictest grid point, as the union-find oracle has it: every σ links a vertex to
+itself.
 
 These are the laws of `Palace/SigmaStar.lean` as the ledger cites them, each with its proof
 left as `sorry`. `lake comparator` checks that the `Palace` library proves each one
@@ -97,10 +98,11 @@ theorem kruskal_card [Fintype V] (L : List (Edge V W)) :
     (kruskal L).1.length + (Finset.univ.image (kruskal L).2).card = Fintype.card V :=
   sorry
 
-/-- **SIG-4** σ* read off the forest is the union-find sweep over the graph: for two distinct
-vertices, the forest's bottleneck snapped to the grid is the largest grid point at which they share
-a component of `G_σ`, and `none` when there is none. -/
-theorem sigmaStarForest_kruskal (L : List (Edge V W)) (grid : List W) {a b : V} (hab : a ≠ b) :
+/-- **SIG-4** σ* read off the forest is the union-find sweep over the graph: for any two
+vertices, the forest's bottleneck snapped to the grid, the strictest grid point for a vertex and
+itself, is the largest grid point at which they share a component of `G_σ`, and `none` when there
+is none. -/
+theorem sigmaStarForest_kruskal (L : List (Edge V W)) (grid : List W) (a b : V) :
     sigmaStarForest (kruskal L).1 grid a b = sigmaStar L grid a b :=
   sorry
 
