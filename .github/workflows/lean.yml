@@ -1,11 +1,12 @@
 name: lean
 
-# The advisory Lean job (dn-mathematical-foundations §2.4, MF-5). It builds formal/, which runs
-# every Plausible attack, and then the rest of formal/check.sh: the sorry count held to
-# formal/sorry-budget, the axiom escape grepped shut, every declaration's axioms audited, and the
-# cross-reference between docs/LAWS.md and the Lean statements (scripts/check_laws_xref.py, the
-# mechanical half of MFF-4). ADVISORY: no ruleset requires it, so a red here blocks nothing; it
-# informs. Making it required is the owner's act alone, after four consecutive green weeks, each
+# The advisory Lean job (dn-mathematical-foundations §2.4, MF-5). It runs formal/check.sh: the
+# library and its specification built, every Plausible attack (lake test), the environment linters
+# (lake lint), the sorry count held to formal/sorry-budget, the axiom escape grepped shut, every
+# declaration's axioms audited, the library replayed through Lean's kernel and five independent
+# checkers, the library judged against formal/Spec/ by lake comparator --paranoid, and the
+# cross-reference between docs/LAWS.md and the Lean statements (scripts/check_laws_xref.py).
+# ADVISORY: no ruleset requires it, so a red here blocks nothing; it informs. Making it required is the owner's act alone, after four consecutive green weeks, each
 # qualified by at least one run that built a formal/ change (the note's §2.4 and MF-5).
 #
 # Path-scoped without a paths: filter, keeping ci.yml's P2 (every sha yields a verdict). The
@@ -84,5 +85,10 @@ jobs:
           auto-config: "false" # check.sh builds, so the attacks and the gates run in one step
           use-mathlib-cache: "true"
           use-github-cache: "false"
-      - name: L1 gate (build with attacks · sorry budget · axiom audit · ledger cross-reference)
+      - name: bubblewrap, the sandbox lake comparator builds and exports in
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bubblewrap
+          bwrap --version
+      - name: L1 gate (build · attacks · lint · budget · audit · kernels · comparator · cross-reference)
         run: ./formal/check.sh
