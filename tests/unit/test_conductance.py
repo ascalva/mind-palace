@@ -336,6 +336,22 @@ def test_chi_s_is_in_the_half_open_unit_interval() -> None:
         assert 0.0 < value <= 1.0
 
 
+@pytest.mark.xfail(strict=True, reason="CND-6's windowed hypothesis is false: `_longest_chain` "
+                   "measures chains through events the window leaves out, so a window holding "
+                   "the two ends of a 3-chain reads 3/2 (docs/LAWS.md, CND-6)")
+def test_chi_s_stays_in_the_unit_interval_under_a_window() -> None:
+    """CND-6's windowed law, the χ_s hypothesis (dn-mathematical-foundations §2.5): the docstring
+    states `χ_s(W) ∈ (0,1]` for a window `W` too. A window that keeps a chain's two ends and skips
+    its middle falsifies it: the numerator counts the full-stratum chain between them. `window` has
+    no wired caller (`chi_s_all` passes none), so the defect is latent; this marker is strict, so a
+    fix turns it into a failure that asks for the marker and the ledger row to change."""
+    spine = _one_doc_spine(versions=3)
+    ids = [e.event_id for e in spine.n_s("mirror").events()]
+    value = chi_s(spine, "mirror", window=[ids[0], ids[-1]])
+    assert value is not None
+    assert 0.0 < value <= 1.0
+
+
 def test_chi_s_is_none_when_the_stratum_is_empty() -> None:
     """`χ_s` is undefined (None) at `N_s = 0` — honest, never fabricated 0/0. `chi_s_all` skips."""
     empty = Spine.derive(SpineSources(versions=VersionStore(_MEM)),

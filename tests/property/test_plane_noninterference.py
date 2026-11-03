@@ -19,11 +19,22 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from hypothesis import HealthCheck, given, settings
+from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 
 from core.kernel import clearance as cl
 from core.kernel.provenance import Provenance
+from core.kernel.scope import (
+    Authority,
+    Clock,
+    EdgeScope,
+    Scope,
+    Stratum,
+    StratumScope,
+    Tier,
+    TimeScope,
+    Window,
+)
 from core.stores import plane as plane_mod
 from core.stores.plane import PLANE_CLASSES, SharedPlane
 from tests.fixtures.fakes import HashingEmbedder
@@ -147,3 +158,60 @@ def test_every_pair_of_disjoint_reads_is_independent(tmp_path: Path) -> None:
         after, _ = _world(tmp_path / f"{x.value}-{y.value}-b", [(x, [["vector atoms"]])],
                           [(y, [["vector atoms", "zipf law"]])], [0], cx)
         assert _observe(before, cx, paths) == _observe(after, cx, paths), (x, y)
+
+
+# ── BRG-5: delegation cannot leak through the plane ─────────────────────────────────────────────
+
+GRANTABLE = [s for s in Stratum if s is not Stratum.FOUNDATION]
+
+
+def _scope(strata: set[Stratum]) -> Scope:
+    """A read-only scope over `strata`, on one clock with an unbounded window (no SLICE cut)."""
+    return Scope(StratumScope.of(*strata), EdgeScope.of("F"), TimeScope(Clock.COMMIT, Window.all()),
+                 Authority.read_only(), tier=Tier.STATIC_GUARD)
+
+
+@settings(max_examples=100, deadline=None,
+          suppress_health_check=[HealthCheck.function_scoped_fixture, HealthCheck.too_slow])
+@given(parent=st.sets(st.sampled_from(GRANTABLE), max_size=5),
+       template=st.sets(st.sampled_from(GRANTABLE), max_size=5),
+       docs=st.lists(document, min_size=1, max_size=4),
+       extra_versions=st.lists(st.lists(texts, min_size=1, max_size=3), min_size=1, max_size=3),
+       retire=st.lists(st.integers(0, 2), max_size=2),
+       data=st.data())
+def test_a_delegated_scope_cannot_read_past_its_parent_through_the_plane(parent, template, docs,
+                                                                         extra_versions, retire,
+                                                                         data):
+    """BRG-5: a delegated scope, `meet(parent, template)`, is cleared (`clearance_of`) for no class
+    its parent is not; and on two planes that differ only by writes and retirements in classes the
+    parent is not cleared for, landed before and after the shared ones, the parent's reads agree
+    and so do the delegate's: delegation composed with noninterference."""
+    p_scope = _scope(parent)
+    child = p_scope.meet(_scope(template))
+    c_parent, c_child = cl.clearance_of(p_scope), cl.clearance_of(child)
+    assert c_child.classes <= c_parent.classes
+    outside = [c for c in PLANE_CLASSES if c not in c_parent.classes]
+    assume(outside)
+    extra = [(data.draw(st.sampled_from(outside)), v) for v in extra_versions]
+    with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+        base, paths = _world(Path(a), docs, [], [], c_child)
+        mutated, _ = _world(Path(b), docs, extra, retire, c_child)
+        assert _observe(base, c_parent, paths) == _observe(mutated, c_parent, paths)
+        assert _observe(base, c_child, paths) == _observe(mutated, c_child, paths)
+
+
+def test_the_delegation_check_rejects_a_widening(tmp_path: Path) -> None:
+    """Control: a join in place of the meet widens the scope past its parent. The mirror parent
+    cannot tell apart two planes that differ by a curated paper; the widened scope can."""
+    p_scope = _scope({Stratum.MIRROR})
+    widened = p_scope.join(_scope({Stratum.CURATED}))
+    c_parent, c_wide = cl.clearance_of(p_scope), cl.clearance_of(widened)
+    assert not c_wide.classes <= c_parent.classes
+    docs: list[tuple[Provenance, list[list[str]]]] = [(Provenance.AUTHORED_SOLO,
+                                                       [["the owner's plan"]])]
+    extra: list[tuple[Provenance, list[list[str]]]] = [(Provenance.CURATED,
+                                                        [["papers about graphs"]])]
+    base, paths = _world(tmp_path / "a", docs, [], [], c_parent)
+    mutated, _ = _world(tmp_path / "b", docs, extra, [], c_parent)
+    assert _observe(base, c_parent, paths) == _observe(mutated, c_parent, paths)
+    assert _observe(base, c_wide, paths) != _observe(mutated, c_wide, paths)
