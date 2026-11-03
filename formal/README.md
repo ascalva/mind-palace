@@ -387,7 +387,7 @@ nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
 does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the 149
-statements reach (40,398 declarations). Elsewhere `check.sh` runs `Compare.lean`, the comparator's
+statements reach (40,435 declarations). Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.
 
