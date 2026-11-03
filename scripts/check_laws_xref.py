@@ -6,7 +6,8 @@ Two directions:
 
   1. **Ledger → formal.** Every declaration a row of `docs/LAWS.md` cites in its formal column
      (`File.lean::name`) is declared in `formal/Palace/File.lean`, and the bold marker at the head
-     of its docstring (`/-- **LAP-1** …`) names that row's law.
+     of its docstring (`/-- **LAP-1** …`) names that row's law. A name may carry its namespaces
+     (`Window.le_meet`); it must pick out one declaration in the file.
   2. **Formal → ledger.** Every law id a bold docstring marker in `formal/Palace/` names has a row,
      and that row cites at least one declaration.
 
@@ -31,9 +32,12 @@ CELL_SPLIT = re.compile(r"(?<!\\)\|")
 REF = re.compile(r"`([A-Za-z0-9]+\.lean)::([^`\s]+)`")
 MARKER = re.compile(r"^\s*/--\s*\*\*([^*]+)\*\*")
 DECL = re.compile(
-    r"^\s*(?:@\[[^\]]*\]\s*)?(?:(?:private|protected|noncomputable|partial|unsafe)\s+)*"
+    r"^\s*(?:@\[[^\]]*\]\s*)?(?:(?:private|protected|public|meta|noncomputable|partial|unsafe)\s+)*"
     r"(?:theorem|lemma|def|abbrev|instance|structure|inductive|class|example)\b\s*([^\s:({\[]*)"
 )
+NAMESPACE = re.compile(r"^namespace\s+(\S+)")
+SECTION = re.compile(r"^(?:@\[[^\]]*\]\s*)?(?:(?:public|private|noncomputable)\s+)*section\b")
+END = re.compile(r"^end\b")
 
 
 def strip_plain_comments(text: str) -> str:
@@ -60,10 +64,12 @@ def strip_plain_comments(text: str) -> str:
 
 
 def declarations(path: Path) -> dict[str, list[str]]:
-    """Each declared name in a Lean file, with the bold marker heading its docstring ("" if none).
+    """Each declaration in a Lean file, by its name under the namespaces open where it is
+    declared, with the bold marker heading its docstring ("" if none).
 
     An anonymous instance or an `example` takes its docstring's marker with it, unrecorded."""
     found: dict[str, list[str]] = defaultdict(list)
+    scopes: list[str] = []  # one entry per open namespace or section; "" for a section
     marker = ""
     in_doc = False
     for line in strip_plain_comments(path.read_text()).splitlines():
@@ -74,12 +80,22 @@ def declarations(path: Path) -> dict[str, list[str]]:
         if in_doc:
             in_doc = "-/" not in line
             continue
-        d = DECL.match(line)
-        if d:
+        if n := NAMESPACE.match(line):
+            scopes.append(n.group(1))
+        elif SECTION.match(line):
+            scopes.append("")
+        elif END.match(line) and scopes:
+            scopes.pop()
+        elif d := DECL.match(line):
             if d.group(1):
-                found[d.group(1)].append(marker)
+                found[".".join([s for s in scopes if s] + [d.group(1)])].append(marker)
             marker = ""
     return found
+
+
+def resolve(decls: dict[str, list[str]], name: str) -> list[str]:
+    """The declarations a cited name picks out: those whose full name is it or ends in it."""
+    return [full for full in decls if full == name or full.endswith("." + name)]
 
 
 def ledger_rows() -> tuple[dict[str, list[tuple[str, str]]], list[str]]:
@@ -116,9 +132,13 @@ def main() -> int:
             cited += 1
             if file not in lean:
                 problems.append(f"{law}: cites {file}, which is not in formal/Palace/")
-            elif name not in lean[file]:
+                continue
+            found = resolve(lean[file], name)
+            if not found:
                 problems.append(f"{law}: cites {file}::{name}, which {file} does not declare")
-            elif not any(law in law_id.findall(mk) for mk in lean[file][name]):
+            elif len(found) > 1:
+                problems.append(f"{law}: cites {file}::{name}, which is {len(found)} declarations")
+            elif not any(law in law_id.findall(mk) for mk in lean[file][found[0]]):
                 problems.append(f"{law}: cites {file}::{name}, whose docstring is not marked {law}")
 
     marked: set[str] = set()

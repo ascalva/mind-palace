@@ -339,13 +339,15 @@ def search (dist : A → Δ) (C : Finset K) (s : State K P D A) (k : ℕ) (sup :
   let ps := byDist dist (prefilter C s sup)
   (widen (ps.take ·) (cleared C s sup) k ps.length [] [] k).map fun a ↦ (a, hitOccs C s sup a)
 
+/-- **PLN-3** The search loop returns the first `k` atoms of the exact ranking among those a cleared
+relation holds. -/
 theorem search_eq (dist : A → Δ) (C : Finset K) (s : State K P D A) (k : ℕ) (sup : Bool) :
     search dist C s k sup = ((byDist dist ((prefilter C s sup).filter (cleared C s sup ·))).take
       k).map fun a ↦ (a, hitOccs C s sup a) := by
   simp only [search, widen_eq (byDist_nodup _ _), byDist_filter]
 
-/-- **No-leak** (A3), under any cache: every hit is a table atom, has a cleared occupancy, and
-carries only rows of cleared classes that hold it, so `PlaneHit`'s sealed constructor never
+/-- **PLN-1, no-leak** (A3), under any cache: every hit is a table atom, has a cleared occupancy,
+and carries only rows of cleared classes that hold it, so `PlaneHit`'s sealed constructor never
 raises on the plane's own reads. A stale cache can drop hits, never add one. -/
 theorem search_sound {dist : A → Δ} {C : Finset K} {s : State K P D A} {k : ℕ} {sup : Bool}
     {a : A} {os : Finset (K × Occ P D A)} (h : (a, os) ∈ search dist C s k sup) :
@@ -786,6 +788,7 @@ theorem truth_commit {f : Fiber K P D A} {s : State K P D A} {a : A}
     exact mem_writeRel_iff (hoa ▸ ha)
   · simp only [commit, Function.update_of_ne hc]
 
+/-- **PLN-4** A land keeps the `held` cache coherent. -/
 theorem coherent_land {f : Fiber K P D A} {s : State K P D A} (hc : Coherent s) (hw : WF s) :
     Coherent (land f s) := by
   unfold land
@@ -839,6 +842,7 @@ theorem partitioned_land {κ : P → K} {f : Fiber K P D A} {s : State K P D A}
     · rw [Function.update_of_ne hc] at ho
       exact hp c o ho
 
+/-- **PLN-4** So does a retire. -/
 theorem coherent_retire {c : K} {p : P} {s : State K P D A} (hc : Coherent s) :
     Coherent (retire c p s) := by
   unfold retire
@@ -898,6 +902,7 @@ theorem not_mem_purged {d : D} {s : State K P D A} {c : K} {o : Occ P D A} (ho :
   exact hs (Finset.mem_filter.2 ⟨hb, c, o, ho, rfl, hd⟩)
 
 omit [DecidableEq P] [DecidableEq K] in
+/-- **PLN-4** So does a purge. -/
 theorem coherent_purge {d : D} {s : State K P D A} (hc : Coherent s) : Coherent (purge d s) := by
   refine coherent_refresh fun a ha haff sup ↦ ?_
   have ha' : a ∈ s.table ∧ a ∉ purged d s := Finset.mem_sdiff.1 ha
@@ -924,13 +929,14 @@ theorem partitioned_purge {κ : P → K} {d : D} {s : State K P D A} (hp : Parti
   exact hp c o ho.1
 
 omit [DecidableEq P] [LinearOrder D] [DecidableEq K] in
+/-- **PLN-4** And `repair` makes any cache coherent. -/
 theorem coherent_repair (s : State K P D A) : Coherent (repair s) :=
   coherent_refresh fun _ ha haff ↦ absurd ha haff
 
 /-! #### Purge (A3.7) -/
 
 omit [DecidableEq P] [DecidableEq K] in
-/-- After a purge no row and no edge names the digest. -/
+/-- **PLN-5** After a purge no row and no edge names the digest. -/
 theorem purge_clears (d : D) (s : State K P D A) (c : K) :
     (∀ o ∈ (purge d s).occ c, o.digest ≠ d) ∧
       ∀ e ∈ (purge d s).sup c, e.old ≠ some d ∧ e.new ≠ some d := by
@@ -943,8 +949,8 @@ theorem purge_clears (d : D) (s : State K P D A) (c : K) :
     exact he.2
 
 omit [DecidableEq P] [DecidableEq K] in
-/-- Nothing private lingers: every atom the digest's rows held is deleted, or a remaining row
-still holds it. -/
+/-- **PLN-5** Nothing private lingers: every atom the digest's rows held is deleted, or a remaining
+row still holds it. -/
 theorem purge_no_orphan {d : D} {s : State K P D A} {a : A} (ha : a ∈ byDigest d s)
     (ht : a ∈ (purge d s).table) : ∃ c, ∃ o ∈ (purge d s).occ c, o.atom = a := by
   simp only [purge, refresh_table, refresh_occ, purgeCommit] at ht ⊢
@@ -955,7 +961,7 @@ theorem purge_no_orphan {d : D} {s : State K P D A} {a : A} (ha : a ∈ byDigest
   exact ⟨c, o, Finset.mem_filter.2 ⟨ho, hd⟩, hoa⟩
 
 omit [DecidableEq P] [DecidableEq K] in
-/-- Re-running the purge finishes one a crash interrupted after its atom delete. -/
+/-- **PLN-5** Re-running the purge finishes one a crash interrupted after its atom delete. -/
 theorem purge_purgeAtoms (d : D) (s : State K P D A) : purge d (purgeAtoms d s) = purge d s := by
   have hc : purgeCommit d (purgeAtoms d s) = purgeCommit d s := by
     ext1
@@ -1168,8 +1174,8 @@ theorem view_step_congr {κ : P → K} {C : Finset K} {op : Op K P D A} {s t : S
     | purge d => simp only [step, purge, refresh_sup, purgeCommit, hsup c hc]
     | repair => simp only [step, repair, refresh_sup, hsup c hc]
 
-/-- **Noninterference** (A3.5), in Goguen and Meseguer's form, by Rushby's unwinding: after any
-trace of writes that keep each path at its stratum, a reader under `C` sees what it would have
+/-- **PLN-2, noninterference** (A3.5), in Goguen and Meseguer's form, by Rushby's unwinding: after
+any trace of writes that keep each path at its stratum, a reader under `C` sees what it would have
 seen had only the cleared writes, the purges and the repairs happened. -/
 theorem noninterference {κ : P → K} {C : Finset K} :
     ∀ (ops : List (Op K P D A)) {s t : State K P D A}, Good κ s → Good κ t →
@@ -1194,7 +1200,7 @@ section Search
 variable {Δ : Type*} [LinearOrder Δ] [DecidableEq P] [LinearOrder D] [LinearOrder A] [Fintype K]
   [DecidableEq K]
 
-/-- **Noninterference for search**: the same, for every search under `C`. -/
+/-- **PLN-2, noninterference for search**: the same, for every search under `C`. -/
 theorem noninterference_search (dist : A → Δ) {κ : P → K} {C : Finset K}
     (ops : List (Op K P D A)) {s : State K P D A} (hs : Good κ s)
     (hops : ∀ op ∈ ops, op.Respects κ) (k : ℕ) (sup : Bool) :
@@ -1219,9 +1225,9 @@ def drifted : State (Fin 2) (Fin 2) (Fin 1) (Fin 1) := landCrash fx empty
 
 theorem wf_drifted : WF drifted := by decide
 
-/-- **The cache-drift channel.** After the crash, the cleared document's atom has an empty cache
-and search under `{0}` misses it (fail-closed). The uncleared land leaves the cleared view alone,
-yet it refreshes the shared atom's whole held set, and the hit comes back: an uncleared write
+/-- **PLN-2, the cache-drift channel.** After the crash, the cleared document's atom has an empty
+cache and search under `{0}` misses it (fail-closed). The uncleared land leaves the cleared view
+alone, yet it refreshes the shared atom's whole held set, and the hit comes back: an uncleared write
 changed a cleared read. Noninterference needs a cache complete on `C`. -/
 theorem drift_interferes :
     view {0} (land fy drifted) = view {0} drifted ∧
@@ -1234,9 +1240,9 @@ theorem drift_interferes :
         (cleared {0} (land fy drifted) false ·) = {0} := by decide
     simp [search_eq, h, byDist]
 
-/-- **The stratum channel.** Path 0 lands in class 1, then in class 0. The cleared land is
-refused because the uncleared one holds the path, so the cleared view differs from the trace
-without the uncleared write. Noninterference needs every path at one stratum fixed in advance. -/
+/-- **PLN-2, the stratum channel.** Path 0 lands in class 1, then in class 0. The cleared land is
+refused because the uncleared one holds the path, so the cleared view differs from the trace without
+the uncleared write. Noninterference needs every path at one stratum fixed in advance. -/
 theorem stratum_interferes :
     view {0} (run [.land ⟨1, 0, 0, [(0, 0)]⟩, .land ⟨0, 0, 0, [(0, 0)]⟩]
         (empty : State (Fin 2) (Fin 2) (Fin 1) (Fin 1))) ≠

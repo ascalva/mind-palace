@@ -55,12 +55,14 @@ inside it (a commit is a range of `N`). -/
 def ConvexFibers (R : E → E → Prop) (p : E → I) : Prop :=
   ∀ a b c, R a b → R b c → p a = p c → p b = p a
 
-/-- **C1 ⇒ C2**: into a partial order, a monotone clock has convex fibers, along any relation. -/
+/-- **CLK-1, C1 ⇒ C2**: into a partial order, a monotone clock has convex fibers, along any
+relation. -/
 theorem convexFibers_of_monotone [PartialOrder I] {R : E → E → Prop} {p : E → I}
     (h : MonotoneAlong R p) : ConvexFibers R p :=
   fun a b c hab hbc hac ↦ le_antisymm ((h b c hbc).trans_eq hac.symm) (h a b hab)
 
-/-- C1 needs checking only on the generator edges: monotone along them is monotone along `≼`. -/
+/-- **CLK-1** C1 needs checking only on the generator edges: monotone along them is monotone along
+`≼`. -/
 theorem MonotoneAlong.closure [Preorder I] {g : E → E → Prop} {p : E → I}
     (h : MonotoneAlong g p) : MonotoneAlong (ReflTransGen g) p := by
   intro a b hab
@@ -105,8 +107,8 @@ def IsCut (S : Set E) : Prop := ∀ a b, ReflTransGen g a b → b ∈ S → a �
 /-- What the cut falsifier searches for: a generator edge reading into `S` from outside it. -/
 def Crossed (S : Set E) : Prop := ∃ a b, g a b ∧ b ∈ S ∧ a ∉ S
 
-/-- **The cut criterion**: `S` is a cut iff no generator edge crosses it, so the falsifier never
-computes the closure. -/
+/-- **CLK-2, the cut criterion**: `S` is a cut iff no generator edge crosses it, so the falsifier
+never computes the closure. -/
 theorem isCut_iff_not_crossed {S : Set E} : IsCut g S ↔ ¬Crossed g S := by
   constructor
   · rintro h ⟨a, b, hab, hb, ha⟩
@@ -120,9 +122,11 @@ theorem isCut_iff_not_crossed {S : Set E} : IsCut g S ↔ ¬Crossed g S := by
 
 variable {g}
 
+/-- **CLK-2** Cuts are closed under intersection. -/
 theorem IsCut.inter {S T : Set E} (hS : IsCut g S) (hT : IsCut g T) : IsCut g (S ∩ T) :=
   fun a b hab hb ↦ ⟨hS a b hab hb.1, hT a b hab hb.2⟩
 
+/-- **CLK-2** And under union. -/
 theorem IsCut.union {S T : Set E} (hS : IsCut g S) (hT : IsCut g T) : IsCut g (S ∪ T) :=
   fun a b hab hb ↦ hb.imp (hS a b hab) (hT a b hab)
 
@@ -141,8 +145,8 @@ variable {K : Type*} (store : E → K) (pos : E → ℕ)
 of per-store chain positions). -/
 def frontierCut (f : K → ℕ) : Set E := {e | pos e < f (store e)}
 
-/-- **Frontier cuts** need only their cross-store edges checked, when every in-store generator
-edge runs forward (g1, the per-store append chains). -/
+/-- **CLK-2, frontier cuts** need only their cross-store edges checked, when every in-store
+generator edge runs forward (g1, the per-store append chains). -/
 theorem isCut_frontierCut_iff (hg : ∀ a b, g a b → store a = store b → pos a ≤ pos b)
     (f : K → ℕ) :
     IsCut g (frontierCut store pos f) ↔ ∀ a b, g a b → store a ≠ store b →
@@ -170,7 +174,8 @@ theorem frontierCut_sup (f f' : K → ℕ) :
   ext e
   simp [frontierCut, lt_max_iff]
 
-/-- **Certificates compose**: the pointwise minimum of two consistent frontiers is consistent. -/
+/-- **CLK-2, certificates compose**: the pointwise minimum of two consistent frontiers is
+consistent. -/
 theorem IsCut.frontier_inf {f f' : K → ℕ} (h : IsCut g (frontierCut store pos f))
     (h' : IsCut g (frontierCut store pos f')) : IsCut g (frontierCut store pos (f ⊓ f')) := by
   rw [frontierCut_inf]
@@ -213,7 +218,7 @@ theorem exists_chain {a b : E} (h : a ≤ b) : ∃ s : LTSeries E, s.head = a �
   · exact ⟨step h, by simp, by simp⟩
   · exact ⟨RelSeries.singleton _ a, by simp, by simp⟩
 
-/-- A chain from a point to itself has no step. -/
+/-- **CLK-3** A chain from a point to itself has no step. -/
 theorem properTime_self (a : E) : properTime a a = 0 := by
   refine le_antisymm (iSup₂_le fun s hs ↦ ?_) zero_le
   have : s.length = 0 := by
@@ -223,11 +228,11 @@ theorem properTime_self (a : E) : properTime a a = 0 := by
     exact lt_irrefl a hlt
   simp [this]
 
-/-- A strict step takes proper time. -/
+/-- **CLK-3** A strict step takes proper time. -/
 theorem one_le_properTime {a b : E} (h : a < b) : 1 ≤ properTime a b := by
   simpa using length_le_properTime (step h)
 
-/-- **Reverse triangle inequality**: along causally ordered events proper times add up to at
+/-- **CLK-3, reverse triangle inequality**: along causally ordered events proper times add up to at
 most the proper time of the whole, since chains concatenate. -/
 theorem properTime_add_le {a b c : E} (hab : a ≤ b) (hbc : b ≤ c) :
     properTime a b + properTime b c ≤ properTime a c := by
@@ -235,14 +240,14 @@ theorem properTime_add_le {a b c : E} (hab : a ≤ b) (hbc : b ≤ c) :
   have := length_le_properTime (s.smash t (hs.2.trans ht.1.symm))
   simpa [hs.1, ht.2] using this
 
-/-- On a finite `N` every proper time is finite. -/
+/-- **CLK-3** On a finite `N` every proper time is finite. -/
 theorem properTime_lt_top [Finite E] (a b : E) : properTime a b < ⊤ := by
   have := Fintype.ofFinite E
   exact lt_of_le_of_lt (iSup₂_le fun s _ ↦ by exact_mod_cast (LTSeries.length_lt_card s).le)
     (ENat.natCast_lt_top (Fintype.card E))
 
-/-- **The grain**: a strictly monotone clock bounds proper time by its tick difference, since a
-chain of `n` steps advances it at least `n`. -/
+/-- **CLK-3, the grain**: a strictly monotone clock bounds proper time by its tick difference, since
+a chain of `n` steps advances it at least `n`. -/
 theorem properTime_le_tick {p : E → ℕ} (hp : StrictMono p) (a b : E) :
     properTime a b ≤ ((p b - p a : ℕ) : ℕ∞) := by
   refine iSup₂_le fun s hs ↦ ?_
