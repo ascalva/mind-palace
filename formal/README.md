@@ -74,6 +74,8 @@ Roundoff and FloatModel, so it has no statements of its own):
   theorems, and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself.
+- `Export.lean`: writes the export of every `Palace` declaration and everything it uses, which
+  `check.sh` replays through the kernel checkers.
 - `PalaceTest/`: the attacks, one module per `Palace` module, as Mathlib keeps its tests in
   `MathlibTest`. `lake test` builds them, which runs every attack and negative control.
   `PalaceTest/Attack.lean` holds `survives` and `refuted`, which run Plausible with a fixed seed and
@@ -84,8 +86,9 @@ Roundoff and FloatModel, so it has no statements of its own):
 - `check.sh`: the gate. It builds the library (warnings fail it) and the statements, runs the
   attacks (`lake test`) and Batteries' environment linters (`lake lint`), checks that the root
   files import every module (Mathlib's `mk_all`), checks the budget, greps for `axiom`, `admit`
-  and `native_decide`, runs the audit, judges `Spec` against `Palace`, and checks the
-  cross-reference with `docs/LAWS.md` (`scripts/check_laws_xref.py`).
+  and `native_decide`, runs the audit, replays the export through the six kernel checkers, judges
+  `Spec` against `Palace`, and checks the cross-reference with `docs/LAWS.md`
+  (`scripts/check_laws_xref.py`).
 
 ## Laws
 
@@ -341,6 +344,16 @@ because its attacks run code while it builds. Definitions are exposed throughout
 another module, and without it 68 proofs in seven files fail. One instance is written here:
 `decide` must unfold `DecidableEq (Except ε α)`, and Batteries does not expose its instance's body
 to importers (`Palace/Scope.lean`).
+
+The kernel re-check. `Export.lean` writes every `Palace` declaration and everything it uses, from
+`Init` up (41,391 declarations), and `check.sh` replays that export from nothing through Lean's
+kernel and the five independent checkers bundled with Lean: `leanchecker-paranoid`, `lean4lean` (a
+kernel written in Lean), `nanoda` (one written in Rust), and `con-leche`, whose acceptance carries a
+machine-checked theorem that the environment holds no proof of `False`, with `con-ron`, its port.
+All six accept, in about two minutes on the owner's Mac. `leanchecker Palace`, which replays each
+module on top of its imports, crashes in Lean's import loader on this layout (4.36.0-rc2); the
+export route replays strictly more. The compiler's `_unsafe_rec` helpers stay out of the export:
+nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
 does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the 127
