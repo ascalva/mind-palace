@@ -1,5 +1,6 @@
 module
 
+public import Palace.Rayleigh.Defs
 public import Mathlib.Tactic.FinCases
 public import Palace.Balance
 
@@ -173,11 +174,6 @@ theorem rEff_pos {A : Matrix V V ℝ} (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j
   rw [show pinv (lap A) hP.isHermitian = lapPinv A hA from rfl, hz, mulVec_zero] at hfix
   simpa [Pi.single_apply, hij] using congrFun hfix i
 
-open Classical in
-/-- The code's effective resistance (`_r_eff_matrix`): `R_eff` within a component, `∞` across. -/
-noncomputable def resistance (A : Matrix V V ℝ) (hA : A.IsSymm) (i j : V) : WithTop ℝ :=
-  if (support A).Reachable i j then ((rEff (lapPinv A hA) i j : ℝ) : WithTop ℝ) else ⊤
-
 /-- **CND-2** Rayleigh's law with the code's `∞` across components. -/
 theorem resistance_anti {A A' : Matrix V V ℝ} (hA : A.IsSymm) (hA' : A'.IsSymm)
     (hw : ∀ i j, 0 ≤ A i j) (hle : ∀ i j, A i j ≤ A' i j) (i j : V) :
@@ -189,13 +185,6 @@ theorem resistance_anti {A A' : Matrix V V ℝ} (hA : A.IsSymm) (hA' : A'.IsSymm
     exact WithTop.coe_le_coe.2 (rEff_anti hA hA' hw hle hr)
   · simp only [hr, ↓reduceIte]
     exact le_top
-
-open Classical in
-/-- The code's effective conductance (`_pair_conductance`): `1/R_eff` within a component and `0`
-across; at a vertex itself `R_eff = 0`, and Lean's `0⁻¹ = 0` agrees with the code's `r > ε`
-guard. -/
-noncomputable def effConductance (A : Matrix V V ℝ) (hA : A.IsSymm) (i j : V) : ℝ :=
-  if (support A).Reachable i j then (rEff (lapPinv A hA) i j)⁻¹ else 0
 
 theorem effConductance_nonneg {A : Matrix V V ℝ} (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j)
     (i j : V) : 0 ≤ effConductance A hA i j := by

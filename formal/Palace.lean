@@ -1,17 +1,32 @@
 module  -- shake: keep-all --deprecated_module: ignore
 
 public import Palace.Balance
+public import Palace.Balance.Defs
 public import Palace.Binary64
+public import Palace.Binary64.Defs
 public import Palace.Clock
+public import Palace.Clock.Defs
 public import Palace.Curvature
+public import Palace.Curvature.Defs
 public import Palace.Cut
+public import Palace.Cut.Defs
 public import Palace.FloatModel
+public import Palace.FloatModel.Defs
 public import Palace.Heat
+public import Palace.Heat.Defs
 public import Palace.Hodge
+public import Palace.Hodge.Defs
 public import Palace.Laplacian
+public import Palace.Laplacian.Defs
 public import Palace.Memberships
+public import Palace.Memberships.Defs
 public import Palace.Plane
+public import Palace.Plane.Defs
 public import Palace.Rayleigh
+public import Palace.Rayleigh.Defs
 public import Palace.Roundoff
+public import Palace.Roundoff.Defs
 public import Palace.Scope
+public import Palace.Scope.Defs
 public import Palace.Spectral
+public import Palace.Spectral.Defs

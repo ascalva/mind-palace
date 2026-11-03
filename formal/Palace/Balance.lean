@@ -1,5 +1,6 @@
 module
 
+public import Palace.Balance.Defs
 public import Palace.Spectral
 
 /-!
@@ -17,10 +18,6 @@ open Matrix Finset
 namespace Palace
 
 variable {V R : Type*} [Fintype V] [DecidableEq V]
-
-/-- Balanced: a camp `sᵢ = ±1` for every vertex with `Aᵢⱼ sᵢ sⱼ ≥ 0` for every pair. -/
-def Balanced [Ring R] [LinearOrder R] (A : Matrix V V R) : Prop :=
-  ∃ s : V → R, (∀ i, s i = 1 ∨ s i = -1) ∧ ∀ i j, 0 ≤ A i j * s i * s j
 
 /-- A camp read off a Boolean: `true` is the camp `1`, `false` the camp `−1`. -/
 def camp [Ring R] (b : Bool) : R := if b then 1 else -1
@@ -45,9 +42,6 @@ theorem balanced_iff_balancedB [Ring R] [LinearOrder R] [IsStrictOrderedRing R]
     cases b k <;> simp [camp]
 
 /-! ### LAP-6: a triangle is frustrated iff it carries an odd number of negative edges -/
-
-/-- The triangle with weights `a` on `0–1`, `b` on `1–2` and `c` on `0–2`. -/
-def triangle [Ring R] (a b c : R) : Matrix (Fin 3) (Fin 3) R := !![0, a, c; a, 0, b; c, b, 0]
 
 /-- A two-colouring of the triangle from the camps of vertices 1 and 2 (vertex 0 in camp `1`). -/
 private theorem balanced_triangle_of [Field R] [LinearOrder R] [IsStrictOrderedRing R]

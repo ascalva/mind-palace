@@ -12,41 +12,68 @@ and Python falsifier, and the declarations here that state it. Each declaration 
 the law id in bold at the head of its docstring (`/-- **LAP-1** …`), and `check.sh` checks the two
 sides against each other.
 
+## From a row to a proof
+
+Each family comes in three parts:
+
+- `Palace/X/Defs.lean`, the model: the definitions its laws are stated over, mirroring the code.
+- `Spec/X.lean`, the statements: every theorem the ledger cites, its proof left as `sorry`, under
+  the family's scope note (what the statements cover of the code, and what they leave out). It
+  imports the model and nothing else of ours.
+- `Palace/X.lean`, the proofs.
+
+`lake comparator` judges the proofs against the statements (`comparator.json`): each theorem in
+`Spec/` is proved in `Palace` with exactly the same statement, from the standard axioms, and
+everything the statements reach passes Lean's kernel and five independent checkers. A proof file
+therefore cannot change what is proved: only `Spec/` and the model can. Whether a statement says
+what its row says stays a reader's judgment, and the reading is now confined to those two places;
+`scripts/check_laws_xref.py` makes sure each cited theorem is in `Spec/` under its row's law id, and
+the comparator makes sure `Spec/` is what the library proves. The arrangement is the one OpenAI's
+`lean/ComparatorChallenges` uses for its results: a trusted copy of the definitions, the statements
+over them, and the library judged against both.
+
 ## Layout
 
-- `Palace/Laplacian.lean`: LAP-1, LAP-2 and LAP-3 (`core/kernel/complex/laplacian.py`).
-- `Palace/Memberships.lean`: the membership relation (`core/stores/memberships.py`) as a finite
+The families, each a model, statements and proofs as above (Binary64's laws are cited through
+Roundoff and FloatModel, so it has no statements of its own):
+
+- `Laplacian`: LAP-1, LAP-2 and LAP-3 (`core/kernel/complex/laplacian.py`).
+- `Memberships`: the membership relation (`core/stores/memberships.py`) as a finite
   partial function on coordinate space, and MEM-1 to MEM-5.
-- `Palace/Spectral.lean`: `L_sym` and LAP-4 (`laplacian_sym`), and the pseudo-inverse `L⁺` that
+- `Spectral`: `L_sym` and LAP-4 (`laplacian_sym`), and the pseudo-inverse `L⁺` that
   `core/graph/conductance.py` takes for effective resistance (CND-1).
-- `Palace/Balance.lean`: signed balance, LAP-5 and LAP-6 (`core/kernel/complex/balance.py`).
-- `Palace/Cut.lean`: conductance, CUT-1 (`core/complex/cut.py`).
-- `Palace/Curvature.lean`: Forman curvature, CRV-1 and CRV-2, and CRV-3, the emission rule of
+- `Balance`: signed balance, LAP-5 and LAP-6 (`core/kernel/complex/balance.py`).
+- `Cut`: conductance, CUT-1 (`core/complex/cut.py`).
+- `Curvature`: Forman curvature, CRV-1 and CRV-2, and CRV-3, the emission rule of
   `most_negative_edges` that the Dreamer's bridge lens reads (`core/kernel/complex/curvature.py`).
-- `Palace/Clock.lean`: the clock laws of the global event clock (`global-event-clock.md` §2.3,
+- `Clock`: the clock laws of the global event clock (`global-event-clock.md` §2.3,
   §2.4): C1 and C2, cuts and their certificates, and proper time (GC-N6).
-- `Palace/Hodge.lean`: the Hodge 1-Laplacian (`core/kernel/complex/hodge.py`), LAP-7 to LAP-11: the
+- `Hodge`: the Hodge 1-Laplacian (`core/kernel/complex/hodge.py`), LAP-7 to LAP-11: the
   flag complex and `∂₁ ∂₂ = 0`; for any complex, `L₁` PSD, the three-way split, the Betti number
   and orientation.
-- `Palace/Heat.lean`: the heat kernel `e^{−tL}` and the diffusion distance, CND-4
+- `Heat`: the heat kernel `e^{−tL}` and the diffusion distance, CND-4
   (`core/graph/conductance.py`).
-- `Palace/Rayleigh.lean`: Rayleigh's monotonicity law, CND-2, and the leave-one-out attribution of
+- `Rayleigh`: Rayleigh's monotonicity law, CND-2, and the leave-one-out attribution of
   the reconnection rider (`core/graph/conductance.py`, `reconnection_scan`).
-- `Palace/Binary64.lean`: rung L3's substrate, a model of IEEE 754 binary64 rounding to nearest,
+- `Binary64`: rung L3's substrate, a model of IEEE 754 binary64 rounding to nearest,
   ties to even (`rn`), its laws, and attacks that check it bit for bit against this machine's
   float64.
-- `Palace/FloatModel.lean`: the bridge from Lean core's logical model of `Float` to `rn`: Lean's
+- `FloatModel`: the bridge from Lean core's logical model of `Float` to `rn`: Lean's
   `Float` `+`, `*`, `/` and `Nat.toFloat` round as `rn` does, so the two entries hold of Lean's own
   `Float`; its attacks check the compiled C operators against that logical model.
-- `Palace/Roundoff.lean`: two L3 entries over the model: CND-6's exact comparisons of `chi_s` with
+- `Roundoff`: two L3 entries over the model: CND-6's exact comparisons of `chi_s` with
   `1.0`, and LAP-1's route agreement between two association orders of a degree sum.
-- `Palace/Plane.lean`: the shared prose plane (`core/stores/plane.py`, A3): no-leak, noninterference
+- `Plane`: the shared prose plane (`core/stores/plane.py`, A3): no-leak, noninterference
   (A3.5), the search loop, the `held` cache and purge (A3.7).
-- `Palace/Scope.lean`: the capability-scope algebra (`core/kernel/scope.py`, dn-capability-scope),
+- `Scope`: the capability-scope algebra (`core/kernel/scope.py`, dn-capability-scope),
   with the query engine's grants and required scopes (`core/query.py`), the role signatures
   (`core/kernel/agent_scope.py`) and the strata-to-classes table (`core/kernel/clearance.py`):
   the lattice laws, monotone delegation and where it fails, the tier, the firewalls and the zone
   law.
+- `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the 127 cited
+  theorems, and the three standard axioms.
+- `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
+  (macOS has no `bwrap`); CI runs the comparator itself.
 - `PalaceTest/`: the attacks, one module per `Palace` module, as Mathlib keeps its tests in
   `MathlibTest`. `lake test` builds them, which runs every attack and negative control.
   `PalaceTest/Attack.lean` holds `survives` and `refuted`, which run Plausible with a fixed seed and
@@ -54,11 +81,11 @@ sides against each other.
 - `Audit.lean`: lists the axioms behind every `Palace` declaration and fails on anything beyond
   `propext`, `Classical.choice`, `Quot.sound` and `sorryAx`.
 - `sorry-budget`: the ratchet. The count of `sorry` must equal it; it only goes down.
-- `check.sh`: the gate. It builds the library, runs the attacks (`lake test`) and Batteries'
-  environment linters (`lake lint`), checks that `Palace.lean` and `PalaceTest.lean` import every
-  module (Mathlib's `mk_all`), checks the budget, greps for `axiom`, `admit` and `native_decide`,
-  runs the audit, and checks the cross-reference with `docs/LAWS.md`
-  (`scripts/check_laws_xref.py`).
+- `check.sh`: the gate. It builds the library (warnings fail it) and the statements, runs the
+  attacks (`lake test`) and Batteries' environment linters (`lake lint`), checks that the root
+  files import every module (Mathlib's `mk_all`), checks the budget, greps for `axiom`, `admit`
+  and `native_decide`, runs the audit, judges `Spec` against `Palace`, and checks the
+  cross-reference with `docs/LAWS.md` (`scripts/check_laws_xref.py`).
 
 ## Laws
 
@@ -148,7 +175,7 @@ coefficient from 3 to 2 leaves every CRV-2 proof intact (no triangle runs throug
 is caught only by the attack against the code.
 
 The plane's noninterference (A3.5) holds under four hypotheses the plane's header does not
-state. Each is stated in `Palace/Plane.lean`, and the two the model can break have proved
+state. Each is stated in `Spec/Plane.lean`, and the two the model can break have proved
 witnesses:
 
 - Search is exact, with ties broken by atom id. LanceDB breaks exact distance ties by physical row
@@ -314,6 +341,12 @@ because its attacks run code while it builds. Definitions are exposed throughout
 another module, and without it 68 proofs in seven files fail. One instance is written here:
 `decide` must unfold `DecidableEq (Except ε α)`, and Batteries does not expose its instance's body
 to importers (`Palace/Scope.lean`).
+
+`lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
+does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the 127
+statements reach (40,239 declarations). Elsewhere `check.sh` runs `Compare.lean`, the comparator's
+comparison step over the two environments the build left; planted, a weakened statement in the
+library and a changed one in `Spec/` each fail it.
 
 CI runs the same gate in the advisory `lean` workflow (`.github/workflows/lean.yml`): on every PR
 and push to `main` whose diff touches `formal/`, the ledger, the cross-reference script or the

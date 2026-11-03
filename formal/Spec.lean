@@ -1,0 +1,16 @@
+module  -- shake: keep-all --deprecated_module: ignore
+
+public import Spec.Balance
+public import Spec.Clock
+public import Spec.Curvature
+public import Spec.Cut
+public import Spec.FloatModel
+public import Spec.Heat
+public import Spec.Hodge
+public import Spec.Laplacian
+public import Spec.Memberships
+public import Spec.Plane
+public import Spec.Rayleigh
+public import Spec.Roundoff
+public import Spec.Scope
+public import Spec.Spectral
