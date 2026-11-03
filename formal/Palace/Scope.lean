@@ -589,13 +589,14 @@ theorem isDown_iff {S : Finset Stratum} : IsDown S ↔ close S = S := by
   · rw [← h]
     exact mem_close.2 (Or.inr ⟨hx, p, hp, hcp⟩)
 
-/-- `close S` is closed: the forest is one level deep. -/
+/-- **SCO-1** `close S` is closed: the forest is one level deep. -/
 theorem close_isDown (S : Finset Stratum) : IsDown (close S) := by
   intro c p hx hcp hp
   rcases mem_close.1 hp with hp | ⟨_, q, _, hpq⟩
   · exact mem_close.2 (Or.inr ⟨hx, p, hp, hcp⟩)
   · simp [Stratum.parent_parent c p hcp] at hpq
 
+/-- **SCO-1** Closure is idempotent. -/
 theorem close_close (S : Finset Stratum) : close (close S) = close S :=
   isDown_iff.1 (close_isDown S)
 
@@ -603,17 +604,19 @@ theorem close_close (S : Finset Stratum) : close (close S) = close S :=
 theorem close_subset {S T : Finset Stratum} (hST : S ⊆ T) (hT : IsDown T) : close S ⊆ T :=
   (close_mono hST).trans (isDown_iff.1 hT).le
 
+/-- **SCO-1** Closed sets are closed under intersection. -/
 theorem IsDown.inter {S T : Finset Stratum} (hS : IsDown S) (hT : IsDown T) : IsDown (S ∩ T) :=
   fun c p hx hcp hp ↦
     mem_inter.2 ⟨hS c p hx hcp (mem_inter.1 hp).1, hT c p hx hcp (mem_inter.1 hp).2⟩
 
+/-- **SCO-1** And under union. -/
 theorem IsDown.union {S T : Finset Stratum} (hS : IsDown S) (hT : IsDown T) : IsDown (S ∪ T) := by
   intro c p hx hcp hp
   rcases mem_union.1 hp with hp | hp
   · exact mem_union_left _ (hS c p hx hcp hp)
   · exact mem_union_right _ (hT c p hx hcp hp)
 
-/-- `top()` omits `exhaust` and `hypothetical`, not only the denylist. -/
+/-- **SCO-1** `top()` omits `exhaust` and `hypothetical`, not only the denylist. -/
 theorem top_eq : top = univ \ {.foundation, .hypothetical, .exhaust} := by decide
 
 /-- So `top()` is not the top of the closed sets: a set naming `exhaust` or `hypothetical` lies
@@ -929,6 +932,7 @@ theorem join_le {a b x : Window} (ha : a.Le x) (hb : b.Le x) : (a.join b).Le x :
           obtain ⟨⟨bl, bh, hb'⟩, -⟩ := ints_of_within hbx
           exact absurd (hn al ah bl bh ha' hb') id
 
+/-- **SCO-2** The join of two windows is their least upper bound. -/
 theorem join_le_iff {a b x : Window} : (a.join b).Le x ↔ a.Le x ∧ b.Le x :=
   ⟨fun h ↦ ⟨(le_join_left a b).trans h, (le_join_right a b).trans h⟩, fun h ↦ join_le h.1 h.2⟩
 
@@ -1008,8 +1012,8 @@ theorem valid_join {a b : Window} (ha : a.Valid) (hb : b.Valid) : (a.join b).Val
       exact span_valid (by omega)
     · exact valid_all
 
-/-- So on valid windows the meet is the exact greatest lower bound: the constructor refuses the one
-counterexample, an inverted interval. -/
+/-- **SCO-2** So on valid windows the meet is the exact greatest lower bound: the constructor
+refuses the one counterexample, an inverted interval. -/
 theorem le_meet_iff_of_valid {x a b : Window} (hx : x.Valid) :
     x.Le (a.meet b) ↔ x.Le a ∧ x.Le b :=
   le_meet_iff hx.wf
@@ -1042,14 +1046,14 @@ theorem le_meet {a b t x : Time} (h : a.meetVia none b = some t) (hx : x.window.
   cases h
   exact ⟨ha.1, Window.le_meet hx ha.2 hb.2⟩
 
-/-- Under an atlas, two covered clocks meet through the event level. -/
+/-- **SCO-4** Under an atlas, two covered clocks meet through the event level. -/
 theorem meetVia_atlas (A : Atlas) {a b : Time} (hab : a.clock ≠ b.clock)
     (ha : A.has a.clock = true) (hb : A.has b.clock = true) :
     a.meetVia (some A) b = some (pullbackMeet A a b) := by
   simp [meetVia, hab, ha, hb]
 
-/-- The completion lies on `N`, so under neither input on another clock: why delegation, which
-must stay under the parent, refuses it. -/
+/-- **SCO-4** The completion lies on `N`, so under neither input on another clock: why delegation,
+which must stay under the parent, refuses it. -/
 theorem pullbackMeet_not_le (A : Atlas) {a b : Time} (haN : a.clock ≠ .N) (hbN : b.clock ≠ .N) :
     ¬ (pullbackMeet A a b).Le a ∧ ¬ (pullbackMeet A a b).Le b :=
   ⟨fun h ↦ haN h.1.symm, fun h ↦ hbN h.1.symm⟩
@@ -1105,8 +1109,8 @@ theorem meet_ok {a b m : Scope} (h : a.meet b = .ok m) : a.time.clock = b.time.c
     exact ⟨hc, hs, by rw [hc]⟩
   · simp [meet, hc] at h
 
-/-- Monotone delegation: a meet that exists lies under both inputs, whatever atlas is registered,
-since `Scope.meet` consults none. -/
+/-- **SCO-3** Monotone delegation: a meet that exists lies under both inputs, whatever atlas is
+registered, since `Scope.meet` consults none. -/
 theorem meet_le {a b m : Scope} (h : a.meet b = .ok m) : m.Le a ∧ m.Le b := by
   obtain ⟨hc, -, rfl⟩ := meet_ok h
   exact ⟨⟨inter_subset_left, inter_subset_left, ⟨rfl, Window.meet_le_left _ _⟩,
@@ -1114,18 +1118,20 @@ theorem meet_le {a b m : Scope} (h : a.meet b = .ok m) : m.Le a ∧ m.Le b := by
     ⟨inter_subset_right, inter_subset_right, ⟨hc, Window.meet_le_right _ _⟩,
       Authority.meet_le_right _ _⟩⟩
 
-/-- A meet that exists is the greatest lower bound among scopes with well-formed windows. -/
+/-- **SCO-3** A meet that exists is the greatest lower bound among scopes with well-formed windows.
+-/
 theorem le_meet {a b m x : Scope} (h : a.meet b = .ok m) (hx : x.time.window.WF) (ha : x.Le a)
     (hb : x.Le b) : x.Le m := by
   obtain ⟨-, -, rfl⟩ := meet_ok h
   exact ⟨subset_inter ha.1 hb.1, subset_inter ha.2.1 hb.2.1,
     ⟨ha.2.2.1.1, Window.le_meet hx ha.2.2.1.2 hb.2.2.1.2⟩, Authority.le_meet ha.2.2.2 hb.2.2.2⟩
 
-/-- Scopes on two clocks have no meet, atlas or not. -/
+/-- **SCO-3** Scopes on two clocks have no meet, atlas or not. -/
 theorem meet_of_ne {a b : Scope} (h : a.time.clock ≠ b.time.clock) :
     a.meet b = .error .noCommonClock := by
   simp [meet, h]
 
+/-- **SCO-5** A meet carries the lesser tier of its inputs. -/
 theorem meet_tier {a b m : Scope} (h : a.meet b = .ok m) : m.tier = min a.tier b.tier := by
   obtain ⟨-, -, rfl⟩ := meet_ok h
   rfl
@@ -1154,6 +1160,7 @@ theorem join_le_iff {a b j x : Scope} (h : a.join b = .ok j) : j.Le x ↔ a.Le x
     exact ⟨union_subset hσa hσb, union_subset hea heb, ⟨hca, Window.join_le hwa hwb⟩,
       Authority.join_le hAa hAb⟩
 
+/-- **SCO-5** So does a join. -/
 theorem join_tier {a b j : Scope} (h : a.join b = .ok j) : j.tier = min a.tier b.tier := by
   obtain ⟨-, rfl⟩ := join_ok h
   rfl
@@ -1179,7 +1186,8 @@ def leaves : Expr → List Scope
   | leaf s => [s]
   | meet e f | join e f => e.leaves ++ f.leaves
 
-/-- No laundering: a composition that exists carries exactly the least tier among its leaves. -/
+/-- **SCO-5** No laundering: a composition that exists carries exactly the least tier among its
+leaves. -/
 theorem tier_eval (e : Expr) {s : Scope} (h : e.eval = .ok s) :
     (∀ l ∈ e.leaves, s.tier ≤ l.tier) ∧ ∃ l ∈ e.leaves, s.tier = l.tier := by
   induction e generalizing s with
@@ -1217,6 +1225,7 @@ theorem admissible_of_subset {ιs : List (Finset Stratum)} {s t : Scope} (h : s.
     (ht : admissible ιs t) : admissible ιs s :=
   fun ι hι ↦ (ht ι hι).mono_left h
 
+/-- **SCO-6** Admissibility survives every meet. -/
 theorem admissible_meet {ιs : List (Finset Stratum)} {a b m : Scope} (h : a.meet b = .ok m)
     (ha : admissible ιs a) : admissible ιs m := by
   obtain ⟨-, -, rfl⟩ := Scope.meet_ok h
@@ -1228,6 +1237,7 @@ theorem zoneOk_of_le {s t : Scope} (hσ : s.sigma ⊆ t.sigma)
   · exact Or.inl (ht.mono_left hσ)
   · exact Or.inr (le_antisymm (ht ▸ hw) (Fin.zero_le _))
 
+/-- **SCO-6** So does the zone law. -/
 theorem zoneOk_meet {a b m : Scope} (h : a.meet b = .ok m) (ha : zoneOk a) : zoneOk m := by
   obtain ⟨-, -, rfl⟩ := Scope.meet_ok h
   exact zoneOk_of_le inter_subset_left (min_le_left _ _) ha
@@ -1249,9 +1259,9 @@ theorem stratumClasses_outside :
     stratumClasses .world = ∅ ∧ stratumClasses .foundation = ∅ ∧
       stratumClasses .hypothetical = ∅ := by decide
 
-/-- So under any table that gives `world`, the denylist and the overlay no class, `STRATUM_CLASSES`
-among them, a world-reaching scope the zone law admits is cleared for no class. Naming `exhaust`
-no longer escapes this, whatever classes `exhaust` is given. -/
+/-- **SCO-6** So under any table that gives `world`, the denylist and the overlay no class,
+`STRATUM_CLASSES` among them, a world-reaching scope the zone law admits is cleared for no class.
+Naming `exhaust` no longer escapes this, whatever classes `exhaust` is given. -/
 theorem world_reach_reads_nothing (tbl : Stratum → Finset Prov)
     (htbl : tbl .world = ∅ ∧ tbl .foundation = ∅ ∧ tbl .hypothetical = ∅) {s : Scope}
     (hz : zoneOk s) (hw : s.authority.world ≠ 0) : classesOf tbl s.sigma = ∅ := by
@@ -1276,34 +1286,34 @@ theorem mem_grantMeet {g h : List Scope} {m : Scope} (hm : m ∈ grantMeet g h) 
   · simp_all
   · simp at hrm
 
-/-- A grant's meet lies under both grants, plane by plane. -/
+/-- **SCO-7** A grant's meet lies under both grants, plane by plane. -/
 theorem grantMeet_le {g h : List Scope} {m : Scope} (hm : m ∈ grantMeet g h) :
     (∃ a ∈ g, m.Le a) ∧ ∃ b ∈ h, m.Le b := by
   obtain ⟨a, ha, b, hb, hab⟩ := mem_grantMeet hm
   exact ⟨⟨a, ha, (Scope.meet_le hab).1⟩, b, hb, (Scope.meet_le hab).2⟩
 
-/-- So `InadmissibleGrant` never fires on the meet of a grant. -/
+/-- **SCO-7** So `InadmissibleGrant` never fires on the meet of a grant. -/
 theorem grantMeet_grantOk {g h : List Scope} (hg : GrantOk g) : GrantOk (grantMeet g h) := by
   intro m hm
   obtain ⟨a, ha, b, -, hab⟩ := mem_grantMeet hm
   exact ⟨admissible_meet hab (hg a ha).1, zoneOk_meet hab (hg a ha).2⟩
 
-/-- And whatever the meet of two grants admits, each grant admits. -/
+/-- **SCO-7** And whatever the meet of two grants admits, each grant admits. -/
 theorem admits_of_grantMeet {g h : List Scope} {r : Scope} (hr : admits (grantMeet g h) r) :
     admits g r ∧ admits h r := by
   obtain ⟨m, hm, hrm⟩ := hr
   obtain ⟨⟨a, ha, hma⟩, b, hb, hmb⟩ := grantMeet_le hm
   exact ⟨⟨a, ha, hrm.trans hma⟩, b, hb, hrm.trans hmb⟩
 
-/-- A search never raises `SliceError`, over any strata, with or without history: the single-read
-cut is set exactly when the closed strata number more than one. -/
+/-- **SCO-8** A search never raises `SliceError`, over any strata, with or without history: the
+single-read cut is set exactly when the closed strata number more than one. -/
 theorem search_never_slices (strata : List Stratum) (history authored : Bool) :
     isSlice (required .search strata history authored) = false := by
   simp only [required, mkScope, Scope.build, Scope.Slices]
   split_ifs <;> simp_all [isSlice]
 
-/-- In particular the Ambassador's search over `reference` alone builds, carries the cut, and the
-Ambassador's grant admits it. -/
+/-- **SCO-8** In particular the Ambassador's search over `reference` alone builds, carries the cut,
+and the Ambassador's grant admits it. -/
 theorem search_reference (authored : Bool) :
     let r : Scope :=
       ⟨close {.reference}, ∅, ⟨.projectionEvent, .point anchor⟩, ⟨0, 0, 0⟩, 1, some singleRead⟩
@@ -1361,7 +1371,7 @@ namespace Witness
 
 open Window
 
-/-- `pt(1)` and `[1,1]` lie below each other, yet differ: `⊑` on windows is a preorder. -/
+/-- **SCO-2** `pt(1)` and `[1,1]` lie below each other, yet differ: `⊑` on windows is a preorder. -/
 theorem window_not_antisymm :
     (point (.int 1)).Le (interval (.int 1) (.int 1)) ∧
       (interval (.int 1) (.int 1)).Le (point (.int 1)) ∧
@@ -1389,8 +1399,8 @@ def sliceA : Scope :=
 def sliceB : Scope :=
   ⟨{.mirrorAuthored, .curated}, ∅, ⟨.Ns, .interval (.int 5) (.int 9)⟩, ⟨0, 0, 0⟩, 1, none⟩
 
-/-- Both are valid and share a clock, yet have no meet: the windows meet at the point `5`, over two
-strata, with no cut. `Grant.meet` now skips the pair. -/
+/-- **SCO-3** Both are valid and share a clock, yet have no meet: the windows meet at the point `5`,
+over two strata, with no cut. `Grant.meet` now skips the pair. -/
 theorem meet_slices : sliceA.Valid ∧ sliceB.Valid ∧ sliceA.meet sliceB = .error .slice ∧
     grantMeet [sliceA] [sliceB] = [] := by decide
 
@@ -1401,15 +1411,16 @@ def pointGrant : Scope :=
 /-- A dreamer template on the ledger, with no cut. -/
 def ledgerTemplate : Scope := ⟨close {.ops, .reference}, univ, ⟨.N, .all⟩, ⟨0, 0, 0⟩, 1, none⟩
 
-/-- Their meet keeps the point and so the owner's cut; it used to drop the cut and slice. -/
+/-- **SCO-3** Their meet keeps the point and so the owner's cut; it used to drop the cut and slice.
+-/
 theorem meet_keeps_one_sided_cut :
     pointGrant.meet ledgerTemplate = .ok pointGrant ∧ pointGrant.Valid := by decide
 
 /-- A grant that reads only agent exhaust, with irreversible world reach. -/
 def exhaustReach : Scope := ⟨close {.exhaust}, ∅, ⟨.Ns, .all⟩, ⟨0, 0, 3⟩, 1, none⟩
 
-/-- `Grant` refuses it now, like the same grant over its sibling `dialogue_transcript`; with
-`PRIVATE_STRATA` derived from `top()`, which omits `exhaust`, it was accepted. -/
+/-- **SCO-6** `Grant` refuses it now, like the same grant over its sibling `dialogue_transcript`;
+with `PRIVATE_STRATA` derived from `top()`, which omits `exhaust`, it was accepted. -/
 theorem exhaust_refused : ¬ GrantOk [exhaustReach] ∧
     ¬ GrantOk [⟨close {.dialogueTranscript}, ∅, ⟨.Ns, .all⟩, ⟨0, 0, 3⟩, 1, none⟩] := by decide
 
@@ -1419,7 +1430,7 @@ def worldOnly : Scope := ⟨{.world}, ∅, ⟨.N, .all⟩, ⟨0, 0, 1⟩, 1, non
 /-- A private read with no world reach. -/
 def mirrorRead : Scope := ⟨{.mirrorAuthored}, ∅, ⟨.N, .all⟩, ⟨0, 0, 0⟩, 1, none⟩
 
-/-- The zone law does not survive join. -/
+/-- **SCO-6** The zone law does not survive join. -/
 theorem zone_join_fails : zoneOk worldOnly ∧ zoneOk mirrorRead ∧
     worldOnly.join mirrorRead =
       .ok ⟨{.world, .mirrorAuthored}, ∅, ⟨.N, .all⟩, ⟨0, 0, 1⟩, 1, none⟩ ∧
@@ -1444,8 +1455,8 @@ def commitParent : Scope := ⟨{.curated}, univ, ⟨.commit, .all⟩, ⟨0, 0, 0
 /-- The template on `N_s`. -/
 def nsTemplate : Scope := ⟨{.curated}, univ, ⟨.Ns, .all⟩, ⟨0, 0, 0⟩, 1, none⟩
 
-/-- Under the atlas the time meet completes on `N`, under neither input; delegation refuses the
-pair. It used to complete it and mint a child under neither parent. -/
+/-- **SCO-4** Under the atlas the time meet completes on `N`, under neither input; delegation
+refuses the pair. It used to complete it and mint a child under neither parent. -/
 theorem atlas_delegation :
     commitParent.time.meetVia (some anAtlas) nsTemplate.time =
         some (Time.pullbackMeet anAtlas commitParent.time nsTemplate.time) ∧
