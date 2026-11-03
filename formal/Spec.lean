@@ -1,6 +1,7 @@
 module  -- shake: keep-all --deprecated_module: ignore
 
 public import Spec.Balance
+public import Spec.Bridges
 public import Spec.Clock
 public import Spec.Curvature
 public import Spec.Cut

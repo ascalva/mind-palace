@@ -3,6 +3,7 @@ module  -- shake: keep-all --deprecated_module: ignore
 public import PalaceTest.Attack
 public import PalaceTest.Balance
 public import PalaceTest.Binary64
+public import PalaceTest.Bridges
 public import PalaceTest.Clock
 public import PalaceTest.Curvature
 public import PalaceTest.Cut

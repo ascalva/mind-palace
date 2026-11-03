@@ -215,23 +215,6 @@ def Conforms (s : Scope) (hs : List Handle) : Prop :=
   ∀ h ∈ hs, h.stratum ∈ s.sigma ∧ (h.writesStratum = true → 1 ≤ s.authority.storeWrite) ∧
     ∀ f, h.writesFiber = some f → f ∈ s.edges
 
-/-! ## Clearances (`core/kernel/clearance.py`) -/
-
-instance : Fintype Prov :=
-  Fintype.ofList (open Prov in
-    [authoredSolo, authoredDialogue, curated, interpreted, derivedStratum, observed, code])
-    fun x ↦ by cases x <;> simp
-
-/-- `STRATUM_CLASSES`: the classes a stratum's rows carry; an absent stratum names none. -/
-def stratumClasses : Stratum → Finset Prov
-  | .mirror | .mirrorAuthored => {.authoredSolo, .authoredDialogue}
-  | .curated => {.curated}
-  | .interpreted => {.interpreted}
-  | .observed => {.observed}
-  | .dialogue | .dialogueTranscript => {.observed, .authoredDialogue}
-  | .reference | .referenceRepo => {.code}
-  | _ => ∅
-
 /-! ## Σ: closure is a closure operator; `top` is not the top -/
 
 section Sigma
