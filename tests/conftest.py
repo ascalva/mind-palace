@@ -43,6 +43,7 @@ def _isolate_from_the_instance_overlay(monkeypatch: pytest.MonkeyPatch,
     absent = tmp_path_factory.getbasetemp() / "no-instance-overlay"
     monkeypatch.setattr(loader, "_INSTANCE_OVERLAY", absent / "ouroboros.toml")
     monkeypatch.setattr(loader, "LEVERS_OVERLAY", absent / "levers.toml")
+    monkeypatch.delenv(loader.OVERLAY_ENV, raising=False)   # a shell's instance must not leak in
     loader.get_config.cache_clear()
     yield
     loader.get_config.cache_clear()
