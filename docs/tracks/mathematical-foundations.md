@@ -11,7 +11,7 @@ dod:
   - MF-3 cut/conductance/curvature falsifier batch green or counterexamples filed (direct Φ(S) + both degenerate conventions; most_negative_edges emission rule) — DONE 2026-11-03 (tests/unit/test_cut_conductance.py, tests/unit/test_curvature.py, the windowed χ_s tests: green; the windowed counterexample fixed at the owner's ruling)
   - MF-4 formal/ L1 — sibling lake package builds; statements + Plausible attacks; sorry ratchet recorded; zero import coupling with core/ either direction — DONE 2026-11-01 (#55, #56)
   - MF-5 lean-action advisory CI green on a real PR with the Mathlib cache hitting — DONE 2026-11-03 (#59, run 41580747081: green, all 9,081 Mathlib files from the cache)
-  - MF-6 (entry-gated on MF-4) first L2 discharge batch — Theorem (machine-checked, formal/...) claimable for the discharged laws
+  - MF-6 (entry-gated on MF-4) first L2 discharge batch — Theorem (machine-checked, formal/...) claimable for the discharged laws — DONE 2026-11-04 (MF-4's statement set discharged by name, each statement cited in docs/LAWS.md's formal column and judged by lake comparator: MEM-1, MEM-2, MEM-3 and MEM-5 (and MEM-4); LAP-1's L·1 = 0; LAP-2's L PSD; LAP-4's L_sym PSD, its spectrum in [0, 2] and its kernel vector D^{1/2}·1; CND-1's L⁺ symmetric and PSD; and LAP-3. sorry 0, standard axioms, six kernels. The budget was 0 from its first commit, every statement landing proved, so the ratchet's trace never moved: the law ids are the acceptance. Theorem (machine-checked, formal/...) cites these theorems about the Lean model; the ledger's labels stay on Python evidence)
 backlog_deskcheck: null
 links:
   - docs/brainstorms/mathematical-foundations.md
