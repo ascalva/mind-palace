@@ -199,8 +199,9 @@ def test_a_mirror_sentence_loads_the_mirror_and_the_dialogue_and_no_index(engine
 def test_near_over_curated_seeds_papers_from_the_index_and_masks_to_them(engine: _Engine) -> None:
     plan = compile_sentence('top 5 near "paper" over curated', AMBASSADOR_OVERLAY)
     u = _build(engine, plan, precedents=Precedents(support=2))
-    assert engine._get("curated").searches == 1
+    assert engine._get("curated").searches == 2        # the seeding, then p1's degree census
     assert "reference:p1" in _refs(u) and "reference:p2" not in _refs(u)     # support 2 chunks → p1
+    assert u.degrees is not None and u.degrees[_refs(u).index("reference:p1")] == 0.0
     node = u.notes[_refs(u).index("reference:p1")]
     assert node["stratum"] == "curated" and node["detail"]["chunks_hit"] == 2
     answer = execute(plan, u, precedents=Precedents(support=2))
@@ -208,7 +209,7 @@ def test_near_over_curated_seeds_papers_from_the_index_and_masks_to_them(engine:
     assert any("curated: 1 papers from the 2 nearest chunks" in m for m in u.missing)
     # the same text without `over` never touches the index; its hits are the notes'
     plain = compile_sentence('near "paper"')
-    assert execute(plain, _build(engine, plain)).hits == () and engine._get("curated").searches == 1
+    assert execute(plain, _build(engine, plain)).hits == () and engine._get("curated").searches == 2
 
 
 def test_near_over_reference_resolves_code_atoms_to_files(engine: _Engine) -> None:

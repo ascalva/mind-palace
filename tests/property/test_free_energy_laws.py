@@ -19,6 +19,7 @@ from __future__ import annotations
 import itertools
 
 import numpy as np
+import pytest
 import scipy.sparse as sp
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
@@ -146,3 +147,61 @@ def test_the_unnormalized_free_energy_breaks_the_triangle():
     d = free_energy_distances(a, beta=1.0)
     assert all(d[i, k] <= d[i, j] + d[j, k] + 1e-12
                for i, j, k in itertools.product(range(3), repeat=3))
+
+
+# ── RSP-5: the support's nearness never exceeds the graph's ─────────────────────────────────────
+
+
+def _backbone(rng: np.random.Generator, n: int) -> np.ndarray:
+    w = rng.random((n, n))
+    w = np.where(w > 0.45, w, 0.0)
+    w = np.triu(w, 1)
+    return w + w.T
+
+
+def test_a_support_with_the_graphs_degrees_never_raises_nearness() -> None:
+    """RSP-5 (`Retrieval.lean::nearnessOn_mul_le`): on a support whose walk keeps the full graph's
+    degrees — a transition out of the support is a killing — the symmetrized nearness
+    `e^{−d_S}` is at most the graph's `e^{−d}`, pair by pair (float64 within 1e-9)."""
+    from core.query import free_energy_distances
+
+    rng = np.random.default_rng(5)
+    for _ in range(40):
+        n = int(rng.integers(5, 10))
+        w = _backbone(rng, n)
+        keep = np.sort(rng.choice(n, size=int(rng.integers(2, n)), replace=False))
+        full = free_energy_distances(w, beta=1.0)
+        sub = free_energy_distances(w[np.ix_(keep, keep)], beta=1.0,
+                                    degrees=w.sum(axis=1)[keep])
+        near_full = np.exp(-full[np.ix_(keep, keep)])
+        near_sub = np.exp(-sub)
+        assert np.all(near_sub <= near_full + 1e-9)
+
+
+def test_control_induced_degrees_can_invent_nearness() -> None:
+    """The control (measure, never assume): with the support's OWN degrees the walk renormalizes
+    onto the kept edges and nearness can rise above the graph's — the reason the universe carries
+    the full degrees. Found on random backbones, deterministically."""
+    from core.query import free_energy_distances
+
+    rng = np.random.default_rng(7)
+    violations = 0
+    for _ in range(60):
+        n = int(rng.integers(5, 10))
+        w = _backbone(rng, n)
+        keep = np.sort(rng.choice(n, size=int(rng.integers(2, n)), replace=False))
+        full = free_energy_distances(w, beta=1.0)
+        induced = free_energy_distances(w[np.ix_(keep, keep)], beta=1.0)
+        if np.any(np.exp(-induced) > np.exp(-full[np.ix_(keep, keep)]) + 1e-6):
+            violations += 1
+    assert violations > 0
+
+
+def test_degrees_below_the_supports_own_are_refused() -> None:
+    from core.query import free_energy_distances
+
+    w = np.array([[0.0, 0.9, 0.0], [0.9, 0.0, 0.8], [0.0, 0.8, 0.0]])
+    with pytest.raises(ValueError, match="invent weight"):
+        free_energy_distances(w, beta=1.0, degrees=np.array([0.5, 1.7, 0.8]))
+    with pytest.raises(ValueError, match="one per node"):
+        free_energy_distances(w, beta=1.0, degrees=np.array([1.0, 1.0]))

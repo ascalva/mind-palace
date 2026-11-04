@@ -169,6 +169,78 @@ theorem inv_mul_inv_le (hM : ∀ i j, 0 ≤ M i j) (hrow : ∀ i, ∑ j, M i j �
   have h2 : s * v m ≤ (∑ b, M m b) * v m := mul_le_mul_of_nonpos_right (hrow m) hneg.le
   nlinarith
 
+/-- **RSP-5** The first-passage ratio is monotone in the walk: for `M ≤ M'` entrywise,
+`z_ij z'_jj ≤ z'_ij z_jj`. The vector `v_a = z'_aj z_jj − z_aj z'_jj` vanishes at `j` and
+elsewhere is at least `M v` (the walk `M` has no more weight than `M'`); where it is least it is
+nonnegative — the extremal principle of `inv_mul_inv_le`. -/
+theorem inv_ratio_mono {M' : Matrix V V ℝ} (hM : ∀ i j, 0 ≤ M i j) (hrow : ∀ i, ∑ j, M i j ≤ s)
+    (hs : s < 1) (hM' : ∀ i j, 0 ≤ M' i j) (hrow' : ∀ i, ∑ j, M' i j ≤ s)
+    (hle : ∀ i j, M i j ≤ M' i j) (i j : V) :
+    (1 - M)⁻¹ i j * (1 - M')⁻¹ j j ≤ (1 - M')⁻¹ i j * (1 - M)⁻¹ j j := by
+  set Z := (1 - M)⁻¹ with hZ
+  set Z' := (1 - M')⁻¹ with hZ'
+  have hZnn : ∀ a b, 0 ≤ Z a b := fun a b ↦ inv_nonneg hM hrow hs a b
+  have hZ'nn : ∀ a b, 0 ≤ Z' a b := fun a b ↦ inv_nonneg hM' hrow' hs a b
+  let v : V → ℝ := fun a ↦ Z' a j * Z j j - Z a j * Z' j j
+  suffices h : ∀ a, 0 ≤ v a by have := h i; simp only [v] at this; linarith
+  have : Nonempty V := ⟨i⟩
+  obtain ⟨m, hm⟩ := Finite.exists_min v
+  intro a
+  refine le_trans ?_ (hm a)
+  by_contra hneg
+  push Not at hneg
+  have hmj : m ≠ j := by
+    rintro rfl
+    simp only [v, mul_comm, sub_self, lt_irrefl] at hneg
+  have e := inv_apply_eq hM hrow hs m j
+  have e' := inv_apply_eq hM' hrow' hs m j
+  simp only [hmj, ite_false, zero_add] at e e'
+  rw [← hZ] at e
+  rw [← hZ'] at e'
+  have hsum : ∑ b, M m b * Z' b j ≤ Z' m j := by
+    rw [e']
+    exact sum_le_sum fun b _ ↦ mul_le_mul_of_nonneg_right (hle m b) (hZ'nn b j)
+  have hv : ∑ b, M m b * v b ≤ v m := by
+    have hsplit : ∑ b, M m b * v b =
+        (∑ b, M m b * Z' b j) * Z j j - (∑ b, M m b * Z b j) * Z' j j := by
+      simp only [v]
+      rw [sum_mul, sum_mul, ← sum_sub_distrib]
+      exact sum_congr rfl fun b _ ↦ by ring
+    rw [hsplit, ← e]
+    simp only [v]
+    have := mul_le_mul_of_nonneg_right hsum (hZnn j j)
+    linarith
+  have h1 : (∑ b, M m b) * v m ≤ ∑ b, M m b * v b := by
+    rw [sum_mul]
+    exact sum_le_sum fun b _ ↦ mul_le_mul_of_nonneg_left (hm b) (hM m b)
+  have h2 : s * v m ≤ (∑ b, M m b) * v m := mul_le_mul_of_nonpos_right (hrow m) hneg.le
+  nlinarith
+
+omit [Fintype V] in
+/-- A restricted walk is nonnegative when the walk is. -/
+theorem restrict_nonneg (hM : ∀ i j, 0 ≤ M i j) (S : Finset V) (i j : V) :
+    0 ≤ restrict M S i j := by
+  unfold restrict
+  simp only [of_apply]
+  split_ifs
+  · exact hM i j
+  · exact le_refl 0
+
+omit [Fintype V] in
+/-- A restricted walk has no more weight than the walk, entrywise. -/
+theorem restrict_le (hM : ∀ i j, 0 ≤ M i j) (S : Finset V) (i j : V) :
+    restrict M S i j ≤ M i j := by
+  unfold restrict
+  simp only [of_apply]
+  split_ifs
+  · exact le_refl _
+  · exact hM i j
+
+/-- A restricted walk's row sums are at most the walk's. -/
+theorem sum_restrict_le (hM : ∀ i j, 0 ≤ M i j) (S : Finset V) (i : V) :
+    ∑ j, restrict M S i j ≤ ∑ j, M i j :=
+  sum_le_sum fun j _ ↦ restrict_le hM S i j
+
 end Substochastic
 
 /-! ## RSP-1: the walk sum is well posed -/
@@ -546,6 +618,49 @@ theorem feDist_triangle (hw : w.IsSymm) (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ 
 
 theorem feDist_comm (i j : V) : feDist w β z i j = feDist w β z j i := by
   simp only [feDist, add_comm]
+
+/-- **RSP-5** The support's nearness never exceeds the graph's: on a support `S` with the full
+graph's degrees, `z^S_ij / z^S_jj ≤ z_ij / z_jj` — `diffuse` on the sentence's support
+under-estimates nearness and never invents it (dn-query-sentence-algebra §2.9). -/
+theorem nearnessOn_le_nearness (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 ≤ β)
+    (hz0 : 0 ≤ z) (hz1 : z < 1) (S : Finset V) (i j : V) :
+    nearnessOn w S β z i j ≤ nearness w β z i j := by
+  have hM : ∀ a b, 0 ≤ killedWalk w β z a b := killedWalk_nonneg hw0 hz0
+  have hrow : ∀ a, ∑ b, killedWalk w β z a b ≤ z := sum_killedWalk_le hw0 hw1 hβ hz0
+  have hM' : ∀ a b, 0 ≤ restrict (killedWalk w β z) S a b := restrict_nonneg hM S
+  have hrow' : ∀ a, ∑ b, restrict (killedWalk w β z) S a b ≤ z :=
+    fun a ↦ (sum_restrict_le hM S a).trans (hrow a)
+  have hle : ∀ a b, restrict (killedWalk w β z) S a b ≤ killedWalk w β z a b := restrict_le hM S
+  have key := inv_ratio_mono hM' hrow' hz1 hM hrow hle i j
+  have hd : 0 < (1 - killedWalk w β z)⁻¹ j j :=
+    zero_lt_one.trans_le (one_le_inv_apply_self hM hrow hz1 j)
+  have hd' : 0 < (1 - restrict (killedWalk w β z) S)⁻¹ j j :=
+    zero_lt_one.trans_le (one_le_inv_apply_self hM' hrow' hz1 j)
+  unfold nearnessOn nearness fundamentalOn fundamental
+  rw [div_le_div_iff₀ hd' hd]
+  exact key
+
+/-- **RSP-5** Both ways: the symmetrized nearness `e^{−2β d_ij} = (z_ij z_ji) / (z_jj z_ii)` on
+the support is at most the graph's. -/
+theorem nearnessOn_mul_le (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 ≤ β)
+    (hz0 : 0 ≤ z) (hz1 : z < 1) (S : Finset V) (i j : V) :
+    nearnessOn w S β z i j * nearnessOn w S β z j i ≤ nearness w β z i j * nearness w β z j i := by
+  have h1 := nearnessOn_le_nearness hw0 hw1 hβ hz0 hz1 S i j
+  have h2 := nearnessOn_le_nearness hw0 hw1 hβ hz0 hz1 S j i
+  have hM : ∀ a b, 0 ≤ killedWalk w β z a b := killedWalk_nonneg hw0 hz0
+  have hrow : ∀ a, ∑ b, killedWalk w β z a b ≤ z := sum_killedWalk_le hw0 hw1 hβ hz0
+  have hM' : ∀ a b, 0 ≤ restrict (killedWalk w β z) S a b := restrict_nonneg hM S
+  have hrow' : ∀ a, ∑ b, restrict (killedWalk w β z) S a b ≤ z :=
+    fun a ↦ (sum_restrict_le hM S a).trans (hrow a)
+  have n1 : 0 ≤ nearnessOn w S β z i j := by
+    unfold nearnessOn fundamentalOn
+    exact div_nonneg (inv_nonneg hM' hrow' hz1 i j) (inv_nonneg hM' hrow' hz1 j j)
+  have n2 : 0 ≤ nearness w β z j i := by
+    unfold nearness fundamental
+    exact div_nonneg (inv_nonneg hM hrow hz1 j i) (inv_nonneg hM hrow hz1 i i)
+  calc nearnessOn w S β z i j * nearnessOn w S β z j i
+      ≤ nearnessOn w S β z i j * nearness w β z j i := mul_le_mul_of_nonneg_left h2 n1
+    _ ≤ nearness w β z i j * nearness w β z j i := mul_le_mul_of_nonneg_right h1 n2
 
 /-- **RSP-4** The distance vanishes on the diagonal and is nonnegative. -/
 theorem feDist_self_and_nonneg (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 < β)

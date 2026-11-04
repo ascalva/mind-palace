@@ -118,7 +118,7 @@ Roundoff and FloatModel, so it has no statements of its own):
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
-- `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the 203 cited
+- `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the 205 cited
   theorems, and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself.

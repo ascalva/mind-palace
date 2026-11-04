@@ -36,23 +36,23 @@ theorem or_posSemidef {A B : Matrix V V ℝ} (hA : A.PosSemidef) (hB : B.PosSemi
     (A + B).PosSemidef :=
   sorry
 
-/-- **QSA-2** `within` keeps the cone. -/
+/-- **QSA-2, QSA-10** `within` keeps the cone. -/
 theorem posSemidef_mask [Finite V] [DecidableEq V] {K : Matrix V V ℝ} (hK : K.PosSemidef)
     (S : Finset V) : (mask S K).PosSemidef :=
   sorry
 
 variable [DecidableEq V] {R : Type*}
-/-- **QSA-2** `within` distributes over `or`. -/
+/-- **QSA-2, QSA-10** `within` distributes over `or`. -/
 theorem mask_add [AddZeroClass R] (S : Finset V) (A B : Matrix V V R) :
     mask S (A + B) = mask S A + mask S B :=
   sorry
 
-/-- **QSA-2** `within` distributes over `and`. -/
+/-- **QSA-2, QSA-10** `within` distributes over `and`. -/
 theorem mask_hadamard [MulZeroClass R] (S : Finset V) (A B : Matrix V V R) :
     mask S (A ⊙ B) = mask S A ⊙ mask S B :=
   sorry
 
-/-- **QSA-2** adjectives stack by intersection. -/
+/-- **QSA-2, QSA-10** adjectives stack by intersection. -/
 theorem mask_mask [Zero R] (S T : Finset V) (A : Matrix V V R) :
     mask S (mask T A) = mask (S ∩ T) A :=
   sorry

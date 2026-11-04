@@ -76,6 +76,9 @@ class Universe:
     # `read`: the record at a ref, `(ref, chunk, window)` → the text with its stratum, or None
     text: Callable[[str, int | None, int], Mapping[str, object] | None] = field(
         default=lambda ref, chunk, window: None)
+    # the FULL backbone's degrees of these nodes, where the universe is a support (RSP-5): None
+    # when the nodes are the whole graph, so the walk's own degrees are the full ones
+    degrees: np.ndarray | None = None
 
     def __len__(self) -> int:
         return len(self.notes)
@@ -535,7 +538,9 @@ class Evaluator:
             raise UnsupportedSentence(f"diffuse {rel.value}: no weights at the note grain")
         if not np.any(W > 0):
             return FieldV(np.zeros(len(self.u)))
-        dist = free_energy_distances(W, beta=beta if beta is not None else self.p.beta)[i]
+        degrees = self.u.degrees if rel is Rel.S else None   # the support's walk keeps the
+        dist = free_energy_distances(W, beta=beta if beta is not None else self.p.beta,   # graph's
+                                     degrees=degrees)[i]
         scores = np.where(np.isfinite(dist), np.exp(-dist), 0.0)
         scores[i] = 0.0                                  # a note is not retrieved from itself
         return FieldV(np.clip(scores, 0.0, 1.0))

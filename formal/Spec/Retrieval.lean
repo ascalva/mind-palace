@@ -19,6 +19,7 @@ public import Mathlib.Combinatorics.SimpleGraph.Connectivity.Connected
 * RSP-3: `e^{−β d_ij} = G_ij / √(G_ii G_jj)`, so `e^{−β d}` is positive definite on a connected
   support for every β, and `K_struct = e^{−d}` at the default `β = 1`.
 * RSP-4: the free energy is a quasi-metric and the code's symmetrized distance a pseudometric.
+* RSP-5: a support's nearness, with the graph's degrees, never exceeds the graph's.
 
 These are the theorems of `Palace/Retrieval.lean` as the ledger cites them, each with its proof
 left as `sorry`. `lake comparator` checks that the `Palace` library proves each one exactly as
@@ -111,6 +112,21 @@ theorem freeEnergy_triangle (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j �
     (hz0 : 0 ≤ z) (hz1 : z < 1) {i j k : V} (hij : 0 < fundamental w β z i j)
     (hjk : 0 < fundamental w β z j k) :
     freeEnergy w β z i k ≤ freeEnergy w β z i j + freeEnergy w β z j k := sorry
+
+/-- **RSP-5** The support's nearness never exceeds the graph's: on a support `S` whose walk keeps
+the full graph's degrees, `z^S_ij / z^S_jj ≤ z_ij / z_jj` — `diffuse` on the sentence's support
+under-estimates nearness and never invents it. -/
+theorem nearnessOn_le_nearness (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 ≤ β)
+    (hz0 : 0 ≤ z) (hz1 : z < 1) (S : Finset V) (i j : V) :
+    nearnessOn w S β z i j ≤ nearness w β z i j :=
+  sorry
+
+/-- **RSP-5** Both ways: the symmetrized nearness `e^{−2β d_ij}` on the support is at most the
+graph's. -/
+theorem nearnessOn_mul_le (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 ≤ β)
+    (hz0 : 0 ≤ z) (hz1 : z < 1) (S : Finset V) (i j : V) :
+    nearnessOn w S β z i j * nearnessOn w S β z j i ≤ nearness w β z i j * nearness w β z j i :=
+  sorry
 
 /-- **RSP-4** The distance vanishes on the diagonal and is nonnegative. -/
 theorem feDist_self_and_nonneg (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 < β)

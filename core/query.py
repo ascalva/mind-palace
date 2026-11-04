@@ -339,17 +339,33 @@ class Answer:
 
 
 def free_energy_distances(
-    weights: np.ndarray, *, beta: float, z: float = DEFAULT_GAMMA
+    weights: np.ndarray, *, beta: float, z: float = DEFAULT_GAMMA,
+    degrees: np.ndarray | None = None,
 ) -> np.ndarray:
     """Symmetrized RSP free-energy distance on a weighted graph with weights in (0, 1].
 
     `weights` is symmetric with a zero diagonal; 0 = no edge. Requires β > 0 and 0 < z < 1, which
     with w ≤ 1 bounds ρ(z·P∘w^β) ≤ z < 1 — the walk sum converges (Theorem A1's condition, carried
-    by the γ-ceiling). Unreachable pairs are +inf."""
+    by the γ-ceiling). Unreachable pairs are +inf.
+
+    `degrees`, when given, are the FULL graph's degrees of these nodes — the walk on a support
+    whose complement absorbs (RSP-5, dn-query-sentence-algebra §2.9): a transition to a node
+    outside the support becomes a killing, so the support's nearness never exceeds the graph's.
+    They must be at least the support's own degrees; smaller ones would make the walk invent
+    weight, and are refused."""
     if beta <= 0 or not 0 < z < 1:
         raise ValueError("need beta > 0 and 0 < z < 1")
     n = weights.shape[0]
-    deg = weights.sum(axis=1)
+    own = weights.sum(axis=1)
+    if degrees is None:
+        deg = own
+    else:
+        deg = np.asarray(degrees, dtype=np.float64)
+        if deg.shape != (n,):
+            raise ValueError(f"degrees must be one per node: {deg.shape} for {n} nodes")
+        if np.any(deg < own - 1e-9):
+            raise ValueError("degrees must be at least the support's own: a smaller degree would "
+                             "make the walk invent weight (RSP-5)")
     p_ref = np.divide(weights, deg[:, None], out=np.zeros_like(weights), where=deg[:, None] > 0)
     w_beta = z * p_ref * np.power(weights, beta, where=weights > 0, out=np.zeros_like(weights))
     zmat = np.linalg.inv(np.eye(n) - w_beta)

@@ -19,9 +19,14 @@ clauses can reach — materialized lazily:
 On the support the laws hold exactly: masks, products, thresholds (QSA-1 to QSA-4). What the
 support loses is bounded and one-sided: restricting the walk to a subgraph whose complement
 absorbs can only raise free-energy distances (RSP-5), so `diffuse` on the support under-estimates
-nearness and never invents it; `reach` is exact within its radius unless the bound truncates, and
-the answer says which. `over <strata>` is the mask onto the support's nodes of those strata
-(QSA-2). The answer's notes carry the support's census and the cut.
+nearness and never invents it — PROVIDED the walk keeps the full graph's degrees, which is why
+the universe carries them: the backbone `S` lives within a stratum (notes among notes, papers
+among papers, files among files; the citation graph is what crosses strata), the loaded strata's
+degrees are exact, a paper's is a census by the index (its nearest papers, truncated at
+`support` and said so), and a file's is induced, which the answer names as the one place the
+bound does not hold. `reach` is exact within its radius unless the bound truncates, and the
+answer says which. `over <strata>` is the mask onto the support's nodes of those strata (QSA-2).
+The answer's notes carry the support's census and the cut.
 """
 
 from __future__ import annotations
@@ -150,6 +155,7 @@ class _Builder:
         self.cut: str | None = None
         self.cut_note: str = ""
         self._embeds: dict[str, np.ndarray] = {}
+        self.census: dict[str, float] = {}       # a paper's full-backbone degree, by the index
 
     # stores --------------------------------------------------------------------------------------
     def store(self, name: str) -> Any:
@@ -246,6 +252,43 @@ class _Builder:
                               f"atoms to {why!r} (the index's top {self.p.support})")
         return len(paths)
 
+    def degree_census(self, nodes: list[_Node]) -> None:
+        """The full backbone's degree of each curated node: the similarity, at or above σ, to the
+        papers the index returns for its vector (`support` chunks), the index's own estimate of
+        the paper's neighbourhood. Cached on the engine across sentences; truncation is noted."""
+        sigma = float(self.e.config.dreaming.similarity_threshold)
+        cache: dict[str, float] = self.e._cache.setdefault("degree_census", {})
+        truncated = 0
+        for n in nodes:
+            if n.ref in cache:
+                self.census[n.ref] = cache[n.ref]
+                continue
+            if n.vector is None:
+                continue
+            rows = self.store("curated").search(list(map(float, n.vector)), k=self.p.support,
+                                                clearance=CURATED_READ)
+            by_src: dict[str, list[Mapping[str, Any]]] = {}
+            for r in rows:
+                by_src.setdefault(str(r.get("source_path", "")), []).append(r)
+            degree = 0.0
+            for src, group in by_src.items():
+                if src == n.ref or not src:
+                    continue
+                centroid = _mean_vector(group)
+                if centroid is None:
+                    continue
+                cos = float(n.vector @ centroid)
+                if cos >= sigma:
+                    degree += min(cos, 1.0)
+            if len(rows) >= self.p.support and by_src and min(
+                    float(r.get("_distance", 0.0)) for r in rows) <= 1 - sigma:
+                truncated += 1
+            cache[n.ref] = degree
+            self.census[n.ref] = degree
+        if truncated:
+            self.notes.append(f"degrees: {truncated} papers' censuses were cut at the index's "
+                              f"top {self.p.support}; their nearness bound is loose by that much")
+
     # the citation graph at the cut ---------------------------------------------------------------
     def open_view(self, cut: str | None) -> None:
         from core.reference_view import ReferenceView, _resolve_default_commit
@@ -335,6 +378,18 @@ class _Builder:
         weights = np.where(sims >= sigma, np.clip(sims, 0.0, 1.0), 0.0)
         if len(order):
             np.fill_diagonal(weights, 0.0)
+            strata = np.array([n.stratum for n in order])
+            weights = np.where(strata[:, None] == strata[None, :], weights, 0.0)   # S per stratum
+        # the full backbone's degrees (RSP-5): exact for the loaded strata, the census for papers,
+        # induced for files — and never below the support's own
+        own = weights.sum(axis=1) if len(order) else np.zeros(0)
+        degrees = own.copy()
+        for i, n in enumerate(order):
+            if n.stratum == "curated" and n.ref in self.census:
+                degrees[i] = max(self.census[n.ref], own[i])
+        if any(n.stratum == "reference" for n in order):
+            self.notes.append("degrees: the backbone among files is induced on the support; "
+                              "`diffuse S` over reference is not one-sided")
         notes = [{"source_path": n.ref, "title": n.title, "digest": n.digest,
                   "provenance": n.provenance, "stratum": n.stratum, "detail": dict(n.detail)}
                  for n in order]
@@ -373,7 +428,7 @@ class _Builder:
         return Universe(notes=notes, vectors=mat, weights=weights,
                         edges={Rel.F: self.f_edges, Rel.D: {}, Rel.C: {}}, relations=relations,
                         embed=embed, history=history, witness=witness, cut=self.cut,
-                        missing=tuple(missing), text=text)
+                        missing=tuple(missing), text=text, degrees=degrees)
 
 
 def build(engine: QueryEngine, plan: Plan, *, precedents: Precedents = DEFAULT) -> Universe:
@@ -391,4 +446,5 @@ def build(engine: QueryEngine, plan: Plan, *, precedents: Precedents = DEFAULT) 
     for atom, radius in seeds.anchors:
         b.seed_anchor(atom, radius)
     b.wire_reference()
+    b.degree_census([n for n in b.nodes.values() if n.stratum == "curated"])
     return b.universe()

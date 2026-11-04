@@ -70,7 +70,7 @@ theorem mask_eq_diagonal_mul_mul [Fintype V] [DecidableEq V] {R : Type*} [CommRi
   simp only [mask, of_apply, mul_diagonal, diagonal_mul, ind]
   by_cases hi : i ∈ S <;> by_cases hj : j ∈ S <;> simp [hi, hj]
 
-/-- **QSA-2** `within` keeps the cone. -/
+/-- **QSA-2, QSA-10** `within` keeps the cone. -/
 theorem posSemidef_mask [Finite V] [DecidableEq V] {K : Matrix V V ℝ} (hK : K.PosSemidef)
     (S : Finset V) : (mask S K).PosSemidef := by
   have := Fintype.ofFinite V
@@ -80,19 +80,19 @@ theorem posSemidef_mask [Finite V] [DecidableEq V] {K : Matrix V V ℝ} (hK : K.
 
 variable [DecidableEq V] {R : Type*}
 
-/-- **QSA-2** `within` distributes over `or`. -/
+/-- **QSA-2, QSA-10** `within` distributes over `or`. -/
 theorem mask_add [AddZeroClass R] (S : Finset V) (A B : Matrix V V R) :
     mask S (A + B) = mask S A + mask S B := by
   ext i j
   by_cases h : i ∈ S ∧ j ∈ S <;> simp [mask, h]
 
-/-- **QSA-2** `within` distributes over `and`. -/
+/-- **QSA-2, QSA-10** `within` distributes over `and`. -/
 theorem mask_hadamard [MulZeroClass R] (S : Finset V) (A B : Matrix V V R) :
     mask S (A ⊙ B) = mask S A ⊙ mask S B := by
   ext i j
   by_cases h : i ∈ S ∧ j ∈ S <;> simp [mask, h]
 
-/-- **QSA-2** adjectives stack by intersection. -/
+/-- **QSA-2, QSA-10** adjectives stack by intersection. -/
 theorem mask_mask [Zero R] (S T : Finset V) (A : Matrix V V R) :
     mask S (mask T A) = mask (S ∩ T) A := by
   ext i j

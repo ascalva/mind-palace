@@ -478,10 +478,17 @@ the ref's shape (`read_strata`): a paper ref the curated stratum, `dialogue/…`
 absolute path the mirror, a repo-relative path the reference stratum (the checkout's file, inside
 the repo root only), a title the mirror or the dialogue; the executor holds the record to it.
 
-**What the support loses is bounded and one-sided.** [DERIVED — RSP-5, to be machine-checked]
-Restricting the killed walk to the support, with the complement absorbing, removes walks and adds
-none, so the fundamental matrix shrinks entrywise and every free-energy distance grows: `diffuse`
-on the support **under-estimates** nearness and never invents it. `reach` is exact within its
+**What the support loses is bounded and one-sided.** `[THEOREM — RSP-5,
+Retrieval.lean::nearnessOn_le_nearness, nearnessOn_mul_le]` Restricting the killed walk to the
+support with the complement absorbing — the transitions among the support as in the graph, the
+**degrees the graph's** — makes the first-passage ratio `z_ij / z_jj` no larger, so the nearness
+`e^{−βφ}` on the support is at most the graph's: `diffuse` on the support **under-estimates**
+nearness and never invents it. The hypothesis is load-bearing and measured: with the support's own
+degrees the walk renormalizes onto the kept edges and nearness can rise (the ledger's control
+finds it on random backbones), which is why the universe carries the full degrees — exact for the
+loaded strata, a census by the index for a paper (its nearest papers, truncated at `support` and
+said so), induced for a file, which the answer names as the one place the bound does not hold.
+The backbone `S` lives within a stratum; the citation graph is what crosses strata. `reach` is exact within its
 radius unless the bound truncates, and the answer says so. `near` over an indexed stratum is the
 index's top-`support`, an approximation the index owns (its recall is a measurement for the
 battery, not an assumption). The answer's notes carry the support's census, the cut, and every
@@ -543,7 +550,8 @@ readiness signal.
 > live instance: `near … over curated` answers from 100 papers of a 146-node support in 0.5 s,
 > `near … over reference` names files and symbols, `reach F from "core/query.py" depth 1` returns 17
 > files at the newest cut and says the worktree's HEAD has none. RSP-5, the support's one-sided
-> error, is stated and awaits its Lean.
+> error, is proved (`nearnessOn_le_nearness`, by the extremal principle of the path-product law),
+> and the universe keeps the graph's degrees so the theorem applies to the code.
 
 - **QL-0 — the design proved.** This note and `formal/Palace/Sentence.lean` (on this branch, green
   through `formal/check.sh`). Acceptance: the owner's merge, with the ⚑ track coordinate
