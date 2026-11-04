@@ -3,6 +3,7 @@ type: design-note
 id: dn-query-sentence-algebra
 track: query-language          # NEW manifest, minted with this note (docs/tracks/query-language.md) — ⚑ the owner renames or rejects the coordinate at the merge
 status: draft                  # provenance description, never a gate (merge-gated regime, 2026-07-28)
+implementation: building       # QL-1 and QL-2 begun 2026-11-04 on the branch by the owner's order ("start implementing the code itself (core), no pr yet"); core/sentence/
 created: 2026-11-04
 updated: 2026-11-04
 links:
@@ -117,6 +118,25 @@ reach: `near t and cited-by X`, `diffuse from X within (ratified notes) as of c`
 B via S*·(C|D)`, `assume F A B in resistance C D`. `[DERIVED — from dn-core-query-protocol §2.2 and
 dn-capability-scope §2.4]`
 
+**The verbs, restructured (owner's direction, 2026-11-04).** The eight one-word verbs become typed
+operators named for the sort they return, and the *relation noun* a verb walks carries the edge
+letter (Rule NOUN, §2.4). HYBRID stops being a verb: it was a composition all along. CAPTURE is a
+write and has no sentence (a sentence is a reading). The map, which `core/sentence/legacy.py`
+implements so the old surface is a fragment of the new:
+
+| old verb | sentence | sort |
+|---|---|---|
+| SEARCH `text` | `near "<text>"` | field |
+| DIFFUSE `target` | `diffuse S from <note> [beta β]` | field |
+| HYBRID `text, target` | `near "<text>" and diffuse S from <note>` | field |
+| REACH `target` | `reach F from <note> [depth n] [back\|forward\|both]` | region |
+| RELATED `target` | `relate <note>` | region (signed detail) |
+| HISTORY `target` | `trace <note> [forward\|back]` | chain |
+| ORIGIN `edge` | `witness "<edge id>"` | witness |
+| — | `walk from <note> [to <note>] via <path>` | chain (new: the product automaton) |
+| — | `far`, `top k`, `atleast t`, `not`, `minus` | the bridges and the region operations |
+| CAPTURE | — | a write, outside the grammar |
+
 **The owner's questions, as sentences.** What each returns today, and what the sentence returns:
 
 | question (owner's words, paraphrased) | sentence | flat search | the sentence |
@@ -166,32 +186,43 @@ missing word named. `[INFERENCE — falsifier QSF-3]`
 
 ### 2.3 The grammar
 
+The grammar as implemented in `core/sentence/grammar.py` (a recursive-descent parser by
+precedence; every parse error names the production that failed and the token it saw):
+
 ```
-sentence   := clause ( ("then" | ";") clause )*
-clause     := phrase adjunct*
-phrase     := field-expr | region-expr | chain-expr | "assume" hypothesis "in" sentence
-field-expr := field ( "and" field )* ( "or" field-expr )?          -- "and" binds tighter than "or"
-field      := "near" text | "diffuse" "from" atom | "far" field | "(" field-expr ")"
-             | kernel "at" atom
-kernel     := "K_sem" | "K_struct" | "heat" relation | "resolvent" relation | kernel "and" kernel
-             | kernel "or" kernel
-region-expr:= region ( ("and" | "or" | "minus") region )* | "not" region
-region     := atom | "reach" relation "from" atom | "related" atom | "history" "from" atom
-             | "top" k field | field "≥" t | strata-pred | status-pred | "(" region-expr ")"
-chain-expr := "chains" "from" atom "to" atom | "origin" edge
-relation   := "S" | "F" | "D" | "C" | relation "⁻¹"
-adjunct    := "within" region | "as of" cut | "via" path | "over" strata | "with" dial "=" value
-path       := a regular expression over {S, F, D, C}
-hypothesis := "edge" relation atom atom ("+" | "−") weight | "sever" relation atom atom
-             | "contradict" atom atom | "supersede" atom "by" atom
+sentence  := or-expr ("then" or-expr)*                      -- `then` binds loosest
+or-expr   := and-expr ("or" and-expr)*
+and-expr  := unary (("and" | "minus") unary)*               -- `and` binds tighter than `or`
+unary     := operand adjunct*                               -- adjectives bind tightest
+adjunct   := "within" operand | "over" WORD+ | "as" "of" STRING
+operand   := "far" operand | "top" NUMBER operand | "atleast" NUMBER operand | "not" operand
+           | "(" sentence ")" | "assume" hypothesis "in" sentence | clause
+clause    := "near" STRING
+           | "diffuse" [rel] "from" atom ["beta" NUMBER]
+           | "reach" [rel] "from" atom ["depth" NUMBER] [direction]
+           | "relate" atom
+           | "trace" atom [direction]
+           | "walk" "from" atom ["to" atom] "via" path ["depth" NUMBER]
+           | "witness" STRING
+hypothesis:= rel atom atom [("+" | "-") NUMBER] | "sever" rel atom atom | "contradict" atom atom
+rel       := "S" | "F" | "D" | "C"
+direction := "forward" | "back" | "both"
+path      := a regular expression over S, F, D, C: letters, ( ) | * + ? {m} {m,n}
+atom      := STRING | WORD                                   -- a path, a digest or a title
 ```
+
+Kernels never appear as nouns in a sentence: every kernel the sentence needs is read as its column
+at an anchor (QSA-3), which is what `near` and `diffuse` return; metrics appear only through
+`diffuse`'s `e^{−βd}`. `supersede` as a hypothesis is parked (QSA-g): `D` at the note grain is not
+in the universe yet.
 
 **Precedence, tightest first:** adjectives; `and` (`⊙`, `∩`); `or` (`+`, `∪`); `then`. `not` and
 `minus` apply to regions only: the cone has no complement, so `not` on a field or a kernel is a type
 error that says so; `far f` is the bounded field's reversal, which the cone *does* allow at the
 field level (a field is a column, not a kernel). `[DERIVED — §2.2]` Associativity and commutativity
 of `and` and `or` (`Matrix.hadamard_comm`, `hadamard_assoc`; `add_comm`) justify the planner's
-canonical order; `then` is not commutative and is not reordered.
+canonical order; `then` is not commutative and is not reordered. `assume` extends as far right as it
+can and is parenthesized to continue a sentence.
 
 **The adjectives' meanings.** `within R` is the mask: congruence by the projection onto `R` on a
 kernel (QSA-2), zero outside `R` on a field, `∩ R` on a region. `as of c` is the **index** of the
@@ -350,6 +381,19 @@ refused by a proved counterexample. The rulebook is `formal/Palace/Sentence.lean
 transcribes it (QL-1), and the transcription is property-tested against the same statements.
 `[DERIVED]`
 
+**Types, and the intermediate form.** Yes to both, and they are the same object read twice. The
+*types* are the sorts of §2.2 (field, region, chain, witness inhabited; kernel and metric as the
+columns and curves they are read through), the clause scopes `(Σ, E, T, A)` of the scope algebra,
+and the result grades `Inv`, `Rate(κ)` and now `Hyp(Δ)` in `core/kernel/scope.py`. The
+*intermediate form* is the typed term in normal form: `core/sentence/grammar.py` parses the
+concrete syntax to the frozen dataclasses of `core/sentence/ast.py`; `core/sentence/types.py` sorts
+the term and computes its clauses' scopes, modes and assumptions; `core/sentence/plan.py` rewrites
+it to normal form and packages it with those as a `Plan`, a value — two sentences with the same
+plan mean the same thing, and `Plan.explain()` is the artifact that rides with the answer;
+`core/sentence/execute.py` evaluates the plan to values of its sort against a `Universe`
+(`FieldV`, `RegionV`, `ChainsV`, `WitnessV`, `HypV`) and renders hits. No stage below the plan
+reads the sentence's text, and no stage above the plan touches a store. `[DERIVED]`
+
 **Precedents, two senses.** *Precedence* is the operator order of §2.3, fixed by the grammar.
 *Precedents* are resolutions: when a sentence is ambiguous and the owner resolves it ("`recent`
 means the projection-event clock, 14 days"; "`near` with no `over` means `mirror_authored`"), the
@@ -397,6 +441,17 @@ Five units, session-sized, dependency-ordered, split at graduation, named **QL-N
 per the unit-naming precedent. All land `proposed`; the owner's merge or instruction is the
 readiness signal.
 
+> **Owner's order, 2026-11-04:** *"continue with work aka feel free to start implementing the code
+> itself (core), no pr yet"*, with *"feel free to also restructure the verbs"*. QL-1 and the core
+> of QL-2 therefore began on the branch before ratification, as `core/sentence/` (grammar, ast,
+> types, plan, algebra, automaton, execute, legacy, precedents), `Hyp` in `core/kernel/scope.py`,
+> `docs/query/precedents.md`, and the tests named below. What is built reads the authored notes
+> through `QueryEngine`'s note graph and the reference edges among them; `D` and `C` moves at the
+> note grain are empty and the answer says so; `over` beyond the mirror and a past `as of` are
+> refused, never emptied. The legacy `core/query.py` table is untouched: the Ambassador's MCP tool
+> still speaks the eight words, and the two Rule NOUN defects stay there until QL-3 flips the
+> surface.
+
 - **QL-0 — the design proved.** This note and `formal/Palace/Sentence.lean` (on this branch, green
   through `formal/check.sh`). Acceptance: the owner's merge, with the ⚑ track coordinate
   adjudicated. Nothing further to build.
@@ -428,14 +483,18 @@ act, §4); the natural-language front end's home (Parked QSA-f).
 
 ## 4. Wiring & enablement
 
-**How it wires:** `core/query/` (QL-1: `grammar.py`, `types.py`, `plan.py`, `precedents.py`;
-QL-2: `execute.py`, `walk.py`, `overlay.py`), reading `core/kernel/scope.py` and the stores
-`core/query.py` already opens; `docs/query/precedents.md` (the resolution ledger, authored, versioned
-with the corpus); `palace query` in `palace.py` (QL-3); the `/context` skill under
-`.claude/skills/context/`; the Ambassador's MCP tool (`agents/ambassador/mcp.py`) with a `sentence`
-argument; `[query].sentences` in the config, default `false`; `docs/LAWS.md` rows and `formal/Spec/`
-statements as the laws are relied on; `docs/tracks/query-language.md` (this PR). `scripts/board.py`:
-zero lines. No daemon surface; `mind-palace deploy` is not involved.
+**How it wires:** `core/sentence/` (built 2026-11-04: `grammar.py`, `ast.py`, `types.py`,
+`plan.py`, `algebra.py`, `automaton.py`, `execute.py`, `legacy.py`, `precedents.py`; `core/query/`
+was taken by the legacy module's name), reading `core/kernel/scope.py` (which gains `Hyp`) and the
+stores `core/query.py` already opens, through `Universe.from_engine`; `docs/query/precedents.md`
+(the resolution ledger, authored, versioned with the corpus); `palace query` in `palace.py` (QL-3);
+the `/context` skill under `.claude/skills/context/`; the Ambassador's MCP tool
+(`agents/ambassador/mcp.py`) with a `sentence` argument; `[query].sentences` in the config, default
+`false`; `docs/LAWS.md` rows and `formal/Spec/` statements as the laws are relied on;
+`docs/tracks/query-language.md`. Tests: `tests/unit/test_sentence_{grammar,types,plan,automaton,
+execute}.py`, `tests/property/test_sentence_laws.py` (each law against the Lean statement; each
+falsifier checked against a mutated `core/sentence/`). `scripts/board.py`: zero lines. No daemon
+surface; `mind-palace deploy` is not involved.
 
 **What it takes to flip it on:** (a) QL-1 merges → the compiler is importable and property-tested;
 no behaviour changes. (b) QL-2 merges → `palace query` runs read-only on the next merge, no switch.

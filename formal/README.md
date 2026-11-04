@@ -110,14 +110,15 @@ Roundoff and FloatModel, so it has no statements of its own):
   edge: a rank-one update of `L` along `e_u − e_v` and of `L̄` along `e_u − σ e_v`; adding weight
   lowers every effective resistance and removing it raises every one (CND-2 both ways); a
   contradiction keeps the camps' balance iff its sign agrees with them and otherwise lifts the zero
-  mode (LAP-5, LAP-6); Sherman–Morrison for the inverse. Cited from the note, not the ledger: no
-  code relies on them yet.
+  mode (LAP-5, LAP-6); Sherman–Morrison for the inverse. The code in `core/sentence/` transcribes
+  them, so QSA-1 to QSA-5 and QSA-7 to QSA-9 are the ledger's family XI (`Spec/Sentence.lean`,
+  26 statements); QSA-6 is cited from the note.
 - `Bridges`: theorems that join two families, so that what one proves serves the other: BRG-1
   the Laplacian as `∂₁ ∂₁ᵀ`, BRG-2 Euler and Poincaré on the flag complex, BRG-3 Thomson's
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
-- `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the 173 cited
+- `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the 199 cited
   theorems, and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself.
@@ -207,6 +208,14 @@ Roundoff and FloatModel, so it has no statements of its own):
 | RSP-2 | `Z = G_β D`, the kernel `G_β` positive definite for every β | proved; attacks survived 495 and 500 |
 | RSP-3 | `e^{−β d}` is the normalized kernel, positive definite on a connected support; `K_struct` at `β = 1` | proved; attack (squared) survived 500 |
 | RSP-4 | the free energy is a quasi-metric; the code's distance a pseudometric | proved; attack survived 500 |
+| QSA-1 | `and` (the Schur product) and `or` keep the cone | proved; attack survived 500 |
+| QSA-2 | `within` is a congruence, keeps the cone, distributes over `and` and `or`, stacks by intersection | proved; attacks survived 500 each |
+| QSA-3 | the field at an anchor of `and` is the product of the fields, of `within` the masked field | proved; attack survived 500 |
+| QSA-4 | a positive threshold commutes with `within`; the top-`k` does not | proved, with the witness; attack survived 500, the top-`k` control refuted within 5 |
+| QSA-5 | admissibility is clause-wise; `assume` needs a plane naming the overlay, which the Ambassador's grant lacks; a result under `assume` is never `Inv` | proved, by `decide` and by structure |
+| QSA-7 | a chain is admissible iff the product walk accepts; dead-state pruning is sound; an added edge only adds chains; the set `E` is the one-state automaton | proved; attacks survived 500 each |
+| QSA-8 | `mode_of ∘ required`, verb by verb | proved |
+| QSA-9 | a hypothetical edge is a rank-one update of `L` and of `L̄`; both Rayleigh directions; the camps test; Sherman–Morrison | proved; attacks survived 495, 495, 500 and 484 |
 
 The binarized forms (0/1 adjacency) reduce to Mathlib's `SimpleGraph.posSemidef_lapMatrix` and
 `card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix` in one line each.
@@ -464,8 +473,8 @@ export route replays strictly more. The compiler's `_unsafe_rec` helpers stay ou
 nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
-does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the 173
-statements reach (40,823 declarations). Elsewhere `check.sh` runs `Compare.lean`, the comparator's
+does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the 199
+statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.
 

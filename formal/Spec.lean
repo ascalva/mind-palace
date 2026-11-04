@@ -16,5 +16,6 @@ public import Spec.Rayleigh
 public import Spec.Retrieval
 public import Spec.Roundoff
 public import Spec.Scope
+public import Spec.Sentence
 public import Spec.SigmaStar
 public import Spec.Spectral

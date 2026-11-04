@@ -816,6 +816,21 @@ class Rate[T]:
     clock: Clock
 
 
+@dataclass(frozen=True)
+class Hyp[T]:
+    """A HYPOTHETICAL result — the value of a sentence evaluated under the assumptions in force
+    (dn-query-sentence-algebra §2.4, Rule HYP). The assumptions ride in the type and are never
+    empty, so a value computed under `assume` cannot be read as an `Inv`: no operation here mints
+    one from the other (`formal/Palace/Sentence.lean`, `Sentence.not_isInv_assume`)."""
+
+    value: T
+    assumptions: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not self.assumptions:
+            raise ValueError("a Hyp result carries at least one assumption; an Inv carries none")
+
+
 class ClockMismatchError(ValueError):
     """Rule CLOCK violated: a `Rate(κ)` result was requested under a scope not clocked on κ
     (dn-capability-scope §2.3). `q : s → Rate(κ)` requires `s.T.clock = κ`."""
