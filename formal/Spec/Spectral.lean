@@ -36,6 +36,28 @@ theorem lapSym_mulVec_single_of_degree_eq_zero (A : Matrix V V ℝ) {i : V}
     (hi : degree A i = 0) : lapSym A *ᵥ Pi.single i 1 = Pi.single i 1 :=
   sorry
 
+/-- **LAP-4** `L_sym` is positive semidefinite: `xᵀL_sym x ≥ 0` for symmetric `A` with
+nonnegative entries. -/
+theorem dotProduct_lapSym_nonneg (A : Matrix V V ℝ) (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j)
+    (x : V → ℝ) : 0 ≤ x ⬝ᵥ (lapSym A *ᵥ x) :=
+  sorry
+
+/-- **LAP-4** `L_sym` is positive semidefinite, as a matrix statement. -/
+theorem posSemidef_lapSym (A : Matrix V V ℝ) (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j) :
+    (lapSym A).PosSemidef :=
+  sorry
+
+/-- **LAP-4** The upper half: `xᵀL_sym x ≤ 2 xᵀx`. -/
+theorem dotProduct_lapSym_le (A : Matrix V V ℝ) (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j)
+    (x : V → ℝ) : x ⬝ᵥ (lapSym A *ᵥ x) ≤ 2 * (x ⬝ᵥ x) :=
+  sorry
+
+/-- **LAP-4** The correction the note makes: `L_sym` does not annihilate `1`, it annihilates
+`D^{1/2}·1` (symmetric `A` with nonnegative entries). -/
+theorem lapSym_mulVec_sqrt_degree (A : Matrix V V ℝ) (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j) :
+    lapSym A *ᵥ (fun i ↦ √(degree A i)) = 0 :=
+  sorry
+
 /-! ### `L⁺` -/
 
 /-- **CND-1** `L⁺` is symmetric, so the effective resistance is symmetric in its two ends. -/
