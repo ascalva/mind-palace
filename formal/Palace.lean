@@ -28,6 +28,8 @@ public import Palace.Plane
 public import Palace.Plane.Defs
 public import Palace.Rayleigh
 public import Palace.Rayleigh.Defs
+public import Palace.Retrieval
+public import Palace.Retrieval.Defs
 public import Palace.Roundoff
 public import Palace.Roundoff.Defs
 public import Palace.Scope

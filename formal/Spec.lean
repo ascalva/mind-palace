@@ -13,6 +13,7 @@ public import Spec.Magnetic
 public import Spec.Memberships
 public import Spec.Plane
 public import Spec.Rayleigh
+public import Spec.Retrieval
 public import Spec.Roundoff
 public import Spec.Scope
 public import Spec.SigmaStar
