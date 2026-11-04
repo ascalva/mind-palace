@@ -43,4 +43,8 @@ def wdot (σ : A → B) (f g : B → ℝ) : ℝ := ∑ b, (fiber σ b : ℝ) * (
 /-- The merge of two notes into one, the smallest merge. -/
 def merge2 : Fin 2 → Fin 1 := fun _ ↦ 0
 
+/-- The inverse-fiber-weighted inner product on the target, `⟨f, g⟩_{1/σ} = ∑_b f_b g_b / |σ⁻¹ b|`;
+Lean's `0⁻¹ = 0` drops the notes nothing was merged into. -/
+noncomputable def wdotInv (σ : A → B) (f g : B → ℝ) : ℝ := ∑ b, (fiber σ b : ℝ)⁻¹ * (f b * g b)
+
 end Palace.Transport

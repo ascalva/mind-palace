@@ -76,7 +76,10 @@ library builds under `--wfail`, mk_all and the L1 gate pass):* `push_dotProduct`
 `pull_isometry_wdot` / `pull_isometry_iff`: under the fiber-weighted inner product `⟨f, g⟩_σ =
 ∑_b |σ⁻¹ b| f_b g_b` the pullback is an isometry, and under the counting one iff nothing merges.
 Result 5's "pullback, always a contraction" is therefore false under merges and true for the
-right inner product — PD-b's customer, as Result 4 predicted. The amendment of the note is the
+right inner product — PD-b's customer, as Result 4 predicted. The dual (TRN-4,
+`push_wdotInv_le`): the push-forward is a contraction under the *inverse*-fiber-weighted inner
+product on the target, by Cauchy–Schwarz on each fiber — the inner product Result 6's
+γ-contraction must name once supersessions merge (issue #61). The amendment of the note is the
 owner's; the finding is filed. *Falsifier:* none — it is a counterexample.
 
 ## L4. The frustration lift — how far the zero mode rises
