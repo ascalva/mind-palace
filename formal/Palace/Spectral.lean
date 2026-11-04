@@ -97,7 +97,8 @@ theorem remainder_nonneg (A : Matrix V V ℝ) (i : V) :
     0 ≤ 1 - invSqrtDegree A i ^ 2 * degree A i := by
   rw [one_sub_invSqrtDegree_sq]; split_ifs <;> norm_num
 
-/-- **L_sym PSD** `xᵀL_sym x ≥ 0` for symmetric `A` with nonnegative entries. -/
+/-- **LAP-4** `L_sym` is positive semidefinite: `xᵀL_sym x ≥ 0` for symmetric `A` with
+nonnegative entries. -/
 theorem dotProduct_lapSym_nonneg (A : Matrix V V ℝ) (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j)
     (x : V → ℝ) : 0 ≤ x ⬝ᵥ (lapSym A *ᵥ x) := by
   rw [lapSym, dotProduct_one_sub_scaled]
@@ -106,7 +107,7 @@ theorem dotProduct_lapSym_nonneg (A : Matrix V V ℝ) (hA : A.IsSymm) (hw : ∀ 
   have h2 := dotProduct_lap_nonneg A hA hw (invSqrtDegree A * x)
   linarith
 
-/-- **L_sym PSD** as a matrix statement. -/
+/-- **LAP-4** `L_sym` is positive semidefinite, as a matrix statement. -/
 theorem posSemidef_lapSym (A : Matrix V V ℝ) (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j) :
     (lapSym A).PosSemidef := by
   refine .of_dotProduct_mulVec_nonneg ?_ fun x ↦ ?_
@@ -116,7 +117,7 @@ theorem posSemidef_lapSym (A : Matrix V V ℝ) (hA : A.IsSymm) (hw : ∀ i j, 0 
   · rw [star_trivial]
     exact dotProduct_lapSym_nonneg A hA hw x
 
-/-- The upper half of LAP-4: `xᵀL_sym x ≤ 2 xᵀx`. -/
+/-- **LAP-4** The upper half: `xᵀL_sym x ≤ 2 xᵀx`. -/
 theorem dotProduct_lapSym_le (A : Matrix V V ℝ) (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j)
     (x : V → ℝ) : x ⬝ᵥ (lapSym A *ᵥ x) ≤ 2 * (x ⬝ᵥ x) := by
   have up := dotProduct_one_add_scaled A (invSqrtDegree A) x
@@ -147,7 +148,7 @@ theorem lapSym_mulVec_single_of_degree_eq_zero (A : Matrix V V ℝ) {i : V}
   have hs : invSqrtDegree A i = 0 := by simp [invSqrtDegree, hi]
   simp [lapSym, mul_diagonal, diagonal_mul, hs, Pi.single_apply, Matrix.one_apply, eq_comm]
 
-/-- **L_sym** The correction the note makes: `L_sym` does not annihilate `1`, it annihilates
+/-- **LAP-4** The correction the note makes: `L_sym` does not annihilate `1`, it annihilates
 `D^{1/2}·1` (symmetric `A` with nonnegative entries). -/
 theorem lapSym_mulVec_sqrt_degree (A : Matrix V V ℝ) (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j) :
     lapSym A *ᵥ (fun i ↦ √(degree A i)) = 0 := by
