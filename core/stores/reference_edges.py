@@ -344,6 +344,15 @@ class ReferenceEdgeStore:
             "SELECT commit_sha FROM reference_edges ORDER BY created_at DESC LIMIT 1").fetchone()
         return str(row[0]) if row else None
 
+    def commits_like(self, prefix: str) -> list[str]:
+        """The commits the store holds that start with `prefix` (as git resolves a short sha), at
+        most two: none, the one it names, or two meaning the prefix is ambiguous. A read for
+        `as of` in the sentence universe."""
+        rows = self._conn.execute(
+            "SELECT DISTINCT commit_sha FROM reference_edges WHERE commit_sha LIKE ? LIMIT 2",
+            [prefix + "%"]).fetchall()
+        return [str(r[0]) for r in rows]
+
     def for_commit(self, commit_sha: str) -> list[ReferenceEdge]:
         return [self._row(r) for r in self._conn.execute(
             "SELECT * FROM reference_edges WHERE commit_sha = ? ORDER BY edge_id",

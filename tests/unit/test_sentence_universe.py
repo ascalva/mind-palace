@@ -50,6 +50,9 @@ class _Refs:
     def latest_commit(self) -> str | None:
         return max((e.commit_sha for e in self.edges), default=None)   # c1 is newer than c0
 
+    def commits_like(self, prefix: str) -> list[str]:
+        return sorted({e.commit_sha for e in self.edges if e.commit_sha.startswith(prefix)})[:2]
+
     def all(self, *, source_ref: str | None = None, target_ref: str | None = None,
             commit_sha: str | None = None, **_: Any) -> list[_Edge]:
         return [e for e in self.edges
@@ -239,6 +242,12 @@ def test_reach_walks_the_citation_graph_at_the_newest_cut_and_as_of_picks_one(
     nope = compile_sentence('reach F from "core/x.py" as of "nope"')
     with pytest.raises(NotImplementedError, match="no edges at that cut"):
         execute(nope, _build(engine, nope))
+    # a short sha resolves as git does; an ambiguous one is refused, never silently the newest
+    short = compile_sentence('reach F from "core/x.py" depth 2 as of "c0"')
+    assert [h.ref for h in execute(short, _build(engine, short)).hits] == ["docs/old.md"]
+    from core.sentence import AmbiguousSentence
+    with pytest.raises(AmbiguousSentence, match="write more of the sha"):
+        _build(engine, compile_sentence('reach F from "core/x.py" as of "c"'))
     walk = compile_sentence('walk from "docs/a.md" to "core/z.py" via F+ depth 3')
     assert [h.ref for h in execute(walk, _build(engine, walk)).hits] == \
         ["docs/a.md →F→ core/x.py →F→ core/y.py →F→ core/z.py"]
