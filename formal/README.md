@@ -95,6 +95,23 @@ Roundoff and FloatModel, so it has no statements of its own):
   part the code relies on: the `θ = 0` and sign fibers are `laplacian` and `signed_laplacian`, and
   LAP-5 is the kernel theorem at ℤ/2. The rest is cited from the note, not the ledger: no code
   relies on it yet, so the comparator does not judge it, though the kernel checkers replay it.
+- `Sentence`: the query sentence algebra of `docs/design-notes/dn-query-sentence-algebra.md`, proved
+  before any code parses a sentence (namespace `Palace.Query`). QSA-1 to QSA-4 on the nouns: `and`
+  (the Schur product) and `or` keep the cone, `within` is a congruence that keeps it, distributes
+  over both and stacks by intersection; the field at an anchor of `and` is the product of the
+  fields, so HYBRID's score is two columns, not an `n × n` product; a threshold commutes with
+  `within` and the top-`k` does not. QSA-5 and QSA-6 on sentences: admissibility is clause-wise,
+  `assume` needs a granted plane naming the overlay stratum (the Ambassador's has none), a result
+  under `assume` is never `Inv`, and noninterference composes: a sentence reads only what its
+  clauses read and a store's overlay is invisible outside the modality. QSA-7 on chains: admissible
+  iff the product walk reaches an accepting state, dead-state pruning loses nothing, the set `E` is
+  the one-state automaton, a hypothetical edge only adds chains. QSA-8 the mode table of
+  `core/query.py::mode_of` after `required`, verb by verb. QSA-9 the response to a hypothetical
+  edge: a rank-one update of `L` along `e_u − e_v` and of `L̄` along `e_u − σ e_v`; adding weight
+  lowers every effective resistance and removing it raises every one (CND-2 both ways); a
+  contradiction keeps the camps' balance iff its sign agrees with them and otherwise lifts the zero
+  mode (LAP-5, LAP-6); Sherman–Morrison for the inverse. Cited from the note, not the ledger: no
+  code relies on them yet.
 - `Bridges`: theorems that join two families, so that what one proves serves the other: BRG-1
   the Laplacian as `∂₁ ∂₁ᵀ`, BRG-2 Euler and Poincaré on the flag complex, BRG-3 Thomson's
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
@@ -387,6 +404,21 @@ the normalized kernel, within 11; and without `z_jj` the path product fails, wit
 Negative type is attacked over ℚ on `Fin 5` with vectors summing to zero: squared line metrics
 survive 500 and the cycle `C₅` 500, and `K₂,₃`'s metric, the control, is refuted within 174.
 
+The sentence algebra is attacked on exact shadows (seeds 219 to 244): kernels over ℚ on `Fin 3`,
+Gram matrices `Bᵀ B` for the cone and `B + Bᵀ` for either sign, regions from three bits; typed graphs
+on three vertices with a chain's own edges added so that random chains are chains, run against the
+grounding automaton `S*·(C|D)`; hypothetical edges on weights over ℚ; Sherman–Morrison on `Fin 2`
+with the explicit inverse, as the identity the updated matrix times the formula satisfies. Every
+attack survived 500 instances, but the two Laplacian updates 495 (five pairs with `u = v`
+discarded) and Sherman–Morrison 484 (sixteen singular or degenerate draws). Its
+controls: the Schur product and the mask of symmetric matrices of either sign are indefinite; the
+mask does not distribute over the matrix product, nor the anchor's field; the top-`k` through a mask
+is the non-rewrite; the set `{S, C, D}` admits chains the grammar rejects (`CS`); not every chain's
+prefix is live (`F`); "some letter in the set" in place of every letter; the grounded chain over
+the listed edges alone, without the edges the assumption supplied; one arc alone is no rank-one
+Laplacian update; on a present edge of the other sign the absolute values do not add; a contradiction
+between allies breaks the camps; and the Sherman–Morrison correction added instead of subtracted.
+
 The magnetic operator is complex and its transports are exponentials, which do not run, so its
 attacks fix the transports at their exact values, `1` at phase `0` and `−1` at phase `π`, or test
 the combinatorial content. BRG-7's controls: transport `−1` everywhere gives the signless `D + A`,
@@ -422,7 +454,7 @@ another module, and without it 68 proofs in seven files fail. One instance is wr
 to importers (`Palace/Scope.lean`).
 
 The kernel re-check. `Export.lean` writes every `Palace` declaration and everything it uses, from
-`Init` up (42,353 declarations), and `check.sh` replays that export from nothing through Lean's
+`Init` up (44,118 declarations), and `check.sh` replays that export from nothing through Lean's
 kernel and the five independent checkers bundled with Lean: `leanchecker-paranoid`, `lean4lean` (a
 kernel written in Lean), `nanoda` (one written in Rust), and `con-leche`, whose acceptance carries a
 machine-checked theorem that the environment holds no proof of `False`, with `con-ron`, its port.
