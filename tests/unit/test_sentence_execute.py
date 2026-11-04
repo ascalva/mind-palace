@@ -194,4 +194,4 @@ def test_a_hypothetical_edge_moves_the_graphs_degrees_with_it() -> None:
     severed = execute(compile_sentence('assume sever S "a.md" "b.md" in top 3 diffuse S from '
                                        '"a.md"'), u)
     assert severed.hyp is not None and [h.ref for h in severed.hyp.value] == []
-    assert np.array_equal(u.degrees, before)                     # the universe itself untouched
+    assert u.degrees is not None and np.array_equal(u.degrees, before)   # the universe untouched
