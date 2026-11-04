@@ -13,7 +13,7 @@ Coordinate integrity (F-WF1) now also covers findings and owner questions that d
 (bp-124, dn-role-state-and-scoped-handoff §2.3). `scripts/handoff.py` reuses these scan functions;
 its own renderings are its concern, not this module's.
 
-Front-matter parsing is REUSED from `.claude/hooks/_lib.py` (DRY, plan §2 audit) — this script
+Front-matter parsing is REUSED from `scripts/_frontmatter.py` (DRY, plan §2 audit) — this script
 never re-derives a YAML parser and never imports `core` (repo-workflow tooling, mirror docket).
 
     uv run scripts/board.py                # render both views to stdout (for inspection)
@@ -31,8 +31,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # Reuse the artifact front-matter machinery — never re-derive it (plan §2 DRY audit).
-sys.path.insert(0, str(ROOT / ".claude" / "hooks"))
-from _lib import (  # type: ignore[import-not-found]  # noqa: E402
+sys.path.insert(0, str(ROOT / "scripts"))
+from _frontmatter import (  # type: ignore[import-not-found]  # noqa: E402
     _normalize_status,
     parse_front_matter,
 )
@@ -56,7 +56,7 @@ PHASE_MODEL: dict[str, str] = {
 
 
 def _is_absent(v: object) -> bool:
-    """`_lib.parse_front_matter` yields the literal string ``"null"`` for a YAML ``null`` (it
+    """`parse_front_matter` yields the literal string ``"null"`` for a YAML ``null`` (it
     does not interpret scalars). Treat that, an empty string, ``none`` and ``~`` as absent."""
     if v is None:
         return True

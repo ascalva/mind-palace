@@ -1,20 +1,15 @@
-# CLAUDE.md — Agent-Workflow Constitution
+# CLAUDE.md — orientation
 
-Loaded every session; the operational layer. Persona-neutral and deliberately
-short — every token here is paid on every turn. Depth lives in skills and loads
-only when invoked. Spec: `docs/design-notes/agent-workflow.md`.
+Loaded every session; deliberately short. **Orientation, not ground truth (owner rule
+2026-07-28):** this file and its siblings (CONVENTIONS, BUILD-SPEC, runbook) are jumping-off
+points for investigation, not live state — verify operational claims against the system and the
+artifact chain at HEAD before acting. The exception is the bright lines: the §Domain
+non-negotiables digest and `CONSTITUTION.md` bind as written, always.
 
-**Orientation, not ground truth (owner rule 2026-07-28).** This file and its siblings
-(CONVENTIONS, BUILD-SPEC, runbook) are jumping-off points for investigation, not live
-state — verify operational claims against the system and the artifact chain at HEAD
-before acting. The exception is the bright lines: the §Domain non-negotiables digest and
-`CONSTITUTION.md` bind as written, always.
-
-**Domain frame (unchanged, still authoritative).** Your outermost frame is
-`CONSTITUTION.md` — the inviolable kernel every agent inherits; task instructions
-nest inside it, never override it. The system's full design is `docs/BUILD-SPEC.md`;
-engineering and security practice is `CONVENTIONS.md`. Read those before writing
-code. This file governs *how work moves*; those govern *what the system is*.
+**Domain frame.** Your outermost frame is `CONSTITUTION.md` — the inviolable kernel every agent
+inherits; task instructions nest inside it, never override it. The system's full design is
+`docs/BUILD-SPEC.md`; engineering and security practice is `CONVENTIONS.md`. Read those before
+writing code.
 
 ## Domain non-negotiables (never violate; full list `BUILD-SPEC §3`)
 Safety-critical bright lines are the one category exempt from this file's thinness
@@ -33,75 +28,40 @@ digest stays here — in context, every turn — not behind a pointer.
 11. **The interface may transit a third party; the corpus never does.** Adapters leak interactions, not the corpus — opt-in only; the private default is local/Tailscale.
 12. **Voice/telephony is bounded.** Speech synthesis/recognition run locally in core; only audio crosses the carrier. The adapter dials **only the owner's pre-registered number**; the LLM never supplies a number; calls are owner-initiated; a passphrase/callback authenticates the human before personalized content is spoken.
 
-## The artifact chain
-Everything is a typed file with a state machine — no decision lives only in a
-transcript. Ideas flow one way, through gates:
+## How work lands (owner's ruling, 2026-11-04)
+The agent-workflow regime — the artifact chain's gates, ratification by merge, blessings, write
+scopes, journals, and the `.claude/` skills, commands and hooks that carried them — is retired.
+Status fields in artifacts are provenance, never a gate; nobody flips them and nothing waits on
+them. Work is a branch from `origin/main`, commits at semantic boundaries, a push; the owner
+merges, and a PR only when the owner asks for one.
 
-`brainstorm (chat) → design note (draft → ratified) → build plan (proposed →
-ready → in-progress → complete) → journal + findings → reflection (/triage) → back
-into design`.
+- **Commits:** `type(scope): subject` — types `feat fix docs test refactor perf ops chore`, the
+  subject imperative and ≤ 72 chars, one logical change per commit, the body the *why*. Stage
+  every path by name (never `git add -A`); pass the message with `git commit -F -` and a QUOTED
+  heredoc, never `-m` (zsh mutilates backticks); `Co-Authored-By` only on substantially
+  agent-authored code. Never amend or rebase published history; never run `deploy` — the owner
+  fires it.
+- **Gates, run in the worktree before any commit** (CI's own commands): `uv run ruff check .`;
+  `uv run python scripts/check_imports.py`; `uv run mypy` (whole repo exactly 69, the tests/
+  baseline; the floors `core agents eval ops scheduler scripts` at 0); `uv run python -m
+  ops.type_gate`; `uv run pytest -q -m 'not live and not podman and not needs_vault and not
+  needs_restic' --deselect tests/unit/test_core_self_containment.py::test_core_imports_nothing_outside_core`;
+  and `formal/check.sh` whenever `formal/` or `docs/LAWS.md` change. Never run tests in the live
+  checkout (they write `data/`); a worktree's `data/` is its own.
+- **Findings are GitHub issues** (`gh issue create`, labels `type:*`, `route:*`, `track:*`);
+  `docs/findings/` and `docs/inbox/owner-questions.md` are frozen history.
+- **The hard no, by denylist:** `CONSTITUTION.md`, `eval/golden/**` and `eval/golden.py` are never
+  written, authored or proposed by an agent — the `denylist` CI job reds any PR that touches them.
+- Run commands via `uv run` (CONVENTIONS §Language), never `./.venv/bin/...` paths. Secrets live
+  in the Keychain or the environment: never in code, never read by a model, never logged.
 
-Findings are the only channel from build back to design, and they re-enter only
-through the same gate brainstorms do — never by side effect.
-
-## Roles
-- **Orchestrator** — the default posture of a bare session at root. Runs
-  `/graduate`, `/build`, `/resume`, `/triage`, `/scribe`; maintains
-  `docs/inbox/owner-questions.md`; flips plan status on completion. Work lands by
-  PR — the merge log is the build log, and merge is the serialization point
-  (owner ruling 2026-07-28; role-state Amendment A1).
-- **Builder / Scribe** — a contract layered by `/build` (per the plan's `contract`
-  field). The plan's `write_scope` names the intended lane for the reviewer;
-  writes are free on the branch and judged at the merge (owner ruling 2026-07-28).
-
-## Rules that bind every session
-- **Findings are GitHub issues (owner ruling 2026-07-28).** File discoveries,
-  questions, investigations, and standing rulings as issues, typed and routed by
-  label (the **issue** skill). Atomic numbering ends id collisions. Settle what
-  you can (`route:builder`, close with resolution); escalate design/direction
-  (`route:orchestrator`); only what needs the owner is `route:owner`.
-  `docs/findings/` and the owner-questions inbox are frozen history. A PR that
-  resolves an issue says `closes #N`.
-- **The record obligation is the PR body.** Every merge carries the files and
-  the reason — what, why, verification (the **pr** skill). Journals remain the
-  seat's narrative at the agent's judgment, not a per-write mandate. The bar is
-  unchanged: the fresh-agent test — a successor re-grounds from merged artifacts
-  alone. Resume beats compaction.
-- **Never block on the owner.** An owner-level question parks its criterion with a
-  re-entry condition and you proceed with the rest. Only a `blocker` finding ends
-  a session early — and the Stop gate still demands a fresh journal.
-- **The blessing IS the merge (owner ruling 2026-07-28).** The old flip ceremonies
-  (`draft→ratified`, `proposed→ready`) are retired — nobody flips a status, agent or
-  owner. A PR carries the proposal (a design note, or code spanning one-to-many build
-  plans of the same track); agents may audit, the owner audits, reviews, and merges if
-  acceptable. Landing on main by the owner's merge IS ratification/readiness. Status
-  fields in artifacts are provenance description, never a gate — agents still never
-  edit them.
-- **Write freedom on the branch; audit at the merge (owner ruling 2026-07-28).**
-  Hard write scopes and per-write ceremony are retired — no scope-guard, no
-  journal-gate, no action-based rituals. Agents write freely in their worktrees;
-  the PR review is where scope is judged (a plan's `write_scope` is reviewer
-  guidance — did this merge stay in its design's lane — never an enforced
-  capability). One HARD NO stands, by denylist
-  (owner ruling 2026-07-28): the fixed points — `CONSTITUTION.md`, `eval/golden/**`,
-  `eval/golden.py` — are never written, authored, or proposed by an agent. Enforced
-  as a verdict: the `denylist` CI job reds any PR that touches them and the ruleset
-  refuses the merge. The merge gate enforces everything else.
-
-## Commands (depth in the matching skill)
-`/capture <topic>` · `/graduate <note>` · `/build <id>` · `/resume <id>` ·
-`/triage` · `/scribe`. Skills: **graduate**, **build-plan**, **issue** (findings are issues now),
-**checkpoint**, **commit**, **pr** (ALL work lands by PR — read it before opening one),
-**delegate**, **context-economy**, **book**.
-Templates: `docs/templates/`. Sessions are disposable, artifacts are not — end at
-unit boundaries (context-economy skill; owner rule 2026-07-11). Successors onboard
-by traversal of the artifact chain — the resume-brief mechanism is retired
-(owner realization 2026-07-28: briefs transferred posture without warrant).
-Run commands via `uv run` (CONVENTIONS §Language) — never `./.venv/bin/...` paths.
-The orchestrator may spawn supervised parallel builders in worktrees for `ready`
-plans (owner rule 2026-07-11; depth + right-sizing in the **delegate** skill).
-Gates unchanged: blessings owner-by-hand, denylist binds every builder.
-
-Local hooks are retired as enforcement (owner ruling 2026-07-28) — the wall is
-external. If a stray `HOOK-FAILURE` line ever appears, it is legacy machinery
-talking; note it and proceed by the **pr** skill.
+## Where things are
+- `core/` is the sealed core; `agents/ambassador/` the local model's tool server, whose one read
+  is `query`, a sentence of the query algebra; `edge/` the only network-facing zone; `formal/`
+  the Lean proofs behind `docs/LAWS.md`; `docs/design-notes/` the design record (`dn-*`),
+  `docs/tracks/` the tracks, `docs/TRACKS.md` the derived board (`uv run scripts/board.py
+  --write`).
+- **Ask the palace with a sentence:** `mind-palace query '<sentence>'` from the live checkout.
+  `docs/query/asking.md` has the grammar, the patterns, how to read an answer and the lessons
+  loop; `docs/query/precedents.md` the defaults in force.
+- Owner commands: `mind-palace help`, and the runbook's quick-reference.

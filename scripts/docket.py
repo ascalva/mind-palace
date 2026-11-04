@@ -12,7 +12,7 @@ the owner's hand and NOTHING an agent can act on:
 EXCLUDED by design: `ready` plans and answered/swept oqs — those are agent-actionable,
 not owner-awaiting. This is a guide, not a gate: it points; it never flips anything.
 
-Front-matter parsing is REUSED from `.claude/hooks/_lib.py` (DRY, plan §2 audit) — this
+Front-matter parsing is REUSED from `scripts/_frontmatter.py` (DRY, plan §2 audit) — this
 script never re-derives a YAML parser and never imports `core` (repo-workflow tooling).
 
     uv run scripts/docket.py            # render the rows to stdout
@@ -30,8 +30,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # Reuse the artifact front-matter machinery — never re-derive it (plan §2 DRY audit).
-sys.path.insert(0, str(ROOT / ".claude" / "hooks"))
-from _lib import (  # type: ignore[import-not-found]  # noqa: E402
+sys.path.insert(0, str(ROOT / "scripts"))
+from _frontmatter import (  # type: ignore[import-not-found]  # noqa: E402
     _normalize_status,
     parse_front_matter,
 )

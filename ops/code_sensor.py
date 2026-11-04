@@ -266,7 +266,7 @@ def _parse_front_matter(front_matter: str) -> dict[str, object]:
     substring within an already-isolated scalar value (`_front_matter_doc_paths`).
     Deliberately scoped here rather than a project-wide PyYAML dependency: runtime deps
     are intentionally minimal (pyproject.toml), and this repo already has one precedent
-    for exactly this trade-off (`.claude/hooks/_lib.py:parse_front_matter`, outside this
+    for exactly this trade-off (`scripts/_frontmatter.py:parse_front_matter`, outside this
     plan's write_scope) — same shape, independently reimplemented for this module."""
     out: dict[str, object] = {}
     key: str | None = None
