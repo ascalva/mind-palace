@@ -72,7 +72,8 @@ INTERPRETERS: dict[str, Interp] = {
     "phi_code": Interp(version_attr=("ops.code_sensor", "INTERPRETER_VERSION"),
                        sources=("ops/code_sensor.py", "ops/code_snapshot.py"),
                        version="1.1.0",
-                       sha256="d3ee7e8d744224e14808b236c23e5a6944202bd3c6114f35bf4b5caf5caa832a"),
+                       # re-pinned 2026-11-04: a comment pointed at the retired hooks library
+                       sha256="76bc66ab449b832d45f0a912a04828b47fe94053e7755b42248b06c9179eae39"),
     # bp-019 Item 7: phi_self over the cost stream (dn-self-sensing.md §2.2/§2.4).
     # Re-pinned same-version once in-session (orchestrator scrutiny catch: §6(f) warning
     # path was unimplemented) — a DECLARED REFACTOR, not a worldview change: the projection

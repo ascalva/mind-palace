@@ -149,6 +149,6 @@ def test_dry_no_core_import_and_reuses_lib():
             for a in node.names:
                 imported.add(a.name.split(".")[0])
     assert "core" not in imported, "docket must never import core (repo-workflow tooling)"
-    assert "_lib" in imported, "docket must reuse _lib's front-matter parser, not re-derive one"
+    assert "_frontmatter" in imported, "docket must reuse the shared front-matter parser"
     # and no local YAML parser sneaking in
     assert "yaml" not in imported

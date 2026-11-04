@@ -57,7 +57,7 @@ def _git(*args: str, cwd: Path = REPO) -> subprocess.CompletedProcess[str]:
 
 # The code under test, overlaid onto the checkout. See `fresh_worktree`.
 _OVERLAY = (Path("scripts") / "handoff.py", Path("scripts") / "board.py",
-            Path(".claude") / "hooks" / "_lib.py")
+            Path("scripts") / "_frontmatter.py")
 
 
 @pytest.fixture
@@ -127,9 +127,9 @@ def test_the_fresh_worktree_has_no_runtime_state_at_all(fresh_worktree):
         "data/ is gitignored — a checkout must never have it"
     assert not (fresh_worktree / QUEUE).exists()
     state = fresh_worktree / ".claude" / "state"
-    assert [p.name for p in state.iterdir()] == [".gitignore"], \
-        "the sitting's state is per-worktree and regenerable (note §2.7)"
-    assert not (fresh_worktree / ".claude" / "state" / "session-baseline").exists()
+    assert not state.exists(), \
+        "the sitting's state is per-worktree and regenerable (note §2.7); the dir is untracked " \
+        "since the .claude/ controls were retired (2026-11-04)"
 
 
 # ── F1c proper ──────────────────────────────────────────────────
