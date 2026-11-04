@@ -52,12 +52,12 @@ section Kernels
 
 variable {V : Type*}
 
-/-- QSA-1 `and` keeps the cone: the Schur product theorem. -/
+/-- **QSA-1** `and` keeps the cone: the Schur product theorem. -/
 theorem and_posSemidef {A B : Matrix V V ℝ} (hA : A.PosSemidef) (hB : B.PosSemidef) :
     (A ⊙ B).PosSemidef :=
   hA.hadamard hB
 
-/-- QSA-1 `or` keeps the cone. -/
+/-- **QSA-1** `or` keeps the cone. -/
 theorem or_posSemidef {A B : Matrix V V ℝ} (hA : A.PosSemidef) (hB : B.PosSemidef) :
     (A + B).PosSemidef :=
   hA.add hB
@@ -70,7 +70,7 @@ theorem mask_eq_diagonal_mul_mul [Fintype V] [DecidableEq V] {R : Type*} [CommRi
   simp only [mask, of_apply, mul_diagonal, diagonal_mul, ind]
   by_cases hi : i ∈ S <;> by_cases hj : j ∈ S <;> simp [hi, hj]
 
-/-- QSA-2 `within` keeps the cone. -/
+/-- **QSA-2** `within` keeps the cone. -/
 theorem posSemidef_mask [Finite V] [DecidableEq V] {K : Matrix V V ℝ} (hK : K.PosSemidef)
     (S : Finset V) : (mask S K).PosSemidef := by
   have := Fintype.ofFinite V
@@ -80,19 +80,19 @@ theorem posSemidef_mask [Finite V] [DecidableEq V] {K : Matrix V V ℝ} (hK : K.
 
 variable [DecidableEq V] {R : Type*}
 
-/-- QSA-2 `within` distributes over `or`. -/
+/-- **QSA-2** `within` distributes over `or`. -/
 theorem mask_add [AddZeroClass R] (S : Finset V) (A B : Matrix V V R) :
     mask S (A + B) = mask S A + mask S B := by
   ext i j
   by_cases h : i ∈ S ∧ j ∈ S <;> simp [mask, h]
 
-/-- QSA-2 `within` distributes over `and`. -/
+/-- **QSA-2** `within` distributes over `and`. -/
 theorem mask_hadamard [MulZeroClass R] (S : Finset V) (A B : Matrix V V R) :
     mask S (A ⊙ B) = mask S A ⊙ mask S B := by
   ext i j
   by_cases h : i ∈ S ∧ j ∈ S <;> simp [mask, h]
 
-/-- QSA-2 adjectives stack by intersection. -/
+/-- **QSA-2** adjectives stack by intersection. -/
 theorem mask_mask [Zero R] (S T : Finset V) (A : Matrix V V R) :
     mask S (mask T A) = mask (S ∩ T) A := by
   ext i j
@@ -118,19 +118,19 @@ section Fields
 
 variable {V R : Type*}
 
-/-- QSA-3 the field of `and` at an anchor is the product of the fields: HYBRID's score. -/
+/-- **QSA-3** the field of `and` at an anchor is the product of the fields: HYBRID's score. -/
 theorem fieldAt_hadamard [Mul R] (A B : Matrix V V R) (a : V) :
     fieldAt (A ⊙ B) a = fieldAt A a * fieldAt B a := by
   ext j
   simp [fieldAt, hadamard_apply]
 
-/-- QSA-3 the field of `or` at an anchor is the sum of the fields. -/
+/-- **QSA-3** the field of `or` at an anchor is the sum of the fields. -/
 theorem fieldAt_add [Add R] (A B : Matrix V V R) (a : V) :
     fieldAt (A + B) a = fieldAt A a + fieldAt B a := by
   ext j
   simp [fieldAt]
 
-/-- QSA-3 the field of `within S` at an anchor inside the region is the masked field; at an
+/-- **QSA-3** the field of `within S` at an anchor inside the region is the masked field; at an
 anchor outside it is nothing. -/
 theorem fieldAt_mask [DecidableEq V] [Zero R] (S : Finset V) (K : Matrix V V R) (a : V) :
     fieldAt (mask S K) a = if a ∈ S then maskF S (fieldAt K a) else 0 := by
@@ -143,7 +143,7 @@ theorem fieldAt_eq_mulVec [Fintype V] [DecidableEq V] [NonAssocSemiring R] (K : 
   rw [mulVec_single_one]
   rfl
 
-/-- QSA-4 a positive threshold commutes with `within`: masks may pass it. -/
+/-- **QSA-4** a positive threshold commutes with `within`: masks may pass it. -/
 theorem thresh_maskF [Fintype V] [DecidableEq V] [LinearOrder R] [Zero R] {t : R} (ht : 0 < t)
     (S : Finset V) (f : V → R) : thresh t (maskF S f) = S ∩ thresh t f := by
   ext i
@@ -152,7 +152,7 @@ theorem thresh_maskF [Fintype V] [DecidableEq V] [LinearOrder R] [Zero R] {t : R
   · simp [maskF, hi]
   · simp [maskF, hi, not_le.mpr ht]
 
-/-- QSA-4 the top-`k` does not commute with `within`: on `(3, 2, 1)`, the best inside `{1, 2}`
+/-- **QSA-4** the top-`k` does not commute with `within`: on `(3, 2, 1)`, the best inside `{1, 2}`
 is `1`, but the best overall is `0`, outside the region. Ranking is last. -/
 theorem topk_maskF_ne :
     topk 1 (maskF ({1, 2} : Finset (Fin 3)) ![(3 : ℤ), 2, 1]) ≠
@@ -167,6 +167,7 @@ namespace Sentence
 
 variable {Rg H : Type*} {g : List CQ.Scope}
 
+/-- **QSA-5** `and` is admissible iff both halves are: the scope check is clause-wise. -/
 theorem admissible_and {s t : Sentence Rg H} :
     Admissible g (.and s t) ↔ Admissible g s ∧ Admissible g t := by
   simp only [Admissible, reqs, List.forall_mem_append]
@@ -200,7 +201,7 @@ theorem reqs_ne_nil (s : Sentence Rg H) : s.reqs ≠ [] := by
   | within r s hs => simpa [reqs] using hs
   | assume h s hs => simpa [reqs] using hs
 
-/-- QSA-5 `assume` needs a granted plane that names the overlay stratum. -/
+/-- **QSA-5** `assume` needs a granted plane that names the overlay stratum. -/
 theorem admissible_assume_overlay {h : H} {s : Sentence Rg H} (ha : Admissible g (.assume h s)) :
     ∃ p ∈ g, CQ.Stratum.hypothetical ∈ p.sigma := by
   obtain ⟨r, hr⟩ := List.exists_mem_of_ne_nil _ (reqs_ne_nil s)
@@ -211,7 +212,7 @@ theorem admissible_assume_overlay {h : H} {s : Sentence Rg H} (ha : Admissible g
 theorem ambassador_no_overlay : ∀ p ∈ CQ.ambassador, CQ.Stratum.hypothetical ∉ p.sigma := by
   decide
 
-/-- QSA-5 so the Ambassador's grant admits no hypothetical. -/
+/-- **QSA-5** so the Ambassador's grant admits no hypothetical. -/
 theorem ambassador_no_assume (h : H) (s : Sentence Rg H) :
     ¬ Admissible CQ.ambassador (.assume h s) := by
   intro ha
@@ -222,7 +223,7 @@ theorem ambassador_no_assume (h : H) (s : Sentence Rg H) :
 theorem isInv_and {s t : Sentence Rg H} : IsInv (.and s t) ↔ IsInv s ∧ IsInv t := by
   simp [IsInv, hyps]
 
-/-- A result under `assume` is never `Inv`: the hypothesis is in its type. -/
+/-- **QSA-5** a result under `assume` is never `Inv`: the hypothesis is in its type. -/
 theorem not_isInv_assume (h : H) (s : Sentence Rg H) : ¬ IsInv (.assume h s) := by
   simp [IsInv, hyps]
 
@@ -334,14 +335,14 @@ theorem chainOk_run_iff (G : TGraph V) (A : Auto Q) :
       obtain ⟨hc, hacc⟩ := (chainOk_run_iff G A rest v (A.step q m)).2 ⟨v', q', hp, hq⟩
       exact ⟨⟨he, hc⟩, hacc⟩
 
-/-- QSA-7 a chain is admissible iff the product walk from `(u, start)` reaches an accepting
+/-- **QSA-7** a chain is admissible iff the product walk from `(u, start)` reaches an accepting
 state: the regular-path-query evaluation, exact. -/
 theorem admissible_iff_prodOk (G : TGraph V) (A : Auto Q) (u : V) (c : List (Move × V)) :
     Admissible G A u c ↔ ∃ v q, prodOk G A (u, A.start) c (v, q) = true ∧ A.accept q = true :=
   chainOk_run_iff G A c u A.start
 
 omit [DecidableEq V] [DecidableEq Q] in
-/-- QSA-7 pruning at a dead state loses no admissible chain: every prefix of an admissible chain
+/-- **QSA-7** pruning at a dead state loses no admissible chain: every prefix of an admissible chain
 leaves the automaton live. -/
 theorem prune_sound {G : TGraph V} {A : Auto Q} {u : V} {p c : List (Move × V)}
     (h : Admissible G A u (p ++ c)) : A.Live (A.run A.start (signature p)) :=
@@ -374,7 +375,7 @@ theorem TGraph.assume_edge (G : TGraph V) (m : Move) (a b : V) :
   simp [TGraph.assume]
 
 omit [DecidableEq Q] in
-/-- QSA-7 a hypothetical edge only adds admissible chains. -/
+/-- **QSA-7** a hypothetical edge only adds admissible chains. -/
 theorem admissible_assume {G : TGraph V} {A : Auto Q} {u : V} {c : List (Move × V)}
     (h : Admissible G A u c) (m : Move) (a b : V) : Admissible (G.assume m a b) A u c :=
   admissible_mono (G.le_assume m a b) h
@@ -389,7 +390,7 @@ theorem ofSet_run (E : Finset Move) :
     simp only [ofSet, List.forall_mem_cons, Bool.decide_and, Bool.and_assoc]
 
 omit [DecidableEq V] [DecidableEq Q] in
-/-- QSA-7 the set `E` is the one-state automaton: it accepts a word iff every letter is in `E`,
+/-- **QSA-7** the set `E` is the one-state automaton: it accepts a word iff every letter is in `E`,
 whatever the order. The set is the order-blind shadow of the language. -/
 theorem ofSet_accepts (E : Finset Move) (w : List Move) :
     (ofSet E).Accepts w ↔ ∀ m ∈ w, m ∈ E := by
@@ -432,8 +433,8 @@ end Chains
 
 /-! ## QSA-8: the mode table -/
 
-/-- QSA-8 `mode_of ∘ required`, verb by verb: SEARCH is semantic, temporal with history; DIFFUSE,
-HYBRID, RELATED and REACH are structural; HISTORY is temporal; ORIGIN is causal; CAPTURE is
+/-- **QSA-8** `mode_of ∘ required`, verb by verb: SEARCH is semantic, temporal with history;
+DIFFUSE, HYBRID, RELATED and REACH are structural; HISTORY is temporal; ORIGIN is causal; CAPTURE is
 semantic. The design note reads DIFFUSE, HYBRID and RELATED off this table: typed `{F}`, they
 walk the similarity backbone or the relation edges, so the verb's letter is not the noun's. -/
 theorem modeOf_required (v : CQ.Verb) (strata : List CQ.Stratum) (h a : Bool) {r : CQ.Scope}
@@ -490,7 +491,7 @@ theorem degree_assumeEdge [Fintype V] (A : Matrix V V R) {u v : V} (huv : u ≠ 
   rw [← sum_assumeEdge_ind huv δ i, ← sum_add_distrib]
   rfl
 
-/-- QSA-9 a hypothetical edge is a rank-one update of the Laplacian along `e_u − e_v`. -/
+/-- **QSA-9** a hypothetical edge is a rank-one update of the Laplacian along `e_u − e_v`. -/
 theorem lap_assumeEdge [Fintype V] (A : Matrix V V R) {u v : V} (huv : u ≠ v) (δ : R) :
     lap (assumeEdge A u v δ) = lap A + δ • vecMulVec (dvec u v 1) (dvec u v 1) := by
   ext i j
@@ -529,8 +530,8 @@ theorem signedDegree_assumeEdge [Fintype V] [LinearOrder R] [IsOrderedRing R] (A
   rw [← sum_assumeEdge_ind huv δ i, ← sum_add_distrib]
   exact sum_congr rfl fun j _ ↦ abs_assumeEdge A h0 h0' hσ hδ i j
 
-/-- QSA-9 a new signed edge is a rank-one update of the signed Laplacian along `e_u − σ e_v`: the
-difference for a supporting edge, the sum for a contradiction. -/
+/-- **QSA-9** a new signed edge is a rank-one update of the signed Laplacian along `e_u − σ e_v`:
+the difference for a supporting edge, the sum for a contradiction. -/
 theorem signedLap_assumeEdge [Fintype V] [LinearOrder R] [IsOrderedRing R] (A : Matrix V V R)
     {u v : V} (huv : u ≠ v) (h0 : A u v = 0) (h0' : A v u = 0) {σ δ : R} (hσ : σ = 1 ∨ σ = -1)
     (hδ : 0 ≤ δ) :
@@ -572,31 +573,30 @@ theorem dotProduct_lap_le_assumeEdge (A : Matrix V V ℝ) {u v : V} (huv : u ≠
   have := mul_nonneg hδ (mul_self_nonneg (dvec u v 1 ⬝ᵥ x))
   linarith
 
-/-- QSA-9 (CND-2 forward) adding weight to an edge lowers every effective resistance between
+/-- **QSA-9** (CND-2 forward) adding weight to an edge lowers every effective resistance between
 vertices the support already joins. -/
 theorem rEff_assumeEdge_le {A : Matrix V V ℝ} (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j) {u v : V}
-    {δ : ℝ} (hδ : 0 ≤ δ) {i j : V} (hr : (support A).Reachable i j) :
-    rEff (lapPinv (assumeEdge A u v δ) (isSymm_assumeEdge hA u v δ)) i j ≤
-      rEff (lapPinv A hA) i j :=
-  rEff_anti hA (isSymm_assumeEdge hA u v δ) hw
+    {δ : ℝ} (hδ : 0 ≤ δ) (hA' : (assumeEdge A u v δ).IsSymm) {i j : V}
+    (hr : (support A).Reachable i j) :
+    rEff (lapPinv (assumeEdge A u v δ) hA') i j ≤ rEff (lapPinv A hA) i j :=
+  rEff_anti hA hA' hw
     (fun i j ↦ by
       simp only [assumeEdge_apply]
       split_ifs <;> linarith) hr
 
-/-- QSA-9 (CND-2 backward) removing weight from an edge raises every effective resistance between
-vertices the weakened support still joins: an assumption can raise resistance. -/
+/-- **QSA-9** (CND-2 backward) removing weight from an edge raises every effective resistance
+between vertices the weakened support still joins: an assumption can raise resistance. -/
 theorem rEff_le_assumeEdge {A : Matrix V V ℝ} (hA : A.IsSymm) {u v : V} {δ : ℝ} (hδ : δ ≤ 0)
-    (hw : ∀ i j, 0 ≤ assumeEdge A u v δ i j) {i j : V}
+    (hA' : (assumeEdge A u v δ).IsSymm) (hw : ∀ i j, 0 ≤ assumeEdge A u v δ i j) {i j : V}
     (hr : (support (assumeEdge A u v δ)).Reachable i j) :
-    rEff (lapPinv A hA) i j ≤
-      rEff (lapPinv (assumeEdge A u v δ) (isSymm_assumeEdge hA u v δ)) i j :=
-  rEff_anti (isSymm_assumeEdge hA u v δ) hA hw
+    rEff (lapPinv A hA) i j ≤ rEff (lapPinv (assumeEdge A u v δ) hA') i j :=
+  rEff_anti hA' hA hw
     (fun i j ↦ by
       simp only [assumeEdge_apply]
       split_ifs <;> linarith) hr
 
 omit [Fintype V] in
-/-- QSA-9 a new signed edge is consistent with the camps iff its sign agrees with them: then the
+/-- **QSA-9** a new signed edge is consistent with the camps iff its sign agrees with them: then the
 graph stays balanced, by the same camps. -/
 theorem balanced_assumeEdge {A : Matrix V V ℝ} {s : V → ℝ} (hs : ∀ i, s i = 1 ∨ s i = -1)
     (hA : ∀ i j, 0 ≤ A i j * s i * s j) {u v : V} {σ δ : ℝ} (hδ : 0 ≤ δ)
@@ -627,8 +627,8 @@ theorem pos_energy_of_not_balanced {A : Matrix V V ℝ} (hA : A.IsSymm) (hc : (s
   · exact h
   · exact absurd ((zero_energy_iff_balanced A hA hc).1 ⟨x, hx, h.symm⟩) hnb
 
-/-- QSA-9 Sherman–Morrison: the exact response of an inverse to a rank-one update, so of a kernel
-`M⁻¹` to a hypothetical edge. -/
+/-- **QSA-9** Sherman–Morrison: the exact response of an inverse to a rank-one update, so of a
+kernel `M⁻¹` to a hypothetical edge. -/
 theorem inv_add_vecMulVec {M : Matrix V V ℝ} (hM : IsUnit M.det) (u v : V → ℝ) {c : ℝ}
     (hc : 1 + c * (v ⬝ᵥ (M⁻¹ *ᵥ u)) ≠ 0) :
     (M + c • vecMulVec u v)⁻¹ =
