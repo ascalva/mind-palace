@@ -9,6 +9,7 @@ public import Spec.FloatModel
 public import Spec.Heat
 public import Spec.Hodge
 public import Spec.Laplacian
+public import Spec.Magnetic
 public import Spec.Memberships
 public import Spec.Plane
 public import Spec.Rayleigh
