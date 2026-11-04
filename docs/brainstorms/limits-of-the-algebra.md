@@ -46,7 +46,11 @@ by the maximum principle on the unit potential, proved here for the library, eve
 nonnegative, and a zero share would carry the source potential along the detour to the sink).
 With the cut reading of a bridge (`isBridgeCut_iff_not_reachable`), the horizon is exactly the
 bridges: `w·rEff = 1 ↔ IsBridgeCut` (`mul_rEff_eq_one_iff`), and `assume sever`'s denominator
-vanishes precisely where severing disconnects (`one_sub_mul_rEff_eq_zero_iff`). *Falsifier:* none left; L1 is closed both ways.
+vanishes precisely where severing disconnects (`one_sub_mul_rEff_eq_zero_iff`). *Measured*
+(`eval/sever_horizon.py`, read-only on the live backbone): 38 notes, 38 edges, the bound holds
+with its maximum exactly 1; the 11 bridges are exactly the 11 edges at the horizon, as the
+theorem says, so `assume sever` of any of them is the singular case; the median `w·rEff` is 0.41,
+and every other edge sits below 0.9. *Falsifier:* none left; L1 is closed both ways.
 
 ## L2. The β-limits of the retrieval curve — where the kernel freezes and where it melts
 
