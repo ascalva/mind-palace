@@ -11,7 +11,9 @@ temporal-retrieval-algebra §2.3 Result 5 pins the ledger's dilation to the pull
 "always a contraction". Under a merge it is not: `‖σ^* f‖² = ∑_b |σ⁻¹ b| f_b²`, so the pullback
 expands by `√(max fiber)`, and the merge of two notes into one doubles a cochain's energy. The
 push-forward is its adjoint and has the same norm; under the inverse-fiber weight on the target
-it contracts (TRN-4). The correction is the inner product: under
+it contracts (TRN-4). The curvature `[d, τ]` of the superconnection `d + τ` is the cochain's drop
+across exactly the severed citations, and vanishes iff every citation carries forward or collapses
+(TRN-5, Results 1 and 2). The correction is the inner product: under
 the fiber-weighted `⟨·,·⟩_σ` on the target, the pullback is an isometry — the weighted inner
 product PD-b parked becomes the dilation's customer, exactly where Result 4 predicted it would.
 These are design theorems (Palace and this file only; no Spec rows): no code transports cochains
@@ -99,5 +101,38 @@ theorem push_wdotInv_le (σ : A → B) (g : A → ℝ) :
     rw [inv_mul_le_iff₀ hc, ← sq]
     calc (∑ a ∈ F, g a) ^ 2 ≤ F.card * ∑ a ∈ F, g a ^ 2 := sq_sum_le_card_mul_sum_sq
       _ = F.card * ∑ a ∈ F, g a * g a := by simp [sq]
+
+/-! ### TRN-5 The curvature of the superconnection lives on the severed citations -/
+
+omit [Fintype A] [Fintype B] [DecidableEq B] in
+/-- TRN-5 `[d, τ]φ (u, v) = (φ (σ v) − φ (σ u)) · 𝟙[σ u → σ v severed]` (temporal-retrieval §2.3
+Result 2): the curvature is the drop of the cochain across exactly the citations that did not
+carry forward — the weighted carry-forward failure count, not a proxy for it. -/
+theorem curvature_eq (σ : A → B) (X' : B → B → Prop) [DecidableRel X'] (φ : B → ℝ) (u v : A) :
+    curvature σ X' φ u v = if X' (σ u) (σ v) then 0 else φ (σ v) - φ (σ u) := by
+  unfold curvature coboundary pullEdge
+  split_ifs <;> simp
+
+omit [Fintype A] [Fintype B] [DecidableEq B] in
+/-- TRN-5 The superconnection is flat on the source's citations iff every one carries forward or
+collapses: `[d, τ] = 0` on `X` iff for every `u → v` in `X`, `σ u = σ v` or `σ u → σ v` is in
+`X'` — Result 1's F1, the chain-map condition, read on the edges. -/
+theorem curvature_eq_zero_iff (σ : A → B) (X : A → A → Prop) (X' : B → B → Prop)
+    [DecidableRel X'] :
+    (∀ φ : B → ℝ, ∀ u v, X u v → curvature σ X' φ u v = 0) ↔
+      ∀ u v, X u v → σ u = σ v ∨ X' (σ u) (σ v) := by
+  classical
+  constructor
+  · intro h u v huv
+    by_contra hc
+    push Not at hc
+    have := h (fun b ↦ if b = σ v then 1 else 0) u v huv
+    rw [curvature_eq] at this
+    simp [hc.1, hc.2] at this
+  · intro h φ u v huv
+    rw [curvature_eq]
+    rcases h u v huv with heq | hX'
+    · simp [heq]
+    · simp [hX']
 
 end Palace.Transport
