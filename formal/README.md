@@ -80,6 +80,12 @@ Roundoff and FloatModel, so it has no statements of its own):
   definite at the default `β = 1`; the free energy a quasi-metric through the path product. The
   general facts beneath, for any nonnegative matrix whose rows sum to at most `s < 1`, are proved by
   extremal principles: a vertex where a vector is largest or least.
+- `NegativeType`: §2.6 of temporal-retrieval-algebra, before any code computes β*: negative type
+  is closed, so when `d_β → d_∞` and `d_∞` is not of negative type, `{β : d_β of negative type}`
+  is bounded above, the direction the note's argument proves; cut metrics and their nonnegative
+  combinations are of negative type, so the cycles `C₄` to `C₈` are (their cut decompositions are
+  checked by `decide`), against the note's criterion that an isometric cycle of length 4 or more
+  breaks it; `K₂,₃` is not. Cited from the note, not the ledger.
 - `Magnetic`: the magnetic Laplacian of `docs/design-notes/magnetic-laplacian.md`, proved before
   any code builds it (the note defers the build). §2.1: `L^θ` Hermitian and positive semidefinite,
   its form the twisted Dirichlet energy, gauge covariance, flux-trivial as gauge-trivial, the
@@ -378,6 +384,9 @@ killing, `z = 1`, a component of unit weights makes `I − W` singular, refuted 
 the degrees on the wrong side, `Z = D G`, within 10; the free energy one way, unsymmetrized, is not
 the normalized kernel, within 11; and without `z_jj` the path product fails, within 11.
 
+Negative type is attacked over ℚ on `Fin 5` with vectors summing to zero: squared line metrics
+survive 500 and the cycle `C₅` 500, and `K₂,₃`'s metric, the control, is refuted within 174.
+
 The magnetic operator is complex and its transports are exponentials, which do not run, so its
 attacks fix the transports at their exact values, `1` at phase `0` and `−1` at phase `π`, or test
 the combinatorial content. BRG-7's controls: transport `−1` everywhere gives the signless `D + A`,
@@ -413,7 +422,7 @@ another module, and without it 68 proofs in seven files fail. One instance is wr
 to importers (`Palace/Scope.lean`).
 
 The kernel re-check. `Export.lean` writes every `Palace` declaration and everything it uses, from
-`Init` up (42,308 declarations), and `check.sh` replays that export from nothing through Lean's
+`Init` up (42,353 declarations), and `check.sh` replays that export from nothing through Lean's
 kernel and the five independent checkers bundled with Lean: `leanchecker-paranoid`, `lean4lean` (a
 kernel written in Lean), `nanoda` (one written in Rust), and `con-leche`, whose acceptance carries a
 machine-checked theorem that the environment holds no proof of `False`, with `con-ron`, its port.
