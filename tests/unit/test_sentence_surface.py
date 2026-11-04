@@ -15,6 +15,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+from core.query import AMBASSADOR, AMBASSADOR_OVERLAY
 from core.sentence import surface
 from core.sentence.ast import Rel
 from core.sentence.execute import Relation, Universe
@@ -53,9 +54,9 @@ def _universe() -> Universe:
                     embed, history, witness)
 
 
-def _run(argv: list[str], log: QueryLog) -> tuple[int, str]:
+def _run(argv: list[str], log: QueryLog, grant: Any = None) -> tuple[int, str]:
     out = io.StringIO()
-    rc = run_query(argv, out=out, universe=_universe(), log=log)
+    rc = run_query(argv, out=out, universe=_universe(), log=log, grant=grant)
     return rc, out.getvalue()
 
 
@@ -101,7 +102,7 @@ def test_an_empty_answer_is_an_outcome_of_its_own(tmp_path: Path) -> None:
     [
         ('nearby "q"', "parse"),
         ('not near "q"', "sort"),
-        ('assume S "a.md" "d.md" +0.5 in near "q"', "scope"),      # the Ambassador has no overlay
+        ('assume S "a.md" "d.md" +0.5 in near "q"', "scope"),      # the base grant: no overlay
         ('near "q" over nowhere', "ambiguous"),
         ('reach F from "zz.md"', "lookup"),
         ('near "q" over curated', "unsupported"),                  # this universe: the mirror only
@@ -110,18 +111,42 @@ def test_an_empty_answer_is_an_outcome_of_its_own(tmp_path: Path) -> None:
 def test_a_refusal_is_a_question_back_logged_by_class(tmp_path: Path, sentence: str,
                                                       cls: str) -> None:
     log = QueryLog(tmp_path / "q.jsonl")
-    rc, text = _run([sentence], log)
+    rc, text = _run([sentence], log, AMBASSADOR)
     assert rc == 1 and text.startswith(f"refused ({cls}): ")
     (e,) = log.entries()
     assert (e.outcome, e.refusal, e.sentence) == ("refused", cls, sentence)
     assert e.reason and e.reason in text
-    rc, text = _run([sentence, "--json"], log)
+    rc, text = _run([sentence, "--json"], log, AMBASSADOR)
     assert rc == 1 and json.loads(text)["refused"] == cls
+
+
+def test_the_owners_overlay_grant_answers_a_hypothetical_as_a_hyp(tmp_path: Path) -> None:
+    """The surfaces' default grant is `sentence_grant()`: the Ambassador's with the overlay while
+    `[query] hypotheticals` is on (the committed default), so `assume` answers — as a `Hyp`
+    beside the actual hits, never as an `Inv` — where the base grant refuses it."""
+    from core.kernel.config.loader import _DEFAULTS, load_config
+    from core.sentence.surface import sentence_grant
+
+    assert load_config(_DEFAULTS).query.hypotheticals is True
+    assert sentence_grant() in (AMBASSADOR_OVERLAY, AMBASSADOR)      # the live switch's value
+    log = QueryLog(tmp_path / "q.jsonl")
+    rc, text = _run(['assume S "a.md" "d.md" +0.9 in top 3 diffuse S from "a.md"'], log,
+                    AMBASSADOR_OVERLAY)
+    assert rc == 0 and "· Hyp" in text and "under the assumptions:" in text
+    assert "hits assumed (3):" in text and "d.md — D" in text
+    assert "every effective resistance falls or holds" in text
+    (e,) = log.entries()
+    assert (e.outcome, e.hyp, e.hits) == ("answered", True, 3)
+    rc, text = _run(['assume S "a.md" "d.md" +0.9 in top 3 diffuse S from "a.md"', "--json"], log,
+                    AMBASSADOR_OVERLAY)
+    d = json.loads(text)
+    assert [h["ref"] for h in d["hyp"]["hits"]] == ["b.md", "c.md", "d.md"]
+    assert d["hyp"]["assumptions"] == ["S 'a.md' 'd.md' +0.9"] and "Hyp" in d["plan"]
 
 
 def test_a_scope_refusal_still_records_the_strata_it_wanted(tmp_path: Path) -> None:
     log = QueryLog(tmp_path / "q.jsonl")
-    _run(['assume S "a.md" "d.md" +0.5 in near "q"'], log)
+    _run(['assume S "a.md" "d.md" +0.5 in near "q"'], log, AMBASSADOR)
     (e,) = log.entries()
     assert e.strata == ("hypothetical", "mirror_authored") and e.sort == ""
     _run(['nearby "q"'], log)                                      # no parse: no shape at all
@@ -194,7 +219,7 @@ def test_entries_ignore_fields_a_later_schema_adds(tmp_path: Path) -> None:
                       outcome="answered", hits=1, modes=("semantic",), strata=("mirror_authored",))
 
 
-# ── the Ambassador's `query` tool, behind the switch ───────────────────────────────────────────
+# ── the Ambassador's `query` tool: the one read ────────────────────────────────────────────────
 
 
 def _names(server: Any) -> set[str]:
@@ -209,48 +234,49 @@ def _call(server: Any, sentence: str) -> dict[str, Any]:
     return reply
 
 
-def test_the_query_tool_is_listed_and_served_only_when_sentences_are_on(
-        monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_the_query_tool_is_the_one_read_of_the_mcp(monkeypatch: pytest.MonkeyPatch,
+                                                  tmp_path: Path) -> None:
     from agents.ambassador import mcp
     from agents.ambassador.handoff import WEB_TOOLS, web_manifest
 
-    off, on = mcp.Server(sentences=False), mcp.Server(sentences=True)
-    assert "query" not in _names(off) and "query" in _names(on)
-    assert {"search", "read"} <= _names(off)                       # the eight words stay
-    reply = _call(off, 'near "q"')
-    assert reply["error"]["code"] == -32602 and "[query] sentences" in reply["error"]["message"]
+    server = mcp.Server()
+    names = _names(server)
+    assert "query" in names and "query" in WEB_TOOLS
+    assert names.isdisjoint({"search", "neighbors", "hybrid", "history", "related", "reach",
+                             "origin", "read"})
+    assert "query" in {t["name"] for t in web_manifest()["tools"]}
 
-    # on: the call runs under the Ambassador's grant against the live universe (faked here)
+    # the call runs under `sentence_grant()` against the live universe (faked here) and is logged
     monkeypatch.setattr(Universe, "from_engine", classmethod(lambda cls, engine: _universe()))
     monkeypatch.setattr(surface, "default_log", lambda: QueryLog(tmp_path / "q.jsonl"))
-    reply = _call(on, 'top 1 near "q"')
+    monkeypatch.setattr(surface, "sentence_grant", lambda: AMBASSADOR_OVERLAY)
+    reply = _call(server, 'top 1 near "q"')
     assert reply["result"]["isError"] is False
     body = json.loads(reply["result"]["content"][0]["text"])
     assert [h["ref"] for h in body["hits"]] == ["a.md"] and body["plan"].startswith("plan (")
     (e,) = QueryLog(tmp_path / "q.jsonl").entries()
     assert (e.surface, e.role, e.outcome) == ("mcp", "ambassador", "answered")
+    # a hypothetical answers as a Hyp under the owner's grant
+    reply = _call(server, 'assume sever S "a.md" "b.md" in top 3 diffuse S from "a.md"')
+    body = json.loads(reply["result"]["content"][0]["text"])
+    assert reply["result"]["isError"] is False and "hyp" in body
     # a refusal is an error result naming its cause, not a crash — and it is logged
-    reply = _call(on, 'assume S "a.md" "d.md" +0.5 in near "q"')
+    reply = _call(server, 'not near "q"')
     assert reply["result"]["isError"] is True
-    assert "IllScopedSentence" in reply["result"]["content"][0]["text"]
-    assert QueryLog(tmp_path / "q.jsonl").entries()[-1].refusal == "scope"
-
-    # the web manifest follows the switch; the committed file is the switch-off manifest
-    assert "query" in WEB_TOOLS
-    assert "query" not in {t["name"] for t in web_manifest(sentences=False)["tools"]}
-    assert "query" in {t["name"] for t in web_manifest(sentences=True)["tools"]}
-    assert isinstance(mcp.sentences_enabled(), bool)
+    assert "SortError" in reply["result"]["content"][0]["text"]
+    assert QueryLog(tmp_path / "q.jsonl").entries()[-1].refusal == "sort"
 
 
-def test_the_switch_defaults_off_and_reads_from_the_toml(tmp_path: Path) -> None:
+def test_the_hypotheticals_switch_defaults_on_and_reads_from_the_toml(tmp_path: Path) -> None:
     from core.kernel.config.loader import _DEFAULTS, load_config
 
-    assert load_config(_DEFAULTS).query.sentences is False          # the committed default
+    assert load_config(_DEFAULTS).query.hypotheticals is True          # the owner's grant
     text = _DEFAULTS.read_text(encoding="utf-8")
-    assert text.count("\nsentences = false\n") == 1
-    on = tmp_path / "on.toml"
-    on.write_text(text.replace("\nsentences = false\n", "\nsentences = true\n"), encoding="utf-8")
-    assert load_config(on).query.sentences is True
+    assert text.count("\nhypotheticals = true\n") == 1
+    off = tmp_path / "off.toml"
+    off.write_text(text.replace("\nhypotheticals = true\n", "\nhypotheticals = false\n"),
+                   encoding="utf-8")
+    assert load_config(off).query.hypotheticals is False
 
 
 # ── the resolution ledger: the file and its mirror change together ──────────────────────────────
@@ -271,6 +297,8 @@ def test_the_precedents_file_mirrors_the_code() -> None:
         "`trace` with no direction": DEFAULT.trace_direction.value,
         "`near` with no `over`": ",".join(s.value for s in DEFAULT.strata),
         "a field as the whole sentence": str(DEFAULT.k),
+        "`read` with no `chunk`": str(DEFAULT.read_chunk),
+        "`read`'s window": str(DEFAULT.read_window),
     }
     for dial, value in expected.items():
         assert dial in table, f"{dial} has no row in docs/query/precedents.md"

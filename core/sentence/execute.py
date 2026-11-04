@@ -11,8 +11,10 @@ assumption falls in (QSA-9: adding weight lowers every effective resistance, rem
 every one, a contradiction keeps or breaks the camps).
 
 Sorts evaluate to values: a field is a vector of scores in `[0, 1]` over the notes, a region a set
-of note indices, a chain a list of `Chain`s, a witness a record. Connectives follow the algebra of
-`core/sentence/algebra.py`, whose laws the Lean proves.
+of note indices, a chain a list of `Chain`s, a witness a record, a text the record at a ref (`read`,
+the dereference: a note, a dialogue turn, or a window of a curated paper — the executor holds the
+record's stratum to the clause's). Connectives follow the algebra of `core/sentence/algebra.py`,
+whose laws the Lean proves.
 """
 
 from __future__ import annotations
@@ -24,14 +26,14 @@ from typing import Any
 import numpy as np
 
 from core.kernel.scope import Hyp, Stratum
-from core.query import Hit, QueryEngine, free_energy_distances
+from core.query import CURATED_REF, Hit, QueryEngine, free_energy_distances
 from core.sentence import ast
 from core.sentence.algebra import atleast, camps, far, mask_field, topk
 from core.sentence.ast import Direction, Node, Rel
 from core.sentence.automaton import Chain, compile_path, product_walk
 from core.sentence.plan import Plan
 from core.sentence.precedents import DEFAULT, Precedents
-from core.sentence.types import AmbiguousSentence, Sort
+from core.sentence.types import AmbiguousSentence, IllScopedSentence, Sort
 
 
 class UnsupportedSentence(NotImplementedError):
@@ -64,12 +66,21 @@ class Universe:
     witness: Callable[[str], Mapping[str, object] | None]
     cut: str | None = None
     missing: tuple[str, ...] = field(default_factory=tuple)
+    # `read`: the record at a ref, `(ref, chunk, window)` → the text with its stratum, or None
+    text: Callable[[str, int | None, int], Mapping[str, object] | None] = field(
+        default=lambda ref, chunk, window: None)
 
     def __len__(self) -> int:
         return len(self.notes)
 
     def index_of(self, atom: str) -> int:
-        """The note a name picks out: by path, digest or title; refused when none or several."""
+        """The note a name picks out: by path, digest or title; refused when none or several. A
+        curated paper's ref is refused with where to go instead — the note graph is the owner's
+        notes — never answered with an empty result that reads as "nothing there"."""
+        if atom.startswith(CURATED_REF):
+            raise LookupError(f"{atom!r} is a curated paper; the verbs over notes (diffuse, reach, "
+                              f"relate, trace, walk) walk the owner's notes only. For papers: "
+                              f'near "…" over curated, or read the ref')
         hits = [i for i, n in enumerate(self.notes)
                 if atom in (n.get("source_path"), n.get("digest"), n.get("title"))]
         if not hits:
@@ -112,6 +123,17 @@ class Universe:
         return A
 
     @classmethod
+    def reader(cls, engine: QueryEngine) -> Universe:
+        """The universe a bare `read` needs: no note graph, only the dereference — so reading a
+        paper opens the curated store and nothing else, as the retired `read` tool did."""
+        dim = int(engine.config.embedding.dim)
+        return cls(notes=[], vectors=np.zeros((0, dim)), weights=np.zeros((0, 0)),
+                   edges={Rel.F: {}, Rel.D: {}, Rel.C: {}}, relations=[],
+                   embed=lambda text: np.zeros(dim), history=lambda atom: [],
+                   witness=lambda edge: None,
+                   text=lambda ref, chunk, window: read_ref(engine, ref, chunk, window=window))
+
+    @classmethod
     def from_engine(cls, engine: QueryEngine) -> Universe:
         """The live universe: the engine's note graph, the reference edges among the notes at the
         anchor commit, the signed relation edges, the version chains and the C-fiber witness."""
@@ -146,11 +168,57 @@ class Universe:
                           reference_edges=engine._get("references"))
             return None if edge is None else {k: str(v) for k, v in edge.__dict__.items()}
 
+        def text(ref: str, chunk: int | None, window: int) -> Mapping[str, object] | None:
+            return read_ref(engine, ref, chunk, window=window)
+
         return cls(notes=notes, vectors=mat, weights=weights,
                    edges={Rel.F: f_edges, Rel.D: {}, Rel.C: {}}, relations=relations,
                    embed=embed, history=history, witness=witness, cut=view.commit,
                    missing=("D and C moves at the note grain: the version chains are per note "
-                            "(use trace) and the causal edges key on structural endpoints",))
+                            "(use trace) and the causal edges key on structural endpoints",),
+                   text=text)
+
+
+def read_ref(engine: QueryEngine, ref: str, chunk: int | None, *,
+             window: int) -> Mapping[str, object] | None:
+    """The record at a ref: a curated paper's window of `window` chunks around `chunk` (from its
+    start when absent), or the full text of an active note or dialogue turn — read from the vault
+    file when the ref is a path under it, else from the raw store. The stratum rides with the
+    record for the executor's scope check. `None` when nothing active bears the ref."""
+    from pathlib import Path
+
+    from core.kernel.clearance import CURATED_READ
+    from core.kernel.provenance import Provenance
+    from core.kernel.stores.rawstore import RawStore
+    from core.query import _STRATUM_OF
+    from core.stores.catalog import VaultCatalog
+
+    cfg = engine.config
+    if ref.startswith(CURATED_REF):
+        rows = sorted(engine._get("curated").rows_for_source(ref, clearance=CURATED_READ),
+                      key=lambda r: int(r.get("chunk_index", 0) or 0))
+        if not rows:
+            return None
+        start = 0 if chunk is None else max(0, int(chunk) - 2)
+        picked = rows[start:start + window]
+        return {"ref": ref, "title": rows[0].get("title", ""), "provenance": "curated",
+                "stratum": "curated", "chunks": f"{start}–{start + len(picked) - 1} of {len(rows)}",
+                "text": "\n".join(str(r.get("text", "")) for r in picked)}
+    entry = VaultCatalog(cfg.paths.vault_catalog).get(ref)
+    if entry is None or not entry.active:
+        return None
+    vault = Path(cfg.ingestion.vault.path).resolve()
+    path = Path(ref)
+    if path.is_absolute() and vault in path.resolve().parents and path.exists():
+        body = path.read_text(encoding="utf-8", errors="replace")
+    else:
+        body = RawStore(cfg.paths.raw_store).get(entry.digest).decode("utf-8", errors="replace")
+    try:
+        stratum = _STRATUM_OF.get(Provenance(entry.provenance), "")
+    except ValueError:
+        stratum = ""
+    return {"ref": ref, "title": entry.title, "provenance": entry.provenance, "stratum": stratum,
+            "text": body}
 
 
 # ── values ─────────────────────────────────────────────────────────────────────────────────────
@@ -178,6 +246,13 @@ class WitnessV:
 
 
 @dataclass(frozen=True)
+class TextV:
+    """The record `read` returns: the text at a ref with its title, provenance and stratum."""
+
+    record: Mapping[str, object]
+
+
+@dataclass(frozen=True)
 class HypV:
     """A value under assumptions, beside the actual one, with the response read off."""
 
@@ -187,7 +262,7 @@ class HypV:
     notes: tuple[str, ...]
 
 
-Value = FieldV | RegionV | ChainsV | WitnessV | HypV
+Value = FieldV | RegionV | ChainsV | WitnessV | TextV | HypV
 
 
 # ── the overlay ────────────────────────────────────────────────────────────────────────────────
@@ -346,6 +421,8 @@ class Evaluator:
                 return self._walk(atom, path, to, depth)
             case ast.Witness(edge=edge):
                 return WitnessV(self.u.witness(edge))
+            case ast.Read(atom=atom, chunk=chunk):
+                return self._read(atom, chunk)
             case ast.Assume(hypothesis=h, body=b):
                 overlay = Overlay.of(h, self.u)
                 assumed = Evaluator(overlay.apply(self.u), self.p).eval(b)
@@ -356,6 +433,20 @@ class Evaluator:
         raise UnsupportedSentence(f"no evaluator for {node!r}")  # pragma: no cover
 
     # ── helpers ────────────────────────────────────────────────────────────────────────────────
+
+    def _read(self, atom: str, chunk: int | None) -> TextV:
+        """The dereference, with the record's stratum held to the clause's: a paper ref reads the
+        curated stratum, any other ref the mirror or the dialogue — whatever the catalog says the
+        record is, it must be one of those, or the read is refused as ill-scoped."""
+        rec = self.u.text(atom, chunk, self.p.read_window)
+        if rec is None:
+            raise LookupError(f"read: no active note, dialogue turn or paper {atom!r}")
+        allowed = {"curated"} if atom.startswith(CURATED_REF) else {"mirror", "dialogue"}
+        if str(rec.get("stratum", "")) not in allowed:
+            raise IllScopedSentence(
+                f"read {atom!r}: the record is in stratum {rec.get('stratum')!r}, outside the "
+                f"clause's {sorted(allowed)}")
+        return TextV(rec)
     def _field(self, node: Node) -> np.ndarray:
         v = self.eval(node)
         if isinstance(v, FieldV):
@@ -552,6 +643,12 @@ def _hits(value: Value, u: Universe, k: int) -> tuple[Hit, ...]:
         return () if value.record is None else (
             Hit(ref=str(value.record.get("edge_id", "")), stratum="dialogue",
                 detail=dict(value.record)),)
+    if isinstance(value, TextV):
+        r = value.record
+        detail = {"chunks": str(r["chunks"])} if "chunks" in r else {}
+        return (Hit(ref=str(r.get("ref", "")), title=str(r.get("title", "")),
+                    stratum=str(r.get("stratum", "")), provenance=str(r.get("provenance", "")),
+                    text=str(r.get("text", "")), detail=detail),)
     raise UnsupportedSentence("a Hyp inside a Hyp")  # pragma: no cover
 
 

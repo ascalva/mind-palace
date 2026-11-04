@@ -219,6 +219,63 @@ theorem ambassador_no_assume (h : H) (s : Sentence Rg H) :
   obtain ⟨p, hp, hmem⟩ := admissible_assume_overlay ha
   exact ambassador_no_overlay p hp hmem
 
+/-- A scope under a plane stays under the plane with the overlay named. -/
+theorem le_nameOverlay_of_le {r p : CQ.Scope} (h : r.Le p) : r.Le p.nameOverlay := by
+  obtain ⟨h₁, h₂, h₃, h₄⟩ := h
+  exact ⟨h₁.trans (subset_insert _ _), h₂, h₃, h₄⟩
+
+/-- Naming the overlay on a grant's planes loses no admission. -/
+theorem admits_overlayGrant_of_admits {r : CQ.Scope} (h : CQ.admits g r) :
+    CQ.admits (CQ.overlayGrant g) r := by
+  obtain ⟨p, hp, hle⟩ := h
+  exact ⟨p.nameOverlay, List.mem_map_of_mem hp, le_nameOverlay_of_le hle⟩
+
+/-- **QSA-5** every sentence admissible under a grant is admissible under the grant with the
+overlay named: the owner's grant widens, never narrows. -/
+theorem admissible_overlayGrant_of_admissible {s : Sentence Rg H} (h : Admissible g s) :
+    Admissible (CQ.overlayGrant g) s :=
+  fun r hr ↦ admits_overlayGrant_of_admits (h r hr)
+
+/-- Under a grant whose every plane names the overlay, a scope with the overlay is admitted iff
+the scope itself is: the overlay adds nothing a plane lacks. -/
+theorem admits_withOverlay_iff (hg : ∀ p ∈ g, CQ.Stratum.hypothetical ∈ p.sigma)
+    {r : CQ.Scope} : CQ.admits g (withOverlay r) ↔ CQ.admits g r := by
+  constructor
+  · rintro ⟨p, hp, h₁, h₂, h₃, h₄⟩
+    exact ⟨p, hp, (subset_insert _ _).trans h₁, h₂, h₃, h₄⟩
+  · rintro ⟨p, hp, h₁, h₂, h₃, h₄⟩
+    exact ⟨p, hp, insert_subset (hg p hp) h₁, h₂, h₃, h₄⟩
+
+/-- **QSA-5** under a grant whose every plane names the overlay, `assume h s` is admissible iff
+`s` is: a hypothetical costs its body's admission and nothing more. -/
+theorem admissible_assume_iff_overlay (hg : ∀ p ∈ g, CQ.Stratum.hypothetical ∈ p.sigma)
+    {h : H} {s : Sentence Rg H} : Admissible g (.assume h s) ↔ Admissible g s := by
+  constructor
+  · intro ha r hr
+    exact (admits_withOverlay_iff hg).1 (ha (withOverlay r) (List.mem_map_of_mem hr))
+  · intro ha r hr
+    have hmap : r ∈ s.reqs.map withOverlay := hr
+    obtain ⟨r', hmem, rfl⟩ := List.mem_map.1 hmap
+    exact (admits_withOverlay_iff hg).2 (ha r' hmem)
+
+/-- The overlay grant names the overlay on every plane. -/
+theorem overlayGrant_names_overlay (g : List CQ.Scope) :
+    ∀ p ∈ CQ.overlayGrant g, CQ.Stratum.hypothetical ∈ p.sigma := by
+  intro p hp
+  obtain ⟨q, -, rfl⟩ := List.mem_map.1 hp
+  exact mem_insert_self _ _
+
+/-- **QSA-5** the owner's grant: the Ambassador's planes with the overlay accept `assume h s`
+exactly when they accept `s` — what `ambassador_no_assume` refused, lifted by the one stratum. -/
+theorem ambassadorOverlay_admits_assume_iff {h : H} {s : Sentence Rg H} :
+    Admissible CQ.ambassadorOverlay (.assume h s) ↔ Admissible CQ.ambassadorOverlay s :=
+  admissible_assume_iff_overlay (overlayGrant_names_overlay _)
+
+/-- **QSA-5** the owner's grant reaches the world on no plane: naming the overlay widened the
+strata and nothing else. -/
+theorem ambassadorOverlay_no_world : ∀ p ∈ CQ.ambassadorOverlay, p.authority.world = 0 := by
+  decide
+
 /-- A result is `Inv` iff both halves of a connective are. -/
 theorem isInv_and {s t : Sentence Rg H} : IsInv (.and s t) ↔ IsInv s ∧ IsInv t := by
   simp [IsInv, hyps]

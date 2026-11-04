@@ -41,7 +41,8 @@ MAX_ROUNDS = 5
 class Scenario:
     name: str
     prompt: str
-    expect: str   # "search" | "curated" | "none" | "capture" | "status" | "remind" | "tasks"
+    expect: str   # "search" (a query sentence) | "curated" (one over curated) | "none" | "capture"
+                  # | "status" | "remind" | "tasks"
 
 
 SCENARIOS = (
@@ -86,8 +87,8 @@ class Run:
     def verdict(self) -> str:
         names = [c[0] for c in self.calls]
         ok = {
-            "search": "search" in names,
-            "curated": any(n == "search" and "curated" in (a.get("strata") or [])
+            "search": "query" in names,
+            "curated": any(n == "query" and "over curated" in str(a.get("sentence", ""))
                            for n, a, _ in self.calls),
             "none": not names,
             "capture": "capture" in names,

@@ -32,18 +32,17 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from agents.ambassador.mcp import INSTRUCTIONS, Server, sentences_enabled, tools_listed
+from agents.ambassador.mcp import INSTRUCTIONS, TOOLS, Server
 
 REQUESTS, RESPONSES, LOCK = "requests", "responses", "responder.lock"
 
 # The web client's tools (owner defaults, 2026-10-29: "be able to see and interact with ouroboros").
 WEB_TOOLS = frozenset({
-    "search", "neighbors", "hybrid", "history", "related", "reach", "origin", "read", "overview",
+    # the one read (the owner's order, 2026-11-04): a sentence of the query algebra
+    "query", "overview",
     "capture", "sync_dialogue", "sync_notes",
     # the loop's bookkeeping (phase 1): status, and the owner's tasks and reminders
     "status", "task_list", "task_add", "task_update", "remind",
-    # the sentence algebra (QL-3): in the manifest only while [query] sentences is on
-    "query",
 })
 
 _ID = re.compile(r"[0-9a-f]{32}")   # the edge's uuid4().hex; anything else never names a file
@@ -52,17 +51,14 @@ _ID = re.compile(r"[0-9a-f]{32}")   # the edge's uuid4().hex; anything else neve
 Call = Callable[[str, dict[str, Any]], tuple[str, bool]]
 
 
-def web_manifest(sentences: bool | None = None) -> dict[str, Any]:
+def web_manifest() -> dict[str, Any]:
     """What the edge serves for `initialize`/`tools/list` — `edge/palace_tools.json` must equal
-    this (a test pins it), so the client never sees a tool the responder would refuse. The
-    `query` tool follows `[query] sentences` (default: the config's value), so the committed file
-    is the switch-off manifest; after flipping the switch the owner regenerates it with
-    `mind-palace mcp --manifest > edge/palace_tools.json`."""
-    on = sentences_enabled() if sentences is None else sentences
+    this (a test pins it), so the client never sees a tool the responder would refuse. Regenerate
+    the file with `mind-palace mcp --manifest > edge/palace_tools.json` when the table changes."""
     return {
         "instructions": INSTRUCTIONS,
         "tools": [{"name": n, "description": d, "inputSchema": s}
-                  for n, d, s, _ in tools_listed(on) if n in WEB_TOOLS],
+                  for n, d, s, _ in TOOLS if n in WEB_TOOLS],
     }
 
 

@@ -1,181 +1,18 @@
 {
- "instructions": "Ouroboros (palace_* tools) is the owner's memory. Search it before answering anything about the\nowner; read before quoting; cite refs. Recent research or open problems: strata [\"curated\"]\n([unreviewed] = claim, not fact). General knowledge: no search. Capture only when asked. Jobs,\nimports, what is due: palace_status. Tasks and reminders: palace_task_* and palace_remind. Never\nput palace content in web searches.",
+ "instructions": "Ouroboros (palace_* tools) is the owner's memory. Ask it with palace_query — a sentence, not\nkeywords: near \"<text>\" (meaning) · diffuse S from \"<note>\" (structural neighbours) · reach F from\n\"<note>\" (citations) · relate \"<note>\" · trace \"<note>\" (versions) · walk from \"<note>\" via F+ ·\nread \"<ref>\" (full text: read before quoting) · witness \"<edge id>\". Combine with and, or, minus,\nthen; within <region>, over <strata>; top k, atleast t, far, not. Papers: near \"<text>\" over curated\n([unreviewed] = claim, not fact). A hypothetical, assume S \"a\" \"b\" +0.5 in <sentence>, answers as a\nHyp, never a fact. Cite refs. General knowledge: no query. Capture only when asked. Jobs, imports,\nwhat is due: palace_status. Tasks and reminders: palace_task_* and palace_remind. Never put palace\ncontent in web searches.",
  "tools": [
   {
-   "name": "search",
-   "description": "Semantic search; strata default mirror+dialogue, curated = math/physics/CS papers ([unreviewed] = unchecked claim). k defaults to 5. Returns refs, scores, snippets.",
+   "name": "query",
+   "description": "The one read: a sentence of the query algebra, not keywords. Verbs: near \"text\" | diffuse S from <note> [beta b] | reach F from <note> [depth n] [back|forward] | relate <note> | trace <note> | walk from <note> [to <note>] via <regex over S,F,D,C> | witness \"<edge id>\" | read \"<ref>\" [chunk n] (the full text; read before quoting). Connectives and, or, minus, then; adjectives within <region>, over <strata>; top k, atleast t, far, not; assume <rel> <a> <b> [+w] in <sentence> (a hypothetical: the answer is a Hyp, never a fact). A <note> is a quoted path or title. Papers: over curated. Example: top 5 near \"sleep\" and diffuse S from \"health.md\". The plan rides with the answer; a refusal names the word that would fix it.",
    "inputSchema": {
     "type": "object",
     "properties": {
-     "query": {
-      "type": "string"
-     },
-     "strata": {
-      "type": "array",
-      "items": {
-       "enum": [
-        "mirror",
-        "dialogue",
-        "interpreted",
-        "curated",
-        "observed",
-        "reference"
-       ]
-      }
-     },
-     "k": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 50
-     },
-     "include_history": {
-      "type": "boolean"
-     }
-    },
-    "required": [
-     "query"
-    ]
-   }
-  },
-  {
-   "name": "neighbors",
-   "description": "Notes structurally near a note (beta small = diffuse, large = shortest path).",
-   "inputSchema": {
-    "type": "object",
-    "properties": {
-     "note": {
-      "type": "string"
-     },
-     "beta": {
-      "type": "number",
-      "exclusiveMinimum": 0
-     },
-     "k": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 50
-     }
-    },
-    "required": [
-     "note"
-    ]
-   }
-  },
-  {
-   "name": "hybrid",
-   "description": "Notes near both a query and an anchor note.",
-   "inputSchema": {
-    "type": "object",
-    "properties": {
-     "query": {
-      "type": "string"
-     },
-     "note": {
-      "type": "string"
-     },
-     "beta": {
-      "type": "number",
-      "exclusiveMinimum": 0
-     },
-     "k": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 50
-     }
-    },
-    "required": [
-     "query",
-     "note"
-    ]
-   }
-  },
-  {
-   "name": "history",
-   "description": "A note's version chain.",
-   "inputSchema": {
-    "type": "object",
-    "properties": {
-     "note": {
-      "type": "string"
-     },
-     "direction": {
-      "enum": [
-       "forward",
-       "back"
-      ]
-     }
-    },
-    "required": [
-     "note"
-    ]
-   }
-  },
-  {
-   "name": "related",
-   "description": "A note's supports / contradicts / contextualizes relations.",
-   "inputSchema": {
-    "type": "object",
-    "properties": {
-     "note": {
+     "sentence": {
       "type": "string"
      }
     },
     "required": [
-     "note"
-    ]
-   }
-  },
-  {
-   "name": "reach",
-   "description": "Code and doc refs linked to a ref, within depth hops.",
-   "inputSchema": {
-    "type": "object",
-    "properties": {
-     "ref": {
-      "type": "string"
-     },
-     "depth": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 50
-     }
-    },
-    "required": [
-     "ref"
-    ]
-   }
-  },
-  {
-   "name": "origin",
-   "description": "The commit that minted a reference edge.",
-   "inputSchema": {
-    "type": "object",
-    "properties": {
-     "edge_id": {
-      "type": "string"
-     }
-    },
-    "required": [
-     "edge_id"
-    ]
-   }
-  },
-  {
-   "name": "read",
-   "description": "Full text of a ref a search returned; for a paper (reference:…), ~5 chunks around the hit's chunk.",
-   "inputSchema": {
-    "type": "object",
-    "properties": {
-     "ref": {
-      "type": "string"
-     },
-     "chunk": {
-      "type": "integer",
-      "minimum": 0
-     }
-    },
-    "required": [
-     "ref"
+     "sentence"
     ]
    }
   },

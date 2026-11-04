@@ -64,6 +64,21 @@ def test_the_ambassador_never_gets_world_reach_or_the_hypothetical_overlay():
         assert Stratum.HYPOTHETICAL not in s.sigma.strata and Stratum.EXHAUST not in s.sigma.strata
 
 
+def test_the_owners_overlay_grant_adds_the_overlay_and_nothing_else():
+    """The owner's grant of 2026-11-04 (dn-query-sentence-algebra §4 d): every plane names the
+    overlay; world reach stays none, exhaust stays out, and nothing else widens
+    (formal: `overlayGrant`, `ambassadorOverlay_no_world`)."""
+    from core.query import AMBASSADOR_OVERLAY, with_overlay
+
+    assert with_overlay(AMBASSADOR) == AMBASSADOR_OVERLAY
+    for base, wide in zip(AMBASSADOR.scopes, AMBASSADOR_OVERLAY.scopes, strict=True):
+        assert Stratum.HYPOTHETICAL in wide.sigma.strata
+        assert wide.sigma.strata - {Stratum.HYPOTHETICAL} == base.sigma.strata
+        assert Stratum.EXHAUST not in wide.sigma.strata and int(wide.authority.world) == 0
+        assert (wide.edges, wide.time, wide.authority) == (base.edges, base.time, base.authority)
+        assert base.sigma.strata <= wide.sigma.strata
+
+
 def test_capture_writes_only_where_the_grant_has_store_write():
     req = required(Verb.CAPTURE)
     assert req.authority.store_write == 1 and AMBASSADOR.admits(req)
@@ -80,17 +95,23 @@ def test_delegation_never_widens():
     )
 
 
-def test_every_search_the_mcp_tool_accepts_is_constructible():
+def test_every_strata_list_the_legacy_search_accepted_is_constructible():
     """`reference` closes to two strata (`reference_repo` below it) and the SLICE rule counts the
     closed set, so the single-read cut follows it. Deciding the cut from the names made `search`
     with `strata=["reference"]` raise SliceError (formal/Palace/Scope.lean, `search_slices_iff`).
-    Every list of the tool's names, alone, paired, or the default, now builds and is admitted."""
-    from agents.ambassador import mcp
+    Every list of the retired tool's names, alone, paired, or the default, builds and is admitted
+    (the table is the one `_strata` held before the MCP became the one command `query`)."""
+    table = {"mirror": Stratum.MIRROR_AUTHORED, "dialogue": Stratum.DIALOGUE_TRANSCRIPT,
+             "interpreted": Stratum.INTERPRETED, "curated": Stratum.CURATED,
+             "observed": Stratum.OBSERVED, "reference": Stratum.REFERENCE}
 
-    names = ["mirror", "dialogue", "interpreted", "curated", "observed", "reference"]
+    def strata(picked: list[str]) -> tuple[Stratum, ...]:
+        return tuple(table[n] for n in (picked or ["mirror", "dialogue"]))
+
+    names = list(table)
     for picked in [[], *([n] for n in names), *([n, m] for n in names for m in names)]:
         for history in (False, True):
-            Query(Verb.SEARCH, AMBASSADOR, text="x", strata=mcp._strata(picked), history=history)
+            Query(Verb.SEARCH, AMBASSADOR, text="x", strata=strata(picked), history=history)
     alone = Query(Verb.SEARCH, AMBASSADOR, text="x", strata=(Stratum.REFERENCE,))
     assert alone.req.sigma.strata == {Stratum.REFERENCE, Stratum.REFERENCE_REPO}
     assert alone.req.cut == "single-read"
@@ -320,7 +341,10 @@ def test_mcp_handshake_lists_tools_and_ignores_notifications():
     assert [r["id"] for r in replies] == [1, 2, 3]
     assert replies[0]["result"]["capabilities"] == {"tools": {"listChanged": False}}
     names = {t["name"] for t in replies[1]["result"]["tools"]}
-    assert {"search", "read", "history", "related", "sync_dialogue", "capture", "dream"} <= names
+    assert {"query", "overview", "sync_dialogue", "capture", "dream", "status"} <= names
+    # the one read: the eight words and `read` left the table (the owner's order, 2026-11-04)
+    assert names.isdisjoint({"search", "neighbors", "hybrid", "history", "related", "reach",
+                             "origin", "read"})
     assert all(t["inputSchema"]["type"] == "object" for t in replies[1]["result"]["tools"])
     assert replies[2]["error"]["code"] == -32601
 
@@ -329,7 +353,7 @@ def test_a_failing_tool_is_an_error_result_not_a_crash(monkeypatch: pytest.Monke
     from agents.ambassador import mcp
 
     class Boom:
-        def search(self, **_: Any) -> None:
+        def query(self, **_: Any) -> None:
             raise PermissionError("refused")
 
     server = mcp.Server()
@@ -340,7 +364,7 @@ def test_a_failing_tool_is_an_error_result_not_a_crash(monkeypatch: pytest.Monke
                 "jsonrpc": "2.0",
                 "id": 9,
                 "method": "tools/call",
-                "params": {"name": "search", "arguments": {"query": "x"}},
+                "params": {"name": "query", "arguments": {"sentence": 'near "x"'}},
             }
         )
     ]

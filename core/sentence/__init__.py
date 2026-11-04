@@ -45,7 +45,14 @@ from core.sentence.execute import (
 from core.sentence.grammar import ParseError, parse
 from core.sentence.legacy import sentence_of
 from core.sentence.plan import Plan, compile_sentence, normalize
-from core.sentence.surface import QueryLog, ask_logged, render_text, run_query, summarize
+from core.sentence.surface import (
+    QueryLog,
+    ask_logged,
+    render_text,
+    run_query,
+    sentence_grant,
+    summarize,
+)
 from core.sentence.types import (
     AmbiguousSentence,
     Clause,
@@ -86,6 +93,7 @@ __all__ = [
     "parse",
     "render_text",
     "run_query",
+    "sentence_grant",
     "sentence_of",
     "sort_of",
     "summarize",

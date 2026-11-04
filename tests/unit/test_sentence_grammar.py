@@ -86,3 +86,12 @@ def test_the_legacy_verbs_are_sentences_and_hybrid_is_a_composition() -> None:
         typecheck(parse(sentence_of(verb, **kwargs)))
     with pytest.raises(ValueError, match="write"):
         sentence_of(Verb.CAPTURE, text="t")
+
+
+def test_read_parses_with_an_optional_chunk() -> None:
+    """`read <ref> [chunk n]`: the dereference as a verb (the one-command MCP, 2026-11-04)."""
+    assert parse('read "a.md"') == ast.Read("a.md", None)
+    assert parse('read "reference:paper" chunk 7') == ast.Read("reference:paper", 7)
+    assert parse('read "a.md" and near "b"') == ast.And(ast.Read("a.md", None), ast.Near("b"))
+    with pytest.raises(ParseError, match="read chunk"):
+        parse('read "a.md" chunk x')

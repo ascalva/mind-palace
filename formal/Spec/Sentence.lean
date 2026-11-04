@@ -106,6 +106,28 @@ theorem ambassador_no_assume (h : H) (s : Sentence Rg H) :
     ¬ Admissible CQ.ambassador (.assume h s) :=
   sorry
 
+/-- **QSA-5** every sentence admissible under a grant is admissible under the grant with the
+overlay named: the owner's grant widens, never narrows. -/
+theorem admissible_overlayGrant_of_admissible {s : Sentence Rg H} (h : Admissible g s) :
+    Admissible (CQ.overlayGrant g) s :=
+  sorry
+
+/-- **QSA-5** under a grant whose every plane names the overlay, `assume h s` is admissible iff
+`s` is: a hypothetical costs its body's admission and nothing more. -/
+theorem admissible_assume_iff_overlay (hg : ∀ p ∈ g, CQ.Stratum.hypothetical ∈ p.sigma)
+    {h : H} {s : Sentence Rg H} : Admissible g (.assume h s) ↔ Admissible g s :=
+  sorry
+
+/-- **QSA-5** the owner's grant: the Ambassador's planes with the overlay accept `assume h s`
+exactly when they accept `s`. -/
+theorem ambassadorOverlay_admits_assume_iff {h : H} {s : Sentence Rg H} :
+    Admissible CQ.ambassadorOverlay (.assume h s) ↔ Admissible CQ.ambassadorOverlay s :=
+  sorry
+
+/-- **QSA-5** the owner's grant reaches the world on no plane. -/
+theorem ambassadorOverlay_no_world : ∀ p ∈ CQ.ambassadorOverlay, p.authority.world = 0 :=
+  sorry
+
 /-- **QSA-5** a result under `assume` is never `Inv`: the hypothesis is in its type. -/
 theorem not_isInv_assume (h : H) (s : Sentence Rg H) : ¬ IsInv (.assume h s) :=
   sorry

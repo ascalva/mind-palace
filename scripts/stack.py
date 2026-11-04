@@ -259,14 +259,14 @@ def bridge_roundtrip(query: str = "what have I been thinking about?") -> str:
         return f"✗ bridge: initialize answered {code or 'nothing'} — is it up? (`stack up`)"
     _, listed = _bridge_post({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}, key=key)
     call = {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
-            "params": {"name": "search", "arguments": {"query": query, "k": 3}}}
+            "params": {"name": "query", "arguments": {"sentence": f'top 3 near "{query}"'}}}
     _, reply = _bridge_post(call, key=key, timeout=float(CFG["bridge"]["call_timeout_s"]) + 10)
     result = (reply or {}).get("result") or {}
     if not result or result.get("isError"):
-        return f"✗ bridge: search failed — {str(result or reply)[:300]}"
+        return f"✗ bridge: query failed — {str(result or reply)[:300]}"
     hits = json.loads(result["content"][0]["text"])["hits"]
     tools = len(((listed or {}).get("result") or {}).get("tools", []))
-    return (f"✓ bridge: {tools} tools over HTTP; a real search through the handoff returned "
+    return (f"✓ bridge: {tools} tools over HTTP; a real sentence through the handoff returned "
             f"{len(hits)} hit(s)")
 
 
@@ -389,7 +389,7 @@ def mcp_roundtrip(query: str = "what have I been thinking about?") -> str:
             "jsonrpc": "2.0",
             "id": 4,
             "method": "tools/call",
-            "params": {"name": "search", "arguments": {"query": query, "k": 3}},
+            "params": {"name": "query", "arguments": {"sentence": f'top 3 near "{query}"'}},
         },
     ]
     proc = subprocess.run(
@@ -410,7 +410,7 @@ def mcp_roundtrip(query: str = "what have I been thinking about?") -> str:
         f"✓ palace MCP: {tools} tools; {ov['vector_rows']} vectors, "
         f"{sum(ov['catalog_by_provenance'].values())} notes+turns, "
         f"{sum(ov['relation_edges'].values())} relation edges; "
-        f"a real search returned {len(hits)} hit(s)"
+        f"a real sentence returned {len(hits)} hit(s)"
     )
 
 
