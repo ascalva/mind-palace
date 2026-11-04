@@ -22,6 +22,8 @@ public import Palace.Hodge
 public import Palace.Hodge.Defs
 public import Palace.Laplacian
 public import Palace.Laplacian.Defs
+public import Palace.Leak
+public import Palace.Leak.Defs
 public import Palace.Magnetic
 public import Palace.Magnetic.Defs
 public import Palace.Memberships

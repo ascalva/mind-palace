@@ -111,9 +111,16 @@ RSP-5 is one-sided only when the walk keeps the graph's degrees. With a census t
 `k` nearest units, the degree is under-counted by the leaked weight `ℓ_i`, and the support's walk
 over-estimates transitions by `d_i / (d_i − ℓ_i)`. Conjecture: the nearness on the support is at
 most `(1 + ε)^{2·depth}` times the graph's where `ε = max_i ℓ_i / (d_i − ℓ_i)` — so a census that
-leaks a fraction `ε` costs a factor polynomial in the path length, never worse. *Status:* a
-conjecture, provable by the same extremal argument with a scaled walk; the census already notes
-how many papers were truncated. *Falsifier:* a leak that costs more than the bound.
+leaks a fraction `ε` costs a factor polynomial in the path length, never worse. *Status — machine-checked, and sharper
+than the conjecture (Palace/Leak.lean, design theorems):* the cost of a leak is not a factor per
+step but a reparametrization of the killing. With every degree under-counted by at most the
+fraction `ε/(1+ε)` (`d_i ≤ (1+ε)(d_i − ℓ_i)`), the leaky walk lies entrywise under the graph's walk
+at killing `(1+ε)·z` (LEAK-1, `leakyWalk_le`: an under-counted degree is a hotter transition), so by
+RSP-5's monotonicity the leaky support's nearness at `z` is at most the full graph's nearness at
+`(1+ε)·z` whenever `(1+ε)·z < 1` (LEAK-2, `nearnessLeaky_le_nearness`) — uniform in the depth. The
+support singularity is `(1+ε)·z = 1`: past it the leaky walk need not converge, and no temperature
+of the graph bounds its answer. The census notes how many papers were truncated, not yet how much
+weight leaked — the number LEAK-2 wants. *Falsifier:* none left for the bound.
 
 ## L6. The product automaton's horizon — when `via` cannot be regular
 
