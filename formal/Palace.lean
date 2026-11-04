@@ -14,6 +14,8 @@ public import Palace.Cut
 public import Palace.Cut.Defs
 public import Palace.FloatModel
 public import Palace.FloatModel.Defs
+public import Palace.Frustration
+public import Palace.Frustration.Defs
 public import Palace.Heat
 public import Palace.Heat.Defs
 public import Palace.Hodge
