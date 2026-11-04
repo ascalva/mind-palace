@@ -24,6 +24,7 @@ public import Palace.Magnetic
 public import Palace.Magnetic.Defs
 public import Palace.Memberships
 public import Palace.Memberships.Defs
+public import Palace.NegativeType
 public import Palace.Plane
 public import Palace.Plane.Defs
 public import Palace.Rayleigh

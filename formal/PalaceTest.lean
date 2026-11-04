@@ -13,6 +13,7 @@ public import PalaceTest.Hodge
 public import PalaceTest.Laplacian
 public import PalaceTest.Magnetic
 public import PalaceTest.Memberships
+public import PalaceTest.NegativeType
 public import PalaceTest.Plane
 public import PalaceTest.Rayleigh
 public import PalaceTest.Retrieval
