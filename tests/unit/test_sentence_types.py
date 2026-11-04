@@ -109,3 +109,23 @@ def test_rule_hyp_a_result_under_assume_is_never_inv() -> None:
     s = parse('(assume S "a" "b" +0.5 in near "x") and assume contradict "c" "d" in near "y"')
     assert not is_inv(s)
     assert hyps_of(s) == ("S 'a' 'b' +0.5", "contradict 'c' 'd'")
+
+
+def test_read_is_a_text_that_composes_with_nothing_and_reads_by_the_refs_shape() -> None:
+    """`read` has sort `text`; `and`/`or`/`within`/`top` refuse it; its clause reads the curated
+    stratum for a paper ref and the mirror or the dialogue for anything else, with the single-read
+    cut the multi-stratum point read needs (SCO-8); both are admitted by the Ambassador's grant."""
+    assert sort_of(parse('read "a.md"')) is Sort.TEXT
+    for bad in ('read "a.md" and near "x"', 'near "x" or read "a.md"', 'top 3 read "a.md"',
+                'read "a.md" within reach F from "n"'):
+        with pytest.raises(SortError):
+            typecheck(parse(bad))
+    (paper,) = clauses_of(parse('read "reference:arxiv-1"'))
+    assert paper.verb == "read" and paper.req.sigma.strata == {Stratum.CURATED}
+    (note,) = clauses_of(parse('read "/vault/n.md"'))
+    assert {Stratum.MIRROR_AUTHORED, Stratum.DIALOGUE} <= note.req.sigma.strata
+    assert note.req.cut == "single-read" and note.mode.value == "semantic"
+    assert admissible(parse('read "reference:arxiv-1"'), AMBASSADOR)
+    assert admissible(parse('read "/vault/n.md"'), AMBASSADOR)
+    (under,) = clauses_of(parse('assume contradict "a" "b" in read "/vault/n.md"'))
+    assert under.overlay and Stratum.HYPOTHETICAL in under.req.sigma.strata

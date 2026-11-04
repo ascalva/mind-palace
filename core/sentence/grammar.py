@@ -15,6 +15,7 @@
                | "trace" atom [direction]
                | "walk" "from" atom ["to" atom] "via" path ["depth" NUMBER]
                | "witness" STRING
+               | "read" atom ["chunk" NUMBER]
     hypothesis:= rel atom atom [("+" | "-") NUMBER] | "sever" rel atom atom | "contradict" atom atom
     rel       := "S" | "F" | "D" | "C"
     direction := "forward" | "back" | "both"
@@ -49,6 +50,7 @@ from core.sentence.ast import (
     Or,
     Over,
     Reach,
+    Read,
     Rel,
     Relate,
     SeverHyp,
@@ -84,7 +86,8 @@ _TOKEN = re.compile(
 
 KEYWORDS = frozenset({
     "near", "diffuse", "far", "reach", "relate", "top", "atleast", "not", "minus", "trace",
-    "walk", "witness", "assume", "sever", "contradict", "in", "and", "or", "then", "within",
+    "walk", "witness", "read", "chunk", "assume", "sever", "contradict", "in", "and", "or", "then",
+    "within",
     "over", "as", "of", "from", "to", "via", "beta", "depth", "back", "forward", "both",
     "S", "F", "D", "C",
 })
@@ -310,10 +313,18 @@ class _Parser:
         if t.text == "witness":
             self.next()
             return Witness(self.string("witness"))
+        if t.text == "read":
+            self.next()
+            atom = self.atom("read")
+            chunk: int | None = None
+            if self.at_word("chunk"):
+                self.next()
+                chunk = self.integer("read chunk")
+            return Read(atom, chunk)
         if t.text in KEYWORDS:
             raise self.fail("clause", f"a verb, not the keyword {t.text!r}")
-        raise self.fail("clause", f"a verb (near, diffuse, reach, relate, trace, walk, witness), "
-                                  f"not {t.text!r}")
+        raise self.fail("clause", "a verb (near, diffuse, reach, relate, trace, walk, witness, "
+                                  f"read), not {t.text!r}")
 
     def path(self) -> str:
         parts: list[str] = []

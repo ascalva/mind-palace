@@ -4,9 +4,11 @@
 
 A harness (OpenCode, or anything that speaks MCP over stdio) spawns this process; it has no
 listener and no socket of its own, and it seals itself (Invariant 1) before it opens a store. It is
-the Ambassador's client of the core: every read is a `core.query` sentence constructed under the
-`AMBASSADOR` grant, so an ill-scoped read is refused in code, not by the prompt; writes are only the
-ones the grant's W_Σ allows — dialogue capture (provenance fixed by role, never by the text) and
+the Ambassador's client of the core: every read is ONE command, `query` — a sentence of the query
+algebra (`core.sentence`, dn-query-sentence-algebra) compiled under the Ambassador's grant, widened
+by the hypothetical overlay the owner granted on 2026-11-04 — so an ill-scoped read is refused in
+code, not by the prompt, and the plan rides with every answer; writes are only the ones the
+grant's W_Σ allows — dialogue capture (provenance fixed by role, never by the text) and
 interpreted relation edges. Long operations (dream, relate, sync) wake models and run on demand.
 
 Protocol: JSON-RPC 2.0, one message per line (MCP stdio transport). `initialize`, `ping`,
@@ -25,51 +27,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from core.kernel.clearance import CURATED_READ
-
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "mind-palace", "version": "0.1.0"}
 # The brief (agents/ambassador/brief.md) IS the server's MCP `instructions`: a harness that honours
 # them — Open WebUI appends them to the system message whenever the palace tools are on — loads it
 # on every chat with no prompt to paste. One text for every client and for eval/ambassador_e2e.py.
 INSTRUCTIONS = (Path(__file__).with_name("brief.md")).read_text(encoding="utf-8").strip()
-
-_READ_WINDOW = 5   # chunks of a curated paper per `read` (~5K characters): a whole paper won't fit
-
-_STRATA_NAMES = ("mirror", "dialogue", "interpreted", "curated", "observed", "reference")
-SENTENCE_TOOL = "query"   # the sentence algebra's tool; listed and served under [query] sentences
-
-
-def sentences_enabled() -> bool:
-    """`[query] sentences` (dn-query-sentence-algebra §4 c): the owner's switch that exposes the
-    sentence algebra through this server; off, the eight one-word verbs are all a client has."""
-    from core.kernel.config import get_config
-
-    return bool(get_config().query.sentences)
-
-
-def tools_listed(sentences: bool) -> list[tuple[str, str, dict[str, Any], str]]:
-    """The tools a server whose sentence switch is `sentences` lists — and serves: the two agree."""
-    return [t for t in TOOLS if t[0] != SENTENCE_TOOL or sentences]
-
-
-def _strata(names: list[str] | None) -> tuple[Any, ...]:
-    from core.kernel.scope import Stratum
-
-    table = {
-        "mirror": Stratum.MIRROR_AUTHORED,
-        "dialogue": Stratum.DIALOGUE_TRANSCRIPT,
-        "interpreted": Stratum.INTERPRETED,
-        "curated": Stratum.CURATED,
-        "observed": Stratum.OBSERVED,
-        "reference": Stratum.REFERENCE,
-    }
-    picked = names or ["mirror", "dialogue"]
-    unknown = [n for n in picked if n not in table]
-    if unknown:
-        raise ValueError(f"unknown strata {unknown}; choose from {list(table)}")
-    return tuple(table[n] for n in picked)
-
 
 class Ambassador:
     """Tool implementations. Stores and the launcher open lazily, once per process."""
@@ -88,75 +51,16 @@ class Ambassador:
             self._launcher = build_launcher()
         return self._launcher
 
-    def _ask(self, verb: str, **kw: Any) -> dict[str, Any]:
-        from core.query import AMBASSADOR, Query, Verb
-
-        return self.engine.ask(Query(Verb(verb), AMBASSADOR, **kw)).to_dict()
-
-    # reads -------------------------------------------------------------------------------------
-    def search(
-        self, query: str, strata: list[str] | None = None, k: int = 5, include_history: bool = False
-    ) -> dict[str, Any]:
-        return self._ask("search", text=query, strata=_strata(strata), k=k, history=include_history)
-
-    def neighbors(self, note: str, beta: float = 1.0, k: int = 5) -> dict[str, Any]:
-        return self._ask("diffuse", target=note, beta=beta, k=k)
-
-    def hybrid(self, query: str, note: str, beta: float = 1.0, k: int = 5) -> dict[str, Any]:
-        return self._ask("hybrid", text=query, target=note, beta=beta, k=k)
-
-    def history(self, note: str, direction: str = "forward") -> dict[str, Any]:
-        return self._ask("history", target=note, direction=direction)
-
-    def related(self, note: str) -> dict[str, Any]:
-        return self._ask("related", target=note)
-
-    def reach(self, ref: str, depth: int = 1) -> dict[str, Any]:
-        return self._ask("reach", target=ref, depth=depth)
-
-    def origin(self, edge_id: str) -> dict[str, Any]:
-        return self._ask("origin", target=edge_id)
-
+    # the one read ------------------------------------------------------------------------------
     def query(self, sentence: str) -> dict[str, Any]:
-        """A sentence of the query algebra under the Ambassador's grant (dn-query-sentence-algebra):
-        the plan rides with the answer, and a refusal names the word that would fix it. Served
-        only under `[query] sentences` — the `Server` gate — and logged as `mcp`/`ambassador`."""
-        from core.query import AMBASSADOR
-        from core.sentence.surface import ask_logged
+        """A sentence of the query algebra (dn-query-sentence-algebra) under `sentence_grant()` —
+        the Ambassador's grant with the overlay the owner granted: the plan rides with the answer,
+        a refusal names the word that would fix it, a hypothetical answers as a `Hyp` beside the
+        actual answer. Logged as `mcp`/`ambassador` (the query log, the sensor)."""
+        from core.sentence.surface import ask_logged, sentence_grant
 
-        return ask_logged(sentence, AMBASSADOR, surface="mcp", role="ambassador",
+        return ask_logged(sentence, sentence_grant(), surface="mcp", role="ambassador",
                           engine=self.engine).to_dict()
-
-    def read(self, ref: str, chunk: int | None = None) -> dict[str, Any]:
-        """The full text of a note or dialogue turn named by a hit's `ref` — or, for a curated paper
-        (`reference:…`), a window of it around `chunk` (from the hit; its start when absent)."""
-        from pathlib import Path
-
-        from core.kernel.stores.rawstore import RawStore
-        from core.stores.catalog import VaultCatalog
-
-        cfg = self.engine.config
-        if ref.startswith("reference:"):
-            rows = sorted(self.engine._get("curated").rows_for_source(
-                              ref, clearance=CURATED_READ),
-                          key=lambda r: int(r.get("chunk_index", 0) or 0))
-            if not rows:
-                raise LookupError(f"no curated reference {ref!r}")
-            start = 0 if chunk is None else max(0, int(chunk) - 2)
-            window = rows[start:start + _READ_WINDOW]
-            return {"ref": ref, "title": rows[0].get("title", ""), "provenance": "curated",
-                    "chunks": f"{start}–{start + len(window) - 1} of {len(rows)}",
-                    "text": "\n".join(str(r.get("text", "")) for r in window)}
-        entry = VaultCatalog(cfg.paths.vault_catalog).get(ref)
-        if entry is None or not entry.active:
-            raise LookupError(f"no active note or dialogue turn {ref!r}")
-        vault = Path(cfg.ingestion.vault.path).resolve()
-        path = Path(ref)
-        if path.is_absolute() and vault in path.resolve().parents and path.exists():
-            text = path.read_text(encoding="utf-8", errors="replace")
-        else:
-            text = RawStore(cfg.paths.raw_store).get(entry.digest).decode("utf-8", errors="replace")
-        return {"ref": ref, "title": entry.title, "provenance": entry.provenance, "text": text}
 
     def overview(self) -> dict[str, Any]:
         from collections import Counter
@@ -355,80 +259,22 @@ def _schema(props: dict[str, Any], required: list[str]) -> dict[str, Any]:
 
 _S = {"type": "string"}
 _I = {"type": "integer", "minimum": 1, "maximum": 50}
-_C = {"type": "integer", "minimum": 0}   # a chunk index: papers run to hundreds, from 0
-_B = {"type": "number", "exclusiveMinimum": 0}
 _WHEN = {"type": "string", "description": "local ISO time (2026-10-30T09:00) or +30m, +2h, +1d"}
 
 TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
     (
-        "search",
-        "Semantic search; strata default mirror+dialogue, curated = math/physics/CS papers "
-        "([unreviewed] = unchecked claim). k defaults to 5. Returns refs, scores, snippets.",
-        _schema(
-            {
-                "query": _S,
-                "strata": {"type": "array", "items": {"enum": list(_STRATA_NAMES)}},
-                "k": _I,
-                "include_history": {"type": "boolean"},
-            },
-            ["query"],
-        ),
-        "search",
-    ),
-    (
-        "neighbors",
-        "Notes structurally near a note (beta small = diffuse, large = shortest path).",
-        _schema({"note": _S, "beta": _B, "k": _I}, ["note"]),
-        "neighbors",
-    ),
-    (
-        "hybrid",
-        "Notes near both a query and an anchor note.",
-        _schema({"query": _S, "note": _S, "beta": _B, "k": _I}, ["query", "note"]),
-        "hybrid",
-    ),
-    (
-        "history",
-        "A note's version chain.",
-        _schema({"note": _S, "direction": {"enum": ["forward", "back"]}}, ["note"]),
-        "history",
-    ),
-    (
-        "related",
-        "A note's supports / contradicts / contextualizes relations.",
-        _schema({"note": _S}, ["note"]),
-        "related",
-    ),
-    (
-        "reach",
-        "Code and doc refs linked to a ref, within depth hops.",
-        _schema({"ref": _S, "depth": _I}, ["ref"]),
-        "reach",
-    ),
-    (
-        "origin",
-        "The commit that minted a reference edge.",
-        _schema({"edge_id": _S}, ["edge_id"]),
-        "origin",
-    ),
-    (
-        SENTENCE_TOOL,
-        "A sentence of the query algebra over the owner's notes (an algebra, not keywords). Verbs: "
+        "query",
+        "The one read: a sentence of the query algebra, not keywords. Verbs: "
         'near "text" | diffuse S from <note> [beta b] | reach F from <note> [depth n] '
         "[back|forward] | relate <note> | trace <note> | walk from <note> [to <note>] via <regex "
-        'over S,F,D,C> | witness "<edge id>". Connectives and, or, minus, then; adjectives within '
-        "<region>, over <strata>; top k, atleast t, far, not. A <note> is a quoted path or title. "
+        'over S,F,D,C> | witness "<edge id>" | read "<ref>" [chunk n] (the full text; read before '
+        "quoting). Connectives and, or, minus, then; adjectives within <region>, over <strata>; "
+        "top k, atleast t, far, not; assume <rel> <a> <b> [+w] in <sentence> (a hypothetical: the "
+        "answer is a Hyp, never a fact). A <note> is a quoted path or title. Papers: over curated. "
         'Example: top 5 near "sleep" and diffuse S from "health.md". The plan rides with the '
         "answer; a refusal names the word that would fix it.",
         _schema({"sentence": _S}, ["sentence"]),
         "query",
-    ),
-    (
-        "read",
-        "Full text of a ref a search returned; for a paper (reference:…), ~5 chunks around "
-        "the hit's chunk.",
-        _schema({"ref": _S, "chunk": _C}, ["ref"]),
-        "read",
     ),
     (
         "overview",
@@ -515,10 +361,8 @@ TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
 
 
 class Server:
-    def __init__(self, sentences: bool | None = None) -> None:
+    def __init__(self) -> None:
         self._amb: Ambassador | None = None
-        # the sentence switch, read once per process so `tools/list` and `tools/call` agree on it
-        self.sentences = sentences_enabled() if sentences is None else sentences
 
     @property
     def amb(self) -> Ambassador:
@@ -548,8 +392,7 @@ class Server:
                 mid,
                 {
                     "tools": [
-                        {"name": n, "description": d, "inputSchema": s}
-                        for n, d, s, _ in tools_listed(self.sentences)
+                        {"name": n, "description": d, "inputSchema": s} for n, d, s, _ in TOOLS
                     ]
                 },
             )
@@ -557,11 +400,7 @@ class Server:
             return _ok(mid, {method.split("/")[0]: []})
         if method == "tools/call":
             params = msg.get("params") or {}
-            spec = next((t for t in tools_listed(self.sentences) if t[0] == params.get("name")),
-                        None)
-            if spec is None and params.get("name") == SENTENCE_TOOL:
-                return _err(mid, -32602, "query sentences are off: set [query] sentences = true "
-                                         "in config/ouroboros.toml and restart the stack")
+            spec = next((t for t in TOOLS if t[0] == params.get("name")), None)
             if spec is None:
                 return _err(mid, -32602, f"unknown tool {params.get('name')!r}")
             try:

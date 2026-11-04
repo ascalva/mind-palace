@@ -140,3 +140,40 @@ def test_the_answer_carries_its_plan() -> None:
     assert d["sort"] == "region" and "semantic" in d["modes"]
     assert d["plan"].startswith("plan (region)")
     assert [h["ref"] for h in d["hits"]] == ["b.md"]
+
+
+def test_read_returns_the_record_and_holds_its_stratum_to_the_clause() -> None:
+    """`read`: the text rides on the hit; a record the catalog puts outside the clause's strata is
+    refused as ill-scoped, an absent ref as a lookup; a paper's window carries its chunk range."""
+    from core.sentence import IllScopedSentence
+
+    records = {
+        "a.md": {"ref": "a.md", "title": "A", "provenance": "authored-solo", "stratum": "mirror",
+                 "text": "the body of A"},
+        "turn-1": {"ref": "turn-1", "title": "", "provenance": "authored-dialogue",
+                   "stratum": "dialogue", "text": "what we said"},
+        "leak.md": {"ref": "leak.md", "title": "L", "provenance": "observed", "stratum": "observed",
+                    "text": "exhaust"},
+        "reference:p": {"ref": "reference:p", "title": "P", "provenance": "curated",
+                        "stratum": "curated", "chunks": "0–4 of 9", "text": "chunk text"},
+    }
+    seen: list[tuple[str, int | None, int]] = []
+
+    def text(ref: str, chunk: int | None, window: int) -> Mapping[str, object] | None:
+        seen.append((ref, chunk, window))
+        return records.get(ref)
+
+    u = _universe()
+    u = Universe(u.notes, u.vectors, u.weights, u.edges, u.relations, u.embed, u.history,
+                 u.witness, text=text)
+    (hit,) = execute(compile_sentence('read "a.md"'), u).hits
+    assert (hit.ref, hit.title, hit.provenance, hit.stratum, hit.text) == \
+        ("a.md", "A", "authored-solo", "mirror", "the body of A")
+    assert execute(compile_sentence('read "turn-1"'), u).hits[0].text == "what we said"
+    (paper,) = execute(compile_sentence('read "reference:p" chunk 3'), u).hits
+    assert paper.detail == {"chunks": "0–4 of 9"} and seen[-1] == ("reference:p", 3, 5)
+    with pytest.raises(IllScopedSentence, match="outside the clause"):
+        execute(compile_sentence('read "leak.md"'), u)
+    with pytest.raises(LookupError, match="no active note"):
+        execute(compile_sentence('read "nothing.md"'), u)
+    assert execute(compile_sentence('read "a.md"'), u).plan.sort.value == "text"

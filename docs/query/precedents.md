@@ -20,6 +20,8 @@ answer-drift, never a silent one.
 | `trace` with no direction | `forward` (`σ_*`) | HISTORY's default | — |
 | `near` with no `over` | `mirror_authored` | the owner's notes are the default universe | — |
 | a field as the whole sentence | the `5` best scores are shown | SEARCH's `k` | — |
+| `read` with no `chunk` | `0`, the paper's start | the retired `read` tool's default | — |
+| `read`'s window | `5` chunks (~5K characters) | a whole paper won't fit a turn | a client needs more |
 
 ## Resolutions
 

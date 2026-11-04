@@ -176,6 +176,8 @@ def _render(node: Node, indent: int) -> list[str]:
                     + (f" depth {d}" if d is not None else "")]
         case ast.Witness(edge=e):
             return [f"{pad}witness {e!r}"]
+        case ast.Read(atom=a, chunk=c):
+            return [f"{pad}read {a!r}" + (f" chunk {c}" if c is not None else "")]
         case ast.And(left=a, right=b):
             return [f"{pad}and"] + _render(a, indent + 1) + _render(b, indent + 1)
         case ast.Or(left=a, right=b):

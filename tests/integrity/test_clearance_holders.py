@@ -62,7 +62,7 @@ HOLDERS: dict[str, dict[str, str]] = {
     },
     "CURATED_READ": {
         "agents/ambassador/agent.py": "the EXPLAIN intent answers from the curated corpus",
-        "agents/ambassador/mcp.py": "palace_read of a `reference:` paper",
+        "core/sentence/execute.py": "`read` of a `reference:` paper: the sentence's dereference",
         "core/research/curate.py": "the manifest check that an embedded paper is stored",
         "eval/quantization_bench.py": "step C measures compressed search over every paper atom",
         "scripts/curate_local.py": "the paper importer dedupes against stored digests",

@@ -29,6 +29,8 @@ class Precedents:
     trace_direction: Direction = Direction.FORWARD
     strata: tuple[Stratum, ...] = (Stratum.MIRROR_AUTHORED,)   # `near` with no `over`
     k: int = 5                              # hits rendered when the sentence is a field
+    read_chunk: int = 0                     # `read` of a paper with no chunk: its start
+    read_window: int = 5                    # `read`'s window: chunks of a paper per answer
 
 
 DEFAULT = Precedents()

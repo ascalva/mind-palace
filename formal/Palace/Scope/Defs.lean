@@ -396,6 +396,18 @@ def ambassador : List Scope :=
     ⟨close {.reference, .dialogue}, {.F, .C}, ⟨.commit, .all⟩, ⟨1, 0, 0⟩, 1, none⟩,
     ⟨close {.mirror}, {.D}, ⟨.Ns, .all⟩, ⟨0, 0, 0⟩, 1, none⟩]
 
+/-- A plane with the hypothetical overlay named: `Σ ∪ {hypothetical}` — the overlay has nothing
+below it, so naming it closes nothing further — and every other coordinate as it was. -/
+def Scope.nameOverlay (p : Scope) : Scope := { p with sigma := insert .hypothetical p.sigma }
+
+/-- `with_overlay` (`core/query.py`): a grant with the overlay named on every plane — what the
+owner grants a client to evaluate `assume` sentences (dn-query-sentence-algebra §4 d). -/
+def overlayGrant (g : List Scope) : List Scope := g.map Scope.nameOverlay
+
+/-- `AMBASSADOR_OVERLAY`: the Ambassador's three planes, each naming the overlay — the owner's
+grant of 2026-11-04 to the sentence surfaces. -/
+def ambassadorOverlay : List Scope := overlayGrant ambassador
+
 /-! ## Clearances (`core/kernel/clearance.py`) -/
 
 /-- `Provenance`: the record classes. -/

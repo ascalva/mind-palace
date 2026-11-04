@@ -140,6 +140,17 @@ class Witness:
     edge: str
 
 
+@dataclass(frozen=True)
+class Read:
+    """`read <ref> [chunk <n>]`: the text at a ref — a note, a dialogue turn, or a window of a
+    curated paper (`reference:…`) around `chunk` — the dereference every answer's refs invite.
+    Sort `text`: it composes with nothing (the one verb that returns content, not structure), so
+    the Ambassador's one command covers reading too (the owner's order, 2026-11-04)."""
+
+    atom: str
+    chunk: int | None = None
+
+
 # ── connectives, adjectives, the modality ──────────────────────────────────────────────────────
 
 
@@ -233,7 +244,7 @@ class Assume:
 
 Node = (
     Near | Diffuse | Far | Reach | Relate | Top | AtLeast | Not | Minus | Trace | Walk | Witness
-    | And | Or | Then | Within | Over | AsOf | Assume
+    | Read | And | Or | Then | Within | Over | AsOf | Assume
 )
 
 

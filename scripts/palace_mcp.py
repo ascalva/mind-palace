@@ -6,8 +6,8 @@
 
 Seals the core first (Invariant 1), then speaks MCP over stdin/stdout; see
 `agents/ambassador/mcp.py` for the tools and the scoping they enforce. `--manifest` prints the
-Open WebUI bridge's tool list instead (`agents.ambassador.handoff.web_manifest`, which follows
-`[query] sentences`): regenerate the committed file after flipping that switch.
+Open WebUI bridge's tool list instead (`agents.ambassador.handoff.web_manifest`): regenerate the
+committed file whenever the tool table changes.
 """
 
 from __future__ import annotations

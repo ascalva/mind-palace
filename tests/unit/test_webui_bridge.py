@@ -55,7 +55,9 @@ def test_the_advertised_tools_are_the_core_web_manifest():
 def test_the_web_tools_leave_out_long_jobs_and_interpretive_writes():
     assert WEB_TOOLS <= {t[0] for t in TOOLS}
     assert {"dream", "relate", "link"}.isdisjoint(WEB_TOOLS)
-    assert {"search", "read", "capture", "sync_dialogue", "sync_notes"} <= WEB_TOOLS
+    assert {"query", "overview", "capture", "sync_dialogue", "sync_notes", "status"} <= WEB_TOOLS
+    assert {"search", "neighbors", "hybrid", "history", "related", "reach", "origin",
+            "read"}.isdisjoint(WEB_TOOLS)                       # the one read is `query`
 
 
 # --- the responder ----------------------------------------------------------------------------
@@ -78,8 +80,8 @@ def test_the_responder_refuses_a_tool_outside_the_web_set():
 
 def test_the_responder_answers_through_the_stdio_servers_dispatch():
     srv = _Server()
-    assert server_call(srv)("search", {"query": "x"}) == ('{"hits": []}', False)  # type: ignore[arg-type]
-    assert srv.seen[0]["params"] == {"name": "search", "arguments": {"query": "x"}}
+    assert server_call(srv)("query", {"sentence": 'near "x"'}) == ('{"hits": []}', False)  # type: ignore[arg-type]
+    assert srv.seen[0]["params"] == {"name": "query", "arguments": {"sentence": 'near "x"'}}
 
 
 def _request(root: Path, rid: str, **body: Any) -> None:
@@ -89,17 +91,17 @@ def _request(root: Path, rid: str, **body: Any) -> None:
 def test_the_inbox_answers_and_consumes(tmp_path):
     inbox = ToolInbox(tmp_path, lambda name, args: (f"{name}:{args['q']}", False))
     rid = "a" * 32
-    _request(tmp_path, rid, name="search", arguments={"q": 1})
+    _request(tmp_path, rid, name="query", arguments={"q": 1})
     assert inbox.process_once() == 1
     out = json.loads((tmp_path / RESPONSES / f"{rid}.json").read_text())
-    assert (out["text"], out["is_error"]) == ("search:1", False)
+    assert (out["text"], out["is_error"]) == ("query:1", False)
     assert not list((tmp_path / REQUESTS).glob("*.json"))
 
 
 def test_a_request_never_names_the_response_path(tmp_path):
     inbox = ToolInbox(tmp_path, lambda name, args: ("x", False))
     (tmp_path / REQUESTS / "evil.json").write_text(
-        json.dumps({"id": "../../evil", "name": "search", "arguments": {}}))
+        json.dumps({"id": "../../evil", "name": "query", "arguments": {}}))
     assert inbox.process_once() == 0
     assert [p.name for p in tmp_path.rglob("*evil*")] == []   # dropped, nothing written
 
@@ -110,7 +112,7 @@ def test_a_failing_call_is_an_error_response(tmp_path):
 
     rid = "b" * 32
     inbox = ToolInbox(tmp_path, boom)
-    _request(tmp_path, rid, name="search", arguments={})
+    _request(tmp_path, rid, name="query", arguments={})
     assert inbox.process_once() == 1
     out = json.loads((tmp_path / RESPONSES / f"{rid}.json").read_text())
     assert out["is_error"] and "store unavailable" in out["text"]
@@ -212,10 +214,10 @@ def test_a_notification_is_accepted_without_a_body(bridge):
 
 def test_a_tool_call_travels_the_handoff(bridge):
     _, reply, _ = _post(bridge, {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
-                                 "params": {"name": "search", "arguments": {"query": "q"}}})
+                                 "params": {"name": "query", "arguments": {"sentence": "q"}}})
     result = reply["result"]
     assert result["isError"] is False
-    assert json.loads(result["content"][0]["text"]) == {"tool": "search", "args": {"query": "q"}}
+    assert json.loads(result["content"][0]["text"]) == {"tool": "query", "args": {"sentence": "q"}}
 
 
 def test_a_tool_the_web_client_lacks_is_unknown_at_the_edge(bridge):
@@ -228,7 +230,7 @@ def test_a_silent_palace_is_an_error_never_a_guess(tmp_path):
     httpd, stop = _serve(tmp_path, answer=False, timeout_s=0.5)
     try:
         _, reply, _ = _post(httpd, {"jsonrpc": "2.0", "id": 5, "method": "tools/call",
-                                    "params": {"name": "search", "arguments": {"query": "q"}}})
+                                    "params": {"name": "query", "arguments": {"sentence": "q"}}})
         result = reply["result"]
         assert result["isError"] and "did not answer" in result["content"][0]["text"]
         assert not list((tmp_path / "handoff" / REQUESTS).glob("*.json"))   # withdrawn

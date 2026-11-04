@@ -35,7 +35,7 @@ Every result is `Inv` (it depends only on the event set read); no Rate is minted
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from typing import Any, Literal
 
@@ -191,6 +191,24 @@ AMBASSADOR = Grant(
         scope({Stratum.MIRROR}, {"D"}, Clock.N_S, _ALL),
     )
 )
+
+def with_overlay(g: Grant) -> Grant:
+    """`g` with the hypothetical overlay named on every plane — what the owner grants a client to
+    evaluate `assume` sentences (dn-query-sentence-algebra §4 d; granted 2026-11-04). Σ is a
+    downset and the overlay has nothing below it, so naming it adds the one stratum and nothing
+    else widens: no world reach, the same clocks, windows and edge fibers (formal: `overlayGrant`,
+    `Sentence.lean`). A result under `assume` is a `Hyp` regardless (`not_isInv_assume`)."""
+    return Grant(tuple(
+        replace(s, sigma=StratumScope.of(*s.sigma.strata, Stratum.HYPOTHETICAL)) for s in g.scopes
+    ))
+
+
+# The sentence surfaces' grant while `[query] hypotheticals` is on (the owner's grant of
+# 2026-11-04): the Ambassador's planes, each naming the overlay. The base `AMBASSADOR` stays what
+# the legacy table and `link` admit against; the Lean keeps both (`ambassador_no_assume`,
+# `ambassadorOverlay_admits_assume_iff`).
+AMBASSADOR_OVERLAY = with_overlay(AMBASSADOR)
+
 
 # Which provenance classes a stratum's rows carry lives in the kernel now
 # (`core.kernel.clearance.STRATUM_CLASSES`), so the query engine and every other mint read one

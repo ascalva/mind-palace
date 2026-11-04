@@ -196,12 +196,13 @@ class AmbassadorConfig:
 
 @dataclass(frozen=True)
 class QueryConfig:
-    """The query sentence algebra's surface (dn-query-sentence-algebra §4, QL-3). `sentences`
-    exposes the `query` tool — a sentence of the algebra under the Ambassador's grant — through
-    the Ambassador's MCP server and the web bridge's manifest; off, the eight one-word verbs are
-    all a client has. `palace query` is the owner's hand and is always on."""
+    """The query sentence algebra's surface (dn-query-sentence-algebra §4, QL-3). The Ambassador's
+    MCP server speaks one command, `query` — a sentence under the Ambassador's grant — and
+    `palace query` is the owner's hand. `hypotheticals` is the owner's grant of the overlay
+    (2026-11-04, §4 d): on, `assume` sentences are admitted and answered as `Hyp`, never `Inv`;
+    off, they are refused as ill-scoped."""
 
-    sentences: bool = False
+    hypotheticals: bool = True
 
 
 @dataclass(frozen=True)
@@ -793,7 +794,7 @@ def load_config(path: Path | None = None) -> Config:
             escalation_grace_s=float(sch.get("escalation_grace_s", 30.0)),
             lease_ttl_s=float(sch.get("lease_ttl_s", 0.0)),
         ),
-        query=QueryConfig(sentences=bool(qry.get("sentences", False))),
+        query=QueryConfig(hypotheticals=bool(qry.get("hypotheticals", True))),
         models=tuple(
             ModelConfig(
                 name=m["name"],

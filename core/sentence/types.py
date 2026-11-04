@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from core.kernel.scope import ANCHOR, Clock, Scope, Stratum, Window
-from core.query import Grant, Mode, mode_of, scope
+from core.query import CURATED_REF, Grant, Mode, mode_of, scope
 from core.sentence import ast
 from core.sentence.ast import Node, Rel
 from core.sentence.precedents import DEFAULT, Precedents
@@ -38,6 +38,7 @@ class Sort(StrEnum):
     RELATION = "relation"
     CHAIN = "chain"
     WITNESS = "witness"
+    TEXT = "text"
 
 
 class SortError(TypeError):
@@ -55,15 +56,31 @@ class AmbiguousSentence(ValueError):
 # ── sorts ──────────────────────────────────────────────────────────────────────────────────────
 
 
+def _note_atom(atom: str | None, verb: str) -> None:
+    """A curated paper's ref handed to a verb over the owner's notes is refused at compile time,
+    with where to go instead — before any store opens, never an empty answer that reads as
+    "nothing there" (the legacy table's `OutOfScopeTarget`, kept as a sort error)."""
+    if atom is not None and atom.startswith(CURATED_REF):
+        raise SortError(f"{verb}: {atom!r} is a curated paper; {verb} walks the owner's notes "
+                        f'only. For papers: near "…" over curated, or read the ref')
+
+
 def sort_of(node: Node) -> Sort:
     """The sort of a node, or `SortError` with the reason (dn-query-sentence-algebra §2.4)."""
     match node:
-        case ast.Near() | ast.Diffuse():
+        case ast.Near():
+            return Sort.FIELD
+        case ast.Diffuse(atom=a):
+            _note_atom(a, "diffuse")
             return Sort.FIELD
         case ast.Far(field=f):
             _want(f, Sort.FIELD, "far", "the bounded reversal 1 − f is a field operation")
             return Sort.FIELD
-        case ast.Reach() | ast.Relate():
+        case ast.Reach(atom=a):
+            _note_atom(a, "reach")
+            return Sort.REGION
+        case ast.Relate(atom=a):
+            _note_atom(a, "relate")
             return Sort.REGION
         case ast.Top(field=f):
             _want(f, Sort.FIELD, "top", "the top-k ranks a field")
@@ -82,10 +99,17 @@ def sort_of(node: Node) -> Sort:
             _want(a, Sort.REGION, "minus", "set difference is a region operation")
             _want(b, Sort.REGION, "minus", "set difference is a region operation")
             return Sort.REGION
-        case ast.Trace() | ast.Walk():
+        case ast.Trace(atom=a):
+            _note_atom(a, "trace")
+            return Sort.CHAIN
+        case ast.Walk(atom=a, to=t):
+            _note_atom(a, "walk")
+            _note_atom(t, "walk")
             return Sort.CHAIN
         case ast.Witness():
             return Sort.WITNESS
+        case ast.Read():
+            return Sort.TEXT
         case ast.And(left=a, right=b):
             sa, sb = sort_of(a), sort_of(b)
             if sa is Sort.FIELD and sb is Sort.FIELD:
@@ -254,6 +278,20 @@ def _walk_clause(path: str, ctx: _Context) -> Clause:
     return Clause("walk", None, req, mode_of(req), ctx.overlay)
 
 
+def _read_clause(atom: str, ctx: _Context) -> Clause:
+    """`read <ref>`: a curated paper (`reference:…`) reads the curated stratum; a note or a dialogue
+    turn reads the mirror or the dialogue, whichever the ref turns out to be, so the clause requires
+    both and the executor holds the record's stratum to them (the ref's shape decides at compile
+    time, the catalog at run time)."""
+    if atom.startswith(CURATED_REF):
+        strata: tuple[Stratum, ...] = (Stratum.CURATED,)
+    else:
+        strata = (Stratum.MIRROR_AUTHORED, Stratum.DIALOGUE)
+    req = _required("read", None, strata, fibers=set(), clock=Clock.PROJECTION_EVENT, point=True,
+                    ctx=ctx)
+    return Clause("read", None, req, mode_of(req), ctx.overlay)
+
+
 def clauses_of(node: Node, *, precedents: Precedents = DEFAULT) -> tuple[Clause, ...]:
     """Every clause of a sentence with its required scope, in reading order."""
     return tuple(_clauses(node, _Context(precedents.strata, None, False), precedents))
@@ -275,6 +313,8 @@ def _clauses(node: Node, ctx: _Context, p: Precedents) -> list[Clause]:
             return [_walk_clause(path, ctx)]
         case ast.Witness():
             return [_clause("witness", None, ctx, p)]
+        case ast.Read(atom=atom):
+            return [_read_clause(atom, ctx)]
         case ast.Far(field=f) | ast.Top(field=f) | ast.AtLeast(field=f):
             return _clauses(f, ctx, p)
         case ast.Not(region=r):

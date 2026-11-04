@@ -13,9 +13,10 @@ asked for — which strata serve which roles, which translations fail — and `p
 renders it. A sensor never breaks the instrument: a log that cannot be written is reported on
 stderr and the answer is returned anyway.
 
-`run_query` is `palace query` (scripts/palace.py): read-only, under the Ambassador's grant — the
-one grant in code; a client holding the hypothetical overlay is an owner act (the note's §4 d).
-`--as <role>` labels the asker for the sensor and grants nothing.
+`run_query` is `palace query` (scripts/palace.py): read-only, under `sentence_grant()` — the
+Ambassador's grant with the hypothetical overlay the owner granted on 2026-11-04 (the note's
+§4 d; `[query] hypotheticals` turns it off). `--as <role>` labels the asker for the sensor and
+grants nothing.
 """
 
 from __future__ import annotations
@@ -31,12 +32,18 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from core.kernel.config import get_config
-from core.query import AMBASSADOR, Grant, Hit, QueryEngine
+from core.query import AMBASSADOR, AMBASSADOR_OVERLAY, Grant, Hit, QueryEngine
 from core.sentence.execute import SentenceAnswer, Universe, UnsupportedSentence, execute
 from core.sentence.grammar import ParseError, parse
 from core.sentence.plan import Plan, compile_sentence, normalize
 from core.sentence.precedents import DEFAULT, Precedents
-from core.sentence.types import AmbiguousSentence, IllScopedSentence, SortError, clauses_of
+from core.sentence.types import (
+    AmbiguousSentence,
+    IllScopedSentence,
+    Sort,
+    SortError,
+    clauses_of,
+)
 
 LOG_NAME = "query_log.jsonl"
 REASON_MAX = 240   # a refusal's reason, truncated: the log is a sensor, not a transcript
@@ -100,6 +107,14 @@ def default_log() -> QueryLog:
     return QueryLog(get_config().paths.data_dir / LOG_NAME)
 
 
+def sentence_grant() -> Grant:
+    """The grant the surfaces evaluate under: the Ambassador's, widened by the hypothetical
+    overlay while `[query] hypotheticals` is on — the owner's grant of 2026-11-04 (the note's
+    §4 d). A result under `assume` is a `Hyp` either way; the switch only decides whether the
+    sentence is admitted at all."""
+    return AMBASSADOR_OVERLAY if get_config().query.hypotheticals else AMBASSADOR
+
+
 def refusal_class(e: BaseException) -> str:
     """The class a refusal is logged and rendered under; `''` for an exception that is not one."""
     if isinstance(e, ParseError):
@@ -129,7 +144,12 @@ def ask_logged(text: str, grant: Grant, *, surface: str, role: str,
     plan: Plan | None = None
     try:
         plan = compile_sentence(text, grant, precedents=precedents)
-        u = universe if universe is not None else Universe.from_engine(engine or QueryEngine())
+        if universe is not None:
+            u = universe
+        elif plan.sort is Sort.TEXT and plan.is_inv:   # a bare read opens no note graph
+            u = Universe.reader(engine or QueryEngine())
+        else:
+            u = Universe.from_engine(engine or QueryEngine())
         answer = execute(plan, u, precedents=precedents)
     except Exception as e:
         log.record(_entry(text, surface, role, started, plan, precedents, outcome="refused",
@@ -236,19 +256,22 @@ def _hits(label: str, hits: tuple[Hit, ...]) -> list[str]:
         if h.detail:
             detail = "  {" + ", ".join(f"{k}: {v}" for k, v in h.detail.items()) + "}"
         out.append(f"  {score}{h.ref}{title}{where}{detail}")
+        if h.text:   # `read`: the record itself, indented under its line
+            out += ["    " + ln for ln in h.text.splitlines()]
     return out
 
 
 # ── `palace query` ─────────────────────────────────────────────────────────────────────────────
 
 
-def run_query(argv: list[str], *, out: TextIO | None = None, grant: Grant = AMBASSADOR,
+def run_query(argv: list[str], *, out: TextIO | None = None, grant: Grant | None = None,
               engine: QueryEngine | None = None, universe: Universe | None = None,
               log: QueryLog | None = None) -> int:
     """`palace query "<sentence>" [--json] [--no-plan] [--as <role>]`, and `palace query --log`.
     Exit 0 for an answer (an empty one included: it says what emptied it), 1 for a refusal, 2 for
-    usage."""
+    usage. The grant is `sentence_grant()` unless one is passed."""
     out = out if out is not None else sys.stdout
+    grant = grant if grant is not None else sentence_grant()
     args, role = list(argv), "cli"
     if "--as" in args:
         i = args.index("--as")
