@@ -6,15 +6,16 @@
 >
 > Verdict: `PENDING` (owed) · an owner-approved `dc-NNN` moves the track to the board's Closed section · `NEEDS-WORK` sends it back to an earlier phase.
 
-## Owed now — 5 track(s)
+## Owed now — 6 track(s)
 
 | # | track | what to demo (working / true state) + surprise | verdict |
 |---|---|---|---|
 | 1 | Agentic loop | profile constructors + zone lattice test + exhaust⊂dialogue + origin(e); confirm delivered, not just sealed (bp-086/087/088) | PENDING |
-| 2 | Fiber geometry | the survey readings (M1–M8) with honest nulls; owed S-rows (M2/M4/M5/M8, re-run w/ embed headroom) (bp-085) | PENDING |
-| 3 | Inner/outer core | the live two-ring ratchet (INNER=37) green + the map — genuinely demonstrable-working (bp-083/089, M0+S1) | PENDING |
-| 4 | Ops | sweep_orphans on real stranded 300246; the rate block telling healthy backfill from wedge; `start` fail-closed vs live supervisor (bp-105; demo = its journal Ckpt 4) | PENDING |
-| 5 | Sync/diac dreamers | the sealed dispatch machinery + that it is NOT wired ([dream_rnd]=false, f-0141); decision owed — wire live, or accept dormant | PENDING |
+| 2 | Code-ingest | The vector-membership arc (dn-vector-membership-store; bp-151 → bp-155 → bp-152 → bp-153, all merged) is READY TO DESKCHECK on bp-153's merge. Demo: `palace code-rebui… |
+| 3 | Fiber geometry | the survey readings (M1–M8) with honest nulls; owed S-rows (M2/M4/M5/M8, re-run w/ embed headroom) (bp-085) | PENDING |
+| 4 | Inner/outer core | the live two-ring ratchet (INNER=37) green + the map — genuinely demonstrable-working (bp-083/089, M0+S1) | PENDING |
+| 5 | Ops | sweep_orphans on real stranded 300246; the rate block telling healthy backfill from wedge; `start` fail-closed vs live supervisor (bp-105; demo = its journal Ckpt 4) | PENDING |
+| 6 | Sync/diac dreamers | the sealed dispatch machinery + that it is NOT wired ([dream_rnd]=false, f-0141); decision owed — wire live, or accept dormant | PENDING |
 
 ## Owed on completion — the current build tracks
 

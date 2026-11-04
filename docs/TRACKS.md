@@ -33,11 +33,21 @@
 | Code-ingest | bp-095 — CI-4: the S↔F code↔design lens (M-C7, read-only survey) | build · ready | opus |
 | Code-ingest | bp-098 — CI-wiring (Plan B): the code-ingest ENABLE path | deskcheck-pending · complete | opus |
 | Code-ingest | bp-099 — the temporal code corpus (history embedded · keep-and-link · supersession edges) | deskcheck-pending · complete | opus |
+| Code-ingest | bp-151 — canonical atom identity: the header-free body (D0) | graduate · proposed | Fable/Opus |
+| Code-ingest | bp-152 — the membership store: the split, the lander, the read path (D1/D2/D3/D8) | graduate · proposed | Fable/Opus |
+| Code-ingest | bp-153 — the rebuild, the frequency gauges, the probe re-home, compaction (D6/D7/§3/§6) | graduate · proposed | Fable/Opus |
+| Code-ingest | bp-155 — the L0a oversize cut decides over the canonical body (A1.2) | graduate · proposed | Fable/Opus |
+| Deployed instances | the amnesiac clone and the one-way loop home | design-pass | FABLE |
+| Erratum relation | bp-129 — the erratum relation: a warranted, append-only, unary disposition store | graduate · proposed | Fable/Opus |
+| Erratum relation | bp-130 — the `(I − Ε)` factor: `π_valid`, and transport-invariance made checkable | graduate · proposed | Fable/Opus |
+| Erratum relation | bp-131 — the chat lane's belief/validity split, and the E8 tripwire | graduate · proposed | Fable/Opus |
+| Erratum relation | bp-132 — every chat consumer declares its axis: belief or validity | graduate · proposed | Fable/Opus |
 | Fiber geometry | bp-085 — G-A: the fiber-geometry measure-first survey (M1–M8, read-only) | deskcheck-pending · complete | opus |
 | Inner/outer core | bp-083 — M0: enforce the two-ring refinement in place (born-green inner ratchet) | deskcheck-pending · complete | opus |
 | Inner/outer core | bp-089 — S1′: the temporal math enters the ring (math↔persistence splits, map +7 → 37) | deskcheck-pending · complete | opus |
 | Inner/outer core | bp-090 — K1: the born inner ring moves to `core/kernel/**` (M2 wave 1, physical migration) | deskcheck-pending · complete | opus |
 | Inner/outer core | bp-091 — K3: the S1 seven join the kernel (M2 wave 2) | deskcheck-pending · complete | opus |
+| Mathematical foundations | the laws ledger + the Lean ladder | design-pass | FABLE |
 | Ops | bp-100 — bp-100: make `supersede_source` cost-independent of store size (the backfill blocker) | deskcheck-pending · complete | opus |
 | Ops | bp-101 — bp-101: queue hygiene — enqueue coalescing and orphaned-job reclaim | deskcheck-pending · complete | opus |
 | Ops | bp-102 — bp-102: status tells the truth — liveness, failures, and rates (command center, Tier 1) | deskcheck-pending · complete | opus |
@@ -59,7 +69,9 @@
 | Ops | bp-119 — P5: the chat tiers, per-tier, each reversible (PARKED on V-B) | build · ready | opus |
 | Ops | bp-121 — make D2's interpreter probe platform-robust, and get CI green | deskcheck-pending · complete | opus |
 | Ops | bp-122 — make the two self-mod tests hermetic, so the deploy gate stops lying | deskcheck-pending · complete | opus |
-| Ops | bp-123 — the per-machine overlay becomes `config/ouroboros.toml`, and cannot be silently lost | build · in-progress | opus |
+| Ops | bp-123 — the per-machine overlay becomes `config/ouroboros.toml`, and cannot be silently lost | deskcheck-pending · complete | opus |
+| Ops | bp-154 — the power axis: the scheduler refuses work it cannot power | graduate · proposed | Fable/Opus |
+| Query language | the sentence algebra, its compiler, and the surface | design-pass | FABLE |
 | Reference bookkeeper | the async F-consistency agent (finding-0145/0154) | design-pass | FABLE |
 | Scored beliefs | the belief ledger + earned entitlement | design-pass | FABLE |
 | Sync/diac dreamers | bp-079 — D-0: the DreamCharter dispatch record + the materialization boundary | deskcheck-pending · complete | opus |
@@ -74,7 +86,24 @@
 | Workflow / tooling | bp-124 — the orchestrator seat substrate and its handoff generator | deskcheck-pending · complete | opus |
 | Workflow / tooling | bp-125 — migrate the live brief into the seat, and re-home its rules | deskcheck-pending · complete | opus |
 | Workflow / tooling | bp-126 — the cutover: clause (e′), the re-point, and the brief's retirement | deskcheck-pending · complete | opus |
-| Workflow / tooling | bp-127 — the fresh-agent test made executable: F1b, F1c, and the F2 drill | build · ready | opus |
+| Workflow / tooling | bp-127 — the fresh-agent test made executable: F1b, F1c, and the F2 drill | deskcheck-pending · complete | opus |
+| Workflow / tooling | bp-128 — clause (f) must key on RECENCY, not on physical file position | build · ready | opus |
+| Workflow / tooling | bp-135 — AP2: the reviewer's seat leaves a record — the audit pair as a typed artifact the board actually consumes | build · ready | opus |
+| Workflow / tooling | bp-136 — AP3: the halt list is a total predicate over a declared run state, and every unknown halts | build · ready | opus |
+| Workflow / tooling | bp-137 — AP4: "low stakes" becomes a conjunctive structural predicate that refuses on absence exactly as it refuses on violation | build · ready | opus |
+| Workflow / tooling | bp-138 — AP5: the grant's pure core — code derivation, the domain-separated attestation tag, and expiry, with the secret behind an injection-only seam | build · rea… |
+| Workflow / tooling | bp-139 — AP6: the ON switch — `[autopilot]` reaches a caller, and the capsule reaches the phone as bytes it can hash | build · ready | opus |
+| Workflow / tooling | bp-140 — The registry store: typed events, serial minting, refs, idempotency | graduate · proposed | Fable/Opus |
+| Workflow / tooling | bp-141 — Degraded mode: the pending file, provisional refs, reconcile, recovery import | graduate · proposed | Fable/Opus |
+| Workflow / tooling | bp-142 — The export renderer, the idempotence pin, and the `export == working tree` ratchet | graduate · proposed | Fable/Opus |
+| Workflow / tooling | bp-143 — The front-matter migration: every artifact ingested, not one byte rewritten | graduate · proposed | Fable/Opus |
+| Workflow / tooling | bp-144 — The signed transition: a canonical five-tuple, verified with the existing Ed25519 layer | graduate · proposed | Fable/Opus |
+| Workflow / tooling | bp-145 — Signed admission: no unsigned path to `ratified`, verified twice | graduate · proposed | Fable/Opus |
+| Workflow / tooling | bp-146 — Land-time admission: `write_scope` as a per-unit enforcement level | graduate · proposed | Fable/Opus |
+| Workflow / tooling | bp-147 — The journal-gate clause map made real: typed seal, land-time judgement, unit state | graduate · proposed | Fable/Opus |
+| Workflow / tooling | bp-148 — Resume-brief deprecation: the doctrine edits and the fresh-agent drill | graduate · proposed | Fable/Opus |
+| Workflow / tooling | bp-149 — Staged hook retirement: one guarantee at a time, each behind its green parity test | graduate · proposed | Fable/Opus |
+| Workflow / tooling | bp-150 — The derived views re-pointed: `board.py` and `handoff.py` derive from the registry | graduate · proposed | Fable/Opus |
 
 ## Definition of done (per track — the deskcheck evaluates against this)
 
@@ -89,6 +118,20 @@
     - CI-wiring the ENABLE path — CodeIngestConfig + daemon enqueue + `palace code-seed` (bp-098, warrant finding-0159)
     - the seed run PROVES it works — code is actually embedded + retrievable (not just built); owner-visible run
     - integrator densification (finding-0151) — design-pass, FABLE, after the build plans
+- **Deployed instances** (active):
+    - DI-1 structure-seed exporter + payload-freedom ratchet + the F4 value benchmark (home-side only; stops the program cheaply if seeded ≤ unseeded)
+    - DI-2 instance identity in config — per-instance backup/letter namespaces before any second body boots (the F5 precondition, issue #25)
+    - DI-3 the key fabric — identity keys on the attestation primitive, per-clone letter-box mint, registry + placement-audit ratchet, and the ISOLATED cloud/terraform/keyfabric/ stack (dn-key-fabric)
+    - DI-4 letters lane, home side — a₄ landing behind the handoff gate (gated on dn-authorship-distance-axis ratification)
+    - DI-5 clone runtime image + plane split + clone Terraform, consuming keyfabric CMKs (gated on owner decisions D1–D3, D5)
+    - DI-6 first clone boot — exits the second-instance fence; owner-initiated ceremony
+    - DI-7 the shared embedder service (dn-embedder-service) — stateless text→vector as fleet infra; sealed-to-attested-enclave, control-queue + data-plane; public-material clean, private material gated on the Nitro-frontier ruling
+- **Erratum relation** (active):
+    - dn-erratum-relation ratified (owner) — DONE 2026-07-27
+    - the erratum relation built as a typed, owner-warranted, append-only store honoring E1–E8
+    - the `(I − Ε)` factor and π_valid present in the temporal operator algebra, with the commutation property tested on a NON-EMPTY erratum set
+    - the chat lane's default view provably stops serving erratum-targeted rows (the §7 three-census check, on a fixture)
+    - the live 139-row correction act performed by the owner, or explicitly declined
 - **Fiber geometry** (active):
     - G-A survey readings M1–M8 with honest nulls (bp-085)
     - the owed S-rows re-run with embed headroom (M2 / M4 / M5 / M8)
@@ -96,6 +139,13 @@
     - M0+S1 ring enforcement live (bp-083 / bp-089) — the two-ring ratchet green (INNER=37)
     - K1 born-30 inner ring → core/kernel/** physical migration (bp-090)
     - K3 the S1 seven (bp-091)
+- **Mathematical foundations** (active):
+    - MF-1 laws ledger seeded (docs/LAWS.md) — one row per law naming the TRUE structure, ladder-labeled (labels from dn-research-register §2.3); memberships lands multiset, never Boolean algebra — DONE 2026-11-02 (docs/LAWS.md, 32 rows)
+    - MF-2 laplacian/spectral falsifier batch green or counterexamples filed (direct PSD, nullity = components, isolated-node convention) + the minimal ledger checker (anchors + test ids) — DONE 2026-11-03 (tests/property/test_laplacian_laws.py, tests/unit/test_laws_ledger.py: green, each falsifier failing on a mutated implementation)
+    - MF-3 cut/conductance/curvature falsifier batch green or counterexamples filed (direct Φ(S) + both degenerate conventions; most_negative_edges emission rule) — DONE 2026-11-03 (tests/unit/test_cut_conductance.py, tests/unit/test_curvature.py, the windowed χ_s tests: green; the windowed counterexample fixed at the owner's ruling)
+    - MF-4 formal/ L1 — sibling lake package builds; statements + Plausible attacks; sorry ratchet recorded; zero import coupling with core/ either direction — DONE 2026-11-01 (#55, #56)
+    - MF-5 lean-action advisory CI green on a real PR with the Mathlib cache hitting — DONE 2026-11-03 (#59, run 41580747081: green, all 9,081 Mathlib files from the cache)
+    - MF-6 (entry-gated on MF-4) first L2 discharge batch — Theorem (machine-checked, formal/...) claimable for the discharged laws — DONE 2026-11-04 (MF-4's statement set discharged by name, each statement cited in docs/LAWS.md's formal column and judged by lake comparator: MEM-1, MEM-2, MEM-3 and MEM-5 (and MEM-4); LAP-1's L·1 = 0; LAP-2's L PSD; LAP-4's L_sym PSD, its spectrum in [0, 2] and its kernel vector D^{1/2}·1; CND-1's L⁺ symmetric and PSD; and LAP-3. sorry 0, standard axioms, six kernels. The budget was 0 from its first commit, every statement landing proved, so the ratchet's trace never moved: the law ids are the acceptance. Theorem (machine-checked, formal/...) cites these theorems about the Lean model; the ledger's labels stay on Python evidence)
 - **Ops** (active · warrant docs/findings/finding-0169.md):
     - OPS-1 store cost bounded — `supersede_source` O(path depth), proven by a ratchet, not asserted (bp-100, warrant finding-0169)
     - OPS-2 queue hygiene — enqueue coalescing + orphaned-job reclaim (bp-101, warrant findings 0170/0173)
@@ -106,6 +156,12 @@
     - OPS-7 the local model RUNTIME and model SELECTION — llama.cpp-direct migration, residency owned by palace code, and choosing the model against measured performance limits (owner 2026-07-25; docs/brainstorms/local-model-runtime.md, warrant finding-0174)
     - OPS-8 detection LAG is measured, not asserted — the reconciliation-audit's central model made self-measuring (owner 2026-07-25 "we will need to also measure lag"; substrate blocked on finding-0175)
     - the restart PROVES it — daemon back up, backfill completes to ~1,542 versions, rate observable throughout (owner-visible run, not merely built)
+- **Query language** (active):
+    - QL-0 the design proved — dn-query-sentence-algebra ratified with its composition laws machine-checked in formal/Palace/Sentence.lean (sorts, connectives, adjectives, the modality, the chain language, the response laws), attacks and controls green
+    - QL-1 the compiler as pure functions — grammar, type checker, scope checker, planner over the existing Scope/Grant, each planner rewrite a transcription of a proved law with its property test
+    - QL-2 the executor — clause evaluators over the existing stores, the mask/column/product/threshold operators, the product-automaton walker, the overlay for assume
+    - QL-3 the surface — palace query, a /context skill, the resolution ledger, the query log as a sensor
+    - QL-4 the falsifier battery run — composed sentences against flat search on owner-endorsed answers, a finding either way
 - **Reference bookkeeper** (active):
     - the async F-consistency agent designed (a FABLE design-pass) — bookkeeper still unbuilt
     - the reference-sensor gap closed (finding-0145)
@@ -131,7 +187,12 @@ _(none yet — a track closes only on an owner-approved deskcheck.)_
 
 ## Coordinate check (orphans)
 
+- ⚠ artifact with no manifest: dn-mathematical-foundations → track: mathematical-foundations  # NEW manifest, minted in this PR (docs/tracks/mathematical-foundations.md) — ⚑ the owner renames or rejects the coordinate at the merge (no docs/tracks/mathematical-foundations  # NEW manifest, minted in this PR (docs/tracks/mathematical-foundations.md) — ⚑ the owner renames or rejects the coordinate at the merge.md manifest)
+- ⚠ artifact with no manifest: dn-query-sentence-algebra → track: query-language          # NEW manifest, minted with this note (docs/tracks/query-language.md) — ⚑ the owner renames or rejects the coordinate at the merge (no docs/tracks/query-language          # NEW manifest, minted with this note (docs/tracks/query-language.md) — ⚑ the owner renames or rejects the coordinate at the merge.md manifest)
+- ⚠ artifact with no manifest: dn-research-register → track: workflow            # the artifact chain's own register is how work moves; docs/tracks/workflow.md exists — no new manifest minted (its DoD gains rows, §3) (no docs/tracks/workflow            # the artifact chain's own register is how work moves; docs/tracks/workflow.md exists — no new manifest minted (its DoD gains rows, §3).md manifest)
 - ⚠ artifact with no manifest: scored-beliefs-and-earned-entitlement → track: scored-beliefs      # manifest minted with this note (docs/tracks/scored-beliefs.md); owner renames/rejects at ratification (no docs/tracks/scored-beliefs      # manifest minted with this note (docs/tracks/scored-beliefs.md); owner renames/rejects at ratification.md manifest)
+- (info) manifest `mathematical-foundations` has no plan/note members yet — carried by manifest (design-pass queued); not an error while its work is pre-plan.
+- (info) manifest `query-language` has no plan/note members yet — carried by manifest (design-pass queued); not an error while its work is pre-plan.
 - (info) manifest `reference-bookkeeper` has no plan/note members yet — carried by manifest (design-pass queued); not an error while its work is pre-plan.
 - (info) manifest `scored-beliefs` has no plan/note members yet — carried by manifest (design-pass queued); not an error while its work is pre-plan.
 
