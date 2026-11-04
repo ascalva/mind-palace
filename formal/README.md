@@ -73,6 +73,13 @@ Roundoff and FloatModel, so it has no statements of its own):
 - `SigmaStar`: σ*, the abstraction ultrametric (`core/graph/sigma_star.py`, connectivity-
   instruments CN-2), SIG-1 to SIG-4: Kruskal's forest keeps every threshold's components, it is a
   forest, σ* is an ultrametric, and σ* read off the forest is the union-find sweep over the graph.
+- `Retrieval`: the β-curve of `core/query.py`'s `free_energy_distances` (temporal-retrieval-
+  algebra §2.1, Theorem A1), RSP-1 to RSP-4: the walk sum well posed under the γ-ceiling, `Z ≥ 0`
+  and positive exactly on reachable pairs; the kernel `G_β = (D − z·w∘w^β)⁻¹` positive definite for
+  every β with `Z = G_β D`; `e^{−β d}` the normalized kernel, so HYBRID's `K_struct` is positive
+  definite at the default `β = 1`; the free energy a quasi-metric through the path product. The
+  general facts beneath, for any nonnegative matrix whose rows sum to at most `s < 1`, are proved by
+  extremal principles: a vertex where a vector is largest or least.
 - `Magnetic`: the magnetic Laplacian of `docs/design-notes/magnetic-laplacian.md`, proved before
   any code builds it (the note defers the build). §2.1: `L^θ` Hermitian and positive semidefinite,
   its form the twisted Dirichlet energy, gauge covariance, flux-trivial as gauge-trivial, the
@@ -87,7 +94,7 @@ Roundoff and FloatModel, so it has no statements of its own):
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
-- `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the 152 cited
+- `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the 167 cited
   theorems, and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself.
@@ -173,6 +180,10 @@ Roundoff and FloatModel, so it has no statements of its own):
 | BRG-5 | a delegated scope is cleared for less, sees less, and noninterference holds of it | proved |
 | BRG-6 | Forman's curvature is the Weitzenböck term of `L₁` | proved; attack survived 500 graphs, every edge |
 | BRG-7 | the magnetic Laplacian's `θ = 0` and sign fibers are `L` and `L̄`, and LAP-5 is its kernel theorem at ℤ/2 | proved; attacks survived 500 (fibers) and 467 (kernel) |
+| RSP-1 | the walk sum is well posed, `Z ≥ 0`, `z_ii ≥ 1`, and `z_ij > 0` exactly on reachable pairs | proved; attack survived 500 |
+| RSP-2 | `Z = G_β D`, the kernel `G_β` positive definite for every β | proved; attacks survived 495 and 500 |
+| RSP-3 | `e^{−β d}` is the normalized kernel, positive definite on a connected support; `K_struct` at `β = 1` | proved; attack (squared) survived 500 |
+| RSP-4 | the free energy is a quasi-metric; the code's distance a pseudometric | proved; attack survived 500 |
 
 The binarized forms (0/1 adjacency) reduce to Mathlib's `SimpleGraph.posSemidef_lapMatrix` and
 `card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix` in one line each.
@@ -361,6 +372,12 @@ of each random graph, its control the down Laplacian `∂₁ᵀ ∂₁` alone, w
 refuted within 73. The others are over `ℝ`, over sets, or over the plane's traces, and
 do not run.
 
+The retrieval curve is attacked at `β = 1`, where the killed walk `z (w_ij / d_i) w_ij` is
+rational, by exact Gauss–Jordan elimination on `Fin 5` with `z = ½`. Its controls: without the
+killing, `z = 1`, a component of unit weights makes `I − W` singular, refuted within 34 instances;
+the degrees on the wrong side, `Z = D G`, within 10; the free energy one way, unsymmetrized, is not
+the normalized kernel, within 11; and without `z_jj` the path product fails, within 11.
+
 The magnetic operator is complex and its transports are exponentials, which do not run, so its
 attacks fix the transports at their exact values, `1` at phase `0` and `−1` at phase `π`, or test
 the combinatorial content. BRG-7's controls: transport `−1` everywhere gives the signless `D + A`,
@@ -396,7 +413,7 @@ another module, and without it 68 proofs in seven files fail. One instance is wr
 to importers (`Palace/Scope.lean`).
 
 The kernel re-check. `Export.lean` writes every `Palace` declaration and everything it uses, from
-`Init` up (41,843 declarations), and `check.sh` replays that export from nothing through Lean's
+`Init` up (42,308 declarations), and `check.sh` replays that export from nothing through Lean's
 kernel and the five independent checkers bundled with Lean: `leanchecker-paranoid`, `lean4lean` (a
 kernel written in Lean), `nanoda` (one written in Rust), and `con-leche`, whose acceptance carries a
 machine-checked theorem that the environment holds no proof of `False`, with `con-ron`, its port.
@@ -406,7 +423,7 @@ export route replays strictly more. The compiler's `_unsafe_rec` helpers stay ou
 nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
-does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the 152
+does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the 167
 statements reach (40,435 declarations). Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.

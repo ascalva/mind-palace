@@ -15,6 +15,7 @@ public import PalaceTest.Magnetic
 public import PalaceTest.Memberships
 public import PalaceTest.Plane
 public import PalaceTest.Rayleigh
+public import PalaceTest.Retrieval
 public import PalaceTest.Roundoff
 public import PalaceTest.Scope
 public import PalaceTest.SigmaStar
