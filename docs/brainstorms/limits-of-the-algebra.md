@@ -32,13 +32,13 @@ can only lower it — Rayleigh, CND-2), with **equality iff the edge is a bridge
 disconnects, every effective resistance across it becomes infinite, and the symbolic sign rule
 "removing weight raises every resistance along paths through the edge" degenerates to "to
 infinity". Kirchhoff reads `w·rEff(e)` as the probability that a random spanning tree contains
-`e`; the horizon is probability one. *Status:* the inequality's route is
-exact — the single-edge graph `A₀ = w` on `{a, b}` lies under `A` entrywise, so `rEff_A(a, b) ≤
-rEff_{A₀}(a, b)` by `Rayleigh.lean::rEff_anti` (CND-2), and `rEff_{A₀}(a, b) = 1/w` because the
-single edge's Laplacian `w·d dᵀ` (`d = e_a − e_b`, `‖d‖² = 2`) has pseudo-inverse `d dᵀ / 4w`
-(the one computation left to machine-check, against `lapPinv`'s characterization); the bridge →
-equality direction is the disconnected case; the converse (not a bridge → strict) needs a strict
-Rayleigh law. *Falsifier:* a non-bridge with `w·rEff = 1`.
+`e`; the horizon is probability one. *Status — the inequality is machine-checked (Palace/Sever.lean, SEV-1 to SEV-3, design
+theorems):* `pinv_unique` (Penrose's four equations determine `M⁺`, so a closed form is checked,
+not computed), `lapPinv_single` (the single edge's `L⁺ = d dᵀ/4w`, `d = e_a − e_b`), `rEff_single`
+(`= 1/w`), `mul_rEff_le_one` (`w·rEff_A(a, b) ≤ 1`, by `rEff_anti`, CND-2, against the single edge
+lying under `A`) and `one_sub_mul_rEff_nonneg` (the Sherman–Morrison denominator never goes
+negative). The bridge → equality direction is next: Thomson's principle with the test potential
+`(1/w)·1_S` across the cut; the converse (not a bridge → strict) needs a strict Rayleigh law. *Falsifier:* a non-bridge with `w·rEff = 1`.
 
 ## L2. The β-limits of the retrieval curve — where the kernel freezes and where it melts
 

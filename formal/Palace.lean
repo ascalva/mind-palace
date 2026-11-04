@@ -37,6 +37,8 @@ public import Palace.Scope
 public import Palace.Scope.Defs
 public import Palace.Sentence
 public import Palace.Sentence.Defs
+public import Palace.Sever
+public import Palace.Sever.Defs
 public import Palace.SigmaStar
 public import Palace.SigmaStar.Defs
 public import Palace.Spectral
