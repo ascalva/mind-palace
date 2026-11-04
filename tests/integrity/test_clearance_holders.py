@@ -55,6 +55,7 @@ HOLDERS: dict[str, dict[str, str]] = {
         "scripts/migrate_provenance_split.py": "the §1 relabel migration counts every row",
     },
     "CODE_READ": {
+        "core/sentence/universe.py": "the code atoms `near … over reference` seeds",
         "core/stores/memberships.py": "the code lane's own atom repair and drift ratchet",
         "eval/harness/code_retrieval.py": "the code-retrieval battery reads the code lane",
         "eval/quantization_bench.py": "step C measures compressed search over the code lane",
@@ -63,11 +64,14 @@ HOLDERS: dict[str, dict[str, str]] = {
     "CURATED_READ": {
         "agents/ambassador/agent.py": "the EXPLAIN intent answers from the curated corpus",
         "core/sentence/execute.py": "`read` of a `reference:` paper: the sentence's dereference",
+        "core/sentence/universe.py": "the papers `near … over curated` and a paper anchor seed",
         "core/research/curate.py": "the manifest check that an embedded paper is stored",
         "eval/quantization_bench.py": "step C measures compressed search over every paper atom",
         "scripts/curate_local.py": "the paper importer dedupes against stored digests",
     },
-    "DIALOGUE_READ": {},
+    "DIALOGUE_READ": {
+        "core/sentence/universe.py": "the dialogue turns every universe loads beside the mirror",
+    },
     "OBSERVED_READ": {},
 }
 

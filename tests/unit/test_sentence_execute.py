@@ -123,8 +123,9 @@ def test_assume_sever_shrinks_reach_and_a_contradiction_breaks_the_camps() -> No
 
 def test_what_this_universe_cannot_answer_is_refused_not_emptied() -> None:
     u = _universe()
-    with pytest.raises(UnsupportedSentence, match="authored notes"):
-        execute(compile_sentence('near "q" over curated'), u)
+    with pytest.raises(UnsupportedSentence, match="no cut"):            # a toy universe has none
+        execute(compile_sentence('near "q" as of "deadbeef"'), u)
+    assert execute(compile_sentence('near "q" over curated'), u).hits == ()   # a mask: none
     with pytest.raises(UnsupportedSentence, match="note grain"):
         execute(compile_sentence('assume D "a.md" "b.md" in near "q"'), u)
     with pytest.raises(LookupError):

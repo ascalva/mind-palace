@@ -105,7 +105,7 @@ def test_an_empty_answer_is_an_outcome_of_its_own(tmp_path: Path) -> None:
         ('assume S "a.md" "d.md" +0.5 in near "q"', "scope"),      # the base grant: no overlay
         ('near "q" over nowhere', "ambiguous"),
         ('reach F from "zz.md"', "lookup"),
-        ('near "q" over curated', "unsupported"),                  # this universe: the mirror only
+        ('near "q" as of "deadbeef"', "unsupported"),              # a toy universe has no cut
     ],
 )
 def test_a_refusal_is_a_question_back_logged_by_class(tmp_path: Path, sentence: str,
@@ -247,7 +247,9 @@ def test_the_query_tool_is_the_one_read_of_the_mcp(monkeypatch: pytest.MonkeyPat
     assert "query" in {t["name"] for t in web_manifest()["tools"]}
 
     # the call runs under `sentence_grant()` against the live universe (faked here) and is logged
-    monkeypatch.setattr(Universe, "from_engine", classmethod(lambda cls, engine: _universe()))
+    import core.sentence.universe as universe_mod
+
+    monkeypatch.setattr(universe_mod, "build", lambda engine, plan, precedents: _universe())
     monkeypatch.setattr(surface, "default_log", lambda: QueryLog(tmp_path / "q.jsonl"))
     monkeypatch.setattr(surface, "sentence_grant", lambda: AMBASSADOR_OVERLAY)
     reply = _call(server, 'top 1 near "q"')
@@ -299,6 +301,7 @@ def test_the_precedents_file_mirrors_the_code() -> None:
         "a field as the whole sentence": str(DEFAULT.k),
         "`read` with no `chunk`": str(DEFAULT.read_chunk),
         "`read`'s window": str(DEFAULT.read_window),
+        "the support an indexed stratum contributes": str(DEFAULT.support),
     }
     for dial, value in expected.items():
         assert dial in table, f"{dial} has no row in docs/query/precedents.md"

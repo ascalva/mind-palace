@@ -89,17 +89,18 @@ def test_reading_a_paper_returns_a_window_around_the_hit(monkeypatch, tmp_path):
 
 
 def test_note_graph_verbs_refuse_a_paper_and_say_where_to_go(monkeypatch, tmp_path):
-    """A paper's ref handed to a verb over the owner's notes is refused with directions at compile
-    time, before any store opens; never a bare LookupError, never an empty "0 hits" that reads as
-    no history (the legacy table's `OutOfScopeTarget`, now a sort error of the sentence)."""
+    """A paper's ref handed to a verb that walks the owner's notes alone — relations, versions — is
+    refused with directions at compile time, before any store opens; never a bare LookupError,
+    never an empty "0 hits" that reads as no history (the legacy table's `OutOfScopeTarget`, now a
+    sort error of the sentence). `diffuse`, `reach` and `walk` take a paper: the stratified
+    universe seeds its neighbourhood."""
     from core.sentence import SortError
 
     monkeypatch.setattr(surface, "default_log", lambda: QueryLog(tmp_path / "q.jsonl"))
     amb = Ambassador()
     ref = "reference:openai-math:A-counterexample-to-Hadwigers-conjecture-September-23-2026"
-    for sentence in (f'relate "{ref}"', f'trace "{ref}"', f'top 5 diffuse S from "{ref}"',
-                     f'near "x" and diffuse S from "{ref}"', f'walk from "a" to "{ref}" via F+'):
-        with pytest.raises(SortError, match="over curated"):
+    for sentence in (f'relate "{ref}"', f'trace "{ref}"'):
+        with pytest.raises(SortError, match="diffuse S from the ref"):
             amb.query(sentence)
     assert amb.engine._cache == {}                       # refused before any store opened
     assert all(e.refusal == "sort" for e in QueryLog(tmp_path / "q.jsonl").entries())

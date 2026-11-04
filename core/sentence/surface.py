@@ -149,7 +149,9 @@ def ask_logged(text: str, grant: Grant, *, surface: str, role: str,
         elif plan.sort is Sort.TEXT and plan.is_inv:   # a bare read opens no note graph
             u = Universe.reader(engine or QueryEngine())
         else:
-            u = Universe.from_engine(engine or QueryEngine())
+            from core.sentence.universe import build
+
+            u = build(engine or QueryEngine(), plan, precedents=precedents)
         answer = execute(plan, u, precedents=precedents)
     except Exception as e:
         log.record(_entry(text, surface, role, started, plan, precedents, outcome="refused",

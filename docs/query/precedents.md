@@ -22,6 +22,7 @@ answer-drift, never a silent one.
 | a field as the whole sentence | the `5` best scores are shown | SEARCH's `k` | — |
 | `read` with no `chunk` | `0`, the paper's start | the retired `read` tool's default | — |
 | `read`'s window | `5` chunks (~5K characters) | a whole paper won't fit a turn | a client needs more |
+| the support an indexed stratum contributes | `200` units per `near` text or anchor | the dense backbone is n²; the index returns the nearest (dn-query-sentence-algebra §2.9) | a battery row loses to a larger support |
 
 ## Resolutions
 

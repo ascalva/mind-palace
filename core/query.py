@@ -408,6 +408,10 @@ class QueryEngine:
                 from core.stores.causal_edges import open_causal_edge_store
 
                 self._cache[name] = open_causal_edge_store(cfg)
+            elif name == "memberships":
+                from core.stores.memberships import open_membership_store
+
+                self._cache[name] = open_membership_store(cfg)
             else:
                 raise KeyError(name)
         return self._cache[name]

@@ -43,8 +43,21 @@ Patterns:
 | what the citers of a note say about a topic | `reach F from "n.md" back then near "x"` |
 | how a note reached another by citations | `walk from "a.md" to "b.md" via F+` |
 
+**The strata.** A sentence reads the owner's notes unless it says `over <strata>`: `over curated`
+for the papers and the system's own docs, `over reference` for the repo's code and docs (hits name
+the file, the symbol and its lines), `over dialogue` for the chats, `over mirror` for the notes
+alone. The universe is the sentence's **support** (dn-query-sentence-algebra §2.9): the notes and
+the dialogue always, then the `support` (200) nearest units to each text and anchor in the indexed
+strata, and the citation graph within the anchor's radius at the cut — the `as of` commit, else
+the newest cut the store holds, which the notes name. `reach F from "core/query.py" depth 2` walks
+the repo's citations; `read "core/sealing.py"` reads the file; `diffuse S from "reference:<paper>"`
+walks a paper's neighbourhood; `relate` and `trace` are the notes' alone. The notes of every
+answer carry the support's census and every truncation: an empty answer under a small support is
+a bound, not an absence.
+
 Dials you leave unsaid come from the resolution ledger `docs/query/precedents.md` (β `1.0`, depth
-`1`, `near` over `mirror_authored`, the `5` best scores of a bare field); the plan shows them.
+`1`, `near` over `mirror_authored`, the `5` best scores of a bare field, the `200` of a support);
+the plan shows them.
 `assume <hypothesis> in <sentence>` evaluates the sentence on the perturbed graph — `assume S "a" "b"
 +0.5 in …` adds backbone weight, `assume sever F "a" "b" in …` cuts a citation, `assume contradict
 "a" "b" in …` adds a negative relation — and answers as a `Hyp` beside the actual answer, with the
