@@ -26,7 +26,9 @@ HYBRID is no longer a verb: it is the sentence `near "<text>" and diffuse S from
 
 The pipeline: `parse` (grammar.py) → `typecheck` (types.py: sorts, the clause-wise scope check,
 the mode per clause) → `compile_sentence` (plan.py: the normal form, the intermediate form) →
-`execute` (execute.py, against a `Universe`). `ask` runs all four against the live stores.
+`execute` (execute.py, against a `Universe`). `ask` runs all four against the live stores;
+`ask_logged` (surface.py) is what the surfaces call — `palace query` and the Ambassador's `query`
+tool — recording every sentence asked in the query log, the sensor `palace query --log` reads.
 """
 
 from __future__ import annotations
@@ -43,6 +45,7 @@ from core.sentence.execute import (
 from core.sentence.grammar import ParseError, parse
 from core.sentence.legacy import sentence_of
 from core.sentence.plan import Plan, compile_sentence, normalize
+from core.sentence.surface import QueryLog, ask_logged, render_text, run_query, summarize
 from core.sentence.types import (
     AmbiguousSentence,
     Clause,
@@ -65,6 +68,7 @@ __all__ = [
     "Overlay",
     "ParseError",
     "Plan",
+    "QueryLog",
     "SentenceAnswer",
     "Sort",
     "SortError",
@@ -72,6 +76,7 @@ __all__ = [
     "UnsupportedSentence",
     "admissible",
     "ask",
+    "ask_logged",
     "clauses_of",
     "compile_sentence",
     "execute",
@@ -79,7 +84,10 @@ __all__ = [
     "is_inv",
     "normalize",
     "parse",
+    "render_text",
+    "run_query",
     "sentence_of",
     "sort_of",
+    "summarize",
     "typecheck",
 ]

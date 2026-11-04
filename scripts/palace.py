@@ -8,6 +8,7 @@
     uv run scripts/palace.py restart        # plain down→up cycle (NOT deploy)
     uv run scripts/palace.py status         # preflight + recent runs + system snapshot
     uv run scripts/palace.py queue          # read-only: waiting jobs, grouped by kind
+    uv run scripts/palace.py query "<s>"    # read-only: a query sentence; --log = the sensor
     uv run scripts/palace.py reset --confirm # fresh-start wipe of the corpus layer
     uv run scripts/palace.py deploy         # promotion gate: cycle the live run onto HEAD
     uv run scripts/palace.py ingest-chat    # on-demand: ingest the local Claude Code transcripts
@@ -51,10 +52,11 @@ from core.sealing import seal
 _ROOT = Path(__file__).resolve().parent.parent  # repo root, for the bless path resolution
 
 USAGE = ("usage: palace.py "
-         "{start|stop|down|up|restart|status|queue|reset|deploy|ingest-chat|code-seed|"
+         "{start|stop|down|up|restart|status|queue|query|reset|deploy|ingest-chat|code-seed|"
          "code-backfill|code-rebuild|dream|vault-sync|dialogue-sync|relate|lanes|reembed|tick|"
          "bless} "
-         "[--force] [--confirm] [--skip-tests] [--dry-run] [<plan-id>]")
+         "[--force] [--confirm] [--skip-tests] [--dry-run] [<plan-id>] [\"<sentence>\" --json "
+         "--no-plan --as <role> | --log]")
 
 
 def bless(plan_id: str) -> int:
@@ -227,6 +229,9 @@ def main(argv: list[str]) -> int:
     if argv[0] == "tick":   # the heartbeat (ops/heartbeat.py) builds the launcher only to sync
         from ops.heartbeat import main as heartbeat
         return heartbeat(argv[1:])
+    if argv[0] == "query":  # read-only: a sentence of the query algebra against the stores, never
+        from core.sentence.surface import run_query  # the daemon (dn-query-sentence-algebra, QL-3)
+        return run_query(argv[1:])
     from ops.lifecycle.launcher import build_launcher
 
     cmd, flags = argv[0], set(argv[1:])

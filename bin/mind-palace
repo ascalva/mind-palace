@@ -25,6 +25,8 @@ DAY-TO-DAY
   talk [--offline]                                      interactive chat (--offline = no-Ollama demo)
   monitor                                                run the dashboard/chat HTTP server standalone
   sandbox <code.py|-> [--input NAME=PATH] [--timeout N]  run code in the powerless sandbox
+  query "<sentence>" [--json|--no-plan|--as <role>]     ask a sentence of the query algebra (read-only)
+  query --log                                            the query sensor: strata by role, failed translations
 
 INGEST / KNOWLEDGE
   ingest                                                 (re)build the knowledge base from the vault
@@ -63,7 +65,7 @@ if [ "$#" -gt 0 ]; then shift; fi
 case "$verb" in
   ""|help|-h|--help) usage ;;
   start|stop|status|reset|deploy)  py "$SCRIPTS/palace.py" "$verb" "$@" ;;
-  dream|relate|lanes|reembed|vault-sync|dialogue-sync|tick|queue|ingest-chat|code-seed|code-backfill|code-rebuild)
+  dream|relate|lanes|reembed|vault-sync|dialogue-sync|tick|queue|query|ingest-chat|code-seed|code-backfill|code-rebuild)
                             py "$SCRIPTS/palace.py" "$verb" "$@" ;;
   stack)                    py "$SCRIPTS/stack.py" "$@" ;;
   mcp)                      py "$SCRIPTS/palace_mcp.py" "$@" ;;

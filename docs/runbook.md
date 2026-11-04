@@ -30,6 +30,8 @@ mind-palace status             # health checklist + recent runs (commit-pinned)
 mind-palace stop                # graceful drain (under launchd KeepAlive this = RESTART)
 mind-palace deploy              # promotion gate: cycle the ALWAYS-ON run onto HEAD (see below)
 mind-palace talk                 # talk to it locally (LIVE; --offline = no-Ollama demo)
+mind-palace query '<sentence>'   # ask a sentence of the query algebra, read-only (--json, --no-plan,
+                                 #   --as <role>); `query --log` = the sensor (strata by role, failed translations)
 #   Remote dashboard + chat from your phone: set [monitor] enabled=true + host=<tailscale-ip>, then
 #   `mind-palace start` spawns it → http://<tailscale-ip>:8787  (see "Remote dashboard + chat" below)
 

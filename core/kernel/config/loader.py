@@ -195,6 +195,16 @@ class AmbassadorConfig:
 
 
 @dataclass(frozen=True)
+class QueryConfig:
+    """The query sentence algebra's surface (dn-query-sentence-algebra §4, QL-3). `sentences`
+    exposes the `query` tool — a sentence of the algebra under the Ambassador's grant — through
+    the Ambassador's MCP server and the web bridge's manifest; off, the eight one-word verbs are
+    all a client has. `palace query` is the owner's hand and is always on."""
+
+    sentences: bool = False
+
+
+@dataclass(frozen=True)
 class EffectorsConfig:
     """Track G effector surface (docs/design-notes/hands-and-the-effector-layer.md). Fail-closed
     twice over: `enabled` off refuses to build either side of the handoff, and an empty
@@ -476,6 +486,7 @@ class Config:
     effectors: EffectorsConfig = field(default_factory=EffectorsConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)  # bp-115 inference backend
     scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)  # bp-110 execution model
+    query: QueryConfig = field(default_factory=QueryConfig)  # QL-3: the sentence algebra's surface
 
     def model_for_tier(self, tier: str) -> ModelConfig:
         for m in self.models:
@@ -597,6 +608,7 @@ def load_config(path: Path | None = None) -> Config:
     eff = raw.get("effectors", {})
     rt = raw.get("runtime", {})
     sch = raw.get("scheduler", {})
+    qry = raw.get("query", {})
     return Config(
         ollama=OllamaConfig(
             host=o["host"],
@@ -781,6 +793,7 @@ def load_config(path: Path | None = None) -> Config:
             escalation_grace_s=float(sch.get("escalation_grace_s", 30.0)),
             lease_ttl_s=float(sch.get("lease_ttl_s", 0.0)),
         ),
+        query=QueryConfig(sentences=bool(qry.get("sentences", False))),
         models=tuple(
             ModelConfig(
                 name=m["name"],
