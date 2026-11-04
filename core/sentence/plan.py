@@ -25,6 +25,7 @@ from core.sentence import ast
 from core.sentence.ast import Node
 from core.sentence.grammar import parse
 from core.sentence.precedents import DEFAULT, Precedents
+from core.sentence.trace import Trace
 from core.sentence.types import (
     Clause,
     Sort,
@@ -69,61 +70,83 @@ class Plan:
 # ── normalization ──────────────────────────────────────────────────────────────────────────────
 
 
-def normalize(node: Node) -> Node:
-    """The normal form, by the proved identities (idempotent)."""
-    out = _norm(node)
-    return out
+def normalize(node: Node, trace: Trace | None = None) -> Node:
+    """The normal form, by the proved identities (idempotent); with a trace, every rewrite that
+    changed the term is noted with the law it rests on."""
+    return _norm(node, trace)
 
 
-def _norm(node: Node) -> Node:
+def _note(t: Trace | None, what: str, law: str = "") -> None:
+    if t is not None:
+        t.note("plan", what, law)
+
+
+def _norm(node: Node, t: Trace | None = None) -> Node:
     match node:
         case ast.Far(field=f):
-            inner = _norm(f)
+            inner = _norm(f, t)
             if isinstance(inner, ast.Far):
+                _note(t, "far far f → f: the bounded reversal is an involution")
                 return inner.field                    # 1 − (1 − f) = f
             return ast.Far(inner)
         case ast.Not(region=r):
-            inner = _norm(r)
+            inner = _norm(r, t)
             if isinstance(inner, ast.Not):
+                _note(t, "not not r → r: the complement is an involution")
                 return inner.region
             return ast.Not(inner)
         case ast.Top(k=k, field=f):
-            return ast.Top(k, _norm(f))
-        case ast.AtLeast(t=t, field=f):
-            return ast.AtLeast(t, _norm(f))
+            return ast.Top(k, _norm(f, t))
+        case ast.AtLeast(t=th, field=f):
+            return ast.AtLeast(th, _norm(f, t))
         case ast.Minus(left=a, right=b):
-            return ast.Minus(_norm(a), _norm(b))
+            return ast.Minus(_norm(a, t), _norm(b, t))
         case ast.And():
-            return _flatten(node, ast.And)
+            return _flatten(node, ast.And, t)
         case ast.Or():
-            return _flatten(node, ast.Or)
+            return _flatten(node, ast.Or, t)
         case ast.Then(left=a, right=b):
-            return ast.Then(_norm(a), _norm(b))
+            return ast.Then(_norm(a, t), _norm(b, t))
         case ast.Within(body=b, region=r):
-            return _push_within(_norm(b), _norm(r))
+            return _push_within(_norm(b, t), _norm(r, t), t)
         case ast.Over(body=b, strata=s):
-            return ast.Over(_norm(b), s)
+            return ast.Over(_norm(b, t), s)
         case ast.AsOf(body=b, cut=c):
-            return ast.AsOf(_norm(b), c)
+            return ast.AsOf(_norm(b, t), c)
         case ast.Assume(hypothesis=h, body=b):
-            return ast.Assume(h, _norm(b))
+            return ast.Assume(h, _norm(b, t))
         case _:
             return node
 
 
-def _push_within(body: Node, region: Node) -> Node:
+def _push_within(body: Node, region: Node, t: Trace | None = None) -> Node:
     """QSA-2 and QSA-4: the adjective to the leaves, stopping at `top` and `far`."""
     match body:
         case ast.Within(body=inner, region=r2):
-            return _push_within(inner, _flatten(ast.And(r2, region), ast.And))   # mask_mask
+            _note(t, "within within → one mask: the regions met by ∩", "QSA-2")
+            return _push_within(inner, _flatten(ast.And(r2, region), ast.And, t), t)   # mask_mask
         case ast.And(left=a, right=b):
-            return _flatten(ast.And(_push_within(a, region), _push_within(b, region)), ast.And)
+            _note(t, "within pushed through `and` to both sides: the mask distributes over the "
+                     "Schur product", "QSA-2")
+            return _flatten(ast.And(_push_within(a, region, t), _push_within(b, region, t)),
+                            ast.And, t)
         case ast.Or(left=a, right=b):
-            return _flatten(ast.Or(_push_within(a, region), _push_within(b, region)), ast.Or)
-        case ast.AtLeast(t=t, field=f) if t > 0:
-            return ast.AtLeast(t, _push_within(f, region))                        # thresh_maskF
+            _note(t, "within pushed through `or` to both sides: the mask distributes over the "
+                     "mixture", "QSA-2")
+            return _flatten(ast.Or(_push_within(a, region, t), _push_within(b, region, t)),
+                            ast.Or, t)
+        case ast.AtLeast(t=th, field=f) if th > 0:
+            _note(t, f"within under `atleast {th:g}`: a positive threshold commutes with the mask",
+                  "QSA-4")
+            return ast.AtLeast(th, _push_within(f, region, t))                    # thresh_maskF
+        case ast.Top():
+            _note(t, "within stays over `top`: ranking does not commute with the mask", "QSA-4")
+            return ast.Within(body, region)
+        case ast.Far():
+            _note(t, "within stays over `far`: the reversal does not commute with the mask")
+            return ast.Within(body, region)
         case _:
-            return ast.Within(body, region)                        # top, far, a verb: stays
+            return ast.Within(body, region)                        # a verb: stays
 
 
 def _operands(node: Node, op: type[ast.And] | type[ast.Or]) -> list[Node]:
@@ -132,13 +155,20 @@ def _operands(node: Node, op: type[ast.And] | type[ast.Or]) -> list[Node]:
     return [node]
 
 
-def _flatten(node: Node, op: type[ast.And] | type[ast.Or]) -> Node:
+def _flatten(node: Node, op: type[ast.And] | type[ast.Or], t: Trace | None = None) -> Node:
     """Flatten nested `and`/`or`, normalize the operands and order them canonically
     (commutativity and associativity of the Schur product and the sum)."""
-    parts = [_norm(p) for p in _operands(node, op)]
-    parts.sort(key=repr)
-    out = parts[0]
-    for p in parts[1:]:
+    parts = [_norm(p, t) for p in _operands(node, op)]
+    ordered = sorted(parts, key=repr)
+    if t is not None:
+        done = ([f"flattened {len(parts)} operands"] if len(parts) > 2 else []) + \
+            (["ordered canonically"] if ordered != parts else [])
+        if done:
+            name, kind = ("and", "the Schur product") if op is ast.And else ("or", "the mixture")
+            _note(t, f"`{name}` {' and '.join(done)}: {kind} is commutative and associative",
+                  "QSA-1")
+    out = ordered[0]
+    for p in ordered[1:]:
         out = op(out, p)
     return out
 
@@ -200,15 +230,29 @@ def _render(node: Node, indent: int) -> list[str]:
 
 
 def compile_sentence(text: str, grant: Grant | None = None, *,
-                     precedents: Precedents = DEFAULT) -> Plan:
-    """Parse, type, normalize and, with a grant, check admissibility: the plan.
+                     precedents: Precedents = DEFAULT, trace: Trace | None = None) -> Plan:
+    """Parse, type, normalize and, with a grant, check admissibility: the plan. With a trace,
+    the work is noted: the parse and its sort, the rewrites, the clauses' scopes, the admission.
 
     Raises `ParseError`, `SortError`, `AmbiguousSentence` or `IllScopedSentence`, each naming its
     cause; a sentence that compiles is well-formed, well-sorted and admissible."""
     tree = parse(text)
     sort = typecheck(tree)
-    term = normalize(tree)
+    if trace is not None:
+        trace.note("parse", "parsed:\n" + "\n".join(_render(tree, 1)))
+        trace.note("parse", f"sort: {sort.value} — the sentence is well-sorted")
+    term = normalize(tree, trace)
     clauses = clauses_of(term, precedents=precedents)
+    if trace is not None:
+        if repr(term) == repr(tree):
+            trace.note("plan", "already in normal form: no rewrite applied")
+        else:
+            trace.note("plan", "normal form:\n" + "\n".join(_render(term, 1)))
+        for c in clauses:
+            trace.note("plan", f"clause {c.describe()}", "QSA-8")
     if grant is not None:
         check_admissible(term, grant, precedents=precedents)
+        if trace is not None:
+            trace.note("plan", f"admissible: each of the {len(clauses)} clauses' required scopes "
+                               "lies under a granted plane", "QSA-5")
     return Plan(sentence=text, term=term, sort=sort, clauses=clauses, hyps=hyps_of(term))

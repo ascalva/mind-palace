@@ -1,14 +1,18 @@
 {
- "instructions": "Ouroboros (palace_* tools) is the owner's memory. Ask it with palace_query — a sentence, not\nkeywords: near \"<text>\" (meaning) · diffuse S from \"<note>\" (structural neighbours) · reach F from\n\"<note>\" (citations) · relate \"<note>\" · trace \"<note>\" (versions) · walk from \"<note>\" via F+ ·\nread \"<ref>\" (full text: read before quoting) · witness \"<edge id>\". Combine with and, or, minus,\nthen; within <region>, over <strata>; top k, atleast t, far, not. Papers: near \"<text>\" over curated\n([unreviewed] = claim, not fact). A hypothetical, assume S \"a\" \"b\" +0.5 in <sentence>, answers as a\nHyp, never a fact. Cite refs. General knowledge: no query. Capture only when asked. Jobs, imports,\nwhat is due: palace_status. Tasks and reminders: palace_task_* and palace_remind. Never put palace\ncontent in web searches.",
+ "instructions": "Ouroboros (palace_* tools) is the owner's memory. Ask it with palace_query — a sentence, not\nkeywords: near \"<text>\" (meaning) · diffuse S from \"<note>\" (structural neighbours) · reach F from\n\"<note>\" (citations) · relate \"<note>\" · trace \"<note>\" (versions) · walk from \"<note>\" via F+ ·\nread \"<ref>\" (full text: read before quoting) · witness \"<edge id>\". Combine with and, or, minus,\nthen; within <region>, over <strata>; top k, atleast t, far, not. trace: true shows the work (the plan's rewrites, each clause's arithmetic, the ranking) when an answer surprises. Papers: near \"<text>\" over curated\n([unreviewed] = claim, not fact). A hypothetical, assume S \"a\" \"b\" +0.5 in <sentence>, answers as a\nHyp, never a fact. Cite refs. General knowledge: no query. Capture only when asked. Jobs, imports,\nwhat is due: palace_status. Tasks and reminders: palace_task_* and palace_remind. Never put palace\ncontent in web searches.",
  "tools": [
   {
    "name": "query",
-   "description": "The one read: a sentence of the query algebra, not keywords. Verbs: near \"text\" | diffuse S from <note> [beta b] | reach F from <note> [depth n] [back|forward] | relate <note> | trace <note> | walk from <note> [to <note>] via <regex over S,F,D,C> | witness \"<edge id>\" | read \"<ref>\" [chunk n] (the full text; read before quoting). Connectives and, or, minus, then; adjectives within <region>, over <strata>; top k, atleast t, far, not; assume <rel> <a> <b> [+w] in <sentence> (a hypothetical: the answer is a Hyp, never a fact). A <note> is a quoted path or title. Papers: over curated. Example: top 5 near \"sleep\" and diffuse S from \"health.md\". The plan rides with the answer; a refusal names the word that would fix it.",
+   "description": "The one read: a sentence of the query algebra, not keywords. Verbs: near \"text\" | diffuse S from <note> [beta b] | reach F from <note> [depth n] [back|forward] | relate <note> | trace <note> | walk from <note> [to <note>] via <regex over S,F,D,C> | witness \"<edge id>\" | read \"<ref>\" [chunk n] (the full text; read before quoting). Connectives and, or, minus, then; adjectives within <region>, over <strata>; top k, atleast t, far, not; assume <rel> <a> <b> [+w] in <sentence> (a hypothetical: the answer is a Hyp, never a fact). A <note> is a quoted path or title. Papers: over curated. Example: top 5 near \"sleep\" and diffuse S from \"health.md\". The plan rides with the answer; a refusal names the word that would fix it; trace: true shows the work — the parse, every rewrite with its law, the support's census, each clause's arithmetic, the ranking.",
    "inputSchema": {
     "type": "object",
     "properties": {
      "sentence": {
       "type": "string"
+     },
+     "trace": {
+      "type": "boolean",
+      "description": "show the work: the parse, the rewrites and their laws, the census, each clause's arithmetic, the ranking"
      }
     },
     "required": [

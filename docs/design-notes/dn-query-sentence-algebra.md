@@ -378,7 +378,7 @@ would catch it wrong:
 | **check** | sorts (§2.4); scope, clause by clause (QSA-5); mode per clause (QSA-8); the bridges' hypotheses (§2.2); the hypothesis class (§2.6) | an ill-typed sentence that runs; an admissible one refused |
 | **plan** | rewrite to normal form by the proved identities: push `within` to the leaves and merge adjectives (QSA-2); flatten and canonically order `and` and `or` (commutativity, associativity); take columns instead of kernels wherever the sentence has an anchor (QSA-3); keep `top k` and `≥ t` last, letting only thresholds pass masks (QSA-4); compile `via` to the product walk with dead-state pruning (QSA-7); hoist `as of` to one cut per sentence (the SLICE rule); choose the symbolic or numeric response for `assume` (§2.6) | a plan whose answer differs from the unoptimized evaluation (QSF-1) |
 | **execute** | the clause evaluators of `core/sentence/execute.py` over the stores `core/query.py` opens, deterministic: same sentence, same corpus state, same answer | a run-to-run difference |
-| **explain** | the plan rides with the answer (today's `operator` string becomes the plan tree); every hit carries provenance and status; an empty answer is loud and says which bound emptied it | an answer with no plan, or a silent empty |
+| **explain** | the plan rides with the answer (today's `operator` string becomes the plan tree); every hit carries provenance and status; an empty answer is loud and says which bound emptied it; `--trace` (the MCP tool's `trace: true`) is the proof of work: the parse, every rewrite with its law, the support's census, each clause's arithmetic with its numbers, a hypothetical's rank-one update and sever horizon, the ranking, the laws cited — numbers and refs only, never a note's text (`core/sentence/trace.py`) | an answer with no plan, or a silent empty |
 
 **The optimizer is correct because each rule is a theorem.** The planner is an evaluator of a term
 rewriting system whose rules are exactly the identities of §2.5; a plan denotes what its sentence
@@ -551,6 +551,16 @@ readiness signal.
 > defects are moot — no executor reads it; the compiler types every clause by the relation it
 > walks. `link`'s admissibility check is now the compiler's: `relate "<note>"` under the
 > Ambassador's grant (QSA-5).
+>
+> **Owner's direction, 2026-11-04 (third session): the language must be powerful, flexible,
+> secure, efficient, and able to show its work — "like any language, we'll need to debug
+> sometimes; a trace or proof of work could be nice, could even show the math steps
+> involved".** The first four are the standing bars (the grammar's composability; QSA-5's
+> clause-wise admission and the plane's clearances; the support-bounded universe); the fifth
+> is the trace, built the same day: `core/sentence/trace.py`, carried by the compiler, the
+> universe builder and the executor when asked for, rendered by `palace query --trace` and the
+> MCP tool's `trace: true`, and tested in `tests/unit/test_sentence_trace.py`. Off, every hook
+> is one `None` check; on, nothing is recomputed and nothing in it is a note's text.
 >
 > **Owner's rulings, 2026-11-04 (second session).** (1) The `QSA` prefix stands (QSA-a resolved).
 > (2) The hypothetical overlay is granted to the sentence surfaces for testing: `AMBASSADOR_OVERLAY

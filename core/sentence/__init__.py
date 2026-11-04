@@ -53,6 +53,7 @@ from core.sentence.surface import (
     sentence_grant,
     summarize,
 )
+from core.sentence.trace import Step, Trace
 from core.sentence.types import (
     AmbiguousSentence,
     Clause,
@@ -97,6 +98,8 @@ __all__ = [
     "sentence_grant",
     "sentence_of",
     "sort_of",
+    "Step",
+    "Trace",
     "summarize",
     "typecheck",
 ]

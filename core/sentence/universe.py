@@ -46,6 +46,7 @@ from core.sentence.ast import Node, Rel
 from core.sentence.execute import Relation, Universe, read_ref
 from core.sentence.plan import Plan
 from core.sentence.precedents import DEFAULT, Precedents
+from core.sentence.trace import Trace
 from core.sentence.types import (
     CURATED_NAMES,
     REFERENCE_NAMES,
@@ -443,9 +444,11 @@ class _Builder:
                         missing=tuple(missing), text=text, degrees=degrees)
 
 
-def build(engine: QueryEngine, plan: Plan, *, precedents: Precedents = DEFAULT) -> Universe:
+def build(engine: QueryEngine, plan: Plan, *, precedents: Precedents = DEFAULT,
+          trace: Trace | None = None) -> Universe:
     """The universe a plan reads: the mirror and the dialogue, then what the sentence's texts and
-    anchors reach in the indexed strata and the citation graph at the cut."""
+    anchors reach in the indexed strata and the citation graph at the cut. With a trace, the
+    support's census is noted."""
     seeds = seeds_of(plan.term, precedents)
     b = _Builder(engine, precedents)
     b.load_mirror()
@@ -459,4 +462,20 @@ def build(engine: QueryEngine, plan: Plan, *, precedents: Precedents = DEFAULT) 
         b.seed_anchor(atom, radius)
     b.wire_reference()
     b.degree_census([n for n in b.nodes.values() if n.stratum == "curated"])
-    return b.universe()
+    u = b.universe()
+    if trace is not None:
+        census: dict[str, int] = {}
+        for n in u.notes:
+            name = str(n.get("stratum") or "mirror")
+            census[name] = census.get(name, 0) + 1
+        edges = int(np.count_nonzero(np.triu(u.weights, 1) > 0))
+        trace.note("universe", f"the support: {len(u)} nodes ("
+                   + ", ".join(f"{k} {v}" for k, v in sorted(census.items()))
+                   + f"); the S backbone among them has {edges} edges"
+                   + (f"; the citation graph is read at cut {u.cut[:7]}" if u.cut else ""))
+        if u.degrees is not None:
+            trace.note("universe", "the walk keeps the full graph's degrees on the support: a "
+                       "support never invents nearness", "RSP-5")
+        for note in u.missing:
+            trace.note("universe", note)
+    return u

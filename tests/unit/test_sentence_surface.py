@@ -249,7 +249,8 @@ def test_the_query_tool_is_the_one_read_of_the_mcp(monkeypatch: pytest.MonkeyPat
     # the call runs under `sentence_grant()` against the live universe (faked here) and is logged
     import core.sentence.universe as universe_mod
 
-    monkeypatch.setattr(universe_mod, "build", lambda engine, plan, precedents: _universe())
+    monkeypatch.setattr(universe_mod, "build",
+                        lambda engine, plan, precedents, trace=None: _universe())
     monkeypatch.setattr(surface, "default_log", lambda: QueryLog(tmp_path / "q.jsonl"))
     monkeypatch.setattr(surface, "sentence_grant", lambda: AMBASSADOR_OVERLAY)
     reply = _call(server, 'top 1 near "q"')
