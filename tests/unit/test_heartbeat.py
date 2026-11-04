@@ -315,6 +315,12 @@ class _Beat:
             return self.models[port]
 
         monkeypatch.setattr(hb, "model_state", model_state)
+        # The disk the beat senses is the fake world's, never the host's: a runner with under
+        # `min_free_gb` free would otherwise defer every sync and fail the tests that expect one.
+        self.free_gb = 100.0
+        monkeypatch.setattr(hb.shutil, "disk_usage",
+                            lambda path: SimpleNamespace(total=0, used=0,
+                                                         free=int(self.free_gb * 1e9)))
         self.latest: dict[str, int | None] = {"openwebui": 0, "opencode": 0}
         self.pushed: list[tuple[str, str, str]] = []
         self.push_ok = True
