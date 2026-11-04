@@ -52,15 +52,16 @@ class Ambassador:
         return self._launcher
 
     # the one read ------------------------------------------------------------------------------
-    def query(self, sentence: str) -> dict[str, Any]:
+    def query(self, sentence: str, trace: bool = False) -> dict[str, Any]:
         """A sentence of the query algebra (dn-query-sentence-algebra) under `sentence_grant()` —
         the Ambassador's grant with the overlay the owner granted: the plan rides with the answer,
         a refusal names the word that would fix it, a hypothetical answers as a `Hyp` beside the
-        actual answer. Logged as `mcp`/`ambassador` (the query log, the sensor)."""
+        actual answer, and `trace` shows the work. Logged as `mcp`/`ambassador` (the query log,
+        the sensor)."""
         from core.sentence.surface import ask_logged, sentence_grant
 
         return ask_logged(sentence, sentence_grant(), surface="mcp", role="ambassador",
-                          engine=self.engine).to_dict()
+                          engine=self.engine, trace=bool(trace)).to_dict()
 
     def overview(self) -> dict[str, Any]:
         from collections import Counter
@@ -273,8 +274,14 @@ TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
         "top k, atleast t, far, not; assume <rel> <a> <b> [+w] in <sentence> (a hypothetical: the "
         "answer is a Hyp, never a fact). A <note> is a quoted path or title. Papers: over curated. "
         'Example: top 5 near "sleep" and diffuse S from "health.md". The plan rides with the '
-        "answer; a refusal names the word that would fix it.",
-        _schema({"sentence": _S}, ["sentence"]),
+        "answer; a refusal names the word that would fix it; trace: true shows the work — the "
+        "parse, every rewrite with its law, the support's census, each clause's arithmetic, "
+        "the ranking.",
+        _schema({"sentence": _S,
+                 "trace": {"type": "boolean",
+                           "description": "show the work: the parse, the rewrites and their "
+                                          "laws, the census, each clause's arithmetic, the "
+                                          "ranking"}}, ["sentence"]),
         "query",
     ),
     (

@@ -37,6 +37,7 @@ from core.sentence.execute import SentenceAnswer, Universe, UnsupportedSentence,
 from core.sentence.grammar import ParseError, parse
 from core.sentence.plan import Plan, compile_sentence, normalize
 from core.sentence.precedents import DEFAULT, Precedents
+from core.sentence.trace import Trace
 from core.sentence.types import (
     AmbiguousSentence,
     IllScopedSentence,
@@ -47,7 +48,7 @@ from core.sentence.types import (
 
 LOG_NAME = "query_log.jsonl"
 REASON_MAX = 240   # a refusal's reason, truncated: the log is a sensor, not a transcript
-USAGE = ('usage: palace query "<sentence>" [--json] [--no-plan] [--as <role>]\n'
+USAGE = ('usage: palace query "<sentence>" [--json] [--no-plan] [--trace] [--as <role>]\n'
          "       palace query --log [--json]      the sensor: strata by role, failed translations")
 
 
@@ -137,13 +138,17 @@ def refusal_class(e: BaseException) -> str:
 
 def ask_logged(text: str, grant: Grant, *, surface: str, role: str,
                engine: QueryEngine | None = None, universe: Universe | None = None,
-               log: QueryLog | None = None, precedents: Precedents = DEFAULT) -> SentenceAnswer:
-    """Compile `text` under `grant`, run it, log the outcome; a refusal is logged, then raised."""
+               log: QueryLog | None = None, precedents: Precedents = DEFAULT,
+               trace: bool = False) -> SentenceAnswer:
+    """Compile `text` under `grant`, run it, log the outcome; a refusal is logged, then raised.
+    With `trace`, the answer carries its proof of work (`core/sentence/trace.py`); the log entry
+    is the same either way."""
     log = log if log is not None else default_log()
     started = time.perf_counter()
     plan: Plan | None = None
+    t = Trace() if trace else None
     try:
-        plan = compile_sentence(text, grant, precedents=precedents)
+        plan = compile_sentence(text, grant, precedents=precedents, trace=t)
         if universe is not None:
             u = universe
         elif plan.sort is Sort.TEXT and plan.is_inv:   # a bare read opens no note graph
@@ -151,8 +156,8 @@ def ask_logged(text: str, grant: Grant, *, surface: str, role: str,
         else:
             from core.sentence.universe import build
 
-            u = build(engine or QueryEngine(), plan, precedents=precedents)
-        answer = execute(plan, u, precedents=precedents)
+            u = build(engine or QueryEngine(), plan, precedents=precedents, trace=t)
+        answer = execute(plan, u, precedents=precedents, trace=t)
     except Exception as e:
         log.record(_entry(text, surface, role, started, plan, precedents, outcome="refused",
                           refusal=refusal_class(e) or "error", reason=str(e)[:REASON_MAX]))
@@ -227,9 +232,10 @@ def render_summary(s: Mapping[str, Any]) -> str:
 # ── rendering ──────────────────────────────────────────────────────────────────────────────────
 
 
-def render_text(answer: SentenceAnswer, *, plan: bool = True) -> str:
+def render_text(answer: SentenceAnswer, *, plan: bool = True, trace: bool = False) -> str:
     """The answer as text: the sentence, its sort and modes, the plan, the hits with their
-    provenance, the assumed hits beside the actual ones under `assume`, and the notes."""
+    provenance, the assumed hits beside the actual ones under `assume`, the notes, and — asked
+    for, and carried — the trace."""
     p = answer.plan
     lines = [p.sentence,
              f"sort: {p.sort.value} · modes: {', '.join(p.modes) or '∅'} · "
@@ -244,6 +250,8 @@ def render_text(answer: SentenceAnswer, *, plan: bool = True) -> str:
     if answer.notes:
         lines.append("notes:")
         lines += [f"  - {n}" for n in answer.notes]
+    if trace and answer.trace is not None:
+        lines.append(answer.trace.render())
     return "\n".join(lines)
 
 
@@ -269,9 +277,10 @@ def _hits(label: str, hits: tuple[Hit, ...]) -> list[str]:
 def run_query(argv: list[str], *, out: TextIO | None = None, grant: Grant | None = None,
               engine: QueryEngine | None = None, universe: Universe | None = None,
               log: QueryLog | None = None) -> int:
-    """`palace query "<sentence>" [--json] [--no-plan] [--as <role>]`, and `palace query --log`.
-    Exit 0 for an answer (an empty one included: it says what emptied it), 1 for a refusal, 2 for
-    usage. The grant is `sentence_grant()` unless one is passed."""
+    """`palace query "<sentence>" [--json] [--no-plan] [--trace] [--as <role>]`, and
+    `palace query --log`. Exit 0 for an answer (an empty one included: it says what emptied it),
+    1 for a refusal, 2 for usage. The grant is `sentence_grant()` unless one is passed; `--trace`
+    shows the work."""
     out = out if out is not None else sys.stdout
     grant = grant if grant is not None else sentence_grant()
     args, role = list(argv), "cli"
@@ -284,7 +293,7 @@ def run_query(argv: list[str], *, out: TextIO | None = None, grant: Grant | None
         del args[i:i + 2]
     flags = {a for a in args if a.startswith("--")}
     words = [a for a in args if not a.startswith("--")]
-    if flags - {"--json", "--no-plan", "--log"} or ("--log" in flags) == bool(words):
+    if flags - {"--json", "--no-plan", "--trace", "--log"} or ("--log" in flags) == bool(words):
         print(USAGE, file=out)
         return 2
     as_json = "--json" in flags
@@ -296,7 +305,7 @@ def run_query(argv: list[str], *, out: TextIO | None = None, grant: Grant | None
     text = " ".join(words)
     try:
         answer = ask_logged(text, grant, surface="cli", role=role, engine=engine,
-                            universe=universe, log=log)
+                            universe=universe, log=log, trace="--trace" in flags)
     except Exception as e:
         cls = refusal_class(e)
         if not cls:
@@ -305,5 +314,6 @@ def run_query(argv: list[str], *, out: TextIO | None = None, grant: Grant | None
               else f"refused ({cls}): {e}", file=out)
         return 1
     print(json.dumps(answer.to_dict(), ensure_ascii=False, indent=1) if as_json
-          else render_text(answer, plan="--no-plan" not in flags), file=out)
+          else render_text(answer, plan="--no-plan" not in flags, trace="--trace" in flags),
+          file=out)
     return 0

@@ -25,14 +25,16 @@ from typing import Any
 
 import numpy as np
 
+from core.kernel.recursion import DEFAULT_GAMMA
 from core.kernel.scope import Hyp, Stratum
 from core.query import CURATED_REF, Hit, QueryEngine, free_energy_distances
 from core.sentence import ast
-from core.sentence.algebra import atleast, camps, far, mask_field, topk
+from core.sentence.algebra import atleast, camps, effective_resistance, far, mask_field, topk
 from core.sentence.ast import Direction, Node, Rel
 from core.sentence.automaton import Chain, compile_path, product_walk
 from core.sentence.plan import Plan
 from core.sentence.precedents import DEFAULT, Precedents
+from core.sentence.trace import Trace
 from core.sentence.types import (
     REFERENCE_NAMES,
     AmbiguousSentence,
@@ -408,19 +410,44 @@ def _balanced(relations: list[Relation]) -> bool:
 class Evaluator:
     """Evaluates a normalized term against a universe."""
 
-    def __init__(self, universe: Universe, precedents: Precedents = DEFAULT) -> None:
+    def __init__(self, universe: Universe, precedents: Precedents = DEFAULT,
+                 trace: Trace | None = None) -> None:
         self.u = universe
         self.p = precedents
+        self.t = trace
+
+    # the proof of work ------------------------------------------------------------------------
+    def _note(self, what: str, law: str = "") -> None:
+        if self.t is not None:
+            self.t.note("eval", what, law)
+
+    def _best(self, scores: np.ndarray, n: int = 3) -> str:
+        order = [int(j) for j in np.argsort(-scores, kind="stable") if scores[j] > 0][:n]
+        return ", ".join(f"{self.u.path_of(j)} {scores[j]:.4f}" for j in order) or "none"
+
+    def _size(self, v: Value) -> str:
+        if isinstance(v, FieldV):
+            return f"{int(np.count_nonzero(v.scores > 0))} positive"
+        if isinstance(v, RegionV):
+            return f"{len(v.members)} members"
+        if isinstance(v, ChainsV):
+            return f"{len(v.chains)} chains"
+        return type(v).__name__
 
     def eval(self, node: Node) -> Value:
         match node:
             case ast.Near(text=text):
                 v = self.u.embed(text)
                 v = v / (np.linalg.norm(v) or 1.0)
-                return FieldV(np.clip(self.u.vectors @ v, 0.0, 1.0))
+                scores = np.clip(self.u.vectors @ v, 0.0, 1.0)
+                self._note(f"near {text!r}: the kernel column s = clip(V·q̂, 0, 1) over "
+                           f"{len(self.u)} nodes; {int(np.count_nonzero(scores > 0))} positive; "
+                           f"best: {self._best(scores)}", "QSA-3")
+                return FieldV(scores)
             case ast.Diffuse(rel=rel, atom=atom, beta=beta):
                 return self._diffuse(rel, atom, beta)
             case ast.Far(field=f):
+                self._note("far: 1 − f, the bounded reversal of the field")
                 return FieldV(far(self._field(f)))
             case ast.Reach(rel=rel, atom=atom, depth=depth, direction=direction):
                 return self._reach(rel, atom, depth, direction)
@@ -428,30 +455,58 @@ class Evaluator:
                 return self._relate(atom)
             case ast.Top(k=k, field=f):
                 scores = self._field(f)
-                return RegionV(frozenset(i for i in topk(scores, k) if scores[i] > 0),
+                members = frozenset(i for i in topk(scores, k) if scores[i] > 0)
+                positive = int(np.count_nonzero(scores > 0))
+                cut = min((float(scores[i]) for i in members), default=0.0)
+                self._note(f"top {k}: {len(members)} kept of {positive} positive scores, ties "
+                           f"kept; the cut is {cut:.4f}", "QSA-4")
+                return RegionV(members,
                                {i: {"score": round(float(scores[i]), 4)} for i in range(len(scores))
                                 if scores[i] > 0})
             case ast.AtLeast(t=t, field=f):
                 scores = self._field(f)
-                return RegionV(atleast(scores, t),
+                members = atleast(scores, t)
+                self._note(f"atleast {t:g}: {len(members)} of {len(scores)} scores reach the "
+                           "threshold", "QSA-4")
+                return RegionV(members,
                                {i: {"score": round(float(scores[i]), 4)}
                                 for i in range(len(scores))})
             case ast.Not(region=r):
-                return RegionV(frozenset(range(len(self.u))) - self._region(r))
+                region = self._region(r)
+                self._note(f"not: the complement, {len(self.u) - len(region)} of {len(self.u)} "
+                           "nodes")
+                return RegionV(frozenset(range(len(self.u))) - region)
             case ast.Minus(left=a, right=b):
-                return RegionV(self._region(a) - self._region(b))
+                left, right = self._region(a), self._region(b)
+                self._note(f"minus: {len(left)} members less {len(left & right)} shared → "
+                           f"{len(left - right)}")
+                return RegionV(left - right)
             case ast.And(left=a, right=b):
                 return self._and(self.eval(a), self.eval(b))
             case ast.Or(left=a, right=b):
                 return self._or(self.eval(a), self.eval(b))
             case ast.Then(left=a, right=b):
-                return self._mask(self.eval(b), self._region(a))
+                region = self._region(a)
+                val = self.eval(b)
+                out = self._mask(val, region)
+                self._note(f"then: the right side masked to the left's region of {len(region)}: "
+                           f"{self._size(val)} → {self._size(out)}", "QSA-2")
+                return out
             case ast.Within(body=b, region=r):
-                return self._mask(self.eval(b), self._region(r))
+                region = self._region(r)
+                val = self.eval(b)
+                out = self._mask(val, region)
+                self._note(f"within: masked to a region of {len(region)} nodes: "
+                           f"{self._size(val)} → {self._size(out)}", "QSA-2")
+                return out
             case ast.Over(body=b, strata=strata):
                 val = self.eval(b)
                 if isinstance(val, FieldV | RegionV):
-                    return self._mask(val, self.u.in_strata(strata))
+                    region = self.u.in_strata(strata)
+                    out = self._mask(val, region)
+                    self._note(f"over {' '.join(strata)}: masked to the strata's {len(region)} "
+                               f"nodes: {self._size(val)} → {self._size(out)}", "QSA-2, QSA-10")
+                    return out
                 return val
             case ast.AsOf(body=b, cut=cut):
                 if self.u.cut is None or not self.u.cut.startswith(cut):
@@ -459,23 +514,64 @@ class Evaluator:
                     raise UnsupportedSentence(
                         f"as of {cut!r}: this universe is read at {at}; the store holds no edges "
                         f"at that cut, and the notes have no snapshot store")
+                self._note(f"as of {cut!r}: the universe is read at cut {self.u.cut[:7]}")
                 return self.eval(b)
             case ast.Trace(atom=atom, direction=direction):
                 return self._trace(atom, direction)
             case ast.Walk(atom=atom, path=path, to=to, depth=depth):
                 return self._walk(atom, path, to, depth)
             case ast.Witness(edge=edge):
-                return WitnessV(self.u.witness(edge))
+                record = self.u.witness(edge)
+                found = "the minting commit found" if record else "no record"
+                self._note(f"witness {edge!r}: {found}")
+                return WitnessV(record)
             case ast.Read(atom=atom, chunk=chunk):
                 return self._read(atom, chunk)
             case ast.Assume(hypothesis=h, body=b):
                 overlay = Overlay.of(h, self.u)
-                assumed = Evaluator(overlay.apply(self.u), self.p).eval(b)
+                self._note_assume(h, overlay)
+                self._note("— under the assumption:")
+                assumed = Evaluator(overlay.apply(self.u), self.p, self.t).eval(b)
+                self._note("— and without it:")
                 actual = self.eval(b)
                 notes = (tuple(overlay.describe_response(self.u))
                          + tuple(_response(actual, assumed, self.u)))
                 return HypV(actual, assumed, (ast.describe(h),), notes)
         raise UnsupportedSentence(f"no evaluator for {node!r}")  # pragma: no cover
+
+    def _note_assume(self, h: ast.Hypothesis, overlay: Overlay) -> None:
+        """The hypothetical's arithmetic: the rank-one update (QSA-9) and, for a backbone edge,
+        its sever horizon `w·R_eff` (SEV-3 to SEV-5) — one at a bridge, where the response is
+        singular."""
+        if self.t is None:
+            return
+        for i, j, delta in overlay.s_edges:
+            w = float(self.u.weights[i, j])
+            after = float(np.clip(w + delta, 0.0, 1.0))
+            sign = "+" if delta >= 0 else "−"
+            self._note(f"assume {ast.describe(h)}: a rank-one update of the backbone's Laplacian, "
+                       f"L ↦ L {sign} {abs(delta):g}·(e_u − e_v)(e_u − e_v)ᵀ; w_uv {w:.4f} → "
+                       f"{after:.4f}", "QSA-9")
+            if w > 0:
+                wr = w * effective_resistance(self.u.weights, i, j)
+                if wr >= 1 - 1e-6:
+                    where = ("= 1: the edge is a bridge, severing it disconnects, and the "
+                             "response is singular")
+                else:
+                    where = (f"< 1: the response is regular, the Sherman–Morrison denominator "
+                             f"1 − w·R_eff = {1 - wr:.4f}")
+                self._note(f"the sever horizon: w·R_eff(u, v) = {wr:.4f} {where}",
+                           "SEV-3, SEV-4, SEV-5")
+        for a, b in overlay.f_add:
+            self._note(f"assume a citation {a!r} → {b!r}: reach and the chains over F can only "
+                       "grow", "QSA-7")
+        for a, b in overlay.f_sever:
+            self._note(f"assume the citation {a!r} → {b!r} severed: reach and the chains over F "
+                       "can only shrink", "QSA-7")
+        for a, b in overlay.contradictions:
+            self._note(f"assume a contradiction between {a[:8]} and {b[:8]}: a negative relation "
+                       "edge along e_u + e_v; the signed Laplacian's zero mode lifts iff the "
+                       "camps break", "LAP-5, LAP-6, QSA-9")
 
     # ── helpers ────────────────────────────────────────────────────────────────────────────────
 
@@ -486,6 +582,8 @@ class Evaluator:
         rec = self.u.text(atom, chunk, self.p.read_window)
         if rec is None:
             raise LookupError(f"read: no active note, dialogue turn, repo file or paper {atom!r}")
+        self._note(f"read {atom!r}: the record in stratum {rec.get('stratum')!r}"
+                   + (f", chunks {rec['chunks']}" if "chunks" in rec else ""))
         allowed = short_names(read_strata(atom))
         if str(rec.get("stratum", "")) not in allowed:
             raise IllScopedSentence(
@@ -518,19 +616,40 @@ class Evaluator:
 
     def _and(self, a: Value, b: Value) -> Value:
         if isinstance(a, FieldV) and isinstance(b, FieldV):
-            return FieldV(a.scores * b.scores)                    # the Schur product, QSA-1
+            product = a.scores * b.scores                         # the Schur product, QSA-1
+            if self.t is not None:
+                order = [int(j) for j in np.argsort(-product, kind="stable") if product[j] > 0][:3]
+                factors = ", ".join(f"{self.u.path_of(j)} {a.scores[j]:.3f}×{b.scores[j]:.3f}="
+                                    f"{product[j]:.4f}" for j in order) or "none"
+                self._note(f"and: the Schur product f ⊙ g; {self._size(a)} ⊙ {self._size(b)} → "
+                           f"{int(np.count_nonzero(product > 0))} positive; best: {factors}",
+                           "QSA-1, QSA-3")
+            return FieldV(product)
         if isinstance(a, RegionV) and isinstance(b, RegionV):
+            self._note(f"and: the regions met, {len(a.members)} ∩ {len(b.members)} = "
+                       f"{len(a.members & b.members)}", "QSA-2")
             return RegionV(a.members & b.members, {**dict(b.detail), **dict(a.detail)})
         if isinstance(a, FieldV) and isinstance(b, RegionV):
-            return self._mask(a, b.members)
+            out = self._mask(a, b.members)
+            self._note(f"and: the field masked to the region of {len(b.members)}: "
+                       f"{self._size(a)} → {self._size(out)}", "QSA-2")
+            return out
         if isinstance(a, RegionV) and isinstance(b, FieldV):
-            return self._mask(b, a.members)
+            out = self._mask(b, a.members)
+            self._note(f"and: the field masked to the region of {len(a.members)}: "
+                       f"{self._size(b)} → {self._size(out)}", "QSA-2")
+            return out
         raise UnsupportedSentence("and: fields and regions only")
 
     def _or(self, a: Value, b: Value) -> Value:
         if isinstance(a, FieldV) and isinstance(b, FieldV):
-            return FieldV((a.scores + b.scores) / 2.0)             # the convex mixture
+            mixed = (a.scores + b.scores) / 2.0                    # the convex mixture
+            self._note(f"or: the convex mixture (f + g)/2; {self._size(a)}, {self._size(b)} → "
+                       f"{int(np.count_nonzero(mixed > 0))} positive", "QSA-1")
+            return FieldV(mixed)
         if isinstance(a, RegionV) and isinstance(b, RegionV):
+            self._note(f"or: the regions joined, {len(a.members)} ∪ {len(b.members)} = "
+                       f"{len(a.members | b.members)}")
             return RegionV(a.members | b.members, {**dict(a.detail), **dict(b.detail)})
         raise UnsupportedSentence("or: two fields or two regions")
 
@@ -543,13 +662,26 @@ class Evaluator:
         else:
             raise UnsupportedSentence(f"diffuse {rel.value}: no weights at the note grain")
         if not np.any(W > 0):
+            self._note(f"diffuse {rel.value} from {atom!r}: no {rel.value} edges in this "
+                       "universe; the field is zero")
             return FieldV(np.zeros(len(self.u)))
         degrees = self.u.degrees if rel is Rel.S else None   # the support's walk keeps the
-        dist = free_energy_distances(W, beta=beta if beta is not None else self.p.beta,   # graph's
-                                     degrees=degrees)[i]
+        b = beta if beta is not None else self.p.beta                                     # graph's
+        dist = free_energy_distances(W, beta=b, degrees=degrees)[i]
         scores = np.where(np.isfinite(dist), np.exp(-dist), 0.0)
         scores[i] = 0.0                                  # a note is not retrieved from itself
-        return FieldV(np.clip(scores, 0.0, 1.0))
+        scores = np.clip(scores, 0.0, 1.0)
+        if self.t is not None:
+            m = int(np.count_nonzero(np.triu(W, 1) > 0))
+            reached = int(np.count_nonzero(np.isfinite(dist))) - 1
+            kept = (" with the full graph's degrees on this support, so the walk never invents "
+                    "nearness" if degrees is not None else "")
+            self._note(f"diffuse {rel.value} from {atom!r}: the killed walk W_β = z·D⁻¹W∘W^β on "
+                       f"{len(self.u)} nodes and {m} edges, β = {b:g}, z = γ = {DEFAULT_GAMMA:g}"
+                       f"{kept}; Z = (I − W_β)⁻¹, φ_aj = −log(z_aj / z_jj)/β, score e^{{−φ}}; "
+                       f"{reached} nodes reachable; best: {self._best(scores)}",
+                       "RSP-1, RSP-4" + (", RSP-5" if degrees is not None else ""))
+        return FieldV(scores)
 
     def _neighbours(self, rel: Rel, direction: Direction) -> dict[str, set[str]]:
         graph = self.u.typed_graph()
@@ -574,6 +706,7 @@ class Evaluator:
         hops = depth if depth is not None else self.p.depth
         seen = {start: 0}
         frontier = [start]
+        frontiers: list[int] = []
         for h in range(1, hops + 1):
             nxt: list[str] = []
             for u in frontier:
@@ -582,7 +715,10 @@ class Evaluator:
                         seen[v] = h
                         nxt.append(v)
             frontier = nxt
+            frontiers.append(len(nxt))
         members = frozenset(at[p] for p in seen if p != start and p in at)
+        self._note(f"reach {rel.value} from {atom!r} depth {hops} {direction.value}: breadth "
+                   f"first over the typed edges, frontiers {frontiers}; {len(members)} reached")
         return RegionV(members, {at[p]: {"hops": h} for p, h in seen.items()
                                  if p in at and p != start})
 
@@ -602,12 +738,17 @@ class Evaluator:
             members.add(j)
             detail[j] = {"relation": r.rel_type, "sign": r.sign, "w": r.w,
                          "direction": "out" if r.u == digest else "in"}
+        positive = sum(1 for d in detail.values() if d.get("sign") == 1)
+        self._note(f"relate {atom!r}: {len(members)} notes joined by a signed relation edge "
+                   f"({positive} supporting, {len(members) - positive} contradicting)")
         return RegionV(frozenset(members), detail)
 
     def _trace(self, atom: str, direction: Direction) -> ChainsV:
         versions = self.u.history(atom)
         if direction is Direction.BACK:
             versions = list(reversed(versions))
+        self._note(f"trace {atom!r} {direction.value}: {len(versions)} versions on the note's "
+                   "supersession chain")
         if not versions:
             return ChainsV(())
         head = f"{versions[0][0]}@{versions[0][1]}"
@@ -618,9 +759,12 @@ class Evaluator:
         start = self.u.path_of(self.u.index_of(atom))
         target = self.u.path_of(self.u.index_of(to)) if to is not None else None
         dfa = compile_path(path)
-        chains = product_walk(self.u.typed_graph(), dfa, start,
-                              depth=depth if depth is not None else self.p.walk_depth,
-                              target=target, limit=self.p.walk_limit)
+        d = depth if depth is not None else self.p.walk_depth
+        chains = product_walk(self.u.typed_graph(), dfa, start, depth=d, target=target,
+                              limit=self.p.walk_limit)
+        self._note(f"walk from {atom!r} via {path}: the product of the typed graph with the "
+                   f"path's automaton, depth {d}, at most {self.p.walk_limit} chains; "
+                   f"{len(chains)} found", "QSA-7")
         return ChainsV(tuple(chains))
 
 
@@ -656,6 +800,7 @@ class SentenceAnswer:
     hits: tuple[Hit, ...]
     hyp: Hyp[tuple[Hit, ...]] | None
     notes: tuple[str, ...]
+    trace: Trace | None = None
 
     def to_dict(self) -> dict[str, Any]:
         def rows(hits: tuple[Hit, ...]) -> list[dict[str, Any]]:
@@ -671,6 +816,8 @@ class SentenceAnswer:
         }
         if self.hyp is not None:
             out["hyp"] = {"assumptions": list(self.hyp.assumptions), "hits": rows(self.hyp.value)}
+        if self.trace is not None:
+            out["trace"] = self.trace.to_dict()
         return out
 
 
@@ -710,19 +857,39 @@ def _hit(u: Universe, j: int, *, score: float | None = None,
                detail={**dict(node_detail), **(detail or {})})
 
 
-def execute(plan: Plan, universe: Universe, *, precedents: Precedents = DEFAULT) -> SentenceAnswer:
-    """Evaluate a compiled plan: deterministic for one universe, the plan riding with the answer."""
-    value = Evaluator(universe, precedents).eval(plan.term)
+def _rank_note(value: Value, k: int) -> str:
+    if isinstance(value, FieldV):
+        return (f"rank: the field's {k} best positive scores, ties by the universe's order "
+                f"({int(np.count_nonzero(value.scores > 0))} positive)")
+    if isinstance(value, RegionV):
+        return f"rank: the region's {len(value.members)} members, in the universe's order"
+    if isinstance(value, ChainsV):
+        return f"rank: the {len(value.chains)} chains, as the walk found them"
+    if isinstance(value, WitnessV):
+        return "rank: the one record"
+    if isinstance(value, TextV):
+        return "rank: the text, one record"
+    return "rank: the actual answer, then the assumed one"
+
+
+def execute(plan: Plan, universe: Universe, *, precedents: Precedents = DEFAULT,
+            trace: Trace | None = None) -> SentenceAnswer:
+    """Evaluate a compiled plan: deterministic for one universe, the plan riding with the answer
+    and, with a trace, the work shown step by step."""
+    value = Evaluator(universe, precedents, trace).eval(plan.term)
     notes: list[str] = list(universe.missing)
     if plan.sort is Sort.FIELD and not isinstance(plan.term, ast.Top):
         notes.append(f"a field: the {precedents.k} best scores are shown; write 'top k' to rank "
                      f"explicitly")
+    if trace is not None:
+        trace.note("rank", _rank_note(value.actual if isinstance(value, HypV) else value,
+                                      precedents.k))
     if isinstance(value, HypV):
         actual = _hits(value.actual, universe, precedents.k)
         assumed = _hits(value.assumed, universe, precedents.k)
         return SentenceAnswer(plan, actual, Hyp(assumed, value.assumptions),
-                              tuple(notes) + value.notes)
-    return SentenceAnswer(plan, _hits(value, universe, precedents.k), None, tuple(notes))
+                              tuple(notes) + value.notes, trace)
+    return SentenceAnswer(plan, _hits(value, universe, precedents.k), None, tuple(notes), trace)
 
 
 def ask(text: str, grant: Any, engine: QueryEngine | None = None, *,
