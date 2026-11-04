@@ -16,7 +16,8 @@ Penrose's equations, which determine the pseudo-inverse (SEV-1) — so its resis
 `1/w` (SEV-2); any graph carrying the edge lies above it entrywise, and Rayleigh (CND-2,
 `rEff_anti`) can only lower the resistance (SEV-3). Kirchhoff reads `w·R_eff(a, b)` as the
 probability that a random spanning tree contains the edge; the horizon `w·R_eff = 1` is
-probability one, a bridge. That direction and its converse are the open part of L1. Design
+probability one, a bridge: `w·R_eff = 1` exactly when `a ~ b` is the only edge across some cut
+(SEV-4 by Thomson's principle, SEV-5 by the maximum principle on the unit potential). Design
 theorems (Palace only, no Spec rows): no code severs an edge of the backbone yet; the hypothetical
 overlay (QSA-9) is where it would.
 -/
@@ -267,5 +268,250 @@ theorem mul_rEff_eq_one_of_bridge {A : Matrix V V ℝ} (hA : A.IsSymm) (hw : ∀
     _ ≤ A a b * ((Pi.single a 1 - Pi.single b 1) ⬝ᵥ
         (lapPinv A hA *ᵥ (Pi.single a 1 - Pi.single b 1))) :=
       mul_le_mul_of_nonneg_left key hpos.le
+
+/-! ### SEV-5 Off a bridge the horizon is not reached: the horizon is exactly the bridges -/
+
+omit [Fintype V] [DecidableEq V] in
+/-- An adjacency of the support is a nonzero entry. -/
+theorem ne_zero_of_support_adj {A : Matrix V V ℝ} (hA : A.IsSymm) {i j : V}
+    (h : (support A).Adj i j) : A i j ≠ 0 := by
+  simp only [support, SimpleGraph.fromRel_adj] at h
+  rcases h.2 with h0 | h0
+  · exact h0
+  · rwa [hA.apply i j] at h0
+
+omit [Fintype V] [DecidableEq V] in
+/-- At a vertex of `a`'s component where the potential is largest, every term of its Laplacian
+row is nonnegative: a neighbour is in the component too, so it sits no higher. -/
+theorem row_terms_nonneg {A : Matrix V V ℝ} (hw : ∀ i j, 0 ≤ A i j) {a : V} {x : V → ℝ}
+    {w : V} (hwr : (support A).Reachable a w)
+    (hmax : ∀ u, (support A).Reachable a u → x u ≤ x w) (j : V) :
+    0 ≤ A w j * (x w - x j) := by
+  by_cases hAj : A w j = 0
+  · simp [hAj]
+  · by_cases hjw : j = w
+    · simp [hjw]
+    · have hadj : (support A).Adj w j := by
+        simp only [support, SimpleGraph.fromRel_adj]
+        exact ⟨Ne.symm hjw, Or.inl hAj⟩
+      exact mul_nonneg (hw w j) (sub_nonneg.2 (hmax j (hwr.trans hadj.reachable)))
+
+/-- A harmonic vertex at the component's maximum passes the maximum to every neighbour: its row
+of `L x = e_a − e_b` sums to zero with nonnegative terms, so each vanishes. -/
+theorem eq_of_harmonic_max {A : Matrix V V ℝ} (hw : ∀ i j, 0 ≤ A i j) {a b : V} {x : V → ℝ}
+    (hx : lap A *ᵥ x = Pi.single a 1 - Pi.single b 1) {w : V}
+    (hwr : (support A).Reachable a w) (hmax : ∀ u, (support A).Reachable a u → x u ≤ x w)
+    (hwa : w ≠ a) (hwb : w ≠ b) {j : V} (hAj : A w j ≠ 0) : x j = x w := by
+  have hrow : ∑ j, A w j * (x w - x j) = 0 := by
+    rw [← lap_mulVec_apply, hx]
+    simp [hwa, hwb]
+  have hzero := (sum_eq_zero_iff_of_nonneg fun j _ ↦ row_terms_nonneg hw hwr hmax j).1 hrow j
+    (mem_univ j)
+  rcases mul_eq_zero.1 hzero with h | h
+  · exact absurd h hAj
+  · exact (sub_eq_zero.1 h).symm
+
+/-- The sink is never the component's maximum: its row of `L x = e_a − e_b` sums to `−1`. -/
+theorem sink_not_max {A : Matrix V V ℝ} (hw : ∀ i j, 0 ≤ A i j) {a b : V} {x : V → ℝ}
+    (hx : lap A *ᵥ x = Pi.single a 1 - Pi.single b 1) (hab : a ≠ b)
+    (hbr : (support A).Reachable a b) (hmax : ∀ u, (support A).Reachable a u → x u ≤ x b) :
+    False := by
+  have hrow : ∑ j, A b j * (x b - x j) = -1 := by
+    rw [← lap_mulVec_apply, hx]
+    simp [hab.symm]
+  have := sum_nonneg fun j (_ : j ∈ univ) ↦ row_terms_nonneg hw hbr hmax j
+  linarith
+
+/-- The maximum principle for the unit potential `x = L⁺(e_a − e_b)`: on `a`'s component the
+potential is largest at the source. A maximum elsewhere would travel, vertex by harmonic vertex,
+along a walk back to the source — and the sink cannot carry it. -/
+theorem potential_le_source {A : Matrix V V ℝ} (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j)
+    {a b : V} (hab : a ≠ b) {x : V → ℝ} (hx : lap A *ᵥ x = Pi.single a 1 - Pi.single b 1)
+    {u : V} (hu : (support A).Reachable a u) : x u ≤ x a := by
+  classical
+  obtain ⟨v, hvS, hv⟩ := (univ.filter fun w ↦ (support A).Reachable a w).exists_max_image x
+    ⟨a, mem_filter.2 ⟨mem_univ a, SimpleGraph.Reachable.refl a⟩⟩
+  have hvr : (support A).Reachable a v := (mem_filter.1 hvS).2
+  have hmaxv : ∀ w, (support A).Reachable a w → x w ≤ x v :=
+    fun w hw' ↦ hv w (mem_filter.2 ⟨mem_univ w, hw'⟩)
+  by_contra hcon
+  push Not at hcon
+  have hva : x a < x v := hcon.trans_le (hmaxv u hu)
+  have walk : ∀ w t, (support A).Reachable a w → x w = x v → (support A).Walk w t → t = a →
+      False := by
+    intro w t hwr hwv p
+    revert hwr hwv
+    induction p with
+    | nil => intro _ hwv hta; rw [hta] at hwv; exact hva.ne hwv
+    | @cons w w' t hadj p' ih =>
+      intro hwr hwv hta
+      have hmaxw : ∀ u, (support A).Reachable a u → x u ≤ x w :=
+        fun u hu' ↦ (hmaxv u hu').trans_eq hwv.symm
+      have hwa : w ≠ a := fun h ↦ hva.ne (by rw [← h]; exact hwv)
+      have hwb : w ≠ b := by
+        rintro rfl
+        exact sink_not_max hw hx hab hwr hmaxw
+      have hw' : x w' = x w :=
+        eq_of_harmonic_max hw hx hwr hmaxw hwa hwb (ne_zero_of_support_adj hA hadj)
+      exact ih (hwr.trans hadj.reachable) (hw'.trans hwv) hta
+  obtain ⟨p⟩ := hvr.symm
+  exact walk v a hvr rfl p rfl
+
+/-- SEV-5 Off a bridge the horizon is not reached: when `a` still reaches `b` without the edge
+`a ~ b`, `w·R_eff(a, b) < 1`. The unit current out of `a` splits between the edge and the other
+neighbours; by the maximum principle every share is nonnegative, and if the others carried
+nothing, every vertex along the detour would sit at the source potential — `b` too, and the
+resistance would vanish. -/
+theorem mul_rEff_lt_one_of_reachable {A : Matrix V V ℝ} (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j)
+    {a b : V} (hab : a ≠ b) (hpos : 0 < A a b)
+    (hdetour : (support (A - single a b (A a b))).Reachable a b) :
+    A a b * rEff (lapPinv A hA) a b < 1 := by
+  have hA₀s : (A - single a b (A a b)).IsSymm := hA.sub (isSymm_single a b (A a b))
+  have hw₀ : ∀ i j, 0 ≤ (A - single a b (A a b)) i j :=
+    fun i j ↦ sub_nonneg.2 (single_le hA hw a b i j)
+  have hle₀ : ∀ i j, (A - single a b (A a b)) i j ≤ A i j :=
+    fun i j ↦ sub_le_self _ (single_nonneg hpos.le i j)
+  have hr : (support A).Reachable a b := hdetour.mono (support_mono hw₀ hle₀)
+  obtain ⟨x, hxdef⟩ : ∃ x : V → ℝ, lapPinv A hA *ᵥ (Pi.single a 1 - Pi.single b 1) = x :=
+    ⟨_, rfl⟩
+  have hP := posSemidef_lap A hA hw
+  have hx : lap A *ᵥ x = Pi.single a 1 - Pi.single b 1 := by
+    rw [← hxdef]
+    exact mulVec_pinv_mulVec_of_orthogonal hP.isHermitian (orthogonal_ker_lap hA hw hr)
+  have hreff : rEff (lapPinv A hA) a b = x a - x b := by
+    rw [rEff_eq_dotProduct (isHermitian_lapPinv A hA), hxdef]
+    simp [sub_dotProduct, single_dotProduct]
+  have hmax : ∀ u, (support A).Reachable a u → x u ≤ x a :=
+    fun u hu ↦ potential_le_source hA hw hab hx hu
+  have hrow : ∑ j, A a j * (x a - x j) = 1 := by
+    rw [← lap_mulVec_apply, hx]
+    simp [hab]
+  have hsplit : A a b * (x a - x b) + ∑ j ∈ univ.erase b, A a j * (x a - x j) = 1 := by
+    rw [← hrow]
+    exact add_sum_erase univ (fun j ↦ A a j * (x a - x j)) (mem_univ b)
+  have hterm : ∀ j, 0 ≤ A a j * (x a - x j) :=
+    row_terms_nonneg hw (SimpleGraph.Reachable.refl a) hmax
+  have hrest : 0 < ∑ j ∈ univ.erase b, A a j * (x a - x j) := by
+    refine lt_of_le_of_ne (sum_nonneg fun j _ ↦ hterm j) fun h0 ↦ ?_
+    have hzero : ∀ j ∈ univ.erase b, A a j * (x a - x j) = 0 :=
+      (sum_eq_zero_iff_of_nonneg fun j _ ↦ hterm j).1 h0.symm
+    have hnb : ∀ j, j ≠ b → A a j ≠ 0 → x j = x a := by
+      intro j hjb hAj
+      rcases mul_eq_zero.1 (hzero j (mem_erase.2 ⟨hjb, mem_univ j⟩)) with h | h
+      · exact absurd h hAj
+      · exact (sub_eq_zero.1 h).symm
+    -- along the detour the source potential travels, all the way to the sink
+    have walk : ∀ w t, (support A).Reachable a w → x w = x a →
+        (support (A - single a b (A a b))).Walk w t → t = b → x b = x a := by
+      intro w t hwr hwa p
+      revert hwr hwa
+      induction p with
+      | nil => intro _ hwa htb; rw [← htb]; exact hwa
+      | @cons w w' t hadj p' ih =>
+        intro hwr hwa htb
+        have h0 : (A - single a b (A a b)) w w' ≠ 0 := ne_zero_of_support_adj hA₀s hadj
+        have hw'r : (support A).Reachable a w' :=
+          hwr.trans (SimpleGraph.Adj.reachable (support_mono hw₀ hle₀ hadj))
+        by_cases hwb : w = b
+        · rw [← hwb]; exact hwa
+        refine ih hw'r ?_ htb
+        by_cases hwa' : w = a
+        · have hw'b : w' ≠ b := by
+            rintro rfl
+            apply h0
+            rw [hwa']
+            simp [single, Query.assumeEdge]
+          have hAw' : A a w' ≠ 0 := by
+            intro hz
+            apply h0
+            rw [hwa', Matrix.sub_apply, hz]
+            simp [single, Query.assumeEdge, hw'b, hab]
+          exact hnb w' hw'b hAw'
+        · have hAw' : A w w' ≠ 0 := by
+            intro hz
+            apply h0
+            rw [Matrix.sub_apply, hz]
+            simp [single, Query.assumeEdge, hwa', hwb]
+          exact (eq_of_harmonic_max hw hx hwr (fun u hu ↦ (hmax u hu).trans_eq hwa.symm) hwa' hwb
+            hAw').trans hwa
+    obtain ⟨p⟩ := hdetour
+    have hxb : x b = x a := walk a b (SimpleGraph.Reachable.refl a) rfl p rfl
+    have := rEff_pos hA hw hr hab
+    rw [hreff, hxb, sub_self] at this
+    exact lt_irrefl _ this
+  rw [hreff]
+  linarith
+
+omit [Fintype V] in
+/-- A bridge, read as a cut: `a ~ b` is the only edge across some cut iff `a` cannot reach `b`
+without it. -/
+theorem isBridgeCut_iff_not_reachable [Finite V] {A : Matrix V V ℝ} (hA : A.IsSymm)
+    (hw : ∀ i j, 0 ≤ A i j) {a b : V} :
+    IsBridgeCut A a b ↔ ¬ (support (A - single a b (A a b))).Reachable a b := by
+  classical
+  have := Fintype.ofFinite V
+  constructor
+  · rintro ⟨S, haS, hbS, hcut⟩ ⟨p⟩
+    -- a walk without the edge never leaves `S`, so it never arrives at `b`
+    have stay : ∀ w t, w ∈ S → (support (A - single a b (A a b))).Walk w t → t = b → b ∈ S := by
+      intro w t hwS p
+      revert hwS
+      induction p with
+      | nil => intro hwS htb; rw [← htb]; exact hwS
+      | @cons w w' t hadj p' ih =>
+        intro hwS htb
+        refine ih ?_ htb
+        by_contra hw'S
+        have h0 : (A - single a b (A a b)) w w' ≠ 0 :=
+          ne_zero_of_support_adj (hA.sub (isSymm_single a b (A a b))) hadj
+        apply h0
+        rw [Matrix.sub_apply]
+        rcases hcut w hwS w' hw'S with ⟨rfl, rfl⟩ | hz
+        · simp [single, Query.assumeEdge]
+        · have h1 := single_le hA hw a b w w'
+          have h2 := single_nonneg (a := a) (b := b) (hw a b) w w'
+          linarith
+    exact hbS (stay a b haS p rfl)
+  · intro hnr
+    refine ⟨univ.filter fun v ↦ (support (A - single a b (A a b))).Reachable a v,
+      mem_filter.2 ⟨mem_univ a, SimpleGraph.Reachable.refl a⟩,
+      fun h ↦ hnr (mem_filter.1 h).2, ?_⟩
+    intro i hi j hj
+    rw [mem_filter] at hi hj
+    by_contra hc
+    obtain ⟨h1, h2⟩ := not_or.1 hc
+    have hib : i ≠ b := fun h ↦ hnr (h ▸ hi.2)
+    have hij : i ≠ j := fun h ↦ hj ⟨mem_univ j, h ▸ hi.2⟩
+    have h0 : (A - single a b (A a b)) i j ≠ 0 := by
+      rw [Matrix.sub_apply]
+      have : single a b (A a b) i j = 0 := by
+        simp [single, Query.assumeEdge, h1, hib]
+      rw [this, sub_zero]
+      exact h2
+    have hadj : (support (A - single a b (A a b))).Adj i j := by
+      simp only [support, SimpleGraph.fromRel_adj]
+      exact ⟨hij, Or.inl h0⟩
+    exact hj ⟨mem_univ j, hi.2.trans hadj.reachable⟩
+
+/-- SEV-5 The horizon is exactly the bridges: `w·R_eff(a, b) = 1` iff `a ~ b` is the only edge
+across some cut. -/
+theorem mul_rEff_eq_one_iff {A : Matrix V V ℝ} (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j)
+    {a b : V} (hab : a ≠ b) (hpos : 0 < A a b) :
+    A a b * rEff (lapPinv A hA) a b = 1 ↔ IsBridgeCut A a b := by
+  constructor
+  · intro h
+    by_contra hnb
+    have hr : (support (A - single a b (A a b))).Reachable a b := by
+      by_contra hnr
+      exact hnb ((isBridgeCut_iff_not_reachable hA hw).2 hnr)
+    exact (mul_rEff_lt_one_of_reachable hA hw hab hpos hr).ne h
+  · exact mul_rEff_eq_one_of_bridge hA hw hab hpos
+
+/-- SEV-5 `assume sever`'s Sherman–Morrison denominator vanishes exactly at a bridge: the
+response theory of a sever is singular precisely where severing disconnects. -/
+theorem one_sub_mul_rEff_eq_zero_iff {A : Matrix V V ℝ} (hA : A.IsSymm)
+    (hw : ∀ i j, 0 ≤ A i j) {a b : V} (hab : a ≠ b) (hpos : 0 < A a b) :
+    1 - A a b * rEff (lapPinv A hA) a b = 0 ↔ IsBridgeCut A a b := by
+  rw [sub_eq_zero, eq_comm, mul_rEff_eq_one_iff hA hw hab hpos]
 
 end Palace.Sever
