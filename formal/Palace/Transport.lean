@@ -1,5 +1,6 @@
 module
 
+public import Mathlib.Algebra.Order.Chebyshev
 public import Palace.Transport.Defs
 
 /-!
@@ -9,7 +10,8 @@ The limits program's L3 (`docs/brainstorms/limits-of-the-algebra.md`), machine-c
 temporal-retrieval-algebra §2.3 Result 5 pins the ledger's dilation to the pullback `σ^*` as
 "always a contraction". Under a merge it is not: `‖σ^* f‖² = ∑_b |σ⁻¹ b| f_b²`, so the pullback
 expands by `√(max fiber)`, and the merge of two notes into one doubles a cochain's energy. The
-push-forward is its adjoint and has the same norm. The correction is the inner product: under
+push-forward is its adjoint and has the same norm; under the inverse-fiber weight on the target
+it contracts (TRN-4). The correction is the inner product: under
 the fiber-weighted `⟨·,·⟩_σ` on the target, the pullback is an isometry — the weighted inner
 product PD-b parked becomes the dilation's customer, exactly where Result 4 predicted it would.
 These are design theorems (Palace and this file only; no Spec rows): no code transports cochains
@@ -80,5 +82,22 @@ theorem pull_isometry_iff (σ : A → B) :
     rw [pull_dotProduct_self]
     unfold wdot dotProduct
     simp [h]
+
+/-- TRN-4 The push-forward is a contraction under the inverse-fiber-weighted inner product on
+the target, `‖σ_* g‖²_{1/σ} ≤ ‖g‖²`: Cauchy–Schwarz on each fiber. The dual of TRN-3, and the
+inner product under which Result 6's γ-contraction reads once supersessions merge. -/
+theorem push_wdotInv_le (σ : A → B) (g : A → ℝ) :
+    wdotInv σ (push σ g) (push σ g) ≤ g ⬝ᵥ g := by
+  unfold wdotInv push fiber dotProduct
+  rw [← sum_fiberwise (s := univ) (g := σ) (f := fun a ↦ g a * g a)]
+  refine sum_le_sum fun b _ ↦ ?_
+  set F := univ.filter (fun a ↦ σ a = b) with hF
+  rcases Nat.eq_zero_or_pos F.card with h0 | hpos
+  · rw [Finset.card_eq_zero] at h0
+    simp [h0]
+  · have hc : (0 : ℝ) < F.card := by exact_mod_cast hpos
+    rw [inv_mul_le_iff₀ hc, ← sq]
+    calc (∑ a ∈ F, g a) ^ 2 ≤ F.card * ∑ a ∈ F, g a ^ 2 := sq_sum_le_card_mul_sum_sq
+      _ = F.card * ∑ a ∈ F, g a * g a := by simp [sq]
 
 end Palace.Transport
