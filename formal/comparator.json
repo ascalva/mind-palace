@@ -148,6 +148,8 @@
     "Palace.Retrieval.fundamental_eq_zero_of_not_reachable",
     "Palace.Retrieval.fundamental_nonneg",
     "Palace.Retrieval.fundamental_pos_of_reachable",
+    "Palace.Retrieval.nearnessOn_le_nearness",
+    "Palace.Retrieval.nearnessOn_mul_le",
     "Palace.Retrieval.one_le_fundamental_self",
     "Palace.Retrieval.posDef_exp_neg_mul_feDist",
     "Palace.Retrieval.posDef_kStruct",
