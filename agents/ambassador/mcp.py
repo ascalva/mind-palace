@@ -37,6 +37,20 @@ INSTRUCTIONS = (Path(__file__).with_name("brief.md")).read_text(encoding="utf-8"
 _READ_WINDOW = 5   # chunks of a curated paper per `read` (~5K characters): a whole paper won't fit
 
 _STRATA_NAMES = ("mirror", "dialogue", "interpreted", "curated", "observed", "reference")
+SENTENCE_TOOL = "query"   # the sentence algebra's tool; listed and served under [query] sentences
+
+
+def sentences_enabled() -> bool:
+    """`[query] sentences` (dn-query-sentence-algebra §4 c): the owner's switch that exposes the
+    sentence algebra through this server; off, the eight one-word verbs are all a client has."""
+    from core.kernel.config import get_config
+
+    return bool(get_config().query.sentences)
+
+
+def tools_listed(sentences: bool) -> list[tuple[str, str, dict[str, Any], str]]:
+    """The tools a server whose sentence switch is `sentences` lists — and serves: the two agree."""
+    return [t for t in TOOLS if t[0] != SENTENCE_TOOL or sentences]
 
 
 def _strata(names: list[str] | None) -> tuple[Any, ...]:
@@ -102,6 +116,16 @@ class Ambassador:
 
     def origin(self, edge_id: str) -> dict[str, Any]:
         return self._ask("origin", target=edge_id)
+
+    def query(self, sentence: str) -> dict[str, Any]:
+        """A sentence of the query algebra under the Ambassador's grant (dn-query-sentence-algebra):
+        the plan rides with the answer, and a refusal names the word that would fix it. Served
+        only under `[query] sentences` — the `Server` gate — and logged as `mcp`/`ambassador`."""
+        from core.query import AMBASSADOR
+        from core.sentence.surface import ask_logged
+
+        return ask_logged(sentence, AMBASSADOR, surface="mcp", role="ambassador",
+                          engine=self.engine).to_dict()
 
     def read(self, ref: str, chunk: int | None = None) -> dict[str, Any]:
         """The full text of a note or dialogue turn named by a hit's `ref` — or, for a curated paper
@@ -388,6 +412,18 @@ TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
         "origin",
     ),
     (
+        SENTENCE_TOOL,
+        "A sentence of the query algebra over the owner's notes (an algebra, not keywords). Verbs: "
+        'near "text" | diffuse S from <note> [beta b] | reach F from <note> [depth n] '
+        "[back|forward] | relate <note> | trace <note> | walk from <note> [to <note>] via <regex "
+        'over S,F,D,C> | witness "<edge id>". Connectives and, or, minus, then; adjectives within '
+        "<region>, over <strata>; top k, atleast t, far, not. A <note> is a quoted path or title. "
+        'Example: top 5 near "sleep" and diffuse S from "health.md". The plan rides with the '
+        "answer; a refusal names the word that would fix it.",
+        _schema({"sentence": _S}, ["sentence"]),
+        "query",
+    ),
+    (
         "read",
         "Full text of a ref a search returned; for a paper (reference:…), ~5 chunks around "
         "the hit's chunk.",
@@ -479,8 +515,10 @@ TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
 
 
 class Server:
-    def __init__(self) -> None:
+    def __init__(self, sentences: bool | None = None) -> None:
         self._amb: Ambassador | None = None
+        # the sentence switch, read once per process so `tools/list` and `tools/call` agree on it
+        self.sentences = sentences_enabled() if sentences is None else sentences
 
     @property
     def amb(self) -> Ambassador:
@@ -510,7 +548,8 @@ class Server:
                 mid,
                 {
                     "tools": [
-                        {"name": n, "description": d, "inputSchema": s} for n, d, s, _ in TOOLS
+                        {"name": n, "description": d, "inputSchema": s}
+                        for n, d, s, _ in tools_listed(self.sentences)
                     ]
                 },
             )
@@ -518,7 +557,11 @@ class Server:
             return _ok(mid, {method.split("/")[0]: []})
         if method == "tools/call":
             params = msg.get("params") or {}
-            spec = next((t for t in TOOLS if t[0] == params.get("name")), None)
+            spec = next((t for t in tools_listed(self.sentences) if t[0] == params.get("name")),
+                        None)
+            if spec is None and params.get("name") == SENTENCE_TOOL:
+                return _err(mid, -32602, "query sentences are off: set [query] sentences = true "
+                                         "in config/ouroboros.toml and restart the stack")
             if spec is None:
                 return _err(mid, -32602, f"unknown tool {params.get('name')!r}")
             try:

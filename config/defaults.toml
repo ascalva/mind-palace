@@ -217,6 +217,17 @@ retrieval_k = 5
 history_max_turns = 6
 interruption_sensitivity = "earned_only"
 
+[query]
+# The query sentence algebra's surface (dn-query-sentence-algebra §4 — QL-3). `mind-palace query
+# "<sentence>"` asks a sentence read-only under the Ambassador's grant from the terminal, always.
+# `sentences` exposes the same algebra to the local model as the Ambassador's `query` tool: the MCP
+# server lists and serves it only when this is true, and the Open WebUI bridge's static manifest
+# follows it — regenerate that file after flipping (`mind-palace mcp --manifest >
+# edge/palace_tools.json`) and restart the stack. Off, the eight one-word verbs are all it has.
+# Either surface records every sentence it asks in data/query_log.jsonl — the sensor of which strata
+# serve which roles and which translations fail (`mind-palace query --log`); no note text is logged.
+sentences = false
+
 [effectors]
 # Track G — the hands / effector layer (docs/design-notes/hands-and-the-effector-layer.md).
 # SENSING-ONLY
