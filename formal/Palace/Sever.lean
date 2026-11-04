@@ -184,4 +184,88 @@ theorem one_sub_mul_rEff_nonneg {A : Matrix V V ℝ} (hA : A.IsSymm) (hw : ∀ i
     {a b : V} (hab : a ≠ b) : 0 ≤ 1 - A a b * rEff (lapPinv A hA) a b :=
   sub_nonneg.2 (mul_rEff_le_one hA hw hab)
 
+/-! ### SEV-4 A bridge sits on the horizon -/
+
+omit [Fintype V] in
+/-- With the edge `a ~ b` taken out, nothing crosses the cut, so the test potential `c·1_S` costs
+nothing on what is left: every term of the energy's double sum vanishes. -/
+theorem sub_single_mul_sq_eq_zero {A : Matrix V V ℝ} (hA : A.IsSymm) {a b : V} {S : Finset V}
+    (haS : a ∈ S) (hbS : b ∉ S) (hcut : ∀ i ∈ S, ∀ j ∉ S, (i = a ∧ j = b) ∨ A i j = 0)
+    (c : ℝ) (i j : V) :
+    (A - single a b (A a b)) i j *
+      ((if i ∈ S then c else 0) - (if j ∈ S then c else 0)) ^ 2 = 0 := by
+  by_cases hi : i ∈ S <;> by_cases hj : j ∈ S
+  · simp [hi, hj]
+  · by_cases hab' : i = a ∧ j = b
+    · rw [hab'.1, hab'.2]
+      simp [single, Query.assumeEdge]
+    · rcases hcut i hi j hj with h | h0
+      · exact absurd h hab'
+      · have hib : ¬ i = b := fun h ↦ hbS (h ▸ hi)
+        simp [single, Query.assumeEdge, h0, hab', hib]
+  · by_cases hba' : i = b ∧ j = a
+    · rw [hba'.1, hba'.2]
+      simp [single, Query.assumeEdge, hA.apply a b]
+    · rcases hcut j hj i hi with h | h0
+      · exact absurd ⟨h.2, h.1⟩ hba'
+      · have h0' : A i j = 0 := by rwa [← hA.apply i j]
+        have hia : ¬ i = a := fun h ↦ hi (h ▸ haS)
+        simp [single, Query.assumeEdge, h0', hia, hba']
+  · simp [hi, hj]
+
+/-- The test potential's energy on the bridgeless rest is zero. -/
+theorem dotProduct_lap_sub_single {A : Matrix V V ℝ} (hA : A.IsSymm) {a b : V} {S : Finset V}
+    (haS : a ∈ S) (hbS : b ∉ S) (hcut : ∀ i ∈ S, ∀ j ∉ S, (i = a ∧ j = b) ∨ A i j = 0)
+    (c : ℝ) :
+    (fun i ↦ if i ∈ S then c else 0) ⬝ᵥ
+      (lap (A - single a b (A a b)) *ᵥ fun i ↦ if i ∈ S then c else 0) = 0 := by
+  have h := two_mul_dotProduct_lap (A - single a b (A a b)) (hA.sub (isSymm_single a b (A a b)))
+    (fun i ↦ if i ∈ S then c else 0)
+  have hz : ∑ i, ∑ j, (A - single a b (A a b)) i j *
+      ((if i ∈ S then c else 0) - (if j ∈ S then c else 0)) ^ 2 = 0 :=
+    sum_eq_zero fun i _ ↦ sum_eq_zero fun j _ ↦ sub_single_mul_sq_eq_zero hA haS hbS hcut c i j
+  rw [hz] at h
+  linarith
+
+/-- SEV-4 A bridge sits on the horizon: when `a ~ b` is the only edge across some cut, the
+resistance across it is exactly `1/w` and `w·R_eff(a, b) = 1` — Thomson's principle with the
+test potential `(1/w)·1_S` meets SEV-3's bound. `assume sever` of a bridge is the singular case:
+the Sherman–Morrison denominator vanishes, and the symbolic rule "removing weight raises every
+resistance through the edge" degenerates to infinity. -/
+theorem mul_rEff_eq_one_of_bridge {A : Matrix V V ℝ} (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j)
+    {a b : V} (hab : a ≠ b) (hpos : 0 < A a b) (hS : IsBridgeCut A a b) :
+    A a b * rEff (lapPinv A hA) a b = 1 := by
+  obtain ⟨S, haS, hbS, hcut⟩ := hS
+  refine le_antisymm (mul_rEff_le_one hA hw hab) ?_
+  have hr : (support A).Reachable a b :=
+    SimpleGraph.Adj.reachable ((SimpleGraph.fromRel_adj _ _ _).2 ⟨hab, Or.inl hpos.ne'⟩)
+  have hP := posSemidef_lap A hA hw
+  have hv : lap A *ᵥ (lapPinv A hA *ᵥ (Pi.single a 1 - Pi.single b 1)) =
+      Pi.single a 1 - Pi.single b 1 :=
+    mulVec_pinv_mulVec_of_orthogonal hP.isHermitian (orthogonal_ker_lap hA hw hr)
+  have ht := thomson hP hv (fun i ↦ if i ∈ S then 1 / A a b else 0)
+  have hdx : (Pi.single a 1 - Pi.single b 1) ⬝ᵥ (fun i ↦ if i ∈ S then 1 / A a b else 0) =
+      1 / A a b := by
+    simp [sub_dotProduct, single_dotProduct, haS, hbS]
+  have hsplit : lap A = lap (single a b (A a b)) + lap (A - single a b (A a b)) := by
+    rw [← lap_sub_lap]
+    abel
+  have hxLx : (fun i ↦ if i ∈ S then 1 / A a b else 0) ⬝ᵥ
+      (lap A *ᵥ fun i ↦ if i ∈ S then 1 / A a b else 0) = 1 / A a b := by
+    rw [hsplit, add_mulVec, dotProduct_add, dotProduct_lap_sub_single hA haS hbS hcut, add_zero,
+      lap_single hab, smul_mulVec, dotProduct_smul, Query.dotProduct_vecMulVec_self_mulVec,
+      dvec_eq, hdx, smul_eq_mul]
+    field_simp
+  rw [hdx, hxLx] at ht
+  have key : 1 / A a b ≤ (Pi.single a 1 - Pi.single b 1) ⬝ᵥ
+      (lapPinv A hA *ᵥ (Pi.single a 1 - Pi.single b 1)) := by
+    have e : 2 * (1 / A a b) - 1 / A a b = 1 / A a b := by ring
+    rw [← e]
+    exact ht
+  rw [rEff_eq_dotProduct (isHermitian_lapPinv A hA)]
+  calc (1 : ℝ) = A a b * (1 / A a b) := (mul_one_div_cancel hpos.ne').symm
+    _ ≤ A a b * ((Pi.single a 1 - Pi.single b 1) ⬝ᵥ
+        (lapPinv A hA *ᵥ (Pi.single a 1 - Pi.single b 1))) :=
+      mul_le_mul_of_nonneg_left key hpos.le
+
 end Palace.Sever

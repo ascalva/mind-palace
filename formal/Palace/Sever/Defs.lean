@@ -24,4 +24,9 @@ variable {V : Type*} [DecidableEq V]
 edge laid on the empty graph. -/
 def single (a b : V) (w : ℝ) : Matrix V V ℝ := Query.assumeEdge 0 a b w
 
+/-- `a ~ b` is the only edge across some cut: `a` on one side, `b` on the other, every other
+pair across it unconnected — the edge is a bridge, and severing it disconnects. -/
+def IsBridgeCut (A : Matrix V V ℝ) (a b : V) : Prop :=
+  ∃ S : Finset V, a ∈ S ∧ b ∉ S ∧ ∀ i ∈ S, ∀ j ∉ S, (i = a ∧ j = b) ∨ A i j = 0
+
 end Palace.Sever
