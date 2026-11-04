@@ -41,3 +41,5 @@ public import Palace.SigmaStar
 public import Palace.SigmaStar.Defs
 public import Palace.Spectral
 public import Palace.Spectral.Defs
+public import Palace.Transport
+public import Palace.Transport.Defs

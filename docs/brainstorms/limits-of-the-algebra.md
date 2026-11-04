@@ -6,7 +6,7 @@ created: 2026-11-04
 status: open
 links:
   - docs/design-notes/dn-query-sentence-algebra.md      # §2.6 the response, §2.9 the support
-  - docs/design-notes/temporal-retrieval-algebra.md     # §2.3 Results 1–6 (Result 4: the pullback)
+  - docs/design-notes/temporal-retrieval-algebra.md     # §2.3 Results 1–6 (Result 5: the pullback)
   - docs/design-notes/magnetic-laplacian.md             # the frustration lift
   - docs/LAWS.md                                        # RSP-3's cone boundary, CND-2, QSA-9, RSP-5
 ---
@@ -61,13 +61,14 @@ sharpens to a question about the graph's cycle structure (FitzGerald–Horn: a H
 `1/β < n − 2` of a correlation matrix *may* leave the cone, and does on `K₂,₃`; when must it?).
 *Falsifier of the sharpened conjecture:* a backbone with no `K₂,₃` minor that leaves the cone.
 
-## L3. The pullback that is not a contraction — refuting Result 4
+## L3. The pullback that is not a contraction — refuting Result 5
 
-Temporal-retrieval §2.3 Result 4 claims the pullback `σ^*` of a supersession map is a contraction.
+Temporal-retrieval §2.3 Result 5 pins the ledger's dilation to the pullback `σ^*` of a
+supersession map, "always a contraction".
 Under a **merge** `σ : {a, b} ↦ c`, `(σ^* f)(a) = (σ^* f)(b) = f(c)`, so `‖σ^* f‖² = 2 f(c)²`:
 the pullback *expands* by `√2`, and in general `‖σ^*‖ = √(max fiber)`. The push-forward `σ_*` is
-the contraction; the adjoint is not. *Status — written in Lean (Palace/Transport.lean, TRN-1 to TRN-3, design theorems; the
-library builds through them, the last two proof trims and the gate not yet re-run):* `push_dotProduct` (`σ_*` is the adjoint of `σ^*`), `pull_dotProduct_self` (`‖σ^* f‖²
+the contraction; the adjoint is not. *Status — machine-checked (Palace/Transport.lean, TRN-1 to TRN-3, design theorems; the
+library builds under `--wfail`, mk_all and the L1 gate pass):* `push_dotProduct` (`σ_*` is the adjoint of `σ^*`), `pull_dotProduct_self` (`‖σ^* f‖²
 = ∑_b |σ⁻¹ b| f_b²`), `pull_dotProduct_self_le` (`≤ (max fiber)·‖f‖²`), `pull_not_contraction`
 (the merge of two notes doubles the constant cochain's energy), and the correction
 `pull_isometry_wdot` / `pull_isometry_iff`: under the fiber-weighted inner product `⟨f, g⟩_σ =
