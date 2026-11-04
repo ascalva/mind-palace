@@ -1,6 +1,0 @@
-# Worktree-local enforcement state (design-note §4): the active-plan pointer and
-# the session-baseline HEAD. Regenerable, per-worktree, never shared — so
-# concurrent worktrees never collide on enforcement state. Ignore everything here
-# except this file.
-*
-!.gitignore
