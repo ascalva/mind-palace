@@ -100,7 +100,7 @@ Roundoff and FloatModel, so it has no statements of its own):
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
-- `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the 167 cited
+- `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the 169 cited
   theorems, and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself.
@@ -432,7 +432,7 @@ export route replays strictly more. The compiler's `_unsafe_rec` helpers stay ou
 nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
-does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the 167
+does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the 169
 statements reach (40,435 declarations). Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.
