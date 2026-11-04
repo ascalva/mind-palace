@@ -415,6 +415,9 @@ class Evaluator:
         self.u = universe
         self.p = precedents
         self.t = trace
+        # one walk per (relation, β) per evaluation: a sentence that diffuses from two anchors, or
+        # `and`s two diffusions, solves `(I − W_β)⁻¹` once
+        self._walks: dict[tuple[Rel, float], np.ndarray] = {}
 
     # the proof of work ------------------------------------------------------------------------
     def _note(self, what: str, law: str = "") -> None:
@@ -667,7 +670,9 @@ class Evaluator:
             return FieldV(np.zeros(len(self.u)))
         degrees = self.u.degrees if rel is Rel.S else None   # the support's walk keeps the
         b = beta if beta is not None else self.p.beta                                     # graph's
-        dist = free_energy_distances(W, beta=b, degrees=degrees)[i]
+        if (rel, b) not in self._walks:
+            self._walks[(rel, b)] = free_energy_distances(W, beta=b, degrees=degrees)
+        dist = self._walks[(rel, b)][i]
         scores = np.where(np.isfinite(dist), np.exp(-dist), 0.0)
         scores[i] = 0.0                                  # a note is not retrieved from itself
         scores = np.clip(scores, 0.0, 1.0)

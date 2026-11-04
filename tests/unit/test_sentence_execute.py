@@ -195,3 +195,23 @@ def test_a_hypothetical_edge_moves_the_graphs_degrees_with_it() -> None:
                                        '"a.md"'), u)
     assert severed.hyp is not None and [h.ref for h in severed.hyp.value] == []
     assert u.degrees is not None and np.array_equal(u.degrees, before)   # the universe untouched
+
+
+def test_one_sentence_solves_each_walk_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Two diffusions at one β share the walk's solve; a second β is a second solve."""
+    import importlib
+
+    execute_mod = importlib.import_module("core.sentence.execute")   # the package exports the
+    calls: list[float] = []                                            # function of that name
+    real = execute_mod.free_energy_distances
+
+    def counted(W: np.ndarray, *, beta: float, degrees: np.ndarray | None = None) -> np.ndarray:
+        calls.append(beta)
+        return real(W, beta=beta, degrees=degrees)
+
+    monkeypatch.setattr(execute_mod, "free_energy_distances", counted)
+    u = _universe()
+    execute(compile_sentence('top 3 (diffuse S from "a.md" and diffuse S from "c.md")'), u)
+    assert calls == [1.0]
+    execute(compile_sentence('top 3 (diffuse S from "a.md" or diffuse S from "c.md" beta 2)'), u)
+    assert calls == [1.0, 1.0, 2.0]
