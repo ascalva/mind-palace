@@ -498,6 +498,18 @@ truncation. `[INFERENCE — falsifier: a battery row that a larger support wins]
 note, the causal edges key on structural endpoints); a snapshot of the notes at a past cut; a
 `near` over `interpreted` (the dreams) and `observed` beyond the dialogue's own turns.
 
+**The limits (2026-11-04).** `docs/brainstorms/limits-of-the-algebra.md` pushes these laws to
+their horizons, and four of its six are machine-checked as design theorems: L1, the sever
+horizon — `w·R_eff(a, b) ≤ 1`, so `assume sever`'s Sherman–Morrison denominator never goes
+negative, and it vanishes exactly at a bridge (`formal/Palace/Sever.lean`); L3, the pullback
+of a merge is not a contraction, the pullback is an isometry under the fiber-weighted inner
+product and the push-forward a contraction under its inverse (`formal/Palace/Transport.lean`,
+issue #61); L4, one contradiction lifts the signed Laplacian's zero mode by at most `4·F_w/n`,
+with Courant–Fischer's floor proved for the library (`formal/Palace/Frustration.lean`); L5, a
+census that leaks a fraction `ε` of every degree costs the support's nearness exactly a step of
+killing, `z ↦ (1+ε)·z` (`formal/Palace/Leak.lean`). L2 is measured on the live backbone; L6 is a
+question for the owner's sentences, and the battery is where it surfaces.
+
 ## 3. Consequences — what this note licenses, on the owner's merge
 
 Five units, session-sized, dependency-ordered, split at graduation, named **QL-N** (query language)
