@@ -60,7 +60,7 @@ class AmbiguousSentence(ValueError):
 def _note_atom(atom: str | None, verb: str) -> None:
     """A curated paper's ref handed to a verb that walks the owner's notes alone — the relation
     edges and the version chains — is refused at compile time, with where to go instead, before
-    any store opens (the legacy table's `OutOfScopeTarget`, kept as a sort error). `diffuse`,
+    any store opens (once the retired table's `OutOfScopeTarget`; now a sort error). `diffuse`,
     `reach` and `walk` take a paper: the stratified universe seeds its neighbourhood."""
     if atom is not None and atom.startswith(CURATED_REF):
         raise SortError(f"{verb}: {atom!r} is a curated paper; {verb} walks the owner's notes "

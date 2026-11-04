@@ -1,5 +1,6 @@
-"""The eight one-word verbs of `core/query.py` as sentences — the compatibility map, and the
-demonstration that the old surface is a fragment of the new one (dn-query-sentence-algebra §2.1).
+"""The eight one-word verbs of `core/query.py`'s scope table as sentences — the compatibility
+map, and the demonstration that the retired surface was a fragment of the new one
+(dn-query-sentence-algebra §2.1).
 
 HYBRID is the one verb that was a composition all along: `near "<text>" and diffuse S from <note>`,
 ranked. CAPTURE is a write and has no sentence: a sentence is a reading.
@@ -11,10 +12,7 @@ from collections.abc import Iterable
 
 from core.kernel.scope import Stratum
 from core.query import Verb
-
-
-def _quote(s: str) -> str:
-    return '"' + s.replace('"', '\\"') + '"'
+from core.sentence.grammar import quote as _quote
 
 
 def sentence_of(verb: Verb, *, text: str | None = None, target: str | None = None,

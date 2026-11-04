@@ -134,11 +134,12 @@ class Ambassador:
 
         if relation not in RELATIONS:
             raise ValueError(f"relation must be one of {list(RELATIONS)}")
-        from core.query import AMBASSADOR, Query, Verb
+        from core.query import AMBASSADOR
+        from core.sentence import compile_sentence, quote
 
-        Query(Verb.RELATED, AMBASSADOR, target=note_a)  # admissibility of the F-edge plane
-        notes, _, _ = self.engine._note_graph()
-        a, b = (notes[self.engine._index(notes, t)] for t in (note_a, note_b))
+        compile_sentence(f"relate {quote(note_a)}", AMBASSADOR)   # the relation plane, admitted
+        notes, _, _ = self.engine.note_graph()
+        a, b = (notes[self.engine.index_of(notes, t)] for t in (note_a, note_b))
         sign, factor = RELATIONS[relation]
         self.engine._get("edges").add(
             a["digest"],

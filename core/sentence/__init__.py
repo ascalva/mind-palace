@@ -42,7 +42,7 @@ from core.sentence.execute import (
     ask,
     execute,
 )
-from core.sentence.grammar import ParseError, parse
+from core.sentence.grammar import ParseError, parse, quote
 from core.sentence.legacy import sentence_of
 from core.sentence.plan import Plan, compile_sentence, normalize
 from core.sentence.surface import (
@@ -91,6 +91,7 @@ __all__ = [
     "is_inv",
     "normalize",
     "parse",
+    "quote",
     "render_text",
     "run_query",
     "sentence_grant",

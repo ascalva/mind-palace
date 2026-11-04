@@ -39,8 +39,6 @@ HOLDERS: dict[str, dict[str, str]] = {
                                           "battery names (eval is a verifier, like tests)",
     },
     "clearance_of": {
-        "core/query.py": "mints from an ADMITTED sentence's required scope — admission is the "
-                         "permission",
         "core/dreaming/evaluate.py": "mints from the grant `force` has just checked",
     },
     "MAINTENANCE_READ": {

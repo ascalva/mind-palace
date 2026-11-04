@@ -1,47 +1,48 @@
-"""The unified query language — one sentence type over the core (dn-core-query-protocol §2.1–§2.5,
-dn-capability-scope §2.4, dn-temporal-retrieval-algebra §2.1–§2.2).
+"""The query engine's grants, scope table and β-curve — what the sentence algebra builds on
+(dn-core-query-protocol §2.1–§2.5, dn-capability-scope §2.4, dn-temporal-retrieval-algebra
+§2.1–§2.2).
 
-A query is a sentence `(verb, s)`. Every verb has a REQUIRED scope `req(verb)` built from the four
-lattice coordinates of `core.kernel.scope` — strata Σ, edge classes E ⊆ {F, D, C}, time T = (clock,
-window), authority A = P × W_Σ × W_world — and a sentence is admissible iff `req(verb) ⊑ g` for some
-scope `g` the client was granted. The check runs when the `Query` is constructed, so an ill-scoped
-sentence never exists (the MirrorView move, made uniform). A client's grant is a SET of scopes, one
-per clock plane: `TimeScope.⊑` compares windows only on one clock and a cross-clock join is a
-constructor error until the global clock N materializes (CS-a), so "semantic, structural and
-temporal reads" cannot be one scope — they are three, and a sentence fits under one of them.
+Every verb has a REQUIRED scope `req(verb)` built from the four lattice coordinates of
+`core.kernel.scope` — strata Σ, edge classes E ⊆ {F, D, C}, time T = (clock, window), authority
+A = P × W_Σ × W_world — and a sentence is admissible iff `req ⊑ g` for some scope `g` the client was
+granted. A client's grant is a SET of scopes, one per clock plane: `TimeScope.⊑` compares windows
+only on one clock and a cross-clock join is a constructor error until the global clock N
+materializes (CS-a), so "semantic, structural and temporal reads" cannot be one scope — they are
+three, and a sentence fits under one of them.
 
 **Mode is a corollary of scope, never a flag** (§2.4): C ∈ E → causal; D ∈ E or a non-point window →
-temporal; E = {F} → structural; otherwise semantic. The operators:
+temporal; E = {F} → structural; otherwise semantic.
 
-* SEARCH — mode 2, the embedding Gram kernel, over the provenance classes Σ names. The mirror is
-  read through `MIRROR_READABLE` only; superseded rows surface only when D ∈ E.
-* REACH — mode 1a, hard reachability over citation fibers (`ReferenceView.connected_set`).
-* DIFFUSE — mode 1 on the canonical randomized-shortest-path curve (TRA §2.1): costs c = −log w on
-  the symmetrized similarity backbone, reference walk P = D⁻¹A, killed walk W_β = z·P∘w^β with
-  z := γ (the recursion ceiling — "z's bound IS the γ-ceiling"), Z = (I − W_β)⁻¹, free energy
-  φ_ij = −log(z_ij / z_jj)/β, symmetrized. β→∞ is shortest path (1a); β→0 approaches resistance
-  (1b). One dial, β, as the note pins for v1.
-* HYBRID — K_sem ⊙ K_struct (Schur product in the PSD cone): "near the query AND near the anchor".
-* HISTORY — mode 3, σ_* (forward) / σ^* (back) along a note's version chain; the ledger window.
-* RELATED — the signed relation edges (supports / contradicts / contextualizes) touching an atom.
-* ORIGIN — the C-fiber: which witnessed commit minted a durable reference edge.
-* CAPTURE — the one write verb: a projection-write (W_Σ = 1) into the dialogue stratum. Its
-  provenance is fixed by the caller's role, never by the text (no laundering into an authored
-  class).
+What lives here now (2026-11-04, the owner's order retired the one-word executor):
 
-Every result is `Inv` (it depends only on the event set read); no Rate is minted here.
+* `Grant`, `AMBASSADOR` and the owner's `AMBASSADOR_OVERLAY` (`with_overlay`) — the grants in code.
+* `Verb`, `required` and `mode_of` — the scope table of the eight one-word verbs, kept as the laws'
+  anchor (SCO-8, QSA-8) and as `core/sentence/legacy.py`'s compatibility map; the sentence
+  compiler (`core/sentence/types.py`) builds its clauses' scopes the same way and types them by
+  the relation they walk (Rule NOUN), which the table did not.
+* `free_energy_distances` — mode 1, the canonical randomized-shortest-path curve (TRA §2.1): costs
+  c = −log w on the symmetrized similarity backbone, reference walk P = D⁻¹A, killed walk
+  W_β = z·P∘w^β with z := γ (the recursion ceiling — "z's bound IS the γ-ceiling"), Z = (I − W_β)⁻¹,
+  free energy φ_ij = −log(z_ij / z_jj)/β, symmetrized; with the graph's own degrees on a support
+  (RSP-5). β→∞ is shortest path (1a); β→0 approaches resistance (1b).
+* `QueryEngine` — the stores, opened lazily (`_get`), and the authored notes' similarity backbone
+  (`note_graph`, `index_of`) that `link` resolves its endpoints through.
+* `Hit` — one answer row, the sentence executor's too.
+
+Sentences are compiled, executed and logged in `core/sentence/`; every result there is `Inv`
+(it depends only on the event set read) or a `Hyp` under `assume`; no Rate is minted here.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any
 
 import numpy as np
 
-from core.kernel.clearance import MIRROR_READ, clearance_of
+from core.kernel.clearance import MIRROR_READ
 from core.kernel.config import Config, get_config
 from core.kernel.provenance import Provenance
 from core.kernel.recursion import DEFAULT_GAMMA
@@ -51,7 +52,6 @@ from core.kernel.scope import (
     Authority,
     Clock,
     EdgeScope,
-    Inv,
     NoCommonClockError,
     Privilege,
     Scope,
@@ -87,22 +87,11 @@ class Mode(StrEnum):
     CAUSAL = "causal"
 
 
-class IllScopedQuery(PermissionError):
-    """`req(verb) ⋢ grant` — the sentence is not constructible for this client."""
-
-
 class InadmissibleGrant(PermissionError):
     """A grant that names a firewalled stratum or breaks the zone law (Σ-breadth ⊥ world reach)."""
 
 
-class OutOfScopeTarget(LookupError):
-    """The sentence's target lives in a stratum its verb does not walk (outside req(verb)'s Σ): a
-    curated paper handed to a verb over the owner's notes. Refused with where to go instead,
-    never answered with an empty result that reads like "nothing there"."""
-
-
 CURATED_REF = "reference:"   # a curated paper's ref (scripts/curate_local.py), never a note path
-_NOTE_GRAPH_VERBS = frozenset({"diffuse", "hybrid", "related", "history"})
 
 
 # ── Scopes ──────────────────────────────────────────────────────────────────────────────────────
@@ -212,7 +201,8 @@ AMBASSADOR_OVERLAY = with_overlay(AMBASSADOR)
 
 # Which provenance classes a stratum's rows carry lives in the kernel now
 # (`core.kernel.clearance.STRATUM_CLASSES`), so the query engine and every other mint read one
-# table; a sentence's clearance is `clearance_of(q.req)` — minted only after admission.
+# table; a sentence's clearance is minted from its ADMITTED scope by the executor
+# (`core/sentence/execute.py`), never before admission.
 _STRATUM_OF: dict[str, str] = {
     Provenance.AUTHORED_SOLO: "mirror",
     Provenance.AUTHORED_DIALOGUE: "dialogue",
@@ -268,38 +258,6 @@ def mode_of(s: Scope) -> Mode:
     return Mode.SEMANTIC
 
 
-@dataclass(frozen=True)
-class Query:
-    """A sentence `(verb, s)`; constructing one IS the admissibility check."""
-
-    verb: Verb
-    grant: Grant
-    text: str | None = None
-    target: str | None = None
-    strata: tuple[Stratum, ...] = (Stratum.MIRROR_AUTHORED,)
-    history: bool = False
-    k: int = 5
-    depth: int = 1
-    beta: float = 1.0
-    direction: Literal["forward", "back"] = "forward"
-    req: Scope = field(init=False)
-
-    def __post_init__(self) -> None:
-        req = required(self.verb, strata=self.strata, history=self.history)
-        if not self.grant.admits(req):
-            raise IllScopedQuery(
-                f"{self.verb.value}: required scope Σ={sorted(req.sigma.strata)} "
-                f"E={sorted(req.edges.fibers)} "
-                f"T=({req.time.clock.value}, {req.time.window.kind.value}) "
-                f"is not under any granted scope"
-            )
-        object.__setattr__(self, "req", req)
-
-    @property
-    def mode(self) -> Mode:
-        return mode_of(self.req)
-
-
 # ── Results ─────────────────────────────────────────────────────────────────────────────────────
 
 
@@ -312,27 +270,6 @@ class Hit:
     provenance: str = ""
     text: str | None = None
     detail: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class Answer:
-    verb: Verb
-    mode: Mode
-    operator: str
-    result: Inv[tuple[Hit, ...]]
-    notes: tuple[str, ...] = ()
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "verb": self.verb.value,
-            "mode": self.mode.value,
-            "operator": self.operator,
-            "notes": list(self.notes),
-            "hits": [
-                {k: v for k, v in h.__dict__.items() if v not in (None, "", {})}
-                for h in self.result.value
-            ],
-        }
 
 
 # ── The β-curve (mode 1, TRA §2.1) ──────────────────────────────────────────────────────────────
@@ -383,7 +320,8 @@ def free_energy_distances(
 
 @dataclass
 class QueryEngine:
-    """Executes admissible sentences against the instance's stores. Stores open lazily."""
+    """The instance's stores, opened lazily, and the authored notes' backbone. The sentence
+    executor (`core/sentence/execute.py`) reads the stores through `_get`."""
 
     config: Config = field(default_factory=get_config)
     _cache: dict[str, Any] = field(default_factory=dict)
@@ -432,49 +370,10 @@ class QueryEngine:
                 raise KeyError(name)
         return self._cache[name]
 
-    def ask(self, q: Query) -> Answer:
-        if q.verb.value in _NOTE_GRAPH_VERBS and (q.target or "").startswith(CURATED_REF):
-            raise OutOfScopeTarget(
-                f"{q.target!r} is a curated paper; {q.verb.value} walks the owner's notes only. "
-                'For papers: search with strata ["curated"], or read the ref.')
-        return {
-            Verb.SEARCH: self._search,
-            Verb.REACH: self._reach,
-            Verb.DIFFUSE: self._diffuse,
-            Verb.HYBRID: self._hybrid,
-            Verb.HISTORY: self._history,
-            Verb.RELATED: self._related,
-            Verb.ORIGIN: self._origin,
-        }[q.verb](q)
-
-    # mode 2 ----------------------------------------------------------------------------------
-    def _search(self, q: Query) -> Answer:
-        if not q.text:
-            raise ValueError("search needs text")
-        # The sentence was admitted at construction (req ⊑ some granted scope), so the classes its
-        # Σ names are exactly what it may read: the clearance is minted from the ADMITTED scope.
-        clearance = clearance_of(q.req)
-        vec = self._get("embedder").embed_query(q.text)
-        rows = self._get("vectors").search(
-            vec, k=q.k, clearance=clearance, include_superseded="D" in q.req.edges.fibers
-        )
-        if clearance.admits(Provenance.CURATED):
-            # Literature lives in its OWN store (dn-external-grounding §2.2), physically apart from
-            # the mirror; a sentence whose Σ admits CURATED reads it too, merged by distance.
-            lit = self._get("curated").search(vec, k=q.k, clearance=clearance)
-            rows = sorted([*rows, *lit], key=lambda r: float(r.get("_distance", 0.0)))[: q.k]
-        hits = tuple(_hit_from_row(r, score=1.0 - float(r.get("_distance", 0.0))) for r in rows)
-        return Answer(
-            q.verb,
-            q.mode,
-            "cosine over the embedding Gram kernel K_sem",
-            Inv(hits),
-            (f"provenances={sorted(p.value for p in clearance.classes)}",),
-        )
-
-    # mode 1 ----------------------------------------------------------------------------------
-    def _note_graph(self) -> tuple[list[dict[str, Any]], np.ndarray, np.ndarray]:
-        """Authored notes (chunks averaged per source), their unit vectors, and the σ-backbone."""
+    # the authored notes' backbone ------------------------------------------------------------
+    def note_graph(self) -> tuple[list[dict[str, Any]], np.ndarray, np.ndarray]:
+        """Authored notes (chunks averaged per source), their unit vectors, and the σ-backbone —
+        what `link` resolves its endpoints through."""
         rows = self._get("vectors").all_rows(clearance=MIRROR_READ)
         by_src: dict[str, list[dict[str, Any]]] = {}
         for r in rows:
@@ -498,160 +397,9 @@ class QueryEngine:
         np.fill_diagonal(weights, 0.0)
         return notes, mat, weights
 
-    def _index(self, notes: list[dict[str, Any]], target: str | None) -> int:
+    def index_of(self, notes: list[dict[str, Any]], target: str | None) -> int:
+        """The note a path, digest or title names, in `note_graph`'s order."""
         for i, n in enumerate(notes):
             if target in (n["source_path"], n["digest"], n["title"]):
                 return i
         raise LookupError(f"no authored note matches {target!r}")
-
-    def _diffuse(self, q: Query) -> Answer:
-        notes, _, weights = self._note_graph()
-        i = self._index(notes, q.target)
-        dist = free_energy_distances(weights, beta=q.beta)[i]
-        order = [j for j in np.argsort(dist) if j != i and np.isfinite(dist[j])][: q.k]
-        hits = tuple(
-            Hit(
-                ref=notes[j]["source_path"],
-                title=notes[j]["title"],
-                score=float(dist[j]),
-                stratum="mirror",
-                provenance=notes[j]["provenance"],
-                detail={"free_energy_distance": round(float(dist[j]), 4)},
-            )
-            for j in order
-        )
-        return Answer(
-            q.verb,
-            q.mode,
-            f"RSP free-energy distance, β={q.beta}, z=γ={DEFAULT_GAMMA}, "
-            f"σ={self.config.dreaming.similarity_threshold}",
-            Inv(hits),
-            ("smaller is closer; unreachable notes are omitted",),
-        )
-
-    def _hybrid(self, q: Query) -> Answer:
-        if not q.text:
-            raise ValueError("hybrid needs text and a target anchor")
-        notes, mat, weights = self._note_graph()
-        i = self._index(notes, q.target)
-        k_struct = np.exp(-free_energy_distances(weights, beta=q.beta)[i])
-        qv = np.asarray(self._get("embedder").embed_query(q.text), dtype=np.float64)
-        k_sem = np.clip(mat @ (qv / (np.linalg.norm(qv) or 1.0)), 0.0, None)
-        score = k_sem * k_struct
-        order = [j for j in np.argsort(-score) if j != i and score[j] > 0][: q.k]
-        hits = tuple(
-            Hit(
-                ref=notes[j]["source_path"],
-                title=notes[j]["title"],
-                score=float(score[j]),
-                stratum="mirror",
-                provenance=notes[j]["provenance"],
-                detail={
-                    "k_sem": round(float(k_sem[j]), 4),
-                    "k_struct": round(float(k_struct[j]), 4),
-                },
-            )
-            for j in order
-        )
-        return Answer(q.verb, q.mode, f"K_sem ⊙ K_struct (Schur), β={q.beta}", Inv(hits))
-
-    def _reach(self, q: Query) -> Answer:
-        from core.reference_view import open_reference_view
-
-        if not q.target:
-            raise ValueError("reach needs a target")
-        view = open_reference_view(self.config)
-        refs = sorted(view.connected_set(q.target, depth=q.depth))
-        hits = tuple(Hit(ref=r, stratum="reference") for r in refs)
-        return Answer(q.verb, q.mode, f"reachability over F, depth ≤ {q.depth}", Inv(hits))
-
-    # mode 3 ----------------------------------------------------------------------------------
-    def _history(self, q: Query) -> Answer:
-        if not q.target:
-            raise ValueError("history needs a target note")
-        # Versions are keyed by the note's stable doc_id (its `id::`, else its path — bp-031), so a
-        # rename never forks the chain; resolve a path to it through the catalog.
-        catalog = self._get("catalog")
-        doc_id = catalog.doc_id_for(q.target) if catalog.get(q.target) is not None else q.target
-        versions = self._get("versions").history(doc_id)
-        if q.direction == "back":
-            versions = list(reversed(versions))
-        hits = tuple(
-            Hit(
-                ref=f"{v.doc_id}@{v.version_seq}",
-                score=float(v.version_seq),
-                stratum="mirror",
-                detail={"digest": v.digest, "at": v.at},
-            )
-            for v in versions
-        )
-        op = "σ_* (forward transport)" if q.direction == "forward" else "σ^* (pullback)"
-        return Answer(q.verb, q.mode, f"{op} along the version chain, ledger window", Inv(hits))
-
-    def _related(self, q: Query) -> Answer:
-        if not q.target:
-            raise ValueError("related needs a target")
-        notes, _, _ = self._note_graph()
-        i = self._index(notes, q.target)
-        digest = notes[i]["digest"]
-        by_digest = {n["digest"]: n for n in notes}
-        hits = []
-        for e in self._get("edges").all():
-            if digest not in (e.u, e.v):
-                continue
-            other = e.v if e.u == digest else e.u
-            n = by_digest.get(other, {})
-            hits.append(
-                Hit(
-                    ref=n.get("source_path", other),
-                    title=n.get("title", ""),
-                    score=e.w,
-                    stratum="mirror",
-                    provenance=e.provenance,
-                    detail={
-                        "relation": e.rel_type,
-                        "sign": int(e.sign),
-                        "direction": "out" if e.u == digest else "in",
-                    },
-                )
-            )
-        return Answer(
-            q.verb,
-            q.mode,
-            "signed relation edges (supports/contradicts/contextualizes)",
-            Inv(tuple(hits)),
-        )
-
-    def _origin(self, q: Query) -> Answer:
-        from core.origin_view import origin
-
-        if not q.target:
-            raise ValueError("origin needs a reference-edge id")
-        edge = origin(
-            q.target, causal_edges=self._get("causal"), reference_edges=self._get("references")
-        )
-        hits = (
-            ()
-            if edge is None
-            else (
-                Hit(
-                    ref=q.target,
-                    stratum="dialogue",
-                    detail={k: str(v) for k, v in edge.__dict__.items()},
-                ),
-            )
-        )
-        return Answer(q.verb, q.mode, "C ∘ commit-keying (two-hop join)", Inv(hits))
-
-
-def _hit_from_row(r: Mapping[str, Any], *, score: float) -> Hit:
-    prov = str(r.get("provenance", ""))
-    return Hit(
-        ref=str(r.get("source_path", r.get("id", ""))),
-        title=str(r.get("title", "")),
-        score=round(score, 4),
-        stratum=_STRATUM_OF.get(prov, ""),
-        provenance=prov,
-        text=str(r.get("text", ""))[:300],
-        detail={"chunk": int(r.get("chunk_index", 0) or 0)},
-    )

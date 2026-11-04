@@ -2,7 +2,7 @@
 `assume` (dn-query-sentence-algebra §2.6–§2.7).
 
 A `Universe` is what one evaluation reads: the authored notes with their unit vectors and the
-similarity backbone (the σ-graph `QueryEngine._note_graph` builds), the typed edges among them
+similarity backbone (the σ-graph `QueryEngine.note_graph` builds), the typed edges among them
 (citations `F`; `D` and `C` at the note grain are empty in this version and said so), the signed
 relation edges, and the readers for the version chain and the witnessing commit. `assume` applies
 an `Overlay` to a copy of the universe and evaluates the body there — nothing is written to any
@@ -162,7 +162,7 @@ class Universe:
         from core.origin_view import origin
         from core.reference_view import open_reference_view
 
-        notes, mat, weights = engine._note_graph()
+        notes, mat, weights = engine.note_graph()
         paths = {str(n["source_path"]) for n in notes}
         view = open_reference_view(engine.config)
         f_edges: dict[str, set[str]] = {}
