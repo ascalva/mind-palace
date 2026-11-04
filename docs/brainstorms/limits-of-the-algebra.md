@@ -37,8 +37,10 @@ theorems):* `pinv_unique` (Penrose's four equations determine `M⁺`, so a close
 not computed), `lapPinv_single` (the single edge's `L⁺ = d dᵀ/4w`, `d = e_a − e_b`), `rEff_single`
 (`= 1/w`), `mul_rEff_le_one` (`w·rEff_A(a, b) ≤ 1`, by `rEff_anti`, CND-2, against the single edge
 lying under `A`) and `one_sub_mul_rEff_nonneg` (the Sherman–Morrison denominator never goes
-negative). The bridge → equality direction is next: Thomson's principle with the test potential
-`(1/w)·1_S` across the cut; the converse (not a bridge → strict) needs a strict Rayleigh law. *Falsifier:* a non-bridge with `w·rEff = 1`.
+negative). The bridge → equality direction is machine-checked too (SEV-4,
+`mul_rEff_eq_one_of_bridge`: when `a ~ b` is the only edge across a cut, Thomson's principle with
+the test potential `(1/w)·1_S` meets the bound, so `w·rEff = 1`, the sever's denominator vanishes
+and the horizon is reached); the converse (not a bridge → strict) needs a strict Rayleigh law. *Falsifier:* a non-bridge with `w·rEff = 1`.
 
 ## L2. The β-limits of the retrieval curve — where the kernel freezes and where it melts
 
