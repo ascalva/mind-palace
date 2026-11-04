@@ -118,7 +118,7 @@ class _Engine:
     def _get(self, name: str) -> Any:
         return self._cache[name]
 
-    def _note_graph(self) -> tuple[list[dict[str, Any]], np.ndarray, np.ndarray]:
+    def note_graph(self) -> tuple[list[dict[str, Any]], np.ndarray, np.ndarray]:
         notes = [{"source_path": "/v/a.md", "title": "A", "digest": "da",
                   "provenance": "authored-solo"},
                  {"source_path": "/v/b.md", "title": "B", "digest": "db",

@@ -96,6 +96,11 @@ _STOP_PATH = frozenset({"depth", "and", "or", "then", "within", "over", "as", "i
 _STOP_STRATA = KEYWORDS | {")"}
 
 
+def quote(s: str) -> str:
+    """A string literal the grammar reads back as `s`: quoted, with `\"` escapes."""
+    return '"' + s.replace('"', '\\"') + '"'
+
+
 def tokenize(text: str) -> list[Token]:
     tokens: list[Token] = []
     pos = 0

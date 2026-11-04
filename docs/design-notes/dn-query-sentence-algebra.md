@@ -276,7 +276,7 @@ QSA-8 proves reads two defects off the code, both the owner's to rule on (no `co
   which `mode_of` calls **semantic**, and rightly: diffusion on the similarity graph is the thin
   graph-spectral locus *inside* the semantic cone (dn-core-query-protocol §2.2, the fable
   inversion). The verb table hides a type error the noun exposes. `[DERIVED — from QSA-8 and
-  `core/query.py::_note_graph`]`
+  `core/query.py::QueryEngine.note_graph`]`
 - `required(RELATED)` is `E = {F}` while `_related` walks the **signed relation edges**
   (`core/stores/edges.py`: supports, contradicts, contextualizes), which are in no class of
   `Σ_move`. Whether they are a fifth letter, an overlay class like `E_STAGED`, or a signed reading
@@ -377,7 +377,7 @@ would catch it wrong:
 | **elaborate** | fill the dials from the **resolution ledger** (below); resolve names to atoms; mark every reading of an ambiguous name | a default applied with no ledger entry |
 | **check** | sorts (§2.4); scope, clause by clause (QSA-5); mode per clause (QSA-8); the bridges' hypotheses (§2.2); the hypothesis class (§2.6) | an ill-typed sentence that runs; an admissible one refused |
 | **plan** | rewrite to normal form by the proved identities: push `within` to the leaves and merge adjectives (QSA-2); flatten and canonically order `and` and `or` (commutativity, associativity); take columns instead of kernels wherever the sentence has an anchor (QSA-3); keep `top k` and `≥ t` last, letting only thresholds pass masks (QSA-4); compile `via` to the product walk with dead-state pruning (QSA-7); hoist `as of` to one cut per sentence (the SLICE rule); choose the symbolic or numeric response for `assume` (§2.6) | a plan whose answer differs from the unoptimized evaluation (QSF-1) |
-| **execute** | the clause evaluators of `core/query.py` over the stores, deterministic: same sentence, same corpus state, same answer | a run-to-run difference |
+| **execute** | the clause evaluators of `core/sentence/execute.py` over the stores `core/query.py` opens, deterministic: same sentence, same corpus state, same answer | a run-to-run difference |
 | **explain** | the plan rides with the answer (today's `operator` string becomes the plan tree); every hit carries provenance and status; an empty answer is loud and says which bound emptied it | an answer with no plan, or a silent empty |
 
 **The optimizer is correct because each rule is a theorem.** The planner is an evaluator of a term
@@ -540,6 +540,17 @@ readiness signal.
 > translation (the brainstorm's open question on the sufficiency verdict, answered by default).
 > Not built: a client holding the overlay (an owner act, §4 d); the legacy table's Rule NOUN fix
 > (the owner's order); the battery (QL-4).
+
+> **Owner's order, 2026-11-04 (third session): the one-word executor is retired.** `QueryEngine.ask`
+> and its eight clause evaluators, the `Query` sentence type, `Answer` and `OutOfScopeTarget` are
+> gone from `core/query.py`; nothing had called them since the MCP became the one command `query`.
+> What stays is what the sentence algebra builds on: the grants, the scope table `required` /
+> `mode_of` (SCO-8 and QSA-8's anchor, and `sentence_of`'s compatibility map), the β-curve
+> `free_energy_distances`, the stores and the authored notes' backbone (`QueryEngine.note_graph`,
+> `index_of`, which `link` resolves its endpoints through), and `Hit`. The table's two Rule NOUN
+> defects are moot — no executor reads it; the compiler types every clause by the relation it
+> walks. `link`'s admissibility check is now the compiler's: `relate "<note>"` under the
+> Ambassador's grant (QSA-5).
 >
 > **Owner's rulings, 2026-11-04 (second session).** (1) The `QSA` prefix stands (QSA-a resolved).
 > (2) The hypothetical overlay is granted to the sentence surfaces for testing: `AMBASSADOR_OVERLAY

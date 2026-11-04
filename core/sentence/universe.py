@@ -195,7 +195,7 @@ class _Builder:
 
     # the mirror and the dialogue, always ---------------------------------------------------------
     def load_mirror(self) -> None:
-        notes, mat, _ = self.e._note_graph()
+        notes, mat, _ = self.e.note_graph()
         for i, n in enumerate(notes):
             prov = str(n.get("provenance", ""))
             self.add(_Node(str(n["source_path"]), stratum_of_provenance(prov) or "mirror",

@@ -1,9 +1,10 @@
 """Curated literature in the Ambassador's reach (dn-external-grounding §2.2).
 
-The literature lives in its OWN store, physically apart from the mirror. Proves: a sentence whose
-Σ admits CURATED reads that store too, merged with the main store by distance; a mirror-only
-sentence never touches it; and `read` of a `reference:` ref returns a window of the paper around
-the hit's chunk — a whole paper would not fit a model's context.
+The literature lives in its OWN store, physically apart from the mirror. That a sentence `over
+curated` seeds its support from that store and a mirror sentence never touches it is proved on
+the universe (`tests/unit/test_sentence_universe.py`). Proved here: `read` of a `reference:` ref
+returns a window of the paper around the hit's chunk — a whole paper would not fit a model's
+context — and a paper ref handed to a verb over the notes is refused, never emptied.
 """
 
 from __future__ import annotations
@@ -15,8 +16,6 @@ import pytest
 from agents.ambassador.mcp import Ambassador
 from core.kernel.clearance import Clearance
 from core.kernel.provenance import Provenance
-from core.kernel.scope import Stratum
-from core.query import AMBASSADOR, Query, QueryEngine, Verb
 from core.sentence import surface
 from core.sentence.precedents import DEFAULT
 from core.sentence.surface import QueryLog
@@ -50,29 +49,6 @@ def _row(src: str, prov: str, dist: float = 0.0, chunk: int = 0, text: str = "t"
             "chunk_index": chunk, "text": text}
 
 
-def _engine(main: list[dict[str, Any]], lit: list[dict[str, Any]]) -> tuple[QueryEngine, _Store]:
-    eng, store = QueryEngine(), _Store(lit)
-    eng._cache.update({"vectors": _Store(main), "curated": store, "embedder": _Embedder()})
-    return eng, store
-
-
-def test_a_curated_sentence_reads_the_literature_store_merged_by_distance():
-    far = _row("reference:openai-math:y", "curated", 0.5)
-    eng, lit = _engine([_row("note-a", "authored-solo", 0.30)], [_row(PAPER, "curated", 0.10), far])
-    ans = eng.ask(Query(Verb.SEARCH, AMBASSADOR, text="kakeya", k=2,
-                        strata=(Stratum.CURATED, Stratum.MIRROR_AUTHORED))).to_dict()
-    assert [h["ref"] for h in ans["hits"]] == [PAPER, "note-a"]   # closest first, both stores
-    assert lit.calls == 1
-
-
-def test_a_mirror_sentence_never_touches_the_literature_store():
-    eng, lit = _engine([_row("note-a", "authored-solo", 0.3)], [_row(PAPER, "curated", 0.1)])
-    ans = eng.ask(Query(Verb.SEARCH, AMBASSADOR, text="x", k=2,
-                        strata=(Stratum.MIRROR_AUTHORED,))).to_dict()
-    assert [h["ref"] for h in ans["hits"]] == ["note-a"]
-    assert lit.calls == 0
-
-
 def test_reading_a_paper_returns_a_window_around_the_hit(monkeypatch, tmp_path):
     """`read "<paper>" chunk n` through the one command: a window of `read_window` chunks around
     the chunk, from the start when none is given; the curated store is the only store opened."""
@@ -91,8 +67,8 @@ def test_reading_a_paper_returns_a_window_around_the_hit(monkeypatch, tmp_path):
 def test_note_graph_verbs_refuse_a_paper_and_say_where_to_go(monkeypatch, tmp_path):
     """A paper's ref handed to a verb that walks the owner's notes alone — relations, versions — is
     refused with directions at compile time, before any store opens; never a bare LookupError,
-    never an empty "0 hits" that reads as no history (the legacy table's `OutOfScopeTarget`, now a
-    sort error of the sentence). `diffuse`, `reach` and `walk` take a paper: the stratified
+    never an empty "0 hits" that reads as no history (once the retired table's `OutOfScopeTarget`,
+    now a sort error of the sentence). `diffuse`, `reach` and `walk` take a paper: the stratified
     universe seeds its neighbourhood."""
     from core.sentence import SortError
 

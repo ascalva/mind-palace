@@ -17,12 +17,11 @@ from core.kernel.scope import Clock, SliceError, Stratum, Window
 from core.query import (
     AMBASSADOR,
     Grant,
-    IllScopedQuery,
     InadmissibleGrant,
     Mode,
-    Query,
     Verb,
     free_energy_distances,
+    mode_of,
     required,
     scope,
 )
@@ -32,25 +31,25 @@ from core.relations import RELATIONS, parse_label
 
 
 def test_mode_is_a_corollary_of_scope():
-    assert Query(Verb.SEARCH, AMBASSADOR, text="x").mode is Mode.SEMANTIC
-    assert Query(Verb.DIFFUSE, AMBASSADOR, target="n").mode is Mode.STRUCTURAL
-    assert Query(Verb.REACH, AMBASSADOR, target="n").mode is Mode.STRUCTURAL
-    assert Query(Verb.HISTORY, AMBASSADOR, target="n").mode is Mode.TEMPORAL
-    assert Query(Verb.SEARCH, AMBASSADOR, text="x", history=True).mode is Mode.TEMPORAL
-    assert Query(Verb.ORIGIN, AMBASSADOR, target="e").mode is Mode.CAUSAL
+    """The scope table's modes, the ones QSA-8's `modeOf_required` enumerates."""
+    assert mode_of(required(Verb.SEARCH)) is Mode.SEMANTIC
+    assert mode_of(required(Verb.DIFFUSE)) is Mode.STRUCTURAL
+    assert mode_of(required(Verb.REACH)) is Mode.STRUCTURAL
+    assert mode_of(required(Verb.HISTORY)) is Mode.TEMPORAL
+    assert mode_of(required(Verb.SEARCH, history=True)) is Mode.TEMPORAL
+    assert mode_of(required(Verb.ORIGIN)) is Mode.CAUSAL
 
 
-def test_an_ill_scoped_sentence_cannot_be_constructed():
+def test_an_ill_scoped_sentence_is_not_admitted():
+    """`req(verb) ⋢ grant` is refused by the grant, so no surface can build the sentence (the
+    compiler raises `IllScopedSentence` on the same check)."""
     mirror_only = Grant(
         (scope({Stratum.MIRROR_AUTHORED}, set(), Clock.PROJECTION_EVENT, Window.all()),)
     )
-    Query(Verb.SEARCH, mirror_only, text="x")  # admitted
-    with pytest.raises(IllScopedQuery):
-        Query(Verb.SEARCH, mirror_only, text="x", strata=(Stratum.OBSERVED,))
-    with pytest.raises(IllScopedQuery):
-        Query(Verb.HISTORY, mirror_only, target="n")  # needs D on the N_s clock
-    with pytest.raises(IllScopedQuery):
-        Query(Verb.DIFFUSE, mirror_only, target="n")  # needs F
+    assert mirror_only.admits(required(Verb.SEARCH))
+    assert not mirror_only.admits(required(Verb.SEARCH, strata=(Stratum.OBSERVED,)))
+    assert not mirror_only.admits(required(Verb.HISTORY))   # needs D on the N_s clock
+    assert not mirror_only.admits(required(Verb.DIFFUSE))   # needs F
 
 
 def test_a_grant_cannot_name_the_foundation_or_reach_the_world():
@@ -111,10 +110,12 @@ def test_every_strata_list_the_legacy_search_accepted_is_constructible():
     names = list(table)
     for picked in [[], *([n] for n in names), *([n, m] for n in names for m in names)]:
         for history in (False, True):
-            Query(Verb.SEARCH, AMBASSADOR, text="x", strata=strata(picked), history=history)
-    alone = Query(Verb.SEARCH, AMBASSADOR, text="x", strata=(Stratum.REFERENCE,))
-    assert alone.req.sigma.strata == {Stratum.REFERENCE, Stratum.REFERENCE_REPO}
-    assert alone.req.cut == "single-read"
+            assert AMBASSADOR.admits(required(Verb.SEARCH, strata=strata(picked),
+                                              history=history))
+    alone = required(Verb.SEARCH, strata=(Stratum.REFERENCE,))
+    assert AMBASSADOR.admits(alone)
+    assert alone.sigma.strata == {Stratum.REFERENCE, Stratum.REFERENCE_REPO}
+    assert alone.cut == "single-read"
     assert required(Verb.SEARCH, strata=(Stratum.CURATED,)).cut is None   # one stratum: no cut
 
 
