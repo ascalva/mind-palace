@@ -38,6 +38,15 @@ theorem lapSym_mulVec_single_of_degree_eq_zero (A : Matrix V V ℝ) {i : V}
 
 /-! ### `L⁺` -/
 
+/-- **CND-1** `L⁺` is symmetric, so the effective resistance is symmetric in its two ends. -/
+theorem isHermitian_lapPinv (A : Matrix V V ℝ) (hA : A.IsSymm) : (lapPinv A hA).IsHermitian :=
+  sorry
+
+/-- **CND-1** `L⁺` is positive semidefinite, for symmetric `A` with nonnegative entries. -/
+theorem posSemidef_lapPinv (A : Matrix V V ℝ) (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j) :
+    (lapPinv A hA).PosSemidef :=
+  sorry
+
 /-- **CND-1** On `L⁺` (symmetric `A`, nonnegative entries) the effective resistance is a value of
 its quadratic form, `(eᵢ − eⱼ)ᵀ L⁺ (eᵢ − eⱼ)`, so it is never negative. -/
 theorem rEff_lapPinv_nonneg (A : Matrix V V ℝ) (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j)

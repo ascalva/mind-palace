@@ -253,11 +253,11 @@ theorem posSemidef_pinv (h : M.PosSemidef) : (pinv M h.isHermitian).PosSemidef :
 
 end Pinv
 
-/-- **L⁺** is symmetric. -/
+/-- **CND-1** `L⁺` is symmetric, so the effective resistance is symmetric in its two ends. -/
 theorem isHermitian_lapPinv (A : Matrix V V ℝ) (hA : A.IsSymm) : (lapPinv A hA).IsHermitian :=
   isHermitian_pinv _
 
-/-- **L⁺** is positive semidefinite, for symmetric `A` with nonnegative entries. -/
+/-- **CND-1** `L⁺` is positive semidefinite, for symmetric `A` with nonnegative entries. -/
 theorem posSemidef_lapPinv (A : Matrix V V ℝ) (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j) :
     (lapPinv A hA).PosSemidef :=
   posSemidef_pinv (posSemidef_lap A hA hw)
