@@ -178,3 +178,20 @@ def test_read_returns_the_record_and_holds_its_stratum_to_the_clause() -> None:
     with pytest.raises(LookupError, match="no active note"):
         execute(compile_sentence('read "nothing.md"'), u)
     assert execute(compile_sentence('read "a.md"'), u).plan.sort.value == "text"
+
+
+def test_a_hypothetical_edge_moves_the_graphs_degrees_with_it() -> None:
+    """RSP-5's guard and the overlay agree: the universe's full degrees move by exactly the
+    weight the hypothesis adds or removes, so `assume` on a support never trips the guard."""
+    u = _universe()
+    u = Universe(u.notes, u.vectors, u.weights, u.edges, u.relations, u.embed, u.history,
+                 u.witness, degrees=u.weights.sum(axis=1) + 0.25)   # a leak of 0.25 everywhere
+    before = u.degrees.copy() if u.degrees is not None else None
+    assert before is not None
+    added = execute(compile_sentence('assume S "a.md" "d.md" +0.5 in top 3 diffuse S from "a.md"'),
+                    u)
+    assert added.hyp is not None and [h.ref for h in added.hyp.value] == ["b.md", "c.md", "d.md"]
+    severed = execute(compile_sentence('assume sever S "a.md" "b.md" in top 3 diffuse S from '
+                                       '"a.md"'), u)
+    assert severed.hyp is not None and [h.ref for h in severed.hyp.value] == []
+    assert np.array_equal(u.degrees, before)                     # the universe itself untouched

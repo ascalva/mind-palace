@@ -338,8 +338,14 @@ class Overlay:
 
     def apply(self, u: Universe) -> Universe:
         weights = u.weights.copy()
+        degrees = None if u.degrees is None else u.degrees.copy()
         for i, j, delta in self.s_edges:
-            weights[i, j] = weights[j, i] = float(np.clip(weights[i, j] + delta, 0.0, 1.0))
+            before = float(weights[i, j])
+            weights[i, j] = weights[j, i] = float(np.clip(before + delta, 0.0, 1.0))
+            if degrees is not None:      # the graph's degrees move with the edge (RSP-5 holds)
+                moved = float(weights[i, j]) - before
+                degrees[i] += moved
+                degrees[j] += moved
         f_edges = {k: set(v) for k, v in u.edges.get(Rel.F, {}).items()}
         for a, b in self.f_add:
             f_edges.setdefault(a, set()).add(b)
@@ -350,7 +356,7 @@ class Overlay:
             Relation(a, b, -1, "contradicts", 1.0) for a, b in self.contradictions]
         edges = dict(u.edges)
         edges[Rel.F] = f_edges
-        return replace(u, weights=weights, edges=edges, relations=relations)
+        return replace(u, weights=weights, edges=edges, relations=relations, degrees=degrees)
 
     def describe_response(self, u: Universe) -> list[str]:
         """The response class (QSA-9), stated before anything is computed."""

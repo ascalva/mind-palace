@@ -46,7 +46,12 @@ from core.sentence.ast import Node, Rel
 from core.sentence.execute import Relation, Universe, read_ref
 from core.sentence.plan import Plan
 from core.sentence.precedents import DEFAULT, Precedents
-from core.sentence.types import CURATED_NAMES, REFERENCE_NAMES, stratum_of_provenance
+from core.sentence.types import (
+    CURATED_NAMES,
+    REFERENCE_NAMES,
+    AmbiguousSentence,
+    stratum_of_provenance,
+)
 
 # ── what the sentence names ────────────────────────────────────────────────────────────────────
 
@@ -295,6 +300,13 @@ class _Builder:
 
         store = self.store("references")
         wanted = cut if cut is not None else _resolve_default_commit(self.e.config)
+        if cut is not None and len(cut) < 40:          # a short sha, resolved as git does
+            matches = store.commits_like(cut)
+            if len(matches) > 1:
+                raise AmbiguousSentence(f"as of {cut!r}: the store holds {len(matches)}+ cuts "
+                                        f"starting so; write more of the sha")
+            if matches:
+                wanted = matches[0]
         anchor = wanted
         if not store.for_commit(wanted):
             latest = store.latest_commit()
