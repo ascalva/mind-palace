@@ -19,7 +19,7 @@ whose laws the Lean proves.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any
 
@@ -33,7 +33,14 @@ from core.sentence.ast import Direction, Node, Rel
 from core.sentence.automaton import Chain, compile_path, product_walk
 from core.sentence.plan import Plan
 from core.sentence.precedents import DEFAULT, Precedents
-from core.sentence.types import AmbiguousSentence, IllScopedSentence, Sort
+from core.sentence.types import (
+    REFERENCE_NAMES,
+    AmbiguousSentence,
+    IllScopedSentence,
+    Sort,
+    read_strata,
+    short_names,
+)
 
 
 class UnsupportedSentence(NotImplementedError):
@@ -74,17 +81,16 @@ class Universe:
         return len(self.notes)
 
     def index_of(self, atom: str) -> int:
-        """The note a name picks out: by path, digest or title; refused when none or several. A
-        curated paper's ref is refused with where to go instead — the note graph is the owner's
-        notes — never answered with an empty result that reads as "nothing there"."""
-        if atom.startswith(CURATED_REF):
-            raise LookupError(f"{atom!r} is a curated paper; the verbs over notes (diffuse, reach, "
-                              f"relate, trace, walk) walk the owner's notes only. For papers: "
-                              f'near "…" over curated, or read the ref')
+        """The node a name picks out: by path, digest or title; refused when none or several —
+        a name this universe did not seed is a lookup refusal, never an empty answer."""
         hits = [i for i, n in enumerate(self.notes)
                 if atom in (n.get("source_path"), n.get("digest"), n.get("title"))]
         if not hits:
-            raise LookupError(f"no authored note matches {atom!r}")
+            where = ("a paper is a node once named as an anchor or reached by near … over curated"
+                     if atom.startswith(CURATED_REF) else
+                     "the universe holds the notes, the dialogue, and what the sentence's texts "
+                     "and anchors reach")
+            raise LookupError(f"no node of this universe matches {atom!r}; {where}")
         if len(hits) > 1:
             names = ", ".join(repr(self.notes[i]["source_path"]) for i in hits)
             raise AmbiguousSentence(f"{atom!r} names {len(hits)} notes: {names}; use a path")
@@ -92,6 +98,19 @@ class Universe:
 
     def path_of(self, i: int) -> str:
         return str(self.notes[i]["source_path"])
+
+    def in_strata(self, names: Iterable[str]) -> frozenset[int]:
+        """The nodes `over <strata>` keeps: by the row's provenance class, as the clearances read it
+        (`STRATUM_CLASSES`), and the reference graph's nodes under `reference` (QSA-2: a mask)."""
+        from core.kernel.clearance import classes_of
+
+        strata = {Stratum(n) for n in names}
+        classes = {p.value for p in classes_of(strata)}
+        reference = bool(strata & REFERENCE_NAMES)
+        return frozenset(
+            i for i, n in enumerate(self.notes)
+            if str(n.get("provenance", "")) in classes
+            or (reference and n.get("stratum") == "reference"))
 
     def digest_of(self, i: int) -> str:
         return str(self.notes[i].get("digest", ""))
@@ -179,6 +198,22 @@ class Universe:
                    text=text)
 
 
+def _read_repo_file(ref: str) -> Mapping[str, object] | None:
+    """A repo-relative path — a node of the reference graph — read from the checkout, inside the
+    repo root only: a path that resolves outside it, or to nothing, is `None`."""
+    from pathlib import Path
+
+    from core.kernel.config import REPO_ROOT
+
+    root = Path(REPO_ROOT).resolve()
+    path = (root / ref).resolve()
+    if root not in path.parents or not path.is_file():
+        return None
+    body = path.read_text(encoding="utf-8", errors="replace")
+    return {"ref": ref, "title": ref, "provenance": "code" if ref.endswith(".py") else "corpus",
+            "stratum": "reference", "text": body}
+
+
 def read_ref(engine: QueryEngine, ref: str, chunk: int | None, *,
              window: int) -> Mapping[str, object] | None:
     """The record at a ref: a curated paper's window of `window` chunks around `chunk` (from its
@@ -204,6 +239,8 @@ def read_ref(engine: QueryEngine, ref: str, chunk: int | None, *,
         return {"ref": ref, "title": rows[0].get("title", ""), "provenance": "curated",
                 "stratum": "curated", "chunks": f"{start}–{start + len(picked) - 1} of {len(rows)}",
                 "text": "\n".join(str(r.get("text", "")) for r in picked)}
+    if "/" in ref and not ref.startswith(("/", "~", "dialogue/")):
+        return _read_repo_file(ref)
     entry = VaultCatalog(cfg.paths.vault_catalog).get(ref)
     if entry is None or not entry.active:
         return None
@@ -403,17 +440,16 @@ class Evaluator:
             case ast.Within(body=b, region=r):
                 return self._mask(self.eval(b), self._region(r))
             case ast.Over(body=b, strata=strata):
-                allowed = {Stratum.MIRROR_AUTHORED.value, Stratum.MIRROR.value}
-                if any(s not in allowed for s in strata):
-                    raise UnsupportedSentence(
-                        f"over {' '.join(strata)}: this universe holds the authored notes "
-                        f"(mirror_authored); other strata need their stores wired")
-                return self.eval(b)
+                val = self.eval(b)
+                if isinstance(val, FieldV | RegionV):
+                    return self._mask(val, self.u.in_strata(strata))
+                return val
             case ast.AsOf(body=b, cut=cut):
-                if self.u.cut is not None and cut != self.u.cut:
+                if self.u.cut is None or not self.u.cut.startswith(cut):
+                    at = "no cut" if self.u.cut is None else f"cut {self.u.cut[:7]!r}"
                     raise UnsupportedSentence(
-                        f"as of {cut!r}: this universe is read at {self.u.cut!r}; a past cut needs "
-                        f"the snapshot store")
+                        f"as of {cut!r}: this universe is read at {at}; the store holds no edges "
+                        f"at that cut, and the notes have no snapshot store")
                 return self.eval(b)
             case ast.Trace(atom=atom, direction=direction):
                 return self._trace(atom, direction)
@@ -440,8 +476,8 @@ class Evaluator:
         record is, it must be one of those, or the read is refused as ill-scoped."""
         rec = self.u.text(atom, chunk, self.p.read_window)
         if rec is None:
-            raise LookupError(f"read: no active note, dialogue turn or paper {atom!r}")
-        allowed = {"curated"} if atom.startswith(CURATED_REF) else {"mirror", "dialogue"}
+            raise LookupError(f"read: no active note, dialogue turn, repo file or paper {atom!r}")
+        allowed = short_names(read_strata(atom))
         if str(rec.get("stratum", "")) not in allowed:
             raise IllScopedSentence(
                 f"read {atom!r}: the record is in stratum {rec.get('stratum')!r}, outside the "
@@ -655,9 +691,12 @@ def _hits(value: Value, u: Universe, k: int) -> tuple[Hit, ...]:
 def _hit(u: Universe, j: int, *, score: float | None = None,
          detail: dict[str, Any] | None = None) -> Hit:
     n = u.notes[j]
+    node_detail = n.get("detail") or {}
     return Hit(ref=str(n.get("source_path", "")), title=str(n.get("title", "")),
-               score=None if score is None else round(score, 4), stratum="mirror",
-               provenance=str(n.get("provenance", "")), detail=detail or {})
+               score=None if score is None else round(score, 4),
+               stratum=str(n.get("stratum", "mirror") or "mirror"),
+               provenance=str(n.get("provenance", "")),
+               detail={**dict(node_detail), **(detail or {})})
 
 
 def execute(plan: Plan, universe: Universe, *, precedents: Precedents = DEFAULT) -> SentenceAnswer:

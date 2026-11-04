@@ -334,6 +334,16 @@ class ReferenceEdgeStore:
         sql += " ORDER BY edge_id"
         return [self._row(r) for r in self._conn.execute(sql, params).fetchall()]
 
+    def latest_commit(self) -> str | None:
+        """The newest cut the store holds — the `commit_sha` of the last reading that landed
+        (`created_at`), or None on an empty store. A read for the sentence universe (dn-query-
+        sentence-algebra §2.9): a checkout whose HEAD the sensor never read has no edges at HEAD,
+        so the universe reads the citation graph at this cut and says so in its answer. The view's
+        own anchor (`_resolve_default_commit`) is unchanged: the active run, else HEAD."""
+        row = self._conn.execute(
+            "SELECT commit_sha FROM reference_edges ORDER BY created_at DESC LIMIT 1").fetchone()
+        return str(row[0]) if row else None
+
     def for_commit(self, commit_sha: str) -> list[ReferenceEdge]:
         return [self._row(r) for r in self._conn.execute(
             "SELECT * FROM reference_edges WHERE commit_sha = ? ORDER BY edge_id",

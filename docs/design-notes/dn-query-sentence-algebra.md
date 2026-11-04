@@ -441,6 +441,56 @@ apophenia discipline of fiber-geometry §2.3-6). Each row's win condition:
 A majority of ties or losses for the sentence retires the layer to a planning aid for the model
 (QSF-5, the MFF-5 shape). `[INFERENCE]`
 
+### 2.9 The stratified universe — the support of a sentence
+
+**The owner's question, 2026-11-04:** *"what do you mean no citations, what about the code, the
+dialogue, and the papers ingested?"* The first executor read one universe, the owner's notes.
+The stores hold more (a read-only census of the live instance, 2026-11-04): 38 notes in the
+mirror (29 authored, 9 the owner's dialogue turns) and 8 observed turns; 17,256 code atoms whose
+occupancies the membership relation resolves to files and symbols; 147,417 chunks of curated
+papers and the system's own docs; a citation graph of 3,029,562 edges over the repo's docs and
+code across 1,487 commits, kinds `code` and `corpus`; 196 causal edges; 29 versions; 20 relation
+edges. Two facts shape the design. A dense backbone over all of it is impossible — `n²` weights,
+`n³` for the free-energy kernel — and the citation graph has **no edges at a commit the sensor
+never read** (a worktree's HEAD), only at the cuts it holds.
+
+**The universe is the support of the sentence, not the corpus.** `core/sentence/universe.py`
+builds it per plan from what the sentence names — `seeds_of`: each `near` text with the strata in
+force (`over`), each anchor with the radius its verb walks (`reach … depth n`, `walk … depth n`,
+`diffuse` one hop of the index), the `as of` cut:
+
+- the mirror and the dialogue, always (small; the backbone among them is exact, and an anchor
+  named by title is found here);
+- curated papers and code: the `support` nearest units to each text and each anchor by the
+  store's index (the precedent `support`, 200), the paper or the file their occupancies name as
+  the node — a paper's vector is the centroid of the chunks the index returned for it, a file's
+  the atom that answered; `read "<paper>" chunk n` dereferences the chunk;
+- reference — the repo's docs and code: the citation graph's nodes within the anchor's radius, by
+  a breadth-first walk bounded by `support`, at the cut: the `as of` commit, else the view's
+  anchor, else **the newest cut the store holds**, which the answer names (`latest_commit`, a read
+  the sentence universe adds to the reference store).
+
+Nodes carry their stratum and provenance; `over <strata>` is the **mask** onto the support's nodes
+of those strata, by the clearances' own table (`STRATUM_CLASSES`) with the citation graph's nodes
+under `reference` — so it distributes over `and` and `or` and stacks with `within` by
+intersection: QSA-2's laws, nothing new to prove (`Universe.in_strata`). `read <ref>` reads by
+the ref's shape (`read_strata`): a paper ref the curated stratum, `dialogue/…` the dialogue, an
+absolute path the mirror, a repo-relative path the reference stratum (the checkout's file, inside
+the repo root only), a title the mirror or the dialogue; the executor holds the record to it.
+
+**What the support loses is bounded and one-sided.** [DERIVED — RSP-5, to be machine-checked]
+Restricting the killed walk to the support, with the complement absorbing, removes walks and adds
+none, so the fundamental matrix shrinks entrywise and every free-energy distance grows: `diffuse`
+on the support **under-estimates** nearness and never invents it. `reach` is exact within its
+radius unless the bound truncates, and the answer says so. `near` over an indexed stratum is the
+index's top-`support`, an approximation the index owns (its recall is a measurement for the
+battery, not an assumption). The answer's notes carry the support's census, the cut, and every
+truncation. `[INFERENCE — falsifier: a battery row that a larger support wins]`
+
+**Not yet in the universe:** `D` and `C` moves at the node grain (the version chains are per
+note, the causal edges key on structural endpoints); a snapshot of the notes at a past cut; a
+`near` over `interpreted` (the dreams) and `observed` beyond the dialogue's own turns.
+
 ## 3. Consequences — what this note licenses, on the owner's merge
 
 Five units, session-sized, dependency-ordered, split at graduation, named **QL-N** (query language)
@@ -485,6 +535,15 @@ readiness signal.
 > status, tasks, reminders, overview) are not queries and stay. (4) Ratification and the `.claude/`
 > agent controls are retired as workflow: status fields are provenance, the owner's merge is not a
 > gate, and nothing in this note is "licensed on the merge" any longer — it is built.
+>
+> **The stratified universe, the same day (§2.9):** `core/sentence/universe.py` builds the universe
+> per plan — the mirror and the dialogue always; papers and code by the index, `support` units per
+> text or anchor; the citation graph at the cut, bounded; `over` a mask (QSA-10); `read` by the
+> ref's shape, repo files included; `latest_commit` on the reference store. A read-only run on the
+> live instance: `near … over curated` answers from 100 papers of a 146-node support in 0.5 s,
+> `near … over reference` names files and symbols, `reach F from "core/query.py" depth 1` returns 17
+> files at the newest cut and says the worktree's HEAD has none. RSP-5, the support's one-sided
+> error, is stated and awaits its Lean.
 
 - **QL-0 — the design proved.** This note and `formal/Palace/Sentence.lean` (on this branch, green
   through `formal/check.sh`). Acceptance: the owner's merge, with the ⚑ track coordinate
@@ -523,7 +582,9 @@ was taken by the legacy module's name), reading `core/kernel/scope.py` (which ga
 stores `core/query.py` already opens, through `Universe.from_engine`; `docs/query/precedents.md`
 (the resolution ledger, authored, versioned with the corpus, pinned to its mirror by a test);
 `palace query` in `scripts/palace.py` over `core/sentence/surface.py` (built 2026-11-04, QL-3:
-`ask_logged`, `render_text`, the `QueryLog` and `summarize`); `docs/query/asking.md`, the translation
+`ask_logged`, `render_text`, the `QueryLog` and `summarize`); `core/sentence/universe.py` (the
+stratified universe, §2.9: `seeds_of`, `build`; `Universe.in_strata`, `read_strata`; the precedent
+`support`; `ReferenceEdgeStore.latest_commit`); `docs/query/asking.md`, the translation
 guide (built; first the `/context` skill, moved out with the `.claude/` controls); the Ambassador's MCP server (`agents/ambassador/mcp.py`) with
 the `query` tool and its `sentence` argument, gated by `Server.sentences`; `QueryConfig` in
 `core/kernel/config/loader.py` — `[query] sentences`, default `false`; the web manifest

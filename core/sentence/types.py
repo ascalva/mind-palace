@@ -20,6 +20,7 @@ Three judgements on a parsed sentence:
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -57,12 +58,14 @@ class AmbiguousSentence(ValueError):
 
 
 def _note_atom(atom: str | None, verb: str) -> None:
-    """A curated paper's ref handed to a verb over the owner's notes is refused at compile time,
-    with where to go instead — before any store opens, never an empty answer that reads as
-    "nothing there" (the legacy table's `OutOfScopeTarget`, kept as a sort error)."""
+    """A curated paper's ref handed to a verb that walks the owner's notes alone — the relation
+    edges and the version chains — is refused at compile time, with where to go instead, before
+    any store opens (the legacy table's `OutOfScopeTarget`, kept as a sort error). `diffuse`,
+    `reach` and `walk` take a paper: the stratified universe seeds its neighbourhood."""
     if atom is not None and atom.startswith(CURATED_REF):
         raise SortError(f"{verb}: {atom!r} is a curated paper; {verb} walks the owner's notes "
-                        f'only. For papers: near "…" over curated, or read the ref')
+                        f'only. For papers: near "…" over curated, diffuse S from the ref, or '
+                        f"read it")
 
 
 def sort_of(node: Node) -> Sort:
@@ -70,14 +73,12 @@ def sort_of(node: Node) -> Sort:
     match node:
         case ast.Near():
             return Sort.FIELD
-        case ast.Diffuse(atom=a):
-            _note_atom(a, "diffuse")
+        case ast.Diffuse():
             return Sort.FIELD
         case ast.Far(field=f):
             _want(f, Sort.FIELD, "far", "the bounded reversal 1 − f is a field operation")
             return Sort.FIELD
-        case ast.Reach(atom=a):
-            _note_atom(a, "reach")
+        case ast.Reach():
             return Sort.REGION
         case ast.Relate(atom=a):
             _note_atom(a, "relate")
@@ -102,9 +103,7 @@ def sort_of(node: Node) -> Sort:
         case ast.Trace(atom=a):
             _note_atom(a, "trace")
             return Sort.CHAIN
-        case ast.Walk(atom=a, to=t):
-            _note_atom(a, "walk")
-            _note_atom(t, "walk")
+        case ast.Walk():
             return Sort.CHAIN
         case ast.Witness():
             return Sort.WITNESS
@@ -184,6 +183,49 @@ class _Context:
     strata: tuple[Stratum, ...]
     cut: str | None
     overlay: bool
+
+
+# The strata by the name a node carries (`Universe.notes[i]["stratum"]`): what `over` masks to and
+# what `read` holds a record to.
+MIRROR_NAMES: frozenset[Stratum] = frozenset({Stratum.MIRROR, Stratum.MIRROR_AUTHORED})
+DIALOGUE_NAMES: frozenset[Stratum] = frozenset(
+    {Stratum.DIALOGUE, Stratum.DIALOGUE_TRANSCRIPT, Stratum.DIALOGUE_ARTIFACT})
+CURATED_NAMES: frozenset[Stratum] = frozenset({Stratum.CURATED})
+REFERENCE_NAMES: frozenset[Stratum] = frozenset({Stratum.REFERENCE, Stratum.REFERENCE_REPO})
+_SHORT: dict[Stratum, str] = {
+    **{s: "mirror" for s in MIRROR_NAMES}, **{s: "dialogue" for s in DIALOGUE_NAMES},
+    **{s: "curated" for s in CURATED_NAMES}, **{s: "reference" for s in REFERENCE_NAMES},
+}
+_PROVENANCE_STRATUM: dict[str, str] = {
+    "authored-solo": "mirror", "authored-dialogue": "dialogue", "observed": "dialogue",
+    "curated": "curated", "code": "reference",
+}
+
+
+def stratum_of_provenance(provenance: str) -> str:
+    """The stratum a row's provenance places its node in ('' for a class the universe does not
+    hold)."""
+    return _PROVENANCE_STRATUM.get(provenance, "")
+
+
+def short_names(strata: Iterable[Stratum]) -> frozenset[str]:
+    """The node-stratum names a set of strata admits."""
+    return frozenset(_SHORT[s] for s in strata if s in _SHORT)
+
+
+def read_strata(atom: str) -> tuple[Stratum, ...]:
+    """The strata a `read` of `atom` can land in, by the ref's shape: a paper ref reads the
+    curated stratum; a dialogue turn the dialogue; a repo-relative path the reference stratum (the
+    repo's own docs and code); an absolute path the mirror; a title the mirror or the dialogue."""
+    if atom.startswith(CURATED_REF):
+        return (Stratum.CURATED,)
+    if atom.startswith("dialogue/"):
+        return (Stratum.DIALOGUE,)
+    if atom.startswith(("/", "~")):
+        return (Stratum.MIRROR_AUTHORED,)
+    if "/" in atom:
+        return (Stratum.REFERENCE,)
+    return (Stratum.MIRROR_AUTHORED, Stratum.DIALOGUE)
 
 
 _REL_STRATA: dict[Rel, tuple[Stratum, ...]] = {
@@ -279,16 +321,12 @@ def _walk_clause(path: str, ctx: _Context) -> Clause:
 
 
 def _read_clause(atom: str, ctx: _Context) -> Clause:
-    """`read <ref>`: a curated paper (`reference:…`) reads the curated stratum; a note or a dialogue
-    turn reads the mirror or the dialogue, whichever the ref turns out to be, so the clause requires
-    both and the executor holds the record's stratum to them (the ref's shape decides at compile
-    time, the catalog at run time)."""
-    if atom.startswith(CURATED_REF):
-        strata: tuple[Stratum, ...] = (Stratum.CURATED,)
-    else:
-        strata = (Stratum.MIRROR_AUTHORED, Stratum.DIALOGUE)
-    req = _required("read", None, strata, fibers=set(), clock=Clock.PROJECTION_EVENT, point=True,
-                    ctx=ctx)
+    """`read <ref>`: the clause requires the strata the ref's shape can land in (`read_strata`),
+    and the executor holds the record's stratum to them — the shape decides at compile time, the
+    catalog or the repo at run time."""
+    strata = read_strata(atom)
+    clock = Clock.COMMIT if strata == (Stratum.REFERENCE,) else Clock.PROJECTION_EVENT
+    req = _required("read", None, strata, fibers=set(), clock=clock, point=True, ctx=ctx)
     return Clause("read", None, req, mode_of(req), ctx.overlay)
 
 

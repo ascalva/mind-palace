@@ -122,10 +122,17 @@ def test_read_is_a_text_that_composes_with_nothing_and_reads_by_the_refs_shape()
             typecheck(parse(bad))
     (paper,) = clauses_of(parse('read "reference:arxiv-1"'))
     assert paper.verb == "read" and paper.req.sigma.strata == {Stratum.CURATED}
-    (note,) = clauses_of(parse('read "/vault/n.md"'))
-    assert {Stratum.MIRROR_AUTHORED, Stratum.DIALOGUE} <= note.req.sigma.strata
-    assert note.req.cut == "single-read" and note.mode.value == "semantic"
-    assert admissible(parse('read "reference:arxiv-1"'), AMBASSADOR)
-    assert admissible(parse('read "/vault/n.md"'), AMBASSADOR)
+    (note,) = clauses_of(parse('read "/vault/n.md"'))                      # an absolute path
+    assert note.req.sigma.strata == {Stratum.MIRROR_AUTHORED} and note.req.cut is None
+    (title,) = clauses_of(parse('read "note-2026-07-11"'))                 # a title: either
+    assert {Stratum.MIRROR_AUTHORED, Stratum.DIALOGUE} <= title.req.sigma.strata
+    assert title.req.cut == "single-read" and title.mode.value == "semantic"
+    (turn,) = clauses_of(parse('read "dialogue/c/t1"'))
+    assert Stratum.DIALOGUE in turn.req.sigma.strata
+    (repo,) = clauses_of(parse('read "docs/x.md"'))                        # a repo path: reference
+    assert Stratum.REFERENCE in repo.req.sigma.strata and repo.req.time.clock.value == "commit"
+    for s in ('read "reference:arxiv-1"', 'read "/vault/n.md"', 'read "note-2026-07-11"',
+              'read "dialogue/c/t1"', 'read "docs/x.md"'):
+        assert admissible(parse(s), AMBASSADOR), s
     (under,) = clauses_of(parse('assume contradict "a" "b" in read "/vault/n.md"'))
     assert under.overlay and Stratum.HYPOTHETICAL in under.req.sigma.strata
