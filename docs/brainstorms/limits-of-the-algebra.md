@@ -86,9 +86,16 @@ A balanced signed graph keeps the zero mode of `L̄`; a contradiction lifts it
 least number of edges whose sign flip restores balance — `λ_min(L̄) ≤ 4·w_max·frustration / n`
 and `λ_min(L̄) > 0` iff unbalanced. The hypothetical `assume contradict a b` is then a measurement
 of how far one contradiction moves the spectrum: a single frustrated edge on a dense balanced
-graph barely lifts it; on a tree it is the whole story. *Status:* the iff is proved; the bound is
-a conjecture to measure on the 20 relation edges of the live instance. *Falsifier:* a graph where
-one flipped edge lifts `λ_min` above the bound.
+graph barely lifts it; on a tree it is the whole story. *Status — measured, and the bound is a
+theorem:* on the live instance's 20 relation edges (12 notes, one component; scratch script
+`l4_frustration.py`, read-only) the graph is already unbalanced — frustration index 1, weight
+`F_w = 0.831`, `λ_min(L̄) = 0.190` — and every one of the 20 single flips holds the bound (largest
+ratio 0.69). The bound holds for a reason: the switching `s ∈ {±1}^V` that balances all but the
+frustrated edges has `sᵀ L̄ s = Σᵢⱼ (|Aᵢⱼ| − Aᵢⱼ sᵢ sⱼ) = 4·F_w` and `sᵀ s = n`, so the Rayleigh
+quotient gives `λ_min(L̄) ≤ 4·F_w / n ≤ 4·w_max·frustration / n` — the conjecture with the weighted
+frustration in place of the count, which is sharper. The Lean form (the quadratic form of a
+signing is four times its frustrated weight; FRU-1) is the next rung. *Falsifier:* none left for
+the bound; the measurement says the lift of one contradiction on this graph is 0.4–0.7 of it.
 
 ## L5. The support singularity — the quantitative RSP-5
 
