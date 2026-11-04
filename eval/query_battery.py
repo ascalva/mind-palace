@@ -74,9 +74,10 @@ def _ask(engine: Any, grant: Any, sentence: str, k: int) -> Answer:
     return a
 
 
-def _oldest_cut_with_edges(engine: Any, newest: str) -> str | None:
-    """A past cut the citation store holds: the oldest commit of the live checkout's history
-    (newest first, 400 deep) that has edges — for the `as of` row."""
+def _oldest_cut_with_edges(engine: Any, newest: str, anchor: str) -> str | None:
+    """A past cut the citation store holds for the anchor: the oldest commit of the live
+    checkout's history (newest first, 400 deep) at which the anchor cites something — for the
+    `as of` row. A cut from before the anchor existed answers nothing, truthfully."""
     store = engine._get("references")
     try:
         out = subprocess.run(["git", "log", "--format=%H", "-n", "400", newest],
@@ -84,7 +85,7 @@ def _oldest_cut_with_edges(engine: Any, newest: str) -> str | None:
     except (subprocess.CalledProcessError, OSError):
         return None
     for sha in reversed(out):
-        if sha != newest and store.for_commit(sha):
+        if sha != newest and any(e.source_ref == anchor for e in store.for_commit(sha)):
             return sha
     return None
 
@@ -98,7 +99,7 @@ def rows_for(engine: Any, k: int) -> list[Row]:
     note_a = str(notes[0]["source_path"]) if notes else "a.md"
     note_b = str(notes[1]["source_path"]) if len(notes) > 1 else note_a
     cut = build(engine, compile_sentence('reach F from "core/query.py"')).cut or ""
-    old = _oldest_cut_with_edges(engine, cut) if cut else None
+    old = _oldest_cut_with_edges(engine, cut, "core/query.py") if cut else None
     rows = [
         Row("near-and-cited-by",
             "the code near 'the egress guard' among what core/sealing.py cites",
@@ -159,7 +160,7 @@ def _proxy(row: Row, flat: Answer, comp: Answer) -> str:
                 f"{len(set(frefs) & set(crefs))} shared")
     if row.name == "a-hypothetical-s-response":
         cls = [n for n in comp.notes if "resistance" in n or "camps" in n or "gained" in n]
-        return " | ".join(c[:90] for c in cls) or "no response note"
+        return "; ".join(c[:90] for c in cls) or "no response note"
     return ""
 
 
@@ -194,7 +195,7 @@ def render(rows: list[Row], results: list[tuple[Answer, Answer]], *, k: int,
                 t = f" — {title[:70]}" if title and title != ref else ""
                 out.append(f"-{s} `{ref[:90]}`{t}{d}")
             if a.hyp:
-                assumed = ", ".join(f"`{r[:60]}`" for r, _ in a.hyp[:k])
+                assumed = ", ".join(f"`{(t or r)[-60:]}`" for r, t in a.hyp[:k])
                 out.append(f"- under the assumption: {assumed}")
             out.append("")
         if comp.plan:
