@@ -501,7 +501,7 @@ note, the causal edges key on structural endpoints); a snapshot of the notes at 
 **The limits (2026-11-04).** `docs/brainstorms/limits-of-the-algebra.md` pushes these laws to
 their horizons, and four of its six are machine-checked as design theorems: L1, the sever
 horizon — `w·R_eff(a, b) ≤ 1`, so `assume sever`'s Sherman–Morrison denominator never goes
-negative, and it vanishes exactly at a bridge (`formal/Palace/Sever.lean`); L3, the pullback
+negative, and it vanishes exactly at a bridge, both ways (`formal/Palace/Sever.lean`); L3, the pullback
 of a merge is not a contraction, the pullback is an isometry under the fiber-weighted inner
 product and the push-forward a contraction under its inverse (`formal/Palace/Transport.lean`,
 issue #61); L4, one contradiction lifts the signed Laplacian's zero mode by at most `4·F_w/n`,

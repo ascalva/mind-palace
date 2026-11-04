@@ -40,7 +40,13 @@ lying under `A`) and `one_sub_mul_rEff_nonneg` (the Sherman–Morrison denominat
 negative). The bridge → equality direction is machine-checked too (SEV-4,
 `mul_rEff_eq_one_of_bridge`: when `a ~ b` is the only edge across a cut, Thomson's principle with
 the test potential `(1/w)·1_S` meets the bound, so `w·rEff = 1`, the sever's denominator vanishes
-and the horizon is reached); the converse (not a bridge → strict) needs a strict Rayleigh law. *Falsifier:* a non-bridge with `w·rEff = 1`.
+and the horizon is reached), and so is the converse (SEV-5, `mul_rEff_lt_one_of_reachable`: when
+`a` still reaches `b` without the edge, the unit current out of `a` must leak through the detour —
+by the maximum principle on the unit potential, proved here for the library, every share is
+nonnegative, and a zero share would carry the source potential along the detour to the sink).
+With the cut reading of a bridge (`isBridgeCut_iff_not_reachable`), the horizon is exactly the
+bridges: `w·rEff = 1 ↔ IsBridgeCut` (`mul_rEff_eq_one_iff`), and `assume sever`'s denominator
+vanishes precisely where severing disconnects (`one_sub_mul_rEff_eq_zero_iff`). *Falsifier:* none left; L1 is closed both ways.
 
 ## L2. The β-limits of the retrieval curve — where the kernel freezes and where it melts
 
