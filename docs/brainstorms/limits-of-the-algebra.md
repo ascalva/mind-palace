@@ -96,9 +96,14 @@ theorem:* on the live instance's 20 relation edges (12 notes, one component; scr
 ratio 0.69). The bound holds for a reason: the switching `s ∈ {±1}^V` that balances all but the
 frustrated edges has `sᵀ L̄ s = Σᵢⱼ (|Aᵢⱼ| − Aᵢⱼ sᵢ sⱼ) = 4·F_w` and `sᵀ s = n`, so the Rayleigh
 quotient gives `λ_min(L̄) ≤ 4·F_w / n ≤ 4·w_max·frustration / n` — the conjecture with the weighted
-frustration in place of the count, which is sharper. The Lean form (the quadratic form of a
-signing is four times its frustrated weight; FRU-1) is the next rung. *Falsifier:* none left for
-the bound; the measurement says the lift of one contradiction on this graph is 0.4–0.7 of it.
+frustration in place of the count, which is sharper. *Machine-checked (Palace/Frustration.lean,
+design theorems):* FRU-1 `dotProduct_signedLap_signing` (`sᵀ L̄ s = 2·frustrated(s)`, the frustrated
+weight over ordered pairs) with `dotProduct_self_signing` and `rayleigh_signing`; Courant–Fischer's
+floor `exists_eigenvalue_mul_le_dotProduct` (some eigenvalue lies under every Rayleigh quotient,
+through the orthonormal eigenbasis — new to the library, and reusable for every spectral bound);
+FRU-2 `exists_eigenvalue_le_frustrated` (the least eigenvalue of `L̄` is at most
+`2·frustrated(s)/|V|` for every signing, so at most `4·F_w/n`). *Falsifier:* none left for the
+bound; the measurement says the lift of one contradiction on this graph is 0.4–0.7 of it.
 
 ## L5. The support singularity — the quantitative RSP-5
 
