@@ -1,4 +1,13 @@
-# The system's own prose, curated: the Constitution, the Conventions, docs/.
-for d in files(source("docs")) {
+# The system's own prose, curated: the Constitution, the Conventions, docs/. A doc gone from the
+# repository is retired.
+let docs = source("docs")
+let present = files(docs)
+let here = paths(present)
+for d in present {
     store d.content in "curated"
+}
+for e in stored("curated", under: docs) {
+    if e.path not in here {
+        retire e.path in "curated"
+    }
 }

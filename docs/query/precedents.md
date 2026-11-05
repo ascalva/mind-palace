@@ -47,7 +47,7 @@ budgets in `core/ingest/table.py` are this table's executable mirror.
 | `write` | `140000` | 42 ms: a store that lands, its embeds apart (the raw object, the plane's append, the catalog, the attestation); charged too for a retire, a link and a run | the plane's append gets cheaper |
 | `query` | `360000` | not measured: one embed, its text's, as its floor | the read verbs priced in this unit (§E10's follow-up) |
 | `embed` | `360000` | 109 ms: a chunk embedded | another embedder |
-| the `cli` role's budget | `10000000000` | about 50 minutes of measured work: the owner's and the daemon's own jobs, a first sync of a large vault included | a sync that needs more |
+| the `cli` role's budget | `50000000000` | about four hours of measured work: the owner's and the daemon's own jobs, a first sync of every doc after a plane reset (about 5,300,000,000) ten times over | a sync that needs more |
 | the `ambassador` role's budget | `100000000` | about 30 seconds: a capture is under one million, a link or a job's start under two hundred thousand | a request the Ambassador needs that does not fit |
 
 The two coalescing requests, `do sync_vault` and a bare `do sync_dialogue`, run as the daemon's

@@ -82,12 +82,14 @@ _IDEMPOTENT_KINDS = frozenset(
      "dialogue_sync"})
 
 # The kinds a crash may leave RUNNING that `sweep_orphans` puts back in the queue rather than
-# failing: the idempotent kinds, and the door's own kinds (`core/ingest/door.py` DOOR_KINDS),
-# which are re-runnable at the request (dn-ingest-door DOR-7, DOR-11): their handler skips a
-# request already receipted as landed or refused, and each landing is idempotent at the store.
-# They stay out of `_IDEMPOTENT_KINDS` because their payload names one request, so they never
+# failing: the idempotent kinds; the door's own kind (`core/ingest/door.py` DOOR_KINDS), which is
+# re-runnable at the request (dn-ingest-door DOR-7, DOR-11: its handler skips a request already
+# receipted as landed or refused, each landing is idempotent at the store, and a job its plan
+# started is found again, not started twice); and the two jobs a script starts that run again
+# without harm, the relation pass and the code sensor, which the first form requeued too. They
+# stay out of `_IDEMPOTENT_KINDS` because their payload names one request or role, so they never
 # coalesce; a literal again, for the cycle's reason, and `tests/unit/test_door.py` asserts it.
-_REQUEUE_KINDS = _IDEMPOTENT_KINDS | frozenset({"script"})
+_REQUEUE_KINDS = _IDEMPOTENT_KINDS | frozenset({"script", "relate", "code_observe"})
 # A door job is requeued while it has been claimed fewer than this many times: one that kills
 # the process every time it runs is failed on the third start, not requeued forever.
 _REQUEUE_DOOR_ATTEMPTS = 3

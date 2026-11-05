@@ -51,11 +51,13 @@ class Palace:
 
     def files(self, h: Handle) -> list[Record]:
         out = []
-        for p, body, props in (("/v/a.md", b"alpha", {"id": "ID-A"}), ("/v/b.md", b"beta", {})):
+        for p, body, props in (("/v/a.md", b"alpha", {"id": "ID-A", "ref": "ID-B"}),
+                               ("/v/b.md", b"beta", {})):
             o = Origin("item", h.name, p, p[3:-3])
+            declared = Origin("id", h.name, p, p[3:-3])      # the source's identity property
             out.append(Record({"path": OStr(p, AUTH, o), "content": Content(body, AUTH, o),
                                "digest": OStr("d" + p, AUTH, o), "title": OStr(p[3:-3], AUTH, o),
-                               "properties": Record({k: OStr(v, AUTH, o)
+                               "properties": Record({k: OStr(v, AUTH, declared if k == "id" else o)
                                                      for k, v in props.items()})}))
         return out
 
@@ -197,14 +199,23 @@ def test_a_script_calls_a_script_in_a_scope_of_its_own() -> None:
 # ── labels (DOR-13) ─────────────────────────────────────────────────────────────────────────
 
 def test_a_projection_keeps_its_items_label_and_anything_composed_is_observed() -> None:
+    """Only an item's content carries its label and origin. A string read off an item (its
+    title, its digest, a turn's role) is not the item's bytes: stored, it is composed, observed
+    and of no origin, so it needs `at` and lands nowhere an item's label would (the audits'
+    finding: `store n.digest` replaced the owner's note with its hash, as authored)."""
     plan = run('for n in files(source("v")) {\n'
                '  store n.content in "mirror_authored"\n'
-               '  store n.title in "mirror_authored"\n'
+               '  store n.title in "observed" at "t/" + n.title\n'
                '  store n.title + "!" in "observed" at "o/" + n.title\n'
                '  store n.title[0:1] in "observed" at "s/" + n.title\n}')
-    labels = [(e.path, e.content.label) for e in plan]
-    assert labels[0] == ("/v/a.md", AUTH) and labels[1] == ("/v/a.md", AUTH)
-    assert labels[2][1] == OBSERVED and labels[3][1] == OBSERVED
+    labels = [(e.path, e.content.label, e.content.origin) for e in plan]
+    assert labels[0][:2] == ("/v/a.md", AUTH) and labels[0][2] is not None
+    assert all(label == OBSERVED and origin is None for _, label, origin in labels[1:4])
+    for field in ("digest", "title", "path"):
+        with pytest.raises(ScriptError, match="composed content has no origin"):
+            run(f'for n in files(source("v")) {{ store n.{field} in "mirror_authored" }}')
+    for t in run('for t in items(source("x")) { store t.role in "observed" at "r/" + t.role }'):
+        assert t.content.label == OBSERVED and t.content.origin is None
 
 
 def test_content_is_opaque_its_label_beyond_any_expression() -> None:
@@ -224,6 +235,12 @@ def test_an_identity_read_off_the_item_stored_is_named_as_that_items() -> None:
     assert plan[0].naming.kind == "prop" and plan[0].naming.value == "ID-A"
     assert plan[1].naming.kind == "named"
     assert plan[2].naming.kind == "held" and plan[2].naming.value == "/v/old.md"
+    # only the property the source declares as the identity names one: any other field of the
+    # item (a `ref::`, its title) is a plain string, which names nothing but the path itself
+    other = run('let ns = files(source("v"))\n'
+                'store ns[0].content in "mirror_authored" as ns[0].properties.ref\n'
+                'store ns[0].content in "mirror_authored" as ns[0].title')
+    assert [e.naming.kind for e in other] == ["named", "named"]
 
 
 # ── nested sentences (§E11) ─────────────────────────────────────────────────────────────────
@@ -369,3 +386,128 @@ def test_a_request_is_described_without_its_strings() -> None:
     assert describe_request(term.request) == 'capture(text: "<17>", conversation: "<3>")'
     inline = parse('do { store "secret" in "observed" at "dialogue/door/cli/x" }')
     assert isinstance(inline, Do) and describe_request(inline.request) == "{ 1 statement }"
+
+
+# ── the audits of the second form (2026-11-05) ──────────────────────────────────────────────
+
+def test_the_checker_is_bounded_and_a_function_is_checked_once_per_types(monkeypatch: Any) -> None:
+    """The security audit's bomb: each function calls the one before twice, so checking each call
+    afresh doubles the work per line. A body checked once with some types is not checked again,
+    the pass is bounded, and the evaluation runs out of budget, never out of time."""
+    import time
+
+    import core.sentence.script_check as sc
+    from core.sentence.script_check import Checker
+
+    lines = ["fn f0(x) { return x }"] + [f"fn f{i}(x) {{ return f{i - 1}(f{i - 1}(x)) }}"
+                                         for i in range(1, 41)] + ["let y = f40(1)"]
+    script = parse_script("\n".join(lines))
+    t0 = time.perf_counter()
+    check(script, Table(), "cli")
+    assert time.perf_counter() - t0 < 2.0
+    with pytest.raises(OutOfGas):
+        run("\n".join(lines), budget=1_000_000)
+    monkeypatch.setattr(sc, "MAX_CHECK_STEPS", 100)      # a script is bounded by the parser too
+    wide = parse_script("let x = [" + ", ".join(["1"] * 101) + "]")
+    with pytest.raises(ScriptError, match="steps to check"):
+        Checker(Table(), "cli").check(wide)
+
+
+def test_a_nested_request_is_refused_before_it_is_compiled() -> None:
+    with pytest.raises(ScriptError, match="a request does not nest"):
+        check(parse_script("let h = `do dream`"), Table(), "cli")
+    from core.ingest import door
+    from core.kernel.config import get_config
+
+    with pytest.raises(ScriptError, match="a request does not nest"):
+        door.reader(get_config(), "ambassador")("do { let x = 1 }")
+
+
+def test_work_that_grows_with_its_operands_is_paid_for_by_size() -> None:
+    """The meter charges by what an operation touches: `+` by what it builds, `in` by what it
+    scans, a nested sentence by its length (and no sentence grows past its cap); `str` of a
+    function is no text."""
+    def used(text: str) -> int:
+        m = Meter(10**12)
+        Evaluator(Palace(), "cli", m).run(parse_script(text))
+        return m.used
+
+    base = used("let x = [1, 2, 3, 4]")
+    doubled = "let x = [1, 2, 3, 4]\n" + "\n".join(["let x = x + x"] * 12)
+    assert used(doubled) - base > 4 * 2**12                   # every element copied, paid
+    assert used(doubled + "\nlet b = 0 in x") - used(doubled) >= 4 * 2**12
+    with pytest.raises(ScriptError, match="nested sentence of more than"):
+        run('let q0 = `near "a"`\n' + "\n".join(f"let q{i} = `$q{i - 1} or $q{i - 1}`"
+                                                  for i in range(1, 16)) + "\nlet n = len(q15)")
+    with pytest.raises(ScriptError, match="has a text"):
+        run("fn f(x) { return x }\nlet s = str(f)")
+    with pytest.raises(ScriptError, match="has a text"):
+        run('let s = str(`near "x"`)')
+
+
+def test_a_places_entries_are_read_once_and_found_by_path_title_or_digest() -> None:
+    p = Palace()
+    calls: list[str] = []
+    real = p.stored
+
+    def stored(place: str, prefix: str) -> list[Record]:
+        calls.append(place)
+        return real(place, prefix)
+
+    p.stored = stored  # type: ignore[method-assign]
+    m = Meter(10**9)
+    plan = Evaluator(p, "cli", m).run(parse_script(
+        'let a = entry("mirror_authored", "/v/old.md")\n'
+        'let b = entry("mirror_authored", "old")\n'
+        'let c = entry("mirror_authored", "d/v/b.md")\n'
+        'let d = stored("mirror_authored", under: "/v/")\n'
+        'link a to c as "supports"'))
+    assert calls == ["mirror_authored"] and len(plan) == 1
+    with pytest.raises(ScriptError, match="no entry has that path"):
+        run('let a = entry("mirror_authored", "nothing")')
+    with pytest.raises(ScriptError, match="an entry of a place"):
+        run('for n in files(source("v")) { link n to n as "supports" }')
+
+
+def test_the_checkers_rules_contain_every_run_time_label() -> None:
+    """DOR-18 on the code, where the formal audit found the rules untested: `first` joins every
+    argument, a function's call returns what its body returns, and a list's elements join, so the
+    set the checker infers for each `v` contains the label `v` has when the script runs."""
+    from core.sentence.script_check import Checker, T
+
+    cases = {
+        'for n in files(source("v")) { for t in items(source("d")) {\n'
+        '  let v = first(t.content, n.content)\n  store v in "observed" at "x" } }':
+            {AUTH, "authored-dialogue", OBSERVED},
+        'fn pick(n) { return n.content }\nfor n in files(source("v")) {\n'
+        '  let v = pick(n)\n  store v in "observed" at "x" }': {AUTH},
+        'for n in files(source("v")) {\n  let v = [n.content, n.content][0]\n'
+        '  store v in "observed" at "x" }': {AUTH},
+    }
+    for text, expected in cases.items():
+        seen: list[T] = []
+
+        class Spy(Checker):
+            def expr(self, e: Any, env: Any, seen: list[T] = seen) -> T:
+                t = super().expr(e, env)
+                if getattr(e, "id", None) == "v":
+                    seen.append(t)
+                return t
+
+        with pytest.raises(ScriptError, match="R2"):       # each `v` may be authored: refused
+            Spy(Table(), "cli").check(parse_script(text))
+        inferred = labels_of(seen[0])
+        assert inferred is not None and expected <= inferred, (text, inferred)
+        # and at run time, every value `v` takes has a label in the inferred set
+        script = parse_script(text.replace('store v in "observed" at "x"', 'let w = v'))
+        labels: set[str] = set()
+
+        class Watch(Evaluator):
+            def eval(self, e: Any, env: Any, labels: set[str] = labels) -> Any:
+                v = super().eval(e, env)
+                if getattr(e, "id", None) == "v" and isinstance(v, Content):
+                    labels.add(v.label)
+                return v
+
+        Watch(Palace(), "cli", Meter(10**9)).run(script)
+        assert labels and labels <= inferred, (text, labels, inferred)

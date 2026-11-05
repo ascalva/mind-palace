@@ -457,7 +457,8 @@ def dialogue_sync(cfg: Config, repo_root: Path, *, only: set[str] | None = None,
         if only is not None and reader not in only:
             continue
         try:
-            receipt = door.run_library(cfg, "sync_dialogue", {"reader": reader}, stores=stores)
+            receipt = door.run_library(cfg, "sync_dialogue", {"reader": reader}, stores=stores,
+                                       refresh=True)
             print(f"dialogue sync ({reader}): {receipt['effects']}")
         except Exception as e:
             print(f"{reader}: {type(e).__name__}: {str(e)[-300:]}")

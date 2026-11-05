@@ -14,7 +14,8 @@ from __future__ import annotations
 import json
 import os
 import sys
-from collections.abc import Callable, Iterator, Mapping
+import unicodedata
+from collections.abc import Callable, Collection, Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
@@ -57,6 +58,8 @@ class Source:
     refresh: tuple[str, ...] | None = None      # an edge process run before the first read
     refresh_timeout: int = 180
     cursor_of: Callable[[Any], int] | None = None   # json: the newest change it saw
+    identity: str | None = None                 # the property an item declares its identity in
+    title_of: Callable[[Mapping[str, Any]], str] | None = None   # json: an item's title
 
     def in_scope(self, path: Path) -> bool:
         """Whether a path is one of a directory source's items, existing or not: under the
@@ -73,10 +76,11 @@ class Source:
             return False
         return any(PurePosixPath(rel.as_posix()).full_match(p) for p in self.patterns)
 
-    def spelled(self, path: Path) -> bool:
+    def spelled(self, path: Path,
+                listdir: Callable[[Path], Collection[str]] = os.listdir) -> bool:
         """Whether every component of a path under the location is spelled as the directory
         lists it (a case-insensitive disk opens `PAGES/A.md` for `pages/a.md`; the source names
-        it the second way only)."""
+        it the second way only). `listdir` may be a reader's cache of the listings."""
         here = self.location.expanduser().resolve()
         try:
             rel = path.expanduser().resolve().relative_to(here)
@@ -84,7 +88,7 @@ class Source:
             return False
         for part in rel.parts:
             try:
-                if part not in os.listdir(here):
+                if part not in listdir(here):
                     return False
             except OSError:
                 return False
@@ -127,11 +131,14 @@ class Job:
 
 @dataclass(frozen=True)
 class Role:
-    """A role: the path prefixes it may write in each place (R3), and its budget (§E10)."""
+    """A role: the path prefixes it may write in each place (R3), its budget (§E10), and the
+    labels of the rows it may retire (R7): only the owner's role retires the owner's rows, so no
+    agent can take an authored row out of the palace, whatever its source no longer shows."""
 
     name: str
     prefixes: Mapping[str, tuple[str, ...]]
     budget: int
+    retires: frozenset[str] = frozenset({OBSERVED})
 
 
 @dataclass(frozen=True)
@@ -161,7 +168,11 @@ class Table:
         s = self.sources.get(name)
         if s is None:
             return None
-        return frozenset({s.label}) if s.label is not None else s.labels
+        if s.label is not None:
+            return frozenset({s.label})
+        if s.kind == "dir":
+            return frozenset({OBSERVED})         # a directory source with no label: observed
+        return s.labels or None                  # a structured source: its rule's range
 
     # the writer's view -------------------------------------------------------------------
 
@@ -181,8 +192,10 @@ class Table:
 
 
 def normal(path: str) -> bool:
-    """A path the writer takes: no `.` or `..` or empty component, no control character."""
-    if not path or any(ord(c) < 32 for c in path):
+    """A path the writer takes: no `.` or `..` or empty component, and no character that is not
+    printed as itself (a control character, DEL, a format character such as a bidirectional
+    override, a line or paragraph separator), so no path displays as another."""
+    if not path or any(unicodedata.category(c) in ("Cc", "Cf", "Zl", "Zp") for c in path):
         return False
     parts = path.split("/")
     inner = parts[1:] if path.startswith("/") else parts
@@ -234,8 +247,17 @@ def _dialogue_source(cfg: Config, reader: str, argv: tuple[str, ...]) -> Source:
                 ts = turn.get("timestamp")
                 yield {"chat_id": str(chat["chat_id"]), "id": str(turn["id"]),
                        "role": str(turn["role"]), "content": str(turn["content"]),
-                       "timestamp": int(ts) if isinstance(ts, (int, float)) else None,
+                       # a time of zero or less is no time: the reader did not know it
+                       "timestamp": int(ts) if isinstance(ts, (int, float)) and ts > 0 else None,
                        "conversation": f"{reader}/{chat['chat_id']}"}
+
+    def title_of(it: Mapping[str, Any]) -> str:
+        """The turn's title, the source's rule as the first form's capture wrote it: its chat,
+        its time (its id when the reader gave no time), whose it is."""
+        ts = it.get("timestamp")
+        when = (datetime.fromtimestamp(ts, UTC).isoformat(timespec="seconds")
+                if isinstance(ts, int) else str(it["id"]))
+        return f"dialogue/{it['conversation']}/{when} ({it['role']})"
 
     def cursor_of(doc: Any) -> int:
         chats = doc.get("chats", []) if isinstance(doc, dict) else []
@@ -250,7 +272,7 @@ def _dialogue_source(cfg: Config, reader: str, argv: tuple[str, ...]) -> Source:
         labels=frozenset({AUTHORED_DIALOGUE, OBSERVED}),
         space=f"dialogue/{reader}/",
         refresh=(sys.executable, *argv, "--out", str(handoff)),
-        cursor_of=cursor_of)
+        cursor_of=cursor_of, title_of=title_of)
 
 
 def build_table(cfg: Config) -> Table:
@@ -263,7 +285,7 @@ def build_table(cfg: Config) -> Table:
         "vault": Source(name="vault", kind="dir", location=vault, format="markdown",
                         readers=frozenset({"cli", "ambassador"}),
                         patterns=(cfg.ingestion.vault.pattern,), exclude=DEFAULT_EXCLUDE_DIRS,
-                        label=AUTHORED_SOLO),
+                        label=AUTHORED_SOLO, identity="id"),
         "docs": Source(name="docs", kind="dir", location=repo, format="markdown",
                        readers=frozenset({"cli", "ambassador"}),
                        patterns=("CONSTITUTION.md", "CONVENTIONS.md", "docs/**/*.md"),
@@ -278,14 +300,15 @@ def build_table(cfg: Config) -> Table:
     vault_prefix = str(vault) + "/"
     repo_prefix = str(repo) + "/"
     roles = {
-        "cli": Role("cli", every, budget=10_000_000_000),
+        "cli": Role("cli", every, budget=50_000_000_000,
+                    retires=frozenset(str(p) for p in Provenance)),
         "ambassador": Role("ambassador", {
             "mirror_authored": (vault_prefix,),
             "dialogue": ("dialogue/openwebui/", "dialogue/opencode/",
                          "dialogue/door/ambassador/"),
             "observed": ("dialogue/door/ambassador/",),
             "curated": (repo_prefix,),
-        }, budget=100_000_000),
+        }, budget=100_000_000, retires=frozenset({OBSERVED})),
     }
     return Table(sources=sources, places=places, jobs=jobs, roles=roles, relations=RELATIONS,
                  interactive=INTERACTIVE, coalescing=COALESCING)

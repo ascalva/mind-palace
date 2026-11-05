@@ -220,3 +220,13 @@ def test_a_path_in_another_case_or_an_excluded_dir_in_any_case_is_out_of_scope(t
     for spelled in (vault / "PAGES" / "a.md", vault / "pages" / "A.md",
                     vault / ".RECYCLE" / "x.md", vault / ".recycle" / "x.md"):
         assert not in_vault_scope(vault, spelled), spelled
+    # the rescan's own listing has the same scope, so the re-embed and the id minting see the
+    # notes a sync lands: an excluded directory in any case, no symlink out of the vault
+    from core.kernel.ingest.logseq import iter_vault
+
+    (vault / "Assets").mkdir()
+    (vault / "Assets" / "y.md").write_text("- y\n")
+    outside = tmp_path / "outside.md"
+    outside.write_text("- outside\n")
+    (vault / "pages" / "link.md").symlink_to(outside)
+    assert list(iter_vault(vault)) == [vault / "pages" / "a.md"]

@@ -25,7 +25,6 @@ grants nothing: a command the CLI speaks goes to the door as the role `cli`, wha
 from __future__ import annotations
 
 import json
-import re
 import sys
 import time
 from collections import Counter
@@ -145,7 +144,6 @@ def refusal_class(e: BaseException) -> str:
 # ── the logged ask ─────────────────────────────────────────────────────────────────────────────
 
 
-_QUOTED = (re.compile(r"'[^']*'"), re.compile(r'"[^"]*"'))   # linear: no alternation, no escape
 
 
 def is_command(text: str) -> bool:
@@ -154,11 +152,10 @@ def is_command(text: str) -> bool:
     return is_request(text)
 
 
-def redact_command(text: str) -> str:
-    """A request as the log keeps it: each quoted string replaced by its length in characters, in
-    the script and in any sentence nested in it, so a captured text or a turn's words never enter
-    the query log; an unterminated string cut at its quote; whitespace collapsed. One pass over
-    the text, so a hostile request costs what any request does (a regex over escapes is
+def _redact(text: str, *, sentences: bool = True) -> str:
+    """Each quoted string replaced by its length in characters, an unterminated one cut at its
+    quote; inside backquotes (a nested sentence) the same, the sentence's own strings included.
+    One pass over the text: a hostile text costs what any text does (a regex over escapes is
     quadratic on an unterminated string)."""
     out: list[str] = []
     i, n = 0, len(text)
@@ -174,10 +171,22 @@ def redact_command(text: str) -> str:
             else:
                 out.append(f"<{n - i} characters, unterminated>")
                 i = n
+        elif c == "`" and sentences:
+            j = text.find("`", i + 1)
+            end = n if j < 0 else j
+            out.append("`" + _redact(text[i + 1:end], sentences=False) + ("`" if j >= 0 else ""))
+            i = end + 1
         else:
             out.append(c)
             i += 1
-    return " ".join("".join(out).split())[:4096]
+    return "".join(out)
+
+
+def redact_command(text: str) -> str:
+    """A request as the log keeps it: each quoted string replaced by its length in characters, in
+    the script and in any sentence nested in it, so a captured text or a turn's words never enter
+    the query log; an unterminated string cut at its quote; whitespace collapsed."""
+    return " ".join(_redact(text).split())[:4096]
 
 
 def _command_word(text: str) -> str:
@@ -187,10 +196,9 @@ def _command_word(text: str) -> str:
 
 def redact_reason(reason: str) -> str:
     """A refusal's reason as the log keeps it for a command: every quoted run replaced by its
-    length, since a landing's refusal may name a conversation or a text."""
-    for pattern in _QUOTED:
-        reason = pattern.sub(lambda m: f"<{len(m.group(0)) - 2} characters>", reason)
-    return reason
+    length, since a refusal may name a conversation or a text. A reason's own apostrophe opens
+    a run too, so the log may keep less of a reason than it says, never more."""
+    return _redact(reason)
 
 
 def ask_logged(text: str, grant: Grant, *, surface: str, role: str,

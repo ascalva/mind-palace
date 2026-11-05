@@ -114,6 +114,11 @@ class Ambassador:
         return self._do("do dream")
 
     def relate(self, max_pairs: int = 12) -> dict[str, Any]:
+        from core.ingest.table import JOBS
+
+        most = JOBS["relate"].args["pairs"]
+        if not 0 <= int(max_pairs) <= most:
+            raise ValueError(f"max_pairs is from 0 to {most}")   # refused here, not at landing
         return self._do(f"do relate(pairs: {int(max_pairs)})")
 
     def capture(self, text: str, conversation: str = "captures") -> dict[str, Any]:

@@ -73,7 +73,8 @@ def palace_at(tmp_path: Path, name: str = "p") -> Palace:
     att = AttestationStore(root / "att.sqlite")
     jobs: list[tuple[str, dict[str, Any]]] = []
 
-    def enqueue(kind: str, payload: dict[str, Any]) -> int:
+    def enqueue(kind: str, payload: dict[str, Any], *, role: str,
+                request: str | None = None) -> int:
         jobs.append((kind, payload))
         return len(jobs)
 

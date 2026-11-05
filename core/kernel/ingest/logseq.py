@@ -92,10 +92,19 @@ def parse_note(path: Path, vault: Path) -> ParsedNote:
 def iter_vault(vault: Path, *, pattern: str = DEFAULT_PATTERN,
                exclude_dirs: frozenset[str] = DEFAULT_EXCLUDE_DIRS) -> Iterator[Path]:
     """Yield in-scope markdown files, deterministically ordered. `pattern` and
-    `exclude_dirs` are the §20.8 sub-scoping knob (which graphs are ingested)."""
+    `exclude_dirs` are the §20.8 sub-scoping knob (which graphs are ingested). The scope is the
+    door's (`core/ingest/table.py` `Source.in_scope`): an excluded directory in any case, and a
+    file whose real path leaves the vault (a symlink out of it) is not one of its notes, so the
+    re-embed and the id minting see the notes a sync lands, no more."""
+    root = vault.expanduser().resolve()
+    excluded = {d.casefold() for d in exclude_dirs}
     for p in sorted(vault.glob(pattern)):
         if not p.is_file():
             continue
-        if exclude_dirs & set(p.relative_to(vault).parts):
+        if any(part.casefold() in excluded for part in p.relative_to(vault).parts):
+            continue
+        try:
+            p.resolve().relative_to(root)
+        except (ValueError, OSError):
             continue
         yield p

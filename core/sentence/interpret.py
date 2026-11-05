@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence, Sized
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Protocol
@@ -61,10 +61,11 @@ class Content:
     data: bytes
     label: str
     origin: Origin | None
+    oversize: int = 0           # an item over its source's cap: its size; its bytes never read
 
     @property
     def digest(self) -> str:
-        return hashlib.sha256(self.data).hexdigest()
+        return "" if self.oversize else hashlib.sha256(self.data).hexdigest()
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Content) and other.data == self.data
@@ -200,7 +201,6 @@ class Palace(Protocol):
     def exists(self, h: Handle, path: str) -> bool: ...
     def items(self, h: Handle) -> Iterable[Record]: ...
     def stored(self, place: str, prefix: str) -> list[Record]: ...
-    def entry(self, place: str, name: str) -> Record: ...
     def query(self, sentence: str) -> list[Record]: ...
 
 
@@ -251,6 +251,8 @@ MAX_CALLS = 64                      # library scripts and functions open at once
 MAX_EFFECTS = 100_000               # effects one plan may hold
 MAX_STRING = 1 << 20                # characters a composed string may have
 MAX_LIST = 1_000_000                # elements a composed list may have
+MAX_SENTENCE = 32 * 1024            # characters a nested sentence may have, its captures in place
+_PER_STEP = 64                      # characters (or bytes) one step pays for when work is sized
 
 
 def _truthy(v: Any) -> bool:
@@ -306,6 +308,8 @@ class Evaluator:
         self.plan: list[Effect] = []
         self.calls: list[str] = []
         self.read_bytes = 0                 # the content read so far, charged by the KiB
+        self._places: dict[str, list[Record]] = {}   # a place's entries, read once
+        self._index: dict[str, dict[str, dict[str, list[Record]]]] = {}
 
     # entry point -------------------------------------------------------------------------
 
@@ -359,7 +363,8 @@ class Evaluator:
             case S.Link(a=a, b=b, relation=r):
                 ea, eb, rel = self.eval(a, scope), self.eval(b, scope), self.eval(r, scope)
                 for side, e in (("from", ea), ("to", eb)):
-                    if not isinstance(e, Record) or not isinstance(e.get("digest"), str):
+                    d = e.get("digest") if isinstance(e, Record) else None
+                    if not (isinstance(d, OStr) and d.origin.kind == "entry"):
                         raise ScriptError(f"link {side}: an entry of a place (`entry(…)`), not "
                                           f"{_kind(e)}")
                 if not isinstance(rel, str):
@@ -430,13 +435,15 @@ class Evaluator:
     def store(self, s: S.Store, env: Scope) -> None:
         v = self.eval(s.content, env)
         if isinstance(v, Content):
-            content = v
-        elif isinstance(v, OStr):           # a projected string keeps its item's label (DOR-13)
-            content = Content(str(v).encode("utf-8"), v.label, v.origin)
+            content = v                     # an item's own bytes, its label and its origin
         elif isinstance(v, (str, int)) and not isinstance(v, bool):
+            # a string, even one read off an item (its title, its digest, a field), is not the
+            # item's bytes: stored, it is composed, observed and of no origin (§E3)
             content = Content(str(v).encode("utf-8"), OBSERVED, None)
         else:
             raise ScriptError(f"store: content is bytes or a string, not {_kind(v)}")
+        if len(content.data) >= 1024:
+            self.meter.charge("kib", len(content.data) // 1024)   # the writer chunks and lands it
         if s.at is not None:
             at = self.eval(s.at, env)
             if not isinstance(at, str):
@@ -449,10 +456,10 @@ class Evaluator:
         naming = Naming("own")
         if s.ident is not None:
             ident = self.eval(s.ident, env)
-            if isinstance(ident, OStr):
-                kind = "prop" if ident.origin.kind == "item" else "held"
-                naming = Naming(kind, str(ident) if kind == "prop" else ident.origin.path,
-                                ident.origin)
+            if isinstance(ident, OStr) and ident.origin.kind == "id":
+                naming = Naming("prop", str(ident), ident.origin)     # the item's declared id
+            elif isinstance(ident, OStr) and ident.origin.kind == "entry":
+                naming = Naming("held", ident.origin.path, ident.origin)   # a path's identity
             elif isinstance(ident, str):
                 naming = Naming("named", ident)
             elif ident is not None:
@@ -547,9 +554,16 @@ class Evaluator:
             raise ScriptError(f"${name} in a sentence is {_kind(v)}: a sentence takes a string, "
                               "an integer or another sentence")
         def one(m: re.Match[str]) -> str:
-            return value(m.group(1))
+            out = value(m.group(1))
+            if len(out) > MAX_SENTENCE:
+                raise ScriptError(f"a nested sentence of more than {MAX_SENTENCE} characters")
+            return out
 
-        return re.sub(r"\$([A-Za-z_][A-Za-z0-9_]*)", one, text)
+        resolved = re.sub(r"\$([A-Za-z_][A-Za-z0-9_]*)", one, text)
+        if len(resolved) > MAX_SENTENCE:
+            raise ScriptError(f"a nested sentence of more than {MAX_SENTENCE} characters")
+        self.meter.charge("step", len(resolved) // _PER_STEP)
+        return resolved
 
     def field(self, v: Any, f: str) -> Any:
         if v is None:
@@ -577,6 +591,8 @@ class Evaluator:
                 raise ScriptError("a list is indexed by an integer")
             return v[k] if -len(v) <= k < len(v) else None
         if isinstance(v, Record):
+            if k is None:
+                return None                             # a missing key: none (§E1)
             if not isinstance(k, str):
                 raise ScriptError("a record is indexed by a string")
             return v.get(str(k))
@@ -589,20 +605,23 @@ class Evaluator:
                         and not isinstance(b, bool):
                     return a + b
                 if isinstance(a, str) and isinstance(b, str):
-                    out = str(a) + str(b)
-                    if len(out) > MAX_STRING:
+                    if len(a) + len(b) > MAX_STRING:
                         raise ScriptError(f"a string of more than {MAX_STRING} characters")
-                    return out
+                    self.meter.charge("step", (len(a) + len(b)) // _PER_STEP)
+                    return str(a) + str(b)
                 if isinstance(a, list) and isinstance(b, list):
                     if len(a) + len(b) > MAX_LIST:
                         raise ScriptError(f"a list of more than {MAX_LIST} elements")
+                    self.meter.charge("step", len(a) + len(b))            # each element copied
                     return a + b
                 raise ScriptError(f"{_kind(a)} + {_kind(b)}: `+` joins two strings, two "
                                   "integers or two lists")
-            case "==":
-                return _same(a, b)
-            case "!=":
-                return not _same(a, b)
+            case "==" | "!=":
+                if isinstance(a, Content) and isinstance(b, Content):
+                    self.meter.charge("step", min(len(a.data), len(b.data)) // _PER_STEP)
+                elif isinstance(a, str) and isinstance(b, str):
+                    self.meter.charge("step", min(len(a), len(b)) // _PER_STEP)
+                return _same(a, b) if op == "==" else not _same(a, b)
             case "<" | "<=" | ">" | ">=":
                 if isinstance(a, int) and isinstance(b, int):
                     return _order(op, a, b)
@@ -614,8 +633,10 @@ class Evaluator:
                 if isinstance(b, SentenceV):
                     b = b.hits(self.palace, self.meter)
                 if isinstance(b, list):
+                    self.meter.charge("step", len(b))                    # each element compared
                     found = any(_same(a, x) for x in b)
                 elif isinstance(b, str) and isinstance(a, str):
+                    self.meter.charge("step", len(b) // _PER_STEP)
                     found = str(a) in str(b)
                 elif isinstance(b, Record) and isinstance(a, str):
                     found = str(a) in b
@@ -657,7 +678,10 @@ class Evaluator:
                 return self.palace.open(string(args[0], "a source's name"))
             case "files":
                 arity(1)
-                return self._read(self.palace.files(handle(args[0])))
+                listing = self.palace.files(handle(args[0]))
+                if isinstance(listing, Sized):
+                    self.meter.charge("entry", len(listing))     # the paths listed, before reading
+                return self._read(listing)
             case "file":
                 arity(2)
                 rec = self.palace.file(handle(args[0]), string(args[1], "a path"))
@@ -665,7 +689,7 @@ class Evaluator:
                 return rec
             case "exists":
                 arity(2)
-                self.meter.charge("entry")
+                self.meter.charge("item")                # a stat and the directories' listings
                 return self.palace.exists(handle(args[0]), string(args[1], "a path"))
             case "items":
                 arity(1)
@@ -673,14 +697,15 @@ class Evaluator:
             case "stored":
                 arity(1)
                 under = kwargs.get("under", "")
-                prefix = under.root if isinstance(under, Handle) else string(under, "under")
-                out = self.palace.stored(string(args[0], "a place"), prefix)
-                self.meter.charge("entry", len(out))
-                return out
+                # a source's root names its directory: `<vault>-old/` is not under `<vault>/`
+                prefix = (under.root.rstrip("/") + "/" if isinstance(under, Handle)
+                          else string(under, "under"))
+                rows = self._entries(string(args[0], "a place"))
+                self.meter.charge("step", len(rows))                  # each row looked at
+                return [r for r in rows if str(r.get("path")).startswith(prefix)]
             case "entry":
                 arity(2)
-                self.meter.charge("entry")
-                return self.palace.entry(string(args[0], "a place"), string(args[1], "a name"))
+                return self._entry(string(args[0], "a place"), string(args[1], "a name"))
             case "digest":
                 arity(1)
                 v = args[0]
@@ -700,8 +725,9 @@ class Evaluator:
             case "str":
                 arity(1)
                 v = args[0]
-                if isinstance(v, (Content, Handle, Record, list)):
-                    raise ScriptError(f"str(…) of {_kind(v)}: content stays content")
+                if isinstance(v, (Content, Handle, Record, list, Closure, SentenceV)):
+                    raise ScriptError(f"str(…) of {_kind(v)}: only a string, an integer, a "
+                                      "boolean or none has a text")
                 return "none" if v is None else (str(v).lower() if isinstance(v, bool)
                                                  else str(v))
             case "paths":
@@ -738,6 +764,34 @@ class Evaluator:
                     raise ScriptError(f"iso(…) of seconds, an integer, not {_kind(v)}")
                 return datetime.fromtimestamp(v, UTC).isoformat(timespec="seconds")
         raise ScriptError(f"{fn}(…) is not wired")  # pragma: no cover
+
+    def _entries(self, place: str) -> list[Record]:
+        """A place's active entries, read from the palace once an evaluation, each paid for."""
+        if place not in self._places:
+            rows = list(self.palace.stored(place, ""))
+            self.meter.charge("entry", len(rows))
+            self._places[place] = rows
+        return self._places[place]
+
+    def _entry(self, place: str, name: str) -> Record:
+        """The entry a name picks: by its path, else its title, else its digest; a name two
+        entries share is refused, naming them by path is the way."""
+        self.meter.charge("entry")
+        if place not in self._index:
+            idx: dict[str, dict[str, list[Record]]] = {"path": {}, "title": {}, "digest": {}}
+            for r in self._entries(place):
+                for key in idx:
+                    idx[key].setdefault(str(r.get(key)), []).append(r)
+            self._index[place] = idx
+        idx = self._index[place]
+        for key in ("path", "title", "digest"):
+            hits = idx[key].get(name, [])
+            if len(hits) == 1:
+                return hits[0]
+            if len(hits) > 1:
+                raise ScriptError(f"entry({place!r}, …): {len(hits)} entries have that {key}; "
+                                  "name one by its path")
+        raise ScriptError(f"entry({place!r}, …): no entry has that path, title or digest")
 
     def _read(self, items: Iterable[Record]) -> list[Record]:
         """A source's items, each charged as it arrives: out of budget, the read stops there."""
