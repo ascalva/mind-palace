@@ -473,13 +473,20 @@ force (`over`), each anchor with the radius its verb walks (`reach … depth n`,
   proven edges of the causal store — each the image of one dialogue action, a transcript turn →
   the file or doc it produced (the witness law, dn-agent-taxonomy §2.5), never inferred — within
   the anchor's radius, by the same bounded walk. The turns are nodes `transcript/<session>/<turn>`
-  of the dialogue's transcript stratum (`read` opens the utterance from the chatlog); an endpoint
-  under a checkout of the repo, or under a worktree's `.claude/worktrees/<name>/`, is the
-  reference graph's node by its repo-relative path, so `C` composes with `F` (`walk … via CF`: a
-  turn wrote a file that cites another); one under the vault is the mirror's note; an artifact
-  id, or a path outside both, is named as a node that `read` cannot open and the answer counts.
-  The store is one content-free row per proven action, read whole once per sentence and cut to
-  the support in memory (2026-11-04).
+  of the dialogue's transcript stratum (`read` opens the utterance from the chatlog, through the
+  dialogue clearance); an edge's turn is the utterance just before its action, since the event
+  projector stamps an action with the index the next utterance takes. An endpoint under a
+  checkout of this repo, or under one of its worktrees (`<main>/.claude/worktrees/<name>/`), is
+  the reference graph's node by its repo-relative path, so `C` composes with `F` (`walk … via
+  CF`: a turn wrote a file that cites another); a doc's id (`dn-…`, `finding-…`, `bp-…`) is its
+  file when exactly one file is it; one under the vault is the mirror's note. A commit, any other
+  id, and a path outside the repo, the vault, or under another repo's worktree are named as nodes
+  of the transcript's stratum, which `read` cannot open and the answer counts. A transcript turn
+  named as an anchor is read only by a sentence that walks `C` or reads over the transcript
+  stratum, and a turn no store knows is a lookup refusal. `witness` of a causal edge returns its
+  turn by ref, never the raw transcript's digest. The store is one content-free row per proven
+  action, read whole once per sentence and cut to the support in memory (2026-11-04; the review
+  of 2026-11-05 for the turn, the endpoints and the anchors).
 
 Nodes carry their stratum and provenance; `over <strata>` is the **mask** onto the support's nodes
 of those strata, by the clearances' own table (`STRATUM_CLASSES`) with the citation graph's nodes
@@ -487,7 +494,9 @@ under `reference` — so it distributes over `and` and `or` and stacks with `wit
 intersection: QSA-2's laws, nothing new to prove (`Universe.in_strata`). `read <ref>` reads by
 the ref's shape (`read_strata`): a paper ref the curated stratum, `dialogue/…` the dialogue, an
 absolute path the mirror, a repo-relative path the reference stratum (the checkout's file, inside
-the repo root only), a title the mirror or the dialogue; the executor holds the record to it.
+the repo root and tracked by git: never `data/`, where the raw store keeps the transcripts
+verbatim, nor a local config), a title the mirror or the dialogue; the executor holds the record
+to it.
 
 **What the support loses is bounded and one-sided.** `[THEOREM — RSP-5,
 Retrieval.lean::nearnessOn_le_nearness, nearnessOn_mul_le]` Restricting the killed walk to the

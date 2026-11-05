@@ -69,6 +69,7 @@ HOLDERS: dict[str, dict[str, str]] = {
     },
     "DIALOGUE_READ": {
         "core/sentence/universe.py": "the dialogue turns every universe loads beside the mirror",
+        "core/sentence/execute.py": "`read` of a transcript turn: one utterance of the chatlog",
     },
     "OBSERVED_READ": {},
 }
