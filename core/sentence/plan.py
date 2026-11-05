@@ -86,6 +86,12 @@ def _norm(node: Node, t: Trace | None = None) -> Node:
     match node:
         case ast.Far(field=f):
             inner = _norm(f, t)
+            if isinstance(inner, ast.Far) and isinstance(inner.field, ast.Or):
+                # 1 − (1 − f) = f, but an `or` let out would join an enclosing `or` chain and
+                # change its weights, as `within` would (QSA-2): it stays under the reversals
+                _note(t, "far far stays over `or`: its disjuncts would join an enclosing mixture "
+                         "and change its weights")
+                return ast.Far(inner)
             if isinstance(inner, ast.Far):
                 _note(t, "far far f → f: the bounded reversal is an involution")
                 return inner.field                    # 1 − (1 − f) = f

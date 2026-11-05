@@ -342,6 +342,22 @@ def test_a_term_and_its_normal_form_answer_alike(term) -> None:  # type: ignore[
         assert written.members == planned.members
 
 
+def test_far_far_keeps_an_or_out_of_the_enclosing_mixture() -> None:
+    """Hypothesis's counterexample of 2026-11-05: `far far (a or b)` inside an `or` chain. Removing
+    the double reversal let the inner disjuncts join the outer mixture, three disjuncts where the
+    written term weighs two. The reversals are removed only when their operand is not an `or`."""
+    from core.sentence.ast import Diffuse, Far, Near, Or
+    from core.sentence.execute import Evaluator, FieldV
+    from core.sentence.plan import normalize
+
+    term = Or(Diffuse(Rel.S, "a.md", None), Far(Far(Or(Near("q"), Near("q")))))
+    u = _plan_universe()
+    written, planned = Evaluator(u).eval(term), Evaluator(u).eval(normalize(term))
+    assert isinstance(written, FieldV) and isinstance(planned, FieldV)
+    assert np.allclose(written.scores, planned.scores, atol=1e-12)
+    assert normalize(Far(Far(Near("q")))) == Near("q")          # the involution still applies
+
+
 def test_or_is_one_mixture_however_it_is_grouped() -> None:
     """The reviewer's probe: `near "b" or near "c" or near "a"` as written and as planned."""
     from core.sentence import compile_sentence, execute
