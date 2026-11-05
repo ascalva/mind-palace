@@ -3,7 +3,7 @@ type: design-note
 id: dn-door-language
 track: query-language
 status: draft                  # provenance description, never a gate; the owner's merge is ratification
-implementation: built-wired    # DS-0 to DS-5 and DS-7 built 2026-11-05 (§4); DS-6 the audits
+implementation: built-wired    # DS-0 to DS-7 built 2026-11-05 (§4); the audits' findings and their fixes in §8
 created: 2026-11-05
 updated: 2026-11-05
 links:
@@ -68,7 +68,7 @@ script, a line of the palace's table, or a general rule of the writer.
 Proved in `formal/Palace/Script.lean` on the model of `Script/Defs.lean` (content with a label
 and an origin; expressions as items, projections and constructions; the writer's checks R2 to R8
 as a predicate on a store and a state; plans landed effect by effect; a store as the first form's
-command), with seven attacks and seven controls (`PalaceTest/Script.lean`, seeds 273 to 286):
+command), with seven attacks and eight controls (`PalaceTest/Script.lean`, seeds 273 to 287):
 DOR-13 to DOR-18 of §E9, and the first form's DOR-11 and DOR-12 for every plan through DOR-16.
 They are the ledger's family XII beside the first form's (`docs/LAWS.md`, `formal/Spec/Script.lean`).
 Cited: QSA-5 (admissibility is clause-wise), the kernel's `STRATUM_CLASSES`, CLK-2. Open (§7):
@@ -180,11 +180,16 @@ expression for it.
 
 1. An item carries its source's label (or the one its field selects) and its **origin**: the
    source and the item's path.
-2. A **projection** keeps both: a field, an element, iteration, a reader's parsing. A string
-   read off an item (`n.properties.id`) is a projection too, and carries the item's origin.
+2. An item's **content** keeps both, through a field, an element, iteration, a reader's
+   parsing: it is the item's own bytes. A string read off an item (its title, its digest,
+   `n.properties.id`) keeps the item's origin, so a store can show an identity is the item's
+   own (R6), but it is not the item's bytes: stored, it is composed (rule 3). The audits of
+   2026-11-05 found the first wording let `store n.digest` replace the owner's note with its
+   hash, labelled authored (§8).
 3. Any other content is **observed** and has no origin: a literal, a parameter, a
-   concatenation, a slice, `str(…)`, a value built from several.
-4. No expression yields, compares or takes a label, and no operation raises one.
+   concatenation, a slice, `str(…)`, a string read off an item, a value built from several.
+4. No expression yields, compares or takes a label, and no operation raises one: a hit of a
+   nested sentence carries no provenance, and `str` of a function or a sentence is refused.
 
 The second rule is what keeps the owner's turns the owner's: `t.content` of a dialogue item is
 the item's own bytes, labelled by the reader from the role the edge reader recorded. The third is
@@ -216,12 +221,17 @@ The writer's rules, each general, none about a source:
   interpreted edge never replaces an authored one), as one rule.
 - **R6, identities move only with their bytes**: a path's identity is fixed at its first store
   (re-keying is the owner's, bp-034). For a new path a store may name as its identity the path
-  itself, a string projected from the content it stores (an `id::` property), or the identity of
-  an entry that holds the same digest at a path its source no longer has (a rename). Anything
-  else is refused, so no script can graft a new path onto another note's chain.
-- **R7, retire reconciles**: `retire p` is admitted only in the speaker's namespace, and, when
-  `p` holds content that came from a source, only once the source no longer has it. A note that
-  is still in the vault cannot be retired from the mirror by any script.
+  itself, the identity the item it stores declares (the one property its source names, `id::` in
+  the vault; a blank one declares nothing), or the identity of an entry that holds the same digest
+  and label at a path its source, the content's own, no longer has (a rename). An identity another
+  path of the source still holds is refused. Anything else is refused, so no script can graft a
+  new path onto another note's chain.
+- **R7, retire reconciles**: `retire p` is admitted only in the speaker's namespace, only of a
+  row whose label the table lets the role retire (the owner's role every label, the Ambassador
+  the observed one), and, when `p` holds content that came from a source, only once the source
+  no longer has it. A note that is still in the vault cannot be retired from the mirror by any
+  script, and no agent retires the owner's rows, whatever its source no longer shows (an
+  archived chat's turns stay).
 - **R8, paths belong to their sources**: a path in a source's own space (the vault's root, the
   docs, a dialogue reader's prefix) takes only content with an origin, which R4 then makes that
   source's item at that very path. Without it a role could squat the path of a turn not yet synced
@@ -230,19 +240,26 @@ The writer's rules, each general, none about a source:
 ### E5 — Effects, the plan, the writer
 
 Evaluation reads and writes nothing. Its value is a **plan**: an ordered list of effects with
-their content resolved. The writer lands a plan, effect by effect, under the plane's lock.
+their content resolved. The writer lands a plan, effect by effect. It takes no lock of its own:
+the daemon runs its jobs one at a time on the supervisor's thread, every request and every
+library job lands through this writer, and the Ambassador's inbox is a job of the same queue, so
+no two landings interleave.
 
 - `store c [at p] [as i] in P [titled t]`: content `c` at path `p` (by default `c`'s origin
   path) with identity `i` (by default the path) into place `P`, titled `t` (by default the
-  item's title, else the path). The landing is the first form's, generalized: the raw object, the
+  item's title, else the path; content under any label but the observed one is titled by its
+  item, never by a script, R2). The landing is the first form's, generalized: the raw object, the
   place's index rows (the plane's chunk-level amendment), the version chain if `P` keeps one,
   the attestation (the speaking role, `P`'s action), and the key last. Nothing lands, UNCHANGED,
   when the key names `c`'s digest and the place holds its rows (the third review's finding 2, for
   every place).
-- `retire p in P`: the path's row inactive and its rows retired; the raw object kept.
+- `retire p in P`: the path's rows retired from the plane, then its row inactive (the key,
+  last); the raw object kept.
 - `link a to b as r`: an edge between two entries, interpreted, in the relation store.
 - `run "job" [with k: v, …]`: a job of the palace's table, enqueued as its own kind; its handler
-  lands what it lands. Admission needs the write bit on the strata the job declares.
+  lands what it lands. Admission needs the write bit on the strata the job declares. A plan starts
+  a job once, the job counts against the speaking role's share of the queue (a start past it is
+  refused as busy), and a request run again after a crash finds the job it started.
 
 Within one plan, the effects on distinct paths commute and the effects on one path keep the
 plan's order, so the first form's laws apply to every plan: each store is one of the model's
@@ -370,9 +387,14 @@ little. The caps of §E1 become one **budget**, in one unit of work, priced per 
   source is bounded by the source's size, which the surface does not read (it runs under the
   speaker's account, which need not open the source), so the shape alone bounds only a script
   that reads no source; the meter is the bound that holds for every script.
-- **The evaluator meters.** Every operation charges as it runs, a source's items each as it is
-  read, so a read stops at the item that ran the budget out; a request that runs out stops,
-  and since evaluation writes nothing, it lands nothing. Ethereum must revert the state an
+- **The evaluator meters.** Every operation charges as it runs, and by what it touches: a
+  source's listing before its first item, its items each as it is read (so a read stops at the
+  item that ran the budget out), a place's entries once an evaluation and each lookup after,
+  `+` by what it builds, `in` by what it scans, a comparison by what it compares, a nested
+  sentence by its length (capped at 32 KiB, its captures in place), a store by the KiB it hands
+  the writer. A request that runs out stops, and since evaluation writes nothing, it lands
+  nothing. No request a role speaks runs an edge process: a structured source is refreshed only
+  by the daemon's own sync and the owner's CLI, so an edge reader's time is never a request's. Ethereum must revert the state an
   out-of-gas transaction touched; here there is none to revert. `[DERIVED — §E5: evaluation has
   no effects]`
 - **The writer prices the plan before paying for it.** A plan's writes are its stores the
@@ -400,7 +422,8 @@ The owner's direction: nested sentences, with closure and code scoping.
   is the palace's account of a row, not the row's bytes). `$name` captures a name of the enclosing
   scope; a captured value enters the sentence as a quoted literal, never as syntax, so no value
   can inject a word. The sentence is parsed when the script is checked, with its captures as
-  placeholders, so a malformed one is refused at the surface.
+  placeholders, so a malformed one is refused at the surface, and so is a request in backquotes:
+  a nested sentence reads, and a request does not nest.
 - **Blocks scope lexically.** A `let` binds until the end of its block; an inner block sees the
   outer names and may shadow them; nothing leaks out of a block.
 - **Functions are closures.** `fn name(x, y) { … return e }` binds a function that captures the
@@ -431,8 +454,12 @@ an interpreted language may have one.
   and every closure to what it captures, types each expression, and checks admission (R1),
   labels (R2 where the set is known), the scripts a request calls and the arguments they take,
   and each nested sentence's syntax, with its captures as placeholders. A function is checked at
-  each call site, which is sound because nothing recurses. Evaluation is the last pass and yields
-  the plan. (MLIR's lesson, a tree lowered by passes that each check one thing, is the shape; the
+  each call site with the types it is called with, which is sound because nothing recurses; a
+  body checked once with some types is not checked again with the same ones, and the pass is
+  bounded (200,000 nodes), so no script costs the surface, the drain or the handler more than a
+  bounded check (the audit's finding: checked afresh at each call, a function calling the one
+  before it twice doubled the check's cost per line). Evaluation is the last pass and yields the
+  plan. (MLIR's lesson, a tree lowered by passes that each check one thing, is the shape; the
   checker is one pass today, and the static cost bound of §E10 is not built.)
 - **No machine back end.** A script's cost is reading sources and embedding, not instructions;
   generating code through LLVM would buy nothing measurable and add a toolchain to trust. Where a
@@ -495,7 +522,8 @@ judged by the comparator against formal/Spec/Script.lean]`
   `formal/Spec/`, as the writer relies on them from its first commit; the README counts; PR #67
   rewritten to this state.
 
-Status, 2026-11-05: DS-0 to DS-5 and DS-7 are built. The thirteen scripts of §E8 are the library
+Status, 2026-11-05: DS-0 to DS-7 are built; DS-6's three audits and what was done about each
+finding are §8. The thirteen scripts of §E8 are the library
 in `door/`; `sync_vault`, `sync_dialogue` and `ingest_doc` land what their first-form landers
 landed on the same fixtures (`tests/integration/test_door_scripts.py`), and the watcher's and the
 heartbeat's jobs, the CLI, the MCP aliases and the web filter speak scripts. The first-form
@@ -540,3 +568,68 @@ tested, built from the configuration's paths (the vault's location, the data dir
 - **Jobs as scripts.** Dream, the relation pass and curate land interpreted content through
   their own handlers; whether a script should express them (a model call as a reading function)
   is left until a use needs it.
+
+## 8. The audits of the second form
+
+Three read-only audits ran on 2026-11-05 at `8d1ea8c`, before the pull request was rewritten: the
+security of the language and the writer, the formal side against the code, and the scripts
+against the paths they replace. Each finding below is fixed and has a test, except where it says.
+
+1. **A string read off an item stored under the item's label** (HIGH, security and formal). `store
+   n.digest in "mirror_authored"` replaced the owner's note with its hash, labelled authored and
+   attested; `store t.role` did the same to a turn. A string is composed when stored (§E3, rule
+   2), and DOR-13's row says so.
+2. **A script's title on an authored row** (HIGH, security; MEDIUM, formal). `titled` put composed text in the
+   catalog and the plane's rows under the owner's label, which the UNCHANGED check never
+   revisits. Content under any label but the observed one is titled by its item; the checker
+   refuses `titled` on it, and the writer refuses a store whose title is not its item's (R2). The
+   dialogue's titles are the source's rule now.
+3. **The checker's cost** (HIGH, security). Checking a function afresh at each call made a
+   1.3 KB script cost days. A body is checked once per argument types, the pass is bounded, and a
+   request in backquotes is refused when checked, before anything compiles it (§E11, §E12).
+4. **Work the meter did not see** (HIGH, security). A nested sentence doubled by its captures,
+   `in` over a long list, a catalog scanned per `entry`, `str` of a closure, a source's listing,
+   a large content stored many times, an edge reader's run: each is charged by size now, capped,
+   refused, or not run for a request (§E10).
+5. **The Ambassador could retire the owner's turns** (HIGH, security). An archived chat's turns
+   leave the export, so R7 let the Ambassador retire them. A role retires only the labels the
+   table gives it (R7).
+6. **A job a script starts escaped the quotas** (HIGH, scripts; MEDIUM, security). One request
+   queued six hundred dreams. A started job carries its role and counts against the role's bulk
+   lane, a plan starts a job once, and a request run again after a crash finds its job (§E5).
+7. **Identity grafts** (MEDIUM, security and formal). Any field of an item could name an
+   identity, and a held identity moved across labels. Only the declared property names one, an
+   identity another path of the source holds is refused, and a held one moves with its label
+   within its source (R6). The model's `prop` naming now needs the item's declaration, with a
+   control (seed 287), so DOR-17 says what the writer does.
+8. **The heartbeat's mark** (MEDIUM). Any plan that read a dialogue source moved it. Only a plan
+   that stored every item it read moves it now.
+9. **A sibling directory as the vault** (MEDIUM). `stored(…, under: source)` matched
+   `<vault>-old/`. A root matches as a directory.
+10. **One scope for the vault** (MEDIUM). The rescan's listing excluded directories by case and
+    followed symlinks out of the vault; the door did neither. `iter_vault` now has the door's
+    scope, so the re-embed and the id minting see what a sync lands. The live vault has no file
+    either rule would treat differently (checked, names only).
+11. **A blank `id::`** (MEDIUM) forked a chain; it declares nothing now. **An oversized note**
+    (MEDIUM) stopped every sync; it is refused alone (R1) and stays as it was.
+12. **DOR-16 and DOR-18 claimed more than their proofs** (MEDIUM, formal). DOR-16's row carries
+    DOR-7's windows (a rename appends whatever the head); a retire writes its key last. DOR-18's
+    row says what is proved (the model's typing rule) and what the tests check (the checker's
+    rules); the reader refuses an item whose label is outside its source's range, and an empty
+    label set is no knowledge.
+13. **Mutations no cited test caught** (MEDIUM, formal): R6's "still in its source", `normal`,
+    the key before the attestation, the checker not descending into `call`. Each has a test now.
+    The fifth, entries labelled with their row's label, is now an equivalent mutant: no string's
+    label reaches a store.
+14. **Lower findings, fixed**: the log's redaction lost step inside backquotes and leaked a value
+    with an apostrophe; `normal` let format characters (bidirectional overrides, separators) into
+    paths; a check the palace could not make stopped the plan; a receipt said `landed` when every
+    effect was refused; the MCP's `relate` spooled what the writer would refuse; `link` takes
+    entries only; `entry` finds a digest; `sync_docs` retires a doc gone from the repository; the
+    relation pass and the code sensor are requeued after a crash, as in the first form; control
+    282 tests the namespace alone.
+15. **Left as they are, for the owner.** Attestations of the daemon's own syncs name the role
+    `cli` where the first form named the watcher; a turn whose role changes with the same bytes
+    is refused (R5) on each sync, reported and harmless; `query`'s price is one embed, its
+    floor, not a measurement; the Ambassador's inbox still captures through the first form's
+    lander, in the daemon's own queue.
