@@ -29,8 +29,9 @@ reactive escalation is just a high-priority job; it is dispatched next, never mi
 Two hygiene properties keep the queue bounded and self-healing (bp-101, findings 0170/0173):
 `enqueue` **coalesces** an idempotent kind onto the QUEUED row that is already waiting instead of
 stacking a duplicate behind a busy worker, and `sweep_orphans` **reclaims** RUNNING rows stranded by
-a run that died without finishing them. Both are keyed off `_IDEMPOTENT_KINDS` — see its comment for
-what earns membership, and never widen it by assumption.
+a run that died without finishing them. Both are keyed off `_IDEMPOTENT_KINDS` (the sweep off its
+superset `_REQUEUE_KINDS`, which adds the door's re-runnable kinds) — see its comment for what earns
+membership, and never widen it by assumption.
 """
 
 from __future__ import annotations
@@ -65,6 +66,8 @@ QUEUED, RUNNING, DONE, FAILED, DEFERRED = "queued", "running", "done", "failed",
 #   code_backfill scheduler/code_sync.py:53   "idempotent — already-embedded digests are skipped"
 #   chat_events   scheduler/cron.py:114       "incremental … and idempotent"
 #   integrate     scheduler/cron.py:136       "incremental … and idempotent"
+#   dialogue_sync scheduler/door.py            "keyed by <source>/<chat>/<message>": a re-sync adds
+#                 only what is new (ops/lifecycle/launcher.py `dialogue_sync`)
 # DELIBERATELY ABSENT: `dream`/`curate`/`shadow` mint fresh ledger rows per pass (not idempotent);
 # `research`/`ambassador_task` are payload-bearing model work; `ambassador` IS re-runnable
 # (`CoreInbox.process_once` drains all and consumes each file) but is the REACTIVE conversational
@@ -75,7 +78,20 @@ QUEUED, RUNNING, DONE, FAILED, DEFERRED = "queued", "running", "done", "failed",
 # THIS one — importing back would cycle. `tests/unit/test_queue_coalescing.py` asserts the literals
 # equal the constants, so the duplication is caught by a test rather than trusted.
 _IDEMPOTENT_KINDS = frozenset(
-    {"chat_sync", "vault_sync", "code_sync", "code_backfill", "chat_events", "integrate"})
+    {"chat_sync", "vault_sync", "code_sync", "code_backfill", "chat_events", "integrate",
+     "dialogue_sync"})
+
+# The kinds a crash may leave RUNNING that `sweep_orphans` puts back in the queue rather than
+# failing: the idempotent kinds, and the door's own kinds (`core/ingest/door.py` DOOR_KINDS),
+# which are re-runnable at the request (dn-ingest-door DOR-7, DOR-11): their handler skips a
+# request already receipted as landed or refused, and each landing is idempotent at the store.
+# They stay out of `_IDEMPOTENT_KINDS` because their payload names one request, so they never
+# coalesce; a literal again, for the cycle's reason, and `tests/unit/test_door.py` asserts it.
+_REQUEUE_KINDS = _IDEMPOTENT_KINDS | frozenset(
+    {"ingest", "capture", "link", "relate", "code_observe"})
+# A door job is requeued while it has been claimed fewer than this many times: one that kills
+# the process every time it runs is failed on the third start, not requeued forever.
+_REQUEUE_DOOR_ATTEMPTS = 3
 
 
 @dataclass(frozen=True)
@@ -473,8 +489,9 @@ class JobQueue:
 
     def sweep_orphans(self, active_run_id: int) -> OrphanSweep:
         """Reclaim RUNNING rows left behind by a run that died without finishing them
-        (finding-0173 — job 300246 is the live example). Idempotent kinds go back to QUEUED;
-        everything else is FAILED with an explicit `error`, so stranded work is *visible* rather
+        (finding-0173 — job 300246 is the live example). Idempotent kinds, and the door's
+        re-runnable ones (`_REQUEUE_KINDS`), go back to QUEUED; everything else is FAILED with an
+        explicit `error`, so stranded work is *visible* rather
         than silently pending forever. Adopts `active_run_id` as this queue's owning run, so every
         later `claim()` stamps `claimed_by_run` and a subsequent sweep can tell live from stranded.
 
@@ -509,7 +526,7 @@ class JobQueue:
         with self._lock:
             self.active_run_id = active_run_id
             rows = self._conn.execute(
-                "SELECT id, kind, claimed_by_run, lease_expires_at, state FROM jobs "
+                "SELECT id, kind, claimed_by_run, lease_expires_at, state, attempts FROM jobs "
                 "WHERE state = ?", [RUNNING],
             ).fetchall()
             # The reclaim predicate, unchanged and deliberately narrow: not-this-run. Reading every
@@ -522,9 +539,14 @@ class JobQueue:
             lapsed = tuple(r["id"] for r in rows
                            if r["claimed_by_run"] == active_run_id
                            and deadline_lapsed(r["lease_expires_at"], now))
-            requeue = tuple(r["id"] for r in stranded if r["kind"] in _IDEMPOTENT_KINDS)
-            strand = tuple((r["id"], r["claimed_by_run"])
-                           for r in stranded if r["kind"] not in _IDEMPOTENT_KINDS)
+            def again(r: sqlite3.Row) -> bool:
+                if r["kind"] in _IDEMPOTENT_KINDS:
+                    return True
+                return (r["kind"] in _REQUEUE_KINDS
+                        and int(r["attempts"] or 0) < _REQUEUE_DOOR_ATTEMPTS)
+
+            requeue = tuple(r["id"] for r in stranded if again(r))
+            strand = tuple((r["id"], r["claimed_by_run"]) for r in stranded if not again(r))
             if requeue:
                 # created_at is deliberately untouched — the reclaimed job keeps the age it earned
                 # (Q3). `attempts` also stands: the run that died did consume an attempt. The lease

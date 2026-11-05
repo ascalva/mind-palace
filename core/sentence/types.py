@@ -40,6 +40,7 @@ class Sort(StrEnum):
     CHAIN = "chain"
     WITNESS = "witness"
     TEXT = "text"
+    EVENT = "event"          # a command's value: a receipt, never a field (dn-ingest-door D2)
 
 
 class SortError(TypeError):
@@ -109,6 +110,8 @@ def sort_of(node: Node) -> Sort:
             return Sort.WITNESS
         case ast.Read():
             return Sort.TEXT
+        case ast.Do():
+            return Sort.EVENT
         case ast.And(left=a, right=b):
             sa, sb = sort_of(a), sort_of(b)
             if sa is Sort.FIELD and sb is Sort.FIELD:
@@ -150,7 +153,7 @@ def _maskable(node: Node, production: str, reason: str) -> Sort:
     the record at its ref, held to the ref's stratum, and a witness is an edge's record; neither
     composes (`docs/query/asking.md`)."""
     got = sort_of(node)
-    if got in (Sort.TEXT, Sort.WITNESS):
+    if got in (Sort.TEXT, Sort.WITNESS, Sort.EVENT):
         raise SortError(f"{production}: a field, a region or chains, not a {got.value}; {reason}, "
                         f"and a {got.value} is a record that composes with nothing")
     return got
@@ -429,6 +432,73 @@ def _read_clause(atom: str, ctx: Context) -> Clause:
     return Clause("read", None, req, mode_of(req), ctx.overlay)
 
 
+def command_requirement(c: ast.Command) -> tuple[str, tuple[Stratum, ...], set[str], Clock, bool]:
+    """What a command writes (dn-ingest-door D2's table): its name, the strata it writes, the
+    fibers it adds, the clock of the stratum, and whether it proposes (an interpreted write). The
+    provenance class is fixed by the kind and the surface that spoke, never by a word."""
+    match c:
+        case ast.Ingest(source=src):
+            match src.kind:
+                case ast.SourceKind.NOTE:
+                    return ("ingest note", (Stratum.MIRROR_AUTHORED,), set(),
+                            Clock.PROJECTION_EVENT, False)
+                case ast.SourceKind.TURN:
+                    return ("ingest turn", (Stratum.OBSERVED,), set(), Clock.PROJECTION_EVENT,
+                            False)
+                case ast.SourceKind.DOC:
+                    return ("ingest doc", (Stratum.CURATED,), set(), Clock.PROJECTION_EVENT, False)
+                case ast.SourceKind.PAPER:
+                    return ("ingest paper", (Stratum.CURATED,), set(), Clock.PROJECTION_EVENT,
+                            False)
+                case ast.SourceKind.CODE:
+                    return ("ingest code", (Stratum.REFERENCE,), set(), Clock.COMMIT, False)
+                case ast.SourceKind.TRANSCRIPT:
+                    return ("ingest transcript", (Stratum.DIALOGUE_TRANSCRIPT,), {"C"},
+                            Clock.COMMIT, False)
+        case ast.Sync(lane=lane):
+            match lane:
+                case "vault":
+                    return ("sync vault", (Stratum.MIRROR_AUTHORED,), set(),
+                            Clock.PROJECTION_EVENT, False)
+                case "dialogue":
+                    return ("sync dialogue", (Stratum.DIALOGUE,), set(), Clock.PROJECTION_EVENT,
+                            False)
+                case "chat":
+                    return ("sync chat", (Stratum.DIALOGUE_TRANSCRIPT,), {"C"}, Clock.COMMIT,
+                            False)
+                case _:
+                    return ("sync code", (Stratum.REFERENCE,), set(), Clock.COMMIT, False)
+        case ast.Observe():
+            return ("observe code", (Stratum.REFERENCE,), {"F"}, Clock.COMMIT, False)
+        case ast.Dream():
+            return ("dream", (Stratum.INTERPRETED,), set(), Clock.PROJECTION_EVENT, True)
+        case ast.Curate():
+            return ("curate", (Stratum.INTERPRETED,), set(), Clock.PROJECTION_EVENT, True)
+        case ast.RelatePass():
+            return ("relate", (Stratum.INTERPRETED,), set(), Clock.PROJECTION_EVENT, True)
+        case ast.Link():
+            return ("link", (Stratum.INTERPRETED,), set(), Clock.PROJECTION_EVENT, True)
+        case ast.Capture():
+            return ("capture", (Stratum.OBSERVED,), set(), Clock.PROJECTION_EVENT, False)
+        case ast.Research():
+            return ("research", (Stratum.CURATED,), set(), Clock.PROJECTION_EVENT, True)
+    raise SortError(f"unknown command {c!r}")  # pragma: no cover
+
+
+def _command_clause(c: ast.Command) -> Clause:
+    """A command requires the write bit on the strata it writes, at `now` (DOR-1): the one way a
+    sentence asks for `W_Σ = 1`, so a grant whose planes are read-only admits no command."""
+    name, strata, fibers, clock, propose = command_requirement(c)
+    # The SLICE rule, as `_required` applies it: a point write across several closed strata on a
+    # clock that is not a cut clock names the single-read cut (SCO-8), as a read would.
+    from core.kernel.scope import StratumScope
+    closed = StratumScope.of(*strata).strata
+    cut = "single-read" if len(closed) > 1 and clock is not Clock.COMMIT else None
+    req = scope(set(strata), fibers, clock, Window.point(ANCHOR), propose=propose, write=True,
+                cut=cut)
+    return Clause(name, None, req, mode_of(req), False)
+
+
 def _anchored(clause: Clause, atoms: Iterable[str | None], ctx: Context, *,
               causal: bool = False) -> list[Clause]:
     """A verb's clause, then the clauses for what it names or reaches outside its own strata. An
@@ -509,6 +579,8 @@ def _clauses(node: Node, ctx: Context, p: Precedents) -> list[Clause]:
             return [_clause("witness", None, ctx, p)]
         case ast.Read(atom=atom):
             return [_read_clause(atom, ctx)]
+        case ast.Do(command=c):
+            return [_command_clause(c)]
         case ast.Far(field=f) | ast.Top(field=f) | ast.AtLeast(field=f):
             return _clauses(f, ctx, p)
         case ast.Not(region=r):

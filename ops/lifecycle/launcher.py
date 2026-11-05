@@ -27,7 +27,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld
 from ops.lifecycle.preflight import Preflight, run_preflight
@@ -363,6 +363,10 @@ class Components:
     queue: QueueLike
     enqueue_catchup: Callable[[], None] = lambda: None     # reconcile corpus on start
     enqueue_housekeeping: Callable[[], None] = lambda: None  # dream + curate pass
+    # The door (dn-ingest-door D3): the requests the surfaces spooled, enqueued each tick with
+    # the role bound to the spool; returns how many. The daemon is the only process that
+    # touches the queue for them.
+    drain_spool: Callable[[], int] = lambda: 0
     health_check: Callable[[], list[Flag]] = lambda: []    # OS-health sense (returns crossed flags)
     # The thin-master/child model: separate processes palace spawns + drains. DORMANT since the
     # edge monitor was removed (bp-030 Item 2) — kept as the seam a future dashboard redo re-wires.
@@ -408,10 +412,102 @@ def _code_backfill_incomplete(cfg: Config, code_driver: CodeCorpusSync) -> bool:
     return len(store_versions) < len(ledger)
 
 
+def _observe_code(cfg: Config) -> Callable[[Any, Any], dict[str, Any]]:
+    """The door's `observe code`: the code sensor's sync and its observation backfill, the
+    writer of the citation graph's edges, run by the daemon as the one writer."""
+    def land(_command: Any, _request: Any) -> dict[str, Any]:
+        from ops.code_sensor import build_code_sensor
+        sensor = build_code_sensor(cfg)
+        return {"sync": str(sensor.sync()), "observations": sensor.backfill_observations()}
+    return land
+
+
+def drain_guarded(drain: Callable[[], int]) -> int:
+    """One tick's drain of the door's spools; whatever it raises is reported and the serve loop
+    goes on, since a spool never stops the daemon."""
+    try:
+        return drain()
+    except Exception as e:
+        print(f"⚠ door: the drain failed this tick ({type(e).__name__}: {e})")
+        return 0
+
+
+def _edge_env() -> dict[str, str]:
+    """The edge readers' environment: launchd gives the daemon a PATH without Homebrew's, where
+    podman lives, so the readers' `podman exec` would not be found from inside the daemon. The
+    bridge's and the heartbeat's plists add the same directories (scripts/stack.py)."""
+    import os
+
+    env = dict(os.environ)
+    have = env.get("PATH", "").split(":")
+    env["PATH"] = ":".join([*have, *(d for d in ("/opt/homebrew/bin", "/usr/local/bin")
+                                     if d not in have)])
+    return env
+
+
+def dialogue_sync(cfg: Config, repo_root: Path, *, container: str = "lmtune-webui",
+                  only: set[str] | None = None) -> int:
+    """The dialogue sync itself, two processes and one handoff file: the edge reader
+    (`python -m edge.openwebui`, no core imports, read-only inside the container) writes
+    `data/handoff/dialogue/<source>.json`; this side reads it and captures each turn, owner turns
+    as `authored-dialogue`, the model's as `observed`, keyed by `<source>/<chat>/<message>` so a
+    re-sync adds only what is new. The CLI's `dialogue-sync` calls it behind the live-daemon guard;
+    the daemon's door handler (`do sync dialogue`) calls it as the one writer. Returns the exit
+    code: 1 when an edge reader failed."""
+    import json
+    import subprocess
+    import sys
+
+    sources = {   # source -> the edge reader's argv (each its own process, no core imports)
+        "openwebui": ["-m", "edge.openwebui", "--container", container],
+        "opencode": ["-m", "edge.opencode_sessions"],
+    }
+    from core.ingest.dialogue import build_dialogue_capture
+    capture = build_dialogue_capture(cfg)
+    failed = False
+    for source, argv in sources.items():
+        if only is not None and source not in only:
+            continue
+        handoff = cfg.paths.data_dir / "handoff" / "dialogue" / f"{source}.json"
+        edge = subprocess.run([sys.executable, *argv, "--out", str(handoff)],
+                              cwd=repo_root, capture_output=True, text=True, timeout=180,
+                              env=_edge_env())
+        if edge.returncode != 0:
+            print(f"{source}: edge reader failed: {edge.stderr.strip()[-300:]}")
+            failed = True
+            continue
+        doc = json.loads(handoff.read_text())
+        new = seen = refused = 0
+        for chat in doc.get("chats", []):
+            for turn in chat.get("turns", []):
+                ts = turn.get("timestamp")
+                at = (datetime.fromtimestamp(ts, UTC).isoformat(timespec="seconds")
+                      if ts else None)
+                try:
+                    _, created = capture.capture_turn(
+                        turn["content"], conversation=f"{source}/{chat['chat_id']}",
+                        turn_id=str(turn["id"]), role=str(turn["role"]), at=at)
+                except PermissionError as e:    # a turn whose class changed: kept, reported
+                    print(f"{source}: turn kept as it was: {e}")
+                    refused += 1
+                    continue
+                new += created
+                seen += 1
+        print(f"dialogue sync ({source}): {len(doc.get('chats', []))} conversation(s), "
+              f"{seen} turn(s), {new} new" + (f", {refused} refused" if refused else ""))
+        mark = handoff.with_suffix(".synced")   # written only once every turn is captured
+        mark.write_text(json.dumps({
+            "latest": max((int(c.get("updated_at") or 0) for c in doc.get("chats", [])),
+                          default=0),
+            "at": datetime.now(UTC).isoformat(timespec="seconds")}))
+    return 1 if failed else 0
+
+
 def build_components(cfg: Config) -> Components:
     """Wire the full daemon: vault_sync (+watcher), the delegating Ambassador inbox, the
     delegated-task worker, and the trough dream/curate handlers — all on one supervisor."""
     from agents.ambassador import build_ambassador
+    from config.loader import REPO_ROOT
     from core.chat_events import build_chat_event_projector
     from core.curator import build_curator
     from core.dreaming import build_dreamer
@@ -454,6 +550,12 @@ def build_components(cfg: Config) -> Components:
         enqueue_integrate,
         integrate_handler,
         research_handler,
+    )
+    from scheduler.door import (
+        DIALOGUE_SYNC_KIND,
+        dialogue_sync_handler,
+        door_handlers,
+        drain_spool,
     )
     from scheduler.interface import (
         AMBASSADOR_KIND,
@@ -540,6 +642,12 @@ def build_components(cfg: Config) -> Components:
         AMBASSADOR_TASK_KIND: ambassador_task_handler(task_librarian),
         RESEARCH_KIND: research_handler(airlock, task_librarian.embedder, task_librarian.store),
         **cron_handlers(build_dreamer(cfg), build_curator(cfg)),
+        # the door's own kinds (dn-ingest-door D3, D7): the commands the daemon lands itself, from
+        # the requests the surfaces spool; `code_observe` lands with the code sensor, passed in
+        **door_handlers(cfg, extra={"code_observe": _observe_code(cfg)}),
+        # `do sync dialogue` is the queue's own kind, coalescing like the other syncs: a failed
+        # edge reader fails the job
+        DIALOGUE_SYNC_KIND: dialogue_sync_handler(lambda: dialogue_sync(cfg, Path(REPO_ROOT))),
     }
     supervisor = Supervisor(queue=queue, loader=loader, handlers=handlers, telemetry=telemetry)
     # One watcher per watched dir: the owner's vault + the Claude Code transcripts (bp-069). Both
@@ -584,6 +692,7 @@ def build_components(cfg: Config) -> Components:
         supervisor=supervisor, watchers=watchers, queue=queue,
         enqueue_catchup=_catchup,
         enqueue_housekeeping=_housekeeping,
+        drain_spool=lambda: drain_spool(queue, router, cfg),
         health_check=health_check,
     )
 
@@ -804,7 +913,8 @@ class Launcher:
             # This used to be a bare `run()`, which drains until nothing is runnable — so with a
             # backlog the health check, the snapshot refresh and housekeeping below did not run
             # until the queue emptied. The bound returns control to this loop at a job boundary.
-            dispatched = c.supervisor.run(max_ticks=self.drain_max_ticks)
+            drained = drain_guarded(c.drain_spool)    # the door: requests → jobs, each tick
+            dispatched = c.supervisor.run(max_ticks=self.drain_max_ticks) + drained
             now = time.monotonic()
             if now - last_health >= self.health_interval_s:
                 flags = c.health_check()                  # the OS-health agent: sense + report
@@ -1470,47 +1580,7 @@ class Launcher:
         saw): the heartbeat's mark for "anything new since?". `only` limits the sources."""
         if self._refuse_if_live("dialogue-sync"):
             return 1
-        import json
-        import subprocess
-        import sys
-
-        sources = {   # source -> the edge reader's argv (each its own process, no core imports)
-            "openwebui": ["-m", "edge.openwebui", "--container", container],
-            "opencode": ["-m", "edge.opencode_sessions"],
-        }
-        from core.ingest.dialogue import build_dialogue_capture
-        capture = build_dialogue_capture(self.cfg)
-        failed = False
-        for source, argv in sources.items():
-            if only is not None and source not in only:
-                continue
-            handoff = self.cfg.paths.data_dir / "handoff" / "dialogue" / f"{source}.json"
-            edge = subprocess.run([sys.executable, *argv, "--out", str(handoff)],
-                                  cwd=self.repo_root, capture_output=True, text=True, timeout=180)
-            if edge.returncode != 0:
-                print(f"{source}: edge reader failed: {edge.stderr.strip()[-300:]}")
-                failed = True
-                continue
-            doc = json.loads(handoff.read_text())
-            new = seen = 0
-            for chat in doc.get("chats", []):
-                for turn in chat.get("turns", []):
-                    ts = turn.get("timestamp")
-                    at = (datetime.fromtimestamp(ts, UTC).isoformat(timespec="seconds")
-                          if ts else None)
-                    _, created = capture.capture_turn(
-                        turn["content"], conversation=f"{source}/{chat['chat_id']}",
-                        turn_id=str(turn["id"]), role=str(turn["role"]), at=at)
-                    new += created
-                    seen += 1
-            print(f"dialogue sync ({source}): {len(doc.get('chats', []))} conversation(s), "
-                  f"{seen} turn(s), {new} new")
-            mark = handoff.with_suffix(".synced")   # written only once every turn is captured
-            mark.write_text(json.dumps({
-                "latest": max((int(c.get("updated_at") or 0) for c in doc.get("chats", [])),
-                              default=0),
-                "at": datetime.now(UTC).isoformat(timespec="seconds")}))
-        return 1 if failed else 0
+        return dialogue_sync(self.cfg, self.repo_root, container=container, only=only)
 
     def reembed_now(self, *, confirm: bool) -> int:
         """Re-embed every vector from the raw store with the CONFIGURED embedder — BUILD-SPEC §8:

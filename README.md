@@ -2,12 +2,12 @@
 
 [![CI](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml)
 [![Lean](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml)
-[![laws](https://img.shields.io/badge/laws-79_rows_in_11_families-blue)](docs/LAWS.md)
-[![Lean statements](https://img.shields.io/badge/Lean-225_statements_judged-blue)](formal/README.md)
+[![laws](https://img.shields.io/badge/laws-81_rows_in_12_families-blue)](docs/LAWS.md)
+[![Lean statements](https://img.shields.io/badge/Lean-233_statements_judged-blue)](formal/README.md)
 [![sorry](https://img.shields.io/badge/sorry-0-brightgreen)](formal/sorry-budget)
 [![kernels](https://img.shields.io/badge/kernel_replay-6_checkers-6f42c1)](formal/check.sh)
-[![attacks](https://img.shields.io/badge/attacks-93_with_controls-blue)](formal/PalaceTest)
-[![tests](https://img.shields.io/badge/tests-2861-brightgreen)](docs/runbook.md)
+[![attacks](https://img.shields.io/badge/attacks-110_with_controls-blue)](formal/PalaceTest)
+[![tests](https://img.shields.io/badge/tests-2942-brightgreen)](docs/runbook.md)
 [![coverage](https://img.shields.io/badge/coverage-85%25-green)](pyproject.toml)
 [![mypy](https://img.shields.io/badge/mypy-0_errors_in_core-brightgreen)](pyproject.toml)
 [![sealed core](https://img.shields.io/badge/sealed_core-zero_egress-6f42c1)](scripts/check_imports.py)
@@ -121,13 +121,13 @@ A law has one row in [`docs/LAWS.md`](docs/LAWS.md): its statement, the structur
 | | |
 |---|---|
 | toolchain | Lean `v4.36.0-rc2`, Mathlib; Plausible for the attacks |
-| the library | 25 proof modules, 24 models, 19 statement files; 13,654 lines of models and proofs, 2,370 of statements, 2,577 of attacks |
-| theorems | 816 proved in `formal/Palace`; 225 statements in `formal/Spec` judged identical by the comparator |
-| the ledger | 79 rows in 11 families, 231 cited declarations, 66 law markers checked against the rows |
-| attacks | 93 Plausible attacks and 85 negative controls over 21 modules, fixed seeds |
+| the library | 26 proof modules, 25 models, 20 statement files; 14,998 lines of models and proofs, 2,460 of statements, 2,841 of attacks |
+| theorems | 896 proved in `formal/Palace`; 233 statements in `formal/Spec` judged identical by the comparator |
+| the ledger | 81 rows in 12 families, 239 cited declarations, 68 law markers checked against the rows |
+| attacks | 110 Plausible attacks and 96 negative controls over 22 modules, fixed seeds |
 | axioms | `propext`, `Classical.choice`, `Quot.sound`; `sorry` 0 |
-| the replay | 44,967 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
-| families | memberships · Laplacian, balance and spectral · cut and conductance · curvature · the global event clock · the shared prose plane · capability scopes · the abstraction ultrametric σ* · bridges · the retrieval curve · the query sentence algebra |
+| the replay | 45,293 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
+| families | memberships · Laplacian, balance and spectral · cut and conductance · curvature · the global event clock · the shared prose plane · capability scopes · the abstraction ultrametric σ* · bridges · the retrieval curve · the query sentence algebra · the door |
 
 ## The mathematics
 
@@ -161,7 +161,7 @@ Utility is a side effect and is treated as one. What the project optimizes for i
 
 The base build is complete and the live instance runs always-on under launchd with a gated deployment path. "Complete" is not "wired": this repo distinguishes built, deployed and wired, and its own audit found the summaries were the least honest surface, so this one names the gaps.
 
-Wired and live: ingestion (notes within seconds, code per commit), dreaming on a six-hour cadence, the provenance firewall, the attestation chain, the strict-typed core, CI on every push, deploy-gated releases, the research airlock, the curated literature store, and the query language with its one MCP command, the CLI, the query log as a sensor, and a battery run read-only against the live stores. Built but deliberately dormant, each waiting on its design gate: retrieval demotion for superseded content, the supersession certification layer, effectors (the "hands", flag-off at every tier), recursive dreaming. Open in the language, and stated in every answer: version moves at the note grain are empty (the chains are per note), and there is no snapshot of the notes at a past cut. The causal moves are wired: a transcript turn to the files it produced, and back.
+Wired and live: ingestion (notes within seconds, code per commit), dreaming on a six-hour cadence, the provenance firewall, the attestation chain, the strict-typed core, CI on every push, deploy-gated releases, the research airlock, the curated literature store, and the query language with its one MCP command, the CLI, the query log as a sensor, and a battery run read-only against the live stores. Built but deliberately dormant, each waiting on its design gate: retrieval demotion for superseded content, the supersession certification layer, effectors (the "hands", flag-off at every tier), recursive dreaming. Open in the language, and stated in every answer: version moves at the note grain are empty (the chains are per note), and there is no snapshot of the notes at a past cut. The causal moves are wired: a transcript turn to the files it produced, and back. So is the door: a surface speaks a write as a sentence, `do …`, typed under the speaker's grant, and the daemon lands it as the one writer and returns a receipt; the Ambassador's write tools are aliases of door sentences. Left for later: the CLI's inline verbs and three landings as sentences (DO-3b), and the parallel dispatcher, whose laws are proved (DO-6).
 
 The current frontier is the query algebra as the system's interface, the mathematics pushed to where its claims close or break, and the trace as the language's debugger. Behind it, drafted: the palace's memory of itself, the graph as it stood at any past cut, and the conversations that design the system becoming a stratum it can study.
 

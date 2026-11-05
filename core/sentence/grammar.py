@@ -1,7 +1,14 @@
 """The grammar — a sentence's concrete syntax, parsed by precedence into `core.sentence.ast`
 (dn-query-sentence-algebra §2.3).
 
-    sentence  := or-expr ("then" or-expr)*                      -- `then` binds loosest
+    sentence  := "do" command | or-expr ("then" or-expr)*       -- a command is a whole sentence
+    command   := "ingest" source | "sync" lane | "observe" "code" [atom] | "dream" | "curate"
+               | "relate" ["pairs" NUMBER] | "link" atom atom relation
+               | "capture" STRING ["in" WORD] | "research" STRING
+    source    := "note" atom | "turn" WORD WORD STRING | "doc" atom | "paper" atom
+               | "code" [atom] | "transcript" WORD                -- no role word, by design
+    lane      := "vault" | "dialogue" | "chat" | "code"
+    relation  := "supports" | "contradicts" | "contextualizes"
     or-expr   := and-expr ("or" and-expr)*
     and-expr  := unary (("and" | "minus") unary)*               -- `and` binds tighter than `or`
     unary     := operand adjunct*                               -- adjectives bind tightest
@@ -27,8 +34,10 @@
 within `R` and `top 1 near "x" over dialogue` ranks the dialogue: a ranking is not pointwise, and
 masking after it would drop hits the mask would have kept (the review of 2026-11-05). `far` and
 `not` take the bare operand, so an adjective after them restricts the reversal or the complement.
-`assume` extends as far right as it can (parenthesize it to continue the sentence). A parse error
-names the production that failed and the token it saw.
+`assume` extends as far right as it can (parenthesize it to continue the sentence). `do` takes
+the whole sentence: a command composes with nothing, since its value is a receipt and the state
+it changes lands later (dn-ingest-door D2). A parse error names the production that failed and
+the token it saw.
 """
 
 from __future__ import annotations
@@ -37,27 +46,42 @@ import re
 from dataclasses import dataclass
 
 from core.sentence.ast import (
+    LANES,
+    RELATIONS,
     And,
     AsOf,
     Assume,
     AtLeast,
+    Capture,
+    Command,
     ContradictHyp,
+    Curate,
     Diffuse,
     Direction,
+    Do,
+    Dream,
     EdgeHyp,
     Far,
     Hypothesis,
+    Ingest,
+    Link,
     Minus,
     Near,
     Node,
     Not,
+    Observe,
     Or,
     Over,
     Reach,
     Read,
     Rel,
     Relate,
+    RelatePass,
+    Research,
     SeverHyp,
+    Source,
+    SourceKind,
+    Sync,
     Then,
     Top,
     Trace,
@@ -81,8 +105,8 @@ class Token:
 _TOKEN = re.compile(
     r"""\s*(?:
         "(?P<string>(?:[^"\\]|\\.)*)"          # a quoted string, with \" escapes
-      | (?P<number>\d+(?:\.\d+)?)               # an unsigned number
-      | (?P<word>[A-Za-z_][A-Za-z0-9_./:#@\-]*) # a word: a keyword, a relation letter or an atom
+      | (?P<number>\d+(?:\.\d+)?(?![A-Za-z0-9_])) # an unsigned number, never the head of a word
+      | (?P<word>[A-Za-z0-9_][A-Za-z0-9_./:#@\-]*) # a word: a keyword, a letter, an atom, an id
       | (?P<sym>[(){}|*+?,\-])                  # a symbol of a path or a signed weight
     )""",
     re.VERBOSE,
@@ -94,20 +118,21 @@ KEYWORDS = frozenset({
     "within",
     "over", "as", "of", "from", "to", "via", "beta", "depth", "back", "forward", "both",
     "S", "F", "D", "C",
+    "do",      # the command sentence; the command words after it are read in place, never as
+               # keywords, so `over dialogue` and a note titled `code` keep working
 })
 
 _STOP_PATH = frozenset({"depth", "and", "or", "then", "within", "over", "as", "in", "minus", ")"})
 _STOP_STRATA = KEYWORDS | {")"}
 
 
+_UNESCAPE = re.compile(r'\\(["\\])')
+
+
 def quote(s: str) -> str:
-    """A string literal the grammar reads back as `s`: quoted, a backslash and a quote escaped
-    by a backslash, so any title round-trips (one ending in a backslash among them)."""
+    """A string literal the grammar reads back as `s`: quoted, with `\\` and `\"` escapes, the
+    tokenizer's inverse for every text (a client's text can never end a literal early)."""
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
-
-
-# the two escapes `quote` writes; any other backslash is the string's own
-_ESCAPE = re.compile(r'\\([\\"])')
 
 
 def tokenize(text: str) -> list[Token]:
@@ -120,7 +145,7 @@ def tokenize(text: str) -> list[Token]:
                 break
             raise ParseError(f"tokens: unexpected character {text[pos]!r} at {pos}")
         if m.group("string") is not None:
-            tokens.append(Token("STRING", _ESCAPE.sub(r"\1", m.group("string")), m.start()))
+            tokens.append(Token("STRING", _UNESCAPE.sub(r"\1", m.group("string")), m.start()))
         elif m.group("number") is not None:
             tokens.append(Token("NUMBER", m.group("number"), m.start()))
         elif m.group("word") is not None:
@@ -157,7 +182,12 @@ class _Parser:
 
     def fail(self, production: str, expected: str) -> ParseError:
         t = self.peek()
-        seen = "the end of the sentence" if t.kind == "END" else f"{t.text!r} at {t.pos}"
+        if t.kind == "END":
+            seen = "the end of the sentence"
+        elif t.kind == "STRING":          # a string's text never enters an error (the query log)
+            seen = f"a string of {len(t.text)} characters at {t.pos}"
+        else:
+            seen = f"{t.text!r} at {t.pos}"
         return ParseError(f"{production}: expected {expected}, got {seen}")
 
     def expect_word(self, production: str, word: str) -> None:
@@ -383,9 +413,116 @@ class _Parser:
             weight = sign * self.number("assume weight")
         return EdgeHyp(rel, a, b, weight)
 
+    # ── commands ───────────────────────────────────────────────────────────────────────────────
+    def word_in(self, production: str, allowed: tuple[str, ...]) -> str:
+        t = self.peek()
+        if t.kind == "WORD" and t.text in allowed:
+            self.next()
+            return t.text
+        raise self.fail(production, "one of " + ", ".join(allowed))
+
+    def name(self, production: str) -> str:
+        """An identifier the command names: a conversation, a turn id, a session; a word or a
+        quoted string."""
+        t = self.peek()
+        if t.kind in ("WORD", "STRING", "NUMBER"):
+            self.next()
+            return t.text
+        raise self.fail(production, "a name")
+
+    def optional_atom(self) -> str | None:
+        t = self.peek()
+        if t.kind == "STRING" or (t.kind == "WORD" and t.text not in KEYWORDS):
+            self.next()
+            return t.text
+        return None
+
+    def source(self) -> Source:
+        t = self.peek()
+        if t.kind != "WORD":
+            raise self.fail("ingest", "a source: note, turn, doc, paper, code or transcript")
+        kind = t.text
+        if kind == "note":
+            self.next()
+            return Source(SourceKind.NOTE, atom=self.atom("ingest note"))
+        if kind == "turn":
+            self.next()
+            conversation = self.name("ingest turn")
+            turn = self.name("ingest turn")
+            return Source(SourceKind.TURN, atom=conversation, turn=turn,
+                          text=self.string("ingest turn"))
+        if kind == "doc":
+            self.next()
+            return Source(SourceKind.DOC, atom=self.atom("ingest doc"))
+        if kind == "paper":
+            self.next()
+            return Source(SourceKind.PAPER, atom=self.atom("ingest paper"))
+        if kind == "code":
+            self.next()
+            return Source(SourceKind.CODE, atom=self.optional_atom() or "")
+        if kind == "transcript":
+            self.next()
+            return Source(SourceKind.TRANSCRIPT, atom=self.name("ingest transcript"))
+        raise self.fail("ingest", f"a source kind (note, turn, doc, paper, code, transcript), "
+                                  f"not {kind!r}")
+
+    def command(self) -> Command:
+        t = self.peek()
+        if t.kind != "WORD":
+            raise self.fail("do", "a command")
+        word = t.text
+        if word == "ingest":
+            self.next()
+            return Ingest(self.source())
+        if word == "sync":
+            self.next()
+            return Sync(self.word_in("sync", LANES))
+        if word == "observe":
+            self.next()
+            self.expect_word("observe", "code")
+            return Observe(self.optional_atom())
+        if word == "dream":
+            self.next()
+            return Dream()
+        if word == "curate":
+            self.next()
+            return Curate()
+        if word == "relate":
+            self.next()
+            pairs: int | None = None
+            if self.at_word("pairs"):
+                self.next()
+                pairs = self.integer("relate pairs")
+            return RelatePass(pairs)
+        if word == "link":
+            self.next()
+            a = self.atom("link")
+            b = self.atom("link")
+            return Link(a, b, self.word_in("link", RELATIONS))
+        if word == "capture":
+            self.next()
+            text = self.string("capture")
+            conversation: str | None = None
+            if self.at_word("in"):
+                self.next()
+                conversation = self.name("capture in")
+            return Capture(text, conversation)
+        if word == "research":
+            self.next()
+            return Research(self.string("research"))
+        raise self.fail("do", "a command (ingest, sync, observe code, dream, curate, relate, "
+                              f"link, capture, research), not {word!r}")
+
     def parse(self) -> Node:
         if self.peek().kind == "END":
             raise ParseError("sentence: the sentence is empty")
+        if self.at_word("do"):
+            self.next()
+            node: Node = Do(self.command())
+            if self.peek().kind != "END":
+                raise self.fail("do", "the end of the sentence: a command takes no connective "
+                                      "and no adjective, its value is a receipt")
+            return node
         node = self.sentence()
         if self.peek().kind != "END":
             raise self.fail("sentence", "the end of the sentence")

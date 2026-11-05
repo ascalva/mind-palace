@@ -21,6 +21,7 @@ own notes, the mirror's ground truth.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -28,6 +29,7 @@ from pathlib import Path
 from core.attestation import Attestor
 from core.ingest.embed import Embedder
 from core.ingest.index import index_amendment
+from core.ingest.landing import attest_once, record_version_if_new
 from core.kernel.config import Config
 from core.kernel.ingest.logseq import DEFAULT_EXCLUDE_DIRS, iter_vault, parse_note
 from core.kernel.ingest.pipeline import ingest_note
@@ -57,6 +59,34 @@ class SyncReport:
                 f"tombstoned={self.tombstoned}")
 
 
+def in_vault_scope(vault: Path, path: Path, *, pattern: str = "**/*.md",
+                   exclude_dirs: frozenset[str] = DEFAULT_EXCLUDE_DIRS) -> bool:
+    """`iter_vault`'s predicate for one path: a regular file under `vault` (resolved, so a
+    symlink out of the vault is out of scope) that matches `pattern`, lies in no excluded
+    directory, and is spelled as the disk spells it. On a case-insensitive disk `PAGES/A.md`
+    opens `pages/a.md`, but the rescan names it `pages/a.md`: a path in another case is out of
+    scope, and an excluded directory is excluded in any case."""
+    root = Path(vault).expanduser().resolve()
+    try:
+        rel = Path(path).expanduser().resolve().relative_to(root)
+    except ValueError:
+        return False
+    if not rel.parts or not Path(path).is_file():
+        return False
+    excluded = {d.casefold() for d in exclude_dirs}
+    if any(part.casefold() in excluded for part in rel.parts):
+        return False
+    here = root
+    for part in rel.parts:                    # every component as the directory lists it
+        try:
+            if part not in os.listdir(here):
+                return False
+        except OSError:
+            return False
+        here = here / part
+    return rel.full_match(pattern)
+
+
 @dataclass
 class VaultSync:
     vault: Path
@@ -79,6 +109,14 @@ class VaultSync:
     # (`doc_id_for`), so a rename does not fork the chain (bp-031); it equals `source_path` until a
     # mechanism diverges it. None = no version log.
     version_store: VersionStore | None = None
+
+    def in_scope(self, path: Path) -> bool:
+        """Whether one path is a note the rescan would see: a regular file under the vault that
+        matches the note pattern and lies in no excluded directory. The door's `ingest note`
+        asks before landing a single note (dn-ingest-door §9), so the scope that binds the
+        rescan binds the sentence."""
+        return in_vault_scope(self.vault, path, pattern=self.pattern,
+                              exclude_dirs=self.exclude_dirs)
 
     def sync_path(self, path: Path,
                   *, rename_by_digest: dict[str, tuple[str, str]] | None = None) -> SyncOutcome:
@@ -110,29 +148,73 @@ class VaultSync:
                 if match is not None:
                     resolved_doc_id = match[1]
 
+        # The landing order (dn-ingest-door D1, DOR-7; core/ingest/landing.py): land, then the
+        # version row, then the attestation, and LAST the catalog's digest, the idempotence key the
+        # UNCHANGED check above reads. A crash anywhere before the key leaves a run the next run
+        # repeats in full and lands exactly the same (the version is appended only when new, the
+        # attestation emitted once per digest); the old order wrote the key first, so a crash
+        # between it and the version row was never repaired (the audit's defect 1).
+        #
         # Chunk-level amendment (ingest-identity-and-amendment.md §4): embed only chunks the plane
         # does not hold, land the new version, supersede the old one with an edge (A3: the old
         # version's occupancies stay, history kept). Unchanged chunks keep their atoms — no re-embed
         # and no read of the old rows needed, so the writer never reads what it does not own.
         index_amendment(record, [], self.embedder, self.store)
-        self.catalog.record(source_path, digest, record.title, doc_id=resolved_doc_id)
-        if self.attestor is not None:
-            # input == output == the content digest: for AUTHORED content the bytes read and the
-            # content-addressed object written share one address. This is the chain's leaf.
-            self.attestor.emit(agent_role="vault_watcher", action="ingest_note",
-                               input_hashes=[digest], output_hashes=[digest])
 
         # Append the note's next VERSION so an amendment ENHANCES provenance — a queryable version
         # chain, not a silent overwrite (§4A). Keyed on version identity (the store allocates the
         # next version_seq for this note's stable `doc_id`), NOT content digest, so a revert is a
         # new version, never a cycle; and it lives OUTSIDE the balance-fed edge store (Constr. 2).
-        # Every INDEXED outcome is a new version (v1 on first ingest, v2… on each amendment). The
-        # `doc_id` is resolved by the catalog (== source_path until a mechanism diverges it), so a
-        # rename carries the chain forward instead of forking it. Resolved AFTER `catalog.record`
-        # above, so the row (and its doc_id) exists.
+        # The `doc_id` is the one the catalog holds for an already-bound note, else the identity
+        # resolved above, else the path (what the catalog will default to when the key lands), so a
+        # rename carries the chain forward instead of forking it.
+        appended = False
         if self.version_store is not None:
-            self.version_store.record(self.catalog.doc_id_for(source_path), digest)
+            doc_id = (self.catalog.doc_id_for(source_path) if prev is not None
+                      else resolved_doc_id if resolved_doc_id is not None else source_path)
+            # A rename, a new path whose identity another active row still binds (the old path,
+            # tombstoned after this pass), is a version event (bp-031) and appends even at the
+            # same digest; anything else appends only when the digest is new, so a re-run after a
+            # crash appends nothing. The one window this cannot tell apart is a crash inside a
+            # rename's landing, which a path on the version row would close (dn-ingest-door §9).
+            rename = prev is None and any(
+                other != source_path for other in self.catalog.paths_for(doc_id))
+            if rename:
+                self.version_store.record(doc_id, digest)
+                appended = True
+            else:
+                appended = record_version_if_new(self.version_store, doc_id, digest) is not None
+        # input == output == the content digest: for AUTHORED content the bytes read and the
+        # content-addressed object written share one address. This is the chain's leaf. A landing
+        # that appended a version is an event of its own (a revert to bytes attested before);
+        # one that did not attests only when nothing names its digest (a re-run after a crash)
+        attest_once(self.attestor, agent_role="vault_watcher", action="ingest_note", digest=digest,
+                    event=appended)
+        self.catalog.record(source_path, digest, record.title, doc_id=resolved_doc_id)   # the key
         return SyncOutcome.INDEXED
+
+    def sync_one(self, path: Path) -> SyncOutcome:
+        """One note, as the rescan would land it: a path new to the catalog whose bytes are a
+        vanished note's (one still active whose file is gone) adopts that note's identity, so a
+        note renamed just before it is ingested alone keeps its version chain (the door's
+        `ingest note`)."""
+        source_path = str(path)
+        rename_by_digest: dict[str, tuple[str, str]] = {}
+        if self.catalog.get(source_path) is None:
+            ambiguous: set[str] = set()
+            for g in self.catalog.active_paths():
+                if g == source_path or not Path(g).is_relative_to(self.vault) or Path(g).exists():
+                    continue
+                entry = self.catalog.get(g)
+                if entry is None or not entry.active:
+                    continue
+                if entry.digest in rename_by_digest:
+                    ambiguous.add(entry.digest)
+                else:
+                    rename_by_digest[entry.digest] = (g, self.catalog.doc_id_for(g))
+            for digest in ambiguous:
+                rename_by_digest.pop(digest, None)
+        return self.sync_path(path, rename_by_digest=rename_by_digest)
 
     def handle_deleted(self, source_path: str) -> SyncOutcome:
         """A vault file disappeared: tombstone it and drop its projection (by `source_path`).

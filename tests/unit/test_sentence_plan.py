@@ -84,3 +84,26 @@ def test_compile_yields_the_intermediate_form() -> None:
 def test_an_inadmissible_sentence_does_not_compile() -> None:
     with pytest.raises(PermissionError):
         compile_sentence('assume S "a" "b" in near "x"', AMBASSADOR)
+
+
+def test_a_commands_plan_is_itself_and_the_executor_sends_it_to_a_surface() -> None:
+    """dn-ingest-door D2, D3: no rewrite applies to a command, its plan renders as spoken, it has
+    no assumptions, and the executor refuses to evaluate it, naming the surface that spools it."""
+    from core.query import AMBASSADOR_OVERLAY
+    from core.sentence import IllScopedSentence, Sort, Universe, UnsupportedSentence, execute
+    from core.sentence.ast import Do, Link
+
+    plan = compile_sentence('do link "a.md" "b.md" supports', AMBASSADOR_OVERLAY)
+    assert plan.sort is Sort.EVENT and plan.is_inv and plan.hyps == ()
+    assert plan.term == Do(Link("a.md", "b.md", "supports"))
+    assert normalize(plan.term) == plan.term
+    assert "do link 'a.md' 'b.md' supports" in plan.explain()
+    assert [c.verb for c in plan.clauses] == ["link"]
+    with pytest.raises(IllScopedSentence):
+        compile_sentence("do ingest code", AMBASSADOR_OVERLAY)
+    import numpy as np
+    bare = Universe(notes=[], vectors=np.zeros((0, 2)), weights=np.zeros((0, 0)),
+                    edges={}, relations=[], embed=lambda t: np.zeros(2), history=lambda a: [],
+                    witness=lambda e: None)
+    with pytest.raises(UnsupportedSentence, match="through a surface"):
+        execute(compile_sentence("do dream"), bare)

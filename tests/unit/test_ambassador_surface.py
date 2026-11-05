@@ -262,6 +262,14 @@ def test_turns_are_idempotent_and_provenance_follows_role(tmp_path: Path):
         "dialogue/openwebui/c1/m1": "authored-dialogue",
         "dialogue/openwebui/c1/m2": "observed",
     }
+    # a turn's class is fixed with its identity: no observed text supersedes the owner's words
+    # on their path, and no owner's words supersede an observed turn (dn-ingest-door D8)
+    with pytest.raises(PermissionError, match="authored-dialogue"):
+        cap.capture_turn("fabricated", conversation="openwebui/c1", turn_id="m1",
+                         role="assistant")
+    with pytest.raises(PermissionError, match="observed"):
+        cap.capture_turn("rewritten", conversation="openwebui/c1", turn_id="m2", role="user")
+    assert {e.source_path: e.provenance for e in cap.catalog.active_entries()} == provs
 
 
 # ── the Open WebUI reader ───────────────────────────────────────────────────────────────────────

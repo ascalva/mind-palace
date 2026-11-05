@@ -38,7 +38,7 @@
   },
   {
    "name": "sync_notes",
-   "description": "Re-ingest the owner's changed notes now.",
+   "description": "Re-ingest the owner's changed notes (a `do sync vault` request the daemon lands).",
    "inputSchema": {
     "type": "object",
     "properties": {}
@@ -46,7 +46,7 @@
   },
   {
    "name": "capture",
-   "description": "Remember text you relay (stored as observed, not the owner's words).",
+   "description": "Remember text you relay, stored as observed, never as the owner's words (a `do capture` request the daemon lands).",
    "inputSchema": {
     "type": "object",
     "properties": {

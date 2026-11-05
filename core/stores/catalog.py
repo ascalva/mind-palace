@@ -118,6 +118,16 @@ class VaultCatalog:
         )
         self._conn.commit()
 
+    def paths_for(self, doc_id: str) -> list[str]:
+        """The active paths bound to a document identity: one, or two while a rename is being
+        synced (the old path is tombstoned after the new one lands). The landing order reads it
+        to tell a rename, which is a version event, from a re-run after a crash, which is not
+        (core/ingest/landing.py)."""
+        rows = self._conn.execute(
+            "SELECT source_path FROM vault_files WHERE doc_id = ? AND active = 1 "
+            "ORDER BY source_path", [doc_id]).fetchall()
+        return [str(r[0]) for r in rows]
+
     def doc_id_for(self, source_path: str) -> str:
         """The stable `doc_id` bound to this `source_path` — the identity the version store keys on.
         Equals `source_path` (identity == path) until a mechanism (bp-031 Item 2) diverges it. An

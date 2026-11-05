@@ -169,3 +169,72 @@ def test_read_is_a_text_that_composes_with_nothing_and_reads_by_the_refs_shape()
         assert admissible(parse(s), AMBASSADOR), s
     _, under = clauses_of(parse('assume contradict "a" "b" in read "/vault/n.md"'))
     assert under.overlay and Stratum.HYPOTHETICAL in under.req.sigma.strata
+
+
+# ── the action sort: a command requires the write bit (dn-ingest-door D2, DOR-1) ───────────────
+
+
+def test_a_command_is_an_event_and_requires_the_write_bit_on_what_it_writes() -> None:
+    from core.sentence import ast
+    from core.sentence.types import command_requirement
+
+    (c,) = clauses_of(parse('do ingest note "x.md"'))
+    assert c.verb == "ingest note" and c.req.authority.store_write == 1
+    assert c.req.sigma.strata == frozenset({Stratum.MIRROR_AUTHORED})
+    assert c.req.time.clock is Clock.PROJECTION_EVENT
+    (d,) = clauses_of(parse("do dream"))
+    assert d.req.sigma.strata == frozenset({Stratum.INTERPRETED})
+    assert d.req.authority.store_write == 1
+    assert d.req.authority.privilege.name == "READ_PROPOSE"
+    (t,) = clauses_of(parse("do sync chat"))
+    assert t.req.time.clock is Clock.COMMIT and t.req.edges.fibers == frozenset({"C"})
+    assert t.mode is Mode.CAUSAL
+    (o,) = clauses_of(parse("do observe code"))
+    assert o.req.edges.fibers == frozenset({"F"}) and o.req.time.clock is Clock.COMMIT
+    # the table is total over the commands the grammar admits
+    for text in ('do ingest turn c 1 "t"', "do ingest doc d/x.md", 'do ingest paper "reference:p"',
+                 "do ingest code", "do ingest transcript s", "do sync vault", "do sync dialogue",
+                 "do sync code", "do curate", "do relate", 'do link "a" "b" supports',
+                 'do capture "t"', 'do research "q"'):
+        node = parse(text)
+        assert isinstance(node, ast.Do)
+        name, strata, _fibers, _clock, _propose = command_requirement(node.command)
+        assert name and strata and typecheck(node) is Sort.EVENT
+
+
+def test_the_ambassadors_grant_as_written_admits_projection_event_commands_only() -> None:
+    """DOR-1 read on the grant as it stands (dn-ingest-door D2, §8): the first plane carries the
+    write bit at the projection-event clock over six strata, the commit-clock plane carries none,
+    and the order is false across clocks."""
+    from core.query import AMBASSADOR, AMBASSADOR_OVERLAY
+
+    admitted = ["do dream", 'do capture "t"', 'do link "a" "b" supports', 'do ingest note "x"',
+                "do sync vault", 'do ingest doc d/x.md', "do relate"]
+    refused = ["do ingest code", "do sync code", "do sync chat", "do observe code",
+               "do ingest transcript s"]
+    for text in admitted:
+        assert admissible(parse(text), AMBASSADOR), text
+        assert admissible(parse(text), AMBASSADOR_OVERLAY), text
+    for text in refused:
+        assert not admissible(parse(text), AMBASSADOR), text
+        with pytest.raises(IllScopedSentence):
+            check_admissible(parse(text), AMBASSADOR)
+
+
+def test_a_read_only_grant_admits_no_command_and_still_admits_every_query() -> None:
+    """DOR-1 `readonly_admits_no_command`: planes without the write bit refuse every command."""
+    from core.kernel.scope import Window
+    from core.query import Grant, scope
+
+    read_only = Grant((
+        scope({Stratum.MIRROR, Stratum.CURATED, Stratum.INTERPRETED, Stratum.DIALOGUE,
+               Stratum.OBSERVED, Stratum.REFERENCE}, {"F", "D"}, Clock.PROJECTION_EVENT,
+              Window.all(), propose=True),
+        scope({Stratum.REFERENCE, Stratum.DIALOGUE}, {"F", "C"}, Clock.COMMIT, Window.all(),
+              propose=True),
+    ))
+    for text in ("do dream", 'do capture "t"', 'do ingest note "x"', "do sync vault",
+                 'do link "a" "b" supports', "do ingest code", 'do research "q"'):
+        assert not admissible(parse(text), read_only), text
+    for text in ('near "x"', 'reach F from "core/x.py"', 'reach C from "x"', 'witness "e"'):
+        assert admissible(parse(text), read_only), text

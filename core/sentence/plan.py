@@ -234,6 +234,8 @@ def _render(node: Node, indent: int) -> list[str]:
             return [f"{pad}as of {c!r}"] + _render(b, indent + 1)
         case ast.Assume(hypothesis=h, body=b):
             return [f"{pad}assume {ast.describe(h)} in"] + _render(b, indent + 1)
+        case ast.Do(command=c):
+            return [f"{pad}do {ast.describe_command(c)}"]
     return [f"{pad}{node!r}"]  # pragma: no cover
 
 

@@ -7,21 +7,25 @@ it against the live universe, and append one line to the query log — the sente
 the role that asked, the strata its clauses read, the modes, and the outcome: `answered`, `empty`
 (well-formed, admissible, nothing there: the mechanical proxy for a translation that failed) or
 `refused`, with the refusal's class (`parse`, `sort`, `scope`, `ambiguous`, `lookup`,
-`unsupported`) and its reason. The log holds no note text: a sentence is the asker's own words and
-the hits are counted, never named. `summarize` reads the log back as the sensor the brainstorm
-asked for — which strata serve which roles, which translations fail — and `palace query --log`
-renders it. A sensor never breaks the instrument: a log that cannot be written is reported on
-stderr and the answer is returned anyway.
+`unsupported`) and its reason, or `requested` for a command the door spooled. The log holds no
+note text: a sentence is the asker's own words and the hits are counted, never named; a command's
+string literals, which may be corpus text (`do capture "…"`), are logged as their lengths
+(`redact_command`). `summarize` reads the log back as the sensor the brainstorm asked for — which
+strata serve which roles, which translations fail — and `palace query --log` renders it. A sensor
+never breaks the instrument: a log that cannot be written is reported on stderr and the answer is
+returned anyway.
 
 `run_query` is `palace query` (scripts/palace.py): read-only, under `sentence_grant()` — the
 Ambassador's grant with the hypothetical overlay the owner granted on 2026-11-04 (the note's
 §4 d; `[query] hypotheticals` turns it off). `--as <role>` labels the asker for the sensor and
-grants nothing.
+grants nothing: a command the CLI speaks goes to the door as the role `cli`, whatever the label
+(`door_role`), and the MCP's `query` speaks as `ambassador`.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import sys
 import time
 from collections import Counter
@@ -34,7 +38,7 @@ from typing import Any, TextIO
 from core.kernel.config import get_config
 from core.query import AMBASSADOR, AMBASSADOR_OVERLAY, Grant, Hit, QueryEngine
 from core.sentence.execute import SentenceAnswer, Universe, UnsupportedSentence, execute
-from core.sentence.grammar import ParseError, parse
+from core.sentence.grammar import ParseError, parse, tokenize
 from core.sentence.plan import Plan, compile_sentence, normalize
 from core.sentence.precedents import DEFAULT, Precedents
 from core.sentence.trace import Trace
@@ -48,6 +52,7 @@ from core.sentence.types import (
 
 LOG_NAME = "query_log.jsonl"
 REASON_MAX = 240   # a refusal's reason, truncated: the log is a sensor, not a transcript
+MAX_COMMAND_BYTES = 32 * 1024     # the door's cap (`core/ingest/door.py`), checked first
 USAGE = ('usage: palace query "<sentence>" [--json] [--no-plan] [--trace] [--as <role>]\n'
          "       palace query --log [--json]      the sensor: strata by role, failed translations")
 
@@ -63,7 +68,7 @@ class Entry:
     surface: str                 # cli | mcp
     role: str                    # who asked, a label for the sensor — never a permission
     sentence: str
-    outcome: str                 # answered | empty | refused
+    outcome: str                 # answered | empty | refused | requested (a command spooled)
     refusal: str = ""            # parse | sort | scope | ambiguous | lookup | unsupported | error
     reason: str = ""
     sort: str = ""
@@ -130,25 +135,94 @@ def refusal_class(e: BaseException) -> str:
         return "unsupported"
     if isinstance(e, LookupError):
         return "lookup"
+    from core.ingest.door import Busy
+
+    if isinstance(e, Busy):
+        return "busy"
     return ""
 
 
 # ── the logged ask ─────────────────────────────────────────────────────────────────────────────
 
 
+_QUOTED = (re.compile(r"'[^']*'"), re.compile(r'"[^"]*"'))   # linear: no alternation, no escape
+
+
+def is_command(text: str) -> bool:
+    return text.split(maxsplit=1)[:1] == ["do"]
+
+
+def redact_command(text: str) -> str:
+    """A command as the log keeps it: rebuilt from its tokens with each string replaced by its
+    length in characters, so a captured text or a turn's words never enter the query log. A
+    command that does not tokenize is kept as its command word and its length alone."""
+    try:
+        tokens = tokenize(text)
+    except ParseError:
+        return f"do {_command_word(text)} <{len(text)} characters, unparsed>"
+    return " ".join(f'"<{len(t.text)}>"' if t.kind == "STRING" else t.text
+                    for t in tokens if t.kind != "END")
+
+
+def _command_word(text: str) -> str:
+    words = text[:256].split(maxsplit=2)
+    return words[1] if len(words) > 1 and words[1].isidentifier() else "?"
+
+
+def redact_reason(reason: str) -> str:
+    """A refusal's reason as the log keeps it for a command: every quoted run replaced by its
+    length, since a landing's refusal may name a conversation or a text."""
+    for pattern in _QUOTED:
+        reason = pattern.sub(lambda m: f"<{len(m.group(0)) - 2} characters>", reason)
+    return reason
+
+
 def ask_logged(text: str, grant: Grant, *, surface: str, role: str,
                engine: QueryEngine | None = None, universe: Universe | None = None,
                log: QueryLog | None = None, precedents: Precedents = DEFAULT,
-               trace: bool = False) -> SentenceAnswer:
+               trace: bool = False, door_role: str | None = None) -> SentenceAnswer:
     """Compile `text` under `grant`, run it, log the outcome; a refusal is logged, then raised.
     With `trace`, the answer carries its proof of work (`core/sentence/trace.py`); the log entry
-    is the same either way."""
+    is the same either way. A command (`do …`) compiles under the grant of `door_role`, the role
+    the surface speaks for at the door (`role` when not given), and is spooled for the daemon."""
     log = log if log is not None else default_log()
     started = time.perf_counter()
     plan: Plan | None = None
     t = Trace() if trace else None
+    command = is_command(text)
+    door_role = door_role if door_role is not None else role
+    if command and len(text.encode("utf-8")) > MAX_COMMAND_BYTES:
+        e = ValueError(f"a command is at most {MAX_COMMAND_BYTES} bytes")
+        log.record(_entry(f"do {_command_word(text)} <{len(text)} characters, over the cap>",
+                          surface, role, started, None, precedents, outcome="refused",
+                          refusal="error", reason=str(e)))
+        raise e
+    logged = redact_command(text) if command else text
     try:
+        # a command compiles under the grant of the role that speaks it (dn-ingest-door D3):
+        # the first check; the daemon's writer makes the second
+        if command:
+            from core.ingest import door
+
+            grant = door.grant_for(door_role)
         plan = compile_sentence(text, grant, precedents=precedents, trace=t)
+        if plan.sort is Sort.EVENT:
+            from core.ingest import door
+
+            cfg = engine.config if engine is not None else get_config()
+            receipt = door.write_request(cfg, role=door_role, plan=plan)
+            if t is not None:
+                t.note("act", f"request {receipt.request} spooled for role {door_role!r} as "
+                              f"kind {receipt.kind!r}: the daemon's one writer lands it and "
+                              "writes the receipt beside the request", "DOR-4")
+            answer = SentenceAnswer(
+                plan, (Hit(ref=f"door:{receipt.request}", title=receipt.kind, stratum="door",
+                           provenance=door_role, detail=receipt.to_dict()),), None,
+                ("the command is written as a request for the daemon's one writer; the receipt "
+                 "names it, and `palace queue` shows the job (dn-ingest-door D3)",), t)
+            log.record(_entry(logged, surface, role, started, plan, precedents,
+                              outcome="requested", hits=1))
+            return answer
         if universe is not None:
             u = universe
         elif plan.sort is Sort.TEXT and plan.is_inv:   # a bare read opens no note graph
@@ -159,11 +233,12 @@ def ask_logged(text: str, grant: Grant, *, surface: str, role: str,
             u = build(engine or QueryEngine(), plan, precedents=precedents, trace=t)
         answer = execute(plan, u, precedents=precedents, trace=t)
     except Exception as e:
-        log.record(_entry(text, surface, role, started, plan, precedents, outcome="refused",
-                          refusal=refusal_class(e) or "error", reason=str(e)[:REASON_MAX]))
+        reason = redact_reason(str(e)) if command else str(e)
+        log.record(_entry(logged, surface, role, started, plan, precedents, outcome="refused",
+                          refusal=refusal_class(e) or "error", reason=reason[:REASON_MAX]))
         raise
     n = max(len(answer.hits), 0 if answer.hyp is None else len(answer.hyp.value))
-    log.record(_entry(text, surface, role, started, plan, precedents,
+    log.record(_entry(logged, surface, role, started, plan, precedents,
                       outcome="answered" if n else "empty", hits=n, hyp=answer.hyp is not None))
     return answer
 
@@ -210,7 +285,7 @@ def summarize(entries: Iterable[Entry]) -> dict[str, Any]:
                                         if e.outcome == "refused").items())),
         "failed": [{"at": e.at, "role": e.role, "sentence": e.sentence,
                     "why": f"{e.refusal}: {e.reason}" if e.outcome == "refused" else "empty"}
-                   for e in rows if e.outcome != "answered"][-10:],
+                   for e in rows if e.outcome in ("refused", "empty")][-10:],
     }
 
 
@@ -305,7 +380,8 @@ def run_query(argv: list[str], *, out: TextIO | None = None, grant: Grant | None
     text = " ".join(words)
     try:
         answer = ask_logged(text, grant, surface="cli", role=role, engine=engine,
-                            universe=universe, log=log, trace="--trace" in flags)
+                            universe=universe, log=log, trace="--trace" in flags,
+                            door_role="cli")               # `--as` labels; the door hears `cli`
     except Exception as e:
         cls = refusal_class(e)
         if not cls:

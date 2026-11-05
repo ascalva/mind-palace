@@ -98,63 +98,42 @@ class Ambassador:
             code = fn()
         return {"ok": code == 0, "output": buf.getvalue().strip()}
 
+    # The write tools, as aliases of the one command `query` (dn-ingest-door D7): each compiles
+    # a sentence of the door and writes the request the daemon's one writer lands; the receipt
+    # rides back as the answer's hit. Nothing is written from this process any more.
+    def _do(self, sentence: str) -> dict[str, Any]:
+        return self.query(sentence)
+
     def sync_dialogue(self) -> dict[str, Any]:
-        return self._run(self.launcher.dialogue_sync_now)
+        return self._do("do sync dialogue")
 
     def sync_notes(self) -> dict[str, Any]:
-        return self._run(self.launcher.vault_sync_now)
+        return self._do("do sync vault")
 
     def dream(self) -> dict[str, Any]:
-        return self._run(self.launcher.dream_now)
+        return self._do("do dream")
 
     def relate(self, max_pairs: int = 12) -> dict[str, Any]:
-        return self._run(lambda: self.launcher.relate_now(max_pairs=max_pairs))
+        return self._do(f"do relate pairs {int(max_pairs)}")
 
-    def capture(self, text: str, conversation: str = "ambassador") -> dict[str, Any]:
-        """Store text the MODEL relays (a summary, a decision it was asked to remember) as an
-        `observed` dialogue turn. Never authored: only the owner's own turns, synced from their
-        chat app, carry authored provenance."""
-        import hashlib
+    def capture(self, text: str, conversation: str = "captures") -> dict[str, Any]:
+        """Remember text the MODEL relays (a summary, a decision it was asked to remember) as an
+        `observed` dialogue turn, by the door, under `dialogue/door/ambassador/<conversation>/`.
+        Never authored: only the owner's own turns, synced from their chat app, carry authored
+        provenance. A conversation is a name, not a path."""
+        from core.sentence import quote
 
-        from core.ingest.dialogue import build_dialogue_capture
-
-        turn = hashlib.sha256(text.encode()).hexdigest()[:16]
-        digest, created = build_dialogue_capture(self.engine.config).capture_turn(
-            text, conversation=conversation, turn_id=turn, role="assistant"
-        )
-        return {
-            "ref": f"dialogue/{conversation}/{turn}",
-            "digest": digest,
-            "created": created,
-            "provenance": "observed",
-        }
+        return self._do(f"do capture {quote(text)} in {quote(conversation)}")
 
     def link(self, note_a: str, note_b: str, relation: str) -> dict[str, Any]:
-        """Propose a signed relation between two notes — stored as `interpreted`."""
+        """Propose a signed relation between two notes, stored as `interpreted`, by the door."""
         from core.relations import RELATIONS
 
         if relation not in RELATIONS:
             raise ValueError(f"relation must be one of {list(RELATIONS)}")
-        from core.query import AMBASSADOR
-        from core.sentence import compile_sentence, quote
+        from core.sentence import quote
 
-        compile_sentence(f"relate {quote(note_a)}", AMBASSADOR)   # the relation plane, admitted
-        notes, _, _ = self.engine.note_graph()
-        a, b = (notes[self.engine.index_of(notes, t)] for t in (note_a, note_b))
-        sign, factor = RELATIONS[relation]
-        self.engine._get("edges").add(
-            a["digest"],
-            b["digest"],
-            sign=sign,
-            rel_type=relation,
-            w=factor,
-            provenance="interpreted",
-        )
-        return {
-            "linked": [a["source_path"], b["source_path"]],
-            "relation": relation,
-            "provenance": "interpreted",
-        }
+        return self._do(f"do link {quote(note_a)} {quote(note_b)} {relation}")
 
     # the loop's bookkeeping (docs/brainstorms/ambassador-agent-loop.md, phase 1) ----------------
     def status(self) -> dict[str, Any]:
@@ -299,13 +278,14 @@ TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
     ),
     (
         "sync_notes",
-        "Re-ingest the owner's changed notes now.",
+        "Re-ingest the owner's changed notes (a `do sync vault` request the daemon lands).",
         _schema({}, []),
         "sync_notes",
     ),
     (
         "capture",
-        "Remember text you relay (stored as observed, not the owner's words).",
+        "Remember text you relay, stored as observed, never as the owner's words (a `do capture` "
+        "request the daemon lands).",
         _schema({"text": _S, "conversation": _S}, ["text"]),
         "capture",
     ),
@@ -343,7 +323,8 @@ TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
     ),
     (
         "link",
-        "Propose a relation between two notes (stored as interpreted).",
+        "Propose a relation between two notes, stored as interpreted (a `do link` request the "
+        "daemon lands).",
         _schema(
             {
                 "note_a": _S,
@@ -356,13 +337,15 @@ TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
     ),
     (
         "dream",
-        "Run one dreaming pass now (minutes; wakes the large model).",
+        "Request one dreaming pass (a `do dream` request; minutes, in a trough, wakes the large "
+        "model).",
         _schema({}, []),
         "dream",
     ),
     (
         "relate",
-        "Detect relations among similar notes now (minutes; wakes the large model).",
+        "Request a relation pass among similar notes (a `do relate` request; minutes, wakes the "
+        "large model).",
         _schema({"max_pairs": _I}, []),
         "relate",
     ),

@@ -55,6 +55,14 @@ def test_prefix_operators_apply_to_the_operand() -> None:
     assert parse('not reach from "n"') == ast.Not(ast.Reach(Rel.F, "n", None, Direction.BOTH))
 
 
+def test_a_parse_error_never_quotes_a_string() -> None:
+    """A string's text never enters an error, so a command's quoted words never reach the query
+    log through a refusal's reason; its length and place do."""
+    with pytest.raises(ParseError) as e:
+        parse('do capture "a" "the secret words"')
+    assert "secret" not in str(e.value) and "a string of 16 characters" in str(e.value)
+
+
 @pytest.mark.parametrize("text, production", [
     ("near x", "near"),
     ('foo "x"', "clause"),
@@ -95,3 +103,85 @@ def test_read_parses_with_an_optional_chunk() -> None:
     assert parse('read "a.md" and near "b"') == ast.And(ast.Read("a.md", None), ast.Near("b"))
     with pytest.raises(ParseError, match="read chunk"):
         parse('read "a.md" chunk x')
+
+
+# ── the action sort: `do <command>` (dn-ingest-door D2) ─────────────────────────────────────────
+
+
+def test_commands_parse_to_their_nodes() -> None:
+    from core.sentence.ast import (
+        Capture,
+        Curate,
+        Do,
+        Dream,
+        Ingest,
+        Link,
+        Observe,
+        RelatePass,
+        Research,
+        Source,
+        SourceKind,
+        Sync,
+    )
+
+    assert parse('do ingest note "notes/x.md"') == Do(Ingest(Source(SourceKind.NOTE, "notes/x.md")))
+    assert parse('do ingest turn conv-1 7 "hello"') == Do(
+        Ingest(Source(SourceKind.TURN, atom="conv-1", turn="7", text="hello")))
+    assert parse("do ingest doc docs/a.md") == Do(Ingest(Source(SourceKind.DOC, "docs/a.md")))
+    assert parse('do ingest paper "reference:p1"') == Do(
+        Ingest(Source(SourceKind.PAPER, "reference:p1")))
+    assert parse("do ingest code") == Do(Ingest(Source(SourceKind.CODE, "")))
+    assert parse("do ingest code abc1234") == Do(Ingest(Source(SourceKind.CODE, "abc1234")))
+    assert parse("do ingest transcript 230fd788-0f18") == Do(
+        Ingest(Source(SourceKind.TRANSCRIPT, "230fd788-0f18")))
+    assert parse("do sync vault") == Do(Sync("vault"))
+    assert parse("do observe code") == Do(Observe(None))
+    assert parse("do observe code e91ef02") == Do(Observe("e91ef02"))
+    assert parse("do dream") == Do(Dream())
+    assert parse("do curate") == Do(Curate())
+    assert parse("do relate") == Do(RelatePass(None))
+    assert parse("do relate pairs 12") == Do(RelatePass(12))
+    assert parse('do link "a.md" "b.md" supports') == Do(Link("a.md", "b.md", "supports"))
+    assert parse('do capture "remember this" in conv-1') == Do(Capture("remember this", "conv-1"))
+    assert parse('do capture "remember this"') == Do(Capture("remember this", None))
+    assert parse('do research "sleep and memory"') == Do(Research("sleep and memory"))
+    assert typecheck(parse("do dream")) is Sort.EVENT
+
+
+@pytest.mark.parametrize("text, reason", [
+    ('do dream and near "x"', "no connective"),            # a command is a whole sentence
+    ('do sync vault within reach F from "n"', "no connective"),
+    ("do sync nowhere", "one of vault, dialogue, chat, code"),
+    ('do link "a" "b" sideways', "one of supports, contradicts, contextualizes"),
+    # no role word: a turn the door ingests is observed by construction
+    ('do ingest turn conv 7 user "hello"', "a quoted string"),
+    ("do ingest", "a source"),
+    ("do", "a command"),
+    ("do fly", "not 'fly'"),
+    ('near "x" then do dream', "a verb"),                  # `do` is a keyword, never a verb
+])
+def test_a_command_that_is_not_in_the_grammar_is_refused_with_the_reason(text: str,
+                                                                            reason: str) -> None:
+    with pytest.raises(ParseError) as e:
+        parse(text)
+    assert reason in str(e.value)
+
+
+@pytest.mark.parametrize("text", [
+    "plain", 'a "quoted" word', "ends with backslash \\", 'a\\" in evil', "back\\\\slash",
+    'do capture "x" in y', "\\\"", "new\nline and tab\t", "",
+])
+def test_quote_is_the_tokenizers_inverse(text: str) -> None:
+    """A client's text, quoted, reads back as itself and never ends the literal early: the one
+    command the sentence carries is the one the alias built (the review's finding 13)."""
+    from core.sentence.grammar import quote
+    term = parse(f"do capture {quote(text)} in tea")
+    assert isinstance(term, ast.Do) and isinstance(term.command, ast.Capture)
+    assert term.command.text == text and term.command.conversation == "tea"
+
+
+def test_the_command_words_are_not_keywords_elsewhere() -> None:
+    # `dialogue` and `code` keep working as a stratum and as a bare atom
+    assert parse('near "x" over dialogue') == ast.Over(ast.Near("x"), ("dialogue",))
+    assert parse("relate code") == ast.Relate("code")
+    assert parse("trace note") == ast.Trace("note", Direction.FORWARD)
