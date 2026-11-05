@@ -121,12 +121,12 @@ A law has one row in [`docs/LAWS.md`](docs/LAWS.md): its statement, the structur
 | | |
 |---|---|
 | toolchain | Lean `v4.36.0-rc2`, Mathlib; Plausible for the attacks |
-| the library | 25 proof modules, 24 models, 19 statement files; 13,106 lines of models and proofs, 2,251 of statements, 2,551 of attacks |
-| theorems | 755 proved in `formal/Palace`; 205 statements in `formal/Spec` judged identical by the comparator |
+| the library | 25 proof modules, 24 models, 19 statement files; 13,416 lines of models and proofs, 2,251 of statements, 2,551 of attacks |
+| theorems | 799 proved in `formal/Palace`; 205 statements in `formal/Spec` judged identical by the comparator |
 | the ledger | 79 rows in 11 families, 211 cited declarations, 66 law markers checked against the rows |
-| attacks | 96 Plausible attacks and 97 negative controls over 22 modules, fixed seeds |
+| attacks | 92 Plausible attacks and 84 negative controls over 21 modules, fixed seeds |
 | axioms | `propext`, `Classical.choice`, `Quot.sound`; `sorry` 0 |
-| the replay | 44,896 declarations accepted by all six checkers on every run of `formal/check.sh` |
+| the replay | 44,936 declarations accepted by all six checkers on every run of `formal/check.sh` |
 | families | memberships · Laplacian, balance and spectral · cut and conductance · curvature · the global event clock · the shared prose plane · capability scopes · the abstraction ultrametric σ* · bridges · the retrieval curve · the query sentence algebra |
 
 ## The mathematics
@@ -137,7 +137,7 @@ A law has one row in [`docs/LAWS.md`](docs/LAWS.md): its statement, the structur
 - **Paths as regular expressions.** `walk from n via S+F*` compiles the expression to an automaton and walks its product with the typed graph. A chain is admissible exactly when the automaton accepts it, pruning dead states loses nothing, and a hypothetical edge only adds chains (QSA-7).
 - **The abstraction ultrametric.** σ\* is read off Kruskal's forest, which keeps every threshold's components; the forest sweep and the union-find sweep agree (SIG-1 to SIG-4).
 - **Three Laplacians.** The plain Laplacian gives components and conductance; the signed one decides whether a web of support and contradiction is balanced; the magnetic one carries a phase around each cycle, with the signed Laplacian as its ℤ/2 fiber. The Hodge 1-Laplacian splits edge flows into gradient, curl and harmonic parts and counts holes (LAP-1 to LAP-11, BRG-7).
-- **Transports along supersession.** When a note supersedes another, cochains pull back and push forward along the map. Under a merge the pullback is not a contraction, contrary to a ratified note; it is an isometry under the fiber-weighted inner product, the push-forward contracts under its inverse, and the curvature of the superconnection is supported exactly on the severed citations (TRN-1 to TRN-5). Along lineages that never merge, which is what the versions store enforces, the pullback is a contraction after all. Under the confidence weight γ^depth, a machine step one level deeper contracts the energy by exactly γ, a merge keeps the contraction only while γ times the fiber stays at most one, and an owner promotion injects γ^-k: the owner is the only energy source (TRN-6 to TRN-8).
+- **Transports along supersession.** When a note supersedes another, cochains pull back and push forward along the map. Under a merge the pullback is not a contraction, contrary to a ratified note; it is an isometry under the fiber-weighted inner product, the push-forward contracts under its inverse, and the curvature of the superconnection is supported exactly on the severed citations (TRN-1 to TRN-5). The pullback is a contraction exactly when nothing merges, which is what the versions store enforces. Under the confidence weight γ^depth, a machine step one level deeper contracts the energy by exactly γ (the norm by exactly γ under the weight γ^2·depth), a merge keeps every cochain's energy from growing exactly while γ times the widest fiber stays at most one, and an owner promotion multiplies the energy by γ^-k. Measured as mass, the weighted ℓ¹ norm, no machine step adds any, merges included: there the owner is the only source (TRN-6 to TRN-9).
 - **A leak costs a step of temperature.** If the census feeding a support under-counts every degree by a fraction ε, the support's nearness is bounded by the whole graph's at killing `(1+ε)·z`, uniformly in depth (LEAK-1, LEAK-2).
 - **Floats.** The float claims are proved over a model of binary64 round-to-nearest that is itself checked, bit for bit, against this machine's arithmetic (Binary64, Roundoff).
 

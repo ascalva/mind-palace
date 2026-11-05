@@ -53,7 +53,7 @@ def fiber (σ : A → B) (b : B) : ℕ := (univ.filter fun a ↦ σ a = b).card
 /-- The largest fiber: the width of the widest merge. -/
 def maxFiber (σ : A → B) : ℕ := univ.sup (fiber σ)
 
-/-- The fiber-weighted inner product on the target, `⟨f, g⟩_σ = ∑_b |σ⁻¹ b| f b g b` — the
+/-- The fiber-weighted inner product on the target, `⟨f, g⟩_σ = ∑_b |σ⁻¹ b| f b g b`: the
 weighted inner product PD-b asks for, read off the merge. -/
 def wdot (σ : A → B) (f g : B → ℝ) : ℝ := ∑ b, (fiber σ b : ℝ) * (f b * g b)
 
@@ -66,7 +66,11 @@ noncomputable def wdotInv (σ : A → B) (f g : B → ℝ) : ℝ := ∑ b, (fibe
 
 /-- The confidence-weighted inner product of a view whose notes sit at derivation depths `d`:
 `⟨f, g⟩_{γ,d} = ∑_b γ^{d b} f_b g_b`, the weight `γ^d` of `core/kernel/recursion.py`'s decay
-bound (γ = 1/2 by default) — Result 6's confidence-weighted cochains (temporal-retrieval §2.3). -/
+bound (γ = 1/2 by default), Result 6's confidence-weighted cochains (temporal-retrieval §2.3). -/
 def wdotDepth (γ : ℝ) (d : B → ℕ) (f g : B → ℝ) : ℝ := ∑ b, γ ^ d b * (f b * g b)
+
+/-- The confidence mass of a cochain at depths `d`, the weighted ℓ¹ norm `∑_b γ^{d b} |f_b|`:
+the measure under which a merge adds magnitudes at most, so no machine step adds mass. -/
+def massDepth (γ : ℝ) (d : B → ℕ) (f : B → ℝ) : ℝ := ∑ b, γ ^ d b * |f b|
 
 end Palace.Transport
