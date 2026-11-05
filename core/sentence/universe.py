@@ -46,7 +46,7 @@ from typing import Any
 import numpy as np
 
 from core.kernel.clearance import CODE_READ, CURATED_READ, DIALOGUE_READ
-from core.kernel.scope import Stratum
+from core.kernel.scope import Stratum, StratumScope
 from core.query import CURATED_REF, QueryEngine
 from core.sentence import ast
 from core.sentence.ast import Node, Rel
@@ -60,6 +60,7 @@ from core.sentence.types import (
     REFERENCE_NAMES,
     TRANSCRIPT_REF,
     AmbiguousSentence,
+    IllScopedSentence,
     stratum_of_provenance,
 )
 
@@ -74,6 +75,7 @@ class Seeds:
     anchors: list[tuple[str, int]] = field(default_factory=list)   # (atom, radius in hops)
     cut: str | None = None
     moves: set[Rel] = field(default_factory=set)                   # the letters the verbs walk
+    transcript: bool = False      # some clause reads the dialogue's transcript stratum
 
 
 def seeds_of(term: Node, precedents: Precedents = DEFAULT) -> Seeds:
@@ -85,6 +87,8 @@ def seeds_of(term: Node, precedents: Precedents = DEFAULT) -> Seeds:
 
 
 def _collect(node: Node, strata: frozenset[Stratum], s: Seeds, p: Precedents) -> None:
+    if Stratum.DIALOGUE_TRANSCRIPT in StratumScope.of(*strata).strata:
+        s.transcript = True
     match node:
         case ast.Near(text=t):
             s.texts.append((t, strata))
@@ -123,6 +127,35 @@ def _collect(node: Node, strata: frozenset[Stratum], s: Seeds, p: Precedents) ->
             if isinstance(h, ast.EdgeHyp | ast.SeverHyp):
                 s.moves.add(h.rel)
             _collect(b, strata, s, p)
+
+
+def producing_turn(e: Mapping[str, Any]) -> str:
+    """The transcript turn that produced a causal edge's action: the utterance just before it.
+    The event projector stamps an action with the index the next utterance will take
+    (`core/chat_events.py::extract_events`), so the producing turn is that index less one; an
+    action before any utterance names the session's first turn."""
+    t = int(e["witness_turn"])
+    return f"{TRANSCRIPT_REF}{e['session_id']}/{max(t - 1, 0)}"
+
+
+def _doc_path(doc_id: str) -> str | None:
+    """A doc's id as the event projector mints it (`dn-…`, `finding-…`, `bp-…`), resolved to its
+    repo-relative file when exactly one file is it; `None` otherwise."""
+    from core.kernel.config import REPO_ROOT
+
+    root = Path(REPO_ROOT)
+    stem = doc_id.removesuffix(".md")
+    if stem.startswith("dn-"):
+        hits = [root / "docs" / "design-notes" / f"{stem}.md"]
+    elif stem.startswith("finding-"):
+        hits = sorted((root / "docs" / "findings").glob(f"{stem}*.md"))
+    elif stem.startswith("bp-"):
+        hits = sorted((root / "docs" / "build-plans").glob(f"{stem}*/plan.md")) + sorted(
+            (root / "docs" / "build-plans").glob(f"{stem}*.md"))
+    else:
+        return None
+    hits = [h for h in hits if h.is_file()]
+    return hits[0].relative_to(root).as_posix() if len(hits) == 1 else None
 
 
 # ── the builder ────────────────────────────────────────────────────────────────────────────────
@@ -177,7 +210,8 @@ class _Builder:
         self.moves: frozenset[Rel] = frozenset()     # the letters the sentence walks
         self._causal_index: tuple[dict[str, list[tuple[str, dict[str, Any]]]],
                                   dict[str, list[tuple[str, dict[str, Any]]]]] | None = None
-        self._chat: dict[str, dict[str, Mapping[str, Any]]] = {}
+        self._chat: dict[tuple[str, str], Mapping[str, Any] | None] = {}
+        self.transcript = False     # some clause reads the transcript stratum (`Seeds.transcript`)
         self.notes: list[str] = []
         self.view: Any = None
         self.cut: str | None = None
@@ -353,64 +387,83 @@ class _Builder:
         return roots
 
     def _endpoint(self, dst: str, dst_type: str) -> _Node:
-        """The node a causal endpoint names, not yet added: a path under a checkout of the repo
-        (this one, the main one, or any worktree's `<x>/.claude/worktrees/<name>/`) is the
-        reference graph's node by its repo-relative path; a path under the vault the mirror's
-        note; an artifact id, or a path outside both, is a node by that name which `read` cannot
-        open — named, never silently dropped (the endpoint is structural: a path or an id, never
-        content)."""
+        """The node a causal endpoint names, not yet added. A path under a checkout of this repo
+        (this one, the main one, or one of the main one's worktrees,
+        `<main>/.claude/worktrees/<name>/`) is the reference graph's node by its repo-relative
+        path; a path under the vault is the mirror's note; a doc's id (`dn-…`, `finding-…`,
+        `bp-…`) is its file in the repo when exactly one file is it. Anything else, a commit's
+        sha, an artifact's id, a path outside the repo and the vault or under another repo's
+        worktree, is named as a node of the transcript's stratum, the action log it came from,
+        which `read` cannot open: named, never silently dropped, and never a reference node (the
+        endpoint is structural, a path or an id, never content)."""
         kind = "code" if dst.endswith(".py") else "corpus"
+
+        def logged(why: str) -> _Node:
+            return _Node(dst, "transcript", dst, "", "observed", None, {"endpoint": why})
+
+        if dst_type == "commit":
+            return logged("a commit, not a file")
         if dst_type == "doc" and "/" not in dst:
-            return _Node(dst, "reference", dst, "", "doc", None, {"artifact": "an id, not a path"})
+            rel = _doc_path(dst)
+            if rel is None:
+                return logged("a doc's id, not a path")
+            return _Node(rel, "reference", rel, "", "corpus", None, {"id": dst})
         p = Path(dst)
         if not p.is_absolute():
-            return _Node(dst, "reference", dst, "", kind, None, {})
+            return (_Node(dst, "reference", dst, "", kind, None, {}) if is_repo_path(dst)
+                    else logged("not a path in the repo"))
         parts = p.parts
+        roots = self._roots()
         # a worktree's file, `<x>/.claude/worktrees/<name>/<rel>`: the LAST such segment (this
-        # checkout may itself be a worktree, so its own path holds one); the file is this
-        # checkout's own when that prefix is this checkout
+        # checkout may itself be a worktree, so its own path holds one), and only when `<x>` is a
+        # checkout of this repo; the file is this checkout's own when the prefix is this checkout
         marks = [i for i in range(len(parts) - 3)
                  if parts[i] == ".claude" and parts[i + 1] == "worktrees"]
-        if marks:
+        if marks and Path(*parts[:marks[-1]]) in roots:
             i = marks[-1]
             rel = "/".join(parts[i + 3:])
-            own = Path(*parts[:i + 3]) == self._roots()[0]
+            own = Path(*parts[:i + 3]) == roots[0]
             return _Node(rel, "reference", rel, "", kind, None,
                          {} if own else {"worktree": parts[i + 2]})
-        for root in self._roots():
-            if root in p.parents:
-                rel = p.relative_to(root).as_posix()
-                return _Node(rel, "reference", rel, "", kind, None, {})
+        if not marks:
+            for root in roots:
+                if root in p.parents:
+                    rel = p.relative_to(root).as_posix()
+                    return _Node(rel, "reference", rel, "", kind, None, {})
         vault = Path(str(self.e.config.ingestion.vault.path)).expanduser()
         if vault in p.parents or vault.resolve() in p.parents:
             have = self.nodes.get(dst)
             if have is not None:
                 return have
             return _Node(dst, "mirror", p.name, "", "", None, {"inactive": "not in the mirror"})
-        return _Node(dst, "reference", dst, "", kind, None,
-                     {"outside": "the repo and the vault; named, not readable"})
+        return logged("outside the repo and the vault")
 
     def _utterance(self, session: str, turn: str) -> Mapping[str, Any] | None:
-        if session not in self._chat:
-            try:
-                rows = self.e._get("chatlog").rows_for(session)
-            except KeyError:                               # an engine without the chat store
-                rows = []
-            self._chat[session] = {str(r.get("turn_index", "")): r for r in rows}
-        return self._chat[session].get(turn)
+        """One turn of the chatlog, read through the dialogue clearance; `None` when absent."""
+        key = (session, turn)
+        if key not in self._chat:
+            row: Mapping[str, Any] | None = None
+            if turn.isdigit():
+                try:
+                    row = self.e._get("chatlog").utterance(session, int(turn),
+                                                           clearance=DIALOGUE_READ)
+                except KeyError:                           # an engine without the chat store
+                    row = None
+            self._chat[key] = row
+        return self._chat[key]
 
     def _turn(self, ref: str) -> _Node:
-        """A transcript turn's node, `transcript/<session>/<turn>`, titled with its speaker when
-        the chatlog holds the session: structure only, since the turns are not embedded."""
+        """A transcript turn's node, `transcript/<session>/<turn>`, titled with its full ref and
+        its speaker when the chatlog holds it: structure only, since the turns are not embedded
+        (the raw transcript's digest is never carried)."""
         session, _, turn = ref[len(TRANSCRIPT_REF):].rpartition("/")
         row = self._utterance(session, turn)
         speaker = str(row.get("speaker", "")) if row else ""
-        title = f"{TRANSCRIPT_REF}{session[:8]}/{turn}" + (f" ({speaker})" if speaker else "")
+        title = ref + (f" ({speaker})" if speaker else "")
         detail: dict[str, Any] = {"session": session, "turn": turn}
         if speaker:
             detail["speaker"] = speaker
-        digest = str(row.get("transcript_digest", "")) if row else ""
-        return _Node(ref, "transcript", title, digest, "observed", None, detail)
+        return _Node(ref, "transcript", title, "", "observed", None, detail)
 
     def _causal(self) -> tuple[dict[str, list[tuple[str, dict[str, Any]]]],
                                dict[str, list[tuple[str, dict[str, Any]]]]]:
@@ -421,7 +474,7 @@ class _Builder:
             by_turn: dict[str, list[tuple[str, dict[str, Any]]]] = {}
             by_end: dict[str, list[tuple[str, dict[str, Any]]]] = {}
             for e in self.store("causal").all_edges():
-                tref = f"{TRANSCRIPT_REF}{e['session_id']}/{e['witness_turn']}"
+                tref = producing_turn(e)
                 eref = self._endpoint(str(e["dst"]), str(e["dst_type"])).ref
                 by_turn.setdefault(tref, []).append((eref, e))
                 by_end.setdefault(eref, []).append((tref, e))
@@ -435,7 +488,7 @@ class _Builder:
     def _add_causal(self, e: Mapping[str, Any]) -> None:
         """The C move of one proven edge, turn → endpoint, both nodes present; the endpoint keeps
         the edge's id so `witness` can be asked for it."""
-        tref = f"{TRANSCRIPT_REF}{e['session_id']}/{e['witness_turn']}"
+        tref = producing_turn(e)
         eref = self._endpoint(str(e["dst"]), str(e["dst_type"])).ref
         self.c_edges.setdefault(tref, set()).add(eref)
         self.c_ids.add(str(e["edge_id"]))
@@ -489,7 +542,19 @@ class _Builder:
 
     def seed_anchor(self, atom: str, radius: int) -> None:
         if atom.startswith(TRANSCRIPT_REF):
-            self.seed_typed(atom, radius, frozenset({Rel.C}) | (self.moves & {Rel.F}))
+            if Rel.C not in self.moves and not self.transcript:
+                raise IllScopedSentence(
+                    f"{atom!r} is a transcript turn: a sentence reads one by walking C or over "
+                    "dialogue_transcript, and this one does neither")
+            session, _, turn = atom[len(TRANSCRIPT_REF):].rpartition("/")
+            if not session or not turn.isdigit() or turn != str(int(turn)):
+                raise LookupError(f"{atom!r} is not a transcript turn's ref: "
+                                  "transcript/<session>/<turn>, the turn without leading zeros")
+            by_turn, _ = self._causal()
+            if self._utterance(session, turn) is None and atom not in by_turn:
+                raise LookupError(f"no transcript turn {atom!r}: the chatlog holds no such turn "
+                                  "and no causal edge names it")
+            self.seed_typed(atom, radius, frozenset(self.moves & {Rel.C, Rel.F}))
             return
         have = self.find(atom)
         if have is not None and not is_repo_path(atom):
@@ -574,7 +639,13 @@ class _Builder:
             if edge is not None:
                 return {k: str(v) for k, v in edge.__dict__.items()}
             row = self.store("causal").edge(edge_id)      # a causal edge's own id: the witness
-            return None if row is None else {k: str(v) for k, v in row.items()}
+            if row is None:
+                return None
+            # the turn that produced it, by its ref; the raw transcript's digest is a raw-store
+            # key and never leaves the store
+            out = {k: str(v) for k, v in row.items() if k != "witness_digest"}
+            out["transcript"] = producing_turn(row)
+            return out
 
         def text(ref: str, chunk: int | None, window: int) -> Mapping[str, object] | None:
             return read_ref(engine, ref, chunk, window=window)
@@ -594,10 +665,11 @@ class _Builder:
             missing.append(f"causal: {len(self.c_ids)} proven edges from {len(self.c_edges)} "
                            f"transcript turns to {len(ends)} endpoints, each one L1 record's "
                            "image (the witness law), never inferred")
-            unreadable = sum(1 for n in order if "outside" in n.detail or "artifact" in n.detail)
+            unreadable = sum(1 for n in order if "endpoint" in n.detail)
             if unreadable:
-                missing.append(f"causal: {unreadable} endpoints are artifact ids or lie outside "
-                               "the repo and the vault: named, not readable")
+                missing.append(f"causal: {unreadable} endpoints are commits, ids, or paths "
+                               "outside the repo and the vault: named in the transcript's "
+                               "stratum, not readable")
         missing.append("D moves at the note grain: the version chains are per note (use trace)")
         return Universe(notes=notes, vectors=mat, weights=weights,
                         edges={Rel.F: self.f_edges, Rel.D: {}, Rel.C: self.c_edges},
@@ -614,6 +686,7 @@ def build(engine: QueryEngine, plan: Plan, *, precedents: Precedents = DEFAULT,
     seeds = seeds_of(plan.term, precedents)
     b = _Builder(engine, precedents)
     b.moves = frozenset(seeds.moves)
+    b.transcript = seeds.transcript
     b.load_mirror()
     b.open_view(seeds.cut)
     for text, strata in seeds.texts:

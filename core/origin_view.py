@@ -86,9 +86,9 @@ def origin(
     Read-only over the two stores; mints nothing; the returned link is dispositional (E_disp — never
     enters `A_geom`/L). Scoped to reference-edge (X_cite) ids — the durable kind that carries a
     resolvable `commit_sha` (the recorded target-kind boundary, F-AL7 / §3 Q3)."""
-    # Hop 1 — commit-keying: resolve `edge_id` to the commit key the reference edge carries. The
-    # store exposes no by-id reader (adding one is out of scope: `core/stores/**` stays read-only),
-    # so filter the read surface. `commit_sha` IS the minting-commit coordinate (edge identity).
+    # Hop 1 — commit-keying: resolve `edge_id` to the commit key the reference edge carries, by
+    # the store's primary-key read (`edge`). `commit_sha` IS the minting-commit coordinate (edge
+    # identity).
     ref = reference_edges.edge(edge_id)           # the primary-key read, never a table scan
     commit_key = ref.commit_sha if ref is not None else ""
     if not commit_key:

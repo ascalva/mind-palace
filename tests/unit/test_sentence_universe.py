@@ -113,15 +113,21 @@ class _Causal:
 class _Chatlog:
     def __init__(self, rows: list[dict[str, Any]]) -> None:
         self.rows = rows
+        self.clearances: list[Any] = []
 
-    def rows_for(self, session_id: str) -> list[dict[str, Any]]:
-        return [dict(r) for r in self.rows if r["session_id"] == session_id]
+    def utterance(self, session_id: str, turn_index: int, *,
+                  clearance: Any) -> dict[str, Any] | None:
+        self.clearances.append(clearance)
+        return next((dict(r) for r in self.rows if r["session_id"] == session_id
+                     and r["turn_index"] == turn_index), None)
 
 
 def _cedge(edge_id: str, session: str, turn: int, dst: str, dst_type: str = "file",
            order: int = 0) -> dict[str, Any]:
+    """A proven edge whose action the utterance `turn` produced: the event projector stamps the
+    action with the index the next utterance takes, `turn + 1` (core/chat_events.py)."""
     return {"edge_id": edge_id, "session_id": session, "event_order": order, "kind": "C",
-            "dst_type": dst_type, "dst": dst, "witness_digest": "wd", "witness_turn": turn,
+            "dst_type": dst_type, "dst": dst, "witness_digest": "wd", "witness_turn": turn + 1,
             "pair_cut_sha": ""}
 
 
@@ -389,13 +395,15 @@ def test_a_turns_endpoints_map_to_the_checkout_the_worktree_the_vault_and_outsid
     scratch = compile_sentence('reach C from "transcript/s1/5" depth 1', AMBASSADOR_OVERLAY)
     us = _build(engine, scratch)
     (out,) = execute(scratch, us).hits
-    assert out.ref == "/private/tmp/scratch/out.txt" and "outside" in out.detail
-    assert any("1 endpoints are artifact ids or lie outside" in m for m in us.missing)
+    assert out.ref == "/private/tmp/scratch/out.txt" and out.stratum == "transcript"
+    assert out.detail["endpoint"] == "outside the repo and the vault"
+    assert any("1 endpoints are commits, ids, or paths outside" in m for m in us.missing)
     noted = compile_sentence('reach C from "transcript/s2/1" depth 1', AMBASSADOR_OVERLAY)
     un = _build(engine, noted)
     got = {h.ref: h for h in execute(noted, un).hits}
     assert got[C_NOTE].stratum == "mirror" and got[C_NOTE].title == "C"   # the mirror's own node
-    assert got["recursive-strata.md"].detail["artifact"] == "an id, not a path"
+    assert got["recursive-strata.md"].detail["endpoint"] == "a doc's id, not a path"
+    assert got["recursive-strata.md"].stratum == "transcript"
     assert len(un.notes) == 4 + 2                          # the mirror, the dialogue, the two
 
 
@@ -424,7 +432,8 @@ def test_witness_dereferences_a_causal_edges_own_id(engine: _Engine) -> None:
     plan = compile_sentence('witness "e2"', AMBASSADOR_OVERLAY)
     (hit,) = execute(plan, _build(engine, plan)).hits
     assert hit.ref == "e2" and hit.detail["dst"].endswith("docs/a.md")
-    assert hit.detail["witness_turn"] == "3" and hit.detail["session_id"] == "s1"
+    assert hit.detail["transcript"] == "transcript/s1/3" and hit.detail["session_id"] == "s1"
+    assert "witness_digest" not in hit.detail            # a raw-store key never leaves the store
     none = compile_sentence('witness "nope"', AMBASSADOR_OVERLAY)
     assert execute(none, _build(engine, none)).hits == ()
 
@@ -449,3 +458,103 @@ def test_the_support_bound_cuts_a_causal_neighbourhood_too(engine: _Engine) -> N
     u = _build(engine, plan, precedents=Precedents(support=2))
     assert any("cut at the support of 2 nodes" in m for m in u.missing)
     assert [h.ref for h in execute(plan, u, precedents=Precedents(support=2)).hits] == ["core/x.py"]
+
+
+# ── the review of 2026-11-05 ───────────────────────────────────────────────────────────────────
+
+
+def test_read_opens_only_files_git_tracks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`read` of a repo path serves the repo's tracked code and docs: never an untracked file under
+    the root, such as the raw store's verbatim transcripts under data/, or a local config."""
+    import subprocess
+
+    import core.kernel.config as config
+    from core.sentence.execute import _read_repo_file
+
+    repo = tmp_path / "repo"
+    (repo / "docs").mkdir(parents=True)
+    (repo / "data" / "raw" / "ab").mkdir(parents=True)
+    (repo / "docs" / "a.md").write_text("tracked\n")
+    (repo / "data" / "raw" / "ab" / "abcd").write_text("a transcript, tool output and all\n")
+    (repo / "local.toml").write_text("key = 'secret'\n")
+    for argv in (["init", "-q"], ["add", "docs/a.md"]):
+        subprocess.run(["git", "-C", str(repo), *argv], check=True, capture_output=True)
+    monkeypatch.setattr(config, "REPO_ROOT", repo)
+    got = _read_repo_file("docs/a.md")
+    assert got is not None and got["text"] == "tracked\n"
+    for untracked in ("data/raw/ab/abcd", "local.toml", "docs/../local.toml", "docs/missing.md"):
+        assert _read_repo_file(untracked) is None, untracked
+
+
+def test_endpoints_map_in_both_checkout_layouts(engine: _Engine,
+                                                monkeypatch: pytest.MonkeyPatch) -> None:
+    """From the main checkout and from one of its worktrees, a path under either, or under a
+    sibling worktree, is the reference node by its repo-relative path; another repo's worktree, a
+    commit and an outside path are named in the transcript's stratum, never as reference nodes."""
+    import core.kernel.config as config
+    from core.sentence.universe import _Builder
+
+    main = Path("/srv/palace")
+    for here in (main, main / ".claude" / "worktrees" / "me"):
+        monkeypatch.setattr(config, "REPO_ROOT", here)
+        b = _Builder(engine, DEFAULT)                    # type: ignore[arg-type]
+        ep = b._endpoint
+        assert ep(f"{main}/core/x.py", "file").ref == "core/x.py"
+        sib = ep(f"{main}/.claude/worktrees/other/docs/a.md", "file")
+        assert sib.ref == "docs/a.md" and sib.stratum == "reference"
+        assert sib.detail.get("worktree") == "other"
+        own = ep(f"{here}/core/y.py", "file")
+        assert own.ref == "core/y.py" and "worktree" not in own.detail
+        foreign = ep("/elsewhere/.claude/worktrees/w/core/x.py", "file")
+        assert foreign.stratum == "transcript" and foreign.ref.startswith("/elsewhere")
+        sha = ep("0123456789abcdef0123456789abcdef01234567", "commit")
+        assert sha.stratum == "transcript" and sha.detail["endpoint"] == "a commit, not a file"
+        assert ep("not a path", "file").stratum == "transcript"
+
+
+def test_a_docs_id_resolves_to_its_file_when_exactly_one_is_it(engine: _Engine) -> None:
+    from core.sentence.universe import _Builder, _doc_path
+
+    note = "docs/design-notes/dn-query-sentence-algebra.md"
+    assert _doc_path("dn-query-sentence-algebra") == note
+    assert _doc_path("dn-query-sentence-algebra.md") == _doc_path("dn-query-sentence-algebra")
+    assert _doc_path("dn-no-such-note") is None and _doc_path("recursive-strata.md") is None
+    node = _Builder(engine, DEFAULT)._endpoint("dn-query-sentence-algebra", "doc")  # type: ignore[arg-type]
+    assert node.stratum == "reference" and node.detail["id"] == "dn-query-sentence-algebra"
+
+
+def test_a_transcript_anchor_is_read_only_through_c_or_over_the_transcript(
+        engine: _Engine) -> None:
+    from core.sentence import IllScopedSentence
+
+    s = compile_sentence('reach S from "transcript/s1/3" depth 2', AMBASSADOR_OVERLAY)
+    with pytest.raises(IllScopedSentence, match="transcript turn"):
+        _build(engine, s)
+    c = compile_sentence('reach C from "transcript/s1/3" depth 1', AMBASSADOR_OVERLAY)
+    assert "core/x.py" in {h.ref for h in execute(c, _build(engine, c)).hits}
+
+
+def test_an_unknown_transcript_turn_is_a_lookup_refusal(engine: _Engine) -> None:
+    for ref in ("transcript/s9/9", "transcript/s1/03", "transcript/s1"):
+        plan = compile_sentence(f'reach C from "{ref}" depth 1', AMBASSADOR_OVERLAY)
+        with pytest.raises(LookupError):
+            _build(engine, plan)
+
+
+def test_every_proven_edge_is_wired_and_counted(engine: _Engine) -> None:
+    """Two edits of one file in one turn are two proven edges: both are wired, both counted."""
+    engine._cache["causal"].edges.append(_cedge("e7", "s1", 3, f"{REPO_ROOT}/core/x.py", order=4))
+    plan = compile_sentence('reach C from "transcript/s1/3" depth 1', AMBASSADOR_OVERLAY)
+    u = _build(engine, plan)
+    assert any("causal: 3 proven edges from 1 transcript turns" in m for m in u.missing)
+
+
+def test_assume_sever_c_removes_the_chain(engine: _Engine) -> None:
+    plan = compile_sentence(
+        'assume sever C "transcript/s1/3" "core/x.py" in walk from "transcript/s1/3" via C depth 1',
+        AMBASSADOR_OVERLAY)
+    answer = execute(plan, _build(engine, plan))
+    assert answer.hyp is not None
+    assert "transcript/s1/3 →C→ core/x.py" in {h.ref for h in answer.hits}
+    assert "transcript/s1/3 →C→ core/x.py" not in {h.ref for h in answer.hyp.value}
+

@@ -43,7 +43,7 @@ Patterns:
 | what the citers of a note say about a topic | `reach F from "n.md" back then near "x"` |
 | how a note reached another by citations | `walk from "a.md" to "b.md" via F+` |
 | which conversation turns wrote a file | `reach C from "core/query.py" depth 1 back` |
-| what a turn produced, and what those files cite | `walk from "transcript/<session>/<turn>" via CF depth 2` |
+| what a turn produced, and what those files cite | `walk from "transcript/<session>/<turn>" via CF depth 2` (the turn is the utterance before the action; a design note written by its id is its file) |
 
 **The strata.** A sentence reads the owner's notes unless it says `over <strata>`: `over curated`
 for the papers and the system's own docs, `over reference` for the repo's code and docs (hits name
@@ -52,7 +52,8 @@ alone. The universe is the sentence's **support** (dn-query-sentence-algebra §2
 the dialogue always, then the `support` (200) nearest units to each text and anchor in the indexed
 strata, and the citation graph within the anchor's radius at the cut — the `as of` commit, else
 the newest cut the store holds, which the notes name. `reach F from "core/query.py" depth 2` walks
-the repo's citations; `read "core/sealing.py"` reads the file; `diffuse S from "reference:<paper>"`
+the repo's citations; `read "core/sealing.py"` reads the file (a file git tracks: never `data/` or
+a local config); `diffuse S from "reference:<paper>"`
 walks a paper's neighbourhood; `relate` and `trace` are the notes' alone. The notes of every
 answer carry the support's census and every truncation: an empty answer under a small support is
 a bound, not an absence.

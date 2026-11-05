@@ -142,6 +142,16 @@ class VaultSync:
         self.store.delete_source(source_path)
         return SyncOutcome.TOMBSTONED
 
+    def owns(self, source_path: str) -> bool:
+        """Whether a catalog row is the vault's: its path lies under the vault, as the rescan
+        names its notes. The dialogue's turns (`dialogue/…`), the curated docs and anything else
+        the shared catalog holds are not, and a rescan never tombstones them."""
+        try:
+            Path(source_path).relative_to(self.vault)
+        except ValueError:
+            return False
+        return True
+
     def rescan(self) -> SyncReport:
         """Full catalog-vs-vault reconciliation. The watcher triggers this; it is the
         idempotent backbone (an unchanged re-scan does no work) and also the catch-up path
@@ -151,7 +161,9 @@ class VaultSync:
             str(path): path
             for path in iter_vault(self.vault, pattern=self.pattern, exclude_dirs=self.exclude_dirs)
         }
-        gone = self.catalog.active_paths() - set(present)
+        # the catalog is shared (the dialogue's turns, the curated docs, the door's captures):
+        # a rescan reconciles only the vault's own rows, the paths under the vault
+        gone = {g for g in self.catalog.active_paths() if self.owns(g)} - set(present)
 
         # Exact-content rename carry-forward (bp-031 Item 2): index each vanished path's held
         # (digest -> its doc_id); a new path whose content digest matches adopts that doc_id, so the

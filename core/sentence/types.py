@@ -373,8 +373,14 @@ def _clauses(node: Node, ctx: _Context, p: Precedents) -> list[Clause]:
             return _clauses(b, _Context(_strata(names), ctx.cut, ctx.overlay), p)
         case ast.AsOf(body=b, cut=cut):
             return _clauses(b, _Context(ctx.strata, cut, ctx.overlay), p)
-        case ast.Assume(body=b):
-            return _clauses(b, _Context(ctx.strata, ctx.cut, True), p)
+        case ast.Assume(hypothesis=h, body=b):
+            # the hypothesis reads what it perturbs: an edge of its relation, or a signed
+            # relation edge, typed as a clause of its own under the overlay, so `assume C …`
+            # needs a plane that admits C as surely as `reach C` does
+            octx = _Context(ctx.strata, ctx.cut, True)
+            hyp = (_clause("relate", None, octx, p) if isinstance(h, ast.ContradictHyp)
+                   else _clause("reach", h.rel, octx, p))
+            return [hyp] + _clauses(b, octx, p)
     raise SortError(f"unknown node {node!r}")  # pragma: no cover
 
 

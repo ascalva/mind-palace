@@ -20,6 +20,7 @@ from core.sentence import (
     sort_of,
     typecheck,
 )
+from core.sentence.ast import Rel
 from core.sentence.types import check_admissible
 
 
@@ -111,8 +112,23 @@ def test_assume_needs_a_plane_naming_the_overlay() -> None:
     with_overlay = Grant((scope({Stratum.MIRROR, Stratum.HYPOTHETICAL}, set(),
                                 Clock.PROJECTION_EVENT, Window.all()),))
     assert admissible(sentence, with_overlay)
-    (c,) = clauses_of(sentence)
-    assert c.overlay and Stratum.HYPOTHETICAL in c.req.sigma.strata
+    hyp, body = clauses_of(sentence)          # the hypothesis is a clause of its own (it reads S)
+    assert hyp.verb == "reach" and hyp.rel is Rel.S
+    for c in (hyp, body):
+        assert c.overlay and Stratum.HYPOTHETICAL in c.req.sigma.strata
+
+
+def test_an_assumed_edge_needs_a_plane_that_admits_its_relation() -> None:
+    """The hypothesis reads what it perturbs: `assume C …` needs a plane admitting C as surely as
+    `reach C` does, so a grant without C refuses it even when the body reads only the mirror (the
+    review of 2026-11-05: the universe walked C for a letter no admitted clause typed)."""
+    mirror_only = Grant((scope({Stratum.MIRROR, Stratum.HYPOTHETICAL}, set(),
+                               Clock.PROJECTION_EVENT, Window.all()),))
+    assert admissible(parse('assume S "a" "b" in near "x"'), mirror_only)
+    with pytest.raises(IllScopedSentence):
+        check_admissible(parse('assume C "transcript/s/1" "core/y.py" in near "x"'), mirror_only)
+    contradict, _ = clauses_of(parse('assume contradict "a" "b" in near "x"'))
+    assert contradict.verb == "relate"
 
 
 def test_rule_hyp_a_result_under_assume_is_never_inv() -> None:
@@ -146,5 +162,5 @@ def test_read_is_a_text_that_composes_with_nothing_and_reads_by_the_refs_shape()
     for s in ('read "reference:arxiv-1"', 'read "/vault/n.md"', 'read "note-2026-07-11"',
               'read "dialogue/c/t1"', 'read "docs/x.md"'):
         assert admissible(parse(s), AMBASSADOR), s
-    (under,) = clauses_of(parse('assume contradict "a" "b" in read "/vault/n.md"'))
+    _, under = clauses_of(parse('assume contradict "a" "b" in read "/vault/n.md"'))
     assert under.overlay and Stratum.HYPOTHETICAL in under.req.sigma.strata

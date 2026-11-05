@@ -253,3 +253,23 @@ def test_readd_after_tombstone_reactivates(tmp_path):
     assert entry.active is True
     assert entry.digest == digest
     assert "n" in _titles_for(sync, "content that comes and goes")
+
+
+def test_a_rescan_reconciles_only_the_vaults_own_rows(tmp_path):
+    """The catalog is shared: the dialogue's turns and the curated docs are recorded beside the
+    vault's notes. A rescan tombstones a vault note that is gone and never touches the others (the
+    review of 2026-11-05: every rescan reaped them, and the curated docs stayed reaped)."""
+    sync = _sync(tmp_path)
+    _write(sync, "a.md", "# A\n\nkept\n")
+    sync.rescan()
+    sync.catalog.record("dialogue/openwebui/c1/m1", "d1", "turn")
+    sync.catalog.record(str(tmp_path / "repo" / "docs" / "x.md"), "d2", "a doc")
+    gone = _write(sync, "b.md", "# B\n\ngoing\n")
+    sync.rescan()
+    gone.unlink()
+    sync.rescan()
+    active = sync.catalog.active_paths()
+    assert "dialogue/openwebui/c1/m1" in active
+    assert str(tmp_path / "repo" / "docs" / "x.md") in active
+    assert str(sync.vault / "a.md") in active and str(gone) not in active
+    assert sync.owns(str(sync.vault / "a.md")) and not sync.owns("dialogue/openwebui/c1/m1")

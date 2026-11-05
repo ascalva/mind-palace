@@ -180,8 +180,22 @@ class ChatlogStore:
             "SELECT * FROM chat_utterances ORDER BY session_id, turn_index"
         ).fetchall()]
 
+    def utterance[L: Provenance](self, session_id: str, turn_index: int, *,
+                                 clearance: Clearance[L]) -> Row[L] | None:
+        """One utterance by its key, read through a clearance: `None` when the session holds no
+        such turn, or when the clearance does not admit the observed class every row is. The
+        sentence surface's reader (a transcript turn's title, `read "transcript/…"`)."""
+        if not clearance.admits(Provenance.OBSERVED):
+            return None
+        r = self._conn.execute(
+            "SELECT * FROM chat_utterances WHERE session_id = ? AND turn_index = ?",
+            [session_id, turn_index],
+        ).fetchone()
+        return None if r is None else Row(clearance, self._row(r), mint=_MINT)
+
     def rows_for(self, session_id: str) -> list[dict[str, Any]]:
-        """One session's utterances, in chain order (turn_index)."""
+        """One session's utterances, in chain order (turn_index): the event projector's own read
+        of what it projects. The sentence surface reads through `utterance`, under a clearance."""
         return [self._row(r) for r in self._conn.execute(
             "SELECT * FROM chat_utterances WHERE session_id = ? ORDER BY turn_index",
             [session_id],

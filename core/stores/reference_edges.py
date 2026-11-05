@@ -343,15 +343,17 @@ class ReferenceEdgeStore:
         return self._row(row) if row else None
 
     def latest_commit(self) -> str | None:
-        """The newest cut the store holds — the `commit_sha` of the last reading that landed
-        (`created_at`), or None on an empty store. A read for the sentence universe (dn-query-
+        """The cut of the last reading that landed in the store (the last row written), or None
+        on an empty store. Not always the newest commit: a backfill of older commits lands last,
+        and then this names the backfilled cut. A read for the sentence universe (dn-query-
         sentence-algebra §2.9): a checkout whose HEAD the sensor never read has no edges at HEAD,
         so the universe reads the citation graph at this cut and says so in its answer. The view's
         own anchor (`_resolve_default_commit`) is unchanged: the active run, else HEAD."""
         # The table is append-only (INSERT OR IGNORE, no delete), so the last row by rowid IS the
-        # last reading that landed — one B-tree descent. `ORDER BY created_at DESC LIMIT 1` was a
+        # last reading that landed: one B-tree descent. `ORDER BY created_at DESC LIMIT 1` was a
         # full scan plus a sort of every row (2.5 s on the live store's three million edges,
-        # measured 2026-11-04), paid by every sentence whose anchor the store has no edges at.
+        # measured 2026-11-04), paid by every sentence whose anchor the store has no edges at; it
+        # also broke ties within one second arbitrarily, where the rowid names the last written.
         row = self._conn.execute(
             "SELECT commit_sha FROM reference_edges "
             "WHERE rowid = (SELECT max(rowid) FROM reference_edges)").fetchone()

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -205,16 +206,33 @@ class Universe:
                    text=text)
 
 
-def _read_repo_file(ref: str) -> Mapping[str, object] | None:
-    """A repo-relative path — a node of the reference graph — read from the checkout, inside the
-    repo root only: a path that resolves outside it, or to nothing, is `None`."""
-    from pathlib import Path
+def _tracked(root: Path, rel: str) -> bool:
+    """Whether git tracks `rel` in the checkout at `root`: the reference stratum is the repo's
+    tracked code and docs. An untracked file (the data directory and its raw store of verbatim
+    transcripts, a local config, a key) is never one, and no git, or no repo, admits nothing."""
+    import subprocess
 
+    try:
+        out = subprocess.run(["git", "--literal-pathspecs", "-C", str(root), "ls-files",
+                              "--error-unmatch", "--", rel],
+                             capture_output=True, timeout=10, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return out.returncode == 0
+
+
+def _read_repo_file(ref: str) -> Mapping[str, object] | None:
+    """A repo-relative path, a node of the reference graph, read from the checkout: inside the
+    repo root, a regular file, and tracked by git. A path that resolves outside the root, to
+    nothing, or to an untracked file is `None`, so `read` never opens `data/` (the raw store
+    keeps transcripts verbatim, tool output included) or a local config."""
     from core.kernel.config import REPO_ROOT
 
     root = Path(REPO_ROOT).resolve()
     path = (root / ref).resolve()
     if root not in path.parents or not path.is_file():
+        return None
+    if not _tracked(root, path.relative_to(root).as_posix()):
         return None
     body = path.read_text(encoding="utf-8", errors="replace")
     return {"ref": ref, "title": ref, "provenance": "code" if ref.endswith(".py") else "corpus",
@@ -248,16 +266,17 @@ def read_ref(engine: QueryEngine, ref: str, chunk: int | None, *,
                 "stratum": "curated", "chunks": f"{start}–{start + len(picked) - 1} of {len(rows)}",
                 "text": "\n".join(str(r.get("text", "")) for r in picked)}
     if ref.startswith(TRANSCRIPT_REF):
+        from core.kernel.clearance import DIALOGUE_READ
+
         session, _, turn = ref[len(TRANSCRIPT_REF):].rpartition("/")
         if not session or not turn.isdigit():
             return None
-        for row in engine._get("chatlog").rows_for(session):
-            if str(row.get("turn_index", "")) == turn:
-                speaker = str(row.get("speaker", ""))
-                return {"ref": ref, "title": f"{TRANSCRIPT_REF}{session[:8]}/{turn} ({speaker})",
-                        "provenance": "observed", "stratum": "transcript", "speaker": speaker,
-                        "text": str(row.get("text", ""))}
-        return None
+        row = engine._get("chatlog").utterance(session, int(turn), clearance=DIALOGUE_READ)
+        if row is None:
+            return None
+        speaker = str(row.get("speaker", ""))
+        return {"ref": ref, "title": f"{ref} ({speaker})", "provenance": "observed",
+                "stratum": "transcript", "speaker": speaker, "text": str(row.get("text", ""))}
     if "/" in ref and not ref.startswith(("/", "~", "dialogue/")):
         return _read_repo_file(ref)
     entry = VaultCatalog(cfg.paths.vault_catalog).get(ref)
@@ -604,6 +623,12 @@ class Evaluator:
                        "grow", "QSA-7")
         for a, b in overlay.f_sever:
             self._note(f"assume the citation {a!r} → {b!r} severed: reach and the chains over F "
+                       "can only shrink", "QSA-7")
+        for a, b in overlay.c_add:
+            self._note(f"assume a causal edge {a!r} → {b!r}: reach and the chains over C can only "
+                       "grow", "QSA-7")
+        for a, b in overlay.c_sever:
+            self._note(f"assume the causal edge {a!r} → {b!r} severed: reach and the chains over C "
                        "can only shrink", "QSA-7")
         for a, b in overlay.contradictions:
             self._note(f"assume a contradiction between {a[:8]} and {b[:8]}: a negative relation "
