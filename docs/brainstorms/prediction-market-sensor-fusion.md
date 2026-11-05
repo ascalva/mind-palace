@@ -273,3 +273,100 @@ references:
   - docs/findings/finding-0141.md                        # dreamers not wired, [dream_rnd]=false
   - docs/tracks/sync-diac-dreamers.md                    # the owed deskcheck whose decision now gates this
 ```
+
+## 2026-11-05T16:45:00Z
+
+```capsule
+topic: prediction-market-sensor-fusion
+date: 2026-11-05
+
+seeds (owner, verbatim, one session, in order):
+  - "I have a question regarding the recent mind palace work: i started learning about how math,
+    especially topology, can be used to model stocks, people, financial systems and resources,
+    which i think also what a quant does? at least I’m thinking of that one famous mathematician
+    who went into private equity (i think), can mind palace be used in any way to understand some
+    subset of the financial market? in other words, i want to start testing some of its
+    prediction capabilities, which are wrapped up in the dual dreamer functionality, and now that
+    the query algebra language is more complete and allows us to perform actions and queries, how
+    could we construct such a test? there of course needs to be a steady influx of data, from
+    time-based raw data to news articles, to other important resources that will help shape the
+    world view of the palace, so that its prediction capabilities could have a fuller set of
+    context, the agent using mind palace could be a claude model, that interfaces with and
+    researches to then provide as ingestion, and for now, we could just test the predictions and
+    wait, see if it was correct or wrong, go from there and get a better handle on the prediction
+    capabilities of the system"
+  - "we can also look at crypto, might be more volatile, but could than mean we can get answers
+    quicker since it's rapidly changing more intensely?"
+  - "and we can use as much of the mathematical machinery at our disposal, especially since a
+    large portion of it has even been proven, which gives us a stable mathematical foundation"
+  - "or i wonder if using supercession edges could be a way of updating the current value of an
+    asset, that can have ripple effects on other resources (causal edges directed to other
+    nodes), this way you could see a single node as, for example, a stock, like a tree it grows
+    via supercession edges as the value updates, having branches extend from and to it, a value
+    influencing, being influenced, over time"
+  - "prs will be merged soon, and there should be some loose work on containerizing and isolating
+    a second instance of mind palace, start reviewing and preparing the experiment"
+
+decisions:
+  - THE OWNER STARTED THE EXTERNAL SCOREBOARD. July parked market work behind an internal ledger;
+    the owner now asks to prepare the experiment itself. The July rules carry over unchanged: a
+    sibling instance, never Ouroboros; paper only; every forecast scored against the market's
+    own price at the same timestamp. Design: dn-market-forecast-experiment.
+  - ⚑ FORWARD ONLY FOR EVERY ARM WITH A MODEL IN IT. July's "backtest first on resolved markets"
+    holds for model-free instruments only. A language model's weights already hold the outcome
+    of anything before its training cutoff (Sarkar & Vafa, lookahead bias in pretrained language
+    models), and a researcher with web search can read the answer. Halawi et al. (NeurIPS 2024)
+    kept only questions published after their models' cutoff for this reason. The owner's "test
+    the predictions and wait" is the clean design, not a stopgap.
+  - ⚑ THE DREAMERS CANNOT BE THE FORECASTERS AS BUILT. Both read authored notes only (mirror, not
+    oracle; `core/dreaming/dreamer.py`, `interpreters.py`); the synchronic dispatch is not wired
+    (`[dream_rnd] enabled = false`); the diachronic half is parked (SD §2.8); the adjudicator's
+    c(κ) is documented as not a probability. They join as the last arm, after the owner rules on
+    their grant in the sibling.
+  - THE SIBLING REMOVES THE LEDGER'S TWO WORST RISKS (dn-scored-beliefs): markets settle on a
+    schedule (no resolution starvation, F-BL4), and nobody resolves a question they were shown
+    (the contamination law has no owner in the loop).
+  - CRYPTO (seed 2): volatility does not make answers come faster; the count of independent
+    resolved forecasts does, and large swings add noise to each one. Crypto helps for other
+    reasons: it trades every day, minute history is free, and short-dated price markets on
+    Kalshi and Polymarket turn a continuous price into resolvable questions with a market price
+    to beat (July's objection answered). A second universe in the same sibling, not a substitute.
+  - THE PROVEN MATH (seed 3): the proofs make each instrument trustworthy (a failed signal
+    indicts the hypothesis, not the measuring device), not predictive. Breadth costs power: the
+    instruments enter as a panel fixed in advance, chosen on a development period and read once
+    on a held-out one, with a data-snooping correction.
+  - SUPERSESSION AS VALUE (seed 4): an asset is an identity whose daily states are versions in
+    `core/stores/versions.py` (keyed by sequence, so a price that returns to an old value is a
+    new version, C1); a data revision is a supersession and an erratum (dn-erratum-relation),
+    which is how macro vintages work; the trunk stays out of the spectral math (C2). Influence
+    is not a causal edge (the witness law: a C edge is one record's image); it is its own
+    interpreted edge type, estimated per cut and versioned. Branches are corporate actions, the
+    σ transports between cuts, where a pullback across a merger counts a value twice
+    (‖σ^*‖ = √(max fiber)) unless weighted by the fiber.
+  - THE LOOSE CONTAINER WORK (seed 5) is `feat/podman-bench`: DI-2's first half (a named overlay
+    selected at run time) and a sealed, run-to-completion bench profile. The sibling needs DI-2's
+    second half (an instance id and the namespaces derived from it, issue #25), an edge container
+    with filtered egress, and memory of its own. Findings in the design note §9.
+
+parked:
+  - decision: money
+    default: none, ever, in this experiment (July ruling; finding-0011, effector tier NONE)
+  - decision: the dreamer arm
+    default: after the owner's grant rulings (design note §8)
+
+open_questions:
+  - the owner's calls in the design note §8: the sibling's name and posture (NN-11), the
+    dreamers' grant over observed strata there, whether the diachronic park lifts there first,
+    a podman machine of its own
+
+next_steps:
+  - E1 (this branch): the ledger, the scorer and the controls, eval-side, no network
+  - E2: market snapshots (arm M) and the Claude-with-web arm (W), edge-side; starts the clock
+    with no palace changes; needs the owner's go-ahead for API spend and the host job
+
+references:
+  - docs/design-notes/dn-market-forecast-experiment.md
+  - docs/design-notes/scored-beliefs-and-earned-entitlement.md
+  - docs/brainstorms/palace-instances-as-nodes.md
+  - docs/tracks/deployed-instances.md   # DI-2, issue #25
+```
