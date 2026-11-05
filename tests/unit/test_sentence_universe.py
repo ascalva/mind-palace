@@ -528,7 +528,8 @@ def test_read_serves_the_committed_blob_and_nothing_else(tmp_path: Path,
     with pytest.raises(LookupError, match="binary"):
         read("docs/blob.bin")
     # an unknown or malformed cut falls back to HEAD, never to the working tree
-    assert _read_repo_file("docs/a.md", None, window=1, cut="--output=x")["text"] == "committed\n"
+    fallback = _read_repo_file("docs/a.md", None, window=1, cut="--output=x")
+    assert fallback is not None and fallback["text"] == "committed\n"
 
 
 def test_read_of_a_repo_file_is_a_window_of_chunks(tmp_path: Path,

@@ -345,13 +345,14 @@ def test_a_term_and_its_normal_form_answer_alike(term) -> None:  # type: ignore[
 def test_or_is_one_mixture_however_it_is_grouped() -> None:
     """The reviewer's probe: `near "b" or near "c" or near "a"` as written and as planned."""
     from core.sentence import compile_sentence, execute
-    from core.sentence.execute import Evaluator
+    from core.sentence.execute import Evaluator, FieldV
     from core.sentence.grammar import parse
 
     u = _plan_universe()
     left = Evaluator(u).eval(parse('(near "q" or near "p") or diffuse S from "a.md"'))
     right = Evaluator(u).eval(parse('near "q" or (near "p" or diffuse S from "a.md")'))
-    assert np.allclose(left.scores, right.scores)    # type: ignore[attr-defined]
+    assert isinstance(left, FieldV) and isinstance(right, FieldV)
+    assert np.allclose(left.scores, right.scores)
     plan = compile_sentence('near "q" or near "p" or diffuse S from "a.md"')
     assert execute(plan, u).hits == execute(
         compile_sentence('diffuse S from "a.md" or (near "p" or near "q")'), u).hits

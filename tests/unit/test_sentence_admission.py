@@ -204,5 +204,6 @@ def test_the_response_note_claims_no_growth_diffusion_does_not_have() -> None:
     before = {h.ref: h.score for h in answer.hits}
     assert answer.hyp is not None
     after = {h.ref: h.score for h in answer.hyp.value}
-    assert after["dialogue/c/t2"] < before["dialogue/c/t2"]     # the owner's turn fell: 0.25 → 0.18
+    fell, was = after["dialogue/c/t2"], before["dialogue/c/t2"]
+    assert fell is not None and was is not None and fell < was  # the owner's turn: 0.25 → 0.18
     assert any("1 up, 1 down" in n for n in answer.notes)
