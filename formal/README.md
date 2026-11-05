@@ -133,13 +133,26 @@ Roundoff and FloatModel, so it has no statements of its own):
   chain as the serial order, parallel dispatch, conflict-serializability with repeated
   identities and the guard's scope, crash convergence under a parallel run, readers without a
   lock) stay design theorems.
+- `Script` (XII, the door's second form): ingestion as the scripts of a generic language
+  (dn-door-language), on a model of content (bytes, a label, an origin), expressions as items,
+  projections and constructions, effects, and the writer's checks R2 to R8 on a store and a
+  state. DOR-13 a value's label and origin are its item's under projections and the observed label
+  and none otherwise, so no expression raises a label; DOR-14 the firewall, an admitted store not
+  observed lands an item a source yields at the item's own path with its label, and over a plan
+  every active row not observed is held before or such a store's; DOR-15 confinement to the role's
+  namespace; DOR-16 a plan's stores are the first form's commands with the key last, so DOR-11 and
+  DOR-12 hold of every plan; DOR-17 labels and identities fixed once stored, identities that move
+  only with their bytes, paths that belong to their sources, retire as reconciliation; DOR-18 the
+  type system is sound for labels. `core/sentence/interpret.py`, `core/sentence/script_check.py`
+  and `core/ingest/writer.py` are written to them, so they are the ledger's family XII too
+  (`Spec/Script.lean`, 15 statements).
 - `Bridges`: theorems that join two families, so that what one proves serves the other: BRG-1
   the Laplacian as `∂₁ ∂₁ᵀ`, BRG-2 Euler and Poincaré on the flag complex, BRG-3 Thomson's
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
 - `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the cited theorems
-  (233 theorems), and the three standard axioms.
+  (248 theorems), and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself. It is weaker than the comparator: it
   compares the statements' types and the definitions' values, not constructors, recursor rules or
@@ -468,6 +481,16 @@ whose guard reads the key early lands the edit alone; two versions of one note s
 do not converge; and a serial run on one identity stopped inside a command does not converge when
 the whole batch runs again.
 
+The language is attacked on exact shadows too (seeds 273 to 286): bytes over `Fin 4`, three
+labels and three paths, views as lists over `Fin 2`, a writer's state decoded from a list of
+codes. Every attack survived; three tested all 500 instances, the others 156 to 487, the rest
+discarded as draws that break their guard (a store the writer does not admit). Its controls, each
+refuted within thirteen instances: a construction that keeps the label of what it was built from;
+a writer without R4 that stores an authored item at another path; without R6's condition, an
+identity grafted from a path its source still has; without R7's, an item still in its source
+retired; a writer without the namespace that lets a role store outside its prefix; without R8, a
+composed value squatting a source's path; and a type rule that gives a construction no label.
+
 The magnetic operator is complex and its transports are exponentials, which do not run, so its
 attacks fix the transports at their exact values, `1` at phase `0` and `−1` at phase `π`, or test
 the combinatorial content. BRG-7's controls: transport `−1` everywhere gives the signless `D + A`,
@@ -506,7 +529,7 @@ another module, and without it 68 proofs in seven files fail. One instance is wr
 to importers (`Palace/Scope.lean`).
 
 The kernel re-check. `Export.lean` writes every `Palace` declaration and everything it uses, from
-`Init` up (45,293 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
+`Init` up (45,522 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
 kernel and the five independent checkers bundled with Lean: `leanchecker-paranoid`, `lean4lean` (a
 kernel written in Lean), `nanoda` (one written in Rust), and `con-leche`, whose acceptance carries a
 machine-checked theorem that the environment holds no proof of `False`, with `con-ron`, its port.
@@ -517,7 +540,7 @@ nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
 does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the
-233 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
+248 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.
 

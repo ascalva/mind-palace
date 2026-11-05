@@ -3,7 +3,7 @@ type: design-note
 id: dn-door-language
 track: query-language
 status: draft                  # provenance description, never a gate; the owner's merge is ratification
-implementation: designing      # DS-0 this note; DS-1 to DS-7 follow (§4)
+implementation: built-wired    # DS-0 to DS-5 and DS-7 built 2026-11-05 (§4); DS-6 the audits
 created: 2026-11-05
 updated: 2026-11-05
 links:
@@ -60,16 +60,19 @@ script, a line of the palace's table, or a general rule of the writer.
 - The jobs' internals (dream, the relation pass, curate, the code and chat lanes, the code
   sensor): a script starts them by name (`run`). They are model and parser pipelines, not
   storage; writing them as scripts is later work, if ever.
-- User-defined functions and recursion: none. A script is total (§E1).
+- Recursion: none. Functions are closures that never see their own name (§E11), so a script
+  is total (§E1).
 
 ### 1.3 What is proved, what is cited, what is open
 
 Proved in `formal/Palace/Script.lean` on the model of `Script/Defs.lean` (content with a label
 and an origin; expressions as items, projections and constructions; the writer's checks R2 to R8
 as a predicate on a store and a state; plans landed effect by effect; a store as the first form's
-command), with six attacks and six controls (`PalaceTest/Script.lean`, seeds 273 to 284): DOR-13
-to DOR-17 of §E9, and the first form's DOR-11 and DOR-12 for every plan through DOR-16. Cited: QSA-5 (admissibility is clause-wise), the kernel's `STRATUM_CLASSES`, CLK-2. Open
-(§7): the Ambassador's places and namespaces, an operator's computed content, jobs as scripts.
+command), with seven attacks and seven controls (`PalaceTest/Script.lean`, seeds 273 to 286):
+DOR-13 to DOR-18 of §E9, and the first form's DOR-11 and DOR-12 for every plan through DOR-16.
+They are the ledger's family XII beside the first form's (`docs/LAWS.md`, `formal/Spec/Script.lean`).
+Cited: QSA-5 (admissibility is clause-wise), the kernel's `STRATUM_CLASSES`, CLK-2. Open (§7):
+the Ambassador's places and namespaces, an operator's computed content, jobs as scripts.
 
 ### 1.4 The bar
 
@@ -123,10 +126,12 @@ built-in functions of §E2, `+` on strings, integers and lists, `==`, `!=`, `<`,
 `not in`, `and`, `or`, `not`.
 
 **Statements.** `param name [= literal], …` (a library script's arguments), `let name = e`,
-`for x in e { … }`, `if e { … } else { … }`, and the effects of §E5. Statements end at a newline
-or `;`; blocks are braced, so a script fits on one line of a query box.
+`for x in e { … }`, `if e { … } else { … }`, `fn name(x, …) { … }` and `return e` (§E11),
+`call name(k: v, …)` (a library script, §E11), and the effects of §E5. Statements end at a
+newline or `;`; blocks are braced, so a script fits on one line of a query box.
 
-**Totality.** No recursion, no `while`, no user functions; every loop ranges over a finite list.
+**Totality.** No recursion and no `while`: a function is a closure that cannot name itself
+(§E11), and every loop ranges over a finite list.
 Evaluation therefore terminates, and its bounds are precedents in the ledger
 (`docs/query/precedents.md`): the items a script may read, the bytes, the effects a plan may
 hold, a string's length. `[DERIVED — structural recursion on a finite syntax tree, every loop
@@ -355,18 +360,26 @@ little. The caps of §E1 become one **budget**, in one unit of work, priced per 
 - **Prices are measured, not assumed.** A unit is calibrated against the operations it prices on
   fixtures (reading a kilobyte of a source, an item's parse, a list element, an effect, an
   embedded chunk), and the price table is a precedent in the ledger beside the bounds it
-  replaces.
-- **A request carries a budget**: its role's default, from the palace's table, or less if the
-  speaker asks. The checker computes an upper bound from the script's shape where the shape
-  allows (a loop over a source is bounded by the source's size and the loop body's price) and
-  refuses at the surface a request whose bound exceeds its budget, before anything is spooled.
-- **The evaluator meters.** Every operation charges as it runs; a request that runs out stops,
+  replaces. Measured 2026-11-05 (`eval/door_gas.py`, `docs/query/precedents.md`): one unit is
+  one step, 0.30 µs; an item costs 270, a KiB 75, an entry 22, an effect 10,000 (the writer's
+  check of a store, mostly the plane's lookup), a write 140,000 (a store that lands, its embeds
+  apart), an embedded chunk 360,000. A request that lands is its embeds and its writes; the
+  evaluator's own work is under one percent of a first sync.
+- **A request carries a budget**: its role's, from the palace's table. Not built: a speaker
+  asking for less, and a bound computed from the script's shape before it runs. A loop over a
+  source is bounded by the source's size, which the surface does not read (it runs under the
+  speaker's account, which need not open the source), so the shape alone bounds only a script
+  that reads no source; the meter is the bound that holds for every script.
+- **The evaluator meters.** Every operation charges as it runs, a source's items each as it is
+  read, so a read stops at the item that ran the budget out; a request that runs out stops,
   and since evaluation writes nothing, it lands nothing. Ethereum must revert the state an
   out-of-gas transaction touched; here there is none to revert. `[DERIVED — §E5: evaluation has
   no effects]`
-- **The writer prices the one serial stage before paying it.** A plan's embeds are its distinct
-  new atoms (DOR-5), which the writer counts against the plane before it calls the embedder, so
-  a plan whose landing would overrun its budget is refused before the first embed.
+- **The writer prices the plan before paying for it.** A plan's writes are its stores the
+  UNCHANGED check would not skip and its other effects; its embeds are its distinct new atoms
+  (DOR-5), counted against the plane before the embedder is called. Both are charged before the
+  first effect lands, so a plan whose landing would overrun its budget is refused before
+  anything is written.
 - **The compiler's side.** A cost is what lets the planner choose among equivalent forms: the read
   half's rewrites (masks pushed to the leaves, `top k` last) are equivalences, and a priced plan
   picks the cheaper. Pricing the read verbs in the same unit (`near` per atom compared, `diffuse`
@@ -377,6 +390,64 @@ The receipt reports the work charged. `[INFERENCE — falsifier: a request whose
 exceeds its charge by more than the calibration's error, or a refused request that would have
 landed within its budget]`
 
+### E11 — Nesting and scope
+
+The owner's direction: nested sentences, with closure and code scoping.
+
+- **A read sentence nests in a script** as a value: `` `top 5 near $topic within $region` ``, in
+  backquotes, which no sentence uses. It is compiled under the speaker's grant like any sentence
+  (its own admission, QSA-5) and its value is its hits, records whose strings are observed (a hit
+  is the palace's account of a row, not the row's bytes). `$name` captures a name of the enclosing
+  scope; a captured value enters the sentence as a quoted literal, never as syntax, so no value
+  can inject a word. The sentence is parsed when the script is checked, with its captures as
+  placeholders, so a malformed one is refused at the surface.
+- **Blocks scope lexically.** A `let` binds until the end of its block; an inner block sees the
+  outer names and may shadow them; nothing leaks out of a block.
+- **Functions are closures.** `fn name(x, y) { … return e }` binds a function that captures the
+  scope as it stands where it is defined, by value: its body sees the names bound before it and
+  never its own name, nor any name bound after it, so no function calls itself, directly or
+  through another. A function may hold effects; a call adds them to the plan.
+- **Scripts call scripts.** `call name(k: v)` runs a library script in a scope of its own (it
+  sees its parameters, not the caller's names) under the same role and budget, and adds its plan
+  to the caller's; a cycle of calls is refused.
+- **Still total.** Without recursion, a well-typed script's evaluation ends (the simply typed
+  calculus is strongly normalizing); the meter of §E10 bounds it in any case.
+  `[ESTABLISHED — strong normalization of the simply typed lambda calculus; DERIVED for this
+  language: no recursion, lists finite, the meter]`
+
+### E12 — An interpreter with a checking pass, and a type system for the labels
+
+The owner's direction: real compiler tools, a consistent and secured type system, and the
+language interpreted rather than compiled. It is interpreted: a generated parser reads a script,
+a checking pass types and admits it, and a tree-walking evaluator runs it under the meter into
+the plan the writer lands. Nothing is compiled to code; the checking pass is a type checker, as
+an interpreted language may have one.
+
+- **The front end is generated.** The grammar is one file, `core/sentence/script.lark`, read by
+  Lark (LALR(1), the yacc family for Python), with a post-lexer that makes a newline a separator
+  in a block and space inside brackets. The file is the language's single definition: the parser,
+  its error messages and its tests come from it, and the grammar can be fuzzed from it.
+- **The middle is a checking pass over the parsed tree.** It resolves every name to its binding
+  and every closure to what it captures, types each expression, and checks admission (R1),
+  labels (R2 where the set is known), the scripts a request calls and the arguments they take,
+  and each nested sentence's syntax, with its captures as placeholders. A function is checked at
+  each call site, which is sound because nothing recurses. Evaluation is the last pass and yields
+  the plan. (MLIR's lesson, a tree lowered by passes that each check one thing, is the shape; the
+  checker is one pass today, and the static cost bound of §E10 is not built.)
+- **No machine back end.** A script's cost is reading sources and embedding, not instructions;
+  generating code through LLVM would buy nothing measurable and add a toolchain to trust. Where a
+  compiled back end would pay is the read half's tensor work (`near`'s similarities, `diffuse`'s
+  walk sums), through XLA (MLIR underneath) if a measurement shows the time is there.
+  `[INFERENCE — falsifier: a profile of a script whose time is in the evaluator]`
+- **The types.** `int`, `bool`, `none`, `str⟨L⟩`, `content⟨L⟩`, `list⟨T⟩`, the records a source's
+  items and a place's entries are, `source`, functions `fn(T…) → T`, where `L` is a set of labels.
+  Inference is monomorphic unification, and a unification of two label sets is their union, so
+  the inferred set only grows. The rules are the label rules of §E3: an item's fields carry its
+  source's labels, a projection keeps its operand's, anything composed is `{observed}`.
+  **Soundness**: a value's label at run time is in its type's set. `[THEOREM — DOR-18, Script.lean]` Then R2 is
+  decided at compile time wherever the set is known, and the writer's run-time check is the
+  second wall, not the only one.
+
 ### E9 — The laws
 
 | law | statement | formal |
@@ -386,9 +457,11 @@ landed within its budget]`
 | DOR-15 | confinement: a plan changes a path only through an effect on it the writer admitted, in the role's namespace for the effect's place (the write bit is DOR-1's, at compile time) | `Script.lean::confined` |
 | DOR-16 | every admitted plan is a batch of the first form's commands with the key last, so DOR-7, DOR-10, DOR-11 and DOR-12 hold of it | `Script.lean::plan_converges`, `plan_sound` |
 | DOR-17 | a held path keeps its label and its identity under every admitted store; a new path's identity is its own, one read off the very item stored, or one held at a path its source no longer has, with the same bytes; a path in a source's space takes only that source's item at that path; a retire of sourced content is of a path the source no longer has | `Script.lean::label_fixed`, `identity_moves_with_bytes`, `owned_by_source`, `retire_reconciles` |
+| DOR-18 | a well-typed value's label at run time is in its type's label set, so R2 is decided at compile time wherever the set is known | `Script.lean::label_typed` |
 
 The first form's DOR-1 holds effect by effect (R1). DOR-2 to DOR-12 are statements about
-commands, which every store is. `[THEOREM — Script.lean, design theorems until DS-7 enters them]`
+commands, which every store is. `[THEOREM — Script.lean; the ledger's family XII, each statement
+judged by the comparator against formal/Spec/Script.lean]`
 
 ## 4. Consequences — the order of work
 
@@ -396,9 +469,9 @@ commands, which every store is. `[THEOREM — Script.lean, design theorems until
 - **DS-1, the laws.** `formal/Palace/Script/Defs.lean`: values with labels and origins, the
   expression forms that matter to labels (an item, a projection, a construction), the writer's
   checks R2 to R7 as a predicate on a store and a state, plans compiled to the first form's
-  commands. `formal/Palace/Script.lean`: DOR-13 to DOR-17, with attacks and controls in
-  `formal/PalaceTest/Script.lean` (a laundering construction, a store at another path, an
-  identity graft, a retire of a present item).
+  commands. `formal/Palace/Script.lean`: DOR-13 to DOR-18 (DOR-18 with §E12), with attacks and
+  controls in `formal/PalaceTest/Script.lean` (a laundering construction, a store at another
+  path, an identity graft, a retire of a present item).
 - **DS-2, the language.** In `core/sentence/`: the script grammar under `do`, the checker (R1, R2
   where known, readers, places and jobs by name, the static bound of §E10), the evaluator,
   metered. The first form's command words, `command_requirement` and `kind_of` go.
@@ -418,16 +491,27 @@ commands, which every store is. `[THEOREM — Script.lean, design theorems until
 - **DS-6, the audits.** Agents, read-only: the language and the writer for security (a
   laundering, a squat, a graft, a traversal, an unbounded evaluation), the formal side against the
   code, and the scripts against the paths they replace.
-- **DS-7, the ledger and the pull request.** DOR-13 to DOR-17 enter `docs/LAWS.md` and
+- **DS-7, the ledger and the pull request.** DOR-13 to DOR-18 enter `docs/LAWS.md` and
   `formal/Spec/`, as the writer relies on them from its first commit; the README counts; PR #67
   rewritten to this state.
+
+Status, 2026-11-05: DS-0 to DS-5 and DS-7 are built. The thirteen scripts of §E8 are the library
+in `door/`; `sync_vault`, `sync_dialogue` and `ingest_doc` land what their first-form landers
+landed on the same fixtures (`tests/integration/test_door_scripts.py`), and the watcher's and the
+heartbeat's jobs, the CLI, the MCP aliases and the web filter speak scripts. The first-form
+landers stay for what still calls them outside the door: `VaultSync` for the owner's id minting
+(`scripts/mint_ids.py`), `DialogueCapture` for the Ambassador's inbox, which captures the owner's
+message in the daemon's own process, and `ingest_curated` for the offline demo
+(`scripts/talk.py`). Writing the inbox's capture as a script needs a source whose items are the
+owner's messages, labelled authored by the source (§E3); it is the next path to move. Not built:
+the static cost bound and a speaker's smaller budget (§E10).
 
 ## 5. Wiring & enablement
 
 The same switch as the first form (`[query]`); the same spools and modes (dn-ingest-door §5). The
 scripts are files in the repository, read by the daemon at evaluation; a change to one is a
-commit, reviewed like code. The palace's table is code in `core/ingest/table.py`, typed and tested, built
-from the configuration's paths (the vault's location, the data directory).
+commit, reviewed like code. The palace's table is code in `core/ingest/table.py`, typed and
+tested, built from the configuration's paths (the vault's location, the data directory).
 
 ## 6. Risks and falsifiers
 
