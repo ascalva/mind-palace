@@ -677,3 +677,13 @@ def test_read_labels_a_catalog_record_by_the_universes_table(tmp_path: Path) -> 
     assert stratum("dialogue/amb/capture-1") == "dialogue"
     assert stratum("dialogue/amb/said-1") == "dialogue"
     assert stratum("dialogue/amb/inferred-1") == ""
+
+
+def test_as_of_says_which_verbs_read_the_present(engine: _Engine) -> None:
+    """Only the citation graph is indexed by commit: a `near` under `as of` reads today's notes,
+    and the answer says so instead of passing the present off as the past (finding 9)."""
+    plan = compile_sentence('near "q" as of "c1"', AMBASSADOR_OVERLAY)
+    answer = execute(plan, _build(engine, plan))
+    assert any("near read the present" in n for n in answer.notes)
+    cited = compile_sentence('reach F from "core/x.py" as of "c1"', AMBASSADOR_OVERLAY)
+    assert not any("read the present" in n for n in execute(cited, _build(engine, cited)).notes)
