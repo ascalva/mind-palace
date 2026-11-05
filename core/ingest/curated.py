@@ -21,6 +21,8 @@ from pathlib import Path
 from core.attestation import Attestor
 from core.ingest.embed import Embedder
 from core.ingest.index import index_records
+from core.ingest.landing import attest_once
+from core.kernel.clearance import CURATED_READ
 from core.kernel.config import Config
 from core.kernel.ingest.logseq import parse_note
 from core.kernel.ingest.pipeline import ingest_note
@@ -44,9 +46,11 @@ def curated_sources(repo_root: Path) -> list[Path]:
 class CuratedReport:
     ingested: int = 0
     chunks: int = 0
+    unchanged: int = 0      # docs the catalog already held at this digest: nothing landed
 
     def __str__(self) -> str:
-        return f"curated ingested={self.ingested} chunks={self.chunks}"
+        return (f"curated ingested={self.ingested} chunks={self.chunks} "
+                f"unchanged={self.unchanged}")
 
 
 def ingest_curated(paths: list[Path], raw: RawStore, store: VectorStore, embedder: Embedder,
@@ -60,12 +64,21 @@ def ingest_curated(paths: list[Path], raw: RawStore, store: VectorStore, embedde
     for p in paths:
         parsed = parse_note(p, repo_root)
         record = ingest_note(parsed, raw, provenance=Provenance.CURATED)
+        # the idempotence key (dn-ingest-door D1, DOR-2): a doc the catalog already holds at this
+        # digest lands nothing and attests nothing; before this check every run re-attested every
+        # doc (the audit's defect 2). The plane must still hold its rows: after a plane reset
+        # (`palace reembed --confirm`) the catalog's key is stale, and a re-run re-lands the doc
+        # (the third review's finding 2; the attestation is not repeated, `attest_once`)
+        prev = catalog.get(record.source_path)
+        if (prev is not None and prev.active and prev.digest == record.digest
+                and store.has_digest(record.digest, clearance=CURATED_READ)):
+            report.unchanged += 1
+            continue
         added = index_records([record], embedder, store)     # idempotent: the plane reconciles
+        attest_once(attestor, agent_role="ambassador", action="ingest_curated",
+                    digest=record.digest)
         catalog.record(record.source_path, record.digest, record.title,
-                       provenance=Provenance.CURATED)
-        if attestor is not None:
-            attestor.emit(agent_role="ambassador", action="ingest_curated",
-                          input_hashes=[record.digest], output_hashes=[record.digest])
+                       provenance=Provenance.CURATED)                                # the key, last
         report.ingested += 1
         report.chunks += added
     return report

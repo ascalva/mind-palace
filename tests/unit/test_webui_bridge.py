@@ -78,6 +78,25 @@ def test_the_responder_refuses_a_tool_outside_the_web_set():
     assert srv.seen == []                                # never reached the dispatch
 
 
+def test_query_from_the_web_speaks_only_the_web_tools_commands():
+    """Since the door, `query` can carry a command; from Open WebUI it may carry only the commands
+    its own tools speak (capture and the two syncs), never `dream`, `relate`, `link` or an
+    ingest, however it is spelled."""
+    from agents.ambassador.handoff import web_admits
+
+    for ok in ('near "x"', 'do capture "remember this" in tea', "do sync dialogue",
+               "do sync vault", "not a sentence ("):
+        assert web_admits(ok) is None, ok
+    for no in ("do dream", "do relate pairs 50", 'do link "a" "b" supports', "do sync code",
+               'do ingest note "pages/a.md"', "do curate", 'near "x" then do dream',
+               "do  sync   chat"):
+        assert web_admits(no) is not None, no
+    srv = _Server()
+    text, err = server_call(srv)("query", {"sentence": "do dream"})       # type: ignore[arg-type]
+    assert err and "from Open WebUI a command is" in text
+    assert srv.seen == []                                # never reached the dispatch
+
+
 def test_the_responder_answers_through_the_stdio_servers_dispatch():
     srv = _Server()
     assert server_call(srv)("query", {"sentence": 'near "x"'}) == ('{"hits": []}', False)  # type: ignore[arg-type]

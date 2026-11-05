@@ -692,6 +692,12 @@ class Evaluator:
                 return WitnessV(record)
             case ast.Read(atom=atom, chunk=chunk):
                 return self._read(atom, chunk)
+            case ast.Do(command=c):
+                raise UnsupportedSentence(
+                    f"do {ast.describe_command(c)}: a command is not evaluated here; ask it "
+                    "through a surface (`palace query`, the MCP's `query`), which writes it as a "
+                    "request for the daemon's one writer and returns the receipt "
+                    "(dn-ingest-door D3)")
             case ast.Assume(hypothesis=h, body=b):
                 overlay = Overlay.of(h, self.u)
                 self._note_assume(h, overlay)
@@ -1055,9 +1061,14 @@ def _hits(value: Value, u: Universe, k: int) -> tuple[Hit, ...]:
                          detail={"word": "".join(m.value for m in c.word), "length": len(c.steps)})
                      for c in value.chains)
     if isinstance(value, WitnessV):
-        return () if value.record is None else (
-            Hit(ref=str(value.record.get("edge_id", "")), stratum="dialogue",
-                detail=dict(value.record)),)
+        if value.record is None:
+            return ()
+        r = value.record
+        if "edge_id" in r:                  # a causal or reference edge: the witness is the edge
+            return (Hit(ref=str(r["edge_id"]), stratum="dialogue", detail=dict(r)),)
+        # a landing's attestation (dn-ingest-door D5): the witness is the record of what landed
+        return (Hit(ref=str(r.get("id", "")), title=str(r.get("action", "")), stratum="door",
+                    provenance=str(r.get("agent_role", "")), detail=dict(r)),)
     if isinstance(value, TextV):
         r = value.record
         detail = {"chunks": str(r["chunks"])} if "chunks" in r else {}

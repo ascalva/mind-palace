@@ -15,7 +15,9 @@ pattern with a structured payload:
 The web client gets a narrower tool set than OpenCode's: every read, plus capture and the two
 syncs — never `dream`/`relate` (long synthesis-model jobs) or `link` (interpreted edges) from a
 chat window. `WEB_TOOLS` is enforced HERE; the edge's advertised list is a copy for the client,
-not the gate.
+not the gate. `query` reads, and since the door (dn-ingest-door) it can also speak a command
+(`do …`): from the web client it may speak only the commands its tools already allow
+(`web_admits`), so the narrowing holds whatever tool carries the sentence.
 One responder runs at a time (`responder.lock`, which is also how the edge sees it is up); it exits
 after `idle_exit_s` with no calls, and the edge starts it again on the next one.
 """
@@ -46,6 +48,30 @@ WEB_TOOLS = frozenset({
 })
 
 _ID = re.compile(r"[0-9a-f]{32}")   # the edge's uuid4().hex; anything else never names a file
+
+# The commands the web client may speak through `query`: those its own tools speak (`capture`,
+# `sync_dialogue`, `sync_notes`), as (command word, lane or None).
+WEB_COMMANDS = frozenset({("capture", None), ("sync", "dialogue"), ("sync", "vault")})
+
+
+def web_admits(sentence: str) -> str | None:
+    """`None` when the web client may send `sentence` through `query`, else why not. A read is
+    admitted; a command only when it is one of `WEB_COMMANDS`. A sentence that does not tokenize
+    is admitted here and refused by the server's own parse."""
+    from core.sentence.grammar import ParseError, tokenize
+
+    try:
+        tokens = tokenize(sentence)
+    except ParseError:
+        return None
+    if not any(t.kind == "WORD" and t.text == "do" for t in tokens):
+        return None
+    words = [t.text if t.kind == "WORD" else None for t in tokens[:3]] + [None, None]
+    head, word, lane = words[0], words[1], words[2]
+    if head == "do" and ((word, None) in WEB_COMMANDS or (word, lane) in WEB_COMMANDS):
+        return None
+    return ("from Open WebUI a command is `do capture …`, `do sync dialogue` or `do sync vault`; "
+            "the others are spoken from the owner's terminal or OpenCode")
 
 # (tool name, arguments) -> (text, is_error)
 Call = Callable[[str, dict[str, Any]], tuple[str, bool]]
@@ -80,6 +106,8 @@ def server_call(server: Server | None = None) -> Call:
     def call(name: str, arguments: dict[str, Any]) -> tuple[str, bool]:
         if name not in WEB_TOOLS:
             return f"{name!r} is not available from Open WebUI", True
+        if name == "query" and (why := web_admits(str(arguments.get("sentence", "")))):
+            return why, True
         reply = srv.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
                             "params": {"name": name, "arguments": arguments}})
         if reply is None or "error" in reply:

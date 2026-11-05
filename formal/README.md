@@ -119,13 +119,27 @@ Roundoff and FloatModel, so it has no statements of its own):
   XI (`Spec/Sentence.lean`, 32 statements); QSA-6 is cited from the note. The model's `within`
   takes its region as an opaque value, so QSA-5 and QSA-6 cover a sentence without the region's
   own clauses; the code admits those too, which can only add refusals.
+- `Door` (XII): ingestion as the sentence `do …` (dn-ingest-door), on a keyed model: rows, each
+  identity's version chain, and each identity's key, the catalog's digest the UNCHANGED check
+  reads. DOR-1 a command is admissible iff a granted plane above its scope carries the write bit,
+  so a read-only grant admits none, and the Ambassador's grant as written admits a
+  projection-event command and refuses a commit-clock one; DOR-7 with the key written last a
+  fresh run interrupted after any step converges under re-run, in the model's stage order and in
+  any order of the steps before the key (the code's), and a key written while some of the
+  command's rows are not held, first or after the plane's rows as the audit's defect 1 wrote it,
+  is never repaired (the controls). The code of `core/sentence/types.py` and the landing order
+  are written to them, so they are the ledger's family XII (`Spec/Door.lean`, 8 statements); DOR-2, 3, 5, 6 and 8 to 12 (closure,
+  commutation and batch idempotence on distinct identities, the embed count, the receipt, the
+  chain as the serial order, parallel dispatch, conflict-serializability with repeated
+  identities and the guard's scope, crash convergence under a parallel run, readers without a
+  lock) stay design theorems.
 - `Bridges`: theorems that join two families, so that what one proves serves the other: BRG-1
   the Laplacian as `∂₁ ∂₁ᵀ`, BRG-2 Euler and Poincaré on the flag complex, BRG-3 Thomson's
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
 - `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the cited theorems
-  (225), and the three standard axioms.
+  (233 theorems), and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself. It is weaker than the comparator: it
   compares the statements' types and the definitions' values, not constructors, recursor rules or
@@ -227,6 +241,8 @@ Roundoff and FloatModel, so it has no statements of its own):
 | QSA-7 | a chain is admissible iff the product walk accepts; dead-state pruning is sound; an added edge only adds chains; the set `E` is the one-state automaton | proved; attacks survived 500 each |
 | QSA-8 | `mode_of ∘ required`, verb by verb | proved |
 | QSA-9 | a hypothetical edge is a rank-one update of `L` and of `L̄`; both Rayleigh directions; the given camps balance a new signed edge iff its sign agrees, and a disagreeing edge closing a path is frustrated for any camps; Sherman–Morrison for an invertible matrix | proved; attacks survived 495, 495, 500 and 484 |
+| DOR-1 | a command is admissible iff a granted plane above its scope carries the write bit; a read-only grant admits none; the Ambassador's grant as written admits a projection-event command and refuses a commit-clock one | proved, by structure and by `decide` |
+| DOR-7 | with the key written last, a fresh run interrupted after any step converges under re-run, in the model's stage order and in any order of the steps before the key; a key written while some of the command's rows are not held, first or after the plane's rows, is never repaired | proved; attacks survived 500 (every prefix) and 500 (two steps in either order), both controls refuted on the first instance |
 
 The binarized forms (0/1 adjacency) reduce to Mathlib's `SimpleGraph.posSemidef_lapMatrix` and
 `card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix` in one line each.
@@ -439,6 +455,19 @@ the listed edges alone, without the edges the assumption supplied; one arc alone
 Laplacian update; on a present edge of the other sign the absolute values do not add; a contradiction
 between allies breaks the camps; and the Sherman–Morrison correction added instead of subtracted.
 
+The door is attacked on exact shadows (seeds 245 to 272): rows over `Fin 4` from four bits, two or
+three identities, two digests, chains as lists, keys unset but in `held`, a state holding a version
+under its key. Every attack survived; four tested 494 or 495 instances, the rest discarded as
+draws that break their guard (two versions with one digest). Its controls, each refuted within six
+instances: an ingest that always appends a version is not idempotent; on one identity the two
+orders give two chains, and an interleaving lands the other order's chain; a run that writes its
+key first, or after the plane's rows as the audit's defect 1 did, is never repaired; a schedule
+that swaps two versions of one note lands the other chain; a command whose run is not a prefix of
+its own steps is never repaired; a key-first run shows a reader rows that are not there; a revert
+whose guard reads the key early lands the edit alone; two versions of one note stopped out of order
+do not converge; and a serial run on one identity stopped inside a command does not converge when
+the whole batch runs again.
+
 The magnetic operator is complex and its transports are exponentials, which do not run, so its
 attacks fix the transports at their exact values, `1` at phase `0` and `−1` at phase `π`, or test
 the combinatorial content. BRG-7's controls: transport `−1` everywhere gives the signless `D + A`,
@@ -477,7 +506,7 @@ another module, and without it 68 proofs in seven files fail. One instance is wr
 to importers (`Palace/Scope.lean`).
 
 The kernel re-check. `Export.lean` writes every `Palace` declaration and everything it uses, from
-`Init` up (44,967 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
+`Init` up (45,293 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
 kernel and the five independent checkers bundled with Lean: `leanchecker-paranoid`, `lean4lean` (a
 kernel written in Lean), `nanoda` (one written in Rust), and `con-leche`, whose acceptance carries a
 machine-checked theorem that the environment holds no proof of `False`, with `con-ron`, its port.
@@ -488,7 +517,7 @@ nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
 does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the
-225 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
+233 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.
 

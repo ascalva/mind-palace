@@ -8,7 +8,7 @@ normal form is a pure function of the sentence (dn-query-sentence-algebra §2.7,
 from __future__ import annotations
 
 from collections.abc import Iterator
-from dataclasses import dataclass, fields, is_dataclass
+from dataclasses import dataclass, fields
 from enum import StrEnum
 
 
@@ -244,19 +244,156 @@ class Assume:
     body: Node
 
 
+# ── commands: the action sort (dn-ingest-door D1, D2) ─────────────────────────────────────────
+
+
+class SourceKind(StrEnum):
+    """What the door ingests: the owner's note, a dialogue turn, one of the system's own docs, a
+    paper, the code at a commit, a session transcript."""
+
+    NOTE = "note"
+    TURN = "turn"
+    DOC = "doc"
+    PAPER = "paper"
+    CODE = "code"
+    TRANSCRIPT = "transcript"
+
+
+@dataclass(frozen=True)
+class Source:
+    """`note <path>` | `turn <conversation> <id> "<text>"` | `doc <path>` | `paper <ref>` |
+    `code [<commit>]` | `transcript <session>`. There is no role word: a turn the door ingests is
+    observed by construction; the owner's turns reach the palace through the dialogue handoff
+    file, never through a sentence."""
+
+    kind: SourceKind
+    atom: str = ""          # the path, ref, commit or session; a turn's conversation
+    turn: str = ""          # a turn's id
+    text: str = ""          # a turn's text
+
+
+LANES: tuple[str, ...] = ("vault", "dialogue", "chat", "code")
+RELATIONS: tuple[str, ...] = ("supports", "contradicts", "contextualizes")
+
+
+@dataclass(frozen=True)
+class Ingest:
+    """`ingest <source>`: the one operation over typed sources."""
+
+    source: Source
+
+
+@dataclass(frozen=True)
+class Sync:
+    """`sync <lane>`: the rescan of a lane, `vault`, `dialogue`, `chat` or `code`."""
+
+    lane: str
+
+
+@dataclass(frozen=True)
+class Observe:
+    """`observe code [<commit>]`: the code sensor, which mints the citation graph's edges."""
+
+    commit: str | None = None
+
+
+@dataclass(frozen=True)
+class Dream:
+    """`dream`: one dreaming pass, a synthesis-tier job."""
+
+
+@dataclass(frozen=True)
+class Curate:
+    """`curate`: one curation pass."""
+
+
+@dataclass(frozen=True)
+class RelatePass:
+    """`relate [pairs <n>]`: the relation detector over the most similar pairs."""
+
+    pairs: int | None = None
+
+
+@dataclass(frozen=True)
+class Link:
+    """`link <a> <b> <relation>`: a proposed relation edge between two notes, interpreted."""
+
+    a: str
+    b: str
+    relation: str
+
+
+@dataclass(frozen=True)
+class Capture:
+    """`capture "<text>" [in <conversation>]`: remember text, observed by construction."""
+
+    text: str
+    conversation: str | None = None
+
+
+@dataclass(frozen=True)
+class Research:
+    """`research "<criteria>"`: a research request through the airlock; it writes no paper."""
+
+    text: str
+
+
+Command = Ingest | Sync | Observe | Dream | Curate | RelatePass | Link | Capture | Research
+
+
+@dataclass(frozen=True)
+class Do:
+    """`do <command>`: the action sort. A whole sentence, with no connective and no adjective: its
+    value is a receipt, and the state it changes lands later, so nothing may read after it in
+    the same sentence (dn-ingest-door D2)."""
+
+    command: Command
+
+
 Node = (
     Near | Diffuse | Far | Reach | Relate | Top | AtLeast | Not | Minus | Trace | Walk | Witness
-    | Read | And | Or | Then | Within | Over | AsOf | Assume
+    | Read | And | Or | Then | Within | Over | AsOf | Assume | Do
 )
 
 
+def describe_command(c: Command) -> str:
+    """One line naming a command, as the plan renders it."""
+    match c:
+        case Ingest(source=src):
+            match src.kind:
+                case SourceKind.TURN:
+                    return f"ingest turn {src.atom} {src.turn} {src.text!r}"
+                case SourceKind.CODE:
+                    return "ingest code" + (f" {src.atom}" if src.atom else "")
+                case _:
+                    return f"ingest {src.kind.value} {src.atom!r}"
+        case Sync(lane=lane):
+            return f"sync {lane}"
+        case Observe(commit=commit):
+            return "observe code" + (f" {commit}" if commit else "")
+        case Dream():
+            return "dream"
+        case Curate():
+            return "curate"
+        case RelatePass(pairs=n):
+            return "relate" + (f" pairs {n}" if n is not None else "")
+        case Link(a=a, b=b, relation=r):
+            return f"link {a!r} {b!r} {r}"
+        case Capture(text=t, conversation=conv):
+            return f"capture {t!r}" + (f" in {conv}" if conv else "")
+        case Research(text=t):
+            return f"research {t!r}"
+    raise TypeError(f"not a command: {c!r}")  # pragma: no cover
+
+
 def walk(node: Node) -> Iterator[Node]:
-    """Every node of a term, the term first, then its operands depth first."""
+    """Every node of a term, the term first, then its operands depth first (a hypothesis and a
+    command are a node's data, not its operands)."""
     yield node
     for f in fields(node):
         child = getattr(node, f.name)
-        if is_dataclass(child) and not isinstance(child, EdgeHyp | SeverHyp | ContradictHyp):
-            yield from walk(child)  # type: ignore[arg-type]
+        if isinstance(child, Node):  # type: ignore[arg-type]
+            yield from walk(child)
 
 
 def describe(h: Hypothesis) -> str:

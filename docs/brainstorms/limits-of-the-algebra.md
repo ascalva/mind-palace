@@ -28,7 +28,7 @@ links:
 inverse's exact response is Sherman–Morrison with the denominator `1 − w·rEff(a, b)`. The response
 theory is regular while the denominator is positive and **singular when it vanishes**. Conjecture:
 `w·rEff(a, b) ≤ 1` always (the direct edge alone has resistance `1/w`, and the rest of the graph
-can only lower it — Rayleigh, CND-2), with **equality iff the edge is a bridge**: severing a bridge
+can only lower it, by Rayleigh's monotonicity, CND-2), with **equality iff the edge is a bridge**: severing a bridge
 disconnects, every effective resistance across it becomes infinite, and the symbolic sign rule
 "removing weight raises every resistance along paths through the edge" degenerates to "to
 infinity". Kirchhoff reads `w·rEff(e)` as the probability that a random spanning tree contains
@@ -59,16 +59,16 @@ and every other edge sits below 0.9. *Falsifier:* none left; L1 is closed both w
 killed walk concentrates on the heaviest paths and `φ_β` tends to the shortest-path distance
 (the known RSP limit); as `β → 0` it tends to a commute-time-like quantity. Conjecture: the
 *rank* of the nearness matrix `e^{−βφ}` is full for every finite `β` but its condition number
-diverges exponentially in `β` — the kernel "freezes" into a tree metric — and HYBRID's Schur
+diverges exponentially in `β`, the kernel "freezing" into a tree metric, and HYBRID's Schur
 product with `K_sem` loses the cone at a finite `β*` that is a property of the graph (RSP-3's
 `K₂,₃` leaves it at `β = 100`). *Status — measured 2026-11-04 on the live backbone* (38 notes, 38 edges, 12 isolated, read-only
 sweep of `β ∈ [0.25, 128]`): `e^{−d_β}` **stays in the cone at every `β`** (least eigenvalue
-0.94 → 0.017, positive throughout), and so does `K_sem ∘ e^{−d_β}` (0.94 → 0.027 — never below
+0.94 → 0.017, positive throughout), and so does `K_sem ∘ e^{−d_β}` (0.94 → 0.027, never below
 `e^{−d_β}`'s own, as Schur's theorem with a unit-diagonal factor predicts); the condition number
 grows **about linearly** in `β` (3.2 at `β = 1`, 820 at `β = 128`), not exponentially as
 conjectured; and `d_β` converges to the shortest-path metric in the edge lengths `−log w`
 (correlation 0.92 → 0.9992, the largest deviation 0.06 at `β = 128`, the median ratio 1.10 and
-falling) — the known RSP limit, confirmed on the owner's notes. So the live backbone is NOT a
+falling): the known RSP limit, confirmed on the owner's notes. So the live backbone is NOT a
 `K₂,₃`: the cone boundary RSP-3 witnesses on that graph is not reached here, and the conjecture
 sharpens to a question about the graph's cycle structure (FitzGerald–Horn: a Hadamard power
 `1/β < n − 2` of a correlation matrix *may* leave the cone, and does on `K₂,₃`; when must it?).

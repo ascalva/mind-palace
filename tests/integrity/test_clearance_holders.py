@@ -64,6 +64,8 @@ HOLDERS: dict[str, dict[str, str]] = {
         "core/sentence/execute.py": "`read` of a `reference:` paper: the sentence's dereference",
         "core/sentence/universe.py": "the papers `near … over curated` and a paper anchor seed",
         "core/research/curate.py": "the manifest check that an embedded paper is stored",
+        "core/ingest/curated.py": "the idempotence key asks the plane for the doc's rows, so a "
+                                  "re-run after a plane reset lands the doc again",
         "eval/quantization_bench.py": "step C measures compressed search over every paper atom",
         "scripts/curate_local.py": "the paper importer dedupes against stored digests",
     },

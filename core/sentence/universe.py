@@ -677,13 +677,19 @@ class _Builder:
             if edge is not None:
                 return {k: str(v) for k, v in edge.__dict__.items()}
             row = self.store("causal").edge(edge_id)      # a causal edge's own id: the witness
-            if row is None:
-                return None
-            # the turn that produced it, by its ref; the raw transcript's digest is a raw-store
-            # key and never leaves the store
-            out = {k: str(v) for k, v in row.items() if k != "witness_digest"}
-            out["transcript"] = producing_turn(row)
-            return out
+            if row is not None:
+                # the turn that produced it, by its ref; the raw transcript's digest is a
+                # raw-store key and never leaves the store
+                out = {k: str(v) for k, v in row.items() if k != "witness_digest"}
+                out["transcript"] = producing_turn(row)
+                return out
+            # a landing's receipt names its attestation (dn-ingest-door D5, DOR-6): the record
+            # of what landed, its role, its action and the digests it produced
+            try:
+                att = self.e._get("attestations").get(edge_id)
+            except KeyError:                              # an engine without the store
+                att = None
+            return None if att is None else {k: str(v) for k, v in att.__dict__.items()}
 
         def text(ref: str, chunk: int | None, window: int) -> Mapping[str, object] | None:
             return read_ref(engine, ref, chunk, window=window, cut=self.cut)

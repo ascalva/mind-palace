@@ -23,10 +23,11 @@ Verbs — the relation noun carries the edge letter (`S` similarity, `F` citatio
   `atleast <t> <field>` · `not <region>` · `<region> minus <region>`
 - **chains**: `trace <note> [forward|back]` (the version chain) · `walk from <note> [to <note>]
   via <path>` (a regular expression over `S F D C`: `F+`, `S{0,2}C+`)
-- `witness "<edge id>"` (the record that minted an edge) · `read "<ref>" [chunk <n>]` (the text at a
-  ref: a note, a dialogue turn, a transcript turn, or a window of a curated paper or of a repo
-  file; read before quoting. It is the one verb that returns content, so it composes with nothing:
-  `over`, `assume` and `then` refuse it, as they refuse a witness)
+- `witness "<edge id or attestation id>"` (the record that minted an edge, or the attestation a
+  landing's receipt names) · `read "<ref>" [chunk <n>]` (the text at a ref: a note, a dialogue
+  turn, a transcript turn, or a window of a curated paper or of a repo file; read before quoting.
+  It is the one verb that returns content, so it composes with nothing: `over`, `assume` and
+  `then` refuse it, as they refuse a witness and a command)
 
 Connectives, tightest first: the adjectives `within <region>`, `over <strata>`, `as of "<cut>"`;
 then `and` / `minus`; then `or`; then `then` (`s then t` ≡ `t within region(s)`). Parenthesize to
@@ -91,6 +92,25 @@ empty — do not read an empty answer there as "nothing in the notes". `--as <ro
 asker for the sensor (`orchestrator`, `builder`, `scribe`, …) and grants nothing: every sentence
 runs under the Ambassador's grant. `--json` for programs; `--no-plan` to shorten; `--trace` to
 show the work (§3).
+
+## 2b. Commands, by design first
+
+`do <command>` is the action sort (dn-ingest-door): `do sync vault`, `do dream`, `do link "a"
+"b" supports`, `do capture "…" in <conversation>`, `do ingest note "<path>"`, `do ingest code`,
+`do observe code`, `do research "…"`. A command is a whole sentence with no connective, its
+value is a receipt, and it needs a plane with the write bit on the strata it writes (DOR-1), so
+a read-only grant refuses it at compile time. A command is not evaluated: it is written as a
+request into the spool of the role that spoke it (`data/handoff/door/<role>/`), the daemon drains
+the spools each tick and lands it as the one writer, and the answer is the receipt, one hit of
+stratum `door` naming the request and its kind; the receipt beside the request says `queued`
+with the job, then `landed` with what landed, or `refused` with why. The Ambassador's tools
+`sync_notes`, `sync_dialogue`, `dream`, `relate`, `capture` and `link` are these sentences. A turn or a capture the
+door lands lives under `dialogue/door/<role>/<conversation>/`, and a conversation is a name, never
+a path; `relate pairs` is at most fifty. From Open WebUI, `query` speaks only `do capture`,
+`do sync dialogue` and `do sync vault`. A role's share of the queue is bounded by lane (captures,
+and the rest), and a request past it is refused as busy. The query log keeps a command with its
+quoted texts replaced by their lengths. Not landed yet, and refused by name: `research`, a paper's manifest,
+one commit's backfill, one commit's observation, one session's transcript.
 
 ## 3. Read the answer
 

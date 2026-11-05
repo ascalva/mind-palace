@@ -3,7 +3,8 @@ heartbeat (ops/heartbeat.py) reads to ask "anything new since the last sync?".
 
 Proves: a source captured in full leaves `<source>.synced` with the newest change it saw; a source
 not asked for, a failing edge reader, or a capture that dies midway leaves no mark, so the next
-beat retries instead of skipping the turns.
+beat retries instead of skipping the turns; a turn the capture refuses (its class changed) is kept
+as it was and reported, and the rest land.
 """
 
 from __future__ import annotations
@@ -29,14 +30,17 @@ CHATS = {
 
 
 class _Capture:
-    def __init__(self, fail_on: str | None = None) -> None:
+    def __init__(self, fail_on: str | None = None, refuse: str | None = None) -> None:
         self.turns: list[str] = []
         self.fail_on = fail_on
+        self.refuse = refuse
 
     def capture_turn(self, text: str, *, conversation: str, turn_id: str, role: str,
                      at: str | None) -> tuple[str, bool]:
         if turn_id == self.fail_on:
             raise RuntimeError("embedder down")
+        if turn_id == self.refuse:
+            raise PermissionError(f"dialogue/{conversation}/{turn_id} is observed")
         self.turns.append(turn_id)
         return f"dialogue/{conversation}/{turn_id}", True
 
@@ -84,3 +88,16 @@ def test_a_capture_that_dies_midway_leaves_no_mark(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError):
         _sync(tmp_path, monkeypatch, _Capture(fail_on="t2"), only={"openwebui"})
     assert synced_mark(tmp_path, "openwebui") == 0                # retried next beat, not skipped
+
+
+def test_a_refused_turn_is_kept_and_the_rest_land(tmp_path, monkeypatch, capsys):
+    """A turn whose class changed (`capture_turn` refuses it: an observed turn never supersedes
+    the owner's words, nor the reverse) is kept as it was and reported; the sync goes on, and the
+    mark is written, since a retry would refuse it again."""
+    monkeypatch.setattr(subprocess, "run", _edge())
+    cap = _Capture(refuse="t1")
+    assert _sync(tmp_path, monkeypatch, cap, only={"openwebui"}) == 0
+    assert cap.turns == ["t2"]
+    assert synced_mark(tmp_path, "openwebui") == 140
+    out = capsys.readouterr().out
+    assert "1 refused" in out and "kept as it was" in out

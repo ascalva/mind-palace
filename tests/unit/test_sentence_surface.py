@@ -168,6 +168,58 @@ def test_usage_is_refused_with_the_usage_line(tmp_path: Path) -> None:
 # ── the sensor ──────────────────────────────────────────────────────────────────────────────────
 
 
+def test_a_requested_command_is_not_a_failed_translation() -> None:
+    from core.sentence.surface import redact_command
+    rows = [Entry(at="t", surface="mcp", role="ambassador", sentence='do capture "<5>"',
+                  sort="event", modes=(), strata=(), ms=1, outcome="requested", hits=1),
+            Entry(at="t", surface="cli", role="cli", sentence='near "x"', sort="field", modes=(),
+                  strata=("mirror",), ms=1, outcome="empty", hits=0)]
+    s = summarize(rows)
+    assert s["outcomes"] == {"empty": 1, "requested": 1}
+    assert [f["sentence"] for f in s["failed"]] == ['near "x"']
+    assert redact_command('do capture "the milk" in "tea \\"x\\""') == 'do capture "<8>" in "<7>"'
+    assert redact_command("do dream") == "do dream"
+
+
+def test_a_command_never_puts_its_text_in_the_log(tmp_path: Path) -> None:
+    """The second review's leaks: an unterminated string, a parse error at a string, a refusal
+    naming a conversation, and a command over the cap all reach the log without their text; and
+    the redaction is linear, a hostile 32 KB command costing what any command does."""
+    import time
+
+    from core.ingest import door
+    from core.kernel.config import get_config
+    from core.sentence.surface import ask_logged, redact_command
+
+    class _E:
+        config = get_config()
+
+    log = QueryLog(tmp_path / "q.jsonl")
+    from core.sentence import IllScopedSentence, ParseError
+    for text, refused in (('do capture "the owner PIN is 4321', ParseError),
+                          ('do capture "a" "secret 4321"', ParseError),
+                          ('do capture "x" in "openwebui/4321"', IllScopedSentence),
+                          ('do capture "' + "4321 " * 8000 + '"', ValueError)):
+        with pytest.raises(refused):
+            ask_logged(text, door.grant_for("ambassador"), surface="mcp", role="ambassador",
+                       engine=_E(), log=log)          # type: ignore[arg-type]
+    raw = (tmp_path / "q.jsonl").read_text()
+    assert "4321" not in raw and "secret" not in raw and "openwebui" not in raw
+    entries = log.entries()
+    assert entries[0].sentence == "do capture <33 characters, unparsed>"
+    assert all(e.outcome == "refused" for e in entries)
+    hostile = 'do capture "' + '\\"' * 16000
+    started = time.perf_counter()
+    assert redact_command(hostile) == f"do capture <{len(hostile)} characters, unparsed>"
+    assert time.perf_counter() - started < 0.5
+
+
+def test_a_busy_spool_is_a_refusal_of_its_own_class() -> None:
+    from core.ingest.door import Busy
+    from core.sentence.surface import refusal_class
+    assert refusal_class(Busy("full")) == "busy"
+
+
 def test_the_log_is_a_sensor_of_strata_by_role_and_failed_translations(tmp_path: Path) -> None:
     log = QueryLog(tmp_path / "q.jsonl")
     _run(['near "q"', "--as", "orchestrator"], log)

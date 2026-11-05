@@ -28,7 +28,8 @@ _ROUTINE_KINDS = frozenset({"librarian", "query", "assistant", "chat", "converse
 # `ambassador_task` = the Ambassador's DELEGATED heavy work (the "→ queue" of task→gate→queue):
 # a deep grounded synthesis run, trough-gated like dreaming, so the conversation never blocks on it.
 _SYNTHESIS_KINDS = frozenset(
-    {"curate", "dream", "synthesize", "research", "compact", "ambassador_task"}
+    {"curate", "dream", "synthesize", "research", "compact", "ambassador_task",
+     "relate"}   # the door's relation pass wakes the large model (dn-ingest-door D7)
 )
 _ROUTER_KINDS = frozenset({"route", "classify", "watchdog"})
 # Kinds that run on the always-pinned tier (config.pinned_model.tier). Two reasons a kind pins:
@@ -41,7 +42,10 @@ _ROUTER_KINDS = frozenset({"route", "classify", "watchdog"})
 #     small pinned chat model and delegates heavy work (ambassador-as-reasoning-agent.md §2b).
 # Both default to PRIORITY_REACTIVE (responsive); the model-less enqueues override to BACKGROUND.
 _PINNED_KINDS = frozenset(
-    {"vault_sync", "ambassador", "chat_sync", "chat_events", "integrate", "code_sync"})
+    {"vault_sync", "ambassador", "chat_sync", "chat_events", "integrate", "code_sync",
+     # the door's model-less kinds (dn-ingest-door D5, D7): an ingest, a capture, a link, the
+     # code sensor and the dialogue handoff call no chat model
+     "ingest", "capture", "link", "code_observe", "dialogue_sync"})
 
 
 @dataclass(frozen=True)

@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 from core.attestation import Attestor
 from core.ingest.embed import Embedder
 from core.ingest.index import index_records
+from core.ingest.landing import attest_once
 from core.kernel.config import Config
 from core.kernel.ingest.logseq import ParsedNote
 from core.kernel.ingest.pipeline import ingest_note
@@ -33,6 +34,8 @@ from core.stores.vectorstore import VectorStore, open_vector_store
 def _compact_ts() -> str:
     return datetime.now(UTC).replace(tzinfo=None).isoformat(timespec="seconds")
 
+
+_DIALOGUE_CLASSES = frozenset({Provenance.AUTHORED_DIALOGUE.value, Provenance.OBSERVED.value})
 
 @dataclass
 class DialogueCapture:
@@ -82,6 +85,13 @@ class DialogueCapture:
         if prev is not None and prev.active and prev.digest == hashlib.sha256(data).hexdigest():
             return prev.digest, False
         provenance = Provenance.AUTHORED_DIALOGUE if role == "user" else Provenance.OBSERVED
+        # a turn's class is fixed with its identity: an observed turn never supersedes the
+        # owner's words on the same path, nor the reverse (dn-ingest-door D8, §9); a label outside
+        # the two dialogue classes (a relabel's) is the catalog's to keep, not a refusal
+        held = prev.provenance if prev is not None else ""
+        if held in _DIALOGUE_CLASSES and held != str(provenance):
+            raise PermissionError(f"{source_path} is {held}; a {provenance} turn never "
+                                  "supersedes it")
         title = f"dialogue/{conversation}/{at or _compact_ts()} ({role})"
         parsed = ParsedNote(
             source_path=source_path, title=title, text=text,
@@ -89,10 +99,10 @@ class DialogueCapture:
         )
         record = ingest_note(parsed, self.raw, provenance=provenance)
         index_records([record], self.embedder, self.store)   # idempotent: the plane reconciles
-        self.catalog.record(source_path, record.digest, title, provenance=provenance)
-        if self.attestor is not None:
-            self.attestor.emit(agent_role="ambassador", action="capture",
-                               input_hashes=[record.digest], output_hashes=[record.digest])
+        # the landing order (dn-ingest-door D1, DOR-7): attest, then the catalog's digest last, the
+        # idempotence key the check above reads
+        attest_once(self.attestor, agent_role="ambassador", action="capture", digest=record.digest)
+        self.catalog.record(source_path, record.digest, title, provenance=provenance)   # the key
         return record.digest, True
 
 

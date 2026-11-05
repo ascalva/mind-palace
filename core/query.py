@@ -180,6 +180,35 @@ AMBASSADOR = Grant(
     )
 )
 
+# The grant the owner's own surfaces hold at the door (dn-ingest-door D3, §8): the terminal, the
+# heartbeat and the watchers, which speak for the owner, not for an agent. The Ambassador's three
+# planes with the write bit at both clocks, so `do sync code`, `do observe code` and `do sync chat`
+# are admissible to the owner's surfaces and refused to the Ambassador (DOR-1, Door.lean). No world
+# reach, as every grant in code.
+OPERATOR = Grant(
+    (
+        scope(
+            {
+                Stratum.MIRROR,
+                Stratum.CURATED,
+                Stratum.INTERPRETED,
+                Stratum.DIALOGUE,
+                Stratum.OBSERVED,
+                Stratum.REFERENCE,
+            },
+            {"F", "D"},
+            Clock.PROJECTION_EVENT,
+            _ALL,
+            propose=True,
+            write=True,
+        ),
+        scope({Stratum.REFERENCE, Stratum.DIALOGUE}, {"F", "C"}, Clock.COMMIT, _ALL, propose=True,
+              write=True),
+        scope({Stratum.MIRROR}, {"D"}, Clock.N_S, _ALL),
+    )
+)
+
+
 def with_overlay(g: Grant) -> Grant:
     """`g` with the hypothetical overlay named on every plane — what the owner grants a client to
     evaluate `assume` sentences (dn-query-sentence-algebra §4 d; granted 2026-11-04). Σ is a
@@ -358,6 +387,10 @@ class QueryEngine:
                 from core.stores.chatlog import open_chatlog_store
 
                 self._cache[name] = open_chatlog_store(cfg)
+            elif name == "attestations":
+                from core.attestation.store import open_attestation_store
+
+                self._cache[name] = open_attestation_store(cfg)
             elif name == "memberships":
                 from core.stores.memberships import open_membership_store
 
