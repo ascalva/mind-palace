@@ -232,15 +232,15 @@ theorem label_fixed (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : 
   · exact ((okStore_spec hok).2.2.2.2.2.1 row hp).symm
 
 /-- **DOR-17** Identities move only with their bytes: an admitted store at a new path gives it its
-own identity, one read off the very item stored, or one held at a path its source no longer has,
-holding the same bytes. -/
+own identity, the one the very item stored declares, or one held at a path its source no longer
+has, holding the same bytes. -/
 theorem identity_moves_with_bytes (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : P)
     (n : Naming P I) (e : Expr B L P W) (k : K) (hp : h p = none)
     (hok : okStore T r h p n e k = true) :
     ∃ row', landStore T h p n e p = some row' ∧
       (row'.ident = T.ofPath p ∨
         (∃ src i, n = .prop src i ∧ (eval T.view T.observed e).origin = some src ∧
-          row'.ident = i) ∨
+          T.declares src i = true ∧ row'.ident = i) ∨
         (∃ q rq, n = .held q ∧ h q = some rq ∧ rq.bytes = (eval T.view T.observed e).bytes ∧
           T.has q = false ∧ row'.ident = rq.ident)) := by
   have hres := (okStore_spec hok).2.2.2.2.2.2 hp
@@ -253,7 +253,7 @@ theorem identity_moves_with_bytes (T : Table B L P I W K Rl) (r : Rl) (h : Held 
     refine Or.inr (Or.inl ?_)
     simp only [resolve] at hres ⊢
     split_ifs at hres ⊢ with hs
-    · exact ⟨src, i, rfl, hs, rfl⟩
+    · exact ⟨src, i, rfl, hs.1, hs.2, rfl⟩
     · simp at hres
   | held q =>
     refine Or.inr (Or.inr ?_)

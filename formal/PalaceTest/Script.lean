@@ -37,6 +37,7 @@ def tbl : Table (Fin 4) (Fin 3) (Fin 3) (Fin 3) (Fin 2) (Fin 2) (Fin 2) where
   yields i := decide (i.path ≠ 0)
   has p := decide (p ≠ 0)
   ofPath p := p
+  declares p i := decide (i.val = (p.val + 1) % 3)
 
 /-- An expression: an item or a construction, under views, the first outermost. -/
 def mk (isItem : Bool) (b : Fin 4) (l : Fin 3) (ip : Fin 3) (ws : List (Fin 2)) :
@@ -52,10 +53,10 @@ def held (cs : List (Fin 9)) : Held (Fin 3) (Fin 4) (Fin 3) (Fin 3) := fun p ↦
   | none => none
 
 /-- A naming from a code. -/
-def nm (c : Fin 3) (q : Fin 3) : Naming (Fin 3) (Fin 3) :=
+def nm (c : Fin 3) (q i : Fin 3) : Naming (Fin 3) (Fin 3) :=
   match c with
   | 0 => .own
-  | 1 => .prop q q
+  | 1 => .prop q i
   | 2 => .held q
 
 /-- Two optional rows agree. -/
@@ -100,15 +101,26 @@ def resolveGraft (h : Held (Fin 3) (Fin 4) (Fin 3) (Fin 3)) (b : Fin 4) (p : Fin
     | some r => if r.bytes = b then some r.ident else none
     | none => none
 
+/-- R6 without the declaration: a store takes any identity read off the item it stores. -/
+def resolveUndeclared (origin : Option (Fin 3)) : Naming (Fin 3) (Fin 3) → Option (Fin 3)
+  | .prop src i => if origin = some src then some i else none
+  | _ => none
+
+/-- The writer without the namespace: R3 skipped, every other rule kept. -/
+def okStoreNoNs (h : Held (Fin 3) (Fin 4) (Fin 3) (Fin 3)) (p : Fin 3)
+    (e : Expr (Fin 4) (Fin 3) (Fin 3) (Fin 2)) (k : Fin 2) : Bool :=
+  (match e.root with | some i => tbl.yields i | none => true)
+    && tbl.accepts k (eval tbl.view tbl.observed e).label
+    && (match (eval tbl.view tbl.observed e).origin with | some a => decide (a = p) | none => true)
+    && (!tbl.owned p || (eval tbl.view tbl.observed e).origin.isSome)
+    && (match h p with
+        | some row => decide (row.label = (eval tbl.view tbl.observed e).label)
+        | none => true)
+
 /-- R7 without its condition: any held path in the namespace may be retired. -/
 def okRetireAny (r : Fin 2) (h : Held (Fin 3) (Fin 4) (Fin 3) (Fin 3)) (p : Fin 3) (k : Fin 2) :
     Bool :=
   (h p).isSome && tbl.ns r k p
-
-/-- The writer without the namespace: a role stores anywhere. -/
-def stepNoNs (h : Held (Fin 3) (Fin 4) (Fin 3) (Fin 3)) (p : Fin 3) (b : Fin 4) (k : Fin 2) :
-    Held (Fin 3) (Fin 4) (Fin 3) (Fin 3) :=
-  if tbl.accepts k 0 then landStore tbl h p .own (.make b) else h
 
 /- DOR-13: a value's label is its item's under projections and observed otherwise, and its
 origin is its item's path under projections and none otherwise. -/
@@ -134,14 +146,14 @@ item's own path, with its label, its bytes under the views. -/
   (eval tbl.view tbl.observed (mk isItem b l ip ws)).label ≠ 0 →
   firewallOk p (mk isItem b l ip ws) = true) 276
 
-/- DOR-17: an admitted store at a new path gives it its own identity, one read off the item
-stored, or one held at a path its source no longer has, with the same bytes. -/
-#eval survives (∀ (cs : List (Fin 9)) (p nc q : Fin 3) (b : Fin 4) (l : Fin 3),
+/- DOR-17: an admitted store at a new path gives it its own identity, the one the item stored
+declares, or one held at a path its source no longer has, with the same bytes. -/
+#eval survives (∀ (cs : List (Fin 9)) (p nc q i : Fin 3) (b : Fin 4),
   held cs p = none →
-  okStore tbl 0 (held cs) p (nm nc q) (.item ⟨b, l, p⟩) 1 = true →
-  (match landStore tbl (held cs) p (nm nc q) (.item ⟨b, l, p⟩) p with
+  okStore tbl 0 (held cs) p (nm nc q i) (.item ⟨b, 1, p⟩) 1 = true →
+  (match landStore tbl (held cs) p (nm nc q i) (.item ⟨b, 1, p⟩) p with
     | some row => decide (row.ident = p)
-        || (decide (nc = 1) && decide (q = p) && decide (row.ident = q))
+        || (decide (nc = 1) && decide (q = p) && tbl.declares q i && decide (row.ident = i))
         || (decide (nc = 2) && match held cs q with
             | some rq => decide (rq.bytes = b) && !tbl.has q && decide (row.ident = rq.ident)
             | none => false)
@@ -152,6 +164,11 @@ has. -/
 #eval refuted (∀ (cs : List (Fin 9)) (p q : Fin 3) (b : Fin 4),
   held cs p = none → (resolveGraft (held cs) b p (.held q)).isSome = true →
   (match held cs q with | some _ => !tbl.has q | none => true) = true) 278
+
+/- Control, DOR-17: without the declaration, a store takes an identity its item does not declare
+(the second form's audit: any field of an item, a `ref::`, grafted a note onto another's chain). -/
+#eval refuted (∀ (p i : Fin 3),
+  (resolveUndeclared (some p) (.prop p i)).isSome = true → tbl.declares p i = true) 287
 
 /- DOR-17: an admitted retire of content that came from a source is of a path its source no
 longer has. -/
@@ -171,12 +188,10 @@ longer has. -/
       (held cs q)
     || (decide (q = p) && tbl.ns r k q)) = true) 281
 
-/- Control, DOR-15: a writer without the namespace lets a role store outside its prefix. -/
-#eval refuted (∀ (cs : List (Fin 9)) (p : Fin 3) (b : Fin 4) (k r : Fin 2),
-  (List.finRange 3).all (fun q ↦
-    same ((if r = 0 then landPlan tbl r [.store p .own (.make b) k] (held cs)
-           else stepNoNs (held cs) p b k) q) (held cs q)
-    || (decide (q = p) && tbl.ns r k q)) = true) 282
+/- Control, DOR-15: a writer without the namespace, every other rule kept, lets a role store an
+item at its own path outside the role's prefix. -/
+#eval refuted (∀ (cs : List (Fin 9)) (p : Fin 3) (b : Fin 4) (l : Fin 3) (k r : Fin 2),
+  okStoreNoNs (held cs) p (.item ⟨b, l, p⟩) k = true → tbl.ns r k p = true) 282
 
 /- DOR-17: a store at a path in a source's space lands an item a source yields, at that path. -/
 #eval survives (∀ (isItem : Bool) (b : Fin 4) (l ip p : Fin 3) (ws : List (Fin 2)) (k : Fin 2),

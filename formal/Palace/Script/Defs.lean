@@ -111,7 +111,7 @@ structure Row (B L I : Type*) where
 inductive Naming (P I : Type*) where
   /-- The path's own identity. -/
   | own
-  /-- An identity read off the item at a path: a note's `id::`. -/
+  /-- The identity the item at a path declares: a note's `id::`. -/
   | prop (src : P) (i : I)
   /-- The identity held at another path: a rename. -/
   | held (q : P)
@@ -154,6 +154,9 @@ structure Table (B L P I W K Rl : Type*) where
   has : P → Bool
   /-- A path's own identity. -/
   ofPath : P → I
+  /-- Whether the item at a path declares an identity: the one property its source names as its
+  items' identity (`id::` in the vault), the only field of an item that names one. -/
+  declares : P → I → Bool
 
 /-- The writer's state: a row, or nothing, at each path. -/
 abbrev Held (P B L I : Type*) := P → Option (Row B L I)
@@ -161,12 +164,12 @@ abbrev Held (P B L I : Type*) := P → Option (Row B L I)
 variable [DecidableEq B] [DecidableEq P]
 
 /-- The identity a store gives a path new to the writer, when its naming is admitted (R6): the
-path's own; one read off the very item stored; or one held at a path its source no longer has,
-holding the same bytes. -/
+path's own; the one the very item stored declares; or one held at a path its source no longer
+has, holding the same bytes. -/
 def resolve (T : Table B L P I W K Rl) (h : Held P B L I) (c : Content B L P) (p : P) :
     Naming P I → Option I
   | .own => some (T.ofPath p)
-  | .prop src i => if c.origin = some src then some i else none
+  | .prop src i => if c.origin = some src ∧ T.declares src i = true then some i else none
   | .held q => match h q with
     | some r => if r.bytes = c.bytes ∧ T.has q = false then some r.ident else none
     | none => none
