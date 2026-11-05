@@ -88,6 +88,11 @@ def truth (s : State K P D A) (sup : Bool) (a : A) : Finset K :=
 def Coherent (s : State K P D A) : Prop :=
   ∀ a ∈ s.table, ∀ sup, cache s sup a = truth s sup a
 
+/-- The cache names every class of `C` that truly holds a table atom; it may be stale by excess
+(a crash after a retire) but not by omission (a crash after a land). -/
+def Complete (C : Finset K) (s : State K P D A) : Prop :=
+  ∀ a ∈ s.table, ∀ sup, ∀ c ∈ C, c ∈ truth s sup a → c ∈ cache s sup a
+
 end Truth
 
 /-! ### What a reader under `C` sees -/

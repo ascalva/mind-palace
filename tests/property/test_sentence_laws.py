@@ -355,3 +355,16 @@ def test_or_is_one_mixture_however_it_is_grouped() -> None:
     plan = compile_sentence('near "q" or near "p" or diffuse S from "a.md"')
     assert execute(plan, u).hits == execute(
         compile_sentence('diffuse S from "a.md" or (near "p" or near "q")'), u).hits
+
+
+def test_the_clipped_cosine_kernel_need_not_be_psd() -> None:
+    """RSP-3, QSA-1: `near` scores by `clip(V·q̂, 0, 1)`, a column of `clip(V Vᵀ, 0, 1)`, which is
+    not positive semidefinite in general: eight unit vectors evenly spaced in the plane give it a
+    least eigenvalue near −0.26. So the cone claims cover `near … and diffuse …` only where
+    `near`'s kernel is PSD (the review of 2026-11-05)."""
+    angles = np.arange(8) * np.pi / 4
+    vectors = np.stack([np.cos(angles), np.sin(angles)], axis=1)
+    kernel = np.clip(vectors @ vectors.T, 0.0, 1.0)
+    least = float(np.linalg.eigvalsh(kernel)[0])
+    assert least < -0.2
+    assert float(np.linalg.eigvalsh(vectors @ vectors.T)[0]) > -1e-9     # the Gram matrix is PSD

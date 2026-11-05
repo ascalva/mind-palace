@@ -43,6 +43,21 @@ namespace Palace.Plane
 
 variable {K P D A : Type*}
 
+/-! ### The prefilter -/
+
+section View
+
+variable [DecidableEq A] [DecidableEq K]
+
+/-- **PLN-3** With a cache complete on `C`, the prefilter loses nothing the cleared join would keep:
+the search then ranks every atom a cleared relation holds. -/
+theorem prefilter_cleared [Fintype K] {C : Finset K} {s : State K P D A} (hs : Complete C s)
+    (sup : Bool) :
+    (prefilter C s sup).filter (cleared C s sup ·) = s.table.filter (cleared C s sup ·) :=
+  sorry
+
+end View
+
 /-! ### Search: the window-widening loop over an exact nearest-neighbour search -/
 
 section Search
@@ -51,8 +66,9 @@ variable {Δ : Type*} [LinearOrder Δ] [LinearOrder A]
 
 variable [DecidableEq K] [DecidableEq P] [DecidableEq D]
 
-/-- **PLN-3** The search loop returns the first `k` atoms of the exact ranking among those a cleared
-relation holds. -/
+/-- **PLN-3** The search loop returns the first `k` atoms of the exact ranking among those the cache
+prefilters and a cleared relation holds (all of them, when the cache is complete on `C`:
+`prefilter_cleared`). -/
 theorem search_eq (dist : A → Δ) (C : Finset K) (s : State K P D A) (k : ℕ) (sup : Bool) :
     search dist C s k sup = ((byDist dist ((prefilter C s sup).filter (cleared C s sup ·))).take
       k).map fun a ↦ (a, hitOccs C s sup a) :=

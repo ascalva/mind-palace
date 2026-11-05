@@ -67,6 +67,13 @@ when `a ≰ b` (there is none). -/
 noncomputable def properTime (a b : E) : ℕ∞ :=
   ⨆ s : LTSeries E, ⨆ _ : s.head = a ∧ s.last = b, (s.length : ℕ∞)
 
+open scoped Classical in
+/-- **Proper time as the code reports it** (`core/temporal/spine.py::Spine.proper_time`, its first
+component): the same longest chain counted in events, not steps, so one more than `properTime`
+for a comparable pair, in either order, and `0` when `a` and `b` are concurrent. -/
+noncomputable def eventCount (a b : E) : ℕ∞ :=
+  if a ≤ b then properTime a b + 1 else if b ≤ a then properTime b a + 1 else 0
+
 end ProperTime
 
 /-! ### `≼` is a partial order -/

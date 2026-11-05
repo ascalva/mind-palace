@@ -88,7 +88,12 @@ class EdgeStore:
     def add(self, u: str, v: str, *, sign: EdgeSign, rel_type: str, w: float = 1.0,
             provenance: str = "interpreted", created_at: str | None = None) -> Edge:
         """Assert a typed/signed edge. `sign` is the `EdgeSign` enum (±1); `w ≥ 0` is the strength.
-        Idempotent on (u, v, rel_type) — re-asserting replaces (INSERT OR REPLACE)."""
+        Idempotent on (u, v, rel_type) — re-asserting replaces (INSERT OR REPLACE). A note does not
+        support or contradict itself: an edge from a note to itself is refused, so the balance laws
+        (BRG-7, LAP-6), which count a negative loop as frustration, and the code's balance test,
+        which skips loops, never disagree about the store."""
+        if u == v:
+            raise ValueError(f"a relation joins two distinct notes; both ends are {u!r}")
         if w < 0.0:
             raise ValueError(f"edge strength w must be >= 0 (polarity is `sign`), got {w}")
         sign = EdgeSign(sign)                              # reject any non-±1 value at the boundary

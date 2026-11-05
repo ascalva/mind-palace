@@ -47,11 +47,6 @@ section Truth
 
 variable [Fintype K] [DecidableEq A]
 
-/-- The cache names every class of `C` that truly holds a table atom; it may be stale by excess
-(a crash after a retire) but not by omission (a crash after a land). -/
-def Complete (C : Finset K) (s : State K P D A) : Prop :=
-  ∀ a ∈ s.table, ∀ sup, ∀ c ∈ C, c ∈ truth s sup a → c ∈ cache s sup a
-
 theorem Coherent.complete {s : State K P D A} (h : Coherent s) (C : Finset K) : Complete C s :=
   fun a ha sup _ _ hc ↦ (h a ha sup).symm ▸ hc
 
@@ -93,7 +88,8 @@ theorem mem_refs_of_cleared {C : Finset K} {s : State K P D A} {sup : Bool} {a :
   obtain ⟨c, hc, o, ho, rfl, -⟩ := h
   exact Finset.mem_biUnion.2 ⟨c, hc, Finset.mem_image.2 ⟨o, ho, rfl⟩⟩
 
-/-- With a cache complete on `C`, the prefilter loses nothing the cleared join would keep. -/
+/-- **PLN-3** With a cache complete on `C`, the prefilter loses nothing the cleared join would keep:
+the search then ranks every atom a cleared relation holds. -/
 theorem prefilter_cleared [Fintype K] {C : Finset K} {s : State K P D A} (hs : Complete C s)
     (sup : Bool) :
     (prefilter C s sup).filter (cleared C s sup ·) = s.table.filter (cleared C s sup ·) := by
@@ -232,8 +228,9 @@ theorem byDist_filter (dist : A → Δ) (S : Finset A) (p : A → Bool) :
 
 variable [DecidableEq K] [DecidableEq P] [DecidableEq D]
 
-/-- **PLN-3** The search loop returns the first `k` atoms of the exact ranking among those a cleared
-relation holds. -/
+/-- **PLN-3** The search loop returns the first `k` atoms of the exact ranking among those the cache
+prefilters and a cleared relation holds (all of them, when the cache is complete on `C`:
+`prefilter_cleared`). -/
 theorem search_eq (dist : A → Δ) (C : Finset K) (s : State K P D A) (k : ℕ) (sup : Bool) :
     search dist C s k sup = ((byDist dist ((prefilter C s sup).filter (cleared C s sup ·))).take
       k).map fun a ↦ (a, hitOccs C s sup a) := by

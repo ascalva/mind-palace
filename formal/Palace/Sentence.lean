@@ -31,13 +31,16 @@ sentence. The laws, each the licence for one rule of the grammar or one rewrite 
   automaton, and a hypothetical edge only adds admissible chains.
 * QSA-8, the mode table: `mode_of ∘ required`, verb by verb, as the code has it.
 * QSA-9, the response to a hypothetical edge: a rank-one update of the Laplacian along
-  `e_u − e_v`, of the signed Laplacian along `e_u − σ e_v`; adding weight lowers every effective
-  resistance and removing it raises every one (CND-2 both ways); a contradiction is consistent
-  exactly when its sign matches the camps, and otherwise lifts the zero mode (LAP-5, LAP-6);
-  the inverse's exact response is Sherman–Morrison.
+  `e_u − e_v`, of the signed Laplacian along `e_u − σ e_v`; adding weight raises no effective
+  resistance and removing it lowers none (CND-2 both ways); the camps that balance a graph still
+  balance a new signed edge exactly when its sign agrees with them, and a disagreeing edge
+  between notes the graph already joins is frustrated, for any camps, and lifts the zero mode on
+  a connected support (LAP-5, LAP-6); the inverse's exact response is Sherman–Morrison, for an
+  invertible matrix.
 
-The laws are design theorems: no code relies on them yet, so the ledger has no rows and the
-comparator does not judge them; the kernel checkers replay them.
+The laws are rows of `docs/LAWS.md` (family XI, QSA-1 to QSA-10), and the comparator judges their
+statements in `Spec/Sentence.lean`; QSA-6, noninterference of the abstract model, stays a design
+theorem, replayed by the kernel checkers.
 -/
 
 @[expose] public section
@@ -630,8 +633,8 @@ theorem dotProduct_lap_le_assumeEdge (A : Matrix V V ℝ) {u v : V} (huv : u ≠
   have := mul_nonneg hδ (mul_self_nonneg (dvec u v 1 ⬝ᵥ x))
   linarith
 
-/-- **QSA-9** (CND-2 forward) adding weight to an edge lowers every effective resistance between
-vertices the support already joins. -/
+/-- **QSA-9** (CND-2 forward) adding weight to an edge raises no effective resistance between
+vertices the support already joins: each falls or holds. -/
 theorem rEff_assumeEdge_le {A : Matrix V V ℝ} (hA : A.IsSymm) (hw : ∀ i j, 0 ≤ A i j) {u v : V}
     {δ : ℝ} (hδ : 0 ≤ δ) (hA' : (assumeEdge A u v δ).IsSymm) {i j : V}
     (hr : (support A).Reachable i j) :
@@ -641,8 +644,9 @@ theorem rEff_assumeEdge_le {A : Matrix V V ℝ} (hA : A.IsSymm) (hw : ∀ i j, 0
       simp only [assumeEdge_apply]
       split_ifs <;> linarith) hr
 
-/-- **QSA-9** (CND-2 backward) removing weight from an edge raises every effective resistance
-between vertices the weakened support still joins: an assumption can raise resistance. -/
+/-- **QSA-9** (CND-2 backward) removing weight from an edge lowers no effective resistance between
+vertices the weakened support still joins: each rises or holds, so an assumption can raise
+resistance. -/
 theorem rEff_le_assumeEdge {A : Matrix V V ℝ} (hA : A.IsSymm) {u v : V} {δ : ℝ} (hδ : δ ≤ 0)
     (hA' : (assumeEdge A u v δ).IsSymm) (hw : ∀ i j, 0 ≤ assumeEdge A u v δ i j) {i j : V}
     (hr : (support (assumeEdge A u v δ)).Reachable i j) :
@@ -653,8 +657,8 @@ theorem rEff_le_assumeEdge {A : Matrix V V ℝ} (hA : A.IsSymm) {u v : V} {δ : 
       split_ifs <;> linarith) hr
 
 omit [Fintype V] in
-/-- **QSA-9** a new signed edge is consistent with the camps iff its sign agrees with them: then the
-graph stays balanced, by the same camps. -/
+/-- **QSA-9** a new signed edge whose sign agrees with the camps keeps the graph balanced, by the
+same camps (the converse for those camps is `camps_assumeEdge_iff`). -/
 theorem balanced_assumeEdge {A : Matrix V V ℝ} {s : V → ℝ} (hs : ∀ i, s i = 1 ∨ s i = -1)
     (hA : ∀ i j, 0 ≤ A i j * s i * s j) {u v : V} {σ δ : ℝ} (hδ : 0 ≤ δ)
     (hσ : 0 ≤ σ * s u * s v) : Balanced (assumeEdge A u v (σ * δ)) := by
@@ -670,8 +674,109 @@ theorem balanced_assumeEdge {A : Matrix V V ℝ} {s : V → ℝ} (hs : ∀ i, s 
       exact add_nonneg (hA i j) (mul_nonneg hδ hσ)
   · simpa using hA i j
 
-/-- QSA-9 a contradiction closing a supported path is frustrated: the triangle with two
-supporting edges and one contradicting edge is not balanced (LAP-6). -/
+omit [Fintype V] [DecidableEq V] in
+/-- Two balancing camps agree on the product across an edge of the support. -/
+theorem camps_mul_eq_of_adj {A : Matrix V V ℝ} {s t : V → ℝ} (hs : ∀ i, s i = 1 ∨ s i = -1)
+    (ht : ∀ i, t i = 1 ∨ t i = -1) (hAs : ∀ i j, 0 ≤ A i j * s i * s j)
+    (hAt : ∀ i j, 0 ≤ A i j * t i * t j) {i j : V} (h : (support A).Adj i j) :
+    s i * s j = t i * t j := by
+  have key : ∀ a b, A a b ≠ 0 → s a * s b = t a * t b := by
+    intro a b hab
+    have hx : s a * s b = 1 ∨ s a * s b = -1 := by
+      rcases hs a with h | h <;> rcases hs b with h' | h' <;> simp [h, h']
+    have hy : t a * t b = 1 ∨ t a * t b = -1 := by
+      rcases ht a with h | h <;> rcases ht b with h' | h' <;> simp [h, h']
+    have h1 : 0 ≤ A a b * (s a * s b) := by simpa [mul_assoc] using hAs a b
+    have h2 : 0 ≤ A a b * (t a * t b) := by simpa [mul_assoc] using hAt a b
+    rcases hx with hx | hx <;> rcases hy with hy | hy
+    · rw [hx, hy]
+    · rw [hx] at h1
+      rw [hy] at h2
+      exact absurd (by linarith : A a b = 0) hab
+    · rw [hx] at h1
+      rw [hy] at h2
+      exact absurd (by linarith : A a b = 0) hab
+    · rw [hx, hy]
+  simp only [support, SimpleGraph.fromRel_adj] at h
+  rcases h.2 with h | h
+  · exact key i j h
+  · rw [mul_comm (s i), mul_comm (t i)]
+    exact key j i h
+
+omit [Fintype V] [DecidableEq V] in
+/-- Along a path of the support, two balancing camps agree on the product of the ends: on a
+connected graph the camps are unique up to swapping them. -/
+theorem camps_mul_eq_of_reachable {A : Matrix V V ℝ} {s t : V → ℝ}
+    (hs : ∀ i, s i = 1 ∨ s i = -1) (ht : ∀ i, t i = 1 ∨ t i = -1)
+    (hAs : ∀ i j, 0 ≤ A i j * s i * s j) (hAt : ∀ i j, 0 ≤ A i j * t i * t j) {u v : V}
+    (h : (support A).Reachable u v) : s u * s v = t u * t v := by
+  obtain ⟨w⟩ := h
+  induction w with
+  | nil =>
+    rename_i x
+    rcases hs x with h1 | h1 <;> rcases ht x with h2 | h2 <;> simp [h1, h2]
+  | cons hadj w ih =>
+    rename_i x y z
+    have e1 := camps_mul_eq_of_adj hs ht hAs hAt hadj
+    have sq : s y * s y = 1 := by rcases hs y with h | h <;> simp [h]
+    have tq : t y * t y = 1 := by rcases ht y with h | h <;> simp [h]
+    calc s x * s z = (s x * s y) * (s y * s z) := by rw [mul_assoc, ← mul_assoc (s y), sq, one_mul]
+      _ = (t x * t y) * (t y * t z) := by rw [e1, ih]
+      _ = t x * t z := by rw [mul_assoc, ← mul_assoc (t y), tq, one_mul]
+
+omit [Fintype V] in
+/-- **QSA-9** the camps that balance a graph still balance it with a new signed edge, on a pair
+that had none, iff the edge's sign agrees with them. -/
+theorem camps_assumeEdge_iff {A : Matrix V V ℝ} {s : V → ℝ} (hA : ∀ i j, 0 ≤ A i j * s i * s j)
+    {u v : V} (hu : A u v = 0) {σ δ : ℝ} (hδ : 0 < δ) :
+    (∀ i j, 0 ≤ assumeEdge A u v (σ * δ) i j * s i * s j) ↔ 0 ≤ σ * s u * s v := by
+  constructor
+  · intro h
+    have huv := h u v
+    simp only [assumeEdge_apply, and_self, true_or, ite_true, hu, zero_add] at huv
+    have e : σ * δ * s u * s v = δ * (σ * s u * s v) := by ring
+    rw [e] at huv
+    exact (mul_nonneg_iff_of_pos_left hδ).1 huv
+  · intro hσ i j
+    simp only [assumeEdge_apply]
+    split_ifs with h
+    · rcases h with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
+      · have : (A i j + σ * δ) * s i * s j = A i j * s i * s j + δ * (σ * s i * s j) := by ring
+        rw [this]
+        exact add_nonneg (hA i j) (mul_nonneg hδ.le hσ)
+      · have : (A i j + σ * δ) * s i * s j = A i j * s i * s j + δ * (σ * s j * s i) := by ring
+        rw [this]
+        exact add_nonneg (hA i j) (mul_nonneg hδ.le hσ)
+    · simpa using hA i j
+
+omit [Fintype V] in
+/-- **QSA-9** a new signed edge whose sign disagrees with the camps, between two notes the graph
+already joins by a path, is frustrated: no camps balance it. Where the notes are not joined, other
+camps can balance it, so the path is the hypothesis, not a convenience. -/
+theorem not_balanced_assumeEdge_of_reachable {A : Matrix V V ℝ} {s : V → ℝ}
+    (hs : ∀ i, s i = 1 ∨ s i = -1) (hA : ∀ i j, 0 ≤ A i j * s i * s j) {u v : V}
+    (hu : A u v = 0) (hv : A v u = 0) (hr : (support A).Reachable u v) {σ δ : ℝ} (hδ : 0 < δ)
+    (hσ : σ * s u * s v < 0) : ¬ Balanced (assumeEdge A u v (σ * δ)) := by
+  rintro ⟨t, ht, hB⟩
+  have hAt : ∀ i j, 0 ≤ A i j * t i * t j := by
+    intro i j
+    have := hB i j
+    rw [assumeEdge_apply] at this
+    split_ifs at this with h
+    · rcases h with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
+      · rw [hu]; simp
+      · rw [hv]; simp
+    · simpa using this
+  have heq := camps_mul_eq_of_reachable hs ht hA hAt hr
+  have huv := hB u v
+  simp only [assumeEdge_apply, and_self, true_or, ite_true, hu, zero_add] at huv
+  have e : σ * δ * t u * t v = δ * (σ * s u * s v) := by
+    rw [mul_assoc σ (s u), heq]; ring
+  rw [e] at huv
+  exact absurd huv (not_le.2 (mul_neg_of_pos_of_neg hδ hσ))
+
+/-- QSA-9, the smallest case: the triangle with two supporting edges and one contradicting edge is
+not balanced (LAP-6). The law for any graph is `not_balanced_assumeEdge_of_reachable`. -/
 theorem contradiction_frustrates : ¬ Balanced (triangle (1 : ℝ) 1 (-1)) := by
   rw [not_balanced_triangle_iff one_ne_zero one_ne_zero (by norm_num)]
   norm_num

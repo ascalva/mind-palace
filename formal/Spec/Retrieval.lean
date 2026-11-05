@@ -128,6 +128,36 @@ theorem nearnessOn_mul_le (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤
     nearnessOn w S β z i j * nearnessOn w S β z j i ≤ nearness w β z i j * nearness w β z j i :=
   sorry
 
+/-- **RSP-1** on a support with the graph's degrees, the walk `diffuse` runs on a sentence's
+universe: `Z_S = (I − W_β|_S)⁻¹` is nonnegative. -/
+theorem fundamentalOn_nonneg (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 ≤ β)
+    (hz0 : 0 ≤ z) (hz1 : z < 1) (S : Finset V) (i j : V) : 0 ≤ fundamentalOn w S β z i j :=
+  sorry
+
+/-- **RSP-1** on a support: `z^S_ii ≥ 1`. -/
+theorem one_le_fundamentalOn_self (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1)
+    (hβ : 0 ≤ β) (hz0 : 0 ≤ z) (hz1 : z < 1) (S : Finset V) (i : V) :
+    1 ≤ fundamentalOn w S β z i i :=
+  sorry
+
+/-- **RSP-4** on a support: `φ^S_ii = 0`. -/
+theorem freeEnergyOn_self (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 ≤ β)
+    (hz0 : 0 ≤ z) (hz1 : z < 1) (S : Finset V) (i : V) : freeEnergyOn w S β z i i = 0 :=
+  sorry
+
+/-- **RSP-4** on a support: `φ^S_ij ≥ 0`, first passage. -/
+theorem freeEnergyOn_nonneg (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 < β)
+    (hz0 : 0 ≤ z) (hz1 : z < 1) (S : Finset V) (i j : V) : 0 ≤ freeEnergyOn w S β z i j :=
+  sorry
+
+/-- **RSP-4** on a support: the triangle inequality `φ^S_ik ≤ φ^S_ij + φ^S_jk`, from the path
+product of the restricted walk's inverse. -/
+theorem freeEnergyOn_triangle (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 < β)
+    (hz0 : 0 ≤ z) (hz1 : z < 1) (S : Finset V) {i j k : V}
+    (hij : 0 < fundamentalOn w S β z i j) (hjk : 0 < fundamentalOn w S β z j k) :
+    freeEnergyOn w S β z i k ≤ freeEnergyOn w S β z i j + freeEnergyOn w S β z j k :=
+  sorry
+
 /-- **RSP-4** The distance vanishes on the diagonal and is nonnegative. -/
 theorem feDist_self_and_nonneg (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 < β)
     (hz0 : 0 ≤ z) (hz1 : z < 1) (i j : V) :

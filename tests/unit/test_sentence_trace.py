@@ -61,7 +61,7 @@ def test_a_sever_shows_the_rank_one_update_and_its_horizon() -> None:
     t2 = Trace()
     execute(compile_sentence('assume sever S "a.md" "b.md" in top 3 diffuse S from "a.md"',
                              AMBASSADOR_OVERLAY, trace=t2), u, trace=t2)
-    assert "< 1: the response is regular, the Sherman–Morrison denominator" in t2.render()
+    assert "< 1: the response is regular; 1 − w·R_eff =" in t2.render()
 
 
 def test_the_trace_is_absent_unless_asked_for_and_costs_the_answer_nothing() -> None:
