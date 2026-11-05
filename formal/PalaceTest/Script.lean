@@ -192,4 +192,25 @@ longer has. -/
     | some i => tbl.yields i && decide (i.path = p)
     | none => false) = true) 284
 
+/-- The shadow's sources' label sets: path 0's source may give labels 0 or 1, the others only 2,
+and an item takes the first of its source's labels the code allows. -/
+def srcLabels (i : Item (Fin 4) (Fin 3) (Fin 3)) : Finset (Fin 3) :=
+  if i.path = 0 then {0, 1} else {2}
+
+/-- An item whose label its source's rule may give. -/
+def mkTyped (isItem : Bool) (b : Fin 4) (pick : Bool) (ip : Fin 3) (ws : List (Fin 2)) :
+    Expr (Fin 4) (Fin 3) (Fin 3) (Fin 2) :=
+  mk isItem b (if ip = 0 then (if pick then 1 else 0) else 2) ip ws
+
+/- DOR-18: a value's label is in its expression's type's label set. -/
+#eval survives (∀ (isItem : Bool) (b : Fin 4) (pick : Bool) (ip : Fin 3) (ws : List (Fin 2)),
+  decide ((eval tbl.view tbl.observed (mkTyped isItem b pick ip ws)).label
+    ∈ labelsOf srcLabels tbl.observed (mkTyped isItem b pick ip ws)) = true) 285
+
+/- Control, DOR-18: a type rule that gives a construction no label is unsound. -/
+#eval refuted (∀ (isItem : Bool) (b : Fin 4) (pick : Bool) (ip : Fin 3) (ws : List (Fin 2)),
+  decide ((eval tbl.view tbl.observed (mkTyped isItem b pick ip ws)).label
+    ∈ (if isItem then labelsOf srcLabels tbl.observed (mkTyped isItem b pick ip ws)
+       else (∅ : Finset (Fin 3)))) = true) 286
+
 end Palace.Script.Attack

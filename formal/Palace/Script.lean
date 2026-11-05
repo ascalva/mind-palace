@@ -18,8 +18,9 @@ under re-run (DOR-11) and leave a state a reader that trusts the key may read wi
 (DOR-12). DOR-17: a held path keeps its label and its identity under an admitted store; a new
 path's identity is its own, one read off the very item stored, or one held at a path its source
 no longer has with the same bytes; and an admitted retire of content that came from a source is
-of a path the source no longer has. Design theorems: the ledger takes them up when code relies on
-them.
+of a path the source no longer has. DOR-18: the type system is sound for labels, a value's label
+at run time being in its type's set. The ledger cites them (docs/LAWS.md §XII), and
+`formal/Spec/Script.lean` states them for the comparator.
 -/
 
 @[expose] public section
@@ -30,7 +31,7 @@ variable {B L P I W K Rl : Type*}
 
 /-! ### DOR-13 Labels are the palace's -/
 
-/-- DOR-13 A value's label is its item's under projections, and the observed label otherwise. -/
+/-- **DOR-13** A value's label is its item's under projections, and the observed label otherwise. -/
 theorem label_eval (view : W → B → B) (observed : L) (e : Expr B L P W) :
     (eval view observed e).label = (e.root.map Item.label).getD observed := by
   induction e with
@@ -38,7 +39,7 @@ theorem label_eval (view : W → B → B) (observed : L) (e : Expr B L P W) :
   | proj w e ih => simpa only [eval, Expr.root] using ih
   | make b => rfl
 
-/-- DOR-13 A value's origin is its item's path under projections, and none otherwise. -/
+/-- **DOR-13** A value's origin is its item's path under projections, and none otherwise. -/
 theorem origin_eval (view : W → B → B) (observed : L) (e : Expr B L P W) :
     (eval view observed e).origin = e.root.map Item.path := by
   induction e with
@@ -46,7 +47,7 @@ theorem origin_eval (view : W → B → B) (observed : L) (e : Expr B L P W) :
   | proj w e ih => simpa only [eval, Expr.root] using ih
   | make b => rfl
 
-/-- DOR-13 A projection's bytes are its item's under its views. -/
+/-- **DOR-13** A projection's bytes are its item's under its views. -/
 theorem bytes_eval (view : W → B → B) (observed : L) {e : Expr B L P W} {i : Item B L P}
     (h : e.root = some i) : (eval view observed e).bytes = applyViews view e.views i.bytes := by
   induction e with
@@ -59,7 +60,7 @@ theorem bytes_eval (view : W → B → B) (observed : L) {e : Expr B L P W} {i :
     simp only [eval, Expr.views, applyViews, ih h]
   | make b => simp [Expr.root] at h
 
-/-- DOR-13 No expression raises a label: a label other than the observed one is an item's,
+/-- **DOR-13** No expression raises a label: a label other than the observed one is an item's,
 carried to the value by projections alone. -/
 theorem root_of_label_ne (view : W → B → B) (observed : L) (e : Expr B L P W)
     (h : (eval view observed e).label ≠ observed) :
@@ -72,6 +73,24 @@ theorem root_of_label_ne (view : W → B → B) (observed : L) (e : Expr B L P W
   | some i =>
     rw [hr] at hl
     exact ⟨i, rfl, hl.symm⟩
+
+/-- **DOR-18** The type system is sound for labels: if every item's label is among those its
+source's rule may give, a value's label at run time is in its expression's type's set, and in any
+set inference unified it into. -/
+theorem label_typed [DecidableEq L] (view : W → B → B) (observed : L)
+    (srcLabels : Item B L P → Finset L) (hsrc : ∀ i, i.label ∈ srcLabels i) (e : Expr B L P W) :
+    (eval view observed e).label ∈ labelsOf srcLabels observed e := by
+  induction e with
+  | item i => exact hsrc i
+  | proj w e ih => simpa only [eval, labelsOf] using ih
+  | make b => simp [eval, labelsOf]
+
+/-- **DOR-18** A set inference unified the type's set into contains the value's label. -/
+theorem label_typed_of_subset [DecidableEq L] (view : W → B → B) (observed : L)
+    (srcLabels : Item B L P → Finset L) (hsrc : ∀ i, i.label ∈ srcLabels i) (e : Expr B L P W)
+    {T : Finset L} (hT : labelsOf srcLabels observed e ⊆ T) :
+    (eval view observed e).label ∈ T :=
+  hT (label_typed view observed srcLabels hsrc e)
 
 /-! ### DOR-14 The firewall -/
 
@@ -102,7 +121,7 @@ theorem okStore_spec {T : Table B L P I W K Rl} {r : Rl} {h : Held P B L I} {p :
   · rw [hn] at h5
     exact h5
 
-/-- DOR-14 The firewall, one store: an admitted store whose label is not the observed one lands
+/-- **DOR-14** The firewall, one store: an admitted store whose label is not the observed one lands
 the bytes of an item a source yields, under the expression's views, at the item's own path,
 with the item's label. -/
 theorem firewall_store (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : P)
@@ -116,7 +135,7 @@ theorem firewall_store (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p
   rw [origin_eval, hi]
   rfl
 
-/-- DOR-14 The firewall over a plan: every active row of the landed state whose label is not the
+/-- **DOR-14** The firewall over a plan: every active row of the landed state whose label is not the
 observed one is the row held before at its path, or the bytes of an item a source yields, under
 views, at the item's own path, with the item's label. -/
 theorem firewall_plan (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B L P I W K))
@@ -162,7 +181,7 @@ theorem firewall_plan (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B
 
 /-! ### DOR-15 Confinement -/
 
-/-- DOR-15 Confinement: a plan changes a path only through an effect on it that the writer
+/-- **DOR-15** Confinement: a plan changes a path only through an effect on it that the writer
 admitted, in the role's namespace for the effect's place. -/
 theorem confined (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B L P I W K))
     (h₀ : Held P B L I) (p : P) (hne : landPlan T r plan h₀ p ≠ h₀ p) :
@@ -201,7 +220,7 @@ theorem confined (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B L P 
 
 /-! ### DOR-17 Labels fixed, identities with their bytes, retire reconciles -/
 
-/-- DOR-17 A held path keeps its label and its identity under an admitted store. -/
+/-- **DOR-17** A held path keeps its label and its identity under an admitted store. -/
 theorem label_fixed (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : P)
     (n : Naming P I) (e : Expr B L P W) (k : K) (row : Row B L I) (hp : h p = some row)
     (hok : okStore T r h p n e k = true) :
@@ -212,7 +231,7 @@ theorem label_fixed (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : 
   · simp [landStore, hp]
   · exact ((okStore_spec hok).2.2.2.2.2.1 row hp).symm
 
-/-- DOR-17 Identities move only with their bytes: an admitted store at a new path gives it its
+/-- **DOR-17** Identities move only with their bytes: an admitted store at a new path gives it its
 own identity, one read off the very item stored, or one held at a path its source no longer has,
 holding the same bytes. -/
 theorem identity_moves_with_bytes (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : P)
@@ -247,7 +266,7 @@ theorem identity_moves_with_bytes (T : Table B L P I W K Rl) (r : Rl) (h : Held 
       · exact ⟨q, rq, rfl, hq, hb.1, hb.2, rfl⟩
       · simp at hres
 
-/-- DOR-17 Paths belong to their sources: an admitted store at a path in a source's space lands
+/-- **DOR-17** Paths belong to their sources: an admitted store at a path in a source's space lands
 an item a source yields, at that very path, whatever its label, so no script squats a path a
 source will write (a composed text where the owner's turn will land). -/
 theorem owned_by_source (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : P)
@@ -265,7 +284,7 @@ theorem owned_by_source (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (
     rfl
 
 omit [DecidableEq B] [DecidableEq L] [DecidableEq P] in
-/-- DOR-17 Retire reconciles: an admitted retire of content that came from a source is of a
+/-- **DOR-17** Retire reconciles: an admitted retire of content that came from a source is of a
 path the source no longer has, so no script retires a note still in the vault. -/
 theorem retire_reconciles (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : P) (k : K)
     (row : Row B L I) (hp : h p = some row) (hs : row.sourced = true)
@@ -277,7 +296,7 @@ theorem retire_reconciles (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I)
 
 omit [DecidableEq B] in
 open Door in
-/-- DOR-16 A plan's stores on distinct paths, each fresh, stopped anywhere in any global order:
+/-- **DOR-16** A plan's stores on distinct paths, each fresh, stopped anywhere in any global order:
 run again, they land exactly the uninterrupted batch (DOR-11 for every plan). -/
 theorem plan_converges {R G : Type*} [DecidableEq R] [DecidableEq G]
     (rowsOf : B → List (Finset R)) (dig : B → G) (stores : List (P × B))
@@ -294,7 +313,7 @@ theorem plan_converges {R G : Type*} [DecidableEq R] [DecidableEq G]
 
 omit [DecidableEq B] in
 open Door in
-/-- DOR-16 Readers need no lock under a plan: its stores on distinct paths stopped anywhere, in
+/-- **DOR-16** Readers need no lock under a plan: its stores on distinct paths stopped anywhere, in
 any global order, from a state sound for each, leave a state sound for each (DOR-12 for every
 plan). -/
 theorem plan_sound {R G : Type*} [DecidableEq R] [DecidableEq G]
