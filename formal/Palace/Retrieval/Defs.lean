@@ -61,6 +61,11 @@ noncomputable def nearness (w : Matrix V V ℝ) (β z : ℝ) (i j : V) : ℝ :=
 noncomputable def nearnessOn (w : Matrix V V ℝ) (S : Finset V) (β z : ℝ) (i j : V) : ℝ :=
   fundamentalOn w S β z i j / fundamentalOn w S β z j j
 
+/-- The free energy on the support `S`, `φ^S_ij = −log(z^S_ij / z^S_jj) / β`: what `diffuse`
+computes on a sentence's universe, whose walk keeps the graph's degrees. -/
+noncomputable def freeEnergyOn (w : Matrix V V ℝ) (S : Finset V) (β z : ℝ) (i j : V) : ℝ :=
+  -Real.log (nearnessOn w S β z i j) / β
+
 /-- The symmetric RSP kernel `G_β = (D − z·w∘w^β)⁻¹`, so that `Z = G_β D` when every degree is
 positive (Theorem A1's kernel, in the code's normalization). -/
 noncomputable def rspKernel (w : Matrix V V ℝ) (β z : ℝ) : Matrix V V ℝ :=

@@ -220,6 +220,19 @@ def test_proper_time_is_exact_on_a_total_chain() -> None:
     assert spine.proper_time(a3, a1) == (3, True)          # magnitude is symmetric
 
 
+def test_proper_time_counts_events_so_its_triangle_is_shifted() -> None:
+    """CLK-3 as the code counts: `proper_time` counts a chain's events, one more than its steps, so
+    the reverse triangle holds up to the middle event counted on both sides, and fails without it
+    (the review of 2026-11-05: the Lean counted steps; `eventCount` now models this count)."""
+    spine, a1, a2, a3 = _chain_spine()
+    t12, t23, t13 = (spine.proper_time(x, y)[0] for x, y in ((a1, a2), (a2, a3), (a1, a3)))
+    assert t12 + t23 <= t13 + 1                                    # eventCount_add_le
+    assert not t12 + t23 <= t13                                    # the step-count triangle
+    for x, y in ((a1, a2), (a2, a3), (a1, a3)):
+        assert spine.proper_time(x, y) == spine.proper_time(y, x)  # eventCount_comm
+    assert spine.proper_time(a2, a2)[0] == 1                       # eventCount_self
+
+
 def test_proper_time_cross_doc_same_stratum_is_never_exact() -> None:
     """finding-0090's headline: a per-DOC pair across docs (same stratum, different chains) must NOT
     report an exact proper time — they are concurrent, on no single chain."""

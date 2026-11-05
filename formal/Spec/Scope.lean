@@ -39,9 +39,10 @@ What the model shows, against the code as fixed on this branch:
 
 The model is exact. Window bounds are ints or opaque tokens compared by equality (Python's
 `1.0 == 1` is outside it); edge fibers are the three letters every caller uses; the cut is an
-opaque token. The transcription agrees with the Python on an enumeration of 234,321 results:
-window and scope meets, joins and orders, constructions under the SLICE rule, the zone law, and
-`required()` over the Ambassador's strata names (`formal/README.md`).
+opaque token. The transcription agrees with the Python on an enumeration of window and scope
+meets, joins and orders, constructions under the SLICE rule, the zone law, and `required()` over
+the Ambassador's strata names: 269,561 results, all identical (2026-11-02; the breakdown is in
+`formal/README.md`).
 
 These are the laws of `Palace/Scope.lean` as the ledger cites them, each with its proof
 left as `sorry`. `lake comparator` checks that the `Palace` library proves each one
@@ -60,6 +61,14 @@ section Sigma
 
 /-- **SCO-1** `close S` is closed: the forest is one level deep. -/
 theorem close_isDown (S : Finset Stratum) : IsDown (close S) :=
+  sorry
+
+/-- **SCO-1** Closure is extensive. -/
+theorem subset_close (S : Finset Stratum) : S ⊆ close S :=
+  sorry
+
+/-- **SCO-1** Closure is monotone. -/
+theorem close_mono {S T : Finset Stratum} (h : S ⊆ T) : close S ⊆ close T :=
   sorry
 
 /-- **SCO-1** Closure is idempotent. -/
@@ -84,6 +93,14 @@ end Sigma
 among well-formed windows -/
 
 namespace Window
+
+/-- **SCO-2** `⊑` on windows is reflexive. -/
+theorem Le.refl (a : Window) : a.Le a :=
+  sorry
+
+/-- **SCO-2** And transitive: a preorder. -/
+theorem Le.trans {a b c : Window} (hab : a.Le b) (hbc : b.Le c) : a.Le c :=
+  sorry
 
 /-- **SCO-2** The join of two windows is their least upper bound. -/
 theorem join_le_iff {a b x : Window} : (a.join b).Le x ↔ a.Le x ∧ b.Le x :=

@@ -159,7 +159,7 @@ theorem IsCut.frontier_inf {f f' : K → ℕ} (h : IsCut g (frontierCut store po
   rw [frontierCut_inf]
   exact h.inter h'
 
-/-- And so is their pointwise maximum. -/
+/-- **CLK-2, certificates compose**: so is the pointwise maximum. -/
 theorem IsCut.frontier_sup {f f' : K → ℕ} (h : IsCut g (frontierCut store pos f))
     (h' : IsCut g (frontierCut store pos f')) : IsCut g (frontierCut store pos (f ⊔ f')) := by
   rw [frontierCut_sup]
@@ -237,6 +237,57 @@ theorem properTime_le_tick {p : E → ℕ} (hp : StrictMono p) (a b : E) :
   simp only [Fin.val_last] at hl
   exact_mod_cast (by simp only [RelSeries.head, RelSeries.last]; omega)
 
+theorem eventCount_of_le {a b : E} (h : a ≤ b) : eventCount a b = properTime a b + 1 := by
+  simp [eventCount, h]
+
+/-- **CLK-3, as the code counts**: a point is a chain of one event. -/
+theorem eventCount_self (a : E) : eventCount a a = 1 := by
+  simp [eventCount_of_le le_rfl, properTime_self]
+
+/-- **CLK-3, as the code counts**: the count does not depend on the order the pair is given in. -/
+theorem eventCount_comm (a b : E) : eventCount a b = eventCount b a := by
+  by_cases hab : a ≤ b
+  · by_cases hba : b ≤ a
+    · rw [le_antisymm hab hba]
+    · simp [eventCount, hab, hba]
+  · by_cases hba : b ≤ a
+    · simp [eventCount, hab, hba]
+    · simp [eventCount, hab, hba]
+
+/-- **CLK-3, as the code counts**: the count is `0` exactly for a concurrent pair. -/
+theorem eventCount_eq_zero_iff (a b : E) : eventCount a b = 0 ↔ ¬a ≤ b ∧ ¬b ≤ a := by
+  by_cases hab : a ≤ b
+  · simp [eventCount, hab]
+  · by_cases hba : b ≤ a <;> simp [eventCount, hab, hba]
+
+/-- **CLK-3, as the code counts**: a strict step is two events. -/
+theorem two_le_eventCount {a b : E} (h : a < b) : 2 ≤ eventCount a b := by
+  rw [eventCount_of_le h.le, ← one_add_one_eq_two]
+  exact add_le_add (one_le_properTime h) le_rfl
+
+/-- **CLK-3, as the code counts**: along causally ordered events the counts add up to at most the
+whole's plus one, the middle event being counted on both sides. -/
+theorem eventCount_add_le {a b c : E} (hab : a ≤ b) (hbc : b ≤ c) :
+    eventCount a b + eventCount b c ≤ eventCount a c + 1 := by
+  rw [eventCount_of_le hab, eventCount_of_le hbc, eventCount_of_le (hab.trans hbc)]
+  rw [add_add_add_comm, add_assoc (properTime a c)]
+  exact add_le_add (properTime_add_le hab hbc) le_rfl
+
+/-- **CLK-3, as the code counts**: on a finite `N` every count is finite. -/
+theorem eventCount_lt_top [Finite E] (a b : E) : eventCount a b < ⊤ := by
+  unfold eventCount
+  split_ifs
+  · exact ENat.add_lt_top.2 ⟨properTime_lt_top a b, ENat.one_lt_top⟩
+  · exact ENat.add_lt_top.2 ⟨properTime_lt_top b a, ENat.one_lt_top⟩
+  · simp
+
+/-- **CLK-3, as the code counts**: a strictly monotone clock bounds the count by its tick
+difference plus one. -/
+theorem eventCount_le_tick {p : E → ℕ} (hp : StrictMono p) {a b : E} (h : a ≤ b) :
+    eventCount a b ≤ ((p b - p a : ℕ) : ℕ∞) + 1 := by
+  rw [eventCount_of_le h]
+  exact add_le_add (properTime_le_tick hp a b) le_rfl
+
 end ProperTime
 
 /-! ### `≼` is a partial order -/
@@ -251,11 +302,11 @@ theorem antisymm_of_acyclic (h : ∀ a, ¬ TransGen g a a) {a b : E} (hab : Refl
     (hba : ReflTransGen g b a) : a = b :=
   @le_antisymm E (spineOrder h) a b hab hba
 
-/-- **CLK-4** A cycle through two events breaks antisymmetry, which is why `derive` refuses one. -/
-theorem cycle_not_antisymm :
-    ∃ g : Bool → Bool → Prop, ReflTransGen g true false ∧ ReflTransGen g false true ∧
-      true ≠ false :=
-  ⟨fun a b ↦ a ≠ b, ReflTransGen.single (by decide), ReflTransGen.single (by decide), by decide⟩
+/-- **CLK-4** For any generators, a cycle through two distinct events breaks antisymmetry: the
+acyclicity `antisymm_of_acyclic` assumes is needed, which is why `derive` refuses a cycle. -/
+theorem not_antisymm_of_cycle {a b : E} (hab : TransGen g a b) (hba : TransGen g b a)
+    (hne : a ≠ b) : ¬ ∀ x y, ReflTransGen g x y → ReflTransGen g y x → x = y :=
+  fun h ↦ hne (h a b hab.to_reflTransGen hba.to_reflTransGen)
 
 end Order
 

@@ -725,8 +725,10 @@ class Evaluator:
                     where = ("= 1: the edge is a bridge, severing it disconnects, and the "
                              "response is singular")
                 else:
-                    where = (f"< 1: the response is regular, the Sherman–Morrison denominator "
-                             f"1 − w·R_eff = {1 - wr:.4f}")
+                    where = (f"< 1: the response is regular; 1 − w·R_eff = {1 - wr:.4f} is the "
+                             "denominator of the rank-one update of the pseudo-inverse L⁺ "
+                             "(Sherman–Morrison on the complement of the constants; the Lean "
+                             "proves the formula for an invertible matrix, QSA-9)")
                 self._note(f"the sever horizon: w·R_eff(u, v) = {wr:.4f} {where}",
                            "SEV-3, SEV-4, SEV-5")
         for a, b in overlay.f_add:

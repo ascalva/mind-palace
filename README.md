@@ -76,7 +76,7 @@ flowchart TB
 | `top k f`, `atleast t f` | ranking, which does not commute with a mask; a threshold, which does | QSA-4 |
 | `reach F from n depth d` | breadth-first over the typed edges at the sentence's cut | structural |
 | `walk from n via p` | the product of the typed graph with the regular expression's automaton, dead states pruned | QSA-7 |
-| `assume S a b +w in s` | a rank-one update `L ↦ L + w(e_a − e_b)(e_a − e_b)ᵀ`; adding weight lowers every effective resistance, removing it raises every one; the sever horizon `w·R_eff ≤ 1`, with equality exactly at a bridge | QSA-9, CND-2, SEV-3 to SEV-5 |
+| `assume S a b +w in s` | a rank-one update `L ↦ L + w(e_a − e_b)(e_a − e_b)ᵀ`; adding weight raises no effective resistance, removing it lowers none; the sever horizon `w·R_eff ≤ 1`, with equality exactly at a bridge | QSA-9, CND-2, SEV-3 to SEV-5 |
 | `assume contradict a b in s` | a negative relation edge; the signed Laplacian's zero mode lifts iff the camps break, by at most `4·F_w/n` | LAP-5, LAP-6, FRU-1, FRU-2 |
 | `read r [chunk n]` | the record, held to the stratum its ref names | structural |
 
@@ -121,24 +121,24 @@ A law has one row in [`docs/LAWS.md`](docs/LAWS.md): its statement, the structur
 | | |
 |---|---|
 | toolchain | Lean `v4.36.0-rc2`, Mathlib; Plausible for the attacks |
-| the library | 25 proof modules, 24 models, 19 statement files; 13,416 lines of models and proofs, 2,251 of statements, 2,551 of attacks |
-| theorems | 799 proved in `formal/Palace`; 205 statements in `formal/Spec` judged identical by the comparator |
-| the ledger | 79 rows in 11 families, 211 cited declarations, 66 law markers checked against the rows |
-| attacks | 92 Plausible attacks and 84 negative controls over 21 modules, fixed seeds |
+| the library | 25 proof modules, 24 models, 19 statement files; 13,654 lines of models and proofs, 2,370 of statements, 2,575 of attacks |
+| theorems | 816 proved in `formal/Palace`; 225 statements in `formal/Spec` judged identical by the comparator |
+| the ledger | 79 rows in 11 families, 231 cited declarations, 66 law markers checked against the rows |
+| attacks | 93 Plausible attacks and 85 negative controls over 21 modules, fixed seeds |
 | axioms | `propext`, `Classical.choice`, `Quot.sound`; `sorry` 0 |
-| the replay | 44,936 declarations accepted by all six checkers on every run of `formal/check.sh` |
+| the replay | 44,967 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
 | families | memberships · Laplacian, balance and spectral · cut and conductance · curvature · the global event clock · the shared prose plane · capability scopes · the abstraction ultrametric σ* · bridges · the retrieval curve · the query sentence algebra |
 
 ## The mathematics
 
-- **The retrieval curve.** `diffuse` walks a randomized shortest path with one parameter, β. As β grows the distance becomes shortest-path distance; as it shrinks, resistance distance; in between, every path counts, weighted by its cost. The kernel behind it is positive definite at every β, the free energy is a quasi-metric, and on a support that keeps the whole graph's degrees it can underestimate nearness but not invent it (RSP-1 to RSP-5).
-- **Positivity.** `and` is the Schur product of positive kernels and stays positive; masks are congruences, so `within` and `over` push to the leaves and stack; a threshold passes through a mask and a ranking does not, which is why `top k` is the last thing a plan does (QSA-1 to QSA-4).
-- **Hypotheses.** `assume` is a rank-one update of the Laplacian. Adding weight lowers every effective resistance and removing it raises every one (Rayleigh's monotonicity, CND-2). Severing has a horizon: an edge's weight times the resistance across it is at most one, with equality exactly when the edge is a bridge, the one case where the response is singular; on the live backbone the eleven bridges are the eleven edges at the horizon. A contradiction lifts the signed Laplacian's zero mode by at most four times the frustrated weight over the number of notes (SEV-3 to SEV-5, FRU-1, FRU-2).
+- **The retrieval curve.** `diffuse` walks a randomized shortest path with one parameter, β. As β grows the distance becomes shortest-path distance; as it shrinks, resistance distance; in between, every path counts, weighted by its cost. The kernel behind it is positive definite at every β on a connected support whose every degree is positive, the free energy is a quasi-metric (on the whole graph and on a support), and on a support that keeps the graph's degrees it can underestimate nearness but not invent it (RSP-1 to RSP-5).
+- **Positivity.** `and` is the Schur product, which keeps two positive semidefinite kernels in the cone; `diffuse`'s kernel is one at the default β, and `near`'s, the cosine clipped to `[0, 1]`, need not be. Masks are congruences, so `within` and `over` push through `and` to the leaves and stack; a threshold passes through a mask and a ranking does not, which is why `top k` is the last thing a plan does (QSA-1 to QSA-4).
+- **Hypotheses.** `assume` is a rank-one update of the Laplacian. Adding weight raises no effective resistance and removing it lowers none (Rayleigh's monotonicity, CND-2). A new contradiction keeps the camps exactly when its sign agrees with them, and between notes already joined by a path, a disagreeing one leaves no camps at all (QSA-9). Severing has a horizon: an edge's weight times the resistance across it is at most one, with equality exactly when the edge is a bridge, the one case where the response is singular; on the live backbone the eleven bridges are the eleven edges at the horizon. A contradiction lifts the signed Laplacian's zero mode by at most four times the frustrated weight over the number of notes (SEV-3 to SEV-5, FRU-1, FRU-2).
 - **Paths as regular expressions.** `walk from n via S+F*` compiles the expression to an automaton and walks its product with the typed graph. A chain is admissible exactly when the automaton accepts it, pruning dead states loses nothing, and a hypothetical edge only adds chains (QSA-7).
 - **The abstraction ultrametric.** σ\* is read off Kruskal's forest, which keeps every threshold's components; the forest sweep and the union-find sweep agree (SIG-1 to SIG-4).
 - **Three Laplacians.** The plain Laplacian gives components and conductance; the signed one decides whether a web of support and contradiction is balanced; the magnetic one carries a phase around each cycle, with the signed Laplacian as its ℤ/2 fiber. The Hodge 1-Laplacian splits edge flows into gradient, curl and harmonic parts and counts holes (LAP-1 to LAP-11, BRG-7).
 - **Transports along supersession.** When a note supersedes another, cochains pull back and push forward along the map. Under a merge the pullback is not a contraction, contrary to a ratified note; it is an isometry under the fiber-weighted inner product, the push-forward contracts under its inverse, and the curvature of the superconnection is supported exactly on the severed citations (TRN-1 to TRN-5). The pullback is a contraction exactly when nothing merges, which is what the versions store enforces. Under the confidence weight γ^depth, a machine step one level deeper contracts the energy by exactly γ (the norm by exactly γ under the weight γ^2·depth), a merge keeps every cochain's energy from growing exactly while γ times the widest fiber stays at most one, and an owner promotion multiplies the energy by γ^-k. Measured as mass, the weighted ℓ¹ norm, no machine step adds any, merges included: there the owner is the only source (TRN-6 to TRN-9).
-- **A leak costs a step of temperature.** If the census feeding a support under-counts every degree by a fraction ε, the support's nearness is bounded by the whole graph's at killing `(1+ε)·z`, uniformly in depth (LEAK-1, LEAK-2).
+- **A leak costs a step of temperature.** If the census feeding a support counts every degree at no less than `1/(1+ε)` of the true one, an under-count of at most `ε/(1+ε)`, and `(1+ε)·z < 1`, the support's nearness is bounded by the whole graph's at killing `(1+ε)·z`, uniformly in depth (LEAK-1, LEAK-2).
 - **Floats.** The float claims are proved over a model of binary64 round-to-nearest that is itself checked, bit for bit, against this machine's arithmetic (Binary64, Roundoff).
 
 ## Why it exists

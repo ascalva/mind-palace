@@ -662,6 +662,70 @@ theorem nearnessOn_mul_le (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤
       ≤ nearnessOn w S β z i j * nearness w β z j i := mul_le_mul_of_nonneg_left h2 n1
     _ ≤ nearness w β z i j * nearness w β z j i := mul_le_mul_of_nonneg_right h1 n2
 
+/-- **RSP-1** on a support with the graph's degrees, the walk `diffuse` runs on a sentence's
+universe: `Z_S = (I − W_β|_S)⁻¹` is nonnegative. -/
+theorem fundamentalOn_nonneg (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 ≤ β)
+    (hz0 : 0 ≤ z) (hz1 : z < 1) (S : Finset V) (i j : V) : 0 ≤ fundamentalOn w S β z i j :=
+  inv_nonneg (restrict_nonneg (killedWalk_nonneg hw0 hz0) S)
+    (fun a ↦ (sum_restrict_le (killedWalk_nonneg hw0 hz0) S a).trans
+      (sum_killedWalk_le hw0 hw1 hβ hz0 a)) hz1 i j
+
+/-- **RSP-1** on a support: `z^S_ii ≥ 1`. -/
+theorem one_le_fundamentalOn_self (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1)
+    (hβ : 0 ≤ β) (hz0 : 0 ≤ z) (hz1 : z < 1) (S : Finset V) (i : V) :
+    1 ≤ fundamentalOn w S β z i i :=
+  one_le_inv_apply_self (restrict_nonneg (killedWalk_nonneg hw0 hz0) S)
+    (fun a ↦ (sum_restrict_le (killedWalk_nonneg hw0 hz0) S a).trans
+      (sum_killedWalk_le hw0 hw1 hβ hz0 a)) hz1 i
+
+/-- **RSP-4** on a support: `φ^S_ii = 0`. -/
+theorem freeEnergyOn_self (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 ≤ β)
+    (hz0 : 0 ≤ z) (hz1 : z < 1) (S : Finset V) (i : V) : freeEnergyOn w S β z i i = 0 := by
+  have h := one_le_fundamentalOn_self hw0 hw1 hβ hz0 hz1 S i
+  simp [freeEnergyOn, nearnessOn, div_self (show fundamentalOn w S β z i i ≠ 0 by linarith)]
+
+/-- **RSP-4** on a support: `φ^S_ij ≥ 0`, first passage. -/
+theorem freeEnergyOn_nonneg (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 < β)
+    (hz0 : 0 ≤ z) (hz1 : z < 1) (S : Finset V) (i j : V) : 0 ≤ freeEnergyOn w S β z i j := by
+  have hM : ∀ a b, 0 ≤ restrict (killedWalk w β z) S a b :=
+    restrict_nonneg (killedWalk_nonneg hw0 hz0) S
+  have hrow : ∀ a, ∑ b, restrict (killedWalk w β z) S a b ≤ z := fun a ↦
+    (sum_restrict_le (killedWalk_nonneg hw0 hz0) S a).trans (sum_killedWalk_le hw0 hw1 hβ.le hz0 a)
+  have hjj := one_le_fundamentalOn_self hw0 hw1 hβ.le hz0 hz1 S j
+  have hle : fundamentalOn w S β z i j ≤ fundamentalOn w S β z j j :=
+    inv_apply_le_inv_apply_self hM hrow hz1 i j
+  have h0 := fundamentalOn_nonneg hw0 hw1 hβ.le hz0 hz1 S i j
+  have hlog : Real.log (fundamentalOn w S β z i j / fundamentalOn w S β z j j) ≤ 0 :=
+    Real.log_nonpos (div_nonneg h0 (by linarith)) ((div_le_one (by linarith)).mpr hle)
+  exact div_nonneg (by simpa [nearnessOn] using neg_nonneg.2 hlog) hβ.le
+
+/-- **RSP-4** on a support: the triangle inequality `φ^S_ik ≤ φ^S_ij + φ^S_jk`, from the path
+product of the restricted walk's inverse. -/
+theorem freeEnergyOn_triangle (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 < β)
+    (hz0 : 0 ≤ z) (hz1 : z < 1) (S : Finset V) {i j k : V}
+    (hij : 0 < fundamentalOn w S β z i j) (hjk : 0 < fundamentalOn w S β z j k) :
+    freeEnergyOn w S β z i k ≤ freeEnergyOn w S β z i j + freeEnergyOn w S β z j k := by
+  have hM : ∀ a b, 0 ≤ restrict (killedWalk w β z) S a b :=
+    restrict_nonneg (killedWalk_nonneg hw0 hz0) S
+  have hrow : ∀ a, ∑ b, restrict (killedWalk w β z) S a b ≤ z := fun a ↦
+    (sum_restrict_le (killedWalk_nonneg hw0 hz0) S a).trans (sum_killedWalk_le hw0 hw1 hβ.le hz0 a)
+  have hjj := one_le_fundamentalOn_self hw0 hw1 hβ.le hz0 hz1 S j
+  have hkk := one_le_fundamentalOn_self hw0 hw1 hβ.le hz0 hz1 S k
+  set Z := fundamentalOn w S β z with hZ
+  have hpp : Z i j * Z j k ≤ Z i k * Z j j := inv_mul_inv_le hM hrow hz1 i j k
+  have hik : 0 < Z i k := by
+    by_contra h
+    push Not at h
+    nlinarith [mul_pos hij hjk]
+  have hlog : Real.log (Z i j / Z j j) + Real.log (Z j k / Z k k) ≤ Real.log (Z i k / Z k k) := by
+    rw [← Real.log_mul (by positivity) (by positivity)]
+    refine Real.log_le_log (by positivity) ?_
+    rw [div_mul_div_comm, div_le_div_iff₀ (by positivity) (by positivity)]
+    nlinarith
+  simp only [freeEnergyOn, nearnessOn]
+  rw [← add_div, div_le_div_iff_of_pos_right hβ]
+  linarith
+
 /-- **RSP-4** The distance vanishes on the diagonal and is nonnegative. -/
 theorem feDist_self_and_nonneg (hw0 : ∀ i j, 0 ≤ w i j) (hw1 : ∀ i j, w i j ≤ 1) (hβ : 0 < β)
     (hz0 : 0 ≤ z) (hz1 : z < 1) (i j : V) :

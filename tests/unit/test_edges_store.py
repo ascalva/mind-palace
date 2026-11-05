@@ -49,3 +49,13 @@ def test_sign_is_a_closed_set(tmp_path):
     s = _store(tmp_path)
     with pytest.raises(ValueError):
         s.add("a", "b", sign=3, rel_type=CONTRADICTS)    # not ±1 → EdgeSign rejects it
+
+
+def test_a_note_does_not_relate_to_itself(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """A self loop is refused at the store (the review of 2026-11-05): the Lean's balance counts a
+    negative loop as frustration and the code's test skips loops, so the store holds none for the
+    two to disagree on. The MCP `link` naming one note twice, by path and by title, lands here."""
+    store = _store(tmp_path)
+    with pytest.raises(ValueError, match="two distinct notes"):
+        store.add("da", "da", sign=EdgeSign.CONTRADICT, rel_type="contradicts")
+    assert store.count() == 0

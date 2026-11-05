@@ -136,6 +136,30 @@ def triangleHolds (forward : Bool) (es : List (Fin 6 × Fin 6)) : Bool :=
 /- Control, the ordinary triangle inequality: a long detour beats the path through `b`. -/
 #eval refuted (∀ es : List (Fin 6 × Fin 6), triangleHolds true es = true) 107
 
+/-- Proper time as `Spine.proper_time` reports it: the events on the longest chain, either way
+round, and `0` for a concurrent pair (`eventCount`). -/
+def events (t : Array (Array Int)) (a b : Fin 6) : Int :=
+  let ab := (t[a.val]!)[b.val]!
+  let ba := (t[b.val]!)[a.val]!
+  if 0 ≤ ab then ab + 1 else if 0 ≤ ba then ba + 1 else 0
+
+/-- The event-count laws on one DAG: one event at a point, symmetric, `0` exactly when
+concurrent, and the reverse triangle up to `shift` (the middle event, counted twice). -/
+def eventsHold (shift : Int) (es : List (Fin 6 × Fin 6)) : Bool :=
+  let t := longest es
+  let lp (a b : Fin 6) : Int := (t[a.val]!)[b.val]!
+  let ev := events t
+  (List.finRange 6).all fun a ↦ ev a a == 1 && (List.finRange 6).all fun b ↦
+    ev a b == ev b a && (ev a b == 0) == (lp a b < 0 && lp b a < 0) &&
+      (List.finRange 6).all fun c ↦
+        !(0 ≤ lp a b && 0 ≤ lp b c) || ev a b + ev b c ≤ ev a c + shift
+
+/- CLK-3 as the code counts it, on the code's own recursion. -/
+#eval survives (∀ es : List (Fin 6 × Fin 6), eventsHold 1 es = true) 181
+
+/- Control: in events the step-count triangle fails, at `a = b` already. -/
+#eval refuted (∀ es : List (Fin 6 × Fin 6), eventsHold 0 es = true) 182
+
 /-- Does no pair of distinct events reach each other in the closure? -/
 def antisymmHolds (es : List (Fin 6 × Fin 6)) : Bool :=
   let R := reach es

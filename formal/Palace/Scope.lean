@@ -223,8 +223,10 @@ theorem mem_close {S : Finset Stratum} {c : Stratum} :
     c ∈ close S ↔ c ∈ S ∨ (c ≠ .exhaust ∧ ∃ p ∈ S, c.parent = some p) := by
   simp [close]
 
+/-- **SCO-1** Closure is extensive. -/
 theorem subset_close (S : Finset Stratum) : S ⊆ close S := subset_union_left
 
+/-- **SCO-1** Closure is monotone. -/
 theorem close_mono {S T : Finset Stratum} (h : S ⊆ T) : close S ⊆ close T := by
   intro c hc
   rcases mem_close.1 hc with hc | ⟨hx, p, hp, hcp⟩
@@ -306,6 +308,7 @@ theorem span_kind (lo hi : ℤ) : (span lo hi).kind ≠ .all ∧ (span lo hi).ki
   unfold span
   split_ifs <;> simp [point, interval]
 
+/-- **SCO-2** `⊑` on windows is reflexive. -/
 theorem Le.refl (a : Window) : a.Le a := Or.inr (Or.inr (Or.inl rfl))
 
 theorem Within.trans {a b c : Window} (hab : Within a b) (hbc : Within b c) : Within a c := by
@@ -314,6 +317,7 @@ theorem Within.trans {a b c : Window} (hab : Within a b) (hbc : Within b c) : Wi
   simp only [hb, Option.some.injEq, Prod.mk.injEq] at hb'
   exact within_iff.2 ⟨al, ah, cl, ch, ha, hc, by omega, by omega⟩
 
+/-- **SCO-2** And transitive: a preorder. -/
 theorem Le.trans {a b c : Window} (hab : a.Le b) (hbc : b.Le c) : a.Le c := by
   rcases hab with ha | hb | rfl | ⟨ha, hb, hw⟩
   · exact Or.inl ha
