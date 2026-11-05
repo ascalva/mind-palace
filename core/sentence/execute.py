@@ -3,8 +3,9 @@
 
 A `Universe` is what one evaluation reads: the authored notes with their unit vectors and the
 similarity backbone (the σ-graph `QueryEngine.note_graph` builds), the typed edges among them
-(citations `F`; `D` and `C` at the note grain are empty in this version and said so), the signed
-relation edges, and the readers for the version chain and the witnessing commit. `assume` applies
+(citations `F`; the causal edges `C` from the dialogue's transcript turns to what they produced,
+when the sentence walks them; `D` at the note grain is empty and said so), the signed relation
+edges, and the readers for the version chain and the witnessing commit. `assume` applies
 an `Overlay` to a copy of the universe and evaluates the body there — nothing is written to any
 store; the result is a `Hyp` beside the actual value, and the notes name the response class the
 assumption falls in (QSA-9: adding weight lowers every effective resistance, removing it raises
@@ -37,6 +38,7 @@ from core.sentence.precedents import DEFAULT, Precedents
 from core.sentence.trace import Trace
 from core.sentence.types import (
     REFERENCE_NAMES,
+    TRANSCRIPT_REF,
     AmbiguousSentence,
     IllScopedSentence,
     Sort,
@@ -198,8 +200,8 @@ class Universe:
         return cls(notes=notes, vectors=mat, weights=weights,
                    edges={Rel.F: f_edges, Rel.D: {}, Rel.C: {}}, relations=relations,
                    embed=embed, history=history, witness=witness, cut=view.commit,
-                   missing=("D and C moves at the note grain: the version chains are per note "
-                            "(use trace) and the causal edges key on structural endpoints",),
+                   missing=("D moves at the note grain: the version chains are per note (use "
+                            "trace); C moves are wired by the sentence universe, not here",),
                    text=text)
 
 
@@ -222,9 +224,10 @@ def _read_repo_file(ref: str) -> Mapping[str, object] | None:
 def read_ref(engine: QueryEngine, ref: str, chunk: int | None, *,
              window: int) -> Mapping[str, object] | None:
     """The record at a ref: a curated paper's window of `window` chunks around `chunk` (from its
-    start when absent), or the full text of an active note or dialogue turn — read from the vault
-    file when the ref is a path under it, else from the raw store. The stratum rides with the
-    record for the executor's scope check. `None` when nothing active bears the ref."""
+    start when absent), a transcript turn's utterance from the chatlog, or the full text of an
+    active note or dialogue turn — read from the vault file when the ref is a path under it, else
+    from the raw store. The stratum rides with the record for the executor's scope check. `None`
+    when nothing active bears the ref."""
     from pathlib import Path
 
     from core.kernel.clearance import CURATED_READ
@@ -244,6 +247,17 @@ def read_ref(engine: QueryEngine, ref: str, chunk: int | None, *,
         return {"ref": ref, "title": rows[0].get("title", ""), "provenance": "curated",
                 "stratum": "curated", "chunks": f"{start}–{start + len(picked) - 1} of {len(rows)}",
                 "text": "\n".join(str(r.get("text", "")) for r in picked)}
+    if ref.startswith(TRANSCRIPT_REF):
+        session, _, turn = ref[len(TRANSCRIPT_REF):].rpartition("/")
+        if not session or not turn.isdigit():
+            return None
+        for row in engine._get("chatlog").rows_for(session):
+            if str(row.get("turn_index", "")) == turn:
+                speaker = str(row.get("speaker", ""))
+                return {"ref": ref, "title": f"{TRANSCRIPT_REF}{session[:8]}/{turn} ({speaker})",
+                        "provenance": "observed", "stratum": "transcript", "speaker": speaker,
+                        "text": str(row.get("text", ""))}
+        return None
     if "/" in ref and not ref.startswith(("/", "~", "dialogue/")):
         return _read_repo_file(ref)
     entry = VaultCatalog(cfg.paths.vault_catalog).get(ref)
@@ -312,12 +326,14 @@ Value = FieldV | RegionV | ChainsV | WitnessV | TextV | HypV
 
 @dataclass(frozen=True)
 class Overlay:
-    """A hypothesis as a perturbation of the universe: backbone weights, citation edges, a
-    contradiction among the relations. Applied to a copy; stores are never written."""
+    """A hypothesis as a perturbation of the universe: backbone weights, citation or causal
+    edges, a contradiction among the relations. Applied to a copy; stores are never written."""
 
     s_edges: tuple[tuple[int, int, float], ...] = ()
     f_add: tuple[tuple[str, str], ...] = ()
     f_sever: tuple[tuple[str, str], ...] = ()
+    c_add: tuple[tuple[str, str], ...] = ()
+    c_sever: tuple[tuple[str, str], ...] = ()
     contradictions: tuple[tuple[str, str], ...] = ()
 
     @classmethod
@@ -335,8 +351,13 @@ class Overlay:
             if isinstance(h, ast.SeverHyp) or h.weight < 0:
                 return cls(f_sever=(pair,))
             return cls(f_add=(pair,))
+        if rel is Rel.C:
+            pair = (u.path_of(a), u.path_of(b))
+            if isinstance(h, ast.SeverHyp) or h.weight < 0:
+                return cls(c_sever=(pair,))
+            return cls(c_add=(pair,))
         raise UnsupportedSentence(f"assume: {rel.value} edges are not in this universe at the note "
-                                  f"grain; assume S or F edges, or contradict")
+                                  f"grain; assume S, F or C edges, or contradict")
 
     def apply(self, u: Universe) -> Universe:
         weights = u.weights.copy()
@@ -354,10 +375,17 @@ class Overlay:
         for a, b in self.f_sever:
             f_edges.get(a, set()).discard(b)
             f_edges.get(b, set()).discard(a)
+        c_edges = {k: set(v) for k, v in u.edges.get(Rel.C, {}).items()}
+        for a, b in self.c_add:
+            c_edges.setdefault(a, set()).add(b)
+        for a, b in self.c_sever:
+            c_edges.get(a, set()).discard(b)
+            c_edges.get(b, set()).discard(a)
         relations = list(u.relations) + [
             Relation(a, b, -1, "contradicts", 1.0) for a, b in self.contradictions]
         edges = dict(u.edges)
         edges[Rel.F] = f_edges
+        edges[Rel.C] = c_edges
         return replace(u, weights=weights, edges=edges, relations=relations, degrees=degrees)
 
     def describe_response(self, u: Universe) -> list[str]:
@@ -375,6 +403,12 @@ class Overlay:
                          "(QSA-7)")
         if self.f_sever:
             notes.append("severs a citation: reach and the chains over F can only shrink")
+        if self.c_add:
+            notes.append("adds a causal edge, as if the turn had produced the endpoint: reach and "
+                         "the admissible chains over C can only grow (QSA-7); nothing is proven "
+                         "by it")
+        if self.c_sever:
+            notes.append("severs a causal edge: reach and the chains over C can only shrink")
         if self.contradictions:
             before = _balanced(u.relations)
             after = _balanced(self.apply(u).relations)
@@ -835,7 +869,9 @@ def _hits(value: Value, u: Universe, k: int) -> tuple[Hit, ...]:
         return tuple(_hit(u, j, detail=dict(value.detail.get(j, {})))
                      for j in sorted(value.members))
     if isinstance(value, ChainsV):
-        return tuple(Hit(ref=str(c), stratum="mirror",
+        strata = {str(n.get("source_path", "")): str(n.get("stratum", "mirror") or "mirror")
+                  for n in u.notes}
+        return tuple(Hit(ref=str(c), stratum=strata.get(c.start, "mirror"),
                          detail={"word": "".join(m.value for m in c.word), "length": len(c.steps)})
                      for c in value.chains)
     if isinstance(value, WitnessV):

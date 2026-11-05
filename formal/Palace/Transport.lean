@@ -1,6 +1,7 @@
 module
 
 public import Mathlib.Algebra.Order.Chebyshev
+public import Mathlib.Tactic.Ring
 public import Palace.Transport.Defs
 
 /-!
@@ -16,8 +17,14 @@ across exactly the severed citations, and vanishes iff every citation carries fo
 (TRN-5, Results 1 and 2). The correction is the inner product: under
 the fiber-weighted `⟨·,·⟩_σ` on the target, the pullback is an isometry — the weighted inner
 product PD-b parked becomes the dilation's customer, exactly where Result 4 predicted it would.
-These are design theorems (Palace and this file only; no Spec rows): no code transports cochains
-yet.
+Result 5 is true where the versions store puts it: along a merge-free supersession the pullback is
+a contraction (`pull_dotProduct_self_le_self_of_injective`), and `core/stores/versions.py` refuses
+to merge two lineages. Result 6 — the strict γ-contraction of confidence-weighted cochains, the
+owner's promotion the only energy source — is exact under the depth-weighted inner product
+`⟨f, g⟩_{γ,d} = ∑ γ^{d b} f_b g_b` (TRN-6 to TRN-8): a merge-free step one level deeper contracts
+the energy by exactly `γ`, a merge keeps the contraction iff `γ · (max fiber) ≤ 1`, and a
+promotion `k` levels shallower injects `γ^{-k}`. These are design theorems (Palace and this file
+only; no Spec rows): no code transports cochains yet.
 -/
 
 @[expose] public section
@@ -63,6 +70,23 @@ theorem pull_not_contraction :
   refine ⟨fun _ ↦ 1, ?_⟩
   simp [pull, dotProduct]
 
+omit [DecidableEq B] in
+/-- TRN-2 On a merge-free supersession the pullback IS a contraction, `‖σ^* f‖² ≤ ‖f‖²`: Result 5
+holds exactly where the versions store puts it — lineages that never merge (the store's refusal
+of a merge, `RekeyRefusedError`, is this theorem's hypothesis). -/
+theorem pull_dotProduct_self_le_self_of_injective {σ : A → B} (hσ : Function.Injective σ)
+    (f : B → ℝ) : pull σ f ⬝ᵥ pull σ f ≤ f ⬝ᵥ f := by
+  classical
+  rw [pull_dotProduct_self]
+  unfold wdot dotProduct
+  refine sum_le_sum fun b _ ↦ ?_
+  have h1 : fiber σ b ≤ 1 := by
+    unfold fiber
+    exact Finset.card_le_one.2 fun a ha a' ha' ↦
+      hσ ((mem_filter.1 ha).2.trans (mem_filter.1 ha').2.symm)
+  have h1' : (fiber σ b : ℝ) ≤ 1 := by exact_mod_cast h1
+  exact mul_le_of_le_one_left (mul_self_nonneg (f b)) h1'
+
 /-- TRN-3 The correction: under the fiber-weighted inner product on the target, the pullback
 is an isometry, `‖σ^* f‖² = ‖f‖²_σ` — the dilation's inner product is read off the merge. -/
 theorem pull_isometry_wdot (σ : A → B) (f : B → ℝ) :
@@ -101,6 +125,118 @@ theorem push_wdotInv_le (σ : A → B) (g : A → ℝ) :
     rw [inv_mul_le_iff₀ hc, ← sq]
     calc (∑ a ∈ F, g a) ^ 2 ≤ F.card * ∑ a ∈ F, g a ^ 2 := sq_sum_le_card_mul_sum_sq
       _ = F.card * ∑ a ∈ F, g a * g a := by simp [sq]
+
+/-! ### TRN-6 to TRN-8 Result 6: the γ-contraction, and the owner as the only energy source -/
+
+omit [Fintype B] in
+/-- Along a merge-free supersession the push-forward reads the source at the preimage. -/
+theorem push_apply_of_injective {σ : A → B} (hσ : Function.Injective σ) (g : A → ℝ) (a : A) :
+    push σ g (σ a) = g a := by
+  unfold push
+  have : univ.filter (fun a' ↦ σ a' = σ a) = {a} := by
+    ext a'
+    simp [hσ.eq_iff]
+  rw [this, sum_singleton]
+
+omit [Fintype B] in
+/-- Off the image of `σ`, the push-forward is zero: nothing was superseded into that note. -/
+theorem push_apply_of_not_mem_range {σ : A → B} (g : A → ℝ) {b : B} (hb : b ∉ Set.range σ) :
+    push σ g b = 0 := by
+  unfold push
+  refine sum_eq_zero fun a ha ↦ absurd ⟨a, (mem_filter.1 ha).2⟩ hb
+
+/-- TRN-6 The transport formula: along a merge-free supersession, the push-forward's confidence
+energy on the target is the source's with every note weighed at its new depth,
+`‖σ_* g‖²_{γ,d'} = ∑_a γ^{d'(σ a)} g_a²`. -/
+theorem wdotDepth_push_of_injective {σ : A → B} (hσ : Function.Injective σ) (γ : ℝ) (d' : B → ℕ)
+    (g : A → ℝ) :
+    wdotDepth γ d' (push σ g) (push σ g) = ∑ a, γ ^ d' (σ a) * (g a * g a) := by
+  unfold wdotDepth
+  rw [← sum_subset (subset_univ (univ.image σ)) ?_]
+  · rw [sum_image fun a _ b _ h ↦ hσ h]
+    refine sum_congr rfl fun a _ ↦ ?_
+    rw [push_apply_of_injective hσ]
+  · intro b _ hb
+    simp only [mem_image, mem_univ, true_and, not_exists] at hb
+    rw [push_apply_of_not_mem_range (σ := σ) g fun ⟨a, ha⟩ ↦ hb a ha]
+    simp
+
+/-- TRN-6 Result 6's γ-contraction: a machine supersession — merge-free, every successor one
+level deeper — contracts the confidence energy by exactly `γ`,
+`‖σ_* g‖²_{γ,d'} = γ · ‖g‖²_{γ,d}`. -/
+theorem wdotDepth_push_eq_mul {σ : A → B} (hσ : Function.Injective σ) (γ : ℝ) (d : A → ℕ)
+    (d' : B → ℕ) (hd : ∀ a, d' (σ a) = d a + 1) (g : A → ℝ) :
+    wdotDepth γ d' (push σ g) (push σ g) = γ * wdotDepth γ d g g := by
+  rw [wdotDepth_push_of_injective hσ]
+  unfold wdotDepth
+  rw [mul_sum]
+  refine sum_congr rfl fun a _ ↦ ?_
+  rw [hd a, pow_succ]
+  ring
+
+/-- TRN-7 With merges the contraction survives up to the widest fiber: when every successor is
+one level deeper, `‖σ_* g‖²_{γ,d'} ≤ γ · (max fiber) · ‖g‖²_{γ,d}` — Cauchy–Schwarz on each
+fiber — so a merge of `m` notes keeps Result 6's contraction iff `γ · m ≤ 1`: at the default
+`γ = 1/2`, a two-way merge is the horizon. -/
+theorem wdotDepth_push_le (σ : A → B) {γ : ℝ} (hγ : 0 ≤ γ) (d : A → ℕ) (d' : B → ℕ)
+    (hd : ∀ a, d' (σ a) = d a + 1) (g : A → ℝ) :
+    wdotDepth γ d' (push σ g) (push σ g) ≤ γ * maxFiber σ * wdotDepth γ d g g := by
+  unfold wdotDepth
+  calc ∑ b, γ ^ d' b * (push σ g b * push σ g b)
+      ≤ ∑ b, (maxFiber σ : ℝ) *
+          ∑ a ∈ univ.filter (fun a ↦ σ a = b), γ ^ d' (σ a) * (g a * g a) := by
+        refine sum_le_sum fun b _ ↦ ?_
+        unfold push
+        have hpow : 0 ≤ γ ^ d' b := pow_nonneg hγ _
+        have hcard : ((univ.filter (fun a ↦ σ a = b)).card : ℝ) ≤ maxFiber σ := by
+          exact_mod_cast le_sup (f := fiber σ) (mem_univ b)
+        have hcs := sq_sum_le_card_mul_sum_sq (s := univ.filter (fun a ↦ σ a = b)) (f := g)
+        have hsum : ∑ a ∈ univ.filter (fun a ↦ σ a = b), γ ^ d' (σ a) * (g a * g a)
+            = γ ^ d' b * ∑ a ∈ univ.filter (fun a ↦ σ a = b), g a ^ 2 := by
+          rw [mul_sum]
+          refine sum_congr rfl fun a ha ↦ ?_
+          rw [(mem_filter.1 ha).2, sq]
+        have hs : 0 ≤ ∑ a ∈ univ.filter (fun a ↦ σ a = b), g a ^ 2 :=
+          sum_nonneg fun a _ ↦ sq_nonneg _
+        rw [hsum, ← sq]
+        calc γ ^ d' b * (∑ a ∈ univ.filter (fun a ↦ σ a = b), g a) ^ 2
+            ≤ γ ^ d' b * (((univ.filter (fun a ↦ σ a = b)).card : ℝ)
+                * ∑ a ∈ univ.filter (fun a ↦ σ a = b), g a ^ 2) :=
+              mul_le_mul_of_nonneg_left hcs hpow
+          _ = ((univ.filter (fun a ↦ σ a = b)).card : ℝ)
+                * (γ ^ d' b * ∑ a ∈ univ.filter (fun a ↦ σ a = b), g a ^ 2) := by ring
+          _ ≤ (maxFiber σ : ℝ) * (γ ^ d' b * ∑ a ∈ univ.filter (fun a ↦ σ a = b), g a ^ 2) :=
+              mul_le_mul_of_nonneg_right hcard (mul_nonneg hpow hs)
+    _ = (maxFiber σ : ℝ) * ∑ a, γ ^ d' (σ a) * (g a * g a) := by
+        rw [← mul_sum, sum_fiberwise (s := univ) (g := σ) (f := fun a ↦ γ ^ d' (σ a) * (g a * g a))]
+    _ = γ * maxFiber σ * ∑ a, γ ^ d a * (g a * g a) := by
+        rw [mul_sum, mul_sum]
+        refine sum_congr rfl fun a _ ↦ ?_
+        rw [hd a, pow_succ]
+        ring
+
+/-- TRN-8 The owner is the only energy source (Result 6's exception, made exact): along a
+merge-free supersession whose every successor is re-anchored `k` levels shallower — an owner
+promotion — the confidence energy is multiplied by `γ^{-k}`, `‖σ_* g‖²_{γ,d'} = γ⁻¹^k · ‖g‖²_{γ,d}`,
+an injection (`γ⁻¹^k > 1` for `γ < 1`, `k ≥ 1`) no machine step can produce. -/
+theorem wdotDepth_push_eq_promotion {σ : A → B} (hσ : Function.Injective σ) {γ : ℝ} (hγ : 0 < γ)
+    (d : A → ℕ) (d' : B → ℕ) (k : ℕ) (hd : ∀ a, d' (σ a) + k = d a) (g : A → ℝ) :
+    wdotDepth γ d' (push σ g) (push σ g) = γ⁻¹ ^ k * wdotDepth γ d g g := by
+  rw [wdotDepth_push_of_injective hσ]
+  unfold wdotDepth
+  rw [mul_sum]
+  refine sum_congr rfl fun a _ ↦ ?_
+  have hk : γ ^ k ≠ 0 := pow_ne_zero k hγ.ne'
+  rw [← hd a, pow_add, inv_pow]
+  calc γ ^ d' (σ a) * (g a * g a)
+      = (γ ^ k)⁻¹ * γ ^ k * (γ ^ d' (σ a) * (g a * g a)) := by rw [inv_mul_cancel₀ hk, one_mul]
+    _ = (γ ^ k)⁻¹ * (γ ^ d' (σ a) * γ ^ k * (g a * g a)) := by ring
+
+/-- TRN-8 The injection is real: a promotion by at least one level, at any `γ < 1`, multiplies
+the energy by more than one. -/
+theorem one_lt_inv_pow_of_lt_one {γ : ℝ} (hγ : 0 < γ) (hγ1 : γ < 1) {k : ℕ} (hk : k ≠ 0) :
+    1 < γ⁻¹ ^ k :=
+  one_lt_pow₀ ((one_lt_inv₀ hγ).2 hγ1) hk
 
 /-! ### TRN-5 The curvature of the superconnection lives on the severed citations -/
 

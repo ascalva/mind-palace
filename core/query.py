@@ -362,6 +362,10 @@ class QueryEngine:
                 from core.stores.causal_edges import open_causal_edge_store
 
                 self._cache[name] = open_causal_edge_store(cfg)
+            elif name == "chatlog":
+                from core.stores.chatlog import open_chatlog_store
+
+                self._cache[name] = open_chatlog_store(cfg)
             elif name == "memberships":
                 from core.stores.memberships import open_membership_store
 

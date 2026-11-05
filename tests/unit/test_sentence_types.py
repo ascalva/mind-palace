@@ -67,6 +67,18 @@ def test_rule_noun_the_relation_carries_the_letter() -> None:
     assert walk.req.time.clock is Clock.COMMIT
 
 
+def test_a_transcript_ref_reads_the_dialogues_transcript_stratum() -> None:
+    from core.sentence.types import read_strata, short_names
+
+    assert read_strata("transcript/s1/3") == (Stratum.DIALOGUE_TRANSCRIPT,)
+    assert short_names(read_strata("transcript/s1/3")) == frozenset({"transcript"})
+    assert read_strata("dialogue/c/t1") == (Stratum.DIALOGUE,)
+    assert short_names(read_strata("dialogue/c/t1")) == frozenset({"dialogue"})
+    # a clause over the dialogue admits both, since the transcript stratum sits below it
+    assert short_names({Stratum.DIALOGUE, Stratum.DIALOGUE_TRANSCRIPT}) == frozenset(
+        {"dialogue", "transcript"})
+
+
 def test_over_sets_the_strata_and_refuses_an_unknown_one() -> None:
     (c,) = clauses_of(parse('near "x" over curated'))
     assert c.req.sigma.strata == frozenset({Stratum.CURATED})
