@@ -84,6 +84,15 @@ def eval (view : W → B → B) (observed : L) : Expr B L P W → Content B L P
       (eval view observed e).origin⟩
   | .make b => ⟨b, observed, none⟩
 
+/-- The label set an expression's type carries (dn-door-language §E12): an item's is the set its
+source's rule may give, a projection's is its operand's, a construction's is the observed label
+alone. Inference unifies two sets by their union, so an inferred set contains this one. -/
+def labelsOf [DecidableEq L] (srcLabels : Item B L P → Finset L) (observed : L) :
+    Expr B L P W → Finset L
+  | .item i => srcLabels i
+  | .proj _ e => labelsOf srcLabels observed e
+  | .make _ => {observed}
+
 /-- A row the writer holds at a path: the bytes, the label, the identity (the version chain it
 extends), whether its content came from a source, and whether it is active. -/
 structure Row (B L I : Type*) where
