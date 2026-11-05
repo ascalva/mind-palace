@@ -7,7 +7,8 @@ normal form is a pure function of the sentence (dn-query-sentence-algebra §2.7,
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Iterator
+from dataclasses import dataclass, fields, is_dataclass
 from enum import StrEnum
 
 
@@ -164,7 +165,8 @@ class And:
 
 @dataclass(frozen=True)
 class Or:
-    """`or`: the convex mixture of fields, the union of regions."""
+    """`or`: the convex mixture of fields, the mean of the chain's disjuncts (one n-ary
+    operation, whatever the grouping); the union of regions."""
 
     left: Node
     right: Node
@@ -246,6 +248,15 @@ Node = (
     Near | Diffuse | Far | Reach | Relate | Top | AtLeast | Not | Minus | Trace | Walk | Witness
     | Read | And | Or | Then | Within | Over | AsOf | Assume
 )
+
+
+def walk(node: Node) -> Iterator[Node]:
+    """Every node of a term, the term first, then its operands depth first."""
+    yield node
+    for f in fields(node):
+        child = getattr(node, f.name)
+        if is_dataclass(child) and not isinstance(child, EdgeHyp | SeverHyp | ContradictHyp):
+            yield from walk(child)  # type: ignore[arg-type]
 
 
 def describe(h: Hypothesis) -> str:

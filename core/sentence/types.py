@@ -129,16 +129,31 @@ def sort_of(node: Node) -> Sort:
                 raise SortError(
                     f"then: the left clause must be a region to mask the right one, got a "
                     f"{sa.value}; write 'top k' or 'atleast t' to make it one")
-            return sort_of(b)
+            return _maskable(b, "then", "the left's region masks the right")
         case ast.Within(body=b, region=r):
             _want(r, Sort.REGION, "within", "an adjective restricts to a region")
             sb = sort_of(b)
             if sb not in (Sort.FIELD, Sort.REGION):
                 raise SortError(f"within: restricts a field or a region, not a {sb.value}")
             return sb
-        case ast.Over(body=b) | ast.AsOf(body=b) | ast.Assume(body=b):
+        case ast.Over(body=b):
+            return _maskable(b, "over", "it masks to its strata")
+        case ast.Assume(body=b):
+            return _maskable(b, "assume", "a hypothesis perturbs what is computed")
+        case ast.AsOf(body=b):
             return sort_of(b)
     raise SortError(f"unknown node {node!r}")  # pragma: no cover - the match is total
+
+
+def _maskable(node: Node, production: str, reason: str) -> Sort:
+    """A field, a region or chains: what a mask restricts and a hypothesis moves. A `read` is
+    the record at its ref, held to the ref's stratum, and a witness is an edge's record; neither
+    composes (`docs/query/asking.md`)."""
+    got = sort_of(node)
+    if got in (Sort.TEXT, Sort.WITNESS):
+        raise SortError(f"{production}: a field, a region or chains, not a {got.value}; {reason}, "
+                        f"and a {got.value} is a record that composes with nothing")
+    return got
 
 
 def _want(node: Node, sort: Sort, production: str, reason: str) -> None:
@@ -179,10 +194,27 @@ class Clause:
 
 
 @dataclass(frozen=True)
-class _Context:
+class Context:
+    """What is in force at a node: the strata (`over`, else the precedent), the cut (`as of`) and
+    whether the node is under `assume`. The typing and the evaluator walk a term with it alike, so
+    a verb is evaluated on exactly the strata its clause was admitted for."""
+
     strata: tuple[Stratum, ...]
     cut: str | None
     overlay: bool
+
+    @classmethod
+    def initial(cls, precedents: Precedents = DEFAULT) -> Context:
+        return cls(precedents.strata, None, False)
+
+    def over(self, names: tuple[str, ...]) -> Context:
+        return Context(_strata(names), self.cut, self.overlay)
+
+    def as_of(self, cut: str) -> Context:
+        return Context(self.strata, cut, self.overlay)
+
+    def assumed(self) -> Context:
+        return Context(self.strata, self.cut, True)
 
 
 # The strata by the name a node carries (`Universe.notes[i]["stratum"]`): what `over` masks to and
@@ -217,11 +249,56 @@ def short_names(strata: Iterable[Stratum]) -> frozenset[str]:
     return frozenset(_SHORT[s] for s in strata if s in _SHORT)
 
 
+# The repo paths that are the foundation denylist 𝔇 (`Stratum.FOUNDATION`, never in a grant): the
+# constitution and the frozen golden set, the paths the CI denylist job guards. A `read` of one is
+# typed in FOUNDATION, so admission refuses it before anything is opened.
+FOUNDATION_PATHS: tuple[str, ...] = ("CONSTITUTION.md", "eval/golden.py", "eval/golden/")
+
+
+def repo_path(atom: str) -> str | None:
+    """The repo-relative path a `read` atom names, a leading `./` dropped; None when the atom is
+    not a repo path (a paper, transcript or dialogue ref, an absolute or home path, a title) or has
+    an empty, `.` or `..` part (git's tree has no such names, and `..` would climb)."""
+    if "/" not in atom or atom.startswith((CURATED_REF, TRANSCRIPT_REF, "dialogue/", "/", "~")):
+        return None
+    rel = atom.removeprefix("./")
+    return None if any(part in ("", ".", "..") for part in rel.split("/")) else rel
+
+
+def is_foundation(rel: str) -> bool:
+    """Whether a repo-relative path lies in the foundation denylist, compared case-folded: the
+    checkout's file system need not be case-sensitive, so `constitution.md` names the same file."""
+    r = rel.casefold()
+    return any(r == f.casefold() or (f.endswith("/") and r.startswith(f.casefold()))
+               for f in FOUNDATION_PATHS)
+
+
 def read_strata(atom: str) -> tuple[Stratum, ...]:
     """The strata a `read` of `atom` can land in, by the ref's shape: a paper ref reads the
     curated stratum; a transcript turn the dialogue's transcript stratum (the chat stores); a
     dialogue turn the dialogue; a repo-relative path the reference stratum (the repo's own docs
-    and code); an absolute path the mirror; a title the mirror or the dialogue."""
+    and code), save the foundation's paths, which are FOUNDATION and so never admitted; an
+    absolute path the mirror; a title the mirror or the dialogue."""
+    if atom.startswith(CURATED_REF):
+        return (Stratum.CURATED,)
+    if atom.startswith(TRANSCRIPT_REF):
+        return (Stratum.DIALOGUE_TRANSCRIPT,)
+    if atom.startswith("dialogue/"):
+        return (Stratum.DIALOGUE,)
+    if atom.startswith(("/", "~")):
+        return (Stratum.MIRROR_AUTHORED,)
+    if "/" in atom:
+        rel = repo_path(atom)
+        return (Stratum.FOUNDATION,) if rel is not None and is_foundation(rel) \
+            else (Stratum.REFERENCE,)
+    return (Stratum.MIRROR_AUTHORED, Stratum.DIALOGUE)
+
+
+def anchor_strata(atom: str, in_force: tuple[Stratum, ...]) -> tuple[Stratum, ...]:
+    """The strata a named node lies in, read off the name as `read_strata` reads a ref: a paper
+    ref is curated, a transcript turn the transcript's, a dialogue turn the dialogue's, an
+    absolute path the mirror's, a repo path the reference graph's; a title names a node of the
+    strata in force. Naming a node reads its stratum."""
     if atom.startswith(CURATED_REF):
         return (Stratum.CURATED,)
     if atom.startswith(TRANSCRIPT_REF):
@@ -232,7 +309,16 @@ def read_strata(atom: str) -> tuple[Stratum, ...]:
         return (Stratum.MIRROR_AUTHORED,)
     if "/" in atom:
         return (Stratum.REFERENCE,)
-    return (Stratum.MIRROR_AUTHORED, Stratum.DIALOGUE)
+    return in_force
+
+
+def _union(*groups: Iterable[Stratum]) -> tuple[Stratum, ...]:
+    out: list[Stratum] = []
+    for group in groups:
+        for s in group:
+            if s not in out:
+                out.append(s)
+    return tuple(out)
 
 
 _REL_STRATA: dict[Rel, tuple[Stratum, ...]] = {
@@ -256,7 +342,7 @@ def _strata(names: tuple[str, ...]) -> tuple[Stratum, ...]:
 
 
 def _required(verb: str, rel: Rel | None, strata: tuple[Stratum, ...], *, fibers: set[str],
-              clock: Clock, point: bool, ctx: _Context) -> Scope:
+              clock: Clock, point: bool, ctx: Context) -> Scope:
     """The least scope a clause needs, with the overlay stratum under `assume` (QSA-5)."""
     sigma = tuple(strata) + ((Stratum.HYPOTHETICAL,) if ctx.overlay else ())
     window = Window.point(ctx.cut if ctx.cut is not None else ANCHOR) if point else Window.all()
@@ -270,8 +356,12 @@ def _required(verb: str, rel: Rel | None, strata: tuple[Stratum, ...], *, fibers
     return scope(sigma, fibers, clock, window, cut=cut)
 
 
-def _clause(verb: str, rel: Rel | None, ctx: _Context, precedents: Precedents) -> Clause:
-    strata = ctx.strata
+def _clause(verb: str, rel: Rel | None, ctx: Context, precedents: Precedents,
+            atoms: tuple[str, ...] = ()) -> Clause:
+    """A verb's clause. The similarity backbone joins nodes of one stratum, so an `S` walk reads
+    the strata in force and its anchors' own (`diffuse S from` a paper walks among the papers);
+    the recorded relations read their own strata whatever is in force (QSA-b)."""
+    strata = _union(ctx.strata, *(anchor_strata(a, ctx.strata) for a in atoms))
     match verb, rel:
         case "near", _:
             req = _required(verb, None, strata, fibers=set(), clock=Clock.PROJECTION_EVENT,
@@ -305,13 +395,14 @@ def _clause(verb: str, rel: Rel | None, ctx: _Context, precedents: Precedents) -
     return Clause(verb, rel, req, mode_of(req), ctx.overlay)
 
 
-def _walk_clause(path: str, ctx: _Context) -> Clause:
+def _walk_clause(path: str, ctx: Context, atoms: tuple[str, ...] = ()) -> Clause:
     from core.sentence.automaton import letters
     rels = letters(path)
     fibers = {r.value for r in rels if r is not Rel.S}
+    in_s = _union(ctx.strata, *(anchor_strata(a, ctx.strata) for a in atoms))
     strata: list[Stratum] = []
     for r in sorted(rels, key=lambda r: r.value):
-        for s in _REL_STRATA[r]:
+        for s in (in_s if r is Rel.S else _REL_STRATA[r]):
             if s not in strata:
                 strata.append(s)
     if not strata:
@@ -327,35 +418,93 @@ def _walk_clause(path: str, ctx: _Context) -> Clause:
     return Clause("walk", None, req, mode_of(req), ctx.overlay)
 
 
-def _read_clause(atom: str, ctx: _Context) -> Clause:
+def _read_clause(atom: str, ctx: Context) -> Clause:
     """`read <ref>`: the clause requires the strata the ref's shape can land in (`read_strata`),
     and the executor holds the record's stratum to them — the shape decides at compile time, the
     catalog or the repo at run time."""
     strata = read_strata(atom)
-    clock = Clock.COMMIT if strata == (Stratum.REFERENCE,) else Clock.PROJECTION_EVENT
+    clock = Clock.COMMIT if strata in ((Stratum.REFERENCE,), (Stratum.FOUNDATION,)) \
+        else Clock.PROJECTION_EVENT
     req = _required("read", None, strata, fibers=set(), clock=clock, point=True, ctx=ctx)
     return Clause("read", None, req, mode_of(req), ctx.overlay)
 
 
+def _anchored(clause: Clause, atoms: Iterable[str | None], ctx: Context, *,
+              causal: bool = False) -> list[Clause]:
+    """A verb's clause, then the clauses for what it names or reaches outside its own strata. An
+    anchor whose stratum the verb's scope does not cover is a `name` clause: finding the node a
+    name picks out reads its stratum, so `reach C from` a note reads the mirror to find the note
+    as surely as it reads the causal edges from it. A causal walk's endpoints are any node a
+    session wrote, a vault note among them, so a walk over `C` reads its endpoints in the strata
+    in force (the mirror by default) as an `endpoints` clause, on the clock those strata keep."""
+    from core.kernel.scope import StratumScope
+
+    out = [clause]
+    covered = clause.req.sigma.strata
+    if causal and not StratumScope.of(*ctx.strata).strata <= covered:
+        req = _required("endpoints", None, ctx.strata, fibers=set(),
+                        clock=Clock.PROJECTION_EVENT, point=True, ctx=ctx)
+        out.append(Clause("endpoints", None, req, mode_of(req), ctx.overlay))
+        covered = covered | req.sigma.strata
+    for atom in atoms:
+        if atom is None:
+            continue
+        strata = anchor_strata(atom, ctx.strata)
+        if StratumScope.of(*strata).strata <= covered:
+            continue
+        clock = Clock.COMMIT if strata == (Stratum.REFERENCE,) else Clock.PROJECTION_EVENT
+        req = _required("name", None, strata, fibers=set(), clock=clock, point=True, ctx=ctx)
+        out.append(Clause("name", None, req, mode_of(req), ctx.overlay))
+    return out
+
+
 def clauses_of(node: Node, *, precedents: Precedents = DEFAULT) -> tuple[Clause, ...]:
     """Every clause of a sentence with its required scope, in reading order."""
-    return tuple(_clauses(node, _Context(precedents.strata, None, False), precedents))
+    return tuple(_clauses(node, Context.initial(precedents), precedents))
 
 
-def _clauses(node: Node, ctx: _Context, p: Precedents) -> list[Clause]:
+def verb_strata(node: Node, ctx: Context, precedents: Precedents = DEFAULT) -> frozenset[Stratum]:
+    """The strata a verb's clause reads under `ctx`, closed downward: what the evaluator holds
+    the verb's value to (QSA-5's typing invariant, a clause reads only what it requires)."""
+    from core.kernel.scope import StratumScope
+
+    out: set[Stratum] = set()
+    for i, c in enumerate(_clauses(node, ctx, precedents)):
+        if i == 0 or c.verb == "endpoints":
+            out |= StratumScope.of(*c.req.sigma.strata).strata
+    return frozenset(out - {Stratum.HYPOTHETICAL})
+
+
+def term_strata(node: Node, ctx: Context, precedents: Precedents = DEFAULT) -> frozenset[Stratum]:
+    """The strata a term's verbs read, the union of their clauses' (a name clause aside): the
+    carrier a complement or a reversal of the term is taken within."""
+    from core.kernel.scope import StratumScope
+
+    out: set[Stratum] = set()
+    for c in _clauses(node, ctx, precedents):
+        if c.verb != "name":
+            out |= StratumScope.of(*c.req.sigma.strata).strata
+    return frozenset(out - {Stratum.HYPOTHETICAL})
+
+
+def _clauses(node: Node, ctx: Context, p: Precedents) -> list[Clause]:
     match node:
         case ast.Near():
             return [_clause("near", None, ctx, p)]
-        case ast.Diffuse(rel=rel):
-            return [_clause("diffuse", rel, ctx, p)]
-        case ast.Reach(rel=rel):
-            return [_clause("reach", rel, ctx, p)]
-        case ast.Relate():
-            return [_clause("relate", None, ctx, p)]
-        case ast.Trace():
-            return [_clause("trace", None, ctx, p)]
-        case ast.Walk(path=path):
-            return [_walk_clause(path, ctx)]
+        case ast.Diffuse(rel=rel, atom=atom):
+            return _anchored(_clause("diffuse", rel, ctx, p, _s_atoms(rel, atom)), (atom,), ctx)
+        case ast.Reach(rel=rel, atom=atom):
+            return _anchored(_clause("reach", rel, ctx, p, _s_atoms(rel, atom)), (atom,), ctx,
+                             causal=rel is Rel.C)
+        case ast.Relate(atom=atom):
+            return _anchored(_clause("relate", None, ctx, p), (atom,), ctx)
+        case ast.Trace(atom=atom):
+            return _anchored(_clause("trace", None, ctx, p), (atom,), ctx)
+        case ast.Walk(path=path, atom=atom, to=to):
+            from core.sentence.automaton import letters
+
+            return _anchored(_walk_clause(path, ctx, (atom,)), (atom, to), ctx,
+                             causal=Rel.C in letters(path))
         case ast.Witness():
             return [_clause("witness", None, ctx, p)]
         case ast.Read(atom=atom):
@@ -370,18 +519,26 @@ def _clauses(node: Node, ctx: _Context, p: Precedents) -> list[Clause]:
         case ast.Within(body=b, region=r):
             return _clauses(b, ctx, p) + _clauses(r, ctx, p)
         case ast.Over(body=b, strata=names):
-            return _clauses(b, _Context(_strata(names), ctx.cut, ctx.overlay), p)
+            return _clauses(b, ctx.over(names), p)
         case ast.AsOf(body=b, cut=cut):
-            return _clauses(b, _Context(ctx.strata, cut, ctx.overlay), p)
+            return _clauses(b, ctx.as_of(cut), p)
         case ast.Assume(hypothesis=h, body=b):
             # the hypothesis reads what it perturbs: an edge of its relation, or a signed
             # relation edge, typed as a clause of its own under the overlay, so `assume C …`
             # needs a plane that admits C as surely as `reach C` does
-            octx = _Context(ctx.strata, ctx.cut, True)
+            octx = ctx.assumed()
+            ends = (h.a, h.b)
             hyp = (_clause("relate", None, octx, p) if isinstance(h, ast.ContradictHyp)
-                   else _clause("reach", h.rel, octx, p))
-            return [hyp] + _clauses(b, octx, p)
+                   else _clause("reach", h.rel, octx, p, _s_atoms(h.rel, *ends)))
+            return _anchored(hyp, ends, octx, causal=getattr(h, "rel", None) is Rel.C) \
+                + _clauses(b, octx, p)
     raise SortError(f"unknown node {node!r}")  # pragma: no cover
+
+
+def _s_atoms(rel: Rel, *atoms: str) -> tuple[str, ...]:
+    """The anchors whose strata an `S` walk joins (its own stratum's backbone); none for the
+    recorded relations, whose anchors are named by a clause of their own when uncovered."""
+    return atoms if rel is Rel.S else ()
 
 
 def admissible(node: Node, grant: Grant, *, precedents: Precedents = DEFAULT) -> bool:
@@ -395,6 +552,8 @@ def check_admissible(node: Node, grant: Grant, *, precedents: Precedents = DEFAU
         if not grant.admits(c.req):
             why = " under 'assume', which needs a plane naming the overlay stratum" \
                 if c.overlay else ""
+            if Stratum.FOUNDATION in c.req.sigma.strata:
+                why = ": the foundation (the constitution, the golden set) is never granted"
             raise IllScopedSentence(f"{c.describe()} is not under any granted scope{why}")
 
 

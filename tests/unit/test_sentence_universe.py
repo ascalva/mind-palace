@@ -255,19 +255,26 @@ def test_seeds_record_the_moves_the_verbs_walk() -> None:
 # ── the support ─────────────────────────────────────────────────────────────────────────────────
 
 
-def test_a_mirror_sentence_loads_the_mirror_and_the_dialogue_and_no_index(engine: _Engine) -> None:
+def test_a_mirror_sentence_loads_the_mirror_alone_and_no_index(engine: _Engine) -> None:
+    """The universe holds what the sentence's admitted clauses read and nothing else: `near` with
+    no `over` reads the owner's words, so the observed dialogue is never loaded (admission bounds
+    the read, the review of 2026-11-05); `over dialogue` loads it."""
     plan = compile_sentence('near "q"')
     u = _build(engine, plan)
-    assert _refs(u) == ["/v/a.md", "/v/b.md", C_NOTE, "dialogue/c/t1"]
-    assert [n["stratum"] for n in u.notes] == ["mirror", "mirror", "mirror", "dialogue"]
+    assert _refs(u) == ["/v/a.md", "/v/b.md", C_NOTE]
+    assert [n["stratum"] for n in u.notes] == ["mirror", "mirror", "mirror"]
     assert engine._get("curated").searches == 0 and engine._get("vectors").searches == 0
     assert u.cut == "c1"                                       # the newest cut the store holds
     assert any("newest cut the store holds" in m for m in u.missing)
     answer = execute(plan, u)
     assert [h.ref for h in answer.hits] == ["/v/a.md"]
     assert u.in_strata(["mirror"]) == frozenset({0, 1, 2})
-    assert u.in_strata(["dialogue"]) == frozenset({3})
     assert u.edges[Rel.C] == {}                 # no causal edge is read unless the sentence walks C
+    over = compile_sentence('near "q" over dialogue')
+    ud = _build(engine, over)
+    assert _refs(ud) == ["dialogue/c/t1"] and ud.in_strata(["dialogue"]) == frozenset({0})
+    both = compile_sentence('near "q" or near "q" over dialogue')
+    assert _refs(_build(engine, both)) == ["/v/a.md", "/v/b.md", C_NOTE, "dialogue/c/t1"]
 
 
 def test_near_over_curated_seeds_papers_from_the_index_and_masks_to_them(engine: _Engine) -> None:
@@ -415,7 +422,9 @@ def test_walk_via_c_then_f_crosses_from_a_turn_to_what_its_file_cites(engine: _E
     # is the reference graph's docs/a.md, which cites core/x.py)
     assert sorted(h.ref for h in hits) == ["transcript/s1/3 →C→ core/x.py →F→ core/y.py",
                                            "transcript/s1/3 →C→ docs/a.md →F→ core/x.py"]
-    assert {h.stratum for h in hits} == {"transcript"} and hits[0].detail["word"] == "CF"
+    # a chain is labelled by every stratum it runs through, in order
+    assert {h.stratum for h in hits} == {"transcript+reference"}
+    assert hits[0].detail["word"] == "CF"
 
 
 def test_read_of_a_transcript_turn_holds_to_the_transcript_stratum(engine: _Engine) -> None:
@@ -463,27 +472,99 @@ def test_the_support_bound_cuts_a_causal_neighbourhood_too(engine: _Engine) -> N
 # ── the review of 2026-11-05 ───────────────────────────────────────────────────────────────────
 
 
-def test_read_opens_only_files_git_tracks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`read` of a repo path serves the repo's tracked code and docs: never an untracked file under
-    the root, such as the raw store's verbatim transcripts under data/, or a local config."""
+def _scratch_repo(tmp_path: Path) -> Path:
+    """A git repo with a committed tree for the reader: docs, a foundation file, the golden set,
+    a tool directory's file, a symlink into data/, a binary blob and a long file; plus what is
+    never committed: data/, a local config, and an uncommitted edit to a tracked doc."""
     import subprocess
 
+    repo = tmp_path / "repo"
+    for d in ("docs", "data/raw/ab", "eval/golden", ".claude"):
+        (repo / d).mkdir(parents=True)
+    (repo / "docs" / "a.md").write_text("committed\n")
+    (repo / "docs" / "long.md").write_text("".join(f"line {i}\n" for i in range(400)))
+    (repo / "docs" / "blob.bin").write_bytes(b"\x00\x01\x02")
+    (repo / "CONSTITUTION.md").write_text("the fixed point\n")
+    (repo / "eval" / "golden" / "set.json").write_text("{}\n")
+    (repo / ".claude" / "settings.json").write_text("{}\n")
+    (repo / "data" / "raw" / "ab" / "abcd").write_text("a transcript, tool output and all\n")
+    (repo / "docs" / "raw").symlink_to("../data/raw/ab/abcd")
+    git = ["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run([*git, "init", "-q"], check=True, capture_output=True)
+    subprocess.run([*git, "add", "docs", "CONSTITUTION.md", "eval", ".claude"], check=True,
+                   capture_output=True)
+    subprocess.run([*git, "commit", "-q", "-m", "tree"], check=True, capture_output=True)
+    (repo / "local.toml").write_text("key = 'secret'\n")
+    (repo / "docs" / "a.md").write_text("an uncommitted edit, a pasted key\n")
+    return repo
+
+
+def test_read_serves_the_committed_blob_and_nothing_else(tmp_path: Path,
+                                                         monkeypatch: pytest.MonkeyPatch) -> None:
+    """`read` of a repo path is git's blob in the tree at the commit: never an untracked file (the
+    raw store's verbatim transcripts under data/, a local config), never an uncommitted edit,
+    never what a symlink points at, never a case variant, a `..` climb, a tool directory or the
+    foundation, whatever git tracks there."""
     import core.kernel.config as config
     from core.sentence.execute import _read_repo_file
 
-    repo = tmp_path / "repo"
-    (repo / "docs").mkdir(parents=True)
-    (repo / "data" / "raw" / "ab").mkdir(parents=True)
-    (repo / "docs" / "a.md").write_text("tracked\n")
-    (repo / "data" / "raw" / "ab" / "abcd").write_text("a transcript, tool output and all\n")
-    (repo / "local.toml").write_text("key = 'secret'\n")
-    for argv in (["init", "-q"], ["add", "docs/a.md"]):
-        subprocess.run(["git", "-C", str(repo), *argv], check=True, capture_output=True)
+    repo = _scratch_repo(tmp_path)
     monkeypatch.setattr(config, "REPO_ROOT", repo)
-    got = _read_repo_file("docs/a.md")
-    assert got is not None and got["text"] == "tracked\n"
-    for untracked in ("data/raw/ab/abcd", "local.toml", "docs/../local.toml", "docs/missing.md"):
-        assert _read_repo_file(untracked) is None, untracked
+
+    def read(ref: str, chunk: int | None = None) -> Mapping[str, object] | None:
+        return _read_repo_file(ref, chunk, window=2, cut=None)
+
+    for ref in ("docs/a.md", "./docs/a.md"):
+        got = read(ref)
+        assert got is not None and got["text"] == "committed\n", ref   # the blob, not the edit
+        assert got["stratum"] == "reference" and len(str(got["at"])) == 7
+    refused = ("data/raw/ab/abcd", "local.toml", "./local.toml", "docs/../local.toml",
+               "docs/../data/raw/ab/abcd", "docs/raw", "DOCS/a.md", "Docs/A.md", "docs/missing.md",
+               "docs", "docs/", "docs//a.md", "./CONSTITUTION.md", "./constitution.md",
+               "eval/golden/set.json", "Eval/Golden/set.json", ".claude/settings.json",
+               "./.claude/settings.json", ".git/config", "../repo/docs/a.md")
+    for ref in refused:
+        assert read(ref) is None, ref
+    with pytest.raises(LookupError, match="binary"):
+        read("docs/blob.bin")
+    # an unknown or malformed cut falls back to HEAD, never to the working tree
+    assert _read_repo_file("docs/a.md", None, window=1, cut="--output=x")["text"] == "committed\n"
+
+
+def test_read_of_a_repo_file_is_a_window_of_chunks(tmp_path: Path,
+                                                    monkeypatch: pytest.MonkeyPatch) -> None:
+    """A repo file is read as a paper is: `window` chunks of REPO_CHUNK_LINES lines around the
+    chunk asked for, the record saying which; a blob past the byte cap is refused by name."""
+    import importlib
+
+    import core.kernel.config as config
+
+    ex = importlib.import_module("core.sentence.execute")   # the package exports `execute`
+    repo = _scratch_repo(tmp_path)
+    monkeypatch.setattr(config, "REPO_ROOT", repo)
+    n = -(-400 // ex.REPO_CHUNK_LINES)
+    head = ex._read_repo_file("docs/long.md", None, window=2, cut=None)
+    assert head is not None and head["chunks"] == f"0–1 of {n}"
+    assert str(head["text"]).splitlines()[0] == "line 0"
+    assert len(str(head["text"]).splitlines()) == 2 * ex.REPO_CHUNK_LINES
+    mid = ex._read_repo_file("docs/long.md", 4, window=2, cut=None)
+    assert mid is not None and mid["chunks"] == f"2–3 of {n}"
+    assert str(mid["text"]).splitlines()[0] == f"line {2 * ex.REPO_CHUNK_LINES}"
+    monkeypatch.setattr(ex, "REPO_MAX_BYTES", 100)
+    with pytest.raises(LookupError, match="cap"):
+        ex._read_repo_file("docs/long.md", None, window=2, cut=None)
+
+
+def test_the_foundation_is_refused_at_admission() -> None:
+    """A `read` of the constitution or the golden set is typed in FOUNDATION, which no grant
+    names, so the sentence is refused before anything is opened, in any spelling."""
+    from core.sentence.types import IllScopedSentence
+
+    for ref in ("./CONSTITUTION.md", "./constitution.md", "eval/golden/golden_set.json",
+                "eval/golden.py", "Eval/Golden/x.md", "./eval/golden/corpus/a.md"):
+        with pytest.raises(IllScopedSentence, match="foundation"):
+            compile_sentence(f'read "{ref}"', AMBASSADOR_OVERLAY)
+    compile_sentence('read "eval/golden_other.py"', AMBASSADOR_OVERLAY)   # a neighbour is not
 
 
 def test_endpoints_map_in_both_checkout_layouts(engine: _Engine,
@@ -558,3 +639,41 @@ def test_assume_sever_c_removes_the_chain(engine: _Engine) -> None:
     assert "transcript/s1/3 →C→ core/x.py" in {h.ref for h in answer.hits}
     assert "transcript/s1/3 →C→ core/x.py" not in {h.ref for h in answer.hyp.value}
 
+
+
+def test_read_labels_a_catalog_record_by_the_universes_table(tmp_path: Path) -> None:
+    """The reader labels a catalog row by `stratum_of_provenance`, the table the universe uses: an
+    observed row (the Ambassador's own capture) is a dialogue record, so `read` admits it exactly
+    where `over dialogue` does; an interpreted row lands in no stratum the reader admits."""
+    import dataclasses
+    import importlib
+
+    from config.loader import load_config
+    from core.kernel.provenance import Provenance
+    from core.kernel.stores.rawstore import RawStore
+    from core.stores.catalog import VaultCatalog
+
+    ex = importlib.import_module("core.sentence.execute")
+    base = load_config()
+    paths = dataclasses.replace(base.paths, raw_store=tmp_path / "raw",
+                                vault_catalog=tmp_path / "cat.sqlite")
+    cfg = dataclasses.replace(base, paths=paths)
+    raw = RawStore(cfg.paths.raw_store)
+    catalog = VaultCatalog(cfg.paths.vault_catalog)
+    for ref, prov in (("dialogue/amb/capture-1", Provenance.OBSERVED),
+                      ("dialogue/amb/said-1", Provenance.AUTHORED_DIALOGUE),
+                      ("dialogue/amb/inferred-1", Provenance.INTERPRETED)):
+        digest, _ = raw.add_text(f"the body of {ref}")
+        catalog.record(ref, digest, ref, provenance=prov)
+
+    class _Cfg:
+        config = cfg
+
+    def stratum(ref: str) -> object:
+        rec = ex.read_ref(_Cfg(), ref, None, window=1, cut=None)   # type: ignore[arg-type]
+        assert rec is not None and rec["text"] == f"the body of {ref}"
+        return rec["stratum"]
+
+    assert stratum("dialogue/amb/capture-1") == "dialogue"
+    assert stratum("dialogue/amb/said-1") == "dialogue"
+    assert stratum("dialogue/amb/inferred-1") == ""

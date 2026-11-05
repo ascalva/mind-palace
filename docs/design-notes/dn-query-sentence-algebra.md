@@ -217,9 +217,10 @@ at an anchor (QSA-3), which is what `near` and `diffuse` return; metrics appear 
 `diffuse`'s `e^{−βd}`. `read <ref> [chunk n]` is the dereference — the text at a ref: a note, a
 dialogue turn, or a window of a curated paper — of the sort *text*, which composes with nothing:
 the one verb that returns content rather than structure, added 2026-11-04 so that the
-Ambassador's surface is one command (§3). Its clause reads the curated stratum for a paper ref and
-the mirror or the dialogue for any other, and the executor holds the record's stratum to the
-clause's: a ref the catalog places elsewhere is refused as ill-scoped, never read. `supersede` as a hypothesis is parked (QSA-g): `D` at the note grain is not
+Ambassador's surface is one command (§3). Its clause reads the stratum the ref's shape names
+(`read_strata`), and the executor holds the record's stratum to the clause's: a ref the catalog
+places elsewhere is refused as ill-scoped, never read. A mask, a hypothesis or `then` refuses a
+text at typing (2026-11-05), so "composes with nothing" is the sort rule, not a convention. `supersede` as a hypothesis is parked (QSA-g): `D` at the note grain is not
 in the universe yet.
 
 **Precedence, tightest first:** adjectives; `and` (`⊙`, `∩`); `or` (`+`, `∪`); `then`. `not` and
@@ -459,8 +460,9 @@ builds it per plan from what the sentence names — `seeds_of`: each `near` text
 force (`over`), each anchor with the radius its verb walks (`reach … depth n`, `walk … depth n`,
 `diffuse` one hop of the index), the `as of` cut:
 
-- the mirror and the dialogue, always (small; the backbone among them is exact, and an anchor
-  named by title is found here);
+- the mirror and the dialogue, as far as the sentence's admitted clauses read them: the owner's
+  notes and chat turns by default, every turn when a clause reads the dialogue (small; the
+  backbone among them is exact, and an anchor named by title is found here);
 - curated papers and code: the `support` nearest units to each text and each anchor by the
   store's index (the precedent `support`, 200), the paper or the file their occupancies name as
   the node — a paper's vector is the centroid of the chunks the index returned for it, a file's
@@ -493,10 +495,22 @@ of those strata, by the clearances' own table (`STRATUM_CLASSES`) with the citat
 under `reference` — so it distributes over `and` and `or` and stacks with `within` by
 intersection: QSA-2's laws, nothing new to prove (`Universe.in_strata`). `read <ref>` reads by
 the ref's shape (`read_strata`): a paper ref the curated stratum, `dialogue/…` the dialogue, an
-absolute path the mirror, a repo-relative path the reference stratum (the checkout's file, inside
-the repo root and tracked by git: never `data/`, where the raw store keeps the transcripts
-verbatim, nor a local config), a title the mirror or the dialogue; the executor holds the record
-to it.
+absolute path the mirror, a title the mirror or the dialogue, and a repo-relative path the
+reference stratum, read as git's blob in the tree at the universe's cut, 80 lines a chunk, never
+the working tree (so never `data/`, where the raw store keeps the transcripts verbatim, nor a
+local config, an uncommitted edit or a symlink's target). The record is the reference stratum's
+by membership: it is a node of the tree at the cut. The foundation's paths (the constitution, the
+golden set) are typed FOUNDATION, which no grant names, so admission refuses them before anything
+is opened (review of 2026-11-05).
+
+**Admission bounds the read** (review of 2026-11-05). A clause reads only the strata it requires,
+the Lean model's `Local`: the universe holds only the strata the admitted clauses name
+(`admitted_strata`), each verb is evaluated on its own clause's nodes and answers within them,
+and `not`, `far` and `atleast` are taken within the strata their term reads. A node a clause
+names outside its strata is read by a clause of its own: an anchor by its shape (a title names a
+node of the strata in force), and a causal walk's endpoints in the strata in force, since a
+session can write a vault note as well as a file. An `S` walk reads its anchor's stratum, since
+the backbone joins nodes of one stratum.
 
 **What the support loses is bounded and one-sided.** `[THEOREM — RSP-5,
 Retrieval.lean::nearnessOn_le_nearness, nearnessOn_mul_le]` Restricting the killed walk to the
@@ -642,7 +656,7 @@ act, §4); the natural-language front end's home (Parked QSA-f).
 **How it wires:** `core/sentence/` (built 2026-11-04: `grammar.py`, `ast.py`, `types.py`,
 `plan.py`, `algebra.py`, `automaton.py`, `execute.py`, `legacy.py`, `precedents.py`; `core/query/`
 was taken by the legacy module's name), reading `core/kernel/scope.py` (which gains `Hyp`) and the
-stores `core/query.py` already opens, through `Universe.from_engine`; `docs/query/precedents.md`
+stores `core/query.py` already opens, through `core/sentence/universe.py`'s `build`; `docs/query/precedents.md`
 (the resolution ledger, authored, versioned with the corpus, pinned to its mirror by a test);
 `palace query` in `scripts/palace.py` over `core/sentence/surface.py` (built 2026-11-04, QL-3:
 `ask_logged`, `render_text`, the `QueryLog` and `summarize`); `core/sentence/universe.py` (the

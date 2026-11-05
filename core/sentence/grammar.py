@@ -6,7 +6,7 @@
     and-expr  := unary (("and" | "minus") unary)*               -- `and` binds tighter than `or`
     unary     := operand adjunct*                               -- adjectives bind tightest
     adjunct   := "within" operand | "over" WORD+ | "as" "of" STRING
-    operand   := "far" operand | "top" NUMBER operand | "atleast" NUMBER operand | "not" operand
+    operand   := "far" operand | "top" NUMBER unary | "atleast" NUMBER unary | "not" operand
                | "(" sentence ")" | "assume" hypothesis "in" sentence | clause
     clause    := "near" STRING
                | "diffuse" [rel] "from" atom ["beta" NUMBER]
@@ -23,6 +23,10 @@
                  `{m,n}`
     atom      := STRING | WORD                                   -- a path, digest or title
 
+`top` and `atleast` take their field with its adjectives, so `top 10 near "x" within R` ranks
+within `R` and `top 1 near "x" over dialogue` ranks the dialogue: a ranking is not pointwise, and
+masking after it would drop hits the mask would have kept (the review of 2026-11-05). `far` and
+`not` take the bare operand, so an adjective after them restricts the reversal or the complement.
 `assume` extends as far right as it can (parenthesize it to continue the sentence). A parse error
 names the production that failed and the token it saw.
 """
@@ -97,8 +101,13 @@ _STOP_STRATA = KEYWORDS | {")"}
 
 
 def quote(s: str) -> str:
-    """A string literal the grammar reads back as `s`: quoted, with `\"` escapes."""
-    return '"' + s.replace('"', '\\"') + '"'
+    """A string literal the grammar reads back as `s`: quoted, a backslash and a quote escaped
+    by a backslash, so any title round-trips (one ending in a backslash among them)."""
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+# the two escapes `quote` writes; any other backslash is the string's own
+_ESCAPE = re.compile(r'\\([\\"])')
 
 
 def tokenize(text: str) -> list[Token]:
@@ -111,7 +120,7 @@ def tokenize(text: str) -> list[Token]:
                 break
             raise ParseError(f"tokens: unexpected character {text[pos]!r} at {pos}")
         if m.group("string") is not None:
-            tokens.append(Token("STRING", m.group("string").replace('\\"', '"'), m.start()))
+            tokens.append(Token("STRING", _ESCAPE.sub(r"\1", m.group("string")), m.start()))
         elif m.group("number") is not None:
             tokens.append(Token("NUMBER", m.group("number"), m.start()))
         elif m.group("word") is not None:
@@ -244,10 +253,10 @@ class _Parser:
             return Far(self.operand())
         if self.at_word("top"):
             self.next()
-            return Top(self.integer("top"), self.operand())
+            return Top(self.integer("top"), self.unary())
         if self.at_word("atleast"):
             self.next()
-            return AtLeast(self.number("atleast"), self.operand())
+            return AtLeast(self.number("atleast"), self.unary())
         if self.at_word("not"):
             self.next()
             return Not(self.operand())
@@ -281,6 +290,9 @@ class _Parser:
             if self.at_word("beta"):
                 self.next()
                 beta = self.number("diffuse beta")
+                if not beta > 0:
+                    raise ParseError(f"diffuse beta: the free energy needs β > 0 (RSP-1), got "
+                                     f"{beta:g}")
             return Diffuse(rel, atom, beta)
         if t.text == "reach":
             self.next()
@@ -332,13 +344,19 @@ class _Parser:
                                   f"read), not {t.text!r}")
 
     def path(self) -> str:
+        """The path's tokens up to the next keyword or the `)` that closes an enclosing group:
+        the path's own parentheses are balanced first, so `via (S|F)+` is one path."""
         parts: list[str] = []
+        depth = 0
         while True:
             t = self.peek()
-            if t.kind == "END" or (t.kind in ("WORD", "SYM") and t.text in _STOP_PATH):
+            if t.kind == "END" or (t.kind in ("WORD", "SYM") and t.text in _STOP_PATH
+                                   and not (t.text == ")" and depth > 0)):
                 break
             if t.kind == "STRING":
                 raise self.fail("via", "a path over S, F, D, C, not a quoted string")
+            if t.kind == "SYM" and t.text in "()":
+                depth += 1 if t.text == "(" else -1
             parts.append(self.next().text)
         if not parts:
             raise self.fail("via", "a path over S, F, D, C")

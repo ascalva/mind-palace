@@ -23,6 +23,10 @@ answer-drift, never a silent one.
 | `read` with no `chunk` | `0`, the paper's start | the retired `read` tool's default | — |
 | `read`'s window | `5` chunks (~5K characters) | a whole paper won't fit a turn | a client needs more |
 | the support an indexed stratum contributes | `200` units per `near` text or anchor | the dense backbone is n²; the index returns the nearest (dn-query-sentence-algebra §2.9) | a battery row loses to a larger support |
+| `reach` and `walk` depth at most | `50` hops | the retired schema's cap; the surfaces answer one call at a time, so one sentence must not hold them | a question needs more |
+| `top k` at most | `1000` | the retired schema capped `k` at 50; a ranking past a thousand is a dump | a question needs more |
+| a path's count `{n,m}` at most | `32` | each count copies the automaton, and nested counts multiply | a question needs more |
+| `walk`'s budget | `100000` partial chains | the product walk enumerates simple paths, exponential on a dense graph; the answer says when it stopped | a question needs more |
 
 ## Resolutions
 

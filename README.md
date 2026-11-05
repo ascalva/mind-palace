@@ -71,7 +71,7 @@ flowchart TB
 |---|---|---|
 | `near "t"` | the kernel column `clip(V·q̂, 0, 1)`: one cosine per node, never an `n × n` product | QSA-3 |
 | `diffuse S from n [beta b]` | the randomized-shortest-path curve: `W_β = z·D⁻¹W∘W^β`, `Z = (I − W_β)⁻¹`, `φ_ij = −log(z_ij / z_jj)/β`, `score = e^{−φ}`; β→∞ is shortest path, β→0 resistance; on a support, with the graph's degrees | RSP-1 to RSP-5 |
-| `f and g`, `f or g` | the Schur product `f ⊙ g`, which stays in the positive cone; the convex mixture | QSA-1, QSA-3 |
+| `f and g`, `f or g` | the Schur product `f ⊙ g`, which stays in the positive cone; the convex mixture, the mean of every disjunct in the chain | QSA-1, QSA-3 |
 | `s within r`, `s over σ`, `r then s` | masks: congruences of the kernel that distribute and stack by `∩`; `over` masks onto strata | QSA-2, QSA-10 |
 | `top k f`, `atleast t f` | ranking, which does not commute with a mask; a threshold, which does | QSA-4 |
 | `reach F from n depth d` | breadth-first over the typed edges at the sentence's cut | structural |
@@ -82,7 +82,7 @@ flowchart TB
 
 ## Security
 
-Every node carries its stratum: the owner's notes, the dialogue, the curated literature, the repository's code, the interpreted layer, the observed layer, and the hypothetical overlay. Every clause names the strata it walks. A grant is a set of scopes, one per clock plane; a sentence is admitted only when each clause fits under one, and the clearance a clause reads with is minted from the admitted scope, after admission. The Ambassador's base grant admits no hypothetical; the owner's overlay grant names the overlay stratum on each plane and widens nothing else (no world reach, the same clocks, windows and fibers). The read-only mirror of what the owner wrote and the write-only path to the world are different objects, by type; the sealed core cannot name a network module, and an import firewall checks that on every run. The query log records who asked, which strata, which modes, what came back and why a refusal, and never a note's text.
+Every node carries its stratum: the owner's notes, the dialogue, the curated literature, the repository's code, the interpreted layer, the observed layer, and the hypothetical overlay. Every clause names the strata it walks. A grant is a set of scopes, one per clock plane; a sentence is admitted only when each clause fits under one. Admission then bounds the read: the universe a sentence is evaluated on holds only the strata its admitted clauses name, each clause is evaluated on its own strata and answers within them, and naming a node outside a clause's strata is a clause of its own that the grant must admit. The Ambassador's base grant admits no hypothetical; the owner's overlay grant names the overlay stratum on each plane and widens nothing else (no world reach, the same clocks, windows and fibers). The read-only mirror of what the owner wrote and the write-only path to the world are different objects, by type; the sealed core cannot name a network module, and an import firewall checks that on every run. The query log records who asked, which strata, which modes, what came back and why a refusal, and never a note's text.
 
 ## The trace
 

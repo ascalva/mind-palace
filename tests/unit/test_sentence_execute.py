@@ -125,7 +125,14 @@ def test_what_this_universe_cannot_answer_is_refused_not_emptied() -> None:
     u = _universe()
     with pytest.raises(UnsupportedSentence, match="no cut"):            # a toy universe has none
         execute(compile_sentence('near "q" as of "deadbeef"'), u)
-    assert execute(compile_sentence('near "q" over curated'), u).hits == ()   # a mask: none
+    # a toy universe's notes carry no stratum, so they are one stratum and a mask keeps them;
+    # labelled as the builder labels them, they are the mirror's, and over curated keeps none
+    assert len(execute(compile_sentence('near "q" over curated'), u).hits) == 2
+    labelled = _universe()
+    for n in labelled.notes:
+        n.update(provenance="authored-solo", stratum="mirror")
+    assert execute(compile_sentence('near "q" over curated'), labelled).hits == ()
+    assert len(execute(compile_sentence('near "q"'), labelled).hits) == 2
     with pytest.raises(UnsupportedSentence, match="note grain"):
         execute(compile_sentence('assume D "a.md" "b.md" in near "q"'), u)
     with pytest.raises(LookupError):
@@ -190,7 +197,8 @@ def test_a_hypothetical_edge_moves_the_graphs_degrees_with_it() -> None:
     assert before is not None
     added = execute(compile_sentence('assume S "a.md" "d.md" +0.5 in top 3 diffuse S from "a.md"'),
                     u)
-    assert added.hyp is not None and [h.ref for h in added.hyp.value] == ["b.md", "c.md", "d.md"]
+    assert added.hyp is not None                                  # ranked by score
+    assert [h.ref for h in added.hyp.value] == ["b.md", "d.md", "c.md"]
     severed = execute(compile_sentence('assume sever S "a.md" "b.md" in top 3 diffuse S from '
                                        '"a.md"'), u)
     assert severed.hyp is not None and [h.ref for h in severed.hyp.value] == []

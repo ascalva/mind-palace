@@ -8,8 +8,11 @@ code at every commit. A dense backbone over all of it is impossible (n² weights
 kernel), so the universe is not the corpus: it is the **support** of the sentence — the nodes its
 clauses can reach — materialized lazily:
 
-* the mirror and the dialogue: every note and turn, always (small; the backbone among them is
-  exact, and an anchor named by title is found here);
+* the mirror and the dialogue, as far as the sentence's admitted clauses read them
+  (`admitted_strata`): the owner's notes and chat turns by default, every turn when a clause
+  reads the dialogue (small; the backbone among them is exact, and an anchor named by title is
+  found here). Nothing outside the admitted strata is loaded, so no answer, note or refusal can
+  carry a row the grant did not admit;
 * curated papers and code: the `support` nearest units to each `near` text and to each anchor,
   by the store's index, the paper or the file their occupancies name as the node;
 * reference (the repo's docs and code): the citation graph's nodes within the clause's radius of
@@ -51,7 +54,7 @@ from core.query import CURATED_REF, QueryEngine
 from core.sentence import ast
 from core.sentence.ast import Node, Rel
 from core.sentence.automaton import letters
-from core.sentence.execute import Relation, Universe, read_ref
+from core.sentence.execute import Relation, Universe, membership, read_ref
 from core.sentence.plan import Plan
 from core.sentence.precedents import DEFAULT, Precedents
 from core.sentence.trace import Trace
@@ -61,6 +64,7 @@ from core.sentence.types import (
     TRANSCRIPT_REF,
     AmbiguousSentence,
     IllScopedSentence,
+    clauses_of,
     stratum_of_provenance,
 )
 
@@ -200,9 +204,24 @@ def is_repo_path(atom: str) -> bool:
             and ".." not in atom.split("/"))
 
 
+def admitted_strata(plan: Plan, precedents: Precedents = DEFAULT) -> frozenset[Stratum]:
+    """The strata a plan's clauses read, closed downward: admission checked each against the
+    grant, so this is the most the universe may hold (the overlay aside, which is not stored)."""
+    out: set[Stratum] = set()
+    for c in clauses_of(plan.term, precedents=precedents):
+        out |= StratumScope.of(*c.req.sigma.strata).strata
+    return frozenset(out - {Stratum.HYPOTHETICAL})
+
+
 class _Builder:
-    def __init__(self, engine: QueryEngine, precedents: Precedents) -> None:
+    def __init__(self, engine: QueryEngine, precedents: Precedents,
+                 strata: frozenset[Stratum] | None = None) -> None:
         self.e, self.p = engine, precedents
+        # what the sentence's admitted clauses read: a node outside it is never loaded, so no
+        # answer, note or refusal can carry a row the grant did not admit (None: everything, for
+        # a builder driven by hand)
+        self.strata = strata
+        self.admits = membership(strata) if strata is not None else (lambda label, prov: True)
         self.nodes: dict[str, _Node] = {}
         self.f_edges: dict[str, set[str]] = {}
         self.c_edges: dict[str, set[str]] = {}
@@ -250,26 +269,37 @@ class _Builder:
                 return n
         return None
 
-    # the mirror and the dialogue, always ---------------------------------------------------------
+    # the mirror and the dialogue, as far as the sentence reads them ------------------------------
     def load_mirror(self) -> None:
-        notes, mat, _ = self.e.note_graph()
-        for i, n in enumerate(notes):
-            prov = str(n.get("provenance", ""))
-            self.add(_Node(str(n["source_path"]), stratum_of_provenance(prov) or "mirror",
-                           str(n.get("title", "")), str(n.get("digest", "")), prov,
-                           _unit(mat[i]) if len(mat) else None, {}))
+        from core.kernel.provenance import Provenance
+
+        if self.admits("mirror", Provenance.AUTHORED_SOLO.value) or self.admits(
+                "dialogue", Provenance.AUTHORED_DIALOGUE.value):
+            notes, mat, _ = self.e.note_graph()
+            for i, n in enumerate(notes):
+                prov = str(n.get("provenance", ""))
+                label = stratum_of_provenance(prov) or "mirror"
+                if self.admits(label, prov):
+                    self.add(_Node(str(n["source_path"]), label, str(n.get("title", "")),
+                                   str(n.get("digest", "")), prov,
+                                   _unit(mat[i]) if len(mat) else None, {}))
+        if not (self.admits("dialogue", Provenance.OBSERVED.value)
+                or self.admits("dialogue", Provenance.AUTHORED_DIALOGUE.value)):
+            return
         by_src: dict[str, list[Mapping[str, Any]]] = {}
         for r in self.store("vectors").all_rows(clearance=DIALOGUE_READ):
             by_src.setdefault(str(r["source_path"]), []).append(r)
         for src, rows in sorted(by_src.items()):
-            if src in self.nodes:
-                continue
             prov = str(rows[0].get("provenance", ""))
+            if src in self.nodes or not self.admits("dialogue", prov):
+                continue
             self.add(_Node(src, "dialogue", str(rows[0].get("title", "")),
                            str(rows[0].get("digest", "")), prov, _mean_vector(rows), {}))
 
     # the indexed strata --------------------------------------------------------------------------
     def seed_curated(self, vec: np.ndarray, why: str) -> int:
+        if not self.admits("curated", "curated"):
+            return 0
         rows = self.store("curated").search(list(map(float, vec)), k=self.p.support,
                                             clearance=CURATED_READ)
         by_src: dict[str, list[Mapping[str, Any]]] = {}
@@ -293,6 +323,8 @@ class _Builder:
     def seed_code(self, vec: np.ndarray, why: str) -> int:
         from core.stores.memberships import resolve_occupancies
 
+        if not self.admits("reference", "code"):
+            return 0
         rows = self.store("vectors").search(list(map(float, vec)), k=self.p.support,
                                             clearance=CODE_READ)
         resolved = resolve_occupancies(self.store("memberships"), rows)
@@ -435,6 +467,8 @@ class _Builder:
             have = self.nodes.get(dst)
             if have is not None:
                 return have
+            if not self.admits("mirror", ""):
+                return logged("a vault note; the sentence does not read the mirror")
             return _Node(dst, "mirror", p.name, "", "", None, {"inactive": "not in the mirror"})
         return logged("outside the repo and the vault")
 
@@ -562,6 +596,8 @@ class _Builder:
                 self.seed_typed(have.ref, radius, frozenset({Rel.C}))
             return
         if atom.startswith(CURATED_REF):
+            if not self.admits("curated", "curated"):
+                return
             rows = self.store("curated").rows_for_source(atom, clearance=CURATED_READ)
             if not rows:
                 return
@@ -571,7 +607,7 @@ class _Builder:
             if radius >= 1 and node.vector is not None:
                 self.seed_curated(node.vector, atom)
             return
-        if is_repo_path(atom):
+        if is_repo_path(atom) and self.admits("reference", "code"):
             self.seed_typed(atom, radius, frozenset({Rel.F}) | (self.moves & {Rel.C}))
 
     def wire_reference(self) -> None:
@@ -621,8 +657,10 @@ class _Builder:
         notes = [{"source_path": n.ref, "title": n.title, "digest": n.digest,
                   "provenance": n.provenance, "stratum": n.stratum, "detail": dict(n.detail)}
                  for n in order]
-        relations = [Relation(e.u, e.v, int(e.sign), e.rel_type, float(e.w))
-                     for e in self.store("edges").all()]
+        # the signed relation edges are among the mirror's notes (QSA-b): read when it is
+        relations = ([Relation(e.u, e.v, int(e.sign), e.rel_type, float(e.w))
+                      for e in self.store("edges").all()]
+                     if self.admits("mirror", "authored-solo") else [])
         engine = self.e
         catalog, versions = self.store("catalog"), self.store("versions")
 
@@ -648,7 +686,7 @@ class _Builder:
             return out
 
         def text(ref: str, chunk: int | None, window: int) -> Mapping[str, object] | None:
-            return read_ref(engine, ref, chunk, window=window)
+            return read_ref(engine, ref, chunk, window=window, cut=self.cut)
 
         census: dict[str, int] = {}
         for n in order:
@@ -684,7 +722,7 @@ def build(engine: QueryEngine, plan: Plan, *, precedents: Precedents = DEFAULT,
     anchors reach in the indexed strata, the citation graph at the cut and, when the sentence
     walks `C`, the causal edges. With a trace, the support's census is noted."""
     seeds = seeds_of(plan.term, precedents)
-    b = _Builder(engine, precedents)
+    b = _Builder(engine, precedents, admitted_strata(plan, precedents))
     b.moves = frozenset(seeds.moves)
     b.transcript = seeds.transcript
     b.load_mirror()
