@@ -6,7 +6,7 @@ next run and lands exactly once; the curated lane has a key now and lands nothin
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import pytest
 
@@ -146,47 +146,28 @@ def test_the_curated_lane_lands_again_after_a_plane_reset(tmp_path):
 
 def test_a_receipt_names_exactly_the_attestations_of_what_landed(tmp_path):
     """DOR-6 at the code's grain (the note's §6 falsifier "the receipt over-claiming"): two notes
-    and a capture land through the door's `perform` on real stores; each receipt's attestations
-    are records whose outputs are exactly the digest it landed, no receipt names another's, and a
-    re-landing names the same record, not a second one."""
-    from dataclasses import replace
+    and a capture land through the door's `perform` on real stores; each landing names its
+    attestations, records whose outputs are exactly the digest it landed, no landing names
+    another's, and a re-landing lands nothing and attests nothing twice."""
+    from tests.fixtures.door import palace_at, write_file
 
-    from core.ingest import door
-    from core.kernel.config import get_config
-    from core.sentence import ast
-
-    raw, store, catalog, att_store = _stores(tmp_path)
-    vault = tmp_path / "vault"
-    (vault / "pages").mkdir(parents=True)
-    attestor = StoreAttestor(att_store)
-    sync = VaultSync(vault=vault, raw=raw, store=store, catalog=catalog, embedder=_embedder(),
-                     attestor=attestor)
-    capture = DialogueCapture(raw=raw, store=store, embedder=_embedder(), catalog=catalog,
-                              attestor=attestor)
-    base = get_config()
-    cfg = replace(base, ingestion=replace(base.ingestion,
-                                          vault=replace(base.ingestion.vault, path=vault)))
-    landers = door.Landers(vault_sync=sync, capture=capture)
-    (vault / "pages" / "a.md").write_text("# A\n\nthe first note\n", encoding="utf-8")
-    (vault / "pages" / "b.md").write_text("# B\n\nthe second note\n", encoding="utf-8")
-
-    def note(atom: str) -> dict[str, Any]:
-        source = ast.Source(ast.SourceKind.NOTE, atom=atom)
-        return door.perform(ast.Ingest(source), cfg, landers)
-
-    receipts = [note("pages/a.md"), note("pages/b.md"),
-                door.perform(ast.Capture("remember this", "tea"), cfg, landers, role="ambassador")]
+    p = palace_at(tmp_path)
+    write_file(p.vault, "pages/a.md", "# A\n\nthe first note\n")
+    write_file(p.vault, "pages/b.md", "# B\n\nthe second note\n")
+    receipts = [p.run('do ingest_note(path: "pages/a.md")'),
+                p.run('do ingest_note(path: "pages/b.md")'),
+                p.run('do capture(text: "remember this", conversation: "tea")', "ambassador")]
     named: list[str] = []
     for r in receipts:
-        assert r["digest"] and len(r["attestations"]) == 1
-        att = att_store.get(r["attestations"][0])
-        assert att is not None and set(att.output_hashes) == {r["digest"]}
-        named += r["attestations"]
-    assert len(set(named)) == 3 and att_store.count() == 3
-    # a re-landing lands nothing new and names the same record
-    again = note("pages/a.md")
-    assert again["outcome"] == "unchanged" and again["attestations"] == receipts[0]["attestations"]
-    assert att_store.count() == 3
+        (landed,) = r["changed"]
+        assert landed["status"] == "landed" and len(landed["attestations"]) == 1
+        att = p.att.get(landed["attestations"][0])
+        assert att is not None and set(att.output_hashes) == {landed["digest"]}
+        named += landed["attestations"]
+    assert len(set(named)) == 3 and p.att.count() == 3
+    again = p.run('do ingest_note(path: "pages/a.md")')
+    assert again["effects"] == {"unchanged": 1} and again["changed"] == []
+    assert p.att.count() == 3
 
 
 def _vault_sync(tmp_path: Path) -> tuple[VaultSync, VersionStore, Path]:

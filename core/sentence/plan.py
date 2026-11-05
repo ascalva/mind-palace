@@ -234,8 +234,8 @@ def _render(node: Node, indent: int) -> list[str]:
             return [f"{pad}as of {c!r}"] + _render(b, indent + 1)
         case ast.Assume(hypothesis=h, body=b):
             return [f"{pad}assume {ast.describe(h)} in"] + _render(b, indent + 1)
-        case ast.Do(command=c):
-            return [f"{pad}do {ast.describe_command(c)}"]
+        case ast.Do(request=r):
+            return [f"{pad}do {ast.describe_request(r)}"]
     return [f"{pad}{node!r}"]  # pragma: no cover
 
 
@@ -273,7 +273,8 @@ def check_bounds(node: Node, precedents: Precedents = DEFAULT) -> None:
 
 
 def compile_sentence(text: str, grant: Grant | None = None, *,
-                     precedents: Precedents = DEFAULT, trace: Trace | None = None) -> Plan:
+                     precedents: Precedents = DEFAULT, trace: Trace | None = None,
+                     role: str | None = None) -> Plan:
     """Parse, type, normalize and, with a grant, check admissibility: the plan. With a trace,
     the work is noted: the parse and its sort, the rewrites, the clauses' scopes, the admission.
 
@@ -281,6 +282,12 @@ def compile_sentence(text: str, grant: Grant | None = None, *,
     or `IllScopedSentence`, each naming its cause; a sentence that compiles is well-formed,
     within bounds, well-sorted and admissible."""
     tree = parse(text)
+    if isinstance(tree, ast.Do):
+        # a request is checked under the role that speaks it (dn-door-language §E6, §E12): the
+        # least-privileged role when none is named
+        from core.sentence.script_check import compile_request
+
+        tree = compile_request(tree, role or "ambassador")
     check_bounds(tree, precedents)
     sort = typecheck(tree)
     if trace is not None:

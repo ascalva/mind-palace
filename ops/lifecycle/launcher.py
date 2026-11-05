@@ -412,14 +412,24 @@ def _code_backfill_incomplete(cfg: Config, code_driver: CodeCorpusSync) -> bool:
     return len(store_versions) < len(ledger)
 
 
-def _observe_code(cfg: Config) -> Callable[[Any, Any], dict[str, Any]]:
-    """The door's `observe code`: the code sensor's sync and its observation backfill, the
-    writer of the citation graph's edges, run by the daemon as the one writer."""
-    def land(_command: Any, _request: Any) -> dict[str, Any]:
+def _observe_code(cfg: Config) -> Callable[[Any], str]:
+    """The `code_observe` job a script starts (`run "code_observe"`): the code sensor's sync and
+    its observation backfill, the writer of the citation graph's edges, run by the daemon."""
+    def handle(_job: Any) -> str:
         from ops.code_sensor import build_code_sensor
         sensor = build_code_sensor(cfg)
-        return {"sync": str(sensor.sync()), "observations": sensor.backfill_observations()}
-    return land
+        return f"code observe: sync {sensor.sync()}, observations {sensor.backfill_observations()}"
+    return handle
+
+
+def _relate(cfg: Config) -> Callable[[Any], str]:
+    """The `relate` job a script starts (`run "relate" with pairs: n`): the relation pass over at
+    most `pairs` candidate pairs, one model call each."""
+    def handle(job: Any) -> str:
+        from core.relations import build_relation_detector
+        pairs = int(job.payload.get("pairs", 24))
+        return f"relate: {build_relation_detector(cfg, max_pairs=pairs).run()}"
+    return handle
 
 
 def drain_guarded(drain: Callable[[], int]) -> int:
@@ -432,74 +442,26 @@ def drain_guarded(drain: Callable[[], int]) -> int:
         return 0
 
 
-def _edge_env() -> dict[str, str]:
-    """The edge readers' environment: launchd gives the daemon a PATH without Homebrew's, where
-    podman lives, so the readers' `podman exec` would not be found from inside the daemon. The
-    bridge's and the heartbeat's plists add the same directories (scripts/stack.py)."""
-    import os
+def dialogue_sync(cfg: Config, repo_root: Path, *, only: set[str] | None = None,
+                  stores: Any = None) -> int:
+    """The dialogue sync in this process, as the CLI's `dialogue-sync` and the heartbeat run it
+    behind the live-daemon guard: the library script `sync_dialogue` once a reader, each reader's
+    edge process refreshing its handoff file first (the palace's table names it), the owner's turns
+    labelled authored by the source, the model's observed. A reader that fails is reported and the
+    others still sync. Returns the exit code: 1 when a reader failed."""
+    from core.ingest import door
+    from scheduler.door import DIALOGUE_READERS
 
-    env = dict(os.environ)
-    have = env.get("PATH", "").split(":")
-    env["PATH"] = ":".join([*have, *(d for d in ("/opt/homebrew/bin", "/usr/local/bin")
-                                     if d not in have)])
-    return env
-
-
-def dialogue_sync(cfg: Config, repo_root: Path, *, container: str = "lmtune-webui",
-                  only: set[str] | None = None) -> int:
-    """The dialogue sync itself, two processes and one handoff file: the edge reader
-    (`python -m edge.openwebui`, no core imports, read-only inside the container) writes
-    `data/handoff/dialogue/<source>.json`; this side reads it and captures each turn, owner turns
-    as `authored-dialogue`, the model's as `observed`, keyed by `<source>/<chat>/<message>` so a
-    re-sync adds only what is new. The CLI's `dialogue-sync` calls it behind the live-daemon guard;
-    the daemon's door handler (`do sync dialogue`) calls it as the one writer. Returns the exit
-    code: 1 when an edge reader failed."""
-    import json
-    import subprocess
-    import sys
-
-    sources = {   # source -> the edge reader's argv (each its own process, no core imports)
-        "openwebui": ["-m", "edge.openwebui", "--container", container],
-        "opencode": ["-m", "edge.opencode_sessions"],
-    }
-    from core.ingest.dialogue import build_dialogue_capture
-    capture = build_dialogue_capture(cfg)
     failed = False
-    for source, argv in sources.items():
-        if only is not None and source not in only:
+    for reader in DIALOGUE_READERS:
+        if only is not None and reader not in only:
             continue
-        handoff = cfg.paths.data_dir / "handoff" / "dialogue" / f"{source}.json"
-        edge = subprocess.run([sys.executable, *argv, "--out", str(handoff)],
-                              cwd=repo_root, capture_output=True, text=True, timeout=180,
-                              env=_edge_env())
-        if edge.returncode != 0:
-            print(f"{source}: edge reader failed: {edge.stderr.strip()[-300:]}")
+        try:
+            receipt = door.run_library(cfg, "sync_dialogue", {"reader": reader}, stores=stores)
+            print(f"dialogue sync ({reader}): {receipt['effects']}")
+        except Exception as e:
+            print(f"{reader}: {type(e).__name__}: {str(e)[-300:]}")
             failed = True
-            continue
-        doc = json.loads(handoff.read_text())
-        new = seen = refused = 0
-        for chat in doc.get("chats", []):
-            for turn in chat.get("turns", []):
-                ts = turn.get("timestamp")
-                at = (datetime.fromtimestamp(ts, UTC).isoformat(timespec="seconds")
-                      if ts else None)
-                try:
-                    _, created = capture.capture_turn(
-                        turn["content"], conversation=f"{source}/{chat['chat_id']}",
-                        turn_id=str(turn["id"]), role=str(turn["role"]), at=at)
-                except PermissionError as e:    # a turn whose class changed: kept, reported
-                    print(f"{source}: turn kept as it was: {e}")
-                    refused += 1
-                    continue
-                new += created
-                seen += 1
-        print(f"dialogue sync ({source}): {len(doc.get('chats', []))} conversation(s), "
-              f"{seen} turn(s), {new} new" + (f", {refused} refused" if refused else ""))
-        mark = handoff.with_suffix(".synced")   # written only once every turn is captured
-        mark.write_text(json.dumps({
-            "latest": max((int(c.get("updated_at") or 0) for c in doc.get("chats", [])),
-                          default=0),
-            "at": datetime.now(UTC).isoformat(timespec="seconds")}))
     return 1 if failed else 0
 
 
@@ -507,12 +469,10 @@ def build_components(cfg: Config) -> Components:
     """Wire the full daemon: vault_sync (+watcher), the delegating Ambassador inbox, the
     delegated-task worker, and the trough dream/curate handlers — all on one supervisor."""
     from agents.ambassador import build_ambassador
-    from config.loader import REPO_ROOT
     from core.chat_events import build_chat_event_projector
     from core.curator import build_curator
     from core.dreaming import build_dreamer
     from core.ingest.code_corpus import build_code_corpus_sync
-    from core.ingest.sync import build_vault_sync
     from core.integrator import build_integrator
     from core.interface import CoreInbox
     from core.librarian import build_librarian
@@ -552,10 +512,12 @@ def build_components(cfg: Config) -> Components:
         research_handler,
     )
     from scheduler.door import (
+        DIALOGUE_READERS,
         DIALOGUE_SYNC_KIND,
-        dialogue_sync_handler,
         door_handlers,
         drain_spool,
+        job_enqueuer,
+        library_handler,
     )
     from scheduler.interface import (
         AMBASSADOR_KIND,
@@ -572,11 +534,21 @@ def build_components(cfg: Config) -> Components:
         VAULT_SYNC_KIND,
         build_vault_watcher,
         enqueue_vault_sync,
-        vault_sync_handler,
     )
 
     queue = JobQueue(cfg.paths.data_dir / "queue.sqlite")
     router = Router(cfg)
+
+    # What the door's writer lands into, opened once on first use and shared by the handlers that
+    # run scripts; a script's `run` enqueues its job on this queue.
+    from core.ingest import door as door_mod
+    shared: dict[str, Any] = {}
+
+    def door_stores() -> Any:
+        if "s" not in shared:
+            shared["s"] = door_mod.build_stores(cfg, enqueue=job_enqueuer(queue, router))
+        return shared["s"]
+
     loader = TwoSlotLoader(config=cfg, client=OllamaClient(cfg.ollama), registry=Registry(cfg))
 
     # The OS-health agent: the supervisor records its own vitals (queue depth, model-load time);
@@ -606,7 +578,7 @@ def build_components(cfg: Config) -> Components:
     code_snapshots_db = cfg.paths.data_dir / "code_snapshots.sqlite"
 
     handlers = {
-        VAULT_SYNC_KIND: vault_sync_handler(build_vault_sync(cfg)),
+        VAULT_SYNC_KIND: library_handler(cfg, "sync_vault", [{}], stores=door_stores),
         # The chat sensor (bp-063) wired to RUN (bp-068): a model-less OBSERVED-only ingest of the
         # local Claude Code transcripts, same species as vault_sync. build_chat_sensor is bp-063's
         # (reused, not re-declared — finding-0108); the scheduler side is KIND + handler + enqueue.
@@ -642,12 +614,16 @@ def build_components(cfg: Config) -> Components:
         AMBASSADOR_TASK_KIND: ambassador_task_handler(task_librarian),
         RESEARCH_KIND: research_handler(airlock, task_librarian.embedder, task_librarian.store),
         **cron_handlers(build_dreamer(cfg), build_curator(cfg)),
-        # the door's own kinds (dn-ingest-door D3, D7): the commands the daemon lands itself, from
-        # the requests the surfaces spool; `code_observe` lands with the code sensor, passed in
-        **door_handlers(cfg, extra={"code_observe": _observe_code(cfg)}),
-        # `do sync dialogue` is the queue's own kind, coalescing like the other syncs: a failed
-        # edge reader fails the job
-        DIALOGUE_SYNC_KIND: dialogue_sync_handler(lambda: dialogue_sync(cfg, Path(REPO_ROOT))),
+        # the door's own kind (dn-door-language §E7): a script from a spooled request, evaluated
+        # and landed by the one writer; the jobs a script starts with `run`
+        **door_handlers(cfg, stores=door_stores),
+        "code_observe": _observe_code(cfg),
+        "relate": _relate(cfg),
+        # `do sync_dialogue` is the queue's own kind, coalescing like the other syncs: the library
+        # script once a reader; a failed edge reader fails the job after the others have synced
+        DIALOGUE_SYNC_KIND: library_handler(cfg, "sync_dialogue",
+                                            [{"reader": r} for r in DIALOGUE_READERS],
+                                            stores=door_stores),
     }
     supervisor = Supervisor(queue=queue, loader=loader, handlers=handlers, telemetry=telemetry)
     # One watcher per watched dir: the owner's vault + the Claude Code transcripts (bp-069). Both
@@ -1567,8 +1543,7 @@ class Launcher:
         print(f"dreamed {len(themes)} theme(s); {grounded} grounded")
         return 0
 
-    def dialogue_sync_now(self, *, container: str = "lmtune-webui",
-                          only: set[str] | None = None) -> int:
+    def dialogue_sync_now(self, *, only: set[str] | None = None) -> int:
         """Pull the owner's conversations with the local model — Open WebUI chats and OpenCode
         sessions — into the dialogue stratum, idempotently.
 
@@ -1580,7 +1555,7 @@ class Launcher:
         saw): the heartbeat's mark for "anything new since?". `only` limits the sources."""
         if self._refuse_if_live("dialogue-sync"):
             return 1
-        return dialogue_sync(self.cfg, self.repo_root, container=container, only=only)
+        return dialogue_sync(self.cfg, self.repo_root, only=only)
 
     def reembed_now(self, *, confirm: bool) -> int:
         """Re-embed every vector from the raw store with the CONFIGURED embedder — BUILD-SPEC §8:
@@ -1679,8 +1654,8 @@ class Launcher:
         versions and attestations — the same lane the daemon's `vault_sync` job runs."""
         if self._refuse_if_live("vault-sync"):
             return 1
-        from core.ingest.sync import build_vault_sync
-        print(f"vault sync: {build_vault_sync(self.cfg).rescan()}")
+        from core.ingest import door
+        print(f"vault sync: {door.run_library(self.cfg, 'sync_vault')['effects']}")
         return 0
 
     # --- reset (the fresh-start wipe) -------------------------------------------------------

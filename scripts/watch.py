@@ -59,16 +59,16 @@ def main() -> int:
     seal()  # structural egress guard first (Invariant 1)
 
     from config.loader import get_config
-    from core.ingest.sync import build_vault_sync
     from core.models import Registry, TwoSlotLoader
     from core.models.ollama_client import OllamaClient
     from ops.lifecycle.launcher import DEFAULT_DRAIN_MAX_TICKS
     from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld
     from ops.lifecycle.runs import RunLedger, git_state
+    from scheduler.door import library_handler
     from scheduler.queue import JobQueue
     from scheduler.router import Router
     from scheduler.supervisor import Supervisor
-    from scheduler.vault_sync import VAULT_SYNC_KIND, build_vault_watcher, vault_sync_handler
+    from scheduler.vault_sync import VAULT_SYNC_KIND, build_vault_watcher
 
     cfg = get_config()
 
@@ -95,7 +95,7 @@ def main() -> int:
         supervisor = Supervisor(
             queue=queue,
             loader=loader,
-            handlers={VAULT_SYNC_KIND: vault_sync_handler(build_vault_sync(cfg))},
+            handlers={VAULT_SYNC_KIND: library_handler(cfg, "sync_vault", [{}])},
         )
         # Adopt the run id BEFORE the first claim — this is what stops every row this process
         # takes from being stamped NULL, and it reclaims anything a previous unclean exit left

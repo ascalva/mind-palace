@@ -43,9 +43,9 @@ _ROUTER_KINDS = frozenset({"route", "classify", "watchdog"})
 # Both default to PRIORITY_REACTIVE (responsive); the model-less enqueues override to BACKGROUND.
 _PINNED_KINDS = frozenset(
     {"vault_sync", "ambassador", "chat_sync", "chat_events", "integrate", "code_sync",
-     # the door's model-less kinds (dn-ingest-door D5, D7): an ingest, a capture, a link, the
-     # code sensor and the dialogue handoff call no chat model
-     "ingest", "capture", "link", "code_observe", "dialogue_sync"})
+     # the door's model-less kinds (dn-door-language §E7): a script, the code sensor and the
+     # dialogue handoff call no chat model
+     "script", "code_observe", "dialogue_sync"})
 
 
 @dataclass(frozen=True)

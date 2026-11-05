@@ -177,7 +177,8 @@ def test_a_requested_command_is_not_a_failed_translation() -> None:
     s = summarize(rows)
     assert s["outcomes"] == {"empty": 1, "requested": 1}
     assert [f["sentence"] for f in s["failed"]] == ['near "x"']
-    assert redact_command('do capture "the milk" in "tea \\"x\\""') == 'do capture "<8>" in "<7>"'
+    assert redact_command('do capture(text: "the milk", conversation: "tea \\"x\\"")') == \
+        'do capture(text: "<8>", conversation: "<9>")'
     assert redact_command("do dream") == "do dream"
 
 
@@ -195,22 +196,22 @@ def test_a_command_never_puts_its_text_in_the_log(tmp_path: Path) -> None:
         config = get_config()
 
     log = QueryLog(tmp_path / "q.jsonl")
-    from core.sentence import IllScopedSentence, ParseError
-    for text, refused in (('do capture "the owner PIN is 4321', ParseError),
-                          ('do capture "a" "secret 4321"', ParseError),
-                          ('do capture "x" in "openwebui/4321"', IllScopedSentence),
-                          ('do capture "' + "4321 " * 8000 + '"', ValueError)):
+    from core.sentence import ParseError
+    for text, refused in (('do capture(text: "the owner PIN is 4321', ParseError),
+                          ('do capture(text: "a" "secret 4321")', ParseError),
+                          ('do capture(text: "x", nope: "openwebui/4321")', ValueError),
+                          ('do capture(text: "' + "4321 " * 8000 + '")', ValueError)):
         with pytest.raises(refused):
             ask_logged(text, door.grant_for("ambassador"), surface="mcp", role="ambassador",
                        engine=_E(), log=log)          # type: ignore[arg-type]
     raw = (tmp_path / "q.jsonl").read_text()
     assert "4321" not in raw and "secret" not in raw and "openwebui" not in raw
     entries = log.entries()
-    assert entries[0].sentence == "do capture <33 characters, unparsed>"
+    assert "unterminated" in entries[0].sentence and "PIN" not in entries[0].sentence
     assert all(e.outcome == "refused" for e in entries)
-    hostile = 'do capture "' + '\\"' * 16000
+    hostile = 'do capture(text: "' + '\\"' * 16000
     started = time.perf_counter()
-    assert redact_command(hostile) == f"do capture <{len(hostile)} characters, unparsed>"
+    assert "unterminated" in redact_command(hostile)
     assert time.perf_counter() - started < 0.5
 
 

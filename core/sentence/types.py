@@ -23,6 +23,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Any
 
 from core.kernel.scope import ANCHOR, Clock, Scope, Stratum, Window
 from core.query import CURATED_REF, Grant, Mode, mode_of, scope
@@ -432,66 +433,29 @@ def _read_clause(atom: str, ctx: Context) -> Clause:
     return Clause("read", None, req, mode_of(req), ctx.overlay)
 
 
-def command_requirement(c: ast.Command) -> tuple[str, tuple[Stratum, ...], set[str], Clock, bool]:
-    """What a command writes (dn-ingest-door D2's table): its name, the strata it writes, the
-    fibers it adds, the clock of the stratum, and whether it proposes (an interpreted write). The
-    provenance class is fixed by the kind and the surface that spoke, never by a word."""
-    match c:
-        case ast.Ingest(source=src):
-            match src.kind:
-                case ast.SourceKind.NOTE:
-                    return ("ingest note", (Stratum.MIRROR_AUTHORED,), set(),
-                            Clock.PROJECTION_EVENT, False)
-                case ast.SourceKind.TURN:
-                    return ("ingest turn", (Stratum.OBSERVED,), set(), Clock.PROJECTION_EVENT,
-                            False)
-                case ast.SourceKind.DOC:
-                    return ("ingest doc", (Stratum.CURATED,), set(), Clock.PROJECTION_EVENT, False)
-                case ast.SourceKind.PAPER:
-                    return ("ingest paper", (Stratum.CURATED,), set(), Clock.PROJECTION_EVENT,
-                            False)
-                case ast.SourceKind.CODE:
-                    return ("ingest code", (Stratum.REFERENCE,), set(), Clock.COMMIT, False)
-                case ast.SourceKind.TRANSCRIPT:
-                    return ("ingest transcript", (Stratum.DIALOGUE_TRANSCRIPT,), {"C"},
-                            Clock.COMMIT, False)
-        case ast.Sync(lane=lane):
-            match lane:
-                case "vault":
-                    return ("sync vault", (Stratum.MIRROR_AUTHORED,), set(),
-                            Clock.PROJECTION_EVENT, False)
-                case "dialogue":
-                    return ("sync dialogue", (Stratum.DIALOGUE,), set(), Clock.PROJECTION_EVENT,
-                            False)
-                case "chat":
-                    return ("sync chat", (Stratum.DIALOGUE_TRANSCRIPT,), {"C"}, Clock.COMMIT,
-                            False)
-                case _:
-                    return ("sync code", (Stratum.REFERENCE,), set(), Clock.COMMIT, False)
-        case ast.Observe():
-            return ("observe code", (Stratum.REFERENCE,), {"F"}, Clock.COMMIT, False)
-        case ast.Dream():
-            return ("dream", (Stratum.INTERPRETED,), set(), Clock.PROJECTION_EVENT, True)
-        case ast.Curate():
-            return ("curate", (Stratum.INTERPRETED,), set(), Clock.PROJECTION_EVENT, True)
-        case ast.RelatePass():
-            return ("relate", (Stratum.INTERPRETED,), set(), Clock.PROJECTION_EVENT, True)
-        case ast.Link():
-            return ("link", (Stratum.INTERPRETED,), set(), Clock.PROJECTION_EVENT, True)
-        case ast.Capture():
-            return ("capture", (Stratum.OBSERVED,), set(), Clock.PROJECTION_EVENT, False)
-        case ast.Research():
-            return ("research", (Stratum.CURATED,), set(), Clock.PROJECTION_EVENT, True)
-    raise SortError(f"unknown command {c!r}")  # pragma: no cover
+def requirement_clause(r: Any) -> Clause:
+    """What one of a script's effects requires (R1; DOR-1 effect by effect, QSA-5): the write bit
+    at `now` on the place's stratum for a store or a retire, on the strata a job declares for a
+    `run`, on the interpreted stratum for a link, which proposes. The provenance of what lands is
+    the palace's, never a word of the script (dn-door-language §E3)."""
+    from core.ingest.table import JOBS, PLACES
+    from core.kernel.scope import StratumScope
 
-
-def _command_clause(c: ast.Command) -> Clause:
-    """A command requires the write bit on the strata it writes, at `now` (DOR-1): the one way a
-    sentence asks for `W_Σ = 1`, so a grant whose planes are read-only admits no command."""
-    name, strata, fibers, clock, propose = command_requirement(c)
+    strata: tuple[Stratum, ...]
+    match r.kind:
+        case "place":
+            p = PLACES[r.name]
+            name, strata, fibers, clock, propose = (f"store in {r.name}", (p.stratum,), set(),
+                                                    p.clock, False)
+        case "job":
+            j = JOBS[r.name]
+            name, strata, fibers, clock, propose = (f"run {r.name}", j.strata, set(j.fibers),
+                                                    j.clock, j.propose)
+        case _:
+            name, strata, fibers, clock, propose = ("link", (Stratum.INTERPRETED,), set(),
+                                                    Clock.PROJECTION_EVENT, True)
     # The SLICE rule, as `_required` applies it: a point write across several closed strata on a
     # clock that is not a cut clock names the single-read cut (SCO-8), as a read would.
-    from core.kernel.scope import StratumScope
     closed = StratumScope.of(*strata).strata
     cut = "single-read" if len(closed) > 1 and clock is not Clock.COMMIT else None
     req = scope(set(strata), fibers, clock, Window.point(ANCHOR), propose=propose, write=True,
@@ -579,8 +543,8 @@ def _clauses(node: Node, ctx: Context, p: Precedents) -> list[Clause]:
             return [_clause("witness", None, ctx, p)]
         case ast.Read(atom=atom):
             return [_read_clause(atom, ctx)]
-        case ast.Do(command=c):
-            return [_command_clause(c)]
+        case ast.Do(requirements=reqs):
+            return [requirement_clause(r) for r in reqs]
         case ast.Far(field=f) | ast.Top(field=f) | ast.AtLeast(field=f):
             return _clauses(f, ctx, p)
         case ast.Not(region=r):

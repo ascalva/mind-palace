@@ -1,33 +1,36 @@
-"""The daemon's side of the door (dn-ingest-door D3, D5): drain the spools into the queue, and
-land the door's own kinds under the one writer.
+"""The daemon's side of the door (dn-ingest-door D3, D5; dn-door-language §E6, §E7): drain the
+spools into the queue, and run the scripts the requests carry under the one writer.
 
 `drain_spool` runs each tick of the serve loop. It makes the spools and drains only the sound
 ones (`door.ensure_spools`); every request waiting in one is read as the daemon trusts it
 (`door.pending`), compiled under the grant of the role the spool belongs to (the role is the
-directory, never a field), checked as the landing would check it, mapped to its kind and payload,
-and enqueued; a request the role may not say, or one past its role's share of the queue, is
-receipted as refused and dropped. The drain is bounded (`MAX_PER_TICK` requests a tick, `PER_ROLE`
-of a role) and nothing in it raises out of it: a request that fails to drain is receipted, set
-aside and reported, and the next one is served.
+directory, never a field) and checked under that role, mapped to its kind, lane and payload, and
+enqueued; a request the role may not say, or one past its role's share of the queue, is
+receipted as refused and dropped. The drain is bounded (`MAX_PER_TICK` requests a tick,
+`PER_ROLE` of a role) and nothing in it raises out of it: a request that fails to drain is
+receipted, set aside and reported, and the next one is served.
 
-The order of a drain is the door's crash story. For the door's own kinds the daemon first stages
-its own copy of the request (`door.stage`, in `queued/`, which only the daemon writes), then
-enqueues the job that names it, then writes the receipt, then removes the writer's file; for the
-kinds the queue already had (`vault_sync`, `dream`, …) there is no copy, the job carrying no
-request. A crash before the receipt leaves the writer's file to be drained again; the landing of
-a door kind is idempotent at the request (`door_handler` skips a request receipted as landed or
-refused), while a delegated kind may run twice in that window. A crash after the receipt leaves a
-file whose id is seen, which the next tick rejects.
+The order of a drain is the door's crash story. For a `script` job the daemon first stages its
+own copy of the request (`door.stage`, in `queued/`, which only the daemon writes), then
+enqueues the job that names it, then writes the receipt, then removes the writer's file; a bare
+call the table maps to one of the queue's own coalescing kinds (`vault_sync`, `dialogue_sync`)
+has no copy, the job carrying no request. A crash before the receipt leaves the writer's file to
+be drained again; the landing of a door kind is idempotent at the request (`door_handler` skips
+a request receipted as landed or refused), while a delegated kind may run twice in that window.
+A crash after the receipt leaves a file whose id is seen, which the next tick rejects.
 
 The quotas refuse, they do not hold: `QUOTAS` bounds a role's queued door jobs by lane (the
-interactive `capture`, and the bulk rest), so a role's dreams never hold its captures, and a
-request past its lane's share is refused as busy rather than left to wait.
+library scripts the table marks interactive, a capture, and the bulk rest), so a role's syncs
+never hold its captures, and a request past its lane's share is refused as busy rather than left
+to wait.
 
-`door_handler` is the handler for the door's own kinds: it reads the staged request, checks it is
-the request that was drained (its sentence's digest and its kind are in the job's payload),
-compiles it **again** under the spool's grant (the second check), performs it, and receipts what
-landed. A door job a crash left running goes back to the queue (`scheduler.queue`'s requeue set),
-and runs again as if it had not started.
+`door_handler` is the handler for `script` jobs: it reads the staged request, checks it is the
+request that was drained (its sentence's digest and its kind are in the job's payload), compiles
+it **again** under the spool's grant (the second check), evaluates its script and lands the plan
+through the writer (`door.perform`), and receipts what landed. `library_handler` runs a library
+script as the daemon's own job, for the queue's kinds the watcher and the heartbeat enqueue. A
+door job a crash left running goes back to the queue (`scheduler.queue`'s requeue set), and runs
+again as if it had not started.
 """
 
 from __future__ import annotations
@@ -47,7 +50,6 @@ from scheduler.queue import _IDEMPOTENT_KINDS, PRIORITY_BACKGROUND, PRIORITY_INT
 from scheduler.router import Router
 
 Handler = Callable[[Job], "str | None"]
-Extra = Mapping[str, Callable[[ast.Command, door.Request], dict[str, Any]]]
 
 MAX_PER_TICK = 64             # requests drained a tick: the serve loop keeps its cadence
 PER_ROLE = 32                 # of them, at most this many from one role
@@ -70,11 +72,6 @@ def _stderr(message: str) -> None:
     print(message, file=sys.stderr)
 
 
-def lane_of(kind: str) -> str:
-    """The interactive lane is the model's note to itself (`capture`); everything else is bulk."""
-    return "interactive" if kind == "capture" else "bulk"
-
-
 def _door_role(job: Job) -> str | None:
     """The role a queued job was spooled by: the door's own kinds carry `role`, the delegated kinds
     that do not coalesce carry `door`; a coalescing kind is one row however often it is asked."""
@@ -88,7 +85,7 @@ def queued_by_lane(queue: Enqueues) -> Counter[tuple[str, str]]:
     for job in queue.list("queued"):
         role = _door_role(job)
         if role is not None:
-            counts[(role, lane_of(job.kind))] += 1
+            counts[(role, str(job.payload.get("lane", "bulk")))] += 1
     return counts
 
 
@@ -137,16 +134,15 @@ def _drain_one(queue: Enqueues, router: Router, cfg: Config, path: Path, request
         door.reject(path, say, "a request id is never reused: this one was drained before")
         return 0
     try:
-        plan = compile_sentence(request.sentence, door.grant_for(role))
+        plan = compile_sentence(request.sentence, door.grant_for(role), role=role)
         assert isinstance(plan.term, ast.Do)
-        door.check_command(plan.term.command, role)
-        kind, payload = door.kind_of(plan.term.command)
+        kind, payload = door.kind_of(plan.term)
+        lane = door.lane_of(plan.term)
     except Exception as e:                          # refused, or not landable: receipt and drop
         door.write_receipt(cfg, door.Receipt(rid, role, "", "refused",
                                              detail={"reason": f"{type(e).__name__}: {e}"}))
         path.unlink(missing_ok=True)
         return 0
-    lane = lane_of(kind)
     counted = kind in door.DOOR_KINDS or kind not in _IDEMPOTENT_KINDS
     if counted and counts[(role, lane)] >= quotas[lane]:
         door.write_receipt(cfg, door.Receipt(
@@ -156,7 +152,8 @@ def _drain_one(queue: Enqueues, router: Router, cfg: Config, path: Path, request
         path.unlink(missing_ok=True)
         return 0
     if kind in door.DOOR_KINDS:
-        payload = {**payload, "role": role, "request": rid, "digest": request.digest}
+        payload = {**payload, "role": role, "request": rid, "digest": request.digest,
+                   "lane": lane}
         door.stage(cfg, request)                    # the daemon's copy, before a job names it
     elif kind not in _IDEMPOTENT_KINDS:
         payload = {**payload, "door": role}
@@ -179,12 +176,17 @@ def _drain_one(queue: Enqueues, router: Router, cfg: Config, path: Path, request
     return 1
 
 
-def door_handler(cfg: Config, *, landers: door.Landers | None = None,
-                 extra: Extra | None = None) -> Handler:
-    """The handler for the door's own kinds. `extra` lands the kinds the daemon lands with ops
-    machinery (`code_observe`), keyed by kind."""
-    extra = dict(extra or {})
-    L = landers if landers is not None else door.Landers()
+def door_handler(cfg: Config, *, stores: Callable[[], Any] | None = None,
+                 library: Callable[[str], Any] | None = None) -> Handler:
+    """The handler for `script` jobs. `stores` opens what the writer lands into (once, on first
+    use; the daemon's own stores when not given); `library` loads library scripts (the repo's
+    `door/` when not given)."""
+    opened: dict[str, Any] = {}
+
+    def the_stores() -> Any:
+        if "s" not in opened:
+            opened["s"] = stores() if stores is not None else door.build_stores(cfg)
+        return opened["s"]
 
     def handle(job: Job) -> str:
         role, rid = str(job.payload.get("role", "")), str(job.payload.get("request", ""))
@@ -198,17 +200,18 @@ def door_handler(cfg: Config, *, landers: door.Landers | None = None,
             if request.digest != str(job.payload.get("digest", "")):
                 raise door.IllScopedSentence(
                     f"the queued request {rid} is not the sentence that was drained")
-            plan = compile_sentence(request.sentence, door.grant_for(role))   # the second check
+            plan = compile_sentence(request.sentence, door.grant_for(role),     # the second check
+                                    role=role)
             assert isinstance(plan.term, ast.Do)
-            command = plan.term.command
-            kind, _ = door.kind_of(command)
+            kind, _ = door.kind_of(plan.term)
             if kind != job.kind:
                 raise door.IllScopedSentence(
                     f"the queued request {rid} compiles to {kind}, the job is {job.kind}")
-            result = (extra[kind](command, request) if kind in extra
-                      else door.perform(command, cfg, L, role=role))
+            result = door.perform(plan.term, cfg, role, stores=the_stores(), library=library)
         except Exception as e:
-            refused = isinstance(e, door.IllScopedSentence | PermissionError)
+            from core.sentence.interpret import ScriptError
+
+            refused = isinstance(e, door.IllScopedSentence | PermissionError | ScriptError)
             state = "refused" if refused else "failed"
             try:
                 door.write_receipt(cfg, door.Receipt(rid, role, kind, state, job=job.id,
@@ -221,28 +224,63 @@ def door_handler(cfg: Config, *, landers: door.Landers | None = None,
         door.write_receipt(cfg, door.Receipt(rid, role, kind, "landed", job=job.id,
                                              detail=result))
         door.discard_queued(cfg, role, rid)
-        return f"door: {kind} landed for {role} ({rid})"
+        return f"door: {kind} landed for {role} ({rid}): {result['effects']}"
 
     return handle
 
 
-def door_handlers(cfg: Config, *, landers: door.Landers | None = None,
-                  extra: Extra | None = None) -> dict[str, Handler]:
-    """One handler per door kind, for the supervisor's registry."""
-    handler = door_handler(cfg, landers=landers, extra=extra)
+def door_handlers(cfg: Config, *, stores: Callable[[], Any] | None = None,
+                  library: Callable[[str], Any] | None = None) -> dict[str, Handler]:
+    """The handler for the door's own kind, for the supervisor's registry."""
+    handler = door_handler(cfg, stores=stores, library=library)
     return {kind: handler for kind in sorted(door.DOOR_KINDS)}
 
 
-DIALOGUE_SYNC_KIND = "dialogue_sync"
+def library_handler(cfg: Config, name: str, calls: list[dict[str, Any]], *,
+                    stores: Callable[[], Any] | None = None,
+                    library: Callable[[str], Any] | None = None) -> Handler:
+    """A queue kind run as a library script, the daemon's own job, under the operator's role: the
+    watcher's `vault_sync` is `sync_vault`, the dialogue sync is `sync_dialogue` once a reader.
+    Each call is compiled and admitted as a request would be; one that fails fails the job after
+    the others have run, so the queue shows it, never a summary that says done."""
+    from core.sentence.script import quote
 
+    opened: dict[str, Any] = {}
 
-def dialogue_sync_handler(sync: Callable[[], int]) -> Handler:
-    """`do sync dialogue` as the queue's own kind (coalescing, re-runnable): the dialogue sync
-    reads the edge readers' handoff files and captures their turns; an edge reader that failed
-    fails the job, so the queue shows it, never a receipt that says landed."""
+    def the_stores() -> Any:
+        if "s" not in opened:
+            opened["s"] = stores() if stores is not None else door.build_stores(cfg)
+        return opened["s"]
+
     def handle(_job: Job) -> str:
-        code = sync()
-        if code != 0:
-            raise RuntimeError(f"dialogue sync: an edge reader failed (exit {code})")
-        return "dialogue sync: done"
+        done, failed = [], []
+        for kwargs in calls:
+            args = ", ".join(f"{k}: {quote(v) if isinstance(v, str) else v}"
+                             for k, v in kwargs.items())
+            text = f"do {name}({args})" if args else f"do {name}"
+            try:
+                plan = compile_sentence(text, door.grant_for("cli"), role="cli")
+                assert isinstance(plan.term, ast.Do)
+                done.append(door.perform(plan.term, cfg, "cli", stores=the_stores(),
+                                         library=library)["effects"])
+            except Exception as e:
+                failed.append(f"{text}: {type(e).__name__}: {e}")
+        if failed:
+            raise RuntimeError("; ".join(failed))
+        return f"{name}: {done}"
+
     return handle
+
+
+def job_enqueuer(queue: Enqueues, router: Router) -> Callable[[str, dict[str, Any]], int]:
+    """How a script's `run` enqueues a job: its own kind, at the background priority, its tier the
+    router's; returns the job's id."""
+    def enqueue(kind: str, payload: dict[str, Any]) -> int:
+        plan = router.plan(kind, priority=PRIORITY_BACKGROUND)
+        return queue.enqueue(plan.kind, plan.tier, plan.num_ctx, priority=plan.priority,
+                             payload=payload).id
+    return enqueue
+
+
+DIALOGUE_SYNC_KIND = "dialogue_sync"
+DIALOGUE_READERS = ("openwebui", "opencode")

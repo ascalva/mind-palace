@@ -3,6 +3,8 @@ clause-wise scope check (QSA-5, `formal/Palace/Sentence.lean`), and the result g
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from core.kernel.scope import Clock, Stratum, Window
@@ -171,58 +173,68 @@ def test_read_is_a_text_that_composes_with_nothing_and_reads_by_the_refs_shape()
     assert under.overlay and Stratum.HYPOTHETICAL in under.req.sigma.strata
 
 
-# ── the action sort: a command requires the write bit (dn-ingest-door D2, DOR-1) ───────────────
+# ── the door: each effect requires the write bit on its place (dn-door-language R1, DOR-1) ─────
 
 
-def test_a_command_is_an_event_and_requires_the_write_bit_on_what_it_writes() -> None:
-    from core.sentence import ast
-    from core.sentence.types import command_requirement
+_ARGS = {"ingest_note": 'path: "x.md"', "ingest_doc": 'path: "docs/x.md"',
+         "sync_dialogue": 'reader: "openwebui"', "capture": 'text: "t"',
+         "link": 'a: "a", b: "b", relation: "supports"'}
 
-    (c,) = clauses_of(parse('do ingest note "x.md"'))
-    assert c.verb == "ingest note" and c.req.authority.store_write == 1
+
+def _do(text: str, role: str = "ambassador") -> Any:
+    """A request as the compiler checks it under a role: its requirements filled in."""
+    from core.sentence.script_check import compile_request
+
+    return compile_request(parse(text), role)
+
+
+def _call(name: str) -> str:
+    return f"do {name}({_ARGS[name]})" if name in _ARGS else f"do {name}"
+
+
+def test_a_request_is_an_event_and_each_effect_requires_the_write_bit_on_its_place() -> None:
+    from core.sentence.script import library_names
+
+    (c,) = clauses_of(_do('do ingest_note(path: "x.md")'))
+    assert c.verb == "store in mirror_authored" and c.req.authority.store_write == 1
     assert c.req.sigma.strata == frozenset({Stratum.MIRROR_AUTHORED})
     assert c.req.time.clock is Clock.PROJECTION_EVENT
-    (d,) = clauses_of(parse("do dream"))
+    (d,) = clauses_of(_do("do dream"))
     assert d.req.sigma.strata == frozenset({Stratum.INTERPRETED})
     assert d.req.authority.store_write == 1
     assert d.req.authority.privilege.name == "READ_PROPOSE"
-    (t,) = clauses_of(parse("do sync chat"))
+    (t,) = clauses_of(_do("do sync_chat"))
     assert t.req.time.clock is Clock.COMMIT and t.req.edges.fibers == frozenset({"C"})
     assert t.mode is Mode.CAUSAL
-    (o,) = clauses_of(parse("do observe code"))
+    (o,) = clauses_of(_do("do observe_code"))
     assert o.req.edges.fibers == frozenset({"F"}) and o.req.time.clock is Clock.COMMIT
-    # the table is total over the commands the grammar admits
-    for text in ('do ingest turn c 1 "t"', "do ingest doc d/x.md", 'do ingest paper "reference:p"',
-                 "do ingest code", "do ingest transcript s", "do sync vault", "do sync dialogue",
-                 "do sync code", "do curate", "do relate", 'do link "a" "b" supports',
-                 'do capture "t"', 'do research "q"'):
-        node = parse(text)
-        assert isinstance(node, ast.Do)
-        name, strata, _fibers, _clock, _propose = command_requirement(node.command)
-        assert name and strata and typecheck(node) is Sort.EVENT
+    # every library script is an event whose effects each name a clause
+    for name in library_names():
+        node = _do(_call(name), "cli")
+        assert clauses_of(node) and typecheck(node) is Sort.EVENT, name
 
 
 def test_the_ambassadors_grant_as_written_admits_projection_event_commands_only() -> None:
-    """DOR-1 read on the grant as it stands (dn-ingest-door D2, §8): the first plane carries the
+    """DOR-1 read on the grant as it stands (dn-door-language R1): the first plane carries the
     write bit at the projection-event clock over six strata, the commit-clock plane carries none,
-    and the order is false across clocks."""
+    and the order is false across clocks, so the scripts that write those strata are admitted and
+    the ones that start a commit-clock job are refused."""
     from core.query import AMBASSADOR, AMBASSADOR_OVERLAY
 
-    admitted = ["do dream", 'do capture "t"', 'do link "a" "b" supports', 'do ingest note "x"',
-                "do sync vault", 'do ingest doc d/x.md', "do relate"]
-    refused = ["do ingest code", "do sync code", "do sync chat", "do observe code",
-               "do ingest transcript s"]
-    for text in admitted:
-        assert admissible(parse(text), AMBASSADOR), text
-        assert admissible(parse(text), AMBASSADOR_OVERLAY), text
-    for text in refused:
-        assert not admissible(parse(text), AMBASSADOR), text
+    admitted = ["dream", "capture", "link", "ingest_note", "sync_vault", "ingest_doc", "relate",
+                "sync_dialogue", "sync_docs", "curate"]
+    refused = ["sync_code", "sync_chat", "observe_code"]
+    for name in admitted:
+        assert admissible(_do(_call(name)), AMBASSADOR), name
+        assert admissible(_do(_call(name)), AMBASSADOR_OVERLAY), name
+    for name in refused:
+        assert not admissible(_do(_call(name)), AMBASSADOR), name
         with pytest.raises(IllScopedSentence):
-            check_admissible(parse(text), AMBASSADOR)
+            check_admissible(_do(_call(name)), AMBASSADOR)
 
 
 def test_a_read_only_grant_admits_no_command_and_still_admits_every_query() -> None:
-    """DOR-1 `readonly_admits_no_command`: planes without the write bit refuse every command."""
+    """DOR-1 `readonly_admits_no_command`: planes without the write bit refuse every request."""
     from core.kernel.scope import Window
     from core.query import Grant, scope
 
@@ -233,8 +245,9 @@ def test_a_read_only_grant_admits_no_command_and_still_admits_every_query() -> N
         scope({Stratum.REFERENCE, Stratum.DIALOGUE}, {"F", "C"}, Clock.COMMIT, Window.all(),
               propose=True),
     ))
-    for text in ("do dream", 'do capture "t"', 'do ingest note "x"', "do sync vault",
-                 'do link "a" "b" supports', "do ingest code", 'do research "q"'):
-        assert not admissible(parse(text), read_only), text
+    for name in ("dream", "capture", "ingest_note", "sync_vault", "link", "sync_code"):
+        assert not admissible(_do(_call(name), "cli"), read_only), name
+    assert not admissible(_do('do { store "x" in "observed" at "dialogue/door/cli/t" }', "cli"),
+                          read_only)
     for text in ('near "x"', 'reach F from "core/x.py"', 'reach C from "x"', 'witness "e"'):
         assert admissible(parse(text), read_only), text

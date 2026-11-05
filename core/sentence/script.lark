@@ -1,0 +1,83 @@
+// The door's language: its one definition (dn-door-language §E1, §E11, §E12). LALR(1), read by
+// Lark. A newline ends a statement in a block or at the top level; inside ( ) and [ ] it is
+// space (the post-lexer drops it there). `#` begins a comment. A read sentence nests in backquotes
+// and captures a name of the enclosing scope as `$name`.
+
+script: _sep* [stmt (_sep+ stmt)* _sep*]
+
+request: NAME [call_args] _sep*             -> call_request
+       | "{" script "}" _sep*               -> inline_request
+
+?stmt: param | let | fn | for_ | if_ | store | retire | link | run | call | return_
+
+param: "param" pdecl ("," pdecl)*
+pdecl: NAME ["=" literal]
+let: "let" NAME "=" expr
+fn: "fn" NAME "(" [NAME ("," NAME)*] ")" block
+for_: "for" NAME "in" expr block
+if_: "if" expr block ["else" (block | if_)]
+store: "store" sum store_clause+
+store_clause: "at" sum                      -> at
+            | "as" sum                      -> as_
+            | "in" STRING                   -> place
+            | "titled" sum                  -> titled
+retire: "retire" sum "in" STRING
+link: "link" sum "to" sum "as" sum
+run: "run" STRING ["with" kwarg ("," kwarg)*]
+call: "call" NAME [call_args]
+return_: "return" expr
+
+block: "{" script "}"
+
+call_args: "(" [carg ("," carg)*] ")"
+?carg: literal
+     | NAME ":" literal                     -> ckwarg
+
+?expr: or_test
+?or_test: and_test
+        | or_test "or" and_test             -> or_
+?and_test: not_test
+         | and_test "and" not_test          -> and_
+?not_test: "not" not_test                   -> not_
+         | comparison
+?comparison: sum
+           | sum COMPOP sum                 -> compare
+           | sum "in" sum                   -> in_
+           | sum NOTIN sum                  -> not_in
+?sum: postfix
+    | sum "+" postfix                       -> add
+?postfix: atom
+        | postfix "." NAME                  -> field
+        | postfix "[" expr "]"              -> index
+        | postfix "[" [expr] ":" [expr] "]" -> slice
+?atom: literal
+     | NAME "(" [arg ("," arg)*] ")"        -> call_fn
+     | NAME                                 -> name
+     | SENTENCE                             -> sentence
+     | "(" expr ")"
+     | "[" "]"                              -> empty_list
+     | "[" expr ("," expr)* "]"             -> list_
+     | "[" expr "for" NAME "in" expr ["if" expr] "]" -> comp
+?arg: expr
+    | NAME ":" expr                         -> kwarg
+kwarg: NAME ":" expr
+
+?literal: STRING                            -> string
+        | INT                               -> int
+        | "true"                            -> true
+        | "false"                           -> false
+        | "none"                            -> none
+
+_sep: _NL | ";"
+
+NOTIN.2: /not[ \t]+in(?![A-Za-z0-9_])/
+COMPOP: "==" | "!=" | "<=" | ">=" | "<" | ">"
+SENTENCE: /`[^`]*`/
+STRING: /"(?:[^"\\\n]|\\.)*"/ | /'(?:[^'\\\n]|\\.)*'/
+INT: /\d+(?![A-Za-z0-9_])/
+NAME: /[A-Za-z_][A-Za-z0-9_]*/
+_NL: /\n/
+COMMENT: /#[^\n]*/
+
+%ignore /[ \t\r]+/
+%ignore COMMENT

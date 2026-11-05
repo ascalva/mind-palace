@@ -1,0 +1,8 @@
+# One note, as the sync would land it: a note new to the mirror whose bytes are a vanished note's
+# keeps that note's identity.
+param path
+let vault = source("vault")
+let n = file(vault, path)
+let gone = [e for e in stored("mirror_authored", under: vault) if not exists(vault, e.path)]
+let moved = unique_by(gone, "digest")
+store n.content in "mirror_authored" as first(n.properties.id, moved[n.digest].identity)

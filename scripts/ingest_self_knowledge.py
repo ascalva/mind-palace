@@ -23,10 +23,11 @@ from core.sealing import seal
 
 def main() -> int:
     seal()  # structural egress guard first (Invariant 1) — local stores + local Ollama only
-    from core.ingest.curated import build_and_ingest_curated
+    from config.loader import get_config
+    from core.ingest import door
 
-    report = build_and_ingest_curated()
-    print(report)
+    # the docs' library script through the writer, as the daemon lands it (dn-door-language §E8)
+    print(door.run_library(get_config(), "sync_docs")["effects"])
     return 0
 
 

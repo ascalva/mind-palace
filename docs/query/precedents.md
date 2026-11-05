@@ -28,6 +28,32 @@ answer-drift, never a silent one.
 | a path's count `{n,m}` at most | `32` | each count copies the automaton, and nested counts multiply | a question needs more |
 | `walk`'s budget | `100000` partial chains | the product walk enumerates simple paths, exponential on a dense graph; the answer says when it stopped | a question needs more |
 
+## The door's prices
+
+What a request's work costs (dn-door-language §E10), one unit the time of one evaluation step.
+Measured by `eval/door_gas.py` on 2026-11-05 on the owner's Mac: 300 notes, the median of seven
+runs on a warm page cache, the embeds on the palace's embedder (EmbeddingGemma-2 on llama-server,
+`:8081`, ten notes' chunks, one request a note, as the landing sends them). A step took 0.30 µs.
+Prices are rounded to two figures. `PRICES` in `core/sentence/interpret.py` and the roles'
+budgets in `core/ingest/table.py` are this table's executable mirror.
+
+| operation | price | measured | re-entry |
+|---|---|---|---|
+| `step` | `1` | 0.30 µs: a statement, an expression node, a loop's turn | the unit |
+| `item` | `270` | 81 µs: a note opened and parsed | a reader that parses less |
+| `kib` | `75` | 23 µs: a KiB of an item's content read | — |
+| `entry` | `22` | 6.6 µs: a place's entry read from the catalog | — |
+| `effect` | `10000` | 3.2 ms: the effect evaluated, and the writer's check of a store, twice (the price pass and the landing; mostly the plane's lookup of a version's rows) | the plane's lookup gets cheaper |
+| `write` | `140000` | 42 ms: a store that lands, its embeds apart (the raw object, the plane's append, the catalog, the attestation); charged too for a retire, a link and a run | the plane's append gets cheaper |
+| `query` | `360000` | not measured: one embed, its text's, as its floor | the read verbs priced in this unit (§E10's follow-up) |
+| `embed` | `360000` | 109 ms: a chunk embedded | another embedder |
+| the `cli` role's budget | `10000000000` | about 50 minutes of measured work: the owner's and the daemon's own jobs, a first sync of a large vault included | a sync that needs more |
+| the `ambassador` role's budget | `100000000` | about 30 seconds: a capture is under one million, a link or a job's start under two hundred thousand | a request the Ambassador needs that does not fit |
+
+The two coalescing requests, `do sync_vault` and a bare `do sync_dialogue`, run as the daemon's
+own jobs under the `cli` role's budget, whoever asked: their scripts are the library's, admitted
+under the asker's grant when spoken.
+
 ## Resolutions
 
 None recorded yet. A resolution is added when the compiler refuses a sentence as ambiguous and the

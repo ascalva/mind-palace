@@ -1,0 +1,4 @@
+# A relation the speaker proposes between two notes, named by path or title, interpreted: it
+# never replaces the owner's own edge.
+param a, b, relation
+link entry("mirror_authored", a) to entry("mirror_authored", b) as relation

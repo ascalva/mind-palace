@@ -1,14 +1,8 @@
 """The grammar — a sentence's concrete syntax, parsed by precedence into `core.sentence.ast`
 (dn-query-sentence-algebra §2.3).
 
-    sentence  := "do" command | or-expr ("then" or-expr)*       -- a command is a whole sentence
-    command   := "ingest" source | "sync" lane | "observe" "code" [atom] | "dream" | "curate"
-               | "relate" ["pairs" NUMBER] | "link" atom atom relation
-               | "capture" STRING ["in" WORD] | "research" STRING
-    source    := "note" atom | "turn" WORD WORD STRING | "doc" atom | "paper" atom
-               | "code" [atom] | "transcript" WORD                -- no role word, by design
-    lane      := "vault" | "dialogue" | "chat" | "code"
-    relation  := "supports" | "contradicts" | "contextualizes"
+    sentence  := "do" request | or-expr ("then" or-expr)*       -- a request is a whole sentence
+    request   := a library call or a script inline, in the door's language (`script.lark`)
     or-expr   := and-expr ("or" and-expr)*
     and-expr  := unary (("and" | "minus") unary)*               -- `and` binds tighter than `or`
     unary     := operand adjunct*                               -- adjectives bind tightest
@@ -35,8 +29,9 @@ within `R` and `top 1 near "x" over dialogue` ranks the dialogue: a ranking is n
 masking after it would drop hits the mask would have kept (the review of 2026-11-05). `far` and
 `not` take the bare operand, so an adjective after them restricts the reversal or the complement.
 `assume` extends as far right as it can (parenthesize it to continue the sentence). `do` takes
-the whole sentence: a command composes with nothing, since its value is a receipt and the state
-it changes lands later (dn-ingest-door D2). A parse error names the production that failed and
+the rest of the text as a request of the door's language (dn-door-language §E6), which has its
+own grammar: a request composes with nothing, since its value is a receipt and what it writes
+lands later. A parse error names the production that failed and
 the token it saw.
 """
 
@@ -46,42 +41,28 @@ import re
 from dataclasses import dataclass
 
 from core.sentence.ast import (
-    LANES,
-    RELATIONS,
     And,
     AsOf,
     Assume,
     AtLeast,
-    Capture,
-    Command,
     ContradictHyp,
-    Curate,
     Diffuse,
     Direction,
     Do,
-    Dream,
     EdgeHyp,
     Far,
     Hypothesis,
-    Ingest,
-    Link,
     Minus,
     Near,
     Node,
     Not,
-    Observe,
     Or,
     Over,
     Reach,
     Read,
     Rel,
     Relate,
-    RelatePass,
-    Research,
     SeverHyp,
-    Source,
-    SourceKind,
-    Sync,
     Then,
     Top,
     Trace,
@@ -118,8 +99,7 @@ KEYWORDS = frozenset({
     "within",
     "over", "as", "of", "from", "to", "via", "beta", "depth", "back", "forward", "both",
     "S", "F", "D", "C",
-    "do",      # the command sentence; the command words after it are read in place, never as
-               # keywords, so `over dialogue` and a note titled `code` keep working
+    "do",      # the door: the rest of the text is a request of the door's language
 })
 
 _STOP_PATH = frozenset({"depth", "and", "or", "then", "within", "over", "as", "in", "minus", ")"})
@@ -414,121 +394,33 @@ class _Parser:
         return EdgeHyp(rel, a, b, weight)
 
     # ── commands ───────────────────────────────────────────────────────────────────────────────
-    def word_in(self, production: str, allowed: tuple[str, ...]) -> str:
-        t = self.peek()
-        if t.kind == "WORD" and t.text in allowed:
-            self.next()
-            return t.text
-        raise self.fail(production, "one of " + ", ".join(allowed))
-
-    def name(self, production: str) -> str:
-        """An identifier the command names: a conversation, a turn id, a session; a word or a
-        quoted string."""
-        t = self.peek()
-        if t.kind in ("WORD", "STRING", "NUMBER"):
-            self.next()
-            return t.text
-        raise self.fail(production, "a name")
-
-    def optional_atom(self) -> str | None:
-        t = self.peek()
-        if t.kind == "STRING" or (t.kind == "WORD" and t.text not in KEYWORDS):
-            self.next()
-            return t.text
-        return None
-
-    def source(self) -> Source:
-        t = self.peek()
-        if t.kind != "WORD":
-            raise self.fail("ingest", "a source: note, turn, doc, paper, code or transcript")
-        kind = t.text
-        if kind == "note":
-            self.next()
-            return Source(SourceKind.NOTE, atom=self.atom("ingest note"))
-        if kind == "turn":
-            self.next()
-            conversation = self.name("ingest turn")
-            turn = self.name("ingest turn")
-            return Source(SourceKind.TURN, atom=conversation, turn=turn,
-                          text=self.string("ingest turn"))
-        if kind == "doc":
-            self.next()
-            return Source(SourceKind.DOC, atom=self.atom("ingest doc"))
-        if kind == "paper":
-            self.next()
-            return Source(SourceKind.PAPER, atom=self.atom("ingest paper"))
-        if kind == "code":
-            self.next()
-            return Source(SourceKind.CODE, atom=self.optional_atom() or "")
-        if kind == "transcript":
-            self.next()
-            return Source(SourceKind.TRANSCRIPT, atom=self.name("ingest transcript"))
-        raise self.fail("ingest", f"a source kind (note, turn, doc, paper, code, transcript), "
-                                  f"not {kind!r}")
-
-    def command(self) -> Command:
-        t = self.peek()
-        if t.kind != "WORD":
-            raise self.fail("do", "a command")
-        word = t.text
-        if word == "ingest":
-            self.next()
-            return Ingest(self.source())
-        if word == "sync":
-            self.next()
-            return Sync(self.word_in("sync", LANES))
-        if word == "observe":
-            self.next()
-            self.expect_word("observe", "code")
-            return Observe(self.optional_atom())
-        if word == "dream":
-            self.next()
-            return Dream()
-        if word == "curate":
-            self.next()
-            return Curate()
-        if word == "relate":
-            self.next()
-            pairs: int | None = None
-            if self.at_word("pairs"):
-                self.next()
-                pairs = self.integer("relate pairs")
-            return RelatePass(pairs)
-        if word == "link":
-            self.next()
-            a = self.atom("link")
-            b = self.atom("link")
-            return Link(a, b, self.word_in("link", RELATIONS))
-        if word == "capture":
-            self.next()
-            text = self.string("capture")
-            conversation: str | None = None
-            if self.at_word("in"):
-                self.next()
-                conversation = self.name("capture in")
-            return Capture(text, conversation)
-        if word == "research":
-            self.next()
-            return Research(self.string("research"))
-        raise self.fail("do", "a command (ingest, sync, observe code, dream, curate, relate, "
-                              f"link, capture, research), not {word!r}")
-
     def parse(self) -> Node:
         if self.peek().kind == "END":
             raise ParseError("sentence: the sentence is empty")
-        if self.at_word("do"):
-            self.next()
-            node: Node = Do(self.command())
-            if self.peek().kind != "END":
-                raise self.fail("do", "the end of the sentence: a command takes no connective "
-                                      "and no adjective, its value is a receipt")
-            return node
         node = self.sentence()
         if self.peek().kind != "END":
             raise self.fail("sentence", "the end of the sentence")
         return node
 
 
+_DO = re.compile(r"\s*do(?=[\s{]|$)")
+
+
+def is_request(text: str) -> bool:
+    """Whether a text is a request of the door's language: the one rule every surface and every
+    filter asks, the same the parser follows, so none can disagree about what is a request."""
+    return _DO.match(text) is not None
+
+
 def parse(text: str) -> Node:
-    """Parse a sentence, or raise `ParseError` naming the production that failed."""
+    """Parse a sentence, or raise `ParseError` naming the production that failed. A sentence that
+    begins with `do` is a request of the door's language, read by its own grammar."""
+    m = _DO.match(text)
+    if m is not None:
+        from core.sentence.script import parse_request
+
+        rest = text[m.end():]
+        if not rest.strip():
+            raise ParseError("do: a request: a library script's name, or a script in { }")
+        return Do(parse_request(rest), text=rest.strip())
     return _Parser(text).parse()

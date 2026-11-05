@@ -1,0 +1,4 @@
+# The system's own prose, curated: the Constitution, the Conventions, docs/.
+for d in files(source("docs")) {
+    store d.content in "curated"
+}

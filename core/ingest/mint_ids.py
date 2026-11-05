@@ -32,6 +32,7 @@ from __future__ import annotations
 import os
 import shutil
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -200,7 +201,8 @@ class MintReport:
 
 
 def run(sync: VaultSync, *, declaration: OwnerDeclaration, confirm: bool = False,
-        backup_dir: Path, run_ledger: object | None = None) -> MintReport:
+        backup_dir: Path, run_ledger: object | None = None,
+        rescan: Callable[[], object] | None = None) -> MintReport:
     """Item 16 — the offline, `confirm`-gated, reversible orchestration. Order (§6, the crash-safe
     per-note amendment):
 
@@ -251,7 +253,9 @@ def run(sync: VaultSync, *, declaration: OwnerDeclaration, confirm: bool = False
         if moved:
             rekeyed += 1
 
-    report = sync.rescan()                                   # the "id added" amendment lands here
+    # the "id added" amendment lands here: the vault's library script through the writer, as
+    # the daemon would land it (dn-door-language §E8); `sync.rescan` where none is given
+    report = rescan() if rescan is not None else sync.rescan()
     verified = _verify_no_fork(sync, plan)
     return MintReport(minted=minted, rekeyed=rekeyed, rescan=str(report), verified=verified,
                       backup_dir=str(backup_dir))

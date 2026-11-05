@@ -692,12 +692,11 @@ class Evaluator:
                 return WitnessV(record)
             case ast.Read(atom=atom, chunk=chunk):
                 return self._read(atom, chunk)
-            case ast.Do(command=c):
+            case ast.Do(request=r):
                 raise UnsupportedSentence(
-                    f"do {ast.describe_command(c)}: a command is not evaluated here; ask it "
-                    "through a surface (`palace query`, the MCP's `query`), which writes it as a "
-                    "request for the daemon's one writer and returns the receipt "
-                    "(dn-ingest-door D3)")
+                    f"do {ast.describe_request(r)}: a request is not evaluated here; ask it "
+                    "through a surface (`palace query`, the MCP's `query`), which writes it for "
+                    "the daemon's one writer and returns the receipt (dn-door-language §E6)")
             case ast.Assume(hypothesis=h, body=b):
                 overlay = Overlay.of(h, self.u)
                 self._note_assume(h, overlay)

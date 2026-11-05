@@ -93,24 +93,42 @@ asker for the sensor (`orchestrator`, `builder`, `scribe`, …) and grants nothi
 runs under the Ambassador's grant. `--json` for programs; `--no-plan` to shorten; `--trace` to
 show the work (§3).
 
-## 2b. Commands, by design first
+## 2b. Requests and scripts
 
-`do <command>` is the action sort (dn-ingest-door): `do sync vault`, `do dream`, `do link "a"
-"b" supports`, `do capture "…" in <conversation>`, `do ingest note "<path>"`, `do ingest code`,
-`do observe code`, `do research "…"`. A command is a whole sentence with no connective, its
-value is a receipt, and it needs a plane with the write bit on the strata it writes (DOR-1), so
-a read-only grant refuses it at compile time. A command is not evaluated: it is written as a
-request into the spool of the role that spoke it (`data/handoff/door/<role>/`), the daemon drains
-the spools each tick and lands it as the one writer, and the answer is the receipt, one hit of
-stratum `door` naming the request and its kind; the receipt beside the request says `queued`
-with the job, then `landed` with what landed, or `refused` with why. The Ambassador's tools
-`sync_notes`, `sync_dialogue`, `dream`, `relate`, `capture` and `link` are these sentences. A turn or a capture the
-door lands lives under `dialogue/door/<role>/<conversation>/`, and a conversation is a name, never
-a path; `relate pairs` is at most fifty. From Open WebUI, `query` speaks only `do capture`,
-`do sync dialogue` and `do sync vault`. A role's share of the queue is bounded by lane (captures,
-and the rest), and a request past it is refused as busy. The query log keeps a command with its
-quoted texts replaced by their lengths. Not landed yet, and refused by name: `research`, a paper's manifest,
-one commit's backfill, one commit's observation, one session's transcript.
+`do …` is the action sort (dn-door-language). The language is generic: it knows sources, places,
+items, labels and effects, and nothing of notes or dialogue. Each way of ingesting is a script
+written in it, kept in the repo's `door/` library: `sync_vault`, `ingest_note(path: …)`,
+`sync_dialogue(reader: …)`, `capture(text: …, conversation: …)`, `sync_docs`,
+`ingest_doc(path: …)`, `link(a: …, b: …, relation: …)`, `dream`, `curate`, `relate(pairs: …)`,
+`sync_code`, `sync_chat`, `observe_code`. A request names one, `do sync_vault` or
+`do capture(text: "…", conversation: "tea")`, or carries a script inline,
+`do { for n in files(source("vault")) { … } }`.
+
+A script reads the palace through `source(…)`, `files`, `file`, `items`, `stored`, `entry` and
+read sentences nested in backquotes (`` `near $topic` ``), and writes nothing: its value is a plan
+of effects (`store`, `retire`, `link`, `run`). The daemon evaluates it under the speaking role's
+budget of work (gas), and its one writer lands the plan effect by effect under the palace's rules:
+a place takes only its labels, a role writes only its namespace, authored bytes land only where
+they were written, a path's label and identity are fixed once stored, a retire only reconciles,
+and a source's paths take only its items. A label is the source's, never the script's: whatever a
+script composes is observed.
+
+A request needs a plane with the write bit on each stratum its script requires (DOR-1), so a
+read-only grant refuses it when it is compiled; the checking pass also refuses an unknown script
+or parameter, a missing argument, and a store whose content may carry a label its place does not
+take, all before anything is read. An admitted request is written into the spool of the role that
+spoke it (`data/handoff/door/<role>/`); the daemon drains the spools each tick, compiles each
+request again under the spool's grant, and lands it. The answer is the receipt, one hit of
+stratum `door` titled by the script; the receipt beside the request says `queued` with the job,
+then `landed` with each effect's outcome (counted by status, what changed or was refused named,
+with the rule), or `refused` with why. The Ambassador's tools `sync_notes`, `sync_dialogue`,
+`dream`, `relate`, `capture` and `link` are these requests. A capture lands observed under
+`dialogue/door/<role>/<conversation>/`, and `relate` judges at most fifty pairs. From Open WebUI,
+`query` speaks only `do capture(…)`, `do sync_dialogue` and `do sync_vault`, never a script
+inline. A role's share of the queue is bounded by lane (captures, and the rest), and a request
+past it is refused as busy. The query log keeps a request with its quoted texts replaced by their
+lengths. No script yet for research, a paper's manifest, one commit's backfill or observation, or
+one session's transcript: a request for one is refused as a script the library does not hold.
 
 ## 3. Read the answer
 

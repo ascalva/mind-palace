@@ -1,0 +1,3 @@
+# A relation pass over at most `pairs` candidate pairs, one model call each.
+param pairs = 24
+run "relate" with pairs: pairs
