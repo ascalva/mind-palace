@@ -3,11 +3,11 @@
 [![CI](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml)
 [![Lean](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml)
 [![laws](https://img.shields.io/badge/laws-79_rows_in_11_families-blue)](docs/LAWS.md)
-[![Lean statements](https://img.shields.io/badge/Lean-205_statements_judged-blue)](formal/README.md)
+[![Lean statements](https://img.shields.io/badge/Lean-225_statements_judged-blue)](formal/README.md)
 [![sorry](https://img.shields.io/badge/sorry-0-brightgreen)](formal/sorry-budget)
 [![kernels](https://img.shields.io/badge/kernel_replay-6_checkers-6f42c1)](formal/check.sh)
-[![attacks](https://img.shields.io/badge/attacks-96_with_controls-blue)](formal/PalaceTest)
-[![tests](https://img.shields.io/badge/tests-2786-brightgreen)](docs/runbook.md)
+[![attacks](https://img.shields.io/badge/attacks-93_with_controls-blue)](formal/PalaceTest)
+[![tests](https://img.shields.io/badge/tests-2861-brightgreen)](docs/runbook.md)
 [![coverage](https://img.shields.io/badge/coverage-85%25-green)](pyproject.toml)
 [![mypy](https://img.shields.io/badge/mypy-0_errors_in_core-brightgreen)](pyproject.toml)
 [![sealed core](https://img.shields.io/badge/sealed_core-zero_egress-6f42c1)](scripts/check_imports.py)
@@ -121,7 +121,7 @@ A law has one row in [`docs/LAWS.md`](docs/LAWS.md): its statement, the structur
 | | |
 |---|---|
 | toolchain | Lean `v4.36.0-rc2`, Mathlib; Plausible for the attacks |
-| the library | 25 proof modules, 24 models, 19 statement files; 13,654 lines of models and proofs, 2,370 of statements, 2,575 of attacks |
+| the library | 25 proof modules, 24 models, 19 statement files; 13,654 lines of models and proofs, 2,370 of statements, 2,577 of attacks |
 | theorems | 816 proved in `formal/Palace`; 225 statements in `formal/Spec` judged identical by the comparator |
 | the ledger | 79 rows in 11 families, 231 cited declarations, 66 law markers checked against the rows |
 | attacks | 93 Plausible attacks and 85 negative controls over 21 modules, fixed seeds |
