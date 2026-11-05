@@ -7,7 +7,7 @@
 [![sorry](https://img.shields.io/badge/sorry-0-brightgreen)](formal/sorry-budget)
 [![kernels](https://img.shields.io/badge/kernel_replay-6_checkers-6f42c1)](formal/check.sh)
 [![attacks](https://img.shields.io/badge/attacks-117_with_controls-blue)](formal/PalaceTest)
-[![tests](https://img.shields.io/badge/tests-2942-brightgreen)](docs/runbook.md)
+[![tests](https://img.shields.io/badge/tests-3036-brightgreen)](docs/runbook.md)
 [![coverage](https://img.shields.io/badge/coverage-85%25-green)](pyproject.toml)
 [![mypy](https://img.shields.io/badge/mypy-0_errors_in_core-brightgreen)](pyproject.toml)
 [![sealed core](https://img.shields.io/badge/sealed_core-zero_egress-6f42c1)](scripts/check_imports.py)
@@ -121,12 +121,12 @@ A law has one row in [`docs/LAWS.md`](docs/LAWS.md): its statement, the structur
 | | |
 |---|---|
 | toolchain | Lean `v4.36.0-rc2`, Mathlib; Plausible for the attacks |
-| the library | 27 proof modules, 26 models, 21 statement files; 15,560 lines of models and proofs, 2,620 of statements, 3,057 of attacks |
+| the library | 27 proof modules, 26 models, 21 statement files; 15,563 lines of models and proofs, 2,620 of statements, 3,072 of attacks |
 | theorems | 912 proved in `formal/Palace`; 248 statements in `formal/Spec` judged identical by the comparator |
 | the ledger | 87 rows in 12 families, 254 cited declarations, 74 law markers checked against the rows |
-| attacks | 117 Plausible attacks and 103 negative controls over 23 modules, fixed seeds |
+| attacks | 117 Plausible attacks and 104 negative controls over 23 modules, fixed seeds |
 | axioms | `propext`, `Classical.choice`, `Quot.sound`; `sorry` 0 |
-| the replay | 45,522 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
+| the replay | 45,523 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
 | families | memberships · Laplacian, balance and spectral · cut and conductance · curvature · the global event clock · the shared prose plane · capability scopes · the abstraction ultrametric σ* · bridges · the retrieval curve · the query sentence algebra · the door |
 
 ## The mathematics
@@ -177,7 +177,7 @@ The build's own history is a dataset. Every commit's structure is snapshotted in
 
 ```sh
 uv sync --extra dev
-uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'   # the deterministic tier: 2,786 tests
+uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'   # the deterministic tier: 3,036 tests
 uv run mypy                                        # strict core: 0 errors (the 69 in tests/ are pinned)
 uv run python scripts/check_imports.py             # the sealed core names no network module
 uv run python -m ops.type_gate                     # every core-reaching package is type-checked

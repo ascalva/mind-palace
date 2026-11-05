@@ -109,9 +109,10 @@ read sentences nested in backquotes (`` `near $topic` ``), and writes nothing: i
 of effects (`store`, `retire`, `link`, `run`). The daemon evaluates it under the speaking role's
 budget of work (gas), and its one writer lands the plan effect by effect under the palace's rules:
 a place takes only its labels, a role writes only its namespace, authored bytes land only where
-they were written, a path's label and identity are fixed once stored, a retire only reconciles,
-and a source's paths take only its items. A label is the source's, never the script's: whatever a
-script composes is observed.
+they were written and under their own title, a path's label and identity are fixed once stored, an
+identity is the one an item declares, a retire only reconciles and only the owner's role retires
+the owner's rows, and a source's paths take only its items. A label is the source's, never the
+script's: whatever a script composes, a string read off an item included, is observed.
 
 A request needs a plane with the write bit on each stratum its script requires (DOR-1), so a
 read-only grant refuses it when it is compiled; the checking pass also refuses an unknown script
