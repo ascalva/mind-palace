@@ -40,8 +40,10 @@ ROW = re.compile(r"^\|\s*([A-Z]{2,4}-\d+)\s*\|")
 CELL_SPLIT = re.compile(r"(?<!\\)\|")
 REF = re.compile(r"`([A-Za-z0-9]+\.lean)::([^`\s]+)`")
 MARKER = re.compile(r"^\s*/--\s*\*\*([^*]+)\*\*")
+# a declaration's head: any `set_option … in` prefixes, any attribute blocks, any modifiers
 DECL = re.compile(
-    r"^\s*(?:@\[[^\]]*\]\s*)?(?:(?:private|protected|public|meta|noncomputable|partial|unsafe)\s+)*"
+    r"^\s*(?:set_option\s+\S+\s+\S+\s+in\s+)*(?:@\[[^\]]*\]\s*)*"
+    r"(?:(?:private|protected|public|meta|noncomputable|partial|unsafe|nonrec)\s+)*"
     r"(theorem|lemma|def|abbrev|instance|structure|inductive|class|example)\b\s*([^\s:({\[]*)"
 )
 NAMESPACE = re.compile(r"^namespace\s+(\S+)")
@@ -111,9 +113,11 @@ def resolve(decls: dict[str, list[str]], name: str) -> list[str]:
     return [full for full in decls if full == name or full.endswith("." + name)]
 
 
-def ledger_rows() -> tuple[dict[str, list[tuple[str, str]]], list[str]]:
-    """Each row's law id with the `(file, name)` refs of its formal column, and any defects."""
+def ledger_rows() -> tuple[dict[str, list[tuple[str, str]]], list[str], dict[str, str]]:
+    """Each row's law id with the `(file, name)` refs of its formal column, any defects, and each
+    row's label."""
     rows: dict[str, list[tuple[str, str]]] = {}
+    labels: dict[str, str] = {}
     problems: list[str] = []
     for n, line in enumerate(LEDGER.read_text().splitlines(), 1):
         m = ROW.match(line)
@@ -130,11 +134,12 @@ def ledger_rows() -> tuple[dict[str, list[tuple[str, str]]], list[str]]:
         if not refs and cells[6] != "—":
             problems.append(f"LAWS.md:{n}: {law}'s formal column is neither `—` nor a ref")
         rows[law] = refs
-    return rows, problems
+        labels[law] = cells[4]
+    return rows, problems, labels
 
 
 def main() -> int:
-    rows, problems = ledger_rows()
+    rows, problems, labels = ledger_rows()
     families = sorted({law.split("-")[0] for law in rows})
     law_id = re.compile(r"\b(?:" + "|".join(families) + r")-\d+\b")
     theorems: set[str] = set()
@@ -153,6 +158,7 @@ def main() -> int:
     cited = 0
     cited_theorems: set[str] = set()
     for law, refs in rows.items():
+        row_theorems = 0
         for file, name in refs:
             cited += 1
             if file not in lean:
@@ -170,6 +176,7 @@ def main() -> int:
                 problems.append(f"{law}: cites {file}::{name}, whose docstring is not marked {law}")
             if full not in theorems:
                 continue  # a definition: it belongs to the model, Palace/*/Defs.lean
+            row_theorems += 1
             cited_theorems.add(full)
             stated_markers = spec.get(file, {}).get(full)
             if stated_markers is None:
@@ -178,6 +185,10 @@ def main() -> int:
                 problems.append(f"{law}: formal/Spec/{file}::{name} is not marked {law}")
             if full not in judged:
                 problems.append(f"{law}: {full} is not in formal/comparator.json")
+        # a row whose formal column names definitions only proves nothing: it must say so
+        if refs and not row_theorems and "Definition" not in labels.get(law, ""):
+            problems.append(f"{law}: cites only definitions, so its label must be Definition, "
+                            f"not {labels.get(law, '')!r}")
 
     for name in sorted(stated - cited_theorems):
         problems.append(f"formal/Spec/ states {name}, which no row cites")

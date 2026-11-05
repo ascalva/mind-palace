@@ -25,7 +25,10 @@ Each family comes in three parts:
 `lake comparator` judges the proofs against the statements (`comparator.json`): each theorem in
 `Spec/` is proved in `Palace` with exactly the same statement, from the standard axioms, and
 everything the statements reach passes Lean's kernel and five independent checkers. A proof file
-therefore cannot change what is proved: only `Spec/` and the model can. Whether a statement says
+therefore cannot change what the ledger's laws state: only `Spec/` and the model can. The design
+theorems (Sever, Frustration, Leak, Transport, and the parts of Magnetic and NegativeType no row
+cites) have no `Spec/` statements yet: the kernel replays their proofs, but their statements live
+in the proof files, which can change them, until code relies on them and a row cites them. Whether a statement says
 what its row says stays a reader's judgment, and the reading is now confined to those two places;
 `scripts/check_laws_xref.py` makes sure each cited theorem is in `Spec/` under its row's law id, and
 the comparator makes sure `Spec/` is what the library proves. The arrangement is the one OpenAI's
@@ -108,28 +111,36 @@ Roundoff and FloatModel, so it has no statements of its own):
   the one-state automaton, a hypothetical edge only adds chains. QSA-8 the mode table of
   `core/query.py::mode_of` after `required`, verb by verb. QSA-9 the response to a hypothetical
   edge: a rank-one update of `L` along `e_u − e_v` and of `L̄` along `e_u − σ e_v`; adding weight
-  lowers every effective resistance and removing it raises every one (CND-2 both ways); a
-  contradiction keeps the camps' balance iff its sign agrees with them and otherwise lifts the zero
-  mode (LAP-5, LAP-6); Sherman–Morrison for the inverse. The code in `core/sentence/` transcribes
-  them, so QSA-1 to QSA-5 and QSA-7 to QSA-9 are the ledger's family XI (`Spec/Sentence.lean`,
-  26 statements); QSA-6 is cited from the note.
+  raises no effective resistance and removing it lowers none (CND-2 both ways); the given camps
+  balance a new signed edge iff its sign agrees with them, and a disagreeing edge between notes
+  already joined by a path is frustrated for any camps and lifts the zero mode on a connected
+  support (LAP-5, LAP-6); Sherman–Morrison for the inverse of an invertible matrix. The code in
+  `core/sentence/` transcribes them, so QSA-1 to QSA-5 and QSA-7 to QSA-10 are the ledger's family
+  XI (`Spec/Sentence.lean`, 32 statements); QSA-6 is cited from the note. The model's `within`
+  takes its region as an opaque value, so QSA-5 and QSA-6 cover a sentence without the region's
+  own clauses; the code admits those too, which can only add refusals.
 - `Bridges`: theorems that join two families, so that what one proves serves the other: BRG-1
   the Laplacian as `∂₁ ∂₁ᵀ`, BRG-2 Euler and Poincaré on the flag complex, BRG-3 Thomson's
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
-- `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the 205 cited
-  theorems, and the three standard axioms.
+- `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the cited theorems
+  (225), and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
-  (macOS has no `bwrap`); CI runs the comparator itself.
+  (macOS has no `bwrap`); CI runs the comparator itself. It is weaker than the comparator: it
+  compares the statements' types and the definitions' values, not constructors, recursor rules or
+  axioms, which is enough while both sides load the same `Defs` oleans.
 - `Export.lean`: writes the export of every `Palace` declaration and everything it uses, which
-  `check.sh` replays through the kernel checkers.
-- `PalaceTest/`: the attacks, one module per `Palace` module, as Mathlib keeps its tests in
-  `MathlibTest`. `lake test` builds them, which runs every attack and negative control.
+  `check.sh` replays through the kernel checkers. It checks itself first: every judged theorem is
+  exported, every module contributes, and only the unsafe compiler helpers are left out, and
+  `check.sh` holds its count to the audit's, since a checker accepts an empty export.
+- `PalaceTest/`: the attacks, one module per ledger family's `Palace` module (the design theorems
+  have none), as Mathlib keeps its tests in `MathlibTest`. `lake test` builds them, which runs every attack and negative control.
   `PalaceTest/Attack.lean` holds `survives` and `refuted`, which run Plausible with a fixed seed and
   count the instances that passed their guards.
 - `Audit.lean`: lists the axioms behind every `Palace` declaration and fails on anything beyond
-  `propext`, `Classical.choice`, `Quot.sound` and `sorryAx`.
+  `propext`, `Classical.choice` and `Quot.sound`, or on more declarations resting on `sorryAx` than
+  `sorry-budget` allows, which catches a `sorry` the textual count misses.
 - `sorry-budget`: the ratchet. The count of `sorry` must equal it; it only goes down.
 - `check.sh`: the gate. It builds the library (warnings fail it) and the statements, runs the
   attacks (`lake test`) and Batteries' environment linters (`lake lint`), checks that the root
@@ -169,7 +180,7 @@ Roundoff and FloatModel, so it has no statements of its own):
 | CRV-2, CRV-3 | on two cliques and a bridge the bridge lens emits exactly the bridge, for every clique size and every `top_k ≥ 1`: by the `κ ≤ 0` rule from two vertices per clique, by the minimum rule for one | proved |
 | CLK-1 (C1, C2) | a clock monotone along `≼` (C1) into a partial order has convex fibers (C2), so C2 adds nothing to C1; C1 needs checking only on the generator edges | proved, with witnesses that C2 needs antisymmetric ticks and does not give C1; attack survived 472 |
 | CLK-2 (cuts) | a set is a cut (a down-set of `≼`) iff no generator edge reads into it from outside; cuts are closed under ∩ and ∪; a frontier cut needs only its cross-store edges checked; certificates compose by the pointwise minimum and maximum of their frontiers | proved; attacks survived 500 each |
-| CLK-3 (GC-N6) | proper time, the longest chain, is 0 at a point, at least 1 across a strict step, finite on a finite `N`, satisfies `τ(a, b) + τ(b, c) ≤ τ(a, c)` for `a ≤ b ≤ c`, and is bounded by the tick difference of any strictly monotone clock | proved; the reverse triangle survived 500 random DAGs on the longest-path recursion |
+| CLK-3 (GC-N6) | proper time, the longest chain in steps, is 0 at a point, at least 1 across a strict step, finite on a finite `N`, satisfies `τ(a, b) + τ(b, c) ≤ τ(a, c)` for `a ≤ b ≤ c`, and is bounded by the tick difference of any strictly monotone clock; in events, as `Spine.proper_time` counts (`eventCount`), it is 1 at a point, symmetric, 0 exactly when concurrent, and its triangle holds up to the middle event counted twice | proved; the reverse triangle survived 500 random DAGs on the longest-path recursion, and the event laws 500 on the code's own count, whose unshifted triangle is refused |
 | CLK-4 | `≼` is a partial order when the generator edges have no cycle; a cycle through two events breaks antisymmetry | proved, with the witness; attack survived 500 forward-edge graphs |
 | CND-4 | `H_t = e^{−tL}` is symmetric, `H_0 = 1`, `H_{s+t} = H_s H_t`; the code's `d_t = √(G_ii + G_jj − 2G_ij)` with `G = H_{2t}` is the Euclidean distance between `H_t eᵢ` and `H_t eⱼ`, so a metric that separates every two vertices for every `t`, across components too; for symmetric `A ≥ 0`, `d_t` is non-increasing in `t` | proved; its two exact steps survived 500 each |
 | CND-2 | Rayleigh's law: adding weight never raises effective resistance (`∞` across components) nor lowers effective conductance (`0` across), so a rise needs a weight-increased edge; through Thomson's principle, `2vᵀx − xᵀMx ≤ vᵀM⁺v` for `v` fixed by `M M⁺`, which by the Penrose equations alone is every `v` orthogonal to `ker M` | proved; attack survived 500 |
@@ -215,7 +226,7 @@ Roundoff and FloatModel, so it has no statements of its own):
 | QSA-5 | admissibility is clause-wise; `assume` needs a plane naming the overlay, which the Ambassador's grant lacks; a result under `assume` is never `Inv` | proved, by `decide` and by structure |
 | QSA-7 | a chain is admissible iff the product walk accepts; dead-state pruning is sound; an added edge only adds chains; the set `E` is the one-state automaton | proved; attacks survived 500 each |
 | QSA-8 | `mode_of ∘ required`, verb by verb | proved |
-| QSA-9 | a hypothetical edge is a rank-one update of `L` and of `L̄`; both Rayleigh directions; the camps test; Sherman–Morrison | proved; attacks survived 495, 495, 500 and 484 |
+| QSA-9 | a hypothetical edge is a rank-one update of `L` and of `L̄`; both Rayleigh directions; the given camps balance a new signed edge iff its sign agrees, and a disagreeing edge closing a path is frustrated for any camps; Sherman–Morrison for an invertible matrix | proved; attacks survived 495, 495, 500 and 484 |
 
 The binarized forms (0/1 adjacency) reduce to Mathlib's `SimpleGraph.posSemidef_lapMatrix` and
 `card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix` in one line each.
@@ -454,7 +465,10 @@ The package follows Mathlib's own arrangement (`lakefile.toml`): `lake test` bui
 Mathlib supports only the toolchain it is built with.
 
 Every file is a module of Lean's module system, which Mathlib asks of the files that import it
-(Lake warns otherwise). The library runs nothing while it builds, so it imports plainly; each
+(Lake warns otherwise). The library runs nothing while it builds, and `check.sh` refuses, before
+it builds anything, a source that would (`scripts/check_formal_sources.py`: no command run at
+elaboration, no macro or elaborator of its own, no `unsafe`, no `IO`, no option but the
+elaboration budgets), so it imports plainly; each
 attack module imports its dependencies twice, as `public import` and again as `public meta import`,
 because its attacks run code while it builds. Definitions are exposed throughout
 (`@[expose] public section`): the laws are about them and their proofs unfold them, often from
@@ -463,7 +477,7 @@ another module, and without it 68 proofs in seven files fail. One instance is wr
 to importers (`Palace/Scope.lean`).
 
 The kernel re-check. `Export.lean` writes every `Palace` declaration and everything it uses, from
-`Init` up (44,118 declarations), and `check.sh` replays that export from nothing through Lean's
+`Init` up (44,967 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
 kernel and the five independent checkers bundled with Lean: `leanchecker-paranoid`, `lean4lean` (a
 kernel written in Lean), `nanoda` (one written in Rust), and `con-leche`, whose acceptance carries a
 machine-checked theorem that the environment holds no proof of `False`, with `con-ron`, its port.
@@ -473,8 +487,8 @@ export route replays strictly more. The compiler's `_unsafe_rec` helpers stay ou
 nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
-does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the 199
-statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
+does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the
+225 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.
 

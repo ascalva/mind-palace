@@ -1,5 +1,11 @@
 # The Agent Workflow — Operator's Reference (Mind Palace)
 
+> **Retired (155f5ef, 2026-11-04).** The hooks, `.claude/hooks/` and the ratification regime this
+> reference describes were removed; they had already been switched off. What remains of the
+> controls is CI's: `ci.yml`'s foundation denylist job, the import firewall and the test tiers,
+> and the L1 gate (`formal/check.sh`), with the owner's review of every merge. The text below is
+> the system as it was, kept for its reasoning, not a description of the repo today.
+
 *Internal reference for the brainstorm → design → build → reflection machinery in
 this repo. A lookup document — not a tutorial, not the portable write-up. It
 describes the system **as built**, warts included, so future-you stops

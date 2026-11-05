@@ -6,8 +6,10 @@ public meta import Plausible
 /-!
 # Counterexample attacks
 
-Every L1 statement carries a Plausible attack (dn-mathematical-foundations §2.4): its executable
-instance over exact arithmetic is run on random inputs before anyone tries to prove it.
+The ledger's laws carry Plausible attacks where they have an executable instance over exact
+arithmetic (dn-mathematical-foundations §2.4): it is run on random inputs before anyone tries to
+prove it. Not every statement has one (a law over the reals with no exact instance, one about the
+model's own definitions), and the design theorems have none.
 
 Plausible's own suite reports success once a single instance passes its guards, so an attack whose
 guard almost never holds looks the same as a thorough one. These helpers run the same sizes and

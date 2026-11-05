@@ -1,11 +1,15 @@
 #!/bin/sh
 # The L1 gate (dn-mathematical-foundations §2.4), run locally and by the advisory `lean` CI job:
-# build the library and its specification, run the attacks, lint, hold the sorry count to the
-# budget, keep the axiom escape shut, replay the library through the kernel, judge it against the
-# specification, and check the cross-reference between docs/LAWS.md and the statements.
+# refuse build-time code before anything builds, build the library and its specification, run the
+# attacks, lint, hold the sorry count to the budget, keep the axiom escape shut, replay the library
+# through the kernel, judge it against the specification, and check the cross-reference between
+# docs/LAWS.md and the statements.
 set -eu
 cd "$(dirname "$0")"
 
+# First, before any build: a command that runs at elaboration time would run while the library
+# builds, before any checker looks, and could rewrite a checker or the oleans the comparator reuses.
+python3 ../scripts/check_formal_sources.py
 lake build --wfail Palace # the model and the proofs: nothing runs at build time, nothing warns
 lake build --log-level=error Spec # the statements, each proof `sorry` by design
 lake test # PalaceTest: every Plausible attack and negative control
@@ -31,15 +35,30 @@ if grep -nwE 'axiom|admit|native_decide' Palace.lean Palace/*.lean Palace/*/*.le
   echo "axiom escape: the lines above" >&2
   exit 1
 fi
-lake env lean Audit.lean
+audit=$(lake env lean Audit.lean 2>&1) || { printf '%s\n' "$audit" >&2; exit 1; }
+printf '%s\n' "$audit"
+audited=$(printf '%s\n' "$audit" | grep -o '[0-9][0-9]* declarations audited' | cut -d' ' -f1)
+if [ -z "$audited" ]; then
+  echo "the audit reported no count" >&2
+  exit 1
+fi
 
 # The kernel re-check: every Palace declaration and everything it uses, from Init up, exported and
 # replayed from nothing through Lean's kernel and the five independent checkers bundled with Lean,
 # two of them formally verified (con-leche, con-ron). (`leanchecker Palace`, which replays each
 # module on top of its imports, crashes in its import loader on this layout, 4.36.0-rc2.)
 export=$(mktemp "${TMPDIR:-/tmp}/palace-export.XXXXXX")
-trap 'rm -f "$export" "$export.nanoda.json"' EXIT
-lake env lean --run Export.lean > "$export"
+trap 'rm -f "$export" "$export.nanoda.json" "$export.log"' EXIT
+lake env lean --run Export.lean > "$export" 2> "$export.log" || { cat "$export.log" >&2; exit 1; }
+cat "$export.log"
+counts=$(sed -n 's/^export: \([0-9][0-9]*\) Palace declarations, \([0-9][0-9]*\) unsafe.*/\1 \2/p' \
+  "$export.log")
+set -- $counts
+if [ "$#" -ne 2 ] || [ "$(($1 + $2))" -ne "$audited" ]; then
+  echo "the export (${1:-?} exported, ${2:-?} left out) does not account for the" \
+    "${audited:-?} declarations the audit saw" >&2
+  exit 1
+fi
 lake env leanchecker --silent --from-export "$export"
 lake env leanchecker-paranoid --silent --from-export "$export"
 lake env lean4lean --import "$export" > /dev/null
