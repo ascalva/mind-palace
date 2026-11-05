@@ -122,11 +122,13 @@ A balanced signed graph keeps the zero mode of `L̄`; a contradiction lifts it
 least number of edges whose sign flip restores balance — `λ_min(L̄) ≤ 4·w_max·frustration / n`
 and `λ_min(L̄) > 0` iff unbalanced. The hypothetical `assume contradict a b` is then a measurement
 of how far one contradiction moves the spectrum: a single frustrated edge on a dense balanced
-graph barely lifts it; on a tree it is the whole story. *Status — measured, and the bound is a
-theorem:* on the live instance's 20 relation edges (12 notes, one component; scratch script
-`l4_frustration.py`, read-only) the graph is already unbalanced — frustration index 1, weight
-`F_w = 0.831`, `λ_min(L̄) = 0.190` — and every one of the 20 single flips holds the bound (largest
-ratio 0.69). The bound holds for a reason: the switching `s ∈ {±1}^V` that balances all but the
+graph barely lifts it; on a tree it is the whole story. *Status: measured, and the bound is a
+theorem.* On the live instance's 20 relation edges (12 notes, one component; a scratch script,
+read-only, since kept as `eval/frustration_lift.py`) the graph is already unbalanced (frustration
+index 1, weight `F_w = 0.831`, `λ_min(L̄) = 0.190`), and every one of the 20 single flips holds
+the bound (largest ratio 0.69). The script summed parallel edges, so a pair that both supports
+and contradicts read as no edge; it reads the multigraph since the review of 2026-11-05, and
+these numbers stand until a re-run on the live edges says otherwise. The bound holds for a reason: the switching `s ∈ {±1}^V` that balances all but the
 frustrated edges has `sᵀ L̄ s = Σᵢⱼ (|Aᵢⱼ| − Aᵢⱼ sᵢ sⱼ) = 4·F_w` and `sᵀ s = n`, so the Rayleigh
 quotient gives `λ_min(L̄) ≤ 4·F_w / n ≤ 4·w_max·frustration / n` — the conjecture with the weighted
 frustration in place of the count, which is sharper. *Machine-checked (Palace/Frustration.lean,
