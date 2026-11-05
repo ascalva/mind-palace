@@ -370,3 +370,33 @@ references:
   - docs/brainstorms/palace-instances-as-nodes.md
   - docs/tracks/deployed-instances.md   # DI-2, issue #25
 ```
+
+## 2026-11-05T17:19:00Z
+
+```capsule
+topic: prediction-market-sensor-fusion
+date: 2026-11-05
+
+seed (owner, verbatim):
+  - "what would be an appropriate name for the new instance, that is concerned with finance and
+    predictions, that fits the current theme? close pr 6 and open a fresh one for all this work
+    yes it’s ok for claude to read since this is a disjoint instance
+    yes dreamers should be able to be used here, especially the diachronic dreamer, we can test
+    different models as well for the dreamer (if needed) yes for having it be its own podman
+    machine
+    this experiment should be able be to be running in the background for days or even weeks, of
+    course we’ll constantly be validated, testing, making tweaks, but this will be a long running
+    experiment, so what apis, if any, would be beneficial for us to make use of here?"
+
+decisions:
+  - RULED: Claude may read the sibling's corpus (a disjoint instance); the dreamers run there,
+    the diachronic dreamer especially, with their models compared as arm variants; the
+    diachronic park lifts there; the sibling gets a podman machine of its own. Design note §8.
+  - PR #6 (dn-prediction-castles) closes at the owner's word, and its note travels unchanged into
+    the fresh PR with this work: the castles' prediction unit, a supersession event, is what the
+    sibling's asset trunks resolve on schedule (design note D8).
+  - A LONG RUN WILL BE TWEAKED, so a tweak is a variant: every forecast carries its arm's config
+    digest, and the protocol pins the arms the primary comparison names (design note D4).
+  - THE NAME, proposed: Moneta (memory, a warning, money); open until the owner picks.
+  - THE SERVICES for a run of weeks: design note D10.
+```

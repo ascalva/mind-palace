@@ -3,7 +3,7 @@ type: design-note
 id: dn-market-forecast-experiment
 track: scored-beliefs
 status: draft                  # provenance description, never a gate; the owner's merge is ratification
-implementation: building       # E1 (the ledger, the scorer, the controls) built 2026-11-05; E2 onward follow (§4)
+implementation: building       # E1 (the ledger, the scorer, the controls) built 2026-11-05; the owner's rulings of 2026-11-05 in §8; E2 onward follow (§4)
 created: 2026-11-05
 updated: 2026-11-05
 links:
@@ -43,13 +43,14 @@ whichever way it comes out.
 - **D7** the sibling instance: posture, topology, scheduling.
 - **D8** the data model for assets (the owner's supersession seed).
 - **D9** crypto as a second universe.
+- **D10** running for weeks: the sources and the services.
 
 ### 1.2 Out of scope
 
 - **Money.** Paper only. July's ruling stands, and no effector exists (finding-0011).
 - **Ouroboros.** Nothing here reads or writes it. The experiment runs in a sibling or, before the
   sibling exists, in no palace at all (E2).
-- **The dreamer arm's grant.** The owner's call (§8). The dreamers join last (E5).
+- **The dreamer arm's code.** Ruled in (§8); built in E5.
 - **Fetchers and the Claude arms' code.** E2, edge-side, after this note.
 
 ### 1.3 The bar
@@ -126,7 +127,7 @@ BL-5 admits first, resolved by a later cut.
 | F | Claude with web search and the same notes as flat text | the web and the notes, no graph |
 | L | the local model with the sibling's `query`, no web | the palace |
 | I | graph instruments to a probability (logistic, fitted walk-forward) | prices and the graph |
-| D | the dreamers' beliefs, with a stated credence | the grant the owner rules (§8) |
+| D | the dreamers' beliefs, with a stated credence, one variant per narration model | market data and the research notes, under the sibling's grant (§8) |
 
 **The comparison that answers the owner's question is P against W:** the same model and the same
 web access, with and without the palace. Every arm against M asks whether there is an edge at
@@ -137,6 +138,17 @@ The model arms forecast without seeing the market's price, so they report indepe
 rather than an anchor. For W this is best effort (`blocked_domains` keeps the market sites out,
 but articles quote odds); for P and L, Σ enforces it. A combination with the market price is a
 fixed formula fitted on the first weeks, never the model's own adjustment.
+
+**Variants.** An arm may name a variant after a colon (`D:qwen3.8-27b`, `D:claude-opus-5-5`,
+`P:v2`). Each registered variant is an arm of its own, so the dreamer's models (the owner: "we
+can test different models as well for the dreamer") and any revision of an arm are compared the
+way arms are.
+
+**Pinned arms.** Every forecast carries the digest of its arm's configuration (model, prompt,
+tools), and the protocol pins the digests of the arms the primary comparison names. A forecast
+from a pinned arm with a different digest is refused, and once forecasts exist a pin cannot
+change. A run of several weeks will be tweaked; a tweak is a new variant, never a silent change to
+P or W.
 
 ### D5. The ledger
 
@@ -207,21 +219,22 @@ real noise instead, and says nothing about the real mean.
   the attestation key, the spool, the supervisor lock) before it boots. The bench branch has the
   first half (§9).
 - **Posture.** Public data only; paper only; no effector; the corpus is public by construction.
-  Whether a third party may read it (bright line 11, for arm P) is the owner's explicit call,
-  declared in the instance's posture, never inferred from the data being public (the instances
-  capsule: "loosening by analogy").
+  A third party may read it (bright line 11): ruled by the owner on 2026-11-05, "since this is a
+  disjoint instance", and declared in the instance's posture rather than inferred from the data
+  being public (the instances capsule warned against "loosening by analogy").
 - **Topology,** extending the bench profile:
-  - a podman machine of its own (the instances capsule: "each one must live in its own node";
-    the shared 2 GiB machine has no headroom, §9);
+  - a podman machine of its own (ruled 2026-11-05; the instances capsule: "each one must live in
+    its own node"; the shared 2 GiB machine has no headroom, §9);
   - `core`: network `none`, loopback shared with `embedder` as the bench does, read-only root,
     every capability dropped, an unprivileged user, named volumes only;
   - `edge`: an internal network whose only route out is an allowlisting proxy; holds the API key
     as a podman secret; writes requests into the spool volume, which the core drains (the door);
   - the ledger in a volume of its own.
-- **Arm P's queries.** Strict default: the edge asks through the spool and the core answers into
-  an outbox, so the corpus never sits in a component with egress. The alternative, the edge
-  reading the data volume read-only (readers need no lock, DOR-12), is simpler and puts the
-  corpus beside the network; it is allowed only if the owner's posture ruling says so.
+- **Arm P's queries.** The posture ruling allows the simpler shape: the edge reads the data
+  volume read-only (readers need no lock, DOR-12) and reaches the embedder on an internal
+  network. The core stays sealed either way, and the corpus still changes only through the
+  spool. The stricter shape (the core answers into an outbox) stays available if the posture
+  narrows.
 - **Scheduling.** Run-to-completion rounds started by a host job the owner installs, not a daemon.
   The launchd labels hard-coded in `ops/lifecycle/launcher.py` (`com.mind-palace.palace`) and
   `ops/heartbeat.py` (`com.mind-palace.tick`) never come into play.
@@ -277,6 +290,29 @@ questions on one coin, nineteen years of daily questions on a stock. That pace s
 the model arms stay daily. Co-movement is computed after removing the Bitcoin factor, or every
 coin is one cluster.
 
+### D10. Running for weeks: the sources and the services
+
+The owner wants the experiment "running in the background for days or even weeks", validated and
+tweaked throughout. So every source is an API with a published contract, every round leaves its
+records in the ledger, and silence raises an alarm. The edge's allowlisting proxy (D7) names
+exactly these hosts.
+
+| need | service | why |
+|---|---|---|
+| event questions, the baseline price, settlements | Kalshi's public market data (`api.elections.kalshi.com/trade-api/v2`, no key) | regulated; economics, financial and crypto series; settles on published criteria |
+| | Polymarket: Gamma (`gamma-api.polymarket.com`) to find markets, CLOB (`clob.polymarket.com/prices-history`) for prices | public reads; thinner books, so its prices can lag |
+| macro series, rates, VIX, vintages | FRED and ALFRED (free key) | ALFRED's real-time periods are D8's supersession and erratum for macro data |
+| official releases | BLS and BEA APIs (free keys); the Fed's FOMC calendar | what many event questions resolve on |
+| filings | SEC EDGAR (`data.sec.gov`, no key, a User-Agent that names a contact) | 8-K events, XBRL facts, 10-K customer disclosures for D8's witnessed links |
+| equity bars | Tiingo (free key) or Stooq (keyless) | daily bars; past index membership is not free, so model-free backtests carry survivorship risk |
+| crypto bars | Coinbase or Kraken public market data (no key) | every day, minute history |
+| crypto implied volatility | Deribit's public DVOL index | the VOLATILITY family's market price for BTC and ETH (access from the US to be checked) |
+| the news influx | GDELT (the DOC 2.0 API, updated every 15 minutes, free) | links, tone, themes and publication times, not article text: inside the licence gate |
+| research at forecast time | Claude's server-side web search and web fetch | arms W, P and F, with the market domains blocked |
+| the model arms | the Claude Messages API: structured outputs for the forecast record, prompt caching for the fixed prompts, Message Batches at half price for single-shot calls; llama.cpp for the local variants | one cache-stable prompt per arm, its digest pinned |
+| anchoring the ledger | OpenTimestamps (free, anchored in Bitcoin) beside a pushed commit | proof from outside the machine that each day's head existed before its outcomes |
+| liveness | a dead-man's switch (a Healthchecks.io ping per round) and a phone push (ntfy, which can run on the tailnet) | a missed round alerts: silence is not success |
+
 ## 4. Consequences: the order of work
 
 - **E1** (this note's branch): the ledger, the scorer, the controls, the blinded power reading.
@@ -289,7 +325,10 @@ coin is one cluster.
   query spool, arms P, F and L.
 - **E4:** arm I, backtested walk-forward and then run forward, on stocks and crypto; the asset
   trunks and the influence edges of D8.
-- **E5:** the dreamer arm, after the owner's grant rulings.
+- **E5:** the dreamer arm, synchronic and diachronic, with its narration models as variants. The
+  diachronic park lifts in this instance (§8), so the past-cut instruments it waits on (D moves at
+  the node grain, the snapshot, L7) are built here first, where one cut per trading day gives them
+  data at once.
 - **E6:** the comparison read once, at the N fixed after the pilot.
 
 ## 5. Wiring
@@ -315,22 +354,33 @@ the caller names. No default path writes into `data/`.
 ## 7. Parked decisions
 
 - Real money: never in this experiment.
-- The dreamer arm's grant, and any lift of the diachronic park in the sibling (§8).
 - Proving the scoring rules' strict properness and the Murphy decomposition in Lean (design
   theorems; textbook results, nothing in the code relies on a proof of them yet).
 
-## 8. Owner decisions
+## 8. Owner rulings and open calls
 
-1. The sibling's name, and its posture: in particular whether a third party may read its corpus
-   (bright line 11) for arm P.
-2. Whether the dreamers may read observed and interpreted strata in the sibling. "Mirror, not
-   oracle" fits a self-map, not a forecaster; the sibling's ground truth would be observed market
-   data.
-3. Whether the diachronic park lifts in the sibling first. Markets have a native clock (one cut
-   per trading day, every claim resolving on schedule), which makes it the easiest place to build
-   the past-cut instruments the park waits on.
-4. A podman machine of the sibling's own, and its size.
-5. E2's go-ahead: API spend for arm W, and the host job that starts each round.
+Ruled by the owner on 2026-11-05 (verbatim in the warrant's last capsule):
+
+1. **A third party may read the sibling's corpus** (bright line 11, for arm P): "yes it’s ok for
+   claude to read since this is a disjoint instance".
+2. **The dreamers run in the sibling, the diachronic dreamer especially, and their models are
+   compared** (D4's variants): "yes dreamers should be able to be used here, especially the
+   diachronic dreamer, we can test different models as well for the dreamer (if needed)".
+   "Mirror, not oracle" is the self-map's posture; here the ground truth is observed market data,
+   which the dreamers read under the sibling's own grant.
+3. **The diachronic park lifts in the sibling** (E5).
+4. **A podman machine of its own** for the sibling.
+5. **A long run**, validated and tweaked throughout: D4's pinned arms keep the tweaks off the
+   primary comparison, and D10 lists the services.
+
+Open:
+
+6. **The name.** Proposed: **Moneta**, instance id `moneta`. Moneta is the Latin name the Roman
+   poets gave Mnemosyne, memory; the word comes from *monere*, to remind or warn; and the temple
+   of Juno Moneta housed Rome's mint, which is where "money" and "mint" come from. Memory, a
+   warning, and money.
+7. **E2's go-ahead:** API spend for the model arms, the free keys D10 needs (FRED, Tiingo, BLS,
+   BEA), and the host job that starts each round.
 
 ## 9. Findings: the review of `feat/podman-bench`
 
@@ -355,7 +405,7 @@ PR).
    README's unbuilt `prod` profile: an edge with filtered egress.
 4. **Memory.** The default podman machine (2 vCPUs, 2 GiB) hosts the owner's containers (about
    1.3 GB); an embedder and a runner there made the kernel kill Open WebUI 13 times in one
-   afternoon before `oom_score_adj` was added. A daily sibling needs a machine of its own (§8.4).
+   afternoon before `oom_score_adj` was added. A daily sibling needs a machine of its own (ruled, §8 item 4).
 5. **Merge order.** The branch merges cleanly onto `build/ingest-door` (checked with
    `git merge-tree`), so it can land after the door's PRs.
 6. **Scheduling.** The bench runs to completion and starts no daemon; the sibling should keep
