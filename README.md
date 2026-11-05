@@ -38,7 +38,7 @@ Two surfaces, one grant. `mind-palace query "<sentence>"` runs a sentence read-o
 ## From a sentence to an answer
 
 ```mermaid
-flowchart LR
+flowchart TB
   Q["a question"] --> S["a sentence<br/>near · diffuse · reach · walk via · assume …"]
   S --> P["parse and sort<br/>field · region · chains · witness · text"]
   P --> A["admit, clause by clause<br/>QSA-5: each required scope under a granted plane"]
@@ -106,7 +106,7 @@ trace (the proof of work):
 ## How a law becomes a proof
 
 ```mermaid
-flowchart LR
+flowchart TB
   C["the code<br/>core/sentence · core/query · core/kernel"] --> L["the ledger row<br/>docs/LAWS.md: statement · anchor · falsifier"]
   L --> F["the Python falsifier<br/>Hypothesis, on the floats the code runs"]
   L --> SP["the Lean statement<br/>formal/Spec, over ℚ and ℝ"]
