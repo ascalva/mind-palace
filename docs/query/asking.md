@@ -42,6 +42,8 @@ Patterns:
 | near one thing, far from another | `near "x" and far near "y"` |
 | what the citers of a note say about a topic | `reach F from "n.md" back then near "x"` |
 | how a note reached another by citations | `walk from "a.md" to "b.md" via F+` |
+| which conversation turns wrote a file | `reach C from "core/query.py" depth 1 back` |
+| what a turn produced, and what those files cite | `walk from "transcript/<session>/<turn>" via CF depth 2` |
 
 **The strata.** A sentence reads the owner's notes unless it says `over <strata>`: `over curated`
 for the papers and the system's own docs, `over reference` for the repo's code and docs (hits name
@@ -84,9 +86,9 @@ show the work (§3).
 - **Hits carry provenance** (`authored_solo`, `authored_dialogue`, …) and, for regions and chains,
   their detail (the sign and type of a relation, a chain's word). Cite the ref; read the note
   before quoting it.
-- **`notes:` are part of the answer**: what this universe cannot answer (`D`/`C` moves at the note
-  grain are empty), what a bare field shows. An empty answer is loud and says which bound emptied
-  it — never a silent nothing.
+- **`notes:` are part of the answer**: what this universe cannot answer (`D` moves at the note
+  grain are empty), what a bare field shows, which causal endpoints are named but not readable.
+  An empty answer is loud and says which bound emptied it — never a silent nothing.
 - A **`Hyp`** result (under `assume`) is never an `Inv`: do not relay it as fact.
 - **`--trace` shows the work** (the MCP tool's `trace: true`): the proof of work rides with the
   answer — the parse and its sort; every rewrite of the normal form with the law it rests on

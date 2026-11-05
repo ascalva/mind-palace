@@ -64,4 +64,9 @@ def merge2 : Fin 2 → Fin 1 := fun _ ↦ 0
 Lean's `0⁻¹ = 0` drops the notes nothing was merged into. -/
 noncomputable def wdotInv (σ : A → B) (f g : B → ℝ) : ℝ := ∑ b, (fiber σ b : ℝ)⁻¹ * (f b * g b)
 
+/-- The confidence-weighted inner product of a view whose notes sit at derivation depths `d`:
+`⟨f, g⟩_{γ,d} = ∑_b γ^{d b} f_b g_b`, the weight `γ^d` of `core/kernel/recursion.py`'s decay
+bound (γ = 1/2 by default) — Result 6's confidence-weighted cochains (temporal-retrieval §2.3). -/
+def wdotDepth (γ : ℝ) (d : B → ℕ) (f g : B → ℝ) : ℝ := ∑ b, γ ^ d b * (f b * g b)
+
 end Palace.Transport

@@ -458,3 +458,20 @@ def test_grep_oracle_precision_and_recall_on_finding_planted(doc_repo):
         f"grep-oracle mismatch: extractor={extractor_targets} oracle={oracle_targets} "
         f"(recall gap: {oracle_targets - extractor_targets}, "
         f"precision gap: {extractor_targets - oracle_targets})")
+
+
+# --- the readers the sentence universe added -------------------------------------------------
+def test_latest_commit_is_the_last_landed_reading_and_edge_reads_by_id(tmp_path):
+    """`latest_commit` is the commit of the last reading that landed — the table is append-only,
+    so the last row by rowid, one B-tree descent (the sorted full scan it replaced took 2.5 s on
+    the live store); `edge` is the primary-key read `origin` and `witness` use."""
+    store = ReferenceEdgeStore(tmp_path / "refs.sqlite")
+    assert store.latest_commit() is None and store.edge("nope") is None
+    first = _edge(commit_sha="c1")
+    store.add_batch([first])
+    later = _edge(commit_sha="c0", source_line=2)      # an older commit, read later
+    store.add_batch([later])
+    assert store.latest_commit() == "c0"               # the last reading, not the newest sha
+    store.add_batch([later])                           # a re-read is ignored: nothing moves
+    assert store.latest_commit() == "c0"
+    assert store.edge(first.edge_id) == first and store.edge(later.edge_id) == later

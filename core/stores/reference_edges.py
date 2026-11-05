@@ -334,14 +334,27 @@ class ReferenceEdgeStore:
         sql += " ORDER BY edge_id"
         return [self._row(r) for r in self._conn.execute(sql, params).fetchall()]
 
+    def edge(self, edge_id: str) -> ReferenceEdge | None:
+        """One edge by its content id — the primary key, one B-tree descent. `origin` read the
+        whole table into Python to find it (three million rows on the live store); this is the
+        read it wanted."""
+        row = self._conn.execute(
+            "SELECT * FROM reference_edges WHERE edge_id = ?", [edge_id]).fetchone()
+        return self._row(row) if row else None
+
     def latest_commit(self) -> str | None:
         """The newest cut the store holds — the `commit_sha` of the last reading that landed
         (`created_at`), or None on an empty store. A read for the sentence universe (dn-query-
         sentence-algebra §2.9): a checkout whose HEAD the sensor never read has no edges at HEAD,
         so the universe reads the citation graph at this cut and says so in its answer. The view's
         own anchor (`_resolve_default_commit`) is unchanged: the active run, else HEAD."""
+        # The table is append-only (INSERT OR IGNORE, no delete), so the last row by rowid IS the
+        # last reading that landed — one B-tree descent. `ORDER BY created_at DESC LIMIT 1` was a
+        # full scan plus a sort of every row (2.5 s on the live store's three million edges,
+        # measured 2026-11-04), paid by every sentence whose anchor the store has no edges at.
         row = self._conn.execute(
-            "SELECT commit_sha FROM reference_edges ORDER BY created_at DESC LIMIT 1").fetchone()
+            "SELECT commit_sha FROM reference_edges "
+            "WHERE rowid = (SELECT max(rowid) FROM reference_edges)").fetchone()
         return str(row[0]) if row else None
 
     def commits_like(self, prefix: str) -> list[str]:

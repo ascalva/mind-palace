@@ -89,11 +89,8 @@ def origin(
     # Hop 1 — commit-keying: resolve `edge_id` to the commit key the reference edge carries. The
     # store exposes no by-id reader (adding one is out of scope: `core/stores/**` stays read-only),
     # so filter the read surface. `commit_sha` IS the minting-commit coordinate (edge identity).
-    commit_key = ""
-    for ref in reference_edges.all():
-        if ref.edge_id == edge_id:
-            commit_key = ref.commit_sha
-            break
+    ref = reference_edges.edge(edge_id)           # the primary-key read, never a table scan
+    commit_key = ref.commit_sha if ref is not None else ""
     if not commit_key:
         return None
 

@@ -172,6 +172,14 @@ class CausalEdgeStore:
             "SELECT * FROM causal_edges ORDER BY session_id, event_order, dst_type, dst"
         ).fetchall()]
 
+    def edge(self, edge_id: str) -> dict[str, Any] | None:
+        """One proven edge by its content id — the record `witness "<edge id>"` dereferences
+        when the id is a causal edge's (dn-query-sentence-algebra §2.9: the C moves at the node
+        grain). `None` when no edge bears the id."""
+        row = self._conn.execute(
+            "SELECT * FROM causal_edges WHERE edge_id = ?", [edge_id]).fetchone()
+        return dict(row) if row else None
+
     def count(self) -> int:
         row = self._conn.execute("SELECT count(*) FROM causal_edges").fetchone()
         return int(row[0]) if row else 0

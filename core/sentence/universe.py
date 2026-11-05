@@ -14,7 +14,13 @@ clauses can reach — materialized lazily:
   by the store's index, the paper or the file their occupancies name as the node;
 * reference (the repo's docs and code): the citation graph's nodes within the clause's radius of
   each anchor, at the cut — the `as of` commit, else the view's anchor, else the newest cut the
-  store holds — bounded by `support`.
+  store holds — bounded by `support`;
+* the causal edges, when the sentence walks `C`: the proven edges of the causal store, each one
+  dialogue action's image (a transcript turn → the file or doc it produced, the witness law of
+  dn-agent-taxonomy §2.5), within the anchor's radius — the turns as `transcript/<session>/<turn>`
+  nodes of the dialogue's transcript stratum, the endpoints as the reference graph's nodes (a
+  checkout's or a worktree's path, repo-relative) or the mirror's (a vault path); an endpoint
+  outside both, or an artifact id, is named as a node that `read` cannot open, never dropped.
 
 On the support the laws hold exactly: masks, products, thresholds (QSA-1 to QSA-4). What the
 support loses is bounded and one-sided: restricting the walk to a subgraph whose complement
@@ -34,6 +40,7 @@ from __future__ import annotations
 from collections import deque
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -43,6 +50,7 @@ from core.kernel.scope import Stratum
 from core.query import CURATED_REF, QueryEngine
 from core.sentence import ast
 from core.sentence.ast import Node, Rel
+from core.sentence.automaton import letters
 from core.sentence.execute import Relation, Universe, read_ref
 from core.sentence.plan import Plan
 from core.sentence.precedents import DEFAULT, Precedents
@@ -50,6 +58,7 @@ from core.sentence.trace import Trace
 from core.sentence.types import (
     CURATED_NAMES,
     REFERENCE_NAMES,
+    TRANSCRIPT_REF,
     AmbiguousSentence,
     stratum_of_provenance,
 )
@@ -64,6 +73,7 @@ class Seeds:
     texts: list[tuple[str, frozenset[Stratum]]] = field(default_factory=list)
     anchors: list[tuple[str, int]] = field(default_factory=list)   # (atom, radius in hops)
     cut: str | None = None
+    moves: set[Rel] = field(default_factory=set)                   # the letters the verbs walk
 
 
 def seeds_of(term: Node, precedents: Precedents = DEFAULT) -> Seeds:
@@ -78,14 +88,17 @@ def _collect(node: Node, strata: frozenset[Stratum], s: Seeds, p: Precedents) ->
     match node:
         case ast.Near(text=t):
             s.texts.append((t, strata))
-        case ast.Diffuse(atom=a):
+        case ast.Diffuse(atom=a, rel=rel):
             s.anchors.append((a, 1))
-        case ast.Reach(atom=a, depth=d):
+            s.moves.add(rel)
+        case ast.Reach(atom=a, depth=d, rel=rel):
             s.anchors.append((a, p.depth if d is None else d))
+            s.moves.add(rel)
         case ast.Relate(atom=a) | ast.Trace(atom=a):
             s.anchors.append((a, 0))
-        case ast.Walk(atom=a, to=t, depth=d):
+        case ast.Walk(atom=a, to=t, depth=d, path=path):
             s.anchors.append((a, p.walk_depth if d is None else d))
+            s.moves |= letters(path)
             if t is not None:
                 s.anchors.append((t, 0))
         case ast.Read() | ast.Witness():
@@ -107,6 +120,8 @@ def _collect(node: Node, strata: frozenset[Stratum], s: Seeds, p: Precedents) ->
         case ast.Assume(hypothesis=h, body=b):
             for atom in (h.a, h.b):
                 s.anchors.append((atom, 0))
+            if isinstance(h, ast.EdgeHyp | ast.SeverHyp):
+                s.moves.add(h.rel)
             _collect(b, strata, s, p)
 
 
@@ -146,8 +161,9 @@ def _int(x: object) -> int:
 
 def is_repo_path(atom: str) -> bool:
     """A repo-relative path — the reference graph's node identity: relative, with a directory
-    part, never a dialogue turn or a paper ref."""
-    return ("/" in atom and not atom.startswith(("/", "dialogue/", CURATED_REF, "~"))
+    part, never a dialogue or transcript turn or a paper ref."""
+    return ("/" in atom
+            and not atom.startswith(("/", "dialogue/", TRANSCRIPT_REF, CURATED_REF, "~"))
             and ".." not in atom.split("/"))
 
 
@@ -156,6 +172,12 @@ class _Builder:
         self.e, self.p = engine, precedents
         self.nodes: dict[str, _Node] = {}
         self.f_edges: dict[str, set[str]] = {}
+        self.c_edges: dict[str, set[str]] = {}
+        self.c_ids: set[str] = set()                 # the proven edges wired, by content id
+        self.moves: frozenset[Rel] = frozenset()     # the letters the sentence walks
+        self._causal_index: tuple[dict[str, list[tuple[str, dict[str, Any]]]],
+                                  dict[str, list[tuple[str, dict[str, Any]]]]] | None = None
+        self._chat: dict[str, dict[str, Mapping[str, Any]]] = {}
         self.notes: list[str] = []
         self.view: Any = None
         self.cut: str | None = None
@@ -318,33 +340,161 @@ class _Builder:
         self.cut = anchor
         self.view = ReferenceView.over(store, commit=anchor)
 
-    def seed_reference_anchor(self, atom: str, radius: int) -> None:
-        kind = "code" if atom.endswith(".py") else "corpus"
-        self.add(_Node(atom, "reference", atom, "", kind, None, {}))
+    # the citation graph and the causal edges, around an anchor -----------------------------------
+    def _roots(self) -> list[Path]:
+        """The checkouts a causal endpoint's absolute path may lie under: this one and, when this
+        one is a worktree (`<main>/.claude/worktrees/<name>`), the main checkout."""
+        from core.kernel.config import REPO_ROOT
+
+        root = Path(REPO_ROOT)
+        roots = [root]
+        if root.parent.name == "worktrees" and root.parent.parent.name == ".claude":
+            roots.append(root.parent.parent.parent)
+        return roots
+
+    def _endpoint(self, dst: str, dst_type: str) -> _Node:
+        """The node a causal endpoint names, not yet added: a path under a checkout of the repo
+        (this one, the main one, or any worktree's `<x>/.claude/worktrees/<name>/`) is the
+        reference graph's node by its repo-relative path; a path under the vault the mirror's
+        note; an artifact id, or a path outside both, is a node by that name which `read` cannot
+        open — named, never silently dropped (the endpoint is structural: a path or an id, never
+        content)."""
+        kind = "code" if dst.endswith(".py") else "corpus"
+        if dst_type == "doc" and "/" not in dst:
+            return _Node(dst, "reference", dst, "", "doc", None, {"artifact": "an id, not a path"})
+        p = Path(dst)
+        if not p.is_absolute():
+            return _Node(dst, "reference", dst, "", kind, None, {})
+        parts = p.parts
+        # a worktree's file, `<x>/.claude/worktrees/<name>/<rel>`: the LAST such segment (this
+        # checkout may itself be a worktree, so its own path holds one); the file is this
+        # checkout's own when that prefix is this checkout
+        marks = [i for i in range(len(parts) - 3)
+                 if parts[i] == ".claude" and parts[i + 1] == "worktrees"]
+        if marks:
+            i = marks[-1]
+            rel = "/".join(parts[i + 3:])
+            own = Path(*parts[:i + 3]) == self._roots()[0]
+            return _Node(rel, "reference", rel, "", kind, None,
+                         {} if own else {"worktree": parts[i + 2]})
+        for root in self._roots():
+            if root in p.parents:
+                rel = p.relative_to(root).as_posix()
+                return _Node(rel, "reference", rel, "", kind, None, {})
+        vault = Path(str(self.e.config.ingestion.vault.path)).expanduser()
+        if vault in p.parents or vault.resolve() in p.parents:
+            have = self.nodes.get(dst)
+            if have is not None:
+                return have
+            return _Node(dst, "mirror", p.name, "", "", None, {"inactive": "not in the mirror"})
+        return _Node(dst, "reference", dst, "", kind, None,
+                     {"outside": "the repo and the vault; named, not readable"})
+
+    def _utterance(self, session: str, turn: str) -> Mapping[str, Any] | None:
+        if session not in self._chat:
+            try:
+                rows = self.e._get("chatlog").rows_for(session)
+            except KeyError:                               # an engine without the chat store
+                rows = []
+            self._chat[session] = {str(r.get("turn_index", "")): r for r in rows}
+        return self._chat[session].get(turn)
+
+    def _turn(self, ref: str) -> _Node:
+        """A transcript turn's node, `transcript/<session>/<turn>`, titled with its speaker when
+        the chatlog holds the session: structure only, since the turns are not embedded."""
+        session, _, turn = ref[len(TRANSCRIPT_REF):].rpartition("/")
+        row = self._utterance(session, turn)
+        speaker = str(row.get("speaker", "")) if row else ""
+        title = f"{TRANSCRIPT_REF}{session[:8]}/{turn}" + (f" ({speaker})" if speaker else "")
+        detail: dict[str, Any] = {"session": session, "turn": turn}
+        if speaker:
+            detail["speaker"] = speaker
+        digest = str(row.get("transcript_digest", "")) if row else ""
+        return _Node(ref, "transcript", title, digest, "observed", None, detail)
+
+    def _causal(self) -> tuple[dict[str, list[tuple[str, dict[str, Any]]]],
+                               dict[str, list[tuple[str, dict[str, Any]]]]]:
+        """The causal store read whole, once per sentence — one content-free row per proven
+        action (a witness, an endpoint, an id) — and indexed in memory by turn (the endpoints a
+        turn produced) and by endpoint (the turns that produced it); the support is cut from it."""
+        if self._causal_index is None:
+            by_turn: dict[str, list[tuple[str, dict[str, Any]]]] = {}
+            by_end: dict[str, list[tuple[str, dict[str, Any]]]] = {}
+            for e in self.store("causal").all_edges():
+                tref = f"{TRANSCRIPT_REF}{e['session_id']}/{e['witness_turn']}"
+                eref = self._endpoint(str(e["dst"]), str(e["dst_type"])).ref
+                by_turn.setdefault(tref, []).append((eref, e))
+                by_end.setdefault(eref, []).append((tref, e))
+            self._causal_index = (by_turn, by_end)
+        return self._causal_index
+
+    def _causal_neighbours(self, node: str) -> list[tuple[str, dict[str, Any]]]:
+        by_turn, by_end = self._causal()
+        return by_turn.get(node, []) if node.startswith(TRANSCRIPT_REF) else by_end.get(node, [])
+
+    def _add_causal(self, e: Mapping[str, Any]) -> None:
+        """The C move of one proven edge, turn → endpoint, both nodes present; the endpoint keeps
+        the edge's id so `witness` can be asked for it."""
+        tref = f"{TRANSCRIPT_REF}{e['session_id']}/{e['witness_turn']}"
+        eref = self._endpoint(str(e["dst"]), str(e["dst_type"])).ref
+        self.c_edges.setdefault(tref, set()).add(eref)
+        self.c_ids.add(str(e["edge_id"]))
+        self.nodes[eref].detail.setdefault("witness", str(e["edge_id"]))
+
+    def _cited(self, node: str) -> set[str]:
+        return ({e.target_ref for e in self.view.references_from(node)}
+                | {e.source_ref for e in self.view.references_to(node)})
+
+    def seed_typed(self, atom: str, radius: int, moves: frozenset[Rel]) -> None:
+        """The neighbourhood of an anchor over the moves the sentence walks, breadth first within
+        `radius` hops and bounded by `support`: `F` by the citation graph at the cut (from a repo
+        path's node), `C` by the causal edges (a transcript turn's endpoints; an endpoint's turns).
+        The nodes reached are added as they are admitted; a C edge is wired here, the F edges
+        among the reference nodes by `wire_reference` after every seed."""
+        if atom.startswith(TRANSCRIPT_REF):
+            self.add(self._turn(atom))
+        elif is_repo_path(atom):
+            kind = "code" if atom.endswith(".py") else "corpus"
+            self.add(_Node(atom, "reference", atom, "", kind, None, {}))
         seen, frontier, budget = {atom}, deque([(atom, 0)]), self.p.support
         truncated = False
         while frontier:
             node, d = frontier.popleft()
             if d >= radius:
                 continue
-            neighbours = ({e.target_ref for e in self.view.references_from(node)}
-                          | {e.source_ref for e in self.view.references_to(node)})
-            for nb in sorted(neighbours):
-                if nb in seen:
-                    continue
-                if len(seen) >= budget:
-                    truncated = True
-                    break
-                seen.add(nb)
-                self.add(_Node(nb, "reference", nb, "", "code" if nb.endswith(".py") else "corpus",
-                               None, {}))
-                frontier.append((nb, d + 1))
+            nbrs: list[tuple[str, Rel, Mapping[str, Any] | None]] = []
+            if Rel.F in moves and is_repo_path(node):
+                nbrs += [(t, Rel.F, None) for t in self._cited(node)]
+            if Rel.C in moves:
+                nbrs += [(other, Rel.C, e) for other, e in self._causal_neighbours(node)]
+            for nb, _rel, e in sorted(nbrs, key=lambda x: (x[0], x[1].value)):
+                if nb not in seen:
+                    if len(seen) >= budget:
+                        truncated = True
+                        break
+                    seen.add(nb)
+                    frontier.append((nb, d + 1))
+                    if nb.startswith(TRANSCRIPT_REF):
+                        self.add(self._turn(nb))
+                    elif e is None:
+                        self.add(_Node(nb, "reference", nb, "",
+                                       "code" if nb.endswith(".py") else "corpus", None, {}))
+                    else:
+                        self.add(self._endpoint(str(e["dst"]), str(e["dst_type"])))
+                if e is not None:
+                    self._add_causal(e)
         if truncated:
-            self.notes.append(f"reference: the neighbourhood of {atom!r} was cut at the support "
+            self.notes.append(f"support: the neighbourhood of {atom!r} was cut at the support "
                               f"of {budget} nodes; reach past it is not answered")
 
     def seed_anchor(self, atom: str, radius: int) -> None:
-        if self.find(atom) is not None and not is_repo_path(atom):
+        if atom.startswith(TRANSCRIPT_REF):
+            self.seed_typed(atom, radius, frozenset({Rel.C}) | (self.moves & {Rel.F}))
+            return
+        have = self.find(atom)
+        if have is not None and not is_repo_path(atom):
+            if Rel.C in self.moves:        # a note's causal history: the turns that wrote it
+                self.seed_typed(have.ref, radius, frozenset({Rel.C}))
             return
         if atom.startswith(CURATED_REF):
             rows = self.store("curated").rows_for_source(atom, clearance=CURATED_READ)
@@ -357,7 +507,7 @@ class _Builder:
                 self.seed_curated(node.vector, atom)
             return
         if is_repo_path(atom):
-            self.seed_reference_anchor(atom, radius)
+            self.seed_typed(atom, radius, frozenset({Rel.F}) | (self.moves & {Rel.C}))
 
     def wire_reference(self) -> None:
         refs = [n.ref for n in self.nodes.values() if n.stratum == "reference"]
@@ -421,7 +571,10 @@ class _Builder:
         def witness(edge_id: str) -> Mapping[str, object] | None:
             edge = origin(edge_id, causal_edges=self.store("causal"),
                           reference_edges=self.store("references"))
-            return None if edge is None else {k: str(v) for k, v in edge.__dict__.items()}
+            if edge is not None:
+                return {k: str(v) for k, v in edge.__dict__.items()}
+            row = self.store("causal").edge(edge_id)      # a causal edge's own id: the witness
+            return None if row is None else {k: str(v) for k, v in row.items()}
 
         def text(ref: str, chunk: int | None, window: int) -> Mapping[str, object] | None:
             return read_ref(engine, ref, chunk, window=window)
@@ -436,10 +589,19 @@ class _Builder:
         if self.cut_note:
             missing.append(self.cut_note)
         missing += self.notes
-        missing.append("D and C moves at the note grain: the version chains are per note (use "
-                       "trace) and the causal edges key on structural endpoints")
+        if self.c_ids:
+            ends = {v for vs in self.c_edges.values() for v in vs}
+            missing.append(f"causal: {len(self.c_ids)} proven edges from {len(self.c_edges)} "
+                           f"transcript turns to {len(ends)} endpoints, each one L1 record's "
+                           "image (the witness law), never inferred")
+            unreadable = sum(1 for n in order if "outside" in n.detail or "artifact" in n.detail)
+            if unreadable:
+                missing.append(f"causal: {unreadable} endpoints are artifact ids or lie outside "
+                               "the repo and the vault: named, not readable")
+        missing.append("D moves at the note grain: the version chains are per note (use trace)")
         return Universe(notes=notes, vectors=mat, weights=weights,
-                        edges={Rel.F: self.f_edges, Rel.D: {}, Rel.C: {}}, relations=relations,
+                        edges={Rel.F: self.f_edges, Rel.D: {}, Rel.C: self.c_edges},
+                        relations=relations,
                         embed=embed, history=history, witness=witness, cut=self.cut,
                         missing=tuple(missing), text=text, degrees=degrees)
 
@@ -447,10 +609,11 @@ class _Builder:
 def build(engine: QueryEngine, plan: Plan, *, precedents: Precedents = DEFAULT,
           trace: Trace | None = None) -> Universe:
     """The universe a plan reads: the mirror and the dialogue, then what the sentence's texts and
-    anchors reach in the indexed strata and the citation graph at the cut. With a trace, the
-    support's census is noted."""
+    anchors reach in the indexed strata, the citation graph at the cut and, when the sentence
+    walks `C`, the causal edges. With a trace, the support's census is noted."""
     seeds = seeds_of(plan.term, precedents)
     b = _Builder(engine, precedents)
+    b.moves = frozenset(seeds.moves)
     b.load_mirror()
     b.open_view(seeds.cut)
     for text, strata in seeds.texts:
@@ -472,7 +635,8 @@ def build(engine: QueryEngine, plan: Plan, *, precedents: Precedents = DEFAULT,
         trace.note("universe", f"the support: {len(u)} nodes ("
                    + ", ".join(f"{k} {v}" for k, v in sorted(census.items()))
                    + f"); the S backbone among them has {edges} edges"
-                   + (f"; the citation graph is read at cut {u.cut[:7]}" if u.cut else ""))
+                   + (f"; the citation graph is read at cut {u.cut[:7]}" if u.cut else "")
+                   + (f"; {len(b.c_ids)} causal edges wired" if b.c_ids else ""))
         if u.degrees is not None:
             trace.note("universe", "the walk keeps the full graph's degrees on the support: a "
                        "support never invents nearness", "RSP-5")

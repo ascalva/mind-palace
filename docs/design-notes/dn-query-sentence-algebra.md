@@ -468,7 +468,18 @@ force (`over`), each anchor with the radius its verb walks (`reach … depth n`,
 - reference — the repo's docs and code: the citation graph's nodes within the anchor's radius, by
   a breadth-first walk bounded by `support`, at the cut: the `as of` commit, else the view's
   anchor, else **the newest cut the store holds**, which the answer names (`latest_commit`, a read
-  the sentence universe adds to the reference store).
+  the sentence universe adds to the reference store);
+- the causal edges, when the sentence walks `C` (`reach C`, `walk … via …C…`, `assume C`): the
+  proven edges of the causal store — each the image of one dialogue action, a transcript turn →
+  the file or doc it produced (the witness law, dn-agent-taxonomy §2.5), never inferred — within
+  the anchor's radius, by the same bounded walk. The turns are nodes `transcript/<session>/<turn>`
+  of the dialogue's transcript stratum (`read` opens the utterance from the chatlog); an endpoint
+  under a checkout of the repo, or under a worktree's `.claude/worktrees/<name>/`, is the
+  reference graph's node by its repo-relative path, so `C` composes with `F` (`walk … via CF`: a
+  turn wrote a file that cites another); one under the vault is the mirror's note; an artifact
+  id, or a path outside both, is named as a node that `read` cannot open and the answer counts.
+  The store is one content-free row per proven action, read whole once per sentence and cut to
+  the support in memory (2026-11-04).
 
 Nodes carry their stratum and provenance; `over <strata>` is the **mask** onto the support's nodes
 of those strata, by the clearances' own table (`STRATUM_CLASSES`) with the citation graph's nodes
@@ -494,9 +505,11 @@ index's top-`support`, an approximation the index owns (its recall is a measurem
 battery, not an assumption). The answer's notes carry the support's census, the cut, and every
 truncation. `[INFERENCE — falsifier: a battery row that a larger support wins]`
 
-**Not yet in the universe:** `D` and `C` moves at the node grain (the version chains are per
-note, the causal edges key on structural endpoints); a snapshot of the notes at a past cut; a
-`near` over `interpreted` (the dreams) and `observed` beyond the dialogue's own turns.
+**Not yet in the universe:** `D` moves at the node grain (the version chains are per note:
+`trace` walks them); a snapshot of the notes at a past cut (the brainstorm's L7: the event
+clock's cut, CLK-2, restricted to the version chains, never a timestamp); a `near` over
+`interpreted` (the dreams) and `observed` beyond the dialogue's own turns — the transcript turns
+are structure, not embedded, so `near` does not score them.
 
 **The limits (2026-11-04).** `docs/brainstorms/limits-of-the-algebra.md` pushes these laws to
 their horizons, and four of its six are machine-checked as design theorems: L1, the sever

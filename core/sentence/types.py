@@ -194,8 +194,12 @@ CURATED_NAMES: frozenset[Stratum] = frozenset({Stratum.CURATED})
 REFERENCE_NAMES: frozenset[Stratum] = frozenset({Stratum.REFERENCE, Stratum.REFERENCE_REPO})
 _SHORT: dict[Stratum, str] = {
     **{s: "mirror" for s in MIRROR_NAMES}, **{s: "dialogue" for s in DIALOGUE_NAMES},
+    Stratum.DIALOGUE_TRANSCRIPT: "transcript",
     **{s: "curated" for s in CURATED_NAMES}, **{s: "reference" for s in REFERENCE_NAMES},
 }
+# A transcript turn's ref — `transcript/<session>/<turn>` — the chat stores' node (the
+# `dialogue_transcript` stratum): the witness of a causal edge, read from the chatlog.
+TRANSCRIPT_REF = "transcript/"
 _PROVENANCE_STRATUM: dict[str, str] = {
     "authored-solo": "mirror", "authored-dialogue": "dialogue", "observed": "dialogue",
     "curated": "curated", "code": "reference",
@@ -215,10 +219,13 @@ def short_names(strata: Iterable[Stratum]) -> frozenset[str]:
 
 def read_strata(atom: str) -> tuple[Stratum, ...]:
     """The strata a `read` of `atom` can land in, by the ref's shape: a paper ref reads the
-    curated stratum; a dialogue turn the dialogue; a repo-relative path the reference stratum (the
-    repo's own docs and code); an absolute path the mirror; a title the mirror or the dialogue."""
+    curated stratum; a transcript turn the dialogue's transcript stratum (the chat stores); a
+    dialogue turn the dialogue; a repo-relative path the reference stratum (the repo's own docs
+    and code); an absolute path the mirror; a title the mirror or the dialogue."""
     if atom.startswith(CURATED_REF):
         return (Stratum.CURATED,)
+    if atom.startswith(TRANSCRIPT_REF):
+        return (Stratum.DIALOGUE_TRANSCRIPT,)
     if atom.startswith("dialogue/"):
         return (Stratum.DIALOGUE,)
     if atom.startswith(("/", "~")):
