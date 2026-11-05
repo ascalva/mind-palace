@@ -220,3 +220,42 @@ def test_the_head_names_the_last_line(ledger: Ledger) -> None:
     last = json.loads(lines(ledger)[-1])
     assert (head.seq, head.hash) == (last["seq"], last["hash"])
     assert head.counts["forecast"] == 1 and head.counts["protocol"] == 1
+
+
+def test_an_arm_may_name_a_model_variant(tmp_path: Path, clock: Clock) -> None:
+    arms = ("M", "W", "P", "D:qwen3.8-27b", "D:claude-opus-5-5")
+    led = Ledger(tmp_path / "v.jsonl", clock=clock)
+    led.register(Protocol(name="v", primary=Comparison(Family.EVENT, "W", "P"), arms=arms))
+    led.add_question(question())
+    led.add_forecast(Forecast("q1", "D:qwen3.8-27b", "r1", 0.4, model="qwen3.8-27b"))
+    led.add_forecast(Forecast("q1", "D:claude-opus-5-5", "r1", 0.5, model="claude-opus-5-5"))
+    with pytest.raises(LedgerError, match="not registered"):
+        led.add_forecast(Forecast("q1", "D:other", "r1", 0.5))
+
+
+@pytest.mark.parametrize("arm", ["D:", "Z:qwen", "D:two words", "d"])
+def test_a_malformed_variant_is_not_an_arm(arm: str) -> None:
+    with pytest.raises(LedgerError, match="D4"):
+        Protocol(name="x", primary=Comparison(Family.EVENT, "W", "P"), arms=("W", "P", arm))
+
+
+def test_a_pinned_arm_refuses_a_changed_config(tmp_path: Path, clock: Clock) -> None:
+    """A long run gets tweaked; a tweak to a pinned arm is a new variant, never a silent change
+    to the arm the primary comparison names."""
+    pinned = replace(PROTOCOL, pinned={"P": "sha256:aaa"})
+    led = Ledger(tmp_path / "p.jsonl", clock=clock)
+    led.register(pinned)
+    led.add_question(question())
+    with pytest.raises(LedgerError, match="pinned"):
+        led.add_forecast(Forecast("q1", "P", "r1", 0.4, config="sha256:bbb"))
+    led.add_forecast(Forecast("q1", "P", "r1", 0.4, config="sha256:aaa"))
+    with pytest.raises(LedgerError, match="keep their config"):
+        led.amend(replace(pinned, pinned={"P": "sha256:bbb"}))
+    led.amend(replace(pinned, arms=(*PROTOCOL.arms, "P:v2"),
+                      pinned={"P": "sha256:aaa", "P:v2": "sha256:bbb"}))
+    led.add_forecast(Forecast("q1", "P:v2", "r1", 0.45, config="sha256:bbb"))
+
+
+def test_a_pin_names_a_registered_arm() -> None:
+    with pytest.raises(LedgerError, match="pinned arms"):
+        replace(PROTOCOL, pinned={"L": "sha256:aaa"})

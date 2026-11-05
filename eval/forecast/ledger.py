@@ -41,6 +41,15 @@ KINDS = ("protocol", "question", "forecast", "resolution", "void")
 ARMS = frozenset({"M", "NULL", "W", "P", "F", "L", "I", "D"})
 
 
+def valid_arm(arm: str) -> bool:
+    """An arm of D4, alone or with a variant after a colon (`D:qwen3.8-27b`, `P:v2`). Each
+    registered variant is an arm of its own, so models and revisions compare the way arms do."""
+    base, sep, variant = arm.partition(":")
+    if base not in ARMS:
+        return False
+    return not sep or (bool(variant) and not any(c.isspace() for c in variant))
+
+
 class Family(StrEnum):
     EVENT = "event"
     VOLATILITY = "volatility"
@@ -102,13 +111,21 @@ class Protocol:
     bootstrap: int = 10_000
     seed: int = 20261105
     n_clusters: int | None = None          # fixed by an amendment after the blinded pilot
+    # arm -> the digest of its configuration (model, prompt, tools). A pinned arm's forecasts
+    # must carry that digest: a tweak during the run is a new variant, never a silent change.
+    pinned: Mapping[str, str] = field(default_factory=dict)
     selection: Mapping[str, object] = field(default_factory=dict)
     notes: str = ""
 
     def __post_init__(self) -> None:
-        unknown = set(self.arms) - ARMS
+        unknown = [a for a in self.arms if not valid_arm(a)]
         if unknown:
             raise LedgerError(f"arms not in D4: {sorted(unknown)}")
+        if len(set(self.arms)) != len(self.arms):
+            raise LedgerError("an arm is registered twice")
+        stray = [a for a in self.pinned if a not in self.arms]
+        if stray:
+            raise LedgerError(f"pinned arms the protocol does not register: {sorted(stray)}")
         for c in (self.primary, *self.secondary):
             if c.baseline not in self.arms or c.arm not in self.arms:
                 raise LedgerError(f"comparison {c} names an arm the protocol does not register")
@@ -136,6 +153,7 @@ class Protocol:
             "bootstrap": self.bootstrap,
             "seed": self.seed,
             "n_clusters": self.n_clusters,
+            "pinned": dict(self.pinned),
             "selection": dict(self.selection),
             "notes": self.notes,
         }
@@ -150,6 +168,9 @@ class Protocol:
             raise LedgerCorrupt("protocol: secondary and arms must be lists")
         if n_clusters is not None and not isinstance(n_clusters, int):
             raise LedgerCorrupt("protocol: n_clusters must be an integer or null")
+        pinned = _mapping(body.get("pinned", {}), "pinned")
+        if not all(isinstance(v, str) for v in pinned.values()):
+            raise LedgerCorrupt("protocol: pinned digests must be strings")
         return cls(
             name=_str(body, "name"),
             primary=Comparison.parse(body.get("primary")),
@@ -162,6 +183,7 @@ class Protocol:
             bootstrap=_int(body, "bootstrap"),
             seed=_int(body, "seed"),
             n_clusters=n_clusters,
+            pinned={k: str(v) for k, v in pinned.items()},
             selection=_mapping(body.get("selection", {}), "selection"),
             notes=_str(body, "notes"),
         )
@@ -211,7 +233,8 @@ class Question:
 class Forecast:
     """One arm's probability that `qid` resolves yes, in round `round`. No timestamp: the ledger
     stamps it. `sigma` is what the arm could see; `evidence` the refs it used (note ids, query
-    sentences with their trace digests)."""
+    sentences with their trace digests); `config` the digest of the arm's model, prompt and
+    tools, which a pinned arm must match."""
 
     qid: str
     arm: str
@@ -220,6 +243,7 @@ class Forecast:
     sigma: tuple[str, ...] = ()
     evidence: tuple[str, ...] = ()
     model: str | None = None
+    config: str = ""
 
     def body(self) -> dict[str, object]:
         return {
@@ -230,6 +254,7 @@ class Forecast:
             "sigma": list(self.sigma),
             "evidence": list(self.evidence),
             "model": self.model,
+            "config": self.config,
         }
 
     @classmethod
@@ -246,6 +271,7 @@ class Forecast:
             sigma=_strs(body, "sigma"),
             evidence=_strs(body, "evidence"),
             model=model,
+            config=_str(body, "config") if "config" in body else "",
         )
 
 
@@ -507,11 +533,19 @@ class Ledger:
             raise LedgerError("forecasts exist: an amendment may add comparisons, never drop one")
         if old.n_clusters is not None and new.n_clusters != old.n_clusters:
             raise LedgerError("n_clusters is already fixed")
+        changed = [arm for arm, digest in old.pinned.items() if new.pinned.get(arm) != digest]
+        if changed:
+            raise LedgerError(f"forecasts exist: pinned arms {sorted(changed)} keep their config; "
+                              f"register a variant instead")
 
     def _check_forecast(self, state: State, protocol: Protocol, now: datetime,
                         f: Forecast) -> None:
         if f.arm not in protocol.arms:
             raise LedgerError(f"arm {f.arm!r} is not registered in the protocol")
+        pin = protocol.pinned.get(f.arm)
+        if pin is not None and f.config != pin:
+            raise LedgerError(f"arm {f.arm!r} is pinned to config {pin!r}, got {f.config!r}: "
+                              f"a changed arm is a new variant")
         if (isinstance(f.p, bool) or not isinstance(f.p, float | int)
                 or not math.isfinite(f.p) or not 0.0 <= f.p <= 1.0):
             raise LedgerError(f"p must be a probability, got {f.p!r}")
