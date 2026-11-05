@@ -64,9 +64,11 @@ script, a line of the palace's table, or a general rule of the writer.
 
 ### 1.3 What is proved, what is cited, what is open
 
-To be filled by DS-1: the label laws (DOR-13 to DOR-17, §E9) over a model of the language's
-values and the writer's checks, with the first form's laws (DOR-1 to DOR-12) applying to every
-plan. Cited: QSA-5 (admissibility is clause-wise), the kernel's `STRATUM_CLASSES`, CLK-2. Open
+Proved in `formal/Palace/Script.lean` on the model of `Script/Defs.lean` (content with a label
+and an origin; expressions as items, projections and constructions; the writer's checks R2 to R8
+as a predicate on a store and a state; plans landed effect by effect; a store as the first form's
+command), with six attacks and six controls (`PalaceTest/Script.lean`, seeds 273 to 284): DOR-13
+to DOR-17 of §E9, and the first form's DOR-11 and DOR-12 for every plan through DOR-16. Cited: QSA-5 (admissibility is clause-wise), the kernel's `STRATUM_CLASSES`, CLK-2. Open
 (§7): the Ambassador's places and namespaces, an operator's computed content, jobs as scripts.
 
 ### 1.4 The bar
@@ -100,7 +102,8 @@ abstraction layer between a program and what it touches. Line by line:
 Three layers, then, and only the middle one holds domain words:
 
 1. **The language** (`core/sentence/`): the grammar, the checker, the evaluator. Generic.
-2. **The palace's table** (`core/door/`): the sources, the places, the roles, the jobs. Domain
+2. **The palace's table** (`core/ingest/table.py`, its readers and its writer beside it): the
+   sources, the places, the roles, the jobs. Domain
    words live here as data: "the vault is a directory of markdown, labelled authored-solo,
    readable by these roles".
 3. **The scripts** (`door/*.palace`): the applications.
@@ -211,9 +214,13 @@ The writer's rules, each general, none about a source:
   itself, a string projected from the content it stores (an `id::` property), or the identity of
   an entry that holds the same digest at a path its source no longer has (a rename). Anything
   else is refused, so no script can graft a new path onto another note's chain.
-- **R7, retire reconciles**: `retire p` is admitted only when `p`'s source no longer has it, or,
-  for content with no source, when `p` lies in the speaker's namespace. A note that is still in
-  the vault cannot be retired from the mirror by any script.
+- **R7, retire reconciles**: `retire p` is admitted only in the speaker's namespace, and, when
+  `p` holds content that came from a source, only once the source no longer has it. A note that
+  is still in the vault cannot be retired from the mirror by any script.
+- **R8, paths belong to their sources**: a path in a source's own space (the vault's root, the
+  docs, a dialogue reader's prefix) takes only content with an origin, which R4 then makes that
+  source's item at that very path. Without it a role could squat the path of a turn not yet synced
+  with composed text, and R5 would then refuse the owner's turn when it came.
 
 ### E5 — Effects, the plan, the writer
 
@@ -339,18 +346,49 @@ R5; the rename carry-forward is the script's, made safe by R6; the reconciling r
 script's, made safe by R7; the curated allow-list is the docs source's scope; the relation names
 and their weights are the relation store's line in the table.
 
+### E10 — Budgets: work as gas
+
+The owner's thought, from the bounds above: a sentence costs work, as an Ethereum transaction
+costs gas, so the interpreter must know what a sentence costs and the compiler must make it cost
+little. The caps of §E1 become one **budget**, in one unit of work, priced per operation:
+
+- **Prices are measured, not assumed.** A unit is calibrated against the operations it prices on
+  fixtures (reading a kilobyte of a source, an item's parse, a list element, an effect, an
+  embedded chunk), and the price table is a precedent in the ledger beside the bounds it
+  replaces.
+- **A request carries a budget**: its role's default, from the palace's table, or less if the
+  speaker asks. The checker computes an upper bound from the script's shape where the shape
+  allows (a loop over a source is bounded by the source's size and the loop body's price) and
+  refuses at the surface a request whose bound exceeds its budget, before anything is spooled.
+- **The evaluator meters.** Every operation charges as it runs; a request that runs out stops,
+  and since evaluation writes nothing, it lands nothing. Ethereum must revert the state an
+  out-of-gas transaction touched; here there is none to revert. `[DERIVED — §E5: evaluation has
+  no effects]`
+- **The writer prices the one serial stage before paying it.** A plan's embeds are its distinct
+  new atoms (DOR-5), which the writer counts against the plane before it calls the embedder, so
+  a plan whose landing would overrun its budget is refused before the first embed.
+- **The compiler's side.** A cost is what lets the planner choose among equivalent forms: the read
+  half's rewrites (masks pushed to the leaves, `top k` last) are equivalences, and a priced plan
+  picks the cheaper. Pricing the read verbs in the same unit (`near` per atom compared, `diffuse`
+  per edge per iteration, `walk` per product state, the walk budget being such a price already)
+  is the follow-up that makes one budget cover a whole sentence, read and write.
+
+The receipt reports the work charged. `[INFERENCE — falsifier: a request whose measured work
+exceeds its charge by more than the calibration's error, or a refused request that would have
+landed within its budget]`
+
 ### E9 — The laws
 
 | law | statement | formal |
 |---|---|---|
-| DOR-13 | a value's label is its item's under projections and observed otherwise; its origin is its item's under projections and none otherwise; no expression raises a label | `Script.lean::label_eval`, `origin_eval` |
-| DOR-14 | the firewall: from a state whose authored rows are each an authored item's projection at the item's own path, any plan the writer admits lands a state of which that is still true | `Script.lean::firewall_preserved` |
-| DOR-15 | confinement: an admitted plan writes only places its role's grant gives the write bit, and within a place only under the role's prefixes | `Script.lean::confined` |
+| DOR-13 | a value's label is its item's under projections and observed otherwise; its origin is its item's path under projections and none otherwise; its bytes are its item's under its views; no expression raises a label | `Script.lean::label_eval`, `origin_eval`, `bytes_eval`, `root_of_label_ne` |
+| DOR-14 | the firewall: an admitted store whose label is not the observed one lands an item a source yields, under views, at the item's own path, with the item's label; over a plan, every active row not observed is the row held before or such a store's | `Script.lean::firewall_store`, `firewall_plan` |
+| DOR-15 | confinement: a plan changes a path only through an effect on it the writer admitted, in the role's namespace for the effect's place (the write bit is DOR-1's, at compile time) | `Script.lean::confined` |
 | DOR-16 | every admitted plan is a batch of the first form's commands with the key last, so DOR-7, DOR-10, DOR-11 and DOR-12 hold of it | `Script.lean::plan_converges`, `plan_sound` |
-| DOR-17 | a held path keeps its label and its identity under every admitted store; a new path's identity is its own, its content's, or a vanished path's with the same digest | `Script.lean::label_fixed`, `identity_moves_with_bytes` |
+| DOR-17 | a held path keeps its label and its identity under every admitted store; a new path's identity is its own, one read off the very item stored, or one held at a path its source no longer has, with the same bytes; a path in a source's space takes only that source's item at that path; a retire of sourced content is of a path the source no longer has | `Script.lean::label_fixed`, `identity_moves_with_bytes`, `owned_by_source`, `retire_reconciles` |
 
 The first form's DOR-1 holds effect by effect (R1). DOR-2 to DOR-12 are statements about
-commands, which every store is. `[THEOREM — to be stated and proved in DS-1]`
+commands, which every store is. `[THEOREM — Script.lean, design theorems until DS-7 enters them]`
 
 ## 4. Consequences — the order of work
 
@@ -362,12 +400,14 @@ commands, which every store is. `[THEOREM — to be stated and proved in DS-1]`
   `formal/PalaceTest/Script.lean` (a laundering construction, a store at another path, an
   identity graft, a retire of a present item).
 - **DS-2, the language.** In `core/sentence/`: the script grammar under `do`, the checker (R1, R2
-  where known, readers, places and jobs by name), the evaluator with its bounds. The first form's
-  command words, `command_requirement` and `kind_of` go.
-- **DS-3, the palace's table and the writer.** `core/door/`: the sources (vault, docs, the two
-  dialogue readers), the places, the roles and their prefixes, the jobs; the readers (markdown,
-  json, text) with scopes and label rules; the writer (store, retire, link, run) with R2 to R7,
-  calling the stores as the first form's landers did.
+  where known, readers, places and jobs by name, the static bound of §E10), the evaluator,
+  metered. The first form's command words, `command_requirement` and `kind_of` go.
+- **DS-3, the palace's table and the writer.** `core/ingest/table.py`: the sources (vault, docs,
+  the two dialogue readers), the places, the roles and their prefixes, the jobs, the budgets.
+  `core/ingest/readers.py`: markdown, json and text, with scopes and label rules.
+  `core/ingest/writer.py`: store, retire, link and run with R2 to R8, calling the stores as the
+  first form's landers did. The evaluator reads the palace through an interface the daemon
+  hands it, so the language imports no store.
 - **DS-4, the scripts and the surfaces.** `door/*.palace`; the CLI, the MCP aliases, the web
   filter, the watcher's and the heartbeat's jobs speak scripts.
 - **DS-5, the differential tests, then the old landers go.** Each script against the first
@@ -386,7 +426,7 @@ commands, which every store is. `[THEOREM — to be stated and proved in DS-1]`
 
 The same switch as the first form (`[query]`); the same spools and modes (dn-ingest-door §5). The
 scripts are files in the repository, read by the daemon at evaluation; a change to one is a
-commit, reviewed like code. The palace's table is code in `core/door/`, typed and tested, built
+commit, reviewed like code. The palace's table is code in `core/ingest/table.py`, typed and tested, built
 from the configuration's paths (the vault's location, the data directory).
 
 ## 6. Risks and falsifiers

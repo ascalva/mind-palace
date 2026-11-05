@@ -41,6 +41,8 @@ public import Palace.Roundoff
 public import Palace.Roundoff.Defs
 public import Palace.Scope
 public import Palace.Scope.Defs
+public import Palace.Script
+public import Palace.Script.Defs
 public import Palace.Sentence
 public import Palace.Sentence.Defs
 public import Palace.Sever
