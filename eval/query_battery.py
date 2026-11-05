@@ -1,14 +1,20 @@
 """The falsifier battery of the query sentence algebra (dn-query-sentence-algebra §2.8, QL-4).
 
-    uv run python eval/query_battery.py [--k 5] [--out docs/experiments/query-battery-<date>.md]
+    uv run python eval/query_battery.py [--k 5] [--out <path>]
 
-Each question of §2.1's table is asked three ways on the live instance — the flat `near`, the
-composed sentence, and the composed sentence with its plan — read-only (the executor, not the
-logged surface), and written to an experiment record with a column the owner fills: the
-endorsed answer set. Where a mechanical proxy exists it is measured beside the owner's column,
-never instead of it: a flat answer that interleaves uncited notes with cited ones is counted,
-the hypothetical's symbolic class is checked against the numeric movement. A majority of ties
-or losses for the sentence retires the layer to a planning aid (QSF-5). Measure; never assume.
+Each question of §2.1's table is asked two ways on the live instance, the flat `near` and the
+composed sentence (with its plan), through the executor rather than the logged surface, so no
+query log is written and no data changes; the stores' constructors still run their idempotent
+schema statements, a brief write lock on the live files. The answers go to an experiment record
+with a column the owner fills: the endorsed answer set. The record names live notes, turns and
+titles, so it lands under `data/experiments/` (untracked) unless `--out` says otherwise.
+
+Beside the owner's column, never instead of it, a mechanical proxy where one exists
+(`_proxy`): for the rows that compose a citation or a reversal with `near`, how many flat hits
+the composition dropped; for the `as of` row, the hits only now, only then, and shared; for the
+hypothetical, the response notes (the resistance or camps class and what moved), quoted for the
+owner to read against the numbers. A majority of ties or losses for the sentence retires the
+layer to a planning aid (QSF-5). Measure; never assume.
 """
 
 from __future__ import annotations
@@ -21,11 +27,13 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))  # repo root on path
-os.chdir(ROOT)  # config and data paths resolve against the repo root
+
+if TYPE_CHECKING:
+    from core.query import QueryEngine
 
 
 @dataclass(frozen=True)
@@ -37,7 +45,7 @@ class Row:
     flat: str
     composed: str
     wins_when: str
-    proxy: str = ""        # the mechanical proxy, named; "" when only the owner can judge
+    proxy: str = ""        # what the mechanical proxy measures, named in the record's table
 
 
 @dataclass
@@ -51,7 +59,7 @@ class Answer:
     error: str = ""
 
 
-def _ask(engine: Any, grant: Any, sentence: str, k: int) -> Answer:
+def _ask(engine: QueryEngine, grant: Any, sentence: str, k: int) -> Answer:
     from core.sentence import compile_sentence, execute
     from core.sentence.precedents import Precedents
     from core.sentence.universe import build
@@ -74,7 +82,7 @@ def _ask(engine: Any, grant: Any, sentence: str, k: int) -> Answer:
     return a
 
 
-def _oldest_cut_with_edges(engine: Any, newest: str, anchor: str) -> str | None:
+def _oldest_cut_with_edges(engine: QueryEngine, newest: str, anchor: str) -> str | None:
     """A past cut the citation store holds for the anchor: the oldest commit of the live
     checkout's history (newest first, 400 deep) at which the anchor cites something — for the
     `as of` row. A cut from before the anchor existed answers nothing, truthfully."""
@@ -90,12 +98,12 @@ def _oldest_cut_with_edges(engine: Any, newest: str, anchor: str) -> str | None:
     return None
 
 
-def rows_for(engine: Any, k: int) -> list[Row]:
+def rows_for(engine: QueryEngine, k: int) -> list[Row]:
     """The battery, instantiated on the live corpus's own anchors."""
     from core.sentence import compile_sentence
     from core.sentence.universe import build
 
-    notes, _, _ = engine._note_graph()
+    notes, _, _ = engine.note_graph()
     note_a = str(notes[0]["source_path"]) if notes else "a.md"
     note_b = str(notes[1]["source_path"]) if len(notes) > 1 else note_a
     cut = build(engine, compile_sentence('reach F from "core/query.py"')).cut or ""
@@ -175,8 +183,10 @@ def render(rows: list[Row], results: list[tuple[Answer, Answer]], *, k: int,
            "| # | question | wins when | proxy (measured) | endorsed (owner) |",
            "|---|---|---|---|---|"]
     for i, (row, (flat, comp)) in enumerate(zip(rows, results, strict=True), 1):
+        measured = _proxy(row, flat, comp)
+        named = f"{row.proxy}: {measured}" if row.proxy and measured else measured
         out.append(f"| {i} | {row.name}: {row.question} | {row.wins_when} | "
-                   f"{_proxy(row, flat, comp) or '—'} |  |")
+                   f"{named or '—'} |  |")
     out.append("")
     for i, (row, (flat, comp)) in enumerate(zip(rows, results, strict=True), 1):
         out += [f"## {i}. {row.name}", "", f"*{row.question}*", ""]
@@ -210,6 +220,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--k", type=int, default=5)
     ap.add_argument("--out", default="")
     a = ap.parse_args(argv)
+    os.chdir(ROOT)  # config and data paths resolve against the repo root
     from core.sealing import seal
 
     seal()
@@ -222,8 +233,10 @@ def main(argv: list[str] | None = None) -> int:
     results = [(_ask(engine, AMBASSADOR_OVERLAY, r.flat, a.k),
                 _ask(engine, AMBASSADOR_OVERLAY, r.composed, a.k)) for r in rows]
     text = render(rows, results, k=a.k, started=started, seconds=time.perf_counter() - t0)
-    default = ROOT / "docs" / "experiments" / f"query-battery-{started[:10]}.md"
+    # the record names live notes, so by default it stays out of the tracked docs
+    default = ROOT / "data" / "experiments" / f"query-battery-{started[:10]}.md"
     out = Path(a.out) if a.out else default
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text, encoding="utf-8")
     print(f"wrote {out.relative_to(ROOT) if out.is_relative_to(ROOT) else out}")
     for i, (row, (flat, comp)) in enumerate(zip(rows, results, strict=True), 1):
