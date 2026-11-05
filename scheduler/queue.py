@@ -87,8 +87,7 @@ _IDEMPOTENT_KINDS = frozenset(
 # request already receipted as landed or refused, and each landing is idempotent at the store.
 # They stay out of `_IDEMPOTENT_KINDS` because their payload names one request, so they never
 # coalesce; a literal again, for the cycle's reason, and `tests/unit/test_door.py` asserts it.
-_REQUEUE_KINDS = _IDEMPOTENT_KINDS | frozenset(
-    {"ingest", "capture", "link", "relate", "code_observe"})
+_REQUEUE_KINDS = _IDEMPOTENT_KINDS | frozenset({"script"})
 # A door job is requeued while it has been claimed fewer than this many times: one that kills
 # the process every time it runs is failed on the third start, not requeued forever.
 _REQUEUE_DOOR_ATTEMPTS = 3

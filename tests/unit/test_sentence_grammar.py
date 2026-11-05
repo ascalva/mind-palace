@@ -59,7 +59,10 @@ def test_a_parse_error_never_quotes_a_string() -> None:
     """A string's text never enters an error, so a command's quoted words never reach the query
     log through a refusal's reason; its length and place do."""
     with pytest.raises(ParseError) as e:
-        parse('do capture "a" "the secret words"')
+        parse('near "a" "the secret words"')
+    assert "secret" not in str(e.value) and "a string of 16 characters" in str(e.value)
+    with pytest.raises(ParseError) as e:
+        parse('do capture(text: "a" "the secret words")')
     assert "secret" not in str(e.value) and "a string of 16 characters" in str(e.value)
 
 
@@ -105,62 +108,28 @@ def test_read_parses_with_an_optional_chunk() -> None:
         parse('read "a.md" chunk x')
 
 
-# ── the action sort: `do <command>` (dn-ingest-door D2) ─────────────────────────────────────────
+# ── the door: `do <request>` (dn-door-language §E6) ───────────────────────────────────────────
 
 
-def test_commands_parse_to_their_nodes() -> None:
-    from core.sentence.ast import (
-        Capture,
-        Curate,
-        Do,
-        Dream,
-        Ingest,
-        Link,
-        Observe,
-        RelatePass,
-        Research,
-        Source,
-        SourceKind,
-        Sync,
-    )
+def test_a_request_parses_to_a_do_over_the_door_language() -> None:
+    from core.sentence.script import CallScript, Inline, Lit
 
-    assert parse('do ingest note "notes/x.md"') == Do(Ingest(Source(SourceKind.NOTE, "notes/x.md")))
-    assert parse('do ingest turn conv-1 7 "hello"') == Do(
-        Ingest(Source(SourceKind.TURN, atom="conv-1", turn="7", text="hello")))
-    assert parse("do ingest doc docs/a.md") == Do(Ingest(Source(SourceKind.DOC, "docs/a.md")))
-    assert parse('do ingest paper "reference:p1"') == Do(
-        Ingest(Source(SourceKind.PAPER, "reference:p1")))
-    assert parse("do ingest code") == Do(Ingest(Source(SourceKind.CODE, "")))
-    assert parse("do ingest code abc1234") == Do(Ingest(Source(SourceKind.CODE, "abc1234")))
-    assert parse("do ingest transcript 230fd788-0f18") == Do(
-        Ingest(Source(SourceKind.TRANSCRIPT, "230fd788-0f18")))
-    assert parse("do sync vault") == Do(Sync("vault"))
-    assert parse("do observe code") == Do(Observe(None))
-    assert parse("do observe code e91ef02") == Do(Observe("e91ef02"))
-    assert parse("do dream") == Do(Dream())
-    assert parse("do curate") == Do(Curate())
-    assert parse("do relate") == Do(RelatePass(None))
-    assert parse("do relate pairs 12") == Do(RelatePass(12))
-    assert parse('do link "a.md" "b.md" supports') == Do(Link("a.md", "b.md", "supports"))
-    assert parse('do capture "remember this" in conv-1') == Do(Capture("remember this", "conv-1"))
-    assert parse('do capture "remember this"') == Do(Capture("remember this", None))
-    assert parse('do research "sleep and memory"') == Do(Research("sleep and memory"))
+    assert parse("do sync_vault") == ast.Do(CallScript("sync_vault", (), ()), text="sync_vault")
+    term = parse('do capture(text: "remember this", conversation: "conv-1")')
+    assert isinstance(term, ast.Do) and term.request == CallScript(
+        "capture", (), (("text", Lit("remember this")), ("conversation", Lit("conv-1"))))
+    assert isinstance(parse('do { run "dream" }'), ast.Do)
+    assert isinstance(parse('do { run "dream" }').request, Inline)    # type: ignore[union-attr]
     assert typecheck(parse("do dream")) is Sort.EVENT
 
 
 @pytest.mark.parametrize("text, reason", [
-    ('do dream and near "x"', "no connective"),            # a command is a whole sentence
-    ('do sync vault within reach F from "n"', "no connective"),
-    ("do sync nowhere", "one of vault, dialogue, chat, code"),
-    ('do link "a" "b" sideways', "one of supports, contradicts, contextualizes"),
-    # no role word: a turn the door ingests is observed by construction
-    ('do ingest turn conv 7 user "hello"', "a quoted string"),
-    ("do ingest", "a source"),
-    ("do", "a command"),
-    ("do fly", "not 'fly'"),
-    ('near "x" then do dream', "a verb"),                  # `do` is a keyword, never a verb
+    ('do dream and near "x"', "the end of the statement"),  # a request is a whole sentence
+    ("do", "a request"),
+    ("do capture(", "expected"),
+    ('near "x" then do dream', "a verb"),                  # `do` heads a sentence, never a verb
 ])
-def test_a_command_that_is_not_in_the_grammar_is_refused_with_the_reason(text: str,
+def test_a_request_that_is_not_in_the_grammar_is_refused_with_the_reason(text: str,
                                                                             reason: str) -> None:
     with pytest.raises(ParseError) as e:
         parse(text)
@@ -169,15 +138,19 @@ def test_a_command_that_is_not_in_the_grammar_is_refused_with_the_reason(text: s
 
 @pytest.mark.parametrize("text", [
     "plain", 'a "quoted" word', "ends with backslash \\", 'a\\" in evil', "back\\\\slash",
-    'do capture "x" in y', "\\\"", "new\nline and tab\t", "",
+    'do capture(text: "x")', "\\\"", "new\nline and tab\t", "",
 ])
 def test_quote_is_the_tokenizers_inverse(text: str) -> None:
-    """A client's text, quoted, reads back as itself and never ends the literal early: the one
-    command the sentence carries is the one the alias built (the review's finding 13)."""
+    """A client's text, quoted, reads back as itself and never ends the literal early, in a read
+    sentence and in a request (the review's finding 13)."""
     from core.sentence.grammar import quote
-    term = parse(f"do capture {quote(text)} in tea")
-    assert isinstance(term, ast.Do) and isinstance(term.command, ast.Capture)
-    assert term.command.text == text and term.command.conversation == "tea"
+    from core.sentence.script import quote as script_quote
+
+    assert parse(f"near {quote(text)}") == ast.Near(text)
+    term = parse(f"do capture(text: {script_quote(text)}, conversation: \"tea\")")
+    assert isinstance(term, ast.Do)
+    assert dict((k, v.value) for k, v in term.request.kwargs) == {  # type: ignore[union-attr]
+        "text": text, "conversation": "tea"}
 
 
 def test_the_command_words_are_not_keywords_elsewhere() -> None:

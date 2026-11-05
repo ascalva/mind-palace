@@ -1,10 +1,11 @@
-"""The dialogue sync's high-water mark (ops/lifecycle/launcher.py `dialogue_sync_now`), which the
-heartbeat (ops/heartbeat.py) reads to ask "anything new since the last sync?".
+"""The dialogue sync's high-water mark (`ops/lifecycle/launcher.py` `dialogue_sync`: the library
+script `door/sync_dialogue.palace` once a reader), which the heartbeat (ops/heartbeat.py) reads to
+ask "anything new since the last sync?".
 
-Proves: a source captured in full leaves `<source>.synced` with the newest change it saw; a source
-not asked for, a failing edge reader, or a capture that dies midway leaves no mark, so the next
-beat retries instead of skipping the turns; a turn the capture refuses (its class changed) is kept
-as it was and reported, and the rest land.
+Proves: a reader whose plan landed leaves `<reader>.synced` with the newest change it saw; a
+reader not asked for, a failing edge reader, or a landing that dies midway leaves no mark, so the
+next beat retries instead of skipping the turns; a turn the writer refuses (a path's label is
+fixed at its first store, R5) is kept as it was and reported, and the rest land.
 """
 
 from __future__ import annotations
@@ -12,12 +13,14 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
+from core.kernel.provenance import Provenance
 from ops.heartbeat import synced_mark
+from ops.lifecycle.launcher import dialogue_sync
+from tests.fixtures.door import Palace, palace_at
 
 CHATS = {
     "openwebui": [{"chat_id": "c1", "updated_at": 100,
@@ -29,23 +32,8 @@ CHATS = {
 }
 
 
-class _Capture:
-    def __init__(self, fail_on: str | None = None, refuse: str | None = None) -> None:
-        self.turns: list[str] = []
-        self.fail_on = fail_on
-        self.refuse = refuse
-
-    def capture_turn(self, text: str, *, conversation: str, turn_id: str, role: str,
-                     at: str | None) -> tuple[str, bool]:
-        if turn_id == self.fail_on:
-            raise RuntimeError("embedder down")
-        if turn_id == self.refuse:
-            raise PermissionError(f"dialogue/{conversation}/{turn_id} is observed")
-        self.turns.append(turn_id)
-        return f"dialogue/{conversation}/{turn_id}", True
-
-
 def _edge(*, failing: str | None = None) -> Any:
+    """The edge readers: each writes its handoff file where the palace's table says it is."""
     def run(argv: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
         source = "openwebui" if "edge.openwebui" in argv else "opencode"
         if source == failing:
@@ -57,47 +45,59 @@ def _edge(*, failing: str | None = None) -> Any:
     return run
 
 
-def _sync(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capture: _Capture, **kw: Any) -> int:
-    from ops.lifecycle.launcher import Launcher
-
-    monkeypatch.setattr("core.ingest.dialogue.build_dialogue_capture", lambda cfg: capture)
-    launcher = Launcher(cfg=SimpleNamespace(paths=SimpleNamespace(data_dir=tmp_path)),  # type: ignore[arg-type]
-                        runs=SimpleNamespace(last=lambda: None),  # type: ignore[arg-type]
-                        repo_root=tmp_path)
-    return launcher.dialogue_sync_now(**kw)
+@pytest.fixture
+def palace(tmp_path: Path) -> Palace:
+    return palace_at(tmp_path)
 
 
-def test_a_full_capture_leaves_the_mark_for_its_source_only(tmp_path, monkeypatch):
+def _sync(p: Palace, **kw: Any) -> int:
+    return dialogue_sync(p.cfg, p.root, stores=p.stores, **kw)
+
+
+def _paths(p: Palace) -> list[str]:
+    return sorted(e.source_path for e in p.stores.catalog.active_entries())
+
+
+def test_a_full_landing_leaves_the_mark_for_its_reader_only(palace, monkeypatch):
     monkeypatch.setattr(subprocess, "run", _edge())
-    cap = _Capture()
-    assert _sync(tmp_path, monkeypatch, cap, only={"openwebui"}) == 0
-    assert cap.turns == ["t1", "t2"]
-    assert synced_mark(tmp_path, "openwebui") == 140              # the newest change it saw
-    assert synced_mark(tmp_path, "opencode") == 0                 # not asked for
+    assert _sync(palace, only={"openwebui"}) == 0
+    assert _paths(palace) == ["dialogue/openwebui/c1/t1", "dialogue/openwebui/c2/t2"]
+    assert synced_mark(palace.data, "openwebui") == 140           # the newest change it saw
+    assert synced_mark(palace.data, "opencode") == 0              # not asked for
 
 
-def test_a_failing_reader_leaves_no_mark(tmp_path, monkeypatch):
+def test_a_failing_reader_leaves_no_mark(palace, monkeypatch):
     monkeypatch.setattr(subprocess, "run", _edge(failing="openwebui"))
-    assert _sync(tmp_path, monkeypatch, _Capture()) == 1
-    assert synced_mark(tmp_path, "openwebui") == 0
-    assert synced_mark(tmp_path, "opencode") == 5000              # the other source still landed
+    assert _sync(palace) == 1
+    assert synced_mark(palace.data, "openwebui") == 0
+    assert synced_mark(palace.data, "opencode") == 5000           # the other reader still landed
+    assert _paths(palace) == ["dialogue/opencode/s1/u1"]
 
 
-def test_a_capture_that_dies_midway_leaves_no_mark(tmp_path, monkeypatch):
+def test_a_landing_that_dies_midway_leaves_no_mark(palace, monkeypatch):
     monkeypatch.setattr(subprocess, "run", _edge())
-    with pytest.raises(RuntimeError):
-        _sync(tmp_path, monkeypatch, _Capture(fail_on="t2"), only={"openwebui"})
-    assert synced_mark(tmp_path, "openwebui") == 0                # retried next beat, not skipped
+    real = palace.stores.catalog.record
+
+    def record(path: str, *a: Any, **k: Any) -> Any:
+        if path.endswith("/t2"):
+            raise RuntimeError("disk full")
+        return real(path, *a, **k)
+
+    monkeypatch.setattr(palace.stores.catalog, "record", record)
+    assert _sync(palace, only={"openwebui"}) == 1
+    assert synced_mark(palace.data, "openwebui") == 0             # retried next beat, not skipped
 
 
-def test_a_refused_turn_is_kept_and_the_rest_land(tmp_path, monkeypatch, capsys):
-    """A turn whose class changed (`capture_turn` refuses it: an observed turn never supersedes
-    the owner's words, nor the reverse) is kept as it was and reported; the sync goes on, and the
-    mark is written, since a retry would refuse it again."""
+def test_a_refused_turn_is_kept_and_the_rest_land(palace, monkeypatch, capsys):
+    """A turn whose path already holds another label (the writer refuses it, R5: an observed turn
+    never supersedes the owner's words, nor the reverse) is kept as it was and reported; the sync
+    goes on, and the mark is written, since a retry would refuse it again."""
     monkeypatch.setattr(subprocess, "run", _edge())
-    cap = _Capture(refuse="t1")
-    assert _sync(tmp_path, monkeypatch, cap, only={"openwebui"}) == 0
-    assert cap.turns == ["t2"]
-    assert synced_mark(tmp_path, "openwebui") == 140
-    out = capsys.readouterr().out
-    assert "1 refused" in out and "kept as it was" in out
+    palace.stores.catalog.record("dialogue/openwebui/c1/t1", "d", "kept",
+                                 provenance=Provenance.OBSERVED)
+    assert _sync(palace, only={"openwebui"}) == 0
+    held = palace.stores.catalog.get("dialogue/openwebui/c1/t1")
+    assert held is not None and held.digest == "d" and str(held.provenance) == "observed"
+    assert palace.stores.catalog.get("dialogue/openwebui/c2/t2") is not None
+    assert synced_mark(palace.data, "openwebui") == 140
+    assert "'refused': 1" in capsys.readouterr().out

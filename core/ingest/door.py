@@ -70,7 +70,6 @@ MAX_SENTENCE_BYTES = 32 * 1024      # a command longer than this is refused at t
 MAX_REQUEST_BYTES = 64 * 1024       # a request file larger than this is rejected by the daemon
 MAX_SPOOLED = 256                   # a surface refuses to add to a spool already this deep
 SCAN_MAX = 4096                     # the entries of a spool the drain lists a tick
-RELATE_PAIRS_MAX = 50               # `relate pairs <n>` above this is refused (a model call a pair)
 PRUNE_AFTER_S = 7 * 24 * 3600       # receipts, rejected files and failed copies are kept a week
 ROOT_MODE = 0o755                   # the spool root: the daemon adds every entry
 SHARED_MODE = 0o3770                # the agents' spool: the group writes, the sticky bit guards
@@ -83,11 +82,6 @@ _INNER = ("queued", "receipts", "rejected")
 
 class Busy(RuntimeError):
     """The role's spool, or its share of the queue, is full: refused now, not queued for later."""
-
-
-class UnsupportedCommand(NotImplementedError):
-    """Well-typed and admitted, but this build has no landing for it yet; the message says
-    which step wires it."""
 
 
 def grant_for(role: str) -> Grant:
@@ -325,76 +319,50 @@ def _read_bounded(path: Path, cap: int) -> tuple[bytes, os.stat_result]:
 
 # ── the kinds ──────────────────────────────────────────────────────────────────────────────────
 
-# The commands the door lands itself (`perform`), as the kinds the daemon registers for it.
-DOOR_KINDS: frozenset[str] = frozenset({"ingest", "capture", "link", "relate", "code_observe"})
+SCRIPT_KIND = "script"
+# The door's own kinds: a job that names a request staged in `queued/` (dn-door-language §E7).
+DOOR_KINDS: frozenset[str] = frozenset({SCRIPT_KIND})
 
 
-def kind_of(command: ast.Command) -> tuple[str, dict[str, Any]]:
-    """The queue kind a command compiles to, and the kind's usual payload (dn-ingest-door D5):
-    today's kinds stay the queue's kinds, so their tiers, priorities, coalescing and the orphan
-    sweep keep their meaning; the door's own kinds carry the request id, added by the drain. A
-    command whose atom this build would ignore is refused by name, never landed as less than it
-    said (the review's finding 14)."""
-    match command:
-        case ast.Sync(lane=lane):
-            return ({"vault": "vault_sync", "chat": "chat_sync", "code": "code_sync",
-                     "dialogue": "dialogue_sync"}[lane], {})
-        case ast.Dream():
-            return ("dream", {})
-        case ast.Curate():
-            return ("curate", {})
-        case ast.Research():
-            raise UnsupportedCommand("research rides the airlock with de-identified criteria; the "
-                                     "door's request for it is wired in DO-3b (dn-ingest-door §4)")
-        case ast.Ingest(source=src):
-            match src.kind:
-                case ast.SourceKind.NOTE | ast.SourceKind.TURN | ast.SourceKind.DOC:
-                    return ("ingest", {})
-                case ast.SourceKind.PAPER:
-                    raise UnsupportedCommand("a paper's manifest ingest is an owner script today "
-                                             "(scripts/curate_local.py); the door's landing for it "
-                                             "is wired in DO-3b")
-                case ast.SourceKind.CODE:
-                    if src.atom:
-                        raise UnsupportedCommand("a commit's backfill rides code_backfill; the "
-                                                 "door's request for one commit is wired in DO-3b")
-                    return ("code_sync", {})
-                case ast.SourceKind.TRANSCRIPT:
-                    if src.atom:
-                        raise UnsupportedCommand("one session's transcript rides chat_sync, which "
-                                                 "syncs every session; the door's request for one "
-                                                 "session is wired in DO-3b")
-                    return ("chat_sync", {})
-        case ast.Observe(commit=commit):
-            if commit:
-                raise UnsupportedCommand("the code sensor observes the head; the door's request "
-                                         "for one commit is wired in DO-3b")
-            return ("code_observe", {})
-        case ast.RelatePass():
-            return ("relate", {})
-        case ast.Link():
-            return ("link", {})
-        case ast.Capture():
-            return ("capture", {})
-    raise UnsupportedCommand(f"no kind for {command!r}")  # pragma: no cover
+def kind_of(do: ast.Do) -> tuple[str, dict[str, Any]]:
+    """The queue kind a request takes, and the kind's usual payload: a bare call of a library
+    script the table maps to one of the queue's own coalescing kinds is that kind, so it coalesces
+    with the watcher's and the heartbeat's rows; every other request is a `script` job that names
+    its staged copy (dn-door-language §E7)."""
+    from core.ingest.table import COALESCING
+    from core.sentence.script import CallScript
+
+    r = do.request
+    if isinstance(r, CallScript) and not r.args and not r.kwargs and r.name in COALESCING:
+        return (COALESCING[r.name], {})
+    return (SCRIPT_KIND, {})
+
+
+def lane_of(do: ast.Do) -> str:
+    """The quota lane a request counts against: the library scripts the table marks interactive
+    (a capture) are interactive, so a role's syncs never hold its captures; the rest are bulk."""
+    from core.ingest.table import INTERACTIVE
+    from core.sentence.script import CallScript
+
+    r = do.request
+    return "interactive" if isinstance(r, CallScript) and r.name in INTERACTIVE else "bulk"
 
 
 # ── the spool ──────────────────────────────────────────────────────────────────────────────────
 
 
 def write_request(cfg: Config, *, role: str, plan: Plan) -> Receipt:
-    """Spool a compiled command for `role`. The plan was compiled under `grant_for(role)` by the
-    surface (the first check); the daemon compiles it again under the spool's grant (the second).
-    A command this build cannot land, one the landing would refuse, and one for a spool already
-    `MAX_SPOOLED` deep are refused here, before anything is written."""
+    """Spool a compiled request for `role`. The plan was compiled under `grant_for(role)` and
+    checked under the role by the surface (the first check); the daemon compiles it again under
+    the spool's grant (the second). A request for a spool already `MAX_SPOOLED` deep is refused
+    here, before anything is written."""
     if plan.sort is not Sort.EVENT or not isinstance(plan.term, ast.Do):
-        raise ValueError(f"not a command: {plan.sentence!r}")
+        raise ValueError(f"not a request: {plan.sentence!r}")
     if role not in _ROLE_GRANTS:
         raise IllScopedSentence(f"the door knows no role {role!r}")
     if len(plan.sentence.encode("utf-8")) > MAX_SENTENCE_BYTES:
-        raise ValueError(f"a command is at most {MAX_SENTENCE_BYTES} bytes")
-    check_command(plan.term.command, role)
-    kind, _ = kind_of(plan.term.command)
+        raise ValueError(f"a request is at most {MAX_SENTENCE_BYTES} bytes")
+    kind, _ = kind_of(plan.term)
     spool = spool_root(cfg) / role
     if not os.path.lexists(spool):
         handoff = Path(cfg.interface.handoff_dir)
@@ -618,170 +586,118 @@ def prune(cfg: Config, *, now: float | None = None, max_age_s: float = PRUNE_AFT
     return removed
 
 
-# ── the landing ────────────────────────────────────────────────────────────────────────────────
+# ── the landing: a script, evaluated and written ─────────────────────────────────────────────
 
 
-@dataclass
-class Landers:
-    """What the door lands with, built by the daemon once: each is a callable or `None`, and a
-    missing one is built from the config on first use. Injectable, so the landing is tested with
-    fakes and no store."""
-
-    vault_sync: Any = None          # `VaultSync`: `sync_one(path)`, `in_scope(path)`
-    capture: Any = None             # `DialogueCapture`: `capture_turn(...)`
-    edges: Any = None               # the relation edge store: `all()`, `add(...)`
-    curated: Callable[[list[Path]], Any] | None = None   # paths → a `CuratedReport`
-    relate: Callable[[int | None], Any] | None = None    # pairs → a `RelateReport`
-
-
-def perform(command: ast.Command, cfg: Config, landers: Landers | None = None,
-            *, role: str = "cli") -> dict[str, Any]:
-    """Land a command the door lands itself, under the one writer, and say what landed. The
-    provenance of what lands is fixed by the kind: a turn and a capture are observed, a link is
-    interpreted, a note is the owner's projection, a doc is curated; no word of the sentence
-    decides it (dn-ingest-door D1, D8). `role` is the spool the request came from: the identities
-    the door mints for turns are namespaced by it."""
-    L = landers if landers is not None else Landers()
-    check_command(command, role)
-    match command:
-        case ast.Ingest(source=src) if src.kind is ast.SourceKind.NOTE:
-            # contained by the resolved vault, named as the rescan names it (under the vault's
-            # path as configured), so a symlink on the vault's path never forks a note's identity
-            configured = Path(str(cfg.ingestion.vault.path)).expanduser()
-            vault = configured.resolve()
-            target = Path(src.atom).expanduser()
-            target = (target if target.is_absolute() else configured / target).resolve()
-            if vault not in target.parents:
-                raise IllScopedSentence(f"ingest note: {src.atom!r} is outside the vault; the "
-                                        "door ingests the owner's notes from the vault only")
-            path = configured / target.relative_to(vault)
-            if L.vault_sync is None:
-                from core.ingest.sync import build_vault_sync
-                L.vault_sync = build_vault_sync(cfg)
-            # the vault's own scope (its pattern and the excluded directories: `.recycle`, `bak`,
-            # the assets) binds a single note as it binds the rescan (the review's finding 8)
-            if not L.vault_sync.in_scope(path):
-                raise IllScopedSentence(f"ingest note: {src.atom!r} is outside the vault's scope "
-                                        "(its note pattern and excluded directories)")
-            outcome = L.vault_sync.sync_one(path)
-            entry = L.vault_sync.catalog.get(str(path))
-            digest = entry.digest if entry is not None else ""
-            return {"path": str(path), "outcome": str(getattr(outcome, "value", outcome)),
-                    "digest": digest,
-                    "attestations": _attestations_of(getattr(L.vault_sync, "attestor", None),
-                                                     digest, "ingest_note")}
-        case ast.Ingest(source=src) if src.kind is ast.SourceKind.TURN:
-            return _capture(L, cfg, src.text, src.atom, src.turn, role)
-        case ast.Capture(text=text, conversation=conv):
-            turn = hashlib.sha256(text.encode()).hexdigest()[:16]
-            return _capture(L, cfg, text, conv or "captures", turn, role)
-        case ast.Ingest(source=src) if src.kind is ast.SourceKind.DOC:
-            from core.ingest.curated import curated_sources
-            from core.kernel.config import REPO_ROOT
-            root = Path(REPO_ROOT).resolve()
-            path = (root / src.atom).resolve()
-            if root not in path.parents:
-                raise IllScopedSentence(f"ingest doc: {src.atom!r} is outside the repository")
-            # the allow-list is read on every call, never once per lander (the review's finding 1)
-            if path not in set(curated_sources(root)):
-                raise IllScopedSentence(f"ingest doc: {src.atom!r} is not a curated source "
-                                        "(the Constitution, the Conventions, docs/)")
-            if L.curated is None:
-                L.curated = _curated_lander(cfg, root)
-            report = L.curated([path])
-            return {"path": str(path), "report": str(report)}
-        case ast.Link(a=a, b=b, relation=relation):
-            from core.relations import RELATIONS
-            if relation not in RELATIONS:
-                raise ValueError(f"link: relation must be one of {list(RELATIONS)}")
-            if L.edges is None:
-                from core.stores.edges import open_edge_store
-                L.edges = open_edge_store(cfg)
-            from core.query import QueryEngine
-            engine = QueryEngine(cfg)
-            notes, _, _ = engine.note_graph()
-            da, db = (notes[engine.index_of(notes, t)]["digest"] for t in (a, b))
-            # D8: an interpreted link never overwrites an authored edge on the pair (the edge
-            # store's key has no provenance, the audit's defect 3), so the pair is refused here
-            for e in L.edges.all():
-                if {e.u, e.v} == {da, db} and e.rel_type == relation \
-                        and str(getattr(e, "provenance", "")) != "interpreted":
-                    raise IllScopedSentence(
-                        f"link: an authored {relation} edge already holds {a!r} and {b!r}; the "
-                        "door never overwrites the owner's edge")
-            sign, factor = RELATIONS[relation]
-            L.edges.add(da, db, sign=sign, rel_type=relation, w=factor, provenance="interpreted")
-            return {"linked": [a, b], "relation": relation, "provenance": "interpreted"}
-        case ast.RelatePass(pairs=pairs):
-            if L.relate is None:
-                from core.relations import build_relation_detector
-                L.relate = lambda n: build_relation_detector(
-                    cfg, max_pairs=24 if n is None else n).run()
-            return {"report": str(L.relate(pairs))}
-    raise UnsupportedCommand(f"the door does not land {ast.describe_command(command)!r} itself; "
-                             "its kind's own handler does, or DO-3b wires it")
-
-
-def check_command(command: ast.Command, role: str) -> None:
-    """What the door refuses of a well-typed, admitted command, at the surface (so the speaker
-    hears it at once), at the drain and again at the landing: a turn's names that carry a path,
-    and a relation pass over the cap."""
-    match command:
-        case ast.Ingest(source=src) if src.kind is ast.SourceKind.TURN:
-            turn_ref(role, src.atom, src.turn)
-        case ast.Capture(conversation=conv) if conv:
-            turn_ref(role, conv, "0")
-        case ast.RelatePass(pairs=pairs) if pairs is not None and pairs > RELATE_PAIRS_MAX:
-            raise IllScopedSentence(f"relate: at most {RELATE_PAIRS_MAX} pairs a pass, one "
-                                    f"model call each; {pairs} asked")
-
-
-def turn_ref(role: str, conversation: str, turn: str) -> str:
-    """The identity of a turn the door mints: under `dialogue/door/<role>/`, a namespace no
-    other writer uses, so a command never names the owner's turns (`dialogue/<source>/<chat>/`)
-    or another role's (the review's finding 2). The names carry no path."""
-    for label, value in (("conversation", conversation), ("turn", turn)):
-        if not _NAME.fullmatch(value):
-            raise IllScopedSentence(f"{label} {value!r}: a name is letters, digits, `_`, `.` and "
-                                    "`-`, never a path; the door's turns live under "
-                                    "dialogue/door/<role>/")
-    return f"door/{role}/{conversation}"
-
-
-def _capture(L: Landers, cfg: Config, text: str, conversation: str, turn: str,
-             role: str) -> dict[str, Any]:
-    namespace = turn_ref(role, conversation, turn)
-    if L.capture is None:
-        from core.ingest.dialogue import build_dialogue_capture
-        L.capture = build_dialogue_capture(cfg)
-    digest, created = L.capture.capture_turn(text, conversation=namespace, turn_id=turn,
-                                             role="assistant")          # observed, always
-    return {"ref": f"dialogue/{namespace}/{turn}", "digest": digest, "created": created,
-            "provenance": "observed",
-            "attestations": _attestations_of(getattr(L.capture, "attestor", None), digest,
-                                             "capture")}
-
-
-def _attestations_of(attestor: Any, digest: str, action: str) -> list[str]:
-    """The ids of the attestations of `action` that produced `digest`: the receipt's witnesses,
-    which `witness "<id>"` dereferences (DOR-6). They are the record of the bytes landed, so
-    when the same bytes landed before, by the same action, the earlier record is the witness.
-    Empty without an attestor's store or a digest."""
-    from core.ingest.landing import attested_by
-
-    return attested_by(attestor, action, digest)
-
-
-def _curated_lander(cfg: Config, root: Path) -> Callable[[list[Path]], Any]:
+def build_stores(cfg: Config, enqueue: Callable[[str, dict[str, Any]], int] | None = None) -> Any:
+    """The stores the writer lands into, opened by the daemon, the one writer."""
     from core.attestation import build_attestor
-    from core.ingest.curated import ingest_curated
     from core.ingest.embed import build_embedder
+    from core.ingest.writer import Stores
     from core.kernel.stores.rawstore import RawStore
     from core.stores.catalog import VaultCatalog
+    from core.stores.edges import open_edge_store
     from core.stores.vectorstore import open_vector_store
+    from core.stores.versions import open_version_store
 
-    raw, store = RawStore(cfg.paths.raw_store), open_vector_store(cfg)
-    embedder, catalog, attestor = build_embedder(cfg), VaultCatalog(cfg.paths.vault_catalog), \
-        build_attestor(cfg)
-    return lambda paths: ingest_curated(paths, raw, store, embedder, catalog, repo_root=root,
-                                        attestor=attestor)
+    return Stores(raw=RawStore(cfg.paths.raw_store), plane=open_vector_store(cfg),
+                  embedder=build_embedder(cfg), catalog=VaultCatalog(cfg.paths.vault_catalog),
+                  versions=open_version_store(cfg), attestor=build_attestor(cfg),
+                  edges=open_edge_store(cfg), enqueue=enqueue)
+
+
+def reader(cfg: Config, role: str) -> Callable[[str], list[Any]]:
+    """A nested sentence's evaluation, under the role's grant: the read half, whose hits come back
+    as records whose strings are observed (dn-door-language §E11)."""
+    def read(sentence: str) -> list[Any]:
+        from dataclasses import fields as dc_fields
+
+        from core.query import QueryEngine
+        from core.sentence.execute import execute
+        from core.sentence.interpret import OBSERVED, Origin, OStr, Record, ScriptError
+        from core.sentence.plan import compile_sentence
+        from core.sentence.universe import build
+
+        plan = compile_sentence(sentence, grant_for(role), role=role)
+        if plan.sort is Sort.EVENT:
+            raise ScriptError("a nested sentence reads; a request does not nest")
+        engine = QueryEngine(cfg)
+        answer = execute(plan, build(engine, plan))
+        out = []
+        for h in answer.hits:
+            origin = Origin("entry", "hit", str(getattr(h, "ref", "")),
+                            str(getattr(h, "title", "")))
+            rec: dict[str, Any] = {}
+            for f in dc_fields(h):
+                v = getattr(h, f.name)
+                rec[f.name] = OStr(v, OBSERVED, origin) if isinstance(v, str) else v
+            out.append(Record(rec))
+        return out
+    return read
+
+
+def resolve(do: ast.Do, library: Callable[[str], Any] | None = None) -> tuple[Any, list[Any],
+                                                                               dict[str, Any], str]:
+    """The script a request runs, with its arguments: a library script's, or the inline one."""
+    from core.sentence.script import CallScript, load
+
+    r = do.request
+    if isinstance(r, CallScript):
+        return ((library or load)(r.name), [a.value for a in r.args],
+                {k: v.value for k, v in r.kwargs}, r.name)
+    return (r.script, [], {}, "")
+
+
+MAX_RECEIPT_EFFECTS = 200     # the effects a receipt lists by name; the rest are counted
+
+
+def perform(do: ast.Do, cfg: Config, role: str, *, stores: Any,
+            library: Callable[[str], Any] | None = None, view: Any = None,
+            budget: int | None = None) -> dict[str, Any]:
+    """Run a request under the one writer: evaluate its script under the role (reading the
+    palace, writing nothing) into a plan, then land the plan, each effect by the writer's rules
+    (dn-door-language §E5). Returns what the receipt says: each effect's outcome, counted by
+    status, those that changed or were refused named, and the work charged (§E10)."""
+    from core.ingest.readers import PalaceView
+    from core.ingest.table import build_table
+    from core.ingest.writer import Writer
+    from core.sentence.interpret import Evaluator, Meter
+    from core.sentence.script import load
+
+    table = build_table(cfg)
+    script, args, kwargs, name = resolve(do, library)
+    meter = Meter(budget if budget is not None else table.roles[role].budget)
+    v = view if view is not None else PalaceView(table, role, stores.catalog,
+                                                 query=reader(cfg, role))
+    plan = Evaluator(v, role, meter, library=library or load).run(script, args, kwargs, name=name)
+    outcomes = Writer(table, role, stores, has=v.has, meter=meter).land(plan)
+    if hasattr(v, "landed"):
+        v.landed()
+    counts: dict[str, int] = {}
+    for o in outcomes:
+        counts[o.status] = counts.get(o.status, 0) + 1
+    named = [o.to_dict() for o in outcomes if o.status != "unchanged"]
+    return {"effects": counts, "changed": named[:MAX_RECEIPT_EFFECTS],
+            "more": max(0, len(named) - MAX_RECEIPT_EFFECTS), "work": meter.used}
+
+
+def run_library(cfg: Config, name: str, kwargs: Mapping[str, Any] | None = None, *,
+                role: str = "cli", stores: Any = None) -> dict[str, Any]:
+    """A library script run in this process, as the owner's CLI and scripts run one behind the
+    live-daemon guard: compiled and admitted under the role's grant as a request is, then
+    evaluated and landed by the writer."""
+    from core.sentence.plan import compile_sentence
+    from core.sentence.script import quote
+
+    def lit(v: Any) -> str:
+        if isinstance(v, str):
+            return quote(v)
+        if v is None or isinstance(v, bool):
+            return "none" if v is None else str(v).lower()
+        return str(v)
+
+    args = ", ".join(f"{k}: {lit(v)}" for k, v in (kwargs or {}).items())
+    text = f"do {name}({args})" if args else f"do {name}"
+    plan = compile_sentence(text, grant_for(role), role=role)
+    assert isinstance(plan.term, ast.Do)
+    return perform(plan.term, cfg, role, stores=stores if stores is not None else build_stores(cfg))

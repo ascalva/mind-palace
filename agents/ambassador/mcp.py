@@ -98,32 +98,32 @@ class Ambassador:
             code = fn()
         return {"ok": code == 0, "output": buf.getvalue().strip()}
 
-    # The write tools, as aliases of the one command `query` (dn-ingest-door D7): each compiles
-    # a sentence of the door and writes the request the daemon's one writer lands; the receipt
-    # rides back as the answer's hit. Nothing is written from this process any more.
+    # The write tools, as aliases of the one command `query` (dn-door-language §E8): each calls a
+    # library script of the door and writes the request the daemon's one writer lands; the
+    # receipt rides back as the answer's hit. Nothing is written from this process.
     def _do(self, sentence: str) -> dict[str, Any]:
         return self.query(sentence)
 
     def sync_dialogue(self) -> dict[str, Any]:
-        return self._do("do sync dialogue")
+        return self._do("do sync_dialogue")
 
     def sync_notes(self) -> dict[str, Any]:
-        return self._do("do sync vault")
+        return self._do("do sync_vault")
 
     def dream(self) -> dict[str, Any]:
         return self._do("do dream")
 
     def relate(self, max_pairs: int = 12) -> dict[str, Any]:
-        return self._do(f"do relate pairs {int(max_pairs)}")
+        return self._do(f"do relate(pairs: {int(max_pairs)})")
 
     def capture(self, text: str, conversation: str = "captures") -> dict[str, Any]:
         """Remember text the MODEL relays (a summary, a decision it was asked to remember) as an
         `observed` dialogue turn, by the door, under `dialogue/door/ambassador/<conversation>/`.
         Never authored: only the owner's own turns, synced from their chat app, carry authored
         provenance. A conversation is a name, not a path."""
-        from core.sentence import quote
+        from core.sentence.script import quote
 
-        return self._do(f"do capture {quote(text)} in {quote(conversation)}")
+        return self._do(f"do capture(text: {quote(text)}, conversation: {quote(conversation)})")
 
     def link(self, note_a: str, note_b: str, relation: str) -> dict[str, Any]:
         """Propose a signed relation between two notes, stored as `interpreted`, by the door."""
@@ -131,9 +131,10 @@ class Ambassador:
 
         if relation not in RELATIONS:
             raise ValueError(f"relation must be one of {list(RELATIONS)}")
-        from core.sentence import quote
+        from core.sentence.script import quote
 
-        return self._do(f"do link {quote(note_a)} {quote(note_b)} {relation}")
+        return self._do(f"do link(a: {quote(note_a)}, b: {quote(note_b)}, "
+                        f"relation: {quote(relation)})")
 
     # the loop's bookkeeping (docs/brainstorms/ambassador-agent-loop.md, phase 1) ----------------
     def status(self) -> dict[str, Any]:

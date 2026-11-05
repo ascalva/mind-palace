@@ -38,7 +38,7 @@ from typing import Any, TextIO
 from core.kernel.config import get_config
 from core.query import AMBASSADOR, AMBASSADOR_OVERLAY, Grant, Hit, QueryEngine
 from core.sentence.execute import SentenceAnswer, Universe, UnsupportedSentence, execute
-from core.sentence.grammar import ParseError, parse, tokenize
+from core.sentence.grammar import ParseError, parse
 from core.sentence.plan import Plan, compile_sentence, normalize
 from core.sentence.precedents import DEFAULT, Precedents
 from core.sentence.trace import Trace
@@ -149,19 +149,35 @@ _QUOTED = (re.compile(r"'[^']*'"), re.compile(r'"[^"]*"'))   # linear: no altern
 
 
 def is_command(text: str) -> bool:
-    return text.split(maxsplit=1)[:1] == ["do"]
+    from core.sentence.grammar import is_request
+
+    return is_request(text)
 
 
 def redact_command(text: str) -> str:
-    """A command as the log keeps it: rebuilt from its tokens with each string replaced by its
-    length in characters, so a captured text or a turn's words never enter the query log. A
-    command that does not tokenize is kept as its command word and its length alone."""
-    try:
-        tokens = tokenize(text)
-    except ParseError:
-        return f"do {_command_word(text)} <{len(text)} characters, unparsed>"
-    return " ".join(f'"<{len(t.text)}>"' if t.kind == "STRING" else t.text
-                    for t in tokens if t.kind != "END")
+    """A request as the log keeps it: each quoted string replaced by its length in characters, in
+    the script and in any sentence nested in it, so a captured text or a turn's words never enter
+    the query log; an unterminated string cut at its quote; whitespace collapsed. One pass over
+    the text, so a hostile request costs what any request does (a regex over escapes is
+    quadratic on an unterminated string)."""
+    out: list[str] = []
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        if c in "\"'":
+            j = i + 1
+            while j < n and text[j] != c and text[j] != "\n":
+                j += 2 if text[j] == "\\" else 1
+            if j < n and text[j] == c:
+                out.append(f'"<{j - i - 1}>"')
+                i = j + 1
+            else:
+                out.append(f"<{n - i} characters, unterminated>")
+                i = n
+        else:
+            out.append(c)
+            i += 1
+    return " ".join("".join(out).split())[:4096]
 
 
 def _command_word(text: str) -> str:
@@ -205,7 +221,8 @@ def ask_logged(text: str, grant: Grant, *, surface: str, role: str,
             from core.ingest import door
 
             grant = door.grant_for(door_role)
-        plan = compile_sentence(text, grant, precedents=precedents, trace=t)
+        plan = compile_sentence(text, grant, precedents=precedents, trace=t,
+                                role=door_role if command else None)
         if plan.sort is Sort.EVENT:
             from core.ingest import door
 
@@ -213,13 +230,18 @@ def ask_logged(text: str, grant: Grant, *, surface: str, role: str,
             receipt = door.write_request(cfg, role=door_role, plan=plan)
             if t is not None:
                 t.note("act", f"request {receipt.request} spooled for role {door_role!r} as "
-                              f"kind {receipt.kind!r}: the daemon's one writer lands it and "
-                              "writes the receipt beside the request", "DOR-4")
+                              f"kind {receipt.kind!r}: the daemon evaluates its script and its "
+                              "one writer lands the plan, then writes the receipt", "DOR-4")
+            from core.sentence.ast import Do
+            from core.sentence.script import CallScript
+
+            request = plan.term.request if isinstance(plan.term, Do) else None
+            title = request.name if isinstance(request, CallScript) else "inline script"
             answer = SentenceAnswer(
-                plan, (Hit(ref=f"door:{receipt.request}", title=receipt.kind, stratum="door",
+                plan, (Hit(ref=f"door:{receipt.request}", title=title, stratum="door",
                            provenance=door_role, detail=receipt.to_dict()),), None,
-                ("the command is written as a request for the daemon's one writer; the receipt "
-                 "names it, and `palace queue` shows the job (dn-ingest-door D3)",), t)
+                ("the request is written for the daemon's one writer; the receipt names it, "
+                 "and `palace queue` shows the job (dn-door-language §E6)",), t)
             log.record(_entry(logged, surface, role, started, plan, precedents,
                               outcome="requested", hits=1))
             return answer

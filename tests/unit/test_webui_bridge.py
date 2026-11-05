@@ -84,16 +84,17 @@ def test_query_from_the_web_speaks_only_the_web_tools_commands():
     ingest, however it is spelled."""
     from agents.ambassador.handoff import web_admits
 
-    for ok in ('near "x"', 'do capture "remember this" in tea', "do sync dialogue",
-               "do sync vault", "not a sentence ("):
+    for ok in ('near "x"', 'do capture(text: "remember this", conversation: "tea")',
+               "do sync_dialogue", "do sync_vault", "not a sentence ("):
         assert web_admits(ok) is None, ok
-    for no in ("do dream", "do relate pairs 50", 'do link "a" "b" supports', "do sync code",
-               'do ingest note "pages/a.md"', "do curate", 'near "x" then do dream',
-               "do  sync   chat"):
+    for no in ("do dream", "do relate(pairs: 50)", 'do link(a: "a", b: "b", relation: "supports")',
+               "do sync_code", 'do ingest_note(path: "pages/a.md")', "do curate",
+               "do  sync_chat", 'do { run "dream" }', 'do{run "dream"}', '  do dream',
+               'do capture(text: "x"); run "dream"', "do capture("):
         assert web_admits(no) is not None, no
     srv = _Server()
     text, err = server_call(srv)("query", {"sentence": "do dream"})       # type: ignore[arg-type]
-    assert err and "from Open WebUI a command is" in text
+    assert err and "from Open WebUI a request is" in text
     assert srv.seen == []                                # never reached the dispatch
 
 

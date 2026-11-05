@@ -1,0 +1,2 @@
+# A curation pass.
+run "curate"

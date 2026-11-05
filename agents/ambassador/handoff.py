@@ -49,29 +49,33 @@ WEB_TOOLS = frozenset({
 
 _ID = re.compile(r"[0-9a-f]{32}")   # the edge's uuid4().hex; anything else never names a file
 
-# The commands the web client may speak through `query`: those its own tools speak (`capture`,
-# `sync_dialogue`, `sync_notes`), as (command word, lane or None).
-WEB_COMMANDS = frozenset({("capture", None), ("sync", "dialogue"), ("sync", "vault")})
+# The library scripts the web client may call through `query`: those its own tools call
+# (`capture`, `sync_dialogue`, `sync_notes`); never a script inline.
+WEB_SCRIPTS = frozenset({"capture", "sync_dialogue", "sync_vault"})
 
 
 def web_admits(sentence: str) -> str | None:
     """`None` when the web client may send `sentence` through `query`, else why not. A read is
-    admitted; a command only when it is one of `WEB_COMMANDS`. A sentence that does not tokenize
-    is admitted here and refused by the server's own parse."""
-    from core.sentence.grammar import ParseError, tokenize
+    admitted; a request only when it parses as a call of one of `WEB_SCRIPTS`. What is a request
+    is decided by the parser's own rule (`grammar.is_request`), and a request that does not parse
+    is refused here: a filter that passed what it could not read would pass a script inline."""
+    from core.sentence import ast
+    from core.sentence.grammar import ParseError, is_request, parse
+    from core.sentence.script import CallScript
 
+    if not isinstance(sentence, str):
+        return "a sentence is a string"
+    if not is_request(sentence):
+        return None
     try:
-        tokens = tokenize(sentence)
-    except ParseError:
+        node = parse(sentence)
+    except ParseError as e:
+        return f"a request that does not parse: {e}"
+    if isinstance(node, ast.Do) and isinstance(node.request, CallScript) \
+            and node.request.name in WEB_SCRIPTS:
         return None
-    if not any(t.kind == "WORD" and t.text == "do" for t in tokens):
-        return None
-    words = [t.text if t.kind == "WORD" else None for t in tokens[:3]] + [None, None]
-    head, word, lane = words[0], words[1], words[2]
-    if head == "do" and ((word, None) in WEB_COMMANDS or (word, lane) in WEB_COMMANDS):
-        return None
-    return ("from Open WebUI a command is `do capture …`, `do sync dialogue` or `do sync vault`; "
-            "the others are spoken from the owner's terminal or OpenCode")
+    return ("from Open WebUI a request is `do capture(text: …)`, `do sync_dialogue` or "
+            "`do sync_vault`; the others are spoken from the owner's terminal or OpenCode")
 
 # (tool name, arguments) -> (text, is_error)
 Call = Callable[[str, dict[str, Any]], tuple[str, bool]]

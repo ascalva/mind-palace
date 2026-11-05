@@ -1,0 +1,14 @@
+# The owner's notes, verbatim, into the mirror; a note gone from the vault is retired.
+# A note new to the mirror takes its `id::` as its identity, else the identity of the vanished
+# note whose bytes it has (a rename), else its path. A note already bound keeps its identity.
+let vault = source("vault")
+let notes = files(vault)
+let present = paths(notes)
+let gone = [e for e in stored("mirror_authored", under: vault) if e.path not in present]
+let moved = unique_by(gone, "digest")
+for n in notes {
+    store n.content in "mirror_authored" as first(n.properties.id, moved[n.digest].identity)
+}
+for e in gone {
+    retire e.path in "mirror_authored"
+}

@@ -1,0 +1,11 @@
+# The turns the edge readers hand off, each under its chat: the named reader's, or every reader's
+# when none is named. The reader marks whose each turn is: the source labels the owner's authored
+# and the model's observed, and the script never does.
+param reader = none
+for r in ["openwebui", "opencode"] {
+    if reader == none or r == reader {
+        for t in items(source("dialogue/" + r)) {
+            store t.content in "dialogue" titled "dialogue/" + t.conversation + "/" + iso(t.timestamp) + " (" + t.role + ")"
+        }
+    }
+}
