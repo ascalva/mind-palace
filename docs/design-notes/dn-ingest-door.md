@@ -21,9 +21,16 @@ links:
   - docs/design-notes/plane-principals.md                 # the principals, the handoff directory (2770), who writes data/
   - formal/Palace/Door.lean                               # the laws, machine-checked (formal/Palace/Door/Defs.lean the model; PalaceTest/Door.lean the attacks)
 supersedes: null
-superseded_by: null
+superseded_by: docs/design-notes/dn-door-language.md   # in part: D1's sum of source kinds, D2's command table, D7, D8 (in part)
 warrant: docs/brainstorms/the-door.md
 ---
+
+> **Superseded in part, 2026-11-05.** The owner's correction (the warrant's last passages): the
+> language should know no ingestion path, and every path should be written in it. The second
+> form, `dn-door-language`, replaces this note's command table (D2), its per-command landers
+> (D7) and refusals (D8, in part) with a generic write language and scripts. The door (D3), the
+> landing order with the key last, the answer on ACID (D5), the laws (D9) and the findings (§9)
+> stand.
 
 # The door — ingestion as sentences: one operation, one writer, embedding the serial stage
 
