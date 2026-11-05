@@ -25,7 +25,7 @@ DAY-TO-DAY
   talk [--offline]                                      interactive chat (--offline = no-Ollama demo)
   monitor                                                run the dashboard/chat HTTP server standalone
   sandbox <code.py|-> [--input NAME=PATH] [--timeout N]  run code in the powerless sandbox
-  query "<sentence>" [--json|--no-plan|--as <role>]     ask a sentence of the query algebra (read-only)
+  query "<sentence>" [--json|--no-plan|--trace|--as <role>]  ask a sentence of the query algebra (read-only)
   query --log                                            the query sensor: strata by role, failed translations
 
 INGEST / KNOWLEDGE
