@@ -15,13 +15,15 @@ R1 = ast.Reach(Rel.F, "n", None, Direction.BOTH)
 R2 = ast.Relate("m")
 
 
-def test_within_is_pushed_to_the_leaves_over_and_and_or() -> None:
-    """`mask_hadamard`, `mask_add`."""
+def test_within_is_pushed_to_the_leaves_over_and_and_stays_over_or() -> None:
+    """`mask_hadamard`; `mask_add` holds too, but `or` is the mean of its chain's disjuncts, so a
+    mask pushed into `(a or b) within R or c` would make the two masked disjuncts join the outer
+    chain and weigh a third each instead of a quarter: the mask stays over the mixture."""
     pushed = normalize(parse('(near "a" and near "b") within reach F from "n"'))
     a, b = ast.Within(ast.Near("a"), R1), ast.Within(ast.Near("b"), R1)
     assert pushed == normalize(ast.And(a, b))
-    pushed = normalize(parse('(near "a" or near "b") within reach F from "n"'))
-    assert pushed == normalize(ast.Or(a, b))
+    kept = normalize(parse('(near "a" or near "b") within reach F from "n"'))
+    assert kept == ast.Within(ast.Or(ast.Near("a"), ast.Near("b")), R1)
 
 
 def test_adjectives_stack_by_intersection() -> None:
@@ -34,7 +36,11 @@ def test_a_positive_threshold_lets_the_mask_through_and_the_top_k_does_not() -> 
     """`thresh_maskF` and `topk_maskF_ne`."""
     assert normalize(parse('atleast 0.3 near "a" within reach F from "n"')) == ast.AtLeast(
         0.3, ast.Within(ast.Near("a"), R1))
-    top = normalize(parse('top 3 near "a" within reach F from "n"'))
+    # `top` takes its field with the field's adjectives: this ranks within the region
+    assert parse('top 3 near "a" within reach F from "n"') == ast.Top(
+        3, ast.Within(ast.Near("a"), R1))
+    # written outside the ranking, the mask stays over it: it may not pass through
+    top = normalize(parse('(top 3 near "a") within reach F from "n"'))
     assert top == ast.Within(ast.Top(3, ast.Near("a")), R1)
     # the counterexample the Lean proves, on the code's own functions
     f = np.array([3.0, 2.0, 1.0])

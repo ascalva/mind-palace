@@ -56,9 +56,14 @@ def test_rule_noun_the_relation_carries_the_letter() -> None:
     assert diffuse.mode is Mode.SEMANTIC and diffuse.req.edges.fibers == frozenset()
     # the legacy table types DIFFUSE as citation-structural though it walks the backbone
     assert mode_of(required(Verb.DIFFUSE)) is Mode.STRUCTURAL
-    (reach,) = clauses_of(parse('reach F from "n"'))
+    (reach,) = clauses_of(parse('reach F from "core/x.py"'))
     assert reach.mode is Mode.STRUCTURAL and reach.req.edges.fibers == frozenset({"F"})
     assert reach.req.time.clock is Clock.COMMIT
+    # a title names a node of the strata in force: finding it is a clause of its own when the
+    # relation's strata do not cover it
+    reach, name = clauses_of(parse('reach F from "n"'))
+    assert reach.req.sigma.strata == frozenset({Stratum.REFERENCE, Stratum.REFERENCE_REPO})
+    assert name.verb == "name" and name.req.sigma.strata == frozenset({Stratum.MIRROR_AUTHORED})
     (trace,) = clauses_of(parse('trace "n"'))
     assert trace.mode is Mode.TEMPORAL and trace.req.edges.fibers == frozenset({"D"})
     (witness,) = clauses_of(parse('witness "e"'))

@@ -290,3 +290,68 @@ def test_sherman_morrison_is_the_inverse_of_the_rank_one_update(M: np.ndarray,
     wrong = M_inv + (c / denom) * np.outer(M_inv @ u, v @ M_inv)
     assume(abs(c) > 1e-2 and np.linalg.norm(np.outer(M_inv @ u, v @ M_inv)) > 1e-2)
     assert not np.allclose(updated @ wrong, np.eye(n), atol=1e-6)
+
+
+# ── the planner is a theorem: a term and its normal form answer alike (review of 2026-11-05) ──
+
+
+def _plan_universe():  # type: ignore[no-untyped-def]
+    from tests.unit.test_sentence_execute import _universe
+
+    return _universe()
+
+
+def _sentence_terms():  # type: ignore[no-untyped-def]
+    from core.sentence import ast
+
+    near = st.sampled_from([ast.Near("q"), ast.Near("p")])
+    diffuse = st.sampled_from([ast.Diffuse(Rel.S, "a.md"), ast.Diffuse(Rel.S, "c.md", 2.0)])
+    reach = st.sampled_from([ast.Reach(Rel.F, "a.md", 1), ast.Reach(Rel.F, "c.md", 2),
+                             ast.Relate("A")])
+    fields = st.deferred(lambda: st.one_of(
+        near, diffuse, st.builds(ast.Far, fields), st.builds(ast.And, fields, fields),
+        st.builds(ast.Or, fields, fields), st.builds(ast.Within, fields, regions),
+        st.builds(ast.And, fields, regions)))
+    regions = st.deferred(lambda: st.one_of(
+        reach, st.builds(ast.Top, st.integers(1, 3), fields),
+        st.builds(ast.AtLeast, st.sampled_from([0.05, 0.3]), fields),
+        st.builds(ast.Not, regions), st.builds(ast.Minus, regions, regions),
+        st.builds(ast.And, regions, regions), st.builds(ast.Or, regions, regions),
+        st.builds(ast.Within, regions, regions), st.builds(ast.Then, regions, regions)))
+    return st.one_of(fields, regions)
+
+
+@given(_sentence_terms())
+@settings(max_examples=300, deadline=None)
+def test_a_term_and_its_normal_form_answer_alike(term) -> None:  # type: ignore[no-untyped-def]
+    """Every rewrite the planner makes is a law: evaluating a term and its normal form give the
+    same field (to 1e-12) or the same region. The `or` flattening failed this before `or` was
+    the mean of the chain (three disjuncts scored 0.5 written, 0.25 planned)."""
+    from core.sentence.execute import Evaluator, FieldV, RegionV
+    from core.sentence.plan import normalize
+    from core.sentence.types import sort_of
+
+    sort_of(term)                                   # the strategy builds well-sorted terms
+    u = _plan_universe()
+    written, planned = Evaluator(u).eval(term), Evaluator(u).eval(normalize(term))
+    if isinstance(written, FieldV):
+        assert isinstance(planned, FieldV)
+        assert np.allclose(written.scores, planned.scores, atol=1e-12)
+    else:
+        assert isinstance(written, RegionV) and isinstance(planned, RegionV)
+        assert written.members == planned.members
+
+
+def test_or_is_one_mixture_however_it_is_grouped() -> None:
+    """The reviewer's probe: `near "b" or near "c" or near "a"` as written and as planned."""
+    from core.sentence import compile_sentence, execute
+    from core.sentence.execute import Evaluator
+    from core.sentence.grammar import parse
+
+    u = _plan_universe()
+    left = Evaluator(u).eval(parse('(near "q" or near "p") or diffuse S from "a.md"'))
+    right = Evaluator(u).eval(parse('near "q" or (near "p" or diffuse S from "a.md")'))
+    assert np.allclose(left.scores, right.scores)    # type: ignore[attr-defined]
+    plan = compile_sentence('near "q" or near "p" or diffuse S from "a.md"')
+    assert execute(plan, u).hits == execute(
+        compile_sentence('diffuse S from "a.md" or (near "p" or near "q")'), u).hits

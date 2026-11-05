@@ -44,7 +44,6 @@ import numpy as np
 
 from core.kernel.clearance import MIRROR_READ
 from core.kernel.config import Config, get_config
-from core.kernel.provenance import Provenance
 from core.kernel.recursion import DEFAULT_GAMMA
 from core.kernel.scope import (
     ANCHOR,
@@ -199,18 +198,11 @@ def with_overlay(g: Grant) -> Grant:
 AMBASSADOR_OVERLAY = with_overlay(AMBASSADOR)
 
 
-# Which provenance classes a stratum's rows carry lives in the kernel now
+# Which provenance classes a stratum's rows carry lives in the kernel
 # (`core.kernel.clearance.STRATUM_CLASSES`), so the query engine and every other mint read one
-# table; a sentence's clearance is minted from its ADMITTED scope by the executor
-# (`core/sentence/execute.py`), never before admission.
-_STRATUM_OF: dict[str, str] = {
-    Provenance.AUTHORED_SOLO: "mirror",
-    Provenance.AUTHORED_DIALOGUE: "dialogue",
-    Provenance.CURATED: "curated",
-    Provenance.INTERPRETED: "interpreted",
-    Provenance.OBSERVED: "observed",
-    Provenance.CODE: "reference",
-}
+# table. A sentence reads by the same table after admission: its universe holds only the strata
+# its admitted clauses name, and each clause is evaluated on its own
+# (`core.sentence.execute.membership`, `core.sentence.universe.admitted_strata`).
 
 
 def required(

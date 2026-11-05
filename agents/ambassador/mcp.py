@@ -273,10 +273,11 @@ TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
         "quoting). Connectives and, or, minus, then; adjectives within <region>, over <strata>; "
         "top k, atleast t, far, not; assume <rel> <a> <b> [+w] in <sentence> (a hypothetical: the "
         "answer is a Hyp, never a fact). A <note> is a quoted path or title. Papers: over curated. "
-        'Example: top 5 near "sleep" and diffuse S from "health.md". The plan rides with the '
-        "answer; a refusal names the word that would fix it; trace: true shows the work — the "
-        "parse, every rewrite with its law, the support's census, each clause's arithmetic, "
-        "the ranking.",
+        'Example: top 5 (near "sleep" and diffuse S from "health.md"), the five best of the '
+        "product; top k takes its field with the field's adjectives, so top 5 near \"x\" within "
+        "<region> ranks within it. The plan rides with the answer; a refusal names the word that "
+        "would fix it; trace: true shows the work: the parse, every rewrite with its law, the "
+        "support's census, each clause's arithmetic, the ranking.",
         _schema({"sentence": _S,
                  "trace": {"type": "boolean",
                            "description": "show the work: the parse, the rewrites and their "

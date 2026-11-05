@@ -8,18 +8,24 @@ when the sentence walks them; `D` at the note grain is empty and said so), the s
 edges, and the readers for the version chain and the witnessing commit. `assume` applies
 an `Overlay` to a copy of the universe and evaluates the body there — nothing is written to any
 store; the result is a `Hyp` beside the actual value, and the notes name the response class the
-assumption falls in (QSA-9: adding weight lowers every effective resistance, removing it raises
-every one, a contradiction keeps or breaks the camps).
+assumption falls in (QSA-9: adding weight raises no effective resistance, removing it lowers none,
+a contradiction keeps or breaks the camps).
 
 Sorts evaluate to values: a field is a vector of scores in `[0, 1]` over the notes, a region a set
 of note indices, a chain a list of `Chain`s, a witness a record, a text the record at a ref (`read`,
-the dereference: a note, a dialogue turn, or a window of a curated paper — the executor holds the
-record's stratum to the clause's). Connectives follow the algebra of `core/sentence/algebra.py`,
-whose laws the Lean proves.
+the dereference: a note, a dialogue turn, a transcript turn, or a window of a curated paper or of a
+repo file at the commit; the executor holds the record's stratum to the clause's). Connectives
+follow the algebra of `core/sentence/algebra.py`, whose laws the Lean proves.
+
+Admission bounds the read. The universe holds only the strata the sentence's admitted clauses
+name; each verb is evaluated on its own clause's nodes (`Evaluator._carrier`) and its value lies
+within them, and a complement, a reversal or a threshold is taken within the strata its term reads
+(`Evaluator._support`): the Lean model's `Local`, a clause reads only what it requires.
 """
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -33,18 +39,25 @@ from core.query import CURATED_REF, Hit, QueryEngine, free_energy_distances
 from core.sentence import ast
 from core.sentence.algebra import atleast, camps, effective_resistance, far, mask_field, topk
 from core.sentence.ast import Direction, Node, Rel
-from core.sentence.automaton import Chain, compile_path, product_walk
+from core.sentence.automaton import Chain, compile_path, walk_product
 from core.sentence.plan import Plan
 from core.sentence.precedents import DEFAULT, Precedents
 from core.sentence.trace import Trace
 from core.sentence.types import (
+    MIRROR_NAMES,
     REFERENCE_NAMES,
     TRANSCRIPT_REF,
     AmbiguousSentence,
+    Context,
     IllScopedSentence,
     Sort,
+    is_foundation,
     read_strata,
+    repo_path,
     short_names,
+    stratum_of_provenance,
+    term_strata,
+    verb_strata,
 )
 
 
@@ -64,9 +77,36 @@ class Relation:
     w: float
 
 
+def membership(strata: Iterable[Stratum]) -> Callable[[str | None, str], bool]:
+    """Whether a node, by its stratum label and provenance, lies in a set of strata closed
+    downward, by the kernel's one table: a row by its provenance class as the clearances read it
+    (`STRATUM_CLASSES`: the mirror is the owner's own words, notes and chat turns; the dialogue
+    every turn), a file of the reference graph under `reference`, and a vault note the mirror no
+    longer holds under the mirror. A node with no label is in every set (a universe built by
+    hand, one stratum). The universe's builder loads by it and the evaluator masks by it."""
+    from core.kernel.clearance import classes_of
+    from core.kernel.scope import StratumScope
+
+    closed = StratumScope.of(*strata).strata
+    classes = {p.value for p in classes_of(closed)}
+    reference, mirror = bool(closed & REFERENCE_NAMES), bool(closed & MIRROR_NAMES)
+
+    def holds(label: str | None, provenance: str) -> bool:
+        if label is None:
+            return True
+        if label == "reference":
+            return reference
+        return provenance in classes or (label == "mirror" and not provenance and mirror)
+
+    return holds
+
+
 @dataclass
 class Universe:
-    """What one evaluation reads. Build one from a `QueryEngine` (`from_engine`) or by hand."""
+    """What one evaluation reads: built per sentence by `core.sentence.universe.build`, or by hand.
+    A node carries its stratum (`notes[i]["stratum"]`) and provenance; a verb is evaluated on the
+    nodes its clause's strata name (`members`). A universe built by hand whose nodes carry no
+    stratum is one stratum, and every clause reads all of it (the algebra's own tests)."""
 
     notes: list[dict[str, Any]]
     vectors: np.ndarray
@@ -88,16 +128,19 @@ class Universe:
     def __len__(self) -> int:
         return len(self.notes)
 
-    def index_of(self, atom: str) -> int:
-        """The node a name picks out: by path, digest or title; refused when none or several —
-        a name this universe did not seed is a lookup refusal, never an empty answer."""
+    def index_of(self, atom: str, among: frozenset[int] | None = None) -> int:
+        """The node a name picks out: by path, digest or title, among `among` when given (a
+        clause's carrier); refused when none or several — a name this universe did not seed is a
+        lookup refusal, never an empty answer."""
         hits = [i for i, n in enumerate(self.notes)
-                if atom in (n.get("source_path"), n.get("digest"), n.get("title"))]
+                if (among is None or i in among)
+                and atom in (n.get("source_path"), n.get("digest"), n.get("title"))]
         if not hits:
             where = ("a paper is a node once named as an anchor or reached by near … over curated"
                      if atom.startswith(CURATED_REF) else
-                     "the universe holds the notes, the dialogue, and what the sentence's texts "
-                     "and anchors reach")
+                     "the universe holds the strata the sentence's clauses read: the notes by "
+                     "default, the dialogue, papers or code under `over`, and what the anchors "
+                     "reach")
             raise LookupError(f"no node of this universe matches {atom!r}; {where}")
         if len(hits) > 1:
             names = ", ".join(repr(self.notes[i]["source_path"]) for i in hits)
@@ -107,32 +150,34 @@ class Universe:
     def path_of(self, i: int) -> str:
         return str(self.notes[i]["source_path"])
 
-    def in_strata(self, names: Iterable[str]) -> frozenset[int]:
-        """The nodes `over <strata>` keeps: by the row's provenance class, as the clearances read it
-        (`STRATUM_CLASSES`), and the reference graph's nodes under `reference` (QSA-2: a mask)."""
-        from core.kernel.clearance import classes_of
+    def members(self, strata: Iterable[Stratum]) -> frozenset[int]:
+        """The nodes a set of strata names (`membership`)."""
+        holds = membership(strata)
+        return frozenset(i for i, n in enumerate(self.notes)
+                         if holds(n.get("stratum"), str(n.get("provenance", ""))))
 
-        strata = {Stratum(n) for n in names}
-        classes = {p.value for p in classes_of(strata)}
-        reference = bool(strata & REFERENCE_NAMES)
-        return frozenset(
-            i for i, n in enumerate(self.notes)
-            if str(n.get("provenance", "")) in classes
-            or (reference and n.get("stratum") == "reference"))
+    def in_strata(self, names: Iterable[str]) -> frozenset[int]:
+        """The nodes `over <strata>` keeps (QSA-2: a mask), by `members`."""
+        return self.members(Stratum(n) for n in names)
 
     def digest_of(self, i: int) -> str:
         return str(self.notes[i].get("digest", ""))
 
-    def typed_graph(self) -> dict[Rel, dict[str, set[str]]]:
-        """The moves among the notes: `S` from the backbone, the recorded edges for the rest."""
+    def typed_graph(self, keep: frozenset[int] | None = None) -> dict[Rel, dict[str, set[str]]]:
+        """The moves among the notes, among `keep` when given: `S` from the backbone, the
+        recorded edges for the rest."""
         paths = [self.path_of(i) for i in range(len(self))]
+        kept = None if keep is None else {paths[i] for i in keep}
         s_edges: dict[str, set[str]] = {}
         rows, cols = np.nonzero(self.weights > 0)
         for i, j in zip(rows.tolist(), cols.tolist(), strict=True):
-            s_edges.setdefault(paths[i], set()).add(paths[j])
+            if keep is None or (i in keep and j in keep):
+                s_edges.setdefault(paths[i], set()).add(paths[j])
         graph: dict[Rel, dict[str, set[str]]] = {Rel.S: s_edges}
         for rel in (Rel.F, Rel.D, Rel.C):
-            graph[rel] = {u: set(vs) for u, vs in self.edges.get(rel, {}).items()}
+            graph[rel] = {u: {v for v in vs if kept is None or v in kept}
+                          for u, vs in self.edges.get(rel, {}).items()
+                          if kept is None or u in kept}
         return graph
 
     def relation_matrix(self, rel: Rel) -> np.ndarray:
@@ -158,100 +203,102 @@ class Universe:
                    edges={Rel.F: {}, Rel.D: {}, Rel.C: {}}, relations=[],
                    embed=lambda text: np.zeros(dim), history=lambda atom: [],
                    witness=lambda edge: None,
-                   text=lambda ref, chunk, window: read_ref(engine, ref, chunk, window=window))
-
-    @classmethod
-    def from_engine(cls, engine: QueryEngine) -> Universe:
-        """The live universe: the engine's note graph, the reference edges among the notes at the
-        anchor commit, the signed relation edges, the version chains and the C-fiber witness."""
-        from core.origin_view import origin
-        from core.reference_view import open_reference_view
-
-        notes, mat, weights = engine.note_graph()
-        paths = {str(n["source_path"]) for n in notes}
-        view = open_reference_view(engine.config)
-        f_edges: dict[str, set[str]] = {}
-        for p in sorted(paths):
-            for e in view.references_from(p):
-                if e.target_ref in paths:
-                    f_edges.setdefault(p, set()).add(e.target_ref)
-        relations = [
-            Relation(e.u, e.v, int(e.sign), e.rel_type, float(e.w))
-            for e in engine._get("edges").all()
-        ]
-        embedder = engine._get("embedder")
-        catalog = engine._get("catalog")
-        versions = engine._get("versions")
-
-        def embed(text: str) -> np.ndarray:
-            return np.asarray(embedder.embed_query(text), dtype=np.float64)
-
-        def history(atom: str) -> list[tuple[str, int, str, str]]:
-            doc_id = catalog.doc_id_for(atom) if catalog.get(atom) is not None else atom
-            return [(v.doc_id, v.version_seq, v.digest, v.at) for v in versions.history(doc_id)]
-
-        def witness(edge_id: str) -> Mapping[str, object] | None:
-            edge = origin(edge_id, causal_edges=engine._get("causal"),
-                          reference_edges=engine._get("references"))
-            return None if edge is None else {k: str(v) for k, v in edge.__dict__.items()}
-
-        def text(ref: str, chunk: int | None, window: int) -> Mapping[str, object] | None:
-            return read_ref(engine, ref, chunk, window=window)
-
-        return cls(notes=notes, vectors=mat, weights=weights,
-                   edges={Rel.F: f_edges, Rel.D: {}, Rel.C: {}}, relations=relations,
-                   embed=embed, history=history, witness=witness, cut=view.commit,
-                   missing=("D moves at the note grain: the version chains are per note (use "
-                            "trace); C moves are wired by the sentence universe, not here",),
-                   text=text)
+                   text=lambda ref, chunk, window: read_ref(engine, ref, chunk, window=window,
+                                                            cut=None))
 
 
-def _tracked(root: Path, rel: str) -> bool:
-    """Whether git tracks `rel` in the checkout at `root`: the reference stratum is the repo's
-    tracked code and docs. An untracked file (the data directory and its raw store of verbatim
-    transcripts, a local config, a key) is never one, and no git, or no repo, admits nothing."""
+# A repo file is read as papers are, in chunks: REPO_CHUNK_LINES lines each, `read_window` of them
+# per answer, the answer cut at REPO_MAX_CHARS characters (a file of very long lines is still one
+# bounded answer). A blob past REPO_MAX_BYTES is not read at all: the repo's docs and code are
+# small, and a blob that large is data, which the reference stratum does not hold.
+REPO_CHUNK_LINES = 80
+REPO_MAX_CHARS = 64_000
+REPO_MAX_BYTES = 4 << 20
+# The tool directories hold an agent's or a version-control tool's local state, never the repo's
+# docs and code; `read` refuses them whatever git tracks there.
+_TOOL_DIRS = (".git/", ".jj/", ".claude/")
+_SHA = re.compile(r"[0-9a-f]{7,64}")
+
+
+def _git(root: Path, *args: str) -> bytes | None:
+    """`git <args>` run in the checkout at `root` with literal pathspecs: its stdout, or None when
+    git fails, is absent, or times out."""
     import subprocess
 
     try:
-        out = subprocess.run(["git", "--literal-pathspecs", "-C", str(root), "ls-files",
-                              "--error-unmatch", "--", rel],
+        out = subprocess.run(["git", "--literal-pathspecs", "-C", str(root), *args],
                              capture_output=True, timeout=10, check=False)
     except (OSError, subprocess.SubprocessError):
-        return False
-    return out.returncode == 0
+        return None
+    return out.stdout if out.returncode == 0 else None
 
 
-def _read_repo_file(ref: str) -> Mapping[str, object] | None:
-    """A repo-relative path, a node of the reference graph, read from the checkout: inside the
-    repo root, a regular file, and tracked by git. A path that resolves outside the root, to
-    nothing, or to an untracked file is `None`, so `read` never opens `data/` (the raw store
-    keeps transcripts verbatim, tool output included) or a local config."""
+def _read_repo_file(ref: str, chunk: int | None, *, window: int,
+                    cut: str | None) -> Mapping[str, object] | None:
+    """A repo-relative path, a node of the reference graph, read as git's blob in the tree at the
+    cut (the universe's commit, else HEAD), never from the working tree. So an untracked file (the
+    data directory and its raw store of verbatim transcripts, a local config, a key) is never read,
+    nor an uncommitted edit, nor what a symlink points at, and the tree's names match exactly
+    whatever the file system's case rules. The foundation denylist and the tool directories are
+    refused whatever git tracks. `None` when the tree at the cut has no regular file at the path;
+    a blob too large to be the repo's docs or code, or not text, is refused by name. The record is
+    a window of `window` chunks around `chunk`, as a paper's is, and carries the commit read."""
     from core.kernel.config import REPO_ROOT
 
-    root = Path(REPO_ROOT).resolve()
-    path = (root / ref).resolve()
-    if root not in path.parents or not path.is_file():
+    rel = repo_path(ref)
+    if rel is None or is_foundation(rel) or rel.casefold().startswith(_TOOL_DIRS):
         return None
-    if not _tracked(root, path.relative_to(root).as_posix()):
+    root = Path(REPO_ROOT)
+    at = None
+    for rev in ([cut] if cut is not None and _SHA.fullmatch(cut) else []) + ["HEAD"]:
+        sha = _git(root, "rev-parse", "--verify", "--quiet", f"{rev}^{{commit}}")
+        if sha:
+            at = sha.decode().strip()
+            break
+    entry = None if at is None else _git(root, "ls-tree", "-l", "-z", str(at), "--", rel)
+    if not entry:
         return None
-    body = path.read_text(encoding="utf-8", errors="replace")
-    return {"ref": ref, "title": ref, "provenance": "code" if ref.endswith(".py") else "corpus",
-            "stratum": "reference", "text": body}
+    # one entry, `<mode> <type> <object> <size>\t<path>\0`
+    meta, _, name = entry.rstrip(b"\0").partition(b"\t")
+    fields = meta.split()
+    if len(fields) != 4 or name.decode("utf-8", "replace") != rel:
+        return None
+    mode, kind, obj, size = fields
+    if kind != b"blob" or mode not in (b"100644", b"100755"):
+        return None                                  # a symlink, a submodule, a directory
+    if int(size) > REPO_MAX_BYTES:
+        raise LookupError(f"read {ref!r}: {int(size)} bytes at {str(at)[:7]}, past the "
+                          f"{REPO_MAX_BYTES}-byte cap; the reference stratum is the repo's docs "
+                          "and code, and a blob that large is data")
+    blob = _git(root, "cat-file", "blob", obj.decode())
+    if blob is None:
+        return None
+    if b"\0" in blob:
+        raise LookupError(f"read {ref!r}: a binary blob at {str(at)[:7]}, not text")
+    lines = blob.decode("utf-8", errors="replace").splitlines(keepends=True)
+    n = max(1, -(-len(lines) // REPO_CHUNK_LINES))
+    first = min(0 if chunk is None else max(0, int(chunk) - 2), n - 1)
+    last = min(n, first + max(1, window)) - 1
+    body = "".join(lines[first * REPO_CHUNK_LINES:(last + 1) * REPO_CHUNK_LINES])
+    record: dict[str, object] = {
+        "ref": ref, "title": rel, "provenance": "code" if rel.endswith(".py") else "corpus",
+        "stratum": "reference", "at": str(at)[:7], "chunks": f"{first}–{last} of {n}",
+        "text": body[:REPO_MAX_CHARS]}
+    if len(body) > REPO_MAX_CHARS:
+        record["cut_at"] = f"{REPO_MAX_CHARS} of {len(body)} characters"
+    return record
 
 
-def read_ref(engine: QueryEngine, ref: str, chunk: int | None, *,
-             window: int) -> Mapping[str, object] | None:
+def read_ref(engine: QueryEngine, ref: str, chunk: int | None, *, window: int,
+             cut: str | None) -> Mapping[str, object] | None:
     """The record at a ref: a curated paper's window of `window` chunks around `chunk` (from its
-    start when absent), a transcript turn's utterance from the chatlog, or the full text of an
-    active note or dialogue turn — read from the vault file when the ref is a path under it, else
-    from the raw store. The stratum rides with the record for the executor's scope check. `None`
-    when nothing active bears the ref."""
-    from pathlib import Path
-
+    start when absent), a transcript turn's utterance from the chatlog, a window of a repo file as
+    git's blob at the cut (`_read_repo_file`), or the full text of an active note or dialogue turn,
+    read from the vault file when the ref is a path under it, else from the raw store. The stratum
+    rides with the record for the executor's scope check, by the one table the universe uses
+    (`stratum_of_provenance`). `None` when nothing active bears the ref."""
     from core.kernel.clearance import CURATED_READ
-    from core.kernel.provenance import Provenance
     from core.kernel.stores.rawstore import RawStore
-    from core.query import _STRATUM_OF
     from core.stores.catalog import VaultCatalog
 
     cfg = engine.config
@@ -278,7 +325,7 @@ def read_ref(engine: QueryEngine, ref: str, chunk: int | None, *,
         return {"ref": ref, "title": f"{ref} ({speaker})", "provenance": "observed",
                 "stratum": "transcript", "speaker": speaker, "text": str(row.get("text", ""))}
     if "/" in ref and not ref.startswith(("/", "~", "dialogue/")):
-        return _read_repo_file(ref)
+        return _read_repo_file(ref, chunk, window=window, cut=cut)
     entry = VaultCatalog(cfg.paths.vault_catalog).get(ref)
     if entry is None or not entry.active:
         return None
@@ -288,12 +335,8 @@ def read_ref(engine: QueryEngine, ref: str, chunk: int | None, *,
         body = path.read_text(encoding="utf-8", errors="replace")
     else:
         body = RawStore(cfg.paths.raw_store).get(entry.digest).decode("utf-8", errors="replace")
-    try:
-        stratum = _STRATUM_OF.get(Provenance(entry.provenance), "")
-    except ValueError:
-        stratum = ""
-    return {"ref": ref, "title": entry.title, "provenance": entry.provenance, "stratum": stratum,
-            "text": body}
+    return {"ref": ref, "title": entry.title, "provenance": entry.provenance,
+            "stratum": stratum_of_provenance(str(entry.provenance)), "text": body}
 
 
 # ── values ─────────────────────────────────────────────────────────────────────────────────────
@@ -358,6 +401,10 @@ class Overlay:
     @classmethod
     def of(cls, h: ast.Hypothesis, u: Universe) -> Overlay:
         a, b = u.index_of(h.a), u.index_of(h.b)
+        if a == b:   # by node, not by name: a note's path and its title name one note
+            raise IllScopedSentence(
+                f"assume: {h.a!r} and {h.b!r} name the same node, {u.path_of(a)!r}; an edge or a "
+                "contradiction joins two distinct notes (the backbone has no loops)")
         if isinstance(h, ast.ContradictHyp):
             return cls(contradictions=((u.digest_of(a), u.digest_of(b)),))
         rel = h.rel
@@ -413,10 +460,12 @@ class Overlay:
         for _i, _j, delta in self.s_edges:
             if delta > 0:
                 notes.append("adds weight on the backbone: every effective resistance falls or "
-                             "holds (CND-2); diffusion and reach can only grow")
+                             "holds (CND-2), and reach over S can only grow; diffusion, which "
+                             "normalises by degree, can move either way")
             elif delta < 0:
-                notes.append("removes weight from the backbone: every effective resistance along "
-                             "paths through the edge rises or holds (CND-2, backwards)")
+                notes.append("removes weight from the backbone: every effective resistance rises "
+                             "or holds (CND-2), and reach over S can only shrink; diffusion, "
+                             "which normalises by degree, can move either way")
         if self.f_add:
             notes.append("adds a citation: reach and the admissible chains over F can only grow "
                          "(QSA-7)")
@@ -436,6 +485,14 @@ class Overlay:
                             "frustrated and its zero mode is lifted (LAP-5, LAP-6)")
                          + ("" if before else " (it was frustrated already)"))
         return notes
+
+
+def disjuncts(node: Node) -> list[Node]:
+    """The disjuncts of an `or` chain, its maximal run of `or` nodes, left to right: `or` is one
+    n-ary operation, so `(a or b) or c` and `a or (b or c)` are the same three-way mixture."""
+    if isinstance(node, ast.Or):
+        return disjuncts(node.left) + disjuncts(node.right)
+    return [node]
 
 
 def _balanced(relations: list[Relation]) -> bool:
@@ -464,13 +521,35 @@ class Evaluator:
     """Evaluates a normalized term against a universe."""
 
     def __init__(self, universe: Universe, precedents: Precedents = DEFAULT,
-                 trace: Trace | None = None) -> None:
+                 trace: Trace | None = None, ctx: Context | None = None) -> None:
         self.u = universe
         self.p = precedents
         self.t = trace
-        # one walk per (relation, β) per evaluation: a sentence that diffuses from two anchors, or
-        # `and`s two diffusions, solves `(I − W_β)⁻¹` once
-        self._walks: dict[tuple[Rel, float], np.ndarray] = {}
+        # what is in force at the node being evaluated, walked as the typing walks it, so each
+        # verb is evaluated on the strata its clause was admitted for
+        self.ctx = ctx if ctx is not None else Context.initial(precedents)
+        # one walk per (relation, β, carrier) per evaluation: a sentence that diffuses from two
+        # anchors, or `and`s two diffusions, solves `(I − W_β)⁻¹` once
+        self._walks: dict[tuple[Rel, float, frozenset[int]], np.ndarray] = {}
+        # what the answer must say about how it was computed: a walk cut short, say
+        self.notes: list[str] = []
+
+    def _under(self, ctx: Context, node: Node) -> Value:
+        saved, self.ctx = self.ctx, ctx
+        try:
+            return self.eval(node)
+        finally:
+            self.ctx = saved
+
+    def _carrier(self, node: Node) -> frozenset[int]:
+        """The nodes a verb's clause reads, its strata's members: the verb is evaluated on them
+        and its value lies within them (QSA-5's typing invariant: a clause reads only what it
+        requires, so admitting the clause bounds what is read)."""
+        return self.u.members(verb_strata(node, self.ctx, self.p))
+
+    def _support(self, node: Node) -> frozenset[int]:
+        """The nodes a term's verbs read: what a complement or a reversal of it is taken within."""
+        return self.u.members(term_strata(node, self.ctx, self.p))
 
     # the proof of work ------------------------------------------------------------------------
     def _note(self, what: str, law: str = "") -> None:
@@ -493,22 +572,26 @@ class Evaluator:
     def eval(self, node: Node) -> Value:
         match node:
             case ast.Near(text=text):
+                carrier = self._carrier(node)
                 v = self.u.embed(text)
                 v = v / (np.linalg.norm(v) or 1.0)
-                scores = np.clip(self.u.vectors @ v, 0.0, 1.0)
-                self._note(f"near {text!r}: the kernel column s = clip(V·q̂, 0, 1) over "
-                           f"{len(self.u)} nodes; {int(np.count_nonzero(scores > 0))} positive; "
+                scores = mask_field(np.clip(self.u.vectors @ v, 0.0, 1.0), carrier)
+                self._note(f"near {text!r}: the kernel column s = clip(V·q̂, 0, 1) over the "
+                           f"{len(carrier)} nodes of the clause's strata; "
+                           f"{int(np.count_nonzero(scores > 0))} positive; "
                            f"best: {self._best(scores)}", "QSA-3")
                 return FieldV(scores)
             case ast.Diffuse(rel=rel, atom=atom, beta=beta):
-                return self._diffuse(rel, atom, beta)
+                return self._diffuse(rel, atom, beta, self._carrier(node))
             case ast.Far(field=f):
-                self._note("far: 1 − f, the bounded reversal of the field")
-                return FieldV(far(self._field(f)))
+                support = self._support(f)
+                self._note(f"far: 1 − f, the bounded reversal of the field, on the {len(support)} "
+                           "nodes of the strata its clauses read")
+                return FieldV(mask_field(far(self._field(f)), support))
             case ast.Reach(rel=rel, atom=atom, depth=depth, direction=direction):
-                return self._reach(rel, atom, depth, direction)
+                return self._reach(rel, atom, depth, direction, self._carrier(node))
             case ast.Relate(atom=atom):
-                return self._relate(atom)
+                return self._relate(atom, self._carrier(node))
             case ast.Top(k=k, field=f):
                 scores = self._field(f)
                 members = frozenset(i for i in topk(scores, k) if scores[i] > 0)
@@ -521,17 +604,18 @@ class Evaluator:
                                 if scores[i] > 0})
             case ast.AtLeast(t=t, field=f):
                 scores = self._field(f)
-                members = atleast(scores, t)
-                self._note(f"atleast {t:g}: {len(members)} of {len(scores)} scores reach the "
-                           "threshold", "QSA-4")
+                support = self._support(f)
+                members = atleast(scores, t) & support
+                self._note(f"atleast {t:g}: {len(members)} of the {len(support)} scores of the "
+                           "strata its clauses read reach the threshold", "QSA-4")
                 return RegionV(members,
-                               {i: {"score": round(float(scores[i]), 4)}
-                                for i in range(len(scores))})
+                               {i: {"score": round(float(scores[i]), 4)} for i in support})
             case ast.Not(region=r):
                 region = self._region(r)
-                self._note(f"not: the complement, {len(self.u) - len(region)} of {len(self.u)} "
-                           "nodes")
-                return RegionV(frozenset(range(len(self.u))) - region)
+                support = self._support(r)
+                self._note(f"not: the complement within the {len(support)} nodes of the strata "
+                           f"its clauses read, {len(support - region)} of them")
+                return RegionV(support - region)
             case ast.Minus(left=a, right=b):
                 left, right = self._region(a), self._region(b)
                 self._note(f"minus: {len(left)} members less {len(left & right)} shared → "
@@ -539,8 +623,8 @@ class Evaluator:
                 return RegionV(left - right)
             case ast.And(left=a, right=b):
                 return self._and(self.eval(a), self.eval(b))
-            case ast.Or(left=a, right=b):
-                return self._or(self.eval(a), self.eval(b))
+            case ast.Or():
+                return self._or([self.eval(p) for p in disjuncts(node)])
             case ast.Then(left=a, right=b):
                 region = self._region(a)
                 val = self.eval(b)
@@ -556,14 +640,12 @@ class Evaluator:
                            f"{self._size(val)} → {self._size(out)}", "QSA-2")
                 return out
             case ast.Over(body=b, strata=strata):
-                val = self.eval(b)
-                if isinstance(val, FieldV | RegionV):
-                    region = self.u.in_strata(strata)
-                    out = self._mask(val, region)
-                    self._note(f"over {' '.join(strata)}: masked to the strata's {len(region)} "
-                               f"nodes: {self._size(val)} → {self._size(out)}", "QSA-2, QSA-10")
-                    return out
-                return val
+                val = self._under(self.ctx.over(strata), b)
+                region = self.u.in_strata(strata)
+                out = self._mask(val, region)
+                self._note(f"over {' '.join(strata)}: masked to the strata's {len(region)} "
+                           f"nodes: {self._size(val)} → {self._size(out)}", "QSA-2, QSA-10")
+                return out
             case ast.AsOf(body=b, cut=cut):
                 if self.u.cut is None or not self.u.cut.startswith(cut):
                     at = "no cut" if self.u.cut is None else f"cut {self.u.cut[:7]!r}"
@@ -571,11 +653,11 @@ class Evaluator:
                         f"as of {cut!r}: this universe is read at {at}; the store holds no edges "
                         f"at that cut, and the notes have no snapshot store")
                 self._note(f"as of {cut!r}: the universe is read at cut {self.u.cut[:7]}")
-                return self.eval(b)
+                return self._under(self.ctx.as_of(cut), b)
             case ast.Trace(atom=atom, direction=direction):
                 return self._trace(atom, direction)
             case ast.Walk(atom=atom, path=path, to=to, depth=depth):
-                return self._walk(atom, path, to, depth)
+                return self._walk(atom, path, to, depth, self._carrier(node))
             case ast.Witness(edge=edge):
                 record = self.u.witness(edge)
                 found = "the minting commit found" if record else "no record"
@@ -587,9 +669,11 @@ class Evaluator:
                 overlay = Overlay.of(h, self.u)
                 self._note_assume(h, overlay)
                 self._note("— under the assumption:")
-                assumed = Evaluator(overlay.apply(self.u), self.p, self.t).eval(b)
+                inner = Evaluator(overlay.apply(self.u), self.p, self.t, self.ctx.assumed())
+                assumed = inner.eval(b)
+                self.notes += [f"under the assumption: {n}" for n in inner.notes]
                 self._note("— and without it:")
-                actual = self.eval(b)
+                actual = self._under(self.ctx.assumed(), b)
                 notes = (tuple(overlay.describe_response(self.u))
                          + tuple(_response(actual, assumed, self.u)))
                 return HypV(actual, assumed, (ast.describe(h),), notes)
@@ -674,7 +758,10 @@ class Evaluator:
         if isinstance(v, ChainsV):
             paths = {self.u.path_of(i) for i in region}
             return ChainsV(tuple(c for c in v.chains if c.end in paths))
-        raise UnsupportedSentence(f"within: cannot restrict a {type(v).__name__}")
+        if isinstance(v, HypV):          # a mask applies to both arms of a hypothetical
+            return HypV(self._mask(v.actual, region), self._mask(v.assumed, region),
+                        v.assumptions, v.notes)
+        raise UnsupportedSentence(f"cannot restrict a {type(v).__name__} to a region")
 
     def _and(self, a: Value, b: Value) -> Value:
         if isinstance(a, FieldV) and isinstance(b, FieldV):
@@ -703,52 +790,75 @@ class Evaluator:
             return out
         raise UnsupportedSentence("and: fields and regions only")
 
-    def _or(self, a: Value, b: Value) -> Value:
-        if isinstance(a, FieldV) and isinstance(b, FieldV):
-            mixed = (a.scores + b.scores) / 2.0                    # the convex mixture
-            self._note(f"or: the convex mixture (f + g)/2; {self._size(a)}, {self._size(b)} → "
+    def _or(self, parts: list[Value]) -> Value:
+        """`or` over a chain's disjuncts: the mean of the fields, the n-ary convex mixture, so it
+        is symmetric in them and a chain means the same however it is grouped; the union of the
+        regions."""
+        if all(isinstance(v, FieldV) for v in parts):
+            fields = [v.scores for v in parts if isinstance(v, FieldV)]
+            mixed = np.mean(fields, axis=0)
+            self._note(f"or: the convex mixture of {len(fields)} fields, their mean; "
                        f"{int(np.count_nonzero(mixed > 0))} positive", "QSA-1")
             return FieldV(mixed)
-        if isinstance(a, RegionV) and isinstance(b, RegionV):
-            self._note(f"or: the regions joined, {len(a.members)} ∪ {len(b.members)} = "
-                       f"{len(a.members | b.members)}")
-            return RegionV(a.members | b.members, {**dict(a.detail), **dict(b.detail)})
-        raise UnsupportedSentence("or: two fields or two regions")
+        if all(isinstance(v, RegionV) for v in parts):
+            regions = [v for v in parts if isinstance(v, RegionV)]
+            members = frozenset().union(*(r.members for r in regions))
+            detail: dict[int, Mapping[str, object]] = {}
+            for r in regions:
+                detail.update(r.detail)
+            self._note(f"or: {len(regions)} regions joined, {len(members)} members")
+            return RegionV(members, detail)
+        raise UnsupportedSentence("or: fields or regions, not both")
 
-    def _diffuse(self, rel: Rel, atom: str, beta: float | None) -> FieldV:
-        i = self.u.index_of(atom)
+    def _diffuse(self, rel: Rel, atom: str, beta: float | None,
+                 carrier: frozenset[int]) -> FieldV:
+        # an S walk runs among its clause's nodes, the anchor's stratum among them; a recorded
+        # relation's walk starts from the anchor, wherever its own clause named it
+        i = self.u.index_of(atom, carrier if rel is Rel.S else None)
+        keep = carrier | {i}
         if rel is Rel.S:
             W = self.u.weights
         elif rel is Rel.F:
             W = self.u.relation_matrix(Rel.F)
         else:
             raise UnsupportedSentence(f"diffuse {rel.value}: no weights at the note grain")
+        inside = np.zeros(len(self.u), dtype=bool)
+        inside[list(keep)] = True
+        W = np.where(inside[:, None] & inside[None, :], W, 0.0)
         if not np.any(W > 0):
-            self._note(f"diffuse {rel.value} from {atom!r}: no {rel.value} edges in this "
-                       "universe; the field is zero")
+            self._note(f"diffuse {rel.value} from {atom!r}: no {rel.value} edges among the "
+                       "clause's nodes; the field is zero")
             return FieldV(np.zeros(len(self.u)))
-        degrees = self.u.degrees if rel is Rel.S else None   # the support's walk keeps the
-        b = beta if beta is not None else self.p.beta                                     # graph's
-        if (rel, b) not in self._walks:
-            self._walks[(rel, b)] = free_energy_distances(W, beta=b, degrees=degrees)
-        dist = self._walks[(rel, b)][i]
+        degrees = None
+        if rel is Rel.S and self.u.degrees is not None:
+            # the support's walk keeps the graph's degrees (RSP-5): a paper's census, which
+            # counts papers only, and the exact degree among the clause's nodes for the rest
+            own = W.sum(axis=1)
+            census = np.array([n.get("stratum") == "curated" for n in self.u.notes])
+            degrees = np.where(census & inside, np.maximum(self.u.degrees, own), own)
+        b = beta if beta is not None else self.p.beta
+        if (rel, b, keep) not in self._walks:
+            self._walks[(rel, b, keep)] = free_energy_distances(W, beta=b, degrees=degrees)
+        dist = self._walks[(rel, b, keep)][i]
         scores = np.where(np.isfinite(dist), np.exp(-dist), 0.0)
         scores[i] = 0.0                                  # a note is not retrieved from itself
-        scores = np.clip(scores, 0.0, 1.0)
+        scores = mask_field(np.clip(scores, 0.0, 1.0), carrier)
         if self.t is not None:
             m = int(np.count_nonzero(np.triu(W, 1) > 0))
             reached = int(np.count_nonzero(np.isfinite(dist))) - 1
             kept = (" with the full graph's degrees on this support, so the walk never invents "
                     "nearness" if degrees is not None else "")
             self._note(f"diffuse {rel.value} from {atom!r}: the killed walk W_β = z·D⁻¹W∘W^β on "
-                       f"{len(self.u)} nodes and {m} edges, β = {b:g}, z = γ = {DEFAULT_GAMMA:g}"
+                       f"the clause's {len(keep)} nodes and {m} edges, β = {b:g}, "
+                       f"z = γ = {DEFAULT_GAMMA:g}"
                        f"{kept}; Z = (I − W_β)⁻¹, φ_aj = −log(z_aj / z_jj)/β, score e^{{−φ}}; "
                        f"{reached} nodes reachable; best: {self._best(scores)}",
                        "RSP-1, RSP-4" + (", RSP-5" if degrees is not None else ""))
         return FieldV(scores)
 
-    def _neighbours(self, rel: Rel, direction: Direction) -> dict[str, set[str]]:
-        graph = self.u.typed_graph()
+    def _neighbours(self, rel: Rel, direction: Direction,
+                    keep: frozenset[int]) -> dict[str, set[str]]:
+        graph = self.u.typed_graph(keep)
         fwd = graph.get(rel, {})
         if rel is Rel.S or direction is Direction.FORWARD:
             return fwd
@@ -763,15 +873,20 @@ class Evaluator:
             both.setdefault(a, set()).update(bs)
         return both
 
-    def _reach(self, rel: Rel, atom: str, depth: int | None, direction: Direction) -> RegionV:
-        start = self.u.path_of(self.u.index_of(atom))
-        at = {self.u.path_of(i): i for i in range(len(self.u))}
-        nbrs = self._neighbours(rel, direction)
+    def _reach(self, rel: Rel, atom: str, depth: int | None, direction: Direction,
+               carrier: frozenset[int]) -> RegionV:
+        i = self.u.index_of(atom, carrier if rel is Rel.S else None)
+        start = self.u.path_of(i)
+        keep = carrier | {i}
+        at = {self.u.path_of(j): j for j in carrier}
+        nbrs = self._neighbours(rel, direction, keep)
         hops = depth if depth is not None else self.p.depth
         seen = {start: 0}
         frontier = [start]
         frontiers: list[int] = []
         for h in range(1, hops + 1):
+            if not frontier:                 # nothing left to reach: the rest of the depth is moot
+                break
             nxt: list[str] = []
             for u in frontier:
                 for v in sorted(nbrs.get(u, ())):
@@ -781,12 +896,14 @@ class Evaluator:
             frontier = nxt
             frontiers.append(len(nxt))
         members = frozenset(at[p] for p in seen if p != start and p in at)
-        self._note(f"reach {rel.value} from {atom!r} depth {hops} {direction.value}: breadth "
-                   f"first over the typed edges, frontiers {frontiers}; {len(members)} reached")
+        if self.t is not None:
+            self._note(f"reach {rel.value} from {atom!r} depth {hops} {direction.value}: breadth "
+                       f"first over the typed edges among the clause's {len(keep)} nodes, "
+                       f"frontiers {frontiers}; {len(members)} reached")
         return RegionV(members, {at[p]: {"hops": h} for p, h in seen.items()
                                  if p in at and p != start})
 
-    def _relate(self, atom: str) -> RegionV:
+    def _relate(self, atom: str, carrier: frozenset[int]) -> RegionV:
         i = self.u.index_of(atom)
         digest = self.u.digest_of(i)
         by_digest = {self.u.digest_of(j): j for j in range(len(self.u))}
@@ -797,7 +914,7 @@ class Evaluator:
                 continue
             other = r.v if r.u == digest else r.u
             j = by_digest.get(other)
-            if j is None:
+            if j is None or j not in carrier:
                 continue
             members.add(j)
             detail[j] = {"relation": r.rel_type, "sign": r.sign, "w": r.w,
@@ -819,16 +936,23 @@ class Evaluator:
         steps = tuple((Rel.D, f"{d}@{s}") for d, s, _digest, _at in versions[1:])
         return ChainsV((Chain(head, steps),))
 
-    def _walk(self, atom: str, path: str, to: str | None, depth: int | None) -> ChainsV:
-        start = self.u.path_of(self.u.index_of(atom))
-        target = self.u.path_of(self.u.index_of(to)) if to is not None else None
+    def _walk(self, atom: str, path: str, to: str | None, depth: int | None,
+              carrier: frozenset[int]) -> ChainsV:
+        i = self.u.index_of(atom)
+        j = self.u.index_of(to) if to is not None else None
+        start = self.u.path_of(i)
+        target = self.u.path_of(j) if j is not None else None
+        keep = carrier | {i} | (set() if j is None else {j})
         dfa = compile_path(path)
         d = depth if depth is not None else self.p.walk_depth
-        chains = product_walk(self.u.typed_graph(), dfa, start, depth=d, target=target,
-                              limit=self.p.walk_limit)
+        chains, short = walk_product(self.u.typed_graph(frozenset(keep)), dfa, start, depth=d,
+                                     target=target, limit=self.p.walk_limit,
+                                     budget=self.p.walk_budget)
+        if short:
+            self.notes.append(f"walk from {atom!r} via {path}: {short}")
         self._note(f"walk from {atom!r} via {path}: the product of the typed graph with the "
-                   f"path's automaton, depth {d}, at most {self.p.walk_limit} chains; "
-                   f"{len(chains)} found", "QSA-7")
+                   f"path's automaton, breadth first, depth {d}, at most {self.p.walk_limit} "
+                   f"chains; {len(chains)} found" + (f"; {short}" if short else ""), "QSA-7")
         return ChainsV(tuple(chains))
 
 
@@ -892,11 +1016,11 @@ def _hits(value: Value, u: Universe, k: int) -> tuple[Hit, ...]:
         return tuple(_hit(u, j, score=float(value.scores[j])) for j in order)
     if isinstance(value, RegionV):
         return tuple(_hit(u, j, detail=dict(value.detail.get(j, {})))
-                     for j in sorted(value.members))
+                     for j in _region_order(value))
     if isinstance(value, ChainsV):
         strata = {str(n.get("source_path", "")): str(n.get("stratum", "mirror") or "mirror")
                   for n in u.notes}
-        return tuple(Hit(ref=str(c), stratum=strata.get(c.start, "mirror"),
+        return tuple(Hit(ref=str(c), stratum=_chain_strata(c, strata),
                          detail={"word": "".join(m.value for m in c.word), "length": len(c.steps)})
                      for c in value.chains)
     if isinstance(value, WitnessV):
@@ -910,6 +1034,29 @@ def _hits(value: Value, u: Universe, k: int) -> tuple[Hit, ...]:
                     stratum=str(r.get("stratum", "")), provenance=str(r.get("provenance", "")),
                     text=str(r.get("text", "")), detail=detail),)
     raise UnsupportedSentence("a Hyp inside a Hyp")  # pragma: no cover
+
+
+def _region_order(value: RegionV) -> list[int]:
+    """A region's members ranked by what its detail carries: a score highest first (`top`,
+    `atleast`), else the hops nearest first (`reach`); ties in the universe's order."""
+    def key(j: int) -> tuple[float, int, int]:
+        d = value.detail.get(j, {})
+        score, hops = d.get("score"), d.get("hops")
+        return (-float(score) if isinstance(score, int | float) else 0.0,
+                int(hops) if isinstance(hops, int) else 0, j)
+
+    return sorted(value.members, key=key)
+
+
+def _chain_strata(c: Chain, strata: Mapping[str, str]) -> str:
+    """The strata a chain runs through, in the order it enters them (`transcript+reference`):
+    a chain from a turn over the files it wrote is not the mirror's."""
+    out: list[str] = []
+    for node in (c.start, *(v for _, v in c.steps)):
+        name = strata.get(node, "mirror")
+        if name not in out:
+            out.append(name)
+    return "+".join(out)
 
 
 def _hit(u: Universe, j: int, *, score: float | None = None,
@@ -928,7 +1075,8 @@ def _rank_note(value: Value, k: int) -> str:
         return (f"rank: the field's {k} best positive scores, ties by the universe's order "
                 f"({int(np.count_nonzero(value.scores > 0))} positive)")
     if isinstance(value, RegionV):
-        return f"rank: the region's {len(value.members)} members, in the universe's order"
+        return (f"rank: the region's {len(value.members)} members by score, highest first, else "
+                "by hops, nearest first; ties in the universe's order")
     if isinstance(value, ChainsV):
         return f"rank: the {len(value.chains)} chains, as the walk found them"
     if isinstance(value, WitnessV):
@@ -942,8 +1090,9 @@ def execute(plan: Plan, universe: Universe, *, precedents: Precedents = DEFAULT,
             trace: Trace | None = None) -> SentenceAnswer:
     """Evaluate a compiled plan: deterministic for one universe, the plan riding with the answer
     and, with a trace, the work shown step by step."""
-    value = Evaluator(universe, precedents, trace).eval(plan.term)
-    notes: list[str] = list(universe.missing)
+    evaluator = Evaluator(universe, precedents, trace)
+    value = evaluator.eval(plan.term)
+    notes: list[str] = list(universe.missing) + evaluator.notes
     if plan.sort is Sort.FIELD and not isinstance(plan.term, ast.Top):
         notes.append(f"a field: the {precedents.k} best scores are shown; write 'top k' to rank "
                      f"explicitly")
@@ -960,8 +1109,11 @@ def execute(plan: Plan, universe: Universe, *, precedents: Precedents = DEFAULT,
 
 def ask(text: str, grant: Any, engine: QueryEngine | None = None, *,
         precedents: Precedents = DEFAULT) -> SentenceAnswer:
-    """Compile a sentence under a grant and run it against the live universe."""
+    """Compile a sentence under a grant and run it against the live universe, the stratified one
+    the sentence's admitted clauses read (`core.sentence.universe.build`)."""
     from core.sentence.plan import compile_sentence
+    from core.sentence.universe import build
 
     plan = compile_sentence(text, grant, precedents=precedents)
-    return execute(plan, Universe.from_engine(engine or QueryEngine()), precedents=precedents)
+    return execute(plan, build(engine or QueryEngine(), plan, precedents=precedents),
+                   precedents=precedents)

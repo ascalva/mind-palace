@@ -18,12 +18,13 @@ assumptions in force (`Plan`); `explain` renders it as the plan that rides with 
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from core.query import Grant
 from core.sentence import ast
 from core.sentence.ast import Node
-from core.sentence.grammar import parse
+from core.sentence.grammar import ParseError, parse
 from core.sentence.precedents import DEFAULT, Precedents
 from core.sentence.trace import Trace
 from core.sentence.types import (
@@ -130,11 +131,12 @@ def _push_within(body: Node, region: Node, t: Trace | None = None) -> Node:
                      "Schur product", "QSA-2")
             return _flatten(ast.And(_push_within(a, region, t), _push_within(b, region, t)),
                             ast.And, t)
-        case ast.Or(left=a, right=b):
-            _note(t, "within pushed through `or` to both sides: the mask distributes over the "
-                     "mixture", "QSA-2")
-            return _flatten(ast.Or(_push_within(a, region, t), _push_within(b, region, t)),
-                            ast.Or, t)
+        case ast.Or():
+            # the mask distributes over the mean, but pushed in, the disjuncts would join an
+            # enclosing `or` chain and change its weights: it stays over the mixture
+            _note(t, "within stays over `or`: the masked disjuncts would join an enclosing "
+                     "mixture and change its weights", "QSA-2")
+            return ast.Within(body, region)
         case ast.AtLeast(t=th, field=f) if th > 0:
             _note(t, f"within under `atleast {th:g}`: a positive threshold commutes with the mask",
                   "QSA-4")
@@ -156,17 +158,20 @@ def _operands(node: Node, op: type[ast.And] | type[ast.Or]) -> list[Node]:
 
 
 def _flatten(node: Node, op: type[ast.And] | type[ast.Or], t: Trace | None = None) -> Node:
-    """Flatten nested `and`/`or`, normalize the operands and order them canonically
-    (commutativity and associativity of the Schur product and the sum)."""
+    """Flatten nested `and`/`or`, normalize the operands and order them canonically: the Schur
+    product is commutative and associative, and `or` is the mean of its chain's disjuncts, so
+    neither the grouping nor the order of either changes the answer."""
     parts = [_norm(p, t) for p in _operands(node, op)]
     ordered = sorted(parts, key=repr)
     if t is not None:
         done = ([f"flattened {len(parts)} operands"] if len(parts) > 2 else []) + \
             (["ordered canonically"] if ordered != parts else [])
         if done:
-            name, kind = ("and", "the Schur product") if op is ast.And else ("or", "the mixture")
-            _note(t, f"`{name}` {' and '.join(done)}: {kind} is commutative and associative",
-                  "QSA-1")
+            name, kind = (("and", "the Schur product is commutative and associative")
+                          if op is ast.And else
+                          ("or", "the mixture is the mean of the disjuncts, whatever their "
+                                 "grouping or order"))
+            _note(t, f"`{name}` {' and '.join(done)}: {kind}", "QSA-1")
     out = ordered[0]
     for p in ordered[1:]:
         out = op(out, p)
@@ -229,14 +234,46 @@ def _render(node: Node, indent: int) -> list[str]:
 # ── the compiler's front half ──────────────────────────────────────────────────────────────────
 
 
+_COUNT = re.compile(r"\{(\d+)(?:,(\d*))?\}")
+
+
+def check_bounds(node: Node, precedents: Precedents = DEFAULT) -> None:
+    """The most a sentence may ask (the ledger's bounds): `reach` and `walk` depth, `top k`, and a
+    path's counts. Refused when compiled, with the bound named, so no sentence can hold the
+    surfaces, which answer one call at a time (the review of 2026-11-05)."""
+    p = precedents
+    for n in ast.walk(node):
+        match n:
+            case ast.Reach(depth=d) | ast.Walk(depth=d) if d is not None and d > p.max_depth:
+                verb = "reach" if isinstance(n, ast.Reach) else "walk"
+                raise ParseError(f"{verb} depth {d}: at most {p.max_depth} hops (the bound in "
+                                 "docs/query/precedents.md)")
+            case ast.Top(k=k) if k > p.max_k:
+                raise ParseError(f"top {k}: at most {p.max_k} (the bound in "
+                                 "docs/query/precedents.md)")
+            case ast.Walk(path=path):
+                from core.sentence.automaton import PathError, compile_path
+
+                for m in _COUNT.finditer(path):
+                    if max(int(m.group(1)), int(m.group(2) or 0)) > p.max_repeat:
+                        raise ParseError(f"via {path}: a count {m.group(0)} past "
+                                         f"{p.max_repeat} (the bound in docs/query/precedents.md)")
+                try:                    # the path is the sentence's syntax: refused with it
+                    compile_path(path)
+                except PathError as e:
+                    raise ParseError(str(e)) from e
+
+
 def compile_sentence(text: str, grant: Grant | None = None, *,
                      precedents: Precedents = DEFAULT, trace: Trace | None = None) -> Plan:
     """Parse, type, normalize and, with a grant, check admissibility: the plan. With a trace,
     the work is noted: the parse and its sort, the rewrites, the clauses' scopes, the admission.
 
-    Raises `ParseError`, `SortError`, `AmbiguousSentence` or `IllScopedSentence`, each naming its
-    cause; a sentence that compiles is well-formed, well-sorted and admissible."""
+    Raises `ParseError` (a bound past the ledger's among them), `SortError`, `AmbiguousSentence`
+    or `IllScopedSentence`, each naming its cause; a sentence that compiles is well-formed,
+    within bounds, well-sorted and admissible."""
     tree = parse(text)
+    check_bounds(tree, precedents)
     sort = typecheck(tree)
     if trace is not None:
         trace.note("parse", "parsed:\n" + "\n".join(_render(tree, 1)))

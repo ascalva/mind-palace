@@ -33,6 +33,12 @@ class Precedents:
     read_window: int = 5                    # `read`'s window: chunks of a paper per answer
     support: int = 200                      # units per `near` text or anchor an indexed stratum
                                             # contributes to the universe (dn §2.9)
+    # the bounds: the most a sentence may ask, refused when it is compiled, so no sentence can
+    # hold the one-at-a-time surfaces for minutes (the review of 2026-11-05)
+    max_depth: int = 50                     # `reach` and `walk` hops
+    max_k: int = 1000                       # `top k`
+    max_repeat: int = 32                    # a path's count `{n,m}`
+    walk_budget: int = 100_000              # partial chains a walk explores before it stops
 
 
 DEFAULT = Precedents()

@@ -24,12 +24,18 @@ Verbs — the relation noun carries the edge letter (`S` similarity, `F` citatio
 - **chains**: `trace <note> [forward|back]` (the version chain) · `walk from <note> [to <note>]
   via <path>` (a regular expression over `S F D C`: `F+`, `S{0,2}C+`)
 - `witness "<edge id>"` (the record that minted an edge) · `read "<ref>" [chunk <n>]` (the text at a
-  ref: a note, a dialogue turn, or a window of a curated paper — read before quoting; the one verb
-  that returns content, so it composes with nothing)
+  ref: a note, a dialogue turn, a transcript turn, or a window of a curated paper or of a repo
+  file; read before quoting. It is the one verb that returns content, so it composes with nothing:
+  `over`, `assume` and `then` refuse it, as they refuse a witness)
 
 Connectives, tightest first: the adjectives `within <region>`, `over <strata>`, `as of "<cut>"`;
 then `and` / `minus`; then `or`; then `then` (`s then t` ≡ `t within region(s)`). Parenthesize to
-override. `and` of a field and a region is the field masked by the region; `and` of two fields is
+override. `top k` and `atleast t` take their field with its adjectives, so `top 10 near "x" within
+R` ranks within `R` and `top 3 near "x" over dialogue` ranks the dialogue; `(top 10 near "x")
+within R` ranks first and masks after, which can leave fewer than ten. A region is answered
+highest score first (`top`, `atleast`), else nearest first (`reach`). The bounds (depth 50, `top`
+1000, a path's count 32, a walk's budget) are in the ledger; a sentence past one is refused with
+the bound named, and a walk that stops short says so. `and` of a field and a region is the field masked by the region; `and` of two fields is
 their product (HYBRID is `near "t" and diffuse S from <note>`). A `<note>` is a quoted path, digest
 or title; a title that names several notes is refused with the paths to choose from.
 
@@ -45,18 +51,24 @@ Patterns:
 | which conversation turns wrote a file | `reach C from "core/query.py" depth 1 back` |
 | what a turn produced, and what those files cite | `walk from "transcript/<session>/<turn>" via CF depth 2` (the turn is the utterance before the action; a design note written by its id is its file) |
 
-**The strata.** A sentence reads the owner's notes unless it says `over <strata>`: `over curated`
-for the papers and the system's own docs, `over reference` for the repo's code and docs (hits name
-the file, the symbol and its lines), `over dialogue` for the chats, `over mirror` for the notes
-alone. The universe is the sentence's **support** (dn-query-sentence-algebra §2.9): the notes and
-the dialogue always, then the `support` (200) nearest units to each text and anchor in the indexed
-strata, and the citation graph within the anchor's radius at the cut — the `as of` commit, else
-the newest cut the store holds, which the notes name. `reach F from "core/query.py" depth 2` walks
-the repo's citations; `read "core/sealing.py"` reads the file (a file git tracks: never `data/` or
-a local config); `diffuse S from "reference:<paper>"`
-walks a paper's neighbourhood; `relate` and `trace` are the notes' alone. The notes of every
-answer carry the support's census and every truncation: an empty answer under a small support is
-a bound, not an absence.
+**The strata.** A sentence reads the owner's own words, the notes and what the owner said in
+chat, unless it says `over <strata>`: `over curated` for the papers and the system's own docs,
+`over reference` for the repo's code and docs (hits name the file, the symbol and its lines),
+`over dialogue` for every chat turn, the assistant's and the captures included. A title names a
+node of the strata in force, so under `over dialogue` it names a turn; a path, a paper ref or a
+transcript ref names its own stratum. Each clause is evaluated on its own strata and answers
+within them, and a clause that names a node outside them (a title anchor under `reach F`) reads
+it as a clause of its own: the plan lists it, and the grant must admit it. The universe is the
+sentence's **support** (dn-query-sentence-algebra §2.9): the strata its clauses read and nothing
+else, then the `support` (200) nearest units to each text and anchor in the indexed strata, and
+the citation graph within the anchor's radius at the cut (the `as of` commit, else the newest cut
+the store holds, which the notes name). `reach F from "core/query.py" depth 2` walks the repo's
+citations; `read "core/sealing.py"` reads the file as committed at that cut, 80 lines a chunk
+(git's blob, so never `data/`, a local config, an uncommitted edit or a symlink's target; the
+constitution and the golden set are refused when the sentence is admitted);
+`diffuse S from "reference:<paper>"` walks a paper's neighbourhood; `relate` and `trace` are the
+notes' alone. The notes of every answer carry the support's census and every truncation: an
+empty answer under a small support is a bound, not an absence.
 
 Dials you leave unsaid come from the resolution ledger `docs/query/precedents.md` (β `1.0`, depth
 `1`, `near` over `mirror_authored`, the `5` best scores of a bare field, the `200` of a support);

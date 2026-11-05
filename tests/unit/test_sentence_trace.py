@@ -22,7 +22,7 @@ def _trace(text: str, grant=AMBASSADOR_OVERLAY) -> tuple[Trace, list[str]]:
 
 
 def test_a_composed_sentence_shows_its_work_stage_by_stage() -> None:
-    t, hits = _trace('top 2 (near "q" and diffuse S from "a.md") within '
+    t, hits = _trace('(top 2 (near "q" and diffuse S from "a.md")) within '
                      'reach F from "a.md" depth 1')
     stages = [s.stage for s in t.steps]
     assert stages[0] == "parse" and stages[-1] == "rank"

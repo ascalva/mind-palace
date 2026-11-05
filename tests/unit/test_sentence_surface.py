@@ -76,7 +76,11 @@ def test_the_cli_answers_with_the_plan_and_logs_the_sentence(tmp_path: Path) -> 
     assert (e.surface, e.role, e.outcome, e.hits, e.hyp) == ("cli", "cli", "answered", 2, False)
     assert (e.sort, e.modes, e.strata) == ("field", ("semantic",), ("mirror_authored",))
     assert _run(['reach F from "a.md"'], log)[0] == 0
-    assert log.entries()[-1].strata == ("reference", "reference_repo")   # the closed Σ
+    # the closed Σ: the citations read the reference graph, and the title "a.md" names a node of
+    # the strata in force, the mirror, a clause of its own
+    assert log.entries()[-1].strata == ("mirror_authored", "reference", "reference_repo")
+    _run(['reach F from "docs/a.md"'], log)        # a repo path is covered (no such node here)
+    assert log.entries()[-1].strata == ("reference", "reference_repo")
     assert e.refusal == "" and e.ms >= 0 and e.at
 
     rc, text = _run(['top 1 near "q"', "--no-plan", "--as", "orchestrator"], log)
@@ -140,7 +144,7 @@ def test_the_owners_overlay_grant_answers_a_hypothetical_as_a_hyp(tmp_path: Path
     rc, text = _run(['assume S "a.md" "d.md" +0.9 in top 3 diffuse S from "a.md"', "--json"], log,
                     AMBASSADOR_OVERLAY)
     d = json.loads(text)
-    assert [h["ref"] for h in d["hyp"]["hits"]] == ["b.md", "c.md", "d.md"]
+    assert [h["ref"] for h in d["hyp"]["hits"]] == ["d.md", "b.md", "c.md"]   # by score
     assert d["hyp"]["assumptions"] == ["S 'a.md' 'd.md' +0.9"] and "Hyp" in d["plan"]
 
 
@@ -174,10 +178,11 @@ def test_the_log_is_a_sensor_of_strata_by_role_and_failed_translations(tmp_path:
     s = summarize(log.entries())
     assert s["asked"] == 5
     assert s["outcomes"] == {"answered": 2, "empty": 1, "refused": 2}
-    # strata are the clauses' closed Σ (reference closes to its repo refinement); an unknown
-    # stratum has no shape at all, so the two builder refusals share the empty key
+    # strata are the clauses' closed Σ (reference closes to its repo refinement; the title "c.md"
+    # is found in the mirror, the strata in force); an unknown stratum has no shape at all, so
+    # the two builder refusals share the empty key
     assert s["served"] == {
-        "builder · reference,reference_repo": {"empty": 1},
+        "builder · mirror_authored,reference,reference_repo": {"empty": 1},
         "builder · ∅": {"refused": 2},
         "orchestrator · mirror_authored": {"answered": 1},
         "orchestrator · mirror_authored,reference,reference_repo": {"answered": 1},
@@ -303,6 +308,10 @@ def test_the_precedents_file_mirrors_the_code() -> None:
         "`read` with no `chunk`": str(DEFAULT.read_chunk),
         "`read`'s window": str(DEFAULT.read_window),
         "the support an indexed stratum contributes": str(DEFAULT.support),
+        "`reach` and `walk` depth at most": str(DEFAULT.max_depth),
+        "`top k` at most": str(DEFAULT.max_k),
+        "a path's count `{n,m}` at most": str(DEFAULT.max_repeat),
+        "`walk`'s budget": str(DEFAULT.walk_budget),
     }
     for dial, value in expected.items():
         assert dial in table, f"{dial} has no row in docs/query/precedents.md"

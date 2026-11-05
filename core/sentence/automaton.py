@@ -14,6 +14,7 @@ QSA-7 in `formal/Palace/Sentence.lean`; fiber-geometry §2.3's grammar layer).
 
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Iterable, Mapping, Set
 from dataclasses import dataclass, field
 from functools import cached_property
@@ -21,6 +22,9 @@ from functools import cached_property
 from core.sentence.ast import Rel
 
 ALPHABET: tuple[Rel, ...] = (Rel.S, Rel.F, Rel.D, Rel.C)
+# Thompson's construction copies a counted body once per count: a bound on the copies, so a path
+# of nested counts is refused before it is built (the ledger bounds each count too)
+MAX_STATES = 20_000
 
 TypedGraph = Mapping[Rel, Mapping[str, Set[str]]]
 
@@ -162,6 +166,9 @@ class _NFA:
 
     def state(self) -> int:
         q = self.count
+        if q >= MAX_STATES:
+            raise PathError(f"via: the path's automaton passes {MAX_STATES} states; nested counts "
+                            "multiply, so write a smaller count")
         self.count += 1
         self.moves[q] = {}
         self.eps[q] = set()
@@ -332,28 +339,46 @@ class Chain:
         return self.start + "".join(f" →{m.value}→ {v}" for m, v in self.steps)
 
 
-def product_walk(graph: TypedGraph, dfa: DFA, start: str, *, depth: int,
-                 target: str | None = None, limit: int = 200) -> list[Chain]:
+def walk_product(graph: TypedGraph, dfa: DFA, start: str, *, depth: int,
+                 target: str | None = None, limit: int = 200,
+                 budget: int = 100_000) -> tuple[list[Chain], str]:
     """The chains from `start` of at most `depth` moves whose word the automaton accepts, ending
-    at `target` when one is given: a depth-first walk of the product graph that prunes a branch
-    at a dead state (QSA-7), on simple paths (no note revisited), at most `limit` chains, shortest
-    first."""
+    at `target` when one is given: the product graph walked breadth first, so shorter chains come
+    first, pruning a branch at a dead state (QSA-7), on simple paths (no note revisited). It stops
+    at `limit` chains or after `budget` partial chains, and says why: the second value is empty
+    when the walk was exhaustive, else the reason it stopped short."""
     found: list[Chain] = []
-    stack: list[tuple[str, int, tuple[tuple[Rel, str], ...], frozenset[str]]] = [
-        (start, dfa.start, (), frozenset({start}))]
-    while stack and len(found) < limit:
-        vertex, state, steps, visited = stack.pop()
+    queue: deque[tuple[str, int, tuple[tuple[Rel, str], ...], frozenset[str]]] = deque(
+        [(start, dfa.start, (), frozenset({start}))])
+    seen = 0
+    while queue:
+        if len(found) >= limit:
+            return (sorted(found, key=lambda c: (len(c.steps), str(c))),
+                    f"the {limit} shortest chains; longer ones were not enumerated")
+        seen += 1
+        if seen > budget:
+            return (sorted(found, key=lambda c: (len(c.steps), str(c))),
+                    f"the walk stopped at its budget of {budget} partial chains; chains longer "
+                    f"than {len(queue[0][2]) if queue else depth} moves were not all enumerated")
+        vertex, state, steps, visited = queue.popleft()
         if steps and state in dfa.accept and (target is None or vertex == target):
             found.append(Chain(start, steps))
         if len(steps) >= depth:
             continue
-        for move in reversed(ALPHABET):
+        for move in ALPHABET:
             next_state = dfa.step(state, move)
             if not dfa.is_live(next_state):
                 continue                                     # the dead state: prune here
-            for nxt in sorted(graph.get(move, {}).get(vertex, ()), reverse=True):
-                if nxt in visited:
-                    continue
-                stack.append((nxt, next_state, steps + ((move, nxt),), visited | {nxt}))
+            for nxt in sorted(graph.get(move, {}).get(vertex, ())):
+                if nxt not in visited:
+                    queue.append((nxt, next_state, steps + ((move, nxt),), visited | {nxt}))
     found.sort(key=lambda c: (len(c.steps), str(c)))
-    return found
+    return found, ""
+
+
+def product_walk(graph: TypedGraph, dfa: DFA, start: str, *, depth: int,
+                 target: str | None = None, limit: int = 200,
+                 budget: int = 100_000) -> list[Chain]:
+    """`walk_product`'s chains alone."""
+    return walk_product(graph, dfa, start, depth=depth, target=target, limit=limit,
+                        budget=budget)[0]
