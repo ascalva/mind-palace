@@ -370,3 +370,14 @@ def test_the_precedents_file_mirrors_the_code() -> None:
         assert dial in table, f"{dial} has no row in docs/query/precedents.md"
         first = re.search(r"`([^`]+)`", table[dial])
         assert first is not None and first.group(1) == value, (dial, table[dial], value)
+
+
+def test_a_nested_sentences_strings_and_a_reasons_values_never_reach_the_log() -> None:
+    """The security audit's redaction gaps: a quote inside backquotes put the scanner out of
+    step, and a value with an apostrophe leaked from a refusal's reason."""
+    from core.sentence.surface import redact_command, redact_reason
+
+    logged = redact_command('do { let h = `near "a` + "SECRET WORDS" + `"` }')
+    assert "SECRET" not in logged
+    assert "it's private" not in redact_reason('source("it\'s private"): no such source')
+    assert "four words of it" not in redact_reason("file('docs', 'four words of it'): refused")

@@ -65,7 +65,6 @@ _ROLE_GRANTS: dict[str, str] = {"ambassador": "ambassador", "cli": "operator"}
 _SHARED_ROLES: frozenset[str] = frozenset({"ambassador"})
 
 _RID = re.compile(r"[0-9a-f]{16}")                      # a request id: the file's name
-_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.\-]*")      # a conversation or turn name: no path
 MAX_SENTENCE_BYTES = 32 * 1024      # a command longer than this is refused at the surface
 MAX_REQUEST_BYTES = 64 * 1024       # a request file larger than this is rejected by the daemon
 MAX_SPOOLED = 256                   # a surface refuses to add to a spool already this deep
@@ -589,7 +588,7 @@ def prune(cfg: Config, *, now: float | None = None, max_age_s: float = PRUNE_AFT
 # ── the landing: a script, evaluated and written ─────────────────────────────────────────────
 
 
-def build_stores(cfg: Config, enqueue: Callable[[str, dict[str, Any]], int] | None = None) -> Any:
+def build_stores(cfg: Config, enqueue: Callable[..., int] | None = None) -> Any:
     """The stores the writer lands into, opened by the daemon, the one writer."""
     from core.attestation import build_attestor
     from core.ingest.embed import build_embedder
@@ -614,10 +613,13 @@ def reader(cfg: Config, role: str) -> Callable[[str], list[Any]]:
 
         from core.query import QueryEngine
         from core.sentence.execute import execute
+        from core.sentence.grammar import is_request
         from core.sentence.interpret import OBSERVED, Origin, OStr, Record, ScriptError
         from core.sentence.plan import compile_sentence
         from core.sentence.universe import build
 
+        if is_request(sentence):           # refused before it is compiled: it is not a reading
+            raise ScriptError("a nested sentence reads; a request does not nest")
         plan = compile_sentence(sentence, grant_for(role), role=role)
         if plan.sort is Sort.EVENT:
             raise ScriptError("a nested sentence reads; a request does not nest")
@@ -629,6 +631,8 @@ def reader(cfg: Config, role: str) -> Callable[[str], list[Any]]:
                             str(getattr(h, "title", "")))
             rec: dict[str, Any] = {}
             for f in dc_fields(h):
+                if f.name in ("provenance", "detail"):
+                    continue                # a script reads no label (§E3), nor what holds one
                 v = getattr(h, f.name)
                 rec[f.name] = OStr(v, OBSERVED, origin) if isinstance(v, str) else v
             out.append(Record(rec))
@@ -653,11 +657,15 @@ MAX_RECEIPT_EFFECTS = 200     # the effects a receipt lists by name; the rest ar
 
 def perform(do: ast.Do, cfg: Config, role: str, *, stores: Any,
             library: Callable[[str], Any] | None = None, view: Any = None,
-            budget: int | None = None) -> dict[str, Any]:
+            budget: int | None = None, request: str | None = None,
+            refresh: bool = False) -> dict[str, Any]:
     """Run a request under the one writer: evaluate its script under the role (reading the
     palace, writing nothing) into a plan, then land the plan, each effect by the writer's rules
-    (dn-door-language §E5). Returns what the receipt says: each effect's outcome, counted by
-    status, those that changed or were refused named, and the work charged (§E10)."""
+    (dn-door-language §E5). `request` is the request's id, so the jobs its plan starts start
+    once however often it runs; `refresh` runs a structured source's edge reader before its
+    first read, which only the daemon's own syncs and the owner's CLI ask for. Returns what the
+    receipt says: each effect's outcome, counted by status, those that changed or were refused
+    named, and the work charged (§E10)."""
     from core.ingest.readers import PalaceView
     from core.ingest.table import build_table
     from core.ingest.writer import Writer
@@ -668,11 +676,11 @@ def perform(do: ast.Do, cfg: Config, role: str, *, stores: Any,
     script, args, kwargs, name = resolve(do, library)
     meter = Meter(budget if budget is not None else table.roles[role].budget)
     v = view if view is not None else PalaceView(table, role, stores.catalog,
-                                                 query=reader(cfg, role))
+                                                 query=reader(cfg, role), refresh=refresh)
     plan = Evaluator(v, role, meter, library=library or load).run(script, args, kwargs, name=name)
-    outcomes = Writer(table, role, stores, has=v.has, meter=meter).land(plan)
+    outcomes = Writer(table, role, stores, has=v.has, meter=meter, request=request).land(plan)
     if hasattr(v, "landed"):
-        v.landed()
+        v.landed(outcomes)
     counts: dict[str, int] = {}
     for o in outcomes:
         counts[o.status] = counts.get(o.status, 0) + 1
@@ -682,10 +690,10 @@ def perform(do: ast.Do, cfg: Config, role: str, *, stores: Any,
 
 
 def run_library(cfg: Config, name: str, kwargs: Mapping[str, Any] | None = None, *,
-                role: str = "cli", stores: Any = None) -> dict[str, Any]:
+                role: str = "cli", stores: Any = None, refresh: bool = True) -> dict[str, Any]:
     """A library script run in this process, as the owner's CLI and scripts run one behind the
     live-daemon guard: compiled and admitted under the role's grant as a request is, then
-    evaluated and landed by the writer."""
+    evaluated and landed by the writer, its structured sources refreshed first."""
     from core.sentence.plan import compile_sentence
     from core.sentence.script import quote
 
@@ -700,4 +708,5 @@ def run_library(cfg: Config, name: str, kwargs: Mapping[str, Any] | None = None,
     text = f"do {name}({args})" if args else f"do {name}"
     plan = compile_sentence(text, grant_for(role), role=role)
     assert isinstance(plan.term, ast.Do)
-    return perform(plan.term, cfg, role, stores=stores if stores is not None else build_stores(cfg))
+    return perform(plan.term, cfg, role, stores=stores if stores is not None else build_stores(cfg),
+                   refresh=refresh)

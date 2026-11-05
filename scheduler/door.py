@@ -207,7 +207,8 @@ def door_handler(cfg: Config, *, stores: Callable[[], Any] | None = None,
             if kind != job.kind:
                 raise door.IllScopedSentence(
                     f"the queued request {rid} compiles to {kind}, the job is {job.kind}")
-            result = door.perform(plan.term, cfg, role, stores=the_stores(), library=library)
+            result = door.perform(plan.term, cfg, role, stores=the_stores(), library=library,
+                                  request=rid)
         except Exception as e:
             from core.sentence.interpret import ScriptError
 
@@ -221,10 +222,12 @@ def door_handler(cfg: Config, *, stores: Callable[[], Any] | None = None,
             except door.IllScopedSentence:
                 pass                    # no role or id to receipt under: the job's error is all
             raise
-        door.write_receipt(cfg, door.Receipt(rid, role, kind, "landed", job=job.id,
-                                             detail=result))
+        # a plan whose every effect the writer refused landed nothing: its receipt says so
+        effects = result["effects"]
+        state = "refused" if effects and set(effects) == {"refused"} else "landed"
+        door.write_receipt(cfg, door.Receipt(rid, role, kind, state, job=job.id, detail=result))
         door.discard_queued(cfg, role, rid)
-        return f"door: {kind} landed for {role} ({rid}): {result['effects']}"
+        return f"door: {kind} {state} for {role} ({rid}): {effects}"
 
     return handle
 
@@ -262,7 +265,7 @@ def library_handler(cfg: Config, name: str, calls: list[dict[str, Any]], *,
                 plan = compile_sentence(text, door.grant_for("cli"), role="cli")
                 assert isinstance(plan.term, ast.Do)
                 done.append(door.perform(plan.term, cfg, "cli", stores=the_stores(),
-                                         library=library)["effects"])
+                                         library=library, refresh=True)["effects"])
             except Exception as e:
                 failed.append(f"{text}: {type(e).__name__}: {e}")
         if failed:
@@ -272,10 +275,30 @@ def library_handler(cfg: Config, name: str, calls: list[dict[str, Any]], *,
     return handle
 
 
-def job_enqueuer(queue: Enqueues, router: Router) -> Callable[[str, dict[str, Any]], int]:
-    """How a script's `run` enqueues a job: its own kind, at the background priority, its tier the
-    router's; returns the job's id."""
-    def enqueue(kind: str, payload: dict[str, Any]) -> int:
+def job_enqueuer(queue: Enqueues, router: Router, *,
+                 quotas: Mapping[str, int] = QUOTAS) -> Callable[..., int]:
+    """How a script's `run` enqueues a job: its own kind at the background priority, its tier the
+    router's; returns the job's id. A coalescing kind folds into the row already waiting, as the
+    watcher's and the heartbeat's do. Any other kind is the speaking role's: it carries the role
+    and counts against the role's bulk lane, and a start past the lane's share is refused as
+    busy, so no request floods the queue (the first form's quotas, which a job a script starts
+    would otherwise slip). A request's job is started once: a script job run again after a
+    crash finds the job it started and starts no second one."""
+    def enqueue(kind: str, args: dict[str, Any], *, role: str, request: str | None = None) -> int:
+        if kind in _IDEMPOTENT_KINDS:
+            payload = dict(args)
+        else:
+            if request is not None:
+                for j in queue.list():
+                    if j.kind == kind and j.payload.get("request") == request:
+                        return j.id
+            held = queued_by_lane(queue)[(role, "bulk")]
+            if held >= quotas["bulk"]:
+                raise door.Busy(f"busy: {held} of the {role} role's bulk jobs are queued; ask "
+                                "again when they have run")
+            payload = {**args, "door": role, "lane": "bulk"}
+            if request is not None:
+                payload["request"] = request
         plan = router.plan(kind, priority=PRIORITY_BACKGROUND)
         return queue.enqueue(plan.kind, plan.tier, plan.num_ctx, priority=plan.priority,
                              payload=payload).id

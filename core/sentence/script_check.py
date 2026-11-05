@@ -6,9 +6,12 @@ sentences, functions. The pass interprets a script over these types: an item's f
 source's labels, a projection keeps its operand's, anything composed is `{observed}`, and where
 two types meet (a list's elements, `first`'s arguments, a function's returns) their label sets
 join by union, so an inferred set only grows. A function is checked at each call with the types
-it is called with, which is sound because nothing recurses. Soundness: a value's label at run time
-is in its type's set (DOR-18, `formal/Palace/Script.lean::label_typed`), so R2 is decided here
-wherever the set is known, and the writer's run-time check is the second wall.
+it is called with, which is sound because nothing recurses; a body checked once with some types
+is not checked again with the same ones, and the pass as a whole is bounded (`MAX_CHECK_STEPS`),
+so no script costs the surface or the drain more than a bounded check. Stored, a string is
+composed whatever it was read off: only content keeps an item's label. Soundness: a value's
+label at run time is in its type's set (DOR-18, `formal/Palace/Script.lean::label_typed`), so R2
+is decided here wherever the set is known, and the writer's run-time check is the second wall.
 
 The pass also resolves every name to its binding, refuses a name used before it is bound, checks
 each place, job and source a script names against the palace's table, parses each nested
@@ -27,6 +30,8 @@ from core.sentence.grammar import ParseError
 from core.sentence.interpret import BUILTINS, MAX_CALLS, OBSERVED, ScriptError
 
 Labels = frozenset[str] | None          # None: not known here; the writer decides
+
+MAX_CHECK_STEPS = 200_000               # the nodes one checking pass may visit
 
 
 # ── the types ───────────────────────────────────────────────────────────────────────────────
@@ -72,13 +77,24 @@ def join(a: T, b: T) -> T:
 
 
 def labels_of(t: T) -> Labels:
-    """The label set a value of type `t` could be stored with."""
+    """The label set a value of type `t` could be stored with: content keeps its item's labels, a
+    string or an integer is composed when stored, whatever it was read off. An empty set is no
+    knowledge: the writer decides."""
     match t.kind:
-        case "str" | "content":
-            return t.labels
-        case "int":
+        case "content":
+            return t.labels or None
+        case "str" | "int":
             return OBS
     return None
+
+
+def _key(t: T) -> Any:
+    """A type as a key: what a function's check depends on. A function type is its definition and
+    the scope it closed over, by identity: one definition closes over one scope, so its key is
+    constant-sized however many functions that scope holds."""
+    if t.fn is not None:
+        return (t.kind, id(t.fn), id(t.scope))
+    return (t.kind, t.labels, None if t.elem is None else _key(t.elem), t.of)
 
 
 # ── the table, as the pass reads it ─────────────────────────────────────────────────────────
@@ -142,6 +158,14 @@ class Checker:
         self.reqs: list[Requirement] = []
         self.calls: list[str] = []
         self.returns: list[list[T]] = []
+        self.steps = 0
+        self.checked: dict[Any, T] = {}         # a function's body, checked with these types
+
+    def tick(self) -> None:
+        self.steps += 1
+        if self.steps > MAX_CHECK_STEPS:
+            raise ScriptError(f"the script takes more than {MAX_CHECK_STEPS} steps to check; a "
+                              "script is a few lines")
 
     def check(self, script: S.Script, params: Mapping[str, T] | None = None) -> list[Requirement]:
         names = {n: (params or {}).get(n, _lit_type(d)) for n, d in S.params(script)}
@@ -155,6 +179,7 @@ class Checker:
             self.stmt(s, env)
 
     def stmt(self, s: S.Stmt, env: _Env) -> None:
+        self.tick()
         match s:
             case S.Param():
                 return
@@ -179,6 +204,12 @@ class Checker:
                 ct = self.expr(c, env)
                 if ct.kind not in ("str", "content", "int", "any"):
                     raise ScriptError(f"store in {p!r}: content is bytes or a string, not {ct!r}")
+                stored = labels_of(ct)
+                if ti is not None and (stored is None or stored - OBS):
+                    may = ("of a label not known here" if stored is None
+                           else ", ".join(sorted(stored - OBS)))
+                    raise ScriptError(f"store in {p!r} titled: content that may be {may} is "
+                                      "titled by its item, not by a script (R2)")
                 for what, x, kinds in (("at", a, ("str", "any")), ("as", i, ("str", "any", "none")),
                                        ("titled", ti, ("str", "any"))):
                     if x is not None and self.expr(x, env).kind not in kinds:
@@ -245,6 +276,7 @@ class Checker:
         raise ScriptError(f"{where}: ranges over a list or a sentence's hits, not {t!r}")
 
     def expr(self, e: S.Expr, env: _Env) -> T:
+        self.tick()
         match e:
             case S.Lit(value=v):
                 return _lit_type(S.Lit(v))
@@ -332,6 +364,9 @@ class Checker:
             raise ScriptError(f"{fn.name}(…) takes {len(fn.params)} argument(s), {len(args)} given")
         if len(self.calls) >= MAX_CALLS:
             raise ScriptError(f"{fn.name}(…): more than {MAX_CALLS} calls open")
+        key = (_key(ft), tuple(_key(a) for a in args))
+        if key in self.checked:
+            return self.checked[key]
         self.calls.append(fn.name)
         self.returns.append([])
         try:
@@ -344,6 +379,7 @@ class Checker:
         out: T = NONE
         for r in rets:
             out = join(out, r)
+        self.checked[key] = out
         return out
 
     def sentence(self, text: str, caps: Sequence[str], env: _Env) -> T:
@@ -351,7 +387,10 @@ class Checker:
         its text a sentence of the read half with each capture in place."""
         import re
 
-        from core.sentence.grammar import parse
+        from core.sentence.grammar import is_request, parse
+
+        if is_request(text):
+            raise ScriptError("a nested sentence reads; a request does not nest")
 
         def placeholder(m: re.Match[str]) -> str:
             t = env.lookup(m.group(1))

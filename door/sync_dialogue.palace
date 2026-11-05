@@ -1,11 +1,16 @@
 # The turns the edge readers hand off, each under its chat: the named reader's, or every reader's
-# when none is named. The reader marks whose each turn is: the source labels the owner's authored
-# and the model's observed, and the script never does.
+# when none is named (a reader the palace does not have is refused when its source is opened).
+# The reader marks whose each turn is, and titles it: the source labels the owner's turns
+# authored and the model's observed, and the script does neither.
 param reader = none
-for r in ["openwebui", "opencode"] {
-    if reader == none or r == reader {
-        for t in items(source("dialogue/" + r)) {
-            store t.content in "dialogue" titled "dialogue/" + t.conversation + "/" + iso(t.timestamp) + " (" + t.role + ")"
-        }
+fn chosen() {
+    if reader == none {
+        return ["openwebui", "opencode"]
+    }
+    return [reader]
+}
+for r in chosen() {
+    for t in items(source("dialogue/" + r)) {
+        store t.content in "dialogue"
     }
 }

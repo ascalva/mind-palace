@@ -12,7 +12,12 @@ budget, so a plan that would overrun it is refused before anything is paid.
 
 Each rule is a theorem's hypothesis in `formal/Palace/Script.lean`: R4 and R8 give the firewall
 (DOR-14, `firewall_store`, `owned_by_source`), R3 confinement (DOR-15), R5 and R6 fixed labels and
-identities that move only with their bytes (DOR-17), R7 retire as reconciliation.
+identities that move only with their bytes (DOR-17), R7 retire as reconciliation. The writer is
+stricter than the model in places, each written where it is checked: content under any label but
+the observed one is an item's whole content under its item's title; an identity read off an item
+is the one it declares, and no path takes one another path of its source still holds; a held
+identity moves with its label; a role retires only the labels the table gives it; a job runs once
+a request, inside its role's share of the queue.
 """
 
 from __future__ import annotations
@@ -28,7 +33,16 @@ from core.kernel.clearance import CURATED_READ, MIRROR_READ, OBSERVED_READ, Clea
 from core.kernel.ingest.logseq import _decode, parse_text
 from core.kernel.ingest.pipeline import derive_chunks, ingest_note
 from core.kernel.provenance import Provenance
-from core.sentence.interpret import Effect, LinkEff, Meter, RetireEff, RunEff, StoreEff
+from core.sentence.interpret import (
+    OBSERVED,
+    Effect,
+    LinkEff,
+    Meter,
+    RetireEff,
+    RunEff,
+    ScriptError,
+    StoreEff,
+)
 from core.stores.plane import atom_id as plane_atom_id
 
 # The clearance under which the writer asks the plane whether it holds a label's rows.
@@ -51,7 +65,9 @@ class Stores:
     versions: Any | None = None
     attestor: Any | None = None
     edges: Any | None = None
-    enqueue: Callable[[str, dict[str, Any]], int] | None = None
+    # a job's start: (kind, its arguments, *, role, request) -> the job's id; raises the door's
+    # `Busy` past the role's share of the queue
+    enqueue: Callable[..., int] | None = None
 
 
 @dataclass(frozen=True)
@@ -92,9 +108,11 @@ class Writer:
     stores: Stores
     has: Callable[[str], bool]
     meter: Meter | None = None
+    request: str | None = None          # the request a plan came from: its jobs start once
     max_chars: int = 1200
     overlap_chars: int = 150
     landed: list[Outcome] = field(default_factory=list)
+    started: set[str] = field(default_factory=set)
 
     def land(self, plan: Sequence[Effect]) -> list[Outcome]:
         self.price(plan)
@@ -114,10 +132,15 @@ class Writer:
             return (0, 0)
         writes = sum(1 for e in plan if not (isinstance(e, StoreEff) and self.unchanged(e)))
         self.meter.charge("write", writes)
-        ids = {plane_atom_id(c.text)
-               for e in plan if isinstance(e, StoreEff)
-               for c in derive_chunks(e.content.data, max_chars=self.max_chars,
-                                      overlap_chars=self.overlap_chars)}
+        ids: set[str] = set()
+        chunked: set[str] = set()                 # the same bytes stored twice are chunked once
+        for e in plan:
+            if isinstance(e, StoreEff) and not e.content.oversize \
+                    and e.content.digest not in chunked:
+                chunked.add(e.content.digest)
+                ids |= {plane_atom_id(c.text)
+                        for c in derive_chunks(e.content.data, max_chars=self.max_chars,
+                                               overlap_chars=self.overlap_chars)}
         new = len(ids - set(self.stores.plane.known_atoms(sorted(ids)))) if ids else 0
         self.meter.charge("embed", new)
         return (writes, new)
@@ -125,6 +148,8 @@ class Writer:
     def unchanged(self, e: StoreEff) -> bool:
         """The UNCHANGED check: the path holds these bytes, active, under the same label, and the
         plane holds their rows."""
+        if e.content.oversize:
+            return False
         prev = self.stores.catalog.get(e.path)
         return (prev is not None and prev.active and prev.digest == e.content.digest
                 and str(prev.provenance) == e.content.label
@@ -141,10 +166,13 @@ class Writer:
                     return self.link(e)
                 case RunEff():
                     return self.run(e)
-        except Refused as r:
+        except (Refused, ScriptError) as r:
+            # a rule refused it, or the palace could not check it (a source that cannot be read
+            # just now): the effect lands nothing and the plan goes on
             path = getattr(e, "path", getattr(e, "job", ""))
+            why = f"{r.rule}: {r.why}" if isinstance(r, Refused) else f"R1: not checked: {r}"
             return Outcome(type(e).__name__.removesuffix("Eff").lower(), str(path), "refused",
-                           why=f"{r.rule}: {r.why}")
+                           why=why)
         raise TypeError(f"not an effect: {e!r}")  # pragma: no cover
 
     # store -------------------------------------------------------------------------------
@@ -154,6 +182,16 @@ class Writer:
         if place is None:
             raise Refused("R1", f"no place {e.place!r}")
         c, path, label = e.content, e.path, e.content.label
+        if c.oversize:
+            raise Refused("R1", f"{path!r} is {c.oversize} bytes, more than an item may have; "
+                                "it stays as it was")
+        if label != OBSERVED:
+            # only an item's own bytes carry its label, under its own title (§E3): no script
+            # composes the text or the title of a row it does not own the label of
+            if c.origin is None or c.origin.kind != "item":
+                raise Refused("R2", f"{label} content is an item's own bytes")
+            if e.title != (c.origin.title or path):
+                raise Refused("R2", f"a {label} row is titled by its item, not by a script")
         if label not in place.accepts:
             raise Refused("R2", f"{e.place!r} takes {', '.join(sorted(place.accepts))}, "
                                 f"not {label}")
@@ -205,16 +243,33 @@ class Writer:
             case "own":
                 return None
             case "prop":
-                if n.origin is None or c.origin is None or n.origin.kind != "item" \
+                if n.origin is None or c.origin is None or n.origin.kind != "id" \
                         or (n.origin.of, n.origin.path) != (c.origin.of, c.origin.path):
-                    raise Refused("R6", "an identity read off an item names only that item")
-                return None if n.value == e.path else n.value
+                    raise Refused("R6", "an identity read off an item is the one it declares, "
+                                        "and names only that item")
+                value = (n.value or "").strip()
+                if not value or value == e.path:
+                    return None                 # a blank declaration names no identity
+                for q in self.stores.catalog.paths_for(value):
+                    other = self.stores.catalog.get(q) if q != e.path else None
+                    if other is not None and other.active and self.has(q):
+                        raise Refused("R6", f"the identity {value!r} is {q!r}'s, which its "
+                                            "source still has; two paths share no identity")
+                return value
             case "held":
                 q = n.value or ""
                 held = self.stores.catalog.get(q)
                 if held is None or held.digest != c.digest:
                     raise Refused("R6", f"{q!r} does not hold these bytes; an identity moves "
                                         "only with its bytes")
+                if str(held.provenance) != c.label:
+                    raise Refused("R6", f"{q!r} holds {held.provenance}; an identity moves only "
+                                        "with its label")
+                owner = self.table.owner(q)
+                if owner is None or c.origin is None or c.origin.kind != "item" \
+                        or owner.name != c.origin.of:
+                    raise Refused("R6", f"{q!r} is not a path of the source these bytes came "
+                                        "from; an identity moves only within its source")
                 if self.has(q):
                     raise Refused("R6", f"{q!r} is still in its source; its identity stays")
                 return str(self.stores.catalog.doc_id_for(q))
@@ -247,10 +302,12 @@ class Writer:
             raise Refused("R7", f"nothing active at {e.path!r}")
         if str(prev.provenance) not in place.accepts:
             raise Refused("R7", f"{e.path!r} is not in {e.place!r}")
+        if str(prev.provenance) not in self.table.roles[self.role].retires:
+            raise Refused("R7", f"the role {self.role!r} does not retire {prev.provenance} rows")
         if self.table.owner(e.path) is not None and self.has(e.path):
             raise Refused("R7", f"{e.path!r} is still in its source; retire only reconciles")
-        self.stores.catalog.tombstone(e.path)
         self.stores.plane.delete_source(e.path)
+        self.stores.catalog.tombstone(e.path)                    # the key, last (DOR-7)
         return Outcome("retire", e.path, "retired")
 
     def link(self, e: LinkEff) -> Outcome:
@@ -273,6 +330,8 @@ class Writer:
         job = self.table.jobs.get(e.job)
         if job is None:
             raise Refused("R1", f"no job {e.job!r}")
+        if e.job in self.started:
+            raise Refused("R1", f"the plan starts {e.job} already; a request starts a job once")
         args: dict[str, Any] = {}
         for k, v in e.args:
             if k not in job.args:
@@ -282,4 +341,11 @@ class Writer:
             args[k] = v
         if self.stores.enqueue is None:
             raise Refused("R1", "no queue is open")
-        return Outcome("run", e.job, "queued", job=self.stores.enqueue(job.kind, args))
+        from core.ingest.door import Busy
+
+        try:
+            job_id = self.stores.enqueue(job.kind, args, role=self.role, request=self.request)
+        except Busy as b:
+            raise Refused("R1", str(b)) from None
+        self.started.add(e.job)
+        return Outcome("run", e.job, "queued", job=job_id)

@@ -694,7 +694,7 @@ def test_an_orphaned_door_job_goes_back_to_the_queue(tmp_path: Path) -> None:
     """A crash mid-landing leaves a door job RUNNING; the next start's sweep puts it back in the
     queue (it is re-runnable at the request), where a dream it left is failed as before."""
     from scheduler.queue import _IDEMPOTENT_KINDS, _REQUEUE_KINDS, FAILED, QUEUED, JobQueue
-    assert _REQUEUE_KINDS - _IDEMPOTENT_KINDS == door.DOOR_KINDS
+    assert _REQUEUE_KINDS - _IDEMPOTENT_KINDS == door.DOOR_KINDS | {"relate", "code_observe"}
     queue = JobQueue(tmp_path / "q.sqlite")
     cap = queue.enqueue("script", "pinned", 1, payload={"role": "ambassador",
                                                         "request": "0" * 16, "digest": "d"})
@@ -886,3 +886,83 @@ def test_a_receipt_names_only_its_own_actions_attestations() -> None:
     attestor: Any = type("A", (), {"store": _Ledger()})()
     assert attested_by(attestor, "capture", "d") == ["a1"]
     assert attested_by(attestor, "ingest_note", "d") == ["a2"]
+
+
+# ── the audits of the second form (2026-11-05) ──────────────────────────────────────────────────
+
+
+def test_a_job_a_script_starts_counts_against_its_roles_share_and_starts_once(cfg: Any) -> None:
+    """A request's `run` was a job no quota saw: one request could queue hundreds of dreams. A job
+    a script starts now carries its role and counts against the role's bulk lane; past the share
+    it is refused as busy; a plan starts a job once; a script run again after a crash finds the
+    job it started; a coalescing kind still folds into the row that waits."""
+    from core.ingest.table import build_table
+    from core.ingest.writer import Stores, Writer
+    from core.sentence.interpret import RunEff
+    from scheduler.door import job_enqueuer
+    from scheduler.queue import JobQueue
+
+    queue, router = JobQueue(Path(":memory:")), Router(cfg)
+    enqueue = job_enqueuer(queue, router, quotas={"interactive": 2, "bulk": 2})
+    stores = Stores(raw=None, plane=None, embedder=None, catalog=None, enqueue=enqueue)
+    table = build_table(cfg)
+
+    def land(plan: list[Any], request: str | None = None) -> list[str]:
+        w = Writer(table, "ambassador", stores, has=lambda _p: False, request=request)
+        return [o.status + (":" + o.why if o.why else "") for o in w.land(plan)]
+
+    assert land([RunEff("dream", ()), RunEff("dream", ())], "r1")[1].startswith("refused:R1")
+    assert land([RunEff("dream", ())], "r1") == ["queued"]           # the same request: found
+    assert len(queue.list("queued")) == 1
+    assert land([RunEff("curate", ())], "r2") == ["queued"]
+    (busy,) = land([RunEff("dream", ())], "r3")
+    assert busy.startswith("refused:R1") and "busy" in busy
+    assert {j.payload.get("door") for j in queue.list("queued")} == {"ambassador"}
+    land([RunEff("code_sync", ())], "r4")                             # coalescing: no role
+    land([RunEff("code_sync", ())], "r5")
+    assert [j.kind for j in queue.list("queued")].count("code_sync") == 1
+
+
+def test_a_receipt_says_refused_when_every_effect_was(palace: Palace) -> None:
+    cfg = palace.cfg
+    queue, router = _Queue(), Router(cfg)
+    door.write_request(cfg, role="ambassador",
+                       plan=_plan('do { store "x" in "observed" at "dialogue/door/cli/x" }'))
+    drain_spool(queue, router, cfg)
+    payload = _drained(queue)
+    summary = door_handler(cfg, stores=lambda: palace.stores)(_job(payload))
+    assert summary is not None and "refused" in summary
+    receipt = door.read_receipt(cfg, "ambassador", payload["request"])
+    assert receipt is not None and receipt.state == "refused"
+    assert receipt.detail["effects"] == {"refused": 1}
+
+
+def test_the_ambassador_may_not_say_a_commit_clock_script_through_a_call(cfg: Any) -> None:
+    """DOR-1 for a request whose script calls another: the checker collects the requirements of
+    every script it calls (the formal audit's mutation, a checker that did not descend into
+    `call`, would admit this)."""
+    with pytest.raises(IllScopedSentence):
+        _plan("do { call sync_code }", "ambassador")
+    _plan("do { call sync_code }", "cli")
+
+
+def test_the_mcp_relate_refuses_a_bound_it_cannot_land(monkeypatch: Any) -> None:
+    from agents.ambassador.mcp import Ambassador
+
+    monkeypatch.setattr(Ambassador, "query", lambda self, sentence, trace=False: {})
+    tools = Ambassador.__new__(Ambassador)
+    with pytest.raises(ValueError, match="from 0 to 50"):
+        tools.relate(51)
+    tools.relate(50)
+
+
+def test_the_dialogue_readers_are_the_tables_and_the_scripts(cfg: Any) -> None:
+    from core.ingest.table import build_table
+    from core.sentence.script import load
+    from scheduler.door import DIALOGUE_READERS
+
+    sources = {n.split("/", 1)[1] for n in build_table(cfg).sources if n.startswith("dialogue/")}
+    assert set(DIALOGUE_READERS) == sources
+    text = (Path(__file__).resolve().parents[2] / "door" / "sync_dialogue.palace").read_text()
+    assert all(f'"{r}"' in text for r in sources)
+    load("sync_dialogue")
