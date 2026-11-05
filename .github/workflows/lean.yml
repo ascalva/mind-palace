@@ -11,10 +11,11 @@ name: lean
 #
 # Path-scoped without a paths: filter, keeping ci.yml's P2 (every sha yields a verdict). The
 # `changes` job runs on every PR and main push and reports whether the diff touches formal/, the
-# ledger, the cross-reference script or this file; `lean` builds only then and is skipped
-# otherwise. A skipped job satisfies a required check, so making it required needs no rework,
-# where a workflow-level paths: filter would leave the check pending forever on every PR that does
-# not touch formal/. The weekly cron and a manual dispatch always build; the cron catches drift in
+# ledger, the gate's scripts or this file; `lean` builds only then and is skipped otherwise. A
+# skipped job satisfies a required check, so making it required needs no rework, where a
+# workflow-level paths: filter would leave the check pending forever on every PR that does not
+# touch formal/. If `changes` itself fails there is no verdict on the diff, so `lean` builds
+# rather than skips: an implicit `success()` would skip it, and the skip would pass as green. The weekly cron and a manual dispatch always build; the cron catches drift in
 # the pinned toolchain, or in Mathlib's cache for the pinned rev.
 #
 # Mathlib comes from its own cache (`lake exe cache get`, run by lean-action), never from GitHub's.
@@ -65,8 +66,8 @@ jobs:
           esac
           if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             FORMAL=true # the cron, a dispatch, or a base this clone lacks: build
-          elif git diff --quiet "$BASE" HEAD -- \
-              formal docs/LAWS.md scripts/check_laws_xref.py .github/workflows/lean.yml; then
+          elif git diff --quiet "$BASE" HEAD -- formal docs/LAWS.md scripts/check_laws_xref.py \
+              scripts/check_formal_sources.py .github/workflows/lean.yml; then
             FORMAL=false
           else
             FORMAL=true
@@ -76,7 +77,8 @@ jobs:
 
   lean:
     needs: changes
-    if: needs.changes.outputs.formal == 'true'
+    # build when the diff touches formal/, and when `changes` did not succeed (no verdict)
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.formal == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

@@ -687,3 +687,17 @@ def test_as_of_says_which_verbs_read_the_present(engine: _Engine) -> None:
     assert any("near read the present" in n for n in answer.notes)
     cited = compile_sentence('reach F from "core/x.py" as of "c1"', AMBASSADOR_OVERLAY)
     assert not any("read the present" in n for n in execute(cited, _build(engine, cited)).notes)
+
+
+def test_a_notes_causal_history_is_found_by_its_title(engine: _Engine) -> None:
+    """A note named by its title is found in the mirror and walked back over C to the turn that
+    wrote it (the causal walk's endpoints clause reads the strata in force, the mirror, which
+    covers the title); an F-only sentence from a repo anchor wires no causal edge at all (two
+    mutations the first review found surviving: dropping the note's branch, and walking C from
+    every repo anchor whatever the sentence walks)."""
+    plan = compile_sentence('reach C from "C" depth 1 back', AMBASSADOR_OVERLAY)
+    assert [c.verb for c in plan.clauses] == ["reach", "endpoints"]
+    hits = execute(plan, _build(engine, plan)).hits
+    assert [h.ref for h in hits] == ["transcript/s2/1"]       # the fixture turn that wrote c.md
+    f_only = compile_sentence('reach F from "core/x.py" depth 1', AMBASSADOR_OVERLAY)
+    assert _build(engine, f_only).edges[Rel.C] == {}
