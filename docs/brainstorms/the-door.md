@@ -55,6 +55,14 @@ The owner, reading the first form's pull request the same day, verbatim:
 > associated, since some sentences are more costly, which means, the compiler/interpreter has to
 > be able to translate a sentence to create computation in an optimized and efficient manner"
 
+> "also, not sure if it’s too late, but feel free to make use of real compiler tools, from
+> compiler compilers (eg yacc), to compiler back end tools (eg mlir, llvm), to properly making a
+> consistent and secured type system"
+
+> "of course, nested sentences should be allowed, with appropriate closure/code scoping"
+
+> "another thought: i guess it makes more sense if the language is interpreted than compiled"
+
 The first form had read "redefine all those ingestion paths" as one command word per path. The
 correction: the language knows no path, and every path is written in it. The second form,
 `dn-door-language`, takes the correction as its warrant.
