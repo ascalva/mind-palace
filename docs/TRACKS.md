@@ -194,6 +194,5 @@ _(none yet — a track closes only on an owner-approved deskcheck.)_
 - (info) manifest `mathematical-foundations` has no plan/note members yet — carried by manifest (design-pass queued); not an error while its work is pre-plan.
 - (info) manifest `query-language` has no plan/note members yet — carried by manifest (design-pass queued); not an error while its work is pre-plan.
 - (info) manifest `reference-bookkeeper` has no plan/note members yet — carried by manifest (design-pass queued); not an error while its work is pre-plan.
-- (info) manifest `scored-beliefs` has no plan/note members yet — carried by manifest (design-pass queued); not an error while its work is pre-plan.
 
 _Derived by `scripts/board.py` from front matter + `docs/tracks/` manifests + `docs/deskchecks/`. Never hand-edit; edit the sources and regenerate._
