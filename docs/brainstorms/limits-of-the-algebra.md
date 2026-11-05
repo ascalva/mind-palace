@@ -78,8 +78,12 @@ sharpens to a question about the graph's cycle structure (FitzGerald–Horn: a H
 Temporal-retrieval §2.3 Result 5 pins the ledger's dilation to the pullback `σ^*` of a
 supersession map, "always a contraction".
 Under a **merge** `σ : {a, b} ↦ c`, `(σ^* f)(a) = (σ^* f)(b) = f(c)`, so `‖σ^* f‖² = 2 f(c)²`:
-the pullback *expands* by `√2`, and in general `‖σ^*‖ = √(max fiber)`. The push-forward `σ_*` is
-the contraction; the adjoint is not. *Status — machine-checked (Palace/Transport.lean, TRN-1 to TRN-3, design theorems; the
+the pullback *expands* by `√2`, and in general `‖σ^*‖ = √(max fiber)`. The push-forward `σ_*`
+is the pullback's adjoint (TRN-1), so under the counting inner products it has the same norm and
+is no contraction either: the merge doubles the energy of the cochain that is 1 on `a` and `b`.
+Each becomes one under its own weight: the pullback is an isometry under the fiber-weighted inner
+product on the target (TRN-3), and the push-forward contracts under the inverse-fiber weight
+(TRN-4). *Status: machine-checked (Palace/Transport.lean, TRN-1 to TRN-3, design theorems; the
 library builds under `--wfail`, mk_all and the L1 gate pass):* `push_dotProduct` (`σ_*` is the adjoint of `σ^*`), `pull_dotProduct_self` (`‖σ^* f‖²
 = ∑_b |σ⁻¹ b| f_b²`), `pull_dotProduct_self_le` (`≤ (max fiber)·‖f‖²`), `pull_not_contraction`
 (the merge of two notes doubles the constant cochain's energy), and the correction
@@ -90,17 +94,26 @@ right inner product — PD-b's customer, as Result 4 predicted. The dual (TRN-4,
 `push_wdotInv_le`): the push-forward is a contraction under the *inverse*-fiber-weighted inner
 product on the target, by Cauchy–Schwarz on each fiber — the inner product Result 6's
 γ-contraction must name once supersessions merge (issue #61). *Result 5 and Result 6, closed
-(TRN-2, TRN-6 to TRN-8, 2026-11-04):* along a merge-free supersession the pullback IS a
-contraction (`pull_dotProduct_self_le_self_of_injective`), so Result 5 holds exactly where the
-versions store puts it — `core/stores/versions.py` refuses to merge two lineages, and that
-refusal is the theorem's hypothesis. Result 6's γ-contraction is exact under the depth-weighted
-inner product `⟨f, g⟩_{γ,d} = ∑ γ^{d b} f_b g_b` (the decay bound of `core/kernel/recursion.py`,
-`wdotDepth`): a merge-free step one level deeper contracts the confidence energy by exactly `γ`
-(`wdotDepth_push_eq_mul`), a merge keeps the contraction iff `γ · (max fiber) ≤ 1` — at the
-default `γ = 1/2` a two-way merge is the horizon (`wdotDepth_push_le`) — and an owner promotion
-`k` levels shallower injects `γ^{-k} > 1` (`wdotDepth_push_eq_promotion`,
-`one_lt_inv_pow_of_lt_one`): the owner is the only energy source, as a theorem. The amendment of
-the note is the owner's; the finding is filed. *Falsifier:* none — it is a counterexample.
+(TRN-2, TRN-6 to TRN-9, 2026-11-04; corrected after the review of 2026-11-05):* the pullback is a
+contraction for every cochain exactly when the supersession merges nothing
+(`pull_contraction_iff`), so Result 5 holds where the versions store puts it:
+`core/stores/versions.py` refuses to merge two lineages, and that refusal is the theorem's
+hypothesis. Result 6 is the γ-contraction of confidence-weighted cochains, with the decay bound
+of `core/kernel/recursion.py` as the weight. Under the inner product `⟨f, g⟩_{γ,d} = ∑ γ^{d b} f_b
+g_b` (`wdotDepth`) a merge-free step one level deeper contracts the energy by exactly `γ`
+(`wdotDepth_push_eq_mul`), so the norm by `√γ`; under the weights `γ^{2d}` it contracts the norm by
+exactly `γ` (`sqrt_wdotDepth_push_eq_mul`), which is the bound as the note writes it. A merge of
+notes at one depth keeps every cochain's energy from growing iff `γ · (max fiber) ≤ 1`, the bound
+attained at a widest fiber (`wdotDepth_push_le`, `exists_wdotDepth_push_eq`,
+`wdotDepth_push_le_self_iff`); at the default `γ = 1/2` a two-way merge is the horizon. An owner
+promotion `k` levels shallower multiplies the energy by `γ^{-k} > 1`
+(`wdotDepth_push_eq_promotion`, `one_lt_inv_pow_of_lt_one`). So in energy the owner is the only
+source only along lineages whose merges stay narrower than `1/γ`. In mass, the weighted ℓ¹ norm
+`∑ γ^{d b} |f_b|`, every machine step at least one level deeper contracts by `γ`, merges and mixed
+depths included (`massDepth_push_le`), and the promotion multiplies by `γ^{-k}`
+(`massDepth_push_eq_promotion`): there the owner is the only source, without condition. The
+agreement factor of `recursion.py` is a multiplier the model leaves out. The amendment of the note
+is the owner's; the finding is filed. *Falsifier:* none; it is a counterexample.
 
 ## L4. The frustration lift — how far the zero mode rises
 
@@ -150,25 +163,25 @@ not regular — "a chain that returns to a note it has visited" (a context-free 
 stands as a theorem of the practice; if one is not, the automaton needs a stack. *Status:* a
 question for the owner's sentences; the battery (QL-4) is where it surfaces.
 
-## L7. The snapshot — the notes as they stood at a past cut
+## L7. The snapshot: the notes as they stood at a past cut
 
 `as of c` indexes the citation graph at a commit; the notes it reads are the present ones, and
 the answer says so. The lawful snapshot is not a timestamp (Law C4: wall time is never an
 ordering key) but the event clock's **cut** (CLK-2, `core/temporal/spine.py`): the down-set of
 the spine generated by the commit's frontier, restricted to the version chains
 (`versions.sqlite`, per-doc chains by `version_seq`, a g1 generator of the spine). On a chain a
-cut is a prefix, so each doc has at most one version alive at the cut — the snapshot is a
-transversal of the chains — and the supersession `σ` from the versions alive at `c` to those
+cut is a prefix, so each doc has at most one version alive at the cut (the snapshot is a
+transversal of the chains), and the supersession `σ` from the versions alive at `c` to those
 alive at a later `c'` is a function on docs, injective, so TRN-2's merge-free form says the
 pullback along it is a contraction: Result 5 is true on the snapshots exactly because the
-versions store never merges lineages. Conjecture: with the versioned universe — every version
-a node, `D` the consecutive-seq relation — `as of c` is the mask onto the transversal (QSA-2's
+versions store never merges lineages. Conjecture: with the versioned universe (every version
+a node, `D` the consecutive-seq relation), `as of c` is the mask onto the transversal (QSA-2's
 laws, nothing new), `walk … via D` and `reach D` read the chains, and `read x as of c` opens the
-version alive at `c` from the raw store by its digest. *Status — measured, not built:* the live
+version alive at `c` from the raw store by its digest. *Status: measured, not built.* The live
 versions store holds one generation (29 docs, 29 versions, all recorded in the same second of
 2026-10-28, the last rebuild), so there is nothing to snapshot yet; the first supersession the
 sync records is the falsifier's seed. *Falsifier:* a cut on which some doc has two versions
-alive — the spine's chains would not be chains.
+alive, and the spine's chains would not be chains.
 
 ## What to do first
 
