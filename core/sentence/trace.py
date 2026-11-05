@@ -61,8 +61,8 @@ class Trace:
             lines.append(f"    - {first}{law}")
             lines += [f"      {ln}" for ln in rest]
         if self.laws:
-            lines.append(f"  laws: {', '.join(self.laws)} — the ledger rows in docs/LAWS.md, the "
-                         "design theorems in formal/Palace/")
+            lines.append(f"  laws: {', '.join(self.laws)} (the ledger rows in docs/LAWS.md, the "
+                         "design theorems in formal/Palace/)")
         return "\n".join(lines)
 
     def to_dict(self) -> dict[str, Any]:
