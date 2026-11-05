@@ -749,8 +749,10 @@ def build(engine: QueryEngine, plan: Plan, *, precedents: Precedents = DEFAULT,
                    + (f"; the citation graph is read at cut {u.cut[:7]}" if u.cut else "")
                    + (f"; {len(b.c_ids)} causal edges wired" if b.c_ids else ""))
         if u.degrees is not None:
-            trace.note("universe", "the walk keeps the full graph's degrees on the support: a "
-                       "support never invents nearness", "RSP-5")
+            trace.note("universe", "the walk keeps the graph's degrees on the support: exact for "
+                       "the notes and the dialogue, a census for papers, induced for files; a "
+                       "support invents no nearness except where a census was cut or a degree "
+                       "induced, both named in the notes", "RSP-5")
         for note in u.missing:
             trace.note("universe", note)
     return u

@@ -43,13 +43,13 @@ flowchart TB
   S --> P["parse and sort<br/>field · region · chains · witness · text"]
   P --> A["admit, clause by clause<br/>QSA-5: each required scope under a granted plane"]
   A --> N["normal form<br/>QSA-1 · QSA-2 · QSA-4: the proved rewrites"]
-  N --> U["the universe: the sentence's support<br/>RSP-5: a support never invents nearness"]
+  N --> U["the universe: the sentence's support<br/>RSP-5: with the graph's degrees, a support invents no nearness"]
   U --> E["execute<br/>kernel column · killed walk · Schur product · product automaton · rank-one update"]
   E --> R["the answer<br/>hits with provenance · the plan · the notes · the Hyp"]
   E -.-> T["the trace<br/>every step, its numbers, its law"]
 ```
 
-The compiler types the sentence and checks, clause by clause, that the scope each clause needs (its strata, edge classes, clock and window) lies under one of the grant's planes (QSA-5); an ill-scoped sentence is never constructed. The planner rewrites to a normal form by identities proved before the code was written: `within` is pushed to the leaves because a mask distributes over the Schur product and masks stack by intersection (QSA-2); `and` is flattened and ordered because the product is commutative and associative (QSA-1); a positive threshold passes through a mask and `top k` does not (QSA-4). The universe builder restricts the evaluation to the sentence's support: the notes and the dialogue always, papers and code by nearest-neighbour seeding, the citation graph at the cut the sentence names. It keeps the whole graph's degrees on that support, which is the hypothesis under which a support can underestimate nearness but not invent it (RSP-5). The executor's arithmetic is then the ledger's.
+The compiler types the sentence and checks, clause by clause, that the scope each clause needs (its strata, edge classes, clock and window) lies under one of the grant's planes (QSA-5); an ill-scoped sentence is never constructed. The planner rewrites to a normal form by identities proved before the code was written: `within` is pushed to the leaves because a mask distributes over the Schur product and masks stack by intersection (QSA-2); `and` is flattened and ordered because the product is commutative and associative (QSA-1); a positive threshold passes through a mask and `top k` does not (QSA-4). The universe builder restricts the evaluation to the sentence's support: the strata its admitted clauses name and nothing else, papers and code by nearest-neighbour seeding, the citation graph at the cut the sentence names. It keeps the graph's degrees on that support where it knows them, exactly for the notes and the dialogue and by a census for papers, which is the hypothesis under which a support can underestimate nearness but not invent it (RSP-5). A file's degree is induced and a census cut at the support undercounts; the answer's notes name both, as the places the bound does not hold. The executor's arithmetic is then the ledger's.
 
 ## The verbs and the mathematics
 

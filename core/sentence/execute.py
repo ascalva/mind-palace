@@ -487,6 +487,27 @@ class Overlay:
         return notes
 
 
+def _present_verbs(node: Node) -> list[str]:
+    """The verbs of a term that read the present whatever `as of` says: every one but a walk of
+    the citation graph alone (`reach F`, `diffuse F`, a `walk` over `F` only), the one relation
+    the stores index by commit."""
+    from core.sentence.automaton import letters
+
+    out: list[str] = []
+    for n in ast.walk(node):
+        match n:
+            case ast.Reach(rel=Rel.F) | ast.Diffuse(rel=Rel.F):
+                continue
+            case ast.Walk(path=path) if letters(path) == {Rel.F}:
+                continue
+            case (ast.Near() | ast.Diffuse() | ast.Reach() | ast.Relate() | ast.Trace()
+                  | ast.Walk() | ast.Read() | ast.Witness()):
+                name = type(n).__name__.lower()
+                if name not in out:
+                    out.append(name)
+    return out
+
+
 def disjuncts(node: Node) -> list[Node]:
     """The disjuncts of an `or` chain, its maximal run of `or` nodes, left to right: `or` is one
     n-ary operation, so `(a or b) or c` and `a or (b or c)` are the same three-way mixture."""
@@ -653,6 +674,12 @@ class Evaluator:
                         f"as of {cut!r}: this universe is read at {at}; the store holds no edges "
                         f"at that cut, and the notes have no snapshot store")
                 self._note(f"as of {cut!r}: the universe is read at cut {self.u.cut[:7]}")
+                present = _present_verbs(b)
+                if present:      # only the citation graph is indexed by commit (L7)
+                    self.notes.append(
+                        f"as of {cut!r}: the citation graph is read at {self.u.cut[:7]}; "
+                        f"{', '.join(present)} read the present, since the notes, the dialogue, "
+                        "the papers and the causal edges have no snapshot at a cut")
                 return self._under(self.ctx.as_of(cut), b)
             case ast.Trace(atom=atom, direction=direction):
                 return self._trace(atom, direction)
@@ -846,8 +873,10 @@ class Evaluator:
         if self.t is not None:
             m = int(np.count_nonzero(np.triu(W, 1) > 0))
             reached = int(np.count_nonzero(np.isfinite(dist))) - 1
-            kept = (" with the full graph's degrees on this support, so the walk never invents "
-                    "nearness" if degrees is not None else "")
+            kept = (" with the graph's degrees on this support (exact for the notes and the "
+                    "dialogue, a census for papers, induced for files), so the walk invents no "
+                    "nearness except where a census was cut or a degree induced, which the "
+                    "universe's notes name" if degrees is not None else "")
             self._note(f"diffuse {rel.value} from {atom!r}: the killed walk W_β = z·D⁻¹W∘W^β on "
                        f"the clause's {len(keep)} nodes and {m} edges, β = {b:g}, "
                        f"z = γ = {DEFAULT_GAMMA:g}"
