@@ -50,6 +50,11 @@ The owner, reading the first form's pull request the same day, verbatim:
 > manages data and its relationships, among other things, both are generic but powerful systems
 > that create an abstraction layer to interface with"
 
+> "another interesting thought based on something you said: budgets, a budget for a sentence is
+> an interesting concept, reminds me of solidity (ethereum), where there is gas, or work
+> associated, since some sentences are more costly, which means, the compiler/interpreter has to
+> be able to translate a sentence to create computation in an optimized and efficient manner"
+
 The first form had read "redefine all those ingestion paths" as one command word per path. The
 correction: the language knows no path, and every path is written in it. The second form,
 `dn-door-language`, takes the correction as its warrant.

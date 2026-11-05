@@ -20,6 +20,7 @@ public import PalaceTest.Rayleigh
 public import PalaceTest.Retrieval
 public import PalaceTest.Roundoff
 public import PalaceTest.Scope
+public import PalaceTest.Script
 public import PalaceTest.Sentence
 public import PalaceTest.SigmaStar
 public import PalaceTest.Spectral
