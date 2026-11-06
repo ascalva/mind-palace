@@ -188,9 +188,12 @@ About six minutes and 5.4 GB at peak. Query vectors are cached in
 ## Addendum (2026-11-05): the one changed slot
 
 The code corpus's float16 row in LanceDB lost one slot of 2,000 (200 stored vectors as queries).
-VEC-1 (`docs/LAWS.md`, XIII; dn-vector-membership-store A4.5) bounds what float16 can move a
-score by, and so certifies a top ten whose tenth and eleventh distances differ by more than about
-`1.2e-3` for these queries, which are float16 already. Asking every one of the 17,256 code rows of
-the float32 store archived before the migration, float16 changed 55 of the 172,560 slots, one in
-each of 55 queries, and each of those queries had a gap of at most `2.7e-5` at its edge: near-ties
-the certificate refuses, as it refused all 55, while it certified 63.5 % of the queries.
+VEC-1 (`docs/LAWS.md`, XIII; dn-vector-membership-store A4.5) bounds what float16 can move a score
+by, and so certifies a top ten whose tenth and eleventh distances differ by more than about `1.6e-3`
+for these float32 queries, whose own float16 rounding adds to the bound (`1.2e-3` for a query
+already in float16). `eval/float16_replay.py` asks every one of the 17,256 code rows of the float32
+store archived before the migration for its ten nearest other rows, through LanceDB's own kernels:
+float16 changed 51 of the 172,560 slots, one in each of 51 queries, and each of those queries had a
+gap of at most `2.7e-5` at its edge, near-ties the certificate refuses, as it refused all 51, while
+it certified 54.1 % of the queries (with the rows' float16 roundings as queries, 50 slots in 50
+queries, none certified, and 63.5 % certified).
