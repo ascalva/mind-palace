@@ -60,6 +60,16 @@ def _bottom_eigen(L: sp.csr_matrix, k: int) -> tuple[np.ndarray, np.ndarray]:
     return vals[order], vecs[:, order]
 
 
+def _positive_support(A: sp.csr_matrix) -> sp.csr_matrix:
+    """A copy of `A` keeping only the positive weights. scipy's `connected_components` reads an
+    explicitly stored 0.0 as an edge, so a cut edge that decayed to a stored zero would hide the
+    disconnection; the degrees `laplacian_sym` sees already ignore it."""
+    P = sp.csr_matrix(A, copy=True)
+    P.data = np.where(P.data > 0.0, P.data, 0.0)
+    P.eliminate_zeros()
+    return P
+
+
 def _disconnected_mode(A: sp.csr_matrix, comp: np.ndarray) -> np.ndarray:
     """A unit vector orthogonal to the trivial mode that separates the first component from the
     rest. It lies in the kernel of L_sym with the isolated vertices' rows zeroed (the kernel is
@@ -82,13 +92,15 @@ def fiedler(A: sp.csr_matrix) -> tuple[float, np.ndarray]:
     A disconnected graph has λ₂ = 0 exactly. `laplacian_sym` gives an isolated vertex an identity
     row (LAP-4), which puts 1 (not 0) in the spectrum, so the eigensolve alone would read a graph
     cut off by one vertex as well connected. The components are counted first and a disconnected
-    graph returns 0.0 with a vector that separates the first component from the rest."""
+    graph returns 0.0 with a vector that separates the first component from the rest.
+    Components are counted on the positive-weight support, so a stored zero weight is no edge."""
     n = A.shape[0]
     if n < 2:
         return 0.0, np.zeros(n)
-    n_comp, comp = connected_components(A, directed=False)
+    support = _positive_support(A)
+    n_comp, comp = connected_components(support, directed=False)
     if n_comp > 1:
-        return 0.0, _disconnected_mode(A, comp)
+        return 0.0, _disconnected_mode(support, comp)
     vals, vecs = _bottom_eigen(laplacian_sym(A), k=min(_EIGS_PROBE, n))
     return float(vals[1]), vecs[:, 1]
 

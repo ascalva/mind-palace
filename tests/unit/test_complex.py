@@ -157,6 +157,19 @@ def test_fiedler_is_zero_for_any_disconnected_graph_and_not_for_a_connected_one(
     assert control > 0.01
 
 
+def test_fiedler_ignores_an_explicitly_stored_zero_weight():
+    # scipy's connected_components counts a stored 0.0 as an edge: a cut edge that decayed to a
+    # stored zero used to make the graph read as connected again (lambda_2 = 1.0 here).
+    rows, cols = [0, 1, 1, 2], [1, 0, 2, 1]
+    A = sp.csr_matrix(([1.0, 1.0, 0.0, 0.0], (rows, cols)), shape=(3, 3))
+    assert A.nnz == 4                                   # the zeros really are stored
+    lam2, vec = fiedler(A)
+    assert lam2 == 0.0
+    assert abs(np.linalg.norm(vec) - 1.0) < 1e-12 and vec[2] != 0.0
+    B = sp.csr_matrix(([1.0, 1.0, 0.5, 0.5], (rows, cols)), shape=(3, 3))
+    assert fiedler(B)[0] > 0.01                         # control: a positive weight connects it
+
+
 def test_louvain_cross_check_separates_two_triangles():
     # The scikit-network cross-check (a second, modularity-based method) recovers the two triangles.
     A = np.zeros((6, 6))
