@@ -152,6 +152,14 @@ clusters it implies, `N = ((z(1 − α/2) + z(power)) · sd / δ)²`, never a me
 0.02, N is 126; with δ 0.01, 503. `n_clusters` is fixed by an amendment, and the report refuses
 the comparisons until N is reached unless the caller unblinds on purpose.
 
+**Read once, at N.** A reader who may look whenever the count passes N can wait for a good-looking
+result and stop there. So once `n_clusters` is fixed the report scores only the first N clusters
+of the primary comparison, ordered by when each cluster's first pair (the later of its two arms'
+predictions) entered the ledger, which is the ledger's own line order and so cannot be moved by a
+caller. That cut applies to every table the report prints, secondary comparisons and controls
+included, and the report says in `beyond_n` how many clusters and pairs were left out as beyond N.
+`--unblind` keeps its meaning and its warning: it reads before N, where there is nothing to cut.
+
 The decision at N: the
 arm improves if the interval's lower bound is above 0; no useful improvement if its upper bound is
 below δ; otherwise inconclusive.

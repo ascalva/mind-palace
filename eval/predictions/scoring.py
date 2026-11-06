@@ -18,6 +18,11 @@ Every number the scorer uses comes from the ledger's protocol record, never from
   outcome would improve on every question and be "detected" at any N, which is why the control
   borrows the real noise instead. ORACLE is `p = o` against the reference arm: the scorer can see
   an edge at all.
+- **Read once, at N.** Once the protocol fixes `n_clusters`, `report` scores the first N clusters
+  of the primary comparison, ordered by when each cluster's first pair entered the ledger (the
+  ledger's own line order, never a date a caller supplies), in every table it prints: arms,
+  primary, secondary and controls. Waiting past N and stopping when the result looks good reads
+  the same N clusters as stopping at N; the clusters beyond N are counted in `beyond_n`, not scored.
 - **Blinding.** `pilot` reports the spread of the primary comparison's cluster means and the
   number of clusters it implies, never a mean. `report` refuses the comparisons until the
   protocol's `n_clusters` is fixed and reached, unless the caller unblinds on purpose.
@@ -64,6 +69,7 @@ class Scored:
     arm: str
     p: float
     outcome: int
+    seq: int = 0                      # the line that recorded it: the ledger's own clock
 
 
 @dataclass(frozen=True)
@@ -97,7 +103,8 @@ def table(entries: Sequence[Entry]) -> Table:
             late += 1
             continue
         q = state.questions[p.qid]
-        scored.append(Scored(p.qid, p.round, q.cluster, q.family, p.arm, p.p, resolution.outcome))
+        scored.append(Scored(p.qid, p.round, q.cluster, q.family, p.arm, p.p, resolution.outcome,
+                            entry.seq))
     return Table(state.protocol, tuple(scored), late, open_, voided)
 
 
@@ -182,6 +189,7 @@ class Pair:
     round: str
     cluster: str
     d: float
+    seq: int = 0                      # when the pair entered: its later prediction's line
 
 
 def pairs(t: Table, c: Comparison) -> list[Pair]:
@@ -191,7 +199,8 @@ def pairs(t: Table, c: Comparison) -> list[Pair]:
     out: list[Pair] = []
     for key in sorted(base.keys() & arm.keys()):
         b, a = base[key], arm[key]
-        out.append(Pair(b.qid, b.round, b.cluster, brier(b.p, b.outcome) - brier(a.p, a.outcome)))
+        out.append(Pair(b.qid, b.round, b.cluster, brier(b.p, b.outcome) - brier(a.p, a.outcome),
+                        max(b.seq, a.seq)))
     return out
 
 
@@ -339,18 +348,40 @@ def _verdict(i: Interval, delta: float) -> str:
     return "inconclusive"
 
 
+def first_n(t: Table, n: int) -> tuple[Table, dict[str, int]]:
+    """The table restricted to the first `n` clusters of the primary comparison, in the order
+    their first pair entered the ledger, and what was left out as beyond N. A table with `n` or
+    fewer clusters comes back whole. Rows of a cluster that never formed a primary pair, when
+    there are clusters beyond N, are left out too: they have no place in the order."""
+    first: dict[str, int] = {}
+    for p in pairs(t, t.protocol.primary):
+        first[p.cluster] = min(p.seq, first.get(p.cluster, p.seq))
+    if len(first) <= n:
+        return t, {"clusters": 0, "pairs": 0}
+    keep = set(sorted(first, key=lambda c: first[c])[:n])
+    kept = tuple(s for s in t.scored if s.cluster in keep)
+    cut = {s.cluster for s in t.scored if s.cluster not in keep}
+    beyond = sum(1 for p in pairs(t, t.protocol.primary) if p.cluster not in keep)
+    return replace(t, scored=kept), {"clusters": len(cut), "pairs": beyond}
+
+
 def report(t: Table, *, unblind: bool = False) -> dict[str, object]:
-    """Everything G5 asks for. Refuses (`Blinded`) before N unless `unblind`."""
+    """Everything G5 asks for. Refuses (`Blinded`) before N unless `unblind`; reads the first N
+    clusters only, however many the ledger holds."""
     pr = t.protocol
-    primary_pairs = pairs(t, pr.primary)
-    clusters = len({p.cluster for p in primary_pairs})
+    clusters = len({p.cluster for p in pairs(t, pr.primary)})
     if not unblind and (pr.n_clusters is None or clusters < pr.n_clusters):
         need = ("not fixed yet (run the blinded pilot)" if pr.n_clusters is None
                 else str(pr.n_clusters))
         raise Blinded(f"the primary comparison has {clusters} clusters; N is {need}")
+    beyond = {"clusters": 0, "pairs": 0}
+    if pr.n_clusters is not None:
+        t, beyond = first_n(t, pr.n_clusters)
+    primary_pairs = pairs(t, pr.primary)
     out: dict[str, object] = {
         "protocol": pr.name,
         "counts": {"scored": len(t.scored), "late": t.late, "open": t.open, "voided": t.voided},
+        "beyond_n": beyond,
     }
     arms: list[dict[str, object]] = []
     for family in pr.families:
