@@ -12,13 +12,17 @@
 #            physical row order and `set_held` rewrites a row to the end, so an uncleared write
 #            that touches one of two tied cleared atoms can swap them across the cut; (2) the
 #            table is content-addressed, an atom's text and vector a function of its id (a
-#            deterministic embedder: the first writer's vector is the one stored); (3) the cache
-#            is complete on C, every class of C that holds an atom named in the atom's cache
-#            (`drift_interferes`: an atom whose cache misses a class is hidden from that class
-#            until an uncleared write that shares the atom refreshes it), which `land` and
-#            `relabel` keep at every crash point by writing their additions first (PLN-4); (4)
-#            every path lives at one stratum fixed in advance (A3.6; `stratum_interferes`: the
-#            refusal of a land whose path another class holds reads an uncleared relation).
+#            deterministic embedder: the first writer's vector is the one stored); (3) the plane
+#            is `Good`, as the spec states it: the cache coherent with the relations on every
+#            class (each table atom's `held`/`held_ever` exactly the classes that hold it), no
+#            row pointing at an atom the table lacks (no purge left half done), and every row at
+#            the stratum fixed for its path. A cache that misses a class hides an atom from it
+#            until an uncleared write that shares the atom refreshes it (`drift_interferes`);
+#            one stale only by excess, what a crash of `land` or `relabel` can leave now, changes
+#            no search (PLN-4, `search_run_of_sameRel`), but PLN-2 itself is proved from `Good`
+#            states, and `repair()` restores one; (4) every write keeps its path at that one
+#            stratum, fixed in advance (A3.6; `stratum_interferes`: the refusal of a land whose
+#            path another class holds reads an uncleared relation).
 # ENFORCED:  structural (per-class relations, sealed records, the clearance-derived table list) +
 #            property (tests/property/test_plane_noninterference.py) + formal (PLN-1 to PLN-6,
 #            formal/Palace/Plane.lean) + the R3 repair ratchet.
