@@ -507,9 +507,9 @@ names per row:
 2. **Ulp-classed reassociation — where float error is bounded by construction.** The
    `test_graph_boundary.py` doctrine, adopted as the ledger's model entry (LAP-1):
    Laplacian off-diagonals exact, degree sums within 4·eps·max — **AMENDED by A1:
-   proved for rows of at most four nonzero weights (every fixture row) and refuted
-   at eight; the bound holds for short rows and benign weights, not by
-   construction** — with the written
+   proved for rows of at most four nonzero weights and refuted
+   at eight; the 4·eps bound holds for short rows and benign weights, not by
+   construction, and the test now checks the general γₙ bound instead** — with the written
    rule that reassociation is not a metric change and O(1) divergence is a P4 stop;
    R_eff route-invariance at rtol 1e-10, "generous over ulp noise, catastrophically
    failed by any real metric change."
@@ -759,9 +759,10 @@ what float64 computes. Both are proved in `formal/`:
   themselves are exact: `== 1` holds exactly when the chain spans, and `≤ 1` always holds
   (`formal/Palace/FloatModel.lean`: `toFloat_div_beq_one`, `toFloat_div_le_one`).
 - **LAP-1.** Any two association orders of the same at most four nonzero nonnegative
-  binary64 summands agree within `4·eps` of either result (`agreement`). So the
-  boundary test's bound holds on every fixture row, each of which has at most three,
-  whatever orders NumPy and SciPy use. At eight summands two orders differ by five
+  binary64 summands agree within `4·eps` of either result (`agreement`), whatever
+  orders NumPy and SciPy use. The boundary test no longer uses that bound: it checks every
+  row, up to 64 weights, against the general `2·γₙ·Σ|w|` (`γₙ = n·u/(1 − n·u)`,
+  `u = 2⁻⁵³`), the textbook summation bound, which is not machine-checked. At eight summands two orders differ by five
   ulps (`lap1_fails`). For five to seven the bound is open; an exhaustive search over
   every association order of one summand near `1` and small multiples of `u/2` found
   no counterexample. Measured with NumPy
