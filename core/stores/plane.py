@@ -370,7 +370,7 @@ class SharedPlane:
         """Which of these atoms the plane already holds — the embeds a caller may skip. The atom
         table is authoritative (no second ledger to drift). It answers for every class, so it is
         an existence oracle outside the reader interface (`formal/Palace/Plane.lean`, `known_eq`):
-        its callers are ingest's `embed_new` and the door writer's price."""
+        its callers are ingest's `embed_new` and the ingress writer's price."""
         self._check_geometry(self._db(), record=False)
         return self.atoms.present(list(dict.fromkeys(atom_ids)))
 

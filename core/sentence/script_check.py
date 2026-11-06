@@ -1,4 +1,4 @@
-"""The door's language: its types, and the checking pass (dn-door-language §E12).
+"""The ingress language: its types, and the checking pass (dn-ingress-language §E12).
 
 The types carry the label sets of §E3: `str⟨L⟩` and `content⟨L⟩` for the strings and bytes whose
 label is one of `L`, lists, the records a source's items and a place's entries are, sources,
@@ -10,7 +10,7 @@ it is called with, which is sound because nothing recurses; a body checked once 
 is not checked again with the same ones, and the pass as a whole is bounded (`MAX_CHECK_STEPS`),
 so no script costs the surface or the drain more than a bounded check. Stored, a string is
 composed whatever it was read off: only content keeps an item's label. Soundness: a value's
-label at run time is in its type's set (DOR-18, `formal/Palace/Script.lean::label_typed`), so R2
+label at run time is in its type's set (ING-18, `formal/Palace/Script.lean::label_typed`), so R2
 is decided here wherever the set is known, and the writer's run-time check is the second wall.
 
 The pass also resolves every name to its binding, refuses a name used before it is bound, checks

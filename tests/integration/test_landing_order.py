@@ -1,4 +1,4 @@
-"""The landing order (dn-ingest-door D1, D5; DOR-7 `ingest_prefix_converges`, DOR-2
+"""The landing order (dn-ingress D1, D5; ING-7 `ingest_prefix_converges`, ING-2
 `ingest_idempotent`), at the code's grain: the catalog's digest is the last write, so a run that
 dies after the version row and the attestation but before the key is repeated in full by the
 next run and lands exactly once; the curated lane has a key now and lands nothing twice."""
@@ -146,11 +146,11 @@ def test_the_curated_lane_lands_again_after_a_plane_reset(tmp_path):
 
 
 def test_a_receipt_names_exactly_the_attestations_of_what_landed(tmp_path):
-    """DOR-6 at the code's grain (the note's §6 falsifier "the receipt over-claiming"): two notes
-    and a capture land through the door's `perform` on real stores; each landing names its
+    """ING-6 at the code's grain (the note's §6 falsifier "the receipt over-claiming"): two notes
+    and a capture land through the ingress's `perform` on real stores; each landing names its
     attestations, records whose outputs are exactly the digest it landed, no landing names
     another's, and a re-landing lands nothing and attests nothing twice."""
-    from tests.fixtures.door import palace_at, write_file
+    from tests.fixtures.ingress import palace_at, write_file
 
     p = palace_at(tmp_path)
     write_file(p.vault, "pages/a.md", "# A\n\nthe first note\n")
@@ -182,7 +182,7 @@ def _vault_sync(tmp_path: Path) -> tuple[VaultSync, VersionStore, Path]:
 
 
 def test_one_note_renamed_before_it_is_ingested_alone_keeps_its_identity(tmp_path):
-    """The door's `ingest note` lands one path: a note renamed just before (the watcher's rescan
+    """The ingress's `ingest note` lands one path: a note renamed just before (the watcher's rescan
     not yet run) adopts the vanished path's identity, as the rescan would, so its version chain
     continues instead of forking."""
     sync, versions, vault = _vault_sync(tmp_path)

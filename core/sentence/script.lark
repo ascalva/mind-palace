@@ -1,4 +1,4 @@
-// The door's language: its one definition (dn-door-language §E1, §E11, §E12). LALR(1), read by
+// The ingress language: its one definition (dn-ingress-language §E1, §E11, §E12). LALR(1), read by
 // Lark. A newline ends a statement in a block or at the top level; inside ( ) and [ ] it is
 // space (the post-lexer drops it there). `#` begins a comment. A read sentence nests in backquotes
 // and captures a name of the enclosing scope as `$name`.

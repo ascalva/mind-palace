@@ -263,7 +263,7 @@ def test_turns_are_idempotent_and_provenance_follows_role(tmp_path: Path):
         "dialogue/openwebui/c1/m2": "observed",
     }
     # a turn's class is fixed with its identity: no observed text supersedes the owner's words
-    # on their path, and no owner's words supersede an observed turn (dn-ingest-door D8)
+    # on their path, and no owner's words supersede an observed turn (dn-ingress D8)
     with pytest.raises(PermissionError, match="authored-dialogue"):
         cap.capture_turn("fabricated", conversation="openwebui/c1", turn_id="m1",
                          role="assistant")

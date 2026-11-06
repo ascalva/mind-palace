@@ -698,7 +698,7 @@ class _Builder:
                 out = {k: str(v) for k, v in row.items() if k != "witness_digest"}
                 out["transcript"] = producing_turn(row)
                 return out
-            # a landing's receipt names its attestation (dn-ingest-door D5, DOR-6): the record
+            # a landing's receipt names its attestation (dn-ingress D5, ING-6): the record
             # of what landed, its role, its action and the digests it produced
             try:
                 att = self.e._get("attestations").get(edge_id)

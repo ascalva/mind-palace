@@ -54,7 +54,7 @@ def test_idempotent_kind_literals_match_the_kind_constants():
         INTEGRATE_KIND,
         SHADOW_KIND,
     )
-    from scheduler.door import DIALOGUE_SYNC_KIND
+    from scheduler.ingress import DIALOGUE_SYNC_KIND
     from scheduler.interface import AMBASSADOR_KIND, AMBASSADOR_TASK_KIND
     from scheduler.research import RESEARCH_KIND
     from scheduler.vault_sync import VAULT_SYNC_KIND
@@ -112,7 +112,7 @@ def test_collapsing_ignores_terminal_and_deferred_rows(q):
 
 def test_distinct_payloads_produce_distinct_rows(q):
     """The key is `(kind, payload)`, never `kind` alone — a payload-bearing job is never dropped
-    into an unrelated one. (No collapsible kind carries a payload today; this holds the door.)"""
+    into an unrelated one. (No collapsible kind carries a payload today; this holds the ingress.)"""
     a = q.enqueue("code_sync", "pinned", 8192, payload={"repo": "alpha"})
     b = q.enqueue("code_sync", "pinned", 8192, payload={"repo": "beta"})
     c = q.enqueue("code_sync", "pinned", 8192, payload={"repo": "alpha"})

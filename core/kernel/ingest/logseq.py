@@ -93,7 +93,7 @@ def iter_vault(vault: Path, *, pattern: str = DEFAULT_PATTERN,
                exclude_dirs: frozenset[str] = DEFAULT_EXCLUDE_DIRS) -> Iterator[Path]:
     """Yield in-scope markdown files, deterministically ordered. `pattern` and
     `exclude_dirs` are the §20.8 sub-scoping knob (which graphs are ingested). The scope is the
-    door's (`core/ingest/table.py` `Source.in_scope`): an excluded directory in any case, and a
+    ingress's (`core/ingest/table.py` `Source.in_scope`): an excluded directory in any case, and a
     file whose real path leaves the vault (a symlink out of it) is not one of its notes, so the
     re-embed and the id minting see the notes a sync lands, no more."""
     root = vault.expanduser().resolve()

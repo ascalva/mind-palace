@@ -254,7 +254,7 @@ def run(sync: VaultSync, *, declaration: OwnerDeclaration, confirm: bool = False
             rekeyed += 1
 
     # the "id added" amendment lands here: the vault's library script through the writer, as
-    # the daemon would land it (dn-door-language §E8); `sync.rescan` where none is given
+    # the daemon would land it (dn-ingress-language §E8); `sync.rescan` where none is given
     report = rescan() if rescan is not None else sync.rescan()
     verified = _verify_no_fork(sync, plan)
     return MintReport(minted=minted, rekeyed=rekeyed, rescan=str(report), verified=verified,

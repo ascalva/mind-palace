@@ -127,7 +127,7 @@ def test_control_without_the_guard_the_wrapper_reads_the_keychain(tmp_path) -> N
 
 
 def test_a_named_instance_has_no_dialogue_lane(monkeypatch, tmp_path, capsys) -> None:
-    """The door's table and the dialogue sync read the instance's lanes: Ouroboros's two, a
+    """The ingress's table and the dialogue sync read the instance's lanes: Ouroboros's two, a
     named instance's none, so nothing of its runs an edge reader over Ouroboros's chats."""
     from core.ingest.table import build_table
     from ops.lifecycle.launcher import dialogue_sync
@@ -138,7 +138,7 @@ def test_a_named_instance_has_no_dialogue_lane(monkeypatch, tmp_path, capsys) ->
     cfg = _named(monkeypatch, tmp_path, "bench")
     assert not [n for n in build_table(cfg).sources if n.startswith("dialogue/")]
     ran: list[object] = []
-    monkeypatch.setattr("core.ingest.door.run_library", lambda *a, **k: ran.append(a))
+    monkeypatch.setattr("core.ingest.ingress.run_library", lambda *a, **k: ran.append(a))
     assert dialogue_sync(cfg, ROOT) == 0 and ran == []
     assert "reads no dialogue lanes" in capsys.readouterr().out
 

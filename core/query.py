@@ -182,11 +182,11 @@ AMBASSADOR = Grant(
     )
 )
 
-# The grant the owner's own surfaces hold at the door (dn-ingest-door D3, §8): the terminal, the
+# The grant the owner's own surfaces hold at the ingress (dn-ingress D3, §8): the terminal, the
 # heartbeat and the watchers, which speak for the owner, not for an agent. The Ambassador's three
 # planes with the write bit at both clocks, so `do sync code`, `do observe code` and `do sync chat`
-# are admissible to the owner's surfaces and refused to the Ambassador (DOR-1, Door.lean). No world
-# reach, as every grant in code.
+# are admissible to the owner's surfaces and refused to the Ambassador (ING-1, Ingress.lean). No
+# world reach, as every grant in code.
 OPERATOR = Grant(
     (
         scope(

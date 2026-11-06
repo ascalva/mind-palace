@@ -1,8 +1,8 @@
-"""The door's gas prices, measured (dn-door-language §E10): what each priced operation costs on
-fixtures, in units of one evaluation step, so `PRICES` in `core/sentence/interpret.py` is a
+"""The ingress's gas prices, measured (dn-ingress-language §E10): what each priced operation costs
+on fixtures, in units of one evaluation step, so `PRICES` in `core/sentence/interpret.py` is a
 measurement and not an assumption.
 
-    uv run python eval/door_gas.py [--notes 200] [--repeat 7]
+    uv run python eval/ingress_gas.py [--notes 200] [--repeat 7]
         [--embed-url http://127.0.0.1:8081 --embed-model embeddinggemma-2]
 
 Hermetic by default: a palace under a temporary directory (its vault, its catalog, its stores),
@@ -165,7 +165,7 @@ def _embed_time(url: str, model: str, vault: Path, notes: int) -> float:
 
 def measure(notes: int, repeat: int, embed_url: str | None = None,
             embed_model: str = "") -> dict[str, Measured]:
-    with tempfile.TemporaryDirectory(prefix="door-gas-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="ingress-gas-") as tmp:
         root = Path(tmp)
         small, large = _config(root / "small"), _config(root / "large")
         _notes(Path(small.ingestion.vault.path), notes, SMALL)

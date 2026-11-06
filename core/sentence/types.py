@@ -41,7 +41,7 @@ class Sort(StrEnum):
     CHAIN = "chain"
     WITNESS = "witness"
     TEXT = "text"
-    EVENT = "event"          # a command's value: a receipt, never a field (dn-ingest-door D2)
+    EVENT = "event"          # a command's value: a receipt, never a field (dn-ingress D2)
 
 
 class SortError(TypeError):
@@ -434,10 +434,10 @@ def _read_clause(atom: str, ctx: Context) -> Clause:
 
 
 def requirement_clause(r: Any) -> Clause:
-    """What one of a script's effects requires (R1; DOR-1 effect by effect, QSA-5): the write bit
+    """What one of a script's effects requires (R1; ING-1 effect by effect, QSA-5): the write bit
     at `now` on the place's stratum for a store or a retire, on the strata a job declares for a
     `run`, on the interpreted stratum for a link, which proposes. The provenance of what lands is
-    the palace's, never a word of the script (dn-door-language §E3)."""
+    the palace's, never a word of the script (dn-ingress-language §E3)."""
     from core.ingest.table import JOBS, PLACES
     from core.kernel.scope import StratumScope
 

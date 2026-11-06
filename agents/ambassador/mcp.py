@@ -98,8 +98,8 @@ class Ambassador:
             code = fn()
         return {"ok": code == 0, "output": buf.getvalue().strip()}
 
-    # The write tools, as aliases of the one command `query` (dn-door-language §E8): each calls a
-    # library script of the door and writes the request the daemon's one writer lands; the
+    # The write tools, as aliases of the one command `query` (dn-ingress-language §E8): each calls a
+    # library script of the ingress and writes the request the daemon's one writer lands; the
     # receipt rides back as the answer's hit. Nothing is written from this process.
     def _do(self, sentence: str) -> dict[str, Any]:
         return self.query(sentence)
@@ -123,15 +123,16 @@ class Ambassador:
 
     def capture(self, text: str, conversation: str = "captures") -> dict[str, Any]:
         """Remember text the MODEL relays (a summary, a decision it was asked to remember) as an
-        `observed` dialogue turn, by the door, under `dialogue/door/ambassador/<conversation>/`.
-        Never authored: only the owner's own turns, synced from their chat app, carry authored
-        provenance. A conversation is a name, not a path."""
+        `observed` dialogue turn, by the ingress, under
+        `dialogue/ingress/ambassador/<conversation>/`. Never authored: only the owner's own turns,
+        synced from their chat app, carry authored provenance. A conversation is a name, not a
+        path."""
         from core.sentence.script import quote
 
         return self._do(f"do capture(text: {quote(text)}, conversation: {quote(conversation)})")
 
     def link(self, note_a: str, note_b: str, relation: str) -> dict[str, Any]:
-        """Propose a signed relation between two notes, stored as `interpreted`, by the door."""
+        """Propose a signed relation between two notes, stored as `interpreted`, by the ingress."""
         from core.relations import RELATIONS
 
         if relation not in RELATIONS:
