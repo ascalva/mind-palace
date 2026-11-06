@@ -4,15 +4,17 @@ speak, the jobs a script may start, and what each role may spend (dn-ingress-lan
 
 As an operating system has a mount table, owners and permissions, the palace has this table, and
 it is the one module where the palace's domain is named: the vault, the curated docs, the
-dialogue readers, the strata as places. The language (`core/sentence/script.py`,
-`interpret.py`, `script_check.py`) names none of it; a script names a source or a place by a
-string the table must know.
+dialogue readers, the Ambassador's inbox, the strata as places. The language
+(`core/sentence/script.py`, `interpret.py`, `script_check.py`) names none of it; a script names a
+source or a place by a string the table must know.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
 import sys
 import unicodedata
 from collections.abc import Callable, Collection, Iterator, Mapping
@@ -34,15 +36,30 @@ CURATED = Provenance.CURATED.value
 
 MAX_ITEM_BYTES = 16 << 20           # one item a source yields
 MAX_HANDOFF_BYTES = 256 << 20       # a structured source's file
+MAX_RECORD_BYTES = 2 * MAX_ITEM_BYTES + (64 << 10)   # one document of a records source
+OPERATOR_BUDGET = 50_000_000_000    # the operator's work, and the daemon's own jobs' (§E10)
+
+# The Ambassador's inbox (dn-ingress-language §E13): its source, the role its capture runs under
+# and its record's directory share a name; its paths lie under its space; an item is the owner's
+# text or the reply, by the field of the record it was read from.
+INBOX = "inbox"
+INBOX_SPACE = "dialogue/inbox/"
+INBOX_OWNER, INBOX_REPLY = "owner", "ambassador"
+REQUEST_ID = re.compile(r"[0-9a-f]{32}")      # the gateway's id (`uuid4().hex`), a request's name
+_PLAIN = re.compile(r"[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}")
+_WHEN = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d")
 
 
 @dataclass(frozen=True)
 class Source:
     """A source: where it is, how it is read, how its items are labelled, who may open it, and
-    which paths are its own (R8)."""
+    which paths are its own (R8). A `records` source is a directory of the daemon's own JSON
+    documents, each read as a structured source's document; one it `consume`s is removed once a
+    plan has landed every item it yields (the inbox's record, whose bytes the raw store then
+    holds)."""
 
     name: str
-    kind: str                                   # "dir" | "file"
+    kind: str                                   # "dir" | "file" | "records"
     location: Path                              # the directory, or the file
     format: str                                 # "markdown" | "json"
     readers: frozenset[str]
@@ -60,6 +77,7 @@ class Source:
     cursor_of: Callable[[Any], int] | None = None   # json: the newest change it saw
     identity: str | None = None                 # the property an item declares its identity in
     title_of: Callable[[Mapping[str, Any]], str] | None = None   # json: an item's title
+    consume: bool = False                       # records: a document removed once it has landed
 
     def in_scope(self, path: Path) -> bool:
         """Whether a path is one of a directory source's items, existing or not: under the
@@ -293,6 +311,58 @@ _DIALOGUE_READERS: Mapping[str, tuple[str, ...]] = {
 }
 
 
+def inbox_dir(cfg: Config) -> Path:
+    """The inbox's record: `<data>/inbox`, the daemon's account's alone."""
+    return Path(cfg.paths.data_dir) / INBOX
+
+
+def inbox_component(conversation: str) -> str:
+    """A conversation as one component of an inbox item's path: itself when it is a plain name
+    (letters, digits, `.`, `_`, `-`, at most 64, not starting with `.`), else `c-` and sixteen hex
+    digits of its digest, so no conversation adds a component, leaves the space, or displays as
+    another."""
+    if _PLAIN.fullmatch(conversation):
+        return conversation
+    return "c-" + hashlib.sha256(conversation.encode("utf-8")).hexdigest()[:16]
+
+
+def _inbox_source(cfg: Config) -> Source:
+    """The Ambassador's inbox: the owner's messages and the replies the inbox sent, as the inbox's
+    own code recorded them (`core/ingest/inbox.py`), one record a request. The rule makes two items
+    of a record and labels the owner's text authored and the reply observed by the field each was
+    read from: no script, no model and no field a model writes decides it. Only the inbox's role
+    opens the source, and a record is removed once both its items have landed."""
+
+    def items_of(doc: Any) -> Iterator[dict[str, Any]]:
+        """A record's two items. A document of another shape is refused with the source: only
+        the inbox writes this directory, so one it did not write is not read past."""
+        get = doc.get if isinstance(doc, Mapping) else (lambda _k: None)
+        rid, conv, at, text, reply = (get(k) for k in ("id", "conversation", "at", "text",
+                                                       "reply"))
+        if not (isinstance(rid, str) and REQUEST_ID.fullmatch(rid) and isinstance(conv, str)
+                and isinstance(at, str) and isinstance(text, str) and isinstance(reply, str)):
+            raise ValueError("not a record of the inbox's shape")
+        for whose, content in ((INBOX_OWNER, text), (INBOX_REPLY, reply)):
+            yield {"id": rid, "role": whose, "content": content, "conversation": conv, "at": at}
+
+    def path_of(it: Mapping[str, Any]) -> str:
+        return f"{INBOX_SPACE}{inbox_component(str(it['conversation']))}/{it['id']}/{it['role']}"
+
+    def title_of(it: Mapping[str, Any]) -> str:
+        """The item's title: its conversation, the request's time to the second (its id when
+        the request gave none), whose it is."""
+        m = _WHEN.match(str(it["at"]))
+        return (f"{INBOX_SPACE}{inbox_component(str(it['conversation']))}/"
+                f"{m.group(0) if m else it['id']} ({it['role']})")
+
+    return Source(
+        name=INBOX, kind="records", location=inbox_dir(cfg), format="json",
+        readers=frozenset({INBOX}), items_of=items_of, path_of=path_of,
+        label_of=lambda it: AUTHORED_DIALOGUE if it["role"] == INBOX_OWNER else OBSERVED,
+        labels=frozenset({AUTHORED_DIALOGUE, OBSERVED}),
+        space=INBOX_SPACE, title_of=title_of, consume=True)
+
+
 def build_table(cfg: Config) -> Table:
     """This palace's table, from its configuration."""
     from core.relations import RELATIONS
@@ -312,6 +382,7 @@ def build_table(cfg: Config) -> Table:
         # none (DI-2), since each reads a chat application whose conversations are Ouroboros's
         **{f"dialogue/{lane}": _dialogue_source(cfg, lane, _DIALOGUE_READERS[lane])
            for lane in cfg.instance.dialogue},
+        INBOX: _inbox_source(cfg),
     }
 
     places, jobs = PLACES, JOBS
@@ -320,7 +391,7 @@ def build_table(cfg: Config) -> Table:
     repo_prefix = str(repo) + "/"
     legacy = (LEGACY_DIALOGUE + "ambassador/",)
     roles = {
-        "cli": Role("cli", every, budget=50_000_000_000,
+        "cli": Role("cli", every, budget=OPERATOR_BUDGET,
                     retires=frozenset(str(p) for p in Provenance)),
         "ambassador": Role("ambassador", {
             "mirror_authored": (vault_prefix,),
@@ -330,6 +401,10 @@ def build_table(cfg: Config) -> Table:
             "curated": (repo_prefix,),
         }, budget=100_000_000, retires=frozenset({OBSERVED}),
             retire_only={"dialogue": legacy, "observed": legacy}),
+        # the inbox's capture, which only the daemon's own jobs speak (dn-ingress-language §E13):
+        # it writes the inbox's space and nothing else, and retires no row
+        INBOX: Role(INBOX, {"dialogue": (INBOX_SPACE,)}, budget=OPERATOR_BUDGET,
+                    retires=frozenset()),
     }
     return Table(sources=sources, places=places, jobs=jobs, roles=roles, relations=RELATIONS,
                  interactive=INTERACTIVE, coalescing=COALESCING)

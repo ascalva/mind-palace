@@ -1,0 +1,6 @@
+# The owner's messages to the Ambassador and the replies it sent, as the inbox recorded them, each
+# at its own path under its conversation. The source labels the owner's words authored and the
+# replies observed, and titles each: the script does neither, and only the inbox's role opens it.
+for t in items(source("inbox")) {
+    store t.content in "dialogue"
+}

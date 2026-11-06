@@ -131,9 +131,10 @@ jobs:
     # The type gate (bp-008): a red type check, a Tier-2 membership violation, or a bare
     # `# type: ignore` blocks the pipeline. mypy runs TWICE — once over everything except
     # tests/ (must be 0 errors: any error there is necessarily new), once over the whole
-    # [tool.mypy].files list including tests/, pinned at exactly 69 (finding-0029's recorded,
-    # triaged baseline). The split catches a new core/ error masked by a coincidental fix in
-    # tests/ holding the total steady.
+    # [tool.mypy].files list including tests/, pinned at exactly 67 (finding-0029's recorded,
+    # triaged baseline, 69 until the inbox's capture moved onto the ingress retired the two that
+    # typed against `DialogueCapture.capture`). The split catches a new core/ error masked by a
+    # coincidental fix in tests/ holding the total steady.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -147,7 +148,7 @@ jobs:
         run: |
           uv sync --frozen --extra dev
           uv run mypy core agents eval ops scheduler scripts   # Tier-2 hard floor: 0 errors, no exceptions
-          MYPY_TESTS_BASELINE=69
+          MYPY_TESTS_BASELINE=67
           MYPY_OUT="$(uv run mypy 2>&1)" || true
           echo "$MYPY_OUT"
           MYPY_COUNT="$(echo "$MYPY_OUT" | tail -1 | grep -oE '[0-9]+ error' | grep -oE '[0-9]+')"
