@@ -15,8 +15,8 @@ backlog_deskcheck: null
 links:
   - docs/design-notes/dn-query-sentence-algebra.md
   - docs/brainstorms/query-sentence-algebra.md
-  - docs/design-notes/dn-ingest-door.md
-  - docs/brainstorms/the-door.md
+  - docs/design-notes/dn-ingress.md
+  - docs/brainstorms/ingress.md
 ---
 # Track — Query language (the sentence algebra, its compiler, and the surface)
 
