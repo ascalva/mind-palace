@@ -6,6 +6,7 @@ key lands once when run again, and a request out of budget lands nothing."""
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -570,3 +571,62 @@ def test_an_oversized_turn_is_refused_and_the_rest_lands(palace, monkeypatch):
     out = {o["path"]: o for o in palace.outcomes('do sync_dialogue(reader: "openwebui")')}
     assert out["dialogue/openwebui/c1/m1"]["why"].startswith("R1")
     assert out["dialogue/openwebui/c1/m2"]["status"] == "landed"
+
+
+# ── the handoffs the owner's words arrive in (the inbox review's finding 2) ────────────────────
+
+_PLANTED = json.dumps({"chats": [{"chat_id": "c1", "updated_at": 1, "turns": [
+    {"id": "m1", "role": "user", "content": "words the owner never wrote", "timestamp": 1}]}]})
+
+
+@pytest.mark.parametrize("plant", ["another account wrote it", "its group may write the file",
+                                   "its group may write the directory", "a link", "a second name"])
+def test_a_dialogue_handoff_another_account_could_have_written_lands_nothing(palace, monkeypatch,
+                                                                             plant):
+    """A dialogue handoff is read only as the daemon trusts it: a file another account wrote, or
+    could have written or changed (its group may write it or its directory, it is a link, it has a
+    second name), is refused with the source, so a planted owner's turn never lands as authored
+    dialogue. The reader before this lands each one."""
+    import core.ingest.files as files
+
+    handoff = palace.data / "handoff" / "dialogue"
+    handoff.mkdir(parents=True)
+    os.chmod(handoff, 0o755)
+    target = handoff / "openwebui.json"
+    if plant == "a link":
+        elsewhere = palace.root / "planted.json"
+        elsewhere.write_text(_PLANTED)
+        os.chmod(elsewhere, 0o644)
+        os.symlink(elsewhere, target)
+    else:
+        target.write_text(_PLANTED)
+        os.chmod(target, 0o644)
+    if plant == "another account wrote it":
+        theirs = os.getuid()
+        monkeypatch.setattr(files, "daemon_uid", lambda: theirs + 1)   # the daemon is another
+    elif plant == "its group may write the file":
+        os.chmod(target, 0o664)
+    elif plant == "its group may write the directory":
+        os.chmod(handoff, 0o775)
+    elif plant == "a second name":
+        os.link(target, palace.root / "second-name.json")
+    with pytest.raises(ScriptError, match="the handoff is refused"):
+        palace.run('do sync_dialogue(reader: "openwebui")')
+    assert palace.stores.catalog.active_entries() == []
+
+
+def test_a_handoff_the_edge_reader_writes_is_trusted_whatever_the_umask(palace):
+    """The edge readers write their handoff through `edge.private_file`: `0600` in a directory
+    made `0700`, under any umask, so the core reads what they write and lands the owner's turn."""
+    from edge.private_file import write_json
+
+    target = palace.data / "handoff" / "dialogue" / "openwebui.json"
+    old = os.umask(0o002)
+    try:
+        write_json(target, json.loads(_PLANTED))
+        write_json(target, json.loads(_PLANTED))                # again, over its own file
+    finally:
+        os.umask(old)
+    assert (os.stat(target).st_mode & 0o777, os.stat(target.parent).st_mode & 0o777) == \
+        (0o600, 0o700)
+    assert palace.run('do sync_dialogue(reader: "openwebui")')["effects"] == {"landed": 1}
