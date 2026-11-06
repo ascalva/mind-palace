@@ -22,7 +22,7 @@ from tests.fixtures.fakes import HashingEmbedder, ReplyServer
 DIM = 32
 
 
-def _runtime(tmp_path):
+def _config(tmp_path):
     base = load_config()
     paths = dataclasses.replace(
         base.paths, data_dir=tmp_path, raw_store=tmp_path / "raw",
@@ -31,8 +31,12 @@ def _runtime(tmp_path):
         telemetry_db=tmp_path / "t.duckdb",
     )
     itf = dataclasses.replace(base.interface, handoff_dir=tmp_path / "handoff")
-    cfg = dataclasses.replace(base, paths=paths, interface=itf,
-                              embedding=dataclasses.replace(base.embedding, dim=DIM))
+    return dataclasses.replace(base, paths=paths, interface=itf,
+                               embedding=dataclasses.replace(base.embedding, dim=DIM))
+
+
+def _runtime(tmp_path, live=None):
+    cfg = _config(tmp_path)
     emb = HashingEmbedder(DIM)
     store = VectorStore(cfg.paths.vector_store, dim=DIM)
     # Seed notes that are genuinely raw-backed: the Librarian now verifies each retrieved chunk
@@ -56,7 +60,8 @@ def _runtime(tmp_path):
     def fn(_tier, messages):
         return "Based on your notes, here's what I see."
 
-    runtime = build_conversation_runtime(cfg, server=ReplyServer(fn=fn), embedder=emb, store=store)
+    runtime = build_conversation_runtime(cfg, server=ReplyServer(fn=fn), embedder=emb, store=store,
+                                         live=live)
     return runtime, store, emb
 
 
@@ -163,4 +168,55 @@ def test_a_capture_that_fails_keeps_the_conversation_and_the_record(tmp_path, ca
     texts = {r["text"] for r in store.all_rows(clearance=grant(Provenance.AUTHORED_DIALOGUE))}
     assert {"I have been sleeping better since the walks started",
             "I want to keep walking every morning"} <= texts
+    runtime.queue.close()
+
+
+def _owner_rows(store) -> set[str]:
+    return {r["text"] for r in store.all_rows(clearance=grant(Provenance.AUTHORED_DIALOGUE))}
+
+
+def test_talk_with_no_daemon_live_lands_in_its_own_process(tmp_path):
+    """With no daemon live, `talk`'s runtime is the daemon's stand-in: it lands what its inbox kept
+    after each message, and leaves no record waiting."""
+    from core.ingest import inbox
+
+    runtime, store, _emb = _runtime(tmp_path, live=lambda: False)
+    runtime.send("I slept through the night for the first time in weeks")
+    assert "I slept through the night for the first time in weeks" in _owner_rows(store)
+    assert not inbox.waiting(_config(tmp_path))
+    runtime.queue.close()
+
+
+def test_talk_beside_a_live_daemon_leaves_the_record_for_the_daemons_capture(tmp_path):
+    """The daemon is the one writer: beside a live one, `talk` answers and keeps the exchange in
+    the inbox's record, lands nothing itself, and the daemon's watcher enqueues its coalescing
+    `inbox_capture`, whose handler lands the record through the daemon's writer."""
+    from core.attestation import build_attestor
+    from core.ingest import inbox
+    from core.ingest.writer import Stores
+    from core.stores.catalog import VaultCatalog
+    from core.stores.versions import open_version_store
+    from scheduler.interface import INBOX_CAPTURE_KIND, build_inbox_watcher, inbox_capture_handler
+    from scheduler.queue import JobQueue
+    from scheduler.router import Router
+
+    runtime, store, emb = _runtime(tmp_path, live=lambda: True)
+    reply = runtime.send("I want to start the mornings with a walk by the water")
+    cfg = _config(tmp_path)
+    assert reply and inbox.waiting(cfg)                        # answered, and kept for the daemon
+    assert _owner_rows(store) == set()                         # talk landed nothing itself
+    queue, router = JobQueue(cfg.paths.data_dir / "queue.sqlite"), Router(cfg)
+    watcher = build_inbox_watcher(queue, router, cfg)
+    watcher.on_change()
+    watcher.on_change()                                        # coalesced: one row waits
+    (job,) = [j for j in queue.list("queued") if j.kind == INBOX_CAPTURE_KIND]
+    stores = Stores(raw=RawStore(cfg.paths.raw_store), plane=store, embedder=emb,
+                    catalog=VaultCatalog(cfg.paths.vault_catalog),
+                    versions=open_version_store(cfg), attestor=build_attestor(cfg))
+    assert "landed" in str(inbox_capture_handler(cfg, stores=lambda: stores)(job))
+    assert "I want to start the mornings with a walk by the water" in _owner_rows(store)
+    assert not inbox.waiting(cfg)                              # landed whole: the record goes
+    watcher.on_change()                                        # nothing waits: nothing enqueued
+    assert [j.id for j in queue.list("queued") if j.kind == INBOX_CAPTURE_KIND] == [job.id]
+    queue.close()
     runtime.queue.close()

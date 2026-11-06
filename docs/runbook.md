@@ -835,7 +835,8 @@ reads your mirror, reads its own operational state, and delegates heavy work —
 write + act**. Your messages on a recall, a task or a capture are kept: the inbox records each such
 exchange in `data/inbox/` (the daemon's account's alone), and its capture, the library script
 `capture_inbox`, lands your words as `authored-dialogue` and the replies as `observed` under
-`dialogue/inbox/<conversation>/<id>/` (dn-ingress-language §E13).
+`dialogue/inbox/<conversation>/<id>/` (dn-ingress-language §E13). With the daemon running, the
+daemon lands them (its watcher sees the record); with none running, `talk` lands them itself.
 
 ```sh
 # Day-one surface (no daemon, no network decision) — an in-process REPL over the real path

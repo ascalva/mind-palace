@@ -22,6 +22,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -31,6 +32,7 @@ from core.ingest.table import INBOX, MAX_ITEM_BYTES, REQUEST_ID, inbox_dir
 
 SCRIPT = "capture_inbox"            # the library script (`ingress/capture_inbox.palace`)
 DIR_MODE, FILE_MODE = 0o700, 0o600
+_RECORD = re.compile(r"[0-9a-f]{32}\.json")    # a record's name: the request id, `.json`
 
 
 @dataclass(frozen=True)
@@ -64,7 +66,7 @@ class Record:
         for what, text in (("text", ex.text), ("reply", ex.reply)):
             if len(text.encode("utf-8")) > MAX_ITEM_BYTES:
                 raise ValueError(f"the {what} is more than an item holds ({MAX_ITEM_BYTES} bytes)")
-        self._ensure()
+        self.ensure()
         doc = {"id": ex.id, "conversation": ex.conversation, "at": ex.at, "text": ex.text,
                "reply": ex.reply}
         path = self.root / f"{ex.id}.json"
@@ -86,9 +88,10 @@ class Record:
             raise
         return path
 
-    def _ensure(self) -> None:
+    def ensure(self) -> None:
         """Make the directory, the daemon's alone, and refuse one that is not (a symlink, another
-        account's, or one another account may write)."""
+        account's, or one another account may write). The daemon makes it at start, so its watcher
+        has a directory to watch."""
         if not os.path.lexists(self.root):
             self.root.parent.mkdir(parents=True, exist_ok=True)
             self.root.mkdir(mode=DIR_MODE)
@@ -96,6 +99,17 @@ class Record:
         why = check_dir(self.root)
         if why is not None:
             raise PermissionError(f"the inbox's record: {why}")
+
+
+def waiting(cfg: Any) -> bool:
+    """Whether the inbox's record holds an exchange not yet landed: what the daemon's watcher and
+    its catch-up ask before they enqueue the capture. A listing of the directory's names, nothing
+    read; the capture's reader judges each record."""
+    try:
+        with os.scandir(inbox_dir(cfg)) as it:
+            return any(_RECORD.fullmatch(e.name) for e in it)
+    except OSError:
+        return False
 
 
 def land(cfg: Any, *, stores: Any) -> dict[str, Any]:
