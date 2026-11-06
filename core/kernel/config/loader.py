@@ -543,6 +543,13 @@ class InstanceConfig:
 
     id: str = OUROBOROS
 
+    def __post_init__(self) -> None:
+        # The map is defined on well-formed ids only: built from `../x`, `root` would climb out of
+        # `instances/`. The loader refuses such an id with a message first; this holds for any
+        # other caller too.
+        if not isinstance(self.id, str) or not _INSTANCE_ID.fullmatch(self.id):
+            raise ValueError(f"not an instance id: {self.id!r}")
+
     @property
     def named(self) -> bool:
         """True for an instance other than Ouroboros."""
@@ -895,9 +902,9 @@ def load_config(path: Path | None = None) -> Config:
     #
     # A named instance (`MIND_PALACE_OVERLAY`) replaces the chain: defaults ← its own levers file ←
     # its own overlay, and nothing of Ouroboros's. The legacy guard is about Ouroboros's file name,
-    # so it does not run.
-    # Its namespaces derive from its id (`InstanceConfig`); the overlay may not set them, and the
-    # instance may not share one with Ouroboros, whose chain is read for that check alone.
+    # so it does not run. Its namespaces derive from its id (`InstanceConfig`); the overlay may not
+    # set them, and the instance may not share one with Ouroboros, whose chain is read for that
+    # check alone.
     if path is not None:
         return _build(raw, _ouroboros_instance(raw, str(path)))
     named = _named_overlay()
