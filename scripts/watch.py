@@ -64,7 +64,7 @@ def main() -> int:
     from ops.lifecycle.launcher import DEFAULT_DRAIN_MAX_TICKS
     from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld
     from ops.lifecycle.runs import RunLedger, git_state
-    from scheduler.door import library_handler
+    from scheduler.ingress import library_handler
     from scheduler.queue import JobQueue
     from scheduler.router import Router
     from scheduler.supervisor import Supervisor

@@ -108,10 +108,10 @@ def test_read_parses_with_an_optional_chunk() -> None:
         parse('read "a.md" chunk x')
 
 
-# ── the door: `do <request>` (dn-door-language §E6) ───────────────────────────────────────────
+# ── the ingress: `do <request>` (dn-ingress-language §E6) ─────────────────────────────────────────
 
 
-def test_a_request_parses_to_a_do_over_the_door_language() -> None:
+def test_a_request_parses_to_a_do_over_the_ingress_language() -> None:
     from core.sentence.script import CallScript, Inline, Lit
 
     assert parse("do sync_vault") == ast.Do(CallScript("sync_vault", (), ()), text="sync_vault")

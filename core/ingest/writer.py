@@ -1,5 +1,5 @@
-"""The door's one writer: it lands a plan effect by effect, each by the rules of
-dn-door-language §E4 (R2 to R8), in the first form's order with the key last (DOR-7, DOR-16).
+"""The ingress's one writer: it lands a plan effect by effect, each by the rules of
+dn-ingress-language §E4 (R2 to R8), in the first form's order with the key last (ING-7, ING-16).
 
 A store lands as the first form's landers landed: the raw object, the plane's chunk-level
 amendment, the version chain where the place keeps one, the attestation, and last the catalog's
@@ -11,8 +11,8 @@ each other effect, and its embeds, the distinct atoms the plane does not hold, a
 budget, so a plan that would overrun it is refused before anything is paid.
 
 Each rule is a theorem's hypothesis in `formal/Palace/Script.lean`: R4 and R8 give the firewall
-(DOR-14, `firewall_store`, `owned_by_source`), R3 confinement (DOR-15), R5 and R6 fixed labels and
-identities that move only with their bytes (DOR-17), R7 retire as reconciliation. The writer is
+(ING-14, `firewall_store`, `owned_by_source`), R3 confinement (ING-15), R5 and R6 fixed labels and
+identities that move only with their bytes (ING-17), R7 retire as reconciliation. The writer is
 stricter than the model in places, each written where it is checked: content under any label but
 the observed one is an item's whole content under its item's title; an identity read off an item
 is the one it declares, and no path takes one another path of its source still holds; a held
@@ -65,7 +65,7 @@ class Stores:
     versions: Any | None = None
     attestor: Any | None = None
     edges: Any | None = None
-    # a job's start: (kind, its arguments, *, role, request) -> the job's id; raises the door's
+    # a job's start: (kind, its arguments, *, role, request) -> the job's id; raises the ingress's
     # `Busy` past the role's share of the queue
     enqueue: Callable[..., int] | None = None
 
@@ -131,7 +131,7 @@ class Writer:
         """The plan's cost, counted before any of it is paid: its writes, each store the UNCHANGED
         check would not skip (a store the rules will refuse is counted too: the price is a bound)
         and each retire, link and run; and its embeds, the distinct atoms its stores would add
-        that the plane does not hold (DOR-5). Charged to the budget; returns the two counts.
+        that the plane does not hold (ING-5). Charged to the budget; returns the two counts.
 
         [banner: correction] It asked `known_atoms`, which answers for every class, so the charge
         a receipt reports told the script's role whether an atom exists in a class it cannot read
@@ -321,7 +321,7 @@ class Writer:
         if self.table.owner(e.path) is not None and self.has(e.path):
             raise Refused("R7", f"{e.path!r} is still in its source; retire only reconciles")
         self.stores.plane.delete_source(e.path)
-        self.stores.catalog.tombstone(e.path)                    # the key, last (DOR-7)
+        self.stores.catalog.tombstone(e.path)                    # the key, last (ING-7)
         return Outcome("retire", e.path, "retired")
 
     def link(self, e: LinkEff) -> Outcome:
@@ -355,7 +355,7 @@ class Writer:
             args[k] = v
         if self.stores.enqueue is None:
             raise Refused("R1", "no queue is open")
-        from core.ingest.door import Busy
+        from core.ingest.ingress import Busy
 
         try:
             job_id = self.stores.enqueue(job.kind, args, role=self.role, request=self.request)

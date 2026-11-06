@@ -29,7 +29,7 @@ def test_in_checkout_the_root_and_every_derived_path_are_todays() -> None:
     from core.kernel.constitution import CONSTITUTION_PATH
     assert CONSTITUTION_PATH == CHECKOUT / "CONSTITUTION.md"
     from core.sentence import script
-    assert script.LIBRARY == CHECKOUT / "door"
+    assert script.LIBRARY == CHECKOUT / "ingress"
     p = get_config().paths
     assert p.data_dir == CHECKOUT / "data"
     assert p.derived_store == CHECKOUT / "data" / "derived.sqlite"

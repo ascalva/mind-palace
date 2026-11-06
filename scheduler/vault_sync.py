@@ -1,10 +1,10 @@
 """Wire the vault watcher + incremental re-ingest into the scheduler (vault-sync task).
 
 The watcher (core) only signals; this scheduler-side module turns that signal into a durable
-background `vault_sync` job. Its handler runs the door's library script `sync_vault` through the
-one writer (`scheduler.door.library_handler`, dn-door-language §E7), so all store mutation happens
-on the single supervisor writer (the queue's discipline), and the core watcher stays free of any
-scheduler import (clean layering: scheduler depends on core, never the reverse).
+background `vault_sync` job. Its handler runs the ingress's library script `sync_vault` through the
+one writer (`scheduler.ingress.library_handler`, dn-ingress-language §E7), so all store mutation
+happens on the single supervisor writer (the queue's discipline), and the core watcher stays free
+of any scheduler import (clean layering: scheduler depends on core, never the reverse).
 
 `vault_sync` is routed to the **pinned** tier (the router): it needs no chat model — it calls
 the embedder directly — so making it "resident" is a no-op and the worker slot is never
@@ -36,7 +36,7 @@ def build_vault_watcher(
     """A watcher whose on_change enqueues a background vault_sync job. Call `.start()` to run.
 
     The supervisor must have the `vault_sync` handler registered (the library script
-    `sync_vault`, `scheduler.door.library_handler`) to actually process the enqueued jobs."""
+    `sync_vault`, `scheduler.ingress.library_handler`) to actually process the enqueued jobs."""
     from config.loader import get_config
 
     cfg = config or get_config()

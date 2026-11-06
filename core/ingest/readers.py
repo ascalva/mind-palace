@@ -1,10 +1,10 @@
 """What a script reads through: the palace's sources and places, opened under the speaking role
-(dn-door-language §E2, §E3). The view the evaluator is handed (`core.sentence.interpret.Palace`).
+(dn-ingress-language §E2, §E3). The view the evaluator is handed (`core.sentence.interpret.Palace`).
 
 Every value a reader yields is labelled here, by the source's rule, never by a script: an item's
 content is `Content` with its label and origin, and every string read off it (its path, title,
 digest, properties) is an `OStr` with the same, so the type checker's sets are sound at run time
-(DOR-18). A string is not the item's bytes: stored, it is composed and observed (§E3). The one
+(ING-18). A string is not the item's bytes: stored, it is composed and observed (§E3). The one
 string that names something is the property a source declares as its items' identity (`id::` in
 the vault), whose origin says so, so a store may take it as the item's identity (R6) and no other
 field can pose as one. An entry of a place is the palace's account of a row, and its strings are
@@ -193,7 +193,7 @@ class PalaceView:
     def _read_items(self, s: Source) -> list[Record]:
         """A structured source's items, read once an evaluation: refreshed first by its edge
         reader if the caller asked, each labelled by the source's rule, which must give a label in
-        the range the table declares (the checker's sets rest on it, DOR-18)."""
+        the range the table declares (the checker's sets rest on it, ING-18)."""
         assert s.items_of is not None and s.path_of is not None and s.label_of is not None
         if s.name in self._items:
             return self._items[s.name]

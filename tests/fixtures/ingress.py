@@ -1,4 +1,4 @@
-"""A palace on temporary stores for the door's tests: its configuration (the vault, the data
+"""A palace on temporary stores for the ingress's tests: its configuration (the vault, the data
 directory and the handoff directory under one root, never the live ones), the stores the writer
 lands into, and what a landing leaves, for comparing two palaces."""
 
@@ -10,7 +10,7 @@ from typing import Any, cast
 
 from core.attestation.attestor import StoreAttestor
 from core.attestation.store import AttestationStore
-from core.ingest import door
+from core.ingest import ingress
 from core.ingest.embed import Embedder
 from core.ingest.readers import PalaceView
 from core.ingest.table import build_table
@@ -57,10 +57,10 @@ class Palace:
     def run(self, text: str, role: str = "cli", *, budget: int | None = None) -> dict[str, Any]:
         """A request performed as the handler performs it, its structured sources read as they
         are (no edge reader refreshes them)."""
-        plan = compile_sentence(text, door.grant_for(role), role=role)
+        plan = compile_sentence(text, ingress.grant_for(role), role=role)
         assert isinstance(plan.term, ast.Do)
         view = PalaceView(build_table(self.cfg), role, self.stores.catalog, refresh=False)
-        return door.perform(plan.term, self.cfg, role, stores=self.stores, view=view,
+        return ingress.perform(plan.term, self.cfg, role, stores=self.stores, view=view,
                             budget=budget)
 
     def outcomes(self, text: str, role: str = "cli") -> list[dict[str, Any]]:

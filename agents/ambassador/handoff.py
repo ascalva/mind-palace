@@ -15,7 +15,7 @@ pattern with a structured payload:
 The web client gets a narrower tool set than OpenCode's: every read, plus capture and the two
 syncs — never `dream`/`relate` (long synthesis-model jobs) or `link` (interpreted edges) from a
 chat window. `WEB_TOOLS` is enforced HERE; the edge's advertised list is a copy for the client,
-not the gate. `query` reads, and since the door (dn-ingest-door) it can also speak a command
+not the gate. `query` reads, and since the ingress (dn-ingress) it can also speak a command
 (`do …`): from the web client it may speak only the commands its tools already allow
 (`web_admits`), so the narrowing holds whatever tool carries the sentence.
 One responder runs at a time (`responder.lock`, which is also how the edge sees it is up); it exits

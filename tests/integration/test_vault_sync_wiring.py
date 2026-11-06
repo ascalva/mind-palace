@@ -2,8 +2,8 @@
 
 Pins the scheduler integration: the kind routes to the always-pinned tier (no chat-model
 swap), enqueues at BACKGROUND priority, the handler runs the library script `sync_vault` through
-the door's writer (dn-door-language §E7), and the watcher's on_change enqueues a job (the trigger
-path) — all without core importing scheduler.
+the ingress's writer (dn-ingress-language §E7), and the watcher's on_change enqueues a job (the
+trigger path) — all without core importing scheduler.
 """
 
 from __future__ import annotations
@@ -12,11 +12,11 @@ from pathlib import Path
 from typing import cast
 
 from config.loader import get_config
-from scheduler.door import library_handler
+from scheduler.ingress import library_handler
 from scheduler.queue import PRIORITY_BACKGROUND, Job, JobQueue
 from scheduler.router import Router
 from scheduler.vault_sync import VAULT_SYNC_KIND, build_vault_watcher, enqueue_vault_sync
-from tests.fixtures.door import palace_at, write_file
+from tests.fixtures.ingress import palace_at, write_file
 
 
 def test_routes_to_pinned_tier_no_worker_swap():

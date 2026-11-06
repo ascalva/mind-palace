@@ -25,7 +25,7 @@ from core.sealing import seal
 def main(argv: list[str]) -> int:
     seal()  # structural egress guard first (Invariant 1)
     from config.loader import get_config
-    from core.ingest import door
+    from core.ingest import ingress
     from core.ingest.mint_ids import MintRefusedError, preview, run
     from core.ingest.sync import build_vault_sync
     from core.stores.authored_supersession import owner_declaration
@@ -55,7 +55,7 @@ def main(argv: list[str]) -> int:
             confirm=True,
             backup_dir=backup_dir,
             run_ledger=open_run_ledger(cfg),             # daemon-down gate
-            rescan=lambda: door.run_library(cfg, "sync_vault")["effects"],
+            rescan=lambda: ingress.run_library(cfg, "sync_vault")["effects"],
         )
     except MintRefusedError as e:
         print(f"REFUSED: {e}")

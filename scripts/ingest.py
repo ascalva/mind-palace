@@ -8,7 +8,7 @@ markdown vault into the raw store + LanceDB vectors. Vectors rebuild from raw ea
 
 Refuses while a daemon run is live, through the launcher's `_refuse_if_live`, as the on-demand
 verbs do: a rebuild starts with `VectorStore.reset()`, which drops the table and every relation the
-daemon writes, a write that commutes with none of the daemon's (dn-ingest-door §9; DOR-12's one
+daemon writes, a write that commutes with none of the daemon's (dn-ingress §9; ING-12's one
 writer). Stop the daemon first. The check reads the run ledger and then acts, so the rebuild also
 holds the supervisor lock for its whole duration (acquire-or-fail, `ops/lifecycle/lock.py`): a
 daemon that starts after the check finds the lock taken and refuses to start, and one that holds

@@ -704,7 +704,7 @@ class Evaluator:
                 raise UnsupportedSentence(
                     f"do {ast.describe_request(r)}: a request is not evaluated here; ask it "
                     "through a surface (`palace query`, the MCP's `query`), which writes it for "
-                    "the daemon's one writer and returns the receipt (dn-door-language §E6)")
+                    "the daemon's one writer and returns the receipt (dn-ingress-language §E6)")
             case ast.Assume(hypothesis=h, body=b):
                 overlay = Overlay.of(h, self.u)
                 self._note_assume(h, overlay)
@@ -1080,8 +1080,8 @@ def _hits(value: Value, u: Universe, k: int) -> tuple[Hit, ...]:
         r = value.record
         if "edge_id" in r:                  # a causal or reference edge: the witness is the edge
             return (Hit(ref=str(r["edge_id"]), stratum="dialogue", detail=dict(r)),)
-        # a landing's attestation (dn-ingest-door D5): the witness is the record of what landed
-        return (Hit(ref=str(r.get("id", "")), title=str(r.get("action", "")), stratum="door",
+        # a landing's attestation (dn-ingress D5): the witness is the record of what landed
+        return (Hit(ref=str(r.get("id", "")), title=str(r.get("action", "")), stratum="ingress",
                     provenance=str(r.get("agent_role", "")), detail=dict(r)),)
     if isinstance(value, TextV):
         r = value.record

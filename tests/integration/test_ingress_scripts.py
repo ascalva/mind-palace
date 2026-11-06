@@ -1,5 +1,5 @@
-"""The door's scripts against real stores (dn-door-language §E4, §E5, §E8; DOR-7, DOR-13 to
-DOR-17): each library script lands what the first form's lander landed on the same fixtures (the
+"""The ingress's scripts against real stores (dn-ingress-language §E4, §E5, §E8; ING-7, ING-13 to
+ING-17): each library script lands what the first form's lander landed on the same fixtures (the
 differential tests of DS-5), the writer's rules refuse what they must, a run that dies before its
 key lands once when run again, and a request out of budget lands nothing."""
 
@@ -19,8 +19,8 @@ from core.kernel.config import REPO_ROOT
 from core.kernel.provenance import Provenance
 from core.sentence.interpret import OutOfGas, ScriptError
 from core.stores.vectorstore import VectorStore
-from tests.fixtures.door import Palace, palace_at, state_of, write_file
 from tests.fixtures.embedding import DIM
+from tests.fixtures.ingress import Palace, palace_at, state_of, write_file
 
 
 @pytest.fixture
@@ -101,7 +101,7 @@ def test_a_bare_sync_dialogue_lands_every_readers_turns(palace):
 
 def test_ingest_doc_lands_what_the_curated_lane_landed(tmp_path):
     new, old = palace_at(tmp_path, "script"), palace_at(tmp_path, "lander")
-    rel = "docs/design-notes/dn-door-language.md"
+    rel = "docs/design-notes/dn-ingress-language.md"
     new.run(f'do ingest_doc(path: "{rel}")')
     ingest_curated([Path(REPO_ROOT) / rel], old.stores.raw, old.stores.plane, old.stores.embedder,
                    old.stores.catalog, repo_root=Path(REPO_ROOT), attestor=old.stores.attestor)
@@ -114,13 +114,13 @@ def test_a_capture_is_observed_in_the_speakers_own_namespace(palace):
     out = palace.outcomes('do capture(text: "remember this", conversation: "tea")', "ambassador")
     assert out[0]["status"] == "landed"
     (entry,) = palace.stores.catalog.active_entries()
-    assert entry.source_path.startswith("dialogue/door/ambassador/tea/")
+    assert entry.source_path.startswith("dialogue/ingress/ambassador/tea/")
     assert str(entry.provenance) == "observed"
 
 
 @pytest.mark.parametrize("script, rule", [
     # R3: the Ambassador writes only its own prefix
-    ('{ store "x" in "observed" at "dialogue/door/cli/t/1" }', "R3"),
+    ('{ store "x" in "observed" at "dialogue/ingress/cli/t/1" }', "R3"),
     # R8: a path in a source's space takes only that source's items
     ('{ store "x" in "dialogue" at "dialogue/openwebui/c1/m9" }', "R8"),
 ])
@@ -192,7 +192,7 @@ def test_a_run_enqueues_its_job_with_bounded_arguments(palace):
     assert out[0]["status"] == "refused"
 
 
-# ── crash convergence (DOR-7, DOR-16) and the budget (§E10) ─────────────────────────────────
+# ── crash convergence (ING-7, ING-16) and the budget (§E10) ─────────────────────────────────
 
 def test_a_store_that_dies_before_its_key_lands_once_when_run_again(palace, monkeypatch):
     note = write_file(palace.vault, "a.md", "# A\n\nthe first version\n")
@@ -370,7 +370,7 @@ def test_a_held_identity_moves_with_its_label_and_within_its_source(palace):
     note.unlink()
     out = palace.outcomes(
         'do { let e = stored("mirror_authored", under: source("vault"))\n'
-        'store "id:: N-A\\n\\nalpha\\n" in "observed" at "dialogue/door/ambassador/x" '
+        'store "id:: N-A\\n\\nalpha\\n" in "observed" at "dialogue/ingress/ambassador/x" '
         'as e[0].identity }', "ambassador")
     assert out[0]["status"] == "refused" and out[0]["why"].startswith("R6")
 
@@ -490,9 +490,9 @@ def test_a_half_retire_then_the_same_bytes_back_lands_again(palace, monkeypatch)
 
 def test_a_scripts_charge_carries_nothing_of_a_class_its_role_cannot_read(palace):
     """The writer prices a script's embeds by the atoms its role's grant can read (`knownIn`): an
-    atom held only by a class the role reads none of (`derived-stratum`, which no door role reads)
-    is charged as new, as a text nobody holds is, so the receipt's charge says nothing of that
-    class. The meter that asked `known_atoms`, every class, charged the second capture less."""
+    atom held only by a class the role reads none of (`derived-stratum`, which no ingress role
+    reads) is charged as new, as a text nobody holds is, so the receipt's charge says nothing of
+    that class. The meter that asked `known_atoms`, every class, charged the second capture less."""
     from core.kernel.clearance import OBSERVED_READ
     from core.stores.plane import atom_id
 

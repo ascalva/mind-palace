@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-# `act` is the door's stage (dn-ingest-door D3): a command is written as a request for the
+# `act` is the ingress's stage (dn-ingress D3): a command is written as a request for the
 # daemon's one writer, and the trace names the request and its kind.
 STAGES = ("parse", "plan", "universe", "eval", "rank", "act")
 

@@ -16,8 +16,8 @@ ledger needs no root. `REPO_ROOT` is then a `Path` whose every filesystem use ra
 `RootNotFound`, so a stray join cannot quietly land in the working directory.
 
 The committed defaults (`config/defaults.toml`, `config/tuning.toml`) and the sentence library
-(`door/`) ship inside the wheel beside the code, so they are found from `code_dir()` whether or not
-a root is set. Only the instance's own state moves with the root.
+(`ingress/`) ship inside the wheel beside the code, so they are found from `code_dir()` whether or
+not a root is set. Only the instance's own state moves with the root.
 
 Instance identity (DI-2, `core/kernel/config/loader.py`) composes below the root. The root says
 where a host's instances live; an instance's id says which of them a process is; every namespace
@@ -46,7 +46,7 @@ class RootNotFound(RuntimeError):
 
 
 def code_dir() -> Path:
-    """The directory holding the packages and the shipped `config/` and `door/`: the checkout
+    """The directory holding the packages and the shipped `config/` and `ingress/`: the checkout
     root from a checkout, `site-packages` from a wheel. `core/kernel/config/root.py` is 3 deep."""
     return Path(__file__).resolve().parents[3]
 

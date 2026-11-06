@@ -267,7 +267,7 @@ def test_gauges_and_frequencies_count_only_what_the_clearance_sees(tmp_path):
     assert p.reader(CURATED_READ).has_digest("c1") and not mirror.has_digest("c1")
 
 
-# ── crash points of a land (PLN-4; dn-ingest-door §9 item 7) ──────────────────────────────────
+# ── crash points of a land (PLN-4; dn-ingress §9 item 7) ──────────────────────────────────────
 
 def _crash_then_share(p: SharedPlane, monkeypatch: pytest.MonkeyPatch) -> tuple[bool, bool]:
     """Land a note, then a new version that dies after its transaction and before its cache step,

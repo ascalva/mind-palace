@@ -1,4 +1,4 @@
 # A text the speaker relays (a summary, a decision it was asked to keep), observed, under the
 # speaker's own name: composed text is never authored, whoever composes it.
 param text, conversation = "captures"
-store text in "observed" at "dialogue/door/" + me + "/" + conversation + "/" + digest(text)[0:16]
+store text in "observed" at "dialogue/ingress/" + me + "/" + conversation + "/" + digest(text)[0:16]

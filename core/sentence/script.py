@@ -1,4 +1,4 @@
-"""The door's language: a script's tree and its parser (dn-door-language §E1, §E6, §E11, §E12).
+"""The ingress language: a script's tree and its parser (dn-ingress-language §E1, §E6, §E11, §E12).
 
 A request is `do` and a script: a call of a library script, `do name(k: v, …)`, or a script
 inline, `do { … }`. The language knows no source, no place and no job by name; those are the
@@ -535,7 +535,7 @@ def parse_script(text: str) -> Script:
     return Script(_block(_parse(text, "script")))
 
 
-LIBRARY = Path(__file__).resolve().parents[2] / "door"
+LIBRARY = Path(__file__).resolve().parents[2] / "ingress"
 _LIBRARY_NAME = re.compile(r"[a-z_][a-z0-9_]{0,63}")
 
 
@@ -546,12 +546,12 @@ def library_names(root: Path | None = None) -> list[str]:
 
 
 def load(name: str, root: Path | None = None) -> Script:
-    """A library script by name (`door/<name>.palace`): a name, never a path."""
+    """A library script by name (`ingress/<name>.palace`): a name, never a path."""
     if not _LIBRARY_NAME.fullmatch(name):
         raise ParseError(f"script: {name!r} is not a library script's name")
     path = (root or LIBRARY) / f"{name}.palace"
     if not path.is_file():
-        raise ParseError(f"script: no library script {name!r} (door/{name}.palace)")
+        raise ParseError(f"script: no library script {name!r} (ingress/{name}.palace)")
     return parse_script(path.read_text(encoding="utf-8"))
 
 

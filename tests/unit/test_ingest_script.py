@@ -1,4 +1,4 @@
-"""`scripts/ingest.py` beside a live daemon (dn-ingest-door §9; DOR-12's one writer).
+"""`scripts/ingest.py` beside a live daemon (dn-ingress §9; ING-12's one writer).
 
 The script rebuilds the knowledge base, and its first act is `VectorStore.reset()`, which drops the
 table and every relation the daemon writes: a write that commutes with none of the daemon's. So it
