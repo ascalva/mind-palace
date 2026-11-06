@@ -74,7 +74,10 @@ command), with seven attacks and eight controls (`PalaceTest/Script.lean`, seeds
 ING-13 to ING-18 of §E9, and the first form's ING-11 and ING-12 for every plan through ING-16.
 They are the ledger's family XII beside the first form's (`docs/LAWS.md`, `formal/Spec/Script.lean`).
 Cited: QSA-5 (admissibility is clause-wise), the kernel's `STRATUM_CLASSES`, CLK-2. Open (§7):
-the Ambassador's places and namespaces, an operator's computed content, jobs as scripts.
+the Ambassador's places and namespaces, an operator's computed content, jobs as scripts. The
+Ambassador's inbox (§E13) needs no law of its own: ING-13 and ING-14 cover its source as they are
+stated, and its controls are seeds 291 to 293. ING-15 was restated on 2026-11-05 for the
+retire-only prefixes (R3), with seeds 288 to 290.
 
 ### 1.4 The bar
 
@@ -215,7 +218,10 @@ The writer's rules, each general, none about a source:
   label is known (a parameter or a literal is observed, so `store text in "mirror_authored"` is
   refused before anything is read), and again at evaluation.
 - **R3, namespaces**: a role writes a place only under its prefixes, after the path is
-  normalized (no `.`, no `..`, no empty component).
+  normalized (no `.`, no `..`, no empty component). A role may also hold prefixes it only
+  retires: the first form's stored namespace, `dialogue/door/<role>/`, whose rows keep their
+  identities and are never re-keyed (the rename's follow-up, 2026-11-05). A retire there passes R3
+  and is still held to R7; a store there is refused. ING-15 states both halves.
 - **R4, origin**: authored content lands at its own origin path and nowhere else.
 - **R5, fixed labels**: a path's label is fixed at its first store; a store of another label at
   a held path is refused and reported, and the rest of the plan lands. This is the first form's
@@ -477,13 +483,100 @@ an interpreted language may have one.
   decided at compile time wherever the set is known, and the writer's run-time check is the
   second wall, not the only one.
 
+### E13 The Ambassador's inbox, a source
+
+The first form captured the owner's message inside the Ambassador's turn
+(`DialogueCapture.capture`): authored dialogue at a path keyed by the clock, so a re-run stored it
+again, and the label was the inbox's code, not a source's. It moves onto the ingress here: the
+owner's messages are the items of a source, the source labels them, a library script stores
+them, and the one writer lands the plan.
+
+**Where the messages come from.** The owner reaches the Ambassador through the interface handoff
+(`cfg.interface.handoff_dir`, `data/handoff/` on this machine). The gateway, or `mind-palace
+talk` in its own process, writes `requests/<id>.json` with the text, the conversation and the
+time, `<id>` the gateway's 32 hex digits. The core inbox (`CoreInbox.process_once`, run by the
+daemon's `ambassador` job or by `talk`'s runtime) asks the Ambassador for a reply, writes
+`responses/<id>.json` and removes the request. The request is the only copy of the owner's words
+on disk and the inbox consumes it, so before it writes the response the inbox writes what it
+keeps of the exchange to its own record, `data/inbox/<id>.json`: the text as the request file
+holds it and the reply it is about to send, each in a field of its own. The directory is the
+daemon's account's alone (`0700`, each record `0600`), and only the inbox's code writes it. The
+Ambassador says whether an exchange is kept, by the first form's rule (a recall, a task or a
+capture is kept; a status, an explanation or the dreams are not), and never what is in it. A
+request whose file was written by an account other than the inbox's own or the handoff
+directory's owner (the edge's, `plane-principals` §3.1) is answered and not kept: where the
+agents run under an account of their own, that keeps an agent's process from posing as the owner,
+and where they share the daemon's account, as on this machine today, the filesystem cannot tell
+them apart, as it cannot for any store. A request whose id is not 32 hex digits and its file's
+name is removed unanswered, since the id names the response and the record.
+
+**The source.** `inbox`, a line of the palace's table: a directory of records (the kind
+`records`), each a JSON document read through a descriptor that follows no link, a regular file of
+one link that the daemon's account owns and no other account may write, in a directory of which
+the same holds. A record that is not is refused with the source, so no account but the daemon's
+adds one. The item rule makes two items of a record: the text, labelled `authored-dialogue`, and
+the reply, labelled `observed`. The label follows from the field the inbox wrote each text into,
+in the table's code. The record has no field a model writes but the reply, and the reply is
+observed whatever it says; no script names a label (ING-13).
+
+**Paths and identities.** The text's path is `dialogue/inbox/<conversation>/<id>/owner` and the
+reply's `dialogue/inbox/<conversation>/<id>/ambassador`, where `<conversation>` is the request's
+when it is a plain name (letters, digits, `.`, `_` and `-`, at most 64, not starting with `.`)
+and otherwise `c-` and sixteen hex digits of its digest, so no conversation adds a component or
+leaves the space. Each is its path's own identity, and the gateway mints the id once. The space
+`dialogue/inbox/` is the source's (R8). The landing is idempotent: the same request handled twice
+(a crash before the inbox removed it) writes the same record, whose text lands UNCHANGED and
+whose reply, if the second answer differs, replaces the observed row at its path (R5 keeps the
+label). The writer lands each store with its key last, so a crash between any two steps converges
+when the job runs again (ING-7, ING-16). Once a plan has stored both items of a record, landed or
+unchanged, the record is removed: the raw store holds the bytes, so a purge of them leaves no copy
+behind, and the next run reads only what is pending. `[DERIVED — ING-7, ING-16; the tests in
+tests/integration/test_inbox_capture.py]`
+
+**The role and the job.** `ingress/capture_inbox.palace` stores each item of the source in
+`dialogue`, at its own path. It runs under a role of its own, `inbox`, which the daemon's inbox job
+speaks after each drain and `talk`'s runtime after each message. No spool belongs to the role, so
+no surface can speak it. It opens only the `inbox` source, writes only under `dialogue/inbox/` in
+`dialogue`, retires nothing, and speaks under the Ambassador's grant, the least the ingress gives.
+Its budget is the operator's, since what it reads is the daemon's own record of what the owner
+typed.
+
+**What the Ambassador can and cannot do through it.** It decides which exchanges are kept, and it
+writes the reply. It cannot open the `inbox` source (it is not among the readers, so a request
+that names the source is refused when it is checked), cannot store or retire under
+`dialogue/inbox/` (not its namespace, R3; composed text there is a squat, R8), and cannot land its
+own text as the owner's anywhere: what it composes is observed (ING-13), and an authored row is an
+item a source yields, at the item's own path (ING-14). At its own prefix in `dialogue`,
+`dialogue/ingress/ambassador/`, in a place that takes authored dialogue, what it stores is
+observed. The bright line holds: no model, the Ambassador included, can mint the owner's authored
+dialogue, by any script, inline or from the library, and the authored rows under
+`dialogue/inbox/` are the owner's messages as the gateway handed them.
+
+**What is proved.** ING-13 and ING-14 cover the source as they are stated. An inbox item is an
+item a source yields, with the label its rule gives (the model's `Item`, its label one that
+`yields` admits), so after any plan of any role every active authored row is the row held before
+or the bytes of such an item at the item's own path (`firewall_plan`). What the model takes as
+given is the rule itself, that the source labels authored only the owner's messages. The table and
+the inbox hold it in code, and the tests fail when it is mutated. The attacks on the inbox's shadow
+check the composition and its two premises (seeds 291 to 293): every authored row a store lands is
+the owner's message at its own path, a writer that takes the label a script claims lands the
+Ambassador's text as the owner's at its own prefix, and a rule that labels the reply authored
+lands the reply as the owner's. `[THEOREM — ING-13, ING-14: Script.lean::label_eval,
+firewall_plan; the controls in PalaceTest/Script.lean]`
+
+**What stays of the first form.** `DialogueCapture.capture` is gone. `capture_turn` stays, and no
+production path calls it: it is the differential oracle for `sync_dialogue` (DS-5) and ING-7's
+falsifier for a turn, and the plane's tests land turns with it. The first form's inbox rows,
+`dialogue/<conversation>/<time>-<digest>`, stay as they are: no source owns their paths, and no
+role's namespace but the operator's covers them.
+
 ### E9 — The laws
 
 | law | statement | formal |
 |---|---|---|
 | ING-13 | a value's label is its item's under projections and observed otherwise; its origin is its item's path under projections and none otherwise; its bytes are its item's under its views; no expression raises a label | `Script.lean::label_eval`, `origin_eval`, `bytes_eval`, `root_of_label_ne` |
 | ING-14 | the firewall: an admitted store whose label is not the observed one lands an item a source yields, under views, at the item's own path, with the item's label; over a plan, every active row not observed is the row held before or such a store's | `Script.lean::firewall_store`, `firewall_plan` |
-| ING-15 | confinement: a plan changes a path only through an effect on it the writer admitted, in the role's namespace for the effect's place (the write bit is ING-1's, at compile time) | `Script.lean::confined` |
+| ING-15 | confinement: a plan changes a path only through an effect on it the writer admitted, a store in the role's write namespace for its place and a retire in that namespace or the role's retire-only one; a path a plan leaves holding an active row it changed was stored there, so a retire-only prefix takes no store (the write bit is ING-1's, at compile time) | `Script.lean::confined`, `confined_store` |
 | ING-16 | every admitted plan is a batch of the first form's commands with the key last, so ING-7, ING-10, ING-11 and ING-12 hold of it | `Script.lean::plan_converges`, `plan_sound` |
 | ING-17 | a held path keeps its label and its identity under every admitted store; a new path's identity is its own, one read off the very item stored, or one held at a path its source no longer has, with the same bytes; a path in a source's space takes only that source's item at that path; a retire of sourced content is of a path the source no longer has | `Script.lean::label_fixed`, `identity_moves_with_bytes`, `owned_by_source`, `retire_reconciles` |
 | ING-18 | a well-typed value's label at run time is in its type's label set, so R2 is decided at compile time wherever the set is known | `Script.lean::label_typed` |
@@ -491,6 +584,18 @@ an interpreted language may have one.
 The first form's ING-1 holds effect by effect (R1). ING-2 to ING-12 are statements about
 commands, which every store is. `[THEOREM — Script.lean; the ledger's family XII, each statement
 judged by the comparator against formal/Spec/Script.lean]`
+
+ING-15 was first stated with one namespace for both effects. The rename's follow-up gave a role
+prefixes it only retires (R3), and `Table.may_retire` admits a retire there that `Table.may_write`
+refuses, so the statement read with the model's namespace as the write prefixes no longer held of
+the code: the Ambassador retiring its legacy row changes a path outside them. Read as the union it
+held, but it then no longer said that a store stays in the write prefixes, which the follow-up
+relies on (the Ambassador never writes a new row there). The model's namespace is parametric data
+and now has its two parts, `ns` written and `rns` only retired; `confined` says which part each
+effect needs, and `confined_store` that a retire-only prefix takes no store. A control (seed 288)
+refutes the first statement on a writer with a retire-only prefix. ING-17 needed no change: R7's
+reconciliation does not depend on the namespace, and `retire_reconciles` holds as stated of a
+retire in either part.
 
 ## 4. Consequences — the order of work
 
