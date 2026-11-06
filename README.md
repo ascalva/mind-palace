@@ -7,7 +7,7 @@
 [![sorry](https://img.shields.io/badge/sorry-0-brightgreen)](formal/sorry-budget)
 [![kernels](https://img.shields.io/badge/kernel_replay-6_checkers-6f42c1)](formal/check.sh)
 [![attacks](https://img.shields.io/badge/attacks-119_with_controls-blue)](formal/PalaceTest)
-[![tests](https://img.shields.io/badge/tests-3114-brightgreen)](docs/runbook.md)
+[![tests](https://img.shields.io/badge/tests-3125-brightgreen)](docs/runbook.md)
 [![coverage](https://img.shields.io/badge/coverage-85%25-green)](pyproject.toml)
 [![mypy](https://img.shields.io/badge/mypy-0_errors_in_core-brightgreen)](pyproject.toml)
 [![sealed core](https://img.shields.io/badge/sealed_core-zero_egress-6f42c1)](scripts/check_imports.py)
