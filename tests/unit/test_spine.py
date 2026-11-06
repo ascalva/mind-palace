@@ -232,3 +232,22 @@ def test_report_names_the_unwired_stores() -> None:
     assert "versions" in rep.stores_enumerated
     # no-silent-caps (§2.9-5): the stores beyond the core seven are NAMED, never silently absent
     assert set(rep.stores_unwired) == {"proposals", "verdicts", "observations", "telemetry"}
+
+
+def test_restrict_is_memoized_per_instance_and_not_shared_between_spines():
+    """`restrict` returns the identical object on a second call for the same stratum, a different
+    stratum gets its own, and a fresh Spine over the same stores starts with an empty cache."""
+    vs = VersionStore(Path(":memory:"))
+    vs.record("docA", "a1")
+    vs.record("docA", "a2")
+    one = Spine.derive(SpineSources(versions=vs))
+    two = Spine.derive(SpineSources(versions=vs))
+    first = one.restrict("mirror")
+    assert one.restrict("mirror") is first
+    assert one.n_s("mirror") is first
+    assert one.restrict("ops") is not first
+    assert two._restricted == {}                            # no cache shared across instances
+    assert two.restrict("mirror") is not first
+    assert [e.event_id for e in two.restrict("mirror").events()] == \
+        [e.event_id for e in first.events()]                # same answer, own object
+    assert first._restricted == {}                          # a restriction's own cache starts empty
