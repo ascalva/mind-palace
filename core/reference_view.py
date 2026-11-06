@@ -12,19 +12,21 @@
 #            (tests/unit/test_reference_view.py asserts no `add_batch`/`_conn` is an attribute).
 """`ReferenceView` — the deterministic "who cites this?" read window (dn-core-query-protocol §2.3).
 
-The Lane-1 reference-edge store (`reference_edges.sqlite`, ~272k edges incl. ~75k doc→doc) is
-FED by the code sensor but has been **agent-unreachable**: `all(target_ref=…)` has zero callers
-outside the store's own docstring (finding-0059/0061 — the reference graph is built but nobody
-reads it). This module is the first reader: a typed read window in the mould of `OpsView`
-(`core/ops_view.py`) — bind the store's readers as closures, expose reads and only reads.
+The Lane-1 reference-edge store (`reference_edges.sqlite`; 3,029,562 rows over 1,487 commits as
+of 2026-11-04, and it grows with every commit) is FED by the code sensor but has been
+**agent-unreachable**: `all(target_ref=…)` has zero callers outside the store's own docstring
+(finding-0059/0061 — the reference graph is built but nobody reads it). This module is the first
+reader: a typed read window in the mould of `OpsView` (`core/ops_view.py`) — bind the store's
+readers as closures, expose reads and only reads.
 
 **Commit-anchored (the §3 Q1 decision).** Reference edges are per-commit: `commit_sha` is part
-of edge identity, so `store.all(target_ref=X)` returns rows across ALL history (~272k). The
-"current" citation set is the edges at ONE anchor commit — so `ReferenceView.over(store, *,
-commit=…)` filters to that anchor, and `open_reference_view` resolves the default to the active
-run's `commit_sha` (`RunLedger.last()`), falling back to git HEAD (`git_state`), matching the
-§2.6 oracle's "at HEAD." The rejected alternative — union across all history — returns stale
-historical citations and is never the answer to "who cites this *now*."
+of edge identity, so `store.all(target_ref=X)` returns rows across ALL history (the whole store,
+at the scale above). The "current" citation set is the edges at ONE anchor commit — so
+`ReferenceView.over(store, *, commit=…)` filters to that anchor, and `open_reference_view`
+resolves the default to the active run's `commit_sha` (`RunLedger.last()`), falling back to git
+HEAD (`git_state`), matching the §2.6 oracle's "at HEAD." The rejected alternative — union across
+all history — returns stale historical citations and is never the answer to "who cites this
+*now*."
 
 **Fiber-scoped (F) for free (§3 Q2).** The note types `F` = citations/warrants (these edges),
 `D` = supersession (a DIFFERENT store — `versions`/`core/temporal/boundary.py`). The reference
