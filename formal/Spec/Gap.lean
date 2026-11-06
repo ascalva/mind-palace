@@ -9,7 +9,8 @@ SPC-3 (`docs/LAWS.md`, II). The statements are over symmetric operators and oper
 finite-dimensional real inner product space, so they cover a real symmetric matrix and a real
 square matrix acting on `EuclideanSpace ℝ (Fin n)`. NumPy's backward stability is the hypothesis
 they take: a symmetric eigensolver's values are the exact eigenvalues of a `B` with
-`Near A B ε`, an SVD's the exact singular values of an `M'` with `‖(M' − M) x‖ ≤ ε ‖x‖`. What they
+`Near A B ε`, an SVD's the exact singular values of an `M'` with `‖(M' − M) x‖ ≤ ε ‖x‖`, `ε`
+covering the float64 formation of the matrix as well. What they
 leave out: the float64 arithmetic the code does after the decomposition, and the rise threshold's
 condition, which rests on Wedin's bound for the pseudo-inverse, cited in the row and not proved.
 

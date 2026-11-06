@@ -1,13 +1,16 @@
 """SPC-3's falsifier: when a tolerance tells zero from nonzero (docs/LAWS.md, II).
 
 The law (`formal/Palace/Gap.lean`) takes NumPy's backward stability as its hypothesis: an SVD or a
-symmetric eigensolver returns the exact values of `A + E`, `‖E‖ ≤ ε = 8·n·u·‖A‖` (LAPACK's "modestly
-growing" `p(n)`, taken as `8n`). Here the hypothesis is measured on matrices whose spectra are known
-in closed form (at most `3.3·n·u·‖A‖`, the SVD of a 19-cycle), and each tolerance's gap condition is
-checked on fixtures: the Hodge rank cut on flag complexes with known β₁, the pseudo-inverse's cut
-and the rise threshold on weighted graphs like the conductance profile's. The control is a graph the
-condition refuses, two clusters joined by a bridge far lighter than the cut, where the cut does lose
-the bridge's mode. The rise threshold's condition rests also on Wedin's bound for the
+symmetric eigensolver returns the exact values of a matrix within `8·n·u·‖A‖` of the float64 one
+(LAPACK's "modestly growing" `p(n)`, taken as `8n`), and a weighted Laplacian, whose degree sums
+float64 forms within `n·u·‖L‖`, so carries `ε = 9·n·u·‖L‖`. The eigenvalue errors measured here on
+matrices whose spectra are known in closed form reach `3.3·n·u·‖A‖` (the SVD of a 19-cycle), a lower
+bound on the backward error, so consistent with the hypothesis and not a proof of it. Each
+tolerance's gap condition is checked on fixtures: the Hodge rank cut on flag complexes with known
+β₁, the pseudo-inverse's cut and the rise threshold on weighted graphs like the conductance
+profile's, and on each the kernel's computed values lie within the hypothesis' `ε`. The control is a
+graph the condition refuses, two clusters joined by a bridge far lighter than the cut, where the cut
+does lose the bridge's mode. The rise threshold's condition rests also on Wedin's bound for the
 pseudo-inverse, cited and not formalized; it holds where the gap allows, and the last test records a
 graph where it does not.
 """
@@ -35,20 +38,22 @@ F64 = npt.NDArray[np.float64]
 U = 2.0 ** -53
 
 
-C = 8          # the hypothesis' constant: ‖E‖ ≤ C·n·u·‖A‖
+C = 8          # the decomposition's constant: ‖E‖ ≤ C·n·u·‖A‖
+FORMED = C + 1  # a weighted Laplacian's: its degree sums add n·u·‖L‖ before the decomposition
+MU = (1 + math.sqrt(5)) / 2     # Wedin's constant for the pseudo-inverse in the 2-norm
 
 
-def eps_bound(values: F64) -> float:
-    """`ε ≤ C·n·u·‖A‖`, with `‖A‖ ≤ max σ̂ + ε` by Weyl: the hypothesis, from computed values."""
-    cnu = C * len(values) * U
+def eps_bound(values: F64, c: float = C) -> float:
+    """`ε ≤ c·n·u·‖A‖`, with `‖A‖ ≤ max σ̂ + ε` by Weyl: the hypothesis, from computed values."""
+    cnu = c * len(values) * U
     return cnu * float(np.max(values)) / (1 - cnu)
 
 
-def decisive(values: F64, rtol: float, nullity: int) -> bool:
+def decisive(values: F64, rtol: float, nullity: int, c: float = C) -> bool:
     """SPC-3's conditions for the cut `rtol · max σ̂`: `ε ≤ θ` and `θ + ε < g`, with `g` at least the
     `(nullity + 1)`-th smallest computed value less `ε` (Weyl)."""
     s = np.sort(values)
-    eps, theta = eps_bound(values), rtol * float(s[-1])
+    eps, theta = eps_bound(values, c), rtol * float(s[-1])
     return eps <= theta and (nullity == len(s) or theta + eps < float(s[nullity]) - eps)
 
 
@@ -80,7 +85,8 @@ def test_the_backward_error_hypothesis_holds_on_known_spectra() -> None:
                 ratio = float(np.max(np.abs(got - ref))) / (U * float(ref[-1]))
                 worst = max(worst, ratio / n)
                 assert np.max(np.abs(got - ref)) <= (C * n + 8) * U * ref[-1]   # 8 u: the reference
-    assert worst < C / 2                             # measured at most 3.3 on these
+    assert worst < C / 2                     # measured at most 3.3: the eigenvalue error, a lower
+    # bound on the backward error, consistent with the hypothesis
 
 
 def _adjacency(n: int, edges: list[tuple[int, int]]) -> sp.csr_matrix:
@@ -106,6 +112,7 @@ def test_the_hodge_rank_cut_is_decisive_on_flag_complexes() -> None:
         s = _svals(hodge_laplacian_1(a).toarray())
         assert decisive(s, _RANK_TOL, beta1)
         assert int(np.sum(s <= _RANK_TOL * s.max())) == beta1 == harmonic_basis(a).shape[1]
+        assert beta1 == 0 or float(np.sort(s)[beta1 - 1]) <= eps_bound(s)   # the kernel within ε
 
 
 def _weighted(rng: np.random.Generator, n: int, p: float) -> F64:
@@ -121,10 +128,10 @@ def test_the_pseudo_inverse_cut_is_decisive_on_weighted_graphs() -> None:
         w = _weighted(rng, n, float(rng.uniform(0.03, 0.3)))
         comps = connected_components(sp.csr_matrix(w), directed=False)[0]
         s = _svals(_dense_laplacian(w))
-        assert decisive(s, _PINV_RTOL, comps)
+        assert decisive(s, _PINV_RTOL, comps, FORMED)
         assert int(np.sum(s <= _PINV_RTOL * s.max())) == comps
-        # NumPy's default cut, 1e-15, sits inside the solver's own error
-        assert not decisive(s, 1e-15, comps)
+        # the hypothesis' own consequence, by Weyl: the components' computed values lie within ε
+        assert float(np.sort(s)[comps - 1]) <= eps_bound(s, FORMED)
 
 
 def test_control_a_bridge_below_the_cut_fails_the_condition_and_loses_its_mode() -> None:
@@ -133,25 +140,30 @@ def test_control_a_bridge_below_the_cut_fails_the_condition_and_loses_its_mode()
     for i, j in [(0, 1), (1, 2), (0, 2), (3, 4), (4, 5), (3, 5)]:
         w[i, j] = w[j, i] = 1.0
     w[2, 3] = w[3, 2] = bridge
-    assert not decisive(_svals(_dense_laplacian(w)), _PINV_RTOL, 1)
+    assert not decisive(_svals(_dense_laplacian(w)), _PINV_RTOL, 1, FORMED)
     r = _r_eff_matrix(w, _components(w))[0, 5]
     exact = 2 / 3 + 1 / bridge + 2 / 3              # two triangles in series through the bridge
     assert r < 1e-3 * exact                          # the cut dropped the bridge's mode
 
 
 def _rise_bound(w: F64) -> float:
-    """SPC-3's bound on a computed conductance's error,
-    `δ = c ĉ (4√2 ε / (g (g − ε)) + 8u / (g − ε))`, over the pairs that share a component, with
-    `c ≤ ĉ (1 + 10⁻⁶)` for the first factor."""
+    """SPC-3's bound on a computed conductance's error, over the pairs that share a component:
+    `δ = c ĉ (4μ ε / (g (g − ε)) + 4 (n + 3) u / (g − ε)) + u ĉ`. Wedin's bound puts the
+    pseudo-inverse of a matrix of L's rank within `2ε` of L within `2μ ε / (g (g − ε))` of L⁺, so
+    `R` within twice that (`‖e_i − e_j‖² = 2`); each entry of V·Σ⁺·Uᵀ formed in float64 is within
+    `(n + 1) u / (g − ε)`, and R adds four of them and three roundings; `1/R` one more. `c ≤ ĉ (1 +
+    10⁻⁶)` for the first factor."""
     labels = _components(w)
     comps = len(set(labels.tolist()))
     s = np.sort(_svals(_dense_laplacian(w)))
-    eps = eps_bound(s)
+    n = len(s)
+    eps = eps_bound(s, FORMED)
     g = float(s[comps]) - eps
     r = _r_eff_matrix(w, labels)
     finite = np.isfinite(r) & (r > 0)
     c_hat = float(np.max(1.0 / r[finite]))
-    return c_hat ** 2 * (1 + 1e-6) * (4 * math.sqrt(2) * eps / (g * (g - eps)) + 8 * U / (g - eps))
+    return (c_hat ** 2 * (1 + 1e-6) * (4 * MU * eps / (g * (g - eps)) + 4 * (n + 3) * U / (g - eps))
+            + U * c_hat)
 
 
 def test_the_rise_threshold_is_decisive_where_the_gap_allows() -> None:
