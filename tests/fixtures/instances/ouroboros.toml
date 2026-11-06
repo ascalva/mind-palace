@@ -1,0 +1,41 @@
+# A stand-in for Ouroboros's overlay (`config/ouroboros.toml`, gitignored and never read by tests).
+# It has the live overlay's shape on 2026-11-05: the same sections and keys, no `[instance]`
+# section, a backup repository, the llama.cpp runtime, and two ingestion agents paused. The values
+# that would identify the owner's setup are placeholders. tests/unit/test_instance_identity.py loads
+# it as the default chain to pin what Ouroboros sees once instances have ids.
+
+[ingestion.vault]
+path = "~/.mind-palace/vault/notes"
+enabled = true
+
+[secrets]
+enabled = true
+
+[runtime]
+embedding_backend = "llamacpp"
+chat_backend = { router = "llamacpp", routine = "llamacpp", synthesis = "llamacpp", stretch = "llamacpp" }
+ports = { embedding = 8081, router = 8080, routine = 8080, synthesis = 8080, stretch = 8080 }
+api_key_env = "CHAT_SERVER_KEY"
+
+[embedding]
+model = "embeddinggemma-2"
+dim = 768
+query_template = "task: search result | query: {text}"
+document_template = "title: none | text: {text}"
+
+[backup]
+enabled = true
+repository = "s3:s3.us-east-1.amazonaws.com/example-ouroboros-backups"
+
+[ingestion.code]
+enabled = false
+
+[ingestion.transcripts]
+enabled = false
+
+[dreaming]
+similarity_threshold = 0.785
+scheduled = false
+
+[dream_rnd]
+sigma = 0.785

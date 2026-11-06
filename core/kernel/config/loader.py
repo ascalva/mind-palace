@@ -7,6 +7,7 @@ later phases, and reads the environment (Keychain-backed in the owner's setup) o
 from __future__ import annotations
 
 import os
+import re
 import tomllib
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -30,7 +31,11 @@ _DEFAULTS = _CONFIG_DIR / "defaults.toml"
 # Named for the INSTANCE (owner ruling, 2026-07-26): `mind-palace` is the framework, Ouroboros is
 # this live instance, so the instance's own overlay carries the instance's name rather than the
 # generic "local". The file was called `local.toml` before that date — see `_LEGACY_OVERLAY`.
-_INSTANCE_OVERLAY = _CONFIG_DIR / "ouroboros.toml"
+#
+# The default chain IS Ouroboros (DI-2, #25): its instance id is this name, its namespaces are the
+# ones it had before instances had ids, and no named overlay may claim either.
+OUROBOROS = "ouroboros"
+_INSTANCE_OVERLAY = _CONFIG_DIR / f"{OUROBOROS}.toml"
 # The pre-2026-07-26 name. Retained ONLY so the loader can REFUSE (`_refuse_on_legacy_overlay`)
 # rather than silently ignore an un-migrated overlay; it is never read as config. Delete this
 # constant and its guard once every instance has migrated (bp-123 §11).
@@ -43,8 +48,15 @@ LEVERS_OVERLAY = _CONFIG_DIR / "levers.toml"
 # Instance selection at run time (DI-2, #25; the bench deployment, `ops/container/README.md`). When
 # this variable is set it names the ONE overlay the loader reads, in place of BOTH files above: a
 # named instance is a different individual, so it must not inherit Ouroboros's hand overlay or the
-# knobs Ouroboros's own self-modification loop tuned. Unset, the chain is exactly as before.
+# knobs Ouroboros's own self-modification loop tuned. It reads its own levers file instead
+# (`InstanceConfig.levers`). Unset, the chain is exactly as before.
 OVERLAY_ENV = "MIND_PALACE_OVERLAY"
+
+# ── Instance identity (DI-2, #25) ────────────────────────────────────────────────────────────────
+# A named overlay declares `[instance] id`. The id is lowercase ASCII, so names built from it stay
+# distinct on a case-insensitive filesystem (APFS folds case by default); it holds no `.` or `/`,
+# so it is one path segment and one dotted component wherever it appears.
+_INSTANCE_ID = re.compile(r"[a-z][a-z0-9-]{0,31}")
 
 
 class ConfigMigrationError(RuntimeError):
@@ -55,10 +67,14 @@ class ConfigMigrationError(RuntimeError):
 
 
 class InstanceOverlayError(RuntimeError):
-    """`MIND_PALACE_OVERLAY` names an overlay that is not a file.
+    """An overlay cannot be loaded as the instance it would be: `MIND_PALACE_OVERLAY` names no
+    file, or the overlay it names declares no valid `[instance] id`, or claims Ouroboros's. The
+    default chain, and a file passed to `load_config` by path, refuse the same way if they declare
+    an id other than Ouroboros's.
 
     Raised, never warned, for the same reason as `ConfigMigrationError`: falling back to the
-    committed defaults would bring a named instance up on the wrong embedder and σ, silently.
+    committed defaults would bring a named instance up on the wrong embedder and σ, silently, and
+    an instance loaded under the wrong id would act as another individual.
     """
 
 
@@ -476,6 +492,23 @@ class ModelConfig:
 
 
 @dataclass(frozen=True)
+class InstanceConfig:
+    """Which individual this configuration is (DI-2, issue #25).
+
+    `id` is `ouroboros` for the default chain: no `MIND_PALACE_OVERLAY`, the live instance, read
+    exactly as before instances had ids. Its overlay may restate `[instance] id = "ouroboros"` and
+    nothing else. A named overlay must declare its own id, which may not be Ouroboros's.
+    """
+
+    id: str = OUROBOROS
+
+    @property
+    def named(self) -> bool:
+        """True for an instance other than Ouroboros."""
+        return self.id != OUROBOROS
+
+
+@dataclass(frozen=True)
 class Config:
     ollama: OllamaConfig
     resources: ResourceConfig
@@ -501,6 +534,7 @@ class Config:
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)  # bp-115 inference backend
     scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)  # bp-110 execution model
     query: QueryConfig = field(default_factory=QueryConfig)  # QL-3: the sentence algebra's surface
+    instance: InstanceConfig = field(default_factory=InstanceConfig)  # DI-2: which individual
 
     def model_for_tier(self, tier: str) -> ModelConfig:
         for m in self.models:
@@ -611,26 +645,92 @@ def _named_overlay() -> Path | None:
     return path
 
 
+def _read(path: Path) -> dict[str, Any]:
+    return tomllib.loads(path.read_text(encoding="utf-8"))
+
+
+def _declared_id(table: object, source: str) -> str | None:
+    """The id an `[instance]` table declares, or None when there is no table or no id in it.
+
+    The table holds `id` and nothing else, so any other key refuses: the loader would ignore it,
+    and a setting that looks applied but never took is the failure every refusal here exists for.
+    """
+    if table is None:
+        return None
+    if not isinstance(table, dict):
+        raise InstanceOverlayError(f"{source}: [instance] must be a table holding one key, id.")
+    extra = sorted(set(table) - {"id"})
+    if extra:
+        raise InstanceOverlayError(
+            f"{source}: [instance] holds one key, id; refusing the unknown key(s) {extra}.")
+    if "id" not in table:
+        return None
+    iid = table["id"]
+    if not isinstance(iid, str) or not _INSTANCE_ID.fullmatch(iid):
+        raise InstanceOverlayError(
+            f"{source}: [instance] id = {iid!r} is not an instance id. An id is a lowercase "
+            f"letter followed by up to 31 lowercase letters, digits or hyphens.")
+    return iid
+
+
+def _named_instance(declared: dict[str, Any], source: Path) -> InstanceConfig:
+    """The instance a named overlay declares. The id is required: it is what tells this instance
+    apart from every other, Ouroboros included, and Ouroboros's id belongs to the default chain."""
+    iid = _declared_id(declared.get("instance"), str(source))
+    if iid is None:
+        raise InstanceOverlayError(
+            f"{source} declares no instance id. A named overlay says which individual it is:\n"
+            f"    [instance]\n"
+            f'    id = "<id>"\n'
+            f"Refusing to load it unnamed. Unset {OVERLAY_ENV} to load the default chain.")
+    if iid == OUROBOROS:
+        raise InstanceOverlayError(
+            f"{source}: [instance] id = {OUROBOROS!r} is the default chain's, the live instance. "
+            f"Refusing to load a second {OUROBOROS!r}: give this instance its own id, or unset "
+            f"{OVERLAY_ENV} to load the default chain.")
+    return InstanceConfig(iid)
+
+
+def _ouroboros_instance(raw: dict[str, Any], source: str) -> InstanceConfig:
+    """The default chain is Ouroboros, and so is a file `load_config` reads by path. Its
+    `[instance]` may restate that; another id would rename the live instance in place."""
+    iid = _declared_id(raw.get("instance"), source)
+    if iid is not None and iid != OUROBOROS:
+        raise InstanceOverlayError(
+            f"{source}: [instance] id = {iid!r}, but this configuration is {OUROBOROS!r}. "
+            f"Another instance is loaded from its own overlay, {OVERLAY_ENV}=<path>; refusing to "
+            f"load {OUROBOROS!r} under another id.")
+    return InstanceConfig()
+
+
 def load_config(path: Path | None = None) -> Config:
-    raw = tomllib.loads((path or _DEFAULTS).read_text(encoding="utf-8"))
+    raw = _read(path or _DEFAULTS)
     # Overlay precedence (only for the default path — an explicit `path`, as tests pass, is taken
     # verbatim): defaults ← levers.toml ← ouroboros.toml. The machine-tuned knobs land first; the
     # owner's hand-authored ouroboros.toml lands LAST so a human override always wins over a
     # loop-tuned knob (human authority supreme — the §14 ceiling). See LEVERS_OVERLAY /
     # _INSTANCE_OVERLAY above. The legacy guard runs first: an un-migrated overlay must refuse here,
     # not sail past and hand back defaults. An explicit `path` bypasses the whole chain, guard
-    # included — it is a verbatim read of the file the caller named.
+    # included — it is a verbatim read of the file the caller named, and it is Ouroboros's.
     #
     # A named instance (`MIND_PALACE_OVERLAY`) replaces the chain: defaults ← its own overlay, and
     # nothing of Ouroboros's. The legacy guard is about Ouroboros's file name, so it does not run.
-    if path is None:
-        named = _named_overlay()
-        if named is not None:
-            _overlay(raw, named)
-        else:
-            _refuse_on_legacy_overlay()
-            _overlay(raw, LEVERS_OVERLAY)
-            _overlay(raw, _INSTANCE_OVERLAY)
+    if path is not None:
+        return _build(raw, _ouroboros_instance(raw, str(path)))
+    named = _named_overlay()
+    if named is None:
+        _refuse_on_legacy_overlay()
+        _overlay(raw, LEVERS_OVERLAY)
+        _overlay(raw, _INSTANCE_OVERLAY)
+        return _build(raw, _ouroboros_instance(raw, "the default chain"))
+    declared = _read(named)
+    instance = _named_instance(declared, named)
+    _deep_merge(raw, declared)
+    return _build(raw, instance)
+
+
+def _build(raw: dict[str, Any], instance: InstanceConfig) -> Config:
+    """The typed Config of one merged chain, for `instance`."""
     o, r, p = raw["ollama"], raw["resources"], raw["paths"]
     e, s = raw["embedding"], raw["sandbox"]
     itf, dr, rnd = raw["interface"], raw["dreaming"], raw["dream_rnd"]
@@ -832,6 +932,7 @@ def load_config(path: Path | None = None) -> Config:
             lease_ttl_s=float(sch.get("lease_ttl_s", 0.0)),
         ),
         query=QueryConfig(hypotheticals=bool(qry.get("hypotheticals", True))),
+        instance=instance,
         models=tuple(
             ModelConfig(
                 name=m["name"],

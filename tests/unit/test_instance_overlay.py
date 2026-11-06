@@ -36,7 +36,7 @@ def test_a_named_overlay_replaces_the_whole_chain(monkeypatch, tmp_path: Path) -
         "[dreaming]\nsimilarity_threshold = 0.5\nnear_dup_threshold = 0.5\n")
     (tmp_path / "levers.toml").write_text("[dreaming]\nnear_dup_threshold = 0.6\n")
     named = tmp_path / "other.toml"
-    named.write_text("[dreaming]\nsimilarity_threshold = 0.7\n")
+    named.write_text('[instance]\nid = "other"\n[dreaming]\nsimilarity_threshold = 0.7\n')
 
     assert loader.load_config().dreaming.similarity_threshold == 0.5   # control: the chain reads
     monkeypatch.setenv(loader.OVERLAY_ENV, str(named))
@@ -64,7 +64,8 @@ def test_a_relative_name_resolves_against_the_repo_root(monkeypatch, tmp_path: P
     _isolated(monkeypatch, tmp_path)
     monkeypatch.setattr(loader, "REPO_ROOT", tmp_path)
     (tmp_path / "inst").mkdir()
-    (tmp_path / "inst" / "x.toml").write_text("[dreaming]\nsimilarity_threshold = 0.66\n")
+    (tmp_path / "inst" / "x.toml").write_text(
+        '[instance]\nid = "x"\n[dreaming]\nsimilarity_threshold = 0.66\n')
     monkeypatch.setenv(loader.OVERLAY_ENV, "inst/x.toml")
     assert loader.load_config().dreaming.similarity_threshold == 0.66
 
@@ -77,7 +78,7 @@ def test_the_legacy_guard_is_ouroboros_only(monkeypatch, tmp_path: Path) -> None
     with pytest.raises(loader.ConfigMigrationError):
         loader.load_config()
     named = tmp_path / "other.toml"
-    named.write_text("")
+    named.write_text('[instance]\nid = "other"\n')
     monkeypatch.setenv(loader.OVERLAY_ENV, str(named))
     assert loader.load_config().dreaming.similarity_threshold != 0.58
 
@@ -89,6 +90,7 @@ def test_the_bench_instance_has_nothing_to_back_up_sign_fetch_or_tune(monkeypatc
     _isolated(monkeypatch, tmp_path)
     monkeypatch.setenv(loader.OVERLAY_ENV, str(BENCH))
     c = loader.load_config()
+    assert c.instance.id == "bench" and c.instance.named
     assert c.runtime.embedding_backend == "llamacpp"
     assert c.runtime.port_for("embedding") == 8081
     assert (c.embedding.model, c.embedding.dim) == ("embeddinggemma-2", 768)
