@@ -6,6 +6,7 @@ later phases, and reads the environment (Keychain-backed in the owner's setup) o
 
 from __future__ import annotations
 
+import ipaddress
 import os
 import re
 import tomllib
@@ -90,10 +91,7 @@ DIALOGUE_READERS = ("openwebui", "opencode")
 # config key; derived per instance like the items above, so a named instance's own Vault is never
 # handed Ouroboros's token.
 VAULT_TOKEN = "vault-supervisor-token"
-# A Vault address: an optional scheme, a host (bracketed for IPv6) and an optional port.
-_ADDRESS = re.compile(r"(?:(?P<scheme>[A-Za-z][A-Za-z0-9+.-]*)://)?"
-                      r"(?P<host>\[[^\]]*\]|[^:/?#]*)(?::(?P<port>\d+))?")
-_LOOPBACK = frozenset({"", "localhost", "::1", "0:0:0:0:0:0:0:1", "0.0.0.0", "::"})
+_HEX_DIGITS = "0123456789abcdefABCDEF"
 
 
 class ConfigMigrationError(RuntimeError):
@@ -699,17 +697,96 @@ def namespaces_of(cfg: Config) -> Namespaces:
 
 
 def vault_location(addr: str) -> str:
-    """A Vault server as `host:port`, every loopback spelling as one host, so two spellings of
-    one server compare equal: `http://127.0.0.1:8200`, `localhost:8200/` and `http://[::1]:8200` are
-    all `loopback:8200`. A port left out is the scheme's. "" for no address."""
-    match = _ADDRESS.match(addr.strip())
-    if not addr.strip() or match is None:
-        return addr.strip().casefold()
-    host = match["host"].strip("[]").casefold()
-    if host in _LOOPBACK or host.startswith("127."):
-        host = "loopback"
-    port = match["port"] or ("443" if (match["scheme"] or "").casefold() == "https" else "80")
-    return f"{host}:{int(port)}"
+    """A Vault server as `host:port`, the host as the resolver will reach it (`_canonical_host`),
+    so every spelling of one server compares equal: `http://127.0.0.1:8200`, `localhost.:8200/`,
+    `http://u@[::ffff:127.0.0.1]:8200` and `http://2130706433:8200` are all `loopback:8200`. A
+    port left out is the scheme's. "" for no address."""
+    text = addr.strip()
+    if not text:
+        return ""
+    scheme, sep, rest = text.partition("://")
+    if not sep:
+        scheme, rest = "", text
+    authority = re.split(r"[/?#]", rest, maxsplit=1)[0].rpartition("@")[2]   # userinfo is not it
+    if authority.startswith("["):
+        host, _, tail = authority[1:].partition("]")
+        port = tail[1:] if tail.startswith(":") else ""
+    elif authority.count(":") == 1:
+        host, _, port = authority.partition(":")
+    else:
+        host, port = authority, ""                    # a bare IPv6 literal carries no port
+    port = port or ("443" if scheme.casefold() == "https" else "80")
+    return f"{_canonical_host(host)}:{int(port) if port.isdigit() else port.casefold()}"
+
+
+def _canonical_host(host: str) -> str:
+    """A host as the resolver reaches it, every spelling of this machine as `loopback`: percent
+    escapes decoded, case folded, one trailing dot dropped; `localhost` and its subdomains; any
+    IPv4 form `inet_aton` accepts (`_inet_aton`) or IPv6 form `ipaddress` parses, an IPv4-mapped
+    IPv6 address read as its IPv4 one, and a loopback or unspecified address (connecting to
+    0.0.0.0 or :: reaches this machine). Another address is its canonical text, so two spellings
+    of one remote server compare equal too; a name that is no address stays as it is."""
+    host = re.sub(r"%([0-9A-Fa-f]{2})", lambda m: chr(int(m[1], 16)), host).casefold()
+    if host.endswith("."):
+        host = host[:-1]
+    if host in ("", "localhost") or host.endswith(".localhost"):
+        return "loopback"
+    ip: ipaddress.IPv4Address | ipaddress.IPv6Address
+    try:
+        ip = ipaddress.ip_address(host.split("%", 1)[0])     # an IPv6 zone is not the address
+    except ValueError:
+        v4 = _inet_aton(host)
+        if v4 is None:
+            return host
+        ip = ipaddress.IPv4Address(v4)
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+    if ip.is_loopback or ip.is_unspecified:
+        return "loopback"
+    return f"[{ip}]" if ip.version == 6 else str(ip)
+
+
+def _inet_aton(text: str) -> int | None:
+    """The IPv4 address `text` spells in a form the C resolver's `inet_aton` accepts, or None:
+    one to four numbers joined by dots, each decimal, octal after a leading 0 or hex after 0x, the
+    last filling the bytes the others leave, so `127.1`, `0x7f.1` and `2130706433` are 127.0.0.1.
+    Core holds no networking module, so `socket.inet_aton` is out of reach and the BSD rules are
+    kept here: the last part needs a digit (`0x` alone has none, `0x.1` is 0.0.0.1), an octal part
+    no 8 or 9, a leading part at most 255, and trailing whitespace ends the address. The C
+    accumulator is 64 bits and wraps, and a single number keeps its low 32 bits, as there (glibc
+    refuses such a number, so no other reading reaches an address)."""
+    parts: list[int] = []
+    i, n = 0, len(text)
+    while True:
+        if i >= n or not "0" <= text[i] <= "9":
+            return None
+        base, value, digits = 10, 0, 0
+        if text[i] == "0":
+            i += 1
+            if i < n and text[i] in "xX":
+                base, i = 16, i + 1
+            else:
+                base, digits = 8, 1                       # the 0 is itself an octal digit
+        while i < n and text[i] in _HEX_DIGITS[:22 if base == 16 else 10]:
+            digit = int(text[i], 16)
+            if digit >= base:                             # an 8 or 9 in an octal part
+                return None
+            # the C accumulator is a 64-bit unsigned long, and it wraps
+            value, digits, i = (value * base + digit) & 0xFFFFFFFFFFFFFFFF, digits + 1, i + 1
+        if i < n and text[i] == ".":
+            if len(parts) == 3 or value > 0xFF:
+                return None
+            parts.append(value)
+            i += 1
+            continue
+        break
+    if (i < n and not text[i].isspace()) or not digits:   # BSD asks a digit of the last part
+        return None
+    if parts and value >= 1 << 8 * (4 - len(parts)):
+        return None
+    for k, part in enumerate(parts):
+        value |= part << 24 - 8 * k
+    return value & 0xFFFFFFFF
 
 
 def default_transcripts_dir() -> Path:
