@@ -1015,3 +1015,25 @@ def test_a_job_naming_its_role_under_door_is_read_as_ingress(cfg: Any) -> None:
     first = queue.enqueue("vault_sync", "small", 1, payload={"door": "ambassador"})
     now = queue.enqueue("vault_sync", "small", 1, payload={"ingress": "cli"})
     assert _ingress_role(first) == "ambassador" and _ingress_role(now) == "cli"
+
+
+def test_a_role_retires_under_a_prefix_it_only_retires_and_writes_only_its_own(cfg: Any) -> None:
+    """ING-15's two parts on the table (R3): the Ambassador's own prefix takes a store and a
+    retire; the first form's prefix, which it only retires, takes a retire and never a store; a
+    path in neither takes neither, and a path that leaves either by `..` is not normal."""
+    from core.ingest.table import LEGACY_DIALOGUE, build_table
+
+    table = build_table(cfg)
+    own = "dialogue/ingress/ambassador/c/1"
+    legacy = LEGACY_DIALOGUE + "ambassador/c/1"
+    for place in ("dialogue", "observed"):
+        assert table.may_write("ambassador", place, own)
+        assert table.may_retire("ambassador", place, own)
+        assert table.may_retire("ambassador", place, legacy)
+        assert not table.may_write("ambassador", place, legacy)
+        for other in ("dialogue/ingress/cli/c/1", LEGACY_DIALOGUE + "cli/c/1",
+                      LEGACY_DIALOGUE + "ambassador/../cli/c/1"):
+            assert not table.may_write("ambassador", place, other), other
+            assert not table.may_retire("ambassador", place, other), other
+    # the operator's role writes every path, so it has no prefix it only retires
+    assert table.may_write("cli", "dialogue", legacy) and table.roles["cli"].retire_only == {}

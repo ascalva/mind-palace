@@ -140,19 +140,20 @@ Roundoff and FloatModel, so it has no statements of its own):
   and none otherwise, so no expression raises a label; ING-14 the firewall, an admitted store not
   observed lands an item a source yields at the item's own path with its label, and over a plan
   every active row not observed is held before or such a store's; ING-15 confinement to the role's
-  namespace; ING-16 a plan's stores are the first form's commands with the key last, so ING-11 and
+  namespace, the part it writes for a store and either part for a retire, so a prefix it only
+  retires takes no store; ING-16 a plan's stores are the first form's commands with the key last, so ING-11 and
   ING-12 hold of every plan; ING-17 labels and identities fixed once stored, a new path's identity
   its own, the one its item declares, or one that moves with its bytes, paths that belong to their
   sources, retire as reconciliation; ING-18 the type system is sound for labels. `core/sentence/interpret.py`, `core/sentence/script_check.py`
   and `core/ingest/writer.py` are written to them, so they are the ledger's family XII too
-  (`Spec/Script.lean`, 15 statements).
+  (`Spec/Script.lean`, 16 statements).
 - `Bridges`: theorems that join two families, so that what one proves serves the other: BRG-1
   the Laplacian as `∂₁ ∂₁ᵀ`, BRG-2 Euler and Poincaré on the flag complex, BRG-3 Thomson's
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
 - `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the cited theorems
-  (248 theorems), and the three standard axioms.
+  (249 theorems), and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself. It is weaker than the comparator: it
   compares the statements' types and the definitions' values, not constructors, recursor rules or
@@ -481,18 +482,23 @@ whose guard reads the key early lands the edit alone; two versions of one note s
 do not converge; and a serial run on one identity stopped inside a command does not converge when
 the whole batch runs again.
 
-The language is attacked on exact shadows too (seeds 273 to 287): bytes over `Fin 4`, three
+The language is attacked on exact shadows too (seeds 273 to 293): bytes over `Fin 4`, three
 labels and three paths, views as lists over `Fin 2`, a writer's state decoded from a list of
-codes. Every attack survived; three tested all 500 instances, the others 156 to 487, the rest
-discarded as draws that break their guard (a store the writer does not admit). Its eight
-controls, each refuted within thirteen instances: a construction that keeps the label of what it
-was built from; a writer without R4 that stores an authored item at another path; without R6's
-condition, an identity grafted from a path its source still has; without the declaration, an
-identity an item does not declare (the second form's audit found a `ref::` grafting a note onto
-another's chain); without R7's condition, an item still in its source retired; a writer without
-the namespace, every other rule kept, that stores an item outside the role's prefix; without R8,
-a composed value squatting a source's path; and a type rule that gives a construction no
-label.
+codes, and a role that only retires at one path. Every attack survived; five tested all 500
+instances, the others 156 to 489, the rest discarded as draws that break their guard (a store the
+writer does not admit). Its twelve controls, each refuted within 138 instances and most within
+thirteen: a construction that keeps the label of what it was built from; a writer without R4 that
+stores an authored item at another path; without R6's condition, an identity grafted from a path
+its source still has; without the declaration, an identity an item does not declare (the second
+form's audit found a `ref::` grafting a note onto another's chain); without R7's condition, an item
+still in its source retired; a writer without the namespace, every other rule kept, that stores an
+item outside the role's prefix; confinement with one namespace, which a role that retires where it
+does not write breaks (the rename's retire-only prefix); a store that takes the retire-only
+namespace; without R8, a composed value squatting a source's path; and a type rule that gives a
+construction no label. The Ambassador's inbox has a shadow of its own (seeds 291 to 293): every
+authored row a store lands is the owner's message at its own path, and its two controls are the
+bright line's premises taken out, a label a script claims (the Ambassador's text lands as the
+owner's at its own prefix) and a rule that labels the reply authored.
 
 The magnetic operator is complex and its transports are exponentials, which do not run, so its
 attacks fix the transports at their exact values, `1` at phase `0` and `−1` at phase `π`, or test
@@ -532,7 +538,7 @@ another module, and without it 68 proofs in seven files fail. One instance is wr
 to importers (`Palace/Scope.lean`).
 
 The kernel re-check. `Export.lean` writes every `Palace` declaration and everything it uses, from
-`Init` up (45,523 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
+`Init` up (45,526 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
 kernel and the five independent checkers bundled with Lean: `leanchecker-paranoid`, `lean4lean` (a
 kernel written in Lean), `nanoda` (one written in Rust), and `con-leche`, whose acceptance carries a
 machine-checked theorem that the environment holds no proof of `False`, with `con-ron`, its port.
@@ -543,7 +549,7 @@ nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
 does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the
-248 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
+249 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.
 
