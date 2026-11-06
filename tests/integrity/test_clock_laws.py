@@ -55,6 +55,24 @@ def _all_fibers_convex(spine: Spine, clock: Clock, ticks: set[Hashable]) -> bool
     return all(spine.is_fiber_convex(clock, t) for t in ticks)
 
 
+def _c1_holds_on_generators(spine: Spine, ticks: dict[str, int]) -> bool:
+    """Law C1 checked on the generator edges only, with no transitive closure: every direct edge
+    `a -> b` with both ends in the clock's domain has `tick(a) <= tick(b)`.
+
+    This is sound by CLK-1 (docs/LAWS.md, `Clock.lean::MonotoneAlong.closure` and
+    `convexFibers_of_monotone`): a clock is monotone along the order iff it is monotone on the
+    generator edges, and a monotone clock with partially ordered ticks has order-convex fibers, so
+    C2 follows from C1 and needs no check of its own. The cost is linear in the edges, where the
+    closure-based `is_fiber_convex` grows with the corpus times the closure and never returns on a
+    real store.
+
+    The domain here is the version events only. A pair of versions related through a path of
+    non-version events is not covered by this check; the seeded cases and
+    `tests/unit/test_clock_maps.py` check C1 and C2 over the full closure."""
+    return all(ticks[e.src] <= ticks[e.dst]
+               for e in spine.generators() if e.src in ticks and e.dst in ticks)
+
+
 def _assert_ns_partitions(spine: Spine) -> None:
     """Every event lands in exactly one N_s; the union of the N_s recovers Ev (the Item 2 falsifier:
     any N_s event missing from N, or double-counted, fails here)."""
@@ -105,15 +123,31 @@ def test_gap_skipping_commit_fiber_is_caught_the_falsifier() -> None:
     assert not spine.is_fiber_convex(Clock.COMMIT, 1)     # {a1, a3} skipping a2 — a non-range
 
 
+def test_c1_on_generators_catches_an_inversion_and_agrees_with_convexity_seeded() -> None:
+    """The generator-edge check against the closure-based oracle on a seeded chain: a monotone map
+    passes both, an inverted map fails C1 on the edges (the control the real-store check needs)."""
+    vs = VersionStore(_MEM)
+    for body in ("a1", "a2", "a3"):
+        vs.record("docA", body)
+    a1, a2, a3 = "versions:docA:1", "versions:docA:2", "versions:docA:3"
+    good = {a1: 1, a2: 1, a3: 2}
+    wide: dict[str, Hashable] = dict(good)
+    spine = Spine.derive(SpineSources(versions=vs), coarsening_ticks={Clock.COMMIT: wide})
+    assert _c1_holds_on_generators(spine, good)
+    assert _all_fibers_convex(spine, Clock.COMMIT, {1, 2})        # C2 follows (CLK-1)
+    bad = {a1: 2, a2: 1, a3: 1}                                   # an earlier event, a later tick
+    assert not _c1_holds_on_generators(spine, bad)
+
+
 def test_commit_fibers_are_ranges_on_the_real_versions_store() -> None:
-    """ON THE REAL STORES: a version_seq-grouped commit-analogue over the live versions store has
-    order-convex fibers. In a worktree (no data/) this resolves to an empty spine and is trivial;
-    on main it exercises the real corpus. See the module VERIFICATION CAVEAT."""
-    real = Spine.derive(SpineSources.resolve())
-    commit_map = _version_seq_commit_map(real)
-    spine = Spine.derive(SpineSources.resolve(), coarsening_ticks={Clock.COMMIT: commit_map})
-    ticks = set(commit_map.values())
-    assert _all_fibers_convex(spine, Clock.COMMIT, ticks)
+    """ON THE REAL STORES: the version_seq-grouped commit-analogue is monotone along the generator
+    edges (Law C1), and by CLK-1 its fibers are then order-convex (Law C2), so convexity is not
+    re-checked over the closure. In a worktree (no data/) the spine is empty and this is trivial;
+    on main it runs in time linear in the edges (issue #22). See the module VERIFICATION CAVEAT."""
+    spine = Spine.derive(SpineSources.resolve())
+    ticks = {e.event_id: e.position for e in spine.events()
+             if e.store == "versions" and e.position is not None}
+    assert _c1_holds_on_generators(spine, ticks)
 
 
 # ── N_s partition ──────────────────────────────────────────────────────────────────────────────
