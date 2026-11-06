@@ -725,9 +725,13 @@ def _within(a: str, b: str, separators: str) -> bool:
 
 
 def _location(path: Path) -> str:
-    # Absolute, normalised and case-folded, because APFS (the macOS default) folds case: `Data` and
-    # `data` are one directory.
-    return os.path.abspath(path).casefold()
+    """Where `path` really is: every symlink on it resolved, so a root or a directory linked into
+    another instance's state compares as that state, not as the name it was reached by. A path
+    that does not exist yet resolves through its deepest existing ancestor, the rest appended
+    (`os.path.realpath`, not strict). Case-folded, because APFS (the macOS default) folds case.
+
+    The check holds at load: a link planted after it is outside its reach."""
+    return os.path.realpath(path).casefold()
 
 
 def _remote(url: str) -> str:
