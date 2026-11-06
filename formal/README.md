@@ -349,7 +349,10 @@ Outside the model: `reset` (it forgets whole classes, a visible act for any clea
 a land of several fibers in one transaction, and `relabel`'s place in a trace (it reads one class
 and writes another, so no unwinding covers it; its cache steps and crash points are modelled). `known()`, which tells
 the write path whether the shared table holds an atom of any class, is the deduplication side
-channel of Harnik, Pinkas and Shulman-Peleg (2010); only ingest calls it (`core/ingest/index.py`).
+channel of Harnik, Pinkas and Shulman-Peleg (2010). It has two callers: ingest, which skips the
+embeds it reports (`core/ingest/index.py::embed_new`), and the door's writer, which prices a
+script's embeds with it (`core/ingest/writer.py::Writer.price`), so the charge a receipt reports
+carries the bit to the script's role, for an atom held only by a class the role cannot read.
 Its design theorems, cited here and not from the ledger: beyond a reader's view it gives one bit
 for each named atom no cleared relation references, whether a row of an uncleared class holds the
 atom, current or superseded, or the atom lies dormant (`known_eq`, `mem_known_iff`), and nothing
