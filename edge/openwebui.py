@@ -19,6 +19,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from edge.private_file import write_json
+
 CONTAINER_DB = "/app/backend/data/webui.db"
 
 _READER = r"""
@@ -102,10 +104,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.out is None:
         ap.error("--out is required")
     chats = export_chats(args.container)
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    tmp = args.out.with_suffix(".part")
-    tmp.write_text(json.dumps({"source": "openwebui", "container": args.container, "chats": chats}))
-    os.replace(tmp, args.out)
+    # the core reads a handoff only when no other account could have written it
+    write_json(args.out, {"source": "openwebui", "container": args.container, "chats": chats})
     print(f"{len(chats)} chat(s), {sum(len(c['turns']) for c in chats)} turn(s) -> {args.out}")
     return 0
 

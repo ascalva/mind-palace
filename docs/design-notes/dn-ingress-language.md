@@ -178,6 +178,15 @@ a markdown source is a record: `path` (as the stores name it), `content`, `diges
 field and its path from the item rule. `[INFERENCE — falsifier: a path of today that needs a
 reading function not in this list]`
 
+A structured source whose rule may give a label other than the observed one, a dialogue reader's
+handoff or the inbox's record (§E13), is read only as the daemon trusts it (`core/ingest/files.py`):
+its directory and its file the daemon's account's, writable by no other account, the file read
+through a descriptor that follows no link, of one link, under the handoff cap. Otherwise an account
+that may write the handoff directory (on this machine, the `palace` group's) could plant a turn
+that the rule labels as the owner's and that `sync_dialogue` lands as authored dialogue (the inbox
+review's finding 2, 2026-11-06). The edge readers write their handoff `0600` in a directory made
+`0700` (`edge/private_file.py`), so what they write is read whatever the umask.
+
 ### E3 — Labels are the palace's
 
 The label of content is decided by the palace and carried by the value; the language has no

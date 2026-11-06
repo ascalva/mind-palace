@@ -9,9 +9,11 @@ string that names something is the property a source declares as its items' iden
 the vault), whose origin says so, so a store may take it as the item's identity (R6) and no other
 field can pose as one. An entry of a place is the palace's account of a row, and its strings are
 observed. A structured source's edge reader runs only when the caller asks (the daemon's own
-syncs and the owner's CLI), never for a request a role spoke. A records source is a directory of
-the daemon's own documents, read only as the daemon trusts them (`core/ingest/files.py`); one the
-table marks as consumed loses a document once a plan has landed every item it yields.
+syncs and the owner's CLI), never for a request a role spoke. A structured source whose rule may
+give a label other than the observed one (a dialogue reader's handoff, the inbox's record) is read
+only as the daemon trusts it (`core/ingest/files.py`), so no other account plants an item its rule
+would label as the owner's. A records source is a directory of such documents; one the table marks
+as consumed loses a document once a plan has landed every item it yields.
 """
 
 from __future__ import annotations
@@ -231,17 +233,34 @@ class PalaceView:
         return out
 
     def _document(self, s: Source) -> Any:
-        """A structured source's file, refreshed first by its edge reader if the caller asked."""
+        """A structured source's file, refreshed first by its edge reader if the caller asked. A
+        source whose rule may give a label other than the observed one (a dialogue reader's: the
+        owner's turns) is read only as the daemon trusts it: its directory the daemon's own and
+        writable by no other account, the file read through a descriptor that follows no link, a
+        regular file of one link that the daemon's account owns and no other may write, under the
+        handoff cap. So no account but the daemon's, and the edge readers it runs, can plant a
+        turn the rule would label as the owner's."""
         if self._refresh and s.refresh is not None:
             done = subprocess.run(list(s.refresh), cwd=REPO_ROOT, capture_output=True, text=True,
                                   timeout=s.refresh_timeout, env=edge_env())
             if done.returncode != 0:
                 raise ScriptError(f"{s.name}: its edge reader failed: "
                                   f"{done.stderr.strip()[-300:]}")
-        try:
-            size = s.location.stat().st_size
-        except OSError:
-            raise ScriptError(f"{s.name}: no handoff at {s.location}") from None
+        if not os.path.lexists(s.location):
+            raise ScriptError(f"{s.name}: no handoff at {s.location}")
+        if _may_author(s):
+            why = check_dir(s.location.parent)
+            if why is not None:
+                raise ScriptError(f"{s.name}: the handoff is refused ({why})")
+            try:
+                data, st = read_bounded(s.location, MAX_HANDOFF_BYTES)
+                why = written_by_one(st)
+                if why is not None:
+                    raise ValueError(why)
+            except (OSError, ValueError) as e:
+                raise ScriptError(f"{s.name}: the handoff is refused ({e})") from None
+            return json.loads(data.decode("utf-8"))
+        size = s.location.stat().st_size
         if size > MAX_HANDOFF_BYTES:
             raise ScriptError(f"{s.name}: {size} bytes, more than a handoff may have")
         return json.loads(s.location.read_text(encoding="utf-8"))
@@ -337,6 +356,13 @@ class PalaceView:
         if self._query is None:
             raise ScriptError("a nested sentence needs the read half, which is not open here")
         return self._query(sentence)
+
+
+def _may_author(s: Source) -> bool:
+    """Whether a source's rule may give a label other than the observed one: the range the table
+    declares, and an undeclared range counts as one that may."""
+    labels = {s.label} if s.label is not None else set(s.labels)
+    return not labels or bool(labels - {OBSERVED})
 
 
 def _consume(f: Path, key: tuple[int, int]) -> None:
