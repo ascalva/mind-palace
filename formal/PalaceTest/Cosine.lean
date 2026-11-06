@@ -48,13 +48,11 @@ def Num.val (x : Num) : ℚ := x.m * 2 ^ x.e
 def coordBound (c floor : ℚ) (x : ℚ) : Bool := decide (|rn16 x - x| ≤ c * max |x| floor)
 
 /- VEC-1's coordinate bound, `2⁻¹¹ · max |x| 2⁻¹⁴`. -/
-#eval survives (∀ x : Num, coordBound (2 ^ (-11 : ℤ)) (2 ^ (-14 : ℤ)) x.val = true) 292
-
+#eval survives (∀ x : Num, coordBound (2 ^ (-11 : ℤ)) (2 ^ (-14 : ℤ)) x.val = true) 304
 /- Controls: the relative bound alone fails below the normal range; half the bound fails at
 ties near the bottom of a binade. -/
-#eval refuted (∀ x : Num, coordBound (2 ^ (-11 : ℤ)) 0 x.val = true) 293
-#eval refuted (∀ x : Num, coordBound (2 ^ (-12 : ℤ)) (2 ^ (-14 : ℤ)) x.val = true) 294
-
+#eval refuted (∀ x : Num, coordBound (2 ^ (-11 : ℤ)) 0 x.val = true) 305
+#eval refuted (∀ x : Num, coordBound (2 ^ (-12 : ℤ)) (2 ^ (-14 : ℤ)) x.val = true) 306
 /-- Six scores in tenths, a perturbation of each in halves of `β`, `β` in twentieths, and the size
 `k` of the top set. -/
 structure Ranking where
@@ -100,11 +98,9 @@ def Ranking.stays (r : Ranking) : Bool :=
     decide (r.truth j < r.truth i)
 
 /- VEC-1's certificate: a margin over `2β` keeps the top set. -/
-#eval survives (∀ r : Ranking, r.margin 2 = true → r.stays = true) 295
-
+#eval survives (∀ r : Ranking, r.margin 2 = true → r.stays = true) 307
 /- Control: a margin over `β` alone does not. -/
-#eval refuted (∀ r : Ranking, r.margin 1 = true → r.stays = true) 296
-
+#eval refuted (∀ r : Ranking, r.margin 1 = true → r.stays = true) 308
 end Attack
 
 end Palace.Cosine

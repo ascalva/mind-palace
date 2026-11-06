@@ -236,7 +236,7 @@ Roundoff and FloatModel, so it has no statements of its own):
 | CND-6 (float64) | `chi_s = rn(chain / n_s)` is `1.0` exactly when the chain spans the stratum, for every `n_s < 2^54`, and not at `2^54`; `chi_s ≤ 1` for every `n_s`, and `chi_s > 0` up to `2^1074` | proved over `rn`, with the witness; on this machine it survived 500 |
 | SPC-3 | Weyl's inequality counted: a perturbation within `ε` keeps at most `t` every eigenvalue (singular value) that was at most `t − ε` and brings at most `t` only those that were at most `t + ε`; so a cut `θ` with `ε ≤ θ` and `θ + ε < g` keeps below it exactly the zero ones | proved; attack survived 500 symmetric `3 × 3` perturbations over `ℚ` |
 | `rnf` | `rn` with the format's precision `p` and least exponent `emin` as parameters, `rn = rnf 53 (-1074)`; it moves `x` by at most `2⁻ᵖ · max \|x\| 2^(emin+p−1)` | the model; at binary32 it matched this machine's conversion of 500 doubles bit for bit, and at binary16, as `rn16 ∘ rn32`, the store's write path on all 234 doubles of its table |
-| VEC-1 (float16) | rounding to binary16 moves a coordinate by at most `2⁻¹¹ · max \|x\| 2⁻¹⁴`, a vector by `2⁻¹¹ √(‖x‖² + d · 2⁻²⁸)`, and a cosine by at most `betaStore ≈ 2⁻¹¹` for vectors of norm at least `ν` (Dunkl and Williams in an inner product space); the query's rounding by `betaQuery`; a top `k` whose margin exceeds `2 (betaStore + betaQuery + γ)` is the top `k` of the exact cosines | proved over `rn16`; the coordinate bound survived 500, the certificate 299 |
+| VEC-1 (float16) | rounding to binary16 moves a coordinate by at most `2⁻¹¹ · max \|x\| 2⁻¹⁴`, a vector by `2⁻¹¹ √(‖x‖² + d · 2⁻²⁸)`, and a cosine by at most `betaStore ≈ 2⁻¹¹` for vectors of norm at least `ν` (Dunkl and Williams in an inner product space); the query's rounding by `betaQuery`; a top `k` whose margin exceeds `2 (betaStore + betaQuery + γ)` is the top `k` of the exact cosines | proved over `rn16`; the coordinate bound survived 500, the certificate 292 |
 | LAP-1 (float64) | two association orders of the same at most four nonzero nonnegative binary64 summands agree within `4·eps` of either result, at eight summands two orders differ by five ulps, beyond the bound; the boundary test itself checks every row against the general `2·γₙ·Σ\|w\|` bound, which is not machine-checked | proved over `rn`, with the witness; on this machine it survived 340 rows that reassociate |
 | PLN-5 (A3.7) | after `purge(d)` no row or edge names `d`; every atom `d`'s rows held is deleted or still held; no atom another row holds is freed; re-running finishes a purge interrupted after its atom delete | proved; attack survived 500 |
 | SCO-1 (Σ) | closure under refinement is a closure operator, and closed sets are closed under ∩ and ∪; `top()` is every stratum but `foundation`, `hypothetical` and `exhaust`, so not the top of the closed sets | proved; attack survived 500 |
@@ -401,23 +401,23 @@ The third L3 entry, VEC-1, is about the vectors the store holds in float16
 (dn-vector-membership-store A4.5). Its model is `Palace/Format.lean`'s `rnf`, which takes the
 format's precision and least exponent as parameters, and its attacks check the definition at two
 more formats. At binary32, Lean's `Float.toFloat32` is C's conversion of a `double`: 500 doubles
-seed 288 draws (binary32's normal range with zero, tie, near-tie and random low bits; its subnormal
+seed 300 draws (binary32's normal range with zero, tie, near-tie and random low bits; its subnormal
 range; the exact subnormal ties; significands that carry into the next binade) all match, and the
-controls, ties away from zero, 23 significand bits and flush to zero, are refuted within two
+controls, ties away from zero, 23 significand bits and flush to zero, are refuted within 17
 instances. Lean has no half-precision type, so binary16 meets the machine through a table: 234
 doubles and the float16 bits the store's own write path gave them, checked against `rn16 ∘ rn32`,
 since the path rounds to float32 first. All 234 agree; rounding once disagrees on 39, ties away from
 zero on 60, ten significand bits on 34 and flush to zero on 51.
 `tests/property/test_float16_margin.py` checks that the machine still gives the table. Over `ℚ`, the
 coordinate bound survived 500 instances and its controls (no floor below the normal range, half the
-bound) failed on the first; the margin certificate survived 299 instances whose margin held, and
-with a margin of `β` in place of `2β` it is refuted within 33.
+bound) failed within 7; the margin certificate survived 292 instances whose margin held, and with
+a margin of `β` in place of `2β` it is refuted within 9.
 
 SPC-3 has an exact shadow: for a symmetric `3 × 3` matrix over `ℚ` the eigenvalues below `t` are
 the sign changes of the leading principal minors of `A − t` (Jacobi's rule, Sylvester's law of
 inertia), so the attack draws a matrix, a perturbation of small entries bounded by Gershgorin's
-`ε`, and a threshold, and checks both of Weyl's counts: it survived 500 (seed 297), and without the
-slack `ε` it is refuted on the first instance.
+`ε`, and a threshold, and checks both of Weyl's counts: it survived 500 (seed 309), and without the
+slack `ε` it is refuted within 9 instances.
 
 The scope algebra. `Palace/Scope.lean` transcribes `core/kernel/scope.py` and the parts of
 `core/query.py`, `core/kernel/agent_scope.py` and `core/kernel/clearance.py` that build or read

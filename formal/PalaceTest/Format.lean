@@ -108,18 +108,16 @@ def agrees32 (round : ℚ → ℚ) (d : Dbl) : Bool :=
   | _, _ => false
 
 /- The model: converting a double to binary32 on this machine is `rn32`. -/
-#eval survives (∀ d : Dbl, agrees32 rn32 d = true) 288
-
+#eval survives (∀ d : Dbl, agrees32 rn32 d = true) 300
 /-- Control, ties away from zero. -/
 def rnAway (p : ℕ) (emin : ℤ) (x : ℚ) : ℚ := round (x / 2 ^ cexpf p emin x) * 2 ^ cexpf p emin x
 
 /-- Control, gradual underflow dropped: below the least normal binary32 number, zero. -/
 def rn32Flush (x : ℚ) : ℚ := if |x| < 2 ^ (-126 : ℤ) then 0 else rn32 x
 
-#eval refuted (∀ d : Dbl, agrees32 (rnAway 24 (-149)) d = true) 289
-#eval refuted (∀ d : Dbl, agrees32 (rnf 23 (-149)) d = true) 290
-#eval refuted (∀ d : Dbl, agrees32 rn32Flush d = true) 291
-
+#eval refuted (∀ d : Dbl, agrees32 (rnAway 24 (-149)) d = true) 301
+#eval refuted (∀ d : Dbl, agrees32 (rnf 23 (-149)) d = true) 302
+#eval refuted (∀ d : Dbl, agrees32 rn32Flush d = true) 303
 /-- This machine's float16: doubles, as bits, and the float16 bits the vector store's write path
 gave them (lancedb 0.33.0, a list of Python floats landed in a `float16` column, 2026-11-05). -/
 def table16 : List (UInt64 × UInt16) := [

@@ -99,11 +99,9 @@ def Case.regular (k : Case) (s : ℚ) : Bool :=
   k.A.regular (k.t - s) && k.A.regular (k.t + s) && (k.A.add k.D).regular k.t
 
 /- SPC-3, Weyl's inequality counted, with Gershgorin's `ε`. -/
-#eval survives (∀ k : Case, k.regular k.D.gersh = true → k.weyl k.D.gersh = true) 297
-
+#eval survives (∀ k : Case, k.regular k.D.gersh = true → k.weyl k.D.gersh = true) 309
 /- Control: without the slack. -/
-#eval refuted (∀ k : Case, k.regular 0 = true → k.weyl 0 = true) 298
-
+#eval refuted (∀ k : Case, k.regular 0 = true → k.weyl 0 = true) 310
 end Attack
 
 end Palace.Gap
