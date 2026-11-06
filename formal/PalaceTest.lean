@@ -5,10 +5,12 @@ public import PalaceTest.Balance
 public import PalaceTest.Binary64
 public import PalaceTest.Bridges
 public import PalaceTest.Clock
+public import PalaceTest.Cosine
 public import PalaceTest.Curvature
 public import PalaceTest.Cut
 public import PalaceTest.Door
 public import PalaceTest.FloatModel
+public import PalaceTest.Format
 public import PalaceTest.Heat
 public import PalaceTest.Hodge
 public import PalaceTest.Laplacian

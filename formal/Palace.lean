@@ -8,6 +8,8 @@ public import Palace.Bridges
 public import Palace.Bridges.Defs
 public import Palace.Clock
 public import Palace.Clock.Defs
+public import Palace.Cosine
+public import Palace.Cosine.Defs
 public import Palace.Curvature
 public import Palace.Curvature.Defs
 public import Palace.Cut
@@ -16,6 +18,8 @@ public import Palace.Door
 public import Palace.Door.Defs
 public import Palace.FloatModel
 public import Palace.FloatModel.Defs
+public import Palace.Format
+public import Palace.Format.Defs
 public import Palace.Frustration
 public import Palace.Frustration.Defs
 public import Palace.Heat

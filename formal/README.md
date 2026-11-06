@@ -4,8 +4,9 @@ Rung L1 of the Lean ladder (`docs/design-notes/dn-mathematical-foundations.md` �
 the ledger's laws as Lean specs over exact arithmetic, each attacked by Plausible before anyone
 proves it. A sibling lake package with zero import coupling with `core/` in either direction: Lean
 states and proves laws over ℚ and ℝ, Hypothesis tests the floats in Python, and the law id joins
-the two. Rung L3 enters one claim at a time: float64 claims proved over a model of binary64
-rounding that is itself attacked against this machine's arithmetic.
+the two. Rung L3 enters one claim at a time: float claims proved over a model of binary64
+rounding, and of binary16 for the stored vectors, that is itself attacked against this machine's
+arithmetic.
 
 The ledger, `docs/LAWS.md`, gives each law one row: its statement, structure, code anchor, label
 and Python falsifier, and the declarations here that state it. Each declaration it cites carries
@@ -66,6 +67,12 @@ Roundoff and FloatModel, so it has no statements of its own):
   `Float`; its attacks check the compiled C operators against that logical model.
 - `Roundoff`: two L3 entries over the model: CND-6's exact comparisons of `chi_s` with
   `1.0`, and LAP-1's route agreement between two association orders of a degree sum.
+- `Format`: `Binary64`'s rounding with the format's precision and least exponent as parameters,
+  `rnf p emin`, so binary16 (`rn16`) and binary32 (`rn32`) beside binary64 (`rn = rnf 53 (-1074)`),
+  and its error bound `2⁻ᵖ · max |x| 2^(emin+p−1)`; cited through `Cosine`.
+- `Cosine`: VEC-1, the vectors the store holds in float16 (`core/kernel/margin.py`): the cosine
+  error bound of float16 storage and of the query's float16 rounding, and the margin certificate
+  a ranked read computes from them.
 - `Plane`: the shared prose plane (`core/stores/plane.py`, A3): no-leak, noninterference
   (A3.5), the search loop, the `held` cache and purge (A3.7).
 - `Scope`: the capability-scope algebra (`core/kernel/scope.py`, dn-capability-scope),
@@ -152,7 +159,7 @@ Roundoff and FloatModel, so it has no statements of its own):
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
 - `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the cited theorems
-  (248 theorems), and the three standard axioms.
+  (255 theorems), and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself. It is weaker than the comparator: it
   compares the statements' types and the definitions' values, not constructors, recursor rules or
@@ -222,6 +229,8 @@ Roundoff and FloatModel, so it has no statements of its own):
 | PLN-2 (A3.5) | noninterference: after any trace of writes that keep each path at one stratum, a reader under `C` sees, in its view and in every search, what it would see after the cleared writes, purges and repairs alone | proved by unwinding, under the hypotheses below; attack survived 480 traces with an uncleared write and a cleared hit |
 | `rn` | binary64 rounding to nearest, ties to even, without overflow: it fixes binary64 numbers, is monotone and odd, lands on binary64, and moves `x` by at most half an ulp; on the grid of multiples of `2⁻¹⁰⁷⁴` (every sum of two binary64 numbers), by at most `u\|x\|`, `u = 2⁻⁵³`, subnormals included | the model; on this machine it matched 500 sums, 500 quotients and 500 quotients `k / n` bit for bit |
 | CND-6 (float64) | `chi_s = rn(chain / n_s)` is `1.0` exactly when the chain spans the stratum, for every `n_s < 2^54`, and not at `2^54`; `chi_s ≤ 1` for every `n_s`, and `chi_s > 0` up to `2^1074` | proved over `rn`, with the witness; on this machine it survived 500 |
+| `rnf` | `rn` with the format's precision `p` and least exponent `emin` as parameters, `rn = rnf 53 (-1074)`; it moves `x` by at most `2⁻ᵖ · max \|x\| 2^(emin+p−1)` | the model; at binary32 it matched this machine's conversion of 500 doubles bit for bit, and at binary16, as `rn16 ∘ rn32`, the store's write path on all 234 doubles of its table |
+| VEC-1 (float16) | rounding to binary16 moves a coordinate by at most `2⁻¹¹ · max \|x\| 2⁻¹⁴`, a vector by `2⁻¹¹ √(‖x‖² + d · 2⁻²⁸)`, and a cosine by at most `betaStore ≈ 2⁻¹¹` for vectors of norm at least `ν` (Dunkl and Williams in an inner product space); the query's rounding by `betaQuery`; a top `k` whose margin exceeds `2 (betaStore + betaQuery + γ)` is the top `k` of the exact cosines | proved over `rn16`; the coordinate bound survived 500, the certificate 299 |
 | LAP-1 (float64) | two association orders of the same at most four nonzero nonnegative binary64 summands agree within `4·eps` of either result, at eight summands two orders differ by five ulps, beyond the bound; the boundary test itself checks every row against the general `2·γₙ·Σ\|w\|` bound, which is not machine-checked | proved over `rn`, with the witness; on this machine it survived 340 rows that reassociate |
 | PLN-5 (A3.7) | after `purge(d)` no row or edge names `d`; every atom `d`'s rows held is deleted or still held; no atom another row holds is freed; re-running finishes a purge interrupted after its atom delete | proved; attack survived 500 |
 | SCO-1 (Σ) | closure under refinement is a closure operator, and closed sets are closed under ∩ and ∪; `top()` is every stratum but `foundation`, `hypothetical` and `exhaust`, so not the top of the closed sets | proved; attack survived 500 |
@@ -381,6 +390,22 @@ The two entries settle claims §2.5 makes about float64:
   `[0.3, 1]` reached at most 0.66 of the bound. So the `4·eps` bound holds for short rows and for weights
   of modest range, not by construction. The control, eleven summands absorbed one at a time or
   gathered first, is refuted within 4 instances.
+
+The third L3 entry, VEC-1, is about the vectors the store holds in float16
+(dn-vector-membership-store A4.5). Its model is `Palace/Format.lean`'s `rnf`, which takes the
+format's precision and least exponent as parameters, and its attacks check the definition at two
+more formats. At binary32, Lean's `Float.toFloat32` is C's conversion of a `double`: 500 doubles
+seed 288 draws (binary32's normal range with zero, tie, near-tie and random low bits; its subnormal
+range; the exact subnormal ties; significands that carry into the next binade) all match, and the
+controls, ties away from zero, 23 significand bits and flush to zero, are refuted within two
+instances. Lean has no half-precision type, so binary16 meets the machine through a table: 234
+doubles and the float16 bits the store's own write path gave them, checked against `rn16 ∘ rn32`,
+since the path rounds to float32 first. All 234 agree; rounding once disagrees on 39, ties away from
+zero on 60, ten significand bits on 34 and flush to zero on 51.
+`tests/property/test_float16_margin.py` checks that the machine still gives the table. Over `ℚ`, the
+coordinate bound survived 500 instances and its controls (no floor below the normal range, half the
+bound) failed on the first; the margin certificate survived 299 instances whose margin held, and
+with a margin of `β` in place of `2β` it is refuted within 33.
 
 The scope algebra. `Palace/Scope.lean` transcribes `core/kernel/scope.py` and the parts of
 `core/query.py`, `core/kernel/agent_scope.py` and `core/kernel/clearance.py` that build or read
@@ -557,7 +582,7 @@ nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
 does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the
-248 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
+255 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.
 

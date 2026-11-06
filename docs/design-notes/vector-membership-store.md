@@ -4,7 +4,7 @@ id: dn-vector-membership-store
 track: code-ingest
 status: draft            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 created: 2026-07-23
-updated: 2026-10-30      # Amendment A4 (float16 vectors); A3 2026-10-29 (shared prose plane, typed clearances); 2026-07-27 adversarial-panel pass (§0.1)
+updated: 2026-11-05      # A4.5 (the cosine bound and the margin certificate, VEC-1); Amendment A4 2026-10-30 (float16 vectors); A3 2026-10-29 (shared prose plane, typed clearances); 2026-07-27 adversarial-panel pass (§0.1)
 links:
   - docs/findings/finding-0168.md                      # the warrant — FIVE owner rulings, verbatim (addendum 4: rename-as-membership-edge)
   - docs/findings/finding-0167.md                      # the interim reuse port this subsumes; its owed L1 line-header check discharges in D0
@@ -906,3 +906,35 @@ Rehearsed 2026-10-30 on APFS clones of both live stores, 55 s in all:
   database not carried over refuses it.
 - **A writer after the build** refuses the swap, and its row stays in the live store.
 - **A store not yet on the plane** is refused and sent to `ops.plane_migrate`.
+
+### A4.5 — What a score can move, and the certificate (2026-11-05)
+
+Measured with lancedb 0.33.0 on ouroboros, A4.2's "Queries stay float32" holds of what the store
+passes, not of what LanceDB scores: LanceDB rounds the query to float16 before it scores, as it
+rounds a stored vector, by way of float32 (a double just above a float16 tie lands where rounding
+twice puts it, not where rounding once would), and computes `1 − cos` of the two float16 vectors
+in float32, within `5.6e-8` of the exact value. A score is therefore off from the exact cosine
+between the query and the float32 vector by the stored vector's rounding, the query's rounding and
+the kernel's arithmetic.
+
+VEC-1 (`docs/LAWS.md`, XIII) bounds the first two, proved in `formal/Palace/Cosine.lean` over a
+binary16 model the attacks check bit for bit against the store's write path: storage moves a
+cosine by at most `4.884e-4` at 768 dimensions for every vector of norm at least `1/2` (the
+embedder's are unit length: stored norms 0.99988 to 1.00012), and the query's rounding by at most
+`2‖q' − q‖ / (‖q‖ + ‖q'‖)`, computed per query. With the kernel's error taken at its classical
+bound `γ = 2 (d + 4) 2⁻²⁴` (`9.2e-5`), a read whose `(k+1)`-th and `k`-th distances differ by more
+than `2 (4.884e-4 + β_query + γ)`, about `1.6e-3` for a text query, returns the top `k` of the
+exact cosines: float16 storage cannot have changed it. `VectorStore.search_ranked` computes that
+certificate on every search (`core/kernel/margin.py`), over distinct stored vectors; it costs 0.15
+to 0.34 ms a search (1.5 to 5 %) on fixture stores of 2,000 and 17,256 rows at 768 dimensions.
+
+The bound is a worst case, nearly attained by a vector whose every coordinate sits on a float16 tie
+and a query along the rounding error. Typical errors are far smaller, so the certificate settles
+only part of the reads: on the live stores (read-only, 2026-11-05, 300 queries each) it certifies
+the top ten of 59 % of stored vectors asked as queries on the main store and 37 % on the curated
+store, and 50 % and 30 % with a text query's own rounding added (`β_query` about `2.1e-4`). The experiment's one changed slot in
+2,000 (the code corpus, 200 stored vectors as queries) is the kind the certificate refuses: asking
+every one of the 17,256 code rows of the float32 store archived before the migration, float16
+storage changed 55 of the 172,560 top-ten slots, one slot in each of 55 queries, and each of those
+queries had a gap of at most `2.7e-5` between its tenth and eleventh distances, 44 times inside the
+bound; the certificate certified none of them and 63.5 % of all the queries.
