@@ -30,6 +30,7 @@ from eval.predictions.scoring import (
     Pilot,
     brier,
     cluster_bootstrap,
+    first_n,
     holm,
     known_edge,
     log_loss,
@@ -245,6 +246,45 @@ def test_the_report_reads_once_n_is_reached(tmp_path: Path) -> None:
     controls = out["controls"]
     assert isinstance(controls, dict) and controls["null_exact"] is True
     assert controls["oracle"] is not None
+
+
+def test_waiting_past_n_reads_the_same_clusters_as_stopping_at_n(tmp_path: Path) -> None:
+    """Control: the old report read all 50 clusters, so its primary differed from the 30-cluster
+    ledger's, and a reader could stop whenever the interval looked good."""
+    at_n = build(tmp_path / "n.jsonl", clusters=30, arms=FOUR)
+    at_n.amend(replace(PROTOCOL, n_clusters=30))
+    past = build(tmp_path / "p.jsonl", clusters=50, arms=FOUR)
+    past.amend(replace(PROTOCOL, n_clusters=30))
+    a, b = report(table(at_n.entries())), report(table(past.entries()))
+    assert a["beyond_n"] == {"clusters": 0, "pairs": 0}
+    assert b["beyond_n"] == {"clusters": 20, "pairs": 20}
+    assert b["primary"] == a["primary"] and b["secondary"] == a["secondary"]
+    assert b["arms"] == a["arms"] and b["controls"] == a["controls"]
+    counts = b["counts"]
+    assert isinstance(counts, dict) and counts["scored"] == 30 * 4
+
+
+def test_the_first_n_clusters_are_the_first_to_enter_the_ledger(tmp_path: Path) -> None:
+    """The order is the ledger's own lines, not the cluster names or the question ids."""
+    clock = Clock(T0)
+    led = Ledger(tmp_path / "o.jsonl", clock=clock)
+    led.register(replace(PROTOCOL, n_clusters=2))
+    for cluster in ("z", "m", "a"):                 # entered in this order, sorted the other way
+        qid = f"q-{cluster}"
+        clock.at += timedelta(minutes=1)
+        led.extend([Question(qid, "main", "t", qid, "t", CLOSE, cluster),
+                    Prediction(qid, "a", "r1", 0.5, config=PINS["a"]),
+                    Prediction(qid, "b", "r1", 0.9, config=PINS["b"])])
+    clock.at = CLOSE + timedelta(hours=1)
+    led.extend([Resolution(f"q-{c}", 1, CLOSE, "t:s") for c in ("z", "m", "a")])
+    t = table(led.entries())
+    kept, beyond = first_n(t, 2)
+    assert {s.cluster for s in kept.scored} == {"z", "m"}
+    assert beyond == {"clusters": 1, "pairs": 1}
+    out = report(t)
+    assert out["beyond_n"] == beyond
+    primary = out["primary"]
+    assert isinstance(primary, dict) and primary["clusters"] == 2
 
 
 def test_the_pilot_carries_no_mean(tmp_path: Path) -> None:
