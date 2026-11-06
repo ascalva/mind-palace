@@ -16,9 +16,10 @@
 # launchd labels `com.mind-palace.<id>.<role>`, and its restic repository must end in /<id>. Its
 # overlay may not set those. Its exhaust lane is instances/<id>/exhaust unless its overlay moves it
 # within instances/<id>/. The sources below ([ingestion.*]) are Ouroboros's corpus, so a named
-# instance reads only the ones its overlay declares; an undeclared one is off. Loading refuses an
-# instance that would share a location with Ouroboros (core/kernel/config/loader.py,
-# InstanceConfig and namespaces_of).
+# instance reads only the ones its overlay declares; an undeclared one is off. Its Vault is the one
+# its overlay names in [secrets] addr, never Ouroboros's, read with its own token item; naming none,
+# it has no Vault secrets. Loading refuses an instance that would share a location, a name or a
+# server with Ouroboros (core/kernel/config/loader.py, InstanceConfig and namespaces_of).
 
 [ollama]
 # The sealed core talks to a LOCAL Ollama over loopback only (BUILD-SPEC §5, §7); the

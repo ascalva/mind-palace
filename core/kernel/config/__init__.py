@@ -17,6 +17,7 @@ from core.kernel.config.loader import (
     LEVERS_OVERLAY,
     OUROBOROS,
     REPO_ROOT,
+    VAULT_TOKEN,
     AirlockConfig,
     AmbassadorConfig,
     AttestationConfig,
@@ -45,6 +46,7 @@ from core.kernel.config.loader import (
     namespaces_of,
     refresh_config,
     shared,
+    vault_location,
 )
 
 __all__ = [
@@ -72,6 +74,7 @@ __all__ = [
     "SandboxConfig",
     "SecretsConfig",
     "SelfModConfig",
+    "VAULT_TOKEN",
     "VaultConfig",
     "default_transcripts_dir",
     "get_config",
@@ -80,4 +83,5 @@ __all__ = [
     "namespaces_of",
     "refresh_config",
     "shared",
+    "vault_location",
 ]

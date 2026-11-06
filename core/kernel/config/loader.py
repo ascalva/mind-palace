@@ -86,6 +86,14 @@ _SECRET_NAMES = (
 # The dialogue lanes Ouroboros reads, each an edge reader over one of the owner's chat applications
 # (core/ingest/table.py). A named instance has none: no configuration yet names a lane of its own.
 DIALOGUE_READERS = ("openwebui", "opencode")
+# The Keychain/env item holding the supervisor's Vault token (config/secrets_backend.py). Not a
+# config key; derived per instance like the items above, so a named instance's own Vault is never
+# handed Ouroboros's token.
+VAULT_TOKEN = "vault-supervisor-token"
+# A Vault address: an optional scheme, a host (bracketed for IPv6) and an optional port.
+_ADDRESS = re.compile(r"(?:(?P<scheme>[A-Za-z][A-Za-z0-9+.-]*)://)?"
+                      r"(?P<host>\[[^\]]*\]|[^:/?#]*)(?::(?P<port>\d+))?")
+_LOOPBACK = frozenset({"", "localhost", "::1", "0:0:0:0:0:0:0:1", "0.0.0.0", "::"})
 
 
 class ConfigMigrationError(RuntimeError):
@@ -545,6 +553,7 @@ class InstanceConfig:
         dialogue lanes     openwebui, opencode           none
         airlock in S3      as its overlay names it       as its overlay names it
         exhaust lane       ~/.mind-palace/exhaust        <root>/exhaust, moved only within root
+        Vault server       [secrets] addr                its overlay's own; none if it names none
 
     A declared source may lie anywhere but inside, around or at one of Ouroboros's locations.
     `namespaces_of` reads them off a built Config, and `shared` says what two instances hold in
@@ -659,6 +668,7 @@ class Namespaces:
     labels: frozenset[str]    # launchd labels
     backup: str               # its restic repository; "" when none is configured
     airlock: frozenset[str]   # its airlock's S3 request and result prefixes, when it has a bucket
+    vault: str                # its Vault server as `host:port`; "" when it has none
 
 
 def namespaces_of(cfg: Config) -> Namespaces:
@@ -677,13 +687,29 @@ def namespaces_of(cfg: Config) -> Namespaces:
         paths=frozenset({*written, lock, instance.levers, cfg.exhaust.path}),
         sources=frozenset({cfg.ingestion.vault.path, transcripts}),
         dialogue=frozenset(instance.dialogue),
-        secrets=frozenset(getattr(getattr(cfg, section), key) for section, key in _SECRET_NAMES),
+        secrets=frozenset({*(getattr(getattr(cfg, section), key) for section, key in _SECRET_NAMES),
+                           instance.secret(VAULT_TOKEN)}),
         labels=frozenset(instance.label(role) for role in LAUNCHD_ROLES),
         backup=cfg.backup.repository,
         airlock=frozenset({f"s3://{air.s3_bucket}/{prefix}"
                            for prefix in (air.requests_prefix, air.results_prefix)}
                           if air.s3_bucket else ()),
+        vault=vault_location(cfg.secrets.addr),
     )
+
+
+def vault_location(addr: str) -> str:
+    """A Vault server as `host:port`, every loopback spelling as one host, so two spellings of
+    one server compare equal: `http://127.0.0.1:8200`, `localhost:8200/` and `http://[::1]:8200` are
+    all `loopback:8200`. A port left out is the scheme's. "" for no address."""
+    match = _ADDRESS.match(addr.strip())
+    if not addr.strip() or match is None:
+        return addr.strip().casefold()
+    host = match["host"].strip("[]").casefold()
+    if host in _LOOPBACK or host.startswith("127."):
+        host = "loopback"
+    port = match["port"] or ("443" if (match["scheme"] or "").casefold() == "https" else "80")
+    return f"{host}:{int(port)}"
 
 
 def default_transcripts_dir() -> Path:
@@ -724,6 +750,8 @@ def shared(a: Namespaces, b: Namespaces) -> list[str]:
         out.append(f"backup repository {a.backup} and {b.backup}")
     out += [f"airlock prefix {x} and {y}" for x in sorted(a.airlock) for y in sorted(b.airlock)
             if _within(_remote(x), _remote(y), "/")]
+    if a.vault and a.vault == b.vault:
+        out.append(f"Vault server {a.vault}")
     return out
 
 
@@ -924,6 +952,29 @@ def _own_sources(raw: dict[str, Any], declared: dict[str, Any], instance: Instan
         raw.setdefault("exhaust", {})["path"] = str(_own_source(instance, "exhaust"))
 
 
+def _own_vault_addr(instance: InstanceConfig) -> str:
+    """The Vault a named instance reaches when its overlay names none: none at all."""
+    return ""
+
+
+def _own_vault(raw: dict[str, Any], declared: dict[str, Any], instance: InstanceConfig,
+               source: Path) -> None:
+    """A named instance reaches only a Vault its overlay names (`[secrets] addr`); the committed
+    default is the Vault on this host, which is Ouroboros's. Naming none, it runs with no Vault
+    secrets, and turning `[secrets]` on without an address refuses. A named address that is
+    Ouroboros's server, in any spelling, refuses through `_refuse_shared`."""
+    secrets = raw.setdefault("secrets", {})
+    if declared.get("secrets", {}).get("addr"):
+        return
+    if secrets.get("enabled") is True:
+        raise InstanceOverlayError(
+            f"{source}: [secrets] enabled = true, but the overlay names no addr. A named instance "
+            f"reaches only a Vault of its own; refusing to reach the default, which is "
+            f"Ouroboros's.")
+    secrets["addr"] = _own_vault_addr(instance)
+    secrets["enabled"] = False
+
+
 def _refuse_reaching_out(raw: dict[str, Any], declared: dict[str, Any],
                          committed: dict[tuple[str, str], Any], instance: InstanceConfig,
                          source: Path) -> None:
@@ -1004,6 +1055,7 @@ def load_config(path: Path | None = None) -> Config:
     _overlay(raw, instance.levers)      # its own loop-tuned knobs, under its hand overlay
     _deep_merge(raw, declared)
     _own_sources(raw, declared, instance, named)
+    _own_vault(raw, declared, instance, named)
     _refuse_reaching_out(raw, declared, committed, instance, named)
     cfg = _build(raw, instance)
     _refuse_shared(cfg, named)

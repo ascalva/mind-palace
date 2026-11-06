@@ -3,15 +3,17 @@
 N(i) is what instance i owns, read by `namespaces_of` off the config the real loader builds: its
 data dir, ingestion spool, supervisor lock, levers file, exhaust lane and every other path it
 writes; the sources it reads (vault, transcripts, dialogue lanes); the Keychain items it reads; its
-launchd labels; its backup repository. The invariant: for instances i ≠ j, Ouroboros among them,
-`shared(N(i), N(j))` is empty, where every location compares as a location (one inside the other
-counts as shared). Ids are generated, not chosen; the named instances declare nothing.
+launchd labels; its backup repository; its Vault server. The invariant: for instances i ≠ j,
+Ouroboros among them, `shared(N(i), N(j))` is empty, where every location compares as a location
+(one inside the other counts as shared). Ids are generated, not chosen; the named instances
+declare nothing.
 
-The controls give the check teeth. With the loader's own refusal switched off, four broken
+The controls give the check teeth. With the loader's own refusal switched off, five broken
 derivations each fail the property: one that ignores the id, one that hands a named instance
-Ouroboros's namespaces (the hazard of issue #25), and two under which an undeclared vault or
-exhaust lane inherits Ouroboros's (#25 in the read direction, and reports landing in Ouroboros's
-lane). With the refusal on, the loader refuses the last three itself.
+Ouroboros's namespaces (the hazard of issue #25), and three under which an undeclared vault,
+exhaust lane or Vault server falls back to Ouroboros's (#25 in the read direction, reports landing
+in Ouroboros's lane, a named instance reaching Ouroboros's Vault). With the refusal on, the loader
+refuses the last four itself.
 """
 
 from __future__ import annotations
@@ -110,11 +112,19 @@ def _inherit_ouroboros_lane(monkeypatch: pytest.MonkeyPatch) -> None:
                         else real(instance, name))
 
 
+def _inherit_ouroboros_vault_server(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A named instance that names no Vault falling back to the committed default address, the
+    Vault on this host, which is Ouroboros's."""
+    default = str(loader._read(loader._DEFAULTS)["secrets"]["addr"])
+    monkeypatch.setattr(loader, "_own_vault_addr", lambda instance: default)
+
+
 @pytest.mark.parametrize(("break_it", "min_named", "shared_what"), [
     (_ignore_the_id, 2, "location"),
     (_be_ouroboros, 1, "location"),
     (_inherit_ouroboros_vault, 1, r"location \S*\.mind-palace/vault and"),
     (_inherit_ouroboros_lane, 1, r"location \S*\.mind-palace/exhaust and"),
+    (_inherit_ouroboros_vault_server, 1, "Vault server loopback:8200"),
 ])
 def test_control_a_broken_derivation_fails_the_property(monkeypatch, tmp_path, break_it,
                                                         min_named, shared_what) -> None:
@@ -125,7 +135,7 @@ def test_control_a_broken_derivation_fails_the_property(monkeypatch, tmp_path, b
 
 
 @pytest.mark.parametrize("break_it", [_be_ouroboros, _inherit_ouroboros_vault,
-                                      _inherit_ouroboros_lane])
+                                      _inherit_ouroboros_lane, _inherit_ouroboros_vault_server])
 def test_control_the_loader_refuses_the_hazard_itself(monkeypatch, tmp_path, break_it) -> None:
     break_it(monkeypatch)
     (tmp_path / "ouroboros.toml").write_text(f'[backup]\nrepository = "{OUROBOROS_REPOSITORY}"\n')
