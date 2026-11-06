@@ -172,6 +172,20 @@ Let `X_n` be the citation complex at time n (§2.4), supersession `D` inducing n
    (owner, 2026-07-14: promotion re-anchors depth, to the shallowest-derived level), so this is an
    UNCONDITIONAL theorem.** `[DERIVED; §4.5 ruled]`
 
+> *Status, 2026-11-05: the six results are machine-checked as design theorems*
+> (`formal/Palace/Transport.lean`, `formal/Palace/Superconnection.lean`; the limits program's L3,
+> `docs/brainstorms/limits-of-the-algebra.md`). Results 1 and 2 hold as stated (TRN-5, TRN-13).
+> *Erratum, Result 3:* τ²-coherence is F2 together with no citation restored after a severing
+> (TRN-12); F1 implies it on citations without loops, so, once `τ² = 0`, "flat ⟺ bicomplex ⟺ F1"
+> stands (TRN-13). *Erratum, Result 3:* the corrected differential is `d + τ − h`, not
+> `d + τ + h` (TRN-14), and it is flat only where the corrected transports compose. Result 4 holds
+> (TRN-15); the isometry is not TRN-3's fiber-weighted one, under which a merge's pullback is
+> isometric and still does not commute with `δ`. *Erratum, Result 5:* the pullback is a contraction
+> iff the supersession merges nothing (TRN-2, issue #61). Result 6 holds merge-free and in mass;
+> with merges the energy never grows iff `γ · (max fiber) ≤ 1` (TRN-6 to TRN-9, issue #61). The
+> diamond frequency TA-c waits on, measured read-only on the live versions store: 0 of 29
+> identities fork or merge.
+
 **The built falsifier binds this note too:** every continuous/algebraic claim above must
 reproduce the exact discrete invariants (β₁ of `X_cite`, `dim ker L₁`, the content-addressed
 edge set) within tolerance at the sample times — the inversion's Rule 2 (§2.7).

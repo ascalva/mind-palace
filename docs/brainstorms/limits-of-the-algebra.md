@@ -116,6 +116,55 @@ depths included (`massDepth_push_le`), and the promotion multiplies by `γ^{-k}`
 agreement factor of `recursion.py` is a multiplier the model leaves out. The amendment of the note
 is the owner's; the finding is filed. *Falsifier:* none; it is a counterexample.
 
+*Results 3 and 4, machine-checked (Palace/Superconnection.lean, TRN-10 to TRN-15, design theorems,
+2026-11-05).* The model is the nerve of the times: a transport on every pair of times (Result 1's
+transitive closure, H2), `pull` on notes and `pullEdge` on citations, so that the bracket `[d, τ]` on
+each pair is TRN-5's `curvature` (`dC_tC_sub`, `bracket_trans_apply`), and `τ` is the Čech
+differential with the transports as its coefficients. `𝔸 = d + τ` has `𝔸² = [d, τ] + τ²`
+(`superconnection_sq`, `dTot_mul_self`); `τ²` is the composition defect of each triangle of times
+(`cech_mul_self_apply`); `𝔸` is flat iff it is a bicomplex (`flat_iff_bicomplex`) iff F1 holds on
+every pair and, on every triangle, F2 with no citation restored (`flat_iff`); on citation complexes
+without loops that is F1 and F2 (`flat_iff_of_loopless`), Result 1 as stated. Two errata. First,
+τ²-coherence is not F2 alone: `τ² = 0` iff F2 holds and no citation severed at a middle time comes
+back at a later one (`tau_sq_eq_zero_iff`); with the notes carried by the identity, one citation
+present at times 0 and 2 and severed at time 1 gives `τ² ≠ 0` (`tau_sq_ne_zero_of_restored`). On
+citations without loops F1 rules the restoration out (`noRestore_of_F1`), so the flatness criterion
+stands. Second, the correction has the wrong
+sign: when `[d, h] = [d, τ]`, the square of `d + τ − h` is `(τ − h)²` and that of the note's
+`d + τ + h` is `2 [d, τ] + (τ + h)²` (`sub_correction_sq`, `add_correction_sq`); on two times with
+one citation severed and its ends still joined, `d + τ − h` is flat and `d + τ + h` is not
+(`correction_sign`). Flatness of `d + τ − h` also needs the corrected transports to compose on every
+triangle, which the class does not give: three times carrying one triangle, flat to begin with, and
+corrections that change only the circulation around it, each with the transport's bracket, give a
+corrected differential that is not flat (`corrections_not_compose`). The class itself: a correction
+that keeps the note correspondence exists iff every citation's ends stay in one component of the
+target's citations (`exists_correction_iff`, by factoring the curvature through the coboundary);
+without that constraint `h = τ` always serves and discards the transport (`flat_sub_first_self`).
+The theorems hold on any preorder of times, so on a flat chain the two routes around a diamond of
+times agree (`diamond_routes_agree`); the homotopy-coherent case the note parks as TA-c, where they
+would agree only up to a homotopy, is not modeled. *Measured* (read-only on the live versions store,
+2026-11-05): 29 identities, one version each, so none forks or merges; the store's key keeps each
+identity's versions a chain and `migrate_rekey_doc_id` refuses a merge. The diamond frequency TA-c
+waits on is 0 of 29, and TA-c stays parked.
+
+Result 4: `div` is the adjoint `δ` of the coboundary under the counting inner products
+(`sum_mask_coboundary_mul`). A chain map isometric in TRN-3's sense on notes (every fiber one note)
+and on citations commutes with `δ` (`pull_div_eq_div`; for matrices, a chain map that is a
+co-isometry on notes and an isometry on citations commutes with the adjoints,
+`mul_transpose_eq_of_chainMap`), and then with the edge Laplacian, so it carries harmonic cochains
+to harmonic ones (`pullEdge_laplacian`). The inclusion is strict: a citation added at the later time
+(`new_citation_not_metric`: the cycle around the new triangle is harmonic, its pullback to the path
+is not) and a merge of two notes whose citations differ (`merge_not_metric`) are chain maps that do
+not commute with `δ`. The merge's pullback is an isometry under TRN-3's fiber-weighted inner product,
+and no inner product on the target repairs it, since every pullback is constant on the merged pair:
+the fiber weight is the dilation's inner product (Result 5), not metric coherence's. A bijection is
+not needed either: the six-cycle wound twice around the three-cycle merges every note and commutes
+with `δ` (`wind_metric`), each note's citations going one to one onto its image's. What Result 4
+needs is that local isometry; the characterization itself is not checked. Read with `σ_*` the
+push-forward of TRN-1 instead of the pullback, `d` and `δ` trade places in Result 4's formulas, by
+the adjunction; that reading is not separately checked. *Falsifier:* none left for Results 3 and 4
+as corrected.
+
 ## L4. The frustration lift — how far the zero mode rises
 
 A balanced signed graph keeps the zero mode of `L̄`; a contradiction lifts it
