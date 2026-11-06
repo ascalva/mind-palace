@@ -597,10 +597,12 @@ class SharedPlane:
     def rekey_rows(self) -> tuple[int, int]:
         """Give every occupancy, superseded ones included, its doc-scoped row id (`row_key`), in
         place: the plane's half of the chunk-key migration (PLN-6, `formal/Palace/Plane.lean`).
-        A row id is payload that no read decides by and no law reads, so an `UPDATE` of that one
-        column, in one transaction, is the whole write: no atom, no other column, no supersession
-        edge and no cached `held` entry moves. Returns (occupancies, ids changed); a second run
-        changes none."""
+        A row id is payload: no law reads it, and the one read that compares it, a land's test for
+        a changed derivation (`existing != set(f.chunks)`), takes a re-land under other row ids for
+        a new derivation and rewrites the version's rows, the same atoms at the same positions. So
+        an `UPDATE` of that one column, in one transaction, is the whole write: no atom, no other
+        column, no supersession edge and no cached `held` entry moves. Returns (occupancies, ids
+        changed); a second run changes none."""
         with self._writing() as conn:
             rows = changed = 0
             conn.execute("BEGIN IMMEDIATE")
