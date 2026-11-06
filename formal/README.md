@@ -46,6 +46,11 @@ Roundoff and FloatModel, so it has no statements of its own):
   partial function on coordinate space, and MEM-1 to MEM-5.
 - `Spectral`: `L_sym` and LAP-4 (`laplacian_sym`), and the pseudo-inverse `L⁺` that
   `core/graph/conductance.py` takes for effective resistance (CND-1).
+- `Gap`: SPC-3, when a tolerance tells zero from nonzero: Weyl's inequality counted, for symmetric
+  operators and for singular values, by the dimension count beneath Courant and Fischer (Mathlib
+  has neither), and the spectral-gap lemma for a cut, with NumPy's backward stability as the
+  hypothesis: the pseudo-inverse's cut and the rise threshold of `core/graph/conductance.py`, the
+  rank cut of `core/kernel/complex/hodge.py`.
 - `Balance`: signed balance, LAP-5 and LAP-6 (`core/kernel/complex/balance.py`).
 - `Cut`: conductance, CUT-1 (`core/complex/cut.py`).
 - `Curvature`: Forman curvature, CRV-1 and CRV-2, and CRV-3, the emission rule of
@@ -159,7 +164,7 @@ Roundoff and FloatModel, so it has no statements of its own):
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
 - `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the cited theorems
-  (255 theorems), and the three standard axioms.
+  (261 theorems), and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself. It is weaker than the comparator: it
   compares the statements' types and the definitions' values, not constructors, recursor rules or
@@ -229,6 +234,7 @@ Roundoff and FloatModel, so it has no statements of its own):
 | PLN-2 (A3.5) | noninterference: after any trace of writes that keep each path at one stratum, a reader under `C` sees, in its view and in every search, what it would see after the cleared writes, purges and repairs alone | proved by unwinding, under the hypotheses below; attack survived 480 traces with an uncleared write and a cleared hit |
 | `rn` | binary64 rounding to nearest, ties to even, without overflow: it fixes binary64 numbers, is monotone and odd, lands on binary64, and moves `x` by at most half an ulp; on the grid of multiples of `2⁻¹⁰⁷⁴` (every sum of two binary64 numbers), by at most `u\|x\|`, `u = 2⁻⁵³`, subnormals included | the model; on this machine it matched 500 sums, 500 quotients and 500 quotients `k / n` bit for bit |
 | CND-6 (float64) | `chi_s = rn(chain / n_s)` is `1.0` exactly when the chain spans the stratum, for every `n_s < 2^54`, and not at `2^54`; `chi_s ≤ 1` for every `n_s`, and `chi_s > 0` up to `2^1074` | proved over `rn`, with the witness; on this machine it survived 500 |
+| SPC-3 | Weyl's inequality counted: a perturbation within `ε` keeps at most `t` every eigenvalue (singular value) that was at most `t − ε` and brings at most `t` only those that were at most `t + ε`; so a cut `θ` with `ε ≤ θ` and `θ + ε < g` keeps below it exactly the zero ones | proved; attack survived 500 symmetric `3 × 3` perturbations over `ℚ` |
 | `rnf` | `rn` with the format's precision `p` and least exponent `emin` as parameters, `rn = rnf 53 (-1074)`; it moves `x` by at most `2⁻ᵖ · max \|x\| 2^(emin+p−1)` | the model; at binary32 it matched this machine's conversion of 500 doubles bit for bit, and at binary16, as `rn16 ∘ rn32`, the store's write path on all 234 doubles of its table |
 | VEC-1 (float16) | rounding to binary16 moves a coordinate by at most `2⁻¹¹ · max \|x\| 2⁻¹⁴`, a vector by `2⁻¹¹ √(‖x‖² + d · 2⁻²⁸)`, and a cosine by at most `betaStore ≈ 2⁻¹¹` for vectors of norm at least `ν` (Dunkl and Williams in an inner product space); the query's rounding by `betaQuery`; a top `k` whose margin exceeds `2 (betaStore + betaQuery + γ)` is the top `k` of the exact cosines | proved over `rn16`; the coordinate bound survived 500, the certificate 299 |
 | LAP-1 (float64) | two association orders of the same at most four nonzero nonnegative binary64 summands agree within `4·eps` of either result, at eight summands two orders differ by five ulps, beyond the bound; the boundary test itself checks every row against the general `2·γₙ·Σ\|w\|` bound, which is not machine-checked | proved over `rn`, with the witness; on this machine it survived 340 rows that reassociate |
@@ -407,6 +413,12 @@ coordinate bound survived 500 instances and its controls (no floor below the nor
 bound) failed on the first; the margin certificate survived 299 instances whose margin held, and
 with a margin of `β` in place of `2β` it is refuted within 33.
 
+SPC-3 has an exact shadow: for a symmetric `3 × 3` matrix over `ℚ` the eigenvalues below `t` are
+the sign changes of the leading principal minors of `A − t` (Jacobi's rule, Sylvester's law of
+inertia), so the attack draws a matrix, a perturbation of small entries bounded by Gershgorin's
+`ε`, and a threshold, and checks both of Weyl's counts: it survived 500 (seed 297), and without the
+slack `ε` it is refuted on the first instance.
+
 The scope algebra. `Palace/Scope.lean` transcribes `core/kernel/scope.py` and the parts of
 `core/query.py`, `core/kernel/agent_scope.py` and `core/kernel/clearance.py` that build or read
 scopes, and the transcription was checked against the Python by enumeration: which of 196 raw
@@ -582,7 +594,7 @@ nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
 does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the
-255 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
+261 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.
 
