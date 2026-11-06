@@ -12,6 +12,14 @@
 # the ones whose layer you've turned on.
 set -eu
 
+# These are Ouroboros's items. A named instance (MIND_PALACE_OVERLAY, DI-2) reads its own,
+# `<id>.<name>`, so the wrapper refuses rather than put Ouroboros's secrets in its environment.
+if [ -n "${MIND_PALACE_OVERLAY:-}" ]; then
+  echo "run_with_secrets.sh injects Ouroboros's Keychain items;" \
+       "refusing under MIND_PALACE_OVERLAY" >&2
+  exit 1
+fi
+
 kc() { security find-generic-password -a mind-palace -s "$1" -w 2>/dev/null || true; }
 
 exec env \

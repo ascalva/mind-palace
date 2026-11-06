@@ -277,14 +277,17 @@ class TaskStore:
 
 def notices_path() -> Path:
     """Where the Open WebUI bridge reads the notices: its handoff directory (config/stack.toml
-    [bridge] handoff_dir) — the core↔edge channel the bridge already uses."""
+    [bridge] handoff_dir) — the core↔edge channel the bridge already uses. The directory resolves
+    under the instance's root (DI-2): Ouroboros's `data/` as before, a named instance's own, so a
+    named instance never writes notices into Ouroboros's bridge spool."""
     import tomllib
 
-    from core.kernel.config import REPO_ROOT
+    from core.kernel.config import REPO_ROOT, get_config
 
     stack = REPO_ROOT / "config" / "stack.toml"
     bridge = tomllib.loads(stack.read_text()).get("bridge", {}) if stack.exists() else {}
-    return REPO_ROOT / str(bridge.get("handoff_dir", "data/handoff/mcp")) / NOTICES
+    root = get_config().instance.root
+    return root / str(bridge.get("handoff_dir", "data/handoff/mcp")) / NOTICES
 
 
 def write_notices(store: TaskStore, *, path: Path | None = None, now: datetime | None = None,

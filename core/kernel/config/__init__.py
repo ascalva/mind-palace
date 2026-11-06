@@ -29,6 +29,7 @@ from core.kernel.config.loader import (
     InstanceOverlayError,
     InterfaceConfig,
     ModelConfig,
+    Namespaces,
     OllamaConfig,
     PathsConfig,
     ResourceConfig,
@@ -39,7 +40,9 @@ from core.kernel.config.loader import (
     get_config,
     get_secret,
     load_config,
+    namespaces_of,
     refresh_config,
+    shared,
 )
 
 __all__ = [
@@ -57,6 +60,7 @@ __all__ = [
     "InterfaceConfig",
     "LEVERS_OVERLAY",
     "ModelConfig",
+    "Namespaces",
     "OUROBOROS",
     "OllamaConfig",
     "PathsConfig",
@@ -69,5 +73,7 @@ __all__ = [
     "get_config",
     "get_secret",
     "load_config",
+    "namespaces_of",
     "refresh_config",
+    "shared",
 ]

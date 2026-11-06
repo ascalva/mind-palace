@@ -1,5 +1,8 @@
 """The heartbeat: `palace tick`, every 15 minutes (`com.mind-palace.tick`, installed by `stack up`).
 
+That label is Ouroboros's, `InstanceConfig().label("tick")`; a named instance's would be
+`com.mind-palace.<id>.tick`, and the stack installs none for it (DI-2).
+
 Phase 1 of docs/brainstorms/ambassador-agent-loop.md (the loop's gaps: dn-agentic-loop), built to
 one rule: **the tick never loads a model to decide whether to load one.** Plain code reads the
 machine and the ledger, a decision table turns the readings into actions, and only an action the

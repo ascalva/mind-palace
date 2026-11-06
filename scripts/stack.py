@@ -31,6 +31,10 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 CFG = tomllib.loads((ROOT / "config" / "stack.toml").read_text())
 UID = os.getuid()
+# core/kernel/config/loader.py's OVERLAY_ENV. The stack is Ouroboros's: its labels (the heartbeat's
+# is `InstanceConfig().label("tick")`), its bridge spool and its heartbeat serve the default chain,
+# so it refuses to run for a named instance rather than install Ouroboros's services as that one's.
+OVERLAY_ENV = "MIND_PALACE_OVERLAY"
 
 
 def _x(p: str) -> Path:
@@ -430,6 +434,10 @@ def main(argv: list[str]) -> int:
     cmd = argv[0] if argv else "status"
     if cmd == "serve-embedder":           # the LaunchAgent's entry point; never returns
         serve_embedder()
+    if os.environ.get(OVERLAY_ENV):
+        print(f"✗ the stack is Ouroboros's: its embedder, bridge and heartbeat serve the default "
+              f"chain, not the instance {OVERLAY_ENV} names. Unset {OVERLAY_ENV} to manage it.")
+        return 1
     if cmd == "up":
         lines = [chat_status(), embedder_up(), bridge_up(), tick_up(), opencode_up(),
                  palace_preflight()]

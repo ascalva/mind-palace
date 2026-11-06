@@ -5,6 +5,14 @@
 # command line); restic + vault inherit them.
 set -eu
 
+# Ouroboros only (DI-2): the Keychain items, the Vault token and the staging dir below are
+# Ouroboros's, so a named instance (MIND_PALACE_OVERLAY) is refused before any of them is read. A
+# named instance's backup reads its own derived items (`<id>.restic-password`, ...); not built yet.
+if [ -n "${MIND_PALACE_OVERLAY:-}" ]; then
+  echo "FATAL: backup.sh backs up Ouroboros only; refusing under MIND_PALACE_OVERLAY" >&2
+  exit 1
+fi
+
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO_ROOT"
 # uv owns env resolution (CONVENTIONS §Language); absolute path — launchd PATH is minimal.
