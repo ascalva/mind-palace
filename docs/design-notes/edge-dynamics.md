@@ -2,7 +2,7 @@
 type: design-note
 id: dn-edge-dynamics
 status: ratified # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
-implementation: design-only # the degree-0 floor exists (laplacian/spectral/topology/balance/temporal/curvature); nothing at degree 1 is built
+implementation: partial # Lane A built (degree-1 Hodge, snapshot invariants); Lane B not built
 created: 2026-07-12
 updated: 2026-07-12
 links:
@@ -24,6 +24,8 @@ warrant: null
 > Consumes `docs/brainstorms/edge-dynamics-and-continuum.md` whole (the five owner
 > capsules of 2026-07-12, consolidated); the physics dictionary and the verified
 > code-reference table live there and are not repeated here.
+
+Code: Lane A is in `core/kernel/complex/hodge.py` (L-a) and `core/complex/temporal.py` (L-c). Lane B is not built.
 
 ## 1. Purpose and scope
 
