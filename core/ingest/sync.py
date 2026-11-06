@@ -112,8 +112,8 @@ class VaultSync:
 
     def in_scope(self, path: Path) -> bool:
         """Whether one path is a note the rescan would see: a regular file under the vault that
-        matches the note pattern and lies in no excluded directory. The door's `ingest note`
-        asks before landing a single note (dn-ingest-door §9), so the scope that binds the
+        matches the note pattern and lies in no excluded directory. The ingress's `ingest note`
+        asks before landing a single note (dn-ingress §9), so the scope that binds the
         rescan binds the sentence."""
         return in_vault_scope(self.vault, path, pattern=self.pattern,
                               exclude_dirs=self.exclude_dirs)
@@ -148,7 +148,7 @@ class VaultSync:
                 if match is not None:
                     resolved_doc_id = match[1]
 
-        # The landing order (dn-ingest-door D1, DOR-7; core/ingest/landing.py): land, then the
+        # The landing order (dn-ingress D1, ING-7; core/ingest/landing.py): land, then the
         # version row, then the attestation, and LAST the catalog's digest, the idempotence key the
         # UNCHANGED check above reads. A crash anywhere before the key leaves a run the next run
         # repeats in full and lands exactly the same (the version is appended only when new, the
@@ -176,7 +176,7 @@ class VaultSync:
             # tombstoned after this pass), is a version event (bp-031) and appends even at the
             # same digest; anything else appends only when the digest is new, so a re-run after a
             # crash appends nothing. The one window this cannot tell apart is a crash inside a
-            # rename's landing, which a path on the version row would close (dn-ingest-door §9).
+            # rename's landing, which a path on the version row would close (dn-ingress §9).
             rename = prev is None and any(
                 other != source_path for other in self.catalog.paths_for(doc_id))
             if rename:
@@ -196,7 +196,7 @@ class VaultSync:
     def sync_one(self, path: Path) -> SyncOutcome:
         """One note, as the rescan would land it: a path new to the catalog whose bytes are a
         vanished note's (one still active whose file is gone) adopts that note's identity, so a
-        note renamed just before it is ingested alone keeps its version chain (the door's
+        note renamed just before it is ingested alone keeps its version chain (the ingress's
         `ingest note`)."""
         source_path = str(path)
         rename_by_digest: dict[str, tuple[str, str]] = {}
@@ -243,7 +243,7 @@ class VaultSync:
             str(path): path
             for path in iter_vault(self.vault, pattern=self.pattern, exclude_dirs=self.exclude_dirs)
         }
-        # the catalog is shared (the dialogue's turns, the curated docs, the door's captures):
+        # the catalog is shared (the dialogue's turns, the curated docs, the ingress's captures):
         # a rescan reconciles only the vault's own rows, the paths under the vault
         gone = {g for g in self.catalog.active_paths() if self.owns(g)} - set(present)
 

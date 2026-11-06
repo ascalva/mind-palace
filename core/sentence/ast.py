@@ -249,7 +249,7 @@ class Assume:
     body: Node
 
 
-# ── the door: a script, the action sort (dn-door-language §E6) ─────────────────────────────
+# ── the ingress: a script, the action sort (dn-ingress-language §E6) ─────────────────────────────
 
 
 @dataclass(frozen=True)

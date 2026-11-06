@@ -1,4 +1,4 @@
-"""The door's language: its values, the checker, and the metered evaluator (dn-door-language §E1
+"""The ingress language: its values, the checker, and the metered evaluator (dn-ingress-language §E1
 to §E5, §E10).
 
 Evaluation reads and writes nothing. A script's value is a **plan**, the effects it would have
@@ -77,7 +77,7 @@ class Content:
 class OStr(str):
     """A string read off an item or an entry. Its value is the string's; it keeps the item's
     label and origin, so an identity can be shown to be the item's own (R6) and a property
-    stored as content keeps its item's label (a projection, DOR-13). Every `str` operation
+    stored as content keeps its item's label (a projection, ING-13). Every `str` operation
     returns a plain `str`: a composed string is observed."""
 
     label: str
@@ -208,7 +208,7 @@ class Palace(Protocol):
 # ── the meter ───────────────────────────────────────────────────────────────────────────────
 
 # The price of each operation, in units of work, one unit the time of one evaluation step
-# (§E10). Measured on fixtures, never assumed: `eval/door_gas.py` measures them, and
+# (§E10). Measured on fixtures, never assumed: `eval/ingress_gas.py` measures them, and
 # `docs/query/precedents.md` records the table and the run it came from (2026-11-05: a step
 # 0.30 µs; the embeds on the palace's embedder). Rounded to two figures.
 PRICES: Mapping[str, int] = {

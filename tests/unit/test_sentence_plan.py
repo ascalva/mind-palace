@@ -87,8 +87,8 @@ def test_an_inadmissible_sentence_does_not_compile() -> None:
 
 
 def test_a_commands_plan_is_itself_and_the_executor_sends_it_to_a_surface() -> None:
-    """dn-door-language §E6: no rewrite applies to a request, its plan renders the call, it has no
-    assumptions, and the executor refuses to evaluate it, naming the surface that spools it."""
+    """dn-ingress-language §E6: no rewrite applies to a request, its plan renders the call, it has
+    no assumptions, and the executor refuses to evaluate it, naming the surface that spools it."""
     from core.query import AMBASSADOR_OVERLAY
     from core.sentence import IllScopedSentence, Sort, Universe, UnsupportedSentence, execute
     from core.sentence.ast import Do

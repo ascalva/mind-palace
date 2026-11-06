@@ -188,7 +188,7 @@ def test_a_command_never_puts_its_text_in_the_log(tmp_path: Path) -> None:
     the redaction is linear, a hostile 32 KB command costing what any command does."""
     import time
 
-    from core.ingest import door
+    from core.ingest import ingress
     from core.kernel.config import get_config
     from core.sentence.surface import ask_logged, redact_command
 
@@ -202,7 +202,7 @@ def test_a_command_never_puts_its_text_in_the_log(tmp_path: Path) -> None:
                           ('do capture(text: "x", nope: "openwebui/4321")', ValueError),
                           ('do capture(text: "' + "4321 " * 8000 + '")', ValueError)):
         with pytest.raises(refused):
-            ask_logged(text, door.grant_for("ambassador"), surface="mcp", role="ambassador",
+            ask_logged(text, ingress.grant_for("ambassador"), surface="mcp", role="ambassador",
                        engine=_E(), log=log)          # type: ignore[arg-type]
     raw = (tmp_path / "q.jsonl").read_text()
     assert "4321" not in raw and "secret" not in raw and "openwebui" not in raw
@@ -216,7 +216,7 @@ def test_a_command_never_puts_its_text_in_the_log(tmp_path: Path) -> None:
 
 
 def test_a_busy_spool_is_a_refusal_of_its_own_class() -> None:
-    from core.ingest.door import Busy
+    from core.ingest.ingress import Busy
     from core.sentence.surface import refusal_class
     assert refusal_class(Busy("full")) == "busy"
 

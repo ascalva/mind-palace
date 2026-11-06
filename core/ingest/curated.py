@@ -64,7 +64,7 @@ def ingest_curated(paths: list[Path], raw: RawStore, store: VectorStore, embedde
     for p in paths:
         parsed = parse_note(p, repo_root)
         record = ingest_note(parsed, raw, provenance=Provenance.CURATED)
-        # the idempotence key (dn-ingest-door D1, DOR-2): a doc the catalog already holds at this
+        # the idempotence key (dn-ingress D1, ING-2): a doc the catalog already holds at this
         # digest lands nothing and attests nothing; before this check every run re-attested every
         # doc (the audit's defect 2). The plane must still hold its rows: after a plane reset
         # (`palace reembed --confirm`) the catalog's key is stale, and a re-run re-lands the doc

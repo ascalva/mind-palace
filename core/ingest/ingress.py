@@ -1,10 +1,10 @@
-"""The door: a command as a request, the daemon as the one writer (dn-ingest-door D3, D5, D7).
+"""The ingress: a command as a request, the daemon as the one writer (dn-ingress D3, D5, D7).
 
 A surface that speaks a command (`do …`) compiles it under the grant of the **role** it speaks
 for, and, if admitted, writes a **request** into its spool, a per-role directory under the
 interface handoff directory (`cfg.interface.handoff_dir`; the daemon makes and owns the
 spools, and only a role's own writers may write its spool, §5). The daemon drains the
-spools each tick (`scheduler/door.py`), enqueues one job per request as the kind the command
+spools each tick (`scheduler/ingress.py`), enqueues one job per request as the kind the command
 compiles to, and binds the **role to the spool the request came from**: the filesystem is the
 authenticator, no field of the request names a role. The job's payload is the request id and
 the sentence's digest (and, for today's kinds, their usual payload), so `queue.sqlite` never
@@ -24,13 +24,13 @@ A request is read through a file descriptor that follows no link and blocks on n
 file with one link, under the size cap, whose id is sixteen hex digits and its name, written, in
 the operator's spool, by the daemon's own account. Anything else is moved to `rejected/` and
 reported, never re-read and never allowed to stop the drain; the daemon then works from its own
-copy (`stage`), so a writer's later change to its file changes nothing. The identities the door
-mints for turns live under `dialogue/door/<role>/`, so no role's command can name the owner's
+copy (`stage`), so a writer's later change to its file changes nothing. The identities the ingress
+mints for turns live under `dialogue/ingress/<role>/`, so no role's command can name the owner's
 turns or another role's.
 
 This module is core: it opens no queue and no store on its own, and imports no scheduler. The
-scheduler's `drain_spool` and `door_handler` are the daemon's side; `perform` is the landing of
-the commands the door lands itself, given the components the daemon holds.
+scheduler's `drain_spool` and `ingress_handler` are the daemon's side; `perform` is the landing of
+the commands the ingress lands itself, given the components the daemon holds.
 """
 
 from __future__ import annotations
@@ -53,14 +53,14 @@ from core.sentence import ast
 from core.sentence.plan import Plan
 from core.sentence.types import IllScopedSentence, Sort
 
-SPOOL = "door"
+SPOOL = "ingress"
 
-# The roles the door knows and the grant each speaks under (dn-ingest-door D3, §8): the agents'
+# The roles the ingress knows and the grant each speaks under (dn-ingress D3, §8): the agents'
 # surface holds the Ambassador's grant, the owner's CLI the operator's. A role nothing writes for
 # is not listed: a spool directory is a grant, and an idle grant is a hole.
 _ROLE_GRANTS: dict[str, str] = {"ambassador": "ambassador", "cli": "operator"}
 # The roles whose spool the palace group may write: the agents run under their own account
-# (plane-principals), and the Ambassador's grant is the least the door gives. The operator's
+# (plane-principals), and the Ambassador's grant is the least the ingress gives. The operator's
 # spool is the owner's account's alone.
 _SHARED_ROLES: frozenset[str] = frozenset({"ambassador"})
 
@@ -84,13 +84,13 @@ class Busy(RuntimeError):
 
 
 def grant_for(role: str) -> Grant:
-    """The grant a role speaks under at the door. An unknown role is refused, never defaulted."""
+    """The grant a role speaks under at the ingress. An unknown role is refused, never defaulted."""
     kind = _ROLE_GRANTS.get(role)
     if kind == "operator":
         return OPERATOR
     if kind == "ambassador":
         return AMBASSADOR_OVERLAY if get_config().query.hypotheticals else AMBASSADOR
-    raise IllScopedSentence(f"the door knows no role {role!r}; one of "
+    raise IllScopedSentence(f"the ingress knows no role {role!r}; one of "
                             f"{', '.join(sorted(_ROLE_GRANTS))}")
 
 
@@ -116,7 +116,7 @@ def sentence_digest(sentence: str) -> str:
 
 @dataclass(frozen=True)
 class Receipt:
-    """What the door reports: the request, its role, its kind, its state (`spooled`, `queued`,
+    """What the ingress reports: the request, its role, its kind, its state (`spooled`, `queued`,
     `landed`, `refused`, `failed`), the job id once enqueued, and what landed or why not. The
     sentence is not repeated here: the request file holds it, the receipt names it."""
 
@@ -157,7 +157,7 @@ def _warn_once(say: Report | None, key: str, message: str) -> None:
 
 
 def roles() -> tuple[str, ...]:
-    """The roles the door knows, in the order the drain serves them."""
+    """The roles the ingress knows, in the order the drain serves them."""
     return tuple(sorted(_ROLE_GRANTS))
 
 
@@ -266,11 +266,11 @@ def ensure_spools(cfg: Config, *, report: Report | None = None) -> list[str]:
         _make_spools(cfg)
     except OSError as e:
         _warn_once(report, f"make:{spool_root(cfg)}",
-                   f"door: cannot make the spools ({type(e).__name__}: {e})")
+                   f"ingress: cannot make the spools ({type(e).__name__}: {e})")
     root = spool_root(cfg)
     why = _check_dir(root, group_writes=False)
     if why is not None:
-        _warn_once(report, f"bad:{why}", f"door: nothing is drained: {why}")
+        _warn_once(report, f"bad:{why}", f"ingress: nothing is drained: {why}")
         return []
     healthy = []
     for role in roles():
@@ -281,7 +281,7 @@ def ensure_spools(cfg: Config, *, report: Report | None = None) -> list[str]:
         if why is None:
             healthy.append(role)
         else:
-            _warn_once(report, f"bad:{why}", f"door: the {role} spool is not drained: {why}")
+            _warn_once(report, f"bad:{why}", f"ingress: the {role} spool is not drained: {why}")
     return healthy
 
 
@@ -319,15 +319,15 @@ def _read_bounded(path: Path, cap: int) -> tuple[bytes, os.stat_result]:
 # ── the kinds ──────────────────────────────────────────────────────────────────────────────────
 
 SCRIPT_KIND = "script"
-# The door's own kinds: a job that names a request staged in `queued/` (dn-door-language §E7).
-DOOR_KINDS: frozenset[str] = frozenset({SCRIPT_KIND})
+# The ingress's own kinds: a job that names a request staged in `queued/` (dn-ingress-language §E7).
+INGRESS_KINDS: frozenset[str] = frozenset({SCRIPT_KIND})
 
 
 def kind_of(do: ast.Do) -> tuple[str, dict[str, Any]]:
     """The queue kind a request takes, and the kind's usual payload: a bare call of a library
     script the table maps to one of the queue's own coalescing kinds is that kind, so it coalesces
     with the watcher's and the heartbeat's rows; every other request is a `script` job that names
-    its staged copy (dn-door-language §E7)."""
+    its staged copy (dn-ingress-language §E7)."""
     from core.ingest.table import COALESCING
     from core.sentence.script import CallScript
 
@@ -358,7 +358,7 @@ def write_request(cfg: Config, *, role: str, plan: Plan) -> Receipt:
     if plan.sort is not Sort.EVENT or not isinstance(plan.term, ast.Do):
         raise ValueError(f"not a request: {plan.sentence!r}")
     if role not in _ROLE_GRANTS:
-        raise IllScopedSentence(f"the door knows no role {role!r}")
+        raise IllScopedSentence(f"the ingress knows no role {role!r}")
     if len(plan.sentence.encode("utf-8")) > MAX_SENTENCE_BYTES:
         raise ValueError(f"a request is at most {MAX_SENTENCE_BYTES} bytes")
     kind, _ = kind_of(plan.term)
@@ -367,11 +367,11 @@ def write_request(cfg: Config, *, role: str, plan: Plan) -> Receipt:
         handoff = Path(cfg.interface.handoff_dir)
         handoff.mkdir(parents=True, exist_ok=True)
         if handoff.stat().st_uid != os.getuid():
-            raise PermissionError("the door's spools are the daemon's to make, and it has not "
+            raise PermissionError("the ingress's spools are the daemon's to make, and it has not "
                                   "made them yet: start the daemon")
         _make_spools(cfg)           # the daemon's own account: what the daemon would make
     if not _real_dir(spool):
-        raise PermissionError(f"{spool} is not a directory; the door's spools are")
+        raise PermissionError(f"{spool} is not a directory; the ingress's spools are")
     depth = sum(1 for e in os.scandir(spool) if e.name.endswith(".json"))
     if depth >= MAX_SPOOLED:
         raise Busy(f"the {role} spool holds {depth} requests; the daemon drains it each tick")
@@ -408,7 +408,7 @@ def _request_names(d: Path, say: Report) -> list[tuple[int, str]]:
                 if not e.name.endswith(".json"):
                     continue
                 if len(out) >= SCAN_MAX:
-                    _warn_once(say, f"flood:{d}", f"door: {d} holds more than {SCAN_MAX} "
+                    _warn_once(say, f"flood:{d}", f"ingress: {d} holds more than {SCAN_MAX} "
                                                   "requests; they are served a slice a tick")
                     break
                 try:
@@ -480,9 +480,9 @@ def reject(f: Path, say: Report, why: str, *, cfg: Config | None = None,
         dest = f.parent / "rejected" / f"{f.name}.{n}"
     try:
         f.replace(dest)
-        say(f"door: {f} rejected ({why}); moved to {dest}")
+        say(f"ingress: {f} rejected ({why}); moved to {dest}")
     except OSError as e:
-        _warn_once(say, f"stuck:{f}", f"door: {f} rejected ({why}) and could not be moved: {e}")
+        _warn_once(say, f"stuck:{f}", f"ingress: {f} rejected ({why}) and could not be moved: {e}")
     rid = f.name.removesuffix(".json")
     if cfg is not None and role in _ROLE_GRANTS and _RID.fullmatch(rid) \
             and read_receipt(cfg, role, rid) is None:
@@ -503,7 +503,7 @@ def seen(cfg: Config, role: str, rid: str) -> bool:
 
 def _queued_path(cfg: Config, role: str, rid: str) -> Path:
     if role not in _ROLE_GRANTS:
-        raise IllScopedSentence(f"the door knows no role {role!r}")
+        raise IllScopedSentence(f"the ingress knows no role {role!r}")
     if not _RID.fullmatch(rid):
         raise IllScopedSentence(f"not a request id: {rid!r}")
     return spool_root(cfg) / role / "queued" / f"{rid}.json"
@@ -557,7 +557,7 @@ def read_receipt(cfg: Config, role: str, rid: str) -> Receipt | None:
 
 
 def prune(cfg: Config, *, now: float | None = None, max_age_s: float = PRUNE_AFTER_S) -> int:
-    """Remove what the door keeps only for a while: receipts and rejected files older than
+    """Remove what the ingress keeps only for a while: receipts and rejected files older than
     `max_age_s`, and the staged copies of failed requests, or of requests no receipt names, as
     old. A staged copy whose job may still run is never removed, and only regular files are
     touched. Returns how many were removed."""
@@ -607,7 +607,7 @@ def build_stores(cfg: Config, enqueue: Callable[..., int] | None = None) -> Any:
 
 def reader(cfg: Config, role: str) -> Callable[[str], list[Any]]:
     """A nested sentence's evaluation, under the role's grant: the read half, whose hits come back
-    as records whose strings are observed (dn-door-language §E11)."""
+    as records whose strings are observed (dn-ingress-language §E11)."""
     def read(sentence: str) -> list[Any]:
         from dataclasses import fields as dc_fields
 
@@ -661,7 +661,7 @@ def perform(do: ast.Do, cfg: Config, role: str, *, stores: Any,
             refresh: bool = False) -> dict[str, Any]:
     """Run a request under the one writer: evaluate its script under the role (reading the
     palace, writing nothing) into a plan, then land the plan, each effect by the writer's rules
-    (dn-door-language §E5). `request` is the request's id, so the jobs its plan starts start
+    (dn-ingress-language §E5). `request` is the request's id, so the jobs its plan starts start
     once however often it runs; `refresh` runs a structured source's edge reader before its
     first read, which only the daemon's own syncs and the owner's CLI ask for. Returns what the
     receipt says: each effect's outcome, counted by status, those that changed or were refused

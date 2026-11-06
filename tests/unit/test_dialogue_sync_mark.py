@@ -1,6 +1,6 @@
 """The dialogue sync's high-water mark (`ops/lifecycle/launcher.py` `dialogue_sync`: the library
-script `door/sync_dialogue.palace` once a reader), which the heartbeat (ops/heartbeat.py) reads to
-ask "anything new since the last sync?".
+script `ingress/sync_dialogue.palace` once a reader), which the heartbeat (ops/heartbeat.py) reads
+to ask "anything new since the last sync?".
 
 Proves: a reader whose plan landed leaves `<reader>.synced` with the newest change it saw; a
 reader not asked for, a failing edge reader, or a landing that dies midway leaves no mark, so the
@@ -20,7 +20,7 @@ import pytest
 from core.kernel.provenance import Provenance
 from ops.heartbeat import synced_mark
 from ops.lifecycle.launcher import dialogue_sync
-from tests.fixtures.door import Palace, palace_at
+from tests.fixtures.ingress import Palace, palace_at
 
 CHATS = {
     "openwebui": [{"chat_id": "c1", "updated_at": 100,

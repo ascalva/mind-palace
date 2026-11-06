@@ -173,7 +173,7 @@ def test_read_is_a_text_that_composes_with_nothing_and_reads_by_the_refs_shape()
     assert under.overlay and Stratum.HYPOTHETICAL in under.req.sigma.strata
 
 
-# ── the door: each effect requires the write bit on its place (dn-door-language R1, DOR-1) ─────
+# ── the ingress: each effect requires the write bit on its place (dn-ingress-language R1, ING-1) ──
 
 
 _ARGS = {"ingest_note": 'path: "x.md"', "ingest_doc": 'path: "docs/x.md"',
@@ -215,7 +215,7 @@ def test_a_request_is_an_event_and_each_effect_requires_the_write_bit_on_its_pla
 
 
 def test_the_ambassadors_grant_as_written_admits_projection_event_commands_only() -> None:
-    """DOR-1 read on the grant as it stands (dn-door-language R1): the first plane carries the
+    """ING-1 read on the grant as it stands (dn-ingress-language R1): the first plane carries the
     write bit at the projection-event clock over six strata, the commit-clock plane carries none,
     and the order is false across clocks, so the scripts that write those strata are admitted and
     the ones that start a commit-clock job are refused."""
@@ -234,7 +234,7 @@ def test_the_ambassadors_grant_as_written_admits_projection_event_commands_only(
 
 
 def test_a_read_only_grant_admits_no_command_and_still_admits_every_query() -> None:
-    """DOR-1 `readonly_admits_no_command`: planes without the write bit refuse every request."""
+    """ING-1 `readonly_admits_no_command`: planes without the write bit refuse every request."""
     from core.kernel.scope import Window
     from core.query import Grant, scope
 
@@ -247,7 +247,7 @@ def test_a_read_only_grant_admits_no_command_and_still_admits_every_query() -> N
     ))
     for name in ("dream", "capture", "ingest_note", "sync_vault", "link", "sync_code"):
         assert not admissible(_do(_call(name), "cli"), read_only), name
-    assert not admissible(_do('do { store "x" in "observed" at "dialogue/door/cli/t" }', "cli"),
+    assert not admissible(_do('do { store "x" in "observed" at "dialogue/ingress/cli/t" }', "cli"),
                           read_only)
     for text in ('near "x"', 'reach F from "core/x.py"', 'reach C from "x"', 'witness "e"'):
         assert admissible(parse(text), read_only), text

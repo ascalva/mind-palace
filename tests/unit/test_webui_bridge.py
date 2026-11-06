@@ -79,8 +79,8 @@ def test_the_responder_refuses_a_tool_outside_the_web_set():
 
 
 def test_query_from_the_web_speaks_only_the_web_tools_commands():
-    """Since the door, `query` can carry a command; from Open WebUI it may carry only the commands
-    its own tools speak (capture and the two syncs), never `dream`, `relate`, `link` or an
+    """Since the ingress, `query` can carry a command; from Open WebUI it may carry only the
+    commands its own tools speak (capture and the two syncs), never `dream`, `relate`, `link` or an
     ingest, however it is spelled."""
     from agents.ambassador.handoff import web_admits
 

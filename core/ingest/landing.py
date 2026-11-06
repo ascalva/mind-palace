@@ -1,4 +1,4 @@
-"""The landing order of the door (dn-ingest-door D1, D5; DOR-7 in `formal/Palace/Door.lean`).
+"""The landing order of the ingress (dn-ingress D1, D5; ING-7 in `formal/Palace/Ingress.lean`).
 
 A run lands in stages, and the stage order is what makes an interrupted run safe: every prefix is
 a consistent state, every stage is idempotent, and the **idempotence key** (the catalog's digest
@@ -6,7 +6,7 @@ for the path, which the UNCHANGED check reads) is the last write. A crash before
 run the next run repeats in full, so the next run lands exactly what the interrupted one would
 have; a crash after the key changes nothing, since the key is the last write. The two lanes that
 wrote the key first (`sync_path`, `capture_turn`) and the one that had no key (`ingest_curated`)
-were the audit's defects 1 and 2 (dn-ingest-door §9).
+were the audit's defects 1 and 2 (dn-ingress §9).
 
 Two helpers make the stages before the key idempotent at the ledger grain: a version is appended
 only when the digest is not already the chain's head (`appendIfNew` in the model; a revert to an

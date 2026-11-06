@@ -283,7 +283,7 @@ def compile_sentence(text: str, grant: Grant | None = None, *,
     within bounds, well-sorted and admissible."""
     tree = parse(text)
     if isinstance(tree, ast.Do):
-        # a request is checked under the role that speaks it (dn-door-language §E6, §E12): the
+        # a request is checked under the role that speaks it (dn-ingress-language §E6, §E12): the
         # least-privileged role when none is named
         from core.sentence.script_check import compile_request
 

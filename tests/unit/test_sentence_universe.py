@@ -458,7 +458,7 @@ def test_witness_dereferences_a_causal_edges_own_id(engine: _Engine) -> None:
     assert "witness_digest" not in hit.detail            # a raw-store key never leaves the store
     none = compile_sentence('witness "nope"', AMBASSADOR_OVERLAY)
     assert execute(none, _build(engine, none)).hits == ()
-    # a landing's receipt names its attestation, and witness dereferences it (DOR-6)
+    # a landing's receipt names its attestation, and witness dereferences it (ING-6)
     att = compile_sentence('witness "att-1"', AMBASSADOR_OVERLAY)
     (hit,) = execute(att, _build(engine, att)).hits
     assert hit.ref == "att-1" and hit.detail["action"] == "capture"

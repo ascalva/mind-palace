@@ -1,5 +1,5 @@
 """The palace's table: the sources a script may open, the places it may write, the roles that
-speak, the jobs a script may start, and what each role may spend (dn-door-language §E2, §E4, §E7,
+speak, the jobs a script may start, and what each role may spend (dn-ingress-language §E2, §E4, §E7,
 §E10).
 
 As an operating system has a mount table, owners and permissions, the palace has this table, and
@@ -305,8 +305,8 @@ def build_table(cfg: Config) -> Table:
         "ambassador": Role("ambassador", {
             "mirror_authored": (vault_prefix,),
             "dialogue": ("dialogue/openwebui/", "dialogue/opencode/",
-                         "dialogue/door/ambassador/"),
-            "observed": ("dialogue/door/ambassador/",),
+                         "dialogue/ingress/ambassador/"),
+            "observed": ("dialogue/ingress/ambassador/",),
             "curated": (repo_prefix,),
         }, budget=100_000_000, retires=frozenset({OBSERVED})),
     }
