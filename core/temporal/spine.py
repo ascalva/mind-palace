@@ -635,6 +635,10 @@ class Spine:
     # GC-3: injected certificate observables for `cut_at` (commit SHA / scheduler trough fact /
     # handoff path). Empty unless injected — a cut needing an unsourced certificate REFUSES (§2.4).
     _cut_sources: CutSources = field(default_factory=CutSources)
+    # `restrict` memo, per instance and keyed by stratum. A Spine is never mutated after
+    # construction (no method writes its fields and `derive` copies every injected input), so the
+    # restriction is a pure function of the instance and the cache is released with it.
+    _restricted: dict[str, Spine] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
     def derive(
@@ -703,7 +707,17 @@ class Spine:
 
     def restrict(self, stratum: str) -> Spine:
         """N_s — the restriction of `(Ev, ≼)` to stratum-s events (the induced sub-poset: a ≼_s b
-        iff a ≼ b in N and both events are in s). GC-2 consumes this."""
+        iff a ≼ b in N and both events are in s). GC-2 consumes this.
+
+        Memoized per instance: the closure is quadratic in a long chain and `proper_time` asks for
+        the same stratum on every call. The returned Spine is shared between calls; like every
+        Spine it must be treated as read-only."""
+        cached = self._restricted.get(stratum)
+        if cached is None:
+            cached = self._restricted[stratum] = self._build_restriction(stratum)
+        return cached
+
+    def _build_restriction(self, stratum: str) -> Spine:
         kept = {eid for eid, ev in self._events.items() if ev.stratum == stratum}
         new_succ = {e: (self._reachable(e) & kept) for e in kept}   # induced transitive closure
         new_pb = {i: (evs & kept) for i, evs in self._produced_by.items() if evs & kept}
