@@ -315,6 +315,37 @@ def test_the_kernel_stays_within_its_hypothesis(tmp_path: Path) -> None:
     assert worst <= kernel_bound(DIM)
 
 
+def test_the_bound_carries_the_querys_double_rounding(tmp_path: Path) -> None:
+    """VEC-1's query term. LanceDB scores the float16 rounding of a query reached through float32,
+    so `betaQuery` is taken against that rounding. A coordinate just above a float16 tie,
+    `1 + 2⁻¹¹ + 2⁻³⁰`, tells it from rounding once: float32 drops the `2⁻³⁰` and the tie goes to
+    the even `1`, where rounding once goes up to `1 + 2⁻¹⁰`. LanceDB's own distance is the witness.
+    Fails if the bound drops the query term, or takes it against rounding once."""
+    q = [1 + 2.0 ** -11 + 2.0 ** -30, 0.3, -0.7, 0.1234567, 2.0 ** -20, -1e-6, 0.5,
+         (1024 + 7 + 0.5) * 2.0 ** -12 * (1 + 2.0 ** -31)]
+    d = len(q)
+    qa = np.asarray(q, dtype=np.float64)
+    twice = np.asarray([float(store_path(x)) for x in q], dtype=np.float64)
+    once = np.asarray([float(rn16(x)) for x in q], dtype=np.float64)
+
+    def beta(qq: F64) -> float:
+        return 2 * float(np.linalg.norm(qq - qa)) / float(np.linalg.norm(qa) + np.linalg.norm(qq))
+
+    db = connect(str(tmp_path / "q.lance"))
+    t = db.create_table("q", schema=pa.schema([("i", pa.int32()),
+                                               ("vector", pa.list_(pa.float16(), d))]))
+    t.add([{"i": i, "vector": [1.0 if j == i else 0.0 for j in range(d)]} for i in range(d)])
+    hits = t.search(q).metric("cosine").limit(d).to_list()
+    got = {int(cast(int, h["i"])): float(cast(float, h["_distance"])) for h in hits}
+    assert abs(got[0] - (1 - twice[0] / np.linalg.norm(twice))) <= kernel_bound(d)
+    assert abs(got[0] - (1 - once[0] / np.linalg.norm(once))) > 1e-4      # not rounding once
+    assert query_bound(q) > 0
+    assert math.isclose(query_bound(q), beta(twice), rel_tol=1e-12)
+    assert not math.isclose(beta(twice), beta(once), rel_tol=1e-9)
+    assert math.isclose(bound(q), 2 * (store_bound(d) + beta(twice) + kernel_bound(d))
+                        * (1 + 2.0 ** -20), rel_tol=1e-12)
+
+
 def test_the_gap_skips_rows_of_one_atom_and_is_infinite_with_nothing_outside() -> None:
     q = [1.0] + [0.0] * 7
     m = certify([0.1, 0.2, 0.2, 0.5], ["a", "b", "b", "c"], 2, q)
