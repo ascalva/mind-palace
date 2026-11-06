@@ -31,7 +31,7 @@ from core.librarian import Librarian
 from core.research.criteria import DeidentificationError
 from edge.interface import GatewayChannel, InterfaceGateway, LocalAdapter
 from ops.gate import HumanGate
-from scheduler.queue import DONE, QUEUED, Job, JobQueue
+from scheduler.queue import DONE, Job, JobQueue
 from scheduler.research import RESEARCH_KIND
 from scheduler.router import Router
 
@@ -138,17 +138,19 @@ class ConversationRuntime:
     def run_pending_tasks(self) -> int:
         """Complete any queued delegated tasks (the supervisor's job; the CLI calls this between
         turns so a delegated result is ready to surface on the owner's next message). Handles both
-        the general `ambassador_task` and — when wired — the airlock `research` kind."""
+        the general `ambassador_task` and — when wired — the airlock `research` kind.
+
+        Each job is CLAIMED first (`JobQueue.claim`, the queue's one constructor of a RUNNING row),
+        so it carries the state, attempt count and lease a supervisor's job carries, and a second
+        runner on the same queue cannot take it while it runs. Kinds this runtime has no handler
+        for are left QUEUED."""
+        handlers: dict[str, Handler] = {AMBASSADOR_TASK_KIND: self.task_handler}
+        if self.research_handler is not None:
+            handlers[RESEARCH_KIND] = self.research_handler
         done = 0
-        for job in self.queue.list(QUEUED):
-            if job.kind == AMBASSADOR_TASK_KIND:
-                handler = self.task_handler
-            elif job.kind == RESEARCH_KIND and self.research_handler is not None:
-                handler = self.research_handler
-            else:
-                continue
+        while (job := self.queue.claim(kinds=frozenset(handlers))) is not None:
             try:
-                self.queue.complete(job.id, handler(job))
+                self.queue.complete(job.id, handlers[job.kind](job))
             except Exception as e:                       # a task failure must not crash the loop
                 self.queue.fail(job.id, repr(e))
             done += 1

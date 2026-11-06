@@ -404,11 +404,14 @@ class JobQueue:
 
     def claim(self, *, loaded_key: tuple[str, int] | None = None,
               blocked_tiers: frozenset[str] = frozenset(),
+              kinds: frozenset[str] | None = None,
               now: datetime | None = None) -> Job | None:
         """Select + mark RUNNING the next eligible job (§13 policy): highest EFFECTIVE priority
         first (priority + anti-starvation aging, gap G6); within the top band prefer the job
         needing no model swap (matching `loaded_key`), then FIFO; skip tiers in `blocked_tiers`
         (the foreground gate) — they stay QUEUED and are revisited once the block clears.
+        `kinds`, when given, limits the choice to those job kinds (an in-process runner that
+        handles only some kinds claims only those; the rest stay QUEUED for the supervisor).
         Returns None if nothing is runnable now.
 
         Stamps `claimed_by_run = self.active_run_id` on the row it takes (extension,
@@ -440,7 +443,8 @@ class JobQueue:
             rows = self._conn.execute(
                 "SELECT * FROM jobs WHERE state = ? ORDER BY priority, id", [QUEUED]
             ).fetchall()
-            eligible = [_row_to_job(r) for r in rows if r["tier"] not in blocked_tiers]
+            eligible = [_row_to_job(r) for r in rows if r["tier"] not in blocked_tiers
+                        and (kinds is None or r["kind"] in kinds)]
             if not eligible:
                 return None
             eff = {j.id: self._effective_priority(j, now) for j in eligible}
