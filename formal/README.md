@@ -26,8 +26,8 @@ Each family comes in three parts:
 `Spec/` is proved in `Palace` with exactly the same statement, from the standard axioms, and
 everything the statements reach passes Lean's kernel and five independent checkers. A proof file
 therefore cannot change what the ledger's laws state: only `Spec/` and the model can. The design
-theorems (Sever, Frustration, Leak, Transport, and the parts of Magnetic and NegativeType no row
-cites) have no `Spec/` statements yet: the kernel replays their proofs, but their statements live
+theorems (Sever, Frustration, Leak, Transport, Superconnection, and the parts of Magnetic and
+NegativeType no row cites) have no `Spec/` statements yet: the kernel replays their proofs, but their statements live
 in the proof files, which can change them, until code relies on them and a row cites them. Whether a statement says
 what its row says stays a reader's judgment, and the reading is now confined to those two places;
 `scripts/check_laws_xref.py` makes sure each cited theorem is in `Spec/` under its row's law id, and
@@ -161,8 +161,9 @@ Roundoff and FloatModel, so it has no statements of its own):
   `check.sh` replays through the kernel checkers. It checks itself first: every judged theorem is
   exported, every module contributes, and only the unsafe compiler helpers are left out, and
   `check.sh` holds its count to the audit's, since a checker accepts an empty export.
-- `PalaceTest/`: the attacks, one module per ledger family's `Palace` module (the design theorems
-  have none), as Mathlib keeps its tests in `MathlibTest`. `lake test` builds them, which runs every attack and negative control.
+- `PalaceTest/`: the attacks, one module per ledger family's `Palace` module (of the design
+  theorems, Magnetic, NegativeType and Superconnection have them), as Mathlib keeps its tests in
+  `MathlibTest`. `lake test` builds them, which runs every attack and negative control.
   `PalaceTest/Attack.lean` holds `survives` and `refuted`, which run Plausible with a fixed seed and
   count the instances that passed their guards.
 - `Audit.lean`: lists the axioms behind every `Palace` declaration and fails on anything beyond
@@ -506,6 +507,17 @@ always `±1` (a directed 3-cycle has `±3`), within 134; a DAG's order, unlike i
 relation, has triangles, within 53; arcs across two levels break the clock, within 32; and
 circulation is not reversal-invariant, within 18.
 
+The superconnection (temporal-retrieval-algebra Results 3 and 4, design theorems) is attacked on
+exact shadows over ℤ on `Fin 3` (seeds 288 to 296): note maps from lists, citation relations
+without loops from bits, cochains from lists, and the transports, the coboundary and the divergence
+transcribed over ℤ. Every attack survived 500 instances: the edge transports compose when the notes
+do and no citation is restored; a window whose transports carry every citation forward and compose
+is flat; the curvature vanishes on locally constant cochains when every citation's ends stay
+joined; a bijection carrying exactly the source's citations commutes with `δ`. Its controls: F2
+alone, refuted within 46 instances (a citation severed and restored); the middle time's citations
+not closed under the transport, within 13; the class without the connection, within 15; a merge,
+within 30; and a bijection with a new citation, within 28.
+
 ## Build
 
 The toolchain is pinned in `lean-toolchain` (elan resolves it); Mathlib is pinned in
@@ -534,7 +546,7 @@ another module, and without it 68 proofs in seven files fail. One instance is wr
 to importers (`Palace/Scope.lean`).
 
 The kernel re-check. `Export.lean` writes every `Palace` declaration and everything it uses, from
-`Init` up (45,523 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
+`Init` up (45,718 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
 kernel and the five independent checkers bundled with Lean: `leanchecker-paranoid`, `lean4lean` (a
 kernel written in Lean), `nanoda` (one written in Rust), and `con-leche`, whose acceptance carries a
 machine-checked theorem that the environment holds no proof of `False`, with `con-ron`, its port.
