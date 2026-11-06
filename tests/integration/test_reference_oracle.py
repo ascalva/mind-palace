@@ -24,7 +24,7 @@ below the full-path-surface recall — asserting exact equality would mistake pr
 a bug. The floor is set well below the first measured run.
 
 **Reconciliation datum.** The note's hand-run demo (§2.6) reported doc→doc recall **0/16 = 0.000**
-at the 61k-edge snapshot. With ~75k corpus_to_corpus edges now minted (the extractor shipped via
+at the 61k-edge snapshot. With corpus_to_corpus edges now minted (the extractor shipped via
 `ops/code_sensor.py` post-note-snapshot — the owed spec-fidelity erratum, plan §4), the first
 measured run here (worktree HEAD `5168b42`, 994 edges at anchor) is **227/228 = 0.996** on the
 full-path surface. The test PRINTS the live number every run.
