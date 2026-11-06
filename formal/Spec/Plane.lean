@@ -21,9 +21,11 @@ Rushby's unwinding form (1992), under hypotheses the code does not state:
   LanceDB breaks exact ties by physical row order, and `set_held` rewrites a row to the end, so an
   uncleared write that touches one of two tied cleared atoms can swap them across the cut
   (measured on lancedb 0.33.0; no exact vector ties among the live prose atoms on 2026-11-01);
-* the cache is complete on `C`: no crash fell between a commit and `_refresh_held`. A drifted
-  cache drops results (fail-closed), but `_refresh_held` rewrites a touched atom's whole held set,
-  so an uncleared write that shares the atom restores them: `drift_interferes`;
+* the cache is complete on `C`. With the cache written last, a crash between a commit and
+  `_refresh_held` drifted it: a drifted cache drops results (fail-closed), but `_refresh_held`
+  rewrites a touched atom's whole held set, so an uncleared write that shares the atom restores
+  them, `drift_interferes`. A land now writes its cache's additions first, so no crash of a land
+  leaves the cache incomplete (the crash points below);
 * every path has one stratum, fixed in advance (A3.6): a landing whose path lives in another class
   is refused, and that refusal reads uncleared relations: `stratum_interferes`.
 
@@ -172,6 +174,64 @@ theorem noninterference_search (dist : A → Δ) {κ : P → K} {C : Finset K}
 
 end Search
 
+/-! ### Crash points of a land (PLN-4, dn-ingest-door §9 item 7) -/
+
+section Crash
+
+variable [DecidableEq P] [LinearOrder D] [DecidableEq A] [Fintype K] [DecidableEq K]
+
+omit [DecidableEq P] [LinearOrder D] in
+/-- **PLN-4** A crash before a land's transaction, with the atoms and the cache's additions
+written, leaves the cache complete on every class, from a complete one with no dangling row. -/
+theorem complete_landAdd {f : Fiber K P D A} {s : State K P D A} (hc : Complete univ s)
+    (hw : WF s) : Complete univ (landAdd f s) :=
+  sorry
+
+/-- **PLN-4** So does a crash after the transaction (or after its rollback, when refused): every
+atom the transaction gave a row names the row's class already. -/
+theorem complete_landAddCommit {f : Fiber K P D A} {s : State K P D A} (hc : Complete univ s)
+    (hw : WF s) : Complete univ (landAddCommit f s) :=
+  sorry
+
+/-- **PLN-4** A land written in the code's order, the cache's additions first and its removals
+last, ends where `land` does, so every law about `land` holds of it. -/
+theorem land_of_landAdd {f : Fiber K P D A} {s : State K P D A} (hr : ¬Refused f s) :
+    refresh (landAffected (s.occ f.cls) f) (commit f (landAdd f s)) = land f s :=
+  sorry
+
+/-- **PLN-4** A refused land whose additions are taken back after the rollback ends where `land`
+does, from a coherent plane with no dangling row. -/
+theorem land_of_landAdd_refused {f : Fiber K P D A} {s : State K P D A} (hc : Coherent s)
+    (hw : WF s) (hr : Refused f s) : refresh f.atoms (landAdd f s) = land f s :=
+  sorry
+
+end Crash
+
+section CrashSearch
+
+variable {Δ : Type*} [LinearOrder Δ] [DecidableEq P] [LinearOrder D] [LinearOrder A] [Fintype K]
+  [DecidableEq K]
+
+/-- **PLN-4** A cache is read for what it covers and nothing else: two planes that differ only in
+their caches, both complete and with no dangling row, answer every search alike after any trace
+of writes, so excess entries are invisible to every reader, now and later. -/
+theorem search_run_of_sameRel (dist : A → Δ) {C : Finset K} (ops : List (Op K P D A))
+    {s t : State K P D A} (h : SameRel s t) (hs : Complete univ s) (hws : WF s)
+    (ht : Complete univ t) (hwt : WF t) (k : ℕ) (sup : Bool) :
+    search dist C (run ops s) k sup = search dist C (run ops t) k sup :=
+  sorry
+
+/-- **PLN-4** A land that writes its cache's additions first can crash after its transaction with
+no reader the wiser: from a coherent plane with no dangling row, every search after any trace
+answers as it would had the land finished. -/
+theorem search_after_crash (dist : A → Δ) {C : Finset K} (ops : List (Op K P D A))
+    {f : Fiber K P D A} {s : State K P D A} (hc : Coherent s) (hw : WF s) (k : ℕ) (sup : Bool) :
+    search dist C (run ops (landAddCommit f s)) k sup =
+      search dist C (run ops (land f s)) k sup :=
+  sorry
+
+end CrashSearch
+
 /-! ### The chunk-key migration (#37) -/
 
 namespace Store
@@ -256,6 +316,17 @@ theorem rekeyReset_merges (key : Option (Fin 1) → Fin 2 → ℕ) :
     (edited.rekeyReset key [vb]).phys.card = 1 ∧
       ((edited.rekeyResetUnguarded key [vb]).phys.filter fun r ↦ r.path = none).card = 1 ∧
       edited.phys.card = 4 ∧ (edited.rekey key).phys = edited.phys :=
+  sorry
+
+
+/-- **PLN-4, what a re-run does not do** (dn-ingest-door §9 item 7). The note's second version
+crashes after its transaction, and landing it again leaves the first version's atom cached as held,
+which no current row holds: the re-run refreshes the atoms it lands and frees, and the first run's
+freed atoms are neither. The cache stays stale by excess, complete all the same, until `repair`. -/
+theorem rerun_keeps_excess :
+    ¬Coherent (land vb (landAddCommit vb (land va empty))) ∧
+      Complete univ (land vb (landAddCommit vb (land va empty))) ∧
+      Coherent (repair (land vb (landAddCommit vb (land va empty)))) :=
   sorry
 
 end Witness

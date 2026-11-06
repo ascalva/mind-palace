@@ -25,9 +25,11 @@ Rushby's unwinding form (1992), under hypotheses the code does not state:
   LanceDB breaks exact ties by physical row order, and `set_held` rewrites a row to the end, so an
   uncleared write that touches one of two tied cleared atoms can swap them across the cut
   (measured on lancedb 0.33.0; no exact vector ties among the live prose atoms on 2026-11-01);
-* the cache is complete on `C`: no crash fell between a commit and `_refresh_held`. A drifted
-  cache drops results (fail-closed), but `_refresh_held` rewrites a touched atom's whole held set,
-  so an uncleared write that shares the atom restores them: `drift_interferes`;
+* the cache is complete on `C`. With the cache written last, a crash between a commit and
+  `_refresh_held` drifted it: a drifted cache drops results (fail-closed), but `_refresh_held`
+  rewrites a touched atom's whole held set, so an uncleared write that shares the atom restores
+  them, `drift_interferes`. A land now writes its cache's additions first, so no crash of a land
+  leaves the cache incomplete (the crash points below);
 * every path has one stratum, fixed in advance (A3.6): a landing whose path lives in another class
   is refused, and that refusal reads uncleared relations: `stratum_interferes`.
 
@@ -901,6 +903,383 @@ theorem noninterference_search (dist : A → Δ) {κ : P → K} {C : Finset K}
 
 end Search
 
+/-! ### Crash points of a land (PLN-4, dn-ingest-door §9 item 7)
+
+The code now writes a land's cache additions before its transaction and its removals after it, so
+a crash at any point leaves the cache stale only by excess. Excess is invisible to every reader:
+two planes whose caches are complete and which differ only in them answer every search alike, now
+and after any trace of writes. -/
+
+section Crash
+
+variable [DecidableEq P] [LinearOrder D] [DecidableEq A] [Fintype K] [DecidableEq K]
+
+omit [DecidableEq P] [LinearOrder D] [Fintype K] in
+@[simp] theorem addCache_occ (f : Fiber K P D A) (s : State K P D A) :
+    (addCache f s).occ = s.occ := rfl
+
+omit [DecidableEq P] [LinearOrder D] [Fintype K] in
+@[simp] theorem addCache_sup (f : Fiber K P D A) (s : State K P D A) :
+    (addCache f s).sup = s.sup := rfl
+
+omit [DecidableEq P] [LinearOrder D] [Fintype K] in
+@[simp] theorem addCache_table (f : Fiber K P D A) (s : State K P D A) :
+    (addCache f s).table = s.table := rfl
+
+omit [DecidableEq P] [LinearOrder D] [Fintype K] in
+theorem cache_addCache (f : Fiber K P D A) (s : State K P D A) (sup : Bool) (a : A) :
+    cache (addCache f s) sup a =
+      if a ∈ f.atoms ∧ a ∈ s.table then insert f.cls (cache s sup a) else cache s sup a := by
+  cases sup <;> simp only [cache, addCache, Bool.false_eq_true, ↓reduceIte]
+
+omit [DecidableEq P] [LinearOrder D] [DecidableEq K] in
+theorem complete_refresh {C : Finset K} {S : Finset A} {s : State K P D A} (h : Complete C s) :
+    Complete C (refresh S s) := by
+  intro a ha sup c hc hct
+  rw [refresh_table] at ha
+  rw [truth_refresh] at hct
+  rw [cache_refresh]
+  split_ifs with hS
+  · exact hct
+  · exact h a ha sup c hc hct
+
+omit [Fintype K] [DecidableEq K] in
+/-- A row a fiber's write leaves whose atom is none of the fiber's was in the relation before, up to
+its flag, and was there, flag and all, if it is current. -/
+theorem mem_of_mem_writeRel {R : Finset (Occ P D A)} {f : Fiber K P D A} {o : Occ P D A}
+    (h : o ∈ writeRel R f) (ha : o.atom ∉ f.atoms) :
+    (∃ b, o.flag b ∈ R) ∧ (o.current = true → o ∈ R) := by
+  have hrep : ∀ b, o.flag b ∈ replaced R f → o.flag b ∈ R := by
+    intro b hb
+    unfold replaced at hb
+    split_ifs at hb
+    · rcases Finset.mem_union.1 hb with hb | hb
+      · exact (Finset.mem_sdiff.1 hb).1
+      · exact absurd (by simpa using (Fiber.mem_rows hb).2.2) ha
+    · exact hb
+  rw [writeRel, mem_reconcile] at h
+  split_ifs at h with hp
+  · obtain ⟨hc, b, hb⟩ := h
+    refine ⟨⟨b, hrep b hb⟩, fun hcur ↦ ?_⟩
+    have hd : o.digest = f.digest := by simpa [headFlag, hcur] using hc.symm
+    have hR := hrep b hb
+    by_cases hch : Changed R f
+    · unfold replaced at hb
+      simp only [hch, ↓reduceIte, Finset.mem_union, Finset.mem_sdiff, existing,
+        Finset.mem_filter, Occ.flag_path, Occ.flag_digest] at hb
+      rcases hb with ⟨-, hne⟩ | hb
+      · exact absurd ⟨hR, hp, hd⟩ hne
+      · exact absurd (by simpa using (Fiber.mem_rows hb).2.2) ha
+    · have : ((o.flag b).chunk, (o.flag b).atom) ∈ f.chunks.toFinset := by
+        rw [← not_not.1 hch]
+        exact Finset.mem_image.2 ⟨o.flag b, Finset.mem_filter.2 ⟨hR, hp, hd⟩, rfl⟩
+      exact absurd (Fiber.mem_atoms.2 ⟨o.chunk, by simpa using List.mem_toFinset.1 this⟩) ha
+  · have ho := (mem_replaced_of_ne (fun hh ↦ hp hh.1)).1 h
+    exact ⟨⟨o.current, by simpa using ho⟩, fun _ ↦ ho⟩
+
+theorem truth_commit_sub {f : Fiber K P D A} {s : State K P D A} {sup : Bool} {a : A} {c : K}
+    (h : c ∈ truth (commit f s) sup a) : c ∈ truth s sup a ∨ (c = f.cls ∧ a ∈ f.atoms) := by
+  simp only [truth, Finset.mem_filter, Finset.mem_univ, true_and] at h ⊢
+  obtain ⟨o, ho, hh⟩ := h
+  by_cases hc : c = f.cls
+  · subst hc
+    simp only [commit, Function.update_self] at ho
+    by_cases ha : a ∈ f.atoms
+    · exact Or.inr ⟨rfl, ha⟩
+    · have ha' : o.atom ∉ f.atoms := hh.1 ▸ ha
+      obtain ⟨⟨b, hb⟩, hcur⟩ := mem_of_mem_writeRel ho ha'
+      left
+      rcases hh with ⟨hoa, hs | hcu⟩
+      · exact ⟨o.flag b, hb, by simp [Occ.holds, hoa, hs]⟩
+      · exact ⟨o, hcur hcu, hoa, Or.inr hcu⟩
+  · simp only [commit, Function.update_of_ne hc] at ho
+    exact Or.inl ⟨o, ho, hh⟩
+
+omit [DecidableEq P] [LinearOrder D] in
+/-- **PLN-4** A crash before a land's transaction, with the atoms and the cache's additions
+written, leaves the cache complete on every class, from a complete one with no dangling row. -/
+theorem complete_landAdd {f : Fiber K P D A} {s : State K P D A} (hc : Complete univ s)
+    (hw : WF s) : Complete univ (landAdd f s) := by
+  intro a ha sup c _ hct
+  have ht : truth (landAdd f s) sup a = truth s sup a := rfl
+  rw [ht] at hct
+  have has : a ∈ s.table := by
+    by_contra h
+    simp [truth_eq_empty hw h] at hct
+  have hca : c ∈ cache s sup a := hc a has sup c (Finset.mem_univ _) hct
+  rw [landAdd, cache_addCache]
+  have hi : cache (insertAtoms f.atoms s) sup a = cache s sup a := by
+    cases sup <;> simp [cache, insertAtoms, has]
+  split_ifs
+  · exact Finset.mem_insert_of_mem (hi ▸ hca)
+  · exact hi ▸ hca
+
+/-- **PLN-4** So does a crash after the transaction (or after its rollback, when refused): every
+atom the transaction gave a row names the row's class already. -/
+theorem complete_landAddCommit {f : Fiber K P D A} {s : State K P D A} (hc : Complete univ s)
+    (hw : WF s) : Complete univ (landAddCommit f s) := by
+  unfold landAddCommit
+  split_ifs
+  · exact complete_landAdd hc hw
+  · intro a ha sup c _ hct
+    have hc' := complete_landAdd (f := f) hc hw
+    have hcache : cache (commit f (landAdd f s)) sup a = cache (landAdd f s) sup a := by
+      cases sup <;> rfl
+    rw [hcache]
+    rcases truth_commit_sub hct with h | ⟨rfl, haf⟩
+    · exact hc' a ha sup c (Finset.mem_univ _) h
+    · have hat : a ∈ (insertAtoms f.atoms s).table := Finset.mem_union_right _ haf
+      rw [landAdd, cache_addCache]
+      simp [haf, hat]
+
+omit [DecidableEq P] [LinearOrder D] [DecidableEq K] in
+theorem refresh_eq_of {S : Finset A} {s t : State K P D A} (ho : s.occ = t.occ)
+    (hs : s.sup = t.sup) (htab : s.table = t.table)
+    (hh : ∀ a, ¬(a ∈ S ∧ a ∈ s.table) → s.held a = t.held a)
+    (he : ∀ a, ¬(a ∈ S ∧ a ∈ s.table) → s.ever a = t.ever a) : refresh S s = refresh S t := by
+  have ht : truth s = truth t := by
+    funext sup a
+    simp only [truth, ho]
+  ext1
+  · exact ho
+  · exact hs
+  · exact htab
+  · funext a
+    simp only [refresh, ht, ← htab]
+    split_ifs with h
+    · rfl
+    · exact hh a h
+  · funext a
+    simp only [refresh, ht, ← htab]
+    split_ifs with h
+    · rfl
+    · exact he a h
+
+/-- **PLN-4** A land written in the code's order, the cache's additions first and its removals
+last, ends where `land` does, so every law about `land` holds of it. -/
+theorem land_of_landAdd {f : Fiber K P D A} {s : State K P D A} (hr : ¬Refused f s) :
+    refresh (landAffected (s.occ f.cls) f) (commit f (landAdd f s)) = land f s := by
+  have hS : ∀ a, ¬(a ∈ landAffected (s.occ f.cls) f ∧ a ∈ (insertAtoms f.atoms s).table) →
+      ¬(a ∈ f.atoms ∧ a ∈ (insertAtoms f.atoms s).table) :=
+    fun a h h' ↦ h ⟨Finset.mem_union_left _ h'.1, h'.2⟩
+  simp only [land, hr, ↓reduceIte]
+  refine refresh_eq_of rfl rfl rfl (fun a h ↦ ?_) (fun a h ↦ ?_)
+  · change (addCache f (insertAtoms f.atoms s)).held a = (insertAtoms f.atoms s).held a
+    simp only [addCache, hS a h, ↓reduceIte]
+  · change (addCache f (insertAtoms f.atoms s)).ever a = (insertAtoms f.atoms s).ever a
+    simp only [addCache, hS a h, ↓reduceIte]
+
+/-- **PLN-4** A refused land whose additions are taken back after the rollback ends where `land`
+does, from a coherent plane with no dangling row. -/
+theorem land_of_landAdd_refused {f : Fiber K P D A} {s : State K P D A} (hc : Coherent s)
+    (hw : WF s) (hr : Refused f s) : refresh f.atoms (landAdd f s) = land f s := by
+  have key : ∀ sup a, truth s sup a = cache (insertAtoms f.atoms s) sup a := by
+    intro sup a
+    by_cases has : a ∈ s.table
+    · rw [← hc a has sup]
+      cases sup <;> simp [cache, insertAtoms, has]
+    · rw [truth_eq_empty hw has]
+      cases sup <;> simp [cache, insertAtoms, has]
+  have ht : truth (landAdd f s) = truth s := rfl
+  simp only [land, hr, ↓reduceIte]
+  ext1
+  · rfl
+  · rfl
+  · rfl
+  · funext a
+    change (if a ∈ f.atoms ∧ a ∈ (insertAtoms f.atoms s).table then truth (landAdd f s) false a
+      else (addCache f (insertAtoms f.atoms s)).held a) = (insertAtoms f.atoms s).held a
+    rw [ht]
+    by_cases h : a ∈ f.atoms ∧ a ∈ (insertAtoms f.atoms s).table
+    · simp only [h, and_self, ↓reduceIte]
+      exact key false a
+    · simp only [h, ↓reduceIte, addCache]
+  · funext a
+    change (if a ∈ f.atoms ∧ a ∈ (insertAtoms f.atoms s).table then truth (landAdd f s) true a
+      else (addCache f (insertAtoms f.atoms s)).ever a) = (insertAtoms f.atoms s).ever a
+    rw [ht]
+    by_cases h : a ∈ f.atoms ∧ a ∈ (insertAtoms f.atoms s).table
+    · simp only [h, and_self, ↓reduceIte]
+      exact key true a
+    · simp only [h, ↓reduceIte, addCache]
+
+omit [DecidableEq P] [LinearOrder D] [DecidableEq K] in
+theorem Complete.mono {C : Finset K} {s : State K P D A} (h : Complete univ s) : Complete C s :=
+  fun a ha sup c _ hc ↦ h a ha sup c (Finset.mem_univ c) hc
+
+omit [DecidableEq P] [LinearOrder D] [DecidableEq K] in
+theorem complete_insertAtoms {S : Finset A} {s : State K P D A} (hc : Complete univ s)
+    (hw : WF s) : Complete univ (insertAtoms S s) := by
+  intro a _ sup c _ hct
+  have ht : truth (insertAtoms S s) sup a = truth s sup a := rfl
+  rw [ht] at hct
+  have has : a ∈ s.table := by
+    by_contra h
+    simp [truth_eq_empty hw h] at hct
+  have hi : cache (insertAtoms S s) sup a = cache s sup a := by
+    cases sup <;> simp [cache, insertAtoms, has]
+  rw [hi]
+  exact hc a has sup c (Finset.mem_univ _) hct
+
+theorem complete_land {f : Fiber K P D A} {s : State K P D A} (hc : Complete univ s) (hw : WF s) :
+    Complete univ (land f s) := by
+  unfold land
+  split_ifs with hr
+  · exact complete_insertAtoms hc hw
+  · intro a ha sup c _ hct
+    rw [refresh_table] at ha
+    rw [truth_refresh] at hct
+    rw [cache_refresh]
+    split_ifs with hS
+    · exact hct
+    · have haff : a ∉ landAffected (s.occ f.cls) f := fun h ↦ hS ⟨h, ha⟩
+      rw [truth_commit (s := insertAtoms f.atoms s) haff] at hct
+      have hcache : cache (commit f (insertAtoms f.atoms s)) sup a =
+          cache (insertAtoms f.atoms s) sup a := by
+        cases sup <;> rfl
+      rw [hcache]
+      exact complete_insertAtoms hc hw a ha sup c (Finset.mem_univ _) hct
+
+theorem complete_retireCommit {c : K} {p : P} {s : State K P D A} (h : Complete univ s) :
+    Complete univ (retireCommit c p s) := by
+  intro a ha sup c' _ hct
+  have hcs : c' ∈ truth s sup a := by
+    simp only [truth, Finset.mem_filter, Finset.mem_univ, true_and] at hct ⊢
+    obtain ⟨o, ho, hh⟩ := hct
+    by_cases hc : c' = c
+    · subst hc
+      simp only [retireCommit, Function.update_self] at ho
+      rw [mem_reconcile] at ho
+      split_ifs at ho with hp
+      · obtain ⟨hcur, b, hb⟩ := ho
+        refine ⟨o.flag b, hb, hh.1, ?_⟩
+        rcases hh with ⟨-, hs | hcu⟩
+        · exact Or.inl hs
+        · rw [headFlag_none] at hcur
+          rw [hcur] at hcu
+          exact absurd hcu Bool.false_ne_true
+      · exact ⟨o, ho, hh⟩
+    · simp only [retireCommit, Function.update_of_ne hc] at ho
+      exact ⟨o, ho, hh⟩
+  exact h a ha sup c' (Finset.mem_univ _) hcs
+
+omit [DecidableEq P] [DecidableEq K] in
+theorem complete_purgeCommit {d : D} {s : State K P D A} (h : Complete univ s) :
+    Complete univ (purgeCommit d s) := by
+  intro a ha sup c _ hct
+  have hocc : ∀ c, (purgeCommit d s).occ c = (s.occ c).filter (·.digest ≠ d) := fun _ ↦ rfl
+  have hcs : c ∈ truth s sup a := by
+    simp only [truth, Finset.mem_filter, Finset.mem_univ, true_and, hocc] at hct ⊢
+    obtain ⟨o, ⟨ho, -⟩, hh⟩ := hct
+    exact ⟨o, ho, hh⟩
+  have hcache : cache (purgeCommit d s) sup a = cache s sup a := by
+    cases sup <;> rfl
+  rw [hcache]
+  exact h a (Finset.mem_sdiff.1 ha).1 sup c (Finset.mem_univ _) hcs
+
+omit [DecidableEq P] [DecidableEq K] in
+theorem complete_purgeAtoms {d : D} {s : State K P D A} (h : Complete univ s) :
+    Complete univ (purgeAtoms d s) :=
+  fun a ha sup c hc hct ↦ h a (Finset.mem_sdiff.1 ha).1 sup c hc hct
+
+theorem complete_step {op : Op K P D A} {s : State K P D A} (hc : Complete univ s) (hw : WF s) :
+    Complete univ (step op s) := by
+  cases op with
+  | land f => exact complete_land hc hw
+  | retire c p =>
+    simp only [step, retire]
+    split_ifs
+    · exact hc
+    · exact complete_refresh (complete_retireCommit hc)
+  | purge d => exact complete_refresh (complete_purgeCommit hc)
+  | repair => exact complete_refresh hc
+
+theorem complete_run {ops : List (Op K P D A)} {s : State K P D A} (hc : Complete univ s)
+    (hw : WF s) : Complete univ (run ops s) ∧ WF (run ops s) := by
+  induction ops generalizing s with
+  | nil => exact ⟨hc, hw⟩
+  | cons op ops ih => exact ih (complete_step hc hw) (wf_step hw)
+
+omit [DecidableEq P] [LinearOrder D] [Fintype K] in
+theorem view_eq_of_sameRel {C : Finset K} {s t : State K P D A} (h : SameRel s t) :
+    view C s = view C t := by
+  obtain ⟨ho, hs, ht⟩ := h
+  simp only [view, refs, ho, hs, ht]
+
+theorem sameRel_step {op : Op K P D A} {s t : State K P D A} (h : SameRel s t) :
+    SameRel (step op s) (step op t) := by
+  obtain ⟨ho, hs, ht⟩ := h
+  have hR : ∀ f : Fiber K P D A, Refused f s ↔ Refused f t := fun f ↦ by
+    simp only [Refused, Elsewhere, heads, ho]
+  cases op with
+  | land f =>
+    refine ⟨funext fun c ↦ ?_, funext fun c ↦ ?_, ?_⟩
+    · simp only [step, land_occ, hR, ho]
+    · simp only [step, land_sup, hR, ho, hs]
+    · simp only [step, land, hR]
+      split_ifs <;> simp only [insertAtoms, refresh_table, commit, ht]
+  | retire c p =>
+    refine ⟨funext fun c' ↦ ?_, funext fun c' ↦ ?_, ?_⟩
+    · simp only [step, retire_occ, ho]
+    · simp only [step, retire_sup, ho, hs]
+    · simp only [step, retire, ho]
+      split_ifs <;> simp only [refresh_table, retireCommit, ht]
+  | purge d =>
+    have hp : purged d s = purged d t := by simp only [purged, stillHeld, byDigest, ho]
+    refine ⟨?_, ?_, ?_⟩
+    · simp only [step, purge, refresh_occ, purgeCommit, ho]
+    · simp only [step, purge, refresh_sup, purgeCommit, hs]
+    · simp only [step, purge, refresh_table, purgeCommit, ht, hp]
+  | repair => exact ⟨ho, hs, ht⟩
+
+theorem run_sameRel {ops : List (Op K P D A)} {s t : State K P D A} (h : SameRel s t) :
+    SameRel (run ops s) (run ops t) := by
+  induction ops generalizing s t with
+  | nil => exact h
+  | cons op ops ih => exact ih (sameRel_step h)
+
+end Crash
+
+section CrashSearch
+
+variable {Δ : Type*} [LinearOrder Δ] [DecidableEq P] [LinearOrder D] [LinearOrder A] [Fintype K]
+  [DecidableEq K]
+
+/-- **PLN-4** A cache is read for what it covers and nothing else: two planes that differ only in
+their caches, both complete and with no dangling row, answer every search alike after any trace
+of writes, so excess entries are invisible to every reader, now and later. -/
+theorem search_run_of_sameRel (dist : A → Δ) {C : Finset K} (ops : List (Op K P D A))
+    {s t : State K P D A} (h : SameRel s t) (hs : Complete univ s) (hws : WF s)
+    (ht : Complete univ t) (hwt : WF t) (k : ℕ) (sup : Bool) :
+    search dist C (run ops s) k sup = search dist C (run ops t) k sup :=
+  search_congr dist (view_eq_of_sameRel (run_sameRel h)) (complete_run hs hws).1.mono
+    (complete_run ht hwt).1.mono k sup
+
+/-- **PLN-4** A land that writes its cache's additions first can crash after its transaction with
+no reader the wiser: from a coherent plane with no dangling row, every search after any trace
+answers as it would had the land finished. -/
+theorem search_after_crash (dist : A → Δ) {C : Finset K} (ops : List (Op K P D A))
+    {f : Fiber K P D A} {s : State K P D A} (hc : Coherent s) (hw : WF s) (k : ℕ) (sup : Bool) :
+    search dist C (run ops (landAddCommit f s)) k sup =
+      search dist C (run ops (land f s)) k sup := by
+  have hrel : SameRel (landAddCommit f s) (land f s) := by
+    unfold landAddCommit
+    split_ifs with hr
+    · simp only [land, hr, ↓reduceIte]
+      exact ⟨rfl, rfl, rfl⟩
+    · rw [← land_of_landAdd hr]
+      exact ⟨rfl, rfl, rfl⟩
+  have hwc : WF (landAddCommit f s) := by
+    have := wf_land (f := f) hw
+    obtain ⟨ho, -, ht⟩ := hrel
+    intro c o hoc
+    rw [ht]
+    exact this c o (ho ▸ hoc)
+  exact search_run_of_sameRel dist ops hrel (complete_landAddCommit (hc.complete univ) hw) hwc
+    ((coherent_land hc hw).complete univ) (wf_land hw) k sup
+
+end CrashSearch
+
 /-! ### The chunk-key migration (#37) -/
 
 namespace Phys
@@ -1084,6 +1463,16 @@ theorem rekeyReset_merges (key : Option (Fin 1) → Fin 2 → ℕ) :
   · change edited.phys.image (Phys.rekey key) = edited.phys
     conv_rhs => rw [← Finset.image_id (s := edited.phys)]
     exact Finset.image_congr fun r hr ↦ Phys.rekey_of_not_note (hnote r hr)
+
+/-- **PLN-4, what a re-run does not do** (dn-ingest-door §9 item 7). The note's second version
+crashes after its transaction, and landing it again leaves the first version's atom cached as held,
+which no current row holds: the re-run refreshes the atoms it lands and frees, and the first run's
+freed atoms are neither. The cache stays stale by excess, complete all the same, until `repair`. -/
+theorem rerun_keeps_excess :
+    ¬Coherent (land vb (landAddCommit vb (land va empty))) ∧
+      Complete univ (land vb (landAddCommit vb (land va empty))) ∧
+      Coherent (repair (land vb (landAddCommit vb (land va empty)))) := by
+  decide
 
 end Witness
 

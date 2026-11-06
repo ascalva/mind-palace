@@ -701,7 +701,10 @@ and 6 later on `build/ladder-fixes`, the rest stay the owner's.
    `kinds` filter keeps it to the kinds it handles) before completing it;
    `tests/integration/test_ambassador_conversation.py` asserts the handler sees a RUNNING row.
 7. **The plane's `held` cache can go stale across a crash** between its second and third writes,
-   and the UNCHANGED check keeps a re-run from repairing it; only `repair()` does.
+   and the UNCHANGED check keeps a re-run from repairing it; only `repair()` does. *Proved and
+   fixed* (PLN-4's crash points, `formal/Palace/Plane.lean`): a re-run repaired the stale entries
+   that hid rows and left those in excess; a land now writes its cache's additions before its
+   transaction, so a crash leaves only excess, which changes no search (`search_after_crash`).
 
 The security review of the door (2026-11-05, a read-only agent over the branch at `f782151`)
 found fifteen defects in the door as first built. Fixed on this branch, with a test each:
