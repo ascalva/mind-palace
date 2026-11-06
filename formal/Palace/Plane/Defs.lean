@@ -132,6 +132,28 @@ def view (C : Finset K) (s : State K P D A) :
 
 end View
 
+/-! ### The write path's existence oracle (`SharedPlane.known`) -/
+
+section Known
+
+variable [DecidableEq A]
+
+/-- `SharedPlane.known`: which of the named atoms the shared table holds, under any class. -/
+def known (s : State K P D A) (S : Finset A) : Finset A := S.filter (· ∈ s.table)
+
+/-- An atom the table holds that no row of any class references: dormant geometry, from a land
+that crashed or was refused after its atom insert. -/
+def Dormant (s : State K P D A) (a : A) : Prop := a ∈ s.table ∧ ∀ c, ∀ o ∈ s.occ c, o.atom ≠ a
+
+variable [DecidableEq K]
+
+/-- The bounded oracle: which of the named atoms a relation of `C` references and the table
+holds, the view's own atoms. -/
+def knownIn (C : Finset K) (s : State K P D A) (S : Finset A) : Finset A :=
+  S.filter (· ∈ (view C s).2)
+
+end Known
+
 /-! ### Search: the window-widening loop over an exact nearest-neighbour search -/
 
 section Widen
