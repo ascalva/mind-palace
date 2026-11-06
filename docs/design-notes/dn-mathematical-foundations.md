@@ -4,7 +4,7 @@ id: dn-mathematical-foundations
 track: mathematical-foundations  # NEW manifest, minted in this PR (docs/tracks/mathematical-foundations.md) — ⚑ the owner renames or rejects the coordinate at the merge
 status: draft                    # provenance description, never a gate (merge-gated regime, 2026-07-28)
 created: 2026-08-09
-updated: 2026-11-02      # Amendment A1 (L3 entered for CND-6 and LAP-1; two §2.5 float claims corrected)
+updated: 2026-11-05      # Amendment A2 (L3 entered for float16 storage, VEC-1); A1 2026-11-02 (L3 entered for CND-6 and LAP-1; two §2.5 float claims corrected)
 links:
   - docs/brainstorms/mathematical-foundations.md        # THE WARRANT (PR #42, capture branch — lands first; see Sequencing) — owner seed 1 + the structure-instantiation bridge
   - docs/design-notes/dn-research-register.md           # THE SIBLING (§1.3) — same PR #47; the §2.3 claim ladder consumed here; its parked Lean row now points at §2.4 below
@@ -469,7 +469,8 @@ at this section (§1.3).
   only**, where a design claim demands a machine-checked ε-bound. Parked with
   re-entry (Parked decisions); not licensed (non-goal 2). **ENTERED per claim by
   Amendment A1 (2026-11-02): CND-6 and LAP-1, over a binary64 model proved equal to
-  Lean's own `Float`.**
+  Lean's own `Float`; and by Amendment A2 (2026-11-05): VEC-1, float16 storage, over the
+  same model with the format's precision and exponent range as parameters.**
 - **L4 — verified kernels.** Parked. No palace claim needs it (issue #48).
 
 **The bridge stays two-sided.** Lean never proves the NumPy (issue #48 Axis B): Lean
@@ -662,7 +663,7 @@ advisory to required, by hand, if he chooses.
 
 | decision | default recorded | re-entry condition |
 |---|---|---|
-| L3 — float-ε formal bridge | **ENTERED per claim by Amendment A1**: CND-6, LAP-1; further claims one at a time | a design claim demands a machine-checked ε-bound (per-claim entry, one claim at a time) |
+| L3 — float-ε formal bridge | **ENTERED per claim by Amendments A1 and A2**: CND-6, LAP-1, VEC-1; further claims one at a time | a design claim demands a machine-checked ε-bound (per-claim entry, one claim at a time) |
 | L4 — verified kernels | parked | a palace claim needs a verified kernel; none does (issue #48) |
 | Ollivier–Ricci formalization | not licensed; Forman is the floor (§2.3.3) | a design claim needs curvature *theorems*, or Mathlib gains OT/W₁ (the KR layer is the on-ramp) |
 | Cheeger-in-Mathlib recheck | absent, verified 2026-08-09 (issue #48) | cheap periodic recheck at each MF-4+ session; or a claim comes to depend on the inequality (CUT-2 leaves Remark) |
@@ -801,3 +802,42 @@ NumPy's without modeling NumPy.
 - **A1-F1:** a law of `rn` contradicted by this machine's float64 on an input the attacks
   did not draw, or a compiled `Float` operator disagreeing with Lean's logical model.
   Either reopens the model, and with it every claim entered at L3.
+
+## Amendment A2 — L3 entered for float16 storage (VEC-1)
+
+*2026-11-05. Agent-drafted on the owner's direction to continue the Lean ladder. It lands by the
+owner's merge.*
+
+### A2.1 — What entered
+
+Since 2026-10-31 the vector store holds its vectors as float16 (dn-vector-membership-store A4),
+and every ranked read is ranked by scores computed from rounded vectors. VEC-1 (`docs/LAWS.md`,
+XIII) is the claim the code now relies on, proved in `formal/Palace/Cosine.lean`: rounding to
+binary16 moves a cosine by at most `betaStore ≈ 2⁻¹¹` for every stored vector of norm at least
+`1/2`, the query's own rounding by at most `betaQuery`, computed per query, and a top `k` whose
+margin exceeds twice their sum with the kernel's `γ` is the top `k` of the exact cosines. The
+store computes that certificate on every search (`core/kernel/margin.py`, A4.5 there for what
+it certifies on the live stores and how it explains the experiment's one changed slot).
+
+### A2.2 — The substrate, generalized
+
+`formal/Palace/Format.lean` gives A1's `rn` the format's precision `p` and least exponent `emin`
+as parameters: `rnf p emin`, with `rn = rnf 53 (-1074)` proved, so A1's attacks check the general
+definition at binary64. binary32 is attacked against this machine's `Float.toFloat32`; Lean has
+no half-precision type, so binary16 is checked against a table of 234 doubles and the float16
+bits the store's own write path gives them, which `tests/property/test_float16_margin.py` checks
+the machine still gives. The write path rounds twice, to float32 and then to float16, and 39 of
+the table's doubles tell that from rounding once.
+
+### A2.3 — What stays a hypothesis
+
+The float32 arithmetic of LanceDB's distance kernel is not modelled: its error is the
+hypothesis `γ = 2 (d + 4) 2⁻²⁴`, the classical bound for a dot product and two norms summed in any
+order, measured at `5.6e-8`. The norm floor `ν = 1/2` is a hypothesis on the corpus, which the
+embedder's unit vectors meet. §2.4's "Lean never proves the NumPy" stands for LanceDB too.
+
+### A2.4 — Falsifier
+
+- **A2-F1:** the store's write path or LanceDB's query rounding disagreeing with `rn16 ∘ rn32` on
+  an input the table and the falsifier did not draw, or the kernel's error above `γ`. Either
+  reopens VEC-1.

@@ -18,7 +18,7 @@ clearance does not admit cannot exist. CODE keeps its own atom plane (D1) and me
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Hashable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
@@ -28,6 +28,7 @@ import pyarrow as pa
 
 from core.kernel.clearance import _MINT, MAINTENANCE_READ, Clearance, ClearanceViolation, Row
 from core.kernel.config import Config
+from core.kernel.margin import Margin, certify
 from core.kernel.provenance import Provenance
 from core.stores.plane import (
     PLANE_CLASSES,
@@ -157,6 +158,14 @@ class CompactionReport:
         return (f"rows {self.rows_before}->{self.rows_after} "
                 f"versions {self.versions_before}->{self.versions_after} "
                 f"({self.versions_dropped} dropped)")
+
+
+@dataclass(frozen=True)
+class Ranked[L: Provenance]:
+    """A ranked read: `search`'s rows, nearest first, and VEC-1's margin certificate for them."""
+
+    rows: list[Row[L]]
+    margin: Margin
 
 
 def is_code_atom_row(row: Mapping[str, Any]) -> bool:
@@ -742,16 +751,29 @@ class VectorStore:
         CLEARED relation holds, one row per cleared occupancy — and the two lists merge by
         distance. Resolving a code hit to its occupancies `(path, blob, slot, lines)` remains the
         membership join (D3, `core.stores.memberships.resolve_occupancies`)."""
-        out: list[Row[L]] = []
+        return self.search_ranked(vector, k=k, clearance=clearance,
+                                  include_superseded=include_superseded).rows
+
+    def search_ranked[L: Provenance](self, vector: list[float], *, k: int = 5,
+                                     clearance: Clearance[L],
+                                     include_superseded: bool = False) -> Ranked[L]:
+        """`search`, with VEC-1's margin certificate (`core/kernel/margin.py`): whether float16
+        storage could have changed which vectors make the top k. Each source is asked for its
+        k + 1 best vectors, so the best one outside the top k is among the candidates; the rows
+        are `search`'s."""
+        cands: list[tuple[Hashable, Row[L]]] = []
         if self._physical_possible(clearance):
             clause = _gate(clearance) + ("" if include_superseded else " AND current = true")
             q = self._table().search(vector).metric("cosine").where(clause, prefilter=True)
-            out = [Row(clearance, r, mint=_MINT) for r in q.limit(k).to_list()]
+            cands = [(("row", r["id"]), Row(clearance, r, mint=_MINT))
+                     for r in q.limit(k + 1).to_list()]
         if self.plane_enabled():
-            out.extend(self._plane.reader(clearance).search_rows(
-                vector, k=k, include_superseded=include_superseded))
-        out.sort(key=lambda r: float(r.get("_distance", 0.0)))
-        return out[:k]
+            cands.extend((("atom", a), row) for a, row in self._plane.reader(
+                clearance).search_atom_rows(vector, k=k + 1, include_superseded=include_superseded))
+        cands.sort(key=lambda c: float(c[1].get("_distance", 0.0)))
+        margin = certify([float(r.get("_distance", 0.0)) for _, r in cands],
+                         [key for key, _ in cands], k, vector)
+        return Ranked(rows=[r for _, r in cands[:k]], margin=margin)
 
 
 _BATCH = 400
