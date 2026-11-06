@@ -228,10 +228,13 @@ uses them):**
   closure as 1b, at the degenerate boundary. `[ESTABLISHED: RSP/free-energy distances;
   Chebotarev; p-resistances. DERIVED: the O(1/β) bound.]`
 - **Modes 1b and 2 are two points in the PSD-kernel cone**, whose algebra is `+`, convex
-  mixing, and Hadamard `⊙` (Schur). Hybrid retrieval is *an operation in the cone* at the
-  default `β = 1`: `K_struct ⊙ K_sem` = "cited **and** semantically near," where `K_struct =
-  e^{−βd}` is positive semidefinite at `β = 1` (RSP-3). At other `β` it need not be: RSP-3 gives
-  `K_struct` a negative eigenvalue on K₂,₃ at `β = 100`. `[ESTABLISHED: Schur product; RSP-3.]`
+  mixing, and Hadamard `⊙` (Schur). Hybrid retrieval is `K_struct ⊙ K_sem` = "cited **and**
+  semantically near," and the product stays in the cone only when both factors are in it.
+  `K_struct = e^{−d_β}` is at the default `β = 1`, where it equals the normalized kernel
+  `e^{−β d_β}` (RSP-3). Past the default it is that kernel to the Hadamard power `1/β` and need
+  not be PSD: on K₂,₃ with weights 0.9 it has a negative eigenvalue at `β = 100` (RSP-3's row).
+  `K_sem` as built, the cosine clipped to `[0, 1]`, need not be PSD either (eight unit vectors in
+  the plane give a least eigenvalue of −0.26; RSP-3's row). `[ESTABLISHED: Schur product; RSP-3.]`
 - **The correct taxonomy (the fable inversion):** since *every* PSD kernel is some
   embedding's Gram (**Moore–Aronszajn 1950** — the RKHS/feature-map fact; *not* Mercer,
   whose theorem is the narrower compact-domain eigenfunction expansion — corrected per
