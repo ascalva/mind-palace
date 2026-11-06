@@ -16,6 +16,7 @@ from core.ingest.curated import ingest_curated
 from core.ingest.dialogue import DialogueCapture
 from core.ingest.embed import Embedder
 from core.ingest.sync import SyncOutcome, VaultSync
+from core.kernel.clearance import MIRROR_READ
 from core.kernel.stores.rawstore import RawStore
 from core.stores.catalog import VaultCatalog
 from core.stores.vectorstore import VectorStore
@@ -230,3 +231,44 @@ def test_a_path_in_another_case_or_an_excluded_dir_in_any_case_is_out_of_scope(t
     outside.write_text("- outside\n")
     (vault / "pages" / "link.md").symlink_to(outside)
     assert list(iter_vault(vault)) == [vault / "pages" / "a.md"]
+
+
+def test_a_vault_delete_that_dies_before_its_tombstone_is_finished_by_the_next_rescan(
+        tmp_path, monkeypatch):
+    """A delete's key is the tombstone: the rescan retires only the paths the catalog still holds
+    active whose file is gone. With the tombstone last, a delete killed between its two steps is
+    repeated by the next rescan, and the note leaves the plane. With the tombstone first, as it
+    was, the run killed between them left the note current and no rescan came back to it. The
+    crash kills whichever of the two steps runs second, so the test fails on the old order."""
+    raw, store, catalog, _ = _stores(tmp_path)
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    sync = VaultSync(vault=vault, raw=raw, store=store, catalog=catalog, embedder=_embedder())
+    note = vault / "a.md"
+    note.write_text("# A\n\nsoon gone\n", encoding="utf-8")
+    sync.rescan()
+    src = str(note)
+
+    def current() -> bool:
+        return bool(store.reader(MIRROR_READ).occupancies(source_path=src))
+    assert current(), "PRECONDITION: the note is current in the plane"
+    note.unlink()
+    calls = {"n": 0}
+
+    def second_dies(real):
+        def call(*args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 2:
+                raise _Crash("died between the delete's two steps")
+            return real(*args, **kwargs)
+        return call
+    with monkeypatch.context() as m:
+        m.setattr(catalog, "tombstone", second_dies(catalog.tombstone))
+        m.setattr(store, "delete_source", second_dies(store.delete_source))
+        with pytest.raises(_Crash):
+            sync.rescan()
+    assert calls["n"] == 2, "PRECONDITION: the first step ran and the second died"
+    sync.rescan()
+    assert not current(), "the next rescan finished the delete"
+    entry = catalog.get(src)
+    assert entry is not None and not entry.active, "...and wrote its key"

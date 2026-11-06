@@ -217,11 +217,17 @@ class VaultSync:
         return self.sync_path(path, rename_by_digest=rename_by_digest)
 
     def handle_deleted(self, source_path: str) -> SyncOutcome:
-        """A vault file disappeared: tombstone it and drop its projection (by `source_path`).
+        """A vault file disappeared: drop its projection (by `source_path`), then tombstone it.
         Source-scoped, so an identical-content file elsewhere keeps its own rows. Raw is kept
-        (sacred); true deletion is the separate, owner-gated purge (core/ingest/purge.py)."""
-        self.catalog.tombstone(source_path)
+        (sacred); true deletion is the separate, owner-gated purge (core/ingest/purge.py).
+
+        [banner: correction] The tombstone is the delete's key: the rescan retires only paths the
+        catalog holds active whose file is gone. It was written first, so a crash before the
+        retire left the deleted note current in the plane and no rescan ever came back to it. It
+        is written last now (DOR-7's order, key last): a crash between the two leaves the path
+        active, the next rescan repeats the delete, and the retire is idempotent."""
         self.store.delete_source(source_path)
+        self.catalog.tombstone(source_path)                                   # the key, last
         return SyncOutcome.TOMBSTONED
 
     def owns(self, source_path: str) -> bool:
