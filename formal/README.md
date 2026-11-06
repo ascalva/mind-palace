@@ -351,8 +351,10 @@ and writes another, so no unwinding covers it; its cache steps and crash points 
 the write path whether the shared table holds an atom of any class, is the deduplication side
 channel of Harnik, Pinkas and Shulman-Peleg (2010). It has two callers: ingest, which skips the
 embeds it reports (`core/ingest/index.py::embed_new`), and the door's writer, which prices a
-script's embeds with it (`core/ingest/writer.py::Writer.price`), so the charge a receipt reports
-carries the bit to the script's role, for an atom held only by a class the role cannot read.
+script's embeds (`core/ingest/writer.py::Writer.price`). The writer's price asks only for the
+classes the role's grant reads (`knownIn`, through `SharedPlane.known_in`), so the charge a receipt
+reports carries nothing of a class the role cannot read; ingest's skip still answers for every
+class.
 Its design theorems, cited here and not from the ledger: beyond a reader's view it gives one bit
 for each named atom no cleared relation references, whether a row of an uncleared class holds the
 atom, current or superseded, or the atom lies dormant (`known_eq`, `mem_known_iff`), and nothing

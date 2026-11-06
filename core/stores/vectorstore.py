@@ -264,6 +264,11 @@ class VectorStore:
         may skip (a row for a known atom may omit its vector). Empty before the plane exists."""
         return self._plane.known(atom_ids) if self.plane_enabled() else set()
 
+    def known_atoms_in(self, atom_ids: Sequence[str], classes: Iterable[Provenance]) -> set[str]:
+        """`known_atoms` bounded to `classes`: the atoms a row of one of them holds (the plane's
+        `known_in`), so the answer carries nothing of a class outside them."""
+        return self._plane.known_in(atom_ids, classes) if self.plane_enabled() else set()
+
     def vector_precision(self) -> Precision:
         """The precision the table's vectors are stored in — `self.precision` before it exists."""
         if TABLE not in self._db.list_tables().tables:

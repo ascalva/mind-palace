@@ -488,6 +488,30 @@ def test_a_half_retire_then_the_same_bytes_back_lands_again(palace, monkeypatch)
     assert palace.stores.plane.reader(MIRROR_READ).occupancies(source_path=str(note))
 
 
+def test_a_scripts_charge_carries_nothing_of_a_class_its_role_cannot_read(palace):
+    """The writer prices a script's embeds by the atoms its role's grant can read (`knownIn`): an
+    atom held only by a class the role reads none of (`derived-stratum`, which no door role reads)
+    is charged as new, as a text nobody holds is, so the receipt's charge says nothing of that
+    class. The meter that asked `known_atoms`, every class, charged the second capture less."""
+    from core.kernel.clearance import OBSERVED_READ
+    from core.stores.plane import atom_id
+
+    fresh = palace.run('do capture(text: "a text nobody holds", conversation: "one")',
+                       "ambassador")["work"]
+    text = "a text one hidden class holds"
+    palace.stores.plane.add([{
+        "source_path": "derived/x", "digest": "dx", "provenance": "derived-stratum", "title": "x",
+        "chunk_index": 0, "text": text, "layer": "prose",
+        "vector": palace.stores.embedder.embed_documents([text])[0]}])
+    assert palace.stores.plane.known_atoms([atom_id(text)]), \
+        "PRECONDITION: the atom exists, in that class alone"
+    held = palace.run(f'do capture(text: "{text}", conversation: "two")', "ambassador")["work"]
+    assert atom_id(text) in {o.atom_id for o in
+                             palace.stores.plane.reader(OBSERVED_READ).occupancies()}, \
+        "PRECONDITION: the capture's chunk is that atom"
+    assert held == fresh
+
+
 def test_a_store_that_dies_at_its_attestation_lands_and_attests_when_run_again(palace,
                                                                                 monkeypatch):
     """The key is written after the attestation (the formal audit's mutation, a key moved before
