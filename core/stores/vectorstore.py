@@ -621,6 +621,20 @@ class VectorStore:
             return True
         return self._plane.reader(clearance).has_digest(digest)
 
+    def holds_current(self, source_path: str, digest: str, *,
+                      clearance: Clearance[Provenance]) -> bool:
+        """Whether `clearance`'s rows hold `source_path` at version `digest`, current: the plane
+        half of an UNCHANGED check, so that an active key implies current rows. A version whose
+        rows a retire unset (current, but superseded or retired) does not count, where
+        `has_digest` counts any row of the digest."""
+        where = (f"source_path = {_sql_str(source_path)} AND digest = {_sql_str(digest)} "
+                 "AND current = true")
+        if (self._physical_possible(clearance)
+                and self._table().count_rows(f"{_gate(clearance)} AND {where}")):
+            return True
+        return bool(self._plane.reader(clearance).occupancies(source_path=source_path,
+                                                              digest=digest))
+
     def digests(self, *, clearance: Clearance[Provenance],
                 include_superseded: bool = False) -> set[str]:
         """The raw digests of every document version `clearance` admits (current ones unless asked)

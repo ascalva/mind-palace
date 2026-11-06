@@ -272,3 +272,39 @@ def test_a_vault_delete_that_dies_before_its_tombstone_is_finished_by_the_next_r
     assert not current(), "the next rescan finished the delete"
     entry = catalog.get(src)
     assert entry is not None and not entry.active, "...and wrote its key"
+
+
+def test_a_half_delete_then_the_same_bytes_back_lands_again(tmp_path, monkeypatch):
+    """The formal audit's probe. A delete that dies after its retire and before its tombstone
+    leaves the key active over retired rows; if the file comes back with the same bytes before the
+    next rescan, an UNCHANGED check that read the key alone would skip it for ever (three rescans
+    left the plane without the note). UNCHANGED reads the plane too: an active key implies
+    current rows."""
+    raw, store, catalog, _ = _stores(tmp_path)
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    sync = VaultSync(vault=vault, raw=raw, store=store, catalog=catalog, embedder=_embedder())
+    note = vault / "a.md"
+    body = "# A\n\nsoon gone, then back\n"
+    note.write_text(body, encoding="utf-8")
+    sync.rescan()
+    src = str(note)
+
+    def current() -> bool:
+        return bool(store.reader(MIRROR_READ).occupancies(source_path=src))
+    assert current(), "PRECONDITION: the note is current"
+    note.unlink()
+
+    def dies(*args, **kwargs):
+        raise _Crash("died before the tombstone")
+    with monkeypatch.context() as m:
+        m.setattr(catalog, "tombstone", dies)
+        with pytest.raises(_Crash):
+            sync.rescan()
+    entry = catalog.get(src)
+    assert not current() and entry is not None and entry.active, \
+        "PRECONDITION: the retire ran, the key did not"
+    note.write_text(body, encoding="utf-8")       # the same bytes, back before the next rescan
+    sync.rescan()
+    assert current(), "the restored note is current again"
+    assert sync.sync_path(note) is SyncOutcome.UNCHANGED, "...and the next pass is a no-op"
