@@ -28,10 +28,10 @@ answer-drift, never a silent one.
 | a path's count `{n,m}` at most | `32` | each count copies the automaton, and nested counts multiply | a question needs more |
 | `walk`'s budget | `100000` partial chains | the product walk enumerates simple paths, exponential on a dense graph; the answer says when it stopped | a question needs more |
 
-## The door's prices
+## The ingress's prices
 
-What a request's work costs (dn-door-language §E10), one unit the time of one evaluation step.
-Measured by `eval/door_gas.py` on 2026-11-05 on the owner's Mac: 300 notes, the median of seven
+What a request's work costs (dn-ingress-language §E10), one unit the time of one evaluation step.
+Measured by `eval/ingress_gas.py` on 2026-11-05 on the owner's Mac: 300 notes, the median of seven
 runs on a warm page cache, the embeds on the palace's embedder (EmbeddingGemma-2 on llama-server,
 `:8081`, ten notes' chunks, one request a note, as the landing sends them). A step took 0.30 µs.
 Prices are rounded to two figures. `PRICES` in `core/sentence/interpret.py` and the roles'

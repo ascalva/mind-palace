@@ -259,8 +259,8 @@ and the item's path (`corpus/wikipedia/<page id>`, `corpus/openalex/<work id>`, 
 value carries and no expression can change (ING-13). So the store can say of every chunk which
 source it came from and at which identity, the scoped queries of §2.1 can restrict to a source,
 and the attribution of §6 can ablate one. A version of an item (a Wikipedia revision, an arXiv
-`v2`, an edited answer) is a new version on the identity's chain, never a new identity (DOR-7 as
-the ingress keeps it). `[DERIVED from ING-13, ING-14, DOR-7]`
+`v2`, an edited answer) is a new version on the identity's chain, never a new identity (ING-7 as
+the ingress keeps it). `[DERIVED from ING-13, ING-14, ING-7]`
 
 What the instance never does: write the default instance's levers, strata or ledger (SAF-5 of
 dn-scale-and-attribution); read its vault, transcripts or code; land an item without its origin;
