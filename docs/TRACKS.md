@@ -192,7 +192,6 @@ _(none yet — a track closes only on an owner-approved deskcheck.)_
 - ⚠ artifact with no manifest: dn-research-register → track: workflow            # the artifact chain's own register is how work moves; docs/tracks/workflow.md exists — no new manifest minted (its DoD gains rows, §3) (no docs/tracks/workflow            # the artifact chain's own register is how work moves; docs/tracks/workflow.md exists — no new manifest minted (its DoD gains rows, §3).md manifest)
 - ⚠ artifact with no manifest: scored-beliefs-and-earned-entitlement → track: scored-beliefs      # manifest minted with this note (docs/tracks/scored-beliefs.md); owner renames/rejects at ratification (no docs/tracks/scored-beliefs      # manifest minted with this note (docs/tracks/scored-beliefs.md); owner renames/rejects at ratification.md manifest)
 - (info) manifest `mathematical-foundations` has no plan/note members yet — carried by manifest (design-pass queued); not an error while its work is pre-plan.
-- (info) manifest `query-language` has no plan/note members yet — carried by manifest (design-pass queued); not an error while its work is pre-plan.
 - (info) manifest `reference-bookkeeper` has no plan/note members yet — carried by manifest (design-pass queued); not an error while its work is pre-plan.
 
 _Derived by `scripts/board.py` from front matter + `docs/tracks/` manifests + `docs/deskchecks/`. Never hand-edit; edit the sources and regenerate._
