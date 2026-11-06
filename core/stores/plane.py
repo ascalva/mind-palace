@@ -732,8 +732,12 @@ class PlaneReader[L: Provenance]:
                     include_superseded: bool = False) -> list[Row[L]]:
         """`search`, flattened to the store's row shape: one row per cleared occupancy, nearest
         first, at most k rows."""
-        return [row for _, row in self.search_atom_rows(
-            vector, k=k, include_superseded=include_superseded)][:k]
+        rows: list[Row[L]] = []
+        for hit in self.search(vector, k=k, include_superseded=include_superseded):
+            for o in sorted(hit.occupancies,
+                            key=lambda o: (o.provenance.value, o.source_path, o.chunk_index)):
+                rows.append(self._row(o, hit.text, hit.vector or (), hit.distance))
+        return rows[:k]
 
     def search_atom_rows(self, vector: Sequence[float], *, k: int,
                          include_superseded: bool = False) -> list[tuple[str, Row[L]]]:

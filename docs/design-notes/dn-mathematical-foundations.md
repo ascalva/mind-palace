@@ -816,8 +816,9 @@ XIII) is the claim the code now relies on, proved in `formal/Palace/Cosine.lean`
 binary16 moves a cosine by at most `betaStore ≈ 2⁻¹¹` for every stored vector of norm at least
 `1/2`, the query's own rounding by at most `betaQuery`, computed per query, and a top `k` whose
 margin exceeds twice their sum with the kernel's `γ` is the top `k` of the exact cosines. The
-store computes that certificate on every search (`core/kernel/margin.py`, A4.5 there for what
-it certifies on the live stores and how it explains the experiment's one changed slot).
+store computes that certificate on request, through `VectorStore.search_ranked`
+(`core/kernel/margin.py`; A4.5 there for what it certifies on the live stores and how it explains
+the experiment's one changed slot).
 
 ### A2.2 — The substrate, generalized
 
