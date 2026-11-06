@@ -106,9 +106,12 @@ Ouroboros's overlay may restate its id and nothing else. The section holds no ot
 
 **The invariant.** For instances i ≠ j, Ouroboros among them, `shared(N(i), N(j))` is empty:
 no location one writes or reads (data paths, lock, levers, exhaust lane, sources) is equal to,
-inside, or around a location of the other; no Keychain item, label or dialogue lane is common;
-neither restic repository nor airlock prefix lies at or inside the other's; and the Vault servers
-differ, every loopback spelling counting as one host. For named instances it holds by
+inside, or around a location of the other, each compared by its real path with every symlink on it
+resolved; no Keychain item, label or dialogue lane is common; neither restic repository nor
+airlock prefix lies at or inside the other's; and the Vault servers differ, each host read as the
+resolver reads it (userinfo dropped, every IPv4 form `inet_aton` accepts, IPv6 and v4-mapped
+addresses, one trailing dot), with every loopback or unspecified address and the localhost names
+counting as one host. For named instances it holds by
 construction: distinct ids give distinct roots, item prefixes and label segments, no derived name
 is Ouroboros's, and an undeclared source points into the instance's own root. A source a named
 overlay declares is checked against all of Ouroboros's locations; two named instances may
@@ -185,7 +188,10 @@ loader's Config equals the old loader's field for field, the new `instance` fiel
 supervisor of one instance on one host, not on two (a lease or the DI-3 registry would). No
 configuration can yet declare a named instance's dialogue lane, so it has none. The committed
 attestation public keys are Ouroboros's: a named instance that signs with its own key and verifies
-against them fails closed until its overlay names its own.
+against them fails closed until its overlay names its own. The checks hold at load: a symlink
+planted afterwards is outside their reach, and so is a name that DNS resolves to this machine,
+since core resolves no names; such a name would reach Ouroboros's Vault without Ouroboros's
+token, the named instance's token item being its own.
 
 **What it gives the container profile.** One volume per instance, mounted at
 `/app/instances/<id>`, carries all of its state; the overlay at `config/instances/<id>.toml`
