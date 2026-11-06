@@ -293,7 +293,7 @@ spectral** (`core/complex/spectral.py`):
 |---|---|---|---|---|
 | LAP-1 | L·1 = 0 for L = D − A (exact weights: exact; f64: allclose 1e-8; route agreement ≤ 4·eps·max for ≤ 4 nonzero weights per row — A1) | laplacian.py:26 | Proposition | test_complex.py:100; test_graph_boundary.py:69 |
 | LAP-2 | xᵀLx = Σ w(x_u−x_v)² ≥ 0 (symmetric A, w ≥ 0); L̄ PSD via its signed identity (laplacian.py:52) | laplacian.py:1 | Conjecture → Prop at MF-2 | GAP — direct PSD untested |
-| LAP-3 | dim ker L = #components (w > 0 on edges; SimpleGraph thm in Mathlib, weighted via support) | laplacian.py:27 | Conjecture (cited) | GAP — nullity never counted → MF-2 |
+| LAP-3 | dim ker L = #components (for symmetric A ≥ 0; w > 0 on edges; SimpleGraph thm in Mathlib, weighted via support) | laplacian.py:27 | Conjecture (cited) | GAP — nullity never counted → MF-2 |
 | LAP-4 | Spec(L_sym) ⊆ [0,2] (A ≥ 0); D^{−1/2} := 0 at degree 0 (ε = 1e-9, float64) | laplacian.py:33 | Proposition + Definition | test_complex.py:104; convention pointwise → MF-2 |
 | LAP-5 | λ_min(L̄) = 0 ⇔ balanced (Hou/Kunegis); house reading: max over components (ε = 1e-6) | balance.py:28 | Claim (cited) | test_complex_properties.py:93 (converse: one instance) |
 | LAP-6 | a triangle is frustrated ⇔ it carries an odd count of negative edges (exact, ℤ/2 parity) | balance.py:9 | Proposition | test_complex_properties.py:96 |
