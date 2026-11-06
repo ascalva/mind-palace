@@ -66,6 +66,12 @@ def _c1_holds_on_generators(spine: Spine, ticks: dict[str, int]) -> bool:
     closure-based `is_fiber_convex` grows with the corpus times the closure and never returns on a
     real store.
 
+    ON REAL DATA THIS CHECK CANNOT FAIL, and it is kept as a guard against a future generator
+    family, not as evidence. A version event consumes nothing (`_Builder.versions` adds it with
+    `consumes=()`), so no g2 edge reaches it and its only generator edge is from the previous
+    version of the same note; `version_seq` increases along that chain. The seeded tests, an
+    inverted map failing and a monotone one passing, are the ones that exercise CLK-1.
+
     The domain here is the version events only. A pair of versions related through a path of
     non-version events is not covered by this check; the seeded cases and
     `tests/unit/test_clock_maps.py` check C1 and C2 over the full closure."""
