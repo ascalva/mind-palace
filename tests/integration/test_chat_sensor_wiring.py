@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -117,3 +118,20 @@ def test_ingest_chat_verb_runs_the_sensor(tmp_path: Path, monkeypatch, capsys) -
     assert launcher.ingest_chat() == 0
     assert sensor.store.sessions() == ["sess-a"]         # the manual trigger ingested the session
     assert "chat ingest:" in capsys.readouterr().out     # the report is printed
+
+
+def test_ingest_chat_verb_refuses_beside_a_live_daemon(tmp_path: Path, monkeypatch, capsys) -> None:
+    """The verb writes the chat stores, so a live daemon (the single writer) makes it refuse, as
+    every other on-demand verb does; the sensor is never built. Control: with no live run the same
+    launcher ingests (`test_ingest_chat_verb_runs_the_sensor`)."""
+    built: list[object] = []
+    monkeypatch.setattr("ops.chat_sensor.build_chat_sensor",
+                        lambda config=None, **kw: built.append(1))
+    cfg = dataclasses.replace(
+        load_config(), paths=dataclasses.replace(load_config().paths, data_dir=tmp_path))
+    launcher = build_launcher(config=cfg)
+    live = launcher.runs.open_run(commit_sha="abc123456789", dirty=False, pid=os.getpid())
+
+    assert launcher.ingest_chat() == 1
+    assert f"run #{live.id}" in capsys.readouterr().out
+    assert built == []                                   # refused before the sensor was built

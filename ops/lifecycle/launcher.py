@@ -1114,7 +1114,12 @@ class Launcher:
         The scheduled `chat_sync` job does this in the daemon (startup catch-up + housekeeping);
         this is the owner's MANUAL trigger — e.g. the very first ingest, before the daemon's first
         housekeeping tick. Reads local transcripts only (no network, no vault) — safe inside the
-        seal. Idempotent: a session already in the store is skipped."""
+        seal. Idempotent: a session already in the store is skipped.
+
+        Refused beside a live daemon like the other on-demand verbs: a live daemon is the single
+        writer, and its own `chat_sync` job lands the same transcripts."""
+        if self._refuse_if_live("ingest-chat"):
+            return 1
         from ops.chat_sensor import build_chat_sensor
         report = build_chat_sensor(self.cfg).sync()
         print(f"chat ingest: {report}")

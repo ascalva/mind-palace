@@ -98,3 +98,26 @@ def test_capture_then_recall_across_turns(tmp_path):
                            clearance=MIRROR_READ)
     assert hits and any(h["provenance"] == "authored-dialogue" for h in hits)
     runtime.queue.close()
+
+
+def test_run_pending_tasks_claims_a_job_before_it_runs_it(tmp_path):
+    """The in-process runner claims each job (QUEUED -> RUNNING, one attempt) before the handler
+    runs and leaves a kind it has no handler for QUEUED. The old runner completed rows it never
+    claimed, so the handler saw a QUEUED row with no attempt."""
+    runtime, _store, _emb = _runtime(tmp_path)
+    q = runtime.queue
+    task = q.enqueue("ambassador_task", "synthesis", 4096, priority=5, payload={"q": "x"})
+    other = q.enqueue("some_other_kind", "synthesis", 4096, priority=5)
+    seen: list[tuple[str, int]] = []
+
+    def handler(job):
+        row = q.get(job.id)
+        seen.append((row.state, row.attempts))
+        return "done"
+
+    runtime.task_handler = handler
+    assert runtime.run_pending_tasks() == 1
+    assert seen == [("running", 1)]
+    assert q.get(task.id).state == "done"
+    assert q.get(other.id).state == "queued"             # not ours: untouched, not claimed
+    q.close()

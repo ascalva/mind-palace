@@ -671,8 +671,8 @@ write-then-rename.
 
 ## 9. Findings for the owner — defects in the code today, from the audit of this note
 
-Recorded here; the first two are fixed on this branch (DO-2a, `core/ingest/landing.py`), the
-rest stay the owner's.
+Recorded here; the first two are fixed on this branch (DO-2a, `core/ingest/landing.py`), items 4
+and 6 later on `build/ladder-fixes`, the rest stay the owner's.
 
 1. **The idempotence key preceded the attestation and the version row.** `sync_path` wrote the
    catalog's digest, then emitted the attestation, then recorded the version; `capture_turn` had
@@ -692,11 +692,14 @@ rest stay the owner's.
    so an interpreted `link` can overwrite an authored edge on the same pair, its weight, sign and
    time included.
 4. **`palace ingest-chat` writes beside a live daemon.** It has no `_refuse_if_live` guard; the
-   other on-demand verbs do.
+   other on-demand verbs do. *Fixed:* the verb refuses beside a live run, as they do;
+   `tests/integration/test_chat_sensor_wiring.py` asserts it.
 5. **The code lane's physical Lance add takes no lock.** It is safe today only because its writers
    are the daemon and a guarded verb.
 6. **`talk.py`'s runtime completes QUEUED jobs without claiming them**, outside the supervisor's
-   one claim site.
+   one claim site. *Fixed:* `run_pending_tasks` claims each job through `JobQueue.claim` (a new
+   `kinds` filter keeps it to the kinds it handles) before completing it;
+   `tests/integration/test_ambassador_conversation.py` asserts the handler sees a RUNNING row.
 7. **The plane's `held` cache can go stale across a crash** between its second and third writes,
    and the UNCHANGED check keeps a re-run from repairing it; only `repair()` does.
 
