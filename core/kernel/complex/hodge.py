@@ -41,7 +41,13 @@ import scipy.sparse as sp
 _MAX_DENSE_EDGES = 20_000
 
 # Rank cut for the dense SVD null space (§6(e)): singular values below this fraction of the
-# largest are treated as numerically zero.
+# largest are treated as numerically zero. SPC-3 (docs/LAWS.md, formal/Palace/Gap.lean::
+# countSV_eq_of_gap) says when that is right: NumPy's SVD returns the exact singular values of
+# L₁ + E, ‖E‖ ≤ ε = 8·n·u·‖L₁‖ (backward stability, the hypothesis), and a cut θ with ε ≤ θ and
+# θ + ε < g, g the least nonzero singular value of L₁, keeps exactly dim ker L₁ = β₁ below it. With
+# θ = 1e-10·s_max the first holds up to n ≈ 1.1·10⁵ edges, past `_MAX_DENSE_EDGES`, and the second
+# is the gap condition g > (1e-10 + 16·n·u)·s_max, which tests/property/test_spectral_gap.py checks
+# on the fixtures.
 _RANK_TOL = 1e-10
 
 

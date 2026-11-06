@@ -841,3 +841,17 @@ embedder's unit vectors meet. §2.4's "Lean never proves the NumPy" stands for L
 - **A2-F1:** the store's write path or LanceDB's query rounding disagreeing with `rn16 ∘ rn32` on
   an input the table and the falsifier did not draw, or the kernel's error above `γ`. Either
   reopens VEC-1.
+
+### A2.5 — The tolerances that decide zero (SPC-3)
+
+§2.5's third tier names tolerances as doctrine. Three of them decide whether a computed spectral
+value is zero: the cut of `core/graph/conductance.py`'s pseudo-inverse, the rank cut of
+`core/kernel/complex/hodge.py` at `1e-10·s_max`, and, through the first, the rise threshold `1e-9`.
+SPC-3 (`formal/Palace/Gap.lean`) proves Weyl's inequality in counting form, for symmetric operators
+and for singular values (Mathlib has neither it nor Courant and Fischer's theorem), and the
+spectral-gap lemma it gives: with NumPy's backward stability as the hypothesis, `ε = 8·n·u·‖A‖`, a
+cut `θ` keeps exactly the kernel below it when `ε ≤ θ` and `θ + ε < g`. The pseudo-inverse used
+NumPy's default cut, `1e-15·σ_max`, which fails `ε ≤ θ` from `n = 2` on; it is now `1e-10·σ_max`,
+the tolerance CND-1 already named. The rise threshold's condition rests also on Wedin's bound for
+the pseudo-inverse, cited and not formalized, and the falsifier records where it fails: on a thin
+graph, a path of forty notes, the bound passes `1e-9` while the movement measured stays far below.
