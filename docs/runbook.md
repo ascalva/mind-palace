@@ -163,21 +163,40 @@ id = "<id>"          # a lowercase letter, then up to 31 lowercase letters, digi
 
 MIND_PALACE_OVERLAY=config/instances/<id>.toml mind-palace status
 ```
-Everything the instance holds is derived from the id, and its overlay may not set it:
+Everything the instance writes or holds as its own is derived from the id, and its overlay may not
+set it:
 
 | | Ouroboros | instance `<id>` |
 |---|---|---|
 | data dir, stores, spool, `supervisor.lock` | `data/…` | `instances/<id>/data/…` |
 | self-mod levers file | `config/levers.toml` | `instances/<id>/levers.toml` |
-| Keychain items | `restic-password`, `attestation-signing-key`, … | `<id>.restic-password`, … |
+| exhaust lane (its reports) | `~/.mind-palace/exhaust` | `instances/<id>/exhaust` |
+| Keychain items | `restic-password`, `attestation-signing-key`, `vault-supervisor-token`, … | `<id>.restic-password`, … |
 | launchd labels | `com.mind-palace.palace`, `com.mind-palace.tick` | `com.mind-palace.<id>.palace`, … |
 | restic repository | `[backup] repository` | `[backup] repository`, ending in `/<id>` |
+| Vault | `[secrets] addr` | its own `[secrets] addr`, or none |
+
+Its sources are its own or off. Declaring nothing, it reads no corpus: its vault and transcripts
+agents point into `instances/<id>/` and are off, its code agent is off, and it has no dialogue
+lane. To give it a corpus, name one: `[ingestion.vault] path = "<dir>"`, and likewise
+`[ingestion.transcripts] transcripts_dir`; a relative path lies under `instances/<id>/`.
+
+The owner key is per instance like every other item: the instance's is
+`<id>.attestation-owner-key`. One owner key shared across instances means placing the same seed
+under both names, and that is your act; nothing derives it for you.
 
 `instances/` is gitignored. Loading refuses an overlay with no id, with `id = "ouroboros"`, that
-names a Keychain item, that points a data path outside `instances/<id>/`, or whose repository is
-Ouroboros's or lies inside it (read off your `ouroboros.toml`). `mind-palace stack`,
-`ops/backup/backup.sh` and `scripts/run_with_secrets.sh` are Ouroboros's and refuse while
-`MIND_PALACE_OVERLAY` is set. The full map, the invariant and its limits are DI-2 in
+names a Keychain item, that points a data path or the exhaust lane outside `instances/<id>/`, that
+turns an agent or `[secrets]` on without naming its source or its Vault, or that would share any
+location, name or server with Ouroboros, read off your `ouroboros.toml`: a source at, in or around
+your vault or data, your restic repository or a location inside it, your Vault in any spelling.
+Every tool that names Ouroboros's own state refuses while `MIND_PALACE_OVERLAY` is set:
+`mind-palace stack`, `palace tick`, `ops/backup/backup.sh`, `scripts/run_with_secrets.sh`, the
+Open WebUI bridge and its responder, the dialogue readers, the Vault scripts, the plane and
+float16 migrations, the cockpit, and the tools that read or write Ouroboros's data by path
+(`curate_local.py`, `handoff.py`, `verify_planes.py`, the query battery, the storage census, the
+quantization bench, the eval reports' `data/reports` default). The full map, the invariant and its
+limits are DI-2 in
 `docs/tracks/deployed-instances.md`.
 
 ## Verify Phase 0
