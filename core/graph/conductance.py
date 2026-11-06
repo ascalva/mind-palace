@@ -457,7 +457,15 @@ def reconnection_scan(
     edit that raises `cos` also qualifies). For every pair whose conductance rose, each
     weight-increased edge is reverted to its before-weight in isolation; an edge whose reversion
     ERASES the rise is a confirmed bridging edge. Reports only leave-one-out-confirmed edges, never
-    a guess. A decay-only interval (no weight increased) yields no rise and no event (the null)."""
+    a guess. A decay-only interval (no weight increased) yields no rise and no event (the null).
+
+    An empty `bridging_edges` does not mean a spurious rise. The event's `delta_conductance` is
+    computed from the two graphs and stands. It means only that no single weight-increased edge,
+    reverted alone, brings the pair's conductance back to its before-value within `_RISE_EPS`. The
+    rise is then shared by two or more increased edges, or each one's share is too small to erase
+    it alone, and the scan names none of them. Reverting all the increased edges together leaves
+    the pair at or below its before-value, since `1/R_eff` is non-decreasing in the edge weights
+    (Rayleigh monotonicity). The rise therefore comes from the increases."""
     index_of, digests = _common_index(before, after)
     size = len(digests)
     w_before = _graph_weights(before, index_of, size, thresh)
