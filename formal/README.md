@@ -248,7 +248,7 @@ Roundoff and FloatModel, so it has no statements of its own):
 | VEC-1 (float16) | rounding to binary16 moves a coordinate by at most `2⁻¹¹ · max \|x\| 2⁻¹⁴`, a vector by `2⁻¹¹ √(‖x‖² + d · 2⁻²⁸)`, and a cosine by at most `betaStore ≈ 2⁻¹¹` for vectors of norm at least `ν` (Dunkl and Williams in an inner product space); the query's rounding by `betaQuery`; a top `k` whose margin exceeds `2 (betaStore + betaQuery + γ)` is the top `k` of the exact cosines | proved over `rn16`; the coordinate bound survived 500, the certificate 292 |
 | LAP-1 (float64) | two association orders of the same at most four nonzero nonnegative binary64 summands agree within `4·eps` of either result, at eight summands two orders differ by five ulps, beyond the bound; the boundary test itself checks every row against the general `2·γₙ·Σ\|w\|` bound, which is not machine-checked | proved over `rn`, with the witness; on this machine it survived 340 rows that reassociate |
 | PLN-5 (A3.7) | after `purge(d)` no row or edge names `d`; every atom `d`'s rows held is deleted or still held; no atom another row holds is freed; re-running finishes a purge interrupted after its atom delete | proved; attack survived 500 |
-| PLN-6 (#37) | the scoped re-key moves only note records' ids: it keeps the plane's state, so `Good` and every view and search, every row outside the note lane, and every row's document, text and lane, and a second run changes nothing; the unscoped form leaves no shed atom row, drops the superseded versions and their edges, and merges code records under the note lane's key | proved, with witnesses; attack survived 500, its two controls refuted within 6 and 25 |
+| PLN-6 (#37) | the scoped re-key moves only note records' ids: it keeps the plane's state, so `Good` and every view and search, every row outside the note lane, and every row's document, text and lane, and a second run changes nothing; the unscoped form leaves no shed atom row, drops the superseded versions and their edges, and merges code records under the note lane's key | proved, with witnesses; attack survived 500, its two controls refuted within 7 and 16 |
 | SCO-1 (Σ) | closure under refinement is a closure operator, and closed sets are closed under ∩ and ∪; `top()` is every stratum but `foundation`, `hypothetical` and `exhaust`, so not the top of the closed sets | proved; attack survived 500 |
 | SCO-2 (windows) | `⊑` is a preorder, not antisymmetric (`pt(1)` and `[1,1]`); join is the least upper bound of any two windows; meet is a lower bound of any two and the greatest among well-formed ones, so of every window the constructor accepts; on those, meet is commutative and associative; absorption holds up to the preorder | proved, with witnesses; attacks survived 421, 206 and 500; commutativity and associativity attacked, survived 500 |
 | SCO-3 (delegation) | a meet that exists lies under both inputs and is their greatest lower bound for well-formed windows; it is partial across clocks, whatever atlas is registered, and where the result trips the SLICE rule; a cut one side carries survives when the meet keeps its window | proved, with witnesses; attack survived 494 pairs |
@@ -341,9 +341,9 @@ within 11, cleared lands that crash before their cache step within 36, a reader 
 cache in place of the cleared join within 106, `freed` without the old derivation's atoms within
 17, the search loop without its `seen` set within 25 (`[0, 0]`), a purge without its
 still-held check within 10, the re-key as it was (every record under the note lane's key, the shed
-atoms not read) within 6, a land whose cache is written last, crashed after its transaction,
-within 5, a relabel whose cache is written last within 16, and its plane, the current rows landed again from the empty plane,
-within 25 (a retired note's rows are not current, so they are not read).
+atoms not read) within 7, a land whose cache is written last, crashed after its transaction,
+within 6, a relabel whose cache is written last within 15, and its plane, the current rows landed again from the empty plane,
+within 16 (a retired note's rows are not current, so they are not read).
 
 Outside the model: `reset` (it forgets whole classes, a visible act for any clearance it names),
 a land of several fibers in one transaction, and `relabel`'s place in a trace (it reads one class
