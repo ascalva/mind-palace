@@ -871,6 +871,19 @@ fourteen more, the first pre-existing on main:
     receipt. The dialogue-sync tests still stub `subprocess.run`, so
     they cannot see the edge reader's PATH.
 
+The security audit of the four branches (2026-11-06) found one more, in the rename's takeover of
+the first form's spool:
+
+51. **The takeover trusted the legacy tree** (MEDIUM). `_adopt_legacy` entered any real directory
+    under `door/` and renamed any regular file named as a request id into the daemon's own
+    `ingress/` tree. `data/handoff` is writable by its group, so an account in it could replace
+    `door/` with directories and files of its own: a planted receipt, adopted, made a chosen id read
+    as already landed with the planter's detail, suppressing the genuine request that later bears
+    it. *Fixed:* the legacy root, each role's spool and each of its directories must pass the
+    drain's own checks, and each file is read through its descriptor first, the daemon's own files
+    as `written_by_one`, a pending request as the drain trusts one; anything else stays where it
+    is, reported once.
+
 The second review's findings on the model are taken up in D9 (ING-10's scope, ING-11's
 hypothesis, what the model leaves out).
 
