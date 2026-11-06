@@ -469,3 +469,20 @@ def test_the_daemon_watches_the_record_and_catches_up_on_what_waits(palace):
         assert [j.kind for j in queue.list()].count(INBOX_CAPTURE_KIND) == 1
     finally:
         idle.queue.close()
+
+
+# ── the replies, the owner's switch ─────────────────────────────────────────────────────────────
+
+def test_the_replies_land_by_default_and_stay_out_when_switched_off(palace):
+    """`[ambassador] keep_replies` (true as shipped): off, the source makes the owner's text its
+    record's one item, so the reply never lands, and the record goes once the text has landed."""
+    from core.kernel.config import REPO_ROOT, load_config
+
+    assert load_config(REPO_ROOT / "config" / "defaults.toml").ambassador.keep_replies is True
+    off = replace(palace, cfg=replace(palace.cfg, ambassador=replace(palace.cfg.ambassador,
+                                                                     keep_replies=False)))
+    rid = _send(off)
+    _inbox(off).process_once()
+    assert _land(off)["effects"] == {"landed": 1}
+    assert _labels(off) == {f"dialogue/inbox/tea/{rid}/owner": AUTHORED}
+    assert _records(off) == []

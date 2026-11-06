@@ -527,7 +527,9 @@ the same holds. A record that is not, or that is not of the inbox's shape, is re
 source, so no account but the daemon's adds one. The item rule makes two items of a record: the
 text, labelled `authored-dialogue`, and the reply, labelled `observed`. The label follows from the
 field the inbox wrote each text into, in the table's code. The record has no field a model writes
-but the reply, and the reply is observed whatever it says; no script names a label (ING-13).
+but the reply, and the reply is observed whatever it says; no script names a label (ING-13). The
+replies land beside the owner's words, where the first form kept the owner's words alone;
+`[ambassador] keep_replies = false` turns that off, and the rule then makes the text's item alone.
 
 **Paths and identities.** The text's path is `dialogue/inbox/<conversation>/<id>/owner` and the
 reply's `dialogue/inbox/<conversation>/<id>/ambassador`, where `<conversation>` is the request's
