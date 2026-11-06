@@ -152,6 +152,34 @@ of this setup worth keeping a copy of.
 > `ouroboros.toml` by hand, then `rm config/local.toml`. The guard is temporary scaffolding for this
 > one migration and gets deleted once every instance you run has been moved.
 
+### A named instance: `MIND_PALACE_OVERLAY`
+The default chain above is Ouroboros (`cfg.instance.id == "ouroboros"`). Another instance is run
+from its own overlay, which replaces both `ouroboros.toml` and `levers.toml` and must say which
+instance it is:
+```sh
+# config/instances/<id>.toml
+[instance]
+id = "<id>"          # a lowercase letter, then up to 31 lowercase letters, digits or hyphens
+
+MIND_PALACE_OVERLAY=config/instances/<id>.toml mind-palace status
+```
+Everything the instance holds is derived from the id, and its overlay may not set it:
+
+| | Ouroboros | instance `<id>` |
+|---|---|---|
+| data dir, stores, spool, `supervisor.lock` | `data/…` | `instances/<id>/data/…` |
+| self-mod levers file | `config/levers.toml` | `instances/<id>/levers.toml` |
+| Keychain items | `restic-password`, `attestation-signing-key`, … | `<id>.restic-password`, … |
+| launchd labels | `com.mind-palace.palace`, `com.mind-palace.tick` | `com.mind-palace.<id>.palace`, … |
+| restic repository | `[backup] repository` | `[backup] repository`, ending in `/<id>` |
+
+`instances/` is gitignored. Loading refuses an overlay with no id, with `id = "ouroboros"`, that
+names a Keychain item, that points a data path outside `instances/<id>/`, or whose repository is
+Ouroboros's or lies inside it (read off your `ouroboros.toml`). `mind-palace stack`,
+`ops/backup/backup.sh` and `scripts/run_with_secrets.sh` are Ouroboros's and refuse while
+`MIND_PALACE_OVERLAY` is set. The full map, the invariant and its limits are DI-2 in
+`docs/tracks/deployed-instances.md`.
+
 ## Verify Phase 0
 ```
 uv run ruff check .
@@ -659,7 +687,8 @@ uv run python -m ops.selfmod_cli history                     # full audit trail
 
 Tuned values land in `config/levers.toml` (machine-owned, gitignored); your hand-authored
 `config/ouroboros.toml` always overrides them (human authority is supreme). Delete `config/levers.toml`
-to revert every tuned knob to its committed default.
+to revert every tuned knob to its committed default. A named instance's loop writes its own
+`instances/<id>/levers.toml` instead, under its own overlay, and never Ouroboros's.
 
 **Registered levers** (hard bounds enforced — an out-of-range target is refused): `dream_similarity_threshold` [0.55–0.75],
 `dream_near_dup_threshold` [0.90–0.99], `dream_min_cluster_size` [2–6], `dream_max_clusters` [4–16].

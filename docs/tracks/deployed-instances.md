@@ -67,3 +67,95 @@ deskcheck discipline, this track cannot be deskchecked while it merely *could* w
 presented in `dn-amnesiac-clones` and unruled (`dn-key-fabric` adds none of its own).
 Nothing in this track is buildable past DI-1, DI-2, and DI-3's home side until they are —
 and nothing flips ON without the owner's ceremonies.
+
+## DI-2: instance identity
+
+Built on `build/instance-identity` (issue #25). A configuration now says which individual it
+is, and everything that individual holds is a name derived from that identity, so two instances
+cannot write one history.
+
+**Selection.** `MIND_PALACE_OVERLAY` names the one overlay a named instance reads, in place of
+`config/ouroboros.toml` and `config/levers.toml`. Unset or empty, the configuration is the
+default chain, `defaults ← levers.toml ← ouroboros.toml`, and that chain is Ouroboros.
+
+**The `[instance]` section.** `cfg.instance.id` is `ouroboros` for the default chain. A named
+overlay must declare `[instance] id`: a lowercase letter, then up to 31 lowercase letters, digits
+or hyphens, so the id is one path segment and one dotted component, and two ids never name one
+directory on a case-insensitive filesystem. `ouroboros` is reserved to the default chain, and
+Ouroboros's overlay may restate its id and nothing else. The section holds no other key.
+
+**The namespace map** (`InstanceConfig`, `namespaces_of` in `core/kernel/config/loader.py`):
+
+| Namespace | Ouroboros | Named instance `<id>` |
+|---|---|---|
+| root of relative data paths | `<repo>` | `<repo>/instances/<id>` |
+| data dir and stores | `<repo>/data/…` | `<root>/data/…` |
+| ingestion spool (`cfg.interface.handoff_dir`) | `<repo>/data/handoff` | `<root>/data/handoff` |
+| supervisor lock | `<repo>/data/supervisor.lock` | `<root>/data/supervisor.lock` |
+| levers file | `<repo>/config/levers.toml` | `<root>/levers.toml` |
+| Keychain items (attestation signing and owner keys, restic password, backup key pair) | `attestation-signing-key`, … | `<id>.attestation-signing-key`, … |
+| launchd labels | `com.mind-palace.palace`, `com.mind-palace.tick` | `com.mind-palace.<id>.palace`, `com.mind-palace.<id>.tick` |
+| restic repository | as its overlay names it | its overlay's, whose last path segment is `<id>` |
+
+**The invariant.** For instances i ≠ j, Ouroboros among them, `shared(N(i), N(j))` is empty:
+no path of one is equal to, inside, or around a path of the other, no Keychain item or label is
+common, and neither restic repository lies at or inside the other's location. For named instances
+it holds by construction (distinct ids give distinct roots, item prefixes and label segments, and
+no derived name is Ouroboros's). `tests/property/test_instance_namespaces.py` checks it with
+Hypothesis over generated ids through the real loader, and its controls break the derivation
+twice, once by ignoring the id and once by handing a named instance Ouroboros's names (the hazard
+of #25); the property fails on both.
+
+**What a named instance is refused.** Loading refuses an overlay that declares no id, a malformed
+id, or `ouroboros`; that sets a derived Keychain item name, even to its derived value; that moves
+a data path out of its root (absolute, or through `..`); whose restic repository does not end in
+its id; or that would share any namespace with Ouroboros, whose chain is read on this host for
+that check alone. Naming Ouroboros's restic repository, or a location inside it, therefore
+refuses outright. At run time, a self-modification loop pointed at another levers file refuses
+(`ForeignLevers`), and three Ouroboros-only tools refuse under `MIND_PALACE_OVERLAY`: `mind-palace
+stack`, `ops/backup/backup.sh` and `scripts/run_with_secrets.sh`, which hold Ouroboros's labels,
+Keychain items, Vault token and staging dir.
+
+**What Ouroboros sees.** Nothing changes. Its paths, item names, labels, levers file and
+repository are the ones it had. `tests/unit/test_instance_identity.py` pins this on a fixture with
+the live overlay's sections and keys (placeholder values), against values it recomputes from the
+TOML, with a control showing the same overlay loaded as a named instance differs in every
+namespace. Checked by hand once, on a copy of the live overlay, the new loader's Config equals the
+old loader's field for field (the new `instance` field aside).
+
+**Trade-offs chosen.**
+- *Derived, not declared.* An overlay states no namespace, and stating one refuses rather than
+  being overridden, because a value the loader replaces is a setting that looks applied and never
+  took. A declared name could also collide with another instance's; a derived one cannot.
+- *State under `instances/<id>/`.* Nested in `data/`, a named instance would ride Ouroboros's
+  backup and fall to Ouroboros's `reset`; under the home directory it would have no stable place
+  in a container. The root is gitignored and is one directory to mount or archive.
+- *Every Keychain item, not only the attestation key.* With Ouroboros's restic password a named
+  instance could read Ouroboros's backups, and with its owner key forge its gate decisions; the
+  amnesiac-clones design asks for zero shared secret material. Sharing one now takes a deliberate
+  act: placing the same value under both names.
+- *The repository is checked, not rewritten.* What the overlay writes is what restic gets; the
+  last-segment rule keeps two named instances apart, and the check against Ouroboros's
+  repository catches a copied overlay. In a container that has no `ouroboros.toml` the second
+  check has nothing to compare; there the derived password still keeps Ouroboros's repository
+  closed, since restic neither opens it with another password nor initialises over it.
+- *A derived levers file, not a refusal.* The brief allowed refusing self-modification until an
+  instance declares a levers path. A declared path is outside the derivation, so the invariant
+  could not cover it; derived, it is disjoint by construction and `[selfmod] enabled` stays the
+  one switch.
+- *Ouroboros's tools refuse instead of learning instances.* The stack, the backup job and the
+  secrets wrapper name Ouroboros's services and items directly; a named instance's services
+  belong with its container profile.
+
+**Limits.** The supervisor lock is a `flock` in the instance's data dir: it excludes a second
+supervisor of one instance on one host, not on two (a lease or the DI-3 registry would). A named
+instance's sources still default to Ouroboros's: the vault root, the transcripts directory, the
+dialogue lanes the heartbeat reads, and the exhaust lane it writes reports to. `[secrets]` points
+at Ouroboros's Vault. The bridge's handoff dir in `config/stack.toml` is read outside the loader
+by the edge; only the notices the core writes there follow the instance's root.
+
+**What it gives the container profile.** One volume per instance, mounted at
+`/app/instances/<id>`, carries all of its state; the overlay at `config/instances/<id>.toml`
+and the id are its whole identity in the image; item names map one-to-one onto a container's
+secrets; labels name its units. A sealed core with network none and a filtered edge then share
+only the spool under that root.
