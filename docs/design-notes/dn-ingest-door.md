@@ -695,7 +695,16 @@ and 6 later on `build/ladder-fixes`, the rest stay the owner's.
    other on-demand verbs do. *Fixed:* the verb refuses beside a live run, as they do;
    `tests/integration/test_chat_sensor_wiring.py` asserts it.
 5. **The code lane's physical Lance add takes no lock.** It is safe today only because its writers
-   are the daemon and a guarded verb.
+   are the daemon and a guarded verb. *Decided, no race today* (the one-writer model, DOR-12): the
+   code rows have one writer at a time, since the daemon dispatches one job a tick and `lanes
+   code-embed` refuses while it is live; the table's other writers, the plane's, under its own
+   lock, write disjoint rows (prose atoms carry no class and no path), and row-disjoint writes
+   commute, so every interleaving of their commits holds the rows of a serial order; LanceDB
+   commits each write whole and rebases concurrent ones (measured on lancedb 0.33.0, four runs of
+   three processes, two updating disjoint rows of one fragment and one appending, 120 commits a run:
+   no error, no lost write); and a commit that failed would be a crash at that step, which D8 and
+   PLN-4's crash points cover. A lock is owed once a second process may write code rows beside the
+   daemon, or drop the table: an unguarded script's `reset()` commutes with nothing.
 6. **`talk.py`'s runtime completes QUEUED jobs without claiming them**, outside the supervisor's
    one claim site. *Fixed:* `run_pending_tasks` claims each job through `JobQueue.claim` (a new
    `kinds` filter keeps it to the kinds it handles) before completing it;
