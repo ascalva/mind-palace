@@ -27,7 +27,7 @@ from core.kernel.selfcheck import grounding_score
 @given(m=st.integers(min_value=3, max_value=8), seed=st.integers(min_value=0, max_value=2**16))
 def test_planted_bridge_is_negative_and_clique_edges_positive(m, seed):
     """Two m-cliques joined by one bridge edge: the bridge must be the unique minimum-curvature
-    edge and strictly negative for m >= 4 (deg grows, no triangle support); intra-clique edges
+    edge and strictly negative for every m >= 3 (CRV-2: 4 - 2m <= -2); intra-clique edges
     are triangle-rich and strictly greater."""
     n = 2 * m
     A = np.zeros((n, n))
@@ -40,10 +40,10 @@ def test_planted_bridge_is_negative_and_clique_edges_positive(m, seed):
     curv = forman(sp.csr_matrix(A))
     bridge = curv[(m - 1, m)]
     intra = [v for (i, j), v in curv.items() if (i, j) != (m - 1, m)]
-    assert bridge == 4 - m - m + 0                       # closed form: no triangles through it
+    assert bridge == 4 - 2 * m                           # closed form: no triangles through it
     assert all(bridge < v for v in intra)                # strictly the least-curved edge
-    if m >= 4:
-        assert bridge < 0                                # genuinely negative on real bridges
+    assert bridge < 0                                    # CRV-2: negative from m = 3 (4 - 2m = -2)
+    assert bridge <= -2                                  # and by at least 2 at every m in range
 
 
 # --- H5: persistence stability ----------------------------------------------------
