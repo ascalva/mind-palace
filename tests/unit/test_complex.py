@@ -127,6 +127,36 @@ def test_fiedler_detects_weak_cut():
     assert lam2 < 0.2                                   # but only just — a weak cut
 
 
+def _path_adjacency(n_path: int, n_isolated: int) -> sp.csr_matrix:
+    A = np.zeros((n_path + n_isolated, n_path + n_isolated))
+    for i in range(n_path - 1):
+        A[i, i + 1] = A[i + 1, i] = 1.0
+    return sp.csr_matrix(A)
+
+
+def test_fiedler_is_zero_when_an_isolated_vertex_cuts_the_graph_off():
+    # LAP-4 gives an isolated vertex an identity row, which puts 1 (not 0) in the spectrum; a path
+    # plus one isolated vertex used to read lambda_2 = 1.0. It is disconnected: lambda_2 = 0.
+    lam2, vec = fiedler(_path_adjacency(4, 1))
+    assert lam2 == 0.0
+    assert abs(np.linalg.norm(vec) - 1.0) < 1e-12
+    L = laplacian_sym(_path_adjacency(4, 1)).toarray()
+    L[4, 4] = 0.0                                       # the isolated row with its identity removed
+    assert np.linalg.norm(L @ vec) < 1e-12              # the vector is in that kernel
+    assert vec[4] != 0.0                                # and it separates the isolated vertex
+
+
+def test_fiedler_is_zero_for_any_disconnected_graph_and_not_for_a_connected_one():
+    for n_path, n_iso in [(3, 2), (5, 1), (2, 3)]:
+        assert fiedler(_path_adjacency(n_path, n_iso))[0] == 0.0
+    two_paths = np.zeros((6, 6))
+    for i, j in [(0, 1), (1, 2), (3, 4), (4, 5)]:
+        two_paths[i, j] = two_paths[j, i] = 1.0
+    assert fiedler(sp.csr_matrix(two_paths))[0] == 0.0
+    control, _ = fiedler(_path_adjacency(5, 0))         # connected path: strictly positive
+    assert control > 0.01
+
+
 def test_louvain_cross_check_separates_two_triangles():
     # The scikit-network cross-check (a second, modularity-based method) recovers the two triangles.
     A = np.zeros((6, 6))
