@@ -229,11 +229,11 @@ def completeAfter (old : Bool) (raws : List (Raw × Fin 3)) : Bool :=
 
 /- PLN-4: with a land's cache additions written before its transaction, the cache stays complete
 through traces in which any write may crash partway. -/
-#eval survives (∀ raws : List (Raw × Fin 3), completeAfter false raws = true) 304
+#eval survives (∀ raws : List (Raw × Fin 3), completeAfter false raws = true) 314
 
 /- Control, the cache written last: a land that crashes after its transaction leaves an atom
 whose cache misses the class of its new row. -/
-#eval refuted (∀ raws : List (Raw × Fin 3), completeAfter true raws = true) 305
+#eval refuted (∀ raws : List (Raw × Fin 3), completeAfter true raws = true) 315
 
 /-- A relabel of class `o` to class `n`, or what a crash partway through it leaves: `0` none, `1`
 after its transaction (after its rollback, on a clash), `2` before it. With `old`, the cache is
@@ -251,12 +251,12 @@ def relabelComplete (old : Bool) (raws : List Raw) (o n crash : Fin 3) : Bool :=
 
 /- PLN-4: with a relabel's additions first, the cache stays complete at its crash points. -/
 #eval survives (∀ raws : List Raw, ∀ o n crash : Fin 3, relabelComplete false raws o n crash = true)
-  306
+  316
 
 /- Control, the cache written last: a relabel that crashes after its transaction leaves the moved
 atoms without their new class. -/
 #eval refuted (∀ raws : List Raw, ∀ o n crash : Fin 3, relabelComplete true raws o n crash = true)
-  307
+  317
 
 /-! ### The chunk-key migration (#37) -/
 
@@ -282,13 +282,13 @@ def rekeyHolds (rk : Finset (Phys (Fin 3) ℕ (Fin 3)) → Finset (Phys (Fin 3) 
 
 /- PLN-6: the scoped re-key on random physical rows of both lanes, shed atoms among them. -/
 #eval survives (∀ raws : List RawPhys,
-  rekeyHolds (fun ps ↦ ps.image (Phys.rekey keyOf)) raws = true) 301
+  rekeyHolds (fun ps ↦ ps.image (Phys.rekey keyOf)) raws = true) 311
 
 /- Control, `rekey_store` as it was: every record under the note lane's key, the shed atoms not
 read, so not landed again. -/
 #eval refuted (∀ raws : List RawPhys, rekeyHolds (fun ps ↦
   (ps.filter fun r ↦ r.path.isSome = true).image fun r ↦ { r with id := keyOf r.path r.text })
-  raws = true) 302
+  raws = true) 312
 
 /-- The fibers `all_rows()` regroups the plane's current rows into, as `store.add` lands them: one
 per class, path and current digest, its chunks in order. -/
@@ -310,7 +310,7 @@ def resetHolds (raws : List Raw) (C : Finset (Fin 3)) : Bool :=
 /- Control, the unscoped re-key's plane: re-landing the current rows from the empty plane keeps
 every reader's view. -/
 #eval refuted (∀ raws : List Raw, ∀ c : Fin 3, ∀ two : Bool,
-  resetHolds raws (clearance c two) = true) 303
+  resetHolds raws (clearance c two) = true) 313
 
 end Attack
 
