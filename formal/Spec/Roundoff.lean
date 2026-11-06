@@ -19,13 +19,14 @@ every stratum of fewer than `2^54` events, and `2^54` is where that fails. It li
 
 **LAP-1.** The route-agreement doctrine of `tests/unit/test_graph_boundary.py`, which §2.5 adopts
 as the model entry for float error "bounded by construction": the two Laplacian routes sum each
-degree in different association orders and agree within `4·eps·max(1, max deg)`. Any two
-association orders of at most four nonzero nonnegative binary64 summands agree within `4·eps` of
-either result, which covers every row of the test's fixtures, whatever orders NumPy and SciPy use.
-At eight summands two orders differ by five ulps, beyond the bound. For five to seven it is neither
-proved nor refuted here: an exhaustive search over every association order of one summand near `1`
-and the rest small multiples of `u/2` found no counterexample. The bound holds for short rows, not
-by construction.
+degree in different association orders. Any two association orders of at most four nonzero
+nonnegative binary64 summands agree within `4·eps` of either result, whatever orders NumPy and
+SciPy use; that is what this file proves. At eight summands two orders differ by five ulps, beyond
+that bound. For five to seven it is neither proved nor refuted here: an exhaustive search over every
+association order of one summand near `1` and the rest small multiples of `u/2` found no
+counterexample. The test no longer uses the `4·eps` bound: it checks every row, up to 64 weights,
+against the general summation bound `2·γₙ·Σ|w|` with `γₙ = n·u/(1 − n·u)`, `u = 2⁻⁵³`. That is the
+textbook bound and is not machine-checked here.
 
 These are the laws of `Palace/Roundoff.lean` as the ledger cites them, each with its proof
 left as `sorry`. `lake comparator` checks that the `Palace` library proves each one
