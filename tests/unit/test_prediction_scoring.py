@@ -346,6 +346,18 @@ def test_signflip_is_reproducible_under_its_seed_and_exact_when_enumerable() -> 
     assert (iv.lo, iv.hi) == (-math.inf, math.inf)       # 3 clusters can never reject at 0.05
 
 
+def test_signflip_is_the_same_whatever_the_block_size(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Blocks bound the memory; they must not change a result. Sampled (2^40 vectors, 2500
+    drawn) and enumerated (2^9 = 512 vectors, 7 blocks of 100), against one block."""
+    from eval.predictions import scoring
+    big = _noise(random.Random(15), 40, 0.05)
+    small = _noise(random.Random(16), 9, 0.05)
+    whole = [cluster_signflip(ps, flips=2500, seed=5, alpha=0.05) for ps in (big, small)]
+    monkeypatch.setattr(scoring, "_CHUNK", 100)
+    monkeypatch.setattr(scoring, "_KEEP", 0)              # and regenerate rather than keep
+    assert [cluster_signflip(ps, flips=2500, seed=5, alpha=0.05) for ps in (big, small)] == whole
+
+
 def test_the_method_is_frozen_with_the_bar_and_percentile_is_the_default(tmp_path: Path) -> None:
     assert PROTOCOL.method == "percentile"
     with pytest.raises(LedgerError, match="method"):
