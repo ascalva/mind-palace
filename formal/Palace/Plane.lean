@@ -903,6 +903,68 @@ theorem noninterference_search (dist : A → Δ) {κ : P → K} {C : Finset K}
 
 end Search
 
+/-! ### The write path's existence oracle (`SharedPlane.known`)
+
+Design theorems, cited from the README, not the ledger: what `known` tells a caller beyond the view
+PLN-2 protects, and that its bounded form tells nothing more. -/
+
+section Known
+
+variable [DecidableEq A] [DecidableEq K]
+
+/-- What `known` says beyond a reader's view: of the named atoms, the view's own, and those no
+cleared relation references that the table holds. -/
+theorem known_eq (C : Finset K) (s : State K P D A) (S : Finset A) :
+    known s S = knownIn C s S ∪ (S \ refs C s).filter (· ∈ s.table) := by
+  ext a
+  simp only [known, knownIn, view, Finset.mem_filter, Finset.mem_union, Finset.mem_sdiff,
+    Finset.mem_inter]
+  by_cases h : a ∈ refs C s <;> tauto
+
+omit [DecidableEq K] in
+/-- Exactly the bit it gives on an atom no cleared relation references: whether a row of a class
+outside `C` holds the atom, current or superseded, or the atom lies dormant. -/
+theorem mem_known_iff {C : Finset K} {s : State K P D A} {a : A} (hw : WF s)
+    (ha : a ∉ refs C s) :
+    a ∈ known s {a} ↔ (∃ c ∉ C, ∃ o ∈ s.occ c, o.atom = a) ∨ Dormant s a := by
+  simp only [known, Finset.mem_filter, Finset.mem_singleton, true_and]
+  constructor
+  · intro ht
+    by_cases hd : ∃ c, ∃ o ∈ s.occ c, o.atom = a
+    · obtain ⟨c, o, ho, rfl⟩ := hd
+      refine Or.inl ⟨c, fun hc ↦ ha ?_, o, ho, rfl⟩
+      exact Finset.mem_biUnion.2 ⟨c, hc, Finset.mem_image.2 ⟨o, ho, rfl⟩⟩
+    · exact Or.inr ⟨ht, fun c o ho hoa ↦ hd ⟨c, o, ho, hoa⟩⟩
+  · rintro (⟨c, -, o, ho, rfl⟩ | ⟨ht, -⟩)
+    · exact hw c o ho
+    · exact ht
+
+omit [DecidableEq K] in
+/-- And nothing else: `known` reads the table alone, so it cannot tell which class holds an atom,
+in which document, how often, or whether the row is current. -/
+theorem known_congr {s t : State K P D A} (h : s.table = t.table) : known s = known t := by
+  funext S
+  simp only [known, h]
+
+omit [DecidableEq K] in
+/-- So `known` is exactly the table: two planes answer it alike iff their tables are equal. What a
+caller can learn through it, beyond the view, is the table's membership on the names it tries. -/
+theorem known_eq_known_iff {s t : State K P D A} : known s = known t ↔ s.table = t.table := by
+  refine ⟨fun h ↦ ?_, known_congr⟩
+  ext a
+  have := congrFun h {a}
+  simp only [known, Finset.ext_iff, Finset.mem_filter, Finset.mem_singleton] at this
+  simpa using this a
+
+/-- The bounded oracle reads the view alone: two planes a reader under `C` cannot tell apart
+answer it alike, so it carries no uncleared write to that reader. -/
+theorem knownIn_congr {C : Finset K} {s t : State K P D A} (h : view C s = view C t) :
+    knownIn C s = knownIn C t := by
+  funext S
+  simp only [knownIn, h]
+
+end Known
+
 /-! ### Crash points of a land (PLN-4, dn-ingest-door §9 item 7)
 
 The code now writes a land's cache additions before its transaction and its removals after it, so
@@ -1473,6 +1535,17 @@ theorem rerun_keeps_excess :
       Complete univ (land vb (landAddCommit vb (land va empty))) ∧
       Coherent (repair (land vb (landAddCommit vb (land va empty)))) := by
   decide
+
+/-- `known` is a channel: the uncleared land leaves the view under `{0}` as it was, and changes
+what `known` says of the atom it shares. -/
+theorem known_interferes :
+    view {0} (land fy empty) = view {0} (empty : State (Fin 2) (Fin 2) (Fin 1) (Fin 1)) ∧
+      known (land fy empty) {0} ≠ known (empty : State (Fin 2) (Fin 2) (Fin 1) (Fin 1)) {0} ∧
+      knownIn {0} (land fy empty) {0} =
+        knownIn {0} (empty : State (Fin 2) (Fin 2) (Fin 1) (Fin 1)) {0} := by
+  have hv : view {0} (land fy empty) = view {0} (empty : State (Fin 2) (Fin 2) (Fin 1) (Fin 1)) :=
+    view_step_invisible (op := .land fy) (by decide) (by decide)
+  exact ⟨hv, by decide, by rw [knownIn_congr hv]⟩
 
 end Witness
 

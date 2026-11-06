@@ -345,9 +345,18 @@ within 5, and its plane, the current rows landed again from the empty plane,
 within 25 (a retired note's rows are not current, so they are not read).
 
 Outside the model: `relabel` and `reset` (each moves or forgets whole classes, a visible act for
-any clearance it names), a land of several fibers in one transaction, and `known()`, which tells
-the write path whether the shared table holds an atom of any class, the deduplication side channel
-of Harnik, Pinkas and Shulman-Peleg (2010). Only ingest calls it (`core/ingest/index.py`).
+any clearance it names), and a land of several fibers in one transaction. `known()`, which tells
+the write path whether the shared table holds an atom of any class, is the deduplication side
+channel of Harnik, Pinkas and Shulman-Peleg (2010); only ingest calls it (`core/ingest/index.py`).
+Its design theorems, cited here and not from the ledger: beyond a reader's view it gives one bit
+for each named atom no cleared relation references, whether a row of an uncleared class holds the
+atom, current or superseded, or the atom lies dormant (`known_eq`, `mem_known_iff`), and nothing
+else: two planes answer it alike exactly when their tables are equal (`known_congr`,
+`known_eq_known_iff`); an uncleared land changes it while the view
+stays (`Witness.known_interferes`); bounded to the view's own atoms it reads the view alone and
+carries nothing (`knownIn_congr`). On 2026-11-05 no live atom was held by two classes (0 of 72
+prose atoms, 0 of 147,417 curated ones), so the bound would cost no embed today. Whether to accept,
+bound or close it is the owner's call.
 
 The dreamer laws. C2, convex fibers, is not a law of its own: any clock monotone along `≼` into
 partially ordered ticks has them, so a property test of C2 can fail only where one of C1 fails,
