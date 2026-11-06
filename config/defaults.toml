@@ -2,6 +2,14 @@
 # environment and are never read from here, never committed, never passed to a model
 # (Invariant 10, CONVENTIONS). Relative paths resolve against the repo root.
 
+[instance]
+# Which individual this configuration is (DI-2, issue #25). With no `MIND_PALACE_OVERLAY` set, the
+# configuration is the default chain, defaults <- levers.toml <- ouroboros.toml, and its id is
+# "ouroboros": the live instance. Its overlay may restate `id = "ouroboros"` and nothing else.
+# Another instance is loaded from its own overlay, `MIND_PALACE_OVERLAY=config/instances/<id>.toml`,
+# which must declare `[instance] id = "<id>"`: a lowercase letter, then up to 31 lowercase letters,
+# digits or hyphens. The table holds no key here, because an id is not a default.
+
 [ollama]
 # The sealed core talks to a LOCAL Ollama over loopback only (BUILD-SPEC §5, §7); the
 # egress guard permits this and blocks everything else.

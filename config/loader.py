@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from core.kernel.config.loader import (
     LEVERS_OVERLAY,
+    OUROBOROS,
     REPO_ROOT,
     AirlockConfig,
     AmbassadorConfig,
@@ -27,6 +28,8 @@ from core.kernel.config.loader import (
     EffectorsConfig,
     EmbeddingConfig,
     ExhaustConfig,
+    InstanceConfig,
+    InstanceOverlayError,
     InterfaceConfig,
     ModelConfig,
     OllamaConfig,
@@ -45,8 +48,9 @@ from core.kernel.config.loader import get_secret as _env_secret
 __all__ = [
     "AirlockConfig", "AmbassadorConfig", "AttestationConfig", "BackupConfig", "Config",
     "DreamRnDConfig", "DreamingConfig", "EffectorsConfig", "EmbeddingConfig", "ExhaustConfig",
-    "InterfaceConfig",
-    "LEVERS_OVERLAY", "ModelConfig", "OllamaConfig", "PathsConfig", "REPO_ROOT", "ResourceConfig",
+    "InstanceConfig", "InstanceOverlayError", "InterfaceConfig",
+    "LEVERS_OVERLAY", "ModelConfig", "OUROBOROS", "OllamaConfig", "PathsConfig", "REPO_ROOT",
+    "ResourceConfig",
     "SandboxConfig", "SecretsConfig", "SelfModConfig", "VaultConfig",
     "get_config", "get_secret", "load_config", "refresh_config",
 ]

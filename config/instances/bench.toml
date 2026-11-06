@@ -8,6 +8,9 @@
 # Ambassador bridge and no sandbox are ever started. The flags below turn off what a stray code path
 # could still reach for, so the instance has nothing to back up, sign, fetch or tune.
 
+[instance]
+id = "bench"
+
 # The embedder is llama-server in the `embedder` container, reached on loopback: the two containers
 # share one network namespace with no interface but `lo` (compose.yaml), so the seal's
 # loopback-only rule holds unchanged.
