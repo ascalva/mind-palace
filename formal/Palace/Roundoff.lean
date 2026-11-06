@@ -12,12 +12,12 @@ L3 enters one claim at a time, where a design claim demands a machine-checked ε
 arithmetic computes. Both are settled here over the binary64 model `rn` of `Palace/Binary64.lean`,
 and `Palace/FloatModel.lean` carries them to Lean's own `Float`.
 
-**CND-6.** `chi_s` (`core/graph/conductance.py:390`) is one true division `chain / n_s` of two
+**CND-6.** `chi_s` (`core/graph/conductance.py::chi_s`) is one true division `chain / n_s` of two
 naturals, and §2.5 calls its comparisons with `1.0` exact: `n/n = 1.0`, and `(n−1)/n` rounds
-strictly below `1.0` "for realistic N_s". Python divides two ints by rounding their exact quotient
-once, so `chi_s` is `rn (chain / n_s)`. It is `1.0` exactly when the chain spans the stratum, for
-every stratum of fewer than `2^54` events, and `2^54` is where that fails. It lies in `(0, 1]` up to
-`2^1074` events.
+strictly below `1.0` for every `N_s < 2^54`. Python divides two ints by rounding their exact
+quotient once, so `chi_s` is `rn (chain / n_s)`. It is `1.0` exactly when the chain spans the
+stratum, for every stratum of fewer than `2^54` events, and `2^54` is where that fails. It lies in
+`(0, 1]` up to `2^1074` events.
 
 **LAP-1.** The route-agreement doctrine of `tests/unit/test_graph_boundary.py`, which §2.5 adopts
 as the model entry for float error "bounded by construction": the two Laplacian routes sum each

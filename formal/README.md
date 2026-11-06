@@ -378,8 +378,8 @@ the logical model. That is attacked on this machine. Its control, `+` checked ag
 
 The two entries settle claims §2.5 makes about float64:
 
-- CND-6. §2.5 says `(n−1)/n` rounds strictly below `1.0` "for realistic N_s". That holds for every
-  `N_s < 2^54` (about 1.8·10¹⁶) and fails at `2^54`, where `1 − 2⁻⁵⁴` ties and rounds to the even
+- CND-6. §2.5 says `(n−1)/n` rounds strictly below `1.0` for every `N_s < 2^54` (about 1.8·10¹⁶),
+  the exact condition: it fails at `2^54`, where `1 − 2⁻⁵⁴` ties and rounds to the even
   `1.0` (`rn_div_two_pow_54`). Python divides two ints by rounding their exact quotient once (it
   matched `fractions.Fraction` on 200,000 random pairs of up to 80 bits), so `chi_s` is
   `rn(chain / n_s)`. The control, the same law in binary32, is refuted on its first instance.
