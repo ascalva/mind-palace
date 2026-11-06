@@ -28,6 +28,7 @@ from core.kernel.ingest.pipeline import IngestRecord
 from core.kernel.provenance import Provenance
 from core.kernel.stores.sourceset import SourceSet, group_sources
 from core.stores.plane import atom_id as plane_atom_id
+from core.stores.plane import row_key as plane_row_key
 from core.stores.vectorstore import VectorStore
 
 
@@ -124,34 +125,49 @@ def index_amendment(record: IngestRecord, existing_rows: Sequence[Mapping[str, A
     return len(to_embed), len(canonical) - len(to_embed)
 
 
-def _row_new_id(row: dict[str, Any]) -> str:
+def _row_new_id(row: Mapping[str, Any]) -> str:
     """The doc-scoped content id a stored row SHOULD have — `(source_path, chunk_hash)`, computed
     from the row's own `source_path` + `text`. The one place the migration and the dry-run agree."""
-    return chunk_point_id(row["source_path"], Chunk(int(row.get("chunk_index", 0)), row["text"]))
+    return chunk_point_id(str(row["source_path"]),
+                          Chunk(int(row.get("chunk_index", 0) or 0), str(row["text"])))
+
+
+def _note_record_ids(store: VectorStore) -> list[tuple[str, str]]:
+    """(id, key) of every note row the migration re-keys: the physical note records of a table
+    that predates the plane, and every plane occupancy, superseded ones included."""
+    out = [(str(r["id"]), _row_new_id(r))
+           for r in store.note_records(["id", "source_path", "chunk_index", "text"])]
+    out.extend((o.row_id, plane_row_key(o.source_path, o.atom_id)) for o in
+               store.reader(MAINTENANCE_READ).occupancies(include_superseded=True))
+    return out
 
 
 def rekey_preview(store: VectorStore) -> tuple[int, int]:
-    """(total rows, count whose id would change) under the doc-scoped re-key — a read that mutates
-    nothing. The dry-run half of the Item-1c migration (a maintenance read of every class)."""
-    rows = store.all_rows(clearance=MAINTENANCE_READ)
-    return len(rows), sum(1 for r in rows if r["id"] != _row_new_id(dict(r)))
+    """(note rows, how many ids would change) under the doc-scoped re-key: a read that mutates
+    nothing, over exactly the rows `rekey_store` writes."""
+    ids = _note_record_ids(store)
+    return len(ids), sum(1 for i, k in ids if i != k)
 
 
 def rekey_store(store: VectorStore) -> tuple[int, int]:
-    """Re-key every stored row to its doc-scoped content id `(source_path, chunk_hash)` IN PLACE,
-    preserving vectors (NO re-embed) — the migration off the old `{digest}:{chunk_index}` scheme
-    (build plan Item 1c). Identical chunks within a source coalesce to one point (§3). Idempotent:
-    a row already under the new key re-keys to itself, so re-running is a no-op. Returns
-    (rows_read, points_written); the raw store and catalog are untouched (this is a derived-layer
-    re-key, not a re-ingest — so it needs no embedder and cannot be defeated by catalog change-
-    detection the way a reset + `rescan()` would be). Regenerable from raw regardless (§8)."""
-    rows = [dict(r) for r in store.all_rows(clearance=MAINTENANCE_READ)]
-    by_new_id: dict[str, dict[str, Any]] = {}
-    for r in rows:
-        r["id"] = _row_new_id(r)
-        by_new_id[r["id"]] = r                 # last wins — coalesce identical chunks (§3)
-    store.reset()
-    return len(rows), store.add(list(by_new_id.values()))
+    """Re-key every note row to its doc-scoped content id `(source_path, chunk_hash)` IN PLACE: the
+    migration off the old `{digest}:{chunk_index}` scheme (build plan Item 1c). Returns (note rows,
+    ids changed); a second run changes none.
+
+    [banner: correction] Was: read `all_rows()`, `reset()` the store and add the rows back. That
+    read returns neither the shed CODE atoms (D1, bp-152's guard) nor the plane's superseded
+    occupancies, and `reset()` drops the table and every relation, so a run deleted every code
+    atom, every superseded version and every supersession edge, and gave code records the note
+    lane's key, merging two layers' rows of one text (issue #37; `formal/Palace/Plane.lean`'s
+    witnesses `rekeyReset_drops_history`, `rekeyReset_merges`). The re-key is SCOPED now (PLN-6,
+    `rekey_keeps`): the plane's occupancies take their key in place (`SharedPlane.rekey_rows`,
+    one column of one transaction), a table that predates the plane re-keys its note records in
+    place (`VectorStore.rekey_records`), and no other row, atom, edge or cache entry is read or
+    written. No vector moves, so there is nothing to re-embed; the raw store and the catalog are
+    untouched."""
+    read, changed = store.rekey_records(_row_new_id)
+    plane_rows, plane_changed = store.plane.rekey_rows()
+    return read + plane_rows, changed + plane_changed
 
 
 def semantic_search(query: str, embedder: Embedder, store: VectorStore, *, k: int = 5,

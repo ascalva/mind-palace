@@ -6,9 +6,12 @@
 
 The row-id scheme changed from `{note_digest}:{chunk_index}` to `{source_path}:{chunk_hash}` —
 stable across a note's versions (unchanged chunk keeps its point), distinct across documents (§7).
-This migration RE-KEYS the existing rows in place: it recomputes each row's id from its
-`(source_path, text)` and rewrites the table with the SAME vectors — no re-embedding, no Ollama, and
-the raw store and catalog are untouched. Identical chunks in a source coalesce to one point (§3).
+This migration RE-KEYS the note rows in place: it recomputes each row's id from its
+`(source_path, text)` and writes that id and nothing else, so no vector moves, nothing is
+re-embedded, and the raw store and catalog are untouched. It is scoped to the note lane (PLN-6):
+the plane's occupancies take their key in one transaction, a table that predates the plane re-keys
+its note records, and no code row, atom, supersession edge or cache entry is read or written
+(issue #37: the old reset and re-add deleted every code atom and every superseded version).
 Idempotent: a row already under the new key re-keys to itself, so re-running is a no-op.
 
 Why re-key rather than reset + re-ingest: `rescan()` is change-detected against the catalog, so a
@@ -35,15 +38,14 @@ def main(argv: list[str]) -> int:
 
     store = open_vector_store(get_config())
     total, changing = rekey_preview(store)
-    print(f"vector rows: {total}; ids to re-key: {changing}")
+    print(f"note rows: {total}; ids to re-key: {changing}")
     if not apply:
-        print("DRY RUN — nothing changed. Re-run with --apply to re-key rows in place "
-              "(same vectors, no re-embed; raw + catalog untouched).")
+        print("DRY RUN: nothing changed. Re-run with --apply to re-key note rows in place "
+              "(ids only; no vector, atom, edge or code row moves; raw and catalog untouched).")
         return 0
 
-    read, points = rekey_store(store)
-    print(f"APPLIED — re-keyed {read} rows to {points} doc-scoped points "
-          f"({read - points} duplicate chunks coalesced). Vectors unchanged; raw untouched.")
+    read, changed = rekey_store(store)
+    print(f"APPLIED: re-keyed {changed} of {read} note rows to doc-scoped ids, in place.")
     return 0
 
 

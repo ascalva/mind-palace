@@ -33,6 +33,12 @@ Rushby's unwinding form (1992), under hypotheses the code does not state:
 
 The model is exact and finite: classes, paths, digests and atoms are any finite or ordered types,
 and a land carries one fiber (the code lands several in one transaction).
+
+The store around the plane (PLN-6, #37) adds the physical rows beside its atoms: records of either
+lane, and the shed code atoms the membership relation names. A plane row's id is payload `Occ` does
+not carry, so the scoped re-key, which writes ids only, leaves the plane's state as it is. The
+unscoped form is stated over the lands it makes from the empty plane, the fibers that its read of
+the current rows regroups into passed in (`fs`).
 -/
 
 @[expose] public section
@@ -895,6 +901,122 @@ theorem noninterference_search (dist : A → Δ) {κ : P → K} {C : Finset K}
 
 end Search
 
+/-! ### The chunk-key migration (#37) -/
+
+namespace Phys
+
+variable {I T : Type*}
+
+@[simp] theorem rekey_path (key : Option P → T → I) (r : Phys P I T) :
+    (r.rekey key).path = r.path := by
+  unfold rekey
+  split_ifs <;> rfl
+
+@[simp] theorem rekey_text (key : Option P → T → I) (r : Phys P I T) :
+    (r.rekey key).text = r.text := by
+  unfold rekey
+  split_ifs <;> rfl
+
+@[simp] theorem rekey_note (key : Option P → T → I) (r : Phys P I T) :
+    (r.rekey key).note = r.note := by
+  unfold rekey
+  split_ifs <;> rfl
+
+theorem note_rekey {key : Option P → T → I} {r : Phys P I T} : (r.rekey key).Note ↔ r.Note := by
+  simp only [Note, rekey_path, rekey_note]
+
+theorem rekey_of_not_note {key : Option P → T → I} {r : Phys P I T} (h : ¬r.Note) :
+    r.rekey key = r := by
+  simp only [rekey, h, ↓reduceIte]
+
+theorem id_rekey_of_note {key : Option P → T → I} {r : Phys P I T} (h : r.Note) :
+    (r.rekey key).id = key r.path r.text := by
+  simp only [rekey, h, ↓reduceIte]
+
+theorem content_rekey (key : Option P → T → I) (r : Phys P I T) :
+    (r.rekey key).content = r.content := by
+  simp only [content, rekey_path, rekey_text, rekey_note]
+
+theorem rekey_rekey (key : Option P → T → I) (r : Phys P I T) :
+    (r.rekey key).rekey key = r.rekey key := by
+  by_cases h : r.Note
+  · have e : r.rekey key = { r with id := key r.path r.text } := by
+      simp only [rekey, h, ↓reduceIte]
+    have h' : ({ r with id := key r.path r.text } : Phys P I T).Note := e ▸ note_rekey.2 h
+    rw [e]
+    simp only [rekey, h', ↓reduceIte]
+  · rw [rekey_of_not_note h, rekey_of_not_note h]
+
+end Phys
+
+namespace Store
+
+variable {I T : Type*} [DecidableEq P] [DecidableEq I] [DecidableEq T]
+
+theorem rekey_plane (key : Option P → T → I) (s : Store K P D A I T) :
+    (s.rekey key).plane = s.plane := rfl
+
+/-- **PLN-6** The scoped re-key (`rekey_store`, the chunk-key migration, #37) moves only the ids of
+note records. It leaves the plane's state as it is (its relations up to their row ids, its logs,
+its table and its cache); it keeps every row outside the note lane, the shed code atoms the
+membership relation names and the code records; it gives every note record its doc-scoped key;
+and it keeps every row's document, text and lane, so a row is lost only by merging with another
+of the same document and text (§3). -/
+theorem rekey_keeps (key : Option P → T → I) (s : Store K P D A I T) :
+    (s.rekey key).plane = s.plane ∧
+      (s.rekey key).phys.filter (fun r ↦ ¬r.Note) = s.phys.filter (fun r ↦ ¬r.Note) ∧
+      (∀ r ∈ (s.rekey key).phys, r.Note → r.id = key r.path r.text) ∧
+      (s.rekey key).phys.image Phys.content = s.phys.image Phys.content := by
+  refine ⟨rfl, ?_, ?_, ?_⟩
+  · ext r
+    simp only [rekey, Finset.mem_filter, Finset.mem_image]
+    constructor
+    · rintro ⟨⟨q, hq, rfl⟩, hn⟩
+      have hqn : ¬q.Note := fun h ↦ hn (Phys.note_rekey.2 h)
+      rw [Phys.rekey_of_not_note hqn]
+      exact ⟨hq, hqn⟩
+    · rintro ⟨hr, hn⟩
+      exact ⟨⟨r, hr, Phys.rekey_of_not_note hn⟩, hn⟩
+  · intro r hr hn
+    obtain ⟨q, -, rfl⟩ := Finset.mem_image.1 hr
+    rw [Phys.id_rekey_of_note (Phys.note_rekey.1 hn), Phys.rekey_path, Phys.rekey_text]
+  · simp only [rekey, Finset.image_image]
+    congr 1
+    funext r
+    exact Phys.content_rekey key r
+
+/-- **PLN-6** What the plane's laws need kept: from a state `Good κ` holds of (a coherent cache,
+no dangling row, every path at one stratum, the hypotheses of PLN-2 and of PLN-4's land), the
+re-key leaves a state it holds of, with the same view under every clearance; with the plane's
+state unchanged, every search answers as before and PLN-1 to PLN-5 hold after it as before. -/
+theorem rekey_good [DecidableEq A] [Fintype K] [DecidableEq K] {κ : P → K}
+    (key : Option P → T → I) {s : Store K P D A I T} (hs : Good κ s.plane) :
+    Good κ (s.rekey key).plane ∧ ∀ C, view C (s.rekey key).plane = view C s.plane :=
+  ⟨hs, fun _ ↦ rfl⟩
+
+/-- **PLN-6** Re-running the re-key changes nothing. -/
+theorem rekey_idem (key : Option P → T → I) (s : Store K P D A I T) :
+    (s.rekey key).rekey key = s.rekey key := by
+  have h : (s.phys.image (Phys.rekey key)).image (Phys.rekey key) =
+      s.phys.image (Phys.rekey key) := by
+    rw [Finset.image_image]
+    congr 1
+    funext r
+    exact Phys.rekey_rekey key r
+  simp only [rekey, h]
+
+variable [LinearOrder D] [DecidableEq A] [Fintype K] [DecidableEq K]
+
+/-- **PLN-6, the unscoped form.** `reset()` and adding back what `all_rows()` returns leaves no
+shed atom row, whatever the store held: every code atom the membership relation names is gone. -/
+theorem rekeyReset_drops_atoms (key : Option P → T → I) (fs : List (Fiber K P D A))
+    (s : Store K P D A I T) : ∀ r ∈ (s.rekeyReset key fs).phys, r.path.isSome = true := by
+  intro r hr
+  obtain ⟨q, hq, rfl⟩ := Finset.mem_image.1 hr
+  exact (Finset.mem_filter.1 hq).2
+
+end Store
+
 /-! ### Where the hypotheses bite -/
 
 namespace Witness
@@ -928,6 +1050,40 @@ theorem stratum_interferes :
   have h0 := occ_eq_of_view h (c := 0) (by decide)
   revert h0
   decide
+
+/-- **PLN-6, the unscoped form drops the history.** `all_rows()` returns the plane's current rows,
+which regroup into the note's second version alone (`vb`); after `reset()` and adding them back,
+the reader under `{0}` no longer sees the first version's rows or the edge that superseded it,
+whatever the key. The scoped re-key leaves the view as it is. -/
+theorem rekeyReset_drops_history (key : Option (Fin 1) → Fin 2 → ℕ) :
+    view {0} (edited.rekeyReset key [vb]).plane ≠ view {0} edited.plane ∧
+      view {0} (edited.rekey key).plane = view {0} edited.plane := by
+  refine ⟨fun h ↦ ?_, rfl⟩
+  have h0 := occ_eq_of_view h (c := 0) (by decide)
+  change (run [.land vb] empty).occ 0 = edited.plane.occ 0 at h0
+  revert h0
+  decide
+
+/-- **PLN-6, the unscoped form merges rows.** The note lane's key, given to code records, merges two
+layers' records of one document and one text into one row; before the guard, it merges the two
+shed atoms of one text too, both their ids gone, whatever the key. The scoped re-key keeps all four
+rows. -/
+theorem rekeyReset_merges (key : Option (Fin 1) → Fin 2 → ℕ) :
+    (edited.rekeyReset key [vb]).phys.card = 1 ∧
+      ((edited.rekeyResetUnguarded key [vb]).phys.filter fun r ↦ r.path = none).card = 1 ∧
+      edited.phys.card = 4 ∧ (edited.rekey key).phys = edited.phys := by
+  have hrec : (edited.phys.filter fun r ↦ r.path.isSome = true) =
+      {⟨1, some 0, 1, false⟩, ⟨2, some 0, 1, false⟩} := by decide
+  have hnote : ∀ r ∈ edited.phys, ¬r.Note := by decide
+  refine ⟨?_, ?_, by decide, ?_⟩
+  · simp [Store.rekeyReset, hrec]
+  · have hall : edited.phys =
+        {⟨0, none, 0, false⟩, ⟨3, none, 0, false⟩, ⟨1, some 0, 1, false⟩, ⟨2, some 0, 1, false⟩} :=
+      rfl
+    simp [Store.rekeyResetUnguarded, hall, Finset.filter_insert]
+  · change edited.phys.image (Phys.rekey key) = edited.phys
+    conv_rhs => rw [← Finset.image_id (s := edited.phys)]
+    exact Finset.image_congr fun r hr ↦ Phys.rekey_of_not_note (hnote r hr)
 
 end Witness
 
