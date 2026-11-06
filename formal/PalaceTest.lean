@@ -7,10 +7,10 @@ public import PalaceTest.Bridges
 public import PalaceTest.Clock
 public import PalaceTest.Curvature
 public import PalaceTest.Cut
-public import PalaceTest.Door
 public import PalaceTest.FloatModel
 public import PalaceTest.Heat
 public import PalaceTest.Hodge
+public import PalaceTest.Ingress
 public import PalaceTest.Laplacian
 public import PalaceTest.Magnetic
 public import PalaceTest.Memberships

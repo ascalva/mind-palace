@@ -13,11 +13,11 @@ bytes `Fin 4`, labels `Fin 3` (0 the observed label, 1 an authored one, 2 a cura
 identities `Fin 3`, two views, two places (0 accepts only the authored label, 1 accepts every
 label), two roles (0 writes everywhere, 1 only at path 2), paths 0 and 1 in sources' spaces and path
 2 free, sources that yield items at paths 1 and 2 and no longer have path 0. Each control is a
-writer with one rule taken out: without R4 an item is stored at another path (DOR-14), without R8 a
+writer with one rule taken out: without R4 an item is stored at another path (ING-14), without R8 a
 composed value squats a source's path, without the namespace a role writes outside its prefix
-(DOR-15), without R6's condition an identity is grafted from a path its source still has, without
-R7's an item still in its source is retired (DOR-17), and a construction claimed to keep its inputs'
-label is refuted (DOR-13). They run when this module builds (`lake test`).
+(ING-15), without R6's condition an identity is grafted from a path its source still has, without
+R7's an item still in its source is retired (ING-17), and a construction claimed to keep its inputs'
+label is refuted (ING-13). They run when this module builds (`lake test`).
 -/
 
 @[expose] public section
@@ -122,31 +122,31 @@ def okRetireAny (r : Fin 2) (h : Held (Fin 3) (Fin 4) (Fin 3) (Fin 3)) (p : Fin 
     Bool :=
   (h p).isSome && tbl.ns r k p
 
-/- DOR-13: a value's label is its item's under projections and observed otherwise, and its
+/- ING-13: a value's label is its item's under projections and observed otherwise, and its
 origin is its item's path under projections and none otherwise. -/
 #eval survives (∀ (isItem : Bool) (b : Fin 4) (l ip : Fin 3) (ws : List (Fin 2)),
   ((eval tbl.view tbl.observed (mk isItem b l ip ws)).label == (if isItem then l else 0)
     && (eval tbl.view tbl.observed (mk isItem b l ip ws)).origin
       == (if isItem then some ip else none)) = true) 273
 
-/- Control, DOR-13: a construction does not keep the label of what it was built from. -/
+/- Control, ING-13: a construction does not keep the label of what it was built from. -/
 #eval refuted (∀ (isItem : Bool) (b : Fin 4) (l ip : Fin 3) (ws : List (Fin 2)),
   ((eval tbl.view tbl.observed (mk isItem b l ip ws)).label == l) = true) 274
 
-/- DOR-14: an admitted store whose label is not observed lands an item a source yields, at the
+/- ING-14: an admitted store whose label is not observed lands an item a source yields, at the
 item's own path, with its label, its bytes under the views. -/
 #eval survives (∀ (isItem : Bool) (b : Fin 4) (l ip p : Fin 3) (ws : List (Fin 2)) (k : Fin 2),
   okStore tbl 0 (fun _ ↦ none) p .own (mk isItem b l ip ws) k = true →
   (eval tbl.view tbl.observed (mk isItem b l ip ws)).label ≠ 0 →
   firewallOk p (mk isItem b l ip ws) = true) 275
 
-/- Control, DOR-14: without R4, an authored item is stored at another path. -/
+/- Control, ING-14: without R4, an authored item is stored at another path. -/
 #eval refuted (∀ (isItem : Bool) (b : Fin 4) (l ip p : Fin 3) (ws : List (Fin 2)) (k : Fin 2),
   okStoreNoOrigin (fun _ ↦ none) p (mk isItem b l ip ws) k = true →
   (eval tbl.view tbl.observed (mk isItem b l ip ws)).label ≠ 0 →
   firewallOk p (mk isItem b l ip ws) = true) 276
 
-/- DOR-17: an admitted store at a new path gives it its own identity, the one the item stored
+/- ING-17: an admitted store at a new path gives it its own identity, the one the item stored
 declares, or one held at a path its source no longer has, with the same bytes. -/
 #eval survives (∀ (cs : List (Fin 9)) (p nc q i : Fin 3) (b : Fin 4),
   held cs p = none →
@@ -159,48 +159,48 @@ declares, or one held at a path its source no longer has, with the same bytes. -
             | none => false)
     | none => false) = true) 277
 
-/- Control, DOR-17: without R6's condition, an identity is grafted from a path its source still
+/- Control, ING-17: without R6's condition, an identity is grafted from a path its source still
 has. -/
 #eval refuted (∀ (cs : List (Fin 9)) (p q : Fin 3) (b : Fin 4),
   held cs p = none → (resolveGraft (held cs) b p (.held q)).isSome = true →
   (match held cs q with | some _ => !tbl.has q | none => true) = true) 278
 
-/- Control, DOR-17: without the declaration, a store takes an identity its item does not declare
+/- Control, ING-17: without the declaration, a store takes an identity its item does not declare
 (the second form's audit: any field of an item, a `ref::`, grafted a note onto another's chain). -/
 #eval refuted (∀ (p i : Fin 3),
   (resolveUndeclared (some p) (.prop p i)).isSome = true → tbl.declares p i = true) 287
 
-/- DOR-17: an admitted retire of content that came from a source is of a path its source no
+/- ING-17: an admitted retire of content that came from a source is of a path its source no
 longer has. -/
 #eval survives (∀ (cs : List (Fin 9)) (p : Fin 3) (k r : Fin 2),
   okRetire tbl r (held cs) p k = true →
   (match held cs p with | some row => !row.sourced || !tbl.has p | none => true) = true) 279
 
-/- Control, DOR-17: without R7's condition, an item still in its source is retired. -/
+/- Control, ING-17: without R7's condition, an item still in its source is retired. -/
 #eval refuted (∀ (cs : List (Fin 9)) (p : Fin 3) (k r : Fin 2),
   okRetireAny r (held cs) p k = true →
   (match held cs p with | some row => !row.sourced || !tbl.has p | none => true) = true) 280
 
-/- DOR-15: a one-effect plan changes a path only at its own path, in the role's namespace. -/
+/- ING-15: a one-effect plan changes a path only at its own path, in the role's namespace. -/
 #eval survives (∀ (cs : List (Fin 9)) (c : Bool) (p : Fin 3) (b : Fin 4) (k r : Fin 2),
   (List.finRange 3).all (fun q ↦
     same (landPlan tbl r [if c then .store p .own (.make b) k else .retire p k] (held cs) q)
       (held cs q)
     || (decide (q = p) && tbl.ns r k q)) = true) 281
 
-/- Control, DOR-15: a writer without the namespace, every other rule kept, lets a role store an
+/- Control, ING-15: a writer without the namespace, every other rule kept, lets a role store an
 item at its own path outside the role's prefix. -/
 #eval refuted (∀ (cs : List (Fin 9)) (p : Fin 3) (b : Fin 4) (l : Fin 3) (k r : Fin 2),
   okStoreNoNs (held cs) p (.item ⟨b, l, p⟩) k = true → tbl.ns r k p = true) 282
 
-/- DOR-17: a store at a path in a source's space lands an item a source yields, at that path. -/
+/- ING-17: a store at a path in a source's space lands an item a source yields, at that path. -/
 #eval survives (∀ (isItem : Bool) (b : Fin 4) (l ip p : Fin 3) (ws : List (Fin 2)) (k : Fin 2),
   okStore tbl 0 (fun _ ↦ none) p .own (mk isItem b l ip ws) k = true → tbl.owned p = true →
   (match (mk isItem b l ip ws).root with
     | some i => tbl.yields i && decide (i.path = p)
     | none => false) = true) 283
 
-/- Control, DOR-17: without R8, a composed value squats a source's path. -/
+/- Control, ING-17: without R8, a composed value squats a source's path. -/
 #eval refuted (∀ (isItem : Bool) (b : Fin 4) (l ip p : Fin 3) (ws : List (Fin 2)) (k : Fin 2),
   okStoreNoOwner p (mk isItem b l ip ws) k = true → tbl.owned p = true →
   (match (mk isItem b l ip ws).root with
@@ -217,12 +217,12 @@ def mkTyped (isItem : Bool) (b : Fin 4) (pick : Bool) (ip : Fin 3) (ws : List (F
     Expr (Fin 4) (Fin 3) (Fin 3) (Fin 2) :=
   mk isItem b (if ip = 0 then (if pick then 1 else 0) else 2) ip ws
 
-/- DOR-18: a value's label is in its expression's type's label set. -/
+/- ING-18: a value's label is in its expression's type's label set. -/
 #eval survives (∀ (isItem : Bool) (b : Fin 4) (pick : Bool) (ip : Fin 3) (ws : List (Fin 2)),
   decide ((eval tbl.view tbl.observed (mkTyped isItem b pick ip ws)).label
     ∈ labelsOf srcLabels tbl.observed (mkTyped isItem b pick ip ws)) = true) 285
 
-/- Control, DOR-18: a type rule that gives a construction no label is unsound. -/
+/- Control, ING-18: a type rule that gives a construction no label is unsound. -/
 #eval refuted (∀ (isItem : Bool) (b : Fin 4) (pick : Bool) (ip : Fin 3) (ws : List (Fin 2)),
   decide ((eval tbl.view tbl.observed (mkTyped isItem b pick ip ws)).label
     ∈ (if isItem then labelsOf srcLabels tbl.observed (mkTyped isItem b pick ip ws)
