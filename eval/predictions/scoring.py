@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, replace
 from statistics import NormalDist
 
@@ -269,22 +269,38 @@ def cluster_bootstrap(ps: Sequence[Pair], *, resamples: int, seed: int, alpha: f
 _BISECT = 50
 
 
-def _flip_signs(k: int, flips: int, seed: int) -> tuple[npt.NDArray[np.float64], bool]:
-    """The sign vectors the test averages over: all 2^k of them when that is at most `flips`
-    (the exact test), otherwise `flips` random ones from the seed. Returns (signs, exact)."""
-    if 2 ** k <= flips:
-        bits = (np.arange(2 ** k)[:, None] >> np.arange(k)) & 1
-        return (bits * 2 - 1).astype(np.float64), True
-    rng = np.random.default_rng(seed)
-    return (rng.integers(0, 2, size=(flips, k)) * 2 - 1).astype(np.float64), False
+_KEEP = 4_000_000          # sign entries kept in memory between p-values; above it they stream
 
 
-def _flip_p(signs: npt.NDArray[np.float64], exact: bool, v: npt.NDArray[np.float64]) -> float:
+def _flip_rows(k: int, flips: int) -> tuple[int, bool]:
+    """How many sign vectors the test averages over, and whether that is all 2^k of them."""
+    exact = 2 ** k <= flips
+    return (2 ** k if exact else flips), exact
+
+
+def _flip_blocks(k: int, flips: int, seed: int) -> Iterator[npt.NDArray[np.float64]]:
+    """The sign vectors in blocks of at most `_CHUNK` rows, never all at once: all 2^k of them
+    when that is at most `flips` (the exact test), otherwise `flips` random ones from the seed.
+    The blocks are the same whatever their size, so memory is `_CHUNK * k`, not `flips * k`."""
+    rows, exact = _flip_rows(k, flips)
+    rng = None if exact else np.random.default_rng(seed)
+    for start in range(0, rows, _CHUNK):
+        stop = min(start + _CHUNK, rows)
+        if rng is None:
+            bits = (np.arange(start, stop)[:, None] >> np.arange(k)) & 1
+            yield (bits * 2 - 1).astype(np.float64)
+        else:
+            yield (rng.integers(0, 2, size=(stop - start, k)) * 2 - 1).astype(np.float64)
+
+
+def _flip_p(blocks: Iterable[npt.NDArray[np.float64]], rows: int, exact: bool,
+            v: npt.NDArray[np.float64]) -> float:
     """Two-sided p-value of `sum(v)` against the sum of `v` with its signs flipped: the share of
     sign vectors whose |sum| reaches the observed one. Add-one when the flips are a sample."""
     obs = abs(float(v.sum()))
-    reach = int(np.count_nonzero(np.abs(signs @ v) >= obs - 1e-12 * float(np.abs(v).sum())))
-    return reach / len(signs) if exact else (1 + reach) / (len(signs) + 1)
+    floor = obs - 1e-12 * float(np.abs(v).sum())
+    reach = sum(int(np.count_nonzero(np.abs(block @ v) >= floor)) for block in blocks)
+    return reach / rows if exact else (1 + reach) / (rows + 1)
 
 
 def cluster_signflip(ps: Sequence[Pair], *, flips: int, seed: int, alpha: float) -> Interval:
@@ -304,9 +320,13 @@ def cluster_signflip(ps: Sequence[Pair], *, flips: int, seed: int, alpha: float)
     fixed, p(mu0) is nonincreasing as mu0 moves away from the estimate on either side: the
     observed |sum(S - mu0 n)| grows at slope sum(n) while a flipped sum changes at slope at most
     |eps . n| <= sum(n), so each sign vector's reach indicator can only switch off. That makes the
-    set an interval around the estimate, found by bisection on each side. With too few clusters
-    to ever reject at `alpha` (the smallest attainable p-value, 2 / 2^k, exceeds it) the
-    interval is unbounded."""
+    set an interval around the estimate, found by bisection on each side. Inverting the test
+    shifts every pair's `d` by mu0, so the interval assumes a location shift: that the arms'
+    difference moves the whole distribution by a constant. The test of mean = 0 alone does not
+    need that. The sign vectors are made in blocks of `_CHUNK` rows (kept between p-values when
+    they are few, regenerated from the seed when many), so memory does not grow with the flip
+    count. With too few clusters to ever reject at `alpha` (the smallest attainable p-value,
+    2 / 2^k, exceeds it) the interval is unbounded."""
     if not ps:
         raise ValueError("no pairs to compare")
     sums, counts = _cluster_sums(ps)
@@ -314,10 +334,12 @@ def cluster_signflip(ps: Sequence[Pair], *, flips: int, seed: int, alpha: float)
     mean = float(sums.sum() / counts.sum())
     if k < 2:
         return Interval(len(ps), k, mean, math.nan, math.nan, math.nan)
-    signs, exact = _flip_signs(k, flips, seed)
+    rows, exact = _flip_rows(k, flips)
+    kept = list(_flip_blocks(k, flips, seed)) if rows * k <= _KEEP else None
 
     def p_at(mu0: float) -> float:
-        return _flip_p(signs, exact, sums - mu0 * counts)
+        blocks = kept if kept is not None else _flip_blocks(k, flips, seed)
+        return _flip_p(blocks, rows, exact, sums - mu0 * counts)
 
     def edge(direction: float) -> float:
         step = max(1e-3, float(np.abs(sums / counts).max()))
