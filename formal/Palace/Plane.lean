@@ -1342,6 +1342,186 @@ theorem search_after_crash (dist : A → Δ) {C : Finset K} (ops : List (Op K P 
 
 end CrashSearch
 
+/-! ### Crash points of a relabel (PLN-4)
+
+`relabel` moves every row of one class to another in one transaction, then refreshes the cache of
+the atoms the old class held. With the cache written last, a crash between the two left the moved
+atoms without their new class, and a re-run, the old relation now empty, refreshed nothing. Written
+as the code now writes it, the new class added to those atoms before the transaction, taken back
+after a refusal, and the old class removed after it, a crash leaves only excess. -/
+
+section Relabel
+
+variable [DecidableEq P] [LinearOrder D] [DecidableEq A] [Fintype K] [DecidableEq K]
+
+omit [Fintype K] in
+theorem relabelCommit_occ {old new : K} (h : old ≠ new) (s : State K P D A) (c : K) :
+    (relabelCommit old new s).occ c =
+      if c = old then ∅ else if c = new then s.occ new ∪ s.occ old else s.occ c := by
+  by_cases ho : c = old
+  · subst ho
+    simp [relabelCommit]
+  · by_cases hn : c = new
+    · subst hn
+      simp [relabelCommit, ho]
+    · simp [relabelCommit, ho, hn]
+
+omit [DecidableEq P] [LinearOrder D] in
+/-- **PLN-4** A crash before a relabel's transaction, its additions written, leaves the cache
+complete on every class, from a complete one. -/
+theorem complete_addRelabel {old new : K} {s : State K P D A} (hc : Complete univ s) :
+    Complete univ (addRelabel old new s) := by
+  intro a ha sup c _ hct
+  have ht : truth (addRelabel old new s) sup a = truth s sup a := rfl
+  rw [ht] at hct
+  have hca : c ∈ cache s sup a := hc a ha sup c (Finset.mem_univ _) hct
+  have hcache : cache (addRelabel old new s) sup a =
+      if a ∈ relabeled old s ∧ a ∈ s.table then insert new (cache s sup a) else cache s sup a := by
+    cases sup <;> simp only [cache, addRelabel, Bool.false_eq_true, ↓reduceIte]
+  rw [hcache]
+  split_ifs
+  · exact Finset.mem_insert_of_mem hca
+  · exact hca
+
+/-- **PLN-4** So does a crash after it: every atom the old class's rows held names the new class
+already, in both columns. -/
+theorem complete_relabelAdd {old new : K} {s : State K P D A} (h : old ≠ new)
+    (hc : Complete univ s) : Complete univ (relabelCommit old new (addRelabel old new s)) := by
+  intro a ha sup c _ hct
+  have hcache : cache (relabelCommit old new (addRelabel old new s)) sup a =
+      if a ∈ relabeled old s ∧ a ∈ s.table then insert new (cache s sup a) else cache s sup a := by
+    cases sup <;> simp only [cache, relabelCommit, addRelabel, Bool.false_eq_true, ↓reduceIte]
+  have ha' : a ∈ s.table := ha
+  rw [hcache]
+  simp only [truth, Finset.mem_filter, Finset.mem_univ, true_and] at hct
+  obtain ⟨o, ho, hh⟩ := hct
+  rw [relabelCommit_occ h] at ho
+  simp only [addRelabel] at ho
+  split_ifs at ho with h1 h2
+  · simp at ho
+  · subst h2
+    rcases Finset.mem_union.1 ho with ho | ho
+    · have : c ∈ cache s sup a := hc a ha' sup c (Finset.mem_univ _)
+        (Finset.mem_filter.2 ⟨Finset.mem_univ _, o, ho, hh⟩)
+      split_ifs
+      · exact Finset.mem_insert_of_mem this
+      · exact this
+    · have hr : a ∈ relabeled old s := Finset.mem_image.2 ⟨o, ho, hh.1⟩
+      simp [hr, ha']
+  · have : c ∈ cache s sup a := hc a ha' sup c (Finset.mem_univ _)
+      (Finset.mem_filter.2 ⟨Finset.mem_univ _, o, ho, hh⟩)
+    split_ifs
+    · exact Finset.mem_insert_of_mem this
+    · exact this
+
+/-- **PLN-4** A relabel written in the code's order, the new class added before the transaction
+and the old one removed after it, ends where `relabel` does. -/
+theorem relabel_of_addRelabel {old new : K} {s : State K P D A} (h : old ≠ new)
+    (hn : ¬Clash old new s) :
+    refresh (relabeled old s) (relabelCommit old new (addRelabel old new s)) =
+      relabel old new s := by
+  simp only [relabel, h, hn, or_self, ↓reduceIte]
+  refine refresh_eq_of rfl rfl rfl (fun a ha ↦ ?_) (fun a ha ↦ ?_)
+  · have ha' : ¬(a ∈ relabeled old s ∧ a ∈ s.table) := ha
+    change (addRelabel old new s).held a = s.held a
+    simp only [addRelabel, ha', ↓reduceIte]
+  · have ha' : ¬(a ∈ relabeled old s ∧ a ∈ s.table) := ha
+    change (addRelabel old new s).ever a = s.ever a
+    simp only [addRelabel, ha', ↓reduceIte]
+
+/-- **PLN-4** A refused relabel whose additions are taken back after the rollback changes nothing,
+from a coherent plane. -/
+theorem relabel_of_addRelabel_clash {old new : K} {s : State K P D A} (hc : Coherent s)
+    (hn : Clash old new s) :
+    refresh (relabeled old s) (addRelabel old new s) = relabel old new s := by
+  simp only [relabel, hn, or_true, ↓reduceIte]
+  have ht : truth (addRelabel old new s) = truth s := rfl
+  ext1
+  · rfl
+  · rfl
+  · rfl
+  · funext a
+    change (if a ∈ relabeled old s ∧ a ∈ s.table then truth (addRelabel old new s) false a
+      else (addRelabel old new s).held a) = s.held a
+    rw [ht]
+    by_cases ha : a ∈ relabeled old s ∧ a ∈ s.table
+    · simp only [ha, and_self, ↓reduceIte]
+      exact (hc a ha.2 false).symm
+    · simp only [ha, ↓reduceIte, addRelabel]
+  · funext a
+    change (if a ∈ relabeled old s ∧ a ∈ s.table then truth (addRelabel old new s) true a
+      else (addRelabel old new s).ever a) = s.ever a
+    rw [ht]
+    by_cases ha : a ∈ relabeled old s ∧ a ∈ s.table
+    · simp only [ha, and_self, ↓reduceIte]
+      exact (hc a ha.2 true).symm
+    · simp only [ha, ↓reduceIte, addRelabel]
+
+theorem truth_relabelCommit {old new : K} {s : State K P D A} (h : old ≠ new) {a : A}
+    (ha : a ∉ relabeled old s) (sup : Bool) :
+    truth (relabelCommit old new s) sup a = truth s sup a := by
+  refine truth_congr (fun c o hoa ↦ ?_) sup
+  rw [relabelCommit_occ h]
+  split_ifs with h1 h2
+  · subst h1
+    simp only [Finset.notMem_empty, false_iff]
+    exact fun ho ↦ ha (Finset.mem_image.2 ⟨o, ho, hoa⟩)
+  · subst h2
+    simp only [Finset.mem_union, or_iff_left_iff_imp]
+    exact fun ho ↦ absurd (Finset.mem_image.2 ⟨o, ho, hoa⟩) ha
+  · rfl
+
+/-- **PLN-4** A relabel keeps the cache coherent. -/
+theorem coherent_relabel {old new : K} {s : State K P D A} (hc : Coherent s) :
+    Coherent (relabel old new s) := by
+  unfold relabel
+  split_ifs with h
+  · exact hc
+  · have hne : old ≠ new := fun e ↦ h (Or.inl e)
+    refine coherent_refresh fun a ha haff sup ↦ ?_
+    have hcache : cache (relabelCommit old new s) sup a = cache s sup a := by cases sup <;> rfl
+    rw [hcache, truth_relabelCommit hne haff]
+    exact hc a ha sup
+
+omit [Fintype K] in
+theorem wf_relabelCommit {old new : K} {s : State K P D A} (h : old ≠ new) (hw : WF s) :
+    WF (relabelCommit old new s) := by
+  intro c o ho
+  rw [relabelCommit_occ h] at ho
+  split_ifs at ho
+  · simp at ho
+  · rcases Finset.mem_union.1 ho with ho | ho
+    · exact hw _ o ho
+    · exact hw _ o ho
+  · exact hw c o ho
+
+end Relabel
+
+section RelabelSearch
+
+variable {Δ : Type*} [LinearOrder Δ] [DecidableEq P] [LinearOrder D] [LinearOrder A] [Fintype K]
+  [DecidableEq K]
+
+/-- **PLN-4** A relabel that writes its additions first can crash after its transaction with no
+reader the wiser: every search after any trace answers as had the relabel finished. -/
+theorem search_after_relabelCrash (dist : A → Δ) {C : Finset K} (ops : List (Op K P D A))
+    {old new : K} {s : State K P D A} (h : old ≠ new) (hn : ¬Clash old new s) (hc : Coherent s)
+    (hw : WF s) (k : ℕ) (sup : Bool) :
+    search dist C (run ops (relabelCommit old new (addRelabel old new s))) k sup =
+      search dist C (run ops (relabel old new s)) k sup := by
+  have hrel : SameRel (relabelCommit old new (addRelabel old new s)) (relabel old new s) := by
+    rw [← relabel_of_addRelabel h hn]
+    exact ⟨rfl, rfl, rfl⟩
+  have hw1 : WF (relabelCommit old new (addRelabel old new s)) :=
+    wf_relabelCommit (s := addRelabel old new s) h hw
+  have hw2 : WF (relabel old new s) := by
+    rw [← relabel_of_addRelabel h hn]
+    exact hw1
+  exact search_run_of_sameRel dist ops hrel (complete_relabelAdd h (hc.complete univ)) hw1
+    ((coherent_relabel hc).complete univ) hw2 k sup
+
+end RelabelSearch
+
 /-! ### The chunk-key migration (#37) -/
 
 namespace Phys
@@ -1546,6 +1726,24 @@ theorem known_interferes :
   have hv : view {0} (land fy empty) = view {0} (empty : State (Fin 2) (Fin 2) (Fin 1) (Fin 1)) :=
     view_step_invisible (op := .land fy) (by decide) (by decide)
   exact ⟨hv, by decide, by rw [knownIn_congr hv]⟩
+
+/-- **PLN-4, the relabel with its cache last.** A crash after the transaction hides the moved atom
+from the new class, and running the relabel again does not bring it back: the old relation is
+empty, so the re-run refreshes nothing. The relabel run whole finds it. -/
+theorem relabel_rerun_hides :
+    search (fun _ ↦ (0 : ℕ)) {1} (relabel 0 1 moved) 1 false ≠ [] ∧
+      search (fun _ ↦ (0 : ℕ)) {1} (relabelCommit 0 1 moved) 1 false = [] ∧
+      search (fun _ ↦ (0 : ℕ)) {1} (relabel 0 1 (relabelCommit 0 1 moved)) 1 false = [] := by
+  refine ⟨?_, ?_, ?_⟩
+  · have h : (prefilter {1} (relabel 0 1 moved) false).filter
+        (cleared {1} (relabel 0 1 moved) false ·) = {0} := by decide
+    simp [search_eq, h, byDist]
+  · have h : (prefilter {1} (relabelCommit 0 1 moved) false).filter
+        (cleared {1} (relabelCommit 0 1 moved) false ·) = ∅ := by decide
+    simp [search_eq, h, byDist]
+  · have h : (prefilter {1} (relabel 0 1 (relabelCommit 0 1 moved)) false).filter
+        (cleared {1} (relabel 0 1 (relabelCommit 0 1 moved)) false ·) = ∅ := by decide
+    simp [search_eq, h, byDist]
 
 end Witness
 
