@@ -2,8 +2,9 @@
 
 Proves: each intent routes to its path; RETRIEVE reads the authored mirror and EXPLAIN reads the
 curated graph (the firewall holds at the conversational layer); STATUS narrates plainly with no
-model; TASK delegates + narrates effort; the owner's messages on mind-turns are captured as
-authored-dialogue; every step is attested; earned interruptions respect the policy.
+model; TASK delegates + narrates effort; the exchanges on mind-turns are the ones kept (the inbox
+records them and its capture lands them, `tests/integration/test_inbox_capture.py`); every step is
+attested; earned interruptions respect the policy.
 """
 
 from pathlib import Path
@@ -13,17 +14,13 @@ from agents.ambassador.policy import LEAKY_NOUNS
 from core.attestation.attestor import StoreAttestor
 from core.attestation.store import AttestationStore
 from core.dreams_view import DreamsView
-from core.ingest.dialogue import DialogueCapture
-from core.kernel.provenance import Provenance
-from core.kernel.stores.rawstore import RawStore
+from core.interface import Message
 from core.librarian import Librarian
 from core.ops_view import OpsView
-from core.stores.catalog import VaultCatalog
 from core.stores.derived import DREAM, DerivedStore
 from core.stores.vectorstore import VectorStore
 from ops.ledger import ProposalLedger
 from scheduler.budget import Budgeter
-from tests.fixtures.clearances import grant
 from tests.fixtures.fakes import HashingEmbedder, ReplyServer
 
 DIM = 32
@@ -54,8 +51,6 @@ def _amb(tmp_path, *, server=None, drift=None, sensitivity=Sensitivity.EARNED_ON
     ])
     att_store = AttestationStore(Path(":memory:"))
     attestor = StoreAttestor(att_store)
-    capture = DialogueCapture(raw=RawStore(tmp_path / "raw"), store=store, embedder=emb,
-                              catalog=VaultCatalog(tmp_path / "c.sqlite"), attestor=attestor)
     ops_view = OpsView.over(att_store, ProposalLedger(Path(":memory:")),
                             drift=(lambda: drift) if drift is not None else None)
     amb = Ambassador(
@@ -65,7 +60,6 @@ def _amb(tmp_path, *, server=None, drift=None, sensitivity=Sensitivity.EARNED_ON
         dreams_view=DreamsView.over(derived) if derived is not None else None,
         budgeter=Budgeter(window=8192),
         tier="router",
-        capture_sink=capture,
         attestor=attestor,
         delegate=delegate,
         pending_results=pending,
@@ -74,7 +68,11 @@ def _amb(tmp_path, *, server=None, drift=None, sensitivity=Sensitivity.EARNED_ON
     return amb, att_store, store
 
 
-def test_retrieve_reads_the_mirror_and_captures_the_turn(tmp_path):
+def _msg(text: str) -> Message:
+    return Message("a" * 32, "default", text, "2026-11-05T21:00:00")
+
+
+def test_retrieve_reads_the_mirror_and_keeps_the_exchange(tmp_path):
     seen = {}
 
     def fn(_tier, messages):
@@ -87,12 +85,12 @@ def test_retrieve_reads_the_mirror_and_captures_the_turn(tmp_path):
     assert turn.intent is Intent.RETRIEVE
     assert "slow breathing" in seen["ctx"]                  # mirror chunk reached the model
     assert "computationally light" not in seen["ctx"]       # curated did NOT (firewall)
-    # the owner's message landed as authored-dialogue (the capture loop)
-    dialogue = store.all_rows(clearance=grant(Provenance.AUTHORED_DIALOGUE))
-    assert any("what did I write about sleep" in r["text"] for r in dialogue)
-    # attested: a read (the retrieval) + a capture (the dialogue)
-    actions = {a.action for a in att_store.all()}
-    assert {"read", "capture"} <= actions
+    # the owner's words on a mind-turn are the inbox's to keep (the capture loop); the Ambassador
+    # says so and writes nothing itself: the reply it gives is the reply the inbox records
+    answer = amb.answer(_msg("what did I write about sleep"))
+    assert answer.keep and "slow breathing" in answer.text
+    # attested: the retrieval's read; the capture attests when the inbox's capture lands it
+    assert "read" in {a.action for a in att_store.all()}
 
 
 def test_explain_reads_the_curated_graph_not_the_mirror(tmp_path):
@@ -124,8 +122,8 @@ def test_dreams_reflects_the_interpreted_layer_mirror_not_oracle(tmp_path):
     assert "pull toward solitude" in low                    # the synthesis is reflected
     assert "[[overwork]]" in turn.reply                     # the spanned notes are cited
     assert "not anything you wrote" in low                  # framed as interpretation (§III.2)
-    # DREAMS is about the SYSTEM's read, not the owner's mind — not added to the corpus
-    assert store.all_rows(clearance=grant(Provenance.AUTHORED_DIALOGUE)) == []
+    # DREAMS is about the SYSTEM's read, not the owner's mind — not kept for the corpus
+    assert not amb.answer(_msg("what patterns have you noticed in my notes?")).keep
     assert any(a.action == "read" for a in att_store.all())  # attested as a read
 
 
@@ -167,21 +165,20 @@ def test_task_delegates_and_narrates_effort(tmp_path):
     assert any(a.action == "propose" for a in att_store.all())
 
 
-def test_capture_intent_stores_and_acknowledges(tmp_path):
-    amb, _att, store = _amb(tmp_path)
+def test_capture_intent_is_kept_and_acknowledged(tmp_path):
+    amb, _att, _store = _amb(tmp_path)
     turn = amb.respond("I felt really steady and clear after the run today")
-
     assert turn.intent is Intent.CAPTURE
-    assert "saved" in turn.reply.lower() or "noted" in turn.reply.lower()
-    dialogue = store.all_rows(clearance=grant(Provenance.AUTHORED_DIALOGUE))
-    assert any("steady and clear" in r["text"] for r in dialogue)
+    answer = amb.answer(_msg("I felt really steady and clear after the run today"))
+    assert answer.keep
+    assert "saved" in answer.text.lower() or "noted" in answer.text.lower()
 
 
-def test_status_turn_is_not_captured(tmp_path):
+def test_status_and_explain_turns_are_not_kept(tmp_path):
     # STATUS/EXPLAIN are about the SYSTEM, not the owner's mind — not added to the corpus.
-    amb, _att, store = _amb(tmp_path)
-    amb.respond("are you healthy?")
-    assert store.all_rows(clearance=grant(Provenance.AUTHORED_DIALOGUE)) == []
+    amb, _att, _store = _amb(tmp_path)
+    for text in ("are you healthy?", "how do you work", "what patterns have you noticed?"):
+        assert not amb.answer(_msg(text)).keep, text
 
 
 def test_ungrounded_answer_is_flagged_not_hidden(tmp_path):

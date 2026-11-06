@@ -40,7 +40,7 @@ MATH_3P: frozenset[str] = frozenset({"numpy", "scipy"})
 # there). Membership stays computed — the lever is the predicate, not any module's assignment.
 PLUMBING_STDLIB: frozenset[str] = frozenset({"sqlite3"})
 
-# The inner ring — the strict-v2 fixed point over the post-K1+K3 ``core/**`` tree (44 members).
+# The inner ring — the strict-v2 fixed point over the post-K1+K3 ``core/**`` tree (45 members).
 # **K1 (bp-090): the born inner ring physically moved to ``core/kernel/**``.** The 30 born members
 # (37 pre-move − the S1 seven) were relocated ``core.X → core.kernel.X`` (subpaths preserved),
 # except ``core`` (the root package) which stays. The move MINTED five new pure package modules the
@@ -57,6 +57,9 @@ PLUMBING_STDLIB: frozenset[str] = frozenset({"sqlite3"})
 # Net: 42 − 6 old S1 names + 7 kernel names = 43. Module names, not paths (survives renames).
 # **A3 (2026-10-29): `core.kernel.clearance` computes pure** (stdlib + provenance + scope) and is
 # claimed: 43 + 1 = 44.
+# **2026-11-05: `core.ingest.files` computes pure** (stdlib only: what the ingress trusts of a file
+# and a directory, shared by the spools, the inbox's record and the records sources,
+# dn-ingress-language §E13) and is claimed: 44 + 1 = 45.
 INNER: frozenset[str] = frozenset({
     "core",                       # the root package init (import-free; does not move — §2.3)
     # ── the kernel subtree: 29 born (K1) + 7 S1 (K3) relocated members + the kernel package init ──
@@ -105,4 +108,6 @@ INNER: frozenset[str] = frozenset({
     "core.stores",                # residue: the sqlite/duckdb/lancedb store layer stays
     "core.temporal",              # residue (K3, bp-091): acquire.py/spine.py/atlas.py stay behind
     "core.typedshims",            # residue: lancedb/psutil/sknetwork shims stay
+    # ── computed pure beside a residue (2026-11-05) ──
+    "core.ingest.files",          # the ingress's file-trust checks, stdlib only (§E13)
 })

@@ -47,6 +47,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from core.ingest.files import check_dir, read_bounded, real_dir
 from core.kernel.config import Config, get_config
 from core.query import AMBASSADOR, AMBASSADOR_OVERLAY, OPERATOR, Grant
 from core.sentence import ast
@@ -60,6 +61,11 @@ LEGACY_SPOOL = "door"       # the first form's spool directory, adopted into `SP
 # surface holds the Ambassador's grant, the owner's CLI the operator's. A role nothing writes for
 # is not listed: a spool directory is a grant, and an idle grant is a hole.
 _ROLE_GRANTS: dict[str, str] = {"ambassador": "ambassador", "cli": "operator"}
+# The roles only the daemon's own jobs speak, and the grant each speaks under. No spool belongs to
+# one, so no surface can speak it: the inbox's capture (dn-ingress-language §E13) runs under the
+# Ambassador's grant, the least the ingress gives, and its role opens one source and writes one
+# prefix (`core/ingest/table.py`).
+_DAEMON_ROLES: dict[str, str] = {"inbox": "ambassador"}
 # The roles whose spool the palace group may write: the agents run under their own account
 # (plane-principals), and the Ambassador's grant is the least the ingress gives. The operator's
 # spool is the owner's account's alone.
@@ -85,14 +91,15 @@ class Busy(RuntimeError):
 
 
 def grant_for(role: str) -> Grant:
-    """The grant a role speaks under at the ingress. An unknown role is refused, never defaulted."""
-    kind = _ROLE_GRANTS.get(role)
+    """The grant a role speaks under at the ingress, a spool's or one of the daemon's own jobs'.
+    An unknown role is refused, never defaulted."""
+    kind = _ROLE_GRANTS.get(role) or _DAEMON_ROLES.get(role)
     if kind == "operator":
         return OPERATOR
     if kind == "ambassador":
         return AMBASSADOR_OVERLAY if get_config().query.hypotheticals else AMBASSADOR
     raise IllScopedSentence(f"the ingress knows no role {role!r}; one of "
-                            f"{', '.join(sorted(_ROLE_GRANTS))}")
+                            f"{', '.join(sorted({*_ROLE_GRANTS, *_DAEMON_ROLES}))}")
 
 
 @dataclass(frozen=True)
@@ -198,30 +205,6 @@ def _make_dir(d: Path, mode: int) -> None:
             continue
 
 
-def _check_dir(d: Path, *, group_writes: bool) -> str | None:
-    """Why the daemon will not drain through `d`, or `None`: a real directory (a symlink is not
-    one), owned by the daemon's own account, writable by no other, and by the group only where
-    the group writes."""
-    try:
-        st = os.lstat(d)
-    except OSError as e:
-        return f"{d}: {type(e).__name__}"
-    if not stat.S_ISDIR(st.st_mode):
-        return f"{d} is not a directory (a symlink is never followed)"
-    if st.st_uid != os.getuid():
-        return f"{d} is owned by uid {st.st_uid}, not the daemon's {os.getuid()}"
-    if st.st_mode & stat.S_IWOTH or (st.st_mode & stat.S_IWGRP and not group_writes):
-        return f"{d} is writable by {'others' if st.st_mode & stat.S_IWOTH else 'its group'}"
-    return None
-
-
-def _real_dir(d: Path) -> bool:
-    try:
-        return stat.S_ISDIR(os.lstat(d).st_mode)
-    except OSError:
-        return False
-
-
 def _check_group(d: Path) -> str | None:
     """Why a group-writable spool's group will not do, or `None`: it must be the handoff
     directory's group, the one the owner gave the agents' writers, and never a group every local
@@ -246,14 +229,14 @@ def _make_spools(cfg: Config) -> None:
     root = spool_root(cfg)
     root.parent.mkdir(parents=True, exist_ok=True)      # the interface handoff directory
     _make_dir(root, ROOT_MODE)
-    if not _real_dir(root):
+    if not real_dir(root):
         return
     # the agents may write their spool only through a dedicated group (the handoff directory's,
     # which the spools inherit); under a group every account is in, it is the owner's alone
     shared = _group_name(os.stat(root).st_gid) not in _EVERYONE_GROUPS
     for role in roles():
         _make_dir(root / role, _mode(role, shared_group=shared))
-        if not _real_dir(root / role):
+        if not real_dir(root / role):
             continue
         for sub in _INNER:
             _make_dir(root / role / sub, _mode(role, sub, shared_group=shared))
@@ -269,12 +252,12 @@ def _adopt_legacy(cfg: Config, report: Report | None) -> None:
     real directory is entered and only a regular file named as a request id moves, by rename
     (atomic, same filesystem); a name already present in the new spool is left where it is."""
     old, new = Path(cfg.interface.handoff_dir) / LEGACY_SPOOL, spool_root(cfg)
-    if not _real_dir(old) or not _real_dir(new):
+    if not real_dir(old) or not real_dir(new):
         return
     for role in roles():
         for sub in (*_INNER[::-1], ""):      # rejected, receipts, queued, then the requests
             src, dst = old / role / sub, new / role / sub
-            if not _real_dir(src) or not _real_dir(dst):
+            if not real_dir(src) or not real_dir(dst):
                 continue
             try:
                 with os.scandir(src) as it:
@@ -298,24 +281,24 @@ def _adopt_legacy(cfg: Config, report: Report | None) -> None:
 def ensure_spools(cfg: Config, *, report: Report | None = None) -> list[str]:
     """The daemon's own making of the spools, each with its mode, and the roles whose spools are
     sound to drain: the root, the role's spool and its three subdirectories each pass
-    `_check_dir`. A role that does not is reported once and not drained; the others are."""
+    `check_dir`. A role that does not is reported once and not drained; the others are."""
     try:
         _make_spools(cfg)
     except OSError as e:
         _warn_once(report, f"make:{spool_root(cfg)}",
                    f"ingress: cannot make the spools ({type(e).__name__}: {e})")
     root = spool_root(cfg)
-    why = _check_dir(root, group_writes=False)
+    why = check_dir(root, group_writes=False)
     if why is not None:
         _warn_once(report, f"bad:{why}", f"ingress: nothing is drained: {why}")
         return []
     _adopt_legacy(cfg, report)
     healthy = []
     for role in roles():
-        why = (_check_dir(root / role, group_writes=role in _SHARED_ROLES)
+        why = (check_dir(root / role, group_writes=role in _SHARED_ROLES)
                or (_check_group(root / role) if role in _SHARED_ROLES else None)
                or next((w for sub in _INNER
-                        if (w := _check_dir(root / role / sub, group_writes=False))), None))
+                        if (w := check_dir(root / role / sub, group_writes=False))), None))
         if why is None:
             healthy.append(role)
         else:
@@ -327,31 +310,6 @@ def _atomic_write_json(path: Path, obj: Mapping[str, Any]) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(dict(obj), ensure_ascii=False), encoding="utf-8")
     tmp.replace(path)                       # a rename is atomic; the daemon never reads a partial
-
-
-def _read_bounded(path: Path, cap: int) -> tuple[bytes, os.stat_result]:
-    """A file's bytes through a descriptor that follows no link and blocks on nothing: a regular
-    file under `cap` bytes, read to at most `cap + 1`. Raises on anything else."""
-    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-    try:
-        st = os.fstat(fd)
-        if not stat.S_ISREG(st.st_mode):
-            raise ValueError("not a regular file")
-        if st.st_size > cap:
-            raise ValueError(f"{st.st_size} bytes, over the cap of {cap}")
-        chunks, n = [], 0
-        while n <= cap:
-            chunk = os.read(fd, cap + 1 - n)
-            if not chunk:
-                break
-            chunks.append(chunk)
-            n += len(chunk)
-        data = b"".join(chunks)
-        if len(data) > cap:
-            raise ValueError(f"grew past the cap of {cap} while read")
-        return data, st
-    finally:
-        os.close(fd)
 
 
 # ── the kinds ──────────────────────────────────────────────────────────────────────────────────
@@ -408,7 +366,7 @@ def write_request(cfg: Config, *, role: str, plan: Plan) -> Receipt:
             raise PermissionError("the ingress's spools are the daemon's to make, and it has not "
                                   "made them yet: start the daemon")
         _make_spools(cfg)           # the daemon's own account: what the daemon would make
-    if not _real_dir(spool):
+    if not real_dir(spool):
         raise PermissionError(f"{spool} is not a directory; the ingress's spools are")
     depth = sum(1 for e in os.scandir(spool) if e.name.endswith(".json"))
     if depth >= MAX_SPOOLED:
@@ -479,13 +437,13 @@ def pending(cfg: Config, healthy: list[str], *, limit: int = 64, per_role: int =
 
 
 def _load_request(f: Path, role: str, say: Report, cfg: Config | None = None) -> Request | None:
-    """A request as the daemon trusts it: read through `_read_bounded` (a regular file under the
+    """A request as the daemon trusts it: read through `read_bounded` (a regular file under the
     cap, no link followed, nothing blocked on), with one link (a writer keeping a second name could
     change it after the check), written, in the operator's spool, by the daemon's own account;
     JSON of an object whose id is sixteen hex digits and is the file's name, with a sentence.
     Anything else is rejected: moved aside, reported, never read again."""
     try:
-        data, st = _read_bounded(f, MAX_REQUEST_BYTES)
+        data, st = read_bounded(f, MAX_REQUEST_BYTES)
         if st.st_nlink != 1:
             raise ValueError(f"{st.st_nlink} links; a request has one")
         if role not in _SHARED_ROLES and st.st_uid != os.getuid():
@@ -558,7 +516,7 @@ def stage(cfg: Config, request: Request) -> Path:
 def read_request(cfg: Config, role: str, rid: str) -> Request:
     """A staged request, by the role of its spool and its id; both are checked before either
     names a path, the file is read as `_load_request` reads, and its id must be its name."""
-    data, _ = _read_bounded(_queued_path(cfg, role, rid), MAX_REQUEST_BYTES)
+    data, _ = read_bounded(_queued_path(cfg, role, rid), MAX_REQUEST_BYTES)
     doc = json.loads(data.decode("utf-8"))
     if (not isinstance(doc, dict) or doc.get("id") != rid
             or not isinstance(doc.get("sentence"), str)):
@@ -586,7 +544,7 @@ def read_receipt(cfg: Config, role: str, rid: str) -> Receipt | None:
         return None
     path = spool_root(cfg) / role / "receipts" / f"{rid}.json"
     try:
-        data, _ = _read_bounded(path, MAX_REQUEST_BYTES)
+        data, _ = read_bounded(path, MAX_REQUEST_BYTES)
     except (OSError, ValueError):
         return None
     doc = json.loads(data.decode("utf-8"))

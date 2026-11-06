@@ -98,3 +98,24 @@ def test_capture_then_recall_across_turns(tmp_path):
                            clearance=MIRROR_READ)
     assert hits and any(h["provenance"] == "authored-dialogue" for h in hits)
     runtime.queue.close()
+
+
+def test_a_capture_that_fails_keeps_the_conversation_and_the_record(tmp_path, capsys):
+    """The reply goes out before the inbox's capture lands: a capture that fails is said, the
+    conversation goes on, and the record stays for a later turn's capture."""
+    runtime, store, _emb = _runtime(tmp_path)
+    land = runtime.land
+
+    def broken() -> dict[str, object]:
+        raise RuntimeError("the embedder is away")
+
+    runtime.land = broken
+    reply = runtime.send("I have been sleeping better since the walks started")
+    assert reply and "capture failed" in capsys.readouterr().err
+    assert store.all_rows(clearance=grant(Provenance.AUTHORED_DIALOGUE)) == []
+    runtime.land = land
+    runtime.send("I want to keep walking every morning")
+    texts = {r["text"] for r in store.all_rows(clearance=grant(Provenance.AUTHORED_DIALOGUE))}
+    assert {"I have been sleeping better since the walks started",
+            "I want to keep walking every morning"} <= texts
+    runtime.queue.close()

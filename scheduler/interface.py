@@ -8,19 +8,24 @@ completed-result surfacing are injected from here as plain closures over the que
 
 Two job kinds (scheduler/router.py):
   * `ambassador`      — the inbox-drain tick: drive `CoreInbox.process_once()` (pinned tier,
-                        reactive) — for the scheduled/daemon path.
+                        reactive) — for the scheduled/daemon path — then land what the inbox
+                        kept, the library script `capture_inbox` under the role `inbox`, through
+                        the one writer (dn-ingress-language §E13).
   * `ambassador_task` — the Ambassador's DELEGATED heavy work: a deep grounded answer on the
                         synthesis tier, run trough-gated by the supervisor, result surfaced later.
 
 `ConversationRuntime` is the in-process driver the CLI (`scripts/talk.py`) and the e2e test use:
-owner text → gateway → inbox → Ambassador → reply, with `run_pending_tasks()` standing in for
-the supervisor to complete delegated jobs between turns.
+owner text → gateway → inbox → Ambassador → reply, the inbox's capture landed after each message
+as the daemon's job lands it, with `run_pending_tasks()` standing in for the supervisor to
+complete delegated jobs between turns.
 """
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from agents.ambassador import DeliveredResult, build_ambassador
 from agents.ambassador.policy import is_research_request, topic_of
@@ -42,11 +47,18 @@ Handler = Callable[[Job], "str | None"]
 
 
 # --- handlers (for the supervisor) -----------------------------------------------------------
-def ambassador_inbox_handler(inbox: CoreInbox) -> Handler:
-    """Drain the core inbox each tick (the scheduled path). The per-message Ambassador reasoning
-    happens inside `process_once` via the inbox's handler."""
+def ambassador_inbox_handler(inbox: CoreInbox,
+                             land: Callable[[], dict[str, Any]] | None = None) -> Handler:
+    """Drain the core inbox each tick (the scheduled path), then land what it kept. The
+    per-message Ambassador reasoning happens inside `process_once` via the inbox's responder;
+    `land` is the inbox's capture (`core.ingest.inbox.land`), run on the supervisor's thread, so
+    the one writer lands it. A capture that fails fails the job after the replies went out: the
+    records stay, and the next drain lands them."""
     def handle(_job: Job) -> str:
-        return f"ambassador: processed {inbox.process_once()} message(s)"
+        n = inbox.process_once()
+        if land is None:
+            return f"ambassador: processed {n} message(s)"
+        return f"ambassador: processed {n} message(s); kept: {land()['effects']}"
     return handle
 
 
@@ -125,14 +137,24 @@ class ConversationRuntime:
     queue: JobQueue
     task_handler: Handler
     research_handler: Handler | None = None   # None => the research path is not wired (CLI offline)
+    land: Callable[[], dict[str, Any]] | None = None   # the inbox's capture; None => kept, unlanded
 
     def send(self, text: str, *, conversation: str = "default") -> str:
         """Drive one full turn in-process: owner text → reply text (through the real gateway →
-        filesystem handoff → core inbox → Ambassador → handoff → gateway path)."""
+        filesystem handoff → core inbox → Ambassador → handoff → gateway path), then land what
+        the inbox kept, as the daemon's `ambassador` job does. A capture that fails is said and
+        does not stop the conversation: the reply went out, and the record stays for a later
+        turn's capture."""
         self.adapter.receive(text, conversation=conversation)
         self.gateway.submit_inbound()
         self.inbox.process_once()
         self.gateway.deliver_responses()
+        if self.land is not None:
+            try:
+                self.land()
+            except Exception as e:      # noqa: BLE001 — said, and the record stays
+                print(f"inbox: the capture failed this turn ({type(e).__name__}: {e}); what "
+                      "was kept lands on a later one", file=sys.stderr)
         return self.adapter.sent[-1].text if self.adapter.sent else ""
 
     def run_pending_tasks(self) -> int:
@@ -163,12 +185,19 @@ def build_conversation_runtime(config: Config | None = None, *, server=None, emb
     librarian runs on the synthesis tier (heavy work) over the SAME store the Ambassador reads,
     so a delegated result lands where the next conversation can find it. The same librarian gives
     the delegate its `research_criteria` (de-identify) seam; `airlock` defaults to the configured
-    core-side airlock, and the research trough handler completes research jobs between turns."""
+    core-side airlock, and the research trough handler completes research jobs between turns. The
+    inbox's capture lands into the same store, in this process (`mind-palace talk` writes the
+    stores it opens, as the first form's capture did)."""
     from config.loader import get_config
+    from core.attestation import build_attestor
+    from core.ingest import inbox as inbox_mod
     from core.ingest.embed import build_embedder
+    from core.ingest.writer import Stores
     from core.models import build_model_server
     from core.research.airlock import build_airlock
+    from core.stores.catalog import VaultCatalog
     from core.stores.vectorstore import open_vector_store
+    from core.stores.versions import open_version_store
     from scheduler.cron import research_handler
 
     cfg = config or get_config()
@@ -191,9 +220,14 @@ def build_conversation_runtime(config: Config | None = None, *, server=None, emb
 
     handoff = cfg.interface.handoff_dir
     handoff.mkdir(parents=True, exist_ok=True)
-    inbox = CoreInbox(handoff=handoff, handler=ambassador.handler)
+    inbox = CoreInbox(handoff=handoff, respond=ambassador.answer,
+                      record=inbox_mod.Record.of(cfg).write)
     adapter = LocalAdapter()
     gateway = InterfaceGateway(adapter=adapter, channel=GatewayChannel(handoff))
+    stores = Stores(raw=RawStore(cfg.paths.raw_store), plane=store, embedder=embedder,
+                    catalog=VaultCatalog(cfg.paths.vault_catalog),
+                    versions=open_version_store(cfg), attestor=build_attestor(cfg))
     return ConversationRuntime(inbox=inbox, gateway=gateway, adapter=adapter, queue=queue,
                                task_handler=ambassador_task_handler(librarian),
-                               research_handler=research_handler(airlock, embedder, store))
+                               research_handler=research_handler(airlock, embedder, store),
+                               land=lambda: inbox_mod.land(cfg, stores=stores))
