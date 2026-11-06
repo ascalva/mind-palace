@@ -179,8 +179,9 @@ def _spellings(a: int) -> list[str]:
 @given(st.integers(0, 0xFFFFFFFF))
 def test_every_ipv4_spelling_is_one_host(a) -> None:
     """Every spelling of one IPv4 address is one host, this machine's addresses one loopback; the
-    parse agrees with the platform's own `inet_aton` on each (the last spelling wraps past 32
-    bits, which the platform reads as its low bits)."""
+    parse agrees with the platform's own `inet_aton` on each spelling the platform accepts. The
+    last spelling wraps past 32 bits: BSD's `inet_aton` (macOS) reads its low bits, glibc's
+    refuses it, and the parse keeps BSD's reading, the wider of the two."""
     import ipaddress
     import socket
 
@@ -189,4 +190,8 @@ def test_every_ipv4_spelling_is_one_host(a) -> None:
     for spelling in _spellings(a):
         assert loader._canonical_host(spelling) == expected, spelling
         if len(spelling) < 20:
-            assert int.from_bytes(socket.inet_aton(spelling), "big") == a, spelling
+            try:
+                packed = socket.inet_aton(spelling)
+            except OSError:      # glibc refuses the wrapped spelling; nothing on it to compare
+                continue
+            assert int.from_bytes(packed, "big") == a, spelling
