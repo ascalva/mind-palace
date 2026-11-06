@@ -1037,3 +1037,54 @@ def test_a_role_retires_under_a_prefix_it_only_retires_and_writes_only_its_own(c
             assert not table.may_retire("ambassador", place, other), other
     # the operator's role writes every path, so it has no prefix it only retires
     assert table.may_write("cli", "dialogue", legacy) and table.roles["cli"].retire_only == {}
+
+
+_PLANTED_ID = "d4d4d4d4d4d4d4d4"
+
+
+def _plant(cfg: Any, planted: str, hole: str) -> Path:
+    """A file planted in the first form's tree, with its tree writable by another account at
+    `hole` (the root, the role's spool, the receipts directory, or the file itself): the forged
+    outcome of a chosen request id, or a request in the owner's spool."""
+    import os
+
+    old = ingress.spool_root(cfg).parent / ingress.LEGACY_SPOOL
+    d = old / "cli" / "receipts" if planted == "receipt" else old / "cli"
+    d.mkdir(parents=True)
+    f = d / f"{_PLANTED_ID}.json"
+    if planted == "receipt":
+        f.write_text(json.dumps({"request": _PLANTED_ID, "role": "cli", "kind": "script",
+                                 "state": "landed", "detail": {"effects": {"landed": 1}}}))
+    else:
+        f.write_text(json.dumps({"id": _PLANTED_ID, "sentence": "do dream",
+                                 "at": "2026-11-06T00:00:00"}))
+    os.chmod(f, 0o600)
+    target = {"the root": old, "the role's spool": old / "cli", "its directory": d, "the file": f}
+    os.chmod(target[hole], 0o666 if hole == "the file" else 0o777)
+    return f
+
+
+@pytest.mark.parametrize("planted, hole", [
+    ("receipt", "the root"), ("receipt", "the role's spool"), ("receipt", "its directory"),
+    ("receipt", "the file"), ("request", "the root"), ("request", "the role's spool"),
+])
+def test_a_legacy_tree_another_account_could_write_is_not_adopted(cfg: Any, planted: str,
+                                                                  hole: str) -> None:
+    """The security audit of 2026-11-06: `data/handoff` is writable by its group, so an account in
+    it could replace `door/` with directories and files of its own. A receipt planted there and
+    adopted makes a chosen id read as already landed, with the planter's detail, and suppresses
+    the genuine request that later bears it; a request planted in the operator's spool would run
+    as the owner's. The takeover checks what the drain checks, so neither is adopted from a tree
+    another account could write: it stays where it was, reported once. The takeover before this
+    adopted both."""
+    said: list[str] = []
+    ingress.ensure_spools(cfg)
+    f = _plant(cfg, planted, hole)
+    assert ingress.ensure_spools(cfg, report=said.append) == ["ambassador", "cli"]
+    assert f.exists()                                           # it stays where it was
+    assert ingress.read_receipt(cfg, "cli", _PLANTED_ID) is None
+    assert not ingress.seen(cfg, "cli", _PLANTED_ID)
+    assert not (ingress.spool_root(cfg) / "cli" / f"{_PLANTED_ID}.json").exists()
+    assert len([m for m in said if "not adopted" in m]) == 1
+    ingress.ensure_spools(cfg, report=said.append)
+    assert len([m for m in said if "not adopted" in m]) == 1    # reported once, not each tick
