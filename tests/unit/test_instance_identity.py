@@ -398,8 +398,46 @@ def test_turning_secrets_on_without_a_vault_refuses(monkeypatch, tmp_path) -> No
         _as_named(monkeypatch, tmp_path, '[instance]\nid = "bench"\n[secrets]\nenabled = true\n')
 
 
-@pytest.mark.parametrize("addr", ["http://127.0.0.1:8200", "http://localhost:8200/",
-                                  "http://[::1]:8200", "127.0.0.1:8200"])
+LOOPBACK_SPELLINGS = [
+    "http://127.0.0.1:8200", "http://localhost:8200/", "127.0.0.1:8200",
+    # userinfo is not the host
+    "http://u@127.0.0.1:8200", "http://u:p@localhost:8200", "http://a@b@127.0.0.1:8200/v1",
+    "http://2130706433:8200", "http://0x7f000001:8200", "http://017700000001:8200",  # one number
+    "http://127.1:8200", "http://0x7f.1:8200", "http://127.0.1:8200",           # short dotted forms
+    "http://6425673729:8200",                                  # past 32 bits, the low bits kept
+    "http://localhost.:8200", "http://127.0.0.1.:8200", "http://LOCALHOST:8200",  # dot and case
+    "http://vault.localhost:8200", "http://%6c%6f%63%61%6c%68%6f%73%74:8200",
+    "http://[::1]:8200", "http://[0:0:0:0:0:0:0:1]:8200",                         # IPv6
+    "http://[::ffff:127.0.0.1]:8200", "http://[::ffff:7f00:1]:8200",               # v4-mapped
+    "http://127.255.255.254:8200", "http://0.0.0.0:8200", "http://[::]:8200", "http://0:8200",
+]
+
+
+@pytest.mark.parametrize("addr", LOOPBACK_SPELLINGS)
+def test_every_spelling_of_this_machine_is_one_host(addr) -> None:
+    """The host as the resolver reaches it: userinfo dropped, IPv4 in every form `inet_aton`
+    accepts, IPv6 and v4-mapped, a trailing dot, the localhost names, and the addresses that reach
+    this machine all fold to one loopback host."""
+    assert loader.vault_location(addr) == "loopback:8200"
+
+
+@pytest.mark.parametrize(("addr", "location"), [
+    ("http://10.0.0.5:8200", "10.0.0.5:8200"),
+    ("http://010.0.0.5:8200", "8.0.0.5:8200"),            # octal, as the resolver reads it
+    ("http://128.0.0.1:8200", "128.0.0.1:8200"),
+    ("http://vault.example:8200", "vault.example:8200"),
+    ("http://localhostx:8200", "localhostx:8200"),
+    ("http://[::2]:8200", "[::2]:8200"),
+    ("http://[::ffff:10.0.0.1]:8200", "10.0.0.1:8200"),
+    ("http://08.0.0.1:8200", "08.0.0.1:8200"),            # no address: an 8 in an octal part
+    ("http://127.0.0.1:8201", "loopback:8201"),           # this machine, another server
+    ("https://vault.example", "vault.example:443"),
+])
+def test_control_another_host_stays_distinct(addr, location) -> None:
+    assert loader.vault_location(addr) == location != "loopback:8200"
+
+
+@pytest.mark.parametrize("addr", LOOPBACK_SPELLINGS)
 def test_no_named_instance_reaches_ouroboros_vault(monkeypatch, tmp_path, addr) -> None:
     """Ouroboros's Vault is the server its overlay names on this host (the committed default):
     a named instance naming it, in any spelling, refuses."""
@@ -425,3 +463,14 @@ def test_a_named_instances_own_vault_gets_its_own_token(monkeypatch, tmp_path) -
     client = backend.build_secrets_backend(cfg)
     assert asked == ["bench.vault-supervisor-token"]
     assert client == {"addr": "https://127.0.0.1:8210", "kv_mount": "kv", "supervisor_token": None}
+
+
+@pytest.mark.parametrize("addr", ["http://10.0.0.5:8200", "http://127.0.0.1:8201",
+                                  "http://[::ffff:10.0.0.1]:8200"])
+def test_control_a_named_instances_own_vault_loads(monkeypatch, tmp_path, addr) -> None:
+    _isolated(monkeypatch, tmp_path)
+    (tmp_path / "ouroboros.toml").write_text(FIXTURE.read_text())
+    overlay = tmp_path / "named.toml"
+    overlay.write_text(f'[instance]\nid = "bench"\n[secrets]\nenabled = true\naddr = "{addr}"\n')
+    monkeypatch.setenv(loader.OVERLAY_ENV, str(overlay))
+    assert loader.load_config().secrets.addr == addr

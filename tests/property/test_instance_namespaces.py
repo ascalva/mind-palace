@@ -164,3 +164,29 @@ def test_no_named_instance_writes_ouroboros_repository(tmp_path_factory, iid, sl
         mp.setattr(loader, "_INSTANCE_OVERLAY", tmp / "ouroboros.toml")
         mp.setenv(loader.OVERLAY_ENV, str(overlay))
         assert loader.load_config().backup.repository == own
+
+
+def _spellings(a: int) -> list[str]:
+    """Ways to write the IPv4 address `a` that the C resolver's inet_aton reads as `a`."""
+    b = a.to_bytes(4, "big")
+    return [".".join(map(str, b)), str(a), hex(a), "0" + format(a, "o"),
+            f"{b[0]}.{a & 0xFFFFFF}", f"{b[0]}.{b[1]}.{a & 0xFFFF}",
+            ".".join(hex(x) for x in b), ".".join("0" + format(x, "o") for x in b),
+            str(a + (1 << 32))]
+
+
+@settings(max_examples=300, deadline=None, database=None)
+@given(st.integers(0, 0xFFFFFFFF))
+def test_every_ipv4_spelling_is_one_host(a) -> None:
+    """Every spelling of one IPv4 address is one host, this machine's addresses one loopback; the
+    parse agrees with the platform's own `inet_aton` on each (the last spelling wraps past 32
+    bits, which the platform reads as its low bits)."""
+    import ipaddress
+    import socket
+
+    expected = ("loopback" if ipaddress.IPv4Address(a).is_loopback or a == 0
+                else str(ipaddress.IPv4Address(a)))
+    for spelling in _spellings(a):
+        assert loader._canonical_host(spelling) == expected, spelling
+        if len(spelling) < 20:
+            assert int.from_bytes(socket.inet_aton(spelling), "big") == a, spelling
