@@ -1,7 +1,8 @@
 """The heartbeat: `palace tick`, every 15 minutes (`com.mind-palace.tick`, installed by `stack up`).
 
 That label is Ouroboros's, `InstanceConfig().label("tick")`; a named instance's would be
-`com.mind-palace.<id>.tick`, and the stack installs none for it (DI-2).
+`com.mind-palace.<id>.tick`, and the stack installs none for it. `palace tick` itself refuses a
+named instance: the policy, the chat server's key and the dialogue lanes are Ouroboros's (DI-2).
 
 Phase 1 of docs/brainstorms/ambassador-agent-loop.md (the loop's gaps: dn-agentic-loop), built to
 one rule: **the tick never loads a model to decide whether to load one.** Plain code reads the
@@ -552,6 +553,12 @@ def main(argv: Sequence[str]) -> int:
     from core.kernel.config import get_config
 
     cfg = get_config()
+    if cfg.instance.named:
+        # The heartbeat is the stack's: its policy and the chat server's key come from
+        # config/stack.toml, and its dialogue lanes read the owner's chat applications (DI-2).
+        print(f"tick: the heartbeat is Ouroboros's; refusing to beat for instance "
+              f"{cfg.instance.id!r}, whose sources are its own or none.")
+        return 1
     data = cfg.paths.data_dir
     verb = argv[0] if argv else ""
     if verb == "pause":

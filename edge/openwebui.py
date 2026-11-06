@@ -91,6 +91,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--latest", action="store_true",
                     help="print when the newest chat last changed, and nothing else")
     args = ap.parse_args(argv)
+    # Ouroboros's dialogue lane (DI-2): a named instance (MIND_PALACE_OVERLAY, the loader's
+    # OVERLAY_ENV) reads no lane, so this reader refuses before opening the source.
+    if os.environ.get("MIND_PALACE_OVERLAY"):
+        sys.exit("openwebui: this lane reads the owner's Open WebUI chats, which are Ouroboros's; "
+                 "refusing under MIND_PALACE_OVERLAY")
     if args.latest:
         print(json.dumps({"latest": latest_update(args.container)}))
         return 0

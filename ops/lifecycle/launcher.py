@@ -459,10 +459,12 @@ def dialogue_sync(cfg: Config, repo_root: Path, *, only: set[str] | None = None,
     labelled authored by the source, the model's observed. A reader that fails is reported and the
     others still sync. Returns the exit code: 1 when a reader failed."""
     from core.ingest import door
-    from scheduler.door import DIALOGUE_READERS
 
+    if not cfg.instance.dialogue:
+        print(f"dialogue sync: instance {cfg.instance.id!r} reads no dialogue lanes")
+        return 0
     failed = False
-    for reader in DIALOGUE_READERS:
+    for reader in cfg.instance.dialogue:
         if only is not None and reader not in only:
             continue
         try:
@@ -522,7 +524,6 @@ def build_components(cfg: Config) -> Components:
         research_handler,
     )
     from scheduler.door import (
-        DIALOGUE_READERS,
         DIALOGUE_SYNC_KIND,
         door_handlers,
         drain_spool,
@@ -632,7 +633,7 @@ def build_components(cfg: Config) -> Components:
         # `do sync_dialogue` is the queue's own kind, coalescing like the other syncs: the library
         # script once a reader; a failed edge reader fails the job after the others have synced
         DIALOGUE_SYNC_KIND: library_handler(cfg, "sync_dialogue",
-                                            [{"reader": r} for r in DIALOGUE_READERS],
+                                            [{"reader": r} for r in cfg.instance.dialogue],
                                             stores=door_stores),
     }
     supervisor = Supervisor(queue=queue, loader=loader, handlers=handlers, telemetry=telemetry)

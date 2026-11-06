@@ -2,13 +2,16 @@
 
 N(i) is what instance i owns, read by `namespaces_of` off the config the real loader builds: its
 data dir, ingestion spool, supervisor lock, levers file and every other path it writes; the
-Keychain items it reads; its launchd labels; its backup repository. The invariant: for instances
-i ≠ j, Ouroboros among them, `shared(N(i), N(j))` is empty, where paths and repositories compare as
-locations (one inside the other counts as shared). Ids are generated, not chosen.
+sources it reads (vault, transcripts, dialogue lanes); the Keychain items it reads; its launchd
+labels; its backup repository. The invariant: for instances i ≠ j, Ouroboros among them,
+`shared(N(i), N(j))` is empty, where every location compares as a location (one inside the other
+counts as shared). Ids are generated, not chosen; the named instances declare nothing.
 
-The controls give the check teeth. With the loader's own refusal switched off, a derivation that
-ignores the id, and one that hands a named instance Ouroboros's namespaces (the hazard of issue
-#25), each fail the property; with the refusal on, the loader refuses the second itself.
+The controls give the check teeth. With the loader's own refusal switched off, three broken
+derivations each fail the property: one that ignores the id, one that hands a named instance
+Ouroboros's namespaces (the hazard of issue #25), and one under which an undeclared vault inherits
+Ouroboros's vault root (#25 in the read direction). With the refusal on, the loader refuses the
+last two itself.
 """
 
 from __future__ import annotations
@@ -89,17 +92,31 @@ def _be_ouroboros(monkeypatch: pytest.MonkeyPatch) -> None:
                         lambda self, role: loader.LABEL_PREFIX + role)
 
 
-@pytest.mark.parametrize(("break_it", "min_named"), [(_ignore_the_id, 2), (_be_ouroboros, 1)])
+def _inherit_ouroboros_vault(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The read-direction hazard as a derivation: an undeclared vault falls back to the committed
+    default, which is Ouroboros's vault root."""
+    default = Path(loader._read(loader._DEFAULTS)["ingestion"]["vault"]["path"]).expanduser()
+    real = loader._own_source
+    monkeypatch.setattr(loader, "_own_source",
+                        lambda instance, name: default if name == "vault" else real(instance, name))
+
+
+@pytest.mark.parametrize(("break_it", "min_named", "shared_what"), [
+    (_ignore_the_id, 2, "location"),
+    (_be_ouroboros, 1, "location"),
+    (_inherit_ouroboros_vault, 1, r"location \S*\.mind-palace/vault and"),
+])
 def test_control_a_broken_derivation_fails_the_property(monkeypatch, tmp_path, break_it,
-                                                        min_named) -> None:
+                                                        min_named, shared_what) -> None:
     break_it(monkeypatch)
     monkeypatch.setattr(loader, "_refuse_shared", lambda cfg, source: None)
-    with pytest.raises(AssertionError, match="share"):   # a failure needs no shrinking here
+    with pytest.raises(AssertionError, match=shared_what):   # a failure needs no shrinking here
         _the_property(tmp_path, min_named=min_named, shrink=False)()
 
 
-def test_control_the_loader_refuses_the_hazard_itself(monkeypatch, tmp_path) -> None:
-    _be_ouroboros(monkeypatch)
+@pytest.mark.parametrize("break_it", [_be_ouroboros, _inherit_ouroboros_vault])
+def test_control_the_loader_refuses_the_hazard_itself(monkeypatch, tmp_path, break_it) -> None:
+    break_it(monkeypatch)
     (tmp_path / "ouroboros.toml").write_text(f'[backup]\nrepository = "{OUROBOROS_REPOSITORY}"\n')
     with pytest.raises(loader.InstanceOverlayError, match="would share"):
         _namespaces(tmp_path, "bench")

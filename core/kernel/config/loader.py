@@ -75,14 +75,17 @@ _DATA_PLANE = (
     ("interface", "handoff_dir"), ("airlock", "handoff_dir"), ("selfmod", "ledger_db"),
     ("effectors", "handoff_dir"), ("effectors", "ledger_db"), ("effectors", "drafts_dir"),
 )
-# The Keychain/env items an instance reads its secrets from. A named instance's are `<id>.<name>`,
-# derived from the committed defaults and never set in its overlay, so two instances hold no secret
-# in common unless the owner deliberately places one value under both names.
+# The Keychain/env items (and the AWS profile) an instance reads its secrets from. A named
+# instance's are `<id>.<name>`, derived from the committed defaults and never set in its overlay, so
+# two instances hold no secret in common unless the owner deliberately places one value under both.
 _SECRET_NAMES = (
     ("attestation", "signing_key_secret"), ("attestation", "owner_key_secret"),
     ("backup", "password_secret"), ("backup", "aws_access_key_id_secret"),
-    ("backup", "aws_secret_access_key_secret"),
+    ("backup", "aws_secret_access_key_secret"), ("airlock", "aws_profile"),
 )
+# The dialogue lanes Ouroboros reads, each an edge reader over one of the owner's chat applications
+# (core/ingest/table.py). A named instance has none: no configuration yet names a lane of its own.
+DIALOGUE_READERS = ("openwebui", "opencode")
 
 
 class ConfigMigrationError(RuntimeError):
@@ -536,7 +539,13 @@ class InstanceConfig:
         Keychain items     attestation-signing-key, …    <id>.attestation-signing-key, …
         launchd labels     com.mind-palace.palace, …     com.mind-palace.<id>.palace, …
         restic repository  as its overlay names it       its overlay's, whose last segment is <id>
+        vault source       ~/.mind-palace/vault          declared, else <root>/vault and off
+        transcripts        ~/.claude/projects/<repo>     declared, else <root>/transcripts and off
+        code agent         the checkout                  off unless its overlay turns it on
+        dialogue lanes     openwebui, opencode           none
+        airlock in S3      as its overlay names it       as its overlay names it
 
+    A declared source may lie anywhere but inside, around or at one of Ouroboros's locations.
     `namespaces_of` reads them off a built Config, and `shared` says what two instances hold in
     common. The map is injective: distinct ids give disjoint namespaces, none of them Ouroboros's.
     """
@@ -566,6 +575,11 @@ class InstanceConfig:
         """The machine-owned knob overlay this instance's self-modification loop writes and its
         loader reads: `config/levers.toml` for Ouroboros, `<root>/levers.toml` for a named one."""
         return self.root / "levers.toml" if self.named else LEVERS_OVERLAY
+
+    @property
+    def dialogue(self) -> tuple[str, ...]:
+        """The dialogue lanes this instance reads: Ouroboros's two, a named instance none."""
+        return () if self.named else DIALOGUE_READERS
 
     def label(self, role: str) -> str:
         """The launchd label of this instance's `role` service, one of `LAUNCHD_ROLES`."""
@@ -620,14 +634,16 @@ class Config:
 
 @dataclass(frozen=True)
 class Namespaces:
-    """What one instance holds as its own: the state it writes, the secrets it reads, the services
-    it runs as, the repository it backs up to (DI-2).
+    """What one instance holds as its own: the state it writes, the sources it reads, the secrets
+    it reads, the services it runs as, the repository it backs up to (DI-2).
 
-    The invariant: for instances i ≠ j, Ouroboros among them, `shared(N(i), N(j))` is empty. For
-    named instances it holds by construction, because each name is derived from the id
+    The invariant: for instances i ≠ j, Ouroboros among them, `shared(N(i), N(j))` is empty: no
+    location one writes or reads lies at, inside or around a location of the other. For named
+    instances it holds by construction, because each name is derived from the id
     (`InstanceConfig`) and none of the derived names is Ouroboros's; a named overlay that would
-    break it refuses at load (`_refuse_reaching_out`, `_refuse_shared`). The property test over
-    generated ids is tests/property/test_instance_namespaces.py.
+    break it refuses at load (`_refuse_reaching_out`, `_refuse_shared`). A source a named overlay
+    declares is checked against Ouroboros's; two named instances may deliberately read one corpus.
+    The property test over generated ids is tests/property/test_instance_namespaces.py.
     """
 
     data_dir: Path
@@ -635,9 +651,12 @@ class Namespaces:
     supervisor_lock: Path
     levers: Path
     paths: frozenset[Path]    # the four above, and every other path the config names it writes
+    sources: frozenset[Path]  # the corpus locations it reads: its vault and transcripts dirs
+    dialogue: frozenset[str]  # the dialogue lanes it reads (`DIALOGUE_READERS`)
     secrets: frozenset[str]   # Keychain/env item names
     labels: frozenset[str]    # launchd labels
     backup: str               # its restic repository; "" when none is configured
+    airlock: frozenset[str]   # its airlock's S3 request and result prefixes, when it has a bucket
 
 
 def namespaces_of(cfg: Config) -> Namespaces:
@@ -645,16 +664,30 @@ def namespaces_of(cfg: Config) -> Namespaces:
     data, instance = cfg.paths.data_dir, cfg.instance
     lock = data / SUPERVISOR_LOCK
     written = {getattr(getattr(cfg, section), key) for section, key in _DATA_PLANE}
+    transcripts = cfg.ingestion.transcripts.transcripts_dir or default_transcripts_dir()
+    air = cfg.airlock
     return Namespaces(
         data_dir=data,
         spool=cfg.interface.handoff_dir,
         supervisor_lock=lock,
         levers=instance.levers,
         paths=frozenset({*written, lock, instance.levers}),
+        sources=frozenset({cfg.ingestion.vault.path, transcripts}),
+        dialogue=frozenset(instance.dialogue),
         secrets=frozenset(getattr(getattr(cfg, section), key) for section, key in _SECRET_NAMES),
         labels=frozenset(instance.label(role) for role in LAUNCHD_ROLES),
         backup=cfg.backup.repository,
+        airlock=frozenset({f"s3://{air.s3_bucket}/{prefix}"
+                           for prefix in (air.requests_prefix, air.results_prefix)}
+                          if air.s3_bucket else ()),
     )
+
+
+def default_transcripts_dir() -> Path:
+    """This checkout's Claude Code transcripts dir, `~/.claude/projects/<repo path, / as ->`: the
+    transcript source when `[ingestion.transcripts] transcripts_dir` is unset (Ouroboros's; a named
+    instance's is always set)."""
+    return Path.home() / ".claude" / "projects" / str(REPO_ROOT).replace("/", "-")
 
 
 def _within(a: str, b: str, separators: str) -> bool:
@@ -663,21 +696,31 @@ def _within(a: str, b: str, separators: str) -> bool:
 
 
 def _location(path: Path) -> str:
-    # Case-folded, because APFS (the macOS default) folds case: `Data` and `data` are one directory.
-    return os.path.normpath(path).casefold()
+    # Absolute, normalised and case-folded, because APFS (the macOS default) folds case: `Data` and
+    # `data` are one directory.
+    return os.path.abspath(path).casefold()
+
+
+def _remote(url: str) -> str:
+    return url.rstrip("/").casefold()
 
 
 def shared(a: Namespaces, b: Namespaces) -> list[str]:
     """What two instances' namespaces have in common, one line each; [] when they are disjoint.
-    Paths and backup repositories compare as locations, so one nested inside the other is shared:
-    a repository nested in another's location is written under the other's prefix."""
-    out = [f"path {p} and {q}" for p in sorted(a.paths) for q in sorted(b.paths)
+    Every location either writes or reads is compared with every location of the other, so a
+    source inside the other's data dir is shared, and so is a directory nested in one of the
+    other's. Remote locations (the restic repository, the airlock prefixes) compare the same way:
+    one nested in another's is written under the other's prefix."""
+    here, there = a.paths | a.sources, b.paths | b.sources
+    out = [f"location {p} and {q}" for p in sorted(here) for q in sorted(there)
            if _within(_location(p), _location(q), os.sep)]
+    out += [f"dialogue lane {lane}" for lane in sorted(a.dialogue & b.dialogue)]
     out += [f"secret {name}" for name in sorted(a.secrets & b.secrets)]
     out += [f"label {label}" for label in sorted(a.labels & b.labels)]
-    if a.backup and b.backup and _within(a.backup.rstrip("/").casefold(),
-                                         b.backup.rstrip("/").casefold(), "/:"):
+    if a.backup and b.backup and _within(_remote(a.backup), _remote(b.backup), "/:"):
         out.append(f"backup repository {a.backup} and {b.backup}")
+    out += [f"airlock prefix {x} and {y}" for x in sorted(a.airlock) for y in sorted(b.airlock)
+            if _within(_remote(x), _remote(y), "/")]
     return out
 
 
@@ -841,6 +884,39 @@ def _last_segment(repository: str) -> str:
     return re.split(r"[/:]", repository.rstrip("/"))[-1]
 
 
+def _own_source(instance: InstanceConfig, name: str) -> Path:
+    """Where an undeclared source of a named instance points: `<root>/<name>`, inside its own
+    root, where nothing is unless the instance puts it there."""
+    return instance.root / name
+
+
+def _own_sources(raw: dict[str, Any], declared: dict[str, Any], instance: InstanceConfig,
+                 source: Path) -> None:
+    """A named instance reads only the sources its own overlay declares; the committed defaults
+    name Ouroboros's corpus, so they never reach it. An undeclared vault or transcripts dir points
+    into its root (`_own_source`) and its agent is off; the code agent, whose source is the shared
+    checkout, is off unless the overlay turns it on. Turning an agent on without naming its source
+    refuses. A declared location is taken as given, a relative one under the root, and
+    `_refuse_shared` then refuses one at, inside or around a location of Ouroboros's."""
+    agents = raw.setdefault("ingestion", {})
+    said = declared.get("ingestion", {})
+    for agent, key in (("vault", "path"), ("transcripts", "transcripts_dir")):
+        section, own = agents.setdefault(agent, {}), said.get(agent, {})
+        if own.get(key):
+            path = Path(str(own[key])).expanduser()
+            section[key] = str(path if path.is_absolute() else instance.root / path)
+            continue
+        if own.get("enabled") is True:
+            raise InstanceOverlayError(
+                f"{source}: [ingestion.{agent}] enabled = true, but the overlay names no {key}. "
+                f"A named instance reads only a source it declares; refusing to read the "
+                f"committed default, which is Ouroboros's.")
+        section[key] = str(_own_source(instance, agent))
+        section["enabled"] = False
+    if "enabled" not in said.get("code", {}):
+        agents.setdefault("code", {})["enabled"] = False
+
+
 def _refuse_reaching_out(raw: dict[str, Any], declared: dict[str, Any],
                          committed: dict[tuple[str, str], Any], instance: InstanceConfig,
                          source: Path) -> None:
@@ -903,8 +979,8 @@ def load_config(path: Path | None = None) -> Config:
     # A named instance (`MIND_PALACE_OVERLAY`) replaces the chain: defaults ← its own levers file ←
     # its own overlay, and nothing of Ouroboros's. The legacy guard is about Ouroboros's file name,
     # so it does not run. Its namespaces derive from its id (`InstanceConfig`); the overlay may not
-    # set them, and the instance may not share one with Ouroboros, whose chain is read for that
-    # check alone.
+    # set them, it reads only the sources it declares (`_own_sources`), and the instance may not
+    # share a location with Ouroboros, whose chain is read for that check alone.
     if path is not None:
         return _build(raw, _ouroboros_instance(raw, str(path)))
     named = _named_overlay()
@@ -918,6 +994,7 @@ def load_config(path: Path | None = None) -> Config:
     committed = {(s, k): raw.get(s, {}).get(k) for s, k in _SECRET_NAMES}
     _overlay(raw, instance.levers)      # its own loop-tuned knobs, under its hand overlay
     _deep_merge(raw, declared)
+    _own_sources(raw, declared, instance, named)
     _refuse_reaching_out(raw, declared, committed, instance, named)
     cfg = _build(raw, instance)
     _refuse_shared(cfg, named)
@@ -1047,7 +1124,7 @@ def _build(raw: dict[str, Any], instance: InstanceConfig) -> Config:
             handoff_dir=_resolve(al["handoff_dir"], root),
             s3_bucket=str(al["s3_bucket"]),
             s3_region=str(al["s3_region"]),
-            aws_profile=str(al["aws_profile"]),
+            aws_profile=secret(al["aws_profile"]),
             requests_prefix=str(al["requests_prefix"]),
             results_prefix=str(al["results_prefix"]),
             poll_interval_s=int(al["poll_interval_s"]),
