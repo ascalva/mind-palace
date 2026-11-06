@@ -924,9 +924,12 @@ embedder's are unit length: stored norms 0.99988 to 1.00012), and the query's ro
 `2‖q' − q‖ / (‖q‖ + ‖q'‖)`, computed per query. With the kernel's error taken at its classical
 bound `γ = 2 (d + 4) 2⁻²⁴` (`9.2e-5`), a read whose `(k+1)`-th and `k`-th distances differ by more
 than `2 (4.884e-4 + β_query + γ)`, about `1.6e-3` for a text query, returns the top `k` of the
-exact cosines: float16 storage cannot have changed it. `VectorStore.search_ranked` computes that
-certificate on every search (`core/kernel/margin.py`), over distinct stored vectors; it costs 0.15
-to 0.34 ms a search (1.5 to 5 %) on fixture stores of 2,000 and 17,256 rows at 768 dimensions.
+exact cosines: float16 storage cannot have changed it. The certificate is opt-in:
+`VectorStore.search_ranked` asks each source for one candidate more and computes it
+(`core/kernel/margin.py`), over distinct stored vectors, and `search` does neither. On fixture
+stores of 2,000 and 17,256 rows at 768 dimensions, `search` measured within 4 % of origin/main's,
+either side, the noise between runs, and a certified read 0.6 to 4 % more than `search`. Which
+reads ask for it is the owner's decision.
 
 The bound is a worst case, nearly attained by a vector whose every coordinate sits on a float16 tie
 and a query along the rounding error. Typical errors are far smaller, so the certificate settles

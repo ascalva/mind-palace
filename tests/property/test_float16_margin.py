@@ -191,6 +191,66 @@ def _store(tmp_path: Path, vectors: F64) -> VectorStore:
     return store
 
 
+class _Query:
+    """A LanceDB query that records the candidate counts asked of it."""
+
+    def __init__(self, inner: Any, seen: list[int]) -> None:
+        self._inner, self._seen = inner, seen
+
+    def metric(self, name: str) -> _Query:
+        return _Query(self._inner.metric(name), self._seen)
+
+    def where(self, predicate: str, **kw: Any) -> _Query:
+        return _Query(self._inner.where(predicate, **kw), self._seen)
+
+    def select(self, columns: Any) -> _Query:
+        return _Query(self._inner.select(columns), self._seen)
+
+    def limit(self, k: int) -> _Query:
+        self._seen.append(k)
+        return _Query(self._inner.limit(k), self._seen)
+
+    def to_list(self) -> list[dict[str, Any]]:
+        return cast(list[dict[str, Any]], self._inner.to_list())
+
+
+class _Table:
+    def __init__(self, inner: Any, seen: list[int]) -> None:
+        self._inner, self._seen = inner, seen
+
+    def search(self, vector: list[float]) -> _Query:
+        return _Query(self._inner.search(vector), self._seen)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)
+
+
+def _record_limits(store: VectorStore) -> list[int]:
+    """Every candidate count the store asks LanceDB for, in order."""
+    seen: list[int] = []
+    inner = type(store)._table
+
+    def recorded(_self: VectorStore = store) -> Any:
+        return _Table(inner(_self), seen)
+
+    store._table = recorded       # type: ignore[method-assign]  # test instrument, instance-scoped
+    return seen
+
+
+def test_search_asks_for_k_and_only_the_certified_read_for_more(tmp_path: Path) -> None:
+    """The certificate is opt-in: `search` asks each source for its k nearest, as before VEC-1,
+    and only `search_ranked` asks for k + 1."""
+    rng = np.random.default_rng(23)
+    store = _store(tmp_path, np.stack([_unit(rng.standard_normal(DIM)) for _ in range(30)]))
+    seen = _record_limits(store)
+    q = _unit(rng.standard_normal(DIM)).tolist()
+    store.search(q, k=5, clearance=CODE_READ)
+    plain, seen[:] = list(seen), []
+    store.search_ranked(q, k=5, clearance=CODE_READ)
+    assert plain and set(plain) == {5}
+    assert len(seen) == len(plain) and set(seen) == {6}
+
+
 def _ideal(vectors: F64, q: F64, k: int) -> set[str]:
     """The top k of the exact cosines between the query and the float32 vectors."""
     y = vectors.astype(np.float32).astype(np.float64)

@@ -750,17 +750,27 @@ class VectorStore:
         [banner: extension] A3: prose comes from the shared plane — the k nearest atoms that a
         CLEARED relation holds, one row per cleared occupancy — and the two lists merge by
         distance. Resolving a code hit to its occupancies `(path, blob, slot, lines)` remains the
-        membership join (D3, `core.stores.memberships.resolve_occupancies`)."""
-        return self.search_ranked(vector, k=k, clearance=clearance,
-                                  include_superseded=include_superseded).rows
+        membership join (D3, `core.stores.memberships.resolve_occupancies`).
+
+        VEC-1's margin certificate is opt-in: `search_ranked` returns these rows with it."""
+        out: list[Row[L]] = []
+        if self._physical_possible(clearance):
+            clause = _gate(clearance) + ("" if include_superseded else " AND current = true")
+            q = self._table().search(vector).metric("cosine").where(clause, prefilter=True)
+            out = [Row(clearance, r, mint=_MINT) for r in q.limit(k).to_list()]
+        if self.plane_enabled():
+            out.extend(self._plane.reader(clearance).search_rows(
+                vector, k=k, include_superseded=include_superseded))
+        out.sort(key=lambda r: float(r.get("_distance", 0.0)))
+        return out[:k]
 
     def search_ranked[L: Provenance](self, vector: list[float], *, k: int = 5,
                                      clearance: Clearance[L],
                                      include_superseded: bool = False) -> Ranked[L]:
-        """`search`, with VEC-1's margin certificate (`core/kernel/margin.py`): whether float16
-        storage could have changed which vectors make the top k. Each source is asked for its
-        k + 1 best vectors, so the best one outside the top k is among the candidates; the rows
-        are `search`'s."""
+        """`search`'s rows with VEC-1's margin certificate (`core/kernel/margin.py`): whether
+        float16 storage could have changed which vectors make the top k. Opt-in, since it costs
+        more than `search`: each source is asked for its k + 1 best vectors, so the best one
+        outside the top k is among the candidates, and the margin is computed over them."""
         cands: list[tuple[Hashable, Row[L]]] = []
         if self._physical_possible(clearance):
             clause = _gate(clearance) + ("" if include_superseded else " AND current = true")
