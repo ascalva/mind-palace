@@ -29,6 +29,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
+from config.loader import InstanceConfig, namespaces_of
 from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld
 from ops.lifecycle.preflight import Preflight, run_preflight
 from ops.lifecycle.runs import RunLedger, RunRecord, git_state
@@ -293,25 +294,33 @@ class LaunchDomain:
         prefix = ["sudo", "launchctl"] if self.needs_sudo else ["launchctl"]
         return [*prefix, *args]
 
-    def installed_plist(self) -> Path:
+    def installed_plist(self, label: str | None = None) -> Path:
         """Where the installed plist lives: `/Library/LaunchDaemons/` (system — needs root to
         write, an owner-run migration step) or `~/Library/LaunchAgents/` (gui). The filename keeps
-        the label (`com.mind-palace.palace.plist`) either way."""
+        the label (`com.mind-palace.palace.plist` for Ouroboros) either way."""
+        label = label or PALACE_LABEL
         if self.kind == "system":
-            return Path("/Library/LaunchDaemons/com.mind-palace.palace.plist")
-        return _default_installed_agent_plist()
+            return Path("/Library/LaunchDaemons") / f"{label}.plist"
+        return _default_installed_agent_plist(label)
 
-    def repo_plist(self, repo_root: Path) -> Path:
+    def repo_plist(self, repo_root: Path, label: str | None = None) -> Path:
         """The committed SOURCE plist for this domain: the daemon variant (`UserName ouroboros`)
-        for system, the LaunchAgent for gui."""
-        name = ("com.mind-palace.palace-daemon.plist" if self.kind == "system"
-                else "com.mind-palace.palace.plist")
+        for system, the LaunchAgent for gui. Named by the label, so only Ouroboros's exists: a
+        named instance has no committed plist, and `deploy` never installs Ouroboros's for it."""
+        label = label or PALACE_LABEL
+        name = f"{label}-daemon.plist" if self.kind == "system" else f"{label}.plist"
         return repo_root / "ops/lifecycle" / name
 
 
-def _default_installed_agent_plist() -> Path:
-    """The gui LaunchAgent install path — the historical `installed_plist` default (unchanged)."""
-    return Path.home() / "Library/LaunchAgents/com.mind-palace.palace.plist"
+# Ouroboros's supervisor label. A named instance's is `com.mind-palace.<id>.palace`, derived from
+# its id (`InstanceConfig.label`), so two instances never control one launchd job.
+PALACE_LABEL = InstanceConfig().label("palace")
+
+
+def _default_installed_agent_plist(label: str | None = None) -> Path:
+    """The gui LaunchAgent install path — the historical `installed_plist` default (unchanged
+    for Ouroboros's label)."""
+    return Path.home() / "Library/LaunchAgents" / f"{label or PALACE_LABEL}.plist"
 
 
 def _launchd_managed(label: str, domain: LaunchDomain | None = None) -> bool:
@@ -719,7 +728,7 @@ class Launcher:
     ci_check_cmd: tuple[str, ...] | None = ("uv", "run", "scripts/ci_witness.py", "check")
     deploy_wait_s: float = 60.0
     deploy_poll_s: float = 0.5
-    launchd_label: str = "com.mind-palace.palace"
+    launchd_label: str = PALACE_LABEL   # build_launcher passes the instance's (`cfg.instance`)
     # Which launchd domain this Launcher drives (dn-plane-principals §3.1/§3.2). DEFAULT = gui —
     # every control incantation, the installed-plist path, and the drift check stay byte-identical
     # to today. `LaunchDomain.system()` selects the `ouroboros` LaunchDaemon (sudo + system/<label>
@@ -757,11 +766,12 @@ class Launcher:
         # /Library/LaunchDaemons (note §3.2, risk (a)). Apply those ONLY when the caller did not
         # override the field — so an injected fake runner (tests) and an explicit installed_plist
         # are always honored, and the gui default path is untouched.
-        if self.domain.needs_sudo:
-            if self.launchctl is _run_launchctl:
-                self.launchctl = _run_launchctl_sudo
-            if self.installed_plist == _default_installed_agent_plist():
-                self.installed_plist = self.domain.installed_plist()
+        # The installed plist also follows the label, so a named instance's never lands on
+        # Ouroboros's path.
+        if self.domain.needs_sudo and self.launchctl is _run_launchctl:
+            self.launchctl = _run_launchctl_sudo
+        if self.installed_plist == _default_installed_agent_plist():
+            self.installed_plist = self.domain.installed_plist(self.launchd_label)
 
     # --- start ------------------------------------------------------------------------------
     def start(self, *, force: bool = False, max_ticks: int | None = None) -> int:
@@ -801,7 +811,7 @@ class Launcher:
         # It catches precisely what the gate above cannot: a claimant with no active run row at
         # all (`scripts/watch.py` — finding-0186's open half), and the gate's own check-then-act
         # window. Recovery mode holds it too — a recovery run is a live supervisor.
-        self._lock = SupervisorLock(self.cfg.paths.data_dir / "supervisor.lock")
+        self._lock = SupervisorLock(namespaces_of(self.cfg).supervisor_lock)
         try:
             self._lock.acquire()
         except SupervisorLockHeld:
@@ -1026,7 +1036,7 @@ class Launcher:
                       "wait for CI, or (emergencies only) --skip-tests.")
                 return 1
         managed = _launchd_managed(self.launchd_label, self.domain)
-        repo_plist = self.domain.repo_plist(self.repo_root)
+        repo_plist = self.domain.repo_plist(self.repo_root, self.launchd_label)
         installed = self.installed_plist                       # domain-correct (risk (a))
         drift = (managed and repo_plist.exists() and installed.exists()
                  and installed.read_bytes() != repo_plist.read_bytes())
@@ -1751,4 +1761,5 @@ def build_launcher(config: Config | None = None, **kw) -> Launcher:
     from ops.lifecycle.runs import open_run_ledger
 
     cfg = config or get_config()
+    kw.setdefault("launchd_label", cfg.instance.label("palace"))   # this instance's job, DI-2
     return Launcher(cfg=cfg, runs=open_run_ledger(cfg), repo_root=REPO_ROOT, **kw)

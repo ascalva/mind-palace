@@ -32,6 +32,7 @@ from core.kernel.config.loader import (
     InstanceOverlayError,
     InterfaceConfig,
     ModelConfig,
+    Namespaces,
     OllamaConfig,
     PathsConfig,
     ResourceConfig,
@@ -41,7 +42,9 @@ from core.kernel.config.loader import (
     VaultConfig,
     get_config,
     load_config,
+    namespaces_of,
     refresh_config,
+    shared,
 )
 from core.kernel.config.loader import get_secret as _env_secret
 
@@ -49,10 +52,10 @@ __all__ = [
     "AirlockConfig", "AmbassadorConfig", "AttestationConfig", "BackupConfig", "Config",
     "DreamRnDConfig", "DreamingConfig", "EffectorsConfig", "EmbeddingConfig", "ExhaustConfig",
     "InstanceConfig", "InstanceOverlayError", "InterfaceConfig",
-    "LEVERS_OVERLAY", "ModelConfig", "OUROBOROS", "OllamaConfig", "PathsConfig", "REPO_ROOT",
-    "ResourceConfig",
+    "LEVERS_OVERLAY", "ModelConfig", "Namespaces", "OUROBOROS", "OllamaConfig", "PathsConfig",
+    "REPO_ROOT", "ResourceConfig",
     "SandboxConfig", "SecretsConfig", "SelfModConfig", "VaultConfig",
-    "get_config", "get_secret", "load_config", "refresh_config",
+    "get_config", "get_secret", "load_config", "namespaces_of", "refresh_config", "shared",
 ]
 
 

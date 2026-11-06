@@ -53,10 +53,36 @@ LEVERS_OVERLAY = _CONFIG_DIR / "levers.toml"
 OVERLAY_ENV = "MIND_PALACE_OVERLAY"
 
 # ── Instance identity (DI-2, #25) ────────────────────────────────────────────────────────────────
-# A named overlay declares `[instance] id`. The id is lowercase ASCII, so names built from it stay
+# A named overlay declares `[instance] id`, and every namespace the instance holds is derived from
+# it (`InstanceConfig`, `namespaces_of`). The id is lowercase ASCII, so names built from it stay
 # distinct on a case-insensitive filesystem (APFS folds case by default); it holds no `.` or `/`,
-# so it is one path segment and one dotted component wherever it appears.
+# so it is one path segment and one dotted component wherever it appears, and a derived name splits
+# back into exactly one id.
 _INSTANCE_ID = re.compile(r"[a-z][a-z0-9-]{0,31}")
+# A named instance's state lives under `<repo>/instances/<id>/` (gitignored), never under `data/`:
+# nested in Ouroboros's data dir it would ride Ouroboros's backup and fall to Ouroboros's `reset`.
+_INSTANCES = "instances"
+LABEL_PREFIX = "com.mind-palace."
+LAUNCHD_ROLES = ("palace", "tick")      # the supervisor (ops/lifecycle/launcher.py), the heartbeat
+SUPERVISOR_LOCK = "supervisor.lock"     # beside the queue it guards (ops/lifecycle/lock.py)
+# Every path the config names that an instance WRITES. Each resolves against the instance's root,
+# so `data/…` is Ouroboros's `<repo>/data/…` and a named instance's `instances/<id>/data/…`. A named
+# overlay may move one only within its root: relative, and without `..`.
+_DATA_PLANE = (
+    ("paths", "data_dir"), ("paths", "telemetry_db"), ("paths", "raw_store"),
+    ("paths", "vector_store"), ("paths", "derived_store"), ("paths", "vault_catalog"),
+    ("paths", "attestation_store"), ("paths", "curated_store"),
+    ("interface", "handoff_dir"), ("airlock", "handoff_dir"), ("selfmod", "ledger_db"),
+    ("effectors", "handoff_dir"), ("effectors", "ledger_db"), ("effectors", "drafts_dir"),
+)
+# The Keychain/env items an instance reads its secrets from. A named instance's are `<id>.<name>`,
+# derived from the committed defaults and never set in its overlay, so two instances hold no secret
+# in common unless the owner deliberately places one value under both names.
+_SECRET_NAMES = (
+    ("attestation", "signing_key_secret"), ("attestation", "owner_key_secret"),
+    ("backup", "password_secret"), ("backup", "aws_access_key_id_secret"),
+    ("backup", "aws_secret_access_key_secret"),
+)
 
 
 class ConfigMigrationError(RuntimeError):
@@ -68,13 +94,14 @@ class ConfigMigrationError(RuntimeError):
 
 class InstanceOverlayError(RuntimeError):
     """An overlay cannot be loaded as the instance it would be: `MIND_PALACE_OVERLAY` names no
-    file, or the overlay it names declares no valid `[instance] id`, or claims Ouroboros's. The
-    default chain, and a file passed to `load_config` by path, refuse the same way if they declare
-    an id other than Ouroboros's.
+    file; the overlay it names declares no valid `[instance] id`, or claims Ouroboros's; it sets
+    what its id derives; or the instance would share a namespace with Ouroboros. The default chain,
+    and a file passed to `load_config` by path, refuse the same way if they declare an id other
+    than Ouroboros's.
 
     Raised, never warned, for the same reason as `ConfigMigrationError`: falling back to the
     committed defaults would bring a named instance up on the wrong embedder and σ, silently, and
-    an instance loaded under the wrong id would act as another individual.
+    an instance that shares a namespace writes into another individual's state.
     """
 
 
@@ -493,11 +520,25 @@ class ModelConfig:
 
 @dataclass(frozen=True)
 class InstanceConfig:
-    """Which individual this configuration is (DI-2, issue #25).
+    """Which individual this configuration is (DI-2, issue #25), and the names derived from it.
 
     `id` is `ouroboros` for the default chain: no `MIND_PALACE_OVERLAY`, the live instance, read
     exactly as before instances had ids. Its overlay may restate `[instance] id = "ouroboros"` and
-    nothing else. A named overlay must declare its own id, which may not be Ouroboros's.
+    nothing else. A named overlay must declare its own id, which may not be Ouroboros's, and every
+    namespace the instance holds is derived from that id:
+
+        namespace          Ouroboros                     named instance <id>
+        root               <repo>                        <repo>/instances/<id>
+        data dir, stores   <repo>/data/…                 <root>/data/…
+        ingestion spool    <repo>/data/handoff           <root>/data/handoff
+        supervisor lock    <repo>/data/supervisor.lock   <root>/data/supervisor.lock
+        levers overlay     <repo>/config/levers.toml     <root>/levers.toml
+        Keychain items     attestation-signing-key, …    <id>.attestation-signing-key, …
+        launchd labels     com.mind-palace.palace, …     com.mind-palace.<id>.palace, …
+        restic repository  as its overlay names it       its overlay's, whose last segment is <id>
+
+    `namespaces_of` reads them off a built Config, and `shared` says what two instances hold in
+    common. The map is injective: distinct ids give disjoint namespaces, none of them Ouroboros's.
     """
 
     id: str = OUROBOROS
@@ -506,6 +547,26 @@ class InstanceConfig:
     def named(self) -> bool:
         """True for an instance other than Ouroboros."""
         return self.id != OUROBOROS
+
+    @property
+    def root(self) -> Path:
+        """What this instance's relative data paths resolve against: the repo root for Ouroboros,
+        so `data/` is where it always was, and `<repo>/instances/<id>` for a named instance."""
+        return REPO_ROOT / _INSTANCES / self.id if self.named else REPO_ROOT
+
+    @property
+    def levers(self) -> Path:
+        """The machine-owned knob overlay this instance's self-modification loop writes and its
+        loader reads: `config/levers.toml` for Ouroboros, `<root>/levers.toml` for a named one."""
+        return self.root / "levers.toml" if self.named else LEVERS_OVERLAY
+
+    def label(self, role: str) -> str:
+        """The launchd label of this instance's `role` service, one of `LAUNCHD_ROLES`."""
+        return LABEL_PREFIX + (f"{self.id}.{role}" if self.named else role)
+
+    def secret(self, name: str) -> str:
+        """The Keychain/env item this instance reads the secret `name` from."""
+        return f"{self.id}.{name}" if self.named else name
 
 
 @dataclass(frozen=True)
@@ -550,9 +611,73 @@ class Config:
         raise KeyError("no pinned model configured")
 
 
-def _resolve(p: str) -> Path:
+@dataclass(frozen=True)
+class Namespaces:
+    """What one instance holds as its own: the state it writes, the secrets it reads, the services
+    it runs as, the repository it backs up to (DI-2).
+
+    The invariant: for instances i ≠ j, Ouroboros among them, `shared(N(i), N(j))` is empty. For
+    named instances it holds by construction, because each name is derived from the id
+    (`InstanceConfig`) and none of the derived names is Ouroboros's; a named overlay that would
+    break it refuses at load (`_refuse_reaching_out`, `_refuse_shared`). The property test over
+    generated ids is tests/property/test_instance_namespaces.py.
+    """
+
+    data_dir: Path
+    spool: Path               # cfg.interface.handoff_dir: the ingestion spool and the inbox
+    supervisor_lock: Path
+    levers: Path
+    paths: frozenset[Path]    # the four above, and every other path the config names it writes
+    secrets: frozenset[str]   # Keychain/env item names
+    labels: frozenset[str]    # launchd labels
+    backup: str               # its restic repository; "" when none is configured
+
+
+def namespaces_of(cfg: Config) -> Namespaces:
+    """The namespaces `cfg`'s instance holds, read off the config as built."""
+    data, instance = cfg.paths.data_dir, cfg.instance
+    lock = data / SUPERVISOR_LOCK
+    written = {getattr(getattr(cfg, section), key) for section, key in _DATA_PLANE}
+    return Namespaces(
+        data_dir=data,
+        spool=cfg.interface.handoff_dir,
+        supervisor_lock=lock,
+        levers=instance.levers,
+        paths=frozenset({*written, lock, instance.levers}),
+        secrets=frozenset(getattr(getattr(cfg, section), key) for section, key in _SECRET_NAMES),
+        labels=frozenset(instance.label(role) for role in LAUNCHD_ROLES),
+        backup=cfg.backup.repository,
+    )
+
+
+def _within(a: str, b: str, separators: str) -> bool:
+    """`a` and `b` name one location, or one lies inside the other at a separator."""
+    return a == b or any(a.startswith(b + s) or b.startswith(a + s) for s in separators)
+
+
+def _location(path: Path) -> str:
+    # Case-folded, because APFS (the macOS default) folds case: `Data` and `data` are one directory.
+    return os.path.normpath(path).casefold()
+
+
+def shared(a: Namespaces, b: Namespaces) -> list[str]:
+    """What two instances' namespaces have in common, one line each; [] when they are disjoint.
+    Paths and backup repositories compare as locations, so one nested inside the other is shared:
+    a repository nested in another's location is written under the other's prefix."""
+    out = [f"path {p} and {q}" for p in sorted(a.paths) for q in sorted(b.paths)
+           if _within(_location(p), _location(q), os.sep)]
+    out += [f"secret {name}" for name in sorted(a.secrets & b.secrets)]
+    out += [f"label {label}" for label in sorted(a.labels & b.labels)]
+    if a.backup and b.backup and _within(a.backup.rstrip("/").casefold(),
+                                         b.backup.rstrip("/").casefold(), "/:"):
+        out.append(f"backup repository {a.backup} and {b.backup}")
+    return out
+
+
+def _resolve(p: str, base: Path | None = None) -> Path:
+    """A relative path joins `base`, the repo root unless given; an absolute one stands."""
     path = Path(p)
-    return path if path.is_absolute() else REPO_ROOT / path
+    return path if path.is_absolute() else (REPO_ROOT if base is None else base) / path
 
 
 def _deep_merge(base: dict[str, Any], incoming: dict[str, Any]) -> None:
@@ -703,6 +828,61 @@ def _ouroboros_instance(raw: dict[str, Any], source: str) -> InstanceConfig:
     return InstanceConfig()
 
 
+def _last_segment(repository: str) -> str:
+    """The final path component of a restic repository location (`s3:host/bucket/<seg>`,
+    `/srv/restic/<seg>`, `sftp:host:/srv/<seg>`, `b2:bucket:<seg>`)."""
+    return re.split(r"[/:]", repository.rstrip("/"))[-1]
+
+
+def _refuse_reaching_out(raw: dict[str, Any], declared: dict[str, Any],
+                         committed: dict[tuple[str, str], Any], instance: InstanceConfig,
+                         source: Path) -> None:
+    """A named instance may not set what its id derives. Refused, not overridden: a value the
+    overlay states and the loader replaces is a setting that looks applied and never took. A
+    secret name refuses when the overlay names it at all, even as the committed default, and when
+    the merged chain (`raw`) holds anything but the committed default (`committed`)."""
+    for (section, key), value in committed.items():
+        if key in declared.get(section, {}) or raw.get(section, {}).get(key) != value:
+            raise InstanceOverlayError(
+                f"{source}: [{section}] {key} is derived from the instance id, as "
+                f"{instance.secret(str(value))!r}, and a named overlay does not set it. Remove the "
+                f"key; place the secret under the derived name.")
+    for section, key in _DATA_PLANE:
+        value = raw.get(section, {}).get(key)
+        if value is not None and (Path(str(value)).is_absolute() or ".." in Path(str(value)).parts):
+            raise InstanceOverlayError(
+                f"{source}: [{section}] {key} = {value!r} leaves the instance's root "
+                f"{instance.root}. A named instance's paths are relative and resolve under its "
+                f"root; refusing one that could reach another instance's state.")
+    repository = str(raw.get("backup", {}).get("repository", ""))
+    if repository and _last_segment(repository) != instance.id:
+        raise InstanceOverlayError(
+            f"{source}: [backup] repository = {repository!r} is not this instance's own location. "
+            f"A named instance's restic repository ends in /{instance.id}, so that no two "
+            f"instances write one repository.")
+
+
+def _ouroboros() -> Config:
+    """Ouroboros's configuration, built only for its namespaces: defaults ← levers.toml ←
+    ouroboros.toml, the default chain. None of its values reaches a named instance's Config."""
+    raw = _read(_DEFAULTS)
+    _overlay(raw, LEVERS_OVERLAY)
+    _overlay(raw, _INSTANCE_OVERLAY)
+    return _build(raw, InstanceConfig())
+
+
+def _refuse_shared(cfg: Config, source: Path) -> None:
+    """A named instance shares no namespace with Ouroboros. Ouroboros's are read off its own
+    chain on this host, so an overlay that names Ouroboros's restic repository, or a location
+    inside it, refuses outright."""
+    both = shared(namespaces_of(cfg), namespaces_of(_ouroboros()))
+    if both:
+        raise InstanceOverlayError(
+            f"{source}: instance {cfg.instance.id!r} would share these with {OUROBOROS!r}:\n    "
+            + "\n    ".join(both)
+            + "\nRefusing to load: an instance writes only into namespaces of its own.")
+
+
 def load_config(path: Path | None = None) -> Config:
     raw = _read(path or _DEFAULTS)
     # Overlay precedence (only for the default path — an explicit `path`, as tests pass, is taken
@@ -715,6 +895,8 @@ def load_config(path: Path | None = None) -> Config:
     #
     # A named instance (`MIND_PALACE_OVERLAY`) replaces the chain: defaults ← its own overlay, and
     # nothing of Ouroboros's. The legacy guard is about Ouroboros's file name, so it does not run.
+    # Its namespaces derive from its id (`InstanceConfig`); the overlay may not set them, and the
+    # instance may not share one with Ouroboros, whose chain is read for that check alone.
     if path is not None:
         return _build(raw, _ouroboros_instance(raw, str(path)))
     named = _named_overlay()
@@ -725,12 +907,23 @@ def load_config(path: Path | None = None) -> Config:
         return _build(raw, _ouroboros_instance(raw, "the default chain"))
     declared = _read(named)
     instance = _named_instance(declared, named)
+    committed = {(s, k): raw.get(s, {}).get(k) for s, k in _SECRET_NAMES}
     _deep_merge(raw, declared)
-    return _build(raw, instance)
+    _refuse_reaching_out(raw, declared, committed, instance, named)
+    cfg = _build(raw, instance)
+    _refuse_shared(cfg, named)
+    return cfg
 
 
 def _build(raw: dict[str, Any], instance: InstanceConfig) -> Config:
-    """The typed Config of one merged chain, for `instance`."""
+    """The typed Config of one merged chain, for `instance`: every path in `_DATA_PLANE` resolves
+    against the instance's root, and every secret name in `_SECRET_NAMES` is the instance's item.
+    For Ouroboros both are the identity, so its Config is what it was before instances had ids."""
+    root = instance.root
+
+    def secret(name: object) -> str:
+        return instance.secret(str(name))
+
     o, r, p = raw["ollama"], raw["resources"], raw["paths"]
     e, s = raw["embedding"], raw["sandbox"]
     itf, dr, rnd = raw["interface"], raw["dreaming"], raw["dream_rnd"]
@@ -762,15 +955,16 @@ def _build(raw: dict[str, Any], instance: InstanceConfig) -> Config:
             max_resident_models=int(r["max_resident_models"]),
         ),
         paths=PathsConfig(
-            data_dir=_resolve(p["data_dir"]),
-            telemetry_db=_resolve(p["telemetry_db"]),
-            raw_store=_resolve(p["raw_store"]),
-            vector_store=_resolve(p["vector_store"]),
-            derived_store=_resolve(p["derived_store"]),
-            vault_catalog=_resolve(p["vault_catalog"]),
+            data_dir=_resolve(p["data_dir"], root),
+            telemetry_db=_resolve(p["telemetry_db"], root),
+            raw_store=_resolve(p["raw_store"], root),
+            vector_store=_resolve(p["vector_store"], root),
+            derived_store=_resolve(p["derived_store"], root),
+            vault_catalog=_resolve(p["vault_catalog"], root),
             # .get default keeps older/custom TOMLs (without this key) loading.
-            attestation_store=_resolve(p.get("attestation_store", "data/attestations.sqlite")),
-            curated_store=_resolve(p.get("curated_store", "data/research_curated.lance")),
+            attestation_store=_resolve(p.get("attestation_store", "data/attestations.sqlite"),
+                                       root),
+            curated_store=_resolve(p.get("curated_store", "data/research_curated.lance"), root),
         ),
         ingestion=IngestionConfig(
             vault=VaultConfig(
@@ -837,11 +1031,11 @@ def _build(raw: dict[str, Any], instance: InstanceConfig) -> Config:
             wasm_module=str(s.get("wasm_module", "")),
         ),
         interface=InterfaceConfig(
-            handoff_dir=_resolve(itf["handoff_dir"]),
+            handoff_dir=_resolve(itf["handoff_dir"], root),
             default_adapter=str(itf["default_adapter"]),
         ),
         airlock=AirlockConfig(
-            handoff_dir=_resolve(al["handoff_dir"]),
+            handoff_dir=_resolve(al["handoff_dir"], root),
             s3_bucket=str(al["s3_bucket"]),
             s3_region=str(al["s3_region"]),
             aws_profile=str(al["aws_profile"]),
@@ -861,8 +1055,8 @@ def _build(raw: dict[str, Any], instance: InstanceConfig) -> Config:
         ),
         attestation=AttestationConfig(
             enabled=bool(at.get("enabled", False)),
-            signing_key_secret=str(at.get("signing_key_secret", "attestation-signing-key")),
-            owner_key_secret=str(at.get("owner_key_secret", "attestation-owner-key")),
+            signing_key_secret=secret(at.get("signing_key_secret", "attestation-signing-key")),
+            owner_key_secret=secret(at.get("owner_key_secret", "attestation-owner-key")),
             supervisor_pub=_resolve(at.get("supervisor_pub", "ops/attestation/supervisor.pub")),
             owner_pub=_resolve(at.get("owner_pub", "ops/attestation/owner.pub")),
         ),
@@ -877,11 +1071,11 @@ def _build(raw: dict[str, Any], instance: InstanceConfig) -> Config:
         backup=BackupConfig(
             enabled=bool(bak.get("enabled", False)),
             repository=str(bak.get("repository", "")),
-            password_secret=str(bak.get("password_secret", "restic-password")),
-            aws_access_key_id_secret=str(
+            password_secret=secret(bak.get("password_secret", "restic-password")),
+            aws_access_key_id_secret=secret(
                 bak.get("aws_access_key_id_secret", "backup-aws-access-key-id")
             ),
-            aws_secret_access_key_secret=str(
+            aws_secret_access_key_secret=secret(
                 bak.get("aws_secret_access_key_secret", "backup-aws-secret-access-key")
             ),
             region=str(bak.get("region", "us-east-1")),
@@ -900,18 +1094,18 @@ def _build(raw: dict[str, Any], instance: InstanceConfig) -> Config:
         selfmod=SelfModConfig(
             enabled=bool(sm.get("enabled", False)),
             unattended_enabled=bool(sm.get("unattended_enabled", False)),
-            ledger_db=_resolve(sm.get("ledger_db", "data/selfmod_ledger.sqlite")),
+            ledger_db=_resolve(sm.get("ledger_db", "data/selfmod_ledger.sqlite"), root),
         ),
         effectors=EffectorsConfig(
             enabled=bool(eff.get("enabled", False)),
-            handoff_dir=_resolve(eff.get("handoff_dir", "data/handoff/sensing")),
+            handoff_dir=_resolve(eff.get("handoff_dir", "data/handoff/sensing"), root),
             timeout_s=float(eff.get("timeout_s", 20.0)),
             max_response_kb=int(eff.get("max_response_kb", 512)),
             upstreams=tuple(
                 sorted((str(k), str(v)) for k, v in eff.get("upstreams", {}).items())
             ),
-            ledger_db=_resolve(eff.get("ledger_db", "data/effectors/effects.sqlite")),
-            drafts_dir=_resolve(eff.get("drafts_dir", "data/effectors/drafts")),
+            ledger_db=_resolve(eff.get("ledger_db", "data/effectors/effects.sqlite"), root),
+            drafts_dir=_resolve(eff.get("drafts_dir", "data/effectors/drafts"), root),
             jit_credential_ttl=str(eff.get("jit_credential_ttl", "60s")),
         ),
         runtime=RuntimeConfig(

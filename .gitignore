@@ -30,6 +30,9 @@ config/local.toml
 # Machine-owned knob overlay, written only by the self-modification loop (ops/apply.py) through
 # the §14 gate. Per-machine runtime state, regenerable; never committed.
 config/levers.toml
+# A named instance's state (DI-2): its data dir and its levers file, under instances/<id>/.
+# Runtime state like data/, never committed. (Its overlay is config/instances/<id>.toml.)
+/instances/
 
 # OS / packaging cruft
 .DS_Store

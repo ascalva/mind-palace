@@ -1,0 +1,128 @@
+"""The instance namespace map is injective, and Ouroboros's namespaces are reserved to it (DI-2).
+
+N(i) is what instance i owns, read by `namespaces_of` off the config the real loader builds: its
+data dir, ingestion spool, supervisor lock, levers file and every other path it writes; the
+Keychain items it reads; its launchd labels; its backup repository. The invariant: for instances
+i ≠ j, Ouroboros among them, `shared(N(i), N(j))` is empty, where paths and repositories compare as
+locations (one inside the other counts as shared). Ids are generated, not chosen.
+
+The controls give the check teeth. With the loader's own refusal switched off, a derivation that
+ignores the id, and one that hands a named instance Ouroboros's namespaces (the hazard of issue
+#25), each fail the property; with the refusal on, the loader refuses the second itself.
+"""
+
+from __future__ import annotations
+
+import itertools
+from collections.abc import Callable
+from pathlib import Path
+
+import pytest
+from hypothesis import Phase, given, settings
+from hypothesis import strategies as st
+
+from core.kernel.config import loader
+
+IDS = st.from_regex(loader._INSTANCE_ID, fullmatch=True).filter(lambda s: s != loader.OUROBOROS)
+OUROBOROS_REPOSITORY = "s3:s3.us-east-1.amazonaws.com/example-ouroboros-backups"
+NAMED_BASE = "s3:s3.us-east-1.amazonaws.com/example-instance-backups"
+
+
+def _namespaces(tmp: Path, instance_id: str | None) -> loader.Namespaces:
+    """N(instance) from the real loader: Ouroboros's when `instance_id` is None."""
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(loader, "_INSTANCE_OVERLAY", tmp / "ouroboros.toml")
+        mp.setattr(loader, "LEVERS_OVERLAY", tmp / "levers.toml")
+        mp.delenv(loader.OVERLAY_ENV, raising=False)
+        if instance_id is not None:
+            overlay = tmp / f"{instance_id}.toml"
+            overlay.write_text(f'[instance]\nid = "{instance_id}"\n'
+                               f'[backup]\nrepository = "{NAMED_BASE}/{instance_id}"\n')
+            mp.setenv(loader.OVERLAY_ENV, str(overlay))
+        return loader.namespaces_of(loader.load_config())
+
+
+def _disjoint(of: dict[str, loader.Namespaces]) -> None:
+    for i, a in of.items():
+        assert loader.shared(a, a), f"{i} shares nothing with itself, so the check is vacuous"
+    for (i, a), (j, b) in itertools.combinations(of.items(), 2):
+        both = loader.shared(a, b)
+        assert not both, f"{i} and {j} share {both}"
+
+
+def _the_property(tmp: Path, *, min_named: int, shrink: bool = True) -> Callable[[], None]:
+    (tmp / "ouroboros.toml").write_text(f'[backup]\nrepository = "{OUROBOROS_REPOSITORY}"\n')
+    phases = tuple(Phase) if shrink else (Phase.explicit, Phase.generate)
+
+    @settings(max_examples=40, deadline=None, database=None, phases=phases)
+    @given(st.lists(IDS, min_size=min_named, max_size=3, unique=True))
+    def holds(ids: list[str]) -> None:
+        of = {loader.OUROBOROS: _namespaces(tmp, None)}
+        of |= {i: _namespaces(tmp, i) for i in ids}
+        _disjoint(of)
+
+    return holds
+
+
+def test_the_namespace_map_is_injective_and_ouroboros_reserved(tmp_path) -> None:
+    _the_property(tmp_path, min_named=1)()
+
+
+def _ignore_the_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A broken derivation: every named instance gets one root, one item prefix, one label."""
+    def root(self: loader.InstanceConfig) -> Path:
+        return loader.REPO_ROOT / "instances" / "one" if self.named else loader.REPO_ROOT
+
+    monkeypatch.setattr(loader.InstanceConfig, "root", property(root))
+    monkeypatch.setattr(loader.InstanceConfig, "secret",
+                        lambda self, name: f"one.{name}" if self.named else name)
+    monkeypatch.setattr(loader.InstanceConfig, "label",
+                        lambda self, role: loader.LABEL_PREFIX + (f"one.{role}" if self.named
+                                                                  else role))
+
+
+def _be_ouroboros(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The hazard of issue #25 as a derivation: a named instance gets Ouroboros's namespaces."""
+    monkeypatch.setattr(loader.InstanceConfig, "root", property(lambda self: loader.REPO_ROOT))
+    monkeypatch.setattr(loader.InstanceConfig, "secret", lambda self, name: name)
+    monkeypatch.setattr(loader.InstanceConfig, "label",
+                        lambda self, role: loader.LABEL_PREFIX + role)
+
+
+@pytest.mark.parametrize(("break_it", "min_named"), [(_ignore_the_id, 2), (_be_ouroboros, 1)])
+def test_control_a_broken_derivation_fails_the_property(monkeypatch, tmp_path, break_it,
+                                                        min_named) -> None:
+    break_it(monkeypatch)
+    monkeypatch.setattr(loader, "_refuse_shared", lambda cfg, source: None)
+    with pytest.raises(AssertionError, match="share"):   # a failure needs no shrinking here
+        _the_property(tmp_path, min_named=min_named, shrink=False)()
+
+
+def test_control_the_loader_refuses_the_hazard_itself(monkeypatch, tmp_path) -> None:
+    _be_ouroboros(monkeypatch)
+    (tmp_path / "ouroboros.toml").write_text(f'[backup]\nrepository = "{OUROBOROS_REPOSITORY}"\n')
+    with pytest.raises(loader.InstanceOverlayError, match="would share"):
+        _namespaces(tmp_path, "bench")
+
+
+@settings(max_examples=60, deadline=None, database=None)
+@given(IDS, st.sampled_from(["", "/"]))
+def test_no_named_instance_writes_ouroboros_repository(tmp_path_factory, iid, slash) -> None:
+    """Ouroboros's repository, or a location inside it, refuses outright for any id; a location of
+    the instance's own beside it loads."""
+    tmp = tmp_path_factory.mktemp("repo")
+    (tmp / "ouroboros.toml").write_text(f'[backup]\nrepository = "{OUROBOROS_REPOSITORY}"\n')
+    for repository in (OUROBOROS_REPOSITORY + slash, f"{OUROBOROS_REPOSITORY}/{iid}{slash}"):
+        overlay = tmp / "named.toml"
+        overlay.write_text(f'[instance]\nid = "{iid}"\n[backup]\nrepository = "{repository}"\n')
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(loader, "_INSTANCE_OVERLAY", tmp / "ouroboros.toml")
+            mp.setenv(loader.OVERLAY_ENV, str(overlay))
+            with pytest.raises(loader.InstanceOverlayError):
+                loader.load_config()
+    own = f"{OUROBOROS_REPOSITORY}-instances/{iid}{slash}"
+    overlay.write_text(f'[instance]\nid = "{iid}"\n[backup]\nrepository = "{own}"\n')
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(loader, "_INSTANCE_OVERLAY", tmp / "ouroboros.toml")
+        mp.setenv(loader.OVERLAY_ENV, str(overlay))
+        assert loader.load_config().backup.repository == own

@@ -9,6 +9,13 @@
 # Another instance is loaded from its own overlay, `MIND_PALACE_OVERLAY=config/instances/<id>.toml`,
 # which must declare `[instance] id = "<id>"`: a lowercase letter, then up to 31 lowercase letters,
 # digits or hyphens. The table holds no key here, because an id is not a default.
+#
+# Everything a named instance holds is derived from its id, so no two instances share it: its
+# relative data paths resolve under instances/<id>/ (data dir, stores, ingestion spool, supervisor
+# lock), its levers file is instances/<id>/levers.toml, its Keychain items are `<id>.<name>`, its
+# launchd labels `com.mind-palace.<id>.<role>`, and its restic repository must end in /<id>. Its
+# overlay may not set those, and loading refuses if it would share any with Ouroboros
+# (core/kernel/config/loader.py, InstanceConfig and namespaces_of).
 
 [ollama]
 # The sealed core talks to a LOCAL Ollama over loopback only (BUILD-SPEC §5, §7); the

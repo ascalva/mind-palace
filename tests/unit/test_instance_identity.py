@@ -48,6 +48,7 @@ def _isolated(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 def _as_ouroboros(monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
                   text: str | None = None) -> loader.Config:
     _isolated(monkeypatch, tmp_path)
+    monkeypatch.delenv(loader.OVERLAY_ENV, raising=False)
     (tmp_path / "ouroboros.toml").write_text(FIXTURE.read_text() if text is None else text)
     return loader.load_config()
 
@@ -156,3 +157,116 @@ def test_a_well_formed_id_is_the_instance(monkeypatch, tmp_path, iid) -> None:
 def test_the_instance_section_holds_one_key(monkeypatch, tmp_path, text) -> None:
     with pytest.raises(loader.InstanceOverlayError):
         _as_named(monkeypatch, tmp_path, text)
+
+
+# ── the namespaces derived from the id ───────────────────────────────────────────────────────────
+
+NAMED_BACKUPS = "s3:s3.us-east-1.amazonaws.com/example-instance-backups"
+
+
+def test_ouroboros_holds_todays_namespaces(monkeypatch, tmp_path) -> None:
+    """The pin, on the namespace map: Ouroboros's data dir, spool, lock, levers file, Keychain
+    items and launchd labels are the ones it had before instances had ids."""
+    cfg = _as_ouroboros(monkeypatch, tmp_path)
+    ns = loader.namespaces_of(cfg)
+    repo = loader.REPO_ROOT
+    assert cfg.instance.root == repo
+    assert ns.data_dir == repo / "data" and ns.spool == repo / "data" / "handoff"
+    assert ns.supervisor_lock == repo / "data" / "supervisor.lock"
+    assert ns.levers == loader.LEVERS_OVERLAY == tmp_path / "levers.toml"
+    assert ns.secrets == frozenset(SECRETS.values())
+    assert ns.labels == {"com.mind-palace.palace", "com.mind-palace.tick"}
+    assert ns.backup == "s3:s3.us-east-1.amazonaws.com/example-ouroboros-backups"
+
+
+def test_a_named_instance_holds_namespaces_derived_from_its_id(monkeypatch, tmp_path) -> None:
+    cfg = _as_named(monkeypatch, tmp_path,
+                    f'[instance]\nid = "bench"\n[backup]\nrepository = "{NAMED_BACKUPS}/bench"\n')
+    ns = loader.namespaces_of(cfg)
+    root = loader.REPO_ROOT / "instances" / "bench"
+    assert cfg.instance.root == root
+    for section, key in WRITTEN:                    # every written path, under the instance's root
+        assert _value(cfg, section, key) == root / loader._read(loader._DEFAULTS)[section][key]
+    assert ns.data_dir == root / "data" and ns.spool == root / "data" / "handoff"
+    assert ns.supervisor_lock == root / "data" / "supervisor.lock"
+    assert ns.levers == root / "levers.toml"
+    assert ns.secrets == frozenset(f"bench.{name}" for name in SECRETS.values())
+    assert ns.labels == {"com.mind-palace.bench.palace", "com.mind-palace.bench.tick"}
+    assert cfg.attestation.signing_key_secret == "bench.attestation-signing-key"
+    assert ns.backup == f"{NAMED_BACKUPS}/bench"
+
+
+def test_control_the_pin_tells_ouroboros_from_a_named_instance(monkeypatch, tmp_path) -> None:
+    """The same overlay loaded as a named instance differs from Ouroboros in every namespace and
+    shares none, so a derivation leaking into the default chain would fail the pin above."""
+    ouroboros = loader.namespaces_of(_as_ouroboros(monkeypatch, tmp_path))
+    text = FIXTURE.read_text().replace(
+        "s3:s3.us-east-1.amazonaws.com/example-ouroboros-backups", f"{NAMED_BACKUPS}/twin")
+    twin = loader.namespaces_of(_as_named(monkeypatch, tmp_path,
+                                          text + '\n[instance]\nid = "twin"\n'))
+    for field in ("data_dir", "spool", "supervisor_lock", "levers", "secrets", "labels", "backup"):
+        assert getattr(twin, field) != getattr(ouroboros, field), field
+    assert loader.shared(twin, ouroboros) == []
+    assert loader.shared(twin, twin) and loader.shared(ouroboros, ouroboros)
+
+
+@pytest.mark.parametrize("line", ['signing_key_secret = "bench.attestation-signing-key"',
+                                  'owner_key_secret = "attestation-owner-key"'])
+def test_a_named_overlay_does_not_name_its_secrets(monkeypatch, tmp_path, line) -> None:
+    """Even the derived name refuses: the item names are the id's to derive, so an overlay that
+    states one is either redundant or a way into another instance's items."""
+    with pytest.raises(loader.InstanceOverlayError, match="derived from the instance id"):
+        _as_named(monkeypatch, tmp_path, f'[instance]\nid = "bench"\n[attestation]\n{line}\n')
+
+
+@pytest.mark.parametrize("value", ["/var/elsewhere", "data/../../data", "../data"])
+def test_a_named_path_stays_under_its_root(monkeypatch, tmp_path, value) -> None:
+    with pytest.raises(loader.InstanceOverlayError, match="leaves the instance's root"):
+        _as_named(monkeypatch, tmp_path,
+                  f'[instance]\nid = "bench"\n[paths]\ndata_dir = "{value}"\n')
+
+
+def test_a_named_path_may_move_within_its_root(monkeypatch, tmp_path) -> None:
+    cfg = _as_named(monkeypatch, tmp_path, '[instance]\nid = "bench"\n[interface]\n'
+                                           'handoff_dir = "data/spool"\n')
+    assert cfg.interface.handoff_dir == loader.REPO_ROOT / "instances" / "bench" / "data" / "spool"
+
+
+@pytest.mark.parametrize("repository", [
+    "s3:s3.us-east-1.amazonaws.com/example-ouroboros-backups",          # Ouroboros's, verbatim
+    "s3:s3.us-east-1.amazonaws.com/example-ouroboros-backups/bench",    # inside Ouroboros's
+    "s3:s3.us-east-1.amazonaws.com/EXAMPLE-ouroboros-backups/bench/",   # the same, spelt otherwise
+    f"{NAMED_BACKUPS}/other",                                           # not this instance's
+])
+def test_a_named_instance_never_writes_ouroboros_repository(monkeypatch, tmp_path,
+                                                            repository) -> None:
+    """Ouroboros's restic repository is read off its own overlay on this host; a named instance
+    that would write to it, or under it, refuses outright."""
+    _isolated(monkeypatch, tmp_path)
+    (tmp_path / "ouroboros.toml").write_text(FIXTURE.read_text())
+    overlay = tmp_path / "named.toml"
+    overlay.write_text(f'[instance]\nid = "bench"\n[backup]\nrepository = "{repository}"\n')
+    monkeypatch.setenv(loader.OVERLAY_ENV, str(overlay))
+    with pytest.raises(loader.InstanceOverlayError):
+        loader.load_config()
+
+
+def test_the_supervisor_lock_is_one_per_instance(monkeypatch, tmp_path) -> None:
+    """The lock is scoped to the instance: two instances on one host each hold their own, and a
+    second claimant of one instance's lock is refused by the kernel."""
+    from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld
+
+    monkeypatch.setattr(loader, "REPO_ROOT", tmp_path)
+    locks = []
+    for text in ('[instance]\nid = "one"\n', '[instance]\nid = "two"\n'):
+        locks.append(loader.namespaces_of(_as_named(monkeypatch, tmp_path, text)).supervisor_lock)
+    locks.append(loader.namespaces_of(_as_ouroboros(monkeypatch, tmp_path, "")).supervisor_lock)
+    held = [SupervisorLock(path) for path in locks]
+    try:
+        for lock in held:
+            lock.acquire()                              # three instances, three locks, no refusal
+        with pytest.raises(SupervisorLockHeld):
+            SupervisorLock(locks[0]).acquire()          # control: one instance's lock is exclusive
+    finally:
+        for lock in held:
+            lock.release()
