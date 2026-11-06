@@ -77,7 +77,9 @@ def _ingress_role(job: Job) -> str | None:
     kinds that do not coalesce carry `ingress`; a coalescing kind is one row however often it is
     asked."""
     own = job.kind in ingress.INGRESS_KINDS
-    role = job.payload.get("role") if own else job.payload.get("ingress")
+    # the first form's rows carry the role under `door`; they read as `ingress`
+    role = job.payload.get("role") if own else (job.payload.get("ingress")
+                                                or job.payload.get("door"))
     return str(role) if role else None
 
 

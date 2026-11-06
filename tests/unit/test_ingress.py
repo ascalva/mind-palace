@@ -968,3 +968,50 @@ def test_the_dialogue_readers_are_the_tables_and_the_scripts(cfg: Any) -> None:
     text = (Path(__file__).resolve().parents[2] / "ingress" / "sync_dialogue.palace").read_text()
     assert all(f'"{r}"' in text for r in sources)
     load("sync_dialogue")
+
+
+# ── the first form's stored state, taken over ───────────────────────────────────────────────────
+
+
+def test_a_legacy_door_spool_is_adopted_with_nothing_lost_and_nothing_run_twice(cfg: Any) -> None:
+    """A request the first form spooled under `door/`, its receipts and its staged copy move into
+    `ingress/` by the daemon: the pending one drains once, a receipted id stays seen, a surface
+    finds its receipt, and a file that is not a request id's, or is not regular, stays put."""
+    import os
+    ingress.ensure_spools(cfg)
+    old = ingress.spool_root(cfg).parent / ingress.LEGACY_SPOOL
+    for role in ("ambassador", "cli"):
+        for sub in ("", "queued", "receipts", "rejected"):
+            (old / role / sub).mkdir(parents=True)
+    pending, done = "a1a1a1a1a1a1a1a1", "b2b2b2b2b2b2b2b2"
+    (old / "ambassador" / f"{pending}.json").write_text(
+        json.dumps({"id": pending, "sentence": "do dream", "at": "2026-11-05T00:00:00"}))
+    (old / "ambassador" / f"{done}.json").write_text(      # drained before the daemon stopped
+        json.dumps({"id": done, "sentence": "do dream", "at": "2026-11-05T00:00:00"}))
+    (old / "ambassador" / "receipts" / f"{done}.json").write_text(
+        json.dumps({"request": done, "role": "ambassador", "kind": "script", "state": "queued",
+                    "job": 7}))
+    (old / "ambassador" / "notes.txt").write_text("not a request")
+    os.symlink("/etc/hosts", old / "ambassador" / "c3c3c3c3c3c3c3c3.json")
+    assert ingress.ensure_spools(cfg) == ["ambassador", "cli"]
+    new = ingress.spool_root(cfg)
+    assert (new / "ambassador" / f"{pending}.json").exists()
+    assert not (old / "ambassador" / f"{pending}.json").exists()
+    receipt = ingress.read_receipt(cfg, "ambassador", done)
+    assert receipt is not None and receipt.job == 7 and ingress.seen(cfg, "ambassador", done)
+    assert (old / "ambassador" / "notes.txt").exists()
+    assert os.path.islink(old / "ambassador" / "c3c3c3c3c3c3c3c3.json")
+    queue, router = _Queue(), Router(cfg)
+    assert drain_spool(queue, router, cfg) == 1 and [j["kind"] for j in queue.jobs] == ["script"]
+    assert ingress.ensure_spools(cfg) == ["ambassador", "cli"]
+    assert drain_spool(queue, router, cfg) == 0 and len(queue.jobs) == 1
+    assert ingress.read_receipt(cfg, "ambassador", pending).state == "queued"  # type: ignore[union-attr]
+    assert (new / "ambassador" / "rejected" / f"{done}.json").exists()   # the replay is set aside
+
+
+def test_a_job_naming_its_role_under_door_is_read_as_ingress(cfg: Any) -> None:
+    from scheduler.ingress import _ingress_role
+    queue = _Queue()
+    first = queue.enqueue("vault_sync", "small", 1, payload={"door": "ambassador"})
+    now = queue.enqueue("vault_sync", "small", 1, payload={"ingress": "cli"})
+    assert _ingress_role(first) == "ambassador" and _ingress_role(now) == "cli"

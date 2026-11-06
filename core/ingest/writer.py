@@ -294,7 +294,7 @@ class Writer:
         place = self.table.places.get(e.place)
         if place is None:
             raise Refused("R1", f"no place {e.place!r}")
-        if not self.table.may_write(self.role, e.place, e.path):
+        if not self.table.may_retire(self.role, e.place, e.path):
             raise Refused("R3", f"the role {self.role!r} does not write {e.path!r} in "
                                 f"{e.place!r}")
         prev = self.stores.catalog.get(e.path)

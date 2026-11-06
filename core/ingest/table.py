@@ -139,6 +139,8 @@ class Role:
     prefixes: Mapping[str, tuple[str, ...]]
     budget: int
     retires: frozenset[str] = frozenset({OBSERVED})
+    # paths a role only retires, never writes: the first form's stored prefix (`LEGACY_DIALOGUE`)
+    retire_only: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -189,6 +191,15 @@ class Table:
         if r is None or not normal(path):
             return False
         return any(path.startswith(p) for p in r.prefixes.get(place, ()))
+
+    def may_retire(self, role: str, place: str, path: str) -> bool:
+        """R3 for a retire: the role's write prefixes, and the prefixes it only retires."""
+        if self.may_write(role, place, path):
+            return True
+        r = self.roles.get(role)
+        if r is None or not normal(path):
+            return False
+        return any(path.startswith(p) for p in r.retire_only.get(place, ()))
 
 
 def normal(path: str) -> bool:
@@ -299,6 +310,7 @@ def build_table(cfg: Config) -> Table:
     every = {p: ("",) for p in places}
     vault_prefix = str(vault) + "/"
     repo_prefix = str(repo) + "/"
+    legacy = (LEGACY_DIALOGUE + "ambassador/",)
     roles = {
         "cli": Role("cli", every, budget=50_000_000_000,
                     retires=frozenset(str(p) for p in Provenance)),
@@ -308,10 +320,16 @@ def build_table(cfg: Config) -> Table:
                          "dialogue/ingress/ambassador/"),
             "observed": ("dialogue/ingress/ambassador/",),
             "curated": (repo_prefix,),
-        }, budget=100_000_000, retires=frozenset({OBSERVED})),
+        }, budget=100_000_000, retires=frozenset({OBSERVED}),
+            retire_only={"dialogue": legacy, "observed": legacy}),
     }
     return Table(sources=sources, places=places, jobs=jobs, roles=roles, relations=RELATIONS,
                  interactive=INTERACTIVE, coalescing=COALESCING)
+
+
+# The first form's stored prefix for the turns a role's commands mint, read and retired but never
+# written (identities are permanent): rows under it keep their role's namespace.
+LEGACY_DIALOGUE = "dialogue/door/"
 
 
 def write_cursor(source: Source, doc: Any) -> None:
