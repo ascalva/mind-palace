@@ -26,6 +26,7 @@ from scripts import ingest as ingest_script
 def _launcher(runs: RunLedger, data_dir: Path) -> Any:
     """The launcher's live check over a real run ledger, without the rest of a launcher."""
     stub = SimpleNamespace(runs=runs, cfg=SimpleNamespace(paths=SimpleNamespace(data_dir=data_dir)))
+    stub.live_run = lambda: Launcher.live_run(stub)  # type: ignore[arg-type]
     stub._refuse_if_live = lambda what: Launcher._refuse_if_live(stub, what)  # type: ignore[arg-type]
     return stub
 
