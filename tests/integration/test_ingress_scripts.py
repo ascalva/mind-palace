@@ -602,3 +602,20 @@ def test_a_legacy_dialogue_row_is_retired_by_its_role_and_never_written_again(pa
                            "ambassador")[0]["status"] == "landed"
     (o,) = palace.outcomes(f'do {{ retire "{legacy}" in "observed" }}', "ambassador")
     assert o["status"] == "retired"
+
+
+def test_an_oversized_turn_is_refused_and_the_rest_lands(palace, monkeypatch):
+    """A structured source's item past the item cap is still an item: it is refused (R1) and the
+    other turns land, as a directory source's oversized note is."""
+    import core.ingest.readers as readers
+
+    handoff = palace.data / "handoff" / "dialogue"
+    handoff.mkdir(parents=True)
+    (handoff / "openwebui.json").write_text(json.dumps({"chats": [
+        {"chat_id": "c1", "updated_at": 1, "turns": [
+            {"id": "m1", "role": "user", "content": "x" * 4096, "timestamp": 1},
+            {"id": "m2", "role": "user", "content": "short words", "timestamp": 2}]}]}))
+    monkeypatch.setattr(readers, "MAX_ITEM_BYTES", 1024)
+    out = {o["path"]: o for o in palace.outcomes('do sync_dialogue(reader: "openwebui")')}
+    assert out["dialogue/openwebui/c1/m1"]["why"].startswith("R1")
+    assert out["dialogue/openwebui/c1/m2"]["status"] == "landed"

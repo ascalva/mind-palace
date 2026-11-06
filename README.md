@@ -178,7 +178,7 @@ The build's own history is a dataset. Every commit's structure is snapshotted in
 ```sh
 uv sync --extra dev
 uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'   # the deterministic tier: 3,131 tests
-uv run mypy                                        # strict core: 0 errors (the 69 in tests/ are pinned)
+uv run mypy                                        # strict core: 0 errors (the 67 in tests/ are pinned)
 uv run python scripts/check_imports.py             # the sealed core names no network module
 uv run python -m ops.type_gate                     # every core-reaching package is type-checked
 (cd formal && ./check.sh)                          # build · attacks · lint · budget · audit · six kernels · comparator · ledger cross-reference

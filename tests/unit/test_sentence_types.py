@@ -208,9 +208,10 @@ def test_a_request_is_an_event_and_each_effect_requires_the_write_bit_on_its_pla
     assert t.mode is Mode.CAUSAL
     (o,) = clauses_of(_do("do observe_code"))
     assert o.req.edges.fibers == frozenset({"F"}) and o.req.time.clock is Clock.COMMIT
-    # every library script is an event whose effects each name a clause
+    # every library script is an event whose effects each name a clause, checked under a role
+    # that speaks it (the inbox's capture under the inbox's own, dn-ingress-language §E13)
     for name in library_names():
-        node = _do(_call(name), "cli")
+        node = _do(_call(name), "inbox" if name == "capture_inbox" else "cli")
         assert clauses_of(node) and typecheck(node) is Sort.EVENT, name
 
 

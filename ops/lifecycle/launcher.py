@@ -484,6 +484,7 @@ def build_components(cfg: Config) -> Components:
     from core.chat_events import build_chat_event_projector
     from core.curator import build_curator
     from core.dreaming import build_dreamer
+    from core.ingest import inbox as inbox_mod
     from core.ingest.code_corpus import build_code_corpus_sync
     from core.integrator import build_integrator
     from core.interface import CoreInbox
@@ -583,7 +584,9 @@ def build_components(cfg: Config) -> Components:
     airlock = build_airlock(cfg)
     delegate, pending = build_task_delegation(queue, router, gate=gate, librarian=task_librarian)
     ambassador = build_ambassador(cfg, delegate=delegate, pending_results=pending)
-    inbox = CoreInbox(handoff=cfg.interface.handoff_dir, handler=ambassador.handler)
+    # the Ambassador says which exchanges are kept; the inbox keeps them in its own record
+    inbox = CoreInbox(handoff=cfg.interface.handoff_dir, respond=ambassador.answer,
+                      record=inbox_mod.Record.of(cfg).write)
 
     code_driver = build_code_corpus_sync(cfg)   # one sync driver for both code_sync + code_backfill
     code_snapshots_db = cfg.paths.data_dir / "code_snapshots.sqlite"
@@ -621,7 +624,10 @@ def build_components(cfg: Config) -> Components:
         # against the commit ledger into witnessed C-fiber proven edges; pinned, trough cadence.
         INTEGRATE_KIND: integrate_handler(build_integrator(cfg),
                                           max_per_pass=cfg.integrate.max_per_pass),
-        AMBASSADOR_KIND: ambassador_inbox_handler(inbox),
+        # the inbox's drain, then its capture: what it kept, landed by the one writer under the
+        # role `inbox` (dn-ingress-language §E13)
+        AMBASSADOR_KIND: ambassador_inbox_handler(
+            inbox, land=lambda: inbox_mod.land(cfg, stores=ingress_stores())),
         AMBASSADOR_TASK_KIND: ambassador_task_handler(task_librarian),
         RESEARCH_KIND: research_handler(airlock, task_librarian.embedder, task_librarian.store),
         **cron_handlers(build_dreamer(cfg), build_curator(cfg)),

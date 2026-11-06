@@ -317,13 +317,20 @@ def test_the_checker_admits_the_projections_and_names_what_admission_needs() -> 
 
 
 def test_the_library_type_checks_under_the_palaces_table() -> None:
-    from core.ingest.table import build_table
+    """Every library script checks under the roles that speak it: the inbox's capture under the
+    inbox's role alone, whose source no other role opens (dn-ingress-language §E13), and every
+    other script under the operator's and the Ambassador's."""
+    from core.ingest.table import INBOX, build_table
     from core.kernel.config import get_config
 
     table = build_table(get_config())
     for name in library_names():
-        for role in ("cli", "ambassador"):
+        roles = (INBOX,) if name == "capture_inbox" else ("cli", "ambassador")
+        for role in roles:
             check(load(name), table, role, library=load)
+    for role in ("cli", "ambassador"):
+        with pytest.raises(ScriptError, match="may not open it"):
+            check(load("capture_inbox"), table, role, library=load)
 
 
 EXPRS = ["n.content", "n.title", "n.path", "n.title + n.path", "str(len(n.title))", "n.title[0:2]",
