@@ -10,6 +10,7 @@ new_blob both resolve to embedded rows.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -285,3 +286,71 @@ def test_the_supersession_chains_docstring_does_not_contradict_its_own_code():
     assert "adjacent" in doc.lower(), "the docstring must name the collapse it performs"
     assert "distinct sequence" not in doc.lower(), "...and must not claim the one it does not"
     assert "[A, B, A]" in doc, "the revert case is the point, so it is spelled out"
+
+
+@pytest.fixture
+def side_repo(tmp_path) -> Path:
+    """`f.py` changed on two lines: `m1`, then a side branch `s1`, `s2` and main's `m2`, dated so
+    the ledger lists them `m1 s1 m2 s2`, and a merge that writes a fifth blob."""
+    r = tmp_path / "side"
+    r.mkdir()
+    _git(r, "init", "-q", "-b", "main")
+    _git(r, "config", "user.email", "t@t")
+    _git(r, "config", "user.name", "t")
+
+    def _commit(text: str, msg: str, day: int) -> None:
+        (r / "f.py").write_text(text)
+        _git(r, "add", "-A")
+        date = f"2026-01-0{day}T00:00:00"
+        subprocess.run(["git", "-C", str(r), "commit", "-qm", msg], check=True,
+                       capture_output=True, env={**os.environ, "GIT_AUTHOR_DATE": date,
+                                                 "GIT_COMMITTER_DATE": date})
+
+    _commit("A = 1\n", "m1", 1)
+    _git(r, "checkout", "-q", "-b", "side")
+    _commit("B = 1\n", "s1", 2)
+    _commit("B2 = 1\n", "s2", 4)
+    _git(r, "checkout", "-q", "main")
+    _commit("C = 1\n", "m2", 3)
+    subprocess.run(["git", "-C", str(r), "merge", "-q", "--no-ff", "--no-commit", "side"],
+                   capture_output=True)
+    _commit("D = 1\n", "merge side", 5)
+    return r
+
+
+def test_chain_members_are_the_ledger_versions_and_a_side_branch_interleaves(side_repo, tmp_path):
+    """Issue #50, on the code (`formal/Palace/Lineage.lean`: `mem_chain_iff`, `side_chain`).
+
+    D4/F3 said chain members are a strict subset of the version set. What holds: the members ARE
+    the versions, a side branch's included, while HEAD's first-parent line is the strict subset;
+    and the chain lists the versions in the ledger's order, so two lines interleave and a
+    consecutive pair may be one no commit's diff joins. Degenerate input: a linear history, where
+    all three sets coincide and every pair is a diff, so the side branch's two commits and the
+    interleaved order are asserted first."""
+    db = open_snapshot_db(tmp_path / "side_snapshots.sqlite")
+    try:
+        ledger_backfill(db, side_repo)
+        capture_commit_diffs(db, side_repo, ledger_commits(db))
+        chain = supersession_chains(db)["f.py"]
+        versions = {b for p, b in ledger_versions(db) if p == "f.py"}
+        diffs = {(o, n) for o, n in db.execute(
+            "SELECT old_blob, new_blob FROM commit_diffs WHERE path = 'f.py'")}
+    finally:
+        db.close()
+    blob = {name: _rev(side_repo, f"{ref}:f.py") for name, ref in
+            (("m1", "HEAD^1^1"), ("m2", "HEAD^1"), ("s1", "HEAD^2^1"), ("s2", "HEAD^2"),
+             ("merge", "HEAD"))}
+    line = {_rev(side_repo, f"{c}:f.py") for c in
+            _git(side_repo, "rev-list", "--first-parent", "HEAD").split()}
+
+    # PRECONDITION: five distinct blobs, and the ledger's order interleaves the two lines
+    assert len(set(blob.values())) == 5 and versions == set(blob.values())
+    assert chain == [blob[n] for n in ("m1", "s1", "m2", "s2", "merge")]
+
+    assert set(chain) == versions, "the chain's members are every version"
+    assert line < versions, "...and HEAD's first-parent line is the strict subset"
+    assert line == {blob["m1"], blob["m2"], blob["merge"]}
+    # the chain's consecutive pairs: the first is a diff, the next three are pairs no commit made
+    pairs = list(zip(chain, chain[1:], strict=False))
+    assert pairs[0] in diffs
+    assert all(p not in diffs for p in pairs[1:]), "s1 -> m2, m2 -> s2, s2 -> merge"

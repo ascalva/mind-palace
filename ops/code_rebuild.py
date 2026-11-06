@@ -34,8 +34,9 @@ one is the precondition of the next:
     silent corruption of the one ANN space, so the seed refuses unless the identity matches. L1 is
     deliberately excluded — its stored windows were cut over header-bearing prose and do not survive
     D0's windowing pin, so L1 re-embeds (D7).
-  * **`rebuild_slice` — the walk.** Every ledger version becomes a fiber (D4/F3: a side-branch
-    version sits on no chain but is still a member of M), landed through the D2 write path with its
+  * **`rebuild_slice` — the walk.** Every ledger version becomes a fiber (a side-branch version
+    is a member of M though HEAD's first-parent line misses it; issue #50 corrects D4/F3, which
+    said it sits on no chain), landed through the D2 write path with its
     HEAD blob passed explicitly so currency reconciles correctly for a non-HEAD version.
 
 **What the resume token is and is not.** The token records POSITION so a resumed run does not
@@ -220,8 +221,10 @@ def measure_baseline(sync: CodeCorpusSync, db: sqlite3.Connection, *,
         under D0's header-free identity, corpus-wide.
 
     The version set is `ledger_versions` — every distinct `(path, blob_sha)` the ledger recorded,
-    not only chain members: a side-branch version lands a fiber though it sits on no chain (D4/F3),
-    so quantifying over chains here would under-count the rebuild's work.
+    not only the versions along HEAD's first-parent line: a side-branch version lands a fiber
+    though that line misses it, so quantifying over the line here would under-count the rebuild's
+    work. (D4/F3 said such a version sits on no chain; `supersession_chains` holds it too, so the
+    chains' members are the version set itself: issue #50.)
 
     No figure this function reports is a constant. That is not tidiness: the same defect class
     (issue #28) has docstrings in this repo claiming an edge count 8.4× off the live store, and a
@@ -492,8 +495,9 @@ def rebuild_slice(sync: CodeCorpusSync, db: sqlite3.Connection, *, token: str | 
                   budget_s: float = 120.0, slice_size: int = VERSION_SLICE) -> RebuildProgress:
     """Land one time-budgeted slice of the ledger's versions, then yield with a resume token.
 
-    Every distinct `(path, blob_sha)` the ledger recorded becomes a fiber — not only the chain
-    members, because a side-branch version lands a fiber while sitting on no chain (D4/F3). Each
+    Every distinct `(path, blob_sha)` the ledger recorded becomes a fiber, not only the versions
+    along HEAD's first-parent line, because a side-branch version lands a fiber though that line
+    misses it (issue #50: D4/F3 said it sits on no chain, which the shipped chains contradict). Each
     version is landed through the D2 write path with its path's HEAD blob passed explicitly, so a
     historical (non-HEAD) version reconciles to `current=false` and the HEAD one to `current=true`
     rather than the last-landed version winning.

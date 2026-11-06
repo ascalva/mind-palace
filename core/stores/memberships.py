@@ -38,11 +38,16 @@ version:
     finding-0164 — owner-gated, privacy outranks lineage), and a purge leaves a RECORDED HOLE: the
     row is gone and its memberships are tombstoned, never silently dropped.
 
-Lineage is DERIVED here, never stored (PD-3): `slot_runs` / `slot_edges` collapse a path's
-first-parent blob chain into runs of equal occupants per slot, so a revert reads as 3 runs and 2
-edges rather than being flattened away. Chain members are a strict subset of the version set (D4/F3
-— a side-branch fiber is a real member of M with no place on any chain), so the edge invariants are
-quantified over the chain that is handed in, never over all fibers.
+Lineage is DERIVED here, never stored (PD-3): `slot_runs` / `slot_edges` collapse the blob chain
+handed in into runs of equal occupants per slot, so a revert reads as 3 runs and 2 edges rather
+than being flattened away. The edge invariants are quantified over the chain that is handed in,
+never over all fibers.
+
+[banner: correction] This said chain members are a strict subset of the version set (D4/F3, a
+side-branch fiber with no place on any chain). Of the shipped reader that is false (issue #50):
+`supersession_chains` holds every ledger version (`formal/Palace/Lineage.lean`, `mem_chain_iff`),
+in the ledger's order. HEAD's first-parent line is the strict subset, and a chain handed in may be
+that line or any other.
 """
 
 from __future__ import annotations
@@ -440,7 +445,7 @@ class MembershipStore:
 
     def slot_runs(self, path: str, chain: Sequence[str]) -> dict[str, list[str]]:
         """Per slotted `(path, slot)`, the occupancy chain collapsed into RUNS of equal occupants
-        along `chain` (the path's FIRST-PARENT blob sequence, oldest first).
+        along `chain` (a blob sequence of the path, oldest first).
 
         **ADJACENT collapse, never distinct-collapse** — this is the C1 formulation and the whole
         reason §4 was re-keyed on runs: A → B → A gives runs `[A, B, A]`, three runs and two edges,
@@ -450,9 +455,13 @@ class MembershipStore:
         so the two grains agree.
 
         `chain` is handed in rather than read from this store because chain MEMBERSHIP is not a
-        membership fact: chains are first-parent while the ledger walks all commits, so a
-        side-branch fiber is a real member of M that sits on NO chain (D4/F3). Quantifying over
-        every fiber instead of over chain members is the error this signature makes hard.
+        membership fact: which versions a chain lists, and in what order, is the caller's reading
+        of the history. `supersession_chains` lists every ledger version in the ledger's order
+        (issue #50, correcting D4/F3's "a side-branch fiber sits on NO chain"); HEAD's
+        first-parent line lists fewer. Its edges are the diffs of commits only when it is
+        threaded over one first-parent line; over the ledger's order, two lines that changed the
+        path interleave. Quantifying over every fiber instead of over the chain handed in is the
+        error this signature makes hard.
 
         **Slotted means L0a — the LAYER, not a non-empty name** (D1/R4). L0b and L1 carry
         `qualname=''` as built and are membership-only, honestly chainless; the L0a MODULE SHELL

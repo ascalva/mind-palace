@@ -551,8 +551,10 @@ class Fixture:
 def degenerate(bench: Bench) -> Fixture:
     """The §8(f) fixture, carrying ALL FOUR shapes — a fixture missing any one makes the matching
     invariant vacuous: a REVERT (so adjacent-collapse is distinguishable from distinct-collapse), a
-    MERGE SIDE-BRANCH version (so "chain members ⊊ ledger versions" bites), a SHARED atom (so
-    `n_doc` is not always 1), and a DUPLICATE L0b WINDOW PAIR (so the multiset reading bites)."""
+    MERGE SIDE-BRANCH version off the chain handed in (so "a fiber the chain does not list counts no
+    edge" bites; the chain is HEAD's first-parent line, which a side branch's blob is off — the
+    shipped `supersession_chains` would list it, issue #50), a SHARED atom (so `n_doc` is not
+    always 1), and a DUPLICATE L0b WINDOW PAIR (so the multiset reading bites)."""
     path = "pkg/w.py"
     v_trace: list[int] = []
 
@@ -564,7 +566,7 @@ def degenerate(bench: Bench) -> Fixture:
 
     for blob, chunks in (("A", [shared, work_a, dup, dup]),
                          ("B", [shared, work_b, dup, dup]),
-                         ("S", [shared, work_s, dup, dup]),      # the side branch (off-chain)
+                         ("S", [shared, work_s, dup, dup]),      # the side branch, off the line
                          ("A", [shared, work_a, dup, dup])):     # ← the revert
         bench.lander.land(path, blob, chunks, head_blob_sha=blob)
         v_trace.append(bench.n_vectors())
@@ -616,10 +618,16 @@ def test_per_slot_edges_equal_runs_minus_one_and_a_revert_is_not_collapsed(
     assert len(runs["shared"]) == 1 and edges["shared"] == []
 
 
-def test_a_side_branch_fiber_is_a_member_of_m_but_sits_on_no_chain(degenerate: Fixture) -> None:
-    """D4/F3: chains are first-parent, the ledger walks all commits — so a side-branch version is a
-    real member of M (it contributes to |M| and to n(v)) and contributes to NO edge count.
-    Quantifying the edge invariant over all fibers instead of chain members is the error."""
+def test_a_fiber_off_the_chain_handed_in_is_in_m_and_counts_no_edge(degenerate: Fixture) -> None:
+    """A version the chain handed in does not list (here a side branch's, off HEAD's first-parent
+    line) is a real member of M (it contributes to |M| and to n(v)) and contributes to NO edge
+    count over that chain. Quantifying the edge invariant over all fibers instead of the chain's
+    is the error.
+
+    [banner: correction] This was `..._sits_on_no_chain`, after D4/F3's "chains are first-parent,
+    so a side-branch version sits on no chain". The shipped `supersession_chains` lists every
+    ledger version (issue #50, `formal/Palace/Lineage.lean`); the chain here is the first-parent
+    line, handed in by hand, which is what the test always exercised."""
     m = degenerate.bench.memberships
     path = "pkg/w.py"
     side = m.fiber(path, degenerate.side_branch)
