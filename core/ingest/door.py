@@ -47,6 +47,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from core.kernel.clearance import classes_of
 from core.kernel.config import Config, get_config
 from core.query import AMBASSADOR, AMBASSADOR_OVERLAY, OPERATOR, Grant
 from core.sentence import ast
@@ -678,7 +679,9 @@ def perform(do: ast.Do, cfg: Config, role: str, *, stores: Any,
     v = view if view is not None else PalaceView(table, role, stores.catalog,
                                                  query=reader(cfg, role), refresh=refresh)
     plan = Evaluator(v, role, meter, library=library or load).run(script, args, kwargs, name=name)
-    outcomes = Writer(table, role, stores, has=v.has, meter=meter, request=request).land(plan)
+    reads = frozenset().union(*(classes_of(s.sigma.strata) for s in grant_for(role).scopes))
+    outcomes = Writer(table, role, stores, has=v.has, meter=meter, request=request,
+                      reads=reads).land(plan)
     if hasattr(v, "landed"):
         v.landed(outcomes)
     counts: dict[str, int] = {}

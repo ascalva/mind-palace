@@ -109,6 +109,10 @@ class Writer:
     has: Callable[[str], bool]
     meter: Meter | None = None
     request: str | None = None          # the request a plan came from: its jobs start once
+    # The classes the role's grant reads. The price counts an atom as held only when one of these
+    # holds it, so a script's charge carries nothing of a class its role cannot read (`knownIn`,
+    # `formal/Palace/Plane.lean`); none given, every atom is charged as new, the bound's top.
+    reads: frozenset[Provenance] = frozenset()
     max_chars: int = 1200
     overlap_chars: int = 150
     landed: list[Outcome] = field(default_factory=list)
@@ -127,7 +131,13 @@ class Writer:
         """The plan's cost, counted before any of it is paid: its writes, each store the UNCHANGED
         check would not skip (a store the rules will refuse is counted too: the price is a bound)
         and each retire, link and run; and its embeds, the distinct atoms its stores would add
-        that the plane does not hold (DOR-5). Charged to the budget; returns the two counts."""
+        that the plane does not hold (DOR-5). Charged to the budget; returns the two counts.
+
+        [banner: correction] It asked `known_atoms`, which answers for every class, so the charge
+        a receipt reports told the script's role whether an atom exists in a class it cannot read
+        (the formal audit; `known_eq`, `Witness.known_interferes`). It asks for the role's own
+        classes now (`known_atoms_in`), so an atom only another class holds is charged as new: the
+        price stays a bound, and the land itself still reuses the atom."""
         if self.meter is None:
             return (0, 0)
         writes = sum(1 for e in plan if not (isinstance(e, StoreEff) and self.unchanged(e)))
@@ -141,7 +151,8 @@ class Writer:
                 ids |= {plane_atom_id(c.text)
                         for c in derive_chunks(e.content.data, max_chars=self.max_chars,
                                                overlap_chars=self.overlap_chars)}
-        new = len(ids - set(self.stores.plane.known_atoms(sorted(ids)))) if ids else 0
+        new = len(ids - set(self.stores.plane.known_atoms_in(sorted(ids), self.reads))) \
+            if ids else 0
         self.meter.charge("embed", new)
         return (writes, new)
 

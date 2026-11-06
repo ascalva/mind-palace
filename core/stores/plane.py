@@ -72,7 +72,7 @@ import sqlite3
 import threading
 import time
 from collections import defaultdict
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -369,6 +369,23 @@ class SharedPlane:
         its callers are ingest's `embed_new` and the door writer's price."""
         self._check_geometry(self._db(), record=False)
         return self.atoms.present(list(dict.fromkeys(atom_ids)))
+
+    def known_in(self, atom_ids: Sequence[str], classes: Iterable[Provenance]) -> set[str]:
+        """Which of these atoms a row of one of `classes` holds, current or not, and the table
+        holds: `known` bounded to those classes (`knownIn` in `formal/Palace/Plane.lean`). It reads
+        only what a reader of those classes sees (`knownIn_congr`), so it carries nothing of any
+        other class to its caller."""
+        self._check_geometry(self._db(), record=False)
+        conn = self._db()
+        held: set[str] = set()
+        cls = [p for p in dict.fromkeys(classes) if p in OCC]
+        for batch in _batches(list(dict.fromkeys(atom_ids))):
+            marks = ", ".join("?" for _ in batch)
+            for p in cls:
+                held |= {str(r[0]) for r in conn.execute(
+                    f"SELECT DISTINCT atom_id FROM {OCC[p]} WHERE atom_id IN ({marks})",
+                    list(batch))}
+        return self.atoms.present(sorted(held)) if held else set()
 
     def class_of(self, source_path: str) -> Provenance | None:
         """The one class whose relation holds this path, if any (a write-path lookup)."""
