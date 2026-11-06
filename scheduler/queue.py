@@ -68,6 +68,8 @@ QUEUED, RUNNING, DONE, FAILED, DEFERRED = "queued", "running", "done", "failed",
 #   integrate     scheduler/cron.py:136       "incremental … and idempotent"
 #   dialogue_sync scheduler/ingress.py        "keyed by <source>/<chat>/<message>": a re-sync adds
 #                 only what is new (ops/lifecycle/launcher.py `dialogue_sync`)
+#   inbox_capture scheduler/interface.py      the inbox's capture, each record keyed by its
+#                 request id: a re-run lands nothing new (dn-ingress-language §E13)
 # DELIBERATELY ABSENT: `dream`/`curate`/`shadow` mint fresh ledger rows per pass (not idempotent);
 # `research`/`ambassador_task` are payload-bearing model work; `ambassador` IS re-runnable
 # (`CoreInbox.process_once` drains all and consumes each file) but is the REACTIVE conversational
@@ -79,7 +81,7 @@ QUEUED, RUNNING, DONE, FAILED, DEFERRED = "queued", "running", "done", "failed",
 # equal the constants, so the duplication is caught by a test rather than trusted.
 _IDEMPOTENT_KINDS = frozenset(
     {"chat_sync", "vault_sync", "code_sync", "code_backfill", "chat_events", "integrate",
-     "dialogue_sync"})
+     "dialogue_sync", "inbox_capture"})
 
 # The kinds a crash may leave RUNNING that `sweep_orphans` puts back in the queue rather than
 # failing: the idempotent kinds; the ingress's own kind (`core/ingest/ingress.py` INGRESS_KINDS),

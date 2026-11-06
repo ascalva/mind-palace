@@ -17,7 +17,7 @@ import json
 import os
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -416,3 +416,56 @@ def test_a_request_past_the_cap_is_answered_with_an_error_and_not_kept(palace, m
     assert reply is not None and reply.text.startswith("[error] the message was not read")
     assert _records(palace) == []
     assert not list((palace.cfg.interface.handoff_dir / "requests").iterdir())
+
+
+# ── one writer: the daemon lands what `talk` kept beside it (the inbox review's finding 3) ──────
+
+def test_daemon_live_reads_the_run_ledger_as_refuse_if_live_does(palace):
+    """A daemon is live when the run ledger's newest run is active and its process exists, as the
+    launcher's `_refuse_if_live` reads it: no run, a stopped run and a run whose process is gone
+    are none."""
+    from ops.lifecycle.runs import open_run_ledger
+    from scheduler.interface import daemon_live
+
+    assert not daemon_live(palace.cfg)
+    runs = open_run_ledger(palace.cfg)
+    run = runs.open_run(commit_sha="abc", dirty=False, pid=os.getpid())
+    assert daemon_live(palace.cfg)
+    runs.mark_stopped(run.id, clean=True)
+    assert not daemon_live(palace.cfg)
+    runs.open_run(commit_sha="abc", dirty=False, pid=999_999_999)      # no such process
+    assert not daemon_live(palace.cfg)
+    runs.close()
+
+
+def _daemon_cfg(palace: Palace) -> Any:
+    """The palace's configuration with every store under its data directory, as the daemon's."""
+    data = palace.data
+    return replace(palace.cfg, paths=replace(
+        palace.cfg.paths, raw_store=data / "raw", vector_store=data / "v.lance",
+        vault_catalog=data / "cat.sqlite", derived_store=data / "d.sqlite",
+        attestation_store=data / "att.sqlite", telemetry_db=data / "t.duckdb"))
+
+
+def test_the_daemon_watches_the_record_and_catches_up_on_what_waits(palace):
+    """The daemon registers the capture's handler, watches the record's directory (made, its own
+    alone, at start), and at start enqueues the capture when records wait, never when none do."""
+    from ops.lifecycle.launcher import build_components
+    from scheduler.interface import INBOX_CAPTURE_KIND
+    from scheduler.queue import JobQueue
+
+    cfg = _daemon_cfg(palace)
+    idle = build_components(cfg)
+    queue = cast(JobQueue, idle.queue)          # the daemon's queue, as the launcher opened it
+    try:
+        assert INBOX_CAPTURE_KIND in idle.supervisor.handlers           # type: ignore[attr-defined]
+        assert table_mod.inbox_dir(cfg) in [w.path for w in idle.watchers]  # type: ignore[attr-defined]
+        assert os.stat(table_mod.inbox_dir(cfg)).st_mode & 0o777 == 0o700
+        idle.enqueue_catchup()
+        assert INBOX_CAPTURE_KIND not in [j.kind for j in queue.list()]
+        inbox_mod.Record.of(cfg).write(inbox_mod.Exchange("a" * 32, "tea", TEXT, "noted", ""))
+        idle.enqueue_catchup()
+        idle.enqueue_catchup()                                            # coalesced
+        assert [j.kind for j in queue.list()].count(INBOX_CAPTURE_KIND) == 1
+    finally:
+        idle.queue.close()

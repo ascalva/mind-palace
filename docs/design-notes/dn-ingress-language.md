@@ -549,8 +549,12 @@ speaks after each drain and `talk`'s runtime after each message. No spool belong
 no surface can speak it. It opens only the `inbox` source, writes only under `dialogue/inbox/` in
 `dialogue`, retires nothing, and speaks under the Ambassador's grant, the least the ingress gives.
 Its budget is the operator's, since what it reads is the daemon's own record of what the owner
-typed. `talk`'s runtime lands in its own process, as the first form's capture did, so beside a
-live daemon it is a second writer (§7).
+typed. The daemon is the one writer. Beside a live daemon (the run ledger's newest run active and
+its process alive, as the launcher's `_refuse_if_live` reads it), `talk` keeps the exchange in the
+record and lands nothing: the daemon's watcher of the record's directory enqueues the coalescing
+`inbox_capture` job, as its catch-up does at start when records wait, and the job lands them
+through the daemon's writer. With no daemon live, `talk` lands in its own process, the daemon's
+stand-in (the inbox review's finding 3, 2026-11-06).
 
 **What the Ambassador can and cannot do through it.** It decides which exchanges are kept, and it
 writes the reply. It cannot open the `inbox` source (it is not among the readers, so a request
@@ -687,10 +691,10 @@ tested, built from the configuration's paths (the vault's location, the data dir
 - **An operator's composed text.** Observed, by rule 3 of §E3, even when the owner's own script
   composes it: composing is not writing. The owner's call whether an operator script may promote,
   which today is the owner's re-tag from raw and nothing else.
-- **`mind-palace talk` beside a live daemon.** The talk runtime drives the inbox in its own
-  process and lands the inbox's capture there, as the first form's capture did. Beside a live
-  daemon that is a second writer; routing it through the daemon (a request, or the daemon's
-  `ambassador` job, which nothing enqueues today) is the owner's call.
+- **`mind-palace talk` under separate principals.** Beside a live daemon, `talk` leaves its
+  record to the daemon's capture (§E13). Where the daemon runs under its own account
+  (`plane-principals`), a record `talk` writes is another account's, and the daemon's reader
+  refuses it; there `talk` should hand the message to the daemon's inbox as a request instead.
 - **Jobs as scripts.** Dream, the relation pass and curate land interpreted content through
   their own handlers; whether a script should express them (a model call as a reading function)
   is left until a use needs it.

@@ -43,9 +43,9 @@ _ROUTER_KINDS = frozenset({"route", "classify", "watchdog"})
 # Both default to PRIORITY_REACTIVE (responsive); the model-less enqueues override to BACKGROUND.
 _PINNED_KINDS = frozenset(
     {"vault_sync", "ambassador", "chat_sync", "chat_events", "integrate", "code_sync",
-     # the ingress's model-less kinds (dn-ingress-language §E7): a script, the code sensor and the
-     # dialogue handoff call no chat model
-     "script", "code_observe", "dialogue_sync"})
+     # the ingress's model-less kinds (dn-ingress-language §E7): a script, the code sensor, the
+     # dialogue handoff and the inbox's capture call no chat model
+     "script", "code_observe", "dialogue_sync", "inbox_capture"})
 
 
 @dataclass(frozen=True)

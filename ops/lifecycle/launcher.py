@@ -524,9 +524,13 @@ def build_components(cfg: Config) -> Components:
     from scheduler.interface import (
         AMBASSADOR_KIND,
         AMBASSADOR_TASK_KIND,
+        INBOX_CAPTURE_KIND,
         ambassador_inbox_handler,
         ambassador_task_handler,
+        build_inbox_watcher,
         build_task_delegation,
+        enqueue_inbox_capture_if_waiting,
+        inbox_capture_handler,
     )
     from scheduler.queue import JobQueue
     from scheduler.research import RESEARCH_KIND
@@ -618,6 +622,9 @@ def build_components(cfg: Config) -> Components:
         # role `inbox` (dn-ingress-language §E13)
         AMBASSADOR_KIND: ambassador_inbox_handler(
             inbox, land=lambda: inbox_mod.land(cfg, stores=ingress_stores())),
+        # the same capture alone, for what `talk` kept beside this daemon or a crash left: the
+        # record directory's watcher and the catch-up below enqueue it when records wait
+        INBOX_CAPTURE_KIND: inbox_capture_handler(cfg, stores=ingress_stores),
         AMBASSADOR_TASK_KIND: ambassador_task_handler(task_librarian),
         RESEARCH_KIND: research_handler(airlock, task_librarian.embedder, task_librarian.store),
         **cron_handlers(build_dreamer(cfg), build_curator(cfg)),
@@ -642,6 +649,15 @@ def build_components(cfg: Config) -> Components:
         watchers.append(build_vault_watcher(queue, router, cfg))
     if cfg.ingestion.transcripts.enabled:
         watchers.append(build_chat_watcher(queue, router, cfg))
+    # The inbox's record (dn-ingress-language §E13): no ingestion lever governs it, since it holds
+    # only what the owner said to the Ambassador. The daemon makes the directory, its own alone,
+    # so the watcher has one to watch; one it cannot trust is reported and left unwatched (the
+    # capture refuses it too).
+    try:
+        inbox_mod.Record.of(cfg).ensure()
+        watchers.append(build_inbox_watcher(queue, router, cfg))
+    except OSError as e:
+        print(f"⚠ inbox: the record is not watched ({type(e).__name__}: {e})")
 
     # Each ingestion agent is gated in ALL THREE of its paths — watcher (above), housekeeping, and
     # catch-up (below). The catch-up is the one that matters most for a deliberate pause: it runs on
@@ -665,6 +681,7 @@ def build_components(cfg: Config) -> Components:
             enqueue_chat_sync(queue, router)  # startup backfill of every closed session (bp-068)
         if cfg.ingestion.code.enabled and _code_backfill_incomplete(cfg, code_driver):
             enqueue_code_backfill(queue, router)   # history not yet fully embedded (bp-099 D1)
+        enqueue_inbox_capture_if_waiting(queue, router, cfg)   # what a crash or `talk` left
 
     # The edge monitor (a supervised child PROCESS fed by a status-snapshot JSON, Invariant 2) was
     # removed with bp-030 Item 2 — it never worked and was `enabled=false`. Its data source
