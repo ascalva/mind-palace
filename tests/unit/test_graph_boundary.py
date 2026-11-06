@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+from typing import Any
 
 _PKG = Path("core/graph")
 
@@ -66,17 +67,42 @@ def test_core_graph_reads_no_clock() -> None:
 # ── (b) P3: one Laplacian — the core/complex route equals the direct construction ───────────────
 
 
+def _degree_bound(w_row: Any) -> float:
+    """How far two summation orders of one row may differ: 2 * gamma_n * sum|w|, with the standard
+    summation bound gamma_n = n*u / (1 - n*u), u = 2**-53, n the row's length. Each order is within
+    gamma_(n-1) * sum|w| of the exact sum (n - 1 additions), so the two are within twice that;
+    gamma_n is the looser of the two. A fixed multiple of eps * max degree is proved only for rows
+    of at most four weights (LAP-1, L3) and fails at eight, so the bound follows the length."""
+    import numpy as np
+
+    u = 2.0**-53
+    n = int(w_row.shape[0])
+    gamma = n * u / (1.0 - n * u)
+    return 2.0 * gamma * float(np.abs(w_row).sum())
+
+
+def _wide_weights(n: int) -> Any:
+    import numpy as np
+
+    i = np.arange(n)
+    w = 1.0 / (1.0 + i[:, None] + 2.0 * i[None, :])
+    w = (w + w.T) / 2.0
+    np.fill_diagonal(w, 0.0)
+    return w
+
+
 def test_dense_laplacian_equals_the_direct_construction() -> None:
     """P3/P4 equivalence tooth: `core.graph.conductance._dense_laplacian` (which routes through
     `core/complex/laplacian.laplacian`) equals the direct dense oracle `np.diag(W.sum(1)) − W` —
     bp-060's deleted `_laplacian`, inlined HERE as the reference.
 
     The measured relationship (bp-065 journal): **off-diagonals are EXACT** (both routes compute
-    `0 − w[i,j]`); the **diagonal (degrees) may differ by ~1 ulp** — NumPy's unrolled
-    multi-accumulator dense sum vs SciPy's sequential nonzero sum is float REASSOCIATION of the
-    same values, not a metric change. The P4 STOP is metric-SCALE divergence (e.g. an L_sym
+    `0 − w[i,j]`); the **diagonal (degrees) may differ by a few ulps**, within the summation
+    bound `_degree_bound` derives from the row's length — NumPy's unrolled multi-accumulator dense
+    sum vs SciPy's sequential nonzero sum is float REASSOCIATION of the same values, not a metric
+    change. The P4 STOP is metric-SCALE divergence (e.g. an L_sym
     substitution shows O(1) differences: degree-normalized entries); the tooth therefore pins
-    off-diag exactness + ulp-tight degrees + VALUE-level R_eff invariance below."""
+    off-diag exactness + summation-bound degrees + VALUE-level R_eff invariance below."""
     import importlib
 
     import numpy as np
@@ -101,8 +127,9 @@ def test_dense_laplacian_equals_the_direct_construction() -> None:
         np.diag([0.31, 0.57, 0.73], k=1) + np.diag([0.31, 0.57, 0.73], k=-1),
         # the empty graph (all-zero W: L must be exactly zero, not NaN)
         np.zeros((4, 4), dtype=np.float64),
+        # wide rows (64 non-round weights each): the summation order matters
+        _wide_weights(64),
     ]
-    eps = np.finfo(np.float64).eps
     for w in rng_free_fixtures:
         oracle = np.diag(w.sum(axis=1)) - w                    # bp-060's _laplacian, verbatim
         routed = gc._dense_laplacian(w)
@@ -114,12 +141,18 @@ def test_dense_laplacian_equals_the_direct_construction() -> None:
             "P4 violated (a silent metric change); STOP per bp-065 §10"
         )
         # Diagonal: the same degree values summed in a different association order — within ulps.
-        dmax = np.abs(np.diag(routed) - np.diag(oracle)).max()
-        bound = 4.0 * eps * max(1.0, float(np.abs(np.diag(oracle)).max()))
-        assert dmax <= bound, (
-            f"degree divergence {dmax} exceeds the ulp bound {bound} — more than summation "
-            "reassociation; P4 violated; STOP per bp-065 §10"
+        diff = np.abs(np.diag(routed) - np.diag(oracle))
+        bounds = np.array([_degree_bound(row) for row in w])
+        assert (diff <= bounds).all(), (
+            f"degree divergence {diff.max()} exceeds the summation bound {bounds.max()} — more "
+            "than summation reassociation; P4 violated; STOP per bp-065 §10"
         )
+    # Control: the bound separates summation noise from a real change. Degrees accumulated in
+    # float32 (a lossy route) land far outside it on the wide fixture.
+    wide = _wide_weights(64)
+    exact = wide.sum(axis=1)
+    lossy = wide.astype(np.float32).sum(axis=1).astype(np.float64)
+    assert (np.abs(lossy - exact) > np.array([_degree_bound(r) for r in wide])).any()
 
 
 def test_r_eff_values_invariant_under_the_laplacian_route() -> None:
