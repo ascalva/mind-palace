@@ -2,7 +2,7 @@
 type: design-note
 id: dn-capability-scope
 status: ratified            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
-implementation: design-only # nothing built; the five Views exist but carry no explicit scope type
+implementation: built # the scope typing layer; the clock N it names stays parked
 created: 2026-07-15
 updated: 2026-07-15
 links:
@@ -28,6 +28,8 @@ warrant: docs/brainstorms/cq-scope-fable-pass.md
 > alternatives live in the pass. Ratification is a hand edit by the owner — no command performs
 > it, `gate-guard` denies any agent attempt, and `/graduate` refuses this note until
 > `status: ratified`.
+
+Code: the scope lattice is in `core/kernel/scope.py`, and the role signatures and conformance check are in `core/kernel/agent_scope.py`.
 
 ## 1. Purpose and scope
 

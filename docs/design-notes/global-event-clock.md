@@ -2,7 +2,7 @@
 type: design-note
 id: dn-global-event-clock
 status: ratified            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
-implementation: design-only
+implementation: partial   # spine (GC-1), cuts (GC-3) and atlas (GC-4) exist; the clock N itself is parked
 created: 2026-07-16
 updated: 2026-07-16
 links:
@@ -32,6 +32,8 @@ warrant: docs/brainstorms/temporal-clocks-and-strata.md
 > cross-stratum cuts, and φ_coh was named at the park itself — so the re-entry condition is met.
 > Executing a ratified note's anticipated re-entry is not an amendment; the unpark itself is
 > still owner-blessed, via ratifying THIS note.
+
+Code: the spine (GC-1) and the certified cuts (GC-3) are in `core/temporal/spine.py`; the atlas (GC-4) is in `core/temporal/atlas.py`.
 
 ## 1. Purpose and scope
 
