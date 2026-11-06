@@ -42,6 +42,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, Protocol
 
+from config.loader import DIALOGUE_READERS as _OUROBOROS_DIALOGUE
 from config.loader import Config
 from core.ingest import door
 from core.sentence import ast
@@ -306,4 +307,5 @@ def job_enqueuer(queue: Enqueues, router: Router, *,
 
 
 DIALOGUE_SYNC_KIND = "dialogue_sync"
-DIALOGUE_READERS = ("openwebui", "opencode")
+# Ouroboros's lanes; an instance reads `cfg.instance.dialogue`, which is none for a named one.
+DIALOGUE_READERS = _OUROBOROS_DIALOGUE

@@ -15,6 +15,7 @@ must patch `core.config.loader` — the real module whose `load_config` runs (fi
 from __future__ import annotations
 
 from core.kernel.config.loader import (
+    DIALOGUE_READERS,
     LEVERS_OVERLAY,
     OUROBOROS,
     REPO_ROOT,
@@ -40,6 +41,7 @@ from core.kernel.config.loader import (
     SecretsConfig,
     SelfModConfig,
     VaultConfig,
+    default_transcripts_dir,
     get_config,
     load_config,
     namespaces_of,
@@ -49,13 +51,15 @@ from core.kernel.config.loader import (
 from core.kernel.config.loader import get_secret as _env_secret
 
 __all__ = [
+    "DIALOGUE_READERS",
     "AirlockConfig", "AmbassadorConfig", "AttestationConfig", "BackupConfig", "Config",
     "DreamRnDConfig", "DreamingConfig", "EffectorsConfig", "EmbeddingConfig", "ExhaustConfig",
     "InstanceConfig", "InstanceOverlayError", "InterfaceConfig",
     "LEVERS_OVERLAY", "ModelConfig", "Namespaces", "OUROBOROS", "OllamaConfig", "PathsConfig",
     "REPO_ROOT", "ResourceConfig",
     "SandboxConfig", "SecretsConfig", "SelfModConfig", "VaultConfig",
-    "get_config", "get_secret", "load_config", "namespaces_of", "refresh_config", "shared",
+    "default_transcripts_dir", "get_config", "get_secret", "load_config", "namespaces_of",
+    "refresh_config", "shared",
 ]
 
 

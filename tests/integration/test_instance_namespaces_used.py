@@ -124,3 +124,50 @@ def test_control_without_the_guard_the_wrapper_reads_the_keychain(tmp_path) -> N
     done = subprocess.run(["sh", str(unguarded), "true"], env=env, cwd=tmp_path,
                           capture_output=True, text=True, timeout=60)
     assert done.returncode == 0 and calls.exists()
+
+
+def test_a_named_instance_has_no_dialogue_lane(monkeypatch, tmp_path, capsys) -> None:
+    """The door's table and the dialogue sync read the instance's lanes: Ouroboros's two, a
+    named instance's none, so nothing of its runs an edge reader over the owner's chats."""
+    from core.ingest.table import build_table
+    from ops.lifecycle.launcher import dialogue_sync
+
+    _isolated(monkeypatch, tmp_path)
+    ouroboros = {n for n in build_table(loader.load_config()).sources if n.startswith("dialogue/")}
+    assert ouroboros == {"dialogue/openwebui", "dialogue/opencode"}                  # control
+    cfg = _named(monkeypatch, tmp_path, "bench")
+    assert not [n for n in build_table(cfg).sources if n.startswith("dialogue/")]
+    ran: list[object] = []
+    monkeypatch.setattr("core.ingest.door.run_library", lambda *a, **k: ran.append(a))
+    assert dialogue_sync(cfg, ROOT) == 0 and ran == []
+    assert "reads no dialogue lanes" in capsys.readouterr().out
+
+
+def test_the_heartbeat_refuses_a_named_instance(monkeypatch, tmp_path, capsys) -> None:
+    from ops import heartbeat
+
+    _isolated(monkeypatch, tmp_path)
+    _named(monkeypatch, tmp_path, "bench")
+    monkeypatch.setattr(heartbeat, "tick", lambda *a, **k: pytest.fail("the beat ran"))
+    assert heartbeat.main([]) == 1 and "Ouroboros's" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(("module", "reads"), [
+    ("edge.openwebui", ("latest_update", "export_chats")),
+    ("edge.opencode_sessions", ("latest_update", "export_sessions")),
+])
+def test_the_dialogue_readers_refuse_a_named_instance(monkeypatch, module, reads) -> None:
+    """Each reader refuses before it opens its source: the functions that read the owner's
+    chats are replaced by ones that fail the test, so a guard placed too late shows."""
+    import importlib
+
+    reader = importlib.import_module(module)
+    for name in reads:
+        monkeypatch.setattr(reader, name, lambda *a, **k: pytest.fail("read the source"))
+    monkeypatch.setenv(loader.OVERLAY_ENV, "config/instances/bench.toml")
+    with pytest.raises(SystemExit) as refused:
+        reader.main(["--latest"])
+    assert "MIND_PALACE_OVERLAY" in str(refused.value.code)
+    monkeypatch.delenv(loader.OVERLAY_ENV)                     # control: Ouroboros's run reads it
+    with pytest.raises(pytest.fail.Exception, match="read the source"):
+        reader.main(["--latest"])

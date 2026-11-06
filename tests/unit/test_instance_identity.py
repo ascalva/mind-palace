@@ -35,6 +35,7 @@ SECRETS = {
     ("backup", "password_secret"): "restic-password",
     ("backup", "aws_access_key_id_secret"): "backup-aws-access-key-id",
     ("backup", "aws_secret_access_key_secret"): "backup-aws-secret-access-key",
+    ("airlock", "aws_profile"): "mind-palace-bridge",
 }
 
 
@@ -184,6 +185,10 @@ def test_ouroboros_holds_todays_namespaces(monkeypatch, tmp_path) -> None:
     assert ns.secrets == frozenset(SECRETS.values())
     assert ns.labels == {"com.mind-palace.palace", "com.mind-palace.tick"}
     assert ns.backup == "s3:s3.us-east-1.amazonaws.com/example-ouroboros-backups"
+    assert ns.sources == {Path("~/.mind-palace/vault/notes").expanduser(),
+                          loader.default_transcripts_dir()}
+    assert ns.dialogue == {"openwebui", "opencode"} and cfg.instance.dialogue == ("openwebui",
+                                                                                 "opencode")
 
 
 def test_a_named_instance_holds_namespaces_derived_from_its_id(monkeypatch, tmp_path) -> None:
@@ -208,10 +213,12 @@ def test_control_the_pin_tells_ouroboros_from_a_named_instance(monkeypatch, tmp_
     shares none, so a derivation leaking into the default chain would fail the pin above."""
     ouroboros = loader.namespaces_of(_as_ouroboros(monkeypatch, tmp_path))
     text = FIXTURE.read_text().replace(
-        "s3:s3.us-east-1.amazonaws.com/example-ouroboros-backups", f"{NAMED_BACKUPS}/twin")
+        "s3:s3.us-east-1.amazonaws.com/example-ouroboros-backups", f"{NAMED_BACKUPS}/twin").replace(
+        "~/.mind-palace/vault/notes", str(tmp_path / "twin-notes"))
     twin = loader.namespaces_of(_as_named(monkeypatch, tmp_path,
                                           text + '\n[instance]\nid = "twin"\n'))
-    for field in ("data_dir", "spool", "supervisor_lock", "levers", "secrets", "labels", "backup"):
+    for field in ("data_dir", "spool", "supervisor_lock", "levers", "sources", "dialogue",
+                  "secrets", "labels", "backup"):
         assert getattr(twin, field) != getattr(ouroboros, field), field
     assert loader.shared(twin, ouroboros) == []
     assert loader.shared(twin, twin) and loader.shared(ouroboros, ouroboros)
@@ -277,3 +284,59 @@ def test_the_supervisor_lock_is_one_per_instance(monkeypatch, tmp_path) -> None:
     finally:
         for lock in held:
             lock.release()
+
+
+# ── the sources a named instance reads ──────────────────────────────────────────────────────────
+
+
+def test_a_named_instance_reads_no_source_it_did_not_declare(monkeypatch, tmp_path) -> None:
+    """The committed defaults name Ouroboros's corpus: a vault under ~/.mind-palace, this
+    checkout's Claude Code transcripts, the owner's chat applications. None of it reaches a named
+    instance; each undeclared source points into its own root, and its agent is off."""
+    cfg = _as_named(monkeypatch, tmp_path, '[instance]\nid = "bench"\n')
+    root = loader.REPO_ROOT / "instances" / "bench"
+    assert (cfg.ingestion.vault.path, cfg.ingestion.vault.enabled) == (root / "vault", False)
+    assert (cfg.ingestion.transcripts.transcripts_dir, cfg.ingestion.transcripts.enabled) == (
+        root / "transcripts", False)
+    assert not cfg.ingestion.code.enabled and cfg.instance.dialogue == ()
+    ns = loader.namespaces_of(cfg)
+    assert all(p.is_relative_to(root) for p in ns.sources | ns.paths) and not ns.dialogue
+
+
+def test_a_declared_source_is_read_where_it_lies(monkeypatch, tmp_path) -> None:
+    corpus = tmp_path / "corpus"
+    cfg = _as_named(monkeypatch, tmp_path, f'[instance]\nid = "bench"\n[ingestion.vault]\n'
+                                           f'path = "{corpus}"\nenabled = true\n'
+                                           '[ingestion.transcripts]\ntranscripts_dir = "talk"\n')
+    assert (cfg.ingestion.vault.path, cfg.ingestion.vault.enabled) == (corpus, True)
+    assert cfg.ingestion.transcripts.transcripts_dir == (
+        loader.REPO_ROOT / "instances" / "bench" / "talk")         # relative: under the root
+    assert cfg.ingestion.transcripts.enabled      # a declared source keeps its agent's default
+
+
+@pytest.mark.parametrize(("key", "value"), [
+    ("[ingestion.vault]\npath", "~/.mind-palace/vault/notes"),        # Ouroboros's vault
+    ("[ingestion.vault]\npath", "~/.mind-palace/vault/notes/inbox"),  # inside it
+    ("[ingestion.vault]\npath", "~/.mind-palace"),                    # around it
+    ("[ingestion.vault]\npath", "REPO/data/raw"),                     # inside Ouroboros's data
+    ("[ingestion.transcripts]\ntranscripts_dir", "TRANSCRIPTS"),      # Ouroboros's transcripts
+])
+def test_a_declared_source_of_ouroboros_refuses(monkeypatch, tmp_path, key, value) -> None:
+    """Locations compare as locations: at, inside or around any of Ouroboros's (its sources and
+    every path it writes) refuses, read off Ouroboros's own overlay on this host."""
+    value = value.replace("REPO", str(loader.REPO_ROOT)).replace(
+        "TRANSCRIPTS", str(loader.default_transcripts_dir()))
+    _isolated(monkeypatch, tmp_path)
+    (tmp_path / "ouroboros.toml").write_text(FIXTURE.read_text())
+    overlay = tmp_path / "named.toml"
+    overlay.write_text(f'[instance]\nid = "bench"\n{key} = "{value}"\n')
+    monkeypatch.setenv(loader.OVERLAY_ENV, str(overlay))
+    with pytest.raises(loader.InstanceOverlayError, match="would share"):
+        loader.load_config()
+
+
+@pytest.mark.parametrize("agent", ["vault", "transcripts"])
+def test_turning_an_agent_on_without_its_source_refuses(monkeypatch, tmp_path, agent) -> None:
+    with pytest.raises(loader.InstanceOverlayError, match="names no"):
+        _as_named(monkeypatch, tmp_path,
+                  f'[instance]\nid = "bench"\n[ingestion.{agent}]\nenabled = true\n')

@@ -369,11 +369,11 @@ def _default_transcripts_dir() -> Path:
     """The local Claude Code transcript dir for this repo — the CLI's cwd→dir mangling
     convention (`~/.claude/projects/<abs-cwd with '/' → '-'>`), a RESOLVED default, not a
     config-schema change (Q4/Q1). Tests inject `transcripts_dir` directly; the owner overrides
-    it when the canonical repo path differs from a worktree's."""
-    from config.loader import REPO_ROOT
+    it when the canonical repo path differs from a worktree's. Defined once, in the loader, which
+    needs it to know Ouroboros's transcript source (DI-2); a named instance's is always set."""
+    from config.loader import default_transcripts_dir
 
-    mangled = str(REPO_ROOT).replace("/", "-")
-    return Path.home() / ".claude" / "projects" / mangled
+    return default_transcripts_dir()
 
 
 def build_chat_sensor(config: Config | None = None, *,

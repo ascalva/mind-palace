@@ -275,6 +275,13 @@ def _dialogue_source(cfg: Config, reader: str, argv: tuple[str, ...]) -> Source:
         cursor_of=cursor_of, title_of=title_of)
 
 
+# The edge reader each dialogue lane runs (`cfg.instance.dialogue` names the lanes).
+_DIALOGUE_READERS: Mapping[str, tuple[str, ...]] = {
+    "openwebui": ("-m", "edge.openwebui", "--container", "lmtune-webui"),
+    "opencode": ("-m", "edge.opencode_sessions"),
+}
+
+
 def build_table(cfg: Config) -> Table:
     """This palace's table, from its configuration."""
     from core.relations import RELATIONS
@@ -290,9 +297,10 @@ def build_table(cfg: Config) -> Table:
                        readers=frozenset({"cli", "ambassador"}),
                        patterns=("CONSTITUTION.md", "CONVENTIONS.md", "docs/**/*.md"),
                        label=CURATED),
-        "dialogue/openwebui": _dialogue_source(
-            cfg, "openwebui", ("-m", "edge.openwebui", "--container", "lmtune-webui")),
-        "dialogue/opencode": _dialogue_source(cfg, "opencode", ("-m", "edge.opencode_sessions")),
+        # one source per dialogue lane the instance reads: Ouroboros's two, a named instance's
+        # none (DI-2), since each reads one of the owner's chat applications
+        **{f"dialogue/{lane}": _dialogue_source(cfg, lane, _DIALOGUE_READERS[lane])
+           for lane in cfg.instance.dialogue},
     }
 
     places, jobs = PLACES, JOBS

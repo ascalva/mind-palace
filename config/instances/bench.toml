@@ -34,8 +34,8 @@ scheduled = false
 sigma = 0.785
 
 # The harness writes each haystack's notes and points ingestion at them; nothing watches a vault.
+# No vault path is declared, so the vault source is the instance's own empty `<root>/vault`, off.
 [ingestion.vault]
-path = "/app/data/vault"
 enabled = false
 
 [ingestion.transcripts]

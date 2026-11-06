@@ -13,6 +13,7 @@ The outside `config/` package re-exports from here (outside → core is the allo
 from __future__ import annotations
 
 from core.kernel.config.loader import (
+    DIALOGUE_READERS,
     LEVERS_OVERLAY,
     OUROBOROS,
     REPO_ROOT,
@@ -37,6 +38,7 @@ from core.kernel.config.loader import (
     SecretsConfig,
     SelfModConfig,
     VaultConfig,
+    default_transcripts_dir,
     get_config,
     get_secret,
     load_config,
@@ -46,6 +48,7 @@ from core.kernel.config.loader import (
 )
 
 __all__ = [
+    "DIALOGUE_READERS",
     "AirlockConfig",
     "AmbassadorConfig",
     "AttestationConfig",
@@ -70,6 +73,7 @@ __all__ = [
     "SecretsConfig",
     "SelfModConfig",
     "VaultConfig",
+    "default_transcripts_dir",
     "get_config",
     "get_secret",
     "load_config",
