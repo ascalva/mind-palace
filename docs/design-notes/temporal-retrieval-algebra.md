@@ -178,9 +178,12 @@ Let `X_n` be the citation complex at time n (§2.4), supersession `D` inducing n
 > *Erratum, Result 3:* τ²-coherence is F2 together with no citation restored after a severing
 > (TRN-12); F1 implies it on citations without loops, so, once `τ² = 0`, "flat ⟺ bicomplex ⟺ F1"
 > stands (TRN-13). *Erratum, Result 3:* the corrected differential is `d + τ − h`, not
-> `d + τ + h` (TRN-14), and it is flat only where the corrected transports compose. Result 4 holds
-> (TRN-15); the isometry is not TRN-3's fiber-weighted one, under which a merge's pullback is
-> isometric and still does not commute with `δ`. *Erratum, Result 5:* the pullback is a contraction
+> `d + τ + h` (TRN-14), and it is flat only where the corrected transports compose. Result 4's
+> strict inclusion holds (TRN-15): a chain map need not commute with `δ`, and a σ that is a
+> bijection on notes and on citations commutes with `δ` when it commutes with `d`. The isometry is
+> not TRN-3's fiber-weighted one, under which a merge's pullback is isometric and still does not
+> commute with `δ`; a covering that merges notes can commute, so "needs σ isometric" fails read
+> globally, and whether a local isometry is necessary is not checked. *Erratum, Result 5:* the pullback is a contraction
 > iff the supersession merges nothing (TRN-2, issue #61). Result 6 holds merge-free and in mass;
 > with merges the energy never grows iff `γ · (max fiber) ≤ 1` (TRN-6 to TRN-9, issue #61). The
 > diamond frequency TA-c waits on, measured read-only on the live versions store: 0 of 29
