@@ -204,6 +204,37 @@ def purgeAll (d : Fin 2) (s : St) : St :=
 /- Control, no still-held check: a purge frees an atom another row still holds. -/
 #eval refuted (∀ raws : List Raw, ∀ d : Fin 2, purgeHolds purgeAll raws d = true) 92
 
+/-! ### Crash points of a land (PLN-4, dn-ingest-door §9 item 7) -/
+
+/-- A write in the code's order, or what a crash partway through it leaves: `0` none, `1` after a
+land's transaction (or its rollback) or a retire's or a purge's, `2` before a land's transaction,
+its atoms and its cache's additions written. With `old`, a land writes its cache last
+(`landCrash`). A purge interrupted after its atom delete is left out: until it runs again it leaves
+rows pointing at nothing (PLN-5). -/
+def stepCrashAdd (old : Bool) (crash : Fin 3) : Wr → St → St
+  | .land f, s =>
+    if crash = 0 then land f s
+    else if crash = 1 then (if old then landCrash f s else landAddCommit f s)
+    else (if old then insertAtoms f.atoms s else landAdd f s)
+  | .retire c p, s =>
+    if crash = 0 then retire c p s
+    else if crash = 1 ∧ heads (s.occ c) p ≠ ∅ then retireCommit c p s else s
+  | .purge d, s => if crash = 0 then purge d s else purgeCommit d s
+  | .repair, s => if crash = 0 then repair s else s
+
+/-- The cache after a trace of writes, any of which may crash partway, is complete on every
+class. -/
+def completeAfter (old : Bool) (raws : List (Raw × Fin 3)) : Bool :=
+  decide (Complete univ (raws.foldl (fun s r ↦ stepCrashAdd old r.2 (decode true r.1) s) empty))
+
+/- PLN-4: with a land's cache additions written before its transaction, the cache stays complete
+through traces in which any write may crash partway. -/
+#eval survives (∀ raws : List (Raw × Fin 3), completeAfter false raws = true) 304
+
+/- Control, the cache written last: a land that crashes after its transaction leaves an atom
+whose cache misses the class of its new row. -/
+#eval refuted (∀ raws : List (Raw × Fin 3), completeAfter true raws = true) 305
+
 /-! ### The chunk-key migration (#37) -/
 
 /-- A random physical row: id, document (`3` is none, a shed atom row), text, lane. -/

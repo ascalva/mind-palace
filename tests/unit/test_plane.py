@@ -265,3 +265,66 @@ def test_gauges_and_frequencies_count_only_what_the_clearance_sees(tmp_path):
     assert mirror.rank_frequency() == [1, 1]                           # curated's holder unseen
     assert p.reader(MAINTENANCE_READ).rank_frequency() == [2, 1, 1]
     assert p.reader(CURATED_READ).has_digest("c1") and not mirror.has_digest("c1")
+
+
+# ── crash points of a land (PLN-4; dn-ingest-door §9 item 7) ──────────────────────────────────
+
+def _crash_then_share(p: SharedPlane, monkeypatch: pytest.MonkeyPatch) -> tuple[bool, bool]:
+    """Land a note, then a new version that dies after its transaction and before its cache step,
+    then an uncleared class's note sharing the new chunk. Returns (the new chunk is hidden from the
+    cleared reader, the uncleared land changed what the cleared reader finds)."""
+    p.land(_rows("n.md", "v1", SOLO, ["kept text"]))
+
+    def dies(conn: sqlite3.Connection, ids: Any) -> int:
+        raise RuntimeError("killed between the transaction and the cache step")
+    with monkeypatch.context() as m:
+        m.setattr(p, "_refresh_held", dies)
+        with pytest.raises(RuntimeError):
+            p.land(_rows("n.md", "v2", SOLO, ["kept text", "fresh text"]))
+    query = EMB.embed_query("fresh text")
+
+    def found() -> list[tuple[str, tuple[tuple[str, str, int], ...]]]:
+        return [(h.atom_id, tuple((o.source_path, o.digest, o.chunk_index)
+                                  for o in h.occupancies))
+                for h in p.reader(MIRROR_READ).search(query, k=3)]
+    before = found()
+    p.land(_rows("x/o.md", "w1", OBSERVED, ["fresh text"]))     # outside the mirror's clearance
+    return atom_id("fresh text") not in {a for a, _ in before}, found() != before
+
+
+def test_a_land_that_dies_before_its_cache_step_hides_nothing_and_lets_nothing_in(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """PLN-4's crash points on the code (`search_after_crash`): the land writes its cache's
+    additions before its transaction, so a crash between the transaction and the cache step leaves
+    the new version visible to the cleared reader, and a later write of another class sharing the
+    chunk changes nothing it finds. Degenerate input: a crash that leaves no new atom (an edit
+    that reuses every chunk), so the new version adds `fresh text`, an atom of its own."""
+    p = _plane(tmp_path)
+    hidden, changed = _crash_then_share(p, monkeypatch)
+    assert p.reader(MIRROR_READ).occupancies(source_path="n.md")[0].digest == "v2", \
+        "PRECONDITION: the transaction landed before the crash"
+    assert not hidden, "the landed version is not hidden"
+    assert not changed, "an uncleared write changes no cleared search"
+
+
+def test_with_the_cache_written_last_the_crash_hides_and_the_neighbour_reveals(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The control: the land as it was, its cache written only after the transaction
+    (`_add_held` a no-op), fails both halves: the crash hides the new chunk from the cleared
+    reader, and the uncleared land that shares it brings it back (`drift_interferes`)."""
+    p = _plane(tmp_path)
+    monkeypatch.setattr(p, "_add_held", lambda cached, gains: 0)
+    hidden, changed = _crash_then_share(p, monkeypatch)
+    assert hidden and changed
+
+
+def test_a_refused_land_takes_back_its_cache_additions(tmp_path: Path) -> None:
+    """A land refused inside its transaction (a stratum conflict) leaves its new atom dormant and
+    the cache exact: the additions written before the transaction are taken back after the
+    rollback (`land_of_landAdd_refused`)."""
+    p = _plane(tmp_path)
+    p.land(_rows("s.md", "v1", SOLO, ["solo text"]))
+    with pytest.raises(StratumConflict):
+        p.land(_rows("s.md", "v2", OBSERVED, ["observed text"]))
+    assert atom_id("observed text") in p.atoms.ids(), "PRECONDITION: the atom was inserted"
+    assert p.held_drift() == []

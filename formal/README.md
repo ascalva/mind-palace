@@ -238,6 +238,7 @@ Roundoff and FloatModel, so it has no statements of its own):
 | PLN-1 (A3 no-leak) | every search hit under `C` is a table atom with a cleared occupancy and carries only rows of classes in `C` that hold it, under any cache: `PlaneHit`'s checks never fire on the plane's own reads | proved; attack survived 484 traces in which any write may crash partway |
 | PLN-3 (search) | `PlaneReader.search`'s widening loop returns the first `k` atoms of the exact ranking that a cleared relation holds; `\|ps\|` rounds suffice | proved; attack survived 500 |
 | PLN-4 (cache) | land, retire, purge and repair keep `held`/`held_ever` coherent: `wanted ∪ freed` covers every row a land touches | proved; attack survived 500 traces |
+| PLN-4 (crash points) | a land that writes its cache's additions before its transaction ends where `land` does and leaves the cache complete at a crash before or after the transaction; planes differing only in complete caches answer every search alike after any trace, so the crash changes no search; a re-run leaves the first run's freed atoms stale by excess (only `repair` is exact) | proved, with the witness; attack survived 500 traces in which any write may crash, its control (the cache written last) refuted within 5 |
 | PLN-2 (A3.5) | noninterference: after any trace of writes that keep each path at one stratum, a reader under `C` sees, in its view and in every search, what it would see after the cleared writes, purges and repairs alone | proved by unwinding, under the hypotheses below; attack survived 480 traces with an uncleared write and a cleared hit |
 | `rn` | binary64 rounding to nearest, ties to even, without overflow: it fixes binary64 numbers, is monotone and odd, lands on binary64, and moves `x` by at most half an ulp; on the grid of multiples of `2⁻¹⁰⁷⁴` (every sum of two binary64 numbers), by at most `u\|x\|`, `u = 2⁻⁵³`, subnormals included | the model; on this machine it matched 500 sums, 500 quotients and 500 quotients `k / n` bit for bit |
 | CND-6 (float64) | `chi_s = rn(chain / n_s)` is `1.0` exactly when the chain spans the stratum, for every `n_s < 2^54`, and not at `2^54`; `chi_s ≤ 1` for every `n_s`, and `chi_s > 0` up to `2^1074` | proved over `rn`, with the witness; on this machine it survived 500 |
@@ -323,10 +324,12 @@ witnesses:
   `research_curated.lance`), so a tie needs a float coincidence today.
 - The table is content-addressed: an atom's text and vector are a function of its id. The first
   writer's vector is the one stored, so this asks for a deterministic embedder.
-- The cache is complete on `C`. A crash between a land's commit and `_refresh_held` leaves the
-  atom's cache empty and a cleared search misses it (fail-closed). `_refresh_held` rewrites a
-  touched atom's whole held set, so an uncleared land that shares the atom brings the hit back
-  (`drift_interferes`). `repair()` restores completeness.
+- The cache is complete on `C`. With the cache written last, a crash between a land's commit and
+  `_refresh_held` left the atom's cache empty and a cleared search missed it (fail-closed), and an
+  uncleared land that shares the atom, its whole held set rewritten, brought the hit back
+  (`drift_interferes`). A land now writes its cache's additions before its transaction, so no
+  crash of a land leaves the cache incomplete (PLN-4's crash points); a relabel, outside the
+  model, still can, and `repair()` restores completeness.
 - Every path lives at one stratum fixed in advance (A3.6). A land whose path another class holds
   is refused, and that check reads the uncleared relations: an uncleared document at a path makes
   a cleared land of the same path fail (`stratum_interferes`).
@@ -337,7 +340,8 @@ within 11, cleared lands that crash before their cache step within 36, a reader 
 cache in place of the cleared join within 106, `freed` without the old derivation's atoms within
 17, the search loop without its `seen` set within 25 (`[0, 0]`), a purge without its
 still-held check within 10, the re-key as it was (every record under the note lane's key, the shed
-atoms not read) within 6, and its plane, the current rows landed again from the empty plane,
+atoms not read) within 6, a land whose cache is written last, crashed after its transaction,
+within 5, and its plane, the current rows landed again from the empty plane,
 within 25 (a retired note's rows are not current, so they are not read).
 
 Outside the model: `relabel` and `reset` (each moves or forgets whole classes, a visible act for

@@ -15,7 +15,8 @@
 #            deterministic embedder: the first writer's vector is the one stored); (3) the cache
 #            is complete on C, every class of C that holds an atom named in the atom's cache
 #            (`drift_interferes`: an atom whose cache misses a class is hidden from that class
-#            until an uncleared write that shares the atom refreshes it); (4) every path lives at
+#            until an uncleared write that shares the atom refreshes it), which `land` keeps at
+#            every crash point by writing its additions first (PLN-4); (4) every path lives at
 #            one stratum fixed in advance (A3.6; `stratum_interferes`: the refusal of a land whose
 #            path another class holds reads an uncleared relation).
 # ENFORCED:  structural (per-class relations, sealed records, the clearance-derived table list) +
@@ -48,9 +49,12 @@ whose `held` cache names a cleared class (the prefilter, a speed device), then k
 that a cleared relation actually holds (the boundary).
 
 **Writing** is serialized across processes by an advisory file lock beside the database, in the
-D8 order: atoms first (an unreferenced atom is dormant geometry), occupancies second (one SQLite
-transaction), the `held` cache last (re-derivable; `repair()` rebuilds it). A purge deletes the
-atoms it frees BEFORE their occupancies, so a crash mid-purge never leaves private text behind.
+D8 order: atoms first (an unreferenced atom is dormant geometry), with the `held` cache's additions
+(each atom names the classes about to hold it), occupancies second (one SQLite transaction), the
+cache's removals last. So a crash anywhere leaves the cache stale only by excess, never missing a
+class that holds an atom, and no search can see excess (PLN-4, `search_after_crash`); `repair()`
+rebuilds the cache exactly. A purge deletes the atoms it frees BEFORE their occupancies, so a crash
+mid-purge never leaves private text behind.
 
 Patterns, named for whoever reads this later: content-addressed storage (Git's model at chunk
 grain); a partitioned relation as an object-capability boundary; a derived prefilter cache with a
@@ -60,6 +64,7 @@ advisory locking for cross-process single-writer.
 
 from __future__ import annotations
 
+import contextlib
 import fcntl
 import hashlib
 import json
@@ -380,15 +385,23 @@ class SharedPlane:
         if not fibers:
             return LandReport()
         wanted = list(dict.fromkeys(a for f in fibers for _, a, _ in f.chunks))
+        gains: dict[str, set[str]] = defaultdict(set)      # the classes each atom's new rows hold
+        for f in fibers:
+            for _, a, _ in f.chunks:
+                gains[a].add(f.provenance.value)
         with self._writing() as conn:
             self._check_geometry(conn, record=True)
-            present = self.atoms.present(wanted)
-            missing = [a for a in wanted if a not in present]
+            cached = self.atoms.held(wanted)               # which atoms exist, and their cache
+            missing = [a for a in wanted if a not in cached]
             lacking = [a for a in missing if a not in vectors]
             if lacking:
                 raise MissingVector(f"{len(lacking)} new atom(s) arrived without a vector, e.g. "
                                     f"{lacking[0][:24]}")
             self.atoms.insert([vectors[a] for a in missing])                  # D8: atoms first
+            # PLN-4: the cache's additions before the transaction and its removals after it, so a
+            # crash anywhere leaves the cache stale only by excess, which no search sees
+            # (`search_after_crash`); with the cache last, a crash hid the new rows' atoms
+            self._add_held({**dict.fromkeys(missing, (frozenset(), frozenset())), **cached}, gains)
             made = superseded = 0
             affected: set[str] = set(wanted)
             conn.execute("BEGIN IMMEDIATE")
@@ -400,8 +413,10 @@ class SharedPlane:
                 conn.execute("COMMIT")
             except BaseException:
                 conn.execute("ROLLBACK")
+                with contextlib.suppress(Exception):
+                    self._refresh_held(conn, wanted)   # nothing landed: take the additions back
                 raise
-            self._refresh_held(conn, sorted(affected))                        # D8: cache last
+            self._refresh_held(conn, sorted(affected))                        # D8: removals last
         return LandReport(atoms_inserted=len(missing), atoms_reused=len(wanted) - len(missing),
                           fibers_written=len(fibers), made_current=made, superseded=superseded)
 
@@ -602,6 +617,14 @@ class SharedPlane:
                     if int(cur):
                         held[str(a)].add(p.value)
         return {a: (frozenset(held.get(a, ())), frozenset(ever.get(a, ()))) for a in ids}
+
+    def _add_held(self, cached: Mapping[str, tuple[frozenset[str], frozenset[str]]],
+                  gains: Mapping[str, set[str]]) -> int:
+        """Name each atom's new classes in its cached `held` and `held_ever` (PLN-4's additions):
+        only atoms whose cache lacks one are written."""
+        grow = {a: (h | gains[a], e | gains[a]) for a, (h, e) in cached.items()
+                if not (gains[a] <= h and gains[a] <= e)}
+        return self.atoms.set_held(grow) if grow else 0
 
     def _refresh_held(self, conn: sqlite3.Connection, ids: Sequence[str]) -> int:
         if not ids:

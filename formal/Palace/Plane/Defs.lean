@@ -93,7 +93,16 @@ def Coherent (s : State K P D A) : Prop :=
 def Complete (C : Finset K) (s : State K P D A) : Prop :=
   ∀ a ∈ s.table, ∀ sup, ∀ c ∈ C, c ∈ truth s sup a → c ∈ cache s sup a
 
+instance [DecidableEq K] (s : State K P D A) : Decidable (Coherent s) :=
+  inferInstanceAs (Decidable (∀ a ∈ s.table, ∀ sup, cache s sup a = truth s sup a))
+
+instance [DecidableEq K] (C : Finset K) (s : State K P D A) : Decidable (Complete C s) :=
+  inferInstanceAs (Decidable (∀ a ∈ s.table, ∀ sup, ∀ c ∈ C, c ∈ truth s sup a → c ∈ cache s sup a))
+
 end Truth
+
+/-- Two planes that differ at most in their caches: the same relations, logs and table. -/
+def SameRel (s t : State K P D A) : Prop := s.occ = t.occ ∧ s.sup = t.sup ∧ s.table = t.table
 
 /-! ### What a reader under `C` sees -/
 
@@ -297,9 +306,27 @@ def land (f : Fiber K P D A) (s : State K P D A) : State K P D A :=
   if Refused f s then insertAtoms f.atoms s
   else refresh (landAffected (s.occ f.cls) f) (commit f (insertAtoms f.atoms s))
 
-/-- What a crash between `land`'s commit and its `_refresh_held` leaves. -/
+/-- What a crash between `land`'s commit and its `_refresh_held` leaves, with the cache written
+last (the order before PLN-4's crash points were proved). -/
 def landCrash (f : Fiber K P D A) (s : State K P D A) : State K P D A :=
   if Refused f s then insertAtoms f.atoms s else commit f (insertAtoms f.atoms s)
+
+/-- The cache's additions (`SharedPlane.land`, before its transaction): every atom of the fiber
+names the fiber's class in both columns. -/
+def addCache (f : Fiber K P D A) (s : State K P D A) : State K P D A :=
+  { s with
+    held := fun a ↦ if a ∈ f.atoms ∧ a ∈ s.table then insert f.cls (s.held a) else s.held a
+    ever := fun a ↦ if a ∈ f.atoms ∧ a ∈ s.table then insert f.cls (s.ever a) else s.ever a }
+
+/-- What a crash before `land`'s transaction leaves, as the code writes it: the atoms the table
+lacks, and the cache's additions. -/
+def landAdd (f : Fiber K P D A) (s : State K P D A) : State K P D A :=
+  addCache f (insertAtoms f.atoms s)
+
+/-- What a crash after `land`'s transaction leaves (after its rollback, when refused), as the code
+writes it: the additions stand, the removals are not yet written. -/
+def landAddCommit (f : Fiber K P D A) (s : State K P D A) : State K P D A :=
+  if Refused f s then landAdd f s else commit f (landAdd f s)
 
 /-- The atoms of `p`'s current rows in class `c`: what `retire` unsets and refreshes. -/
 def retired (c : K) (p : P) (s : State K P D A) : Finset A :=
