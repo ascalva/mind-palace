@@ -617,7 +617,7 @@ def _assert_acyclic(succ: dict[str, set[str]]) -> None:
 # ═══════════════════════════════════════════════════════════════════════════════════════════════
 
 
-@dataclass
+@dataclass(frozen=True)
 class Spine:
     """The derived causal event poset `(Ev, ≼)`. Construct via `derive()`; `≼` is the reflexive-
     transitive closure of the g1 ∪ g2 ∪ g3 generator edges (`generators()`)."""
@@ -635,9 +635,9 @@ class Spine:
     # GC-3: injected certificate observables for `cut_at` (commit SHA / scheduler trough fact /
     # handoff path). Empty unless injected — a cut needing an unsourced certificate REFUSES (§2.4).
     _cut_sources: CutSources = field(default_factory=CutSources)
-    # `restrict` memo, per instance and keyed by stratum. A Spine is never mutated after
-    # construction (no method writes its fields and `derive` copies every injected input), so the
-    # restriction is a pure function of the instance and the cache is released with it.
+    # `restrict` memo, per instance and keyed by stratum. The dataclass is frozen (no field can be
+    # rebound) and `derive` copies every injected input, so the restriction is a pure function of
+    # the instance; only this dict's contents change, and the cache is released with the instance.
     _restricted: dict[str, Spine] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod

@@ -251,3 +251,18 @@ def test_restrict_is_memoized_per_instance_and_not_shared_between_spines():
     assert [e.event_id for e in two.restrict("mirror").events()] == \
         [e.event_id for e in first.events()]                # same answer, own object
     assert first._restricted == {}                          # a restriction's own cache starts empty
+
+
+def test_a_spine_is_frozen():
+    """Assigning any field raises FrozenInstanceError: the memo on `restrict` relies on it."""
+    import dataclasses
+
+    import pytest
+
+    vs = VersionStore(Path(":memory:"))
+    vs.record("docA", "a1")
+    spine = Spine.derive(SpineSources(versions=vs))
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        spine._events = {}                                  # type: ignore[misc]
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        spine._succ = {}                                    # type: ignore[misc]
