@@ -544,6 +544,7 @@ class InstanceConfig:
         code agent         the checkout                  off unless its overlay turns it on
         dialogue lanes     openwebui, opencode           none
         airlock in S3      as its overlay names it       as its overlay names it
+        exhaust lane       ~/.mind-palace/exhaust        <root>/exhaust, moved only within root
 
     A declared source may lie anywhere but inside, around or at one of Ouroboros's locations.
     `namespaces_of` reads them off a built Config, and `shared` says what two instances hold in
@@ -650,7 +651,8 @@ class Namespaces:
     spool: Path               # cfg.interface.handoff_dir: the ingestion spool and the inbox
     supervisor_lock: Path
     levers: Path
-    paths: frozenset[Path]    # the four above, and every other path the config names it writes
+    exhaust: Path             # the outbound lane its reports land in
+    paths: frozenset[Path]    # the five above, and every other path the config names it writes
     sources: frozenset[Path]  # the corpus locations it reads: its vault and transcripts dirs
     dialogue: frozenset[str]  # the dialogue lanes it reads (`DIALOGUE_READERS`)
     secrets: frozenset[str]   # Keychain/env item names
@@ -671,7 +673,8 @@ def namespaces_of(cfg: Config) -> Namespaces:
         spool=cfg.interface.handoff_dir,
         supervisor_lock=lock,
         levers=instance.levers,
-        paths=frozenset({*written, lock, instance.levers}),
+        exhaust=cfg.exhaust.path,
+        paths=frozenset({*written, lock, instance.levers, cfg.exhaust.path}),
         sources=frozenset({cfg.ingestion.vault.path, transcripts}),
         dialogue=frozenset(instance.dialogue),
         secrets=frozenset(getattr(getattr(cfg, section), key) for section, key in _SECRET_NAMES),
@@ -885,8 +888,8 @@ def _last_segment(repository: str) -> str:
 
 
 def _own_source(instance: InstanceConfig, name: str) -> Path:
-    """Where an undeclared source of a named instance points: `<root>/<name>`, inside its own
-    root, where nothing is unless the instance puts it there."""
+    """Where an undeclared source or lane of a named instance points: `<root>/<name>`, inside
+    its own root, where nothing is unless the instance puts it there."""
     return instance.root / name
 
 
@@ -915,6 +918,10 @@ def _own_sources(raw: dict[str, Any], declared: dict[str, Any], instance: Instan
         section["enabled"] = False
     if "enabled" not in said.get("code", {}):
         agents.setdefault("code", {})["enabled"] = False
+    # The exhaust lane is written, not read, so it derives like a data path: `<root>/exhaust`
+    # unless the overlay moves it within the root (`_refuse_reaching_out` checks that).
+    if not declared.get("exhaust", {}).get("path"):
+        raw.setdefault("exhaust", {})["path"] = str(_own_source(instance, "exhaust"))
 
 
 def _refuse_reaching_out(raw: dict[str, Any], declared: dict[str, Any],
@@ -930,9 +937,11 @@ def _refuse_reaching_out(raw: dict[str, Any], declared: dict[str, Any],
                 f"{source}: [{section}] {key} is derived from the instance id, as "
                 f"{instance.secret(str(value))!r}, and a named overlay does not set it. Remove the "
                 f"key; place the secret under the derived name.")
-    for section, key in _DATA_PLANE:
-        value = raw.get(section, {}).get(key)
-        if value is not None and (Path(str(value)).is_absolute() or ".." in Path(str(value)).parts):
+    lane = declared.get("exhaust", {}).get("path")
+    for section, key, value in (*((s, k, raw.get(s, {}).get(k)) for s, k in _DATA_PLANE),
+                                ("exhaust", "path", lane)):
+        if value and (Path(str(value)).expanduser().is_absolute()
+                      or ".." in Path(str(value)).parts):
             raise InstanceOverlayError(
                 f"{source}: [{section}] {key} = {value!r} leaves the instance's root "
                 f"{instance.root}. A named instance's paths are relative and resolve under its "
@@ -1078,7 +1087,8 @@ def _build(raw: dict[str, Any], instance: InstanceConfig) -> Config:
             ),
         ),
         # ~ expands to $HOME; the exhaust dir is the owner's outbound sync, outside the repo.
-        exhaust=ExhaustConfig(path=Path(raw["exhaust"]["path"]).expanduser()),
+        exhaust=ExhaustConfig(path=_resolve(raw["exhaust"]["path"], root) if instance.named
+                              else Path(raw["exhaust"]["path"]).expanduser()),
         embedding=EmbeddingConfig(
             model=str(e["model"]),
             dim=int(e["dim"]),
