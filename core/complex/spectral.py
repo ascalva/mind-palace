@@ -60,12 +60,35 @@ def _bottom_eigen(L: sp.csr_matrix, k: int) -> tuple[np.ndarray, np.ndarray]:
     return vals[order], vecs[:, order]
 
 
+def _disconnected_mode(A: sp.csr_matrix, comp: np.ndarray) -> np.ndarray:
+    """A unit vector orthogonal to the trivial mode that separates the first component from the
+    rest. It lies in the kernel of L_sym with the isolated vertices' rows zeroed (the kernel is
+    spanned by sqrt(d) on each component, taking d = 1 on an isolated vertex); LAP-4's identity
+    row for an isolated vertex is what `fiedler` steps around, not a kernel direction."""
+    deg = np.asarray(A.sum(axis=1)).ravel()
+    root = np.sqrt(np.where(deg > 0.0, deg, 1.0))
+    trivial = root / np.linalg.norm(root)
+    first = np.where(comp == 0, root, 0.0)
+    first /= np.linalg.norm(first)
+    mode = first - float(first @ trivial) * trivial
+    out: np.ndarray = mode / np.linalg.norm(mode)
+    return out
+
+
 def fiedler(A: sp.csr_matrix) -> tuple[float, np.ndarray]:
     """(λ₂, Fiedler vector) of L_sym — algebraic connectivity and the smallest nontrivial mode.
-    λ₂ ≈ 0 signals a weak cut (a near-disconnection); its eigenvector bisects the graph (§2.2)."""
+    λ₂ ≈ 0 signals a weak cut (a near-disconnection); its eigenvector bisects the graph (§2.2).
+
+    A disconnected graph has λ₂ = 0 exactly. `laplacian_sym` gives an isolated vertex an identity
+    row (LAP-4), which puts 1 (not 0) in the spectrum, so the eigensolve alone would read a graph
+    cut off by one vertex as well connected. The components are counted first and a disconnected
+    graph returns 0.0 with a vector that separates the first component from the rest."""
     n = A.shape[0]
     if n < 2:
         return 0.0, np.zeros(n)
+    n_comp, comp = connected_components(A, directed=False)
+    if n_comp > 1:
+        return 0.0, _disconnected_mode(A, comp)
     vals, vecs = _bottom_eigen(laplacian_sym(A), k=min(_EIGS_PROBE, n))
     return float(vals[1]), vecs[:, 1]
 
