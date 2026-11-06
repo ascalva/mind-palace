@@ -331,7 +331,9 @@ def _inbox_source(cfg: Config) -> Source:
     own code recorded them (`core/ingest/inbox.py`), one record a request. The rule makes two items
     of a record and labels the owner's text authored and the reply observed by the field each was
     read from: no script, no model and no field a model writes decides it. Only the inbox's role
-    opens the source, and a record is removed once both its items have landed."""
+    opens the source, and a record is removed once its items have landed. With `[ambassador]
+    keep_replies = false` the rule makes the text's item alone, and the reply never lands."""
+    keep_replies = cfg.ambassador.keep_replies
 
     def items_of(doc: Any) -> Iterator[dict[str, Any]]:
         """A record's two items. A document of another shape is refused with the source: only
@@ -342,7 +344,9 @@ def _inbox_source(cfg: Config) -> Source:
         if not (isinstance(rid, str) and REQUEST_ID.fullmatch(rid) and isinstance(conv, str)
                 and isinstance(at, str) and isinstance(text, str) and isinstance(reply, str)):
             raise ValueError("not a record of the inbox's shape")
-        for whose, content in ((INBOX_OWNER, text), (INBOX_REPLY, reply)):
+        kept = ((INBOX_OWNER, text), (INBOX_REPLY, reply)) if keep_replies else \
+            ((INBOX_OWNER, text),)
+        for whose, content in kept:
             yield {"id": rid, "role": whose, "content": content, "conversation": conv, "at": at}
 
     def path_of(it: Mapping[str, Any]) -> str:

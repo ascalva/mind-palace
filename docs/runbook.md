@@ -854,6 +854,8 @@ earned for the rest) → **retrieve** (mirror) / **explain** (curated) / **statu
 operational narration) / **task** (delegate → gate → queue, "give me a bit", result surfaced on a
 later turn) / **capture** (store + acknowledge). The unprompted-message dial is
 `[ambassador] interruption_sensitivity` (off | earned_only | verbose; default earned_only).
+`[ambassador] keep_replies` (default true) lands the Ambassador's replies as observed dialogue beside
+your words; set it false to keep only your words.
 
 **Optional follow-up (not built — your call):** a tiny stdlib-only local HTTP front end reachable over
 Tailscale, following `LocalAdapter`'s "loopback/Tailscale" framing, so you can talk to it from your

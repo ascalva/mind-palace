@@ -237,6 +237,10 @@ default_adapter = "local"
 retrieval_k = 5
 history_max_turns = 6
 interruption_sensitivity = "earned_only"
+# One switch: whether the inbox's capture lands the Ambassador's replies as observed dialogue
+# beside the owner's words (dn-ingress-language §E13). false keeps them out; the owner's words
+# land either way.
+keep_replies = true
 
 [query]
 # The query sentence algebra's surface (dn-query-sentence-algebra §4 — QL-3). The Ambassador's MCP
