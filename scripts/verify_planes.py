@@ -377,6 +377,9 @@ def render(checks: list[Check]) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from config.loader import ouroboros_only
+
+    ouroboros_only("the plane verifier, reading Ouroboros's plane homes")   # DI-2
     ap = argparse.ArgumentParser(description="Read-only four-plane migration verifier (bp-078).")
     ap.parse_args(argv)
     cfg = get_config()

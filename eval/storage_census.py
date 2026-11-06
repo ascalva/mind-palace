@@ -177,6 +177,9 @@ def vocabulary(texts_by_stratum: dict[str, list[str]]) -> dict[str, float]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from core.kernel.config import ouroboros_only
+
+    ouroboros_only("the storage census, writing <repo>/data/eval")   # DI-2
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--json", type=Path, default=ROOT / "data" / "eval" / "storage-census.json")
     a = ap.parse_args(argv)

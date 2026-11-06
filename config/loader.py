@@ -46,6 +46,7 @@ from core.kernel.config.loader import (
     get_config,
     load_config,
     namespaces_of,
+    ouroboros_only,
     refresh_config,
     shared,
     vault_location,
@@ -61,7 +62,7 @@ __all__ = [
     "REPO_ROOT", "ResourceConfig",
     "SandboxConfig", "SecretsConfig", "SelfModConfig", "VaultConfig",
     "default_transcripts_dir", "get_config", "get_secret", "load_config", "namespaces_of",
-    "refresh_config", "shared", "vault_location",
+    "ouroboros_only", "refresh_config", "shared", "vault_location",
 ]
 
 

@@ -301,6 +301,10 @@ def write_blind_sample(sample: BlindSample, *, date: str, topic: str,
     """Write the presentation + the SEALED labels to `<root>/<date>-<topic>/blind/` as two DISTINCT
     files (`presentation.md`, `labels.sealed.json`) and return the blind dir. The only FS write —
     into `data/reports/` (∉ MIRROR_READABLE, local, no egress)."""
+    if Path(root) == Path("data/reports"):   # Ouroboros's data dir, run from the repo (DI-2)
+        from core.kernel.config import ouroboros_only
+
+        ouroboros_only("a report into data/reports")
     out_dir = Path(root) / f"{date}-{topic}" / "blind"
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "presentation.md").write_text(
@@ -696,6 +700,10 @@ def write_composite(report: CompositeReport, *, root: str | Path = "data/reports
     """Write `composite.md` + `composite.json` into `<root>/<date>-<topic>/` and return that dir.
     The
     only FS write — into `data/reports/` (∉ MIRROR_READABLE, local, no egress), never a store."""
+    if Path(root) == Path("data/reports"):   # Ouroboros's data dir, run from the repo (DI-2)
+        from core.kernel.config import ouroboros_only
+
+        ouroboros_only("a report into data/reports")
     out_dir = Path(root) / f"{report.date}-{report.topic}"
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "composite.md").write_text(render_composite_markdown(report), encoding="utf-8")

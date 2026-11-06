@@ -39,6 +39,9 @@ BATCH = 64   # chunks per embedding request
 
 
 def main(argv: list[str] | None = None) -> int:
+    from core.kernel.config import ouroboros_only
+
+    ouroboros_only("curate_local.py, reading sources under <repo>/data")   # DI-2
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("manifest", type=Path)
     ap.add_argument("--dry-run", action="store_true", help="count chunks; embed and write nothing")

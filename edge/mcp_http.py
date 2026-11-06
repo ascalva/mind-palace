@@ -376,6 +376,10 @@ def build(cfg: BridgeConfig, *, start_responder: Callable[[], None] | None = Non
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Ouroboros's bridge (DI-2): its spool is <repo>/data/handoff/mcp and its responder answers from
+    # Ouroboros's stores, so it refuses a named instance (the loader's OVERLAY_ENV).
+    if os.environ.get("MIND_PALACE_OVERLAY"):
+        sys.exit("mcp_http: the bridge serves Ouroboros; refusing under MIND_PALACE_OVERLAY")
     ap = argparse.ArgumentParser(description="The palace's MCP-over-HTTP edge for Open WebUI.")
     ap.add_argument("--config", type=Path, default=ROOT / "config" / "stack.toml")
     cfg = load_config(ap.parse_args(argv).config)

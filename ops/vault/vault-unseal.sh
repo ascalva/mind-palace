@@ -10,6 +10,14 @@
 #     security add-generic-password -U -a mind-palace -s vault-unseal-key -w
 set -eu
 
+# Ouroboros only (DI-2): this starts Ouroboros's Vault on its data dir and unseals it
+# from Ouroboros's Keychain item. A named instance (MIND_PALACE_OVERLAY)
+# is refused before anything is read or started.
+if [ -n "${MIND_PALACE_OVERLAY:-}" ]; then
+  echo "FATAL: $(basename "$0") is Ouroboros's; refusing under MIND_PALACE_OVERLAY" >&2
+  exit 1
+fi
+
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO"
 export VAULT_ADDR="http://127.0.0.1:8200"

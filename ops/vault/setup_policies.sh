@@ -4,6 +4,13 @@
 # (root, or a token with enough sudo) in the environment. Idempotent — safe to re-run.
 # Places NO secrets — secret VALUES and the supervisor token are separate, manual steps below.
 set -eu
+
+# Ouroboros only (DI-2): this configures Ouroboros's Vault and its role policies. A named instance (MIND_PALACE_OVERLAY)
+# is refused before anything is read or started.
+if [ -n "${MIND_PALACE_OVERLAY:-}" ]; then
+  echo "FATAL: $(basename "$0") is Ouroboros's; refusing under MIND_PALACE_OVERLAY" >&2
+  exit 1
+fi
 : "${VAULT_ADDR:?export VAULT_ADDR=http://127.0.0.1:8200}"
 : "${VAULT_TOKEN:?export VAULT_TOKEN, e.g. \$(security find-generic-password -a mind-palace -s vault-root-token -w)}"
 cd "$(cd "$(dirname "$0")/../.." && pwd)"

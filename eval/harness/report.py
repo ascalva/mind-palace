@@ -360,6 +360,10 @@ def write_report(r: Report, root: str | Path = "data/reports") -> Path:
     """Write `report.md` + `report.json` into `<root>/<date>-<topic>/` and return that directory.
     The ONLY filesystem write the renderer performs — into `data/reports/`, never a store
     (∉ MIRROR_READABLE; local file, no egress)."""
+    if Path(root) == Path("data/reports"):   # Ouroboros's data dir, run from the repo (DI-2)
+        from core.kernel.config import ouroboros_only
+
+        ouroboros_only("a report into data/reports")
     slug = f"{r.date}-{r.topic}"
     out_dir = Path(root) / slug
     out_dir.mkdir(parents=True, exist_ok=True)

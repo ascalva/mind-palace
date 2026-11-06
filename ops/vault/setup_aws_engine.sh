@@ -16,6 +16,13 @@
 #
 # Then run this with BRIDGE_ROLE_ARN set. Idempotent.
 set -eu
+
+# Ouroboros only (DI-2): this configures Ouroboros's Vault AWS engine for its bridge. A named instance (MIND_PALACE_OVERLAY)
+# is refused before anything is read or started.
+if [ -n "${MIND_PALACE_OVERLAY:-}" ]; then
+  echo "FATAL: $(basename "$0") is Ouroboros's; refusing under MIND_PALACE_OVERLAY" >&2
+  exit 1
+fi
 : "${VAULT_ADDR:?export VAULT_ADDR=http://127.0.0.1:8200}"
 : "${VAULT_TOKEN:?export VAULT_TOKEN}"
 : "${BRIDGE_ROLE_ARN:?export BRIDGE_ROLE_ARN=\$(cd cloud/terraform/airlock && terraform output -raw bridge_role_arn)}"

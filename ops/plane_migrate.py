@@ -219,6 +219,9 @@ def migrate(path: Path, *, dim: int, fingerprint: Fingerprint | None,
 
 
 def main(argv: list[str] | None = None) -> int:
+    from core.kernel.config import ouroboros_only
+
+    ouroboros_only("the plane migration, archiving into ~/mind-palace-archive")   # DI-2
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--store", choices=("vectors", "curated", "all"), default="all")
     ap.add_argument("--dry-run", action="store_true",

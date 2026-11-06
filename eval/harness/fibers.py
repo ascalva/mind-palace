@@ -456,6 +456,10 @@ def write_report(result: FibersResult, *, date: str, topic: str = "sigma-fibers"
     """Write the fibers section to `<root>/<date>-<topic>/fibers.md` and return that directory. The
     ONLY filesystem write this module performs — into `data/reports/` (∉ MIRROR_READABLE, local
     file, no egress), never a store."""
+    if Path(root) == Path("data/reports"):   # Ouroboros's data dir, run from the repo (DI-2)
+        from core.kernel.config import ouroboros_only
+
+        ouroboros_only("a report into data/reports")
     out_dir = Path(root) / f"{date}-{topic}"
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "fibers.md").write_text(render_markdown(result, date=date, topic=topic),

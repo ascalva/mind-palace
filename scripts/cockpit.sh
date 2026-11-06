@@ -19,6 +19,13 @@
 
 set -euo pipefail
 
+# Ouroboros only (DI-2): the cockpit tails Ouroboros's log and runs its status. A named instance (MIND_PALACE_OVERLAY)
+# is refused before anything is read or started.
+if [ -n "${MIND_PALACE_OVERLAY:-}" ]; then
+  echo "FATAL: $(basename "$0") is Ouroboros's; refusing under MIND_PALACE_OVERLAY" >&2
+  exit 1
+fi
+
 SESSION=palace
 # Repo root, derived from this script's own location (scripts/ -> repo root) — so panes
 # root at the repo regardless of the caller's cwd.
