@@ -86,7 +86,10 @@ def _disconnected_mode(A: sp.csr_matrix, comp: np.ndarray) -> np.ndarray:
 
 
 def fiedler(A: sp.csr_matrix) -> tuple[float, np.ndarray]:
-    """(λ₂, Fiedler vector) of L_sym — algebraic connectivity and the smallest nontrivial mode.
+    """(λ₂, Fiedler vector): for a connected graph, the second eigenpair of L_sym, the algebraic
+    connectivity and the smallest nontrivial mode. For a disconnected graph, 0.0 and a vector that
+    separates a component from the rest; it is not L_sym's second eigenpair when a vertex is
+    isolated, since that row's identity puts 1 in the spectrum (see below).
     λ₂ ≈ 0 signals a weak cut (a near-disconnection); its eigenvector bisects the graph (§2.2).
 
     A disconnected graph has λ₂ = 0 exactly. `laplacian_sym` gives an isolated vertex an identity

@@ -136,7 +136,8 @@ def _path_adjacency(n_path: int, n_isolated: int) -> sp.csr_matrix:
 
 def test_fiedler_is_zero_when_an_isolated_vertex_cuts_the_graph_off():
     # LAP-4 gives an isolated vertex an identity row, which puts 1 (not 0) in the spectrum; a path
-    # plus one isolated vertex used to read lambda_2 = 1.0. It is disconnected: lambda_2 = 0.
+    # plus one isolated vertex used to read lambda_2 = 0.5 (the path's own second eigenvalue; the
+    # isolated 1 sits above it). It is disconnected: lambda_2 = 0.
     lam2, vec = fiedler(_path_adjacency(4, 1))
     assert lam2 == 0.0
     assert abs(np.linalg.norm(vec) - 1.0) < 1e-12
