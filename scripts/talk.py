@@ -24,6 +24,7 @@ import dataclasses
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root on path
 
@@ -105,16 +106,34 @@ def _offline_runtime():
     return build_conversation_runtime(cfg, server=_OfflineServer(), embedder=embedder, store=store)
 
 
+def _no_run() -> None:
+    return None
+
+
+def run_delegated(runtime, live_run: Any) -> int:
+    """Run the delegated tasks queued this turn in-process, unless a daemon is live. The daemon is
+    the single writer of the queue and its supervisor runs the jobs; a second runner beside it
+    would be a second writer, so the jobs are left to it. `live_run` is the live run or None
+    (`Launcher.live_run`). Returns how many jobs this process ran."""
+    if live_run is not None:
+        print(f"(run #{live_run.id} is live; the daemon will run the delegated work.)")
+        return 0
+    return runtime.run_pending_tasks()
+
+
 def main(argv: list[str]) -> int:
     seal()  # structural egress guard first (Invariant 1) — the loop is core-side
     offline = "--offline" in argv
+    live_run = _no_run                  # offline: a throwaway queue, no daemon
 
     if offline:
         runtime = _offline_runtime()
         print("mind-palace (OFFLINE demo — deterministic, throwaway store).")
     else:
+        from ops.lifecycle.launcher import build_launcher
         from scheduler.interface import build_conversation_runtime
         runtime = build_conversation_runtime()
+        live_run = build_launcher().live_run
         print("mind-palace (LIVE — real models + your vault). Needs Ollama running.")
     print("Type a message; 'exit' or Ctrl-D to quit.\n")
 
@@ -130,7 +149,7 @@ def main(argv: list[str]) -> int:
             continue
         reply = runtime.send(text)
         print(f"\npalace ❯ {reply}\n")
-        runtime.run_pending_tasks()   # complete any delegated work for the next turn
+        run_delegated(runtime, live_run())   # complete any delegated work for the next turn
     runtime.queue.close()
     return 0
 

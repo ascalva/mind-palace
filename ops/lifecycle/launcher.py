@@ -1530,10 +1530,15 @@ class Launcher:
         print(f"  embedder: {data['embedder'] or 'unknown'}")
 
     # --- on demand (no daemon) ----------------------------------------------------------------
+    def live_run(self) -> Any:
+        """The active run whose process is alive (the daemon, the single writer), else None."""
+        run = self.runs.last()
+        return run if run is not None and run.active and _pid_alive(run.pid) else None
+
     def _refuse_if_live(self, what: str) -> bool:
         """A live daemon is the single writer; an on-demand pass beside it would be a second."""
-        run = self.runs.last()
-        if run is not None and run.active and _pid_alive(run.pid):
+        run = self.live_run()
+        if run is not None:
             print(f"refusing {what} — run #{run.id} (pid {run.pid}) is live; it owns the stores. "
                   "Stop it first, or let its scheduler run the job.")
             return True

@@ -121,3 +121,25 @@ def test_run_pending_tasks_claims_a_job_before_it_runs_it(tmp_path):
     assert q.get(task.id).state == "done"
     assert q.get(other.id).state == "queued"             # not ours: untouched, not claimed
     q.close()
+
+
+def test_talk_leaves_delegated_work_to_a_live_daemon(tmp_path, capsys):
+    """One writer: with a daemon live the REPL's runner claims nothing and says so; with none it
+    claims and completes. The old REPL ran the jobs itself either way."""
+    from scripts.talk import run_delegated
+
+    runtime, _store, _emb = _runtime(tmp_path)
+    q = runtime.queue
+    job = q.enqueue("ambassador_task", "synthesis", 4096, priority=5, payload={"q": "x"})
+    runtime.task_handler = lambda j: "done"
+
+    class _Live:
+        id = 7
+
+    assert run_delegated(runtime, _Live()) == 0
+    assert "run #7 is live" in capsys.readouterr().out
+    assert q.get(job.id).state == "queued" and q.get(job.id).attempts == 0
+
+    assert run_delegated(runtime, None) == 1             # no daemon: claimed and completed
+    assert q.get(job.id).state == "done"
+    q.close()
