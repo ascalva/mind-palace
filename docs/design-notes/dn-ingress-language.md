@@ -3,7 +3,7 @@ type: design-note
 id: dn-ingress-language
 track: query-language
 status: draft                  # provenance description, never a gate; the owner's merge is ratification
-implementation: built-wired    # DS-0 to DS-7 built 2026-11-05 (§4); the audits' findings and their fixes in §8
+implementation: built-wired    # DS-0 to DS-7 built 2026-11-05 (§4); the audits' findings and their fixes in §8; the Ambassador's inbox moved onto the ingress 2026-11-05 (§E13)
 created: 2026-11-05
 updated: 2026-11-05
 links:
@@ -508,16 +508,17 @@ directory's owner (the edge's, `plane-principals` §3.1) is answered and not kep
 agents run under an account of their own, that keeps an agent's process from posing as the owner,
 and where they share the daemon's account, as on this machine today, the filesystem cannot tell
 them apart, as it cannot for any store. A request whose id is not 32 hex digits and its file's
-name is removed unanswered, since the id names the response and the record.
+name is removed unanswered, since the id names the response and the record. A record that cannot
+be written is said in the reply, never lost in silence.
 
 **The source.** `inbox`, a line of the palace's table: a directory of records (the kind
 `records`), each a JSON document read through a descriptor that follows no link, a regular file of
 one link that the daemon's account owns and no other account may write, in a directory of which
-the same holds. A record that is not is refused with the source, so no account but the daemon's
-adds one. The item rule makes two items of a record: the text, labelled `authored-dialogue`, and
-the reply, labelled `observed`. The label follows from the field the inbox wrote each text into,
-in the table's code. The record has no field a model writes but the reply, and the reply is
-observed whatever it says; no script names a label (ING-13).
+the same holds. A record that is not, or that is not of the inbox's shape, is refused with the
+source, so no account but the daemon's adds one. The item rule makes two items of a record: the
+text, labelled `authored-dialogue`, and the reply, labelled `observed`. The label follows from the
+field the inbox wrote each text into, in the table's code. The record has no field a model writes
+but the reply, and the reply is observed whatever it says; no script names a label (ING-13).
 
 **Paths and identities.** The text's path is `dialogue/inbox/<conversation>/<id>/owner` and the
 reply's `dialogue/inbox/<conversation>/<id>/ambassador`, where `<conversation>` is the request's
@@ -539,7 +540,8 @@ speaks after each drain and `talk`'s runtime after each message. No spool belong
 no surface can speak it. It opens only the `inbox` source, writes only under `dialogue/inbox/` in
 `dialogue`, retires nothing, and speaks under the Ambassador's grant, the least the ingress gives.
 Its budget is the operator's, since what it reads is the daemon's own record of what the owner
-typed.
+typed. `talk`'s runtime lands in its own process, as the first form's capture did, so beside a
+live daemon it is a second writer (§7).
 
 **What the Ambassador can and cannot do through it.** It decides which exchanges are kept, and it
 writes the reply. It cannot open the `inbox` source (it is not among the readers, so a request
@@ -635,11 +637,14 @@ in `ingress/`; `sync_vault`, `sync_dialogue` and `ingest_doc` land what their fi
 landed on the same fixtures (`tests/integration/test_ingress_scripts.py`), and the watcher's and the
 heartbeat's jobs, the CLI, the MCP aliases and the web filter speak scripts. The first-form
 landers stay for what still calls them outside the ingress: `VaultSync` for the owner's id minting
-(`scripts/mint_ids.py`), `DialogueCapture` for the Ambassador's inbox, which captures the owner's
-message in the daemon's own process, and `ingest_curated` for the offline demo
-(`scripts/talk.py`). Writing the inbox's capture as a script needs a source whose items are the
-owner's messages, labelled authored by the source (§E3); it is the next path to move. Not built:
-the static cost bound and a speaker's smaller budget (§E10).
+(`scripts/mint_ids.py`) and `ingest_curated` for the offline demo (`scripts/talk.py`). The
+Ambassador's inbox, the path this paragraph named next, moved after #66 and #67 merged (§E13): the
+inbox keeps each exchange in its own record, the `inbox` source labels the owner's text authored
+and the reply observed, and `capture_inbox` lands both under the role `inbox` through the one
+writer, in the daemon's `ambassador` job and in `mind-palace talk`'s runtime
+(`tests/integration/test_inbox_capture.py`). `DialogueCapture.capture` is gone; `capture_turn`
+stays as the oracle and the falsifier §E13 names. Not built: the static cost bound and a
+speaker's smaller budget (§E10).
 
 ## 5. Wiring & enablement
 
@@ -668,10 +673,15 @@ tested, built from the configuration's paths (the vault's location, the data dir
 - **The Ambassador's places and prefixes.** The first form's §9 item 21 (narrow the Ambassador's
   write plane) is now a line of the table. The draft: the Ambassador writes `observed` and
   `dialogue` under `dialogue/ingress/ambassador/`, `interpreted` through `link`, and may run the two
-  syncs; the owner's call.
+  syncs; the owner's call. The inbox's capture does not widen it: it runs under the role `inbox`,
+  which writes only `dialogue/inbox/` (§E13).
 - **An operator's composed text.** Observed, by rule 3 of §E3, even when the owner's own script
   composes it: composing is not writing. The owner's call whether an operator script may promote,
   which today is the owner's re-tag from raw and nothing else.
+- **`mind-palace talk` beside a live daemon.** The talk runtime drives the inbox in its own
+  process and lands the inbox's capture there, as the first form's capture did. Beside a live
+  daemon that is a second writer; routing it through the daemon (a request, or the daemon's
+  `ambassador` job, which nothing enqueues today) is the owner's call.
 - **Jobs as scripts.** Dream, the relation pass and curate land interpreted content through
   their own handlers; whether a script should express them (a model call as a reading function)
   is left until a use needs it.
@@ -738,5 +748,5 @@ against the paths they replace. Each finding below is fixed and has a test, exce
 15. **Left as they are, for the owner.** Attestations of the daemon's own syncs name the role
     `cli` where the first form named the watcher; a turn whose role changes with the same bytes
     is refused (R5) on each sync, reported and harmless; `query`'s price is one embed, its
-    floor, not a measurement; the Ambassador's inbox still captures through the first form's
-    lander, in the daemon's own queue.
+    floor, not a measurement. The Ambassador's inbox, which still captured through the first
+    form's lander, moved onto the ingress the same day (§E13).

@@ -3,7 +3,7 @@ type: design-note
 id: dn-ingress
 track: query-language
 status: draft                  # provenance description, never a gate; the owner's merge is ratification
-implementation: building       # DO-0 proved, DO-1 to DO-4 built 2026-11-05 (the command sort, the landing order, the spool, the daemon's drain and handlers, the surfaces, the audits folded); DO-5 entered the ledger; DO-6 follows (§4)
+implementation: building       # DO-0 proved, DO-1 to DO-4 built 2026-11-05 (the command sort, the landing order, the spool, the daemon's drain and handlers, the surfaces, the audits folded); DO-5 entered the ledger; the inbox capture sink moved onto the ingress 2026-11-05 (dn-ingress-language §E13); DO-6 follows (§4)
 created: 2026-11-05
 updated: 2026-11-05
 links:
@@ -456,7 +456,7 @@ global-event-clock §2.4; DERIVED here]`
 | the watcher's `vault_sync` job; `palace vault-sync`; MCP `sync_notes` | `do sync vault` | the watcher (as today, the daemon's own), the CLI, the MCP server |
 | `palace dialogue-sync` | the edge readers stay edge processes and write `data/handoff/dialogue/<source>.json` as today; the core half, reading that file and capturing its turns with the reader's roles, is `do sync dialogue` | the MCP server, the web bridge, the CLI through `query`; `palace dialogue-sync` and the heartbeat still run it in process behind the live-daemon guard until they write requests (DO-3b) |
 | MCP `capture` | `do capture "<text>" in <conversation>`, observed by construction | the MCP server, the Open WebUI bridge |
-| the inbox capture sink | unchanged: the daemon's own job, the owner's message as `authored-dialogue` by the inbox's identity; not a sentence (its catalog key is a timestamp and it is not idempotent) | — |
+| the inbox capture sink | moved, after #66 and #67 merged (dn-ingress-language §E13): the inbox keeps each exchange in its own record, the `inbox` source labels the owner's text `authored-dialogue` and the reply `observed`, and the library script `capture_inbox` lands both under the role `inbox`, keyed by the gateway's request id, so a re-run lands nothing new | the daemon's `ambassador` job and `mind-palace talk`'s runtime, after each drain |
 | MCP `link` | `do link <a> <b> <relation>` | the MCP server |
 | MCP `dream`; `palace dream` | `do dream` (a BACKGROUND synthesis-tier job: with the owner present it waits for a trough, as every synthesis job does) | the MCP server, the CLI |
 | MCP `relate`; `palace relate` | `do relate pairs 24` | the MCP server, the CLI |
