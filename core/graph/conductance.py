@@ -98,22 +98,27 @@ CONDUCTANCE_THRESH: dict[str, float] = {
 # (the `NOISE_SETTLED_MAX` contrast in `gate.py`). `_DEGENERACY_HIGH`: above this correlation the
 # R_eff reading is degenerate ⇒ the finite-t diffusion distance is authoritative. `_RISE_EPS`: a
 # Δ-conductance below this is float noise, not a reconnection. SPC-3 says when it is: once the
-# pseudo-inverse's cut is decisive (`_PINV_RTOL`), the computed L⁺ is the pseudo-inverse of a matrix
-# of L's rank within 2ε of L, so by Wedin's bound (cited, not formalized) a computed conductance
-# ĉ is within δ = c·ĉ·(4√2·ε/(g(g − ε)) + 8u/(g − ε)) of the exact c, and an exact Δ = 0 reads as
-# no rise when 2δ ≤ 1e-9, the gap condition g(g − ε) ≳ 8√2·ε·ĉ²/1e-9. It holds on dense graphs
-# and fails on thin ones (a path of forty notes): there the threshold is not certified, though the
-# movement measured is far below it (tests/property/test_spectral_gap.py).
+# pseudo-inverse's cut is decisive (`_PINV_RTOL`), the computed L⁺ is the float64 product
+# V·Σ⁺·Uᵀ of the factors of the pseudo-inverse of a matrix of L's rank within 2ε of L. Wedin's
+# bound (cited, not formalized; μ = (1 + √5)/2 in the 2-norm) puts that pseudo-inverse within
+# 2μ·ε/(g(g − ε)) of L⁺; forming V·Σ⁺·Uᵀ and R adds at most 4(n + 3)·u/(g − ε) to R; so a
+# computed conductance ĉ is within δ = c·ĉ·(4μ·ε/(g(g − ε)) + 4(n + 3)·u/(g − ε)) + u·ĉ of the
+# exact c. An exact Δ = 0 reads as no rise when 2δ ≤ 1e-9, the gap condition
+# g(g − ε) ≳ 8μ·ε·ĉ²/1e-9. It holds where the gap allows and fails on thin graphs (a path of forty
+# notes): there the threshold is not certified, though the movement measured is far below it
+# (tests/property/test_spectral_gap.py).
 _DEGENERACY_HIGH: float = 0.9
 _RISE_EPS: float = 1e-9
 _ZERO_EPS: float = 1e-12
 # The cut below which `_r_eff_matrix`'s pseudo-inverse treats a singular value of L as zero, as a
-# fraction of the largest. SPC-3 (docs/LAWS.md; formal/Palace/Gap.lean::countSV_eq_of_gap): with
-# NumPy's SVD exact for L + E, ‖E‖ ≤ ε = 8·n·u·‖L‖ (the hypothesis), a cut θ with ε ≤ θ and
-# θ + ε < g, g the least nonzero eigenvalue of L, keeps exactly the components' indicators,
-# LAP-3's kernel, below it. NumPy's default of 1e-15 fails the first condition from n = 2 on,
-# inside the solver's own error; at 1e-10 it holds up to n ≈ 1.1·10⁵ notes, and the gap condition
-# g > (1e-10 + 16·n·u)·‖L‖ is what tests/property/test_spectral_gap.py checks on the fixtures. A
+# fraction of the largest. SPC-3 (docs/LAWS.md; formal/Palace/Gap.lean::countSV_eq_of_gap): the
+# float64 L is within n·u·‖L‖ of the exact one (its degree sums) and NumPy's SVD is exact for a
+# matrix within 8·n·u·‖L‖ of that (the hypothesis), so its values are exact for L + E with
+# ‖E‖ ≤ ε = 9·n·u·‖L‖, and a cut θ with ε ≤ θ and θ + ε < g, g the least nonzero eigenvalue of L,
+# keeps exactly the components' indicators, LAP-3's kernel, below it. NumPy's default of 1e-15
+# cannot meet the first condition from n = 2 on; at 1e-10 it holds up to n ≈ 1.0·10⁵ notes, and
+# the gap condition g > (1e-10 + 16·n·u)·‖L‖ is what tests/property/test_spectral_gap.py checks on
+# the fixtures. A
 # component whose least nonzero eigenvalue is below it would lose that mode from L⁺: its weights
 # are cosines at or above σ, so for the palace's graphs that needs thousands of notes in one path.
 _PINV_RTOL: float = 1e-10

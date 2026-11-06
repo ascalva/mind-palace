@@ -9,7 +9,9 @@ Three tolerances in the code decide whether a computed spectral value is zero: t
 `core/graph/conductance.py`'s pseudo-inverse treats a singular value of the Laplacian as zero, the
 rank cut of `core/kernel/complex/hodge.py`, and, through the first, the rise threshold of the
 reconnection scan. NumPy's decompositions are backward stable: the values they return are the
-exact eigenvalues or singular values of `A + E` with `‖E‖ ≤ ε` (the hypothesis, `ε = n u ‖A‖`).
+exact eigenvalues or singular values of `A + E` with `‖E‖ ≤ ε` (the hypothesis): `8 n u ‖A‖` for
+the decomposition of the float64 matrix, plus what forming that matrix added, `n u ‖L‖` for the
+degree sums of a weighted Laplacian and nothing for `L₁`'s integer entries.
 Weyl's inequality, counted, turns that into what a cut needs, and the spectral-gap lemma follows:
 a cut `θ` with `ε ≤ θ` and `θ + ε < g`, `g` the least nonzero value of the exact matrix, keeps
 exactly the kernel's dimension below it.

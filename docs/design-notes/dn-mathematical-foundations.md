@@ -850,9 +850,11 @@ value is zero: the cut of `core/graph/conductance.py`'s pseudo-inverse, the rank
 `core/kernel/complex/hodge.py` at `1e-10·s_max`, and, through the first, the rise threshold `1e-9`.
 SPC-3 (`formal/Palace/Gap.lean`) proves Weyl's inequality in counting form, for symmetric operators
 and for singular values (Mathlib has neither it nor Courant and Fischer's theorem), and the
-spectral-gap lemma it gives: with NumPy's backward stability as the hypothesis, `ε = 8·n·u·‖A‖`, a
-cut `θ` keeps exactly the kernel below it when `ε ≤ θ` and `θ + ε < g`. The pseudo-inverse used
-NumPy's default cut, `1e-15·σ_max`, which fails `ε ≤ θ` from `n = 2` on; it is now `1e-10·σ_max`,
-the tolerance CND-1 already named. The rise threshold's condition rests also on Wedin's bound for
+spectral-gap lemma it gives: with NumPy's backward stability as the hypothesis, `8·n·u·‖A‖` for
+the decomposition plus what forming the float64 matrix adds (`n·u·‖L‖` for a weighted Laplacian's
+degree sums, so `ε = 9·n·u·‖L‖`; nothing for `L₁`'s integer entries), a cut `θ` keeps exactly the
+kernel below it when `ε ≤ θ` and `θ + ε < g`. The pseudo-inverse used NumPy's default cut,
+`1e-15·σ_max`, which cannot meet `ε ≤ θ` from `n = 2` on; it is now `1e-10·σ_max`, the tolerance
+CND-1 already named, which meets it up to about `1.0·10⁵` notes. The rise threshold's condition rests also on Wedin's bound for
 the pseudo-inverse, cited and not formalized, and the falsifier records where it fails: on a thin
 graph, a path of forty notes, the bound passes `1e-9` while the movement measured stays far below.
