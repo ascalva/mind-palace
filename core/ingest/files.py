@@ -1,6 +1,6 @@
 """What the ingress trusts of a file and of a directory: one place for the checks the spools, the
-inbox's record and the sources that read the daemon's own files all make (dn-ingress §5,
-dn-ingress-language §E13).
+inbox's record and the handoff files of the sources that may yield the owner's words all make
+(dn-ingress §5, dn-ingress-language §E2, §E13).
 
 A directory is trusted when it is a real directory (a symlink is never followed), owned by the
 daemon's own account and writable by no other account (by its group only where the caller says the
@@ -16,6 +16,12 @@ import stat
 from pathlib import Path
 
 
+def daemon_uid() -> int:
+    """The daemon's account: the process's own. One function, so a test can stand another
+    account's ownership in for the daemon's."""
+    return os.getuid()
+
+
 def check_dir(d: Path, *, group_writes: bool = False) -> str | None:
     """Why `d` is not trusted, or `None`: a real directory (a symlink is not one), owned by the
     daemon's own account, writable by no other, and by the group only where the group writes."""
@@ -25,8 +31,8 @@ def check_dir(d: Path, *, group_writes: bool = False) -> str | None:
         return f"{d}: {type(e).__name__}"
     if not stat.S_ISDIR(st.st_mode):
         return f"{d} is not a directory (a symlink is never followed)"
-    if st.st_uid != os.getuid():
-        return f"{d} is owned by uid {st.st_uid}, not the daemon's {os.getuid()}"
+    if st.st_uid != daemon_uid():
+        return f"{d} is owned by uid {st.st_uid}, not the daemon's {daemon_uid()}"
     if st.st_mode & stat.S_IWOTH or (st.st_mode & stat.S_IWGRP and not group_writes):
         return f"{d} is writable by {'others' if st.st_mode & stat.S_IWOTH else 'its group'}"
     return None
@@ -71,8 +77,8 @@ def written_by_one(st: os.stat_result) -> str | None:
     writable by no other."""
     if st.st_nlink != 1:
         return f"{st.st_nlink} links; the file has one"
-    if st.st_uid != os.getuid():
-        return f"owned by uid {st.st_uid}, not the daemon's {os.getuid()}"
+    if st.st_uid != daemon_uid():
+        return f"owned by uid {st.st_uid}, not the daemon's {daemon_uid()}"
     if st.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
         return "writable by another account"
     return None

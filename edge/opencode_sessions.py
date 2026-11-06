@@ -19,6 +19,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from edge.private_file import write_json
+
 DEFAULT_DB = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
 
 
@@ -93,10 +95,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.out is None:
         ap.error("--out is required")
     chats = export_sessions(args.db)
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    tmp = args.out.with_suffix(".part")
-    tmp.write_text(json.dumps({"source": "opencode", "chats": chats}))
-    os.replace(tmp, args.out)
+    # the core reads a handoff only when no other account could have written it
+    write_json(args.out, {"source": "opencode", "chats": chats})
     print(f"{len(chats)} session(s), {sum(len(c['turns']) for c in chats)} turn(s) -> {args.out}")
     return 0
 
