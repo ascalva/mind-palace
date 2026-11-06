@@ -95,9 +95,9 @@ show the work (§3).
 
 ## 2b. Requests and scripts
 
-`do …` is the action sort (dn-door-language). The language is generic: it knows sources, places,
+`do …` is the action sort (dn-ingress-language). The language is generic: it knows sources, places,
 items, labels and effects, and nothing of notes or dialogue. Each way of ingesting is a script
-written in it, kept in the repo's `door/` library: `sync_vault`, `ingest_note(path: …)`,
+written in it, kept in the repo's `ingress/` library: `sync_vault`, `ingest_note(path: …)`,
 `sync_dialogue(reader: …)`, `capture(text: …, conversation: …)`, `sync_docs`,
 `ingest_doc(path: …)`, `link(a: …, b: …, relation: …)`, `dream`, `curate`, `relate(pairs: …)`,
 `sync_code`, `sync_chat`, `observe_code`. A request names one, `do sync_vault` or
@@ -114,17 +114,17 @@ identity is the one an item declares, a retire only reconciles and only the owne
 the owner's rows, and a source's paths take only its items. A label is the source's, never the
 script's: whatever a script composes, a string read off an item included, is observed.
 
-A request needs a plane with the write bit on each stratum its script requires (DOR-1), so a
+A request needs a plane with the write bit on each stratum its script requires (ING-1), so a
 read-only grant refuses it when it is compiled; the checking pass also refuses an unknown script
 or parameter, a missing argument, and a store whose content may carry a label its place does not
 take, all before anything is read. An admitted request is written into the spool of the role that
-spoke it (`data/handoff/door/<role>/`); the daemon drains the spools each tick, compiles each
+spoke it (`data/handoff/ingress/<role>/`); the daemon drains the spools each tick, compiles each
 request again under the spool's grant, and lands it. The answer is the receipt, one hit of
-stratum `door` titled by the script; the receipt beside the request says `queued` with the job,
+stratum `ingress` titled by the script; the receipt beside the request says `queued` with the job,
 then `landed` with each effect's outcome (counted by status, what changed or was refused named,
 with the rule), or `refused` with why. The Ambassador's tools `sync_notes`, `sync_dialogue`,
 `dream`, `relate`, `capture` and `link` are these requests. A capture lands observed under
-`dialogue/door/<role>/<conversation>/`, and `relate` judges at most fifty pairs. From Open WebUI,
+`dialogue/ingress/<role>/<conversation>/`, and `relate` judges at most fifty pairs. From Open WebUI,
 `query` speaks only `do capture(…)`, `do sync_dialogue` and `do sync_vault`, never a script
 inline. A role's share of the queue is bounded by lane (captures, and the rest), and a request
 past it is refused as busy. The query log keeps a request with its quoted texts replaced by their

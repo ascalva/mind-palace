@@ -198,7 +198,7 @@ of the three parts; circulation, if any, comes from somewhere else (§4.2).
 | the walk sum and the free energy | Field, Metric | `core/query.py::free_energy_distances`, `diffuse` | RSP-1 to RSP-5, LEAK-1, LEAK-2 |
 | the transports `σ_*`, `σ^*`, `π_active` | Transport | Lean only; `trace` walks a chain | TRN-1 to TRN-9 |
 | the magnetic Laplacian | (no sort) | Lean only, build deferred (ML-a) | BRG-7 and the note's results |
-| an identity's version chain | (no sort; `trace`) | `core/stores/versions.py` | DOR-7 (the chain as the serial order) |
+| an identity's version chain | (no sort; `trace`) | `core/stores/versions.py` | ING-7 (the chain as the serial order) |
 | the velocity of a value | none | nowhere; no data | DYN-1 |
 | a flow and its potential | none | nowhere | DYN-3 |
 

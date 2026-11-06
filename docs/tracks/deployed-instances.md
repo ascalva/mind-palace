@@ -151,7 +151,7 @@ migrations, the eval report writers' `data/reports` default, and the three Vault
 **What a named instance that declares nothing reads and writes.** It writes only under
 `<repo>/instances/<id>/`: its data dir and stores, spool, lock, levers file, exhaust lane and the
 empty places its vault and transcripts would be. It reads its own root, its overlay and the
-committed defaults, and the framework it runs from: the code, the door scripts, the committed
+committed defaults, and the framework it runs from: the code, the ingress scripts, the committed
 public keys. Two reads cross outside, and neither carries data: at load, Ouroboros's overlay and
 levers file and the other overlays under `config/instances/`, read only to refuse a collision,
 with no value reaching the named instance's configuration; and the local inference servers its

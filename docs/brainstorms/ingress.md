@@ -1,16 +1,18 @@
 ---
 type: brainstorm
-id: the-door
+id: ingress
 track: query-language
 created: 2026-11-05
 status: open
 links:
-  - docs/design-notes/dn-ingest-door.md          # the design this warrants
-  - docs/design-notes/dn-door-language.md        # its second form, after the owner's correction
+  - docs/design-notes/dn-ingress.md          # the design this warrants
+  - docs/design-notes/dn-ingress-language.md        # its second form, after the owner's correction
   - docs/design-notes/dn-query-sentence-algebra.md
 ---
 
-# The door — the owner's seeds, 2026-11-05
+Called the door until 2026-11-05; renamed ingress at the owner's request.
+
+# The ingress — the owner's seeds, 2026-11-05
 
 The owner, after the causal moves landed and the question of actions came up, verbatim:
 
@@ -27,9 +29,9 @@ The owner, after the causal moves landed and the question of actions came up, ve
 > different agents for reviewing/auditing/validating, keep working through design, proof,
 > implementation, and audits"
 
-Four seeds, then: the language is the door, so every action is a sentence; one ingestion with
+Four seeds, then: the language is the ingress, so every action is a sentence; one ingestion with
 the existing paths as its cases; many readers and one writer; embedding as the only serial
-stage. The design note `dn-ingest-door` takes them in that order, and `formal/Palace/Door.lean`
+stage. The design note `dn-ingress` takes them in that order, and `formal/Palace/Ingress.lean`
 holds the laws it rests on.
 
 The owner, reading the first form's pull request the same day, verbatim:
@@ -65,4 +67,4 @@ The owner, reading the first form's pull request the same day, verbatim:
 
 The first form had read "redefine all those ingestion paths" as one command word per path. The
 correction: the language knows no path, and every path is written in it. The second form,
-`dn-door-language`, takes the correction as its warrant.
+`dn-ingress-language`, takes the correction as its warrant.
