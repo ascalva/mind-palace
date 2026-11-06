@@ -55,6 +55,7 @@ from core.sentence.plan import Plan
 from core.sentence.types import IllScopedSentence, Sort
 
 SPOOL = "ingress"
+LEGACY_SPOOL = "door"       # the first form's spool directory, adopted into `SPOOL`
 
 # The roles the ingress knows and the grant each speaks under (dn-ingress D3, §8): the agents'
 # surface holds the Ambassador's grant, the owner's CLI the operator's. A role nothing writes for
@@ -259,6 +260,42 @@ def _make_spools(cfg: Config) -> None:
             _make_dir(root / role / sub, _mode(role, sub, shared_group=shared))
 
 
+_FILE = re.compile(r"[0-9a-f]{16}\.json")
+
+
+def _adopt_legacy(cfg: Config, report: Report | None) -> None:
+    """Take over what the first form's spool (`door/<role>/`) holds, so no request is lost and
+    none runs twice: its receipts first (an id seen stays seen, and a surface waiting on one finds
+    it), then the daemon's staged copies and the rejected files, the pending requests last. Only a
+    real directory is entered and only a regular file named as a request id moves, by rename
+    (atomic, same filesystem); a name already present in the new spool is left where it is."""
+    old, new = Path(cfg.interface.handoff_dir) / LEGACY_SPOOL, spool_root(cfg)
+    if not _real_dir(old) or not _real_dir(new):
+        return
+    for role in roles():
+        for sub in (*_INNER[::-1], ""):      # rejected, receipts, queued, then the requests
+            src, dst = old / role / sub, new / role / sub
+            if not _real_dir(src) or not _real_dir(dst):
+                continue
+            try:
+                with os.scandir(src) as it:
+                    names = [e.name for e in it if _FILE.fullmatch(e.name)]
+                for name in sorted(names, key=lambda n: (sub == "", n)):
+                    try:
+                        if not stat.S_ISREG(os.lstat(src / name).st_mode):
+                            continue
+                        if os.path.lexists(dst / name):
+                            _warn_once(report, f"legacy:{src / name}",
+                                       f"ingress: {src / name} not adopted: {dst / name} exists")
+                            continue
+                        os.rename(src / name, dst / name)
+                    except OSError as e:
+                        _warn_once(report, f"legacy:{src / name}",
+                                   f"ingress: {src / name} not adopted ({type(e).__name__}: {e})")
+            except OSError:
+                continue
+
+
 def ensure_spools(cfg: Config, *, report: Report | None = None) -> list[str]:
     """The daemon's own making of the spools, each with its mode, and the roles whose spools are
     sound to drain: the root, the role's spool and its three subdirectories each pass
@@ -273,6 +310,7 @@ def ensure_spools(cfg: Config, *, report: Report | None = None) -> list[str]:
     if why is not None:
         _warn_once(report, f"bad:{why}", f"ingress: nothing is drained: {why}")
         return []
+    _adopt_legacy(cfg, report)
     healthy = []
     for role in roles():
         why = (_check_dir(root / role, group_writes=role in _SHARED_ROLES)
