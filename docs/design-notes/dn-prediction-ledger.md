@@ -110,7 +110,8 @@ before the first prediction and stays there.
   arm cannot backdate one.
 - **Refusals,** each writing nothing: any record before the protocol; a question already
   registered, in an undeclared family, or already closed; a prediction whose question is unknown,
-  closed, resolved or voided, whose arm is unregistered or does not match its pin, whose `p` is
+  closed, resolved or voided, whose arm is unregistered, does not match its pin, or is named by the primary
+  comparison with no pin (an amendment may not add a pin for an arm that already has predictions), whose `p` is
   not a probability, or that repeats an arm, question and round; a resolution that is not 0 or 1,
   or comes a second time; a naive datetime anywhere.
 - **`extend`** appends several records all or nothing, each checked against the state the ones
@@ -149,7 +150,9 @@ nothing about the real mean.
 **Blinding.** The pilot reports only the spread of the primary comparison's cluster means and the
 clusters it implies, `N = ((z(1 − α/2) + z(power)) · sd / δ)²`, never a mean. With sd 0.08 and δ
 0.02, N is 126; with δ 0.01, 503. `n_clusters` is fixed by an amendment, and the report refuses
-the comparisons until N is reached unless the caller unblinds on purpose. The decision at N: the
+the comparisons until N is reached unless the caller unblinds on purpose.
+
+The decision at N: the
 arm improves if the interval's lower bound is above 0; no useful improvement if its upper bound is
 below δ; otherwise inconclusive.
 
@@ -163,6 +166,17 @@ pins the arms it chooses, usually the two the primary comparison names. A predic
 pinned arm with another digest is refused, and once predictions exist a pin cannot change.
 Experiments run for days or weeks and get tweaked while they run; a tweak is a new variant, never
 a silent change to an arm the comparison depends on.
+
+**A pin comes first.** The digest an arm is held to must not be chosen once its predictions are
+known, so the ledger refuses a prediction from either arm the primary comparison names (its arm
+and its baseline) until the protocol in force pins that arm, and refuses an amendment that adds a
+pin for an arm that already has a prediction. Secondary, reference and null arms are not forced
+to be pinned: an experiment that wants them held to a digest pins them in its genesis, where the
+pin binds like any other, and one that leaves an arm unpinned has said so by leaving it out. The
+no-retrofit rule is the same for every arm, so an unpinned arm cannot be pinned after the fact
+either; to hold it to a digest from then on, register it as a new variant. A pin is a sha256 digest, 64 lowercase hex characters with an
+optional `sha256:` prefix, checked when a protocol is written; an empty or malformed pin would
+hold an arm to nothing, so it is refused.
 
 ### G7. What an application supplies
 

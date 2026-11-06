@@ -4,11 +4,13 @@ a question closed or resolved, and once predictions exist the bar cannot move.""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -18,17 +20,30 @@ from eval.predictions.ledger import (
     Ledger,
     LedgerCorrupt,
     LedgerError,
-    Prediction,
     Protocol,
     Question,
     Resolution,
     Void,
     line_hash,
 )
+from eval.predictions.ledger import (
+    Prediction as _Prediction,
+)
 
 T0 = datetime(2026, 11, 6, 21, 0, tzinfo=UTC)
+def digest(name: str) -> str:
+    return "sha256:" + hashlib.sha256(name.encode()).hexdigest()
+
+
+PINS = {"a": digest("cfg-a"), "b": digest("cfg-b")}
 PROTOCOL = Protocol(name="test", primary=Comparison("main", "a", "b"),
-                    arms=("ref", "null", "a", "b"), reference="ref", null="null")
+                    arms=("ref", "null", "a", "b"), reference="ref", null="null", pinned=PINS)
+
+
+def Prediction(qid: str, arm: str, round: str, p: float, **kw: Any) -> _Prediction:  # noqa: N802
+    """A prediction that carries its arm's pinned config unless the test says otherwise."""
+    kw.setdefault("config", PINS.get(arm, ""))
+    return _Prediction(qid, arm, round, p, **kw)
 
 
 class Clock:
@@ -125,7 +140,7 @@ def test_the_ledger_stamps_the_time_and_a_prediction_carries_none(ledger: Ledger
     Prediction("q1", "a", "", 0.5),                 # no round
 ])
 def test_a_malformed_prediction_is_refused_and_writes_nothing(ledger: Ledger,
-                                                              bad: Prediction) -> None:
+                                                              bad: _Prediction) -> None:
     before = lines(ledger)
     with pytest.raises(LedgerError):
         ledger.add_prediction(bad)
@@ -242,7 +257,8 @@ def test_the_head_names_the_last_line(ledger: Ledger) -> None:
 def test_an_arm_may_name_a_model_variant(tmp_path: Path, clock: Clock) -> None:
     arms = ("a", "b", "dreamer:model-x", "dreamer:model-y")
     led = Ledger(tmp_path / "v.jsonl", clock=clock)
-    led.register(Protocol(name="v", primary=Comparison("main", "a", "b"), arms=arms))
+    led.register(Protocol(name="v", primary=Comparison("main", "a", "b"), arms=arms,
+                          pinned=PINS))
     led.add_question(question())
     led.add_prediction(Prediction("q1", "dreamer:model-x", "r1", 0.4, model="model-x"))
     led.add_prediction(Prediction("q1", "dreamer:model-y", "r1", 0.5, model="model-y"))
@@ -259,20 +275,75 @@ def test_a_malformed_variant_is_not_an_arm(arm: str) -> None:
 def test_a_pinned_arm_refuses_a_changed_config(tmp_path: Path, clock: Clock) -> None:
     """A long run gets tweaked; a tweak to a pinned arm is a new variant, never a silent change
     to an arm the primary comparison names."""
-    pinned = replace(PROTOCOL, pinned={"b": "sha256:aaa"})
+    pinned = replace(PROTOCOL, pinned={**PINS, "b": digest("aaa")})
     led = Ledger(tmp_path / "p.jsonl", clock=clock)
     led.register(pinned)
     led.add_question(question())
     with pytest.raises(LedgerError, match="pinned"):
-        led.add_prediction(Prediction("q1", "b", "r1", 0.4, config="sha256:bbb"))
-    led.add_prediction(Prediction("q1", "b", "r1", 0.4, config="sha256:aaa"))
+        led.add_prediction(Prediction("q1", "b", "r1", 0.4, config=digest("bbb")))
+    led.add_prediction(Prediction("q1", "b", "r1", 0.4, config=digest("aaa")))
     with pytest.raises(LedgerError, match="keep their"):
-        led.amend(replace(pinned, pinned={"b": "sha256:bbb"}))
+        led.amend(replace(pinned, pinned={**PINS, "b": digest("bbb")}))
     led.amend(replace(pinned, arms=(*PROTOCOL.arms, "b:v2"),
-                      pinned={"b": "sha256:aaa", "b:v2": "sha256:bbb"}))
-    led.add_prediction(Prediction("q1", "b:v2", "r1", 0.45, config="sha256:bbb"))
+                      pinned={**PINS, "b": digest("aaa"), "b:v2": digest("bbb")}))
+    led.add_prediction(Prediction("q1", "b:v2", "r1", 0.45, config=digest("bbb")))
 
 
 def test_a_pin_names_a_registered_arm() -> None:
     with pytest.raises(LedgerError, match="pinned arms"):
-        replace(PROTOCOL, pinned={"c": "sha256:aaa"})
+        replace(PROTOCOL, pinned={"c": digest("aaa")})
+
+
+def test_a_primary_arm_is_pinned_before_its_first_prediction(tmp_path: Path, clock: Clock) -> None:
+    """Control: on the old ledger the unpinned prediction was accepted, and the pin could then
+    be added by amendment."""
+    bare = replace(PROTOCOL, pinned={})
+    led = Ledger(tmp_path / "u.jsonl", clock=clock)
+    led.register(bare)
+    led.add_question(question())
+    for arm in ("a", "b"):                              # the primary's arm and its baseline
+        with pytest.raises(LedgerError, match="no pin"):
+            led.add_prediction(_Prediction("q1", arm, "r1", 0.4))
+    led.add_prediction(_Prediction("q1", "ref", "r1", 0.4))     # not named by the primary
+    assert led.verify().counts["prediction"] == 1
+    led.amend(replace(bare, pinned={"a": digest("x")}))
+    led.add_prediction(_Prediction("q1", "a", "r1", 0.4, config=digest("x")))
+
+
+def test_a_pin_cannot_be_retrofitted_to_an_arm_with_predictions(tmp_path: Path,
+                                                                clock: Clock) -> None:
+    """Control: on the old ledger this amendment was accepted."""
+    bare = replace(PROTOCOL, pinned={"a": digest("x"), "b": digest("y")})
+    led = Ledger(tmp_path / "r.jsonl", clock=clock)
+    led.register(bare)
+    led.add_question(question())
+    led.add_prediction(_Prediction("q1", "ref", "r1", 0.4))     # an arm with no pin
+    before = lines(led)
+    with pytest.raises(LedgerError, match="after the fact"):
+        led.amend(replace(bare, pinned={**bare.pinned, "ref": digest("z")}))
+    assert lines(led) == before
+    led.amend(replace(bare, pinned={**bare.pinned, "null": digest("z")}))   # no predictions yet
+
+
+def test_a_pin_may_be_added_before_the_arm_predicts_even_after_others_have(
+        tmp_path: Path, clock: Clock) -> None:
+    pinned = replace(PROTOCOL, pinned=PINS)
+    led = Ledger(tmp_path / "s.jsonl", clock=clock)
+    led.register(pinned)
+    led.add_question(question())
+    led.add_prediction(Prediction("q1", "a", "r1", 0.4))
+    led.amend(replace(pinned, pinned={**PINS, "ref": digest("z")}))
+    led.add_prediction(_Prediction("q1", "ref", "r1", 0.4, config=digest("z")))
+
+
+@pytest.mark.parametrize("weak", ["", "sha256:", "sha256:aaa", "ABCDEF" * 11,
+                                  "sha256:" + "A" * 64, "g" * 64, "a" * 63])
+def test_a_pin_is_a_sha256_digest(tmp_path: Path, clock: Clock, weak: str) -> None:
+    """Control: on the old ledger any string, the empty one included, was accepted as a pin."""
+    led = Ledger(tmp_path / "w.jsonl", clock=clock)
+    with pytest.raises(LedgerError, match="not sha256 digests"):
+        led.register(replace(PROTOCOL, pinned={"a": weak}))
+    led.register(replace(PROTOCOL, pinned={"a": "f" * 64}))              # bare hex is a digest
+    with pytest.raises(LedgerError, match="not sha256 digests"):
+        led.amend(replace(PROTOCOL, pinned={"a": weak}))
+    assert led.verify().counts["protocol"] == 1

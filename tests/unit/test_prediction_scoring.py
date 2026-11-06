@@ -45,10 +45,11 @@ from eval.predictions.scoring import (
 
 T0 = datetime(2026, 11, 6, 21, 0, tzinfo=UTC)
 CLOSE = T0 + timedelta(days=10)
+PINS = {"a": "sha256:" + "a" * 64, "b": "sha256:" + "b" * 64}
 PROTOCOL = Protocol(name="test", primary=Comparison("main", "a", "b"),
                     secondary=(Comparison("main", "ref", "a"),),
                     arms=("ref", "null", "a", "b"), reference="ref", null="null",
-                    bootstrap=2000)
+                    bootstrap=2000, pinned=PINS)
 
 Arm = Callable[[float, int, random.Random], float]
 
@@ -79,7 +80,8 @@ def build(path: Path, *, clusters: int, per_cluster: int = 1, arms: dict[str, Ar
             o = 1 if rng.random() < m else 0
             batch.append(Question(qid, "main", "test", qid, "test", CLOSE, f"c{c}"))
             for arm, predict in arms.items():
-                batch.append(Prediction(qid, arm, "r1", predict(m, o, rng)))
+                batch.append(Prediction(qid, arm, "r1", predict(m, o, rng),
+                                        config=protocol.pinned.get(arm, "")))
             truth.append((qid, o))
     clock.at = T0 + timedelta(hours=1)
     led.extend(batch)
@@ -132,7 +134,8 @@ def test_a_wrong_copy_fails_the_null_check(tmp_path: Path) -> None:
 
 
 def test_no_null_arm_means_no_null_check(tmp_path: Path) -> None:
-    plain = Protocol(name="plain", primary=Comparison("main", "a", "b"), arms=("a", "b"))
+    plain = Protocol(name="plain", primary=Comparison("main", "a", "b"), arms=("a", "b"),
+                     pinned=PINS)
     led = build(tmp_path / "l.jsonl", clusters=5, arms={"a": noisy, "b": noisy},
                 protocol=plain)
     assert null_check(table(led.entries())) is None
@@ -204,7 +207,7 @@ def test_a_prediction_recorded_after_the_world_resolved_is_late(tmp_path: Path) 
     led.register(PROTOCOL)
     led.add_question(Question("q", "main", "test", "q", "test", CLOSE, "c"))
     clock.at = T0 + timedelta(hours=3)              # the source settled at T0 + 2h, unseen
-    led.add_prediction(Prediction("q", "a", "r1", 0.9))
+    led.add_prediction(Prediction("q", "a", "r1", 0.9, config=PINS["a"]))
     clock.at = T0 + timedelta(hours=4)
     led.resolve(Resolution("q", 1, T0 + timedelta(hours=2), "test:early"))
     t = table(led.entries())
@@ -217,7 +220,8 @@ def test_open_and_voided_predictions_are_counted_not_scored(tmp_path: Path) -> N
     led.register(PROTOCOL)
     led.extend([Question("a", "main", "t", "a", "t", CLOSE, "c1"),
                 Question("b", "main", "t", "b", "t", CLOSE, "c2"),
-                Prediction("a", "a", "r1", 0.5), Prediction("b", "a", "r1", 0.5)])
+                Prediction("a", "a", "r1", 0.5, config=PINS["a"]),
+                Prediction("b", "a", "r1", 0.5, config=PINS["a"])])
     led.void(Void("b", "withdrawn"))
     t = table(led.entries())
     assert (t.open, t.voided, len(t.scored)) == (1, 1, 0)

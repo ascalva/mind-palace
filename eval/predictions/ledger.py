@@ -16,6 +16,14 @@ is unknown, closed, resolved or voided, when its arm is not in the protocol or i
 does not match a pin, when `p` is not a probability, or when the arm already predicted that
 question in that round.
 
+A pin comes before the arm's first prediction, never after. A prediction from an arm the primary
+comparison names (its arm or its baseline) is refused until the protocol in force pins that arm,
+and an amendment may not add a pin for an arm that already has a prediction: the digest an arm is
+held to cannot be chosen once its predictions are known. Any other arm may go unpinned, but the
+same no-retrofit rule holds for it, and a pin it has is binding. A pin is a sha256 digest (64
+lowercase hex characters, optionally prefixed `sha256:`), checked when the protocol is written; an
+empty or malformed pin is refused.
+
 Arms and families are the experiment's own names, declared in its protocol; nothing here knows
 what an experiment is about. Machinery, not corpus (BL-4 in
 `dn-scored-beliefs-and-earned-entitlement`): nothing under `core/` imports this module, and no
@@ -41,6 +49,13 @@ KINDS = ("protocol", "question", "prediction", "resolution", "void")
 
 _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
 _VARIANT = re.compile(r"[A-Za-z0-9][A-Za-z0-9_./-]*")
+_DIGEST = re.compile(r"(sha256:)?[0-9a-f]{64}")
+
+
+def valid_digest(value: str) -> bool:
+    """A configuration digest: sha256 as 64 lowercase hex characters, with an optional `sha256:`
+    prefix. A pin of anything else, the empty string included, says nothing about a config."""
+    return _DIGEST.fullmatch(value) is not None
 
 
 def valid_family(name: str) -> bool:
@@ -368,6 +383,7 @@ class State:
     resolutions: dict[str, Resolution] = field(default_factory=dict)
     voids: dict[str, Void] = field(default_factory=dict)
     prediction_keys: set[tuple[str, str, str]] = field(default_factory=set)
+    predicted_arms: set[str] = field(default_factory=set)
 
 
 def canonical(payload: Mapping[str, object]) -> bytes:
@@ -436,6 +452,7 @@ def _apply(state: State, kind: str, body: Mapping[str, object]) -> None:
     elif kind == "prediction":
         p = Prediction.parse(body)
         state.prediction_keys.add((p.qid, p.arm, p.round))
+        state.predicted_arms.add(p.arm)
     elif kind == "resolution":
         r = Resolution.parse(body)
         state.resolutions[r.qid] = r
@@ -544,6 +561,10 @@ class Ledger:
 
     @staticmethod
     def _check_protocol(state: State, new: Protocol) -> None:
+        weak = sorted(a for a, d in new.pinned.items() if not valid_digest(d))
+        if weak:
+            raise LedgerError(f"pins for {weak} are not sha256 digests (64 lowercase hex "
+                              f"characters, optionally prefixed `sha256:`)")
         old = state.protocol
         if old is None or not state.prediction_keys:
             return
@@ -555,6 +576,11 @@ class Ledger:
                 raise LedgerError(f"predictions exist: an amendment may add {what}, never drop one")
         if old.n_clusters is not None and new.n_clusters != old.n_clusters:
             raise LedgerError("n_clusters is already fixed")
+        late_pins = sorted(a for a in new.pinned if a not in old.pinned
+                           and a in state.predicted_arms)
+        if late_pins:
+            raise LedgerError(f"arms {late_pins} already have predictions: a pin cannot be "
+                              f"added after the fact")
         changed = [arm for arm, digest in old.pinned.items() if new.pinned.get(arm) != digest]
         if changed:
             raise LedgerError(f"predictions exist: pinned arms {sorted(changed)} keep their "
@@ -565,6 +591,9 @@ class Ledger:
         if p.arm not in protocol.arms:
             raise LedgerError(f"arm {p.arm!r} is not registered in the protocol")
         pin = protocol.pinned.get(p.arm)
+        if pin is None and p.arm in (protocol.primary.arm, protocol.primary.baseline):
+            raise LedgerError(f"arm {p.arm!r} is named by the primary comparison and has no pin "
+                              f"in the protocol: pin it before its first prediction")
         if pin is not None and p.config != pin:
             raise LedgerError(f"arm {p.arm!r} is pinned to config {pin!r}, got {p.config!r}: "
                               f"a changed arm is a new variant")
