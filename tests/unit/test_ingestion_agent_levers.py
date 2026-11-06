@@ -151,16 +151,19 @@ def test_catchup_is_gated_for_every_agent(tmp_path) -> None:
 
 def test_watchers_are_gated_per_agent(tmp_path) -> None:
     """The real-time path. Each watcher answers to its OWN agent's lever, so disabling one must
-    drop exactly one — not both, and not neither."""
+    drop exactly one — not both, and not neither. The inbox's record has a watcher no ingestion
+    lever governs (it holds only what the owner said to the Ambassador), so it is always the one
+    left (dn-ingress-language §E13)."""
     both = build_components(_cfg(tmp_path / "both"))
     no_chat = build_components(_cfg(tmp_path / "nochat", transcripts=False))
     no_vault = build_components(_cfg(tmp_path / "novault", vault=False))
     neither = build_components(_cfg(tmp_path / "neither", vault=False, transcripts=False))
     try:
-        assert len(both.watchers) == 2
-        assert len(no_chat.watchers) == 1
-        assert len(no_vault.watchers) == 1
-        assert len(neither.watchers) == 0
+        assert len(both.watchers) == 3
+        assert len(no_chat.watchers) == 2
+        assert len(no_vault.watchers) == 2
+        assert len(neither.watchers) == 1
+        assert neither.watchers[0].path == tmp_path / "neither" / "inbox"   # type: ignore[attr-defined]
     finally:
         for c in (both, no_chat, no_vault, neither):
             c.queue.close()
