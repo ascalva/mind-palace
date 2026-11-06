@@ -145,6 +145,13 @@ def test_an_id_is_one_lowercase_segment(monkeypatch, tmp_path, iid) -> None:
         _as_named(monkeypatch, tmp_path, f"[instance]\nid = {iid}\n")
 
 
+@pytest.mark.parametrize("iid", ["../x", "Bench", "", "a/b"])
+def test_an_instance_config_holds_only_a_well_formed_id(iid) -> None:
+    """Any caller, not only the loader: the namespace map is defined on well-formed ids."""
+    with pytest.raises(ValueError):
+        loader.InstanceConfig(iid)
+
+
 @pytest.mark.parametrize("iid", ["a", "bench", "a-1", "x" * 32])
 def test_a_well_formed_id_is_the_instance(monkeypatch, tmp_path, iid) -> None:
     cfg = _as_named(monkeypatch, tmp_path, f'[instance]\nid = "{iid}"\n')
