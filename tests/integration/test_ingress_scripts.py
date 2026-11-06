@@ -587,3 +587,18 @@ def test_sync_docs_retires_a_doc_gone_from_the_repository(palace, monkeypatch, t
     (repo / "docs" / "b.md").unlink()
     assert palace.run("do sync_docs")["effects"] == {"unchanged": 1, "retired": 1}
     assert list(_entries(palace)) == [str(repo / "docs" / "a.md")]
+
+
+def test_a_legacy_dialogue_row_is_retired_by_its_role_and_never_written_again(palace):
+    """The first form's turns live under `dialogue/door/<role>/`, permanent identities that are
+    never re-keyed: the Ambassador retires its own legacy row, and writes a new one only under
+    `dialogue/ingress/ambassador/`."""
+    legacy = "dialogue/door/ambassador/c/x"
+    store = 'do {{ store "secret words" in "observed" at "{}" }}'
+    assert palace.outcomes(store.format(legacy), "cli")[0]["status"] == "landed"
+    (o,) = palace.outcomes(store.format("dialogue/door/ambassador/c/y"), "ambassador")
+    assert o["status"] == "refused" and o["why"].startswith("R3")
+    assert palace.outcomes(store.format("dialogue/ingress/ambassador/c/y"),
+                           "ambassador")[0]["status"] == "landed"
+    (o,) = palace.outcomes(f'do {{ retire "{legacy}" in "observed" }}', "ambassador")
+    assert o["status"] == "retired"
