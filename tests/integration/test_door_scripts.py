@@ -463,6 +463,31 @@ def test_a_retire_that_dies_before_its_key_retires_when_run_again(palace, monkey
     assert _entries(palace) == {}
 
 
+def test_a_half_retire_then_the_same_bytes_back_lands_again(palace, monkeypatch):
+    """A retire that dies after the plane's rows are gone and before the tombstone leaves the key
+    active over retired rows. The same bytes stored again must land: UNCHANGED asks for the path's
+    current rows, which a retired version's rows do not answer (`has_digest` did)."""
+    from core.kernel.clearance import MIRROR_READ
+
+    note = write_file(palace.vault, "a.md", "alpha body\n")
+    palace.run("do sync_vault")
+    note.unlink()
+    real, armed = palace.stores.catalog.tombstone, {"on": True}
+
+    def tombstone(path: str) -> Any:
+        if armed["on"]:
+            armed["on"] = False
+            raise RuntimeError("died before the key")
+        return real(path)
+
+    monkeypatch.setattr(palace.stores.catalog, "tombstone", tombstone)
+    with pytest.raises(RuntimeError):
+        palace.run("do sync_vault")
+    write_file(palace.vault, "a.md", "alpha body\n")          # the same bytes, back
+    assert palace.run("do sync_vault")["effects"] == {"landed": 1}
+    assert palace.stores.plane.reader(MIRROR_READ).occupancies(source_path=str(note))
+
+
 def test_a_store_that_dies_at_its_attestation_lands_and_attests_when_run_again(palace,
                                                                                 monkeypatch):
     """The key is written after the attestation (the formal audit's mutation, a key moved before

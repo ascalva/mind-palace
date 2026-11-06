@@ -30,6 +30,7 @@ from core.attestation import Attestor
 from core.ingest.embed import Embedder
 from core.ingest.index import index_amendment
 from core.ingest.landing import attest_once, record_version_if_new
+from core.kernel.clearance import MIRROR_READ
 from core.kernel.config import Config
 from core.kernel.ingest.logseq import DEFAULT_EXCLUDE_DIRS, iter_vault, parse_note
 from core.kernel.ingest.pipeline import ingest_note
@@ -131,8 +132,15 @@ class VaultSync:
                              max_chars=self.max_chars, overlap_chars=self.overlap_chars)
         digest = record.digest
 
+        # UNCHANGED reads the key and the plane: the invariant is that an active key implies
+        # current rows (for bytes that have chunks). A delete that died after its retire and
+        # before its tombstone leaves the key active over retired rows, and if the same bytes
+        # come back before the next rescan, a check of the key alone would read them UNCHANGED
+        # for ever (the formal audit of the tombstone-last delete).
         prev = self.catalog.get(source_path)
-        if prev is not None and prev.active and prev.digest == digest:
+        if (prev is not None and prev.active and prev.digest == digest
+                and (not record.chunks
+                     or self.store.holds_current(source_path, digest, clearance=MIRROR_READ))):
             return SyncOutcome.UNCHANGED                            # content didn't change
 
         # Resolve the note's stable doc_id at FIRST bind only (prev is None): prefer an existing

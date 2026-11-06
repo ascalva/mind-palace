@@ -147,13 +147,15 @@ class Writer:
 
     def unchanged(self, e: StoreEff) -> bool:
         """The UNCHANGED check: the path holds these bytes, active, under the same label, and the
-        plane holds their rows."""
+        plane holds their rows at this path, current. The invariant it keeps is that an active key
+        implies current rows: a retire that died after its plane step and before its tombstone
+        leaves the key active over retired rows, and the same bytes stored again must land."""
         if e.content.oversize:
             return False
         prev = self.stores.catalog.get(e.path)
         return (prev is not None and prev.active and prev.digest == e.content.digest
                 and str(prev.provenance) == e.content.label
-                and self.holds(e.content.data, e.content.label, e.content.digest))
+                and self.holds(e.path, e.content.data, e.content.label, e.content.digest))
 
     def one(self, e: Effect) -> Outcome:
         try:
@@ -280,13 +282,14 @@ class Writer:
                                     "path's own, its item's, or a vanished path's")
         raise Refused("R6", f"unknown naming {n.kind!r}")  # pragma: no cover
 
-    def holds(self, data: bytes, label: str, digest: str) -> bool:
-        """Whether the plane holds a version's rows: an empty one has none to hold."""
+    def holds(self, path: str, data: bytes, label: str, digest: str) -> bool:
+        """Whether the plane holds a version's rows at `path`, current: an empty one has none to
+        hold. (It asked `has_digest`, which a retired version's rows still answer.)"""
         if not derive_chunks(data, max_chars=self.max_chars, overlap_chars=self.overlap_chars):
             return True
         clearance = _HOLDS.get(label)
-        return clearance is not None and bool(self.stores.plane.has_digest(digest,
-                                                                           clearance=clearance))
+        return clearance is not None and self.stores.plane.holds_current(path, digest,
+                                                                         clearance=clearance)
 
     # retire, link, run -------------------------------------------------------------------
 
