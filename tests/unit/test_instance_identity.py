@@ -189,6 +189,7 @@ def test_ouroboros_holds_todays_namespaces(monkeypatch, tmp_path) -> None:
                           loader.default_transcripts_dir()}
     assert ns.dialogue == {"openwebui", "opencode"} and cfg.instance.dialogue == ("openwebui",
                                                                                  "opencode")
+    assert ns.exhaust == cfg.exhaust.path == Path("~/.mind-palace/exhaust").expanduser()
 
 
 def test_a_named_instance_holds_namespaces_derived_from_its_id(monkeypatch, tmp_path) -> None:
@@ -217,8 +218,8 @@ def test_control_the_pin_tells_ouroboros_from_a_named_instance(monkeypatch, tmp_
         "~/.mind-palace/vault/notes", str(tmp_path / "twin-notes"))
     twin = loader.namespaces_of(_as_named(monkeypatch, tmp_path,
                                           text + '\n[instance]\nid = "twin"\n'))
-    for field in ("data_dir", "spool", "supervisor_lock", "levers", "sources", "dialogue",
-                  "secrets", "labels", "backup"):
+    for field in ("data_dir", "spool", "supervisor_lock", "levers", "exhaust", "sources",
+                  "dialogue", "secrets", "labels", "backup"):
         assert getattr(twin, field) != getattr(ouroboros, field), field
     assert loader.shared(twin, ouroboros) == []
     assert loader.shared(twin, twin) and loader.shared(ouroboros, ouroboros)
@@ -340,3 +341,40 @@ def test_turning_an_agent_on_without_its_source_refuses(monkeypatch, tmp_path, a
     with pytest.raises(loader.InstanceOverlayError, match="names no"):
         _as_named(monkeypatch, tmp_path,
                   f'[instance]\nid = "bench"\n[ingestion.{agent}]\nenabled = true\n')
+
+
+# ── the exhaust lane ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_a_named_instances_lane_derives_from_its_id(monkeypatch, tmp_path) -> None:
+    root = loader.REPO_ROOT / "instances" / "bench"
+    cfg = _as_named(monkeypatch, tmp_path, '[instance]\nid = "bench"\n')
+    assert cfg.exhaust.path == root / "exhaust" == loader.namespaces_of(cfg).exhaust
+    moved = _as_named(monkeypatch, tmp_path, '[instance]\nid = "bench"\n[exhaust]\npath = "out"\n')
+    assert moved.exhaust.path == root / "out"
+
+
+@pytest.mark.parametrize("lane", ["~/.mind-palace/exhaust", "/var/elsewhere", "../exhaust"])
+def test_a_named_lane_stays_under_its_root(monkeypatch, tmp_path, lane) -> None:
+    """Ouroboros's lane is the one the owner reads on his phone as Ouroboros's; a named instance's
+    reports never land in it, nor anywhere outside its own root."""
+    with pytest.raises(loader.InstanceOverlayError, match="leaves the instance's root"):
+        _as_named(monkeypatch, tmp_path, f'[instance]\nid = "bench"\n[exhaust]\npath = "{lane}"\n')
+
+
+def test_a_named_instances_reports_land_in_its_own_lane(monkeypatch, tmp_path) -> None:
+    import importlib.util
+
+    monkeypatch.setattr(loader, "REPO_ROOT", tmp_path)
+    cfg = _as_named(monkeypatch, tmp_path, '[instance]\nid = "bench"\n')
+    loader.get_config.cache_clear()
+    spec = importlib.util.spec_from_file_location(
+        "exhaust_report", Path(__file__).resolve().parents[2] / "scripts" / "exhaust_report.py")
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    html = tmp_path / "r.html"
+    html.write_text("<p>report</p>")
+    dest = module.place_report(html, "bp-1", "slug")
+    assert dest.is_relative_to(cfg.exhaust.path / "reports")
+    assert dest.is_relative_to(tmp_path / "instances" / "bench")
