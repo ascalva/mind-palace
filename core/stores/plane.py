@@ -4,11 +4,23 @@
 #            per-class supersession log (dn-vector-membership-store Amendment A3).
 # INVARIANT: a read under clearance C touches only M_C: its SQL names only `occ_<c>`/`sup_<c>` for
 #            c ∈ C, and every record it returns is minted through core.kernel.clearance's sealed
-#            constructors. Noninterference (A3.5): mutating M_c for c ∉ C changes no C-read. The
-#            ANN prefilter columns (`held`, `held_ever`) are a CACHE — stale, they can only drop
-#            results, never widen them, because hits are built from the cleared relations alone.
+#            constructors. The ANN prefilter columns (`held`, `held_ever`) are a CACHE: stale, they
+#            can only drop results, never widen them, because hits are built from the cleared
+#            relations alone (PLN-1, under any cache). Noninterference (A3.5, PLN-2): writes to
+#            M_c for c ∉ C change no C-read, under four hypotheses (formal/Spec/Plane.lean):
+#            (1) search is exact, ties broken by atom id; LanceDB breaks an exact distance tie by
+#            physical row order and `set_held` rewrites a row to the end, so an uncleared write
+#            that touches one of two tied cleared atoms can swap them across the cut; (2) the
+#            table is content-addressed, an atom's text and vector a function of its id (a
+#            deterministic embedder: the first writer's vector is the one stored); (3) the cache
+#            is complete on C, every class of C that holds an atom named in the atom's cache
+#            (`drift_interferes`: an atom whose cache misses a class is hidden from that class
+#            until an uncleared write that shares the atom refreshes it); (4) every path lives at
+#            one stratum fixed in advance (A3.6; `stratum_interferes`: the refusal of a land whose
+#            path another class holds reads an uncleared relation).
 # ENFORCED:  structural (per-class relations, sealed records, the clearance-derived table list) +
-#            property (tests/property/test_plane_noninterference.py) + the R3 repair ratchet.
+#            property (tests/property/test_plane_noninterference.py) + formal (PLN-1 to PLN-6,
+#            formal/Palace/Plane.lean) + the R3 repair ratchet.
 """The shared plane: every prose stratum's chunks, stored once, read only through a clearance.
 
 The owner's direction (2026-10-29), in their words: documents that share chunks "have pointers to
