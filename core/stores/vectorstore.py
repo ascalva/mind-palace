@@ -197,6 +197,11 @@ _PROSE_ATOM = "provenance = '' AND source_path = '' AND digest = ''"
 _EMPTY_LIST = "arrow_cast(make_array(), 'List(Utf8)')"
 _ALL_CLASSES = frozenset(Provenance)
 _PLANE_VALUES = frozenset(p.value for p in PLANE_CLASSES)
+# A NOTE RECORD on the physical table: a row of a plane class with a document. On a table that
+# predates the plane, every note row is one; on the plane, none is. The physical scope of the
+# chunk-key migration (`rekey_records`, PLN-6).
+_NOTE_RECORD = (f"provenance IN ({', '.join(_sql_str(v) for v in sorted(_PLANE_VALUES))}) "
+                "AND source_path <> ''")
 
 
 def _gate(clearance: Clearance[Provenance]) -> str:
@@ -545,6 +550,44 @@ class VectorStore:
         if src is not Provenance.CODE and dst is not Provenance.CODE:
             moved += self._plane.relabel(src, dst)
         return moved
+
+    def rekey_records(self, key: Callable[[Mapping[str, Any]], str]) -> tuple[int, int]:
+        """The physical half of the chunk-key migration (PLN-6, `formal/Palace/Plane.lean`): give
+        every NOTE RECORD of the table, a row of a plane class with a `source_path` (on a table that
+        predates the plane, every note row), the id `key(row)`, and read or write no other row: no
+        shed code atom (D1), no code record, no prose atom, no row under a retired label. Records
+        of one key merge into one, the last read (§3); a record already under its key stays.
+
+        The rows under their new ids are added before the old ones are deleted, so a crash between
+        the two leaves both, never neither, and a re-run finishes the job: a key some record
+        already holds is not added again, and only ids that are no record's key are deleted. An
+        old id that is another record's key could not be told from that record by id, so the
+        re-key refuses (`ValueError`) rather than delete either. Returns (records, ids changed)."""
+        if TABLE not in self._db.list_tables().tables:
+            return 0, 0
+        rows = [dict(r) for r in self._table().scan().where(_NOTE_RECORD).limit(0).to_list()]
+        merged: dict[str, dict[str, Any]] = {}
+        stale: set[str] = set()
+        for r in rows:
+            k = key(r)
+            merged[k] = {**r, "id": k}                 # last wins: one point per chunk (§3)
+            if str(r["id"]) != k:
+                stale.add(str(r["id"]))
+        if clash := sorted(stale & merged.keys()):
+            raise ValueError(f"the old id {clash[0]!r} is another record's key; the re-key cannot "
+                             "tell the two rows apart, and changes nothing")
+        held = {str(r["id"]) for r in rows}
+        fresh = [r for k, r in merged.items() if k not in held]
+        if fresh:
+            self._table().add(fresh)                   # the new rows first: a crash leaves both
+        for batch in _batched(sorted(stale)):
+            self._table().delete(f"({_NOTE_RECORD}) AND {_id_in(batch)}")
+        return len(rows), sum(1 for r in rows if str(r["id"]) != key(r))
+
+    def note_records(self, columns: Sequence[str]) -> list[dict[str, Any]]:
+        """The physical note records (a row of a plane class with a document), the named columns
+        only: what `rekey_records` reads, for its dry run."""
+        return self.project(columns, clearance=MAINTENANCE_READ, where=_NOTE_RECORD)
 
     def all_rows[L: Provenance](self, *, clearance: Clearance[L], include_atom_rows: bool = False,
                                 include_superseded: bool = False) -> list[Row[L]]:

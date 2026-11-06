@@ -94,6 +94,13 @@ def atom_id(text: str, layer: str = "prose") -> str:
     return f"{layer}:{hashlib.sha256(text.encode('utf-8')).hexdigest()}"
 
 
+def row_key(source_path: str, atom: str) -> str:
+    """The doc-scoped key `(source_path, chunk_hash)` of a row of `source_path` holding `atom`:
+    `chunk_point_id`'s spelling, read off the atom id, whose second half is the text's SHA-256, so
+    no text is read. The id a landing row without one is given, and the one `rekey_rows` writes."""
+    return f"{source_path}:{atom.split(':', 1)[1]}"
+
+
 def _now() -> str:
     return datetime.now(UTC).replace(tzinfo=None).isoformat(timespec="seconds")
 
@@ -527,6 +534,31 @@ class SharedPlane:
             self._refresh_held(conn, affected)
             return int(n)
 
+    def rekey_rows(self) -> tuple[int, int]:
+        """Give every occupancy, superseded ones included, its doc-scoped row id (`row_key`), in
+        place: the plane's half of the chunk-key migration (PLN-6, `formal/Palace/Plane.lean`).
+        A row id is payload that no read decides by and no law reads, so an `UPDATE` of that one
+        column, in one transaction, is the whole write: no atom, no other column, no supersession
+        edge and no cached `held` entry moves. Returns (occupancies, ids changed); a second run
+        changes none."""
+        with self._writing() as conn:
+            rows = changed = 0
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                for p in PLANE_CLASSES:
+                    found = conn.execute("SELECT source_path, digest, chunk_index, atom_id, "
+                                         f"row_id FROM {OCC[p]}").fetchall()
+                    moves = [(row_key(str(sp), str(a)), sp, d, i)
+                             for sp, d, i, a, rid in found if str(rid) != row_key(str(sp), str(a))]
+                    conn.executemany(f"UPDATE {OCC[p]} SET row_id = ? WHERE source_path = ? "
+                                     "AND digest = ? AND chunk_index = ?", moves)
+                    rows, changed = rows + len(found), changed + len(moves)
+                conn.execute("COMMIT")
+            except BaseException:
+                conn.execute("ROLLBACK")
+                raise
+            return rows, changed
+
     def reset(self) -> None:
         """Forget every occupancy, edge and the recorded geometry (the vector store's `reset`
         drops the atoms with its table). Vectors are derived (§8): a re-ingest rebuilds both."""
@@ -622,7 +654,7 @@ def _fibers(rows: Sequence[Mapping[str, Any]]) -> tuple[list[_Fiber], dict[str, 
             layer = str(m.get("layer") or "prose")
             text = str(m["text"])
             a = atom_id(text, layer)
-            chunks.append((idx, a, str(m.get("id") or f"{path}:{a.split(':', 1)[1]}")))
+            chunks.append((idx, a, str(m.get("id") or row_key(path, a))))
             vec = m.get("vector")
             if vec is not None and a not in vectors:
                 vectors[a] = AtomRecord(atom_id=a, layer=layer, text=text, vector=list(vec))

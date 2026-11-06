@@ -204,6 +204,60 @@ def purgeAll (d : Fin 2) (s : St) : St :=
 /- Control, no still-held check: a purge frees an atom another row still holds. -/
 #eval refuted (∀ raws : List Raw, ∀ d : Fin 2, purgeHolds purgeAll raws d = true) 92
 
+/-! ### The chunk-key migration (#37) -/
+
+/-- A random physical row: id, document (`3` is none, a shed atom row), text, lane. -/
+abbrev RawPhys := Fin 4 × Fin 4 × Fin 3 × Bool
+
+/-- The row a raw one decodes to; its id is below 4. -/
+def physOf (r : RawPhys) : Phys (Fin 3) ℕ (Fin 3) :=
+  ⟨r.1.val, if h : r.2.1.val < 3 then some ⟨r.2.1.val, h⟩ else none, r.2.2.1, r.2.2.2⟩
+
+/-- A doc-scoped key, injective and from 10 up, so it never meets a raw id. -/
+def keyOf (p : Option (Fin 3)) (t : Fin 3) : ℕ := 10 + 4 * p.elim 0 (·.val + 1) + t.val
+
+/-- The migration's laws on one set of physical rows: the rows outside the note lane kept, every
+note record under its key, every row's document, text and lane kept, and a second run idle. -/
+def rekeyHolds (rk : Finset (Phys (Fin 3) ℕ (Fin 3)) → Finset (Phys (Fin 3) ℕ (Fin 3)))
+    (raws : List RawPhys) : Bool :=
+  let ps := (raws.map physOf).toFinset
+  let qs := rk ps
+  decide (qs.filter (fun r ↦ ¬r.Note) = ps.filter (fun r ↦ ¬r.Note)) &&
+    decide (∀ r ∈ qs, r.Note → r.id = keyOf r.path r.text) &&
+    decide (qs.image Phys.content = ps.image Phys.content) && decide (rk qs = qs)
+
+/- PLN-6: the scoped re-key on random physical rows of both lanes, shed atoms among them. -/
+#eval survives (∀ raws : List RawPhys,
+  rekeyHolds (fun ps ↦ ps.image (Phys.rekey keyOf)) raws = true) 301
+
+/- Control, `rekey_store` as it was: every record under the note lane's key, the shed atoms not
+read, so not landed again. -/
+#eval refuted (∀ raws : List RawPhys, rekeyHolds (fun ps ↦
+  (ps.filter fun r ↦ r.path.isSome = true).image fun r ↦ { r with id := keyOf r.path r.text })
+  raws = true) 302
+
+/-- The fibers `all_rows()` regroups the plane's current rows into, as `store.add` lands them: one
+per class, path and current digest, its chunks in order. -/
+def currentFibers (s : St) : List (Fiber (Fin 3) (Fin 3) (Fin 2) (Fin 4)) :=
+  (List.finRange 3).flatMap fun c ↦ (List.finRange 3).flatMap fun p ↦
+    (List.finRange 2).filterMap fun d ↦
+      let rows := (s.occ c).filter fun o ↦ o.path = p ∧ o.digest = d ∧ o.current = true
+      if rows.Nonempty then
+        some ⟨c, p, d, (List.range 6).filterMap fun i ↦
+          ((List.finRange 4).find? fun a ↦ decide (⟨p, d, i, a, true⟩ ∈ rows)).map (i, ·)⟩
+      else none
+
+/-- What a reader under `C` sees after the unscoped re-key's `reset()` and re-landing, against
+what it saw before. -/
+def resetHolds (raws : List Raw) (C : Finset (Fin 3)) : Bool :=
+  let s := runWith step (raws.map (decode true))
+  decide (view C (runWith step ((currentFibers s).map .land)) = view C s)
+
+/- Control, the unscoped re-key's plane: re-landing the current rows from the empty plane keeps
+every reader's view. -/
+#eval refuted (∀ raws : List Raw, ∀ c : Fin 3, ∀ two : Bool,
+  resetHolds raws (clearance c two) = true) 303
+
 end Attack
 
 end Palace.Plane

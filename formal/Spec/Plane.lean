@@ -30,6 +30,12 @@ Rushby's unwinding form (1992), under hypotheses the code does not state:
 The model is exact and finite: classes, paths, digests and atoms are any finite or ordered types,
 and a land carries one fiber (the code lands several in one transaction).
 
+The store around the plane (PLN-6, #37) adds the physical rows beside its atoms: records of either
+lane, and the shed code atoms the membership relation names. A plane row's id is payload `Occ` does
+not carry, so the scoped re-key, which writes ids only, leaves the plane's state as it is. The
+unscoped form is stated over the lands it makes from the empty plane, the fibers that its read of
+the current rows regroups into passed in (`fs`).
+
 These are the laws of `Palace/Plane.lean` as the ledger cites them, each with its proof
 left as `sorry`. `lake comparator` checks that the `Palace` library proves each one
 exactly as stated here, from the standard axioms alone.
@@ -166,6 +172,49 @@ theorem noninterference_search (dist : A → Δ) {κ : P → K} {C : Finset K}
 
 end Search
 
+/-! ### The chunk-key migration (#37) -/
+
+namespace Store
+
+variable {I T : Type*} [DecidableEq P] [DecidableEq I] [DecidableEq T]
+
+/-- **PLN-6** The scoped re-key (`rekey_store`, the chunk-key migration, #37) moves only the ids of
+note records. It leaves the plane's state as it is (its relations up to their row ids, its logs,
+its table and its cache); it keeps every row outside the note lane, the shed code atoms the
+membership relation names and the code records; it gives every note record its doc-scoped key;
+and it keeps every row's document, text and lane, so a row is lost only by merging with another
+of the same document and text (§3). -/
+theorem rekey_keeps (key : Option P → T → I) (s : Store K P D A I T) :
+    (s.rekey key).plane = s.plane ∧
+      (s.rekey key).phys.filter (fun r ↦ ¬r.Note) = s.phys.filter (fun r ↦ ¬r.Note) ∧
+      (∀ r ∈ (s.rekey key).phys, r.Note → r.id = key r.path r.text) ∧
+      (s.rekey key).phys.image Phys.content = s.phys.image Phys.content :=
+  sorry
+
+/-- **PLN-6** What the plane's laws need kept: from a state `Good κ` holds of (a coherent cache,
+no dangling row, every path at one stratum, the hypotheses of PLN-2 and of PLN-4's land), the
+re-key leaves a state it holds of, with the same view under every clearance; with the plane's
+state unchanged, every search answers as before and PLN-1 to PLN-5 hold after it as before. -/
+theorem rekey_good [DecidableEq A] [Fintype K] [DecidableEq K] {κ : P → K}
+    (key : Option P → T → I) {s : Store K P D A I T} (hs : Good κ s.plane) :
+    Good κ (s.rekey key).plane ∧ ∀ C, view C (s.rekey key).plane = view C s.plane :=
+  sorry
+
+/-- **PLN-6** Re-running the re-key changes nothing. -/
+theorem rekey_idem (key : Option P → T → I) (s : Store K P D A I T) :
+    (s.rekey key).rekey key = s.rekey key :=
+  sorry
+
+variable [LinearOrder D] [DecidableEq A] [Fintype K] [DecidableEq K]
+
+/-- **PLN-6, the unscoped form.** `reset()` and adding back what `all_rows()` returns leaves no
+shed atom row, whatever the store held: every code atom the membership relation names is gone. -/
+theorem rekeyReset_drops_atoms (key : Option P → T → I) (fs : List (Fiber K P D A))
+    (s : Store K P D A I T) : ∀ r ∈ (s.rekeyReset key fs).phys, r.path.isSome = true :=
+  sorry
+
+end Store
+
 /-! ### Where the hypotheses bite -/
 
 namespace Witness
@@ -188,6 +237,25 @@ theorem stratum_interferes :
         (empty : State (Fin 2) (Fin 2) (Fin 1) (Fin 1))) ≠
       view {0} (run ([.land ⟨1, 0, 0, [(0, 0)]⟩, .land ⟨0, 0, 0, [(0, 0)]⟩].filter
         (·.visible {0})) (empty : State (Fin 2) (Fin 2) (Fin 1) (Fin 1))) :=
+  sorry
+
+/-- **PLN-6, the unscoped form drops the history.** `all_rows()` returns the plane's current rows,
+which regroup into the note's second version alone (`vb`); after `reset()` and adding them back,
+the reader under `{0}` no longer sees the first version's rows or the edge that superseded it,
+whatever the key. The scoped re-key leaves the view as it is. -/
+theorem rekeyReset_drops_history (key : Option (Fin 1) → Fin 2 → ℕ) :
+    view {0} (edited.rekeyReset key [vb]).plane ≠ view {0} edited.plane ∧
+      view {0} (edited.rekey key).plane = view {0} edited.plane :=
+  sorry
+
+/-- **PLN-6, the unscoped form merges rows.** The note lane's key, given to code records, merges two
+layers' records of one document and one text into one row; before the guard, it merges the two
+shed atoms of one text too, both their ids gone, whatever the key. The scoped re-key keeps all four
+rows. -/
+theorem rekeyReset_merges (key : Option (Fin 1) → Fin 2 → ℕ) :
+    (edited.rekeyReset key [vb]).phys.card = 1 ∧
+      ((edited.rekeyResetUnguarded key [vb]).phys.filter fun r ↦ r.path = none).card = 1 ∧
+      edited.phys.card = 4 ∧ (edited.rekey key).phys = edited.phys :=
   sorry
 
 end Witness

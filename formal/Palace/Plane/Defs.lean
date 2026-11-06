@@ -415,6 +415,85 @@ structure Good (κ : P → K) (s : State K P D A) : Prop where
 
 end Trace
 
+/-! ### The store around the plane, and the chunk-key migration (#37)
+
+`rekey_store` (`core/ingest/index.py`) moved the derived index off the `{digest}:{chunk_index}`
+key to the doc-scoped key `(source_path, chunk_hash)`. As it was written it read `all_rows()`,
+called `reset()` and added the rows back, which drops what `all_rows()` does not return. The store
+here is the plane and the physical rows beside its atoms, enough to say what a re-key must keep. -/
+
+/-- A row of the store's physical table other than the plane's atoms: a **record**, a row of a
+document (`path = some p`: a code row of the per-version model before D1, or a note row of a table
+that predates the plane), or a **shed code atom** (`path = none`, `is_code_atom_row`), a row the
+membership relation names by its id. `note` marks a row of a plane class, the note lane's; a CODE
+row has `note = false`. -/
+structure Phys (P I T : Type*) where
+  /-- The row's id (`id`). -/
+  id : I
+  /-- The row's document (`source_path`); `none` on a shed atom row. -/
+  path : Option P
+  /-- The row's text (`text`). -/
+  text : T
+  /-- Whether the row's class is a plane class, the note lane's. -/
+  note : Bool
+  deriving DecidableEq, Repr
+
+namespace Phys
+
+variable {I T : Type*}
+
+/-- A note record, a row the migration re-keys: a row of a plane class with a document. -/
+def Note (r : Phys P I T) : Prop := r.note = true ∧ r.path.isSome = true
+
+instance (r : Phys P I T) : Decidable r.Note := inferInstanceAs (Decidable (_ ∧ _))
+
+/-- What a re-key must keep of a row: its document, its text and its lane, all but its id. -/
+def content (r : Phys P I T) : Option P × T × Bool := (r.path, r.text, r.note)
+
+/-- `_row_new_id` on one row: a note record takes its doc-scoped key `(source_path, chunk_hash)`,
+computed from its own document and text; every other row is left as it is. `key none` is the key
+from an empty path (`chunk_point_id("", …)`). -/
+def rekey (key : Option P → T → I) (r : Phys P I T) : Phys P I T :=
+  if r.Note then { r with id := key r.path r.text } else r
+
+end Phys
+
+/-- The store (`VectorStore`): the plane, and the physical rows beside its atoms. -/
+structure Store (K P D A I T : Type*) where
+  /-- The plane. -/
+  plane : State K P D A
+  /-- The physical rows that are not the plane's atoms. -/
+  phys : Finset (Phys P I T)
+
+namespace Store
+
+variable {I T : Type*} [DecidableEq P] [DecidableEq I] [DecidableEq T]
+
+/-- The scoped re-key, `rekey_store` as fixed: every note record takes its key in place, and no
+other row, and nothing of the plane, is read or written. A plane row's id (`row_id`) is payload
+that `Occ` does not carry, so the code's update of it in place leaves the plane's state as it is. -/
+def rekey (key : Option P → T → I) (s : Store K P D A I T) : Store K P D A I T :=
+  { s with phys := s.phys.image (Phys.rekey key) }
+
+variable [LinearOrder D] [DecidableEq A] [Fintype K] [DecidableEq K]
+
+/-- `rekey_store` as it was, after the shed-atom guard (bp-152 Item 3): `all_rows()` reads every
+record, note and code alike, and the plane's current rows; `reset()` drops the table and the
+plane's relations; and `add` lands them again, every record under the note lane's key and the
+plane's rows as the fibers `fs` they regroup into, from the empty plane. A shed atom row is not
+read, so it is not landed again. -/
+def rekeyReset (key : Option P → T → I) (fs : List (Fiber K P D A)) (s : Store K P D A I T) :
+    Store K P D A I T :=
+  ⟨run (fs.map Op.land) empty,
+    (s.phys.filter fun r ↦ r.path.isSome = true).image fun r ↦ { r with id := key r.path r.text }⟩
+
+/-- The same before the guard: the shed atom rows are read too, and re-keyed from an empty path. -/
+def rekeyResetUnguarded (key : Option P → T → I) (fs : List (Fiber K P D A))
+    (s : Store K P D A I T) : Store K P D A I T :=
+  ⟨run (fs.map Op.land) empty, s.phys.image fun r ↦ { r with id := key r.path r.text }⟩
+
+end Store
+
 /-! ### Where the hypotheses bite -/
 
 namespace Witness
@@ -427,6 +506,19 @@ def fy : Fiber (Fin 2) (Fin 2) (Fin 1) (Fin 1) := ⟨1, 1, 0, [(0, 0)]⟩
 
 /-- The cleared land, crashed between its commit and its `_refresh_held`. -/
 def drifted : State (Fin 2) (Fin 2) (Fin 1) (Fin 1) := landCrash fx empty
+
+/-- A note's first version (class 0, path 0, digest 0), holding atom 0. -/
+def va : Fiber (Fin 1) (Fin 1) (Fin 2) (Fin 2) := ⟨0, 0, 0, [(0, 0)]⟩
+
+/-- Its second version (digest 1), holding atom 1. -/
+def vb : Fiber (Fin 1) (Fin 1) (Fin 2) (Fin 2) := ⟨0, 0, 1, [(0, 1)]⟩
+
+/-- A store whose note was edited once (its first version superseded, an edge for each landing),
+beside two shed code atoms of one text (ids 0 and 3, two layers' readings of one body) and two
+code records of one document with one text (ids 1 and 2, two layers). -/
+def edited : Store (Fin 1) (Fin 1) (Fin 2) (Fin 2) ℕ (Fin 2) :=
+  ⟨run [.land va, .land vb] empty,
+    {⟨0, none, 0, false⟩, ⟨3, none, 0, false⟩, ⟨1, some 0, 1, false⟩, ⟨2, some 0, 1, false⟩}⟩
 
 end Witness
 
