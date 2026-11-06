@@ -437,31 +437,40 @@ class JobQueue:
 
         The selection policy above is untouched by any of this: the stamp is written after `chosen`
         is decided, and the deadline is stamped, never ENFORCED here (§9 — a queue that terminates
-        its own jobs would be the ledger written by the actor it must record)."""
+        its own jobs would be the ledger written by the actor it must record).
+
+        **Safe across processes.** The UPDATE is a compare-and-set on `state = QUEUED`, so two
+        handles on one file cannot both take a row: the loser's UPDATE matches nothing and it
+        chooses again among the rows still QUEUED (None when none are left)."""
         now = now or datetime.now(UTC).replace(tzinfo=None)
         with self._lock:
-            rows = self._conn.execute(
-                "SELECT * FROM jobs WHERE state = ? ORDER BY priority, id", [QUEUED]
-            ).fetchall()
-            eligible = [_row_to_job(r) for r in rows if r["tier"] not in blocked_tiers
-                        and (kinds is None or r["kind"] in kinds)]
-            if not eligible:
-                return None
-            eff = {j.id: self._effective_priority(j, now) for j in eligible}
-            top = min(eff.values())
-            band = [j for j in eligible if eff[j.id] == top]
-            band.sort(key=lambda j: (0 if j.load_key == loaded_key else 1, j.id))
-            chosen = band[0]
-            started = _utcnow()
-            budget = self.job_budgets.get(chosen.kind)
-            deadline = None if budget is None else _plus_seconds(started, budget)
-            self._conn.execute(
-                "UPDATE jobs SET state = ?, started_at = ?, attempts = attempts + 1, "
-                "claimed_by_run = ?, lease_expires_at = ? WHERE id = ?",
-                [RUNNING, started, self.active_run_id, deadline, chosen.id],
-            )
-            self._conn.commit()
-            return self.get(chosen.id)
+            while True:
+                rows = self._conn.execute(
+                    "SELECT * FROM jobs WHERE state = ? ORDER BY priority, id", [QUEUED]
+                ).fetchall()
+                eligible = [_row_to_job(r) for r in rows if r["tier"] not in blocked_tiers
+                            and (kinds is None or r["kind"] in kinds)]
+                if not eligible:
+                    return None
+                eff = {j.id: self._effective_priority(j, now) for j in eligible}
+                top = min(eff.values())
+                band = [j for j in eligible if eff[j.id] == top]
+                band.sort(key=lambda j: (0 if j.load_key == loaded_key else 1, j.id))
+                chosen = band[0]
+                started = _utcnow()
+                budget = self.job_budgets.get(chosen.kind)
+                deadline = None if budget is None else _plus_seconds(started, budget)
+                # Compare-and-set: the database, not the process lock, decides who holds the row.
+                # Another process on the same file may have claimed it since the SELECT above; the
+                # state guard then matches no row and the choice is made again over what is left.
+                cur = self._conn.execute(
+                    "UPDATE jobs SET state = ?, started_at = ?, attempts = attempts + 1, "
+                    "claimed_by_run = ?, lease_expires_at = ? WHERE id = ? AND state = ?",
+                    [RUNNING, started, self.active_run_id, deadline, chosen.id, QUEUED],
+                )
+                self._conn.commit()
+                if cur.rowcount == 1:
+                    return self.get(chosen.id)
 
     def complete(self, job_id: int, result: str | None = None) -> None:
         self._finish(job_id, DONE, result=result)
