@@ -893,8 +893,9 @@ def load_config(path: Path | None = None) -> Config:
     # not sail past and hand back defaults. An explicit `path` bypasses the whole chain, guard
     # included — it is a verbatim read of the file the caller named, and it is Ouroboros's.
     #
-    # A named instance (`MIND_PALACE_OVERLAY`) replaces the chain: defaults ← its own overlay, and
-    # nothing of Ouroboros's. The legacy guard is about Ouroboros's file name, so it does not run.
+    # A named instance (`MIND_PALACE_OVERLAY`) replaces the chain: defaults ← its own levers file ←
+    # its own overlay, and nothing of Ouroboros's. The legacy guard is about Ouroboros's file name,
+    # so it does not run.
     # Its namespaces derive from its id (`InstanceConfig`); the overlay may not set them, and the
     # instance may not share one with Ouroboros, whose chain is read for that check alone.
     if path is not None:
@@ -908,6 +909,7 @@ def load_config(path: Path | None = None) -> Config:
     declared = _read(named)
     instance = _named_instance(declared, named)
     committed = {(s, k): raw.get(s, {}).get(k) for s, k in _SECRET_NAMES}
+    _overlay(raw, instance.levers)      # its own loop-tuned knobs, under its hand overlay
     _deep_merge(raw, declared)
     _refuse_reaching_out(raw, declared, committed, instance, named)
     cfg = _build(raw, instance)

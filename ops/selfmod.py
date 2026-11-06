@@ -49,6 +49,11 @@ class NotASafeLever(RuntimeError):
     """A lever not in the pre-declared SAFE_LEVERS set was offered to the unattended path."""
 
 
+class ForeignLevers(RuntimeError):
+    """A named instance's loop was pointed at a levers file other than its own (DI-2): the knob
+    would land in another individual's configuration at its next restart."""
+
+
 # --- Pre-declared safe levers (the §14 unattended set) ---------------------------------------
 #
 # The ONLY knobs that MAY be tuned without human approval — and only when `unattended_enabled` is
@@ -104,6 +109,11 @@ class SelfModLoop:
     def _require_enabled(self) -> None:
         if not self.config.selfmod.enabled:
             raise SelfModDisabled("[selfmod] enabled is false — self-modification is off")
+        instance = self.config.instance
+        if instance.named and self.overlay_path != instance.levers:
+            raise ForeignLevers(
+                f"instance {instance.id!r} tunes only its own levers file {instance.levers}; "
+                f"refusing to write {self.overlay_path}")
 
     # --- propose / approve / deny ------------------------------------------------------------
     def propose(self, change: ProposedChange, *, proposer: str = "") -> Proposal:
@@ -257,4 +267,5 @@ def build_loop(
     from ops.ledger import open_ledger
 
     cfg = config or get_config()
-    return SelfModLoop(config=cfg, ledger=ledger or open_ledger(cfg), validator=validator)
+    return SelfModLoop(config=cfg, ledger=ledger or open_ledger(cfg), validator=validator,
+                       overlay_path=cfg.instance.levers)   # this instance's own file (DI-2)

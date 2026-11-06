@@ -65,6 +65,7 @@ def write_overlay(data: dict[str, dict[str, float | int]], path: Path = LEVERS_O
             rendered = str(int(v)) if isinstance(v, int) and not isinstance(v, bool) else repr(v)
             lines.append(f"{key} = {rendered}\n")
     text = "".join(lines)
+    path.parent.mkdir(parents=True, exist_ok=True)   # a named instance's root may not exist yet
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(text, encoding="utf-8")
     os.replace(tmp, path)  # atomic on POSIX — no half-written overlay is ever observed
