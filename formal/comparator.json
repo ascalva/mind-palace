@@ -221,6 +221,7 @@
     "Palace.Retrieval.posDef_rspKernel",
     "Palace.Script.bytes_eval",
     "Palace.Script.confined",
+    "Palace.Script.confined_store",
     "Palace.Script.firewall_plan",
     "Palace.Script.firewall_store",
     "Palace.Script.identity_moves_with_bytes",
