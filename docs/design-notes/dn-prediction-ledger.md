@@ -160,6 +160,20 @@ caller. That cut applies to every table the report prints, secondary comparisons
 included, and the report says in `beyond_n` how many clusters and pairs were left out as beyond N.
 `--unblind` keeps its meaning and its warning: it reads before N, where there is nothing to cut.
 
+**The method.** The protocol declares how the primary comparison is inferred: `percentile` (the
+default, the cluster bootstrap) or `signflip`, a cluster-level sign-flip randomization test of the
+pair-weighted mean (the same weighting the bootstrap uses), fixed with the rest of the bar once a
+prediction exists. It is exact under the null that the two arms are exchangeable within each
+cluster, with independent clusters: flipping a cluster's sign is swapping the arms in it, so no
+resampling approximation enters, and every sign vector is enumerated when there are no more than
+the protocol's `bootstrap` count of them. It does not protect against dependence across clusters:
+clusters that move together make the effective N smaller than the count, and the test over-rejects
+by as much. Its interval inverts the test, found by bisection on each side (the p-value is
+monotone in the tested mean for fixed sign vectors), so the decision rule and the KNOWN-EDGE
+control read it unchanged. With too few clusters ever to reject at α the interval is unbounded.
+In an audit with realistic dependence it beat the percentile bootstrap's false-positive rate by
+about a point at equal power.
+
 The decision at N: the
 arm improves if the interval's lower bound is above 0; no useful improvement if its upper bound is
 below δ; otherwise inconclusive.

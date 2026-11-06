@@ -45,6 +45,7 @@ from pathlib import Path
 
 GENESIS_PREV = "0" * 64
 
+METHODS = ("percentile", "signflip")
 KINDS = ("protocol", "question", "prediction", "resolution", "void")
 
 _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
@@ -131,6 +132,9 @@ class Protocol:
     bootstrap: int = 10_000
     seed: int = 20261105
     n_clusters: int | None = None          # fixed by an amendment after the blinded pilot
+    # How the primary comparison's interval and every p-value are made: `percentile` (the
+    # cluster bootstrap) or `signflip` (the cluster-level sign-flip randomization test).
+    method: str = "percentile"
     # arm -> the digest of its configuration (model, prompt, tools). A pinned arm's predictions
     # must carry that digest: a tweak during the run is a new variant, never a silent change.
     pinned: Mapping[str, str] = field(default_factory=dict)
@@ -159,6 +163,8 @@ class Protocol:
         stray = [a for a in self.pinned if a not in self.arms]
         if stray:
             raise LedgerError(f"pinned arms the protocol does not register: {sorted(stray)}")
+        if self.method not in METHODS:
+            raise LedgerError(f"method must be one of {list(METHODS)}, got {self.method!r}")
         if not self.delta > 0:
             raise LedgerError("delta must be positive")
         if not 0 < self.alpha < 1 or not 0 < self.power < 1:
@@ -186,6 +192,7 @@ class Protocol:
             "bootstrap": self.bootstrap,
             "seed": self.seed,
             "n_clusters": self.n_clusters,
+            "method": self.method,
             "pinned": dict(self.pinned),
             "selection": dict(self.selection),
             "notes": self.notes,
@@ -219,6 +226,7 @@ class Protocol:
                 bootstrap=_int(body, "bootstrap"),
                 seed=_int(body, "seed"),
                 n_clusters=n_clusters,
+                method=_str(body, "method") if "method" in body else "percentile",
                 pinned={k: str(v) for k, v in pinned.items()},
                 selection=_mapping(body.get("selection", {}), "selection"),
                 notes=_str(body, "notes"),
@@ -473,7 +481,7 @@ def replay(entries: list[Entry]) -> State:
 
 # Once a prediction exists these protocol fields are the bar, and an amendment may not move them.
 _FROZEN = ("primary", "reference", "null", "delta", "alpha", "power", "log_clip", "bootstrap",
-           "seed")
+           "seed", "method")
 
 
 class Ledger:
