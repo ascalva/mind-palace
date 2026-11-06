@@ -328,3 +328,68 @@ def test_a_refused_land_takes_back_its_cache_additions(tmp_path: Path) -> None:
         p.land(_rows("s.md", "v2", OBSERVED, ["observed text"]))
     assert atom_id("observed text") in p.atoms.ids(), "PRECONDITION: the atom was inserted"
     assert p.held_drift() == []
+
+
+def _relabel_crash_then_rerun(p: SharedPlane, monkeypatch: pytest.MonkeyPatch) -> tuple[bool, bool]:
+    """A curated note relabelled to observed, the relabel killed between its transaction and its
+    cache step, then run again. Returns (the note's chunk is hidden from the observed reader after
+    the crash, and after the re-run)."""
+    p.land(_rows("c.md", "v1", CURATED, ["moved text"]))
+    query = EMB.embed_query("moved text")
+
+    def hidden() -> bool:
+        return atom_id("moved text") not in {h.atom_id for h in
+                                             p.reader(OBSERVED_READ).search(query, k=3)}
+    assert hidden(), "PRECONDITION: the observed reader cannot see a curated note"
+
+    def dies(conn: sqlite3.Connection, ids: Any) -> int:
+        raise RuntimeError("killed between the transaction and the cache step")
+    with monkeypatch.context() as m:
+        m.setattr(p, "_refresh_held", dies)
+        with pytest.raises(RuntimeError):
+            p.relabel(CURATED, OBSERVED)
+    assert p.class_of("c.md") is OBSERVED, "PRECONDITION: the transaction moved the note"
+    after_crash = hidden()
+    p.relabel(CURATED, OBSERVED)
+    return after_crash, hidden()
+
+
+def test_a_relabel_that_dies_before_its_cache_step_hides_nothing(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """PLN-4's relabel crash points on the code (`search_after_relabelCrash`): the new class is
+    added to the moved atoms' cache before the transaction, so a crash between the transaction and
+    the cache step leaves the moved note visible to the new class's reader."""
+    hidden_after_crash, hidden_after_rerun = _relabel_crash_then_rerun(_plane(tmp_path),
+                                                                       monkeypatch)
+    assert not hidden_after_crash and not hidden_after_rerun
+
+
+def test_with_the_cache_written_last_a_relabel_crash_hides_and_no_rerun_repairs(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The control: the relabel as it was, its cache written only after the transaction
+    (`_add_held` a no-op), hides the moved note from the new class after the crash, and running the
+    relabel again does not bring it back, the old relation being empty (`relabel_rerun_hides`)."""
+    p = _plane(tmp_path)
+    monkeypatch.setattr(p, "_add_held", lambda cached, gains: 0)
+    hidden_after_crash, hidden_after_rerun = _relabel_crash_then_rerun(p, monkeypatch)
+    assert hidden_after_crash and hidden_after_rerun
+
+
+def test_a_refused_relabel_takes_back_its_cache_additions(tmp_path: Path) -> None:
+    """A relabel refused inside its transaction (a path in both classes) leaves the cache exact:
+    the additions written before the transaction are taken back after the rollback
+    (`relabel_of_addRelabel_clash`)."""
+    p = _plane(tmp_path)
+    p.land(_rows("c.md", "v1", CURATED, ["only curated"]))
+    p.land(_rows("o.md", "w1", OBSERVED, ["observed text"]))
+    with sqlite3.connect(tmp_path / "plane" / "plane.sqlite") as raw:   # c.md in both classes
+        raw.execute(f"INSERT INTO {OCC[OBSERVED]} SELECT 'c.md', 'x', chunk_index, atom_id, "
+                    f"row_id, title, current, landed_at FROM {OCC[OBSERVED]}")
+    p.repair()
+    assert p.held_drift() == [], "PRECONDITION: the cache starts exact"
+    only = atom_id("only curated")
+    assert OBSERVED.value not in p.atoms.held([only])[only][1], \
+        "PRECONDITION: the relabel's addition would change the curated atom's cache"
+    with pytest.raises(StratumConflict):
+        p.relabel(CURATED, OBSERVED)
+    assert p.held_drift() == []

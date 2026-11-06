@@ -171,7 +171,7 @@ Roundoff and FloatModel, so it has no statements of its own):
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
 - `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the cited theorems
-  (261 theorems), and the three standard axioms.
+  (268 theorems), and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself. It is weaker than the comparator: it
   compares the statements' types and the definitions' values, not constructors, recursor rules or
@@ -239,6 +239,7 @@ Roundoff and FloatModel, so it has no statements of its own):
 | PLN-3 (search) | `PlaneReader.search`'s widening loop returns the first `k` atoms of the exact ranking that a cleared relation holds; `\|ps\|` rounds suffice | proved; attack survived 500 |
 | PLN-4 (cache) | land, retire, purge and repair keep `held`/`held_ever` coherent: `wanted ∪ freed` covers every row a land touches | proved; attack survived 500 traces |
 | PLN-4 (crash points) | a land that writes its cache's additions before its transaction ends where `land` does and leaves the cache complete at a crash before or after the transaction; planes differing only in complete caches answer every search alike after any trace, so the crash changes no search; a re-run leaves the first run's freed atoms stale by excess (only `repair` is exact) | proved, with the witness; attack survived 500 traces in which any write may crash, its control (the cache written last) refuted within 5 |
+| PLN-4 (relabel) | a relabel keeps the cache coherent; written with the new class added before its transaction and the old removed after, it ends where `relabel` does, leaves the cache complete at its crash points, and changes no search when it crashes; with the cache last, a crash hid the moved atoms from the new class and no re-run repaired it | proved, with the witness; attack survived 500, its control (the cache written last) refuted within 16 |
 | PLN-2 (A3.5) | noninterference: after any trace of writes that keep each path at one stratum, a reader under `C` sees, in its view and in every search, what it would see after the cleared writes, purges and repairs alone | proved by unwinding, under the hypotheses below; attack survived 480 traces with an uncleared write and a cleared hit |
 | `rn` | binary64 rounding to nearest, ties to even, without overflow: it fixes binary64 numbers, is monotone and odd, lands on binary64, and moves `x` by at most half an ulp; on the grid of multiples of `2⁻¹⁰⁷⁴` (every sum of two binary64 numbers), by at most `u\|x\|`, `u = 2⁻⁵³`, subnormals included | the model; on this machine it matched 500 sums, 500 quotients and 500 quotients `k / n` bit for bit |
 | CND-6 (float64) | `chi_s = rn(chain / n_s)` is `1.0` exactly when the chain spans the stratum, for every `n_s < 2^54`, and not at `2^54`; `chi_s ≤ 1` for every `n_s`, and `chi_s > 0` up to `2^1074` | proved over `rn`, with the witness; on this machine it survived 500 |
@@ -328,8 +329,8 @@ witnesses:
   `_refresh_held` left the atom's cache empty and a cleared search missed it (fail-closed), and an
   uncleared land that shares the atom, its whole held set rewritten, brought the hit back
   (`drift_interferes`). A land now writes its cache's additions before its transaction, so no
-  crash of a land leaves the cache incomplete (PLN-4's crash points); a relabel, outside the
-  model, still can, and `repair()` restores completeness.
+  crash of a land leaves the cache incomplete (PLN-4's crash points), and a relabel writes its
+  additions first too; `repair()` restores completeness after anything else.
 - Every path lives at one stratum fixed in advance (A3.6). A land whose path another class holds
   is refused, and that check reads the uncleared relations: an uncleared document at a path makes
   a cleared land of the same path fail (`stratum_interferes`).
@@ -341,11 +342,12 @@ cache in place of the cleared join within 106, `freed` without the old derivatio
 17, the search loop without its `seen` set within 25 (`[0, 0]`), a purge without its
 still-held check within 10, the re-key as it was (every record under the note lane's key, the shed
 atoms not read) within 6, a land whose cache is written last, crashed after its transaction,
-within 5, and its plane, the current rows landed again from the empty plane,
+within 5, a relabel whose cache is written last within 16, and its plane, the current rows landed again from the empty plane,
 within 25 (a retired note's rows are not current, so they are not read).
 
-Outside the model: `relabel` and `reset` (each moves or forgets whole classes, a visible act for
-any clearance it names), and a land of several fibers in one transaction. `known()`, which tells
+Outside the model: `reset` (it forgets whole classes, a visible act for any clearance it names),
+a land of several fibers in one transaction, and `relabel`'s place in a trace (it reads one class
+and writes another, so no unwinding covers it; its cache steps and crash points are modelled). `known()`, which tells
 the write path whether the shared table holds an atom of any class, is the deduplication side
 channel of Harnik, Pinkas and Shulman-Peleg (2010); only ingest calls it (`core/ingest/index.py`).
 Its design theorems, cited here and not from the ledger: beyond a reader's view it gives one bit
@@ -617,7 +619,7 @@ nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
 does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the
-261 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
+268 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.
 

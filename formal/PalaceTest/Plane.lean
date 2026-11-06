@@ -235,6 +235,29 @@ through traces in which any write may crash partway. -/
 whose cache misses the class of its new row. -/
 #eval refuted (∀ raws : List (Raw × Fin 3), completeAfter true raws = true) 305
 
+/-- A relabel of class `o` to class `n`, or what a crash partway through it leaves: `0` none, `1`
+after its transaction (after its rollback, on a clash), `2` before it. With `old`, the cache is
+written last; otherwise the additions come first. -/
+def relabelAt (old : Bool) (o n : Fin 3) (crash : Fin 3) (s : St) : St :=
+  if o = n then s
+  else if crash = 0 then relabel o n s
+  else
+    let t := if old then s else addRelabel o n s
+    if crash = 1 ∧ ¬Clash o n s then relabelCommit o n t else t
+
+/-- The cache after a random trace and a relabel that may crash partway is complete. -/
+def relabelComplete (old : Bool) (raws : List Raw) (o n crash : Fin 3) : Bool :=
+  decide (Complete univ (relabelAt old o n crash (runWith step (raws.map (decode true)))))
+
+/- PLN-4: with a relabel's additions first, the cache stays complete at its crash points. -/
+#eval survives (∀ raws : List Raw, ∀ o n crash : Fin 3, relabelComplete false raws o n crash = true)
+  306
+
+/- Control, the cache written last: a relabel that crashes after its transaction leaves the moved
+atoms without their new class. -/
+#eval refuted (∀ raws : List Raw, ∀ o n crash : Fin 3, relabelComplete true raws o n crash = true)
+  307
+
 /-! ### The chunk-key migration (#37) -/
 
 /-- A random physical row: id, document (`3` is none, a shed atom row), text, lane. -/

@@ -15,10 +15,10 @@
 #            deterministic embedder: the first writer's vector is the one stored); (3) the cache
 #            is complete on C, every class of C that holds an atom named in the atom's cache
 #            (`drift_interferes`: an atom whose cache misses a class is hidden from that class
-#            until an uncleared write that shares the atom refreshes it), which `land` keeps at
-#            every crash point by writing its additions first (PLN-4); (4) every path lives at
-#            one stratum fixed in advance (A3.6; `stratum_interferes`: the refusal of a land whose
-#            path another class holds reads an uncleared relation).
+#            until an uncleared write that shares the atom refreshes it), which `land` and
+#            `relabel` keep at every crash point by writing their additions first (PLN-4); (4)
+#            every path lives at one stratum fixed in advance (A3.6; `stratum_interferes`: the
+#            refusal of a land whose path another class holds reads an uncleared relation).
 # ENFORCED:  structural (per-class relations, sealed records, the clearance-derived table list) +
 #            property (tests/property/test_plane_noninterference.py) + formal (PLN-1 to PLN-6,
 #            formal/Palace/Plane.lean) + the R3 repair ratchet.
@@ -535,7 +535,14 @@ class SharedPlane:
     def relabel(self, old: Provenance, new: Provenance) -> int:
         """Move every document of class `old` to class `new` — the one deliberate move between
         strata (a same-tier relabel such as authored → authored-solo, or an owner promotion).
-        Returns occupancies moved."""
+        Returns occupancies moved.
+
+        [banner: correction] PLN-4's crash points (`formal/Palace/Plane.lean`): `new` is added to
+        the cache of every atom `old`'s rows hold before the transaction, taken back after a
+        refusal, and `old` removed after it, so a crash leaves only excess, which no search sees
+        (`search_after_relabelCrash`). With the cache written last, a crash after the transaction
+        hid the moved atoms from `new`'s readers, and a re-run, `old` now empty, refreshed
+        nothing (`relabel_rerun_hides`)."""
         if old is new:
             return 0
         if old not in OCC or new not in OCC:
@@ -543,6 +550,7 @@ class SharedPlane:
         with self._writing() as conn:
             affected = [str(r[0]) for r in conn.execute(
                 f"SELECT DISTINCT atom_id FROM {OCC[old]}")]
+            self._add_held(self.atoms.held(affected), dict.fromkeys(affected, {new.value}))
             conn.execute("BEGIN IMMEDIATE")
             try:
                 clash = conn.execute(
@@ -557,8 +565,10 @@ class SharedPlane:
                 conn.execute("COMMIT")
             except BaseException:
                 conn.execute("ROLLBACK")
+                with contextlib.suppress(Exception):
+                    self._refresh_held(conn, affected)  # nothing moved: take the additions back
                 raise
-            self._refresh_held(conn, affected)
+            self._refresh_held(conn, affected)                   # the removals: `old` leaves
             return int(n)
 
     def rekey_rows(self) -> tuple[int, int]:

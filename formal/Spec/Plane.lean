@@ -232,6 +232,63 @@ theorem search_after_crash (dist : A → Δ) {C : Finset K} (ops : List (Op K P 
 
 end CrashSearch
 
+/-! ### Crash points of a relabel (PLN-4) -/
+
+section Relabel
+
+variable [DecidableEq P] [LinearOrder D] [DecidableEq A] [Fintype K] [DecidableEq K]
+
+omit [DecidableEq P] [LinearOrder D] in
+/-- **PLN-4** A crash before a relabel's transaction, its additions written, leaves the cache
+complete on every class, from a complete one. -/
+theorem complete_addRelabel {old new : K} {s : State K P D A} (hc : Complete univ s) :
+    Complete univ (addRelabel old new s) :=
+  sorry
+
+/-- **PLN-4** So does a crash after it: every atom the old class's rows held names the new class
+already, in both columns. -/
+theorem complete_relabelAdd {old new : K} {s : State K P D A} (h : old ≠ new)
+    (hc : Complete univ s) : Complete univ (relabelCommit old new (addRelabel old new s)) :=
+  sorry
+
+/-- **PLN-4** A relabel written in the code's order, the new class added before the transaction
+and the old one removed after it, ends where `relabel` does. -/
+theorem relabel_of_addRelabel {old new : K} {s : State K P D A} (h : old ≠ new)
+    (hn : ¬Clash old new s) :
+    refresh (relabeled old s) (relabelCommit old new (addRelabel old new s)) =
+      relabel old new s :=
+  sorry
+
+/-- **PLN-4** A refused relabel whose additions are taken back after the rollback changes nothing,
+from a coherent plane. -/
+theorem relabel_of_addRelabel_clash {old new : K} {s : State K P D A} (hc : Coherent s)
+    (hn : Clash old new s) :
+    refresh (relabeled old s) (addRelabel old new s) = relabel old new s :=
+  sorry
+
+/-- **PLN-4** A relabel keeps the cache coherent. -/
+theorem coherent_relabel {old new : K} {s : State K P D A} (hc : Coherent s) :
+    Coherent (relabel old new s) :=
+  sorry
+
+end Relabel
+
+section RelabelSearch
+
+variable {Δ : Type*} [LinearOrder Δ] [DecidableEq P] [LinearOrder D] [LinearOrder A] [Fintype K]
+  [DecidableEq K]
+
+/-- **PLN-4** A relabel that writes its additions first can crash after its transaction with no
+reader the wiser: every search after any trace answers as had the relabel finished. -/
+theorem search_after_relabelCrash (dist : A → Δ) {C : Finset K} (ops : List (Op K P D A))
+    {old new : K} {s : State K P D A} (h : old ≠ new) (hn : ¬Clash old new s) (hc : Coherent s)
+    (hw : WF s) (k : ℕ) (sup : Bool) :
+    search dist C (run ops (relabelCommit old new (addRelabel old new s))) k sup =
+      search dist C (run ops (relabel old new s)) k sup :=
+  sorry
+
+end RelabelSearch
+
 /-! ### The chunk-key migration (#37) -/
 
 namespace Store
@@ -327,6 +384,16 @@ theorem rerun_keeps_excess :
     ¬Coherent (land vb (landAddCommit vb (land va empty))) ∧
       Complete univ (land vb (landAddCommit vb (land va empty))) ∧
       Coherent (repair (land vb (landAddCommit vb (land va empty)))) :=
+  sorry
+
+
+/-- **PLN-4, the relabel with its cache last.** A crash after the transaction hides the moved atom
+from the new class, and running the relabel again does not bring it back: the old relation is
+empty, so the re-run refreshes nothing. The relabel run whole finds it. -/
+theorem relabel_rerun_hides :
+    search (fun _ ↦ (0 : ℕ)) {1} (relabel 0 1 moved) 1 false ≠ [] ∧
+      search (fun _ ↦ (0 : ℕ)) {1} (relabelCommit 0 1 moved) 1 false = [] ∧
+      search (fun _ ↦ (0 : ℕ)) {1} (relabel 0 1 (relabelCommit 0 1 moved)) 1 false = [] :=
   sorry
 
 end Witness

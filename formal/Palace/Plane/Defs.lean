@@ -350,6 +350,35 @@ writes it: the additions stand, the removals are not yet written. -/
 def landAddCommit (f : Fiber K P D A) (s : State K P D A) : State K P D A :=
   if Refused f s then landAdd f s else commit f (landAdd f s)
 
+/-- `relabel`'s refusal (`StratumConflict`): a path of `old` is also a path of `new`. -/
+def Clash (old new : K) (s : State K P D A) : Prop :=
+  ∃ o ∈ s.occ old, ∃ o' ∈ s.occ new, o.path = o'.path
+
+instance (old new : K) (s : State K P D A) : Decidable (Clash old new s) :=
+  inferInstanceAs (Decidable (∃ _ ∈ _, _))
+
+/-- The atoms `old`'s rows hold, current or superseded: what `relabel` refreshes. -/
+def relabeled (old : K) (s : State K P D A) : Finset A := (s.occ old).image (·.atom)
+
+/-- `relabel`'s transaction: `old`'s rows and edges move to `new`, and `old`'s relation and log
+end empty. -/
+def relabelCommit (old new : K) (s : State K P D A) : State K P D A :=
+  { s with
+    occ := Function.update (Function.update s.occ new (s.occ new ∪ s.occ old)) old ∅
+    sup := Function.update (Function.update s.sup new (s.sup new ++ s.sup old)) old [] }
+
+/-- `SharedPlane.relabel old new`, the one deliberate move between strata: refused on a clash,
+else the transaction, then the cache of every atom `old`'s rows held. -/
+def relabel (old new : K) (s : State K P D A) : State K P D A :=
+  if old = new ∨ Clash old new s then s else refresh (relabeled old s) (relabelCommit old new s)
+
+/-- The relabel's cache additions, before its transaction: every atom `old`'s rows hold names
+`new` in both columns. -/
+def addRelabel (old new : K) (s : State K P D A) : State K P D A :=
+  { s with
+    held := fun a ↦ if a ∈ relabeled old s ∧ a ∈ s.table then insert new (s.held a) else s.held a
+    ever := fun a ↦ if a ∈ relabeled old s ∧ a ∈ s.table then insert new (s.ever a) else s.ever a }
+
 /-- The atoms of `p`'s current rows in class `c`: what `retire` unsets and refreshes. -/
 def retired (c : K) (p : P) (s : State K P D A) : Finset A :=
   ((s.occ c).filter fun o ↦ o.path = p ∧ o.current = true).image (·.atom)
@@ -568,6 +597,9 @@ code records of one document with one text (ids 1 and 2, two layers). -/
 def edited : Store (Fin 1) (Fin 1) (Fin 2) (Fin 2) ℕ (Fin 2) :=
   ⟨run [.land va, .land vb] empty,
     {⟨0, none, 0, false⟩, ⟨3, none, 0, false⟩, ⟨1, some 0, 1, false⟩, ⟨2, some 0, 1, false⟩}⟩
+
+/-- Class 0's one note, holding atom 0. -/
+def moved : State (Fin 2) (Fin 1) (Fin 1) (Fin 1) := land ⟨0, 0, 0, [(0, 0)]⟩ empty
 
 end Witness
 
