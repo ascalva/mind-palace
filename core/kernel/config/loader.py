@@ -851,6 +851,17 @@ def _named_overlay() -> Path | None:
     return path
 
 
+def ouroboros_only(what: str) -> None:
+    """Refuse while `MIND_PALACE_OVERLAY` selects a named instance, for a tool that names
+    Ouroboros's own state outside the config: its data dir by path, its services, its sources, its
+    archive, its Vault. Such a tool would act on Ouroboros's state for the named instance (DI-2)."""
+    named = os.environ.get(OVERLAY_ENV, "")
+    if named:
+        raise InstanceOverlayError(
+            f"{what} acts on Ouroboros's own state; refusing under {OVERLAY_ENV}={named!r}. "
+            f"Unset {OVERLAY_ENV} to run it for Ouroboros.")
+
+
 def _read(path: Path) -> dict[str, Any]:
     return tomllib.loads(path.read_text(encoding="utf-8"))
 

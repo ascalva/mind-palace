@@ -504,6 +504,9 @@ def bench(name: str, raw: F32, families: list[Family], rng: np.random.Generator,
 
 
 def main(argv: list[str] | None = None) -> int:
+    from core.kernel.config import ouroboros_only
+
+    ouroboros_only("the quantization bench, caching under data/eval")   # DI-2
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--corpus", choices=("papers", "code", "all"), default="all")
     ap.add_argument("--self-queries", type=int, default=500,

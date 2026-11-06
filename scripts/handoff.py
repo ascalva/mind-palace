@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sqlite3
 import subprocess
@@ -728,6 +729,12 @@ def cmd_lint(root: Path, role: str) -> int:
 
 
 def main(argv: list[str]) -> int:
+    # Its live view reads Ouroboros's queue (<repo>/data/queue.sqlite), so it refuses a named
+    # instance (DI-2). Checked here rather than through core: this tooling never imports core.
+    if os.environ.get("MIND_PALACE_OVERLAY"):
+        print("handoff: reads Ouroboros's queue; refusing under MIND_PALACE_OVERLAY",
+              file=sys.stderr)
+        return 1
     args = _parse(argv)
     kind, ident = next((k, v) for k, v in
                        (("role", args.role), ("track", args.track), ("plan", args.plan)) if v)

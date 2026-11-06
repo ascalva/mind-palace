@@ -23,6 +23,9 @@ from core.sealing import seal  # noqa: E402
 
 
 def main() -> int:
+    from core.kernel.config import ouroboros_only
+
+    ouroboros_only("the Open WebUI bridge's responder")   # Ouroboros's bridge spool (DI-2)
     seal()  # structural egress guard first (Invariant 1)
     from agents.ambassador.handoff import serve_handoff
 
