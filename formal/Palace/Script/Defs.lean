@@ -1,12 +1,12 @@
 module
 
-public import Palace.Door.Defs
+public import Palace.Ingress.Defs
 
 /-!
-# The door's language: the model
+# The ingress language: the model
 
-The second form of the door (dn-door-language): the language is generic, the ingestion paths are
-its scripts, and the palace, like an operating system, decides what a script may open and write
+The second form of the ingress (dn-ingress-language): the language is generic, the ingestion paths
+are its scripts, and the palace, like an operating system, decides what a script may open and write
 and the label of everything it stores. A script's value is a plan of effects; what the laws need
 of it is where each stored value came from. A value that can be stored is **content**: bytes, a
 label and an origin. An expression is, as far as labels go, an item a source yields, a
@@ -77,14 +77,14 @@ end Expr
 
 /-- The value of an expression, as far as labels go: an item's bytes, label and path; a
 projection's view of its operand, with the operand's label and origin; a construction's bytes,
-observed, with no origin (dn-door-language §E3). -/
+observed, with no origin (dn-ingress-language §E3). -/
 def eval (view : W → B → B) (observed : L) : Expr B L P W → Content B L P
   | .item i => ⟨i.bytes, i.label, some i.path⟩
   | .proj w e => ⟨view w (eval view observed e).bytes, (eval view observed e).label,
       (eval view observed e).origin⟩
   | .make b => ⟨b, observed, none⟩
 
-/-- The label set an expression's type carries (dn-door-language §E12): an item's is the set its
+/-- The label set an expression's type carries (dn-ingress-language §E12): an item's is the set its
 source's rule may give, a projection's is its operand's, a construction's is the observed label
 alone. Inference unifies two sets by their union, so an inferred set contains this one. -/
 def labelsOf [DecidableEq L] (srcLabels : Item B L P → Finset L) (observed : L) :
@@ -223,10 +223,10 @@ def landPlan (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B L P I W 
     (h : Held P B L I) : Held P B L I :=
   plan.foldl (step T r) h
 
-/-- A store as the first form's command (`Palace/Door/Defs.lean`): the rows the place indexes its
+/-- A store as the first form's command (`Palace/Ingress/Defs.lean`): the rows the place indexes its
 bytes into, its path as the identity the key is held for, the digest of its bytes. -/
 def toSource {R G : Type*} (rowsOf : B → List (Finset R)) (dig : B → G) (p : P) (b : B) :
-    Door.Source R P G :=
+    Ingress.Source R P G :=
   ⟨rowsOf b, p, dig b⟩
 
 end Palace.Script

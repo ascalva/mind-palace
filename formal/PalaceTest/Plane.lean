@@ -204,7 +204,7 @@ def purgeAll (d : Fin 2) (s : St) : St :=
 /- Control, no still-held check: a purge frees an atom another row still holds. -/
 #eval refuted (∀ raws : List Raw, ∀ d : Fin 2, purgeHolds purgeAll raws d = true) 92
 
-/-! ### Crash points of a land (PLN-4, dn-ingest-door §9 item 7) -/
+/-! ### Crash points of a land (PLN-4, dn-ingress §9 item 7) -/
 
 /-- A write in the code's order, or what a crash partway through it leaves: `0` none, `1` after a
 land's transaction (or its rollback) or a retire's or a purge's, `2` before a land's transaction,

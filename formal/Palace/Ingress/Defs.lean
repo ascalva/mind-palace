@@ -6,9 +6,9 @@ public import Mathlib.Data.List.Perm.Basic
 public import Palace.Sentence.Defs
 
 /-!
-# The door: the model
+# The ingress: the model
 
-Ingestion as the sentence `do …` (dn-ingest-door). A source is what the door derives from it, by
+Ingestion as the sentence `do …` (dn-ingress). A source is what the ingress derives from it, by
 stage: the rows each stage adds to the append-only stores (the raw object, the chunks, the atoms
 with their vectors, the occupancies), the identity whose version chain it extends and the digest
 of the version it lands. All are functions of the source, which is content addressing. A store
@@ -23,7 +23,7 @@ steps, so a command's own order, and the interleaving of several commands' stage
 
 open Finset
 
-namespace Palace.Door
+namespace Palace.Ingress
 
 /-- A source: the rows it adds, by stage; the identity whose chain it extends; its digest. -/
 structure Source (R D G : Type*) where
@@ -96,7 +96,7 @@ def run (w : List (Step R D G)) (s : State R D G) : State R D G :=
   w.foldl (fun s a ↦ a.apply s) s
 
 /-- A command's steps in the landing order: its stages' rows, its landing, and its key last
-(dn-ingest-door D1). -/
+(dn-ingress D1). -/
 def Source.steps (x : Source R D G) : List (Step R D G) :=
   x.stages.map Step.rows ++ [Step.land x.ident x.digest, Step.key x.ident x.digest]
 
@@ -148,7 +148,7 @@ of this one). -/
 def prefixesOf (k : Source R D G → ℕ) (l : List (Source R D G)) : List (Step R D G) :=
   l.flatMap fun x ↦ x.steps.take (k x)
 
-/-- What the door reports after landing: the rows the command adds, the identity, the digest;
+/-- What the ingress reports after landing: the rows the command adds, the identity, the digest;
 a function of the source, as the attestation's output hashes are. -/
 structure Receipt (R D G : Type*) where
   /-- The rows the command added. -/
@@ -190,4 +190,4 @@ bit, no fibers, the point window at the anchor. -/
 def commandScope (strata : Finset CQ.Stratum) (clock : CQ.Clock) : CQ.Scope :=
   ⟨CQ.close strata, ∅, ⟨clock, .point CQ.anchor⟩, ⟨0, 1, 0⟩, 1, none⟩
 
-end Palace.Door
+end Palace.Ingress

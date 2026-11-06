@@ -965,7 +965,7 @@ theorem knownIn_congr {C : Finset K} {s t : State K P D A} (h : view C s = view 
 
 end Known
 
-/-! ### Crash points of a land (PLN-4, dn-ingest-door §9 item 7)
+/-! ### Crash points of a land (PLN-4, dn-ingress §9 item 7)
 
 The code now writes a land's cache additions before its transaction and its removals after it, so
 a crash at any point leaves the cache stale only by excess. Excess is invisible to every reader:
@@ -1706,7 +1706,7 @@ theorem rekeyReset_merges (key : Option (Fin 1) → Fin 2 → ℕ) :
     conv_rhs => rw [← Finset.image_id (s := edited.phys)]
     exact Finset.image_congr fun r hr ↦ Phys.rekey_of_not_note (hnote r hr)
 
-/-- **PLN-4, what a re-run does not do** (dn-ingest-door §9 item 7). The note's second version
+/-- **PLN-4, what a re-run does not do** (dn-ingress §9 item 7). The note's second version
 crashes after its transaction, and landing it again leaves the first version's atom cached as held,
 which no current row holds: the re-run refreshes the atoms it lands and frees, and the first run's
 freed atoms are neither. The cache stays stale by excess, complete all the same, until `repair`. -/

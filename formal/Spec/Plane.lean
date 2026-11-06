@@ -174,7 +174,7 @@ theorem noninterference_search (dist : A → Δ) {κ : P → K} {C : Finset K}
 
 end Search
 
-/-! ### Crash points of a land (PLN-4, dn-ingest-door §9 item 7) -/
+/-! ### Crash points of a land (PLN-4, dn-ingress §9 item 7) -/
 
 section Crash
 
@@ -376,7 +376,7 @@ theorem rekeyReset_merges (key : Option (Fin 1) → Fin 2 → ℕ) :
   sorry
 
 
-/-- **PLN-4, what a re-run does not do** (dn-ingest-door §9 item 7). The note's second version
+/-- **PLN-4, what a re-run does not do** (dn-ingress §9 item 7). The note's second version
 crashes after its transaction, and landing it again leaves the first version's atom cached as held,
 which no current row holds: the re-run refreshes the atoms it lands and frees, and the first run's
 freed atoms are neither. The cache stays stale by excess, complete all the same, until `repair`. -/
