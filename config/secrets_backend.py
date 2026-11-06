@@ -166,7 +166,7 @@ def build_secrets_backend(config: Config | None = None) -> SecretsBackend | None
     fail-closed signing gate, a missing supervisor token here is not a silent-fallback risk
     (there is no insecure fallback path to slip into) — it simply surfaces as an hvac auth
     error on the first real `mint_token` call, not at construction."""
-    from config.loader import get_config, get_secret
+    from config.loader import VAULT_TOKEN, get_config, get_secret
 
     cfg = config or get_config()
     if not cfg.secrets.enabled:
@@ -174,5 +174,6 @@ def build_secrets_backend(config: Config | None = None) -> SecretsBackend | None
     return VaultClient(
         addr=cfg.secrets.addr,
         kv_mount=cfg.secrets.kv_mount,
-        supervisor_token=get_secret("vault-supervisor-token"),
+        # the instance's own token item (DI-2): a named instance's Vault never gets Ouroboros's
+        supervisor_token=get_secret(cfg.instance.secret(VAULT_TOKEN)),
     )

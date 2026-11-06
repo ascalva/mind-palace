@@ -19,6 +19,7 @@ from core.kernel.config.loader import (
     LEVERS_OVERLAY,
     OUROBOROS,
     REPO_ROOT,
+    VAULT_TOKEN,
     AirlockConfig,
     AmbassadorConfig,
     AttestationConfig,
@@ -47,11 +48,12 @@ from core.kernel.config.loader import (
     namespaces_of,
     refresh_config,
     shared,
+    vault_location,
 )
 from core.kernel.config.loader import get_secret as _env_secret
 
 __all__ = [
-    "DIALOGUE_READERS",
+    "DIALOGUE_READERS", "VAULT_TOKEN",
     "AirlockConfig", "AmbassadorConfig", "AttestationConfig", "BackupConfig", "Config",
     "DreamRnDConfig", "DreamingConfig", "EffectorsConfig", "EmbeddingConfig", "ExhaustConfig",
     "InstanceConfig", "InstanceOverlayError", "InterfaceConfig",
@@ -59,7 +61,7 @@ __all__ = [
     "REPO_ROOT", "ResourceConfig",
     "SandboxConfig", "SecretsConfig", "SelfModConfig", "VaultConfig",
     "default_transcripts_dir", "get_config", "get_secret", "load_config", "namespaces_of",
-    "refresh_config", "shared",
+    "refresh_config", "shared", "vault_location",
 ]
 
 

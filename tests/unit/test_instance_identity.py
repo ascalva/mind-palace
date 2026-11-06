@@ -182,7 +182,8 @@ def test_ouroboros_holds_todays_namespaces(monkeypatch, tmp_path) -> None:
     assert ns.data_dir == repo / "data" and ns.spool == repo / "data" / "handoff"
     assert ns.supervisor_lock == repo / "data" / "supervisor.lock"
     assert ns.levers == loader.LEVERS_OVERLAY == tmp_path / "levers.toml"
-    assert ns.secrets == frozenset(SECRETS.values())
+    assert ns.secrets == {*SECRETS.values(), "vault-supervisor-token"}
+    assert (cfg.secrets.addr, ns.vault) == ("http://127.0.0.1:8200", "loopback:8200")
     assert ns.labels == {"com.mind-palace.palace", "com.mind-palace.tick"}
     assert ns.backup == "s3:s3.us-east-1.amazonaws.com/example-ouroboros-backups"
     assert ns.sources == {Path("~/.mind-palace/vault/notes").expanduser(),
@@ -203,7 +204,7 @@ def test_a_named_instance_holds_namespaces_derived_from_its_id(monkeypatch, tmp_
     assert ns.data_dir == root / "data" and ns.spool == root / "data" / "handoff"
     assert ns.supervisor_lock == root / "data" / "supervisor.lock"
     assert ns.levers == root / "levers.toml"
-    assert ns.secrets == frozenset(f"bench.{name}" for name in SECRETS.values())
+    assert ns.secrets == {f"bench.{name}" for name in (*SECRETS.values(), "vault-supervisor-token")}
     assert ns.labels == {"com.mind-palace.bench.palace", "com.mind-palace.bench.tick"}
     assert cfg.attestation.signing_key_secret == "bench.attestation-signing-key"
     assert ns.backup == f"{NAMED_BACKUPS}/bench"
@@ -216,10 +217,11 @@ def test_control_the_pin_tells_ouroboros_from_a_named_instance(monkeypatch, tmp_
     text = FIXTURE.read_text().replace(
         "s3:s3.us-east-1.amazonaws.com/example-ouroboros-backups", f"{NAMED_BACKUPS}/twin").replace(
         "~/.mind-palace/vault/notes", str(tmp_path / "twin-notes"))
-    twin = loader.namespaces_of(_as_named(monkeypatch, tmp_path,
-                                          text + '\n[instance]\nid = "twin"\n'))
+    twin = loader.namespaces_of(_as_named(monkeypatch, tmp_path, text.replace(
+        "[secrets]\nenabled = true", '[secrets]\nenabled = true\naddr = "http://127.0.0.1:8210"')
+        + '\n[instance]\nid = "twin"\n'))
     for field in ("data_dir", "spool", "supervisor_lock", "levers", "exhaust", "sources",
-                  "dialogue", "secrets", "labels", "backup"):
+                  "dialogue", "secrets", "labels", "backup", "vault"):
         assert getattr(twin, field) != getattr(ouroboros, field), field
     assert loader.shared(twin, ouroboros) == []
     assert loader.shared(twin, twin) and loader.shared(ouroboros, ouroboros)
@@ -378,3 +380,48 @@ def test_a_named_instances_reports_land_in_its_own_lane(monkeypatch, tmp_path) -
     dest = module.place_report(html, "bp-1", "slug")
     assert dest.is_relative_to(cfg.exhaust.path / "reports")
     assert dest.is_relative_to(tmp_path / "instances" / "bench")
+
+
+# ── the Vault ────────────────────────────────────────────────────────────────────────────────────
+
+
+def test_a_named_instance_that_names_no_vault_has_none(monkeypatch, tmp_path) -> None:
+    from config.secrets_backend import build_secrets_backend
+
+    cfg = _as_named(monkeypatch, tmp_path, '[instance]\nid = "bench"\n')
+    assert (cfg.secrets.enabled, cfg.secrets.addr) == (False, "")
+    assert loader.namespaces_of(cfg).vault == "" and build_secrets_backend(cfg) is None
+
+
+def test_turning_secrets_on_without_a_vault_refuses(monkeypatch, tmp_path) -> None:
+    with pytest.raises(loader.InstanceOverlayError, match="names no addr"):
+        _as_named(monkeypatch, tmp_path, '[instance]\nid = "bench"\n[secrets]\nenabled = true\n')
+
+
+@pytest.mark.parametrize("addr", ["http://127.0.0.1:8200", "http://localhost:8200/",
+                                  "http://[::1]:8200", "127.0.0.1:8200"])
+def test_no_named_instance_reaches_ouroboros_vault(monkeypatch, tmp_path, addr) -> None:
+    """Ouroboros's Vault is the server its overlay names on this host (the committed default):
+    a named instance naming it, in any spelling, refuses."""
+    _isolated(monkeypatch, tmp_path)
+    (tmp_path / "ouroboros.toml").write_text(FIXTURE.read_text())
+    overlay = tmp_path / "named.toml"
+    overlay.write_text(f'[instance]\nid = "bench"\n[secrets]\nenabled = true\naddr = "{addr}"\n')
+    monkeypatch.setenv(loader.OVERLAY_ENV, str(overlay))
+    with pytest.raises(loader.InstanceOverlayError, match="Vault server loopback:8200"):
+        loader.load_config()
+
+
+def test_a_named_instances_own_vault_gets_its_own_token(monkeypatch, tmp_path) -> None:
+    """Its own server, and its own token item: Ouroboros's token never travels to another Vault."""
+    import config.secrets_backend as backend
+
+    cfg = _as_named(monkeypatch, tmp_path, '[instance]\nid = "bench"\n[secrets]\n'
+                                           'enabled = true\naddr = "https://127.0.0.1:8210"\n')
+    assert loader.namespaces_of(cfg).vault == "loopback:8210"
+    asked: list[str] = []
+    monkeypatch.setattr("config.loader.get_secret", lambda name, token=None: asked.append(name))
+    monkeypatch.setattr(backend, "VaultClient", lambda **kw: kw)
+    client = backend.build_secrets_backend(cfg)
+    assert asked == ["bench.vault-supervisor-token"]
+    assert client == {"addr": "https://127.0.0.1:8210", "kv_mount": "kv", "supervisor_token": None}
