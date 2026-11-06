@@ -23,6 +23,11 @@ Every number the scorer uses comes from the ledger's protocol record, never from
   ledger's own line order, never a date a caller supplies), in every table it prints: arms,
   primary, secondary and controls. Waiting past N and stopping when the result looks good reads
   the same N clusters as stopping at N; the clusters beyond N are counted in `beyond_n`, not scored.
+- **The method** is the protocol's. `percentile` (the default) is the cluster bootstrap above;
+  `signflip` is the cluster-level sign-flip randomization test of the pair-weighted mean, with its
+  interval made by inverting the test, and the same decision rule on that interval. The protocol's
+  `bootstrap` is the number of sign vectors, and all of them are enumerated when there are no more
+  than that. Both read the protocol's `alpha`, as `pilot` and `required_clusters` do.
 - **Blinding.** `pilot` reports the spread of the primary comparison's cluster means and the
   number of clusters it implies, never a mean. `report` refuses the comparisons until the
   protocol's `n_clusters` is fixed and reached, unless the caller unblinds on purpose.
@@ -261,6 +266,81 @@ def cluster_bootstrap(ps: Sequence[Pair], *, resamples: int, seed: int, alpha: f
     return Interval(len(ps), k, mean, float(lo), float(hi), p_value)
 
 
+_BISECT = 50
+
+
+def _flip_signs(k: int, flips: int, seed: int) -> tuple[npt.NDArray[np.float64], bool]:
+    """The sign vectors the test averages over: all 2^k of them when that is at most `flips`
+    (the exact test), otherwise `flips` random ones from the seed. Returns (signs, exact)."""
+    if 2 ** k <= flips:
+        bits = (np.arange(2 ** k)[:, None] >> np.arange(k)) & 1
+        return (bits * 2 - 1).astype(np.float64), True
+    rng = np.random.default_rng(seed)
+    return (rng.integers(0, 2, size=(flips, k)) * 2 - 1).astype(np.float64), False
+
+
+def _flip_p(signs: npt.NDArray[np.float64], exact: bool, v: npt.NDArray[np.float64]) -> float:
+    """Two-sided p-value of `sum(v)` against the sum of `v` with its signs flipped: the share of
+    sign vectors whose |sum| reaches the observed one. Add-one when the flips are a sample."""
+    obs = abs(float(v.sum()))
+    reach = int(np.count_nonzero(np.abs(signs @ v) >= obs - 1e-12 * float(np.abs(v).sum())))
+    return reach / len(signs) if exact else (1 + reach) / (len(signs) + 1)
+
+
+def cluster_signflip(ps: Sequence[Pair], *, flips: int, seed: int, alpha: float) -> Interval:
+    """The cluster-level sign-flip randomization test of the pair-weighted mean of `d`.
+
+    With cluster sums S_c and pair counts n_c the statistic is `sum(S_c) / sum(n_c)`, the same
+    pair-weighted mean the bootstrap reports (a cluster counts as many times as it has pairs).
+    The denominator is fixed, so a flip of cluster c's sign changes only `S_c`. The test is exact
+    under the null that the two arms are exchangeable within each cluster (flipping a cluster's
+    sign is swapping the arms in it) and the clusters are independent: it needs no resampling
+    approximation, and with at most `flips` sign vectors it enumerates all of them. It does not
+    protect against dependence across clusters, which makes the effective N smaller than the
+    cluster count.
+
+    The reported p-value tests mean = 0. The interval inverts the test: the set of mu0 at which
+    flipping the signs of `S_c - mu0 * n_c` does not reject at `alpha`. With the sign vectors held
+    fixed, p(mu0) is nonincreasing as mu0 moves away from the estimate on either side: the
+    observed |sum(S - mu0 n)| grows at slope sum(n) while a flipped sum changes at slope at most
+    |eps . n| <= sum(n), so each sign vector's reach indicator can only switch off. That makes the
+    set an interval around the estimate, found by bisection on each side. With too few clusters
+    to ever reject at `alpha` (the smallest attainable p-value, 2 / 2^k, exceeds it) the
+    interval is unbounded."""
+    if not ps:
+        raise ValueError("no pairs to compare")
+    sums, counts = _cluster_sums(ps)
+    k = len(sums)
+    mean = float(sums.sum() / counts.sum())
+    if k < 2:
+        return Interval(len(ps), k, mean, math.nan, math.nan, math.nan)
+    signs, exact = _flip_signs(k, flips, seed)
+
+    def p_at(mu0: float) -> float:
+        return _flip_p(signs, exact, sums - mu0 * counts)
+
+    def edge(direction: float) -> float:
+        step = max(1e-3, float(np.abs(sums / counts).max()))
+        inside, outside = mean, mean + direction * step
+        for _ in range(60):
+            if p_at(outside) <= alpha:
+                break
+            inside = outside
+            step *= 2.0
+            outside = mean + direction * step
+        else:
+            return direction * math.inf
+        for _ in range(_BISECT):
+            mid = (inside + outside) / 2.0
+            if p_at(mid) > alpha:
+                inside = mid
+            else:
+                outside = mid
+        return inside
+
+    return Interval(len(ps), k, mean, edge(-1.0), edge(1.0), p_at(0.0))
+
+
 def holm(p_values: Sequence[float]) -> list[float]:
     """Holm's step-down adjustment: family-wise error at most alpha over the secondary set."""
     m = len(p_values)
@@ -330,6 +410,8 @@ def null_check(t: Table) -> bool | None:
 
 def _interval(t: Table, ps: Sequence[Pair]) -> Interval:
     pr = t.protocol
+    if pr.method == "signflip":
+        return cluster_signflip(ps, flips=pr.bootstrap, seed=pr.seed, alpha=pr.alpha)
     return cluster_bootstrap(ps, resamples=pr.bootstrap, seed=pr.seed, alpha=pr.alpha)
 
 

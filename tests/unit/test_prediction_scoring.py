@@ -17,6 +17,7 @@ from eval.predictions.__main__ import main
 from eval.predictions.ledger import (
     Comparison,
     Ledger,
+    LedgerError,
     Prediction,
     Protocol,
     Question,
@@ -30,6 +31,7 @@ from eval.predictions.scoring import (
     Pilot,
     brier,
     cluster_bootstrap,
+    cluster_signflip,
     first_n,
     holm,
     known_edge,
@@ -293,6 +295,81 @@ def test_the_pilot_carries_no_mean(tmp_path: Path) -> None:
     reading = pilot(table(led.entries()))
     assert reading.n_clusters == 30 and reading.sd > 0 and reading.required is not None
     assert reading.null_exact is True
+
+
+def _noise(rng: random.Random, clusters: int, shift: float = 0.0) -> list[Pair]:
+    """Pairs of 1 to 3 per cluster, `shift` plus noise symmetric about 0."""
+    return [Pair(f"q{c}-{j}", "r1", f"c{c}", shift + rng.gauss(0, 0.2))
+            for c in range(clusters) for j in range(rng.randint(1, 3))]
+
+
+def test_signflip_is_exact_on_symmetric_noise() -> None:
+    """Pure noise symmetric about 0 with independent clusters: the rejection rate is alpha, within
+    Monte Carlo error (600 replications: 3.5 standard errors are 0.031)."""
+    rng = random.Random(11)
+    for alpha in (0.05, 0.025):
+        rejected = sum(cluster_signflip(_noise(rng, 40), flips=1000, seed=i, alpha=alpha).p_value
+                       <= alpha for i in range(600))
+        assert abs(rejected / 600 - alpha) < 3.5 * math.sqrt(alpha * (1 - alpha) / 600)
+
+
+def test_the_inverted_interval_covers_the_true_shift_at_the_right_rate() -> None:
+    rng = random.Random(12)
+    covered = excluded_zero = 0
+    for i in range(400):
+        iv = cluster_signflip(_noise(rng, 40, 0.1), flips=1000, seed=i, alpha=0.05)
+        covered += iv.lo <= 0.1 <= iv.hi
+        excluded_zero += iv.lo > 0
+    assert abs(covered / 400 - 0.95) < 3.5 * math.sqrt(0.95 * 0.05 / 400)
+    assert excluded_zero / 400 > 0.5                     # and it has power at this shift
+
+
+def test_the_interval_excludes_zero_exactly_when_the_test_rejects() -> None:
+    rng = random.Random(13)
+    for i in range(60):
+        iv = cluster_signflip(_noise(rng, 30, rng.choice([0.0, 0.05, 0.15])), flips=1000,
+                              seed=i, alpha=0.05)
+        assert (iv.lo > 0 or iv.hi < 0) == (iv.p_value <= 0.05)
+        assert iv.lo <= iv.mean <= iv.hi
+
+
+def test_signflip_is_reproducible_under_its_seed_and_exact_when_enumerable() -> None:
+    ps = _noise(random.Random(14), 40, 0.05)
+    a = cluster_signflip(ps, flips=1000, seed=3, alpha=0.05)
+    assert cluster_signflip(ps, flips=1000, seed=3, alpha=0.05) == a
+    assert cluster_signflip(ps, flips=1000, seed=4, alpha=0.05) != a
+    # Three clusters, 2^3 sign vectors enumerated: |+-1 +-2 +-4| reaches the observed 7 only when
+    # all signs agree, 2 of the 8 vectors.
+    three = [Pair("a", "r", "c1", 1.0), Pair("b", "r", "c2", 2.0), Pair("c", "r", "c3", 4.0)]
+    assert cluster_signflip(three, flips=1000, seed=0, alpha=0.05).p_value == 2 / 8
+    iv = cluster_signflip(three, flips=1000, seed=0, alpha=0.05)
+    assert (iv.lo, iv.hi) == (-math.inf, math.inf)       # 3 clusters can never reject at 0.05
+
+
+def test_the_method_is_frozen_with_the_bar_and_percentile_is_the_default(tmp_path: Path) -> None:
+    assert PROTOCOL.method == "percentile"
+    with pytest.raises(LedgerError, match="method"):
+        replace(PROTOCOL, method="wilson")
+    led = build(tmp_path / "l.jsonl", clusters=5, arms=FOUR)
+    with pytest.raises(LedgerError, match="method"):
+        led.amend(replace(PROTOCOL, method="signflip"))
+    early = Ledger(tmp_path / "e.jsonl")
+    early.register(PROTOCOL)
+    early.amend(replace(PROTOCOL, method="signflip"))     # before any prediction it may move
+
+
+def test_a_signflip_protocol_scores_through_the_report(tmp_path: Path) -> None:
+    sf = replace(PROTOCOL, method="signflip", n_clusters=30)
+    led = build(tmp_path / "l.jsonl", clusters=30, arms=FOUR, protocol=sf)
+    out = report(table(led.entries()))
+    primary = out["primary"]
+    assert isinstance(primary, dict) and primary["lo"] <= primary["mean"] <= primary["hi"]
+    controls = out["controls"]
+    assert isinstance(controls, dict) and controls["null_exact"] is True
+    assert report(table(led.entries())) == out            # the seed makes it reproducible
+    plain = build(tmp_path / "p.jsonl", clusters=30, arms=FOUR)
+    plain.amend(replace(PROTOCOL, n_clusters=30))
+    assert report(table(plain.entries()))["primary"] != primary
 
 
 def test_holm_adjusts_step_down() -> None:
