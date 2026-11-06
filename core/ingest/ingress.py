@@ -47,7 +47,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from core.ingest.files import check_dir, read_bounded, real_dir
+from core.ingest.files import check_dir, daemon_uid, read_bounded, real_dir, written_by_one
 from core.kernel.clearance import classes_of
 from core.kernel.config import Config, get_config
 from core.query import AMBASSADOR, AMBASSADOR_OVERLAY, OPERATOR, Grant
@@ -250,33 +250,60 @@ def _adopt_legacy(cfg: Config, report: Report | None) -> None:
     """Take over what the first form's spool (`door/<role>/`) holds, so no request is lost and
     none runs twice: its receipts first (an id seen stays seen, and a surface waiting on one finds
     it), then the daemon's staged copies and the rejected files, the pending requests last. Only a
-    real directory is entered and only a regular file named as a request id moves, by rename
-    (atomic, same filesystem); a name already present in the new spool is left where it is."""
+    regular file named as a request id moves, by rename (atomic, same filesystem); a name already
+    present in the new spool is left where it is.
+
+    Nothing is taken over that the drain would not trust where it lands (the security audit of
+    2026-11-06): the legacy root, each role's spool and each of its directories must pass the
+    steady-state checks (`check_dir`, `_check_group` for the agents' spool), and each file is read
+    through its descriptor first, the daemon's own files (a receipt, a staged copy, a rejected
+    file) as `written_by_one`, a pending request as the drain reads one (`_request_untrusted`).
+    `data/handoff` is writable by its group, so an account in it could replace the whole `door/`
+    tree with directories and files of its own: a planted receipt adopted would make a chosen id
+    read as already landed, with the planter's detail. Anything that fails stays where it is and
+    is reported once."""
     old, new = Path(cfg.interface.handoff_dir) / LEGACY_SPOOL, spool_root(cfg)
-    if not real_dir(old) or not real_dir(new):
+    if not os.path.lexists(old) or not real_dir(new):
+        return
+    why = check_dir(old)
+    if why is not None:
+        _warn_once(report, f"legacy:{old}",
+                   f"ingress: the first form's spool is not adopted: {why}")
         return
     for role in roles():
+        spool, shared = old / role, role in _SHARED_ROLES
+        if not os.path.lexists(spool):
+            continue
+        why = check_dir(spool, group_writes=shared) or (_check_group(spool) if shared else None)
+        if why is not None:
+            _warn_once(report, f"legacy:{spool}", f"ingress: {spool} is not adopted: {why}")
+            continue
         for sub in (*_INNER[::-1], ""):      # rejected, receipts, queued, then the requests
-            src, dst = old / role / sub, new / role / sub
-            if not real_dir(src) or not real_dir(dst):
+            src, dst = spool / sub, new / role / sub
+            if not os.path.lexists(src) or not real_dir(dst):
+                continue
+            if sub and (why := check_dir(src)) is not None:
+                _warn_once(report, f"legacy:{src}", f"ingress: {src} is not adopted: {why}")
                 continue
             try:
                 with os.scandir(src) as it:
                     names = [e.name for e in it if _FILE.fullmatch(e.name)]
-                for name in sorted(names, key=lambda n: (sub == "", n)):
-                    try:
-                        if not stat.S_ISREG(os.lstat(src / name).st_mode):
-                            continue
-                        if os.path.lexists(dst / name):
-                            _warn_once(report, f"legacy:{src / name}",
-                                       f"ingress: {src / name} not adopted: {dst / name} exists")
-                            continue
-                        os.rename(src / name, dst / name)
-                    except OSError as e:
-                        _warn_once(report, f"legacy:{src / name}",
-                                   f"ingress: {src / name} not adopted ({type(e).__name__}: {e})")
             except OSError:
                 continue
+            for name in sorted(names):
+                try:
+                    _, st = read_bounded(src / name, MAX_REQUEST_BYTES)   # no link, regular, capped
+                    why = written_by_one(st) if sub else _request_untrusted(st, role)
+                    if why is None and os.path.lexists(dst / name):
+                        why = f"{dst / name} exists"
+                    if why is not None:
+                        _warn_once(report, f"legacy:{src / name}",
+                                   f"ingress: {src / name} not adopted: {why}")
+                        continue
+                    os.rename(src / name, dst / name)
+                except (OSError, ValueError) as e:
+                    _warn_once(report, f"legacy:{src / name}",
+                               f"ingress: {src / name} not adopted ({type(e).__name__}: {e})")
 
 
 def ensure_spools(cfg: Config, *, report: Report | None = None) -> list[str]:
@@ -437,6 +464,17 @@ def pending(cfg: Config, healthy: list[str], *, limit: int = 64, per_role: int =
     return out
 
 
+def _request_untrusted(st: os.stat_result, role: str) -> str | None:
+    """Why a request file, by its descriptor's `stat`, is not one the drain trusts, or `None`: one
+    link (a writer keeping a second name could change it after the check), and, in a spool only the
+    daemon's account writes (the operator's), written by that account."""
+    if st.st_nlink != 1:
+        return f"{st.st_nlink} links; a request has one"
+    if role not in _SHARED_ROLES and st.st_uid != daemon_uid():
+        return f"written by uid {st.st_uid}; the {role} spool is the daemon account's alone"
+    return None
+
+
 def _load_request(f: Path, role: str, say: Report, cfg: Config | None = None) -> Request | None:
     """A request as the daemon trusts it: read through `read_bounded` (a regular file under the
     cap, no link followed, nothing blocked on), with one link (a writer keeping a second name could
@@ -445,11 +483,9 @@ def _load_request(f: Path, role: str, say: Report, cfg: Config | None = None) ->
     Anything else is rejected: moved aside, reported, never read again."""
     try:
         data, st = read_bounded(f, MAX_REQUEST_BYTES)
-        if st.st_nlink != 1:
-            raise ValueError(f"{st.st_nlink} links; a request has one")
-        if role not in _SHARED_ROLES and st.st_uid != os.getuid():
-            raise ValueError(f"written by uid {st.st_uid}; the {role} spool is the daemon "
-                             "account's alone")
+        why = _request_untrusted(st, role)
+        if why is not None:
+            raise ValueError(why)
         doc = json.loads(data.decode("utf-8"))
         if not isinstance(doc, dict):
             raise ValueError("not an object")
