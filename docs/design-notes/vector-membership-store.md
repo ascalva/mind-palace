@@ -935,9 +935,15 @@ The bound is a worst case, nearly attained by a vector whose every coordinate si
 and a query along the rounding error. Typical errors are far smaller, so the certificate settles
 only part of the reads: on the live stores (read-only, 2026-11-05, 300 queries each) it certifies
 the top ten of 59 % of stored vectors asked as queries on the main store and 37 % on the curated
-store, and 50 % and 30 % with a text query's own rounding added (`β_query` about `2.1e-4`). The experiment's one changed slot in
-2,000 (the code corpus, 200 stored vectors as queries) is the kind the certificate refuses: asking
-every one of the 17,256 code rows of the float32 store archived before the migration, float16
-storage changed 55 of the 172,560 top-ten slots, one slot in each of 55 queries, and each of those
-queries had a gap of at most `2.7e-5` between its tenth and eleventh distances, 44 times inside the
-bound; the certificate certified none of them and 63.5 % of all the queries.
+store, and 50 % and 30 % with a text query's own rounding added (`β_query` about `2.1e-4`). The
+experiment's one changed slot in 2,000 (the code corpus, 200 stored vectors as queries) is the kind
+the certificate refuses. `eval/float16_replay.py` asks every one of the 17,256 code rows of the
+float32 store archived before the migration for its ten nearest other rows, through LanceDB's own
+kernels, against a float32 copy of the rows and a float16 one. With the float32 rows as queries, as
+the bench asked, float16 storage changed 51 of the 172,560 top-ten slots, one in each of 51 queries,
+each at a gap of at most `2.7e-5` between its tenth and eleventh distances, more than 40 times
+inside the bound; the certificate certified none of them and 54.1 % of all the queries. With the
+rows' float16 roundings as queries, 50 slots changed in 50 queries, at gaps of at most `2.3e-5`,
+none certified, and 63.5 % of the queries were certified. Kept in their own top ten, as the formal
+audit of 2026-11-06 counted them, the rows give 45 and 38 changed slots, at gaps of at most
+`2.5e-5`, none certified, and 57.9 % and 66.3 % of the queries certified.
