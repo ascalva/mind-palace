@@ -11,8 +11,9 @@ checks that the `Palace` library proves each one exactly as stated here, from th
 alone. What the statements cover: labels are the palace's, a value's label and origin its item's
 under projections and observed otherwise, as `core/sentence/interpret.py` carries them (ING-13);
 the writer's rules as `core/ingest/writer.py` applies them, the firewall (ING-14), confinement to
-the role's namespace (ING-15), fixed labels, identities that move only with their bytes, paths
-that belong to their sources and retire as reconciliation (ING-17); a plan's stores as the first
+the role's namespace, the part it writes and the part it only retires (ING-15), fixed labels,
+identities that move only with their bytes, paths that belong to their sources and retire as
+reconciliation (ING-17); a plan's stores as the first
 form's commands with the key last, so they converge and leave a state readers may read without a
 lock (ING-16); and the type system's soundness for labels, as `core/sentence/script_check.py`
 infers them (ING-18).
@@ -84,10 +85,19 @@ theorem firewall_plan (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B
   sorry
 
 /-- **ING-15** Confinement: a plan changes a path only through an effect on it that the writer
-admitted, in the role's namespace for the effect's place. -/
+admitted, in the role's namespace for the effect's place: its write namespace for a store, its
+write or retire-only namespace for a retire. -/
 theorem confined (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B L P I W K))
     (h₀ : Held P B L I) (p : P) (hne : landPlan T r plan h₀ p ≠ h₀ p) :
-    ∃ ef ∈ plan, ef.path = p ∧ T.ns r ef.place p = true :=
+    ∃ ef ∈ plan, ef.path = p ∧ inNamespace T r ef = true :=
+  sorry
+
+/-- **ING-15** A retire-only namespace takes no store: a path a plan leaves holding an active row
+it changed was stored there by the plan, in the role's write namespace for the store's place. -/
+theorem confined_store (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B L P I W K))
+    (h₀ : Held P B L I) (p : P) (row : Row B L I) (hp : landPlan T r plan h₀ p = some row)
+    (ha : row.active = true) (hne : landPlan T r plan h₀ p ≠ h₀ p) :
+    ∃ n e k, Effect.store p n e k ∈ plan ∧ T.ns r k p = true :=
   sorry
 
 /-- **ING-17** A held path keeps its label and its identity under an admitted store. -/

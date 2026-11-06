@@ -12,7 +12,8 @@ are its item's under its views, so no expression raises a label. ING-14, the fir
 admitted store whose label is not the observed one lands an item a source yields, under views, at
 the item's own path, with the item's label; over a plan, every active row not observed is the row
 held before or such a store's. ING-15, confinement: a plan changes a path only by an admitted
-effect on it, in the role's namespace for the effect's place. ING-16: a plan's stores are the
+effect on it, a store in the role's write namespace for its place and a retire in that namespace or
+the role's retire-only one, so a retire-only prefix takes no store. ING-16: a plan's stores are the
 first form's commands with the key last, so stores on distinct paths stopped anywhere converge
 under re-run (ING-11) and leave a state a reader that trusts the key may read without a lock
 (ING-12). ING-17: a held path keeps its label and its identity under an admitted store; a new
@@ -182,10 +183,11 @@ theorem firewall_plan (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B
 /-! ### ING-15 Confinement -/
 
 /-- **ING-15** Confinement: a plan changes a path only through an effect on it that the writer
-admitted, in the role's namespace for the effect's place. -/
+admitted, in the role's namespace for the effect's place: its write namespace for a store, its
+write or retire-only namespace for a retire. -/
 theorem confined (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B L P I W K))
     (h₀ : Held P B L I) (p : P) (hne : landPlan T r plan h₀ p ≠ h₀ p) :
-    ∃ ef ∈ plan, ef.path = p ∧ T.ns r ef.place p = true := by
+    ∃ ef ∈ plan, ef.path = p ∧ inNamespace T r ef = true := by
   induction plan generalizing h₀ with
   | nil => exact absurd rfl hne
   | cons ef plan ih =>
@@ -217,6 +219,46 @@ theorem confined (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B L P 
         · exact absurd rfl h1
     · obtain ⟨ef', hmem, hpath, hns⟩ := ih (step T r h₀ ef) hrest
       exact ⟨ef', List.mem_cons_of_mem ef hmem, hpath, hns⟩
+
+/-- **ING-15** A retire-only namespace takes no store: a path a plan leaves holding an active row
+it changed was stored there by the plan, in the role's write namespace for the store's place. -/
+theorem confined_store (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B L P I W K))
+    (h₀ : Held P B L I) (p : P) (row : Row B L I) (hp : landPlan T r plan h₀ p = some row)
+    (ha : row.active = true) (hne : landPlan T r plan h₀ p ≠ h₀ p) :
+    ∃ n e k, Effect.store p n e k ∈ plan ∧ T.ns r k p = true := by
+  induction plan generalizing h₀ with
+  | nil => exact absurd rfl hne
+  | cons ef plan ih =>
+    have hp' : landPlan T r plan (step T r h₀ ef) p = some row := hp
+    have hne' : landPlan T r plan (step T r h₀ ef) p ≠ h₀ p := hne
+    by_cases hrest : landPlan T r plan (step T r h₀ ef) p = step T r h₀ ef p
+    · have h1 : step T r h₀ ef p ≠ h₀ p := fun heq ↦ hne' (hrest.trans heq)
+      cases ef with
+      | store q n e k =>
+        simp only [step] at h1
+        split_ifs at h1 with hok
+        · by_cases hqp : p = q
+          · subst hqp
+            exact ⟨n, e, k, List.mem_cons_self, (okStore_spec hok).2.2.1⟩
+          · exact absurd (by simp [landStore, Function.update_of_ne hqp]) h1
+        · exact absurd rfl h1
+      | retire q k =>
+        have h2 : step T r h₀ (.retire q k) p = some row := hrest.symm.trans hp'
+        simp only [step] at h1 h2
+        split_ifs at h1 h2 with hok
+        · by_cases hqp : p = q
+          · subst hqp
+            simp only [landRetire, Function.update_self] at h2
+            cases h0 : h₀ p with
+            | none => simp [h0] at h2
+            | some r0 =>
+              simp only [h0, Option.map_some, Option.some.injEq] at h2
+              subst h2
+              simp at ha
+          · exact absurd (by simp [landRetire, Function.update_of_ne hqp]) h1
+        · exact absurd rfl h1
+    · obtain ⟨n, e, k, hmem, hns⟩ := ih (step T r h₀ ef) hp' hrest
+      exact ⟨n, e, k, List.mem_cons_of_mem ef hmem, hns⟩
 
 /-! ### ING-17 Labels fixed, identities with their bytes, retire reconciles -/
 
@@ -289,7 +331,8 @@ path the source no longer has, so no script retires a note still in the vault. -
 theorem retire_reconciles (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : P) (k : K)
     (row : Row B L I) (hp : h p = some row) (hs : row.sourced = true)
     (hok : okRetire T r h p k = true) : T.has p = false := by
-  have h2 : T.ns r k p = true ∧ T.has p = false := by simpa [okRetire, hp, hs] using hok
+  have h2 : (T.ns r k p || T.rns r k p) = true ∧ T.has p = false := by
+    simpa [okRetire, hp, hs] using hok
   exact h2.2
 
 /-! ### ING-16 A plan's stores converge, and readers need no lock -/

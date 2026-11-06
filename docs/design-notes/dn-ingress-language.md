@@ -76,8 +76,8 @@ They are the ledger's family XII beside the first form's (`docs/LAWS.md`, `forma
 Cited: QSA-5 (admissibility is clause-wise), the kernel's `STRATUM_CLASSES`, CLK-2. Open (§7):
 the Ambassador's places and namespaces, an operator's computed content, jobs as scripts. The
 Ambassador's inbox (§E13) needs no law of its own: ING-13 and ING-14 cover its source as they are
-stated, and its controls are seeds 291 to 293. ING-15 was restated on 2026-11-05 for the
-retire-only prefixes (R3), with seeds 288 to 290.
+stated, and its controls are seeds 371 to 373. ING-15 was restated on 2026-11-05 for the
+retire-only prefixes (R3), with seeds 368 to 370.
 
 ### 1.4 The bar
 
@@ -558,7 +558,7 @@ item a source yields, with the label its rule gives (the model's `Item`, its lab
 or the bytes of such an item at the item's own path (`firewall_plan`). What the model takes as
 given is the rule itself, that the source labels authored only the owner's messages. The table and
 the inbox hold it in code, and the tests fail when it is mutated. The attacks on the inbox's shadow
-check the composition and its two premises (seeds 291 to 293): every authored row a store lands is
+check the composition and its two premises (seeds 371 to 373): every authored row a store lands is
 the owner's message at its own path, a writer that takes the label a script claims lands the
 Ambassador's text as the owner's at its own prefix, and a rule that labels the reply authored
 lands the reply as the owner's. `[THEOREM — ING-13, ING-14: Script.lean::label_eval,
@@ -592,7 +592,7 @@ the code: the Ambassador retiring its legacy row changes a path outside them. Re
 held, but it then no longer said that a store stays in the write prefixes, which the follow-up
 relies on (the Ambassador never writes a new row there). The model's namespace is parametric data
 and now has its two parts, `ns` written and `rns` only retired; `confined` says which part each
-effect needs, and `confined_store` that a retire-only prefix takes no store. A control (seed 288)
+effect needs, and `confined_store` that a retire-only prefix takes no store. A control (seed 368)
 refutes the first statement on a writer with a retire-only prefix. ING-17 needed no change: R7's
 reconciliation does not depend on the namespace, and `retire_reconciles` holds as stated of a
 retire in either part.
