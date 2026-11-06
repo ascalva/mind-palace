@@ -68,6 +68,9 @@ the panel (docs/brainstorms/the-unchecked-claim.md: cite primary or mark the hop
 | S3 | a monolithic rebuild repeats the live wedge failure mode | RESOLVED — D7: checkpointed resumable slices (`jobs.checkpoint`), time-budgeted, no daemon stop |
 | S4 | lance physical churn: ~2.4× bloat, no compaction path | design RESOLVED (§3); the bloat figure DISPUTED — 245 MB disk vs ~232 MB raw vector payload |
 | S5 | no standing gauge reports embeds-avoided or the dedup factor | RESOLVED — D6/§8(g): `|M|/|V|` + embeds-avoided gauges; post-rebuild falsifier recorded (D7) |
+
+Erratum (2026-11-05, issue #50): F3's resolution stands, but its stated reason, "chain members ⊊
+version set", is false of the shipped reader; see the erratum under D4.
 | S6 | backlog ordering; never rerun the old backfill; carry-forward option | RECORDED — §3/D7 ordering guidance (wedge-clearing is an owner op); 13,311-atom seed measured |
 
 ## 1. Objective
@@ -264,6 +267,16 @@ A side-branch fiber's atoms are reachable through membership; its lineage enters
 the first-parent delta at the merge commit. §4 quantifies edge invariants over chain members, not
 over all fibers.
 
+Erratum (2026-11-05, issue #50): the strict subset above is false of the shipped reader.
+`capture_commit_diffs` is handed every ledger commit and diffs each against its own first parent,
+so a side branch's own commits are captured, and a path's chain members are exactly its ledger
+versions whenever the ledger holds every first parent of its commits (`rev-list HEAD` does):
+measured 1,663 = 1,663 at bp-153, proved as `mem_chain_iff` in `formal/Palace/Lineage.lean`.
+The strict subset holds of HEAD's first-parent line, which misses a side branch's intermediate
+blobs. A chain stays linear, a list, but it lists the versions in the ledger's order, so where
+two lines changed one path its consecutive pairs include pairs no commit's diff joins
+(`Witness.side_chain`): an edge count over such a chain counts pairs no commit made.
+
 ### D5 — Append-only + the purge exception (ruled)
 
 No machinery delete exists in the API surface (the store exposes no vector delete; supersession
@@ -376,6 +389,12 @@ duplicate L0b window pair), never on a corpus that satisfies them vacuously: per
 |runs| − 1; Σ fiber sizes = |M|; `current_any(v) ⇔ n_doc(v, t) > 0`; append-only ⇒ no test may
 ever observe |V| decrease (except across a logged purge). Histogram: the rank-frequency plot of
 lifetime n_doc(v); Zipf conformance checked in T2/T4, not assumed.
+
+Erratum (2026-11-05, issue #50): "chain members ⊊ ledger versions" is false of the shipped reader
+(the erratum under D4): on a ledger that holds every first parent, every fiber's version is a chain
+member, so no fiber is chainless and the clause scopes nothing. The edge invariants hold of any
+chain handed in; its edges are commits' diffs when it is threaded over one first-parent line,
+HEAD's for instance, and not in general over the ledger's order.
 
 ## 5. Risks
 

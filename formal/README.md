@@ -27,7 +27,7 @@ Each family comes in three parts:
 `Spec/` is proved in `Palace` with exactly the same statement, from the standard axioms, and
 everything the statements reach passes Lean's kernel and five independent checkers. A proof file
 therefore cannot change what the ledger's laws state: only `Spec/` and the model can. The design
-theorems (Sever, Frustration, Leak, Transport, Superconnection, and the parts of Magnetic and
+theorems (Sever, Frustration, Leak, Transport, Superconnection, Lineage, and the parts of Magnetic and
 NegativeType no row cites) have no `Spec/` statements yet: the kernel replays their proofs, but their statements live
 in the proof files, which can change them, until code relies on them and a row cites them. Whether a statement says
 what its row says stays a reader's judgment, and the reading is now confined to those two places;
@@ -159,6 +159,12 @@ Roundoff and FloatModel, so it has no statements of its own):
   sources, retire as reconciliation; DOR-18 the type system is sound for labels. `core/sentence/interpret.py`, `core/sentence/script_check.py`
   and `core/ingest/writer.py` are written to them, so they are the ledger's family XII too
   (`Spec/Script.lean`, 15 statements).
+- `Lineage`: `ops/code_lineage.py`'s chains over the snapshots ledger, design theorems for issue
+  #50: when the ledger holds every first parent of its commits, a path's chain members are exactly
+  its ledger versions (`mem_chain_iff`), where D4/F3 said a strict subset; HEAD's first-parent line
+  is the strict subset, and a chain lists the versions in the ledger's order, so two lines that
+  changed one path interleave and a consecutive pair may be one no commit's diff joins
+  (`Witness.side_chain`). Cited from the note, not the ledger.
 - `Bridges`: theorems that join two families, so that what one proves serves the other: BRG-1
   the Laplacian as `∂₁ ∂₁ᵀ`, BRG-2 Euler and Poincaré on the flag complex, BRG-3 Thomson's
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5

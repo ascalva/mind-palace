@@ -156,7 +156,17 @@ def supersession_chains(db: sqlite3.Connection) -> dict[str, list[str]]:
     `dict[str, list[int]]` (version_seq, `acquire.py`) and it re-sorts its values, so a temporal
     consumer feeds the commit-order POSITION of each blob (index = version_seq), not the sha
     string; the blob identity for the D5 edge is resolved from `commit_diffs` + the store directly
-    (finding filed under bp-099)."""
+    (finding filed under bp-099).
+
+    [banner: extension] What a chain holds (issue #50; `formal/Palace/Lineage.lean`). Every ledger
+    commit is diffed against its own first parent, so when the ledger holds every first parent of
+    its commits (`rev-list HEAD` does), a path's chain members are exactly its `ledger_versions`,
+    a side branch's included (`mem_chain_iff`; 1,663 = 1,663 on the live ledger at bp-153). The
+    order is the ledger's capture order, so where two lines changed one path the chain interleaves
+    them, and a consecutive pair may be one no commit's diff joins (`Witness.side_chain`: a side
+    branch's `s1`, then main's `m2`). Threaded over one first-parent line alone, HEAD's say, the
+    consecutive pairs are that line's diffs (a deletion and re-addition aside), and the members a
+    strict subset of the versions once a side branch has made an intermediate blob."""
     _ensure_schema(db)
     rows = db.execute(
         "SELECT cd.path, cd.old_blob, cd.new_blob FROM commit_diffs cd "
