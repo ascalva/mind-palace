@@ -156,13 +156,14 @@ def main() -> None:
     ap.add_argument("--first", type=float, required=True, help="first cut time")
     ap.add_argument("--last", type=float, required=True)
     ap.add_argument("--step", type=float, required=True)
+    ap.add_argument("--extra", type=float, nargs="*", default=[], help="further cut times")
     ap.add_argument("--reps", type=int, default=30)
     ap.add_argument("--hodge-reps", type=int, default=8)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--max-boot-n", type=int, default=10**9)
     a = ap.parse_args()
     edges = load_edge_csv(a.edges.expanduser())
-    cuts = list(np.arange(a.first, a.last + 1e-9, a.step))
+    cuts = sorted({*np.arange(a.first, a.last + 1e-9, a.step).tolist(), *a.extra})
     run(edges, cuts, a.out.expanduser(), a.reps, a.hodge_reps, a.seed, max_boot_n=a.max_boot_n)
 
 
