@@ -35,7 +35,14 @@ import numpy as np
 
 from core.kernel.recursion import DEFAULT_GAMMA
 from core.kernel.scope import Hyp, Stratum
-from core.query import CURATED_REF, Hit, QueryEngine, free_energy_distances
+from core.query import (
+    COMPONENT_SOLVE_ABOVE,
+    CURATED_REF,
+    Hit,
+    QueryEngine,
+    free_energy_distances,
+    free_energy_distances_from,
+)
 from core.sentence import ast
 from core.sentence.algebra import atleast, camps, effective_resistance, far, mask_field, topk
 from core.sentence.ast import Direction, Node, Rel
@@ -552,6 +559,7 @@ class Evaluator:
         # one walk per (relation, β, carrier) per evaluation: a sentence that diffuses from two
         # anchors, or `and`s two diffusions, solves `(I − W_β)⁻¹` once
         self._walks: dict[tuple[Rel, float, frozenset[int]], np.ndarray] = {}
+        self._rows: dict[tuple[Rel, float, frozenset[int], int], np.ndarray] = {}
         # what the answer must say about how it was computed: a walk cut short, say
         self.notes: list[str] = []
 
@@ -871,9 +879,16 @@ class Evaluator:
             census = np.array([n.get("stratum") == "curated" for n in self.u.notes])
             degrees = np.where(census & inside, np.maximum(self.u.degrees, own), own)
         b = beta if beta is not None else self.p.beta
-        if (rel, b, keep) not in self._walks:
-            self._walks[(rel, b, keep)] = free_energy_distances(W, beta=b, degrees=degrees)
-        dist = self._walks[(rel, b, keep)][i]
+        if len(self.u) > COMPONENT_SOLVE_ABOVE:
+            # a large support: the row from the source's component, never the n × n matrix
+            if (rel, b, keep, i) not in self._rows:
+                self._rows[(rel, b, keep, i)] = free_energy_distances_from(
+                    W, i, beta=b, degrees=degrees)
+            dist = self._rows[(rel, b, keep, i)]
+        else:
+            if (rel, b, keep) not in self._walks:
+                self._walks[(rel, b, keep)] = free_energy_distances(W, beta=b, degrees=degrees)
+            dist = self._walks[(rel, b, keep)][i]
         scores = np.where(np.isfinite(dist), np.exp(-dist), 0.0)
         scores[i] = 0.0                                  # a note is not retrieved from itself
         scores = mask_field(np.clip(scores, 0.0, 1.0), carrier)
