@@ -6,65 +6,51 @@ created: 2026-11-05
 status: open
 links:
   - docs/design-notes/dn-ingress.md          # the design this warrants
-  - docs/design-notes/dn-ingress-language.md        # its second form, after the owner's correction
+  - docs/design-notes/dn-ingress-language.md        # its second form, after the correction of the first
   - docs/design-notes/dn-query-sentence-algebra.md
 ---
 
-Called the door until 2026-11-05; renamed ingress at the owner's request.
+Called the door until 2026-11-05.
 
-# The ingress — the owner's seeds, 2026-11-05
+# The ingress — the seeds, 2026-11-05
 
-The owner, after the causal moves landed and the question of actions came up, verbatim:
+The seeds, set down after the causal moves landed and the question of actions came up:
 
-> "odd question, but could the query language be extended to actions as well? like a command to
-> start dreaming, or even to ingest ? formalize ingest/update/state changes?"
-
-> "let's rework the ingestion framework, the language should be able to unify these distinct
-> ingestion methods, from there we should be able to either redefine all those ingestion
-> paths/actions, the language is the door into the palace, from there, yes, we can enqueue, i
-> assume we could have multiple reads but only one writer? i guess technically the only serial
-> action for ingestion is just embedding"
-
-> "and yes, let's design and prove first, let that guide the implementation, feel free to spawn
-> different agents for reviewing/auditing/validating, keep working through design, proof,
-> implementation, and audits"
+- The query language should extend to actions: a command to start dreaming, or to ingest.
+  Ingestion, updates and state changes should be formalized.
+- The ingestion framework should be reworked so that one language unifies the distinct ingestion
+  methods, and every ingestion path and action can be redefined in it: the language is the way
+  into the palace. From there actions can be enqueued; many readers may run beside one writer,
+  and the only inherently serial stage of ingestion is embedding.
+- Design and proof come first and guide the implementation. Agents review, audit and validate
+  along the way, working through design, proof, implementation and audits in that order.
 
 Four seeds, then: the language is the ingress, so every action is a sentence; one ingestion with
 the existing paths as its cases; many readers and one writer; embedding as the only serial
 stage. The design note `dn-ingress` takes them in that order, and `formal/Palace/Ingress.lean`
 holds the laws it rests on.
 
-The owner, reading the first form's pull request the same day, verbatim:
+The correction, made on reading the first form's pull request (#67) the same day:
 
-> "hmm looking at pr 67, i realized that maybe there was some miscommunication, i didn’t want
-> the language to support all these actions, like do a vault sync, do a dialogue sync, i wanted
-> the language to be abstract and generic, so that all those ingestion use cases could be
-> rewritten in it, an application of the generic language"
+- The language should not support one action per ingestion path (a vault sync, a dialogue sync).
+  It should be abstract and generic, so that every ingestion use case can be rewritten in it, as
+  an application of the generic language.
+- The language does not know what a dialogue is; an interface or script written in it ingests
+  data and stores it in a particular way and place. A general-purpose language does not know
+  which file a program will create, but gives the program the means to write one.
+- The pull request waits: redesign, prove, implement, test and audit first, then update it to
+  reflect the new state.
+- As an operating system manages hardware resources and security, the palace manages data and
+  its relationships, among other things. Both are generic systems that put an abstraction layer
+  between a program and what it touches.
+- A budget for a sentence: some sentences cost more work than others, as transactions on
+  Ethereum cost gas, so the interpreter must be able to turn a sentence into computation in an
+  optimized and efficient way, and must know what a sentence costs.
+- Real compiler tools are welcome, from parser generators (yacc) to compiler back ends (MLIR,
+  LLVM), toward a consistent and secured type system.
+- Nested sentences are allowed, with closure and code scoping.
+- The language is interpreted rather than compiled.
 
-> "the language doesn’t know what dialogue is, but an interface/script uses the language to
-> ingest data, store in a particular way and place, does that make sense? like python doesn’t
-> know that i want to create a file called example.py, but it gives me the tools to write it"
-
-> "don’t worry about the pr for now, redesign, prove , implement, test, audit first, then update
-> the pr to reflect the new state"
-
-> "yes, and how an operating system manages hardware resources, security, etc, mind palace
-> manages data and its relationships, among other things, both are generic but powerful systems
-> that create an abstraction layer to interface with"
-
-> "another interesting thought based on something you said: budgets, a budget for a sentence is
-> an interesting concept, reminds me of solidity (ethereum), where there is gas, or work
-> associated, since some sentences are more costly, which means, the compiler/interpreter has to
-> be able to translate a sentence to create computation in an optimized and efficient manner"
-
-> "also, not sure if it’s too late, but feel free to make use of real compiler tools, from
-> compiler compilers (eg yacc), to compiler back end tools (eg mlir, llvm), to properly making a
-> consistent and secured type system"
-
-> "of course, nested sentences should be allowed, with appropriate closure/code scoping"
-
-> "another thought: i guess it makes more sense if the language is interpreted than compiled"
-
-The first form had read "redefine all those ingestion paths" as one command word per path. The
-correction: the language knows no path, and every path is written in it. The second form,
-`dn-ingress-language`, takes the correction as its warrant.
+The first form had read the requirement to redefine every ingestion path as one command word per
+path. The correction: the language knows no path, and every path is written in it. The second
+form, `dn-ingress-language`, takes the correction as its warrant.

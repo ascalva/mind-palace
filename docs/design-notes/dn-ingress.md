@@ -7,7 +7,7 @@ implementation: building       # DO-0 proved, DO-1 to DO-4 built 2026-11-05 (the
 created: 2026-11-05
 updated: 2026-11-05
 links:
-  - docs/brainstorms/ingress.md                          # THE WARRANT — the owner's seeds, verbatim
+  - docs/brainstorms/ingress.md                          # THE WARRANT — the seeds, as requirements
   - docs/design-notes/dn-query-sentence-algebra.md        # the language this extends: sorts, QSA-5 admissibility, the overlay
   - docs/design-notes/capability-scope-algebra.md         # RATIFIED — the scope lattice; the authority coordinate A = P × W_Σ × W_world
   - docs/design-notes/ingest-identity-and-amendment.md    # RATIFIED — append-only log, content-addressed projection, versioned amendment
@@ -25,9 +25,9 @@ superseded_by: docs/design-notes/dn-ingress-language.md   # in part: D1's sum of
 warrant: docs/brainstorms/ingress.md
 ---
 
-Called the door until 2026-11-05; renamed ingress at the owner's request.
+Called the door until 2026-11-05.
 
-> **Superseded in part, 2026-11-05.** The owner's correction (the warrant's last passages): the
+> **Superseded in part, 2026-11-05.** The correction of the first form (the warrant's second list): the
 > language should know no ingestion path, and every path should be written in it. The second
 > form, `dn-ingress-language`, replaces this note's command table (D2), its per-command landers
 > (D7) and refusals (D8, in part) with a generic write language and scripts. The ingress (D3), the
@@ -36,8 +36,8 @@ Called the door until 2026-11-05; renamed ingress at the owner's request.
 
 # The ingress — ingestion as sentences: one operation, one writer, embedding the serial stage
 
-> Composed on the Lean-ladder session (Fable 5.1, 2026-11-05) from the owner's seeds of the same
-> day (the warrant), on the owner's direction that the design and its proofs come first and the
+> Composed on the Lean-ladder session (Fable 5.1, 2026-11-05) from the seeds of the same
+> day (the warrant), on the standing direction that the design and its proofs come first and the
 > implementation follow them, with agents reviewing, auditing and validating along the way. This
 > is the second draft: the first was audited against the code by a review agent, whose nineteen
 > findings are folded in, three of them defects in the code as it stands (§9). Agent-drafted,
@@ -110,7 +110,7 @@ authored half of `relate`, the MCP aliases.
 
 ### 1.4 The bar
 
-The owner's standing bar, applied here. **Correctness**: every decision rests on a law in §3.9,
+The project's standing bar, applied here. **Correctness**: every decision rests on a law in §3.9,
 machine-checked before code relies on it; where the code departs from the model today, the
 departure is named as a defect (§9) with its falsifier, not papered over. **Security**: the
 owner's operations are unrepresentable in the grammar, not refused; no word of a sentence ever
@@ -177,8 +177,8 @@ audit of 2026-11-05]`
 **The serial stage.** `index.py::embed_new` asks the plane which atoms it holds
 (`store.known_atoms`, a read), embeds only the distinct texts it does not, in one batch, through
 the one embedder slot the memory ceiling admits. Acquiring bytes, chunking and parsing are pure
-per source; landing is one short critical section under the lock. The owner's reading is right:
-embedding is the only expensive serial stage. `[DERIVED]`
+per source; landing is one short critical section under the lock. The warrant's fourth seed
+holds: embedding is the only expensive serial stage. `[DERIVED]`
 
 ## 3. Decisions
 
@@ -351,7 +351,7 @@ receipt's rows, the receipt's digest is the chain's new head, and on a sound sta
 names is held. `[THEOREM — ING-6, Ingress.lean::receipt_complete, receipt_head,
 receipt_rows_subset]`
 
-**Is it ACID, and must there be one writer?** The owner's question, answered on the stores as
+**Is it ACID, and must there be one writer?** The warrant's question, answered on the stores as
 they are. *Atomicity* holds per statement and per store: SQLite's transactions, the plane's one
 `BEGIN IMMEDIATE` for occupancies and supersession, a LanceDB write as one version. It does
 **not** hold across the stores, and it should not pretend to: an ingest touches the raw store,
@@ -379,7 +379,7 @@ attestation loses the attestation (item 46), and a re-run does not repair the `h
 (vector-membership-store's D8 order: atoms, then occupancies and the supersession edge in one
 transaction, then the `held` cache; the cache is re-derivable and `repair()` rebuilds it, which a
 crash between the second and the third write needs, since the UNCHANGED check would otherwise
-skip it). *Isolation* is where the owner is right to doubt the usual rule. The reconciled state
+skip it). *Isolation* is where the usual rule is rightly doubted. The reconciled state
 is a function of the ledger, and two commands on **distinct identities** (two notes, a note and a
 paper, two commits) commute: any interleaving of their stages lands the state of any serial
 order (ING-9), and the lock makes each landing atomic. Two commands on **one identity** (two
@@ -414,7 +414,7 @@ UNCHANGED test, which D1's key order makes safe). Relaxing to several writers is
 `BEGIN IMMEDIATE` around each per-identity read-modify-write and no change to the laws.
 `[DERIVED — read off core/stores/versions.py and core/stores/catalog.py]`
 
-**Many readers, one queue, parallel dispatch.** The owner's refinement, taken as stated. Readers
+**Many readers, one queue, parallel dispatch.** The warrant's refinement, taken as stated. Readers
 are unlimited and need no coordination: a query is a function of a cut of the event clock, every
 ledger only appends above it, the reconciled stores change under a lock the readers never take,
 and the stage order keeps every prefix consistent: every state a key-last run passes through is

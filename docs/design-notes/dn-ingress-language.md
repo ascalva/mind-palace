@@ -7,7 +7,7 @@ implementation: built-wired    # DS-0 to DS-7 built 2026-11-05 (§4); the audits
 created: 2026-11-05
 updated: 2026-11-05
 links:
-  - docs/brainstorms/ingress.md                          # THE WARRANT: the owner's seeds and the correction, verbatim
+  - docs/brainstorms/ingress.md                          # THE WARRANT: the seeds and the correction, as requirements
   - docs/design-notes/dn-ingress.md                   # the first form: its ingress (D3), key-last landing, ACID answer (D5), laws (D9) and findings (§9) stand
   - docs/design-notes/dn-query-sentence-algebra.md        # the read half: sorts, QSA-5 admissibility
   - docs/design-notes/capability-scope-algebra.md         # RATIFIED: the write bit W_Σ on the strata
@@ -19,16 +19,16 @@ superseded_by: null
 warrant: docs/brainstorms/ingress.md
 ---
 
-Called the door until 2026-11-05; renamed ingress at the owner's request.
+Called the door until 2026-11-05.
 
 # The ingress, second form: a generic language, and ingestion as its scripts
 
-> Composed by Claude Opus 5.5 on 2026-11-05 from the owner's correction of the same day (the
-> warrant's last three passages). The first form gave the language one command word per
+> Composed by Claude Opus 5.5 on 2026-11-05 from the correction of the same day (the
+> warrant's second list). The first form gave the language one command word per
 > ingestion path (`do sync vault`, `do capture …`, `do ingest doc …`), each wired to the code that
-> already landed that path. The owner wanted the opposite: a language that knows no path, in which
-> every path is written, "like python doesn't know that i want to create a file called
-> example.py, but it gives me the tools to write it". Agent-drafted, filed `draft` on
+> already landed that path. The correction asked for the opposite: a language that knows no path,
+> in which every path is written, as a general-purpose language does not know which file a
+> program will create but gives it the means to write one. Agent-drafted, filed `draft` on
 > `build/ingest-door`; the owner's merge is ratification. Grades as in dn-ingress: `[THEOREM]`
 > names its Lean declaration, `[ESTABLISHED]` a ratified note, `[DERIVED]` is argued here,
 > `[INFERENCE]` is a design call with a named falsifier. Code claims were read at `ba6a36a`.
@@ -92,7 +92,7 @@ is a script, a new source a line in the table, and neither is a change to the la
 
 ## 2. The analogy, made exact
 
-The owner's frame: an operating system manages hardware resources and security, the mind palace
+The warrant's frame: an operating system manages hardware resources and security, the mind palace
 manages data and its relationships; both are generic but powerful systems that put an
 abstraction layer between a program and what it touches. Line by line:
 
@@ -387,7 +387,7 @@ and their weights are the relation store's line in the table.
 
 ### E10 — Budgets: work as gas
 
-The owner's thought, from the bounds above: a sentence costs work, as an Ethereum transaction
+The warrant's budget seed, from the bounds above: a sentence costs work, as an Ethereum transaction
 costs gas, so the interpreter must know what a sentence costs and the compiler must make it cost
 little. The caps of §E1 become one **budget**, in one unit of work, priced per operation:
 
@@ -431,7 +431,7 @@ landed within its budget]`
 
 ### E11 — Nesting and scope
 
-The owner's direction: nested sentences, with closure and code scoping.
+The warrant's direction: nested sentences, with closure and code scoping.
 
 - **A read sentence nests in a script** as a value: `` `top 5 near $topic within $region` ``, in
   backquotes, which no sentence uses. It is compiled under the speaker's grant like any sentence
@@ -457,7 +457,7 @@ The owner's direction: nested sentences, with closure and code scoping.
 
 ### E12 — An interpreter with a checking pass, and a type system for the labels
 
-The owner's direction: real compiler tools, a consistent and secured type system, and the
+The warrant's direction: real compiler tools, a consistent and secured type system, and the
 language interpreted rather than compiled. It is interpreted: a generated parser reads a script,
 a checking pass types and admits it, and a tree-walking evaluator runs it under the meter into
 the plan the writer lands. Nothing is compiled to code; the checking pass is a type checker, as
@@ -616,7 +616,7 @@ retire in either part.
 
 ## 4. Consequences — the order of work
 
-- **DS-0, this note.** The warrant updated with the owner's correction, verbatim.
+- **DS-0, this note.** The warrant updated with the correction, as requirements.
 - **DS-1, the laws.** `formal/Palace/Script/Defs.lean`: values with labels and origins, the
   expression forms that matter to labels (an item, a projection, a construction), the writer's
   checks R2 to R7 as a predicate on a store and a state, plans compiled to the first form's
