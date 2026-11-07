@@ -51,11 +51,11 @@ the macro quantities of the store's graph are stable, and a continuous evaluatio
 can be attributed to each source or tool. We answer both with theorems machine-checked in Lean~4
 over Mathlib before any code relies on them. Under the lazy walk $1-\varepsilon L$ on a connected
 graph with spectral gap $\gamma$, the time average over $T$ steps of a mean-zero observable has
-energy at most $\norm{x}^2/(T\varepsilon\gamma)^2$, so a window must span many relaxation times, and
-the sampled form gives an effective sample size of $T\gamma/2$. With an eigengap $g$ between the
+energy at most $\norm{x}^2/(T\varepsilon\gamma)^2$, so a window must span many relaxation times $1/(\varepsilon\gamma)$, and
+the sampled form gives at least $T\varepsilon\gamma/2$ effective samples. With an eigengap $g$ between the
 kept and the dropped modes, the dropped part's share of the energy falls as $e^{-2gt}$ under the
-heat kernel, so a $k$-mode description explains all but $\epsilon$ of what remains once
-$t \ge \log(R/\epsilon)/(2g)$; a refuted control shows that without a gap no time does. The Shapley
+heat kernel, so a $k$-mode description explains all but $\eta$ of what remains once
+$t \ge \log(R/\eta)/(2g)$; a refuted control shows that without a gap no time does. The Shapley
 value, the average over orderings of a source's marginal contribution, is efficient, symmetric,
 null-respecting and additive; it is the only attribution with the four, by the decomposition of
 every score into unanimity games with Harsanyi dividends; and leave-one-out, which an ablation arm
@@ -106,10 +106,10 @@ The contributions are:
   with gap $\gamma$, the time average of a mean-zero field over $T$ steps has energy at most
   $((1/T)\sum_{n<T}(1-\varepsilon\gamma)^n)^2\norm{x}^2 \le \norm{x}^2/(T\varepsilon\gamma)^2$, and
   precision $\delta$ needs $T \ge \norm{x}/(\varepsilon\gamma\delta)$. The sampled form, derived,
-  gives the constant $2\sigma^2/(\gamma T)$ and the effective sample size $T\gamma/2$.
+  bounds the variance of the time average by $2\sigma^2/(\varepsilon\gamma T)$, at least $T\varepsilon\gamma/2$ effective samples.
 \item SCL-2, scale separation (\Cref{thm:scl2}): the dropped modes' energy relative to the kept
-  modes' falls by $e^{-2(\mu-\nu)t}$, with the time $\log(R/\epsilon)/(2g)$ at which a $k$-mode
-  description explains all but $\epsilon$, a discrete twin under the lazy walk, and the refuted
+  modes' falls by $e^{-2(\mu-\nu)t}$, with the time $\log(R/\eta)/(2g)$ at which a $k$-mode
+  description explains all but $\eta$, a discrete twin under the lazy walk, and the refuted
   control without a gap.
 \item SCL-3, attribution (\Cref{thm:scl3}): the Shapley value satisfies the four axioms, is the
   unique attribution that does, equals the Harsanyi dividend formula, and leave-one-out agrees with
@@ -128,7 +128,7 @@ the rest of the library, through Lean's kernel and five independent checkers.
 \paragraph{Spectral gaps and mixing.}
 For a weighted graph with Laplacian $L = D - A$ on $N$ nodes, the spectral gap is the least
 nonzero eigenvalue on a connected support, and the lazy walk $1-\varepsilon L$ with
-$\varepsilon \le 1/d_{\max}$ is a reversible Markov chain whose relaxation time is $1/(\varepsilon\gamma)$
+$\varepsilon \le 1/(2d_{\max})$, so that $\varepsilon\lambda \le 1$ on the whole spectrum since $\lambda_{\max} \le 2d_{\max}$, is a reversible Markov chain whose relaxation time is $1/(\varepsilon\gamma)$
 \cite{levin2017mixing,chung1997spectral,lovasz1993random}. Its mixing is geometric at the gap's
 rate, and the variance of a time average along the chain is governed by the same gap: for a chain
 started at stationarity the asymptotic variance of an observable is at most $(2/\gamma)$ times its
@@ -136,9 +136,9 @@ stationary variance \cite{aldous2002reversible,levin2017mixing}. SCL-1 proves th
 form of this bound for the exact diffusion and derives the sampled form from it.
 
 \paragraph{Concentration of random graph spectra.}
-For a random graph with independent edges whose minimum expected degree is at least a constant
+For a random graph with independent edges whose minimum expected degree $d_{\min}$ is at least a constant
 times $\log N$, the adjacency matrix and the normalized Laplacian concentrate around their
-expectations in operator norm, within $O(\sqrt{\log N/\delta})$ with high probability
+expectations in operator norm, within $O(\sqrt{\log N/d_{\min}})$ with high probability
 \cite{oliveira2009concentration}, with explicit constants through a matrix Chernoff bound
 \cite{chung2011spectra}. This is the threshold at which a measured spectrum is the corpus's rather
 than the sample's; it is cited here, not proved, and a sibling study measures its shape on real
@@ -236,15 +236,15 @@ $1/(\gamma T_c)^2$ is the one proved.
 
 \begin{proposition}[the sampled form, derived]\label{prop:sampled}
 Let $X_0, X_1, \dots$ be the lazy walk started from its stationary distribution (uniform, since
-$1-\varepsilon L$ is symmetric and stochastic for $\varepsilon \le 1/d_{\max}$), and $f$ an observable with
+$1-\varepsilon L$ is symmetric and stochastic for $\varepsilon \le 1/d_{\max}$; take $\varepsilon \le 1/(2d_{\max})$, which also gives $\varepsilon\lambda_j \le 1$ as in \Cref{thm:scl1}), and $f$ an observable with
 centered part $f_0$ and stationary variance $\sigma^2 = \norm{f_0}^2/N$. Then
 \[
   \Var\Bigl(\frac{1}{T}\sum_{t<T} f(X_t)\Bigr)
   \;\le\; \frac{\sigma^2}{T}\cdot\frac{2-\varepsilon\gamma}{\varepsilon\gamma}
   \;\le\; \frac{2\sigma^2}{\varepsilon\gamma T},
 \]
-so estimating the mean to precision $\epsilon$ needs $T_c \gtrsim 2\sigma^2/(\gamma\epsilon^2)$, and
-a window of $T_c$ carries $T_c\gamma/2$ effective samples.
+so $T \ge 2\sigma^2/(\varepsilon\gamma\delta^2)$ lazy steps, that is $T_c = \varepsilon T \ge 2\sigma^2/(\gamma\delta^2)$ of diffusion time, suffice for a standard error of at most $\delta$, and
+a window carries at least $T\varepsilon\gamma/2 = T_c\gamma/2$ effective samples, $\sigma^2$ over the variance of the average.
 \end{proposition}
 
 \begin{proof}[Derivation]
@@ -280,10 +280,10 @@ and
   \;\le\; e^{-2(\mu-\nu)t}\,\norm{f - P_Sf}^2\,\norm{H_tP_Sf}^2
   \quad\text{(\lean{scale\_separation})}.
 \]
-If moreover $g = \mu - \nu > 0$, $\epsilon > 0$, $\norm{P_Sf} > 0$ and
-$t \ge \log(R/\epsilon)/(2g)$ with $R = \norm{f-P_Sf}^2/\norm{P_Sf}^2$ the initial ratio, then
+If moreover $g = \mu - \nu > 0$, $\eta > 0$, $\norm{P_Sf} > 0$ and
+$t \ge \log(R/\eta)/(2g)$ with $R = \norm{f-P_Sf}^2/\norm{P_Sf}^2$ the initial ratio, then
 \[
-  \norm{H_t(f - P_Sf)}^2 \;\le\; \epsilon\,\norm{H_tP_Sf}^2
+  \norm{H_t(f - P_Sf)}^2 \;\le\; \eta\,\norm{H_tP_Sf}^2
   \quad\text{(\lean{scale\_separation\_time})}.
 \]
 \end{theorem}
@@ -293,8 +293,8 @@ $\norm{H_tx}^2 = \sum_j e^{-2\lambda_jt}\ip{x}{\varphi_j}^2$ (DYN-4's \lean{dotP
 with the semigroup law), and $P_Sf$ lives on the modes in $S$ (\lean{modeProj\_dotProduct\_mode}),
 where $\lambda_j \le \nu$, which gives the lower bound (\lean{heat\_energy\_ge}). Multiplying the two
 bounds, with $e^{-2\mu t} = e^{-2(\mu-\nu)t}e^{-2\nu t}$ and both energies nonnegative, gives the
-product form. For the time, $\log(R/\epsilon) \le 2gt$ gives $e^{-2gt}R \le \epsilon$
-(Mathlib's \lean{Real.log\_le\_iff\_le\_exp}), so $e^{-2gt}\norm{f-P_Sf}^2 \le \epsilon\norm{P_Sf}^2$, and
+product form. For the time, $\log(R/\eta) \le 2gt$ gives $e^{-2gt}R \le \eta$
+(Mathlib's \lean{Real.log\_le\_iff\_le\_exp}), so $e^{-2gt}\norm{f-P_Sf}^2 \le \eta\norm{P_Sf}^2$, and
 the product form divided by $\norm{P_Sf}^2 > 0$ is the claim; when $\norm{f-P_Sf} = 0$ the claim is
 trivial.
 \end{proof}
@@ -315,7 +315,7 @@ straddle every cut, and for every $S$, $f$ and $t$,
   \quad\text{(\lean{no\_gap\_no\_separation})}:
 \]
 the dropped share of the energy is the same at every time, so if some $t$ makes the dropped part at
-most $\epsilon$ of the kept part, it already was at $t = 0$ (\lean{no\_gap\_no\_time}).
+most $\eta$ of the kept part, it already was at $t = 0$ (\lean{no\_gap\_no\_time}).
 \end{proposition}
 
 \begin{proof}[Proof sketch]
@@ -430,7 +430,7 @@ rounds are spaced at least a relaxation time apart.
 A macro variable is a coefficient on a slow mode, and it is legitimate as a description exactly
 when the fast modes have decayed relative to it. SCL-2 makes the two words precise: ``fast'' and
 ``slow'' are the eigenvalues on either side of the cut, and the time at which the description holds
-is $\log(R/\epsilon)/(2g)$, so a spectrum with no gap near the cut gives no time at all
+is $\log(R/\eta)/(2g)$, so a spectrum with no gap near the cut gives no time at all
 (\Cref{prop:nogap}). Measuring the macro variable is a different matter: the estimate from a
 window is a time average, and SCL-1 says that it converges only at the rate the gap sets, so the
 window must be many relaxation times long whatever its sampling rate. A reader who samples a slowly
@@ -443,8 +443,8 @@ modes the description drops separate from the ones it keeps.
 Both thresholds take $\gamma$ and $g$ as given, but on a small sample of a growing corpus they are
 noise. The concentration results say when they stop being noise: once the minimum expected degree
 exceeds a constant times $\log N$, the eigenvalues of the normalized Laplacian sit within
-$O(\sqrt{\log N/\delta})$ of their expectations, so a gap is a property of the corpus once that
-fluctuation scale is below it, $\delta \gg \log N/\gamma^2$. The order is therefore: concentrate,
+$O(\sqrt{\log N/d_{\min}})$ of their expectations, so a gap is a property of the corpus once that
+fluctuation scale is below it, $d_{\min} \gg \log N/\gamma^2$. The order is therefore: concentrate,
 then separate, then average.
 
 \paragraph{Why attribution needs a common currency and power.}
@@ -568,7 +568,7 @@ The live store, measured read-only on 2026-11-04 and 2026-11-07 for the previous
 backbone of 38 notes and 38 edges, a relation graph of 20 edges on 12 notes, 29 identities with one
 version each. With $N = 38$, $\log N \approx 3.6$, mean degree $2$ and minimum degree $1$, the
 minimum degree is below $C\log N$ for any $C \ge 1/3$ and the fluctuation scale
-$\sqrt{\log N/\delta} \approx 1.9$ exceeds the whole range $[0,2]$ of the normalized Laplacian's
+$\sqrt{\log N/d_{\min}} \approx 1.9$ exceeds the whole range $[0,2]$ of the normalized Laplacian's
 spectrum: every measured gap is noise of the sample. There is one cut, so the window is zero
 relaxation times for any $\gamma$; there are no resolved questions, so $K = 0$ against a required
 $126$; and one generation, so the supersession and version generators have nothing to ask. The
@@ -624,13 +624,13 @@ instance that holds the corpus enforces by what it lands.
 
 \begin{enumerate}
 \item \textbf{Measure.} At a sequence of cuts, the Laplacian's gap $\gamma$ and the eigengaps $g_k$
-  near the candidate cuts, for the normalized Laplacian too, with the minimum degree $\delta$ and
+  near the candidate cuts, for the normalized Laplacian too, with the minimum degree $d_{\min}$ and
   the size $N$, each as a function of the cut.
-\item \textbf{Size.} From $\gamma$, the window $T_c \gtrsim 2\sigma^2/(\gamma\epsilon^2)$ a macro
+\item \textbf{Size.} From $\gamma$, the window $T_c \ge 2\sigma^2/(\gamma\delta^2)$ a macro
   observable needs and the effective samples a history of $T_c$ carries; from $g_k$, the time scale
-  $1/g_k$ at which a $k$-mode description is legitimate; from $\delta$ and $N$, whether the spectrum
+  $1/g_k$ at which a $k$-mode description is legitimate; from $d_{\min}$ and $N$, whether the spectrum
   has concentrated; from the pilot's spread, $K$ by \eqref{eq:power}.
-\item \textbf{Grow.} Fetch until the thresholds are exceeded: $\delta \gg \log N/\gamma^2$, a history
+\item \textbf{Grow.} Fetch until the thresholds are exceeded: $d_{\min} \gg \log N/\gamma^2$, a history
   of many relaxation times, enough clusters for $K$. Each fetch is a dated extension, so growing is
   adding cuts, not replacing the corpus.
 \item \textbf{Run.} The loop under a protocol written first: the generators, the arms (the full
