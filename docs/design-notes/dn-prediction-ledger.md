@@ -253,6 +253,14 @@ pairs at the realized mean advantage before the holding reaches `growth_target` 
 (`N`, the protocol's to declare, 10 by default; a reading an amendment may change, since it
 decides nothing).
 
+The path is computed in log space, from the per-pair log factors: at the full stake they are the
+differences of the two clipped log scores, so the log growth is the cumulative advantage itself
+(GRW-1), and below it they are `log1p(λ (F − 1))`, with `F − 1` taken from the clipped
+probabilities. No run of factors overflows or underflows (a product of 103 factors of 999 would
+overflow, and one of 108 factors of 1/999 would underflow to 0). The growth is `exp` of the log
+growth when that is a normal float, and otherwise the log growth itself, with `growth_is_log` set;
+the command line prints such a growth, or one too large or too small to read, as `e^x`.
+
 What it is not. The stake is a thought experiment the scorer computes from the ledger; nothing
 in the palace stakes anything, holds anything or acts on this reading. It says whether a path
 exists given the arm's edge; whether the arm has an edge is what the experiment measures, blinded,
