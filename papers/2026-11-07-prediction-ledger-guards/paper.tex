@@ -79,8 +79,10 @@ The contributions are:
   prediction until the protocol pins it, no arm with predictions can gain a pin, and a pin is a
   sha256 digest (\cref{sec:pins}).
 \item One reading at $N$: once $N$ is fixed the report scores only the first $N$ clusters in the
-  order the ledger recorded them, so clusters that arrive later are never read; we state exactly
-  what this does and does not fix (\cref{sec:cut}).
+  order the ledger recorded them, whatever arrives or resolves later, and only once those clusters
+  have settled; we state exactly what this does and does not fix (\cref{sec:cut}).
+\item Verification that replays the refusal rules, so that a line written outside the append path
+  with a valid hash is caught if it breaks one (\cref{sec:pins}).
 \item A cluster sign-flip randomization test that a protocol may declare: exact under
   exchangeability of the arms within each cluster with independent clusters, with an add-one
   $p$-value, every sign vector enumerated when $2^k$ fits the protocol's count, and an interval by
@@ -89,7 +91,7 @@ The contributions are:
   the inversion needs and a closed form for its endpoints (\cref{sec:signflip}).
 \item Sign vectors built in blocks, so memory no longer grows with the number of vectors
   (\cref{sec:impl}).
-\item An evaluation: tests and eleven mutations, of which two survive; a simulation study of both
+\item An evaluation: tests and fourteen mutations, all detected; a simulation study of both
   methods under the null, under dependence across clusters and under an effect; agreement with an
   independent reference on 6{,}000 calls; and memory before and after (\cref{sec:eval}).
 \end{itemize}
@@ -142,7 +144,7 @@ size with a fixed number of clusters when symmetry holds only approximately. Our
 finite-sample case: it assumes symmetry and independence and does not claim robustness beyond them.
 
 \paragraph{Mutation testing.} A test suite is evidence to the degree that it fails on wrong code;
-mutation analysis~\cite{demillo1978} measures this by planting faults. We report eleven.
+mutation analysis~\cite{demillo1978} measures this by planting faults. We report fourteen.
 
 \section{Model}\label{sec:model}
 
@@ -167,7 +169,7 @@ existing rules refuse a prediction whose configuration differs from its arm's pi
 to a pin once predictions exist.
 
 \begin{proposition}[A pin comes first]\label{prop:pins}
-In a ledger written through its append path, let $a$ be the primary comparison's arm or baseline
+In a ledger that verifies, let $a$ be the primary comparison's arm or baseline
 and $p$ any prediction of $a$. Then $p$ carries a configuration equal to a pin of $a$ that appears
 in a protocol record before the first prediction of $a$, and that pin is the same at every later
 line.
@@ -180,38 +182,46 @@ added after that line, since $a$ then has a prediction, and cannot change, since
 exist. So every later prediction of $a$ is held to the same pin.
 \end{proof}
 
-The rules are enforced when a record is appended. Verification recomputes the hash chain and
-parses every record, but does not replay the refusal rules; \cref{sec:limits} returns to this.
+The rules are enforced when a record is appended, and verification replays them. It recomputes
+the hash chain, then passes each record through the same checks the append path makes, against the
+state the earlier records leave and at the time the ledger recorded for that line, never the wall
+clock, and fails naming the line and the rule. A line written outside the append path with its
+hash recomputed therefore verifies only if it obeys every rule, so \cref{prop:pins} holds of any
+file that verifies, not only of files the append path wrote.
 
 \subsection{One reading at N}\label{sec:cut}
 
 \begin{definition}[Pairs, keys and the cut]
-A prediction is scored when its question is resolved and not voided and the prediction was
-recorded before the resolution. A primary pair is a question and round that both primary arms
-predicted, both scored, with difference $d = \text{Brier(baseline)} - \text{Brier(arm)}$. Its key
-is the later of the two predictions' line numbers, and a cluster's key $\kappa(c)$ is the least key
-of its pairs. With $N$ fixed, the cut $F_N$ is the set of $N$ clusters of least key, and the report
-reads only the scored rows of clusters in $F_N$, in every table it prints.
+A primary pair is a question of the primary family and a round that both primary arms predicted,
+whether or not the question has resolved, been voided, or the predictions were late. Its key is the
+later of the two predictions' line numbers, and a cluster's key $\kappa(c)$ is the least key of its
+pairs. With $N$ fixed, the cut $F_N$ is the set of $N$ clusters of least key among all clusters
+with a primary pair. The report reads only the scored rows of clusters in $F_N$, in every table it
+prints, and only when every question of the primary family in those clusters is resolved or voided;
+otherwise it refuses. A scored row is a prediction whose question is resolved and not voided and
+which was recorded before the resolution; its pair has difference
+$d = \text{Brier(baseline)} - \text{Brier(arm)}$.
 \end{definition}
 
 \begin{proposition}[What waiting cannot change]\label{prop:cut}
-Let $L'$ be a ledger that extends $L$ with no void, let $K$ be the $N$-th least cluster key in $L$,
-and suppose every question of $L$ with a primary pair of key at most $K$ is resolved in $L$. Then
-$F_N(L') = F_N(L)$.
+Let $L$ be a ledger with at least $N$ clusters having a primary pair, and $L'$ any extension of
+$L$ by records the ledger accepts, resolutions and voids included. Then $F_N(L') = F_N(L)$.
 \end{proposition}
 \begin{proof}[Proof sketch]
-A pair scored in $L'$ but not in $L$ either contains a prediction appended after $L$, so its
-key exceeds every line of $L$ and hence $K$, or consists of predictions in $L$ whose question was
-unresolved in $L$, so by hypothesis its key exceeds $K$. Pairs scored in $L$ stay scored, since a
-resolution is final and there are no voids. So no cluster outside $F_N(L)$ acquires a key at most
-$K$, and the keys of clusters in $F_N(L)$ can only stay or fall.
+A key depends only on the line numbers of two predictions, and a pair's predictions are appended
+once. A pair first completed in $L'$ has a key above every line of $L$. So a cluster with a pair in
+$L$ keeps its key, the least over a set that gains only larger members, and a cluster first
+appearing in $L'$ has a key above the key of every cluster of $L$. The $N$ least keys are
+therefore the same clusters. Resolutions and voids change which rows are scored, not any key.
 \end{proof}
 
-In particular, clusters that first appear after $N$ is reached are never read, however long the
-reader waits; this is what the cut fixes. Two things remain open. The rows of a cluster in $F_N$
-can still grow through later rounds or later resolutions of its questions. And when the hypothesis
-fails, because a pair recorded early resolves late, that cluster can enter the cut after $N$ is
-reached and move another out; \cref{sec:cutdemo} shows this on a three-cluster ledger.
+In particular, neither a cluster that first appears after $N$ is reached nor a late resolution or
+void can displace a cluster in $F_N$, however long the reader waits; a voided cluster keeps its
+place and contributes no rows. The rows of a cluster in $F_N$ are fixed once the report is allowed
+to read: a settled question takes no further prediction, since the ledger refuses one for a
+resolved or voided question. One case remains open: a question registered later under the name of
+a cluster already in $F_N$ adds a pair, with a key above $K$ and so no change to the cut, but with
+rows the cut then reads. \Cref{sec:cutdemo} shows the refusal on a three-cluster ledger.
 
 \subsection{The cluster sign-flip test}\label{sec:signflip}
 
@@ -388,10 +398,13 @@ regeneration forced. Before the change, all vectors were built at once as a $\ma
 k$ array of 64-bit floats, with integer intermediates of the same shape, and the protocol's count
 has no upper bound.
 
-The cut is computed from the scored table: each primary pair's key is the later line of its two
-predictions, each cluster's key the least of its pairs', and when more than $N$ clusters have pairs
-the table keeps the rows of the $N$ clusters of least key and reports how many clusters and pairs
-it left out. The pin rules are three checks in the append path, described in \cref{sec:pins}. The
+The cut is computed from the table the scorer builds from the chain: each primary pair's key is the
+later line of its two predictions, whatever the state of its question, each cluster's key the
+least of its pairs', and the table carries the clusters in key order and those with a question not
+yet resolved or voided. When more than $N$ clusters have pairs the report keeps the rows of the $N$
+of least key, refuses while one of them is unsettled, and reports how many clusters and pairs it
+left out. Verification is the replay of \cref{sec:pins}, and the \texttt{score} and \texttt{power}
+commands run it first. The pin rules are three checks in the append path, described in \cref{sec:pins}. The
 method is a protocol field, \texttt{percentile} by default so that existing ledgers score as
 before, and frozen with the rest of the bar once a prediction exists.
 
@@ -399,23 +412,30 @@ before, and frozen with the rest of the bar once a prediction exists.
 
 \subsection{Setup}
 All runs used macOS 27.0.1 on an Apple M2 Pro with 32\,GiB of memory, Python 3.15.2 and NumPy
-2.5.4, on an export (\texttt{git archive}) of the branch head \texttt{0d7cb89}; the pre-change
-memory figures use the commit before the blocks change, \texttt{caf5c0a}. Simulations call the
+2.5.4, on an export (\texttt{git archive}) of the branch at \texttt{0d7cb89}, the simulations and memory
+figures below; the pre-change memory figures use the commit before the blocks change,
+\texttt{caf5c0a}. The tests and mutations were run on the later head \texttt{62d8187}, which changes
+verification and the cut and none of the simulated procedures. Simulations call the
 branch's own \texttt{cluster\_signflip} and \texttt{cluster\_bootstrap} with the protocol default
 of 10{,}000 sign vectors or resamples, eight worker processes, and one seeded generator per
 replication, so every number below can be reproduced from its description.
 
 \subsection{Tests and mutations}
-The two test files hold 72 tests (40 for the ledger, 32 for the scorer), which pass in 3.6\,s.
-\Cref{tab:mutations} lists eleven single edits and the tests each fails. Nine are detected. Two
-survive: dropping the add-one rule, whose effect at 1{,}000 vectors is a shift of at most 0.1
-percentage points in the $p$-value, too small for a 600-replication rate test to see; and flipping
-pairs instead of clusters, which the suite cannot tell apart because its generated differences have
-no within-cluster correlation. Both point to tests worth adding (\cref{sec:future}).
+The two test files hold 80 tests (43 for the ledger, 37 for the scorer), which pass in 4\,s.
+\Cref{tab:mutations} lists fourteen single edits and the tests each fails, and all fourteen are
+detected. Two of them, dropping the add-one rule and flipping pairs instead of clusters, survived
+an earlier version of the suite: the first changes the $p$-value by at most 0.1 percentage points at
+1{,}000 vectors, too little for a rate test to see, and the second cannot be told from the right
+test on generated differences with no within-cluster correlation. They are now killed by direct
+cases: a hand-built block of sign vectors where the add-one $p$-value is $3/5$ and the plain one
+$2/4$, and three clusters of four identical pairs, where flipping clusters gives $p = 2/8$ and
+flipping pairs $2/4096$. The cut and verification mutations were added with their fixes; of the
+earlier cut mutations only the counts of failing tests changed. Passing is a statement about these
+edits and no more.
 
 \begin{table}[ht]
 \centering\small
-\caption{Single mutations of the ledger and scorer, each run against the 72 tests.}
+\caption{Single mutations of the ledger and scorer, each run against the 80 tests.}
 \label{tab:mutations}
 \begin{tabular}{@{}lrl@{}}
 \toprule
@@ -425,13 +445,16 @@ a primary arm may predict unpinned & 1 & the pin-first test \\
 a pin may be added after the arm predicted & 1 & the no-retrofit test \\
 any string is a pin & 7 & the seven malformed pins \\
 the method is not frozen & 1 & the frozen-method test \\
-no cut at $N$ & 2 & waiting past $N$; first $N$ by ledger order \\
-the cut by cluster name, not ledger order & 2 & the same two \\
-no add-one when vectors are sampled & 0 & survives \\
+no cut at $N$ & 5 & the five tests of the cut \\
+the cut by cluster name, not ledger order & 2 & waiting past $N$; first $N$ by ledger order \\
+no add-one when vectors are sampled & 1 & the add-one case \\
 always sample, never enumerate & 1 & the three-cluster exact $p$-value \\
 a one-sided statistic & 1 & the same \\
 blocks reseeded, not one stream & 1 & the block-size test \\
-pairs flipped instead of clusters & 0 & survives \\
+pairs flipped instead of clusters & 1 & the per-cluster case \\
+verification checks the chain only & 2 & the forged unpinned and forged late lines \\
+the cut among resolved clusters only & 2 & late resolution; void keeps its place \\
+no wait for open clusters in the cut & 1 & late resolution \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -565,12 +588,15 @@ $10^4$, sampled & 132 & 59\,MB & 0.02\,s & 50\,MB & 0.02\,s \\
 
 \subsection{The cut, demonstrated}\label{sec:cutdemo}
 On a ledger with $N = 2$ and three clusters, recorded in the order $x, y, z$, with $y$ and $z$
-resolved before $x$: once $y$ and $z$ resolved, the report read $\{y, z\}$ with mean difference
-0.70; when $x$ resolved, it read $\{x, y\}$ with mean 0.00 and reported $z$ as beyond $N$. The
-hypothesis of Proposition~\ref{prop:cut} fails here, since $x$'s pair precedes the second key and was
-unresolved, and the reading moved after $N$ was reached. The unit test for the cut adds twenty
-clusters after the thirtieth with all questions resolved, the case the proposition covers, and the
-report is unchanged.
+resolved before $x$, the earlier cut, made among resolved clusters, read $\{y, z\}$ with mean
+difference 0.70 once $y$ and $z$ resolved, and $\{x, y\}$ with mean 0.00 after $x$ resolved,
+reporting $z$ as beyond $N$: the reading moved after $N$ was reached. The cut now ranges over all
+three clusters whatever their state. With $y$ and $z$ resolved and $x$ open the report refuses,
+naming the open cluster among the first two; when $x$ resolves it reads $\{x, y\}$ and reports one
+cluster beyond $N$. Resolving $z$ late, with $x$ and $y$ already read, leaves the primary and
+per-arm tables unchanged, and voiding $x$ leaves it in its place, so that only $y$ is scored and
+$z$ stays beyond $N$. The test for waiting adds twenty clusters after the thirtieth with all
+questions resolved, and the report is unchanged.
 
 \subsection{The audit that motivated the change}
 An audit of an experiment built on the ledger reported the figures that led to the method; its data
@@ -585,18 +611,20 @@ direction and rough size of these figures on generators stated in full.
 
 \section{Limitations}\label{sec:limits}
 
-\paragraph{The rules hold on the write path.} Verification checks the hash chain and the records'
-form, not the refusal rules. A line written outside the append path, with hashes recomputed, that
-breaks a rule (we wrote a primary-arm prediction carrying a digest other than its pin) verifies.
-Against such a writer the guarantee is the anchored head: lines before a published head cannot be
-changed, but lines after it can be added by anyone who can write the file.
+\paragraph{Replay does not authenticate.} Verification checks that every line obeys the rules, not
+that the writer is who they say. A line that obeys the rules and is added after the last published
+head, by anyone who can write the file, verifies. Against such a writer the guarantee is the
+anchored head: lines before a published head cannot be changed. Replay also reads every older
+ledger against today's rules, so a ledger written before the digest rule, with a shorter pin,
+would now fail to verify.
 
 \paragraph{A pin is a digest of something.} The ledger checks that a pin has the form of a sha256
 digest, not that it is the digest of the configuration the arm runs; that binding is the arm's.
 
-\paragraph{The cut is stable only once earlier pairs resolve.} Proposition~\ref{prop:cut} needs every pair
-recorded before the $N$-th cluster's key to be resolved. Until then a late resolution can reorder
-the cut, and the rows of kept clusters can grow through later rounds.
+\paragraph{A cluster can still gain a question.} The cut is fixed and the report waits for the
+questions of its clusters to settle, but a question registered later under the name of a cluster in
+the cut adds rows to it (\cref{sec:cut}). Refusing a new question in a cluster that is already in
+the cut would close this; it is not done.
 
 \paragraph{Independence across clusters.} Neither method protects against clusters that move
 together; under the block model the sign-flip test rejected 7.7\% to 14.1\% at $\alpha = 0.05$
@@ -612,32 +640,29 @@ keeping threshold each evaluation regenerates them, which bounds memory at a cos
 the time (\cref{tab:memory}). The planning formula for $N$ is a normal approximation for the mean of
 cluster means and does not depend on the method.
 
-\paragraph{Two mutations survive.} The suite does not pin the add-one rule or the cluster level of
-the flips (\cref{tab:mutations}).
+\paragraph{Mutation testing is a sample.} The fourteen edits are the ones we thought of; a suite
+that kills them can still miss another.
 
 \section{Future work}\label{sec:future}
-Replaying the refusal rules during verification would extend the pin and timing guarantees from the
-write path to any file that verifies. Recording the cut as a ledger record when $N$ is first
-reached, or reading only once every earlier pair has resolved, would make the reading single in
-the strong sense. Two tests would kill the surviving mutations: a data set whose observed statistic
-is the most extreme of all vectors, where the add-one $p$-value is $1/(R+1)$ and not 0, and data
-with strong within-cluster correlation, where flipping pairs over-rejects. When the dependence
-between clusters has a known structure, flipping blocks of clusters together restores exactness at
-the block level, at the cost of fewer units. In the enumerated case, Corollary~\ref{cor:closed} computes the
-interval from one sort of the subset means instead of about a hundred passes over the vectors.
-Lemma~\ref{lem:accept} and Corollary~\ref{cor:closed} are elementary enough to state and check in Lean.
+Refusing a question that joins a cluster already in the cut would make the rows, as well as the
+membership, of the reading fixed. When the dependence between clusters has a known structure,
+flipping blocks of clusters together restores exactness at the block level, at the cost of fewer
+units. In the enumerated case, Corollary~\ref{cor:closed} computes the interval from one sort of
+the subset means instead of about a hundred passes over the vectors.
+Lemma~\ref{lem:accept} and Corollary~\ref{cor:closed} are elementary enough to state and check in
+Lean.
 
 \section{Conclusion}
 A pre-registered bar can still be bent after the data are seen by choosing an arm's configuration,
 the moment of reading, or an interval that is too narrow. The ledger now requires a pin before an
-arm's first prediction and forbids adding one later, reads only the first $N$ clusters in its own
-line order, and offers a sign-flip test that is exact when clusters are independent and the arms
+arm's first prediction and forbids adding one later, verifies by replaying its refusal rules, reads
+only the first $N$ clusters in its own line order, whatever resolves later, and offers a sign-flip test that is exact when clusters are independent and the arms
 exchangeable within them. Each sign vector accepts the shifts between the weighted means of the
 clusters it keeps and flips, which makes the inverted interval well defined and gives its ends in
 closed form, and an independent reference built on that form agrees with the implementation on
-every call. The evaluation also finds what the change leaves open: rules enforced only on the
-write path, a cut that a late resolution can still move, two surviving mutations, and no method
-that tolerates dependence across clusters.
+every call. The evaluation also finds what the change leaves open: a cluster that can still gain a
+question after the cut, a verification that checks obedience and not authorship, and no method that
+tolerates dependence across clusters.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
