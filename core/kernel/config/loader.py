@@ -553,7 +553,7 @@ class InstanceConfig:
         exhaust lane       ~/.mind-palace/exhaust        <root>/exhaust, moved only within root
         Vault server       [secrets] addr                its overlay's own; none if it names none
 
-    A declared source may lie anywhere but inside, around or at one of Ouroboros's locations.
+    A declared source may lie anywhere but at, inside or around another instance's location.
     `namespaces_of` reads them off a built Config, and `shared` says what two instances hold in
     common. The map is injective: distinct ids give disjoint namespaces, none of them Ouroboros's.
     """
@@ -649,8 +649,8 @@ class Namespaces:
     location one writes or reads lies at, inside or around a location of the other. For named
     instances it holds by construction, because each name is derived from the id
     (`InstanceConfig`) and none of the derived names is Ouroboros's; a named overlay that would
-    break it refuses at load (`_refuse_reaching_out`, `_refuse_shared`). A source a named overlay
-    declares is checked against Ouroboros's; two named instances may deliberately read one corpus.
+    break it refuses at load (`_refuse_reaching_out`, `_refuse_shared`, the latter against every
+    instance declared on the host), declared sources included.
     The property test over generated ids is tests/property/test_instance_namespaces.py.
     """
 
@@ -1106,16 +1106,58 @@ def _ouroboros() -> Config:
     return _build(raw, InstanceConfig())
 
 
+def _named_config(named: Path) -> Config:
+    """The configuration a named overlay declares: defaults ← its levers file ← its overlay, every
+    namespace derived from its id, and every refusal but the sharing check (`_refuse_shared`)."""
+    raw = _read(_DEFAULTS)
+    declared = _read(named)
+    instance = _named_instance(declared, named)
+    committed = {(s, k): raw.get(s, {}).get(k) for s, k in _SECRET_NAMES}
+    _overlay(raw, instance.levers)      # its own loop-tuned knobs, under its hand overlay
+    _deep_merge(raw, declared)
+    _own_sources(raw, declared, instance, named)
+    _own_vault(raw, declared, instance, named)
+    _refuse_reaching_out(raw, declared, committed, instance, named)
+    return _build(raw, instance)
+
+
+def _declared_instances(loading: Path) -> list[tuple[str, Config]]:
+    """Every other instance declared on this host, each built only for its namespaces: Ouroboros,
+    the default chain, and each overlay under config/instances/ but the one being loaded. An
+    overlay that would itself refuse to load (no readable TOML, no id or a malformed one, a name it
+    may not set) can never run, so it holds nothing and is left out. None of these values reaches
+    the instance being loaded."""
+    others = [(repr(OUROBOROS), _ouroboros())]
+    directory = _CONFIG_DIR / "instances"
+    for path in sorted(directory.glob("*.toml")) if directory.is_dir() else []:
+        if path.resolve() == loading.resolve():
+            continue
+        try:
+            other = _named_config(path)
+        except (InstanceOverlayError, OSError, ValueError, TypeError, KeyError):
+            continue
+        others.append((f"{other.instance.id!r} ({path})", other))
+    return others
+
+
 def _refuse_shared(cfg: Config, source: Path) -> None:
-    """A named instance shares no namespace with Ouroboros. Ouroboros's are read off its own
-    chain on this host, so an overlay that names Ouroboros's restic repository, or a location
-    inside it, refuses outright."""
-    both = shared(namespaces_of(cfg), namespaces_of(_ouroboros()))
-    if both:
-        raise InstanceOverlayError(
-            f"{source}: instance {cfg.instance.id!r} would share these with {OUROBOROS!r}:\n    "
-            + "\n    ".join(both)
-            + "\nRefusing to load: an instance writes only into namespaces of its own.")
+    """A named instance shares no namespace with any other instance declared on this host:
+    Ouroboros, and each other overlay under config/instances/ (`_declared_instances`). So an
+    overlay naming Ouroboros's restic repository or a location inside it refuses outright, and so
+    do two named instances whose repositories nest, whose roots one links to the other, or that
+    declare one id."""
+    mine = namespaces_of(cfg)
+    for name, other in _declared_instances(source):
+        if other.instance.id == cfg.instance.id:
+            raise InstanceOverlayError(
+                f"{source}: another overlay declares the instance id {cfg.instance.id!r}, "
+                f"{name}. Refusing to load either as {cfg.instance.id!r}: one id is one instance.")
+        both = shared(mine, namespaces_of(other))
+        if both:
+            raise InstanceOverlayError(
+                f"{source}: instance {cfg.instance.id!r} would share these with {name}:\n    "
+                + "\n    ".join(both)
+                + "\nRefusing to load: an instance writes only into namespaces of its own.")
 
 
 def load_config(path: Path | None = None) -> Config:
@@ -1132,7 +1174,8 @@ def load_config(path: Path | None = None) -> Config:
     # its own overlay, and nothing of Ouroboros's. The legacy guard is about Ouroboros's file name,
     # so it does not run. Its namespaces derive from its id (`InstanceConfig`); the overlay may not
     # set them, it reads only the sources it declares (`_own_sources`), and the instance may not
-    # share a location with Ouroboros, whose chain is read for that check alone.
+    # share a namespace with any other instance declared on this host (`_refuse_shared`): Ouroboros
+    # and the other overlays under config/instances/, each read for that check alone.
     if path is not None:
         return _build(raw, _ouroboros_instance(raw, str(path)))
     named = _named_overlay()
@@ -1141,15 +1184,7 @@ def load_config(path: Path | None = None) -> Config:
         _overlay(raw, LEVERS_OVERLAY)
         _overlay(raw, _INSTANCE_OVERLAY)
         return _build(raw, _ouroboros_instance(raw, "the default chain"))
-    declared = _read(named)
-    instance = _named_instance(declared, named)
-    committed = {(s, k): raw.get(s, {}).get(k) for s, k in _SECRET_NAMES}
-    _overlay(raw, instance.levers)      # its own loop-tuned knobs, under its hand overlay
-    _deep_merge(raw, declared)
-    _own_sources(raw, declared, instance, named)
-    _own_vault(raw, declared, instance, named)
-    _refuse_reaching_out(raw, declared, committed, instance, named)
-    cfg = _build(raw, instance)
+    cfg = _named_config(named)
     _refuse_shared(cfg, named)
     return cfg
 

@@ -113,23 +113,30 @@ resolver reads it (userinfo dropped, every IPv4 form `inet_aton` accepts, IPv6 a
 addresses, one trailing dot), with every loopback or unspecified address and the localhost names
 counting as one host. For named instances it holds by
 construction: distinct ids give distinct roots, item prefixes and label segments, no derived name
-is Ouroboros's, and an undeclared source points into the instance's own root. A source a named
-overlay declares is checked against all of Ouroboros's locations; two named instances may
-deliberately read one corpus. `tests/property/test_instance_namespaces.py` checks the invariant
-with Hypothesis over generated ids through the real loader. Its controls break the derivation
-five ways and the property fails on each: ignoring the id; handing a named instance Ouroboros's
-names (the #25 hazard); and letting an undeclared vault, exhaust lane or Vault server fall back to
-the committed default, which is Ouroboros's. With the loader's refusal on, the last four refuse at
-load.
+is Ouroboros's, and an undeclared source points into the instance's own root. What an overlay
+declares is checked at load against every instance declared on the host: Ouroboros and each other
+overlay under `config/instances/`, each read only for its namespaces. Sources count like every
+other location, so two named instances cannot read one corpus either: a source at, inside or
+around another instance's location, read or written, refuses.
+`tests/property/test_instance_namespaces.py` checks the invariant with Hypothesis over generated
+ids through the real loader, the named instances declared side by side so that each load checks
+the others, over pairs of named ids as well. Its controls break the derivation five ways and the
+property fails on each: ignoring the id; handing a named instance Ouroboros's names (the #25
+hazard); and letting an undeclared vault, exhaust lane or Vault server fall back to the committed
+default, which is Ouroboros's. With the loader's refusal on, the last four refuse at load, and so
+does the first between two named instances.
 
 **What a named instance is refused.** Loading refuses an overlay that declares no id, a malformed
 id, or `ouroboros`; that sets a derived Keychain item name, even to its derived value; that moves
 a data path or its exhaust lane out of its root (absolute, `~`, or through `..`); that turns the
 vault or transcripts agent on without naming its source, or `[secrets]` on without naming its
-Vault; whose restic repository does not end in its id; or that would share anything with
-Ouroboros, whose configuration is read on this host for that check alone. A declared source at,
-inside or around a location of Ouroboros's, Ouroboros's restic repository named outright or
-nested, and Ouroboros's Vault in any spelling therefore refuse outright. At run time, a
+Vault; whose restic repository does not end in its id; or that would share anything with another
+instance declared on the host, Ouroboros or another named one, whose configuration is read for
+that check alone. A declared source at, inside or around a location of Ouroboros's, Ouroboros's
+restic repository named outright or nested, Ouroboros's Vault in any spelling, two named
+instances whose repositories nest or whose roots one links to the other, and two overlays that
+declare one id therefore refuse outright. An overlay under `config/instances/` that could never
+load (no readable TOML, no id) holds nothing and is left out of the check. At run time, a
 self-modification loop pointed at another levers file refuses (`ForeignLevers`), and every tool
 that names Ouroboros's own state outside the config refuses while `MIND_PALACE_OVERLAY` is set:
 `mind-palace stack`, `palace tick`, `backup.sh`, `run_with_secrets.sh`, the Open WebUI bridge and
@@ -142,8 +149,9 @@ float16 migrations, the eval report writers' `data/reports` default, and the thr
 empty places its vault and transcripts would be. It reads its own root, its overlay and the
 committed defaults, and the framework it runs from: the code, the door scripts, the committed
 public keys. Two reads cross outside, and neither carries data: at load, Ouroboros's overlay and
-levers file, read only to refuse a collision, with no value reaching the named instance's
-configuration; and the local inference servers its runtime points at (the committed default is
+levers file and the other overlays under `config/instances/`, read only to refuse a collision,
+with no value reaching the named instance's configuration; and the local inference servers its
+runtime points at (the committed default is
 Ollama on loopback), which keep no state. Its Keychain items, labels and repository are names until
 the owner creates them, and it has no Vault.
 
