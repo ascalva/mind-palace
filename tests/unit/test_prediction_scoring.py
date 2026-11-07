@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import math
 import random
+import sys
 import tempfile
 from collections.abc import Callable
 from dataclasses import fields, replace
@@ -40,6 +41,7 @@ from eval.predictions.scoring import (
     growth_report,
     holm,
     known_edge,
+    log_factor,
     log_loss,
     murphy,
     null_check,
@@ -307,8 +309,9 @@ probabilities = st.floats(min_value=0.0, max_value=1.0, allow_nan=False)
 @settings(max_examples=40, deadline=None)
 def test_the_growth_is_the_exponential_of_the_cumulative_log_score_advantage(
         rows: list[tuple[float, float, bool]]) -> None:
-    """GRW-1 on random ledgers: the product of the factors is exp of the sum of the log-score
-    differences, with the protocol's clip, and each factor is exp of its pair's advantage."""
+    """GRW-1 on random ledgers: at the full stake the readout's log growth is the cumulative
+    log-score advantage itself, read from the ledger's clipped log scores, and the product of the
+    factors is its exponential; each factor is exp of its pair's advantage."""
     with tempfile.TemporaryDirectory() as tmp:
         t = table(ledger_from(Path(tmp) / "l.jsonl", rows).entries())
     clip = t.protocol.log_clip
@@ -319,9 +322,12 @@ def test_the_growth_is_the_exponential_of_the_cumulative_log_score_advantage(
     assert g is not None and g.n == len(rows) and g.stake == 1.0
     assert g.log_advantage == pytest.approx(
         sum(log_loss(r, int(o), clip) - log_loss(p, int(o), clip) for r, p, o in rows))
+    assert g.log_growth == g.log_advantage and not g.growth_is_log
+    assert math.prod(factor(p, r, int(o), clip) for r, p, o in rows) == \
+        pytest.approx(g.growth, rel=1e-9)
     assert g.growth == pytest.approx(math.exp(g.log_advantage), rel=1e-9)
     assert g.growth > 0 and g.worst_factor > 0                       # GRW-5: no ruin
-    assert 0.0 <= g.drawdown < 1.0
+    assert 0.0 <= g.drawdown <= 1.0
 
 
 def test_a_mutated_factor_breaks_the_identity(tmp_path: Path) -> None:
@@ -340,19 +346,77 @@ def test_a_mutated_factor_breaks_the_identity(tmp_path: Path) -> None:
         pytest.approx(full.growth, rel=1e-12)
 
 
+@pytest.mark.parametrize("rows", [
+    pytest.param([(0.001, 0.999, True)] * 103, id="103-factors-of-999"),
+    pytest.param([(0.999, 0.001, True)] * 108, id="108-factors-of-1-over-999"),
+])
+def test_a_run_whose_product_leaves_the_float_range_is_read_in_log_space(
+        tmp_path: Path, rows: list[tuple[float, float, bool]],
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """103 factors of 999 overflow a running product to inf, and 108 of 1/999 underflow it to 0,
+    whose log raises. In log space the log growth is finite and is the exact sum of the clipped
+    log-score differences; the growth, outside the float range, is reported as that log, flagged,
+    and the command line prints it as e^x. The fractional stakes stay finite."""
+    led = ledger_from(tmp_path / "l.jsonl", rows)
+    t = table(led.entries())
+    clip = t.protocol.log_clip
+    exact = math.fsum(log_loss(r, int(o), clip) - log_loss(p, int(o), clip) for r, p, o in rows)
+    assert abs(exact) > math.log(sys.float_info.max)           # its exponential is out of range
+    g = growth(t, "main", "a")
+    assert g is not None and math.isfinite(g.growth)
+    assert g.growth_is_log and g.growth == g.log_growth == g.log_advantage
+    assert g.log_growth == pytest.approx(exact, rel=1e-12)
+    assert g.worst_factor > 0 and 0.0 <= g.drawdown <= 1.0
+    r, p, o = rows[0]
+    for stake in (0.5, 0.25):
+        h = growth(t, "main", "a", stake=stake)
+        assert h is not None and math.isfinite(h.growth) and not h.growth_is_log
+        assert h.log_growth == pytest.approx(
+            len(rows) * math.log1p(stake * (factor(p, r, int(o), clip) - 1.0)), rel=1e-12)
+    assert main(["growth", "--ledger", str(led.path), "--unblind"]) == 0
+    assert f"e^{exact:.2f}" in capsys.readouterr().out
+    assert main(["growth", "--ledger", str(led.path), "--unblind", "--json"]) == 0
+    full = [x for x in json.loads(capsys.readouterr().out)["readouts"]
+            if x["arm"] == "a" and x["stake"] == 1.0]
+    assert len(full) == 1 and full[0]["growth_is_log"] and full[0]["growth"] == g.log_growth
+
+
 def test_the_growth_path_on_a_hand_sequence() -> None:
     """Factors 2, 1/2, 2: growth 2, per pair the cube root of 2, worst 1/2, the drawdown the fall
-    from 2 to 1, and seven more such pairs to 10x at the realized mean."""
-    end, geometric, worst, drawdown, to_target = growth_path([2.0, 0.5, 2.0], stake=1.0,
-                                                             target=10.0)
-    assert end == pytest.approx(2.0) and geometric == pytest.approx(2 ** (1 / 3))
-    assert worst == 0.5 and drawdown == pytest.approx(0.5)
-    assert to_target == math.ceil((math.log(10) - math.log(2)) / (math.log(2) / 3)) == 7
-    assert growth_path([2.0, 0.5, 2.0], stake=1.0, target=2.0)[4] == 0
-    assert growth_path([0.5, 0.5], stake=1.0, target=10.0)[4] is None
-    assert growth_path([2.0, 0.5], stake=0.5, target=10.0)[0] == pytest.approx(1.5 * 0.75)
+    from 2 to 1, and seven more such pairs to 10x at the realized mean; the half stake turns the
+    factors 2 and 1/2 into 3/2 and 3/4, and a stake above 1 is refused."""
+    two, half = math.log(2.0), math.log(0.5)
+    path = growth_path([two, half, two], target=10.0)
+    assert path.growth == pytest.approx(2.0) and not path.growth_is_log
+    assert path.log_growth == pytest.approx(two)
+    assert path.geometric_mean == pytest.approx(2 ** (1 / 3))
+    assert path.worst_factor == pytest.approx(0.5) and path.drawdown == pytest.approx(0.5)
+    assert path.to_target == math.ceil((math.log(10) - math.log(2)) / (math.log(2) / 3)) == 7
+    assert growth_path([two, half, two], target=2.0).to_target == 0
+    assert growth_path([half, half], target=10.0).to_target is None
+    assert log_factor(0.8, 0.4, 1, 0.001, stake=0.5) == pytest.approx(math.log(1.5))
+    assert log_factor(0.2, 0.4, 1, 0.001, stake=0.5) == pytest.approx(math.log(0.75))
+    assert log_factor(0.8, 0.4, 1, 0.001) == log_loss(0.4, 1, 0.001) - log_loss(0.8, 1, 0.001)
     with pytest.raises(ValueError, match="GRW-5"):
-        growth_path([2.0], stake=2.0, target=10.0)
+        log_factor(0.8, 0.4, 1, 0.001, stake=2.0)
+    with pytest.raises(ValueError, match="no factors"):
+        growth_path([], target=10.0)
+
+
+def test_the_path_in_log_space_holds_runs_beyond_the_float_range() -> None:
+    """The two runs whose product leaves the float range, as log factors: the log growth is the
+    exact sum, the growth is reported as that log, and nothing raises."""
+    for value, n in ((999.0, 103), (1 / 999, 108)):
+        logs = [math.log(value)] * n
+        path = growth_path(logs, target=10.0)
+        assert math.isfinite(path.log_growth) and path.growth_is_log
+        assert path.log_growth == math.fsum(logs)                     # the exact sum, rounded
+        assert path.growth == path.log_growth
+        assert path.geometric_mean == pytest.approx(value)
+        assert path.worst_factor == pytest.approx(value)
+    assert growth_path([math.log(999.0)] * 103, target=10.0).to_target == 0
+    down = growth_path([math.log(1 / 999)] * 108, target=10.0)
+    assert down.to_target is None and down.drawdown == 1.0       # 1 - e^-746 rounds to 1
 
 
 def test_the_null_arm_grows_by_exactly_one(tmp_path: Path) -> None:
@@ -361,6 +425,7 @@ def test_the_null_arm_grows_by_exactly_one(tmp_path: Path) -> None:
     for stake in (1.0, 0.5, 0.25):
         g = growth(t, "main", "null", stake=stake)
         assert g is not None and g.growth == 1.0 and g.drawdown == 0.0 and g.worst_factor == 1.0
+        assert g.log_growth == 0.0 and not g.growth_is_log
         assert g.log_advantage == 0.0 and g.to_target is None
 
 
