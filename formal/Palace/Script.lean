@@ -1,24 +1,25 @@
 module
 
-public import Palace.Door
+public import Palace.Ingress
 public import Palace.Script.Defs
 
 /-!
-# The door's language: the laws
+# The ingress language: the laws
 
-dn-door-language §E9, on the model of `Palace/Script/Defs.lean`. DOR-13: a value's label and
+dn-ingress-language §E9, on the model of `Palace/Script/Defs.lean`. ING-13: a value's label and
 origin are its item's under projections and the observed label and none otherwise, and its bytes
-are its item's under its views, so no expression raises a label. DOR-14, the firewall: an
+are its item's under its views, so no expression raises a label. ING-14, the firewall: an
 admitted store whose label is not the observed one lands an item a source yields, under views, at
 the item's own path, with the item's label; over a plan, every active row not observed is the row
-held before or such a store's. DOR-15, confinement: a plan changes a path only by an admitted
-effect on it, in the role's namespace for the effect's place. DOR-16: a plan's stores are the
+held before or such a store's. ING-15, confinement: a plan changes a path only by an admitted
+effect on it, a store in the role's write namespace for its place and a retire in that namespace or
+the role's retire-only one, so a retire-only prefix takes no store. ING-16: a plan's stores are the
 first form's commands with the key last, so stores on distinct paths stopped anywhere converge
-under re-run (DOR-11) and leave a state a reader that trusts the key may read without a lock
-(DOR-12). DOR-17: a held path keeps its label and its identity under an admitted store; a new
+under re-run (ING-11) and leave a state a reader that trusts the key may read without a lock
+(ING-12). ING-17: a held path keeps its label and its identity under an admitted store; a new
 path's identity is its own, one read off the very item stored, or one held at a path its source
 no longer has with the same bytes; and an admitted retire of content that came from a source is
-of a path the source no longer has. DOR-18: the type system is sound for labels, a value's label
+of a path the source no longer has. ING-18: the type system is sound for labels, a value's label
 at run time being in its type's set. The ledger cites them (docs/LAWS.md §XII), and
 `formal/Spec/Script.lean` states them for the comparator.
 -/
@@ -29,9 +30,9 @@ namespace Palace.Script
 
 variable {B L P I W K Rl : Type*}
 
-/-! ### DOR-13 Labels are the palace's -/
+/-! ### ING-13 Labels are the palace's -/
 
-/-- **DOR-13** A value's label is its item's under projections, and the observed label otherwise. -/
+/-- **ING-13** A value's label is its item's under projections, and the observed label otherwise. -/
 theorem label_eval (view : W → B → B) (observed : L) (e : Expr B L P W) :
     (eval view observed e).label = (e.root.map Item.label).getD observed := by
   induction e with
@@ -39,7 +40,7 @@ theorem label_eval (view : W → B → B) (observed : L) (e : Expr B L P W) :
   | proj w e ih => simpa only [eval, Expr.root] using ih
   | make b => rfl
 
-/-- **DOR-13** A value's origin is its item's path under projections, and none otherwise. -/
+/-- **ING-13** A value's origin is its item's path under projections, and none otherwise. -/
 theorem origin_eval (view : W → B → B) (observed : L) (e : Expr B L P W) :
     (eval view observed e).origin = e.root.map Item.path := by
   induction e with
@@ -47,7 +48,7 @@ theorem origin_eval (view : W → B → B) (observed : L) (e : Expr B L P W) :
   | proj w e ih => simpa only [eval, Expr.root] using ih
   | make b => rfl
 
-/-- **DOR-13** A projection's bytes are its item's under its views. -/
+/-- **ING-13** A projection's bytes are its item's under its views. -/
 theorem bytes_eval (view : W → B → B) (observed : L) {e : Expr B L P W} {i : Item B L P}
     (h : e.root = some i) : (eval view observed e).bytes = applyViews view e.views i.bytes := by
   induction e with
@@ -60,7 +61,7 @@ theorem bytes_eval (view : W → B → B) (observed : L) {e : Expr B L P W} {i :
     simp only [eval, Expr.views, applyViews, ih h]
   | make b => simp [Expr.root] at h
 
-/-- **DOR-13** No expression raises a label: a label other than the observed one is an item's,
+/-- **ING-13** No expression raises a label: a label other than the observed one is an item's,
 carried to the value by projections alone. -/
 theorem root_of_label_ne (view : W → B → B) (observed : L) (e : Expr B L P W)
     (h : (eval view observed e).label ≠ observed) :
@@ -74,7 +75,7 @@ theorem root_of_label_ne (view : W → B → B) (observed : L) (e : Expr B L P W
     rw [hr] at hl
     exact ⟨i, rfl, hl.symm⟩
 
-/-- **DOR-18** The type system is sound for labels: if every item's label is among those its
+/-- **ING-18** The type system is sound for labels: if every item's label is among those its
 source's rule may give, a value's label at run time is in its expression's type's set, and in any
 set inference unified it into. -/
 theorem label_typed [DecidableEq L] (view : W → B → B) (observed : L)
@@ -85,14 +86,14 @@ theorem label_typed [DecidableEq L] (view : W → B → B) (observed : L)
   | proj w e ih => simpa only [eval, labelsOf] using ih
   | make b => simp [eval, labelsOf]
 
-/-- **DOR-18** A set inference unified the type's set into contains the value's label. -/
+/-- **ING-18** A set inference unified the type's set into contains the value's label. -/
 theorem label_typed_of_subset [DecidableEq L] (view : W → B → B) (observed : L)
     (srcLabels : Item B L P → Finset L) (hsrc : ∀ i, i.label ∈ srcLabels i) (e : Expr B L P W)
     {T : Finset L} (hT : labelsOf srcLabels observed e ⊆ T) :
     (eval view observed e).label ∈ T :=
   hT (label_typed view observed srcLabels hsrc e)
 
-/-! ### DOR-14 The firewall -/
+/-! ### ING-14 The firewall -/
 
 variable [DecidableEq B] [DecidableEq L] [DecidableEq P]
 
@@ -121,7 +122,7 @@ theorem okStore_spec {T : Table B L P I W K Rl} {r : Rl} {h : Held P B L I} {p :
   · rw [hn] at h5
     exact h5
 
-/-- **DOR-14** The firewall, one store: an admitted store whose label is not the observed one lands
+/-- **ING-14** The firewall, one store: an admitted store whose label is not the observed one lands
 the bytes of an item a source yields, under the expression's views, at the item's own path,
 with the item's label. -/
 theorem firewall_store (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : P)
@@ -135,7 +136,7 @@ theorem firewall_store (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p
   rw [origin_eval, hi]
   rfl
 
-/-- **DOR-14** The firewall over a plan: every active row of the landed state whose label is not the
+/-- **ING-14** The firewall over a plan: every active row of the landed state whose label is not the
 observed one is the row held before at its path, or the bytes of an item a source yields, under
 views, at the item's own path, with the item's label. -/
 theorem firewall_plan (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B L P I W K))
@@ -179,13 +180,14 @@ theorem firewall_plan (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B
         · exact Or.inl h1
     · exact Or.inr h1
 
-/-! ### DOR-15 Confinement -/
+/-! ### ING-15 Confinement -/
 
-/-- **DOR-15** Confinement: a plan changes a path only through an effect on it that the writer
-admitted, in the role's namespace for the effect's place. -/
+/-- **ING-15** Confinement: a plan changes a path only through an effect on it that the writer
+admitted, in the role's namespace for the effect's place: its write namespace for a store, its
+write or retire-only namespace for a retire. -/
 theorem confined (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B L P I W K))
     (h₀ : Held P B L I) (p : P) (hne : landPlan T r plan h₀ p ≠ h₀ p) :
-    ∃ ef ∈ plan, ef.path = p ∧ T.ns r ef.place p = true := by
+    ∃ ef ∈ plan, ef.path = p ∧ inNamespace T r ef = true := by
   induction plan generalizing h₀ with
   | nil => exact absurd rfl hne
   | cons ef plan ih =>
@@ -218,9 +220,49 @@ theorem confined (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B L P 
     · obtain ⟨ef', hmem, hpath, hns⟩ := ih (step T r h₀ ef) hrest
       exact ⟨ef', List.mem_cons_of_mem ef hmem, hpath, hns⟩
 
-/-! ### DOR-17 Labels fixed, identities with their bytes, retire reconciles -/
+/-- **ING-15** A retire-only namespace takes no store: a path a plan leaves holding an active row
+it changed was stored there by the plan, in the role's write namespace for the store's place. -/
+theorem confined_store (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B L P I W K))
+    (h₀ : Held P B L I) (p : P) (row : Row B L I) (hp : landPlan T r plan h₀ p = some row)
+    (ha : row.active = true) (hne : landPlan T r plan h₀ p ≠ h₀ p) :
+    ∃ n e k, Effect.store p n e k ∈ plan ∧ T.ns r k p = true := by
+  induction plan generalizing h₀ with
+  | nil => exact absurd rfl hne
+  | cons ef plan ih =>
+    have hp' : landPlan T r plan (step T r h₀ ef) p = some row := hp
+    have hne' : landPlan T r plan (step T r h₀ ef) p ≠ h₀ p := hne
+    by_cases hrest : landPlan T r plan (step T r h₀ ef) p = step T r h₀ ef p
+    · have h1 : step T r h₀ ef p ≠ h₀ p := fun heq ↦ hne' (hrest.trans heq)
+      cases ef with
+      | store q n e k =>
+        simp only [step] at h1
+        split_ifs at h1 with hok
+        · by_cases hqp : p = q
+          · subst hqp
+            exact ⟨n, e, k, List.mem_cons_self, (okStore_spec hok).2.2.1⟩
+          · exact absurd (by simp [landStore, Function.update_of_ne hqp]) h1
+        · exact absurd rfl h1
+      | retire q k =>
+        have h2 : step T r h₀ (.retire q k) p = some row := hrest.symm.trans hp'
+        simp only [step] at h1 h2
+        split_ifs at h1 h2 with hok
+        · by_cases hqp : p = q
+          · subst hqp
+            simp only [landRetire, Function.update_self] at h2
+            cases h0 : h₀ p with
+            | none => simp [h0] at h2
+            | some r0 =>
+              simp only [h0, Option.map_some, Option.some.injEq] at h2
+              subst h2
+              simp at ha
+          · exact absurd (by simp [landRetire, Function.update_of_ne hqp]) h1
+        · exact absurd rfl h1
+    · obtain ⟨n, e, k, hmem, hns⟩ := ih (step T r h₀ ef) hp' hrest
+      exact ⟨n, e, k, List.mem_cons_of_mem ef hmem, hns⟩
 
-/-- **DOR-17** A held path keeps its label and its identity under an admitted store. -/
+/-! ### ING-17 Labels fixed, identities with their bytes, retire reconciles -/
+
+/-- **ING-17** A held path keeps its label and its identity under an admitted store. -/
 theorem label_fixed (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : P)
     (n : Naming P I) (e : Expr B L P W) (k : K) (row : Row B L I) (hp : h p = some row)
     (hok : okStore T r h p n e k = true) :
@@ -231,7 +273,7 @@ theorem label_fixed (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : 
   · simp [landStore, hp]
   · exact ((okStore_spec hok).2.2.2.2.2.1 row hp).symm
 
-/-- **DOR-17** Identities move only with their bytes: an admitted store at a new path gives it its
+/-- **ING-17** Identities move only with their bytes: an admitted store at a new path gives it its
 own identity, the one the very item stored declares, or one held at a path its source no longer
 has, holding the same bytes. -/
 theorem identity_moves_with_bytes (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : P)
@@ -266,7 +308,7 @@ theorem identity_moves_with_bytes (T : Table B L P I W K Rl) (r : Rl) (h : Held 
       · exact ⟨q, rq, rfl, hq, hb.1, hb.2, rfl⟩
       · simp at hres
 
-/-- **DOR-17** Paths belong to their sources: an admitted store at a path in a source's space lands
+/-- **ING-17** Paths belong to their sources: an admitted store at a path in a source's space lands
 an item a source yields, at that very path, whatever its label, so no script squats a path a
 source will write (a composed text where the owner's turn will land). -/
 theorem owned_by_source (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : P)
@@ -284,20 +326,21 @@ theorem owned_by_source (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (
     rfl
 
 omit [DecidableEq B] [DecidableEq L] [DecidableEq P] in
-/-- **DOR-17** Retire reconciles: an admitted retire of content that came from a source is of a
+/-- **ING-17** Retire reconciles: an admitted retire of content that came from a source is of a
 path the source no longer has, so no script retires a note still in the vault. -/
 theorem retire_reconciles (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : P) (k : K)
     (row : Row B L I) (hp : h p = some row) (hs : row.sourced = true)
     (hok : okRetire T r h p k = true) : T.has p = false := by
-  have h2 : T.ns r k p = true ∧ T.has p = false := by simpa [okRetire, hp, hs] using hok
+  have h2 : (T.ns r k p || T.rns r k p) = true ∧ T.has p = false := by
+    simpa [okRetire, hp, hs] using hok
   exact h2.2
 
-/-! ### DOR-16 A plan's stores converge, and readers need no lock -/
+/-! ### ING-16 A plan's stores converge, and readers need no lock -/
 
 omit [DecidableEq B] in
-open Door in
-/-- **DOR-16** A plan's stores on distinct paths, each fresh, stopped anywhere in any global order:
-run again, they land exactly the uninterrupted batch (DOR-11 for every plan). -/
+open Ingress in
+/-- **ING-16** A plan's stores on distinct paths, each fresh, stopped anywhere in any global order:
+run again, they land exactly the uninterrupted batch (ING-11 for every plan). -/
 theorem plan_converges {R G : Type*} [DecidableEq R] [DecidableEq G]
     (rowsOf : B → List (Finset R)) (dig : B → G) (stores : List (P × B))
     (hn : (stores.map Prod.fst).Nodup) (s : State R P G)
@@ -312,9 +355,9 @@ theorem plan_converges {R G : Type*} [DecidableEq R] [DecidableEq G]
     exact hf y hy
 
 omit [DecidableEq B] in
-open Door in
-/-- **DOR-16** Readers need no lock under a plan: its stores on distinct paths stopped anywhere, in
-any global order, from a state sound for each, leave a state sound for each (DOR-12 for every
+open Ingress in
+/-- **ING-16** Readers need no lock under a plan: its stores on distinct paths stopped anywhere, in
+any global order, from a state sound for each, leave a state sound for each (ING-12 for every
 plan). -/
 theorem plan_sound {R G : Type*} [DecidableEq R] [DecidableEq G]
     (rowsOf : B → List (Finset R)) (dig : B → G) (stores : List (P × B))

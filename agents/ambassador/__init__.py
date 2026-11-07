@@ -1,9 +1,9 @@
 """The Ambassador — the conversational front door (Track B / the Voice).
 
 A reasoning agent that is computationally light: it reasons about intent, answers from
-already-grounded material on the pinned tier, reads its own operational state, captures the
-dialogue as `authored-dialogue`, and delegates heavy work to the async scheduler — read +
-propose, never write + act. See `agent.py` for the full design.
+already-grounded material on the pinned tier, reads its own operational state, says which
+exchanges the inbox keeps (the inbox's capture lands them as dialogue), and delegates heavy work
+to the async scheduler — read + propose, never write + act. See `agent.py` for the full design.
 """
 
 from __future__ import annotations
@@ -47,21 +47,20 @@ def build_ambassador(config: Config | None = None, *, delegate=None, pending_res
 
     `server`/`embedder`/`store` are injectable so the offline CLI + tests can swap the two
     model-backed pieces for deterministic stand-ins without touching the real machinery. The
-    ONE vector store is shared by the librarian (reads) and the dialogue capture (writes) so a
-    captured turn is immediately retrievable. `drift` is an optional bound DriftReport reading
-    for the ops-view (None per-chat — drift is measured by a separate job, not on every turn)."""
+    Ambassador writes nothing: the exchanges it keeps go to the inbox's record, and the inbox's
+    capture lands them through the one writer (dn-ingress-language §E13). `drift` is an optional
+    bound DriftReport reading for the ops-view (None per-chat — drift is measured by a separate
+    job, not on every turn)."""
     from agents.ambassador.policy import InterruptionPolicy, parse_sensitivity
     from config.loader import get_config
     from core.attestation import build_attestor
     from core.attestation.store import open_attestation_store
     from core.dreams_view import DreamsView
-    from core.ingest.dialogue import DialogueCapture
     from core.ingest.embed import build_embedder
     from core.kernel.stores.rawstore import RawStore
     from core.librarian import Librarian
     from core.models import build_model_server
     from core.ops_view import OpsView
-    from core.stores.catalog import VaultCatalog
     from core.stores.derived import open_derived_store
     from core.stores.vectorstore import open_vector_store
     from core.verdict.apply import OwnerKeyMissing, build_verdict_receiver
@@ -90,8 +89,6 @@ def build_ambassador(config: Config | None = None, *, delegate=None, pending_res
     except OwnerKeyMissing:
         verdict_transport = None
     raw = RawStore(cfg.paths.raw_store)
-    capture = DialogueCapture(raw=raw, store=store, embedder=embedder,
-                              catalog=VaultCatalog(cfg.paths.vault_catalog), attestor=attestor)
     return Ambassador(
         server=server,
         librarian=Librarian(server=server, embedder=embedder, store=store, raw=raw,
@@ -100,7 +97,6 @@ def build_ambassador(config: Config | None = None, *, delegate=None, pending_res
         dreams_view=dreams_view,
         budgeter=Budgeter(window=cfg.pinned_model.num_ctx),
         tier=cfg.pinned_model.tier,
-        capture_sink=capture,
         attestor=attestor,
         delegate=delegate,
         pending_results=pending_results,

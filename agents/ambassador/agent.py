@@ -12,7 +12,13 @@ The five paths (ambassador-interpretation-and-flow.md §3, split by which graph 
   EXPLAIN  → the CURATED self-knowledge graph → grounded answer (inline). [B2, B4]
   STATUS   → the read-only ops-view, narrated in plain language (inline). [B2, B3]
   TASK     → compose a scoped task → gate → queue; narrate the effort.    [B2]
-  CAPTURE  → (the owner's message is stored as authored-dialogue) → ack.  [B1, B2]
+  CAPTURE  → acknowledge; the inbox keeps the exchange, its capture lands it. [B1, B2]
+
+Which exchanges are the owner's to keep is the Ambassador's call, by intent (`answer`): a recall,
+a task and a capture are kept, a status, an explanation and the dreams are not. What is in one is
+not: the inbox records the owner's text as the request held it and the reply as it was sent, and
+the palace's table labels the text authored and the reply observed (dn-ingress-language §E13), so
+nothing the model writes can become the owner's words.
 
 Context for the inline answers is assembled through the §13 budgeter (B5): the Ambassador
 *chooses* what to put in `ContextParts` (which chunks, how much history); the budgeter is the
@@ -30,7 +36,8 @@ from agents.ambassador.policy import InterruptionPolicy, narrate_effort, topic_o
 from core.attestation import Attestor
 from core.dreams_view import DreamsView
 from core.factory.roles import RoleTemplate
-from core.ingest.dialogue import DialogueCapture
+from core.interface import Answer
+from core.interface import Message as Inbound
 from core.kernel.clearance import CURATED_READ, MIRROR_READ
 from core.kernel.constitution import Message, frame_context
 from core.kernel.selfcheck import SelfCheck, Source, self_evaluate
@@ -104,7 +111,6 @@ class Ambassador:
     budgeter: Budgeter
     dreams_view: DreamsView | None = None   # the INTERPRETED layer, mirror-not-oracle (DREAMS path)
     tier: str = "router"                   # the pinned tier (always warm — note §2b)
-    capture_sink: DialogueCapture | None = None
     attestor: Attestor | None = None
     # B2c delegation seam (injected by the scheduler-layer wiring, which owns the queue/gate —
     # the Ambassador never imports the scheduler, keeping it pure + testable):
@@ -132,15 +138,19 @@ class Ambassador:
         prefix = self._surface(conversation)            # expected updates + earned interruptions
         intent = classify(text, chat=self._classify_chat)
         reply, sources, check = self._dispatch(intent, text, conversation)
-        if intent in _CAPTURE_INTENTS and self.capture_sink is not None:
-            # Close the capture loop: the owner's message becomes authored-dialogue (note §4).
-            self.capture_sink.capture(text, conversation=conversation)
         self._remember(conversation, text, reply)
         full = f"{prefix}\n\n{reply}".strip() if prefix else reply
         return Turn(reply=full, intent=intent, sources=sources, check=check)
 
+    def answer(self, message: Inbound) -> Answer:
+        """The `CoreInbox` responder: a request read whole -> the reply, and whether the exchange
+        is the owner's to keep. The capture loop closes there (note §4): the inbox keeps a kept
+        exchange in its record, and its capture lands the owner's words as authored-dialogue."""
+        turn = self.respond(message.text, conversation=message.conversation)
+        return Answer(turn.reply, keep=turn.intent in _CAPTURE_INTENTS)
+
     def handler(self, text: str) -> str:
-        """The `CoreInbox` Handler: text -> reply text (single default conversation)."""
+        """A text -> its reply (single default conversation); nothing is kept."""
         return self.respond(text).reply
 
     def transport_verdict(self, signed: object) -> object:
@@ -171,7 +181,7 @@ class Ambassador:
             return self._reflect_dreams(), (), None
         if intent is Intent.TASK:
             return self._delegate(text, conversation), (), None
-        # CAPTURE: the storing happens in respond(); here we just acknowledge.
+        # CAPTURE: the inbox keeps the exchange (`answer`); here we just acknowledge.
         return "Noted — I've saved that to your corpus.", (), None
 
     def _answer(self, text: str, conversation: str, *, clearance):

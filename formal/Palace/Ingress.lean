@@ -1,34 +1,34 @@
 module
 
-public import Palace.Door.Defs
+public import Palace.Ingress.Defs
 
 /-!
-# The door: the laws
+# The ingress: the laws
 
-dn-ingest-door §3.9, family XII, on the keyed model of `Palace/Door/Defs.lean`. DOR-1: a command
+dn-ingress §3.9, family XII, on the keyed model of `Palace/Ingress/Defs.lean`. ING-1: a command
 is admissible iff a granted plane above its scope carries the write bit, so a read-only grant
 admits no command, and the Ambassador's grant as written admits a projection-event command and
-refuses a commit-clock one. DOR-2: ingestion is extensive, idempotent, and monotone on the rows
-of sound states; a chain only grows. DOR-3: commands on distinct identities commute, and a batch
-of them lands the same state in any order, and lands nothing when run again. DOR-5: a re-ingest
+refuses a commit-clock one. ING-2: ingestion is extensive, idempotent, and monotone on the rows
+of sound states; a chain only grows. ING-3: commands on distinct identities commute, and a batch
+of them lands the same state in any order, and lands nothing when run again. ING-5: a re-ingest
 of held content embeds nothing; two commands sharing an atom pay once; a batch of fresh commands
-on distinct identities embeds its distinct new atoms. DOR-6: the receipt names what landed, the
-rows added and the digest that is the chain's new head, and nothing else. DOR-7: with the key
+on distinct identities embeds its distinct new atoms. ING-6: the receipt names what landed, the
+rows added and the digest that is the chain's new head, and nothing else. ING-7: with the key
 written last, a fresh run interrupted after any step converges under re-run, in the model's
 stage order and in any order of the steps before the key, the code's among them; a key written
 while some of the command's rows are not held is never repaired, the control that is the audit's
-defect 1. DOR-8: fresh commands on one identity land in the order of their chain, and the two
-orders give two chains. DOR-9: the steps of fresh commands on distinct identities run to the
+defect 1. ING-8: fresh commands on one identity land in the order of their chain, and the two
+orders give two chains. ING-9: the steps of fresh commands on distinct identities run to the
 batch's state in any order, which is what lets the queue dispatch non-conflicting commands in
-parallel. DOR-10: conflict-equivalence is state-equivalence, so a schedule of a batch's steps
+parallel. ING-10: conflict-equivalence is state-equivalence, so a schedule of a batch's steps
 that orders each identity's landings and keys as the list does lands the batch, repeated
 identities allowed, when each command is fresh at its turn; with the guard, the commands that
 land are the ones fresh at their turn, and a schedule of theirs lands the whole list; a
-permutation alone does not (the control). DOR-11: if each command of a batch of fresh commands on
+permutation alone does not (the control). ING-11: if each command of a batch of fresh commands on
 distinct identities has run a prefix of its own steps, in any global order, the batch run again
 lands the uninterrupted batch, every crash point of every parallel run; with repeated
 identities, a serial run stopped inside a command converges when what runs again is that command
-and the ones after it, and not when the whole batch does (the control). DOR-12: every state a
+and the ones after it, and not when the whole batch does (the control). ING-12: every state a
 key-last run passes through is sound for its own command, and a batch on distinct identities
 stopped anywhere, in any global order, is sound for each of its commands when the state before
 was, so a reader that trusts the key sees a version whole or not at all and needs no lock; with
@@ -36,9 +36,9 @@ the key first it would see rows that are not there (the control).
 
 The model is the ledger's grain: the rows, the chains and the keys. The stores readers go through
 (the catalog's upsert, the plane's `current` flag and its `held` cache) are not modelled
-(dn-ingest-door D5), so DOR-12 is soundness at that grain. DOR-9 and DOR-11 take every command
-fresh, where a sync pass is mostly UNCHANGED commands; DOR-10's `landsOf` form covers those.
-DOR-1 and DOR-7 are the ledger's (`Spec/Door.lean`, judged by the comparator):
+(dn-ingress D5), so ING-12 is soundness at that grain. ING-9 and ING-11 take every command
+fresh, where a sync pass is mostly UNCHANGED commands; ING-10's `landsOf` form covers those.
+ING-1 and ING-7 are the ledger's (`Spec/Ingress.lean`, judged by the comparator):
 `core/sentence/types.py` and the landing order are written to them. The others are design
 theorems until code relies on them.
 -/
@@ -47,7 +47,7 @@ theorems until code relies on them.
 
 open Finset
 
-namespace Palace.Door
+namespace Palace.Ingress
 
 variable {R D G : Type*} [DecidableEq R] [DecidableEq D] [DecidableEq G]
 
@@ -111,16 +111,16 @@ theorem ingest_key (x : Source R D G) (s : State R D G) :
   · exact h
   · exact land_key x s
 
-/-! ### DOR-2 Ingestion is a closure operator -/
+/-! ### ING-2 Ingestion is a closure operator -/
 
-/-- DOR-2 Extensive: nothing is removed. -/
+/-- ING-2 Extensive: nothing is removed. -/
 theorem ingest_extensive (x : Source R D G) (s : State R D G) : s.rows ⊆ (ingest x s).rows := by
   unfold ingest
   split_ifs
   · exact subset_rfl
   · exact subset_union_left
 
-/-- DOR-2 Extensive on the chains: a chain only grows. -/
+/-- ING-2 Extensive on the chains: a chain only grows. -/
 theorem chain_prefix_ingest (x : Source R D G) (s : State R D G) (d : D) :
     s.chain d <+: (ingest x s).chain d := by
   unfold ingest land
@@ -131,7 +131,7 @@ theorem chain_prefix_ingest (x : Source R D G) (s : State R D G) (d : D) :
     · exact prefix_appendIfNew _ _
     · exact List.prefix_rfl
 
-/-- DOR-2 Monotone on the rows, between sound states: a larger state before gives a larger
+/-- ING-2 Monotone on the rows, between sound states: a larger state before gives a larger
 state after. -/
 theorem ingest_monotone (x : Source R D G) {s t : State R D G} (h : s.rows ⊆ t.rows)
     (ht : Sound x t) : (ingest x s).rows ⊆ (ingest x t).rows := by
@@ -146,12 +146,12 @@ theorem ingest_monotone (x : Source R D G) {s t : State R D G} (h : s.rows ⊆ t
   · exact union_subset h (ht hk)
   · exact union_subset_union_left h
 
-/-- DOR-2 Idempotent: running a command again changes nothing, since its key names its digest. -/
+/-- ING-2 Idempotent: running a command again changes nothing, since its key names its digest. -/
 theorem ingest_idempotent (x : Source R D G) (s : State R D G) :
     ingest x (ingest x s) = ingest x s :=
   ingest_of_keyed (ingest_key x s)
 
-/-! ### DOR-3 Commands on distinct identities commute -/
+/-! ### ING-3 Commands on distinct identities commute -/
 
 /-- Two landings on distinct identities commute. -/
 theorem land_comm (x y : Source R D G) (hxy : x.ident ≠ y.ident) (s : State R D G) :
@@ -176,7 +176,7 @@ theorem land_comm (x y : Source R D G) (hxy : x.ident ≠ y.ident) (s : State R 
         simp [hx]
       · simp [hx, hy]
 
-/-- DOR-3 Two commands on distinct identities commute. -/
+/-- ING-3 Two commands on distinct identities commute. -/
 theorem ingest_comm (x y : Source R D G) (hxy : x.ident ≠ y.ident) (s : State R D G) :
     ingest x (ingest y s) = ingest y (ingest x s) := by
   by_cases hx : s.key x.ident = some x.digest <;> by_cases hy : s.key y.ident = some y.digest
@@ -195,7 +195,7 @@ theorem ingest_comm (x y : Source R D G) (hxy : x.ident ≠ y.ident) (s : State 
 theorem batch_cons (x : Source R D G) (l : List (Source R D G)) (s : State R D G) :
     batch (x :: l) s = batch l (ingest x s) := rfl
 
-/-- DOR-3 A batch of commands on pairwise distinct identities lands the same state in any
+/-- ING-3 A batch of commands on pairwise distinct identities lands the same state in any
 order. -/
 theorem ingest_batch_perm {l₁ l₂ : List (Source R D G)} (hp : l₁.Perm l₂) :
     ∀ s : State R D G, (l₁.map Source.ident).Nodup → batch l₁ s = batch l₂ s := by
@@ -226,7 +226,7 @@ theorem ingest_batch_comm (x : Source R D G) (l : List (Source R D G))
     rw [ih (fun z hz ↦ h z (List.mem_cons_of_mem y hz)) (ingest y s),
       ingest_comm x y (h y (List.mem_cons_self ..))]
 
-/-- DOR-3 A batch on pairwise distinct identities, run again, lands nothing: what the queue's
+/-- ING-3 A batch on pairwise distinct identities, run again, lands nothing: what the queue's
 coalescing relies on. -/
 theorem batch_idempotent (l : List (Source R D G)) (hn : (l.map Source.ident).Nodup)
     (s : State R D G) : batch l (batch l s) = batch l s := by
@@ -238,9 +238,9 @@ theorem batch_idempotent (l : List (Source R D G)) (hn : (l.map Source.ident).No
     simp only [batch_cons]
     rw [ingest_batch_comm x l hx, ingest_idempotent, ih hn.2]
 
-/-! ### DOR-8 One identity: the chain is the serial order -/
+/-! ### ING-8 One identity: the chain is the serial order -/
 
-/-- DOR-8 Two fresh commands on one identity land in their order on the chain. -/
+/-- ING-8 Two fresh commands on one identity land in their order on the chain. -/
 theorem same_identity_orders_the_chain (x y : Source R D G) (h : x.ident = y.ident)
     (hd : x.digest ≠ y.digest) (s : State R D G) (hy : s.key x.ident ≠ some y.digest) :
     (ingest x (ingest y s)).chain x.ident
@@ -255,7 +255,7 @@ theorem same_identity_orders_the_chain (x y : Source R D G) (h : x.ident = y.ide
   dsimp only
   simp [h]
 
-/-- DOR-8 The control: on one identity with two digests, the two orders give two chains, so
+/-- ING-8 The control: on one identity with two digests, the two orders give two chains, so
 commands on one identity do not commute and must be ordered by the queue. -/
 theorem same_identity_not_comm (x y : Source R D G) (h : x.ident = y.ident)
     (hd : x.digest ≠ y.digest) (s : State R D G) (hx : s.key x.ident ≠ some x.digest)
@@ -268,7 +268,7 @@ theorem same_identity_not_comm (x y : Source R D G) (h : x.ident = y.ident)
     appendIfNew_getLast?] at h1
   exact hd (Option.some.inj h1)
 
-/-! ### DOR-7 Crash convergence: the key last -/
+/-! ### ING-7 Crash convergence: the key last -/
 
 /-- The rows of a prefix of the stages lie among the rows. -/
 theorem foldr_union_take_subset (l : List (Finset R)) (k : ℕ) :
@@ -330,7 +330,7 @@ theorem land_after_land (x : Source R D G) (s : State R D G) :
       simp [appendIfNew_idem]
     · simp [h]
 
-/-- **DOR-7** With the key written last, a fresh run interrupted after any step converges: the next
+/-- **ING-7** With the key written last, a fresh run interrupted after any step converges: the next
 run lands exactly the uninterrupted run's state. -/
 theorem ingest_prefix_converges (x : Source R D G) (s : State R D G) (hs : Fresh x s) (k : ℕ) :
     ingest x (run (x.steps.take k) s) = ingest x s := by
@@ -363,7 +363,7 @@ theorem ingest_prefix_converges (x : Source R D G) (s : State R D G) (hs : Fresh
         rw [hm]
         exact ingest_of_keyed (land_key x s)
 
-/-- **DOR-7** The control at its extreme: with the key written first, a run interrupted right after
+/-- **ING-7** The control at its extreme: with the key written first, a run interrupted right after
 it is never repaired, since the next run reads the key and lands nothing. -/
 theorem key_first_does_not_converge (x : Source R D G) (s : State R D G) (hs : Fresh x s)
     (hx : ¬ x.rows ⊆ s.rows) :
@@ -378,7 +378,7 @@ theorem key_first_does_not_converge (x : Source R D G) (s : State R D G) (hs : F
   change s.rows = s.rows ∪ x.rows at h1
   exact hx (union_eq_left.1 h1.symm)
 
-/-- **DOR-7** The control in the audit's defect 1's own order: a key written after some steps, the
+/-- **ING-7** The control in the audit's defect 1's own order: a key written after some steps, the
 plane's rows in the defect, and before the attestation and the version row, the run interrupted
 right after it, is never repaired when some of the command's rows are not yet held, since the
 next run reads the key and lands nothing. -/
@@ -394,22 +394,22 @@ theorem key_early_does_not_converge (x : Source R D G) (s : State R D G) (hs : F
   change (run v s).rows = s.rows ∪ x.rows at h1
   exact hx (h1 ▸ subset_union_right)
 
-/-! ### DOR-6 The receipt -/
+/-! ### ING-6 The receipt -/
 
-/-- DOR-6 The receipt is complete: a fresh command's state after is the state before plus the
+/-- ING-6 The receipt is complete: a fresh command's state after is the state before plus the
 receipt's rows. -/
 theorem receipt_complete (x : Source R D G) (s : State R D G) (hs : Fresh x s) :
     (ingest x s).rows = s.rows ∪ (receipt x).rows := by
   rw [ingest_of_fresh hs]
   rfl
 
-/-- DOR-6 The receipt's digest is the chain's new head. -/
+/-- ING-6 The receipt's digest is the chain's new head. -/
 theorem receipt_head (x : Source R D G) (s : State R D G) (hs : Fresh x s) :
     ((ingest x s).chain (receipt x).ident).getLast? = some (receipt x).digest := by
   rw [ingest_of_fresh hs]
   simp [land, receipt, appendIfNew_getLast?]
 
-/-- DOR-6 The receipt never over-claims: on a sound state, every row it names is held after. -/
+/-- ING-6 The receipt never over-claims: on a sound state, every row it names is held after. -/
 theorem receipt_rows_subset (x : Source R D G) (s : State R D G) (hs : Sound x s) :
     (receipt x).rows ⊆ (ingest x s).rows := by
   unfold ingest
@@ -417,7 +417,7 @@ theorem receipt_rows_subset (x : Source R D G) (s : State R D G) (hs : Sound x s
   · exact hs hk
   · exact subset_union_right
 
-/-! ### DOR-5 The serial cost is the new atoms -/
+/-! ### ING-5 The serial cost is the new atoms -/
 
 variable (IsAtom : R → Prop) [DecidablePred IsAtom]
 
@@ -438,19 +438,19 @@ theorem atoms_split (A B S : Finset R) :
   tauto
 
 omit [DecidableEq D] [DecidableEq G] in
-/-- DOR-5 A command embeds nothing iff the plane holds its atoms. -/
+/-- ING-5 A command embeds nothing iff the plane holds its atoms. -/
 theorem embeds_eq_zero_iff (x : Source R D G) (s : State R D G) :
     embeds IsAtom x s = 0 ↔ atomsOf IsAtom x.rows ⊆ s.rows := by
   unfold embeds
   rw [card_eq_zero, sdiff_eq_empty_iff_subset]
 
-/-- DOR-5 A re-ingest of held content embeds nothing. -/
+/-- ING-5 A re-ingest of held content embeds nothing. -/
 theorem embeds_ingest_twice_zero (x : Source R D G) (s : State R D G) (hs : Sound x s) :
     embeds IsAtom x (ingest x s) = 0 := by
   rw [embeds_eq_zero_iff]
   exact (filter_subset _ _).trans (receipt_rows_subset x s hs)
 
-/-- DOR-5 Two fresh commands sharing an atom pay for it once. -/
+/-- ING-5 Two fresh commands sharing an atom pay for it once. -/
 theorem embeds_share (x y : Source R D G) (s : State R D G) (hs : Fresh x s) :
     embeds IsAtom x s + embeds IsAtom y (ingest x s)
       = (atomsOf IsAtom (x.rows ∪ y.rows) \ s.rows).card := by
@@ -464,7 +464,7 @@ theorem fresh_of_land (x y : Source R D G) (s : State R D G) (h : x.ident ≠ y.
   unfold Fresh
   rwa [land_key_other x s (Ne.symm h)]
 
-/-- DOR-5 A batch of fresh commands on distinct identities embeds exactly its distinct new
+/-- ING-5 A batch of fresh commands on distinct identities embeds exactly its distinct new
 atoms, whatever it shares among its commands. -/
 theorem embedsBatch_eq (l : List (Source R D G)) (s : State R D G)
     (hn : (l.map Source.ident).Nodup) (hf : ∀ x ∈ l, Fresh x s) :
@@ -482,7 +482,7 @@ theorem embedsBatch_eq (l : List (Source R D G)) (s : State R D G)
     rw [ih (ingest x s) hn.2 hf', embeds, receipt_complete x s hx]
     exact atoms_split IsAtom x.rows (rowsOf l) s.rows
 
-/-! ### DOR-9 Parallel dispatch: the steps of fresh commands on distinct identities commute -/
+/-! ### ING-9 Parallel dispatch: the steps of fresh commands on distinct identities commute -/
 
 /-- Two steps that do not conflict commute. -/
 theorem Step.apply_comm (a b : Step R D G) (h : ¬ a.Conflicts b) (s : State R D G) :
@@ -616,7 +616,7 @@ theorem stepsOf_comm {l : List (Source R D G)} (hn : (l.map Source.ident).Nodup)
   · rcases hxa with h1 | h1 <;> rcases hyb with h2 | h2 <;> simp_all
   · rcases hxa with h1 | h1 <;> rcases hyb with h2 | h2 <;> simp_all
 
-/-- DOR-9 Any order of the steps of fresh commands on pairwise distinct identities, which
+/-- ING-9 Any order of the steps of fresh commands on pairwise distinct identities, which
 includes every interleaving of their stages, lands the batch's state: the queue may dispatch
 non-conflicting commands in parallel. -/
 theorem run_perm_of_disjoint {w : List (Step R D G)} {l : List (Source R D G)}
@@ -625,7 +625,7 @@ theorem run_perm_of_disjoint {w : List (Step R D G)} {l : List (Source R D G)}
   rw [← run_stepsOf l s hn hf]
   exact run_perm_of_comm hp s fun a ha b hb t ↦ stepsOf_comm hn ha hb t
 
-/-! ### DOR-10 Conflict-serializability: a schedule that orders each conflict as the serial one -/
+/-! ### ING-10 Conflict-serializability: a schedule that orders each conflict as the serial one -/
 
 omit [DecidableEq R] [DecidableEq D] [DecidableEq G] in
 /-- Two steps conflict exactly when they share a class. -/
@@ -650,8 +650,8 @@ theorem run_move_front (b : Step R D G) (w₁ w₂ : List (Step R D G))
     simp only [List.cons_append, run_cons]
     rw [ih (fun x hx ↦ h x (List.mem_cons_of_mem a hx)) (a.apply s), h a List.mem_cons_self s]
 
-/-- DOR-10 Conflict-equivalence is state-equivalence, the classical theorem of serializability
-for the door's steps: a schedule that is a permutation of another and orders the steps of every
+/-- ING-10 Conflict-equivalence is state-equivalence, the classical theorem of serializability
+for the ingress's steps: a schedule that is a permutation of another and orders the steps of every
 class (the landings on one identity, the keys of one identity) as the other does runs to the
 same state. Steps of distinct classes commute, so each step of the other schedule can be moved
 to the front past the steps before it, none of which is of its class. -/
@@ -702,7 +702,7 @@ theorem run_stepsOf_along (l : List (Source R D G)) (s : State R D G) (h : Fresh
     simp only [stepsOf, List.flatMap_cons, run_append, batch_cons, run_steps, ingest_of_fresh hx]
     exact ih (land x s) hl
 
-/-- DOR-10 Conflict-serializability by identity, repeated identities allowed: a schedule of a
+/-- ING-10 Conflict-serializability by identity, repeated identities allowed: a schedule of a
 batch's steps that orders the landings on each identity, and the keys of each identity, as the
 list does lands the batch, when each command is fresh at its turn. The queue that runs commands
 on one identity one after another, in queue order, and anything else in parallel, schedules
@@ -719,7 +719,7 @@ abbrev version (g : Fin 2) : Source (Fin 1) (Fin 1) (Fin 2) := ⟨[], 0, g⟩
 /-- The empty state of the control. -/
 abbrev empty : State (Fin 1) (Fin 1) (Fin 2) := ⟨∅, fun _ ↦ [], fun _ ↦ none⟩
 
-/-- DOR-10 The control: a permutation alone is not enough. Two fresh commands on one identity,
+/-- ING-10 The control: a permutation alone is not enough. Two fresh commands on one identity,
 their steps scheduled in the other order, land the other chain. -/
 theorem serializable_needs_the_order :
     ((version 1).steps ++ (version 0).steps).Perm (stepsOf [version 0, version 1]) ∧
@@ -754,7 +754,7 @@ theorem freshAlong_landsOf (l : List (Source R D G)) (s : State R D G) :
     · simp only [landsOf, h, ite_false]
       exact ⟨h, ih (land x s)⟩
 
-/-- DOR-10 With the guard: a schedule of the steps of the commands that land, ordering each class
+/-- ING-10 With the guard: a schedule of the steps of the commands that land, ordering each class
 as their serial order does, lands the batch of the whole list, repeated identities allowed. -/
 theorem serializable_landsOf {w : List (Step R D G)} {l : List (Source R D G)} (s : State R D G)
     (hp : w.Perm (stepsOf (landsOf l s)))
@@ -766,7 +766,7 @@ theorem serializable_landsOf {w : List (Step R D G)} {l : List (Source R D G)} (
 /-- The state holding version `g` of the one note: the control's start. -/
 abbrev holding (g : Fin 2) : State (Fin 1) (Fin 1) (Fin 2) := ⟨∅, fun _ ↦ [g], fun _ ↦ some g⟩
 
-/-- DOR-10 The control on the guard's moment, the second review's counterexample: holding
+/-- ING-10 The control on the guard's moment, the second review's counterexample: holding
 version 0, the batch [an edit to 1, a revert to 0] lands both, each fresh at its turn; but a revert
 whose guard reads the key before the edit has written its own finds its digest there, skips, and
 the note ends at the edit. The model's steps carry no read, so the moment of the guard is the
@@ -779,7 +779,7 @@ theorem early_guard_skips :
   · simp [FreshAlong, Fresh, land]
   · decide
 
-/-! ### DOR-11 Crash convergence under a parallel run -/
+/-! ### ING-11 Crash convergence under a parallel run -/
 
 /-- A run's key at an identity none of its steps keys is the key before. -/
 theorem run_key_of_not_keyed (w : List (Step R D G)) (d : D)
@@ -806,7 +806,7 @@ theorem prefixesOf_subset {k : Source R D G → ℕ} {l : List (Source R D G)} {
   obtain ⟨x, hx, hax⟩ := ha
   exact ⟨x, hx, List.take_subset _ _ hax⟩
 
-/-- DOR-11 Crash convergence under a parallel run: if each command of a batch of fresh commands
+/-- ING-11 Crash convergence under a parallel run: if each command of a batch of fresh commands
 on distinct identities has run a prefix of its own steps (its key last), in any global order,
 which is every crash point of every interleaving of their runs, the batch run again lands
 exactly the uninterrupted batch's state. -/
@@ -867,7 +867,7 @@ theorem batch_after_prefixes {w : List (Step R D G)} (k : Source R D G → ℕ)
     rw [ingest_of_fresh hx]
     exact fresh_of_land x y s (hxl y hy) (hf y (List.mem_cons_of_mem x hy))
 
-/-- DOR-11 The control on its hypothesis: two versions of one note, the second run whole before
+/-- ING-11 The control on its hypothesis: two versions of one note, the second run whole before
 the first starts, the run stopped there; the batch run again lands a chain the uninterrupted batch
 never would. On one identity a crash point need not converge, and running such commands one after
 another is not enough either (`rerun_whole_batch_diverges`): what converges is running again only
@@ -899,7 +899,7 @@ theorem freshAlong_append {l₁ l₂ : List (Source R D G)} {s : State R D G}
     rw [batch_cons, ingest_of_fresh hx]
     exact h2
 
-/-- DOR-11 With repeated identities: a serial run of commands each fresh at its turn, stopped
+/-- ING-11 With repeated identities: a serial run of commands each fresh at its turn, stopped
 inside one of them, converges when what runs again is that command and the ones after it, the
 ones not yet landed. The queue keeps this by skipping a request already receipted as landed. -/
 theorem batch_after_interrupted (l₁ : List (Source R D G)) (x : Source R D G)
@@ -910,7 +910,7 @@ theorem batch_after_interrupted (l₁ : List (Source R D G)) (x : Source R D G)
   rw [run_append, run_stepsOf_along l₁ s h1, batch_cons, ingest_prefix_converges x _ hx,
     ← batch_cons, batch_append]
 
-/-- DOR-11 The control on what runs again: one note edited, edited back and edited again, in
+/-- ING-11 The control on what runs again: one note edited, edited back and edited again, in
 order, the run stopped inside the third; the whole batch run again lands another chain, since
 the first command finds the second's key and lands again. -/
 theorem rerun_whole_batch_diverges :
@@ -922,7 +922,7 @@ theorem rerun_whole_batch_diverges :
   · simp [FreshAlong, Fresh, land]
   · decide
 
-/-! ### DOR-7 in the code's order: any of a command's steps but its key, in any order -/
+/-! ### ING-7 in the code's order: any of a command's steps but its key, in any order -/
 
 omit [DecidableEq D] [DecidableEq G] in
 /-- A stage's rows lie among the command's rows. -/
@@ -959,7 +959,7 @@ theorem land_run_nonkey (x : Source R D G) (w : List (Step R D G))
     · exact land_after_landStep x s
     · exact land_rows_prefix x s (subset_foldr_union ht)
 
-/-- **DOR-7** In the code's order: the code writes a version row before an attestation, which the
+/-- **ING-7** In the code's order: the code writes a version row before an attestation, which the
 model's stage order does not; a fresh run that stopped after any of its steps but its key, in any
 order and any number of times, converges under re-run all the same. The key last is all the law
 needs. -/
@@ -976,7 +976,7 @@ theorem ingest_after_nonkey (x : Source R D G) (s : State R D G) (hs : Fresh x s
     exact hs
   rw [ingest_of_fresh hs, ingest_of_fresh hf, land_run_nonkey x w hw s]
 
-/-! ### DOR-12 Readers need no lock: every state the writer passes through is sound -/
+/-! ### ING-12 Readers need no lock: every state the writer passes through is sound -/
 
 /-- A run only adds rows. -/
 theorem rows_subset_run (w : List (Step R D G)) (s : State R D G) : s.rows ⊆ (run w s).rows := by
@@ -990,7 +990,7 @@ theorem rows_subset_run (w : List (Step R D G)) (s : State R D G) : s.rows ⊆ (
     | land d g => exact subset_rfl
     | key d g => exact subset_rfl
 
-/-- DOR-12 Readers need no lock: every state a key-last run passes through is sound for its
+/-- ING-12 Readers need no lock: every state a key-last run passes through is sound for its
 command, so a reader that reads a version only when the key names it never sees part of it. -/
 theorem sound_prefix (x : Source R D G) (s : State R D G) (hs : Sound x s) (k : ℕ) :
     Sound x (run (x.steps.take k) s) := by
@@ -1020,7 +1020,7 @@ theorem sound_prefix (x : Source R D G) (s : State R D G) (hs : Sound x s) (k : 
     intro _
     exact subset_union_right
 
-/-- DOR-12 The control: with the key written first, a reader that trusts the key sees a version
+/-- ING-12 The control: with the key written first, a reader that trusts the key sees a version
 whose rows are not there. -/
 theorem key_first_unsound (x : Source R D G) (s : State R D G) (hx : ¬ x.rows ⊆ s.rows) :
     ¬ Sound x (run (x.stepsKeyFirst.take 1) s) := by
@@ -1030,7 +1030,7 @@ theorem key_first_unsound (x : Source R D G) (s : State R D G) (hx : ¬ x.rows �
     simp [Source.stepsKeyFirst, run, Step.apply]
   exact h hk
 
-/-- DOR-12 Readers need no lock under a parallel run: if each command of a batch on distinct
+/-- ING-12 Readers need no lock under a parallel run: if each command of a batch on distinct
 identities has run a prefix of its own steps, in any global order, from a state sound for each of
 them, each is sound at that state, so a reader that trusts the keys sees each version whole or
 not at all. -/
@@ -1074,10 +1074,10 @@ theorem sound_after_prefixes {w : List (Step R D G)} (k : Source R D G → ℕ)
   rw [run_key_of_not_keyed _ _ hnk] at hkey
   exact (hs x hx hkey).trans (rows_subset_run _ _)
 
-/-! ### DOR-1 A command needs a plane with the write bit -/
+/-! ### ING-1 A command needs a plane with the write bit -/
 
 open Palace.Query in
-/-- DOR-1 A command's sentence is admissible iff some granted plane admits its scope: QSA-5 at
+/-- ING-1 A command's sentence is admissible iff some granted plane admits its scope: QSA-5 at
 one clause. -/
 theorem command_admissible_iff {Rg H : Type*} (g : List CQ.Scope) (c : Clause) :
     Sentence.Admissible g (Sentence.clause c : Sentence Rg H) ↔ CQ.admits g c.req := by
@@ -1097,7 +1097,7 @@ theorem storeWrite_of_le {r p : CQ.Scope} (hr : r.authority.storeWrite = 1) (h :
   · rfl
 
 open Palace.Query in
-/-- **DOR-1** A command is admissible under a grant iff a granted plane lies above its scope, at its
+/-- **ING-1** A command is admissible under a grant iff a granted plane lies above its scope, at its
 clock and window, and carries the write bit. -/
 theorem command_admissible_iff_write {Rg H : Type*} (g : List CQ.Scope) (c : Clause)
     (hc : IsCommand c) :
@@ -1111,7 +1111,7 @@ theorem command_admissible_iff_write {Rg H : Type*} (g : List CQ.Scope) (c : Cla
     exact ⟨p, hp, hle⟩
 
 open Palace.Query in
-/-- DOR-1 The plane that admits a command covers its strata and carries the write bit. -/
+/-- ING-1 The plane that admits a command covers its strata and carries the write bit. -/
 theorem command_needs_a_writing_plane {Rg H : Type*} (g : List CQ.Scope) (c : Clause)
     (hc : IsCommand c) (h : Sentence.Admissible g (Sentence.clause c : Sentence Rg H)) :
     ∃ p ∈ g, c.req.sigma ⊆ p.sigma ∧ p.authority.storeWrite = 1 := by
@@ -1119,7 +1119,7 @@ theorem command_needs_a_writing_plane {Rg H : Type*} (g : List CQ.Scope) (c : Cl
   exact ⟨p, hp, hle.1, hw⟩
 
 open Palace.Query in
-/-- **DOR-1** A read-only grant admits no command. -/
+/-- **ING-1** A read-only grant admits no command. -/
 theorem readonly_admits_no_command {Rg H : Type*} (g : List CQ.Scope)
     (hg : ∀ p ∈ g, p.authority.storeWrite = 0) (c : Clause) (hc : IsCommand c) :
     ¬ Sentence.Admissible g (Sentence.clause c : Sentence Rg H) := by
@@ -1128,16 +1128,16 @@ theorem readonly_admits_no_command {Rg H : Type*} (g : List CQ.Scope)
   rw [hg p hp] at hw
   exact absurd hw (by decide)
 
-/-- **DOR-1** The Ambassador's grant as written admits a projection-event command on the mirror:
-its first plane carries the write bit there (dn-ingest-door D2). -/
+/-- **ING-1** The Ambassador's grant as written admits a projection-event command on the mirror:
+its first plane carries the write bit there (dn-ingress D2). -/
 theorem ambassador_admits_projection_command :
     CQ.admits CQ.ambassador (commandScope {.mirrorAuthored} .projectionEvent) :=
   ⟨_, List.mem_cons_self .., by
     unfold CQ.Scope.Le CQ.Time.Le CQ.Authority.Le
     exact ⟨by decide, by decide, ⟨rfl, Or.inr (Or.inl rfl)⟩, by decide⟩⟩
 
-/-- **DOR-1** The Ambassador's grant as written refuses a commit-clock command: its commit plane
-carries no write bit, and the order is false across clocks (dn-ingest-door D2, §8). -/
+/-- **ING-1** The Ambassador's grant as written refuses a commit-clock command: its commit plane
+carries no write bit, and the order is false across clocks (dn-ingress D2, §8). -/
 theorem ambassador_refuses_commit_command :
     ¬ CQ.admits CQ.ambassador (commandScope {.reference} .commit) := by
   rintro ⟨p, hp, hle⟩
@@ -1148,4 +1148,4 @@ theorem ambassador_refuses_commit_command :
   · exact absurd hle.2.2.2.2.1 (by decide)
   · exact absurd hle.2.2.1.1 (by decide)
 
-end Palace.Door
+end Palace.Ingress

@@ -12,8 +12,6 @@ public import Palace.Curvature
 public import Palace.Curvature.Defs
 public import Palace.Cut
 public import Palace.Cut.Defs
-public import Palace.Door
-public import Palace.Door.Defs
 public import Palace.FloatModel
 public import Palace.FloatModel.Defs
 public import Palace.Frustration
@@ -22,6 +20,8 @@ public import Palace.Heat
 public import Palace.Heat.Defs
 public import Palace.Hodge
 public import Palace.Hodge.Defs
+public import Palace.Ingress
+public import Palace.Ingress.Defs
 public import Palace.Laplacian
 public import Palace.Laplacian.Defs
 public import Palace.Leak

@@ -1,33 +1,35 @@
 ---
 type: design-note
-id: dn-door-language
+id: dn-ingress-language
 track: query-language
 status: draft                  # provenance description, never a gate; the owner's merge is ratification
-implementation: built-wired    # DS-0 to DS-7 built 2026-11-05 (§4); the audits' findings and their fixes in §8
+implementation: built-wired    # DS-0 to DS-7 built 2026-11-05 (§4); the audits' findings and their fixes in §8; the Ambassador's inbox moved onto the ingress 2026-11-05 (§E13)
 created: 2026-11-05
 updated: 2026-11-05
 links:
-  - docs/brainstorms/the-door.md                          # THE WARRANT: the owner's seeds and the correction, verbatim
-  - docs/design-notes/dn-ingest-door.md                   # the first form: its door (D3), key-last landing, ACID answer (D5), laws (D9) and findings (§9) stand
+  - docs/brainstorms/ingress.md                          # THE WARRANT: the seeds and the correction, as requirements
+  - docs/design-notes/dn-ingress.md                   # the first form: its ingress (D3), key-last landing, ACID answer (D5), laws (D9) and findings (§9) stand
   - docs/design-notes/dn-query-sentence-algebra.md        # the read half: sorts, QSA-5 admissibility
   - docs/design-notes/capability-scope-algebra.md         # RATIFIED: the write bit W_Σ on the strata
   - docs/design-notes/ingest-identity-and-amendment.md    # RATIFIED: content addressing, identity, versions
   - docs/design-notes/vector-membership-store.md          # the shared plane the landing writes
   - formal/Palace/Script.lean                             # the laws of this note (Script/Defs.lean the model; PalaceTest/Script.lean the attacks)
-supersedes: dn-ingest-door D1 (the operation as a sum of source kinds), D2 (the command table), D7, D8 (in part)
+supersedes: dn-ingress D1 (the operation as a sum of source kinds), D2 (the command table), D7, D8 (in part)
 superseded_by: null
-warrant: docs/brainstorms/the-door.md
+warrant: docs/brainstorms/ingress.md
 ---
 
-# The door, second form: a generic language, and ingestion as its scripts
+Called the door until 2026-11-05.
 
-> Composed by Claude Opus 5.5 on 2026-11-05 from the owner's correction of the same day (the
-> warrant's last three passages). The first form gave the language one command word per
+# The ingress, second form: a generic language, and ingestion as its scripts
+
+> Composed by Claude Opus 5.5 on 2026-11-05 from the correction of the same day (the
+> warrant's second list). The first form gave the language one command word per
 > ingestion path (`do sync vault`, `do capture …`, `do ingest doc …`), each wired to the code that
-> already landed that path. The owner wanted the opposite: a language that knows no path, in which
-> every path is written, "like python doesn't know that i want to create a file called
-> example.py, but it gives me the tools to write it". Agent-drafted, filed `draft` on
-> `build/ingest-door`; the owner's merge is ratification. Grades as in dn-ingest-door: `[THEOREM]`
+> already landed that path. The correction asked for the opposite: a language that knows no path,
+> in which every path is written, as a general-purpose language does not know which file a
+> program will create but gives it the means to write one. Agent-drafted, filed `draft` on
+> `build/ingest-door`; the owner's merge is ratification. Grades as in dn-ingress: `[THEOREM]`
 > names its Lean declaration, `[ESTABLISHED]` a ratified note, `[DERIVED]` is argued here,
 > `[INFERENCE]` is a design call with a named falsifier. Code claims were read at `ba6a36a`.
 
@@ -40,12 +42,12 @@ The language gains a generic write half: values, a dozen reading functions, thre
 `for` and `if`. Its grammar has no word for a vault, a dialogue, a note, a turn, a capture, a doc
 or a dream. What Python's operating system supplies, the palace supplies: the sources a script
 may open, the places it may write (the strata), who may do either, and the label every stored
-row carries. Every ingestion path of today becomes a script in the repository (`door/`), spoken
-through the door: the vault sync, one note, the dialogue sync, a capture, the curated docs, a
+row carries. Every ingestion path of today becomes a script in the repository (`ingress/`), spoken
+through the ingress: the vault sync, one note, the dialogue sync, a capture, the curated docs, a
 link, and the jobs.
 
-The first form's door stands: a surface writes a request into its role's spool, the daemon is
-the one writer, a receipt comes back (dn-ingest-door D3). So do the landing order with the key
+The first form's ingress stands: a surface writes a request into its role's spool, the daemon is
+the one writer, a receipt comes back (dn-ingress D3). So do the landing order with the key
 last (D1's), the answer on ACID (D5), the laws (D9) and the findings (§9). Its command table
 (D2), its per-command landers (D7) and its per-command refusals (D8, in part) go: each becomes a
 script, a line of the palace's table, or a general rule of the writer.
@@ -56,7 +58,7 @@ script, a line of the palace's table, or a general rule of the writer.
 - The stores' internals, the chunker, the embedder, the plane's reconciliation: unchanged; the
   writer calls them as the first form's landers did.
 - The owner's operations (purge, re-key, reset, re-embed): not effects, unrepresentable, as in
-  the first form (dn-ingest-door §3.8).
+  the first form (dn-ingress §3.8).
 - The jobs' internals (dream, the relation pass, curate, the code and chat lanes, the code
   sensor): a script starts them by name (`run`). They are model and parser pipelines, not
   storage; writing them as scripts is later work, if ever.
@@ -69,10 +71,13 @@ Proved in `formal/Palace/Script.lean` on the model of `Script/Defs.lean` (conten
 and an origin; expressions as items, projections and constructions; the writer's checks R2 to R8
 as a predicate on a store and a state; plans landed effect by effect; a store as the first form's
 command), with seven attacks and eight controls (`PalaceTest/Script.lean`, seeds 273 to 287):
-DOR-13 to DOR-18 of §E9, and the first form's DOR-11 and DOR-12 for every plan through DOR-16.
+ING-13 to ING-18 of §E9, and the first form's ING-11 and ING-12 for every plan through ING-16.
 They are the ledger's family XII beside the first form's (`docs/LAWS.md`, `formal/Spec/Script.lean`).
 Cited: QSA-5 (admissibility is clause-wise), the kernel's `STRATUM_CLASSES`, CLK-2. Open (§7):
-the Ambassador's places and namespaces, an operator's computed content, jobs as scripts.
+the Ambassador's places and namespaces, an operator's computed content, jobs as scripts. The
+Ambassador's inbox (§E13) needs no law of its own: ING-13 and ING-14 cover its source as they are
+stated, and its controls are seeds 291 to 293. ING-15 was restated on 2026-11-05 for the
+retire-only prefixes (R3), with seeds 288 to 290.
 
 ### 1.4 The bar
 
@@ -87,7 +92,7 @@ is a script, a new source a line in the table, and neither is a change to the la
 
 ## 2. The analogy, made exact
 
-The owner's frame: an operating system manages hardware resources and security, the mind palace
+The warrant's frame: an operating system manages hardware resources and security, the mind palace
 manages data and its relationships; both are generic but powerful systems that put an
 abstraction layer between a program and what it touches. Line by line:
 
@@ -100,7 +105,7 @@ abstraction layer between a program and what it touches. Line by line:
 | users, groups, permissions | roles, grants with the write bit, namespaces |
 | a file's owner is set by the system, never by the program | a row's label is set by the palace, never by the script |
 | isolation: no process forges another's identity | the laws: authored bytes land only where they were written, identities move only with their bytes |
-| `example.py`, which Python never heard of | `door/sync_dialogue.palace`, which the language never heard of |
+| `example.py`, which Python never heard of | `ingress/sync_dialogue.palace`, which the language never heard of |
 
 Three layers, then, and only the middle one holds domain words:
 
@@ -109,7 +114,7 @@ Three layers, then, and only the middle one holds domain words:
    sources, the places, the roles, the jobs. Domain
    words live here as data: "the vault is a directory of markdown, labelled authored-solo,
    readable by these roles".
-3. **The scripts** (`door/*.palace`): the applications.
+3. **The scripts** (`ingress/*.palace`): the applications.
 
 ## 3. Decisions
 
@@ -173,6 +178,15 @@ a markdown source is a record: `path` (as the stores name it), `content`, `diges
 field and its path from the item rule. `[INFERENCE — falsifier: a path of today that needs a
 reading function not in this list]`
 
+A structured source whose rule may give a label other than the observed one, a dialogue reader's
+handoff or the inbox's record (§E13), is read only as the daemon trusts it (`core/ingest/files.py`):
+its directory and its file the daemon's account's, writable by no other account, the file read
+through a descriptor that follows no link, of one link, under the handoff cap. Otherwise an account
+that may write the handoff directory (on this machine, the `palace` group's) could plant a turn
+that the rule labels as the owner's and that `sync_dialogue` lands as authored dialogue (the inbox
+review's finding 2, 2026-11-06). The edge readers write their handoff `0600` in a directory made
+`0700` (`edge/private_file.py`), so what they write is read whatever the umask.
+
 ### E3 — Labels are the palace's
 
 The label of content is decided by the palace and carried by the value; the language has no
@@ -194,7 +208,7 @@ expression for it.
 The second rule is what keeps the owner's turns the owner's: `t.content` of a dialogue item is
 the item's own bytes, labelled by the reader from the role the edge reader recorded. The third is
 what keeps a script from laundering: any text a script composes is observed, whoever runs it.
-`[THEOREM — DOR-13, Script.lean::label_eval, origin_eval]`
+`[THEOREM — ING-13, Script.lean::label_eval, origin_eval]`
 
 ### E4 — Places: the strata, their classes, their writers
 
@@ -207,13 +221,16 @@ may write under.
 The writer's rules, each general, none about a source:
 
 - **R1, admission** (at compile time): each effect needs the write bit on its place in the
-  speaker's grant. A script is admissible iff each of its effect clauses is. `[THEOREM — DOR-1
-  per effect: QSA-5, Door.lean::command_admissible_iff_write]`
+  speaker's grant. A script is admissible iff each of its effect clauses is. `[THEOREM — ING-1
+  per effect: QSA-5, Ingress.lean::command_admissible_iff_write]`
 - **R2, classes**: a store's label is one its place accepts. Checked at compile time where the
   label is known (a parameter or a literal is observed, so `store text in "mirror_authored"` is
   refused before anything is read), and again at evaluation.
 - **R3, namespaces**: a role writes a place only under its prefixes, after the path is
-  normalized (no `.`, no `..`, no empty component).
+  normalized (no `.`, no `..`, no empty component). A role may also hold prefixes it only
+  retires: the first form's stored namespace, `dialogue/door/<role>/`, whose rows keep their
+  identities and are never re-keyed (the rename's follow-up, 2026-11-05). A retire there passes R3
+  and is still held to R7; a store there is refused. ING-15 states both halves.
 - **R4, origin**: authored content lands at its own origin path and nowhere else.
 - **R5, fixed labels**: a path's label is fixed at its first store; a store of another label at
   a held path is refused and reported, and the rest of the plan lands. This is the first form's
@@ -263,9 +280,9 @@ no two landings interleave.
 
 Within one plan, the effects on distinct paths commute and the effects on one path keep the
 plan's order, so the first form's laws apply to every plan: each store is one of the model's
-commands with its key last (DOR-7), a plan is a batch (DOR-3, DOR-10), a crash anywhere in it
-converges when the plan runs again (DOR-11), and a reader that trusts the key sees each store
-whole or not at all (DOR-12). `[THEOREM — DOR-16, Script.lean::plan_converges]`
+commands with its key last (ING-7), a plan is a batch (ING-3, ING-10), a crash anywhere in it
+converges when the plan runs again (ING-11), and a reader that trusts the key sees each store
+whole or not at all (ING-12). `[THEOREM — ING-16, Script.lean::plan_converges]`
 
 The receipt names each effect's outcome: landed, unchanged, retired, linked, queued, or refused
 with the rule that refused it, with digests and attestation ids. A refusal at evaluation (R2 to
@@ -275,7 +292,7 @@ unknown source or place) refuses the request.
 ### E6 — The request: `do`
 
 `do` stays the one reserved word, and takes a script: `do name(k: v, …)` calls a library
-script (`door/name.palace`) with its parameters; `do { … }` is a script inline. A request is
+script (`ingress/name.palace`) with its parameters; `do { … }` is a script inline. A request is
 spooled, drained, compiled again under the spool's role and landed as in the first form (D3).
 The surface parses and checks (R1, R2 where known, the sources' readers), so a speaker hears a
 refusal at once; the daemon evaluates, since evaluation reads sources the surface may not.
@@ -289,7 +306,7 @@ arguments that the table maps to one of today's coalescing kinds (`sync_vault` t
 and the heartbeat's rows; that kind's handler runs the same script as the daemon's own job, after
 the speaker's grant has admitted it. A `run` effect enqueues the job's own kind with its tier.
 The table marks the library scripts that run at the interactive tier (`capture`); every other
-script runs in the background. The lane quotas stay (dn-ingest-door §9 item 25).
+script runs in the background. The lane quotas stay (dn-ingress §9 item 25).
 
 ### E8 — The scripts
 
@@ -297,7 +314,7 @@ The library is the test of generality: every path of the first form, written in 
 These are the drafts DS-4 lands, with the differential tests of §6 as their falsifiers.
 
 ```
-# door/sync_vault.palace: the owner's notes, verbatim, into the mirror; a vanished note retired.
+# ingress/sync_vault.palace: the owner's notes, verbatim, into the mirror; a vanished note retired.
 # A note new to the mirror takes its `id::` as its identity, else the identity of the vanished
 # note whose bytes it has (a rename), else its path.
 let vault = source("vault")
@@ -311,7 +328,7 @@ for e in gone { retire e.path in "mirror_authored" }
 ```
 
 ```
-# door/ingest_note.palace: one note, as the sync would land it.
+# ingress/ingest_note.palace: one note, as the sync would land it.
 param path
 let vault = source("vault")
 let n = file(vault, path)
@@ -320,7 +337,7 @@ store n.content in "mirror_authored" as first(n.properties.id, unique_by(gone, "
 ```
 
 ```
-# door/sync_dialogue.palace: the turns an edge reader hands off, each under its chat.
+# ingress/sync_dialogue.palace: the turns an edge reader hands off, each under its chat.
 param reader
 for t in items(source("dialogue/" + reader)) {
     store t.content in "dialogue" titled "dialogue/" + t.conversation + "/" + t.at + " (" + t.role + ")"
@@ -328,30 +345,30 @@ for t in items(source("dialogue/" + reader)) {
 ```
 
 ```
-# door/capture.palace: a text the speaker relays, observed, under the speaker's own name.
+# ingress/capture.palace: a text the speaker relays, observed, under the speaker's own name.
 param text, conversation = "captures"
-store text in "observed" at "dialogue/door/" + me + "/" + conversation + "/" + digest(text)[0:16]
+store text in "observed" at "dialogue/ingress/" + me + "/" + conversation + "/" + digest(text)[0:16]
 ```
 
 ```
-# door/sync_docs.palace: the system's own prose, curated.
+# ingress/sync_docs.palace: the system's own prose, curated.
 for d in files(source("docs")) { store d.content in "curated" }
 ```
 
 ```
-# door/ingest_doc.palace
+# ingress/ingest_doc.palace
 param path
 store file(source("docs"), path).content in "curated"
 ```
 
 ```
-# door/link.palace: a relation the speaker proposes between two notes, interpreted.
+# ingress/link.palace: a relation the speaker proposes between two notes, interpreted.
 param a, b, relation
 link entry("mirror_authored", a) to entry("mirror_authored", b) as relation
 ```
 
 ```
-# door/dream.palace, door/curate.palace, door/relate.palace, door/sync_code.palace, door/sync_chat.palace, door/observe_code.palace
+# ingress/dream.palace, ingress/curate.palace, ingress/relate.palace, ingress/sync_code.palace, ingress/sync_chat.palace, ingress/observe_code.palace
 run "dream"
 run "curate"
 param pairs = 24; run "relate" with pairs: pairs
@@ -370,14 +387,14 @@ and their weights are the relation store's line in the table.
 
 ### E10 — Budgets: work as gas
 
-The owner's thought, from the bounds above: a sentence costs work, as an Ethereum transaction
+The warrant's budget seed, from the bounds above: a sentence costs work, as an Ethereum transaction
 costs gas, so the interpreter must know what a sentence costs and the compiler must make it cost
 little. The caps of §E1 become one **budget**, in one unit of work, priced per operation:
 
 - **Prices are measured, not assumed.** A unit is calibrated against the operations it prices on
   fixtures (reading a kilobyte of a source, an item's parse, a list element, an effect, an
   embedded chunk), and the price table is a precedent in the ledger beside the bounds it
-  replaces. Measured 2026-11-05 (`eval/door_gas.py`, `docs/query/precedents.md`): one unit is
+  replaces. Measured 2026-11-05 (`eval/ingress_gas.py`, `docs/query/precedents.md`): one unit is
   one step, 0.30 µs; an item costs 270, a KiB 75, an entry 22, an effect 10,000 (the writer's
   check of a store, mostly the plane's lookup), a write 140,000 (a store that lands, its embeds
   apart), an embedded chunk 360,000. A request that lands is its embeds and its writes; the
@@ -399,7 +416,7 @@ little. The caps of §E1 become one **budget**, in one unit of work, priced per 
   no effects]`
 - **The writer prices the plan before paying for it.** A plan's writes are its stores the
   UNCHANGED check would not skip and its other effects; its embeds are its distinct new atoms
-  (DOR-5), counted against the plane before the embedder is called. Both are charged before the
+  (ING-5), counted against the plane before the embedder is called. Both are charged before the
   first effect lands, so a plan whose landing would overrun its budget is refused before
   anything is written.
 - **The compiler's side.** A cost is what lets the planner choose among equivalent forms: the read
@@ -414,7 +431,7 @@ landed within its budget]`
 
 ### E11 — Nesting and scope
 
-The owner's direction: nested sentences, with closure and code scoping.
+The warrant's direction: nested sentences, with closure and code scoping.
 
 - **A read sentence nests in a script** as a value: `` `top 5 near $topic within $region` ``, in
   backquotes, which no sentence uses. It is compiled under the speaker's grant like any sentence
@@ -440,7 +457,7 @@ The owner's direction: nested sentences, with closure and code scoping.
 
 ### E12 — An interpreter with a checking pass, and a type system for the labels
 
-The owner's direction: real compiler tools, a consistent and secured type system, and the
+The warrant's direction: real compiler tools, a consistent and secured type system, and the
 language interpreted rather than compiled. It is interpreted: a generated parser reads a script,
 a checking pass types and admits it, and a tree-walking evaluator runs it under the meter into
 the plan the writer lands. Nothing is compiled to code; the checking pass is a type checker, as
@@ -471,32 +488,139 @@ an interpreted language may have one.
   Inference is monomorphic unification, and a unification of two label sets is their union, so
   the inferred set only grows. The rules are the label rules of §E3: an item's fields carry its
   source's labels, a projection keeps its operand's, anything composed is `{observed}`.
-  **Soundness**: a value's label at run time is in its type's set. `[THEOREM — DOR-18, Script.lean]` Then R2 is
+  **Soundness**: a value's label at run time is in its type's set. `[THEOREM — ING-18, Script.lean]` Then R2 is
   decided at compile time wherever the set is known, and the writer's run-time check is the
   second wall, not the only one.
+
+### E13 The Ambassador's inbox, a source
+
+The first form captured the owner's message inside the Ambassador's turn
+(`DialogueCapture.capture`): authored dialogue at a path keyed by the clock, so a re-run stored it
+again, and the label was the inbox's code, not a source's. It moves onto the ingress here: the
+owner's messages are the items of a source, the source labels them, a library script stores
+them, and the one writer lands the plan.
+
+**Where the messages come from.** The owner reaches the Ambassador through the interface handoff
+(`cfg.interface.handoff_dir`, `data/handoff/` on this machine). The gateway, or `mind-palace
+talk` in its own process, writes `requests/<id>.json` with the text, the conversation and the
+time, `<id>` the gateway's 32 hex digits. The core inbox (`CoreInbox.process_once`, run by the
+daemon's `ambassador` job or by `talk`'s runtime) asks the Ambassador for a reply, writes
+`responses/<id>.json` and removes the request. The request is the only copy of the owner's words
+on disk and the inbox consumes it, so before it writes the response the inbox writes what it
+keeps of the exchange to its own record, `data/inbox/<id>.json`: the text as the request file
+holds it and the reply it is about to send, each in a field of its own. The directory is the
+daemon's account's alone (`0700`, each record `0600`), and only the inbox's code writes it. The
+Ambassador says whether an exchange is kept, by the first form's rule (a recall, a task or a
+capture is kept; a status, an explanation or the dreams are not), and never what is in it. A
+request whose file was written by an account other than the inbox's own or the handoff
+directory's owner (the edge's, `plane-principals` §3.1) is answered and not kept: where the
+agents run under an account of their own, that keeps an agent's process from posing as the owner,
+and where they share the daemon's account, as on this machine today, the filesystem cannot tell
+them apart, as it cannot for any store. A request whose id is not 32 hex digits and its file's
+name is removed unanswered, since the id names the response and the record. A record that cannot
+be written is said in the reply, never lost in silence.
+
+**The source.** `inbox`, a line of the palace's table: a directory of records (the kind
+`records`), each a JSON document read through a descriptor that follows no link, a regular file of
+one link that the daemon's account owns and no other account may write, in a directory of which
+the same holds. A record that is not, or that is not of the inbox's shape, is refused with the
+source, so no account but the daemon's adds one. The item rule makes two items of a record: the
+text, labelled `authored-dialogue`, and the reply, labelled `observed`. The label follows from the
+field the inbox wrote each text into, in the table's code. The record has no field a model writes
+but the reply, and the reply is observed whatever it says; no script names a label (ING-13). The
+replies land beside the owner's words, where the first form kept the owner's words alone;
+`[ambassador] keep_replies = false` turns that off, and the rule then makes the text's item alone.
+
+**Paths and identities.** The text's path is `dialogue/inbox/<conversation>/<id>/owner` and the
+reply's `dialogue/inbox/<conversation>/<id>/ambassador`, where `<conversation>` is the request's
+when it is a plain name (letters, digits, `.`, `_` and `-`, at most 64, not starting with `.`)
+and otherwise `c-` and sixteen hex digits of its digest, so no conversation adds a component or
+leaves the space. Each is its path's own identity, and the gateway mints the id once. The space
+`dialogue/inbox/` is the source's (R8). The landing is idempotent: the same request handled twice
+(a crash before the inbox removed it) writes the same record, whose text lands UNCHANGED and
+whose reply, if the second answer differs, replaces the observed row at its path (R5 keeps the
+label). The writer lands each store with its key last, so a crash between any two steps converges
+when the job runs again (ING-7, ING-16). Once a plan has stored both items of a record, landed or
+unchanged, the record is removed: the raw store holds the bytes, so a purge of them leaves no copy
+behind, and the next run reads only what is pending. `[DERIVED — ING-7, ING-16; the tests in
+tests/integration/test_inbox_capture.py]`
+
+**The role and the job.** `ingress/capture_inbox.palace` stores each item of the source in
+`dialogue`, at its own path. It runs under a role of its own, `inbox`, which the daemon's inbox job
+speaks after each drain and `talk`'s runtime after each message. No spool belongs to the role, so
+no surface can speak it. It opens only the `inbox` source, writes only under `dialogue/inbox/` in
+`dialogue`, retires nothing, and speaks under the Ambassador's grant, the least the ingress gives.
+Its budget is the operator's, since what it reads is the daemon's own record of what the owner
+typed. The daemon is the one writer. Beside a live daemon (the run ledger's newest run active and
+its process alive, as the launcher's `_refuse_if_live` reads it), `talk` keeps the exchange in the
+record and lands nothing: the daemon's watcher of the record's directory enqueues the coalescing
+`inbox_capture` job, as its catch-up does at start when records wait, and the job lands them
+through the daemon's writer. With no daemon live, `talk` lands in its own process, the daemon's
+stand-in (the inbox review's finding 3, 2026-11-06).
+
+**What the Ambassador can and cannot do through it.** It decides which exchanges are kept, and it
+writes the reply. It cannot open the `inbox` source (it is not among the readers, so a request
+that names the source is refused when it is checked), cannot store or retire under
+`dialogue/inbox/` (not its namespace, R3; composed text there is a squat, R8), and cannot land its
+own text as the owner's anywhere: what it composes is observed (ING-13), and an authored row is an
+item a source yields, at the item's own path (ING-14). At its own prefix in `dialogue`,
+`dialogue/ingress/ambassador/`, in a place that takes authored dialogue, what it stores is
+observed. The bright line holds: no model, the Ambassador included, can mint the owner's authored
+dialogue, by any script, inline or from the library, and the authored rows under
+`dialogue/inbox/` are the owner's messages as the gateway handed them.
+
+**What is proved.** ING-13 and ING-14 cover the source as they are stated. An inbox item is an
+item a source yields, with the label its rule gives (the model's `Item`, its label one that
+`yields` admits), so after any plan of any role every active authored row is the row held before
+or the bytes of such an item at the item's own path (`firewall_plan`). What the model takes as
+given is the rule itself, that the source labels authored only the owner's messages. The table and
+the inbox hold it in code, and the tests fail when it is mutated. The attacks on the inbox's shadow
+check the composition and its two premises (seeds 291 to 293): every authored row a store lands is
+the owner's message at its own path, a writer that takes the label a script claims lands the
+Ambassador's text as the owner's at its own prefix, and a rule that labels the reply authored
+lands the reply as the owner's. `[THEOREM — ING-13, ING-14: Script.lean::label_eval,
+firewall_plan; the controls in PalaceTest/Script.lean]`
+
+**What stays of the first form.** `DialogueCapture.capture` is gone. `capture_turn` stays, and no
+production path calls it: it is the differential oracle for `sync_dialogue` (DS-5) and ING-7's
+falsifier for a turn, and the plane's tests land turns with it. The first form's inbox rows,
+`dialogue/<conversation>/<time>-<digest>`, stay as they are: no source owns their paths, and no
+role's namespace but the operator's covers them.
 
 ### E9 — The laws
 
 | law | statement | formal |
 |---|---|---|
-| DOR-13 | a value's label is its item's under projections and observed otherwise; its origin is its item's path under projections and none otherwise; its bytes are its item's under its views; no expression raises a label | `Script.lean::label_eval`, `origin_eval`, `bytes_eval`, `root_of_label_ne` |
-| DOR-14 | the firewall: an admitted store whose label is not the observed one lands an item a source yields, under views, at the item's own path, with the item's label; over a plan, every active row not observed is the row held before or such a store's | `Script.lean::firewall_store`, `firewall_plan` |
-| DOR-15 | confinement: a plan changes a path only through an effect on it the writer admitted, in the role's namespace for the effect's place (the write bit is DOR-1's, at compile time) | `Script.lean::confined` |
-| DOR-16 | every admitted plan is a batch of the first form's commands with the key last, so DOR-7, DOR-10, DOR-11 and DOR-12 hold of it | `Script.lean::plan_converges`, `plan_sound` |
-| DOR-17 | a held path keeps its label and its identity under every admitted store; a new path's identity is its own, one read off the very item stored, or one held at a path its source no longer has, with the same bytes; a path in a source's space takes only that source's item at that path; a retire of sourced content is of a path the source no longer has | `Script.lean::label_fixed`, `identity_moves_with_bytes`, `owned_by_source`, `retire_reconciles` |
-| DOR-18 | a well-typed value's label at run time is in its type's label set, so R2 is decided at compile time wherever the set is known | `Script.lean::label_typed` |
+| ING-13 | a value's label is its item's under projections and observed otherwise; its origin is its item's path under projections and none otherwise; its bytes are its item's under its views; no expression raises a label | `Script.lean::label_eval`, `origin_eval`, `bytes_eval`, `root_of_label_ne` |
+| ING-14 | the firewall: an admitted store whose label is not the observed one lands an item a source yields, under views, at the item's own path, with the item's label; over a plan, every active row not observed is the row held before or such a store's | `Script.lean::firewall_store`, `firewall_plan` |
+| ING-15 | confinement: a plan changes a path only through an effect on it the writer admitted, a store in the role's write namespace for its place and a retire in that namespace or the role's retire-only one; a path a plan leaves holding an active row it changed was stored there, so a retire-only prefix takes no store (the write bit is ING-1's, at compile time) | `Script.lean::confined`, `confined_store` |
+| ING-16 | every admitted plan is a batch of the first form's commands with the key last, so ING-7, ING-10, ING-11 and ING-12 hold of it | `Script.lean::plan_converges`, `plan_sound` |
+| ING-17 | a held path keeps its label and its identity under every admitted store; a new path's identity is its own, one read off the very item stored, or one held at a path its source no longer has, with the same bytes; a path in a source's space takes only that source's item at that path; a retire of sourced content is of a path the source no longer has | `Script.lean::label_fixed`, `identity_moves_with_bytes`, `owned_by_source`, `retire_reconciles` |
+| ING-18 | a well-typed value's label at run time is in its type's label set, so R2 is decided at compile time wherever the set is known | `Script.lean::label_typed` |
 
-The first form's DOR-1 holds effect by effect (R1). DOR-2 to DOR-12 are statements about
+The first form's ING-1 holds effect by effect (R1). ING-2 to ING-12 are statements about
 commands, which every store is. `[THEOREM — Script.lean; the ledger's family XII, each statement
 judged by the comparator against formal/Spec/Script.lean]`
 
+ING-15 was first stated with one namespace for both effects. The rename's follow-up gave a role
+prefixes it only retires (R3), and `Table.may_retire` admits a retire there that `Table.may_write`
+refuses, so the statement read with the model's namespace as the write prefixes no longer held of
+the code: the Ambassador retiring its legacy row changes a path outside them. Read as the union it
+held, but it then no longer said that a store stays in the write prefixes, which the follow-up
+relies on (the Ambassador never writes a new row there). The model's namespace is parametric data
+and now has its two parts, `ns` written and `rns` only retired; `confined` says which part each
+effect needs, and `confined_store` that a retire-only prefix takes no store. A control (seed 288)
+refutes the first statement on a writer with a retire-only prefix. ING-17 needed no change: R7's
+reconciliation does not depend on the namespace, and `retire_reconciles` holds as stated of a
+retire in either part.
+
 ## 4. Consequences — the order of work
 
-- **DS-0, this note.** The warrant updated with the owner's correction, verbatim.
+- **DS-0, this note.** The warrant updated with the correction, as requirements.
 - **DS-1, the laws.** `formal/Palace/Script/Defs.lean`: values with labels and origins, the
   expression forms that matter to labels (an item, a projection, a construction), the writer's
   checks R2 to R7 as a predicate on a store and a state, plans compiled to the first form's
-  commands. `formal/Palace/Script.lean`: DOR-13 to DOR-18 (DOR-18 with §E12), with attacks and
+  commands. `formal/Palace/Script.lean`: ING-13 to ING-18 (ING-18 with §E12), with attacks and
   controls in `formal/PalaceTest/Script.lean` (a laundering construction, a store at another
   path, an identity graft, a retire of a present item).
 - **DS-2, the language.** In `core/sentence/`: the script grammar under `do`, the checker (R1, R2
@@ -508,7 +632,7 @@ judged by the comparator against formal/Spec/Script.lean]`
   `core/ingest/writer.py`: store, retire, link and run with R2 to R8, calling the stores as the
   first form's landers did. The evaluator reads the palace through an interface the daemon
   hands it, so the language imports no store.
-- **DS-4, the scripts and the surfaces.** `door/*.palace`; the CLI, the MCP aliases, the web
+- **DS-4, the scripts and the surfaces.** `ingress/*.palace`; the CLI, the MCP aliases, the web
   filter, the watcher's and the heartbeat's jobs speak scripts.
 - **DS-5, the differential tests, then the old landers go.** Each script against the first
   form's lander on the same fixtures: the same catalog rows, plane rows, version chains and
@@ -518,25 +642,28 @@ judged by the comparator against formal/Spec/Script.lean]`
 - **DS-6, the audits.** Agents, read-only: the language and the writer for security (a
   laundering, a squat, a graft, a traversal, an unbounded evaluation), the formal side against the
   code, and the scripts against the paths they replace.
-- **DS-7, the ledger and the pull request.** DOR-13 to DOR-18 enter `docs/LAWS.md` and
+- **DS-7, the ledger and the pull request.** ING-13 to ING-18 enter `docs/LAWS.md` and
   `formal/Spec/`, as the writer relies on them from its first commit; the README counts; PR #67
   rewritten to this state.
 
 Status, 2026-11-05: DS-0 to DS-7 are built; DS-6's three audits and what was done about each
 finding are §8. The thirteen scripts of §E8 are the library
-in `door/`; `sync_vault`, `sync_dialogue` and `ingest_doc` land what their first-form landers
-landed on the same fixtures (`tests/integration/test_door_scripts.py`), and the watcher's and the
+in `ingress/`; `sync_vault`, `sync_dialogue` and `ingest_doc` land what their first-form landers
+landed on the same fixtures (`tests/integration/test_ingress_scripts.py`), and the watcher's and the
 heartbeat's jobs, the CLI, the MCP aliases and the web filter speak scripts. The first-form
-landers stay for what still calls them outside the door: `VaultSync` for the owner's id minting
-(`scripts/mint_ids.py`), `DialogueCapture` for the Ambassador's inbox, which captures the owner's
-message in the daemon's own process, and `ingest_curated` for the offline demo
-(`scripts/talk.py`). Writing the inbox's capture as a script needs a source whose items are the
-owner's messages, labelled authored by the source (§E3); it is the next path to move. Not built:
-the static cost bound and a speaker's smaller budget (§E10).
+landers stay for what still calls them outside the ingress: `VaultSync` for the owner's id minting
+(`scripts/mint_ids.py`) and `ingest_curated` for the offline demo (`scripts/talk.py`). The
+Ambassador's inbox, the path this paragraph named next, moved after #66 and #67 merged (§E13): the
+inbox keeps each exchange in its own record, the `inbox` source labels the owner's text authored
+and the reply observed, and `capture_inbox` lands both under the role `inbox` through the one
+writer, in the daemon's `ambassador` job and in `mind-palace talk`'s runtime
+(`tests/integration/test_inbox_capture.py`). `DialogueCapture.capture` is gone; `capture_turn`
+stays as the oracle and the falsifier §E13 names. Not built: the static cost bound and a
+speaker's smaller budget (§E10).
 
 ## 5. Wiring & enablement
 
-The same switch as the first form (`[query]`); the same spools and modes (dn-ingest-door §5). The
+The same switch as the first form (`[query]`); the same spools and modes (dn-ingress §5). The
 scripts are files in the repository, read by the daemon at evaluation; a change to one is a
 commit, reviewed like code. The palace's table is code in `core/ingest/table.py`, typed and
 tested, built from the configuration's paths (the vault's location, the data directory).
@@ -560,11 +687,16 @@ tested, built from the configuration's paths (the vault's location, the data dir
 
 - **The Ambassador's places and prefixes.** The first form's §9 item 21 (narrow the Ambassador's
   write plane) is now a line of the table. The draft: the Ambassador writes `observed` and
-  `dialogue` under `dialogue/door/ambassador/`, `interpreted` through `link`, and may run the two
-  syncs; the owner's call.
+  `dialogue` under `dialogue/ingress/ambassador/`, `interpreted` through `link`, and may run the two
+  syncs; the owner's call. The inbox's capture does not widen it: it runs under the role `inbox`,
+  which writes only `dialogue/inbox/` (§E13).
 - **An operator's composed text.** Observed, by rule 3 of §E3, even when the owner's own script
   composes it: composing is not writing. The owner's call whether an operator script may promote,
   which today is the owner's re-tag from raw and nothing else.
+- **`mind-palace talk` under separate principals.** Beside a live daemon, `talk` leaves its
+  record to the daemon's capture (§E13). Where the daemon runs under its own account
+  (`plane-principals`), a record `talk` writes is another account's, and the daemon's reader
+  refuses it; there `talk` should hand the message to the daemon's inbox as a request instead.
 - **Jobs as scripts.** Dream, the relation pass and curate land interpreted content through
   their own handlers; whether a script should express them (a model call as a reading function)
   is left until a use needs it.
@@ -578,7 +710,7 @@ against the paths they replace. Each finding below is fixed and has a test, exce
 1. **A string read off an item stored under the item's label** (HIGH, security and formal). `store
    n.digest in "mirror_authored"` replaced the owner's note with its hash, labelled authored and
    attested; `store t.role` did the same to a turn. A string is composed when stored (§E3, rule
-   2), and DOR-13's row says so.
+   2), and ING-13's row says so.
 2. **A script's title on an authored row** (HIGH, security; MEDIUM, formal). `titled` put composed text in the
    catalog and the plane's rows under the owner's label, which the UNCHANGED check never
    revisits. Content under any label but the observed one is titled by its item; the checker
@@ -601,19 +733,19 @@ against the paths they replace. Each finding below is fixed and has a test, exce
    identity, and a held identity moved across labels. Only the declared property names one, an
    identity another path of the source holds is refused, and a held one moves with its label
    within its source (R6). The model's `prop` naming now needs the item's declaration, with a
-   control (seed 287), so DOR-17 says what the writer does.
+   control (seed 287), so ING-17 says what the writer does.
 8. **The heartbeat's mark** (MEDIUM). Any plan that read a dialogue source moved it. Only a plan
    that stored every item it read moves it now.
 9. **A sibling directory as the vault** (MEDIUM). `stored(…, under: source)` matched
    `<vault>-old/`. A root matches as a directory.
 10. **One scope for the vault** (MEDIUM). The rescan's listing excluded directories by case and
-    followed symlinks out of the vault; the door did neither. `iter_vault` now has the door's
+    followed symlinks out of the vault; the ingress did neither. `iter_vault` now has the ingress's
     scope, so the re-embed and the id minting see what a sync lands. The live vault has no file
     either rule would treat differently (checked, names only).
 11. **A blank `id::`** (MEDIUM) forked a chain; it declares nothing now. **An oversized note**
     (MEDIUM) stopped every sync; it is refused alone (R1) and stays as it was.
-12. **DOR-16 and DOR-18 claimed more than their proofs** (MEDIUM, formal). DOR-16's row carries
-    DOR-7's windows (a rename appends whatever the head); a retire writes its key last. DOR-18's
+12. **ING-16 and ING-18 claimed more than their proofs** (MEDIUM, formal). ING-16's row carries
+    ING-7's windows (a rename appends whatever the head); a retire writes its key last. ING-18's
     row says what is proved (the model's typing rule) and what the tests check (the checker's
     rules); the reader refuses an item whose label is outside its source's range, and an empty
     label set is no knowledge.
@@ -631,5 +763,5 @@ against the paths they replace. Each finding below is fixed and has a test, exce
 15. **Left as they are, for the owner.** Attestations of the daemon's own syncs name the role
     `cli` where the first form named the watcher; a turn whose role changes with the same bytes
     is refused (R5) on each sync, reported and harmless; `query`'s price is one embed, its
-    floor, not a measurement; the Ambassador's inbox still captures through the first form's
-    lander, in the daemon's own queue.
+    floor, not a measurement. The Ambassador's inbox, which still captured through the first
+    form's lander, moved onto the ingress the same day (§E13).

@@ -30,8 +30,8 @@ Two hygiene properties keep the queue bounded and self-healing (bp-101, findings
 `enqueue` **coalesces** an idempotent kind onto the QUEUED row that is already waiting instead of
 stacking a duplicate behind a busy worker, and `sweep_orphans` **reclaims** RUNNING rows stranded by
 a run that died without finishing them. Both are keyed off `_IDEMPOTENT_KINDS` (the sweep off its
-superset `_REQUEUE_KINDS`, which adds the door's re-runnable kinds) — see its comment for what earns
-membership, and never widen it by assumption.
+superset `_REQUEUE_KINDS`, which adds the ingress's re-runnable kinds) — see its comment for what
+earns membership, and never widen it by assumption.
 """
 
 from __future__ import annotations
@@ -66,8 +66,10 @@ QUEUED, RUNNING, DONE, FAILED, DEFERRED = "queued", "running", "done", "failed",
 #   code_backfill scheduler/code_sync.py:53   "idempotent — already-embedded digests are skipped"
 #   chat_events   scheduler/cron.py:114       "incremental … and idempotent"
 #   integrate     scheduler/cron.py:136       "incremental … and idempotent"
-#   dialogue_sync scheduler/door.py            "keyed by <source>/<chat>/<message>": a re-sync adds
+#   dialogue_sync scheduler/ingress.py        "keyed by <source>/<chat>/<message>": a re-sync adds
 #                 only what is new (ops/lifecycle/launcher.py `dialogue_sync`)
+#   inbox_capture scheduler/interface.py      the inbox's capture, each record keyed by its
+#                 request id: a re-run lands nothing new (dn-ingress-language §E13)
 # DELIBERATELY ABSENT: `dream`/`curate`/`shadow` mint fresh ledger rows per pass (not idempotent);
 # `research`/`ambassador_task` are payload-bearing model work; `ambassador` IS re-runnable
 # (`CoreInbox.process_once` drains all and consumes each file) but is the REACTIVE conversational
@@ -79,20 +81,20 @@ QUEUED, RUNNING, DONE, FAILED, DEFERRED = "queued", "running", "done", "failed",
 # equal the constants, so the duplication is caught by a test rather than trusted.
 _IDEMPOTENT_KINDS = frozenset(
     {"chat_sync", "vault_sync", "code_sync", "code_backfill", "chat_events", "integrate",
-     "dialogue_sync"})
+     "dialogue_sync", "inbox_capture"})
 
 # The kinds a crash may leave RUNNING that `sweep_orphans` puts back in the queue rather than
-# failing: the idempotent kinds; the door's own kind (`core/ingest/door.py` DOOR_KINDS), which is
-# re-runnable at the request (dn-ingest-door DOR-7, DOR-11: its handler skips a request already
+# failing: the idempotent kinds; the ingress's own kind (`core/ingest/ingress.py` INGRESS_KINDS),
+# which is re-runnable at the request (dn-ingress ING-7, ING-11: its handler skips a request already
 # receipted as landed or refused, each landing is idempotent at the store, and a job its plan
 # started is found again, not started twice); and the two jobs a script starts that run again
 # without harm, the relation pass and the code sensor, which the first form requeued too. They
 # stay out of `_IDEMPOTENT_KINDS` because their payload names one request or role, so they never
-# coalesce; a literal again, for the cycle's reason, and `tests/unit/test_door.py` asserts it.
+# coalesce; a literal again, for the cycle's reason, and `tests/unit/test_ingress.py` asserts it.
 _REQUEUE_KINDS = _IDEMPOTENT_KINDS | frozenset({"script", "relate", "code_observe"})
-# A door job is requeued while it has been claimed fewer than this many times: one that kills
+# An ingress job is requeued while it has been claimed fewer than this many times: one that kills
 # the process every time it runs is failed on the third start, not requeued forever.
-_REQUEUE_DOOR_ATTEMPTS = 3
+_REQUEUE_INGRESS_ATTEMPTS = 3
 
 
 @dataclass(frozen=True)
@@ -490,7 +492,7 @@ class JobQueue:
 
     def sweep_orphans(self, active_run_id: int) -> OrphanSweep:
         """Reclaim RUNNING rows left behind by a run that died without finishing them
-        (finding-0173 — job 300246 is the live example). Idempotent kinds, and the door's
+        (finding-0173 — job 300246 is the live example). Idempotent kinds, and the ingress's
         re-runnable ones (`_REQUEUE_KINDS`), go back to QUEUED; everything else is FAILED with an
         explicit `error`, so stranded work is *visible* rather
         than silently pending forever. Adopts `active_run_id` as this queue's owning run, so every
@@ -544,7 +546,7 @@ class JobQueue:
                 if r["kind"] in _IDEMPOTENT_KINDS:
                     return True
                 return (r["kind"] in _REQUEUE_KINDS
-                        and int(r["attempts"] or 0) < _REQUEUE_DOOR_ATTEMPTS)
+                        and int(r["attempts"] or 0) < _REQUEUE_INGRESS_ATTEMPTS)
 
             requeue = tuple(r["id"] for r in stranded if again(r))
             strand = tuple((r["id"], r["claimed_by_run"]) for r in stranded if not again(r))

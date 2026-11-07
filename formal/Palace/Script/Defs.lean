@@ -1,12 +1,12 @@
 module
 
-public import Palace.Door.Defs
+public import Palace.Ingress.Defs
 
 /-!
-# The door's language: the model
+# The ingress language: the model
 
-The second form of the door (dn-door-language): the language is generic, the ingestion paths are
-its scripts, and the palace, like an operating system, decides what a script may open and write
+The second form of the ingress (dn-ingress-language): the language is generic, the ingestion paths
+are its scripts, and the palace, like an operating system, decides what a script may open and write
 and the label of everything it stores. A script's value is a plan of effects; what the laws need
 of it is where each stored value came from. A value that can be stored is **content**: bytes, a
 label and an origin. An expression is, as far as labels go, an item a source yields, a
@@ -77,14 +77,14 @@ end Expr
 
 /-- The value of an expression, as far as labels go: an item's bytes, label and path; a
 projection's view of its operand, with the operand's label and origin; a construction's bytes,
-observed, with no origin (dn-door-language §E3). -/
+observed, with no origin (dn-ingress-language §E3). -/
 def eval (view : W → B → B) (observed : L) : Expr B L P W → Content B L P
   | .item i => ⟨i.bytes, i.label, some i.path⟩
   | .proj w e => ⟨view w (eval view observed e).bytes, (eval view observed e).label,
       (eval view observed e).origin⟩
   | .make b => ⟨b, observed, none⟩
 
-/-- The label set an expression's type carries (dn-door-language §E12): an item's is the set its
+/-- The label set an expression's type carries (dn-ingress-language §E12): an item's is the set its
 source's rule may give, a projection's is its operand's, a construction's is the observed label
 alone. Inference unifies two sets by their union, so an inferred set contains this one. -/
 def labelsOf [DecidableEq L] (srcLabels : Item B L P → Finset L) (observed : L) :
@@ -134,9 +134,9 @@ def Effect.place : Effect B L P I W K → K
   | .retire _ k => k
 
 /-- The palace's table and the cut, as the writer sees them: the readers' views, the observed
-label, the classes each place accepts, each role's namespace in each place, the paths that
-belong to a source, the items the sources yield, whether a source still has a path, and a path's
-own identity. -/
+label, the classes each place accepts, each role's namespace in each place in its two parts (the
+paths it writes, the paths it only retires), the paths that belong to a source, the items the
+sources yield, whether a source still has a path, and a path's own identity. -/
 structure Table (B L P I W K Rl : Type*) where
   /-- What a view does to bytes. -/
   view : W → B → B
@@ -146,6 +146,9 @@ structure Table (B L P I W K Rl : Type*) where
   accepts : K → L → Bool
   /-- Whether a role may write a path of a place (its prefixes). -/
   ns : Rl → K → P → Bool
+  /-- Whether a role may retire a path of a place it does not write (the prefixes it only
+  retires: the first form's stored namespace, whose rows are never re-keyed). -/
+  rns : Rl → K → P → Bool
   /-- Whether a path lies in a source's own space (the vault's root, a reader's prefix). -/
   owned : P → Bool
   /-- Whether the sources yield an item at the cut. -/
@@ -157,6 +160,12 @@ structure Table (B L P I W K Rl : Type*) where
   /-- Whether the item at a path declares an identity: the one property its source names as its
   items' identity (`id::` in the vault), the only field of an item that names one. -/
   declares : P → I → Bool
+
+/-- The namespace an effect needs (R3): a store, the role's write namespace for its place; a
+retire, that namespace or the role's retire-only one. -/
+def inNamespace (T : Table B L P I W K Rl) (r : Rl) : Effect B L P I W K → Bool
+  | .store p _ _ k => T.ns r k p
+  | .retire p k => T.ns r k p || T.rns r k p
 
 /-- The writer's state: a row, or nothing, at each path. -/
 abbrev Held (P B L I : Type*) := P → Option (Row B L I)
@@ -200,11 +209,11 @@ def landStore (T : Table B L P I W K Rl) (h : Held P B L I) (p : P) (n : Naming 
       | none => (resolve T h (eval T.view T.observed e) p n).getD (T.ofPath p)),
     (eval T.view T.observed e).origin.isSome, true⟩)
 
-/-- The writer admits a retire (R7): the path is held and in the role's namespace, and if its
-content came from a source, the source no longer has it. -/
+/-- The writer admits a retire (R3, R7): the path is held and in the role's namespace, written or
+only retired, and if its content came from a source, the source no longer has it. -/
 def okRetire (T : Table B L P I W K Rl) (r : Rl) (h : Held P B L I) (p : P) (k : K) : Bool :=
   match h p with
-  | some row => T.ns r k p && (!row.sourced || !T.has p)
+  | some row => (T.ns r k p || T.rns r k p) && (!row.sourced || !T.has p)
   | none => false
 
 /-- The landing of a retire: the row kept, inactive. -/
@@ -223,10 +232,10 @@ def landPlan (T : Table B L P I W K Rl) (r : Rl) (plan : List (Effect B L P I W 
     (h : Held P B L I) : Held P B L I :=
   plan.foldl (step T r) h
 
-/-- A store as the first form's command (`Palace/Door/Defs.lean`): the rows the place indexes its
+/-- A store as the first form's command (`Palace/Ingress/Defs.lean`): the rows the place indexes its
 bytes into, its path as the identity the key is held for, the digest of its bytes. -/
 def toSource {R G : Type*} (rowsOf : B → List (Finset R)) (dig : B → G) (p : P) (b : B) :
-    Door.Source R P G :=
+    Ingress.Source R P G :=
   ⟨rowsOf b, p, dig b⟩
 
 end Palace.Script

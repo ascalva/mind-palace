@@ -2,7 +2,7 @@
 (dn-query-sentence-algebra §2.3).
 
     sentence  := "do" request | or-expr ("then" or-expr)*       -- a request is a whole sentence
-    request   := a library call or a script inline, in the door's language (`script.lark`)
+    request   := a library call or a script inline, in the ingress language (`script.lark`)
     or-expr   := and-expr ("or" and-expr)*
     and-expr  := unary (("and" | "minus") unary)*               -- `and` binds tighter than `or`
     unary     := operand adjunct*                               -- adjectives bind tightest
@@ -29,7 +29,7 @@ within `R` and `top 1 near "x" over dialogue` ranks the dialogue: a ranking is n
 masking after it would drop hits the mask would have kept (the review of 2026-11-05). `far` and
 `not` take the bare operand, so an adjective after them restricts the reversal or the complement.
 `assume` extends as far right as it can (parenthesize it to continue the sentence). `do` takes
-the rest of the text as a request of the door's language (dn-door-language §E6), which has its
+the rest of the text as a request of the ingress language (dn-ingress-language §E6), which has its
 own grammar: a request composes with nothing, since its value is a receipt and what it writes
 lands later. A parse error names the production that failed and
 the token it saw.
@@ -99,7 +99,7 @@ KEYWORDS = frozenset({
     "within",
     "over", "as", "of", "from", "to", "via", "beta", "depth", "back", "forward", "both",
     "S", "F", "D", "C",
-    "do",      # the door: the rest of the text is a request of the door's language
+    "do",      # the ingress: the rest of the text is a request of the ingress language
 })
 
 _STOP_PATH = frozenset({"depth", "and", "or", "then", "within", "over", "as", "in", "minus", ")"})
@@ -407,14 +407,14 @@ _DO = re.compile(r"\s*do(?=[\s{]|$)")
 
 
 def is_request(text: str) -> bool:
-    """Whether a text is a request of the door's language: the one rule every surface and every
+    """Whether a text is a request of the ingress language: the one rule every surface and every
     filter asks, the same the parser follows, so none can disagree about what is a request."""
     return _DO.match(text) is not None
 
 
 def parse(text: str) -> Node:
     """Parse a sentence, or raise `ParseError` naming the production that failed. A sentence that
-    begins with `do` is a request of the door's language, read by its own grammar."""
+    begins with `do` is a request of the ingress language, read by its own grammar."""
     m = _DO.match(text)
     if m is not None:
         from core.sentence.script import parse_request

@@ -5,10 +5,10 @@ public import Spec.Bridges
 public import Spec.Clock
 public import Spec.Curvature
 public import Spec.Cut
-public import Spec.Door
 public import Spec.FloatModel
 public import Spec.Heat
 public import Spec.Hodge
+public import Spec.Ingress
 public import Spec.Laplacian
 public import Spec.Magnetic
 public import Spec.Memberships

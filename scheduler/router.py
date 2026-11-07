@@ -29,7 +29,7 @@ _ROUTINE_KINDS = frozenset({"librarian", "query", "assistant", "chat", "converse
 # a deep grounded synthesis run, trough-gated like dreaming, so the conversation never blocks on it.
 _SYNTHESIS_KINDS = frozenset(
     {"curate", "dream", "synthesize", "research", "compact", "ambassador_task",
-     "relate"}   # the door's relation pass wakes the large model (dn-ingest-door D7)
+     "relate"}   # the ingress's relation pass wakes the large model (dn-ingress D7)
 )
 _ROUTER_KINDS = frozenset({"route", "classify", "watchdog"})
 # Kinds that run on the always-pinned tier (config.pinned_model.tier). Two reasons a kind pins:
@@ -43,9 +43,9 @@ _ROUTER_KINDS = frozenset({"route", "classify", "watchdog"})
 # Both default to PRIORITY_REACTIVE (responsive); the model-less enqueues override to BACKGROUND.
 _PINNED_KINDS = frozenset(
     {"vault_sync", "ambassador", "chat_sync", "chat_events", "integrate", "code_sync",
-     # the door's model-less kinds (dn-door-language §E7): a script, the code sensor and the
-     # dialogue handoff call no chat model
-     "script", "code_observe", "dialogue_sync"})
+     # the ingress's model-less kinds (dn-ingress-language §E7): a script, the code sensor, the
+     # dialogue handoff and the inbox's capture call no chat model
+     "script", "code_observe", "dialogue_sync", "inbox_capture"})
 
 
 @dataclass(frozen=True)

@@ -1,5 +1,5 @@
-"""The door's language (dn-door-language §E1, §E3, §E10 to §E12): its grammar, its scopes and
-closures, its labels, its meter, and its type system's soundness for labels (DOR-13, DOR-18)."""
+"""The ingress language (dn-ingress-language §E1, §E3, §E10 to §E12): its grammar, its scopes and
+closures, its labels, its meter, and its type system's soundness for labels (ING-13, ING-18)."""
 
 from __future__ import annotations
 
@@ -196,7 +196,7 @@ def test_a_script_calls_a_script_in_a_scope_of_its_own() -> None:
         run('call inner(t: "x")', lib={"inner": 'param t\nstore secret in "observed" at "q"'})
 
 
-# ── labels (DOR-13) ─────────────────────────────────────────────────────────────────────────
+# ── labels (ING-13) ─────────────────────────────────────────────────────────────────────────
 
 def test_a_projection_keeps_its_items_label_and_anything_composed_is_observed() -> None:
     """Only an item's content carries its label and origin. A string read off an item (its
@@ -271,7 +271,7 @@ def test_a_request_out_of_budget_stops_and_lands_nothing() -> None:
             '{ store "x" in "observed" at "p" } }', budget=60)
 
 
-# ── the type system (§E12, DOR-18) ──────────────────────────────────────────────────────────
+# ── the type system (§E12, ING-18) ──────────────────────────────────────────────────────────
 
 class Table:
     def place_accepts(self, place: str) -> frozenset[str] | None:
@@ -317,13 +317,20 @@ def test_the_checker_admits_the_projections_and_names_what_admission_needs() -> 
 
 
 def test_the_library_type_checks_under_the_palaces_table() -> None:
-    from core.ingest.table import build_table
+    """Every library script checks under the roles that speak it: the inbox's capture under the
+    inbox's role alone, whose source no other role opens (dn-ingress-language §E13), and every
+    other script under the operator's and the Ambassador's."""
+    from core.ingest.table import INBOX, build_table
     from core.kernel.config import get_config
 
     table = build_table(get_config())
     for name in library_names():
-        for role in ("cli", "ambassador"):
+        roles = (INBOX,) if name == "capture_inbox" else ("cli", "ambassador")
+        for role in roles:
             check(load(name), table, role, library=load)
+    for role in ("cli", "ambassador"):
+        with pytest.raises(ScriptError, match="may not open it"):
+            check(load("capture_inbox"), table, role, library=load)
 
 
 EXPRS = ["n.content", "n.title", "n.path", "n.title + n.path", "str(len(n.title))", "n.title[0:2]",
@@ -333,7 +340,7 @@ EXPRS = ["n.content", "n.title", "n.path", "n.title + n.path", "str(len(n.title)
 
 @pytest.mark.parametrize("expr", EXPRS)
 def test_a_values_label_at_run_time_is_in_its_types_set(expr: str) -> None:
-    """DOR-18 on the implementation: for every expression over the items, the label the evaluator
+    """ING-18 on the implementation: for every expression over the items, the label the evaluator
     gives a stored value is in the set the checker inferred for it."""
     script = parse_script("let ns = files(source(\"v\"))\nlet ts = items(source(\"d\"))\n"
                           f"for n in ns {{ for t in ts {{ let v = {expr} }} }}")
@@ -360,7 +367,7 @@ def test_a_values_label_at_run_time_is_in_its_types_set(expr: str) -> None:
 
 def test_the_prices_and_the_budgets_mirror_their_measurement() -> None:
     """`PRICES` and the roles' budgets are what `docs/query/precedents.md` records, the table
-    `eval/door_gas.py` measured; the two change together."""
+    `eval/ingress_gas.py` measured; the two change together."""
     import re
 
     from core.ingest.table import build_table
@@ -368,7 +375,7 @@ def test_the_prices_and_the_budgets_mirror_their_measurement() -> None:
     from core.sentence.interpret import PRICES
 
     doc = (REPO_ROOT / "docs" / "query" / "precedents.md").read_text(encoding="utf-8")
-    section = doc[doc.index("## The door's prices"):doc.index("## Resolutions")]
+    section = doc[doc.index("## The ingress's prices"):doc.index("## Resolutions")]
     prices = {k: int(v) for k, v in re.findall(r"^\| `(\w+)` \| `(\d+)` \|", section, re.M)}
     assert prices == dict(PRICES)
     budgets = {k: int(v) for k, v in
@@ -384,7 +391,7 @@ def test_a_request_is_described_without_its_strings() -> None:
     term = parse('do capture(text: "remember the milk", conversation: "tea")')
     assert isinstance(term, Do)
     assert describe_request(term.request) == 'capture(text: "<17>", conversation: "<3>")'
-    inline = parse('do { store "secret" in "observed" at "dialogue/door/cli/x" }')
+    inline = parse('do { store "secret" in "observed" at "dialogue/ingress/cli/x" }')
     assert isinstance(inline, Do) and describe_request(inline.request) == "{ 1 statement }"
 
 
@@ -416,11 +423,11 @@ def test_the_checker_is_bounded_and_a_function_is_checked_once_per_types(monkeyp
 def test_a_nested_request_is_refused_before_it_is_compiled() -> None:
     with pytest.raises(ScriptError, match="a request does not nest"):
         check(parse_script("let h = `do dream`"), Table(), "cli")
-    from core.ingest import door
+    from core.ingest import ingress
     from core.kernel.config import get_config
 
     with pytest.raises(ScriptError, match="a request does not nest"):
-        door.reader(get_config(), "ambassador")("do { let x = 1 }")
+        ingress.reader(get_config(), "ambassador")("do { let x = 1 }")
 
 
 def test_work_that_grows_with_its_operands_is_paid_for_by_size() -> None:
@@ -470,7 +477,7 @@ def test_a_places_entries_are_read_once_and_found_by_path_title_or_digest() -> N
 
 
 def test_the_checkers_rules_contain_every_run_time_label() -> None:
-    """DOR-18 on the code, where the formal audit found the rules untested: `first` joins every
+    """ING-18 on the code, where the formal audit found the rules untested: `first` joins every
     argument, a function's call returns what its body returns, and a list's elements join, so the
     set the checker infers for each `v` contains the label `v` has when the script runs."""
     from core.sentence.script_check import Checker, T

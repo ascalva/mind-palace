@@ -187,11 +187,14 @@ class AmbassadorConfig:
     (the budgeter enforces the window regardless), `history_max_turns` caps the cheap in-memory
     working context (older context is RE-retrieved from the authored-dialogue corpus, not
     double-stored), and `interruption_sensitivity` ∈ {off, earned_only, verbose} is the
-    owner-tunable unprompted-message dial (default earned_only — note §3)."""
+    owner-tunable unprompted-message dial (default earned_only — note §3). One switch:
+    `keep_replies`, whether the inbox's capture lands the Ambassador's replies as observed dialogue
+    beside the owner's words (default true; dn-ingress-language §E13)."""
 
     retrieval_k: int = 5
     history_max_turns: int = 6
     interruption_sensitivity: str = "earned_only"
+    keep_replies: bool = True
 
 
 @dataclass(frozen=True)
@@ -721,6 +724,7 @@ def load_config(path: Path | None = None) -> Config:
             retrieval_k=int(amb.get("retrieval_k", 5)),
             history_max_turns=int(amb.get("history_max_turns", 6)),
             interruption_sensitivity=str(amb.get("interruption_sensitivity", "earned_only")),
+            keep_replies=bool(amb.get("keep_replies", True)),
         ),
         attestation=AttestationConfig(
             enabled=bool(at.get("enabled", False)),

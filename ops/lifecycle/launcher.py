@@ -363,7 +363,7 @@ class Components:
     queue: QueueLike
     enqueue_catchup: Callable[[], None] = lambda: None     # reconcile corpus on start
     enqueue_housekeeping: Callable[[], None] = lambda: None  # dream + curate pass
-    # The door (dn-ingest-door D3): the requests the surfaces spooled, enqueued each tick with
+    # The ingress (dn-ingress D3): the requests the surfaces spooled, enqueued each tick with
     # the role bound to the spool; returns how many. The daemon is the only process that
     # touches the queue for them.
     drain_spool: Callable[[], int] = lambda: 0
@@ -433,12 +433,12 @@ def _relate(cfg: Config) -> Callable[[Any], str]:
 
 
 def drain_guarded(drain: Callable[[], int]) -> int:
-    """One tick's drain of the door's spools; whatever it raises is reported and the serve loop
+    """One tick's drain of the ingress's spools; whatever it raises is reported and the serve loop
     goes on, since a spool never stops the daemon."""
     try:
         return drain()
     except Exception as e:
-        print(f"⚠ door: the drain failed this tick ({type(e).__name__}: {e})")
+        print(f"⚠ ingress: the drain failed this tick ({type(e).__name__}: {e})")
         return 0
 
 
@@ -449,15 +449,15 @@ def dialogue_sync(cfg: Config, repo_root: Path, *, only: set[str] | None = None,
     edge process refreshing its handoff file first (the palace's table names it), the owner's turns
     labelled authored by the source, the model's observed. A reader that fails is reported and the
     others still sync. Returns the exit code: 1 when a reader failed."""
-    from core.ingest import door
-    from scheduler.door import DIALOGUE_READERS
+    from core.ingest import ingress
+    from scheduler.ingress import DIALOGUE_READERS
 
     failed = False
     for reader in DIALOGUE_READERS:
         if only is not None and reader not in only:
             continue
         try:
-            receipt = door.run_library(cfg, "sync_dialogue", {"reader": reader}, stores=stores,
+            receipt = ingress.run_library(cfg, "sync_dialogue", {"reader": reader}, stores=stores,
                                        refresh=True)
             print(f"dialogue sync ({reader}): {receipt['effects']}")
         except Exception as e:
@@ -473,6 +473,7 @@ def build_components(cfg: Config) -> Components:
     from core.chat_events import build_chat_event_projector
     from core.curator import build_curator
     from core.dreaming import build_dreamer
+    from core.ingest import inbox as inbox_mod
     from core.ingest.code_corpus import build_code_corpus_sync
     from core.integrator import build_integrator
     from core.interface import CoreInbox
@@ -512,20 +513,24 @@ def build_components(cfg: Config) -> Components:
         integrate_handler,
         research_handler,
     )
-    from scheduler.door import (
+    from scheduler.ingress import (
         DIALOGUE_READERS,
         DIALOGUE_SYNC_KIND,
-        door_handlers,
         drain_spool,
+        ingress_handlers,
         job_enqueuer,
         library_handler,
     )
     from scheduler.interface import (
         AMBASSADOR_KIND,
         AMBASSADOR_TASK_KIND,
+        INBOX_CAPTURE_KIND,
         ambassador_inbox_handler,
         ambassador_task_handler,
+        build_inbox_watcher,
         build_task_delegation,
+        enqueue_inbox_capture_if_waiting,
+        inbox_capture_handler,
     )
     from scheduler.queue import JobQueue
     from scheduler.research import RESEARCH_KIND
@@ -540,14 +545,14 @@ def build_components(cfg: Config) -> Components:
     queue = JobQueue(cfg.paths.data_dir / "queue.sqlite")
     router = Router(cfg)
 
-    # What the door's writer lands into, opened once on first use and shared by the handlers that
+    # What the ingress's writer lands into, opened once on first use and shared by the handlers that
     # run scripts; a script's `run` enqueues its job on this queue.
-    from core.ingest import door as door_mod
+    from core.ingest import ingress as ingress_mod
     shared: dict[str, Any] = {}
 
-    def door_stores() -> Any:
+    def ingress_stores() -> Any:
         if "s" not in shared:
-            shared["s"] = door_mod.build_stores(cfg, enqueue=job_enqueuer(queue, router))
+            shared["s"] = ingress_mod.build_stores(cfg, enqueue=job_enqueuer(queue, router))
         return shared["s"]
 
     loader = TwoSlotLoader(config=cfg, client=OllamaClient(cfg.ollama), registry=Registry(cfg))
@@ -573,13 +578,15 @@ def build_components(cfg: Config) -> Components:
     airlock = build_airlock(cfg)
     delegate, pending = build_task_delegation(queue, router, gate=gate, librarian=task_librarian)
     ambassador = build_ambassador(cfg, delegate=delegate, pending_results=pending)
-    inbox = CoreInbox(handoff=cfg.interface.handoff_dir, handler=ambassador.handler)
+    # the Ambassador says which exchanges are kept; the inbox keeps them in its own record
+    inbox = CoreInbox(handoff=cfg.interface.handoff_dir, respond=ambassador.answer,
+                      record=inbox_mod.Record.of(cfg).write)
 
     code_driver = build_code_corpus_sync(cfg)   # one sync driver for both code_sync + code_backfill
     code_snapshots_db = cfg.paths.data_dir / "code_snapshots.sqlite"
 
     handlers = {
-        VAULT_SYNC_KIND: library_handler(cfg, "sync_vault", [{}], stores=door_stores),
+        VAULT_SYNC_KIND: library_handler(cfg, "sync_vault", [{}], stores=ingress_stores),
         # The chat sensor (bp-063) wired to RUN (bp-068): a model-less OBSERVED-only ingest of the
         # local Claude Code transcripts, same species as vault_sync. build_chat_sensor is bp-063's
         # (reused, not re-declared — finding-0108); the scheduler side is KIND + handler + enqueue.
@@ -611,20 +618,26 @@ def build_components(cfg: Config) -> Components:
         # against the commit ledger into witnessed C-fiber proven edges; pinned, trough cadence.
         INTEGRATE_KIND: integrate_handler(build_integrator(cfg),
                                           max_per_pass=cfg.integrate.max_per_pass),
-        AMBASSADOR_KIND: ambassador_inbox_handler(inbox),
+        # the inbox's drain, then its capture: what it kept, landed by the one writer under the
+        # role `inbox` (dn-ingress-language §E13)
+        AMBASSADOR_KIND: ambassador_inbox_handler(
+            inbox, land=lambda: inbox_mod.land(cfg, stores=ingress_stores())),
+        # the same capture alone, for what `talk` kept beside this daemon or a crash left: the
+        # record directory's watcher and the catch-up below enqueue it when records wait
+        INBOX_CAPTURE_KIND: inbox_capture_handler(cfg, stores=ingress_stores),
         AMBASSADOR_TASK_KIND: ambassador_task_handler(task_librarian),
         RESEARCH_KIND: research_handler(airlock, task_librarian.embedder, task_librarian.store),
         **cron_handlers(build_dreamer(cfg), build_curator(cfg)),
-        # the door's own kind (dn-door-language §E7): a script from a spooled request, evaluated
-        # and landed by the one writer; the jobs a script starts with `run`
-        **door_handlers(cfg, stores=door_stores),
+        # the ingress's own kind (dn-ingress-language §E7): a script from a spooled request,
+        # evaluated and landed by the one writer; the jobs a script starts with `run`
+        **ingress_handlers(cfg, stores=ingress_stores),
         "code_observe": _observe_code(cfg),
         "relate": _relate(cfg),
         # `do sync_dialogue` is the queue's own kind, coalescing like the other syncs: the library
         # script once a reader; a failed edge reader fails the job after the others have synced
         DIALOGUE_SYNC_KIND: library_handler(cfg, "sync_dialogue",
                                             [{"reader": r} for r in DIALOGUE_READERS],
-                                            stores=door_stores),
+                                            stores=ingress_stores),
     }
     supervisor = Supervisor(queue=queue, loader=loader, handlers=handlers, telemetry=telemetry)
     # One watcher per watched dir: the owner's vault + the Claude Code transcripts (bp-069). Both
@@ -636,6 +649,15 @@ def build_components(cfg: Config) -> Components:
         watchers.append(build_vault_watcher(queue, router, cfg))
     if cfg.ingestion.transcripts.enabled:
         watchers.append(build_chat_watcher(queue, router, cfg))
+    # The inbox's record (dn-ingress-language §E13): no ingestion lever governs it, since it holds
+    # only what the owner said to the Ambassador. The daemon makes the directory, its own alone,
+    # so the watcher has one to watch; one it cannot trust is reported and left unwatched (the
+    # capture refuses it too).
+    try:
+        inbox_mod.Record.of(cfg).ensure()
+        watchers.append(build_inbox_watcher(queue, router, cfg))
+    except OSError as e:
+        print(f"⚠ inbox: the record is not watched ({type(e).__name__}: {e})")
 
     # Each ingestion agent is gated in ALL THREE of its paths — watcher (above), housekeeping, and
     # catch-up (below). The catch-up is the one that matters most for a deliberate pause: it runs on
@@ -659,6 +681,7 @@ def build_components(cfg: Config) -> Components:
             enqueue_chat_sync(queue, router)  # startup backfill of every closed session (bp-068)
         if cfg.ingestion.code.enabled and _code_backfill_incomplete(cfg, code_driver):
             enqueue_code_backfill(queue, router)   # history not yet fully embedded (bp-099 D1)
+        enqueue_inbox_capture_if_waiting(queue, router, cfg)   # what a crash or `talk` left
 
     # The edge monitor (a supervised child PROCESS fed by a status-snapshot JSON, Invariant 2) was
     # removed with bp-030 Item 2 — it never worked and was `enabled=false`. Its data source
@@ -890,7 +913,7 @@ class Launcher:
             # This used to be a bare `run()`, which drains until nothing is runnable — so with a
             # backlog the health check, the snapshot refresh and housekeeping below did not run
             # until the queue emptied. The bound returns control to this loop at a job boundary.
-            drained = drain_guarded(c.drain_spool)    # the door: requests → jobs, each tick
+            drained = drain_guarded(c.drain_spool)    # the ingress: requests → jobs, each tick
             dispatched = c.supervisor.run(max_ticks=self.drain_max_ticks) + drained
             now = time.monotonic()
             if now - last_health >= self.health_interval_s:
@@ -1655,8 +1678,8 @@ class Launcher:
         versions and attestations — the same lane the daemon's `vault_sync` job runs."""
         if self._refuse_if_live("vault-sync"):
             return 1
-        from core.ingest import door
-        print(f"vault sync: {door.run_library(self.cfg, 'sync_vault')['effects']}")
+        from core.ingest import ingress
+        print(f"vault sync: {ingress.run_library(self.cfg, 'sync_vault')['effects']}")
         return 0
 
     # --- reset (the fresh-start wipe) -------------------------------------------------------

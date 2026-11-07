@@ -1,13 +1,13 @@
 ---
 type: design-note
-id: dn-ingest-door
+id: dn-ingress
 track: query-language
 status: draft                  # provenance description, never a gate; the owner's merge is ratification
-implementation: building       # DO-0 proved, DO-1 to DO-4 built 2026-11-05 (the command sort, the landing order, the spool, the daemon's drain and handlers, the surfaces, the audits folded); DO-5 entered the ledger; DO-6 follows (§4)
+implementation: building       # DO-0 proved, DO-1 to DO-4 built 2026-11-05 (the command sort, the landing order, the spool, the daemon's drain and handlers, the surfaces, the audits folded); DO-5 entered the ledger; the inbox capture sink moved onto the ingress 2026-11-05 (dn-ingress-language §E13); DO-6 follows (§4)
 created: 2026-11-05
 updated: 2026-11-05
 links:
-  - docs/brainstorms/the-door.md                          # THE WARRANT — the owner's seeds, verbatim
+  - docs/brainstorms/ingress.md                          # THE WARRANT — the seeds, as requirements
   - docs/design-notes/dn-query-sentence-algebra.md        # the language this extends: sorts, QSA-5 admissibility, the overlay
   - docs/design-notes/capability-scope-algebra.md         # RATIFIED — the scope lattice; the authority coordinate A = P × W_Σ × W_world
   - docs/design-notes/ingest-identity-and-amendment.md    # RATIFIED — append-only log, content-addressed projection, versioned amendment
@@ -19,23 +19,25 @@ links:
   - docs/design-notes/vault-sync-and-capture.md           # capture: the owner's turns and the model's, split by the caller, never by text
   - docs/design-notes/chat-sensor.md                      # CS-2: everything the sensor lands is observed; promotion is human
   - docs/design-notes/plane-principals.md                 # the principals, the handoff directory (2770), who writes data/
-  - formal/Palace/Door.lean                               # the laws, machine-checked (formal/Palace/Door/Defs.lean the model; PalaceTest/Door.lean the attacks)
+  - formal/Palace/Ingress.lean                               # the laws, machine-checked (formal/Palace/Ingress/Defs.lean the model; PalaceTest/Ingress.lean the attacks)
 supersedes: null
-superseded_by: docs/design-notes/dn-door-language.md   # in part: D1's sum of source kinds, D2's command table, D7, D8 (in part)
-warrant: docs/brainstorms/the-door.md
+superseded_by: docs/design-notes/dn-ingress-language.md   # in part: D1's sum of source kinds, D2's command table, D7, D8 (in part)
+warrant: docs/brainstorms/ingress.md
 ---
 
-> **Superseded in part, 2026-11-05.** The owner's correction (the warrant's last passages): the
+Called the door until 2026-11-05.
+
+> **Superseded in part, 2026-11-05.** The correction of the first form (the warrant's second list): the
 > language should know no ingestion path, and every path should be written in it. The second
-> form, `dn-door-language`, replaces this note's command table (D2), its per-command landers
-> (D7) and refusals (D8, in part) with a generic write language and scripts. The door (D3), the
+> form, `dn-ingress-language`, replaces this note's command table (D2), its per-command landers
+> (D7) and refusals (D8, in part) with a generic write language and scripts. The ingress (D3), the
 > landing order with the key last, the answer on ACID (D5), the laws (D9) and the findings (§9)
 > stand.
 
-# The door — ingestion as sentences: one operation, one writer, embedding the serial stage
+# The ingress — ingestion as sentences: one operation, one writer, embedding the serial stage
 
-> Composed on the Lean-ladder session (Fable 5.1, 2026-11-05) from the owner's seeds of the same
-> day (the warrant), on the owner's direction that the design and its proofs come first and the
+> Composed on the Lean-ladder session (Fable 5.1, 2026-11-05) from the seeds of the same
+> day (the warrant), on the standing direction that the design and its proofs come first and the
 > implementation follow them, with agents reviewing, auditing and validating along the way. This
 > is the second draft: the first was audited against the code by a review agent, whose nineteen
 > findings are folded in, three of them defects in the code as it stands (§9). Agent-drafted,
@@ -50,13 +52,13 @@ warrant: docs/brainstorms/the-door.md
 ### 1.1 What this note decides
 
 The query language gains a sort of **commands**: `do <command>` is a sentence whose value is a
-receipt, not a field. Ingestion becomes **one operation** over typed sources, with today's front
-doors as its cases. Every surface that acts on the palace, the CLI, the Ambassador's tools, the
+receipt, not a field. Ingestion becomes **one operation** over typed sources, with today's ingestion paths
+as its cases. Every surface that acts on the palace, the CLI, the Ambassador's tools, the
 watchers, does so by **writing a request the daemon enqueues**; the **supervisor is the only
 writer**, readers are unlimited, non-conflicting commands may run in parallel, and the only
 expensive serial stage is **embedding**. The decisions are D1 to D9 in §3; the laws they rest on
-are family XII, DOR-1 to DOR-12, in §3.9, machine-checked in `formal/Palace/Door.lean` and
-attacked in `formal/PalaceTest/Door.lean` before any code relies on them, all but DOR-4, the
+are family XII, ING-1 to ING-12, in §3.9, machine-checked in `formal/Palace/Ingress.lean` and
+attacked in `formal/PalaceTest/Ingress.lean` before any code relies on them, all but ING-4, the
 queue's discipline, which the import ratchet is to check (DO-5).
 
 ### 1.2 Out of scope
@@ -73,32 +75,32 @@ built later.
 
 ### 1.3 What is proved, what is cited, what is open
 
-Proved, in `Door.lean` on the keyed model (`Door/Defs.lean`: rows, chains, and each identity's
+Proved, in `Ingress.lean` on the keyed model (`Ingress/Defs.lean`: rows, chains, and each identity's
 key, the catalog's digest the UNCHANGED check reads; a guarded `ingest`; a command's steps with
-the key last), built under `--wfail`, seventeen attacks and eleven controls green (`PalaceTest/Door.lean`,
-seeds 245 to 272): DOR-1 (a command is admissible iff a granted plane above its scope carries the
+the key last), built under `--wfail`, seventeen attacks and eleven controls green (`PalaceTest/Ingress.lean`,
+seeds 245 to 272): ING-1 (a command is admissible iff a granted plane above its scope carries the
 write bit, so a read-only grant admits no command; the Ambassador's grant as written admits a
-projection-event command and refuses a commit-clock one), DOR-2 (extensive, idempotent, monotone
-on the rows of sound states; a chain only grows), DOR-3 (ingests of distinct identities commute, a
-batch of them lands the same state in any order and lands nothing when run again), DOR-5 (a
+projection-event command and refuses a commit-clock one), ING-2 (extensive, idempotent, monotone
+on the rows of sound states; a chain only grows), ING-3 (ingests of distinct identities commute, a
+batch of them lands the same state in any order and lands nothing when run again), ING-5 (a
 re-ingest of held content embeds nothing; two commands sharing an atom pay once; a batch of fresh
-commands on distinct identities embeds its distinct new atoms), DOR-6 (the receipt names the rows added and the digest that is the
-chain's new head, and nothing else), DOR-7 (with the key last, a
+commands on distinct identities embeds its distinct new atoms), ING-6 (the receipt names the rows added and the digest that is the
+chain's new head, and nothing else), ING-7 (with the key last, a
 fresh run interrupted after any step converges under re-run, in the model's stage order and in
 any order of the steps before the key, the code's among them; a key written while some of the
 command's rows are not held is never repaired, first or after the plane's rows as the audit's
-defect 1 wrote it), DOR-8 (commands on one identity land in the order of their chain, and two orders give two
-chains), DOR-9 (the steps of fresh commands on distinct identities run to the batch's state in
-any order), DOR-10 (a schedule that orders each identity's landings and keys as the list does
+defect 1 wrote it), ING-8 (commands on one identity land in the order of their chain, and two orders give two
+chains), ING-9 (the steps of fresh commands on distinct identities run to the batch's state in
+any order), ING-10 (a schedule that orders each identity's landings and keys as the list does
 lands the batch, repeated identities allowed, when each command is fresh at its turn; with the
-guard, a schedule of the commands that land lands the whole list), DOR-11 (a batch of fresh
+guard, a schedule of the commands that land lands the whole list), ING-11 (a batch of fresh
 commands on distinct identities stopped anywhere in a parallel run, each command after a prefix
 of its own steps, converges under re-run; with repeated identities, a serial run stopped inside
 a command converges when that command and the ones after it run again, and not when the whole
-batch does), DOR-12 (every state a key-last run passes through is sound for its own command, and
+batch does), ING-12 (every state a key-last run passes through is sound for its own command, and
 a batch on distinct identities stopped anywhere is sound for each of its commands when the state
 before was, so readers that trust the key need no lock, at the ledger's grain).
-A proof audit (an agent, 2026-11-05) found the first model keyless, so that DOR-7 held
+A proof audit (an agent, 2026-11-05) found the first model keyless, so that ING-7 held
 for the old order as much as the new; the keyed model is its result. The model's rows are the
 ledger-grain rows (the raw store, the plane's atoms and occupancies, the versions, the
 attestations); the reconciled view the readers see is derived from them. Where the code today
@@ -108,14 +110,14 @@ authored half of `relate`, the MCP aliases.
 
 ### 1.4 The bar
 
-The owner's standing bar, applied here. **Correctness**: every decision rests on a law in §3.9,
+The project's standing bar, applied here. **Correctness**: every decision rests on a law in §3.9,
 machine-checked before code relies on it; where the code departs from the model today, the
 departure is named as a defect (§9) with its falsifier, not papered over. **Security**: the
 owner's operations are unrepresentable in the grammar, not refused; no word of a sentence ever
 names a provenance class or a role, the surface that spoke binds both (D3); the write bit governs
-admissibility at the door and again at the writer; text never enters the queue. **Efficiency**:
+admissibility at the ingress and again at the writer; text never enters the queue. **Efficiency**:
 the serial stage is embedding alone, it embeds only atoms the plane lacks, the queue coalesces
-repeated idempotent commands, and writes on distinct identities need no ordering (DOR-9), so the
+repeated idempotent commands, and writes on distinct identities need no ordering (ING-9), so the
 dispatcher may run them in parallel. **Verifiability**: a command returns a receipt, the receipt
 names what landed and nothing else, `witness` reads it back, and the attestation chain holds it.
 **Flexibility**: a source kind is a row in one table and a case of one sum type; a new kind adds
@@ -124,7 +126,7 @@ one mechanism rather than five.
 
 ## 2. What exists — the inventory this note rearranges
 
-**The front doors, and one core.** Every prose path runs through `ingest_note` (raw store add,
+**The ingestion paths, and one core.** Every prose path runs through `ingest_note` (raw store add,
 content-addressed, then chunking) and `index_records` or `index_amendment` (embed only the atoms
 the plane does not hold, land, reconcile and supersede), then a catalog record, an attestation,
 and for notes a version row. The paths differ in the source, the identity, the provenance class
@@ -175,8 +177,8 @@ audit of 2026-11-05]`
 **The serial stage.** `index.py::embed_new` asks the plane which atoms it holds
 (`store.known_atoms`, a read), embeds only the distinct texts it does not, in one batch, through
 the one embedder slot the memory ceiling admits. Acquiring bytes, chunking and parsing are pure
-per source; landing is one short critical section under the lock. The owner's reading is right:
-embedding is the only expensive serial stage. `[DERIVED]`
+per source; landing is one short critical section under the lock. The warrant's fourth seed
+holds: embedding is the only expensive serial stage. `[DERIVED]`
 
 ## 3. Decisions
 
@@ -253,7 +255,7 @@ the fibers it adds and the clock of the stratum:
 Admissibility is QSA-5 unchanged: a sentence is admissible under a grant iff each clause's
 required scope lies under some granted plane, and a command's required scope has the write bit,
 so a plane admits it only if the plane's authority carries the bit over those strata. A read-only
-grant admits no command. `[THEOREM — DOR-1, Door.lean::command_admissible_iff,
+grant admits no command. `[THEOREM — ING-1, Ingress.lean::command_admissible_iff,
 command_needs_a_writing_plane, readonly_admits_no_command]`
 
 Under the Ambassador's grant as it stands (`core/query.py::AMBASSADOR`): the first plane, at the
@@ -264,18 +266,18 @@ included; the second plane, at the commit clock, carries no write bit, and the o
 across clocks, so the commit-clock rows (`code`, `observe code`, `transcript`, `sync chat`) are
 not. The code's own comment beside the grant, "projection-write into the dialogue stratum only",
 describes a narrower plane than the one written. That is the grant's statement today, enforced
-nowhere; the door enforces it, which is the reason to narrow it (§8, the owner's). `[DERIVED —
+nowhere; the ingress enforces it, which is the reason to narrow it (§8, the owner's). `[DERIVED —
 read off the grant; the audit confirmed it]`
 
-### D3 — The door: every action is a request, the daemon enqueues, one writer
+### D3 — The ingress: every action is a request, the daemon enqueues, one writer
 
 A command's evaluation **writes no store and no queue row**. A surface compiles the sentence
 under its grant (the first check), and if admissible writes a **request** into its own spool, a
 per-principal directory under the interface handoff directory (`cfg.interface.handoff_dir`,
-today `data/handoff/door/<role>/`; the agents' spool group-writable and sticky under a dedicated
+today `data/handoff/ingress/<role>/`; the agents' spool group-writable and sticky under a dedicated
 group, the operator's the owner's account's alone, §5), holding the sentence, the text a
 `capture` or `turn` carries, and a request id. The daemon drains the spools each tick
-(`scheduler/door.py`): it stages its own copy of each request and enqueues one job per request
+(`scheduler/ingress.py`): it stages its own copy of each request and enqueues one job per request
 with the **role bound to the spool it came from**: the filesystem is the authenticator, and no
 field of the request names a role or a class. The job's payload is the request id and the
 sentence's **digest**; the text stays in the staged copy, so `queue.sqlite` never holds corpus
@@ -302,8 +304,8 @@ satisfies D3 already; the split is what lets several sources be acquired and der
 while the embedder, one slot under the ceiling, is shared in batches and the writer lands each
 batch. The cost of a batch is its distinct new atoms, counted at the lander: `embed_new` embeds
 each text the plane does not hold once, so re-ingesting an unchanged note costs no embed and two
-notes sharing a chunk cost one. `[THEOREM — DOR-5, Door.lean::embeds_ingest_twice_zero,
-Door.lean::embeds_share]`
+notes sharing a chunk cost one. `[THEOREM — ING-5, Ingress.lean::embeds_ingest_twice_zero,
+Ingress.lean::embeds_share]`
 
 ### D5 — Idempotence, coalescing, the receipt; and ACID, stated honestly
 
@@ -313,8 +315,8 @@ only a change. So `ingest` is a **closure operator** on store states: extensive 
 holds the state before), monotone on the rows between sound states (a larger state before gives
 a larger state after; a chain only grows, in the prefix order), idempotent (running it again changes nothing, since its key names its
 digest), and ingests of distinct identities commute, so a batch of them lands the same state in
-any order, and lands nothing when run again. `[THEOREM — DOR-2, Door.lean::ingest_extensive,
-chain_prefix_ingest, ingest_monotone, ingest_idempotent; DOR-3, Door.lean::ingest_comm,
+any order, and lands nothing when run again. `[THEOREM — ING-2, Ingress.lean::ingest_extensive,
+chain_prefix_ingest, ingest_monotone, ingest_idempotent; ING-3, Ingress.lean::ingest_comm,
 ingest_batch_perm, batch_idempotent]` The model's state is at the ledger grain: the rows the
 append-only stores hold (the raw store, the plane's atoms and occupancies, the versions, the
 attestations, the chatlog, the plane's supersession log), each identity's chain, and each
@@ -324,32 +326,32 @@ and are not modelled; the plane keeps its superseded occupancies, so the ledger 
 what it physically holds. Two commands on distinct identities are not disjoint in the physical rows: two notes
 sharing a chunk both touch the shared atom and its `held` cache; they commute because the plane's
 lock makes each landing atomic with respect to the other, which is why the lock stays under
-parallel dispatch (DOR-9 is about the compute halves and the order of landings, not about two
+parallel dispatch (ING-9 is about the compute halves and the order of landings, not about two
 landings at once).
 
 The queue coalesces a queued job with a waiting one of the same kind and payload, for the kinds
 declared idempotent and only those (`JobQueue.enqueue`'s four properties, bp-101 and bp-109:
 only QUEUED rows, the key is `(kind, payload)`, the first row wins and keeps its age, a
 checkpointed row is not a target; the set deliberately excludes `dream`, `curate` and
-`research`, whose re-run after a crash is a double execution). The door keeps **today's kinds as
+`research`, whose re-run after a crash is a double execution). The ingress keeps **today's kinds as
 the queue's kinds**: a sentence compiles to a kind and a payload (`do sync vault` → `vault_sync`;
 `do dream` → `dream`; `do ingest note x` → an `ingest` kind with the request id), so the router's
 tiers and priorities, the pinned set and the orphan sweep keep their meaning, and idempotence is
 a predicate of the kind, as now; `act` is the dispatcher's name for the family, not a kind. The
 payload is the role, the request id and the sentence's digest (the text never; the file named
 by the id holds it), and for today's kinds their usual payload, so a `do sync vault` coalesces
-with the watcher's row and two different door commands never do. The **receipt** is the request id, then
+with the watcher's row and two different ingress commands never do. The **receipt** is the request id, then
 the job id when enqueued, then the attestation the landing emitted, whose output hashes are
 exactly the digests landed; the receipt of a capture or a note's ingest names the attestation
 ids under `attestations`, and `witness "<attestation id>"` returns the record (the branch after
-the reference edge's origin and the causal edge's own id; a hit of stratum `door`). In the model the
+the reference edge's origin and the causal edge's own id; a hit of stratum `ingress`). In the model the
 receipt is a function of the source, the rows it adds and the digest it lands, as the
 attestation's output hashes are: a fresh command's state after is the state before plus the
 receipt's rows, the receipt's digest is the chain's new head, and on a sound state every row it
-names is held. `[THEOREM — DOR-6, Door.lean::receipt_complete, receipt_head,
+names is held. `[THEOREM — ING-6, Ingress.lean::receipt_complete, receipt_head,
 receipt_rows_subset]`
 
-**Is it ACID, and must there be one writer?** The owner's question, answered on the stores as
+**Is it ACID, and must there be one writer?** The warrant's question, answered on the stores as
 they are. *Atomicity* holds per statement and per store: SQLite's transactions, the plane's one
 `BEGIN IMMEDIATE` for occupancies and supersession, a LanceDB write as one version. It does
 **not** hold across the stores, and it should not pretend to: an ingest touches the raw store,
@@ -360,9 +362,9 @@ references is dormant geometry, an occupancy names an atom that exists, an attes
 digests the raw store holds), every stage is idempotent, and the **idempotence key is written
 last**, so the next run of the same command repeats everything after the crash and lands exactly
 what the interrupted run would have; with the key written first, a run interrupted right after
-it is never repaired, since the next run reads the key and lands nothing. `[THEOREM — DOR-7,
-Door.lean::ingest_prefix_converges, ingest_after_nonkey; the controls
-Door.lean::key_first_does_not_converge, key_early_does_not_converge]` The code before this note
+it is never repaired, since the next run reads the key and lands nothing. `[THEOREM — ING-7,
+Ingress.lean::ingest_prefix_converges, ingest_after_nonkey; the controls
+Ingress.lean::key_first_does_not_converge, key_early_does_not_converge]` The code before this note
 had the key in the wrong place: `sync_path` and `capture_turn` wrote the catalog's digest, which
 is what the UNCHANGED check reads, before the attestation and the version row, so a crash between
 them was never repaired, and `ingest_curated` had no key at all and re-attested on every run (§9,
@@ -377,10 +379,10 @@ attestation loses the attestation (item 46), and a re-run does not repair the `h
 (vector-membership-store's D8 order: atoms, then occupancies and the supersession edge in one
 transaction, then the `held` cache; the cache is re-derivable and `repair()` rebuilds it, which a
 crash between the second and the third write needs, since the UNCHANGED check would otherwise
-skip it). *Isolation* is where the owner is right to doubt the usual rule. The reconciled state
+skip it). *Isolation* is where the usual rule is rightly doubted. The reconciled state
 is a function of the ledger, and two commands on **distinct identities** (two notes, a note and a
 paper, two commits) commute: any interleaving of their stages lands the state of any serial
-order (DOR-9), and the lock makes each landing atomic. Two commands on **one identity** (two
+order (ING-9), and the lock makes each landing atomic. Two commands on **one identity** (two
 versions of a note) do not commute, and must not: their serial order is the document's chain,
 the one ordered thing in the system (ingest-identity-and-amendment §4A). That is
 conflict-serializability by identity, with the chain as the serial order: a schedule that
@@ -389,7 +391,7 @@ a permutation that does not lands another chain. The guard is the one read in a 
 reads the key; the model has no reads, so the theorem holds for schedules whose guards read the
 serial key, and the queue makes every schedule one by running the commands on an identity whole,
 one after another (a guard read early decides otherwise: `early_guard_skips`). Across identities
-anything may interleave. `[THEOREM — DOR-3, DOR-8, DOR-9, DOR-10, Door.lean::ingest_comm,
+anything may interleave. `[THEOREM — ING-3, ING-8, ING-9, ING-10, Ingress.lean::ingest_comm,
 ingest_batch_perm, same_identity_orders_the_chain, same_identity_not_comm, run_perm_of_disjoint,
 run_eq_of_cls_filter, serializable, serializable_landsOf; the controls
 serializable_needs_the_order, early_guard_skips; the reads clause is CLK-2, cited, not a theorem
@@ -412,7 +414,7 @@ UNCHANGED test, which D1's key order makes safe). Relaxing to several writers is
 `BEGIN IMMEDIATE` around each per-identity read-modify-write and no change to the laws.
 `[DERIVED — read off core/stores/versions.py and core/stores/catalog.py]`
 
-**Many readers, one queue, parallel dispatch.** The owner's refinement, taken as stated. Readers
+**Many readers, one queue, parallel dispatch.** The warrant's refinement, taken as stated. Readers
 are unlimited and need no coordination: a query is a function of a cut of the event clock, every
 ledger only appends above it, the reconciled stores change under a lock the readers never take,
 and the stage order keeps every prefix consistent: every state a key-last run passes through is
@@ -420,7 +422,7 @@ sound for its own command, and a batch on distinct identities interleaved in any
 stopped anywhere is sound for each of its commands when the state before was, so a reader that
 reads a version only when the catalog's key names it sees the version whole or not at all. That
 is soundness at the ledger's grain: the reconciled stores the readers go through (the catalog's
-upsert, the plane's `current` flag and `held` cache) are not in the model. `[THEOREM — DOR-12, Door.lean::sound_prefix, sound_after_prefixes; the control
+upsert, the plane's `current` flag and `held` cache) are not in the model. `[THEOREM — ING-12, Ingress.lean::sound_prefix, sound_after_prefixes; the control
 key_first_unsound]` Actions go through one **central queue**,
 which is the serializer: the order of two commands on one identity is the order the queue
 landed them in, and that order is the chain. The dispatcher may run queued commands **in
@@ -431,7 +433,7 @@ whatever the interleaving, and a crash anywhere in it leaves each command at a p
 own steps, from which the batch run again lands the same state. On one identity the commands run
 one after another, and a crash inside one of them converges when that command and the ones after
 it run again, not the whole batch: the handler skips a request already receipted as landed (§9
-item 28). `[THEOREM — DOR-9, DOR-11, Door.lean::run_steps, run_perm_of_disjoint,
+item 28). `[THEOREM — ING-9, ING-11, Ingress.lean::run_steps, run_perm_of_disjoint,
 batch_after_prefixes, batch_after_interrupted; the control rerun_whole_batch_diverges]`
 Commands that share an identity wait; the embedder is shared by the compute halves as a resource,
 not as an order; each landing is still one critical section under the plane's lock. The queue's
@@ -454,7 +456,7 @@ global-event-clock §2.4; DERIVED here]`
 | the watcher's `vault_sync` job; `palace vault-sync`; MCP `sync_notes` | `do sync vault` | the watcher (as today, the daemon's own), the CLI, the MCP server |
 | `palace dialogue-sync` | the edge readers stay edge processes and write `data/handoff/dialogue/<source>.json` as today; the core half, reading that file and capturing its turns with the reader's roles, is `do sync dialogue` | the MCP server, the web bridge, the CLI through `query`; `palace dialogue-sync` and the heartbeat still run it in process behind the live-daemon guard until they write requests (DO-3b) |
 | MCP `capture` | `do capture "<text>" in <conversation>`, observed by construction | the MCP server, the Open WebUI bridge |
-| the inbox capture sink | unchanged: the daemon's own job, the owner's message as `authored-dialogue` by the inbox's identity; not a sentence (its catalog key is a timestamp and it is not idempotent) | — |
+| the inbox capture sink | moved, after #66 and #67 merged (dn-ingress-language §E13): the inbox keeps each exchange in its own record, the `inbox` source labels the owner's text `authored-dialogue` and the reply `observed`, and the library script `capture_inbox` lands both under the role `inbox`, keyed by the gateway's request id, so a re-run lands nothing new | the daemon's `ambassador` job and `mind-palace talk`'s runtime, after each drain |
 | MCP `link` | `do link <a> <b> <relation>` | the MCP server |
 | MCP `dream`; `palace dream` | `do dream` (a BACKGROUND synthesis-tier job: with the owner present it waits for a trough, as every synthesis job does) | the MCP server, the CLI |
 | MCP `relate`; `palace relate` | `do relate pairs 24` | the MCP server, the CLI |
@@ -467,7 +469,7 @@ global-event-clock §2.4; DERIVED here]`
 
 The MCP keeps its tool names for one release as aliases that compile the sentence and write the
 request, so no client breaks; then the Ambassador has one tool, `query`, and the manifest says
-so. The existing job kinds keep their handlers; the door's handler dispatches to them by the
+so. The existing job kinds keep their handlers; the ingress's handler dispatches to them by the
 command, so the landers are not rewritten by this note. `[INFERENCE — falsifier: a client that
 needs a tool the sentence cannot say]`
 
@@ -477,126 +479,126 @@ Purge, re-key, reset and re-embed are the owner's, by a signed declaration
 (`core/stores/authored_supersession.py::verify_owner_declaration`, `MachineAuthorityRefused`) or
 by `--confirm` at the CLI. They are **not in the grammar**: a machine cannot ask for them in the
 language, which is stronger than refusing the ask. Everything else is governed by the write bit
-(DOR-1). A command never deletes: `sync` tombstones a vanished note and supersedes a changed one,
+(ING-1). A command never deletes: `sync` tombstones a vanished note and supersedes a changed one,
 keep-and-link (temporal-code-corpus D2), and the raw store is never written twice or emptied. The
 provenance of what a command writes is fixed by its kind and the surface that spoke (D3); no
 word of a sentence decides a class. One existing write breaks this rule from the other side: the
 edge store's key is `(u, v, rel_type)` with no provenance, and `add` is a replace, so a `link`
-today can overwrite an authored edge on the same pair (§9, defect 3); the door's `link` writes
+today can overwrite an authored edge on the same pair (§9, defect 3); the ingress's `link` writes
 interpreted edges only and refuses the pair when an authored edge holds it, until the key carries
 the class. `[DERIVED — the firewall, carried]`
 
-### D9 — The laws: family XII, the door
+### D9 — The laws: family XII, the ingress
 
 | law | statement | structure | formal |
 |---|---|---|---|
-| DOR-1 | a command is admissible under a grant iff some granted plane lies above its scope, at its clock and window, and carries the write bit; a grant whose planes all have `W_Σ = 0` admits no command; the Ambassador's grant as written admits a projection-event command and refuses a commit-clock one; that the clause's strata are the strata written is the typing's convention, and that `and`, `or` and `then` never join a command is the grammar's (no theorem) | the scope lattice's authority coordinate, QSA-5 | `Door.lean::command_admissible_iff`, `command_admissible_iff_write`, `command_needs_a_writing_plane`, `readonly_admits_no_command`, `ambassador_admits_projection_command`, `ambassador_refuses_commit_command` |
-| DOR-2 | ingestion is extensive, `s.rows ⊆ (ingest x s).rows` and a chain only grows; monotone on the rows between sound states; idempotent, `ingest x (ingest x s) = ingest x s`, since its key names its digest | a closure operator on the ledger-grain states, keyed | `Door.lean::ingest_extensive`, `chain_prefix_ingest`, `ingest_monotone`, `ingest_idempotent` |
-| DOR-3 | ingests of distinct identities commute, a batch of distinct identities lands the same state in any order, and a batch run again lands nothing | commuting keyed closure operators on disjoint identities | `Door.lean::ingest_comm`, `ingest_batch_perm`, `batch_idempotent` |
-| DOR-4 | every store mutation is a job landed by the one writer; a surface writes a request and returns the receipt | the queue's discipline, made a property by D3 and D7 | the import ratchet over a read-only constructor family (DO-5), no theorem |
-| DOR-5 | a command embeds nothing iff the plane holds its atoms, so a re-ingest of held content costs zero; two fresh commands sharing an atom pay once; a batch of fresh commands on distinct identities embeds exactly its distinct new atoms | the plane's atom dedup (A3) | `Door.lean::embeds_eq_zero_iff`, `embeds_ingest_twice_zero`, `embeds_share`, `embedsBatch_eq` |
-| DOR-6 | the receipt is the rows added and the digest landed: a fresh command's state after is the state before plus the receipt's rows, the receipt's digest is the chain's new head, and on a sound state every row it names is held, so `witness` of a receipt is complete and never over-claims | the attestation's output hashes | `Door.lean::receipt_complete`, `receipt_head`, `receipt_rows_subset` |
-| DOR-7 | with the key written last, a fresh run interrupted after any step leaves a state from which the next run lands exactly the uninterrupted run's state; so does one that ran any of its steps but its key, in any order and any number of times, which covers the code's order (the version row before the attestation) as well as the model's; a key written while some of the command's rows are not held, first or after the plane's rows as the audit's defect 1 wrote it, the run interrupted right after it, is never repaired | idempotent stages, the key last | `Door.lean::ingest_prefix_converges`, `ingest_after_nonkey`; the controls `key_first_does_not_converge`, `key_early_does_not_converge` |
-| DOR-8 | fresh commands on one identity land in the order of their chain, and two orders give two chains | conflict-serializability by identity, the chain as the serial order | `Door.lean::same_identity_orders_the_chain`, `same_identity_not_comm` |
-| DOR-9 | the steps of fresh commands on distinct identities run to the batch's state in any order, which includes every interleaving of their stages, so the queue may dispatch them in parallel; the reads clause (a read is a function of a cut, CLK-2) is cited, not a theorem of this model | commuting steps on disjoint identities; the queue as the serializer | `Door.lean::run_steps`, `run_stepsOf`, `stepsOf_comm`, `run_perm_of_disjoint` |
-| DOR-10 | conflict-equivalence is state-equivalence: a schedule that is a permutation of another and orders the landings on each identity, and the keys of each identity, as the other does runs to the same state; the commands keyed at their turn drop out of the batch, and a schedule of the rest's steps that keeps their order on each identity lands the batch of the whole list, repeated identities allowed; a permutation alone does not. The model's steps carry no read, so the guard's moment is outside it: a command whose guard reads its key before the previous command on its identity has written its own decides otherwise (the control `early_guard_skips`), and the plane's occupancies on one path are ordered where the model's rows are not; both are why the queue runs the commands on one identity whole, one after another, which makes every guard read the serial key (only key steps on an identity write it, `run_key_of_not_keyed`) | conflict-serializability, the classical theorem, for the door's steps; the queue's order on one identity as the serial order | `Door.lean::run_eq_of_cls_filter`, `run_stepsOf_along`, `serializable`, `batch_landsOf`, `freshAlong_landsOf`, `serializable_landsOf`; the controls `serializable_needs_the_order`, `early_guard_skips` |
-| DOR-11 | if each command of a batch of fresh commands on distinct identities has run a prefix of its own steps, in any global order, the batch run again lands the uninterrupted batch: every crash point of every parallel run of commands on distinct identities converges; on one identity it need not (two versions, the second run whole before the first starts), and running such commands one after another is not enough either: a serial run of commands each fresh at its turn, stopped inside one of them, converges when that command and the ones after it run again, and not when the whole batch does, so the handler skips a request already receipted as landed (§9 item 28) | DOR-7 per command, DOR-9's commutation across commands | `Door.lean::batch_after_prefixes`, `run_key_of_not_keyed`, `batch_after_interrupted`; the controls `prefixes_need_distinct_identities`, `rerun_whole_batch_diverges` |
-| DOR-12 | every state a key-last run passes through is sound for its own command, and a batch on distinct identities interleaved in any order and stopped anywhere is sound for each of its commands when the state before was: a key naming a digest finds that version's rows held; so a reader that reads a version only when the key names it sees it whole or not at all, and needs no lock against the writer, at the ledger's grain (the reconciled stores are not modelled); with the key first a reader sees rows that are not there | the key last, read side; with CLK-2's cuts, readers without limit beside one writer | `Door.lean::sound_prefix`, `sound_after_prefixes`, `rows_subset_run`; the control `key_first_unsound` |
+| ING-1 | a command is admissible under a grant iff some granted plane lies above its scope, at its clock and window, and carries the write bit; a grant whose planes all have `W_Σ = 0` admits no command; the Ambassador's grant as written admits a projection-event command and refuses a commit-clock one; that the clause's strata are the strata written is the typing's convention, and that `and`, `or` and `then` never join a command is the grammar's (no theorem) | the scope lattice's authority coordinate, QSA-5 | `Ingress.lean::command_admissible_iff`, `command_admissible_iff_write`, `command_needs_a_writing_plane`, `readonly_admits_no_command`, `ambassador_admits_projection_command`, `ambassador_refuses_commit_command` |
+| ING-2 | ingestion is extensive, `s.rows ⊆ (ingest x s).rows` and a chain only grows; monotone on the rows between sound states; idempotent, `ingest x (ingest x s) = ingest x s`, since its key names its digest | a closure operator on the ledger-grain states, keyed | `Ingress.lean::ingest_extensive`, `chain_prefix_ingest`, `ingest_monotone`, `ingest_idempotent` |
+| ING-3 | ingests of distinct identities commute, a batch of distinct identities lands the same state in any order, and a batch run again lands nothing | commuting keyed closure operators on disjoint identities | `Ingress.lean::ingest_comm`, `ingest_batch_perm`, `batch_idempotent` |
+| ING-4 | every store mutation is a job landed by the one writer; a surface writes a request and returns the receipt | the queue's discipline, made a property by D3 and D7 | the import ratchet over a read-only constructor family (DO-5), no theorem |
+| ING-5 | a command embeds nothing iff the plane holds its atoms, so a re-ingest of held content costs zero; two fresh commands sharing an atom pay once; a batch of fresh commands on distinct identities embeds exactly its distinct new atoms | the plane's atom dedup (A3) | `Ingress.lean::embeds_eq_zero_iff`, `embeds_ingest_twice_zero`, `embeds_share`, `embedsBatch_eq` |
+| ING-6 | the receipt is the rows added and the digest landed: a fresh command's state after is the state before plus the receipt's rows, the receipt's digest is the chain's new head, and on a sound state every row it names is held, so `witness` of a receipt is complete and never over-claims | the attestation's output hashes | `Ingress.lean::receipt_complete`, `receipt_head`, `receipt_rows_subset` |
+| ING-7 | with the key written last, a fresh run interrupted after any step leaves a state from which the next run lands exactly the uninterrupted run's state; so does one that ran any of its steps but its key, in any order and any number of times, which covers the code's order (the version row before the attestation) as well as the model's; a key written while some of the command's rows are not held, first or after the plane's rows as the audit's defect 1 wrote it, the run interrupted right after it, is never repaired | idempotent stages, the key last | `Ingress.lean::ingest_prefix_converges`, `ingest_after_nonkey`; the controls `key_first_does_not_converge`, `key_early_does_not_converge` |
+| ING-8 | fresh commands on one identity land in the order of their chain, and two orders give two chains | conflict-serializability by identity, the chain as the serial order | `Ingress.lean::same_identity_orders_the_chain`, `same_identity_not_comm` |
+| ING-9 | the steps of fresh commands on distinct identities run to the batch's state in any order, which includes every interleaving of their stages, so the queue may dispatch them in parallel; the reads clause (a read is a function of a cut, CLK-2) is cited, not a theorem of this model | commuting steps on disjoint identities; the queue as the serializer | `Ingress.lean::run_steps`, `run_stepsOf`, `stepsOf_comm`, `run_perm_of_disjoint` |
+| ING-10 | conflict-equivalence is state-equivalence: a schedule that is a permutation of another and orders the landings on each identity, and the keys of each identity, as the other does runs to the same state; the commands keyed at their turn drop out of the batch, and a schedule of the rest's steps that keeps their order on each identity lands the batch of the whole list, repeated identities allowed; a permutation alone does not. The model's steps carry no read, so the guard's moment is outside it: a command whose guard reads its key before the previous command on its identity has written its own decides otherwise (the control `early_guard_skips`), and the plane's occupancies on one path are ordered where the model's rows are not; both are why the queue runs the commands on one identity whole, one after another, which makes every guard read the serial key (only key steps on an identity write it, `run_key_of_not_keyed`) | conflict-serializability, the classical theorem, for the ingress's steps; the queue's order on one identity as the serial order | `Ingress.lean::run_eq_of_cls_filter`, `run_stepsOf_along`, `serializable`, `batch_landsOf`, `freshAlong_landsOf`, `serializable_landsOf`; the controls `serializable_needs_the_order`, `early_guard_skips` |
+| ING-11 | if each command of a batch of fresh commands on distinct identities has run a prefix of its own steps, in any global order, the batch run again lands the uninterrupted batch: every crash point of every parallel run of commands on distinct identities converges; on one identity it need not (two versions, the second run whole before the first starts), and running such commands one after another is not enough either: a serial run of commands each fresh at its turn, stopped inside one of them, converges when that command and the ones after it run again, and not when the whole batch does, so the handler skips a request already receipted as landed (§9 item 28) | ING-7 per command, ING-9's commutation across commands | `Ingress.lean::batch_after_prefixes`, `run_key_of_not_keyed`, `batch_after_interrupted`; the controls `prefixes_need_distinct_identities`, `rerun_whole_batch_diverges` |
+| ING-12 | every state a key-last run passes through is sound for its own command, and a batch on distinct identities interleaved in any order and stopped anywhere is sound for each of its commands when the state before was: a key naming a digest finds that version's rows held; so a reader that reads a version only when the key names it sees it whole or not at all, and needs no lock against the writer, at the ledger's grain (the reconciled stores are not modelled); with the key first a reader sees rows that are not there | the key last, read side; with CLK-2's cuts, readers without limit beside one writer | `Ingress.lean::sound_prefix`, `sound_after_prefixes`, `rows_subset_run`; the control `key_first_unsound` |
 
 What the model leaves out, the second review's list, each a reason for a rule above or a limit
-of a law: the guard's read at a command's start (DOR-10's scope); the plane's lock, which makes
+of a law: the guard's read at a command's start (ING-10's scope); the plane's lock, which makes
 each landing atomic (the atom's check-then-insert, the occupancy transaction), so that a stage
 half written is not a step; the plane's supersession order on one path, ordered where the model's
-rows are not (DOR-10's scope); the `held` cache, which only `repair()` rebuilds, not a re-run;
+rows are not (ING-10's scope); the `held` cache, which only `repair()` rebuilds, not a re-run;
 the catalog's `active` flag, which the model's key ignores; and that a re-run happens at all,
-which for the door's kinds the orphan sweep now provides (§9 item 28).
+which for the ingress's kinds the orphan sweep now provides (§9 item 28).
 
 An id is unbolded until code relies on its law; then the row enters `docs/LAWS.md` with its
-falsifier test and the statement enters `formal/Spec/`: DOR-1 (`_command_clause`, `grant_for`) and
-DOR-7 (`core/ingest/landing.py`) entered on 2026-11-05 as family XII. The attacks and their controls are
-`PalaceTest/Door.lean` seeds 245 to 272: an operation that always appends a version is not
+falsifier test and the statement enters `formal/Spec/`: ING-1 (`_command_clause`, `grant_for`) and
+ING-7 (`core/ingest/landing.py`) entered on 2026-11-05 as family XII. The attacks and their controls are
+`PalaceTest/Ingress.lean` seeds 245 to 272: an operation that always appends a version is not
 idempotent, two commands on one identity do not commute, an interleaving that lands them in the
 other order lands the other chain, and a run that writes its key first does not converge; three
 commands on three identities land one state in every order of the commands, and a batch run
 again lands nothing; two versions of one note scheduled in their order beside another note land
-the batch and in the other order do not (DOR-10); two commands stopped at any prefixes converge
-under re-run, and a command whose run is not a prefix of its own steps does not (DOR-11); a run
+the batch and in the other order do not (ING-10); two commands stopped at any prefixes converge
+under re-run, and a command whose run is not a prefix of its own steps does not (ING-11); a run
 stopped anywhere is sound for its command, alone or beside another, and with the key first it is
-not (DOR-12); a run of any two of a command's steps but its key, in either order, converges
-(DOR-7 in the code's order); the second review's two counterexamples, a revert whose guard reads early and two versions of one
+not (ING-12); a run of any two of a command's steps but its key, in either order, converges
+(ING-7 in the code's order); the second review's two counterexamples, a revert whose guard reads early and two versions of one
 note stopped out of order, are controls; and from the third review, a run that writes its key
-after the plane's rows, as the audit's defect 1 did, does not converge (DOR-7), a command keyed
-at its turn drops out of a schedule that lands the whole list (DOR-10 with the guard), and a
+after the plane's rows, as the audit's defect 1 did, does not converge (ING-7), a command keyed
+at its turn drops out of a schedule that lands the whole list (ING-10 with the guard), and a
 serial run on one identity stopped inside a command converges when that command runs again
-alone, and not when the whole batch does (DOR-11).
+alone, and not when the whole batch does (ING-11).
 
 ## 4. Consequences — the order of work, on the owner's merge
 
-- **DO-0, the design proved.** Done on this branch: `formal/Palace/Door/Defs.lean` (the keyed
-  model), `formal/Palace/Door.lean` (DOR-1 to DOR-3 and DOR-5 to DOR-12 with their controls; DOR-4 is the
+- **DO-0, the design proved.** Done on this branch: `formal/Palace/Ingress/Defs.lean` (the keyed
+  model), `formal/Palace/Ingress.lean` (ING-1 to ING-3 and ING-5 to ING-12 with their controls; ING-4 is the
   queue's discipline, for the ratchet), `formal/PalaceTest/
-  Door.lean` (the attacks), the L1 gate green. The admissibility law reuses
+  Ingress.lean` (the attacks), the L1 gate green. The admissibility law reuses
   `Palace/Sentence/Defs.lean`'s `Admissible` and `Palace/Scope/Defs.lean`'s `Authority` and
   `ambassador`. The two theorems the first draft left for DO-6 are proved: crash convergence
-  under a parallel run (DOR-11) and conflict-serializability with repeated identities (DOR-10).
+  under a parallel run (ING-11) and conflict-serializability with repeated identities (ING-10).
 - **DO-1, the grammar, typing and plan.** Done on this branch: `core/sentence/grammar.py` (the
   `do` production; one reserved word, `do`, the command words read in place so `over dialogue`
   and a note titled `code` keep working; a number is never the head of a word, so a session id
   parses), `ast.py` (`Do`, `Command`, `Source`, `describe_command`), `types.py` (`Sort.EVENT`,
   `command_requirement` as D2's table, `_command_clause` with the write bit, `check_admissible`
   unchanged), `plan.py` (a command's plan is itself), `execute.py` (a command is refused by name
-  until DO-3 wires the door). Tests: the parses and their refusals, the table's totality, the
+  until DO-3 wires the ingress). Tests: the parses and their refusals, the table's totality, the
   Ambassador's grant as written (projection-event commands admitted, commit-clock ones refused),
-  a read-only grant refusing every command and admitting every query (DOR-1).
+  a read-only grant refusing every command and admitting every query (ING-1).
 - **DO-2, the operation and the key order.** Done on this branch. The key written last in
   `sync_path`, `capture_turn` and `ingest_curated` (§9, defects 1 and 2), with the crash-injection
-  test (`core/ingest/landing.py`, `tests/integration/test_landing_order.py`). `core/ingest/door.py`:
+  test (`core/ingest/landing.py`, `tests/integration/test_landing_order.py`). `core/ingest/ingress.py`:
   the roles and their grants (`grant_for`: the Ambassador's for the agents' surfaces, the operator's
   for the owner's), the spool under the interface handoff directory (`write_request`, `pending`,
   `stage`, `read_request`, the receipts), the kind map (`kind_of`: today's kinds stay the queue's
-  kinds, and `do sync dialogue` is the queue's own coalescing `dialogue_sync`; the door's own are
+  kinds, and `do sync dialogue` is the queue's own coalescing `dialogue_sync`; the ingress's own are
   `ingest`, `capture`, `link`, `relate`, `code_observe`), and the landing (`perform`, with `Landers` injectable: a note from the vault
   only, a turn and a capture observed by construction, a doc among the curated sources only, a
-  link that never overwrites an authored edge, the relation pass). `scheduler/door.py`:
+  link that never overwrites an authored edge, the relation pass). `scheduler/ingress.py`:
   `drain_spool` (each tick: compile under the spool's grant, stage the daemon's own copy in
   `queued/`, enqueue, receipt with the job id, unlink the writer's file; a refused request is
-  receipted and dropped) and `door_handler` (compile again,
+  receipted and dropped) and `ingress_handler` (compile again,
   perform, receipt what landed). Not landed yet, refused by name before anything is written:
   `research`, a paper's manifest, one commit's backfill (DO-3b).
 - **DO-3, the surfaces.** Done on this branch. `ask_logged` compiles a `do` sentence under the
   role's grant, writes the request and returns the receipt as the answer's one hit (stratum
-  `door`), logged as `requested`; the trace gains the `act` stage. The daemon drains the spools
-  each tick (`Components.drain_spool`) and registers the door's handlers; the dialogue sync is a
+  `ingress`), logged as `requested`; the trace gains the `act` stage. The daemon drains the spools
+  each tick (`Components.drain_spool`) and registers the ingress's handlers; the dialogue sync is a
   function the daemon calls as the one writer and the CLI behind its live guard; `observe code`
   runs the code sensor. The MCP's `sync_notes`, `sync_dialogue`, `dream`, `relate`, `capture` and
-  `link` are aliases of door sentences through `query`, and write nothing from the server's
+  `link` are aliases of ingress sentences through `query`, and write nothing from the server's
   process; the manifest is regenerated. The attestation branch of `witness` closes the loop
   (a landing's receipt names its attestations; `witness` dereferences them). Left for DO-3b:
   the three refused landings and the CLI's inline verbs as sentences.
 - **DO-4, the audits.** Agents, as the first draft had: a design review against the code (done,
   2026-11-05, nineteen findings folded in), a proof audit (done; the keyless model it refuted was
-  replaced by the keyed one), a security review of the door (done, 2026-11-05, fifteen findings, §9 items 8 to 22: twelve fixed on
-  this branch, three the owner's), a second review (§9 items 23 to 36) and a third, of the door's
+  replaced by the keyed one), a security review of the ingress (done, 2026-11-05, fifteen findings, §9 items 8 to 22: twelve fixed on
+  this branch, three the owner's), a second review (§9 items 23 to 36) and a third, of the ingress's
   Python at `761692d` (§9 items 37 to 50), beside a review of the formal side whose findings are
   folded into D5 and D9, a validation run (the gates,
   the live read-only smoke of the parser and the typing).
 - **DO-5, the ledger and the ratchet.** The rows of D9 enter `docs/LAWS.md` as code relies on
   them, each with its falsifier; a read-only constructor family (`open_*_reader`) that the import
-  ratchet admits in the surfaces, so that DOR-4 has a checker.
+  ratchet admits in the surfaces, so that ING-4 has a checker.
 - **DO-6, the split and the parallel dispatcher.** The compute/land split onto the worker protocol
-  and the dispatcher's conflict test (DOR-9 and DOR-10: a job's identities, read off its plan,
+  and the dispatcher's conflict test (ING-9 and ING-10: a job's identities, read off its plan,
   disjoint from the running set, and the jobs on one identity run whole, one after another, in
-  queue order, so every guard reads the serial key; DOR-11: a crash anywhere among commands on
+  queue order, so every guard reads the serial key; ING-11: a crash anywhere among commands on
   distinct identities converges, the one-after-another rule keeps commands on one identity from
   leaving interleaved prefixes, and a crash inside one of them converges when it and the ones after
-  it run again; DOR-12: readers need no lock throughout), when the owner
+  it run again; ING-12: readers need no lock throughout), when the owner
   wants parallel acquisition; nothing above depends on it. The laws it needs are proved.
 
 ## 5. Wiring & enablement
 
 The sentence surfaces run under `[query]`; a command rides the same switch and the grant decides
 its admission (no `[query] actions` key was needed). The spool directories live under the
-interface handoff directory (`cfg.interface.handoff_dir`, `data/handoff/door/<role>/`), and the
+interface handoff directory (`cfg.interface.handoff_dir`, `data/handoff/ingress/<role>/`), and the
 daemon makes them each tick (`ensure_spools`): the root `0755` (the daemon adds every entry), the
 operator's spool `0700` (the owner's account alone writes it), the agents' spool `3770` when the handoff directory's group is a dedicated one (the group writes,
 the sticky bit keeps one writer from moving another's file) and `0700` under a group every account
@@ -610,7 +612,7 @@ operator's spool, by the daemon's own account. The first form of this paragraph 
 plane-principals' `2770` for every spool; on this machine the `palace` group holds the agents'
 account, so the operator's spool was theirs to write (the second review's finding 1, §9 item 23).
 What the principals' split adds is a principal per role in place of the one group. `queue.sqlite` stays the daemon's own file, opened by no surface. The daemon
-drains the spools each tick before it dispatches and registers the door's handlers beside the
+drains the spools each tick before it dispatches and registers the ingress's handlers beside the
 others; the CLI's `code-seed`, `code-backfill` and `code-rebuild`, which enqueue directly today,
 and `talk.py`'s runtime, which completes queued rows without claiming them, become spool writers
 in DO-3b. Nothing restarts; a request is drained by the running daemon like any other job.
@@ -618,20 +620,20 @@ in DO-3b. Nothing restarts; a request is drained by the running daemon like any 
 ## 6. Risks and falsifiers
 
 - A surface that still writes after D7: the import ratchet, over the read-only constructor
-  family, names it. The falsifier of DOR-4.
+  family, names it. The falsifier of ING-4.
 - A forged request: a request is bounded by the spool it sits in; a test writes a request naming a
   command the spool's role may not say and asserts the writer's second compile refuses it, logs
   the refusal, and lands nothing.
-- Coalescing swallowing a needed re-run: only QUEUED rows of idempotent kinds collapse; a door
+- Coalescing swallowing a needed re-run: only QUEUED rows of idempotent kinds collapse; an ingress
   `do sync vault` drained while the watcher's row waits is that row, and drained while it runs is
-  a second row (`test_a_door_sync_coalesces_with_a_waiting_row_and_never_with_a_running_one`, on
+  a second row (`test_a_ingress_sync_coalesces_with_a_waiting_row_and_never_with_a_running_one`, on
   the real queue).
-- The receipt over-claiming: DOR-6's statement; two notes and a capture land through `perform`
+- The receipt over-claiming: ING-6's statement; two notes and a capture land through `perform`
   on real stores, and each receipt's attestations are records whose outputs are exactly the digest
   it landed, none named twice, a re-landing naming the same record
   (`tests/integration/test_landing_order.py`).
 - Latency. Today MCP `capture` lands synchronously and the turn is readable by the next query.
-  After the door the receipt is a request id, and the landing waits for the daemon: one tick
+  After the ingress the receipt is a request id, and the landing waits for the daemon: one tick
   (`tick_seconds = 1.0`) when idle, the boundary of the running job when busy (there is no
   preemption), and behind a long `code_backfill`, hours, as the queue's own history shows. The
   floor is stated; the remedy for a script that needs the state is the `wait` adjective (§7);
@@ -644,7 +646,7 @@ in DO-3b. Nothing restarts; a request is drained by the running daemon like any 
   rebuilds it; the repair on a missing receipt is not wired (§9, item 19).
 - A flood or a forgery at the spool: the drain is bounded a tick and a role, the request file is
   trusted only as `_load_request` says, the handler lands only the sentence the drain compiled,
-  and the identities the door mints live under `dialogue/door/<role>/`; `tests/unit/test_door.py`
+  and the identities the ingress mints live under `dialogue/ingress/<role>/`; `tests/unit/test_ingress.py`
   holds each falsifier (a malformed, oversized and FIFO file; a world-writable and an unknown
   spool; a replayed id; a rewritten queued file; a path in a conversation name; a second `ingest
   doc` outside the allow-list; a note outside the vault's scope; `relate pairs` over the cap).
@@ -700,18 +702,18 @@ rest stay the owner's.
 7. **The plane's `held` cache can go stale across a crash** between its second and third writes,
    and the UNCHANGED check keeps a re-run from repairing it; only `repair()` does.
 
-The security review of the door (2026-11-05, a read-only agent over the branch at `f782151`)
-found fifteen defects in the door as first built. Fixed on this branch, with a test each:
+The security review of the ingress (2026-11-05, a read-only agent over the branch at `f782151`)
+found fifteen defects in the ingress as first built. Fixed on this branch, with a test each:
 
 8. **The `ingest doc` allow-list ran once per daemon lifetime**, inside the lander's lazy build, so
    a second doc anywhere under the repository, `data/` included, landed as curated. *Fixed:* the
    allow-list is read on every call.
 9. **The dialogue identity was the sentence's**, so `ingest turn openwebui/<chat> <id> "…"` could
    supersede one of the owner's turns with observed text, and `capture … in` could plant turns in
-   the owner's conversation. *Fixed:* the door's turns live under `dialogue/door/<role>/`, a
+   the owner's conversation. *Fixed:* the ingress's turns live under `dialogue/ingress/<role>/`, a
    conversation or turn name carries no path, and `capture_turn` refuses a turn whose class
    differs from the one its identity holds.
-10. **The request id was file content, spliced into paths** on both sides of the door. *Fixed:*
+10. **The request id was file content, spliced into paths** on both sides of the ingress. *Fixed:*
     an id is sixteen hex digits and the file's name, checked by the drain and by the handler
     before either names a path; a receipt is written under a checked role and id only.
 11. **The drain was not robust**: a file that was not JSON of an object stopped the daemon, a FIFO
@@ -723,7 +725,7 @@ found fifteen defects in the door as first built. Fixed on this branch, with a t
     refused, a world-writable spool is not drained; the owner check waits on the principals'
     split (§5). (Superseded by item 23: the `2770` modes were the defect.)
 13. **No cap on a role's requests, and `capture` at the reactive priority** aging never demotes.
-    *Fixed:* at most sixteen of a role's door jobs queued at once (the rest wait in the spool),
+    *Fixed:* at most sixteen of a role's ingress jobs queued at once (the rest wait in the spool),
     `capture` at the interactive priority, `relate pairs` at most fifty. (Superseded by item 25: the quota now refuses by lane.)
 14. **The job's kind was decided on one sentence and the work done on whatever the queued file said
     later.** *Fixed:* the payload carries the sentence's digest, the handler refuses a staged request whose digest or kind is not the job's, and the staged copy
@@ -735,7 +737,7 @@ found fifteen defects in the door as first built. Fixed on this branch, with a t
     failed translation. *Fixed:* a command's literals are logged as their lengths, `requested` is
     its own outcome, a receipt names the request and not the sentence, and a queued file is
     removed once its receipt is terminal (a failed one stays, for the operator to re-spool).
-17. **`--as` had become a grant selector.** *Fixed:* the CLI speaks to the door as `cli`, whatever
+17. **`--as` had become a grant selector.** *Fixed:* the CLI speaks to the ingress as `cli`, whatever
     the label; the MCP speaks as `ambassador`; neither can choose.
 18. **`quote` was not the tokenizer's inverse** for a backslash. *Fixed:* both escape it; a
     round-trip test holds.
@@ -748,14 +750,14 @@ found fifteen defects in the door as first built. Fixed on this branch, with a t
 Recorded, not fixed, the owner's:
 
 21. **The Ambassador's write plane** (`core/query.py`) admits `ingest note`, `ingest doc`, `sync
-    vault`, `sync dialogue`, `dream` and `curate` to the model, the door being what makes them
+    vault`, `sync dialogue`, `dream` and `curate` to the model, the ingress being what makes them
     reachable; §8's question. Narrowing it to `observed` and `interpreted` keeps `capture`,
     `link`, `relate`, `dream` and `curate` and refuses the rest; the MCP's `sync_notes` and
     `sync_dialogue` aliases would then be refused to the model.
 22. **A delegated kind's receipt ends at `queued`** with the job id: `vault_sync`, `dream`,
     `curate`, `chat_sync`, `code_sync` and `dialogue_sync` carry no request id, by design, so that
-    a door-written `sync vault` coalesces with the watcher's; the queue's row is their record from
-    there. A door kind's job that raises is receipted `failed`; the repair of a stale `held` cache
+    an ingress-written `sync vault` coalesces with the watcher's; the queue's row is their record from
+    there. An ingress kind's job that raises is receipted `failed`; the repair of a stale `held` cache
     on a missing receipt (§6) is not wired.
 
 A second review (2026-11-05, an agent over the branch at `fcdaca6`, with probes in Python and
@@ -767,7 +769,7 @@ fix. Fixed on this branch, with a test each:
     spool was theirs to write. *Fixed:* the modes of §5, the operator's spool the owner's account's
     alone, every directory checked for kind, owner and write bits before a tick drains it, and a
     request in the operator's spool read only if the daemon's own account wrote it.
-24. **The web chat's narrowed tools were bypassed by `query`**, which since the door can carry a
+24. **The web chat's narrowed tools were bypassed by `query`**, which since the ingress can carry a
     command. *Fixed:* from Open WebUI, `query` speaks only `do capture`, `do sync dialogue` and
     `do sync vault` (`agents/ambassador/handoff.py::web_admits`).
 25. **A role's dreams held its captures**, one quota counting both. *Fixed:* a quota by lane (the
@@ -784,8 +786,8 @@ fix. Fixed on this branch, with a test each:
     a command is redacted from its tokens (linear), one that does not tokenize is logged as its
     command word and length, a refusal's reason drops quoted text, the parser never quotes a
     string, and a command over the cap is refused before it is parsed.
-28. **A crash mid-landing lost a door request, and a failed one could not be spooled again.**
-    *Fixed:* the orphan sweep puts a door job back in the queue (`_REQUEUE_KINDS`), the handler
+28. **A crash mid-landing lost an ingress request, and a failed one could not be spooled again.**
+    *Fixed:* the orphan sweep puts an ingress job back in the queue (`_REQUEUE_KINDS`), the handler
     skipping a request already landed or refused, and a request whose receipt says `failed` may be
     spooled again.
 29. **Two operator roles had no writer** (`heartbeat`, `watcher`). *Fixed:* removed.
@@ -795,12 +797,12 @@ fix. Fixed on this branch, with a test each:
     roles whose spools pass the check are read.
 32. **The coalescing kinds' requests were never removed.** *Fixed:* a delegated kind keeps no
     copy; receipts, rejected files and failed requests' copies are pruned after a week (`prune`).
-33. **`do sync dialogue` was a door kind**: never coalesced, and receipted `landed` when an edge
+33. **`do sync dialogue` was an ingress kind**: never coalesced, and receipted `landed` when an edge
     reader failed. *Fixed:* it is the queue's own coalescing kind, and a failed reader fails the
     job. That the edge readers run as subprocesses of the daemon, up to 180 s, stays as D7 left it.
 34. **A crash between the enqueue and the move ran a delegated kind twice.** *Recorded:* the
     order is now stage, enqueue, receipt, remove, so a crash after the receipt is rejected as seen;
-    before it, a door kind lands once (the handler skips a landed request) and a delegated kind
+    before it, an ingress kind lands once (the handler skips a landed request) and a delegated kind
     may run twice.
 35. **Tests aimed at the wrong place** (the traversal's target, the vault scope without the real
     pattern). *Fixed.*
@@ -808,11 +810,11 @@ fix. Fixed on this branch, with a test each:
     path, which would fork its identity under a symlinked vault path. *Fixed:* `perform` names it
     as the rescan does.
 
-The third review (2026-11-05, a read-only agent over the door's Python at `761692d`) found
+The third review (2026-11-05, a read-only agent over the ingress's Python at `761692d`) found
 fourteen more, the first pre-existing on main:
 
 37. **Every vault rescan deleted the shared catalog's rows the vault does not own**: dialogue turns,
-    curated docs, door captures, and their plane rows with them; a capture receipted `landed` was gone
+    curated docs, ingress captures, and their plane rows with them; a capture receipted `landed` was gone
     after the owner's next edit. Pre-existing on main. *Fixed* (on `build/next-rung`): `VaultSync.owns`,
     so a rescan reaps only the vault's own rows; a test rescans beside
     dialogue turns and curated docs.
@@ -850,7 +852,7 @@ fourteen more, the first pre-existing on main:
     its attestation loses that attestation on re-run, since an older one names the digest (closing it
     needs the attestation to name the version); and a delete and restore of the same bytes appends no
     version, the head being unchanged, where the code before appended one.
-47. **A door job that killed the process was requeued on every restart.** *Fixed:* at most twice;
+47. **An ingress job that killed the process was requeued on every restart.** *Fixed:* at most twice;
     the third start fails it.
 48. **Load the Ambassador can make without meeting a quota.** *Recorded, the owner's call:* the
     coalescing syncs are not counted, so the Ambassador or the web client can keep `vault_sync` and
@@ -859,7 +861,7 @@ fourteen more, the first pre-existing on main:
     minutes. The quota bounds what waits, not the rate.
 49. **The MCP aliases changed behaviour.** *Fixed:* `relate pairs 0` judges none, as before.
     *Recorded, the owner's call:* the default capture conversation moved from `ambassador` to
-    `door/ambassador/captures`, so re-capturing an old text makes a second identity; captures over about
+    `ingress/ambassador/captures`, so re-capturing an old text makes a second identity; captures over about
     32 KiB are refused; the return shapes changed. Whether a client relies on the old ones is the
     owner's to say.
 50. **Tests that would pass on wrong code**: the scope test used lowercase paths only, no spool test
@@ -869,7 +871,20 @@ fourteen more, the first pre-existing on main:
     receipt. The dialogue-sync tests still stub `subprocess.run`, so
     they cannot see the edge reader's PATH.
 
-The second review's findings on the model are taken up in D9 (DOR-10's scope, DOR-11's
+The security audit of the four branches (2026-11-06) found one more, in the rename's takeover of
+the first form's spool:
+
+51. **The takeover trusted the legacy tree** (MEDIUM). `_adopt_legacy` entered any real directory
+    under `door/` and renamed any regular file named as a request id into the daemon's own
+    `ingress/` tree. `data/handoff` is writable by its group, so an account in it could replace
+    `door/` with directories and files of its own: a planted receipt, adopted, made a chosen id read
+    as already landed with the planter's detail, suppressing the genuine request that later bears
+    it. *Fixed:* the legacy root, each role's spool and each of its directories must pass the
+    drain's own checks, and each file is read through its descriptor first, the daemon's own files
+    as `written_by_one`, a pending request as the drain trusts one; anything else stays where it
+    is, reported once.
+
+The second review's findings on the model are taken up in D9 (ING-10's scope, ING-11's
 hypothesis, what the model leaves out).
 
 ## Cross-references
@@ -881,4 +896,4 @@ mutate-the-immutable); `vector-membership-store` A3 (one atom per text, the lock
 `dn-supervision-and-liveness` §2.5 (the worker protocol); `global-event-clock` §2.4 (cuts);
 `agent-taxonomy` §2.5 (the witness law); `vault-sync-and-capture` (capture by the caller);
 `chat-sensor` CS-2; `plane-principals` (the handoff directory's principals and mode);
-`formal/Palace/Door.lean`, `formal/PalaceTest/Door.lean`.
+`formal/Palace/Ingress.lean`, `formal/PalaceTest/Ingress.lean`.

@@ -42,7 +42,7 @@ merges, and a PR only when the owner asks for one.
   agent-authored code. Never amend or rebase published history; never run `deploy` — the owner
   fires it.
 - **Gates, run in the worktree before any commit** (CI's own commands): `uv run ruff check .`;
-  `uv run python scripts/check_imports.py`; `uv run mypy` (whole repo exactly 69, the tests/
+  `uv run python scripts/check_imports.py`; `uv run mypy` (whole repo exactly 67, the tests/
   baseline; the floors `core agents eval ops scheduler scripts` at 0); `uv run python -m
   ops.type_gate`; `uv run pytest -q -m 'not live and not podman and not needs_vault and not
   needs_restic' --deselect tests/unit/test_core_self_containment.py::test_core_imports_nothing_outside_core`;

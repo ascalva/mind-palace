@@ -779,8 +779,12 @@ only the vector store + catalog need relabeling — both covered by the script.)
 ## Talking to the system — the Ambassador (Track B, owner-operated)
 
 The Ambassador is the conversational front door: a reasoning agent on the always-warm pinned tier that
-reads your mirror, reads its own operational state, captures the dialogue as `authored-dialogue`, and
-delegates heavy work — **read + propose, never write + act**.
+reads your mirror, reads its own operational state, and delegates heavy work — **read + propose, never
+write + act**. Your messages on a recall, a task or a capture are kept: the inbox records each such
+exchange in `data/inbox/` (the daemon's account's alone), and its capture, the library script
+`capture_inbox`, lands your words as `authored-dialogue` and the replies as `observed` under
+`dialogue/inbox/<conversation>/<id>/` (dn-ingress-language §E13). With the daemon running, the
+daemon lands them (its watcher sees the record); with none running, `talk` lands them itself.
 
 ```sh
 # Day-one surface (no daemon, no network decision) — an in-process REPL over the real path
@@ -798,6 +802,8 @@ earned for the rest) → **retrieve** (mirror) / **explain** (curated) / **statu
 operational narration) / **task** (delegate → gate → queue, "give me a bit", result surfaced on a
 later turn) / **capture** (store + acknowledge). The unprompted-message dial is
 `[ambassador] interruption_sensitivity` (off | earned_only | verbose; default earned_only).
+`[ambassador] keep_replies` (default true) lands the Ambassador's replies as observed dialogue beside
+your words; set it false to keep only your words.
 
 **Optional follow-up (not built — your call):** a tiny stdlib-only local HTTP front end reachable over
 Tailscale, following `LocalAdapter`'s "loopback/Tailscale" framing, so you can talk to it from your

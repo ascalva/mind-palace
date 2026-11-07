@@ -1,15 +1,13 @@
-"""Capture owner↔Ambassador dialogue into the corpus as `authored-dialogue` (Track B).
+"""The first form's turn lander (dn-ingress D7): one turn of an external chat captured under
+its role, the owner's `authored-dialogue` and the model's `observed`.
 
-Chatting with the Ambassador is itself a form of feeding the system — "your words to it are
-more yours than its words to you" (nervous-system-and-ambassador.md §4). So the owner's
-messages are captured as a distinct provenance, `AUTHORED_DIALOGUE`, which IS mirror-readable
-(it is the owner's own writing) — closing the capture loop.
-
-It rides the SAME deterministic path as vault ingest — `ingest_note` (now provenance-parametric)
-→ `index_records` → `VaultCatalog.record` — never a bespoke writer (the §1 split is exactly what
-makes this one-line provenance swap possible). Raw is sacred: the message bytes are stored
-content-addressed; identical text dedups. The attestor (optional) stamps a `capture` action so
-the dialogue leaf is part of the same attestation chain as authored notes.
+No production path calls it now. The dialogue sync is the library script `sync_dialogue`, and the
+Ambassador's inbox lands through `capture_inbox` (dn-ingress-language §E13), which replaced this
+module's `capture`, the inbox's first-form lander. `capture_turn` stays as what the second form
+is measured against: the differential oracle for `sync_dialogue` (DS-5), ING-7's falsifier for a
+turn (`tests/integration/test_landing_order.py`), and the way the plane's tests land turns. It
+rides the same path as vault ingest (`ingest_note` → `index_records` → `VaultCatalog.record`),
+with the key last.
 """
 
 from __future__ import annotations
@@ -22,13 +20,12 @@ from core.attestation import Attestor
 from core.ingest.embed import Embedder
 from core.ingest.index import index_records
 from core.ingest.landing import attest_once
-from core.kernel.config import Config
 from core.kernel.ingest.logseq import ParsedNote
 from core.kernel.ingest.pipeline import ingest_note
 from core.kernel.provenance import Provenance
 from core.kernel.stores.rawstore import RawStore
 from core.stores.catalog import VaultCatalog
-from core.stores.vectorstore import VectorStore, open_vector_store
+from core.stores.vectorstore import VectorStore
 
 
 def _compact_ts() -> str:
@@ -45,33 +42,6 @@ class DialogueCapture:
     catalog: VaultCatalog
     attestor: Attestor | None = None
 
-    def capture(self, text: str, *, conversation: str = "default") -> str:
-        """Store one owner message as `authored-dialogue`; return its content digest.
-
-        Idempotent on content: identical text is one raw object and one set of shared atoms
-        (A3 — never a delete-by-digest, which used to erase every other turn with the same bytes);
-        each call still records a distinct catalog entry keyed by timestamp so the conversation's
-        turns are individually tracked."""
-        data = text.encode("utf-8")
-        short = hashlib.sha256(data).hexdigest()[:8]
-        ts = _compact_ts()
-        source_path = f"dialogue/{conversation}/{ts}-{short}"
-        title = f"dialogue/{conversation}/{ts}"
-        parsed = ParsedNote(
-            source_path=source_path, title=title, text=text,
-            tags=frozenset({"dialogue", conversation}), links=frozenset(),
-            properties={}, raw_bytes=data,
-        )
-        record = ingest_note(parsed, self.raw, provenance=Provenance.AUTHORED_DIALOGUE)
-        index_records([record], self.embedder, self.store)   # idempotent: the plane reconciles
-        self.catalog.record(source_path, record.digest, title,
-                            provenance=Provenance.AUTHORED_DIALOGUE)
-        if self.attestor is not None:
-            self.attestor.emit(agent_role="ambassador", action="capture",
-                               input_hashes=[record.digest], output_hashes=[record.digest])
-        return record.digest
-
-
     def capture_turn(self, text: str, *, conversation: str, turn_id: str, role: str,
                      at: str | None = None) -> tuple[str, bool]:
         """Store one turn of an external chat (e.g. Open WebUI) idempotently; return
@@ -86,7 +56,7 @@ class DialogueCapture:
             return prev.digest, False
         provenance = Provenance.AUTHORED_DIALOGUE if role == "user" else Provenance.OBSERVED
         # a turn's class is fixed with its identity: an observed turn never supersedes the
-        # owner's words on the same path, nor the reverse (dn-ingest-door D8, §9); a label outside
+        # owner's words on the same path, nor the reverse (dn-ingress D8, §9); a label outside
         # the two dialogue classes (a relabel's) is the catalog's to keep, not a refusal
         held = prev.provenance if prev is not None else ""
         if held in _DIALOGUE_CLASSES and held != str(provenance):
@@ -99,24 +69,8 @@ class DialogueCapture:
         )
         record = ingest_note(parsed, self.raw, provenance=provenance)
         index_records([record], self.embedder, self.store)   # idempotent: the plane reconciles
-        # the landing order (dn-ingest-door D1, DOR-7): attest, then the catalog's digest last, the
+        # the landing order (dn-ingress D1, ING-7): attest, then the catalog's digest last, the
         # idempotence key the check above reads
         attest_once(self.attestor, agent_role="ambassador", action="capture", digest=record.digest)
         self.catalog.record(source_path, record.digest, title, provenance=provenance)   # the key
         return record.digest, True
-
-
-def build_dialogue_capture(config: Config | None = None) -> DialogueCapture:
-    """Wire a DialogueCapture against the configured stores + embedder."""
-    from core.attestation import build_attestor
-    from core.ingest.embed import build_embedder
-    from core.kernel.config import get_config
-
-    cfg = config or get_config()
-    return DialogueCapture(
-        raw=RawStore(cfg.paths.raw_store),
-        store=open_vector_store(cfg),
-        embedder=build_embedder(cfg),
-        catalog=VaultCatalog(cfg.paths.vault_catalog),
-        attestor=build_attestor(cfg),
-    )

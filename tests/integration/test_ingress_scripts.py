@@ -1,11 +1,12 @@
-"""The door's scripts against real stores (dn-door-language §E4, §E5, §E8; DOR-7, DOR-13 to
-DOR-17): each library script lands what the first form's lander landed on the same fixtures (the
+"""The ingress's scripts against real stores (dn-ingress-language §E4, §E5, §E8; ING-7, ING-13 to
+ING-17): each library script lands what the first form's lander landed on the same fixtures (the
 differential tests of DS-5), the writer's rules refuse what they must, a run that dies before its
 key lands once when run again, and a request out of budget lands nothing."""
 
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -19,8 +20,8 @@ from core.kernel.config import REPO_ROOT
 from core.kernel.provenance import Provenance
 from core.sentence.interpret import OutOfGas, ScriptError
 from core.stores.vectorstore import VectorStore
-from tests.fixtures.door import Palace, palace_at, state_of, write_file
 from tests.fixtures.embedding import DIM
+from tests.fixtures.ingress import Palace, palace_at, state_of, write_file
 
 
 @pytest.fixture
@@ -101,7 +102,7 @@ def test_a_bare_sync_dialogue_lands_every_readers_turns(palace):
 
 def test_ingest_doc_lands_what_the_curated_lane_landed(tmp_path):
     new, old = palace_at(tmp_path, "script"), palace_at(tmp_path, "lander")
-    rel = "docs/design-notes/dn-door-language.md"
+    rel = "docs/design-notes/dn-ingress-language.md"
     new.run(f'do ingest_doc(path: "{rel}")')
     ingest_curated([Path(REPO_ROOT) / rel], old.stores.raw, old.stores.plane, old.stores.embedder,
                    old.stores.catalog, repo_root=Path(REPO_ROOT), attestor=old.stores.attestor)
@@ -114,13 +115,13 @@ def test_a_capture_is_observed_in_the_speakers_own_namespace(palace):
     out = palace.outcomes('do capture(text: "remember this", conversation: "tea")', "ambassador")
     assert out[0]["status"] == "landed"
     (entry,) = palace.stores.catalog.active_entries()
-    assert entry.source_path.startswith("dialogue/door/ambassador/tea/")
+    assert entry.source_path.startswith("dialogue/ingress/ambassador/tea/")
     assert str(entry.provenance) == "observed"
 
 
 @pytest.mark.parametrize("script, rule", [
     # R3: the Ambassador writes only its own prefix
-    ('{ store "x" in "observed" at "dialogue/door/cli/t/1" }', "R3"),
+    ('{ store "x" in "observed" at "dialogue/ingress/cli/t/1" }', "R3"),
     # R8: a path in a source's space takes only that source's items
     ('{ store "x" in "dialogue" at "dialogue/openwebui/c1/m9" }', "R8"),
 ])
@@ -192,7 +193,7 @@ def test_a_run_enqueues_its_job_with_bounded_arguments(palace):
     assert out[0]["status"] == "refused"
 
 
-# ── crash convergence (DOR-7, DOR-16) and the budget (§E10) ─────────────────────────────────
+# ── crash convergence (ING-7, ING-16) and the budget (§E10) ─────────────────────────────────
 
 def test_a_store_that_dies_before_its_key_lands_once_when_run_again(palace, monkeypatch):
     note = write_file(palace.vault, "a.md", "# A\n\nthe first version\n")
@@ -370,7 +371,7 @@ def test_a_held_identity_moves_with_its_label_and_within_its_source(palace):
     note.unlink()
     out = palace.outcomes(
         'do { let e = stored("mirror_authored", under: source("vault"))\n'
-        'store "id:: N-A\\n\\nalpha\\n" in "observed" at "dialogue/door/ambassador/x" '
+        'store "id:: N-A\\n\\nalpha\\n" in "observed" at "dialogue/ingress/ambassador/x" '
         'as e[0].identity }', "ambassador")
     assert out[0]["status"] == "refused" and out[0]["why"].startswith("R6")
 
@@ -538,3 +539,94 @@ def test_sync_docs_retires_a_doc_gone_from_the_repository(palace, monkeypatch, t
     (repo / "docs" / "b.md").unlink()
     assert palace.run("do sync_docs")["effects"] == {"unchanged": 1, "retired": 1}
     assert list(_entries(palace)) == [str(repo / "docs" / "a.md")]
+
+
+def test_a_legacy_dialogue_row_is_retired_by_its_role_and_never_written_again(palace):
+    """The first form's turns live under `dialogue/door/<role>/`, permanent identities that are
+    never re-keyed: the Ambassador retires its own legacy row, and writes a new one only under
+    `dialogue/ingress/ambassador/`."""
+    legacy = "dialogue/door/ambassador/c/x"
+    store = 'do {{ store "secret words" in "observed" at "{}" }}'
+    assert palace.outcomes(store.format(legacy), "cli")[0]["status"] == "landed"
+    (o,) = palace.outcomes(store.format("dialogue/door/ambassador/c/y"), "ambassador")
+    assert o["status"] == "refused" and o["why"].startswith("R3")
+    assert palace.outcomes(store.format("dialogue/ingress/ambassador/c/y"),
+                           "ambassador")[0]["status"] == "landed"
+    (o,) = palace.outcomes(f'do {{ retire "{legacy}" in "observed" }}', "ambassador")
+    assert o["status"] == "retired"
+
+
+def test_an_oversized_turn_is_refused_and_the_rest_lands(palace, monkeypatch):
+    """A structured source's item past the item cap is still an item: it is refused (R1) and the
+    other turns land, as a directory source's oversized note is."""
+    import core.ingest.readers as readers
+
+    handoff = palace.data / "handoff" / "dialogue"
+    handoff.mkdir(parents=True)
+    (handoff / "openwebui.json").write_text(json.dumps({"chats": [
+        {"chat_id": "c1", "updated_at": 1, "turns": [
+            {"id": "m1", "role": "user", "content": "x" * 4096, "timestamp": 1},
+            {"id": "m2", "role": "user", "content": "short words", "timestamp": 2}]}]}))
+    monkeypatch.setattr(readers, "MAX_ITEM_BYTES", 1024)
+    out = {o["path"]: o for o in palace.outcomes('do sync_dialogue(reader: "openwebui")')}
+    assert out["dialogue/openwebui/c1/m1"]["why"].startswith("R1")
+    assert out["dialogue/openwebui/c1/m2"]["status"] == "landed"
+
+
+# ── the handoffs the owner's words arrive in (the inbox review's finding 2) ────────────────────
+
+_PLANTED = json.dumps({"chats": [{"chat_id": "c1", "updated_at": 1, "turns": [
+    {"id": "m1", "role": "user", "content": "words the owner never wrote", "timestamp": 1}]}]})
+
+
+@pytest.mark.parametrize("plant", ["another account wrote it", "its group may write the file",
+                                   "its group may write the directory", "a link", "a second name"])
+def test_a_dialogue_handoff_another_account_could_have_written_lands_nothing(palace, monkeypatch,
+                                                                             plant):
+    """A dialogue handoff is read only as the daemon trusts it: a file another account wrote, or
+    could have written or changed (its group may write it or its directory, it is a link, it has a
+    second name), is refused with the source, so a planted owner's turn never lands as authored
+    dialogue. The reader before this lands each one."""
+    import core.ingest.files as files
+
+    handoff = palace.data / "handoff" / "dialogue"
+    handoff.mkdir(parents=True)
+    os.chmod(handoff, 0o755)
+    target = handoff / "openwebui.json"
+    if plant == "a link":
+        elsewhere = palace.root / "planted.json"
+        elsewhere.write_text(_PLANTED)
+        os.chmod(elsewhere, 0o644)
+        os.symlink(elsewhere, target)
+    else:
+        target.write_text(_PLANTED)
+        os.chmod(target, 0o644)
+    if plant == "another account wrote it":
+        theirs = os.getuid()
+        monkeypatch.setattr(files, "daemon_uid", lambda: theirs + 1)   # the daemon is another
+    elif plant == "its group may write the file":
+        os.chmod(target, 0o664)
+    elif plant == "its group may write the directory":
+        os.chmod(handoff, 0o775)
+    elif plant == "a second name":
+        os.link(target, palace.root / "second-name.json")
+    with pytest.raises(ScriptError, match="the handoff is refused"):
+        palace.run('do sync_dialogue(reader: "openwebui")')
+    assert palace.stores.catalog.active_entries() == []
+
+
+def test_a_handoff_the_edge_reader_writes_is_trusted_whatever_the_umask(palace):
+    """The edge readers write their handoff through `edge.private_file`: `0600` in a directory
+    made `0700`, under any umask, so the core reads what they write and lands the owner's turn."""
+    from edge.private_file import write_json
+
+    target = palace.data / "handoff" / "dialogue" / "openwebui.json"
+    old = os.umask(0o002)
+    try:
+        write_json(target, json.loads(_PLANTED))
+        write_json(target, json.loads(_PLANTED))                # again, over its own file
+    finally:
+        os.umask(old)
+    assert (os.stat(target).st_mode & 0o777, os.stat(target.parent).st_mode & 0o777) == \
+        (0o600, 0o700)
+    assert palace.run('do sync_dialogue(reader: "openwebui")')["effects"] == {"landed": 1}

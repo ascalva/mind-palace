@@ -3,11 +3,11 @@
 [![CI](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml)
 [![Lean](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml)
 [![laws](https://img.shields.io/badge/laws-87_rows_in_12_families-blue)](docs/LAWS.md)
-[![Lean statements](https://img.shields.io/badge/Lean-248_statements_judged-blue)](formal/README.md)
+[![Lean statements](https://img.shields.io/badge/Lean-249_statements_judged-blue)](formal/README.md)
 [![sorry](https://img.shields.io/badge/sorry-0-brightgreen)](formal/sorry-budget)
 [![kernels](https://img.shields.io/badge/kernel_replay-6_checkers-6f42c1)](formal/check.sh)
-[![attacks](https://img.shields.io/badge/attacks-117_with_controls-blue)](formal/PalaceTest)
-[![tests](https://img.shields.io/badge/tests-3036-brightgreen)](docs/runbook.md)
+[![attacks](https://img.shields.io/badge/attacks-119_with_controls-blue)](formal/PalaceTest)
+[![tests](https://img.shields.io/badge/tests-3125-brightgreen)](docs/runbook.md)
 [![coverage](https://img.shields.io/badge/coverage-85%25-green)](pyproject.toml)
 [![mypy](https://img.shields.io/badge/mypy-0_errors_in_core-brightgreen)](pyproject.toml)
 [![sealed core](https://img.shields.io/badge/sealed_core-zero_egress-6f42c1)](scripts/check_imports.py)
@@ -121,13 +121,13 @@ A law has one row in [`docs/LAWS.md`](docs/LAWS.md): its statement, the structur
 | | |
 |---|---|
 | toolchain | Lean `v4.36.0-rc2`, Mathlib; Plausible for the attacks |
-| the library | 27 proof modules, 26 models, 21 statement files; 15,563 lines of models and proofs, 2,620 of statements, 3,072 of attacks |
-| theorems | 912 proved in `formal/Palace`; 248 statements in `formal/Spec` judged identical by the comparator |
-| the ledger | 87 rows in 12 families, 254 cited declarations, 74 law markers checked against the rows |
-| attacks | 117 Plausible attacks and 104 negative controls over 23 modules, fixed seeds |
+| the library | 27 proof modules, 26 models, 21 statement files; 15,615 lines of models and proofs, 2,630 of statements, 3,186 of attacks |
+| theorems | 913 proved in `formal/Palace`; 249 statements in `formal/Spec` judged identical by the comparator |
+| the ledger | 87 rows in 12 families, 255 cited declarations, 74 law markers checked against the rows |
+| attacks | 119 Plausible attacks and 108 negative controls over 23 modules, fixed seeds |
 | axioms | `propext`, `Classical.choice`, `Quot.sound`; `sorry` 0 |
-| the replay | 45,523 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
-| families | memberships · Laplacian, balance and spectral · cut and conductance · curvature · the global event clock · the shared prose plane · capability scopes · the abstraction ultrametric σ* · bridges · the retrieval curve · the query sentence algebra · the door |
+| the replay | 45,526 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
+| families | memberships · Laplacian, balance and spectral · cut and conductance · curvature · the global event clock · the shared prose plane · capability scopes · the abstraction ultrametric σ* · bridges · the retrieval curve · the query sentence algebra · the ingress |
 
 ## The mathematics
 
@@ -161,7 +161,7 @@ Utility is a side effect and is treated as one. What the project optimizes for i
 
 The base build is complete and the live instance runs always-on under launchd with a gated deployment path. "Complete" is not "wired": this repo distinguishes built, deployed and wired, and its own audit found the summaries were the least honest surface, so this one names the gaps.
 
-Wired and live: ingestion (notes within seconds, code per commit), dreaming on a six-hour cadence, the provenance firewall, the attestation chain, the strict-typed core, CI on every push, deploy-gated releases, the research airlock, the curated literature store, and the query language with its one MCP command, the CLI, the query log as a sensor, and a battery run read-only against the live stores. Built but deliberately dormant, each waiting on its design gate: retrieval demotion for superseded content, the supersession certification layer, effectors (the "hands", flag-off at every tier), recursive dreaming. Open in the language, and stated in every answer: version moves at the note grain are empty (the chains are per note), and there is no snapshot of the notes at a past cut. The causal moves are wired: a transcript turn to the files it produced, and back. So is the door: ingestion is written in a generic language, and each path, from the vault sync to a capture, is a script of it (`door/`). A surface speaks a request, `do sync_vault` or a script inline, typed under the speaker's grant; the daemon evaluates it under a budget of measured work into a plan and lands the plan as the one writer, under the palace's rules, and the answer is a receipt. The Ambassador's write tools are requests. Left for later: research, a paper's manifest, one commit's or one session's backfill and the Ambassador inbox's capture as scripts, and the parallel dispatcher, whose laws are proved (DO-6).
+Wired and live: ingestion (notes within seconds, code per commit), dreaming on a six-hour cadence, the provenance firewall, the attestation chain, the strict-typed core, CI on every push, deploy-gated releases, the research airlock, the curated literature store, and the query language with its one MCP command, the CLI, the query log as a sensor, and a battery run read-only against the live stores. Built but deliberately dormant, each waiting on its design gate: retrieval demotion for superseded content, the supersession certification layer, effectors (the "hands", flag-off at every tier), recursive dreaming. Open in the language, and stated in every answer: version moves at the note grain are empty (the chains are per note), and there is no snapshot of the notes at a past cut. The causal moves are wired: a transcript turn to the files it produced, and back. So is the ingress: ingestion is written in a generic language, and each path, from the vault sync to a capture, is a script of it (`ingress/`). A surface speaks a request, `do sync_vault` or a script inline, typed under the speaker's grant; the daemon evaluates it under a budget of measured work into a plan and lands the plan as the one writer, under the palace's rules, and the answer is a receipt. The Ambassador's write tools are requests, and its inbox lands the owner's messages through a script of its own, under a role that writes nothing else. Left for later: research, a paper's manifest, and one commit's or one session's backfill as scripts, and the parallel dispatcher, whose laws are proved (DO-6).
 
 The current frontier is the query algebra as the system's interface, the mathematics pushed to where its claims close or break, and the trace as the language's debugger. Behind it, drafted: the palace's memory of itself, the graph as it stood at any past cut, and the conversations that design the system becoming a stratum it can study.
 

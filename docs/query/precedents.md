@@ -28,10 +28,10 @@ answer-drift, never a silent one.
 | a path's count `{n,m}` at most | `32` | each count copies the automaton, and nested counts multiply | a question needs more |
 | `walk`'s budget | `100000` partial chains | the product walk enumerates simple paths, exponential on a dense graph; the answer says when it stopped | a question needs more |
 
-## The door's prices
+## The ingress's prices
 
-What a request's work costs (dn-door-language §E10), one unit the time of one evaluation step.
-Measured by `eval/door_gas.py` on 2026-11-05 on the owner's Mac: 300 notes, the median of seven
+What a request's work costs (dn-ingress-language §E10), one unit the time of one evaluation step.
+Measured by `eval/ingress_gas.py` on 2026-11-05 on the owner's Mac: 300 notes, the median of seven
 runs on a warm page cache, the embeds on the palace's embedder (EmbeddingGemma-2 on llama-server,
 `:8081`, ten notes' chunks, one request a note, as the landing sends them). A step took 0.30 µs.
 Prices are rounded to two figures. `PRICES` in `core/sentence/interpret.py` and the roles'
@@ -49,6 +49,7 @@ budgets in `core/ingest/table.py` are this table's executable mirror.
 | `embed` | `360000` | 109 ms: a chunk embedded | another embedder |
 | the `cli` role's budget | `50000000000` | about four hours of measured work: the owner's and the daemon's own jobs, a first sync of every doc after a plane reset (about 5,300,000,000) ten times over | a sync that needs more |
 | the `ambassador` role's budget | `100000000` | about 30 seconds: a capture is under one million, a link or a job's start under two hundred thousand | a request the Ambassador needs that does not fit |
+| the `inbox` role's budget | `50000000000` | the operator's: the inbox's capture is the daemon's own job and reads only the inbox's record of what the owner typed (an exchange of two short texts is under two million) | a backlog that needs more |
 
 The two coalescing requests, `do sync_vault` and a bare `do sync_dialogue`, run as the daemon's
 own jobs under the `cli` role's budget, whoever asked: their scripts are the library's, admitted
