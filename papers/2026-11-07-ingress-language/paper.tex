@@ -1,0 +1,899 @@
+% The article for pull request #71: the ingress language, its one writer, and the inbox source.
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\setlength{\emergencystretch}{3em}
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.75}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\lean}[1]{\texttt{#1}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\ing}[1]{ING-#1}
+
+\title{An Interpreted Ingestion Language for a Verified Knowledge Store:\\
+Labels from Sources, One Writer, and Convergence with the Key Last}
+\author{Alberto Serrano-Calva}
+\date{November 7, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A local knowledge store ingests text from several sources, each carrying a provenance label
+that the store's readers trust: a person's own notes and dialogue are \emph{authored}, an
+assistant's replies and anything a program composes are \emph{observed}. The ingestion paths
+were separate programs, each deciding labels in its own code and each a writer of the shared
+stores. We replace them with one interpreted language in which every path is a script, a
+declarative table of sources, places, roles and jobs, and one writer. The language has no
+expression that yields, compares or raises a label: an item carries the label its source's rule
+gives it, a projection keeps it, and anything composed is observed (\ing{13}); a monomorphic
+type system over label sets is sound for this property (\ing{18}). The writer admits each
+effect by eight rules, from which a firewall follows (every authored row is an item of a source
+at the item's own path, \ing{14}), confinement of each role to a namespace with written and
+retire-only parts (\ing{15}), and fixed labels and identities once stored (\ing{17}). Every
+store lands as a command of a keyed model whose idempotence key is written last, so a run
+interrupted after any step converges under re-run (\ing{7}), a key written earlier never does,
+readers that trust the key need no lock (\ing{12}), and every plan inherits these laws
+(\ing{16}). Requests reach the writer through per-principal spools authenticated by the
+filesystem, and evaluation is metered per step against measured prices (one step 0.30
+microseconds). An inbox for an assistant's conversations is added as a source whose reader
+labels the person's text authored and the reply observed, by field, with ownership checks on
+every file that may yield an authored item. The laws are machine-checked in Lean 4 (286
+statements judged against their specification, 55,411 declarations replayed by six kernels,
+attacks and refuted controls on exact finite shadows), 3,478 tests pass, and a security audit
+found no principal that can land text as the person's authored dialogue.
+\end{abstract}
+
+\section{Introduction}
+
+A knowledge store that answers questions from what a person wrote must keep apart what the
+person wrote from what a program wrote. In the store this article concerns, every row carries
+one of a small set of provenance labels: \code{authored-solo} for the person's notes,
+\code{authored-dialogue} for the person's turns in a conversation, \code{observed} for an
+assistant's replies and for any text a program composes, \code{curated} for the project's own
+documentation, and \code{interpreted} for what the system derives. Readers, among them a
+language model that answers through the store, trust these labels; a query over the
+\emph{mirror} of authored content must never return text a model produced. The labels are the
+store's security property, and ingestion is where they are decided.
+
+Ingestion had grown as several programs: a vault sync for notes, a capture for dialogue turns,
+a curated-document ingest, a capture tool for an assistant, and an inbox that kept the person's
+messages to that assistant. Each decided the label of what it stored in its own code, each ran
+its own copy of the landing sequence, and several ran in processes of their own beside the
+daemon, so one writer was a discipline rather than a property. An audit found two paths writing
+the idempotence key, the catalog digest a re-run reads to decide whether to skip, before the
+attestation and the version row, so that a crash between them was never repaired, and a third
+path with no key at all.
+
+This article describes the replacement, built on branch \code{build/inbox-script}. Ingestion is
+one \emph{language}: generic, interpreted, with values, a dozen reading functions, three effects
+(\code{store}, \code{retire}, \code{link}), a way to start a declared job (\code{run}), and
+\code{let}, \code{for}, \code{if} and closures without recursion. The language has no word for
+a vault, a note, a turn or a dialogue. A \emph{table}, one module, declares the sources a script
+may open, the places (strata) it may write, the roles that speak and the prefixes each may write
+under, the jobs it may start and the budget each role may spend. Every former path is a script
+in a library directory, \code{ingress/}; the daemon is the one writer; a surface speaks a
+request into a spool that belongs to its role and receives a receipt. We call the whole the
+\emph{ingress}: the store's single way in.
+
+The design follows an operating-system analogy: a general-purpose language supplies the means
+to open and write a file, and the kernel decides ownership and permission. Here the language
+supplies reading and writing, and the store decides, through its table, what may be opened,
+where anything may be written, who may do either, and the label every stored row carries.
+
+The contributions are:
+\begin{enumerate}
+\item A model of content as bytes with a label and an origin, and of expressions as items,
+  projections and constructions, in which no expression raises a label (\ing{13}), with a type
+  system over label sets that is sound for labels at run time (\ing{18}).
+\item A writer whose admission rules yield, as theorems over plans, a provenance firewall
+  (\ing{14}), confinement of each role to a two-part namespace (\ing{15}), and labels and
+  identities fixed at first store with a closed set of ways a new path may take an identity
+  (\ing{17}).
+\item A keyed model of landing in which the idempotence key is the last step: a fresh run
+  interrupted anywhere converges under re-run (\ing{7}), the key-first order and every earlier
+  key position provably do not, readers that trust the key see each version whole or not at all
+  (\ing{12}), parallel runs on distinct identities converge from any crash point (\ing{11}),
+  schedules that order each identity's landings and keys as the serial order land the serial
+  batch (\ing{10}), and every admitted plan inherits all of these (\ing{16}).
+\item An implementation: a generated LALR(1) front end, a bounded checking pass, an evaluator
+  metered per step against measured prices, a writer that lands plans effect by effect,
+  per-principal request spools authenticated by the filesystem, a drain and a handler that
+  compile each request twice, and a takeover of a previous version's stored state under the
+  drain's own trust checks.
+\item An inbox for an assistant's conversations as a source: the exchange is recorded before the
+  reply is sent, the reader labels the person's text authored and the reply observed by field,
+  a script under a role of its own lands both through the one writer, and every file that may
+  yield an authored item is read only when the daemon's own account wrote it.
+\item An evaluation: what is proved and attacked in Lean~4, seven audits' findings by class and
+  how each closed, the gas measurements and how they were taken, and the tests that fail on
+  mutated code.
+\end{enumerate}
+
+\section{Background and related work}
+
+\paragraph{Information-flow labels.}
+Denning's lattice model \citep{denning1976} orders security classes and asks that information
+flow only upward; Goguen and Meseguer \citep{goguen1982} state the property as noninterference;
+Volpano, Irvine and Smith \citep{volpano1996} give a type system for a simple imperative language
+and prove it sound for noninterference; Sabelfeld and Myers \citep{sabelfeld2003} survey the
+language-based approach. The decentralized label model of Myers and Liskov \citep{myers1997}
+lets principals own labels and declassify. Our labels are provenance classes, and the property
+we need is not noninterference between inputs and outputs but a \emph{no-raise} property: a
+value's label is its source item's or the observed one, never higher, and no program text can
+state a label at all. The type system is correspondingly simpler, a monomorphic unification over
+sets of labels in which unification takes unions, so an inferred set only grows and run-time
+labels are always inside it. Declassification has no counterpart: promotion of observed text to
+authored is outside the language, a signed operator act on the raw store.
+
+\paragraph{Capabilities and mediation.}
+Dennis and Van Horn \citep{dennis1966} introduced capabilities as unforgeable references that
+confer authority; Miller \citep{miller2006} develops object-capability discipline, in which
+authority flows only along references. Saltzer and Schroeder \citep{saltzer1975} name complete
+mediation and least privilege. In the ingress a script obtains a \emph{handle} only from
+\code{source(name)}, which the table grants to the roles it lists, and names a place by a string
+the table must know; the role is never a field of a request but the spool directory the request
+sits in, so that the filesystem's ownership and modes mediate who may speak as whom. Each
+effect is mediated twice, at the surface and again by the writer.
+
+\paragraph{Append-only stores and one writer.}
+Rosenblum and Ousterhout \citep{rosenblum1992} write all data sequentially and derive the current
+view from the log; our stores are append-only at the ledger grain and the reconciled catalog is
+a view the readers go through. Gray and Reuter \citep{gray1993} define atomicity across a
+transaction; we do not have it across five files and say so, replacing it with crash
+convergence. Lamport \citep{lamport1978} orders events in a distributed system; here the one
+ordered thing is each identity's version chain.
+
+\paragraph{Idempotence, recovery and serializability.}
+Helland \citep{helland2012} argues that idempotent operations are what makes retry safe;
+our landing makes every stage idempotent and places the one non-idempotent decision, the key,
+last. Papadimitriou \citep{papadimitriou1979} and Bernstein, Hadzilacos and Goodman
+\citep{bernstein1987} give conflict serializability; \ing{10} is that theorem for the ingress's
+steps, with conflicts defined by identity.
+
+\paragraph{Proof and attack.}
+The laws are proved in Lean~4 \citep{demoura2021} on finite models, each with randomized
+attacks on exact finite shadows in the style of QuickCheck \citep{claessen2000} and with
+\emph{controls}, mutated rules the same attack refutes, so that an attack that could not fail
+is detected.
+
+\section{Theory}
+
+Every claim below names its Lean declaration in \lean{formal/Palace/Ingress.lean} (namespace
+\lean{Palace.Ingress}) or \lean{formal/Palace/Script.lean} (namespace \lean{Palace.Script}), with
+the models in \lean{Ingress/Defs.lean} and \lean{Script/Defs.lean}. The laws are numbered
+\ing{1} to \ing{18}; they form family XII of the project's ledger.
+
+\subsection{The keyed model of landing}
+
+\begin{definition}[Source, state, landing]
+A \emph{source} $x$ is a list of row sets $x.\mathit{stages}$ (what each stage of the landing
+adds to the append-only stores: the raw object, the chunks, the atoms, the occupancies), an
+identity $x.\mathit{ident}$ whose version chain it extends, and a digest $x.\mathit{digest}$.
+A \emph{state} $s$ is a finite set of rows $s.\mathit{rows}$, a chain $s.\mathit{chain} : D \to
+\mathrm{List}\,G$ per identity, and a key $s.\mathit{key} : D \to \mathrm{Option}\,G$ per
+identity, the catalog digest the UNCHANGED check reads. Landing is
+\[
+\mathrm{land}\,x\,s = \langle s.\mathit{rows} \cup x.\mathit{rows},\;
+  \mathit{chain}[x.\mathit{ident} \mapsto \mathrm{appendIfNew}(\cdot, x.\mathit{digest})],\;
+  \mathit{key}[x.\mathit{ident} \mapsto x.\mathit{digest}]\rangle,
+\]
+where $\mathrm{appendIfNew}$ appends a digest unless it is already the chain's head. The
+operation is $\mathrm{ingest}\,x\,s = s$ if $s.\mathit{key}\,(x.\mathit{ident}) =
+\mathrm{some}\,x.\mathit{digest}$, else $\mathrm{land}\,x\,s$. A command is \emph{fresh} at $s$
+when its key does not name its digest; a state is \emph{sound} for $x$ when its key naming
+$x$'s digest implies $x.\mathit{rows} \subseteq s.\mathit{rows}$
+(\lean{Ingress/Defs.lean}: \lean{land}, \lean{ingest}, \lean{Fresh}, \lean{Sound}).
+\end{definition}
+
+\begin{definition}[Steps and runs]
+A \emph{step} adds a stage's rows, lands a version on an identity's chain, or writes an
+identity's key; a \emph{run} applies a list of steps in order. A command's steps in the landing
+order are its stages' rows, then its landing, then its key: $x.\mathit{steps} =
+\mathrm{map}\,\mathrm{rows}\,x.\mathit{stages} \mathbin{+\!\!+} [\mathrm{land}, \mathrm{key}]$.
+The control order $x.\mathit{stepsKeyFirst}$ writes the key first. Two steps \emph{conflict}
+when both land, or both key, one identity (\lean{Step}, \lean{run}, \lean{Source.steps},
+\lean{Source.stepsKeyFirst}, \lean{Step.Conflicts}).
+\end{definition}
+
+\begin{theorem}[\ing{2}, \ing{3}: a keyed closure operator]
+$\mathrm{ingest}$ is extensive on rows, grows each chain by a prefix, is monotone on the rows
+between sound states, and is idempotent. Ingests of distinct identities commute, a batch of
+distinct identities lands the same state in any order, and a batch run again lands nothing
+(\lean{ingest\_extensive}, \lean{chain\_prefix\_ingest}, \lean{ingest\_monotone},
+\lean{ingest\_idempotent}, \lean{ingest\_comm}, \lean{ingest\_batch\_perm},
+\lean{batch\_idempotent}).
+\end{theorem}
+
+\begin{theorem}[\ing{7}: crash convergence with the key last]
+\label{thm:ing7}
+For $x$ fresh at $s$ and any $k$,
+$\mathrm{ingest}\,x\,(\mathrm{run}\,(x.\mathit{steps}.\mathrm{take}\,k)\,s) = \mathrm{ingest}\,x\,s$
+(\lean{ingest\_prefix\_converges}). The same holds when any of the steps before the key ran, in
+any order and any number of times (\lean{ingest\_after\_nonkey}), which covers the code's own
+order (the version row before the attestation).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+By cases on $k$. Within the rows, the key is untouched, so the next run is a full landing from a
+state holding a subset of $x$'s rows, and union absorbs it. After the landing step but before
+the key, the chain already has the digest as its head, so $\mathrm{appendIfNew}$ is the
+identity, and the command is still fresh. After the key, $\mathrm{ingest}$ reads it and does
+nothing, and the state is already the full landing.
+\end{proof}
+
+\begin{theorem}[\ing{7}, controls: an earlier key never converges]
+\label{thm:keyfirst}
+If $x$ is fresh at $s$ and $x.\mathit{rows} \not\subseteq s.\mathit{rows}$, then
+\[
+\mathrm{ingest}\,x\,(\mathrm{run}\,(x.\mathit{stepsKeyFirst}.\mathrm{take}\,1)\,s) \ne
+\mathrm{ingest}\,x\,s
+\]
+(\lean{key\_first\_does\_not\_converge}). More generally, for any
+steps $v$ with $x.\mathit{rows} \not\subseteq (\mathrm{run}\,v\,s).\mathit{rows}$, writing the
+key after $v$ and stopping there never converges (\lean{key\_early\_does\_not\_converge}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+After the key step the key names the digest, so the next run reads it and lands nothing; the
+rows are those of $\mathrm{run}\,v\,s$, which miss some of $x$'s, while the uninterrupted run
+holds them all.
+\end{proof}
+
+The second control matters because the audited code had exactly that order: the key after the
+vector rows and before the attestation and the version row. The first model of this family was
+keyless and could not distinguish the orders; a proof audit found that \ing{7} held of the old
+order as much as the new, and the keyed model is the result.
+
+\begin{theorem}[\ing{12}: readers need no lock]
+If $s$ is sound for $x$, so is $\mathrm{run}\,(x.\mathit{steps}.\mathrm{take}\,k)\,s$ for every
+$k$ (\lean{sound\_prefix}); with the key first, a state that is not sound is reached after one
+step (\lean{key\_first\_unsound}). Under a parallel run of fresh commands on distinct
+identities, each stopped at a prefix of its own steps in any global order, each remains sound
+(\lean{sound\_after\_prefixes}).
+\end{theorem}
+
+\begin{theorem}[\ing{9}, \ing{10}: commutation and serializability]
+Steps that do not conflict commute (\lean{Step.apply\_comm}). Any permutation of the steps of
+fresh commands on pairwise distinct identities lands the batch
+(\lean{run\_perm\_of\_disjoint}). Two schedules that are permutations of each other and agree,
+class by class (the landings on one identity, the keys of one identity), on the order of the
+steps of that class run to the same state (\lean{run\_eq\_of\_cls\_filter}); so a schedule
+that orders each identity's landings and keys as a list does, each command fresh at its turn,
+lands the batch of the list (\lean{serializable}), with repeated identities allowed; and the
+commands keyed at their turn drop out, the rest landing the whole list's batch
+(\lean{serializable\_landsOf}). A permutation alone does not suffice
+(\lean{serializable\_needs\_the\_order}), and a guard that reads the key before the previous
+command on its identity has written one decides otherwise (\lean{early\_guard\_skips}).
+\end{theorem}
+
+\begin{proof}[Proof sketch of \lean{run\_eq\_of\_cls\_filter}]
+Induction on the second schedule: its first step is the first of its class in the first
+schedule, every step before it there commutes with it, so it moves to the front
+(\lean{run\_move\_front}) and the remainders' filters still agree.
+\end{proof}
+
+\begin{theorem}[\ing{11}: convergence under a parallel run]
+If each command of a batch of fresh commands on distinct identities has run a prefix of its own
+steps, in any global order, the batch run again lands the uninterrupted batch
+(\lean{batch\_after\_prefixes}). On one identity this fails (two versions, the second run whole
+before the first starts: \lean{prefixes\_need\_distinct\_identities}); what converges there is
+running again the interrupted command and the ones after it
+(\lean{batch\_after\_interrupted}), and not the whole batch
+(\lean{rerun\_whole\_batch\_diverges}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The steps of distinct identities commute, so the run is reordered command by command; each
+command's prefix is then followed by its own landing, which \Cref{thm:ing7} repairs, and a
+command stays fresh while only other identities' steps have run
+(\lean{run\_key\_of\_not\_keyed}).
+\end{proof}
+
+\begin{theorem}[\ing{1}: admissibility needs the write bit]
+In the store's scope lattice, a command's clause is admissible under a grant iff some granted
+plane lies above its scope and carries the write bit (\lean{command\_admissible\_iff\_write});
+a grant whose planes all lack it admits no command (\lean{readonly\_admits\_no\_command}). The
+assistant's grant as written admits a projection-event command on the mirror and refuses a
+commit-clock one (\lean{ambassador\_admits\_projection\_command},
+\lean{ambassador\_refuses\_commit\_command}).
+\end{theorem}
+
+\ing{5} (a command embeds exactly the atoms the plane lacks) and \ing{6} (the receipt names
+exactly the rows added and the chain's new head) complete the family; \Cref{tab:laws} names
+their declarations. \ing{4}, that every store mutation is a job of the one writer, is not a
+theorem but a discipline checked by an import ratchet.
+
+\subsection{Content, items, labels and origins}
+
+\begin{definition}[Items, content, expressions]
+An \emph{item} is bytes with a label and a path, yielded by a source. \emph{Content} is bytes
+with a label and an origin, an optional path. An expression, as far as labels go, is an item, a
+projection of an expression by a \emph{view} $w$ (a field, an element, a reader's parse), or a
+construction $\mathrm{make}\,b$ (a literal, a parameter, anything composed). Evaluation is
+\begin{align*}
+\mathrm{eval}(\mathrm{item}\,i) &= \langle i.\mathit{bytes},\; i.\mathit{label},\; \mathrm{some}\,i.\mathit{path}\rangle, \\
+\mathrm{eval}(\mathrm{proj}\,w\,e) &= \langle w\,((\mathrm{eval}\,e).\mathit{bytes}),\; (\mathrm{eval}\,e).\mathit{label},\; (\mathrm{eval}\,e).\mathit{origin}\rangle, \\
+\mathrm{eval}(\mathrm{make}\,b) &= \langle b,\; \mathit{observed},\; \mathrm{none}\rangle
+\end{align*}
+(\lean{Script/Defs.lean}: \lean{Item}, \lean{Content}, \lean{Expr}, \lean{eval}). An
+expression's \emph{root} is the item under its projections, if any.
+\end{definition}
+
+\begin{theorem}[\ing{13}: labels are the store's]
+A value's label is its root item's, or observed when there is no root
+(\lean{label\_eval}); its origin is its root's path or none (\lean{origin\_eval}); when there is
+a root, its bytes are the root's bytes under the expression's views (\lean{bytes\_eval}).
+Hence a label other than observed is always an item's, carried by projections alone
+(\lean{root\_of\_label\_ne}).
+\end{theorem}
+
+\begin{proof}
+Structural induction on the expression; each case is definitional.
+\end{proof}
+
+\begin{definition}[Label types]
+The label set of an expression's type is its source's range for an item, its operand's for a
+projection, and $\{\mathit{observed}\}$ for a construction (\lean{labelsOf}). Inference
+unifies two sets by their union.
+\end{definition}
+
+\begin{theorem}[\ing{18}: type soundness for labels]
+If every item's label lies in its source's range, a value's run-time label lies in its
+expression's label set (\lean{label\_typed}), and in any superset inference may have unified it
+into (\lean{label\_typed\_of\_subset}).
+\end{theorem}
+
+The consequence used by the implementation: wherever the set is known at check time, the
+writer's class rule (R2 below) is decided before anything is read, and the run-time check is a
+second wall rather than the only one.
+
+\subsection{The writer's rules and their theorems}
+
+\begin{definition}[Table, admission, landing]
+A \emph{table} supplies the views, the observed label, which labels each place accepts, each
+role's namespace per place in two parts (paths it writes, $\mathit{ns}$, and paths it only
+retires, $\mathit{rns}$), which paths belong to a source ($\mathit{owned}$), which items the
+sources yield at the cut ($\mathit{yields}$), whether a source still has a path
+($\mathit{has}$), each path's own identity, and which identity an item declares. The writer's
+state $h$ holds at each path an optional row: bytes, label, identity, whether sourced, whether
+active. A \emph{store} $(p, n, e, k)$ is admitted when
+\begin{enumerate}
+\item[R2] the root of $e$, if any, is an item the sources yield, and the place $k$ accepts the
+  value's label;
+\item[R3] $p$ is in the role's write namespace for $k$;
+\item[R4] if the value has an origin, it equals $p$;
+\item[R8] if $p$ belongs to a source, the value has an origin;
+\item[R5] if $p$ is held, its row's label equals the value's label;
+\item[R6] if $p$ is new, the naming $n$ resolves: the path's own identity; the identity the very
+  item stored declares; or the identity held at a path its source no longer has, holding the
+  same bytes.
+\end{enumerate}
+A \emph{retire} of $p$ in $k$ is admitted when $p$ is held, lies in the role's write or
+retire-only namespace (R3), and, if its content came from a source, the source no longer has it
+(R7). A plan is landed effect by effect; a refused effect lands nothing and the plan continues
+(\lean{Table}, \lean{okStore}, \lean{okRetire}, \lean{step}, \lean{landPlan}). R1, admission by
+the write bit, is \ing{1} per effect at check time.
+\end{definition}
+
+\begin{theorem}[\ing{14}: the firewall]
+An admitted store whose label is not observed lands the bytes of an item a source yields, under
+the expression's views, at the item's own path, with the item's label
+(\lean{firewall\_store}). Over a plan, every active row whose label is not observed is the row
+held before at its path or the result of such a store (\lean{firewall\_plan}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+By \ing{13} a non-observed label has a root item, R2 says the sources yield it, R4 places the
+value at its origin, the root's path by \lean{origin\_eval}, and \lean{bytes\_eval} gives the
+bytes; over a plan, induction on effects.
+\end{proof}
+
+\begin{theorem}[\ing{15}: confinement]
+A plan changes a path only through an admitted effect on that path, in the role's write
+namespace for a store and in its write or retire-only namespace for a retire
+(\lean{confined}). A path a plan leaves holding an active row it changed was stored by the plan
+in the write namespace, so a retire-only prefix takes no store (\lean{confined\_store}).
+\end{theorem}
+
+The law was first stated with one namespace; when the rename gave a role rows it may retire but
+never write again, a control (attack seed 368) refuted that statement and the two-part one
+replaced it.
+
+\begin{theorem}[\ing{17}: fixed labels, identities with their bytes, paths of sources]
+Under an admitted store a held path keeps its label and identity (\lean{label\_fixed}). A new
+path's identity is its own, the one the very item stored declares, or one held at a path its
+source no longer has with the same bytes (\lean{identity\_moves\_with\_bytes}). An admitted
+store at a path in a source's space lands an item of a source at that very path, whatever its
+label (\lean{owned\_by\_source}). An admitted retire of sourced content is of a path its source
+no longer has (\lean{retire\_reconciles}).
+\end{theorem}
+
+\begin{theorem}[\ing{16}: every plan is a batch with the key last]
+Reading each store of a plan as a command of the keyed model with its path as identity and the
+digest of its bytes (\lean{toSource}), stores on distinct paths, each fresh, stopped anywhere
+in any global order, land exactly the uninterrupted batch when run again
+(\lean{plan\_converges}), and from a state sound for each leave a state sound for each
+(\lean{plan\_sound}).
+\end{theorem}
+
+\begin{proof}
+Instances of \lean{batch\_after\_prefixes} and \lean{sound\_after\_prefixes}; distinct paths
+give distinct identities.
+\end{proof}
+
+\section{Concepts and intuition}
+
+\paragraph{Three layers, one of them with domain words.}
+The language (grammar, checker, evaluator) is generic. The table names the store's domain as
+data: a directory of markdown labelled \code{authored-solo}, readable by two roles; two
+structured dialogue handoffs whose rule labels a turn by the role the edge reader recorded; the
+project's documentation, labelled \code{curated}; the inbox. The scripts are the applications.
+The analogy, line by line: processes scheduled by a kernel are scripts and jobs scheduled by the
+queue and landed by the one writer; the system calls \code{open}, \code{read} and \code{write}
+are \code{source}, \code{files}, \code{store}, \code{retire}, \code{link} and \code{run}; paths
+and mounts are places and sources; users, groups and permissions are roles, grants with the
+write bit, and namespaces; and the isolation of processes is the pair of laws that authored
+bytes land only where they were written and identities move only with their bytes.
+
+\paragraph{No expression for a label.}
+The firewall is structural rather than checked. A script cannot write a label, compare one, or
+ask for one; a string read off an item (its title, its digest, a property) keeps the item's
+origin but is not the item's bytes, and stored it is composed. The first wording of this rule
+let \code{store n.digest in "mirror\_authored"} replace a note with its hash under the authored
+label; an audit found it.
+
+\paragraph{Why the key is last.}
+The key is the commit point: a later run reads it and decides to skip. Every stage before it is
+idempotent (a content-addressed raw object, one atom per text, a version appended only when the
+head differs, an attestation emitted once per action and digest), so a crash before the key
+leaves a run the next run repeats in full. With the key anywhere earlier, a crash right after it
+leaves rows missing that no later run restores, because the guard reads the key and stops;
+\Cref{thm:keyfirst} says this of any order that writes the key while some row is not held. The
+same order serves the readers: one that opens a version only when the catalog names its digest
+sees its rows whole or not at all, in every state a key-last run passes through and under any
+interleaving of runs on distinct identities, and so takes no lock against the writer.
+
+\paragraph{One writer by choice, one order per identity by necessity.}
+The theorems do not require one writer process; they require one order per identity and one
+embedder. One writer stays the design for reasons that are not mathematical: the spool binds a
+role to a principal and the queue to the daemon, a read-only constructor family lets the import
+ratchet name any other writer, and one read-modify-write in the version store would race under
+two writers. The dispatcher may still run commands on disjoint identities in parallel
+(\ing{9}, \ing{11}); today it runs them one at a time.
+
+\paragraph{Work as gas.}
+A request carries its role's budget in one unit, the time of one evaluation step. The evaluator
+charges each operation by what it touches as it runs, so a loop over a source stops at the item
+that exhausts the budget; since evaluation has no effects, a request that runs out lands
+nothing and there is no state to revert. The writer prices a plan before paying for it, its
+writes and its embeds (the distinct atoms no class the role reads holds, a bound on those the
+plane lacks, \ing{5}), so a plan that would overrun its budget is refused before anything is
+written, and the charge a receipt reports says nothing of a class the role cannot read.
+
+\section{Implementation}
+
+The front end is one grammar file read by Lark (LALR(1)), with a post-lexer that makes a newline
+a separator in a block and whitespace inside brackets. A checking pass resolves names and
+closures, infers types with label sets, checks admission (R1), classes where the set is known
+(R2), the readers of each source, the scripts a request calls, and the syntax of each nested
+sentence with its captures as placeholders; a function is checked once per argument types, and
+the pass visits at most 200,000 nodes, so no script costs the surface or the daemon more than a
+bounded check. Evaluation is the last pass. Nothing is compiled to machine code: a script's cost
+is reading sources and embedding, not instructions.
+
+\begin{algorithm}[t]
+\caption{Metered evaluation of a script into a plan (\code{core/sentence/interpret.py}).}
+\label{alg:eval}
+\footnotesize
+\begin{algorithmic}[1]
+\Require a script $S$, a role $r$, a view $V$ of the store (the table's readers), a meter $m$ with the role's budget
+\Ensure a plan: an ordered list of effects with their content resolved; nothing read is written
+\State $\mathit{plan} \gets [\,]$; bind the parameters in a fresh scope
+\ForAll{statements $t$ of the body, in order}
+  \State $m.\mathrm{charge}(\mathit{step})$ \Comment{out of budget raises; the plan is dropped}
+  \If{$t$ is \code{let} $n$ = $e$} bind $n$ to $\mathrm{Eval}(e)$ in the current scope
+  \ElsIf{$t$ is \code{for} $n$ \code{in} $e$ \{\,body\,\}} evaluate each turn in an inner scope
+  \ElsIf{$t$ is \code{fn}} bind a closure over the scope as it stands, its own name unbound
+  \ElsIf{$t$ is \code{store} $e$ [\code{at} $p$] [\code{as} $i$] \code{in} $k$ [\code{titled} $u$]}
+    \State $v \gets \mathrm{Eval}(e)$
+    \If{$v$ is content} keep its bytes, label and origin
+    \ElsIf{$v$ is a string or integer} $v \gets \langle \mathrm{bytes}(v), \mathit{observed}, \mathrm{none}\rangle$
+    \EndIf
+    \State $p \gets$ the given path, else $v$'s origin path, else refuse
+    \State naming $\gets$ \emph{prop} if $i$ was read as an item's declared id; \emph{held} if read off an entry; \emph{named} if composed; else \emph{own}
+    \State $m.\mathrm{charge}(\mathit{effect})$; append $\mathrm{StoreEff}(p, v, k, \mathrm{naming}, u)$ to $\mathit{plan}$
+  \ElsIf{$t$ is \code{retire}, \code{link} or \code{run}} charge \emph{effect}; append the effect
+  \EndIf
+\EndFor
+\State \Return $\mathit{plan}$
+\Statex
+\State \textsc{Eval}($e$) charges \emph{step} per node, \emph{item} per item as \code{files} or \code{items} yields it, \emph{kib} per kibibyte of content crossed, \emph{entry} per entry \code{stored} reads, by size for \code{+}, \code{in} and comparisons, and \emph{query} for a nested sentence (capped at 32 KiB); a field or element of an item keeps the item's label and origin, and any operation on an item's string yields a plain string
+\end{algorithmic}
+\end{algorithm}
+
+\Cref{alg:eval} is the evaluator. The values labels ride on are held by the evaluator and never
+by a script: \code{Content} (bytes, label, origin) and \code{OStr}, a string read off an item
+or an entry that keeps the item's origin, every operation on which returns a plain string.
+
+\begin{algorithm}[t]
+\caption{Landing a plan, effect by effect, the key last (\code{core/ingest/writer.py}).}
+\label{alg:land}
+\footnotesize
+\begin{algorithmic}[1]
+\Require a plan, a role $r$, the table $T$, the stores, a predicate $\mathit{has}$ (whether a source still has a path)
+\Ensure one outcome per effect: landed, unchanged, retired, linked, queued, or refused with the rule
+\State \textbf{price:} charge \emph{write} for each effect that is not a store found unchanged; chunk the distinct bytes of the stores, ask the plane which atoms it holds in the classes the role reads, charge \emph{embed} per atom it does not
+\ForAll{effects $e$ in order}
+  \If{$e$ is a store of content $c$ at $p$ in place $k$}
+    \State refuse R1 if $k$ is unknown or $c$ is oversize
+    \State refuse R2 if $c$'s label is not observed and $c$ is not an item's own bytes under the item's title, or $k$ does not accept the label
+    \State refuse R3 unless $T.\mathrm{may\_write}(r, k, p)$ \Comment{the path normalized}
+    \State refuse R4 if $c$ came from an item at a path other than $p$
+    \State refuse R8 if $p$ belongs to a source and $c$ is not that source's item
+    \State refuse R5 if the catalog holds $p$ under another label
+    \State resolve the identity by R6 if $p$ is new (own, declared, or held at a vanished path with the same bytes and label, within one source; a composed name is refused)
+    \If{the catalog holds $p$, active, at $c$'s digest and label, and the plane holds its rows at $p$, current} \textbf{outcome} unchanged
+    \EndIf
+    \State add the raw object; embed and land the chunk rows in the plane; append a version if $k$ keeps chains and the digest is not the head; attest once per (action, digest)
+    \State record the catalog digest for $p$ \Comment{the key, last}
+  \ElsIf{$e$ is a retire of $p$ in $k$}
+    \State refuse R3 unless $T.\mathrm{may\_retire}(r, k, p)$; refuse R7 if nothing active is held, the label is not one the role retires, or $p$'s source still has it
+    \State delete $p$'s rows from the plane; tombstone $p$ in the catalog \Comment{the key, last}
+  \ElsIf{$e$ is a link} refuse R5 if an authored edge holds the pair; add an interpreted edge
+  \ElsIf{$e$ is a run of job $j$} refuse R1 if the plan already started $j$ or the role's lane is full; enqueue $j$ under the role, or return the job this request already started
+  \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\Cref{alg:land} is the writer. It takes no lock of its own: the daemon runs its jobs one at a
+time on the supervisor's thread, and every request, every library job and the inbox's capture
+land through it. A store that lands writes, in order, the raw object, the plane's chunk-level
+amendment, the version chain if the place keeps one, the attestation, and last the catalog's
+digest; the version row is appended only when its digest is not the chain's head and the
+attestation is emitted once per action and digest, which is what makes the stages before the
+key idempotent at the ledger grain (\Cref{thm:ing7}).
+
+\begin{algorithm}[t]
+\caption{The drain, the handler and the legacy takeover (\code{scheduler/ingress.py}, \code{core/ingest/ingress.py}).}
+\label{alg:drain}
+\footnotesize
+\begin{algorithmic}[1]
+\Procedure{EnsureSpools}{}
+  \State make \code{<handoff>/ingress/<role>/\{queued,receipts,rejected\}} with their modes, only under the daemon's own account
+  \State \textbf{adopt legacy:} if the previous spool root passes \textsc{CheckDir}, for each role spool and inner directory that passes it: read each file named as a request id through a descriptor (no link, regular, one link, under the cap); a receipt, staged copy or rejected file must be the daemon's own, a pending request must pass the drain's trust check; rename it into the new spool unless the name exists; report anything else once
+  \State \Return the roles whose root, spool and three directories pass \textsc{CheckDir}
+\EndProcedure
+\Procedure{Drain}{queue, router, cfg}
+  \ForAll{requests $(f, q)$ pending in the sound spools, at most 64 a tick and 32 a role}
+    \State reject $f$ if its id was seen
+    \State compile $q$ under the grant of the spool's role $r$ \Comment{the role is the directory, never a field}
+    \State on refusal: receipt \emph{refused}, unlink $f$, continue
+    \State refuse as busy if the role's lane (interactive or bulk) holds its share
+    \State stage the daemon's own copy in \code{queued/}; enqueue a job naming the role, the id and the sentence's digest; receipt \emph{queued} with the job id; unlink $f$
+  \EndFor
+\EndProcedure
+\Procedure{Handle}{job}
+  \State skip if a receipt already says \emph{landed} or \emph{refused}
+  \State read the staged request; refuse unless its digest and kind are the job's
+  \State compile again under the role's grant \Comment{the second check, the one that counts}
+  \State evaluate (\Cref{alg:eval}) and land (\Cref{alg:land}); receipt the outcomes and the work charged; discard the staged copy on a terminal receipt
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Spools.}
+A surface compiles a sentence under its grant and, if admissible, writes a request into its
+role's spool under the interface handoff directory: the operator's spool \code{0700}, the
+agents' spool \code{3770} under a dedicated group and \code{0700} otherwise, and beneath each
+\code{queued/} and \code{rejected/} the daemon's alone. A request is JSON holding a sentence and
+an id of sixteen hex digits that is also the file's name; its text never enters the queue, whose
+payload is the role, the id and the sentence's digest. \Cref{alg:drain} shows the drain, the
+handler and the takeover. The daemon trusts a request only as read through a descriptor that
+follows no link and blocks on nothing: a regular file with one link under 64 KiB, written, in
+the operator's spool, by the daemon's own account. A forged request is bounded by the spool it
+sits in; a request in no spool is nothing.
+
+\paragraph{The takeover.}
+The machinery was renamed while a previous version ran, so the renamed code may find state the
+previous version stored: a request spooled under the previous directory, a queue payload naming
+its role under the previous key, rows minted under the previous identity prefix. The first is
+adopted by rename, receipts first (an id seen stays seen), then staged and rejected files, then
+pending requests, only under the drain's own checks; the second is read as the new key; the
+third stays under its identity, never re-keyed, as a retire-only prefix of its role (\ing{15}).
+The first version of the takeover moved any regular file named as a request id from any real
+directory; the handoff directory is group-writable, so a planted receipt, adopted, made a chosen
+id read as already landed with the planter's detail. That was the security audit's medium
+finding; the takeover now makes every check the drain makes. Run on a tree that the previous
+version's own code wrote, with the modes its daemon gives the spools, the takeover adopted
+every receipt, staged copy and pending request and drained the pending ones once, counted the
+job naming its role under the previous key against that role, and left the rows under the
+previous prefix retire-only; the one file it left was a rejected request, the surface's own
+file, writable by its group.
+
+\begin{algorithm}[t]
+\caption{The inbox: record, then land (\code{core/interface.py}, \code{core/ingest/inbox.py}, \code{ingress/capture\_inbox.palace}).}
+\label{alg:inbox}
+\footnotesize
+\begin{algorithmic}[1]
+\Procedure{ProcessOnce}{}
+  \ForAll{request files in the handoff \code{requests/} directory}
+    \State read the file through a descriptor; remove it unanswered unless its id is 32 hex digits and is the file's name
+    \State ask the responder for a reply and whether the exchange is kept \Comment{never what is in it}
+    \If{kept}
+      \If{the file's owner is not the inbox's own account or the handoff directory's owner, or it has a second link} answer and do not keep
+      \Else{} write the record \code{<data>/inbox/<id>.json} (text and reply in fields of their own) to a temporary name, fsync, rename; on failure say so in the reply
+      \EndIf
+    \EndIf
+    \State write the response; remove the request
+  \EndFor
+\EndProcedure
+\Procedure{CaptureInbox}{} \Comment{the library script, under the role \code{inbox}}
+  \State \code{for t in items(source("inbox")) \{ store t.content in "dialogue" \}}
+  \State the reader yields two items per record, the text labelled \code{authored-dialogue} and the reply \code{observed}, at \code{dialogue/inbox/<conversation>/<id>/\{owner,ambassador\}}, only from records the daemon's account wrote in a directory it alone writes; a record both of whose items landed or were unchanged is removed
+\EndProcedure
+\State \textbf{who lands:} the daemon's inbox job after each drain; a record directory watcher and a start-up catch-up enqueue the coalescing \code{inbox\_capture} job when records wait; a terminal client lands in its own process only while no daemon is live, read from the run ledger
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{The inbox.}
+\Cref{alg:inbox} is the record-then-land path. The request file is the only copy of the
+person's words on disk and the inbox consumes it, so the inbox writes what it keeps of the
+exchange to its own record (\code{0700}, each record \code{0600}, written by the inbox's code
+alone) before it writes the response. The table reads the record as the source \code{inbox},
+whose rule makes two items of a record and labels each by the field it was read from. The role
+\code{inbox} has no spool, opens only that source, writes only under \code{dialogue/inbox/},
+retires nothing, and speaks under the assistant's grant, the least the ingress gives. The same
+request handled twice writes the same record, whose text lands unchanged and whose reply, if
+the second answer differs, replaces the observed row at its path with its label kept (R5). The
+dialogue handoff readers, which also may yield authored items, are read under the same checks,
+and the edge readers write their handoffs \code{0600} in directories made \code{0700}, whatever
+the umask.
+
+\section{Evaluation}
+
+\subsection{What is proved}
+
+\Cref{tab:laws} lists the laws of family XII with their declarations. The Lean gate
+(\code{formal/check.sh}) builds the library with warnings as errors, runs the attacks, lints,
+holds the \code{sorry} count at zero, refuses any axiom escape, replays every declaration from
+nothing through Lean's kernel and five independent checkers, and judges each theorem against
+its specification statement by a comparator. On this branch the gate is green: 286 statements
+judged identical to their specification, 55,411 declarations replayed by the six kernels, the
+three standard axioms and no other.
+
+\begin{table}[t]
+\centering\footnotesize
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.07\textwidth}>{\raggedright\arraybackslash}p{0.35\textwidth}>{\raggedright\arraybackslash}p{0.50\textwidth}}
+\toprule
+law & statement & declarations \\
+\midrule
+\ing{1} & admissible iff a granted plane above the scope carries the write bit & \lean{command\_admissible\_iff\_write}, \lean{readonly\_admits\_no\_command} \\
+\ing{2} & a keyed closure operator: extensive, monotone, idempotent & \lean{ingest\_extensive}, \lean{ingest\_monotone}, \lean{ingest\_idempotent} \\
+\ing{3} & distinct identities commute; a batch re-run lands nothing & \lean{ingest\_comm}, \lean{ingest\_batch\_perm}, \lean{batch\_idempotent} \\
+\ing{5} & embeds are exactly the atoms the plane lacks & \lean{embeds\_eq\_zero\_iff}, \lean{embeds\_share}, \lean{embedsBatch\_eq} \\
+\ing{6} & the receipt is complete and never over-claims & \lean{receipt\_complete}, \lean{receipt\_head}, \lean{receipt\_rows\_subset} \\
+\ing{7} & key last converges; any earlier key does not & \lean{ingest\_prefix\_converges}, \lean{ingest\_after\_nonkey}; controls \lean{key\_first\_does\_not\_converge}, \lean{key\_early\_does\_not\_converge} \\
+\ing{8} & one identity lands in chain order; two orders give two chains & \lean{same\_identity\_orders\_the\_chain}, \lean{same\_identity\_not\_comm} \\
+\ing{9} & any order of steps on distinct identities lands the batch & \lean{run\_perm\_of\_disjoint}, \lean{stepsOf\_comm} \\
+\ing{10} & conflict-serializability by identity & \lean{run\_eq\_of\_cls\_filter}, \lean{serializable}, \lean{serializable\_landsOf}; controls \lean{serializable\_needs\_the\_order}, \lean{early\_guard\_skips} \\
+\ing{11} & parallel crash points converge; on one identity only the tail re-runs & \lean{batch\_after\_prefixes}, \lean{batch\_after\_interrupted}; controls \lean{prefixes\_need\_distinct\_identities}, \lean{rerun\_whole\_batch\_diverges} \\
+\ing{12} & readers need no lock & \lean{sound\_prefix}, \lean{sound\_after\_prefixes}; control \lean{key\_first\_unsound} \\
+\ing{13} & no expression raises a label & \lean{label\_eval}, \lean{origin\_eval}, \lean{bytes\_eval}, \lean{root\_of\_label\_ne} \\
+\ing{14} & the firewall & \lean{firewall\_store}, \lean{firewall\_plan} \\
+\ing{15} & confinement to written and retire-only namespaces & \lean{confined}, \lean{confined\_store} \\
+\ing{16} & every plan is a batch with the key last & \lean{plan\_converges}, \lean{plan\_sound} \\
+\ing{17} & labels and identities fixed; paths belong to sources & \lean{label\_fixed}, \lean{identity\_moves\_with\_bytes}, \lean{owned\_by\_source}, \lean{retire\_reconciles} \\
+\ing{18} & type soundness for labels & \lean{label\_typed}, \lean{label\_typed\_of\_subset} \\
+\bottomrule
+\end{tabular}
+\caption{Family XII and its Lean declarations (\lean{Palace.Ingress} for \ing{1} to \ing{12}, \lean{Palace.Script} for \ing{13} to \ing{18}). \ing{4}, one writer for every mutation, is checked by an import ratchet, not proved.}
+\label{tab:laws}
+\end{table}
+
+\paragraph{Attacks and controls.}
+The keyed model is attacked on exact finite shadows (seeds 245 to 272): rows over
+$\mathrm{Fin}\,4$, two or three identities, two digests, chains as lists, keys unset or held.
+Every attack survived, four of them over 494 or 495 generated instances; each of the eleven
+controls was refuted within six instances, among them an ingest that always appends a version,
+a run that writes its key first or after the plane's rows as the audited code did, a schedule
+that swaps two versions of one note, and a serial run on one identity re-run whole. The language
+model is attacked on seeds 273 to 287 and 368 to 373: bytes over $\mathrm{Fin}\,4$, three labels, three paths,
+views as lists, a writer's state decoded from a list of codes, a role that only retires at one
+path. Every attack survived, five over all 500 instances and the others over 156 to 489; the
+twelve controls were each refuted within 130 instances and most within thirteen: a construction
+that keeps the label of what it was built from, a writer without R4, R6, R7, R8 or the namespace,
+confinement stated with one namespace, a store into the retire-only namespace, a type rule that
+gives a construction no label. The inbox has a shadow of its own (seeds 371 to 373): every
+authored row a store lands is the person's message at its own path; its two controls take out
+the bright line's premises, a label a script could claim and a rule that labels the reply
+authored. The second is the point: the model takes the source's rule as given, and what defends
+the rule is the test suite.
+
+\subsection{The audits}
+
+Seven read-only audits ran on the two forms and the inbox, each with findings folded in and a
+test for each fix. \Cref{tab:audits} summarizes them by class.
+
+\begin{table}[tp]
+\centering\footnotesize
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.22\textwidth}>{\raggedright\arraybackslash}p{0.72\textwidth}}
+\toprule
+audit & findings and how they closed \\
+\midrule
+design review of the first form (19) & three code defects: the key before the attestation and the version row in two lanes, no key in the curated lane, no provenance in the edge store's key. The first two fixed by the landing order with a crash-injection test; the third carried as the link rule (R5). \\
+proof audit of the first model & the model was keyless, so \ing{7} held of the old order too; replaced by the keyed model and its key-first and key-early controls. \\
+security review of the ingress (15) & an allow-list evaluated once per daemon lifetime; identities taken from the sentence; ids as file content spliced into paths; a drain a malformed file, a FIFO or a flood could stop; spools made under the surface's umask; no request cap; a job's kind decided on one sentence and the work done on another; a scope bypass; corpus text in the log and the receipts; a grant selector; over-claiming receipts; deletion in unknown directories. Twelve fixed with a test each; three recorded as design calls. \\
+second review (14) & \code{2770} spools letting the agents' account speak as the operator; narrowed web tools bypassed through the one read tool; one quota for two lanes; trust checks on a path, not an open file; command text in the log; a crash mid-landing losing a request; roles with no writer; a surface-made spool; the drain raising; copies never pruned; a failed reader receipted landed; a resolved path forking an identity; misaimed tests. Thirteen fixed; a double run across the enqueue window recorded. \\
+third review (14) & a rescan deleting rows it did not own (pre-existing); the curated key blocking repair after a plane reset; a scope spelled in one case on a case-insensitive disk; an edge reader missing under the service manager's path; a rename and an empty identity property forking chains; a request accepted then rejected with no receipt; a directory named like a request; any account making the spools; receipts naming other landings; a crashing job requeued forever; aliases changing behaviour; tests passing on wrong code. Eleven fixed; inherited ACLs, a revert's lost attestation and load from coalescing syncs recorded. \\
+second form, three audits (15) & six high: a string read off an item stored under its label; a script's title on an authored row; the checker's cost per call site; work the meter did not see; an agent retiring the person's turns; a started job escaping the quotas. Eight medium: identity grafts through any field, the heartbeat's mark moved by any read, a sibling directory as the vault, two vault scopes, a blank identity property, two laws claiming more than their proofs, mutations no test caught. The rest lower; all fixed but three design calls. \\
+inbox review (3); the audit of four branches & handoffs read with no ownership check (five planted cases landed as authored before; fixed, the inbox's record read the same way); a client landing beside a live daemon (fixed: the daemon lands what the client keeps); a traversal in the response file (fixed). The branch audit: one medium, the takeover trusting the tree's shape (six planted cases adopted before, none after; fixed); one low, the single-account record directory (recorded). Its conclusion: no principal can land text as the person's authored dialogue. \\
+\bottomrule
+\end{tabular}
+\caption{The audits, by class, and how each finding closed.}
+\label{tab:audits}
+\end{table}
+
+\subsection{Gas: the prices and how they were measured}
+
+Prices are measured, never assumed. The harness \code{eval/ingress\_gas.py} builds a store under
+a temporary directory with 300 notes of 120 bytes and 300 of 32 KiB, opens nothing else, and
+times scripts with the evaluator under a budget that never runs out; each figure is the median
+of seven runs on a warm page cache. The unit is one charged \emph{step}: a nested loop of
+literal lists whose body is one \code{let}, divided by the steps charged. The item and kibibyte
+prices come from reading both vaults with \code{files}, less the steps charged, solving two
+linear equations; the entry price from \code{stored} over 300 catalog entries; the effect price
+from a \code{store} per note against a \code{let} per note, plus the writer's two checks of a
+store found unchanged; the write price from a first landing into temporary stores with an
+embedder that returns at once, less the second landing's checks; the embed price, taken
+separately, from the store's embedding model on a loopback server, one request a note over ten
+notes' chunks. \Cref{tab:gas} gives the prices in force, rounded to two figures; the
+\code{query} price is a floor, not a measurement. The budgets are the operator's
+$5 \times 10^{10}$ (about four hours of measured work), the assistant's $10^{8}$ (about thirty
+seconds; a capture is under one million), and the inbox role's the operator's. A request that
+lands spends almost all of its budget on embeds and writes; the evaluator's own work is under
+one percent of a first sync.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{llll}
+\toprule
+operation & price (steps) & measured & what it prices \\
+\midrule
+\code{step} & 1 & 0.30 $\mu$s & a statement, an expression node, a loop's turn \\
+\code{item} & 270 & 81 $\mu$s & a note opened and parsed \\
+\code{kib} & 75 & 23 $\mu$s & a kibibyte of an item's content read \\
+\code{entry} & 22 & 6.6 $\mu$s & a place's entry read from the catalog \\
+\code{effect} & 10,000 & 3.2 ms & an effect evaluated and checked twice by the writer \\
+\code{write} & 140,000 & 42 ms & a store that lands, its embeds apart \\
+\code{query} & 360,000 & not measured & a nested read sentence: one embed as its floor \\
+\code{embed} & 360,000 & 109 ms & a chunk embedded by the store's model \\
+\bottomrule
+\end{tabular}
+\caption{Gas prices, measured on 2026-11-05 (300 notes, median of seven runs).}
+\label{tab:gas}
+\end{table}
+
+\subsection{Tests, and tests that fail on mutated code}
+
+The deterministic tier passes with 3,478 tests; the type checker reports exactly the 67
+baseline errors of the test tree, two fewer than before, the two having been typed against the
+retired capture code; the floors of the first-party packages are at zero. The ingress's own
+files hold 139 tests. Several are built to fail on a specific mutation:
+\begin{itemize}
+\item \emph{The inbox's rule.} The oracle (the person's text authored at its path, the reply
+  observed at its) is run against three mutants of the source's label rule: every item authored,
+  the two labels swapped, and a rule the reply can steer by a prefix of its text. Each mutant is
+  caught, and the table's rule passes on a fresh store.
+\item \emph{Crash injection.} A capture that dies at the plane's rows, at the attestation, or at
+  the key leaves its record; the next run lands the text once, attests once, and removes the
+  record. The landing-order tests inject a crash before the key in the vault and capture lanes;
+  on the code before the fix they fail.
+\item \emph{Planted handoffs.} A dialogue handoff another account wrote, one its group may
+  write, one in a group-writable directory, a symlink and a file with a second name: each is
+  refused with the source, and each landed a planted turn as authored on the old reader.
+\item \emph{Planted legacy trees.} A receipt or a request planted in a previous-version spool
+  whose root, role directory, inner directory or file another account could write: none is
+  adopted; the takeover before the fix adopted all six. A tree the previous version's own code
+  made, with its daemon's modes, is adopted whole: a takeover that refused the agents'
+  group-writable spool fails that test and passed every earlier one.
+\item \emph{No script lands model text as authored.} An authored place refuses composed text at
+  check time (R2); the inbox source is not the assistant's to open; a store under the inbox's
+  space is refused for the assistant (R3) and, as composed text, for the inbox role (R8); the
+  reply's bytes at the person's path are refused (R4); at the assistant's own prefix what it
+  stores is observed. A planted second writer in the queue's source reddens the import ratchet.
+\end{itemize}
+
+\section{Limitations}
+
+\paragraph{Checks at load and drain time.}
+The spool directories are checked each tick and a request is read through a descriptor, so a
+file swapped after the check is not the one read; but inherited ACLs are not checked, and the
+handoff directory is group-writable by design, so the drain's trust rests on the modes beneath
+it. Where the agents share the daemon's account, as on the machine this was built on, the
+filesystem cannot tell an agent's process from the daemon's, and neither can any store.
+
+\paragraph{The single-account record directory.}
+The inbox's record is the daemon's account's alone, and a terminal client that runs the inbox in
+its own process writes the same directory; under different accounts, whichever made the
+directory first would lock the other out, failing closed. The intended split hands the client's
+message to the daemon's inbox as a request instead.
+
+\paragraph{What is not modelled in Lean.}
+The keyed model has no reads, so the moment a guard reads the key is outside it (\ing{10}'s
+scope); the queue keeps the hypothesis by running commands on one identity whole, one after
+another. The plane's lock, the plane's supersession order on one path, the \code{held} cache
+that only a repair rebuilds, the catalog's \code{active} flag, and the reconciled catalog the
+readers go through are outside the model. Three crash windows in the code stay outside
+\ing{7}: a crash inside a rename's landing appends its version twice, one between a revert's
+version row and its attestation loses that attestation on re-run, and a re-run does not repair
+a stale \code{held} cache, though a land now writes the cache's additions before its
+transaction, so a crash leaves only excess entries, which change no search. A delegated
+coalescing kind may run twice across the window between
+its enqueue and the removal of the request. The script model takes the source's rule as given;
+that the rule labels authored only the person's messages is the table's code and the inbox's,
+defended by tests, not by proof. \ing{4} is a ratchet, not a theorem. The gas prices are one
+machine's and one embedding model's; the static cost bound is not built. The laws that license
+parallel dispatch are proved, and the dispatcher runs jobs one at a time.
+
+\section{Future work}
+
+\paragraph{A parallel dispatcher on disjoint identities.}
+A job's identities can be read off its plan before dispatch; the dispatcher may then run the
+highest-priority queued command and every further one whose identities meet none of the running
+set, a greedy independent set by priority, with commands on one identity run whole, in queue
+order, so every guard reads the serial key. \ing{9}, \ing{10} and \ing{11} are the laws it
+needs, and they are proved.
+
+\paragraph{A retire step in the keyed model.}
+The writer retires with the key last and the script model lands a retire as an inactive row,
+but the keyed model's steps are rows, landing and key only; a retire step would let \ing{7} and
+\ing{11} be stated for plans with retires rather than for their stores.
+
+\paragraph{Principals per role.}
+The spools were designed for a principal per role; today one group stands in. With the agents
+under an account of their own, the operator's spool is theirs alone, the agents' spool is
+writable by that account only, and the terminal client hands its messages to the daemon as
+requests. Pricing the read verbs in the same unit would then let one budget cover a sentence's
+read and write halves.
+
+\section{Conclusion}
+
+Ingestion into a labelled store is one interpreted language, a declarative table and one writer.
+The language cannot name a label, so a label other than observed is always a source item's,
+carried by projections alone; the writer's rules give a firewall, confinement and fixed labels
+and identities as theorems over plans; and every store is a command of a keyed model whose key
+is written last, so interrupted runs converge, earlier key positions provably do not, readers
+need no lock, and parallel runs on distinct identities converge from any crash point. An inbox
+for an assistant's conversations lands the person's text as authored and the reply as observed
+by the field each was read from. The laws are machine-checked and attacked, the prices are
+measured, and the tests fail on the mutations the audits taught us to fear.
+
+\renewcommand{\bibfont}{\footnotesize}
+\setlength{\bibsep}{3pt}
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
