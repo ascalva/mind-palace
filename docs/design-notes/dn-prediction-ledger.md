@@ -5,7 +5,7 @@ track: scored-beliefs
 status: draft                  # provenance description, never a gate; the owner's merge is ratification
 implementation: built          # G1-G6 built 2026-11-05 in eval/predictions/; each experiment's sources, arms and schedule are its application's (G7)
 created: 2026-11-05
-updated: 2026-11-05
+updated: 2026-11-06
 links:
   - docs/design-notes/scored-beliefs-and-earned-entitlement.md  # the parent: BL-1 the record, BL-2 resolution, BL-4 machinery not corpus, BL-5 binary scoring and the computed track record
   - docs/design-notes/prediction-castles.md                     # the dreamer's supersession forecasts: one kind of prediction this ledger records
@@ -41,6 +41,7 @@ questions, Brier, the minimum track record computed rather than guessed).
 - **G5** scoring, the controls and blinding.
 - **G6** variants and pinned arms.
 - **G7** what an application supplies.
+- **G8** the growth readout: the ledger's log scores read as a holding.
 
 ### 1.2 Out of scope
 
@@ -176,6 +177,42 @@ a silent change to an arm the comparison depends on.
   its own (DI-2, §4).
 - Optionally, a family in which no skill should be possible. Skill there is read as leakage first.
 
+### G8. The growth readout
+
+`python -m eval.predictions growth`. The owner asked, on 2026-11-06, whether a path to a large
+multiple of a starting holding exists through many small decisions rather than one large move
+(`docs/brainstorms/growth.md`, verbatim). The answer is a theorem about what the ledger already
+scores, and the readout computes it.
+
+A proportional stake against the reference arm multiplies a holding by `p/r` when a question
+resolves yes and by `(1 − p)/(1 − r)` when it resolves no, for the arm's forecast `p` and the
+reference's `r` (the probabilities the log score reads, clipped to the protocol's bound). Over the
+scored pairs, in the order their outcomes became known, its log growth is exactly the cumulative
+log-score advantage of the arm over the reference (GRW-1, `docs/LAWS.md` family XIII, proved in
+`formal/Palace/Growth.lean`), so the readout is the ledger's two log scores read as a holding, and
+a path to `N×` exists iff that advantage reaches `log N` (GRW-4). The design theorems say the
+rest: the expected advantage of a question is `KL(q‖r) − KL(q‖p)` for the truth `q`, positive iff
+the forecast is closer to the truth than the reference (GRW-2); among constant fractions the
+proportional one maximizes the expected log growth (GRW-3); every factor is positive, so the
+holding never reaches zero (GRW-5); and with independent, identically distributed outcomes the
+time-average advantage converges almost surely to the expected one, so a positive expected
+advantage grows the holding without bound and a negative one sends it to zero (GRW-6).
+
+What the readout reports, per arm against the reference on each family, at the full stake and at
+the fractional stakes `λ ∈ {0.5, 0.25}` (the factor `1 + λ (F − 1)` for each full-stake factor
+`F`, the cautious practice; GRW-1 holds at `λ = 1` only): the growth, the per-pair geometric mean,
+the worst single factor, the largest drawdown of the running product, and the number of further
+pairs at the realized mean advantage before the holding reaches `growth_target` times its start
+(`N`, the protocol's to declare, 10 by default; a reading an amendment may change, since it
+decides nothing).
+
+What it is not. The stake is a thought experiment the scorer computes from the ledger; nothing
+in the palace stakes anything, holds anything or acts on this reading. It says whether a path
+exists given the arm's edge; whether the arm has an edge is what the experiment measures, blinded,
+at its N. So the readout is blinded like the rest: before N the primary comparison's two arms are
+withheld on its family, as `report` withholds the mean, unless the caller unblinds on purpose. A
+null arm, the reference's copy, grows by exactly 1.
+
 ## 3. Falsifiers
 
 - **F-1:** the null arm's paired skill against the reference is not exactly 0. The pairing or the
@@ -216,13 +253,15 @@ The loose work on a second instance is `feat/podman-bench` (six commits on 31087
 - **Built:** `eval/predictions/` (G1 to G6) and `python -m eval.predictions
   {verify,head,power,score}`. The tests were checked against five mutations (no close check,
   late predictions scored, pairs resampled instead of clusters, no blinding, pins ignored); each
-  turns a test red.
+  turns a test red. G8 (`growth`) followed on 2026-11-06, with GRW-1 proved before it was
+  written and its identity checked on random ledgers against a mutated factor.
 - **Next, per application:** its protocol, sources, arms and schedule, outside this feature.
 - **Later:** BL-3's attribution replay and BL-6's dossiers over this ledger. The castles' forecasts
   (`dn-prediction-castles` PC-1) land here as predictions whose truth condition is a later
   version; PC-3's registration and the Brier score read the same pair.
 - **Parked:** proving the scores' strict properness and the Murphy identity in Lean (design
-  theorems; textbook results, nothing in the code relies on them yet).
+  theorems; textbook results, nothing in the code relies on them yet). GRW-2's Gibbs inequality
+  is the log score's strict properness in the growth reading.
 
 ## Cross-references
 

@@ -4,14 +4,18 @@ never shows which arm is ahead."""
 
 from __future__ import annotations
 
+import json
 import math
 import random
+import tempfile
 from collections.abc import Callable
 from dataclasses import fields, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from eval.predictions.__main__ import main
 from eval.predictions.ledger import (
@@ -30,6 +34,10 @@ from eval.predictions.scoring import (
     Pilot,
     brier,
     cluster_bootstrap,
+    factor,
+    growth,
+    growth_path,
+    growth_report,
     holm,
     known_edge,
     log_loss,
@@ -267,3 +275,135 @@ def test_the_cli_verifies_and_refuses_to_score_before_n(tmp_path: Path,
     assert main(["score", "--ledger", path]) == 2
     led.path.write_text(led.path.read_text().replace('"p":0.', '"p":0.0', 1))
     assert main(["verify", "--ledger", path]) == 1
+
+
+# -- the growth readout (GRW-1) -----------------------------------------------------------------
+
+def ledger_from(path: Path, rows: list[tuple[float, float, bool]], *,
+                protocol: Protocol = PROTOCOL) -> Ledger:
+    """A ledger of one round in which `ref` says `r`, `a` says `p` and the outcome is `o`, per
+    row, each question its own cluster; `b` and `null` copy the reference."""
+    clock = Clock(T0)
+    led = Ledger(path, clock=clock)
+    led.register(protocol)
+    batch: list[Record] = []
+    for i, (r, p, _) in enumerate(rows):
+        qid = f"q{i}"
+        batch.append(Question(qid, "main", "test", qid, "test", CLOSE, f"c{i}"))
+        batch.extend(Prediction(qid, arm, "r1", r) for arm in ("ref", "null", "b"))
+        batch.append(Prediction(qid, "a", "r1", p))
+    clock.at = T0 + timedelta(hours=1)
+    led.extend(batch)
+    clock.at = CLOSE + timedelta(hours=1)
+    led.extend([Resolution(f"q{i}", int(o), CLOSE + timedelta(minutes=i), "test:settled")
+                for i, (_, _, o) in enumerate(rows)])
+    return led
+
+
+probabilities = st.floats(min_value=0.0, max_value=1.0, allow_nan=False)
+
+
+@given(st.lists(st.tuples(probabilities, probabilities, st.booleans()), min_size=1, max_size=25))
+@settings(max_examples=40, deadline=None)
+def test_the_growth_is_the_exponential_of_the_cumulative_log_score_advantage(
+        rows: list[tuple[float, float, bool]]) -> None:
+    """GRW-1 on random ledgers: the product of the factors is exp of the sum of the log-score
+    differences, with the protocol's clip, and each factor is exp of its pair's advantage."""
+    with tempfile.TemporaryDirectory() as tmp:
+        t = table(ledger_from(Path(tmp) / "l.jsonl", rows).entries())
+    clip = t.protocol.log_clip
+    for r, p, o in rows:
+        advantage = log_loss(r, int(o), clip) - log_loss(p, int(o), clip)
+        assert factor(p, r, int(o), clip) == pytest.approx(math.exp(advantage), rel=1e-9)
+    g = growth(t, "main", "a")
+    assert g is not None and g.n == len(rows) and g.stake == 1.0
+    assert g.log_advantage == pytest.approx(
+        sum(log_loss(r, int(o), clip) - log_loss(p, int(o), clip) for r, p, o in rows))
+    assert g.growth == pytest.approx(math.exp(g.log_advantage), rel=1e-9)
+    assert g.growth > 0 and g.worst_factor > 0                       # GRW-5: no ruin
+    assert 0.0 <= g.drawdown < 1.0
+
+
+def test_a_mutated_factor_breaks_the_identity(tmp_path: Path) -> None:
+    """The control: the half stake's growth, and a growth read without the reference, are not
+    the exponential of the cumulative advantage."""
+    rows = [(0.5, 0.8, True), (0.3, 0.2, False), (0.6, 0.9, False), (0.4, 0.7, True)]
+    t = table(ledger_from(tmp_path / "l.jsonl", rows).entries())
+    full = growth(t, "main", "a")
+    half = growth(t, "main", "a", stake=0.5)
+    assert full is not None and half is not None
+    assert half.growth != pytest.approx(math.exp(half.log_advantage), rel=1e-6)
+    clip = t.protocol.log_clip
+    reference_free = math.prod(p if o else 1 - p for _, p, o in rows)
+    assert reference_free != pytest.approx(math.exp(full.log_advantage), rel=1e-6)
+    assert math.prod(factor(p, r, int(o), clip) for r, p, o in rows) == \
+        pytest.approx(full.growth, rel=1e-12)
+
+
+def test_the_growth_path_on_a_hand_sequence() -> None:
+    """Factors 2, 1/2, 2: growth 2, per pair the cube root of 2, worst 1/2, the drawdown the fall
+    from 2 to 1, and seven more such pairs to 10x at the realized mean."""
+    end, geometric, worst, drawdown, to_target = growth_path([2.0, 0.5, 2.0], stake=1.0,
+                                                             target=10.0)
+    assert end == pytest.approx(2.0) and geometric == pytest.approx(2 ** (1 / 3))
+    assert worst == 0.5 and drawdown == pytest.approx(0.5)
+    assert to_target == math.ceil((math.log(10) - math.log(2)) / (math.log(2) / 3)) == 7
+    assert growth_path([2.0, 0.5, 2.0], stake=1.0, target=2.0)[4] == 0
+    assert growth_path([0.5, 0.5], stake=1.0, target=10.0)[4] is None
+    assert growth_path([2.0, 0.5], stake=0.5, target=10.0)[0] == pytest.approx(1.5 * 0.75)
+    with pytest.raises(ValueError, match="GRW-5"):
+        growth_path([2.0], stake=2.0, target=10.0)
+
+
+def test_the_null_arm_grows_by_exactly_one(tmp_path: Path) -> None:
+    led = build(tmp_path / "l.jsonl", clusters=30, arms=FOUR)
+    t = table(led.entries())
+    for stake in (1.0, 0.5, 0.25):
+        g = growth(t, "main", "null", stake=stake)
+        assert g is not None and g.growth == 1.0 and g.drawdown == 0.0 and g.worst_factor == 1.0
+        assert g.log_advantage == 0.0 and g.to_target is None
+
+
+def _shown(out: dict[str, object]) -> set[tuple[str, str]]:
+    readouts = out["readouts"]
+    assert isinstance(readouts, list)
+    return {(g["arm"], g["family"]) for g in readouts}
+
+
+def test_the_growth_readout_withholds_the_primary_comparison_before_n(tmp_path: Path) -> None:
+    led = build(tmp_path / "l.jsonl", clusters=30, arms=FOUR)
+    out = growth_report(table(led.entries()))
+    assert _shown(out) == {("null", "main")}
+    assert out["withheld"] == [{"arm": "a", "family": "main"}, {"arm": "b", "family": "main"}]
+    assert isinstance(out["blinded"], str) and "not fixed" in out["blinded"]
+    led.amend(replace(PROTOCOL, n_clusters=30))
+    out = growth_report(table(led.entries()))
+    assert _shown(out) == {("null", "main"), ("a", "main"), ("b", "main")}
+    assert out["withheld"] == [] and out["blinded"] is None
+    assert out["target"] == 10.0 and out["stakes"] == [1.0, 0.5, 0.25]
+    assert "growth" in report(table(led.entries()))
+
+
+def test_the_growth_cli_reads_the_null_arm_and_withholds_the_rest(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    led = build(tmp_path / "l.jsonl", clusters=10, arms=FOUR)
+    path = str(led.path)
+    assert main(["growth", "--ledger", path]) == 0
+    text = capsys.readouterr().out
+    assert "withheld before N: a on main, b on main" in text
+    assert text.count("\nnull ") == 3 and "\na " not in text
+    assert main(["growth", "--ledger", path, "--unblind", "--json"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert {g["arm"] for g in out["readouts"]} == {"null", "a", "b"} and out["withheld"] == []
+
+
+def test_a_protocol_without_a_growth_target_reads_the_default(tmp_path: Path) -> None:
+    led = build(tmp_path / "l.jsonl", clusters=5, arms=FOUR)
+    assert table(led.entries()).protocol.growth_target == 10.0
+    body = dict(PROTOCOL.body())
+    del body["growth_target"]
+    assert Protocol.parse(body).growth_target == 10.0
+    led.amend(replace(PROTOCOL, growth_target=4.0))      # a reading an amendment may change
+    assert table(led.entries()).protocol.growth_target == 4.0
+    with pytest.raises(ValueError, match="growth_target"):
+        replace(PROTOCOL, growth_target=1.0)
