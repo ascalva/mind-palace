@@ -105,7 +105,10 @@ before the first prediction and stays there.
   withdrew; excluded from every score).
 - **The chain:** each line holds its sequence number, the previous line's hash and its own, the
   sha256 of the canonical JSON of the rest. `verify` recomputes the chain, so an edited, dropped or
-  reordered line fails it.
+  reordered line fails it, and replays every record through the refusal rules below, each against
+  the state the earlier records leave and at the `recorded_at` the ledger stamped (never the wall
+  clock), so a line written outside the append path with its hash recomputed fails too, naming
+  the line and the rule.
 - **The ledger's clock** stamps `recorded_at`. A prediction carries no timestamp of its own, so an
   arm cannot backdate one.
 - **Refusals,** each writing nothing: any record before the protocol; a question already

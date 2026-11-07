@@ -61,6 +61,7 @@ def main(argv: list[str] | None = None) -> int:
             head = ledger.verify()
             print(f"{head.seq} {head.hash}")
         elif args.command == "power":
+            ledger.verify()
             reading = pilot(table(ledger.entries()))
             if args.json:
                 print(json.dumps(_finite({
@@ -76,6 +77,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"clusters needed: {reading.required if reading.required else 'unknown'}")
                 print(f"null control exact: {reading.null_exact}")
         else:
+            ledger.verify()
             out = report(table(ledger.entries()), unblind=args.unblind)
             print(json.dumps(_finite(out), indent=2))
     except LedgerCorrupt as exc:
