@@ -33,17 +33,28 @@ OUROBOROS_REPOSITORY = "s3:s3.us-east-1.amazonaws.com/example-ouroboros-backups"
 NAMED_BASE = "s3:s3.us-east-1.amazonaws.com/example-instance-backups"
 
 
+def _declare(tmp: Path, ids: list[str]) -> None:
+    """Declare exactly these named instances on the host: one overlay each under the config dir's
+    instances/, where the loader looks for every other instance when it loads one."""
+    declared = tmp / "config" / "instances"
+    declared.mkdir(parents=True, exist_ok=True)
+    for old in declared.glob("*.toml"):
+        old.unlink()
+    for iid in ids:
+        (declared / f"{iid}.toml").write_text(f'[instance]\nid = "{iid}"\n'
+                                              f'[backup]\nrepository = "{NAMED_BASE}/{iid}"\n')
+
+
 def _namespaces(tmp: Path, instance_id: str | None) -> loader.Namespaces:
-    """N(instance) from the real loader: Ouroboros's when `instance_id` is None."""
+    """N(instance) from the real loader, Ouroboros's when `instance_id` is None. A named load also
+    checks itself against every other declared instance (`_declare`)."""
     with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(loader, "_CONFIG_DIR", tmp / "config")
         mp.setattr(loader, "_INSTANCE_OVERLAY", tmp / "ouroboros.toml")
         mp.setattr(loader, "LEVERS_OVERLAY", tmp / "levers.toml")
         mp.delenv(loader.OVERLAY_ENV, raising=False)
         if instance_id is not None:
-            overlay = tmp / f"{instance_id}.toml"
-            overlay.write_text(f'[instance]\nid = "{instance_id}"\n'
-                               f'[backup]\nrepository = "{NAMED_BASE}/{instance_id}"\n')
-            mp.setenv(loader.OVERLAY_ENV, str(overlay))
+            mp.setenv(loader.OVERLAY_ENV, str(tmp / "config" / "instances" / f"{instance_id}.toml"))
         return loader.namespaces_of(loader.load_config())
 
 
@@ -62,6 +73,7 @@ def _the_property(tmp: Path, *, min_named: int, shrink: bool = True) -> Callable
     @settings(max_examples=40, deadline=None, database=None, phases=phases)
     @given(st.lists(IDS, min_size=min_named, max_size=3, unique=True))
     def holds(ids: list[str]) -> None:
+        _declare(tmp, ids)                    # side by side: each load checks the others too
         of = {loader.OUROBOROS: _namespaces(tmp, None)}
         of |= {i: _namespaces(tmp, i) for i in ids}
         _disjoint(of)
@@ -71,6 +83,12 @@ def _the_property(tmp: Path, *, min_named: int, shrink: bool = True) -> Callable
 
 def test_the_namespace_map_is_injective_and_ouroboros_reserved(tmp_path) -> None:
     _the_property(tmp_path, min_named=1)()
+
+
+def test_the_namespace_map_is_injective_over_pairs_of_named_ids(tmp_path) -> None:
+    """At least two named instances declared on one host: every pair of them is disjoint, and the
+    loader, which checks each against all the others, loads every one."""
+    _the_property(tmp_path, min_named=2)()
 
 
 def _ignore_the_id(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -139,8 +157,20 @@ def test_control_a_broken_derivation_fails_the_property(monkeypatch, tmp_path, b
 def test_control_the_loader_refuses_the_hazard_itself(monkeypatch, tmp_path, break_it) -> None:
     break_it(monkeypatch)
     (tmp_path / "ouroboros.toml").write_text(f'[backup]\nrepository = "{OUROBOROS_REPOSITORY}"\n')
+    _declare(tmp_path, ["bench"])
     with pytest.raises(loader.InstanceOverlayError, match="would share"):
         _namespaces(tmp_path, "bench")
+
+
+def test_control_the_loader_refuses_two_named_instances_one_derivation(monkeypatch,
+                                                                       tmp_path) -> None:
+    """With the id ignored, two declared named instances collide with each other though neither
+    touches Ouroboros: the loader, checking each against the other, refuses."""
+    _ignore_the_id(monkeypatch)
+    (tmp_path / "ouroboros.toml").write_text(f'[backup]\nrepository = "{OUROBOROS_REPOSITORY}"\n')
+    _declare(tmp_path, ["one", "two"])
+    with pytest.raises(loader.InstanceOverlayError, match="would share these with 'two'"):
+        _namespaces(tmp_path, "one")
 
 
 @settings(max_examples=60, deadline=None, database=None)
