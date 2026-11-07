@@ -2,7 +2,7 @@
 
     uv run python -m eval.scale.study EDGES.csv OUT_DIR --first 7305 --last 20000 --step 365.25
 
-writes `cuts.csv` (size, degrees, spectrum, relaxation time, required window), `boot.csv` (bootstrap
+writes `cuts.csv` (size, degrees, spectrum, relaxation time, SCL-1 window), `boot.csv` (bootstrap
 interval widths per scheme and fraction) and `hodge.csv` (flow energies with bootstrap widths).
 """
 
@@ -31,14 +31,29 @@ from eval.scale.spectrum import cut_stats
 FRACTIONS = (0.25, 0.4, 0.55, 0.7, 0.85)
 
 
-def required_window(gamma: float, precision: float = 0.1, rel_std: float = 1.0) -> float:
-    """Steps of the walk needed to average an observable to relative precision `precision`.
+#: Laziness of the walk x -> (1 - eps L) x. It needs eps * lambda_max <= 1, and the normalized
+#: Laplacian's spectrum lies in [0, 2], so 1/2 is the largest admissible value.
+LAZINESS = 0.5
 
-    For a reversible chain with spectral gap `gamma`, the variance of the time average over T
-    steps is at most 2 Var_pi(g) / (gamma T) (the standard asymptotic-variance bound). With
-    relative standard deviation `rel_std` = sd / mean under the stationary law, a relative
-    standard error `precision` needs T >= 2 rel_std^2 / (gamma precision^2).
+
+def required_window(
+    gamma: float, precision: float = 0.1, rel_std: float = 1.0, laziness: float = LAZINESS
+) -> float:
+    """Lazy-walk steps T needed to average an observable to relative precision `precision`.
+
+    SCL-1 (docs/design-notes/dn-scale-and-attribution.md, `formal/Palace/Scale.lean`): for the
+    lazy walk with laziness `eps` on a connected support with gap `gamma`, the variance of the time
+    average of a field read along the walk over T steps is at most 2 sigma^2 / (eps gamma T). With
+    relative standard deviation `rel_std` = sigma / mean, a relative precision `delta` needs
+    T >= 2 rel_std^2 / (eps gamma delta^2) lazy steps. `eps` is the laziness, `delta` the precision.
     """
+    return 2.0 * rel_std**2 / (laziness * gamma * precision**2)
+
+
+def required_window_continuous(
+    gamma: float, precision: float = 0.1, rel_std: float = 1.0
+) -> float:
+    """The same window in continuous time, T_c = eps T = 2 rel_std^2 / (gamma delta^2)."""
     return 2.0 * rel_std**2 / (gamma * precision**2)
 
 
@@ -105,7 +120,7 @@ def run(
         wc, wb, wh = csv.writer(fc), csv.writer(fb), csv.writer(fh)
         wc.writerow(
             ["cut", "n", "m", "mean_deg", "min_deg", "deg_over_logn", "mindeg_over_logn",
-             "gamma", "relax_steps", "window_10pct"]
+             "gamma", "relax_cont", "relax_lazy", "window_cont_10pct", "window_lazy_10pct"]
             + [f"lam{i}" for i in range(1, 21)]
             + [f"gap{i}" for i in GAP_INDICES]
         )
@@ -125,7 +140,8 @@ def run(
             eig = list(st.eigenvalues) + [float("nan")] * (20 - len(st.eigenvalues))
             wc.writerow(
                 [cut, st.n, st.m, st.mean_degree, st.min_degree, st.degree_over_logn,
-                 st.mindeg_over_logn, st.gamma, 1.0 / st.gamma, required_window(st.gamma)]
+                 st.mindeg_over_logn, st.gamma, 1.0 / st.gamma, 1.0 / (LAZINESS * st.gamma),
+                 required_window_continuous(st.gamma), required_window(st.gamma)]
                 + eig + [st.gap(i) for i in GAP_INDICES]
             )
             fc.flush()
@@ -171,7 +187,8 @@ def run_cores(
     ):
         wc, wb = csv.writer(fc), csv.writer(fb)
         wc.writerow(["cut", "core", "n", "m", "mean_deg", "min_deg", "deg_over_logn",
-                     "mindeg_over_logn", "gamma", "relax_steps", "window_10pct"])
+                     "mindeg_over_logn", "gamma", "relax_cont", "relax_lazy", "window_cont_10pct",
+                     "window_lazy_10pct"])
         wb.writerow(["cut", "core", "scheme", "fraction", "reps", "n_mean", "deg_over_logn",
                      "min_deg_mean", "width_gamma", "median_gamma"]
                     + [f"width_gap{i}" for i in GAP_INDICES])
@@ -184,7 +201,8 @@ def run_cores(
                 st = cut_stats(comp, k=8)
                 wc.writerow([cut, k, st.n, st.m, st.mean_degree, st.min_degree,
                              st.degree_over_logn, st.mindeg_over_logn, st.gamma,
-                             1.0 / st.gamma, required_window(st.gamma)])
+                             1.0 / st.gamma, 1.0 / (LAZINESS * st.gamma),
+                 required_window_continuous(st.gamma), required_window(st.gamma)])
                 fc.flush()
                 if comp.n > max_boot_n:
                     continue
