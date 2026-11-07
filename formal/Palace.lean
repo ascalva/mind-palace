@@ -18,6 +18,8 @@ public import Palace.FloatModel
 public import Palace.FloatModel.Defs
 public import Palace.Frustration
 public import Palace.Frustration.Defs
+public import Palace.Growth
+public import Palace.Growth.Defs
 public import Palace.Heat
 public import Palace.Heat.Defs
 public import Palace.Hodge

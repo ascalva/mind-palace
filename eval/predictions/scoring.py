@@ -21,14 +21,23 @@ Every number the scorer uses comes from the ledger's protocol record, never from
 - **Blinding.** `pilot` reports the spread of the primary comparison's cluster means and the
   number of clusters it implies, never a mean. `report` refuses the comparisons until the
   protocol's `n_clusters` is fixed and reached, unless the caller unblinds on purpose.
+- **The growth readout** (`growth`, dn-prediction-ledger G8): per arm against the reference arm,
+  the growth of a proportional stake over the scored pairs, a thought experiment the scorer
+  computes and nothing that stakes anything. By GRW-1 (`formal/Palace/Growth.lean`) its log is
+  the cumulative log-score advantage of the arm over the reference, so it reads the ledger's own
+  log scores as a holding; the path is kept in log space, and a growth outside the float range
+  is reported as its log. Before N the primary comparison's arms are withheld, as `report`
+  withholds the mean.
 """
 
 from __future__ import annotations
 
 import math
+import sys
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
+from datetime import datetime
 from statistics import NormalDist
 
 import numpy as np
@@ -64,6 +73,7 @@ class Scored:
     arm: str
     p: float
     outcome: int
+    resolved_at: datetime
 
 
 @dataclass(frozen=True)
@@ -97,7 +107,8 @@ def table(entries: Sequence[Entry]) -> Table:
             late += 1
             continue
         q = state.questions[p.qid]
-        scored.append(Scored(p.qid, p.round, q.cluster, q.family, p.arm, p.p, resolution.outcome))
+        scored.append(Scored(p.qid, p.round, q.cluster, q.family, p.arm, p.p, resolution.outcome,
+                             resolution.resolved_at))
     return Table(state.protocol, tuple(scored), late, open_, voided)
 
 
@@ -317,6 +328,195 @@ def null_check(t: Table) -> bool | None:
     return all(p.d == 0.0 for p in ps)
 
 
+# -- the growth readout -------------------------------------------------------------------------
+
+STAKES = (1.0, 0.5, 0.25)
+
+
+def _clip(p: float, clip: float) -> float:
+    return min(max(p, clip), 1.0 - clip)
+
+
+def factor(p: float, r: float, outcome: int, clip: float) -> float:
+    """**GRW-1** The proportional stake's factor on one pair: `p / r` on yes and
+    `(1 - p) / (1 - r)` on no, on the probabilities the log score reads (clipped to the
+    protocol's bound), so that the identity with the ledger's log scores is exact and no factor
+    is 0 (GRW-5). The readout never multiplies factors: it sums their logs (`log_factor`)."""
+    p, r = _clip(p, clip), _clip(r, clip)
+    return p / r if outcome == 1 else (1.0 - p) / (1.0 - r)
+
+
+def log_factor(p: float, r: float, outcome: int, clip: float, *, stake: float = 1.0) -> float:
+    """**GRW-1** The log of the stake's factor `1 + stake * (F - 1)` on one pair. At the full
+    stake it is the arm's log-score advantage over the reference, the difference of the two
+    clipped log scores the ledger reads, so the log growth is their sum. Below the full stake it
+    is `log1p(stake * (F - 1))`, with `F - 1 = (L(p) - L(r)) / L(r)` taken from the clipped
+    probabilities, never a product: it stays below `1 / clip`, and log1p keeps a small edge's
+    digits."""
+    if not 0 < stake <= 1:
+        raise ValueError("the stake must lie in (0, 1]: GRW-5 holds there and nowhere beyond")
+    if stake == 1.0:
+        return log_loss(r, outcome, clip) - log_loss(p, outcome, clip)
+    p, r = _clip(p, clip), _clip(r, clip)
+    lp, lr = (p, r) if outcome == 1 else (1.0 - p, 1.0 - r)
+    return math.log1p(stake * (lp - lr) / lr)
+
+
+def _from_log(x: float) -> tuple[float, bool]:
+    """`(exp(x), False)` when that is a normal float, else `(x, True)`: a growth outside the
+    float range is held as its log."""
+    try:
+        value = math.exp(x)
+    except OverflowError:
+        return x, True
+    return (value, False) if value >= sys.float_info.min else (x, True)
+
+
+@dataclass(frozen=True)
+class Growth:
+    """**GRW-1** One arm's growth against the reference arm on one family, at one stake.
+
+    The thought experiment: a holding of 1 that, on each scored pair in the order the outcomes
+    became known, is multiplied by `1 + stake * (F - 1)` for the proportional stake's factor `F`
+    (`factor`). The path is computed in log space (`growth_path`) from the log factors
+    (`log_factor`), so no run of factors overflows or underflows. At `stake` 1 they are the
+    differences of the ledger's clipped log scores, so `log_growth` is `log_advantage`, the
+    cumulative log-score advantage of the arm over the reference, exactly (GRW-1): the readout
+    is the ledger's own log scores, read as a holding. `growth` is `exp(log_growth)` when that is
+    a normal float; otherwise it holds `log_growth` itself, and `growth_is_log` says so. GRW-1
+    holds for the stake 1 only; the fractional stakes (0.5, 0.25) are the cautious practice and
+    are read on their own terms. `geometric_mean` is the per-pair factor, `worst_factor` the
+    smallest single factor, `drawdown` the largest fall of the holding from its running peak, as
+    a fraction of the peak, and `to_target` the number of further pairs, at the realized mean log
+    growth per pair, before the holding reaches `target` times its start: 0 when it already has,
+    None when the mean is not positive. Nothing here stakes anything."""
+
+    arm: str
+    family: str
+    reference: str
+    stake: float
+    n: int
+    growth: float
+    growth_is_log: bool
+    log_growth: float
+    log_advantage: float
+    geometric_mean: float
+    worst_factor: float
+    drawdown: float
+    target: float
+    to_target: int | None
+
+    def body(self) -> dict[str, object]:
+        return {"arm": self.arm, "family": self.family, "reference": self.reference,
+                "stake": self.stake, "pairs": self.n, "growth": self.growth,
+                "growth_is_log": self.growth_is_log, "log_growth": self.log_growth,
+                "log_advantage": self.log_advantage, "geometric_mean": self.geometric_mean,
+                "worst_factor": self.worst_factor, "drawdown": self.drawdown,
+                "target": self.target, "to_target": self.to_target}
+
+
+@dataclass(frozen=True)
+class GrowthPath:
+    """A holding's path over a sequence of log factors (`growth_path`)."""
+
+    log_growth: float
+    growth: float
+    growth_is_log: bool
+    geometric_mean: float
+    worst_factor: float
+    drawdown: float
+    to_target: int | None
+
+
+def growth_path(log_factors: Sequence[float], *, target: float) -> GrowthPath:
+    """The path of a holding of 1 whose log moves by each log factor in turn, kept in log space
+    so that no run of factors overflows or underflows. The log growth is the sum, correctly
+    rounded (`math.fsum`), at the full stake the cumulative log-score advantage (GRW-1); the
+    growth is its exponential when that is a normal float, else the log itself with
+    `growth_is_log`; the geometric mean and the worst factor are the exponentials of the mean and
+    the least log factor; the drawdown is the largest fall of the log path below its running
+    maximum, reported as `1 - exp(-fall)`; and the further pairs to `target` are `log target` less
+    the log growth over the realized mean log factor."""
+    if not log_factors:
+        raise ValueError("no factors to compound")
+    running = peak = fall = 0.0
+    for x in log_factors:
+        running += x
+        peak = max(peak, running)
+        fall = max(fall, peak - running)
+    log_growth = math.fsum(log_factors)
+    mean = log_growth / len(log_factors)
+    if log_growth >= math.log(target):
+        to_target: int | None = 0
+    elif mean > 0:
+        to_target = math.ceil((math.log(target) - log_growth) / mean)
+    else:
+        to_target = None
+    value, is_log = _from_log(log_growth)
+    return GrowthPath(log_growth, value, is_log, math.exp(mean), math.exp(min(log_factors)),
+                      -math.expm1(-fall), to_target)
+
+
+def growth(t: Table, family: str, arm: str, *, stake: float = 1.0) -> Growth | None:
+    """**GRW-1** `arm`'s growth against the protocol's reference arm on `family` at `stake`, over
+    the (question, round) pairs both predicted, in the order their outcomes became known; None
+    without a reference arm or without pairs. At the full stake the log factors are the pairs'
+    log-score advantages themselves, so the log growth is their sum, `log_advantage`, both
+    correctly rounded."""
+    pr = t.protocol
+    if pr.reference is None:
+        return None
+    base = {(s.qid, s.round): s for s in t.scored if s.arm == pr.reference and s.family == family}
+    own = {(s.qid, s.round): s for s in t.scored if s.arm == arm and s.family == family}
+    keys = sorted(base.keys() & own.keys(), key=lambda k: (base[k].resolved_at, k))
+    if not keys:
+        return None
+    advantages = [log_factor(own[k].p, base[k].p, base[k].outcome, pr.log_clip) for k in keys]
+    logs = advantages if stake == 1.0 else [
+        log_factor(own[k].p, base[k].p, base[k].outcome, pr.log_clip, stake=stake) for k in keys]
+    path = growth_path(logs, target=pr.growth_target)
+    return Growth(arm, family, pr.reference, stake, len(keys), path.growth, path.growth_is_log,
+                  path.log_growth, math.fsum(advantages), path.geometric_mean, path.worst_factor,
+                  path.drawdown, pr.growth_target, path.to_target)
+
+
+def _blind(t: Table) -> str | None:
+    """Why the comparisons are not readable yet, or None once N is fixed and reached."""
+    pr = t.protocol
+    clusters = len({p.cluster for p in pairs(t, pr.primary)})
+    if pr.n_clusters is None:
+        return f"the primary comparison has {clusters} clusters; N is not fixed yet (run the " \
+               "blinded pilot)"
+    if clusters < pr.n_clusters:
+        return f"the primary comparison has {clusters} clusters; N is {pr.n_clusters}"
+    return None
+
+
+def growth_report(t: Table, *, unblind: bool = False) -> dict[str, object]:
+    """The growth readout of every arm against the reference arm, on every family, at each of
+    `STAKES`. Before N the primary comparison's two arms are withheld on its family, named under
+    `withheld` with the reason, unless the caller unblinds on purpose."""
+    pr = t.protocol
+    reason = None if unblind else _blind(t)
+    readouts: list[dict[str, object]] = []
+    withheld: list[dict[str, object]] = []
+    for family in pr.families if pr.reference is not None else ():
+        for arm in pr.arms:
+            if arm == pr.reference:
+                continue
+            if reason is not None and family == pr.primary.family \
+                    and arm in (pr.primary.arm, pr.primary.baseline):
+                withheld.append({"arm": arm, "family": family})
+                continue
+            for stake in STAKES:
+                g = growth(t, family, arm, stake=stake)
+                if g is not None:
+                    readouts.append(g.body())
+    return {"protocol": pr.name, "reference": pr.reference, "target": pr.growth_target,
+            "stakes": list(STAKES), "readouts": readouts, "withheld": withheld,
+            "blinded": reason}
+
+
 # -- the report ---------------------------------------------------------------------------------
 
 def _interval(t: Table, ps: Sequence[Pair]) -> Interval:
@@ -343,11 +543,9 @@ def report(t: Table, *, unblind: bool = False) -> dict[str, object]:
     """Everything G5 asks for. Refuses (`Blinded`) before N unless `unblind`."""
     pr = t.protocol
     primary_pairs = pairs(t, pr.primary)
-    clusters = len({p.cluster for p in primary_pairs})
-    if not unblind and (pr.n_clusters is None or clusters < pr.n_clusters):
-        need = ("not fixed yet (run the blinded pilot)" if pr.n_clusters is None
-                else str(pr.n_clusters))
-        raise Blinded(f"the primary comparison has {clusters} clusters; N is {need}")
+    reason = None if unblind else _blind(t)
+    if reason is not None:
+        raise Blinded(reason)
     out: dict[str, object] = {
         "protocol": pr.name,
         "counts": {"scored": len(t.scored), "late": t.late, "open": t.open, "voided": t.voided},
@@ -384,4 +582,5 @@ def report(t: Table, *, unblind: bool = False) -> dict[str, object]:
               if pr.reference is not None else [])
     controls["oracle"] = _interval_dict(_interval(t, oracle)) if oracle else None
     out["controls"] = controls
+    out["growth"] = growth_report(t, unblind=True)
     return out

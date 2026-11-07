@@ -9,6 +9,7 @@ public import PalaceTest.Curvature
 public import PalaceTest.Cut
 public import PalaceTest.Door
 public import PalaceTest.FloatModel
+public import PalaceTest.Growth
 public import PalaceTest.Heat
 public import PalaceTest.Hodge
 public import PalaceTest.Laplacian

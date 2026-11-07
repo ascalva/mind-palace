@@ -19,11 +19,12 @@ from eval.predictions.ledger import (
     Resolution,
     Void,
 )
-from eval.predictions.scoring import Blinded, pilot, report, table
+from eval.predictions.scoring import Blinded, Growth, growth, growth_report, pilot, report, table
 
 __all__ = [
     "Blinded",
     "Comparison",
+    "Growth",
     "Ledger",
     "LedgerCorrupt",
     "LedgerError",
@@ -32,6 +33,8 @@ __all__ = [
     "Question",
     "Resolution",
     "Void",
+    "growth",
+    "growth_report",
     "pilot",
     "report",
     "table",
