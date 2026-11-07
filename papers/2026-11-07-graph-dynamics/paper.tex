@@ -1,0 +1,602 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage{cleveref}
+\usepackage{microtype}
+\setlength{\emergencystretch}{3em}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+\newcommand{\abs}[1]{\left\lvert #1 \right\rvert}
+\newcommand{\ip}[2]{\left\langle #1, #2 \right\rangle}
+\newcommand{\lean}[1]{\path{#1}}
+\DeclareMathOperator{\divw}{div}
+\DeclareMathOperator{\rank}{rank}
+\DeclareMathOperator{\range}{range}
+\DeclareMathOperator{\TV}{TV}
+
+\title{The Dynamics of an Evolving Knowledge Graph:\\
+Velocity, Flows, Ripples, and the Macro Regime,\\
+Proved Before Code}
+\author{mind-palace contributors}
+\date{November 7, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A knowledge graph that is kept over time is a sequence of graphs: notes are written and
+rewritten, citations are added and severed, weights drift. We ask what the state, direction and
+magnitude of such a graph mean, what a sum over all walks costs, how a flow on the edges is to be
+read, and whether a macro regime can be built from micro fluctuations, and we answer each question
+with theorems machine-checked in Lean~4 over Mathlib before any code relies on them. The sum over
+all walks of a damped relation is a resolvent, one sparse solve, with an entrywise tail bound of
+$s^n/(1-s)$ after $n$ terms and a refuted control at spectral radius one. The least-squares
+potential of a weighted edge flow is $L_w^{+}\divw_w Y$, its residual divergence-free and its
+uniqueness the kernel of the weighted Laplacian (HodgeRank). A function of a symmetric operator
+acts on each eigenvector by the function of its eigenvalue, so the heat kernel commutes with the
+projection onto any set of modes and the dropped part decays at the rate of the gap below it. The
+Laplacian of the quotient by a partition is $P^{\top} L P$, coarse-graining never lowers the
+spectral gap, and a block read on its own under-estimates nearness. A spectral gap stated as a
+Poincar\'e inequality is exactly a bound under the nonzero eigenvalues, total variation is bounded
+by $\sqrt{N}/2$ times the $L^2$ distance, and the heat kernel and the lazy walk contract every
+mean-zero field geometrically at the gap's rate. Each theorem is attacked on an exact rational
+shadow with a negative control before it is proved. We state plainly which parts of the
+statistical-physics analogy are theorems on a finite graph and which are hypotheses that need
+data the graph does not yet have.
+\end{abstract}
+
+\section{Introduction}
+
+A personal knowledge graph is a small, exact, content-addressed record: a few dozen notes, their
+citations, a similarity backbone, and a version chain per note. Its retrieval algebra is already
+proved: the walk sum of a killed random walk is well posed and its free energy is a quasi-metric;
+the Hodge 1-Laplacian of the flag complex splits every edge flow into a gradient, a curl and a
+harmonic part; the heat kernel is a semigroup whose diffusion distance is a metric; transports
+along supersessions have known norms. What was missing is time. When a value changes behind a
+fixed identity, when weights drift, when a shock is propagated along a relation, what are the
+objects, and what can be known?
+
+This article answers six questions in order, each from a machine-checked theorem.
+
+\begin{enumerate}
+\item \emph{The objects.} An identity is a box; the value it holds is re-recorded at each cut;
+  its velocity over a window of cuts is a $0$-cochain per pair of cuts. A field among the edges
+  is either a flow (a $1$-cochain, antisymmetric) or a change of weights (symmetric), and the two
+  have different readings.
+\item \emph{Path sums.} The sum over all walks of a damped relation is the resolvent
+  $(1 - zA)^{-1}$: one sparse solve, never an enumeration. We prove the convergence condition in
+  its operator-norm form, an entrywise tail bound, and the failure at spectral radius one.
+\item \emph{Flows.} A weighted edge flow has a least-squares potential $L_w^{+}\divw_w Y$, whose
+  residual is divergence-free and which is unique up to the kernel of $L_w$; the potential ranks
+  the nodes and the residual's energy measures inconsistency.
+\item \emph{Macro from micro.} The low modes of the Laplacian are the macro variables: the heat
+  kernel evolves them exactly and the dropped modes decay at the rate of the gap below them.
+  Coarse-graining by a partition is exact on block-constant fields, never lowers the gap, and a
+  block read on its own under-estimates nearness.
+\item \emph{Mixing.} A spectral gap as a Poincar\'e inequality is exactly a bound under the
+  nonzero eigenvalues; total variation is bounded by $\sqrt{N}/2$ times the $L^2$ distance; the
+  heat kernel and the lazy walk contract mean-zero fields geometrically.
+\item \emph{What can be known.} The propagation of a known shock is exact; the shocks are not
+  predicted by anything here; the regime of the graph's own evolution is a hypothesis.
+\end{enumerate}
+
+\paragraph{Contributions.}
+(i) A model of a value's versions, edge flows, the Neumann partial sums, the ripple of a shock,
+the modes of a symmetric operator and the quotient of a graph by a partition, in Lean~4 over
+Mathlib (\lean{Palace/Dynamics/Defs.lean}). (ii) Six families of theorems, DYN-1 to DYN-6
+(\lean{Palace/Dynamics.lean}), each stated below with a proof sketch naming its declaration, and
+replayed by Lean's kernel and five independent checkers. (iii) Property attacks on exact rational
+shadows with negative controls (\lean{PalaceTest/Dynamics.lean}, seeds 330 to 344). (iv) A plain
+account of which parts of the fluid and statistical-physics analogy are theorems on a finite graph
+and which are hypotheses, and of the sorts and verbs a query language needs to express the
+dynamics, with the order to build them.
+
+\section{Background and related work}
+
+\paragraph{Randomized shortest paths and the walk sum.}
+The retrieval kernel of the graph is the randomized-shortest-path (RSP) family of
+\citet{saerens2009rsp} and \citet{kivimaki2014rsp}: a random walk killed at rate $1-z$ per step,
+biased by a Boltzmann factor at inverse temperature $\beta$, whose fundamental matrix
+$Z = (I - W_\beta)^{-1}$ sums over all walks and whose free energy
+$\varphi_{ij} = -\beta^{-1}\log(z_{ij}/z_{jj})$ interpolates between the commute-time distance
+and the shortest-path distance. The fundamental matrix of an absorbing chain is classical
+\citep{kemeny1960finite}. The convergence of the Neumann series $\sum_k M^k$ when a norm of $M$ is
+below one, and the sharpness of the spectral-radius condition through Gelfand's formula, are in
+\citet[Chapter~5]{horn2013matrix}.
+
+\paragraph{Hodge theory on graphs and ranking.}
+The Hodge decomposition of edge flows on a simplicial complex, $C^1 = \range\partial_1^{\top}
+\oplus \range\partial_2 \oplus \ker L_1$, and its reading of a pairwise comparison as a global
+ranking plus local and global inconsistencies, is HodgeRank \citep{jiang2011hodgerank}; the
+operator-theoretic account is \citet{lim2020hodge}. The same decomposition reads a game as a
+potential game plus a harmonic game \citep{candogan2011flows}.
+
+\paragraph{Spectral graph theory, diffusion and mixing.}
+The Laplacian's spectrum, the heat kernel $e^{-tL}$ and the Rayleigh quotient are the subject of
+\citet{chung1997spectral}; diffusion maps read the low modes of a diffusion as coordinates
+\citep{coifman2006diffusion}. The spectral gap as a Poincar\'e inequality between a Dirichlet
+form and a variance, and the geometric bounds it gives on mixing, are in
+\citet{diaconis1991geometric} and \citet{levin2017mixing}. The three mixing statements of
+Section~\ref{sec:mixing} follow the shapes of the switch-chain formalization in
+\citet{openai2026switch}: a gap as a Poincar\'e inequality, total variation against $L^2$ by
+$\sqrt{N}/2$, and geometric $L^2$ decay per step; they are restated here over the modes of any
+weighted graph's Laplacian, and nothing is copied.
+
+\paragraph{Formalization.}
+The proofs are in Lean~4 \citep{demoura2021lean4} over Mathlib \citep{mathlib2020}, at the pin
+v4.36.0-rc2. Mathlib supplies the geometric series in a complete normed ring, the spectral theorem
+for Hermitian matrices with its orthonormal eigenvector basis and continuous functional calculus,
+and the row-sum operator norm on matrices. It has, at this pin, no spectral gap, no Cheeger
+inequality, no heat kernel and no Markov mixing, so Section~\ref{sec:mixing} is ours.
+
+\section{Theory}
+\label{sec:theory}
+
+Throughout, $V$ is a finite set of nodes, $E$ a finite set of oriented edges, matrices are real,
+and $x \cdot y$ is the dot product. Every theorem below is proved in \lean{Palace/Dynamics.lean};
+the declaration is named after each statement.
+
+\subsection{The objects}
+
+\begin{definition}[velocity]
+Let $x : \N \to V \to \mathcal{E}$ assign to each cut $c$ and identity $v$ the value $x_c(v)$ alive
+at $c$, in an additive group $\mathcal{E}$ (the reals for a number, $\R^d$ for an embedding). The
+velocity over the window $c_0 \le c_1$ is the $0$-cochain
+$v_{c_0 c_1}(i) = x_{c_1}(i) - x_{c_0}(i)$ (\lean{velocity}).
+\end{definition}
+
+\begin{theorem}[DYN-1]
+\label{thm:velocity}
+Velocity adds along the chain of cuts, $v_{ab} + v_{bc} = v_{ac}$ (\lean{velocity_add}), and
+the displacement over a window is the sum of its steps,
+$v_{a,a+n} = \sum_{k<n} v_{a+k,a+k+1}$ (\lean{velocity_eq_sum}). For real-valued $x$, the
+coboundary of the velocity is the change of the coboundary,
+$(dv_{ab})(u,w) = (dx_b)(u,w) - (dx_a)(u,w)$ (\lean{coboundary_velocity}), and on any complex
+with $\partial_1\partial_2 = 0$ the edge field $\partial_1^{\top} v_{ab}$ is orthogonal to every
+curl $\partial_2 y$ (\lean{grad_velocity_dot_curl}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The first two are the group identities, the second through Mathlib's telescoping sum
+\lean{Finset.sum_range_sub}. The third is pointwise. The fourth is the orthogonality of gradients
+and curls in the Hodge family (\lean{Hodge.grad_dot_curl}), applied to $v_{ab}$.
+\end{proof}
+
+A flow is a $1$-cochain $Y : E \to \R$, antisymmetric under reversal; a change of weights is a
+function on unordered edges, symmetric. \Cref{thm:velocity} says the edge field induced by a
+changing potential is a gradient, so circulation, when there is any, does not come from a changing
+potential.
+
+\subsection{The Neumann resolvent}
+
+\begin{definition}
+For $M \in \R^{V\times V}$ the Neumann partial sum is $S_n(M) = \sum_{k<n} M^k$ (\lean{neumann});
+for a relation $A$, a damping $z$ and a shock $\delta : V \to \R$, the ripple is
+$(1 - zA)^{-1}\delta$ (\lean{ripple}). $M$ is row-bounded by $s$ when $M \ge 0$ entrywise and
+every row sums to at most $s$.
+\end{definition}
+
+\begin{theorem}[DYN-2, the series]
+\label{thm:neumann}
+In a complete normed ring, when $\norm{x} < 1$ the powers of $x$ are summable and
+$(1-x)\sum_k x^k = (\sum_k x^k)(1-x) = 1$ (\lean{neumann_tsum}). For a real matrix under the
+row-sum operator norm, when $\norm{M} < 1$ the powers are summable entrywise and
+$(1-M)^{-1} = \sum_k M^k$ (\lean{inv_one_sub_eq_tsum}). A matrix row-bounded by $s \ge 0$ has
+$\norm{M} \le s$ (\lean{linfty_opNorm_le_of_rows}), so when $s<1$ its walk sum is its inverse
+(\lean{inv_one_sub_eq_tsum_of_rows}); in particular the fundamental matrix of the killed
+walk is the sum over all killed walks (\lean{fundamental_eq_tsum}) and the ripple of a shock is
+$\sum_k z^k A^k \delta$ (\lean{ripple_eq_tsum}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The ring statement is Mathlib's \lean{geom_series_mul_neg} and \lean{mul_neg_geom_series}.
+For matrices, the row-sum norm \lean{Matrix.linftyOpNormedRing} is a local instance; the
+matrices are complete under it because its uniform structure is the product's, which Lean checks
+by unfolding (\lean{inferInstanceAs}); then \lean{Matrix.nonsing_inv_eq_ringInverse} and
+Mathlib's \lean{geom_series_eq_inverse} give the inverse. The norm bound is
+\lean{Matrix.linfty_opNorm_def}, the supremum of the row sums of absolute values, with the
+entries nonnegative.
+\end{proof}
+
+\begin{theorem}[DYN-2, the tail]
+\label{thm:tail}
+Let $M$ be row-bounded by $s<1$. Then the rows of $M^n$ sum to at most $s^n$
+(\lean{sum_pow_le}), the rows of $(1-M)^{-1}$ sum to at most $1/(1-s)$ (\lean{sum_inv_le}),
+$(1-M)^{-1} - S_n(M) = (1-M)^{-1} M^n$ (\lean{inv_sub_neumann}), and entrywise
+\[
+0 \;\le\; (1-M)^{-1}_{ij} - S_n(M)_{ij} \;\le\; \frac{s^n}{1-s}
+\]
+(\lean{neumann_tail}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The row sums of powers by induction on $n$ with $M^{n+1} = M^n M$. The row sums of the inverse by
+the extremal principle of the retrieval family: $Z = 1 + MZ$ entrywise
+(\lean{Retrieval.inv_apply_eq}), so at the row $m$ where the row sum $r$ is largest,
+$r_m \le 1 + s\,r_m$. The identity is $(1-M)S_n = 1 - M^n$ (Mathlib's \lean{mul_neg_geom_sum})
+multiplied by $(1-M)^{-1}$, which exists by RSP-1's \lean{det_one_sub_ne_zero}. The bound
+sums $Z_{ik}(M^n)_{kj} \le Z_{ik} s^n$ over $k$, using that an entry of a nonnegative matrix is
+at most its row sum.
+\end{proof}
+
+\begin{theorem}[DYN-2, the control]
+\label{thm:control}
+If every row of $M$ sums to exactly $1$ then $\det(1-M) = 0$
+(\lean{det_one_sub_eq_zero_of_rows_eq_one}) and the partial sums $S_n(M)$ converge to no
+matrix (\lean{neumann_not_tendsto}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+$(1-M)\mathbf{1} = 0$ with $\mathbf{1} \ne 0$ (\lean{Matrix.exists_mulVec_eq_zero_iff}). Each row
+of $M^k$ sums to $1$, so each row of $S_n(M)$ sums to $n$; a limit would make the sequence $n$
+converge in $\R$, against \lean{tendsto_natCast_atTop_atTop}.
+\end{proof}
+
+\begin{theorem}[DYN-5, path independence across a transport]
+\label{thm:intertwine}
+If $PM = M'P$ and both $1-M$ and $1-M'$ are invertible then
+$P(1-M)^{-1} = (1-M')^{-1}P$ (\lean{resolvent_intertwine}). For an injective $\sigma : A \to B$
+with indicator $P_\sigma$, if $M'(\sigma a, \sigma a') = M(a,a')$ for all $a, a'$ and
+$M'(b, \sigma a) = 0$ for every $b$ outside the range of $\sigma$, then
+$P_\sigma^{\top} M = M' P_\sigma^{\top}$ (\lean{transpose_indicator_mul}), and the ripple of a
+shock pushed forward along $\sigma$ is the ripple of the pushed shock
+(\lean{push_ripple}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+From $PM = M'P$, $(1-M')P = P(1-M)$; multiply on the left by $(1-M')^{-1}$ and on the right by
+$(1-M)^{-1}$. The entry $(b,a)$ of $P_\sigma^{\top}M$ is $M(a_0,a)$ when $b = \sigma a_0$ and $0$
+otherwise, by injectivity; that of $M'P_\sigma^{\top}$ is $M'(b,\sigma a)$.
+\end{proof}
+
+\subsection{HodgeRank: the least-squares potential}
+
+\begin{definition}
+For an incidence matrix $B \in \R^{V\times E}$ and weights $w : E \to \R_{\ge 0}$, let
+$\ip{a}{b}_w = \sum_e w_e a_e b_e$ (\lean{wdotE}), $L_w = B\,\mathrm{diag}(w)\,B^{\top}$
+(\lean{weightedLap}), $\divw_w Y = B(w \circ Y)$ (\lean{divergence}), the potential
+$s = L_w^{+}\divw_w Y$ (\lean{potential}) with $L_w^{+}$ the Moore--Penrose inverse of the
+Spectral family, and the residual $r = Y - B^{\top}s$ (\lean{residual}).
+\end{definition}
+
+\begin{theorem}[DYN-3]
+\label{thm:hodgerank}
+For $w \ge 0$: $x\cdot L_w x = \ip{B^{\top}x}{B^{\top}x}_w$ (\lean{dotProduct_weightedLap});
+$L_w k = 0$ iff $w \circ B^{\top}k = 0$ (\lean{weightedLap_mulVec_eq_zero_iff}); the residual
+is divergence-free, $\divw_w r = 0$ (\lean{divergence_residual}); for every $x$,
+$\ip{r}{r}_w \le \ip{Y - B^{\top}x}{Y - B^{\top}x}_w$ (\lean{wdotE_residual_le}), with equality
+iff $L_w(s - x) = 0$ (\lean{wdotE_residual_eq_iff}). On the flag complex of a connected graph
+with every edge weight positive, $L_w k = 0$ implies $k$ constant
+(\lean{eq_of_weightedLap_mulVec_eq_zero}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The energy identity moves $B$ across the dot product. The kernel: a zero energy forces each
+$w_e (B^{\top}k)_e^2 = 0$. The divergence is orthogonal to the kernel of $L_w$, since
+$\divw_w Y \cdot k = Y \cdot (w \circ B^{\top}k)$, so $L_w L_w^{+}$ fixes it by the Penrose
+equations (\lean{mulVec_pinv_mulVec_of_orthogonal}, Rayleigh family), which is the normal
+equation $L_w s = \divw_w Y$. Pythagoras: $Y - B^{\top}x = r + B^{\top}(s-x)$ and $r$ is
+$w$-orthogonal to every gradient (\lean{wdotE_residual_grad}), so the energies add
+(\lean{wdotE_sub_grad}). On the flag complex, $(d_1^{\top}k)_e = k(e_2) - k(e_1)$ and positive
+weights force equality across every edge; a walk carries it across the component.
+\end{proof}
+
+\subsection{The modes of a symmetric operator}
+
+Let $M$ be real symmetric with Mathlib's eigenvalues $\lambda_j$ and orthonormal eigenvectors
+$\varphi_j$ (\lean{mode}); let $P_S f = \sum_{j\in S}\ip{f}{\varphi_j}\varphi_j$ (\lean{modeProj})
+and $H_t = e^{-tM}$ the heat kernel, defined through the continuous functional calculus
+(\lean{heat}, Heat family).
+
+\begin{theorem}[DYN-4]
+\label{thm:modes}
+For any $f : \R \to \R$, $f(M)\varphi_j = f(\lambda_j)\varphi_j$ (\lean{cfc_mulVec_mode}) and
+$x\cdot f(M)x = \sum_j f(\lambda_j)\ip{x}{\varphi_j}^2$ (\lean{dotProduct_cfc_mulVec}).
+The heat kernel commutes with the projection onto any set of modes and acts on them by their
+eigenvalues,
+$H_t P_S f = \sum_{j\in S} e^{-t\lambda_j}\ip{f}{\varphi_j}\varphi_j = P_S H_t f$
+(\lean{heat_modeProj}). For $t \ge 0$ and $\mu \le \lambda_j$ for all $j \notin S$,
+\[
+\norm{H_t(f - P_S f)}^2 \le e^{-2\mu t}\,\norm{f - P_S f}^2
+\]
+(\lean{heat_sub_modeProj_le}).
+When $\mu \le \lambda_j$ for every $j$ with $\ip{x}{\varphi_j} \ne 0$,
+$\mu\norm{x}^2 \le x\cdot Mx$ (\lean{mul_dotProduct_self_le_of_modes}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The spectral theorem writes $f(M) = U\,\mathrm{diag}(f\circ\lambda)\,U^{*}$ with $U$ the
+eigenvector unitary; $U^{*}\varphi_j = e_j$ and $Ue_j = \varphi_j$
+(\lean{star_eigenvectorUnitary_mulVec}, \lean{eigenvectorUnitary_mulVec}). Parseval,
+$x\cdot y = \sum_j\ip{x}{\varphi_j}\ip{y}{\varphi_j}$, is the orthonormal basis's
+\lean{sum_inner_mul_inner}; with $y = f(M)x$ and the symmetry of $f(M)$ the quadratic form
+follows. The commutation expands $P_S f$ and uses linearity; the decay writes
+$\norm{H_t g}^2 = g\cdot H_{2t}\,g$ by the semigroup law (\lean{heat_add}) and bounds each
+$e^{-2t\lambda_j}$ by $e^{-2t\mu}$ on the modes $g$ lives on, which for $g = f - P_S f$ are the
+dropped ones (\lean{sub_modeProj_dotProduct_mode}). The last statement bounds each term of the
+energy sum.
+\end{proof}
+
+\subsection{Coarse-graining by a partition}
+
+\begin{definition}
+For a partition $\pi : V \to B$ let $P_{vb} = [\pi(v) = b]$ (\lean{indicator}) and
+$A_\pi = P^{\top}AP$ (\lean{quot}). The pull-back $\pi^{*}h = h\circ\pi$ and the push-forward
+$\pi_{*}g$, summing over each block, are the Transport family's.
+\end{definition}
+
+\begin{theorem}[DYN-5]
+\label{thm:coarse}
+Over any commutative ring, $P^{\top}\,L(A)\,P = L(A_\pi)$ (\lean{lap_quot}), so
+$\pi^{*}h\cdot L(A)\,\pi^{*}h = h\cdot L(A_\pi)\,h$ (\lean{dotProduct_lap_pull}). For symmetric
+$A \ge 0$ with connected support and $\mu$ at most every nonzero eigenvalue of $L(A)$: a field $x$
+with $x\cdot\mathbf{1} = 0$ has $\mu\norm{x}^2 \le x\cdot L(A)x$ (\lean{gap_le_dotProduct_lap}),
+and a block field $h$ with $\pi^{*}h\cdot\mathbf{1} = 0$ has
+$\mu\sum_b \abs{b}\,h_b^2 \le h\cdot L(A_\pi)h$ (\lean{gap_le_dotProduct_lap_quot}). A block of
+a partition, read with the graph's degrees, has nearness at most the graph's
+(\lean{nearnessOn_block_le}, RSP-5 on the block).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+$P^{\top}\mathrm{diag}(d)P = \mathrm{diag}(P^{\top}d)$ (\lean{transpose_indicator_mul_diagonal})
+and the degree of $A_\pi$ is $P^{\top}(A(P\mathbf{1})) = P^{\top}d$ since $P\mathbf{1} = \mathbf{1}$
+(\lean{indicator_mulVec_one}). A mean-zero field has no weight on a zero mode of a connected
+support, because such a mode is a kernel vector, hence constant
+(\lean{eq_of_lap_mulVec_eq_zero}, from Rayleigh's \lean{orthogonal_ker_lap}), so
+\Cref{thm:modes}'s last statement applies (\lean{dotProduct_mode_eq_zero}); the block form is
+the energy identity with $\norm{\pi^{*}h}^2 = \sum_b\abs{b}h_b^2$ (TRN-2,
+\lean{pull_dotProduct_self}).
+\end{proof}
+
+\subsection{Mixing}
+\label{sec:mixing}
+
+\begin{definition}
+$A$ has spectral gap at least $\gamma$ when $\gamma\norm{f}^2 \le f\cdot L(A)f$ for every $f$ with
+$f\cdot\mathbf{1} = 0$ (\lean{HasSpectralGapAtLeast}).
+\end{definition}
+
+\begin{theorem}[DYN-6]
+\label{thm:mixing}
+Let $A$ be symmetric with nonnegative entries.
+\begin{enumerate}
+\item On a connected support, $\gamma$ at most every nonzero eigenvalue is a gap
+  (\lean{hasSpectralGapAtLeast_of_eigenvalues}); conversely a gap $\gamma$ is at most every
+  nonzero eigenvalue (\lean{le_eigenvalue_of_hasSpectralGapAtLeast}); and a gap bounds the
+  Dirichlet energy of any $f$ below by $\gamma$ times its variance about its mean
+  (\lean{HasSpectralGapAtLeast.variance}).
+\item For every $x : V \to \R$, $\tfrac12\sum_i\abs{x_i} \le \tfrac{\sqrt{N}}{2}\norm{x}$
+  with $N = \abs{V}$ (\lean{half_sum_abs_le}).
+\item On a connected support with $\gamma$ at most every nonzero eigenvalue, for
+  $x\cdot\mathbf{1} = 0$ and $t\ge 0$: $\norm{H_t x}^2 \le e^{-2\gamma t}\norm{x}^2$
+  (\lean{heat_energy_le_of_gap}) and
+  $\tfrac12\sum_i\abs{(H_t x)_i} \le \tfrac{\sqrt N}{2}\,e^{-\gamma t}\norm{x}$
+  (\lean{half_sum_abs_heat_le}); and for $\varepsilon \ge 0$ with
+  $\varepsilon\lambda_j \le 1$ on every eigenvalue,
+  $\norm{(1-\varepsilon L)^n x}^2 \le (1-\varepsilon\gamma)^{2n}\norm{x}^2$
+  (\lean{lazy_pow_energy_le}).
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+(1) The forward direction is \Cref{thm:coarse}. For the converse, a mode with a nonzero eigenvalue
+is orthogonal to $\mathbf{1}$, since $\lambda_j\ip{\varphi_j}{\mathbf{1}} = (L\varphi_j)\cdot\mathbf{1}
+= \varphi_j\cdot L\mathbf{1} = 0$ (\lean{mode_dotProduct_one}), and the Poincar\'e inequality on
+$\varphi_j$ reads $\gamma \le \lambda_j$. The variance form subtracts the mean, which $L$ kills.
+(2) Cauchy--Schwarz, Mathlib's \lean{sq_sum_le_card_mul_sum_sq}. (3) \Cref{thm:modes}'s
+decay with the mean-zero field's modes; the total-variation form composes with (2); the lazy walk
+acts on $\varphi_j$ by $1 - \varepsilon\lambda_j$ (\lean{one_sub_smul_mulVec_mode}), and a
+symmetric operator acting on each mode by $g_j$ has
+$\norm{N^n x}^2 = \sum_j g_j^{2n}\ip{x}{\varphi_j}^2$ (\lean{dotProduct_self_mulVec_of_modes},
+\lean{pow_mulVec_mode}), bounded on the modes $x$ lives on by $\rho^{2n}$ when
+$\abs{g_j} \le \rho$ there (\lean{pow_energy_le}).
+\end{proof}
+
+\section{Concepts and intuition}
+
+\subsection{The resolvent is the path sum}
+
+A path sum asks for every walk from $i$ to $j$, each weighted by the product of its steps and
+damped by $z$ per step. \Cref{thm:neumann} says that on a finite graph this is a geometric
+series of matrices and that its sum is an inverse: the whole sum is one sparse linear solve
+$(1-zA)Z = 1$, polynomial in the number of nodes, never an enumeration of walks, whose number is
+exponential in their length. When an iterative answer is wanted, \Cref{thm:tail} gives the
+accuracy of $n$ terms and says the partial sums never overshoot. \Cref{alg:ripple} is the
+computation, with the tail bound as its accuracy line. The killed walk of the retrieval kernel
+is the case the graph already computes, and the free energy $-\beta^{-1}\log(z_{ij}/z_{jj})$ is a
+free energy in the statistical-physics sense: $z_{ij}$ is a partition function over walks at
+inverse temperature $\beta$, positive, and subadditive along paths. The control
+(\Cref{thm:control}) is the unkilled walk: at spectral radius one there is no resolvent and no sum.
+
+\begin{algorithm}[t]
+\caption{Ripple of a shock $\delta$ along a relation $A$ with damping $z$.}
+\label{alg:ripple}
+\begin{algorithmic}[1]
+\Require $A \ge 0$ with rows summing to at most $1$; $0 \le z < 1$; a shock $\delta$; a tolerance
+  $\epsilon$ or \textsc{exact}
+\State $M \gets zA$; \quad $s \gets \max_i \sum_j M_{ij}$ \Comment{$s \le z < 1$}
+\If{\textsc{exact}}
+  \State \Return the solution $r$ of $(1 - M)\,r = \delta$ \Comment{one sparse solve}
+\Else
+  \State $n \gets \lceil \log(\epsilon(1-s)) / \log s \rceil$ \Comment{\Cref{thm:tail}}
+  \State $r \gets \delta$; \quad $u \gets \delta$
+  \For{$k = 1, \dots, n-1$}
+    \State $u \gets M u$; \quad $r \gets r + u$ \Comment{$r = S_k(M)\delta$, below the sum}
+  \EndFor
+  \State \Return $r$ \Comment{entrywise within $\epsilon\norm{\delta}_\infty$ of the sum}
+\EndIf
+\end{algorithmic}
+\end{algorithm}
+
+Across time, two orders are possible: propagate the shock on the graph at one cut and carry the
+result forward along the supersession, or carry the shock forward and propagate it at the next
+cut. \Cref{thm:intertwine} says they agree exactly when the transport intertwines the relations,
+which holds for a merge-free transport that carries every weight forward with no new node feeding
+the carried ones. The chain-map condition of the superconnection (every citation carries forward
+or collapses) is necessary and not sufficient: a carried citation with a changed weight breaks the
+intertwining where the curvature is zero. Across a merge the orders differ (the control at seed
+340).
+
+\subsection{The potential is the ranking}
+
+A flow on the edges, a lead-lag estimate say, is read by its Hodge decomposition: a gradient
+$\partial_1^{\top}s$, a curl, and a harmonic part. \Cref{thm:hodgerank} says the potential
+$s = L_w^{+}\divw_w Y$ is the least-squares ranking of the nodes: $s(j) - s(i)$ is the part of
+the flow across $i \to j$ that a global order explains, and the residual's weighted energy
+$\ip{r}{r}_w$ is the inconsistency, zero exactly when the flow is a gradient. \Cref{alg:hodgerank}
+is the computation. The curl is disagreement that closes within a filled triangle; the harmonic
+part is disagreement that closes only around a hole, of dimension the first Betti number of the
+complex. A whole that is more than its parts, in this reading, is the harmonic part: circulation
+that no node potential and no local triangle accounts for.
+
+\begin{algorithm}[t]
+\caption{HodgeRank: the potential and the inconsistency of a weighted flow.}
+\label{alg:hodgerank}
+\begin{algorithmic}[1]
+\Require incidence $B$ ($+1$ at an edge's head, $-1$ at its tail), weights $w \ge 0$, a flow $Y$
+\State $L_w \gets B\,\mathrm{diag}(w)\,B^{\top}$; \quad $d \gets B(w\circ Y)$
+\State $s \gets L_w^{+} d$ \Comment{\Cref{thm:hodgerank}: the normal equations $L_w s = d$}
+\State $r \gets Y - B^{\top}s$ \Comment{divergence-free: $B(w\circ r) = 0$}
+\State \Return $s$ up to a constant per component, and $\ip{r}{r}_w$
+\end{algorithmic}
+\end{algorithm}
+
+The projections do not commute with a mask on the nodes: a filled triangle with the unit
+circulation is pure curl, but restricted to two of its vertices it is one edge with flow one, a
+pure gradient. A mask changes the complex, and the decomposition belongs to the complex. This is
+derived with the witness and not yet machine-checked.
+
+\subsection{Modes are the macro variables}
+
+A field on the nodes is a micro state. Its component along the constants is the macro state, the
+mean, conserved by the diffusion since $L\mathbf{1} = 0$; its components along the other modes
+are the fluctuations. \Cref{thm:modes} says the heat equation evolves each mode by its own rate
+with no coupling, so the coefficients on any set of modes are exact macro variables, and that
+what is dropped decays at least as fast as $e^{-\mu t}$ for $\mu$ the gap below the kept modes.
+\Cref{thm:coarse} says a coarse-graining by blocks is exact on block-constant fields and can lose
+slow modes but never create one: the quotient graph's Fiedler quotient is at least the fine gap.
+\Cref{thm:mixing} says the fluctuations average out at a rate set by one number of the graph, the
+gap, in $L^2$ and in total variation, in continuous time and for the lazy walk. The analogy with
+a diffusing fluid is exact at every $N$ because the heat equation on a graph is a diffusion; what
+a small $N$ loses is not the truth of the theorems but the smoothness of a continuum: a graph of a
+few dozen nodes has a handful of modes, each legible, none of them a density.
+
+\section{Evaluation}
+
+\paragraph{What is machine-checked.}
+The six families are proved in Lean~4 at Mathlib pin v4.36.0-rc2 and pass the repository's gate
+(\lean{formal/check.sh}): the library builds with warnings fatal; the attacks run; Batteries'
+environment linters pass; the sorry count is held at zero; no axiom beyond \lean{propext},
+\lean{Classical.choice} and \lean{Quot.sound} is used (3853 declarations audited on the run that
+included this family); the export of every declaration and everything it uses, 45768
+declarations from \lean{Init} up, is replayed through Lean's kernel and five independent checkers
+(leanchecker-paranoid, lean4lean, nanoda, con-leche, con-ron), all of which accept. The 248
+ledger statements judged by the comparator are unchanged by this family, which adds design
+theorems only.
+
+\paragraph{What is attacked.}
+Each attackable theorem is run against 500 random instances of an exact rational shadow before
+it is proved, with a negative control, a nearby false statement that must be refuted
+(\Cref{tab:attacks}). The heat kernel and the modes are exponentials and eigenvectors, which do
+not run, so DYN-4 and DYN-6 are proved and not attacked.
+
+\begin{table}[t]
+\centering
+\caption{Attacks (seed, 500 instances each, none discarded) and their controls.}
+\label{tab:attacks}
+\small
+\begin{tabular}{@{}p{3.4cm}p{3.6cm}p{5.0cm}@{}}
+\toprule
+attack & shadow & control (seed, refuted within) \\
+\midrule
+tail in $[0, s^n/(1-s)]$, $n \le 3$ (330) & $5\times5$ matrices with rows summing under $1$,
+  Gauss--Jordan & without the factor $1/(1-s)$ (331, 14); signed entries overshoot (332, 6); rows
+  summing to $1$ make $1-M$ singular (333, first instance) \\
+HodgeRank on $K_5$ (334) & weights in $\{0,\tfrac14,\tfrac12,\tfrac34,1\}$, $L_w^{+}$ by the
+  Spectral shadow & the potential of the unweighted divergence is not divergence-free (335, 14) \\
+$P^{\top}LP = L_\pi$ (336) and its energy form (338) & $5\times5$ integer matrices, three blocks &
+  lifted back to the fine graph it is not a Laplacian (337, 10) \\
+ripple across a permutation (339) & products of transpositions & across a merge the ripple is not
+  path-independent (340, 7) \\
+velocity telescoping (341) & values from lists & the sum of the steps' sizes is not the
+  displacement's (342, 26) \\
+RSP-5 on a block (343) & the killed walk at $\beta=1$, $z=\tfrac12$ & the block's own degrees
+  invent nearness (344, 31) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{What is measured.}
+Read-only on the live instance (2026-11-07): the versions store holds 29 identities and 29
+versions, every version at sequence number one, all recorded within one second of the last rebuild
+(2026-10-28). There is one generation, so there is no displacement to measure and no series: the
+velocity of \Cref{thm:velocity} is a definition with its laws, waiting on the first supersession.
+The similarity backbone measured on 2026-11-04 has 38 notes and 38 edges, and the relation graph
+20 edges on 12 notes, so a spectrum here is a short list of eigenvalues, each legible.
+
+\section{Limitations}
+
+The sharp convergence condition of the walk sum, a spectral radius below one, is proved in its
+operator-norm form and cited in its spectral form: Mathlib at the pin proves Gelfand's formula
+over $\mathbb{C}$ and the real-matrix statement is not machine-checked. The non-commutation of
+the Hodge projections with a mask is derived with a witness and not yet machine-checked. The
+regime of the graph's own evolution, whether the sequence of snapshots has a stationary law, a
+temperature, a fluctuation-dissipation balance, is a hypothesis: every theorem here concerns
+diffusion and propagation on a graph at a cut, and nothing here gives the edits that produce the
+next cut a law. The shocks are acts of authorship outside the graph; the dynamics propagate them
+exactly and do not forecast them. A thermodynamic limit does not exist for a record that is
+finite and exact by design.
+
+\section{Future work}
+
+The query language of the graph has sorts for fields, kernels, metrics, relations, chains and
+transports, and lacks the objects of this article. The order to build, each unit transcribing
+its theorems and property-testing the transcription against the Lean statements:
+(1) a Flow sort (a $1$-cochain with the edge weights as its inner product, a vector space and not
+a cone), with the verbs \texttt{gradient}, \texttt{curl}, \texttt{harmonic},
+\texttt{potential} and \texttt{inconsistency}, licensed by the Hodge decomposition and
+\Cref{thm:hodgerank}, with the mask witness as a refused rewrite;
+(2) \texttt{ripple $\langle$rel$\rangle$ from $\langle$anchor$\rangle$ [damping $z$]}, the
+resolvent of a directed relation at a shock, licensed by \Cref{thm:neumann,thm:tail}, with the
+tail bound as the trace's accuracy line and the symmetric \texttt{diffuse} as its special case;
+(3) the adjectives \texttt{at scale $t$} (the heat kernel's column at the anchor, licensed by the
+semigroup law and \Cref{thm:modes,thm:mixing}) and \texttt{coarse by $\langle$partition$\rangle$}
+(evaluation on the quotient with the fine degrees, licensed by \Cref{thm:coarse} and its
+own-degrees control);
+(4) \texttt{velocity of $\langle$identity$\rangle$} over a window of cuts, licensed by
+\Cref{thm:velocity}, typed as a rate with its clock declared, waiting on the version moves at the
+node grain, the snapshot at a past cut, and a second generation in the store. Machine-checking the
+mask witness and the spectral form of the convergence condition are the next theorems.
+
+\section{Conclusion}
+
+An evolving knowledge graph has exact objects: a value's velocity over a window of cuts, flows on
+its edges with a least-squares ranking and an inconsistency, the ripple of a shock as a resolvent
+computed by one solve, and the low modes of its Laplacian as macro variables that evolve exactly
+and whose complement averages out at the rate of the spectral gap. Each is a theorem checked by
+six kernels before any code relies on it, and each theorem names its hypotheses. What remains is
+not a theorem: the shocks themselves, and the regime of the graph's own evolution, which the
+graph will be able to test once it has history.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}
