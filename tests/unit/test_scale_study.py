@@ -14,7 +14,7 @@ from eval.scale.graphs import (
 )
 from eval.scale.hodge import hodge_split
 from eval.scale.spectrum import cut_stats, smallest_eigenvalues
-from eval.scale.study import crossing, required_window
+from eval.scale.study import crossing, required_window, required_window_continuous
 
 
 def _cycle(n: int) -> TemporalEdges:
@@ -95,9 +95,14 @@ def test_interval_width_and_crossing() -> None:
     assert np.isnan(crossing([(10, 0.5)]))
 
 
-def test_window_scales_inversely_with_gap_and_squared_precision() -> None:
-    assert abs(required_window(0.5, 0.1) - 400.0) < 1e-9
+def test_window_is_scl1_with_laziness_and_scales_with_gap_and_precision() -> None:
+    # T = 2 / (eps gamma delta^2); at eps = 1/2, gamma = 0.5, delta = 0.1 this is 800 steps
+    assert abs(required_window(0.5, 0.1) - 800.0) < 1e-9
+    assert abs(required_window(0.5, 0.1, laziness=1.0) - 400.0) < 1e-9
     assert abs(required_window(0.25, 0.1) - 2 * required_window(0.5, 0.1)) < 1e-9
+    # continuous time T_c = eps T = 2 / (gamma delta^2) = 400 at gamma = 0.5, delta = 0.1
+    assert abs(required_window_continuous(0.5, 0.1) - 400.0) < 1e-9
+    assert abs(0.5 * required_window(0.5, 0.1) - required_window_continuous(0.5, 0.1)) < 1e-9
     assert abs(required_window(0.5, 0.05) - 4 * required_window(0.5, 0.1)) < 1e-9
 
 
