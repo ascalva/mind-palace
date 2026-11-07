@@ -553,7 +553,8 @@ class InstanceConfig:
         exhaust lane       ~/.mind-palace/exhaust        <root>/exhaust, moved only within root
         Vault server       [secrets] addr                its overlay's own; none if it names none
 
-    A declared source may lie anywhere but at, inside or around another instance's location.
+    A declared source may lie anywhere but at, inside or around what another instance writes, or
+    anything the default instance reads or writes.
     `namespaces_of` reads them off a built Config, and `shared` says what two instances hold in
     common. The map is injective: distinct ids give disjoint namespaces, none of them Ouroboros's.
     """
@@ -645,13 +646,16 @@ class Namespaces:
     """What one instance holds as its own: the state it writes, the sources it reads, the secrets
     it reads, the services it runs as, the repository it backs up to (DI-2).
 
-    The invariant: for instances i ≠ j, Ouroboros among them, `shared(N(i), N(j))` is empty: no
-    location one writes or reads lies at, inside or around a location of the other. For named
-    instances it holds by construction, because each name is derived from the id
-    (`InstanceConfig`) and none of the derived names is Ouroboros's; a named overlay that would
-    break it refuses at load (`_refuse_reaching_out`, `_refuse_shared`, the latter against every
-    instance declared on the host), declared sources included.
-    The property test over generated ids is tests/property/test_instance_namespaces.py.
+    The invariant: for instances i ≠ j, Ouroboros among them, `shared(N(i), N(j))` is empty.
+    Instances reach each other only through what they write, so it is a rule on write sets: what
+    one writes lies at, inside or around nothing the other writes or reads; names, labels and
+    the Vault server differ; and the default instance's sources are private, so no other
+    instance reads at, inside or around them. Two named instances may read one source neither
+    writes. For named instances the invariant holds by construction, because each name is derived
+    from the id (`InstanceConfig`) and none of the derived names is Ouroboros's; a named overlay
+    that would break it refuses at load (`_refuse_reaching_out`, and `_refuse_shared` against
+    every instance declared on the host). The property test is
+    tests/property/test_instance_namespaces.py.
     """
 
     data_dir: Path
@@ -661,6 +665,7 @@ class Namespaces:
     exhaust: Path             # the outbound lane its reports land in
     paths: frozenset[Path]    # the five above, and every other path the config names it writes
     sources: frozenset[Path]  # the corpus locations it reads: its vault and transcripts dirs
+    private_sources: bool     # the default instance's: no other instance may read them
     dialogue: frozenset[str]  # the dialogue lanes it reads (`DIALOGUE_READERS`)
     secrets: frozenset[str]   # Keychain/env item names
     labels: frozenset[str]    # launchd labels
@@ -684,6 +689,7 @@ def namespaces_of(cfg: Config) -> Namespaces:
         exhaust=cfg.exhaust.path,
         paths=frozenset({*written, lock, instance.levers, cfg.exhaust.path}),
         sources=frozenset({cfg.ingestion.vault.path, transcripts}),
+        private_sources=not instance.named,
         dialogue=frozenset(instance.dialogue),
         secrets=frozenset({*(getattr(getattr(cfg, section), key) for section, key in _SECRET_NAMES),
                            instance.secret(VAULT_TOKEN)}),
@@ -816,14 +822,24 @@ def _remote(url: str) -> str:
 
 
 def shared(a: Namespaces, b: Namespaces) -> list[str]:
-    """What two instances' namespaces have in common, one line each; [] when they are disjoint.
-    Every location either writes or reads is compared with every location of the other, so a
-    source inside the other's data dir is shared, and so is a directory nested in one of the
-    other's. Remote locations (the restic repository, the airlock prefixes) compare the same way:
-    one nested in another's is written under the other's prefix."""
-    here, there = a.paths | a.sources, b.paths | b.sources
-    out = [f"location {p} and {q}" for p in sorted(here) for q in sorted(there)
-           if _within(_location(p), _location(q), os.sep)]
+    """What two instances hold in common that would let one reach the other, one line each; []
+    when nothing does. An instance reaches another only through what it writes, so locations are
+    compared by write set: what one writes against everything the other writes or reads, and a
+    source against a source only when one side's are private (the default instance's), since two
+    instances reading what neither writes cannot reach each other through it. Locations compare
+    by real path, one nested in another counting as shared; remote ones (the restic repository,
+    the airlock prefixes, both written) by prefix the same way."""
+    out: list[str] = []
+
+    def overlaps(kind: str, here: frozenset[Path], other: str, there: frozenset[Path]) -> None:
+        out.extend(f"{kind} {p} and {other} {q}" for p in sorted(here) for q in sorted(there)
+                   if _within(_location(p), _location(q), os.sep))
+
+    overlaps("written", a.paths, "written", b.paths)
+    overlaps("read", a.sources, "written", b.paths)
+    overlaps("written", a.paths, "read", b.sources)
+    if a.private_sources or b.private_sources:
+        overlaps("read", a.sources, "read", b.sources)
     out += [f"dialogue lane {lane}" for lane in sorted(a.dialogue & b.dialogue)]
     out += [f"secret {name}" for name in sorted(a.secrets & b.secrets)]
     out += [f"label {label}" for label in sorted(a.labels & b.labels)]
@@ -1141,11 +1157,12 @@ def _declared_instances(loading: Path) -> list[tuple[str, Config]]:
 
 
 def _refuse_shared(cfg: Config, source: Path) -> None:
-    """A named instance shares no namespace with any other instance declared on this host:
-    Ouroboros, and each other overlay under config/instances/ (`_declared_instances`). So an
-    overlay naming Ouroboros's restic repository or a location inside it refuses outright, and so
-    do two named instances whose repositories nest, whose roots one links to the other, or that
-    declare one id."""
+    """A named instance shares nothing that would let it reach, or be reached by, any other
+    instance declared on this host (`shared()`): Ouroboros, and each other overlay under
+    config/instances/ (`_declared_instances`). So an overlay naming Ouroboros's restic repository
+    or a location inside it refuses outright, as does a source in Ouroboros's corpus or in
+    another instance's written state, and so do two named instances whose repositories nest,
+    whose roots one links to the other, or that declare one id."""
     mine = namespaces_of(cfg)
     for name, other in _declared_instances(source):
         if other.instance.id == cfg.instance.id:

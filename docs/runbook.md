@@ -187,11 +187,13 @@ under both names, a deliberate step the operator takes; nothing derives it.
 
 `instances/` is gitignored. Loading refuses an overlay with no id, with `id = "ouroboros"`, that
 names a Keychain item, that points a data path or the exhaust lane outside `instances/<id>/`, that
-turns an agent or `[secrets]` on without naming its source or its Vault, or that would share any
-location, name or server with another instance declared on the host (Ouroboros, read off
-`ouroboros.toml`, and every other overlay under `config/instances/`): a source at, in or around
-Ouroboros's vault or data, Ouroboros's restic repository or a location inside it, Ouroboros's
-Vault in any spelling, or a repository, root or corpus another named instance holds.
+turns an agent or `[secrets]` on without naming its source or its Vault, or that would let it
+reach another instance declared on the host (Ouroboros, read off `ouroboros.toml`, and every other
+overlay under `config/instances/`): a location it writes inside or around one another instance
+writes or reads, a source at, in or around anything Ouroboros reads or writes or anything another
+named instance writes, Ouroboros's restic repository or a location inside it, Ouroboros's Vault in
+any spelling. Instances reach each other only through what they write, so two named instances may
+read one corpus neither writes; Ouroboros's corpus stays private to it.
 Every tool that names Ouroboros's own state refuses while `MIND_PALACE_OVERLAY` is set:
 `mind-palace stack`, `palace tick`, `ops/backup/backup.sh`, `scripts/run_with_secrets.sh`, the
 Open WebUI bridge and its responder, the dialogue readers, the Vault scripts, the plane and

@@ -18,8 +18,9 @@
 # within instances/<id>/. The sources below ([ingestion.*]) are Ouroboros's corpus, so a named
 # instance reads only the ones its overlay declares; an undeclared one is off. Its Vault is the one
 # its overlay names in [secrets] addr, never Ouroboros's, read with its own token item; naming none,
-# it has no Vault secrets. Loading refuses an instance that would share a location, a name or a
-# server with Ouroboros (core/kernel/config/loader.py, InstanceConfig and namespaces_of).
+# it has no Vault secrets. Loading refuses an instance that could reach another declared instance
+# through what either writes, read Ouroboros's private corpus, or share a name or a server with
+# another (core/kernel/config/loader.py, InstanceConfig, namespaces_of and shared).
 
 [ollama]
 # The sealed core talks to a LOCAL Ollama over loopback only (BUILD-SPEC §5, §7); the
