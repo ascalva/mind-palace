@@ -91,7 +91,7 @@ The contributions are:
   the inversion needs and a closed form for its endpoints (\cref{sec:signflip}).
 \item Sign vectors built in blocks, so memory no longer grows with the number of vectors
   (\cref{sec:impl}).
-\item An evaluation: tests and fourteen mutations, all detected; a simulation study of both
+\item An evaluation: tests and fifteen mutations, all detected; a simulation study of both
   methods under the null, under dependence across clusters and under an effect; agreement with an
   independent reference on 6{,}000 calls; and memory before and after (\cref{sec:eval}).
 \end{itemize}
@@ -144,7 +144,7 @@ size with a fixed number of clusters when symmetry holds only approximately. Our
 finite-sample case: it assumes symmetry and independence and does not claim robustness beyond them.
 
 \paragraph{Mutation testing.} A test suite is evidence to the degree that it fails on wrong code;
-mutation analysis~\cite{demillo1978} measures this by planting faults. We report fourteen.
+mutation analysis~\cite{demillo1978} measures this by planting faults. We report fifteen.
 
 \section{Model}\label{sec:model}
 
@@ -219,9 +219,10 @@ In particular, neither a cluster that first appears after $N$ is reached nor a l
 void can displace a cluster in $F_N$, however long the reader waits; a voided cluster keeps its
 place and contributes no rows. The rows of a cluster in $F_N$ are fixed once the report is allowed
 to read: a settled question takes no further prediction, since the ledger refuses one for a
-resolved or voided question. One case remains open: a question registered later under the name of
-a cluster already in $F_N$ adds a pair, with a key above $K$ and so no change to the cut, but with
-rows the cut then reads. \Cref{sec:cutdemo} shows the refusal on a three-cluster ledger.
+resolved or voided question. A question registered later under the name of a cluster already in $F_N$ would add rows
+the cut then reads, so once $N$ is fixed the ledger refuses to register one (the cluster is
+among the first $N$ by key); before $N$ is fixed clusters grow freely, and verification replays
+the rule. \Cref{sec:cutdemo} shows the refusal on a three-cluster ledger.
 
 \subsection{The cluster sign-flip test}\label{sec:signflip}
 
@@ -414,28 +415,28 @@ before, and frozen with the rest of the bar once a prediction exists.
 All runs used macOS 27.0.1 on an Apple M2 Pro with 32\,GiB of memory, Python 3.15.2 and NumPy
 2.5.4, on an export (\texttt{git archive}) of the branch at \texttt{0d7cb89}, the simulations and memory
 figures below; the pre-change memory figures use the commit before the blocks change,
-\texttt{caf5c0a}. The tests and mutations were run on the later head \texttt{62d8187}, which changes
-verification and the cut and none of the simulated procedures. Simulations call the
+\texttt{caf5c0a}. The tests and mutations were run on the later head \texttt{9b25dfe}, which changes
+verification, the cut and the question rule and none of the simulated procedures. Simulations call the
 branch's own \texttt{cluster\_signflip} and \texttt{cluster\_bootstrap} with the protocol default
 of 10{,}000 sign vectors or resamples, eight worker processes, and one seeded generator per
 replication, so every number below can be reproduced from its description.
 
 \subsection{Tests and mutations}
-The two test files hold 80 tests (43 for the ledger, 37 for the scorer), which pass in 4\,s.
-\Cref{tab:mutations} lists fourteen single edits and the tests each fails, and all fourteen are
+The two test files hold 83 tests (46 for the ledger, 37 for the scorer), which pass in 4\,s.
+\Cref{tab:mutations} lists fifteen single edits and the tests each fails, and all fifteen are
 detected. Two of them, dropping the add-one rule and flipping pairs instead of clusters, survived
 an earlier version of the suite: the first changes the $p$-value by at most 0.1 percentage points at
 1{,}000 vectors, too little for a rate test to see, and the second cannot be told from the right
 test on generated differences with no within-cluster correlation. They are now killed by direct
 cases: a hand-built block of sign vectors where the add-one $p$-value is $3/5$ and the plain one
 $2/4$, and three clusters of four identical pairs, where flipping clusters gives $p = 2/8$ and
-flipping pairs $2/4096$. The cut and verification mutations were added with their fixes; of the
+flipping pairs $2/4096$. The cut, verification and question-rule mutations were added with their fixes; of the
 earlier cut mutations only the counts of failing tests changed. Passing is a statement about these
 edits and no more.
 
 \begin{table}[ht]
 \centering\small
-\caption{Single mutations of the ledger and scorer, each run against the 80 tests.}
+\caption{Single mutations of the ledger and scorer, each run against the 83 tests.}
 \label{tab:mutations}
 \begin{tabular}{@{}lrl@{}}
 \toprule
@@ -455,6 +456,7 @@ pairs flipped instead of clusters & 1 & the per-cluster case \\
 verification checks the chain only & 2 & the forged unpinned and forged late lines \\
 the cut among resolved clusters only & 2 & late resolution; void keeps its place \\
 no wait for open clusters in the cut & 1 & late resolution \\
+a question may join a cluster in the cut & 3 & the question rule; its order; its replay \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -621,31 +623,16 @@ would now fail to verify.
 \paragraph{A pin is a digest of something.} The ledger checks that a pin has the form of a sha256
 digest, not that it is the digest of the configuration the arm runs; that binding is the arm's.
 
-\paragraph{A cluster can still gain a question.} The cut is fixed and the report waits for the
-questions of its clusters to settle, but a question registered later under the name of a cluster in
-the cut adds rows to it (\cref{sec:cut}). Refusing a new question in a cluster that is already in
-the cut would close this; it is not done.
+\paragraph{The rule on new questions counts clusters in the cut by name.} A question in a cluster
+beyond $N$ is accepted and can later move that cluster only within the clusters beyond $N$, which
+are not read. Clusters are named by the experiment, and two names for one underlying event are
+two clusters to the ledger.
 
-\paragraph{Independence across clusters.} Neither method protects against clusters that move
-together; under the block model the sign-flip test rejected 7.7\% to 14.1\% at $\alpha = 0.05$
-(\cref{tab:dep}). Its exactness is a property of the assumptions, which the experiment must make
-true by how it forms clusters.
-
-\paragraph{The interval assumes a location shift.} The test of 0 is exact under $H_0$ alone; the
-interval's coverage is exact only when the effect shifts the differences by a constant.
-
-\paragraph{Resolution and cost.} With $R$ sampled vectors the smallest $p$-value is $1/(R+1)$, and
-the interval takes about a hundred evaluations of the test, each over all vectors; above the
-keeping threshold each evaluation regenerates them, which bounds memory at a cost of 4 to 14 times
-the time (\cref{tab:memory}). The planning formula for $N$ is a normal approximation for the mean of
-cluster means and does not depend on the method.
-
-\paragraph{Mutation testing is a sample.} The fourteen edits are the ones we thought of; a suite
+\paragraph{Mutation testing is a sample.} The fifteen edits are the ones we thought of; a suite
 that kills them can still miss another.
 
 \section{Future work}\label{sec:future}
-Refusing a question that joins a cluster already in the cut would make the rows, as well as the
-membership, of the reading fixed. When the dependence between clusters has a known structure,
+When the dependence between clusters has a known structure,
 flipping blocks of clusters together restores exactness at the block level, at the cost of fewer
 units. In the enumerated case, Corollary~\ref{cor:closed} computes the interval from one sort of
 the subset means instead of about a hundred passes over the vectors.
@@ -660,8 +647,8 @@ only the first $N$ clusters in its own line order, whatever resolves later, and 
 exchangeable within them. Each sign vector accepts the shifts between the weighted means of the
 clusters it keeps and flips, which makes the inverted interval well defined and gives its ends in
 closed form, and an independent reference built on that form agrees with the implementation on
-every call. The evaluation also finds what the change leaves open: a cluster that can still gain a
-question after the cut, a verification that checks obedience and not authorship, and no method that
+every call. The evaluation also finds what the change leaves open: clusters the experiment names
+twice, a verification that checks obedience and not authorship, and no method that
 tolerates dependence across clusters.
 
 \bibliographystyle{plainnat}
