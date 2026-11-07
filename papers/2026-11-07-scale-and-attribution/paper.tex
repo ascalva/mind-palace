@@ -1,0 +1,700 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage{cleveref}
+\usepackage{microtype}
+\setlength{\emergencystretch}{3em}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+\newcommand{\abs}[1]{\left\lvert #1 \right\rvert}
+\newcommand{\ip}[2]{\left\langle #1, #2 \right\rangle}
+\newcommand{\lean}[1]{\path{#1}}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\Cov}{Cov}
+\DeclareMathOperator{\loo}{loo}
+\DeclareMathOperator{\Sh}{Sh}
+\DeclareMathOperator{\KL}{KL}
+
+\title{Scale and Attribution in an Evolving Knowledge Store:\\
+When Macro Behaviour Can Be Studied,\\
+and How Progress Is Attributed to Sources}
+\author{mind-palace contributors}
+\date{November 7, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A store that builds context from many sources should be able to say, with evidence, which
+sources, context windows and analysis tools improve its results. That needs data at a scale where
+the macro quantities of the store's graph are stable, and a continuous evaluation whose outcomes
+can be attributed to each source or tool. We answer both with theorems machine-checked in Lean~4
+over Mathlib before any code relies on them. Under the lazy walk $1-\varepsilon L$ on a connected
+graph with spectral gap $\gamma$, the time average over $T$ steps of a mean-zero observable has
+energy at most $\norm{x}^2/(T\varepsilon\gamma)^2$, so a window must span many relaxation times, and
+the sampled form gives an effective sample size of $T\gamma/2$. With an eigengap $g$ between the
+kept and the dropped modes, the dropped part's share of the energy falls as $e^{-2gt}$ under the
+heat kernel, so a $k$-mode description explains all but $\epsilon$ of what remains once
+$t \ge \log(R/\epsilon)/(2g)$; a refuted control shows that without a gap no time does. The Shapley
+value, the average over orderings of a source's marginal contribution, is efficient, symmetric,
+null-respecting and additive; it is the only attribution with the four, by the decomposition of
+every score into unanimity games with Harsanyi dividends; and leave-one-out, which an ablation arm
+measures, agrees with it on constant marginals and confirms neither of two redundant sources. The
+number of resolved units an effect needs is the ledger's power calculation, derived from the normal
+approximation. We design the loop in which the store's own future labels its present, forward only
+and pre-registered, with each configuration an arm and the log-score advantage over a reference arm
+as the common currency, and we list the open corpora that cross the thresholds. Each theorem is
+attacked on an exact rational shadow with a refuted control, and the library is replayed through
+Lean's kernel and five independent checkers.
+\end{abstract}
+
+\section{Introduction}
+
+A knowledge store that is kept over time is a sequence of graphs: notes are written and rewritten,
+citations are added and severed, sources arrive. The previous article in this series
+(\lean{papers/2026-11-07-graph-dynamics}) proved the dynamics of such a graph: the sum over walks
+is a resolvent, a flow is read
+through its Hodge decomposition, and the macro regime is the span of the low modes of the
+Laplacian, which evolve exactly by their own eigenvalues while the rest decays at the rate of the
+spectral gap. This article asks two questions that follow from it.
+
+The first is \emph{scale}. The macro regime is a theorem on a fixed graph, but the quantities it is
+read from, the spectral gap $\gamma$, the eigengaps between modes, a time average of an observable,
+are measured on a sample of a growing corpus, and on a small sample they fluctuate with every note
+added. At what scale do they stop fluctuating, and how long a window does an estimate of a macro
+observable need? We prove two thresholds (the relaxation time for a time average, the eigengap at
+the cut for a macro description), cite a third (the concentration of random graph spectra once the
+minimum degree exceeds a constant times $\log N$), and say plainly how far below every threshold a
+small private corpus is.
+
+The second is \emph{attribution}. A store should be able to say which of its sources, which
+context windows and which analysis tools improve its results, and say it with evidence rather than
+by assertion. We design a continuous evaluation loop: at each cut of the store's history, questions
+about events after the cut (a link that will form, a note that will be superseded, a version that
+will appear, an answer a later source will confirm) are registered in a pre-registered prediction
+ledger, forecast by every configuration of the system, and resolved by a later cut, forward only.
+Each configuration is an arm, and the outcome is attributed by two readings: a randomization test
+per ablation, which measures leave-one-out, and the Shapley value over the sources. We prove the
+Shapley value's existence and uniqueness from its four axioms, prove when leave-one-out agrees with
+it, and exhibit the case where it does not: two redundant sources, either sufficient, each
+attributed nothing by leave-one-out and half by Shapley. The disagreement is not a defect of either
+reading; it is the finding that the store holds the same evidence twice.
+
+The contributions are:
+\begin{enumerate}
+\item SCL-1, the estimation threshold (\Cref{thm:scl1}): under the lazy walk on a connected graph
+  with gap $\gamma$, the time average of a mean-zero field over $T$ steps has energy at most
+  $((1/T)\sum_{n<T}(1-\varepsilon\gamma)^n)^2\norm{x}^2 \le \norm{x}^2/(T\varepsilon\gamma)^2$, and
+  precision $\delta$ needs $T \ge \norm{x}/(\varepsilon\gamma\delta)$. The sampled form, derived,
+  gives the constant $2\sigma^2/(\gamma T)$ and the effective sample size $T\gamma/2$.
+\item SCL-2, scale separation (\Cref{thm:scl2}): the dropped modes' energy relative to the kept
+  modes' falls by $e^{-2(\mu-\nu)t}$, with the time $\log(R/\epsilon)/(2g)$ at which a $k$-mode
+  description explains all but $\epsilon$, a discrete twin under the lazy walk, and the refuted
+  control without a gap.
+\item SCL-3, attribution (\Cref{thm:scl3}): the Shapley value satisfies the four axioms, is the
+  unique attribution that does, equals the Harsanyi dividend formula, and leave-one-out agrees with
+  it exactly on scores with constant marginals, with a witness for the general disagreement.
+\item SCL-4, power (\Cref{sec:scl4}): the number of independent resolved units to detect an effect,
+  derived from the normal approximation in the form the ledger uses.
+\item The loop (\Cref{sec:loop}), the datasets (\Cref{sec:datasets}) and the recipe
+  (\Cref{sec:recipe}), each tied to the thresholds and the theorems.
+\end{enumerate}
+Each theorem is stated with its Lean name in \lean{formal/Palace/Scale.lean}, attacked on an exact
+rational shadow with a negative control in \lean{formal/PalaceTest/Scale.lean}, and replayed, with
+the rest of the library, through Lean's kernel and five independent checkers.
+
+\section{Background and related work}
+
+\paragraph{Spectral gaps and mixing.}
+For a weighted graph with Laplacian $L = D - A$ on $N$ nodes, the spectral gap is the least
+nonzero eigenvalue on a connected support, and the lazy walk $1-\varepsilon L$ with
+$\varepsilon \le 1/d_{\max}$ is a reversible Markov chain whose relaxation time is $1/(\varepsilon\gamma)$
+\cite{levin2017mixing,chung1997spectral,lovasz1993random}. Its mixing is geometric at the gap's
+rate, and the variance of a time average along the chain is governed by the same gap: for a chain
+started at stationarity the asymptotic variance of an observable is at most $(2/\gamma)$ times its
+stationary variance \cite{aldous2002reversible,levin2017mixing}. SCL-1 proves the deterministic
+form of this bound for the exact diffusion and derives the sampled form from it.
+
+\paragraph{Concentration of random graph spectra.}
+For a random graph with independent edges whose minimum expected degree is at least a constant
+times $\log N$, the adjacency matrix and the normalized Laplacian concentrate around their
+expectations in operator norm, within $O(\sqrt{\log N/\delta})$ with high probability
+\cite{oliveira2009concentration}, with explicit constants through a matrix Chernoff bound
+\cite{chung2011spectra}. This is the threshold at which a measured spectrum is the corpus's rather
+than the sample's; it is cited here, not proved, and a sibling study measures its shape on real
+data.
+
+\paragraph{Coarse-graining and scale separation.}
+A function of a symmetric operator acts on each eigenvector by the function of its eigenvalue, so
+the heat kernel commutes with the projection onto any set of modes and the dropped part decays at
+the rate of the gap below it; that is DYN-4 of the previous article. Scale separation in the sense
+used here, that a few slow modes describe the system on a time scale set by the gap to the fast
+ones, is the standard adiabatic picture; SCL-2 states it as an inequality between the two parts'
+energies with both bounds proved.
+
+\paragraph{Data valuation.}
+The Shapley value \cite{shapley1953value} is the unique attribution satisfying efficiency,
+symmetry, the null player axiom and additivity, and its decomposition through the unanimity games
+and their dividends is Harsanyi's \cite{harsanyi1963bargaining}. Its use to value data for a learned
+model, with the value function the model's score on a subset of the data, is Data Shapley
+\cite{ghorbani2019data}, estimated by Monte Carlo over permutations \cite{castro2009polynomial},
+with more efficient estimators under structural assumptions \cite{jia2019efficient}. SCL-3 proves
+the axioms and the uniqueness in Lean for a general value function and adds the comparison with
+leave-one-out that an ablation measures.
+
+\paragraph{Ablation and pre-registration.}
+An ablation removes one component and measures the drop; it measures necessity, and SCL-3 says
+exactly when that equals contribution. The evaluation here runs under a protocol written before
+the first prediction \cite{nosek2018preregistration}, scored by strictly proper rules
+\cite{brier1950verification,gneiting2007strictly}, with the family-wise error controlled across
+secondary comparisons \cite{holm1979simple} and the inference at the cluster level
+\cite{cameron2008bootstrap}; the forward-only rule follows the practice of keeping only questions
+whose outcome a model could not have seen \cite{halawi2024approaching}. The log-score advantage over
+a reference arm is the growth rate of a proportional stake \cite{kelly1956}, the identity the
+ledger's growth readout rests on.
+
+\paragraph{Temporal self-supervision and link prediction.}
+That the store's own future can label its present is the link-prediction setting
+\cite{libennowell2007link}: a snapshot as of a cut, and the question of which links appear by a
+later cut, with the snapshot's own structure as the only input. The loop generalizes it to
+supersessions, new versions and confirmations by later sources, each resolved by the store at a
+later cut.
+
+\section{Theory}
+
+Throughout, $V$ is a finite set of $N$ nodes, $A$ a symmetric nonnegative weight matrix on $V$
+with Laplacian $L = D - A$, $M$ a real symmetric matrix with orthonormal eigenvectors $\varphi_j$
+and eigenvalues $\lambda_j$ (the \emph{modes}, \lean{Palace.Dynamics.mode}), $H_t = e^{-tM}$ its
+heat kernel by the functional calculus, and $P_S f = \sum_{j \in S}\ip{f}{\varphi_j}\varphi_j$ the
+projection of a field onto a set $S$ of modes. The spectral gap is stated as in DYN-6: $\gamma$ is a
+gap of $A$ when $\gamma \le \lambda_j$ for every nonzero eigenvalue of $L$, which on a connected
+support is the Poincar\'e inequality $\gamma\norm{f}^2 \le f^{\top}Lf$ for every $f \perp \mathbf{1}$.
+
+\subsection{SCL-1: the estimation threshold}
+
+\begin{definition}[time average]
+For an operator $N$ on $V$, a window of $T$ steps and a field $x$, the time average is
+$\operatorname{avg}_T(x) = \frac{1}{T}\sum_{n<T} N^n x$ (\lean{Palace.Scale.timeAverage}): the
+estimate of a macro observable from $T$ consecutive readings of the diffusion started at $x$.
+\end{definition}
+
+\begin{theorem}[SCL-1, the estimation threshold]\label{thm:scl1}
+Let $A$ have a connected support, let $\gamma$ be a gap of $A$, and let $\varepsilon \ge 0$ with
+$\varepsilon\lambda_j \le 1$ on every eigenvalue of $L$. For every $x \perp \mathbf{1}$ and every
+window $T$, under the lazy walk $N_\varepsilon = 1 - \varepsilon L$,
+\[
+  \norm{\operatorname{avg}_T(x)}^2
+  \;\le\; \Bigl(\frac{1}{T}\sum_{n<T}(1-\varepsilon\gamma)^n\Bigr)^2 \norm{x}^2
+  \quad\text{(\lean{lazy\_timeAverage\_energy\_le})},
+\]
+and when $0 < \varepsilon\gamma \le 1$ and $T \ge 1$,
+\[
+  \norm{\operatorname{avg}_T(x)}^2 \;\le\; \frac{\norm{x}^2}{(T\varepsilon\gamma)^2}
+  \quad\text{(\lean{lazy\_timeAverage\_energy\_le\_window})}.
+\]
+Consequently, for a precision $\delta > 0$, $T \ge \norm{x}/(\varepsilon\gamma\delta)$ implies
+$\norm{\operatorname{avg}_T(x)}^2 \le \delta^2$ (\lean{lazy\_timeAverage\_precision}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+On a mode $\varphi_j$ the lazy walk multiplies by $g_j = 1 - \varepsilon\lambda_j$, so the time
+average multiplies by the geometric mean sum $\frac{1}{T}\sum_{n<T} g_j^n$
+(\lean{timeAverage\_dotProduct\_mode}, through the symmetry of $N^n$). By Parseval,
+$\norm{\operatorname{avg}_T(x)}^2 = \sum_j (\frac{1}{T}\sum_{n<T} g_j^n)^2\ip{x}{\varphi_j}^2$. A
+mean-zero field on a connected support has no weight on the zero mode (DYN-5's
+\lean{dotProduct\_mode\_eq\_zero}), so on every mode it lives on $0 \le g_j \le 1 - \varepsilon\gamma$,
+and the geometric sums are monotone in their ratio (\lean{timeAverage\_energy\_le}). The second
+bound is the geometric sum under $1/(1-\rho) = 1/(\varepsilon\gamma)$ (\lean{sum\_pow\_le\_inv\_one\_sub},
+Mathlib's \lean{geom\_sum\_Ico\_le\_of\_lt\_one}), and the precision is its square root.
+\end{proof}
+
+In continuous units a window of $T$ lazy steps spans $T_c = T\varepsilon$ of diffusion time and
+$1/\gamma$ is the relaxation time, so the bound reads $\norm{x}^2/(\gamma T_c)^2$: the estimate is
+within $\delta$ of the mean once the window spans $\norm{x}/\delta$ relaxation times. This is the
+deterministic form, in which the readings are the exact states of the diffusion, and its constant
+$1/(\gamma T_c)^2$ is the one proved.
+
+\begin{proposition}[the sampled form, derived]\label{prop:sampled}
+Let $X_0, X_1, \dots$ be the lazy walk started from its stationary distribution (uniform, since
+$1-\varepsilon L$ is symmetric and stochastic for $\varepsilon \le 1/d_{\max}$), and $f$ an observable with
+centered part $f_0$ and stationary variance $\sigma^2 = \norm{f_0}^2/N$. Then
+\[
+  \Var\Bigl(\frac{1}{T}\sum_{t<T} f(X_t)\Bigr)
+  \;\le\; \frac{\sigma^2}{T}\cdot\frac{2-\varepsilon\gamma}{\varepsilon\gamma}
+  \;\le\; \frac{2\sigma^2}{\varepsilon\gamma T},
+\]
+so estimating the mean to precision $\epsilon$ needs $T_c \gtrsim 2\sigma^2/(\gamma\epsilon^2)$, and
+a window of $T_c$ carries $T_c\gamma/2$ effective samples.
+\end{proposition}
+
+\begin{proof}[Derivation]
+$\Var(\sum_t f(X_t)) = \sum_{s,t}\Cov(f(X_s), f(X_t)) = \sum_{s,t}\ip{f_0}{P^{\abs{s-t}} f_0}/N$ for
+a stationary reversible chain with transition matrix $P = 1 - \varepsilon L$, and each term is at most
+$(1-\varepsilon\gamma)^{\abs{s-t}}\norm{f_0}^2/N$ by Cauchy--Schwarz and DYN-6's contraction on the
+modes (\lean{lazy\_pow\_energy\_le}). Summing the geometric series in $\abs{s-t}$ gives
+$T\sigma^2(1 + 2\sum_{k \ge 1}(1-\varepsilon\gamma)^k) = T\sigma^2(2-\varepsilon\gamma)/(\varepsilon\gamma)$. The
+contraction is machine-checked; the chain, its stationarity and the covariance identity are not
+formalized, which is the textbook part \cite{aldous2002reversible,levin2017mixing}.
+\end{proof}
+
+Both forms say the same thing: a macro observable cannot be estimated from a window shorter than
+the relaxation time, whatever the number of readings in it, and the number of readings that count
+is the window measured in relaxation times.
+
+\subsection{SCL-2: scale separation}
+
+DYN-4 bounds the dropped part from above: for $\mu$ at most every dropped eigenvalue and $t \ge 0$,
+$\norm{H_t(f - P_Sf)}^2 \le e^{-2\mu t}\norm{f - P_Sf}^2$ (\lean{heat\_sub\_modeProj\_le}). Scale
+separation needs the kept part bounded from below.
+
+\begin{theorem}[SCL-2, scale separation]\label{thm:scl2}
+Let $S$ be a set of modes of $M$, $\mu \le \lambda_j$ for every $j \notin S$ and $\lambda_j \le \nu$
+for every $j \in S$. Then for $t \ge 0$,
+\[
+  e^{-2\nu t}\norm{P_Sf}^2 \;\le\; \norm{H_t P_S f}^2
+  \quad\text{(\lean{heat\_modeProj\_energy\_ge})},
+\]
+and
+\[
+  \norm{H_t(f - P_Sf)}^2\,\norm{P_Sf}^2
+  \;\le\; e^{-2(\mu-\nu)t}\,\norm{f - P_Sf}^2\,\norm{H_tP_Sf}^2
+  \quad\text{(\lean{scale\_separation})}.
+\]
+If moreover $g = \mu - \nu > 0$, $\epsilon > 0$, $\norm{P_Sf} > 0$ and
+$t \ge \log(R/\epsilon)/(2g)$ with $R = \norm{f-P_Sf}^2/\norm{P_Sf}^2$ the initial ratio, then
+\[
+  \norm{H_t(f - P_Sf)}^2 \;\le\; \epsilon\,\norm{H_tP_Sf}^2
+  \quad\text{(\lean{scale\_separation\_time})}.
+\]
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+$\norm{H_tx}^2 = \sum_j e^{-2\lambda_jt}\ip{x}{\varphi_j}^2$ (DYN-4's \lean{dotProduct\_cfc\_mulVec}
+with the semigroup law), and $P_Sf$ lives on the modes in $S$ (\lean{modeProj\_dotProduct\_mode}),
+where $\lambda_j \le \nu$, which gives the lower bound (\lean{heat\_energy\_ge}). Multiplying the two
+bounds, with $e^{-2\mu t} = e^{-2(\mu-\nu)t}e^{-2\nu t}$ and both energies nonnegative, gives the
+product form. For the time, $\log(R/\epsilon) \le 2gt$ gives $e^{-2gt}R \le \epsilon$
+(Mathlib's \lean{Real.log\_le\_iff\_le\_exp}), so $e^{-2gt}\norm{f-P_Sf}^2 \le \epsilon\norm{P_Sf}^2$, and
+the product form divided by $\norm{P_Sf}^2 > 0$ is the claim; when $\norm{f-P_Sf} = 0$ the claim is
+trivial.
+\end{proof}
+
+With $S$ the first $k$ modes, $\nu = \lambda_k$, $\mu = \lambda_{k+1}$ and $g$ is the eigengap at
+the cut. In amplitude rather than energy the rate is $e^{-gt}$, the form in which the question is
+usually put. The discrete twin holds under any symmetric operator that multiplies the dropped modes
+by at most $\rho_1$ and the kept modes by at least $\rho_2$ in absolute value: after $n$ steps,
+$\rho_2^{2n}\norm{N^n(f-P_Sf)}^2\norm{P_Sf}^2 \le \rho_1^{2n}\norm{f-P_Sf}^2\norm{N^nP_Sf}^2$
+(\lean{scale\_separation\_pow}, through \lean{pow\_energy\_ge}); for the lazy walk
+$\rho_1 = 1-\varepsilon\mu$ and $\rho_2 = 1-\varepsilon\nu$.
+
+\begin{proposition}[the control: no gap, no time]\label{prop:nogap}
+On the identity $M = 1$ every eigenvalue is $1$ (\lean{eigenvalues\_one}), so two equal eigenvalues
+straddle every cut, and for every $S$, $f$ and $t$,
+\[
+  \norm{H_t(f-P_Sf)}^2\norm{P_Sf}^2 = \norm{f-P_Sf}^2\norm{H_tP_Sf}^2
+  \quad\text{(\lean{no\_gap\_no\_separation})}:
+\]
+the dropped share of the energy is the same at every time, so if some $t$ makes the dropped part at
+most $\epsilon$ of the kept part, it already was at $t = 0$ (\lean{no\_gap\_no\_time}).
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+$M\varphi_j = \lambda_j\varphi_j$ with $M = 1$ and $\norm{\varphi_j} = 1$ gives $\lambda_j = 1$. Then
+every field's energy under $H_t$ is exactly $e^{-2t}$ times its own (\lean{heat\_energy\_eq}, the
+case of a single eigenvalue on every mode a field lives on), and the common factor cancels.
+\end{proof}
+
+\subsection{SCL-3: attribution}
+
+\begin{definition}[scores, orderings, the Shapley value]
+Let $\alpha$ be a finite set of $n$ sources. A score is $v : 2^\alpha \to K$ over a field $K$ of
+characteristic zero: the evaluation of each configuration. An ordering is a bijection
+$\sigma : \alpha \simeq \{0, \dots, n-1\}$ (\lean{Palace.Scale.Ordering}); the sources before $i$
+are $\operatorname{pred}(\sigma, i) = \{j : \sigma j < \sigma i\}$; the marginal contribution of $i$
+to $S$ is $v(S \cup \{i\}) - v(S)$ (\lean{marginal}). The Shapley value is the average over
+every ordering of $i$'s marginal contribution to the sources before it,
+\[
+  \Sh_i(v) = \frac{1}{n!}\sum_{\sigma}\bigl(v(\operatorname{pred}(\sigma,i) \cup \{i\}) -
+  v(\operatorname{pred}(\sigma,i))\bigr)
+  \quad\text{(\lean{shapley})}.
+\]
+An attribution $\psi$ assigns a value per source to every score. It is \emph{efficient} when
+$\sum_i\psi_i(v) = v(\alpha) - v(\emptyset)$; \emph{symmetric} when $\psi_i(v) = \psi_j(v)$ whenever
+$v(S \cup \{i\}) = v(S \cup \{j\})$ for every $S$ holding neither; \emph{null-respecting} when
+$\psi_i(v) = 0$ whenever $v(S \cup \{i\}) = v(S)$ for every $S$; \emph{additive} when
+$\psi(v+w) = \psi(v) + \psi(w)$ (\lean{Efficient}, \lean{Symmetric}, \lean{NullPlayer},
+\lean{Additive}). The unanimity game of $T$ is $u_T(S) = [T \subseteq S]$, the Harsanyi dividend of
+$v$ at $T$ is $c_T(v) = \sum_{S \subseteq T}(-1)^{\abs{T}-\abs{S}}v(S)$, and leave-one-out is
+$\loo_i(v) = v(\alpha) - v(\alpha \setminus \{i\})$ (\lean{unanimity}, \lean{harsanyi}, \lean{loo}).
+\end{definition}
+
+\begin{theorem}[SCL-3, attribution]\label{thm:scl3}
+\begin{enumerate}
+\item The Shapley value is efficient (\lean{shapley\_efficient}), symmetric
+  (\lean{shapley\_symmetric}), null-respecting (\lean{shapley\_nullPlayer}) and additive
+  (\lean{shapley\_additive}).
+\item Every score is the combination of the unanimity games with its dividends as coefficients,
+  $\sum_T c_T(v)\,u_T(S) = v(S)$ (\lean{sum\_harsanyi\_unanimity}), and any attribution with the
+  four axioms is the dividend formula
+  \[
+    \psi_i(v) = \sum_{T \ni i}\frac{c_T(v)}{\abs{T}}
+    \quad\text{(\lean{attribution\_eq\_sum\_harsanyi})},
+  \]
+  so it is the Shapley value (\lean{eq\_shapley\_of\_axioms}, \lean{shapley\_eq\_sum\_harsanyi}).
+\item If $v$ has constant marginals, $v(S \cup \{i\}) - v(S) = a_i$ for every $S \not\ni i$, then
+  $\loo_i(v) = \Sh_i(v) = a_i$ (\lean{loo\_eq\_shapley\_of\_marginal\_const}).
+\item (The witness.) On two sources with $v(S) = [S \neq \emptyset]$, either source sufficient,
+  $\Sh_0(v) = \Sh_1(v) = \tfrac12$ while $\loo_0(v) = \loo_1(v) = 0$, and the leave-one-out values
+  do not sum to $v(\alpha) - v(\emptyset)$ (\lean{Witness.loo\_confirms\_nothing}).
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+(1) Along one ordering the marginals telescope through the chain
+$\emptyset = C_0 \subset C_1 \subset \dots \subset C_n = \alpha$ of the sources before each position
+(\lean{chain}, \lean{sum\_marginal\_pred}), so they sum to $v(\alpha) - v(\emptyset)$ for every
+$\sigma$, and dividing by the number of orderings, $n!$ (Mathlib's \lean{Fintype.card\_equiv}),
+gives efficiency. Composing with the swap of $i$ and $j$ is a bijection on orderings
+(\lean{swapOrd}); under it the sources before $i$ are the sources before $j$ with $i$ replaced by
+$j$ when $i$ was among them (\lean{pred\_swap}), and the symmetry hypothesis makes the two marginals
+equal in both cases (\lean{marginal\_swap}), so the two sums agree. A null source's marginals vanish
+termwise; additivity is the linearity of the sum.
+
+(2) $\sum_{T \subseteq S}c_T(v) = \sum_{R \subseteq S}v(R)\sum_{R \subseteq T \subseteq S}(-1)^{\abs{T}-\abs{R}}$
+after exchanging the sums, and the inner sum is $[S = R]$: it is the alternating sum over the
+subsets of $S \setminus R$ (\lean{sum\_powerset\_filter\_neg\_one\_pow}, through Mathlib's
+\lean{sum\_powerset\_neg\_one\_pow\_card}). On a scaled unanimity game $c\,u_T$, a source outside $T$
+is null, two sources inside $T$ are symmetric, and efficiency gives $c$ in total, so an attribution
+with the three axioms is $c/\abs{T}$ on $T$ and $0$ elsewhere (\lean{attribution\_unanimity});
+additivity over the decomposition (\lean{additive\_sum}, by induction on the finite sum) gives the
+dividend formula, which the Shapley value, having the four axioms, satisfies too.
+
+(3) Every marginal of $i$ in the ordering average is $a_i$, and $\loo_i(v)$ is the marginal to
+$\alpha \setminus \{i\}$. (4) By symmetry the two Shapley values are equal and by efficiency they sum
+to $1$; each leave-one-out is $1 - 1 = 0$.
+\end{proof}
+
+The witness is the shape of the Rayleigh family's \lean{loo\_confirms\_nothing}: a rise in
+conductance carried by two redundant new paths is confirmed by neither when each is reverted alone.
+Leave-one-out measures \emph{necessity}; the Shapley value measures the \emph{share carried}; they
+agree exactly when sources do not interact, and where they disagree the store holds the same evidence
+twice.
+
+\subsection{SCL-4: power}\label{sec:scl4}
+
+The number of independent resolved units an effect needs is not formalized; it is the normal
+approximation, in the form the ledger's \lean{required\_clusters} computes. Let $d_k$ be the mean
+paired difference between two arms over the pairs of cluster $k$, for $K$ independent clusters,
+with mean $\Delta$ and standard deviation $s$ across clusters. The statistic is the cluster mean
+$\bar d \approx \mathcal N(\Delta, s^2/K)$. The two-sided test at level $\alpha$ rejects $\Delta = 0$
+when $\abs{\bar d} > z_{1-\alpha/2}\,s/\sqrt K$. At a true effect $\Delta > 0$, up to the negligible
+other tail, the rejection probability is $P(Z > z_{1-\alpha/2} - \Delta\sqrt K/s)$, which is at least
+$1 - \beta$ exactly when $\Delta\sqrt K/s \ge z_{1-\alpha/2} + z_{1-\beta}$, that is
+\begin{equation}\label{eq:power}
+  K \;\ge\; \Bigl(\frac{(z_{1-\alpha/2} + z_{1-\beta})\,s}{\Delta}\Bigr)^2,
+\end{equation}
+rounded up, with $s$ read blinded from a pilot that reports no mean. At $s = 0.08$, $\Delta = 0.02$,
+$\alpha = 0.05$ and power $0.8$, $K = 126$; at $\Delta = 0.01$, $503$.
+
+SCL-1 adds a constraint on $K$. The units must be independent, and questions registered within one
+relaxation time of each other, about a store whose state has not relaxed between them, are one
+observation: a window of $T_c$ cuts yields at most about $T_c\gamma/2$ independent units of a macro
+observable (\Cref{prop:sampled}). The cluster rule, one cluster per identity or pair, catches the
+dependence within a cut; the relaxation time is the rule for dependence across cuts, so the loop's
+rounds are spaced at least a relaxation time apart.
+
+\section{Concepts and intuition}
+
+\paragraph{Why macro needs a gap and a window.}
+A macro variable is a coefficient on a slow mode, and it is legitimate as a description exactly
+when the fast modes have decayed relative to it. SCL-2 makes the two words precise: ``fast'' and
+``slow'' are the eigenvalues on either side of the cut, and the time at which the description holds
+is $\log(R/\epsilon)/(2g)$, so a spectrum with no gap near the cut gives no time at all
+(\Cref{prop:nogap}). Measuring the macro variable is a different matter: the estimate from a
+window is a time average, and SCL-1 says that it converges only at the rate the gap sets, so the
+window must be many relaxation times long whatever its sampling rate. A reader who samples a slowly
+mixing store a thousand times in one relaxation time has one reading, not a thousand. The two
+thresholds are about different gaps: SCL-1's $\gamma$ is the gap above zero, the rate at which any
+mean-zero disturbance averages out; SCL-2's $g$ is the eigengap at the cut, the rate at which the
+modes the description drops separate from the ones it keeps.
+
+\paragraph{Why the spectrum must have concentrated first.}
+Both thresholds take $\gamma$ and $g$ as given, but on a small sample of a growing corpus they are
+noise. The concentration results say when they stop being noise: once the minimum expected degree
+exceeds a constant times $\log N$, the eigenvalues of the normalized Laplacian sit within
+$O(\sqrt{\log N/\delta})$ of their expectations, so a gap is a property of the corpus once that
+fluctuation scale is below it, $\delta \gg \log N/\gamma^2$. The order is therefore: concentrate,
+then separate, then average.
+
+\paragraph{Why attribution needs a common currency and power.}
+Two configurations can only be compared on the same questions in the same rounds, and the
+comparison must be in a unit that adds: the log-score advantage of an arm over the reference is
+additive over questions, its expectation under a truth $q$ is $\KL(q\|r) - \KL(q\|p)$, positive
+exactly when the arm's forecasts are closer to the truth than the base rate, and its cumulative form
+is the log growth of a proportional stake against the reference, so the attribution, the growth
+readout and the decision rule read one number. Attribution then needs a value function on
+configurations, which is what the currency provides, and a bar: \eqref{eq:power} says how many
+independent resolved units a difference of $\Delta$ needs before it can be read, and SCL-1 says how
+many such units a window of the store's history can hold.
+
+\paragraph{Why two readings.}
+An ablation arm measures leave-one-out, and SCL-3 says that is contribution only when marginals are
+constant. The Shapley value is the unique attribution that respects all four axioms, and the witness
+is the common case of a store: two sources that say the same thing. Reporting both readings turns
+their disagreement into a measurement of redundancy, which is itself something a store should know
+about its sources.
+
+\section{The loop}\label{sec:loop}
+
+The loop runs on the prediction ledger of the previous design: an append-only chain whose first
+record is the protocol, with forward-only predictions, strictly proper scores, cluster-level
+inference, blinding until a pre-registered $N$, and the growth readout. What is added is where the
+questions come from (the store itself), what the arms are (configurations), and how the outcome is
+attributed.
+
+\begin{algorithm}[h]
+\caption{The continuous evaluation loop, one round per cut.}
+\begin{algorithmic}[1]
+\Require a store with cuts $c_1 < c_2 < \dots$ spaced at least a relaxation time $1/\gamma$ apart; a
+  protocol fixing the generators, the arms, the reference arm, the bar $(\Delta, \alpha, 1-\beta)$,
+  $N$ and the sampled orderings
+\Ensure at $N$ clusters, once: $v(S)$ per arm, $\loo_i$ with its sign-flip interval, $\Sh_i$ with
+  its standard error, the growth readout
+\For{each cut $c$}
+  \State \textbf{register} $Q_c \gets$ generators(store as of $c$), seeded: for each question its
+    family, its cluster (the identity or pair it turns on), its close time $c' > c$ and its resolver
+  \State \textbf{forecast} for each arm $S$ (the full set, every $\alpha \setminus \{i\}$, the
+    configurations of the sampled orderings): $p_S(q)$ for $q \in Q_c$, from the store as of $c$
+    under $S$'s grant, recorded with $S$'s pinned digest
+  \State \textbf{resolve} every $q$ whose close time is at most $c$, by its resolver over the store
+    as of $c$; a prediction at or after the resolution is late and excluded
+  \State \textbf{attribute} when the first $N$ clusters of the primary comparison have resolved,
+    once: $v(S)$ the mean log-score advantage over the reference; $\loo_i = v(\alpha) -
+    v(\alpha\setminus\{i\})$ by the cluster sign-flip test, Holm-corrected; $\Sh_i$ by the average
+    of the marginals over the sampled orderings, with $s_i/\sqrt m$
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{The generators.}
+Four, each a function of the snapshot at the cut and nothing later: \emph{link}, will identity $a$
+cite identity $b$ by $c'$, for pairs not yet linked, sampled with the same rule for every arm;
+\emph{supersession}, will note $a$ be superseded by $c'$; \emph{version}, will identity $a$ have a
+new version by $c'$; \emph{confirmation}, will a source arriving by $c'$ confirm the answer the store
+gives at $c$, with the answer's truth condition stated at $c$. Each question's cluster is the
+identity or pair it turns on, so two questions about one note are one observation.
+
+\paragraph{The arms.}
+A configuration is a subset of the sources, context windows and analysis tools the system may use:
+a source is an origin the store reads from, a context window is the depth of history an arm may read
+as of, a tool is a verb of the query algebra the arm may call. The arms differ in what they may
+read and call, not in who answers; the model and the prompt are in every arm's digest, and a change
+to them is a new variant. The reference arm is the family's base rate over the questions resolved
+before the cut, which no source informs; the null arm is its copy and must show exactly zero skill.
+
+\paragraph{The Shapley cost.}
+With $n$ sources the exact value needs $2^n$ configurations, each an arm forecasting every
+question; beyond $n \approx 5$ the permutation estimator samples $m$ orderings at genesis, registers
+the $m n$ configurations they run through, and reports $\Sh_i$ with its standard error $s_i/\sqrt m$,
+$s_i$ the spread of $i$'s marginal across orderings \cite{castro2009polynomial,ghorbani2019data};
+$m$ is fixed before the first prediction, like $N$.
+
+\section{Evaluation}
+
+\paragraph{What is proved.}
+The theorems of \Cref{thm:scl1,thm:scl2,thm:scl3} and \Cref{prop:nogap} are machine-checked in
+\lean{formal/Palace/Scale.lean} over the model \lean{formal/Palace/Scale/Defs.lean}, on Lean
+v4.36.0-rc2 and the Mathlib it pins \cite{moura2021lean4,mathlib2020}, with the sorry budget at zero
+and the axioms audited (\lean{propext}, \lean{Classical.choice}, \lean{Quot.sound} only). The
+library's export, 46{,}006 declarations from \lean{Init} up, is replayed by Lean's kernel and by
+\lean{leanchecker-paranoid}, \lean{lean4lean}, \lean{nanoda}, \lean{con-leche} and \lean{con-ron},
+and the 248 statements of the ledger's specification are judged identical to the library's. The
+gate is \lean{formal/check.sh}.
+
+\paragraph{The attacks.}
+Each family is attacked on an exact shadow over $\mathbb{Q}$ with a negative control
+(\lean{formal/PalaceTest/Scale.lean}, seeds 350 to 367, 500 instances each, Plausible). The spectral
+gap is an eigenvalue and does not run, so SCL-1 is attacked where the spectrum is rational: complete
+bipartite graphs on four nodes with a uniform weight $w$, whose Laplacian has eigenvalues $0$, $wa$,
+$wb$ and $w(a+b)$, so the gap is $w\min(a,b)$ exactly and the lazy step $1/(4w)$ keeps every
+multiplier in $[0,1]$; the time average of a centered field over windows of up to seven steps is
+matrix arithmetic. The window bound and the geometric-sum form survived 495 and 493 instances (the
+rest discarded as one-sided bipartitions). SCL-2's discrete twin is attacked on diagonal operators,
+whose modes are the coordinates, with the kept set chosen by bits independently of the eigenvalues
+so that the cut need not fall in a gap: 500. SCL-3 is attacked on games over three sources with
+values from a list, the six orderings enumerated through Mathlib's \lean{Fintype} instance on
+$\mathrm{Fin}\,3 \simeq \mathrm{Fin}\,3$: efficiency, additivity, the null source, symmetry, the
+Harsanyi decomposition at every configuration, the dividend formula and leave-one-out on an additive
+score, 500 each.
+
+The controls, each refuted: the largest eigenvalue in place of the gap, within 5 instances; a field
+with a mean, which the walk conserves, within 25; the dropped share ``always falls'', within 19, on a
+cut with a kept eigenvalue above a dropped one, where the share rises; the fastest dropped mode's rate
+in place of the slowest's, within 24; the equal split, efficient and symmetric, pays a null source,
+within 11; leave-one-out is not efficient, within 10 (a score of $1$ on the empty configuration
+alone); the uniform average over configurations (the Banzhaf weights), symmetric, null-respecting
+and additive, is not efficient, within 8; the dividends without their $1/\abs{T}$, within 6.
+
+\paragraph{What the sibling study measures.}
+A separate branch (\lean{build/scale-study}) measures the concentration threshold on real data. Its
+fetcher retrieves the works of one OpenAlex concept \cite{priem2022openalex} with their dates and
+reference lists, resumable by date slice; its measurement, when it lands, is the eigenvalues of the
+normalized Laplacian of the growing dated citation graph at successive cuts, and where the gaps stop
+moving as a function of the minimum degree. No measurement from it is reported here.
+
+\paragraph{How far below the thresholds a small private corpus is.}
+The live store, measured read-only on 2026-11-04 and 2026-11-07 for the previous article: a
+backbone of 38 notes and 38 edges, a relation graph of 20 edges on 12 notes, 29 identities with one
+version each. With $N = 38$, $\log N \approx 3.6$, mean degree $2$ and minimum degree $1$, the
+minimum degree is below $C\log N$ for any $C \ge 1/3$ and the fluctuation scale
+$\sqrt{\log N/\delta} \approx 1.9$ exceeds the whole range $[0,2]$ of the normalized Laplacian's
+spectrum: every measured gap is noise of the sample. There is one cut, so the window is zero
+relaxation times for any $\gamma$; there are no resolved questions, so $K = 0$ against a required
+$126$; and one generation, so the supersession and version generators have nothing to ask. The
+small corpus is below every threshold by two to four orders of magnitude, and nothing measured on it
+about its macro regime is evidence.
+
+\section{Datasets and the recipe}\label{sec:datasets}
+
+The thresholds need an evolving graph with dates, large enough that its spectrum has concentrated
+and with a history of many relaxation times; the loop needs events after a cut that a snapshot before
+it does not contain. \Cref{tab:datasets} lists five open corpora with their licences, their scale
+and what each exercises.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{p{0.2\linewidth}p{0.16\linewidth}p{0.22\linewidth}p{0.34\linewidth}}
+\toprule
+corpus & licence & scale & exercises \\
+\midrule
+OpenAlex works, with \texttt{publication\_date} and \texttt{referenced\_works}
+  & CC0 1.0
+  & hundreds of millions of works, on the order of a billion dated citation links (the study records what it fetched)
+  & a dated citation graph: the link generator at every cut; the gap and the eigengaps of a growing graph against the minimum degree; concept clusters as a partition \\
+Wikipedia dumps, articles with revision histories and links
+  & CC BY-SA 4.0
+  & millions of articles, more than a billion revisions in the English edition
+  & version chains: the supersession and version generators; links that appear and are severed; a velocity with many generations \\
+commit and issue histories of public repositories
+  & each repository's own licence; the platform's terms for the metadata (mirror the metadata only)
+  & millions of repositories; hundreds of thousands of commits and issues on a large one
+  & commits as supersessions on a path's chain; issues citing commits as a dated relation; many sources for the confirmation generator \\
+arXiv metadata through OAI-PMH
+  & CC0 1.0 (metadata)
+  & more than two million papers, each with dated versions
+  & version chains with dates and no citations; a feed the loop registers from, round by round \\
+ALFRED, archival economic series with vintages
+  & the St.\ Louis Fed's terms of use (most series free with attribution; some third-party series restricted)
+  & hundreds of thousands of series, the vintages of the archived ones, decades of them
+  & a value behind a fixed identity re-recorded at each vintage; the velocity of a value with its revisions; a confirmation generator whose later source is the next vintage \\
+\bottomrule
+\end{tabular}
+\caption{Open corpora that give an evolving graph with dates, and what each exercises.}
+\label{tab:datasets}
+\end{table}
+
+Every edge, version or value in them carries a date the corpus assigned, so a cut is a date and a
+snapshot as of a cut is reproducible, and the forward-only rule holds against a corpus that already
+contains the future only if the arms read snapshots as of the cut and nothing later, which the
+instance that holds the corpus enforces by what it lands.
+
+\subsection{The recipe}\label{sec:recipe}
+
+\begin{enumerate}
+\item \textbf{Measure.} At a sequence of cuts, the Laplacian's gap $\gamma$ and the eigengaps $g_k$
+  near the candidate cuts, for the normalized Laplacian too, with the minimum degree $\delta$ and
+  the size $N$, each as a function of the cut.
+\item \textbf{Size.} From $\gamma$, the window $T_c \gtrsim 2\sigma^2/(\gamma\epsilon^2)$ a macro
+  observable needs and the effective samples a history of $T_c$ carries; from $g_k$, the time scale
+  $1/g_k$ at which a $k$-mode description is legitimate; from $\delta$ and $N$, whether the spectrum
+  has concentrated; from the pilot's spread, $K$ by \eqref{eq:power}.
+\item \textbf{Grow.} Fetch until the thresholds are exceeded: $\delta \gg \log N/\gamma^2$, a history
+  of many relaxation times, enough clusters for $K$. Each fetch is a dated extension, so growing is
+  adding cuts, not replacing the corpus.
+\item \textbf{Run.} The loop under a protocol written first: the generators, the arms (the full
+  system, the ablations, the sampled configurations with $m$ fixed), the primary comparison and the
+  bar, the round spacing at a relaxation time.
+\item \textbf{Attribute.} At $N$ clusters, once: the sign-flip reading per ablation, the Shapley
+  reading with its standard error, the growth readout; where the two readings disagree, name the
+  redundancy.
+\end{enumerate}
+
+\paragraph{Where it lives.}
+The machinery is generic: the generators and resolvers are functions of a store as of a cut,
+written over the query algebra and so over any store; the ablation arms are grants; the attribution
+readings are functions of the ledger. They extend the ledger's scorer and nothing in the sealed core
+imports them. A corpus belongs in an instance of its own, with its own ledger and its own anchored
+head; instance identity, an id in the schema and the namespaces derived from it, is what makes a
+public corpus of millions of nodes safe to run beside a private store, and the forward-only rule
+holds because the instance lands snapshots as of a cut and nothing after.
+
+\section{Limitations}
+
+The proved constant of SCL-1 is the deterministic one, $1/(\gamma T_c)^2$, for the exact diffusion;
+the sampled form with the constant $2/(\gamma T)$ and the effective sample size $T\gamma/2$ is derived
+for a chain started at stationarity and not machine-checked, and a chain started elsewhere adds a
+burn-in of order $\log(N)/\gamma$ that the derivation omits. SCL-2 is stated for a fixed symmetric
+operator; a store's graph changes between cuts, and the modes of the graph at one cut are not those
+at the next, so the time $1/g$ is a statement about the graph at a cut, read on the next only if the
+spectrum has concentrated. The concentration threshold is cited for graphs with independent edges,
+which a citation graph is not; its constant and its exponent on real data are the sibling study's to
+report, and until it reports nothing here predicts where a measured spectrum stops moving. SCL-3's
+witness shows the disagreement between the two readings but proves no bound on it; the general
+relation between leave-one-out and the Shapley value depends on the score's interaction structure
+and is not characterized here. SCL-4 is the normal approximation at large $K$ and assumes
+independent clusters; dependence across clusters, which the sign-flip test's note already records,
+makes the effective $K$ smaller than the count. The loop is designed and not built; its generators,
+its arms as grants and its attribution readings are proposals to the ledger's design, each with its
+falsifier, and none has run. The live store's figures place it below every threshold, which is a
+measurement, not a projection of where a larger private store would be.
+
+\section{Future work}
+
+Build the loop over the existing ledger: the four generators and their resolvers as functions of a
+store as of a cut, the configuration arms as grants, and the two attribution readings, each
+property-tested against the Lean statements before it lands, with the laws entering the ledger as
+rows when the code relies on them. Run the sibling study's measurement on the first open corpus and
+replace the cited concentration threshold with a measured curve of the eigengaps against the
+minimum degree. Formalize the sampled form of SCL-1 over Mathlib's Markov chain library when it
+reaches stationary variance bounds, and the burn-in it omits. Characterize when the two attribution
+readings agree beyond constant marginals, in terms of the dividends of the score's interaction
+terms. Extend the thresholds from a fixed graph to the sequence of graphs, which is the mixing
+hypothesis of the previous article and needs a series the store does not have yet.
+
+\section{Conclusion}
+
+A store can study its macro behaviour once its graph has concentrated, once a window of its history
+spans many relaxation times, and once the eigengap at the cut it reads separates the modes it keeps
+from the ones it drops; each of these is a theorem or a cited theorem with a number attached, and a
+small private corpus is below every one of them by orders of magnitude. A store can attribute its
+progress to its sources once every configuration forecasts the same questions about its own future,
+forward only and pre-registered, in the one currency that adds and that is the growth of a stake
+against the base rate; the attribution is then two readings, the ablation's leave-one-out and the
+Shapley value, and the proof says they disagree exactly where the store holds the same evidence
+twice. The theorems are machine-checked, their attacks survived and their controls refuted; the loop
+and the corpora are designed; the first measurement on real data is a sibling study's to report.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
