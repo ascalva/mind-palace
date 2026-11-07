@@ -1,6 +1,7 @@
 # Non-secret configuration ONLY. Secrets (tokens, keys) live in the macOS Keychain or
 # environment and are never read from here, never committed, never passed to a model
-# (Invariant 10, CONVENTIONS). Relative paths resolve against the repo root.
+# (Invariant 10, CONVENTIONS). Relative paths resolve against the instance root: the checkout, or
+# MIND_PALACE_ROOT for an installed copy (core/kernel/config/root.py).
 
 [instance]
 # Which individual this configuration is (DI-2, issue #25). With no `MIND_PALACE_OVERLAY` set, the

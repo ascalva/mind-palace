@@ -35,6 +35,24 @@ UID = os.getuid()
 # is `InstanceConfig().label("tick")`), its bridge spool and its heartbeat serve the default chain,
 # so it refuses to run for a named instance rather than install Ouroboros's services as that one's.
 OVERLAY_ENV = "MIND_PALACE_OVERLAY"
+# core/kernel/config/root.py's ROOT_ENV. The stack is also this checkout's: its agents run the
+# checkout and its checks read the checkout's data/. The root rule gives a checkout no root but
+# itself, so the stack refuses an installed copy (whose agents would run no checkout, under
+# Ouroboros's labels) and a MIND_PALACE_ROOT naming another directory (`_root_refusal`).
+ROOT_ENV = "MIND_PALACE_ROOT"
+
+
+def _root_refusal() -> str | None:
+    """Why the stack may not be managed from here, or None (the root rule, restated: this script
+    does not import core)."""
+    if not ((ROOT / "pyproject.toml").is_file() and (ROOT / "core" / "kernel").is_dir()):
+        return f"✗ the stack is a checkout's, and {ROOT} is no checkout."
+    named = os.environ.get(ROOT_ENV, "").strip()
+    given = Path(named).expanduser()
+    if named and not (given.is_absolute() and given.is_dir() and os.path.samefile(given, ROOT)):
+        return (f"✗ the stack is the checkout {ROOT}'s; refusing under {ROOT_ENV}={named!r}. "
+                f"Unset {ROOT_ENV} to manage it.")
+    return None
 
 
 def _x(p: str) -> Path:
@@ -437,6 +455,10 @@ def main(argv: list[str]) -> int:
     if os.environ.get(OVERLAY_ENV):
         print(f"✗ the stack is Ouroboros's: its embedder, bridge and heartbeat serve the default "
               f"chain, not the instance {OVERLAY_ENV} names. Unset {OVERLAY_ENV} to manage it.")
+        return 1
+    refusal = _root_refusal()
+    if refusal is not None:
+        print(refusal)
         return 1
     if cmd == "up":
         lines = [chat_status(), embedder_up(), bridge_up(), tick_up(), opencode_up(),

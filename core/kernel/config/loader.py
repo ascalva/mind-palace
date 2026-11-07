@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from core.kernel.config.root import REPO_ROOT as _ROOT
-from core.kernel.config.root import code_dir
+from core.kernel.config.root import RootNotFound, checkout_root, code_dir, resolve_root
 
 # bp-067: the LOADER moved into core.config (core owns its config-loading code — self-contained,
 # stdlib-only, network-free). The config DATA (the tomls) stays in the repo-root `config/` dir — its
@@ -561,6 +561,11 @@ class InstanceConfig:
 
     A declared source may lie anywhere but at, inside or around what another instance writes, or
     anything the default instance reads or writes.
+
+    `<repo>` is the root the root rule gives (`core/kernel/config/root.py`): the checkout the code
+    runs from, or `MIND_PALACE_ROOT` for an installed copy, which from a checkout may name only that
+    checkout. So Ouroboros's paths from a checkout are what they were, and a named instance's state
+    stays under the root its process resolved, beside the instances declared there.
     `namespaces_of` reads them off a built Config, and `shared` says what two instances hold in
     common. The map is injective: distinct ids give disjoint namespaces, none of them Ouroboros's.
     """
@@ -957,12 +962,21 @@ def _named_overlay() -> Path | None:
 def ouroboros_only(what: str) -> None:
     """Refuse while `MIND_PALACE_OVERLAY` selects a named instance, for a tool that names
     Ouroboros's own state outside the config: its data dir by path, its services, its sources, its
-    archive, its Vault. Such a tool would act on Ouroboros's state for the named instance (DI-2)."""
+    archive, its Vault. Such a tool would act on Ouroboros's state for the named instance (DI-2).
+
+    It reaches that state by the checkout's path, so it also refuses where the root rule
+    (`core/kernel/config/root.py`) gives it no checkout to stand on: a `MIND_PALACE_ROOT` the rule
+    refuses, and an installed copy, whose code directory is no checkout (`RootNotFound`)."""
     named = os.environ.get(OVERLAY_ENV, "")
     if named:
         raise InstanceOverlayError(
             f"{what} acts on Ouroboros's own state; refusing under {OVERLAY_ENV}={named!r}. "
             f"Unset {OVERLAY_ENV} to run it for Ouroboros.")
+    resolve_root()                      # a variable the root rule refuses refuses here too
+    if checkout_root() is None:
+        raise RootNotFound(
+            f"{what} acts on Ouroboros's own state by the checkout's paths, and this is an "
+            f"installed copy with no checkout; refusing. Run it from the checkout.")
 
 
 def _read(path: Path) -> dict[str, Any]:

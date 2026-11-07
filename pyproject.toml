@@ -58,8 +58,10 @@ mind-palace = "scripts.cli:main"
 
 # Packaging. The importable top-level packages are listed, not discovered: tests, docs, formal,
 # data, config overlays, bin, site, stubs and cloud (a Lambda's own code, zone B, never imported
-# here) stay out. `config` is a package of committed defaults; `door` is the sentence library,
-# shipped as data beside the code because core/sentence/script.py finds it at `<code>/door`.
+# here) stay out. `config` is a package of committed defaults; the overlays of the instances
+# declared on a host (`config/instances/`) are that host's, read under its root, and stay out too.
+# `door` is the sentence library, shipped as data beside the code because core/sentence/script.py
+# finds it at `<code>/door`.
 # A top-level package named `eval` claims that name in site-packages (reported, not renamed).
 [tool.hatch.version]
 source = "vcs"
@@ -67,7 +69,7 @@ raw-options = { fallback_version = "0.0.0+unknown" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["agents", "config", "core", "edge", "eval", "ops", "scheduler", "scripts"]
-exclude = ["config/ouroboros.toml", "config/levers.toml", "config/local.toml"]
+exclude = ["config/ouroboros.toml", "config/levers.toml", "config/local.toml", "config/instances"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "door" = "door"
