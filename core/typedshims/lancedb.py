@@ -81,6 +81,8 @@ class VectorQuery(Protocol):
 
     def to_list(self) -> list[Row]: ...
 
+    def to_arrow(self) -> pa.Table: ...
+
     # [cross-ref: extension] step C (docs/brainstorms/shared-vectors.md; eval/quantization_bench.py)
     # sweeps the compressed indexes, so it needs their three query knobs. Read off the INSTALLED
     # 0.33.0, not the docs: on IVF_PQ, IVF_SQ and IVF_RQ indexes each built here, `nprobes` and
