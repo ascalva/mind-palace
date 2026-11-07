@@ -38,7 +38,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parent.parent
+# The instance root: MIND_PALACE_ROOT when set (an installed copy), else this checkout. edge never
+# imports core (the firewall), so the rule of core/kernel/config/root.py is restated, not imported.
+ROOT = Path(os.environ.get("MIND_PALACE_ROOT") or Path(__file__).resolve().parent.parent)
 MANIFEST = Path(__file__).resolve().parent / "palace_tools.json"
 PROTOCOL_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")  # newest first
 SERVER_INFO = {"name": "mind-palace", "version": "0.1.0"}

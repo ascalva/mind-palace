@@ -33,8 +33,9 @@ store holds ONLY `F` edges, so `E = {F}` is automatic here: the type simply cann
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 from core.kernel.scope import (
@@ -81,6 +82,8 @@ class ReferenceView:
     _edges_to: Callable[[str], list[ReferenceEdge]]    # references TO a ref (who cites it)
     _edges_from: Callable[[str], list[ReferenceEdge]]  # references FROM a ref (what it cites)
     commit: str                                        # the anchor commit these reads are scoped to
+    # bound at .over(): the endpoint pairs of the edges leaving and/or entering a set of refs
+    _pairs: Callable[[Sequence[str], bool, bool], set[tuple[str, str]]] | None = None
 
     @classmethod
     def over(cls, store: ReferenceEdgeStore, *, commit: str) -> ReferenceView:
@@ -95,7 +98,10 @@ class ReferenceView:
         def edges_from(ref: str) -> list[ReferenceEdge]:
             return store.all(source_ref=ref, commit_sha=commit)
 
-        return cls(_edges_to=edges_to, _edges_from=edges_from, commit=commit)
+        batched = getattr(store, "neighbour_pairs", None)
+        pairs = (None if batched is None else
+                 lambda refs, out, inc: batched(refs, commit, outgoing=out, incoming=inc))
+        return cls(_edges_to=edges_to, _edges_from=edges_from, commit=commit, _pairs=pairs)
 
     # --- reads -----------------------------------------------------------------------------------
     def references_to(self, ref: str) -> list[ReferenceEdge]:
@@ -105,6 +111,22 @@ class ReferenceView:
     def references_from(self, ref: str) -> list[ReferenceEdge]:
         """"What this doc/symbol cites" — edges whose `source_ref == ref`, at the anchor commit."""
         return self._edges_from(ref)
+
+    def neighbour_pairs(self, refs: Sequence[str], *, outgoing: bool = True,
+                        incoming: bool = True) -> set[tuple[str, str]]:
+        """The `(source_ref, target_ref)` pairs of the edges at the anchor commit that leave a
+        ref of `refs` (`outgoing`) or enter one (`incoming`): `references_from` and `references_to`
+        over many refs at once, as pairs. A store without the batched read answers from its
+        per-ref reads, the same pairs."""
+        if self._pairs is not None:
+            return self._pairs(refs, outgoing, incoming)
+        out: set[tuple[str, str]] = set()
+        for ref in refs:
+            if outgoing:
+                out.update((e.source_ref, e.target_ref) for e in self._edges_from(ref))
+            if incoming:
+                out.update((e.source_ref, e.target_ref) for e in self._edges_to(ref))
+        return out
 
     def connected_set(self, ref: str, *, depth: int = 1) -> set[str]:
         """The §2.3 "connected set over fibers F": a bounded, cycle-safe BFS over
@@ -133,6 +155,42 @@ class ReferenceView:
         return reached
 
 
+def head_sha(repo_root: Path) -> str | None:
+    """`git rev-parse HEAD` read from the repository's files: no child process. `.git` may be a
+    directory or, in a worktree, a `gitdir:` file; HEAD is a sha or a ref, and a ref is a loose
+    file or a line of `packed-refs`, in the common dir when the worktree has one. None for
+    anything else (an unborn branch, a reftable repository, a missing file): the caller then asks
+    git, so this never answers differently from it, only sooner."""
+    try:
+        dot = repo_root / ".git"
+        gitdir = dot
+        if dot.is_file():
+            text = dot.read_text(encoding="utf-8").strip()
+            if not text.startswith("gitdir:"):
+                return None
+            gitdir = (repo_root / text[len("gitdir:"):].strip()).resolve()
+        common = gitdir
+        if (gitdir / "commondir").is_file():
+            common = (gitdir / (gitdir / "commondir").read_text(encoding="utf-8").strip()).resolve()
+        head = (gitdir / "HEAD").read_text(encoding="utf-8").strip()
+        if not head.startswith("ref:"):
+            return head if len(head) == 40 and all(c in "0123456789abcdef" for c in head) else None
+        ref = head[4:].strip()
+        for base in (gitdir, common):
+            f = base / ref
+            if f.is_file():
+                sha = f.read_text(encoding="utf-8").strip()
+                return sha if len(sha) == 40 else None
+        packed = common / "packed-refs"
+        if packed.is_file():
+            for line in packed.read_text(encoding="utf-8").splitlines():
+                if line.endswith(" " + ref) and not line.startswith(("#", "^")):
+                    return line.split(" ", 1)[0]
+        return None
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
 def _resolve_default_commit(cfg: Config) -> str:
     """The §3 Q1 anchor: the active run's `commit_sha` (`RunLedger.last()`), else git HEAD
     (`git_state`). The rejected alternatives (union-across-history, max(created_at)) are recorded
@@ -150,6 +208,12 @@ def _resolve_default_commit(cfg: Config) -> str:
     # every REACH to a pre-reset commit). Otherwise the view reads HEAD.
     if last is not None and last.active and last.commit_sha and last.commit_sha != "unknown":
         return last.commit_sha
+    # HEAD from the repository's files: the dirty flag `git_state` also computes (a `git status`)
+    # is not read here, and the two child processes were 25 to 45 ms of every sentence over the
+    # citation graph. Anything the file reader cannot place goes to git, as before.
+    sha = head_sha(Path(REPO_ROOT))
+    if sha is not None:
+        return sha
     sha, _dirty = git_state(REPO_ROOT)
     return sha
 

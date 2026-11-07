@@ -72,6 +72,7 @@ INNER: frozenset[str] = frozenset({
     "core.kernel.complex_types",
     "core.kernel.config",
     "core.kernel.config.loader",
+    "core.kernel.config.root",    # packaging: the one root-resolution rule; stdlib only
     "core.kernel.constitution",
     "core.kernel.ingest",
     "core.kernel.ingest.amend",

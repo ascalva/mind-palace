@@ -1,0 +1,582 @@
+% Packaging the codebase as a wheel, and where its time goes (build/packaging).
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\lean}[1]{\texttt{#1}}
+\newcommand{\envroot}{\texttt{MIND\_PALACE\_ROOT}}
+
+\title{Packaging a Research Codebase and Measuring Where Its Time Goes}
+\author{mind-palace contributors}
+\date{7 November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We package a research knowledge-store codebase as a pure-Python wheel and measure where its time
+goes before rewriting any of it in a compiled language. Packaging needs one rule for the instance
+root (an environment variable, else the checkout, else a refusal at first use), a console script,
+and a CI job that installs the wheel away from the checkout. A profile that controls for the
+profiler's blind spots puts over 97\% of a query in building its universe, mostly LanceDB and
+SQLite, and the interpreter at 0.304\,\textmu s a step. Five changes kept in Python take a query
+from 93 to about 20\,ms, a walk solve from 7.3\,s to 286\,ms and a reachability test from 36.5\,s to
+82\,ms; no operation argues for a compiled rewrite.
+\end{abstract}
+
+\section{Introduction}
+
+The mind-palace codebase is a knowledge store with a query algebra: a sentence such as
+\texttt{near "\dots"} or \texttt{reach F from <note>} is compiled, planned, evaluated over a
+universe of nodes gathered from a vector store (LanceDB) and a citation graph (SQLite), and ranked.
+It also holds a small interpreter for scripts, a statistical scorer, and a temporal index over the
+stores' events. Until this change it ran only from a git checkout, and six of its operations had
+been named as candidates for a compiled extension (a Rust crate through PyO3).
+
+This paper does two things that belong together. It makes the codebase installable, which any
+compiled extension would also need, and it measures where the time goes in the six candidate
+operations before deciding whether any of them should leave Python. The contributions are:
+\begin{itemize}
+\item One rule for the instance root, a refusal at first use rather than at import, a
+  \texttt{mind-palace} console script, and a CI job that builds the wheel, installs it in a fresh
+  environment away from the checkout and runs it (\cref{sec:root,sec:impl}).
+\item A profiling method for a pipeline that mixes Python with compiled libraries, with a control
+  for each blind spot of a deterministic profiler, and the resulting profile (\cref{sec:profile}).
+\item Five changes kept in Python, each measured before and after in one session and each pinned
+  by a test against the code it replaced: reading HEAD from the repository's files, reading vectors
+  through Arrow, batching the citation graph's reads, solving the killed walk on the source's
+  connected component, and a bitset reachability index for the temporal spine
+  (\cref{sec:model,sec:changes}).
+\item A verdict per candidate, bounded by Amdahl's law from the measured share of time spent in
+  Python, with the costs a compiled rewrite would carry (\cref{sec:verdict}), and an independent
+  re-measurement of six figures in a second session (\cref{sec:remeasure}).
+\end{itemize}
+
+\section{Background and related work}
+
+\paragraph{Measure first.} \citet{knuth1974} warned that programmers spend much of their effort
+on the speed of noncritical parts and that the critical few percent should be found by measurement,
+not intuition. \citet{gregg2020} sets out methodologies for performance analysis that start from
+the workload and its observed costs rather than from a suspected component. \citet{amdahl1967}
+bounded the gain from speeding up part of a computation by the share of time that part takes, the
+bound we apply to each candidate. \citet{mytkowicz2009} showed that innocuous details of an
+experimental setup can bias a performance comparison, one reason we measure each change against its
+predecessor back to back in one session and report medians.
+
+\paragraph{The compiled layers.} Most of the codebase's time is already spent in compiled code:
+NumPy~\cite{harris2020} and SciPy~\cite{virtanen2020} for the numeric kernels, SQLite for the
+citation graph~\cite{gaffney2022}, Apache Arrow~\cite{arrow} as LanceDB's~\cite{lancedb} columnar
+format. Python's deterministic profiler, cProfile~\cite{pyprofile}, records Python frames and calls
+to built-in functions; time inside a NumPy operator, a LAPACK routine or Arrow's Cython code lands
+in the calling frame's own time, so a naive reading overstates Python.
+
+\paragraph{Reachability.} The temporal spine is a directed acyclic graph of events, and its
+restriction to one stratum needs the transitive closure among that stratum's events.
+\citet{purdom1970} computes the closure through strongly connected components and a topological
+order, merging successor sets as bit vectors; \citet{nuutila1995} improves this with interval
+representations of the closure; \citet{agrawal1989} compress the closure of a graph by labelling a
+spanning tree with intervals and propagating non-tree edges. The spine is a union of chains joined
+by cross-store edges whose heads have several producers, a DAG and not a forest, so interval labels
+degrade to propagated sets and the bit-vector approach is the direct one.
+
+\paragraph{The walk.} The \texttt{diffuse} sentence ranks nodes by the free-energy distance of
+randomized shortest paths~\cite{kivimaki2014}, computed from the inverse of $I - W_\beta$ for a
+killed walk $W_\beta$ on the support graph.
+
+\paragraph{Packaging.} A wheel is Python's built distribution format~\cite{pep427}, and
+\texttt{pyproject.toml} names the build backend that makes one~\cite{pep517}; a wheel tagged
+\texttt{py3-none-any} is pure Python and installs on any platform.
+
+\section{Model}\label{sec:model}
+
+No Lean declaration checks the statements below. Each is checked by tests against the code it
+replaced (\cref{sec:tests}).
+
+\subsection{The instance root}\label{sec:root}
+
+\begin{definition}[Root rule]
+Let $E$ be the environment and $c$ the checkout the code runs from, or $\bot$ for an installed copy
+(a checkout is a code directory holding \texttt{pyproject.toml} and \texttt{core/kernel}). The root
+is $E[\envroot]$ when that is set, and must then name an existing directory or the rule refuses;
+otherwise it is $c$; otherwise there is no root, and the first filesystem use of a path under it
+raises an error naming the variable.
+\end{definition}
+
+The root holds what an instance owns and the code does not ship: its data directory, its
+per-machine overlays and its constitution. The committed defaults and the script library ship
+inside the wheel and are found beside the code, so they need no root. Two properties follow from the
+definition and are pinned by tests: in a checkout with the variable unset, the root and every path
+derived from it equal what they were before packaging; and importing the packages needs no root,
+because the unresolved root is a path object that joins like any path but raises on any file system
+use, so \texttt{import core} works anywhere (the CI job checks it) and a stray join cannot land in
+the working directory.
+
+\subsection{What a rewrite can buy}
+
+\begin{proposition}[Amdahl bound]\label{prop:amdahl}
+If a fraction $f$ of an operation's wall time is spent in code that a rewrite speeds up by a factor
+$s$, the operation's speedup is $1/((1 - f) + f/s) < 1/(1 - f)$.
+\end{proposition}
+
+We call $f$ the operation's \emph{Python share}: the measured fraction of wall time that is not
+compiled code. A compiled extension that made the Python free would give at most $1/(1-f)$: 1.25
+for $f = 0.2$ and 2 for $f = 0.5$. An operation clears a fivefold end-to-end gain only when $f >
+0.8$.
+
+\subsection{The killed walk decomposes by component}
+
+Let $A$ be the symmetric non-negative weight matrix of the support graph, $D$ a diagonal matrix of
+degrees (the support's own, or the full graph's for a support whose complement absorbs), $P = D^{-1}
+A$, and $W_\beta = z\, P \circ A^{\circ \beta}$ with $0 < z < 1$ and $\beta > 0$, the powers taken
+entrywise. The free-energy distance uses $Z = (I - W_\beta)^{-1}$ through $\varphi_{ij} = -\log(Z_{ij} /
+Z_{jj}) / \beta$, symmetrized as $(\varphi_{ij} + \varphi_{ji})/2$, with $+\infty$ where $Z_{ij} =
+0$.
+
+\begin{proposition}[Block structure]\label{prop:block}
+Order the nodes by connected component $C_1, \dots, C_r$. Then $W_\beta$ and $Z$ are block diagonal
+with blocks $C_1, \dots, C_r$, and for a source $s \in C_q$ the distances from $s$ are those
+computed from $(I - W_{\beta, q})^{-1}$ on $C_q$ alone, and $+\infty$ to every node outside $C_q$.
+\end{proposition}
+\begin{proof}
+$A_{ij} = 0$ whenever $i$ and $j$ lie in different components. Row scaling by $D^{-1}$, the entrywise
+power and the entrywise product preserve this zero pattern, so $W_\beta = \mathrm{diag}(W_{\beta,1},
+\dots, W_{\beta,r})$, and the inverse of a block-diagonal matrix is the block-diagonal matrix of the
+blocks' inverses. Every quantity the distance from $s$ reads ($Z_{sj}$, $Z_{js}$, $Z_{jj}$ for $j
+\in C_q$) lies in block $q$, and $Z_{sj} = 0$ for $j \notin C_q$.
+\end{proof}
+
+The full inverse costs $O(n^3)$ time and $O(n^2)$ memory for $n$ nodes; the block costs
+$O(|C_q|^3)$ and $O(|C_q|^2)$, plus $O(n + m)$ to find the components. On a connected support the
+two coincide and the component search is pure overhead.
+
+\subsection{The reachability index}
+
+\begin{proposition}[Closure by bitsets]\label{prop:bits}
+Let $G = (V, E)$ be a DAG with $n$ nodes and $m$ edges, numbered in a topological order $\tau$, and
+define $\mathrm{desc}(u) = \bigcup_{(u,v) \in E} (\{v\} \cup \mathrm{desc}(v))$, computed in reverse
+order of $\tau$ as an $n$-bit integer. Then $\mathrm{desc}(u)$ is the set of strict descendants of
+$u$, its computation takes $O(m\, n / w)$ word operations for words of $w$ bits, and for a set $K$
+of kept nodes with indicator bitset $\chi_K$, $\mathrm{desc}(u) \wedge \chi_K$ is the set of strict
+descendants of $u$ in $K$.
+\end{proposition}
+\begin{proof}[Proof sketch]
+Every successor of $u$ follows $u$ in $\tau$, so its set is complete when $u$ is processed; the
+claim follows by induction in reverse order. Each edge costs one OR of two $n$-bit integers. A
+descendant of $u$ in $K$ is a descendant of $u$ that is in $K$.
+\end{proof}
+
+A restriction of the spine to a stratum $K$ is then the mask $\chi_K$ over a single index built once
+per spine, and the closed adjacency of a kept event is decoded only when it is read. The closure it
+replaced ran a breadth-first search per kept event, $O(|K|\,(n + m))$, and stored the result.
+
+\subsection{What the other changes keep}
+
+The HEAD reader returns either the commit \texttt{git rev-parse HEAD} would, or nothing, in which
+case the caller asks git as before; it resolves a \texttt{.git} directory or a worktree's
+\texttt{gitdir} file, the common directory of a linked worktree, a loose or a packed ref, and a
+detached HEAD. The vector read widens half- and single-precision values to double, which is exact,
+so the lists it returns are bit for bit those of the row-by-row conversion. The batched citation
+read returns the set of endpoint pairs that the per-node reads of both directions return.
+
+\section{Concepts and intuition}
+
+\paragraph{The profiler sees Python.} A deterministic profiler attributes time to Python frames.
+Time spent inside compiled code appears as the caller's own time, and time spent waiting for another
+runtime appears as a wait in an event loop or a poll. Reading such a profile literally makes every
+pipeline look like Python. The method below assigns each of those to the compiled side by a control:
+the same call at the smallest size that exercises the same code path measures the interpreter's
+share, and waits are attributed by their callers.
+
+\paragraph{A missing cache is not a slow language.} The largest single frame in a stopped
+instance's queries was two git child processes asked for a commit that the repository's files
+already hold. Removing a needless call is a change of design, not of language.
+
+\paragraph{Ask the compiled layer for the shape you need.} LanceDB returned vectors as Python lists
+of floats built row by row; asking for the Arrow column and converting it with NumPy in one step
+took the same values at a fraction of the cost. SQLite answered two statements per node with full
+rows when the builder needed two columns for a set of nodes.
+
+\paragraph{Structure before speed.} The walk solve was already LAPACK, so no rewrite could speed it
+up; its matrix's block structure lets it solve a smaller problem. The spine's restriction was all
+Python and quadratic; a different representation of the closure made it two orders of magnitude
+faster without leaving Python. Both kept the code they replaced as an oracle in the tests.
+
+\section{Implementation}\label{sec:impl}
+
+\paragraph{The wheel.} \texttt{pyproject.toml} names hatchling as the build backend and takes the
+version from the git tag through hatch-vcs, with \texttt{0.0.0+unknown} as the fallback for a build
+without a repository. The importable packages are listed rather than discovered (agents, config,
+core, edge, eval, ops, scheduler, scripts); the script library ships beside them as data; the
+per-machine overlays are excluded. The \texttt{mind-palace} console script is the same verb table
+as the checkout's shell front door, and a test pins the two equal. The CI job builds the wheel,
+creates a fresh environment, installs the wheel into it, changes to a directory away from the
+checkout, imports three packages and runs two commands.
+
+\begin{algorithm}[t]
+\caption{Restricting the spine to a stratum through the reachability index.}\label{alg:index}
+\begin{algorithmic}[1]
+\Function{Build}{$\mathit{succ}$} \Comment{once per spine, cached on the instance}
+  \State $\tau \gets$ Kahn's topological order of $\mathit{succ}$; \quad $\mathit{pos}[\tau_i] \gets i$
+  \For{$i \gets n-1$ \textbf{down to} $0$}
+    \State $\mathit{desc}[i] \gets \bigvee_{v \in \mathit{succ}(\tau_i)}
+      \bigl(\mathit{desc}[\mathit{pos}[v]] \vee 2^{\mathit{pos}[v]}\bigr)$
+  \EndFor
+  \State \Return $(\tau, \mathit{pos}, \mathit{desc})$
+\EndFunction
+\Function{Restrict}{$\mathit{spine}, s$}
+  \State $K \gets$ the events of stratum $s$; \quad $\chi \gets$ the bitset of $K$, built through
+    bytes
+  \State \Return a spine on $K$ whose closed adjacency of $e \in K$ is decoded from
+    $\mathit{desc}[\mathit{pos}[e]] \wedge \chi$ when read
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[t]
+\caption{One row of the free-energy distance.}\label{alg:component}
+\begin{algorithmic}[1]
+\Require weights $A$ ($n \times n$), source $s$, $\beta$, $z$, optional degrees
+\If{$n \le 300$} \Return row $s$ of the full computation \EndIf
+\State $\mathit{label} \gets$ the connected components of $A$ (sparse, undirected)
+\State $C \gets \{j : \mathit{label}[j] = \mathit{label}[s]\}$
+\State $\mathit{out} \gets (+\infty)^n$
+\State $\mathit{out}[C] \gets$ row of $s$ in the full computation on $A[C, C]$ with degrees
+  restricted to $C$
+\State \Return $\mathit{out}$
+\end{algorithmic}
+\end{algorithm}
+
+\Cref{alg:index} is the spine's index. Python's arbitrary-precision integers serve as bitsets, so an
+OR of two $n$-bit sets is a single operation over $n/64$ machine words, and decoding unpacks the
+bytes with NumPy. The index is a cached property, which writes the instance dictionary and so holds
+on a frozen dataclass; a restriction of a restriction masks the parent's bitsets instead of building
+a second closure. \Cref{alg:component} is the walk's row; the route changes above 300 nodes. A
+sparse direct solve was built and measured first and
+lost: the distance needs the diagonal of the inverse, one solve per node, and fill makes each solve
+expensive, so on a connected support of 5{,}000 nodes it took 34\,s against the dense inverse's
+1.2\,s.
+
+The other three changes are local. The HEAD reader replaces the call that ran \texttt{git
+rev-parse HEAD} and \texttt{git status}, whose dirty flag the view never read; anything it cannot
+place goes to git as before. The vector read asks LanceDB for an Arrow table, combines the vector
+column, reshapes its values into one NumPy matrix, widens it to double and splits it into rows. The
+citation store answers \texttt{neighbour\_pairs(refs, commit)}: the two endpoint columns of the
+edges leaving or entering a set of refs, one statement per 400 refs per direction, and the universe
+builder's search fetches its frontier ahead with it.
+
+\section{Evaluation}\label{sec:eval}
+
+\subsection{Method}\label{sec:method}
+The profile ran on synthetic fixtures at the live sizes, built in a scratch directory and never on
+the live stores: 17{,}328 vectors of 768 half-precision dimensions in LanceDB, of which 304 are the
+chunks of 38 notes; 147{,}057 curated atoms; 3{,}029{,}562 citation edges over 1{,}487 commits in
+SQLite with the real schema and indexes and a skewed degree distribution whose hub has 684 citers;
+and a fake embedder, so no model time enters any figure. Wall times are medians of 3 to 7
+unprofiled runs on a warm page cache, and the split between components comes from one cProfile run
+of the same call, with three corrections: NumPy operators, LAPACK and Arrow's Cython are invisible
+to the profiler, so a numeric kernel's Python share is measured by the floor control (the same call
+at the smallest size that exercises its code path); LanceDB's synchronous calls wait in the event
+loop's \texttt{kqueue} and a git child process waits in \texttt{poll}, and each wait is attributed by
+its caller; and LanceDB's list conversion is Arrow's Cython, counted as compiled. Each kept change
+was measured against its predecessor back to back in one session, the two arms interleaved, as
+medians; memory was measured in separate processes as peak resident size. The machine was a laptop
+with the instance's own daemon running, which adds a few percent of noise. The profiling harness is
+not committed; its parameters are those stated here, and \cref{sec:remeasure} repeats six of its
+figures with scripts described in full.
+
+\subsection{Where the time goes}\label{sec:profile}
+In every sentence, compilation takes 0.1 to 0.5\,ms, evaluation 0.1 to 1.0\,ms and ranking at most
+0.8\,ms; the universe build is over 97\% of the wall time. \Cref{tab:pipeline} splits it. The
+\texttt{near} family is LanceDB's, and its largest frame was not the search but the conversion of
+the 304 note vectors into Python lists. The citation-graph family is half SQLite (two statements
+per node) and half Python object construction. With no run active, every sentence over the citation
+graph also started two git processes, 25 to 45\,ms of it. Elsewhere, the killed-walk solve is
+LAPACK (under 1\% Python at 1{,}000 nodes and above), the ingress interpreter is entirely Python at
+0.304\,\textmu s a step (0.299 to 0.312 across 5{,}000 to 120{,}000 steps, a quarter of it the
+meter's own charging), the scorer's bootstrap is 98\% NumPy, and the spine's partition test was
+entirely Python and quadratic, 4.2 to 4.3 times slower per doubling of the events.
+
+\begin{table}[ht]
+\centering\small
+\caption{A sentence's support, its wall time with a run active, and the split of its time:
+LanceDB with Arrow, SQLite, NumPy with SciPy, and Python (profile of the base
+commit).}\label{tab:pipeline}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+Sentence & Nodes & Wall & LanceDB & SQLite & NumPy & Python \\
+\midrule
+\texttt{near "\dots"} & 38 & 51\,ms & 73\% & 2\% & 7\% & 17\% \\
+\texttt{near \dots\ over curated} & 17 & 78\,ms & 84\% & 1\% & 3\% & 10\% \\
+\texttt{diffuse S from <note>} & 44 & 58\,ms & 68\% & 6\% & 7\% & 18\% \\
+\texttt{walk from <note> via F\{1,3\}} & 200 & 26\,ms & 0\% & 49\% & 0\% & 50\% \\
+\texttt{reach F from <note>} & 7 & 5.9\,ms & 0\% & 46\% & 0\% & 54\% \\
+\texttt{reach F from <hub file>} & 200 & 14.6\,ms & 0\% & 45\% & 0\% & 54\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The five kept changes}\label{sec:changes}
+\Cref{tab:changes} gives the three changes on the query path; stacked, they take \texttt{near} from
+93 to about 20\,ms and \texttt{reach F} from a note from 42 to about 2\,ms. The cold first query
+over the curated store (1.43\,s, 84\% inside LanceDB) is not on the vector-read path and did not
+move. \Cref{tab:walk} gives the walk solve, and \cref{tab:spine} the spine's index.
+
+\begin{table}[ht]
+\centering\small
+\caption{The query path before and after, A/B in one session, interleaved, medians.}
+\label{tab:changes}
+\begin{tabular}{@{}llrr@{}}
+\toprule
+Change & Sentence & Before & After \\
+\midrule
+HEAD read from \texttt{.git} (no run active) & \texttt{near} & 93.1\,ms & 55.4\,ms \\
+& \texttt{reach F} from a note & 42.3\,ms & 6.6\,ms \\
+& \texttt{reach F} from a hub & 54.3\,ms & 16.6\,ms \\
+& \texttt{walk via F\{1,3\}} from a note & 64.9\,ms & 26.8\,ms \\
+\addlinespace
+vectors through Arrow and NumPy & \texttt{near} & 54.9\,ms & 19.8\,ms \\
+& \texttt{diffuse S} from a note & 58.2\,ms & 23.3\,ms \\
+\addlinespace
+citation reads batched & \texttt{reach F} from a note & 5.6\,ms & 2.0\,ms \\
+& \texttt{reach F} from a hub & 14.3\,ms & 5.4\,ms \\
+& \texttt{reach F}, depth 3 & 19.9\,ms & 7.6\,ms \\
+& \texttt{walk via F\{1,3\}} from a note & 22.9\,ms & 8.1\,ms \\
+& \texttt{walk via F\{1,3\}} from a hub & 19.1\,ms & 7.0\,ms \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering\small
+\caption{The walk's row, full inverse then component, separate processes; peak resident memory
+includes the input matrix.}\label{tab:walk}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Support & Nodes & Full inverse & Component & Peak memory \\
+\midrule
+fragmented & 300 & 1.7\,ms & 0.5\,ms & 80 then 80\,MB \\
+fragmented & 1{,}000 & 21.8\,ms & 3.3\,ms & 160 then 110\,MB \\
+fragmented & 2{,}000 & 118\,ms & 12.6\,ms & 440 then 170\,MB \\
+fragmented & 5{,}000 & 1{,}228\,ms & 76\,ms & 2.07 then 0.44\,GB \\
+fragmented & 10{,}000 & 7{,}252\,ms & 286\,ms & 7.94 then 1.20\,GB \\
+connected & 1{,}000 & 18.9\,ms & 24.8\,ms & 160 then 160\,MB \\
+connected & 5{,}000 & 1{,}188\,ms & 1{,}351\,ms & 2.07 then 2.27\,GB \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The fragmented support is a 10-neighbour backbone of clustered nodes, which splits into clusters
+as the similarity backbone of clustered notes does; there the component route gains up to 25
+times. On a connected support it gains nothing and pays 14\% at 5{,}000 nodes and 31\% at 1{,}000
+to find that out. A sentence's support is bounded at 200 nodes per seed, so the gain is for large
+supports only.
+
+\begin{table}[ht]
+\centering\small
+\caption{The spine's partition test by closure and by the index, on synthetic spines of the live
+shape.}\label{tab:spine}
+\begin{tabular}{@{}rrrrr@{}}
+\toprule
+Events & By closure & By the index & Every closure decoded & Peak memory \\
+\midrule
+2{,}801 & 483\,ms & 6.4\,ms & 32.9\,ms & 80 then 60\,MB \\
+5{,}601 & 2{,}091\,ms & 14.8\,ms & 123\,ms & 130 then 70\,MB \\
+11{,}201 & 8{,}722\,ms & 33.0\,ms & 544\,ms & 460 then 100\,MB \\
+22{,}401 & 36{,}484\,ms & 82.4\,ms & 1{,}940\,ms & 1{,}090 then 180\,MB \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The index is 75 to 443 times faster on the test as written and 15 to 19 times faster even when every
+closure is decoded, the cost any consumer that reads all of them must pay. It grows 2.3 times per
+doubling of the events against the closure's 4.
+
+\subsection{The verdict}\label{sec:verdict}
+\Cref{tab:verdict} applies Proposition~\ref{prop:amdahl} to each candidate. Only the interpreter spends all of
+its time in Python, and only there would a compiled rewrite clear a fivefold gain on its own work;
+no measured workload spends more than milliseconds in it (a 10{,}000-step script takes 3\,ms, and a
+real script's time is in the stores it reads and writes). Batching the meter's charges would take the
+quarter of each step the meter costs, in Python.
+
+\begin{table}[ht]
+\centering\small
+\caption{The candidates, their Python share, and what a compiled rewrite could buy end to end;
+where the share is 100\%, the rewrite's own factor, estimated.}\label{tab:verdict}
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+Candidate & Python share & Bound & Outcome \\
+\midrule
+\texttt{near} family & 10 to 19\% & 1.2$\times$ & no; Arrow read in Python \\
+citation-graph family & about 50\% & 2$\times$ & no; batched reads in Python \\
+killed-walk solve & under 1\% & none & no; component solve in Python \\
+citation search, edge lookup & 4 to 49\% & 1.0 to 1.9$\times$ & no \\
+ingress interpreter & 100\% & 20$\times$ or more & yes on its own work; no workload \\
+the scorer's bootstrap & 1 to 2\% & none & no \\
+spine restriction & 100\% & 10 to 30$\times$ & done in Python, 75 to 443$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A compiled rewrite would cost more than its code. The one pure-Python wheel would become a wheel per
+platform and interpreter; the build would move to a Rust-aware backend or gain a second
+distribution; a PyO3 release supporting Python 3.15 would be needed, which we did not check; a
+toolchain would join the environment's setup; and the import firewall, which reads Python imports,
+would not see a crate's dependencies, so the core's ban on networking would need a second
+enforcement. Typed stubs would be needed for the type checker. For the interpreter, the gas table,
+whose unit is the measured step, would need recalibrating, and the correspondence between the
+script laws and their Lean model would need re-establishing. A vectorized rewrite in NumPy or SciPy
+costs a function and nothing structural.
+
+\subsection{Re-measurement in a second session}\label{sec:remeasure}
+We repeated six figures with scripts of our own on macOS 27.0.1, an Apple M2 Pro with 32\,GiB,
+Python 3.15.2, NumPy 2.5.4, SciPy 1.18.1 and pyarrow 26.0.0, importing an export of the branch head
+\texttt{6db9f23} (\cref{tab:remeasure}). The HEAD comparison ran on a linked worktree of the
+repository, with \texttt{git status} told to take no optional locks, 60 interleaved rounds. The
+vector conversion used 304 random vectors of 768 dimensions as an Arrow column. The citation read
+used a store with the real schema holding 3{,}000{,}000 edges (60 commits of 50{,}000, a skewed
+in-degree) and the 200 most-cited refs at one commit; it times the read primitive alone, both
+directions read twice per ref as the builder did, so it exceeds the end-to-end 2.7 times of
+\cref{tab:changes}. The walk used 10-nearest-neighbour graphs of points in 16 dimensions, in clusters
+of 100 for the fragmented case and one cloud for the connected one; the rows agreed with the full
+inverse's to a relative $3 \times 10^{-16}$, with the same unreachable nodes. The reachability check
+used DAGs of chains up to 40 long with 0.9 forward cross edges per event and half the events kept,
+and the index's result equalled the closure's. The interpreter ran nested loops over a 40-element
+list.
+
+\begin{table}[ht]
+\centering\small
+\caption{Six figures measured again, medians.}\label{tab:remeasure}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Operation & Before & After \\
+\midrule
+commit of HEAD & 25.8\,ms (two git processes) & 0.22\,ms (files), same sha \\
+304 half-precision vectors to lists & 34.2\,ms (row by row) & 2.8\,ms (NumPy), bit for bit \\
+304 single-precision vectors to lists & 3.5\,ms & 2.7\,ms, bit for bit \\
+200 refs' endpoint pairs & 163.3\,ms (800 statements) & 21.2\,ms (2 statements) \\
+walk row, fragmented, 10{,}000 nodes & 6{,}942\,ms, 7.62\,GB & 282\,ms, 0.88\,GB \\
+walk row, fragmented, 5{,}000 nodes & 1{,}144\,ms, 1.98\,GB & 71\,ms, 0.27\,GB \\
+walk row, connected, 5{,}000 nodes & 1{,}189\,ms, 1.98\,GB & 1{,}326\,ms, 2.18\,GB \\
+reachability, 22{,}401 events & 27{,}159\,ms (closure) & 52\,ms (index), 4{,}480\,ms decoded \\
+reachability, 2{,}801 events & 337\,ms & 2\,ms, 41\,ms decoded \\
+interpreter, 32{,}810 to 524{,}960 steps & & 0.284 to 0.286\,\textmu s a step \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three readings follow. The figures agree with the profile in direction and, except where the
+fixture differs, in size. The vector conversion's cost was a property of half precision: Arrow's
+row-by-row conversion of single-precision vectors is only a quarter slower than the NumPy route,
+while that of half-precision vectors is twelve times slower, and the live store is half precision.
+And decoding every closure costs more relative to the build on our DAG than on the profile's
+spines; the two fixtures differ in shape and in the share of events kept, and we did not separate
+the causes. The build itself is two to three orders of magnitude below the closure in both.
+
+\subsection{Packaging checks}
+We built the wheel offline from the export, without a repository, so it took the fallback version.
+It holds 410 files tagged \texttt{py3-none-any}: the eight packages, the 13 files of the script
+library, and the committed defaults (\texttt{defaults.toml}, \texttt{tuning.toml},
+\texttt{stack.toml} and one sweep), with no per-machine overlay. Installed into a fresh environment
+from the package cache, run from an unrelated directory, it imported \texttt{core},
+\texttt{eval.predictions} and \texttt{scheduler}, printed the help of \texttt{python -m
+eval.predictions} and of \texttt{mind-palace}; with no root set, the first file system use of a
+path under the root raised the plain refusal naming \envroot.
+
+\subsection{Tests and mutations}\label{sec:tests}
+The branch's new tests (33, in seven files) and the reference view's 19 pass in 4.2\,s. Each change
+keeps the code it replaced as an oracle: a Hypothesis property compares the index's restriction
+with the closure's on 300 random spines (events, closed adjacency, generators, order and proper
+time); another compares the batched search and wiring with the per-node reads on 200 random edge
+sets; the walk's rows are compared with the full inverse at $10^{-10}$; the vector read is
+compared float by float, as hexadecimal, with the old read in a half- and a single-precision store;
+and the HEAD reader is compared with git in five repository layouts. \Cref{tab:mutations} lists
+eight single edits; each fails at least one test. One test, which compares the HEAD reader with git
+on the checkout itself, cannot run in an export without a repository and was left out of these runs.
+
+\begin{table}[ht]
+\centering\small
+\caption{Single mutations, each run against the 51 tests that run in an export.}
+\label{tab:mutations}
+\begin{tabular}{@{}lrl@{}}
+\toprule
+Mutation & Fail & Failing tests \\
+\midrule
+HEAD reader ignores packed refs & 1 & loose, packed and detached refs \\
+HEAD reader ignores a worktree's common directory & 1 & the linked worktree \\
+vectors narrowed to half precision & 1 & bit-for-bit read, single-precision store \\
+batched read returns outgoing edges only & 1 & batched search equals per-node reads \\
+the walk solved on node 0's component & 7 & rows equal the full inverse; isolated source \\
+index omits the direct successor's bit & 2 & both index-against-closure properties \\
+the root variable ignored & 2 & the variable wins; a non-directory refused \\
+an unset root usable as a path & 1 & the unresolved root refuses at use \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Limitations}\label{sec:limits}
+
+\paragraph{Synthetic fixtures.} Every profile figure comes from fixtures of an assumed shape at the
+live sizes. The live spine, the citation graph's real degree distribution and a real embedder's
+latency were not measured, and a figure within a factor of two of a decision should be re-run on the
+live shapes before acting on it.
+
+\paragraph{One machine, live noise.} The profile ran on one laptop with the instance's daemon
+running, and the re-measurement on one machine. Medians of a few runs reduce but do not remove
+setup effects of the kind \citet{mytkowicz2009} describe.
+
+\paragraph{An uncommitted harness.} The profile's harness was not committed. Its parameters are
+stated and six of its figures were reproduced independently, but the others cannot be regenerated
+exactly from the repository.
+
+\paragraph{Estimates in the verdict.} The interpreter's gain from a compiled rewrite and the spine's
+constant-factor gain are estimates, not measurements, and are marked as such.
+
+\paragraph{Where the changes do not help.} The component solve gains nothing on a connected
+support and costs 14 to 31\%; a giant component stays cubic. The index's memory is $n^2/64$ words,
+and any consumer that reads every closure still pays for a quadratic output. The HEAD reader declines
+an unborn branch or a reftable repository, which then costs the git processes again.
+
+\paragraph{Packaging gaps.} A top-level package named \texttt{eval} claims that name in an
+environment's site packages. The version falls back to \texttt{0.0.0+unknown} without a repository,
+so a build from a source tarball carries no version.
+
+\section{Future work}
+Committing the harness as a benchmark suite would let every figure here be regenerated, and running
+it in CI would turn the verdict into a regression gate. Re-running the profile on the live shapes,
+with a real embedder, would test the fixtures' assumptions. Charging the interpreter's meter in
+batches would take a quarter of each step. A giant connected support remains cubic; an iterative or
+low-rank approximation of the needed rows would change that, at the price of the exactness the walk's
+laws are stated for. A source-distribution check in CI would catch a build that loses its version.
+
+\section{Conclusion}
+Packaging needed one rule for where an instance's state lives and a refusal that waits until the
+state is used. Measuring before rewriting, with controls for what the profiler cannot see, showed
+that the candidates' time was mostly in compiled libraries already, or in work that did not need
+doing: a git call that two files answer, a conversion done row by row, statements issued per node, a
+solve over components that do not matter, and a closure stored when a mask would do. Five changes in
+Python removed most of it, each pinned by a test against the code it replaced. The one operation that
+is entirely Python, the interpreter, has no workload that would feel a compiled rewrite, so the
+codebase stays a single pure-Python wheel.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
