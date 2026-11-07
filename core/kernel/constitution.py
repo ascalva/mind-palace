@@ -14,10 +14,11 @@ from __future__ import annotations
 
 import hashlib
 from functools import lru_cache
-from pathlib import Path
 from typing import ReadOnly, TypedDict
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent  # kernel/constitution.py → <repo> (K1)
+from core.kernel.config.root import REPO_ROOT as _ROOT
+
+REPO_ROOT = _ROOT  # the instance root: the checkout, or MIND_PALACE_ROOT (config/root.py)
 CONSTITUTION_PATH = REPO_ROOT / "CONSTITUTION.md"
 
 
