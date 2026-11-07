@@ -41,6 +41,8 @@ public import Palace.Retrieval
 public import Palace.Retrieval.Defs
 public import Palace.Roundoff
 public import Palace.Roundoff.Defs
+public import Palace.Scale
+public import Palace.Scale.Defs
 public import Palace.Scope
 public import Palace.Scope.Defs
 public import Palace.Script
