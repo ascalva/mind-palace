@@ -141,3 +141,17 @@ def test_reference_graphs_are_connected_with_the_stated_degree() -> None:
     dense = component_at(refs["degree_2logn"], 1e9)
     assert tree.n == 38 and tree.m == 37
     assert dense.n == 38 and abs(dense.degrees().mean() - 2 * np.log(38)) < 0.2
+
+
+def test_k_core_peels_pendants_and_keeps_the_dense_part() -> None:
+    from eval.scale.graphs import k_core
+
+    k5 = _complete(5)
+    # a triangle-free pendant path hanging off node 0 of a K5
+    src = np.concatenate([k5.src, [0, 5]])
+    dst = np.concatenate([k5.dst, [5, 6]])
+    comp = component_from_edges(src, dst)
+    assert comp.n == 7
+    core = k_core(comp, 2)
+    assert core.n == 5 and core.degrees().min() == 4
+    assert k_core(comp, 5).n == 0

@@ -7,12 +7,10 @@ replicates. The statistics are the spectral gap and the eigengaps lambda_{k+1} -
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
-import numpy.typing as npt
 
-from eval.scale.graphs import Component, FloatArr, component_from_edges
+from eval.scale.graphs import Component, FloatArr, k_core, subcomponent
 from eval.scale.spectrum import cut_stats
 
 GAP_INDICES = (1, 2, 3, 4)
@@ -25,24 +23,13 @@ def node_subsample(comp: Component, fraction: float, rng: np.random.Generator) -
     keep = np.zeros(n, dtype=bool)
     keep[rng.choice(n, size=min(take, n), replace=False)] = True
     em = keep[comp.eu] & keep[comp.ev]
-    return _from_canonical(comp, em)
+    return subcomponent(comp, em)
 
 
 def edge_resample(comp: Component, rng: np.random.Generator) -> Component:
     """The largest component of m edges drawn with replacement from the m edges."""
     idx = rng.integers(0, comp.m, size=comp.m)
-    return _from_canonical(comp, idx)
-
-
-def _from_canonical(comp: Component, sel: npt.NDArray[Any]) -> Component:
-    u, v, f = comp.eu[sel], comp.ev[sel], comp.flow[sel]
-    # Re-orient by the flow sign so the directed meaning survives the rebuild: +1 means u -> v.
-    src = np.where(f >= 0, u, v)
-    dst = np.where(f >= 0, v, u)
-    out = component_from_edges(src, dst)
-    if out.n == 0:
-        return out
-    return out
+    return subcomponent(comp, idx)
 
 
 def interval_width(values: FloatArr) -> tuple[float, float]:
@@ -76,8 +63,13 @@ def bootstrap_cut(
     reps: int,
     rng: np.random.Generator,
     k: int = 8,
+    core: int = 1,
 ) -> BootRow:
-    """Resample `reps` times and summarize the spread of gamma and of the first eigengaps."""
+    """Resample `reps` times and summarize the spread of gamma and of the first eigengaps.
+
+    With `core` above 1 each replicate is first reduced to the largest component of its k-core,
+    so every node of the measured graph has degree at least `core`.
+    """
     gam: list[float] = []
     gaps: list[list[float]] = [[] for _ in GAP_INDICES]
     ns: list[int] = []
@@ -85,6 +77,8 @@ def bootstrap_cut(
     md: list[int] = []
     for _ in range(reps):
         rep = node_subsample(comp, fraction, rng) if scheme == "node" else edge_resample(comp, rng)
+        if core > 1:
+            rep = k_core(rep, core)
         if rep.n < 6:
             continue
         st = cut_stats(rep, k=max(k, max(GAP_INDICES) + 1))
