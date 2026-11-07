@@ -1,0 +1,343 @@
+% The article for the paper-build pull request. Self-contained.
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{alltt}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}[section]
+\theoremstyle{definition}
+\newtheorem{definition}[proposition]{Definition}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\pass}{\(\checkmark\)}
+\newcommand{\fail}{\(\times\)}
+\newcommand{\concat}{\mathbin{+\!\!+}}
+
+\title{Failure Reports and Output Paths for the Paper Build}
+\author{Alberto Serrano-Calva}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Every pull request in mind-palace carries a LaTeX article, and a continuous-integration job builds
+all of them with a shell script around latexmk. Two defects in that script hid failures. When
+latexmk failed, the script printed only the path of the TeX log, a file that stays on the runner
+and is discarded with it, so a failure that only the runner produced arrived with no reason. An
+article that set T1 encoding without Latin Modern failed this way: the runner's TeX Live has no
+cm-super, so the EC fonts fall back to bitmaps, and microtype's font expansion stops on a bitmap
+font, while a full local TeX Live built the article. Second, an absolute output directory was
+joined to the repository root, so latexmk wrote under the repository while the check for undefined
+references read a log that did not exist, and the read error counted as a pass. We resolve the
+output directory once, make a missing log a failure, and on failure print latexmk's error summary,
+the TeX log's error lines with their context and the log's last 30 lines, keeping that log for the
+workflow to upload. Six tests run the script on a broken paper, a paper with an undefined
+citation, the template with an absolute and a relative output directory, and a stand-in latexmk
+that writes no log; five of them fail against the previous script. A local reproduction of the
+runner's missing fonts shows the previous report naming a path and the new one naming the pdfTeX
+error.
+\end{abstract}
+
+\section{Introduction}
+Every pull request in mind-palace carries a short article under \code{papers/}, and a
+continuous-integration (CI) workflow builds all of them with \code{scripts/build\_papers.sh}. The
+script runs latexmk on each article and then reads the TeX log for undefined references and
+citations. Its verdict, one line per paper and an exit status, is what leaves the runner: the
+workspace and the logs in it are discarded when the job ends, and the workflow uploaded only the
+PDFs.
+
+Two defects in the script hid failures. When latexmk failed, the script printed the path of the
+log, a file the reader of the job's output could not open. When the output directory was
+absolute, it built the paper under the repository and then checked a log that did not exist, and
+the failed read passed the check. The first defect turned a failure that only the runner could
+produce into a guess; the second could pass a paper with undefined citations. Contributions:
+\begin{itemize}
+  \item an account of both defects: a report that names a file on the runner, and write and read
+        paths that diverge for an absolute output directory, with a read error that counts as a
+        pass (\cref{sec:defects});
+  \item a fix that resolves the output directory once, fails a paper that leaves no log, and prints
+        the reason from the log that explains the failure, keeping that log for the workflow to
+        upload (\cref{sec:fix});
+  \item six tests, five of which fail against the previous script, and a reproduction of the
+        failure that motivated the change, with a null control (\cref{sec:eval}).
+\end{itemize}
+
+\section{Background}
+\paragraph{latexmk.} latexmk runs \code{pdflatex} and BibTeX as rules, repeating them until the
+cross-references settle; with \code{-outdir} it writes the output, the log included, to one
+directory \cite{collins2026latexmk}. When a rule fails, latexmk ends its output with a summary of
+the errors it collected, naming the rule: \code{pdflatex} for a TeX error, \code{bibtex} for a
+bibliography error.
+
+\paragraph{TeX's log.} TeX reports an error in a fixed form: a line beginning with \code{!} states
+it, and the lines after it show the context, the current input line broken where TeX stopped and
+prefixed \code{l.}\textit{n} with its line number \cite{knuth1984texbook}. With
+\code{-halt-on-error} the first error ends the run, so the error sits near the end of the log,
+followed by a summary of TeX's memory use. TeX Live wraps log lines at 79 columns.
+
+\paragraph{Font expansion.} pdfTeX can stretch and shrink glyphs slightly to even out the spacing
+of justified lines, following Zapf's hz-program \cite{thanh2000microtypography,pdftexmanual}. In
+the recommended \code{autoexpand} mode it scales the glyphs of an outline font within the page
+stream \cite{pdftexmanual}, and the microtype package enables expansion by default where it can
+assume it works \cite{schlicht2026microtype}. A bitmap font cannot be scaled this way, and pdfTeX
+stops with \emph{auto expansion is only possible with scalable fonts}.
+
+\paragraph{Fonts on two machines.} T1 encoding selects the EC fonts unless a package such as
+lmodern selects others. The EC fonts exist as Type~1 outlines only through cm-super
+\cite{volovich2008cmsuper}; without it, TeX Live generates bitmaps from their METAFONT sources.
+Latin Modern supplies Type~1 fonts in T1 encoding itself \cite{jackowski2021lm}. The full TeX Live
+scheme includes cm-super. The CI runner installs Ubuntu's TeX Live packages (\code{latexmk},
+\code{texlive-latex-recommended}, \code{texlive-latex-extra}, \code{texlive-fonts-recommended},
+\code{texlive-science}, \code{lmodern}) without recommended packages, on an Ubuntu 26.04 image with
+TeX Live 2025 and latexmk 4.87. The job's log lists the 24 packages it set up, and cm-super is not
+among them. An article that sets T1 encoding without Latin Modern therefore gets outline fonts
+locally and bitmaps on the runner, and with microtype it builds locally and stops on the runner.
+One article did.
+
+\paragraph{Related work.} The reason a CI build failed is usually a short chunk of a long log;
+LogChunks annotates 797 build logs with the chunk that explains each failure
+\cite{brandt2020logchunks}. Here the log's format is known, so the chunk can be selected by TeX's
+own conventions instead of learned. A check that counts an unreadable input as a pass has the
+opposite of a fail-safe default \cite{saltzer1975protection}.
+
+\section{The defects}\label{sec:defects}
+\paragraph{The report.} The script sent latexmk's output to \code{/dev/null} and, on failure,
+printed
+\begin{small}
+\begin{alltt}
+\fail{} 2026-11-07-graph-dynamics: see build/papers/2026-11-07-graph-dynamics/paper.log
+\end{alltt}
+\end{small}
+The path is relative to a workspace that is gone once the job ends, and the workflow did not upload
+logs. What else reached the job's output was latexmk's progress and advice on standard error,
+ending in six lines that suggest its \code{-f} option, the same for every failure. The reason had to
+be inferred from the difference between the two TeX installations.
+
+\paragraph{The output path.} Let $r$ be the absolute path of the repository root, $p$ the value of
+\code{PAPERS\_OUT} and $n$ the name of a paper's directory.
+
+\begin{definition}
+The \emph{resolution} of $p$ against $r$ is $\rho(r,p) = p$ if $p$ is absolute and $r/p$
+otherwise. The \emph{concatenation} $r \concat p$ is the string $r$, a slash, then $p$.
+\end{definition}
+
+The script changed to $r$, then, from inside the paper's directory, gave latexmk the output
+directory \code{\$OLDPWD/\$OUT/\$name}, where \code{\$OLDPWD} is $r$. latexmk therefore wrote the
+log under $W(p) = (r \concat p)/n$. The check read \code{\$OUT/\$name/paper.log} with the working
+directory at $r$, that is, under $R(p) = \rho(r,p)/n$.
+
+\begin{proposition}\label{prop:paths}
+$W(p) = R(p)$ if and only if $p$ is relative.
+\end{proposition}
+
+\begin{proof}
+For a relative $p$, $r \concat p = r/p = \rho(r,p)$. For an absolute $p$, $r \concat p$ is $r$
+followed by $p$, a path inside $r$ (the doubled slash is one separator), while $\rho(r,p) = p$;
+the two differ, since the first is the longer.
+\end{proof}
+
+So an absolute $p$ sent the build under the repository, at a path that repeats $p$ inside it, and
+left at $R(p)$ only the empty directory the script had made there.
+
+\begin{proposition}\label{prop:open}
+With an absolute $p$ and an output directory not written before, the previous check passed every
+paper that latexmk built, whatever its log said.
+\end{proposition}
+
+\begin{proof}
+By \cref{prop:paths} the log is under $W(p)$, and no file exists at $R(p)/\code{paper.log}$.
+\code{grep} exits with status 0 when a line is selected, 1 when none is, and greater than 1 on an
+error such as a missing file \cite{posix2024}. The script tested that status with \code{if}, which
+takes every nonzero status as false, so a missing file and a log free of undefined references led
+to the same branch, which printed \pass.
+\end{proof}
+
+The check conflated two statements: the log has no undefined references, and the log could not be
+read. A check over a build's log is sound only if it reads the log the build wrote and counts a
+failure to read it as a failure.
+
+\section{The fix}\label{sec:fix}
+The script now resolves the output directory once, $o = \rho(r, p)$, after changing to $r$, and
+derives every path from $o$: latexmk's output directory, the log the check reads and the copy kept
+on failure. The write and read paths are then equal by construction. A relative $p$ keeps its
+meaning, a path from the repository root, as the paper directories given as arguments are.
+
+\begin{algorithm}
+\caption{Building one paper directory $d$ into $o/n$.}\label{alg:build}
+\begin{algorithmic}[1]
+\State remove $o/n/\code{failed.log}$
+\State run latexmk on $d$ with output directory $o/n$, its own output to $o/n/\code{latexmk.log}$
+\If{latexmk failed}
+  \If{latexmk's output holds its error summary \textbf{and} $o/n/\code{paper.log}$ exists}
+    \State $L \gets o/n/\code{paper.log}$ \Comment{a rule ran and failed}
+    \State print the summary, then the error lines of $L$ with two lines of context each
+    \State print the last 30 lines of $L$
+  \Else
+    \State $L \gets o/n/\code{latexmk.log}$ \Comment{no rule ran; a TeX log there is old}
+    \State print the last 30 lines of $L$
+  \EndIf
+\ElsIf{$o/n/\code{paper.log}$ does not exist}
+  \State $L \gets o/n/\code{latexmk.log}$; report the missing log \Comment{fail closed}
+\ElsIf{the log reports an undefined reference or citation}
+  \State $L \gets o/n/\code{paper.log}$; print each such warning once
+\Else
+  \State print \pass{} and stop
+\EndIf
+\State copy $L$ to $o/n/\code{failed.log}$; the paper fails
+\end{algorithmic}
+\end{algorithm}
+
+An error line is one that starts with \code{!}, contains \code{pdfTeX error}, or starts with a
+\textit{file}\code{:}\textit{line}\code{:} prefix, the form TeX uses when asked for file and line
+errors. Two choices in \cref{alg:build} need a reason. latexmk's summary decides which log
+to show because the TeX log in the output directory may be from an earlier run: if latexmk cannot
+start at all, the directory still holds the last successful build's log, and its tail would
+describe a success. latexmk prints its summary only after one of its rules ran and failed, and then
+the TeX log is the one that run wrote or kept. The two lines after each error line are where TeX
+prints the context, the input line and the point at which it stopped; the last 30 lines cover an
+error that the line match misses.
+
+latexmk's own output, part of which used to reach the console on standard error, now goes to
+\code{latexmk.log}, so a passing build prints one line per paper. The workflow uploads
+\path{build/papers/*/paper.pdf} and \path{build/papers/*/failed.log} as one artifact whose root
+is \path{build/papers} \cite{uploadartifact}, so each failed paper's log sits in its directory
+beside the other papers' PDFs. After the build, the same job runs the script's tests, since it has
+TeX Live installed.
+
+\paragraph{The tests.} \path{tests/integration/test_build_papers.py} runs the script in a copy
+of the repository's layout under a temporary directory, from a working directory outside the copy,
+so a relative output directory resolves inside the copy and nothing is written to the checkout.
+Five tests build with TeX and carry the marker \code{needs\_tex}; they skip where latexmk is
+absent \cite{pytestdocs}, and the workflow selects them with \code{-m needs\_tex}. The sixth puts a
+stand-in latexmk first on the path, one that succeeds without writing a log, so it needs no TeX and
+runs in every pytest tier. \Cref{tab:tests} lists them.
+
+\section{Evaluation}\label{sec:eval}
+The runs below are on one machine with TeX Live 2026 (pdfTeX 1.40.29, latexmk 4.88, cm-super
+installed).
+
+\paragraph{The failure that motivated the change.} The dynamics article failed on the runner and
+built locally; the commit that fixed it added \code{\textbackslash usepackage\{lmodern\}}. To give
+the local machine the runner's fonts for one build, we put
+\code{\textbackslash pdfmapfile\{-cm-super-t1.map\}} at the top of the article. It deletes
+cm-super's T1 entries from pdfTeX's font map before any font is used \cite{pdftexmanual}, so the EC
+fonts have no outline and TeX Live generates bitmaps, as on the runner. With this line, the article
+as it was before its fix, built by the previous script, gave the runner's report exactly:
+\begin{small}
+\begin{alltt}
+\fail{} 2026-11-07-graph-dynamics: see build/papers/2026-11-07-graph-dynamics/paper.log
+\end{alltt}
+\end{small}
+with latexmk's six lines of advice on standard error. The new script printed latexmk's summary
+(\code{pdflatex} returned 1), then
+\begin{small}
+\begin{alltt}
+! pdfTeX error (font expansion): auto expansion is only possible with scalable
+fonts.
+\end{alltt}
+\end{small}
+followed by TeX's context and the log's last 30 lines, which place the error at the first page's
+shipout. As a null control, the article after its fix, with the same line added, built and passed,
+and its log names no bitmap font.
+
+\paragraph{The output path.} On the undefined-citation fixture with an absolute output directory
+outside the repository's copy, the previous script printed \pass{} and exited 0; \code{grep}
+reported on standard error that the log did not exist, and the PDF was written inside the
+repository's copy, under a tree that repeats the absolute path. The new script exited 1, printed
+natbib's warning naming the missing key, and wrote only under the output directory.
+
+\paragraph{The tests against both scripts.} \Cref{tab:tests} runs the six tests against the
+previous script and the new one. Against the previous script five fail. The one that passes builds
+the template into a relative output directory, the case \cref{prop:paths} says the previous script
+handled, so it serves as the control. The relative undefined-citation test fails for a different
+reason than the absolute one: the previous script did fail that paper, but its report named no
+key. Against the new script all six pass, in 12.9\,s and 13.8\,s over two runs.
+
+\begin{table}[htbp]
+\centering
+\caption{The six tests against the previous script and the new one.}\label{tab:tests}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+test & needs TeX & previous & new \\
+\midrule
+template, absolute \code{PAPERS\_OUT}, writes only there & yes & fail & pass \\
+template, relative \code{PAPERS\_OUT}, writes only there & yes & pass & pass \\
+undefined citation, absolute & yes & fail & pass \\
+undefined citation, relative & yes & fail & pass \\
+broken paper: error and context printed, next paper built & yes & fail & pass \\
+no log written: the paper fails & no & fail & pass \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Other failures.} A bibliography with a syntax error makes BibTeX fail. The TeX log
+then holds no error line, and the report shows latexmk's summary, which names the \code{bibtex}
+rule and its \code{.blg} file. With latexmk missing from the path, the report shows the shell's
+\emph{command not found} from \code{latexmk.log}; reading the TeX log instead would have shown the
+tail of the last successful build's log.
+
+\paragraph{The repository's papers and gates.} Every article in the repository, the template and
+this article built and passed with the new script, both into the default directory and into an
+absolute one. The repository's gates passed on the final tree (\cref{tab:gates}); the mypy floors
+are the packages \code{core}, \code{agents}, \code{eval}, \code{ops}, \code{scheduler} and
+\code{scripts}.
+
+\begin{table}[htbp]
+\centering
+\caption{The repository's gates on this change. No test failed.}\label{tab:gates}
+\begin{tabular}{@{}ll@{}}
+\toprule
+gate & result \\
+\midrule
+ruff & clean \\
+import firewall & clean \\
+mypy over the floors & 0 errors \\
+mypy over the whole repository & 69 errors, the pinned baseline \\
+type gate & clean \\
+deterministic pytest tier & 3{,}420 passed, 11 skipped, 21 deselected \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Limitations}
+The excerpt follows TeX's conventions for errors. A failure that leaves no error line in the TeX
+log, such as BibTeX's, is reported through latexmk's summary, which names the \code{.blg} file;
+that file is not uploaded. TeX wraps log lines at 79 columns, so an error line can be split, as
+the font-expansion error is; the context lines that follow carry the rest. A citation warning
+whose key pushes the word \emph{undefined} past the wrap is not matched on its own line, but
+LaTeX's closing warning that there were undefined citations still fails the paper. The choice of
+log reads latexmk's wording, \emph{Collected error summary}; if a later latexmk changes it,
+failures fall to the branch that prints latexmk's output, which still contains pdflatex's
+messages. The reproduction deletes one map file's entries for one run; it reproduces the
+font-expansion failure, not the runner's TeX Live. And the fix makes the difference between the two
+TeX installations visible; it does not remove it.
+
+\section{Future work}
+A check over \code{papers/*/paper.tex} that rejects T1 encoding without Latin Modern would catch
+the motivating failure before the workflow does, and building locally with the runner's packages,
+in a container, would catch the whole class. A workflow annotation carrying the first error line
+would put the reason on the pull request's page. A longer TeX line for the build, through
+\code{max\_print\_line}, would keep each error and warning on one line. BibTeX's log could be kept
+with the TeX log when the \code{bibtex} rule fails.
+
+\section{Conclusion}
+The paper build now says why a paper failed, in the job's output and in an uploaded log, and its
+check reads the log the build wrote whatever form the output path takes; a missing log fails the
+paper. The failure that motivated the change, rebuilt with the runner's fonts simulated, now
+reports pdfTeX's error instead of a path.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}
