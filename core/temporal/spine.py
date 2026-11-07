@@ -74,11 +74,14 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import deque
-from collections.abc import Hashable
+from collections.abc import Hashable, Iterator, Mapping
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 # Read-only handles on the audited stores. The spine is "arithmetic over what the stores already
 # record" (note §2.1-3, the precedent argument): it SELECTs through their live read connections and
@@ -613,6 +616,111 @@ def _assert_acyclic(succ: dict[str, set[str]]) -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════
+# The reachability index (a restriction without its closure)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+#
+# `≼` is the closure of the generator edges, and a restriction N_s is that closure cut to one
+# stratum. Materializing the closure per stratum (a set of descendants for every event) is
+# quadratic in the longest chain: measured 4× a doubling (docs/experiments/profile-2026-11-06.md).
+# The index below stores the same closure as one bitset per event over the spine's events in
+# topological order (n·n/64 words, built in O(m·n/64)), and a restriction is a mask over it. The
+# spine's shape decides the index: it is a union of chains (a version chain per doc, the ledger,
+# the derived store, one chain per chat session) joined by cross-store g2 edges whose heads have
+# several producers, a DAG and not a forest, so interval labels (one tree plus the non-tree edges
+# propagated) degrade to this. The bitsets are exact and no heuristic.
+
+
+def _topological(succ: Mapping[str, set[str]]) -> list[str]:
+    """Kahn order over the direct adjacency (the spine is acyclic by construction)."""
+    indeg: dict[str, int] = dict.fromkeys(succ, 0)
+    for outs in succ.values():
+        for m in outs:
+            indeg[m] += 1
+    ready = deque(n for n, d in indeg.items() if d == 0)
+    order: list[str] = []
+    while ready:
+        n = ready.popleft()
+        order.append(n)
+        for m in succ[n]:
+            indeg[m] -= 1
+            if indeg[m] == 0:
+                ready.append(m)
+    return order
+
+
+@dataclass(frozen=True)
+class _Index:
+    """Strict descendants of every event as a bitset: bit `pos[v]` of `desc[pos[u]]` is set iff
+    u ≺ v. The numbering is the topological order, so a restriction shares it."""
+
+    ids: tuple[str, ...]
+    pos: dict[str, int]
+    desc: tuple[int, ...]
+
+    @classmethod
+    def build(cls, succ: Mapping[str, set[str]]) -> _Index:
+        order = _topological(succ)
+        pos = {e: i for i, e in enumerate(order)}
+        desc = [0] * len(order)
+        for i in range(len(order) - 1, -1, -1):           # successors come later in the order
+            acc = 0
+            for m in succ[order[i]]:
+                j = pos[m]
+                acc |= desc[j] | (1 << j)
+            desc[i] = acc
+        return cls(tuple(order), pos, tuple(desc))
+
+    def mask(self, members: Iterator[str] | set[str]) -> int:
+        """The bitset of `members` (built through bytes, so linear in the spine and not in
+        members × words)."""
+        buf = bytearray((len(self.ids) + 7) // 8)
+        for e in members:
+            i = self.pos[e]
+            buf[i >> 3] |= 1 << (i & 7)
+        return int.from_bytes(buf, "little")
+
+    def decode(self, bits: int) -> set[str]:
+        if not bits:
+            return set()
+        raw = np.frombuffer(bits.to_bytes((bits.bit_length() + 7) // 8, "little"), dtype=np.uint8)
+        hot = np.flatnonzero(np.unpackbits(raw, bitorder="little"))
+        return {self.ids[i] for i in hot.tolist()}
+
+
+class _ClosureView(Mapping[str, set[str]]):
+    """The transitively-closed `_succ` of a restriction, decoded from the index on demand: for a
+    kept event, its descendants among the kept events. A read-only mapping with the one contract
+    `_succ` has: `.get(e, default)`, iteration over the kept events, `.values()`. Decoded sets are
+    kept per event, so a repeated read is free and an unread event costs nothing."""
+
+    def __init__(self, index: _Index, kept: set[str]) -> None:
+        self._ix, self._kept = index, kept
+        self._mask = index.mask(kept)
+        self._seen: dict[str, set[str]] = {}
+
+    def __getitem__(self, e: str) -> set[str]:
+        if e not in self._kept:
+            raise KeyError(e)
+        got = self._seen.get(e)
+        if got is None:
+            got = self._seen[e] = self._ix.decode(self._ix.desc[self._ix.pos[e]] & self._mask)
+        return got
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._kept)
+
+    def __len__(self) -> int:
+        return len(self._kept)
+
+    def restricted_index(self) -> _Index:
+        """This view's own index (a restriction restricted): the parent's bitsets, masked."""
+        keep = {self._ix.pos[e] for e in self._kept}
+        return _Index(self._ix.ids, self._ix.pos,
+                      tuple(d & self._mask if i in keep else 0
+                            for i, d in enumerate(self._ix.desc)))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
 # The spine
 # ═══════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -623,7 +731,8 @@ class Spine:
     transitive closure of the g1 ∪ g2 ∪ g3 generator edges (`generators()`)."""
 
     _events: dict[str, SpineEvent]
-    _succ: dict[str, set[str]]                    # direct adjacency (g1∪g2∪g3); closure on restrict
+    _succ: Mapping[str, set[str]]                 # direct adjacency (g1∪g2∪g3); a restriction's is
+                                                  # closed (a dict, or the index's `_ClosureView`)
     _chain_of: dict[str, str]                     # event_id -> "<store>:<chain-key>" frontier key
     _gen_edges: tuple[SpineEdge, ...]             # direct generator edges, sorted (deterministic)
     _produced_by: dict[str, set[str]]             # identifier -> minting event_ids
@@ -638,6 +747,7 @@ class Spine:
     # `restrict` memo, per instance and keyed by stratum. The dataclass is frozen (no field can be
     # rebound) and `derive` copies every injected input, so the restriction is a pure function of
     # the instance; only this dict's contents change, and the cache is released with the instance.
+    # The reachability index (`_index`, a cached property) rests on the same invariant.
     _restricted: dict[str, Spine] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
@@ -709,9 +819,14 @@ class Spine:
         """N_s — the restriction of `(Ev, ≼)` to stratum-s events (the induced sub-poset: a ≼_s b
         iff a ≼ b in N and both events are in s). GC-2 consumes this.
 
-        Memoized per instance: the closure is quadratic in a long chain and `proper_time` asks for
-        the same stratum on every call. The returned Spine is shared between calls; like every
-        Spine it must be treated as read-only."""
+        Memoized per instance: `proper_time` asks for the same stratum on every call, and the
+        view below keeps each event's decoded descendants. The returned Spine is shared between
+        calls; like every Spine it must be treated as read-only.
+
+        The closure is not materialized: the restriction's `_succ` is a view decoding each event's
+        descendants from the reachability index when it is read (`_ClosureView`). The result is
+        the same poset as `_restrict_by_closure`, which stays as the reference the property test
+        checks it against."""
         cached = self._restricted.get(stratum)
         if cached is None:
             cached = self._restricted[stratum] = self._build_restriction(stratum)
@@ -719,7 +834,15 @@ class Spine:
 
     def _build_restriction(self, stratum: str) -> Spine:
         kept = {eid for eid, ev in self._events.items() if ev.stratum == stratum}
-        new_succ = {e: (self._reachable(e) & kept) for e in kept}   # induced transitive closure
+        return self._restriction(kept, _ClosureView(self._index, kept))
+
+    def _restrict_by_closure(self, stratum: str) -> Spine:
+        """The reference implementation of `restrict`: the closure of the whole spine cut to the
+        stratum, one set per kept event. Quadratic in the longest chain; kept as the oracle."""
+        kept = {eid for eid, ev in self._events.items() if ev.stratum == stratum}
+        return self._restriction(kept, {e: (self._reachable(e) & kept) for e in kept})
+
+    def _restriction(self, kept: set[str], new_succ: Mapping[str, set[str]]) -> Spine:
         new_pb = {i: (evs & kept) for i, evs in self._produced_by.items() if evs & kept}
         return Spine(
             _events={e: self._events[e] for e in kept},
@@ -733,6 +856,15 @@ class Spine:
                                for c, m in self._coarsening_ticks.items()},
             _cut_sources=self._cut_sources,
         )
+
+    @cached_property
+    def _index(self) -> _Index:
+        """The reachability index, built on first use and kept with the instance (a
+        `cached_property` writes the instance dict, so it holds on a frozen dataclass too). A
+        restriction's own index is its view's parent bitsets, masked: no second closure."""
+        if isinstance(self._succ, _ClosureView):
+            return self._succ.restricted_index()
+        return _Index.build(self._succ)
 
     def events(self) -> list[SpineEvent]:
         """Every event, in deterministic event_id order."""
@@ -988,6 +1120,8 @@ class Spine:
     # -- internal ----------------------------------------------------------------------------------
     def _reachable(self, start: str) -> set[str]:
         """Every event strictly reachable from `start` over the direct adjacency (BFS)."""
+        if isinstance(self._succ, _ClosureView):             # already closed: the answer is stored
+            return self._succ.get(start, set())
         seen: set[str] = set()
         queue = deque(self._succ.get(start, set()))
         while queue:
