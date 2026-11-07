@@ -1,0 +1,644 @@
+% The prediction ledger's guards and the cluster sign-flip test (build/ledger-guards).
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\lean}[1]{\texttt{#1}}
+\newcommand{\sgn}{\varepsilon}
+\newcommand{\one}{\mathbf{1}}
+
+\title{Guards for a Pre-Registered Prediction Ledger: a Pin Before the First Prediction, One
+Reading at $N$, and a Cluster Sign-Flip Test}
+\author{mind-palace contributors}
+\date{7 November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A prediction experiment compares two arms on yes/no questions that resolve later, under a protocol
+recorded as the first line of a hash-chained ledger. We close three ways to choose a result after
+seeing the data: an arm the primary comparison names must be pinned to a sha256 configuration
+digest before its first prediction; once $N$ is fixed, only the first $N$ clusters in ledger order
+are scored; and a protocol may declare a cluster sign-flip test, exact for exchangeable arms in
+independent clusters, whose inverted interval has weighted subset means as its ends. On simulated
+nulls with 40 clusters it rejected 5.05\% at $\alpha = 0.05$, the percentile bootstrap 6.86\%; both
+over-reject when clusters are dependent.
+\end{abstract}
+
+\section{Introduction}
+
+A prediction experiment, as the ledger described here records it, compares arms (a model, an agent
+with and without a tool, one configuration against another) on yes/no questions that resolve
+later. Each arm states a probability for each question; the primary comparison is the mean
+difference in Brier score between a baseline and an arm on the questions both predicted. Questions
+that turn on the same underlying event form a cluster, because their outcomes are not independent,
+and the cluster is the unit of inference. The analysis is fixed in advance: the experiment's
+ledger is an append-only, hash-chained file whose first record is the protocol, which names the
+arms, the comparisons, the smallest effect worth detecting $\delta$, the level $\alpha$, the power,
+and the resampling seed. After the first prediction an amendment can add to the protocol but cannot
+move that bar.
+
+A bar written in advance still leaves three ways for the result to be chosen after the data are
+seen, and this paper closes them:
+\begin{enumerate}
+\item \emph{A configuration chosen afterwards.} Each prediction carries the digest of its arm's
+  configuration, and a protocol may pin an arm to a digest. If an arm may predict unpinned and be
+  pinned later, the digest it is held to can be chosen once its predictions are known.
+\item \emph{A reading chosen afterwards.} The comparison becomes readable once the number of
+  clusters reaches the pre-registered $N$. A reader who may look at every later count can wait
+  for a favourable interval and stop there, the repeated-testing problem of
+  \citet{armitage1969}.
+\item \emph{An interval that is too narrow.} The default interval is a percentile bootstrap over
+  clusters. With few clusters, or clusters that are not independent, it rejects a true null more
+  often than its level.
+\end{enumerate}
+
+The contributions are:
+\begin{itemize}
+\item A pin before the first prediction: an arm the primary comparison names is refused a
+  prediction until the protocol pins it, no arm with predictions can gain a pin, and a pin is a
+  sha256 digest (\cref{sec:pins}).
+\item One reading at $N$: once $N$ is fixed the report scores only the first $N$ clusters in the
+  order the ledger recorded them, so clusters that arrive later are never read; we state exactly
+  what this does and does not fix (\cref{sec:cut}).
+\item A cluster sign-flip randomization test that a protocol may declare: exact under
+  exchangeability of the arms within each cluster with independent clusters, with an add-one
+  $p$-value, every sign vector enumerated when $2^k$ fits the protocol's count, and an interval by
+  inverting the test. We prove that each sign vector accepts exactly the shifts between the
+  weighted means of the clusters it keeps and the clusters it flips, which gives the monotonicity
+  the inversion needs and a closed form for its endpoints (\cref{sec:signflip}).
+\item Sign vectors built in blocks, so memory no longer grows with the number of vectors
+  (\cref{sec:impl}).
+\item An evaluation: tests and eleven mutations, of which two survive; a simulation study of both
+  methods under the null, under dependence across clusters and under an effect; agreement with an
+  independent reference on 6{,}000 calls; and memory before and after (\cref{sec:eval}).
+\end{itemize}
+
+\section{Background and related work}
+
+\paragraph{The ledger.} Each line holds a sequence number, a kind (protocol, question,
+prediction, resolution, void), a body, the time the ledger's own clock recorded it, the previous
+line's hash and its own: the sha256 of the canonical JSON of the rest, with 64 zeros before the
+first line. Verification recomputes the chain, so editing, dropping or reordering a line breaks it;
+removing lines from the end does not, which is why the head is published outside the writer's
+reach (a pushed commit, a timestamping service), fixing everything before it. This is the linked time-stamping of \citet{haber1991}. A prediction
+carries no time of its own, so an arm cannot backdate one, and a prediction recorded at or after
+its question resolved is excluded as late. The scorer reads every number from the protocol: the
+blinded pilot reports only the spread of cluster means and the $N$ it implies,
+$N = \lceil ((z_{1-\alpha/2} + z_{\text{power}})\, \mathrm{sd} / \delta)^2 \rceil$; the report
+refuses to compare before $N$; three controls (a null arm recorded as a copy of a reference, a
+derived known edge of size $\delta$ with the run's own noise, and an oracle) tell a real null from
+a broken harness or an underpowered run. The decision at $N$ reads one interval: the arm improves
+if its lower end is above 0, there is no useful improvement if its upper end is below $\delta$, and
+otherwise the result is inconclusive. Scores are Brier's~\cite{brier1950} and the log score, both
+strictly proper~\cite{gneiting2007}; secondary comparisons are adjusted by Holm's
+procedure~\cite{holm1979}.
+
+\paragraph{Pre-registration and optional stopping.} \citet{nosek2018} argue for fixing the
+research question and the analysis before the outcomes are observed, so that a prediction is not a
+postdiction presented as one. \citet{armitage1969} showed that testing accumulating data
+repeatedly at a fixed nominal level, and stopping at the first rejection, raises the probability of
+a false rejection well above that level. The ledger's genesis protocol is the first; the cut at $N$
+of \cref{sec:cut} addresses the second by fixing which clusters a reading contains.
+
+\paragraph{Randomization tests.} \citet{fisher1935} and \citet{pitman1937} introduced tests whose
+reference distribution is generated by the randomization itself, and \citet{good2005} and
+\citet{lehmann2005} treat them in general: when the null distribution of the data is invariant
+under a group of transformations, the $p$-value computed over the group's orbit is exact. When the
+group is too large to enumerate and elements are drawn at random, counting the observed statistic
+among the draws keeps the test exact, which is the add-one rule of \citet{phipson2010}. Inverting a
+randomization test for a location shift gives an exact confidence interval; for sign changes of
+independent symmetric observations, \citet{hartigan1969} showed that the means of subsamples are
+typical values, the intervals between consecutive ordered values each containing the centre with
+equal probability. Corollary~\ref{cor:closed} finds the same order statistics, weighted, as the
+ends of the inverted interval.
+
+\paragraph{Clustered inference.} The percentile interval of the bootstrap~\cite{efron1993},
+resampling whole clusters, is the ledger's default. \citet{cameron2008} document that standard
+cluster-robust inference over-rejects with few clusters and propose a wild cluster bootstrap whose
+Rademacher weights change the sign of each cluster's residuals, which is a sign flip at the cluster
+level. \citet{canay2017} give conditions under which randomization tests over sign changes control
+size with a fixed number of clusters when symmetry holds only approximately. Our test is the exact
+finite-sample case: it assumes symmetry and independence and does not claim robustness beyond them.
+
+\paragraph{Mutation testing.} A test suite is evidence to the degree that it fails on wrong code;
+mutation analysis~\cite{demillo1978} measures this by planting faults. We report eleven.
+
+\section{Model}\label{sec:model}
+
+No Lean declaration checks the statements below; the propositions on pins and the cut follow from
+the ledger's refusal rules, and those on the test are checked against an independent reference in
+\cref{sec:eval}.
+
+\subsection{Pins}\label{sec:pins}
+
+\begin{definition}[Protocol in force, pin]
+The protocol in force at line $i$ is the last protocol record before $i$. A pin maps an arm to a
+digest, a string matching \texttt{(sha256:)?[0-9a-f]\{64\}}. Once any prediction exists, the
+primary comparison, $\delta$, $\alpha$, the power, the clip, the resample count, the seed, the
+control arms and the method are frozen; $N$ may be fixed once; and no arm, family, secondary
+comparison or pin may be dropped.
+\end{definition}
+
+The change adds three refusals to the ledger's append path: a protocol whose pins are not all
+digests; a prediction from the primary comparison's arm or baseline when the protocol in force does
+not pin that arm; and an amendment that adds a pin for an arm that already has a prediction. The
+existing rules refuse a prediction whose configuration differs from its arm's pin, and any change
+to a pin once predictions exist.
+
+\begin{proposition}[A pin comes first]\label{prop:pins}
+In a ledger written through its append path, let $a$ be the primary comparison's arm or baseline
+and $p$ any prediction of $a$. Then $p$ carries a configuration equal to a pin of $a$ that appears
+in a protocol record before the first prediction of $a$, and that pin is the same at every later
+line.
+\end{proposition}
+\begin{proof}[Proof sketch]
+The primary comparison is fixed from the first prediction on, so $a$ is named by it at every line
+from the first prediction to the end. At $a$'s first prediction the protocol in force pins $a$, or
+the prediction is refused, and the configuration must equal that pin. A pin for $a$ cannot be
+added after that line, since $a$ then has a prediction, and cannot change, since predictions
+exist. So every later prediction of $a$ is held to the same pin.
+\end{proof}
+
+The rules are enforced when a record is appended. Verification recomputes the hash chain and
+parses every record, but does not replay the refusal rules; \cref{sec:limits} returns to this.
+
+\subsection{One reading at N}\label{sec:cut}
+
+\begin{definition}[Pairs, keys and the cut]
+A prediction is scored when its question is resolved and not voided and the prediction was
+recorded before the resolution. A primary pair is a question and round that both primary arms
+predicted, both scored, with difference $d = \text{Brier(baseline)} - \text{Brier(arm)}$. Its key
+is the later of the two predictions' line numbers, and a cluster's key $\kappa(c)$ is the least key
+of its pairs. With $N$ fixed, the cut $F_N$ is the set of $N$ clusters of least key, and the report
+reads only the scored rows of clusters in $F_N$, in every table it prints.
+\end{definition}
+
+\begin{proposition}[What waiting cannot change]\label{prop:cut}
+Let $L'$ be a ledger that extends $L$ with no void, let $K$ be the $N$-th least cluster key in $L$,
+and suppose every question of $L$ with a primary pair of key at most $K$ is resolved in $L$. Then
+$F_N(L') = F_N(L)$.
+\end{proposition}
+\begin{proof}[Proof sketch]
+A pair scored in $L'$ but not in $L$ either contains a prediction appended after $L$, so its
+key exceeds every line of $L$ and hence $K$, or consists of predictions in $L$ whose question was
+unresolved in $L$, so by hypothesis its key exceeds $K$. Pairs scored in $L$ stay scored, since a
+resolution is final and there are no voids. So no cluster outside $F_N(L)$ acquires a key at most
+$K$, and the keys of clusters in $F_N(L)$ can only stay or fall.
+\end{proof}
+
+In particular, clusters that first appear after $N$ is reached are never read, however long the
+reader waits; this is what the cut fixes. Two things remain open. The rows of a cluster in $F_N$
+can still grow through later rounds or later resolutions of its questions. And when the hypothesis
+fails, because a pair recorded early resolves late, that cluster can enter the cut after $N$ is
+reached and move another out; \cref{sec:cutdemo} shows this on a three-cluster ledger.
+
+\subsection{The cluster sign-flip test}\label{sec:signflip}
+
+Let the primary pairs fall into clusters $c = 1, \dots, k$, cluster $c$ holding $n_c \ge 1$
+pairs with sum $S_c$ of their differences, and let $n = \sum_c n_c$. The statistic is the
+pair-weighted mean $T = \sum_c S_c / n$, the one the bootstrap also reports. The sign vectors
+$G = \{-1, +1\}^k$ act on $x \in \mathbb{R}^k$ coordinatewise, and for a shift $\mu$ write
+$x_c(\mu) = S_c - \mu n_c$ and
+\begin{gather*}
+  t_\mu(\sgn) = \Bigl|\sum_c \sgn_c\, x_c(\mu)\Bigr|, \qquad
+  p_\mu = \frac{\#\{\sgn \in G : t_\mu(\sgn) \ge t_\mu(\one)\}}{2^k}, \\
+  \hat p_\mu = \frac{1 + \#\{r \le R : t_\mu(\sgn^{(r)}) \ge t_\mu(\one)\}}{R + 1},
+\end{gather*}
+the enumerated and the sampled $p$-values, with $\sgn^{(1)}, \dots, \sgn^{(R)}$ drawn uniformly and
+independently from $G$. The denominator $n$ is fixed, so flipping cluster $c$ changes only $S_c$,
+and $t_\mu(\sgn)/n$ is the absolute mean of the differences less $\mu$ once the clusters that
+$\sgn$ flips are negated. The
+test enumerates $G$ when $2^k$ is at most the protocol's count $R$, and samples otherwise.
+
+\begin{definition}[Null hypothesis]
+$H_\mu$: the vector $(x_c(\mu))_c$ has the same distribution as $(\sgn_c x_c(\mu))_c$ for every
+$\sgn \in G$, given the cluster sizes. It holds at $\mu = 0$ when clusters are independent and the
+two arms are exchangeable within each cluster: swapping the arms negates every difference in the
+cluster, so each $S_c$ is symmetric about 0.
+\end{definition}
+
+\begin{theorem}[Exactness]\label{thm:exact}
+Under $H_\mu$, $\Pr(p_\mu \le \alpha) \le \alpha$ and $\Pr(\hat p_\mu \le \alpha) \le \alpha$ for
+every $\alpha \in (0, 1)$.
+\end{theorem}
+\begin{proof}[Proof sketch]
+Let $X = x(\mu)$ and let $g_0$ be uniform on $G$ and independent of everything. Under $H_\mu$,
+$X$ has the law of $g_0 X$. For enumeration, condition on the orbit $\{gX : g \in G\}$: the
+observed statistic is that of a uniformly chosen element, and $p_\mu \le \alpha$ only when it is
+among the $\lfloor \alpha 2^k \rfloor$ largest of the $2^k$ orbit values, ties counted against it,
+an event of probability at most $\alpha$. For sampling, $(X, \sgn^{(1)}X, \dots, \sgn^{(R)}X)$ has the law of $(g_0X,
+\sgn^{(1)}g_0X, \dots)$, and $g_0, \sgn^{(1)}g_0, \dots, \sgn^{(R)}g_0$ are independent and uniform
+on $G$, so the $R+1$ statistics are exchangeable given the orbit. The rank of the observed one is
+then uniform, ties counted against it, which gives the add-one bound~\cite{phipson2010,lehmann2005}.
+\end{proof}
+
+The interval inverts the test: $C_\alpha = \{\mu : p_\mu > \alpha\}$, with $\hat p$ in place of $p$
+when the vectors are sampled. Inversion needs the set to be an interval, which the next lemma
+provides. For a sign vector $\sgn$ that is not constant, let $P = \{c : \sgn_c = +1\}$ be the
+clusters it keeps and $M = \{c : \sgn_c = -1\}$ those it flips, with weighted means
+$m_P = \sum_{c \in P} S_c / \sum_{c \in P} n_c$ and $m_M$ likewise.
+
+\begin{lemma}[What one sign vector accepts]\label{lem:accept}
+For a non-constant $\sgn$, $t_\mu(\sgn) \ge t_\mu(\one)$ if and only if $\mu$ lies in the closed
+interval between $m_P$ and $m_M$. For a constant $\sgn$, $t_\mu(\sgn) = t_\mu(\one)$ for every
+$\mu$.
+\end{lemma}
+\begin{proof}
+Write $X_P = \sum_{c \in P} x_c(\mu) = n_P (m_P - \mu)$ and $X_M = n_M (m_M - \mu)$, with $n_P,
+n_M > 0$ the pair counts of $P$ and $M$. Then $t_\mu(\one) = |X_P + X_M|$ and $t_\mu(\sgn) = |X_P
+- X_M|$, and $(X_P - X_M)^2 \ge (X_P + X_M)^2$ if and only if $X_P X_M \le 0$, that is,
+$(m_P - \mu)(m_M - \mu) \le 0$. A constant vector multiplies the sum by $\pm 1$.
+\end{proof}
+
+\begin{proposition}[Monotonicity]\label{prop:mono}
+With the sign vectors held fixed, $p_\mu$ and $\hat p_\mu$ equal 1 at $\mu = T$ and do not
+increase as $\mu$ moves away from $T$ in either direction. Hence $C_\alpha$ is an interval
+containing $T$, and bisection on each side finds its ends.
+\end{proposition}
+\begin{proof}
+$T = (n_P m_P + n_M m_M)/n$ lies between $m_P$ and $m_M$, so by Lemma~\ref{lem:accept} the set of $\mu$
+each vector accepts is an interval containing $T$. As $\mu$ moves away from $T$ on one side, each
+indicator can only switch from 1 to 0, and the $p$-values are increasing functions of their sum.
+At $\mu = T$ every indicator is 1.
+\end{proof}
+
+The code's docstring argues the same monotonicity by slopes: $t_\mu(\one) = n|T - \mu|$ grows at
+rate $n$ away from $T$, while $t_\mu(\sgn)$ changes at rate at most $|\sum_c \sgn_c n_c| \le n$.
+Lemma~\ref{lem:accept} gives more: the exact set each vector accepts, and with it the interval in closed
+form.
+
+\begin{corollary}[Closed form]\label{cor:closed}
+Enumerate $G$, let $m_Q$ range over the weighted means of the $2^k - 2$ non-empty proper subsets
+$Q$ of clusters, and let $j = \lfloor \alpha\, 2^{k-1} \rfloor$. If $j = 0$, $C_\alpha =
+\mathbb{R}$. Otherwise $C_\alpha = [m_{(j)}, m^{(j)}]$, the $j$-th least and $j$-th greatest of the
+$m_Q$. With sampled vectors the ends are the $j'$-th least of $\min(m_P, m_M)$ and the $j'$-th
+greatest of $\max(m_P, m_M)$ over the drawn vectors, constant ones counting as unbounded, with
+$j' = \lfloor \alpha (R + 1) - 1 \rfloor + 1$.
+\end{corollary}
+\begin{proof}[Proof sketch]
+For $\mu > T$ at most one of $m_P, m_M$ exceeds $T$, so by Lemma~\ref{lem:accept} a non-constant vector
+accepts $\mu$ exactly when $m_P \ge \mu$ or $m_M \ge \mu$, and never both. As $\sgn$ ranges over
+the non-constant vectors, $P$ and $M$ each range once over the non-empty proper subsets, so $p_\mu =
+(2 + 2\,\#\{Q : m_Q \ge \mu\})/2^k$, and $p_\mu > \alpha$ exactly when $\#\{Q : m_Q \ge \mu\} \ge
+j$. The lower side is symmetric, and the sampled case counts the drawn vectors directly.
+\end{proof}
+
+With unit weights the $m_Q$ are the subsample means that \citet{hartigan1969} calls typical values.
+The interval is unbounded exactly when $\alpha < 2/2^k$, the smallest attainable $p$-value.
+
+\begin{proposition}[Coverage under a location shift]\label{prop:cover}
+If every difference is $\mu^\ast$ plus noise whose cluster vectors are independent and each
+symmetric about 0, then $\Pr(\mu^\ast \in C_\alpha) \ge 1 - \alpha$.
+\end{proposition}
+\begin{proof}
+$H_{\mu^\ast}$ holds, and $\mu^\ast \notin C_\alpha$ exactly when the test at $\mu^\ast$ rejects;
+apply Theorem~\ref{thm:exact}.
+\end{proof}
+
+The test of $\mu = 0$ needs only $H_0$. The interval needs the location-shift model, in which the
+arms' difference moves the whole distribution by a constant; when an effect also changes the shape
+of the differences, the interval is approximate while the test of 0 stays exact.
+
+\section{Concepts and intuition}
+
+\paragraph{The digest is the arm.} An arm's predictions are evidence about one configuration. If
+the configuration it is held to is chosen after the predictions are known, the experiment can keep
+the version that scored well. Requiring the pin first, and forbidding a pin later, makes the
+choice before the data; a changed arm becomes a new variant, compared as an arm of its own.
+
+\paragraph{Turn "when" into "which".} A reader who may stop at any count chooses among many
+readings. The cut replaces the question of when to read with the question of which clusters to
+read, and answers it by the ledger's line order, which no reader controls: the first $N$ clusters,
+whatever arrives later.
+
+\paragraph{A flip is a swap.} Under the null, swapping the two arms within a cluster leaves the
+cluster's distribution unchanged, and swapping negates the cluster's sum. Every sign vector is
+therefore an equally likely version of the data, and the $p$-value asks how extreme the observed
+version is among them. Nothing is approximated when every vector is enumerated; when vectors are
+drawn, counting the observed one among them keeps the guarantee.
+
+\paragraph{Each vector votes for an interval.} A sign vector splits the clusters into those it
+keeps and those it flips. It accepts a shift exactly when the shift lies between the two groups'
+weighted means, because only then does flipping move the sum at least as far from zero as the
+observed one. The interval is the set of shifts that more than a fraction $\alpha$ of the vectors
+accept.
+
+\paragraph{What neither method protects against.} Both methods treat clusters as independent.
+Clusters that move together carry less information than their count suggests, so the effective $N$
+is smaller and both reject too often. The sign-flip test is exact only where its assumptions hold.
+
+\section{Implementation}\label{sec:impl}
+
+\begin{algorithm}[t]
+\caption{The cluster sign-flip test and its inverted interval.}\label{alg:flip}
+\begin{algorithmic}[1]
+\Require primary pairs with clusters; sign-vector count $R$; seed; level $\alpha$
+\Ensure the estimate $T$, the interval $[L, U]$, and the $p$-value at 0
+\State $S_c, n_c \gets$ the sum and count of each cluster's differences; $T \gets \sum S / \sum n$
+\If{$k < 2$} \Return $T$ with no interval \EndIf
+\State $\mathit{exact} \gets 2^k \le R$; \quad $\mathit{rows} \gets 2^k$ if $\mathit{exact}$ else $R$
+\State produce the rows in blocks of 1000: row $r$ is the bits of $r$ if $\mathit{exact}$, else
+  the next draw from the generator seeded by the seed
+\State keep the blocks when $\mathit{rows} \cdot k \le 4 \times 10^6$; otherwise regenerate them
+  from the seed at each evaluation
+\Function{P}{$\mu$}
+  \State $v \gets S - \mu n$; \quad $o \gets |\sum v|$
+  \State $h \gets \#\{\text{rows } \sgn : |\sgn \cdot v| \ge o - 10^{-12} \sum |v|\}$, block by block
+    \label{line:tol}
+  \State \Return $h / \mathit{rows}$ if $\mathit{exact}$ else $(1 + h)/(\mathit{rows} + 1)$
+\EndFunction
+\Function{Edge}{$s$} \Comment{$s = \pm 1$}
+  \State $\mathit{step} \gets \max(10^{-3}, \max_c |S_c / n_c|)$; \quad $\mathit{in} \gets T$;
+    \quad $\mathit{out} \gets T + s \cdot \mathit{step}$
+  \State double $\mathit{step}$ until $\Call{P}{\mathit{out}} \le \alpha$, at most 60 times,
+    else \Return $s \cdot \infty$
+  \State bisect 50 times, keeping $\Call{P}{\mathit{in}} > \alpha \ge \Call{P}{\mathit{out}}$
+  \State \Return $\mathit{in}$
+\EndFunction
+\State \Return $T$, $[\Call{Edge}{-1}, \Call{Edge}{+1}]$, $\Call{P}{0}$
+\end{algorithmic}
+\end{algorithm}
+
+\Cref{alg:flip} is the test as written. The tolerance in line~\ref{line:tol} counts as ties the comparisons that
+floating-point rounding breaks, chiefly the two constant vectors, which tie exactly in real
+arithmetic. Blocks are produced in a fixed order from one generator, so the drawn vectors, and
+every result, are the same whatever the block size; a test checks this with blocks of 100 rows and
+regeneration forced. Before the change, all vectors were built at once as a $\mathit{rows} \times
+k$ array of 64-bit floats, with integer intermediates of the same shape, and the protocol's count
+has no upper bound.
+
+The cut is computed from the scored table: each primary pair's key is the later line of its two
+predictions, each cluster's key the least of its pairs', and when more than $N$ clusters have pairs
+the table keeps the rows of the $N$ clusters of least key and reports how many clusters and pairs
+it left out. The pin rules are three checks in the append path, described in \cref{sec:pins}. The
+method is a protocol field, \texttt{percentile} by default so that existing ledgers score as
+before, and frozen with the rest of the bar once a prediction exists.
+
+\section{Evaluation}\label{sec:eval}
+
+\subsection{Setup}
+All runs used macOS 27.0.1 on an Apple M2 Pro with 32\,GiB of memory, Python 3.15.2 and NumPy
+2.5.4, on an export (\texttt{git archive}) of the branch head \texttt{0d7cb89}; the pre-change
+memory figures use the commit before the blocks change, \texttt{caf5c0a}. Simulations call the
+branch's own \texttt{cluster\_signflip} and \texttt{cluster\_bootstrap} with the protocol default
+of 10{,}000 sign vectors or resamples, eight worker processes, and one seeded generator per
+replication, so every number below can be reproduced from its description.
+
+\subsection{Tests and mutations}
+The two test files hold 72 tests (40 for the ledger, 32 for the scorer), which pass in 3.6\,s.
+\Cref{tab:mutations} lists eleven single edits and the tests each fails. Nine are detected. Two
+survive: dropping the add-one rule, whose effect at 1{,}000 vectors is a shift of at most 0.1
+percentage points in the $p$-value, too small for a 600-replication rate test to see; and flipping
+pairs instead of clusters, which the suite cannot tell apart because its generated differences have
+no within-cluster correlation. Both point to tests worth adding (\cref{sec:future}).
+
+\begin{table}[ht]
+\centering\small
+\caption{Single mutations of the ledger and scorer, each run against the 72 tests.}
+\label{tab:mutations}
+\begin{tabular}{@{}lrl@{}}
+\toprule
+Mutation & Fail & Failing tests \\
+\midrule
+a primary arm may predict unpinned & 1 & the pin-first test \\
+a pin may be added after the arm predicted & 1 & the no-retrofit test \\
+any string is a pin & 7 & the seven malformed pins \\
+the method is not frozen & 1 & the frozen-method test \\
+no cut at $N$ & 2 & waiting past $N$; first $N$ by ledger order \\
+the cut by cluster name, not ledger order & 2 & the same two \\
+no add-one when vectors are sampled & 0 & survives \\
+always sample, never enumerate & 1 & the three-cluster exact $p$-value \\
+a one-sided statistic & 1 & the same \\
+blocks reseeded, not one stream & 1 & the block-size test \\
+pairs flipped instead of clusters & 0 & survives \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The methods under the null}
+Data were generated with two exchangeable arms: each cluster has one event of probability drawn
+uniformly from $[0.1, 0.9]$ and one to three questions turning on it; each arm predicts the event
+probability plus an arm-by-cluster error of standard deviation 0.10 and an arm-by-question error of
+0.05, clipped to $[0.01, 0.99]$; $d$ is the Brier difference. The null holds exactly, so every
+rejection is false. \Cref{tab:null} gives the share of 10{,}000 replications in which each method's
+interval excluded 0 (for the sign-flip test, the same as $p \le \alpha$, which a test checks). With
+13 clusters the sign-flip test enumerates all $2^{13}$ vectors. The percentile bootstrap rejects
+about twice as often as its level there, and 1.3 to 1.9 points too often at 40 clusters; the
+sign-flip test stays within Monte Carlo error of its level (one standard error is 0.22 points at
+5\% and 0.16 at 2.5\%).
+
+\begin{table}[ht]
+\centering\small
+\caption{False rejections under the null, 10{,}000 replications each.}\label{tab:null}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+& \multicolumn{2}{c}{$\alpha = 0.05$} & \multicolumn{2}{c}{$\alpha = 0.025$} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+Clusters & sign-flip & bootstrap & sign-flip & bootstrap \\
+\midrule
+13 (enumerated) & 4.85\% & 9.67\% & 2.62\% & 6.29\% \\
+40 (sampled) & 5.05\% & 6.86\% & 2.32\% & 3.84\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For coverage the data follow the location-shift model of Proposition~\ref{prop:cover}: $d = 0.1 + u_c +
+e_{cj}$ with $u_c \sim \mathcal{N}(0, 0.1^2)$, $e_{cj} \sim \mathcal{N}(0, 0.2^2)$, one to three
+pairs per cluster and 40 clusters. Over 10{,}000 replications the sign-flip interval covered 0.1 in
+94.90\% of them at 95\% and 97.38\% at 97.5\%; the bootstrap's covered 93.79\% and 96.31\%.
+
+\subsection{Dependence across clusters}
+To model residual dependence, clusters were grouped in blocks of four sharing an effect $w \sim
+\mathcal{N}(0, \tau^2)$, added to every difference in the block, with $u_c$ and $e_{cj}$ as above
+and no true effect. For $\tau = 0.05$ and $0.10$ the correlation between the means of two clusters
+in a block is about 0.07 and 0.22. \Cref{tab:dep} shows that both methods over-reject and that the
+excess grows with $\tau$; the sign-flip test's excess is the smaller at 40 clusters, and the two
+nearly agree at 120.
+
+\begin{table}[ht]
+\centering\small
+\caption{False rejections with clusters dependent in blocks of four, 4{,}000 replications
+each.}\label{tab:dep}
+\begin{tabular}{@{}llrrrr@{}}
+\toprule
+& & \multicolumn{2}{c}{$\alpha = 0.05$} & \multicolumn{2}{c}{$\alpha = 0.025$} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+Clusters & $\tau$ & sign-flip & bootstrap & sign-flip & bootstrap \\
+\midrule
+40 & 0 & 5.28\% & 6.65\% & 2.78\% & 3.75\% \\
+40 & 0.05 & 7.68\% & 9.45\% & 3.68\% & 5.30\% \\
+40 & 0.10 & 14.08\% & 16.15\% & 9.18\% & 11.35\% \\
+120 & 0.05 & 7.93\% & 8.35\% & 4.45\% & 4.98\% \\
+120 & 0.10 & 12.90\% & 13.50\% & 8.53\% & 9.18\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Power at the planned N}
+The pilot's formula was applied to the location-shift model with $\delta = 0.05$. The standard
+deviation of a cluster's mean difference, estimated from 200{,}000 simulated clusters, is 0.186,
+which gives $N = 109$ clusters for 80\% power at $\alpha = 0.05$ and $N = 132$ at $\alpha = 0.025$.
+\Cref{tab:power} gives the share of 4{,}000 replications in which the interval's lower end exceeded
+0, the verdict that the arm improves, at the true shift. With $N$ derived for the level in use,
+both methods reach the planned 80\%; keeping $N = 109$ at $\alpha = 0.025$ costs about nine points.
+The bootstrap's extra point of power goes with its excess false rejections (\cref{tab:null}). With
+the block dependence of $\tau = 0.05$ at $N = 132$, power fell to 77\%, and the sign-flip interval
+missed the true shift in 4.0\% of replications against a nominal 2.5\%.
+
+\begin{table}[ht]
+\centering\small
+\caption{Power at the true shift $\delta = 0.05$, 4{,}000 replications each.}\label{tab:power}
+\begin{tabular}{@{}rlrrr@{}}
+\toprule
+Clusters & Dependence & $\alpha$ & sign-flip & bootstrap \\
+\midrule
+109 & none & 0.05 & 81.7\% & 82.9\% \\
+109 & none & 0.025 & 72.9\% & 74.6\% \\
+132 & none & 0.025 & 82.3\% & 83.3\% \\
+132 & $\tau = 0.05$ & 0.025 & 77.3\% & 78.2\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Agreement with an independent reference}
+The reference implements Theorem~\ref{thm:exact} and Corollary~\ref{cor:closed} directly. In the enumerated branch it counts
+all $2^k$ vectors in exact rational arithmetic and takes the interval's ends as order statistics of
+the subset means; in the sampled branch it draws the same vectors from the seed in one call and
+takes the ends from Corollary~\ref{cor:closed}. Over 3{,}000 data sets per branch (2 to 13 clusters
+enumerated, 14 to 60 sampled with 1{,}000, 2{,}500 or 10{,}000 vectors, $\alpha$ of 0.10, 0.05 or
+0.025, one to four pairs per cluster), the branch's function and the reference gave the same
+$p$-value on all 6{,}000 calls and the same ends to within a relative $7.2 \times 10^{-12}$. A first
+version of the reference compared floating-point sums without a tolerance and disagreed on 19
+sampled $p$-values, each by the drawing of a constant vector whose floating sum rounded below the
+observed one; counted as the exact ties they are, as the code's tolerance counts them, the
+disagreements vanished. The bisection therefore finds the closed-form ends, and the closed form
+itself (Corollary~\ref{cor:closed}) could replace it in the enumerated case.
+
+\subsection{Memory and time}
+\Cref{tab:memory} gives the peak resident memory of a process making one call, and the call's wall
+time, before and after the blocks change, on synthetic differences with one to three pairs per
+cluster. The $p$-value and both ends of the interval are identical before and after in every case.
+After the change the peak is the interpreter's own footprint at every size. The price is time:
+above $4 \times 10^6$ sign entries the vectors are regenerated from the seed at each of the hundred
+or so evaluations, between 4 and 14 times slower than holding them. At the default of 10{,}000
+vectors and up to 400 clusters they are kept, and the call is unchanged.
+
+\begin{table}[ht]
+\centering\small
+\caption{One call of the test: peak memory of the process and wall time.}\label{tab:memory}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+& & \multicolumn{2}{c}{before (\texttt{caf5c0a})} & \multicolumn{2}{c}{after (\texttt{0d7cb89})}
+\\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+Sign vectors & Clusters & memory & time & memory & time \\
+\midrule
+$2^{20}$, enumerated & 20 & 560\,MB & 0.85\,s & 39\,MB & 4.3\,s \\
+$2^{23}$, enumerated & 23 & 4.81\,GB & 9.5\,s & 40\,MB & 39.4\,s \\
+$10^5$, sampled & 200 & 362\,MB & 0.50\,s & 51\,MB & 6.5\,s \\
+$10^6$, sampled & 200 & 3.26\,GB & 4.8\,s & 51\,MB & 64.8\,s \\
+$10^4$, sampled & 132 & 59\,MB & 0.02\,s & 50\,MB & 0.02\,s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The cut, demonstrated}\label{sec:cutdemo}
+On a ledger with $N = 2$ and three clusters, recorded in the order $x, y, z$, with $y$ and $z$
+resolved before $x$: once $y$ and $z$ resolved, the report read $\{y, z\}$ with mean difference
+0.70; when $x$ resolved, it read $\{x, y\}$ with mean 0.00 and reported $z$ as beyond $N$. The
+hypothesis of Proposition~\ref{prop:cut} fails here, since $x$'s pair precedes the second key and was
+unresolved, and the reading moved after $N$ was reached. The unit test for the cut adds twenty
+clusters after the thirtieth with all questions resolved, the case the proposition covers, and the
+report is unchanged.
+
+\subsection{The audit that motivated the change}
+An audit of an experiment built on the ledger reported the figures that led to the method; its data
+and dependence model belong to the audited application and are not reproduced here. On pure
+symmetric noise the implementation rejected 4.8\% at $\alpha = 0.05$ against 6.5\% for the
+percentile bootstrap on the same data, and 2.7\% at $\alpha = 0.025$; its interval covered 94.75\%;
+and it matched the audit's own reference implementation in all 36{,}000 calls. Under the audit's
+model of realistic dependence the percentile bootstrap rejected 5.9\% with independent clusters and
+7.5\% to 11.4\% with residual dependence, while the sign-flip test at $\alpha = 0.025$ held 2.9\% to
+5.9\% at the $N$ re-derived for that level, with 82\% power. \Cref{tab:null,tab:dep} reproduce the
+direction and rough size of these figures on generators stated in full.
+
+\section{Limitations}\label{sec:limits}
+
+\paragraph{The rules hold on the write path.} Verification checks the hash chain and the records'
+form, not the refusal rules. A line written outside the append path, with hashes recomputed, that
+breaks a rule (we wrote a primary-arm prediction carrying a digest other than its pin) verifies.
+Against such a writer the guarantee is the anchored head: lines before a published head cannot be
+changed, but lines after it can be added by anyone who can write the file.
+
+\paragraph{A pin is a digest of something.} The ledger checks that a pin has the form of a sha256
+digest, not that it is the digest of the configuration the arm runs; that binding is the arm's.
+
+\paragraph{The cut is stable only once earlier pairs resolve.} Proposition~\ref{prop:cut} needs every pair
+recorded before the $N$-th cluster's key to be resolved. Until then a late resolution can reorder
+the cut, and the rows of kept clusters can grow through later rounds.
+
+\paragraph{Independence across clusters.} Neither method protects against clusters that move
+together; under the block model the sign-flip test rejected 7.7\% to 14.1\% at $\alpha = 0.05$
+(\cref{tab:dep}). Its exactness is a property of the assumptions, which the experiment must make
+true by how it forms clusters.
+
+\paragraph{The interval assumes a location shift.} The test of 0 is exact under $H_0$ alone; the
+interval's coverage is exact only when the effect shifts the differences by a constant.
+
+\paragraph{Resolution and cost.} With $R$ sampled vectors the smallest $p$-value is $1/(R+1)$, and
+the interval takes about a hundred evaluations of the test, each over all vectors; above the
+keeping threshold each evaluation regenerates them, which bounds memory at a cost of 4 to 14 times
+the time (\cref{tab:memory}). The planning formula for $N$ is a normal approximation for the mean of
+cluster means and does not depend on the method.
+
+\paragraph{Two mutations survive.} The suite does not pin the add-one rule or the cluster level of
+the flips (\cref{tab:mutations}).
+
+\section{Future work}\label{sec:future}
+Replaying the refusal rules during verification would extend the pin and timing guarantees from the
+write path to any file that verifies. Recording the cut as a ledger record when $N$ is first
+reached, or reading only once every earlier pair has resolved, would make the reading single in
+the strong sense. Two tests would kill the surviving mutations: a data set whose observed statistic
+is the most extreme of all vectors, where the add-one $p$-value is $1/(R+1)$ and not 0, and data
+with strong within-cluster correlation, where flipping pairs over-rejects. When the dependence
+between clusters has a known structure, flipping blocks of clusters together restores exactness at
+the block level, at the cost of fewer units. In the enumerated case, Corollary~\ref{cor:closed} computes the
+interval from one sort of the subset means instead of about a hundred passes over the vectors.
+Lemma~\ref{lem:accept} and Corollary~\ref{cor:closed} are elementary enough to state and check in Lean.
+
+\section{Conclusion}
+A pre-registered bar can still be bent after the data are seen by choosing an arm's configuration,
+the moment of reading, or an interval that is too narrow. The ledger now requires a pin before an
+arm's first prediction and forbids adding one later, reads only the first $N$ clusters in its own
+line order, and offers a sign-flip test that is exact when clusters are independent and the arms
+exchangeable within them. Each sign vector accepts the shifts between the weighted means of the
+clusters it keeps and flips, which makes the inverted interval well defined and gives its ends in
+closed form, and an independent reference built on that form agrees with the implementation on
+every call. The evaluation also finds what the change leaves open: rules enforced only on the
+write path, a cut that a late resolution can still move, two surviving mutations, and no method
+that tolerates dependence across clusters.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
