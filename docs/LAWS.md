@@ -147,8 +147,8 @@ and §2.2.
 ## VIII. The abstraction ultrametric σ*
 
 `core/graph/sigma_star.py`, connectivity-instruments CN-2: σ* and the one maximum spanning forest
-that realizes it for every pair. Family VIII extends the seed (owner, 2026-11-03: "continue with
-σ*"; the SIG prefix, "prefixes are ok").
+that realizes it for every pair. Family VIII extends the seed (2026-11-03: the σ* work was to
+continue, under the SIG prefix).
 
 | law | statement | structure | anchor | label | falsifier | formal |
 |---|---|---|---|---|---|---|
@@ -162,8 +162,8 @@ that realizes it for every pair. Family VIII extends the seed (owner, 2026-11-03
 Laws that join two families' structures, so that what one family proves serves the other
 (`formal/Palace/Bridges.lean`; BRG-7 in `formal/Palace/Magnetic.lean`, beside the design note's
 other results), each with a Python falsifier on the code's own operators. Family IX
-extends the seed (owner, 2026-11-03: "let's also focus on the bridges"; the BRG prefix, "prefixes
-are ok").
+extends the seed (2026-11-03: the bridges between the families were the next focus, under the
+BRG prefix).
 
 | law | statement | structure | anchor | label | falsifier | formal |
 |---|---|---|---|---|---|---|
