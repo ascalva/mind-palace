@@ -104,45 +104,49 @@ Ouroboros's overlay may restate its id and nothing else. The section holds no ot
 | airlock S3 prefixes | as its overlay names them | as its overlay names them |
 | Vault server | `[secrets] addr` | the one its overlay names; none if it names none |
 
-**The invariant.** For instances i ≠ j, Ouroboros among them, `shared(N(i), N(j))` is empty:
-no location one writes or reads (data paths, lock, levers, exhaust lane, sources) is equal to,
-inside, or around a location of the other, each compared by its real path with every symlink on it
-resolved; no Keychain item, label or dialogue lane is common; neither restic repository nor
-airlock prefix lies at or inside the other's; and the Vault servers differ, each host read as the
-resolver reads it (userinfo dropped, every IPv4 form `inet_aton` accepts, IPv6 and v4-mapped
-addresses, one trailing dot), with every loopback or unspecified address and the localhost names
-counting as one host. For named instances it holds by
-construction: distinct ids give distinct roots, item prefixes and label segments, no derived name
-is Ouroboros's, and an undeclared source points into the instance's own root. What an overlay
-declares is checked at load against every instance declared on the host: Ouroboros and each other
-overlay under `config/instances/`, each read only for its namespaces. Sources count like every
-other location, so two named instances cannot read one corpus either: a source at, inside or
-around another instance's location, read or written, refuses.
-`tests/property/test_instance_namespaces.py` checks the invariant with Hypothesis over generated
-ids through the real loader, the named instances declared side by side so that each load checks
-the others, over pairs of named ids as well. Its controls break the derivation five ways and the
-property fails on each: ignoring the id; handing a named instance Ouroboros's names (the #25
-hazard); and letting an undeclared vault, exhaust lane or Vault server fall back to the committed
-default, which is Ouroboros's. With the loader's refusal on, the last four refuse at load, and so
-does the first between two named instances.
+**The invariant.** For instances i ≠ j, Ouroboros among them, `shared(N(i), N(j))` is empty.
+Instances reach each other only through what they write, so the rule is on write sets: nothing
+one writes (data paths, lock, levers, exhaust lane, restic repository, airlock prefixes) lies at,
+inside or around anything the other writes or reads; no Keychain item, label or dialogue lane is
+common; and the Vault servers differ. Locations compare by real path, every symlink on them
+resolved; remote ones by prefix; each Vault host as the resolver reads it (userinfo dropped,
+every IPv4 form `inet_aton` accepts, IPv6 and v4-mapped addresses, one trailing dot), with every
+loopback or unspecified address and the localhost names counting as one host. Two named
+instances may read one source, or nested sources, that neither writes: what one writes can reach
+the other only through a location the first writes, and none of those is read by the other. The
+default instance is stricter: its sources are private, so no named instance reads at, inside or
+around them either, since its corpus is private and a named instance may be read by a third
+party. For named instances the invariant holds by construction: distinct ids give distinct roots,
+item prefixes and label segments, no derived name is Ouroboros's, and an undeclared source points
+into the instance's own root. What an overlay declares is checked at load against every instance
+declared on the host: Ouroboros and each other overlay under `config/instances/`, each read only
+for its namespaces. `tests/property/test_instance_namespaces.py` checks the invariant with
+Hypothesis over generated ids through the real loader, the named instances declared side by side
+so that each load checks the others, over pairs of named ids as well, some of them reading one
+shared corpus. Its controls break the derivation six ways and the property fails on each:
+ignoring the id; handing a named instance Ouroboros's names (the #25 hazard); letting an
+undeclared vault, exhaust lane or Vault server fall back to the committed default, which is
+Ouroboros's; and pointing an undeclared source at what Ouroboros writes. With the loader's
+refusal on, the last five refuse at load, and so does the first between two named instances.
 
 **What a named instance is refused.** Loading refuses an overlay that declares no id, a malformed
-id, or `ouroboros`; that sets a derived Keychain item name, even to its derived value; that moves
-a data path or its exhaust lane out of its root (absolute, `~`, or through `..`); that turns the
+id, or `ouroboros`; that sets a derived Keychain item name, even to its derived value; that moves a
+data path or its exhaust lane out of its root (absolute, `~`, or through `..`); that turns the
 vault or transcripts agent on without naming its source, or `[secrets]` on without naming its
-Vault; whose restic repository does not end in its id; or that would share anything with another
-instance declared on the host, Ouroboros or another named one, whose configuration is read for
-that check alone. A declared source at, inside or around a location of Ouroboros's, Ouroboros's
-restic repository named outright or nested, Ouroboros's Vault in any spelling, two named
-instances whose repositories nest or whose roots one links to the other, and two overlays that
-declare one id therefore refuse outright. An overlay under `config/instances/` that could never
-load (no readable TOML, no id) holds nothing and is left out of the check. At run time, a
-self-modification loop pointed at another levers file refuses (`ForeignLevers`), and every tool
+Vault; whose restic repository does not end in its id; or that would break the invariant with
+another instance declared on the host, Ouroboros or another named one, whose configuration is read
+for that check alone. A declared source at, inside or around anything Ouroboros reads or writes, or
+anything another named instance writes; Ouroboros's restic repository named outright or nested;
+Ouroboros's Vault in any spelling; two named instances whose repositories nest or whose roots one
+links to the other; and two overlays that declare one id therefore refuse outright. Two named
+instances that read one corpus neither writes both load. An overlay under `config/instances/` that
+could never load (no readable TOML, no id) holds nothing and is left out of the check. At run time,
+a self-modification loop pointed at another levers file refuses (`ForeignLevers`), and every tool
 that names Ouroboros's own state outside the config refuses while `MIND_PALACE_OVERLAY` is set:
 `mind-palace stack`, `palace tick`, `backup.sh`, `run_with_secrets.sh`, the Open WebUI bridge and
 its responder, the two dialogue readers, `curate_local.py`, `handoff.py`, `verify_planes.py`,
-`cockpit.sh`, the query battery, the storage census, the quantization bench, the plane and
-float16 migrations, the eval report writers' `data/reports` default, and the three Vault scripts.
+`cockpit.sh`, the query battery, the storage census, the quantization bench, the plane and float16
+migrations, the eval report writers' `data/reports` default, and the three Vault scripts.
 
 **What a named instance that declares nothing reads and writes.** It writes only under
 `<repo>/instances/<id>/`: its data dir and stores, spool, lock, levers file, exhaust lane and the
@@ -166,10 +170,12 @@ loader's Config equals the old loader's field for field, the new `instance` fiel
 - *Derived, not declared.* An overlay states no derived name, and stating one refuses rather than
   being overridden, because a value the loader replaces is a setting that looks applied and never
   took. A declared name could also collide with another instance's; a derived one cannot.
-- *Sources are declared or off.* A named instance may read a corpus anywhere but at, inside or
-  around another instance's location; with nothing declared it reads none. Every location counts,
-  not only sources, so a vault path into Ouroboros's data dir refuses, and so does a corpus that
-  another named instance declares.
+- *Sources are declared or off.* With nothing declared a named instance reads none. A declared
+  corpus may lie anywhere but in what another instance writes, so no instance reads another's
+  outputs, and two named instances may share a read-only corpus.
+- *The default instance's corpus is private.* A named instance may be read by a third party, so it
+  may not read Ouroboros's sources either, though Ouroboros writes nothing there: the rule between
+  named instances is information flow, the rule toward Ouroboros is confidentiality.
 - *State under `instances/<id>/`.* Nested in `data/`, a named instance would ride Ouroboros's
   backup and fall to Ouroboros's `reset`; under the home directory it would have no stable place
   in a container. The root is gitignored and is one directory to mount or archive.

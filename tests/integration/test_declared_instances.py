@@ -1,10 +1,13 @@
-"""A named instance shares nothing with any instance declared on its host, not only Ouroboros.
+"""A named instance can reach no instance declared on its host, not only Ouroboros.
 
 The loader checks the instance it loads against Ouroboros and against every other overlay under
-the config dir's instances/, each read only for its namespaces, with the same `shared()`: real
-paths, containment, the canonical Vault host. So two named instances whose restic repositories
-nest refuse, as does a named root linked to another's, or two overlays declaring one id; two
-disjoint named instances both load, and an overlay that could never load is left out.
+the config dir's instances/, each read only for its namespaces, with the same `shared()`. The rule
+is on write sets: what one writes may not lie at, inside or around what the other writes or
+reads, and names, labels and the Vault host may not collide. So two named instances whose restic
+repositories nest refuse, as does a named root linked to another's, two overlays declaring one id,
+or a source inside another instance's written state. Two named instances may read one source
+neither writes; the default instance's sources stay private. Two disjoint named instances both
+load, and an overlay that could never load is left out.
 """
 
 from __future__ import annotations
@@ -90,13 +93,43 @@ def test_an_overlay_that_could_never_load_is_left_out(monkeypatch, tmp_path) -> 
     assert _load(monkeypatch, a).instance.id == "a"
 
 
-def test_two_named_instances_cannot_read_one_corpus(monkeypatch, tmp_path) -> None:
-    """Sources count like every other location: a corpus two named instances both declare is
-    shared, so neither loads while the other is declared."""
+@pytest.mark.parametrize("b_source", ["corpus", "corpus/notes"])
+def test_two_named_instances_share_one_read_only_corpus(monkeypatch, tmp_path, b_source) -> None:
+    """A corpus neither instance writes, declared by both, or one nested in the other's: nothing
+    either writes can reach the other through it, so both load."""
     repo = _host(monkeypatch, tmp_path)
-    corpus = tmp_path / "corpus"
-    corpus.mkdir()
-    a = _declare(repo, "a", f'[instance]\nid = "a"\n[ingestion.vault]\npath = "{corpus}"\n')
-    _declare(repo, "b", f'[instance]\nid = "b"\n[ingestion.vault]\npath = "{corpus / "notes"}"\n')
-    with pytest.raises(loader.InstanceOverlayError, match="would share these with 'b'"):
-        _load(monkeypatch, a)
+    (tmp_path / "corpus" / "notes").mkdir(parents=True)
+    a = _declare(repo, "a", f'[instance]\nid = "a"\n[ingestion.vault]\n'
+                            f'path = "{tmp_path / "corpus"}"\n')
+    b = _declare(repo, "b", f'[instance]\nid = "b"\n[ingestion.vault]\n'
+                            f'path = "{tmp_path / b_source}"\n')
+    assert _load(monkeypatch, a).ingestion.vault.path == tmp_path / "corpus"
+    assert _load(monkeypatch, b).ingestion.vault.path == tmp_path / b_source
+
+
+@pytest.mark.parametrize("where", ["instances/b/data", "instances/b/data/raw",
+                                   "instances/b/exhaust"])
+def test_a_named_source_in_another_named_instances_writes_refuses(monkeypatch, tmp_path,
+                                                                 where) -> None:
+    """A source inside what another instance writes would read that instance's outputs."""
+    repo = _host(monkeypatch, tmp_path)
+    a = _declare(repo, "a", f'[instance]\nid = "a"\n[ingestion.vault]\npath = "{repo / where}"\n')
+    b = _declare(repo, "b", '[instance]\nid = "b"\n')
+    for overlay, other in ((a, "'b'"), (b, "'a'")):
+        with pytest.raises(loader.InstanceOverlayError,
+                           match=f"would share these with {other} [(].*[)]:\n    (read|written) "):
+            _load(monkeypatch, overlay)
+
+
+def test_a_named_source_in_the_default_corpus_still_refuses(monkeypatch, tmp_path) -> None:
+    """The default instance's sources are private: no named instance reads at or inside them,
+    though Ouroboros writes nothing there."""
+    repo = _host(monkeypatch, tmp_path)
+    vault = tmp_path / "vault"
+    (vault / "notes").mkdir(parents=True)
+    (repo / "config" / "ouroboros.toml").write_text(f'[ingestion.vault]\npath = "{vault}"\n')
+    for source in (vault, vault / "notes"):
+        a = _declare(repo, "a", f'[instance]\nid = "a"\n[ingestion.vault]\npath = "{source}"\n')
+        with pytest.raises(loader.InstanceOverlayError,
+                           match="would share these with 'ouroboros':\n    read .* and read "):
+            _load(monkeypatch, a)

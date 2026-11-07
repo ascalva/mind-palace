@@ -4,9 +4,12 @@ N(i) is what instance i owns, read by `namespaces_of` off the config the real lo
 data dir, ingestion spool, supervisor lock, levers file, exhaust lane and every other path it
 writes; the sources it reads (vault, transcripts, dialogue lanes); the Keychain items it reads; its
 launchd labels; its backup repository; its Vault server. The invariant: for instances i ≠ j,
-Ouroboros among them, `shared(N(i), N(j))` is empty, where every location compares as a location
-(one inside the other counts as shared). Ids are generated, not chosen; the named instances
-declare nothing.
+Ouroboros among them, `shared(N(i), N(j))` is empty. It is a rule on write sets, since instances
+reach each other only through what they write: what one writes lies at, inside or around nothing
+the other writes or reads; names, labels and the Vault server differ; and the default instance's
+sources are private. Locations compare by real path, one inside the other counting. Ids are
+generated, not chosen; each named instance declares nothing but, at will, one corpus they all
+read and none writes, which the invariant allows.
 
 The controls give the check teeth. With the loader's own refusal switched off, five broken
 derivations each fail the property: one that ignores the id, one that hands a named instance
@@ -33,16 +36,20 @@ OUROBOROS_REPOSITORY = "s3:s3.us-east-1.amazonaws.com/example-ouroboros-backups"
 NAMED_BASE = "s3:s3.us-east-1.amazonaws.com/example-instance-backups"
 
 
-def _declare(tmp: Path, ids: list[str]) -> None:
+def _declare(tmp: Path, ids: list[str], readers: frozenset[str] = frozenset()) -> None:
     """Declare exactly these named instances on the host: one overlay each under the config dir's
-    instances/, where the loader looks for every other instance when it loads one."""
+    instances/, where the loader looks for every other instance when it loads one. Those in
+    `readers` also read one shared corpus, `<tmp>/corpus`, which no instance writes."""
     declared = tmp / "config" / "instances"
     declared.mkdir(parents=True, exist_ok=True)
+    (tmp / "corpus").mkdir(exist_ok=True)
     for old in declared.glob("*.toml"):
         old.unlink()
     for iid in ids:
+        corpus = f'[ingestion.vault]\npath = "{tmp / "corpus"}"\n' if iid in readers else ""
         (declared / f"{iid}.toml").write_text(f'[instance]\nid = "{iid}"\n'
-                                              f'[backup]\nrepository = "{NAMED_BASE}/{iid}"\n')
+                                              f'[backup]\nrepository = "{NAMED_BASE}/{iid}"\n'
+                                              + corpus)
 
 
 def _namespaces(tmp: Path, instance_id: str | None) -> loader.Namespaces:
@@ -71,9 +78,10 @@ def _the_property(tmp: Path, *, min_named: int, shrink: bool = True) -> Callable
     phases = tuple(Phase) if shrink else (Phase.explicit, Phase.generate)
 
     @settings(max_examples=40, deadline=None, database=None, phases=phases)
-    @given(st.lists(IDS, min_size=min_named, max_size=3, unique=True))
-    def holds(ids: list[str]) -> None:
-        _declare(tmp, ids)                    # side by side: each load checks the others too
+    @given(st.lists(IDS, min_size=min_named, max_size=3, unique=True), st.data())
+    def holds(ids: list[str], data: st.DataObject) -> None:
+        readers = frozenset(data.draw(st.sets(st.sampled_from(ids))))
+        _declare(tmp, ids, readers)           # side by side: each load checks the others too
         of = {loader.OUROBOROS: _namespaces(tmp, None)}
         of |= {i: _namespaces(tmp, i) for i in ids}
         _disjoint(of)
@@ -130,6 +138,15 @@ def _inherit_ouroboros_lane(monkeypatch: pytest.MonkeyPatch) -> None:
                         else real(instance, name))
 
 
+def _read_the_defaults_writes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A named instance's undeclared vault pointed at what the default instance writes, its data
+    dir: one instance would read the other's outputs, which the rule on write sets forbids."""
+    real = loader._own_source
+    monkeypatch.setattr(loader, "_own_source",
+                        lambda instance, name: loader.REPO_ROOT / "data" if name == "vault"
+                        else real(instance, name))
+
+
 def _inherit_ouroboros_vault_server(monkeypatch: pytest.MonkeyPatch) -> None:
     """A named instance that names no Vault falling back to the committed default address, the
     Vault on this host, which is Ouroboros's."""
@@ -138,10 +155,11 @@ def _inherit_ouroboros_vault_server(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.parametrize(("break_it", "min_named", "shared_what"), [
-    (_ignore_the_id, 2, "location"),
-    (_be_ouroboros, 1, "location"),
-    (_inherit_ouroboros_vault, 1, r"location \S*\.mind-palace/vault and"),
-    (_inherit_ouroboros_lane, 1, r"location \S*\.mind-palace/exhaust and"),
+    (_ignore_the_id, 2, "written .* and written"),
+    (_be_ouroboros, 1, "written .* and written"),
+    (_inherit_ouroboros_vault, 1, r"read \S*\.mind-palace/vault and read"),
+    (_inherit_ouroboros_lane, 1, r"written \S*\.mind-palace/exhaust and written"),
+    (_read_the_defaults_writes, 1, r"written \S*/data and read \S*/data'"),
     (_inherit_ouroboros_vault_server, 1, "Vault server loopback:8200"),
 ])
 def test_control_a_broken_derivation_fails_the_property(monkeypatch, tmp_path, break_it,
@@ -153,7 +171,8 @@ def test_control_a_broken_derivation_fails_the_property(monkeypatch, tmp_path, b
 
 
 @pytest.mark.parametrize("break_it", [_be_ouroboros, _inherit_ouroboros_vault,
-                                      _inherit_ouroboros_lane, _inherit_ouroboros_vault_server])
+                                      _inherit_ouroboros_lane, _inherit_ouroboros_vault_server,
+                                      _read_the_defaults_writes])
 def test_control_the_loader_refuses_the_hazard_itself(monkeypatch, tmp_path, break_it) -> None:
     break_it(monkeypatch)
     (tmp_path / "ouroboros.toml").write_text(f'[backup]\nrepository = "{OUROBOROS_REPOSITORY}"\n')
