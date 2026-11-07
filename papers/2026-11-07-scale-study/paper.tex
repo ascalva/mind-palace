@@ -83,7 +83,9 @@ and the list of works it references, which is what a temporal citation graph nee
 normalized Laplacian is $\mathcal L = I - D^{-1/2} A D^{-1/2}$, with eigenvalues
 $0 = \lambda_1 \le \lambda_2 \le \dots \le 2$ \citep{chung1997}. The spectral gap is
 $\gamma = \lambda_2$. The simple random walk $P = D^{-1}A$ has eigenvalues $1 - \lambda_i$, so
-$\gamma$ is its spectral gap and $1/\gamma$ is its relaxation time in steps \citep{levin2017}. The
+$\gamma$ is its spectral gap. In continuous time the walk's relaxation time is $1/\gamma$; in discrete
+steps it is set by the absolute spectral gap, which the lazy walk of \cref{sec:window} makes
+$\varepsilon\gamma$ \citep{levin2017}. The
 Cheeger inequality bounds $\gamma$ by the conductance of the best cut, so a set of nodes joined to
 the rest by few edges forces $\gamma$ to be small \citep{chung1997}.
 
@@ -184,13 +186,19 @@ scale measured. Whole-component bootstraps were run up to 25,000 nodes and core 
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Relaxation and window}
-SCL-1 of the companion article on scale and attribution is stated for the lazy walk
-$x \mapsto (1 - \varepsilon\mathcal L)x$ with laziness $\varepsilon$, which needs
-$\varepsilon\lambda_{\max} \le 1$. The spectrum of $\mathcal L$ lies in $[0,2]$, so the largest
-admissible laziness is $\varepsilon = 1/2$, which we use. The deterministic bound is that the energy of
+\subsection{Relaxation and window}\label{sec:window}
+SCL-1 of the companion article on scale and attribution is proved for the lazy walk
+$x \mapsto (1 - \varepsilon L)x$ of the combinatorial Laplacian $L = D - A$, with laziness $\varepsilon$
+and $\varepsilon\lambda_{\max} \le 1$. Its argument uses only that the operator is symmetric with
+spectrum in $[0, 1/\varepsilon]$ and that the field is orthogonal to the kernel, so it holds as stated
+for $1 - \varepsilon\mathcal L$ with $x \perp D^{1/2}\mathbf 1$; the machine-checked statement covers $L$
+only. The lazy random walk $(1-\varepsilon)I + \varepsilon P = D^{-1/2}(I - \varepsilon\mathcal L)D^{1/2}$
+has the same eigenvalues $1 - \varepsilon\lambda_i$ and is reversible for the degree-weighted
+distribution $\pi$. The spectrum of $\mathcal L$ lies in $[0,2]$, so the largest admissible laziness
+is $\varepsilon = 1/2$, which we use. The deterministic bound is that the energy of
 the time average over $T$ steps of a mean-zero field $x$ is at most $\|x\|^2/(T\varepsilon\gamma)^2$. For an
-observable read along the walk, the note's sampled form is
+observable read along the lazy random walk started from $\pi$, the sampled form, here the textbook
+bound for a reversible chain \citep{levin2017} with $\sigma^2$ the variance under $\pi$, is
 $\mathrm{Var} \le 2\sigma^2/(\varepsilon\gamma T)$ per lazy step, and
 $\mathrm{Var} \le 2\sigma^2/(\gamma T_c)$ in continuous time $T_c = \varepsilon T$. A relative precision
 $\delta$ of an observable of unit relative standard deviation therefore needs, in the two unit systems,
@@ -331,7 +339,7 @@ $\varepsilon = 1/2$, and $\delta = 10\%$. On the whole component, from 2009 on, 
 (174 to 438 lazy steps), $T_c$ is 17,000 to 44,000 and $T$ is 35,000 to 87,000 lazy steps
 (\Cref{tab:cuts}). At the 2026 cut $1/\gamma = 112$, $T_c = 22{,}395$ and $T = 44{,}790$, against 33,342
 nodes. The lazy-step window $T$ is 1.3 to 11 times $N$ (11 times at the 2009 cut, 6 at 2015, 1.3 at 2026):
-a walk must cross the graph once or more to average an observable to 10\%. A 20\% target needs a
+the bound asks for a window longer than the graph has nodes before an average is good to 10\%. A 20\% target needs a
 quarter of that. For the 6-core, above 1,000 nodes, $1/\gamma$ is 3.2 to 10, $T_c$ is 640 to 2,000 and $T$
 is 1,300 to 4,000; for the 10-core $T_c$ is 650 to 1,540 and $T$ 1,300 to 3,100. The relaxation time of
 the whole component grew by a factor of 20 at the 2009 cut, and that of the cores did not. Because the
