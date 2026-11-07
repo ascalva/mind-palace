@@ -24,7 +24,7 @@ from eval.scale.bootstrap import (
     interval_width,
     node_subsample,
 )
-from eval.scale.graphs import Component, TemporalEdges, component_at, load_edge_csv
+from eval.scale.graphs import Component, TemporalEdges, component_at, k_core, load_edge_csv
 from eval.scale.hodge import hodge_split
 from eval.scale.spectrum import cut_stats
 
@@ -149,6 +149,55 @@ def run(
             print(f"cut {cut:.0f} n={st.n} gamma={st.gamma:.4g}", flush=True)
 
 
+def run_cores(
+    edges: TemporalEdges,
+    cuts: Sequence[float],
+    out: Path,
+    cores: Sequence[int],
+    reps: int,
+    seed: int,
+    fractions: Sequence[float] = (0.5, 0.85),
+    max_boot_n: int = 10**9,
+) -> None:
+    """The same measures on the largest component of the k-core of each cut, for each k.
+
+    The concentration theorem needs minimum degree of order log N; a citation graph always has
+    nodes of degree one, so the k-core is the subgraph where the condition can hold.
+    """
+    rng = np.random.default_rng(seed)
+    with (
+        (out / "core_cuts.csv").open("w", newline="") as fc,
+        (out / "core_boot.csv").open("w", newline="") as fb,
+    ):
+        wc, wb = csv.writer(fc), csv.writer(fb)
+        wc.writerow(["cut", "core", "n", "m", "mean_deg", "min_deg", "deg_over_logn",
+                     "mindeg_over_logn", "gamma", "relax_steps", "window_10pct"])
+        wb.writerow(["cut", "core", "scheme", "fraction", "reps", "n_mean", "deg_over_logn",
+                     "min_deg_mean", "width_gamma", "median_gamma"]
+                    + [f"width_gap{i}" for i in GAP_INDICES])
+        for cut in cuts:
+            full = component_at(edges, cut)
+            for k in cores:
+                comp = k_core(full, k)
+                if comp.n < 12:
+                    continue
+                st = cut_stats(comp, k=8)
+                wc.writerow([cut, k, st.n, st.m, st.mean_degree, st.min_degree,
+                             st.degree_over_logn, st.mindeg_over_logn, st.gamma,
+                             1.0 / st.gamma, required_window(st.gamma)])
+                fc.flush()
+                if comp.n > max_boot_n:
+                    continue
+                plan: list[tuple[str, float]] = [("node", f) for f in fractions] + [("edge", 1.0)]
+                for scheme, frac in plan:
+                    row = bootstrap_cut(comp, scheme, frac, reps, rng, core=k)
+                    wb.writerow([cut, k, scheme, frac, row.reps, row.n_mean, row.degree_over_logn,
+                                 row.min_degree_mean, row.width_gamma, row.median_gamma,
+                                 *row.width_gaps])
+                fb.flush()
+                print(f"core {k} cut {cut:.0f} n={st.n} gamma={st.gamma:.4g}", flush=True)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("edges", type=Path)
@@ -157,6 +206,8 @@ def main() -> None:
     ap.add_argument("--last", type=float, required=True)
     ap.add_argument("--step", type=float, required=True)
     ap.add_argument("--extra", type=float, nargs="*", default=[], help="further cut times")
+    ap.add_argument("--cores", type=int, nargs="*", default=None,
+                    help="measure the k-cores for these k instead of the full graph")
     ap.add_argument("--reps", type=int, default=30)
     ap.add_argument("--hodge-reps", type=int, default=8)
     ap.add_argument("--seed", type=int, default=0)
@@ -164,7 +215,12 @@ def main() -> None:
     a = ap.parse_args()
     edges = load_edge_csv(a.edges.expanduser())
     cuts = sorted({*np.arange(a.first, a.last + 1e-9, a.step).tolist(), *a.extra})
-    run(edges, cuts, a.out.expanduser(), a.reps, a.hodge_reps, a.seed, max_boot_n=a.max_boot_n)
+    out = a.out.expanduser()
+    out.mkdir(parents=True, exist_ok=True)
+    if a.cores:
+        run_cores(edges, cuts, out, a.cores, a.reps, a.seed, max_boot_n=a.max_boot_n)
+    else:
+        run(edges, cuts, out, a.reps, a.hodge_reps, a.seed, max_boot_n=a.max_boot_n)
 
 
 if __name__ == "__main__":
