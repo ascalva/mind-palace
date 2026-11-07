@@ -1,0 +1,750 @@
+% The article for the growth readout of the prediction ledger (GRW-1 to GRW-6).
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{url}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+% Distinct link targets for the line numbers of each algorithm.
+\makeatletter
+\providecommand{\theHALG@line}{}
+\renewcommand{\theHALG@line}{\thealgorithm.\arabic{ALG@line}}
+\makeatother
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% A Lean declaration or a path, in monospace, breakable after an underscore, a dot or a slash.
+\DeclareUrlCommand\lean{\def\UrlFont{\upshape\ttfamily}}
+% The Lean declarations that check a theorem, set upright and ragged right.
+\newenvironment{leannames}{\par\smallskip\small\raggedright\upshape\noindent Lean: }{\par}
+
+\newcommand{\KL}[2]{\mathrm{KL}(#1\,\|\,#2)}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\abar}{\bar a}
+
+\setlist{topsep=3pt,itemsep=1pt,parsep=0pt}
+\renewcommand{\bibfont}{\small}
+\emergencystretch=1.5em
+
+\title{The Log Growth of a Proportional Stake Is the Cumulative Log-Score Advantage}
+\author{Alberto Serrano-Calva}
+\date{7 November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A pre-registered prediction ledger scores an arm's probability forecasts for yes/no questions
+against a reference arm's forecasts on the same questions. We ask whether a sequence of stakes
+informed by the forecasts can multiply a holding by a factor $N$, and what that requires. When the
+reference's probability $r$ sets fair terms, the proportional stake multiplies the holding by $p/r$
+on yes and by $(1-p)/(1-r)$ on no, for the arm's forecast $p$. We prove that its log growth over any
+sequence is the arm's cumulative log-score advantage over the reference (GRW-1); that a question's
+expected advantage under a true probability $q$ is $\KL{q}{r}-\KL{q}{p}$, largest for the truthful
+forecast (GRW-2); that the stake maximizes expected log growth among constant fractions (GRW-3);
+that the holding reaches $N$ times its start exactly when the cumulative advantage reaches $\log N$
+(GRW-4); that the holding is never ruined (GRW-5); and that with independent, identically
+distributed outcomes it tends to infinity almost surely when the expected advantage is positive,
+and to zero when it is negative (GRW-6). All six are proved in Lean~4 with Mathlib, and the four
+statements of the identity that the code relies on are judged against a separate specification.
+The ledger's scorer reads its existing log scores as this growth; the readout is a computation over
+scored pairs and stakes nothing.
+\end{abstract}
+
+\section{Introduction}
+
+A forecast of a yes/no question can be scored once the question resolves. A pre-registered
+prediction ledger records each forecast before its question closes and compares the forecasts of
+one arm, a source of forecasts under a fixed configuration, with those of another on the
+(question, round) pairs both predicted. It uses the Brier score~\citep{brier1950} and the
+logarithmic score~\citep{good1952}, both strictly proper~\citep{gneiting2007}: the expected score
+is best only at the true probability. A proper score measures how accurate the forecasts were.
+This paper answers a different question about the same record: can a succession of stakes, each
+informed by a forecast, multiply a starting holding by a large factor through many small
+decisions rather than one large move, and what does such a path need?
+
+The answer is a classical identity read against the ledger. Suppose that the reference arm's
+probability $r$ for a question sets the terms of a stake on it: a unit placed on yes becomes $1/r$
+units if the question resolves yes and nothing otherwise, and a unit placed on no becomes
+$1/(1-r)$ units if it resolves no and nothing otherwise. The proportional
+stake~\citep{kelly1956,cover2006} places the fraction $p$ of the holding on yes and $1-p$ on no,
+for the arm's forecast $p$, and so multiplies the holding by the likelihood ratio of the outcome
+under the arm's forecast and under the reference's. Over a sequence the factors multiply and their
+logarithms add, so the logarithm of the growth is the sum, over questions, of the arm's log score
+minus the reference's, both of which the ledger already computes. A path to $N$ times the start
+exists exactly when this cumulative advantage reaches $\log N$.
+
+The contributions are these.
+\begin{itemize}
+  \item A model, in Lean~4~\citep{moura2021} with Mathlib~\citep{mathlib2020}, of scored pairs,
+    proportional and fractional stakes, the expectation over independent outcomes, and
+    constant-fraction stakes, with six machine-checked theorems, GRW-1 to GRW-6
+    (\cref{sec:theory}). The four statements of GRW-1, which the code relies on, are also judged
+    by a comparator against a separate specification (\cref{sec:evaluation}).
+  \item An account of why a score advantage is a growth rate, why the logarithmic score has this
+    property and the Brier score does not, and what a fractional stake gives up and keeps: it is
+    the proportional stake of a forecast moved toward the reference (\cref{sec:concepts}).
+  \item A growth readout in the ledger's scorer, blinded like its primary comparison and read
+    at the same $N_c$ clusters (\cref{sec:implementation}), with its tests, attacks and controls
+    (\cref{sec:evaluation}).
+\end{itemize}
+The substance of GRW-1 to GRW-3 and of GRW-6 is classical~\citep{kelly1956,breiman1961,
+thorp1969,cover2006}. What is new is the exact correspondence with a ledger's scored pairs, the
+machine-checked statements and the readout. No result depends on observed data.
+
+\section{Background and related work}
+\label{sec:background}
+
+\paragraph{The setting.} The ledger is an append-only, hash-chained record whose first entry, a
+protocol written before any prediction, fixes the arms, the families of questions, the comparisons
+and the number of clusters $N_c$ at which the primary comparison is read; each arm of the primary
+comparison is pinned to the digest of its configuration before its first prediction, and questions
+that turn on the same underlying event share a cluster. The scorer compares two arms by the paired
+difference of Brier scores on the (question, round) pairs both predicted, with a bootstrap over
+clusters or a sign-flip test over clusters, whichever the protocol declares, reports each arm's mean
+Brier and log scores, checks controls, among them a recorded copy of the reference arm whose skill
+must be exactly zero, and withholds the primary comparison until $N_c$ is fixed and reached and
+every question of the first $N_c$ clusters is resolved or voided. From then on it reads those $N_c$
+clusters only, the first whose pairs entered the ledger, however many the ledger holds.
+
+\paragraph{Growth and information.} \citet{kelly1956} considered a gambler who learns of an outcome
+through a noisy channel before betting on it at fair odds. The bet that maximizes the expected
+logarithm of the holding places on each outcome the fraction of the holding equal to its
+conditional probability, and the resulting exponential growth rate of the holding equals the rate
+at which the channel transmits information. \citet{breiman1961} proved two asymptotic properties of
+the strategy that maximizes the expected logarithm in repeated favorable games: the ratio of its
+holding to that of any essentially different strategy tends to infinity almost surely, and it
+asymptotically minimizes the expected time to reach a fixed large goal. \citet{thorp1969} surveyed
+these results and their use in favorable games.
+
+\paragraph{Gambling and relative entropy.} \citet[chap.~6]{cover2006} treat the horse race: with
+outcome probabilities $p_i$, odds $o_i$ and fractions $b_i$ of the holding placed on the outcomes,
+the doubling rate $W(b,p)=\sum_i p_i\log(b_i o_i)$ is maximized by proportional gambling, $b=p$.
+With odds fair for a distribution $r$, $o_i=1/r_i$, it is $W(b,p)=D(p\,\|\,r)-D(p\,\|\,b)$, a
+difference of relative entropies~\citep{kullback1951}, and side information $Y$ about the outcome
+$X$ raises the optimal doubling rate by the mutual information $I(X;Y)$. GRW-2 is the two-outcome
+case of the identity for fair odds, with the truth $q$ in place of $p$ and the arm's forecast in
+place of $b$. Read per outcome rather than in expectation, the identity says that the logarithm of a
+proportional stake's factor is a difference of two log scores, which is GRW-1.
+
+\paragraph{Proper scoring rules.} \citet{brier1950} proposed scoring probability forecasts by the
+mean squared difference between the forecast probabilities and the outcomes, and \citet{good1952}
+proposed rewarding a probability by the logarithm of the probability it gave to what happened.
+\citet{gneiting2007} review strictly proper scoring rules, characterize them through convex
+functions, and associate with each a divergence, the expected shortfall of a forecast $p$ against
+the truthful forecast when $q$ is true; for the logarithmic score it is $\KL{q}{p}$.
+
+\paragraph{Formal developments.} \citet{carrone2026} proves, in Lean~4 with Mathlib, the Kelly
+criterion for a bet that multiplies the stake by $1+u$ or by $1-d$ (its \lean{kelly_optimal} and
+\lean{kelly_growth_pos}) and the almost-sure convergence of the time-average log growth (its
+\lean{time_average_growth_ae}). The domain in the statement of GRW-3, the fractions that keep both
+factors positive, and the shape of GRW-6, the strong law over pairwise independent, identically
+distributed summands followed by the two limits, follow that development. The definitions and
+proofs here are separate, over a model of reference, forecast and outcome in which the gain is
+$u=1/r-1$ and the loss is $d=1$. Mathlib's strong law, \lean{strong_law_ae_real}, is Etemadi's
+version~\citep{etemadi1981}, which needs only pairwise independence.
+
+\section{Theory}
+\label{sec:theory}
+
+Logarithms are natural. The Lean names given with the definitions and theorems are in the
+namespace \lean{Palace.Growth}, with the definitions in \lean{formal/Palace/Growth/Defs.lean} and
+the theorems in \lean{formal/Palace/Growth.lean}, which contains no \lean{sorry}.
+
+\subsection{Definitions}
+
+\begin{definition}[Scored pair]
+A \emph{scored pair} over a field $K$ is $x=(r,p)\in K^2$: the reference's probability $r$ that a
+yes/no question resolves yes, and the arm's forecast $p$. An outcome is $o\in\{0,1\}$, with $o=1$
+for yes, and the likelihood of a probability $y$ for $o$ is $L(y,1)=y$, $L(y,0)=1-y$. Over an
+ordered field, $x$ is \emph{proper} if $0<r<1$ and $0<p<1$. (Lean: \lean{Pair}, \lean{likelihood},
+\lean{Pair.Proper}.)
+\end{definition}
+
+The reference's probability sets the terms of a stake: a unit placed on yes becomes $1/r$ units on
+yes and nothing on no, a unit placed on no becomes $1/(1-r)$ units on no and nothing on yes, and a
+unit kept stays a unit; under the reference's probability every placement has expected multiplier
+$1$, so the terms are fair.
+
+\begin{definition}[Stakes, growth and holding]
+\label{def:stake}
+The \emph{proportional stake} places the fraction $p$ of the holding on yes and $1-p$ on no; its
+factor is $F(x,o)=L(p,o)/L(r,o)$, that is $p/r$ on yes and $(1-p)/(1-r)$ on no. For a sequence
+$\sigma=((x_1,o_1),\dots,(x_T,o_T))$ the \emph{growth} is $G(\sigma)=\prod_{i}F(x_i,o_i)$ and the
+\emph{holding} from $W_0$ is $W(\sigma)=W_0\,G(\sigma)$. For $\lambda\in K$ the \emph{fractional
+stake} has factor $F_\lambda(x,o)=1+\lambda(F(x,o)-1)$ and growth
+$G_\lambda(\sigma)=\prod_iF_\lambda(x_i,o_i)$. (Lean: \lean{factor}, \lean{growth}, \lean{holding},
+\lean{fractional}, \lean{fractionalGrowth}.)
+\end{definition}
+
+\begin{definition}[Scores, advantage, margin]
+Over $\R$, the \emph{log score} of $y$ on $o$ is $s(y,o)=\log L(y,o)$ (the ledger's log loss is its
+negative). The \emph{advantage} of a pair is $a(x,o)=s(p,o)-s(r,o)$, and the \emph{cumulative
+advantage} of $\sigma$ is $A(\sigma)=\sum_ia(x_i,o_i)$. The \emph{margin} of a pair is
+$m(x)=\min\{p,1-p,r,1-r\}$ and its \emph{worst factor} is $\min\{F(x,1),F(x,0)\}$. (Lean:
+\lean{logScore}, \lean{advantage}, \lean{cumulative}, \lean{margin}, \lean{worstFactor}.)
+\end{definition}
+
+\begin{definition}[Truth, divergence, expectation]
+A \emph{truth} for a pair is a probability $q$ that its outcome is yes. The \emph{expected
+advantage} is $\abar_q(x)=q\,a(x,1)+(1-q)\,a(x,0)$ and the binary divergence is
+$\KL{q}{y}=q\log(q/y)+(1-q)\log((1-q)/(1-y))$, with $0\log0=0$, which Lean's convention $\log0=0$
+provides. A \emph{question} is a pair with a truth, $\xi=(x,q)$. For a list of questions with
+independent outcomes, the expectation of a function $h$ of the outcomes is defined by recursion:
+$\E_{[\,]}[h]=h([\,])$ and $\E_{\xi::\Xi}[h]=q\,\E_{\Xi}[h(1::\cdot)]+(1-q)\,\E_{\Xi}[h(0::\cdot)]$.
+(Lean: \lean{expectedAdvantage}, \lean{klBin}, \lean{Question}, \lean{expect},
+\lean{cumulativeOn}.)
+\end{definition}
+
+\begin{definition}[Constant fractions]
+At reference $r$, the stake of a \emph{constant fraction} $f\in\R$ on yes places $f$ on yes and
+keeps $1-f$: its factor is $Y(f)=1+f(1/r-1)$ on yes and $N(f)=1-f$ on no. Under a belief $p$ its
+expected log growth is $g(f)=p\log Y(f)+(1-p)\log N(f)$, and the \emph{proportional fraction} is
+$f^\star=(p-r)/(1-r)$. (Lean: \lean{stakeYes}, \lean{expectedLogGrowth},
+\lean{proportionalFraction}.)
+\end{definition}
+
+A unit split $r:(1-r)$ between yes and no is worth one unit on either outcome, so for $p\ge r$
+placing $p$ on yes and $1-p$ on no is the same stake as placing $f^\star$ on yes and keeping the
+rest.
+
+\subsection{The identity}
+
+\begin{theorem}[GRW-1]
+\label{thm:grw1}
+\leavevmode
+\begin{enumerate}
+  \item[(i)] Over any field, $G(\sigma)=\prod_i L(p_i,o_i)\big/\prod_i L(r_i,o_i)$.
+  \item[(ii)] Over any field, $G_1(\sigma)=G(\sigma)$.
+  \item[(iii)] Over $\R$, if every pair of $\sigma$ is proper, $\log G(\sigma)=A(\sigma)$, and so
+    $W(\sigma)=W_0\exp A(\sigma)$.
+\end{enumerate}
+\begin{leannames}
+\lean{growth_eq_div}, \lean{fractionalGrowth_one}, \lean{log_growth}, \lean{holding_eq}, each
+restated in \lean{formal/Spec/Growth.lean}.
+\end{leannames}
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+(i) By induction: a product of quotients is the quotient of the products; Lean's division is total
+($y/0=0$), and a zero likelihood of the reference makes both sides zero, so (i) needs no
+hypothesis. (ii) unfolds the definitions. (iii) By induction: every factor of a proper pair is
+positive (\cref{thm:grw5}), so the logarithm of the product is the sum of the logarithms of the
+factors, and the logarithm of a factor is the advantage; then $\exp\circ\log$ applies.
+\end{proof}
+
+The identity is pathwise: it holds for every sequence of outcomes, with no probability model. The
+readout computes the left side and reports the right side beside it: the difference of the two
+arms' log scores, summed over the pairs both predicted.
+
+\subsection{The expectation}
+
+\begin{theorem}[GRW-2]
+\label{thm:grw2}
+Let $x=(r,p)$ be a proper pair.
+\begin{enumerate}
+  \item[(i)] For every real $q$, $\abar_q(x)=\KL{q}{r}-\KL{q}{p}$; so $\abar_q(x)>0$ if and only if
+    $\KL{q}{p}<\KL{q}{r}$.
+  \item[(ii)] (Gibbs) For $0\le q\le1$ and $0<y<1$, $\KL{q}{y}\ge0$, with $\KL{q}{y}>0$ when
+    $y\ne q$; and $\KL{q}{q}=0$.
+  \item[(iii)] For $0\le q\le1$, $\abar_q(x)\le\KL{q}{r}$, strictly when $p\ne q$, and
+    $\abar_p(x)=\KL{p}{r}$: for a fixed truth, the truthful forecast has the largest expected
+    advantage, and no other forecast attains it.
+\end{enumerate}
+\begin{leannames}
+\lean{expectedAdvantage_eq}, \lean{expectedAdvantage_pos_iff}, \lean{klBin_nonneg},
+\lean{klBin_pos}, \lean{klBin_self}, \lean{expectedAdvantage_le}, \lean{expectedAdvantage_lt},
+\lean{expectedAdvantage_truth}.
+\end{leannames}
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+(i) expands the logarithms of the quotients, with $q=0$ and $q=1$ treated apart. (ii) applies
+$\log u\le u-1$ to $u=y/q$ and $u=(1-y)/(1-q)$ with weights $q$ and $1-q$; the weighted sum of
+$u-1$ is zero, and the inequality is strict when $u\ne1$. (iii) combines (i) and (ii).
+\end{proof}
+
+By (i), $\abar_q(x)$ is the expected log score of the forecast minus the reference's: GRW-2 is the
+strict propriety of the logarithmic score, read as growth. The edge it rewards is calibration, not
+boldness.
+
+\subsection{Optimality among constant fractions}
+
+\begin{theorem}[GRW-3]
+\label{thm:grw3}
+Let $0<r<1$.
+\begin{enumerate}
+  \item[(i)] For $0<p<1$, $Y(f^\star)=p/r$ and $N(f^\star)=(1-p)/(1-r)$, both positive: at the
+    proportional fraction the factors are the proportional stake's.
+  \item[(ii)] For $0<p<1$ and every $f$ with $Y(f)>0$ and $N(f)>0$, $g(f)\le g(f^\star)$.
+  \item[(iii)] $g(f^\star)=\KL{p}{r}$, which is positive when $0\le p\le1$ and $p\ne r$.
+  \item[(iv)] For $0\le p\le1$, $g$ is concave on $(-r/(1-r),1)$, where both factors are positive;
+    where neither vanishes, $g'(f)=p\,(1/r-1)/Y(f)-(1-p)/N(f)$, and for $0<p<1$,
+    $g'(f^\star)=0$.
+  \item[(v)] $f^\star\in[0,1)$ when $r\le p<1$, and $f^\star<0$ when $p<r$. A fraction $f$ on no, at
+    the reference $1-r$ for no, has the factors of the fraction $-fr/(1-r)$ on yes and the same
+    expected log growth; on no the proportional fraction is $(r-p)/r$, the maximizer among
+    fractions on no that keep both factors positive, with the proportional stake's factors.
+  \item[(vi)] $N(1)=0$: the whole holding on yes is lost on a no, which the logarithm does not
+    represent.
+\end{enumerate}
+\begin{leannames}
+(i) \lean{one_add_proportional}, \lean{one_sub_proportional}, \lean{stakeYes_proportional},
+\lean{proportionalFraction_factors_pos}; (ii) \lean{expectedLogGrowth_le}; (iii)
+\lean{expectedLogGrowth_proportional}, \lean{expectedLogGrowth_proportional_pos}; (iv)
+\lean{concaveOn_expectedLogGrowth}, \lean{factors_pos_of_mem}, \lean{hasDerivAt_expectedLogGrowth},
+\lean{hasDerivAt_expectedLogGrowth_proportional}; (v) \lean{proportionalFraction_mem},
+\lean{proportionalFraction_neg}, \lean{stakeYes_mirror}, \lean{expectedLogGrowth_mirror},
+\lean{proportionalFraction_mirror}, \lean{expectedLogGrowth_mirror_le},
+\lean{stakeYes_mirror_proportional}; (vi) \lean{stakeYes_one_false}.
+\end{leannames}
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+(i), (iii) and (v) are algebra, with (ii) applied at the reference $1-r$ and the belief $1-p$ for
+the maximizer on no. (ii) does not use the derivative:
+\begin{align*}
+  g(f)-g(f^\star)&=p\log\frac{rY(f)}{p}+(1-p)\log\frac{(1-r)N(f)}{1-p}\\
+  &\le p\Bigl(\frac{rY(f)}{p}-1\Bigr)+(1-p)\Bigl(\frac{(1-r)N(f)}{1-p}-1\Bigr)
+  =rY(f)+(1-r)N(f)-1=0,
+\end{align*}
+by $\log u\le u-1$ and because $rY(f)+(1-r)N(f)=1$ for every $f$, which is the fairness of the
+terms. (iv) composes the concave logarithm with affine maps and differentiates.
+\end{proof}
+
+\subsection{The path to N times the start}
+
+\begin{theorem}[GRW-4]
+\label{thm:grw4}
+Let every pair of $\sigma$ be proper, and let $T$ be its length.
+\begin{enumerate}
+  \item[(i)] For $W_0>0$ and $N>0$, $W(\sigma)\ge N\,W_0$ if and only if $A(\sigma)\ge\log N$.
+  \item[(ii)] Every factor of a pair lies in $[m(x),1/m(x)]$, and $|a(x,o)|\le\log(1/m(x))$.
+  \item[(iii)] If $a(x_i,o_i)\le B$ for every $i$, then $A(\sigma)\le TB$; so if $B>0$ and
+    $A(\sigma)\ge\log N$, then $T\ge\log N/B$.
+  \item[(iv)] For a list $\Xi$ of $T$ questions with independent outcomes,
+    $\E_\Xi[A]=\sum_i\abar_{q_i}(x_i)$. If this sum is $Ta$ with $a>0$, then $\E_\Xi[A]\ge\log N$
+    if and only if $T\ge\log N/a$.
+\end{enumerate}
+\begin{leannames}
+\lean{holding_ge_iff}, \lean{factor_mem}, \lean{abs_advantage_le}, \lean{cumulative_le},
+\lean{length_ge_of_cumulative}, \lean{expect_cumulativeOn}, \lean{expect_const_add},
+\lean{expect_ge_iff}.
+\end{leannames}
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+(i) is \cref{thm:grw1}(iii) with the monotonicity of $\exp$. (ii) The likelihoods lie in
+$[m(x),1]$, so their logarithms lie in $[\log m(x),0]$. (iii) sums the bound. (iv) By induction on
+the list: the two weights of a question sum to one, so a constant passes through the expectation,
+and the expectation of a sum is the sum of the expectations.
+\end{proof}
+
+At a mean expected advantage of $a=0.05$ nats per question, (iv) gives $\log10/0.05\approx46.05$,
+so 47 questions for the expected cumulative advantage to reach $\log10$; this concerns the
+expectation of the logarithm, not the probability of having reached ten times the start
+(\cref{sec:dispersion}). Part (iii) is a floor that holds whatever the outcomes.
+
+\subsection{No ruin}
+
+\begin{theorem}[GRW-5]
+\label{thm:grw5}
+Over an ordered field, let every pair of $\sigma$ be proper.
+\begin{enumerate}
+  \item[(i)] Every factor is positive; so $G(\sigma)>0$ and, for $W_0>0$, $W(\sigma)>0$.
+  \item[(ii)] The worst factor of $x$ is $\min\{p/r,(1-p)/(1-r)\}$; it is positive, at most either
+    factor, and at least $m(x)$.
+  \item[(iii)] If $\ell\ge0$ is at most the worst factor of every pair of $\sigma$, then
+    $\ell^T\le G(\sigma)$.
+\end{enumerate}
+\begin{leannames}
+\lean{factor_pos}, \lean{growth_pos}, \lean{holding_pos}, \lean{worstFactor_eq},
+\lean{worstFactor_pos}, \lean{worstFactor_le}, \lean{margin_le_worstFactor}, \lean{pow_le_growth}.
+\end{leannames}
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Quotients of positive numbers are positive; (ii) uses \cref{thm:grw4}(ii); (iii) is an induction in
+which $\ell$ lies below each realized factor.
+\end{proof}
+
+The fractional stake keeps (i) for $0<\lambda\le1$, where $F_\lambda=(1-\lambda)+\lambda F$ is a
+positive combination, and loses it beyond: at $\lambda=2$ a factor below $1/2$ becomes negative.
+
+\subsection{The time average}
+
+\begin{theorem}[GRW-6]
+\label{thm:grw6}
+Let $(\Omega,P)$ be a probability space and $o_0,o_1,\ldots\colon\Omega\to\{0,1\}$ pairwise
+independent outcomes, each yes with probability $q$. For a pair $x$, let $A_n(\omega)$ be the
+cumulative advantage of $x$ repeated $n$ times with the outcomes
+$o_0(\omega),\dots,o_{n-1}(\omega)$, and $W_n(\omega)$ the holding after them, from $W_0$.
+\begin{enumerate}
+  \item[(i)] Almost surely, $A_n/n\to\abar_q(x)$.
+  \item[(ii)] If $x$ is proper, $W_0>0$ and $\abar_q(x)>0$, then almost surely $W_n\to\infty$, so
+    the holding eventually exceeds $N\,W_0$, for every $N$.
+  \item[(iii)] If $x$ is proper and $\abar_q(x)<0$, then almost surely $W_n\to0$.
+\end{enumerate}
+\begin{leannames}
+\lean{time_average_advantage_ae}, \lean{holding_tendsto_atTop_ae},
+\lean{holding_tendsto_zero_ae}, with Mathlib's \texttt{bernoulliMeasure true false q} as the law of
+each outcome.
+\end{leannames}
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The advantages $X_i=a(x,o_i)$ take two values, so they are integrable, and as one measurable
+function of the $o_i$ they are pairwise independent and identically distributed. Mathlib's
+\lean{strong_law_ae_real} gives $A_n/n\to\E[X_0]=\abar_q(x)$ almost surely. A sequence whose
+average tends to a positive limit tends to $+\infty$, one whose average tends to a negative limit
+tends to $-\infty$, and $W_n=W_0\exp A_n$ by \cref{thm:grw1}(iii).
+\end{proof}
+
+\section{Concepts and intuition}
+\label{sec:concepts}
+
+The two propositions of this section are elementary consequences of the theorems; they are not
+among the machine-checked statements.
+
+\subsection{A score advantage is a growth rate}
+
+Under fair terms, every stake is a forecast. Split the holding into a part $y$ placed on yes, $z$
+on no and $k$ kept, nonnegative with $y+z+k=1$. The factors are $\alpha=y/r+k$ on yes and
+$\beta=z/(1-r)+k$ on no, and $r\alpha+(1-r)\beta=1$. With $\hat p=r\alpha\in[0,1]$,
+$\alpha=\hat p/r$ and $\beta=(1-\hat p)/(1-r)$: the factors of the proportional stake of the
+forecast $\hat p$. Every stake that places no more than the holding is therefore the proportional
+stake of the forecast it implies, and by \cref{thm:grw1} its log growth is that forecast's
+log-score advantage over the reference. To choose a stake is to choose a forecast. Factors
+multiply and logarithms add, so no single question has to contribute much: a path to $N$ times the
+start is a succession of small edges, each a question on which the arm gave the outcome more
+probability than the reference did. An arm that copies the reference places $r$ on yes and $1-r$ on
+no, which is the same as keeping everything, and grows by exactly $1$.
+
+\subsection{Why the logarithmic score and not the Brier score}
+
+Both scores are strictly proper, and the ledger's pre-registered comparison uses the Brier score.
+Only the logarithmic score's differences are log growth. The log factor of a stake that implies
+$\hat p$ is $\log(\hat p/r)$ on yes and $\log((1-\hat p)/(1-r))$ on no. A score $S$ with
+$S(\hat p,o)-S(r,o)$ equal to this for all $\hat p,r\in(0,1)$ has $S(\hat p,1)-\log\hat p$
+independent of $\hat p$, and likewise $S(\hat p,0)-\log(1-\hat p)$: it is the logarithmic score up
+to a constant for each outcome. The Brier score is bounded, so its differences cannot follow a
+factor that a confident error makes arbitrarily small.
+
+A constructed example shows the two disagreeing in sign. Ten questions all resolve yes; the
+reference gives each $1/2$; the arm forecasts $0.9$ on nine and $0.001$ on the tenth. The arm's
+mean Brier score is $0.109$ against the reference's $0.25$. Its cumulative log-score advantage is
+$9\log1.8+\log0.002\approx5.290-6.215=-0.925$, so the proportional stake ends at
+$e^{-0.925}\approx0.397$ of its start. On the tenth question the Brier scores differ by less than
+$1$, while the factor is $1/500$. A positive Brier advantage does not imply growth; the readout and
+the primary comparison answer different questions, and the scorer reports both.
+
+\subsection{Fractional stakes}
+
+\begin{proposition}[A fractional stake is a forecast moved toward the reference]
+\label{prop:shrink}
+For a pair $x=(r,p)$ with $r\notin\{0,1\}$ and any $\lambda$, $F_\lambda(x,o)=F(x_\lambda,o)$, where
+$x_\lambda=(r,\,r+\lambda(p-r))$.
+\end{proposition}
+
+\begin{proof}
+On yes, $(r+\lambda(p-r))/r=1+\lambda(p/r-1)$; on no,
+$(1-r-\lambda(p-r))/(1-r)=1+\lambda\bigl((1-p)/(1-r)-1\bigr)$.
+\end{proof}
+
+For $0\le\lambda\le1$ and a proper pair, $r+\lambda(p-r)$ lies between $r$ and $p$, so $x_\lambda$
+is proper and \cref{thm:grw1} applies to it: the $\lambda$-stake's log growth is the cumulative
+log-score advantage of the forecast $r+\lambda(p-r)$. This is the sense in which the identity holds
+at $\lambda=1$ only: at other stakes the growth is the advantage of a different forecast, not the
+arm's. By \cref{thm:grw2}(i) applied to $x_\lambda$, under a truth $q$,
+\begin{equation}
+  \label{eq:fractional}
+  \E_q[\log F_\lambda]=\KL{q}{r}-\KL{q}{r+\lambda(p-r)}.
+\end{equation}
+
+\begin{proposition}
+\label{prop:fraction}
+Let $x=(r,p)$ be proper, $0\le q\le1$ and $0\le\lambda\le1$.
+\begin{enumerate}
+  \item[(i)] $\E_q[\log F_\lambda]\ge\lambda\,\E_q[\log F_1]$.
+  \item[(ii)] At $\lambda=0$, $\frac{d}{d\lambda}\E_q[\log F_\lambda]=\E_q[F-1]
+    =(q-r)(p-r)/(r(1-r))$.
+  \item[(iii)] If $0<q<1$ and $\lambda^\star=(q-r)/(p-r)\in(0,1]$, then $\lambda^\star$ maximizes
+    $\E_q[\log F_\lambda]$ over $[0,1]$, with maximum $\KL{q}{r}$.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+(i) $y\mapsto\KL{q}{y}$ is convex, so
+$\KL{q}{r+\lambda(p-r)}\le(1-\lambda)\KL{q}{r}+\lambda\KL{q}{p}$; substitute in
+\eqref{eq:fractional} and use \cref{thm:grw2}(i). (ii) differentiates $\log(1+\lambda(F-1))$ at $0$
+and expands $q\,p/r+(1-q)(1-p)/(1-r)-1$. (iii) By
+\cref{thm:grw2}(iii) the expected advantage is largest when the forecast is the truth,
+$r+\lambda(p-r)=q$.
+\end{proof}
+
+A fractional stake keeps at least the fraction $\lambda$ of the full stake's expected log growth,
+whatever the truth; for small $\lambda$ it grows in expectation whenever the forecast and the truth
+lie on the same side of the reference, a weaker condition than $\KL{q}{p}<\KL{q}{r}$; and an arm
+whose forecasts lie twice as far from the reference as the truth does best at the half stake
+(\cref{tab:fraction}). Near the reference, with $\chi^2=(p-r)^2/(r(1-r))$, a truthful forecast has
+$\E_q[\log F_\lambda]\approx(\lambda-\lambda^2/2)\chi^2$ and a standard deviation of
+$\log F_\lambda$ near $\lambda\chi$: the half stake keeps about three quarters of the growth rate
+with half the spread.
+
+\begin{table}[t]
+\centering
+\caption{Expected log growth per question, from \eqref{eq:fractional}, and the standard deviation
+of the log factor, for a reference $r=0.5$ and a truth $q=0.55$. The values describe the formulas,
+not any data.}
+\label{tab:fraction}
+\small
+\begin{tabular}{cccc}
+\toprule
+forecast $p$ & stake $\lambda$ & $\E_q[\log F_\lambda]$ (nats) & standard deviation \\
+\midrule
+$0.55$ & $1$   & $0.00501$  & $0.0998$ \\
+$0.55$ & $1/2$ & $0.00375$  & $0.0498$ \\
+$0.55$ & $1/4$ & $0.00219$  & $0.0249$ \\
+$0.60$ & $1$   & $-0.00014$ & $0.2017$ \\
+$0.60$ & $1/2$ & $0.00501$  & $0.0998$ \\
+$0.60$ & $1/4$ & $0.00375$  & $0.0498$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Expectation and dispersion}
+\label{sec:dispersion}
+
+With independent questions of mean $\mu$ and standard deviation $s$ per question, the cumulative
+advantage after $T$ questions has mean $T\mu$ and standard deviation $s\sqrt T$, so the drift
+exceeds one standard deviation only once $T>(s/\mu)^2$. For the truthful full stake of
+\cref{tab:fraction}, $(s/\mu)^2\approx397$ and $\log10/\mu\approx460$: under a normal approximation
+the holding is above ten times its start about half the time at question 460, the count
+\cref{thm:grw4}(iv) gives. The theorems say when a path exists and how long it is for a given edge;
+they do not say that an arm has an edge, which is what the pre-registered comparison measures.
+
+\section{Implementation}
+\label{sec:implementation}
+
+The readout is in \lean{eval/predictions/scoring.py} (\lean{factor}, \lean{growth_path},
+\lean{growth}, \lean{growth_report}) and runs as
+\texttt{python -m eval.predictions growth -{}-ledger <file> [-{}-json] [-{}-unblind]}; its design is
+section G8 of \lean{docs/design-notes/dn-prediction-ledger.md}. From the protocol it takes the
+reference arm, the primary comparison, the clip $c$ of the log score (default $0.001$), the target
+$N$ (\lean{growth_target}, default $10$, which must exceed $1$) and $N_c$.
+
+Both probabilities are clipped to $[c,1-c]$, as the log score clips them, so every pair is proper,
+the identity is with the ledger's own clipped log score, and every factor lies in
+$[c/(1-c),(1-c)/c]$. For an arm and a family the pairs are those both the arm and the reference
+predicted, in the order their outcomes became known, ties broken by question and round; the growth
+and the geometric mean do not depend on the order, the drawdown does. For each arm other than the
+reference, each family and each stake $\lambda\in\{1,1/2,1/4\}$, the readout reports the number of
+pairs, the growth, the cumulative advantage, the per-pair geometric mean, the worst factor, the
+drawdown (the largest fall of the running product from its running peak, as a fraction of the
+peak), and the further pairs needed to reach $N$ at the realized mean log growth per pair. The
+stake must lie in $(0,1]$; beyond $1$ a factor can be negative.
+
+Until $N_c$ is fixed, the primary comparison has that many clusters and every question of the first
+$N_c$ is resolved or voided, its two arms are withheld on its family and named with the reason,
+unless the caller passes \lean{--unblind}. Other arms are shown, among them the recorded copy of
+the reference, whose factors are all exactly $1$. Once $N_c$ is fixed the readout reads only the
+first $N_c$ clusters of the primary comparison, in the order their first pair entered the ledger,
+which is the cut the report makes, and says how many clusters and pairs it left out; a reader who
+waits past $N_c$ reads what one who stopped there reads. Once the comparisons are readable, the full
+report includes the readout. \Cref{alg:path,alg:report} give the
+procedure; it costs a sort per arm and family and a linear pass per stake.
+
+\begin{algorithm}[t]
+\caption{The growth path of one arm at one stake.}
+\label{alg:path}
+\small
+\begin{algorithmic}[1]
+\Require factors $F_1,\dots,F_n$ with $n\ge1$, a stake $\lambda\in(0,1]$, a target $N>1$
+\State $W\gets1$; $P\gets1$; $D\gets0$
+\For{$i=1,\dots,n$}
+  \State $S_i\gets1+\lambda(F_i-1)$; \quad $W\gets W\cdot S_i$; \quad $P\gets\max(P,W)$;
+    \quad $D\gets\max(D,1-W/P)$
+\EndFor
+\State $\hat\mu\gets(\log W)/n$
+\If{$W\ge N$} $\tau\gets0$ \ElsIf{$\hat\mu>0$} $\tau\gets\lceil(\log N-\log W)/\hat\mu\rceil$
+  \Else{} $\tau\gets$ none \EndIf
+\State \Return growth $W$, geometric mean $e^{\hat\mu}$, worst factor $\min_iS_i$, drawdown $D$,
+  further pairs $\tau$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[t]
+\caption{The growth readout of a ledger.}
+\label{alg:report}
+\small
+\begin{algorithmic}[1]
+\Require a scored table; a protocol with reference $R$, primary comparison (family $\phi_0$, arm
+  $\alpha$, baseline $\beta$), clip $c$, target $N$; a flag \textit{unblind}
+\State $\textit{reason}\gets$ none if \textit{unblind}, or if $N_c$ is fixed and reached and every
+  question of the first $N_c$ clusters is settled; else why not
+\If{$N_c$ is fixed} keep the first $N_c$ clusters of the primary comparison, by entry \EndIf
+\For{each family $\phi$ and each arm $A\ne R$}
+  \If{$\textit{reason}\ne$ none \textbf{and} $\phi=\phi_0$ \textbf{and} $A\in\{\alpha,\beta\}$}
+    record $A$ on $\phi$ as withheld, and skip it
+  \EndIf
+  \State $K\gets$ the pairs $A$ and $R$ both predicted on $\phi$, by time of resolution, then key
+  \State for $k\in K$: $p_k,r_k\gets$ the two forecasts clipped to $[c,1-c]$, $F_k\gets
+    L(p_k,o_k)/L(r_k,o_k)$
+  \For{$\lambda\in(1,1/2,1/4)$}
+    emit $A$, $\phi$, $\lambda$, $|K|$, $\sum_k\bigl(s(p_k,o_k)-s(r_k,o_k)\bigr)$ and
+    \Call{GrowthPath}{$F,\lambda,N$}
+  \EndFor
+\EndFor
+\State \Return the readouts, the withheld arms, \textit{reason} and what the cut left out
+\end{algorithmic}
+\end{algorithm}
+
+\section{Evaluation}
+\label{sec:evaluation}
+
+\subsection{What is machine-checked}
+
+The development uses Lean~4 at v4.36.0-rc2 with Mathlib at the same tag: 129 lines of definitions,
+702 lines with 67 theorems, a specification of 59 lines and 88 lines of attacks. The four
+statements of GRW-1 are restated in \lean{formal/Spec/Growth.lean} with their proofs left as
+\lean{sorry}, and the comparator checks that the library proves each exactly as stated, from the
+axioms \lean{propext}, \lean{Classical.choice} and \lean{Quot.sound} alone; with this change it
+judges 285 statements across the library. GRW-2 to GRW-6 are design theorems, proved in the same
+library and checked by the kernel but not restated in the specification, because no code relies on
+them. The gate, \lean{formal/check.sh}, builds with warnings as errors, runs the attacks, holds the
+count of \lean{sorry} at zero, audits every declaration's axioms, replays the exported library
+through Lean's kernel and five further checkers, and runs the comparator. Run on the commit
+that introduced the readout, it reported 4353 declarations audited, none using a non-standard
+axiom or depending on \lean{sorry}, 4308 exported and replayed, and 285 statements
+judged.
+
+\subsection{Attacks and controls}
+
+The laws are attacked with Plausible~\citep{plausible} over $\mathbb{Q}$, where the logarithms do
+not evaluate, so GRW-1 is attacked in its product form. A pair is built from four
+natural numbers as $r=(a+1)/(a+b+2)$ and $p=(c+1)/(c+d+2)$, so every pair is proper, and a sequence
+is a list of such pairs with outcomes. An attack fails the build on a counterexample or when fewer
+than 100 instances pass its guards; a control states a natural mistake and fails the build unless a
+counterexample is found. The seeds are fixed, so \cref{tab:attacks} is reproducible: it is printed
+by \texttt{lake env lean PalaceTest/Growth.lean} in \lean{formal/} and appears unchanged in the
+continuous-integration log. The control at seed 329, for one, fails at $r=1/2$, $p=1/5$ and a yes,
+where the factor $2/5$ becomes $-1/5$ at $\lambda=2$.
+
+\begin{table}[t]
+\centering
+\caption{The attacks, of 500 instances each, and the controls on the growth laws.}
+\label{tab:attacks}
+\small
+\begin{tabular}{rll}
+\toprule
+seed & statement & outcome \\
+\midrule
+320 & GRW-1: the growth is the likelihood ratio & survived: 500 tested, 0 discarded \\
+321 & GRW-1 without the division & survived: 500 tested, 0 discarded \\
+322 & control: the growth is the arm's likelihood alone & refuted after 5 instances \\
+323 & control: the half stake satisfies the identity & refuted after 6 instances \\
+324 & GRW-3: at $f^\star$ the factors are the proportional stake's & survived: 500 tested,
+  0 discarded \\
+325 & control: the fraction $p$ is the proportional stake & refuted on the first instance \\
+326 & GRW-4: every factor lies in $[m,1/m]$ & survived: 500 tested, 0 discarded \\
+327 & control: every factor is at most $1/r$ & refuted after 30 instances \\
+328 & GRW-5: $G>0$ and $\ell^T\le G$ & survived: 500 tested, 0 discarded \\
+329 & control: the stake $\lambda=2$ keeps the growth positive & refuted after 18 instances \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The identity on random ledgers}
+
+The code that relies on GRW-1 is tested in \lean{tests/unit/test_prediction_scoring.py}. The
+identity test draws, with Hypothesis~\citep{maciver2019}, 40 ledgers of 1 to 25 rows (a reference
+probability and a forecast from $[0,1]$, endpoints included so that the clip is exercised, and an
+outcome), writes each through the ledger's own interface and reads it back through the scorer: each
+factor is the exponential of its pair's advantage and the growth the exponential of the cumulative
+advantage, within a relative $10^{-9}$, and the growth and the worst factor are positive. Its
+control mutates the factor: the half stake's growth and a product read without the reference both
+differ from the exponential of the cumulative advantage. Further tests check a hand sequence
+(factors $2$, $1/2$, $2$: growth $2$, drawdown $1/2$, 7 further pairs to ten times the start), that
+the copy of the reference grows by exactly $1$ at every stake, the blinding, the cut at $N_c$ and
+the command line. The file's 46 tests pass (\texttt{uv run pytest -q
+tests/unit/test\_prediction\_scoring.py}), as does the repository's full selection on this branch
+(3370 passed, 11 skipped). None of this is a claim about any arm's forecasts.
+
+\section{Limitations}
+\label{sec:limitations}
+
+\begin{itemize}
+  \item The readout is a computation over scored pairs. It places nothing, holds nothing and acts on
+    nothing; its stake is a thought experiment that reads the ledger's log scores as a holding.
+  \item The model assumes fair terms at the reference's probability on every question, for any
+    amount, with no costs and no spread between the terms for yes and for no; a cost of a fraction
+    $\kappa$ of the holding per question subtracts $-\log(1-\kappa)\approx\kappa$ from every log
+    factor and can turn a positive advantage negative. The reference does not respond to the stake.
+  \item GRW-6 assumes one pair repeated with pairwise independent, identically distributed outcomes,
+    and GRW-4(iv) independent outcomes; the ledger's questions differ, and those that share a
+    cluster are dependent by construction. GRW-1 is pathwise and holds regardless.
+  \item The truth $q$ is a modelling device that nothing estimates, and no finite-time probability
+    of reaching $N$ times the start is proved.
+  \item Only GRW-1 is judged against a separate specification. The binary divergence is written out
+    rather than derived from Mathlib's divergence of measures, so its agreement with the divergence
+    of two Bernoulli laws rests on inspection of the definition, not on a proved bridge.
+  \item The readout multiplies in double precision: with the default clip, 103 consecutive factors
+    at the top bound ($999$) overflow the product, and 108 at the bottom bound underflow it to zero,
+    where its logarithm raises an error. Both need the forecast and the reference at opposite clips
+    on consecutive questions; summing logarithms, the same quantity by GRW-1, avoids both.
+\end{itemize}
+
+\section{Future work}
+\label{sec:future}
+
+\paragraph{The strong law without identical distribution.} With margins bounded below by $m$,
+every advantage is bounded by $\log(1/m)$ (\cref{thm:grw4}(ii)), so for independent questions that
+differ Kolmogorov's strong law gives $(A_n-\E A_n)/n\to0$ almost surely. Mathlib's strong law at
+this version is for identically distributed summands; a formal version for bounded independent
+summands would extend GRW-6 to the ledger's varied questions.
+
+\paragraph{Growth under costs.} When the terms for yes and for no imply probabilities that sum to
+more than one, the stake that maximizes expected log growth on one question places nothing when the
+forecast lies between them; extending GRW-1 and GRW-3 to such terms would let the readout report
+growth under a declared transaction cost.
+
+\paragraph{Side information as mutual information.} If the reference is calibrated to its
+information and the arm to information that contains the reference's, the arm's expected advantage
+is the conditional mutual information between the outcome and the arm's information given the
+reference's: the two-outcome case of the side-information result of \citet{kelly1956} and
+\citet[chap.~6]{cover2006}, and a statement of what the readout measures.
+
+\paragraph{Smaller steps.} A proved bridge from the written-out divergence to Mathlib's; questions
+with more than two outcomes; a finite-time bound by Hoeffding's inequality for advantages bounded by
+$\log(1/m)$; and a readout that accumulates logarithms.
+
+\section{Conclusion}
+
+Against a reference whose probabilities set fair terms, the log growth of the proportional stake is
+the cumulative log-score advantage, exactly and for every sequence of outcomes; its expectation is a
+difference of divergences, it is the best constant fraction, it is never ruined, and with
+independent repetitions the sign of the expected advantage decides between growth without bound and
+decay to zero. These statements are machine-checked, and the ledger's scorer reads its log scores
+as this holding. Whether an arm has the edge such a path needs is the question the pre-registered
+comparison answers.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
