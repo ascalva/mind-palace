@@ -77,12 +77,13 @@ def test_view_exposes_no_mutator(tmp_path):
     assert not hasattr(view, "add_batch")
     assert not hasattr(view, "_conn")
     assert not hasattr(view, "close")
-    # the public surface is exactly the three reads + the anchor + the read-only `SCOPE` capability
+    # the public surface is exactly the four reads + the anchor + the read-only `SCOPE` capability
     # constant (bp-039 Item 3; finding-0084) — no mutator (the `add_batch`/`_conn`/`close` asserts
     # above are the real guarantee; `SCOPE` is a read-only constant, not a mutator).
     public = {name for name in dir(view) if not name.startswith("_")}
     assert public == {
-        "references_to", "references_from", "connected_set", "commit", "over", "SCOPE"}
+        "references_to", "references_from", "connected_set", "neighbour_pairs", "commit", "over",
+        "SCOPE"}
 
 
 def test_code_and_corpus_endpoints_both_read_back(tmp_path):

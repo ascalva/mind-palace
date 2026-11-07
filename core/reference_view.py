@@ -35,7 +35,7 @@ store holds ONLY `F` edges, so `E = {F}` is automatic here: the type simply cann
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
@@ -84,6 +84,8 @@ class ReferenceView:
     _edges_to: Callable[[str], list[ReferenceEdge]]    # references TO a ref (who cites it)
     _edges_from: Callable[[str], list[ReferenceEdge]]  # references FROM a ref (what it cites)
     commit: str                                        # the anchor commit these reads are scoped to
+    # bound at .over(): the endpoint pairs of the edges leaving and/or entering a set of refs
+    _pairs: Callable[[Sequence[str], bool, bool], set[tuple[str, str]]] | None = None
 
     @classmethod
     def over(cls, store: ReferenceEdgeStore, *, commit: str) -> ReferenceView:
@@ -98,7 +100,10 @@ class ReferenceView:
         def edges_from(ref: str) -> list[ReferenceEdge]:
             return store.all(source_ref=ref, commit_sha=commit)
 
-        return cls(_edges_to=edges_to, _edges_from=edges_from, commit=commit)
+        batched = getattr(store, "neighbour_pairs", None)
+        pairs = (None if batched is None else
+                 lambda refs, out, inc: batched(refs, commit, outgoing=out, incoming=inc))
+        return cls(_edges_to=edges_to, _edges_from=edges_from, commit=commit, _pairs=pairs)
 
     # --- reads -----------------------------------------------------------------------------------
     def references_to(self, ref: str) -> list[ReferenceEdge]:
@@ -108,6 +113,22 @@ class ReferenceView:
     def references_from(self, ref: str) -> list[ReferenceEdge]:
         """"What this doc/symbol cites" — edges whose `source_ref == ref`, at the anchor commit."""
         return self._edges_from(ref)
+
+    def neighbour_pairs(self, refs: Sequence[str], *, outgoing: bool = True,
+                        incoming: bool = True) -> set[tuple[str, str]]:
+        """The `(source_ref, target_ref)` pairs of the edges at the anchor commit that leave a
+        ref of `refs` (`outgoing`) or enter one (`incoming`): `references_from` and `references_to`
+        over many refs at once, as pairs. A store without the batched read answers from its
+        per-ref reads, the same pairs."""
+        if self._pairs is not None:
+            return self._pairs(refs, outgoing, incoming)
+        out: set[tuple[str, str]] = set()
+        for ref in refs:
+            if outgoing:
+                out.update((e.source_ref, e.target_ref) for e in self._edges_from(ref))
+            if incoming:
+                out.update((e.source_ref, e.target_ref) for e in self._edges_to(ref))
+        return out
 
     def connected_set(self, ref: str, *, depth: int = 1) -> set[str]:
         """The §2.3 "connected set over fibers F": a bounded, cycle-safe BFS over

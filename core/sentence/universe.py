@@ -237,6 +237,7 @@ class _Builder:
         self.cut_note: str = ""
         self._embeds: dict[str, np.ndarray] = {}
         self.census: dict[str, float] = {}       # a paper's full-backbone degree, by the index
+        self._cited_of: dict[str, set[str]] = {}  # the citation graph's neighbours, per node read
 
     # stores --------------------------------------------------------------------------------------
     def store(self, name: str) -> Any:
@@ -528,9 +529,21 @@ class _Builder:
         self.c_ids.add(str(e["edge_id"]))
         self.nodes[eref].detail.setdefault("witness", str(e["edge_id"]))
 
-    def _cited(self, node: str) -> set[str]:
-        return ({e.target_ref for e in self.view.references_from(node)}
-                | {e.source_ref for e in self.view.references_to(node)})
+    def _cited(self, node: str, ahead: Iterable[str] = ()) -> set[str]:
+        """The refs `node` cites or is cited by at the cut. A node's edges are fetched with the
+        nodes of `ahead` (the BFS frontier still to be expanded) in one statement per 400 refs,
+        and kept: the answer for a node is the same set whenever it is asked."""
+        if node not in self._cited_of:
+            batch = [node, *(n for n in dict.fromkeys(ahead)
+                             if n != node and n not in self._cited_of and is_repo_path(n))]
+            for n in batch:
+                self._cited_of[n] = set()
+            for src, dst in self.view.neighbour_pairs(batch):
+                if src in batch:
+                    self._cited_of[src].add(dst)
+                if dst in batch:
+                    self._cited_of[dst].add(src)
+        return self._cited_of[node]
 
     def seed_typed(self, atom: str, radius: int, moves: frozenset[Rel]) -> None:
         """The neighbourhood of an anchor over the moves the sentence walks, breadth first within
@@ -551,7 +564,8 @@ class _Builder:
                 continue
             nbrs: list[tuple[str, Rel, Mapping[str, Any] | None]] = []
             if Rel.F in moves and is_repo_path(node):
-                nbrs += [(t, Rel.F, None) for t in self._cited(node)]
+                nbrs += [(t, Rel.F, None) for t in self._cited(
+                    node, (n for n, dd in frontier if dd < radius))]
             if Rel.C in moves:
                 nbrs += [(other, Rel.C, e) for other, e in self._causal_neighbours(node)]
             for nb, _rel, e in sorted(nbrs, key=lambda x: (x[0], x[1].value)):
@@ -611,19 +625,20 @@ class _Builder:
             self.seed_typed(atom, radius, frozenset({Rel.F}) | (self.moves & {Rel.C}))
 
     def wire_reference(self) -> None:
-        refs = [n.ref for n in self.nodes.values() if n.stratum == "reference"]
-        for ref in refs:
-            for e in self.view.references_from(ref):
-                if e.target_ref in self.nodes and e.target_ref != ref:
-                    self.f_edges.setdefault(ref, set()).add(e.target_ref)
-            for e in self.view.references_to(ref):
-                if e.source_ref in self.nodes and e.source_ref != ref:
-                    self.f_edges.setdefault(e.source_ref, set()).add(ref)
-        for n in self.nodes.values():
-            if n.stratum in ("mirror", "dialogue"):
-                for e in self.view.references_from(n.ref):
-                    if e.target_ref in self.nodes:
-                        self.f_edges.setdefault(n.ref, set()).add(e.target_ref)
+        """The F edges among the support's nodes at the cut: a reference node's edges in both
+        directions, a mirror or dialogue note's outgoing ones. Two reads for the whole support
+        (the edges leaving it, the edges entering the reference nodes), not two per node."""
+        refs = {n.ref for n in self.nodes.values() if n.stratum == "reference"}
+        notes = {n.ref for n in self.nodes.values() if n.stratum in ("mirror", "dialogue")}
+        if not refs and not notes:
+            return
+        for src, dst in self.view.neighbour_pairs(sorted(refs | notes), incoming=False):
+            if dst in self.nodes and (src in notes or (src in refs and dst != src)):
+                self.f_edges.setdefault(src, set()).add(dst)
+        if refs:
+            for src, dst in self.view.neighbour_pairs(sorted(refs), outgoing=False):
+                if src in self.nodes and src != dst:
+                    self.f_edges.setdefault(src, set()).add(dst)
 
     # the universe --------------------------------------------------------------------------------
     def universe(self) -> Universe:
