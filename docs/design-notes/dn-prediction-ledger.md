@@ -161,7 +161,9 @@ of the primary comparison, ordered by when each cluster's first pair (the later 
 predictions) entered the ledger, which is the ledger's own line order and so cannot be moved by a
 caller. The order is over all the comparison's clusters, resolved or not, so a late resolution or
 void never moves the cut (a voided cluster keeps its place), and the report is read only when
-every question of those N clusters is resolved or voided. That cut applies to every table the report prints, secondary comparisons and controls
+every question of those N clusters is resolved or voided. Once `n_clusters` is fixed the ledger also refuses to register a question
+in a cluster already among the first N, so the rows the cut reads cannot grow either; before N is
+fixed, clusters grow freely. That cut applies to every table the report prints, secondary comparisons and controls
 included, and the report says in `beyond_n` how many clusters and pairs were left out as beyond N.
 `--unblind` keeps its meaning and its warning: it reads before N, where there is nothing to cut.
 
