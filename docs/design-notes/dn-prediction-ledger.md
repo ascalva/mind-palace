@@ -159,7 +159,9 @@ the comparisons until N is reached unless the caller unblinds on purpose.
 result and stop there. So once `n_clusters` is fixed the report scores only the first N clusters
 of the primary comparison, ordered by when each cluster's first pair (the later of its two arms'
 predictions) entered the ledger, which is the ledger's own line order and so cannot be moved by a
-caller. That cut applies to every table the report prints, secondary comparisons and controls
+caller. The order is over all the comparison's clusters, resolved or not, so a late resolution or
+void never moves the cut (a voided cluster keeps its place), and the report is read only when
+every question of those N clusters is resolved or voided. That cut applies to every table the report prints, secondary comparisons and controls
 included, and the report says in `beyond_n` how many clusters and pairs were left out as beyond N.
 `--unblind` keeps its meaning and its warning: it reads before N, where there is nothing to cut.
 

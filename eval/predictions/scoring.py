@@ -21,8 +21,11 @@ Every number the scorer uses comes from the ledger's protocol record, never from
 - **Read once, at N.** Once the protocol fixes `n_clusters`, `report` scores the first N clusters
   of the primary comparison, ordered by when each cluster's first pair entered the ledger (the
   ledger's own line order, never a date a caller supplies), in every table it prints: arms,
-  primary, secondary and controls. Waiting past N and stopping when the result looks good reads
-  the same N clusters as stopping at N; the clusters beyond N are counted in `beyond_n`, not scored.
+  primary, secondary and controls. The order is over all the comparison's clusters, resolved or
+  not, so a late resolution or void never moves the cut, and the report is read only when every
+  question of those N clusters is resolved or voided (`Blinded` otherwise). Waiting past N and
+  stopping when the result looks good reads the same N clusters as stopping at N; the clusters
+  beyond N are counted in `beyond_n`, not scored.
 - **The method** is the protocol's. `percentile` (the default) is the cluster bootstrap above;
   `signflip` is the cluster-level sign-flip randomization test of the pair-weighted mean, with its
   interval made by inverting the test, and the same decision rule on that interval. The protocol's
@@ -84,6 +87,11 @@ class Table:
     late: int
     open: int
     voided: int
+    # The clusters of the primary comparison in the order their first pair entered the ledger
+    # (resolved or not, voided or not), and those among them with a question not yet resolved or
+    # voided. The cut at N is made on `order`, so a later resolution cannot move it.
+    order: tuple[str, ...] = ()
+    unsettled: frozenset[str] = frozenset()
 
 
 def table(entries: Sequence[Entry]) -> Table:
@@ -93,10 +101,15 @@ def table(entries: Sequence[Entry]) -> Table:
         raise LedgerError("the ledger has no protocol")
     scored: list[Scored] = []
     late = open_ = voided = 0
+    primary = state.protocol.primary
+    # (qid, round) -> arm -> the line that recorded it
+    arm_seq: dict[tuple[str, str], dict[str, int]] = defaultdict(dict)
     for entry in entries:
         if entry.kind != "prediction":
             continue
         p = Prediction.parse(entry.body)
+        if p.arm in (primary.baseline, primary.arm):
+            arm_seq[(p.qid, p.round)][p.arm] = entry.seq
         if p.qid in state.voids:
             voided += 1
             continue
@@ -110,7 +123,17 @@ def table(entries: Sequence[Entry]) -> Table:
         q = state.questions[p.qid]
         scored.append(Scored(p.qid, p.round, q.cluster, q.family, p.arm, p.p, resolution.outcome,
                             entry.seq))
-    return Table(state.protocol, tuple(scored), late, open_, voided)
+    first: dict[str, int] = {}
+    for (qid, _round), seen in arm_seq.items():
+        q = state.questions[qid]
+        if q.family == primary.family and len(seen) == 2:
+            first[q.cluster] = min(max(seen.values()), first.get(q.cluster, max(seen.values())))
+    order = tuple(sorted(first, key=lambda c: first[c]))
+    unsettled = frozenset(
+        q.cluster for q in state.questions.values()
+        if q.cluster in first and q.family == primary.family
+        and q.qid not in state.resolutions and q.qid not in state.voids)
+    return Table(state.protocol, tuple(scored), late, open_, voided, order, unsettled)
 
 
 # -- one arm ------------------------------------------------------------------------------------
@@ -454,30 +477,32 @@ def _verdict(i: Interval, delta: float) -> str:
 
 def first_n(t: Table, n: int) -> tuple[Table, dict[str, int]]:
     """The table restricted to the first `n` clusters of the primary comparison, in the order
-    their first pair entered the ledger, and what was left out as beyond N. A table with `n` or
-    fewer clusters comes back whole. Rows of a cluster that never formed a primary pair, when
-    there are clusters beyond N, are left out too: they have no place in the order."""
-    first: dict[str, int] = {}
-    for p in pairs(t, t.protocol.primary):
-        first[p.cluster] = min(p.seq, first.get(p.cluster, p.seq))
-    if len(first) <= n:
+    their first pair entered the ledger (all clusters, resolved or not), and what was left out as
+    beyond N. A table with `n` or fewer clusters comes back whole. Rows of a cluster that never
+    formed a primary pair, when there are clusters beyond N, are left out too: they have no place
+    in the order."""
+    if len(t.order) <= n:
         return t, {"clusters": 0, "pairs": 0}
-    keep = set(sorted(first, key=lambda c: first[c])[:n])
+    keep = set(t.order[:n])
     kept = tuple(s for s in t.scored if s.cluster in keep)
-    cut = {s.cluster for s in t.scored if s.cluster not in keep}
     beyond = sum(1 for p in pairs(t, t.protocol.primary) if p.cluster not in keep)
-    return replace(t, scored=kept), {"clusters": len(cut), "pairs": beyond}
+    return replace(t, scored=kept), {"clusters": len(t.order) - n, "pairs": beyond}
 
 
 def report(t: Table, *, unblind: bool = False) -> dict[str, object]:
     """Everything G5 asks for. Refuses (`Blinded`) before N unless `unblind`; reads the first N
     clusters only, however many the ledger holds."""
     pr = t.protocol
-    clusters = len({p.cluster for p in pairs(t, pr.primary)})
+    clusters = len(t.order)
     if not unblind and (pr.n_clusters is None or clusters < pr.n_clusters):
         need = ("not fixed yet (run the blinded pilot)" if pr.n_clusters is None
                 else str(pr.n_clusters))
         raise Blinded(f"the primary comparison has {clusters} clusters; N is {need}")
+    if not unblind and pr.n_clusters is not None:
+        open_ = sorted(c for c in t.order[:pr.n_clusters] if c in t.unsettled)
+        if open_:
+            raise Blinded(f"{len(open_)} of the first {pr.n_clusters} clusters still have a "
+                          f"question neither resolved nor voided (first: {open_[0]})")
     beyond = {"clusters": 0, "pairs": 0}
     if pr.n_clusters is not None:
         t, beyond = first_n(t, pr.n_clusters)
