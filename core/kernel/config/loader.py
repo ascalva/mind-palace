@@ -15,15 +15,21 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from core.kernel.config.root import REPO_ROOT as _ROOT
+from core.kernel.config.root import code_dir
+
 # bp-067: the LOADER moved into core.config (core owns its config-loading code — self-contained,
 # stdlib-only, network-free). The config DATA (the tomls) stays in the repo-root `config/` dir — its
 # gitignore entries (`config/ouroboros.toml`, `config/levers.toml`) are path-specific and out of
 # this plan's write_scope, so relocating the data would strand them; the loader reads them by path
 # instead (a filesystem read, no first-party import — self-containment is about IMPORTS, not data).
 # kernel/config/loader.py → core/kernel/config → core/kernel → core → <repo> (K1, bp-090)
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-_CONFIG_DIR = REPO_ROOT / "config"                          # the committed + per-machine toml data
-_DEFAULTS = _CONFIG_DIR / "defaults.toml"
+# Packaging: the root is `core.kernel.config.root.REPO_ROOT` (env var, else this checkout, else
+# refuse at use). The committed defaults ship beside the code (`code_dir()`); the per-machine
+# overlays live under the root. In a checkout both are the same directory, as before.
+REPO_ROOT = _ROOT
+_CONFIG_DIR = REPO_ROOT / "config"                          # the per-machine toml overlays
+_DEFAULTS = code_dir() / "config" / "defaults.toml"         # the committed defaults
 # Deployment-specific overrides: a gitignored config/ouroboros.toml that overlays the committed
 # defaults section-by-section (e.g. `[secrets] enabled = true` on a machine where Vault is stood
 # up, or `[attestation] enabled = true` once signing keys are placed). Keeps the shipped repo
