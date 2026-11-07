@@ -539,46 +539,50 @@ they do not say that an arm has an edge, which is what the pre-registered compar
 \section{Implementation}
 \label{sec:implementation}
 
-The readout is in \lean{eval/predictions/scoring.py} (\lean{factor}, \lean{growth_path},
-\lean{growth}, \lean{growth_report}) and runs as
-\texttt{python -m eval.predictions growth -{}-ledger <file> [-{}-json] [-{}-unblind]}; its design is
-section G8 of \lean{docs/design-notes/dn-prediction-ledger.md}. From the protocol it takes the
-reference arm, the primary comparison, the clip $c$ of the log score (default $0.001$), the target
-$N$ (\lean{growth_target}, default $10$, which must exceed $1$) and $N_c$.
+The readout is in \lean{eval/predictions/scoring.py} (\lean{log_factor}, \lean{growth_path},
+\lean{growth}, \lean{growth_report}), and its design is section G8 of
+\lean{docs/design-notes/dn-prediction-ledger.md}. The command
+\texttt{python -m eval.predictions growth -{}-ledger <file>} prints it, as fields with
+\texttt{-{}-json}. From the protocol it takes the reference arm, the primary comparison, the clip
+$c$ of the log score (default $0.001$), the target $N$ (\lean{growth_target}, default $10$, which
+must exceed $1$) and $N_c$.
 
-Both probabilities are clipped to $[c,1-c]$, as the log score clips them, so every pair is proper,
-the identity is with the ledger's own clipped log score, and every factor lies in
-$[c/(1-c),(1-c)/c]$. For an arm and a family the pairs are those both the arm and the reference
-predicted, in the order their outcomes became known, ties broken by question and round; the growth
-and the geometric mean do not depend on the order, the drawdown does. For each arm other than the
-reference, each family and each stake $\lambda\in\{1,1/2,1/4\}$, the readout reports the number of
-pairs, the growth, the cumulative advantage, the per-pair geometric mean, the worst factor, the
-drawdown (the largest fall of the running product from its running peak, as a fraction of the
-peak), and the further pairs needed to reach $N$ at the realized mean log growth per pair. The
-stake must lie in $(0,1]$; beyond $1$ a factor can be negative.
+Both probabilities are clipped to $[c,1-c]$, as the log score clips them, so every pair is proper
+and every factor lies in $[c/(1-c),(1-c)/c]$. The path is computed in log space and never
+multiplies (\cref{alg:path,alg:report}): at the full stake a pair's log factor is the difference of
+the two clipped log scores, so the log growth is the cumulative advantage itself
+(\cref{thm:grw1}). The pairs of an arm and a family are those both it and the reference predicted,
+in the order their outcomes became known, ties broken by question and round; only the drawdown
+depends on the order. For each arm other than the reference, each family and each stake
+$\lambda\in\{1,1/2,1/4\}$, the readout reports the number of pairs, the log growth and the growth
+(its exponential when that is a normal double, otherwise the log growth itself, flagged), the
+cumulative advantage, the per-pair geometric mean, the worst factor, the drawdown as a fraction of
+the peak, and the further pairs needed to reach $N$ at the realized mean log growth per pair; the
+command line prints a growth outside $[10^{-4},10^{6})$ as $e^x$. The stake must lie in $(0,1]$;
+beyond $1$ a factor can be negative.
 
 Until $N_c$ is fixed and the primary comparison has that many clusters, its two arms are withheld on
 its family and named with the reason, unless the caller passes \lean{--unblind}. Other arms are
 shown, among them the recorded copy of the reference, whose factors are all exactly $1$. Once the
-comparisons are readable, the full report includes the readout. \Cref{alg:path,alg:report} give the
-procedure; it costs a sort per arm and family and a linear pass per stake.
+comparisons are readable, the full report includes the readout. The cost is a sort per arm and
+family and a linear pass per stake.
 
 \begin{algorithm}[t]
-\caption{The growth path of one arm at one stake.}
+\caption{The growth path of one arm at one stake, in log space.}
 \label{alg:path}
 \small
 \begin{algorithmic}[1]
-\Require factors $F_1,\dots,F_n$ with $n\ge1$, a stake $\lambda\in(0,1]$, a target $N>1$
-\State $W\gets1$; $P\gets1$; $D\gets0$
+\Require log factors $\ell_1,\dots,\ell_n$ at the stake, with $n\ge1$; a target $N>1$
+\State $x\gets0$; $P\gets0$; $D\gets0$
 \For{$i=1,\dots,n$}
-  \State $S_i\gets1+\lambda(F_i-1)$; \quad $W\gets W\cdot S_i$; \quad $P\gets\max(P,W)$;
-    \quad $D\gets\max(D,1-W/P)$
+  \State $x\gets x+\ell_i$; \quad $P\gets\max(P,x)$; \quad $D\gets\max(D,P-x)$
 \EndFor
-\State $\hat\mu\gets(\log W)/n$
-\If{$W\ge N$} $\tau\gets0$ \ElsIf{$\hat\mu>0$} $\tau\gets\lceil(\log N-\log W)/\hat\mu\rceil$
+\State $S\gets\sum_i\ell_i$, correctly rounded; \quad $\hat\mu\gets S/n$
+\If{$S\ge\log N$} $\tau\gets0$ \ElsIf{$\hat\mu>0$} $\tau\gets\lceil(\log N-S)/\hat\mu\rceil$
   \Else{} $\tau\gets$ none \EndIf
-\State \Return growth $W$, geometric mean $e^{\hat\mu}$, worst factor $\min_iS_i$, drawdown $D$,
-  further pairs $\tau$
+\State $G\gets e^S$ if that is a normal double, else $G\gets S$, flagged as a logarithm
+\State \Return log growth $S$, growth $G$, geometric mean $e^{\hat\mu}$, worst factor
+  $e^{\min_i\ell_i}$, drawdown $1-e^{-D}$, further pairs $\tau$
 \end{algorithmic}
 \end{algorithm}
 
@@ -595,11 +599,12 @@ procedure; it costs a sort per arm and family and a linear pass per stake.
     record $A$ on $\phi$ as withheld, and skip it
   \EndIf
   \State $K\gets$ the pairs $A$ and $R$ both predicted on $\phi$, by time of resolution, then key
-  \State for $k\in K$: $p_k,r_k\gets$ the two forecasts clipped to $[c,1-c]$, $F_k\gets
-    L(p_k,o_k)/L(r_k,o_k)$
+  \State for $k\in K$: $p_k,r_k\gets$ the two forecasts clipped to $[c,1-c]$, and
+    $a_k\gets s(p_k,o_k)-s(r_k,o_k)$
   \For{$\lambda\in(1,1/2,1/4)$}
-    emit $A$, $\phi$, $\lambda$, $|K|$, $\sum_k\bigl(s(p_k,o_k)-s(r_k,o_k)\bigr)$ and
-    \Call{GrowthPath}{$F,\lambda,N$}
+    \State $\ell_k\gets a_k$ if $\lambda=1$, else
+      $\operatorname{log1p}\bigl(\lambda(L(p_k,o_k)-L(r_k,o_k))/L(r_k,o_k)\bigr)$
+    \State emit $A$, $\phi$, $\lambda$, $|K|$, $\sum_ka_k$ and \Call{GrowthPath}{$\ell,N$}
   \EndFor
 \EndFor
 \State \Return the readouts, the withheld arms and \textit{reason}
@@ -666,16 +671,17 @@ seed & statement & outcome \\
 The code that relies on GRW-1 is tested in \lean{tests/unit/test_prediction_scoring.py}. The
 identity test draws, with Hypothesis~\citep{maciver2019}, 40 ledgers of 1 to 25 rows (a reference
 probability and a forecast from $[0,1]$, endpoints included so that the clip is exercised, and an
-outcome), writes each through the ledger's own interface and reads it back through the scorer: each
-factor is the exponential of its pair's advantage and the growth the exponential of the cumulative
-advantage, within a relative $10^{-9}$, and the growth and the worst factor are positive. Its
-control mutates the factor: the half stake's growth and a product read without the reference both
-differ from the exponential of the cumulative advantage. Further tests check a hand sequence
-(factors $2$, $1/2$, $2$: growth $2$, drawdown $1/2$, 7 further pairs to ten times the start), that
-the copy of the reference grows by exactly $1$ at every stake, the blinding and the command line.
-The file's 30 tests pass (\texttt{uv run pytest -q tests/unit/test\_prediction\_scoring.py}), as
-does the repository's full selection on this branch (3096 passed, 11 skipped). None of this is a
-claim about any arm's forecasts.
+outcome), writes each through the ledger's own interface and reads it back through the scorer: at
+the full stake the readout's log growth is the cumulative advantage exactly, the product of the
+factors is its exponential within a relative $10^{-9}$, and the growth and the worst factor are
+positive. Its control mutates the factor: the half stake's growth and a product read without the
+reference both differ from the exponential of the cumulative advantage. Two runs whose product
+leaves the double range, 103 factors of $999$ and 108 of $1/999$, give through the ledger a finite
+log growth equal to the exact sum, flagged as a logarithm, with no error. Further tests check a hand
+sequence, the copy of the reference growing by exactly $1$ at every stake, the blinding and the
+command line. The file's 33 tests pass (\texttt{uv run pytest -q
+tests/unit/test\_prediction\_scoring.py}), as does the repository's full selection on this branch
+(3099 passed, 11 skipped). None of this is a claim about any arm's forecasts.
 
 \section{Limitations}
 \label{sec:limitations}
@@ -695,10 +701,11 @@ claim about any arm's forecasts.
   \item Only GRW-1 is judged against a separate specification. The binary divergence is written out
     rather than derived from Mathlib's divergence of measures, so its agreement with the divergence
     of two Bernoulli laws rests on inspection of the definition, not on a proved bridge.
-  \item The readout multiplies in double precision: with the default clip, 103 consecutive factors
-    at the top bound ($999$) overflow the product, and 108 at the bottom bound underflow it to zero,
-    where its logarithm raises an error. Both need the forecast and the reference at opposite clips
-    on consecutive questions; summing logarithms, the same quantity by GRW-1, avoids both.
+  \item The readout works in double precision. A first version multiplied the factors, so 103 at
+    the top bound ($999$) overflowed the product and 108 at the bottom bound underflowed it to zero;
+    the path is now summed in log space, the same quantity by GRW-1, and both runs give a finite log
+    growth. A growth outside the double range is reported as its logarithm, flagged, and a fall of
+    more than about 37 nats gives a drawdown of exactly 1.
 \end{itemize}
 
 \section{Future work}
@@ -716,14 +723,14 @@ forecast lies between them; extending GRW-1 and GRW-3 to such terms would let th
 growth under a declared transaction cost.
 
 \paragraph{Side information as mutual information.} If the reference is calibrated to its
-information and the arm to information that contains the reference's, the arm's expected advantage
-is the conditional mutual information between the outcome and the arm's information given the
-reference's: the two-outcome case of the side-information result of \citet{kelly1956} and
-\citet[chap.~6]{cover2006}, and a statement of what the readout measures.
+information and the arm to information containing it, the arm's expected advantage is the
+conditional mutual information between the outcome and the arm's information given the
+reference's, the two-outcome case of the side-information result of \citet{kelly1956} and
+\citet[chap.~6]{cover2006}.
 
 \paragraph{Smaller steps.} A proved bridge from the written-out divergence to Mathlib's; questions
-with more than two outcomes; a finite-time bound by Hoeffding's inequality for advantages bounded by
-$\log(1/m)$; and a readout that accumulates logarithms.
+with more than two outcomes; and a finite-time bound by Hoeffding's inequality for advantages
+bounded by $\log(1/m)$.
 
 \section{Conclusion}
 
