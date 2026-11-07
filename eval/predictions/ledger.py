@@ -122,7 +122,9 @@ class Protocol:
     """The pre-registration (G3). The scorer reads every number from here, never from defaults.
 
     `reference` names the arm the derived ORACLE control is measured against, and `null` an arm
-    recorded as an exact copy of `reference`, whose skill must be exactly zero (F-1)."""
+    recorded as an exact copy of `reference`, whose skill must be exactly zero (F-1).
+    `growth_target` is the `N` of the growth readout (G8), a reading an amendment may change: it
+    decides nothing."""
 
     name: str
     primary: Comparison
@@ -137,6 +139,7 @@ class Protocol:
     log_clip: float = 0.001
     bootstrap: int = 10_000
     seed: int = 20261105
+    growth_target: float = 10.0
     n_clusters: int | None = None          # fixed by an amendment after the blinded pilot
     # How the primary comparison's interval and every p-value are made: `percentile` (the
     # cluster bootstrap) or `signflip` (the cluster-level sign-flip randomization test).
@@ -179,6 +182,8 @@ class Protocol:
             raise LedgerError("log_clip must lie in (0, 0.5)")
         if self.bootstrap < 1000:
             raise LedgerError("bootstrap needs at least 1000 resamples")
+        if not self.growth_target > 1:
+            raise LedgerError("growth_target must exceed 1")
         if self.n_clusters is not None and self.n_clusters < 2:
             raise LedgerError("n_clusters must be at least 2")
 
@@ -197,6 +202,7 @@ class Protocol:
             "log_clip": self.log_clip,
             "bootstrap": self.bootstrap,
             "seed": self.seed,
+            "growth_target": self.growth_target,
             "n_clusters": self.n_clusters,
             "method": self.method,
             "pinned": dict(self.pinned),
@@ -231,6 +237,8 @@ class Protocol:
                 log_clip=_float(body, "log_clip"),
                 bootstrap=_int(body, "bootstrap"),
                 seed=_int(body, "seed"),
+                # a protocol recorded before the growth readout existed reads the default
+                growth_target=_float(body, "growth_target") if "growth_target" in body else 10.0,
                 n_clusters=n_clusters,
                 method=_str(body, "method") if "method" in body else "percentile",
                 pinned={k: str(v) for k, v in pinned.items()},

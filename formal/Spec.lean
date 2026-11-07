@@ -9,6 +9,7 @@ public import Spec.Cut
 public import Spec.Door
 public import Spec.FloatModel
 public import Spec.Gap
+public import Spec.Growth
 public import Spec.Heat
 public import Spec.Hodge
 public import Spec.Laplacian
