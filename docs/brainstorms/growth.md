@@ -2,12 +2,9 @@
 
 ## 2026-11-06
 
-The owner, on the prediction ledger (`dn-prediction-ledger`), verbatim:
-
-> when i was thinking of 10x, i don't think i meant wait for the price to 10x, but more through a
-> succession of multiple transactions over some period of time, strategically buying or selling
-> based on context clues, can you prove that there is a path towards that? given some starting
-> amount of money allowed to be traded
+The question, on the prediction ledger (`dn-prediction-ledger`): can a succession of stakes, each
+informed by a forecast, multiply a starting holding by a large factor (ten, say) through many
+small decisions rather than one large move, and what does such a path need?
 
 The question in the palace's own terms, which is how it is answered here: a sequence of yes/no
 questions, each with a reference probability `r_i` (the baseline the ledger scores arms against),
