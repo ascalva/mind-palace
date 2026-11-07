@@ -1,0 +1,71 @@
+% A self-contained article for one pull request. Copy this directory to papers/YYYY-MM-DD-<slug>/.
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\lean}[1]{\texttt{#1}}
+
+\title{Title of the Change}
+\author{mind-palace contributors}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+One paragraph: the problem, the approach, the result, and how it is checked.
+\end{abstract}
+
+\section{Introduction}
+The problem and why it matters; the contributions as a short list.
+
+\section{Background and related work}
+
+\section{Theory}
+Definitions and theorems with proof sketches; name the Lean declarations that check them, for
+example \lean{Palace.Example.theorem\_name}.
+
+\section{Concepts and intuition}
+
+\section{Implementation}
+\begin{algorithm}
+\caption{A procedure, in pseudocode.}
+\begin{algorithmic}[1]
+\Require an input
+\Ensure an output
+\State do one step
+\end{algorithmic}
+\end{algorithm}
+
+\section{Evaluation}
+What is proved and what is measured, with the numbers, the commands that produce them and their
+uncertainty.
+
+\section{Limitations}
+
+\section{Future work}
+
+\section{Conclusion}
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
