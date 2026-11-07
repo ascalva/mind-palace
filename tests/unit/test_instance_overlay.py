@@ -5,7 +5,7 @@ A named instance is a different individual, so nothing of Ouroboros's chain may 
 hand overlay, not the knobs its self-modification loop tuned. A name that resolves to no file
 refuses, as the legacy-overlay guard does, because falling back to the committed defaults would
 bring the instance up on the wrong embedder silently. Every case runs in a temporary config
-directory; the owner's overlay is never read.
+directory; the live overlay is never read.
 """
 
 from __future__ import annotations

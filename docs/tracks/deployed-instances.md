@@ -153,7 +153,7 @@ levers file and the other overlays under `config/instances/`, read only to refus
 with no value reaching the named instance's configuration; and the local inference servers its
 runtime points at (the committed default is
 Ollama on loopback), which keep no state. Its Keychain items, labels and repository are names until
-the owner creates them, and it has no Vault.
+whoever runs the instance creates them, and it has no Vault.
 
 **What Ouroboros sees.** Nothing changes. Its paths, sources, lanes, item names, labels, levers
 file, exhaust lane, repository and Vault are the ones it had. `tests/unit/test_instance_identity.py`
@@ -166,17 +166,18 @@ loader's Config equals the old loader's field for field, the new `instance` fiel
 - *Derived, not declared.* An overlay states no derived name, and stating one refuses rather than
   being overridden, because a value the loader replaces is a setting that looks applied and never
   took. A declared name could also collide with another instance's; a derived one cannot.
-- *Sources are declared or off.* A source is read, not written, so a named instance may read a
-  corpus anywhere but Ouroboros's; with nothing declared it reads none. Every location of
-  Ouroboros's counts, not only its sources, so a vault path into Ouroboros's data dir refuses too.
+- *Sources are declared or off.* A named instance may read a corpus anywhere but at, inside or
+  around another instance's location; with nothing declared it reads none. Every location counts,
+  not only sources, so a vault path into Ouroboros's data dir refuses, and so does a corpus that
+  another named instance declares.
 - *State under `instances/<id>/`.* Nested in `data/`, a named instance would ride Ouroboros's
   backup and fall to Ouroboros's `reset`; under the home directory it would have no stable place
   in a container. The root is gitignored and is one directory to mount or archive.
 - *Every secret name, not only the attestation key.* With Ouroboros's restic password a named
   instance could read Ouroboros's backups, with its owner key forge its gate decisions, with its
   Vault token reach its Vault; the amnesiac-clones design asks for zero shared secret material.
-  The owner key is per instance too: sharing one key across instances means placing the same seed
-  under both names, which is the owner's act.
+  The attestation owner key is per instance too: sharing one key across instances means placing
+  the same seed under both names, which only the operator can do.
 - *A Vault of its own or none.* A prefix on Ouroboros's Vault would still reach Ouroboros's server,
   so the rule is a different server or no Vault secrets at all.
 - *The repository is checked, not rewritten.* What the overlay writes is what restic gets; the

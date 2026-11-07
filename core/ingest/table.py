@@ -298,7 +298,7 @@ def build_table(cfg: Config) -> Table:
                        patterns=("CONSTITUTION.md", "CONVENTIONS.md", "docs/**/*.md"),
                        label=CURATED),
         # one source per dialogue lane the instance reads: Ouroboros's two, a named instance's
-        # none (DI-2), since each reads one of the owner's chat applications
+        # none (DI-2), since each reads a chat application whose conversations are Ouroboros's
         **{f"dialogue/{lane}": _dialogue_source(cfg, lane, _DIALOGUE_READERS[lane])
            for lane in cfg.instance.dialogue},
     }
