@@ -27,7 +27,7 @@ Each family comes in three parts:
 `Spec/` is proved in `Palace` with exactly the same statement, from the standard axioms, and
 everything the statements reach passes Lean's kernel and five independent checkers. A proof file
 therefore cannot change what the ledger's laws state: only `Spec/` and the model can. The design
-theorems (Sever, Frustration, Leak, Transport, Superconnection, Lineage, Dynamics, and the parts of Magnetic and
+theorems (Sever, Frustration, Leak, Transport, Superconnection, Lineage, Dynamics, Scale, and the parts of Magnetic and
 NegativeType no row cites) have no `Spec/` statements yet: the kernel replays their proofs, but their statements live
 in the proof files, which can change them, until code relies on them and a row cites them. Whether a statement says
 what its row says stays a reader's judgment, and the reading is now confined to those two places;
@@ -228,6 +228,30 @@ Roundoff and FloatModel, so it has no statements of its own):
   contracting every field orthogonal to the constants geometrically at the gap's rate. Design
   theorems (Palace and PalaceTest, no Spec rows): no code computes a velocity, a potential or a
   ripple yet; `diffuse` computes the resolvent of the killed walk, which DYN-2 reads.
+- `Scale`: when a store reaches a scale at which macro behaviour can be studied, and how progress
+  is attributed to sources (`docs/design-notes/dn-scale-and-attribution.md`), proved before any
+  code, on the Dynamics model with the time average of a field over a window of steps and a model
+  of attribution (a score per configuration of sources, the orderings, the Shapley value, the
+  four axioms, the unanimity games and their Harsanyi dividends, leave-one-out). SCL-1 the
+  estimation threshold: under the lazy walk `1 − εL` on a connected support with gap `γ`, the time
+  average of a mean-zero field over `T` steps has energy at most `((1/T) Σ_{n<T} (1 − εγ)^n)²`
+  times the field's, so at most `‖x‖² / (T ε γ)²`, and precision `δ` needs `T ≥ ‖x‖ / (ε γ δ)`:
+  the window must span many relaxation times; SCL-2 scale separation: with the kept modes'
+  eigenvalues at most `ν` and the dropped modes' at least `μ`, the dropped part's energy relative
+  to the kept part's falls by `e^{−2(μ−ν)t}` under the heat kernel (DYN-4 and its lower-bound
+  twin), so with a gap `g > 0` the `k`-mode description explains all but `ε` of what remains once
+  `t ≥ log(R/ε) / (2g)`, with the discrete twin under the lazy walk; the control, the identity,
+  where two equal eigenvalues straddle every cut and the share never changes, so no time separates
+  the scales; SCL-3 attribution: the Shapley value, the average over every ordering of a source's
+  marginal contribution to the sources before it, is efficient (the marginals telescope along each
+  ordering), symmetric (the swap of two sources is a bijection on orderings), attributes nothing to
+  a null source and is additive; it is the only attribution with the four, since every score is
+  the combination of the unanimity games with its Harsanyi dividends as coefficients (inclusion and
+  exclusion between two sets) and the axioms pin an attribution on each unanimity game, which
+  gives the dividend formula `Σ_{T ∋ i} c_T / |T|`; leave-one-out agrees with it on scores with
+  constant marginals and, on two redundant sources, confirms neither while each Shapley value is a
+  half (`Witness.loo_confirms_nothing`, the Rayleigh family's shape). Design theorems; the power
+  calculation SCL-4 is the ledger's `required_clusters` and stays in the note.
 - `Bridges`: theorems that join two families, so that what one proves serves the other: BRG-1
   the Laplacian as `∂₁ ∂₁ᵀ`, BRG-2 Euler and Poincaré on the flag complex, BRG-3 Thomson's
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
@@ -244,8 +268,8 @@ Roundoff and FloatModel, so it has no statements of its own):
   exported, every module contributes, and only the unsafe compiler helpers are left out, and
   `check.sh` holds its count to the audit's, since a checker accepts an empty export.
 - `PalaceTest/`: the attacks, one module per ledger family's `Palace` module (of the design
-  theorems, Magnetic, NegativeType, Superconnection and Dynamics have them), as Mathlib keeps its
-  tests in `MathlibTest`. `lake test` builds them, which runs every attack and negative control.
+  theorems, Magnetic, NegativeType, Superconnection, Dynamics and Scale have them), as Mathlib keeps
+  its tests in `MathlibTest`. `lake test` builds them, which runs every attack and negative control.
   `PalaceTest/Attack.lean` holds `survives` and `refuted`, which run Plausible with a fixed seed and
   count the instances that passed their guards.
 - `Audit.lean`: lists the axioms behind every `Palace` declaration and fails on anything beyond
@@ -682,6 +706,27 @@ merge the ripple is not path-independent, within 7; the sum of the steps' sizes 
 displacement's, within 26 (a revert); and a block with its own degrees invents nearness, within
 31.
 
+Scale is attacked on exact shadows (seeds 350 to 367). The spectral gap is an eigenvalue, which
+does not run, so SCL-1 is attacked where the spectrum is rational: complete bipartite graphs on
+`Fin 4` with a uniform weight `w`, whose Laplacian has the eigenvalues `0`, `w·a`, `w·b` and
+`w·(a + b)`, so the gap is `w·min(a, b)` exactly and the lazy step `1 / (4w)` keeps every
+multiplier in `[0, 1]`; the lazy walk's time average of a centered field over windows of up to
+seven steps is matrix arithmetic over ℚ. The window bound and the geometric-sum form survived 495
+and 493 instances (the rest discarded as one-sided bipartitions). SCL-2's discrete twin is attacked
+on diagonal operators on `Fin 4`, whose modes are the coordinates, with the kept set chosen by
+bits independently of the eigenvalues, so the cut need not fall in a gap: 500. SCL-3 on games over
+three sources with values from a list, the six orderings enumerated through Mathlib's `Fintype`
+instance on `Fin 3 ≃ Fin 3`: efficiency, additivity, the null source, symmetry, the Harsanyi
+decomposition at every configuration, the dividend formula and leave-one-out on an additive score,
+500 each. The controls: the largest eigenvalue in place of the gap is refuted within 5 instances;
+a field with a mean, whose mean the walk conserves, breaks the window bound within 25; the share
+of the dropped modes "always falls" is refuted within 19 where the eigenvalues straddling the cut
+coincide (`ds := [2, 0]`, the kept coordinate at `2` and a dropped one at `0`: the share rises);
+the fastest dropped mode's rate in place of the slowest's within 24; the equal split, efficient and
+symmetric, pays a null source, within 11; leave-one-out is not efficient, within 10 (`vs := [1]`,
+a score of `1` on the empty configuration alone); the uniform average over configurations, the
+Banzhaf weights, is not efficient, within 8; and the dividends without their `1 / |T|` within 6.
+
 ## Build
 
 The toolchain is pinned in `lean-toolchain` (elan resolves it); Mathlib is pinned in
@@ -710,7 +755,7 @@ another module, and without it 68 proofs in seven files fail. One instance is wr
 to importers (`Palace/Scope.lean`).
 
 The kernel re-check. `Export.lean` writes every `Palace` declaration and everything it uses, from
-`Init` up (55,185 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
+`Init` up (55,408 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
 kernel and the five independent checkers bundled with Lean: `leanchecker-paranoid`, `lean4lean` (a
 kernel written in Lean), `nanoda` (one written in Rust), and `con-leche`, whose acceptance carries a
 machine-checked theorem that the environment holds no proof of `False`, with `con-ron`, its port.
