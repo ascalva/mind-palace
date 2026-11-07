@@ -1,0 +1,634 @@
+% Instance identity: derived namespaces for co-resident instances (build/instance-identity).
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\lean}[1]{\texttt{#1}}
+\newcommand{\env}{\texttt{MIND\_PALACE\_OVERLAY}}
+\newcommand{\near}{\bowtie}
+\newcommand{\shared}{\mathrm{shared}}
+\newcommand{\loc}{\mathrm{loc}}
+
+\title{Instance Identity: Disjoint Namespaces for Co-Resident Instances of a Knowledge Store}
+\author{mind-palace contributors}
+\date{7 November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A second instance of a knowledge store on one host, or a copied checkout, resolves every name in
+its configuration (data root, tuned parameters, outbound lane, secret names, service labels, backup
+repository, secrets server) to the first instance's. We require each named overlay to declare an
+instance id, derive every namespace from it, and refuse an overlay that states a derived name. Two
+instances must share nothing, with locations compared by real path and containment and secrets
+servers by the host the resolver reaches. Named instances are disjoint by construction; the default
+instance is checked at load. The tests fail under five broken derivations and six loader mutations,
+and two bypasses found in a security review are fixed. The check holds at load time only.
+\end{abstract}
+
+\section{Introduction}
+
+A knowledge store built on the mind-palace framework keeps its state where its configuration says:
+a data directory holding its stores, queues and lock; a file of parameters written by a self-tuning
+loop; an outbound directory that a sync service mirrors off the host; secrets in the platform
+keychain under fixed item names; two services registered with the service manager under fixed
+labels; a remote backup repository; and, optionally, a secrets server. The configuration is a chain
+of TOML files merged in order: committed defaults, then the tuned parameters, then a hand-written
+overlay that wins over both.
+
+Before this change nothing in that chain said which instance it described. The overlay's file name
+was the only mark of identity, so a copied checkout started on another host, or a second
+configuration started beside the first, resolved each of those names to the same place and became
+the same individual. It would append to the same history, read the same corpus, hold the same keys
+and write the same backup repository. A self-tuning loop running in the second instance would also
+write the first instance's parameter file, which the first reads at its next start.
+
+This paper describes how instance identity was made explicit and mechanical. The contributions are:
+\begin{enumerate}
+\item \emph{An identity.} Every named overlay declares an instance id from a grammar that makes it
+  one path segment and one dotted component and keeps distinct ids distinct on a case-insensitive
+  file system. One id is reserved to the default chain, which keeps every name it had
+  (\cref{sec:model}).
+\item \emph{A derivation.} Every namespace a named instance holds is a function of its id: data
+  root, lock, spool, parameter file, outbound lane, secret names, service labels and the last
+  segment of its backup repository. An overlay that states a derived name is refused, not
+  overridden (\cref{sec:concepts}).
+\item \emph{An invariant and its check.} For instances $i \neq j$, $\shared(N(i), N(j)) =
+  \emptyset$, where locations compare by containment of their real paths and a secrets server
+  compares by the host the resolver would reach. Between named instances the derived names are
+  disjoint by construction; against the default instance the loader evaluates the invariant at
+  load (\cref{sec:model,sec:impl}).
+\item \emph{Evidence that the checks fail on wrong code:} a Hypothesis property through the real
+  loader with five broken derivations as controls, six mutations of the loader each failing a named
+  subset of 183 tests, a differential comparison of the IPv4 parser with the platform's
+  \texttt{inet\_aton} on $10^6$ strings, and the cost of the check (\cref{sec:eval}).
+\item \emph{Two bypasses} found by a security review of the branch, their fixes, and the limits
+  that remain (\cref{sec:audit,sec:limits}).
+\end{enumerate}
+
+\section{Background and related work}
+
+\subsection{The configuration chain}
+Let $\oplus$ be the deep merge of two TOML documents in which the right operand wins on every leaf.
+The default chain is $C_d = D \oplus L_d \oplus O_d$: the committed defaults $D$, the parameter file
+$L_d$ written by the self-tuning loop, and the hand-written overlay $O_d$, applied last so that a
+human setting always wins over a tuned one. The default chain is one instance, the one that existed
+before instances had ids. We call it the default instance and write its reserved id as $d$. Paths
+in the chain are relative to the repository root $P$ unless absolute.
+
+A second instance is selected at run time by an environment variable, \env, that names one overlay
+file $O_i$. That overlay replaces both $L_d$ and $O_d$: a named instance is a different individual,
+so it inherits neither the default instance's hand settings nor the parameters its loop tuned. A
+variable that names no file is refused rather than falling back to the committed defaults, since a
+silent fallback would bring the instance up with the wrong embedding model and similarity
+threshold.
+
+\subsection{Related work}
+
+\paragraph{Protection principles.} Saltzer and Schroeder~\cite{saltzer1975} list, among their design
+principles, least common mechanism (minimize the mechanism common to more than one user) and
+fail-safe defaults (base access decisions on permission rather than exclusion). A named instance
+holds no name in common with another, and it reads no corpus it did not declare, which is a
+fail-safe default in their sense. The secrets-server comparison is not one: it refuses a server
+that canonicalizes to the default instance's and accepts every other, so its soundness rests on the
+canonicalization. The first version recognized the loopback host by a list of spellings, and the
+security review found spellings missing from the list (\cref{sec:audit}).
+
+\paragraph{Operating-system namespaces.} Plan~9 gives each process its own name space, assembled by
+mounts and binds~\cite{pike1993names}. FreeBSD jails partition a host into environments with their
+own file system root, processes and addresses~\cite{kamp2000jails}. For Linux, Biederman proposes
+that each class of global identifier, such as process ids, System~V IPC keys and user ids, become a
+namespace with multiple instances~\cite{biederman2006}. These mechanisms are enforced by the
+kernel, so a confined
+process cannot name what lies outside its view. The mechanism here is weaker and sits higher. It
+decides which names an instance's configuration resolves to, within one user account, and it cannot
+stop a process from opening a path it was not given. The two compose: the derived root is one
+directory per instance, which is what a container profile mounts as the instance's only volume.
+
+\paragraph{Time of check and time of use.} Bishop and Dilger~\cite{bishop1996} study flaws in which
+the binding of a file name changes between a check and the use that relies on it. The check here
+runs once, when the configuration is loaded, and a symbolic link planted afterwards changes what a
+checked name refers to. We state this as a limit (\cref{sec:limits}).
+
+\paragraph{Parser differentials.} When the component that validates an address parses it
+differently from the component that connects to it, the validation can be bypassed;
+Tsai~\cite{tsai2017} demonstrated this across the URL parsers and HTTP clients of many languages.
+The grammar that matters here is the URI authority, in which an optional userinfo ends with
+\texttt{@} before the host~\cite{rfc3986} (the comparison takes everything up to the last
+\texttt{@} as userinfo, so no spelling hides a host behind one); the rule that \texttt{localhost}
+and its subdomains name the loopback
+address~\cite{rfc6761}; IPv4-mapped IPv6 addresses~\cite{rfc4291}; and the permissive IPv4 forms the
+C library's \texttt{inet\_aton} accepts. The canonicalizer of \cref{alg:host} reads a host the way
+the resolver will, not the way a regular expression does.
+
+\paragraph{Property-based and mutation testing.} QuickCheck~\cite{claessen2000} states properties as
+executable predicates checked on generated inputs; Hypothesis~\cite{maciver2019} brings the approach
+to Python with shrinking and composable strategies. A property is evidence only to the extent that it
+fails on wrong code. Mutation analysis~\cite{demillo1978} measures a test suite by the deliberate
+faults it detects. We use both: the property's controls are hand-written mutants of the derivation,
+and we report six further mutations of the loader (\cref{sec:eval}).
+
+\section{Model}\label{sec:model}
+
+No Lean declaration checks the statements in this section. They are checked by the tests and
+measurements of \cref{sec:eval}.
+
+\begin{definition}[Instance id]
+An instance id is a string matching \texttt{[a-z][a-z0-9-]\{0,31\}}: a lowercase letter followed by
+up to 31 lowercase letters, digits or hyphens. The id $d$ is reserved to the default chain. A named
+overlay must declare an id other than $d$, in an \texttt{[instance]} table that holds no other key.
+The default chain, and a file loaded by explicit path, may restate $d$ and nothing else.
+\end{definition}
+
+\begin{definition}[Derivation]
+For an id $i$ let $\rho(i) = P$ if $i = d$, and $\rho(i) = P/\texttt{instances}/i$ otherwise. The
+secret name of $n$ for $i$ is $\sigma(i, n) = n$ if $i = d$ and the string $i.n$ otherwise. The
+service label of role $r$ is $\lambda(i, r) = \texttt{com.mind-palace.}r$ if $i = d$ and
+$\texttt{com.mind-palace.}i.r$ otherwise. A relative data path $x$ resolves to $\rho(i)/x$. A named
+instance's chain is $C_i = D \oplus L_i \oplus O_i$ with $L_i = \rho(i)/\texttt{levers.toml}$.
+\end{definition}
+
+\begin{definition}[Namespaces]
+The namespaces of instance $i$ are the tuple
+\[
+  N(i) = (W_i, R_i, Q_i, S_i, \Lambda_i, b_i, A_i, v_i)
+\]
+read off the configuration the loader builds: $W_i$, the locations it writes (14 data
+paths, the supervisor lock, the parameter file and the outbound lane); $R_i$, the corpus locations
+it reads (a notes vault and a transcripts directory); $Q_i$, its dialogue lanes, readers over the
+histories of two local chat applications; $S_i$, its secret names (five keychain items, a cloud
+credential profile and the secrets-server token item); $\Lambda_i$, its service labels; $b_i$, its
+backup repository or $\varepsilon$; $A_i$, the object-store prefixes of its request and result
+exchange; and $v_i$, its secrets server as \texttt{host:port} or $\varepsilon$.
+\end{definition}
+
+\begin{definition}[Location and nearness]
+For a path $p$, $\loc(p)$ is $p$ made absolute, with every symbolic link on it resolved and its
+case folded; a path that does not exist resolves through its deepest existing ancestor with the
+rest appended. For strings $x, y$ and a set of separators $\Sigma$, write $x \sqsubseteq_\Sigma y$
+when $x = y$ or $x$ begins with $y\,s$ for some $s \in \Sigma$. The strings are near, $x
+\near_\Sigma y$, when $x \sqsubseteq_\Sigma y$ or $y \sqsubseteq_\Sigma x$.
+\end{definition}
+
+\begin{definition}[Shared]
+$\shared(N(i), N(j))$ is the set made of: every pair $(p, q) \in (W_i \cup R_i) \times (W_j \cup
+R_j)$ with $\loc(p) \near_{\{/\}} \loc(q)$; every element of $Q_i \cap Q_j$, $S_i \cap S_j$ and
+$\Lambda_i \cap \Lambda_j$; the pair $(b_i, b_j)$ if both are set and their case-folded texts,
+without a trailing slash, are near under $\{/, :\}$; every pair in $A_i \times A_j$ near under
+$\{/\}$, compared the same way; and $v_i$ if $v_i \neq \varepsilon$ and $v_i = v_j$, hosts canonicalized by
+\cref{alg:host}.
+\end{definition}
+
+\begin{definition}[Disjointness invariant]\label{def:invariant}
+For instances $i \neq j$, $\shared(N(i), N(j)) = \emptyset$.
+\end{definition}
+
+Containment, not equality, is the relation that matters for locations: a store inside another
+instance's data directory rides that instance's backup and falls to its reset. The comparison is
+also deliberately reflexive. $\shared(N(i), N(i))$ is non-empty whenever $W_i \neq \emptyset$, and
+the property test asserts this, so a comparison that always returns nothing cannot pass it.
+
+\begin{lemma}[The id grammar]\label{lem:grammar}
+Let $i \neq j$ be ids. (a) Neither contains \texttt{/} or \texttt{.}, and case folding fixes both.
+(b) $P/\texttt{instances}/i$ and $P/\texttt{instances}/j$ are not near under $\{/\}$. (c) For named
+$i$ and $j$, $\sigma(i, n) \neq \sigma(j, m)$ and $\lambda(i, r) \neq \lambda(j, r')$ for all names
+and roles.
+\end{lemma}
+\begin{proof}[Proof sketch]
+(a) is the grammar. (b) The two paths share the prefix $P/\texttt{instances}/$ and differ in their
+last segment. One is near the other only if one segment equals the other, or begins with it
+followed by \texttt{/}, and (a) excludes both. (c) A named secret name splits at its first dot into
+the id and the rest, because the id contains no dot, so equal names have equal ids. A named label's
+third dot-separated component is the id, because \texttt{com} and \texttt{mind-palace} contain no
+dot.
+\end{proof}
+
+\begin{proposition}[Named instances are disjoint by construction]\label{prop:named}
+Let $i \neq j$ be named ids whose overlays declare no corpus source, backup repository, object-store
+bucket or secrets server, and suppose no symbolic link exists at or below $P/\texttt{instances}$.
+Then $\shared(N(i), N(j)) = \emptyset$.
+\end{proposition}
+\begin{proof}[Proof sketch]
+A load that returns has refused every absolute data path and every relative one containing
+\texttt{..}, so each data path of $i$ lies under $\rho(i)$. So do the lock, the spool, the
+parameter file, the outbound lane (derived, or moved by the overlay within $\rho(i)$) and the two
+undeclared sources, $\rho(i)/\texttt{vault}$ and $\rho(i)/\texttt{transcripts}$. With no links
+below $P/\texttt{instances}$, $\loc$ preserves the prefix $\rho(i)$, so by
+Lemma~\ref{lem:grammar}(b) no location of $i$ is near a location of $j$. Secret names and labels differ
+by Lemma~\ref{lem:grammar}(c), the dialogue lanes of a named instance are empty, and $b$, $A$ and $v$ are
+empty by hypothesis.
+\end{proof}
+
+\begin{proposition}[The default instance is checked at load]\label{prop:default}
+If the loader returns a configuration for a named instance $i$, then $\shared(N(i), N(d)) =
+\emptyset$, where $N(d)$ is read off the default chain present on the host at the moment of
+loading.
+\end{proposition}
+\begin{proof}
+The last step of the load computes $N(d)$ from the default chain and refuses when the set is not
+empty (\cref{alg:load}, line~\ref{line:refuse}).
+\end{proof}
+
+The proof of Proposition~\ref{prop:default} is one line because its content is in what $N(d)$ covers. The
+default instance's configuration is written by hand and may place a store, a source or a repository
+anywhere, so its names cannot be derived and disjointness from it cannot follow from
+Proposition~\ref{prop:named}. The check covers what Proposition~\ref{prop:named} assumes away
+(declared sources,
+repositories, prefixes and servers, and symbolic links) by comparing against the default instance's
+actual names. It also covers the default instance's own secret names: the committed names contain no
+dot, so none equals a derived $i.n$, but a hand overlay that renamed one to such a form would be
+caught here. Named overlays are not compared with each other at load; \cref{sec:pairs,sec:limits}
+state what that leaves open.
+
+\paragraph{The secrets-server host.} A server is compared as $\mathrm{canon}(h){:}\mathit{port}$,
+where a missing port is the scheme's and $\mathrm{canon}$ (\cref{alg:host}) maps every spelling of
+the local machine to one token, \texttt{loopback}: the names \texttt{localhost} and
+\texttt{*.localhost}~\cite{rfc6761}, every loopback or unspecified IPv4 or IPv6 address,
+IPv4-mapped addresses read as their IPv4 address~\cite{rfc4291}, and every IPv4 form
+\texttt{inet\_aton} accepts. The unspecified addresses count because connecting to them reaches the
+local machine. Another address maps to its canonical text, so two spellings of one remote server
+also compare equal; a name that is not an address stays as written, case folded and without one
+trailing dot. The intended property is agreement with the resolver: whenever the platform would
+connect two spellings to one IPv4 address, they canonicalize to one string. We test this property
+rather than prove it (\cref{sec:aton}), because its reference is the platform's C library.
+
+\section{Concepts and intuition}\label{sec:concepts}
+
+\paragraph{One string, many names.} Every name an instance holds is computed from one string.
+Whether two instances collide then reduces to whether two ids are equal, which the grammar makes a
+plain string comparison: no case variants, no path separators, and no dots that would let one
+derived name parse as another.
+
+\paragraph{Derived, not declared.} A named overlay states none of the names its id derives. One
+that does is refused, even when it states the derived value, and is not overridden: a value the
+loader silently replaces is a setting that looks applied and never took. A declared name would also
+be a second source of truth that could collide with another instance's; a derived one cannot. The
+backup repository is the one declared location among the written ones, because its place is the
+operator's choice; only its last segment is constrained to be the id.
+
+\paragraph{Sources are declared or absent.} Locations an instance reads are treated differently
+from those it writes. A named instance may read a corpus anywhere except at, inside or around a
+location of the default instance. With nothing declared it reads nothing, because the committed
+defaults name the default instance's corpus. An agent enabled without a declared source is refused,
+and two named instances may deliberately read one corpus.
+
+\paragraph{Compare where things are, not what they are called.} Two names for one directory are one
+directory, and a directory inside another is written whenever the outer one is backed up or reset.
+The comparison therefore resolves symbolic links and treats containment as sharing, and it compares
+a secrets server by the host the resolver would reach. Both rules were added after the security
+review showed that the lexical versions could be defeated (\cref{sec:audit}).
+
+\paragraph{The default instance is read only to refuse.} A named load builds the default instance's
+configuration for one purpose, computing $N(d)$, and no value from it reaches the named
+configuration. The default instance's names, which predate ids, are exactly what they were.
+
+\paragraph{Fail closed.} Every guard raises; none warns. Tools that reach the default instance's
+state by a fixed path rather than through the configuration refuse to run under a named overlay
+instead of learning about instances. Making one of them instance-aware later is a change to read
+the configuration.
+
+\section{Implementation}\label{sec:impl}
+
+The loader is one module. \Cref{alg:load} is the path a named overlay takes. The default chain takes
+an earlier branch, unchanged except that it records the id $d$; a file passed by explicit path is
+read verbatim and is also the default instance.
+
+\begin{algorithm}
+\caption{Loading a named overlay.}\label{alg:load}
+\begin{algorithmic}[1]
+\Require $O$, the file named by \env
+\Ensure a configuration for the instance that $O$ declares, or a refusal
+\State $X \gets \Call{Read}{O}$; \quad $i \gets$ the id in the \texttt{[instance]} table of $X$
+\If{$i$ is absent or malformed, or $i = d$} \textbf{refuse} \EndIf
+\State $T \gets \Call{Read}{D}$; \quad $K \gets$ the committed secret names in $T$
+\State $T \gets T \oplus \Call{Read}{\rho(i)/\texttt{levers.toml}} \oplus X$
+\State point each undeclared source at $\rho(i)/\mathit{name}$ and disable it; refuse an enabled
+  agent without a source
+\State give an undeclared secrets server the empty address; refuse secrets enabled without one
+\State refuse if $X$ names a key of $K$, or $T$ holds for it anything but the committed value
+  \label{line:secret}
+\State refuse if a data path or the outbound lane is absolute, starts at \texttt{\textasciitilde},
+  or contains \texttt{..}
+\State refuse if a backup repository is set and its last segment is not $i$
+\State $C \gets \Call{Build}{T, i}$ \Comment{paths under $\rho(i)$, names $\sigma(i, \cdot)$}
+\State $C_d \gets \Call{Build}{D \oplus L_d \oplus O_d,\ d}$ \Comment{read only for $N(d)$}
+\If{$\Call{Shared}{N(C), N(C_d)} \neq \emptyset$} \label{line:refuse}
+  \textbf{refuse}, listing each shared name
+\EndIf
+\State \Return $C$
+\end{algorithmic}
+\end{algorithm}
+
+Line~\ref{line:secret} refuses a secret name when the overlay names the key at all, even with the derived value,
+and also when the merged chain holds anything but the committed default for it; the second clause
+catches a parameter file that sets one. The comparison $\shared$ is the definition in
+\cref{sec:model} written as nested loops, so every location of one instance is resolved and
+compared with every location of the other. \Cref{alg:host} is the canonical host. Its IPv4 parser
+is written out by hand, because a static import check forbids networking modules in the core
+package and \texttt{socket.inet\_aton} is out of reach; it follows the BSD rules.
+
+\begin{algorithm}[t]
+\caption{The host a secrets-server address reaches.}\label{alg:host}
+\begin{algorithmic}[1]
+\Function{Canon}{$h$} \Comment{$h$: the authority after its last \texttt{@}, unbracketed}
+\State decode percent escapes; fold case; drop one trailing dot
+\If{$h$ is empty, \texttt{localhost}, or ends in \texttt{.localhost}} \Return \texttt{loopback}
+\EndIf
+\If{$h$ without an IPv6 zone parses as an IP address} $a \gets$ that address
+\ElsIf{$\Call{InetAton}{h} \neq \bot$} $a \gets$ that IPv4 address
+\Else{} \Return $h$
+\EndIf
+\If{$a$ is IPv4-mapped} $a \gets$ its IPv4 address \EndIf
+\If{$a$ is loopback or unspecified} \Return \texttt{loopback} \EndIf
+\State \Return the canonical text of $a$, bracketed if IPv6
+\EndFunction
+\Statex
+\Function{InetAton}{$t$} \Comment{the BSD C library's reading}
+\State read up to four dot-separated parts, each starting with a digit: decimal, octal after
+  \texttt{0}, hexadecimal after \texttt{0x}; the 64-bit accumulator wraps
+\State fail on an 8 or 9 in an octal part, a leading part above 255, a last part with no digit, a
+  character after the address other than whitespace, or, with $k > 1$ parts, a last part that
+  does not fit the $5 - k$ bytes left to it
+\State \Return the leading parts as the high bytes over the last; one part keeps its low 32 bits
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Run-time guards.} Two kinds of code reach an instance's names outside the loader. The
+self-tuning loop writes the parameter file; it now receives the path from the configuration, and a
+loop built for a named instance with any other path refuses each step before writing. Tools that
+reach the default instance's state by a fixed path (its data directory, its services, its archive,
+its secrets server, and the default output directory of the report writers) call a one-line guard
+as their first statement, which refuses while \env{} is set. Shell scripts carry the same guard
+inline, as do two Python entry points that never import the core. Among the consumers of the
+derived names, the service launcher takes its job files, labels and lock from them, and the report
+writer places a named instance's reports in its own lane; the stack, backup and secret-loading
+scripts hold the default instance's labels and items and refuse a named instance.
+
+\section{Evaluation}\label{sec:eval}
+
+\subsection{Setup}
+All runs used macOS 27.0.1 on an Apple M2 Pro with 32\,GiB of memory, Python 3.15.2, pytest 9.1.1
+and Hypothesis 6.155.7, at the branch head \texttt{babe4de} over the base \texttt{f65f73f}.
+Mutation runs used an export of the branch head (\texttt{git archive}) with one edit applied at a
+time, and ran all 183 instance tests for each edit. The scripts for the mutations, the differential
+comparison and the timing are short and are described with each result, so each run can be
+repeated from the description.
+
+\begin{table}[ht]
+\centering\small
+\caption{The instance tests at the branch head: 183 pass in 9.3\,s.}\label{tab:tests}
+\begin{tabular}{@{}llr@{}}
+\toprule
+Kind & What it checks & Tests \\
+\midrule
+unit & overlay selection, ids, refusals, derived names, the pinned default, servers & 130 \\
+integration & links, parameter files, consumers of the names, tool guards & 41 \\
+property & the invariant, its controls, repositories, IPv4 spellings & 12 \\
+\midrule
+total & & 183 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The property and its controls}
+The property draws lists of one to three distinct ids from the id grammar, excluding $d$. For each
+id it writes an overlay declaring only the id and a repository ending in it, builds the
+configuration through the real loader, adds the default instance, and asserts that every instance
+shares something with itself and that every pair shares nothing. It runs 40 examples per execution
+with no example database, so each run draws new ids. A second property, over 60 generated ids,
+checks that the default instance's repository, named outright or with a segment below it, is
+refused for every id, while a location of the instance's own whose text extends the default
+repository's without a separator loads.
+
+Each control replaces one function of the derivation with a broken version, switches off the
+load-time refusal so that the property sees the broken names, and asserts that the property fails
+with the expected shared component (\cref{tab:controls}). With the refusal switched on, four of the
+five are refused by the loader itself. The fifth, which gives every named instance the same root,
+prefix and label, is caught only by the property: the loader compares a named instance with the
+default instance and never with another named one (\cref{sec:pairs}).
+
+\begin{table}[ht]
+\centering\small
+\caption{Broken derivations used as controls. Each fails the property.}\label{tab:controls}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Broken derivation & Reported as shared & Refused at load \\
+\midrule
+id ignored (one root, prefix and label for all) & a location & no (a named pair) \\
+named instance given the default's names & a location & yes \\
+undeclared vault becomes the default's & the default's vault & yes \\
+undeclared outbound lane becomes the default's & the default's lane & yes \\
+no server named: the committed address & server \texttt{loopback:8200} & yes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Mutations of the loader}
+\Cref{tab:mutations} lists six single edits to the loader and the tests each one fails. The first
+two restore the code as it was before the security review. Every mutation is detected, and each
+fails only tests written for the behaviour it removes, so the tests are specific as well as
+sensitive.
+
+\begin{table}[ht]
+\centering\small
+\caption{Single mutations of the loader, each run against all 183 tests.}\label{tab:mutations}
+\begin{tabular}{@{}lrl@{}}
+\toprule
+Mutation & Fail & Failing tests \\
+\midrule
+M1 lexical paths, not real ones & 4 & the four link cases \\
+M2 the earlier server comparison & 31 & 14 spellings, 2 tests each; 3 remote hosts \\
+M3 load-time refusal removed & 42 & links 4, controls 4, repositories 3, sources 5, server 26 \\
+M4 equality in place of containment & 6 & nested repositories 3, sources 2, a link 1 \\
+M5 id check removed from the id type & 4 & malformed ids built without the loader \\
+M6 one number not cut to 32 bits & 3 & the spelling past 32 bits, in 3 tests \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The security review}\label{sec:audit}
+A security review of the branch, made after the derivation and the check were in place, reported
+two ways to make the check pass while the instance still reached the default instance's state.
+
+\paragraph{Symbolic links.} The comparison was lexical: absolute, normalized and case folded. With
+$\rho(i)$ linked to $P$, the instance's data directory read as $P/\texttt{instances}/i/\texttt{data}$
+while it was $P/\texttt{data}$, and nothing was shared. Linking $P/\texttt{instances}$, or the
+instance's own data directory, into $P/\texttt{data}$ did the same, and so did a declared source that
+was a link to the default instance's vault. The fix compares real paths. Under M1 exactly these four
+tests fail; a control shows that a root linked to a place of the instance's own still loads.
+
+\paragraph{Spellings of the loopback address.} The comparison parsed the address with a regular
+expression and recognized the local host by a fixed set (the empty host, \texttt{localhost},
+\texttt{::1} and its long form, \texttt{0.0.0.0}, \texttt{::}) and the prefix \texttt{127.}.
+Userinfo stayed part of the host, and no numeric form other than a dotted \texttt{127.} address was
+recognized. \Cref{tab:spellings} lists the 14 spellings of the local server the earlier comparison
+did not fold. Each appears in two tests, one for the canonical text and one for the refusal at load,
+which gives 28 of the 31 failures under M2. The other three are controls for remote hosts whose
+canonical text the earlier code did not produce: \texttt{010.0.0.5}, which the resolver reads as
+octal \texttt{8.0.0.5}; \texttt{[::2]}; and \texttt{[::ffff:10.0.0.1]}, which is
+\texttt{10.0.0.1}.
+
+\begin{table}[ht]
+\centering\small
+\caption{Spellings of the local secrets server that the earlier comparison did not fold to
+\texttt{loopback}; all fold now.}\label{tab:spellings}
+\begin{tabular}{@{}llr@{}}
+\toprule
+Class & Spellings tested (host part) & Count \\
+\midrule
+userinfo before the host & \texttt{u@127.0.0.1}, \texttt{u:p@localhost}, \texttt{a@b@127.0.0.1} & 3 \\
+one number & \texttt{2130706433}, \texttt{0x7f000001}, \texttt{017700000001} & 3 \\
+one number past 32 bits & \texttt{6425673729} & 1 \\
+hexadecimal dotted form & \texttt{0x7f.1} & 1 \\
+the unspecified address as one number & \texttt{0} & 1 \\
+trailing dot & \texttt{localhost.} & 1 \\
+subdomain of \texttt{localhost} & \texttt{vault.localhost} & 1 \\
+percent-encoded name & \texttt{\%6c\%6f\%63\%61\%6c\%68\%6f\%73\%74} & 1 \\
+IPv4-mapped IPv6 & \texttt{[::ffff:127.0.0.1]}, \texttt{[::ffff:7f00:1]} & 2 \\
+\midrule
+total & & 14 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The IPv4 parser against the platform}\label{sec:aton}
+A Hypothesis property writes each of 300 random 32-bit addresses per run nine ways (dotted decimal,
+one decimal number, one hexadecimal number, one octal number, the two- and three-part short forms,
+dotted hexadecimal, dotted octal, and the decimal number plus $2^{32}$) and checks that every
+spelling canonicalizes to the address, or to \texttt{loopback} for $127.0.0.0/8$ and $0.0.0.0$. On
+every spelling the platform accepts, it also compares the parse with \texttt{socket.inet\_aton}.
+BSD's \texttt{inet\_aton}, which macOS uses, reads a single number past 32 bits as its low bits;
+glibc's refuses it. The parser keeps the BSD reading, the wider one, so a spelling that either
+library resolves to the local machine folds to \texttt{loopback}; on Linux the ninth spelling is
+compared with the expected text only.
+
+Beyond the property, we compared the parser with the platform's \texttt{inet\_aton} on $10^6$
+random strings of length 1 to 16 over digits, the hexadecimal letters in both cases, \texttt{x},
+\texttt{X}, the dot, space and tab, drawn with a fixed seed. Both accepted 214{,}495 strings with
+equal values, both refused 785{,}505, and they disagreed on none. The run took 3.3\,s.
+
+\subsection{The default instance is unchanged}
+The unit suite pins the default instance on a fixture that has the sections and keys of a real
+default overlay with placeholder values, holding each written path, secret name and the repository
+to values recomputed from the TOML; a control loads the same overlay as a named instance and finds
+every namespace different. Independently, we loaded that fixture as the default chain with the base
+commit's loader and with the branch's, serialized each configuration with the new id field removed
+and the repository root replaced by a token, and compared the two: 22 sections and 156 leaf values,
+identical.
+
+\subsection{Cost}
+\Cref{tab:cost} gives the cost of a load. The named load builds two configurations and compares 19
+locations of each instance pairwise, resolving each location again for every pair: 722 real-path
+resolutions. Under a profiler (50 loads) the check is 87\% of a named load, and the real-path
+resolutions alone are 66\%. A load happens once per process start, so the cost is paid once.
+
+\begin{table}[ht]
+\centering\small
+\caption{Wall time of one load: medians of 200 loads after a warm-up, in three
+repetitions.}\label{tab:cost}
+\begin{tabular}{@{}lrl@{}}
+\toprule
+Load & Median & Range of the three medians \\
+\midrule
+default chain (committed defaults, no overlay present) & 0.83\,ms & 0.80 to 0.85\,ms \\
+named instance (the committed benchmark overlay) & 10.7\,ms & 10.62 to 10.82\,ms \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Two named instances}\label{sec:pairs}
+The loader compares a named instance with the default instance only. We checked what that leaves
+open on a throwaway repository layout. Two named instances whose repositories nest
+(\texttt{\dots/alpha} and \texttt{\dots/alpha/beta}) both load, since each ends in its own id, and
+$\shared$ between them reports the repository pair. A named root that is a link to another named
+root ($P/\texttt{instances/gamma}$ to $P/\texttt{instances/alpha}$) also loads, and $\shared$
+between the two reports 49 shared locations. In both cases the comparison detects the overlap; the
+loader does not ask it to. Proposition~\ref{prop:named} excludes both cases by hypothesis.
+
+\section{Limitations}\label{sec:limits}
+
+\paragraph{The check holds at load.} A symbolic link planted after the load changes what a checked
+name refers to, and a path that did not exist at load was resolved through its deepest existing
+ancestor, so a link created later at a missing component is not seen. This is the time-of-check,
+time-of-use pattern~\cite{bishop1996}, and the check does not claim to close it.
+
+\paragraph{Host names are not resolved.} The core package resolves no names, so a DNS name that
+resolves to the local machine passes the server comparison. The named instance's token item is its
+own, so such a name would reach the default instance's server without the default instance's
+token.
+
+\paragraph{Named instances are not compared with each other.} Proposition~\ref{prop:named} covers
+their derived
+names. Their declared names are compared with the default instance's only: two named instances may
+read one corpus by design, and may also name nested repositories, overlapping object-store prefixes
+or one secrets server, and a link between two named roots goes unseen (\cref{sec:pairs}). The
+repository rule constrains only the last segment, which keeps two repositories distinct but not
+apart.
+
+\paragraph{Locking is per host.} The supervisor lock is an advisory file lock in the instance's data
+directory. It excludes a second supervisor of one instance on one host, not on two hosts that share
+storage.
+
+\paragraph{The comparison needs the default overlay.} In a container image without the default
+overlay, the default chain is the committed defaults alone, so the check cannot see the names that
+overlay sets by hand, such as its backup repository. The named instance's derived password still
+keeps that repository closed, since the backup tool neither opens a repository with another
+password nor initializes over it.
+
+\paragraph{Conservative choices.} Case folding matches the macOS default file system; on a
+case-sensitive one it can report two distinct directories as shared and refuse a load that would be
+safe, never the reverse. The IPv4 parser's BSD reading can likewise fold to \texttt{loopback} a
+spelling that glibc would refuse.
+
+\paragraph{What a named instance cannot yet do.} No configuration can declare a dialogue lane for a
+named instance, so it has none. The tools that reach the default instance's state by path refuse
+rather than serve a named instance.
+
+\section{Future work}
+Comparing a named instance with every overlay known on the host, not only with the default chain,
+would close the gap of \cref{sec:pairs}: $\shared$ already detects both demonstrated overlaps, and
+the cost grows with the number of pairs. A registry of instances, planned for the key fabric of a
+later step, would serve the same purpose across hosts and could hold a lease in place of the
+per-host lock. Resolving the secrets server's name at connection time, in the networked edge rather
+than the core, and pinning the client to the address that was checked would close the DNS gap.
+Opening state through directory descriptors that refuse to follow links, or checking each store
+again when it is opened, would narrow the window after load. Resolving each location once per load
+would reduce the 722 real-path resolutions to 38. Finally, Lemma~\ref{lem:grammar} and
+Proposition~\ref{prop:named} are small enough to state and check in Lean over an abstract model of
+paths and
+names.
+
+\section{Conclusion}
+An instance id, required of every named overlay and reserved for the default chain, turns identity
+from a file name into a value that every namespace is computed from. Derived names make two named
+instances disjoint by construction, and a load-time comparison against the default instance's actual
+configuration covers what derivation cannot: hand-placed locations, declared sources and servers,
+and links. The comparison was made to read locations by their real paths and hosts by the
+resolver's rules after a review showed the lexical versions could be bypassed, and every check
+reported here fails on code that lacks it. The guarantees end at load time, at the host boundary,
+and at the boundary between two named instances, and the paper states each of those limits.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
