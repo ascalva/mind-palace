@@ -32,13 +32,20 @@ def _date(cut: str) -> str:
 
 
 def cuts_table(study: Path) -> str:
+    """Per cut: size, degrees, gamma, relaxation times and the two forms of the SCL-1 window.
+
+    1/gamma is the relaxation time in continuous time and 1/(eps gamma) in lazy steps; T_c =
+    2/(gamma delta^2) is the window in continuous time and T = T_c / eps = 2/(eps gamma delta^2) in
+    lazy steps, at delta = 10% and eps = 1/2.
+    """
     out = ["| cut | N | edges | mean deg | min deg | mean deg / ln N | gamma | 1/gamma "
-           "| window, 10% |", "|---|---|---|---|---|---|---|---|---|"]
+           "| 1/(eps gamma) | T_c | T |", "|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in _rows(study / "cuts.csv"):
         out.append(
             f"| {_date(r['cut'])} | {r['n']} | {r['m']} | {_f(r['mean_deg']):.2f} | {r['min_deg']} "
-            f"| {_f(r['deg_over_logn']):.2f} | {_f(r['gamma']):.4f} | {_f(r['relax_steps']):.1f} "
-            f"| {_f(r['window_10pct']):.0f} |"
+            f"| {_f(r['deg_over_logn']):.2f} | {_f(r['gamma']):.4f} "
+            f"| {_f(r['relax_cont']):.1f} | {_f(r['relax_lazy']):.1f} "
+            f"| {_f(r['window_cont_10pct']):.0f} | {_f(r['window_lazy_10pct']):.0f} |"
         )
     return "\n".join(out)
 
@@ -137,7 +144,8 @@ def core_table(study: Path) -> str:
 
         out.append(
             f"| {_date(r['cut'])} | {r['core']} | {r['n']} | {r['min_deg']} "
-            f"| {_f(r['deg_over_logn']):.2f} | {_f(r['gamma']):.4f} | {_f(r['relax_steps']):.1f} "
+            f"| {_f(r['deg_over_logn']):.2f} | {_f(r['gamma']):.4f} "
+            f"| {_f(r['relax_cont']):.1f} "
             f"| {w('edge')} | {w('node0.85')} | {w('node0.5')} |")
     return "\n".join(out)
 
