@@ -289,6 +289,57 @@ def test_the_first_n_clusters_are_the_first_to_enter_the_ledger(tmp_path: Path) 
     assert isinstance(primary, dict) and primary["clusters"] == 2
 
 
+def _three_clusters(path: Path, *, resolve: list[str], n: int = 2) -> Ledger:
+    """Clusters x, y, z enter the ledger in that order, one question and one pair each; the
+    clusters in `resolve` are resolved, in that order, after all three entered."""
+    clock = Clock(T0)
+    led = Ledger(path, clock=clock)
+    led.register(replace(PROTOCOL, n_clusters=n))
+    for i, c in enumerate("xyz"):
+        qid = f"q-{c}"
+        clock.at = T0 + timedelta(minutes=i + 1)
+        led.extend([Question(qid, "main", "t", qid, "t", CLOSE, c),
+                    Prediction(qid, "a", "r1", 0.5, config=PINS["a"]),
+                    Prediction(qid, "b", "r1", 0.9 if c != "z" else 0.1, config=PINS["b"])])
+    for i, c in enumerate(resolve):
+        clock.at = CLOSE + timedelta(hours=i + 1)
+        led.resolve(Resolution(f"q-{c}", 1, CLOSE, "t:s"))
+    return led
+
+
+def test_a_late_resolution_cannot_move_the_cut(tmp_path: Path) -> None:
+    """Control: the old cut was made among the resolved clusters, so with y and z resolved
+    before x it read {y, z}, and when x resolved it read {x, y}: the reading moved after N."""
+    led = _three_clusters(tmp_path / "a.jsonl", resolve=["y", "z"])
+    with pytest.raises(Blinded, match="still have a question"):
+        report(table(led.entries()))                 # x, one of the first two, is open
+    led.resolve(Resolution("q-x", 1, CLOSE, "t:s"))
+    out = report(table(led.entries()))
+    primary = out["primary"]
+    assert isinstance(primary, dict) and primary["clusters"] == 2
+    assert out["beyond_n"] == {"clusters": 1, "pairs": 1}
+    assert {s.cluster for s in first_n(table(led.entries()), 2)[0].scored} == {"x", "y"}
+
+
+def test_resolving_or_voiding_a_cluster_beyond_n_changes_nothing(tmp_path: Path) -> None:
+    led = _three_clusters(tmp_path / "b.jsonl", resolve=["x", "y"])
+    before = report(table(led.entries()))             # z is open and beyond N
+    led.resolve(Resolution("q-z", 1, CLOSE + timedelta(days=1), "t:s"))
+    after = report(table(led.entries()))
+    assert after["primary"] == before["primary"] and after["arms"] == before["arms"]
+    assert after["secondary"] == before["secondary"]
+
+
+def test_a_void_inside_the_first_n_keeps_its_place(tmp_path: Path) -> None:
+    """A voided cluster still occupies one of the N places; it does not let a later cluster in."""
+    led = _three_clusters(tmp_path / "c.jsonl", resolve=["y", "z"])
+    led.void(Void("q-x", "withdrawn"))
+    out = report(table(led.entries()))
+    primary = out["primary"]
+    assert isinstance(primary, dict) and primary["clusters"] == 1     # only y is scored
+    assert out["beyond_n"] == {"clusters": 1, "pairs": 1}              # z
+
+
 def test_the_pilot_carries_no_mean(tmp_path: Path) -> None:
     assert not {f.name for f in fields(Pilot)} & {"mean", "lo", "hi", "p_value", "d"}
     led = build(tmp_path / "l.jsonl", clusters=30, arms=FOUR)
