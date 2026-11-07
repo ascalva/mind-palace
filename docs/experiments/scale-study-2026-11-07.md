@@ -169,7 +169,7 @@ afterwards. At the 2009 cut a sweep cut on the Fiedler vector finds a set of 42 
 the rest by a single edge (conductance 0.008, volume 121). At the 2026 cut the sweep finds a set of
 7 nodes joined by one edge. The gap is set by small groups hanging on a single citation. Whether
 such a group is present in a resampled graph varies from replicate to replicate, so the interval
-of gamma spans an order of magnitude. The mean degree over ln N is above 2 throughout, so the mean
+of gamma spans an order of magnitude. The mean degree over ln N is about 2 or more through 2024, so the mean
 degree is not the quantity that matters; the minimum degree is 1, which is 0.1 to 0.3 of ln N.
 
 ### 3. Stability of gamma on the k-core
