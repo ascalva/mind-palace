@@ -520,8 +520,7 @@ wheels = [
 
 [[package]]
 name = "mind-palace"
-version = "0.0.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "cryptography" },
     { name = "duckdb" },
@@ -574,7 +573,7 @@ requires-dist = [
     { name = "scipy-stubs", marker = "extra == 'dev'", specifier = ">=1.14" },
     { name = "watchdog", marker = "extra == 'watch'", specifier = ">=4.0" },
 ]
-provides-extras = ["dev", "edge", "watch", "secrets"]
+provides-extras = ["dev", "edge", "secrets", "watch"]
 
 [[package]]
 name = "mypy"

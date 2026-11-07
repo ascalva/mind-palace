@@ -1,6 +1,12 @@
+[build-system]
+requires = ["hatchling>=1.27", "hatch-vcs>=0.4"]
+build-backend = "hatchling.build"
+
 [project]
 name = "mind-palace"
-version = "0.0.0"
+# The version is the git tag (vX.Y.Z, written by semantic-release) via hatch-vcs; `fallback-version`
+# below covers a build from an sdist or a tarball with no .git.
+dynamic = ["version"]
 description = "Sealed, offline-first personal AI — a mind palace. Built phase by phase."
 requires-python = ">=3.15"
 # Runtime deps are intentionally minimal. The sealed core (Zone A) must not pull in
@@ -46,6 +52,29 @@ watch = [
 secrets = [
     "hvac>=2.0",
 ]
+
+[project.scripts]
+mind-palace = "scripts.cli:main"
+
+# Packaging. The importable top-level packages are listed, not discovered: tests, docs, formal,
+# data, config overlays, bin, site, stubs and cloud (a Lambda's own code, zone B, never imported
+# here) stay out. `config` is a package of committed defaults; `door` is the sentence library,
+# shipped as data beside the code because core/sentence/script.py finds it at `<code>/door`.
+# A top-level package named `eval` claims that name in site-packages (reported, not renamed).
+[tool.hatch.version]
+source = "vcs"
+raw-options = { fallback_version = "0.0.0+unknown" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["agents", "config", "core", "edge", "eval", "ops", "scheduler", "scripts"]
+exclude = ["config/ouroboros.toml", "config/levers.toml", "config/local.toml"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"door" = "door"
+
+[tool.hatch.build.targets.sdist]
+include = ["agents", "config", "core", "door", "edge", "eval", "ops", "scheduler", "scripts",
+           "pyproject.toml", "README.md", "LICENSE"]
 
 [tool.pytest.ini_options]
 # Top-level zone packages (core/, edge/, …) are importable without an editable install.
@@ -114,6 +143,8 @@ select = ["E", "F", "I", "B", "UP"]
 [tool.ruff.lint.per-file-ignores]
 # Embedded dashboard HTML/CSS/JS asset — long template lines, not code (server.py stays linted).
 "edge/monitor/page.py" = ["E501"]
+# The usage text is bin/mind-palace's verbatim (a test pins them equal); its lines are its own.
+"scripts/cli.py" = ["E501"]
 
 [tool.mypy]
 # type-system-as-core-audit.md §2.5 — the two-tier checked region (ratified 2026-07-11).

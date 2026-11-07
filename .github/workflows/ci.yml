@@ -59,6 +59,33 @@ jobs:
           # existing / the assertion goes green either way), and CI regains full strength.
           uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic' --deselect 'tests/unit/test_core_self_containment.py::test_core_imports_nothing_outside_core' --cov --cov-report=term
 
+  wheel:
+    # The packaging gate: `uv build` makes a wheel, and a fresh venv with nothing but that wheel
+    # imports the packages and runs a CLI. It proves the declared package list is complete (a
+    # module left out of `[tool.hatch.build.targets.wheel] packages` fails here) and that nothing
+    # needs the checkout to import. fetch-depth: 0 so hatch-vcs sees the tags. Same action pins as
+    # the jobs above (exact tags, as the workflow already does).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v8.3.2 # exact tag, as above
+        with:
+          python-version: "3.15"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Wheel (build, install in a fresh venv, import, --help)
+        shell: bash
+        run: |
+          uv build --wheel
+          uv venv --python 3.15 "$RUNNER_TEMP/wheel-venv"
+          uv pip install --python "$RUNNER_TEMP/wheel-venv/bin/python" dist/*.whl
+          cd "$RUNNER_TEMP"   # away from the checkout, so the import cannot find it
+          "$RUNNER_TEMP/wheel-venv/bin/python" -c "import core, eval.predictions, scheduler"
+          "$RUNNER_TEMP/wheel-venv/bin/python" -m eval.predictions --help
+          "$RUNNER_TEMP/wheel-venv/bin/mind-palace" help
+
   denylist:
     # The constitutional wall (owner ruling 2026-07-28): writes to the fixed points are
     # HARD NOs — enforced as a PR verdict, never a local chain.
