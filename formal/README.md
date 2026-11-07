@@ -349,9 +349,11 @@ result. Of the 500 sums seed 131 draws, 313 are exact, 120 are ties, 67 round el
 the subnormal range and 42 round up into the next binade. Its controls, ties away from zero, a
 52-bit significand and flush to zero, are each refuted by the second instance.
 
-Lean v4.36 gives `Float` a logical model in core: bit patterns, unpacked into a sign, a
-significand and an exponent, with each operation rounding its exact result once through a round
-bit and a sticky bit. `Palace/FloatModel.lean` proves that model's `+`, `*` and `/` are `rn`. The
+Lean v4.33.0 gave `Float` a logical model in core (lean4 #14079, 2026-08-10; v4.35.0 modelled
+`fma`, and v4.36.0-rc2 adds only the `minimum` models; the model has no ceil, floor or round and
+no bridge to the reals, by design): bit patterns, unpacked into a sign, a significand and an
+exponent, with each operation rounding its exact result once through a round bit and a sticky
+bit. `Palace/FloatModel.lean` proves that model's `+`, `*` and `/` are `rn`. The
 proof turns on one invariant: an extended significand represents a value when it is the value's
 floor and its two bits place the value against the midpoint. A right shift halves the represented
 value, and core's ties-to-even choice is `rne` of it. Division also needs core's exponent estimate
