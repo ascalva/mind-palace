@@ -347,3 +347,42 @@ def test_a_pin_is_a_sha256_digest(tmp_path: Path, clock: Clock, weak: str) -> No
     with pytest.raises(LedgerError, match="not sha256 digests"):
         led.amend(replace(PROTOCOL, pinned={"a": weak}))
     assert led.verify().counts["protocol"] == 1
+
+
+def forge(led: Ledger, kind: str, body: dict[str, object], at: datetime) -> None:
+    """Append a line outside the append path, with a correct hash."""
+    entries = led.entries()
+    seq, prev = len(entries), entries[-1].hash
+    recorded = at.isoformat()
+    digest = line_hash(seq, kind, body, recorded, prev)
+    line = {"seq": seq, "kind": kind, "body": body, "recorded_at": recorded, "prev": prev,
+            "hash": digest}
+    with led.path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(line, sort_keys=True, separators=(",", ":")) + "\n")
+
+
+def test_verify_replays_the_rules_for_a_forged_unpinned_prediction(tmp_path: Path,
+                                                                   clock: Clock) -> None:
+    """Control: on the old verify this line, whose hash is valid, verified."""
+    led = Ledger(tmp_path / "f.jsonl", clock=clock)
+    led.register(replace(PROTOCOL, pinned={}))
+    led.add_question(question())
+    forge(led, "prediction", _Prediction("q1", "a", "r1", 0.4).body(), T0 + timedelta(hours=1))
+    with pytest.raises(LedgerCorrupt, match=r"line 2.*no pin"):
+        led.verify()
+
+
+def test_verify_replays_the_rules_for_a_forged_late_prediction(ledger: Ledger) -> None:
+    """Control: a prediction recorded after its question closed verified on the old code."""
+    forge(ledger, "prediction", Prediction("q1", "a", "r1", 0.4).body(), T0 + timedelta(days=11))
+    with pytest.raises(LedgerCorrupt, match=r"line 2.*closed"):
+        ledger.verify()
+
+
+def test_verify_accepts_what_the_append_path_wrote_and_ignores_the_wall_clock(
+        ledger: Ledger) -> None:
+    ledger.add_prediction(Prediction("q1", "a", "r1", 0.4))
+    ledger.add_prediction(Prediction("q1", "b", "r1", 0.4))
+    # The question closed at T0 + 10 days; the wall clock is long past that, and verify still
+    # reads each line at its own recorded_at.
+    assert ledger.verify().counts["prediction"] == 2

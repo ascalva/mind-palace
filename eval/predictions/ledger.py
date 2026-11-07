@@ -7,8 +7,10 @@
 
 `hash` is the sha256 of the canonical JSON of the line without `hash`, and `prev` is the previous
 line's `hash` (64 zeros for the first). `verify` recomputes the chain, so an edited, dropped or
-reordered line fails it. The first record is the `protocol` (G3): the experiment's bar is written
-before any prediction and cannot move without a visible amendment later in the chain.
+reordered line fails it, and replays each record through the refusal rules below, so a line
+written outside `append` with its hash recomputed fails too. The first record is the `protocol`
+(G3): the experiment's bar is written before any prediction and cannot move without a visible
+amendment later in the chain.
 
 The ledger's own clock stamps `recorded_at`, and it alone decides "before": a prediction carries
 no timestamp of its own, so an arm cannot backdate one. A prediction is refused when its question
@@ -450,6 +452,18 @@ def _kind(record: Record) -> str:
     return "void"
 
 
+def _parse_record(kind: str, body: Mapping[str, object]) -> Record:
+    if kind == "protocol":
+        return Protocol.parse(body)
+    if kind == "question":
+        return Question.parse(body)
+    if kind == "prediction":
+        return Prediction.parse(body)
+    if kind == "resolution":
+        return Resolution.parse(body)
+    return Void.parse(body)
+
+
 def _apply(state: State, kind: str, body: Mapping[str, object]) -> None:
     """Advance the state by one verified record."""
     if kind == "protocol":
@@ -503,12 +517,30 @@ class Ledger:
         return replay(self.entries())
 
     def verify(self) -> Head:
+        """The chain, and every record replayed through the checks `append` makes: each against
+        the state the records before it leave, at the `recorded_at` the ledger stamped (the wall
+        clock is never consulted). A line written outside the append path, with its hash
+        recomputed, still fails here if it breaks a rule. Raises `LedgerCorrupt` naming the line."""
         entries = self.entries()
-        replay(entries)
+        self._replay_checked(entries)
         counts = {kind: sum(1 for e in entries if e.kind == kind) for kind in KINDS}
         if not entries:
             return Head(-1, GENESIS_PREV, counts)
         return Head(entries[-1].seq, entries[-1].hash, counts)
+
+    def _replay_checked(self, entries: list[Entry]) -> State:
+        state = State()
+        for entry in entries:
+            if entry.seq == 0 and entry.kind != "protocol":
+                raise LedgerCorrupt("the genesis record must be the protocol")
+            record = _parse_record(entry.kind, entry.body)
+            try:
+                self._check(state, _aware(entry.recorded_at, "recorded_at"), record)
+            except LedgerError as exc:
+                raise LedgerCorrupt(f"line {entry.seq}: breaks a rule the ledger enforces "
+                                    f"({exc})") from exc
+            _apply(state, entry.kind, entry.body)
+        return state
 
     # -- writing ----------------------------------------------------------------------------
 
