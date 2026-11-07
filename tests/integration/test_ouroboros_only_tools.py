@@ -6,6 +6,11 @@ Ouroboros's state for the named instance, so it refuses first. The Python guards
 twice: by structure (the guard is the first thing the entry point does, and a control shows the
 check rejects a guard placed later) and by behaviour where a run is cheap to fence. The shell
 guards run with recording fakes first on PATH, so a guard placed too late shows as a call.
+
+The root rule (core/kernel/config/root.py) adds the second half of the guard: these tools reach
+Ouroboros's state by the checkout's path, so they also refuse an installed copy, which has no
+checkout, and a MIND_PALACE_ROOT the rule refuses (one naming another directory than the
+checkout). The bridge and the stack restate that half, since neither imports core.
 """
 
 from __future__ import annotations
@@ -18,6 +23,7 @@ from pathlib import Path
 import pytest
 
 from core.kernel.config import loader
+from core.kernel.config import root as root_rule
 
 ROOT = loader.REPO_ROOT
 OVERLAY = "config/instances/bench.toml"
@@ -88,6 +94,23 @@ def test_the_guard_refuses_only_a_named_instance(monkeypatch) -> None:
         loader.ouroboros_only("a tool")
 
 
+def test_the_guard_refuses_a_root_other_than_the_checkout(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv(root_rule.ROOT_ENV, str(tmp_path))
+    with pytest.raises(root_rule.RootNotFound, match="another directory than the checkout"):
+        loader.ouroboros_only("a tool")
+    monkeypatch.setenv(root_rule.ROOT_ENV, str(ROOT))           # restating the checkout passes
+    loader.ouroboros_only("a tool")
+
+
+def test_the_guard_refuses_an_installed_copy(monkeypatch, tmp_path) -> None:
+    """With no checkout under the code, the variable names the root, and the tool, which would
+    reach `<code>/data`, still refuses."""
+    monkeypatch.setattr(root_rule, "code_dir", lambda: tmp_path / "site-packages")
+    monkeypatch.setenv(root_rule.ROOT_ENV, str(tmp_path))
+    with pytest.raises(root_rule.RootNotFound, match="installed copy"):
+        loader.ouroboros_only("a tool")
+
+
 def test_a_report_into_data_reports_refuses_a_named_instance(monkeypatch, tmp_path) -> None:
     from eval.harness.report import write_report
 
@@ -120,6 +143,56 @@ def test_the_bridge_refuses_a_named_instance(monkeypatch) -> None:
     with pytest.raises(SystemExit) as refused:
         bridge.main([])
     assert "MIND_PALACE_OVERLAY" in str(refused.value.code)
+
+
+def test_the_bridge_refuses_a_root_other_than_its_checkout(monkeypatch, tmp_path) -> None:
+    import edge.mcp_http as bridge
+
+    monkeypatch.setattr(bridge, "build", lambda cfg: pytest.fail("the bridge started"))
+    monkeypatch.delenv(loader.OVERLAY_ENV, raising=False)
+    monkeypatch.setenv(root_rule.ROOT_ENV, str(tmp_path))
+    with pytest.raises(SystemExit) as refused:
+        bridge.main([])
+    assert "MIND_PALACE_ROOT" in str(refused.value.code)
+    monkeypatch.setattr(bridge, "ROOT", tmp_path)               # an installed copy: no checkout
+    monkeypatch.delenv(root_rule.ROOT_ENV)
+    with pytest.raises(SystemExit) as refused:
+        bridge.main([])
+    assert "no checkout" in str(refused.value.code)
+
+
+def test_control_the_bridge_runs_under_the_variable_naming_its_checkout(monkeypatch) -> None:
+    import edge.mcp_http as bridge
+
+    class Started(Exception):
+        pass
+
+    def started(cfg: object) -> None:
+        raise Started
+
+    monkeypatch.setattr(bridge, "build", started)
+    monkeypatch.delenv(loader.OVERLAY_ENV, raising=False)
+    monkeypatch.setenv(root_rule.ROOT_ENV, str(ROOT))
+    with pytest.raises(Started):
+        bridge.main([])
+
+
+def test_the_stack_refuses_a_root_other_than_its_checkout(monkeypatch, tmp_path, capsys) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("stack_script", ROOT / "scripts" / "stack.py")
+    assert spec and spec.loader
+    stack = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(stack)
+    monkeypatch.setattr(stack, "chat_status", lambda: pytest.fail("checked before refusing"))
+    monkeypatch.delenv(loader.OVERLAY_ENV, raising=False)
+    monkeypatch.setenv(root_rule.ROOT_ENV, str(tmp_path))
+    assert stack.main(["status"]) == 1
+    assert "MIND_PALACE_ROOT" in capsys.readouterr().out
+    monkeypatch.setattr(stack, "ROOT", tmp_path)                # an installed copy: no checkout
+    monkeypatch.delenv(root_rule.ROOT_ENV)
+    assert stack.main(["status"]) == 1
+    assert "no checkout" in capsys.readouterr().out
 
 
 def test_the_bridge_responder_refuses_a_named_instance(monkeypatch) -> None:

@@ -1,8 +1,8 @@
 """The instance root has one resolution rule, and from a checkout it is today's (packaging).
 
 Pins: an in-checkout run resolves every root-derived path exactly as before packaging (the live
-instance sees no difference); `MIND_PALACE_ROOT` moves the root; with neither, the refusal is plain
-and at use.
+instance sees no difference); `MIND_PALACE_ROOT` names the root of an installed copy, and from a
+checkout may only restate it; with neither, the refusal is plain and at use.
 """
 
 from __future__ import annotations
@@ -49,8 +49,28 @@ def test_the_overlay_paths_are_todays_in_a_fresh_process() -> None:
                        for n in ("levers.toml", "ouroboros.toml", "local.toml"))]
 
 
-def test_the_environment_variable_wins_over_the_checkout(tmp_path: Path) -> None:
+def test_from_an_installed_copy_the_variable_names_the_root(tmp_path: Path,
+                                                           monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(R, "code_dir", lambda: tmp_path / "site-packages")   # no checkout there
+    assert R.checkout_root() is None
     assert R.resolve_root({R.ROOT_ENV: str(tmp_path)}) == tmp_path.resolve()
+
+
+def test_from_a_checkout_the_variable_may_only_restate_the_checkout(tmp_path: Path) -> None:
+    """The tools that name Ouroboros's state outside the config reach it by the checkout's path,
+    so a checkout's root is the checkout: the variable may restate it, by any name, and no more."""
+    with pytest.raises(R.RootNotFound, match="another directory than the checkout"):
+        R.resolve_root({R.ROOT_ENV: str(tmp_path)})
+    link = tmp_path / "link"
+    link.symlink_to(CHECKOUT)
+    for name in (str(CHECKOUT), str(link), str(CHECKOUT) + "/"):
+        assert R.resolve_root({R.ROOT_ENV: name}) == CHECKOUT
+
+
+def test_a_relative_variable_is_refused() -> None:
+    """It would name a different directory for every working directory a process starts in."""
+    with pytest.raises(R.RootNotFound, match="relative"):
+        R.resolve_root({R.ROOT_ENV: "."})
 
 
 def test_a_named_root_that_is_not_a_directory_is_refused(tmp_path: Path) -> None:

@@ -38,9 +38,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-# The instance root: MIND_PALACE_ROOT when set (an installed copy), else this checkout. edge never
-# imports core (the firewall), so the rule of core/kernel/config/root.py is restated, not imported.
-ROOT = Path(os.environ.get("MIND_PALACE_ROOT") or Path(__file__).resolve().parent.parent)
+# The checkout the bridge runs from: its spool is that checkout's data/handoff/mcp and its responder
+# that checkout's scripts/palace_mcp_handoff.py. The root rule (core/kernel/config/root.py) gives a
+# checkout no root but itself, so `main` refuses an installed copy and a MIND_PALACE_ROOT naming
+# another directory (`_root_refusal`). edge never imports core, so the rule is restated here.
+ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = Path(__file__).resolve().parent / "palace_tools.json"
 PROTOCOL_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")  # newest first
 SERVER_INFO = {"name": "mind-palace", "version": "0.1.0"}
@@ -377,11 +379,28 @@ def build(cfg: BridgeConfig, *, start_responder: Callable[[], None] | None = Non
                         read_key(cfg.key_file), cfg.hosts)
 
 
+def _root_refusal() -> str | None:
+    """Why the bridge may not run here, or None. It serves the checkout it runs from, so it refuses
+    where that is no checkout (an installed copy) and under a MIND_PALACE_ROOT naming another
+    directory, as the root rule does."""
+    if not ((ROOT / "pyproject.toml").is_file() and (ROOT / "core" / "kernel").is_dir()):
+        return f"mcp_http: the bridge serves a checkout's Ouroboros, and {ROOT} is no checkout"
+    named = os.environ.get("MIND_PALACE_ROOT", "").strip()
+    given = Path(named).expanduser()
+    if named and not (given.is_absolute() and given.is_dir() and os.path.samefile(given, ROOT)):
+        return (f"mcp_http: the bridge serves the checkout {ROOT}; refusing under "
+                f"MIND_PALACE_ROOT={named!r}")
+    return None
+
+
 def main(argv: list[str] | None = None) -> int:
     # Ouroboros's bridge (DI-2): its spool is <repo>/data/handoff/mcp and its responder answers from
     # Ouroboros's stores, so it refuses a named instance (the loader's OVERLAY_ENV).
     if os.environ.get("MIND_PALACE_OVERLAY"):
         sys.exit("mcp_http: the bridge serves Ouroboros; refusing under MIND_PALACE_OVERLAY")
+    refusal = _root_refusal()
+    if refusal is not None:
+        sys.exit(refusal)
     ap = argparse.ArgumentParser(description="The palace's MCP-over-HTTP edge for Open WebUI.")
     ap.add_argument("--config", type=Path, default=ROOT / "config" / "stack.toml")
     cfg = load_config(ap.parse_args(argv).config)
