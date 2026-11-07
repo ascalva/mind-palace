@@ -1,0 +1,12 @@
+% A fixture for tests/integration/test_build_papers.py, not an article: it builds, but cites a key
+% that refs.bib does not hold, so the build script must fail it.
+\documentclass{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[numbers]{natbib}
+\begin{document}
+This sentence cites an entry that exists~\cite{knuth1984texbook} and one that does
+not~\cite{nosuchkey}.
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}

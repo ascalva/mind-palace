@@ -1,0 +1,8 @@
+% A fixture for tests/integration/test_build_papers.py, not an article: it calls a macro that
+% nothing defines, so pdflatex stops, and the build script must say why.
+\documentclass{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\begin{document}
+This paper calls a macro that nothing defines: \buildtestundefinedmacro.
+\end{document}
