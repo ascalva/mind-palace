@@ -58,11 +58,16 @@ about log N. This note measures where those thresholds fall on a real growing gr
 - k-cores: the same measures on the largest component of the k-core of each cut (k = 3, 6, 10, 15),
   with every replicate reduced to its own k-core, because the concentration theorem needs minimum
   degree of order log N and the full graph always has degree-one nodes.
-- Relaxation and window, in two unit systems. The lazy walk is x -> (1 - eps L) x with laziness
-  eps, which needs eps lambda_max <= 1; the normalized Laplacian's spectrum is in [0, 2], so the
-  largest admissible laziness is eps = 1/2, used here. SCL-1 (`formal/Palace/Scale.lean`,
-  `docs/design-notes/dn-scale-and-attribution.md`, build/scale-attribution) bounds the energy of the
-  time average by ||x||^2 / (T eps gamma)^2, and the note's sampled form is
+- Relaxation and window, in two unit systems. SCL-1 (`formal/Palace/Scale.lean`,
+  `docs/design-notes/dn-scale-and-attribution.md`, build/scale-attribution) is proved for the lazy
+  walk x -> (1 - eps L) x of the combinatorial Laplacian L = D - A, with eps lambda_max <= 1. Its
+  argument uses only a symmetric operator with spectrum in [0, 1/eps] and a field orthogonal to the
+  kernel, so it holds as stated for 1 - eps L_norm with x orthogonal to D^{1/2} 1; the Lean
+  statement covers L only. The lazy random walk (1 - eps) I + eps D^{-1} A has the same eigenvalues
+  1 - eps lambda_i and is reversible for the degree-weighted distribution pi. The normalized
+  Laplacian's spectrum is in [0, 2], so the largest admissible laziness is eps = 1/2, used here.
+  SCL-1 bounds the energy of the time average by ||x||^2 / (T eps gamma)^2, and the sampled form
+  (the textbook reversible-chain bound, sigma^2 the variance under pi) is
   Var <= 2 sigma^2 / (eps gamma T) per lazy step, or Var <= 2 sigma^2 / (gamma T_c) in continuous
   time T_c = eps T. For an observable of relative standard deviation 1 and relative precision
   delta, the window is T = 2 / (eps gamma delta^2) lazy steps, equivalently
