@@ -86,7 +86,7 @@ from __future__ import annotations
 
 import hashlib
 import sqlite3
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -333,6 +333,25 @@ class ReferenceEdgeStore:
             sql += " WHERE " + " AND ".join(clauses)
         sql += " ORDER BY edge_id"
         return [self._row(r) for r in self._conn.execute(sql, params).fetchall()]
+
+    def neighbour_pairs(self, refs: Sequence[str], commit_sha: str, *, outgoing: bool = True,
+                        incoming: bool = True) -> set[tuple[str, str]]:
+        """The `(source_ref, target_ref)` pairs of the edges at `commit_sha` that leave a ref of
+        `refs` (`outgoing`) or enter one (`incoming`): the two endpoint columns and nothing else,
+        a statement per 400 refs. What a BFS or a wiring pass needs of `all(source_ref=…)` and
+        `all(target_ref=…)` per node, without building a `ReferenceEdge` for each row."""
+        out: set[tuple[str, str]] = set()
+        for lo in range(0, len(refs), 400):
+            chunk = list(refs[lo:lo + 400])
+            marks = ",".join("?" * len(chunk))
+            for column, wanted in (("source_ref", outgoing), ("target_ref", incoming)):
+                if wanted:
+                    out.update(
+                        (r[0], r[1]) for r in self._conn.execute(
+                            f"SELECT source_ref, target_ref FROM reference_edges "
+                            f"WHERE commit_sha = ? AND {column} IN ({marks})",
+                            [commit_sha, *chunk]))
+        return out
 
     def edge(self, edge_id: str) -> ReferenceEdge | None:
         """One edge by its content id — the primary key, one B-tree descent. `origin` read the
