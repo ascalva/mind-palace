@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -137,3 +138,24 @@ def normalized_laplacian(adj: sp.csr_matrix) -> sp.csr_matrix:
     inv = 1.0 / np.sqrt(deg)
     scaled = sp.diags(inv) @ adj @ sp.diags(inv)
     return (sp.identity(adj.shape[0], format="csr") - scaled).tocsr()
+
+
+def subcomponent(comp: Component, sel: npt.NDArray[Any]) -> Component:
+    """The largest component of the graph on the edges `sel` (a mask or an index array)."""
+    u, v, f = comp.eu[sel], comp.ev[sel], comp.flow[sel]
+    # Re-orient by the flow sign so the directed meaning survives the rebuild: +1 means u -> v.
+    src = np.where(f >= 0, u, v)
+    dst = np.where(f >= 0, v, u)
+    return component_from_edges(src, dst)
+
+
+def k_core(comp: Component, k: int) -> Component:
+    """The largest component of the k-core: peel nodes of degree below `k` until none remain."""
+    cur = comp
+    while cur.n > 0 and cur.degrees().min() < k:
+        keep = cur.degrees() >= k
+        nxt = subcomponent(cur, keep[cur.eu] & keep[cur.ev])
+        if nxt.n == cur.n:
+            break
+        cur = nxt
+    return cur
