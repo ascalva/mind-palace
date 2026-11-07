@@ -1,9 +1,10 @@
 name: papers
 
 # Builds every pull request's article (papers/*/paper.tex) with TeX Live and uploads the PDFs, with
-# the log of each paper that failed beside them. Path scoped the way lean.yml is: the `changes` job
-# runs on every PR and main push, and `build` runs only when the diff touches papers/, the build
-# script or this file, so every sha still gets a verdict.
+# the log of each paper that failed beside them, then runs the build script's tests (needs_tex),
+# which need the TeX Live this job installs. Path scoped the way lean.yml is: the `changes` job runs
+# on every PR and main push, and `build` runs only when the diff touches papers/, the build script,
+# its tests or this file, so every sha still gets a verdict.
 
 on:
   push:
@@ -42,7 +43,9 @@ jobs:
           esac
           if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             PAPERS=true
-          elif git diff --quiet "$BASE" HEAD -- papers scripts/build_papers.sh .github/workflows/papers.yml; then
+          elif git diff --quiet "$BASE" HEAD -- papers scripts/build_papers.sh \
+              tests/integration/test_build_papers.py tests/fixtures/papers \
+              .github/workflows/papers.yml; then
             PAPERS=false
           else
             PAPERS=true
@@ -71,3 +74,14 @@ jobs:
             build/papers/*/paper.pdf
             build/papers/*/failed.log
           if-no-files-found: ignore
+      - uses: astral-sh/setup-uv@v8.3.2 # exact tag, as in ci.yml
+        if: ${{ !cancelled() }}
+        with:
+          python-version: "3.15"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Test the build script (needs_tex)
+        if: ${{ !cancelled() }}
+        run: |
+          uv sync --frozen --extra dev
+          uv run pytest -q -m needs_tex
