@@ -1,0 +1,222 @@
+% The article for the collection-isolation pull request. Self-contained.
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{Isolating Test Collection from Per-Machine Configuration}
+\author{Alberto Serrano-Calva}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A test suite that runs both on a continuous-integration host and on the machine it deploys to
+should test the shipped configuration on both. mind-palace isolates each test from the machine's
+configuration overlays with a fixture that runs before every test. But pytest imports a test
+module during collection, before any fixture runs, so a configuration value the module reads at
+import escapes that isolation. Two changes, each correct alone, composed into a failure that only
+a machine with an overlay can show. One test module computed its vector dimension at import, and
+the fixture isolated the tests that use that dimension. On the deployed machine, whose overlay
+selects a 768-dimensional embedding model where the defaults name a 2560-dimensional one, the
+module's query vectors and the store's matrix disagreed. The deployment gate then refused four
+tests that CI had passed. We state the invariant the suite needs: every configuration read in a
+session sees the same configuration. We show that per-test isolation cannot establish it,
+isolate the loader once before collection, and add a test that fails without that step on any
+host. With a synthetic overlay the four tests fail before the change and pass after it, and the
+whole tier passes with no overlay.
+\end{abstract}
+
+\section{Introduction}
+Configuration in mind-palace has two layers. The committed defaults describe the shipped system.
+A per-machine overlay, never committed, changes what one installation needs: which embedding
+model it serves, where its notes live, which runtime it uses. This is the usual separation of
+code from per-deployment configuration \cite{twelvefactor}. The deterministic test tier should
+assert the defaults, so that a result on one machine means what it means in CI, which has no
+overlay. An autouse fixture enforces this by pointing the configuration loader at an empty
+directory for the duration of each test.
+
+The fixture's scope is a test. Collection happens earlier: pytest imports every test module, and
+a module's top-level statements run at that moment \cite{pytestdocs}. A constant such as
+\code{DIM = int(get\_config().embedding.dim)} is therefore read under whatever configuration the
+process has at import, which on a deployed machine includes its overlay. The tests that use the
+constant then run under the defaults. When the overlay changes the value, the two halves of one
+test see two configurations.
+
+This is a member of a known family. State that leaks between tests, or between a test and its
+environment, makes results depend on order and on the host \cite{luo2014flaky,gyori2015polluting},
+and isolation mechanisms exist because per-test discipline alone does not prevent it
+\cite{bell2014vmvm}. The case here is narrow and fully determined: no order dependence, no
+timing, only the phase in which a read happens. Contributions:
+\begin{itemize}
+  \item the invariant a suite isolated from per-machine configuration needs, and why per-test
+        isolation cannot establish it (\cref{sec:failure});
+  \item the failure it explains on the deployed machine, and why CI could not see it;
+  \item isolation of the loader before collection, keeping the per-test fixture
+        (\cref{sec:fix});
+  \item a regression test that fails without the change on every host, and the measurements
+        (\cref{sec:eval}).
+\end{itemize}
+
+\section{Background}
+\paragraph{The layers.} The loader starts from the committed defaults, merges the levers overlay
+(knobs a tuning loop writes), then the instance overlay (\code{config/ouroboros.toml} on the
+deployed machine), which takes precedence. An environment variable can name another instance
+instead; its own levers file and overlay then replace the chain. The merged result is cached. A
+named load also reads the other instances declared under the configuration directory, to check
+that their namespaces are disjoint.
+
+\paragraph{The fixture.} The root \code{conftest.py} holds an autouse fixture. Before each test it
+points the instance overlay, the levers overlay and the configuration directory at an empty
+directory, removes the environment variable, and clears the cache. After the test, pytest's
+\code{monkeypatch} restores the previous values. A test that needs an overlay patches the paths
+itself.
+
+\paragraph{pytest's phases.} A session configures (hooks named \code{pytest\_configure} run, for
+the conftest files found at start-up), then collects (imports test modules and builds the list of
+items), then runs each item (sets up its fixtures, calls it, tears the fixtures down)
+\cite{pytestdocs}. Statements at the top level of a test module run during collection.
+
+\section{The failure}\label{sec:failure}
+Let $C_0$ be the defaults and $O$ a machine's overlay, a partial assignment of keys. Write $C_0
+\oplus O$ for their merge and $\mathrm{cfg}(r)$ for the configuration a read $r$ observes.
+
+\begin{definition}
+A session is \emph{consistent} if every configuration read in it observes the same
+configuration. It is \emph{isolated} if that configuration is $C_0$.
+\end{definition}
+
+\begin{proposition}\label{prop:scope}
+Let a fixture make $\mathrm{cfg}(r) = C_0$ for every read $r$ inside a test's execution, and let
+nothing else change the loader. If a test module reads a key $k$ at import and one of its tests
+reads $k$ again, and $O(k) \neq C_0(k)$, then the session is not consistent.
+\end{proposition}
+
+\begin{proof}
+The import happens during collection, before any fixture is set up, so the read at import observes
+$C_0 \oplus O$ and returns $O(k)$. The read in the test observes $C_0$ and returns $C_0(k)$, which
+differs.
+\end{proof}
+
+The condition $O(k) \neq C_0(k)$ is what CI cannot produce: with no overlay, $C_0 \oplus O = C_0$
+and every session is isolated. A suite whose only overlay-free host is CI and whose only overlaid
+host is the deployment target first meets the inconsistency at the deployment gate.
+
+\paragraph{The instance.} The sentence-universe tests define, at import,
+\[ \code{DIM = int(get\_config().embedding.dim)} \]
+and build every fixture vector with that length,
+including the fake embedder's answer to the query. The universe under test allocates its
+node matrix with the dimension of the engine's configuration, read inside the test. On the
+deployed machine $O(\code{embedding.dim}) = 768$ and $C_0(\code{embedding.dim}) = 2560$. So the
+query vector has length 768, the node matrix has 2560 columns, and the similarity product
+\code{vectors @ v} raises a shape error. Four tests that score by similarity failed; the other
+twenty-four in the module passed. The vault path is read the same way and was not, in these tests,
+compared across the two configurations.
+
+\paragraph{Composition.} Neither change was wrong alone. Before the fixture existed, the whole
+session read $C_0 \oplus O$: consistent, though not isolated, so the module-level constant agreed
+with its tests on every host. The fixture made each test isolated, and it was correct for every
+read inside a test. Only together, and only where $O$ changes the dimension, do they disagree.
+
+\section{The fix}\label{sec:fix}
+The invariant must hold from the first read of the session, so the isolation has to come before
+collection. A \code{pytest\_configure} hook in the root conftest is the earliest point that also
+has a cleanup registry. It applies the same assignment as the fixture, once, for the session.
+
+\begin{algorithm}
+\caption{Session isolation before collection, and per-test isolation after it.}
+\begin{algorithmic}[1]
+\Procedure{Configure}{session}
+  \State $a \gets$ a new empty temporary directory; register its removal at session end
+  \State point the instance overlay, the levers overlay and the configuration directory under $a$
+  \State remove the overlay environment variable; clear the loader's cache
+\EndProcedure
+\Procedure{BeforeEachTest}{}
+  \State the same assignment under the session's base temporary directory, through
+         \code{monkeypatch}
+  \State clear the cache; after the test, restore and clear again
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+The per-test fixture stays. Its job is now restoration: a test that patches in an overlay of its
+own cannot leak it into the next test. Both use one function that names the three paths, so the
+session and the tests cannot drift apart. With the hook, every read observes $C_0$, whether it
+happens at import or inside a test, and \cref{prop:scope}'s premise $\mathrm{cfg}(\text{import})
+= C_0 \oplus O$ no longer holds.
+
+\begin{remark}
+A module-level read of configuration in a test remains legal, and after the change it is also
+correct. A static rule against such reads would catch the pattern earlier, but it would not stop
+a library imported by a test from doing the same at its own import, which the hook does.
+\end{remark}
+
+\section{Evaluation}\label{sec:eval}
+\paragraph{Reproduction.} In a clean worktree we wrote a synthetic overlay containing only
+\code{[embedding] dim = 768}, the one key in which the deployed overlay and the four failures
+meet. Before the change the module gave 4 failed and 24 passed, the same four tests the deployment
+gate refused. After the change it gave 28 passed, and the two new tests passed.
+
+\paragraph{The regression test.} A new module records, at its own import, the loader's instance
+overlay path, the embedding dimension and the vault path. One test asserts that the recorded path
+is not the checkout's overlay and does not exist. Without the hook it fails on every host,
+including CI, because at import the loader still points at the checkout. The other test asserts
+that the recorded values equal the configuration inside the test. Without the hook it fails on any
+host whose overlay changes either value. Against the previous conftest, both failed with the
+synthetic overlay, and only the first failed without it, as designed.
+
+\paragraph{The gates.} The repository's gates passed on the final tree: ruff, the import
+firewall, mypy at the pinned whole-repository count, the type gate, and the deterministic pytest
+tier. The figures are in \cref{tab:gates}.
+
+\begin{table}[h]
+\centering
+\caption{The deterministic tier, before and after, on the host it failed on and in a clean
+worktree.}\label{tab:gates}
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+tree & host & passed & failed & skipped \\
+\midrule
+main, deployment gate & deployed machine, real overlay & 3{,}355 & 4 & 11 \\
+this change & clean worktree, no overlay & 3{,}361 & 0 & 11 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Limitations and future work}
+The fix establishes isolation for the loader this suite uses. Configuration read through another
+path, such as a library that reads its own environment variables at import, is outside it. Running
+CI once per change with a synthetic overlay, in a second job whose overlay perturbs every key the
+defaults set, would exercise the isolation itself instead of relying on the deployment gate to meet
+it. One end-to-end module reads the secrets service's address at import; it now reads the default
+unless its documented environment variable is set, which is the override that module describes.
+
+\section{Conclusion}
+Isolation that starts at the first test starts too late: collection reads configuration first. A
+session is consistent only if the isolation precedes every read, so it now precedes collection,
+and the per-test fixture keeps each test from leaking an overlay of its own. The four tests the
+deployed machine refused pass there for the reason they pass in CI: both now test the defaults.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}
