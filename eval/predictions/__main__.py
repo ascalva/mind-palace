@@ -63,8 +63,11 @@ def _print_growth(out: dict[str, object]) -> None:
           f"{'worst':>8} {'drawdown':>8} {'to target':>9}")
     for g in readouts:
         to_target = g["to_target"]
+        # a growth held as its log, or too large or too small to read as a number, prints as e^x
+        shown = (f"e^{g['log_growth']:.2f}" if g["growth_is_log"] or not 1e-4 <= g["growth"] < 1e6
+                 else f"{g['growth']:.4f}")
         print(f"{g['arm']:<16} {g['family']:<10} {g['stake']:>5.2f} {g['pairs']:>5} "
-              f"{g['growth']:>10.4f} {g['geometric_mean']:>9.4f} {g['worst_factor']:>8.4f} "
+              f"{shown:>10} {g['geometric_mean']:>9.4f} {g['worst_factor']:>8.4f} "
               f"{g['drawdown']:>8.1%} {'none' if to_target is None else to_target:>9}")
 
 
