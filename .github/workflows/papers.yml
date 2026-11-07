@@ -1,0 +1,69 @@
+name: papers
+
+# Builds every pull request's article (papers/*/paper.tex) with TeX Live and uploads the PDFs. Path
+# scoped the way lean.yml is: the `changes` job runs on every PR and main push, and `build` runs only
+# when the diff touches papers/, the build script or this file, so every sha still gets a verdict.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: papers-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      papers: ${{ steps.diff.outputs.papers }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Does the diff touch papers/?
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          case "$EVENT" in
+            pull_request) BASE="$PR_BASE" ;;
+            push) BASE="$PUSH_BEFORE" ;;
+            *) BASE="" ;;
+          esac
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            PAPERS=true
+          elif git diff --quiet "$BASE" HEAD -- papers scripts/build_papers.sh .github/workflows/papers.yml; then
+            PAPERS=false
+          else
+            PAPERS=true
+          fi
+          echo "papers=$PAPERS" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.papers != 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install TeX Live
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends latexmk texlive-latex-recommended \
+            texlive-latex-extra texlive-fonts-recommended texlive-science lmodern
+      - name: Build every paper
+        run: scripts/build_papers.sh
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: papers
+          path: build/papers/*/paper.pdf
+          if-no-files-found: ignore
