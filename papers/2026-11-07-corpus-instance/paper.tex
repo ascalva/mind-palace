@@ -1,0 +1,677 @@
+% The corpus instance: sizing a hundred-gigabyte open-text instance to study a knowledge store at scale.
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\lean}[1]{\texttt{#1}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\Neff}{N_{\mathrm{eff}}}
+\DeclareMathOperator{\Var}{Var}
+
+\title{Sizing a Hundred-Gigabyte Instance of a Knowledge Store:\\
+Information Never Hurts, Retrieval Crowds, and What a Gigabyte Costs}
+\author{Alberto Serrano-Calva}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A knowledge store that builds context from many sources should be able to show, at a scale where
+its macro quantities are stable, what added context does for its answers and what each source
+contributes. We design an instance of such a store that grows toward a hundred gigabytes of open,
+continuously updated text, and we size it from measurements rather than estimates. Two pieces of
+theory fix the design. First, conditioning never increases entropy, $I(X;Y,Z)\ge I(X;Y)$, so an
+ideal reader can only gain from added context; the practical failure is finite retrieval, and we
+prove the one-line lemma that under a fixed scorer and a fixed budget $k$ the top $k$ of a larger
+corpus restricted to a smaller one lies inside the smaller one's top $k$, so recall is nonincreasing
+in the corpus. Ranking must therefore select from structure that scales with the corpus: scopes,
+dense cores, flow potentials, provenance per source. Second, the effective number of independent
+signals among $N$ signals of mean correlation $\bar\rho$ is $N/(1+(N-1)\bar\rho)\le 1/\bar\rho$,
+while across $D$ weakly correlated domains it grows as $D/\rho_w$; varied sources, and the bridges
+between them, are what reach the regime in which macro behaviour is visible. On six sources
+(Wikipedia, OpenAlex, arXiv, Hacker News, Stack Exchange, Project Gutenberg) we measure that prose
+compresses 2.7 to 3.1 times at \code{zstd -3}, that a gigabyte of text is 1.1 to 1.7 million chunks of
+1,200 characters, and that the local embedder yields 26 chunks a second on one stream and about 30
+at saturation while raising every other caller's latency from 23 ms to seconds. A hundred gigabytes
+is therefore 134 million vectors: 206 GB in float16 at 768 dimensions, 13 GB as one-bit codes, and
+under a 92 GB disk cap only the code fits, with exact rescoring by re-embedding the candidates'
+text at 1.5 s a query; exact float16 vectors fit up to 33 GB of text. The live store's row shapes
+cost 1,084 bytes an occupancy and 567 bytes an edge and would exceed a terabyte; a columnar graph
+is 31 GB. Embedding is the bottleneck at sixty days of the embedder for the last stage. We give a
+three-stage protocol at 1, 10 and 100 GB with the measurements each must produce and what would
+falsify each expectation, a source catalogue with every licence read, and the owner's decisions
+with their prices. Nothing is ingested; the measurements are read-only.
+\end{abstract}
+
+\section{Introduction}
+A companion study measured a single growing citation graph and found where its macro quantities
+stop fluctuating: the spectral gap of a dense core concentrates once the core holds one to two
+thousand nodes with a minimum degree near $\ln N$, and the Hodge split of the dated citation flow
+settles one to two decades of $N$ earlier. A private store of a few dozen notes is below those
+thresholds by orders of magnitude, so nothing measured on it about its macro regime is evidence.
+The question here is how to build a store large and varied enough that the macro behaviour of the
+knowledge system, not of one graph, can be studied: what context does for answers as the corpus
+grows, where the system's constructs earn their keep, and what the system costs per gigabyte.
+
+The direction the design follows is that adding context is good, connected context and disparate
+trends both, and that the design's job is to make that true in practice. The contributions:
+\begin{enumerate}
+  \item two statements of theory made precise, with what follows for the design (\cref{sec:theory}):
+    information never hurts an ideal reader and finite retrieval crowds (a lemma), and the
+    effective number of independent signals is capped near $1/\bar\rho$ within a domain and grows
+    with the number of weakly correlated domains;
+  \item the design of a named instance, isolated from the default one, with one writer and every
+    item labelled by its source as observed, and a batched bulk path through the store's ingestion
+    language (\cref{sec:design});
+  \item the storage and compute arithmetic from measurements: compression, chunk counts, the bytes
+    per vector of five options with what each costs in retrieval quality, the bytes per row of the
+    live graph stores, and the embedder's throughput and its effect on other callers
+    (\cref{sec:arithmetic});
+  \item a three-stage protocol with the measurements each stage must produce and the falsifier of
+    each expectation, a source catalogue with every licence read, and the open decisions with
+    their prices (\cref{sec:protocol,sec:catalogue}).
+\end{enumerate}
+Nothing is built and nothing is ingested. The samples were fetched into a scratch directory and
+measured there; the live stores were read, not written.
+
+\section{Background and related work}
+\paragraph{Information and context.} The chain rule for mutual information and the nonnegativity
+of conditional mutual information give $I(X;Y,Z)\ge I(X;Y)$, and conditioning reduces entropy
+\citep[Theorems 2.5.2 and 2.6.5]{cover2006}. Retrieval-augmented readers condition a language model
+on retrieved passages \citep{lewis2020rag}; that such readers use a long context unevenly, with
+accuracy falling when the relevant passage sits in the middle, is measured by \citet{liu2024lost}.
+The lemma of \cref{sec:crowding} is not about the reader's use of its window but about what reaches
+the window: it is a statement about top-$k$ selection over a growing set.
+
+\paragraph{Effective sample size.} The variance of a mean of $N$ equicorrelated variables is
+$(1+(N-1)\bar\rho)/N$; the factor $1+(N-1)\bar\rho$ is Kish's design effect \citep{kish1965}, and
+$N/(1+(N-1)\bar\rho)$ the effective sample size. The block form of \cref{sec:effective} follows by
+summing the covariance matrix by blocks.
+
+\paragraph{Vectors and codes.} Product quantization \citep{jegou2011pq}, binary codes with a
+theoretical error bound \citep{gao2024rabitq}, graph indexes \citep{malkov2020hnsw} and
+Matryoshka representations that keep a prefix of the dimensions useful \citep{kusupati2022matryoshka}
+are the levers a vector plane has against its size. The embedder here is EmbeddingGemma-2
+\citep{vera2025embeddinggemma}, 768 dimensions, stored in float16 \citep{ieee754} in LanceDB
+\citep{lancedb}; the store's VEC-1 bounds what float16 can move a cosine by and certifies a top $k$
+whose margin exceeds the bound. The recall of each code on the live corpus was measured on
+2026-10-30 and is cited in \cref{sec:vectors}.
+
+\paragraph{Scale thresholds and attribution.} The thresholds SCL-1 to SCL-4 (the relaxation time,
+the eigengap at the cut, the concentration of spectra once the minimum degree exceeds $C\log N$
+\citep{oliveira2009concentration,chung2011spectra}, the power calculation), the $k$-core
+\citep{seidman1983cores}, HodgeRank \citep{jiang2011hodgerank}, and the Shapley attribution
+\citep{shapley1953value,castro2009polynomial} with its leave-one-out contrast are the companion
+notes' and are used, not restated. Bridges between communities \citep{granovetter1973weak}
+and community structure \citep{newman2006modularity,fortunato2010community} are the objects the
+cross-source measurements count. Link prediction on a store's own history
+\citep{libennowell2007link} is the ledger's first generator.
+
+\paragraph{Compression.} Zstandard \citep{rfc8878} is the raw store's codec; its levels are the one
+lever on the raw bytes.
+
+\section{Theory}\label{sec:theory}
+
+\subsection{Information never hurts; finite retrieval crowds}\label{sec:crowding}
+Let $X$ be what a question asks for, $Y$ the context a reader has and $Z$ context added.
+
+\begin{proposition}[conditioning never increases entropy]\label{prop:info}
+$I(X;Y,Z) = I(X;Y) + I(X;Z\mid Y) \ge I(X;Y)$, equivalently $H(X\mid Y,Z)\le H(X\mid Y)$. For any
+bounded loss, the Bayes risk of a decision on $(Y,Z)$ is at most that of a decision on $Y$.
+\end{proposition}
+\begin{proof}
+The equality is the chain rule; the inequality is $I(X;Z\mid Y)\ge 0$ \citep[2.5.2, 2.6.3]{cover2006}.
+The decision on $Y$ alone is among the decisions available on $(Y,Z)$, so the minimum over the
+larger set is no larger.
+\end{proof}
+
+So added context, connected or disparate, cannot hurt an ideal reader. If it hurts, the reader is
+not ideal, and the one way this system's reader is not ideal is that it reads through a finite
+retrieval: a scorer ranks the corpus and the reader sees the $k$ best.
+
+\begin{lemma}[crowding]\label{lem:crowding}
+Let a scorer induce a total order on items (ties broken consistently) and $R_k(C)$ be the $k$
+best items of a finite set $C$. For $C\subseteq C'$,
+\[
+  R_k(C')\cap C \subseteq R_k(C).
+\]
+Hence for a relevant item $r\in C$, $\mathbf 1[r\in R_k(C')] \le \mathbf 1[r\in R_k(C)]$: under a
+fixed scorer and a fixed budget, recall at $k$ is nonincreasing as the corpus grows, whatever is
+added.
+\end{lemma}
+\begin{proof}
+An item of $C$ among the $k$ best of $C'$ is beaten by fewer than $k$ items of $C'$, so by fewer than
+$k$ items of $C\subseteq C'$, so it is among the $k$ best of $C$.
+\end{proof}
+
+The reader receives $I(X;R_k(C'))$, not $I(X;C')$; the first can fall while the second rises, and
+the difference is the crowding: the relevant piece is pushed out of the window by pieces that score
+above it and inform less. The remedy is not less context but a budget that scales with the corpus:
+the ranking must select from a structure, not from one flat list. If a scope $\sigma$ contains $r$
+and is sized by the question rather than by the corpus, the recall inside $\sigma$ is that of
+$|\sigma|$, not of $|C'|$, and \cref{lem:crowding} applied to $\sigma\subseteq C'$ says the scoped
+read is never worse than the unscoped one for an $r\in\sigma$. The store has four such structures:
+scopes (\code{over} a source, \code{within} a region, a congruence on kernels that pushes to the
+leaves), dense cores (the $k$-core of a community, where the companion study found the gap
+concentrates and the whole component's never does), flows (the HodgeRank potential of a dated
+relation, an order that is not the scorer's and does not crowd with the corpus), and provenance per
+source (the origin every item carries, so a reader can ask of one source and the ledger can
+attribute to it). The empirical questions are the rate at which unscoped recall falls with $N$ on a
+real corpus and whether the scoped recall is flat; they are stage 1's battery (\cref{sec:protocol}).
+
+\subsection{The effective number of independent signals}\label{sec:effective}
+
+\begin{proposition}[Kish]\label{prop:kish}
+Let $N$ signals have unit variance and mean pairwise correlation $\bar\rho\in[0,1]$. The variance of
+their mean is $(1+(N-1)\bar\rho)/N$, so the effective number of independent signals is
+\[
+  \Neff = \frac{N}{1+(N-1)\bar\rho}\le\frac1{\bar\rho},\qquad \Neff\to\frac1{\bar\rho}\ \text{as}\ N\to\infty.
+\]
+\end{proposition}
+\begin{proof}
+The sum of the covariance matrix's $N^2$ entries is $N + N(N-1)\bar\rho$; divide by $N^2$
+\citep{kish1965}.
+\end{proof}
+
+\begin{proposition}[domains]\label{prop:domains}
+With $D$ domains of $m$ signals each, correlation $\rho_w$ within a domain and $\rho_b$ between
+domains,
+\[
+  \Var(\text{mean}) = \frac{1+(m-1)\rho_w + m(D-1)\rho_b}{Dm},\qquad
+  \Neff \to \frac{D}{\rho_w + (D-1)\rho_b}\ \text{as}\ m\to\infty,
+\]
+which is $D/\rho_w$ when the domains are uncorrelated and $1/\rho_w$ when they are as correlated as
+their members.
+\end{proposition}
+\begin{proof}
+Sum the covariance matrix by blocks: $Dm$ diagonal entries, $Dm(m-1)$ within-block off-diagonal
+entries at $\rho_w$, $Dm\cdot m(D-1)$ between-block entries at $\rho_b$; divide by $(Dm)^2$ and let
+$m\to\infty$.
+\end{proof}
+
+Read through the companion note's thresholds: SCL-4's $K$, the number of independent resolved
+units an effect $\Delta$ needs, $K\ge((z_{1-\alpha/2}+z_{1-\beta})s/\Delta)^2$, is bounded by $\Neff$.
+A corpus of one domain cannot push $K$ past about $1/\bar\rho$ however large it grows; the macro
+behaviour of the system, a difference between arms at the bar, becomes visible only when $D/\rho_w$
+clears $K$. Varied sources are what reach that regime, and the connections between domains, the
+bridging edges between communities of different sources and the rises they share, are themselves
+the quantities to measure: $\rho_b$ is read off them. A signal here is a community's activity
+series at the instance's cuts; $\rho_w$ and $\rho_b$ are its correlations within and across
+sources. The hypothesis the instance tests is that $\rho_b$ on these six sources is well below
+$\rho_w$.
+
+\section{Concepts and intuition}
+Three pictures carry the design. The first is a window: the reader's context is a window of $k$
+passages over a corpus that grows under it; \cref{lem:crowding} says the window can only lose a
+given passage as the corpus grows, and the store's constructs are ways of placing the window over
+a part of the corpus whose size the question sets. The second is a sum of correlated coins: a
+thousand signals from one domain are worth about $1/\bar\rho$ independent ones, a few dozen at
+typical correlations, and only another domain adds another few dozen; so a store that wants to see
+macro behaviour needs breadth before depth, and the bridges between its domains are where the
+breadth is tested. The third is a budget line: a hundred gigabytes of text is a hundred and thirty
+million vectors, and the disk under them is the same disk the private store runs on, so every byte
+a vector keeps is a byte the raw text, the graph or the headroom loses.
+
+\section{Design}\label{sec:design}
+
+\subsection{A named instance}
+The instance's id is \code{corpus}. Under the store's instance identity (DI-2) everything it holds
+derives from that id and is disjoint from the default instance by construction: its root is
+\code{instances/corpus/}, its stores, spool, lock and levers under it, its secret names and service
+labels prefixed by it, its exhaust lane inside its root. It declares no vault, no transcripts and
+no code agent, so it reads none of the default instance's sources; the loader refuses an overlay
+that could reach anything another instance writes, and a property test over generated ids checks
+the invariant. It has one writer, its supervisor; every surface writes a request its daemon
+enqueues. Every item lands through a script of the ingestion language under the label its source's
+rule gives, and that rule is the same for all six sources: observed. What distinguishes an item is
+its origin, the source name and the item's path, which the value carries and no expression can
+change; so the store can say of every chunk which source it came from, scoped reads can restrict
+to a source, and the attribution can ablate one. A version of an item (a revision, an arXiv
+\code{v2}, an edited answer) is a new version on the identity's chain, never a new identity.
+
+\subsection{The disk}
+The instance shares one disk with the default instance. 117 GB are free and 25 GB must stay free,
+so the instance's whole footprint is capped at 92 GB, below the 100 GB dataset budget. Every figure
+below is read against 92.
+
+\subsection{The bulk path}\label{sec:bulk}
+The daemon's job rate, read from its queue, is 720 an hour, 12 a minute: the tick's cadence, not
+the writer's ceiling. A path that enqueued one item per job would land $10^7$ items in 580 days; the
+bulk path makes a job a batch. Each source is a line of the ingestion language's table: a structured
+source with a location under the instance's root, a format, an item rule, a label rule (observed),
+a refresh (an edge process that fetches a dump part or drains a stream into the source's directory
+and writes batches of items as files the daemon trusts) and a cursor (the field whose newest value
+is recorded once a plan that read the source has landed). The script is one per source and the same
+shape for all six (\cref{alg:sync}); the one addition the language needs is a \code{batch} argument
+to its \code{items} reading function, so a plan is bounded in gas and lands as one command of the
+keyed model. By the ingestion laws, batches on distinct identities land in any order and converge
+under re-run after any interruption (ING-9, ING-11), and a re-fetched item whose text the plane
+holds embeds nothing (ING-5), which makes a daily stream drain idempotent. A batch of 2,000 items
+is about 2,700 chunks, 100 s of the embedder, one transaction; $10^7$ items are 5,000 jobs, seven
+hours at the tick's rate, and the embedder, not the queue, is what the jobs wait on.
+
+\begin{algorithm}
+\caption{One batch of a corpus source, observed, under its own origin.}\label{alg:sync}
+\begin{algorithmic}[1]
+\Require a source name and a batch size $b$
+\Ensure the next $b$ items past the source's cursor landed, the cursor advanced once the plan lands
+\For{each item $it$ in $\mathrm{items}(\mathrm{source}(\text{``corpus/''}+name),\ \mathrm{batch}{:}\ b)$}
+  \State store $it.\mathrm{content}$ in ``observed'' at ``corpus/''$+name+$``/''$+it.\mathrm{id}$
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\section{The measured arithmetic}\label{sec:arithmetic}
+
+\subsection{Method}
+Samples of the six sources were fetched into a scratch directory (88 MB of data and a 21 MB
+catalogue): 24.1 MB of bz2 streams cut on stream boundaries from part 1 of the current Wikipedia
+dump (2,100 pages, 1,602 articles after redirects); 800 questions and 800 answers of one Stack
+Exchange site through its API; 2,000 OpenAlex works of 2024 with abstracts through its API, the
+abstract rebuilt from its inverted index; one OAI-PMH page of 1,300 arXiv \code{cs} records;
+3,000 comments and 1,000 stories of Hacker News through the Algolia API; twenty Project Gutenberg
+texts. Each was reduced to the form that would land (prose with markup removed, a title prepended)
+and measured: UTF-8 bytes, \code{zstd} at levels 3, 9 and 19 on the concatenation, and the store's
+own chunker (1,200 characters, 150 of overlap, block-aware) for the chunk count. The embedder was
+timed against the stack's service (EmbeddingGemma-2 Q8\_0, four slots, context 8,192, all layers on
+the GPU) with the chat model checked idle through its slots endpoint before every configuration,
+six configurations of 512 chunks each, 3,000 chunks in all drawn interleaved from five sources
+(973 characters, 240 tokens each by the server's count); a single-query probe was timed idle and
+once beside each configuration. The live stores were read, not written, for their bytes per row.
+
+\subsection{Compression and chunks}
+\begin{table}[t]
+\centering
+\caption{Measured ratios per source. Compression ratios are uncompressed over compressed bytes of
+the landing-form text. Chunks are the store's chunker at 1,200 characters with 150 of overlap.}\label{tab:ratios}
+\footnotesize
+\begin{tabular}{lrrrrrr}
+\toprule
+source & items & item (B) & zstd $-3$ & zstd $-19$ & chunks/MB & chunk (chars) \\
+\midrule
+Wikipedia, prose & 1,602 & 22,531 & 2.77 & 3.59 & 1,217 & 964 \\
+Stack Exchange, posts & 1,600 & 1,442 & 2.95 & 3.64 & 1,313 & 830 \\
+OpenAlex, title and abstract & 2,000 & 1,588 & 3.08 & 3.94 & 1,578 & 704 \\
+arXiv, title and abstract & 1,300 & 1,514 & 2.93 & 3.58 & 1,728 & 649 \\
+Hacker News, one comment an item & 2,000 & 251 & 2.65 & 3.00 & 4,212 & 240 \\
+Project Gutenberg, books & 20 & 932,137 & 2.83 & 3.67 & 1,129 & 1,018 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\Cref{tab:ratios} gives the ratios. Prose compresses 2.7 to 3.1 times at \code{zstd -3} and 3.6 to
+3.9 at $-19$; the level buys a quarter more at about ten times the compressor's time. A short item
+costs a whole chunk however short, so comments taken one at a time make 4,200 chunks per MB; the
+design takes a Hacker News thread as the item, each comment a block, and sizes it at the Stack
+Exchange rate, an assumption stage 1 measures. Other counts from the samples: a Wikipedia article in
+the slice links to 205 distinct pages on average (median 133); an OpenAlex work of 2024 with an
+abstract references 135 works on average (median 70), 93\% at least one.
+
+\begin{table}[t]
+\centering
+\caption{The 100 GB mix and what it becomes. Text is UTF-8 in the landing form; chunks and
+compressed sizes follow \cref{tab:ratios}. Wikipedia is every article's prose and a 5 GB history
+subset; OpenAlex 15 M works with abstracts in selected fields; Stack Exchange five sites with
+comments and edits; Hacker News every item as threads, chunked at the Stack Exchange rate; Project
+Gutenberg 10,000 English texts; arXiv every record's title and abstract with its versions.}\label{tab:mix}
+\small
+\begin{tabular}{lrrrr}
+\toprule
+source & text (GB) & chunks (M) & zstd $-3$ (GB) & zstd $-19$ (GB) \\
+\midrule
+Wikipedia & 35.0 & 42.6 & 12.6 & 9.7 \\
+OpenAlex & 24.0 & 37.9 & 7.8 & 6.1 \\
+Stack Exchange & 15.0 & 19.7 & 5.1 & 4.1 \\
+Hacker News & 12.0 & 15.8 & 4.5 & 4.0 \\
+Project Gutenberg & 9.5 & 10.7 & 3.4 & 2.6 \\
+arXiv & 4.5 & 7.1 & 1.5 & 1.1 \\
+\midrule
+total & 100.0 & 134.4 & 34.9 & 27.7 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\Cref{tab:mix} spends the budget where the instruments need it, with dated graphs and version
+chains in every source but one. A hundred gigabytes of text is 134 million chunks and 35 GB of raw
+store.
+
+\subsection{Vectors}\label{sec:vectors}
+\begin{table}[t]
+\centering
+\caption{Bytes per vector of five options, their total at each stage, and what each keeps of the
+exact top ten on the live corpus (recall at 10 against exact float32, measured 2026-10-30 on the
+titles, owner and self query families).}\label{tab:vectors}
+\footnotesize
+\begin{tabular}{lrrrr>{\raggedright\arraybackslash}p{5.6cm}}
+\toprule
+option & B/vector & 1 GB & 10 GB & 100 GB & keeps of the exact top ten \\
+\midrule
+float16, 768 & 1,536 & 2.1 GB & 20.5 GB & 206 GB & 0.999 to 1.000; VEC-1 certifies the margin \\
+int8, 768 & 768 & 1.0 & 10.3 & 103 & 0.989 to 0.993; an index beside the float column only \\
+float16, 256 (Matryoshka) & 512 & 0.7 & 6.8 & 69 & 0.46 to 0.76; 0.78 to 0.96 rescored from full vectors \\
+int8, 256 (Matryoshka) & 256 & 0.3 & 3.4 & 34 & not measured; at most the row above \\
+one-bit code, 768 bits & 96 & 0.1 & 1.3 & 13 & sign bits 0.17 to 0.60; 1-bit RaBitQ refined 0.86 to 0.97 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Each chunk is one vector of 768 dimensions. \Cref{tab:vectors} gives the bytes and the measured
+recall of each option. VEC-1 bounds the cosine error of float16 storage at $4.884\times10^{-4}$ for
+$d=768$ and certifies a top $k$ whose margin exceeds twice the sum of the storage, query and kernel
+bounds; the live store certified 54\% of its queries. With the raw store and the compact graph of
+\cref{sec:graph} beside them, the footprints at 100 GB are in \cref{tab:fits}: only the one-bit code
+fits under 92 GB. Per gigabyte of text the footprint is 0.35 GB raw, 0.31 GB graph, 0.06 GB chunk ids
+and 0.01 GB index plus the vectors, so exact float16 vectors admit 33 GB of text, int8 52, Matryoshka
+float16 65, Matryoshka int8 85, and the one-bit code 106.
+
+\begin{table}[t]
+\centering
+\caption{Footprints at the 100 GB stage, chunk grain, raw at \code{zstd -3}, against the 92 GB cap.}\label{tab:fits}
+\small
+\begin{tabular}{lrrrrrrl}
+\toprule
+configuration & raw & vectors & graph & ids & index & total (GB) & fits \\
+\midrule
+float16 768 & 35 & 206 & 31 & 6 & 1 & 280 & no \\
+int8 768 & 35 & 103 & 31 & 6 & 1 & 177 & no \\
+float16 256 & 35 & 69 & 31 & 6 & 1 & 142 & no \\
+int8 256 & 35 & 34 & 31 & 6 & 1 & 108 & no \\
+one-bit code & 35 & 13 & 31 & 6 & 1 & 86 & yes \\
+float16 768, item grain only (36 M items) & 35 & 56 & 31 & 0 & 0 & 122 & no \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+What makes the one-bit code usable at its measured unrescored recall is that the raw text is on
+disk: the top $m$ candidates by code can be re-embedded at query time and rescored exactly, at
+$m/26$ seconds (1.5 s for $m=40$), with no full-precision column kept; the VEC-1 certificate then
+applies to the rescored list exactly as to a float16 store. This is the design's default for the
+100 GB stage, and the recall it keeps on these sources is stage 2's first measurement, against
+exact answers that still fit there.
+
+\subsection{The graph and its indexes}\label{sec:graph}
+The live stores' bytes per row, read read-only: a curated Lance row 2,215 B (the float16 vector
+1,536 and 679 for the text column and ids), a plane occupancy 1,084 B with its three indexes, a
+reference edge 567 B with its five, a membership 385 B. At the corpus's counts, 36 million items and
+about 1.8 billion dated in-corpus edges (Wikipedia 7.3 M articles at about 150 article links each,
+OpenAlex 15 M works at 40 in-corpus references, Hacker News 5 M threads at 9 replies, Stack
+Exchange 6 M posts at 2.5, arXiv 3 M at 1.5 versions), the live shapes do not scale
+(\cref{tab:graph}). The compact column is the design: the chunk text is not duplicated into the
+vector table (the raw store holds it; a chunk is an item digest with a start and an end),
+occupancies are at the item grain with integer ids and one index, edges are columnar per source
+and per cut and are loaded as sparse matrices for the spectra, and only the quotient graph between
+communities and the derived backbone land in the store's relation tables. The 120 B occupancy is a
+target; stage 1 measures it.
+
+\begin{table}[t]
+\centering
+\caption{The graph and its indexes at 100 GB: the live row shapes against the compact design.
+Occupancies are counted at the chunk grain today and at the item grain in the compact design;
+the last two columns are gigabytes.}\label{tab:graph}
+\footnotesize
+\begin{tabular}{lr>{\raggedright\arraybackslash}p{4.8cm}rr}
+\toprule
+component & count & unit, today / compact & today & compact \\
+\midrule
+chunk rows beside the vector & 134 M & 679 B with the text / 48 B as ids and offsets & 91 & 6.5 \\
+plane occupancies & 134 M / 36 M & 1,084 B at the chunk grain / 120 B at the item grain & 146 & 4 \\
+edges & 1.75 G & 567 B as indexed rows / 12 B as columnar triples & 994 & 21 \\
+versions & 47 M & 120 B & 6 & 6 \\
+IVF partition index & 134 M & 8 B & & 1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Throughput and compute}
+\begin{table}[t]
+\centering
+\caption{Embedding throughput against the local embedder, 3,000 chunks of 973 characters and 240
+tokens, the chat model idle. The probe is a single short query timed beside the running
+configuration; idle it took 23 ms.}\label{tab:embed}
+\small
+\begin{tabular}{rrrrrr}
+\toprule
+batch & streams & chunks/s & tokens/s & batch latency p50 (s) & probe beside it (s) \\
+\midrule
+8 & 1 & 21.4 & 5,298 & 0.34 & 0.60 \\
+32 & 1 & 23.4 & 5,940 & 1.20 & 1.23 \\
+64 & 1 & 26.1 & 6,245 & 2.38 & 1.84 \\
+32 & 2 & 28.9 & 6,753 & 2.15 & 1.65 \\
+32 & 4 & 30.4 & 6,795 & 3.99 & 4.32 \\
+64 & 4 & 29.0 & 6,750 & 8.06 & 8.45 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\Cref{tab:embed} gives the embedder's throughput. It saturates near 30 chunks/s (about 6,800
+tokens/s); batch 64 on one stream gives 26, a second stream buys 11\% and four buy 16\%, and every
+stream adds its queue to the latency another caller sees, which is the default instance's daemon
+and the reader at the chat model. The design embeds on one stream at batch 64 and yields: a bulk
+batch is not started while the embedder has another principal's request in flight. The compute per
+stage (\cref{tab:compute}) is then 14 hours at 1 GB, six days at 10 GB and sixty days at 100 GB, the
+same for every vector option, because a code is derived from the full vector; the embedder sleeps
+after a minute idle and shares the GPU with a 27B chat model that has been measured to run out of
+GPU memory under load, so the bulk path runs when the chat model is asleep and the sixty days are
+calendar weeks at the machine's idle hours. Compression and chunking run at hundreds and tens of
+MB/s and are minutes per stage. The daily drains (3.2 English Wikipedia edits a second measured on
+the event stream, 10,000 Hacker News items a day, a few hundred Stack Exchange posts a day, about
+2,000 arXiv records a day) are under 50,000 chunks a day, half an hour of the embedder.
+
+\begin{table}[t]
+\centering
+\caption{Compute per stage at the measured single-stream rate.}\label{tab:compute}
+\small
+\begin{tabular}{lrrrr}
+\toprule
+stage & chunks (M) & embedder at 26/s & at 30/s & jobs of 2,000 items (12 a minute) \\
+\midrule
+1 GB & 1.3 & 14 h & 12 h & 181 (0.3 h) \\
+10 GB & 13.4 & 143 h, 6 days & 5 days & 1,814 (2.5 h) \\
+100 GB & 134 & 1,430 h, 60 days & 52 days & 18,140 (25 h) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{The staged protocol}\label{sec:protocol}
+Every stage is a dated extension of the one before, and every stage produces the same families of
+measurement against $N$, so the curves are read across three decades. The method for the macro
+quantities is the companion study's: yearly cuts, the smallest twenty eigenvalues of the normalized
+Laplacian by shift-invert ARPACK with a minimum-degree ordering, node and edge bootstrap widths,
+the 10\% crossing, the $k$-cores, the Hodge split of the dated flow by LSMR on the clique complex.
+It ran at $N=33{,}000$ in minutes; the corpus's graphs are measured per source and per community at
+that scale, and the whole is read on the quotient graph of the communities (DYN-5: exact on block
+fields, the gap never lowered), never on 36 million nodes at once.
+
+\paragraph{Stage 1: 1 GB} (170 MB a source, 1.3 M chunks, 14 h of embedding; everything exact,
+float16 chunk vectors with every code beside them for the bench). The measurements: the macro
+quantities against $N$ per source ($\gamma$, the first four eigengaps, $d_{\min}$, the $k$-core
+crossings, the Hodge split at yearly cuts with bootstrap widths), six curves for six relation
+kinds, falsified by a source whose 6-core or 10-core gap width never falls under 10\% by $N=10^5$;
+the Hodge split's earlier settling per source, falsified by a harmonic fraction still moving where
+$\gamma$ has settled; cross-source bridges (explicit: Wikipedia citations of arXiv and DOI works,
+Hacker News and Stack Exchange links to Wikipedia and arXiv, the OpenAlex–arXiv twins; semantic:
+chunk pairs across sources above $\sigma$) against a degree-preserving rewiring null, and shared
+rises ($\rho_w$, $\rho_b$ at lags of 0 to 8 weeks, $\Neff$ by \cref{prop:domains}), falsified by
+bridges at the null or $\rho_b$ within the band of $\rho_w$; the retrieval battery (500 held-out
+titles a source, the labelled twins across sources, the BEIR pair of the embedder bench as a fixed
+control \citep{thakur2021beir}; recall at 10 unscoped and \code{over} a source), falsified by an
+unscoped recall flat in $N$ across the stages or a scoped recall falling with the source's own $N$;
+attribution by the ledger's generators over the six sources with the ablation arms and the
+Shapley reading, the OpenAlex–arXiv pair as the redundancy witness (leave-one-out near zero for
+each, Shapley near a half each), falsified by both twins necessary at the bar; cost and latency
+against $N$ at the profile's method, the occupancy bytes per item against the 120 B target, and
+the Python share of each sentence, falsified by an occupancy above 300 B or a share above 20\%.
+
+\paragraph{Stage 2: 10 GB} (13.4 M chunks, six days, 29 GB on disk; the last stage at which exact
+float16 chunk vectors fit beside everything else, so it decides the vector plane). Everything of
+stage 1 again, and: the codes against exact answers (int8, Matryoshka-256 in float16 and int8, the
+one-bit code, each unrescored and rescored by re-embedding the top $m\in\{20,40,80\}$, against the
+exact top ten on stage 1's battery, with the VEC-1 certified share and the latency of each),
+falsified for the default by a one-bit code rescored at $m\le80$ below 0.95 on the titles and twins
+families; an index (flat float16 at 13 M rows, about 1.8 s by linear scaling of the 19.7 ms measured
+at 147 k, against IVF at nprobes 32 and 128), falsified by IVF at 128 below 0.95 on the twins; the
+thresholds on the quotient graph of the communities and the relaxation time that spaces the
+ledger's rounds, with DYN-5's bound as the control; SCL-4's $K$ from the pilot's spread against
+the rounds a year of weekly cuts affords; and the compiled-rewrite verdict at 13 M rows.
+
+\paragraph{Stage 3: 100 GB} (134 M chunks, sixty days, 86 GB on disk; the configuration stage 2
+chose, by default one-bit codes with re-embedding, raw at \code{zstd -3} with $-19$ in reserve, the
+compact graph, the full catalogue and the daily drains). Everything again across three decades of
+$N$, and: where each quantity's width crossed 10\%, in $N$ and in $d_{\min}/\ln N$, against the
+companion study's 1,000 to 2,000 and 0.9 to 1.3; $\Neff$ over all six sources and whether $K$ is
+reached, falsified by an $\Neff$ no larger at 100 GB than at 10 (which \cref{prop:domains}
+predicts for more text in the same domains, and only a seventh domain would lift); the crowding
+curve over three decades and the $N$ at which unscoped recall on the twins falls under one half;
+the Shapley and leave-one-out readings of the six sources with their disagreements named as
+redundancy; and the daily cost (chunks a day, embedder minutes a day, disk growth a week against
+the cap), falsified as a plan by growth past 1 GB a week.
+
+In one line each: stage 1 says whether the sources connect and whether crowding is real at a
+million chunks; stage 2 says what a code costs against exact answers and settles the vector plane;
+stage 3 says whether the macro quantities, the effective count and the attribution behave across
+three decades as \cref{lem:crowding}, \cref{prop:domains} and the companion study predict.
+
+\section{The source catalogue}\label{sec:catalogue}
+Every licence and term was read on 2026-11-07.
+
+\begin{description}
+  \item[Wikipedia] (English, current article text and a subset of revision histories). Text under
+    CC BY-SA 4.0 and the GFDL \citep{wikimedia2026legal}; the Foundation's terms of use take
+    precedence; automated clients must send a descriptive User-Agent with contact information or
+    are refused. 7,260,766 articles; the current-articles multistream dump is 27.0 GB bz2 and over
+    105 GB of XML, about 30 to 40 GB of prose by the measured ratio; the full history is multiple
+    terabytes uncompressed in 7z parts. Dump parts fetched by byte range through the multistream
+    index; the live edit stream over server-sent events, resumable by event id
+    \citep{wikimedia2026eventstreams}, 3.2 English edits a second measured. It exercises the
+    hyperlink graph, version chains with dates on every page, a velocity with many generations,
+    and bridges to arXiv and DOI works through citation templates.
+  \item[OpenAlex] (works with abstracts, selected fields). CC0 1.0 \citep{openalex2026snapshot,
+    priem2022openalex}; the snapshot is free with no account; the API is 10 requests a second
+    without a key, cursor paging needs a free key. 464,765,485 works in the 2026-10-14 manifest,
+    675.3 GB gzipped in 1,898 parts; 168.7 M with abstracts, of which Mathematics 2.3 M, Computer
+    Science 8.4 M, Physics and Astronomy 20.6 M. Quarterly snapshot streamed through a field filter
+    and discarded; the API for the daily delta. It exercises the dated citation graph the companion
+    study measured, topics as a partition, and the OpenAlex–arXiv twin as the redundancy witness.
+  \item[arXiv] (metadata with abstracts). Descriptive metadata including abstracts under CC0 1.0
+    \citep{arxiv2026tou}; e-prints are not and are not fetched; at most one request every three
+    seconds. More than three million articles, 4.5 GB of text. OAI-PMH with versions and a licence
+    per record, incremental by date, about 2,000 records a day. It exercises version chains with
+    dates and no citations, and a nightly feed the loop registers from round by round.
+  \item[Hacker News] The official API has no rate limit and no stated terms on the content
+    \citep{hn2026api}; the search API allows 10,000 requests an hour; the site's terms grant the
+    content's licence to its operator and no third party and forbid scraping the site, which the
+    API is not; the content carries no open licence. 50,408,507 items; 9,300 comments and 850
+    stories a day measured; about 12 GB of text as threads. It exercises a reply tree with
+    minutes of latency, links to Wikipedia and arXiv as explicit bridges, and the thread as an item
+    whose comments are blocks. Its inclusion is an owner's decision.
+  \item[Stack Exchange] (math, physics, stats, cs, mathoverflow). User content under CC BY-SA (2.5,
+    3.0, 4.0 by date) with attribution to the question and the author; the 2024-04-02 archive is
+    CC BY-SA 4.0 with no login \citep{stackexchange2024dump}; later official dumps are downloaded
+    from a logged-in profile under terms that admit personal use and projects that do not train a
+    large language model; the API is 300 requests a day anonymous with a backoff field to honour.
+    The five sites hold 2.4 M questions, 3.1 M answers and 13.6 M comments; about 15 GB of text with
+    edit history. It exercises answers and comments as a dated relation, edits as version chains,
+    and the question-and-answer form the battery's queries come in. The dump path is an owner's
+    decision.
+  \item[Project Gutenberg] (English texts). Public domain in the United States
+    \citep{gutenberg2026policy}; the trademark may be kept or stripped for non-commercial use;
+    copyrighted items are excluded by the catalogue's rights field; bulk access through the
+    harvest URL with a two-second wait or a mirror, not the main site. 78,461 texts, 63,115 in
+    English; the sample's books 0.93 MB each, so 10,000 texts are about 9.5 GB. It exercises long
+    documents with no dated relation: the null for the velocity instruments and the control for
+    the cores.
+\end{description}
+Nothing is dropped outright; two sources carry conditions the owner decides on, and both default
+to the path that needs no account.
+
+\section{The owner's decisions, priced}
+\begin{description}
+  \item[D-1, the vector plane at 100 GB.] Default: one-bit codes at the chunk grain with exact
+    rescoring by re-embedding the top 40, no full column, 86 GB on disk; price: 1.5 s a query
+    against 20 ms today, and a recall to be measured at stage 2. Alternatives: stop at 33 GB of
+    text with exact float16 vectors (every answer certifiable, a third of the catalogue, six domains
+    still); an external disk (exact at 100 GB is 280 GB); int8 Matryoshka-256 up to 85 GB of text
+    (recall unmeasured).
+  \item[D-2, Hacker News.] Default: included through the official API, held locally, never
+    republished; price: the one source without an open licence. Alternative: drop it, returning
+    12 GB and 16 M chunks to the others and losing the reply tree, the minutes-scale velocity and
+    one of six domains.
+  \item[D-3, Stack Exchange's dumps.] Default: the 2024-04-02 archive plus the anonymous API;
+    price: the backfill since arrives at 300 requests a day. Alternatives: the owner's account and
+    the current official dumps under their terms; a registered API key.
+  \item[D-4, the embedder's sixty days.] Default: this machine, one stream, at idle hours; the
+    vectors are keyed by content and embedder, so a pause loses nothing. Alternatives: a second
+    machine with the same model; the item grain only (36 M vectors, 16 days, no chunk-level
+    retrieval for long items); 2,400-character chunks (half the count, a different retrieval unit).
+  \item[D-5, OpenAlex access.] Default: the quarterly snapshot streamed through a field filter, no
+    account, 675 GB of transfer a quarter. Alternative: a free key for cursor paging and the daily
+    delta.
+  \item[D-6, the Wikipedia history subset.] Default: 5 GB of text, the revisions of the pages the
+    other sources bridge to, sampled monthly. Alternatives: every revision of a thousand pages;
+    none.
+  \item[D-7, the raw compression level.] Default: \code{zstd -3}, 35 GB. Alternative: $-19$ from
+    the start, 7 GB saved at ten times the compressor's time, minutes not hours.
+\end{description}
+
+\section{Limitations}
+One sample per source and one run per embedder configuration: the ratios are good to one
+significant figure and the throughput carries the machine's ordinary variance. The Wikipedia slice
+is from the dump's first part, the oldest page ids, whose articles are long; its item size overstates
+the encyclopedia's, its chunk rate per megabyte does not depend on it. The wikitext reduction is a
+regular-expression pass, not a parser, so the prose ratio is slightly high. The Hacker News thread
+rate and the compact occupancy's 120 bytes are assumptions the first stage measures. The recall of
+a one-bit code rescored by re-embedding has not been measured on these sources; the default for
+the last stage rests on the measured recall of the RaBitQ index refined from full vectors, which is
+the same operation with a different source of the exact vectors. The licences were read on one day
+and change; the catalogue records the date. The edge counts are means from the samples applied to
+the sources' own totals, and the Wikipedia link count includes links the article namespace filter
+would drop. Nothing here was ingested, so nothing here is a result about the store's behaviour at
+scale; that is what the protocol is for.
+
+\section{Future work}
+The first fetch, licensed at the merge and following the ingestion language's merge, lands the
+1 GB stage and its battery. The ingestion language gains the \code{batch} argument and the
+instance its configuration section; six refresh processes land under the edge zone. The 10 GB stage
+decides the vector plane by measurement, and if the one-bit code fails its bar the owner's
+alternatives of D-1 are priced here already. A seventh domain, if $\Neff$ saturates as
+\cref{prop:domains} predicts, is the way to lift it; candidates are archival economic series with
+vintages and the commit histories of public repositories, both named in the companion note. The
+lag structure of the shared rises, whether a rise in one source leads another's, is the HodgeRank
+potential of a lead-lag flow and is the natural next reading once the series exist.
+
+\section{Conclusion}
+Added context cannot hurt an ideal reader and does hurt a finite retrieval, by a lemma whose remedy
+is a ranking that selects from structure sized by the question; the effective number of independent
+signals is capped within a domain and grows with the number of weakly correlated domains, so breadth
+across sources, and the bridges between them, is what makes macro behaviour visible. A hundred
+gigabytes of open text from six such sources is 134 million chunks, 35 GB compressed, and sixty days
+of this machine's embedder; its vectors fit under the disk's cap only as one-bit codes rescored
+exactly from the raw text, or the corpus stops at a third of the budget with exact vectors. The
+three-stage protocol measures the thresholds, the bridges, the crowding, the codes and the
+attribution against $N$ across three decades, with the falsifier of each expectation named before
+the first byte is ingested.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
