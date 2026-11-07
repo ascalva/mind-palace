@@ -38,9 +38,11 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
+import scipy.sparse as sp
+from scipy.sparse.csgraph import connected_components
 
 from core.kernel.clearance import MIRROR_READ
 from core.kernel.config import Config, get_config
@@ -334,6 +336,55 @@ def free_energy_distances(
     sym = (phi + phi.T) / 2
     np.fill_diagonal(sym, 0.0)
     return sym
+
+
+# Above this many nodes, `free_energy_distances_from` solves the walk on the source's connected
+# component alone. Measured (docs/experiments/profile-2026-11-06.md, one session): a sparse direct
+# solve of the whole resolvent was tried first and lost, 28x slower than the dense inverse on a
+# connected support of 5,000 nodes (34 s against 1.2 s), because the distance needs the diagonal of
+# the inverse, one solve a node, and LU fill makes each solve dear. The win is the decomposition:
+# the walk matrix is block diagonal over components, so the dense inverse of the source's block is
+# the source's row of the whole one.
+COMPONENT_SOLVE_ABOVE = 300
+
+
+def free_energy_distances_from(
+    weights: np.ndarray, source: int, *, beta: float, z: float = DEFAULT_GAMMA,
+    degrees: np.ndarray | None = None, method: Literal["auto", "full", "component"] = "auto",
+) -> np.ndarray:
+    """Row `source` of `free_energy_distances(weights, …)`: the distance from one node to every
+    node, which is all `diffuse` reads.
+
+    The walk matrix W_β is block diagonal over the connected components of the graph, so its
+    resolvent is too: nodes in other components are unreachable (+inf, as in the full matrix) and
+    the source's row depends on its own component alone. With `method="component"`, or "auto"
+    above `COMPONENT_SOLVE_ABOVE` nodes, the dense inverse is taken of that block only: cubic in
+    the component's size, and memory its square, not the support's. With `method="full"`, or
+    "auto" at or below the threshold, it is that function's row, computed exactly as before.
+
+    The solver is not part of what `diffuse` means: RSP-1 to RSP-5 are statements about the exact
+    solution Z, and both routes compute it, to rounding (they agree to 1e-10 on random supports;
+    the test pins it). They differ in time and memory, never in the walk."""
+    n = weights.shape[0]
+    if method == "full" or (method == "auto" and n <= COMPONENT_SOLVE_ABOVE):
+        return np.asarray(free_energy_distances(weights, beta=beta, z=z, degrees=degrees)[source])
+    if beta <= 0 or not 0 < z < 1:
+        raise ValueError("need beta > 0 and 0 < z < 1")
+    deg = None
+    if degrees is not None:
+        deg = np.asarray(degrees, dtype=np.float64)
+        if deg.shape != (n,):
+            raise ValueError(f"degrees must be one per node: {deg.shape} for {n} nodes")
+        if np.any(deg < weights.sum(axis=1) - 1e-9):
+            raise ValueError("degrees must be at least the support's own: a smaller degree would "
+                             "make the walk invent weight (RSP-5)")
+    _, label = connected_components(sp.csr_matrix(weights), directed=False)
+    comp = np.flatnonzero(label == label[source])
+    out = np.full(n, np.inf)
+    out[comp] = free_energy_distances(
+        weights[np.ix_(comp, comp)], beta=beta, z=z,
+        degrees=None if deg is None else deg[comp])[int(np.searchsorted(comp, source))]
+    return out
 
 
 # ── The engine ──────────────────────────────────────────────────────────────────────────────────
