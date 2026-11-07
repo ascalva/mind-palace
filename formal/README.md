@@ -27,7 +27,7 @@ Each family comes in three parts:
 `Spec/` is proved in `Palace` with exactly the same statement, from the standard axioms, and
 everything the statements reach passes Lean's kernel and five independent checkers. A proof file
 therefore cannot change what the ledger's laws state: only `Spec/` and the model can. The design
-theorems (Sever, Frustration, Leak, Transport, Superconnection, Lineage, and the parts of Magnetic and
+theorems (Sever, Frustration, Leak, Transport, Superconnection, Lineage, Dynamics, and the parts of Magnetic and
 NegativeType no row cites) have no `Spec/` statements yet: the kernel replays their proofs, but their statements live
 in the proof files, which can change them, until code relies on them and a row cites them. Whether a statement says
 what its row says stays a reader's judgment, and the reading is now confined to those two places;
@@ -199,6 +199,35 @@ Roundoff and FloatModel, so it has no statements of its own):
   is over measures (with `klDiv_eq_zero_iff`, the chain rule `klDiv_compProd_eq_add` and data
   processing `klDiv_map_le` at this pin): the bridge from two Bernoulli laws would cost more than
   the thought experiment needs, since no code relies on GRW-2.
+- `Dynamics`: the dynamics of an evolving graph (`docs/design-notes/dn-graph-dynamics.md`), proved
+  before any code, on a model of a value's versions (the velocity over a window of cuts, a
+  0-cochain per pair of cuts), edge flows with their weighted divergence and least-squares
+  potential, the Neumann partial sums and the ripple of a shock (the resolvent on a relation), the
+  modes of a symmetric operator, and the quotient of a graph by a partition. DYN-1 the velocity
+  adds along the chain of cuts and is the sum of its steps, and a changing potential's edge field
+  is a gradient, orthogonal to every curl; DYN-2 the Neumann series: in a complete normed ring
+  `Σ_k x^k = (1 − x)⁻¹` when `‖x‖ < 1` (Mathlib's geometric series), for a matrix under the row-sum
+  operator norm, so for every nonnegative matrix whose rows sum to at most `s < 1`, which makes the
+  killed walk's fundamental matrix the sum over all walks and the ripple the sum of the damped
+  steps; the tail after `n` terms is at most `s^n / (1 − s)` entrywise and the partial sums never
+  overshoot; the control, a matrix with rows summing to `1` (an eigenvalue `1`), has a singular
+  `1 − M` and divergent partial sums; DYN-3 HodgeRank, `s = L_w⁺ div_w Y` is a least-squares
+  potential of the flow `Y` under the weights `w`, its residual divergence-free, unique up to the
+  kernel of `L_w`, which on a connected graph with positive weights is the constants; DYN-4 a
+  function of a symmetric matrix acts on each eigenvector by the function of its eigenvalue, so the
+  heat kernel commutes with the projection onto any set of modes, the dropped part decays at least
+  as `e^{−μt}` for `μ` under the dropped eigenvalues, and a field on modes above `μ` has energy at
+  least `μ` times its norm (Courant–Fischer on the modes a field lives on); DYN-5 the Laplacian of
+  the quotient by a partition is `Pᵀ L P`, so coarse-graining is exact on block-constant fields and
+  never lowers the spectral gap, the ripple commutes with a merge-free transport that carries every
+  weight forward, and RSP-5 read block by block; DYN-6 the mixing scaffold, in the shapes of the
+  switch-chain family of openai/math (`lean/ComparatorChallenges/SwitchChain.lean`, Apache 2.0;
+  restated over the Laplacian's modes, nothing copied): a spectral gap as a Poincaré inequality,
+  which on a connected support is exactly a bound under the nonzero eigenvalues, in the variance
+  form too; total variation against `L²` by `√N / 2`; the heat kernel and the lazy walk `1 − εL`
+  contracting every field orthogonal to the constants geometrically at the gap's rate. Design
+  theorems (Palace and PalaceTest, no Spec rows): no code computes a velocity, a potential or a
+  ripple yet; `diffuse` computes the resolvent of the killed walk, which DYN-2 reads.
 - `Bridges`: theorems that join two families, so that what one proves serves the other: BRG-1
   the Laplacian as `∂₁ ∂₁ᵀ`, BRG-2 Euler and Poincaré on the flag complex, BRG-3 Thomson's
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
@@ -215,8 +244,8 @@ Roundoff and FloatModel, so it has no statements of its own):
   exported, every module contributes, and only the unsafe compiler helpers are left out, and
   `check.sh` holds its count to the audit's, since a checker accepts an empty export.
 - `PalaceTest/`: the attacks, one module per ledger family's `Palace` module (of the design
-  theorems, Magnetic, NegativeType and Superconnection have them), as Mathlib keeps its tests in
-  `MathlibTest`. `lake test` builds them, which runs every attack and negative control.
+  theorems, Magnetic, NegativeType, Superconnection and Dynamics have them), as Mathlib keeps its
+  tests in `MathlibTest`. `lake test` builds them, which runs every attack and negative control.
   `PalaceTest/Attack.lean` holds `survives` and `refuted`, which run Plausible with a fixed seed and
   count the instances that passed their guards.
 - `Audit.lean`: lists the axioms behind every `Palace` declaration and fails on anything beyond
@@ -635,6 +664,24 @@ alone, refuted within 46 instances (a citation severed and restored); the middle
 not closed under the transport, within 13; the class without the connection, within 15; a merge,
 within 30; and a bijection with a new citation, within 28.
 
+The dynamics are attacked on exact shadows (seeds 330 to 344): nonnegative matrices on `Fin 5`
+whose rows sum to less than `1`, their walk sums by Gauss–Jordan elimination against the Neumann
+partial sums of up to three terms, every tail in `[0, s^n / (1 − s)]` on 500 instances; HodgeRank
+on the ten edges of `K₅` with weights in `{0, ¼, ½, ¾, 1}` and the pseudo-inverse by the Spectral
+shadow, the residual divergence-free and its energy under every other potential's on 500; the
+quotient identity `Pᵀ L P = L_π` and its energy form for any `5 × 5` integer matrix and any
+partition into three blocks, 500 each; the ripple carried across a random product of
+transpositions, 500; the velocity's telescoping, 500; and RSP-5 on a block at `β = 1`, 500. The
+heat kernel and the modes are exponentials and eigenvectors, which do not run, so DYN-4 and
+DYN-6 are proved and not attacked. The controls: the tail bound without its `1 / (1 − s)` factor
+is refuted within 14 instances (`M = ½` alone leaves `2 · ½^n`); with entries of either sign the
+partial sums overshoot, within 6; a stochastic matrix, an eigenvalue `1`, makes `1 − M` singular on
+the first instance; the potential of the unweighted divergence leaves a residual with divergence,
+within 14; the quotient lifted back to the fine graph is not a Laplacian, within 10; across a
+merge the ripple is not path-independent, within 7; the sum of the steps' sizes is not the
+displacement's, within 26 (a revert); and a block with its own degrees invents nearness, within
+31.
+
 ## Build
 
 The toolchain is pinned in `lean-toolchain` (elan resolves it); Mathlib is pinned in
@@ -663,7 +710,7 @@ another module, and without it 68 proofs in seven files fail. One instance is wr
 to importers (`Palace/Scope.lean`).
 
 The kernel re-check. `Export.lean` writes every `Palace` declaration and everything it uses, from
-`Init` up (54,952 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
+`Init` up (55,185 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
 kernel and the five independent checkers bundled with Lean: `leanchecker-paranoid`, `lean4lean` (a
 kernel written in Lean), `nanoda` (one written in Rust), and `con-leche`, whose acceptance carries a
 machine-checked theorem that the environment holds no proof of `False`, with `con-ron`, its port.
