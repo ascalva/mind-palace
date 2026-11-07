@@ -64,7 +64,12 @@ def test_captured_dialogue_is_retrievable(tmp_path):
     assert hits[0]["provenance"] == "authored-dialogue"
 
 
-def test_capture_is_idempotent_on_content(tmp_path):
+def test_capture_is_idempotent_on_content(tmp_path, monkeypatch):
+    # The capture id carries the current second, so two captures on either side of a second
+    # boundary made two rows and the test failed about one run in five. Pin the clock: the claim
+    # under test is idempotence on content, not on time.
+    import core.ingest.dialogue as dialogue_module
+    monkeypatch.setattr(dialogue_module, "_compact_ts", lambda: "2026-11-07T00:00:00")
     cap, _ = _capture(tmp_path)
     d1 = cap.capture("exactly the same words", conversation="c1")
     rows_after_first = len(cap.store.all_rows(clearance=grant(Provenance.AUTHORED_DIALOGUE)))
