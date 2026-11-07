@@ -1088,3 +1088,63 @@ def test_a_legacy_tree_another_account_could_write_is_not_adopted(cfg: Any, plan
     assert len([m for m in said if "not adopted" in m]) == 1
     ingress.ensure_spools(cfg, report=said.append)
     assert len([m for m in said if "not adopted" in m]) == 1    # reported once, not each tick
+
+
+def test_the_takeover_adopts_the_first_forms_spools_as_its_own_code_made_them(
+        cfg: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """What a daemon of the first form leaves, made by the first form's own code: this module with
+    its spool directory under the old name, `door`, and no takeover. So the tree carries the modes
+    the daemon gives it, not a test's: the agents' spool `3770` under the handoff directory's
+    group, its receipts `2750`, each `queued/` and `rejected/` `0700`, the daemon's files written
+    under launchd's umask (`022`) and the surfaces' requests under a shell's (`002`). In it: a
+    request drained, staged and receipted `queued`; a malformed one rejected, its `refused`
+    receipt beside it; one request pending in each spool. The renamed daemon's first start adopts
+    every receipt, the staged copy and both pending requests, keeps the drained id seen, and
+    drains the pending two once. The one file it leaves is the rejected one, the surface's own file
+    moved aside and writable by its group, which no drain reads again."""
+    import os
+    import stat
+
+    monkeypatch.setattr(ingress, "_EVERYONE_GROUPS", frozenset())   # the tmp dir's group: dedicated
+    queue, router = _Queue(), Router(cfg)
+    said: list[str] = []
+    rejected = "0123456789abcdef"
+    umask = os.umask(0o022)
+    try:
+        with monkeypatch.context() as first:
+            first.setattr(ingress, "SPOOL", ingress.LEGACY_SPOOL)
+            first.setattr(ingress, "_adopt_legacy", lambda _cfg, _report: None)   # it had none
+            assert ingress.ensure_spools(cfg) == ["ambassador", "cli"]
+            os.umask(0o002)
+            drained = ingress.write_request(cfg, role="ambassador", plan=_plan("do dream")).request
+            (ingress.spool_root(cfg) / "cli" / f"{rejected}.json").write_text("{ not json")
+            os.umask(0o022)
+            assert drain_spool(queue, router, cfg, report=said.append) == 1
+            os.umask(0o002)
+            pending = {r: ingress.write_request(cfg, role=r, plan=_plan("do dream", r)).request
+                       for r in ("ambassador", "cli")}
+        os.umask(0o022)
+        old = ingress.spool_root(cfg).parent / ingress.LEGACY_SPOOL
+        mode = {str(d.relative_to(old)): stat.S_IMODE(os.stat(d).st_mode)
+                for d in old.rglob("*") if d.is_dir()}
+        assert mode["ambassador"] & 0o1070 == 0o1070                     # the group writes, sticky
+        assert mode["ambassador/receipts"] & 0o070 == 0o050              # the group reads
+        assert all(mode[f"{r}/{d}"] == 0o700 for r in ("ambassador", "cli")
+                   for d in ("queued", "rejected"))
+        said.clear()
+        assert ingress.ensure_spools(cfg, report=said.append) == ["ambassador", "cli"]
+    finally:
+        os.umask(umask)
+    left = sorted(str(f.relative_to(old)) for f in old.rglob("*") if f.is_file())
+    assert left == [f"cli/rejected/{rejected}.json"]
+    assert len(said) == 1 and "writable by another account" in said[0]
+    said.clear()
+    receipt = ingress.read_receipt(cfg, "ambassador", drained)
+    assert receipt is not None and receipt.state == "queued"
+    assert ingress.seen(cfg, "ambassador", drained)
+    assert ingress.read_request(cfg, "ambassador", drained).sentence == "do dream"   # its job's
+    refused = ingress.read_receipt(cfg, "cli", rejected)
+    assert refused is not None and refused.state == "refused"
+    assert drain_spool(queue, router, cfg, report=said.append) == 2
+    assert {j["payload"]["request"] for j in queue.jobs[1:]} == set(pending.values())
+    assert drain_spool(queue, router, cfg, report=said.append) == 0
