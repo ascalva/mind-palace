@@ -58,12 +58,19 @@ about log N. This note measures where those thresholds fall on a real growing gr
 - k-cores: the same measures on the largest component of the k-core of each cut (k = 3, 6, 10, 15),
   with every replicate reduced to its own k-core, because the concentration theorem needs minimum
   degree of order log N and the full graph always has degree-one nodes.
-- Relaxation and window: 1/gamma in walk steps. For a reversible chain with spectral gap gamma
-  the asymptotic variance of a time average of g is at most 2 Var_pi(g)/gamma (the eigenvalue
-  factor (1+mu)/(1-mu) is at most 2/gamma for mu at most 1 - gamma), so a relative standard error
-  eps with relative standard deviation 1 needs T = 2/(gamma eps^2) steps. At eps = 0.1 that is
-  200/gamma. The companion note's SCL-1 statement was not available to this branch; this is the
-  standard bound it should agree with.
+- Relaxation and window, in two unit systems. The lazy walk is x -> (1 - eps L) x with laziness
+  eps, which needs eps lambda_max <= 1; the normalized Laplacian's spectrum is in [0, 2], so the
+  largest admissible laziness is eps = 1/2, used here. SCL-1 (`formal/Palace/Scale.lean`,
+  `docs/design-notes/dn-scale-and-attribution.md`, build/scale-attribution) bounds the energy of the
+  time average by ||x||^2 / (T eps gamma)^2, and the note's sampled form is
+  Var <= 2 sigma^2 / (eps gamma T) per lazy step, or Var <= 2 sigma^2 / (gamma T_c) in continuous
+  time T_c = eps T. For an observable of relative standard deviation 1 and relative precision
+  delta, the window is T = 2 / (eps gamma delta^2) lazy steps, equivalently
+  T_c = 2 / (gamma delta^2) in continuous time. At delta = 10% and eps = 1/2: T = 400/gamma lazy
+  steps and T_c = 200/gamma. The relaxation time is 1/gamma in continuous time and 1/(eps gamma) =
+  2/gamma in lazy steps. Tables give both: `1/gamma` and `T_c` are continuous time, `1/(eps gamma)`
+  and `T` lazy steps. The CSVs carry `relax_cont`, `relax_lazy`, `window_cont_10pct` and
+  `window_lazy_10pct`.
 - Hodge split: the flow on a canonical edge is +1 or -1 along the citation (citing to cited), 0 for
   a mutual pair. On the clique complex (all triangles of the symmetrized graph) the flow is
   projected by LSMR (tolerance 1e-8) onto the gradient space and onto the curl space; harmonic is
@@ -74,36 +81,36 @@ about log N. This note measures where those thresholds fall on a real growing gr
 
 ### 1. Cuts
 
-| cut | N | edges | mean deg | min deg | mean deg / ln N | gamma | 1/gamma | window, 10% |
-|---|---|---|---|---|---|---|---|---|
-| 1999-12-31 | 15 | 17 | 2.27 | 1 | 0.84 | 0.1102 | 9.1 | 1815 |
-| 2000-12-30 | 43 | 114 | 5.30 | 1 | 1.41 | 0.2827 | 3.5 | 707 |
-| 2001-12-30 | 161 | 624 | 7.75 | 1 | 1.53 | 0.0152 | 65.6 | 13118 |
-| 2002-12-31 | 305 | 1993 | 13.07 | 1 | 2.28 | 0.0521 | 19.2 | 3838 |
-| 2003-12-31 | 533 | 3958 | 14.85 | 1 | 2.37 | 0.0544 | 18.4 | 3678 |
-| 2004-12-30 | 917 | 7059 | 15.40 | 1 | 2.26 | 0.0760 | 13.2 | 2632 |
-| 2005-12-31 | 1404 | 11438 | 16.29 | 1 | 2.25 | 0.0972 | 10.3 | 2058 |
-| 2006-12-31 | 2076 | 17843 | 17.19 | 1 | 2.25 | 0.1153 | 8.7 | 1734 |
-| 2007-12-31 | 2876 | 26380 | 18.34 | 1 | 2.30 | 0.1189 | 8.4 | 1682 |
-| 2008-12-30 | 3878 | 36102 | 18.62 | 1 | 2.25 | 0.1496 | 6.7 | 1337 |
-| 2009-12-30 | 5066 | 47090 | 18.59 | 1 | 2.18 | 0.0073 | 136.3 | 27252 |
-| 2010-12-31 | 6239 | 57846 | 18.54 | 1 | 2.12 | 0.0115 | 87.3 | 17459 |
-| 2011-12-31 | 7549 | 70504 | 18.68 | 1 | 2.09 | 0.0102 | 97.7 | 19539 |
-| 2012-12-30 | 8995 | 83621 | 18.59 | 1 | 2.04 | 0.0075 | 133.8 | 26764 |
-| 2013-12-31 | 10591 | 99645 | 18.82 | 1 | 2.03 | 0.0084 | 118.8 | 23753 |
-| 2014-12-31 | 12375 | 116883 | 18.89 | 1 | 2.00 | 0.0048 | 210.2 | 42037 |
-| 2015-12-31 | 14152 | 135141 | 19.10 | 1 | 2.00 | 0.0046 | 218.6 | 43722 |
-| 2016-12-30 | 15853 | 153465 | 19.36 | 1 | 2.00 | 0.0076 | 132.4 | 26488 |
-| 2017-12-30 | 17619 | 171927 | 19.52 | 1 | 2.00 | 0.0085 | 117.9 | 23571 |
-| 2018-12-31 | 19487 | 194588 | 19.97 | 1 | 2.02 | 0.0081 | 123.0 | 24593 |
-| 2019-12-31 | 21407 | 215687 | 20.15 | 1 | 2.02 | 0.0077 | 129.6 | 25911 |
-| 2020-12-30 | 23210 | 234961 | 20.25 | 1 | 2.01 | 0.0075 | 133.4 | 26674 |
-| 2021-12-31 | 24926 | 254123 | 20.39 | 1 | 2.01 | 0.0074 | 135.6 | 27111 |
-| 2022-12-31 | 26434 | 270944 | 20.50 | 1 | 2.01 | 0.0077 | 129.0 | 25808 |
-| 2023-12-31 | 27910 | 286751 | 20.55 | 1 | 2.01 | 0.0081 | 124.2 | 24834 |
-| 2024-12-30 | 28773 | 296244 | 20.59 | 1 | 2.01 | 0.0094 | 105.9 | 21174 |
-| 2025-12-31 | 30584 | 309659 | 20.25 | 1 | 1.96 | 0.0089 | 112.0 | 22396 |
-| 2026-11-07 | 33342 | 327510 | 19.65 | 1 | 1.89 | 0.0089 | 112.0 | 22395 |
+| cut | N | edges | mean deg | min deg | mean deg / ln N | gamma | 1/gamma | 1/(eps gamma) | T_c | T |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1999-12-31 | 15 | 17 | 2.27 | 1 | 0.84 | 0.1102 | 9.1 | 18.2 | 1815 | 3630 |
+| 2000-12-30 | 43 | 114 | 5.30 | 1 | 1.41 | 0.2827 | 3.5 | 7.1 | 707 | 1415 |
+| 2001-12-30 | 161 | 624 | 7.75 | 1 | 1.53 | 0.0152 | 65.6 | 131.2 | 13118 | 26236 |
+| 2002-12-31 | 305 | 1993 | 13.07 | 1 | 2.28 | 0.0521 | 19.2 | 38.4 | 3838 | 7677 |
+| 2003-12-31 | 533 | 3958 | 14.85 | 1 | 2.37 | 0.0544 | 18.4 | 36.8 | 3678 | 7356 |
+| 2004-12-30 | 917 | 7059 | 15.40 | 1 | 2.26 | 0.0760 | 13.2 | 26.3 | 2632 | 5264 |
+| 2005-12-31 | 1404 | 11438 | 16.29 | 1 | 2.25 | 0.0972 | 10.3 | 20.6 | 2058 | 4116 |
+| 2006-12-31 | 2076 | 17843 | 17.19 | 1 | 2.25 | 0.1153 | 8.7 | 17.3 | 1734 | 3469 |
+| 2007-12-31 | 2876 | 26380 | 18.34 | 1 | 2.30 | 0.1189 | 8.4 | 16.8 | 1682 | 3363 |
+| 2008-12-30 | 3878 | 36102 | 18.62 | 1 | 2.25 | 0.1496 | 6.7 | 13.4 | 1337 | 2675 |
+| 2009-12-30 | 5066 | 47090 | 18.59 | 1 | 2.18 | 0.0073 | 136.3 | 272.5 | 27252 | 54504 |
+| 2010-12-31 | 6239 | 57846 | 18.54 | 1 | 2.12 | 0.0115 | 87.3 | 174.6 | 17459 | 34918 |
+| 2011-12-31 | 7549 | 70504 | 18.68 | 1 | 2.09 | 0.0102 | 97.7 | 195.4 | 19539 | 39079 |
+| 2012-12-30 | 8995 | 83621 | 18.59 | 1 | 2.04 | 0.0075 | 133.8 | 267.6 | 26764 | 53528 |
+| 2013-12-31 | 10591 | 99645 | 18.82 | 1 | 2.03 | 0.0084 | 118.8 | 237.5 | 23753 | 47506 |
+| 2014-12-31 | 12375 | 116883 | 18.89 | 1 | 2.00 | 0.0048 | 210.2 | 420.4 | 42037 | 84073 |
+| 2015-12-31 | 14152 | 135141 | 19.10 | 1 | 2.00 | 0.0046 | 218.6 | 437.2 | 43722 | 87444 |
+| 2016-12-30 | 15853 | 153465 | 19.36 | 1 | 2.00 | 0.0076 | 132.4 | 264.9 | 26488 | 52976 |
+| 2017-12-30 | 17619 | 171927 | 19.52 | 1 | 2.00 | 0.0085 | 117.9 | 235.7 | 23571 | 47142 |
+| 2018-12-31 | 19487 | 194588 | 19.97 | 1 | 2.02 | 0.0081 | 123.0 | 245.9 | 24593 | 49186 |
+| 2019-12-31 | 21407 | 215687 | 20.15 | 1 | 2.02 | 0.0077 | 129.6 | 259.1 | 25911 | 51823 |
+| 2020-12-30 | 23210 | 234961 | 20.25 | 1 | 2.01 | 0.0075 | 133.4 | 266.7 | 26674 | 53348 |
+| 2021-12-31 | 24926 | 254123 | 20.39 | 1 | 2.01 | 0.0074 | 135.6 | 271.1 | 27111 | 54221 |
+| 2022-12-31 | 26434 | 270944 | 20.50 | 1 | 2.01 | 0.0077 | 129.0 | 258.1 | 25808 | 51616 |
+| 2023-12-31 | 27910 | 286751 | 20.55 | 1 | 2.01 | 0.0081 | 124.2 | 248.3 | 24834 | 49667 |
+| 2024-12-30 | 28773 | 296244 | 20.59 | 1 | 2.01 | 0.0094 | 105.9 | 211.7 | 21174 | 42348 |
+| 2025-12-31 | 30584 | 309659 | 20.25 | 1 | 1.96 | 0.0089 | 112.0 | 224.0 | 22396 | 44791 |
+| 2026-11-07 | 33342 | 327510 | 19.65 | 1 | 1.89 | 0.0089 | 112.0 | 223.9 | 22395 | 44790 |
 
 Mean degree stays at about twice ln N from 2002 onward, and the minimum degree is 1 at every cut.
 
@@ -240,12 +247,17 @@ close to 1 times ln N in minimum degree.
 
 ### 4. Relaxation time and windows
 
-Whole component, N above 5,000: gamma between 0.0046 and 0.0115, so 1/gamma between 87 and 219
-steps, and a window for 10% precision of 17,000 to 44,000 steps (the 2026 cut: gamma = 0.0089,
-1/gamma = 112, window 22,395, against N = 33,342). The window is of the order of N: a walk must
-cross the graph about once to average an observable to 10%. The 6-core: gamma = 0.126 to 0.21,
-1/gamma = 5 to 8, window 950 to 2,000 steps. The 10-core: gamma = 0.13 to 0.22 and window 900 to 1,500 steps. The relaxation time of the whole component grew by an order
-of magnitude when the first weakly attached group appeared (2009); that of the cores did not.
+Units: 1/gamma and T_c are continuous time, 1/(eps gamma) and T lazy steps at eps = 1/2 (T = 2 T_c).
+delta = 10%.
+
+Whole component, N above 5,000: gamma between 0.0046 and 0.0115, so 1/gamma is 87 to 219 (1/(eps
+gamma) 174 to 438 lazy steps), T_c is 17,000 to 44,000 and T is 35,000 to 87,000 lazy steps. At the
+2026 cut gamma = 0.0089, 1/gamma = 112, T_c = 22,395, T = 44,790, against N = 33,342. The lazy-step
+window T is 1.3 to 11 times N (11 times at the 2009 cut, 6 at 2015, 1.3 at 2026): a walk must cross
+the graph once or more to average an observable to 10%. The 6-core, N above 1,000: gamma = 0.10 to
+0.31, 1/gamma = 3.2 to 10, T_c 640 to 2,000, T 1,300 to 4,000. The 10-core: gamma = 0.13 to 0.31,
+T_c 650 to 1,540, T 1,300 to 3,100. The relaxation time of the whole component grew by an order of
+magnitude when the first weakly attached group appeared (2009); that of the cores did not.
 
 ### 5. Hodge split of the citation flow
 
@@ -323,10 +335,10 @@ have a component of at least 6 nodes, and those have width 0 for the same reason
 For scale, two connected 38-node graphs (`python -m eval.scale.corpus --references`, 200 edge
 resamples each):
 
-| graph | edges | min degree | mean degree / ln N | gamma | window, 10% | width of gamma |
-|---|---|---|---|---|---|---|
-| random recursive tree | 37 | 1 | 0.54 | 0.026 | 7,800 steps | 271% |
-| tree plus random edges to mean degree 2 ln N | 138 | 3 | 2.00 | 0.43 | 465 steps | 47% |
+| graph | edges | min degree | mean degree / ln N | gamma | T_c | T (lazy steps) | width of gamma |
+|---|---|---|---|---|---|---|---|
+| random recursive tree | 37 | 1 | 0.54 | 0.026 | 7,770 | 15,540 | 271% |
+| tree plus random edges to mean degree 2 ln N | 138 | 3 | 2.00 | 0.43 | 465 | 930 | 47% |
 
 Against the thresholds measured here: the corpus is far below N* (about 1,000 for a 6-core at the
 10% level), far below minimum degree of order ln N (1 against 3.6), and the window is infinite. Even
@@ -347,7 +359,7 @@ degree 2 ln N would still leave it well under the scale of the measured crossing
   population. The bootstrap used 20 replicates (6 for the Hodge split), which makes the 2.5% and
   97.5% quantiles coarse; the crossings are read from pooled points and are indicative to about
   a factor of two in N.
-- The required window uses relative standard deviation 1 for the observable; it scales with the
+- The required window (SCL-1, eps = 1/2) uses relative standard deviation 1 for the observable; it scales with the
   square of the actual value.
 - The 10% crossing is of a stricter form (stays below at every larger scale) than the first
   dip below 10%; the CSVs allow the other reading.

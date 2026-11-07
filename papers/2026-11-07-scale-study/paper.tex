@@ -35,9 +35,9 @@ interval of $\gamma$ is never within 10\% of its median at any scale up to 25,00
 the mean degree is about $2\log N$ or more from the 2002 cut on: small groups joined to the rest by a single
 citation set the gap, and the minimum degree is 1. On the 6-core and 10-core, whose minimum degrees
 are 6 and 10, the interval of $\gamma$ under edge resampling is within 10\% from about 1,000 and
-2,000 nodes (replicate size), where the minimum degree is 0.9 to 1.3 times $\log N$. The relaxation time of the
-whole component is 90 to 220 steps, and a 10\% average needs 17,000 to 44,000 steps, about $N$;
-for the cores it is 5 to 8 steps and about 1,000 to 2,000 steps. The Hodge energies settle at 0.80 to
+2,000 nodes (replicate size), where the minimum degree is 0.9 to 1.3 times $\log N$. The relaxation time $1/\gamma$ (continuous time) of the
+whole component is 90 to 220, and a 10\% average needs $T_c = 17{,}000$ to $44{,}000$ in continuous time, or $T = 35{,}000$ to $87{,}000$ lazy steps at laziness $1/2$,
+1.3 to 11 times $N$; for the cores $1/\gamma$ is 3 to 10 and $T$ about 1,300 to 4,000 lazy steps. The Hodge energies settle at 0.80 to
 0.83 gradient, 0.15 to 0.18 curl and under 0.03 harmonic, and their widths fall under 10\% one to
 two decades of $N$ below the scale for $\gamma$. A synthetic graph of 38 nodes and 20 edges in one generation is a forest
 of 18 components, whose spectral gap is zero and whose windows are infinite. The code is generic over
@@ -140,7 +140,7 @@ component. Cuts are at 31 December from 1995 to 2024 and at 2025-12-31 and 2026-
   \State $E_t \gets$ edges with time $\le t$; $G_t \gets$ largest component of symmetrize$(E_t)$
   \State record $N$, mean degree $\bar d$, minimum degree $d_{\min}$ and $\bar d/\ln N$ of $G_t$
   \State $\lambda_1,\dots,\lambda_{20} \gets$ smallest eigenvalues of $\mathcal L(G_t)$; $\gamma \gets \lambda_2$
-  \State record $1/\gamma$ and the window $T_\varepsilon = 2/(\gamma\varepsilon^2)$
+  \State record $1/\gamma$, $T_c = 2/(\gamma\delta^2)$ and $T = T_c/\varepsilon$ with laziness $\varepsilon = 1/2$
   \State Hodge split of the flow of $G_t$ (gradient, curl, harmonic fractions)
   \State bootstrap $G_t$ (\Cref{alg:boot}); for each $k \in K$ repeat on the $k$-core of $G_t$
 \EndFor
@@ -185,13 +185,21 @@ scale measured. Whole-component bootstraps were run up to 25,000 nodes and core 
 \end{algorithm}
 
 \subsection{Relaxation and window}
-The relaxation time is $1/\gamma$ steps of the simple random walk on the symmetrized component. For
-a reversible chain whose non-unit eigenvalues $\mu_i$ are at most $1 - \gamma$, the asymptotic
-variance of the time average of an observable $g$ is
-$\sigma^2 = \sum_i c_i^2 (1+\mu_i)/(1-\mu_i)$ with $\sum_i c_i^2 = \mathrm{Var}_\pi(g)$, and
-$(1+\mu)/(1-\mu) \le 2/\gamma$ in that range \citep{levin2017}. A relative standard error
-$\varepsilon$ of an observable of unit relative standard deviation therefore needs
-$T_\varepsilon = 2/(\gamma \varepsilon^2)$ steps; at $\varepsilon = 0.1$ this is $200/\gamma$.
+SCL-1 of the companion article on scale and attribution is stated for the lazy walk
+$x \mapsto (1 - \varepsilon\mathcal L)x$ with laziness $\varepsilon$, which needs
+$\varepsilon\lambda_{\max} \le 1$. The spectrum of $\mathcal L$ lies in $[0,2]$, so the largest
+admissible laziness is $\varepsilon = 1/2$, which we use. The deterministic bound is that the energy of
+the time average over $T$ steps of a mean-zero field $x$ is at most $\|x\|^2/(T\varepsilon\gamma)^2$. For an
+observable read along the walk, the note's sampled form is
+$\mathrm{Var} \le 2\sigma^2/(\varepsilon\gamma T)$ per lazy step, and
+$\mathrm{Var} \le 2\sigma^2/(\gamma T_c)$ in continuous time $T_c = \varepsilon T$. A relative precision
+$\delta$ of an observable of unit relative standard deviation therefore needs, in the two unit systems,
+\[
+T = \frac{2}{\varepsilon\gamma\delta^2}\ \text{lazy steps}, \qquad T_c = \varepsilon T = \frac{2}{\gamma\delta^2}.
+\]
+At $\varepsilon = 1/2$ and $\delta = 0.1$ these are $T = 400/\gamma$ and $T_c = 200/\gamma$. The relaxation time
+is $1/\gamma$ in continuous time and $1/(\varepsilon\gamma) = 2/\gamma$ in lazy steps. We report both;
+$1/\gamma$ and $T_c$ are continuous time, $1/(\varepsilon\gamma)$ and $T$ lazy steps.
 
 \subsection{Hodge split}
 The flow on a canonical edge $\{i<j\}$ is $+1$ if $i$ cites $j$, $-1$ if $j$ cites $i$, and $0$ for a
@@ -211,23 +219,24 @@ completeness only.
 \begin{table}[t]
 \centering
 \caption{Selected cuts of the largest component. $\gamma$ is $\lambda_2$ of the normalized
-Laplacian; the window is $200/\gamma$ steps for a 10\% relative standard error.}\label{tab:cuts}
+Laplacian. $1/\gamma$ and $T_c = 200/\gamma$ are in continuous time; $T = T_c/\varepsilon = 400/\gamma$ is in
+lazy steps (SCL-1, $\varepsilon = 1/2$, precision $\delta = 10\%$).}\label{tab:cuts}
 \begin{tabular}{lrrrrrrrr}
 \toprule
-cut & $N$ & edges & $\bar d$ & $d_{\min}$ & $\bar d/\ln N$ & $\gamma$ & $1/\gamma$ & window \\
+cut & $N$ & $\bar d$ & $d_{\min}$ & $\bar d/\ln N$ & $\gamma$ & $1/\gamma$ & $T_c$ & $T$ \\
 \midrule
-2000-12-30 & 43 & 114 & 5.30 & 1 & 1.41 & 0.283 & 3.5 & 707 \\
-2002-12-31 & 305 & 1993 & 13.07 & 1 & 2.28 & 0.052 & 19.2 & 3838 \\
-2004-12-30 & 917 & 7059 & 15.40 & 1 & 2.26 & 0.076 & 13.2 & 2632 \\
-2006-12-31 & 2076 & 17843 & 17.19 & 1 & 2.25 & 0.115 & 8.7 & 1734 \\
-2008-12-30 & 3878 & 36102 & 18.62 & 1 & 2.25 & 0.150 & 6.7 & 1337 \\
-2009-12-30 & 5066 & 47090 & 18.59 & 1 & 2.18 & 0.0073 & 136.3 & 27252 \\
-2012-12-30 & 8995 & 83621 & 18.59 & 1 & 2.04 & 0.0075 & 133.8 & 26764 \\
-2015-12-31 & 14152 & 135141 & 19.10 & 1 & 2.00 & 0.0046 & 218.6 & 43722 \\
-2018-12-31 & 19487 & 194588 & 19.97 & 1 & 2.02 & 0.0081 & 123.0 & 24593 \\
-2021-12-31 & 24926 & 254123 & 20.39 & 1 & 2.01 & 0.0074 & 135.6 & 27111 \\
-2024-12-30 & 28773 & 296244 & 20.59 & 1 & 2.01 & 0.0094 & 105.9 & 21174 \\
-2026-11-07 & 33342 & 327510 & 19.65 & 1 & 1.89 & 0.0089 & 112.0 & 22395 \\
+2000-12-30 & 43 & 5.30 & 1 & 1.41 & 0.2827 & 3.5 & 707 & 1415 \\
+2002-12-31 & 305 & 13.07 & 1 & 2.28 & 0.0521 & 19.2 & 3838 & 7677 \\
+2004-12-30 & 917 & 15.40 & 1 & 2.26 & 0.0760 & 13.2 & 2632 & 5264 \\
+2006-12-31 & 2076 & 17.19 & 1 & 2.25 & 0.1153 & 8.7 & 1734 & 3469 \\
+2008-12-30 & 3878 & 18.62 & 1 & 2.25 & 0.1496 & 6.7 & 1337 & 2675 \\
+2009-12-30 & 5066 & 18.59 & 1 & 2.18 & 0.0073 & 136.3 & 27252 & 54504 \\
+2012-12-30 & 8995 & 18.59 & 1 & 2.04 & 0.0075 & 133.8 & 26764 & 53528 \\
+2015-12-31 & 14152 & 19.10 & 1 & 2.00 & 0.0046 & 218.6 & 43722 & 87444 \\
+2018-12-31 & 19487 & 19.97 & 1 & 2.02 & 0.0081 & 123.0 & 24593 & 49186 \\
+2021-12-31 & 24926 & 20.39 & 1 & 2.01 & 0.0074 & 135.6 & 27111 & 54221 \\
+2024-12-30 & 28773 & 20.59 & 1 & 2.01 & 0.0094 & 105.9 & 21174 & 42348 \\
+2026-11-07 & 33342 & 19.65 & 1 & 1.89 & 0.0089 & 112.0 & 22395 & 44790 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -284,7 +293,7 @@ heterogeneity of the graph, which does not shrink as the graph grows.
 \centering
 \begin{tikzpicture}
 \begin{axis}[width=0.78\textwidth,height=6.2cm,xmode=log,ymode=log,xlabel={$N$ (mean size of the replicates)},
-ylabel={relative width of the 95\% interval of $\gamma$},legend pos=north east,legend style={font=\small},
+ylabel={relative width of the 95\% interval of $\gamma$},legend style={font=\small,at={(0.5,-0.3)},anchor=north,legend columns=4},
 grid=both,grid style={gray!20},ymax=20,ymin=0.01]
 \addplot[only marks,mark=*,mark size=1.3pt,blue] coordinates {(132,4.091) (277.2,1.678) (490.6,1.195) (854.5,0.9935) (1323,0.8484) (1969,0.8482) (2745,0.8972) (3700,0.8332) (4818,2.982) (5941,5.996) (7191,11.09) (8573,11.69) (1.013e+04,1.45) (1.18e+04,1.058) (1.35e+04,1.079) (1.516e+04,1.788) (1.686e+04,1.097) (1.866e+04,1.343) (2.052e+04,1.222) (2.225e+04,1.564) (2.391e+04,1.33)};
 \addplot[only marks,mark=diamond*,mark size=1.5pt,orange] coordinates {(78.35,0.2498) (196.7,0.129) (358.8,0.1091) (640.5,0.1824) (1008,0.1322) (1526,0.2149) (2169,0.09927) (2940,0.4308) (3816,0.5485) (4677,0.3713) (5663,0.8392) (6740,0.7441) (7990,0.8288) (9308,8.542) (1.068e+04,8.566) (1.201e+04,2.528)};
@@ -317,27 +326,30 @@ whole component & 1 & never (to 25,000) & \\
 \end{table}
 
 \subsection{Relaxation times and windows}
-On the whole component, from 2009 on, $1/\gamma$ is 87 to 219 steps and the window for a 10\% relative
-standard error is 17,000 to 44,000 steps (\Cref{tab:cuts}); at the 2026 cut it is 112 steps and 22,395
-steps against 33,342 nodes. The window is of the order of $N$: a walk crosses the graph about once
-to average an observable to 10\%. A 20\% target needs a quarter of that. For the
-6-core the relaxation time is 5 to 8 steps and the window 950 to 2,000 steps; for the 10-core 5 to 8
-steps and 900 to 1,500 steps. The relaxation time of the whole component grew by a factor of 20 at the
-2009 cut, and that of the cores did not. Because the window is proportional to $1/\gamma$, one weakly
-attached group raises the needed window by the same factor.
+Units are as in \Cref{tab:cuts}: $1/\gamma$ and $T_c$ in continuous time, $T = 2T_c$ in lazy steps at
+$\varepsilon = 1/2$, and $\delta = 10\%$. On the whole component, from 2009 on, $1/\gamma$ is 87 to 219
+(174 to 438 lazy steps), $T_c$ is 17,000 to 44,000 and $T$ is 35,000 to 87,000 lazy steps
+(\Cref{tab:cuts}). At the 2026 cut $1/\gamma = 112$, $T_c = 22{,}395$ and $T = 44{,}790$, against 33,342
+nodes. The lazy-step window $T$ is 1.3 to 11 times $N$ (11 times at the 2009 cut, 6 at 2015, 1.3 at 2026):
+a walk must cross the graph once or more to average an observable to 10\%. A 20\% target needs a
+quarter of that. For the 6-core, above 1,000 nodes, $1/\gamma$ is 3.2 to 10, $T_c$ is 640 to 2,000 and $T$
+is 1,300 to 4,000; for the 10-core $T_c$ is 650 to 1,540 and $T$ 1,300 to 3,100. The relaxation time of
+the whole component grew by a factor of 20 at the 2009 cut, and that of the cores did not. Because the
+window is proportional to $1/\gamma$, one weakly attached group raises it by the same factor.
 
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}
 \begin{axis}[width=0.78\textwidth,height=6.2cm,xmode=log,ymode=log,xlabel={$N$},
-ylabel={window for 10\% precision (steps)},legend pos=north west,legend style={font=\small},grid=both,grid style={gray!20}]
-\addplot[only marks,mark=*,mark size=1.4pt,blue] coordinates {(43,707.5) (161,1.312e+04) (305,3838) (533,3678) (917,2632) (1404,2058) (2076,1734) (2876,1682) (3878,1337) (5066,2.725e+04) (6239,1.746e+04) (7549,1.954e+04) (8995,2.676e+04) (1.059e+04,2.375e+04) (1.238e+04,4.204e+04) (1.415e+04,4.372e+04) (1.585e+04,2.649e+04) (1.762e+04,2.357e+04) (1.949e+04,2.459e+04) (2.141e+04,2.591e+04) (2.321e+04,2.667e+04) (2.493e+04,2.711e+04) (2.643e+04,2.581e+04) (2.791e+04,2.483e+04) (2.877e+04,2.117e+04) (3.058e+04,2.24e+04) (3.334e+04,2.239e+04)};
-\addplot[only marks,mark=square*,mark size=1.4pt,red] coordinates {(67,548.5) (173,527.8) (313,517.1) (569,529.7) (906,560.4) (1375,641.1) (1945,718.1) (2657,820.3) (3424,932.2) (4183,1019) (5048,1102) (6010,1201) (7083,1257) (8283,1314) (9528,1366) (1.074e+04,1414) (1.201e+04,1448) (1.337e+04,1512) (1.482e+04,1998) (1.613e+04,1548) (1.737e+04,1567) (1.845e+04,1581) (1.95e+04,1582) (2.012e+04,1587) (2.102e+04,1587) (2.223e+04,1584)};
+ylabel={$T$ for $\delta=10\%$ (lazy steps)},legend style={font=\small,at={(0.5,-0.3)},anchor=north,legend columns=2},grid=both,grid style={gray!20}]
+\addplot[only marks,mark=*,mark size=1.4pt,blue] coordinates {(43,1415) (161,2.624e+04) (305,7677) (533,7356) (917,5264) (1404,4116) (2076,3469) (2876,3363) (3878,2675) (5066,5.45e+04) (6239,3.492e+04) (7549,3.908e+04) (8995,5.353e+04) (1.059e+04,4.751e+04) (1.238e+04,8.407e+04) (1.415e+04,8.744e+04) (1.585e+04,5.298e+04) (1.762e+04,4.714e+04) (1.949e+04,4.919e+04) (2.141e+04,5.182e+04) (2.321e+04,5.335e+04) (2.493e+04,5.422e+04) (2.643e+04,5.162e+04) (2.791e+04,4.967e+04) (2.877e+04,4.235e+04) (3.058e+04,4.479e+04) (3.334e+04,4.479e+04)};
+\addplot[only marks,mark=square*,mark size=1.4pt,red] coordinates {(67,1097) (173,1056) (313,1034) (569,1059) (906,1121) (1375,1282) (1945,1436) (2657,1641) (3424,1864) (4183,2038) (5048,2204) (6010,2403) (7083,2515) (8283,2628) (9528,2733) (1.074e+04,2828) (1.201e+04,2896) (1.337e+04,3024) (1.482e+04,3996) (1.613e+04,3096) (1.737e+04,3133) (1.845e+04,3162) (1.95e+04,3163) (2.012e+04,3173) (2.102e+04,3173) (2.223e+04,3169)};
 \legend{whole component,6-core}
 \end{axis}
 \end{tikzpicture}
-\caption{The window $200/\gamma$ against $N$. Above 5,000 nodes the whole component needs a window
-about equal to $N$; the 6-core needs one to two thousand steps.}\label{fig:window}
+\caption{The window $T = 400/\gamma$ in lazy steps ($\varepsilon = 1/2$, $\delta = 10\%$) against $N$; the
+continuous-time window $T_c$ is half of it. Above 5,000 nodes the whole component needs 1.3 to 11 times $N$;
+the 6-core needs one to four thousand.}\label{fig:window}
 \end{figure}
 
 \subsection{The Hodge split of the citation flow}
@@ -396,9 +408,9 @@ about 25 as a whole and 250 in its connected part, has minimum degree 1 where th
 cores need about $\ln N$, and has no finite window.
 
 For scale, two connected graphs on 38 nodes were measured the same way (200 edge resamples). A random
-recursive tree (37 edges, mean degree over $\ln N$ of 0.54) has $\gamma = 0.026$, a window of 7,800
-steps and a width of 271\% (the resampled trees have 14 nodes on average). A tree plus random edges
-to mean degree $2\ln N$ (138 edges, minimum degree 3) has $\gamma = 0.43$, a window of 465 steps and a
+recursive tree (37 edges, mean degree over $\ln N$ of 0.54) has $\gamma = 0.026$, $T_c = 7{,}770$ and
+$T = 15{,}540$ lazy steps and a width of 271\% (the resampled trees have 14 nodes on average). A tree plus random edges
+to mean degree $2\ln N$ (138 edges, minimum degree 3) has $\gamma = 0.43$, $T_c = 465$ and $T = 930$ lazy steps and a
 width of 47\%. Even connecting the corpus and giving it degree $2 \ln N$ leaves its macro quantities
 far from the 10\% level that the real data reaches near $10^3$ nodes.
 
@@ -415,8 +427,8 @@ far from the 10\% level that the real data reaches near $10^3$ nodes.
   of an unknown population. With 20 replicates (6 for the Hodge split) the extreme quantiles are
   coarse, and crossing scales are indicative to about a factor of two. Crossing scales are in the mean
   size of the replicates, which is smaller than the size of the graph resampled.
-  \item The window assumes unit relative standard deviation of the observable and the bound
-  $2/\gamma$ on the asymptotic variance; a particular observable may need less.
+  \item The window assumes unit relative standard deviation of the observable and the sampled
+  bound $2\sigma^2/(\varepsilon\gamma T)$ with $\varepsilon = 1/2$ (equivalently $2\sigma^2/(\gamma T_c)$); a particular observable may need less.
   \item The crossing is defined as staying under 10\% at every larger scale, which is stricter than
   the first dip.
   \item ARPACK can miss repeated eigenvalues; the smallest gap among $\lambda_3,\dots,\lambda_{20}$ was
@@ -439,8 +451,8 @@ On the citation graph of one field, the spectral gap of the whole largest compon
 interval at any scale up to 25,000 nodes, because small groups on single citations set it and the
 minimum degree is 1. On the 6-core and 10-core, with minimum degree about $\ln N$ at the crossing,
 the interval under edge resampling is within 10\% from about 1,000 to 2,000 nodes, in line with the
-degree condition of the concentration theorem. Windows for a 10\% average are about $N$ steps on the
-whole component and 1,000 to 2,000 on the cores. The Hodge energy fractions settle at much smaller
+degree condition of the concentration theorem. Windows for a 10\% average are 1.3 to 11 times $N$ lazy steps ($T$) on the
+whole component and 1,300 to 4,000 on the cores. The Hodge energy fractions settle at much smaller
 scales. A graph of 38 nodes and 20 edges in one generation lies below every threshold, and its
 spectral gap is zero.
 
