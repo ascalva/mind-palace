@@ -38,6 +38,7 @@
 | Code-ingest | bp-153 — the rebuild, the frequency gauges, the probe re-home, compaction (D6/D7/§3/§6) | graduate · proposed | Fable/Opus |
 | Code-ingest | bp-155 — the L0a oversize cut decides over the canonical body (A1.2) | graduate · proposed | Fable/Opus |
 | Deployed instances | the amnesiac clone and the one-way loop home | design-pass | FABLE |
+| Graph dynamics | the evolving graph's velocity, flows, ripples and macro regime | design-pass | FABLE |
 | Erratum relation | bp-129 — the erratum relation: a warranted, append-only, unary disposition store | graduate · proposed | Fable/Opus |
 | Erratum relation | bp-130 — the `(I − Ε)` factor: `π_valid`, and transport-invariance made checkable | graduate · proposed | Fable/Opus |
 | Erratum relation | bp-131 — the chat lane's belief/validity split, and the E8 tripwire | graduate · proposed | Fable/Opus |
@@ -126,6 +127,12 @@
     - DI-5 clone runtime image + plane split + clone Terraform, consuming keyfabric CMKs (gated on owner decisions D1–D3, D5)
     - DI-6 first clone boot — exits the second-instance fence; owner-initiated ceremony
     - DI-7 the shared embedder service (dn-embedder-service) — stateless text→vector as fleet infra; sealed-to-attested-enclave, control-queue + data-plane; public-material clean, private material gated on the Nitro-frontier ruling
+- **Graph dynamics** (active):
+    - GD-0 the design proved — dn-graph-dynamics with its first theorems machine-checked in formal/Palace/Dynamics.lean (the velocity, the Neumann resolvent and its tail, HodgeRank, the modes and the mode-decay bound, the quotient Laplacian and the gap, the ripple across a transport, the mixing scaffold), attacks and controls green
+    - GD-1 the Flow sort and the projections gradient, curl, harmonic, with their QSA-style laws transcribed and property-tested
+    - GD-2 ripple on a directed relation with a damping, diffuse its symmetric case, with the tail bound as the trace's accuracy line
+    - GD-3 at scale t and coarse by a partition, the heat kernel and the quotient as adjectives, with the gap and the mode bounds as their laws
+    - GD-4 velocity of an identity over a window of cuts, on the D moves at the node grain and the snapshot (L7), once the versions store holds a second generation
 - **Erratum relation** (active):
     - dn-erratum-relation ratified (owner) — DONE 2026-07-27
     - the erratum relation built as a typed, owner-warranted, append-only store honoring E1–E8
