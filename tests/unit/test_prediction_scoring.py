@@ -29,6 +29,7 @@ from eval.predictions.scoring import (
     Blinded,
     Pair,
     Pilot,
+    _flip_p,
     brier,
     cluster_bootstrap,
     cluster_signflip,
@@ -395,6 +396,27 @@ def test_signflip_is_reproducible_under_its_seed_and_exact_when_enumerable() -> 
     assert cluster_signflip(three, flips=1000, seed=0, alpha=0.05).p_value == 2 / 8
     iv = cluster_signflip(three, flips=1000, seed=0, alpha=0.05)
     assert (iv.lo, iv.hi) == (-math.inf, math.inf)       # 3 clusters can never reject at 0.05
+
+
+def test_a_sampled_p_value_counts_the_observed_vector_among_the_draws() -> None:
+    """The add-one rule: with the sampled sign vectors, p = (1 + reached) / (draws + 1), never
+    reached / draws, and never 0. A mutation that drops the 1 changes all three values here."""
+    import numpy as np
+    block = np.array([[1.0, 1.0], [1.0, -1.0], [-1.0, 1.0], [-1.0, -1.0]])
+    v = np.array([1.0, 2.0])                       # observed |3|; reached by 2 of the 4 draws
+    assert _flip_p([block], 4, False, v) == pytest.approx(3 / 5)      # plain would be 2 / 4
+    assert _flip_p([block], 4, True, v) == pytest.approx(2 / 4)       # all vectors: no add-one
+    extreme = np.array([10.0, 1.0])                # observed |11|; reached by none of the draws
+    assert _flip_p([block[1:3]], 2, False, extreme) == pytest.approx(1 / 3)
+
+
+def test_the_flips_are_per_cluster_not_per_pair() -> None:
+    """Three clusters of four identical pairs. Flipping clusters has 2^3 vectors, and only the
+    two all-equal ones reach the observed sum: p = 2/8. Flipping the twelve pairs one by one
+    would give 2/4096."""
+    ps = [Pair(f"q{c}-{j}", "r1", f"c{c}", 1.0) for c in range(3) for j in range(4)]
+    iv = cluster_signflip(ps, flips=5000, seed=0, alpha=0.05)
+    assert iv.p_value == 2 / 8 and iv.n_clusters == 3 and iv.n_pairs == 12
 
 
 def test_signflip_is_the_same_whatever_the_block_size(monkeypatch: pytest.MonkeyPatch) -> None:
