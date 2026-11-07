@@ -56,15 +56,16 @@ things, and this note takes them in order.
 1. **The estimation threshold is the relaxation time (§2.1).** Under the diffusion a mean-zero
    observable's time average over a window of `T` steps has energy at most `‖f‖² / (T ε γ)²`, so
    the window must span many relaxation times `1/(ε γ)`; for an observable sampled along the walk
-   the sampled form is `2σ² / (γ T)` and the effective sample size is `T γ / 2`. SCL-1.
+   the sampled form bounds the variance by `2σ² / (ε γ T)`, at least `T ε γ / 2` effective
+   samples (in diffusion time `T_c = εT`: `2σ² / (γ T_c)` and `T_c γ / 2`). SCL-1.
 2. **The scale separation is the eigengap at the cut (§2.2).** With a gap `g` between the kept
    and the dropped eigenvalues, the dropped part's share of the energy falls as `e^{−2gt}`, so a
-   `k`-mode macro description explains all but `ε` of what remains once `t ≥ log(R/ε) / (2g)`;
+   `k`-mode macro description explains all but `η` of what remains once `t ≥ log(R/η) / (2g)`;
    without a gap no time does. SCL-2.
 3. **Spectra stop fluctuating at a logarithmic minimum degree (§2.3).** Cited, not proved: the
-   normalized Laplacian's eigenvalues concentrate once the minimum expected degree exceeds a
-   constant times `log N`, within `O(√(log N / δ))` of their expectation. The sibling study
-   measures where that happens on real data.
+   normalized Laplacian's eigenvalues concentrate once the minimum expected degree `d_min`
+   exceeds a constant times `log N`, within `O(√(log N / d_min))` of their expectation. The
+   sibling study measures where that happens on real data.
 4. **The loop is a prediction ledger whose questions the store generates about its own future
    (§3).** Forward only, pre-registered, each configuration an arm, the full system and the system
    with one source, one context window or one analysis tool removed, resolved by a later cut.
@@ -78,7 +79,7 @@ things, and this note takes them in order.
    Leave-one-out confirms necessity and not contribution: two redundant sources both read zero
    while each carries half. SCL-3.
 7. **The bar is the ledger's power calculation (§3.5).** SCL-4, the number of independent
-   resolved units to detect an effect `δ` at `α` and power `1 − β`, is `required_clusters`;
+   resolved units to detect an effect `Δ` at `α` and power `1 − β`, is `required_clusters`;
    derived here from the normal approximation, not formalized.
 8. **The machinery is generic and belongs in the palace; a corpus belongs in its own instance
    (§6).**
@@ -142,8 +143,10 @@ the mean once the window spans `‖x‖/δ` relaxation times. The exact constant
 the deterministic form, in which the readings are the exact states of the diffusion.
 
 The sampled form, for an observable read along a random walk rather than along the exact
-diffusion, has the constant the question asks for. The lazy walk `1 − εL` with `ε ≤ 1/d_max` is a
-symmetric Markov chain with the uniform stationary distribution, and for a chain started at
+diffusion, has the constant the question asks for. The lazy walk `1 − εL` with
+`ε ≤ 1/(2 d_max)` (stochastic, and `ελ ≤ 1` on the whole spectrum since `λ_max ≤ 2 d_max`, the
+hypothesis of `lazy_pow_energy_le`) is a symmetric Markov chain with the uniform stationary
+distribution, and for a chain started at
 stationarity the variance of `Σ_{t<T} f(X_t)` is `Σ_{s,t} ⟨f₀, P^{|s−t|} f₀⟩` with `f₀` the centered
 observable; each term is at most `(1 − εγ)^{|s−t|} ‖f₀‖²` by the contraction on the modes (DYN-6,
 `lazy_pow_energy_le` with Cauchy–Schwarz), so the variance of the time average is at most
@@ -153,9 +156,10 @@ Var(avg_T) ≤ (σ² / T) · (1 + 2 Σ_{k≥1} (1 − εγ)^k) = (σ² / T) · (
 ```
 
 with `σ² = ‖f₀‖² / N` the observable's variance under the uniform measure, and in continuous
-units `2σ² / (γ T_c)`. So estimating a macro observable to precision `ε_est` needs
-`T_c ≳ 2σ² / (γ ε_est²)`, and a window of `T_c` carries `T_c γ / 2` **effective samples**: the
-readings within a relaxation time are one observation. `[DERIVED, for a chain started at
+units `2σ² / (γ T_c)` with `T_c = εT`. So `T ≥ 2σ² / (ε γ δ²)` lazy steps, that is
+`T_c ≥ 2σ² / (γ δ²)` of diffusion time, suffice for a standard error of at most `δ`, and a window
+of `T_c` carries at least `T_c γ / 2` **effective samples** (`σ²` over the variance of the
+average): the readings within a relaxation time are one observation. `[DERIVED, for a chain started at
 stationarity; the textbook form is cited: Aldous and Fill, Chapter 4; Levin and Peres,
 Chapter 12]` The machine-checked part is the contraction on the modes; the chain, its
 stationarity and the covariance identity are not formalized, which §1.4 records.
@@ -183,10 +187,10 @@ needs the other side:
   With `S` the first `k` modes, `ν = λ_k`, `μ = λ_{k+1}` and `g = μ − ν` is the eigengap at the
   cut. `[THEOREM]`
 - The time: with `g > 0` and a kept part that is not zero, once
-  `t ≥ log(R / ε) / (2g)` for `R = ‖f − P_S f‖² / ‖P_S f‖²` the initial ratio, the `k`-mode
-  description explains all but `ε` of what remains: `‖H_t (f − P_S f)‖² ≤ ε ‖H_t P_S f‖²`
+  `t ≥ log(R / η) / (2g)` for `R = ‖f − P_S f‖² / ‖P_S f‖²` the initial ratio, the `k`-mode
+  description explains all but `η` of what remains: `‖H_t (f − P_S f)‖² ≤ η ‖H_t P_S f‖²`
   (`scale_separation_time`). `[THEOREM]` In amplitude rather than energy the rate is `e^{−gt}`
-  and the time `log(√R / √ε) / g`, the form the question states.
+  and the time `log(√R / √η) / g`, the form the question states.
 - The discrete twin under any symmetric operator that multiplies the dropped modes by at most
   `ρ₁` and the kept modes by at least `ρ₂`: after `n` steps
   `ρ₂^{2n} ‖N^n (f − P_S f)‖² ‖P_S f‖² ≤ ρ₁^{2n} ‖f − P_S f‖² ‖N^n P_S f‖²`
@@ -195,7 +199,7 @@ needs the other side:
 - The control: without a gap there is no such time. On the identity every eigenvalue is `1`
   (`eigenvalues_one`), so two equal eigenvalues straddle every cut, and the dropped share of the
   energy is the same at every time (`no_gap_no_separation`): if some time makes the dropped part
-  at most `ε` of the kept, it already was at time zero (`no_gap_no_time`). `[THEOREM, as the
+  at most `η` of the kept, it already was at time zero (`no_gap_no_time`). `[THEOREM, as the
   control]` The attack's control (seed 355), that the dropped share always falls, is refuted
   within 19 instances on a cut with a kept eigenvalue above a dropped one, where the share rises.
 
@@ -215,16 +219,16 @@ corpus rather than of the sample. For a random graph with independent edges the 
 theorem, cited here and not formalized:
 
 - Oliveira (2009): for a random graph on `N` nodes with independent edges whose minimum expected
-  degree is `δ ≥ C log N`, with probability `1 − o(1)` the adjacency matrix and the normalized
-  Laplacian are within `O(√(log N / δ))` in operator norm of their expectations, so every eigenvalue
-  of the normalized Laplacian is within `O(√(log N / δ))` of the expected graph's. Chung and
+  degree is `d_min ≥ C log N`, with probability `1 − o(1)` the adjacency matrix and the normalized
+  Laplacian are within `O(√(log N / d_min))` in operator norm of their expectations, so every eigenvalue
+  of the normalized Laplacian is within `O(√(log N / d_min))` of the expected graph's. Chung and
   Radcliffe (2011) give the same concentration with explicit constants, for general random graphs
   with independent edges, through a matrix Chernoff bound. `[ESTABLISHED, cited]`
 
 The prediction: the measured spectrum stops fluctuating once the minimum expected degree exceeds a
 constant times `log N`, and a gap `γ` (or an eigengap `g`) of the normalized Laplacian is a stable
-macro quantity once the fluctuation scale is below it, `√(log N / δ) ≪ γ`, that is
-`δ ≫ log N / γ²`. Below that, a measured gap is noise of the sample; above it, the gap is the
+macro quantity once the fluctuation scale is below it, `√(log N / d_min) ≪ γ`, that is
+`d_min ≫ log N / γ²`. Below that, a measured gap is noise of the sample; above it, the gap is the
 corpus's and SCL-1 and SCL-2 can be sized from it. A real citation graph does not have independent
 edges, so the constant and the exponent are the sibling study's to measure: it records the
 eigenvalues of the normalized Laplacian of a growing dated graph at successive cuts and reports
@@ -235,10 +239,10 @@ law's shape on real data; checked by #76]`
 
 | quantity | symbol | what sets it | the threshold |
 |---|---|---|---|
-| the gap | `γ` | the least nonzero eigenvalue of `L` on a connected support (DYN-6) | the window must span many `1/γ`: `T_c ≥ ‖x‖/(γ δ)` exact, `T_c ≥ 2σ²/(γ ε²)` sampled (SCL-1) |
-| the eigengap at the cut | `g = λ_{k+1} − λ_k` | the spectrum near the kept modes | the macro description is legitimate from `t ≥ log(R/ε)/(2g)`; no gap, no time (SCL-2) |
+| the gap | `γ` | the least nonzero eigenvalue of `L` on a connected support (DYN-6) | the window must span many `1/γ`: `T_c ≥ ‖x‖/(γ δ)` exact, `T_c ≥ 2σ²/(γ δ²)` sampled, `T_c = εT` (SCL-1) |
+| the eigengap at the cut | `g = λ_{k+1} − λ_k` | the spectrum near the kept modes | the macro description is legitimate from `t ≥ log(R/η)/(2g)`; no gap, no time (SCL-2) |
 | the effective sample size | `T_c γ / 2` | the window in relaxation times | the number of readings that count in a window (SCL-1, sampled) |
-| the minimum degree | `δ` | the sparsest node's expected degree | spectra concentrate once `δ ≥ C log N`; a gap is stable once `δ ≫ log N / γ²` (§2.3, cited) |
+| the minimum degree | `d_min` | the sparsest node's expected degree | spectra concentrate once `d_min ≥ C log N`; a gap is stable once `d_min ≫ log N / γ²` (§2.3, cited) |
 | the number of resolved units | `K` | independent clusters of resolved questions | `K ≥ ((z_{1−α/2} + z_{1−β}) s / Δ)²` to detect an effect `Δ` (SCL-4, §3.5) |
 
 Each is a theorem or a cited theorem on a fixed graph; what they are measured on is a sequence of
@@ -431,7 +435,7 @@ recorded within one second of one rebuild. Against each threshold:
 
 - §2.3: `N = 38`, `log N ≈ 3.6`; the backbone's mean degree is `2` and its minimum degree `1`,
   so the minimum degree is below `C log N` for any `C ≥ 1/3`, and the fluctuation scale
-  `√(log N / δ)` is about `1.9` at `δ = 1`, above the whole range `[0, 2]` of the normalized
+  `√(log N / d_min)` is about `1.9` at `d_min = 1`, above the whole range `[0, 2]` of the normalized
   Laplacian's spectrum. Every measured gap is noise of the sample.
 - SCL-1 and SCL-2: there is one cut, so the window is zero relaxation times whatever `γ` is; no
   time average exists.
@@ -451,12 +455,12 @@ concept, and its report, when it lands, replaces the figures of this paragraph w
 
 1. **Measure.** At a sequence of cuts of the corpus, the Laplacian's gap `γ` and the eigengaps
    `g_k` near the candidate cuts `k` (the normalized Laplacian too, for §2.3), the minimum degree
-   `δ`, and the sizes `N`. Report each as a function of the cut.
-2. **Size.** From `γ`, the window `T_c ≥ 2σ²/(γ ε²)` a macro observable needs and the effective
+   `d_min`, and the sizes `N`. Report each as a function of the cut.
+2. **Size.** From `γ`, the window `T_c ≥ 2σ²/(γ δ²)` a macro observable needs and the effective
    samples a history of `T_c` carries; from `g_k`, the time scale `1/g_k` at which a `k`-mode
-   description is legitimate; from `δ` and `N`, whether the spectrum has concentrated; from the
+   description is legitimate; from `d_min` and `N`, whether the spectrum has concentrated; from the
    pilot's spread, `K`.
-3. **Grow.** Fetch until the thresholds are exceeded: `δ ≫ log N / γ²`, a history of many
+3. **Grow.** Fetch until the thresholds are exceeded: `d_min ≫ log N / γ²`, a history of many
    relaxation times, enough clusters for `K`. Each fetch is a dated extension, so growing is adding
    cuts, not replacing the corpus.
 4. **Run.** The loop of §3.6 under a protocol written first: the generators, the arms (the full
@@ -512,7 +516,7 @@ nothing after it. `[INFERENCE, falsifier SAF-5]`
 - **SAF-5 (an instance writes outside itself):** a study instance that writes the private
   store's levers, strata or ledger. DI-2 is not complete; the study does not run until it is.
 - **SAF-6 (the thresholds mispredict):** a corpus whose measured gaps keep moving above
-  `δ ≫ log N / γ²`, or a time average that converges in a window far shorter than `1/γ`. The
+  `d_min ≫ log N / γ²`, or a time average that converges in a window far shorter than `1/γ`. The
   first says the concentration law's shape on real data differs from the independent-edge one,
   which is the sibling study's finding to report; the second cannot happen over the exact
   diffusion (SCL-1 is a theorem) and on sampled readings says the observable lies on fast modes
