@@ -14,6 +14,8 @@ public import Palace.Cut
 public import Palace.Cut.Defs
 public import Palace.Door
 public import Palace.Door.Defs
+public import Palace.Dynamics
+public import Palace.Dynamics.Defs
 public import Palace.FloatModel
 public import Palace.FloatModel.Defs
 public import Palace.Frustration
