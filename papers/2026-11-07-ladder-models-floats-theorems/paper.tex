@@ -1,0 +1,949 @@
+% The article for pull request #68: the Lean ladder's remaining phases.
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\setlist{noitemsep,topsep=2pt}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+\makeatletter
+\renewcommand{\theHALG@line}{\thealgorithm.\arabic{ALG@line}}
+\makeatother
+\renewcommand{\bibfont}{\footnotesize}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\DeclareUrlCommand\lean{\urlstyle{tt}}
+\newcommand{\mlean}[1]{\text{\texttt{#1}}}
+\newcommand{\rn}{\operatorname{rn}}
+\newcommand{\rnf}{\operatorname{rnf}}
+\newcommand{\cosine}{\operatorname{cos}}
+\newcommand{\norm}[1]{\lVert #1 \rVert}
+\newcommand{\abs}[1]{\lvert #1 \rvert}
+\newcommand{\inner}[2]{\langle #1, #2 \rangle}
+\newcommand{\cnt}{\operatorname{count}}
+\newcommand{\countSV}{\operatorname{count}^{\mathrm{sv}}}
+\newcommand{\betaS}{\beta_{\mathrm{store}}}
+\newcommand{\betaQ}{\beta_{\mathrm{query}}}
+\newcommand{\A}{\mathbb{A}}
+\setlength{\emergencystretch}{1.5em}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.7}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.9}
+\setcounter{topnumber}{3}
+\setcounter{totalnumber}{4}
+
+\title{Store Models, Float Bounds and Design Theorems:\\
+Finishing a Lean Ladder for a Retrieval Algebra}
+\author{mind-palace contributors}
+\date{November 7, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A knowledge store whose retrieval algebra is written to a ledger of laws, each stated in Lean and
+attacked before it is proved, reaches a stage at which the remaining claims are of three kinds:
+correctness models of the store's own write paths, bounds on what finite arithmetic does to a
+ranked retrieval, and theorems a design note stated in prose before any code relied on them. This
+article reports the branch that closes those three phases. The correctness models cover a scoped
+re-key that keeps every row the store's laws need, with the unscoped migration as a refuted
+control; version lineage, under which a path's chain members are exactly its ledger versions; the
+crash points of a landing and of a relabel, with cache additions written before the transaction so
+that a crash leaves only excess that no search reads; and an existence oracle shown to reveal
+exactly the table. The float claims enter the ladder's numerical rung: a rounding model with the
+format's precision and exponent range as parameters, attacked bit for bit against the machine's
+float32 and the store's float16 write path; a bound of about $2^{-11}$ on what float16 storage
+can move a cosine; and a top-$k$ margin certificate, proved and computed on request. Weyl's
+inequality in counting form, proved from a dimension count because the library lacks it, gives
+the condition under which three tolerances decide zero against nonzero. The design theorems write
+a temporal transport as a superconnection and correct two statements of their source. After
+integration the gates are 3,131 tests, 281 statements judged identical to their proofs by a
+comparator, 46,085 declarations replayed by Lean's kernel and five independent checkers, 90
+ledger rows in 13 families, 1,048 theorems and no \texttt{sorry}. A replay of 172,560 ranked slots over an archived
+store found 51 changed by float16 storage, every one inside the bound and none certified.
+\end{abstract}
+
+\section{Introduction}
+
+The repository under study \citep{mindpalace2026} keeps a knowledge store whose retrieval
+algebra is governed by a ledger of laws. Each law has one row: its statement, the structure it
+instantiates, the code it anchors, a label for its epistemic status, a Python test that would
+catch it false, and the Lean declarations that state it. The Lean side is a ladder: statements as
+specifications (L1), proofs over exact arithmetic (L2), and a numerical rung (L3) entered one
+claim at a time, in which a floating-point claim is proved over a model of rounding that is itself
+attacked against the machine. At the start of this branch the ledger held 87 rows in 12 families
+and 248 statements judged by a comparator against their proofs.
+
+At that stage the claims that remain are not the algebraic ones. They are of three kinds. First,
+the store's own write paths carry informal correctness arguments: a migration that re-keys rows,
+a landing that writes atoms, a transaction and a cache in a fixed order, a relabel that moves a
+class, an oracle the write path consults to skip work. Each had a prose argument and a test, and
+in two cases the argument was wrong: the migration dropped rows it never read, and a crash between
+a landing's transaction and its cache step hid rows from every reader. A model of the store, not
+of the mathematics it computes, is what settles these. Second, the store holds its vectors in
+binary16, and the search engine scores a query against that column in float32 after rounding the
+query to binary16 as well, so every ranked read is ranked by scores that are not the exact cosines
+between the query and the embedder's vectors, and nothing said by how much; three tolerances
+elsewhere decide whether a computed spectral value is zero, and nothing said when they decide
+correctly. Third, a design note on temporal retrieval stated six results in prose, four of them
+already machine-checked; the remaining two write the transport of cochains along a chain of times
+as a superconnection and ask when it is flat, and what a transport that commutes with the
+coboundary owes to its adjoint. Both turned out to be wrong as written.
+
+\paragraph{Contributions.} The branch, 51 commits stacked on \texttt{main}, contributes:
+\begin{enumerate}
+  \item A model of the store around its shared plane, under which the scoped re-key keeps the
+  plane's state, every row outside the note lane, and every row's document, text and lane
+  (PLN-6, \lean{Palace.Plane.Store.rekey_keeps}); the unscoped migration drops shed atoms,
+  history and edges and merges rows, by theorem and by witness.
+  \item The crash points of a landing and of a relabel (PLN-4 extended): with the cache's
+  additions written before the transaction and taken back on refusal, a crash leaves the cache
+  complete, and two complete planes differing only in their caches answer every search alike
+  after any trace (\lean{Palace.Plane.search_after_crash},
+  \lean{Palace.Plane.search_after_relabelCrash}).
+  \item A model of version lineage under which a path's chain members are exactly its ledger
+  versions (\lean{Palace.Lineage.History.mem_chain_iff}), correcting a design note, with a
+  witness that a chain's consecutive pairs need not be any commit's diff.
+  \item An exact account of the write path's existence oracle: it reveals the table and nothing
+  else (\lean{Palace.Plane.known_eq_known_iff}), it interferes with an uncleared write, and
+  bounded to a reader's own classes it reveals nothing beyond the view
+  (\lean{Palace.Plane.knownIn_congr}).
+  \item A rounding model $\rnf\,p\,e_{\min}$ with the format's precision and least exponent as
+  parameters, equal to the existing binary64 model at its parameters and attacked against the
+  machine's binary32 conversion and a table of the store's binary16 write path; the float16
+  cosine bound $\betaS$ and the top-$k$ margin certificate
+  (\lean{Palace.Cosine.top_unchanged}), computed on request and replayed over an archived store
+  of 17,256 rows (ledger family XIII, VEC-1).
+  \item Weyl's inequality in counting form for symmetric operators and for singular values,
+  proved from a dimension count, and the spectral-gap lemma that says when a cut keeps exactly
+  the kernel below it (SPC-3, \lean{Palace.Gap.count_eq_of_gap},
+  \lean{Palace.Gap.countSV_eq_of_gap}); a pseudo-inverse cut moved from the library default
+  to one the lemma admits.
+  \item The superconnection $\A = d + \tau$ on the nerve of a chain of times, with
+  $\A^2 = [d, \tau] + \tau^2$, flatness characterized, and two errata to the source note (TRN-10
+  to TRN-15).
+  \item Code fixes, each pinned by a test that fails on the old code: a half delete that stranded
+  a note, a job claim made a compare-and-set, refusals beside a live writer, a memoized closure on
+  a frozen type, algebraic connectivity on disconnected graphs, a row-length roundoff tolerance,
+  and the pseudo-inverse cut.
+\end{enumerate}
+
+\section{Background and related work}
+
+\paragraph{The ledger and the ladder.} The ledger is a Markdown table, one row per law,
+cross-referenced two ways with the Lean package: each cited declaration carries its law id in its
+docstring, and a script checks that every marked declaration has a row and every row's citation
+exists. Each family has a model (\texttt{Palace/X/Defs.lean}) mirroring the code's definitions,
+statements (\texttt{Spec/X.lean}) with proofs left as \texttt{sorry}, and proofs
+(\texttt{Palace/X.lean}). A comparator judges the proofs against the statements: each theorem in
+\texttt{Spec} is proved in \texttt{Palace} with exactly the same statement from the three standard
+axioms, and everything the statements reach is replayed through Lean's kernel and five independent
+checkers. A proof file therefore cannot change what the ledger states. Design theorems, proved
+before any code relies on them, live in the proof files only and are replayed but not judged.
+
+Each family is attacked before it is proved: property-based tests in the manner of QuickCheck
+\citep{claessen2000}, run by Plausible, the Lean~4 library for that method, with a fixed seed on
+an executable shadow of the law (the law over $\mathbb{Q}$ where the code works over
+$\mathbb{R}$, a decidable transcription where the code's objects are infinite). Every attack has a
+control, a nearby false law that must be refuted, so that an attack that survives because it
+tests nothing is caught. The toolchain is Lean~4 \citep{demoura2021} and Mathlib
+\citep{mathlib2020}.
+
+\paragraph{Floating point and perturbation theory.} The numerical rung states float claims over
+a model of IEEE~754 rounding \citep{ieee754}: round to nearest, ties to even, on the grid of a
+given precision and least exponent, without overflow. The error bound used,
+$2^{-p}\max(\abs{x}, 2^{e_{\min}+p-1})$, is the standard one \citep{goldberg1991,higham2002}; the
+summation bound $\gamma_n = nu/(1 - nu)$ that one code fix adopts is Higham's. Backward stability
+of the LAPACK decompositions NumPy calls, with a modestly growing polynomial in the dimension, is
+as the LAPACK guide states it \citep{lapack1999}. Weyl's inequality for the eigenvalues of a
+perturbed symmetric operator goes back to \citet{weyl1912}; its singular-value form is Mirsky's
+\citep{mirsky1960}; both are presented with the Courant--Fischer characterization in
+\citet{hornjohnson2013} and \citet{stewartsun1990}. The pseudo-inverse is Penrose's
+\citep{penrose1955} and its perturbation bound Wedin's \citep{wedin1973}. Effective resistance
+through the Laplacian's pseudo-inverse and Rayleigh's monotonicity law are in
+\citet{doylesnell1984}; algebraic connectivity is Fiedler's \citep{fiedler1973}; the Hodge
+Laplacian of a graph is set out by \citet{lim2020}, and Forman's curvature \citep{forman2003} is
+the ledger's curvature family, already proved and not touched here.
+
+\paragraph{Superconnections, noninterference, side channels.} Quillen introduced
+superconnections as odd operators $\A = d + \tau$ whose square plays the role of a curvature
+\citep{quillen1985}; the design note under study uses the form for the transport of cochains
+along a chain of times, and the theorems here are about that discrete instance. The shared plane's
+reader law is noninterference in the sense of \citet{goguenmeseguer1982}, proved by Rushby's
+unwinding \citep{rushby1992} on an earlier branch under four hypotheses. The existence oracle
+characterized here is the deduplication side channel of \citet{harnik2010}: a write path that
+skips work for content it already holds tells the writer that someone holds it.
+
+\section{Theory}
+
+The Lean declaration that checks a statement is named after it. Families with a ledger row
+(Cosine, Gap, Plane) have their statements in \texttt{Spec/} and are judged by the comparator;
+Lineage and Superconnection are design theorems, replayed by the kernel checkers but stated in the
+proof files.
+
+\subsection{Rounding to a binary format, and the float16 cosine bound (VEC-1)}
+
+\begin{definition}[Rounding to a format]
+Let $K$ be an ordered field with a floor function. For precision $p \ge 1$ and least exponent
+$e_{\min} \in \mathbb{Z}$, the exponent of $x$'s unit in the last place is
+$c(x) = \max(\lfloor \log_2 \abs{x} \rfloor - (p - 1),\, e_{\min})$, and
+\[
+  \rnf\,p\,e_{\min}\,(x) = \operatorname{rne}\bigl(x / 2^{c(x)}\bigr)\cdot 2^{c(x)},
+\]
+with $\operatorname{rne}$ rounding to the nearest integer, ties to even
+(\lean{Palace.Format.rnf}). Binary16 is $\rn_{16} = \rnf\,11\,(-24)$ and binary32 is
+$\rn_{32} = \rnf\,24\,(-149)$. The existing binary64 model satisfies
+$\rn = \rnf\,53\,(-1074)$ (\lean{Palace.Format.rn_eq_rnf}).
+\end{definition}
+
+\begin{theorem}[Rounding error]\label{thm:rnf}
+For every $x$ (\lean{Palace.Format.abs_rnf_sub_le}),
+\[
+  \abs{\rnf\,p\,e_{\min}\,(x) - x} \le 2^{-p}\max\bigl(\abs{x}, 2^{e_{\min}+p-1}\bigr).
+\]
+In particular $\abs{\rn_{16}(x) - x} \le u_{16}\max(\abs{x}, \tau_{16})$ with $u_{16} = 2^{-11}$
+and $\tau_{16} = 2^{-14}$ (\lean{Palace.Cosine.abs_rn16_sub_le}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Rounding moves $x$ by at most half a unit in the last place,
+$2^{c(x)}/2$ (\lean{abs_rnf_sub_le_half_ulp}). In the normal range $c(x) = \lfloor \log_2
+\abs{x} \rfloor - p + 1$ and $2^{\lfloor \log_2 \abs{x} \rfloor} \le \abs{x}$; below it
+$c(x) = e_{\min}$ and the bound is the constant $2^{e_{\min}-1}$.
+\end{proof}
+
+\begin{definition}[Vectors and scores]
+For $x \in \mathbb{R}^d$ let $\operatorname{round}_{16}(x)$ apply $\rn_{16}$ coordinatewise. The
+cosine of $q$ and $x$ is $\cosine(q, x) = \inner{q}{x}/(\norm{q}\norm{x})$, taken as $0$ when
+either vector is zero. Set
+\[
+  \eta(d, \nu) = u_{16}\sqrt{1 + d\,\tau_{16}^2/\nu^2},\qquad
+  \betaS(d, \nu) = \frac{2\eta}{2 - \eta},\qquad
+  \betaQ(q, q') = \frac{2\norm{q' - q}}{\norm{q} + \norm{q'}}.
+\]
+A finite set $T$ of indices is a top set of scores $t$ when every member scores at least every
+non-member (\lean{Palace.Cosine.IsTop}).
+\end{definition}
+
+\begin{theorem}[Storage and query bounds]\label{thm:store}
+\begin{enumerate}
+  \item $\norm{\operatorname{round}_{16}(x) - x} \le u_{16}\sqrt{\norm{x}^2 + d\,\tau_{16}^2}$
+  (\lean{Palace.Cosine.norm_round16_sub_le}).
+  \item For any $q, x, y$ in a real inner product space,
+  $\abs{\cosine(q, x) - \cosine(q, y)} \le 2\norm{x - y}/(\norm{x} + \norm{y})$
+  (\lean{Palace.Cosine.abs_cosine_sub_le}).
+  \item If $0 < \nu \le \norm{x}$ and $\eta(d, \nu) < 2$, then
+  $\abs{\cosine(q, \operatorname{round}_{16}(x)) - \cosine(q, x)} \le \betaS(d, \nu)$
+  (\lean{Palace.Cosine.abs_cosine_round16_sub_le}).
+  \item $\abs{\cosine(q', x) - \cosine(q, x)} \le \betaQ(q, q')$
+  (\lean{Palace.Cosine.abs_cosine_sub_query}).
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+(1) sums the squared coordinate bounds, using $\max(\abs{x_i}, \tau_{16})^2 \le x_i^2 +
+\tau_{16}^2$. (2) is the inner-product form of the Dunkl--Williams inequality
+\citep{dunklwilliams1964}: with $a = \norm{x}$, $b = \norm{y}$, $s = \inner{x}{y}$, the
+difference of cosines is $\inner{q}{b x - a y}/(\norm{q} a b)$, Cauchy--Schwarz bounds the
+numerator, and $\norm{bx - ay}^2 (a + b)^2 \le 4a^2b^2\norm{x - y}^2$ follows from
+$\norm{bx - ay}^2 = 2ab(ab - s)$ and $\norm{x - y}^2 = a^2 - 2s + b^2$. (3) applies (2) to $x$
+and its rounding, which by (1) moves it by $E \le \eta\norm{x}$, so that
+$2E/(2\norm{x} - E) \le 2\eta/(2 - \eta)$. (4) is (2) with query and vector swapped.
+\end{proof}
+
+\begin{theorem}[Margin certificate]\label{thm:margin}
+Let $s, t : \kappa \to \mathbb{R}$ with $\abs{s_j - t_j} \le \beta$ for every $j$, and let $S$ be a
+finite set such that $s_j + 2\beta < s_i$ for every $i \in S$ and $j \notin S$. Then
+$t_j < t_i$ for every such pair, and every top set of $t$ with $\abs{S}$ elements equals $S$
+(\lean{Palace.Cosine.top_eq_of_margin}).
+\end{theorem}
+
+\begin{theorem}[VEC-1, the certificate the store computes]\label{thm:vec1}
+Let each stored vector be $\operatorname{round}_{16}(y_j)$ for a vector $y_j$ with
+$\nu \le \norm{y_j}$, let the store score with $q'$ in place of the query $q$, and let each
+computed score satisfy $\abs{s_j - \cosine(q', \operatorname{round}_{16}(y_j))} \le \gamma$. If
+the members of $S$ beat every non-member by more than $2(\betaS(d, \nu) + \betaQ(q, q') +
+\gamma)$, then the exact cosines $\cosine(q, y_j)$ rank $S$ strictly above the rest, and $S$ is
+their only top set of its size (\lean{Palace.Cosine.top_unchanged}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+\Cref{thm:margin}: if $T \ne S$ has the same size, some $i \in S \setminus T$ and $j \in T
+\setminus S$ exist, and $t_j < t_i$ contradicts $T$ being a top set. \Cref{thm:vec1} chains the
+three bounds of \cref{thm:store} through the triangle inequality, so each score is within
+$\beta = \betaS + \betaQ + \gamma$ of its exact cosine.
+\end{proof}
+
+The ledger row fixes $\nu = 1/2$ as a hypothesis on the corpus (the embedder returns unit vectors;
+stored norms measured 0.99988 to 1.00012) and $\gamma = 2(d + 4)\,2^{-24}$ as the stated bound on
+the float32 distance kernel (the classical bound for a dot product and two norms of $d$ terms, a
+square root and a division; measured within $5.6\times 10^{-8}$); at $d = 768$,
+$\betaS = 4.884\times 10^{-4}$.
+
+\subsection{Weyl's inequality counted, and the gap lemma (SPC-3)}
+
+\begin{definition}
+Let $E$ be a real inner product space of finite dimension $n$ and $T$ a symmetric operator on
+it with eigenvalues $\lambda_1, \dots, \lambda_n$ (Mathlib's \lean{IsSymmetric.eigenvalues}).
+$\cnt_T(t)$ is the number of $i$ with $\lambda_i \le t$ (\lean{Palace.Gap.count}). $B$ is
+within $\varepsilon$ of $A$, written $\operatorname{Near}(A, B, \varepsilon)$, when
+$\abs{\inner{x}{(B - A)x}} \le \varepsilon\norm{x}^2$ for every $x$. For any operator $M$,
+$\countSV_M(t) = \cnt_{M^\dagger M}(t^2)$ counts the singular values at most $t$
+(\lean{Palace.Gap.countSV}).
+\end{definition}
+
+\begin{lemma}[The dimension count]\label{lem:dim}
+If fewer than $n$ eigenvalues of $T_1$ exceed $c_1$ and of $T_2$ are at most $c_2$, counted
+together, some $x \ne 0$ satisfies $\inner{x}{T_1 x} \le c_1\norm{x}^2$ and
+$c_2\norm{x}^2 < \inner{x}{T_2 x}$ (\lean{Palace.Gap.exists_of_card_lt}).
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+The map $x \mapsto (\inner{b^1_i}{x})_{i \in S_1} \times (\inner{b^2_i}{x})_{i \in S_2}$ into a
+space of dimension $\abs{S_1} + \abs{S_2} < n$ has a nonzero kernel element $x$. Expanding each
+quadratic form in its eigenbasis, the terms that could exceed $c_1$ (respectively fall below
+$c_2$) vanish, and Parseval gives the two inequalities; the second is strict because some
+coefficient of $x$ in the $T_2$ basis is nonzero.
+\end{proof}
+
+\begin{theorem}[Weyl counted]\label{thm:weyl}
+If $\operatorname{Near}(A, B, \varepsilon)$ for symmetric $A, B$, then for every $t$,
+$\cnt_A(t - \varepsilon) \le \cnt_B(t) \le \cnt_A(t + \varepsilon)$
+(\lean{Palace.Gap.count_sub_le}, \lean{Palace.Gap.count_le_add}). If
+$\norm{(M' - M)x} \le \varepsilon\norm{x}$ for every $x$, then $\countSV_M(t - \varepsilon) \le
+\countSV_{M'}(t)$ for $\varepsilon \le t$ and $\countSV_{M'}(t) \le \countSV_M(t + \varepsilon)$
+for $0 \le \varepsilon$, $0 \le t$ (\lean{Palace.Gap.countSV_sub_le},
+\lean{Palace.Gap.countSV_le_add}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Suppose $\cnt_A(t - \varepsilon) > \cnt_B(t)$. Since the eigenvalues above $t - \varepsilon$
+and those at most $t - \varepsilon$ are all $n$, \cref{lem:dim} with $c_1 = t - \varepsilon$,
+$c_2 = t$ gives $x$ with $\inner{x}{Ax} \le (t - \varepsilon)\norm{x}^2 < \inner{x}{Bx} -
+\varepsilon\norm{x}^2$, against nearness. The singular-value forms use $\inner{x}{M^\dagger Mx}
+= \norm{Mx}^2$ and the triangle inequality $\norm{M'x} \le \norm{Mx} + \varepsilon\norm{x}$.
+\end{proof}
+
+\begin{theorem}[The gap lemma]\label{thm:gap}
+Let every nonzero eigenvalue of symmetric $A$ be at least $g$, let
+$\operatorname{Near}(A, B, \varepsilon)$, and let $0 \le \varepsilon \le \theta$ with
+$\theta + \varepsilon < g$. Then $\cnt_B(\theta) = \cnt_A(0)$: the cut $\theta$ keeps exactly
+the kernel's dimension below it (\lean{Palace.Gap.count_eq_of_gap}). The same holds for
+singular values, with $g^2$ a lower bound on the nonzero eigenvalues of $M^\dagger M$
+(\lean{Palace.Gap.countSV_eq_of_gap}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+$\cnt_A(\theta + \varepsilon) = \cnt_A(0)$ because no eigenvalue lies in $(0, g)$, and
+$\cnt_A(0) \le \cnt_A(\theta - \varepsilon)$ because $\theta - \varepsilon \ge 0$. Squeeze
+with \cref{thm:weyl}.
+\end{proof}
+
+The ledger row instantiates $\varepsilon$ from backward stability: $8nu\norm{A}$ for the
+decomposition, with $u = 2^{-53}$, plus $nu\norm{L}$ for forming a weighted Laplacian's degree
+sums in float64, so $\varepsilon = 9nu\norm{L}$ for the pseudo-inverse cut and $8nu\norm{L_1}$
+for the Hodge rank cut, whose integer entries are formed exactly. With
+$\theta = 10^{-10}\sigma_{\max}$ the first condition holds up to about $1.0\times 10^5$ notes
+($1.1\times 10^5$ edges for the Hodge cut); the second is the gap condition
+$g > (10^{-10} + 16nu)\norm{A}$, checked on fixtures. The rise threshold of the reconnection
+scan, $10^{-9}$ on a change of conductance, rests further on Wedin's bound \citep{wedin1973},
+cited and not formalized: a computed conductance $\hat c$ is within
+$\delta = c\,\hat c\,\bigl(4\mu\varepsilon/(g(g - \varepsilon)) + 4(n + 3)u/(g - \varepsilon)\bigr) +
+u\hat c$ of the exact $c$, $\mu = (1 + \sqrt 5)/2$, and an exact change of zero reads as no rise
+when $2\delta \le 10^{-9}$.
+
+\subsection{The plane's write paths (PLN-4, PLN-6) and the oracle}
+
+The plane model is a state $s$ with, per class $c$, a relation $s.\mathrm{occ}\,c$ of occupancy
+rows (path, digest, chunk index, atom, currency flag) and a supersession log; a table of atoms;
+and a cache giving each atom two sets of classes, $\mathrm{held}$ and $\mathrm{ever}$. The cache
+is \emph{coherent} when it equals, for each table atom, the classes whose rows hold the atom, and
+\emph{complete on $C$} when it contains those classes for $c \in C$
+(\lean{Palace.Plane.Coherent}, \lean{Palace.Plane.Complete}); $\operatorname{WF}$ says no row
+names an atom the table lacks. A search under clearance $C$ prefilters by the cache and keeps only
+atoms a cleared relation holds, so a cache entry in excess is never returned.
+
+\begin{definition}[The landing's crash points]
+For a fiber $f$ (one document version's rows, in class $f.\mathrm{cls}$), the code's order is:
+insert the missing atoms; add $f.\mathrm{cls}$ to the cache of every atom of $f$ that the table
+holds (\lean{addCache}); the transaction (\lean{commit}); then refresh the cache of every affected
+atom to its truth (\lean{refresh}). $\mlean{landAdd}\,f\,s$ is the state after the additions and
+before the transaction; $\mlean{landAddCommit}\,f\,s$ the state after the transaction (or after
+its rollback, when the land is refused) and before the refresh. $\mlean{land}\,f\,s$ is the whole
+write. $\operatorname{SameRel}(s, t)$ says $s$ and $t$ agree on relations, logs and table and
+differ at most in their caches. A relabel from class $o$ to class $n$ has the same shape:
+$\mlean{addRelabel}$ adds $n$ to the cache of every atom $o$'s rows hold, $\mlean{relabelCommit}$
+moves the rows and the log, and a refresh removes $o$.
+\end{definition}
+
+\begin{theorem}[PLN-4, crash points]\label{thm:crash}
+From a plane complete on every class with no dangling row:
+\begin{enumerate}
+  \item $\mlean{landAdd}\,f\,s$ and $\mlean{landAddCommit}\,f\,s$ are complete on every class
+  (\lean{Palace.Plane.complete_landAdd}, \lean{complete_landAddCommit}).
+  \item When the land is not refused, refreshing after $\mlean{landAddCommit}$ gives exactly
+  $\mlean{land}\,f\,s$; when it is refused and the additions are taken back, the result is again
+  $\mlean{land}\,f\,s$, from a coherent plane (\lean{land_of_landAdd},
+  \lean{land_of_landAdd_refused}).
+  \item Two planes with $\operatorname{SameRel}$, both complete with no dangling row, answer
+  every search alike after any trace of writes (\lean{search_run_of_sameRel}); hence from a
+  coherent plane, every search after any trace following $\mlean{landAddCommit}\,f\,s$ equals
+  the one following $\mlean{land}\,f\,s$ (\lean{search_after_crash}).
+  \item The relabel analogues (\lean{complete_addRelabel}, \lean{complete_relabelAdd},
+  \lean{relabel_of_addRelabel}, \lean{relabel_of_addRelabel_clash},
+  \lean{coherent_relabel}, \lean{search_after_relabelCrash}).
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Additions can only enlarge a cache entry, so completeness survives them; the transaction gives
+rows to atoms that already name the row's class. The refresh rewrites a touched atom's whole
+cache entry to its truth, which is why both orders end in the same state. For (3), every write
+preserves $\operatorname{SameRel}$ and completeness, the view under $C$ depends on relations
+alone, and a search keeps only what a cleared relation holds, so a cache in excess changes no
+answer.
+\end{proof}
+
+Two witnesses bound what the theorem does not say. Re-running a land after a crash does not
+restore coherence: the first run's freed atoms stay cached in excess, complete all the same, until
+\lean{repair} (\lean{Palace.Plane.Witness.rerun_keeps_excess}). With the cache written last, a
+relabel that crashed after its transaction hid the moved atoms from the new class, and a re-run
+refreshed nothing because the old relation was empty
+(\lean{Palace.Plane.Witness.relabel_rerun_hides}).
+
+\begin{definition}[The store around the plane]
+A physical row (\lean{Palace.Plane.Phys}) has an id, an optional document, a text, and a flag
+saying whether its class is a plane class; a \emph{note record} is a plane-class row with a
+document. A store is a plane and a finite set of physical rows. The scoped re-key
+$\mlean{Store.rekey}\,\mathrm{key}$ gives each note record the id $\mathrm{key}(\mathrm{path},
+\mathrm{text})$ and touches nothing else; the unscoped $\mlean{Store.rekeyReset}$ reads the
+documents' rows, drops the plane, and lands the current rows again from the empty plane.
+\end{definition}
+
+\begin{theorem}[PLN-6]\label{thm:rekey}
+For every key and store $s$: the re-key leaves the plane's state unchanged, keeps every row that
+is not a note record, gives every note record its key, and keeps the set of (document, text, lane)
+contents (\lean{Palace.Plane.Store.rekey_keeps}); from a $\operatorname{Good}$ plane
+(coherent, no dangling row, every path at one stratum) it returns a $\operatorname{Good}$ plane
+with the same view under every clearance (\lean{Store.rekey_good}); and it is idempotent
+(\lean{Store.rekey_idem}). The unscoped form leaves no row without a document
+(\lean{Store.rekeyReset_drops_atoms}); on a store with one edited note and four code rows it
+drops the first version and its edge (\lean{Witness.rekeyReset_drops_history}) and leaves one of
+the four rows, two shed atoms unread and two records merged (\lean{Witness.rekeyReset_merges}).
+\end{theorem}
+
+\begin{definition}[The oracle]
+$\mlean{known}\,s\,S$ is the set of named atoms $S$ the table holds; $\mlean{knownIn}\,C\,s\,S$ is
+those among them that some relation of $C$ references.
+\end{definition}
+
+\begin{theorem}[What the oracle reveals]\label{thm:known}
+$\mlean{known}\,s = \mlean{known}\,t$ if and only if $s$ and $t$ have the same table
+(\lean{Palace.Plane.known_eq_known_iff}); beyond a reader's view it gives, for each named atom no
+cleared relation references, one bit, whether an uncleared row holds the atom or the atom is
+dormant (\lean{known_eq}, \lean{mem_known_iff}); an uncleared land changes it while the view stays
+(\lean{Witness.known_interferes}); and two planes with the same view under $C$ give the same
+$\mlean{knownIn}\,C$ (\lean{knownIn_congr}).
+\end{theorem}
+
+\subsection{Lineage}
+
+\begin{definition}
+A history gives each commit an optional first parent and a tree, the blob at each path. The
+ledger is a list $L$ of commits. The rows at path $p$ are the pairs (blob before, blob after) of
+the commits in $L$ whose blob at $p$ differs from the first parent's (\lean{History.rows}); the
+chain threads them: a row's old blob starts an empty chain, and its new blob is appended unless
+the chain already ends there (\lean{Palace.Lineage.step}, \lean{thread}). A version at $p$ is a
+blob some ledger commit holds there.
+\end{definition}
+
+\begin{theorem}\label{thm:lineage}
+If $L$ holds every first parent of its commits and a rank $r$ decreases along first parents, then
+a blob is a chain member at $p$ if and only if it is a version at $p$
+(\lean{Palace.Lineage.History.mem_chain_iff}). On a history with one side branch of five commits
+the chain is every version in the ledger's order, HEAD's first-parent line holds three of the
+five, and three consecutive chain pairs are no commit's diff
+(\lean{Palace.Lineage.Witness.side_chain}).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+A chain member is the old or new blob of some row, so some ledger commit or its first parent
+holds it. Conversely, walk a version's first-parent ancestry by strong induction on $r$ to the
+commit whose blob differs from its parent's, where a row introduced it
+(\lean{History.new_of_version}). The witness is decided by computation.
+\end{proof}
+
+\subsection{The superconnection (TRN-10 to TRN-15)}
+
+A citation complex at a time is a type of notes $A$ with a relation $X$; a cochain is a function
+on notes and a function on ordered pairs, read on the citations through a mask
+(\lean{Palace.Transport.Cochain}). The coboundary $d_X$ sends a note cochain $\varphi$ to the drop
+$\varphi(v) - \varphi(u)$ on each citation and an edge cochain to zero (\lean{dC}). The transport
+$\tau_\sigma$ along a note map $\sigma : A \to B$ pulls a note cochain back by $\sigma$ and an edge
+cochain through the target's citations, reading $0$ on a citation whose image is not a citation
+(\lean{tC}, on \lean{pull} and \lean{pullEdge}). On a preorder of times $T$, the total complex
+$\operatorname{Tot}$ holds a cochain for each time, each pair $s < t$ and each triangle
+$s < t < u$, valued at the earliest time: the nerve to its 2-skeleton. $d$ applies each time's
+coboundary with the sign $(-1)^q$ of the time degree (\lean{dTot}); $\tau$ is the \v{C}ech
+differential with the transports as coefficients, $(\tau c)_{st} = \Theta_{st} c_t - c_s$ and
+$(\tau e)_{stu} = \Theta_{st} e_{tu} - e_{su} + e_{st}$ (\lean{cech}).
+
+\begin{theorem}[TRN-10, TRN-11]
+In any ring with $d^2 = 0$, $(d + \tau)^2 = (d\tau + \tau d) + \tau^2$
+(\lean{Palace.Transport.superconnection_sq}). On $\operatorname{Tot}$, $d^2 = 0$
+(\lean{dTot_mul_self}) and $\operatorname{face}^2 = 0$ (\lean{face_mul_self}); the bracket on
+a pair $s < t$ is minus TRN-5's curvature of $\sigma_{st}$ at the note cochain of $t$, read on the
+citations of $s$ (\lean{bracket_trans_apply}, \lean{dC_tC_sub}); and $\tau^2$ on a triangle is
+the composition defect $\Theta_{st}\Theta_{tu} - \Theta_{su}$ (\lean{cech_mul_self_apply}).
+\end{theorem}
+
+\begin{theorem}[TRN-12, TRN-13: flatness]\label{thm:flat}
+With transports $\tau_\sigma$ along note maps $\sigma_e$ on every pair of times:
+\begin{enumerate}
+  \item $\tau^2 = 0$ if and only if on every triangle $s < t < u$ the notes compose,
+  $\sigma_{tu}\circ\sigma_{st} = \sigma_{su}$, and no citation is restored: a citation of $s$
+  whose image under $\sigma_{su}$ is a citation of $u$ has an image under $\sigma_{st}$ that is a
+  citation of $t$ (\lean{tau_sq_eq_zero_iff}). Composition alone does not suffice: with the
+  identity on notes, a citation present at times 0 and 2 and severed at time 1 gives
+  $\tau^2 \ne 0$ (\lean{tau_sq_ne_zero_of_restored}).
+  \item $\A = d + \tau$ is flat if and only if every transport is a chain map (F1: each citation
+  of the source collapses or carries forward) and every triangle composes with no restoration
+  (\lean{flat_iff}); flat if and only if a bicomplex (\lean{flat_iff_bicomplex}); on citation
+  complexes without loops, flat if and only if F1 and F2, as the source note states
+  (\lean{flat_iff_of_loopless}), because F1 rules restoration out (\lean{noRestore_of_F1}).
+  \item On a flat $\A$ the two routes around a diamond of times carry every note the same way
+  (\lean{diamond_routes_agree}).
+\end{enumerate}
+\end{theorem}
+
+\begin{theorem}[TRN-14: the correction]\label{thm:corr}
+In any ring with $d^2 = 0$ and $[d, h] = [d, \tau]$, $(d + \tau - h)^2 = (\tau - h)^2$ while
+$(d + \tau + h)^2 = 2[d, \tau] + (\tau + h)^2$ (\lean{sub_correction_sq},
+\lean{add_correction_sq}). On two times with one citation severed and its ends still joined,
+$d + \tau - h$ is flat and $d + \tau + h$ is not (\lean{correction_sign}). Flatness of
+$d + \tau - h$ needs the corrected transports to compose on every triangle, which the class does
+not give (\lean{corrections_not_compose}). A correction that is zero on note cochains and has
+the transport's bracket exists if and only if every citation's ends stay in one component of the
+target's citations (\lean{exists_correction_iff}); unconstrained, $h = \tau$ always serves
+(\lean{flat_sub_first_self}).
+\end{theorem}
+
+\begin{theorem}[TRN-15: the adjoint]\label{thm:adj}
+The divergence $\operatorname{div}_X\psi(a) = \sum_x (\psi_X(x, a) - \psi_X(a, x))$ is the adjoint
+of the coboundary under the counting inner products (\lean{sum_mask_coboundary_mul}). If
+$\sigma$ has every fiber of size one, F1 holds, and every citation between images is the image of
+a citation, then $\sigma^*\operatorname{div}_{X'} = \operatorname{div}_X\sigma^*$
+(\lean{pull_div_eq_div}), and such a transport commutes with the edge Laplacian
+(\lean{pullEdge_laplacian}). The inclusion is strict: a citation added at the later time
+(\lean{new_citation_not_metric}) and a merge of two notes (\lean{merge_not_metric}) are chain maps
+that do not commute with the divergence. A bijection is not needed: winding a six-cycle twice
+around a three-cycle merges every note and still commutes (\lean{wind_metric}).
+\end{theorem}
+
+\section{Concepts and intuition}
+
+\paragraph{Excess is invisible, absence is not.} The plane's search uses its cache only to choose
+candidates and then checks each against a cleared relation. A cache entry that names a class
+which does not hold the atom costs a wasted candidate; a missing entry hides an atom from every
+reader of that class. So the safe side of any crash is excess, and writing the additions before
+the transaction puts every crash on that side: before the transaction the entry is premature,
+after it the entry is true and the removals are owed, and neither changes a search. The old order
+put the crash on the wrong side, and a re-run did not help because it refreshes only what it
+lands and frees. \Cref{thm:crash}(3) makes this precise: two planes that agree on everything but
+their caches, both complete, are indistinguishable to every future search.
+
+\paragraph{Why a margin of $2\beta$.} If each computed score is within $\beta$ of its exact
+cosine, a member's exact score is at least its computed score less $\beta$ and a non-member's at
+most its computed score plus $\beta$, so a gap of more than $2\beta$ between the worst member and
+the best non-member survives the move to exact scores. The certificate is about the set, not the
+order within it, and the control with a margin of $\beta$ is refuted within nine instances. The
+storage bound is a worst case: a vector whose every coordinate sits on a float16 tie moves by a
+full $2^{-11}$ relative in each coordinate, the error is orthogonal to the vector, and a query
+along the error sees nearly all of it. Typical errors are far smaller, so the certificate settles
+only part of the reads, and its refusals land on near-ties, which are exactly the reads float16
+can change.
+
+\paragraph{The dimension count, and why a cut needs $\varepsilon \le \theta$.} Mathlib has the
+spectral theorem and Rayleigh's quotient for the extreme eigenvalues but neither Weyl's inequality
+nor the min-max characterization. The counting forms need less than either: if too few
+eigenvectors of $T_1$ lie above $c_1$ and of $T_2$ at most $c_2$ together, a vector orthogonal to
+all of them exists and its two quadratic forms disagree by more than the perturbation allows; the
+same count with $\norm{Mx}^2$ for the forms gives Mirsky's inequality. A cut $\theta$ below the
+backward error can read a kernel value as nonzero, since Weyl allows a zero eigenvalue to be
+reported anywhere in $[-\varepsilon, \varepsilon]$, and NumPy's default $10^{-15}\sigma_{\max}$ is
+below $8nu\sigma_{\max}$ from $n = 2$ on. The other condition, $\theta + \varepsilon < g$, is the
+gap: a nonzero eigenvalue below the cut plus the error is lost.
+
+\paragraph{The sign of the correction.} The bracket $[d, \tau] = d\tau + \tau d$ is the graded
+commutator of two odd operators. If $h$ has the same bracket with $d$ as $\tau$ does, subtracting
+$h$ removes the bracket from $(d + \tau - h)^2$ and leaves $(\tau - h)^2$; adding it doubles the
+bracket, and the source note wrote $d + \tau + h$. The second erratum is of the same kind: the
+note's condition for $\tau^2 = 0$ named only composition of the note maps, but $\tau$ carries
+edge cochains through the target's citations, and a citation severed at a middle time and present
+again later gives a transport that does not factor.
+
+\paragraph{One bit per named atom.} The oracle tells the write path which atoms the table holds,
+and \cref{thm:known} says that is all it tells: two planes answer alike if and only if their
+tables agree, and bounded to the classes a role reads it adds nothing to the view. The branch
+bounds the one caller whose answer reached a reader, a script's embed charge, and leaves the
+other, which skips embeds, as it was; on the live store no atom was held by two classes, so the
+bound cost no embed.
+
+\section{Implementation}
+
+\subsection{The certificate}
+
+The store computes \cref{thm:vec1}'s certificate on request through \texttt{search\_ranked}
+(\cref{alg:cert}); \texttt{search} is unchanged in cost and candidates. Each source is asked for
+$k + 1$ candidates so that the best vector outside the top $k$ is present, and the gap is taken
+over distinct stored vectors, since two rows of one atom share its vector and its score. The
+bound is evaluated in float64 and multiplied by $1 + 2^{-20}$ to cover that evaluation's roundoff.
+The query bound is taken against the query rounded to float32 and then to float16, which is what
+the engine scores: a query with a coordinate $1 + 2^{-11} + 2^{-30}$, just above a float16 tie,
+distinguishes that from rounding once, and the engine's own distance is the witness.
+
+\begin{algorithm}[htbp]
+\caption{The margin certificate of a ranked read (\texttt{core/kernel/margin.py}).}\label{alg:cert}
+\begin{algorithmic}[1]
+\Require query $q \in \mathbb{R}^d$; candidates $(d_1, \kappa_1), \dots, (d_m, \kappa_m)$ with
+distances ascending and $\kappa_i$ the stored vector's key; $k \ge 1$
+\Ensure a margin (gap, bound) certified when gap $>$ bound
+\State $q' \gets \rn_{16}(\rn_{32}(q))$ coordinatewise
+\State $\betaQ \gets 2\norm{q' - q}/(\norm{q} + \norm{q'})$ \Comment{$0$ when both norms vanish}
+\State $\eta \gets 2^{-11}\sqrt{1 + d\,2^{-28}/\nu^2}$ with $\nu = 1/2$; $\betaS \gets 2\eta/(2-\eta)$
+\State $\gamma \gets 2(d + 4)\,2^{-24}$
+\State bound $\gets 2(\betaS + \betaQ + \gamma)(1 + 2^{-20})$
+\If{$m \le k$} \Return (gap $= \infty$, bound) \EndIf
+\State inside $\gets \{\kappa_1, \dots, \kappa_k\}$; worst $\gets d_k$
+\State next $\gets$ the first $d_j$ with $j > k$ and $\kappa_j \notin$ inside, else $\infty$
+\State \Return (gap $=$ next $-$ worst, bound)
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{The crash-safe landing order}
+
+\Cref{alg:land} is \texttt{SharedPlane.land} as the branch writes it: presence and cache read in
+one scan, additions written only where an atom's cache lacks a class, a rollback taking the
+additions back, the removals after the commit. The relabel has the same three steps. The order is
+the model's \lean{landAdd}, \lean{landAddCommit} and \lean{refresh}, so \cref{thm:crash} is about
+this procedure.
+
+\begin{algorithm}[htbp]
+\caption{A landing with the cache's additions before its transaction (\texttt{core/stores/plane.py}).}\label{alg:land}
+\begin{algorithmic}[1]
+\Require fibers $F$ (each a version's rows in one class), vectors for new atoms
+\Ensure the state of \lean{land}, or a refusal that leaves the cache exact
+\State wanted $\gets$ the atoms of $F$; gains$[a] \gets$ the classes whose fibers hold $a$
+\State take the writer lock; check the geometry
+\State cached $\gets$ held(wanted) \Comment{which atoms exist, and their cache}
+\State missing $\gets$ wanted $\setminus$ dom(cached); refuse if a missing atom has no vector
+\State insert the missing atoms \Comment{D8: atoms first}
+\State for each $a \in$ wanted whose cache lacks gains$[a]$: add gains$[a]$ to held$[a]$ and ever$[a]$
+\State \textbf{begin} transaction
+\For{each fiber $f \in F$}
+  \State refuse (rollback, then refresh wanted, then raise) if $f$'s path lives in another class
+  \State write $f$'s rows; supersede the path's previous version; log the edge
+\EndFor
+\State \textbf{commit}
+\State refresh the cache of every affected atom to its truth \Comment{the removals, last}
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{The compare-and-set claim}
+
+The job queue's \texttt{claim} selected a row under a per-process lock and marked it running with
+an unguarded update, so two processes on one queue file could both take a job.
+\Cref{alg:claim} guards the update with the state and re-selects on a lost race, so the database
+decides who holds the row; a \texttt{kinds} filter lets an in-process runner claim only the kinds
+it handles, and the conversation runtime, which completed queued rows without claiming them, now
+claims through this one site.
+
+\begin{algorithm}[htbp]
+\caption{\texttt{JobQueue.claim} as a compare-and-set (\texttt{scheduler/queue.py}).}\label{alg:claim}
+\begin{algorithmic}[1]
+\Require optional loaded key, blocked tiers, kinds; the clock
+\Ensure the claimed job, or none
+\Loop
+  \State rows $\gets$ \textsc{select} jobs \textsc{where} state $=$ queued, ordered by priority, id
+  \State eligible $\gets$ rows not in a blocked tier and, if kinds given, of those kinds
+  \If{eligible $= \emptyset$} \Return none \EndIf
+  \State chosen $\gets$ the eligible job of least effective priority, the loaded key first, then FIFO
+  \State $n \gets$ \textsc{update} jobs \textsc{set} state $=$ running, started, attempts $+ 1$, lease
+  \Statex \hspace{\algorithmicindent}\hspace{\algorithmicindent} \textsc{where} id $=$ chosen \textsc{and} state $=$ queued
+  \State commit
+  \If{$n = 1$} \Return get(chosen) \EndIf \Comment{else another process took it: choose again}
+\EndLoop
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{The other fixes}
+
+\emph{The scoped re-key.} \texttt{rekey\_store} now re-keys the plane's occupancies in one
+transaction that updates one column, and a table that predates the plane re-keys its note records
+in place, adding rows under their new ids before deleting the old ones so that a crash leaves both
+and a re-run finishes; an old id that is another record's key is refused. Nothing else is read or
+written.
+
+\emph{The half delete.} A vault delete wrote its tombstone, the delete's key, before retiring the
+plane's rows, so a crash between the two left the note current and no rescan returned to it; the
+tombstone is written last now. The formal audit then found the state the reversed order opens: a
+delete that dies after its retire leaves the key active over retired rows, and if the same bytes
+come back before the next rescan an UNCHANGED check that reads the key alone skips them for ever.
+UNCHANGED now requires the path's current rows (\texttt{holds\_current}); the ingress writer's
+retire had the same state and the same fix.
+
+\emph{Refusals beside a live writer.} The chat ingest verb and the rebuild script, whose first act
+drops the table, both ran beside a live daemon with no guard; both refuse now, and the rebuild
+holds the supervisor lock for its whole duration, so a daemon started between the check and the
+reset is refused in turn. The REPL leaves delegated work to a live daemon.
+
+\emph{Algebraic connectivity.} The normalized Laplacian gives an isolated vertex an identity row,
+which puts $1$ in the spectrum, so \texttt{fiedler} read a path plus an isolated vertex as
+$\lambda_2 = 0.5$. It now counts components first, on the positive-weight support (the sparse
+component count takes a stored zero as an edge), and returns $0$ for a disconnected graph with a
+vector separating the first component from the rest.
+
+\emph{Tolerances and the spine.} The dense-Laplacian equivalence test compared degrees against a
+fixed $4\epsilon\max$, which the ledger proves only for rows of at most four weights; it now uses
+$2\gamma_n\sum\abs{w}$ per row, with a 64-weight fixture and a float32-accumulated control outside
+the bound. The pseudo-inverse behind effective resistance passes $\mathrm{rtol} = 10^{-10}$
+instead of the library default. \texttt{Spine.restrict}, which builds a stratum's transitive
+closure, is memoized per instance on a frozen dataclass, and the real-store clock-law check runs
+on generator edges only, sound by CLK-1.
+
+\section{Evaluation}
+
+\subsection{What is proved}
+
+\Cref{tab:gates} gives the gates before and after the branch, from \texttt{formal/check.sh} and
+the test suite on the integrated head. The comparator judged all 281 statements identical to
+their proofs; the export of 46,085 declarations was accepted by Lean's kernel and by
+\texttt{leanchecker-paranoid}, \texttt{lean4lean}, \texttt{nanoda}, \texttt{con-leche} and
+\texttt{con-ron}; the axioms behind every declaration are \texttt{propext},
+\texttt{Classical.choice} and \texttt{Quot.sound}; the \texttt{sorry} count is zero.
+
+\begin{table}[htbp]
+\centering\footnotesize
+\caption{The gates before and after the branch, from \texttt{README.md} at the two heads.}\label{tab:gates}
+\begin{tabular}{lrr}
+\toprule
+ & before & after \\
+\midrule
+ledger rows (families) & 87 (12) & 90 (13) \\
+statements judged by the comparator & 248 & 281 \\
+cited declarations & 254 & 287 \\
+theorems proved in \texttt{formal/Palace} & 912 & 1,048 \\
+proof modules / models / statement files & 27 / 26 / 21 & 32 / 31 / 23 \\
+lines of models and proofs / statements / attacks & 15,563 / 2,620 / 3,072 & 18,575 / 2,991 / 3,779 \\
+attacks / negative controls (modules) & 117 / 104 (23) & 128 / 120 (27) \\
+declarations replayed by six checkers & 45,523 & 46,085 \\
+deterministic tests & 3,036 & 3,131 \\
+\texttt{sorry} & 0 & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\Cref{tab:attacks} lists the attacks the branch adds and their controls. An attack survives when
+every drawn instance that passes its guard satisfies the law; a control is refuted when Plausible
+finds a counterexample.
+
+\begin{table}[htbp]
+\centering\footnotesize
+\caption{The branch's attacks and controls (\texttt{formal/PalaceTest}, fixed seeds). A control
+is a nearby false law; its number is the instances Plausible needed to refute it (for the table
+attack, the entries it gets wrong).}\label{tab:attacks}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{p{0.43\textwidth}rp{0.30\textwidth}r}
+\toprule
+attack & survived & control & refuted \\
+\midrule
+$\rn_{32}$ against the machine's binary32 (500 doubles) & 500 & ties away; 23 bits; flush to zero & 17 \\
+$\rn_{16}\circ\rn_{32}$ against the store's write path (234 doubles) & 234 & round once; ties away; 10 bits; flush & 39; 60; 34; 51 \\
+float16 coordinate bound, over $\mathbb{Q}$ & 500 & no floor; half the bound & 7 \\
+margin certificate at $2\beta$ & 292 & margin $\beta$ & 9 \\
+Weyl's counts on symmetric $3\times 3$ over $\mathbb{Q}$ & 500 & no slack $\varepsilon$ & 9 \\
+land crash points leave the cache complete & 500 & cache written last & 6 \\
+relabel crash points leave the cache complete & 500 & cache written last & 15 \\
+scoped re-key on random physical rows & 500 & the unscoped re-key & 7 \\
+(the unscoped re-key's plane) & & re-landing current rows keeps the view & 16 \\
+transports compose when notes do, no restoration & 500 & F2 alone & 46 \\
+a window with F1 and composition is flat & 500 & middle citations not closed & 13 \\
+curvature vanishes on locally constant cochains & 500 & the class without the connection & 15 \\
+a bijection carrying exactly the citations commutes with $\delta$ & 500 & a merge; a new citation & 30; 28 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{What is measured}
+
+\paragraph{The float16 replay.} \texttt{eval/float16\_replay.py} copies a vector store archived
+before the float16 migration into a temporary directory, builds a float32 and a float16 table from
+its 17,256 current code rows at 768 dimensions, and asks each row for its ten nearest other rows
+through the search engine's own kernels, once with the float32 row as the query and once with its
+float16 rounding. \Cref{tab:replay} reports what float16 storage changed and what the certificate
+said. The widest gap among the changed queries is $2.7\times 10^{-5}$, more than forty times
+inside the bound of about $1.2\times 10^{-3}$ for a float16 query, and none of them was certified.
+The design note's earlier figures (55 changed slots, 63.5\% certified) came from a NumPy reading
+and were not reproducible through the engine; the formal audit asked for this replay. It does not
+show that float16 never changes a certified read on other corpora; it shows that on this one the
+changed reads are the near-ties the certificate refuses.
+
+\begin{table}[htbp]
+\centering\footnotesize
+\caption{The replay over the archived store: 17,256 queries, 172,560 top-ten slots. The last two
+rows keep each row's own match in its top ten, the formal audit's convention.}\label{tab:replay}
+\begin{tabular}{lrrrrr}
+\toprule
+query form & slots changed & queries changed & widest gap & certified, all & certified, changed \\
+\midrule
+float32 rows & 51 & 51 & $2.7\times 10^{-5}$ & 54.1\% & 0 \\
+float16 roundings & 50 & 50 & $2.3\times 10^{-5}$ & 63.5\% & 0 \\
+\midrule
+float32 rows, self kept & 45 & & $2.5\times 10^{-5}$ & 57.9\% & 0 \\
+float16 roundings, self kept & 38 & & $2.5\times 10^{-5}$ & 66.3\% & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The certificate on live stores, and its cost.} Read-only, 300 queries each: the
+certificate certified the top ten of 59\% of stored vectors asked as queries on the main store
+and 37\% on the curated store, and 50\% and 30\% with a text query's own rounding added
+($\betaQ \approx 2.1\times 10^{-4}$). The fixture test certifies at least 20 of 60 reads on a
+400-vector store at 64 dimensions and checks each certified set against the exact cosines; the
+control constructs a query and two vectors whose exact and float16 rankings disagree, and asserts
+that the read changes and is refused. On fixture stores of 2,000 and 17,256 rows at 768
+dimensions, best of twenty passes of 60 queries interleaved with \texttt{main}, \texttt{search}
+measured within 4\% of \texttt{main}'s either side, the noise between runs, and
+\texttt{search\_ranked} 0.6 to 4\% over \texttt{search}.
+
+\paragraph{The backward-error hypothesis.} On Laplacians of cycles, paths and complete graphs of
+3 to 60 vertices, whose spectra are known in closed form, the computed eigenvalues' errors reach
+$3.3\,nu\norm{A}$ (the SVD of a 19-cycle): an eigenvalue error, a lower bound on the backward
+error, consistent with the hypothesis $8nu\norm{A}$ and not a proof of it. The Hodge rank cut is
+decisive, and counts $\beta_1$ exactly, on a filled triangle, $K_4$, two squares, two holes at a
+vertex and cycles of 4 to 39 vertices; the pseudo-inverse cut on 40 random weighted graphs of 10
+to 120 vertices with weights in $[0.785, 1]$; the control, two triangles joined by a bridge of
+weight $5\times 10^{-12}$, fails the gap condition and loses the bridge's mode. The rise
+threshold's condition holds on at least 20 of 40 random graphs beside a second component and
+fails on a path of forty notes with weight 0.9, where $g \approx 0.005$ and the bound passes
+$10^{-9}$ while the measured movement stays below $10^{-3}$ of it.
+
+\paragraph{The spine.} On synthetic spines of 2,801, 5,601, 11,201 and 22,401 events, the
+real-store proper-time test body went from 1.97, 8.04, 36.8 and 166 s to 0.01, 0.01, 0.02 and
+0.04 s; the first call per stratum still pays the closure.
+
+\paragraph{The write-path races.} The compare-and-set test forces the interleaving with two handles
+on one file, the second claiming between the first's select and update: the old code returns the
+same job to both, the new claims it once, and with two jobs the loser takes the other row. The
+pull request reports a further probe of six processes over 600 jobs, each claimed once; that probe
+is not a committed test. The code lane's unlocked append was judged to race nothing under the
+one-writer model, after four runs of three processes (two updating disjoint rows, one appending,
+120 commits a run) with no error and no lost write.
+
+\paragraph{Lineage and diamonds.} On the live ledger a path's chain members and its ledger
+versions measured equal, 1,663 to 1,663, which prompted \cref{thm:lineage}. On the live versions
+store, read-only, 29 identities hold one version each, so none forks or merges, and the
+homotopy-coherent case stays deferred.
+
+\subsection{The audits as evaluation}
+
+Two audits ran over the branch before integration, one formal and one of its security. The formal
+audit's findings are recorded in the commits that closed them; \cref{tab:audit} groups them by
+class. The security audit's findings are not itemized on the branch; the commits that answer
+write-path exposure (the refusals beside a live writer, the supervisor lock, the embed charge
+bounded to a role's classes) are in the implementation section, each with a test. Every finding of
+both audits was closed before integration.
+
+\begin{table}[htbp]
+\centering\footnotesize
+\caption{The formal audit's findings, by class, and how each was closed.}\label{tab:audit}
+\begin{tabular}{p{0.17\textwidth}p{0.38\textwidth}p{0.37\textwidth}}
+\toprule
+class & finding & closed by \\
+\midrule
+information flow & the oracle had a second caller, a script's embed charge, which told a role whether an atom exists in a class it cannot read & the charge reads only the role's classes (\texttt{known\_in}, \cref{thm:known}); a test lands an atom only one stratum holds and checks the charge \\
+crash convergence & a delete that dies after its retire and before its tombstone, then the same bytes back, is skipped by UNCHANGED for ever & UNCHANGED requires current rows (\texttt{holds\_current}); the probe is the test, in the vault lane and the ingress writer \\
+reproducibility & the design note's replay figures came from a NumPy reading, not the engine & \texttt{eval/float16\_replay.py} through the engine's kernels; the figures corrected \\
+hypothesis scope & SPC-3's $\varepsilon$ covered the decomposition only, not forming the float64 Laplacian & $\varepsilon = 9nu\norm{L}$; the rise bound rederived with Wedin's $\mu$; a tautological test replaced by the hypothesis' consequence \\
+test adequacy & no test held $\betaQ$: dropping the query term left every test green & a query one coordinate above a float16 tie, with the engine's distance as witness \\
+statement precision & the status block claimed Result 4 holds, where TRN-15 checks the strict inclusion and one direction & the wording narrowed to what is checked \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Limitations}
+
+\paragraph{Synthetic fixtures, and figures reported but not committed.} The spectral-gap
+fixtures (closed-form spectra, random weighted graphs with weights in $[0.785, 1]$, a 40-vertex
+path), the certificate's fixture stores (2,000 and 17,256 rows; 400 vectors at 64 dimensions) and
+the spine timings are synthetic. The replay is over an archived store of real rows, but one
+corpus. The six-process claim probe and the three-process append probe are reported in the pull
+request and commit messages; the branch holds no script for either. The live-store certification
+rates and the 29-identity count were read once and are not re-measured by any test.
+
+\paragraph{Hypotheses the code cannot check.} The float32 arithmetic of the search engine's
+distance kernel is a stated bound $\gamma$, measured on fixtures and not modelled; the norm floor
+$\nu = 1/2$ is a hypothesis on the corpus. NumPy's backward stability with constant $8n$ is the
+LAPACK guide's statement, and the fixture measurements are consistent with it, not a proof.
+Wedin's bound is cited and not formalized, so the rise threshold's condition is checked on
+fixtures and fails on thin graphs, where the law is silent. The plane's noninterference still
+rests on exact search with ties broken by atom id and on a content-addressed table, hypotheses
+this branch does not discharge.
+
+\paragraph{What the models leave out.} The plane model lands one fiber per transaction where the
+code lands several; \lean{reset} and a relabel's place in a trace are outside it. The keyed door
+model has no retire command, so the tombstone-last order is written to DOR-7's shape but not
+cited from it. The lineage model has one path. The superconnection is on the nerve to its
+2-skeleton, where every component of $\A^2$ lives; the homotopy-coherent case is not modelled,
+whether a local isometry is necessary for Result 4 is not checked, and the push-forward reading
+of its formulas is not separately checked.
+
+\paragraph{The comparator locally.} \texttt{lake comparator} runs in a sandbox available on Linux,
+where CI runs it. On the development machine \texttt{check.sh} runs an in-process comparison
+instead, which compares statement types and definition values but not constructors, recursor
+rules or axioms; a weakened statement and a changed one were each planted and caught, but the
+local gate is weaker than CI's.
+
+\section{Future work}
+
+The keyed model should gain a retire command, so that the key-last law covers deletes as it covers
+landings. A deterministic tie-break in the plane's search, one extra row per query and more only
+at an exact tie, would remove the first of noninterference's hypotheses. The rise threshold could
+scale with the conductance, which would make it provable on thin graphs. Whether sentence answers
+should ask for the float16 certificate, and whether the existence oracle should be accepted,
+bounded for its remaining caller or closed, are left open with the measurements they need. Result
+3 should be amended with the no-restoration hypothesis and the correction's sign, and version
+chains could be threaded over the first-parent line so that each edge is a commit's diff.
+
+\section{Conclusion}
+
+The three kinds of claim that remained at this stage of the ladder are now on it. The store's
+write paths have models under which a migration, a landing, a relabel and an oracle are proved to
+do what their prose said or shown to do otherwise; two did otherwise, and the code is written to
+the model now. The float claims have a rounding model that meets the machine bit for bit and a
+certificate the store computes, with a replay that locates every change float16 made in an
+archived store inside the bound and outside the certificate. Three tolerances have the condition
+under which they decide correctly, and one has moved to meet it. Two design results are
+machine-checked with their errata.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
