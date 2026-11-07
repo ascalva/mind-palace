@@ -165,13 +165,47 @@ Roundoff and FloatModel, so it has no statements of its own):
   is the strict subset, and a chain lists the versions in the ledger's order, so two lines that
   changed one path interleave and a consecutive pair may be one no commit's diff joins
   (`Witness.side_chain`). Cited from the note, not the ledger.
+- `Growth` (XIV): the growth readout of the prediction ledger (`eval/predictions/scoring.py`,
+  dn-prediction-ledger G8), a thought experiment the scorer computes against the reference arm: a
+  proportional stake that multiplies its holding by `p/r` on yes and `(1 − p)/(1 − r)` on no.
+  GRW-1 the growth is the likelihood ratio `Π L(p_i, o_i) / Π L(r_i, o_i)` over any field, and
+  over ℝ its log is the cumulative log-score advantage of the arm over the reference, so the
+  holding is the start times `exp` of what the ledger already scores; the fractional stake is it
+  at `λ = 1`. The code relies on it, so it is the ledger's family XIV (`Spec/Growth.lean`, 4
+  statements). The design theorems: GRW-2 under a truth `q` the expected advantage of a pair is
+  `KL(q‖r) − KL(q‖p)`, the binary divergence written out (Mathlib's `klDiv` is over measures), so
+  growth is expected positive iff the forecast is closer to the truth than the reference, and the
+  truthful forecast attains `KL(q‖r)`, every other strictly less (Gibbs); GRW-3 among the constant
+  fractions `f ∈ [0, 1)` on yes the expected log growth under belief `p ≥ r` is concave, its
+  derivative vanishes at `(p − r)/(1 − r)`, whose factors are the proportional stake's, and that
+  fraction is the maximizer, by `log x ≤ x − 1` rather than by the derivative; the mirror stake on
+  no at `(r − p)/r` by symmetry; `f = 1` is ruin on a no, which the log does not represent; GRW-4
+  the holding reaches `N` times its start iff the cumulative advantage reaches `log N`, a pair's
+  advantage is at most `log (1/margin)` for the smallest of `p`, `1 − p`, `r`, `1 − r`, so at
+  least `log N` over that bound pairs are needed, and the expectation under independent outcomes
+  is the sum of the per-question expectations, so at a mean advantage `a` it reaches `log N` after
+  `log N / a` questions; GRW-5 every factor of a proper pair is positive, so the holding never
+  reaches zero, and `k` outcomes multiply it by at least the `k`-th power of the worst factor,
+  `min (p/r) ((1 − p)/(1 − r))`, itself at least the margin; GRW-6 on one pair whose outcomes are
+  pairwise independent and identically distributed (Mathlib's `bernoulliMeasure` as the law), the
+  time-average advantage converges almost surely to the expected one, by Mathlib's strong law
+  of large numbers, so a positive expected advantage grows the holding without bound almost
+  surely and a negative one sends it to zero; the stationary case, and the strong law for
+  summands that are not identically distributed is the next rung. The shapes of GRW-3's domain
+  and of GRW-6 follow `unbalancedparentheses/lean-ergodicity` (Lean and Mathlib v4.35.0,
+  Apache 2.0), whose `kelly_optimal` and `time_average_growth_ae` state them for a bet with a
+  gain and a loss; the definitions and proofs are our own, over the ledger's model. The binary
+  divergence is written out rather than taken through Mathlib's `InformationTheory.klDiv`, which
+  is over measures (with `klDiv_eq_zero_iff`, the chain rule `klDiv_compProd_eq_add` and data
+  processing `klDiv_map_le` at this pin): the bridge from two Bernoulli laws would cost more than
+  the thought experiment needs, since no code relies on GRW-2.
 - `Bridges`: theorems that join two families, so that what one proves serves the other: BRG-1
   the Laplacian as `∂₁ ∂₁ᵀ`, BRG-2 Euler and Poincaré on the flag complex, BRG-3 Thomson's
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
 - `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the cited theorems
-  (281 theorems), and the three standard axioms.
+  (285 theorems), and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself. It is weaker than the comparator: it
   compares the statements' types and the definitions' values, not constructors, recursor rules or
@@ -282,6 +316,7 @@ Roundoff and FloatModel, so it has no statements of its own):
 | QSA-9 | a hypothetical edge is a rank-one update of `L` and of `L̄`; both Rayleigh directions; the given camps balance a new signed edge iff its sign agrees, and a disagreeing edge closing a path is frustrated for any camps; Sherman–Morrison for an invertible matrix | proved; attacks survived 495, 495, 500 and 484 |
 | DOR-1 | a command is admissible iff a granted plane above its scope carries the write bit; a read-only grant admits none; the Ambassador's grant as written admits a projection-event command and refuses a commit-clock one | proved, by structure and by `decide` |
 | DOR-7 | with the key written last, a fresh run interrupted after any step converges under re-run, in the model's stage order and in any order of the steps before the key; a key written while some of the command's rows are not held, first or after the plane's rows, is never repaired | proved; attacks survived 500 (every prefix) and 500 (two steps in either order), both controls refuted on the first instance |
+| GRW-1 | the proportional stake's growth is the likelihood ratio, and over proper pairs its log is the cumulative log-score advantage; the fractional stake is it at `λ = 1` | proved; attacks survived 500 each, the product form with and without its division |
 
 The binarized forms (0/1 adjacency) reduce to Mathlib's `SimpleGraph.posSemidef_lapMatrix` and
 `card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix` in one line each.
@@ -564,6 +599,19 @@ the namespace, every other rule kept, that stores an item outside the role's pre
 a composed value squatting a source's path; and a type rule that gives a construction no
 label.
 
+The growth readout is attacked over ℚ (seeds 320 to 329): a pair's probabilities are
+`(a + 1)/(a + b + 2)` and `(c + 1)/(c + d + 2)` from naturals, so every pair is proper, and a
+sequence is a list of such pairs with outcomes. The logs do not run, so GRW-1 is attacked in its
+product form, with and without its division; GRW-3 on its maximizer's algebra, the
+constant-fraction stake at `(p − r)/(1 − r)` having the proportional stake's factors on either
+outcome; GRW-4 on a factor lying between the margin and its reciprocal; and GRW-5 on the growth
+being positive and at least the power of the least worst factor. Each survived 500 instances. Its
+controls, the natural mistakes: a growth read without the reference, the arm's likelihood alone,
+refuted within 5 instances; the half stake claimed to satisfy the identity, within 6; the fraction
+`p` itself ("stake your probability") claimed to be the proportional stake, on the first instance;
+a factor bounded by `1/r` alone, within 30 (`r = 5/6`, `p = 3/10`, a no); and the leveraged stake
+`λ = 2`, which turns a factor below `1/2` negative, within 18.
+
 The magnetic operator is complex and its transports are exponentials, which do not run, so its
 attacks fix the transports at their exact values, `1` at phase `0` and `−1` at phase `π`, or test
 the combinatorial content. BRG-7's controls: transport `−1` everywhere gives the signless `D + A`,
@@ -613,7 +661,7 @@ another module, and without it 68 proofs in seven files fail. One instance is wr
 to importers (`Palace/Scope.lean`).
 
 The kernel re-check. `Export.lean` writes every `Palace` declaration and everything it uses, from
-`Init` up (46,085 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
+`Init` up (54,952 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
 kernel and the five independent checkers bundled with Lean: `leanchecker-paranoid`, `lean4lean` (a
 kernel written in Lean), `nanoda` (one written in Rust), and `con-leche`, whose acceptance carries a
 machine-checked theorem that the environment holds no proof of `False`, with `con-ron`, its port.
@@ -624,7 +672,7 @@ nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
 does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the
-281 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
+285 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.
 

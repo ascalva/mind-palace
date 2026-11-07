@@ -24,6 +24,8 @@ public import Palace.Frustration
 public import Palace.Frustration.Defs
 public import Palace.Gap
 public import Palace.Gap.Defs
+public import Palace.Growth
+public import Palace.Growth.Defs
 public import Palace.Heat
 public import Palace.Heat.Defs
 public import Palace.Hodge
