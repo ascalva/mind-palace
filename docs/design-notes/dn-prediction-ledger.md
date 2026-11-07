@@ -2,7 +2,7 @@
 type: design-note
 id: dn-prediction-ledger
 track: scored-beliefs
-status: draft                  # provenance description, never a gate; the owner's merge is ratification
+status: draft                  # provenance description, never a gate; a merge is ratification
 implementation: built          # G1-G6 built 2026-11-05 in eval/predictions/; each experiment's sources, arms and schedule are its application's (G7)
 created: 2026-11-05
 updated: 2026-11-06
@@ -293,7 +293,7 @@ The loose work on a second instance is `feat/podman-bench` (six commits on 31087
    the embedder joined on loopback, a read-only root, every capability dropped, an unprivileged
    user, named volumes only, a whitelisted build context. An experiment that fetches its own
    questions adds the README's unbuilt `prod` profile: an edge container with filtered egress.
-4. **Memory.** The default podman machine (2 vCPUs, 2 GiB) also hosts the owner's other containers;
+4. **Memory.** The default podman machine (2 vCPUs, 2 GiB) also hosts other containers;
    an embedder and a runner there made the kernel kill Open WebUI 13 times in one afternoon before
    `oom_score_adj` was added. A long-running instance needs a podman machine of its own.
 5. **Merge order.** The branch merges cleanly onto `build/ingest-door` (`git merge-tree`).
