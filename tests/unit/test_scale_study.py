@@ -131,3 +131,13 @@ def test_corpus_graph_has_the_stated_size_and_one_generation() -> None:
     assert len(e.src) == 20
     assert not set(e.src.tolist()) & set(e.dst.tolist())
     assert max(e.src.max(), e.dst.max()) < 38
+
+
+def test_reference_graphs_are_connected_with_the_stated_degree() -> None:
+    from eval.scale.corpus import reference_graphs
+
+    refs = reference_graphs()
+    tree = component_at(refs["recursive_tree"], 1e9)
+    dense = component_at(refs["degree_2logn"], 1e9)
+    assert tree.n == 38 and tree.m == 37
+    assert dense.n == 38 and abs(dense.degrees().mean() - 2 * np.log(38)) < 0.2
