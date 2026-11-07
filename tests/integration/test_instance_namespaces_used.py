@@ -128,7 +128,7 @@ def test_control_without_the_guard_the_wrapper_reads_the_keychain(tmp_path) -> N
 
 def test_a_named_instance_has_no_dialogue_lane(monkeypatch, tmp_path, capsys) -> None:
     """The door's table and the dialogue sync read the instance's lanes: Ouroboros's two, a
-    named instance's none, so nothing of its runs an edge reader over the owner's chats."""
+    named instance's none, so nothing of its runs an edge reader over Ouroboros's chats."""
     from core.ingest.table import build_table
     from ops.lifecycle.launcher import dialogue_sync
 
@@ -157,7 +157,7 @@ def test_the_heartbeat_refuses_a_named_instance(monkeypatch, tmp_path, capsys) -
     ("edge.opencode_sessions", ("latest_update", "export_sessions")),
 ])
 def test_the_dialogue_readers_refuse_a_named_instance(monkeypatch, module, reads) -> None:
-    """Each reader refuses before it opens its source: the functions that read the owner's
+    """Each reader refuses before it opens its source: the functions that read Ouroboros's
     chats are replaced by ones that fail the test, so a guard placed too late shows."""
     import importlib
 

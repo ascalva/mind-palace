@@ -1,7 +1,7 @@
 # A stand-in for Ouroboros's overlay (`config/ouroboros.toml`, gitignored and never read by tests).
 # It has the live overlay's shape on 2026-11-05: the same sections and keys, no `[instance]`
 # section, a backup repository, the llama.cpp runtime, and two ingestion agents paused. The values
-# that would identify the owner's setup are placeholders. tests/unit/test_instance_identity.py loads
+# that would identify the live setup are placeholders. tests/unit/test_instance_identity.py loads
 # it as the default chain to pin what Ouroboros sees once instances have ids.
 
 [ingestion.vault]

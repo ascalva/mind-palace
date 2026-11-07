@@ -555,7 +555,8 @@ def main(argv: Sequence[str]) -> int:
     cfg = get_config()
     if cfg.instance.named:
         # The heartbeat is the stack's: its policy and the chat server's key come from
-        # config/stack.toml, and its dialogue lanes read the owner's chat applications (DI-2).
+        # config/stack.toml, and its dialogue lanes read chat applications whose conversations
+        # are Ouroboros's (DI-2).
         print(f"tick: the heartbeat is Ouroboros's; refusing to beat for instance "
               f"{cfg.instance.id!r}, whose sources are its own or none.")
         return 1

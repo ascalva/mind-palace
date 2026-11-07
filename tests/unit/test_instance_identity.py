@@ -6,7 +6,7 @@ no `[instance]` section), and the pin below holds every value this change can re
 loader computed from the same TOML: each written path is the repo root joined to its TOML value,
 each secret name is its committed default. A named overlay must declare an id of its own, and
 Ouroboros's id belongs to the default chain alone. Every case runs in a temporary config
-directory; the owner's overlay is never read.
+directory; the live overlay is never read.
 """
 
 from __future__ import annotations
@@ -294,8 +294,8 @@ def test_the_supervisor_lock_is_one_per_instance(monkeypatch, tmp_path) -> None:
 
 def test_a_named_instance_reads_no_source_it_did_not_declare(monkeypatch, tmp_path) -> None:
     """The committed defaults name Ouroboros's corpus: a vault under ~/.mind-palace, this
-    checkout's Claude Code transcripts, the owner's chat applications. None of it reaches a named
-    instance; each undeclared source points into its own root, and its agent is off."""
+    checkout's Claude Code transcripts, the chat applications on this machine. None of it reaches
+    a named instance; each undeclared source points into its own root, and its agent is off."""
     cfg = _as_named(monkeypatch, tmp_path, '[instance]\nid = "bench"\n')
     root = loader.REPO_ROOT / "instances" / "bench"
     assert (cfg.ingestion.vault.path, cfg.ingestion.vault.enabled) == (root / "vault", False)
@@ -358,7 +358,7 @@ def test_a_named_instances_lane_derives_from_its_id(monkeypatch, tmp_path) -> No
 
 @pytest.mark.parametrize("lane", ["~/.mind-palace/exhaust", "/var/elsewhere", "../exhaust"])
 def test_a_named_lane_stays_under_its_root(monkeypatch, tmp_path, lane) -> None:
-    """Ouroboros's lane is the one the owner reads on his phone as Ouroboros's; a named instance's
+    """Ouroboros's lane is where its reports are read as Ouroboros's; a named instance's
     reports never land in it, nor anywhere outside its own root."""
     with pytest.raises(loader.InstanceOverlayError, match="leaves the instance's root"):
         _as_named(monkeypatch, tmp_path, f'[instance]\nid = "bench"\n[exhaust]\npath = "{lane}"\n')

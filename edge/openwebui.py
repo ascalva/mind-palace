@@ -94,8 +94,8 @@ def main(argv: list[str] | None = None) -> int:
     # Ouroboros's dialogue lane (DI-2): a named instance (MIND_PALACE_OVERLAY, the loader's
     # OVERLAY_ENV) reads no lane, so this reader refuses before opening the source.
     if os.environ.get("MIND_PALACE_OVERLAY"):
-        sys.exit("openwebui: this lane reads the owner's Open WebUI chats, which are Ouroboros's; "
-                 "refusing under MIND_PALACE_OVERLAY")
+        sys.exit("openwebui: this lane reads the Open WebUI chats on this machine, which are "
+                 "Ouroboros's; refusing under MIND_PALACE_OVERLAY")
     if args.latest:
         print(json.dumps({"latest": latest_update(args.container)}))
         return 0

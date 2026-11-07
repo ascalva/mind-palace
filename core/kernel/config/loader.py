@@ -78,13 +78,13 @@ _DATA_PLANE = (
 )
 # The Keychain/env items (and the AWS profile) an instance reads its secrets from. A named
 # instance's are `<id>.<name>`, derived from the committed defaults and never set in its overlay, so
-# two instances hold no secret in common unless the owner deliberately places one value under both.
+# two instances hold no secret in common unless the operator places one value under both names.
 _SECRET_NAMES = (
     ("attestation", "signing_key_secret"), ("attestation", "owner_key_secret"),
     ("backup", "password_secret"), ("backup", "aws_access_key_id_secret"),
     ("backup", "aws_secret_access_key_secret"), ("airlock", "aws_profile"),
 )
-# The dialogue lanes Ouroboros reads, each an edge reader over one of the owner's chat applications
+# The dialogue lanes Ouroboros reads, each an edge reader over a chat application on this machine
 # (core/ingest/table.py). A named instance has none: no configuration yet names a lane of its own.
 DIALOGUE_READERS = ("openwebui", "opencode")
 # The Keychain/env item holding the supervisor's Vault token (config/secrets_backend.py). Not a

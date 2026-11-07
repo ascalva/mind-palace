@@ -181,15 +181,17 @@ agents point into `instances/<id>/` and are off, its code agent is off, and it h
 lane. To give it a corpus, name one: `[ingestion.vault] path = "<dir>"`, and likewise
 `[ingestion.transcripts] transcripts_dir`; a relative path lies under `instances/<id>/`.
 
-The owner key is per instance like every other item: the instance's is
+The attestation owner key is per instance like every other item: the instance's is
 `<id>.attestation-owner-key`. One owner key shared across instances means placing the same seed
-under both names, and that is your act; nothing derives it for you.
+under both names, a deliberate step the operator takes; nothing derives it.
 
 `instances/` is gitignored. Loading refuses an overlay with no id, with `id = "ouroboros"`, that
 names a Keychain item, that points a data path or the exhaust lane outside `instances/<id>/`, that
 turns an agent or `[secrets]` on without naming its source or its Vault, or that would share any
-location, name or server with Ouroboros, read off your `ouroboros.toml`: a source at, in or around
-your vault or data, your restic repository or a location inside it, your Vault in any spelling.
+location, name or server with another instance declared on the host (Ouroboros, read off
+`ouroboros.toml`, and every other overlay under `config/instances/`): a source at, in or around
+Ouroboros's vault or data, Ouroboros's restic repository or a location inside it, Ouroboros's
+Vault in any spelling, or a repository, root or corpus another named instance holds.
 Every tool that names Ouroboros's own state refuses while `MIND_PALACE_OVERLAY` is set:
 `mind-palace stack`, `palace tick`, `ops/backup/backup.sh`, `scripts/run_with_secrets.sh`, the
 Open WebUI bridge and its responder, the dialogue readers, the Vault scripts, the plane and
