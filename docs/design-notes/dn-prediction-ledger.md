@@ -117,6 +117,10 @@ before the first prediction and stays there.
   comparison with no pin (an amendment may not add a pin for an arm that already has predictions), whose `p` is
   not a probability, or that repeats an arm, question and round; a resolution that is not 0 or 1,
   or comes a second time; a naive datetime anywhere.
+- **Rule versions.** `verify` replays the rules in force in the code, so a change to a rule that
+  would reject lines an existing chain already holds must come with a version gate: the protocol
+  records the version of the rules it was written under, and replay applies that version's rules to
+  the lines after it. No live chain exists today, so no rule change so far breaks one.
 - **`extend`** appends several records all or nothing, each checked against the state the ones
   before it leave: a round lands whole or not at all.
 - **One writer** at a time (an exclusive lock around each write, with the whole chain verified
