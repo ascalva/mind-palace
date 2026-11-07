@@ -26,6 +26,10 @@ same no-retrofit rule holds for it, and a pin it has is binding. A pin is a sha2
 lowercase hex characters, optionally prefixed `sha256:`), checked when the protocol is written; an
 empty or malformed pin is refused.
 
+Once `n_clusters` is fixed, a question may not be registered in a cluster that is already among the
+first N clusters of the primary comparison (by the order their first pair entered the ledger): the
+cut cannot then change what it reads. Before N is fixed, clusters grow freely.
+
 Arms and families are the experiment's own names, declared in its protocol; nothing here knows
 what an experiment is about. Machinery, not corpus (BL-4 in
 `dn-scored-beliefs-and-earned-entitlement`): nothing under `core/` imports this module, and no
@@ -394,6 +398,10 @@ class State:
     voids: dict[str, Void] = field(default_factory=dict)
     prediction_keys: set[tuple[str, str, str]] = field(default_factory=set)
     predicted_arms: set[str] = field(default_factory=set)
+    # The primary comparison's clusters in the order their first pair completed (both primary
+    # arms predicted one question and round): the order the scorer cuts at N.
+    primary_seen: dict[tuple[str, str], set[str]] = field(default_factory=dict)
+    cluster_order: list[str] = field(default_factory=list)
 
 
 def canonical(payload: Mapping[str, object]) -> bytes:
@@ -475,6 +483,14 @@ def _apply(state: State, kind: str, body: Mapping[str, object]) -> None:
         p = Prediction.parse(body)
         state.prediction_keys.add((p.qid, p.arm, p.round))
         state.predicted_arms.add(p.arm)
+        primary = state.protocol.primary if state.protocol is not None else None
+        if primary is not None and p.arm in (primary.arm, primary.baseline):
+            seen = state.primary_seen.setdefault((p.qid, p.round), set())
+            seen.add(p.arm)
+            known = state.questions.get(p.qid)
+            if (len(seen) == 2 and known is not None and known.family == primary.family
+                    and known.cluster not in state.cluster_order):
+                state.cluster_order.append(known.cluster)
     elif kind == "resolution":
         r = Resolution.parse(body)
         state.resolutions[r.qid] = r
@@ -587,6 +603,11 @@ class Ledger:
                 raise LedgerError(f"question {record.qid!r} is already registered")
             if record.family not in protocol.families:
                 raise LedgerError(f"family {record.family!r} is not declared in the protocol")
+            if (protocol.n_clusters is not None
+                    and record.cluster in state.cluster_order[:protocol.n_clusters]):
+                raise LedgerError(f"cluster {record.cluster!r} is among the first "
+                                  f"{protocol.n_clusters} and N is fixed: a question may not "
+                                  f"join it")
             if _aware(record.closes_at, "closes_at") <= now:
                 raise LedgerError(f"question {record.qid!r} closed before it was registered")
         elif isinstance(record, Prediction):

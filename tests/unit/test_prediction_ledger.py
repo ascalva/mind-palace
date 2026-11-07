@@ -386,3 +386,52 @@ def test_verify_accepts_what_the_append_path_wrote_and_ignores_the_wall_clock(
     # The question closed at T0 + 10 days; the wall clock is long past that, and verify still
     # reads each line at its own recorded_at.
     assert ledger.verify().counts["prediction"] == 2
+
+
+def _paired(led: Ledger, qid: str, cluster: str) -> None:
+    led.extend([question(qid, cluster=cluster), Prediction(qid, "a", "r1", 0.4),
+                Prediction(qid, "b", "r1", 0.6)])
+
+
+def test_a_question_may_not_join_a_cluster_in_the_cut_once_n_is_fixed(tmp_path: Path,
+                                                                     clock: Clock) -> None:
+    """Control: before N is fixed the same question is accepted. On the old ledger it was
+    accepted after N was fixed too, adding rows to a cluster the cut reads."""
+    led = Ledger(tmp_path / "n.jsonl", clock=clock)
+    led.register(PROTOCOL)
+    _paired(led, "q1", "c1")
+    _paired(led, "q2", "c2")
+    led.add_question(question("q3", cluster="c1"))                  # control: N not fixed
+    led.amend(replace(PROTOCOL, n_clusters=2))
+    before = lines(led)
+    with pytest.raises(LedgerError, match="may not join"):
+        led.add_question(question("q4", cluster="c2"))
+    assert lines(led) == before
+    _paired(led, "q5", "c3")                    # a cluster beyond N is still free to grow
+    led.add_question(question("q6", cluster="c3"))
+    led.add_question(question("q7", cluster="fresh"))
+
+
+def test_the_cut_is_in_ledger_order_for_the_question_rule(tmp_path: Path, clock: Clock) -> None:
+    """With N = 2 only the first two clusters to complete a pair are closed to new questions."""
+    led = Ledger(tmp_path / "o.jsonl", clock=clock)
+    led.register(PROTOCOL)
+    _paired(led, "q1", "z")
+    _paired(led, "q2", "m")
+    _paired(led, "q3", "a")
+    led.amend(replace(PROTOCOL, n_clusters=2))
+    for closed in ("z", "m"):
+        with pytest.raises(LedgerError, match="may not join"):
+            led.add_question(question("q4", cluster=closed))
+    led.add_question(question("q5", cluster="a"))       # third by entry, though first by name
+
+
+def test_verify_replays_the_cluster_rule(tmp_path: Path, clock: Clock) -> None:
+    led = Ledger(tmp_path / "v.jsonl", clock=clock)
+    led.register(PROTOCOL)
+    _paired(led, "q1", "c1")
+    led.amend(replace(PROTOCOL, n_clusters=2))
+    _paired(led, "q2", "c2")
+    forge(led, "question", question("q9", cluster="c2").body(), T0 + timedelta(hours=1))
+    with pytest.raises(LedgerCorrupt, match=r"line 8.*may not join"):
+        led.verify()
