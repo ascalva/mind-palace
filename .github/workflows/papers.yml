@@ -1,8 +1,9 @@
 name: papers
 
-# Builds every pull request's article (papers/*/paper.tex) with TeX Live and uploads the PDFs. Path
-# scoped the way lean.yml is: the `changes` job runs on every PR and main push, and `build` runs only
-# when the diff touches papers/, the build script or this file, so every sha still gets a verdict.
+# Builds every pull request's article (papers/*/paper.tex) with TeX Live and uploads the PDFs, with
+# the log of each paper that failed beside them. Path scoped the way lean.yml is: the `changes` job
+# runs on every PR and main push, and `build` runs only when the diff touches papers/, the build
+# script or this file, so every sha still gets a verdict.
 
 on:
   push:
@@ -65,5 +66,8 @@ jobs:
         if: ${{ always() }}
         with:
           name: papers
-          path: build/papers/*/paper.pdf
+          # A paper that failed leaves the log that explains it as failed.log in its directory.
+          path: |
+            build/papers/*/paper.pdf
+            build/papers/*/failed.log
           if-no-files-found: ignore
