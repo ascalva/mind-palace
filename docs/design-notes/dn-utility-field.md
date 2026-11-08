@@ -337,8 +337,10 @@ constant use `r ∈ [−c, c]`, `u_n = b + (1 − lam)^n (u_0 − b) + (r/lam)(1
 The field enters every ranking through the effective weights `A' = A ∘ (1 + η (u − b))` on the
 edges of the relation the sentence walks, with `η ≥ 0` the fourth declared number and
 `θ = η c/lam < 1` the margin it implies. `near`, `diffuse`, `reach` and `walk` run on `A'` as
-they run on `A` today; the universe's support, its degrees for RSP-5 and its components are
-`A`'s, which `A'` shares (`support_nudge`). A node's field enters as the geometric mean of the
+they run on `A` today; the universe's support and its components are `A`'s, which `A'` shares
+(`support_nudge`), and the degrees RSP-5 reads are those of the graph the walk runs on, `A'`'s
+when the field is on, within the factors `1 ± θ` of `A`'s (`degree_nudge_le`,
+`le_degree_nudge`). A node's field enters as the geometric mean of the
 field on its incident edges' sites when a verb reads nodes (`top k` of a field), so that the node
 nudge is a reordering within the same margin. §2.5 gives the bounds, and §4 the laws. An ablation
 arm that reads the structural weights is the arm with `η = 0`, or with the field at `b`, the same
