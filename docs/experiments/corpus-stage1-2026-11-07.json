@@ -5333,5 +5333,28 @@
     "shapley_lexical": 0.497
    }
   }
+ },
+ "agreement": {
+  "pending": 0,
+  "lexical_store_units": 1369944,
+  "top10": {
+   "queries": 20,
+   "mean_jaccard": 0.9727,
+   "identical": 17,
+   "store_query_s_median": 40.266
+  },
+  "unicode_tokenizer_recall_shift": {
+   "titles:wikipedia": 0.0,
+   "titles:openalex": 0.016,
+   "titles:arxiv": 0.0,
+   "titles:stackexchange": 0.004,
+   "titles:gutenberg": 0.0,
+   "titles:hackernews": 0.0,
+   "twins:arxiv->openalex": 0.0,
+   "twins:openalex->arxiv": 0.0,
+   "cite:wikipedia->paper": -0.003,
+   "link:stackexchange->wikipedia": 0.0,
+   "link:hackernews->wikipedia": 0.0
+  }
  }
 }

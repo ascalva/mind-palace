@@ -35,7 +35,7 @@
 \begin{abstract}
 A design for growing a private knowledge store toward a hundred gigabytes of open text names three
 stages and, for the first, a table of measurements with the observations that would falsify each
-expectation. We report the first stage. Six open sources (Wikipedia, OpenAlex, arXiv, Stack Exchange, Project Gutenberg and Hacker News)  were read by edge processes into a named
+expectation. We report the first stage. Six open sources (Wikipedia, OpenAlex, arXiv, Stack Exchange, Project Gutenberg and Hacker News) were read by edge processes into a named
 instance shown, by the store's own check over real paths, to share nothing with the live instance:
 1.02\,GB of text, 400,274 items, 1.37 million chunks. Items land through the store's ingress in
 batches whose stages run across the batch with each key written last, and in two phases: every item
@@ -384,6 +384,8 @@ one bit, 768 & 96.0 & 0.514 & 0.788\\
 \end{table}
 
 The plane as built holds 734\,B per occupancy (its live shape, with text keys and the fiber's columns); the design's compact row, one integer row an item version, measures 19.4\,B against its 120\,B target and the falsifier's 300\,B.
+
+On the merged two-phase implementation the drain's own pending check finds 0 of the corpus's items pending, so the rows the runner wrote are the rows the drain expects, and its SQLite lexical store, filled from the raw store, holds the same 1,369,944 units. Its SQL scoring and the matrix the battery scores with agree on the top ten for 17 of 20 title queries (mean Jaccard 0.97), but a query over the store takes a median 40\,s at this size; with the store's Unicode tokenizer the lexical arm's recall moves by at most 0.016.
 
 \section{Falsifiers}
 \Cref{tab:falsifiers} reads each falsifier the stage can test from the result files; the report gives the long form of each reading.
