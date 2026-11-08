@@ -279,3 +279,25 @@ def test_the_codes_built_by_blocks_are_the_codes_of_one_pass(tmp_path):
     pv = codes.preview(m, tmp_path / "c", q, k=5, m=20, block=7)
     assert pv["f16_256"]["rescored_m20"] >= pv["f16_256"]["flat"] - 1e-9
     assert all(0.0 <= pv[k]["flat"] <= 1.0 for k in ("int8_768", "f16_256", "int8_256", "bits_768"))
+
+
+def test_an_item_local_relation_counts_at_its_item_and_joins_no_items(tmp_path):
+    # the reply nodes are numbered on their own (0, 1, 2 ...), as are the gids of other items:
+    # node ids must never be read as items
+    c = _corpus(tmp_path, {
+        "wikipedia": [{"id": str(n), "title": f"page {n}", "date": "2015-01-05"} for n in range(3)],
+        "hackernews": [{"id": "hn-7", "date": "2015-03-02", "host": "example.org",
+                        "replies": [[8, 7, 86400 * day("2015-03-02")],
+                                    [9, 8, 86400 * day("2015-03-09")]]}],
+    })
+    rel = edges.build(c)
+    reply = rel["hackernews.reply"]
+    assert reply.local and reply.m == 2 and reply.item is not None
+    assert set(reply.item.tolist()) == {c.gid["corpus/hackernews/hn-7"]}
+    u, v, _ = bridges.union(c, rel, None)
+    assert len(u) == 0                                     # no edge between items
+    part = {g: f"{c.paths[g].split('/')[1]}:x" for g in range(c.n)}
+    comms, m = rises.series(c, rel, part, "2015-01-01", "2015-12-31")
+    by = dict(zip(comms, m.sum(axis=1).tolist(), strict=True))
+    assert by["hackernews:x"] == 1 + 2                     # the thread and its two replies
+    assert by["wikipedia:x"] == 3                          # the pages alone, no reply counted

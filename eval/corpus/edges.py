@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -38,31 +39,40 @@ IntArr = npt.NDArray[np.int64]
 
 @dataclass(frozen=True)
 class Relation:
-    """Directed, dated edges: `src -> dst` appears on day `t`."""
+    """Directed, dated edges: `src -> dst` appears on day `t`. An item-local relation (versions,
+    a thread's replies) joins nodes inside one item, numbered on their own; `item` holds each
+    edge's item, and nothing may read its `src` or `dst` as items."""
 
     name: str
     source: str            # the source whose items it joins ("bridge" for cross-source)
     src: IntArr
     dst: IntArr
     t: IntArr
+    item: IntArr | None = None
 
     @property
     def m(self) -> int:
         return len(self.src)
+
+    @property
+    def local(self) -> bool:
+        return self.item is not None
 
     def triples(self) -> npt.NDArray[np.int32]:
         order = np.lexsort((self.dst, self.src, self.t))
         return np.stack([self.src[order], self.dst[order], self.t[order]], axis=1).astype(np.int32)
 
 
-def _rel(name: str, source: str, pairs: list[tuple[int, int, int]]) -> Relation:
+def _rel(name: str, source: str, pairs: Sequence[tuple[int, ...]], *, local: bool = False
+         ) -> Relation:
+    """Edges from (src, dst, day) triples, or (src, dst, day, item) for an item-local relation."""
     if not pairs:
         z = np.zeros(0, dtype=np.int64)
-        return Relation(name, source, z, z, z)
+        return Relation(name, source, z, z, z, z if local else None)
     arr = np.asarray(sorted(set(pairs)), dtype=np.int64)
     keep = arr[:, 0] != arr[:, 1]
     arr = arr[keep]
-    return Relation(name, source, arr[:, 0], arr[:, 1], arr[:, 2])
+    return Relation(name, source, arr[:, 0], arr[:, 1], arr[:, 2], arr[:, 3] if local else None)
 
 
 def _doi(text: str | None) -> str:
@@ -130,7 +140,8 @@ def build(c: Corpus) -> dict[str, Relation]:
     rel["stackexchange.link"] = _rel("link", "stackexchange", links)
     # Hacker News: the reply tree inside each thread, its nodes the story and its comments,
     # numbered on their own (a thread is one item, its comments its blocks)
-    pairs, node = [], 0
+    replies: list[tuple[int, int, int, int]] = []
+    node = 0
     for g in by_source.get("hackernews", []):
         m = c.meta[g]
         local = {int(str(m["id"]).removeprefix("hn-")): node}
@@ -140,18 +151,19 @@ def build(c: Corpus) -> dict[str, Relation]:
             node += 1
         for cid, parent, t in m.get("replies", []):
             if int(parent) in local:
-                pairs.append((local[int(cid)], local[int(parent)], int(t) // 86400))
-    rel["hackernews.reply"] = _rel("reply", "hackernews", pairs)
+                replies.append((local[int(cid)], local[int(parent)], int(t) // 86400, g))
+    rel["hackernews.reply"] = _rel("reply", "hackernews", replies, local=True)
     # versions: a chain per item, its nodes (item, version) numbered on their own
     for source, key in (("arxiv", "versions"), ("stackexchange", "versions")):
-        pairs, node = [], 0
+        chain: list[tuple[int, int, int, int]] = []
+        node = 0
         for g in by_source[source]:
             vs = [day(v) for v in c.meta[g].get(key, []) if day(v) >= 0]
             for a, b in zip(vs, vs[1:], strict=False):
-                pairs.append((node, node + 1, max(a, b)))
+                chain.append((node, node + 1, max(a, b), g))
                 node += 1
             node += 1
-        rel[f"{source}.version"] = _rel("version", source, pairs)
+        rel[f"{source}.version"] = _rel("version", source, chain, local=True)
     # the bridges, explicit, between sources
     bridges: dict[str, list[tuple[int, int, int]]] = defaultdict(list)
     for g in by_source["wikipedia"]:

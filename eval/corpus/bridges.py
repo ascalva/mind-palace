@@ -74,8 +74,8 @@ def union(c: Corpus, rel: dict[str, Relation], semantic: tuple[IntArr, IntArr] |
           ) -> tuple[IntArr, IntArr, npt.NDArray[np.bool_]]:
     """The undirected item graph: (u, v) with u < v, once each, and which edges are semantic."""
     us, vs, sem = [], [], []
-    for name, r in rel.items():
-        if name.endswith(".version") or r.m == 0:
+    for r in rel.values():
+        if r.local or r.m == 0:            # an item-local relation joins no two items
             continue
         us.append(r.src)
         vs.append(r.dst)
@@ -84,6 +84,9 @@ def union(c: Corpus, rel: dict[str, Relation], semantic: tuple[IntArr, IntArr] |
         us.append(semantic[0])
         vs.append(semantic[1])
         sem.append(np.ones(len(semantic[0]), dtype=bool))
+    if not us:
+        z = np.zeros(0, dtype=np.int64)
+        return z, z, np.zeros(0, dtype=bool)
     u = np.concatenate(us)
     v = np.concatenate(vs)
     s = np.concatenate(sem)
@@ -150,17 +153,26 @@ def measure(c: Corpus, rel: dict[str, Relation], part: dict[int, str], *,
         sg = {k: float(np.std([d.get(k, 0) for d in ref])) for k in counts}
         return [k for k, e in counts.items()
                 if e >= min_edges and e > mu[k] + z * max(sg[k], math.sqrt(max(mu[k], 1.0)))]
+    def pair_of(k: int) -> str:
+        ka, kb = divmod(k, len(names))
+        sa, sb = sorted((c.sources[src_of_comm[ka]], c.sources[src_of_comm[kb]]))
+        return f"{sa}-{sb}"
     observed = bridges(obs, draws)
-    false_pos = [len(bridges(draws[i], draws[:i] + draws[i + 1:])) for i in range(min(reps, 10))]
-    by_pair: dict[str, dict[str, float]] = defaultdict(lambda: {"edges": 0, "bridges": 0})
+    fp_lists = [bridges(draws[i], draws[:i] + draws[i + 1:]) for i in range(min(reps, 10))]
+    false_pos = [len(x) for x in fp_lists]
+    by_pair: dict[str, dict[str, float]] = defaultdict(
+        lambda: {"edges": 0, "bridges": 0, "false_positive_mean": 0.0, "false_positive_bar": 0.0})
     for k in observed:
-        ka, kb = divmod(k, len(names))
-        sa, sb = sorted((c.sources[src_of_comm[ka]], c.sources[src_of_comm[kb]]))
-        by_pair[f"{sa}-{sb}"]["bridges"] += 1
+        by_pair[pair_of(k)]["bridges"] += 1
     for k, e in obs.items():
-        ka, kb = divmod(k, len(names))
-        sa, sb = sorted((c.sources[src_of_comm[ka]], c.sources[src_of_comm[kb]]))
-        by_pair[f"{sa}-{sb}"]["edges"] += e
+        by_pair[pair_of(k)]["edges"] += e
+    fp_pair: dict[str, list[int]] = defaultdict(lambda: [0] * len(fp_lists))
+    for i, ks in enumerate(fp_lists):
+        for k in ks:
+            fp_pair[pair_of(k)][i] += 1
+    for name, counts in fp_pair.items():   # each source pair's own false positives
+        by_pair[name]["false_positive_mean"] = float(np.mean(counts))
+        by_pair[name]["false_positive_bar"] = float(np.mean(counts) + 2 * np.std(counts))
     top = sorted(observed, key=lambda k: -(obs[k] - mean.get(k, 0.0)))[:15]
     return {"items": c.n, "edges": int(len(u)), "semantic_edges": int(sem.sum()),
             "cross_edges": int(cross.sum()), "cross_share": float(cross.mean()),
