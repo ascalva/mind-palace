@@ -56,10 +56,11 @@ class Source:
     which paths are its own (R8). A `records` source is a directory of the daemon's own JSON
     documents, each read as a structured source's document; one it `consume`s is removed once a
     plan has landed every item it yields (the inbox's record, whose bytes the raw store then
-    holds)."""
+    holds). A `stream` source is a directory of items in sequence that an edge reader appends to
+    (`core/ingest/stream.py`), read a batch past its cursor (dn-corpus-instance §5.2)."""
 
     name: str
-    kind: str                                   # "dir" | "file" | "records"
+    kind: str                                   # "dir" | "file" | "records" | "stream"
     location: Path                              # the directory, or the file
     format: str                                 # "markdown" | "json"
     readers: frozenset[str]
@@ -367,6 +368,31 @@ def _inbox_source(cfg: Config) -> Source:
         space=INBOX_SPACE, title_of=title_of, consume=True)
 
 
+# The open corpus (dn-corpus-instance §3.2, §5.2): one stream source a name in
+# `[ingestion.corpus] sources`, its paths under `corpus/<name>/`, every item observed; only the
+# corpus role, which the instance's own runner speaks, and the operator's open it.
+CORPUS = "corpus"
+CORPUS_SPACE = "corpus/"
+
+
+def _corpus_source(cfg: Config, name: str) -> Source:
+    """A stream of one open source: its edge reader (`edge/corpus/<name>.py`) appends items under
+    `root/<name>/`, and an item lands at `corpus/<name>/<id>`, titled by the item, observed. The
+    reader is run by the operator (`scripts/corpus.py fetch`), not before each batch: a bulk
+    source refreshed per request would fetch per batch."""
+    space = f"{CORPUS_SPACE}{name}/"
+
+    def items_of(docs: Any) -> Iterator[dict[str, Any]]:
+        yield from (d for d in (docs or []) if isinstance(d, dict))
+
+    return Source(
+        name=f"{CORPUS}/{name}", kind="stream", location=cfg.ingestion.corpus.root / name,
+        format="json", readers=frozenset({CORPUS, "cli"}), items_of=items_of,
+        path_of=lambda it: f"{space}{it['id']}", label_of=lambda _it: OBSERVED,
+        labels=frozenset({OBSERVED}), space=space,
+        title_of=lambda it: str(it.get("title") or it["id"]))
+
+
 def build_table(cfg: Config) -> Table:
     """This palace's table, from its configuration."""
     from core.relations import RELATIONS
@@ -387,6 +413,8 @@ def build_table(cfg: Config) -> Table:
         **{f"dialogue/{lane}": _dialogue_source(cfg, lane, _DIALOGUE_READERS[lane])
            for lane in cfg.instance.dialogue},
         INBOX: _inbox_source(cfg),
+        **({f"{CORPUS}/{n}": _corpus_source(cfg, n) for n in cfg.ingestion.corpus.sources}
+           if cfg.ingestion.corpus.enabled else {}),
     }
 
     places, jobs = PLACES, JOBS
@@ -409,6 +437,10 @@ def build_table(cfg: Config) -> Table:
         # it writes the inbox's space and nothing else, and retires no row
         INBOX: Role(INBOX, {"dialogue": (INBOX_SPACE,)}, budget=OPERATOR_BUDGET,
                     retires=frozenset()),
+        # the open corpus's runner (dn-corpus-instance §3.2): it writes the corpus's space in the
+        # observed place and nothing else, and retires no row
+        CORPUS: Role(CORPUS, {"observed": (CORPUS_SPACE,)}, budget=OPERATOR_BUDGET,
+                     retires=frozenset()),
     }
     return Table(sources=sources, places=places, jobs=jobs, roles=roles, relations=RELATIONS,
                  interactive=INTERACTIVE, coalescing=COALESCING)

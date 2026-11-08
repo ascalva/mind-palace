@@ -1,0 +1,7 @@
+# One batch of an open-corpus source, observed, each item at its own path under the source's name
+# (dn-corpus-instance §5.2). The batch is the next `batch` items past the source's cursor; the
+# cursor moves once the batch has landed, so a batch cut off anywhere is read again, whole.
+param name, batch = 2000
+for it in items(source("corpus/" + name), batch: batch) {
+    store it.content in "observed" at "corpus/" + name + "/" + it.id
+}

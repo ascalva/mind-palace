@@ -66,7 +66,9 @@ _ROLE_GRANTS: dict[str, str] = {"ambassador": "ambassador", "cli": "operator"}
 # one, so no surface can speak it: the inbox's capture (dn-ingress-language §E13) runs under the
 # Ambassador's grant, the least the ingress gives, and its role opens one source and writes one
 # prefix (`core/ingest/table.py`).
-_DAEMON_ROLES: dict[str, str] = {"inbox": "ambassador"}
+# The open corpus's runner (dn-corpus-instance §3.2) speaks the corpus role under the same grant:
+# its role opens the corpus streams and writes `corpus/` in the observed place alone.
+_DAEMON_ROLES: dict[str, str] = {"inbox": "ambassador", "corpus": "ambassador"}
 # The roles whose spool the palace group may write: the agents run under their own account
 # (plane-principals), and the Ambassador's grant is the least the ingress gives. The operator's
 # spool is the owner's account's alone.
@@ -691,14 +693,15 @@ MAX_RECEIPT_EFFECTS = 200     # the effects a receipt lists by name; the rest ar
 def perform(do: ast.Do, cfg: Config, role: str, *, stores: Any,
             library: Callable[[str], Any] | None = None, view: Any = None,
             budget: int | None = None, request: str | None = None,
-            refresh: bool = False) -> dict[str, Any]:
+            refresh: bool = False, batch: bool = False) -> dict[str, Any]:
     """Run a request under the one writer: evaluate its script under the role (reading the
     palace, writing nothing) into a plan, then land the plan, each effect by the writer's rules
     (dn-ingress-language §E5). `request` is the request's id, so the jobs its plan starts start
     once however often it runs; `refresh` runs a structured source's edge reader before its
-    first read, which only the daemon's own syncs and the owner's CLI ask for. Returns what the
-    receipt says: each effect's outcome, counted by status, those that changed or were refused
-    named, and the work charged (§E10)."""
+    first read, which only the daemon's own syncs and the owner's CLI ask for; `batch` lands a
+    plan of fresh stores on distinct paths a stage at a time (`Writer.land_batch`, the bulk path
+    of dn-corpus-instance §5.2). Returns what the receipt says: each effect's outcome, counted by
+    status, those that changed or were refused named, and the work charged (§E10)."""
     from core.ingest.readers import PalaceView
     from core.ingest.table import build_table
     from core.ingest.writer import Writer
@@ -712,23 +715,29 @@ def perform(do: ast.Do, cfg: Config, role: str, *, stores: Any,
                                                  query=reader(cfg, role), refresh=refresh)
     plan = Evaluator(v, role, meter, library=library or load).run(script, args, kwargs, name=name)
     reads = frozenset().union(*(classes_of(s.sigma.strata) for s in grant_for(role).scopes))
-    outcomes = Writer(table, role, stores, has=v.has, meter=meter, request=request,
-                      reads=reads).land(plan)
+    writer = Writer(table, role, stores, has=v.has, meter=meter, request=request, reads=reads,
+                    batch=batch)
+    outcomes = writer.land(plan)
     if hasattr(v, "landed"):
         v.landed(outcomes)
     counts: dict[str, int] = {}
     for o in outcomes:
         counts[o.status] = counts.get(o.status, 0) + 1
     named = [o.to_dict() for o in outcomes if o.status != "unchanged"]
-    return {"effects": counts, "changed": named[:MAX_RECEIPT_EFFECTS],
-            "more": max(0, len(named) - MAX_RECEIPT_EFFECTS), "work": meter.used}
+    out = {"effects": counts, "changed": named[:MAX_RECEIPT_EFFECTS],
+           "more": max(0, len(named) - MAX_RECEIPT_EFFECTS), "work": meter.used}
+    if writer.timing:
+        out["timing"] = {k: round(v, 3) for k, v in writer.timing.items()}
+    return out
 
 
 def run_library(cfg: Config, name: str, kwargs: Mapping[str, Any] | None = None, *,
-                role: str = "cli", stores: Any = None, refresh: bool = True) -> dict[str, Any]:
+                role: str = "cli", stores: Any = None, refresh: bool = True,
+                batch: bool = False) -> dict[str, Any]:
     """A library script run in this process, as the owner's CLI and scripts run one behind the
     live-daemon guard: compiled and admitted under the role's grant as a request is, then
-    evaluated and landed by the writer, its structured sources refreshed first."""
+    evaluated and landed by the writer, its structured sources refreshed first (unless
+    `refresh` is off), a plan of fresh stores a stage at a time when `batch` is on."""
     from core.sentence.plan import compile_sentence
     from core.sentence.script import quote
 
@@ -744,4 +753,4 @@ def run_library(cfg: Config, name: str, kwargs: Mapping[str, Any] | None = None,
     plan = compile_sentence(text, grant_for(role), role=role)
     assert isinstance(plan.term, ast.Do)
     return perform(plan.term, cfg, role, stores=stores if stores is not None else build_stores(cfg),
-                   refresh=refresh)
+                   refresh=refresh, batch=batch)
