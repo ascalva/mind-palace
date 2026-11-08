@@ -1,0 +1,103 @@
+{
+ "date": "2026-11-08",
+ "server": "llama-server, EmbeddingGemma-2 Q8_0, slots of 2,048 tokens",
+ "working_instance": {
+  "limit": 2048,
+  "template": "title: none | text: {text}",
+  "port": 8081,
+  "groups": {
+   "working instance": {
+    "texts": 17328,
+    "p50": 255,
+    "p90": 362,
+    "p99": 439,
+    "p999": 493,
+    "max": 616,
+    "chars_per_token_median": 3.33,
+    "over_limit": 0,
+    "over_limit_share": 0.0,
+    "longest_chars": 1647
+   }
+  }
+ },
+ "corpus_sample": {
+  "limit": 2048,
+  "template": "title: none | text: {text}",
+  "port": 8081,
+  "groups": {
+   "arxiv": {
+    "texts": 3936,
+    "p50": 136,
+    "p90": 248,
+    "p99": 328,
+    "p999": 387,
+    "max": 426,
+    "chars_per_token_median": 4.84,
+    "over_limit": 0,
+    "over_limit_share": 0.0,
+    "longest_chars": 1352
+   },
+   "gutenberg": {
+    "texts": 5000,
+    "p50": 245,
+    "p90": 323,
+    "p99": 586,
+    "p999": 925,
+    "max": 1117,
+    "chars_per_token_median": 4.41,
+    "over_limit": 0,
+    "over_limit_share": 0.0,
+    "longest_chars": 1352
+   },
+   "hackernews": {
+    "texts": 5000,
+    "p50": 231,
+    "p90": 298,
+    "p99": 345,
+    "p999": 484,
+    "max": 1360,
+    "chars_per_token_median": 4.11,
+    "over_limit": 0,
+    "over_limit_share": 0.0,
+    "longest_chars": 1352
+   },
+   "openalex": {
+    "texts": 3649,
+    "p50": 137,
+    "p90": 251,
+    "p99": 334,
+    "p999": 463,
+    "max": 811,
+    "chars_per_token_median": 4.79,
+    "over_limit": 0,
+    "over_limit_share": 0.0,
+    "longest_chars": 1352
+   },
+   "stackexchange": {
+    "texts": 2995,
+    "p50": 202,
+    "p90": 335,
+    "p99": 491,
+    "p999": 1246,
+    "max": 1347,
+    "chars_per_token_median": 3.84,
+    "over_limit": 0,
+    "over_limit_share": 0.0,
+    "longest_chars": 1352
+   },
+   "wikipedia": {
+    "texts": 5000,
+    "p50": 216,
+    "p90": 284,
+    "p99": 346,
+    "p999": 496,
+    "max": 622,
+    "chars_per_token_median": 4.55,
+    "over_limit": 0,
+    "over_limit_share": 0.0,
+    "longest_chars": 1352
+   }
+  }
+ },
+ "note": "token counts from the server's /tokenize with special tokens and the document template 'title: none | text: {text}'; aggregates only"
+}
