@@ -26,6 +26,7 @@ DAY-TO-DAY
   sandbox <code.py|-> [--input NAME=PATH] [--timeout N]  run code in the powerless sandbox
   query "<sentence>" [--json|--no-plan|--trace|--as <role>]  ask a sentence of the query algebra (read-only)
   query --log                                            the query sensor: strata by role, failed translations
+  shell                                                  compose and run sentences read-only, with completion
 
 INGEST / KNOWLEDGE
   ingest                                                 (re)build the knowledge base from the vault
@@ -65,7 +66,7 @@ _PALACE = ("start", "stop", "status", "reset", "deploy", "dream", "relate", "lan
 PY_VERBS: dict[str, str] = {
     **dict.fromkeys(_PALACE, "palace.py"),
     "stack": "stack.py", "mcp": "palace_mcp.py", "talk": "talk.py", "supersede": "supersede.py",
-    "monitor": "monitor.py", "sandbox": "sandbox.py", "ingest": "ingest.py",
+    "monitor": "monitor.py", "shell": "shell.py", "sandbox": "sandbox.py", "ingest": "ingest.py",
     "ingest-self-knowledge": "ingest_self_knowledge.py",
     "migrate-provenance": "migrate_provenance_split.py", "purge-raw": "purge_raw.py",
     "gen-attestation-keys": "gen_attestation_keys.py",

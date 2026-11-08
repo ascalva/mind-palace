@@ -27,6 +27,7 @@ DAY-TO-DAY
   sandbox <code.py|-> [--input NAME=PATH] [--timeout N]  run code in the powerless sandbox
   query "<sentence>" [--json|--no-plan|--trace|--as <role>]  ask a sentence of the query algebra (read-only)
   query --log                                            the query sensor: strata by role, failed translations
+  shell                                                  compose and run sentences read-only, with completion
 
 INGEST / KNOWLEDGE
   ingest                                                 (re)build the knowledge base from the vault
@@ -70,6 +71,7 @@ case "$verb" in
   stack)                    py "$SCRIPTS/stack.py" "$@" ;;
   mcp)                      py "$SCRIPTS/palace_mcp.py" "$@" ;;
   talk)                     py "$SCRIPTS/talk.py" "$@" ;;
+  shell)                    py "$SCRIPTS/shell.py" "$@" ;;
   supersede)                py "$SCRIPTS/supersede.py" "$@" ;;
   monitor)                  py "$SCRIPTS/monitor.py" "$@" ;;
   sandbox)                  py "$SCRIPTS/sandbox.py" "$@" ;;
