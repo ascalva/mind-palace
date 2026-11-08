@@ -98,10 +98,9 @@ def series(c: Corpus, rel: dict[str, Relation], part: dict[int, str], start: str
     for g, dd in enumerate(c.dates):
         if d0 <= dd <= d1 and g in part:
             m[idx[part[g]], (dd - d0) // WEEK] += 1
-    for name, r in rel.items():
-        if name.endswith(".version"):
-            continue                       # a version's nodes are not items
-        for a, t in zip(r.src.tolist(), r.t.tolist(), strict=True):
+    for r in rel.values():
+        ends = r.item if r.item is not None else r.src     # an item-local edge, at its item
+        for a, t in zip(ends.tolist(), r.t.tolist(), strict=True):
             if d0 <= t <= d1 and a in part:
                 m[idx[part[a]], (t - d0) // WEEK] += 1
     return comms, m

@@ -124,15 +124,23 @@ def _vectors(cfg: Config, c: Corpus) -> Any:
 
 
 def cmd_bridges(a: argparse.Namespace) -> None:
+    import numpy as np
+
     from eval.corpus.bridges import chunk_pairs, knn, measure
-    from eval.corpus.edges import build
+    from eval.corpus.edges import build, twins
     from eval.corpus.rises import partition
 
     cfg = _cfg()
     c = corpus(cfg)
     rel = build(c)
     part = partition(c, rel)
-    out: dict[str, Any] = {"explicit": measure(c, rel, part, reps=a.reps)}
+    # the twins are one paper in two sources, joined by construction: each reading is made
+    # with them and again without them (the twin relation dropped, and twin pairs among the
+    # semantic edges)
+    tw = twins(rel)
+    no_twins = {k: v for k, v in rel.items() if k != "bridge.openalex-arxiv"}
+    out: dict[str, Any] = {"explicit": measure(c, rel, part, reps=a.reps),
+                           "explicit_without_twins": measure(c, no_twins, part, reps=a.reps)}
     if not a.explicit_only:
         vec = _vectors(cfg, c)
         x, have = vec.item_means(c.n)
@@ -141,6 +149,11 @@ def cmd_bridges(a: argparse.Namespace) -> None:
         print(f"semantic: {len(i)} pairs in {time.time() - t0:.0f} s", flush=True)
         out["semantic_k"], out["sigma"] = a.k, a.sigma
         out["with_semantic"] = measure(c, rel, part, semantic=(i, j), reps=a.reps)
+        twin_pair = np.asarray([tw.get(int(p)) == int(q) or tw.get(int(q)) == int(p)
+                                for p, q in zip(i.tolist(), j.tolist(), strict=True)], dtype=bool)
+        out["semantic_twin_pairs"] = int(twin_pair.sum())
+        out["with_semantic_without_twins"] = measure(
+            c, no_twins, part, semantic=(i[~twin_pair], j[~twin_pair]), reps=a.reps)
         out["chunk_pairs"] = chunk_pairs(c, vec, sigma=a.sigma, sample=a.chunk_sample)
     write(results(cfg) / "bridges.json", out)
     print(json.dumps(_clean({k: {kk: vv for kk, vv in v.items() if kk != "top"}

@@ -73,7 +73,8 @@ def tables(d: Path) -> str:
     b = _load(d, "bridges.json")
     if b:
         out += ["## Bridges", ""]
-        for key in ("explicit", "with_semantic"):
+        for key in ("explicit", "explicit_without_twins", "with_semantic",
+                    "with_semantic_without_twins"):
             e = b.get(key)
             if not e:
                 continue
@@ -82,10 +83,26 @@ def tables(d: Path) -> str:
                        f"{e['bridges']} community pairs over the null against a false-positive "
                        f"bar of {_f(e['false_positive_bar'], 1)}; CIF-2 (bridges) "
                        f"{'broken' if e['cif2_bridges_broken'] else 'held'}.\n")
-            out.append("| source pair | edges | bridges |")
-            out.append("|---|---|---|")
+            out.append("| source pair | edges | bridges | the null's false positives (mean, bar) |")
+            out.append("|---|---|---|---|")
             for k, v in sorted(e["by_source_pair"].items()):
-                out.append(f"| {k} | {int(v['edges']):,} | {int(v['bridges'])} |")
+                fp = (f"{_f(v.get('false_positive_mean'), 1)}, {_f(v.get('false_positive_bar'), 1)}"
+                      if "false_positive_mean" in v else "n/a")
+                out.append(f"| {k} | {int(v['edges']):,} | {int(v['bridges'])} | {fp} |")
+            out.append("")
+        cp = b.get("chunk_pairs")
+        if cp:
+            pairs = cp["pairs_per_chunk"]
+            asked = [s for s, n in cp["asked"].items() if n]
+            out.append(f"**semantic chunk pairs**: of {cp['sample']:,} chunks drawn at random, "
+                       f"the chunks of other items at cosine {cp['sigma']} or more, per asking "
+                       f"chunk, by the asking chunk's source (rows) and the answering chunk's "
+                       f"(columns).\n")
+            out.append("| asking | " + " | ".join(asked) + " |")
+            out.append("|---|" + "---|" * len(asked))
+            for a in asked:
+                out.append(f"| {a} | " + " | ".join(_f(pairs.get(f"{a}->{t}"), 2) for t in asked)
+                           + " |")
             out.append("")
     r = _load(d, "rises.json")
     if r:
@@ -149,13 +166,38 @@ def tables(d: Path) -> str:
     if cost.is_file():
         out += ["| sentence | items | chunks | wall (s) | peak RSS (MB) | Python share | note |",
                 "|---|---|---|---|---|---|---|"]
-        for line in cost.read_text().splitlines():
+        latest: dict[tuple[str, int], dict[str, Any]] = {}
+        for line in cost.read_text().splitlines():       # the last probe of each sentence and N
             c = json.loads(line)
+            latest[(c["sentence"].split(' "')[0], int(c["items"]))] = c
+        for c in sorted(latest.values(), key=lambda c: (int(c["items"]), c["sentence"])):
             out.append(f"| `{c['sentence'].split(' \"')[0]}` | {_f(c['items'])} | "
                        f"{_f(c['chunks'])} | {_f(c.get('wall_s'), 2)} | "
                        f"{_f(c.get('peak_rss_mb'))} | "
                        f"{_f((c.get('split') or {}).get('python_share'), 2)} | "
                        f"{c.get('killed', '')} |")
+        out.append("")
+    bat = _load(d, "battery.json")
+    if bat and bat.get("codes"):
+        co, pv = bat["codes"], bat.get("codes_preview") or {}
+        m = pv.get("m", 40)
+        out += ["## Codes for stage 2", "",
+                f"{co['atoms']:,} atoms of {co['dim']} dimensions; the preview is recall at "
+                f"{pv.get('k', 10)} against exact float16 search on {_f(pv.get('queries'))} title "
+                f"queries, flat and rescored exactly from each code's top {m}.", "",
+                "| code | bytes a vector | flat | rescored |", "|---|---|---|---|"]
+        for k in ("int8_768", "f16_256", "int8_256", "bits_768"):
+            r = pv.get(k, {})
+            out.append(f"| {k} | {_f(co['bytes_per_vector'].get(k + '.npy'), 1)} | "
+                       f"{_f(r.get('flat'))} | {_f(r.get(f'rescored_m{m}'))} |")
+        out.append("")
+    if bat and bat.get("beir"):
+        out += ["## The BEIR control", "",
+                "| set | documents | queries | nDCG at 10 | recall at 10 | recall at 10 among the "
+                "corpus's atoms |", "|---|---|---|---|---|---|"]
+        for name, v in bat["beir"].items():
+            out.append(f"| {name} | {v['docs']:,} | {v['queries']:,} | {_f(v['ndcg10'])} | "
+                       f"{_f(v['recall10'])} | {_f(v.get('recall10_mixed'))} |")
         out.append("")
     fp = _load(d, "footprint.json")
     if fp:
