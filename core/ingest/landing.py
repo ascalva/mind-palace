@@ -50,6 +50,25 @@ def attested_by(attestor: Attestor | None, action: str, digest: str) -> list[str
     return out
 
 
+def attested_batch(attestor: Attestor | None,
+                   digests: set[str]) -> dict[str, list[tuple[str, str]]]:
+    """For many digests in one pass over the ledger, each digest's producers: the attestations,
+    of any action, whose outputs name it, as (action, id). `attested_by` is the producers of one
+    action, and an attestation's parents (`StoreAttestor.emit`'s auto-link) the producers of its
+    inputs; the batched landing reads both off this one pass a batch (`Writer.land_batch`), where
+    asking per store is two passes a store, which grow with the ledger."""
+    store: Any = getattr(attestor, "store", None)
+    out: dict[str, list[tuple[str, str]]] = {d: [] for d in digests}
+    if store is None or not digests:
+        return out
+    if hasattr(store, "producers_by_output"):
+        return dict(store.producers_by_output(set(digests)))
+    for att in store.all():
+        for d in digests.intersection(att.output_hashes):
+            out[d].append((att.action, att.id))
+    return {d: sorted(ps) for d, ps in out.items()}
+
+
 def already_attested(attestor: Attestor | None, action: str, digest: str) -> bool:
     """Whether an attestation of `action` already names `digest` among its outputs."""
     return bool(attested_by(attestor, action, digest))

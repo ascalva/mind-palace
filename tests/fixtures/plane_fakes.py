@@ -30,10 +30,13 @@ class MemoryAtoms:
     def present(self, atom_ids: Sequence[str]) -> set[str]:
         return {a for a in atom_ids if a in self.rows}
 
-    def insert(self, atoms: Sequence[AtomRecord]) -> int:
+    def insert(self, atoms: Sequence[AtomRecord],
+               held: Mapping[str, frozenset[str]] | None = None) -> int:
+        cache = held or {}
         for a in atoms:
+            classes = frozenset(cache.get(a.atom_id, ()))
             self.rows[a.atom_id] = {"layer": a.layer, "text": a.text, "vector": list(a.vector),
-                                    "held": frozenset(), "held_ever": frozenset()}
+                                    "held": classes, "held_ever": classes}
         return len(atoms)
 
     def payload(self, atom_ids: Sequence[str]) -> dict[str, tuple[str, Sequence[float]]]:

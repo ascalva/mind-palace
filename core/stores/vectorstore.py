@@ -878,10 +878,16 @@ class _LanceAtoms:
             out |= {str(r["id"]) for r in self._scan(f"{_id_in(batch)} AND {_PROSE_ATOM}", ["id"])}
         return out
 
-    def insert(self, atoms: Sequence[AtomRecord]) -> int:
+    def insert(self, atoms: Sequence[AtomRecord],
+               held: Mapping[str, frozenset[str]] | None = None) -> int:
+        """Add atoms; `held` names, per atom, the classes about to hold it, written into its
+        `held` and `held_ever` cache in the same write (the plane's additions, PLN-4)."""
+        cache = held or {}
         rows = [{"id": a.atom_id, "digest": "", "title": "", "source_path": "", "chunk_index": 0,
                  "provenance": "", "text": a.text, "layer": a.layer, "qualname": "",
-                 "line_start": 0, "line_end": 0, "current": False, "held": [], "held_ever": [],
+                 "line_start": 0, "line_end": 0, "current": bool(cache.get(a.atom_id)),
+                 "held": sorted(cache.get(a.atom_id, ())),
+                 "held_ever": sorted(cache.get(a.atom_id, ())),
                  "vector": list(a.vector)} for a in atoms]
         if not rows:
             return 0

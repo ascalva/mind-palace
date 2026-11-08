@@ -22,6 +22,8 @@ same catalog, by passing `provenance=` to `record`.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -64,6 +66,7 @@ class VaultCatalog:
     def __post_init__(self) -> None:
         if str(self.path) != ":memory:":
             self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._defer = False
         self._conn = sqlite3.connect(str(self.path))
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
@@ -116,7 +119,23 @@ class VaultCatalog:
             "   provenance=excluded.provenance, active=1, updated_at=excluded.updated_at" + set_doc,
             [source_path, digest, title, str(provenance), _utcnow(), insert_doc_id],
         )
-        self._conn.commit()
+        if not self._defer:
+            self._conn.commit()
+
+    @contextmanager
+    def deferred(self) -> Iterator[None]:
+        """The records made inside commit once, at the end, in one transaction (a batch's keys,
+        the last writes of its landing); an exception inside rolls them back, so none of them is
+        written."""
+        self._defer = True
+        try:
+            yield
+            self._conn.commit()
+        except BaseException:
+            self._conn.rollback()
+            raise
+        finally:
+            self._defer = False
 
     def paths_for(self, doc_id: str) -> list[str]:
         """The active paths bound to a document identity: one, or two while a rename is being

@@ -22,16 +22,23 @@ a request, inside its role's share of the queue.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+import time
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
-from core.ingest.index import index_amendment
-from core.ingest.landing import attest_once, attested_by, record_version_if_new
+from core.ingest.index import index_amendment, index_batch
+from core.ingest.landing import (
+    attest_once,
+    attested_batch,
+    attested_by,
+    record_version_if_new,
+)
 from core.ingest.table import Table
 from core.kernel.clearance import CURATED_READ, MIRROR_READ, OBSERVED_READ, Clearance
 from core.kernel.ingest.logseq import _decode, parse_text
-from core.kernel.ingest.pipeline import derive_chunks, ingest_note
+from core.kernel.ingest.pipeline import IngestRecord, derive_chunks, ingest_note
 from core.kernel.provenance import Provenance
 from core.sentence.interpret import (
     OBSERVED,
@@ -101,6 +108,46 @@ class Refused(Exception):
         self.why = why
 
 
+@dataclass(frozen=True)
+class _Admitted:
+    """What a store admitted by the rules lands with: its place, the row its path held, and the
+    identity a new path takes (`None`: the path's own)."""
+
+    place: Any
+    prev: Any
+    doc_id: str | None
+
+
+def _refused(e: Effect, r: Refused | ScriptError) -> Outcome:
+    path = getattr(e, "path", getattr(e, "job", ""))
+    why = f"{r.rule}: {r.why}" if isinstance(r, Refused) else f"R1: not checked: {r}"
+    return Outcome(type(e).__name__.removesuffix("Eff").lower(), str(path), "refused", why=why)
+
+
+@contextmanager
+def _deferred(store: Any) -> Iterator[None]:
+    """A store's `deferred` commits (one transaction for the block), or nothing for a store
+    without them (a fake, or no store)."""
+    if store is not None and hasattr(store, "deferred"):
+        with store.deferred():
+            yield
+    else:
+        yield
+
+
+def batchable(plan: Sequence[Effect]) -> bool:
+    """Whether a plan may land a stage at a time across its effects (`Writer.land_batch`): every
+    effect a store naming its path's own identity, on pairwise distinct paths. Such stores read
+    nothing another of them writes (their paths differ and none borrows an identity), so the
+    stages commute across them (ING-9)."""
+    paths: set[str] = set()
+    for e in plan:
+        if not isinstance(e, StoreEff) or e.naming.kind != "own" or e.path in paths:
+            return False
+        paths.add(e.path)
+    return bool(paths)
+
+
 @dataclass
 class Writer:
     table: Table
@@ -115,17 +162,75 @@ class Writer:
     reads: frozenset[Provenance] = frozenset()
     max_chars: int = 1200
     overlap_chars: int = 150
+    # Land a plan of fresh stores on distinct paths a stage at a time across the plan (every raw
+    # object, then one embedding of the new atoms and one plane transaction, then each version,
+    # attestation and key) rather than each store whole in turn: the bulk path of
+    # dn-corpus-instance §5.2. Off unless the caller asks; any other plan lands effect by effect.
+    batch: bool = False
     landed: list[Outcome] = field(default_factory=list)
     started: set[str] = field(default_factory=set)
+    # seconds spent in each stage of the last batched landing (admit, derive, index, finish)
+    timing: dict[str, float] = field(default_factory=dict)
 
     def land(self, plan: Sequence[Effect]) -> list[Outcome]:
         self.price(plan)
+        if self.batch and batchable(plan):
+            out = self.land_batch(plan)
+            self.landed.extend(out)
+            return out
         out = []
         for e in plan:
             o = self.one(e)
             self.landed.append(o)
             out.append(o)
         return out
+
+    def land_batch(self, plan: Sequence[Effect]) -> list[Outcome]:
+        """A plan of stores on pairwise distinct paths, each naming its path's own identity,
+        landed one stage at a time across the plan. Every store is admitted first by the same
+        rules as `store` (none of them reads what another store of such a plan writes: the paths
+        differ and no identity is borrowed). Then every admitted store's raw object and chunks;
+        then the plane, one embedding of the atoms it does not hold (ING-5) and one landing of
+        every fiber; then, store by store, the version row, the attestation and the key, last.
+        Each store's steps keep its own order, the key after its rows (ING-7), so a crash at any
+        point leaves every store at a prefix of its own steps, and the plan run again lands
+        exactly the uninterrupted plan (ING-9, ING-11; ING-16 on the plan)."""
+        out: list[Outcome | None] = [None] * len(plan)
+        admitted: list[tuple[int, StoreEff, _Admitted]] = []
+        clock = time.perf_counter()
+
+        def lap(stage: str) -> None:
+            nonlocal clock
+            now = time.perf_counter()
+            self.timing[stage] = self.timing.get(stage, 0.0) + now - clock
+            clock = now
+        for i, e in enumerate(plan):
+            assert isinstance(e, StoreEff)
+            try:
+                adm = self.admit(e)
+            except (Refused, ScriptError) as r:
+                out[i] = _refused(e, r)
+                continue
+            if isinstance(adm, Outcome):
+                out[i] = adm
+            else:
+                admitted.append((i, e, adm))
+        lap("admit")
+        staged = [(i, e, adm, self.derive(e)) for i, e, adm in admitted]
+        lap("derive")
+        index_batch([rec for _, _, _, rec in staged], self.stores.embedder, self.stores.plane)
+        lap("index")
+        # what the ledger attests already, read once for the batch (a pass per store grows with
+        # the ledger); each store then attests once, as `attest_once` does, its parents the
+        # producers of its digest, as `StoreAttestor.emit` links them. The attestations commit
+        # together, then the keys together, last.
+        producers = attested_batch(self.stores.attestor, {rec.digest for *_, rec in staged})
+        store = getattr(self.stores.attestor, "store", None)
+        with _deferred(self.stores.catalog), _deferred(store):
+            for i, e, adm, rec in staged:
+                out[i] = self.finish(e, adm, rec, producers=producers)
+        lap("finish")
+        return [o for o in out if o is not None]
 
     def price(self, plan: Sequence[Effect]) -> tuple[int, int]:
         """The plan's cost, counted before any of it is paid: its writes, each store the UNCHANGED
@@ -182,15 +287,23 @@ class Writer:
         except (Refused, ScriptError) as r:
             # a rule refused it, or the palace could not check it (a source that cannot be read
             # just now): the effect lands nothing and the plan goes on
-            path = getattr(e, "path", getattr(e, "job", ""))
-            why = f"{r.rule}: {r.why}" if isinstance(r, Refused) else f"R1: not checked: {r}"
-            return Outcome(type(e).__name__.removesuffix("Eff").lower(), str(path), "refused",
-                           why=why)
+            return _refused(e, r)
         raise TypeError(f"not an effect: {e!r}")  # pragma: no cover
 
     # store -------------------------------------------------------------------------------
 
     def store(self, e: StoreEff) -> Outcome:
+        adm = self.admit(e)
+        if isinstance(adm, Outcome):
+            return adm
+        record = self.derive(e)
+        index_amendment(record, [], self.stores.embedder, self.stores.plane)
+        return self.finish(e, adm, record)
+
+    def admit(self, e: StoreEff) -> _Admitted | Outcome:
+        """The rules a store answers to before anything of it lands (R1 to R8), and the
+        UNCHANGED check: the store's place, the row its path holds and the identity it takes, or
+        the outcome when there is nothing to land. Raises `Refused` with the rule that refused."""
         place = self.table.places.get(e.place)
         if place is None:
             raise Refused("R1", f"no place {e.place!r}")
@@ -226,10 +339,24 @@ class Writer:
         digest = c.digest
         if self.unchanged(e):
             return Outcome("store", path, "unchanged", digest=digest)
-        parsed = parse_text(_decode(c.data), source_path=path, title=e.title, raw_bytes=c.data)
-        record = ingest_note(parsed, self.stores.raw, provenance=Provenance(label),
-                             max_chars=self.max_chars, overlap_chars=self.overlap_chars)
-        index_amendment(record, [], self.stores.embedder, self.stores.plane)
+        return _Admitted(place, prev, doc_id)
+
+    def derive(self, e: StoreEff) -> IngestRecord:
+        """A store's first step: its raw object, and its chunks."""
+        c = e.content
+        parsed = parse_text(_decode(c.data), source_path=e.path, title=e.title, raw_bytes=c.data)
+        return ingest_note(parsed, self.stores.raw, provenance=Provenance(c.label),
+                           max_chars=self.max_chars, overlap_chars=self.overlap_chars)
+
+    def finish(self, e: StoreEff, adm: _Admitted, record: IngestRecord, *,
+               producers: dict[str, list[tuple[str, str]]] | None = None) -> Outcome:
+        """A store's last steps, once its rows are on the plane: the version row where the place
+        keeps chains, the attestation, and the key, last (ING-7). `producers` is the ledger's
+        producers of each digest, (action, id), when the caller read them for a batch; the
+        attestations this landing adds join them."""
+        place, prev, doc_id = adm.place, adm.prev, adm.doc_id
+        path, label = e.path, e.content.label
+        catalog = self.stores.catalog
         appended = False
         versions = self.stores.versions
         if place.versions and versions is not None:
@@ -240,13 +367,27 @@ class Writer:
                 appended = True
             else:
                 appended = record_version_if_new(versions, doc, record.digest) is not None
-        attest_once(self.stores.attestor, agent_role=self.role, action=place.action,
-                    digest=record.digest, event=appended)
+        if producers is None:
+            attest_once(self.stores.attestor, agent_role=self.role, action=place.action,
+                        digest=record.digest, event=appended)
+            catalog.record(path, record.digest, e.title, provenance=Provenance(label),
+                           doc_id=doc_id)                                   # the key, last
+            return Outcome("store", path, "landed", digest=record.digest,
+                           attestations=tuple(attested_by(self.stores.attestor, place.action,
+                                                          record.digest)))
+        made = producers.setdefault(record.digest, [])
+        mine = [i for a, i in made if a == place.action]
+        if self.stores.attestor is not None and (appended or not mine):
+            att = self.stores.attestor.emit(agent_role=self.role, action=place.action,
+                                            input_hashes=[record.digest],
+                                            output_hashes=[record.digest],
+                                            derived_from_ids=sorted({i for _, i in made}))
+            made.append((place.action, att.id))
+            mine.append(att.id)
         catalog.record(path, record.digest, e.title, provenance=Provenance(label),
                        doc_id=doc_id)                                       # the key, last
         return Outcome("store", path, "landed", digest=record.digest,
-                       attestations=tuple(attested_by(self.stores.attestor, place.action,
-                                                      record.digest)))
+                       attestations=tuple(sorted(mine)))
 
     def identity(self, e: StoreEff, prev: Any) -> str | None:
         """R6: a new path's identity is its own, one read off the item it stores, or one held at

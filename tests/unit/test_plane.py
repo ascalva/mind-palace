@@ -309,10 +309,13 @@ def test_a_land_that_dies_before_its_cache_step_hides_nothing_and_lets_nothing_i
 
 def test_with_the_cache_written_last_the_crash_hides_and_the_neighbour_reveals(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The control: the land as it was, its cache written only after the transaction
-    (`_add_held` a no-op), fails both halves: the crash hides the new chunk from the cleared
-    reader, and the uncleared land that shares it brings it back (`drift_interferes`)."""
+    """The control: the land as it was, its cache written only after the transaction (new atoms
+    inserted with no cache and `_add_held` a no-op), fails both halves: the crash hides the new
+    chunk from the cleared reader, and the uncleared land that shares it brings it back
+    (`drift_interferes`)."""
     p = _plane(tmp_path)
+    insert = p.atoms.insert
+    monkeypatch.setattr(p.atoms, "insert", lambda atoms, held=None: insert(atoms))
     monkeypatch.setattr(p, "_add_held", lambda cached, gains: 0)
     hidden, changed = _crash_then_share(p, monkeypatch)
     assert hidden and changed
