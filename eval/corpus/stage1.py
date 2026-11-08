@@ -160,6 +160,56 @@ def cmd_bridges(a: argparse.Namespace) -> None:
                              if isinstance(v, dict) else v for k, v in out.items()}), indent=1))
 
 
+TOO_LARGE = "too large to process"      # the server's refusal of an input past its batch
+
+
+class Patient:
+    """An embedder that waits out an unreachable server (a stack restart takes it down for a
+    while): a failure is retried with backoff for `give_up_s`, then raised. A refusal for length
+    is not retried: a query is cut to the longest half that fits, and a batch of documents goes
+    one at a time, a document that alone does not fit cut the same way."""
+
+    def __init__(self, inner: Any, give_up_s: float = 1800.0) -> None:
+        self.inner = inner
+        self.give_up_s = give_up_s
+        self.cut = 0
+
+    def _call(self, fn: Any, arg: Any) -> Any:
+        deadline = time.monotonic() + self.give_up_s
+        delay = 2.0
+        while True:
+            try:
+                return fn(arg)
+            except Exception as e:      # noqa: BLE001 - every failure but length is retried
+                if TOO_LARGE in str(e).lower() or time.monotonic() > deadline:
+                    raise
+                print(f"embedder: {e}; again in {delay:.0f} s", flush=True)
+                time.sleep(delay)
+                delay = min(delay * 2, 60.0)
+
+    def _cut(self, fn: Any, text: str) -> Any:
+        while True:
+            try:
+                return self._call(fn, text)
+            except Exception as e:      # noqa: BLE001 - a refusal for length halves the text
+                if TOO_LARGE not in str(e).lower() or len(text) <= 16:
+                    raise
+                text = text[:len(text) // 2]
+                self.cut += 1
+
+    def embed_query(self, text: str) -> list[float]:
+        return list(self._cut(self.inner.embed_query, text))
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        try:
+            return [list(v) for v in self._call(self.inner.embed_documents, texts)]
+        except Exception as e:          # noqa: BLE001 - one at a time after a refusal for length
+            if TOO_LARGE not in str(e).lower():
+                raise
+            return [list(self._cut(lambda t: self.inner.embed_documents([t])[0], t))
+                    for t in texts]
+
+
 def _embed_queries(cfg: Config, texts: list[str], cache: Path) -> Any:
     """Query vectors through the instance's embedder (its query template), cached by text."""
     import hashlib
@@ -172,11 +222,10 @@ def _embed_queries(cfg: Config, texts: list[str], cache: Path) -> Any:
     f = cache / f"queries-{key}.npy"
     if f.is_file():
         return np.load(f)
-    emb = build_embedder(cfg)
-    vecs = []
-    for i in range(0, len(texts), 32):
-        for t in texts[i:i + 32]:
-            vecs.append(emb.embed_query(t[:2000]))
+    emb = Patient(build_embedder(cfg))
+    vecs = [emb.embed_query(t[:2000]) for t in texts]
+    if emb.cut:
+        print(f"queries: {emb.cut} cut to fit the embedder", flush=True)
     arr = np.asarray(vecs, dtype=np.float32)
     np.save(f, arr)
     return arr
@@ -257,7 +306,7 @@ def cmd_battery(a: argparse.Namespace) -> None:
     if a.beir:
         from core.ingest.embed import build_embedder
 
-        emb = build_embedder(cfg)
+        emb = Patient(build_embedder(cfg))
         from eval.embedder_bench import load_beir
 
         sets = {ds: load_beir(ds) for ds in ("scifact", "nfcorpus")}

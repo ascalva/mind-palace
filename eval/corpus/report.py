@@ -166,10 +166,14 @@ def tables(d: Path) -> str:
     if cost.is_file():
         out += ["| sentence | items | chunks | wall (s) | peak RSS (MB) | Python share | note |",
                 "|---|---|---|---|---|---|---|"]
+        from datetime import datetime, timedelta
+
+        probes = [json.loads(line) for line in cost.read_text().splitlines()]
+        newest = max(datetime.fromisoformat(c["at"]) for c in probes)
         latest: dict[tuple[str, int], dict[str, Any]] = {}
-        for line in cost.read_text().splitlines():       # the last probe of each sentence and N
-            c = json.loads(line)
-            latest[(c["sentence"].split(' "')[0], int(c["items"]))] = c
+        for c in probes:              # the last probe run: each sentence and N within its hour
+            if datetime.fromisoformat(c["at"]) >= newest - timedelta(hours=1):
+                latest[(c["sentence"].split(' "')[0], int(c["items"]))] = c
         for c in sorted(latest.values(), key=lambda c: (int(c["items"]), c["sentence"])):
             out.append(f"| `{c['sentence'].split(' \"')[0]}` | {_f(c['items'])} | "
                        f"{_f(c['chunks'])} | {_f(c.get('wall_s'), 2)} | "
