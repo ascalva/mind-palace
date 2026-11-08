@@ -6,6 +6,7 @@ public import Spec.Clock
 public import Spec.Cosine
 public import Spec.Curvature
 public import Spec.Cut
+public import Spec.Derived
 public import Spec.FloatModel
 public import Spec.Gap
 public import Spec.Growth
