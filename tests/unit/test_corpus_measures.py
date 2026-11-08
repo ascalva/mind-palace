@@ -301,3 +301,29 @@ def test_an_item_local_relation_counts_at_its_item_and_joins_no_items(tmp_path):
     by = dict(zip(comms, m.sum(axis=1).tolist(), strict=True))
     assert by["hackernews:x"] == 1 + 2                     # the thread and its two replies
     assert by["wikipedia:x"] == 3                          # the pages alone, no reply counted
+
+
+def test_the_patient_embedder_waits_out_a_restart_and_cuts_what_is_too_long(monkeypatch):
+    from eval.corpus import stage1
+
+    monkeypatch.setattr(stage1.time, "sleep", lambda s: None)
+
+    class _Server:
+        def __init__(self) -> None:
+            self.down = 3
+
+        def embed_query(self, text: str) -> list[float]:
+            if self.down:
+                self.down -= 1
+                raise ConnectionRefusedError("connection refused")
+            if len(text) > 40:
+                raise RuntimeError("input (3000 tokens) is too large to process")
+            return [float(len(text))]
+
+        def embed_documents(self, texts: list[str]) -> list[list[float]]:
+            return [self.embed_query(t) for t in texts]
+
+    p = stage1.Patient(_Server())
+    assert p.embed_query("short") == [5.0]                    # after three refusals
+    assert p.embed_query("x" * 100) == [25.0] and p.cut == 2   # 100 -> 50 -> 25
+    assert p.embed_documents(["a", "y" * 90]) == [[1.0], [22.0]]      # 90 -> 45 -> 22
