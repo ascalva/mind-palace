@@ -1,0 +1,215 @@
+% A self-contained article for one pull request.
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{Cut, Not Refused: Fitting a Store's Texts to an Embedding Server's Batch}
+\author{Alberto Serrano-Calva}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A knowledge store embeds the chunks of every item it lands, and its chunker bounds a chunk by
+characters. The embedding server bounds an input by tokens, and answers an input longer than its
+batch with an error rather than truncating it. Characters do not bound tokens: a run of symbols or
+of another script takes several tokens a character, and in an open corpus of 1.34 million
+embedded chunks one comment of 1{,}145 characters took 2{,}951 tokens against a batch of 2{,}048.
+On the store's synchronous path such a chunk fails the whole request that carries it, and on the
+lazy path it stops the drain that derives vectors. We put the fit in the one class every path
+embeds through: a refused batch is split in halves until the refused text is alone, and that text
+is cut by bisection on its characters to a prefix the server takes, as an embedding model
+truncates an input at its maximum length. A batch the server takes costs one request, as before;
+isolating $r$ refused texts among $b$ costs at most $1 + 2r\lceil\log_2 b\rceil$ requests and each
+cut $\lceil\log_2 L\rceil$ more for a text of $L$ characters; the cut depends only on the text and
+the server, so landings stay idempotent. Measured with the server's own tokenizer, none of the
+17{,}328 texts of a working instance and none of 25{,}580 chunks sampled from six corpus sources
+exceeds the batch (the longest take 616 and 1{,}360 tokens), so the case is rare, and the change
+removes a failure rather than paying a cost.
+\end{abstract}
+
+\section{Introduction}
+
+The store chunks an item's text with a budget of 1{,}200 characters and an overlap of 150, so that
+every chunk is one unit of the shared vector plane and of the lexical index. Its embedder,
+EmbeddingGemma \citep{vera2025embeddinggemma}, is served by llama.cpp's server
+\citep{gerganov2023llamacpp} with four slots of 2{,}048 tokens; an embedding is computed over the
+whole input at once, and the server answers an input longer than its batch with an HTTP error
+(``input is too large to process'') instead of truncating it.
+
+A character budget bounds tokens only on average. Subword tokenizers
+\citep{sennrich2016bpe,kudo2018sentencepiece} take about four characters a token on English prose
+and far fewer on code, symbols and many scripts \citep{petrov2023unfairness}. One chunk the server
+cannot take has two consequences in this store. On the synchronous path, which embeds before it
+writes an item's key, the request that carries the chunk fails, and with it every other item of
+the same request. On the lazy path, where a drain derives the vectors of landed items in groups,
+the group fails on every run and the drain never passes it. The corpus instance met this once in
+1{,}338{,}585 embeddings; its runner had a fallback of its own, and the drain gained one. This
+change moves the fallback into the embedder, so every path has it:
+
+\begin{itemize}
+\item the fit, for documents and queries alike, in the one class every path embeds through;
+\item its cost and its determinism, stated and tested;
+\item a count of the cuts on the embedder, on the ingress's receipt and in the drain's report;
+\item the incidence of over-long inputs on a working instance and on an open corpus, measured with
+  the server's tokenizer.
+\end{itemize}
+
+\section{Background}
+
+\paragraph{Truncation.} Embedding libraries truncate an input at the model's maximum length by
+default; Sentence-BERT's encoder does so at its maximum sequence length
+\citep{reimers2019sbert}. A truncated input is embedded from its beginning, which for a chunk of
+prose is its leading sentences. A server that refuses instead of truncating moves that decision
+to the client.
+
+\paragraph{Tokens per character.} A byte-pair or unigram vocabulary is learned on a corpus, and a
+text unlike that corpus splits into more, shorter pieces \citep{sennrich2016bpe,kudo2018sentencepiece}.
+\Citet{petrov2023unfairness} measure the same content tokenized up to fifteen times longer in one
+language than in another. A chunk of English prose takes 250 tokens; the same budget of characters
+spent on a pasted table, a minified script or a run of emoji can take ten times as many.
+
+\section{The fit}\label{sec:fit}
+
+\Cref{alg:fit} is the whole of it. \code{embed} is the server request; the embedder applies its
+document or query template inside it, so the cut is taken on the raw text and the template is
+counted against the limit.
+
+\begin{algorithm}[t]
+\caption{\code{embed\_fitting}, in \code{core/ingest/embed.py}.}\label{alg:fit}
+\begin{algorithmic}[1]
+\Function{Fit}{$T = (t_1, \dots, t_b)$}
+  \State try: \Return $(\code{embed}(T), \emptyset)$ \Comment{one request when the server takes it}
+  \State on any error other than a refusal for length: raise
+  \If{$b > 1$}
+    \State \Return \Call{Fit}{$t_1 \dots t_{\lfloor b/2 \rfloor}$} $\cdot$ \Call{Fit}{$t_{\lfloor b/2 \rfloor + 1} \dots t_b$}
+  \EndIf
+  \State $lo \gets 0$, $hi \gets |t_1|$ \Comment{$t_1$ alone is refused}
+  \While{$hi - lo > 1$}
+    \State $m \gets \lfloor (lo + hi)/2 \rfloor$
+    \State try $v \gets \code{embed}(t_1[{:}m])$, then $lo \gets m$; on a refusal for length, $hi \gets m$
+  \EndWhile
+  \State \Return $(v, \{(|t_1|, lo)\})$ \Comment{an error if no prefix was taken}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{proposition}[Cost]\label{prop:cost}
+A batch the server takes costs one request. Among $b$ texts of which $r \ge 1$ are refused, the
+halving issues at most $1 + 2r\lceil\log_2 b\rceil$ requests, and each refused text then costs
+$\lceil\log_2 L\rceil$ requests for its $L$ characters.
+\end{proposition}
+
+\begin{proof}
+The halving is a binary tree over the batch of depth $\lceil\log_2 b\rceil$. A request is refused
+exactly when its slice holds a refused text, so the refused requests are the nodes on the $r$ paths
+from the root to the refused leaves, at most $1 + r\lceil\log_2 b\rceil$ of them; every request
+issued is the root or a child of a refused request, two a refused request. The bisection halves an
+interval of $L$ characters until its width is one.
+\end{proof}
+
+\begin{proposition}[Determinism]\label{prop:det}
+For a fixed server, \code{embed\_fitting} returns the same vectors and the same cuts for the
+same texts.
+Landing an item twice therefore writes the same atoms, and the store's idempotence is kept.
+\end{proposition}
+
+\begin{proof}
+Every request and every branch depends only on the texts and on the server's answers, which for a
+fixed server and model depend only on the texts.
+\end{proof}
+
+\begin{remark}[What the bisection finds]
+The returned prefix is one the server takes and refuses one character longer. If a prefix's token
+count grows with its length, this is the longest prefix the server takes. A tokenizer's merges can
+make a longer string take fewer tokens than a shorter one, so in general it is a boundary, found
+deterministically, not necessarily the longest.
+\end{remark}
+
+The embedder counts its cuts and keeps the last hundred as (characters, characters kept), as
+instance state, so its fields and its public methods are what every lane already relies on. The
+ingress adds \code{cut} to a request's receipt when its landing cut a text, and the drain's report
+counts the embedder's cuts with its own (the drain applies the same fit for an embedder object
+that does not). Any other failure is raised: nothing guesses past an embedder that is down.
+
+\section{Evaluation}\label{sec:eval}
+
+\paragraph{Behaviour.} Against a fake server that refuses an input longer than a number of
+characters, the tests check that a batch the server takes is one request with the template applied;
+that a refused text among others is cut to the prefix the server takes with the template counted,
+the others embedded unchanged, and the same text cut the same way again; that a query is cut alike;
+that any other error is raised and nothing counted; that a server taking no prefix is an error,
+not a guess; that a refused batch is never resent whole; and that on the synchronous path a note
+with such a chunk lands, its receipt counting one cut, and a second sync changes nothing.
+
+\paragraph{Incidence.} \Cref{tab:incidence} counts, with the server's own tokenizer (special
+tokens included, the document template applied), the tokens of every text a working instance has
+embedded and of chunks sampled from the six sources of the corpus instance (up to 2{,}000 items
+a source, at most 5{,}000 chunks a source, seed 7), by \code{eval/embed\_input\_lengths.py}.
+
+\begin{table}[t]
+\centering
+\caption{Tokens of embedded texts, measured with the embedding server's tokenizer. The batch is
+2{,}048 tokens; no text in either set exceeds it.}\label{tab:incidence}
+\begin{tabular}{lrrrrrr}
+\toprule
+set & texts & median & 99th pct. & 99.9th pct. & max & chars/token \\
+\midrule
+working instance (all) & 17{,}328 & 255 & 439 & 493 & 616 & 3.33 \\
+corpus: arXiv & 3{,}936 & 136 & 328 & 387 & 426 & 4.84 \\
+corpus: OpenAlex & 3{,}649 & 137 & 334 & 463 & 811 & 4.79 \\
+corpus: Wikipedia & 5{,}000 & 216 & 346 & 496 & 622 & 4.55 \\
+corpus: Gutenberg & 5{,}000 & 245 & 586 & 925 & 1{,}117 & 4.41 \\
+corpus: Hacker News & 5{,}000 & 231 & 345 & 484 & 1{,}360 & 4.11 \\
+corpus: Stack Exchange & 2{,}995 & 202 & 491 & 1{,}246 & 1{,}347 & 3.84 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+No text in either set exceeds the batch. The working instance's longest text takes 616 tokens, a
+third of it, and its median character takes more tokens than the corpus's (3.33 characters a token
+against 3.84 to 4.84), its code and notes being denser than encyclopedic prose. The corpus's tails
+are longer than its medians suggest: Stack Exchange's 99.9th percentile is 1{,}246 tokens and
+Hacker News reaches 1{,}360. The one refusal of the corpus's full vector phase, a Hacker News
+comment of 1{,}145 characters at 2{,}951 tokens (0.39 characters a token), was cut to 701 characters
+by the runner's equivalent fallback, eleven bisection steps ($\lceil\log_2 1145\rceil$); a sample of
+25{,}580 is not expected to contain an event of rate near $10^{-6}$. On these stores, then, the fit
+runs rarely, and each time it does it replaces a failed request with one cut text.
+
+\section{Limitations and future work}
+
+A cut text's vector is of its prefix, and the plane does not mark that atom; a reader cannot tell a
+cut atom from a whole one except through the counts. A chunker that bounds tokens rather than
+characters, using the server's tokenizer, would make cuts impossible, at the price of a request
+per chunk at landing and new chunk boundaries for every item, which would re-key the plane. The
+limit is the server's; another model or server with another window moves it, which is why the fit
+reads the server's refusal rather than a configured number. The incidence is measured on two
+stores, one sampled.
+
+\section{Conclusion}
+
+Characters do not bound tokens, and a server that refuses rather than truncates turns that into a
+failure. Fitting every request in the embedder, by halving the batch and bisecting the text, costs
+nothing when nothing is refused, a logarithmic number of requests when something is, and keeps the
+store's landings deterministic; the counts make every cut visible.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
