@@ -446,6 +446,14 @@ class QueryEngine:
                 from core.stores.memberships import open_membership_store
 
                 self._cache[name] = open_membership_store(cfg)
+            elif name == "lexical":
+                # the lexical index (dn-two-phase-ingestion D2): None for an instance that embeds
+                # synchronously and never built one, so a read creates no store
+                from core.stores.lexical import lexical_path, open_lexical_store
+
+                self._cache[name] = (open_lexical_store(cfg)
+                                     if cfg.embedding.lazy or lexical_path(cfg).exists()
+                                     else None)
             else:
                 raise KeyError(name)
         return self._cache[name]

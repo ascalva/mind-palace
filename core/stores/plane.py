@@ -782,6 +782,15 @@ class PlaneReader[L: Provenance]:
             params.append(digest)
         return self._select(" AND ".join(clauses), params)
 
+    def current_versions(self) -> set[tuple[str, str]]:
+        """Every `(source_path, digest)` a cleared relation holds current, read once."""
+        conn = self._plane._db()
+        out: set[tuple[str, str]] = set()
+        for _, occ, _ in self._tables:
+            out.update((str(r[0]), str(r[1])) for r in conn.execute(
+                f"SELECT DISTINCT source_path, digest FROM {occ} WHERE current = 1"))
+        return out
+
     def _occupancies_of(self, ids: Sequence[str], *,
                         include_superseded: bool) -> dict[str, list[Occupancy[L]]]:
         out: dict[str, list[Occupancy[L]]] = defaultdict(list)

@@ -149,26 +149,6 @@ def index_batch(records: Sequence[IngestRecord], embedder: Embedder, store: Vect
     return len(fresh)
 
 
-def index_from_raw(entries: Sequence[tuple[str, str, str]], raw: Any, embedder: Embedder,
-                   store: VectorStore, *, provenance: Provenance, max_chars: int = 1200,
-                   overlap_chars: int = 150) -> tuple[int, int]:
-    """The plane rows of landed items, derived from the raw store: for each `(path, digest,
-    title)` whose key the catalog holds, its bytes read back by digest, chunked as the landing
-    chunked them, embedded where the plane lacks the atom and landed in one `index_batch`. The
-    vectors are a derived layer (BUILD-SPEC §8): this adds the layer to items landed without it
-    (`Writer.vectors` off) and writes no key and no attestation. Returns (records, embedded)."""
-    from core.kernel.ingest.logseq import _decode, parse_text
-    from core.kernel.ingest.pipeline import ingest_note
-
-    records = []
-    for path, digest, title in entries:
-        data = raw.get(digest)
-        parsed = parse_text(_decode(data), source_path=path, title=title, raw_bytes=data)
-        records.append(ingest_note(parsed, raw, provenance=provenance, max_chars=max_chars,
-                                   overlap_chars=overlap_chars))
-    return len(records), index_batch(records, embedder, store)
-
-
 def _row_new_id(row: Mapping[str, Any]) -> str:
     """The doc-scoped content id a stored row SHOULD have — `(source_path, chunk_hash)`, computed
     from the row's own `source_path` + `text`. The one place the migration and the dry-run agree."""

@@ -66,8 +66,10 @@ HOLDERS: dict[str, dict[str, str]] = {
         "core/research/curate.py": "the manifest check that an embedded paper is stored",
         "core/ingest/curated.py": "the idempotence key asks the plane for the doc's rows, so a "
                                   "re-run after a plane reset lands the doc again",
-        "core/ingest/writer.py": "the ingress's key asks the plane whether it holds a version's "
-                                 "rows, so a re-run after a plane reset lands it again",
+        "core/ingest/derive.py": "the ingress's key and the embed drain's pending check ask the "
+                                 "plane whether it holds a version's rows (the writer's `holds` "
+                                 "reads the same table), so a re-run after a plane reset lands "
+                                 "it again and the drain finds what it has not yet derived",
         "eval/quantization_bench.py": "step C measures compressed search over every paper atom",
         "scripts/curate_local.py": "the paper importer dedupes against stored digests",
     },
@@ -76,8 +78,10 @@ HOLDERS: dict[str, dict[str, str]] = {
         "core/sentence/execute.py": "`read` of a transcript turn: one utterance of the chatlog",
     },
     "OBSERVED_READ": {
-        "core/ingest/writer.py": "the ingress's key asks the plane whether it holds a version's "
-                                 "rows, so a re-run after a plane reset lands it again",
+        "core/ingest/derive.py": "the ingress's key and the embed drain's pending check ask the "
+                                 "plane whether it holds a version's rows (the writer's `holds` "
+                                 "reads the same table), so a re-run after a plane reset lands "
+                                 "it again and the drain finds what it has not yet derived",
     },
 }
 

@@ -239,18 +239,18 @@ def _sync_structural(p: Palace, name: str, batch: int) -> dict[str, Any]:
     assert isinstance(plan.term, ast.Do)
     view = PalaceView(build_table(p.cfg), "corpus", p.stores.catalog, refresh=False)
     return ingress.perform(plan.term, p.cfg, "corpus", stores=p.stores, view=view, batch=True,
-                           vectors=False)
+                           lazy=True)
 
 
 def test_the_structural_phase_lands_keys_and_the_vector_phase_adds_the_rows(tmp_path):
-    """Two phases (the structural phase lands every item's raw object, attestation and key and
-    embeds nothing; the vector phase derives the plane rows from the raw store) end where one
-    landing ends; between them the plane holds no row of the landed items, so a reader that needs
-    a vector finds them pending, never guessed."""
-    from core.ingest.index import index_from_raw
-    from core.kernel.provenance import Provenance
+    """Two phases (the structural phase, a lazy landing, lands every item's raw object, lexical
+    units, attestation and key and embeds nothing; the embed drain derives the plane rows from the
+    raw store) end where one landing ends; between them the plane holds no row of the landed
+    items, so a reader that needs a vector finds them pending, never guessed."""
+    from core.ingest.derive import drain, pending
 
-    one, two = _corpus(palace_at(tmp_path, "one")), _corpus(palace_at(tmp_path, "two"))
+    one = _corpus(palace_at(tmp_path, "one"))
+    two = _corpus(palace_at(tmp_path, "two", lexical=True))
     for p in (one, two):
         _fill(p, "alpha", 6)
     _sync(one, "alpha", 10)
@@ -267,7 +267,11 @@ def test_the_structural_phase_lands_keys_and_the_vector_phase_adds_the_rows(tmp_
     assert len(keyed) == 6
     assert not any(two.stores.plane.holds_current(path, digest, clearance=EVERY_OBSERVED)
                    for path, digest, _ in keyed), "no row before the vector phase: pending"
+    assert two.stores.lexical is not None
+    assert all(two.stores.lexical.holds_current(path, digest) for path, digest, _ in keyed)
+    assert len(pending(two.stores.catalog, two.stores.plane, lexical=two.stores.lexical)) == 6
     assert _sync_structural(two, "alpha", 10)["effects"] == {}       # the cursor moved
-    index_from_raw(keyed, two.stores.raw, two.stores.embedder, two.stores.plane,
-                   provenance=Provenance.OBSERVED)
+    report = drain(two.stores)
+    assert (report.items, report.left) == (6, 0)
     assert state_of(two) == state_of(one)
+    assert drain(two.stores).items == 0, "a second drain finds nothing pending"

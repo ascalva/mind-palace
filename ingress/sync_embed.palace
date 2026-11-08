@@ -1,0 +1,3 @@
+# The vector plane: every item landed without its vector, embedded (the drain of
+# dn-two-phase-ingestion; `[embedding] lazy = true` lands items this way).
+run "embed"

@@ -22,6 +22,7 @@ from core.sentence import ast
 from core.sentence.plan import compile_sentence
 from core.stores.catalog import VaultCatalog
 from core.stores.edges import EdgeStore
+from core.stores.lexical import LexicalStore
 from core.stores.vectorstore import VectorStore
 from core.stores.versions import VersionStore
 from tests.fixtures.clearances import grant
@@ -30,9 +31,10 @@ from tests.fixtures.embedding import DIM, FakeEmbedder
 EVERY = grant(*Provenance)
 
 
-def palace_config(root: Path) -> Any:
+def palace_config(root: Path, *, lazy: bool = False) -> Any:
     """The configuration of a palace under `root`: its vault and data directory are `root`'s
-    (made here), its handoff directory `data/handoff` (made by whoever writes it first)."""
+    (made here), its handoff directory `data/handoff` (made by whoever writes it first); `lazy`
+    is `[embedding] lazy`, two-phase ingestion (dn-two-phase-ingestion)."""
     vault, data = root / "vault", root / "data"
     vault.mkdir(parents=True, exist_ok=True)
     data.mkdir(exist_ok=True)
@@ -41,7 +43,8 @@ def palace_config(root: Path) -> Any:
                    ingestion=replace(base.ingestion,
                                      vault=replace(base.ingestion.vault, path=vault)),
                    paths=replace(base.paths, data_dir=data),
-                   interface=replace(base.interface, handoff_dir=data / "handoff"))
+                   interface=replace(base.interface, handoff_dir=data / "handoff"),
+                   embedding=replace(base.embedding, lazy=lazy))
 
 
 @dataclass
@@ -67,9 +70,12 @@ class Palace:
         return self.run(text, role)["changed"]
 
 
-def palace_at(tmp_path: Path, name: str = "p") -> Palace:
+def palace_at(tmp_path: Path, name: str = "p", *, lazy: bool = False,
+              lexical: bool | None = None) -> Palace:
+    """A palace on temporary stores. `lazy` lands items without their vectors (the embed drain
+    derives them); `lexical` opens the lexical index (by default exactly when `lazy`)."""
     root = tmp_path / name
-    cfg = palace_config(root)
+    cfg = palace_config(root, lazy=lazy)
     att = AttestationStore(root / "att.sqlite")
     jobs: list[tuple[str, dict[str, Any]]] = []
 
@@ -83,7 +89,9 @@ def palace_at(tmp_path: Path, name: str = "p") -> Palace:
                     catalog=VaultCatalog(root / "catalog.sqlite"),
                     versions=VersionStore(root / "versions.sqlite"),
                     attestor=StoreAttestor(att), edges=EdgeStore(root / "edges.sqlite"),
-                    enqueue=enqueue)
+                    enqueue=enqueue,
+                    lexical=(LexicalStore(root / "lexical.sqlite")
+                             if (lazy if lexical is None else lexical) else None))
     return Palace(cfg, stores, att, root / "vault", root / "data", jobs, root)
 
 

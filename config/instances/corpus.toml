@@ -22,12 +22,19 @@ embedding_backend = "llamacpp"
 ports = { embedding = 8081 }
 
 # Ouroboros's embedder and σ, so the instance's geometry is the live one and every answer carries
-# a VEC-1 certificate where its margin allows.
+# a VEC-1 certificate where its margin allows. Landing is two-phase
+# (docs/design-notes/dn-two-phase-ingestion.md): an item lands complete without its vector, its
+# lexical units written before its key, and the `embed` drain derives the vectors afterwards, one
+# stream of 64 chunks a request, the measured yield policy
+# (docs/experiments/corpus-measurements-2026-11-07.md).
 [embedding]
 model = "embeddinggemma-2"
 dim = 768
 query_template = "task: search result | query: {text}"
 document_template = "title: none | text: {text}"
+lazy = true
+batch = 64
+streams = 1
 
 [dreaming]
 similarity_threshold = 0.785

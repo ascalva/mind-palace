@@ -641,6 +641,15 @@ class VectorStore:
         return bool(self._plane.reader(clearance).occupancies(source_path=source_path,
                                                               digest=digest))
 
+    def current_versions(self, *, clearance: Clearance[Provenance]) -> set[tuple[str, str]]:
+        """Every `(source_path, digest)` that `clearance`'s rows hold current: `holds_current` for
+        every path at once, in one read of each relation instead of one read a path (the drain's
+        pending set over a corpus of millions of items, dn-two-phase-ingestion)."""
+        out = {(str(r["source_path"]), str(r["digest"]))
+               for r in self._physical(clearance, "current = true")}
+        out |= self._plane.reader(clearance).current_versions()
+        return out
+
     def digests(self, *, clearance: Clearance[Provenance],
                 include_superseded: bool = False) -> set[str]:
         """The raw digests of every document version `clearance` admits (current ones unless asked)

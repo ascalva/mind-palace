@@ -193,6 +193,22 @@ query_instruction = "Given a question, retrieve the owner's notes relevant to it
 #   document_template = "title: none | text: {text}"
 query_template = "Instruct: {instruction}\nQuery: {text}"
 document_template = "{text}"
+# Two-phase ingestion (docs/design-notes/dn-two-phase-ingestion.md). The embedder produces one
+# relation of the store, semantic similarity; every other relation and the lexical index are
+# functions of the bytes and the graph alone, so an item is complete without its vector (ING-19).
+# `lazy = false` keeps landing as it was: a store embeds its chunks before it writes its key.
+# `lazy = true` lands the item (bytes, label, edges, lexical units, version, attestation, key) at
+# once and leaves the vector to the `embed` drain, a derived, idempotent, convergent write into
+# the plane (ING-20) that the daemon runs as its own job and `mind-palace embed` runs on demand;
+# a query that needs a vector the drain has not written reports the item pending instead of
+# guessing (ING-21). The default instance keeps `false`, so nothing it does changes; the corpus
+# instance sets `true` (config/instances/corpus.toml). `batch` is the chunks one embedder request
+# carries and `streams` the requests in flight at once: one stream of 64 saturates the embedder
+# at 26 chunks/s, and every further stream buys at most 15% while another caller's latency grows
+# to the length of the queue in front of it (docs/experiments/corpus-measurements-2026-11-07.md).
+lazy = false
+batch = 64
+streams = 1
 
 # --- Model lineup: two-slot discipline (BUILD-SPEC §5); §20.1 resolved 2026-06-25. ---
 # Personas and per-call params are injected at REQUEST time via the Ollama API, never

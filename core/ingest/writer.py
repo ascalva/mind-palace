@@ -4,7 +4,10 @@ dn-ingress-language §E4 (R2 to R8), in the first form's order with the key last
 A store lands as the first form's landers landed: the raw object, the plane's chunk-level
 amendment, the version chain where the place keeps one, the attestation, and last the catalog's
 digest, the idempotence key the UNCHANGED check reads (for every place, the key counts only while
-the plane holds the rows: the third review's finding 2). An effect the rules refuse lands nothing
+the plane holds the rows: the third review's finding 2). Under lazy embedding
+(dn-two-phase-ingestion, ING-19) a store lands complete without its plane rows: its lexical units
+take their place before the key, the UNCHANGED check reads them, and the embed drain derives the
+rows afterwards (`core/ingest/derive.py`). An effect the rules refuse lands nothing
 and the rest of the plan lands; the outcome says which rule refused it. Before the first effect
 lands, the plan is priced (§E10): its writes, each store the UNCHANGED check would not skip and
 each other effect, and its embeds, the distinct atoms the plane does not hold, are charged to the
@@ -28,6 +31,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
+from core.ingest.derive import EMBED_JOB, HOLDS
 from core.ingest.index import index_amendment, index_batch
 from core.ingest.landing import (
     attest_once,
@@ -36,7 +40,6 @@ from core.ingest.landing import (
     record_version_if_new,
 )
 from core.ingest.table import Table
-from core.kernel.clearance import CURATED_READ, MIRROR_READ, OBSERVED_READ, Clearance
 from core.kernel.ingest.logseq import _decode, parse_text
 from core.kernel.ingest.pipeline import IngestRecord, derive_chunks, ingest_note
 from core.kernel.provenance import Provenance
@@ -51,14 +54,6 @@ from core.sentence.interpret import (
     StoreEff,
 )
 from core.stores.plane import atom_id as plane_atom_id
-
-# The clearance under which the writer asks the plane whether it holds a label's rows.
-_HOLDS: dict[str, Clearance[Provenance]] = {
-    Provenance.AUTHORED_SOLO.value: MIRROR_READ,
-    Provenance.AUTHORED_DIALOGUE.value: MIRROR_READ,
-    Provenance.OBSERVED.value: OBSERVED_READ,
-    Provenance.CURATED.value: CURATED_READ,
-}
 
 
 @dataclass
@@ -75,6 +70,9 @@ class Stores:
     # a job's start: (kind, its arguments, *, role, request) -> the job's id; raises the ingress's
     # `Busy` past the role's share of the queue
     enqueue: Callable[..., int] | None = None
+    # the lexical index (dn-two-phase-ingestion D1): landed beside the raw object whenever it is
+    # open, and the UNCHANGED check's witness in place of the plane's rows under lazy embedding
+    lexical: Any | None = None
 
 
 @dataclass(frozen=True)
@@ -167,11 +165,11 @@ class Writer:
     # attestation and key) rather than each store whole in turn: the bulk path of
     # dn-corpus-instance §5.2. Off unless the caller asks; any other plan lands effect by effect.
     batch: bool = False
-    # Land a store's raw object, attestation and key without its plane rows (dn-corpus-instance,
-    # the structural phase): the vectors are a derived layer (BUILD-SPEC §8) a later pass adds
-    # from the raw store, and a reader that needs one reports the item pending until then. The
-    # UNCHANGED check then reads the key alone, so a store already landed is not landed again.
-    vectors: bool = True
+    # Two-phase ingestion (dn-two-phase-ingestion D1; ING-19): a store lands its item complete
+    # without its vector, the raw object, the lexical units, the version, the attestation and the
+    # key, and the embed drain derives the plane rows afterwards; a reader that needs a vector
+    # reports the item pending until then. Off, a store embeds before its key as it always did.
+    lazy: bool = False
     landed: list[Outcome] = field(default_factory=list)
     started: set[str] = field(default_factory=set)
     # seconds spent in each stage of the last batched landing (admit, derive, index, finish)
@@ -182,21 +180,39 @@ class Writer:
         if self.batch and batchable(plan):
             out = self.land_batch(plan)
             self.landed.extend(out)
-            return out
-        out = []
-        for e in plan:
-            o = self.one(e)
-            self.landed.append(o)
-            out.append(o)
+        else:
+            out = []
+            for e in plan:
+                o = self.one(e)
+                self.landed.append(o)
+                out.append(o)
+        if self.lazy and any(o.effect == "store" and o.status == "landed" for o in out):
+            self.derive_later()
         return out
+
+    def derive_later(self) -> None:
+        """Ask for the embed drain once a plan has landed an item without its vector: one job of
+        the queue's coalescing kind, folded into the row already waiting if there is one, under no
+        request, so it is the daemon's own and counts against no role's share. Without a queue (the
+        owner's CLI or a runner beside no daemon) the items stay pending until `embed` runs."""
+        from core.ingest.ingress import Busy
+
+        if self.stores.enqueue is None:
+            return
+        try:
+            self.stores.enqueue(EMBED_JOB, {}, role=self.role, request=None)
+        except Busy:
+            pass                            # a coalescing kind never is; said for the fakes
 
     def land_batch(self, plan: Sequence[Effect]) -> list[Outcome]:
         """A plan of stores on pairwise distinct paths, each naming its path's own identity,
         landed one stage at a time across the plan. Every store is admitted first by the same
         rules as `store` (none of them reads what another store of such a plan writes: the paths
         differ and no identity is borrowed). Then every admitted store's raw object and chunks;
-        then the plane, one embedding of the atoms it does not hold (ING-5) and one landing of
-        every fiber; then, store by store, the version row, the attestation and the key, last.
+        then the lexical units of every store in one transaction when the index is open, and,
+        unless the landing is lazy, the plane, one embedding of the atoms it does not hold (ING-5)
+        and one landing of every fiber; then, store by store, the version row, the attestation and
+        the key, last.
         Each store's steps keep its own order, the key after its rows (ING-7), so a crash at any
         point leaves every store at a prefix of its own steps, and the plan run again lands
         exactly the uninterrupted plan (ING-9, ING-11; ING-16 on the plan)."""
@@ -223,7 +239,12 @@ class Writer:
         lap("admit")
         staged = [(i, e, adm, self.derive(e)) for i, e, adm in admitted]
         lap("derive")
-        if self.vectors:
+        lexical = self.stores.lexical
+        if lexical is not None:
+            # the lexical units of every store, one transaction, before any key (ING-7)
+            lexical.land_many([(e.path, rec.digest, e.content.label, e.title, rec.chunks)
+                               for _, e, _, rec in staged])
+        if not self.lazy:
             index_batch([rec for _, _, _, rec in staged], self.stores.embedder,
                         self.stores.plane)
         lap("index")
@@ -254,8 +275,8 @@ class Writer:
             return (0, 0)
         writes = sum(1 for e in plan if not (isinstance(e, StoreEff) and self.unchanged(e)))
         self.meter.charge("write", writes)
-        if not self.vectors:
-            return (writes, 0)                    # nothing is embedded now
+        if self.lazy:
+            return (writes, 0)              # nothing is embedded now: the drain's work is its own
         ids: set[str] = set()
         chunked: set[str] = set()                 # the same bytes stored twice are chunked once
         for e in plan:
@@ -272,16 +293,17 @@ class Writer:
 
     def unchanged(self, e: StoreEff) -> bool:
         """The UNCHANGED check: the path holds these bytes, active, under the same label, and the
-        plane holds their rows at this path, current. The invariant it keeps is that an active key
-        implies current rows: a retire that died after its plane step and before its tombstone
-        leaves the key active over retired rows, and the same bytes stored again must land."""
+        plane holds their rows at this path, current (under lazy embedding, the lexical index holds
+        their units, since the rows are the drain's, not the landing's). The invariant it keeps is
+        that an active key implies current rows: a retire that died after its plane step and before
+        its tombstone leaves the key active over retired rows, and the same bytes stored again must
+        land."""
         if e.content.oversize:
             return False
         prev = self.stores.catalog.get(e.path)
         return (prev is not None and prev.active and prev.digest == e.content.digest
                 and str(prev.provenance) == e.content.label
-                and (not self.vectors
-                     or self.holds(e.path, e.content.data, e.content.label, e.content.digest)))
+                and self.holds(e.path, e.content.data, e.content.label, e.content.digest))
 
     def one(self, e: Effect) -> Outcome:
         try:
@@ -307,8 +329,7 @@ class Writer:
         if isinstance(adm, Outcome):
             return adm
         record = self.derive(e)
-        if self.vectors:
-            index_amendment(record, [], self.stores.embedder, self.stores.plane)
+        self.index(e, record)
         return self.finish(e, adm, record)
 
     def admit(self, e: StoreEff) -> _Admitted | Outcome:
@@ -318,6 +339,8 @@ class Writer:
         place = self.table.places.get(e.place)
         if place is None:
             raise Refused("R1", f"no place {e.place!r}")
+        if self.lazy and self.stores.lexical is None:
+            raise Refused("R1", "lazy embedding needs the lexical index open; nothing landed")
         c, path, label = e.content, e.path, e.content.label
         if c.oversize:
             raise Refused("R1", f"{path!r} is {c.oversize} bytes, more than an item may have; "
@@ -358,6 +381,18 @@ class Writer:
         parsed = parse_text(_decode(c.data), source_path=e.path, title=e.title, raw_bytes=c.data)
         return ingest_note(parsed, self.stores.raw, provenance=Provenance(c.label),
                            max_chars=self.max_chars, overlap_chars=self.overlap_chars)
+
+    def index(self, e: StoreEff, record: IngestRecord) -> None:
+        """A store's middle step, between its raw object and its key: the lexical units when the
+        index is open (a function of the bytes, written before the key like every other stage,
+        ING-7; under lazy embedding they are what `holds` reads), and the plane rows unless the
+        landing is lazy, when the drain derives them."""
+        lexical = self.stores.lexical
+        if lexical is not None:
+            lexical.land(source_path=e.path, digest=record.digest, provenance=e.content.label,
+                         title=e.title, chunks=record.chunks)
+        if not self.lazy:
+            index_amendment(record, [], self.stores.embedder, self.stores.plane)
 
     def finish(self, e: StoreEff, adm: _Admitted, record: IngestRecord, *,
                producers: dict[str, list[tuple[str, str]]] | None = None) -> Outcome:
@@ -446,11 +481,16 @@ class Writer:
         raise Refused("R6", f"unknown naming {n.kind!r}")  # pragma: no cover
 
     def holds(self, path: str, data: bytes, label: str, digest: str) -> bool:
-        """Whether the plane holds a version's rows at `path`, current: an empty one has none to
+        """Whether the plane holds a version's rows at `path`, current, or, under lazy embedding,
+        whether the lexical index holds its units current, the landing's own stage (the rows are
+        the drain's, and their absence is pending, not unlanded: ING-19): an empty one has none to
         hold. (It asked `has_digest`, which a retired version's rows still answer.)"""
         if not derive_chunks(data, max_chars=self.max_chars, overlap_chars=self.overlap_chars):
             return True
-        clearance = _HOLDS.get(label)
+        if self.lazy:
+            lexical = self.stores.lexical
+            return lexical is not None and bool(lexical.holds_current(path, digest))
+        clearance = HOLDS.get(label)
         return clearance is not None and self.stores.plane.holds_current(path, digest,
                                                                          clearance=clearance)
 
@@ -473,6 +513,8 @@ class Writer:
         if self.table.owner(e.path) is not None and self.has(e.path):
             raise Refused("R7", f"{e.path!r} is still in its source; retire only reconciles")
         self.stores.plane.delete_source(e.path)
+        if self.stores.lexical is not None:
+            self.stores.lexical.retire(e.path)
         self.stores.catalog.tombstone(e.path)                    # the key, last (ING-7)
         return Outcome("retire", e.path, "retired")
 

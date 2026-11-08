@@ -524,6 +524,7 @@ def build_components(cfg: Config) -> Components:
         integrate_handler,
         research_handler,
     )
+    from scheduler.embed import EMBED_KIND, embed_handler, enqueue_embed
     from scheduler.ingress import (
         DIALOGUE_SYNC_KIND,
         drain_spool,
@@ -648,6 +649,10 @@ def build_components(cfg: Config) -> Components:
         DIALOGUE_SYNC_KIND: library_handler(cfg, "sync_dialogue",
                                             [{"reader": r} for r in cfg.instance.dialogue],
                                             stores=ingress_stores),
+        # the embed drain (dn-two-phase-ingestion): the vectors of every item landed without one,
+        # derived into the plane through the writer's own stores; registered always, ENQUEUED by
+        # the writer after a lazy landing and by the housekeeping below under `[embedding] lazy`
+        EMBED_KIND: embed_handler(cfg, stores=ingress_stores),
     }
     supervisor = Supervisor(queue=queue, loader=loader, handlers=handlers, telemetry=telemetry)
     # One watcher per watched dir: the owner's vault + the Claude Code transcripts (bp-069). Both
@@ -683,8 +688,12 @@ def build_components(cfg: Config) -> Components:
             enqueue_integrate(queue, router)  # C-fiber proven edges from L1 + the ledger
         if cfg.ingestion.code.enabled:      # code embed lane, opt-in (bp-098 / note §2.7):
             enqueue_code_sync(queue, router)  # INCREMENTAL only; the heavy SEED is `code-seed`
+        if cfg.embedding.lazy:              # two-phase ingestion: what landed without a vector
+            enqueue_embed(queue, router)      # is derived at housekeeping cadence too (ING-20)
 
     def _catchup() -> None:
+        if cfg.embedding.lazy:
+            enqueue_embed(queue, router)       # what a crash or the CLI left pending
         if cfg.ingestion.vault.enabled:
             enqueue_vault_sync(queue, router)  # reconcile the corpus; the Job return is discarded
         if cfg.ingestion.transcripts.enabled:
@@ -1623,6 +1632,18 @@ class Launcher:
                   f"{len(dialogue)} dialogue turn(s) with {model} (dim {dim}). "
                   "Re-run with --confirm.")
             return 0
+        if self.cfg.embedding.lazy:
+            # two-phase ingestion (dn-two-phase-ingestion D1): the vector is a derived field keyed
+            # by the embedder's identity, so a model change is a reset of the plane, which forgets
+            # the old identity, and the same drain, which derives every active item under the new
+            from core.ingest import ingress
+            from core.ingest.derive import drain
+            from core.stores.vectorstore import open_vector_store
+            open_vector_store(self.cfg).reset()
+            report = drain(ingress.build_stores(self.cfg), batch=self.cfg.embedding.batch,
+                           streams=self.cfg.embedding.streams)
+            print(f"re-embedded with {model} (dim {dim}): {report}")
+            return 0
         from core.ingest.embed import build_embedder
         from core.ingest.index import index_records
         from core.ingest.run import run_ingest
@@ -1701,6 +1722,21 @@ class Launcher:
             return 1
         from core.ingest import ingress
         print(f"vault sync: {ingress.run_library(self.cfg, 'sync_vault')['effects']}")
+        return 0
+
+    def embed_now(self) -> int:
+        """The embed drain, on demand (dn-two-phase-ingestion): the vectors of every item landed
+        without one, derived from the raw store in the configured batches, the same drain the
+        daemon runs as its `embed` job under `[embedding] lazy`. A reset plane (`reembed`) leaves
+        every item pending, so this is also the re-embedding after a model change."""
+        if self._refuse_if_live("embed"):
+            return 1
+        from core.ingest import ingress
+        from core.ingest.derive import drain
+        cfg = self.cfg
+        report = drain(ingress.build_stores(cfg), batch=cfg.embedding.batch,
+                       streams=cfg.embedding.streams)
+        print(f"embed: {report}")
         return 0
 
     # --- reset (the fresh-start wipe) -------------------------------------------------------

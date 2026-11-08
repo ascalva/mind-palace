@@ -131,6 +131,12 @@ class Universe:
     # the FULL backbone's degrees of these nodes, where the universe is a support (RSP-5): None
     # when the nodes are the whole graph, so the walk's own degrees are the full ones
     degrees: np.ndarray | None = None
+    # Two-phase ingestion (dn-two-phase-ingestion D2; ING-21): the nodes landed without a vector
+    # yet (their row of `vectors` is zero, and `S` has no edge at them), and the lexical index's
+    # scores of the nodes for a text, in `[0, 1]`, by which `near` ranks the pending ones and says
+    # so. A universe built by hand has neither: every node's vector is known.
+    pending: frozenset[int] = frozenset()
+    lexical: Callable[[str], np.ndarray] | None = None
 
     def __len__(self) -> int:
         return len(self.notes)
@@ -598,6 +604,34 @@ class Evaluator:
             return f"{len(v.chains)} chains"
         return type(v).__name__
 
+    def _near_pending(self, text: str, carrier: frozenset[int], scores: np.ndarray) -> str:
+        """The pending nodes of a `near` clause (dn-two-phase-ingestion D2; ING-21): landed
+        without a vector, so the kernel column scores them 0, which is no score. Where the
+        universe has a lexical index they are ranked by it, within `[0, 1]` on a scale of their
+        own, and labelled; where it has none they stay at 0 and are reported. A query never
+        invents a vector. Returns what the trace adds; the answer's notes carry the report."""
+        pend = sorted(carrier & self.u.pending)
+        if not pend:
+            return ""
+        lex = self.u.lexical(text) if self.u.lexical is not None else None
+        if lex is None:
+            self.notes.append(
+                f"near {text!r}: {len(pend)} of the clause's {len(carrier)} nodes are pending "
+                "(landed, their vectors not yet derived) and no lexical index is open: they "
+                "score nothing here and are reported, never guessed")
+            return f"; {len(pend)} pending nodes score nothing (no lexical index)"
+        for i in pend:
+            scores[i] = float(np.clip(lex[i], 0.0, 1.0))
+        matched = sum(1 for i in pend if scores[i] > 0)
+        self.notes.append(
+            f"near {text!r}: {len(pend)} of the clause's {len(carrier)} nodes are pending "
+            "(landed, their vectors not yet derived); they are ranked by the lexical index, "
+            f"{matched} of them sharing a term with the text, each labelled `ranked_by`, on a "
+            "scale of their own beside the vectors' cosines; VEC-1's certificate covers the "
+            f"{len(carrier) - len(pend)} with vectors")
+        return (f"; {len(pend)} pending nodes ranked by the lexical index "
+                f"({matched} share a term), labelled")
+
     def eval(self, node: Node) -> Value:
         match node:
             case ast.Near(text=text):
@@ -605,10 +639,11 @@ class Evaluator:
                 v = self.u.embed(text)
                 v = v / (np.linalg.norm(v) or 1.0)
                 scores = mask_field(np.clip(self.u.vectors @ v, 0.0, 1.0), carrier)
+                how = self._near_pending(text, carrier, scores)
                 self._note(f"near {text!r}: the kernel column s = clip(V·q̂, 0, 1) over the "
                            f"{len(carrier)} nodes of the clause's strata; "
                            f"{int(np.count_nonzero(scores > 0))} positive; "
-                           f"best: {self._best(scores)}", "QSA-3")
+                           f"best: {self._best(scores)}{how}", "QSA-3")
                 return FieldV(scores)
             case ast.Diffuse(rel=rel, atom=atom, beta=beta):
                 return self._diffuse(rel, atom, beta, self._carrier(node))
@@ -1118,12 +1153,15 @@ def _chain_strata(c: Chain, strata: Mapping[str, str]) -> str:
 def _hit(u: Universe, j: int, *, score: float | None = None,
          detail: dict[str, Any] | None = None) -> Hit:
     n = u.notes[j]
-    node_detail = n.get("detail") or {}
+    node_detail = dict(n.get("detail") or {})
+    if score is not None and j in u.pending:
+        # a scored hit whose vector is pending was ranked by the lexical index (ING-21)
+        node_detail["ranked_by"] = "lexical: the vector is pending"
     return Hit(ref=str(n.get("source_path", "")), title=str(n.get("title", "")),
                score=None if score is None else round(score, 4),
                stratum=str(n.get("stratum", "mirror") or "mirror"),
                provenance=str(n.get("provenance", "")),
-               detail={**dict(node_detail), **(detail or {})})
+               detail={**node_detail, **(detail or {})})
 
 
 def _rank_note(value: Value, k: int) -> str:

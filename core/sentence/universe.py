@@ -41,7 +41,7 @@ The answer's notes carry the support's census and the cut.
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -238,6 +238,7 @@ class _Builder:
         self._embeds: dict[str, np.ndarray] = {}
         self.census: dict[str, float] = {}       # a paper's full-backbone degree, by the index
         self._cited_of: dict[str, set[str]] = {}  # the citation graph's neighbours, per node read
+        self.pending: list[str] = []      # the nodes landed without a vector yet (two-phase)
 
     # stores --------------------------------------------------------------------------------------
     def store(self, name: str) -> Any:
@@ -296,28 +297,83 @@ class _Builder:
                 continue
             self.add(_Node(src, "dialogue", str(rows[0].get("title", "")),
                            str(rows[0].get("digest", "")), prov, _mean_vector(rows), {}))
-        pending = self.pending_vectors(set(by_src))
-        if pending:
-            self.notes.append(f"pending: {pending} landed items of the admitted dialogue strata "
-                              "have no vectors yet (landed structure first); no verb that needs "
-                              "a vector ranks them")
 
-    def pending_vectors(self, loaded: set[str]) -> int:
-        """The items the catalog holds, active, in a dialogue class the sentence admits, that the
-        plane holds no row of: landed with their key before their vectors (dn-corpus-instance,
-        the structural phase). They are counted, never guessed: the known mask's rule (a node
-        without a vector takes part in no similarity) applied to what was never loaded."""
+    # the items landed without a vector yet (dn-two-phase-ingestion D2; ING-21) -------------------
+    def lexical_index(self) -> Any:
+        """The lexical index, or None: an engine without one (a hand-driven builder, an instance
+        that embeds synchronously and never built one) has no pending items to rank."""
         try:
-            catalog = self.store("catalog")
+            return self.store("lexical")
+        except KeyError:
+            return None
+
+    def load_pending(self) -> None:
+        """Under lazy embedding, the active items of the whole-loaded strata (the mirror, the
+        dialogue) whose vectors the drain has not written yet, read from the plane itself: added
+        as nodes without a vector, so a structural or lexical clause reads them and a semantic one
+        reports them. A node whose plane rows are an older version's is pending too: its vector
+        is another text's, and is dropped rather than read. Nothing here runs when the instance
+        embeds synchronously, so its universes are what they were."""
+        from core.ingest.derive import pending
+
+        if not bool(self.e.config.embedding.lazy):
+            return
+        lexical = self.lexical_index()
+        if lexical is None:
+            return
+        try:
+            catalog, plane = self.store("catalog"), self.store("vectors")
+        except KeyError:
+            return
+        for e in pending(catalog, plane, lexical=lexical):
+            prov = str(e.provenance)
+            label = stratum_of_provenance(prov) or "mirror"
+            if label not in ("mirror", "dialogue") or not self.admits(label, prov):
+                continue
+            have = self.nodes.get(e.source_path)
+            if have is None:
+                self.add(_Node(e.source_path, label, e.title, e.digest, prov, None,
+                               {"pending": "no vector yet"}))
+            else:
+                have.vector = None
+                have.digest = e.digest
+                have.detail["pending"] = "the vector is an older version's"
+            self.pending.append(e.source_path)
+
+    def seed_lexical(self, text: str, why: str) -> int:
+        """The pending items of the curated stratum a `near` text reaches, by the lexical index
+        (the vector index cannot reach them): at most `support`, added without a vector."""
+        from core.kernel.provenance import Provenance
+
+        if not bool(self.e.config.embedding.lazy) or not self.admits("curated", "curated"):
+            return 0
+        lexical = self.lexical_index()
+        if lexical is None:
+            return 0
+        try:
+            catalog, plane = self.store("catalog"), self.store("vectors")
         except KeyError:
             return 0
-        entries = getattr(catalog, "active_entries", None)
-        if not callable(entries):              # a catalog that lists no entries (a test's)
+        from core.ingest.derive import pending
+
+        waiting = {e.source_path: e for e in pending(catalog, plane, lexical=lexical,
+                                                     classes=[Provenance.CURATED])}
+        if not waiting:
             return 0
-        return sum(1 for e in entries()
-                   if str(e.provenance) in ("observed", "authored-dialogue")
-                   and e.source_path not in loaded and e.source_path not in self.nodes
-                   and self.admits("dialogue", str(e.provenance)))
+        added = 0
+        for hit in lexical.search(text, k=self.p.support, classes=[Provenance.CURATED],
+                                  paths=list(waiting)):
+            e = waiting[hit.source_path]
+            if hit.source_path in self.nodes:
+                continue
+            self.add(_Node(e.source_path, "curated", e.title, e.digest, "curated", None,
+                           {"pending": "no vector yet"}))
+            self.pending.append(e.source_path)
+            added += 1
+        if added:
+            self.notes.append(f"curated: {added} pending papers from the lexical index for "
+                              f"{why!r} (their vectors are not yet derived)")
+        return added
 
     # the indexed strata --------------------------------------------------------------------------
     def seed_curated(self, vec: np.ndarray, why: str) -> int:
@@ -752,11 +808,46 @@ class _Builder:
                                "outside the repo and the vault: named in the transcript's "
                                "stratum, not readable")
         missing.append("D moves at the note grain: the version chains are per note (use trace)")
+        pending = frozenset(i for i, n in enumerate(order) if n.ref in set(self.pending))
+        lexical = self._lexical_scores(order, pending)
+        if pending:
+            named = ", ".join(order[i].ref for i in sorted(pending)[:5])
+            more = f" and {len(pending) - 5} more" if len(pending) > 5 else ""
+            missing.append(
+                f"pending: {len(pending)} items landed without a vector yet (the embed drain "
+                f"derives them); a semantic clause ranks them by the lexical index and says so, "
+                f"and S has no edge at them: {named}{more}")
         return Universe(notes=notes, vectors=mat, weights=weights,
                         edges={Rel.F: self.f_edges, Rel.D: {}, Rel.C: self.c_edges},
                         relations=relations,
                         embed=embed, history=history, witness=witness, cut=self.cut,
-                        missing=tuple(missing), text=text, degrees=degrees)
+                        missing=tuple(missing), text=text, degrees=degrees,
+                        pending=pending, lexical=lexical)
+
+    def _lexical_scores(self, order: list[_Node],
+                        pending: frozenset[int]) -> Callable[[str], np.ndarray] | None:
+        """The lexical index's scores of the pending nodes for a text, each path's best unit,
+        divided by the best among them so the best scores 1 (a scale of its own, labelled by the
+        evaluator); None when nothing is pending or there is no index."""
+        from core.kernel.provenance import Provenance
+
+        lexical = self.lexical_index() if pending else None
+        if lexical is None:
+            return None
+        idx = sorted(pending)
+        classes = {Provenance(order[i].provenance) for i in idx
+                   if order[i].provenance in {p.value for p in Provenance}}
+        paths = [order[i].ref for i in idx]
+
+        def scores(text: str) -> np.ndarray:
+            out = np.zeros(len(order))
+            scored = lexical.scores(text, classes=classes, paths=paths)
+            for i in idx:
+                out[i] = float(scored.get(order[i].ref, 0.0))
+            top = float(out.max()) if len(out) else 0.0
+            return out / top if top > 0 else out
+
+        return scores
 
 
 def build(engine: QueryEngine, plan: Plan, *, precedents: Precedents = DEFAULT,
@@ -769,10 +860,12 @@ def build(engine: QueryEngine, plan: Plan, *, precedents: Precedents = DEFAULT,
     b.moves = frozenset(seeds.moves)
     b.transcript = seeds.transcript
     b.load_mirror()
+    b.load_pending()
     b.open_view(seeds.cut)
     for text, strata in seeds.texts:
         if strata & CURATED_NAMES:
             b.seed_curated(b.embed(text), text)
+            b.seed_lexical(text, text)
         if strata & REFERENCE_NAMES:
             b.seed_code(b.embed(text), text)
     for atom, radius in seeds.anchors:

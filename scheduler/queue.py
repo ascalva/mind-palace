@@ -81,7 +81,10 @@ QUEUED, RUNNING, DONE, FAILED, DEFERRED = "queued", "running", "done", "failed",
 # equal the constants, so the duplication is caught by a test rather than trusted.
 _IDEMPOTENT_KINDS = frozenset(
     {"chat_sync", "vault_sync", "code_sync", "code_backfill", "chat_events", "integrate",
-     "dialogue_sync", "inbox_capture"})
+     "dialogue_sync", "inbox_capture",
+     # the embed drain (dn-two-phase-ingestion, ING-20): idempotent at the plane, so the one row
+     # the writer and the housekeeping enqueue folds every later request into it
+     "embed"})
 
 # The kinds a crash may leave RUNNING that `sweep_orphans` puts back in the queue rather than
 # failing: the idempotent kinds; the ingress's own kind (`core/ingest/ingress.py` INGRESS_KINDS),
