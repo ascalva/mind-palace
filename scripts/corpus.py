@@ -465,8 +465,12 @@ def cmd_embed(a: argparse.Namespace) -> int:
                 progress["seconds"] = round(time.time() - started, 1)
                 progress["pending"] = sum(len(x) for x in queues.values())
                 progress["empty"] = empty
-                progress["truncated"] = {"texts": len(emb.truncated),
-                                         "cuts": [list(c) for c in emb.truncated[:50]]}
+                # the embedder cuts a text the server refuses itself (core/ingest/embed.py), so
+                # the runner's own fallback sees none now; either's cuts are reported
+                core_cuts = list(getattr(emb.inner, "last_cuts", ()))
+                progress["truncated"] = {
+                    "texts": len(emb.truncated) + int(getattr(emb.inner, "cut", 0)),
+                    "cuts": [list(c) for c in emb.truncated + core_cuts][:50]}
                 progress["gate"] = gate.summary()
                 progress["free_gb"] = round(free_gb(root), 1)
                 progress["updated"] = datetime.now(UTC).isoformat(timespec="seconds")
