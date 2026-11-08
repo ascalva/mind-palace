@@ -32,6 +32,7 @@ measurements ran on that, and the vectors were derived from the raw store in the
 - **Attribution**: the OpenAlex and arXiv twins share the value (Shapley 0.49 and 0.50) and neither is necessary (leave-one-out near 0): the SCL-3 redundancy witness (CIF-10 held).
 - **Cost**: a sentence over the observed stratum builds its universe from the whole stratum and passes 6 GB near ten thousand items; its Python share is above 20% (CIF-11 broken).
 - **Vectors**: 1,338,585 atoms embedded in 11.4 hours over four runs, no pause for the chat model, one text cut to fit the embedder (a 1,145-character chunk of 2,951 tokens), nothing pending at the battery. The semantic arm crowds harder than the lexical (recall falls in 9 of 11 families, by up to 0.30); fusing the two is at or above either in 8 of 11. The embedder as a source: Shapley 0.39, leave-one-out 0.006 beside the lexical index. CIF-9's second clause breaks in all three arms, CIF-10 holds in all three. Semantic bridges: 3,014 community pairs against a bar of 807 (792 without the twins). At the live store's sigma of 0.785 a chunk has 9 near chunks of other items in Wikipedia and about 10,700 in OpenAlex: the threshold does not carry across sources. The one-bit code keeps 0.79 of the exact top ten rescored at m = 40 (a warning for CIF-3 at stage 2); the compact occupancy row is 19.4 B (CIF-4 held) while the plane as built holds 734 B per occupancy.
+- **Agreement on the merged two-phase implementation**: its drain's pending check finds no item pending (the runner's plane rows are the drain's), its SQLite lexical store holds the same 1,369,944 units after a 17-minute drain, its SQL scoring and the battery's matrix agree on the top ten for 17 of 20 queries (a store query takes a median 40 s at this size), and its Unicode tokenizer moves the lexical arm's recall by at most 0.016.
 
 ## What was built
 
@@ -427,6 +428,26 @@ On the embedder bench's public sets SciFact scores nDCG@10 0.848 (the bench meas
 (the codes' table is in the results above)
 
 The plane as built holds 734 B per occupancy (its live shape, with text keys and the fiber's columns); the design's compact row, one integer row an item version, measures 19.4 B against its 120 B target and the falsifier's 300 B.
+
+On the merged two-phase implementation the drain's own pending check finds 0 of the corpus's items pending, so the rows the runner wrote are the rows the drain expects, and its SQLite lexical store, filled from the raw store, holds the same 1,369,944 units. Its SQL scoring and the matrix the battery scores with agree on the top ten for 17 of 20 title queries (mean Jaccard 0.97), but a query over the store takes a median 40 s at this size; with the store's Unicode tokenizer the lexical arm's recall moves by at most 0.016.
+
+## Agreement on the merged implementation
+
+After the rebase onto the merged two-phase implementation, one `scripts/corpus.py embed` drained what the instance lacked. It landed the lexical units of every item in the SQLite lexical store, 400,274 items and 1,369,944 units in 17.1 minutes (4.6 GB), the same units the in-memory index holds; then it found no item without its vectors. The drain's own pending check (`core/ingest/derive.py::pending`) over the instance finds 0 items pending, so the plane rows the corpus runner wrote are the rows the drain expects, and no vector was derived again. On 20 title queries the store's SQL scoring and the in-memory matrix the battery scores with return the same top ten for 17 (mean Jaccard 0.973); a query over the store takes a median 40.3 s at this size. With the store's Unicode tokenizer in place of the ASCII one the measurements used, the lexical arm's recall at ten moves by at most 0.016:
+
+| family | recall at 10, ASCII | Unicode | shift | fall, ASCII | Unicode |
+|---|---|---|---|---|---|
+| cite:wikipedia->paper | 0.811 | 0.808 | -0.003 | 0.102 | 0.105 |
+| link:hackernews->wikipedia | 0.143 | 0.143 | +0.000 | 0.133 | 0.133 |
+| link:stackexchange->wikipedia | 0.186 | 0.186 | +0.000 | 0.345 | 0.345 |
+| titles:arxiv | 0.990 | 0.990 | +0.000 | 0.010 | 0.010 |
+| titles:gutenberg | 0.970 | 0.970 | +0.000 | 0.018 | 0.018 |
+| titles:hackernews | 0.994 | 0.994 | +0.000 | 0.006 | 0.006 |
+| titles:openalex | 0.952 | 0.968 | +0.016 | 0.026 | 0.026 |
+| titles:stackexchange | 0.958 | 0.962 | +0.004 | 0.038 | 0.034 |
+| titles:wikipedia | 0.970 | 0.970 | +0.000 | 0.030 | 0.030 |
+| twins:arxiv->openalex | 0.996 | 0.996 | +0.000 | 0.000 | 0.000 |
+| twins:openalex->arxiv | 0.992 | 0.992 | +0.000 | 0.000 | 0.000 |
 
 ## Falsifiers
 
