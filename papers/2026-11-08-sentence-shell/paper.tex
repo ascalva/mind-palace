@@ -1,0 +1,273 @@
+% A self-contained article for the sentence shell.
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{A Read-Only Shell for a Query Sentence Language,\\ with Completion Derived from Its Parser}
+\author{Alberto Serrano-Calva}
+\date{8 November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The palace answers queries written as sentences of a small typed language: verbs over notes,
+joined by connectives, narrowed by adjectives, with a hypothetical modality. A language is learned
+by writing it, and writing it is easier when the tool says what may come next. This article
+describes \code{mind-palace shell}, an interactive shell over the language whose completion is
+derived from the parser itself: a candidate token is offered exactly when the parser, reading the
+prefix followed by that token, gets past it. Open argument slots are classified from the parser's
+own refusal of the prefix and filled from the instance's catalog, its strata and the defaults in
+force. The shell is read-only by construction: it calls only the compiler, the universe builder
+and the executor, refuses requests of the action sort, takes no lock and writes no log. On the 167
+compiling sentences of the language's test suite, every keyword, symbol, stratum, number slot and
+free-text slot is offered at its position, and every note the catalog holds; completion takes a
+median of under 0.5\,ms and at most 3\,ms with an empty catalog, and at most 14\,ms with 20{,}000
+catalogued paths.
+\end{abstract}
+
+\section{Introduction}
+A query to the palace is a sentence, not a keyword list. The sentence
+\code{near "sleep debt" and reach F from "health/sleep.md" depth 2} ranks notes by a phrase and
+masks the ranking to what one note cites within two hops; the compiler checks that it is
+well-formed, well-sorted and admissible under the asker's grant, normalizes it by proved
+rewrites and runs it against a universe built for it. The language has twenty verbs and
+connectives, four relation letters, a regular path language, fourteen strata and a hypothetical
+modality. It is small, but its owner should not need to hold all of it in memory to write a query.
+
+Two tools existed: \code{mind-palace query}, which runs one sentence, and the Ambassador's
+conversation, where a model writes the sentence. Neither helps a person compose one. This change
+adds a third: a shell for composing and running sentences, with completion, help, a plan view and
+a one-page cheat sheet. The contributions are:
+\begin{itemize}
+\item completion derived from the parser by probing it, with a proof that every keyword which can
+  continue a prefix in the parser's language is offered (\cref{prop:complete});
+\item slot filling from the instance: notes from the catalog and the reference index, strata from
+  the type checker's own enumeration, corpus sources from the configuration, defaults from the
+  precedents;
+\item a shell that cannot write: its imports, its refusal of the action sort and its lock
+  discipline are each checked by a test on a scratch instance;
+\item a cheat sheet whose verb list is generated from the parser and pinned by a test.
+\end{itemize}
+
+\section{The language in brief}
+The sentence algebra is described in the design record (\code{dn-query-sentence-algebra}); this
+section states only what the shell relies on. A sentence denotes a value of one of five sorts: a
+\emph{field} $f : V \to [0,1]$, a score per note; a \emph{region} $R \subseteq V$; a set of
+\emph{chains}, paths in the typed graph; a \emph{witness}, the record that minted an edge; or a
+\emph{text}, the content at a reference. The note set $V$ is the sentence's universe.
+
+\paragraph{Verbs.} \code{near "t"} is the embedding kernel's column at a text.
+\code{diffuse S from n} is the column of a diffusion kernel out of a note
+\cite{kondor2002diffusion}. \code{reach F from n depth d} is the region reachable along a relation
+letter: $S$ similarity, $F$ citation, $D$ version, $C$ causal. \code{walk from n via P} returns the
+chains whose letter sequence lies in the regular language $P$ over $\{S,F,D,C\}$, found by a
+product automaton \cite{mendelzon1995regular,hopcroft2006automata}. \code{relate}, \code{trace},
+\code{witness} and \code{read} complete the clause verbs. \code{top k}, \code{atleast t},
+\code{far} and \code{not} are operators on fields and regions.
+
+\paragraph{Connectives and adjectives.} On fields, \code{and} is the pointwise (Schur) product and
+\code{or} the convex mixture; on regions they are intersection and union; \code{and} of a field and
+a region masks the field. \code{s then t} is \code{t within region(s)}. The adjectives
+\code{within R}, \code{over strata} and \code{as of "cut"} bind tightest, so the grammar has four
+levels: \code{then}, \code{or}, \code{and}/\code{minus}, and the adjectives. The composition laws
+(masks commute with products, idempotence, the threshold passing a mask) are machine-checked in
+\code{formal/Palace/Sentence.lean}, and the planner rewrites only by them, much as a relational
+optimizer rewrites by the identities of the algebra \cite{codd1970relational}.
+
+\paragraph{Hypotheses, precedents, the universe.} \code{assume h in s} evaluates $s$ on a
+perturbed graph and answers as a \emph{Hyp} beside the actual answer, never as fact. Dials a
+sentence leaves unsaid, such as the depth of \code{reach} or the strata of \code{near}, come from a
+ledger of precedents. The universe is the sentence's \emph{support}: the strata its clauses read,
+the nearest units to each text and anchor, the citation graph at the cut. What the universe cannot
+answer is listed in its \code{missing} notes, which ride with every answer.
+
+\section{The shell}
+
+\subsection{Read-only by construction}
+The shell compiles a sentence under the surfaces' grant, builds its universe from the instance
+the configuration names, executes the plan, and prints the hits with their provenance labels and
+the universe's notes. These three calls are the read path \code{mind-palace query} runs, without
+its query log. The shell imports nothing from the ingress, the stores' writers or the scheduler;
+it refuses a sentence of the action sort (\code{do \dots}) before any store is opened, because a
+request lands through the daemon's single writer; it takes neither the supervisor lock nor a
+store's writer lock; and a store held by its writer is reported as busy rather than waited on.
+\code{plan s} stops before execution: it prints the normal form, each clause's scope, the seeds the
+universe is built from, the support's size and the \code{missing} notes.
+
+\subsection{Completion from the parser}
+The parser is a recursive-descent parser \cite{wirth1996compiler} over a token stream, with one
+token of lookahead and no backtracking: each method inspects the current token, consumes it or
+raises an error naming the production and the token. Completion asks this parser, rather than a
+second description of the grammar, what may come next.
+
+\begin{definition}
+Let $p$ be a token sequence and $k$ a token. Run the parser on $p\,k$. The parser \emph{consumes}
+$k$ after $p$ if it accepts $p\,k$ or fails at a token index greater than $|p|$. The offered
+keywords after $p$ are the keywords it consumes; the same test with one placeholder per token
+class (a string, a number, a word that is no keyword) and with each symbol of the path syntax
+decides which classes and symbols are offered.
+\end{definition}
+
+\begin{proposition}\label{prop:complete}
+If $p\,k\,w$ is accepted by the parser for some token sequence $w$, then $k$ is offered after $p$.
+\end{proposition}
+\begin{proof}
+The parser's position only increases, and every decision it takes reads only the token at its
+position. On the inputs $p\,k\,w$ and $p\,k$ the first $|p|+1$ tokens agree, so the two runs are
+identical until the position first exceeds $|p|$. On $p\,k\,w$ it does exceed $|p|$, since the
+whole input is accepted. So the run on $p\,k$ also reaches a position past $|p|$, after which it
+either accepts or fails at an index greater than $|p|$.
+\end{proof}
+
+The converse holds wherever consuming a token commits the parser to a production that some
+suffix completes, which is every production of this grammar but one value check (a diffusion's
+$\beta > 0$, raised after the number is read); the only number the completer offers is the
+precedent's default, which passes it. The test is the classical notion of a viable prefix \cite{aho2006compilers},
+computed by running the parser instead of tabulating FIRST and FOLLOW sets.
+
+\paragraph{Slots.} When the prefix is incomplete, the parser's refusal of it names what it
+expected at the end: a note, a quoted string, a number, a path or a list of strata. The shell maps
+that phrase to a slot. A note is filled with the paths and titles of the catalog and the endpoints
+of the reference index, read through read-only SQLite connections, and with the
+\code{corpus/<source>/} prefixes of the sources the configuration declares. A stratum is filled
+with the strata the type checker accepts. A number is filled with the precedent the elaborator
+would use (the default depth for \code{reach depth}, the default $k$ for \code{top}). When the
+prefix is complete, a word placeholder is appended and the parse tree says whether it landed in
+an \code{over} list or a path, the two places a complete sentence still takes a word. Inside a path
+only the relation letters, the path symbols and the parser's stop words are offered.
+
+\begin{algorithm}
+\caption{Candidates for the word being typed.}
+\begin{algorithmic}[1]
+\Require a buffer $b$; the instance's catalog
+\State $(p, f) \gets$ split $b$ into the prefix and the fragment being typed
+\State $C \gets \{k \in \mathit{Keywords} : \textsc{Consumes}(p,k)\} \cup
+       \{\sigma \in \mathit{Symbols} : \textsc{Consumes}(p,\sigma)\}$
+\State $s \gets \textsc{Slot}(p)$ \Comment{from the parser's refusal of $p$, or the tree of $p$ plus a word}
+\If{$s$ is a note} $C \gets C \cup$ catalog notes
+\ElsIf{$s$ is strata} $C \gets C \cup$ strata
+\ElsIf{$s$ is a number} $C \gets C \cup \{$the precedent's default$\}$
+\ElsIf{$s$ is a path} keep only relation letters, stop words and symbols in $C$
+\EndIf
+\State \Return $\{c \in C : f \text{ is a prefix of } c\}$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Help, continuation and the cheat sheet}
+The verbs the shell lists are those the parser consumes at the start of a sentence and after a
+whole sentence, less \code{do}. Each has a help entry: its shapes, one example and what it
+returns, with the precedents that apply. The entries are written once, and a test checks them
+against the parser: every shape, expanded over its optional groups and alternatives, must parse;
+every example must compile under the surfaces' grant; and every parser keyword must appear in some
+shape. The cheat sheet's verb list is generated from the entries and the same test compares the
+document to it, so a verb the grammar gains fails the suite until it is documented. Multi-line
+composition uses the parser too: an entry continues on the next line while the parser's only
+complaint is that the sentence ended early; an empty line ends it. The front end is the standard
+library's readline binding \cite{pythonreadline,readline}, with a history file kept across
+sessions.
+
+\paragraph{The dependency.} The repository allows third-party libraries outside the sealed core,
+and prompt\_toolkit \cite{prompttoolkit} would give richer completion menus. It is not used: it is
+not in the locked dependency set, the runtime set is kept to libraries that cannot reach the
+network and prompt\_toolkit ships a telnet server, and readline already provides completion,
+history and line editing. The completer is a function from a buffer to candidates with no
+dependency on the front end, so a different front end would replace about forty lines.
+
+\section{Evaluation}
+
+\paragraph{What the tests check.} On a scratch instance (every store path under a temporary
+directory, one record landed in the catalog and the raw store): the completer offers every verb the
+parser accepts, where the oracle is an independent trial of each keyword against ten argument
+tails; every help shape parses and every example compiles; slots are filled from the instance;
+\code{plan} completes with the executor replaced by a function that fails the test; an unknown verb
+returns the parser's error with a caret under the word; and with \code{fcntl.flock} and the
+supervisor lock's \code{acquire} replaced by functions that fail, running and planning sentences
+and refusing two requests leave every store file's SHA-256 unchanged (SQLite's shared-memory
+index aside) and create no query log and no spool.
+
+\paragraph{Coverage.} The corpus is every string literal in \code{tests/unit/test\_sentence\_*.py}
+that compiles without a grant and is not a request: 167 sentences, 1139 tokens. Each sentence is
+replayed token by token, and a token counts as offered when the completer, given the prefix before
+it, offers it (keywords, symbols, strata, notes) or recognizes its slot (a number, a free text, a
+path's letters or count). \Cref{tab:coverage} gives the result with a catalog that holds the
+corpus's notes and with an empty one. The first column is complete by construction for notes,
+since the catalog was given them; it measures that the slot is recognized and filled. The empty
+catalog shows what the grammar alone offers. At each position the completer offers a median of 5
+candidates and at most 22, out of 37 keywords.
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{lrrr}
+\toprule
+token class & tokens & offered, catalog & offered, empty catalog \\
+\midrule
+keyword & 685 & 685 & 685 \\
+note & 189 & 189 & 0 \\
+free text (\code{near}, \code{witness}) & 102 & 102 & 102 \\
+number & 79 & 79 & 79 \\
+symbol & 68 & 68 & 68 \\
+stratum & 13 & 13 & 13 \\
+path word & 3 & 3 & 3 \\
+\midrule
+all & 1139 & 1139 (100\%) & 950 (83.4\%) \\
+\bottomrule
+\end{tabular}
+\caption{Next-token coverage over the test suite's compiling sentences.}
+\label{tab:coverage}
+\end{table}
+
+\paragraph{Latency.} The completer was called on every character prefix of the same sentences
+(5582 calls) on an Apple M2 Pro under CPython 3.15, after a warm-up, in three runs. With an empty
+catalog the median is 0.45 to 0.47\,ms, the 95th percentile 1.3\,ms and the maximum 2.4 to
+2.9\,ms. With 20{,}000 catalogued paths the median is 0.69 to 0.70\,ms, the 95th percentile 9.7
+to 9.9\,ms and the maximum 12 to 14\,ms; the added cost is the scan of the catalog at a note slot.
+Each call runs about fifty parses of the prefix, so the cost grows linearly with the prefix's
+length. The numbers are reproduced by \code{uv run python eval/shell\_completion.py}.
+
+\paragraph{What is not measured.} The time a person takes to compose a sentence with and without
+completion would need users and a protocol; it is not claimed here.
+
+\section{Limitations}
+Completion is exact for the parser's language, which is larger than the compiler's: the sort
+checker, the scope check and the path compiler refuse some sentences the parser accepts, such as
+\code{far} applied to a region, and the completer offers the tokens that lead there. Notes are
+offered from the catalog and the reference index only; dialogue turns, paper references and
+digests are not enumerated. Free text is not completed. Opening a fresh instance creates its
+stores' empty schemas, as \code{mind-palace query} does; the no-write guarantee is for an instance
+whose stores exist. The help entries are checked against the parser, not derived from it, so their
+wording can lag the grammar's meaning even while their shapes cannot. Readline's completion
+display is plain; there is no inline hint of a slot's kind.
+
+\section{Future work}
+Two extensions follow from the same oracle: offering only tokens after which the prefix still
+typechecks, by running the sort checker on a completed probe; and enumerating dialogue and paper
+references at a note slot under the strata in force.
+
+\section{Conclusion}
+A one-token-lookahead parser without backtracking already knows what may follow any prefix; asking
+it is enough to drive completion, with a short proof that nothing it accepts is missed. With slots
+filled from the instance and a read path that cannot write, the shell lets the language be learned
+by writing it, and the cheat sheet stays in step with the grammar because a test regenerates it.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
