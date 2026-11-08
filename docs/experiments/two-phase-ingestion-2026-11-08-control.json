@@ -1,0 +1,122 @@
+{
+  "data": "/Users/ascalva/models/bench-data/scifact",
+  "items": 5183,
+  "queries": 300,
+  "cap_chars": 1200,
+  "plans": 10,
+  "embedder": "embeddinggemma-2",
+  "batch": 64,
+  "started": "2026-11-08T12:00:38",
+  "embedder_slots_busy": {
+    "start": 0,
+    "end": 0
+  },
+  "landing_lazy": {
+    "items": 5183,
+    "chunks": 5183,
+    "seconds": 162.16,
+    "items_per_s": 32.0,
+    "chunks_per_s": 32.0,
+    "plans": 10,
+    "plan_seconds_median": 14.67,
+    "plan_seconds": [
+      2.2,
+      4.7,
+      7.4,
+      10.3,
+      13.1,
+      16.2,
+      20.3,
+      25.6,
+      29.5,
+      32.5
+    ],
+    "contention": {
+      "slot_samples": 33,
+      "slots_max": 0,
+      "other_caller_share": 0.0,
+      "load_1min": [
+        1.64,
+        3.37
+      ]
+    }
+  },
+  "drain": {
+    "items": 5183,
+    "chunks": 5183,
+    "embedded": 5183,
+    "seconds": 201.27,
+    "chunks_per_s": 25.8,
+    "contention": {
+      "slot_samples": 41,
+      "slots_max": 4,
+      "other_caller_share": null,
+      "load_1min": [
+        3.37,
+        3.87
+      ]
+    }
+  },
+  "landing_sync": {
+    "items": 5183,
+    "chunks": 5183,
+    "seconds": 3466.39,
+    "items_per_s": 1.5,
+    "chunks_per_s": 1.5,
+    "plans": 10,
+    "plan_seconds_median": 338.35,
+    "plan_seconds": [
+      67.0,
+      116.7,
+      179.1,
+      242.8,
+      306.0,
+      370.7,
+      438.7,
+      510.4,
+      583.1,
+      651.4
+    ],
+    "contention": {
+      "slot_samples": 692,
+      "slots_max": 1,
+      "other_caller_share": 0.0,
+      "load_1min": [
+        3.87,
+        11.25
+      ]
+    }
+  },
+  "landing_lazy_again": {
+    "items": 5183,
+    "chunks": 5183,
+    "seconds": 161.93,
+    "items_per_s": 32.0,
+    "chunks_per_s": 32.0,
+    "plans": 10,
+    "plan_seconds_median": 14.71,
+    "plan_seconds": [
+      2.1,
+      5.0,
+      7.4,
+      10.3,
+      13.2,
+      16.2,
+      20.3,
+      25.7,
+      29.1,
+      32.2
+    ],
+    "contention": {
+      "slot_samples": 33,
+      "slots_max": 0,
+      "other_caller_share": 0.0,
+      "load_1min": [
+        11.25,
+        2.31
+      ]
+    }
+  },
+  "speedup_landing": 21.4,
+  "finished": "2026-11-08T13:07:10"
+}

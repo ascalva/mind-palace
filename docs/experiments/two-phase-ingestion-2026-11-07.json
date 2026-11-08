@@ -1,0 +1,187 @@
+{
+  "data": "/Users/ascalva/models/bench-data/scifact",
+  "items": 5183,
+  "queries": 300,
+  "cap_chars": 1200,
+  "plans": 10,
+  "embedder": "embeddinggemma-2",
+  "batch": 64,
+  "started": "2026-11-08T02:54:59",
+  "embedder_slots_busy": {
+    "start": 0,
+    "end": 4
+  },
+  "landing_lazy": {
+    "items": 5183,
+    "chunks": 5183,
+    "seconds": 171.06,
+    "items_per_s": 30.3,
+    "chunks_per_s": 30.3,
+    "plans": 10,
+    "plan_seconds_median": 15.78,
+    "plane_rows": 0,
+    "pending": 5183
+  },
+  "battery_0": {
+    "queries": 300,
+    "pending_items": 5183,
+    "lexical": {
+      "recall": 0.7549,
+      "ndcg": 0.6367,
+      "recall_se": 0.0242
+    },
+    "semantic": {
+      "recall": 0.0,
+      "ndcg": 0.0,
+      "recall_se": 0.0
+    },
+    "both": {
+      "recall": 0.7549,
+      "ndcg": 0.6367,
+      "recall_se": 0.0242
+    },
+    "fallback": {
+      "recall": 0.7549,
+      "ndcg": 0.6367,
+      "recall_se": 0.0242
+    }
+  },
+  "certificate_0": {
+    "reads": 300,
+    "certified": 300,
+    "certified_share": 1.0,
+    "gap_median": null,
+    "bound": 0.001577
+  },
+  "battery_50": {
+    "queries": 300,
+    "pending_items": 2592,
+    "lexical": {
+      "recall": 0.7549,
+      "ndcg": 0.6367,
+      "recall_se": 0.0242
+    },
+    "semantic": {
+      "recall": 0.5439,
+      "ndcg": 0.5196,
+      "recall_se": 0.0283
+    },
+    "both": {
+      "recall": 0.8328,
+      "ndcg": 0.6329,
+      "recall_se": 0.0209
+    },
+    "fallback": {
+      "recall": 0.8545,
+      "ndcg": 0.6938,
+      "recall_se": 0.0199
+    }
+  },
+  "certificate_50": {
+    "reads": 300,
+    "certified": 126,
+    "certified_share": 0.42,
+    "gap_median": 0.001291,
+    "bound": 0.001577
+  },
+  "drain": {
+    "items": 5183,
+    "chunks": 5183,
+    "embedded": 5183,
+    "seconds": 494.51,
+    "chunks_per_s": 10.5,
+    "items_per_s": 10.5,
+    "second_run": {
+      "items": 0,
+      "embedded": 0
+    }
+  },
+  "lag_seconds": {
+    "p50": 630.97,
+    "p90": 710.98,
+    "max": 724.76,
+    "mean": 579.73,
+    "note": "from an item's key to its vector, with every item landed before the drain started, in drain order"
+  },
+  "battery_100": {
+    "queries": 300,
+    "pending_items": 0,
+    "lexical": {
+      "recall": 0.7549,
+      "ndcg": 0.6367,
+      "recall_se": 0.0242
+    },
+    "semantic": {
+      "recall": 0.9263,
+      "ndcg": 0.836,
+      "recall_se": 0.0149
+    },
+    "both": {
+      "recall": 0.9289,
+      "ndcg": 0.7546,
+      "recall_se": 0.0144
+    },
+    "fallback": {
+      "recall": 0.9263,
+      "ndcg": 0.836,
+      "recall_se": 0.0149
+    }
+  },
+  "certificate_100": {
+    "reads": 300,
+    "certified": 133,
+    "certified_share": 0.4433,
+    "gap_median": 0.001293,
+    "bound": 0.001577
+  },
+  "attribution": {
+    "recall": {
+      "metric": "recall",
+      "v_empty": 0.0,
+      "v_lexical": 0.7549,
+      "v_embedder": 0.9263,
+      "v_both": 0.9289,
+      "shapley_embedder": 0.5501,
+      "shapley_lexical": 0.3787,
+      "loo_embedder": 0.174,
+      "loo_embedder_se": 0.0219,
+      "loo_lexical": 0.0026,
+      "paired": {
+        "embedder_helps": 60,
+        "embedder_hurts": 2,
+        "same": 238
+      },
+      "note": "v is the arm's mean over the queries; the Shapley value over two sources is half the marginal from nothing plus half the marginal onto the other"
+    },
+    "ndcg": {
+      "metric": "ndcg",
+      "v_empty": 0.0,
+      "v_lexical": 0.6367,
+      "v_embedder": 0.836,
+      "v_both": 0.7546,
+      "shapley_embedder": 0.4769,
+      "shapley_lexical": 0.2777,
+      "loo_embedder": 0.1179,
+      "loo_embedder_se": 0.0219,
+      "loo_lexical": -0.0814,
+      "paired": {
+        "embedder_helps": 60,
+        "embedder_hurts": 2,
+        "same": 238
+      },
+      "note": "v is the arm's mean over the queries; the Shapley value over two sources is half the marginal from nothing plus half the marginal onto the other"
+    }
+  },
+  "landing_sync": {
+    "items": 5183,
+    "chunks": 5183,
+    "seconds": 15621.47,
+    "items_per_s": 0.3,
+    "chunks_per_s": 0.3,
+    "plans": 10,
+    "plan_seconds_median": 1709.19,
+    "plane_rows": 5183
+  },
+  "speedup_landing": 101.0,
+  "finished": "2026-11-08T07:30:50"
+}
