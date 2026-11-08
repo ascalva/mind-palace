@@ -49,7 +49,7 @@ falls below the bar, and three source pairs carry the remaining bridges. Communi
 within a source ($\rho_w = 0.12$) and across sources only at a shift null's level ($\rho_b = 0.09$),
 an effective count of 9.3 independent signals. Lexical recall at ten falls as the corpus grows in 8 of
 11 question families, by up to 0.35; a source scope removes the fall other sources cause but not the
-source's own. The vectors are being derived, and the semantic arm and its attribution follow. A sentence of the query algebra over the observed stratum builds its
+source's own. With every item's vectors in, the semantic arm crowds harder than the lexical one (recall falls in 9 of 11 families, by up to 0.30), fusing the two by reciprocal rank is at or above either in 8 of 11, and the embedder read as a source beside the lexical index has a Shapley value of 0.39 and a leave-one-out value of 0.006: on this battery the two retrieval sources are largely redundant. At the store's similarity threshold a chunk of an abstract has about 9 thousand chunks of other items near it and a Wikipedia chunk 9, so the threshold does not carry across sources. A sentence of the query algebra over the observed stratum builds its
 universe from every item of the stratum and passes 6\,GB near ten thousand items, so at a million
 chunks it is out of reach as built.
 \end{abstract}
@@ -309,45 +309,46 @@ along nested corpora; the table measures how fast.
 
 \begin{table}[ht]
 \centering\footnotesize
-\begin{tabular}{l r r r}
+\begin{tabular}{l r rrr rrr}
 \toprule
- & & \multicolumn{1}{c}{recall at 10} & \multicolumn{1}{c}{fall, unscoped / scoped}\\
-family & $n$ & L & fall L\\
+ & & \multicolumn{3}{c}{recall at 10} & \multicolumn{3}{c}{fall, unscoped / scoped}\\
+family & $n$ & L & S & F & fall L & fall S & fall F\\
 \midrule
-Wikipedia titles & 500 & 0.97 & 0.03* / 0.02*\\
-OpenAlex titles & 500 & 0.95 & 0.03* / 0.02*\\
-arXiv titles & 500 & 0.99 & 0.01* / 0.00\\
-Stack Exchange titles & 500 & 0.96 & 0.04* / 0.03*\\
-Gutenberg titles & 338 & 0.97 & 0.02* / 0.00\\
-Hacker News titles & 500 & 0.99 & 0.01 / 0.00\\
-arXiv to OpenAlex twins & 500 & 1.00 & 0.00 / 0.00\\
-OpenAlex to arXiv twins & 500 & 0.99 & 0.00 / 0.00\\
-Wikipedia citations & 333 & 0.81 & 0.10* / 0.09*\\
-Stack Exchange links & 333 & 0.19 & 0.35* / 0.07*\\
-Hacker News links & 210 & 0.14 & 0.13* / 0.13*\\
+Wikipedia titles & 500 & 0.97 & 0.95 & 0.99 & 0.03* / 0.02* & 0.04* / 0.00 & 0.01 / 0.00\\
+OpenAlex titles & 500 & 0.95 & 0.87 & 0.95 & 0.03* / 0.02* & 0.10* / 0.10* & 0.04* / 0.04*\\
+arXiv titles & 500 & 0.99 & 0.86 & 0.98 & 0.01* / 0.00 & 0.12* / 0.07* & 0.02* / 0.01*\\
+Stack Exchange titles & 500 & 0.96 & 0.95 & 0.98 & 0.04* / 0.03* & 0.04* / 0.03* & 0.02* / 0.01*\\
+Gutenberg titles & 338 & 0.97 & 0.94 & 0.98 & 0.02* / 0.00 & 0.03* / 0.00 & 0.01 / 0.00\\
+Hacker News titles & 500 & 0.99 & 0.99 & 1.00 & 0.01 / 0.00 & 0.01* / 0.01* & 0.00 / 0.00\\
+arXiv to OpenAlex twins & 500 & 1.00 & 1.00 & 1.00 & 0.00 / 0.00 & 0.00 / 0.00 & 0.00 / 0.00\\
+OpenAlex to arXiv twins & 500 & 0.99 & 0.99 & 0.99 & 0.00 / 0.00 & 0.00 / 0.00 & 0.00 / 0.00\\
+Wikipedia citations & 333 & 0.81 & 0.62 & 0.81 & 0.10* / 0.09* & 0.25* / 0.23* & 0.11* / 0.08*\\
+Stack Exchange links & 333 & 0.19 & 0.06 & 0.17 & 0.35* / 0.07* & 0.30* / 0.08* & 0.38* / 0.05*\\
+Hacker News links & 210 & 0.14 & 0.18 & 0.18 & 0.13* / 0.13* & 0.07* / 0.17* & 0.10* / 0.16*\\
 \bottomrule
 \end{tabular}
-\caption{The retrieval battery, lexical arm (BM25). Recall at ten at the whole corpus, unscoped; the fall from 1\% to 100\% of the corpus paired by question, unscoped and scoped to the answer's source; * marks a fall whose bootstrap interval excludes zero. Per-scale recalls and intervals are in the report.}
+\caption{The retrieval battery three ways (L lexical, S semantic, F the two fused by reciprocal rank). Recall at ten at the whole corpus, unscoped; the fall from 1\% to 100\% of the corpus paired by question, unscoped and scoped to the answer's source; * marks a fall whose bootstrap interval excludes zero. Per-scale recalls and intervals are in the report.}
 \label{tab:battery}
 \end{table}
 
 \subsection{Attribution over sources}
 $v(S)$ is the share of a family's questions answered (the answer or its twin in the first ten) with
 only the sources in $S$ present; the Shapley value is exact over the 64 subsets of the six sources,
-and leave-one-out is tested by a sign flip with Holm's correction \citep{holm1979simple}. In the lexical arm, over the 2,838 title questions ($v(N) = 0.97$), each source's Shapley value is close to its leave-one-out value except OpenAlex (0.21 against 0.14) and arXiv (0.13 against 0.06); on the 397 questions whose answer has a twin, OpenAlex and arXiv carry 0.49 and 0.50 and neither is necessary (leave-one-out -0.01 and 0.00).
+and leave-one-out is tested by a sign flip with Holm's correction \citep{holm1979simple}. In the lexical arm, over the 2,838 title questions ($v(N) = 0.97$), each source's Shapley value is close to its leave-one-out value except OpenAlex (0.21 against 0.14) and arXiv (0.13 against 0.06); on the 397 questions whose answer has a twin, OpenAlex and arXiv carry 0.49 and 0.50 and neither is necessary (leave-one-out -0.01 and 0.00). In the semantic arm, over the 2,838 title questions ($v(N) = 0.93$), each source's Shapley value is close to its leave-one-out value except OpenAlex (0.18 against 0.11) and arXiv (0.12 against 0.06); on the 397 questions whose answer has a twin, OpenAlex and arXiv carry 0.40 and 0.45 and neither is necessary (leave-one-out -0.05 and 0.01); removing OpenAlex raises the twinned recall by 0.05 (Holm $p = 0.003$): its records crowd the twin out. In the fused arm, over the 2,838 title questions ($v(N) = 0.98$), each source's Shapley value is close to its leave-one-out value except OpenAlex (0.21 against 0.14) and arXiv (0.13 against 0.06); on the 397 questions whose answer has a twin, OpenAlex and arXiv carry 0.48 and 0.49 and neither is necessary (leave-one-out -0.01 and 0.01). The embedder as a source: in the two-player game of the lexical index and the embedder (the value of a family being its recall with the players present: the lexical arm, the semantic arm, both), the embedder's Shapley value averages 0.39 over the families and its leave-one-out value (both against lexical) 0.006, from 0.04 on Hacker News links to -0.02 on Stack Exchange links: given the lexical index, the embedder adds little.
 The redundancy witness of SCL-3 appears on this corpus: the twins share the value and neither is
 necessary.
 
 \subsection{Cost against $N$}
 \begin{table}[ht]
 \centering\small
-\begin{tabular}{lrrrr}
+\begin{tabular}{lrrr}
 \toprule
-verb & 1,000 items & 3,000 items & 10,000 items & 12,897 items\\
+verb & 1,000 items & 3,000 items & 10,000 items\\
 \midrule
-\code{near} & 2.77\,s (96\%) & 2.72\,s (90\%) & 6.84\,s (82\%) & 7.46\,s (78\%)\\
-\code{diffuse} & 0.29\,s (52\%) & 1.12\,s (45\%) & $>$6\,GB & $>$6\,GB\\
-\code{reach} & 0.26\,s (56\%) & 0.77\,s (68\%) & 4.75\,s (77\%) & $>$6\,GB\\
+\code{near} & 1.59\,s (54\%) & 2.14\,s (57\%) & 5.20\,s (58\%)\\
+\code{diffuse} & 1.55\,s (55\%) & 2.31\,s (56\%) & $>$6\,GB\\
+\code{reach} & 1.55\,s (57\%) & 2.17\,s (59\%) & 5.92\,s (64\%)\\
+\code{walk} & 1.54\,s (59\%) & 2.08\,s (59\%) & 6.08\,s (65\%)\\
 \bottomrule
 \end{tabular}
 \caption{A sentence over the observed stratum on scratch planes copied from the instance: median wall time of three warm runs, and the Python share of the profiled run with waits excluded; killed above 6\,GB. The BM25 query of the lexical arm takes 16.4\,ms at 1,369,944 chunks.}
@@ -360,9 +361,33 @@ the profile's verdict of no compiled rewrite stands. The structural landing took
 items at the lander (admit 0.11, derive 0.25, attest and key 0.18).
 
 \section{Evaluation: vectors}\label{sec:vectors}
-The vector phase derives every landed item's chunk vectors from the raw store under the yield policy (four requests of 32 texts, about 35 chunks a second). It is in progress; until an item's rows land, every query that needs its vector reports it pending. This section reports, when the phase completes, the retrieval battery three ways (lexical, semantic, and both by reciprocal rank fusion), the embedder's attribution as a player of its own in the two-player game with the lexical index, the semantic bridges, the BEIR control \citep{thakur2021beir}, and the vector codes written beside the float16 vectors of EmbeddingGemma \citep{vera2025embeddinggemma} for stage 2.
+The vector phase derived every landed item's plane rows from the raw store: 1,338,585 atoms embedded in 11.4 hours of the runner's time, 32.7 a second, with four requests of 32 texts in flight and 0 pauses for the chat model, over 4 runs (the first 92,385 items landed with their vectors, then backfills before and after Hacker News landed). One Hacker News chunk tokenized to 2,951 tokens, past the embedder's physical batch of 2,048: the server refuses such an input instead of truncating it, since a chunk's budget of 1,200 characters does not bound its tokens for symbols or another script, so the runner now sends a refused batch's texts one at a time and cuts a text that alone does not fit to the longest prefix the server takes (1 cut). Until an item's rows landed, a query that needed its vector reported it pending; at the battery's run 0 questions were pending. The battery's semantic and fused arms are in \cref{tab:battery} and the embedder's attribution as a source in the attribution paragraph above.
+
+With each item's ten nearest items above $\sigma = 0.785$ added to the item graph (3,073,202 semantic edges, 642,433 of them across sources), 3,014 community pairs stand above the null against a bar of 806.9; without the twins and the 27,295 twin pairs among the semantic edges, 3,014 against 791.9. Of 20,000 chunks drawn at random, the chunks of other items at cosine 0.785 or more number, per chunk, 9 for Wikipedia, 29 for Hacker News, 192 for Gutenberg, 885 for Stack Exchange, 9,117 for arXiv, 10,700 for OpenAlex: the live store's threshold, set on its own notes, does not carry across sources, and a semantic edge means a different thing in each.
+
+On the embedder bench's public sets SciFact scores nDCG@10 0.848 (the bench measured 0.849) and recall@10 0.932, 0.877 when the corpus's atoms compete with the set's documents; NFCorpus scores nDCG@10 0.355 (the bench measured 0.367) and recall@10 0.174, 0.108 when the corpus's atoms compete with the set's documents.
+
+\begin{table}[ht]
+\centering\small
+\begin{tabular}{lrrr}
+\toprule
+code & bytes a vector & recall at 10, flat & rescored at $m = 40$\\
+\midrule
+int8, 768 & 768.0 & 0.990 & 1.000\\
+float16, 256 & 512.0 & 0.745 & 0.977\\
+int8, 256 & 256.0 & 0.744 & 0.976\\
+one bit, 768 & 96.0 & 0.514 & 0.788\\
+\bottomrule
+\end{tabular}
+\caption{The codes written beside the float16 vectors for stage 2 (1,338,585 atoms; float16 is 1,536 bytes a vector), previewed on title queries against exact float16 search. CIF-3 is stage 2's.}
+\label{tab:codes}
+\end{table}
+
+The plane as built holds 734\,B per occupancy (its live shape, with text keys and the fiber's columns); the design's compact row, one integer row an item version, measures 19.4\,B against its 120\,B target and the falsifier's 300\,B.
 
 \section{Falsifiers}
+\Cref{tab:falsifiers} reads each falsifier the stage can test from the result files; the report gives the long form of each reading.
+
 \begin{table}[ht]
 \centering\footnotesize
 \begin{tabular}{l p{0.30\textwidth} p{0.56\textwidth}}
@@ -370,15 +395,15 @@ The vector phase derives every landed item's chunk vectors from the raw store un
 id & what would falsify & stage 1\\
 \midrule
 CIF-1 & Hacker News threads chunk above 2,000 chunks per MB & held (1,402 chunks per MB)\\
-CIF-2 & bridges at or below the null; or $\rho_b$ inside $\rho_w$'s band & held: explicit bridges above the null (106 community pairs against a false-positive bar of 40.9); without the twins, 37 against 39.3 in all, while arXiv and Stack Exchange (22 against 0.0), Hacker News and Wikipedia (10 against 0.0), arXiv and Wikipedia (5 against 1.4) stand above their own pair's false positives; $\rho_b$ 0.091 below $\rho_w$'s band (0.108, 0.120), at the shift null's 0.092\\
-CIF-4 & a compact occupancy row above 300 B, or an edge above 24 B & edges held (12.1 B per edge); occupancy rows pending\\
+CIF-2 & bridges at or below the null; or $\rho_b$ inside $\rho_w$'s band & held: 106 bridges against a bar of 40.9, 87 of them the twins; without the twins 37 against 39.3, three source pairs above their own false positives; with the semantic edges 3,014 against 807; $\rho_b$ 0.091 below $\rho_w$'s band (0.108, 0.120)\\
+CIF-4 & a compact occupancy row above 300 B, or an edge above 24 B & edges held (12.1 B per edge); occupancy rows held (19.4 B a compact row)\\
 CIF-5 & a write outside the instance, or a read of the default instance's sources & held (the isolation proof: no shared namespace, by real path, with a control)\\
 CIF-6 & a batch interrupted and re-run lands a different state & held (four cut points tested; two real kills mid-batch, one attestation a digest)\\
 CIF-7 & a 6-core or 10-core gap width that never falls under 10\% by $N=10^5$ & held for citations (6-core 51,262, 10-core 28,912) and hyperlinks (8,500); no core in answers, replies, versions or post links\\
 CIF-8 & the harmonic fraction still moving where $\gamma$ has settled & held for citations (harmonic 9,788, $\gamma$ 27,850); broken by a hair for hyperlinks (harmonic width 0.103 at the last cut, 7,509 nodes)\\
-CIF-9 & unscoped recall flat in N; or scoped recall falling with the source's own N & lexical: unscoped recall falls in 8 of 11 families (first clause held); scoped recall falls with the source's own growth in 6 (second clause broken: Hacker News links, Wikipedia citations, Stack Exchange links, Stack Exchange titles, OpenAlex titles, Wikipedia titles)\\
-CIF-10 & leave-one-out at the bar for both twins & lexical: held (Shapley 0.49 and 0.50, leave-one-out -0.01 and 0.00)\\
-CIF-11 & a Python share above 20\% on a sentence & broken (Python share 45 to 96\% at 1,000 to 10,000 items, waits excluded)\\
+CIF-9 & unscoped recall flat in N; or scoped recall falling with the source's own N & first clause held (unscoped recall falls in 8, 9, 6 of 11 families: lexical, semantic, fused); second broken (scoped recall falls with the source's own growth in 6, 7, 6)\\
+CIF-10 & leave-one-out at the bar for both twins & held in each arm (Shapley 0.49 and 0.50 lexical; 0.40 and 0.45 semantic; 0.48 and 0.49 fused; leave-one-out at most 0.01)\\
+CIF-11 & a Python share above 20\% on a sentence & broken (Python share 54 to 65\% at 1,000 to 10,000 items, waits excluded)\\
 \bottomrule
 \end{tabular}
 \caption{The falsifiers stage 1 can test, each read from the results. CIF-3 and CIF-12 to CIF-15 are later stages'.}
@@ -397,15 +422,20 @@ arms are not yet built, so attribution here is read on the retrieval battery's v
 arms and the same redundancy witness.
 
 \section{Future work}
-Stage 2 compares the codes written here against exact answers at ten gigabytes; the universe of the
-query algebra needs a support bounded by the question before the observed stratum can grow; and a scope
-finer than a source (a community or a core) is the next candidate remedy for crowding.
+Stage 2 compares the codes written here against exact answers at ten gigabytes; the preview already
+says the one-bit code keeps 0.79 of the exact top ten when its top 40 are rescored, short of the 0.95
+CIF-3 asks, so a larger $m$ or a longer code is the first thing to measure. The similarity threshold
+needs to be set per source, by quantile, before semantic edges are read across sources. The universe
+of the query algebra needs a support bounded by the question before the observed stratum can grow, and
+a scope finer than a source (a community or a core) is the next candidate remedy for crowding.
 
 \section{Conclusion}
-The instance is isolated, its bulk path converges, and its structure measured before any vector:
-the sources connect beyond a degree-preserving null through specific community pairs, rise together
-only within a source, and crowd lexical recall as the corpus grows, which a source scope corrects for
-the crowding other sources cause and not for a source's own growth.
+The instance is isolated, its bulk path converges, and its structure was measured before any vector.
+The sources connect beyond a degree-preserving null, mostly through papers held twice and, beyond
+them, through three source pairs; they rise together only within a source; and they crowd recall as
+the corpus grows, which a source scope corrects for the crowding other sources cause but not for a
+source's own growth. With the vectors in, the embedder adds little to the lexical index on this
+battery and crowds harder alone, which is the attribution reading the design asked stage 1 to make.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
