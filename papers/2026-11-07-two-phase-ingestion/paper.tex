@@ -1,0 +1,421 @@
+% The article for the two-phase ingestion pull request: an item is complete without its vector.
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\setlength{\emergencystretch}{3em}
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.75}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\lean}[1]{\texttt{#1}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\ing}[1]{ING-#1}
+\newcommand{\field}{\operatorname{field}}
+\newcommand{\drain}{\operatorname{drain}}
+
+% The measured figures, from docs/experiments/two-phase-ingestion-2026-11-07.json.
+\newcommand{\nItems}{5{,}183}
+\newcommand{\nQueries}{300}
+\newcommand{\lazyRate}{32}
+\newcommand{\syncRate}{1.5}
+\newcommand{\speedup}{21}
+\newcommand{\drainRate}{26}
+\newcommand{\lagMedian}{218}
+\newcommand{\lagNinety}{231}
+\newcommand{\lagMax}{233}
+\newcommand{\recLex}{0.755}
+\newcommand{\recSem}{0.926}
+\newcommand{\recBoth}{0.929}
+\newcommand{\recSemHalf}{0.544}
+\newcommand{\recFallHalf}{0.855}
+\newcommand{\ndcgLex}{0.637}
+\newcommand{\ndcgSem}{0.836}
+\newcommand{\ndcgBoth}{0.755}
+\newcommand{\shapE}{0.550}
+\newcommand{\shapL}{0.379}
+\newcommand{\looE}{0.174}
+\newcommand{\looSE}{0.022}
+\newcommand{\certZero}{1.00}
+\newcommand{\certHalf}{0.42}
+\newcommand{\certFull}{0.44}
+\newcommand{\lazyDrift}{0.1}
+\newcommand{\firstSyncRate}{0.33}
+\newcommand{\firstRatio}{91}
+\newcommand{\firstDrainRate}{10.5}
+\newcommand{\planFirst}{2.2}
+\newcommand{\planLast}{32.5}
+\newcommand{\syncPlanFirst}{67}
+\newcommand{\syncPlanLast}{651}
+
+\title{Two-Phase Ingestion for a Verified Knowledge Store:\\
+Completeness Without the Vector and a Convergent Embed Drain}
+\author{Alberto Serrano-Calva}
+\date{November 8, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+In a knowledge store queried over a graph of items, the embedding model produces exactly one of
+the store's relations, semantic similarity; every other relation and nearly all of the mathematics
+computed over them read the graph alone, and a tokenizer gives each item a lexical representation
+with no model. The embedder is also the only slow stage of ingestion, 21 to 30 chunks a second on
+the machine the store runs on. We separate ingestion into two phases: the landing writes an item's
+bytes, label, explicit edges and lexical units and its idempotence key, so the item is complete
+without its vector; a drain derives the vector afterwards, idempotently, converging from any
+interleaving with landings and from any interruption, under the plane's own key. A query that
+needs only structure or terms answers at once; one that needs a vector not yet derived reports
+the item pending, ranked by the lexical index with a label, never guessed. Three laws state this
+and are proved in Lean~4 over a finite model, with the natural mistakes as refuted controls: a key
+written before its vector is never repaired, and a pending vector read as zero changes with the
+embedding. The embedder, a prior learned elsewhere, thereby becomes a source whose contribution a
+Shapley attribution over the lexical and semantic arms measures. On SciFact (\nItems{} abstracts,
+\nQueries{} queries) landing without the embedder ran at \lazyRate{} items a second against
+\syncRate{} with it, the drain derived vectors at \drainRate{} chunks a second with a median lag of
+\lagMedian{}~s from key to vector, and the embedder's Shapley attribution at recall@10 was
+\shapE{} against the lexical index's \shapL{}. The default instance keeps synchronous embedding;
+one configuration key flips it.
+\end{abstract}
+
+\section{Introduction}
+
+The store this article concerns ranks items by the kernel column of a similarity backbone
+(\code{near}), diffuses along it, and reaches and walks along explicit relations: citations,
+hyperlinks, a question to its answer, version chains, replies, references from code to code. The
+walk sums and resolvents, the Hodge potential of a flow, the spectral gap and the $k$-cores of its
+scale study read the graph and never a vector, and BM25 over an item's chunks
+\citep{sparckjones1972,robertson2009bm25} needs no model. The embedder is the one stage of
+ingestion a model must run, and on the store's machine it saturates near 30 chunks a second while
+every other stage of landing an item takes milliseconds; for the hundred-gigabyte corpus the store
+is built toward, that is sixty days of embedding against minutes of everything else. Ingestion
+waited for the embedder before writing an item's key, so the slowest stage set the pace of the
+whole.
+
+We make ingestion two-phase. Phase~1 lands what the bytes and the source determine and writes the
+idempotence key; phase~2 derives the vector in the background as a write into the vector plane
+that is idempotent, converges from any interleaving and any interruption, and carries a key of
+its own. The invariant is that an item is complete without its vector. The contributions are the
+laws (\cref{sec:theory}): \ing{19}, a landing writes no vector and the landed item is complete,
+and the drain changes neither keys nor structures and leaves every other embedder identity's field
+alone, so re-embedding after a model change is the same drain under a new identity; \ing{20}, an
+item's derivation is idempotent and commutes with another item's and with a later landing of
+another item, the drain is idempotent and leaves nothing pending, the field converges from any
+interleaving, the implemented drain over the pending items reaches it from sound truthful states,
+and the key-first order is unsound and never repaired; \ing{21}, a structural query is invariant
+under every embed run, a pending item's field is \lean{none}, a reported vector is the item's own,
+and a pending vector read as zero changes with the embedding. All are proved in Lean~4
+\citep{demoura2021,mathlib2020}, attacked beforehand by property testing with refuted controls
+\citep{claessen2000}, and judged against their statements by a comparator. The design and its
+implementation behind one configuration key follow (\cref{sec:design}), then measurements on a
+public control set (\cref{sec:eval}). The design note of the repository carries the detail.
+
+\paragraph{Related work.} Deferring a computation until needed and sharing the result is lazy
+evaluation \citep{henderson1976lazy}; a derived index is a materialized view whose maintenance may
+be deferred and must then be incremental and idempotent \citep{gupta1995views}, and dynamic text
+indexes trade indexing time against query time by buffering and merging
+\citep{buttcher2005tradeoffs,lester2006online}. The crash argument is write-ahead recovery's
+\citep{mohan1992aries}: work before the key is redone without being repeated. Dense retrieval beat
+BM25 on question answering while a hybrid beat either \citep{karpukhin2020dpr}; across
+heterogeneous collections BM25 stays a strong baseline \citep{thakur2021beir}; reciprocal rank
+fusion combines rankings robustly \citep{cormack2009rrf}. The information a source adds beyond
+another is a conditional mutual information, $I(R; E \mid L)$, and the chain rule
+$I(R; L, E) = I(R; L) + I(R; E \mid L)$ \citep{cover2006} is the telescoping an attribution needs;
+the Shapley value is the unique efficient, symmetric, null-respecting, additive attribution over
+sources \citep{shapley1953value}, sampled by orderings \citep{castro2009polynomial} and used to
+value data \citep{ghorbani2019data}. The embedder is EmbeddingGemma \citep{vera2025embeddinggemma}.
+
+\section{The invariant and the laws}\label{sec:theory}
+
+\paragraph{The model.} Items $I$, structures $S$ (what a landing writes for an item: bytes, label,
+edges and lexical units as one value, read only through functions of it), vectors $V$, embedder
+identities $E$ (model, document template, dimension: the plane's fingerprint). A state is
+\[
+  s = (\mathrm{keyed} \subseteq I,\;
+       \mathrm{struct} : I \to S_\bot,\;
+       \mathrm{atom} : E \to S \to V_\bot,\;
+       \mathrm{mark} : I \to E \to S_\bot):
+\]
+the items whose key is written, each item's landed structure, the plane's atom table per identity
+(a structure's vector once embedded, content addressed, so the same bytes are embedded once and a
+superseded version's atom stays as history), and each item's mark per identity, the plane's current
+occupancy of the item, the structure whose rows the drain landed. The embedder is $f : E \to S \to V$.
+A \emph{landing} of $i$ with $\sigma$ inserts $i$ into $\mathrm{keyed}$ and sets
+$\mathrm{struct}(i) = \sigma$, writing no atom and moving no mark. For a keyed $i$ with structure
+$\sigma$, an \emph{atom write} under $e$ sets $\mathrm{atom}(e, \sigma) = f(e, \sigma)$ and a
+\emph{mark write} sets $\mathrm{mark}(i, e) = \mathrm{struct}(i)$; both do nothing for an unkeyed
+item. An item's \emph{derivation} is its atom write then its mark write (\lean{derive}); the
+\emph{key-first} order is the reverse (\lean{deriveKeyFirst}). A run applies a list of steps.
+$i$ is \emph{complete} when keyed, \emph{pending} under $e$ when keyed and
+$\mathrm{mark}(i, e) \neq \mathrm{struct}(i)$ (no vector yet, or an older version's), and its
+\emph{field} under $e$ is $\mathrm{atom}(e, \mathrm{struct}(i))$ when keyed with
+$\mathrm{mark}(i, e) = \mathrm{struct}(i)$ and \lean{none} otherwise: a derived item's vector, a
+pending item reported. $\drain(f, e, s)$ gives every keyed item's structure its atom and every
+keyed item its mark; the implemented drain, \lean{codeDrain}, does so for the pending items alone.
+A state is \emph{sound} under $e$ when every derived item has the atom its mark promises, and
+\emph{truthful} for $f$ when every atom is $f$ of its structure.
+
+\begin{theorem}[\ing{19}; \lean{land\_atom}, \lean{land\_mark}, \lean{complete\_land},
+\lean{structural\_invariant\_drain}, \lean{drain\_other\_atom}, \lean{drain\_other\_mark}]
+A landing writes no atom and moves no mark, and the landed item is complete. For any $Q$ of the
+keyed set and the structures, $Q(\drain(f, e, s)) = Q(s)$; and for $e' \neq e$, $\drain(f, e, s)$
+has the atoms and marks of $s$ under $e'$.
+\end{theorem}
+
+\begin{proof}[Sketch]
+The drain is pointwise and leaves $\mathrm{keyed}$ and $\mathrm{struct}$ as they are; the rest
+unfolds the conditionals on $e' = e$. Hence re-embedding after a model change is the same drain:
+the plane forgets its identity on reset, every item is pending under the new one, and nothing of
+another identity or of the landing is read or moved.
+\end{proof}
+
+\begin{theorem}[\ing{20}; \lean{derive\_idem}, \lean{derive\_comm}, \lean{derive\_land\_comm},
+\lean{drain\_idem}, \lean{not\_pending\_drain}, \lean{field\_drain}]
+A derivation run twice is the derivation run once; two items' derivations commute; for $i \neq j$
+the derivation of $i$ commutes with a landing of $j$. The drain is idempotent, leaves nothing
+pending, and gives a keyed $i$ the field $f(e, \mathrm{struct}(i))$.
+\end{theorem}
+
+\begin{proof}[Sketch]
+Written out, a derivation sets $\mathrm{atom}(e, \mathrm{struct}(i))$ and $\mathrm{mark}(i, e)$
+and nothing else (\lean{run\_derive}); each equality is a case split on the conditionals, the
+landing one using that a landing of $j \neq i$ leaves $\mathrm{struct}(i)$ fixed.
+\end{proof}
+
+\begin{theorem}[\ing{20}, convergence; \lean{field\_drain\_run}, \lean{codeDrain\_field},
+\lean{sound\_derive\_prefix}, \lean{truthful\_run}]
+For any run $w$ of landings and embed steps, with $w|_{\mathrm{land}}$ its landings in order,
+$\field(\drain(f, e, \mathrm{run}(w, s)), e) = \field(\drain(f, e, \mathrm{run}(w|_{\mathrm{land}}, s)), e)$.
+From a sound and truthful state, the implemented drain has the drain's field; every prefix of the
+key-last derivation keeps soundness, and every run keeps truthfulness.
+\end{theorem}
+
+\begin{proof}[Sketch]
+Call two states agreeing when they share the keyed set and the structures. Every step's effect on
+those two is a function of those two, so agreement is preserved under any step applied to both,
+and an embed step leaves them as they were; by induction $\mathrm{run}(w, s)$ and
+$\mathrm{run}(w|_{\mathrm{land}}, s)$ agree, and the field after a drain is a function of the two.
+A derived item is skipped by the implemented drain; soundness gives it an atom and truthfulness
+makes it $f(e, \sigma)$, the drain's value; a pending item is derived by both. The atom is written
+before the mark, so when the mark names the structure the atom is there; only atom writes write
+atoms, and they write $f$.
+\end{proof}
+
+\begin{theorem}[\ing{20}, the controls; \lean{mark\_first\_unsound},
+\lean{mark\_first\_does\_not\_converge}]
+If $i$ is keyed with structure $\sigma$ and $\mathrm{atom}(e, \sigma)$ is \lean{none}, the
+key-first order interrupted after its mark leaves an unsound state, and when no other pending item
+shares $\sigma$ the implemented drain of that state gives $i$ the field \lean{none} where the drain
+gives $f(e, \sigma)$: the item is never repaired.
+\end{theorem}
+
+On the implementation this is the plane's order (PLN-4): atoms are inserted before the occupancy
+transaction, so a drain that dies between them leaves the item pending and the atoms held, and
+the next drain embeds nothing (\ing{5}) and lands the rows; the test that makes the transaction
+die once checks exactly that.
+
+\begin{theorem}[\ing{21}; \lean{structural\_invariant}, \lean{pending\_field\_none},
+\lean{field\_some\_truthful}, \lean{zeroRead\_changes}]
+For any $Q$ of the keyed set and the structures and any run $w$ of embed steps,
+$Q(\mathrm{run}(w, s)) = Q(s)$. A pending item's field is \lean{none}; on a truthful state,
+$\field(s, e, i) = v$ implies $\mathrm{struct}(i) = \sigma$ and $v = f(e, \sigma)$. The control:
+reading $\mathrm{atom}(e, \mathrm{struct}(i))$ with $0$ for a missing one and no mark consulted
+gives, for a keyed $i$ with no atom and a nonzero score, a value that changes across
+$\mathrm{derive}(e, i)$: an answer about the embedding's progress, not the item.
+\end{theorem}
+
+\paragraph{Checking.} The 22 statements are restated in a specification module with their proofs
+left open and judged identical to the proved ones by a comparator, so no proof file can change
+what is proved. Before the proofs, each law with an executable instance was attacked on exact
+shadows (two items, structures, vectors and identities; states and embedders from codes; runs from
+lists of codes): fourteen attacks survived, twelve on all 500 instances and the two guarded ones on
+486 and 467, and five controls were refuted, a run with a landing in it within 45 instances, a
+landing of the same item not commuting with its derivation on the first, the key-first order
+unsound within 17 and unrepaired within 6, and the zero reading within 8. The library builds with
+warnings as errors, the sorry budget is zero, and the export replays through six kernel checkers.
+
+\section{Design}\label{sec:design}
+
+\paragraph{Phase 1, the writer.} Under \code{[embedding] lazy = true} a store effect lands its
+item's raw object, parses and chunks it as before, lands the chunks' lexical units, the version
+row where the place keeps chains, the attestation and, last, the catalog's digest, the idempotence
+key (\ing{7}); it embeds nothing and writes no plane row. The UNCHANGED check, which asked the
+plane whether it holds the version's rows current, asks the lexical index instead, since the rows
+are now the drain's and their absence is pending, not unlanded: an active key implies the units
+are held, \ing{7}'s invariant at the item's grain. A plan whose landing left any item without its
+vector asks for the drain once, as a coalescing job folded into the row already waiting; it is
+charged its writes and no embeds. Off, the writer is byte for byte what it was.
+
+\paragraph{The lexical index.} The units are the chunks the same chunker derives from the raw
+bytes, so lexical and vector rankings rank the same things. A unit's row keeps its path, version,
+position, class, title and token count; a posting keeps a term's count in a unit; tokens are runs
+of letters or digits in any script, lower-cased. Landing is idempotent by reconciliation as the
+plane's is: a version's units are written once, then made current, and the path's other versions
+stop being current, the currency flag the transaction's last write; a retire makes the units not
+current and keeps them. A query is scored over the current units of the classes a reader may see
+with BM25, $k_1 = 1.2$, $b = 0.75$ \citep{robertson2009bm25}, the document frequencies, the unit
+count and the mean length read at query time, so a landing changes no stored weight. The index
+also records each version it lands with its count of units, in the same transaction, so an item
+with no text (recorded with none) is told apart from one landed before the index was opened (no
+record): the first is complete, the second pending. Reading a missing unit as an empty item would
+leave every item of an earlier landing without a vector forever. A batched landing of fresh
+stores lands every store's units in one transaction, before any key.
+
+\paragraph{Phase 2, the drain.} \Cref{alg:drain} is one run. It is a job of the one writer over
+the writer's own stores; the housekeeping and the catch-up enqueue it when the key is on, the
+command line runs it on demand, and \code{do sync\_embed} is its script. Re-embedding after a
+model change resets the plane, which forgets the atoms, the occupancies and the identity, and runs
+the same drain; the catalog, the raw store, the versions, the edges and the lexical index are
+untouched. The server refuses an input longer than its batch of 2{,}048 tokens rather than
+truncating it, and 1{,}200 characters do not bound the tokens (one comment of 1{,}145 characters
+took 2{,}951), so the drain splits a refused group in halves until the text is alone and cuts the
+text to the longest prefix the server takes, as the model would truncate it; any other failure is
+raised. The lexical index is derived as the vectors are: a backfill lands the units of every item it
+has no record of, from the raw store, and run again writes nothing.
+
+\begin{algorithm}[t]
+\caption{The embed drain (\code{core/ingest/derive.py}), batch $B$, streams $m$.}
+\label{alg:drain}
+\begin{algorithmic}[1]
+\State $P \gets$ active catalog entries of a plane class whose $(\mathit{path}, \mathit{digest})$ the plane does not hold current, less those the index records with no unit \Comment{the plane read once}
+\State $G \gets \emptyset$
+\ForAll{$e \in P$}
+  \State $r \gets$ the bytes of $e$ by digest, parsed and chunked as the landing chunked them
+  \If{$r$ has a chunk} add $(r, \text{distinct chunks of } r)$ to $G$ \EndIf
+  \If{$G$ holds at least $B \cdot m$ chunks} \Call{Flush}{$G$} \EndIf
+\EndFor
+\State \Call{Flush}{$G$}
+\Procedure{Flush}{$G$}
+  \State embed the distinct chunk texts of $G$ whose atoms the plane lacks, $B$ a request, $m$ in flight
+  \State land the rows of $G$ in one plane transaction \Comment{atoms first, then the occupancies: the key, last}
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Query semantics.} An item landed without a vector, or whose plane rows are an older
+version's than the catalog's, is a node of the universe without a vector and a member of its
+pending set; its row of the vector matrix is zero, so the kernel column scores it 0, which is no
+score, and the backbone has no edge at it. \code{near} gives the pending nodes of its clause the
+lexical index's score for the text, each path's best unit divided by the best among them, so the
+best pending match scores 1 on a scale of its own; every such hit is labelled
+\code{ranked\_by: lexical: the vector is pending}, and the answer carries a note with the count and
+that the two parts are not one scale. Without an index the pending nodes score nothing and the
+note says so. The universe's report names the pending items; structural verbs read nothing the
+drain writes; the float16 margin certificate of a ranked read is computed over the vectors the
+store holds, which excludes every pending item.
+
+\paragraph{The embedder as a source.} With $v(\emptyset) = 0$, $v(\{L\})$ the lexical arm's score
+on a battery, $v(\{E\})$ the semantic arm's and $v(\{L, E\})$ the hybrid's (reciprocal rank fusion),
+the embedder's Shapley value is
+$\varphi_E = \tfrac12\bigl(v(\{E\}) - v(\emptyset)\bigr) + \tfrac12\bigl(v(\{L, E\}) - v(\{L\})\bigr)$
+and its leave-one-out reading is $v(\{L, E\}) - v(\{L\})$, the estimand of the attribution loop's
+sign-flip test. The loop records an arm by the digest of its configuration, which names the sources
+it may use; the embedder joins that set, and both readings are functions of the ledger.
+
+\section{Measurements}\label{sec:eval}
+
+The harness (\code{eval/two\_phase\_bench.py}) builds a scratch palace in a temporary root with its
+own vault, stores and lexical index and the stack's embedder, EmbeddingGemma at 768 dimensions
+served by llama-server on the loopback, and touches no live store. The control set is SciFact
+\citep{wadden2020scifact} as distributed in BEIR \citep{thakur2021beir}: \nItems{} abstracts, each
+a markdown item of its title and text cut at 1{,}200 characters so that every item is one chunk,
+and the \nQueries{} test claims with graded relevance. The items land in ten requests of the
+ingress language, lazily and synchronously, on separate scratch palaces. A timing is only as good
+as the machine it ran on, so the harness samples the embedder's busy slots every five seconds
+through each phase, with the load average at the phase's start and end. The timings below are a
+control run in the order lazy, drain, synchronous, lazy again, with no other caller of the
+embedder (no slot sample showed one); the two lazy runs, one before and one after, differed by
+\lazyDrift\%. A first run, made while another ingest's backfill
+embedded on the same server throughout, landed synchronously at \firstSyncRate{} items a second
+(a ratio of \firstRatio$\times$) and drained at \firstDrainRate{} chunks a second; it is kept in
+the record and not used here. The retrieval figures do not depend on timing and are the
+first run's. Every figure is one run, read to one significant figure.
+
+\paragraph{Landing, the drain, the lag.} Without the embedder the ten requests landed the \nItems{}
+items at \lazyRate{} items a second; with it, at \syncRate{}, a ratio of \speedup$\times$ in landing
+time. Both slow as the store grows: a lazy request took \planFirst{}~s first and \planLast{}~s
+last, the attestation lookup's pass over the ledger, and a synchronous one \syncPlanFirst{}~s and
+\syncPlanLast{}~s, where each item's plane transaction is its own. The drain derived the \nItems{}
+chunks at \drainRate{} chunks a second on one stream at batch 64, a group of 64 committed at a
+time, which is the embedder's measured rate. With every item landed and the drain started at
+once, the lag from an item's key to its vector being current was \lagMedian{}~s at the median,
+\lagNinety{}~s at the 90th percentile and \lagMax{}~s at most: the landing's time plus the
+item's position in the drain's queue, which a steady arrival spreads evenly. A second drain found
+nothing pending and embedded nothing.
+
+\begin{table}[t]
+\centering
+\caption{Retrieval on SciFact's \nQueries{} test claims, top 10. At 50\% drained the semantic arm
+reads the vectors that exist and the fallback adds the lexical index over the pending items, as
+\code{near} does, fused by reciprocal rank.}
+\label{tab:battery}
+\begin{tabular}{lcc}
+\toprule
+arm & recall@10 & nDCG@10 \\
+\midrule
+lexical (BM25) & \recLex & \ndcgLex \\
+semantic (the embedder), 100\% derived & \recSem & \ndcgSem \\
+both (reciprocal rank fusion) & \recBoth & \ndcgBoth \\
+semantic, 50\% derived & \recSemHalf & \\
+\code{near}'s rule, 50\% derived & \recFallHalf & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The battery, the attribution, the certificate.} \Cref{tab:battery} gives the arms. At
+recall@10 the embedder's Shapley value is $\varphi_E = \shapE$ against the lexical index's
+$\varphi_L = \shapL$, and its leave-one-out reading is $v(\{L, E\}) - v(\{L\}) = \looE$ with a
+standard error of \looSE{} over the queries. The share of ranked reads whose top 10 the float16
+margin certifies was \certZero{} with no vector derived (every read empty, nothing claimed),
+\certHalf{} at 50\% and \certFull{} at 100\%: the certificate reads the stored vectors, and a
+pending item is outside its scope, as \ing{21} says.
+
+\section{Limitations}
+
+The model takes an item's structure as one value and says nothing about the landing's own stages
+(\ing{7}'s model does), the plane's cache and search (PLN-2 to PLN-4) or the lexical arithmetic;
+it assumes a deterministic embedder, which content addressing makes harmless for idempotence but
+not for the statement that an atom is $f(e, \sigma)$. The lexical index is SQLite postings with
+frequencies read at query time, right for a few hundred thousand units and not for a hundred
+gigabytes; a bulk-built sparse matrix, which the corpus measurements already load, or an on-disk
+inverted index is the next form for serving queries. The daemon's drain does not yield to other
+callers of the embedder; the corpus runner's backfill does, through its gated embedder. The
+fallback's scale is a design choice, labelled rather than calibrated. The battery is one
+collection, items cut at one chunk, each figure one run; it measures the sources on SciFact's
+claims, not on the store's own questions, which the attribution loop is for. Yielding, parallel dispatch of the drain beside the
+writer (which \ing{20}'s commutation licenses), two identities at once for a migration, and the
+loop on the corpus instance are the next steps.
+
+\section{Conclusion}
+
+An item is complete without its vector: landing writes what the bytes and the source determine,
+and the one learned relation is derived afterwards by a drain that is idempotent and converges
+from any interleaving and any interruption under a key of its own, written last. Queries that need
+the graph or the terms answer at once; queries that need a vector not yet derived say so and never
+guess. The laws are proved, attacked and judged, the code transcribes them behind one configuration
+key that is off by default, and the embedder has a measured attribution as a source: on SciFact,
+\shapE{} against the lexical index's \shapL{} at recall@10.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
