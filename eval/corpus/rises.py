@@ -14,7 +14,8 @@ bootstrap band from resampling communities; and by CI-2, with D sources of m com
 
 The partition (CI-b): OpenAlex's primary topic, arXiv's primary category, a Stack Exchange
 question's first tag (an answer joins its question's), Gutenberg's Library of Congress subclass,
-and for Wikipedia, which has none, Louvain communities of its hyperlink graph. A community enters
+a Hacker News thread's link host, and for Wikipedia, which has none, Louvain communities of its
+hyperlink graph. A community enters
 with at least `min_items` items; each source contributes at most `per_source` of its largest.
 CIF-2's second half is broken when `rho_b` lies inside the bootstrap band of `rho_w`. The null
 is the same statistic with every series shifted circularly by its own random offset (each series
@@ -69,6 +70,8 @@ def partition(c: Corpus, rel: dict[str, Relation]) -> dict[int, str]:
         elif s == "gutenberg":
             locc = str(m.get("locc") or "?").split(";")[0].strip()
             out[g] = f"gutenberg:{locc[:2]}"
+        elif s == "hackernews":
+            out[g] = f"hackernews:{m.get('host') or 'text'}"
         elif s == "stackexchange" and m.get("kind") == "question":
             tags = m.get("tags") or ["?"]
             label = f"stackexchange:{m.get('site')}:{tags[0]}"

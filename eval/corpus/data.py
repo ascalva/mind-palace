@@ -22,7 +22,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-SOURCES = ("wikipedia", "openalex", "arxiv", "stackexchange", "gutenberg")
+SOURCES = ("wikipedia", "openalex", "arxiv", "stackexchange", "gutenberg", "hackernews")
 EPOCH = date(1970, 1, 1)
 
 

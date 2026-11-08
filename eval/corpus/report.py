@@ -108,13 +108,18 @@ def tables(d: Path) -> str:
         if not bat:
             continue
         out += [f"## Retrieval battery, {label}", "",
-                "| arm: family | n | unscoped 1% | 10% | 100% | scoped 1% | 100% | pending |",
-                "|---|---|---|---|---|---|---|---|"]
+                "| arm: family | n | unscoped 1% | 10% | 100% | fall (95% CI) | scoped 1% | "
+                "100% | fall (95% CI) | pending |",
+                "|---|---|---|---|---|---|---|---|---|---|"]
+
+        def fall(fam: str, scope: str, bat: Any = bat) -> str:
+            v = bat.get("drop", {}).get(fam, {}).get(scope)
+            return f"{_f(v[0])} ({_f(v[1])}, {_f(v[2])})" if v else "n/a"
         for fam, rr in sorted(bat["recall"].items()):
             out.append("| " + " | ".join([
                 fam, _f(bat["questions"][fam]), _f(rr.get("unscoped@0.01")),
-                _f(rr.get("unscoped@0.1")), _f(rr.get("unscoped@1.0")),
-                _f(rr.get("scoped@0.01")), _f(rr.get("scoped@1.0")),
+                _f(rr.get("unscoped@0.1")), _f(rr.get("unscoped@1.0")), fall(fam, "unscoped"),
+                _f(rr.get("scoped@0.01")), _f(rr.get("scoped@1.0")), fall(fam, "scoped"),
                 _f(bat.get("pending", {}).get(fam.split(":", 1)[1], 0))]) + " |")
         out.append("")
         for arm, att in bat.get("attribution", {}).items():

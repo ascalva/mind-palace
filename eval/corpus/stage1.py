@@ -24,7 +24,7 @@ from core.kernel.config import Config, get_config
 from eval.corpus.data import SOURCES, Corpus, load
 
 MACRO = ("wikipedia.hyperlink", "openalex.citation", "stackexchange.link", "stackexchange.answer",
-         "stackexchange.version", "arxiv.version")
+         "stackexchange.version", "arxiv.version", "hackernews.reply")
 
 
 def _cfg() -> Config:
@@ -76,7 +76,8 @@ def cmd_edges(a: argparse.Namespace) -> None:
         print(f"{k:34s} {v['edges']:9d} edges  {v['bytes_per_edge']} B/edge")
 
 
-def _macro_one(name: str, reps: int, max_boot_n: int) -> tuple[str, dict[str, Any]]:
+def _macro_one(name: str, reps: int, max_boot_n: int,
+               max_hodge_m: int = 60000) -> tuple[str, dict[str, Any]]:
     from eval.corpus.edges import build
     from eval.corpus.macro import curves, degenerate
 
@@ -84,7 +85,7 @@ def _macro_one(name: str, reps: int, max_boot_n: int) -> tuple[str, dict[str, An
     rel = build(corpus(cfg))[name]
     out = {"degenerate": degenerate(rel)}
     if out["degenerate"].get("largest", 0) >= 300:
-        out.update(curves(rel, reps=reps, max_boot_n=max_boot_n,
+        out.update(curves(rel, reps=reps, max_boot_n=max_boot_n, max_hodge_m=max_hodge_m,
                           log=lambda m: print(m, flush=True)))
     write(results(cfg) / "macro" / f"{name}.json", out)
     return name, out
@@ -96,7 +97,7 @@ def cmd_macro(a: argparse.Namespace) -> None:
     names = a.only or list(MACRO)
     with ProcessPoolExecutor(max_workers=a.workers) as pool:
         for name, out in pool.map(_macro_one, names, [a.reps] * len(names),
-                                  [a.max_boot_n] * len(names)):
+                                  [a.max_boot_n] * len(names), [a.max_hodge_m] * len(names)):
             print(name, json.dumps(_clean(out.get("crossings", out.get("degenerate")))),
                   flush=True)
 
@@ -320,6 +321,7 @@ def main() -> None:
     p.add_argument("--reps", type=int, default=8)
     p.add_argument("--max-boot-n", type=int, default=40000)
     p.add_argument("--workers", type=int, default=3)
+    p.add_argument("--max-hodge-m", type=int, default=60000)
     p.set_defaults(fn=cmd_macro)
     p = sub.add_parser("rises")
     p.add_argument("--start", default="2012-01-01")

@@ -8,16 +8,17 @@ explicit bridges between sources.
     answer      Stack Exchange  an answer answers its question              the answer's
     link        Stack Exchange  a post links a post (duplicate, related)    the later post's
     version     arXiv, SE       a version follows the one before            the later version's
+    reply       Hacker News     a comment replies to its parent (in a thread)  the comment's
     (none)      Gutenberg       no dated relation between books
 
 Both ends of an edge are items of the corpus (`Corpus.gid`), so an edge to a page, a work or a post
 outside the sample is dropped. A version edge joins two versions of one item, so its nodes are
 (item, version) pairs numbered on their own. The bridges cross sources: a Wikipedia citation to
 an OpenAlex work (by DOI) or an arXiv record (by arXiv id), a Wikipedia Gutenberg template to a
-book, a Stack Exchange link to a Wikipedia article, an arXiv record or a DOI, and the OpenAlex
-and arXiv twins (one paper in both: an OpenAlex location or DOI naming the arXiv id, or the
-same DOI). `save` writes each relation as `<name>.npy` (an (m, 3) int32 array), so its bytes per
-edge are measured, not assumed.
+book, a Stack Exchange or Hacker News link to a Wikipedia article, an arXiv record or a DOI, and
+the OpenAlex and arXiv twins (one paper in both: an OpenAlex location or DOI naming the arXiv id,
+or the same DOI). `save` writes each relation as `<name>.npy` (an (m, 3) int32 array), so its
+bytes per edge are measured, not assumed.
 """
 
 from __future__ import annotations
@@ -127,6 +128,20 @@ def build(c: Corpus) -> dict[str, Relation]:
                 links.append((g, h, later(g, h)))
     rel["stackexchange.answer"] = _rel("answer", "stackexchange", answers)
     rel["stackexchange.link"] = _rel("link", "stackexchange", links)
+    # Hacker News: the reply tree inside each thread, its nodes the story and its comments,
+    # numbered on their own (a thread is one item, its comments its blocks)
+    pairs, node = [], 0
+    for g in by_source.get("hackernews", []):
+        m = c.meta[g]
+        local = {int(str(m["id"]).removeprefix("hn-")): node}
+        node += 1
+        for cid, _parent, _t in m.get("replies", []):
+            local[int(cid)] = node
+            node += 1
+        for cid, parent, t in m.get("replies", []):
+            if int(parent) in local:
+                pairs.append((local[int(cid)], local[int(parent)], int(t) // 86400))
+    rel["hackernews.reply"] = _rel("reply", "hackernews", pairs)
     # versions: a chain per item, its nodes (item, version) numbered on their own
     for source, key in (("arxiv", "versions"), ("stackexchange", "versions")):
         pairs, node = [], 0
@@ -163,6 +178,17 @@ def build(c: Corpus) -> dict[str, Relation]:
         for d in ln.get("doi", []):
             if (h := oa_doi.get(_doi(d))) is not None:
                 bridges["stackexchange-openalex"].append((g, h, later(g, h)))
+    for g in by_source.get("hackernews", []):
+        ln = c.meta[g].get("links", {})
+        for t in ln.get("wikipedia", []):
+            if (h := wiki_title.get(_title(str(t)))) is not None:
+                bridges["hackernews-wikipedia"].append((g, h, later(g, h)))
+        for a in ln.get("arxiv", []):
+            if (h := ax_id.get(_arxiv(a))) is not None:
+                bridges["hackernews-arxiv"].append((g, h, later(g, h)))
+        for d in ln.get("doi", []):
+            if (h := oa_doi.get(_doi(d))) is not None:
+                bridges["hackernews-openalex"].append((g, h, later(g, h)))
     for g in by_source["openalex"]:
         arx = _arxiv(c.meta[g].get("arxiv"))
         if arx and (h := ax_id.get(arx)) is not None:

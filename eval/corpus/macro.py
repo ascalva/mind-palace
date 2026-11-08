@@ -34,23 +34,29 @@ from eval.scale.hodge import hodge_split
 from eval.scale.spectrum import CutStats, smallest_eigenvalues
 from eval.scale.study import crossing
 
-# Above this mean degree the shift-invert LU fills in (a hyperlink graph's mean degree is near
-# 70, a citation graph's near 20), and plain Lanczos on 2I - L, whose largest eigenvalues are
-# L's smallest, converges in a few hundred matrix products because the gap is wide.
+# Above this mean degree, or this many nodes, the shift-invert LU fills in (a hyperlink graph's
+# mean degree is near 120; a citation graph's 10-core at 30,000 nodes took minutes a solve), and
+# plain Lanczos on 2I - L, whose largest eigenvalues are L's smallest, converged in seconds on
+# both at the sizes measured, to the same eigenvalues (tests/unit/test_corpus_measures.py).
 DENSE_DEGREE = 30.0
+LARGE_N = 20000
 
 
 def eigenvalues(comp: Component, k: int) -> np.ndarray:
     """The k smallest eigenvalues of the normalized Laplacian: the scale study's shift-invert
-    solve on a sparse graph, Lanczos on 2I - L on a dense one."""
+    solve on a small sparse graph, Lanczos on 2I - L on a dense or a large one (falling back to
+    shift-invert if Lanczos does not converge)."""
     lap = normalized_laplacian(comp.adj)
     n = lap.shape[0]
     k = min(k, n)
-    if n <= 500 or float(comp.degrees().mean()) < DENSE_DEGREE:
+    if n <= 500 or (float(comp.degrees().mean()) < DENSE_DEGREE and n <= LARGE_N):
         return smallest_eigenvalues(lap, k)
     flip = (2.0 * sp.identity(n, format="csr") - lap).tocsr()
-    vals = spla.eigsh(flip, k=k, which="LA", tol=1e-9, maxiter=20 * n,
-                      return_eigenvectors=False)
+    try:
+        vals = spla.eigsh(flip, k=k, which="LA", tol=1e-9, maxiter=50 * n,
+                          return_eigenvectors=False)
+    except spla.ArpackNoConvergence:
+        return smallest_eigenvalues(lap, k)
     return np.sort(2.0 - np.asarray(vals, dtype=np.float64))
 
 
