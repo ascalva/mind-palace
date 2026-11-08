@@ -22,6 +22,17 @@ measurement of the stage-1 table with its falsifier held or broken. The run was 
 item landed first with its label, its explicit relations and a lexical index, the structural
 measurements ran on that, and the vectors were derived from the raw store in the background.
 
+## Summary
+
+- **Ingested**: six sources, 400,274 items, 1.02 GB of text, 1,369,944 chunks, in a named instance that shares no namespace with the live one. The structural phase landed every item in 0.6 s per thousand at the lander; the vectors follow from the raw store.
+- **Macro**: the citation graph's 6-core and 10-core gaps settle by 5 x 10^4 nodes and its Hodge split a decade earlier (CIF-7, CIF-8 held); the hyperlink graph settles near 10^4; versions, replies and answers are forests with no core.
+- **Bridges**: 106 community pairs across sources above a degree-preserving null (bar 40.9), 87 of them arXiv and OpenAlex, whose twins are one paper in two sources; without the twins 37 against 39.3, while arXiv and Stack Exchange (22), Hacker News and Wikipedia (10) and arXiv and Wikipedia (5) stand above their own pair's false positives (0, 0, 1.4).
+- **Rises**: rho_w 0.116 within sources, rho_b 0.091 across them, at the shift null's 0.092; N_eff 9.3 (CIF-2 held on both clauses as designed).
+- **Crowding**: lexical recall at ten falls with the corpus in 8 of 11 families, by up to 0.35; a source scope removes the fall other sources cause, but scoped recall still falls with the source's own growth in 6 families (CIF-9: first clause held, second broken, lexical arm).
+- **Attribution**: the OpenAlex and arXiv twins share the value (Shapley 0.49 and 0.50) and neither is necessary (leave-one-out near 0): the SCL-3 redundancy witness (CIF-10 held).
+- **Cost**: a sentence over the observed stratum builds its universe from the whole stratum and passes 6 GB near ten thousand items; its Python share is above 20% (CIF-11 broken).
+- **Vectors**: in progress; the semantic arm, the embedder's attribution, the semantic bridges, the codes and the plane's bytes follow.
+
 ## What was built
 
 - `[ingestion.corpus]` (the config section) and `config/instances/corpus.toml` (the named
@@ -34,7 +45,7 @@ measurements ran on that, and the vectors were derived from the raw store in the
   backfill from the raw store (`index_from_raw`), which end where one landing ends (tested).
 - A BM25 index of the landed chunks (`core/ingest/lexical.py`), the structural phase's lexical
   representation.
-- Five edge readers (`edge/corpus/`), the runner and its embedder policy (`scripts/corpus.py`,
+- Six edge readers (`edge/corpus/`), the runner and its embedder policy (`scripts/corpus.py`,
   `ops/corpus/embedder.py`), and the measurement harness (`eval/corpus/`).
 
 ## Isolation
@@ -56,11 +67,12 @@ was installed.
 | source | what | how | items | text (MB) | zstd -3 | chunks | chunks per MB |
 |---|---|---|---|---|---|---|---|
 | Wikipedia | English articles, a link-connected sample from network-science and computing seeds | MediaWiki API, 50 pages a request, 1 s apart | 11,414 | 398.0 | 2.86 | 488,999 | 1,229 |
-| OpenAlex | works with abstracts, topics T10064, T10720, T11273, T12592 and part of T11252 | keyless API, date slices, basic paging | 145,029 | 171.3 | 3.28 | 266,149 | 1,554 |
+| OpenAlex | works with abstracts, topics T10064, T10720, T11273, T12592 and part of T11252 | keyless API, date slices, basic paging | 145,029 | 171.1 | 3.28 | 266,149 | 1,556 |
 | arXiv | records of physics.soc-ph, cs.SI, nlin.AO, and the arXiv records of the OpenAlex works that name one | arXiv's query API, 3 s apart | 41,659 | 50.9 | 3.16 | 81,889 | 1,609 |
 | Stack Exchange | cstheory and cs whole, datascience to the budget, from the 2024-04-02 dump | archive.org, bsdtar | 163,503 | 170.2 | 2.97 | 239,270 | 1,406 |
 | Project Gutenberg | 338 English science texts by Library of Congress class | catalogue, then gutenberg.pglaf.org, 2 s apart | 338 | 108.1 | 3.03 | 125,379 | 1,159 |
-| **total** | | | **361,943** | **898.5** | **2.99** | **1,201,686** | **1,337** |
+| Hacker News | the most recent three weeks whole, then stories of 2012 to 2024 sampled uniformly; each story with its reply tree, one thread an item | the official API: ids walked down from the newest, then drawn uniformly in 2012 to 2024's id range; 12 connections, at most 80 requests a second | 38,331 | 120.1 | 2.71 | 168,258 | 1,402 |
+| **total** | | | **400,274** | **1018.4** | **2.96** | **1,369,944** | **1,345** |
 
 D-2 was decided during the run: Hacker News is included through its official API, held
 locally and never republished, so the mix is the design's own rescaled into 1 GB: Wikipedia 35%,
@@ -68,8 +80,7 @@ OpenAlex 24%, Stack Exchange 15%, Hacker News 12%, Gutenberg 9.5%, arXiv 4.5%. W
 Exchange, Gutenberg and arXiv reached or passed their share (they were sized before the decision,
 on the proportions without Hacker News). OpenAlex stopped at 171 of its 240 MB when the keyless
 API's daily budget (0.10 USD, a thousand requests, shared by the IP address) was spent; its
-remainder needs the next day's budget or an API key, which is an account (D-5). Hacker News is
-being fetched (120 MB of threads) and lands in the structural phase when its reader finishes.
+remainder needs the next day's budget or an API key, which is an account (D-5). Hacker News first walked item ids down from the newest (15,362 threads, 47 MB, the last three weeks), which put it outside every dated window the rises read; the rest of its budget went to threads drawn uniformly among the stories of 2012 to 2024 (an item id drawn at random in the window's range, kept when it is a live story, with its whole reply tree): 22,969 threads, 73 MB. Its text is held locally and never republished; only aggregate measurements leave the instance.
 
 ## Results: structure
 
@@ -78,6 +89,26 @@ These need no vector and ran as soon as the structural phase landed every item.
 ### Macro quantities
 
 **arxiv.version**: 16,620 edges, 33,240 nodes in 16,620 components, the largest 2 nodes: no component reaches the ladder's first rung (300), so no macro quantity is defined.
+
+**hackernews.reply** (343,930 edges)
+
+| cut N | edges | mean deg | min deg / ln N | gamma | 6-core n | 6-core gamma | 10-core n | grad | curl | harm | Hodge on n |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 59 | 58 | 2.0 | 0.24 | 0.0270 | 0 | n/a | 0 | 1.000 | 0.000 | 0.000 | 59 |
+| 204 | 203 | 2.0 | 0.19 | 0.0080 | 0 | n/a | 0 | 1.000 | 0.000 | 0.000 | 204 |
+| 204 | 203 | 2.0 | 0.19 | 0.0080 | 0 | n/a | 0 | 1.000 | 0.000 | 0.000 | 204 |
+| 411 | 410 | 2.0 | 0.17 | 0.0033 | 0 | n/a | 0 | 1.000 | 0.000 | 0.000 | 411 |
+| 443 | 442 | 2.0 | 0.16 | 0.0032 | 0 | n/a | 0 | 1.000 | 0.000 | 0.000 | 443 |
+| 776 | 775 | 2.0 | 0.15 | 0.0023 | 0 | n/a | 0 | 1.000 | 0.000 | 0.000 | 776 |
+| 1,904 | 1,903 | 2.0 | 0.13 | 0.0009 | 0 | n/a | 0 | 1.000 | 0.000 | 0.000 | 1,904 |
+
+| reading | full | 3-core | 6-core | 10-core |
+|---|---|---|---|---|
+| N* of gamma | n/a | n/a | n/a | n/a |
+| N* of gap2 | n/a | n/a | n/a | n/a |
+| N* of gap3 | n/a | n/a | n/a | n/a |
+| N* of gap4 | n/a | n/a | n/a | n/a |
+| N* of the Hodge widths (grad, curl, harm) | 59, n/a, n/a | | | |
 
 **openalex.citation** (1,118,912 edges)
 
@@ -141,46 +172,65 @@ These need no vector and ran as soon as the structural phase landed every item.
 
 ### Bridges
 
-**explicit**: 1,941,876 edges, 30,428 across sources (share 0.016, the null's 0.531); 99 community pairs over the null against a false-positive bar of 46.5; CIF-2 (bridges) held.
+**explicit**: 1,942,168 edges, 30,720 across sources (share 0.016, the null's 0.531); 106 community pairs over the null against a false-positive bar of 40.9; CIF-2 (bridges) held.
 
-| source pair | edges | bridges |
-|---|---|---|
-| arxiv-openalex | 27,397 | 88 |
-| arxiv-stackexchange | 463 | 11 |
-| arxiv-wikipedia | 195 | 0 |
-| gutenberg-wikipedia | 1 | 0 |
-| openalex-stackexchange | 295 | 0 |
-| openalex-wikipedia | 287 | 0 |
-| stackexchange-wikipedia | 1,790 | 0 |
+| source pair | edges | bridges | the null's false positives (mean, bar) |
+|---|---|---|---|
+| arxiv-hackernews | 9 | 0 | 0.0, 0.0 |
+| arxiv-openalex | 27,397 | 87 | 0.8, 2.5 |
+| arxiv-stackexchange | 463 | 10 | 3.4, 6.4 |
+| arxiv-wikipedia | 195 | 0 | 2.1, 4.2 |
+| gutenberg-wikipedia | 1 | 0 | 0.0, 0.0 |
+| hackernews-openalex | 0 | 0 | 0.3, 1.2 |
+| hackernews-wikipedia | 283 | 9 | 0.0, 0.0 |
+| openalex-stackexchange | 295 | 0 | 7.9, 11.7 |
+| openalex-wikipedia | 287 | 0 | 0.0, 0.0 |
+| stackexchange-wikipedia | 1,790 | 0 | 19.8, 27.1 |
+
+**explicit_without_twins**: 1,914,771 edges, 3,323 across sources (share 0.002, the null's 0.526); 37 community pairs over the null against a false-positive bar of 39.3; CIF-2 (bridges) broken.
+
+| source pair | edges | bridges | the null's false positives (mean, bar) |
+|---|---|---|---|
+| arxiv-hackernews | 9 | 0 | 0.0, 0.0 |
+| arxiv-stackexchange | 463 | 22 | 0.0, 0.0 |
+| arxiv-wikipedia | 195 | 5 | 0.4, 1.4 |
+| gutenberg-wikipedia | 1 | 0 | 0.0, 0.0 |
+| hackernews-openalex | 0 | 0 | 0.1, 0.7 |
+| hackernews-wikipedia | 283 | 10 | 0.0, 0.0 |
+| openalex-stackexchange | 295 | 0 | 8.5, 13.2 |
+| openalex-wikipedia | 287 | 0 | 0.0, 0.0 |
+| stackexchange-wikipedia | 1,790 | 0 | 16.9, 27.3 |
 
 ### Shared rises
 
 | reading | value |
 |---|---|
-| communities (sources) | 53 (5) |
-| rho_w (95% band) | 0.122 (0.111, 0.127) |
-| rho_b (95% band) | 0.092 (0.089, 0.096) |
-| at lag 0: rho_w, rho_b | 0.070, 0.040 |
+| communities (sources) | 71 (6) |
+| rho_w (95% band) | 0.116 (0.108, 0.120) |
+| rho_b (95% band) | 0.091 (0.089, 0.093) |
+| at lag 0: rho_w, rho_b | 0.066, 0.037 |
 | the circular-shift null (band) | 0.094, 0.092 (0.091, 0.096) |
-| N_eff at m = 10.6, and its limit | 8.71, 10.17 |
+| N_eff at m = 11.8, and its limit | 9.30, 10.51 |
 
 ### Retrieval battery, lexical arm
 
 | arm: family | n | unscoped 1% | 10% | 100% | fall (95% CI) | scoped 1% | 100% | fall (95% CI) | pending |
 |---|---|---|---|---|---|---|---|---|---|
-| lexical:cite:wikipedia->paper | 333 | 0.913 | 0.868 | 0.811 | 0.102 (0.072, 0.135) | 0.919 | 0.823 | 0.096 (0.066, 0.129) | 0 |
-| lexical:link:stackexchange->wikipedia | 333 | 0.544 | 0.396 | 0.183 | 0.360 (0.309, 0.411) | 0.655 | 0.547 | 0.108 (0.075, 0.144) | 0 |
+| lexical:cite:wikipedia->paper | 333 | 0.913 | 0.868 | 0.811 | 0.102 (0.072, 0.135) | 0.916 | 0.823 | 0.093 (0.063, 0.126) | 0 |
+| lexical:link:hackernews->wikipedia | 210 | 0.276 | 0.238 | 0.143 | 0.133 (0.090, 0.181) | 0.329 | 0.195 | 0.133 (0.086, 0.181) | 0 |
+| lexical:link:stackexchange->wikipedia | 333 | 0.532 | 0.399 | 0.186 | 0.345 (0.297, 0.399) | 0.631 | 0.559 | 0.072 (0.045, 0.102) | 0 |
 | lexical:titles:arxiv | 500 | 1.000 | 1.000 | 0.990 | 0.010 (0.002, 0.020) | 1.000 | 0.998 | 0.002 (0.000, 0.006) | 0 |
-| lexical:titles:gutenberg | 338 | 0.988 | 0.985 | 0.970 | 0.018 (0.006, 0.033) | 0.988 | 0.988 | 0.000 (0.000, 0.000) | 0 |
+| lexical:titles:gutenberg | 338 | 0.988 | 0.988 | 0.970 | 0.018 (0.006, 0.033) | 0.988 | 0.988 | 0.000 (0.000, 0.000) | 0 |
+| lexical:titles:hackernews | 500 | 1.000 | 1.000 | 0.994 | 0.006 (0.000, 0.014) | 1.000 | 0.998 | 0.002 (0.000, 0.006) | 0 |
 | lexical:titles:openalex | 500 | 0.978 | 0.972 | 0.952 | 0.026 (0.014, 0.040) | 0.980 | 0.958 | 0.022 (0.010, 0.036) | 0 |
-| lexical:titles:stackexchange | 500 | 0.996 | 0.986 | 0.954 | 0.042 (0.026, 0.060) | 0.996 | 0.960 | 0.036 (0.022, 0.054) | 0 |
-| lexical:titles:wikipedia | 500 | 1.000 | 1.000 | 0.972 | 0.028 (0.014, 0.044) | 1.000 | 0.984 | 0.016 (0.006, 0.028) | 0 |
-| lexical:twins:arxiv->openalex | 500 | 0.992 | 0.992 | 0.988 | 0.004 (0.000, 0.010) | 0.992 | 0.992 | 0.000 (0.000, 0.000) | 0 |
-| lexical:twins:openalex->arxiv | 500 | 0.994 | 0.992 | 0.992 | 0.002 (0.000, 0.006) | 0.994 | 0.992 | 0.002 (0.000, 0.006) | 0 |
+| lexical:titles:stackexchange | 500 | 0.996 | 0.986 | 0.958 | 0.038 (0.022, 0.056) | 0.996 | 0.962 | 0.034 (0.020, 0.052) | 0 |
+| lexical:titles:wikipedia | 500 | 1.000 | 0.998 | 0.970 | 0.030 (0.016, 0.046) | 1.000 | 0.984 | 0.016 (0.006, 0.028) | 0 |
+| lexical:twins:arxiv->openalex | 500 | 0.996 | 0.996 | 0.996 | 0.000 (0.000, 0.000) | 0.998 | 0.996 | 0.002 (0.000, 0.006) | 0 |
+| lexical:twins:openalex->arxiv | 500 | 0.992 | 0.992 | 0.992 | 0.000 (0.000, 0.000) | 0.992 | 0.992 | 0.000 (0.000, 0.000) | 0 |
 
-*lexical, all (2338 questions, v(N) = 0.967)*: wikipedia Shapley 0.208, LOO 0.206 (p 0.000); openalex Shapley 0.252, LOO 0.167 (p 0.000); arxiv Shapley 0.161, LOO 0.077 (p 0.000); stackexchange Shapley 0.204, LOO 0.203 (p 0.000); gutenberg Shapley 0.141, LOO 0.140 (p 0.000)
+*lexical, all (2838 questions, v(N) = 0.973)*: wikipedia Shapley 0.171, LOO 0.169 (p 0.000); openalex Shapley 0.208, LOO 0.138 (p 0.000); arxiv Shapley 0.133, LOO 0.063 (p 0.000); stackexchange Shapley 0.169, LOO 0.168 (p 0.000); gutenberg Shapley 0.116, LOO 0.115 (p 0.000); hackernews Shapley 0.175, LOO 0.175 (p 0.000)
 
-*lexical, twinned (397 questions, v(N) = 0.987)*: wikipedia Shapley 0.000, LOO 0.000 (p 1.000); openalex Shapley 0.492, LOO -0.005 (p 1.000); arxiv Shapley 0.497, LOO 0.000 (p 1.000); stackexchange Shapley -0.001, LOO -0.003 (p 1.000); gutenberg Shapley 0.000, LOO 0.000 (p 1.000)
+*lexical, twinned (397 questions, v(N) = 0.987)*: wikipedia Shapley 0.000, LOO 0.000 (p 1.000); openalex Shapley 0.492, LOO -0.005 (p 1.000); arxiv Shapley 0.497, LOO 0.000 (p 1.000); stackexchange Shapley -0.001, LOO -0.003 (p 1.000); gutenberg Shapley 0.000, LOO 0.000 (p 1.000); hackernews Shapley 0.000, LOO 0.000 (p 1.000)
 
 CIF-10 (lexical): held.
 
@@ -188,26 +238,26 @@ CIF-10 (lexical): held.
 
 | lexical units | median query (ms) | matrix bytes |
 |---|---|---|
-| 12,017 | 0.191 | 11,451,156 |
-| 36,051 | 0.483 | 27,731,124 |
-| 120,169 | 1.5 | 84,322,372 |
-| 360,506 | 4.359 | 246,831,524 |
-| 1,201,686 | 14.193 | 814,863,324 |
+| 13,699 | 0.208 | 13,130,520 |
+| 41,098 | 0.554 | 32,079,080 |
+| 136,994 | 1.645 | 98,092,256 |
+| 410,983 | 5.065 | 286,934,048 |
+| 1,369,944 | 16.389 | 946,879,224 |
 
 | sentence | items | chunks | wall (s) | peak RSS (MB) | Python share | note |
 |---|---|---|---|---|---|---|
-| `top 10 near` | 12,897 | 34,428 | 7.46 | 5,661 | 0.78 |  |
-| `top 10 diffuse S from` | 12,897 | 34,428 | n/a | n/a | n/a | rss above 6.0 GB |
-| `reach S from` | 12,897 | 34,428 | n/a | n/a | n/a | rss above 6.0 GB |
-| `top 10 near` | 1,000 | 3,012 | 2.77 | 333 | 0.96 |  |
-| `top 10 diffuse S from` | 1,000 | 3,012 | 0.29 | 382 | 0.52 |  |
 | `reach S from` | 1,000 | 3,012 | 0.26 | 333 | 0.56 |  |
-| `top 10 near` | 3,000 | 7,620 | 2.72 | 724 | 0.90 |  |
-| `top 10 diffuse S from` | 3,000 | 7,620 | 1.12 | 1,267 | 0.45 |  |
+| `top 10 diffuse S from` | 1,000 | 3,012 | 0.29 | 382 | 0.52 |  |
+| `top 10 near` | 1,000 | 3,012 | 2.77 | 333 | 0.96 |  |
 | `reach S from` | 3,000 | 7,620 | 0.77 | 781 | 0.68 |  |
-| `top 10 near` | 10,000 | 25,316 | 6.84 | 3,683 | 0.82 |  |
-| `top 10 diffuse S from` | 10,000 | 25,316 | n/a | n/a | n/a | rss above 6.0 GB |
+| `top 10 diffuse S from` | 3,000 | 7,620 | 1.12 | 1,267 | 0.45 |  |
+| `top 10 near` | 3,000 | 7,620 | 2.72 | 724 | 0.90 |  |
 | `reach S from` | 10,000 | 25,316 | 4.75 | 4,477 | 0.77 |  |
+| `top 10 diffuse S from` | 10,000 | 25,316 | n/a | n/a | n/a | rss above 6.0 GB |
+| `top 10 near` | 10,000 | 25,316 | 6.84 | 3,683 | 0.82 |  |
+| `reach S from` | 12,897 | 34,428 | n/a | n/a | n/a | rss above 6.0 GB |
+| `top 10 diffuse S from` | 12,897 | 34,428 | n/a | n/a | n/a | rss above 6.0 GB |
+| `top 10 near` | 12,897 | 34,428 | 7.46 | 5,661 | 0.78 |  |
 
 
 
@@ -219,20 +269,29 @@ The vector phase (`scripts/corpus.py embed --streams 4 --embed-batch 32`) derive
 
 | id | what would falsify (dn-corpus-instance) | stage 1 |
 |---|---|---|
-| CIF-1 | Hacker News threads chunk above 2,000 chunks per MB | pending: Hacker News is being fetched (D-2 decided during the run) |
-| CIF-2 | bridges at or below the rewiring null; or rho_b inside the band of rho_w | held so far: 99 explicit community-pair bridges against a false-positive bar of 46.5; rho_b 0.092 below rho_w's band (0.111, 0.127), and at the circular-shift null's level (0.092); semantic bridges pending |
-| CIF-4 | a compact occupancy row above 300 B, or an edge above 24 B | edges held (12.0 B per edge on every relation of more than a thousand edges); occupancy pending the plane's completion |
-| CIF-5 | a write outside `instances/corpus/`, or a read of the default instance's sources | held: the isolation proof above; every reader, the runner and the harness write under the instance's root |
-| CIF-6 | a batch interrupted and re-run lands a different state | held: tested at four cut points against an uninterrupted landing; in the run, two kills mid-batch and resumption left one attestation per digest (349,795 for 349,795 digests) and no key without one |
-| CIF-7 | a 6-core or 10-core gap width that never falls under 10% by N = 10^5 | held for citations (6-core 51,262, 10-core 28,912) and hyperlinks (5,703, 9,697); answers, versions and post links have no 6-core, so the falsifier has nothing to read there |
-| CIF-8 | a harmonic fraction still moving where gamma has settled | held for citations (harmonic width under 10% from 9,788, gamma from 27,850); broken by a hair for hyperlinks (harmonic fraction 0.018, its width 0.103 on a 7,509-node subsample, where gamma has settled at 8,502) |
-| CIF-9 | unscoped recall flat in N; or scoped recall falling with the source's own N | lexical arm: the first clause held (unscoped recall falls in 7 of 9 families, by up to 0.36); the second broken for the citation, Stack Exchange, OpenAlex and Wikipedia title families (scoped recall falls by 0.02 to 0.10 with the source's own growth); semantic arm pending |
-| CIF-10 | leave-one-out at the bar for both twins | lexical arm: held (Shapley 0.49 and 0.50, leave-one-out 0.00 and -0.01, Holm p = 1); semantic arm pending |
-| CIF-11 | a Python share above 20% on any sentence | broken: 52 to 96% on `near`, `diffuse` and `reach` over the observed stratum at 1,000 to 10,000 items (preliminary: the embedder was busy; the final probe excludes its wait) |
+| CIF-1 | Hacker News threads chunk above 2,000 chunks per MB | held (1,402 chunks per MB) |
+| CIF-2 | bridges at or below the null; or rho_b inside rho_w's band | held: explicit bridges above the null (106 community pairs against a false-positive bar of 40.9); without the twins, 37 against 39.3 in all, while arxiv-stackexchange (22 against 0.0), hackernews-wikipedia (10 against 0.0), arxiv-wikipedia (5 against 1.4) stand above their own pair's false positives; rho_b 0.091 below rho_w's band (0.108, 0.120), at the shift null's 0.092 |
+| CIF-4 | a compact occupancy row above 300 B, or an edge above 24 B | edges held (12.1 B per edge); occupancy rows pending |
+| CIF-5 | a write outside the instance, or a read of the default instance's sources | held (the isolation proof: no shared namespace, by real path, with a control) |
+| CIF-6 | a batch interrupted and re-run lands a different state | held (four cut points tested; two real kills mid-batch, one attestation a digest) |
+| CIF-7 | a 6-core or 10-core gap width that never falls under 10% by N = 10^5 | held for citations (6-core 51,262, 10-core 28,912) and hyperlinks (8,500); no core in answers, replies, versions or post links |
+| CIF-8 | the harmonic fraction still moving where gamma has settled | held for citations (harmonic 9,788, gamma 27,850); broken by a hair for hyperlinks (harmonic width 0.103 at the last cut, 7,509 nodes) |
+| CIF-9 | unscoped recall flat in N; or scoped recall falling with the source's own N | lexical: unscoped recall falls in 8 of 11 families (first clause held); scoped recall falls with the source's own growth in 6 (second clause broken: Hacker News links, Wikipedia citations, Stack Exchange links, Stack Exchange titles, OpenAlex titles, Wikipedia titles) |
+| CIF-10 | leave-one-out at the bar for both twins | lexical: held (Shapley 0.49 and 0.50, leave-one-out -0.01 and 0.00) |
+| CIF-11 | a Python share above 20% on a sentence | broken (Python share 45 to 96% at 1,000 to 10,000 items, waits excluded) |
 
 ## Deviations from the brief
 
-- OpenAlex is 171 MB, not 273: the keyless API's daily budget (above).
+- OpenAlex is 171 MB, not 240: the keyless API's daily budget (above).
+- Attribution is read on the retrieval battery's value, not on the ledger's generators. The
+  design's attribution row names the ledger's link, version and confirmation generators, whose
+  value is a configuration's log-score advantage on forecasts it makes at a cut; the generators,
+  their resolvers and the forecasting arms are not built in the repository, and a forecasting
+  arm per configuration needs a protocol written before its first prediction. Here `v(S)` is the
+  share of a family's questions answered (the answer or its twin in the first ten) with only the
+  sources in `S` present, the same arms (the full set, each source left out, and every subset for
+  the exact Shapley value over six players), and the same redundancy witness (the OpenAlex and
+  arXiv twins).
 - arXiv came through arXiv's query API, not OAI-PMH: on 2026-11-07 the OAI-PMH endpoint
   (`export.arxiv.org/oai2`, which redirects to `oaipmh.arxiv.org/oai`) answered neither a
   category set nor a one-day datestamp window inside its gateway's three-minute first-byte limit
@@ -248,12 +307,12 @@ The vector phase (`scripts/corpus.py embed --streams 4 --embed-batch 32`) derive
 
 ## Disk
 
-Free space before the run 116 GiB, now 108 GiB; the instance holds 7.9 GB so far (the dumps and pages the readers keep, the streams, the raw store, the lexical index, the plane in progress). The final footprint follows the vector phase.
+Free space before the run 116 GiB, now 104 GiB; the instance holds 11 GB so far: the readers' dumps, pages and streams 3.7 GB, the raw store 2.0 GB, the plane in progress 3.9 GB, the lexical index 0.9 GB. The floor of 25 GB free was never approached.
 
 ## Reproduce
 
     MIND_PALACE_OVERLAY=config/instances/corpus.toml uv run python scripts/corpus.py isolation --live <checkout>
-    ... scripts/corpus.py fetch <source> [--budget-mb N]          # each of the five
+    ... scripts/corpus.py fetch <source> [--budget-mb N]          # each of the six
     ... scripts/corpus.py ingest --structural                     # phase 1: keys, raw, attestations
     ... scripts/corpus.py lexical                                 # the BM25 index
     ... uv run python -m eval.corpus.stage1 edges | macro | rises | bridges --explicit-only | arms --lexical-only | lexcost

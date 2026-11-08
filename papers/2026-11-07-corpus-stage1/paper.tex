@@ -35,23 +35,23 @@
 \begin{abstract}
 A design for growing a private knowledge store toward a hundred gigabytes of open text names three
 stages and, for the first, a table of measurements with the observations that would falsify each
-expectation. We report the first stage. Five open sources (Wikipedia, OpenAlex, arXiv, Stack Exchange and Project Gutenberg; Hacker News is being added)  were read by edge processes into a named instance whose
-every namespace is derived from its id and shown, by the store's own check over real paths, to share
-nothing with the live instance. Items land through the store's ingress in batches whose stages run
-across the batch with each item's key written last, a form of the ingress's convergence laws that a
-crash test checks at four cut points. The landing is two-phase: every item lands first with its label,
-its explicit relations and a BM25 index, which needs no model; its chunk vectors are derived from the
-raw store afterwards and are pending until then. On the structure alone: the citation graph's 6-core
-and 10-core spectral gaps settle by $5\times10^4$ nodes and its Hodge split a decade earlier; the
-hyperlink graph's gap settles near $10^4$; reply, answer and version relations form forests with no
-core. Ninety-nine pairs of communities across sources are joined more often than a degree-preserving
-null joins them (a false-positive bar of 46), and communities rise together within a source
-($\rho_w = 0.12$) but across sources only at the level of a circular-shift null ($\rho_b = 0.09$),
-for an effective count of independent signals near 9. Lexical recall at ten falls as the corpus grows
-in seven of nine question families, by up to 0.36; restricting the search to the answer's source
-removes most of the fall caused by other sources but not the fall caused by the source's own growth.
-A sentence of the store's query algebra over the observed stratum loads every item of it and costs
-6.8\,s and 3.7\,GB at ten thousand items, so at a million chunks it is out of reach as built.
+expectation. We report the first stage. Six open sources (Wikipedia, OpenAlex, arXiv, Stack Exchange, Project Gutenberg and Hacker News)  were read by edge processes into a named
+instance shown, by the store's own check over real paths, to share nothing with the live instance:
+1.02\,GB of text, 400,274 items, 1.37 million chunks. Items land through the store's ingress in
+batches whose stages run across the batch with each key written last, and in two phases: every item
+lands first with its label, its explicit relations and a BM25 index, which needs no model, and its
+vectors are derived from the raw store afterwards, pending until then. On the structure alone, the
+citation graph's 6-core and 10-core spectral gaps settle by $5\times10^4$ nodes and its Hodge split a
+decade earlier, while replies, answers and versions form forests with no core. Across sources, 106
+pairs of communities are joined beyond a degree-preserving null against a false-positive bar of 41,
+most of them by the arXiv and OpenAlex twins, one paper in two sources; without the twins the count
+falls below the bar, and three source pairs carry the remaining bridges. Communities rise together
+within a source ($\rho_w = 0.12$) and across sources only at a shift null's level ($\rho_b = 0.09$),
+an effective count of 9.3 independent signals. Lexical recall at ten falls as the corpus grows in 8 of
+11 question families, by up to 0.35; a source scope removes the fall other sources cause but not the
+source's own. The vectors are being derived, and the semantic arm and its attribution follow. A sentence of the query algebra over the observed stratum builds its
+universe from every item of the stratum and passes 6\,GB near ten thousand items, so at a million
+chunks it is out of reach as built.
 \end{abstract}
 
 \section{Introduction}
@@ -76,7 +76,7 @@ The contributions:
 \item a bulk path through the ingress that lands a batch stage by stage with each key last, and a
   two-phase landing in which structure lands first and vectors are a derived layer added after,
   both with their convergence argued and tested (\cref{sec:theory,sec:impl});
-\item 0.90\,GB of text from five sources, 1.2 million chunks, with Hacker News being added (\cref{sec:data});
+\item 1.02\,GB of text from six sources, 1.37 million chunks (\cref{sec:data});
 \item the structural measurements of the stage-1 table: macro quantities per relation with bootstrap
   widths, bridges and shared rises against nulls, the lexical retrieval battery with crowding and
   attribution, and cost against $N$ (\cref{sec:eval});
@@ -210,13 +210,13 @@ twenty seconds after), stops at once on an error naming Metal or memory, and kee
 source & items & text (MB) & zstd $-3$ & chunks & chunks/MB\\
 \midrule
 Wikipedia & 11,414 & 398.0 & 2.86 & 488,999 & 1,229\\
-OpenAlex & 145,029 & 171.3 & 3.28 & 266,149 & 1,554\\
+OpenAlex & 145,029 & 171.1 & 3.28 & 266,149 & 1,556\\
 arXiv & 41,659 & 50.9 & 3.16 & 81,889 & 1,609\\
 Stack Exchange & 163,503 & 170.2 & 2.97 & 239,270 & 1,406\\
 Project Gutenberg & 338 & 108.1 & 3.03 & 125,379 & 1,159\\
-Hacker News & \multicolumn{5}{l}{being fetched and landed (D-2 decided during the run)}\\ % & HNMB & HNZSTD & HNCHUNKS & HNRATE\\
+Hacker News & 38,331 & 120.1 & 2.71 & 168,258 & 1,402\\
 \midrule
-total & 362,112 & 898.5 & 2.99 & 1,201,686 & 1,337\\
+total & 400,274 & 1018.4 & 2.96 & 1,369,944 & 1,345\\
 \bottomrule
 \end{tabular}
 \caption{The corpus. Text is the landing form (prose, markup removed, title prepended); chunks are the
@@ -227,8 +227,10 @@ The Wikipedia sample is a snowball over the link graph from network-science and 
 its hyperlink graph has cores; OpenAlex holds the works with abstracts of five related topics; arXiv
 holds the records of three categories and the arXiv records of OpenAlex works that name one (the twins);
 Stack Exchange holds two sites whole and a third to its budget; Gutenberg 338 science texts; Hacker
-News the most recent threads, each story with its reply tree. OpenAlex stopped at 171 of its 273\,MB
-when the keyless API's daily budget was spent.
+News the most recent three weeks whole and then stories of 2012 to 2024 drawn uniformly (an item id
+drawn at random in the window's range, kept when it is a story), each story with its reply tree. The mix is the design's rescaled into
+one gigabyte (Wikipedia 35\%, OpenAlex 24\%, Stack Exchange 15\%, Hacker News 12\%, Gutenberg 9.5\%,
+arXiv 4.5\%); OpenAlex stopped at 171 of its 240\,MB when the keyless API's daily budget was spent.
 
 \section{Evaluation: structure}\label{sec:eval}
 \subsection{Macro quantities per relation}
@@ -246,59 +248,38 @@ Lanczos on $2I-L$ on dense or large ones (the same eigenvalues where both run).
 relation & largest & $N^\ast(\gamma)$ & 6-core & 10-core & Hodge (grad, curl, harm)\\
 \midrule
 OpenAlex citations & 107,497 & 27,850 & 51,262 & 28,912 & 236, 2,890, 9,788\\
-Wikipedia hyperlinks & 11,414 & 8,502 & 5,703 & 9,697 & 302, 302, none\\
+Wikipedia hyperlinks & 11,414 & 8,502 & 8,500 & 8,496 & 302, 302, none\\
 Stack Exchange post links & 4,489 & none & no core & no core & 70, none, none\\
+Hacker News replies & 1,904 & none & no core & no core & 59, none, none\\
 Stack Exchange answers & 93 & \multicolumn{4}{l}{a forest of stars: no component reaches 300}\\
 versions & 2, 84 & \multicolumn{4}{l}{chains: no component reaches 300}\\
-Hacker News replies & pending & \multicolumn{4}{l}{a forest of reply trees}\\
 \bottomrule
 \end{tabular}
 \caption{Where each width falls under 10\%. Citations reach $\gamma = 0.010$ at $N = 107{,}497$ with
-mean degree 20.8 and minimum degree 1; the hyperlink graph $\gamma = 0.107$ at mean degree 121.}
+mean degree 20.8 and minimum degree 1; the hyperlink graph $\gamma = 0.108$ at mean degree 121, its
+cores the whole graph. A reply thread is a tree: all of its flow is gradient.}
 \label{tab:macro}
 \end{table}
 The citation graph behaves as the scale study's did, now three times larger: the 6-core and 10-core
 gaps settle by $5\times10^4$ nodes and the Hodge split (0.85 gradient, 0.09 curl, 0.06 harmonic)
 settles a decade earlier. The hyperlink graph is so dense that its cores are the whole graph and its
-gap settles near $10^4$. Every relation inside one item or one thread (answers, replies, versions) is
-a forest, and its macro quantities are not defined: a relation kind can lack the cores the
-concentration argument needs.
+gap settles near $10^4$. Versions and replies join nodes inside one item, answers each join one
+question: these relations are forests (the largest reply thread holds 1,904 comments), they have no
+core, and the concentration argument has nothing to act on.
 
-\subsection{Bridges}
-The graph at the item grain joins every explicit relation and every explicit bridge (citations by DOI
-and arXiv id, links, the twins). The null is the configuration model \citep{molloy1995critical}: the
-edges rewired by matching their endpoints' stubs at random, every degree kept. A pair of communities
-of different sources is a bridge when more edges join it than the null's mean plus three of its
-standard deviations; the same count made on a null draw scored against the other draws gives the
-false positives. Communities are OpenAlex topics, arXiv primary categories, a question's first tag,
-a book's Library of Congress class, a thread's link host, and Louvain communities
-\citep{blondel2008louvain} of the hyperlink graph.
+\subsection{Bridges and shared rises}
+The item graph joins every explicit relation between items and every explicit bridge (citations by
+DOI and arXiv id, links, the twins). The null is the configuration model \citep{molloy1995critical}:
+the edges rewired by matching their endpoints' stubs at random, every degree kept. A pair of
+communities of different sources is a bridge when more edges join it than the null's mean plus three
+of its standard deviations. Communities are OpenAlex topics, arXiv primary categories, a question's
+first tag, a book's Library of Congress class, a thread's link host, and Louvain communities
+\citep{blondel2008louvain} of the hyperlink graph. The item graph has 1,942,168 edges, 1.6\% of them across sources against 53\% in the null, which mixes sources freely; 17,146 communities. 106 pairs of communities of different sources are bridges, against a false-positive bar of 40.9 (the mean and two deviations of the bridges a null draw shows against the other draws), 87 of them between arXiv and OpenAlex, whose twins are one paper in two sources. Without the twin relation, 37 bridges stand against a bar of 39.3, so the count alone no longer clears the null; but the null's false positives fall where no bridge is observed (Stack Exchange and Wikipedia, OpenAlex and Stack Exchange), and three source pairs stand above their own: arXiv and Stack Exchange (22 against 0.0), Hacker News and Wikipedia (10 against 0.0), arXiv and Wikipedia (5 against 1.4).
 
-\begin{table}[ht]
-\centering\small
-\begin{tabular}{lrr}
-\toprule
-source pair & edges across & bridges over the null\\
-\midrule
-arxiv and openalex & 27,397 & 88\\
-arxiv and stackexchange & 463 & 11\\
-arxiv and wikipedia & 195 & 0\\
-gutenberg and wikipedia & 1 & 0\\
-openalex and stackexchange & 295 & 0\\
-openalex and wikipedia & 287 & 0\\
-stackexchange and wikipedia & 1,790 & 0\\
-\midrule
-all & 30,428 & 99 (false positives 34.4, bar 46.5)\\
-\bottomrule
-\end{tabular}
-\caption{Explicit bridges. 1,941,876 edges in all; 1.6\% cross sources, against 53.1\% in the null, which mixes sources freely. The bridges are community pairs joined above the null.}
-\label{tab:bridges}
-\end{table}
-
-\subsection{Shared rises}
-A community's signal is its weekly count of new items and new edges, 2012 to 2024, detrended as the
-first difference of its log; two communities' correlation is the largest absolute Pearson correlation
-at lags of 0 to 8 weeks. The null shifts each series circularly by its own random offset.
+A community's signal is its weekly count of new items and new edges (a version or a reply counted at
+its item), 2012 to 2024, detrended as the first difference of its log; two communities' correlation is
+the largest absolute Pearson correlation at lags of 0 to 8 weeks, and the null shifts each series
+circularly by its own random offset (\cref{tab:rises}).
 
 \begin{table}[ht]
 \centering\small
@@ -306,83 +287,77 @@ at lags of 0 to 8 weeks. The null shifts each series circularly by its own rando
 \toprule
 reading & value\\
 \midrule
-communities (sources) & 53 (5)\\
-$\rho_w$, 95\% band & 0.122 (0.111, 0.127)\\
-$\rho_b$, 95\% band & 0.092 (0.089, 0.096)\\
-at lag 0: $\rho_w$, $\rho_b$ & 0.070, 0.040\\
+communities (sources) & 71 (6)\\
+$\rho_w$, 95\% band & 0.116 (0.108, 0.120)\\
+$\rho_b$, 95\% band & 0.091 (0.089, 0.093)\\
 circular-shift null, band & 0.094, 0.092 (0.091, 0.096)\\
-$N_{\mathrm{eff}}$ at $m = 10.6$; its limit & 8.71; 10.17\\
+$N_{\mathrm{eff}}$ at $m = 11.8$; its limit & 9.30; 10.51\\
 \bottomrule
 \end{tabular}
-\caption{Shared rises. Within a source, communities rise together above the null; across sources, at the null's level.}
+\caption{Shared rises over 2012 to 2024, weekly. Within a source, communities rise together above the null; across sources, at the null's level.}
 \label{tab:rises}
 \end{table}
 
-\subsection{The lexical retrieval battery}
+\subsection{The retrieval battery}
 Each family's questions have a known answer: 500 sampled titles per source (all 338 books), arXiv
 abstracts to their OpenAlex twins and back, Wikipedia citation titles to the cited work, and Stack
-Exchange questions and Hacker News threads to the Wikipedia article they link. Recall at ten is read at
-the item grain (the first ten distinct items), unscoped and restricted to the answer's source, over
-nested random subsets of the corpus that keep the answers.
+Exchange questions and Hacker News threads to the Wikipedia article they link (Hacker News links nine
+records of the corpus's arXiv, too few for a family). Recall at ten is read at the item grain (the
+first ten distinct items), unscoped and restricted to the answer's source, over nested random subsets
+of the corpus that keep the answers (\cref{tab:battery}). By the crowding lemma recall can only fall
+along nested corpora; the table measures how fast.
 
 \begin{table}[ht]
 \centering\footnotesize
-\begin{tabular}{lrrrrrr}
+\begin{tabular}{l r r r}
 \toprule
-family & $n$ & 1\% & 100\% & fall (95\% CI) & scoped 100\% & scoped fall\\
+ & & \multicolumn{1}{c}{recall at 10} & \multicolumn{1}{c}{fall, unscoped / scoped}\\
+family & $n$ & L & fall L\\
 \midrule
-lexical:cite:wikipedia$\to$paper & 333 & 0.913 & 0.811 & 0.102 (0.072, 0.135) & 0.823 & 0.096\\
-lexical:link:stackexchange$\to$wikipedia & 333 & 0.544 & 0.183 & 0.360 (0.309, 0.411) & 0.547 & 0.108\\
-lexical:titles:arxiv & 500 & 1.000 & 0.990 & 0.010 (0.002, 0.020) & 0.998 & 0.002\\
-lexical:titles:gutenberg & 338 & 0.988 & 0.970 & 0.018 (0.006, 0.033) & 0.988 & 0.000\\
-lexical:titles:openalex & 500 & 0.978 & 0.952 & 0.026 (0.014, 0.040) & 0.958 & 0.022\\
-lexical:titles:stackexchange & 500 & 0.996 & 0.954 & 0.042 (0.026, 0.060) & 0.960 & 0.036\\
-lexical:titles:wikipedia & 500 & 1.000 & 0.972 & 0.028 (0.014, 0.044) & 0.984 & 0.016\\
-lexical:twins:arxiv$\to$openalex & 500 & 0.992 & 0.988 & 0.004 (0.000, 0.010) & 0.992 & 0.000\\
-lexical:twins:openalex$\to$arxiv & 500 & 0.994 & 0.992 & 0.002 (0.000, 0.006) & 0.992 & 0.002\\
+Wikipedia titles & 500 & 0.97 & 0.03* / 0.02*\\
+OpenAlex titles & 500 & 0.95 & 0.03* / 0.02*\\
+arXiv titles & 500 & 0.99 & 0.01* / 0.00\\
+Stack Exchange titles & 500 & 0.96 & 0.04* / 0.03*\\
+Gutenberg titles & 338 & 0.97 & 0.02* / 0.00\\
+Hacker News titles & 500 & 0.99 & 0.01 / 0.00\\
+arXiv to OpenAlex twins & 500 & 1.00 & 0.00 / 0.00\\
+OpenAlex to arXiv twins & 500 & 0.99 & 0.00 / 0.00\\
+Wikipedia citations & 333 & 0.81 & 0.10* / 0.09*\\
+Stack Exchange links & 333 & 0.19 & 0.35* / 0.07*\\
+Hacker News links & 210 & 0.14 & 0.13* / 0.13*\\
 \bottomrule
 \end{tabular}
-\caption{Lexical arm (BM25). Recall at ten at 1\% and 100\% of the corpus, the fall between them paired by question with a bootstrap interval, unscoped and scoped to the answer's source.}
-\label{tab:lexical}
+\caption{The retrieval battery, lexical arm (BM25). Recall at ten at the whole corpus, unscoped; the fall from 1\% to 100\% of the corpus paired by question, unscoped and scoped to the answer's source; * marks a fall whose bootstrap interval excludes zero. Per-scale recalls and intervals are in the report.}
+\label{tab:battery}
 \end{table}
 
 \subsection{Attribution over sources}
-$v(S)$ is the share of title questions answered (the item or its twin in the first ten) with only the
-sources in $S$ present. Over all title questions the lexical arm's Shapley values are close to its
-leave-one-out values except for arXiv (0.16 against 0.08), whose records OpenAlex also holds. On the
-questions whose answer has a twin, OpenAlex and arXiv each carry about half (Shapley 0.49 and 0.50) and
-neither is necessary (leave-one-out 0.00 and $-0.01$, Holm \citep{holm1979simple} $p=1$): the
-redundancy witness of SCL-3 appears on this corpus.
+$v(S)$ is the share of a family's questions answered (the answer or its twin in the first ten) with
+only the sources in $S$ present; the Shapley value is exact over the 64 subsets of the six sources,
+and leave-one-out is tested by a sign flip with Holm's correction \citep{holm1979simple}. In the lexical arm, over the 2,838 title questions ($v(N) = 0.97$), each source's Shapley value is close to its leave-one-out value except OpenAlex (0.21 against 0.14) and arXiv (0.13 against 0.06); on the 397 questions whose answer has a twin, OpenAlex and arXiv carry 0.49 and 0.50 and neither is necessary (leave-one-out -0.01 and 0.00).
+The redundancy witness of SCL-3 appears on this corpus: the twins share the value and neither is
+necessary.
 
 \subsection{Cost against $N$}
 \begin{table}[ht]
 \centering\small
 \begin{tabular}{lrrrr}
 \toprule
-operation & items & chunks & wall (s) & peak RSS (MB)\\
+verb & 1,000 items & 3,000 items & 10,000 items & 12,897 items\\
 \midrule
-BM25 top ten & & 12,017 & 0.0002 & \\
-BM25 top ten & & 36,051 & 0.0005 & \\
-BM25 top ten & & 120,169 & 0.0015 & \\
-BM25 top ten & & 360,506 & 0.0044 & \\
-BM25 top ten & & 1,201,686 & 0.0142 & \\
-\code{reach} over observed & 1,000 & 3,012 & 0.26 & 333\\
-\code{diffuse} over observed & 1,000 & 3,012 & 0.29 & 382\\
-\code{near} over observed & 1,000 & 3,012 & 2.77 & 333\\
-\code{reach} over observed & 3,000 & 7,620 & 0.77 & 781\\
-\code{diffuse} over observed & 3,000 & 7,620 & 1.12 & 1,267\\
-\code{near} over observed & 3,000 & 7,620 & 2.72 & 724\\
-\code{reach} over observed & 10,000 & 25,316 & 4.75 & 4,477\\
-\code{diffuse} over observed & 10,000 & 25,316 & killed & $>$6,000\\
-\code{near} over observed & 10,000 & 25,316 & 6.84 & 3,683\\
-\code{reach} over observed & 12,897 & 34,428 & killed & $>$6,000\\
-\code{diffuse} over observed & 12,897 & 34,428 & killed & $>$6,000\\
-\code{near} over observed & 12,897 & 34,428 & 7.46 & 5,661\\
+\code{near} & 2.77\,s (96\%) & 2.72\,s (90\%) & 6.84\,s (82\%) & 7.46\,s (78\%)\\
+\code{diffuse} & 0.29\,s (52\%) & 1.12\,s (45\%) & $>$6\,GB & $>$6\,GB\\
+\code{reach} & 0.26\,s (56\%) & 0.77\,s (68\%) & 4.75\,s (77\%) & $>$6\,GB\\
 \bottomrule
 \end{tabular}
-\caption{Cost against $N$. The lexical query on nested sub-indexes; a sentence of the query algebra on scratch planes of 1,000 to 10,000 items copied from the instance (median of three warm runs, killed above 6\,GB).}
+\caption{A sentence over the observed stratum on scratch planes copied from the instance: median wall time of three warm runs, and the Python share of the profiled run with waits excluded; killed above 6\,GB. The BM25 query of the lexical arm takes 16.4\,ms at 1,369,944 chunks.}
 \label{tab:cost}
 \end{table}
+A sentence of the query algebra over the observed stratum builds its universe from every item of the
+stratum, so its time and memory grow with the stratum, not with the question: \code{diffuse} passes
+6\,GB near ten thousand items, a hundredth of this corpus. The Python share is above the 20\% at which
+the profile's verdict of no compiled rewrite stands. The structural landing took 0.60\,s per thousand
+items at the lander (admit 0.11, derive 0.25, attest and key 0.18).
 
 \section{Evaluation: vectors}\label{sec:vectors}
 The vector phase derives every landed item's chunk vectors from the raw store under the yield policy (four requests of 32 texts, about 35 chunks a second). It is in progress; until an item's rows land, every query that needs its vector reports it pending. This section reports, when the phase completes, the retrieval battery three ways (lexical, semantic, and both by reciprocal rank fusion), the embedder's attribution as a player of its own in the two-player game with the lexical index, the semantic bridges, the BEIR control \citep{thakur2021beir}, and the vector codes written beside the float16 vectors of EmbeddingGemma \citep{vera2025embeddinggemma} for stage 2.
@@ -390,23 +365,23 @@ The vector phase derives every landed item's chunk vectors from the raw store un
 \section{Falsifiers}
 \begin{table}[ht]
 \centering\footnotesize
-\begin{tabular}{l p{0.42\textwidth} p{0.44\textwidth}}
+\begin{tabular}{l p{0.30\textwidth} p{0.56\textwidth}}
 \toprule
 id & what would falsify & stage 1\\
 \midrule
-CIF-1 & Hacker News threads chunk above 2,000 chunks per MB & pending (fetching)\\
-CIF-2 & bridges at or below the null; or $\rho_b$ inside $\rho_w$'s band & held (explicit: 99 pairs against a bar of 46; $\rho_b$ below the band)\\
-CIF-4 & a compact occupancy row above 300\,B, or a columnar edge above 24\,B & edges held (12.0\,B); rows pending\\
-CIF-5 & a write outside the instance, or a read of the default instance's sources & held (the isolation proof)\\
-CIF-6 & a batch interrupted and re-run lands a different state & held (four cut points tested; two real kills, one attestation per digest)\\
-CIF-7 & a 6-core or 10-core gap width that never falls under 10\% by $N=10^5$ & held for citations and hyperlinks; no core in answers, replies, versions\\
-CIF-8 & the harmonic fraction still moving where $\gamma$ has settled & held for citations; broken by a hair for hyperlinks (0.103 at 7,509 nodes)\\
-CIF-9 & unscoped recall flat in $N$; or scoped recall falling with the source's own $N$ & first held (falls in 7 of 9 families); second broken for 4 families (lexical)\\
-CIF-10 & leave-one-out at the bar for both twins & held (lexical: Shapley 0.49 and 0.50, leave-one-out 0)\\
-CIF-11 & a Python share above 20\% on a sentence & broken (52 to 96\% at 1,000 to 10,000 items, embedder wait excluded at the final probe)\\
+CIF-1 & Hacker News threads chunk above 2,000 chunks per MB & held (1,402 chunks per MB)\\
+CIF-2 & bridges at or below the null; or $\rho_b$ inside $\rho_w$'s band & held: explicit bridges above the null (106 community pairs against a false-positive bar of 40.9); without the twins, 37 against 39.3 in all, while arXiv and Stack Exchange (22 against 0.0), Hacker News and Wikipedia (10 against 0.0), arXiv and Wikipedia (5 against 1.4) stand above their own pair's false positives; $\rho_b$ 0.091 below $\rho_w$'s band (0.108, 0.120), at the shift null's 0.092\\
+CIF-4 & a compact occupancy row above 300 B, or an edge above 24 B & edges held (12.1 B per edge); occupancy rows pending\\
+CIF-5 & a write outside the instance, or a read of the default instance's sources & held (the isolation proof: no shared namespace, by real path, with a control)\\
+CIF-6 & a batch interrupted and re-run lands a different state & held (four cut points tested; two real kills mid-batch, one attestation a digest)\\
+CIF-7 & a 6-core or 10-core gap width that never falls under 10\% by $N=10^5$ & held for citations (6-core 51,262, 10-core 28,912) and hyperlinks (8,500); no core in answers, replies, versions or post links\\
+CIF-8 & the harmonic fraction still moving where $\gamma$ has settled & held for citations (harmonic 9,788, $\gamma$ 27,850); broken by a hair for hyperlinks (harmonic width 0.103 at the last cut, 7,509 nodes)\\
+CIF-9 & unscoped recall flat in N; or scoped recall falling with the source's own N & lexical: unscoped recall falls in 8 of 11 families (first clause held); scoped recall falls with the source's own growth in 6 (second clause broken: Hacker News links, Wikipedia citations, Stack Exchange links, Stack Exchange titles, OpenAlex titles, Wikipedia titles)\\
+CIF-10 & leave-one-out at the bar for both twins & lexical: held (Shapley 0.49 and 0.50, leave-one-out -0.01 and 0.00)\\
+CIF-11 & a Python share above 20\% on a sentence & broken (Python share 45 to 96\% at 1,000 to 10,000 items, waits excluded)\\
 \bottomrule
 \end{tabular}
-\caption{The falsifiers stage 1 can test, as they stand. CIF-3 and CIF-12 to CIF-15 are later stages'.}
+\caption{The falsifiers stage 1 can test, each read from the results. CIF-3 and CIF-12 to CIF-15 are later stages'.}
 \label{tab:falsifiers}
 \end{table}
 
@@ -416,6 +391,10 @@ subsets, not across stages. OpenAlex is short of its share. arXiv came through a
 because the OAI-PMH endpoint did not answer on the day; its version chains have two dated ends. The
 Hodge split of a dense graph is measured on a node subsample. Wikipedia links resolve by exact title,
 so a link through a redirect is lost. The rises read a window in which Gutenberg releases are sparse.
+The design reads attribution on the forecasting ledger's generators, a configuration's value being
+its log-score advantage on questions it forecasts at a cut; those generators and their forecasting
+arms are not yet built, so attribution here is read on the retrieval battery's value, with the same
+arms and the same redundancy witness.
 
 \section{Future work}
 Stage 2 compares the codes written here against exact answers at ten gigabytes; the universe of the
