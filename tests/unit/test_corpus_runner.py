@@ -119,3 +119,24 @@ def test_a_request_is_sized_by_the_streams_mean_item(tmp_path: Path):
     assert runner.batch_items(long_, 3000, 2000) == 5
     assert runner.batch_items(short, 3000, 2000) == 2000
     assert runner.batch_items(tmp_path / "empty", 3000, 2000) == 1538
+
+
+def test_a_text_too_long_for_the_server_is_sent_alone_and_cut_to_what_it_takes(monkeypatch):
+    monkeypatch.setattr(emb.time, "sleep", lambda s: None)
+
+    class _Long(_Inner):
+        def embed_documents(self, texts: list[str]) -> list[list[float]]:
+            with self._lock:
+                self.calls.append(len(texts))
+            if any(len(t) > 50 for t in texts):
+                raise RuntimeError("/v1/embeddings failed (HTTP 500): input (2951 tokens) is too "
+                                   "large to process. increase the physical batch size")
+            return [[float(len(t)), 0.0, 1.0] for t in texts]
+
+    inner = _Long()
+    g = emb.GatedEmbedder(inner, _Gate(), streams=1, batch=8)  # type: ignore[arg-type]
+    texts = ["short", "x" * 300, "also short"]
+    out = g.embed_documents(texts)
+    assert out[0][0] == 5.0 and out[2][0] == 10.0                    # the others whole
+    assert 42 <= out[1][0] <= 50                                     # the long one, cut
+    assert g.truncated == [(300, int(out[1][0]))] and g.embedded == 3

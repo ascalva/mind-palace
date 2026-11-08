@@ -36,10 +36,17 @@ from core.typedshims.psutil import process_cpu_seconds
 FATAL = ("metal", "out of memory", "oom", "failed to allocate", "compute error",
          "ggml_backend", "insufficient memory")
 RETRY_FOR_S = 600.0            # how long a non-fatal embedder error is retried before stopping
+# the server's refusal of an input longer than its physical batch (a chunk's character budget does
+# not bound its tokens: a run of symbols or of another script takes several tokens a character)
+TOO_LARGE = "too large to process"
 
 
 class EmbedderStopped(RuntimeError):
     """The embedder failed in a way the policy stops on."""
+
+
+class _TooLarge(Exception):
+    """The server refused a request because one of its inputs is longer than its batch."""
 
 
 def _pid_listening(port: int) -> int | None:
@@ -164,6 +171,8 @@ class GatedEmbedder:
         self.batch = max(1, batch)
         self.embedded = 0
         self.seconds = 0.0
+        self.truncated: list[tuple[int, int]] = []     # (characters, characters kept) of each cut
+        self._lock = threading.Lock()
         self._pool = ThreadPoolExecutor(max_workers=self.streams)
         if gate._probe is None:
             gate._probe = self._probe
@@ -184,7 +193,9 @@ class GatedEmbedder:
         self.inner.embed_query("probe")
         return (time.monotonic() - t0) * 1000.0
 
-    def _one(self, texts: Sequence[str]) -> list[list[float]]:
+    def _call(self, texts: Sequence[str]) -> list[list[float]]:
+        """One request, when the gate allows: a fatal error stops the run, a refusal for length
+        is raised to the caller, anything else is retried for `RETRY_FOR_S`."""
         deadline = time.monotonic() + RETRY_FOR_S
         delay = 2.0
         while True:
@@ -193,6 +204,8 @@ class GatedEmbedder:
                 return [list(v) for v in self.inner.embed_documents(list(texts))]
             except Exception as e:      # noqa: BLE001 - classified: fatal stops, the rest retry
                 text = str(e).lower()
+                if TOO_LARGE in text:
+                    raise _TooLarge(str(e)) from e
                 if any(k in text for k in FATAL):
                     raise EmbedderStopped(f"the embedder failed: {e}") from e
                 if time.monotonic() > deadline:
@@ -200,6 +213,34 @@ class GatedEmbedder:
                                           f"{RETRY_FOR_S:.0f} s: {e}") from e
                 time.sleep(delay)
                 delay = min(delay * 2, 60.0)
+
+    def _one(self, texts: Sequence[str]) -> list[list[float]]:
+        try:
+            return self._call(texts)
+        except _TooLarge:
+            return [self._fit(t) for t in texts]     # the batch's texts one at a time
+
+    def _fit(self, text: str) -> list[float]:
+        """One text alone; when the server refuses it for its length, the longest prefix it
+        takes, found by bisection on the characters, as an embedding model truncates an input at
+        its maximum length. Each cut is recorded, and the run reports how many."""
+        try:
+            return self._call([text])[0]
+        except _TooLarge:
+            pass
+        lo, hi, best = 0, len(text), None
+        while hi - lo > 8:
+            mid = (lo + hi) // 2
+            try:
+                best, lo = self._call([text[:mid]])[0], mid
+            except _TooLarge:
+                hi = mid
+        if best is None:
+            raise EmbedderStopped(f"the embedder refuses every prefix of a {len(text)}-character "
+                                  f"text")
+        with self._lock:
+            self.truncated.append((len(text), lo))
+        return best
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         if not texts:

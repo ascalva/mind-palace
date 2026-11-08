@@ -465,6 +465,8 @@ def cmd_embed(a: argparse.Namespace) -> int:
                 progress["seconds"] = round(time.time() - started, 1)
                 progress["pending"] = sum(len(x) for x in queues.values())
                 progress["empty"] = empty
+                progress["truncated"] = {"texts": len(emb.truncated),
+                                         "cuts": [list(c) for c in emb.truncated[:50]]}
                 progress["gate"] = gate.summary()
                 progress["free_gb"] = round(free_gb(root), 1)
                 progress["updated"] = datetime.now(UTC).isoformat(timespec="seconds")
