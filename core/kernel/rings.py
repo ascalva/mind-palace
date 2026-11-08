@@ -61,7 +61,9 @@ PLUMBING_STDLIB: frozenset[str] = frozenset({"sqlite3"})
 # (stdlib only) and is claimed: 45 + 1 = 46.
 # **2026-11-05: `core.ingest.files` computes pure** (stdlib only: what the ingress trusts of a file
 # and a directory, shared by the spools, the inbox's record and the records sources,
-# dn-ingress-language §E13) and is claimed: 46 + 1 = 47.
+# dn-ingress-language §E13) and is claimed: 46 + 1 = 47. **2026-11-07: `core.ingest.stream`
+# computes pure** (stdlib only: the reading side of a corpus stream, its manifest and its cursor,
+# dn-corpus-instance §5.2) and is claimed: 47 + 1 = 48.
 INNER: frozenset[str] = frozenset({
     "core",                       # the root package init (import-free; does not move — §2.3)
     # ── the kernel subtree: 29 born (K1) + 7 S1 (K3) relocated members + the kernel package init ──
@@ -114,4 +116,5 @@ INNER: frozenset[str] = frozenset({
     "core.typedshims",            # residue: lancedb/psutil/sknetwork shims stay
     # ── computed pure beside a residue (2026-11-05) ──
     "core.ingest.files",          # the ingress's file-trust checks, stdlib only (§E13)
+    "core.ingest.stream",         # a corpus stream's reading side, stdlib only (corpus §5.2)
 })

@@ -50,6 +50,7 @@ budgets in `core/ingest/table.py` are this table's executable mirror.
 | the `cli` role's budget | `50000000000` | about four hours of measured work: the owner's and the daemon's own jobs, a first sync of every doc after a plane reset (about 5,300,000,000) ten times over | a sync that needs more |
 | the `ambassador` role's budget | `100000000` | about 30 seconds: a capture is under one million, a link or a job's start under two hundred thousand | a request the Ambassador needs that does not fit |
 | the `inbox` role's budget | `50000000000` | the operator's: the inbox's capture is the daemon's own job and reads only the inbox's record of what the owner typed (an exchange of two short texts is under two million) | a backlog that needs more |
+| the `corpus` role's budget | `50000000000` | the operator's: the open corpus's runner lands one batch of a stream a request (dn-corpus-instance §5.2), about 2,000 items and 3,000 new atoms, near 1,400,000,000 | a batch that needs more |
 
 The two coalescing requests, `do sync_vault` and a bare `do sync_dialogue`, run as the daemon's
 own jobs under the `cli` role's budget, whoever asked: their scripts are the library's, admitted

@@ -199,7 +199,7 @@ class Palace(Protocol):
     def files(self, h: Handle) -> Iterable[Record]: ...
     def file(self, h: Handle, path: str) -> Record: ...
     def exists(self, h: Handle, path: str) -> bool: ...
-    def items(self, h: Handle) -> Iterable[Record]: ...
+    def items(self, h: Handle, batch: int | None = None) -> Iterable[Record]: ...
     def stored(self, place: str, prefix: str) -> list[Record]: ...
     def query(self, sentence: str) -> list[Record]: ...
 
@@ -249,6 +249,7 @@ BUILTINS = frozenset({
 MAX_CALLS = 64                      # library scripts and functions open at once
 
 MAX_EFFECTS = 100_000               # effects one plan may hold
+MAX_BATCH = 100_000                 # items one `items(h, batch: b)` may read past a cursor
 MAX_STRING = 1 << 20                # characters a composed string may have
 MAX_LIST = 1_000_000                # elements a composed list may have
 MAX_SENTENCE = 32 * 1024            # characters a nested sentence may have, its captures in place
@@ -654,7 +655,7 @@ class Evaluator:
         if fn not in BUILTINS:
             raise ScriptError(f"{fn}(…) is not a built-in function; they are "
                               f"{', '.join(sorted(BUILTINS))}")
-        allowed = {"stored": {"under"}}.get(fn, set())
+        allowed = {"stored": {"under"}, "items": {"batch"}}.get(fn, set())
         if set(kwargs) - allowed:
             raise ScriptError(f"{fn}(…) takes no argument {sorted(set(kwargs) - allowed)[0]!r}")
 
@@ -693,7 +694,13 @@ class Evaluator:
                 return self.palace.exists(handle(args[0]), string(args[1], "a path"))
             case "items":
                 arity(1)
-                return self._read(self.palace.items(handle(args[0])))
+                if "batch" not in kwargs:
+                    return self._read(self.palace.items(handle(args[0])))
+                b = kwargs["batch"]
+                if not isinstance(b, int) or isinstance(b, bool) or not 1 <= b <= MAX_BATCH:
+                    raise ScriptError(f"items(…, batch: …): an integer from 1 to {MAX_BATCH}, "
+                                      f"not {_kind(b)}")
+                return self._read(self.palace.items(handle(args[0]), batch=b))
             case "stored":
                 arity(1)
                 under = kwargs.get("under", "")

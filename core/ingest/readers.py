@@ -28,6 +28,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from core.ingest import stream
 from core.ingest.files import check_dir, read_bounded, written_by_one
 from core.ingest.table import (
     MAX_HANDOFF_BYTES,
@@ -95,6 +96,10 @@ class PalaceView:
         # a records source's documents as read: the file, its identity then, its items' paths
         self._files: dict[str, list[tuple[Path, tuple[int, int], list[str]]]] = {}
         self._listings: dict[Path, frozenset[str]] = {}
+        # a stream source's batch as read: the last sequence number and the items' paths, so the
+        # cursor moves past them once the plan that stores them has landed
+        self._batches: dict[str, tuple[int, list[str]]] = {}
+        self._stream_paths: dict[str, frozenset[str]] = {}
 
     def _listdir(self, d: Path) -> frozenset[str]:
         """A directory's names, listed once an evaluation."""
@@ -160,16 +165,23 @@ class PalaceView:
             except ScriptError:
                 return False
             return p.is_file() and s.in_scope(p) and s.spelled(p, self._listdir)
+        if s.kind == "stream":
+            return path in self._stream_index(s)
         return any(str(r["path"]) == path for r in self.items(h))
 
     def has(self, path: str) -> bool:
         """Whether the source that owns a path still has it (R6, R7): asked of the source itself,
-        whether or not the speaking role may open it."""
+        whether or not the speaking role may open it. A stream only appends: an item it has
+        yielded stays its own, a later version of it a new item at the same path, so it has every
+        path in its space (no script retires a stream's item, R7, and no path there lends its
+        identity, R6)."""
         s = self.table.owner(path)
         if s is None:
             return False
         if s.kind == "dir":
             return _exists_as(s, path, self._listdir)
+        if s.kind == "stream":
+            return s.owns(path)
         return any(str(r["path"]) == path for r in self._read_items(s))
 
     def _markdown(self, s: Source, p: Path) -> Record:
@@ -202,12 +214,47 @@ class PalaceView:
             "links": [o(x) for x in sorted(parsed.links)],
         })
 
-    def items(self, h: Handle) -> list[Record]:
+    def items(self, h: Handle, batch: int | None = None) -> list[Record]:
+        """A structured source's items. A stream's are those past its cursor, the next `batch`
+        of them when a batch is given (dn-corpus-instance §5.2); only a stream has a cursor, so
+        only a stream takes a batch."""
         s = self._source(h)
-        if s.kind not in ("file", "records") or s.items_of is None or s.path_of is None \
-                or s.label_of is None:
+        if s.kind not in ("file", "records", "stream") or s.items_of is None \
+                or s.path_of is None or s.label_of is None:
             raise ScriptError(f"items({h.name!r}): a structured source; use files(…)")
+        if s.kind == "stream":
+            return self._stream_batch(s, batch)
+        if batch is not None:
+            raise ScriptError(f"items({h.name!r}, batch: …): only a stream has a cursor to "
+                              "batch past")
         return self._read_items(s)
+
+    def _stream_batch(self, s: Source, batch: int | None) -> list[Record]:
+        """The next batch of a stream, past its cursor, each item labelled by the source's rule.
+        Read once an evaluation: a second `items` of the same stream is the same batch."""
+        assert s.items_of is not None
+        if s.name in self._items:
+            return self._items[s.name]
+        try:
+            docs = stream.read_items(s.location, after=stream.cursor(s.location), limit=batch)
+        except (OSError, ValueError) as e:
+            raise ScriptError(f"{s.name}: the stream is refused ({e})") from None
+        out = [self._item(s, it) for it in s.items_of(docs)]
+        self._batches[s.name] = (int(docs[-1]["seq"]) if docs else stream.cursor(s.location),
+                                 [str(r["path"]) for r in out])
+        self._items[s.name] = out
+        return out
+
+    def _stream_index(self, s: Source) -> frozenset[str]:
+        """Every path a stream holds, read once an evaluation (for `exists`)."""
+        assert s.items_of is not None and s.path_of is not None
+        if s.name not in self._stream_paths:
+            try:
+                docs = stream.read_items(s.location)
+            except (OSError, ValueError) as e:
+                raise ScriptError(f"{s.name}: the stream is refused ({e})") from None
+            self._stream_paths[s.name] = frozenset(s.path_of(it) for it in s.items_of(docs))
+        return self._stream_paths[s.name]
 
     def _read_items(self, s: Source) -> list[Record]:
         """A structured source's items, read once an evaluation, each labelled by the source's
@@ -322,6 +369,10 @@ class PalaceView:
         for name, doc in self._docs.items():
             if all(str(r["path"]) in stored for r in self._items.get(name, [])):
                 write_cursor(self.table.sources[name], doc)
+        for name, (last, paths) in self._batches.items():
+            # a stream's cursor moves past a batch only when the plan stored every item of it
+            if paths and all(p in stored for p in paths):
+                stream.write_cursor(self.table.sources[name].location, last)
         for name, files in self._files.items():
             if not self.table.sources[name].consume:
                 continue

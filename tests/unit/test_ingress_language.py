@@ -67,7 +67,7 @@ class Palace:
     def exists(self, h: Handle, path: str) -> bool:
         return path in ("/v/a.md", "/v/b.md")
 
-    def items(self, h: Handle) -> list[Record]:
+    def items(self, h: Handle, batch: int | None = None) -> list[Record]:
         out = []
         for i, (role, label) in enumerate((("user", "authored-dialogue"), ("assistant", OBSERVED))):
             p = f"dialogue/x/c/{i}"

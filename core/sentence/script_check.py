@@ -424,6 +424,11 @@ class Checker:
                     return T("source", self.view.source_labels(name), of=name)
                 return T("source")
             case "files" | "items":
+                extra = set(kts) - ({"batch"} if fn == "items" else set())
+                if extra:
+                    raise ScriptError(f"{fn}(…) takes no argument {sorted(extra)[0]!r}")
+                if "batch" in kts and kts["batch"].kind not in ("int", "any"):
+                    raise ScriptError(f"items(…, batch: …): an integer, not {kts['batch']!r}")
                 src = ats[0] if ats else ANY
                 return T("list", elem=T("item", src.labels, of=src.of))
             case "file":
