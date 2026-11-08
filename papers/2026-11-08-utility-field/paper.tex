@@ -107,7 +107,8 @@ nodes is a potential, and the effective resistance $R_{\mathrm{eff}}(i,j) = L^+_
 effective resistance or leaves it (Rayleigh's law) \cite{doylesnell1984}. A field on the edges is a
 flow, and its Hodge decomposition splits it into a gradient, the least-squares ranking of the nodes,
 a curl and a harmonic part \cite{jiang2011hodgerank}. Our field multiplies conductances within a
-margin, so every effective resistance moves within the same factors, and its reading on the nodes
+margin, so every effective resistance moves within the reciprocal factors, between
+$R_{\mathrm{eff}}/(1+\theta)$ and $R_{\mathrm{eff}}/(1-\theta)$, and its reading on the nodes
 is a potential whose gradient is a ranking.
 
 \paragraph{Reinforcement and its pathologies.}
@@ -264,7 +265,7 @@ $(1\pm\theta)x^\top Lx$; $(x_i - x_j)^2 \le 2(x_i^2 + x_j^2)$ and symmetry give 
 The inner product on $\mathrm{EuclideanSpace}$ is the dot product and $\mathrm{toEuclideanLin}$ is
 multiplication by the matrix, so the quadratic-form bound is SPC-3's \lean{Near} hypothesis and its
 \lean{count\_sub\_le}, \lean{count\_le\_add} apply. By Courant--Fischer the relative bound also gives
-$(1-\theta)\lambda_k \le \lambda_k' \le (1+\theta)\lambda_k$, which the simulator checks and the
+$(1-\theta)\lambda_k \le \lambda_k' \le (1+\theta)\lambda_k$, which the unit tests check and the
 Lean states only through the gap.
 \end{proof}
 
