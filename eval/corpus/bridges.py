@@ -41,7 +41,7 @@ IntArr = npt.NDArray[np.int64]
 
 
 def knn(x: npt.NDArray[np.float32], have: npt.NDArray[np.bool_], *, k: int, sigma: float,
-        block: int = 1024) -> tuple[IntArr, IntArr, npt.NDArray[np.float32]]:
+        block: int = 256) -> tuple[IntArr, IntArr, npt.NDArray[np.float32]]:
     """Each item's `k` nearest items with cosine at least `sigma` (rows of unit vectors; items
     without a vector neither ask nor answer): (i, j, cosine) with i < j, each pair once."""
     idx = np.flatnonzero(have)
@@ -182,7 +182,7 @@ def measure(c: Corpus, rel: dict[str, Relation], part: dict[int, str], *,
 
 
 def chunk_pairs(c: Corpus, vec: Vectors, *, sigma: float, sample: int = 20000,
-                block: int = 512, seed: int = 0) -> dict[str, Any]:
+                block: int = 128, seed: int = 0) -> dict[str, Any]:
     """Of `sample` random chunks, the pairs with every other chunk at cosine at least `sigma`,
     counted by the pair of sources of their items (a pair within one item left out)."""
     rng = np.random.default_rng(seed)
@@ -213,6 +213,10 @@ def chunk_pairs(c: Corpus, vec: Vectors, *, sigma: float, sample: int = 20000,
 
 
 def _blocked(m: npt.NDArray[np.float16], q: IntArr, step: int = 200000) -> npt.NDArray[np.float32]:
+    """The query rows' cosines with every row, a column block at a time, so no float32 copy of
+    the whole matrix is ever held."""
     qv = m[q].astype(np.float32)
-    parts = [qv @ m[s:s + step].astype(np.float32).T for s in range(0, m.shape[0], step)]
-    return np.concatenate(parts, axis=1)
+    out = np.empty((len(q), m.shape[0]), dtype=np.float32)
+    for s in range(0, m.shape[0], step):
+        out[:, s:s + step] = qv @ m[s:s + step].astype(np.float32).T
+    return out

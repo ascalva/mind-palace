@@ -313,13 +313,15 @@ def beir_control(embed_docs: Any, embed_queries: Any, sets: dict[str, Any],
             ndcg.append(dcg / idcg if idcg else 0.0)
             rec.append(len(set(ranked) & set(rels)) / len(rels))
         if corpus_engine is not None:
-            cs = corpus_engine.sims(qv)
-            for r, q in enumerate(qids):
-                best_corpus = np.sort(cs[r])[-K:]
-                pool = np.concatenate([sims[r], best_corpus])
-                top = np.argsort(-pool)[:K]
-                ranked = [ids[i] for i in top if i < len(ids)]
-                mixed.append(len(set(ranked) & set(qrels[q])) / len(qrels[q]))
+            for s0 in range(0, len(qids), 64):       # a block of queries against every atom
+                cs = corpus_engine.sims(qv[s0:s0 + 64])
+                for r in range(cs.shape[0]):
+                    q = qids[s0 + r]
+                    best_corpus = np.partition(cs[r], -K)[-K:]
+                    pool = np.concatenate([sims[s0 + r], best_corpus])
+                    top = np.argsort(-pool)[:K]
+                    ranked = [ids[i] for i in top if i < len(ids)]
+                    mixed.append(len(set(ranked) & set(qrels[q])) / len(qrels[q]))
         out[name] = {"docs": len(ids), "queries": len(qids), "ndcg10": float(np.mean(ndcg)),
                      "recall10": float(np.mean(rec)),
                      "recall10_mixed": float(np.mean(mixed)) if mixed else None}

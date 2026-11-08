@@ -220,3 +220,62 @@ def test_the_cost_split_counts_compiled_frames_apart_from_python():
     out = split(S())   # type: ignore[arg-type]
     assert out["compiled"] == 3.0 and out["python"] == 1.0 and out["wait"] == 4.0
     assert out["python_share"] == pytest.approx(1 / 8)
+
+
+def test_the_semantic_neighbours_and_chunk_pairs_are_brute_force(tmp_path):
+    from eval.corpus.data import Vectors
+
+    rng = np.random.default_rng(3)
+    x = rng.normal(size=(40, 8)).astype(np.float32)
+    x /= np.linalg.norm(x, axis=1, keepdims=True)
+    have = np.ones(40, dtype=bool)
+    have[[5, 17]] = False                                  # pending: neither ask nor answer
+    i, j, v = bridges.knn(x, have, k=3, sigma=0.2, block=7)
+    sim = x @ x.T
+    want = set()
+    idx = np.flatnonzero(have)
+    for a in idx:
+        row = [(sim[a, b], b) for b in idx if b != a]
+        for s, b in sorted(row, reverse=True)[:3]:
+            if s >= 0.2:
+                want.add((min(a, b), max(a, b)))
+    assert set(zip(i.tolist(), j.tolist(), strict=True)) == want
+    assert np.allclose(v, sim[i, j], atol=1e-5)
+    m = x.astype(np.float16)
+    q = np.asarray([0, 9, 33], dtype=np.int64)
+    assert np.allclose(bridges._blocked(m, q, step=6),
+                       m[q].astype(np.float32) @ m.astype(np.float32).T, atol=1e-6)
+    c = _corpus(tmp_path, {"wikipedia": [{"id": str(n)} for n in range(4)],
+                           "arxiv": [{"id": str(n)} for n in range(4)]})
+    rows = np.asarray([[1, 0], [1, 0], [0.9, 0.436], [0, 1], [0.1, 0.995]], dtype=np.float16)
+    vec = Vectors([f"a{r}" for r in range(5)], rows, [[0], [1], [4], [5], [5]],
+                  {0: [0], 1: [1], 4: [2], 5: [3, 4]})
+    out = bridges.chunk_pairs(c, vec, sigma=0.8, sample=5, block=2)
+    # rows 0, 1, 2 are close to one another; rows 3 and 4 too, but share an item (5); each
+    # asking chunk counts its own neighbours
+    assert out["asked"] == {"wikipedia": 2, "arxiv": 3}
+    assert out["pairs_per_chunk"]["wikipedia->wikipedia"] == 1.0
+    assert out["pairs_per_chunk"]["wikipedia->arxiv"] == 1.0
+    assert out["pairs_per_chunk"]["arxiv->wikipedia"] == round(2 / 3, 4)
+    assert out["pairs_per_chunk"]["arxiv->arxiv"] == 0.0
+
+
+def test_the_codes_built_by_blocks_are_the_codes_of_one_pass(tmp_path):
+    from eval.corpus import codes
+
+    rng = np.random.default_rng(5)
+    m = rng.normal(size=(53, 768)).astype(np.float16)
+    report = codes.build(m, [f"a{i}" for i in range(53)], tmp_path / "c", block=10)
+    x = codes._unit(m.astype(np.float32))
+    c8, lo8, sc8 = codes.minmax_codes(x)
+    assert np.array_equal(np.load(tmp_path / "c" / "int8_768.npy"), c8)
+    p = codes._unit(np.ascontiguousarray(x[:, :256]))
+    c2, _, _ = codes.minmax_codes(p)
+    assert np.array_equal(np.load(tmp_path / "c" / "int8_256.npy"), c2)
+    assert np.array_equal(np.load(tmp_path / "c" / "f16_256.npy"), p.astype(np.float16))
+    assert np.array_equal(np.load(tmp_path / "c" / "bits_768.npy"), np.packbits(x >= 0, axis=1))
+    assert report["bytes_per_vector"]["bits_768.npy"] < 100        # 96 bytes and a header share
+    q = rng.normal(size=(4, 768)).astype(np.float32)
+    pv = codes.preview(m, tmp_path / "c", q, k=5, m=20, block=7)
+    assert pv["f16_256"]["rescored_m20"] >= pv["f16_256"]["flat"] - 1e-9
+    assert all(0.0 <= pv[k]["flat"] <= 1.0 for k in ("int8_768", "f16_256", "int8_256", "bits_768"))
