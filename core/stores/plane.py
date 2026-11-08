@@ -191,7 +191,8 @@ class AtomTable(Protocol):
 
     def present(self, atom_ids: Sequence[str]) -> set[str]: ...
 
-    def insert(self, atoms: Sequence[AtomRecord]) -> int: ...
+    def insert(self, atoms: Sequence[AtomRecord],
+               held: Mapping[str, frozenset[str]] | None = None) -> int: ...
 
     def payload(self, atom_ids: Sequence[str]) -> dict[str, tuple[str, Sequence[float]]]: ...
 
@@ -420,11 +421,14 @@ class SharedPlane:
             if lacking:
                 raise MissingVector(f"{len(lacking)} new atom(s) arrived without a vector, e.g. "
                                     f"{lacking[0][:24]}")
-            self.atoms.insert([vectors[a] for a in missing])                  # D8: atoms first
+            # D8: atoms first, each new one carrying its cache's additions (the classes about to
+            # hold it) in the same write, so a new atom is never written twice
+            self.atoms.insert([vectors[a] for a in missing],
+                              held={a: frozenset(gains[a]) for a in missing})
             # PLN-4: the cache's additions before the transaction and its removals after it, so a
             # crash anywhere leaves the cache stale only by excess, which no search sees
             # (`search_after_crash`); with the cache last, a crash hid the new rows' atoms
-            self._add_held({**dict.fromkeys(missing, (frozenset(), frozenset())), **cached}, gains)
+            self._add_held(cached, gains)
             made = superseded = 0
             affected: set[str] = set(wanted)
             conn.execute("BEGIN IMMEDIATE")

@@ -125,6 +125,30 @@ def index_amendment(record: IngestRecord, existing_rows: Sequence[Mapping[str, A
     return len(to_embed), len(canonical) - len(to_embed)
 
 
+def index_batch(records: Sequence[IngestRecord], embedder: Embedder, store: VectorStore) -> int:
+    """`index_amendment` for a batch of records on distinct paths, as one landing: one embedding
+    of the distinct texts the plane does not hold (ING-5: two records sharing a chunk pay once),
+    then every record's fiber in one `add`, the plane's one transaction. An emptied record retires
+    its path, as `index_amendment` does. A table not yet migrated to the plane lands record by
+    record. Returns the atoms embedded."""
+    if not store.plane_enabled():
+        return sum(index_amendment(r, [], embedder, store)[0] for r in records)
+    landing: list[tuple[IngestRecord, list[Chunk]]] = []
+    for r in records:
+        canonical: dict[str, Chunk] = {}
+        for c in r.chunks:
+            canonical.setdefault(c.content_hash, c)          # one point per canonical chunk (§3)
+        if not canonical:
+            store.delete_source(r.source_path)
+            continue
+        landing.append((r, list(canonical.values())))
+    if not landing:
+        return 0
+    fresh = embed_new(store, embedder, (c.text for _, cs in landing for c in cs))
+    store.add([_chunk_row(r, c, fresh.get(plane_atom_id(c.text))) for r, cs in landing for c in cs])
+    return len(fresh)
+
+
 def _row_new_id(row: Mapping[str, Any]) -> str:
     """The doc-scoped content id a stored row SHOULD have — `(source_path, chunk_hash)`, computed
     from the row's own `source_path` + `text`. The one place the migration and the dry-run agree."""

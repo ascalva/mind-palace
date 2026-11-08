@@ -15,7 +15,8 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -79,6 +80,7 @@ class AttestationStore:
         if str(self.path) != ":memory:":
             self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
+        self._defer = False
         self._conn = sqlite3.connect(str(self.path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         with self._lock:
@@ -96,8 +98,24 @@ class AttestationStore:
                  json.dumps(att.to_dict(), separators=(",", ":")),
                  att.signature, att.signer],
             )
-            self._conn.commit()
+            if not self._defer:
+                self._conn.commit()
         return att
+
+    @contextmanager
+    def deferred(self) -> Iterator[None]:
+        """The attestations appended inside commit once, at the end (a batch's, before its keys);
+        an exception inside rolls them back."""
+        with self._lock:
+            self._defer = True
+            try:
+                yield
+                self._conn.commit()
+            except BaseException:
+                self._conn.rollback()
+                raise
+            finally:
+                self._defer = False
 
     def get(self, att_id: str) -> Attestation | None:
         with self._lock:
@@ -115,6 +133,28 @@ class AttestationStore:
 
     def by_role(self, role: str) -> list[Attestation]:
         return [a for a in self.all() if a.agent_role == role]
+
+    def producers_by_output(self, hashes: set[str]) -> dict[str, list[tuple[str, str]]]:
+        """Each hash's producers, (action, id), for many hashes in one pass the database makes
+        over the ledger (SQLite's JSON functions, no record decoded in Python): what a batch of
+        landings asks once instead of `producers_of` per landing."""
+        out: dict[str, list[tuple[str, str]]] = {h: [] for h in hashes}
+        if not hashes:
+            return out
+        with self._lock:
+            self._conn.execute("CREATE TEMP TABLE IF NOT EXISTS wanted_hashes "
+                               "(h TEXT PRIMARY KEY)")
+            self._conn.execute("DELETE FROM wanted_hashes")
+            self._conn.executemany("INSERT OR IGNORE INTO wanted_hashes VALUES (?)",
+                                   [(h,) for h in hashes])
+            rows = self._conn.execute(
+                "SELECT j.value, a.action, a.id FROM attestations a, "
+                "json_each(a.payload_json, '$.output_hashes') j "
+                "WHERE j.value IN (SELECT h FROM wanted_hashes)").fetchall()
+            self._conn.execute("DELETE FROM wanted_hashes")
+        for h, action, att_id in rows:
+            out[str(h)].append((str(action), str(att_id)))
+        return {h: sorted(ps) for h, ps in out.items()}
 
     def producers_of(self, hashes: set[str]) -> set[str]:
         """Ids of attestations whose `output_hashes` intersect `hashes` — the attestations that
