@@ -1,0 +1,70 @@
+# The CORPUS instance: open text at scale, to study the store's macro behaviour
+# (docs/design-notes/dn-corpus-instance.md).
+#
+# Selected by `MIND_PALACE_OVERLAY=config/instances/corpus.toml`. A named overlay replaces the whole
+# per-machine chain, so nothing of Ouroboros's `ouroboros.toml` or `levers.toml` reaches this
+# instance, and every namespace it holds (data, spools, locks, identities, the corpus streams) is
+# derived from its id under `<root>/instances/corpus/` (DI-2). It declares no vault, no transcripts
+# and no code agent, so it reads none of the default instance's sources.
+#
+# It has one writer, `scripts/corpus.py ingest`, a process its operator starts and stops; no
+# LaunchAgent is installed for it and no daemon tick runs it. The edge readers (`edge/corpus/`)
+# fetch each source into `sources/<name>/`, and `ingress/sync_corpus.palace` lands one batch of a
+# source a request, every item observed, at `corpus/<name>/<id>`.
+
+[instance]
+id = "corpus"
+
+# The stack's embedder, shared with the default instance's daemon when that runs: the runner
+# yields to other callers (dn-corpus-instance §5.1).
+[runtime]
+embedding_backend = "llamacpp"
+ports = { embedding = 8081 }
+
+# Ouroboros's embedder and σ, so the instance's geometry is the live one and every answer carries
+# a VEC-1 certificate where its margin allows.
+[embedding]
+model = "embeddinggemma-2"
+dim = 768
+query_template = "task: search result | query: {text}"
+document_template = "title: none | text: {text}"
+
+[dreaming]
+similarity_threshold = 0.785
+scheduled = false                   # nothing interprets this corpus on a schedule
+
+[dream_rnd]
+sigma = 0.785
+
+[ingestion.vault]
+enabled = false
+[ingestion.transcripts]
+enabled = false
+[ingestion.code]
+enabled = false
+
+# The five sources of stage 1 (dn-corpus-instance §6, §7), each a stream under `sources/<name>/`.
+[ingestion.corpus]
+enabled = true
+root = "sources"
+sources = ["wikipedia", "openalex", "arxiv", "stackexchange", "gutenberg"]
+batch = 2000
+
+[integrate]
+enabled = false
+
+[backup]
+enabled = false
+
+[secrets]
+enabled = false
+
+[attestation]
+enabled = false
+
+[selfmod]
+enabled = false
+unattended_enabled = false
+
+[effectors]
+enabled = false

@@ -402,6 +402,36 @@ class CodeIngestConfig:
 
 
 @dataclass(frozen=True)
+class CorpusIngestConfig:
+    """The open-corpus sources (dn-corpus-instance §3.1, §5.2): the streams an instance's edge
+    readers (`edge/corpus/`) write under `root/<name>/`, each a source of the ingress's table that
+    `ingress/sync_corpus.palace` lands a batch at a time, observed, at `corpus/<name>/<id>`.
+
+    Off with no source by default: the default instance reads no open corpus. `root` is a path
+    the instance writes (its readers' dumps and streams), so it resolves against the instance's
+    root and is one of its namespaces (`namespaces_of`); a named instance's may not leave its root
+    (`_refuse_reaching_out`). `batch` is the items one request lands (the script's argument)."""
+
+    enabled: bool = False
+    root: Path = Path("data/corpus")
+    sources: tuple[str, ...] = ()
+    batch: int = 2000
+
+    def __post_init__(self) -> None:
+        # A source's name is one path segment of `root/<name>/` and of `corpus/<name>/`, so it is
+        # held to the instance id's form: no `.`, no `/`, distinct under case folding.
+        for name in self.sources:
+            if not isinstance(name, str) or not _INSTANCE_ID.fullmatch(name):
+                raise ValueError(f"[ingestion.corpus] source {name!r} is not a source name: a "
+                                 f"lowercase letter followed by up to 31 lowercase letters, "
+                                 f"digits or hyphens")
+        if len(set(self.sources)) != len(self.sources):
+            raise ValueError(f"[ingestion.corpus] sources repeat a name: {list(self.sources)}")
+        if self.batch < 1:
+            raise ValueError(f"[ingestion.corpus] batch = {self.batch}: at least one item")
+
+
+@dataclass(frozen=True)
 class IntegrateConfig:
     """The INTEGRATOR — its own agent type, deliberately NOT an ingestion agent (owner ruling
     2026-07-28). It ingests nothing: it derives C-fiber proven edges from the already-ingested L1
@@ -432,6 +462,7 @@ class IngestionConfig:
     vault: VaultConfig
     transcripts: TranscriptIngestConfig = field(default_factory=TranscriptIngestConfig)
     code: CodeIngestConfig = field(default_factory=CodeIngestConfig)
+    corpus: CorpusIngestConfig = field(default_factory=CorpusIngestConfig)
 
 
 @dataclass(frozen=True)
@@ -560,6 +591,7 @@ class InstanceConfig:
         dialogue lanes     openwebui, opencode           none
         airlock in S3      as its overlay names it       as its overlay names it
         exhaust lane       ~/.mind-palace/exhaust        <root>/exhaust, moved only within root
+        corpus sources     <repo>/data/corpus, off       <root>/data/corpus, moved only within root
         Vault server       [secrets] addr                its overlay's own; none if it names none
 
     A declared source may lie anywhere but at, inside or around what another instance writes, or
@@ -693,6 +725,7 @@ def namespaces_of(cfg: Config) -> Namespaces:
     data, instance = cfg.paths.data_dir, cfg.instance
     lock = data / SUPERVISOR_LOCK
     written = {getattr(getattr(cfg, section), key) for section, key in _DATA_PLANE}
+    written.add(cfg.ingestion.corpus.root)     # its edge readers' dumps and streams
     transcripts = cfg.ingestion.transcripts.transcripts_dir or default_transcripts_dir()
     air = cfg.airlock
     return Namespaces(
@@ -1120,8 +1153,9 @@ def _refuse_reaching_out(raw: dict[str, Any], declared: dict[str, Any],
                 f"{instance.secret(str(value))!r}, and a named overlay does not set it. Remove the "
                 f"key; place the secret under the derived name.")
     lane = declared.get("exhaust", {}).get("path")
+    corpus = raw.get("ingestion", {}).get("corpus", {}).get("root")
     for section, key, value in (*((s, k, raw.get(s, {}).get(k)) for s, k in _DATA_PLANE),
-                                ("exhaust", "path", lane)):
+                                ("exhaust", "path", lane), ("ingestion.corpus", "root", corpus)):
         if value and (Path(str(value)).expanduser().is_absolute()
                       or ".." in Path(str(value)).parts):
             raise InstanceOverlayError(
@@ -1245,6 +1279,7 @@ def _build(raw: dict[str, Any], instance: InstanceConfig) -> Config:
     # The ingestion agents live under one nested table, one subsection per agent.
     ing = raw.get("ingestion", {})
     v, ch, ci = ing.get("vault", {}), ing.get("transcripts", {}), ing.get("code", {})
+    co = ing.get("corpus", {})
     integ = raw.get("integrate", {})
     amb = raw.get("ambassador", {})
     sec = raw.get("secrets", {})
@@ -1303,6 +1338,12 @@ def _build(raw: dict[str, Any], instance: InstanceConfig) -> Config:
                 enabled=bool(ci.get("enabled", False)),
                 max_chars=int(ci.get("max_chars", 1200)),
                 overlap_chars=int(ci.get("overlap_chars", 150)),
+            ),
+            corpus=CorpusIngestConfig(
+                enabled=bool(co.get("enabled", False)),
+                root=_resolve(str(co.get("root", "data/corpus")), root),
+                sources=tuple(str(n) for n in co.get("sources", [])),
+                batch=int(co.get("batch", 2000)),
             ),
         ),
         # ~ expands to $HOME; the exhaust dir is the owner's outbound sync, outside the repo.

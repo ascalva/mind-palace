@@ -126,6 +126,18 @@ enabled = true
 max_chars = 1200
 overlap_chars = 150
 
+[ingestion.corpus]
+# The open-corpus sources (dn-corpus-instance §3.1, §5.2): each named source is a line of the
+# ingress's table, a stream of items its edge reader (`edge/corpus/`) writes under `root/<name>/`
+# and `sync_corpus.palace` lands a batch at a time, observed, at `corpus/<name>/<id>`. Off for the
+# default instance, which declares no source; a named instance turns it on in its own overlay.
+# `root` resolves against the instance's root (a named instance's may not leave it). `batch` is
+# the items one request lands; the runner sizes it, the script takes it as its argument.
+enabled = false
+root = "data/corpus"
+sources = []
+batch = 2000
+
 [exhaust]
 # The OUTBOUND lane (dn-exhaust-lane): system-emitted artifacts the owner reads on his phone
 # (Files-app shortcut), starting with delegated-build reports under `reports/`. A SEPARATE
