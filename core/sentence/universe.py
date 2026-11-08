@@ -296,6 +296,28 @@ class _Builder:
                 continue
             self.add(_Node(src, "dialogue", str(rows[0].get("title", "")),
                            str(rows[0].get("digest", "")), prov, _mean_vector(rows), {}))
+        pending = self.pending_vectors(set(by_src))
+        if pending:
+            self.notes.append(f"pending: {pending} landed items of the admitted dialogue strata "
+                              "have no vectors yet (landed structure first); no verb that needs "
+                              "a vector ranks them")
+
+    def pending_vectors(self, loaded: set[str]) -> int:
+        """The items the catalog holds, active, in a dialogue class the sentence admits, that the
+        plane holds no row of: landed with their key before their vectors (dn-corpus-instance,
+        the structural phase). They are counted, never guessed: the known mask's rule (a node
+        without a vector takes part in no similarity) applied to what was never loaded."""
+        try:
+            catalog = self.store("catalog")
+        except KeyError:
+            return 0
+        entries = getattr(catalog, "active_entries", None)
+        if not callable(entries):              # a catalog that lists no entries (a test's)
+            return 0
+        return sum(1 for e in entries()
+                   if str(e.provenance) in ("observed", "authored-dialogue")
+                   and e.source_path not in loaded and e.source_path not in self.nodes
+                   and self.admits("dialogue", str(e.provenance)))
 
     # the indexed strata --------------------------------------------------------------------------
     def seed_curated(self, vec: np.ndarray, why: str) -> int:
