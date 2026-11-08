@@ -2,12 +2,12 @@
 
 [![CI](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml)
 [![Lean](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml)
-[![laws](https://img.shields.io/badge/laws-91_rows_in_14_families-blue)](docs/LAWS.md)
-[![Lean statements](https://img.shields.io/badge/Lean-286_statements_judged-blue)](formal/README.md)
+[![laws](https://img.shields.io/badge/laws-94_rows_in_14_families-blue)](docs/LAWS.md)
+[![Lean statements](https://img.shields.io/badge/Lean-308_statements_judged-blue)](formal/README.md)
 [![sorry](https://img.shields.io/badge/sorry-0-brightgreen)](formal/sorry-budget)
 [![kernels](https://img.shields.io/badge/kernel_replay-6_checkers-6f42c1)](formal/check.sh)
-[![attacks](https://img.shields.io/badge/attacks-152_with_controls-blue)](formal/PalaceTest)
-[![tests](https://img.shields.io/badge/tests-3478-brightgreen)](docs/runbook.md)
+[![attacks](https://img.shields.io/badge/attacks-166_with_controls-blue)](formal/PalaceTest)
+[![tests](https://img.shields.io/badge/tests-3572-brightgreen)](docs/runbook.md)
 [![coverage](https://img.shields.io/badge/coverage-85%25-green)](pyproject.toml)
 [![mypy](https://img.shields.io/badge/mypy-0_errors_in_core-brightgreen)](pyproject.toml)
 [![sealed core](https://img.shields.io/badge/sealed_core-zero_egress-6f42c1)](scripts/check_imports.py)
@@ -121,10 +121,10 @@ A law has one row in [`docs/LAWS.md`](docs/LAWS.md): its statement, the structur
 | | |
 |---|---|
 | toolchain | Lean `v4.36.0-rc2`, Mathlib; Plausible for the attacks |
-| the library | 35 proof modules, 34 models, 24 statement files; 21,410 lines of models and proofs, 3,060 of statements, 4,493 of attacks |
-| theorems | 1,242 proved in `formal/Palace`; 286 statements in `formal/Spec` judged identical by the comparator |
-| the ledger | 91 rows in 14 families, 292 cited declarations, 78 law markers checked against the rows |
-| attacks | 152 Plausible attacks and 145 negative controls over 30 modules, fixed seeds |
+| the library | 36 proof modules, 35 models, 25 statement files; 22,034 lines of models and proofs, 3,227 of statements, 4,724 of attacks |
+| theorems | 1,281 proved in `formal/Palace`; 308 statements in `formal/Spec` judged identical by the comparator |
+| the ledger | 94 rows in 14 families, 314 cited declarations, 81 law markers checked against the rows |
+| attacks | 166 Plausible attacks and 150 negative controls over 31 modules, fixed seeds |
 | axioms | `propext`, `Classical.choice`, `Quot.sound`; `sorry` 0 |
 | the replay | 55,411 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
 | families | memberships · Laplacian, balance and spectral · cut and conductance · curvature · the global event clock · the shared prose plane · capability scopes · the abstraction ultrametric σ* · bridges · the retrieval curve · the query sentence algebra · the ingress · stored vectors · the growth readout |
@@ -161,7 +161,7 @@ Utility is a side effect and is treated as one. What the project optimizes for i
 
 The base build is complete and the live instance runs always-on under launchd with a gated deployment path. "Complete" is not "wired": this repo distinguishes built, deployed and wired, and its own audit found the summaries were the least honest surface, so this one names the gaps.
 
-Wired and live: ingestion (notes within seconds, code per commit), dreaming on a six-hour cadence, the provenance firewall, the attestation chain, the strict-typed core, CI on every push, deploy-gated releases, the research airlock, the curated literature store, and the query language with its one MCP command, the CLI, the query log as a sensor, and a battery run read-only against the live stores. Built but deliberately dormant, each waiting on its design gate: retrieval demotion for superseded content, the supersession certification layer, effectors (the "hands", flag-off at every tier), recursive dreaming. Open in the language, and stated in every answer: version moves at the note grain are empty (the chains are per note), and there is no snapshot of the notes at a past cut. The causal moves are wired: a transcript turn to the files it produced, and back. So is the ingress: ingestion is written in a generic language, and each path, from the vault sync to a capture, is a script of it (`ingress/`). A surface speaks a request, `do sync_vault` or a script inline, typed under the speaker's grant; the daemon evaluates it under a budget of measured work into a plan and lands the plan as the one writer, under the palace's rules, and the answer is a receipt. The Ambassador's write tools are requests, and its inbox lands the owner's messages through a script of its own, under a role that writes nothing else. Left for later: research, a paper's manifest, and one commit's or one session's backfill as scripts, and the parallel dispatcher, whose laws are proved (DO-6).
+Wired and live: ingestion (notes within seconds, code per commit), dreaming on a six-hour cadence, the provenance firewall, the attestation chain, the strict-typed core, CI on every push, deploy-gated releases, the research airlock, the curated literature store, and the query language with its one MCP command, the CLI, the query log as a sensor, and a battery run read-only against the live stores. Built but deliberately dormant, each waiting on its design gate: retrieval demotion for superseded content, the supersession certification layer, effectors (the "hands", flag-off at every tier), recursive dreaming. Open in the language, and stated in every answer: version moves at the note grain are empty (the chains are per note), and there is no snapshot of the notes at a past cut. The causal moves are wired: a transcript turn to the files it produced, and back. So is the ingress: ingestion is written in a generic language, and each path, from the vault sync to a capture, is a script of it (`ingress/`). A surface speaks a request, `do sync_vault` or a script inline, typed under the speaker's grant; the daemon evaluates it under a budget of measured work into a plan and lands the plan as the one writer, under the palace's rules, and the answer is a receipt. The Ambassador's write tools are requests, and its inbox lands the owner's messages through a script of its own, under a role that writes nothing else. Landing is two-phase where an instance asks for it (`[embedding] lazy`): an item lands complete without its vector, with its bytes, label, edges and a lexical index, and the `embed` drain derives the vectors afterwards, idempotently; a query that needs a vector not yet derived reports the item pending instead of guessing (ING-19 to ING-21). The default instance keeps synchronous embedding. Left for later: research, a paper's manifest, and one commit's or one session's backfill as scripts, and the parallel dispatcher, whose laws are proved (DO-6).
 
 The current frontier is the query algebra as the system's interface, the mathematics pushed to where its claims close or break, and the trace as the language's debugger. Behind it, drafted: the palace's memory of itself, the graph as it stood at any past cut, and the conversations that design the system becoming a stratum it can study.
 
@@ -177,7 +177,7 @@ The build's own history is a dataset. Every commit's structure is snapshotted in
 
 ```sh
 uv sync --extra dev
-uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'   # the deterministic tier: 3,478 tests
+uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'   # the deterministic tier: 3,572 tests
 uv run mypy                                        # strict core: 0 errors (the 67 in tests/ are pinned)
 uv run python scripts/check_imports.py             # the sealed core names no network module
 uv run python -m ops.type_gate                     # every core-reaching package is type-checked
