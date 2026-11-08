@@ -13,7 +13,10 @@ import numpy as np
 import pytest
 
 from core.ingest.lexical import (
+    LEGACY,
+    TOKENIZER,
     LexicalIndex,
+    Tokenizer,
     bm25,
     fuse,
     idf,
@@ -193,3 +196,164 @@ def test_rrf_is_fuse_over_unit_numbers_with_ties_by_unit():
     assert set(fused) == {1, 2, 3, 4}
     assert fused[:2] == fuse([a.tolist(), b.tolist()], k=2)
     assert rrf([np.asarray([7], np.int64), np.asarray([5], np.int64)], k=2).tolist() == [5, 7]
+
+
+# ── the tokenizer and its identity ──────────────────────────────────────────────────────────────
+
+SAMPLES = ["Graph-theory's 4-colour THEOREM, 1976.", "naïve café Ǆemal", "Straße STRASSE",
+           "ﬁnancial ﬂow", "µg μg H₂O x²", "ＡＢＣ１２３", "हिन्दी भाषा", "שָׁלוֹם", "مَرْحَبًا",
+           "한국어 텍스트", "snake_case and kebab-case", "İstanbul", "é ́lead"]
+
+
+def test_the_legacy_tokenizer_is_the_old_runs_of_the_lower_cased_text():
+    import re
+
+    old = re.compile(r"[^\W_]+")
+    for text in SAMPLES:
+        assert LEGACY(text) == old.findall(text.lower())
+
+
+def test_tokens_is_the_current_tokenizer():
+    for text in SAMPLES:
+        assert tokens(text) == TOKENIZER(text)
+
+
+def test_canonically_equivalent_texts_give_one_set_of_terms():
+    """One text in two normal forms is one text to a reader: a normalizing tokenizer gives it one
+    set of terms, where the legacy tokenizer splits the decomposed form at its marks."""
+    import unicodedata
+
+    for tk in (Tokenizer(), Tokenizer("NFC", "lower", False), Tokenizer("NFKC", "lower", True)):
+        for text in SAMPLES:
+            forms = {tuple(tk(unicodedata.normalize(f, text))) for f in ("NFC", "NFD")}
+            assert len(forms) == 1, (tk.identity, text)
+    nfd = unicodedata.normalize("NFD", "naïve café")
+    assert LEGACY(nfd) == ["nai", "ve", "cafe"] and LEGACY("naïve café") == ["naïve", "café"]
+    assert Tokenizer()(nfd) == ["naïve", "café"]
+
+
+def test_nfkc_folds_compatibility_forms_and_casefold_folds_more_than_lower():
+    tk = Tokenizer()
+    assert tk("ﬁnancial ﬂow") == ["financial", "flow"]
+    assert tk("ＡＢＣ１２３") == ["abc123"]
+    assert tk("H₂O x²") == ["h2o", "x2"]
+    assert tk("µg") == tk("μg")                       # the micro sign is the Greek letter
+    assert tk("Straße") == tk("STRASSE") == ["strasse"]
+    assert Tokenizer("NFKC", "lower", True)("Straße") == ["straße"]
+
+
+def test_combining_marks_continue_a_token():
+    """A word whose letters carry marks that compose into no precomposed character (Devanagari's
+    vowel signs, Hebrew's points, Arabic's vowels) is one token, not its consonants."""
+    tk = Tokenizer()
+    assert tk("हिन्दी भाषा") == ["हिन्दी", "भाषा"]
+    assert len(tk("שָׁלוֹם")) == 1 and len(tk("مَرْحَبًا")) == 1
+    assert LEGACY("हिन्दी भाषा") == ["ह", "न", "द", "भ", "ष"]
+    assert tk("snake_case") == ["snake", "case"]       # underscores still split
+    assert tk("́lead") == ["lead"]                # a token starts with a letter or digit
+
+
+def test_the_mark_class_holds_every_combining_mark():
+    import re
+    import unicodedata
+
+    from core.ingest.lexical import _MARK_PLANES, _marks_class
+
+    marks = [cp for cp in range(0x110000) if unicodedata.category(chr(cp))[0] == "M"]
+    assert all(any(lo <= cp < hi for lo, hi in _MARK_PLANES) for cp in marks)
+    cls = re.compile(f"[{_marks_class()}]")
+    assert all(cls.fullmatch(chr(cp)) for cp in marks)
+    assert not any(cls.fullmatch(ch) for ch in "aZ09_ \n-é")
+
+
+def test_the_fast_token_pattern_matches_the_plain_one():
+    """The token pattern with marks is written for speed; it matches what the plain statement of
+    the rule matches, a letter or digit then letters, digits and marks."""
+    import random
+    import re
+
+    from core.ingest.lexical import _marks_class, _pattern
+
+    plain = re.compile(rf"[^\W_](?:[^\W_]|[{_marks_class()}])*")
+    fast = _pattern(True)
+    rng = random.Random(0)
+    alphabet = "ab_ \u0301\u0302é1-\u093f\u0915\U0001d165\U0001e000\U000e0100x\u200d."
+    for _ in range(20000):
+        s = "".join(rng.choice(alphabet) for _ in range(rng.randint(0, 14)))
+        assert fast.findall(s) == plain.findall(s), s
+
+
+def test_a_tokenizer_identity_names_every_parameter_and_round_trips():
+    import unicodedata
+
+    from core.ingest.lexical import TokenizerMismatch
+
+    tk = Tokenizer()
+    assert tk.identity == f"runs/NFKC/casefold/marks/unicode-{unicodedata.unidata_version}"
+    assert LEGACY.identity.startswith("runs/raw/lower/nomarks/")
+    for t in (tk, LEGACY, Tokenizer("NFC", "casefold", False)):
+        assert Tokenizer.from_identity(t.identity) == t
+    other_unicode = tk.identity.rsplit("/", 1)[0] + "/unicode-1.0.0"
+    for bad in (other_unicode, "runs/NFD/lower/marks/x", "nonsense"):
+        with pytest.raises(TokenizerMismatch):
+            Tokenizer.from_identity(bad)
+    with pytest.raises(ValueError):
+        Tokenizer(fold="upper")  # type: ignore[arg-type]
+
+
+def test_the_in_memory_index_tokenizes_queries_as_it_tokenized_its_units(tmp_path: Path):
+    import json
+
+    texts = ["Straße und Weg", "strasse", "ﬁnancial report"]
+    nfkc = LexicalIndex.build(texts, tokenizer=Tokenizer())
+    legacy = LexicalIndex.build(texts, tokenizer=LEGACY)
+    assert set(nfkc.search("STRASSE").tolist()) == {0, 1}
+    assert set(legacy.search("STRASSE").tolist()) == {1}
+    assert nfkc.search("financial").tolist() == [2] and legacy.search("financial").tolist() == []
+    nfkc.save(tmp_path / "n")
+    back = LexicalIndex.load(tmp_path / "n")
+    assert back.tokenizer == Tokenizer() and set(back.search("strasse").tolist()) == {0, 1}
+    legacy.save(tmp_path / "l")
+    (tmp_path / "l" / "tokenizer.json").unlink()      # an index saved before the record
+    assert LexicalIndex.load(tmp_path / "l").tokenizer == LEGACY
+    assert json.loads((tmp_path / "n" / "tokenizer.json").read_text())["identity"] == \
+        Tokenizer().identity
+
+
+# ── the store records its tokenizer and refuses another ─────────────────────────────────────────
+
+def test_the_store_records_its_tokenizer_and_refuses_another(tmp_path: Path):
+    from core.ingest.lexical import TokenizerMismatch
+
+    path = tmp_path / "lex.sqlite"
+    old = LexicalStore(path, tokenizer=LEGACY)
+    assert old.recorded_tokenizer() is None and not old.stale      # nothing recorded yet
+    old.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
+             chunks=_chunks("Straße und Weg"))
+    assert old.recorded_tokenizer() == LEGACY.identity
+    old.close()
+    new = LexicalStore(path, tokenizer=Tokenizer())
+    assert new.stale
+    with pytest.raises(TokenizerMismatch):
+        new.scores("strasse")
+    with pytest.raises(TokenizerMismatch):
+        new.land(source_path="b.md", digest="v1", provenance=AUTHORED, title="B",
+                 chunks=_chunks("strasse"))
+    assert new.units_of("b.md", current=False) == 0                  # nothing landed
+    assert new.holds_current("a.md", "v1")         # currency does not depend on the terms
+    new.reset()
+    assert new.recorded_tokenizer() is None and new.count() == 0 and not new.landed_versions()
+    new.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
+             chunks=_chunks("Straße und Weg"))
+    assert new.recorded_tokenizer() == Tokenizer().identity and "a.md" in new.scores("STRASSE")
+
+
+def test_a_store_from_before_the_record_holds_legacy_units(tmp_path: Path):
+    store = LexicalStore(tmp_path / "lex.sqlite", tokenizer=LEGACY)
+    store.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
+               chunks=_chunks("alpha"))
+    store._conn.execute("DELETE FROM meta")         # as a store written before the record
+    assert store.recorded_tokenizer() == LEGACY.identity and not store.stale
+    assert LexicalStore(tmp_path / "lex.sqlite", tokenizer=Tokenizer()).stale
+    empty = LexicalStore(tmp_path / "empty.sqlite", tokenizer=Tokenizer())
+    assert empty.recorded_tokenizer() is None and not empty.stale

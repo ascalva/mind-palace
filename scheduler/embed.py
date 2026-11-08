@@ -3,9 +3,11 @@
 Under `[embedding] lazy = true` the writer lands an item complete without its vector and asks for
 this job; the drain (`core/ingest/derive.py`) derives the plane rows of every pending item from the
 raw store, in the configured batches, through the same stores the writer lands into: one writer
-(the supervisor), one job. The kind is idempotent at the plane, so the queue folds every request
-into the one row waiting (`_IDEMPOTENT_KINDS`), and a job a crash left running goes back to the
-queue and runs again as if it had not started. It calls the embedder and no chat model, so it
+(the supervisor), one job. It first runs the lexical backfill, which lands the units of any item
+the lexical index lacks and re-derives the whole index when its tokenizer changed. The kind is
+idempotent at the plane, so the queue folds every request into the one row waiting
+(`_IDEMPOTENT_KINDS`), and a job a crash left running goes back to the queue and runs again as if
+it had not started. It calls the embedder and no chat model, so it
 pins (`router._PINNED_KINDS`) and runs at BACKGROUND priority, like `code_sync`.
 """
 
@@ -16,7 +18,7 @@ from typing import Any
 
 from config.loader import Config
 from core.ingest import ingress
-from core.ingest.derive import EMBED_JOB, drain
+from core.ingest.derive import EMBED_JOB, derive_lexical, drain
 from scheduler.queue import PRIORITY_BACKGROUND, Job, JobQueue
 from scheduler.router import Router
 
@@ -36,8 +38,12 @@ def embed_handler(cfg: Config, *, stores: Callable[[], Any] | None = None) -> Ha
         return opened["s"]
 
     def handle(_job: Job) -> str:
+        # the derived layers in order: the lexical units of any item the index lacks (all of
+        # them after a tokenizer change, which resets the index first), then the vectors
+        lexical = derive_lexical(the_stores())
         report = drain(the_stores(), batch=cfg.embedding.batch, streams=cfg.embedding.streams)
-        return f"embed: {report}"
+        lexical_note = f"; lexical: {lexical}" if lexical.items or lexical.rederived else ""
+        return f"embed: {report}{lexical_note}"
 
     return handle
 

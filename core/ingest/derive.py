@@ -250,16 +250,19 @@ def derive_entries(stores: Any, entries: Iterable[CatalogEntry], *, batch: int =
 @dataclass(frozen=True)
 class LexicalReport:
     """What one lexical backfill did: the items whose units it landed, the units, the items with
-    no unit (recorded, complete), the items it left under a limit, and its wall time."""
+    no unit (recorded, complete), the items it left under a limit, its wall time, and whether it
+    first reset an index whose units another tokenizer made."""
 
     items: int = 0
     units: int = 0
     empty: int = 0
     left: int = 0
     seconds: float = 0.0
+    rederived: bool = False
 
     def __str__(self) -> str:
-        return (f"{self.items} item(s), {self.units} unit(s), {self.empty} empty, "
+        return (f"{'re-derived under a new tokenizer: ' if self.rederived else ''}"
+                f"{self.items} item(s), {self.units} unit(s), {self.empty} empty, "
                 f"{self.left} left, {self.seconds:.1f}s")
 
 
@@ -281,11 +284,21 @@ def derive_lexical(stores: Any, *, max_items: int | None = None, group: int = 50
     `max_items`), read back from the raw store and chunked as the landing chunked them, `group`
     items a transaction. The index is derived and regenerable, as the vectors are, and this is its
     drain: run again, it finds nothing missing and writes nothing. It writes no key, no label and
-    no plane row."""
+    no plane row.
+
+    An index whose units another tokenizer made (`LexicalStore.stale`: the tokenizer changed, or
+    the index predates the recorded identity and the tokenizer is no longer LEGACY) holds no unit
+    a query can be scored against, and refuses to land; this drain resets it first, after which
+    every active item is missing and lands again under the current tokenizer, as re-embedding is
+    the vector drain over a reset plane. The reset and the backfill run in the one writer, so no
+    landing reads the empty index between them."""
     start = clock()
     lexical = stores.lexical
     if lexical is None:
         return LexicalReport()
+    rederived = bool(getattr(lexical, "stale", False))
+    if rederived:
+        lexical.reset()
     entries = lexical_missing(stores.catalog, lexical)
     left = max(0, len(entries) - max_items) if max_items is not None else 0
     if max_items is not None:
@@ -304,4 +317,4 @@ def derive_lexical(stores: Any, *, max_items: int | None = None, group: int = 50
     if todo:
         lexical.land_many(todo)
     return LexicalReport(items=items, units=units, empty=empty, left=left,
-                         seconds=clock() - start)
+                         seconds=clock() - start, rederived=rederived)
