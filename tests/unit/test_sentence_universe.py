@@ -720,3 +720,31 @@ def test_a_notes_causal_history_is_found_by_its_title(engine: _Engine) -> None:
     assert [h.ref for h in hits] == ["transcript/s2/1"]       # the fixture turn that wrote c.md
     f_only = compile_sentence('reach F from "core/x.py" depth 1', AMBASSADOR_OVERLAY)
     assert _build(engine, f_only).edges[Rel.C] == {}
+
+
+def test_an_item_landed_without_vectors_is_reported_pending_and_never_ranked(engine: _Engine
+                                                                           ) -> None:
+    """A store landed structure first (dn-corpus-instance) holds a key and no plane row: a
+    sentence that reads its stratum says how many such items there are and ranks none of them
+    (the known mask's rule, for what was never loaded); with every item's rows held, no note."""
+    @dataclass
+    class _Entry:
+        source_path: str
+        provenance: str
+
+    entries = [_Entry("dialogue/c/t1", "observed"), _Entry("corpus/s/1", "observed"),
+               _Entry("corpus/s/2", "observed"), _Entry("/v/a.md", "authored-solo")]
+    catalog = engine._cache["catalog"]
+    engine._cache["catalog"] = type("C", (), {
+        "get": staticmethod(lambda a: None), "doc_id_for": staticmethod(lambda a: a),
+        "active_entries": staticmethod(lambda: entries)})()
+    plan = compile_sentence('top 5 near "q" over dialogue', AMBASSADOR_OVERLAY)
+    answer = execute(plan, _build(engine, plan))
+    assert any(n.startswith("pending: 2 landed items") for n in answer.notes)
+    assert all(not h.ref.startswith("corpus/") for h in answer.hits)
+    engine._cache["catalog"] = type("C", (), {
+        "get": staticmethod(lambda a: None), "doc_id_for": staticmethod(lambda a: a),
+        "active_entries": staticmethod(lambda: entries[:1])})()
+    answer = execute(plan, _build(engine, plan))
+    assert not any(n.startswith("pending:") for n in answer.notes)
+    engine._cache["catalog"] = catalog
