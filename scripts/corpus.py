@@ -32,7 +32,7 @@ import sys
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root on path
 
@@ -44,6 +44,9 @@ from core.kernel.config.loader import (  # noqa: E402
     namespaces_of,
     shared,
 )
+
+if TYPE_CHECKING:
+    from core.ingest.embed import Embedder
 
 FREE_FLOOR_GB = 25.0          # stop when the disk's free space falls below this
 PROGRESS = "progress.json"
@@ -180,10 +183,10 @@ def fetch_running(location: Path) -> bool:
     return True
 
 
-def write_progress(root: Path, doc: dict[str, Any]) -> None:
-    tmp = root / (PROGRESS + ".tmp")
+def write_progress(root: Path, doc: dict[str, Any], name: str = PROGRESS) -> None:
+    tmp = root / (name + ".tmp")
     tmp.write_text(json.dumps(doc, indent=1))
-    tmp.replace(root / PROGRESS)
+    tmp.replace(root / name)
 
 
 def cmd_ingest(a: argparse.Namespace) -> int:
@@ -249,9 +252,11 @@ def cmd_ingest(a: argparse.Namespace) -> int:
                 t0 = time.time()
                 before = stores.embedder.embedded
                 embed_before = stores.embedder.seconds
-                size = batch_items(src.location, a.target_chunks, a.batch)
+                size = (a.batch if a.structural
+                        else batch_items(src.location, a.target_chunks, a.batch))
                 receipt = run_library(cfg, "sync_corpus", {"name": name, "batch": size},
-                                      role="corpus", stores=stores, refresh=False, batch=True)
+                                      role="corpus", stores=stores, refresh=False, batch=True,
+                                      vectors=not a.structural)
                 dt = time.time() - t0
                 landed = int(receipt["effects"].get("landed", 0))
                 progress["batches"] += 1
@@ -274,7 +279,7 @@ def cmd_ingest(a: argparse.Namespace) -> int:
                 print(f"{name}: +{landed} landed in {dt:.0f} s "
                       f"({stores.embedder.embedded - before} embedded), cursor "
                       f"{progress['sources'][name]['cursor']}/{last} {timing}", flush=True)
-                if progress["batches"] % a.compact_every == 0:
+                if not a.structural and progress["batches"] % a.compact_every == 0:
                     report = stores.plane.compact(older_than=timedelta(minutes=30))
                     print(f"compacted the vector table: {report}", flush=True)
             if drained:
@@ -306,6 +311,175 @@ def cmd_ingest(a: argparse.Namespace) -> int:
     return 0 if progress["state"] in ("drained", "stopped") else 1
 
 
+def _writer_lock(cfg: Config) -> Any:
+    from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld
+
+    lock = SupervisorLock(cfg.paths.data_dir / "supervisor.lock")
+    try:
+        lock.acquire()
+    except SupervisorLockHeld:
+        raise SystemExit("refusing: another writer holds the corpus instance's supervisor "
+                         "lock") from None
+    return lock
+
+
+def landed(cfg: Config) -> list[tuple[str, str, str]]:
+    """The corpus items whose key the catalog holds, active: (path, digest, title), by path."""
+    import sqlite3
+
+    con = sqlite3.connect(f"file:{cfg.paths.vault_catalog}?mode=ro", uri=True)
+    try:
+        rows = con.execute("SELECT source_path, digest, title FROM vault_files WHERE active = 1 "
+                           "AND provenance = 'observed' AND source_path LIKE 'corpus/%' "
+                           "ORDER BY source_path").fetchall()
+    finally:
+        con.close()
+    return [(str(p), str(d), str(t)) for p, d, t in rows]
+
+
+def with_vectors(cfg: Config) -> set[str]:
+    """The corpus paths the plane holds current rows for."""
+    import sqlite3
+
+    plane = cfg.paths.vector_store / "plane.sqlite"
+    if not plane.is_file():
+        return set()
+    con = sqlite3.connect(f"file:{plane}?mode=ro", uri=True)
+    try:
+        return {str(r[0]) for r in con.execute(
+            "SELECT DISTINCT source_path FROM occ_observed WHERE current = 1")}
+    finally:
+        con.close()
+
+
+def cmd_lexical(a: argparse.Namespace) -> int:
+    """The lexical index of every landed chunk, from the raw store (phase 1)."""
+    import numpy as np
+
+    from core.ingest.lexical import LexicalIndex
+    from core.kernel.ingest.pipeline import derive_chunks
+    from core.kernel.stores.rawstore import RawStore
+
+    cfg = corpus_config()
+    raw = RawStore(cfg.paths.raw_store)
+    items = landed(cfg)
+    t0 = time.time()
+    unit_item: list[int] = []
+    unit_chunk: list[int] = []
+
+    def texts() -> Any:
+        for i, (_path, digest, _title) in enumerate(items):
+            for ch in derive_chunks(raw.get(digest)):
+                unit_item.append(i)
+                unit_chunk.append(ch.index)
+                yield ch.text
+    index = LexicalIndex.build(texts())
+    out = cfg.paths.data_dir / "lexical"
+    size = index.save(out)
+    np.savez(out / "units.npz", item=np.asarray(unit_item, np.int32),
+             chunk=np.asarray(unit_chunk, np.int32))
+    (out / "items.txt").write_text("\n".join(p for p, _, _ in items))
+    report = {"items": len(items), "units": index.units, "terms": len(index.vocab),
+              "nonzeros": int(index.weights.nnz), "bytes": size,
+              "seconds": round(time.time() - t0, 1)}
+    (out / "build.json").write_text(json.dumps(report, indent=1))
+    print(json.dumps(report, indent=1))
+    return 0
+
+
+def cmd_embed(a: argparse.Namespace) -> int:
+    """Phase 2: the plane rows of every landed item that has none, from the raw store, embedded
+    under the yield policy, round robin over the sources, a batch of about `target_chunks`."""
+    from collections import defaultdict
+
+    from core.ingest.index import index_from_raw
+    from core.ingest.ingress import build_stores
+    from core.kernel.ingest.pipeline import derive_chunks
+    from core.kernel.provenance import Provenance
+    from ops.corpus.embedder import EmbedderStopped, Gate, GatedEmbedder
+
+    cfg = corpus_config()
+    root = cfg.instance.root
+    lock = _writer_lock(cfg)
+    stopping = {"why": ""}
+
+    def on_signal(signum: int, _frame: Any) -> None:
+        stopping["why"] = f"signal {signum}"
+    signal.signal(signal.SIGTERM, on_signal)
+    signal.signal(signal.SIGINT, on_signal)
+    stores = build_stores(cfg)
+    gate = Gate(chat_port=a.chat_port, embed_port=cfg.runtime.port_for("embedding") or 8081,
+                log=root / "gate.log")
+    emb = GatedEmbedder(stores.embedder, gate, streams=a.streams, batch=a.embed_batch)
+    have = with_vectors(cfg)
+    queues: dict[str, list[tuple[str, str, str]]] = defaultdict(list)
+    for entry in landed(cfg):
+        if entry[0] not in have:
+            queues[entry[0].split("/")[1]].append(entry)
+    total = sum(len(q) for q in queues.values())
+    started = time.time()
+    progress: dict[str, Any] = {"phase": "vectors", "started": datetime.now(UTC).isoformat(
+        timespec="seconds"), "pending_at_start": total, "items": 0, "embedded": 0,
+        "batches": 0, "state": "running", "sources": {k: len(v) for k, v in queues.items()}}
+    empty = 0
+    try:
+        while any(queues.values()):
+            for name in sorted(queues):
+                q = queues[name]
+                if not q:
+                    continue
+                if stopping["why"] or (root / "STOP").exists():
+                    raise Stop(stopping["why"] or "the stop file")
+                if free_gb(root) < FREE_FLOOR_GB:
+                    raise Stop(f"free disk {free_gb(root):.1f} GB is under the "
+                               f"{FREE_FLOOR_GB:.0f} GB floor")
+                batch: list[tuple[str, str, str]] = []
+                chunks = 0
+                while q and chunks < a.target_chunks:
+                    entry = q.pop(0)
+                    n = len(derive_chunks(stores.raw.get(entry[1])))
+                    if n == 0:
+                        empty += 1                    # nothing to embed: not pending
+                        continue
+                    batch.append(entry)
+                    chunks += n
+                if not batch:
+                    continue
+                t0 = time.time()
+                before = emb.embedded
+                n_items, _ = index_from_raw(batch, stores.raw, cast("Embedder", emb),
+                                            stores.plane, provenance=Provenance.OBSERVED)
+                progress["items"] += n_items
+                progress["embedded"] += emb.embedded - before
+                progress["batches"] += 1
+                progress["seconds"] = round(time.time() - started, 1)
+                progress["pending"] = sum(len(x) for x in queues.values())
+                progress["empty"] = empty
+                progress["gate"] = gate.summary()
+                progress["free_gb"] = round(free_gb(root), 1)
+                progress["updated"] = datetime.now(UTC).isoformat(timespec="seconds")
+                write_progress(root, progress, name="progress-vectors.json")
+                print(f"{name}: +{n_items} items, {emb.embedded - before} embedded in "
+                      f"{time.time() - t0:.0f} s; {progress['pending']} pending", flush=True)
+                if progress["batches"] % a.compact_every == 0:
+                    print(f"compacted: {stores.plane.compact(older_than=timedelta(minutes=30))}",
+                          flush=True)
+        progress["state"] = "done"
+    except Stop as s:
+        progress["state"], progress["why"] = "stopped", str(s)
+    except EmbedderStopped as e:
+        progress["state"], progress["why"] = "stopped by the embedder", str(e)
+    finally:
+        progress["stopped"] = datetime.now(UTC).isoformat(timespec="seconds")
+        progress["seconds"] = round(time.time() - started, 1)
+        progress["gate"] = gate.summary()
+        write_progress(root, progress, name="progress-vectors.json")
+        gate.close()
+        lock.release()
+    print(f"embed: {progress['state']} {progress.get('why', '')}")
+    return 0 if progress["state"] in ("done", "stopped") else 1
+
+
 def cmd_status(a: argparse.Namespace) -> int:
     cfg = corpus_config()
     p = cfg.instance.root / PROGRESS
@@ -333,11 +507,22 @@ def main() -> int:
                    help="about this many chunks a request")
     p.add_argument("--follow", action="store_true",
                    help="wait for the edge readers still fetching before ending")
+    p.add_argument("--structural", action="store_true",
+                   help="phase 1: land every item's raw object, attestation and key, no vectors")
     p.add_argument("--streams", type=int, default=1, help="embedder requests in flight")
     p.add_argument("--embed-batch", type=int, default=64, help="texts an embedder request")
     p.add_argument("--chat-port", type=int, default=8080)
     p.add_argument("--compact-every", type=int, default=25, help="batches between compactions")
     p.set_defaults(fn=cmd_ingest)
+    p = sub.add_parser("lexical", help="phase 1: the lexical index of every landed chunk")
+    p.set_defaults(fn=cmd_lexical)
+    p = sub.add_parser("embed", help="phase 2: the plane rows of every landed item without them")
+    p.add_argument("--streams", type=int, default=1)
+    p.add_argument("--embed-batch", type=int, default=64)
+    p.add_argument("--target-chunks", type=int, default=3000)
+    p.add_argument("--chat-port", type=int, default=8080)
+    p.add_argument("--compact-every", type=int, default=25)
+    p.set_defaults(fn=cmd_embed)
     p = sub.add_parser("status", help="print the progress file")
     p.set_defaults(fn=cmd_status)
     a = ap.parse_args()
