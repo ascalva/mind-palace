@@ -222,7 +222,8 @@ def fetch_ids(f: Fetcher, ids: list[str]) -> list[dict[str, Any]]:
 
 
 def harvest_api(out: Path, budget: int, twins: Path | None, categories: list[str], *,
-                twins_share: float, interval: float, seed: int = 0) -> None:
+                twins_share: float, interval: float, seed: int = 0,
+                order: str = "descending") -> None:
     import json
     import random
 
@@ -257,10 +258,11 @@ def harvest_api(out: Path, budget: int, twins: Path | None, categories: list[str
                 print(f"arxiv: twins {i + 200}/{len(ids)}, {len(w.ids)} records, "
                       f"{w.text_bytes / 1e6:.1f} MB", flush=True)
         query = " OR ".join(f"cat:{c}" for c in categories)
-        start = int(state.get("search_done", 0))
-        while w.text_bytes < budget:
+        key = "search_done" if order == "descending" else f"search_done_{order}"
+        start = int(state.get(key, 0))
+        while w.text_bytes < budget and start < 10000:     # the API pages no deeper
             body = f.get(API, {"search_query": query, "sortBy": "submittedDate",
-                               "sortOrder": "descending", "start": start, "max_results": 1000})
+                               "sortOrder": order, "start": start, "max_results": 1000})
             got = api_entries(body)
             if not got:
                 break
@@ -269,7 +271,7 @@ def harvest_api(out: Path, budget: int, twins: Path | None, categories: list[str
                 if w.text_bytes >= budget:
                     break
             start += len(got)
-            state["search_done"] = start
+            state[key] = start
             w.close_part()
             write_state(state_path, state)
             print(f"arxiv: {query} {start}, {len(w.ids)} records, "
@@ -293,13 +295,15 @@ def main() -> None:
     ap.add_argument("--twins", type=Path, default=None,
                     help="the OpenAlex reader's metadata, whose arXiv ids are fetched first")
     ap.add_argument("--twins-share", type=float, default=0.6)
+    ap.add_argument("--order", choices=("descending", "ascending"), default="descending",
+                    help="newest first, or oldest first (the API pages 10,000 deep either way)")
     a = ap.parse_args()
     if a.oai:
         harvest(a.out, int(a.budget_mb * 1e6), a.categories or list(CATEGORIES),
                 months(a.first, a.last), interval=max(3.0, a.interval))
     else:
         harvest_api(a.out, int(a.budget_mb * 1e6), a.twins, a.categories or list(CATEGORIES),
-                    twins_share=a.twins_share, interval=max(3.0, a.interval))
+                    twins_share=a.twins_share, interval=max(3.0, a.interval), order=a.order)
 
 
 if __name__ == "__main__":

@@ -37,7 +37,7 @@ def test_the_corpus_overlay_is_a_named_instance_whose_streams_lie_under_its_root
     assert cfg.instance.id == "corpus"
     c = cfg.ingestion.corpus
     assert c.enabled and c.sources == ("wikipedia", "openalex", "arxiv", "stackexchange",
-                                       "gutenberg")
+                                       "gutenberg", "hackernews")
     assert c.root == cfg.instance.root / "sources"
     ns = namespaces_of(cfg)
     assert c.root in ns.paths, "the streams are written, so they are a namespace"

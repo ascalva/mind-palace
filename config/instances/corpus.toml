@@ -43,11 +43,12 @@ enabled = false
 [ingestion.code]
 enabled = false
 
-# The five sources of stage 1 (dn-corpus-instance §6, §7), each a stream under `sources/<name>/`.
+# The six sources of stage 1 (dn-corpus-instance §6, §7), each a stream under `sources/<name>/`.
+# Hacker News's content carries no open licence (D-2): it is held locally and never republished.
 [ingestion.corpus]
 enabled = true
 root = "sources"
-sources = ["wikipedia", "openalex", "arxiv", "stackexchange", "gutenberg"]
+sources = ["wikipedia", "openalex", "arxiv", "stackexchange", "gutenberg", "hackernews"]
 batch = 2000
 
 [integrate]

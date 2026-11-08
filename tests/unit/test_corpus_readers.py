@@ -158,3 +158,23 @@ def test_the_fetcher_gives_up_on_a_refusal(monkeypatch):
     monkeypatch.setattr("urllib.request.urlopen", urlopen)
     with pytest.raises(FetchError, match="403"):
         Fetcher(0.0).get("https://example.org/x")
+
+
+def test_a_hacker_news_thread_is_its_story_and_its_reply_tree_in_order():
+    from edge.corpus import hackernews
+
+    story = {"id": 1, "title": "A graph result", "url": "https://www.example.org/p",
+             "time": 86400 * 3, "score": 5, "kids": [3, 2], "text": ""}
+    comments = {2: {"id": 2, "parent": 1, "time": 86400 * 3 + 5, "kids": [4],
+                    "text": "second <a href=\"https://en.wikipedia.org/wiki/Planar_graph\">x</a>"},
+                3: {"id": 3, "parent": 1, "time": 86400 * 3 + 9, "text": "first"},
+                4: {"id": 4, "parent": 2, "time": 86400 * 3 + 20,
+                    "text": "reply to second, see https://arxiv.org/abs/2101.00001"},
+                9: {"id": 9, "parent": 99, "text": "not in this thread"}}
+    content, meta = hackernews.thread_of(story, comments)
+    assert content == "A graph result\n(example.org)\n\nfirst\n\nsecond x\n\n" \
+                      "reply to second, see https://arxiv.org/abs/2101.00001"
+    assert [r[0] for r in meta["replies"]] == [3, 2, 4]          # the tree's order
+    assert meta["replies"][2][1] == 2 and meta["comments"] == 3
+    assert meta["links"]["wikipedia"] == ["Planar graph"] and meta["host"] == "example.org"
+    assert meta["date"] == "1970-01-04"
