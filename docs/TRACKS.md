@@ -133,6 +133,7 @@
     - GD-2 ripple on a directed relation with a damping, diffuse its symmetric case, with the tail bound as the trace's accuracy line
     - GD-3 at scale t and coarse by a partition, the heat kernel and the quotient as adjectives, with the gap and the mode bounds as their laws
     - GD-4 velocity of an identity over a window of cuts, on the D moves at the node grain and the snapshot (L7), once the versions store holds a second generation
+    - UF-0 the utility field's design proved: dn-utility-field with UTL-1 to UTL-6 machine-checked in formal/Palace/Utility.lean (the box, the decay window and the arcs, no localization, the fold and the switch-off, the bounded nudge through Weyl, the loop's contraction), the regimes' controls, attacks and controls green, the simulator on synthetic graphs
 - **Erratum relation** (active):
     - dn-erratum-relation ratified (owner) — DONE 2026-07-27
     - the erratum relation built as a typed, owner-warranted, append-only store honoring E1–E8

@@ -1,0 +1,125 @@
+{
+  "seed": 20261108,
+  "graph": {
+    "nodes": 24,
+    "edges": 76,
+    "max_degree": 7.139266250304636,
+    "weight_ratio_max": 1.9696493875513301
+  },
+  "params": {
+    "b": 1.0,
+    "lam": 0.05,
+    "c": 0.02,
+    "eta": 0.8333333333333334,
+    "theta": 0.3333333333333333,
+    "ceiling": 1.4,
+    "floor": 0.6000000000000001,
+    "arc_height": 0.3
+  },
+  "box_held_every_tick": true,
+  "arcs": {
+    "hot_path": [
+      [
+        3,
+        6
+      ]
+    ],
+    "max_by_phase": [
+      3,
+      3,
+      3
+    ],
+    "first_arc_tick": 31,
+    "gone_tick_in_phase_2": 125,
+    "hot_edge_peak": 1.38098548429387,
+    "decay_window_ticks_eps_0.01": 74,
+    "hot_edge_after_window": 1.0081209823802255
+  },
+  "tv": {
+    "max": 0.011971381914942611,
+    "bound": 0.49999999999999994
+  },
+  "spectrum": {
+    "max_eig_drift": 0.36665553360664216,
+    "bound": 4.759510833536424,
+    "min_gap": 0.18303372591099593,
+    "gap_bound": 0.1220062474606234,
+    "base_gap": 0.18300937119093508
+  },
+  "learning": {
+    "hit_rate_phase_1_first_10": 0.0,
+    "hit_rate_phase_1_last_20": 0.26,
+    "probe_rank_tick_0": 2.0,
+    "probe_rank_phase_1_last_20": 1.75,
+    "probe_rank_phase_2_last_20": 2.0,
+    "probe_rank_phase_3_last_20": 1.5,
+    "probe_hit_phase_1_last_20": 0.25,
+    "probe_hit_phase_2_last_20": 0.0,
+    "probe_hit_phase_3_last_20": 0.5
+  },
+  "localization": [
+    {
+      "scheme": "reinforced",
+      "alpha": 0.5,
+      "steps": 20000,
+      "tv": 0.06027019717929763,
+      "top_edge_share": 0.02015,
+      "nodes_visited": 24
+    },
+    {
+      "scheme": "reinforced",
+      "alpha": 1.0,
+      "steps": 20000,
+      "tv": 0.48329687970610913,
+      "top_edge_share": 0.13335,
+      "nodes_visited": 24
+    },
+    {
+      "scheme": "reinforced",
+      "alpha": 2.0,
+      "steps": 20000,
+      "tv": 0.9096445957353885,
+      "top_edge_share": 0.99905,
+      "nodes_visited": 8
+    },
+    {
+      "scheme": "bounded",
+      "alpha": null,
+      "steps": 20000,
+      "tv": 0.027685428218612085,
+      "top_edge_share": 0.01985,
+      "nodes_visited": 24
+    }
+  ],
+  "polya_share_after_2000": {
+    "0.5": 0.5015959017388333,
+    "1.0": 0.5454545454545282,
+    "2.0": 0.9959357682641612
+  },
+  "loop": [
+    {
+      "gain_over_rate": 0.25,
+      "rate_bound": 0.9624999999999999,
+      "measured_rate": 0.9625,
+      "fixed_points": 1
+    },
+    {
+      "gain_over_rate": 0.5,
+      "rate_bound": 0.975,
+      "measured_rate": 0.975,
+      "fixed_points": 1
+    },
+    {
+      "gain_over_rate": 0.9,
+      "rate_bound": 0.995,
+      "measured_rate": 0.995,
+      "fixed_points": 1
+    },
+    {
+      "gain_over_rate": 1.5000000000000002,
+      "rate_bound": 1.025,
+      "measured_rate": 1.0073565867391998,
+      "fixed_points": 3
+    }
+  ]
+}
