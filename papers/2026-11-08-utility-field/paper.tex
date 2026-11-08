@@ -87,7 +87,7 @@ This article designs the field and proves what keeps it benign. The contribution
   exponent's three regimes on the two-site mean field, the greedy walk's confinement.
 \item The regime (\Cref{sec:regime}): why the design is a normalized, sublinear reinforcement in the
   sense of the phase transition at exponent one, and where the one remaining risk, the loop's gain,
-  is bounded and measured.
+  is kept small and is the first thing the build measures.
 \item Measurements on synthetic graphs (\Cref{sec:eval}): arcs that form and fade on the predicted
   windows, every bound against what was measured, the learning and its forgetting, and the
   controls' localization.
@@ -321,9 +321,9 @@ Popularity histograms of tokens and vectors are fields with $\eta = 0$, windowed
 base rates and never nudge a ranking directly.
 
 \paragraph{The nudge and arcs.}
-Every ranking verb runs on $A' = A \circ (1 + \eta(u - b))$ where it ran on $A$; the support,
-degrees and components are $A$'s (UTL-3), so the laws the verbs already satisfy keep their
-hypotheses. An arc is a declared path with $u \ge b + a$: it forms at a heat spot and fades on the
+Every ranking verb runs on $A' = A \circ (1 + \eta(u - b))$ where it ran on $A$; the support and
+the components are $A$'s (UTL-3), the degrees within the factors $1 \pm \theta$ of $A$'s, and $A'$
+is symmetric and nonnegative, so the laws the verbs already satisfy keep their hypotheses. An arc is a declared path with $u \ge b + a$: it forms at a heat spot and fades on the
 window of \Cref{thm:utl2}; it materializes the path's walk sum for cheap reading and adds no edge.
 An ablation arm with $\eta = 0$ is the structural system exactly (UTL-4), so the field is a source
 whose contribution the attribution loop measures.
@@ -508,7 +508,8 @@ and return exactly when the field is removed; and the loop by which use feeds on
 contraction when its gain is below the rate, with the self-reinforcing state appearing exactly at
 the rate as the control. Each statement is a theorem, the algebra beneath them is attacked beside
 refuted controls, the arcs form and fade on the predicted windows, and the regime the design sits
-in is the benign one, with its single exit named and measured.
+in is the benign one, with its single exit named and the measurement that would show it the
+build's first.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
