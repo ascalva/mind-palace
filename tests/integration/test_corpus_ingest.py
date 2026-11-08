@@ -20,6 +20,7 @@ from core.ingest import stream
 from core.ingest.readers import PalaceView
 from core.ingest.table import build_table
 from core.ingest.writer import batchable
+from core.kernel.clearance import OBSERVED_READ as EVERY_OBSERVED
 from core.sentence.interpret import Content, Naming, ScriptError, StoreEff
 from edge.corpus.stream import StreamWriter
 from tests.fixtures.ingress import Palace, palace_at, state_of
@@ -226,3 +227,47 @@ def test_the_cursor_moves_only_forward(tmp_path):
     with pytest.raises(stream.StreamError):
         stream.write_cursor(d, 2)
     assert stream.cursor(d) == 3
+
+
+def _sync_structural(p: Palace, name: str, batch: int) -> dict[str, Any]:
+    from core.ingest import ingress
+    from core.sentence import ast
+    from core.sentence.plan import compile_sentence
+
+    plan = compile_sentence(f'do sync_corpus(name: "{name}", batch: {batch})',
+                            ingress.grant_for("corpus"), role="corpus")
+    assert isinstance(plan.term, ast.Do)
+    view = PalaceView(build_table(p.cfg), "corpus", p.stores.catalog, refresh=False)
+    return ingress.perform(plan.term, p.cfg, "corpus", stores=p.stores, view=view, batch=True,
+                           vectors=False)
+
+
+def test_the_structural_phase_lands_keys_and_the_vector_phase_adds_the_rows(tmp_path):
+    """Two phases (the structural phase lands every item's raw object, attestation and key and
+    embeds nothing; the vector phase derives the plane rows from the raw store) end where one
+    landing ends; between them the plane holds no row of the landed items, so a reader that needs
+    a vector finds them pending, never guessed."""
+    from core.ingest.index import index_from_raw
+    from core.kernel.provenance import Provenance
+
+    one, two = _corpus(palace_at(tmp_path, "one")), _corpus(palace_at(tmp_path, "two"))
+    for p in (one, two):
+        _fill(p, "alpha", 6)
+    _sync(one, "alpha", 10)
+    embedded: list[str] = []
+    real = two.stores.embedder.embed_documents
+
+    def counted(ts: list[str]) -> list[list[float]]:
+        embedded.extend(ts)
+        return real(ts)
+    two.stores.embedder.embed_documents = counted     # type: ignore[method-assign]
+    assert _sync_structural(two, "alpha", 10)["effects"] == {"landed": 6}
+    assert embedded == [], "the structural phase embeds nothing"
+    keyed = [(e.source_path, e.digest, e.title) for e in two.stores.catalog.active_entries()]
+    assert len(keyed) == 6
+    assert not any(two.stores.plane.holds_current(path, digest, clearance=EVERY_OBSERVED)
+                   for path, digest, _ in keyed), "no row before the vector phase: pending"
+    assert _sync_structural(two, "alpha", 10)["effects"] == {}       # the cursor moved
+    index_from_raw(keyed, two.stores.raw, two.stores.embedder, two.stores.plane,
+                   provenance=Provenance.OBSERVED)
+    assert state_of(two) == state_of(one)

@@ -63,7 +63,9 @@ PLUMBING_STDLIB: frozenset[str] = frozenset({"sqlite3"})
 # and a directory, shared by the spools, the inbox's record and the records sources,
 # dn-ingress-language §E13) and is claimed: 46 + 1 = 47. **2026-11-07: `core.ingest.stream`
 # computes pure** (stdlib only: the reading side of a corpus stream, its manifest and its cursor,
-# dn-corpus-instance §5.2) and is claimed: 47 + 1 = 48.
+# dn-corpus-instance §5.2) and is claimed: 47 + 1 = 48. **`core.ingest.lexical` computes pure**
+# (stdlib, NumPy and SciPy: the BM25 index of landed chunks, the structural phase) and is
+# claimed: 48 + 1 = 49.
 INNER: frozenset[str] = frozenset({
     "core",                       # the root package init (import-free; does not move — §2.3)
     # ── the kernel subtree: 29 born (K1) + 7 S1 (K3) relocated members + the kernel package init ──
@@ -117,4 +119,5 @@ INNER: frozenset[str] = frozenset({
     # ── computed pure beside a residue (2026-11-05) ──
     "core.ingest.files",          # the ingress's file-trust checks, stdlib only (§E13)
     "core.ingest.stream",         # a corpus stream's reading side, stdlib only (corpus §5.2)
+    "core.ingest.lexical",        # the BM25 index of landed chunks, NumPy and SciPy (corpus)
 })

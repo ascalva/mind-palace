@@ -167,6 +167,11 @@ class Writer:
     # attestation and key) rather than each store whole in turn: the bulk path of
     # dn-corpus-instance §5.2. Off unless the caller asks; any other plan lands effect by effect.
     batch: bool = False
+    # Land a store's raw object, attestation and key without its plane rows (dn-corpus-instance,
+    # the structural phase): the vectors are a derived layer (BUILD-SPEC §8) a later pass adds
+    # from the raw store, and a reader that needs one reports the item pending until then. The
+    # UNCHANGED check then reads the key alone, so a store already landed is not landed again.
+    vectors: bool = True
     landed: list[Outcome] = field(default_factory=list)
     started: set[str] = field(default_factory=set)
     # seconds spent in each stage of the last batched landing (admit, derive, index, finish)
@@ -218,7 +223,9 @@ class Writer:
         lap("admit")
         staged = [(i, e, adm, self.derive(e)) for i, e, adm in admitted]
         lap("derive")
-        index_batch([rec for _, _, _, rec in staged], self.stores.embedder, self.stores.plane)
+        if self.vectors:
+            index_batch([rec for _, _, _, rec in staged], self.stores.embedder,
+                        self.stores.plane)
         lap("index")
         # what the ledger attests already, read once for the batch (a pass per store grows with
         # the ledger); each store then attests once, as `attest_once` does, its parents the
@@ -247,6 +254,8 @@ class Writer:
             return (0, 0)
         writes = sum(1 for e in plan if not (isinstance(e, StoreEff) and self.unchanged(e)))
         self.meter.charge("write", writes)
+        if not self.vectors:
+            return (writes, 0)                    # nothing is embedded now
         ids: set[str] = set()
         chunked: set[str] = set()                 # the same bytes stored twice are chunked once
         for e in plan:
@@ -271,7 +280,8 @@ class Writer:
         prev = self.stores.catalog.get(e.path)
         return (prev is not None and prev.active and prev.digest == e.content.digest
                 and str(prev.provenance) == e.content.label
-                and self.holds(e.path, e.content.data, e.content.label, e.content.digest))
+                and (not self.vectors
+                     or self.holds(e.path, e.content.data, e.content.label, e.content.digest)))
 
     def one(self, e: Effect) -> Outcome:
         try:
@@ -297,7 +307,8 @@ class Writer:
         if isinstance(adm, Outcome):
             return adm
         record = self.derive(e)
-        index_amendment(record, [], self.stores.embedder, self.stores.plane)
+        if self.vectors:
+            index_amendment(record, [], self.stores.embedder, self.stores.plane)
         return self.finish(e, adm, record)
 
     def admit(self, e: StoreEff) -> _Admitted | Outcome:
