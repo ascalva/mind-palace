@@ -71,3 +71,5 @@ public import Palace.Superconnection
 public import Palace.Superconnection.Defs
 public import Palace.Transport
 public import Palace.Transport.Defs
+public import Palace.Utility
+public import Palace.Utility.Defs

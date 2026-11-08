@@ -268,13 +268,42 @@ Roundoff and FloatModel, so it has no statements of its own):
   constant marginals and, on two redundant sources, confirms neither while each Shapley value is a
   half (`Witness.loo_confirms_nothing`, the Rayleigh family's shape). Design theorems; the power
   calculation SCL-4 is the ledger's `required_clusters` and stays in the note.
+- `Utility` (XV): the utility field (`docs/design-notes/dn-utility-field.md`), proved before any
+  code in the store computes it, on a model of a field over the sites of a graph (a value per node,
+  edge or declared path) that each tick decays toward a baseline `b` by the rate `lam` and
+  receives the tick's use clamped to `[−c, c]`; the nudge of the structural weights by
+  `1 + η (u − b)`, whose margin is `θ = η c / lam`; the stationary distribution of the walk on a
+  weight matrix and total variation; the closed loop in which the use is a function of the field;
+  and the controls' models (reinforcement without decay, the two-site mean field of an exponent,
+  the greedy walk that always takes its heaviest edge). UTL-1 the box `[b − c/lam, b + c/lam]` is
+  invariant under every tick and every log, its floor positive when `c < b · lam`, and it is the
+  least such box; UTL-2 an idle site returns to the baseline geometrically, within `ε` once
+  `lam · n ≥ log(c/(lam ε))`, so arcs fade on that window and form at a heat spot on the closed
+  form; UTL-3 the nudge keeps the support exactly, no node's stationary mass under the nudged walk
+  exceeds `(1 + θ)/(1 − θ)` times its structural mass, the two stationary distributions are within
+  `θ/(1 − θ)` in total variation, and a spectral gap `γ` of the backbone is a gap `(1 − θ) γ` of
+  the nudged graph, in DYN-6's Poincaré form; UTL-4 the field is the fold of the tick over the use
+  log and at the baseline the effective weights are the structural ones; UTL-5 the field moves the
+  Laplacian's quadratic form by at most `θ` times itself, so the nudged Laplacian is within
+  `2 θ d_max` of the structural one and Weyl's counts (SPC-3) bound every eigenvalue's move, and
+  two weights whose ratio exceeds `(1 + θ)/(1 − θ)` keep their order; UTL-6 when the use is a
+  `K`-Lipschitz function of the field with `K < lam` the loop contracts the sup metric by
+  `1 − lam + K`, has one stationary field (Mathlib's `ContractingWith.fixedPoint`) and converges
+  to it geometrically, and at `K ≥ lam` the loop `use = K (u − b)` holds the ceiling fixed beside
+  the baseline. The controls as theorems: reinforcement without decay exceeds every bound; in the
+  two-site mean field a superlinear exponent drives the sites' ratio apart, a linear one holds it
+  and a sublinear one draws it to one; the greedy walk never leaves two nodes of a three-node path,
+  so its empirical measure stays `1/8` from the structural stationary distribution. The simulator
+  `eval/utility_field.py` transcribes the model on synthetic graphs and its tests are the Python
+  falsifiers, so the six laws are the ledger's family XV (`Spec/Utility.lean`, 20 statements); the
+  controls and the gap stay design theorems.
 - `Bridges`: theorems that join two families, so that what one proves serves the other: BRG-1
   the Laplacian as `∂₁ ∂₁ᵀ`, BRG-2 Euler and Poincaré on the flag complex, BRG-3 Thomson's
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
 - `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the cited theorems
-  (308 theorems), and the three standard axioms.
+  (328 theorems), and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself. It is weaker than the comparator: it
   compares the statements' types and the definitions' values, not constructors, recursor rules or
@@ -389,6 +418,13 @@ Roundoff and FloatModel, so it has no statements of its own):
 | ING-20 | an item's derivation is idempotent and commutes with another item's and with a later landing of another item; the drain is idempotent, leaves nothing pending, and gives every keyed item its structure's image; the field converges from any interleaving; the code's drain reaches it from sound truthful states; every key-last prefix keeps soundness; the mark-first order is unsound and never repaired | proved; attacks survived 500 each (idempotence, commutation, the landing, the drain, the field, 500 interleavings, 500 key-last runs, 500 prefixes); the same-item landing control refuted on the first instance, the mark-first controls within 17 and 6 |
 | ING-21 | a structural query is invariant under every embed run; a pending item's field is `none`; a reported vector is the structure's own image; reading a pending vector as zero changes with the embedding | proved; attacks survived 500, 486 and 467 (the rest discarded by their guards); the landing control refuted within 45, the zero-read control within 8 |
 | GRW-1 | the proportional stake's growth is the likelihood ratio, and over proper pairs its log is the cumulative log-score advantage; the fractional stake is it at `λ = 1` | proved; attacks survived 500 each, the product form with and without its division |
+| UTL-1 | the box `[b − c/lam, b + c/lam]` is invariant under one tick with any use and under any log of uses; the floor is positive when `c < b · lam` | proved; attacks survived 500 and 500 |
+| UTL-2 | an idle site decays as `b + (1 − lam)^n (u₀ − b)`, within `ε` of the baseline once `lam · n ≥ log(c/(lam ε))`; arcs fade on that window and form at a heat spot on the closed form | proved; the closed form survived 500, the arc forming 500 and the fading 325 |
+| UTL-3 | the nudge keeps the support; a node's stationary mass moves by at most the ratio `(1 + θ)/(1 − θ)`; the stationary distributions are within `θ/(1 − θ)` in total variation; a gap `γ` becomes a gap `(1 − θ) γ` | proved; the support survived 500, the total variation 490 |
+| UTL-4 | the field is the fold of the tick over the use log; at the baseline the effective weights are the structural ones | proved, by structure |
+| UTL-5 | `\|xᵀ (L' − L) x\| ≤ θ xᵀ L x`, so the nudged Laplacian is within `2θ d_max` of the structural one and Weyl's counts bound every eigenvalue's move; order beyond the margin is kept | proved; the form bound survived 500, the degree bound 500 |
+| UTL-6 | with the use `K`-Lipschitz in the field and `K < lam`, the loop contracts the sup metric by `1 − lam + K` and has one stationary field; at `K ≥ lam` the ceiling is a second fixed point | proved; the contraction survived 500 |
+| the regimes | the two-site mean field's ratio moves apart at exponent 2, holds at 1, moves to one at 0; the greedy walk never leaves two nodes of the three-node path | proved; the three exponents survived 500 as one attack, the greedy walk 500 |
 
 The binarized forms (0/1 adjacency) reduce to Mathlib's `SimpleGraph.posSemidef_lapMatrix` and
 `card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix` in one line each.
@@ -769,6 +805,28 @@ symmetric, pays a null source, within 11; leave-one-out is not efficient, within
 a score of `1` on the empty configuration alone); the uniform average over configurations, the
 Banzhaf weights, is not efficient, within 8; and the dividends without their `1 / |T|` within 6.
 
+The utility field is attacked on the model's own definitions over ℚ (seeds 402 to 424), since
+they are polymorphic in the field: fields on four sites from lists of integers, a baseline
+`1 + b`, a rate `1/(1 + l)`, a cap `c/4` from naturals, uses of any size and sign; symmetric
+nonnegative weights on four nodes with a symmetric field on the edges and a nudge whose margin is
+`t/(t + 1)`; the closed loop with a linear gain; the two-site mean field at exponents `0`, `1`
+and `2`; the greedy walk for forty steps. The box survived 500 under one tick and 500 under a log
+of uses; the idle closed form 500; the arc forming at a heat spot 500 and the arc fading 325 (175
+draws discarded where the fade's window had not elapsed); the support 500; the total-variation
+bound 490 (10 draws discarded as graphs with no edge); the quadratic-form bound 500 and the
+degree bound 500; the loop's contraction 500; the three exponents 500, as one conjunction; the
+greedy walk's confinement 500. The logarithm, the metric and the spectrum do not run, so UTL-2's window,
+UTL-5's eigenvalue counts and UTL-6's fixed point are proved and not attacked. The controls, each
+refuted: reinforcement without decay leaves the box within 11 instances; the box with ceiling
+`b + c` in place of `b + c/lam` is not invariant, within 14; a residual use of half the cap holds
+the field past the idle bound, within 6; an arc left alone does not stay an arc, on the first
+instance; the additive nudge creates an edge, within 40; a field twice the box's height breaks the
+total-variation bound, within 119, and the quadratic-form bound, within 38; the largest degree
+alone does not bound the form, within 12 (an edge of weight 1 with opposite ends, `4 ≤ 2`);
+at a gain above the rate the ceiling is fixed, on the first instance; at exponent 2 the ratio is
+not constant, on the first instance; and the greedy walk's empirical measure is not within `1/8`
+of the structural stationary distribution, on the first instance.
+
 ## Build
 
 The toolchain is pinned in `lean-toolchain` (elan resolves it); Mathlib is pinned in
@@ -797,7 +855,7 @@ another module, and without it 68 proofs in seven files fail. One instance is wr
 to importers (`Palace/Scope.lean`).
 
 The kernel re-check. `Export.lean` writes every `Palace` declaration and everything it uses, from
-`Init` up (55,411 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
+`Init` up (55,608 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
 kernel and the five independent checkers bundled with Lean: `leanchecker-paranoid`, `lean4lean` (a
 kernel written in Lean), `nanoda` (one written in Rust), and `con-leche`, whose acceptance carries a
 machine-checked theorem that the environment holds no proof of `False`, with `con-ron`, its port.
@@ -808,7 +866,7 @@ nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
 does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the
-286 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
+306 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.
 
