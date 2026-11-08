@@ -134,7 +134,7 @@ conductance anywhere lowers every effective resistance or holds it (Rayleigh's l
 `[ESTABLISHED: Doyle and Snell; CND-1, CND-2]` The field of this note lives on the edges as a
 multiplier of conductance (§3.3): where the field is high the conductance is up to `1 + θ` times
 the structural one, where it is low down to `1 − θ`, and every effective resistance moves within
-those factors (`R_eff' ∈ [R_eff/(1 + θ), R_eff/(1 − θ)]`, by Rayleigh's law applied to the two
+the reciprocal factors (`R_eff' ∈ [R_eff/(1 + θ), R_eff/(1 − θ)]`, by Rayleigh's law applied to the two
 bounding networks). `[DERIVED from CND-2 and UTL-3's bounds]`
 
 Read on the nodes, the field is a potential, and a potential has a gradient and no curl: the
