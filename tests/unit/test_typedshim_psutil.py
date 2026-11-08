@@ -209,6 +209,8 @@ def test_the_declared_surface_is_exactly_the_pre_bp106_four_plus_the_moved_three
         "process_create_time", "process_exe_name", "process_name",
         # the frozen dataclass `virtual_memory()` returns
         "VirtualMemory",
+        # added for the corpus runner's gate and the cost probe's watchdog (dn-corpus-instance)
+        "process_cpu_seconds", "process_rss_or_none",
     }
 
 

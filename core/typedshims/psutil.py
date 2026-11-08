@@ -134,3 +134,21 @@ def process_name(pid: int) -> str | None:
         return str(psutil.Process(pid).name())
     except Exception:  # noqa: BLE001 — an unreadable process is ambiguity, never a crash
         return None
+
+
+def process_cpu_seconds(pid: int) -> float | None:
+    """User plus system CPU seconds `pid` has used, or None when it cannot be read (gone, or
+    not ours to read). The corpus runner's gate reads the chat model's this way."""
+    try:
+        t = psutil.Process(pid).cpu_times()
+        return float(t.user + t.system)
+    except Exception:  # noqa: BLE001 - absorbed: the facade's rule (bp-106 §3 Q5)
+        return None
+
+
+def process_rss_or_none(pid: int) -> int | None:
+    """`process_rss`, or None when the process cannot be read."""
+    try:
+        return int(psutil.Process(pid).memory_info().rss)
+    except Exception:  # noqa: BLE001 - absorbed: the facade's rule (bp-106 §3 Q5)
+        return None
