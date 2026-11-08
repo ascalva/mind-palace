@@ -13,8 +13,8 @@ The families of questions:
 - `twins:arxiv->openalex` and back: the abstract of a record with a twin, its twin the gold;
 - `cite:wikipedia->paper`: a Wikipedia citation's title, the cited work (OpenAlex or arXiv, by DOI
   or arXiv id) and its twin the gold;
-- `link:stackexchange->wikipedia`: a question that links a Wikipedia article of the corpus, its
-  title the query, the article the gold;
+- `link:stackexchange->wikipedia` and `link:hackernews->wikipedia`: a question or a thread that
+  links a Wikipedia article of the corpus, its title the query, the article the gold;
 - `beir:<set>`: the embedder bench's two public sets, standalone (a fixed external control) and
   mixed into the corpus (the same queries, the corpus's atoms beside the set's documents).
 
@@ -106,17 +106,19 @@ def questions(c: Corpus, rel: dict[str, Any], twins: dict[int, int], contents: d
         if (q.text, q.gold) not in seen:
             seen.add((q.text, q.gold))
             out.append(q)
-    r = rel.get("bridge.stackexchange-wikipedia")
-    if r is not None:
+    for src_name in ("stackexchange", "hackernews"):
+        r = rel.get(f"bridge.{src_name}-wikipedia")
+        if r is None:
+            continue
         linked: dict[int, set[int]] = {}
         for a, b in zip(r.src.tolist(), r.dst.tolist(), strict=True):
-            if c.meta[a].get("kind") == "question":
+            if src_name != "stackexchange" or c.meta[a].get("kind") == "question":
                 linked.setdefault(a, set()).add(b)
         pool = sorted(linked)
         pick = pool if len(pool) <= per_source else \
             rng.choice(pool, size=per_source, replace=False).tolist()
         for a in pick:
-            out.append(Question("link:stackexchange->wikipedia",
+            out.append(Question(f"link:{src_name}->wikipedia",
                                 str(c.meta[a].get("title") or ""), frozenset(linked[a]),
                                 "wikipedia", f"g{a}"))
     return [q for q in out if q.text]
@@ -473,6 +475,23 @@ def run_arms(c: Corpus, qs: list[Question], lex: Lexical, *, vec: Vectors | None
                         v_hits["both"][ci, j] = any(g in wide for g in fused[:K])
     recall = {name: {key: float(np.mean(v)) for key, v in d.items()} for name, d in rec.items()}
     counts = {name: len(next(iter(d.values()))) for name, d in rec.items()}
+    # the fall of recall from the smallest subset to the whole corpus, paired by question, with
+    # a 95% bootstrap interval over questions
+    drop: dict[str, dict[str, list[float]]] = {}
+    lo_f, hi_f = min(fractions), max(fractions)
+    boot = np.random.default_rng(seed + 1)
+    for name, d in rec.items():
+        for scope_name in ("unscoped", "scoped"):
+            a = np.asarray(d.get(f"{scope_name}@{lo_f}", []))
+            b = np.asarray(d.get(f"{scope_name}@{hi_f}", []))
+            if len(a) == 0 or len(a) != len(b):
+                continue
+            diff = a - b
+            means = [float(diff[boot.integers(0, len(diff), len(diff))].mean())
+                     for _ in range(2000)]
+            drop.setdefault(name, {})[scope_name] = [
+                float(diff.mean()), float(np.percentile(means, 2.5)),
+                float(np.percentile(means, 97.5))]
     title_qs = [qs[i] for i in titles]
     attribution_by_arm = {}
     for arm in arms:
@@ -481,7 +500,7 @@ def run_arms(c: Corpus, qs: list[Question], lex: Lexical, *, vec: Vectors | None
             c, [q for q, ok in zip(title_qs, mask_ok, strict=True) if ok], coalitions,
             v_hits[arm][:, mask_ok], twins)
     out: dict[str, Any] = {"recall": recall, "questions": counts, "pending": pending,
-                           "arms": list(arms), "attribution": attribution_by_arm,
+                           "drop": drop, "arms": list(arms), "attribution": attribution_by_arm,
                            "items_with_vectors": int(has_vec.sum()), "items": c.n}
     if eng is not None:
         out["embedder"] = embedder_game(rec)
