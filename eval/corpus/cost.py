@@ -217,7 +217,7 @@ def lexical_latency(index_dir: Path, queries: list[str], fractions: tuple[float,
     rows = []
     for f in fractions:
         keep = np.sort(order[: max(1, int(round(f * full.units)))])
-        sub = LexicalIndex(full.vocab, full.weights[keep].tocsc())
+        sub = LexicalIndex(full.vocab, full.weights[keep].tocsc(), full.tokenizer)
         times = []
         for _ in range(reps):
             t0 = time.perf_counter()

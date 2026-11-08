@@ -23,6 +23,17 @@ measurement over a whole corpus at once (the corpus instance's battery, `eval/co
 query scores millions of units and the store's SQL would be read term by term; `rrf` is `fuse`
 over arrays of unit numbers, ties broken by unit. Both tokenize with `tokens`, so the store, the
 matrix and a test agree on what a term is.
+
+A term is a `Tokenizer`'s output, and a tokenizer has an identity: the Unicode normal form it
+puts text in, its case fold, whether combining marks continue a token, and the version of the
+Unicode database its character classes come from. One text in two normal forms (a precomposed
+"é" and an "e" followed by a combining acute) is one text to a reader, and must give one set of
+terms; without normalization the second form even splits the word at its mark. Units tokenized
+under one identity cannot be scored against a query tokenized under another, so every store of
+units records the identity it was built with and refuses another (`core/stores/lexical.py`), as
+the plane records its embedder. `LEGACY` is the tokenizer every index was built with before the
+identity was recorded; `TOKENIZER` is the current one. Only terms are normalized: content
+hashes, the raw store and the chunks stay on the bytes as they came.
 """
 
 from __future__ import annotations
@@ -30,25 +41,135 @@ from __future__ import annotations
 import json
 import math
 import re
+import unicodedata
 from collections import Counter
 from collections.abc import Hashable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 import numpy.typing as npt
 import scipy.sparse as sp
 
-# A token is a maximal run of letters or digits, in any script, lower-cased; underscores split.
-TOKEN = re.compile(r"[^\W_]+")
 K1: float = 1.2
 B: float = 0.75
 RRF_C: float = 60.0
 
+Form = Literal["NFC", "NFKC"]
+Fold = Literal["lower", "casefold"]
+FORMS: tuple[Form | None, ...] = (None, "NFC", "NFKC")
+FOLDS: tuple[Fold, ...] = ("lower", "casefold")
+# The planes that hold every combining mark of the Unicode database (the BMP, the SMP and plane
+# 14's variation selectors); a test checks the claim against a scan of every code point.
+_MARK_PLANES = ((0, 0x30000), (0xE0000, 0xE1000))
+
+
+class TokenizerMismatch(RuntimeError):
+    """Units tokenized under one identity met a tokenizer of another. A query's terms and the
+    units' terms would disagree on what a word is, which no score can detect, so the store
+    refuses until its units are re-derived."""
+
+
+@cache
+def _mark_ranges(lo: int, hi: int) -> str:
+    """The combining marks (general category M) in `[lo, hi)`, as regular-expression ranges."""
+    ranges: list[list[int]] = []
+    for cp in range(lo, hi):
+        if unicodedata.category(chr(cp))[0] == "M":
+            if ranges and ranges[-1][1] == cp - 1:
+                ranges[-1][1] = cp
+            else:
+                ranges.append([cp, cp])
+    return "".join(re.escape(chr(a)) if a == b else f"{re.escape(chr(a))}-{re.escape(chr(b))}"
+                   for a, b in ranges)
+
+
+def _marks_class() -> str:
+    """Every combining mark, as the ranges of one class."""
+    return "".join(_mark_ranges(lo, hi) for lo, hi in _MARK_PLANES)
+
+
+@cache
+def _pattern(marks: bool) -> re.Pattern[str]:
+    """A token: a letter or digit, then letters and digits (and combining marks when `marks`);
+    underscores and everything else split. With marks the pattern is a run of letters and digits
+    followed by any number of (marks, then letters and digits), which matches what the plain rule
+    matches; the marks are two classes, the BMP's and the rest behind a guard, because the regular
+    expression engine reads a class that holds characters beyond the BMP range by range and a BMP
+    class by table (measured: 1.4 times the unmarked pattern's time, against 3.3 for one class)."""
+    if not marks:
+        return re.compile(r"[^\W_]+")
+    bmp = _mark_ranges(0, 0x10000)
+    astral = "".join(_mark_ranges(max(lo, 0x10000), hi) for lo, hi in _MARK_PLANES
+                     if hi > 0x10000)
+    mark = rf"(?:[{bmp}]|(?=[\U00010000-\U0010FFFF])[{astral}])"
+    return re.compile(rf"[^\W_]+(?:{mark}+[^\W_]*)*")
+
+
+@dataclass(frozen=True)
+class Tokenizer:
+    """How text becomes terms: put in the normal form `form` (None: as it came), fold case, then
+    take maximal runs of letters and digits, with combining marks inside a run when `marks`. Text
+    is normalized again after the fold, which can leave it unnormalized, so the terms of a text
+    and of any canonically equivalent text are the same (and of any compatibility-equivalent text
+    under NFKC)."""
+
+    form: Form | None = "NFKC"
+    fold: Fold = "casefold"
+    marks: bool = True
+
+    def __post_init__(self) -> None:
+        if self.form not in FORMS or self.fold not in FOLDS:
+            raise ValueError(f"no tokenizer with form {self.form!r} and fold {self.fold!r}")
+
+    @property
+    def identity(self) -> str:
+        """What a store records: every parameter the terms depend on, the Unicode database's
+        version among them (its character classes and case folds change between versions)."""
+        return (f"runs/{self.form or 'raw'}/{self.fold}/{'marks' if self.marks else 'nomarks'}"
+                f"/unicode-{unicodedata.unidata_version}")
+
+    @staticmethod
+    def from_identity(identity: str) -> Tokenizer:
+        """The tokenizer an identity names, if this process can reproduce it; a different Unicode
+        database cannot, and is refused."""
+        try:
+            kind, form, fold, marks, version = identity.split("/")
+        except ValueError:
+            raise TokenizerMismatch(f"no tokenizer has the identity {identity!r}") from None
+        if kind != "runs" or marks not in ("marks", "nomarks") \
+                or version != f"unicode-{unicodedata.unidata_version}":
+            raise TokenizerMismatch(f"this process cannot reproduce the tokenizer {identity!r} "
+                                    f"(Unicode {unicodedata.unidata_version})")
+        forms = {f or "raw": f for f in FORMS}
+        if form not in forms or fold not in FOLDS:
+            raise TokenizerMismatch(f"no tokenizer has the identity {identity!r}")
+        return Tokenizer(forms[form], "casefold" if fold == "casefold" else "lower",
+                         marks == "marks")
+
+    def __call__(self, text: str) -> list[str]:
+        if self.form is not None:
+            text = unicodedata.normalize(self.form, text)
+        text = text.casefold() if self.fold == "casefold" else text.lower()
+        if self.form is not None:
+            text = unicodedata.normalize(self.form, text)
+        return _pattern(self.marks).findall(text)
+
+
+# Every index built before tokenizers had an identity: maximal runs of letters and digits of the
+# lower-cased text, no normalization, marks splitting.
+LEGACY = Tokenizer(form=None, fold="lower", marks=False)
+# The current tokenizer: NFKC, case folded, marks inside a token. The most normalizing of the arms
+# docs/experiments/embedder-use-2026-11-08.md measured, chosen by its pre-declared rule (no loss
+# against LEGACY on any primary set; the retrieval figures are equal to four places).
+TOKENIZER = Tokenizer(form="NFKC", fold="casefold", marks=True)
+
 
 def tokens(text: str) -> list[str]:
-    """The tokens of a text, in order."""
-    return TOKEN.findall(text.lower())
+    """The tokens of a text, in order, by the current tokenizer."""
+    return TOKENIZER(text)
 
 
 def term_counts(text: str) -> Counter[str]:
@@ -105,19 +226,23 @@ def fuse[K: Hashable](rankings: Sequence[Sequence[K]], *, k: int, c: float = RRF
 
 @dataclass
 class LexicalIndex:
-    """The BM25 weights of a fixed set of units, in memory: one sparse matrix, units by terms."""
+    """The BM25 weights of a fixed set of units, in memory: one sparse matrix, units by terms, and
+    the tokenizer that made its terms, which tokenizes its queries too."""
 
     vocab: dict[str, int]
     weights: sp.csc_matrix          # units x terms, BM25 weights (float32)
+    tokenizer: Tokenizer = LEGACY   # an index made before identities were recorded is LEGACY's
 
     @property
     def units(self) -> int:
         return int(self.weights.shape[0])
 
     @staticmethod
-    def build(texts: Iterable[str], *, k1: float = K1, b: float = B,
-              batch: int = 100000) -> LexicalIndex:
-        """The index of `texts`, one unit each, in order."""
+    def build(texts: Iterable[str], *, k1: float = K1, b: float = B, batch: int = 100000,
+              tokenizer: Tokenizer | None = None) -> LexicalIndex:
+        """The index of `texts`, one unit each, in order, by `tokenizer` (the current one when
+        None)."""
+        tokenize = tokenizer if tokenizer is not None else TOKENIZER
         vocab: dict[str, int] = {}
         rows: list[npt.NDArray[np.int32]] = []
         cols: list[npt.NDArray[np.int32]] = []
@@ -128,7 +253,7 @@ class LexicalIndex:
         t_buf: list[int] = []
         unit = 0
         for text in texts:
-            toks = tokens(text)
+            toks = tokenize(text)
             lengths.append(len(toks))
             if toks:
                 ids = np.fromiter((vocab.setdefault(t, len(vocab)) for t in toks),
@@ -157,11 +282,11 @@ class LexicalIndex:
         norm = k1 * (1.0 - b + b * dl[r] / max(avgdl, 1e-9))
         w = idfs[c] * tf * (k1 + 1.0) / (tf + norm)
         m = sp.csc_matrix((w.astype(np.float32), (r, c)), shape=(n, len(vocab)))
-        return LexicalIndex(vocab, m)
+        return LexicalIndex(vocab, m, tokenize)
 
     def scores(self, query: str) -> npt.NDArray[np.float32]:
         """Every unit's score for a query (zeros where no term matches)."""
-        ids = sorted({self.vocab[t] for t in tokens(query) if t in self.vocab})
+        ids = sorted({self.vocab[t] for t in self.tokenizer(query) if t in self.vocab})
         if not ids:
             return np.zeros(self.units, dtype=np.float32)
         return np.asarray(self.weights[:, ids].sum(axis=1), dtype=np.float32).ravel()
@@ -182,16 +307,23 @@ class LexicalIndex:
         return idx[part[np.argsort(-sub[part])]]
 
     def save(self, d: Path) -> int:
-        """Write the index under `d`; returns its bytes."""
+        """Write the index under `d`, its tokenizer's identity beside its terms; returns its
+        bytes."""
         d.mkdir(parents=True, exist_ok=True)
         sp.save_npz(d / "weights.npz", self.weights, compressed=False)
         (d / "vocab.json").write_text(json.dumps(self.vocab))
+        (d / "tokenizer.json").write_text(json.dumps({"identity": self.tokenizer.identity}))
         return sum(f.stat().st_size for f in d.iterdir() if f.is_file())
 
     @staticmethod
     def load(d: Path) -> LexicalIndex:
+        """The index saved under `d`, with the tokenizer it was built by (LEGACY's when it
+        records none); `TokenizerMismatch` when this process cannot reproduce that tokenizer."""
         m = sp.csc_matrix(sp.load_npz(d / "weights.npz"))
-        return LexicalIndex(json.loads((d / "vocab.json").read_text()), m)
+        f = d / "tokenizer.json"
+        tokenizer = (Tokenizer.from_identity(str(json.loads(f.read_text())["identity"]))
+                     if f.is_file() else LEGACY)
+        return LexicalIndex(json.loads((d / "vocab.json").read_text()), m, tokenizer)
 
 
 def rrf(rankings: list[npt.NDArray[np.int64]], k: int = 10, c: float = RRF_C

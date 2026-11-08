@@ -432,3 +432,41 @@ def test_reembedding_on_a_model_change_is_the_same_drain(tmp_path: Path):
              for r in p.stores.plane.all_rows(clearance=EVERY)}
     assert set(after) == set(before) and all(after[k] != before[k] for k in after)
     assert (state_of(p)["catalog"], state_of(p)["versions"], state_of(p)["attestations"]) == fixed
+
+
+# ── a tokenizer change: the lexical index refuses, then is re-derived ───────────────────────────
+
+def test_a_tokenizer_change_re_derives_the_lexical_index(tmp_path: Path):
+    """Units made by one tokenizer are refused by a store of another, and the lexical backfill
+    resets the index and lands every active item again under the new one, as re-embedding is the
+    drain over a reset plane; the catalog, the versions and the attestations are untouched, and
+    the embed job runs the backfill before the vectors."""
+    from core.ingest.derive import derive_lexical
+    from core.ingest.lexical import LEGACY, Tokenizer, TokenizerMismatch
+    from core.stores.lexical import LexicalStore
+    from scheduler.embed import embed_handler
+
+    p = palace_at(tmp_path, lazy=True)
+    path = p.root / "lexical.sqlite"
+    p.stores.lexical = LexicalStore(path, tokenizer=LEGACY)
+    _land(p, {**NOTES, "d.md": "# D\n\nStraße and ﬁnancial flows\n"})
+    fixed = (state_of(p)["catalog"], state_of(p)["versions"], state_of(p)["attestations"])
+    assert p.stores.lexical.recorded_tokenizer() == LEGACY.identity
+    p.stores.lexical = LexicalStore(path, tokenizer=Tokenizer())
+    assert p.stores.lexical.stale
+    with pytest.raises(TokenizerMismatch):
+        p.stores.lexical.scores("strasse")
+    report = derive_lexical(p.stores)
+    assert report.rederived and (report.items, report.left) == (4, 0)
+    assert p.stores.lexical.recorded_tokenizer() == Tokenizer().identity
+    assert set(p.stores.lexical.scores("STRASSE financial")) == {str(p.vault / "d.md")}
+    assert all(p.stores.lexical.holds_current(e.source_path, e.digest)
+               for e in p.stores.catalog.active_entries())
+    again = derive_lexical(p.stores)
+    assert not again.rederived and again.items == 0                # converged
+    assert (state_of(p)["catalog"], state_of(p)["versions"], state_of(p)["attestations"]) == fixed
+    # the embed job re-derives a stale index before it derives the vectors
+    p.stores.lexical = LexicalStore(path, tokenizer=LEGACY)
+    note = embed_handler(p.cfg, stores=lambda: p.stores)(cast(Any, None))   # the job is unread
+    assert note is not None and "lexical: re-derived" in note
+    assert p.stores.lexical.recorded_tokenizer() == LEGACY.identity

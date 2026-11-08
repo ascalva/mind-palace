@@ -21,17 +21,30 @@ from the current units at query time; so a landing changes no stored weight, and
 needs no rebuild as the corpus grows. The index is derived and regenerable: it can be rebuilt
 from the raw store and the catalog, and nothing but a lexical `near` and the UNCHANGED check of a
 lazy landing reads it.
+
+The units' terms are a tokenizer's (`core/ingest/lexical.py::Tokenizer`), and the store records
+the tokenizer's identity with its first landing, as the plane records its embedder's. A store
+whose recorded identity is not its tokenizer's refuses to land or to score (`TokenizerMismatch`):
+a query tokenized one way against units tokenized another would match some words and silently
+miss others. A store that holds versions and records no identity predates the record, and its
+units are LEGACY's. Re-deriving is the lexical backfill over a reset index: `reset` forgets the
+units, the postings, the versions and the identity, and `derive.derive_lexical`, which resets a
+stale index itself, lands every active item again under the current tokenizer. The currency
+reads (`holds_current`, `units_of`, the version records) do not depend on the terms and do not
+refuse.
 """
 
 from __future__ import annotations
 
 import sqlite3
+from collections import Counter
 from collections.abc import Collection, Iterable, Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from core.ingest.lexical import idf, term_counts, tf_weight
+import core.ingest.lexical as lexical
+from core.ingest.lexical import LEGACY, Tokenizer, TokenizerMismatch, idf, tf_weight
 from core.kernel.config import Config
 from core.kernel.ingest.chunk import Chunk
 from core.kernel.provenance import Provenance
@@ -67,6 +80,7 @@ CREATE TABLE IF NOT EXISTS versions (
     units       INTEGER NOT NULL,
     PRIMARY KEY (source_path, digest)
 ) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """
 
 
@@ -110,9 +124,14 @@ def open_lexical_store(cfg: Config) -> LexicalStore:
     return LexicalStore(lexical_path(cfg))
 
 
+def _current() -> Tokenizer:
+    return lexical.TOKENIZER
+
+
 @dataclass
 class LexicalStore:
     path: Path
+    tokenizer: Tokenizer = field(default_factory=_current)
 
     def __post_init__(self) -> None:
         if str(self.path) != ":memory:":
@@ -124,6 +143,55 @@ class LexicalStore:
 
     def close(self) -> None:
         self._conn.close()
+
+    # ── the tokenizer's identity ─────────────────────────────────────────────────────────────
+
+    def recorded_tokenizer(self) -> str | None:
+        """The identity of the tokenizer the units were made by: the recorded one; LEGACY's for a
+        store that holds versions from before identities were recorded; None for an empty store
+        that has recorded nothing yet."""
+        row = self._conn.execute("SELECT value FROM meta WHERE key = 'tokenizer'").fetchone()
+        if row is not None:
+            return str(row[0])
+        held = self._conn.execute("SELECT 1 FROM versions LIMIT 1").fetchone()
+        return LEGACY.identity if held is not None else None
+
+    @property
+    def stale(self) -> bool:
+        """Whether the units were made by another tokenizer than this store's: they must be
+        re-derived (`reset`, then the lexical backfill) before the store lands or scores."""
+        recorded = self.recorded_tokenizer()
+        return recorded is not None and recorded != self.tokenizer.identity
+
+    def _check_tokenizer(self, *, record: bool) -> None:
+        recorded = self.recorded_tokenizer()
+        mine = self.tokenizer.identity
+        if recorded is None:
+            if record:
+                self._conn.execute("INSERT OR REPLACE INTO meta (key, value) "
+                                   "VALUES ('tokenizer', ?)", [mine])
+            return
+        if recorded != mine:
+            raise TokenizerMismatch(
+                f"the lexical index's units were tokenized by {recorded}; this store's tokenizer "
+                f"is {mine}. Re-derive the index (the embed command resets it and lands every "
+                "item again)")
+
+    def reset(self) -> None:
+        """Forget every unit, posting and version record, and the recorded tokenizer, in one
+        transaction: the index is derived, and the lexical backfill rebuilds it from the raw
+        store (`derive.derive_lexical`)."""
+        conn = self._conn
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            conn.execute("DELETE FROM postings")
+            conn.execute("DELETE FROM units")
+            conn.execute("DELETE FROM versions")
+            conn.execute("DELETE FROM meta WHERE key = 'tokenizer'")
+            conn.execute("COMMIT")
+        except BaseException:
+            conn.execute("ROLLBACK")
+            raise
 
     # ── landing and retiring ─────────────────────────────────────────────────────────────────
 
@@ -143,6 +211,7 @@ class LexicalStore:
         conn = self._conn
         conn.execute("BEGIN IMMEDIATE")
         try:
+            self._check_tokenizer(record=True)
             out = [self._land_one(*item) for item in items]
             conn.execute("COMMIT")
         except BaseException:
@@ -167,7 +236,7 @@ class LexicalStore:
                          [source_path, digest])
             now = _now()
             for c in chunks:
-                counts = term_counts(c.text)
+                counts = Counter(self.tokenizer(c.text))
                 cur = conn.execute(
                     "INSERT INTO units (source_path, digest, chunk_index, provenance, title, "
                     "length, current, landed_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)",
@@ -255,7 +324,8 @@ class LexicalStore:
                      paths: Collection[str] | None) -> dict[int, float]:
         """Every current unit's BM25 score for a query, among the classes (all when None) and the
         paths (all when None); units sharing no term with the query are absent."""
-        terms = sorted(set(term_counts(query)))
+        self._check_tokenizer(record=False)
+        terms = sorted(set(self.tokenizer(query)))
         cls = list(classes) if classes is not None else None
         n, avgdl = self._stats(cls)
         if n == 0 or not terms:
