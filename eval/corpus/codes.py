@@ -34,22 +34,43 @@ def minmax_codes(x: F32) -> tuple[npt.NDArray[np.uint8], F32, F32]:
 
 def build(matrix: npt.NDArray[np.float16], atom_ids: list[str], out: Path,
           block: int = 200000) -> dict[str, Any]:
-    """Every code of the plane's atoms, saved; returns each one's bytes on disk."""
+    """Every code of the plane's atoms, saved; returns each one's bytes on disk. Two passes a
+    block of rows at a time (the per-dimension ranges first, then the codes into memory-mapped
+    arrays), so no float32 copy of the whole plane is held; the codes are those of one pass."""
     out.mkdir(parents=True, exist_ok=True)
     n, dim = matrix.shape
     (out / "atom_ids.txt").write_text("\n".join(atom_ids))
-    x = _unit(matrix.astype(np.float32))
-    c8, lo8, sc8 = minmax_codes(x)
-    np.save(out / "int8_768.npy", c8)
+
+    def rows(a: int, b: int) -> tuple[F32, F32]:
+        x = _unit(matrix[a:b].astype(np.float32))
+        return x, _unit(np.ascontiguousarray(x[:, :256]))
+    lo8 = np.full(dim, np.inf, np.float32)
+    hi8 = np.full(dim, -np.inf, np.float32)
+    lo2 = np.full(256, np.inf, np.float32)
+    hi2 = np.full(256, -np.inf, np.float32)
+    for a in range(0, n, block):
+        x, p = rows(a, min(n, a + block))
+        lo8, hi8 = np.minimum(lo8, x.min(axis=0)), np.maximum(hi8, x.max(axis=0))
+        lo2, hi2 = np.minimum(lo2, p.min(axis=0)), np.maximum(hi2, p.max(axis=0))
+    sc8 = np.where(hi8 > lo8, (hi8 - lo8) / 255.0, 1.0).astype(np.float32)
+    sc2 = np.where(hi2 > lo2, (hi2 - lo2) / 255.0, 1.0).astype(np.float32)
     np.savez(out / "int8_768_scale.npz", lo=lo8, scale=sc8)
-    del c8
-    p = _unit(np.ascontiguousarray(x[:, :256]))
-    np.save(out / "f16_256.npy", p.astype(np.float16))
-    c8, lo8, sc8 = minmax_codes(p)
-    np.save(out / "int8_256.npy", c8)
-    np.savez(out / "int8_256_scale.npz", lo=lo8, scale=sc8)
-    np.save(out / "bits_768.npy", np.packbits(x >= 0.0, axis=1))
-    del x, p, c8
+    np.savez(out / "int8_256_scale.npz", lo=lo2, scale=sc2)
+    mm = np.lib.format.open_memmap
+    c8 = mm(out / "int8_768.npy", mode="w+", dtype=np.uint8, shape=(n, dim))
+    p16 = mm(out / "f16_256.npy", mode="w+", dtype=np.float16, shape=(n, 256))
+    c2 = mm(out / "int8_256.npy", mode="w+", dtype=np.uint8, shape=(n, 256))
+    bits = mm(out / "bits_768.npy", mode="w+", dtype=np.uint8, shape=(n, (dim + 7) // 8))
+    for a in range(0, n, block):
+        b = min(n, a + block)
+        x, p = rows(a, b)
+        c8[a:b] = np.clip(np.rint((x - lo8) / sc8), 0, 255).astype(np.uint8)
+        p16[a:b] = p.astype(np.float16)
+        c2[a:b] = np.clip(np.rint((p - lo2) / sc2), 0, 255).astype(np.uint8)
+        bits[a:b] = np.packbits(x >= 0.0, axis=1)
+    for arr in (c8, p16, c2, bits):
+        arr.flush()
+    del c8, p16, c2, bits
     sizes = {f.name: f.stat().st_size for f in sorted(out.iterdir()) if f.suffix in
              (".npy", ".npz")}
     return {"atoms": n, "dim": dim, "bytes": sizes,

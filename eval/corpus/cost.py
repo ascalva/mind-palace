@@ -43,6 +43,7 @@ def sentences(sample: dict[str, str]) -> list[str]:
         f'top 10 near "{q}" over observed',
         f'top 10 diffuse S from "{a}" over observed',
         f'reach S from "{a}" depth 2 over observed',
+        f'walk from "{a}" via S{{1,2}} depth 2 over observed',
     ]
 
 
@@ -201,6 +202,35 @@ def probe(out: Path, *, reps: int, max_rss_gb: float, timeout: float,
     return rows
 
 
+def lexical_latency(index_dir: Path, queries: list[str], fractions: tuple[float, ...] = (
+        0.01, 0.03, 0.1, 0.3, 1.0), seed: int = 0, reps: int = 3) -> list[dict[str, Any]]:
+    """The lexical arm's query latency against N: the index restricted to nested random subsets
+    of its units (a sub-index, as a smaller corpus would build), the median over `reps` passes of
+    each query's top ten, and the index's bytes at each size."""
+    import numpy as np
+
+    from core.ingest.lexical import LexicalIndex
+
+    full = LexicalIndex.load(index_dir)
+    rng = np.random.default_rng(seed)
+    order = rng.permutation(full.units)
+    rows = []
+    for f in fractions:
+        keep = np.sort(order[: max(1, int(round(f * full.units)))])
+        sub = LexicalIndex(full.vocab, full.weights[keep].tocsc())
+        times = []
+        for _ in range(reps):
+            t0 = time.perf_counter()
+            for q in queries:
+                sub.search(q)
+            times.append((time.perf_counter() - t0) / max(1, len(queries)))
+        nbytes = sub.weights.data.nbytes + sub.weights.indices.nbytes + sub.weights.indptr.nbytes
+        rows.append({"fraction": f, "units": int(len(keep)),
+                     "median_ms": round(1000 * statistics.median(times), 3),
+                     "matrix_bytes": int(nbytes)})
+    return rows
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -236,32 +266,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-def lexical_latency(index_dir: Path, queries: list[str], fractions: tuple[float, ...] = (
-        0.01, 0.03, 0.1, 0.3, 1.0), seed: int = 0, reps: int = 3) -> list[dict[str, Any]]:
-    """The lexical arm's query latency against N: the index restricted to nested random subsets
-    of its units (a sub-index, as a smaller corpus would build), the median over `reps` passes of
-    each query's top ten, and the index's bytes at each size."""
-    import numpy as np
-
-    from core.ingest.lexical import LexicalIndex
-
-    full = LexicalIndex.load(index_dir)
-    rng = np.random.default_rng(seed)
-    order = rng.permutation(full.units)
-    rows = []
-    for f in fractions:
-        keep = np.sort(order[: max(1, int(round(f * full.units)))])
-        sub = LexicalIndex(full.vocab, full.weights[keep].tocsc())
-        times = []
-        for _ in range(reps):
-            t0 = time.perf_counter()
-            for q in queries:
-                sub.search(q)
-            times.append((time.perf_counter() - t0) / max(1, len(queries)))
-        nbytes = sub.weights.data.nbytes + sub.weights.indices.nbytes + sub.weights.indptr.nbytes
-        rows.append({"fraction": f, "units": int(len(keep)),
-                     "median_ms": round(1000 * statistics.median(times), 3),
-                     "matrix_bytes": int(nbytes)})
-    return rows
