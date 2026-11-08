@@ -1,0 +1,2264 @@
+{
+ "date": "2026-11-07",
+ "instance": "corpus",
+ "isolation": {
+  "checks": [
+   {
+    "against": "'ouroboros'",
+    "shared": [],
+    "their_data_dir": "~/mind-palace/.claude/worktrees/corpus-stage1/data",
+    "their_spool": "~/mind-palace/.claude/worktrees/corpus-stage1/data/handoff"
+   },
+   {
+    "against": "'bench' (~/mind-palace/.claude/worktrees/corpus-stage1/config/instances/bench.toml)",
+    "shared": [],
+    "their_data_dir": "~/mind-palace/.claude/worktrees/corpus-stage1/instances/bench/data",
+    "their_spool": "~/mind-palace/.claude/worktrees/corpus-stage1/instances/bench/data/handoff"
+   },
+   {
+    "against": "the default instance of ~/mind-palace",
+    "shared": [],
+    "their_data_dir": "~/mind-palace/data",
+    "their_spool": "~/mind-palace/data/handoff"
+   }
+  ],
+  "isolated": true
+ },
+ "ingested": {
+  "sources": {
+   "wikipedia": {
+    "items": 11414,
+    "text_bytes": 398028224,
+    "zstd3_bytes": 139052286,
+    "zstd3_ratio": 2.862,
+    "chunks": 488999,
+    "chunks_per_MB": 1228.6
+   },
+   "openalex": {
+    "items": 145198,
+    "text_bytes": 171294941,
+    "zstd3_bytes": 52256692,
+    "zstd3_ratio": 3.278,
+    "chunks": 266149,
+    "chunks_per_MB": 1553.7
+   },
+   "arxiv": {
+    "items": 41659,
+    "text_bytes": 50894185,
+    "zstd3_bytes": 16107106,
+    "zstd3_ratio": 3.16,
+    "chunks": 81889,
+    "chunks_per_MB": 1609.0
+   },
+   "stackexchange": {
+    "items": 163503,
+    "text_bytes": 170164300,
+    "zstd3_bytes": 57219558,
+    "zstd3_ratio": 2.974,
+    "chunks": 239270,
+    "chunks_per_MB": 1406.1
+   },
+   "gutenberg": {
+    "items": 338,
+    "text_bytes": 108141097,
+    "zstd3_bytes": 35654076,
+    "zstd3_ratio": 3.033,
+    "chunks": 125379,
+    "chunks_per_MB": 1159.4
+   }
+  },
+  "total": {
+   "items": 362112,
+   "text_bytes": 898522747,
+   "zstd3_bytes": 300289718,
+   "chunks": 1201686
+  }
+ },
+ "edges": {
+  "items": 361943,
+  "relations": {
+   "wikipedia.hyperlink": {
+    "edges": 784737,
+    "bytes": 9416972,
+    "bytes_per_edge": 12.0
+   },
+   "openalex.citation": {
+    "edges": 1118912,
+    "bytes": 13427072,
+    "bytes_per_edge": 12.0
+   },
+   "stackexchange.answer": {
+    "edges": 89378,
+    "bytes": 1072664,
+    "bytes_per_edge": 12.0
+   },
+   "stackexchange.link": {
+    "edges": 13410,
+    "bytes": 161048,
+    "bytes_per_edge": 12.01
+   },
+   "arxiv.version": {
+    "edges": 16620,
+    "bytes": 199568,
+    "bytes_per_edge": 12.01
+   },
+   "stackexchange.version": {
+    "edges": 126752,
+    "bytes": 1521152,
+    "bytes_per_edge": 12.0
+   },
+   "bridge.wikipedia-openalex": {
+    "edges": 287,
+    "bytes": 3572,
+    "bytes_per_edge": 12.45
+   },
+   "bridge.wikipedia-arxiv": {
+    "edges": 195,
+    "bytes": 2468,
+    "bytes_per_edge": 12.66
+   },
+   "bridge.wikipedia-gutenberg": {
+    "edges": 1,
+    "bytes": 140,
+    "bytes_per_edge": 140.0
+   },
+   "bridge.stackexchange-arxiv": {
+    "edges": 463,
+    "bytes": 5684,
+    "bytes_per_edge": 12.28
+   },
+   "bridge.stackexchange-wikipedia": {
+    "edges": 1790,
+    "bytes": 21608,
+    "bytes_per_edge": 12.07
+   },
+   "bridge.stackexchange-openalex": {
+    "edges": 295,
+    "bytes": 3668,
+    "bytes_per_edge": 12.43
+   },
+   "bridge.openalex-arxiv": {
+    "edges": 27397,
+    "bytes": 328892,
+    "bytes_per_edge": 12.0
+   }
+  }
+ },
+ "macro": {
+  "arxiv.version": {
+   "degenerate": {
+    "edges": 16620,
+    "nodes": 33240,
+    "components": 16620,
+    "largest": 2,
+    "median": 2.0
+   },
+   "crossings": null,
+   "bounds": null,
+   "cuts": []
+  },
+  "openalex.citation": {
+   "degenerate": {
+    "edges": 1118912,
+    "nodes": 108314,
+    "components": 363,
+    "largest": 107497,
+    "median": 2.0
+   },
+   "crossings": {
+    "full.width_gamma": 27850.125,
+    "full.width_gap1": 27850.125,
+    "full.width_gap2": null,
+    "full.width_gap3": null,
+    "full.width_gap4": null,
+    "core3.width_gamma": 74331.375,
+    "core3.width_gap1": 74331.375,
+    "core3.width_gap2": null,
+    "core3.width_gap3": null,
+    "core3.width_gap4": null,
+    "core6.width_gamma": 51262.25,
+    "core6.width_gap1": 51262.25,
+    "core6.width_gap2": null,
+    "core6.width_gap3": null,
+    "core6.width_gap4": null,
+    "core10.width_gamma": 28912.375,
+    "core10.width_gap1": 28912.375,
+    "core10.width_gap2": 37709.875,
+    "core10.width_gap3": null,
+    "core10.width_gap4": null,
+    "hodge.w_grad": 236.0,
+    "hodge.w_curl": 2890.0,
+    "hodge.w_harm": 9788.0
+   },
+   "bounds": {
+    "reps": 8,
+    "max_boot_n": 40000,
+    "max_core_boot_n": 100000,
+    "max_hodge_m": 60000,
+    "fractions": [
+     0.25,
+     0.5,
+     0.85
+    ]
+   },
+   "cuts": [
+    {
+     "target": 300,
+     "component": {
+      "n": 236,
+      "m": 506,
+      "mean_deg": 4.288,
+      "min_deg": 1,
+      "deg_over_logn": 0.785,
+      "mindeg_over_logn": 0.183,
+      "gamma": 0.02753237820632272,
+      "gap1": 0.027532378206319298,
+      "gap2": 0.010514887003093533,
+      "gap3": 0.01685375894189832,
+      "gap4": 0.008117480023331215
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 99,
+       "m": 320,
+       "mean_deg": 6.465,
+       "min_deg": 3,
+       "deg_over_logn": 1.407,
+       "mindeg_over_logn": 0.653,
+       "gamma": 0.040061475962212795,
+       "gap1": 0.04006147596221307,
+       "gap2": 0.08488777230739004,
+       "gap3": 0.059186776046899495,
+       "gap4": 0.048025750211672075
+      },
+      {
+       "k": 6,
+       "n": 13,
+       "m": 53,
+       "mean_deg": 8.154,
+       "min_deg": 6,
+       "deg_over_logn": 3.179,
+       "mindeg_over_logn": 2.339,
+       "gamma": 0.7420421922495596,
+       "gap1": 0.7420421922495598,
+       "gap2": 0.1227955754096639,
+       "gap3": 0.07265857702235212,
+       "gap4": 0.006133983734673554
+      },
+      {
+       "k": 10,
+       "n": 0
+      }
+     ],
+     "hodge": {
+      "n": 236,
+      "m": 506,
+      "triangles": 267,
+      "grad": 0.8754727333964895,
+      "curl": 0.09559550058435297,
+      "harm": 0.02893176601915748,
+      "note": "",
+      "w_grad": 0.04560084702247394,
+      "w_curl": 0.506520807317601,
+      "w_harm": 0.7640633267496979
+     }
+    },
+    {
+     "target": 1000,
+     "component": {
+      "n": 886,
+      "m": 2217,
+      "mean_deg": 5.005,
+      "min_deg": 1,
+      "deg_over_logn": 0.737,
+      "mindeg_over_logn": 0.147,
+      "gamma": 0.016649881326646562,
+      "gap1": 0.01664988132664659,
+      "gap2": 0.001772280783019442,
+      "gap3": 0.0047100929910540296,
+      "gap4": 0.007384345792566374
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 433,
+       "m": 1572,
+       "mean_deg": 7.261,
+       "min_deg": 3,
+       "deg_over_logn": 1.196,
+       "mindeg_over_logn": 0.494,
+       "gamma": 0.016686095211925687,
+       "gap1": 0.01668609521192521,
+       "gap2": 0.013895169061545105,
+       "gap3": 0.016719023589482913,
+       "gap4": 0.011188718930560969
+      },
+      {
+       "k": 6,
+       "n": 85,
+       "m": 397,
+       "mean_deg": 9.341,
+       "min_deg": 6,
+       "deg_over_logn": 2.103,
+       "mindeg_over_logn": 1.351,
+       "gamma": 0.032451400366356506,
+       "gap1": 0.0324514003663554,
+       "gap2": 0.08645749884510173,
+       "gap3": 0.10808356179497998,
+       "gap4": 0.05847355737248772
+      },
+      {
+       "k": 10,
+       "n": 0
+      }
+     ],
+     "hodge": {
+      "n": 886,
+      "m": 2217,
+      "triangles": 1225,
+      "grad": 0.8588727706706472,
+      "curl": 0.10766119369300718,
+      "harm": 0.03346603563634576,
+      "note": "",
+      "w_grad": 0.016678099691204474,
+      "w_curl": 0.19506458439871938,
+      "w_harm": 0.33301489214410207
+     }
+    },
+    {
+     "target": 3000,
+     "component": {
+      "n": 2890,
+      "m": 9561,
+      "mean_deg": 6.617,
+      "min_deg": 1,
+      "deg_over_logn": 0.83,
+      "mindeg_over_logn": 0.125,
+      "gamma": 0.003055980980050348,
+      "gap1": 0.003055980980050355,
+      "gap2": 0.009124313853563878,
+      "gap3": 0.005113924372289297,
+      "gap4": 0.010137690040043022
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 1795,
+       "m": 7964,
+       "mean_deg": 8.874,
+       "min_deg": 3,
+       "deg_over_logn": 1.184,
+       "mindeg_over_logn": 0.4,
+       "gamma": 0.0033741377877174565,
+       "gap1": 0.0033741377877174704,
+       "gap2": 0.013082538412270969,
+       "gap3": 0.014723250625316327,
+       "gap4": 0.004121990944592126
+      },
+      {
+       "k": 6,
+       "n": 633,
+       "m": 3713,
+       "mean_deg": 11.731,
+       "min_deg": 6,
+       "deg_over_logn": 1.819,
+       "mindeg_over_logn": 0.93,
+       "gamma": 0.01852258970049954,
+       "gap1": 0.01852258970049954,
+       "gap2": 0.03900812490821776,
+       "gap3": 0.058853851684378504,
+       "gap4": 0.006563162536316364
+      },
+      {
+       "k": 10,
+       "n": 0
+      }
+     ],
+     "hodge": {
+      "n": 2890,
+      "m": 9561,
+      "triangles": 6885,
+      "grad": 0.8201227516659799,
+      "curl": 0.1302388983363365,
+      "harm": 0.04963834999768357,
+      "note": "",
+      "w_grad": 0.008397879145068109,
+      "w_curl": 0.07377482983286326,
+      "w_harm": 0.1452373434532637
+     }
+    },
+    {
+     "target": 10000,
+     "component": {
+      "n": 9788,
+      "m": 44563,
+      "mean_deg": 9.106,
+      "min_deg": 1,
+      "deg_over_logn": 0.991,
+      "mindeg_over_logn": 0.109,
+      "gamma": 0.004245700917692436,
+      "gap1": 0.0042457009176924635,
+      "gap2": 0.011690062743774437,
+      "gap3": 0.00921863051998488,
+      "gap4": 0.01632713672621229
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 6927,
+       "m": 40485,
+       "mean_deg": 11.689,
+       "min_deg": 3,
+       "deg_over_logn": 1.322,
+       "mindeg_over_logn": 0.339,
+       "gamma": 0.004730509440740389,
+       "gap1": 0.004730509440740431,
+       "gap2": 0.011991524425388096,
+       "gap3": 0.027447321434777773,
+       "gap4": 0.007038745745762111
+      },
+      {
+       "k": 6,
+       "n": 3770,
+       "m": 28595,
+       "mean_deg": 15.17,
+       "min_deg": 6,
+       "deg_over_logn": 1.842,
+       "mindeg_over_logn": 0.729,
+       "gamma": 0.005237453657025036,
+       "gap1": 0.005237453657025033,
+       "gap2": 0.010246610769774244,
+       "gap3": 0.027774183196526567,
+       "gap4": 0.018490586699872864
+      },
+      {
+       "k": 10,
+       "n": 1057,
+       "m": 10196,
+       "mean_deg": 19.292,
+       "min_deg": 10,
+       "deg_over_logn": 2.771,
+       "mindeg_over_logn": 1.436,
+       "gamma": 0.004794143742770334,
+       "gap1": 0.004794143742770348,
+       "gap2": 0.03533212326424179,
+       "gap3": 0.05228990447744618,
+       "gap4": 0.03868357151437571
+      }
+     ],
+     "hodge": {
+      "n": 9788,
+      "m": 44563,
+      "triangles": 48951,
+      "grad": 0.7902078648859413,
+      "curl": 0.16099486790228695,
+      "harm": 0.04879726721177169,
+      "note": "",
+      "w_grad": 0.005370030939775377,
+      "w_curl": 0.0634727691208696,
+      "w_harm": 0.07560941664757027
+     }
+    },
+    {
+     "target": 30000,
+     "component": {
+      "n": 29854,
+      "m": 208787,
+      "mean_deg": 13.987,
+      "min_deg": 1,
+      "deg_over_logn": 1.357,
+      "mindeg_over_logn": 0.097,
+      "gamma": 0.012990885984771605,
+      "gap1": 0.012990885984773826,
+      "gap2": 0.004323701152127546,
+      "gap3": 0.008027274631273063,
+      "gap4": 0.004694486341125126
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 23329,
+       "m": 199504,
+       "mean_deg": 17.104,
+       "min_deg": 3,
+       "deg_over_logn": 1.701,
+       "mindeg_over_logn": 0.298,
+       "gamma": 0.01339775770934648,
+       "gap1": 0.013397757709349145,
+       "gap2": 0.00572997498464578,
+       "gap3": 0.014185607895542462,
+       "gap4": 0.00721785889205151
+      },
+      {
+       "k": 6,
+       "n": 16021,
+       "m": 171588,
+       "mean_deg": 21.42,
+       "min_deg": 6,
+       "deg_over_logn": 2.212,
+       "mindeg_over_logn": 0.62,
+       "gamma": 0.013444102786542097,
+       "gap1": 0.013444102786542015,
+       "gap2": 0.027741058374430805,
+       "gap3": 0.014111340009989266,
+       "gap4": 0.004870680899292393
+      },
+      {
+       "k": 10,
+       "n": 8930,
+       "m": 120794,
+       "mean_deg": 27.054,
+       "min_deg": 10,
+       "deg_over_logn": 2.974,
+       "mindeg_over_logn": 1.099,
+       "gamma": 0.012715952486497857,
+       "gap1": 0.012715952486497883,
+       "gap2": 0.050866639909164624,
+       "gap3": 0.022278433724750815,
+       "gap4": 0.0185804195336646
+      }
+     ],
+     "hodge": {
+      "n": 14449,
+      "m": 62468,
+      "triangles": 66298,
+      "grad": 0.8223166877549066,
+      "curl": 0.1344219881881037,
+      "harm": 0.04326132405698968,
+      "note": "on a node subsample at 0.54 (14449 nodes, 62468 edges)",
+      "w_grad": 0.004510451190510024,
+      "w_curl": 0.03167789242405526,
+      "w_harm": 0.07656963747987566
+     }
+    },
+    {
+     "target": 100000,
+     "component": {
+      "n": 99341,
+      "m": 1038866,
+      "mean_deg": 20.915,
+      "min_deg": 1,
+      "deg_over_logn": 1.818,
+      "mindeg_over_logn": 0.087,
+      "gamma": 0.014340625551289454,
+      "gap1": 0.014340625551292119,
+      "gap2": 0.00430499257655903,
+      "gap3": 8.391963424458915e-05,
+      "gap4": 0.00024454788445371634
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 83982,
+       "m": 1016806,
+       "mean_deg": 24.215,
+       "min_deg": 3,
+       "deg_over_logn": 2.136,
+       "mindeg_over_logn": 0.265,
+       "gamma": 0.019216520505508372,
+       "gap1": 0.01921652050550815,
+       "gap2": 0.013121224107374152,
+       "gap3": 0.0027977123250930713,
+       "gap4": 0.0030203657552860808
+      },
+      {
+       "k": 6,
+       "n": 66583,
+       "m": 949676,
+       "mean_deg": 28.526,
+       "min_deg": 6,
+       "deg_over_logn": 2.568,
+       "mindeg_over_logn": 0.54,
+       "gamma": 0.019598429916283466,
+       "gap1": 0.01959842991627747,
+       "gap2": 0.021928390776137174,
+       "gap3": 0.010585909470055332,
+       "gap4": 0.01171179004751588
+      },
+      {
+       "k": 10,
+       "n": 47805,
+       "m": 812551,
+       "mean_deg": 33.994,
+       "min_deg": 10,
+       "deg_over_logn": 3.155,
+       "mindeg_over_logn": 0.928,
+       "gamma": 0.019710753670060477,
+       "gap1": 0.019710753670058923,
+       "gap2": 0.022622890063859202,
+       "gap3": 0.02080598513459586,
+       "gap4": 0.030377270668971335
+      }
+     ],
+     "hodge": {
+      "n": 18495,
+      "m": 55376,
+      "triangles": 27333,
+      "grad": 0.8468347671818994,
+      "curl": 0.08635296289810751,
+      "harm": 0.066812269919993,
+      "note": "on a node subsample at 0.24 (18495 nodes, 55376 edges)",
+      "w_grad": 0.00381576785290692,
+      "w_curl": 0.0781272259500298,
+      "w_harm": 0.045232300118103815
+     }
+    },
+    {
+     "target": 108314,
+     "component": {
+      "n": 107497,
+      "m": 1115464,
+      "mean_deg": 20.753,
+      "min_deg": 1,
+      "deg_over_logn": 1.791,
+      "mindeg_over_logn": 0.086,
+      "gamma": 0.010333896136083487,
+      "gap1": 0.010333896136077714,
+      "gap2": 0.008174443974178214,
+      "gap3": 0.00042989703001583557,
+      "gap4": 0.00039295601034927685
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 90531,
+       "m": 1091091,
+       "mean_deg": 24.104,
+       "min_deg": 3,
+       "deg_over_logn": 2.112,
+       "mindeg_over_logn": 0.263,
+       "gamma": 0.019054033115747826,
+       "gap1": 0.019054033115740054,
+       "gap2": 0.013293892745562808,
+       "gap3": 0.0028411012507230105,
+       "gap4": 0.0029766989559441015
+      },
+      {
+       "k": 6,
+       "n": 71413,
+       "m": 1017382,
+       "mean_deg": 28.493,
+       "min_deg": 6,
+       "deg_over_logn": 2.549,
+       "mindeg_over_logn": 0.537,
+       "gamma": 0.019391036073957757,
+       "gap1": 0.019391036073954204,
+       "gap2": 0.02211647517547699,
+       "gap3": 0.010609728165299925,
+       "gap4": 0.010703403001922629
+      },
+      {
+       "k": 10,
+       "n": 51208,
+       "m": 869853,
+       "mean_deg": 33.973,
+       "min_deg": 10,
+       "deg_over_logn": 3.133,
+       "mindeg_over_logn": 0.922,
+       "gamma": 0.019442236408850233,
+       "gap1": 0.019442236408854674,
+       "gap2": 0.02288647510465025,
+       "gap3": 0.019694804257372134,
+       "gap4": 0.030292947876924936
+      }
+     ],
+     "hodge": {
+      "n": 19571,
+      "m": 60096,
+      "triangles": 33297,
+      "grad": 0.8518530159350527,
+      "curl": 0.08735308830693962,
+      "harm": 0.06079389575800764,
+      "note": "on a node subsample at 0.23 (19571 nodes, 60096 edges)",
+      "w_grad": 0.002557863867984664,
+      "w_curl": 0.025270619479902556,
+      "w_harm": 0.07262275958218649
+     }
+    }
+   ]
+  },
+  "stackexchange.answer": {
+   "degenerate": {
+    "edges": 89378,
+    "nodes": 147398,
+    "components": 58020,
+    "largest": 93,
+    "median": 2.0
+   },
+   "crossings": null,
+   "bounds": null,
+   "cuts": []
+  },
+  "stackexchange.link": {
+   "degenerate": {
+    "edges": 13410,
+    "nodes": 14902,
+    "components": 3404,
+    "largest": 4489,
+    "median": 2.0
+   },
+   "crossings": {
+    "full.width_gamma": null,
+    "full.width_gap1": null,
+    "full.width_gap2": null,
+    "full.width_gap3": null,
+    "full.width_gap4": null,
+    "core3.width_gamma": null,
+    "core3.width_gap1": null,
+    "core3.width_gap2": null,
+    "core3.width_gap3": null,
+    "core3.width_gap4": null,
+    "core6.width_gamma": null,
+    "core6.width_gap1": null,
+    "core6.width_gap2": null,
+    "core6.width_gap3": null,
+    "core6.width_gap4": null,
+    "core10.width_gamma": null,
+    "core10.width_gap1": null,
+    "core10.width_gap2": null,
+    "core10.width_gap3": null,
+    "core10.width_gap4": null,
+    "hodge.w_grad": 70.0,
+    "hodge.w_curl": null,
+    "hodge.w_harm": null
+   },
+   "bounds": {
+    "reps": 8,
+    "max_boot_n": 40000,
+    "max_core_boot_n": 100000,
+    "max_hodge_m": 60000,
+    "fractions": [
+     0.25,
+     0.5,
+     0.85
+    ]
+   },
+   "cuts": [
+    {
+     "target": 300,
+     "component": {
+      "n": 70,
+      "m": 71,
+      "mean_deg": 2.029,
+      "min_deg": 1,
+      "deg_over_logn": 0.477,
+      "mindeg_over_logn": 0.235,
+      "gamma": 0.006265992103963244,
+      "gap1": 0.006265992103963238,
+      "gap2": 0.014372746325996609,
+      "gap3": 0.011738874778553631,
+      "gap4": 0.0024511760378177275
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 0
+      },
+      {
+       "k": 6,
+       "n": 0
+      },
+      {
+       "k": 10,
+       "n": 0
+      }
+     ],
+     "hodge": {
+      "n": 70,
+      "m": 71,
+      "triangles": 2,
+      "grad": 0.994708995145873,
+      "curl": 0.005291005291005292,
+      "harm": 0.0,
+      "note": "",
+      "w_grad": 0.014015166230979117,
+      "w_curl": null,
+      "w_harm": 3.9499999999999993
+     }
+    },
+    {
+     "target": 1000,
+     "component": {
+      "n": 253,
+      "m": 295,
+      "mean_deg": 2.332,
+      "min_deg": 1,
+      "deg_over_logn": 0.421,
+      "mindeg_over_logn": 0.181,
+      "gamma": 0.0029585114162775116,
+      "gap1": 0.0029585114162775728,
+      "gap2": 0.0036980052629355946,
+      "gap3": 0.004214710546700132,
+      "gap4": 0.0008002620617876006
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 11
+      },
+      {
+       "k": 6,
+       "n": 0
+      },
+      {
+       "k": 10,
+       "n": 0
+      }
+     ],
+     "hodge": {
+      "n": 253,
+      "m": 295,
+      "triangles": 38,
+      "grad": 0.9574502790376848,
+      "curl": 0.0330778578074032,
+      "harm": 0.009471863154911886,
+      "note": "",
+      "w_grad": 0.0563430882328521,
+      "w_curl": 1.4217640842150225,
+      "w_harm": 1.9688748792366244
+     }
+    },
+    {
+     "target": 3000,
+     "component": {
+      "n": 576,
+      "m": 676,
+      "mean_deg": 2.347,
+      "min_deg": 1,
+      "deg_over_logn": 0.369,
+      "mindeg_over_logn": 0.157,
+      "gamma": 0.0026346913514534217,
+      "gap1": 0.0026346913514534113,
+      "gap2": 0.002347101028500137,
+      "gap3": 0.0007168992096263926,
+      "gap4": 0.0022026151464069124
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 14,
+       "m": 34,
+       "mean_deg": 4.857,
+       "min_deg": 3,
+       "deg_over_logn": 1.84,
+       "mindeg_over_logn": 1.137,
+       "gamma": 0.24050637580378897,
+       "gap1": 0.24050637580378906,
+       "gap2": 0.3831991431395463,
+       "gap3": 0.10511687853615315,
+       "gap4": 0.1356593875332387
+      },
+      {
+       "k": 6,
+       "n": 0
+      },
+      {
+       "k": 10,
+       "n": 0
+      }
+     ],
+     "hodge": {
+      "n": 576,
+      "m": 676,
+      "triangles": 74,
+      "grad": 0.956219260828356,
+      "curl": 0.02699759242407635,
+      "harm": 0.016783146747567756,
+      "note": "",
+      "w_grad": 0.052717592103425054,
+      "w_curl": 0.7600397339233417,
+      "w_harm": 1.428183090129167
+     }
+    },
+    {
+     "target": 10000,
+     "component": {
+      "n": 2923,
+      "m": 3568,
+      "mean_deg": 2.441,
+      "min_deg": 1,
+      "deg_over_logn": 0.306,
+      "mindeg_over_logn": 0.125,
+      "gamma": 0.0011635593153896933,
+      "gap1": 0.0011635593153899466,
+      "gap2": 0.0011849520713765709,
+      "gap3": 0.0009330183870161265,
+      "gap4": 0.0007651087125254766
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 102,
+       "m": 228,
+       "mean_deg": 4.471,
+       "min_deg": 3,
+       "deg_over_logn": 0.967,
+       "mindeg_over_logn": 0.649,
+       "gamma": 0.007380885719941785,
+       "gap1": 0.007380885719941933,
+       "gap2": 0.015444460779800087,
+       "gap3": 0.01566183079357465,
+       "gap4": 0.009859924173907957
+      },
+      {
+       "k": 6,
+       "n": 0
+      },
+      {
+       "k": 10,
+       "n": 0
+      }
+     ],
+     "hodge": {
+      "n": 2923,
+      "m": 3568,
+      "triangles": 446,
+      "grad": 0.9595581059292672,
+      "curl": 0.02909606320913133,
+      "harm": 0.011345830861601458,
+      "note": "",
+      "w_grad": 0.0073885192456505525,
+      "w_curl": 0.037860502837277946,
+      "w_harm": 0.9630604503064967
+     }
+    },
+    {
+     "target": 14902,
+     "component": {
+      "n": 4489,
+      "m": 5485,
+      "mean_deg": 2.444,
+      "min_deg": 1,
+      "deg_over_logn": 0.291,
+      "mindeg_over_logn": 0.119,
+      "gamma": 0.0009925445188825079,
+      "gap1": 0.0009925445188826883,
+      "gap2": 0.0005540193738056889,
+      "gap3": 0.00034216817197457207,
+      "gap4": 0.0001849353568360787
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 204,
+       "m": 471,
+       "mean_deg": 4.618,
+       "min_deg": 3,
+       "deg_over_logn": 0.868,
+       "mindeg_over_logn": 0.564,
+       "gamma": 0.002640549589273418,
+       "gap1": 0.0026405495892746437,
+       "gap2": 0.0005348227487329315,
+       "gap3": 0.007878290823296058,
+       "gap4": 0.009336868106937669
+      },
+      {
+       "k": 6,
+       "n": 0
+      },
+      {
+       "k": 10,
+       "n": 0
+      }
+     ],
+     "hodge": {
+      "n": 4489,
+      "m": 5485,
+      "triangles": 704,
+      "grad": 0.9608997362682706,
+      "curl": 0.028143950405612198,
+      "harm": 0.010956313326117129,
+      "note": "",
+      "w_grad": 0.007395629670325,
+      "w_curl": 0.22061451329822038,
+      "w_harm": 0.4090407902765962
+     }
+    }
+   ]
+  },
+  "stackexchange.version": {
+   "degenerate": {
+    "edges": 126752,
+    "nodes": 195277,
+    "components": 68525,
+    "largest": 84,
+    "median": 2.0
+   },
+   "crossings": null,
+   "bounds": null,
+   "cuts": []
+  },
+  "wikipedia.hyperlink": {
+   "degenerate": {
+    "edges": 784737,
+    "nodes": 11414,
+    "components": 1,
+    "largest": 11414,
+    "median": 11414.0
+   },
+   "crossings": {
+    "full.width_gamma": 8502.0,
+    "full.width_gap1": 8502.0,
+    "full.width_gap2": 8502.0,
+    "full.width_gap3": 9702.0,
+    "full.width_gap4": null,
+    "core3.width_gamma": 8501.5,
+    "core3.width_gap1": 8501.5,
+    "core3.width_gap2": 8501.5,
+    "core3.width_gap3": 9701.375,
+    "core3.width_gap4": null,
+    "core6.width_gamma": 8499.625,
+    "core6.width_gap1": 8499.625,
+    "core6.width_gap2": 8499.625,
+    "core6.width_gap3": 8499.625,
+    "core6.width_gap4": null,
+    "core10.width_gamma": 8495.75,
+    "core10.width_gap1": 8495.75,
+    "core10.width_gap2": 8495.75,
+    "core10.width_gap3": 9696.25,
+    "core10.width_gap4": null,
+    "hodge.w_grad": 302.0,
+    "hodge.w_curl": 302.0,
+    "hodge.w_harm": null
+   },
+   "bounds": {
+    "reps": 8,
+    "max_boot_n": 40000,
+    "max_core_boot_n": 100000,
+    "max_hodge_m": 300000,
+    "fractions": [
+     0.25,
+     0.5,
+     0.85
+    ]
+   },
+   "cuts": [
+    {
+     "target": 300,
+     "component": {
+      "n": 302,
+      "m": 1119,
+      "mean_deg": 7.411,
+      "min_deg": 1,
+      "deg_over_logn": 1.298,
+      "mindeg_over_logn": 0.175,
+      "gamma": 0.0991278794635326,
+      "gap1": 0.09912787946353216,
+      "gap2": 0.039640569272216014,
+      "gap3": 0.01137763791469018,
+      "gap4": 0.011379342226534639
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 251,
+       "m": 1039,
+       "mean_deg": 8.279,
+       "min_deg": 3,
+       "deg_over_logn": 1.498,
+       "mindeg_over_logn": 0.543,
+       "gamma": 0.10619620442289981,
+       "gap1": 0.10619620442289893,
+       "gap2": 0.052703009758241715,
+       "gap3": 0.01972949075980507,
+       "gap4": 0.017772558753013562
+      },
+      {
+       "k": 6,
+       "n": 72,
+       "m": 367,
+       "mean_deg": 10.194,
+       "min_deg": 6,
+       "deg_over_logn": 2.384,
+       "mindeg_over_logn": 1.403,
+       "gamma": 0.1811367945735779,
+       "gap1": 0.18113679457357773,
+       "gap2": 0.233245402725886,
+       "gap3": 0.028940486470864446,
+       "gap4": 0.0625178840647278
+      },
+      {
+       "k": 10,
+       "n": 0
+      }
+     ],
+     "hodge": {
+      "n": 302,
+      "m": 1119,
+      "triangles": 769,
+      "grad": 0.4398050132865174,
+      "curl": 0.33127476597331057,
+      "harm": 0.22892022074017204,
+      "note": "",
+      "w_grad": 0.048387712362974844,
+      "w_curl": 0.047933870373808925,
+      "w_harm": 0.09244788183382444
+     }
+    },
+    {
+     "target": 1000,
+     "component": {
+      "n": 1000,
+      "m": 8988,
+      "mean_deg": 17.976,
+      "min_deg": 1,
+      "deg_over_logn": 2.602,
+      "mindeg_over_logn": 0.145,
+      "gamma": 0.09707745001060751,
+      "gap1": 0.09707745001060754,
+      "gap2": 0.0648678746937411,
+      "gap3": 0.08575519619862673,
+      "gap4": 0.054346879462743414
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 990,
+       "m": 8972,
+       "mean_deg": 18.125,
+       "min_deg": 3,
+       "deg_over_logn": 2.628,
+       "mindeg_over_logn": 0.435,
+       "gamma": 0.09719368093073884,
+       "gap1": 0.09719368093073887,
+       "gap2": 0.06491749374793308,
+       "gap3": 0.08548851347503011,
+       "gap4": 0.055904829334873785
+      },
+      {
+       "k": 6,
+       "n": 936,
+       "m": 8742,
+       "mean_deg": 18.679,
+       "min_deg": 6,
+       "deg_over_logn": 2.73,
+       "mindeg_over_logn": 0.877,
+       "gamma": 0.09682757917990475,
+       "gap1": 0.09682757917990478,
+       "gap2": 0.06539435385190737,
+       "gap3": 0.08615989561882884,
+       "gap4": 0.05975222337865055
+      },
+      {
+       "k": 10,
+       "n": 623,
+       "m": 6437,
+       "mean_deg": 20.665,
+       "min_deg": 10,
+       "deg_over_logn": 3.211,
+       "mindeg_over_logn": 1.554,
+       "gamma": 0.16451937523550922,
+       "gap1": 0.16451937523550927,
+       "gap2": 0.08460191460858943,
+       "gap3": 0.07023157992671741,
+       "gap4": 0.03908247610678861
+      }
+     ],
+     "hodge": {
+      "n": 1000,
+      "m": 8988,
+      "triangles": 10872,
+      "grad": 0.34996197451068367,
+      "curl": 0.4930529018730381,
+      "harm": 0.15698512361627825,
+      "note": "",
+      "w_grad": 0.05313304864766669,
+      "w_curl": 0.07624730929204011,
+      "w_harm": 0.18573826002150962
+     }
+    },
+    {
+     "target": 3000,
+     "component": {
+      "n": 3031,
+      "m": 77832,
+      "mean_deg": 51.357,
+      "min_deg": 2,
+      "deg_over_logn": 6.406,
+      "mindeg_over_logn": 0.249,
+      "gamma": 0.12026194810569235,
+      "gap1": 0.12026194810569146,
+      "gap2": 0.06441536596075936,
+      "gap3": 0.11721725058717292,
+      "gap4": 0.005564762617361829
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 3030,
+       "m": 77830,
+       "mean_deg": 51.373,
+       "min_deg": 5,
+       "deg_over_logn": 6.409,
+       "mindeg_over_logn": 0.624,
+       "gamma": 0.12026254121884805,
+       "gap1": 0.12026254121884628,
+       "gap2": 0.06441660944701688,
+       "gap3": 0.11721524758462865,
+       "gap4": 0.005564982082012282
+      },
+      {
+       "k": 6,
+       "n": 3028,
+       "m": 77820,
+       "mean_deg": 51.4,
+       "min_deg": 6,
+       "deg_over_logn": 6.412,
+       "mindeg_over_logn": 0.749,
+       "gamma": 0.12026209599405724,
+       "gap1": 0.12026209599405613,
+       "gap2": 0.06446598778985124,
+       "gap3": 0.11717338083560458,
+       "gap4": 0.005796789772313682
+      },
+      {
+       "k": 10,
+       "n": 3017,
+       "m": 77731,
+       "mean_deg": 51.529,
+       "min_deg": 10,
+       "deg_over_logn": 6.431,
+       "mindeg_over_logn": 1.248,
+       "gamma": 0.12047178506732625,
+       "gap1": 0.12047178506732714,
+       "gap2": 0.06420750454149182,
+       "gap3": 0.11724930782363452,
+       "gap4": 0.005752445753960167
+      }
+     ],
+     "hodge": {
+      "n": 3031,
+      "m": 77832,
+      "triangles": 261248,
+      "grad": 0.2842003420541544,
+      "curl": 0.6796818447246445,
+      "harm": 0.036117813221201,
+      "note": "",
+      "w_grad": 0.04889199978292209,
+      "w_curl": 0.022809037187977423,
+      "w_harm": 0.24232325551796355
+     }
+    },
+    {
+     "target": 10000,
+     "component": {
+      "n": 10002,
+      "m": 548987,
+      "mean_deg": 109.775,
+      "min_deg": 3,
+      "deg_over_logn": 11.918,
+      "mindeg_over_logn": 0.326,
+      "gamma": 0.10668149110562108,
+      "gap1": 0.10668149110562108,
+      "gap2": 0.08320888264989668,
+      "gap3": 0.09325918397646848,
+      "gap4": 0.01796632129643183
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 10002,
+       "m": 548987,
+       "mean_deg": 109.775,
+       "min_deg": 3,
+       "deg_over_logn": 11.918,
+       "mindeg_over_logn": 0.326,
+       "gamma": 0.10668149110561931,
+       "gap1": 0.10668149110562286,
+       "gap2": 0.08320888264990112,
+       "gap3": 0.0932591839764696,
+       "gap4": 0.017966321296434717
+      },
+      {
+       "k": 6,
+       "n": 10000,
+       "m": 548979,
+       "mean_deg": 109.796,
+       "min_deg": 6,
+       "deg_over_logn": 11.921,
+       "mindeg_over_logn": 0.651,
+       "gamma": 0.10667925941822731,
+       "gap1": 0.10667925941822776,
+       "gap2": 0.0832113681511637,
+       "gap3": 0.09325979783092198,
+       "gap4": 0.01796538056268915
+      },
+      {
+       "k": 10,
+       "n": 9998,
+       "m": 548964,
+       "mean_deg": 109.815,
+       "min_deg": 10,
+       "deg_over_logn": 11.923,
+       "mindeg_over_logn": 1.086,
+       "gamma": 0.10668463256506788,
+       "gap1": 0.10668463256506966,
+       "gap2": 0.08319282718845922,
+       "gap3": 0.09327224905532905,
+       "gap4": 0.01795373591178917
+      }
+     ],
+     "hodge": {
+      "n": 7394,
+      "m": 300348,
+      "triangles": 1330128,
+      "grad": 0.20470944770416033,
+      "curl": 0.7765111545005425,
+      "harm": 0.018779397795297137,
+      "note": "on a node subsample at 0.74 (7394 nodes, 300348 edges)",
+      "w_grad": 0.0335138648660575,
+      "w_curl": 0.008639292244465694,
+      "w_harm": 0.07598089976589226
+     }
+    },
+    {
+     "target": 11414,
+     "component": {
+      "n": 11414,
+      "m": 693196,
+      "mean_deg": 121.464,
+      "min_deg": 3,
+      "deg_over_logn": 13.001,
+      "mindeg_over_logn": 0.321,
+      "gamma": 0.10750780950171812,
+      "gap1": 0.10750780950171723,
+      "gap2": 0.08376345657357387,
+      "gap3": 0.0879275170204652,
+      "gap4": 0.021765798098565936
+     },
+     "cores": [
+      {
+       "k": 3,
+       "n": 11414,
+       "m": 693196,
+       "mean_deg": 121.464,
+       "min_deg": 3,
+       "deg_over_logn": 13.001,
+       "mindeg_over_logn": 0.321,
+       "gamma": 0.10750780950171834,
+       "gap1": 0.10750780950171546,
+       "gap2": 0.08376345657357298,
+       "gap3": 0.08792751702047341,
+       "gap4": 0.02176579809856305
+      },
+      {
+       "k": 6,
+       "n": 11413,
+       "m": 693193,
+       "mean_deg": 121.474,
+       "min_deg": 7,
+       "deg_over_logn": 13.002,
+       "mindeg_over_logn": 0.749,
+       "gamma": 0.10750787231127745,
+       "gap1": 0.10750787231127745,
+       "gap2": 0.08376353947375303,
+       "gap3": 0.08792732346957832,
+       "gap4": 0.021765856420857377
+      },
+      {
+       "k": 10,
+       "n": 11411,
+       "m": 693177,
+       "mean_deg": 121.493,
+       "min_deg": 10,
+       "deg_over_logn": 13.005,
+       "mindeg_over_logn": 1.07,
+       "gamma": 0.10750387199121336,
+       "gap1": 0.10750387199121136,
+       "gap2": 0.08376317536493616,
+       "gap3": 0.08793272308641042,
+       "gap4": 0.02176636581282576
+      }
+     ],
+     "hodge": {
+      "n": 7509,
+      "m": 305113,
+      "triangles": 1396024,
+      "grad": 0.21035975245192085,
+      "curl": 0.7715843150500915,
+      "harm": 0.018055932497987537,
+      "note": "on a node subsample at 0.66 (7509 nodes, 305113 edges)",
+      "w_grad": 0.02496784658187681,
+      "w_curl": 0.007812243692878591,
+      "w_harm": 0.10328169720422457
+     }
+    }
+   ]
+  }
+ },
+ "rises": {
+  "window": [
+   "2012-01-01",
+   "2024-12-31"
+  ],
+  "weeks": 679,
+  "max_lag": 8,
+  "communities": 53,
+  "sources": 5,
+  "min_items": 150,
+  "per_source_cap": {
+   "wikipedia": {
+    "communities": 8,
+    "rho_w": 0.44029611999396234
+   },
+   "openalex": {
+    "communities": 4,
+    "rho_w": 0.45206044602534917
+   },
+   "arxiv": {
+    "communities": 20,
+    "rho_w": 0.09268710726402427
+   },
+   "stackexchange": {
+    "communities": 20,
+    "rho_w": 0.09290934271064903
+   },
+   "gutenberg": {
+    "communities": 1,
+    "rho_w": null
+   }
+  },
+  "rho_w": 0.12150719693519557,
+  "rho_b": 0.09248346841210232,
+  "rho_w_band": [
+   0.11098358834094688,
+   0.12715910194319044
+  ],
+  "rho_b_band": [
+   0.08882688294704533,
+   0.09573388731638685
+  ],
+  "rho_w_lag0": 0.07037143459214071,
+  "rho_b_lag0": 0.0397630686970858,
+  "rho_null_w": 0.09440965602441755,
+  "rho_null_b": 0.09154814117851814,
+  "rho_null_band": [
+   0.09068255986098452,
+   0.0959933535165345
+  ],
+  "n_eff": 8.705982009040321,
+  "n_eff_limit": 10.174159831742005,
+  "m_per_source": 10.6,
+  "by_source": {
+   "wikipedia": {
+    "communities": 8,
+    "rho_w": 0.44029611999396234
+   },
+   "openalex": {
+    "communities": 4,
+    "rho_w": 0.45206044602534917
+   },
+   "arxiv": {
+    "communities": 20,
+    "rho_w": 0.09268710726402427
+   },
+   "stackexchange": {
+    "communities": 20,
+    "rho_w": 0.09290934271064903
+   },
+   "gutenberg": {
+    "communities": 1,
+    "rho_w": null
+   }
+  },
+  "cif2_rises_broken": false
+ },
+ "bridges": {
+  "explicit": {
+   "items": 361943,
+   "edges": 1941876,
+   "semantic_edges": 0,
+   "cross_edges": 30428,
+   "cross_share": 0.01566938362696691,
+   "cross_explicit": 30428,
+   "cross_semantic": 0,
+   "null_cross_share": 0.5310791440411501,
+   "null_cross_share_sd": 0.00029548709254657195,
+   "communities": 1228,
+   "reps": 20,
+   "z": 3.0,
+   "min_edges": 3,
+   "bridges": 99,
+   "false_positive_bridges": [
+    30,
+    30,
+    28,
+    38,
+    38,
+    29,
+    48,
+    29,
+    36,
+    38
+   ],
+   "false_positive_mean": 34.4,
+   "false_positive_bar": 46.473110618229256,
+   "cif2_bridges_broken": false,
+   "by_source_pair": {
+    "arxiv-openalex": {
+     "edges": 27397,
+     "bridges": 88
+    },
+    "arxiv-stackexchange": {
+     "edges": 463,
+     "bridges": 11
+    },
+    "arxiv-wikipedia": {
+     "edges": 195,
+     "bridges": 0
+    },
+    "gutenberg-wikipedia": {
+     "edges": 1,
+     "bridges": 0
+    },
+    "openalex-stackexchange": {
+     "edges": 295,
+     "bridges": 0
+    },
+    "openalex-wikipedia": {
+     "edges": 287,
+     "bridges": 0
+    },
+    "stackexchange-wikipedia": {
+     "edges": 1790,
+     "bridges": 0
+    }
+   },
+   "top": [
+    {
+     "a": "arxiv:cs.LG",
+     "b": "openalex:T11273",
+     "edges": 4215,
+     "null_mean": 605.4,
+     "null_sd": 24.57
+    },
+    {
+     "a": "arxiv:cs.DS",
+     "b": "openalex:T10720",
+     "edges": 4102,
+     "null_mean": 586.1,
+     "null_sd": 23.69
+    },
+    {
+     "a": "arxiv:physics.soc-ph",
+     "b": "openalex:T10064",
+     "edges": 3060,
+     "null_mean": 1173.75,
+     "null_sd": 27.08
+    },
+    {
+     "a": "arxiv:cs.SI",
+     "b": "openalex:T10064",
+     "edges": 2964,
+     "null_mean": 1099.35,
+     "null_sd": 31.67
+    },
+    {
+     "a": "arxiv:cs.CC",
+     "b": "openalex:T10720",
+     "edges": 1701,
+     "null_mean": 242.5,
+     "null_sd": 14.17
+    },
+    {
+     "a": "arxiv:physics.soc-ph",
+     "b": "openalex:T12592",
+     "edges": 894,
+     "null_mean": 102.9,
+     "null_sd": 10.65
+    },
+    {
+     "a": "arxiv:cs.AI",
+     "b": "openalex:T11273",
+     "edges": 530,
+     "null_mean": 84.95,
+     "null_sd": 9.77
+    },
+    {
+     "a": "arxiv:math.CO",
+     "b": "openalex:T10720",
+     "edges": 511,
+     "null_mean": 84.55,
+     "null_sd": 8.41
+    },
+    {
+     "a": "arxiv:cond-mat.stat-mech",
+     "b": "openalex:T10064",
+     "edges": 678,
+     "null_mean": 258.9,
+     "null_sd": 11.56
+    },
+    {
+     "a": "arxiv:cond-mat.dis-nn",
+     "b": "openalex:T10064",
+     "edges": 489,
+     "null_mean": 156.9,
+     "null_sd": 8.25
+    },
+    {
+     "a": "arxiv:cs.CL",
+     "b": "openalex:T11273",
+     "edges": 384,
+     "null_mean": 55.65,
+     "null_sd": 6.52
+    },
+    {
+     "a": "arxiv:cs.DC",
+     "b": "openalex:T10720",
+     "edges": 370,
+     "null_mean": 61.55,
+     "null_sd": 7.91
+    },
+    {
+     "a": "arxiv:math.OC",
+     "b": "openalex:T10720",
+     "edges": 371,
+     "null_mean": 64.35,
+     "null_sd": 7.89
+    },
+    {
+     "a": "arxiv:cs.DM",
+     "b": "openalex:T10720",
+     "edges": 358,
+     "null_mean": 60.15,
+     "null_sd": 8.56
+    },
+    {
+     "a": "arxiv:math.PR",
+     "b": "openalex:T10064",
+     "edges": 408,
+     "null_mean": 157.55,
+     "null_sd": 10.81
+    }
+   ]
+  }
+ },
+ "battery_lexical": {
+  "recall": {
+   "lexical:titles:wikipedia": {
+    "unscoped@0.01": 1.0,
+    "scoped@0.01": 1.0,
+    "unscoped@0.03": 1.0,
+    "scoped@0.03": 1.0,
+    "unscoped@0.1": 1.0,
+    "scoped@0.1": 1.0,
+    "unscoped@0.3": 0.998,
+    "scoped@0.3": 1.0,
+    "unscoped@1.0": 0.972,
+    "scoped@1.0": 0.984
+   },
+   "lexical:titles:openalex": {
+    "unscoped@0.01": 0.978,
+    "scoped@0.01": 0.98,
+    "unscoped@0.03": 0.976,
+    "scoped@0.03": 0.978,
+    "unscoped@0.1": 0.972,
+    "scoped@0.1": 0.974,
+    "unscoped@0.3": 0.968,
+    "scoped@0.3": 0.97,
+    "unscoped@1.0": 0.952,
+    "scoped@1.0": 0.958
+   },
+   "lexical:titles:arxiv": {
+    "unscoped@0.01": 1.0,
+    "scoped@0.01": 1.0,
+    "unscoped@0.03": 1.0,
+    "scoped@0.03": 1.0,
+    "unscoped@0.1": 1.0,
+    "scoped@0.1": 1.0,
+    "unscoped@0.3": 0.996,
+    "scoped@0.3": 1.0,
+    "unscoped@1.0": 0.99,
+    "scoped@1.0": 0.998
+   },
+   "lexical:titles:stackexchange": {
+    "unscoped@0.01": 0.996,
+    "scoped@0.01": 0.996,
+    "unscoped@0.03": 0.992,
+    "scoped@0.03": 0.996,
+    "unscoped@0.1": 0.986,
+    "scoped@0.1": 0.99,
+    "unscoped@0.3": 0.98,
+    "scoped@0.3": 0.982,
+    "unscoped@1.0": 0.954,
+    "scoped@1.0": 0.96
+   },
+   "lexical:titles:gutenberg": {
+    "unscoped@0.01": 0.9881656804733728,
+    "scoped@0.01": 0.9881656804733728,
+    "unscoped@0.03": 0.9881656804733728,
+    "scoped@0.03": 0.9881656804733728,
+    "unscoped@0.1": 0.985207100591716,
+    "scoped@0.1": 0.9881656804733728,
+    "unscoped@0.3": 0.9792899408284024,
+    "scoped@0.3": 0.9881656804733728,
+    "unscoped@1.0": 0.9704142011834319,
+    "scoped@1.0": 0.9881656804733728
+   },
+   "lexical:twins:arxiv->openalex": {
+    "unscoped@0.01": 0.992,
+    "scoped@0.01": 0.992,
+    "unscoped@0.03": 0.992,
+    "scoped@0.03": 0.992,
+    "unscoped@0.1": 0.992,
+    "scoped@0.1": 0.992,
+    "unscoped@0.3": 0.992,
+    "scoped@0.3": 0.992,
+    "unscoped@1.0": 0.988,
+    "scoped@1.0": 0.992
+   },
+   "lexical:twins:openalex->arxiv": {
+    "unscoped@0.01": 0.994,
+    "scoped@0.01": 0.994,
+    "unscoped@0.03": 0.994,
+    "scoped@0.03": 0.994,
+    "unscoped@0.1": 0.992,
+    "scoped@0.1": 0.994,
+    "unscoped@0.3": 0.992,
+    "scoped@0.3": 0.994,
+    "unscoped@1.0": 0.992,
+    "scoped@1.0": 0.992
+   },
+   "lexical:cite:wikipedia->paper": {
+    "unscoped@0.01": 0.9129129129129129,
+    "scoped@0.01": 0.918918918918919,
+    "unscoped@0.03": 0.8948948948948949,
+    "scoped@0.03": 0.9039039039039038,
+    "unscoped@0.1": 0.8678678678678678,
+    "scoped@0.1": 0.8888888888888888,
+    "unscoped@0.3": 0.8438438438438438,
+    "scoped@0.3": 0.8618618618618619,
+    "unscoped@1.0": 0.8108108108108109,
+    "scoped@1.0": 0.8228228228228228
+   },
+   "lexical:link:stackexchange->wikipedia": {
+    "unscoped@0.01": 0.5435435435435435,
+    "scoped@0.01": 0.6546546546546547,
+    "unscoped@0.03": 0.4984984984984985,
+    "scoped@0.03": 0.6336336336336337,
+    "unscoped@0.1": 0.3963963963963964,
+    "scoped@0.1": 0.6186186186186187,
+    "unscoped@0.3": 0.2972972972972973,
+    "scoped@0.3": 0.6036036036036037,
+    "unscoped@1.0": 0.1831831831831832,
+    "scoped@1.0": 0.5465465465465466
+   }
+  },
+  "questions": {
+   "lexical:titles:wikipedia": 500,
+   "lexical:titles:openalex": 500,
+   "lexical:titles:arxiv": 500,
+   "lexical:titles:stackexchange": 500,
+   "lexical:titles:gutenberg": 338,
+   "lexical:twins:arxiv->openalex": 500,
+   "lexical:twins:openalex->arxiv": 500,
+   "lexical:cite:wikipedia->paper": 333,
+   "lexical:link:stackexchange->wikipedia": 333
+  },
+  "pending": {},
+  "drop": {
+   "lexical:titles:wikipedia": {
+    "unscoped": [
+     0.028,
+     0.014,
+     0.044
+    ],
+    "scoped": [
+     0.016,
+     0.006,
+     0.028
+    ]
+   },
+   "lexical:titles:openalex": {
+    "unscoped": [
+     0.026,
+     0.014,
+     0.04
+    ],
+    "scoped": [
+     0.022,
+     0.01,
+     0.036
+    ]
+   },
+   "lexical:titles:arxiv": {
+    "unscoped": [
+     0.01,
+     0.002,
+     0.02
+    ],
+    "scoped": [
+     0.002,
+     0.0,
+     0.006
+    ]
+   },
+   "lexical:titles:stackexchange": {
+    "unscoped": [
+     0.042,
+     0.026,
+     0.06
+    ],
+    "scoped": [
+     0.036,
+     0.02195,
+     0.054
+    ]
+   },
+   "lexical:titles:gutenberg": {
+    "unscoped": [
+     0.01775147928994083,
+     0.005917159763313609,
+     0.03254437869822485
+    ],
+    "scoped": [
+     0.0,
+     0.0,
+     0.0
+    ]
+   },
+   "lexical:twins:arxiv->openalex": {
+    "unscoped": [
+     0.004,
+     0.0,
+     0.01
+    ],
+    "scoped": [
+     0.0,
+     0.0,
+     0.0
+    ]
+   },
+   "lexical:twins:openalex->arxiv": {
+    "unscoped": [
+     0.002,
+     0.0,
+     0.006
+    ],
+    "scoped": [
+     0.002,
+     0.0,
+     0.006
+    ]
+   },
+   "lexical:cite:wikipedia->paper": {
+    "unscoped": [
+     0.1021021021021021,
+     0.07207207207207207,
+     0.13513513513513514
+    ],
+    "scoped": [
+     0.0960960960960961,
+     0.06606606606606606,
+     0.12912912912912913
+    ]
+   },
+   "lexical:link:stackexchange->wikipedia": {
+    "unscoped": [
+     0.36036036036036034,
+     0.30930930930930933,
+     0.4114114114114114
+    ],
+    "scoped": [
+     0.10810810810810811,
+     0.07507507507507508,
+     0.14414414414414414
+    ]
+   }
+  },
+  "attribution": {
+   "lexical": {
+    "all": {
+     "v_full": 0.9674935842600513,
+     "shapley": {
+      "wikipedia": 0.2080695751354434,
+      "openalex": 0.25248075278015397,
+      "arxiv": 0.16144853150841174,
+      "stackexchange": 0.20422013116623894,
+      "gutenberg": 0.14127459366980324
+     },
+     "loo": {
+      "wikipedia": 0.20615911035072712,
+      "openalex": 0.16680923866552608,
+      "arxiv": 0.07698887938408897,
+      "stackexchange": 0.20316509837467922,
+      "gutenberg": 0.13986313088109495
+     },
+     "loo_p": {
+      "wikipedia": 4.999750012499375e-05,
+      "openalex": 4.999750012499375e-05,
+      "arxiv": 4.999750012499375e-05,
+      "stackexchange": 4.999750012499375e-05,
+      "gutenberg": 4.999750012499375e-05
+     },
+     "loo_p_holm": {
+      "wikipedia": 0.00024998750062496874,
+      "openalex": 0.00024998750062496874,
+      "arxiv": 0.00024998750062496874,
+      "stackexchange": 0.00024998750062496874,
+      "gutenberg": 0.00024998750062496874
+     },
+     "values": {
+      "wikipedia": 0.21043627031650983,
+      "openalex": 0.33875106928999144,
+      "arxiv": 0.24636441402908468,
+      "stackexchange": 0.20530367835757057,
+      "gutenberg": 0.14285714285714285,
+      "wikipedia,openalex": 0.5470487596236099,
+      "wikipedia,arxiv": 0.455945252352438,
+      "wikipedia,stackexchange": 0.41573994867408043,
+      "wikipedia,gutenberg": 0.35072711719418304,
+      "openalex,arxiv": 0.41573994867408043,
+      "openalex,stackexchange": 0.542343883661249,
+      "openalex,gutenberg": 0.481180496150556,
+      "arxiv,stackexchange": 0.4516680923866553,
+      "arxiv,gutenberg": 0.38922155688622756,
+      "stackexchange,gutenberg": 0.34773310521813516,
+      "wikipedia,openalex,arxiv": 0.6240376390076989,
+      "wikipedia,openalex,stackexchange": 0.7506415739948674,
+      "wikipedia,openalex,gutenberg": 0.6873396065012831,
+      "wikipedia,arxiv,stackexchange": 0.6608212147134302,
+      "wikipedia,arxiv,gutenberg": 0.5962360992301112,
+      "wikipedia,stackexchange,gutenberg": 0.5556030795551754,
+      "openalex,arxiv,stackexchange": 0.6193327630453379,
+      "openalex,arxiv,gutenberg": 0.5577416595380668,
+      "openalex,stackexchange,gutenberg": 0.6847733105218136,
+      "arxiv,stackexchange,gutenberg": 0.5936698032506416,
+      "wikipedia,openalex,arxiv,stackexchange": 0.8276304533789564,
+      "wikipedia,openalex,arxiv,gutenberg": 0.7643284858853722,
+      "wikipedia,openalex,stackexchange,gutenberg": 0.8905047048759623,
+      "wikipedia,arxiv,stackexchange,gutenberg": 0.8006843455945253,
+      "openalex,arxiv,stackexchange,gutenberg": 0.7613344739093242,
+      "wikipedia,openalex,arxiv,stackexchange,gutenberg": 0.9674935842600513
+     },
+     "questions": 2338
+    },
+    "twinned": {
+     "v_full": 0.9874055415617129,
+     "shapley": {
+      "wikipedia": 0.0,
+      "openalex": 0.4916036943744754,
+      "arxiv": 0.4966414777497902,
+      "stackexchange": -0.0008396305625524663,
+      "gutenberg": 0.0
+     },
+     "loo": {
+      "wikipedia": 0.0,
+      "openalex": -0.005037783375314861,
+      "arxiv": 0.0,
+      "stackexchange": -0.0025188916876574307,
+      "gutenberg": 0.0
+     },
+     "loo_p": {
+      "wikipedia": 1.0,
+      "openalex": 0.6844157792110395,
+      "arxiv": 1.0,
+      "stackexchange": 1.0,
+      "gutenberg": 1.0
+     },
+     "loo_p_holm": {
+      "wikipedia": 1.0,
+      "openalex": 1.0,
+      "arxiv": 1.0,
+      "stackexchange": 1.0,
+      "gutenberg": 1.0
+     },
+     "values": {
+      "wikipedia": 0.0,
+      "openalex": 0.9874055415617129,
+      "arxiv": 0.9924433249370277,
+      "stackexchange": 0.0,
+      "gutenberg": 0.0,
+      "wikipedia,openalex": 0.9874055415617129,
+      "wikipedia,arxiv": 0.9924433249370277,
+      "wikipedia,stackexchange": 0.0,
+      "wikipedia,gutenberg": 0.0,
+      "openalex,arxiv": 0.9899244332493703,
+      "openalex,stackexchange": 0.9874055415617129,
+      "openalex,gutenberg": 0.9874055415617129,
+      "arxiv,stackexchange": 0.9924433249370277,
+      "arxiv,gutenberg": 0.9924433249370277,
+      "stackexchange,gutenberg": 0.0,
+      "wikipedia,openalex,arxiv": 0.9899244332493703,
+      "wikipedia,openalex,stackexchange": 0.9874055415617129,
+      "wikipedia,openalex,gutenberg": 0.9874055415617129,
+      "wikipedia,arxiv,stackexchange": 0.9924433249370277,
+      "wikipedia,arxiv,gutenberg": 0.9924433249370277,
+      "wikipedia,stackexchange,gutenberg": 0.0,
+      "openalex,arxiv,stackexchange": 0.9874055415617129,
+      "openalex,arxiv,gutenberg": 0.9899244332493703,
+      "openalex,stackexchange,gutenberg": 0.9874055415617129,
+      "arxiv,stackexchange,gutenberg": 0.9924433249370277,
+      "wikipedia,openalex,arxiv,stackexchange": 0.9874055415617129,
+      "wikipedia,openalex,arxiv,gutenberg": 0.9899244332493703,
+      "wikipedia,openalex,stackexchange,gutenberg": 0.9874055415617129,
+      "wikipedia,arxiv,stackexchange,gutenberg": 0.9924433249370277,
+      "openalex,arxiv,stackexchange,gutenberg": 0.9874055415617129,
+      "wikipedia,openalex,arxiv,stackexchange,gutenberg": 0.9874055415617129
+     },
+     "questions": 397
+    },
+    "cif10_broken": false
+   }
+  }
+ },
+ "lexical_latency": [
+  {
+   "fraction": 0.01,
+   "units": 12017,
+   "median_ms": 0.191,
+   "matrix_bytes": 11451156
+  },
+  {
+   "fraction": 0.03,
+   "units": 36051,
+   "median_ms": 0.483,
+   "matrix_bytes": 27731124
+  },
+  {
+   "fraction": 0.1,
+   "units": 120169,
+   "median_ms": 1.5,
+   "matrix_bytes": 84322372
+  },
+  {
+   "fraction": 0.3,
+   "units": 360506,
+   "median_ms": 4.359,
+   "matrix_bytes": 246831524
+  },
+  {
+   "fraction": 1.0,
+   "units": 1201686,
+   "median_ms": 14.193,
+   "matrix_bytes": 814863324
+  }
+ ],
+ "cost": [
+  {
+   "at": "2026-11-08T01:23:13+00:00",
+   "sentence": "top 10 near \"spectral gap of random graphs\" over observed",
+   "chunks": 34428,
+   "items": 12897,
+   "peak_rss_gb_watch": 5.53,
+   "wall_s": 7.463,
+   "walls": [
+    9.5341,
+    7.463,
+    7.1741
+   ],
+   "hits": 10,
+   "support": "the universe is the sentence's support: 12897 nodes (dialogue 12897); 12897 with vectors; the citation graph at cut 87e2854",
+   "split": {
+    "compiled": 0.9865,
+    "wait": 0.954,
+    "python": 7.0162,
+    "python_share": 0.7833
+   },
+   "peak_rss_mb": 5661
+  },
+  {
+   "at": "2026-11-08T01:23:19+00:00",
+   "sentence": "top 10 diffuse S from \"Graph theory\" over observed",
+   "chunks": 34428,
+   "items": 12897,
+   "peak_rss_gb_watch": 6.18,
+   "killed": "rss above 6.0 GB"
+  },
+  {
+   "at": "2026-11-08T01:23:25+00:00",
+   "sentence": "reach S from \"Graph theory\" depth 2 over observed",
+   "chunks": 34428,
+   "items": 12897,
+   "peak_rss_gb_watch": 6.27,
+   "killed": "rss above 6.0 GB"
+  },
+  {
+   "at": "2026-11-08T03:11:36+00:00",
+   "sentence": "top 10 near \"spectral gap of random graphs\" over observed",
+   "items": 1000,
+   "chunks": 3012,
+   "peak_rss_gb_watch": 0.33,
+   "wall_s": 2.7706,
+   "walls": [
+    2.7706,
+    2.7205,
+    2.914
+   ],
+   "hits": 10,
+   "support": "the universe is the sentence's support: 1000 nodes (dialogue 1000); 1000 with vectors; the citation graph at cut f92c6b5",
+   "split": {
+    "compiled": 0.0733,
+    "wait": 0.0474,
+    "python": 3.0141,
+    "python_share": 0.9615
+   },
+   "peak_rss_mb": 333
+  },
+  {
+   "at": "2026-11-08T03:11:39+00:00",
+   "sentence": "top 10 diffuse S from \"corpus/arxiv/0704.1847\" over observed",
+   "items": 1000,
+   "chunks": 3012,
+   "peak_rss_gb_watch": 0.37,
+   "wall_s": 0.2851,
+   "walls": [
+    0.3524,
+    0.2568,
+    0.2851
+   ],
+   "hits": 10,
+   "support": "the universe is the sentence's support: 1000 nodes (dialogue 1000); 1000 with vectors; the citation graph at cut f92c6b5",
+   "split": {
+    "compiled": 0.0988,
+    "wait": 0.0464,
+    "python": 0.1564,
+    "python_share": 0.5186
+   },
+   "peak_rss_mb": 382
+  },
+  {
+   "at": "2026-11-08T03:11:41+00:00",
+   "sentence": "reach S from \"corpus/arxiv/0704.1847\" depth 2 over observed",
+   "items": 1000,
+   "chunks": 3012,
+   "peak_rss_gb_watch": 0.32,
+   "wall_s": 0.2608,
+   "walls": [
+    0.2639,
+    0.2608,
+    0.2317
+   ],
+   "hits": 566,
+   "support": "the universe is the sentence's support: 1000 nodes (dialogue 1000); 1000 with vectors; the citation graph at cut f92c6b5",
+   "split": {
+    "compiled": 0.0744,
+    "wait": 0.0498,
+    "python": 0.1602,
+    "python_share": 0.5633
+   },
+   "peak_rss_mb": 333
+  },
+  {
+   "at": "2026-11-08T03:11:59+00:00",
+   "sentence": "top 10 near \"spectral gap of random graphs\" over observed",
+   "items": 3000,
+   "chunks": 7620,
+   "peak_rss_gb_watch": 0.71,
+   "wall_s": 2.7208,
+   "walls": [
+    2.7208,
+    2.599,
+    2.8406
+   ],
+   "hits": 10,
+   "support": "the universe is the sentence's support: 3000 nodes (dialogue 3000); 3000 with vectors; the citation graph at cut f92c6b5",
+   "split": {
+    "compiled": 0.2093,
+    "wait": 0.1516,
+    "python": 3.1722,
+    "python_share": 0.8979
+   },
+   "peak_rss_mb": 724
+  },
+  {
+   "at": "2026-11-08T03:12:06+00:00",
+   "sentence": "top 10 diffuse S from \"corpus/arxiv/0704.1225\" over observed",
+   "items": 3000,
+   "chunks": 7620,
+   "peak_rss_gb_watch": 1.24,
+   "wall_s": 1.1159,
+   "walls": [
+    1.074,
+    1.1159,
+    1.1405
+   ],
+   "hits": 10,
+   "support": "the universe is the sentence's support: 3000 nodes (dialogue 3000); 3000 with vectors; the citation graph at cut f92c6b5",
+   "split": {
+    "compiled": 0.5889,
+    "wait": 0.1465,
+    "python": 0.6106,
+    "python_share": 0.4536
+   },
+   "peak_rss_mb": 1267
+  },
+  {
+   "at": "2026-11-08T03:12:12+00:00",
+   "sentence": "reach S from \"corpus/arxiv/0704.1225\" depth 2 over observed",
+   "items": 3000,
+   "chunks": 7620,
+   "peak_rss_gb_watch": 0.76,
+   "wall_s": 0.772,
+   "walls": [
+    0.772,
+    0.744,
+    0.8089
+   ],
+   "hits": 1412,
+   "support": "the universe is the sentence's support: 3000 nodes (dialogue 3000); 3000 with vectors; the citation graph at cut f92c6b5",
+   "split": {
+    "compiled": 0.2139,
+    "wait": 0.1474,
+    "python": 0.7519,
+    "python_share": 0.6755
+   },
+   "peak_rss_mb": 781
+  },
+  {
+   "at": "2026-11-08T03:12:56+00:00",
+   "sentence": "top 10 near \"spectral gap of random graphs\" over observed",
+   "items": 10000,
+   "chunks": 25316,
+   "peak_rss_gb_watch": 3.6,
+   "wall_s": 6.8391,
+   "walls": [
+    7.1507,
+    6.5164,
+    6.8391
+   ],
+   "hits": 10,
+   "support": "the universe is the sentence's support: 10000 nodes (dialogue 10000); 10000 with vectors; the citation graph at cut f92c6b5",
+   "split": {
+    "compiled": 0.743,
+    "wait": 0.6499,
+    "python": 6.2806,
+    "python_share": 0.8185
+   },
+   "peak_rss_mb": 3683
+  },
+  {
+   "at": "2026-11-08T03:13:11+00:00",
+   "sentence": "top 10 diffuse S from \"corpus/arxiv/0704.0213\" over observed",
+   "items": 10000,
+   "chunks": 25316,
+   "peak_rss_gb_watch": 6.25,
+   "killed": "rss above 6.0 GB"
+  },
+  {
+   "at": "2026-11-08T03:13:39+00:00",
+   "sentence": "reach S from \"corpus/arxiv/0704.0213\" depth 2 over observed",
+   "items": 10000,
+   "chunks": 25316,
+   "peak_rss_gb_watch": 4.37,
+   "wall_s": 4.7474,
+   "walls": [
+    4.9601,
+    4.7474,
+    4.6793
+   ],
+   "hits": 5061,
+   "support": "the universe is the sentence's support: 10000 nodes (dialogue 10000); 10000 with vectors; the citation graph at cut f92c6b5",
+   "split": {
+    "compiled": 1.1046,
+    "wait": 0.6526,
+    "python": 5.8508,
+    "python_share": 0.769
+   },
+   "peak_rss_mb": 4477
+  }
+ ],
+ "footprint": null,
+ "battery_arms": null
+}
