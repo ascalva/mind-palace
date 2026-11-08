@@ -1,0 +1,68 @@
+{
+  "data": "/Users/ascalva/models/bench-data/scifact",
+  "items": 5183,
+  "queries": 300,
+  "cap_chars": 1200,
+  "plans": 10,
+  "embedder": "embeddinggemma-2",
+  "batch": 64,
+  "started": "2026-11-08T13:07:54",
+  "embedder_slots_busy": {
+    "start": 0,
+    "end": 0
+  },
+  "landing_lazy": {
+    "items": 5183,
+    "chunks": 5183,
+    "seconds": 161.17,
+    "items_per_s": 32.2,
+    "chunks_per_s": 32.2,
+    "plans": 10,
+    "plan_seconds_median": 14.59,
+    "plan_seconds": [
+      2.1,
+      4.6,
+      7.4,
+      10.3,
+      13.0,
+      16.1,
+      20.1,
+      25.7,
+      29.2,
+      32.2
+    ],
+    "contention": {
+      "slot_samples": 33,
+      "slots_max": 0,
+      "other_caller_share": 0.0,
+      "load_1min": [
+        2.14,
+        2.69
+      ]
+    }
+  },
+  "drain": {
+    "items": 5183,
+    "chunks": 5183,
+    "embedded": 5183,
+    "seconds": 203.04,
+    "chunks_per_s": 25.5,
+    "contention": {
+      "slot_samples": 41,
+      "slots_max": 4,
+      "other_caller_share": null,
+      "load_1min": [
+        2.69,
+        1.93
+      ]
+    }
+  },
+  "lag_seconds": {
+    "p50": 217.81,
+    "p90": 230.64,
+    "max": 233.34,
+    "mean": 211.95,
+    "note": "from an item's key to its vector, every item landed before the drain started and the drain started at once, in drain order"
+  },
+  "finished": "2026-11-08T13:13:58"
+}
