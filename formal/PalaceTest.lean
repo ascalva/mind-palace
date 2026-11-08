@@ -8,6 +8,7 @@ public import PalaceTest.Clock
 public import PalaceTest.Cosine
 public import PalaceTest.Curvature
 public import PalaceTest.Cut
+public import PalaceTest.Derived
 public import PalaceTest.Dynamics
 public import PalaceTest.FloatModel
 public import PalaceTest.Format

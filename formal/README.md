@@ -160,6 +160,21 @@ Roundoff and FloatModel, so it has no statements of its own):
   sources, retire as reconciliation; ING-18 the type system is sound for labels. `core/sentence/interpret.py`, `core/sentence/script_check.py`
   and `core/ingest/writer.py` are written to them, so they are the ledger's family XII too
   (`Spec/Script.lean`, 16 statements).
+- `Derived` (XII, two-phase ingestion): the vector as a derived field of an item
+  (dn-two-phase-ingestion), on a model of keyed items, each item's landed structure (its bytes,
+  edges and lexical units as one value), the plane's atoms per embedder identity, content
+  addressed, and each item's mark per identity, the drain's own key. ING-19 a landing writes no
+  atom and no mark, a landed item is complete, the drain changes neither keys nor structures and
+  leaves another identity's field alone; ING-20 an item's derivation is idempotent and commutes
+  with another's and with a later landing of another item, the drain is idempotent and leaves
+  nothing pending, every keyed item's field after it is its structure's image, the field converges
+  from any interleaving of landings and embed steps, the code's drain over the pending items
+  reaches it from sound truthful states, the key-last derivation keeps soundness at every prefix,
+  and the mark-first order breaks it and is never repaired (the controls); ING-21 a structural
+  query is invariant under every embed run, a pending item's field is `none`, a reported vector is
+  the structure's own image, and reading a pending vector as zero changes with the embedding (the
+  control). `core/ingest/derive.py`, `core/ingest/writer.py` and `core/sentence/execute.py` are
+  written to them, so they are the ledger's family XII too (`Spec/Derived.lean`, 22 statements).
 - `Lineage`: `ops/code_lineage.py`'s chains over the snapshots ledger, design theorems for issue
   #50: when the ledger holds every first parent of its commits, a path's chain members are exactly
   its ledger versions (`mem_chain_iff`), where D4/F3 said a strict subset; HEAD's first-parent line
@@ -259,7 +274,7 @@ Roundoff and FloatModel, so it has no statements of its own):
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
 - `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the cited theorems
-  (286 theorems), and the three standard axioms.
+  (308 theorems), and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself. It is weaker than the comparator: it
   compares the statements' types and the definitions' values, not constructors, recursor rules or
@@ -370,6 +385,9 @@ Roundoff and FloatModel, so it has no statements of its own):
 | QSA-9 | a hypothetical edge is a rank-one update of `L` and of `L̄`; both Rayleigh directions; the given camps balance a new signed edge iff its sign agrees, and a disagreeing edge closing a path is frustrated for any camps; Sherman–Morrison for an invertible matrix | proved; attacks survived 495, 495, 500 and 484 |
 | ING-1 | a command is admissible iff a granted plane above its scope carries the write bit; a read-only grant admits none; the Ambassador's grant as written admits a projection-event command and refuses a commit-clock one | proved, by structure and by `decide` |
 | ING-7 | with the key written last, a fresh run interrupted after any step converges under re-run, in the model's stage order and in any order of the steps before the key; a key written while some of the command's rows are not held, first or after the plane's rows, is never repaired | proved; attacks survived 500 (every prefix) and 500 (two steps in either order), both controls refuted on the first instance |
+| ING-19 | a landing writes no atom and no mark and the landed item is complete; the drain changes neither keys nor structures and leaves another identity's atoms and marks alone | proved, by `rfl` and by the drain's definition; attacks survived 500, 500 and 500 |
+| ING-20 | an item's derivation is idempotent and commutes with another item's and with a later landing of another item; the drain is idempotent, leaves nothing pending, and gives every keyed item its structure's image; the field converges from any interleaving; the code's drain reaches it from sound truthful states; every key-last prefix keeps soundness; the mark-first order is unsound and never repaired | proved; attacks survived 500 each (idempotence, commutation, the landing, the drain, the field, 500 interleavings, 500 key-last runs, 500 prefixes); the same-item landing control refuted on the first instance, the mark-first controls within 17 and 6 |
+| ING-21 | a structural query is invariant under every embed run; a pending item's field is `none`; a reported vector is the structure's own image; reading a pending vector as zero changes with the embedding | proved; attacks survived 500, 486 and 467 (the rest discarded by their guards); the landing control refuted within 45, the zero-read control within 8 |
 | GRW-1 | the proportional stake's growth is the likelihood ratio, and over proper pairs its log is the cumulative log-score advantage; the fractional stake is it at `λ = 1` | proved; attacks survived 500 each, the product form with and without its division |
 
 The binarized forms (0/1 adjacency) reduce to Mathlib's `SimpleGraph.posSemidef_lapMatrix` and
@@ -659,6 +677,24 @@ label. The Ambassador's inbox has a shadow of its own (seeds 371 to 373): every 
 lands is the owner's message at its own path, and its two controls are the bright line's premises
 taken out, a label a script claims (the Ambassador's text lands as the owner's at its own prefix)
 and a rule that labels the reply authored.
+
+Two-phase ingestion is attacked on exact shadows (seeds 374 to 392): two items, two structures,
+two vectors and two embedder identities, the keyed set from two bits, the structures from a code in
+base three, the atom table and the marks from codes in base three over four cells each, the
+embedder from four bits, and a run from a list of codes, each an atom write, a mark write or a
+landing. Fourteen attacks survived: twelve all 500 instances (a landing writes no atom and no mark;
+the drain keeps the keys and the structures and the other identity's field; a structural query
+after any embed run; a derivation's idempotence, its commutation with another item's and with a
+landing of the other item; the drain's idempotence; the field after the drain; the field's
+convergence over 500 random interleavings; the code's drain from 500 states a key-last run
+reaches, all sound and truthful; soundness at every prefix of the key-last derivation), and the
+two guarded ones, a pending item's field `none` and a reported vector the structure's own image,
+486 and 467 (the rest discarded by their guards). Its five controls: a run with a landing in it
+changes what a structural query reads, refuted within 45 instances; a landing of the same item
+does not commute with its derivation, on the first instance; the mark-first order, interrupted
+after the mark, is unsound, within 17; after it, the code's drain does not reach the drain's
+field, within 6; and reading a pending vector as zero gives an answer the embedding changes,
+within 8.
 
 The growth readout is attacked over ℚ (seeds 320 to 329): a pair's probabilities are
 `(a + 1)/(a + b + 2)` and `(c + 1)/(c + d + 2)` from naturals, so every pair is proper, and a

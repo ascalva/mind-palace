@@ -14,6 +14,8 @@ public import Palace.Curvature
 public import Palace.Curvature.Defs
 public import Palace.Cut
 public import Palace.Cut.Defs
+public import Palace.Derived
+public import Palace.Derived.Defs
 public import Palace.Dynamics
 public import Palace.Dynamics.Defs
 public import Palace.FloatModel
