@@ -258,6 +258,10 @@ JOBS: Mapping[str, Job] = {
                      fibers=frozenset({"C"}), clock=Clock.COMMIT),
     "code_observe": Job("code_observe", "code_observe", (Stratum.REFERENCE,),
                         fibers=frozenset({"F"}), clock=Clock.COMMIT),
+    # the embed drain (dn-two-phase-ingestion D1): the vectors of every item landed without one,
+    # derived into the plane rows of the prose places; it writes no key and no label of its own
+    "embed": Job("embed", "embed", (Stratum.MIRROR_AUTHORED, Stratum.DIALOGUE, Stratum.OBSERVED,
+                                    Stratum.CURATED)),
 }
 # The library scripts the queue treats as its own: those run in the interactive lane (a capture),
 # so a role's syncs never hold its captures, and those whose bare call is one of the queue's

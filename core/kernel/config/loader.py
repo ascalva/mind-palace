@@ -215,6 +215,22 @@ class EmbeddingConfig:
     # "task: search result | query: {text}" and "title: none | text: {text}".
     query_template: str = "Instruct: {instruction}\nQuery: {text}"
     document_template: str = "{text}"
+    # Two-phase ingestion (dn-two-phase-ingestion, ING-19 to ING-21). `lazy = False` is the path
+    # as it was: a landing embeds its chunks before it writes its key. `lazy = True` lands an item
+    # complete without its vector (its bytes, label, edges, lexical units, version, attestation,
+    # then its key) and leaves the vector to the `embed` drain, a derived, idempotent write into
+    # the plane. `batch` is the chunks one embedder request carries and `streams` the requests in
+    # flight at once: one stream of 64 saturates the embedder without starving other callers
+    # (docs/experiments/corpus-measurements-2026-11-07.md).
+    lazy: bool = False
+    batch: int = 64
+    streams: int = 1
+
+    def __post_init__(self) -> None:
+        if self.batch < 1:
+            raise ValueError(f"[embedding] batch = {self.batch}: at least one chunk a request")
+        if self.streams < 1:
+            raise ValueError(f"[embedding] streams = {self.streams}: at least one stream")
 
 
 @dataclass(frozen=True)
@@ -1355,6 +1371,9 @@ def _build(raw: dict[str, Any], instance: InstanceConfig) -> Config:
             query_instruction=str(e["query_instruction"]),
             query_template=str(e.get("query_template", "Instruct: {instruction}\nQuery: {text}")),
             document_template=str(e.get("document_template", "{text}")),
+            lazy=bool(e.get("lazy", False)),
+            batch=int(e.get("batch", 64)),
+            streams=int(e.get("streams", 1)),
         ),
         dreaming=DreamingConfig(
             similarity_threshold=float(dr["similarity_threshold"]),

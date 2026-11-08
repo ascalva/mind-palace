@@ -45,6 +45,7 @@ OUROBOROS STACK (on demand — models wake when needed)
   mcp                                                    the Ambassador's MCP server on stdio
   dream | relate                                         one dreaming pass | signed relation edges
   vault-sync | dialogue-sync                             re-ingest notes | pull Open WebUI chats
+  embed                                                  derive the vectors of items landed without one
   lanes [code-observe|code-embed|dialogue]               edge-producing lanes, in-process
   reembed --confirm                                      re-embed everything (model change)
   tick [pause <30m|2h|1d> | resume | status]             the heartbeat: one beat, or its kill switch
@@ -59,8 +60,8 @@ EVAL / OPS
 """
 
 _PALACE = ("start", "stop", "status", "reset", "deploy", "dream", "relate", "lanes", "reembed",
-           "vault-sync", "dialogue-sync", "tick", "queue", "query", "ingest-chat", "code-seed",
-           "code-backfill", "code-rebuild")
+           "vault-sync", "embed", "dialogue-sync", "tick", "queue", "query", "ingest-chat",
+           "code-seed", "code-backfill", "code-rebuild")
 
 # verb -> python script under scripts/ (run with the verb as argv[1] when it is a palace verb)
 PY_VERBS: dict[str, str] = {

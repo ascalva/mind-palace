@@ -32,7 +32,7 @@ import sys
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root on path
 
@@ -44,9 +44,6 @@ from core.kernel.config.loader import (  # noqa: E402
     namespaces_of,
     shared,
 )
-
-if TYPE_CHECKING:
-    from core.ingest.embed import Embedder
 
 FREE_FLOOR_GB = 25.0          # stop when the disk's free space falls below this
 PROGRESS = "progress.json"
@@ -256,7 +253,7 @@ def cmd_ingest(a: argparse.Namespace) -> int:
                         else batch_items(src.location, a.target_chunks, a.batch))
                 receipt = run_library(cfg, "sync_corpus", {"name": name, "batch": size},
                                       role="corpus", stores=stores, refresh=False, batch=True,
-                                      vectors=not a.structural)
+                                      lazy=a.structural)
                 dt = time.time() - t0
                 landed = int(receipt["effects"].get("landed", 0))
                 progress["batches"] += 1
@@ -388,14 +385,17 @@ def cmd_lexical(a: argparse.Namespace) -> int:
 
 
 def cmd_embed(a: argparse.Namespace) -> int:
-    """Phase 2: the plane rows of every landed item that has none, from the raw store, embedded
-    under the yield policy, round robin over the sources, a batch of about `target_chunks`."""
+    """Phase 2: the derived layers of every landed item that lacks them, from the raw store: first
+    its lexical units (an item landed before the instance's lexical index was opened), then its
+    plane rows, embedded under the yield policy, round robin over the sources, a batch of about
+    `target_chunks`."""
     from collections import defaultdict
 
-    from core.ingest.index import index_from_raw
+    from core.ingest.derive import derive_entries, derive_lexical
     from core.ingest.ingress import build_stores
     from core.kernel.ingest.pipeline import derive_chunks
     from core.kernel.provenance import Provenance
+    from core.stores.catalog import CatalogEntry
     from ops.corpus.embedder import EmbedderStopped, Gate, GatedEmbedder
 
     cfg = corpus_config()
@@ -411,6 +411,13 @@ def cmd_embed(a: argparse.Namespace) -> int:
     gate = Gate(chat_port=a.chat_port, embed_port=cfg.runtime.port_for("embedding") or 8081,
                 log=root / "gate.log")
     emb = GatedEmbedder(stores.embedder, gate, streams=a.streams, batch=a.embed_batch)
+    stores.embedder = emb             # the drain embeds through the yield policy
+    while not (stopping["why"] or (root / "STOP").exists()):
+        lex = derive_lexical(stores, max_items=20000)
+        if lex.items:
+            print(f"lexical units: {lex}", flush=True)
+        if not lex.left:
+            break
     have = with_vectors(cfg)
     queues: dict[str, list[tuple[str, str, str]]] = defaultdict(list)
     for entry in landed(cfg):
@@ -447,8 +454,11 @@ def cmd_embed(a: argparse.Namespace) -> int:
                     continue
                 t0 = time.time()
                 before = emb.embedded
-                n_items, _ = index_from_raw(batch, stores.raw, cast("Embedder", emb),
-                                            stores.plane, provenance=Provenance.OBSERVED)
+                # one group a batch: the gated embedder splits it into its own requests
+                report = derive_entries(
+                    stores, [CatalogEntry(path, digest, title, True, Provenance.OBSERVED.value)
+                             for path, digest, title in batch], batch=max(1, chunks))
+                n_items = report.items + report.empty
                 progress["items"] += n_items
                 progress["embedded"] += emb.embedded - before
                 progress["batches"] += 1

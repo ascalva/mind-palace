@@ -45,7 +45,9 @@ _PINNED_KINDS = frozenset(
     {"vault_sync", "ambassador", "chat_sync", "chat_events", "integrate", "code_sync",
      # the ingress's model-less kinds (dn-ingress-language §E7): a script, the code sensor, the
      # dialogue handoff and the inbox's capture call no chat model
-     "script", "code_observe", "dialogue_sync", "inbox_capture"})
+     "script", "code_observe", "dialogue_sync", "inbox_capture",
+     # the embed drain calls the embedder directly, like `code_sync`, and no chat model
+     "embed"})
 
 
 @dataclass(frozen=True)
