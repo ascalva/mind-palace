@@ -36,6 +36,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from typing import Any
 
+from core.ingest.embed import embed_fitting
 from core.ingest.index import _chunk_row
 from core.kernel.clearance import CURATED_READ, MIRROR_READ, OBSERVED_READ, Clearance
 from core.kernel.ingest.chunk import Chunk
@@ -49,11 +50,6 @@ from core.stores.plane import atom_id as plane_atom_id
 CHUNK_MAX_CHARS = 1200
 CHUNK_OVERLAP_CHARS = 150
 EMBED_JOB = "embed"      # the queue kind, and the job a script starts (`run "embed"`)
-# The embedding server's refusal of an input longer than its physical batch. A chunk's budget of
-# characters does not bound its tokens (a run of symbols or of another script takes several tokens
-# a character; one comment of 1,145 characters took 2,951), and the server answers such an input
-# with an error rather than truncating it.
-TOO_LARGE = "too large to process"
 
 # The clearance under which the plane is asked whether it holds a label's rows: the writer's
 # UNCHANGED check and the drain's pending check ask the same question.
@@ -142,52 +138,13 @@ def canonical_chunks(record: IngestRecord) -> list[Chunk]:
     return list(seen.values())
 
 
-def _refused_for_length(e: Exception) -> bool:
-    return TOO_LARGE in str(e).lower()
-
-
-def embed_fitting(embedder: Any, texts: Sequence[str]
-                  ) -> tuple[list[list[float]], list[tuple[int, int]]]:
-    """The vectors of `texts`, one request when the server takes it. When it refuses the request
-    for an input's length, the texts go in halves until the refused text is alone, and that text
-    is cut to the longest prefix the server takes, found by bisection on the characters, as an
-    embedding model truncates an input at its maximum length; the cut is a function of the text
-    and the server, so a second drain cuts it the same way. Returns the vectors and each cut as
-    `(characters, characters kept)`. Any other error is raised: the drain never guesses past an
-    embedder that fails."""
-    try:
-        return [[float(x) for x in v] for v in embedder.embed_documents(list(texts))], []
-    except Exception as e:      # noqa: BLE001 - a refusal for length is handled, the rest raised
-        if not _refused_for_length(e):
-            raise
-    if len(texts) > 1:
-        half = len(texts) // 2
-        left, lcuts = embed_fitting(embedder, texts[:half])
-        right, rcuts = embed_fitting(embedder, texts[half:])
-        return left + right, lcuts + rcuts
-    text = texts[0]
-    lo, hi, best = 0, len(text), None
-    while hi - lo > 1:
-        mid = (lo + hi) // 2
-        try:
-            vector = embedder.embed_documents([text[:mid]])[0]
-        except Exception as e:  # noqa: BLE001 - as above
-            if not _refused_for_length(e):
-                raise
-            hi = mid
-            continue
-        lo, best = mid, [float(x) for x in vector]
-    if best is None:
-        raise RuntimeError(f"the embedder refuses every prefix of a {len(text)}-character text")
-    return [best], [(len(text), lo)]
-
-
 def embed_missing(plane: Any, embedder: Any, texts: Sequence[str], *, batch: int = 64,
                   streams: int = 1) -> tuple[dict[str, list[float]], int, int]:
     """Embed the distinct texts whose atoms the plane does not hold, `batch` a request and
     `streams` requests in flight at once, a text the server refuses for its length cut to fit
-    (`embed_fitting`). Returns `{atom id: vector}`, how many atoms the plane held already, and
-    how many texts were cut."""
+    (`embed_fitting`, which the embedder applies to every request; it is applied again here for an
+    embedder object that does not). Returns `{atom id: vector}`, how many atoms the plane held
+    already, and how many texts were cut, by either."""
     wanted = {plane_atom_id(t): t for t in dict.fromkeys(texts)}
     known = set(plane.known_atoms(list(wanted)))
     todo = [(a, t) for a, t in wanted.items() if a not in known]
@@ -195,8 +152,10 @@ def embed_missing(plane: Any, embedder: Any, texts: Sequence[str], *, batch: int
         return {}, len(known), 0
     groups = [todo[i:i + batch] for i in range(0, len(todo), batch)]
 
+    before = getattr(embedder, "cut", None)
+
     def one(group: list[tuple[str, str]]) -> tuple[list[tuple[str, list[float]]], int]:
-        vectors, cuts = embed_fitting(embedder, [t for _, t in group])
+        vectors, cuts = embed_fitting(embedder.embed_documents, [t for _, t in group])
         return [(a, v) for (a, _), v in zip(group, vectors, strict=True)], len(cuts)
 
     out: dict[str, list[float]] = {}
@@ -211,6 +170,8 @@ def embed_missing(plane: Any, embedder: Any, texts: Sequence[str], *, batch: int
             result, n = one(group)
             out.update(result)
             cut += n
+    if isinstance(before, int):
+        cut += int(getattr(embedder, "cut", before)) - before      # the embedder's own cuts
     return out, len(known), cut
 
 

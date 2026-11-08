@@ -708,8 +708,8 @@ def perform(do: ast.Do, cfg: Config, role: str, *, stores: Any,
     of dn-corpus-instance §5.2); `lazy` lands each store complete without its plane rows, which
     the embed drain derives from the raw store (`Writer.lazy`, dn-two-phase-ingestion), and is
     the instance's `[embedding] lazy` unless the caller says otherwise. Returns what the receipt
-    says: each effect's outcome, counted by status, those that changed or were refused named, and
-    the work charged (§E10)."""
+    says: each effect's outcome, counted by status, those that changed or were refused named, the
+    work charged (§E10), and how many texts the embedder had to cut to fit when it cut any."""
     from core.ingest.readers import PalaceView
     from core.ingest.table import build_table
     from core.ingest.writer import Writer
@@ -725,6 +725,7 @@ def perform(do: ast.Do, cfg: Config, role: str, *, stores: Any,
     reads = frozenset().union(*(classes_of(s.sigma.strata) for s in grant_for(role).scopes))
     writer = Writer(table, role, stores, has=v.has, meter=meter, request=request, reads=reads,
                     batch=batch, lazy=bool(cfg.embedding.lazy) if lazy is None else lazy)
+    cut_before = getattr(stores.embedder, "cut", None)
     outcomes = writer.land(plan)
     if hasattr(v, "landed"):
         v.landed(outcomes)
@@ -736,6 +737,9 @@ def perform(do: ast.Do, cfg: Config, role: str, *, stores: Any,
            "more": max(0, len(named) - MAX_RECEIPT_EFFECTS), "work": meter.used}
     if writer.timing:
         out["timing"] = {k: round(v, 3) for k, v in writer.timing.items()}
+    if isinstance(cut_before, int) and int(getattr(stores.embedder, "cut", 0)) > cut_before:
+        # texts whose vector is of a prefix: the server could not take them whole (`embed_fitting`)
+        out["cut"] = int(stores.embedder.cut) - cut_before
     return out
 
 
