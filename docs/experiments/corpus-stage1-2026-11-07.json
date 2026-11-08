@@ -2216,6 +2216,519 @@
      "null_sd": 0.36
     }
    ]
+  },
+  "semantic_k": 10,
+  "sigma": 0.785,
+  "with_semantic": {
+   "items": 400274,
+   "edges": 5015370,
+   "semantic_edges": 3073202,
+   "cross_edges": 673153,
+   "cross_share": 0.13421801382550042,
+   "cross_explicit": 30720,
+   "cross_semantic": 642433,
+   "null_cross_share": 0.689041697388047,
+   "null_cross_share_sd": 0.00016965846354051537,
+   "communities": 17146,
+   "reps": 20,
+   "z": 3.0,
+   "min_edges": 3,
+   "bridges": 3014,
+   "false_positive_bridges": [
+    760,
+    753,
+    727,
+    726,
+    754,
+    739,
+    734,
+    751,
+    696,
+    820
+   ],
+   "false_positive_mean": 746.0,
+   "false_positive_bar": 806.8736396151897,
+   "cif2_bridges_broken": false,
+   "by_source_pair": {
+    "arxiv-gutenberg": {
+     "edges": 672,
+     "bridges": 24,
+     "false_positive_mean": 1.3,
+     "false_positive_bar": 3.5
+    },
+    "arxiv-hackernews": {
+     "edges": 12018,
+     "bridges": 268,
+     "false_positive_mean": 60.9,
+     "false_positive_bar": 70.5932966528421
+    },
+    "arxiv-wikipedia": {
+     "edges": 9066,
+     "bridges": 43,
+     "false_positive_mean": 5.3,
+     "false_positive_bar": 8.2732137494637
+    },
+    "arxiv-openalex": {
+     "edges": 412262,
+     "bridges": 131,
+     "false_positive_mean": 1.7,
+     "false_positive_bar": 4.804834939252004
+    },
+    "arxiv-stackexchange": {
+     "edges": 22017,
+     "bridges": 161,
+     "false_positive_mean": 85.8,
+     "false_positive_bar": 98.93925416452547
+    },
+    "gutenberg-hackernews": {
+     "edges": 2113,
+     "bridges": 147,
+     "false_positive_mean": 0.6,
+     "false_positive_bar": 1.5797958971132713
+    },
+    "gutenberg-stackexchange": {
+     "edges": 909,
+     "bridges": 29,
+     "false_positive_mean": 2.1,
+     "false_positive_bar": 4.541311123146741
+    },
+    "gutenberg-wikipedia": {
+     "edges": 3218,
+     "bridges": 9,
+     "false_positive_mean": 0.0,
+     "false_positive_bar": 0.0
+    },
+    "hackernews-stackexchange": {
+     "edges": 37592,
+     "bridges": 1244,
+     "false_positive_mean": 206.5,
+     "false_positive_bar": 237.20179147867432
+    },
+    "hackernews-wikipedia": {
+     "edges": 21745,
+     "bridges": 601,
+     "false_positive_mean": 133.6,
+     "false_positive_bar": 155.21851058699465
+    },
+    "hackernews-openalex": {
+     "edges": 12045,
+     "bridges": 190,
+     "false_positive_mean": 199.5,
+     "false_positive_bar": 232.3542234727896
+    },
+    "openalex-stackexchange": {
+     "edges": 101817,
+     "bridges": 61,
+     "false_positive_mean": 14.0,
+     "false_positive_bar": 21.949842765740716
+    },
+    "stackexchange-wikipedia": {
+     "edges": 27231,
+     "bridges": 106,
+     "false_positive_mean": 34.7,
+     "false_positive_bar": 49.34377000638838
+    },
+    "gutenberg-openalex": {
+     "edges": 184,
+     "bridges": 0,
+     "false_positive_mean": 0.0,
+     "false_positive_bar": 0.0
+    },
+    "openalex-wikipedia": {
+     "edges": 10264,
+     "bridges": 0,
+     "false_positive_mean": 0.0,
+     "false_positive_bar": 0.0
+    }
+   },
+   "top": [
+    {
+     "a": "arxiv:cs.LG",
+     "b": "openalex:T11273",
+     "edges": 53540,
+     "null_mean": 7295.8,
+     "null_sd": 80.72
+    },
+    {
+     "a": "arxiv:cs.DS",
+     "b": "openalex:T10720",
+     "edges": 54872,
+     "null_mean": 11114.8,
+     "null_sd": 107.45
+    },
+    {
+     "a": "arxiv:cs.SI",
+     "b": "openalex:T10064",
+     "edges": 51406,
+     "null_mean": 21800.05,
+     "null_sd": 120.6
+    },
+    {
+     "a": "arxiv:physics.soc-ph",
+     "b": "openalex:T10064",
+     "edges": 52889,
+     "null_mean": 30709.2,
+     "null_sd": 132.58
+    },
+    {
+     "a": "arxiv:cs.CC",
+     "b": "openalex:T10720",
+     "edges": 20439,
+     "null_mean": 4052.75,
+     "null_sd": 59.46
+    },
+    {
+     "a": "arxiv:physics.soc-ph",
+     "b": "openalex:T12592",
+     "edges": 15196,
+     "null_mean": 3199.05,
+     "null_sd": 61.64
+    },
+    {
+     "a": "arxiv:cs.AI",
+     "b": "openalex:T11273",
+     "edges": 6969,
+     "null_mean": 1148.6,
+     "null_sd": 31.83
+    },
+    {
+     "a": "arxiv:math.CO",
+     "b": "openalex:T10720",
+     "edges": 5578,
+     "null_mean": 1258.4,
+     "null_sd": 36.76
+    },
+    {
+     "a": "arxiv:cond-mat.stat-mech",
+     "b": "openalex:T10064",
+     "edges": 8597,
+     "null_mean": 4287.1,
+     "null_sd": 61.11
+    },
+    {
+     "a": "arxiv:cs.DC",
+     "b": "openalex:T10720",
+     "edges": 5451,
+     "null_mean": 1201.4,
+     "null_sd": 29.14
+    },
+    {
+     "a": "arxiv:cs.CL",
+     "b": "openalex:T11273",
+     "edges": 5350,
+     "null_mean": 1155.75,
+     "null_sd": 35.82
+    },
+    {
+     "a": "arxiv:cs.DM",
+     "b": "openalex:T10720",
+     "edges": 4695,
+     "null_mean": 1058.35,
+     "null_sd": 35.03
+    },
+    {
+     "a": "arxiv:math.OC",
+     "b": "openalex:T10720",
+     "edges": 4689,
+     "null_mean": 1197.3,
+     "null_sd": 24.05
+    },
+    {
+     "a": "arxiv:cond-mat.dis-nn",
+     "b": "openalex:T10064",
+     "edges": 5418,
+     "null_mean": 2127.1,
+     "null_sd": 48.19
+    },
+    {
+     "a": "arxiv:cs.SI",
+     "b": "openalex:T12592",
+     "edges": 5499,
+     "null_mean": 2253.15,
+     "null_sd": 60.24
+    }
+   ]
+  },
+  "semantic_twin_pairs": 27295,
+  "with_semantic_without_twins": {
+   "items": 400274,
+   "edges": 4987973,
+   "semantic_edges": 3073202,
+   "cross_edges": 645756,
+   "cross_share": 0.12946260936055587,
+   "cross_explicit": 3323,
+   "cross_semantic": 642433,
+   "null_cross_share": 0.6887224804283177,
+   "null_cross_share_sd": 0.00014477747279062443,
+   "communities": 17146,
+   "reps": 20,
+   "z": 3.0,
+   "min_edges": 3,
+   "bridges": 3014,
+   "false_positive_bridges": [
+    770,
+    742,
+    785,
+    752,
+    750,
+    740,
+    769,
+    715,
+    753,
+    768
+   ],
+   "false_positive_mean": 754.4,
+   "false_positive_bar": 791.9147970806187,
+   "cif2_bridges_broken": false,
+   "by_source_pair": {
+    "arxiv-gutenberg": {
+     "edges": 672,
+     "bridges": 24,
+     "false_positive_mean": 0.7,
+     "false_positive_bar": 1.9806248474865698
+    },
+    "arxiv-hackernews": {
+     "edges": 12018,
+     "bridges": 276,
+     "false_positive_mean": 60.0,
+     "false_positive_bar": 76.02498049920811
+    },
+    "arxiv-wikipedia": {
+     "edges": 9066,
+     "bridges": 43,
+     "false_positive_mean": 4.5,
+     "false_positive_bar": 8.10555127546399
+    },
+    "arxiv-openalex": {
+     "edges": 384865,
+     "bridges": 125,
+     "false_positive_mean": 1.8,
+     "false_positive_bar": 3.5435595774162696
+    },
+    "arxiv-stackexchange": {
+     "edges": 22017,
+     "bridges": 168,
+     "false_positive_mean": 80.0,
+     "false_positive_bar": 101.33541656495134
+    },
+    "gutenberg-hackernews": {
+     "edges": 2113,
+     "bridges": 148,
+     "false_positive_mean": 1.0,
+     "false_positive_bar": 3.0
+    },
+    "gutenberg-stackexchange": {
+     "edges": 909,
+     "bridges": 26,
+     "false_positive_mean": 2.8,
+     "false_positive_bar": 6.573592452822641
+    },
+    "gutenberg-wikipedia": {
+     "edges": 3218,
+     "bridges": 9,
+     "false_positive_mean": 0.1,
+     "false_positive_bar": 0.7000000000000001
+    },
+    "hackernews-stackexchange": {
+     "edges": 37592,
+     "bridges": 1236,
+     "false_positive_mean": 211.2,
+     "false_positive_bar": 234.38275220934736
+    },
+    "hackernews-wikipedia": {
+     "edges": 21745,
+     "bridges": 603,
+     "false_positive_mean": 140.1,
+     "false_positive_bar": 171.2056265006831
+    },
+    "hackernews-openalex": {
+     "edges": 12045,
+     "bridges": 195,
+     "false_positive_mean": 203.6,
+     "false_positive_bar": 229.83280389131136
+    },
+    "openalex-stackexchange": {
+     "edges": 101817,
+     "bridges": 61,
+     "false_positive_mean": 15.0,
+     "false_positive_bar": 25.07968253468332
+    },
+    "stackexchange-wikipedia": {
+     "edges": 27231,
+     "bridges": 100,
+     "false_positive_mean": 33.6,
+     "false_positive_bar": 42.0
+    },
+    "gutenberg-openalex": {
+     "edges": 184,
+     "bridges": 0,
+     "false_positive_mean": 0.0,
+     "false_positive_bar": 0.0
+    },
+    "openalex-wikipedia": {
+     "edges": 10264,
+     "bridges": 0,
+     "false_positive_mean": 0.0,
+     "false_positive_bar": 0.0
+    }
+   },
+   "top": [
+    {
+     "a": "arxiv:cs.LG",
+     "b": "openalex:T11273",
+     "edges": 49325,
+     "null_mean": 6886.5,
+     "null_sd": 83.38
+    },
+    {
+     "a": "arxiv:cs.DS",
+     "b": "openalex:T10720",
+     "edges": 50770,
+     "null_mean": 10453.4,
+     "null_sd": 73.33
+    },
+    {
+     "a": "arxiv:cs.SI",
+     "b": "openalex:T10064",
+     "edges": 48442,
+     "null_mean": 20979.75,
+     "null_sd": 105.53
+    },
+    {
+     "a": "arxiv:physics.soc-ph",
+     "b": "openalex:T10064",
+     "edges": 49829,
+     "null_mean": 29966.3,
+     "null_sd": 169.35
+    },
+    {
+     "a": "arxiv:cs.CC",
+     "b": "openalex:T10720",
+     "edges": 18738,
+     "null_mean": 3869.0,
+     "null_sd": 51.1
+    },
+    {
+     "a": "arxiv:physics.soc-ph",
+     "b": "openalex:T12592",
+     "edges": 14302,
+     "null_mean": 3073.15,
+     "null_sd": 53.11
+    },
+    {
+     "a": "arxiv:cs.AI",
+     "b": "openalex:T11273",
+     "edges": 6439,
+     "null_mean": 1085.1,
+     "null_sd": 29.95
+    },
+    {
+     "a": "arxiv:cs.DC",
+     "b": "openalex:T10720",
+     "edges": 5081,
+     "null_mean": 1163.95,
+     "null_sd": 37.13
+    },
+    {
+     "a": "arxiv:math.CO",
+     "b": "openalex:T10720",
+     "edges": 5067,
+     "null_mean": 1171.85,
+     "null_sd": 34.26
+    },
+    {
+     "a": "arxiv:cs.CL",
+     "b": "openalex:T11273",
+     "edges": 4966,
+     "null_mean": 1102.35,
+     "null_sd": 23.3
+    },
+    {
+     "a": "arxiv:cond-mat.stat-mech",
+     "b": "openalex:T10064",
+     "edges": 7919,
+     "null_mean": 4115.85,
+     "null_sd": 55.48
+    },
+    {
+     "a": "arxiv:cs.DM",
+     "b": "openalex:T10720",
+     "edges": 4337,
+     "null_mean": 991.4,
+     "null_sd": 30.14
+    },
+    {
+     "a": "arxiv:math.OC",
+     "b": "openalex:T10720",
+     "edges": 4318,
+     "null_mean": 1142.6,
+     "null_sd": 25.25
+    },
+    {
+     "a": "arxiv:cs.SI",
+     "b": "openalex:T12592",
+     "edges": 5230,
+     "null_mean": 2183.55,
+     "null_sd": 39.61
+    },
+    {
+     "a": "arxiv:cond-mat.dis-nn",
+     "b": "openalex:T10064",
+     "edges": 4929,
+     "null_mean": 2016.1,
+     "null_sd": 41.98
+    }
+   ]
+  },
+  "chunk_pairs": {
+   "sample": 20000,
+   "sigma": 0.785,
+   "pairs_per_chunk": {
+    "wikipedia->wikipedia": 6.291,
+    "wikipedia->openalex": 1.4864,
+    "wikipedia->arxiv": 0.3684,
+    "wikipedia->stackexchange": 0.4972,
+    "wikipedia->gutenberg": 0.6142,
+    "wikipedia->hackernews": 0.0579,
+    "openalex->wikipedia": 2.378,
+    "openalex->openalex": 8245.5983,
+    "openalex->arxiv": 2263.3351,
+    "openalex->stackexchange": 184.5958,
+    "openalex->gutenberg": 0.0153,
+    "openalex->hackernews": 4.2598,
+    "arxiv->wikipedia": 1.8115,
+    "arxiv->openalex": 6784.8885,
+    "arxiv->arxiv": 2205.7106,
+    "arxiv->stackexchange": 120.0912,
+    "arxiv->gutenberg": 0.0442,
+    "arxiv->hackernews": 4.7398,
+    "stackexchange->wikipedia": 1.2614,
+    "stackexchange->openalex": 179.9986,
+    "stackexchange->arxiv": 39.359,
+    "stackexchange->stackexchange": 663.1872,
+    "stackexchange->gutenberg": 0.1226,
+    "stackexchange->hackernews": 1.5159,
+    "gutenberg->wikipedia": 2.7932,
+    "gutenberg->openalex": 0.0089,
+    "gutenberg->arxiv": 0.0168,
+    "gutenberg->stackexchange": 0.1501,
+    "gutenberg->gutenberg": 189.4283,
+    "gutenberg->hackernews": 0.0651,
+    "hackernews->wikipedia": 0.185,
+    "hackernews->openalex": 6.2112,
+    "hackernews->arxiv": 2.6395,
+    "hackernews->stackexchange": 1.8972,
+    "hackernews->gutenberg": 0.1528,
+    "hackernews->hackernews": 17.9639
+   },
+   "asked": {
+    "wikipedia": 7221,
+    "openalex": 3587,
+    "arxiv": 1130,
+    "stackexchange": 3638,
+    "gutenberg": 1905,
+    "hackernews": 2519
+   }
   }
  },
  "battery_lexical": {
@@ -2963,8 +3476,1862 @@
     "python_share": 0.769
    },
    "peak_rss_mb": 4477
+  },
+  {
+   "at": "2026-11-08T18:59:05+00:00",
+   "sentence": "top 10 near \"spectral gap of random graphs\" over observed",
+   "items": 1000,
+   "chunks": 3923,
+   "peak_rss_gb_watch": 0.66,
+   "wall_s": 1.5868,
+   "walls": [
+    1.5868,
+    1.4927,
+    1.6117
+   ],
+   "hits": 10,
+   "support": "the universe is the sentence's support: 1000 nodes (dialogue 1000); 1000 with vectors; the citation graph at cut 25f8c9c",
+   "split": {
+    "compiled": 0.645,
+    "wait": 0.1003,
+    "python": 0.8856,
+    "python_share": 0.543
+   },
+   "peak_rss_mb": 679
+  },
+  {
+   "at": "2026-11-08T18:59:14+00:00",
+   "sentence": "top 10 diffuse S from \"corpus/arxiv/0706.0440\" over observed",
+   "items": 1000,
+   "chunks": 3923,
+   "peak_rss_gb_watch": 0.7,
+   "wall_s": 1.5501,
+   "walls": [
+    1.5746,
+    1.4699,
+    1.5501
+   ],
+   "hits": 10,
+   "support": "the universe is the sentence's support: 1000 nodes (dialogue 1000); 1000 with vectors; the citation graph at cut 25f8c9c",
+   "split": {
+    "compiled": 0.6576,
+    "wait": 0.0574,
+    "python": 0.8889,
+    "python_share": 0.5542
+   },
+   "peak_rss_mb": 713
+  },
+  {
+   "at": "2026-11-08T18:59:23+00:00",
+   "sentence": "reach S from \"corpus/arxiv/0706.0440\" depth 2 over observed",
+   "items": 1000,
+   "chunks": 3923,
+   "peak_rss_gb_watch": 0.66,
+   "wall_s": 1.5531,
+   "walls": [
+    1.5888,
+    1.4624,
+    1.5531
+   ],
+   "hits": 341,
+   "support": "the universe is the sentence's support: 1000 nodes (dialogue 1000); 1000 with vectors; the citation graph at cut 25f8c9c",
+   "split": {
+    "compiled": 0.6343,
+    "wait": 0.0592,
+    "python": 0.9201,
+    "python_share": 0.5702
+   },
+   "peak_rss_mb": 680
+  },
+  {
+   "at": "2026-11-08T18:59:32+00:00",
+   "sentence": "walk from \"corpus/arxiv/0706.0440\" via S{1,2} depth 2 over observed",
+   "items": 1000,
+   "chunks": 3923,
+   "peak_rss_gb_watch": 0.66,
+   "wall_s": 1.5362,
+   "walls": [
+    1.5362,
+    1.4691,
+    1.5462
+   ],
+   "hits": 200,
+   "support": "the universe is the sentence's support: 1000 nodes (dialogue 1000); 1000 with vectors; the citation graph at cut 25f8c9c",
+   "split": {
+    "compiled": 0.6386,
+    "wait": 0.0589,
+    "python": 1.0017,
+    "python_share": 0.5895
+   },
+   "peak_rss_mb": 673
+  },
+  {
+   "at": "2026-11-08T18:59:49+00:00",
+   "sentence": "top 10 near \"spectral gap of random graphs\" over observed",
+   "items": 3000,
+   "chunks": 10106,
+   "peak_rss_gb_watch": 1.1,
+   "wall_s": 2.1362,
+   "walls": [
+    2.0922,
+    2.1362,
+    2.1569
+   ],
+   "hits": 10,
+   "support": "the universe is the sentence's support: 3000 nodes (dialogue 3000); 3000 with vectors; the citation graph at cut 25f8c9c",
+   "split": {
+    "compiled": 0.7832,
+    "wait": 0.2323,
+    "python": 1.3338,
+    "python_share": 0.5677
+   },
+   "peak_rss_mb": 1123
+  },
+  {
+   "at": "2026-11-08T19:00:02+00:00",
+   "sentence": "top 10 diffuse S from \"corpus/arxiv/0705.1075\" over observed",
+   "items": 3000,
+   "chunks": 10106,
+   "peak_rss_gb_watch": 1.52,
+   "wall_s": 2.3118,
+   "walls": [
+    2.3118,
+    2.3072,
+    2.3313
+   ],
+   "hits": 10,
+   "support": "the universe is the sentence's support: 3000 nodes (dialogue 3000); 3000 with vectors; the citation graph at cut 25f8c9c",
+   "split": {
+    "compiled": 0.9194,
+    "wait": 0.1909,
+    "python": 1.4164,
+    "python_share": 0.5606
+   },
+   "peak_rss_mb": 1554
+  },
+  {
+   "at": "2026-11-08T19:00:14+00:00",
+   "sentence": "reach S from \"corpus/arxiv/0705.1075\" depth 2 over observed",
+   "items": 3000,
+   "chunks": 10106,
+   "peak_rss_gb_watch": 1.13,
+   "wall_s": 2.1653,
+   "walls": [
+    2.1363,
+    2.1653,
+    2.1663
+   ],
+   "hits": 936,
+   "support": "the universe is the sentence's support: 3000 nodes (dialogue 3000); 3000 with vectors; the citation graph at cut 25f8c9c",
+   "split": {
+    "compiled": 0.8051,
+    "wait": 0.1886,
+    "python": 1.4263,
+    "python_share": 0.5894
+   },
+   "peak_rss_mb": 1158
+  },
+  {
+   "at": "2026-11-08T19:00:27+00:00",
+   "sentence": "walk from \"corpus/arxiv/0705.1075\" via S{1,2} depth 2 over observed",
+   "items": 3000,
+   "chunks": 10106,
+   "peak_rss_gb_watch": 1.13,
+   "wall_s": 2.0801,
+   "walls": [
+    2.1145,
+    2.0801,
+    2.0584
+   ],
+   "hits": 200,
+   "support": "the universe is the sentence's support: 3000 nodes (dialogue 3000); 3000 with vectors; the citation graph at cut 25f8c9c",
+   "split": {
+    "compiled": 0.8028,
+    "wait": 0.1878,
+    "python": 1.435,
+    "python_share": 0.5916
+   },
+   "peak_rss_mb": 1159
+  },
+  {
+   "at": "2026-11-08T19:01:08+00:00",
+   "sentence": "top 10 near \"spectral gap of random graphs\" over observed",
+   "items": 10000,
+   "chunks": 34917,
+   "peak_rss_gb_watch": 4.18,
+   "wall_s": 5.1972,
+   "walls": [
+    5.3243,
+    5.137,
+    5.1972
+   ],
+   "hits": 10,
+   "support": "the universe is the sentence's support: 10000 nodes (dialogue 10000); 10000 with vectors; the citation graph at cut 25f8c9c",
+   "split": {
+    "compiled": 1.4426,
+    "wait": 0.9495,
+    "python": 3.2797,
+    "python_share": 0.5782
+   },
+   "peak_rss_mb": 4283
+  },
+  {
+   "at": "2026-11-08T19:01:16+00:00",
+   "sentence": "top 10 diffuse S from \"corpus/arxiv/0704.0551\" over observed",
+   "items": 10000,
+   "chunks": 34917,
+   "peak_rss_gb_watch": 6.11,
+   "killed": "rss above 6.0 GB"
+  },
+  {
+   "at": "2026-11-08T19:01:49+00:00",
+   "sentence": "reach S from \"corpus/arxiv/0704.0551\" depth 2 over observed",
+   "items": 10000,
+   "chunks": 34917,
+   "peak_rss_gb_watch": 4.59,
+   "wall_s": 5.9225,
+   "walls": [
+    6.0698,
+    5.8982,
+    5.9225
+   ],
+   "hits": 3250,
+   "support": "the universe is the sentence's support: 10000 nodes (dialogue 10000); 10000 with vectors; the citation graph at cut 25f8c9c",
+   "split": {
+    "compiled": 1.6872,
+    "wait": 0.9055,
+    "python": 4.6724,
+    "python_share": 0.6431
+   },
+   "peak_rss_mb": 4699
+  },
+  {
+   "at": "2026-11-08T19:02:22+00:00",
+   "sentence": "walk from \"corpus/arxiv/0704.0551\" via S{1,2} depth 2 over observed",
+   "items": 10000,
+   "chunks": 34917,
+   "peak_rss_gb_watch": 4.58,
+   "wall_s": 6.0792,
+   "walls": [
+    6.1368,
+    6.0792,
+    5.9636
+   ],
+   "hits": 200,
+   "support": "the universe is the sentence's support: 10000 nodes (dialogue 10000); 10000 with vectors; the citation graph at cut 25f8c9c",
+   "split": {
+    "compiled": 1.6454,
+    "wait": 0.9138,
+    "python": 4.7263,
+    "python_share": 0.6487
+   },
+   "peak_rss_mb": 4695
   }
  ],
- "footprint": null,
- "battery_arms": null
+ "footprint": {
+  "text": {
+   "wikipedia": {
+    "items": 11414,
+    "text_bytes": 398028224,
+    "zstd3_bytes": 139052286,
+    "zstd3_ratio": 2.862
+   },
+   "openalex": {
+    "items": 145029,
+    "text_bytes": 171066721,
+    "zstd3_bytes": 52186918,
+    "zstd3_ratio": 3.278
+   },
+   "arxiv": {
+    "items": 41659,
+    "text_bytes": 50894185,
+    "zstd3_bytes": 16107106,
+    "zstd3_ratio": 3.16
+   },
+   "stackexchange": {
+    "items": 163503,
+    "text_bytes": 170164300,
+    "zstd3_bytes": 57219558,
+    "zstd3_ratio": 2.974
+   },
+   "gutenberg": {
+    "items": 338,
+    "text_bytes": 108141097,
+    "zstd3_bytes": 35654076,
+    "zstd3_ratio": 3.033
+   },
+   "hackernews": {
+    "items": 38331,
+    "text_bytes": 120056844,
+    "zstd3_bytes": 44338538,
+    "zstd3_ratio": 2.708
+   }
+  },
+  "disk": {
+   "instance": 12203798528,
+   "sources_dumps_and_streams": 3997171712,
+   "raw_store": 2189189120,
+   "vectors_lance": 3400683520,
+   "plane_sqlite": 1006698496,
+   "catalog": 167837696,
+   "attestations": 318832640,
+   "edges": 30330880,
+   "codes": 0
+  },
+  "plane": {
+   "occupancies": 1369925,
+   "bytes": 1005023232,
+   "bytes_per_occupancy": 733.6
+  },
+  "compact_occupancy": {
+   "rows": 400274,
+   "chunk_occupancies": 1369925,
+   "bytes": 7749632,
+   "bytes_per_row": 19.4
+  },
+  "cif4_occupancy_broken": false,
+  "edge_bytes_max": 12.07,
+  "cif4_edge_broken": false
+ },
+ "battery_arms": {
+  "recall": {
+   "lexical:titles:wikipedia": {
+    "unscoped@0.01": 1.0,
+    "scoped@0.01": 1.0,
+    "unscoped@0.03": 1.0,
+    "scoped@0.03": 1.0,
+    "unscoped@0.1": 0.998,
+    "scoped@0.1": 1.0,
+    "unscoped@0.3": 0.996,
+    "scoped@0.3": 1.0,
+    "unscoped@1.0": 0.97,
+    "scoped@1.0": 0.984
+   },
+   "semantic:titles:wikipedia": {
+    "unscoped@0.01": 0.994,
+    "scoped@0.01": 1.0,
+    "unscoped@0.03": 0.992,
+    "scoped@0.03": 1.0,
+    "unscoped@0.1": 0.99,
+    "scoped@0.1": 1.0,
+    "unscoped@0.3": 0.982,
+    "scoped@0.3": 1.0,
+    "unscoped@1.0": 0.952,
+    "scoped@1.0": 1.0
+   },
+   "both:titles:wikipedia": {
+    "unscoped@0.01": 1.0,
+    "scoped@0.01": 1.0,
+    "unscoped@0.03": 1.0,
+    "scoped@0.03": 1.0,
+    "unscoped@0.1": 0.998,
+    "scoped@0.1": 1.0,
+    "unscoped@0.3": 0.998,
+    "scoped@0.3": 1.0,
+    "unscoped@1.0": 0.994,
+    "scoped@1.0": 1.0
+   },
+   "lexical:titles:openalex": {
+    "unscoped@0.01": 0.978,
+    "scoped@0.01": 0.98,
+    "unscoped@0.03": 0.976,
+    "scoped@0.03": 0.98,
+    "unscoped@0.1": 0.972,
+    "scoped@0.1": 0.976,
+    "unscoped@0.3": 0.964,
+    "scoped@0.3": 0.972,
+    "unscoped@1.0": 0.952,
+    "scoped@1.0": 0.958
+   },
+   "semantic:titles:openalex": {
+    "unscoped@0.01": 0.968,
+    "scoped@0.01": 0.972,
+    "unscoped@0.03": 0.958,
+    "scoped@0.03": 0.964,
+    "unscoped@0.1": 0.94,
+    "scoped@0.1": 0.946,
+    "unscoped@0.3": 0.912,
+    "scoped@0.3": 0.912,
+    "unscoped@1.0": 0.866,
+    "scoped@1.0": 0.87
+   },
+   "both:titles:openalex": {
+    "unscoped@0.01": 0.998,
+    "scoped@0.01": 0.998,
+    "unscoped@0.03": 0.994,
+    "scoped@0.03": 0.998,
+    "unscoped@0.1": 0.986,
+    "scoped@0.1": 0.988,
+    "unscoped@0.3": 0.972,
+    "scoped@0.3": 0.976,
+    "unscoped@1.0": 0.954,
+    "scoped@1.0": 0.962
+   },
+   "lexical:titles:arxiv": {
+    "unscoped@0.01": 1.0,
+    "scoped@0.01": 1.0,
+    "unscoped@0.03": 1.0,
+    "scoped@0.03": 1.0,
+    "unscoped@0.1": 1.0,
+    "scoped@0.1": 1.0,
+    "unscoped@0.3": 0.996,
+    "scoped@0.3": 1.0,
+    "unscoped@1.0": 0.99,
+    "scoped@1.0": 0.998
+   },
+   "semantic:titles:arxiv": {
+    "unscoped@0.01": 0.984,
+    "scoped@0.01": 0.988,
+    "unscoped@0.03": 0.976,
+    "scoped@0.03": 0.984,
+    "unscoped@0.1": 0.964,
+    "scoped@0.1": 0.974,
+    "unscoped@0.3": 0.916,
+    "scoped@0.3": 0.946,
+    "unscoped@1.0": 0.86,
+    "scoped@1.0": 0.92
+   },
+   "both:titles:arxiv": {
+    "unscoped@0.01": 1.0,
+    "scoped@0.01": 1.0,
+    "unscoped@0.03": 1.0,
+    "scoped@0.03": 1.0,
+    "unscoped@0.1": 0.998,
+    "scoped@0.1": 1.0,
+    "unscoped@0.3": 0.992,
+    "scoped@0.3": 0.992,
+    "unscoped@1.0": 0.978,
+    "scoped@1.0": 0.99
+   },
+   "lexical:titles:stackexchange": {
+    "unscoped@0.01": 0.996,
+    "scoped@0.01": 0.996,
+    "unscoped@0.03": 0.99,
+    "scoped@0.03": 0.994,
+    "unscoped@0.1": 0.986,
+    "scoped@0.1": 0.99,
+    "unscoped@0.3": 0.98,
+    "scoped@0.3": 0.982,
+    "unscoped@1.0": 0.958,
+    "scoped@1.0": 0.962
+   },
+   "semantic:titles:stackexchange": {
+    "unscoped@0.01": 0.996,
+    "scoped@0.01": 1.0,
+    "unscoped@0.03": 0.992,
+    "scoped@0.03": 1.0,
+    "unscoped@0.1": 0.986,
+    "scoped@0.1": 0.996,
+    "unscoped@0.3": 0.966,
+    "scoped@0.3": 0.984,
+    "unscoped@1.0": 0.954,
+    "scoped@1.0": 0.974
+   },
+   "both:titles:stackexchange": {
+    "unscoped@0.01": 0.998,
+    "scoped@0.01": 1.0,
+    "unscoped@0.03": 0.996,
+    "scoped@0.03": 0.998,
+    "unscoped@0.1": 0.996,
+    "scoped@0.1": 0.998,
+    "unscoped@0.3": 0.992,
+    "scoped@0.3": 0.994,
+    "unscoped@1.0": 0.98,
+    "scoped@1.0": 0.986
+   },
+   "lexical:titles:gutenberg": {
+    "unscoped@0.01": 0.9881656804733728,
+    "scoped@0.01": 0.9881656804733728,
+    "unscoped@0.03": 0.9881656804733728,
+    "scoped@0.03": 0.9881656804733728,
+    "unscoped@0.1": 0.9881656804733728,
+    "scoped@0.1": 0.9881656804733728,
+    "unscoped@0.3": 0.9792899408284024,
+    "scoped@0.3": 0.9881656804733728,
+    "unscoped@1.0": 0.9704142011834319,
+    "scoped@1.0": 0.9881656804733728
+   },
+   "semantic:titles:gutenberg": {
+    "unscoped@0.01": 0.9733727810650887,
+    "scoped@0.01": 0.9792899408284024,
+    "unscoped@0.03": 0.9704142011834319,
+    "scoped@0.03": 0.9792899408284024,
+    "unscoped@0.1": 0.9644970414201184,
+    "scoped@0.1": 0.9792899408284024,
+    "unscoped@0.3": 0.9585798816568047,
+    "scoped@0.3": 0.9792899408284024,
+    "unscoped@1.0": 0.9408284023668639,
+    "scoped@1.0": 0.9792899408284024
+   },
+   "both:titles:gutenberg": {
+    "unscoped@0.01": 0.9881656804733728,
+    "scoped@0.01": 0.9881656804733728,
+    "unscoped@0.03": 0.9881656804733728,
+    "scoped@0.03": 0.9881656804733728,
+    "unscoped@0.1": 0.985207100591716,
+    "scoped@0.1": 0.9881656804733728,
+    "unscoped@0.3": 0.985207100591716,
+    "scoped@0.3": 0.9881656804733728,
+    "unscoped@1.0": 0.9822485207100592,
+    "scoped@1.0": 0.9881656804733728
+   },
+   "lexical:titles:hackernews": {
+    "unscoped@0.01": 1.0,
+    "scoped@0.01": 1.0,
+    "unscoped@0.03": 1.0,
+    "scoped@0.03": 1.0,
+    "unscoped@0.1": 1.0,
+    "scoped@0.1": 1.0,
+    "unscoped@0.3": 1.0,
+    "scoped@0.3": 1.0,
+    "unscoped@1.0": 0.994,
+    "scoped@1.0": 0.998
+   },
+   "semantic:titles:hackernews": {
+    "unscoped@0.01": 0.998,
+    "scoped@0.01": 1.0,
+    "unscoped@0.03": 0.998,
+    "scoped@0.03": 1.0,
+    "unscoped@0.1": 0.996,
+    "scoped@0.1": 0.998,
+    "unscoped@0.3": 0.994,
+    "scoped@0.3": 0.994,
+    "unscoped@1.0": 0.99,
+    "scoped@1.0": 0.99
+   },
+   "both:titles:hackernews": {
+    "unscoped@0.01": 1.0,
+    "scoped@0.01": 1.0,
+    "unscoped@0.03": 1.0,
+    "scoped@0.03": 1.0,
+    "unscoped@0.1": 1.0,
+    "scoped@0.1": 1.0,
+    "unscoped@0.3": 1.0,
+    "scoped@0.3": 1.0,
+    "unscoped@1.0": 0.998,
+    "scoped@1.0": 0.998
+   },
+   "lexical:twins:arxiv->openalex": {
+    "unscoped@0.01": 0.996,
+    "scoped@0.01": 0.998,
+    "unscoped@0.03": 0.996,
+    "scoped@0.03": 0.996,
+    "unscoped@0.1": 0.996,
+    "scoped@0.1": 0.996,
+    "unscoped@0.3": 0.996,
+    "scoped@0.3": 0.996,
+    "unscoped@1.0": 0.996,
+    "scoped@1.0": 0.996
+   },
+   "semantic:twins:arxiv->openalex": {
+    "unscoped@0.01": 0.998,
+    "scoped@0.01": 0.998,
+    "unscoped@0.03": 0.998,
+    "scoped@0.03": 0.998,
+    "unscoped@0.1": 0.996,
+    "scoped@0.1": 0.996,
+    "unscoped@0.3": 0.996,
+    "scoped@0.3": 0.996,
+    "unscoped@1.0": 0.996,
+    "scoped@1.0": 0.996
+   },
+   "both:twins:arxiv->openalex": {
+    "unscoped@0.01": 0.996,
+    "scoped@0.01": 0.998,
+    "unscoped@0.03": 0.996,
+    "scoped@0.03": 0.996,
+    "unscoped@0.1": 0.996,
+    "scoped@0.1": 0.996,
+    "unscoped@0.3": 0.996,
+    "scoped@0.3": 0.996,
+    "unscoped@1.0": 0.996,
+    "scoped@1.0": 0.996
+   },
+   "lexical:twins:openalex->arxiv": {
+    "unscoped@0.01": 0.992,
+    "scoped@0.01": 0.992,
+    "unscoped@0.03": 0.992,
+    "scoped@0.03": 0.992,
+    "unscoped@0.1": 0.992,
+    "scoped@0.1": 0.992,
+    "unscoped@0.3": 0.992,
+    "scoped@0.3": 0.992,
+    "unscoped@1.0": 0.992,
+    "scoped@1.0": 0.992
+   },
+   "semantic:twins:openalex->arxiv": {
+    "unscoped@0.01": 0.99,
+    "scoped@0.01": 0.992,
+    "unscoped@0.03": 0.99,
+    "scoped@0.03": 0.99,
+    "unscoped@0.1": 0.99,
+    "scoped@0.1": 0.99,
+    "unscoped@0.3": 0.99,
+    "scoped@0.3": 0.99,
+    "unscoped@1.0": 0.988,
+    "scoped@1.0": 0.988
+   },
+   "both:twins:openalex->arxiv": {
+    "unscoped@0.01": 0.992,
+    "scoped@0.01": 0.994,
+    "unscoped@0.03": 0.992,
+    "scoped@0.03": 0.994,
+    "unscoped@0.1": 0.992,
+    "scoped@0.1": 0.992,
+    "unscoped@0.3": 0.99,
+    "scoped@0.3": 0.99,
+    "unscoped@1.0": 0.99,
+    "scoped@1.0": 0.99
+   },
+   "lexical:cite:wikipedia->paper": {
+    "unscoped@0.01": 0.9129129129129129,
+    "scoped@0.01": 0.9159159159159159,
+    "unscoped@0.03": 0.8918918918918919,
+    "scoped@0.03": 0.9129129129129129,
+    "unscoped@0.1": 0.8678678678678678,
+    "scoped@0.1": 0.8828828828828829,
+    "unscoped@0.3": 0.8468468468468469,
+    "scoped@0.3": 0.8648648648648649,
+    "unscoped@1.0": 0.8108108108108109,
+    "scoped@1.0": 0.8228228228228228
+   },
+   "semantic:cite:wikipedia->paper": {
+    "unscoped@0.01": 0.8738738738738738,
+    "scoped@0.01": 0.8648648648648649,
+    "unscoped@0.03": 0.8378378378378378,
+    "scoped@0.03": 0.8408408408408409,
+    "unscoped@0.1": 0.7957957957957958,
+    "scoped@0.1": 0.8018018018018018,
+    "unscoped@0.3": 0.7237237237237237,
+    "scoped@0.3": 0.7327327327327328,
+    "unscoped@1.0": 0.6246246246246246,
+    "scoped@1.0": 0.6366366366366366
+   },
+   "both:cite:wikipedia->paper": {
+    "unscoped@0.01": 0.9159159159159159,
+    "scoped@0.01": 0.9159159159159159,
+    "unscoped@0.03": 0.9099099099099099,
+    "scoped@0.03": 0.9099099099099099,
+    "unscoped@0.1": 0.8978978978978979,
+    "scoped@0.1": 0.8948948948948949,
+    "unscoped@0.3": 0.8678678678678678,
+    "scoped@0.3": 0.8708708708708709,
+    "unscoped@1.0": 0.8108108108108109,
+    "scoped@1.0": 0.8348348348348348
+   },
+   "lexical:link:stackexchange->wikipedia": {
+    "unscoped@0.01": 0.5315315315315315,
+    "scoped@0.01": 0.6306306306306306,
+    "unscoped@0.03": 0.4954954954954955,
+    "scoped@0.03": 0.6276276276276276,
+    "unscoped@0.1": 0.3993993993993994,
+    "scoped@0.1": 0.6216216216216216,
+    "unscoped@0.3": 0.3063063063063063,
+    "scoped@0.3": 0.6066066066066066,
+    "unscoped@1.0": 0.18618618618618618,
+    "scoped@1.0": 0.5585585585585585
+   },
+   "semantic:link:stackexchange->wikipedia": {
+    "unscoped@0.01": 0.3663663663663664,
+    "scoped@0.01": 0.7387387387387387,
+    "unscoped@0.03": 0.3123123123123123,
+    "scoped@0.03": 0.7297297297297297,
+    "unscoped@0.1": 0.21021021021021022,
+    "scoped@0.1": 0.7207207207207207,
+    "unscoped@0.3": 0.13513513513513514,
+    "scoped@0.3": 0.6966966966966966,
+    "unscoped@1.0": 0.06306306306306306,
+    "scoped@1.0": 0.6606606606606606
+   },
+   "both:link:stackexchange->wikipedia": {
+    "unscoped@0.01": 0.5465465465465466,
+    "scoped@0.01": 0.7207207207207207,
+    "unscoped@0.03": 0.4774774774774775,
+    "scoped@0.03": 0.7237237237237237,
+    "unscoped@0.1": 0.3963963963963964,
+    "scoped@0.1": 0.7147147147147147,
+    "unscoped@0.3": 0.27627627627627627,
+    "scoped@0.3": 0.7027027027027027,
+    "unscoped@1.0": 0.16516516516516516,
+    "scoped@1.0": 0.6696696696696697
+   },
+   "lexical:link:hackernews->wikipedia": {
+    "unscoped@0.01": 0.2761904761904762,
+    "scoped@0.01": 0.32857142857142857,
+    "unscoped@0.03": 0.2619047619047619,
+    "scoped@0.03": 0.3142857142857143,
+    "unscoped@0.1": 0.23809523809523808,
+    "scoped@0.1": 0.2761904761904762,
+    "unscoped@0.3": 0.18095238095238095,
+    "scoped@0.3": 0.24285714285714285,
+    "unscoped@1.0": 0.14285714285714285,
+    "scoped@1.0": 0.19523809523809524
+   },
+   "semantic:link:hackernews->wikipedia": {
+    "unscoped@0.01": 0.24761904761904763,
+    "scoped@0.01": 0.4,
+    "unscoped@0.03": 0.22380952380952382,
+    "scoped@0.03": 0.36666666666666664,
+    "unscoped@0.1": 0.20952380952380953,
+    "scoped@0.1": 0.3333333333333333,
+    "unscoped@0.3": 0.19047619047619047,
+    "scoped@0.3": 0.2904761904761905,
+    "unscoped@1.0": 0.1761904761904762,
+    "scoped@1.0": 0.22857142857142856
+   },
+   "both:link:hackernews->wikipedia": {
+    "unscoped@0.01": 0.2857142857142857,
+    "scoped@0.01": 0.4095238095238095,
+    "unscoped@0.03": 0.2619047619047619,
+    "scoped@0.03": 0.3761904761904762,
+    "unscoped@0.1": 0.24761904761904763,
+    "scoped@0.1": 0.3476190476190476,
+    "unscoped@0.3": 0.2,
+    "scoped@0.3": 0.30952380952380953,
+    "unscoped@1.0": 0.18095238095238095,
+    "scoped@1.0": 0.24761904761904763
+   }
+  },
+  "questions": {
+   "lexical:titles:wikipedia": 500,
+   "semantic:titles:wikipedia": 500,
+   "both:titles:wikipedia": 500,
+   "lexical:titles:openalex": 500,
+   "semantic:titles:openalex": 500,
+   "both:titles:openalex": 500,
+   "lexical:titles:arxiv": 500,
+   "semantic:titles:arxiv": 500,
+   "both:titles:arxiv": 500,
+   "lexical:titles:stackexchange": 500,
+   "semantic:titles:stackexchange": 500,
+   "both:titles:stackexchange": 500,
+   "lexical:titles:gutenberg": 338,
+   "semantic:titles:gutenberg": 338,
+   "both:titles:gutenberg": 338,
+   "lexical:titles:hackernews": 500,
+   "semantic:titles:hackernews": 500,
+   "both:titles:hackernews": 500,
+   "lexical:twins:arxiv->openalex": 500,
+   "semantic:twins:arxiv->openalex": 500,
+   "both:twins:arxiv->openalex": 500,
+   "lexical:twins:openalex->arxiv": 500,
+   "semantic:twins:openalex->arxiv": 500,
+   "both:twins:openalex->arxiv": 500,
+   "lexical:cite:wikipedia->paper": 333,
+   "semantic:cite:wikipedia->paper": 333,
+   "both:cite:wikipedia->paper": 333,
+   "lexical:link:stackexchange->wikipedia": 333,
+   "semantic:link:stackexchange->wikipedia": 333,
+   "both:link:stackexchange->wikipedia": 333,
+   "lexical:link:hackernews->wikipedia": 210,
+   "semantic:link:hackernews->wikipedia": 210,
+   "both:link:hackernews->wikipedia": 210
+  },
+  "pending": {},
+  "drop": {
+   "lexical:titles:wikipedia": {
+    "unscoped": [
+     0.03,
+     0.016,
+     0.046
+    ],
+    "scoped": [
+     0.016,
+     0.006,
+     0.028
+    ]
+   },
+   "semantic:titles:wikipedia": {
+    "unscoped": [
+     0.042,
+     0.026,
+     0.06
+    ],
+    "scoped": [
+     0.0,
+     0.0,
+     0.0
+    ]
+   },
+   "both:titles:wikipedia": {
+    "unscoped": [
+     0.006,
+     0.0,
+     0.014
+    ],
+    "scoped": [
+     0.0,
+     0.0,
+     0.0
+    ]
+   },
+   "lexical:titles:openalex": {
+    "unscoped": [
+     0.026,
+     0.012,
+     0.042
+    ],
+    "scoped": [
+     0.022,
+     0.01,
+     0.036
+    ]
+   },
+   "semantic:titles:openalex": {
+    "unscoped": [
+     0.102,
+     0.076,
+     0.13
+    ],
+    "scoped": [
+     0.102,
+     0.076,
+     0.13
+    ]
+   },
+   "both:titles:openalex": {
+    "unscoped": [
+     0.044,
+     0.028,
+     0.064
+    ],
+    "scoped": [
+     0.036,
+     0.02,
+     0.054
+    ]
+   },
+   "lexical:titles:arxiv": {
+    "unscoped": [
+     0.01,
+     0.002,
+     0.02
+    ],
+    "scoped": [
+     0.002,
+     0.0,
+     0.006
+    ]
+   },
+   "semantic:titles:arxiv": {
+    "unscoped": [
+     0.124,
+     0.094,
+     0.154
+    ],
+    "scoped": [
+     0.068,
+     0.046,
+     0.09
+    ]
+   },
+   "both:titles:arxiv": {
+    "unscoped": [
+     0.022,
+     0.01,
+     0.036
+    ],
+    "scoped": [
+     0.01,
+     0.002,
+     0.02
+    ]
+   },
+   "lexical:titles:stackexchange": {
+    "unscoped": [
+     0.038,
+     0.022,
+     0.056
+    ],
+    "scoped": [
+     0.034,
+     0.02,
+     0.05
+    ]
+   },
+   "semantic:titles:stackexchange": {
+    "unscoped": [
+     0.042,
+     0.024,
+     0.062
+    ],
+    "scoped": [
+     0.026,
+     0.014,
+     0.04
+    ]
+   },
+   "both:titles:stackexchange": {
+    "unscoped": [
+     0.018,
+     0.006,
+     0.032
+    ],
+    "scoped": [
+     0.014,
+     0.006,
+     0.026
+    ]
+   },
+   "lexical:titles:gutenberg": {
+    "unscoped": [
+     0.01775147928994083,
+     0.005917159763313609,
+     0.03254437869822485
+    ],
+    "scoped": [
+     0.0,
+     0.0,
+     0.0
+    ]
+   },
+   "semantic:titles:gutenberg": {
+    "unscoped": [
+     0.03254437869822485,
+     0.014792899408284023,
+     0.05325443786982249
+    ],
+    "scoped": [
+     0.0,
+     0.0,
+     0.0
+    ]
+   },
+   "both:titles:gutenberg": {
+    "unscoped": [
+     0.005917159763313609,
+     0.0,
+     0.014792899408284023
+    ],
+    "scoped": [
+     0.0,
+     0.0,
+     0.0
+    ]
+   },
+   "lexical:titles:hackernews": {
+    "unscoped": [
+     0.006,
+     0.0,
+     0.014
+    ],
+    "scoped": [
+     0.002,
+     0.0,
+     0.006
+    ]
+   },
+   "semantic:titles:hackernews": {
+    "unscoped": [
+     0.008,
+     0.002,
+     0.018
+    ],
+    "scoped": [
+     0.01,
+     0.002,
+     0.02
+    ]
+   },
+   "both:titles:hackernews": {
+    "unscoped": [
+     0.002,
+     0.0,
+     0.006
+    ],
+    "scoped": [
+     0.002,
+     0.0,
+     0.006
+    ]
+   },
+   "lexical:twins:arxiv->openalex": {
+    "unscoped": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "scoped": [
+     0.002,
+     0.0,
+     0.006
+    ]
+   },
+   "semantic:twins:arxiv->openalex": {
+    "unscoped": [
+     0.002,
+     0.0,
+     0.006
+    ],
+    "scoped": [
+     0.002,
+     0.0,
+     0.006
+    ]
+   },
+   "both:twins:arxiv->openalex": {
+    "unscoped": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "scoped": [
+     0.002,
+     0.0,
+     0.006
+    ]
+   },
+   "lexical:twins:openalex->arxiv": {
+    "unscoped": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "scoped": [
+     0.0,
+     0.0,
+     0.0
+    ]
+   },
+   "semantic:twins:openalex->arxiv": {
+    "unscoped": [
+     0.002,
+     0.0,
+     0.006
+    ],
+    "scoped": [
+     0.004,
+     0.0,
+     0.01
+    ]
+   },
+   "both:twins:openalex->arxiv": {
+    "unscoped": [
+     0.002,
+     0.0,
+     0.006
+    ],
+    "scoped": [
+     0.004,
+     0.0,
+     0.01
+    ]
+   },
+   "lexical:cite:wikipedia->paper": {
+    "unscoped": [
+     0.1021021021021021,
+     0.071996996996997,
+     0.13513513513513514
+    ],
+    "scoped": [
+     0.09309309309309309,
+     0.06306306306306306,
+     0.12312312312312312
+    ]
+   },
+   "semantic:cite:wikipedia->paper": {
+    "unscoped": [
+     0.24924924924924924,
+     0.2042042042042042,
+     0.2972972972972973
+    ],
+    "scoped": [
+     0.22822822822822822,
+     0.18618618618618618,
+     0.2732732732732733
+    ]
+   },
+   "both:cite:wikipedia->paper": {
+    "unscoped": [
+     0.10510510510510511,
+     0.07207207207207207,
+     0.13813813813813813
+    ],
+    "scoped": [
+     0.08108108108108109,
+     0.05405405405405406,
+     0.1111111111111111
+    ]
+   },
+   "lexical:link:stackexchange->wikipedia": {
+    "unscoped": [
+     0.34534534534534533,
+     0.2972972972972973,
+     0.3963963963963964
+    ],
+    "scoped": [
+     0.07207207207207207,
+     0.04504504504504504,
+     0.0990990990990991
+    ]
+   },
+   "semantic:link:stackexchange->wikipedia": {
+    "unscoped": [
+     0.3033033033033033,
+     0.2552552552552553,
+     0.35435435435435436
+    ],
+    "scoped": [
+     0.07807807807807808,
+     0.05105105105105105,
+     0.10810810810810811
+    ]
+   },
+   "both:link:stackexchange->wikipedia": {
+    "unscoped": [
+     0.3813813813813814,
+     0.3303303303303303,
+     0.43243243243243246
+    ],
+    "scoped": [
+     0.05105105105105105,
+     0.02702702702702703,
+     0.07807807807807808
+    ]
+   },
+   "lexical:link:hackernews->wikipedia": {
+    "unscoped": [
+     0.13333333333333333,
+     0.09035714285714286,
+     0.18571428571428572
+    ],
+    "scoped": [
+     0.13333333333333333,
+     0.09047619047619047,
+     0.1761904761904762
+    ]
+   },
+   "semantic:link:hackernews->wikipedia": {
+    "unscoped": [
+     0.07142857142857142,
+     0.0380952380952381,
+     0.10952380952380952
+    ],
+    "scoped": [
+     0.17142857142857143,
+     0.12380952380952381,
+     0.22380952380952382
+    ]
+   },
+   "both:link:hackernews->wikipedia": {
+    "unscoped": [
+     0.10476190476190476,
+     0.06190476190476191,
+     0.1523809523809524
+    ],
+    "scoped": [
+     0.1619047619047619,
+     0.10952380952380952,
+     0.21428571428571427
+    ]
+   }
+  },
+  "attribution": {
+   "lexical": {
+    "all": {
+     "v_full": 0.9725158562367865,
+     "shapley": {
+      "wikipedia": 0.17085388771435278,
+      "openalex": 0.20817477096546866,
+      "arxiv": 0.13306319003993416,
+      "stackexchange": 0.1687984496124031,
+      "gutenberg": 0.11638477801268499,
+      "hackernews": 0.17524077989194267
+     },
+     "loo": {
+      "wikipedia": 0.16878083157152923,
+      "openalex": 0.13777307963354474,
+      "arxiv": 0.06342494714587738,
+      "stackexchange": 0.16807610993657504,
+      "gutenberg": 0.11522198731501057,
+      "hackernews": 0.17477096546863988
+     },
+     "loo_p": {
+      "wikipedia": 4.999750012499375e-05,
+      "openalex": 4.999750012499375e-05,
+      "arxiv": 4.999750012499375e-05,
+      "stackexchange": 4.999750012499375e-05,
+      "gutenberg": 4.999750012499375e-05,
+      "hackernews": 4.999750012499375e-05
+     },
+     "loo_p_holm": {
+      "wikipedia": 0.0002999850007499625,
+      "openalex": 0.0002999850007499625,
+      "arxiv": 0.0002999850007499625,
+      "stackexchange": 0.0002999850007499625,
+      "gutenberg": 0.0002999850007499625,
+      "hackernews": 0.0002999850007499625
+     },
+     "values": {
+      "wikipedia": 0.1733615221987315,
+      "openalex": 0.27906976744186046,
+      "arxiv": 0.2029598308668076,
+      "stackexchange": 0.16948555320648345,
+      "gutenberg": 0.11768851303735024,
+      "hackernews": 0.17582804792107118,
+      "wikipedia,openalex": 0.45066948555320646,
+      "wikipedia,arxiv": 0.37561663143058494,
+      "wikipedia,stackexchange": 0.3428470754052149,
+      "wikipedia,gutenberg": 0.28893587033121915,
+      "wikipedia,hackernews": 0.3477801268498943,
+      "openalex,arxiv": 0.34249471458773784,
+      "openalex,stackexchange": 0.4474982381959126,
+      "openalex,gutenberg": 0.3964059196617336,
+      "openalex,hackernews": 0.45454545454545453,
+      "arxiv,stackexchange": 0.37244538407329103,
+      "arxiv,gutenberg": 0.32064834390415786,
+      "arxiv,hackernews": 0.3787878787878788,
+      "stackexchange,gutenberg": 0.2868217054263566,
+      "stackexchange,hackernews": 0.3453136011275546,
+      "gutenberg,hackernews": 0.29351656095842144,
+      "wikipedia,openalex,arxiv": 0.5140944326990838,
+      "wikipedia,openalex,stackexchange": 0.6190979563072586,
+      "wikipedia,openalex,gutenberg": 0.5662438336856942,
+      "wikipedia,openalex,hackernews": 0.6250880902043693,
+      "wikipedia,arxiv,stackexchange": 0.5447498238195913,
+      "wikipedia,arxiv,gutenberg": 0.49119097956307256,
+      "wikipedia,arxiv,hackernews": 0.5503875968992248,
+      "wikipedia,stackexchange,gutenberg": 0.4580690627202255,
+      "wikipedia,stackexchange,hackernews": 0.5172656800563777,
+      "wikipedia,gutenberg,hackernews": 0.46335447498238197,
+      "openalex,arxiv,stackexchange": 0.51092318534179,
+      "openalex,arxiv,gutenberg": 0.4594785059901339,
+      "openalex,arxiv,hackernews": 0.518322762508809,
+      "openalex,stackexchange,gutenberg": 0.5648343904157858,
+      "openalex,stackexchange,hackernews": 0.6233262861169838,
+      "openalex,gutenberg,hackernews": 0.5718816067653277,
+      "arxiv,stackexchange,gutenberg": 0.4894291754756871,
+      "arxiv,stackexchange,hackernews": 0.5482734319943622,
+      "arxiv,gutenberg,hackernews": 0.496476391825229,
+      "stackexchange,gutenberg,hackernews": 0.46264975334742775,
+      "wikipedia,openalex,arxiv,stackexchange": 0.682522903453136,
+      "wikipedia,openalex,arxiv,gutenberg": 0.6296687808315715,
+      "wikipedia,openalex,arxiv,hackernews": 0.6888653981677237,
+      "wikipedia,openalex,stackexchange,gutenberg": 0.7343199436222692,
+      "wikipedia,openalex,stackexchange,hackernews": 0.7938689217758985,
+      "wikipedia,openalex,gutenberg,hackernews": 0.740662438336857,
+      "wikipedia,arxiv,stackexchange,gutenberg": 0.6599718111346018,
+      "wikipedia,arxiv,stackexchange,hackernews": 0.7195207892882312,
+      "wikipedia,arxiv,gutenberg,hackernews": 0.6659619450317125,
+      "wikipedia,stackexchange,gutenberg,hackernews": 0.6324876673713883,
+      "openalex,arxiv,stackexchange,gutenberg": 0.627906976744186,
+      "openalex,arxiv,stackexchange,hackernews": 0.6867512332628611,
+      "openalex,arxiv,gutenberg,hackernews": 0.635306553911205,
+      "openalex,stackexchange,gutenberg,hackernews": 0.740662438336857,
+      "arxiv,stackexchange,gutenberg,hackernews": 0.6652572233967583,
+      "wikipedia,openalex,arxiv,stackexchange,gutenberg": 0.7977448907681466,
+      "wikipedia,openalex,arxiv,stackexchange,hackernews": 0.857293868921776,
+      "wikipedia,openalex,arxiv,gutenberg,hackernews": 0.8044397463002114,
+      "wikipedia,openalex,stackexchange,gutenberg,hackernews": 0.9090909090909091,
+      "wikipedia,arxiv,stackexchange,gutenberg,hackernews": 0.8347427766032417,
+      "openalex,arxiv,stackexchange,gutenberg,hackernews": 0.8037350246652573,
+      "wikipedia,openalex,arxiv,stackexchange,gutenberg,hackernews": 0.9725158562367865
+     },
+     "questions": 2838
+    },
+    "twinned": {
+     "v_full": 0.9874055415617129,
+     "shapley": {
+      "wikipedia": 0.0,
+      "openalex": 0.4916036943744754,
+      "arxiv": 0.4966414777497901,
+      "stackexchange": -0.0008396305625524662,
+      "gutenberg": 0.0,
+      "hackernews": 0.0
+     },
+     "loo": {
+      "wikipedia": 0.0,
+      "openalex": -0.005037783375314861,
+      "arxiv": 0.0,
+      "stackexchange": -0.0025188916876574307,
+      "gutenberg": 0.0,
+      "hackernews": 0.0
+     },
+     "loo_p": {
+      "wikipedia": 1.0,
+      "openalex": 0.6844157792110395,
+      "arxiv": 1.0,
+      "stackexchange": 1.0,
+      "gutenberg": 1.0,
+      "hackernews": 1.0
+     },
+     "loo_p_holm": {
+      "wikipedia": 1.0,
+      "openalex": 1.0,
+      "arxiv": 1.0,
+      "stackexchange": 1.0,
+      "gutenberg": 1.0,
+      "hackernews": 1.0
+     },
+     "values": {
+      "wikipedia": 0.0,
+      "openalex": 0.9874055415617129,
+      "arxiv": 0.9924433249370277,
+      "stackexchange": 0.0,
+      "gutenberg": 0.0,
+      "hackernews": 0.0,
+      "wikipedia,openalex": 0.9874055415617129,
+      "wikipedia,arxiv": 0.9924433249370277,
+      "wikipedia,stackexchange": 0.0,
+      "wikipedia,gutenberg": 0.0,
+      "wikipedia,hackernews": 0.0,
+      "openalex,arxiv": 0.9899244332493703,
+      "openalex,stackexchange": 0.9874055415617129,
+      "openalex,gutenberg": 0.9874055415617129,
+      "openalex,hackernews": 0.9874055415617129,
+      "arxiv,stackexchange": 0.9924433249370277,
+      "arxiv,gutenberg": 0.9924433249370277,
+      "arxiv,hackernews": 0.9924433249370277,
+      "stackexchange,gutenberg": 0.0,
+      "stackexchange,hackernews": 0.0,
+      "gutenberg,hackernews": 0.0,
+      "wikipedia,openalex,arxiv": 0.9899244332493703,
+      "wikipedia,openalex,stackexchange": 0.9874055415617129,
+      "wikipedia,openalex,gutenberg": 0.9874055415617129,
+      "wikipedia,openalex,hackernews": 0.9874055415617129,
+      "wikipedia,arxiv,stackexchange": 0.9924433249370277,
+      "wikipedia,arxiv,gutenberg": 0.9924433249370277,
+      "wikipedia,arxiv,hackernews": 0.9924433249370277,
+      "wikipedia,stackexchange,gutenberg": 0.0,
+      "wikipedia,stackexchange,hackernews": 0.0,
+      "wikipedia,gutenberg,hackernews": 0.0,
+      "openalex,arxiv,stackexchange": 0.9874055415617129,
+      "openalex,arxiv,gutenberg": 0.9899244332493703,
+      "openalex,arxiv,hackernews": 0.9899244332493703,
+      "openalex,stackexchange,gutenberg": 0.9874055415617129,
+      "openalex,stackexchange,hackernews": 0.9874055415617129,
+      "openalex,gutenberg,hackernews": 0.9874055415617129,
+      "arxiv,stackexchange,gutenberg": 0.9924433249370277,
+      "arxiv,stackexchange,hackernews": 0.9924433249370277,
+      "arxiv,gutenberg,hackernews": 0.9924433249370277,
+      "stackexchange,gutenberg,hackernews": 0.0,
+      "wikipedia,openalex,arxiv,stackexchange": 0.9874055415617129,
+      "wikipedia,openalex,arxiv,gutenberg": 0.9899244332493703,
+      "wikipedia,openalex,arxiv,hackernews": 0.9899244332493703,
+      "wikipedia,openalex,stackexchange,gutenberg": 0.9874055415617129,
+      "wikipedia,openalex,stackexchange,hackernews": 0.9874055415617129,
+      "wikipedia,openalex,gutenberg,hackernews": 0.9874055415617129,
+      "wikipedia,arxiv,stackexchange,gutenberg": 0.9924433249370277,
+      "wikipedia,arxiv,stackexchange,hackernews": 0.9924433249370277,
+      "wikipedia,arxiv,gutenberg,hackernews": 0.9924433249370277,
+      "wikipedia,stackexchange,gutenberg,hackernews": 0.0,
+      "openalex,arxiv,stackexchange,gutenberg": 0.9874055415617129,
+      "openalex,arxiv,stackexchange,hackernews": 0.9874055415617129,
+      "openalex,arxiv,gutenberg,hackernews": 0.9899244332493703,
+      "openalex,stackexchange,gutenberg,hackernews": 0.9874055415617129,
+      "arxiv,stackexchange,gutenberg,hackernews": 0.9924433249370277,
+      "wikipedia,openalex,arxiv,stackexchange,gutenberg": 0.9874055415617129,
+      "wikipedia,openalex,arxiv,stackexchange,hackernews": 0.9874055415617129,
+      "wikipedia,openalex,arxiv,gutenberg,hackernews": 0.9899244332493703,
+      "wikipedia,openalex,stackexchange,gutenberg,hackernews": 0.9874055415617129,
+      "wikipedia,arxiv,stackexchange,gutenberg,hackernews": 0.9924433249370277,
+      "openalex,arxiv,stackexchange,gutenberg,hackernews": 0.9874055415617129,
+      "wikipedia,openalex,arxiv,stackexchange,gutenberg,hackernews": 0.9874055415617129
+     },
+     "questions": 397
+    },
+    "cif10_broken": false
+   },
+   "semantic": {
+    "all": {
+     "v_full": 0.9274136715997181,
+     "shapley": {
+      "wikipedia": 0.1715292459478506,
+      "openalex": 0.1780420483908856,
+      "arxiv": 0.12145877378435518,
+      "stackexchange": 0.16920953723279303,
+      "gutenberg": 0.11394761569180177,
+      "hackernews": 0.17322645055203192
+     },
+     "loo": {
+      "wikipedia": 0.16737138830162085,
+      "openalex": 0.1113460183227625,
+      "arxiv": 0.056730091613812546,
+      "stackexchange": 0.16772374911909796,
+      "gutenberg": 0.11205073995771671,
+      "hackernews": 0.17230443974630022
+     },
+     "loo_p": {
+      "wikipedia": 4.999750012499375e-05,
+      "openalex": 4.999750012499375e-05,
+      "arxiv": 4.999750012499375e-05,
+      "stackexchange": 4.999750012499375e-05,
+      "gutenberg": 4.999750012499375e-05,
+      "hackernews": 4.999750012499375e-05
+     },
+     "loo_p_holm": {
+      "wikipedia": 0.0002999850007499625,
+      "openalex": 0.0002999850007499625,
+      "arxiv": 0.0002999850007499625,
+      "stackexchange": 0.0002999850007499625,
+      "gutenberg": 0.0002999850007499625,
+      "hackernews": 0.0002999850007499625
+     },
+     "values": {
+      "wikipedia": 0.17618040873854826,
+      "openalex": 0.2463002114164905,
+      "arxiv": 0.18745595489781536,
+      "stackexchange": 0.17159971811134603,
+      "gutenberg": 0.11663143058491895,
+      "hackernews": 0.1744186046511628,
+      "wikipedia,openalex": 0.41613812544045103,
+      "wikipedia,arxiv": 0.3618745595489782,
+      "wikipedia,stackexchange": 0.346723044397463,
+      "wikipedia,gutenberg": 0.29210711768851305,
+      "wikipedia,hackernews": 0.3488372093023256,
+      "openalex,arxiv": 0.3054968287526427,
+      "openalex,stackexchange": 0.4143763213530655,
+      "openalex,gutenberg": 0.36046511627906974,
+      "openalex,hackernews": 0.42071881606765327,
+      "arxiv,stackexchange": 0.35658914728682173,
+      "arxiv,gutenberg": 0.30162085976039466,
+      "arxiv,hackernews": 0.36152219873150104,
+      "stackexchange,gutenberg": 0.2878787878787879,
+      "stackexchange,hackernews": 0.3460183227625088,
+      "gutenberg,hackernews": 0.28964059196617337,
+      "wikipedia,openalex,arxiv": 0.47463002114164904,
+      "wikipedia,openalex,stackexchange": 0.5842142353770261,
+      "wikipedia,openalex,gutenberg": 0.5299506694855532,
+      "wikipedia,openalex,hackernews": 0.5894996476391825,
+      "wikipedia,arxiv,stackexchange": 0.5310077519379846,
+      "wikipedia,arxiv,gutenberg": 0.47533474277660326,
+      "wikipedia,arxiv,hackernews": 0.5348837209302325,
+      "wikipedia,stackexchange,gutenberg": 0.46264975334742775,
+      "wikipedia,stackexchange,hackernews": 0.5200845665961945,
+      "wikipedia,gutenberg,hackernews": 0.46335447498238197,
+      "openalex,arxiv,stackexchange": 0.47357293868921774,
+      "openalex,arxiv,gutenberg": 0.4186046511627907,
+      "openalex,arxiv,hackernews": 0.4795630725863284,
+      "openalex,stackexchange,gutenberg": 0.5285412262156448,
+      "openalex,stackexchange,hackernews": 0.5887949260042283,
+      "openalex,gutenberg,hackernews": 0.5345313601127555,
+      "arxiv,stackexchange,gutenberg": 0.47075405214940097,
+      "arxiv,stackexchange,hackernews": 0.5306553911205074,
+      "arxiv,gutenberg,hackernews": 0.47427766032417196,
+      "stackexchange,gutenberg,hackernews": 0.46124031007751937,
+      "wikipedia,openalex,arxiv,stackexchange": 0.642353770260747,
+      "wikipedia,openalex,arxiv,gutenberg": 0.587737843551797,
+      "wikipedia,openalex,arxiv,hackernews": 0.6476391825229034,
+      "wikipedia,openalex,stackexchange,gutenberg": 0.6980267794221282,
+      "wikipedia,openalex,stackexchange,hackernews": 0.7575757575757576,
+      "wikipedia,openalex,gutenberg,hackernews": 0.7029598308668076,
+      "wikipedia,arxiv,stackexchange,gutenberg": 0.6444679351656096,
+      "wikipedia,arxiv,stackexchange,hackernews": 0.7036645525017619,
+      "wikipedia,arxiv,gutenberg,hackernews": 0.6472868217054264,
+      "wikipedia,stackexchange,gutenberg,hackernews": 0.6346018322762509,
+      "openalex,arxiv,stackexchange,gutenberg": 0.5863284002818887,
+      "openalex,arxiv,stackexchange,hackernews": 0.6476391825229034,
+      "openalex,arxiv,gutenberg,hackernews": 0.5919661733615222,
+      "openalex,stackexchange,gutenberg,hackernews": 0.7022551092318534,
+      "arxiv,stackexchange,gutenberg,hackernews": 0.6434108527131783,
+      "wikipedia,openalex,arxiv,stackexchange,gutenberg": 0.7551092318534179,
+      "wikipedia,openalex,arxiv,stackexchange,hackernews": 0.8153629316420014,
+      "wikipedia,openalex,arxiv,gutenberg,hackernews": 0.7596899224806202,
+      "wikipedia,openalex,stackexchange,gutenberg,hackernews": 0.8706835799859056,
+      "wikipedia,arxiv,stackexchange,gutenberg,hackernews": 0.8160676532769556,
+      "openalex,arxiv,stackexchange,gutenberg,hackernews": 0.7600422832980972,
+      "wikipedia,openalex,arxiv,stackexchange,gutenberg,hackernews": 0.9274136715997181
+     },
+     "questions": 2838
+    },
+    "twinned": {
+     "v_full": 0.8488664987405542,
+     "shapley": {
+      "wikipedia": 0.0,
+      "openalex": 0.397984886649874,
+      "arxiv": 0.45088161209068006,
+      "stackexchange": 0.0,
+      "gutenberg": 0.0,
+      "hackernews": 0.0
+     },
+     "loo": {
+      "wikipedia": 0.0,
+      "openalex": -0.04785894206549118,
+      "arxiv": 0.005037783375314861,
+      "stackexchange": 0.0,
+      "gutenberg": 0.0,
+      "hackernews": 0.0
+     },
+     "loo_p": {
+      "wikipedia": 1.0,
+      "openalex": 0.0004999750012499375,
+      "arxiv": 0.7703614819259037,
+      "stackexchange": 1.0,
+      "gutenberg": 1.0,
+      "hackernews": 1.0
+     },
+     "loo_p_holm": {
+      "wikipedia": 1.0,
+      "openalex": 0.002999850007499625,
+      "arxiv": 1.0,
+      "stackexchange": 1.0,
+      "gutenberg": 1.0,
+      "hackernews": 1.0
+     },
+     "values": {
+      "wikipedia": 0.0,
+      "openalex": 0.8438287153652393,
+      "arxiv": 0.8967254408060453,
+      "stackexchange": 0.0,
+      "gutenberg": 0.0,
+      "hackernews": 0.0,
+      "wikipedia,openalex": 0.8438287153652393,
+      "wikipedia,arxiv": 0.8967254408060453,
+      "wikipedia,stackexchange": 0.0,
+      "wikipedia,gutenberg": 0.0,
+      "wikipedia,hackernews": 0.0,
+      "openalex,arxiv": 0.8488664987405542,
+      "openalex,stackexchange": 0.8438287153652393,
+      "openalex,gutenberg": 0.8438287153652393,
+      "openalex,hackernews": 0.8438287153652393,
+      "arxiv,stackexchange": 0.8967254408060453,
+      "arxiv,gutenberg": 0.8967254408060453,
+      "arxiv,hackernews": 0.8967254408060453,
+      "stackexchange,gutenberg": 0.0,
+      "stackexchange,hackernews": 0.0,
+      "gutenberg,hackernews": 0.0,
+      "wikipedia,openalex,arxiv": 0.8488664987405542,
+      "wikipedia,openalex,stackexchange": 0.8438287153652393,
+      "wikipedia,openalex,gutenberg": 0.8438287153652393,
+      "wikipedia,openalex,hackernews": 0.8438287153652393,
+      "wikipedia,arxiv,stackexchange": 0.8967254408060453,
+      "wikipedia,arxiv,gutenberg": 0.8967254408060453,
+      "wikipedia,arxiv,hackernews": 0.8967254408060453,
+      "wikipedia,stackexchange,gutenberg": 0.0,
+      "wikipedia,stackexchange,hackernews": 0.0,
+      "wikipedia,gutenberg,hackernews": 0.0,
+      "openalex,arxiv,stackexchange": 0.8488664987405542,
+      "openalex,arxiv,gutenberg": 0.8488664987405542,
+      "openalex,arxiv,hackernews": 0.8488664987405542,
+      "openalex,stackexchange,gutenberg": 0.8438287153652393,
+      "openalex,stackexchange,hackernews": 0.8438287153652393,
+      "openalex,gutenberg,hackernews": 0.8438287153652393,
+      "arxiv,stackexchange,gutenberg": 0.8967254408060453,
+      "arxiv,stackexchange,hackernews": 0.8967254408060453,
+      "arxiv,gutenberg,hackernews": 0.8967254408060453,
+      "stackexchange,gutenberg,hackernews": 0.0,
+      "wikipedia,openalex,arxiv,stackexchange": 0.8488664987405542,
+      "wikipedia,openalex,arxiv,gutenberg": 0.8488664987405542,
+      "wikipedia,openalex,arxiv,hackernews": 0.8488664987405542,
+      "wikipedia,openalex,stackexchange,gutenberg": 0.8438287153652393,
+      "wikipedia,openalex,stackexchange,hackernews": 0.8438287153652393,
+      "wikipedia,openalex,gutenberg,hackernews": 0.8438287153652393,
+      "wikipedia,arxiv,stackexchange,gutenberg": 0.8967254408060453,
+      "wikipedia,arxiv,stackexchange,hackernews": 0.8967254408060453,
+      "wikipedia,arxiv,gutenberg,hackernews": 0.8967254408060453,
+      "wikipedia,stackexchange,gutenberg,hackernews": 0.0,
+      "openalex,arxiv,stackexchange,gutenberg": 0.8488664987405542,
+      "openalex,arxiv,stackexchange,hackernews": 0.8488664987405542,
+      "openalex,arxiv,gutenberg,hackernews": 0.8488664987405542,
+      "openalex,stackexchange,gutenberg,hackernews": 0.8438287153652393,
+      "arxiv,stackexchange,gutenberg,hackernews": 0.8967254408060453,
+      "wikipedia,openalex,arxiv,stackexchange,gutenberg": 0.8488664987405542,
+      "wikipedia,openalex,arxiv,stackexchange,hackernews": 0.8488664987405542,
+      "wikipedia,openalex,arxiv,gutenberg,hackernews": 0.8488664987405542,
+      "wikipedia,openalex,stackexchange,gutenberg,hackernews": 0.8438287153652393,
+      "wikipedia,arxiv,stackexchange,gutenberg,hackernews": 0.8967254408060453,
+      "openalex,arxiv,stackexchange,gutenberg,hackernews": 0.8488664987405542,
+      "wikipedia,openalex,arxiv,stackexchange,gutenberg,hackernews": 0.8488664987405542
+     },
+     "questions": 397
+    },
+    "cif10_broken": false
+   },
+   "both": {
+    "all": {
+     "v_full": 0.981677237491191,
+     "shapley": {
+      "wikipedia": 0.17555203194738078,
+      "openalex": 0.20738195912614513,
+      "arxiv": 0.1322410147991543,
+      "stackexchange": 0.17347310312426592,
+      "gutenberg": 0.11744773314540752,
+      "hackernews": 0.17558139534883715
+     },
+     "loo": {
+      "wikipedia": 0.17547568710359407,
+      "openalex": 0.13777307963354474,
+      "arxiv": 0.06342494714587738,
+      "stackexchange": 0.1733615221987315,
+      "gutenberg": 0.11733615221987315,
+      "hackernews": 0.17547568710359407
+     },
+     "loo_p": {
+      "wikipedia": 4.999750012499375e-05,
+      "openalex": 4.999750012499375e-05,
+      "arxiv": 4.999750012499375e-05,
+      "stackexchange": 4.999750012499375e-05,
+      "gutenberg": 4.999750012499375e-05,
+      "hackernews": 4.999750012499375e-05
+     },
+     "loo_p_holm": {
+      "wikipedia": 0.0002999850007499625,
+      "openalex": 0.0002999850007499625,
+      "arxiv": 0.0002999850007499625,
+      "stackexchange": 0.0002999850007499625,
+      "gutenberg": 0.0002999850007499625,
+      "hackernews": 0.0002999850007499625
+     },
+     "values": {
+      "wikipedia": 0.17618040873854826,
+      "openalex": 0.277307963354475,
+      "arxiv": 0.20155038759689922,
+      "stackexchange": 0.1737138830162086,
+      "gutenberg": 0.11768851303735024,
+      "hackernews": 0.17582804792107118,
+      "wikipedia,openalex": 0.452431289640592,
+      "wikipedia,arxiv": 0.3770260747004933,
+      "wikipedia,stackexchange": 0.3498942917547569,
+      "wikipedia,gutenberg": 0.29351656095842144,
+      "wikipedia,hackernews": 0.35200845665961944,
+      "openalex,arxiv": 0.3403805496828753,
+      "openalex,stackexchange": 0.4503171247357294,
+      "openalex,gutenberg": 0.3949964763918252,
+      "openalex,hackernews": 0.45278365045806906,
+      "arxiv,stackexchange": 0.3752642706131078,
+      "arxiv,gutenberg": 0.3188865398167724,
+      "arxiv,hackernews": 0.3773784355179704,
+      "stackexchange,gutenberg": 0.29140239605355883,
+      "stackexchange,hackernews": 0.34954193093727975,
+      "gutenberg,hackernews": 0.29351656095842144,
+      "wikipedia,openalex,arxiv": 0.5158562367864693,
+      "wikipedia,openalex,stackexchange": 0.6257928118393234,
+      "wikipedia,openalex,gutenberg": 0.5697674418604651,
+      "wikipedia,openalex,hackernews": 0.627906976744186,
+      "wikipedia,arxiv,stackexchange": 0.5507399577167019,
+      "wikipedia,arxiv,gutenberg": 0.49436222692036647,
+      "wikipedia,arxiv,hackernews": 0.5528541226215645,
+      "wikipedia,stackexchange,gutenberg": 0.46723044397463004,
+      "wikipedia,stackexchange,hackernews": 0.525722339675828,
+      "wikipedia,gutenberg,hackernews": 0.4693446088794926,
+      "openalex,arxiv,stackexchange": 0.5137420718816068,
+      "openalex,arxiv,gutenberg": 0.4580690627202255,
+      "openalex,arxiv,hackernews": 0.5158562367864693,
+      "openalex,stackexchange,gutenberg": 0.5680056377730797,
+      "openalex,stackexchange,hackernews": 0.6257928118393234,
+      "openalex,gutenberg,hackernews": 0.5704721634954193,
+      "arxiv,stackexchange,gutenberg": 0.492600422832981,
+      "arxiv,stackexchange,hackernews": 0.551092318534179,
+      "arxiv,gutenberg,hackernews": 0.49471458773784355,
+      "stackexchange,gutenberg,hackernews": 0.46723044397463004,
+      "wikipedia,openalex,arxiv,stackexchange": 0.6888653981677237,
+      "wikipedia,openalex,arxiv,gutenberg": 0.6331923890063424,
+      "wikipedia,openalex,arxiv,hackernews": 0.6909795630725863,
+      "wikipedia,openalex,stackexchange,gutenberg": 0.7431289640591966,
+      "wikipedia,openalex,stackexchange,hackernews": 0.8009161381254405,
+      "wikipedia,openalex,gutenberg,hackernews": 0.7452431289640592,
+      "wikipedia,arxiv,stackexchange,gutenberg": 0.6680761099365751,
+      "wikipedia,arxiv,stackexchange,hackernews": 0.7265680056377731,
+      "wikipedia,arxiv,gutenberg,hackernews": 0.6701902748414377,
+      "wikipedia,stackexchange,gutenberg,hackernews": 0.6430584918957012,
+      "openalex,arxiv,stackexchange,gutenberg": 0.631430584918957,
+      "openalex,arxiv,stackexchange,hackernews": 0.6892177589852009,
+      "openalex,arxiv,gutenberg,hackernews": 0.6328400281888654,
+      "openalex,stackexchange,gutenberg,hackernews": 0.7434813248766737,
+      "arxiv,stackexchange,gutenberg,hackernews": 0.6684284707540521,
+      "wikipedia,openalex,arxiv,stackexchange,gutenberg": 0.8062015503875969,
+      "wikipedia,openalex,arxiv,stackexchange,hackernews": 0.8643410852713178,
+      "wikipedia,openalex,arxiv,gutenberg,hackernews": 0.8083157152924595,
+      "wikipedia,openalex,stackexchange,gutenberg,hackernews": 0.9182522903453136,
+      "wikipedia,arxiv,stackexchange,gutenberg,hackernews": 0.8439041578576463,
+      "openalex,arxiv,stackexchange,gutenberg,hackernews": 0.8062015503875969,
+      "wikipedia,openalex,arxiv,stackexchange,gutenberg,hackernews": 0.981677237491191
+     },
+     "questions": 2838
+    },
+    "twinned": {
+     "v_full": 0.9748110831234257,
+     "shapley": {
+      "wikipedia": 0.0,
+      "openalex": 0.480268681780017,
+      "arxiv": 0.492863140218304,
+      "stackexchange": 0.0016792611251049323,
+      "gutenberg": 0.0,
+      "hackernews": 0.0
+     },
+     "loo": {
+      "wikipedia": 0.0,
+      "openalex": -0.007556675062972292,
+      "arxiv": 0.005037783375314861,
+      "stackexchange": 0.005037783375314861,
+      "gutenberg": 0.0,
+      "hackernews": 0.0
+     },
+     "loo_p": {
+      "wikipedia": 1.0,
+      "openalex": 0.45312734363281837,
+      "arxiv": 0.7261636918154092,
+      "stackexchange": 0.49237538123093844,
+      "gutenberg": 1.0,
+      "hackernews": 1.0
+     },
+     "loo_p_holm": {
+      "wikipedia": 1.0,
+      "openalex": 1.0,
+      "arxiv": 1.0,
+      "stackexchange": 1.0,
+      "gutenberg": 1.0,
+      "hackernews": 1.0
+     },
+     "values": {
+      "wikipedia": 0.0,
+      "openalex": 0.9697732997481109,
+      "arxiv": 0.982367758186398,
+      "stackexchange": 0.0,
+      "gutenberg": 0.0,
+      "hackernews": 0.0,
+      "wikipedia,openalex": 0.9697732997481109,
+      "wikipedia,arxiv": 0.982367758186398,
+      "wikipedia,stackexchange": 0.0,
+      "wikipedia,gutenberg": 0.0,
+      "wikipedia,hackernews": 0.0,
+      "openalex,arxiv": 0.9697732997481109,
+      "openalex,stackexchange": 0.9697732997481109,
+      "openalex,gutenberg": 0.9697732997481109,
+      "openalex,hackernews": 0.9697732997481109,
+      "arxiv,stackexchange": 0.982367758186398,
+      "arxiv,gutenberg": 0.982367758186398,
+      "arxiv,hackernews": 0.982367758186398,
+      "stackexchange,gutenberg": 0.0,
+      "stackexchange,hackernews": 0.0,
+      "gutenberg,hackernews": 0.0,
+      "wikipedia,openalex,arxiv": 0.9697732997481109,
+      "wikipedia,openalex,stackexchange": 0.9697732997481109,
+      "wikipedia,openalex,gutenberg": 0.9697732997481109,
+      "wikipedia,openalex,hackernews": 0.9697732997481109,
+      "wikipedia,arxiv,stackexchange": 0.982367758186398,
+      "wikipedia,arxiv,gutenberg": 0.982367758186398,
+      "wikipedia,arxiv,hackernews": 0.982367758186398,
+      "wikipedia,stackexchange,gutenberg": 0.0,
+      "wikipedia,stackexchange,hackernews": 0.0,
+      "wikipedia,gutenberg,hackernews": 0.0,
+      "openalex,arxiv,stackexchange": 0.9748110831234257,
+      "openalex,arxiv,gutenberg": 0.9697732997481109,
+      "openalex,arxiv,hackernews": 0.9697732997481109,
+      "openalex,stackexchange,gutenberg": 0.9697732997481109,
+      "openalex,stackexchange,hackernews": 0.9697732997481109,
+      "openalex,gutenberg,hackernews": 0.9697732997481109,
+      "arxiv,stackexchange,gutenberg": 0.982367758186398,
+      "arxiv,stackexchange,hackernews": 0.982367758186398,
+      "arxiv,gutenberg,hackernews": 0.982367758186398,
+      "stackexchange,gutenberg,hackernews": 0.0,
+      "wikipedia,openalex,arxiv,stackexchange": 0.9748110831234257,
+      "wikipedia,openalex,arxiv,gutenberg": 0.9697732997481109,
+      "wikipedia,openalex,arxiv,hackernews": 0.9697732997481109,
+      "wikipedia,openalex,stackexchange,gutenberg": 0.9697732997481109,
+      "wikipedia,openalex,stackexchange,hackernews": 0.9697732997481109,
+      "wikipedia,openalex,gutenberg,hackernews": 0.9697732997481109,
+      "wikipedia,arxiv,stackexchange,gutenberg": 0.982367758186398,
+      "wikipedia,arxiv,stackexchange,hackernews": 0.982367758186398,
+      "wikipedia,arxiv,gutenberg,hackernews": 0.982367758186398,
+      "wikipedia,stackexchange,gutenberg,hackernews": 0.0,
+      "openalex,arxiv,stackexchange,gutenberg": 0.9748110831234257,
+      "openalex,arxiv,stackexchange,hackernews": 0.9748110831234257,
+      "openalex,arxiv,gutenberg,hackernews": 0.9697732997481109,
+      "openalex,stackexchange,gutenberg,hackernews": 0.9697732997481109,
+      "arxiv,stackexchange,gutenberg,hackernews": 0.982367758186398,
+      "wikipedia,openalex,arxiv,stackexchange,gutenberg": 0.9748110831234257,
+      "wikipedia,openalex,arxiv,stackexchange,hackernews": 0.9748110831234257,
+      "wikipedia,openalex,arxiv,gutenberg,hackernews": 0.9697732997481109,
+      "wikipedia,openalex,stackexchange,gutenberg,hackernews": 0.9697732997481109,
+      "wikipedia,arxiv,stackexchange,gutenberg,hackernews": 0.982367758186398,
+      "openalex,arxiv,stackexchange,gutenberg,hackernews": 0.9748110831234257,
+      "wikipedia,openalex,arxiv,stackexchange,gutenberg,hackernews": 0.9748110831234257
+     },
+     "questions": 397
+    },
+    "cif10_broken": false
+   }
+  },
+  "embedder": {
+   "cite:wikipedia->paper": {
+    "lexical": 0.8108108108108109,
+    "semantic": 0.6246246246246246,
+    "both": 0.8108108108108109,
+    "loo_embedder": 0.0,
+    "shapley_embedder": 0.3123123123123123,
+    "shapley_lexical": 0.49849849849849853
+   },
+   "link:hackernews->wikipedia": {
+    "lexical": 0.14285714285714285,
+    "semantic": 0.1761904761904762,
+    "both": 0.18095238095238095,
+    "loo_embedder": 0.0380952380952381,
+    "shapley_embedder": 0.10714285714285715,
+    "shapley_lexical": 0.07380952380952378
+   },
+   "link:stackexchange->wikipedia": {
+    "lexical": 0.18618618618618618,
+    "semantic": 0.06306306306306306,
+    "both": 0.16516516516516516,
+    "loo_embedder": -0.02102102102102102,
+    "shapley_embedder": 0.02102102102102102,
+    "shapley_lexical": 0.14414414414414412
+   },
+   "titles:arxiv": {
+    "lexical": 0.99,
+    "semantic": 0.86,
+    "both": 0.978,
+    "loo_embedder": -0.01200000000000001,
+    "shapley_embedder": 0.42400000000000004,
+    "shapley_lexical": 0.554
+   },
+   "titles:gutenberg": {
+    "lexical": 0.9704142011834319,
+    "semantic": 0.9408284023668639,
+    "both": 0.9822485207100592,
+    "loo_embedder": 0.01183431952662728,
+    "shapley_embedder": 0.4763313609467456,
+    "shapley_lexical": 0.5059171597633136
+   },
+   "titles:hackernews": {
+    "lexical": 0.994,
+    "semantic": 0.99,
+    "both": 0.998,
+    "loo_embedder": 0.0040000000000000036,
+    "shapley_embedder": 0.497,
+    "shapley_lexical": 0.501
+   },
+   "titles:openalex": {
+    "lexical": 0.952,
+    "semantic": 0.866,
+    "both": 0.954,
+    "loo_embedder": 0.0020000000000000018,
+    "shapley_embedder": 0.43399999999999994,
+    "shapley_lexical": 0.52
+   },
+   "titles:stackexchange": {
+    "lexical": 0.958,
+    "semantic": 0.954,
+    "both": 0.98,
+    "loo_embedder": 0.02200000000000002,
+    "shapley_embedder": 0.488,
+    "shapley_lexical": 0.492
+   },
+   "titles:wikipedia": {
+    "lexical": 0.97,
+    "semantic": 0.952,
+    "both": 0.994,
+    "loo_embedder": 0.02400000000000002,
+    "shapley_embedder": 0.488,
+    "shapley_lexical": 0.506
+   },
+   "twins:arxiv->openalex": {
+    "lexical": 0.996,
+    "semantic": 0.996,
+    "both": 0.996,
+    "loo_embedder": 0.0,
+    "shapley_embedder": 0.498,
+    "shapley_lexical": 0.498
+   },
+   "twins:openalex->arxiv": {
+    "lexical": 0.992,
+    "semantic": 0.988,
+    "both": 0.99,
+    "loo_embedder": -0.0020000000000000018,
+    "shapley_embedder": 0.493,
+    "shapley_lexical": 0.497
+   }
+  }
+ }
 }

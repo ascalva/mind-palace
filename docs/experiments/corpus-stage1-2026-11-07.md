@@ -2,7 +2,7 @@
 type: experiment-report
 experiment: corpus-stage1
 run: 1
-status: structure complete; vectors landing
+status: complete (stage 1)
 started: 2026-11-07
 links:
   - docs/design-notes/dn-corpus-instance.md                # the design, its staged plan and stage 1's falsifiers
@@ -31,7 +31,7 @@ measurements ran on that, and the vectors were derived from the raw store in the
 - **Crowding**: lexical recall at ten falls with the corpus in 8 of 11 families, by up to 0.35; a source scope removes the fall other sources cause, but scoped recall still falls with the source's own growth in 6 families (CIF-9: first clause held, second broken, lexical arm).
 - **Attribution**: the OpenAlex and arXiv twins share the value (Shapley 0.49 and 0.50) and neither is necessary (leave-one-out near 0): the SCL-3 redundancy witness (CIF-10 held).
 - **Cost**: a sentence over the observed stratum builds its universe from the whole stratum and passes 6 GB near ten thousand items; its Python share is above 20% (CIF-11 broken).
-- **Vectors**: in progress; the semantic arm, the embedder's attribution, the semantic bridges, the codes and the plane's bytes follow.
+- **Vectors**: 1,338,585 atoms embedded in 11.4 hours over four runs, no pause for the chat model, one text cut to fit the embedder (a 1,145-character chunk of 2,951 tokens), nothing pending at the battery. The semantic arm crowds harder than the lexical (recall falls in 9 of 11 families, by up to 0.30); fusing the two is at or above either in 8 of 11. The embedder as a source: Shapley 0.39, leave-one-out 0.006 beside the lexical index. CIF-9's second clause breaks in all three arms, CIF-10 holds in all three. Semantic bridges: 3,014 community pairs against a bar of 807 (792 without the twins). At the live store's sigma of 0.785 a chunk has 9 near chunks of other items in Wikipedia and about 10,700 in OpenAlex: the threshold does not carry across sources. The one-bit code keeps 0.79 of the exact top ten rescored at m = 40 (a warning for CIF-3 at stage 2); the compact occupancy row is 19.4 B (CIF-4 held) while the plane as built holds 734 B per occupancy.
 
 ## What was built
 
@@ -82,9 +82,9 @@ on the proportions without Hacker News). OpenAlex stopped at 171 of its 240 MB w
 API's daily budget (0.10 USD, a thousand requests, shared by the IP address) was spent; its
 remainder needs the next day's budget or an API key, which is an account (D-5). Hacker News first walked item ids down from the newest (15,362 threads, 47 MB, the last three weeks), which put it outside every dated window the rises read; the rest of its budget went to threads drawn uniformly among the stories of 2012 to 2024 (an item id drawn at random in the window's range, kept when it is a live story, with its whole reply tree): 22,969 threads, 73 MB. Its text is held locally and never republished; only aggregate measurements leave the instance.
 
-## Results: structure
+## Results
 
-These need no vector and ran as soon as the structural phase landed every item.
+The macro quantities, the bridges and rises, the lexical arm and the cost needed no vector and ran as soon as the structural phase landed every item (the lexical arm again once Hacker News landed); the three arms, the semantic bridges, the codes, the BEIR control, the footprint and the final cost probe ran once every vector was in. In the battery's tables the arm keyed `both` is the lexical and semantic arms fused by reciprocal rank (the article's fused arm).
 
 ### Macro quantities
 
@@ -201,6 +201,57 @@ These need no vector and ran as soon as the structural phase landed every item.
 | openalex-wikipedia | 287 | 0 | 0.0, 0.0 |
 | stackexchange-wikipedia | 1,790 | 0 | 16.9, 27.3 |
 
+**with_semantic**: 5,015,370 edges, 673,153 across sources (share 0.134, the null's 0.689); 3014 community pairs over the null against a false-positive bar of 806.9; CIF-2 (bridges) held.
+
+| source pair | edges | bridges | the null's false positives (mean, bar) |
+|---|---|---|---|
+| arxiv-gutenberg | 672 | 24 | 1.3, 3.5 |
+| arxiv-hackernews | 12,018 | 268 | 60.9, 70.6 |
+| arxiv-openalex | 412,262 | 131 | 1.7, 4.8 |
+| arxiv-stackexchange | 22,017 | 161 | 85.8, 98.9 |
+| arxiv-wikipedia | 9,066 | 43 | 5.3, 8.3 |
+| gutenberg-hackernews | 2,113 | 147 | 0.6, 1.6 |
+| gutenberg-openalex | 184 | 0 | 0.0, 0.0 |
+| gutenberg-stackexchange | 909 | 29 | 2.1, 4.5 |
+| gutenberg-wikipedia | 3,218 | 9 | 0.0, 0.0 |
+| hackernews-openalex | 12,045 | 190 | 199.5, 232.4 |
+| hackernews-stackexchange | 37,592 | 1244 | 206.5, 237.2 |
+| hackernews-wikipedia | 21,745 | 601 | 133.6, 155.2 |
+| openalex-stackexchange | 101,817 | 61 | 14.0, 21.9 |
+| openalex-wikipedia | 10,264 | 0 | 0.0, 0.0 |
+| stackexchange-wikipedia | 27,231 | 106 | 34.7, 49.3 |
+
+**with_semantic_without_twins**: 4,987,973 edges, 645,756 across sources (share 0.129, the null's 0.689); 3014 community pairs over the null against a false-positive bar of 791.9; CIF-2 (bridges) held.
+
+| source pair | edges | bridges | the null's false positives (mean, bar) |
+|---|---|---|---|
+| arxiv-gutenberg | 672 | 24 | 0.7, 2.0 |
+| arxiv-hackernews | 12,018 | 276 | 60.0, 76.0 |
+| arxiv-openalex | 384,865 | 125 | 1.8, 3.5 |
+| arxiv-stackexchange | 22,017 | 168 | 80.0, 101.3 |
+| arxiv-wikipedia | 9,066 | 43 | 4.5, 8.1 |
+| gutenberg-hackernews | 2,113 | 148 | 1.0, 3.0 |
+| gutenberg-openalex | 184 | 0 | 0.0, 0.0 |
+| gutenberg-stackexchange | 909 | 26 | 2.8, 6.6 |
+| gutenberg-wikipedia | 3,218 | 9 | 0.1, 0.7 |
+| hackernews-openalex | 12,045 | 195 | 203.6, 229.8 |
+| hackernews-stackexchange | 37,592 | 1236 | 211.2, 234.4 |
+| hackernews-wikipedia | 21,745 | 603 | 140.1, 171.2 |
+| openalex-stackexchange | 101,817 | 61 | 15.0, 25.1 |
+| openalex-wikipedia | 10,264 | 0 | 0.0, 0.0 |
+| stackexchange-wikipedia | 27,231 | 100 | 33.6, 42.0 |
+
+**semantic chunk pairs**: of 20,000 chunks drawn at random, the chunks of other items at cosine 0.785 or more, per asking chunk, by the asking chunk's source (rows) and the answering chunk's (columns).
+
+| asking | wikipedia | openalex | arxiv | stackexchange | gutenberg | hackernews |
+|---|---|---|---|---|---|---|
+| wikipedia | 6.29 | 1.49 | 0.37 | 0.50 | 0.61 | 0.06 |
+| openalex | 2.38 | 8245.60 | 2263.34 | 184.60 | 0.02 | 4.26 |
+| arxiv | 1.81 | 6784.89 | 2205.71 | 120.09 | 0.04 | 4.74 |
+| stackexchange | 1.26 | 180.00 | 39.36 | 663.19 | 0.12 | 1.52 |
+| gutenberg | 2.79 | 0.01 | 0.02 | 0.15 | 189.43 | 0.07 |
+| hackernews | 0.18 | 6.21 | 2.64 | 1.90 | 0.15 | 17.96 |
+
 ### Shared rises
 
 | reading | value |
@@ -234,6 +285,76 @@ These need no vector and ran as soon as the structural phase landed every item.
 
 CIF-10 (lexical): held.
 
+### Retrieval battery, three arms
+
+| arm: family | n | unscoped 1% | 10% | 100% | fall (95% CI) | scoped 1% | 100% | fall (95% CI) | pending |
+|---|---|---|---|---|---|---|---|---|---|
+| both:cite:wikipedia->paper | 333 | 0.916 | 0.898 | 0.811 | 0.105 (0.072, 0.138) | 0.916 | 0.835 | 0.081 (0.054, 0.111) | 0 |
+| both:link:hackernews->wikipedia | 210 | 0.286 | 0.248 | 0.181 | 0.105 (0.062, 0.152) | 0.410 | 0.248 | 0.162 (0.110, 0.214) | 0 |
+| both:link:stackexchange->wikipedia | 333 | 0.547 | 0.396 | 0.165 | 0.381 (0.330, 0.432) | 0.721 | 0.670 | 0.051 (0.027, 0.078) | 0 |
+| both:titles:arxiv | 500 | 1.000 | 0.998 | 0.978 | 0.022 (0.010, 0.036) | 1.000 | 0.990 | 0.010 (0.002, 0.020) | 0 |
+| both:titles:gutenberg | 338 | 0.988 | 0.985 | 0.982 | 0.006 (0.000, 0.015) | 0.988 | 0.988 | 0.000 (0.000, 0.000) | 0 |
+| both:titles:hackernews | 500 | 1.000 | 1.000 | 0.998 | 0.002 (0.000, 0.006) | 1.000 | 0.998 | 0.002 (0.000, 0.006) | 0 |
+| both:titles:openalex | 500 | 0.998 | 0.986 | 0.954 | 0.044 (0.028, 0.064) | 0.998 | 0.962 | 0.036 (0.020, 0.054) | 0 |
+| both:titles:stackexchange | 500 | 0.998 | 0.996 | 0.980 | 0.018 (0.006, 0.032) | 1.000 | 0.986 | 0.014 (0.006, 0.026) | 0 |
+| both:titles:wikipedia | 500 | 1.000 | 0.998 | 0.994 | 0.006 (0.000, 0.014) | 1.000 | 1.000 | 0.000 (0.000, 0.000) | 0 |
+| both:twins:arxiv->openalex | 500 | 0.996 | 0.996 | 0.996 | 0.000 (0.000, 0.000) | 0.998 | 0.996 | 0.002 (0.000, 0.006) | 0 |
+| both:twins:openalex->arxiv | 500 | 0.992 | 0.992 | 0.990 | 0.002 (0.000, 0.006) | 0.994 | 0.990 | 0.004 (0.000, 0.010) | 0 |
+| lexical:cite:wikipedia->paper | 333 | 0.913 | 0.868 | 0.811 | 0.102 (0.072, 0.135) | 0.916 | 0.823 | 0.093 (0.063, 0.123) | 0 |
+| lexical:link:hackernews->wikipedia | 210 | 0.276 | 0.238 | 0.143 | 0.133 (0.090, 0.186) | 0.329 | 0.195 | 0.133 (0.090, 0.176) | 0 |
+| lexical:link:stackexchange->wikipedia | 333 | 0.532 | 0.399 | 0.186 | 0.345 (0.297, 0.396) | 0.631 | 0.559 | 0.072 (0.045, 0.099) | 0 |
+| lexical:titles:arxiv | 500 | 1.000 | 1.000 | 0.990 | 0.010 (0.002, 0.020) | 1.000 | 0.998 | 0.002 (0.000, 0.006) | 0 |
+| lexical:titles:gutenberg | 338 | 0.988 | 0.988 | 0.970 | 0.018 (0.006, 0.033) | 0.988 | 0.988 | 0.000 (0.000, 0.000) | 0 |
+| lexical:titles:hackernews | 500 | 1.000 | 1.000 | 0.994 | 0.006 (0.000, 0.014) | 1.000 | 0.998 | 0.002 (0.000, 0.006) | 0 |
+| lexical:titles:openalex | 500 | 0.978 | 0.972 | 0.952 | 0.026 (0.012, 0.042) | 0.980 | 0.958 | 0.022 (0.010, 0.036) | 0 |
+| lexical:titles:stackexchange | 500 | 0.996 | 0.986 | 0.958 | 0.038 (0.022, 0.056) | 0.996 | 0.962 | 0.034 (0.020, 0.050) | 0 |
+| lexical:titles:wikipedia | 500 | 1.000 | 0.998 | 0.970 | 0.030 (0.016, 0.046) | 1.000 | 0.984 | 0.016 (0.006, 0.028) | 0 |
+| lexical:twins:arxiv->openalex | 500 | 0.996 | 0.996 | 0.996 | 0.000 (0.000, 0.000) | 0.998 | 0.996 | 0.002 (0.000, 0.006) | 0 |
+| lexical:twins:openalex->arxiv | 500 | 0.992 | 0.992 | 0.992 | 0.000 (0.000, 0.000) | 0.992 | 0.992 | 0.000 (0.000, 0.000) | 0 |
+| semantic:cite:wikipedia->paper | 333 | 0.874 | 0.796 | 0.625 | 0.249 (0.204, 0.297) | 0.865 | 0.637 | 0.228 (0.186, 0.273) | 0 |
+| semantic:link:hackernews->wikipedia | 210 | 0.248 | 0.210 | 0.176 | 0.071 (0.038, 0.110) | 0.400 | 0.229 | 0.171 (0.124, 0.224) | 0 |
+| semantic:link:stackexchange->wikipedia | 333 | 0.366 | 0.210 | 0.063 | 0.303 (0.255, 0.354) | 0.739 | 0.661 | 0.078 (0.051, 0.108) | 0 |
+| semantic:titles:arxiv | 500 | 0.984 | 0.964 | 0.860 | 0.124 (0.094, 0.154) | 0.988 | 0.920 | 0.068 (0.046, 0.090) | 0 |
+| semantic:titles:gutenberg | 338 | 0.973 | 0.964 | 0.941 | 0.033 (0.015, 0.053) | 0.979 | 0.979 | 0.000 (0.000, 0.000) | 0 |
+| semantic:titles:hackernews | 500 | 0.998 | 0.996 | 0.990 | 0.008 (0.002, 0.018) | 1.000 | 0.990 | 0.010 (0.002, 0.020) | 0 |
+| semantic:titles:openalex | 500 | 0.968 | 0.940 | 0.866 | 0.102 (0.076, 0.130) | 0.972 | 0.870 | 0.102 (0.076, 0.130) | 0 |
+| semantic:titles:stackexchange | 500 | 0.996 | 0.986 | 0.954 | 0.042 (0.024, 0.062) | 1.000 | 0.974 | 0.026 (0.014, 0.040) | 0 |
+| semantic:titles:wikipedia | 500 | 0.994 | 0.990 | 0.952 | 0.042 (0.026, 0.060) | 1.000 | 1.000 | 0.000 (0.000, 0.000) | 0 |
+| semantic:twins:arxiv->openalex | 500 | 0.998 | 0.996 | 0.996 | 0.002 (0.000, 0.006) | 0.998 | 0.996 | 0.002 (0.000, 0.006) | 0 |
+| semantic:twins:openalex->arxiv | 500 | 0.990 | 0.990 | 0.988 | 0.002 (0.000, 0.006) | 0.992 | 0.988 | 0.004 (0.000, 0.010) | 0 |
+
+*lexical, all (2838 questions, v(N) = 0.973)*: wikipedia Shapley 0.171, LOO 0.169 (p 0.000); openalex Shapley 0.208, LOO 0.138 (p 0.000); arxiv Shapley 0.133, LOO 0.063 (p 0.000); stackexchange Shapley 0.169, LOO 0.168 (p 0.000); gutenberg Shapley 0.116, LOO 0.115 (p 0.000); hackernews Shapley 0.175, LOO 0.175 (p 0.000)
+
+*lexical, twinned (397 questions, v(N) = 0.987)*: wikipedia Shapley 0.000, LOO 0.000 (p 1.000); openalex Shapley 0.492, LOO -0.005 (p 1.000); arxiv Shapley 0.497, LOO 0.000 (p 1.000); stackexchange Shapley -0.001, LOO -0.003 (p 1.000); gutenberg Shapley 0.000, LOO 0.000 (p 1.000); hackernews Shapley 0.000, LOO 0.000 (p 1.000)
+
+CIF-10 (lexical): held.
+
+*semantic, all (2838 questions, v(N) = 0.927)*: wikipedia Shapley 0.172, LOO 0.167 (p 0.000); openalex Shapley 0.178, LOO 0.111 (p 0.000); arxiv Shapley 0.121, LOO 0.057 (p 0.000); stackexchange Shapley 0.169, LOO 0.168 (p 0.000); gutenberg Shapley 0.114, LOO 0.112 (p 0.000); hackernews Shapley 0.173, LOO 0.172 (p 0.000)
+
+*semantic, twinned (397 questions, v(N) = 0.849)*: wikipedia Shapley 0.000, LOO 0.000 (p 1.000); openalex Shapley 0.398, LOO -0.048 (p 0.003); arxiv Shapley 0.451, LOO 0.005 (p 1.000); stackexchange Shapley 0.000, LOO 0.000 (p 1.000); gutenberg Shapley 0.000, LOO 0.000 (p 1.000); hackernews Shapley 0.000, LOO 0.000 (p 1.000)
+
+CIF-10 (semantic): held.
+
+*both, all (2838 questions, v(N) = 0.982)*: wikipedia Shapley 0.176, LOO 0.175 (p 0.000); openalex Shapley 0.207, LOO 0.138 (p 0.000); arxiv Shapley 0.132, LOO 0.063 (p 0.000); stackexchange Shapley 0.173, LOO 0.173 (p 0.000); gutenberg Shapley 0.117, LOO 0.117 (p 0.000); hackernews Shapley 0.176, LOO 0.175 (p 0.000)
+
+*both, twinned (397 questions, v(N) = 0.975)*: wikipedia Shapley 0.000, LOO 0.000 (p 1.000); openalex Shapley 0.480, LOO -0.008 (p 1.000); arxiv Shapley 0.493, LOO 0.005 (p 1.000); stackexchange Shapley 0.002, LOO 0.005 (p 1.000); gutenberg Shapley 0.000, LOO 0.000 (p 1.000); hackernews Shapley 0.000, LOO 0.000 (p 1.000)
+
+CIF-10 (both): held.
+
+| family | lexical | semantic | both | LOO of the embedder | Shapley of the embedder |
+|---|---|---|---|---|---|
+| cite:wikipedia->paper | 0.811 | 0.625 | 0.811 | 0.000 | 0.312 |
+| link:hackernews->wikipedia | 0.143 | 0.176 | 0.181 | 0.038 | 0.107 |
+| link:stackexchange->wikipedia | 0.186 | 0.063 | 0.165 | -0.021 | 0.021 |
+| titles:arxiv | 0.990 | 0.860 | 0.978 | -0.012 | 0.424 |
+| titles:gutenberg | 0.970 | 0.941 | 0.982 | 0.012 | 0.476 |
+| titles:hackernews | 0.994 | 0.990 | 0.998 | 0.004 | 0.497 |
+| titles:openalex | 0.952 | 0.866 | 0.954 | 0.002 | 0.434 |
+| titles:stackexchange | 0.958 | 0.954 | 0.980 | 0.022 | 0.488 |
+| titles:wikipedia | 0.970 | 0.952 | 0.994 | 0.024 | 0.488 |
+| twins:arxiv->openalex | 0.996 | 0.996 | 0.996 | 0.000 | 0.498 |
+| twins:openalex->arxiv | 0.992 | 0.988 | 0.990 | -0.002 | 0.493 |
+
 ### Cost against N
 
 | lexical units | median query (ms) | matrix bytes |
@@ -246,39 +367,81 @@ CIF-10 (lexical): held.
 
 | sentence | items | chunks | wall (s) | peak RSS (MB) | Python share | note |
 |---|---|---|---|---|---|---|
-| `reach S from` | 1,000 | 3,012 | 0.26 | 333 | 0.56 |  |
-| `top 10 diffuse S from` | 1,000 | 3,012 | 0.29 | 382 | 0.52 |  |
-| `top 10 near` | 1,000 | 3,012 | 2.77 | 333 | 0.96 |  |
-| `reach S from` | 3,000 | 7,620 | 0.77 | 781 | 0.68 |  |
-| `top 10 diffuse S from` | 3,000 | 7,620 | 1.12 | 1,267 | 0.45 |  |
-| `top 10 near` | 3,000 | 7,620 | 2.72 | 724 | 0.90 |  |
-| `reach S from` | 10,000 | 25,316 | 4.75 | 4,477 | 0.77 |  |
-| `top 10 diffuse S from` | 10,000 | 25,316 | n/a | n/a | n/a | rss above 6.0 GB |
-| `top 10 near` | 10,000 | 25,316 | 6.84 | 3,683 | 0.82 |  |
-| `reach S from` | 12,897 | 34,428 | n/a | n/a | n/a | rss above 6.0 GB |
-| `top 10 diffuse S from` | 12,897 | 34,428 | n/a | n/a | n/a | rss above 6.0 GB |
-| `top 10 near` | 12,897 | 34,428 | 7.46 | 5,661 | 0.78 |  |
+| `reach S from` | 1,000 | 3,923 | 1.55 | 680 | 0.57 |  |
+| `top 10 diffuse S from` | 1,000 | 3,923 | 1.55 | 713 | 0.55 |  |
+| `top 10 near` | 1,000 | 3,923 | 1.59 | 679 | 0.54 |  |
+| `walk from` | 1,000 | 3,923 | 1.54 | 673 | 0.59 |  |
+| `reach S from` | 3,000 | 10,106 | 2.17 | 1,158 | 0.59 |  |
+| `top 10 diffuse S from` | 3,000 | 10,106 | 2.31 | 1,554 | 0.56 |  |
+| `top 10 near` | 3,000 | 10,106 | 2.14 | 1,123 | 0.57 |  |
+| `walk from` | 3,000 | 10,106 | 2.08 | 1,159 | 0.59 |  |
+| `reach S from` | 10,000 | 34,917 | 5.92 | 4,699 | 0.64 |  |
+| `top 10 diffuse S from` | 10,000 | 34,917 | n/a | n/a | n/a | rss above 6.0 GB |
+| `top 10 near` | 10,000 | 34,917 | 5.20 | 4,283 | 0.58 |  |
+| `walk from` | 10,000 | 34,917 | 6.08 | 4,695 | 0.65 |  |
+
+### Codes for stage 2
+
+1,338,585 atoms of 768 dimensions; the preview is recall at 10 against exact float16 search on 500 title queries, flat and rescored exactly from each code's top 40.
+
+| code | bytes a vector | flat | rescored |
+|---|---|---|---|
+| int8_768 | 768.0 | 0.990 | 1.000 |
+| f16_256 | 512.0 | 0.745 | 0.977 |
+| int8_256 | 256.0 | 0.744 | 0.976 |
+| bits_768 | 96.0 | 0.514 | 0.788 |
+
+### The BEIR control
+
+| set | documents | queries | nDCG at 10 | recall at 10 | recall at 10 among the corpus's atoms |
+|---|---|---|---|---|---|
+| scifact | 5,183 | 300 | 0.848 | 0.932 | 0.877 |
+| nfcorpus | 3,633 | 323 | 0.355 | 0.174 | 0.108 |
+
+### Footprint
+
+| store | bytes on disk |
+|---|---|
+| instance | 12,203,798,528 |
+| sources_dumps_and_streams | 3,997,171,712 |
+| raw_store | 2,189,189,120 |
+| vectors_lance | 3,400,683,520 |
+| plane_sqlite | 1,006,698,496 |
+| catalog | 167,837,696 |
+| attestations | 318,832,640 |
+| edges | 30,330,880 |
+| codes | 0 |
+
+Plane occupancy (live shape): 733.6 B; compact item-grain row: 19.4 B; largest columnar edge: 12.07 B.
 
 
 
-## Results: vectors
+## The vector phase
 
-The vector phase (`scripts/corpus.py embed --streams 4 --embed-batch 32`) derives each landed item's plane rows from the raw store at about 35 chunks a second, pausing while the chat model serves. It is in progress. Until an item's rows land, a query that needs its vector reports it pending: the battery's semantic arm counts such questions apart, and a sentence over the observed stratum says how many landed items it could not rank (`core/sentence/universe.py`). When the phase completes this section gives the battery three ways (lexical, semantic, both by reciprocal rank fusion), the embedder's attribution as a source, the semantic bridges, the BEIR control, the codes written for stage 2 with their preview, the plane's bytes per occupancy and the sentences' cost with the embedder idle.
+The vector phase derived every landed item's plane rows from the raw store: 1,338,585 atoms embedded in 11.4 hours of the runner's time, 32.7 a second, with four requests of 32 texts in flight and 0 pauses for the chat model, over 4 runs (the first 92,385 items landed with their vectors, then backfills before and after Hacker News landed). One Hacker News chunk tokenized to 2,951 tokens, past the embedder's physical batch of 2,048: the server refuses such an input instead of truncating it, since a chunk's budget of 1,200 characters does not bound its tokens for symbols or another script, so the runner now sends a refused batch's texts one at a time and cuts a text that alone does not fit to the longest prefix the server takes (1 cut). Until an item's rows landed, a query that needed its vector reported it pending; at the battery's run 0 questions were pending. The battery's semantic and fused arms are in the three-arm battery below and the embedder's attribution as a source in the attribution paragraph above.
+
+With each item's ten nearest items above sigma = 0.785 added to the item graph (3,073,202 semantic edges, 642,433 of them across sources), 3,014 community pairs stand above the null against a bar of 806.9; without the twins and the 27,295 twin pairs among the semantic edges, 3,014 against 791.9. Of 20,000 chunks drawn at random, the chunks of other items at cosine 0.785 or more number, per chunk, 9 for Wikipedia, 29 for Hacker News, 192 for Gutenberg, 885 for Stack Exchange, 9,117 for arXiv, 10,700 for OpenAlex: the live store's threshold, set on its own notes, does not carry across sources, and a semantic edge means a different thing in each.
+
+On the embedder bench's public sets SciFact scores nDCG@10 0.848 (the bench measured 0.849) and recall@10 0.932, 0.877 when the corpus's atoms compete with the set's documents; NFCorpus scores nDCG@10 0.355 (the bench measured 0.367) and recall@10 0.174, 0.108 when the corpus's atoms compete with the set's documents.
+
+(the codes' table is in the results above)
+
+The plane as built holds 734 B per occupancy (its live shape, with text keys and the fiber's columns); the design's compact row, one integer row an item version, measures 19.4 B against its 120 B target and the falsifier's 300 B.
 
 ## Falsifiers
 
 | id | what would falsify (dn-corpus-instance) | stage 1 |
 |---|---|---|
 | CIF-1 | Hacker News threads chunk above 2,000 chunks per MB | held (1,402 chunks per MB) |
-| CIF-2 | bridges at or below the null; or rho_b inside rho_w's band | held: explicit bridges above the null (106 community pairs against a false-positive bar of 40.9); without the twins, 37 against 39.3 in all, while arxiv-stackexchange (22 against 0.0), hackernews-wikipedia (10 against 0.0), arxiv-wikipedia (5 against 1.4) stand above their own pair's false positives; rho_b 0.091 below rho_w's band (0.108, 0.120), at the shift null's 0.092 |
-| CIF-4 | a compact occupancy row above 300 B, or an edge above 24 B | edges held (12.1 B per edge); occupancy rows pending |
+| CIF-2 | bridges at or below the null; or rho_b inside rho_w's band | held: explicit bridges above the null (106 community pairs against a false-positive bar of 40.9); without the twins, 37 against 39.3 in all, while arxiv-stackexchange (22 against 0.0), hackernews-wikipedia (10 against 0.0), arxiv-wikipedia (5 against 1.4) stand above their own pair's false positives; with the semantic edges 3014 against 806.9; rho_b 0.091 below rho_w's band (0.108, 0.120), at the shift null's 0.092 |
+| CIF-4 | a compact occupancy row above 300 B, or an edge above 24 B | edges held (12.1 B per edge); occupancy rows held (19.4 B a compact row) |
 | CIF-5 | a write outside the instance, or a read of the default instance's sources | held (the isolation proof: no shared namespace, by real path, with a control) |
 | CIF-6 | a batch interrupted and re-run lands a different state | held (four cut points tested; two real kills mid-batch, one attestation a digest) |
 | CIF-7 | a 6-core or 10-core gap width that never falls under 10% by N = 10^5 | held for citations (6-core 51,262, 10-core 28,912) and hyperlinks (8,500); no core in answers, replies, versions or post links |
 | CIF-8 | the harmonic fraction still moving where gamma has settled | held for citations (harmonic 9,788, gamma 27,850); broken by a hair for hyperlinks (harmonic width 0.103 at the last cut, 7,509 nodes) |
-| CIF-9 | unscoped recall flat in N; or scoped recall falling with the source's own N | lexical: unscoped recall falls in 8 of 11 families (first clause held); scoped recall falls with the source's own growth in 6 (second clause broken: Hacker News links, Wikipedia citations, Stack Exchange links, Stack Exchange titles, OpenAlex titles, Wikipedia titles) |
-| CIF-10 | leave-one-out at the bar for both twins | lexical: held (Shapley 0.49 and 0.50, leave-one-out -0.01 and 0.00) |
-| CIF-11 | a Python share above 20% on a sentence | broken (Python share 45 to 96% at 1,000 to 10,000 items, waits excluded) |
+| CIF-9 | unscoped recall flat in N; or scoped recall falling with the source's own N | lexical: unscoped recall falls in 8 of 11 families (first clause held); scoped recall falls with the source's own growth in 6 (second clause broken: Hacker News links, Wikipedia citations, Stack Exchange links, Stack Exchange titles, OpenAlex titles, Wikipedia titles); semantic: unscoped recall falls in 9 of 11 families (first clause held); scoped recall falls with the source's own growth in 7 (second clause broken: Wikipedia citations, Hacker News links, OpenAlex titles, Stack Exchange links, arXiv titles, Stack Exchange titles, Hacker News titles); fused: unscoped recall falls in 6 of 11 families (first clause held); scoped recall falls with the source's own growth in 6 (second clause broken: Hacker News links, Wikipedia citations, Stack Exchange links, OpenAlex titles, Stack Exchange titles, arXiv titles) |
+| CIF-10 | leave-one-out at the bar for both twins | lexical: held (Shapley 0.49 and 0.50, leave-one-out -0.01 and 0.00); semantic: held (Shapley 0.40 and 0.45, leave-one-out -0.05 and 0.01); fused: held (Shapley 0.48 and 0.49, leave-one-out -0.01 and 0.01) |
+| CIF-11 | a Python share above 20% on a sentence | broken (Python share 54 to 65% at 1,000 to 10,000 items, waits excluded) |
 
 ## Deviations from the brief
 
@@ -307,7 +470,7 @@ The vector phase (`scripts/corpus.py embed --streams 4 --embed-batch 32`) derive
 
 ## Disk
 
-Free space before the run 116 GiB, now 104 GiB; the instance holds 11 GB so far: the readers' dumps, pages and streams 3.7 GB, the raw store 2.0 GB, the plane in progress 3.9 GB, the lexical index 0.9 GB. The floor of 25 GB free was never approached.
+Free space before the run 116 GiB, after it 99 GiB; the instance holds 14 GB: the readers' dumps, pages and streams 3.7 GB, the raw store 2.0 GB, the plane 4.1 GB with its index 1.0 GB, the codes for stage 2 2.1 GB, the lexical index 0.9 GB, the results 0.2 GB. The floor of 25 GB free was never approached.
 
 ## Reproduce
 
