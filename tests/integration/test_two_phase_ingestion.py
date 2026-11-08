@@ -253,19 +253,12 @@ def test_the_planes_current_versions_are_holds_current_for_every_path(tmp_path: 
                 & have)
 
 
-class _Client:
-    """An embedder whose documents are embedded by the given function."""
-
-    def __init__(self, fn: Any) -> None:
-        self.embed_documents = fn
-
-
 def test_a_text_the_embedder_refuses_for_length_is_cut_and_the_drain_converges(tmp_path: Path):
     """The embedding server refuses an input longer than its physical batch rather than truncating
     it, and a chunk's character budget does not bound its tokens. One refused text must not wedge
     the drain: its group goes in halves, the text alone is cut to the longest prefix the server
     takes, and the drain converges, counting the cut; any other failure is raised."""
-    from core.ingest.derive import embed_fitting
+    from core.ingest.embed import embed_fitting
 
     p = palace_at(tmp_path, lazy=True)
     _land(p, {**NOTES, "long.md": "# L\n\n" + "y" * 600 + "\n"})
@@ -285,7 +278,7 @@ def test_a_text_the_embedder_refuses_for_length_is_cut_and_the_drain_converges(t
     assert (report.items, report.cut) == (4, 1)
     assert pending(p.stores.catalog, p.stores.plane, lexical=p.stores.lexical) == []
     assert drain(p.stores).items == 0
-    vectors, cuts = embed_fitting(_Client(refusing), ["a", "b" * 400, "c"])
+    vectors, cuts = embed_fitting(refusing, ["a", "b" * 400, "c"])
     assert len(vectors) == 3 and cuts == [(400, limit)]
     assert vectors[1] == [float(x) for x in real(["b" * limit])[0]]
 
@@ -293,7 +286,7 @@ def test_a_text_the_embedder_refuses_for_length_is_cut_and_the_drain_converges(t
         raise ConnectionError("connection refused")
 
     with pytest.raises(ConnectionError):
-        embed_fitting(_Client(down), ["a"])
+        embed_fitting(down, ["a"])
 
 
 # ── ING-21: pending-report soundness ────────────────────────────────────────────────────────────

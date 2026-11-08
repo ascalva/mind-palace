@@ -181,8 +181,11 @@ one comment of 1,145 characters was 2,951 tokens). So a refused group goes in ha
 refused text is alone, and that text is cut to the longest prefix the server takes, by bisection
 on the characters, as an embedding model truncates at its maximum length; the cut depends only
 on the text and the server, so a second drain cuts it the same way, and the report counts the
-cuts. Any other failure of the embedder is raised, never guessed past. The synchronous path is
-unchanged. The drain is a job of the one writer
+cuts. Any other failure of the embedder is raised, never guessed past. The embedder applies the
+same fitting to every request it makes (`core/ingest/embed.py`), so the synchronous landing, code
+atoms, papers and queries cut the same text the same way instead of failing, and the ingress's
+receipt says how many texts a landing cut; the plane does not mark such an atom, whose vector is
+of a prefix. The drain is a job of the one writer
 (`scheduler/embed.py`, kind `embed`, idempotent and pinned like `code_sync`): the writer asks for
 it once a plan has landed an item without its vector, the housekeeping and the catch-up ask for
 it under the switch, `mind-palace embed` runs it on demand, and `do sync_embed` is its script
