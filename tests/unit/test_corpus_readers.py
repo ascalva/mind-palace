@@ -7,6 +7,7 @@ import email.message
 import gzip
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -178,3 +179,81 @@ def test_a_hacker_news_thread_is_its_story_and_its_reply_tree_in_order():
     assert meta["replies"][2][1] == 2 and meta["comments"] == 3
     assert meta["links"]["wikipedia"] == ["Planar graph"] and meta["host"] == "example.org"
     assert meta["date"] == "1970-01-04"
+
+
+class _FakeHN:
+    """The official API over a dict of items, failing once at request `fail_at` if given."""
+
+    def __init__(self, items: dict[int, dict[str, Any]], top: int,
+                 fail_at: int | None = None) -> None:
+        import threading
+
+        self.items, self.top, self.fail_at = items, top, fail_at
+        self.requests = 0
+        self._lock = threading.Lock()
+
+    def get(self, path: str):
+        with self._lock:
+            self.requests += 1
+            if self.fail_at is not None and self.requests == self.fail_at:
+                self.fail_at = None
+                raise RuntimeError("the connection dropped")
+        if path == "maxitem.json":
+            return self.top
+        return self.items.get(int(path.removeprefix("item/").removesuffix(".json")))
+
+
+def _hn_items() -> tuple[dict[int, dict[str, Any]], int]:
+    from edge.corpus import hackernews
+
+    t0 = hackernews._epoch("2012-01-01") - 100 * 1000       # id 100 is at the window's start
+    items: dict[int, dict[str, Any]] = {}
+    for i in range(1, 401):
+        items[i] = {"id": i, "type": "comment", "parent": 0, "time": t0 + 1000 * i,
+                    "text": f"elsewhere {i}"}
+    for i in range(10, 400, 10):                           # a story every tenth id
+        items[i] = {"id": i, "type": "story", "title": f"story {i}", "time": t0 + 1000 * i,
+                    "kids": [i + 1, i + 2]}
+        items[i + 1].update(parent=i, kids=[i + 3], text=f"live reply {i}")
+        items[i + 2].update(parent=i, dead=True, kids=[i + 4], text=f"dead reply {i}")
+        items[i + 3].update(parent=i + 1, text=f"reply to reply {i}")
+        items[i + 4].update(parent=i + 2, text=f"under the dead {i}")
+    del items[57]                                          # an empty id
+    return items, 400
+
+
+def test_the_hacker_news_spread_sample_is_whole_live_stories_and_resumes(tmp_path: Path):
+    import json as _json
+
+    from edge.corpus import hackernews
+
+    items, top = _hn_items()
+    fake = _FakeHN(items, top)
+    when = hackernews._epoch("2012-01-01")
+    assert hackernews.id_at(fake, when, top) == 100
+    assert hackernews.id_at(fake, when + 172800, top) == 273
+
+    def sample(out: Path, client: _FakeHN) -> list[str]:
+        hackernews.spread(out, 10**9, start="2012-01-01", end="2012-01-01", rate=1e9,
+                          workers=4, draws=40, seed=1, max_draws=400, client=client)
+        lines = (out / "stream" / "manifest.json").read_text()
+        ids = []
+        for part in _json.loads(lines)["parts"]:
+            for line in (out / "stream" / part["file"]).read_text().splitlines():
+                ids.append(_json.loads(line)["id"])
+        return ids
+
+    once = sample(tmp_path / "once", _FakeHN(items, top))
+    assert once and len(once) == len(set(once))
+    for item_id in once:
+        sid = int(item_id.removeprefix("hn-"))
+        assert 100 <= sid < 187 and sid % 10 == 0          # the window's stories only
+    doc = _json.loads((tmp_path / "once" / "stream" / sorted(
+        (tmp_path / "once" / "stream").glob("part-*.jsonl"))[0].name).read_text().splitlines()[0])
+    sid = int(doc["id"].removeprefix("hn-"))
+    assert f"live reply {sid}" in doc["content"] and f"reply to reply {sid}" in doc["content"]
+    assert "dead reply" not in doc["content"] and "under the dead" not in doc["content"]
+    with pytest.raises(RuntimeError):                      # cut mid-round, then run again
+        sample(tmp_path / "cut", _FakeHN(items, top, fail_at=120))
+    again = sample(tmp_path / "cut", _FakeHN(items, top))
+    assert sorted(again) == sorted(once) and len(again) == len(set(again))

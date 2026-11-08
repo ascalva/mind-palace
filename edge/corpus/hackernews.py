@@ -1,12 +1,19 @@
-"""Hacker News through its official API: recent threads, each story with its whole reply tree.
+"""Hacker News through its official API: threads, each story with its whole reply tree.
 
     python -m edge.corpus.hackernews --out <root>/hackernews --budget-mb 120
+    python -m edge.corpus.hackernews --out <root>/hackernews --budget-mb 120 \
+        --spread 2012-01-01 2024-12-31
 
 The official API (`hacker-news.firebaseio.com/v0`, documented at github.com/HackerNews/API) serves
 one item a request and states no rate limit; this reader keeps to `--rate` requests a second over
-a few persistent connections. It walks item ids down from `maxitem` a block at a time and fetches
-every item of the block. Comments always have larger ids than their story, so once the walk has
-passed a story every comment it had is in hand: each story of the block becomes a thread at once.
+a few persistent connections. By default it walks item ids down from `maxitem` a block at a time
+and fetches every item of the block. Comments always have larger ids than their story, so once the
+walk has passed a story every comment it had is in hand: each story of the block becomes a thread
+at once. With `--spread` it samples instead: item ids are drawn uniformly at random in the window's
+id range (found by binary search on item time), and a draw that is a live story takes the story
+with its whole reply tree, fetched through each item's `kids`; any other draw is dropped, so the
+sample is uniform over the window's stories, not weighted by thread size. Both modes write one
+stream, and the budget counts every item in it.
 
 A thread is one item (dn-corpus-instance §4.1: the thread is the item and each comment a block):
 the story's title, its link's host, its text, then each comment in the order of the reply tree,
@@ -20,9 +27,11 @@ republished; only aggregate measurements leave the instance.
 from __future__ import annotations
 
 import argparse
+import calendar
 import gzip
 import http.client
 import json
+import random
 import threading
 import time
 import urllib.parse
@@ -183,6 +192,105 @@ def run(out: Path, budget: int, *, rate: float, workers: int, block: int) -> Non
           f"{client.requests} requests")
 
 
+def _live(it: Any) -> bool:
+    return isinstance(it, dict) and not it.get("dead") and not it.get("deleted")
+
+
+def _epoch(day: str) -> int:
+    return calendar.timegm(time.strptime(day, "%Y-%m-%d"))
+
+
+def _time_from(client: Any, i: int, top: int, tries: int = 64) -> int | None:
+    """The time of the first item at or after id `i` that has one (an id can be empty)."""
+    for j in range(i, min(top, i + tries - 1) + 1):
+        it = client.get(f"item/{j}.json")
+        if isinstance(it, dict) and it.get("time"):
+            return int(it["time"])
+    return None
+
+
+def id_at(client: Any, when: int, top: int) -> int:
+    """The first item id whose time is at or after `when`: a binary search over [1, top], item
+    ids growing with time."""
+    lo, hi = 1, top
+    while lo < hi:
+        mid = (lo + hi) // 2
+        t = _time_from(client, mid, top)
+        if t is None or t >= when:
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo
+
+
+def _trees(pool: ThreadPoolExecutor, client: Any, stories: dict[int, dict[str, Any]]
+           ) -> dict[int, dict[int, dict[str, Any]]]:
+    """Each story's live comments, breadth first through `kids`; a dead or deleted comment is
+    left out with its replies, as the walk leaves them out."""
+    trees: dict[int, dict[int, dict[str, Any]]] = {sid: {} for sid in stories}
+    frontier = [(sid, int(k)) for sid, st in stories.items() for k in st.get("kids") or []]
+    while frontier:
+        got = list(pool.map(lambda p: client.get(f"item/{p[1]}.json"), frontier))
+        nxt: list[tuple[int, int]] = []
+        for (sid, k), it in zip(frontier, got, strict=True):
+            if _live(it) and it.get("type") == "comment" and k not in trees[sid]:
+                trees[sid][k] = it
+                nxt += [(sid, int(kk)) for kk in it.get("kids") or []]
+        frontier = nxt
+    return trees
+
+
+def spread(out: Path, budget: int, *, start: str, end: str, rate: float, workers: int,
+           draws: int = 2000, seed: int = 0, max_draws: int | None = None,
+           client: Any = None) -> None:
+    """Threads sampled uniformly among the stories of [start, end] (see the module's docstring),
+    `draws` ids a round, until the budget is spent or `max_draws` ids are drawn (by default four
+    times the window's ids, which a window too small for the budget reaches); resumable, the
+    seeded draws replayed past the ones already made."""
+    client = client if client is not None else Client(rate)
+    w = StreamWriter(out)
+    state_path = out / "state.json"
+    state = read_state(state_path)
+    sp = state.setdefault("spread", {"start": start, "end": end, "seed": seed, "drawn": 0})
+    if (sp["start"], sp["end"], sp["seed"]) != (start, end, seed):
+        w.close()
+        raise SystemExit("refusing: this stream's spread sample was drawn with other parameters")
+    if "lo" not in sp:
+        top = int(client.get("maxitem.json") or 0)
+        sp["lo"] = id_at(client, _epoch(start), top)
+        sp["hi"] = id_at(client, _epoch(end) + 86400, top)
+        write_state(state_path, state)
+    lo, hi = int(sp["lo"]), int(sp["hi"])
+    limit = max_draws if max_draws is not None else 4 * (hi - lo)
+    rng = random.Random(seed)
+    for _ in range(int(sp["drawn"])):
+        rng.randrange(lo, hi)
+    try:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            while w.text_bytes < budget and hi > lo and int(sp["drawn"]) < limit:
+                ids = [rng.randrange(lo, hi) for _ in range(draws)]
+                got = list(pool.map(lambda i: client.get(f"item/{i}.json"), ids))
+                stories = {int(it["id"]): it for it in got
+                           if _live(it) and it.get("type") == "story" and it.get("title")
+                           and not w.has(f"hn-{int(it['id'])}")}
+                trees = _trees(pool, client, stories)
+                for sid in sorted(stories):
+                    content, meta = thread_of(stories[sid], trees[sid])
+                    w.append(f"hn-{sid}", str(stories[sid]["title"]), content, meta=meta)
+                    if w.text_bytes >= budget:
+                        break
+                sp["drawn"] = int(sp["drawn"]) + draws
+                w.close_part()
+                write_state(state_path, state)
+                print(f"hackernews: {sp['drawn']} ids drawn in [{lo}, {hi}), {len(w.ids)} threads, "
+                      f"{w.text_bytes / 1e6:.1f} MB, {getattr(client, 'requests', 0)} requests",
+                      flush=True)
+    finally:
+        w.close()
+        sp["done"] = w.text_bytes >= budget
+        write_state(state_path, state)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", type=Path, required=True)
@@ -190,8 +298,16 @@ def main() -> None:
     ap.add_argument("--rate", type=float, default=80.0, help="requests a second, in all")
     ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--block", type=int, default=20000)
+    ap.add_argument("--spread", nargs=2, metavar=("START", "END"), default=None,
+                    help="sample the stories of these dates (YYYY-MM-DD) instead of walking")
+    ap.add_argument("--draws", type=int, default=2000, help="ids drawn a round (--spread)")
+    ap.add_argument("--seed", type=int, default=0)
     a = ap.parse_args()
-    run(a.out, int(a.budget_mb * 1e6), rate=a.rate, workers=a.workers, block=a.block)
+    if a.spread:
+        spread(a.out, int(a.budget_mb * 1e6), start=a.spread[0], end=a.spread[1], rate=a.rate,
+               workers=a.workers, draws=a.draws, seed=a.seed)
+    else:
+        run(a.out, int(a.budget_mb * 1e6), rate=a.rate, workers=a.workers, block=a.block)
 
 
 if __name__ == "__main__":
