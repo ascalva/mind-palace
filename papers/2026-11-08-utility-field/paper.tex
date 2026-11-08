@@ -1,0 +1,515 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage{cleveref}
+\usepackage{microtype}
+\setlength{\emergencystretch}{3em}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+\newcommand{\abs}[1]{\left\lvert #1 \right\rvert}
+\newcommand{\lean}[1]{\path{#1}}
+\DeclareMathOperator{\sat}{sat}
+\DeclareMathOperator{\tv}{tv}
+
+\title{A Utility Field over a Knowledge Graph:\\
+Use-Driven Weights that Stay Bounded, Forget, and Never Collapse}
+\author{Alberto Serrano-Calva}
+\date{November 8, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A knowledge store's relations are structural: explicit edges, lexical and semantic similarities.
+They say what is connected, not what is used or what its use produced. We design a second kind of
+value, a \emph{utility field}: one number per site (node, edge or declared path) that each tick
+decays toward a baseline $b$ at a rate $\lambda$ and receives the tick's use clamped to $[-c, c]$,
+and that enters ranking as a multiplicative nudge $1 + \eta(u - b)$ of the structural weights with
+margin $\theta = \eta c/\lambda$. Six laws, machine-checked in Lean~4 over Mathlib, keep the field
+from being steered into a nonsensical state: the box $[b - c/\lambda,\, b + c/\lambda]$ is
+invariant and its floor positive (UTL-1); an idle site returns to the baseline within $\varepsilon$
+once $\lambda n \ge \log(c/(\lambda\varepsilon))$, so arcs fade and form on closed-form windows
+(UTL-2); the nudge keeps the support exactly, no node's stationary mass moves by more than the
+ratio $(1+\theta)/(1-\theta)$, the stationary distributions stay within $\theta/(1-\theta)$ in total
+variation, and a spectral gap $\gamma$ becomes a gap $(1-\theta)\gamma$ (UTL-3); the field is the
+fold of the tick over the use log, and at the baseline its nudge is the identity (UTL-4); the
+Laplacian's quadratic
+form moves by at most $\theta$ times itself, so by Weyl's inequality every eigenvalue moves by at
+most $2\theta d_{\max}$ and the structural order is kept beyond the margin (UTL-5); and the closed
+loop in which use depends on the field is a contraction with one stationary state when its gain is
+below $\lambda$, with the ceiling a second fixed point at or above it (UTL-6). The controls are
+theorems too: reinforcement without decay is unbounded, the two-site mean field of an exponent
+separates at one, and the greedy walk localizes. The algebra beneath the laws is attacked on exact
+rational shadows beside refuted controls, and a simulator on synthetic graphs shows arcs forming at
+a heat spot and fading when the load moves, every bound holding with room, and localization once
+the exponent crosses one.
+\end{abstract}
+
+\section{Introduction}
+
+A store that is kept over time accumulates structure (citations, similarities, version chains) and
+a theory of its dynamics: the sum over walks is a resolvent, a flow is read through its Hodge
+decomposition, the macro regime is the span of the low modes, and the thresholds at which these are
+measurable are known (\lean{papers/2026-11-07-graph-dynamics}, \lean{papers/2026-11-07-scale-and-attribution}).
+What the structure does not record is use. Which paths a reader actually follows, which results
+led to a resolved question, which tokens and vectors are returned often: a store should carry this
+as a second kind of value, so that its relationships evolve with their utility, high-value paths
+become shortcuts, and ranking is nudged in a favourable direction. The danger is as old as the
+idea. A ranking that feeds on its own use is a reinforced random walk, and reinforced walks can
+localize: a few nodes visited forever, one edge crossed back and forth, a self-sustaining loop the
+structure never asked for.
+
+This article designs the field and proves what keeps it benign. The contributions:
+\begin{enumerate}
+\item A model (\Cref{sec:model}): a field per site, one tick (decay toward a baseline, then a
+  saturated increment), a multiplicative nudge of the structural weights with a margin, arcs as a
+  reading of the field, a closed loop, and the models of three controls.
+\item Six laws (\Cref{sec:laws}), each a theorem in \lean{formal/Palace/Utility.lean}: boundedness,
+  decay with its window, no localization (support, stationary mass, total variation, gap),
+  derivation and switch-off, the bounded nudge through Weyl's inequality, and the loop's contraction.
+  The controls are theorems of the same file: linear reinforcement without decay is unbounded, the
+  exponent's three regimes on the two-site mean field, the greedy walk's confinement.
+\item The regime (\Cref{sec:regime}): why the design is a normalized, sublinear reinforcement in the
+  sense of the phase transition at exponent one, and where the one remaining risk, the loop's gain,
+  is bounded and measured.
+\item Measurements on synthetic graphs (\Cref{sec:eval}): arcs that form and fade on the predicted
+  windows, every bound against what was measured, the learning and its forgetting, and the
+  controls' localization.
+\end{enumerate}
+The algebra the theorems rest on is attacked on exact shadows over $\mathbb{Q}$ beside negative
+controls; the cited theorems are stated in \lean{formal/Spec/Utility.lean} and judged against the
+library by the comparator; the library is replayed through Lean's kernel and five independent
+checkers. Nothing in the store is changed: the
+field is designed, proved and simulated, and the build order says what a merge licenses.
+
+\section{Background and related work}
+
+\paragraph{Conductance and potential.}
+In the resistor-network reading of a weighted graph, a weight is a conductance, a function on the
+nodes is a potential, and the effective resistance $R_{\mathrm{eff}}(i,j) = L^+_{ii} + L^+_{jj} -
+2L^+_{ij}$ says how easily current passes between two nodes; adding conductance lowers every
+effective resistance or leaves it (Rayleigh's law) \cite{doylesnell1984}. A field on the edges is a
+flow, and its Hodge decomposition splits it into a gradient, the least-squares ranking of the nodes,
+a curl and a harmonic part \cite{jiang2011hodgerank}. Our field multiplies conductances within a
+margin, so every effective resistance moves within the same factors, and its reading on the nodes
+is a potential whose gradient is a ranking.
+
+\paragraph{Reinforcement and its pathologies.}
+Edge-reinforced random walk with linear reinforcement is, on a finite graph, a mixture of
+reversible Markov chains: the walk is partially exchangeable, so by de Finetti's theorem for Markov
+chains it is a mixture of chains \cite{diaconis1980definetti,diaconis1988recent}, with an explicit
+mixing measure \cite{keane2000errw,rolles2003errw,merkl2005ladder,sabot2015errw}. Reinforcement by
+use is then a random environment: benign, nothing collapses, the environment is just not the
+structural one. Vertex-reinforced random walk localizes: on $\mathbb{Z}$ it eventually visits five
+points forever \cite{pemantle1992vrrw,pemantle1999finite,tarres2004five}, and on bounded-degree
+graphs it localizes with positive probability on a complete multipartite subgraph with its boundary
+\cite{volkov2001vrrw,benaim2011dynamics}. Strongly reinforced edge walks, with weights $w(n)$ of the
+crossing count and $\sum 1/w(n) < \infty$, have an attracting edge crossed forever
+\cite{davis1990reinforced,limic2007attracting}. In urns with feedback, where a site's probability is
+its weight to the power $\alpha$, the transition is at $\alpha = 1$: above it one site takes all but
+finitely many increments, below it the shares equalize
+\cite{drinea2002feedback,oliveira2009onset,pemantle2007survey}.
+
+\paragraph{Forgetting as a window.}
+Exponential forgetting makes a sequence of increments a geometric moving average
+\cite{roberts1959ewma}, whose variance under independent increments equals that of a plain average
+over $2/\lambda - 1$ ticks. The sibling theorem SCL-1 says a time average on a graph with gap
+$\gamma$ is a stable macro quantity only over a window of many relaxation times, with about
+$T\varepsilon\gamma/2$ effective samples.
+
+\paragraph{Popularity against surprise.}
+Token frequencies follow a power law in rank \cite{zipf1949} and vocabularies grow as a power of the
+text \cite{heaps1978}; the informative weight of a term is its surprise, the inverse document
+frequency \cite{sparckjones1972idf,robertson2004idf}, and what a pair adds is their mutual
+information against the product of their base rates \cite{church1990mutual,cover2006}. The field
+therefore credits value, the log-score advantage of a resolved question (the sibling law GRW-1),
+discounted by popularity.
+
+\paragraph{Perturbation and energy.}
+Weyl's inequality bounds each eigenvalue's move by the perturbation's norm
+\cite{weyl1912,horn2013matrix}; the sibling family SPC-3 proves it in a counted form over
+Courant--Fischer's dimension count, and the Laplacian's largest eigenvalue is at most twice the
+largest degree \cite{anderson1985eigenvalues}. The walk sum is a partition function over paths with
+Boltzmann weights, so a multiplicative nudge is a bounded shift of edge energies and the forgetting
+rate plays the part of a temperature.
+
+\section{The model}\label{sec:model}
+
+\begin{definition}[the field and its tick]
+Let $\iota$ be the sites and $K$ a linearly ordered field. The saturated increment is
+$\sat_c(x) = \max(-c, \min(c, x))$ (\lean{Palace.Utility.sat}). One tick with use $x : \iota \to K$ is
+\[
+  u'(s) = b + (1-\lambda)\,(u(s) - b) + \sat_c(x(s)) \quad\text{(\lean{step})},
+\]
+with baseline $b$, rate $\lambda$ and cap $c$. The field after a log of uses is the left fold of the
+tick (\lean{evolve}); $n$ ticks with no use is \lean{idle}, with a constant use $r$ is \lean{steady}.
+The box is $[b - c/\lambda,\, b + c/\lambda]$ (\lean{floor}, \lean{ceiling}, \lean{InBox}). An arc of
+height $a$ is a site with $u(s) \ge b + a$ (\lean{IsArc}). The closed loop with feedback $F$ is
+$u \mapsto \mathrm{step}(u, F(u))$ (\lean{loop}).
+\end{definition}
+
+\begin{definition}[the nudge]
+For a weight matrix $A$ on $V$ and a field $u$ on the pairs, the effective weights are
+$A'_{ij} = A_{ij}\,(1 + \eta(u_{ij} - b))$ (\lean{nudge}), with margin
+$\theta = \eta\,c/\lambda$ (\lean{margin}). The stationary distribution of the walk on $A$ is
+$\pi_i = d_i/\sum_j d_j$ (\lean{statDist}), and $\tv(p, q) = \tfrac12\sum_i\abs{p_i - q_i}$.
+\end{definition}
+
+\begin{definition}[the controls]
+\lean{linearStep} adds the use with no decay and no cap. The two-site mean field of an exponent
+$\alpha$ is $(x, y) \mapsto (x + x^\alpha/S,\; y + y^\alpha/S)$ with $S = x^\alpha + y^\alpha$
+(\lean{polyaStep}). The greedy walk on the path $0 - 1 - 2$ moves along the heavier incident edge
+(the left one on a tie) and adds one to it (\lean{greedyStep}); \lean{greedyEmp} is its empirical
+measure over $n$ steps and \lean{path3} the path's unit weights.
+\end{definition}
+
+\section{The laws}\label{sec:laws}
+
+Throughout, $0 < \lambda \le 1$, $c \ge 0$, $\eta \ge 0$; the algebraic laws hold over any linearly
+ordered field, the window, the spectrum and the metric over $\R$.
+
+\begin{theorem}[UTL-1, boundedness]\label{thm:utl1}
+If $u$ is in the box then so is $\mathrm{step}(u, x)$ for every use $x$ (\lean{step\_mem\_box}), and
+so is $\mathrm{evolve}(u, \ell)$ for every log $\ell$ (\lean{evolve\_mem\_box}); the floor is positive
+when $c < b\lambda$ (\lean{floor\_pos}). The box is the least invariant box: from the baseline, a
+site held at the cap climbs past every level below the ceiling (\lean{exists\_steady\_gt}).
+Control: with no decay, $n$ uses of $r > 0$ give $u + nr$, past every bound
+(\lean{linearStep\_iterate}, \lean{linear\_unbounded}).
+\end{theorem}
+\begin{proof}[Proof sketch]
+$(1-\lambda)(u - b) \in [-(1-\lambda)c/\lambda,\,(1-\lambda)c/\lambda]$ and
+$\sat_c \in [-c, c]$ add to $[-c/\lambda,\, c/\lambda]$, since
+$(1-\lambda)c/\lambda + c = c/\lambda$. The log is an induction on the fold. Sharpness: the closed
+form $b + (c/\lambda)(1 - (1-\lambda)^n)$ (\lean{steady\_apply}) exceeds $M < b + c/\lambda$ once
+$(1-\lambda)^n < (b + c/\lambda - M)\lambda/c$, which Mathlib's \lean{exists\_pow\_lt\_of\_lt\_one}
+gives.
+\end{proof}
+
+\begin{theorem}[UTL-2, decay]\label{thm:utl2}
+$\mathrm{idle}(u, n)(s) = b + (1-\lambda)^n(u(s) - b)$ (\lean{idle\_apply}); from the box,
+$\abs{\mathrm{idle}(u, n)(s) - b} \le (1-\lambda)^n c/\lambda$ (\lean{idle\_sub\_le}); and for
+$\varepsilon > 0$, once $\lambda n \ge \log(c/(\lambda\varepsilon))$ the site is within $\varepsilon$ of
+the baseline (\lean{idle\_window}). An arc of height $a$ is gone once $(1-\lambda)^n c/\lambda < a$
+(\lean{not\_isArc\_idle}) and forms at a site held at the cap from at least the baseline once
+$(c/\lambda)(1 - (1-\lambda)^n) \ge a$ (\lean{isArc\_steady}).
+\end{theorem}
+\begin{proof}[Proof sketch]
+Induction gives the closed forms. For the window, $1 - \lambda \le e^{-\lambda}$
+(Mathlib's \lean{Real.add\_one\_le\_exp}), so $(1-\lambda)^n \le e^{-\lambda n}$
+(\lean{one\_sub\_pow\_le\_exp}), and $e^{-\lambda n} \le \lambda\varepsilon/c$ exactly when
+$\lambda n \ge \log(c/(\lambda\varepsilon))$.
+\end{proof}
+
+\begin{theorem}[UTL-3, no localization]\label{thm:utl3}
+Let $A \ge 0$ with positive volume, $u$ in the box on every pair and $\theta < 1$. Then
+$A'_{ij} = 0 \iff A_{ij} = 0$ (\lean{nudge\_eq\_zero\_iff}; the support is equal,
+\lean{support\_nudge}); for every node (\lean{le\_statDist\_nudge}, \lean{statDist\_nudge\_le})
+\[
+  \frac{1-\theta}{1+\theta}\,\pi_i \;\le\; \pi'_i \;\le\; \frac{1+\theta}{1-\theta}\,\pi_i,
+\]
+and $\tv(\pi', \pi) \le \theta/(1-\theta)$ (\lean{tv\_statDist\_nudge\_le}). If moreover $A$ and $u$
+are symmetric and $\gamma$ is a spectral gap of $A$ in the Poincar\'e form of DYN-6, then
+$(1-\theta)\gamma$ is a gap of $A'$ (\lean{hasSpectralGapAtLeast\_nudge}), so every nonzero
+eigenvalue of $L'$ is at least $(1-\theta)\gamma$ (\lean{le\_eigenvalue\_nudge}).
+\end{theorem}
+\begin{proof}[Proof sketch]
+The factor $1 + \eta(u_{ij} - b)$ lies in $[1-\theta, 1+\theta]$ (\lean{nudge\_factor\_mem}), so
+$(1-\theta)A_{ij} \le A'_{ij} \le (1+\theta)A_{ij}$ and the same for degrees and the volume; the
+ratio bounds follow by dividing, and
+$\abs{\pi'_i - \pi_i} \le \frac{2\theta}{1-\theta}\pi_i$ sums to $\theta/(1-\theta)$ since
+$\sum_i\pi_i = 1$. The Dirichlet identity $2x^\top L x = \sum_{ij}A_{ij}(x_i - x_j)^2$ (LAP-2)
+gives $(1-\theta)\,x^\top Lx \le x^\top L'x$ (\lean{le\_dotProduct\_lap\_nudge}), hence the gap, and
+DYN-6's \lean{le\_eigenvalue\_of\_hasSpectralGapAtLeast} reads it on the modes.
+\end{proof}
+
+\begin{theorem}[UTL-4, derivation]
+$\mathrm{evolve}(u_0, \ell_1 \mathbin{+\!\!+} \ell_2) = \mathrm{evolve}(\mathrm{evolve}(u_0, \ell_1), \ell_2)$
+(\lean{evolve\_append}), and $\mathrm{nudge}(\eta, b, A, b) = A$ (\lean{nudge\_baseline}): the field
+is a function of its log, and switching it off recovers the structural weights exactly.
+\end{theorem}
+
+\begin{theorem}[UTL-5, the bounded nudge]\label{thm:utl5}
+For symmetric $A \ge 0$, a symmetric field in the box and every $x$,
+$\abs{x^\top(L' - L)x} \le \theta\,x^\top L x$ (\lean{abs\_dotProduct\_lap\_sub\_le}), and
+$x^\top L x \le 2d\,\norm{x}^2$ when every degree is at most $d$
+(\lean{dotProduct\_lap\_le\_degree}). Hence, as operators on Euclidean space, $L'$ lies within
+$2\theta d$ of $L$ in SPC-3's sense (\lean{near\_lap\_nudge}), and with $N_M(t)$ the number of
+eigenvalues of $M$ at most $t$, Weyl's counts give (\lean{count\_lap\_nudge\_sub\_le},
+\lean{count\_lap\_nudge\_le\_add})
+\[
+  N_L(t - 2\theta d) \;\le\; N_{L'}(t) \;\le\; N_L(t + 2\theta d).
+\]
+Two structural weights with $(1+\theta)A_{kl} < (1-\theta)A_{ij}$ keep their order under every
+field state (\lean{nudge\_lt\_nudge\_of\_margin}).
+\end{theorem}
+\begin{proof}[Proof sketch]
+The Dirichlet identity termwise with the factor bounds gives both sides of
+$(1\pm\theta)x^\top Lx$; $(x_i - x_j)^2 \le 2(x_i^2 + x_j^2)$ and symmetry give the degree bound.
+The inner product on $\mathrm{EuclideanSpace}$ is the dot product and $\mathrm{toEuclideanLin}$ is
+multiplication by the matrix, so the quadratic-form bound is SPC-3's \lean{Near} hypothesis and its
+\lean{count\_sub\_le}, \lean{count\_le\_add} apply. By Courant--Fischer the relative bound also gives
+$(1-\theta)\lambda_k \le \lambda_k' \le (1+\theta)\lambda_k$, which the simulator checks and the
+Lean states only through the gap.
+\end{proof}
+
+\begin{theorem}[UTL-6, no self-reinforcing loop]\label{thm:utl6}
+Let $\iota$ be finite and $F$ satisfy $\mathrm{dist}(F u, F v) \le K\,\mathrm{dist}(u, v)$ in the sup
+metric, with $0 \le K$. Then $\mathrm{dist}(\mathrm{loop}\,u, \mathrm{loop}\,v) \le (1 - \lambda +
+K)\,\mathrm{dist}(u, v)$ (\lean{loop\_dist\_le}); if $K < \lambda$ the loop has exactly one fixed
+field (\lean{loop\_existsUnique\_fixedPoint}) and its iterates converge to it at the rate
+$1 - \lambda + K$ (\lean{loop\_iterate\_tendsto}). Control: for $F(u) = K(u - b)$ with $K \ge
+\lambda$ and $c > 0$, both the baseline and the ceiling are fixed, so uniqueness fails
+(\lean{Witness.bistable}, \lean{Witness.not\_unique}).
+\end{theorem}
+\begin{proof}[Proof sketch]
+Pointwise, since the clamp is $1$-Lipschitz (\lean{abs\_sat\_sub\_sat\_le}),
+\[
+  \abs{(1-\lambda)(u_e - v_e) + \sat_c(F u\,e) - \sat_c(F v\,e)} \le
+  (1-\lambda)\abs{u_e - v_e} + \abs{F u\,e - F v\,e},
+\]
+and the sup metric's \lean{dist\_pi\_le\_iff} and \lean{dist\_le\_pi\_dist} finish. With $1 - \lambda + K < 1$,
+Mathlib's \lean{ContractingWith.fixedPoint} on the complete space $\iota \to \R$ gives existence,
+uniqueness and the a priori rate. At the ceiling, $K(c/\lambda) \ge c$ saturates the increment to $c$
+and $b + (1-\lambda)c/\lambda + c = b + c/\lambda$.
+\end{proof}
+
+\begin{proposition}[the exponent decides; the greedy limit localizes]\label{prop:controls}
+For $0 < y < x$ and $m \ge 1$, the two-site mean field at exponent $m+1$ increases the ratio $x/y$
+(\lean{polya\_ratio\_lt}); at exponent $1$ it holds it (\lean{polya\_ratio\_eq}); at exponent $0$ it
+moves it toward one (\lean{polya\_ratio\_gt}). The greedy walk started off the far node with the left
+edge at least as heavy never reaches the far node (\lean{greedy\_pos\_ne\_two}), so its empirical
+measure gives the far node mass $0$ while the structural walk gives it $1/4$
+(\lean{statDist\_path3\_two}), and the total variation between them is at least $1/8$ at every
+horizon (\lean{greedy\_tv\_ge}).
+\end{proposition}
+\begin{proof}[Proof sketch]
+At exponent $m + 1$, $x'y - xy' = xy(x^m - y^m)/(x^{m+1} + y^{m+1})$, positive for $m \ge 1$ and
+zero at $m = 0$; at exponent $0$ each site gains $\tfrac12$, so $x'y - xy' = (y - x)/2 < 0$. The
+greedy invariant (position not the far node, left
+edge at least as heavy) is kept by each step and gives the confinement by induction.
+\end{proof}
+
+\section{The design and its regime}\label{sec:regime}
+
+\paragraph{Sites, uses, value.}
+A site is a node, an edge of a relation, or a declared path a sentence walked. A use is a record
+(site, tick, principal, kind, value, witness) in an append-only log beside the ledger; the field is
+the fold of the tick over the log (UTL-4), so it is rebuilt from the log and every value traces to
+its uses, and it never writes authored content, labels or relations. The increment a use adds is
+$\mathrm{value}\cdot\mathrm{surprise}$: value $1$ for a resolved question whose arm read the site with
+a positive log-score advantage over the reference arm (GRW-1's currency, which adds across
+questions), $1$ for a citation followed, a declared fraction for a retrieval that resolved
+nothing, $-1$ for a resolved question with a negative advantage; surprise $1 - h(s)$ with $h$ the
+site's popularity histogram over the window. Both are bounded, so the cap is the most a tick adds.
+Popularity histograms of tokens and vectors are fields with $\eta = 0$, windowed counts that give the
+base rates and never nudge a ranking directly.
+
+\paragraph{The nudge and arcs.}
+Every ranking verb runs on $A' = A \circ (1 + \eta(u - b))$ where it ran on $A$; the support,
+degrees and components are $A$'s (UTL-3), so the laws the verbs already satisfy keep their
+hypotheses. An arc is a declared path with $u \ge b + a$: it forms at a heat spot and fades on the
+window of \Cref{thm:utl2}; it materializes the path's walk sum for cheap reading and adds no edge.
+An ablation arm with $\eta = 0$ is the structural system exactly (UTL-4), so the field is a source
+whose contribution the attribution loop measures.
+
+\begin{algorithm}[ht]
+\caption{One tick of the field.}
+\begin{algorithmic}[1]
+\Require the use log's records for the tick; the field $u$ in its box; $b, \lambda, c, \eta, a$
+\Ensure $u'$ in the box; the effective weights $A'$; the arc list
+\State $x \gets 0$
+\For{each record $(s, \mathrm{kind}, \mathrm{value}, \mathrm{witness})$}
+  \State $x(s) \gets x(s) + \mathrm{value}\cdot(1 - h(s))$ \Comment{value against popularity}
+\EndFor
+\State $u' \gets b + (1-\lambda)(u - b) + \sat_c(x)$ \Comment{UTL-1 keeps the box; UTL-2 the window}
+\State $A' \gets A \circ (1 + \eta(u' - b))$ \Comment{within the margin $\theta$; UTL-3, UTL-5}
+\State arcs $\gets \{P : u'(P) \ge b + a\}$, their walk sums cached
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{The regime.}
+\Cref{tab:regime} sets the design against the reinforced walks of the literature. The design is
+sublinear and normalized in the exponent's terms: an increment never grows with the site's own
+weight, the field is a windowed average rather than a count, and the walk's weights are the
+structural ones within a margin. Its stationary law is within $\theta/(1-\theta)$ of the
+structural one at every time (UTL-3), where linear reinforcement drifts to a random environment and
+superlinear reinforcement localizes. The one way out of the regime is the loop: if the nudge raised
+a site's use enough to raise its nudge further with gain $K \ge \lambda$, the hot state would
+sustain itself (\Cref{thm:utl6}'s control). The design keeps the gain small, since a nudge moves
+each weight only within the margin and the increment counts value, which the ranking does not
+produce; whether a real load's gain lies below the rate is a measurement, the first the build
+makes.
+
+\begin{table}[ht]
+\centering\footnotesize
+\begin{tabular}{llllp{4.1cm}}
+\toprule
+scheme & reinforces & decay & bound & regime \\
+\midrule
+vertex-reinforced walk & visit count & none & none & localizes \cite{pemantle1992vrrw,tarres2004five,benaim2011dynamics} \\
+edge-reinforced, $\alpha > 1$ & count$^{\alpha}$ & none & none & attracting edge \cite{davis1990reinforced,limic2007attracting} \\
+edge-reinforced, linear & count & none & none & random environment \cite{diaconis1980definetti,sabot2015errw} \\
+urn with feedback, $\alpha < 1$ & count$^{\alpha}$ & none & none & equalizes \cite{drinea2002feedback} \\
+this design & value, discounted & $\lambda$ a tick & $[-c, c]$, the box, $\theta$ & within $\theta/(1-\theta)$ of the structural law (UTL-3) \\
+\bottomrule
+\end{tabular}
+\caption{The design against the reinforcement schemes whose behaviour is known.}
+\label{tab:regime}
+\end{table}
+
+\paragraph{The build order.}
+Nothing is built by this article. A merge licenses four units, each measured on the corpus
+instance (its own stores, its own ledger) before anything runs on the default instance, which keeps
+$\eta = 0$ until the measurements say otherwise: UF-1 the use log, the tick and the histograms, no
+ranking reading them; UF-2 the nudge behind a switch, with the $\eta = 0$ arm registered in the
+ledger; UF-3 arcs and their cached walk sums; UF-4 the value increment wired to the ledger's
+resolutions and followed citations. Each unit property-tests its transcription against the Lean
+statements, and the ledger's rows move their anchors from the simulator to the store's code as it
+lands.
+
+\section{Evaluation}\label{sec:eval}
+
+\paragraph{What is proved.}
+\Cref{thm:utl1,thm:utl2,thm:utl3,thm:utl5,thm:utl6} and \Cref{prop:controls} are machine-checked in
+\lean{formal/Palace/Utility.lean} over \lean{formal/Palace/Utility/Defs.lean} on Lean v4.36.0-rc2 and
+the Mathlib it pins \cite{moura2021lean4,mathlib2020}, with the sorry budget at zero and the axioms
+of all 4{,}730 library declarations audited (\lean{propext}, \lean{Classical.choice},
+\lean{Quot.sound} only). Twenty statements are restated in \lean{formal/Spec/Utility.lean} and
+judged identical to the library's, 306 statements in all; the library's export, 55{,}608
+declarations from \lean{Init} up, is replayed by Lean's kernel and by \lean{leanchecker-paranoid},
+\lean{lean4lean}, \lean{nanoda}, \lean{con-leche} and \lean{con-ron}.
+
+\paragraph{The attacks.}
+The definitions are polymorphic in the field, so the attacks run them over $\mathbb{Q}$ as they are
+(\lean{formal/PalaceTest/Utility.lean}, seeds 402 to 424, 500 draws each): fields on four sites
+from lists of integers, a baseline $1 + b$, a rate $1/(1+l)$, a cap $c/4$ from naturals, uses of any
+size and sign; symmetric nonnegative weights on four nodes with a symmetric field on the edges and a
+margin $t/(t+1)$; the loop with a linear gain; the mean field at exponents $0$, $1$, $2$; the greedy
+walk for forty steps. The box survived 500 under one tick and 500 under a log; the idle closed form
+500; the arc forming 500 and fading 325 (175 draws discarded before the window elapsed); the support
+500; the total-variation bound 490 (10 edgeless draws discarded); the quadratic-form and degree
+bounds 500 each; the loop's contraction 500; the three exponents 500, as one conjunction; the greedy
+confinement 500. The window, the spectrum and the fixed point do not run, so they are proved and
+not attacked, and UTL-4 is proved by structure. The controls, each refuted: no decay leaves the box
+within 11 instances; the box with ceiling $b + c$ within 14; a residual use holds the field off the
+baseline within 6; the additive nudge creates an edge within 40; a field twice the box's height
+breaks the total-variation bound within 119 and the form bound within 38; the largest degree alone
+does not bound the form within 12; an arc left alone fades, a gain above the rate fixes the
+ceiling, exponent 2 moves the ratio, and the greedy walk leaves the structural law, each on the
+first instance.
+
+\paragraph{What is measured.}
+The simulator \lean{eval/utility\_field.py} (seed 20261108; the tables in
+\lean{docs/experiments/utility-field-2026-11-08/}) drives the model on a two-community graph of 24
+nodes and 76 edges (two dense communities joined by two bridges, weights in $[0.5, 1]$, gap
+$\gamma = 0.18301$, largest degree $7.14$) at $b = 1$, $\lambda = 0.05$, $c = 0.02$, $\eta = 5/6$,
+so $\theta = 1/3$, the box $[0.6, 1.4]$ and an arc at $1.3$. Three phases of 120 ticks draw ten
+anchors a tick by a rank-frequency law from four nodes of the first community, then three of the
+second, then the first again; each anchor has a planted answer, the neighbour the structural walk
+ranks second. A query ranks by the killed walk's first-passage score on the nudged weights; the
+answer as first result credits its edge the cap, any other first result credits a tenth, and with
+probability $\tfrac12$ the answer is reached anyway (a citation followed) and credited.
+\Cref{tab:field} gives the bounds against what was measured and \Cref{tab:controls} the controls.
+The order law of UTL-5 is not exercised by this graph: the largest ratio of two of its weights is
+$1.97$, under the factor $(1+\theta)/(1-\theta) = 2$, so it constrains no pair; the unit tests check
+it at $\theta = 1/4$, where pairs beyond the margin exist.
+
+\begin{table}[ht]
+\centering\footnotesize
+\begin{tabular}{p{5.9cm}p{3.2cm}p{5.1cm}}
+\toprule
+quantity & measured & bound or prediction \\
+\midrule
+field in the box & 360 of 360 ticks & UTL-1 \\
+first arc, on the hot edge $(3, 6)$ & tick 31 & 28 ticks at the cap (UTL-2) \\
+hot edge, peak and 74 ticks after the load left & 1.381; 1.0081 & ceiling 1.4; within $0.01$ on the window (UTL-2) \\
+arcs of the first load gone & tick 125, the 6th of phase 2 & 6 ticks from anywhere in the box (UTL-2) \\
+$\tv(\pi', \pi)$, largest & 0.0120 & $0.5$ (UTL-3) \\
+largest eigenvalue move & 0.367 & $2\theta d_{\max} = 4.76$ (UTL-5) \\
+smallest gap & 0.18303 & $(1-\theta)\gamma = 0.122$ (UTL-3) \\
+answers' mean rank, phases 1/2/3 ends (start 2.00) & 1.75 / 2.00 / 1.50 & learning, forgetting, relearning \\
+answers ranked first, phases 1/2/3 ends & 0.25 / 0.00 / 0.50 & none: the laws bound weights, not ranks \\
+\bottomrule
+\end{tabular}
+\caption{The field under the load: every bound held with room; the lift is forgotten on the window.}
+\label{tab:field}
+\end{table}
+
+\begin{table}[ht]
+\centering\footnotesize
+\begin{tabular}{lrrrr}
+\toprule
+scheme, 20{,}000 steps & $\alpha$ & $\tv$ from the structural law & share on the top edge & nodes visited \\
+\midrule
+reinforced, no decay or cap & 0.5 & 0.060 & 0.020 & 24 \\
+reinforced, no decay or cap & 1.0 & 0.483 & 0.133 & 24 \\
+reinforced, no decay or cap & 2.0 & 0.910 & 0.999 & 8 \\
+the bounded field & & 0.028 & 0.020 & 24 \\
+\bottomrule
+\end{tabular}
+\caption{The controls: localization once the exponent crosses one; the random environment at one.}
+\label{tab:controls}
+\end{table}
+
+The two-site mean field's leader held $0.996$ of the mass after 2{,}000 steps at exponent $2$,
+exactly $6/11$ at exponent $1$ (the ratio $1.2$ held, \lean{polya\_ratio\_eq}) and $0.502$ at
+$0.5$. The loop with $F(u) = K(u - b)$ contracted at exactly $1 - \lambda + K$ for
+$K/\lambda \in \{0.25, 0.5, 0.9\}$ with one fixed point, and at $1.5$ the distance between two runs
+grew, by $1.007$ a tick, with the baseline, the ceiling and the floor all fixed.
+
+\section{Limitations}
+
+The total-variation constant $\theta/(1-\theta)$ is proved and not tight; the per-node ratio bound
+is sharper and the simulation sits far inside both, because a load heats a few paths while the
+bounds are for the worst field in the box. The reinforced-walk theorems are cited, not formalized:
+what is proved is deterministic, the stationary law under any field state and the mean field of the
+exponent, and the greedy walk stands in for the attracting edge. UTL-6 bounds the loop for a
+declared gain; the gain of a real load is a measurement the corpus instance makes, and the design's
+claim that it lies below the rate is a hypothesis with a named falsifier. The simulator is
+synthetic: it says the laws hold and the windows are as predicted, not where a real corpus sits
+between the worst field and this one. The learning it shows (one answer of four lifted to first in
+the first phase, two in the third) is not explained by the laws, which bound how far each weight
+moves and not which of two walk sums is the larger; the run does not separate why the others stayed
+second.
+
+\section{Future work}
+
+Build UF-1 to UF-4 on the corpus instance in order, each unit property-tested against the Lean
+statements; measure the loop's gain on the use log and the relaxation time that sets $\lambda$;
+register the $\eta = 0$ arm and read the field's advantage at the ledger's bar; compare the
+value-weighted increment with the popularity-weighted one. Formalize the relative Weyl bound
+$(1 \pm \theta)\lambda_k$ through Courant--Fischer rather than through the gap alone, and the
+sharp total-variation constant. Extend the model to fields on the vector plane's atoms, whose
+reading is a cosine rather than a walk.
+
+\section{Conclusion}
+
+A store can carry a second kind of value above its structure, a field of use and realized value,
+and what keeps it bounded is small: the decay, the cap and the margin. The decay and the cap
+make the field a windowed average in a box; the margin makes the nudge a bounded perturbation of
+the structural weights, whose stationary law, spectrum and order move only within declared factors
+and return exactly when the field is removed; and the loop by which use feeds on ranking is a
+contraction when its gain is below the rate, with the self-reinforcing state appearing exactly at
+the rate as the control. Each statement is a theorem, the algebra beneath them is attacked beside
+refuted controls, the arcs form and fade on the predicted windows, and the regime the design sits
+in is the benign one, with its single exit named and measured.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
