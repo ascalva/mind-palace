@@ -1,0 +1,5360 @@
+{
+ "record": "docs/experiments/embedder-use-2026-11-08.md",
+ "harness": "eval/embedder_use/",
+ "embedder": "EmbeddingGemma-2 Q8_0, llama-server 127.0.0.1:8081 (4 slots of 2,048 tokens); late chunking on a temporary pooling-none server, port 8093",
+ "runs": {
+  "tokens": {
+   "experiment": "tokens",
+   "started": "2026-11-08T17:32:12",
+   "scifact": {
+    "collection": "scifact",
+    "units": 11987,
+    "index": {
+     "T0": {
+      "terms": 38466,
+      "postings": 808284
+     },
+     "T1": {
+      "terms": 38466,
+      "postings": 808284
+     },
+     "T2": {
+      "terms": 38458,
+      "postings": 808284
+     },
+     "T3": {
+      "terms": 38449,
+      "postings": 808284
+     },
+     "T4": {
+      "terms": 38449,
+      "postings": 808284
+     },
+     "T5": {
+      "terms": 38449,
+      "postings": 808284
+     },
+     "T6": {
+      "terms": 34638,
+      "postings": 792650
+     }
+    },
+    "comparison": {
+     "queries": 300,
+     "reference": "T0",
+     "arms": {
+      "T0": {
+       "recall": 0.7663,
+       "ndcg": 0.649
+      },
+      "T1": {
+       "recall": 0.7663,
+       "ndcg": 0.649,
+       "recall_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "T2": {
+       "recall": 0.7663,
+       "ndcg": 0.649,
+       "recall_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "T3": {
+       "recall": 0.7663,
+       "ndcg": 0.649,
+       "recall_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "T4": {
+       "recall": 0.7663,
+       "ndcg": 0.649,
+       "recall_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "T5": {
+       "recall": 0.7663,
+       "ndcg": 0.649,
+       "recall_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "T6": {
+       "recall": 0.7774,
+       "ndcg": 0.6611,
+       "recall_vs_ref": {
+        "mean": 0.0111,
+        "lo": -0.0071,
+        "hi": 0.0294,
+        "p": 0.2893,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0121,
+        "lo": 0.0006,
+        "hi": 0.0235,
+        "p": 0.0395,
+        "p_holm": 0.2373,
+        "verdict": "no worse"
+       }
+      }
+     }
+    },
+    "counts": {
+     "units": 11987,
+     "atoms": 11986,
+     "T0": {
+      "identity": "runs/raw/lower/nomarks/unicode-17.0.0",
+      "vocabulary": 38466,
+      "occurrences": 1298715,
+      "t0_terms_merging": 0,
+      "t0_terms_lost_to_merges": 0,
+      "t0_occurrences_changed": 0,
+      "t0_occurrences_changed_share": 0.0
+     },
+     "T1": {
+      "identity": "runs/NFC/lower/nomarks/unicode-17.0.0",
+      "vocabulary": 38466,
+      "occurrences": 1298715,
+      "t0_terms_merging": 0,
+      "t0_terms_lost_to_merges": 0,
+      "t0_occurrences_changed": 0,
+      "t0_occurrences_changed_share": 0.0
+     },
+     "T2": {
+      "identity": "runs/NFC/casefold/nomarks/unicode-17.0.0",
+      "vocabulary": 38458,
+      "occurrences": 1298715,
+      "t0_terms_merging": 16,
+      "t0_terms_lost_to_merges": 8,
+      "t0_occurrences_changed": 76,
+      "t0_occurrences_changed_share": 5.9e-05
+     },
+     "T3": {
+      "identity": "runs/NFKC/lower/nomarks/unicode-17.0.0",
+      "vocabulary": 38449,
+      "occurrences": 1298717,
+      "t0_terms_merging": 32,
+      "t0_terms_lost_to_merges": 16,
+      "t0_occurrences_changed": 111,
+      "t0_occurrences_changed_share": 8.5e-05
+     },
+     "T4": {
+      "identity": "runs/NFKC/casefold/nomarks/unicode-17.0.0",
+      "vocabulary": 38449,
+      "occurrences": 1298717,
+      "t0_terms_merging": 32,
+      "t0_terms_lost_to_merges": 16,
+      "t0_occurrences_changed": 111,
+      "t0_occurrences_changed_share": 8.5e-05
+     },
+     "T5": {
+      "identity": "runs/NFKC/casefold/marks/unicode-17.0.0",
+      "vocabulary": 38449,
+      "occurrences": 1298717,
+      "t0_terms_merging": 32,
+      "t0_terms_lost_to_merges": 16,
+      "t0_occurrences_changed": 111,
+      "t0_occurrences_changed_share": 8.5e-05
+     },
+     "T6": {
+      "identity": "runs/NFKC/casefold/marks/unicode-17.0.0+s-stem",
+      "vocabulary": 34638,
+      "occurrences": 1298717,
+      "t0_terms_merging": 7653,
+      "t0_terms_lost_to_merges": 3827,
+      "t0_occurrences_changed": 136028,
+      "t0_occurrences_changed_share": 0.10474
+     },
+     "atoms_coinciding": {
+      "NFC": 0,
+      "NFKC": 0
+     },
+     "atoms_not_nfc": 1,
+     "atoms_not_nfkc": 81,
+     "atoms_with_marks": 0
+    }
+   },
+   "nfcorpus": {
+    "collection": "nfcorpus",
+    "units": 9336,
+    "index": {
+     "T0": {
+      "terms": 28425,
+      "postings": 625587
+     },
+     "T1": {
+      "terms": 28425,
+      "postings": 625586
+     },
+     "T2": {
+      "terms": 28419,
+      "postings": 625586
+     },
+     "T3": {
+      "terms": 28405,
+      "postings": 625586
+     },
+     "T4": {
+      "terms": 28404,
+      "postings": 625586
+     },
+     "T5": {
+      "terms": 28404,
+      "postings": 625586
+     },
+     "T6": {
+      "terms": 25523,
+      "postings": 614446
+     }
+    },
+    "comparison": {
+     "queries": 323,
+     "reference": "T0",
+     "arms": {
+      "T0": {
+       "recall": 0.1501,
+       "ndcg": 0.3017
+      },
+      "T1": {
+       "recall": 0.1501,
+       "ndcg": 0.3017,
+       "recall_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "T2": {
+       "recall": 0.1501,
+       "ndcg": 0.3017,
+       "recall_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "T3": {
+       "recall": 0.1501,
+       "ndcg": 0.3017,
+       "recall_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "T4": {
+       "recall": 0.1501,
+       "ndcg": 0.3017,
+       "recall_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "T5": {
+       "recall": 0.1501,
+       "ndcg": 0.3017,
+       "recall_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "T6": {
+       "recall": 0.1537,
+       "ndcg": 0.3159,
+       "recall_vs_ref": {
+        "mean": 0.0036,
+        "lo": -0.0013,
+        "hi": 0.0085,
+        "p": 0.1616,
+        "p_holm": 0.9696,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0142,
+        "lo": 0.006,
+        "hi": 0.0224,
+        "p": 0.0007,
+        "p_holm": 0.0045,
+        "verdict": "better"
+       }
+      }
+     }
+    },
+    "counts": {
+     "units": 9336,
+     "atoms": 9228,
+     "T0": {
+      "identity": "runs/raw/lower/nomarks/unicode-17.0.0",
+      "vocabulary": 28425,
+      "occurrences": 1005257,
+      "t0_terms_merging": 0,
+      "t0_terms_lost_to_merges": 0,
+      "t0_occurrences_changed": 0,
+      "t0_occurrences_changed_share": 0.0
+     },
+     "T1": {
+      "identity": "runs/NFC/lower/nomarks/unicode-17.0.0",
+      "vocabulary": 28425,
+      "occurrences": 1005254,
+      "t0_terms_merging": 0,
+      "t0_terms_lost_to_merges": 0,
+      "t0_occurrences_changed": 0,
+      "t0_occurrences_changed_share": 0.0
+     },
+     "T2": {
+      "identity": "runs/NFC/casefold/nomarks/unicode-17.0.0",
+      "vocabulary": 28419,
+      "occurrences": 1005254,
+      "t0_terms_merging": 12,
+      "t0_terms_lost_to_merges": 6,
+      "t0_occurrences_changed": 63,
+      "t0_occurrences_changed_share": 6.3e-05
+     },
+     "T3": {
+      "identity": "runs/NFKC/lower/nomarks/unicode-17.0.0",
+      "vocabulary": 28405,
+      "occurrences": 1005263,
+      "t0_terms_merging": 36,
+      "t0_terms_lost_to_merges": 18,
+      "t0_occurrences_changed": 132,
+      "t0_occurrences_changed_share": 0.000131
+     },
+     "T4": {
+      "identity": "runs/NFKC/casefold/nomarks/unicode-17.0.0",
+      "vocabulary": 28404,
+      "occurrences": 1005263,
+      "t0_terms_merging": 38,
+      "t0_terms_lost_to_merges": 19,
+      "t0_occurrences_changed": 138,
+      "t0_occurrences_changed_share": 0.000137
+     },
+     "T5": {
+      "identity": "runs/NFKC/casefold/marks/unicode-17.0.0",
+      "vocabulary": 28404,
+      "occurrences": 1005263,
+      "t0_terms_merging": 38,
+      "t0_terms_lost_to_merges": 19,
+      "t0_occurrences_changed": 138,
+      "t0_occurrences_changed_share": 0.000137
+     },
+     "T6": {
+      "identity": "runs/NFKC/casefold/marks/unicode-17.0.0+s-stem",
+      "vocabulary": 25523,
+      "occurrences": 1005263,
+      "t0_terms_merging": 5800,
+      "t0_terms_lost_to_merges": 2900,
+      "t0_occurrences_changed": 104276,
+      "t0_occurrences_changed_share": 0.103731
+     },
+     "atoms_coinciding": {
+      "NFC": 0,
+      "NFKC": 0
+     },
+     "atoms_not_nfc": 2,
+     "atoms_not_nfkc": 291,
+     "atoms_with_marks": 2
+    }
+   },
+   "finished": "2026-11-08T17:32:36"
+  },
+  "corpus-tokens": {
+   "experiment": "corpus-tokens",
+   "started": "2026-11-08T17:34:03",
+   "corpus": {
+    "units": 1369944,
+    "questions": 4714,
+    "index": {
+     "T0": {
+      "terms": 1053985,
+      "postings": 117975818,
+      "build_seconds": 79.3
+     },
+     "T1": {
+      "terms": 1053761,
+      "postings": 117975600,
+      "build_seconds": 80.3
+     },
+     "T2": {
+      "terms": 1052335,
+      "postings": 117975365,
+      "build_seconds": 79.8
+     },
+     "T3": {
+      "terms": 1049710,
+      "postings": 117974347,
+      "build_seconds": 80.1
+     },
+     "T4": {
+      "terms": 1049534,
+      "postings": 117974309,
+      "build_seconds": 78.3
+     },
+     "T5": {
+      "terms": 1050412,
+      "postings": 117970520,
+      "build_seconds": 132.8
+     },
+     "T6": {
+      "terms": 981419,
+      "postings": 115811497,
+      "build_seconds": 152.6
+     }
+    },
+    "comparison": {
+     "queries": 4714,
+     "reference": "T0",
+     "arms": {
+      "T0": {
+       "recall": 0.8736,
+       "ndcg": 0.7487,
+       "hit": 0.8751
+      },
+      "T1": {
+       "recall": 0.8736,
+       "ndcg": 0.7482,
+       "hit": 0.8751,
+       "recall_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": -0.0005,
+        "lo": -0.0035,
+        "hi": 0.0026,
+        "p": 0.7677,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "hit_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "T2": {
+       "recall": 0.8736,
+       "ndcg": 0.7511,
+       "hit": 0.8751,
+       "recall_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0025,
+        "lo": -0.0006,
+        "hi": 0.0056,
+        "p": 0.1142,
+        "p_holm": 0.6852,
+        "verdict": "no worse"
+       },
+       "hit_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "T3": {
+       "recall": 0.8736,
+       "ndcg": 0.7489,
+       "hit": 0.8751,
+       "recall_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0002,
+        "lo": -0.0029,
+        "hi": 0.0033,
+        "p": 0.8951,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "hit_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "T4": {
+       "recall": 0.8736,
+       "ndcg": 0.7489,
+       "hit": 0.8751,
+       "recall_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0003,
+        "lo": -0.0029,
+        "hi": 0.0034,
+        "p": 0.8769,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "hit_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "T5": {
+       "recall": 0.8736,
+       "ndcg": 0.7482,
+       "hit": 0.8751,
+       "recall_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": -0.0004,
+        "lo": -0.0036,
+        "hi": 0.0027,
+        "p": 0.777,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "hit_vs_ref": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "T6": {
+       "recall": 0.8711,
+       "ndcg": 0.7461,
+       "hit": 0.8729,
+       "recall_vs_ref": {
+        "mean": -0.0024,
+        "lo": -0.0052,
+        "hi": 0.0002,
+        "p": 0.0963,
+        "p_holm": 0.5781,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": -0.0026,
+        "lo": -0.0064,
+        "hi": 0.0013,
+        "p": 0.1914,
+        "p_holm": 0.9572,
+        "verdict": "no worse"
+       },
+       "hit_vs_ref": {
+        "mean": -0.0021,
+        "lo": -0.0048,
+        "hi": 0.0004,
+        "p": 0.1764,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      }
+     }
+    },
+    "by_family": {
+     "cite:wikipedia->paper": {
+      "T0": {
+       "recall": 0.8033,
+       "ndcg": 0.7053,
+       "hit": 0.8078
+      },
+      "T1": {
+       "recall": 0.8033,
+       "ndcg": 0.7067,
+       "hit": 0.8078
+      },
+      "T2": {
+       "recall": 0.8033,
+       "ndcg": 0.7069,
+       "hit": 0.8078
+      },
+      "T3": {
+       "recall": 0.8033,
+       "ndcg": 0.7059,
+       "hit": 0.8078
+      },
+      "T4": {
+       "recall": 0.8033,
+       "ndcg": 0.7059,
+       "hit": 0.8078
+      },
+      "T5": {
+       "recall": 0.8033,
+       "ndcg": 0.7074,
+       "hit": 0.8078
+      },
+      "T6": {
+       "recall": 0.7973,
+       "ndcg": 0.6972,
+       "hit": 0.8048
+      }
+     },
+     "link:hackernews->wikipedia": {
+      "T0": {
+       "recall": 0.1317,
+       "ndcg": 0.0898,
+       "hit": 0.1429
+      },
+      "T1": {
+       "recall": 0.1317,
+       "ndcg": 0.0898,
+       "hit": 0.1429
+      },
+      "T2": {
+       "recall": 0.1317,
+       "ndcg": 0.0898,
+       "hit": 0.1429
+      },
+      "T3": {
+       "recall": 0.1317,
+       "ndcg": 0.0898,
+       "hit": 0.1429
+      },
+      "T4": {
+       "recall": 0.1317,
+       "ndcg": 0.0898,
+       "hit": 0.1429
+      },
+      "T5": {
+       "recall": 0.1317,
+       "ndcg": 0.0898,
+       "hit": 0.1429
+      },
+      "T6": {
+       "recall": 0.1413,
+       "ndcg": 0.0929,
+       "hit": 0.1524
+      }
+     },
+     "link:stackexchange->wikipedia": {
+      "T0": {
+       "recall": 0.1764,
+       "ndcg": 0.0774,
+       "hit": 0.1862
+      },
+      "T1": {
+       "recall": 0.1764,
+       "ndcg": 0.0774,
+       "hit": 0.1862
+      },
+      "T2": {
+       "recall": 0.1764,
+       "ndcg": 0.0774,
+       "hit": 0.1862
+      },
+      "T3": {
+       "recall": 0.1764,
+       "ndcg": 0.0774,
+       "hit": 0.1862
+      },
+      "T4": {
+       "recall": 0.1764,
+       "ndcg": 0.0774,
+       "hit": 0.1862
+      },
+      "T5": {
+       "recall": 0.1764,
+       "ndcg": 0.0774,
+       "hit": 0.1862
+      },
+      "T6": {
+       "recall": 0.1719,
+       "ndcg": 0.0736,
+       "hit": 0.1832
+      }
+     },
+     "titles:arxiv": {
+      "T0": {
+       "recall": 0.99,
+       "ndcg": 0.8464,
+       "hit": 0.99
+      },
+      "T1": {
+       "recall": 0.99,
+       "ndcg": 0.8495,
+       "hit": 0.99
+      },
+      "T2": {
+       "recall": 0.99,
+       "ndcg": 0.8565,
+       "hit": 0.99
+      },
+      "T3": {
+       "recall": 0.99,
+       "ndcg": 0.8507,
+       "hit": 0.99
+      },
+      "T4": {
+       "recall": 0.99,
+       "ndcg": 0.8527,
+       "hit": 0.99
+      },
+      "T5": {
+       "recall": 0.99,
+       "ndcg": 0.8484,
+       "hit": 0.99
+      },
+      "T6": {
+       "recall": 0.988,
+       "ndcg": 0.8495,
+       "hit": 0.988
+      }
+     },
+     "titles:gutenberg": {
+      "T0": {
+       "recall": 0.9704,
+       "ndcg": 0.9052,
+       "hit": 0.9704
+      },
+      "T1": {
+       "recall": 0.9704,
+       "ndcg": 0.9052,
+       "hit": 0.9704
+      },
+      "T2": {
+       "recall": 0.9704,
+       "ndcg": 0.9052,
+       "hit": 0.9704
+      },
+      "T3": {
+       "recall": 0.9704,
+       "ndcg": 0.9052,
+       "hit": 0.9704
+      },
+      "T4": {
+       "recall": 0.9704,
+       "ndcg": 0.9052,
+       "hit": 0.9704
+      },
+      "T5": {
+       "recall": 0.9704,
+       "ndcg": 0.9052,
+       "hit": 0.9704
+      },
+      "T6": {
+       "recall": 0.9645,
+       "ndcg": 0.8872,
+       "hit": 0.9645
+      }
+     },
+     "titles:hackernews": {
+      "T0": {
+       "recall": 0.994,
+       "ndcg": 0.9793,
+       "hit": 0.994
+      },
+      "T1": {
+       "recall": 0.994,
+       "ndcg": 0.9778,
+       "hit": 0.994
+      },
+      "T2": {
+       "recall": 0.994,
+       "ndcg": 0.9778,
+       "hit": 0.994
+      },
+      "T3": {
+       "recall": 0.994,
+       "ndcg": 0.9793,
+       "hit": 0.994
+      },
+      "T4": {
+       "recall": 0.994,
+       "ndcg": 0.9793,
+       "hit": 0.994
+      },
+      "T5": {
+       "recall": 0.994,
+       "ndcg": 0.9778,
+       "hit": 0.994
+      },
+      "T6": {
+       "recall": 0.994,
+       "ndcg": 0.9763,
+       "hit": 0.994
+      }
+     },
+     "titles:openalex": {
+      "T0": {
+       "recall": 0.968,
+       "ndcg": 0.905,
+       "hit": 0.968
+      },
+      "T1": {
+       "recall": 0.968,
+       "ndcg": 0.9044,
+       "hit": 0.968
+      },
+      "T2": {
+       "recall": 0.968,
+       "ndcg": 0.9081,
+       "hit": 0.968
+      },
+      "T3": {
+       "recall": 0.968,
+       "ndcg": 0.9055,
+       "hit": 0.968
+      },
+      "T4": {
+       "recall": 0.968,
+       "ndcg": 0.904,
+       "hit": 0.968
+      },
+      "T5": {
+       "recall": 0.968,
+       "ndcg": 0.9087,
+       "hit": 0.968
+      },
+      "T6": {
+       "recall": 0.964,
+       "ndcg": 0.9024,
+       "hit": 0.964
+      }
+     },
+     "titles:stackexchange": {
+      "T0": {
+       "recall": 0.962,
+       "ndcg": 0.851,
+       "hit": 0.962
+      },
+      "T1": {
+       "recall": 0.962,
+       "ndcg": 0.851,
+       "hit": 0.962
+      },
+      "T2": {
+       "recall": 0.962,
+       "ndcg": 0.851,
+       "hit": 0.962
+      },
+      "T3": {
+       "recall": 0.962,
+       "ndcg": 0.851,
+       "hit": 0.962
+      },
+      "T4": {
+       "recall": 0.962,
+       "ndcg": 0.851,
+       "hit": 0.962
+      },
+      "T5": {
+       "recall": 0.962,
+       "ndcg": 0.851,
+       "hit": 0.962
+      },
+      "T6": {
+       "recall": 0.952,
+       "ndcg": 0.8474,
+       "hit": 0.952
+      }
+     },
+     "titles:wikipedia": {
+      "T0": {
+       "recall": 0.97,
+       "ndcg": 0.8481,
+       "hit": 0.97
+      },
+      "T1": {
+       "recall": 0.97,
+       "ndcg": 0.8481,
+       "hit": 0.97
+      },
+      "T2": {
+       "recall": 0.97,
+       "ndcg": 0.8481,
+       "hit": 0.97
+      },
+      "T3": {
+       "recall": 0.97,
+       "ndcg": 0.8481,
+       "hit": 0.97
+      },
+      "T4": {
+       "recall": 0.97,
+       "ndcg": 0.8481,
+       "hit": 0.97
+      },
+      "T5": {
+       "recall": 0.97,
+       "ndcg": 0.8481,
+       "hit": 0.97
+      },
+      "T6": {
+       "recall": 0.97,
+       "ndcg": 0.8526,
+       "hit": 0.97
+      }
+     },
+     "twins:arxiv->openalex": {
+      "T0": {
+       "recall": 0.996,
+       "ndcg": 0.7392,
+       "hit": 0.996
+      },
+      "T1": {
+       "recall": 0.996,
+       "ndcg": 0.7284,
+       "hit": 0.996
+      },
+      "T2": {
+       "recall": 0.996,
+       "ndcg": 0.739,
+       "hit": 0.996
+      },
+      "T3": {
+       "recall": 0.996,
+       "ndcg": 0.7321,
+       "hit": 0.996
+      },
+      "T4": {
+       "recall": 0.996,
+       "ndcg": 0.7326,
+       "hit": 0.996
+      },
+      "T5": {
+       "recall": 0.996,
+       "ndcg": 0.7262,
+       "hit": 0.996
+      },
+      "T6": {
+       "recall": 0.996,
+       "ndcg": 0.7232,
+       "hit": 0.996
+      }
+     },
+     "twins:openalex->arxiv": {
+      "T0": {
+       "recall": 0.992,
+       "ndcg": 0.7183,
+       "hit": 0.992
+      },
+      "T1": {
+       "recall": 0.992,
+       "ndcg": 0.7229,
+       "hit": 0.992
+      },
+      "T2": {
+       "recall": 0.992,
+       "ndcg": 0.7292,
+       "hit": 0.992
+      },
+      "T3": {
+       "recall": 0.992,
+       "ndcg": 0.7222,
+       "hit": 0.992
+      },
+      "T4": {
+       "recall": 0.992,
+       "ndcg": 0.7217,
+       "hit": 0.992
+      },
+      "T5": {
+       "recall": 0.992,
+       "ndcg": 0.7216,
+       "hit": 0.992
+      },
+      "T6": {
+       "recall": 0.992,
+       "ndcg": 0.7305,
+       "hit": 0.992
+      }
+     }
+    },
+    "counts": {
+     "units": 1369944,
+     "atoms": 1338585,
+     "T0": {
+      "identity": "runs/raw/lower/nomarks/unicode-17.0.0",
+      "vocabulary": 1053985,
+      "occurrences": 190446636,
+      "t0_terms_merging": 0,
+      "t0_terms_lost_to_merges": 0,
+      "t0_occurrences_changed": 0,
+      "t0_occurrences_changed_share": 0.0
+     },
+     "T1": {
+      "identity": "runs/NFC/lower/nomarks/unicode-17.0.0",
+      "vocabulary": 1053761,
+      "occurrences": 190445888,
+      "t0_terms_merging": 142,
+      "t0_terms_lost_to_merges": 71,
+      "t0_occurrences_changed": 90,
+      "t0_occurrences_changed_share": 0.0
+     },
+     "T2": {
+      "identity": "runs/NFC/casefold/nomarks/unicode-17.0.0",
+      "vocabulary": 1052335,
+      "occurrences": 190445886,
+      "t0_terms_merging": 2964,
+      "t0_terms_lost_to_merges": 1499,
+      "t0_occurrences_changed": 25492,
+      "t0_occurrences_changed_share": 0.000134
+     },
+     "T3": {
+      "identity": "runs/NFKC/lower/nomarks/unicode-17.0.0",
+      "vocabulary": 1049710,
+      "occurrences": 190449896,
+      "t0_terms_merging": 6862,
+      "t0_terms_lost_to_merges": 3796,
+      "t0_occurrences_changed": 36263,
+      "t0_occurrences_changed_share": 0.00019
+     },
+     "T4": {
+      "identity": "runs/NFKC/casefold/nomarks/unicode-17.0.0",
+      "vocabulary": 1049534,
+      "occurrences": 190449894,
+      "t0_terms_merging": 7211,
+      "t0_terms_lost_to_merges": 3974,
+      "t0_occurrences_changed": 53042,
+      "t0_occurrences_changed_share": 0.000279
+     },
+     "T5": {
+      "identity": "runs/NFKC/casefold/marks/unicode-17.0.0",
+      "vocabulary": 1050412,
+      "occurrences": 190441585,
+      "t0_terms_merging": 7211,
+      "t0_terms_lost_to_merges": 3974,
+      "t0_occurrences_changed": 53042,
+      "t0_occurrences_changed_share": 0.000279
+     },
+     "T6": {
+      "identity": "runs/NFKC/casefold/marks/unicode-17.0.0+s-stem",
+      "vocabulary": 981419,
+      "occurrences": 190441585,
+      "t0_terms_merging": 144181,
+      "t0_terms_lost_to_merges": 72983,
+      "t0_occurrences_changed": 16989002,
+      "t0_occurrences_changed_share": 0.089206
+     },
+     "atoms_coinciding": {
+      "NFC": 0,
+      "NFKC": 24
+     },
+     "atoms_not_nfc": 574,
+     "atoms_not_nfkc": 18931,
+     "atoms_with_marks": 2086
+    }
+   },
+   "finished": "2026-11-08T18:13:11"
+  },
+  "corpus-tokens-ascii": {
+   "experiment": "corpus-tokens",
+   "started": "2026-11-08T18:13:18",
+   "corpus": {
+    "units": 1369944,
+    "questions": 4714,
+    "index": {
+     "T0": {
+      "terms": 1053985,
+      "postings": 117975818,
+      "build_seconds": 75.1
+     },
+     "TA": {
+      "terms": 926483,
+      "postings": 117896661,
+      "build_seconds": 70.2
+     }
+    },
+    "comparison": {
+     "queries": 4714,
+     "reference": "T0",
+     "arms": {
+      "T0": {
+       "recall": 0.8736,
+       "ndcg": 0.7487,
+       "hit": 0.8751
+      },
+      "TA": {
+       "recall": 0.8716,
+       "ndcg": 0.7496,
+       "hit": 0.8731,
+       "recall_vs_ref": {
+        "mean": -0.0019,
+        "lo": -0.0034,
+        "hi": -0.0004,
+        "p": 0.0127,
+        "p_holm": 0.0127,
+        "verdict": "worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0009,
+        "lo": -0.0025,
+        "hi": 0.0044,
+        "p": 0.5835,
+        "p_holm": 0.5835,
+        "verdict": "no worse"
+       },
+       "hit_vs_ref": {
+        "mean": -0.0019,
+        "lo": -0.0034,
+        "hi": -0.0004,
+        "p": 0.0127,
+        "p_holm": 0.0127,
+        "verdict": "worse"
+       }
+      }
+     }
+    },
+    "by_family": {
+     "cite:wikipedia->paper": {
+      "T0": {
+       "recall": 0.8033,
+       "ndcg": 0.7053,
+       "hit": 0.8078
+      },
+      "TA": {
+       "recall": 0.8063,
+       "ndcg": 0.7083,
+       "hit": 0.8108
+      }
+     },
+     "link:hackernews->wikipedia": {
+      "T0": {
+       "recall": 0.1317,
+       "ndcg": 0.0898,
+       "hit": 0.1429
+      },
+      "TA": {
+       "recall": 0.1317,
+       "ndcg": 0.0898,
+       "hit": 0.1429
+      }
+     },
+     "link:stackexchange->wikipedia": {
+      "T0": {
+       "recall": 0.1764,
+       "ndcg": 0.0774,
+       "hit": 0.1862
+      },
+      "TA": {
+       "recall": 0.1764,
+       "ndcg": 0.0774,
+       "hit": 0.1862
+      }
+     },
+     "titles:arxiv": {
+      "T0": {
+       "recall": 0.99,
+       "ndcg": 0.8464,
+       "hit": 0.99
+      },
+      "TA": {
+       "recall": 0.99,
+       "ndcg": 0.8554,
+       "hit": 0.99
+      }
+     },
+     "titles:gutenberg": {
+      "T0": {
+       "recall": 0.9704,
+       "ndcg": 0.9052,
+       "hit": 0.9704
+      },
+      "TA": {
+       "recall": 0.9704,
+       "ndcg": 0.9053,
+       "hit": 0.9704
+      }
+     },
+     "titles:hackernews": {
+      "T0": {
+       "recall": 0.994,
+       "ndcg": 0.9793,
+       "hit": 0.994
+      },
+      "TA": {
+       "recall": 0.994,
+       "ndcg": 0.9759,
+       "hit": 0.994
+      }
+     },
+     "titles:openalex": {
+      "T0": {
+       "recall": 0.968,
+       "ndcg": 0.905,
+       "hit": 0.968
+      },
+      "TA": {
+       "recall": 0.952,
+       "ndcg": 0.895,
+       "hit": 0.952
+      }
+     },
+     "titles:stackexchange": {
+      "T0": {
+       "recall": 0.962,
+       "ndcg": 0.851,
+       "hit": 0.962
+      },
+      "TA": {
+       "recall": 0.958,
+       "ndcg": 0.8491,
+       "hit": 0.958
+      }
+     },
+     "titles:wikipedia": {
+      "T0": {
+       "recall": 0.97,
+       "ndcg": 0.8481,
+       "hit": 0.97
+      },
+      "TA": {
+       "recall": 0.97,
+       "ndcg": 0.8481,
+       "hit": 0.97
+      }
+     },
+     "twins:arxiv->openalex": {
+      "T0": {
+       "recall": 0.996,
+       "ndcg": 0.7392,
+       "hit": 0.996
+      },
+      "TA": {
+       "recall": 0.996,
+       "ndcg": 0.7317,
+       "hit": 0.996
+      }
+     },
+     "twins:openalex->arxiv": {
+      "T0": {
+       "recall": 0.992,
+       "ndcg": 0.7183,
+       "hit": 0.992
+      },
+      "TA": {
+       "recall": 0.992,
+       "ndcg": 0.7391,
+       "hit": 0.992
+      }
+     }
+    },
+    "counts": null
+   },
+   "finished": "2026-11-08T18:21:17"
+  },
+  "chunks": {
+   "experiment": "chunks",
+   "started": "2026-11-08T17:31:17",
+   "nfcorpus": {
+    "collection": "nfcorpus",
+    "documents": 3633,
+    "costs": {
+     "C600": {
+      "chunks": 14381,
+      "vectors": 14213,
+      "bytes_float16": 21831168,
+      "tokens": 1526603,
+      "tokens_per_input": {
+       "p50": 126.0,
+       "p90": 178.0,
+       "max": 369.0,
+       "mean": 107.4
+      }
+     },
+     "C1200": {
+      "chunks": 9336,
+      "vectors": 9228,
+      "bytes_float16": 14174208,
+      "tokens": 1457076,
+      "tokens_per_input": {
+       "p50": 151.0,
+       "p90": 310.0,
+       "max": 625.0,
+       "mean": 157.9
+      }
+     },
+     "C2400": {
+      "chunks": 3908,
+      "vectors": 3866,
+      "bytes_float16": 5938176,
+      "tokens": 1264093,
+      "tokens_per_input": {
+       "p50": 334.0,
+       "p90": 492.0,
+       "max": 864.0,
+       "mean": 327.0
+      }
+     },
+     "C4800": {
+      "chunks": 3651,
+      "vectors": 3611,
+      "bytes_float16": 5546496,
+      "tokens": 1252030,
+      "tokens_per_input": {
+       "p50": 343.0,
+       "p90": 499.0,
+       "max": 1454.0,
+       "mean": 346.7
+      }
+     },
+     "K128": {
+      "chunks": 14406,
+      "vectors": 14237,
+      "bytes_float16": 21868032,
+      "tokens": 1514448,
+      "tokens_per_input": {
+       "p50": 146.0,
+       "p90": 154.0,
+       "max": 157.0,
+       "mean": 106.4
+      }
+     },
+     "K256": {
+      "chunks": 9044,
+      "vectors": 8934,
+      "bytes_float16": 13722624,
+      "tokens": 1433748,
+      "tokens_per_input": {
+       "p50": 165.0,
+       "p90": 288.0,
+       "max": 300.0,
+       "mean": 160.5
+      }
+     },
+     "K512": {
+      "chunks": 4132,
+      "vectors": 4086,
+      "bytes_float16": 6276096,
+      "tokens": 1274688,
+      "tokens_per_input": {
+       "p50": 325.0,
+       "p90": 493.0,
+       "max": 586.0,
+       "mean": 312.0
+      }
+     },
+     "K1024": {
+      "chunks": 3653,
+      "vectors": 3613,
+      "bytes_float16": 5549568,
+      "tokens": 1252076,
+      "tokens_per_input": {
+       "p50": 343.0,
+       "p90": 499.0,
+       "max": 1162.0,
+       "mean": 346.5
+      }
+     }
+    },
+    "comparison": {
+     "nfcorpus": {
+      "queries": 323,
+      "reference": "C1200",
+      "arms": {
+       "C600": {
+        "recall": 0.1604,
+        "ndcg": 0.3269,
+        "recall_vs_ref": {
+         "mean": -0.0051,
+         "lo": -0.0159,
+         "hi": 0.0057,
+         "p": 0.3775,
+         "p_holm": 1.0,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0013,
+         "lo": -0.0087,
+         "hi": 0.0113,
+         "p": 0.7972,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        }
+       },
+       "C1200": {
+        "recall": 0.1656,
+        "ndcg": 0.3256
+       },
+       "C2400": {
+        "recall": 0.17,
+        "ndcg": 0.3469,
+        "recall_vs_ref": {
+         "mean": 0.0045,
+         "lo": -0.0092,
+         "hi": 0.0183,
+         "p": 0.5398,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0213,
+         "lo": 0.0087,
+         "hi": 0.034,
+         "p": 0.0011,
+         "p_holm": 0.0057,
+         "verdict": "better"
+        }
+       },
+       "C4800": {
+        "recall": 0.1718,
+        "ndcg": 0.354,
+        "recall_vs_ref": {
+         "mean": 0.0062,
+         "lo": -0.0079,
+         "hi": 0.0204,
+         "p": 0.3988,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0284,
+         "lo": 0.0146,
+         "hi": 0.0423,
+         "p": 0.0003,
+         "p_holm": 0.0021,
+         "verdict": "better"
+        }
+       },
+       "K128": {
+        "recall": 0.159,
+        "ndcg": 0.3264,
+        "recall_vs_ref": {
+         "mean": -0.0065,
+         "lo": -0.0174,
+         "hi": 0.0044,
+         "p": 0.2628,
+         "p_holm": 1.0,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0008,
+         "lo": -0.009,
+         "hi": 0.0106,
+         "p": 0.87,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        }
+       },
+       "K256": {
+        "recall": 0.1618,
+        "ndcg": 0.3216,
+        "recall_vs_ref": {
+         "mean": -0.0037,
+         "lo": -0.0075,
+         "hi": -0.0,
+         "p": 0.0497,
+         "p_holm": 0.3479,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.004,
+         "lo": -0.0097,
+         "hi": 0.0017,
+         "p": 0.1686,
+         "p_holm": 0.5058,
+         "verdict": "no worse"
+        }
+       },
+       "K512": {
+        "recall": 0.1687,
+        "ndcg": 0.3462,
+        "recall_vs_ref": {
+         "mean": 0.0031,
+         "lo": -0.0105,
+         "hi": 0.0168,
+         "p": 0.6686,
+         "p_holm": 1.0,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0205,
+         "lo": 0.0081,
+         "hi": 0.033,
+         "p": 0.0015,
+         "p_holm": 0.006,
+         "verdict": "better"
+        }
+       },
+       "K1024": {
+        "recall": 0.1718,
+        "ndcg": 0.354,
+        "recall_vs_ref": {
+         "mean": 0.0062,
+         "lo": -0.0079,
+         "hi": 0.0204,
+         "p": 0.3988,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0284,
+         "lo": 0.0146,
+         "hi": 0.0423,
+         "p": 0.0003,
+         "p_holm": 0.0021,
+         "verdict": "better"
+        }
+       }
+      }
+     }
+    },
+    "contention": {
+     "slot_samples": 482,
+     "slots_max": 4,
+     "other_caller_share": null,
+     "load_1min": [
+      3.0,
+      3.76
+     ]
+    },
+    "embedder": {
+     "requests": 629,
+     "texts": 39950,
+     "cut": 0,
+     "probes": 629,
+     "probes_with_another_caller": 327,
+     "seconds": 2388.1
+    }
+   },
+   "W": {
+    "collection": "W",
+    "documents": 600,
+    "costs": {
+     "C600": {
+      "chunks": 47447,
+      "vectors": 47446,
+      "bytes_float16": 72877056,
+      "tokens": 5482221,
+      "tokens_per_input": {
+       "p50": 122.0,
+       "p90": 159.0,
+       "max": 392.0,
+       "mean": 115.5
+      }
+     },
+     "C1200": {
+      "chunks": 25399,
+      "vectors": 25398,
+      "bytes_float16": 39011328,
+      "tokens": 5292067,
+      "tokens_per_input": {
+       "p50": 210.0,
+       "p90": 275.0,
+       "max": 728.0,
+       "mean": 208.4
+      }
+     },
+     "C2400": {
+      "chunks": 11943,
+      "vectors": 11943,
+      "bytes_float16": 18344448,
+      "tokens": 5103040,
+      "tokens_per_input": {
+       "p50": 435.0,
+       "p90": 519.0,
+       "max": 1350.0,
+       "mean": 427.3
+      }
+     },
+     "C4800": {
+      "chunks": 5572,
+      "vectors": 5572,
+      "bytes_float16": 8558592,
+      "tokens": 4959528,
+      "tokens_per_input": {
+       "p50": 914.0,
+       "p90": 1048.0,
+       "max": 2177.0,
+       "mean": 890.1
+      }
+     },
+     "K128": {
+      "chunks": 46225,
+      "vectors": 46223,
+      "bytes_float16": 70998528,
+      "tokens": 5444028,
+      "tokens_per_input": {
+       "p50": 126.0,
+       "p90": 154.0,
+       "max": 157.0,
+       "mean": 117.8
+      }
+     },
+     "K256": {
+      "chunks": 24645,
+      "vectors": 24644,
+      "bytes_float16": 37853184,
+      "tokens": 5280664,
+      "tokens_per_input": {
+       "p50": 220.0,
+       "p90": 273.0,
+       "max": 301.0,
+       "mean": 214.3
+      }
+     },
+     "K512": {
+      "chunks": 11570,
+      "vectors": 11570,
+      "bytes_float16": 17771520,
+      "tokens": 5095360,
+      "tokens_per_input": {
+       "p50": 459.0,
+       "p90": 512.0,
+       "max": 588.0,
+       "mean": 440.4
+      }
+     },
+     "K1024": {
+      "chunks": 5434,
+      "vectors": 5434,
+      "bytes_float16": 8346624,
+      "tokens": 4957262,
+      "tokens_per_input": {
+       "p50": 962.0,
+       "p90": 1022.0,
+       "max": 1163.0,
+       "mean": 912.3
+      }
+     }
+    },
+    "comparison": {
+     "link": {
+      "queries": 543,
+      "reference": "C1200",
+      "arms": {
+       "C600": {
+        "recall": 0.5646,
+        "ndcg": 0.4413,
+        "recall_vs_ref": {
+         "mean": -0.0376,
+         "lo": -0.0617,
+         "hi": -0.0135,
+         "p": 0.0022,
+         "p_holm": 0.0154,
+         "verdict": "worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0225,
+         "lo": -0.0395,
+         "hi": -0.0056,
+         "p": 0.009,
+         "p_holm": 0.036,
+         "verdict": "worse"
+        }
+       },
+       "C1200": {
+        "recall": 0.6022,
+        "ndcg": 0.4639
+       },
+       "C2400": {
+        "recall": 0.6014,
+        "ndcg": 0.4951,
+        "recall_vs_ref": {
+         "mean": -0.0007,
+         "lo": -0.0212,
+         "hi": 0.0197,
+         "p": 0.9467,
+         "p_holm": 1.0,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0312,
+         "lo": 0.0161,
+         "hi": 0.0464,
+         "p": 0.0,
+         "p_holm": 0.0003,
+         "verdict": "better"
+        }
+       },
+       "C4800": {
+        "recall": 0.5976,
+        "ndcg": 0.4864,
+        "recall_vs_ref": {
+         "mean": -0.0046,
+         "lo": -0.0269,
+         "hi": 0.0177,
+         "p": 0.6929,
+         "p_holm": 1.0,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0225,
+         "lo": 0.0067,
+         "hi": 0.0383,
+         "p": 0.0045,
+         "p_holm": 0.0273,
+         "verdict": "better"
+        }
+       },
+       "K128": {
+        "recall": 0.5869,
+        "ndcg": 0.4457,
+        "recall_vs_ref": {
+         "mean": -0.0153,
+         "lo": -0.0389,
+         "hi": 0.0083,
+         "p": 0.2103,
+         "p_holm": 1.0,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0182,
+         "lo": -0.0336,
+         "hi": -0.0028,
+         "p": 0.0209,
+         "p_holm": 0.0419,
+         "verdict": "worse"
+        }
+       },
+       "K256": {
+        "recall": 0.6046,
+        "ndcg": 0.4695,
+        "recall_vs_ref": {
+         "mean": 0.0024,
+         "lo": -0.0165,
+         "hi": 0.0214,
+         "p": 0.8136,
+         "p_holm": 1.0,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0056,
+         "lo": -0.0066,
+         "hi": 0.0178,
+         "p": 0.3737,
+         "p_holm": 0.3737,
+         "verdict": "no worse"
+        }
+       },
+       "K512": {
+        "recall": 0.6039,
+        "ndcg": 0.4846,
+        "recall_vs_ref": {
+         "mean": 0.0017,
+         "lo": -0.0184,
+         "hi": 0.0218,
+         "p": 0.8739,
+         "p_holm": 1.0,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0207,
+         "lo": 0.0064,
+         "hi": 0.035,
+         "p": 0.0051,
+         "p_holm": 0.0273,
+         "verdict": "better"
+        }
+       },
+       "K1024": {
+        "recall": 0.6097,
+        "ndcg": 0.4842,
+        "recall_vs_ref": {
+         "mean": 0.0076,
+         "lo": -0.0169,
+         "hi": 0.0318,
+         "p": 0.542,
+         "p_holm": 1.0,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0203,
+         "lo": 0.0046,
+         "hi": 0.0359,
+         "p": 0.0108,
+         "p_holm": 0.036,
+         "verdict": "better"
+        }
+       }
+      }
+     },
+     "title": {
+      "queries": 600,
+      "reference": "C1200",
+      "arms": {
+       "C600": {
+        "recall": 1.0,
+        "ndcg": 0.9614,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0333,
+         "lo": -0.0436,
+         "hi": -0.023,
+         "p": 0.0,
+         "p_holm": 0.0003,
+         "verdict": "worse"
+        }
+       },
+       "C1200": {
+        "recall": 1.0,
+        "ndcg": 0.9947
+       },
+       "C2400": {
+        "recall": 1.0,
+        "ndcg": 0.9982,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0034,
+         "lo": -0.0,
+         "hi": 0.0072,
+         "p": 0.1489,
+         "p_holm": 0.5958,
+         "verdict": "no worse"
+        }
+       },
+       "C4800": {
+        "recall": 1.0,
+        "ndcg": 0.9982,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0034,
+         "lo": -0.0,
+         "hi": 0.0072,
+         "p": 0.1497,
+         "p_holm": 0.5958,
+         "verdict": "no worse"
+        }
+       },
+       "K128": {
+        "recall": 0.9983,
+        "ndcg": 0.9638,
+        "recall_vs_ref": {
+         "mean": -0.0017,
+         "lo": -0.0036,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0309,
+         "lo": -0.0401,
+         "hi": -0.0217,
+         "p": 0.0,
+         "p_holm": 0.0003,
+         "verdict": "worse"
+        }
+       },
+       "K256": {
+        "recall": 1.0,
+        "ndcg": 0.9938,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0009,
+         "lo": -0.0036,
+         "hi": 0.0018,
+         "p": 0.625,
+         "p_holm": 0.625,
+         "verdict": "no worse"
+        }
+       },
+       "K512": {
+        "recall": 1.0,
+        "ndcg": 0.9982,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0034,
+         "lo": -0.0,
+         "hi": 0.0069,
+         "p": 0.1104,
+         "p_holm": 0.552,
+         "verdict": "no worse"
+        }
+       },
+       "K1024": {
+        "recall": 1.0,
+        "ndcg": 0.9982,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0034,
+         "lo": -0.0,
+         "hi": 0.0072,
+         "p": 0.1497,
+         "p_holm": 0.5958,
+         "verdict": "no worse"
+        }
+       }
+      }
+     }
+    },
+    "contention": {
+     "slot_samples": 2422,
+     "slots_max": 4,
+     "other_caller_share": null,
+     "load_1min": [
+      4.17,
+      2.55
+     ]
+    },
+    "embedder": {
+     "requests": 3411,
+     "texts": 216824,
+     "cut": 1,
+     "probes": 3421,
+     "probes_with_another_caller": 333,
+     "seconds": 14368.2
+    }
+   },
+   "finished": "2026-11-08T21:36:43"
+  },
+  "context": {
+   "experiment": "context",
+   "started": "2026-11-08T22:12:41",
+   "scifact": {
+    "collection": "scifact",
+    "contention": {
+     "slot_samples": 1,
+     "slots_max": 0,
+     "other_caller_share": null,
+     "load_1min": [
+      1.83,
+      1.76
+     ]
+    },
+    "L_agreement_one_chunk_docs": {
+     "documents": 300,
+     "median": 0.9918097257614136,
+     "min": 0.9709754586219788
+    },
+    "LT_agreement_one_chunk_docs": {
+     "documents": 300,
+     "median": 0.9828746318817139,
+     "min": 0.9301369786262512
+    },
+    "L1_agreement_one_chunk_docs": {
+     "documents": 300,
+     "median": 0.9918097257614136,
+     "min": 0.9709754586219788
+    },
+    "costs": {
+     "N": {
+      "chunks": 11987,
+      "vectors": 11986,
+      "bytes_float16": 18410496,
+      "tokens": 1885991,
+      "tokens_per_input": {
+       "p50": 159.0,
+       "p90": 296.0,
+       "max": 679.0,
+       "mean": 157.3
+      }
+     },
+     "T": {
+      "chunks": 11987,
+      "vectors": 11986,
+      "bytes_float16": 18410496,
+      "tokens": 2105201,
+      "tokens_per_input": {
+       "p50": 176.0,
+       "p90": 318.0,
+       "max": 698.0,
+       "mean": 175.6
+      }
+     },
+     "L": {
+      "chunks": 11987,
+      "vectors": 11986,
+      "bytes_float16": 18410496,
+      "documents": 0,
+      "windows": 0,
+      "tokens": 0
+     },
+     "LT": {
+      "chunks": 11987,
+      "vectors": 11986,
+      "bytes_float16": 18410496,
+      "documents": 0,
+      "windows": 0,
+      "tokens": 0
+     },
+     "L1": {
+      "chunks": 11987,
+      "vectors": 11986,
+      "bytes_float16": 18410496,
+      "documents": 0,
+      "windows": 0,
+      "tokens": 0
+     }
+    },
+    "comparison": {
+     "scifact": {
+      "queries": 300,
+      "reference": "N",
+      "arms": {
+       "N": {
+        "recall": 0.8836,
+        "ndcg": 0.7918
+       },
+       "T": {
+        "recall": 0.9069,
+        "ndcg": 0.8208,
+        "recall_vs_ref": {
+         "mean": 0.0233,
+         "lo": 0.0052,
+         "hi": 0.0429,
+         "p": 0.0321,
+         "p_holm": 0.0642,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0289,
+         "lo": 0.0106,
+         "hi": 0.0473,
+         "p": 0.0015,
+         "p_holm": 0.003,
+         "verdict": "better"
+        }
+       },
+       "L": {
+        "recall": 0.9259,
+        "ndcg": 0.8385,
+        "recall_vs_ref": {
+         "mean": 0.0423,
+         "lo": 0.0199,
+         "hi": 0.065,
+         "p": 0.0003,
+         "p_holm": 0.001,
+         "verdict": "better"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0467,
+         "lo": 0.0277,
+         "hi": 0.0656,
+         "p": 0.0,
+         "p_holm": 0.0002,
+         "verdict": "better"
+        }
+       },
+       "LT": {
+        "recall": 0.9062,
+        "ndcg": 0.8236,
+        "recall_vs_ref": {
+         "mean": 0.0227,
+         "lo": -0.0,
+         "hi": 0.0448,
+         "p": 0.0537,
+         "p_holm": 0.0642,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0318,
+         "lo": 0.0076,
+         "hi": 0.056,
+         "p": 0.0103,
+         "p_holm": 0.0103,
+         "verdict": "better"
+        }
+       },
+       "L1": {
+        "recall": 0.9203,
+        "ndcg": 0.8315,
+        "recall_vs_ref": {
+         "mean": 0.0368,
+         "lo": 0.0158,
+         "hi": 0.0576,
+         "p": 0.0002,
+         "p_holm": 0.001,
+         "verdict": "better"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0396,
+         "lo": 0.022,
+         "hi": 0.0571,
+         "p": 0.0,
+         "p_holm": 0.0002,
+         "verdict": "better"
+        }
+       }
+      }
+     }
+    },
+    "embedder": {
+     "requests": 0,
+     "texts": 0,
+     "cut": 0,
+     "probes": 0,
+     "probes_with_another_caller": 0,
+     "seconds": 0.0
+    }
+   },
+   "nfcorpus": {
+    "collection": "nfcorpus",
+    "contention": {
+     "slot_samples": 1,
+     "slots_max": 0,
+     "other_caller_share": null,
+     "load_1min": [
+      1.59,
+      1.59
+     ]
+    },
+    "L_agreement_one_chunk_docs": {
+     "documents": 300,
+     "median": 0.9896417260169983,
+     "min": 0.9493874311447144
+    },
+    "LT_agreement_one_chunk_docs": {
+     "documents": 300,
+     "median": 0.9808222055435181,
+     "min": 0.8992155194282532
+    },
+    "L1_agreement_one_chunk_docs": {
+     "documents": 300,
+     "median": 0.9896417260169983,
+     "min": 0.9493874311447144
+    },
+    "costs": {
+     "N": {
+      "chunks": 9336,
+      "vectors": 9228,
+      "bytes_float16": 14174208,
+      "tokens": 1457076,
+      "tokens_per_input": {
+       "p50": 151.0,
+       "p90": 310.0,
+       "max": 625.0,
+       "mean": 157.9
+      }
+     },
+     "T": {
+      "chunks": 9336,
+      "vectors": 9228,
+      "bytes_float16": 14174208,
+      "tokens": 1615987,
+      "tokens_per_input": {
+       "p50": 167.0,
+       "p90": 330.0,
+       "max": 654.0,
+       "mean": 175.1
+      }
+     },
+     "L": {
+      "chunks": 9336,
+      "vectors": 9228,
+      "bytes_float16": 14174208,
+      "documents": 0,
+      "windows": 0,
+      "tokens": 0
+     },
+     "LT": {
+      "chunks": 9336,
+      "vectors": 9228,
+      "bytes_float16": 14174208,
+      "documents": 0,
+      "windows": 0,
+      "tokens": 0
+     },
+     "L1": {
+      "chunks": 9336,
+      "vectors": 9228,
+      "bytes_float16": 14174208,
+      "documents": 0,
+      "windows": 0,
+      "tokens": 0
+     }
+    },
+    "comparison": {
+     "nfcorpus": {
+      "queries": 323,
+      "reference": "N",
+      "arms": {
+       "N": {
+        "recall": 0.1656,
+        "ndcg": 0.3256
+       },
+       "T": {
+        "recall": 0.1771,
+        "ndcg": 0.3642,
+        "recall_vs_ref": {
+         "mean": 0.0116,
+         "lo": -0.0013,
+         "hi": 0.0245,
+         "p": 0.0829,
+         "p_holm": 0.3318,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0385,
+         "lo": 0.0252,
+         "hi": 0.0519,
+         "p": 0.0,
+         "p_holm": 0.0002,
+         "verdict": "better"
+        }
+       },
+       "L": {
+        "recall": 0.1718,
+        "ndcg": 0.3419,
+        "recall_vs_ref": {
+         "mean": 0.0062,
+         "lo": -0.0075,
+         "hi": 0.0199,
+         "p": 0.3902,
+         "p_holm": 0.7804,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0163,
+         "lo": 0.0036,
+         "hi": 0.0291,
+         "p": 0.0116,
+         "p_holm": 0.0232,
+         "verdict": "better"
+        }
+       },
+       "LT": {
+        "recall": 0.1711,
+        "ndcg": 0.3404,
+        "recall_vs_ref": {
+         "mean": 0.0055,
+         "lo": -0.0112,
+         "hi": 0.0224,
+         "p": 0.524,
+         "p_holm": 0.7804,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0148,
+         "lo": -0.0014,
+         "hi": 0.0309,
+         "p": 0.0732,
+         "p_holm": 0.0732,
+         "verdict": "no worse"
+        }
+       },
+       "L1": {
+        "recall": 0.1745,
+        "ndcg": 0.3559,
+        "recall_vs_ref": {
+         "mean": 0.009,
+         "lo": -0.0044,
+         "hi": 0.0223,
+         "p": 0.2001,
+         "p_holm": 0.6003,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0303,
+         "lo": 0.017,
+         "hi": 0.0435,
+         "p": 0.0,
+         "p_holm": 0.0002,
+         "verdict": "better"
+        }
+       }
+      }
+     }
+    },
+    "embedder": {
+     "requests": 0,
+     "texts": 0,
+     "cut": 0,
+     "probes": 0,
+     "probes_with_another_caller": 0,
+     "seconds": 0.0
+    }
+   },
+   "W": {
+    "collection": "W",
+    "contention": {
+     "slot_samples": 1,
+     "slots_max": 0,
+     "other_caller_share": null,
+     "load_1min": [
+      1.64,
+      1.64
+     ]
+    },
+    "L_agreement_one_chunk_docs": {},
+    "LT_agreement_one_chunk_docs": {},
+    "L1_agreement_one_chunk_docs": {},
+    "costs": {
+     "N": {
+      "chunks": 25399,
+      "vectors": 25398,
+      "bytes_float16": 39011328,
+      "tokens": 5292067,
+      "tokens_per_input": {
+       "p50": 210.0,
+       "p90": 275.0,
+       "max": 728.0,
+       "mean": 208.4
+      }
+     },
+     "T": {
+      "chunks": 25399,
+      "vectors": 25399,
+      "bytes_float16": 39012864,
+      "tokens": 5335036,
+      "tokens_per_input": {
+       "p50": 212.0,
+       "p90": 277.0,
+       "max": 730.0,
+       "mean": 210.0
+      }
+     },
+     "L": {
+      "chunks": 25399,
+      "vectors": 25398,
+      "bytes_float16": 39011328,
+      "documents": 0,
+      "windows": 0,
+      "tokens": 0
+     },
+     "LT": {
+      "chunks": 25399,
+      "vectors": 25398,
+      "bytes_float16": 39011328,
+      "documents": 0,
+      "windows": 0,
+      "tokens": 0
+     },
+     "L1": {
+      "chunks": 25399,
+      "vectors": 25398,
+      "bytes_float16": 39011328,
+      "documents": 0,
+      "windows": 0,
+      "tokens": 0
+     }
+    },
+    "comparison": {
+     "link": {
+      "queries": 543,
+      "reference": "N",
+      "arms": {
+       "N": {
+        "recall": 0.6022,
+        "ndcg": 0.4639
+       },
+       "T": {
+        "recall": 0.5927,
+        "ndcg": 0.4809,
+        "recall_vs_ref": {
+         "mean": -0.0095,
+         "lo": -0.0293,
+         "hi": 0.0104,
+         "p": 0.3528,
+         "p_holm": 0.3528,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.017,
+         "lo": 0.0036,
+         "hi": 0.0305,
+         "p": 0.0127,
+         "p_holm": 0.0381,
+         "verdict": "better"
+        }
+       },
+       "L": {
+        "recall": 0.5695,
+        "ndcg": 0.4501,
+        "recall_vs_ref": {
+         "mean": -0.0327,
+         "lo": -0.0567,
+         "hi": -0.0087,
+         "p": 0.0077,
+         "p_holm": 0.0231,
+         "verdict": "worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0137,
+         "lo": -0.0305,
+         "hi": 0.0031,
+         "p": 0.1092,
+         "p_holm": 0.2184,
+         "verdict": "undecided"
+        }
+       },
+       "LT": {
+        "recall": 0.557,
+        "ndcg": 0.4363,
+        "recall_vs_ref": {
+         "mean": -0.0451,
+         "lo": -0.0714,
+         "hi": -0.0187,
+         "p": 0.0008,
+         "p_holm": 0.0034,
+         "verdict": "worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0276,
+         "lo": -0.0446,
+         "hi": -0.0105,
+         "p": 0.0017,
+         "p_holm": 0.0068,
+         "verdict": "worse"
+        }
+       },
+       "L1": {
+        "recall": 0.5901,
+        "ndcg": 0.4576,
+        "recall_vs_ref": {
+         "mean": -0.0121,
+         "lo": -0.0275,
+         "hi": 0.0032,
+         "p": 0.1287,
+         "p_holm": 0.2575,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0062,
+         "lo": -0.0164,
+         "hi": 0.0038,
+         "p": 0.2254,
+         "p_holm": 0.2254,
+         "verdict": "undecided"
+        }
+       }
+      }
+     },
+     "title": {
+      "queries": 600,
+      "reference": "N",
+      "arms": {
+       "N": {
+        "recall": 1.0,
+        "ndcg": 0.9947
+       },
+       "T": {
+        "recall": 1.0,
+        "ndcg": 0.9994,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0046,
+         "lo": 0.0013,
+         "hi": 0.0079,
+         "p": 0.008,
+         "p_holm": 0.0161,
+         "verdict": "better"
+        }
+       },
+       "L": {
+        "recall": 1.0,
+        "ndcg": 0.9836,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0111,
+         "lo": -0.0183,
+         "hi": -0.0039,
+         "p": 0.0022,
+         "p_holm": 0.0066,
+         "verdict": "worse"
+        }
+       },
+       "LT": {
+        "recall": 1.0,
+        "ndcg": 0.9801,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0147,
+         "lo": -0.0225,
+         "hi": -0.0069,
+         "p": 0.0001,
+         "p_holm": 0.0006,
+         "verdict": "worse"
+        }
+       },
+       "L1": {
+        "recall": 1.0,
+        "ndcg": 0.9949,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0001,
+         "lo": -0.0034,
+         "hi": 0.0037,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        }
+       }
+      }
+     }
+    },
+    "embedder": {
+     "requests": 0,
+     "texts": 0,
+     "cut": 0,
+     "probes": 0,
+     "probes_with_another_caller": 0,
+     "seconds": 0.0
+    }
+   },
+   "finished": "2026-11-08T22:14:19"
+  },
+  "context-nt": {
+   "experiment": "context",
+   "started": "2026-11-08T21:36:46",
+   "scifact": {
+    "collection": "scifact",
+    "contention": {
+     "slot_samples": 152,
+     "slots_max": 4,
+     "other_caller_share": null,
+     "load_1min": [
+      2.75,
+      2.5
+     ]
+    },
+    "costs": {
+     "N": {
+      "chunks": 11987,
+      "vectors": 11986,
+      "bytes_float16": 18410496,
+      "tokens": 1885991,
+      "tokens_per_input": {
+       "p50": 159.0,
+       "p90": 296.0,
+       "max": 679.0,
+       "mean": 157.3
+      }
+     },
+     "T": {
+      "chunks": 11987,
+      "vectors": 11986,
+      "bytes_float16": 18410496,
+      "tokens": 2105201,
+      "tokens_per_input": {
+       "p50": 176.0,
+       "p90": 318.0,
+       "max": 698.0,
+       "mean": 175.6
+      }
+     }
+    },
+    "comparison": {
+     "scifact": {
+      "queries": 300,
+      "reference": "N",
+      "arms": {
+       "N": {
+        "recall": 0.8836,
+        "ndcg": 0.7918
+       },
+       "T": {
+        "recall": 0.9069,
+        "ndcg": 0.8208,
+        "recall_vs_ref": {
+         "mean": 0.0233,
+         "lo": 0.0052,
+         "hi": 0.0429,
+         "p": 0.0321,
+         "p_holm": 0.0321,
+         "verdict": "better"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0289,
+         "lo": 0.0106,
+         "hi": 0.0473,
+         "p": 0.0015,
+         "p_holm": 0.0015,
+         "verdict": "better"
+        }
+       }
+      }
+     }
+    },
+    "embedder": {
+     "requests": 381,
+     "texts": 24258,
+     "cut": 0,
+     "probes": 381,
+     "probes_with_another_caller": 0,
+     "seconds": 748.9
+    }
+   },
+   "nfcorpus": {
+    "collection": "nfcorpus",
+    "contention": {
+     "slot_samples": 63,
+     "slots_max": 4,
+     "other_caller_share": null,
+     "load_1min": [
+      2.46,
+      2.71
+     ]
+    },
+    "costs": {
+     "N": {
+      "chunks": 9336,
+      "vectors": 9228,
+      "bytes_float16": 14174208,
+      "tokens": 1457076,
+      "tokens_per_input": {
+       "p50": 151.0,
+       "p90": 310.0,
+       "max": 625.0,
+       "mean": 157.9
+      }
+     },
+     "T": {
+      "chunks": 9336,
+      "vectors": 9228,
+      "bytes_float16": 14174208,
+      "tokens": 1615987,
+      "tokens_per_input": {
+       "p50": 167.0,
+       "p90": 330.0,
+       "max": 654.0,
+       "mean": 175.1
+      }
+     }
+    },
+    "comparison": {
+     "nfcorpus": {
+      "queries": 323,
+      "reference": "N",
+      "arms": {
+       "N": {
+        "recall": 0.1656,
+        "ndcg": 0.3256
+       },
+       "T": {
+        "recall": 0.1771,
+        "ndcg": 0.3642,
+        "recall_vs_ref": {
+         "mean": 0.0116,
+         "lo": -0.0013,
+         "hi": 0.0245,
+         "p": 0.0829,
+         "p_holm": 0.0829,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0385,
+         "lo": 0.0252,
+         "hi": 0.0519,
+         "p": 0.0,
+         "p_holm": 0.0,
+         "verdict": "better"
+        }
+       }
+      }
+     }
+    },
+    "embedder": {
+     "requests": 525,
+     "texts": 33472,
+     "cut": 0,
+     "probes": 525,
+     "probes_with_another_caller": 0,
+     "seconds": 1053.9
+    }
+   },
+   "W": {
+    "collection": "W",
+    "contention": {
+     "slot_samples": 184,
+     "slots_max": 4,
+     "other_caller_share": null,
+     "load_1min": [
+      3.09,
+      2.12
+     ]
+    },
+    "costs": {
+     "N": {
+      "chunks": 25399,
+      "vectors": 25398,
+      "bytes_float16": 39011328,
+      "tokens": 5292067,
+      "tokens_per_input": {
+       "p50": 210.0,
+       "p90": 275.0,
+       "max": 728.0,
+       "mean": 208.4
+      }
+     },
+     "T": {
+      "chunks": 25399,
+      "vectors": 25399,
+      "bytes_float16": 39012864,
+      "tokens": 5335036,
+      "tokens_per_input": {
+       "p50": 212.0,
+       "p90": 277.0,
+       "max": 730.0,
+       "mean": 210.0
+      }
+     }
+    },
+    "comparison": {
+     "link": {
+      "queries": 543,
+      "reference": "N",
+      "arms": {
+       "N": {
+        "recall": 0.6022,
+        "ndcg": 0.4639
+       },
+       "T": {
+        "recall": 0.5927,
+        "ndcg": 0.4809,
+        "recall_vs_ref": {
+         "mean": -0.0095,
+         "lo": -0.0293,
+         "hi": 0.0104,
+         "p": 0.3528,
+         "p_holm": 0.3528,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.017,
+         "lo": 0.0036,
+         "hi": 0.0305,
+         "p": 0.0127,
+         "p_holm": 0.0127,
+         "verdict": "better"
+        }
+       }
+      }
+     },
+     "title": {
+      "queries": 600,
+      "reference": "N",
+      "arms": {
+       "N": {
+        "recall": 1.0,
+        "ndcg": 0.9947
+       },
+       "T": {
+        "recall": 1.0,
+        "ndcg": 0.9994,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0046,
+         "lo": 0.0013,
+         "hi": 0.0079,
+         "p": 0.008,
+         "p_holm": 0.008,
+         "verdict": "better"
+        }
+       }
+      }
+     }
+    },
+    "embedder": {
+     "requests": 922,
+     "texts": 58871,
+     "cut": 0,
+     "probes": 922,
+     "probes_with_another_caller": 0,
+     "seconds": 1954.4
+    }
+   },
+   "finished": "2026-11-08T22:10:36"
+  },
+  "late": {
+   "experiment": "late",
+   "started": "2026-11-08T17:32:06",
+   "scifact": {
+    "collection": "scifact",
+    "L": {
+     "documents": 5183,
+     "windows": 5183,
+     "tokens": 1650576
+    },
+    "LT": {
+     "documents": 5183,
+     "windows": 5183,
+     "tokens": 1741713
+    },
+    "L1": {
+     "documents": 9886,
+     "windows": 9886,
+     "tokens": 1449533
+    }
+   },
+   "nfcorpus": {
+    "collection": "nfcorpus",
+    "L": {
+     "documents": 3591,
+     "windows": 3592,
+     "tokens": 1257115
+    },
+    "LT": {
+     "documents": 3591,
+     "windows": 3592,
+     "tokens": 1317115
+    },
+    "L1": {
+     "documents": 8286,
+     "windows": 8286,
+     "tokens": 1269849
+    }
+   },
+   "W": {
+    "collection": "W",
+    "L": {
+     "documents": 600,
+     "windows": 2620,
+     "tokens": 5308760
+    },
+    "LT": {
+     "documents": 600,
+     "windows": 2623,
+     "tokens": 5315096
+    },
+    "L1": {
+     "documents": 25398,
+     "windows": 25398,
+     "tokens": 5292067
+    }
+   },
+   "finished": "2026-11-08T22:01:11"
+  },
+  "prompts": {
+   "experiment": "prompts",
+   "started": "2026-11-08T22:10:38",
+   "scifact": {
+    "collection": "scifact",
+    "comparison": {
+     "scifact": {
+      "queries": 300,
+      "reference": "search",
+      "arms": {
+       "search": {
+        "recall": 0.8836,
+        "ndcg": 0.7918
+       },
+       "qa": {
+        "recall": 0.8876,
+        "ndcg": 0.7952,
+        "recall_vs_ref": {
+         "mean": 0.004,
+         "lo": -0.0,
+         "hi": 0.0086,
+         "p": 0.502,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0033,
+         "lo": -0.0058,
+         "hi": 0.0124,
+         "p": 0.4809,
+         "p_holm": 0.655,
+         "verdict": "no worse"
+        }
+       },
+       "fact": {
+        "recall": 0.8874,
+        "ndcg": 0.7841,
+        "recall_vs_ref": {
+         "mean": 0.0039,
+         "lo": -0.0101,
+         "hi": 0.0177,
+         "p": 0.6242,
+         "p_holm": 1.0,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0077,
+         "lo": -0.0232,
+         "hi": 0.0077,
+         "p": 0.3275,
+         "p_holm": 0.655,
+         "verdict": "undecided"
+        }
+       }
+      }
+     }
+    },
+    "contention": {
+     "slot_samples": 2,
+     "slots_max": 4,
+     "other_caller_share": null,
+     "load_1min": [
+      1.87,
+      1.72
+     ]
+    },
+    "embedder": {
+     "requests": 10,
+     "texts": 600,
+     "cut": 0,
+     "probes": 10,
+     "probes_with_another_caller": 0,
+     "seconds": 4.9
+    }
+   },
+   "nfcorpus": {
+    "collection": "nfcorpus",
+    "comparison": {
+     "nfcorpus": {
+      "queries": 323,
+      "reference": "search",
+      "arms": {
+       "search": {
+        "recall": 0.1656,
+        "ndcg": 0.3256
+       },
+       "qa": {
+        "recall": 0.1563,
+        "ndcg": 0.3303,
+        "recall_vs_ref": {
+         "mean": -0.0093,
+         "lo": -0.0188,
+         "hi": 0.0002,
+         "p": 0.0573,
+         "p_holm": 0.0573,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0047,
+         "lo": -0.0006,
+         "hi": 0.01,
+         "p": 0.0855,
+         "p_holm": 0.0855,
+         "verdict": "no worse"
+        }
+       },
+       "fact": {
+        "recall": 0.1517,
+        "ndcg": 0.3144,
+        "recall_vs_ref": {
+         "mean": -0.0138,
+         "lo": -0.0236,
+         "hi": -0.0042,
+         "p": 0.0022,
+         "p_holm": 0.0045,
+         "verdict": "worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0113,
+         "lo": -0.0194,
+         "hi": -0.0031,
+         "p": 0.006,
+         "p_holm": 0.0121,
+         "verdict": "worse"
+        }
+       }
+      }
+     }
+    },
+    "contention": {
+     "slot_samples": 1,
+     "slots_max": 0,
+     "other_caller_share": null,
+     "load_1min": [
+      1.9,
+      1.75
+     ]
+    },
+    "embedder": {
+     "requests": 22,
+     "texts": 1246,
+     "cut": 0,
+     "probes": 22,
+     "probes_with_another_caller": 0,
+     "seconds": 9.6
+    }
+   },
+   "W": {
+    "collection": "W",
+    "comparison": {
+     "link": {
+      "queries": 543,
+      "reference": "search",
+      "arms": {
+       "search": {
+        "recall": 0.6022,
+        "ndcg": 0.4639
+       },
+       "qa": {
+        "recall": 0.602,
+        "ndcg": 0.4619,
+        "recall_vs_ref": {
+         "mean": -0.0002,
+         "lo": -0.0164,
+         "hi": 0.0163,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.002,
+         "lo": -0.0096,
+         "hi": 0.0056,
+         "p": 0.6095,
+         "p_holm": 0.9174,
+         "verdict": "no worse"
+        }
+       },
+       "fact": {
+        "recall": 0.5989,
+        "ndcg": 0.4598,
+        "recall_vs_ref": {
+         "mean": -0.0033,
+         "lo": -0.0234,
+         "hi": 0.0169,
+         "p": 0.7528,
+         "p_holm": 1.0,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0041,
+         "lo": -0.015,
+         "hi": 0.0068,
+         "p": 0.4587,
+         "p_holm": 0.9174,
+         "verdict": "undecided"
+        }
+       }
+      }
+     },
+     "title": {
+      "queries": 600,
+      "reference": "search",
+      "arms": {
+       "search": {
+        "recall": 1.0,
+        "ndcg": 0.9947
+       },
+       "qa": {
+        "recall": 1.0,
+        "ndcg": 0.9969,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0022,
+         "lo": -0.0012,
+         "hi": 0.0054,
+         "p": 0.3133,
+         "p_holm": 0.6266,
+         "verdict": "no worse"
+        }
+       },
+       "fact": {
+        "recall": 1.0,
+        "ndcg": 0.9955,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0007,
+         "lo": -0.003,
+         "hi": 0.0045,
+         "p": 0.784,
+         "p_holm": 0.784,
+         "verdict": "no worse"
+        }
+       }
+      }
+     }
+    },
+    "contention": {
+     "slot_samples": 4,
+     "slots_max": 4,
+     "other_caller_share": null,
+     "load_1min": [
+      1.87,
+      1.77
+     ]
+    },
+    "embedder": {
+     "requests": 58,
+     "texts": 3512,
+     "cut": 0,
+     "probes": 58,
+     "probes_with_another_caller": 0,
+     "seconds": 27.2
+    }
+   },
+   "finished": "2026-11-08T22:11:57"
+  },
+  "dims": {
+   "experiment": "dims",
+   "started": "2026-11-08T22:11:59",
+   "scifact": {
+    "collection": "scifact",
+    "chunks": 11987,
+    "vectors": 11986,
+    "bytes_per_vector": {
+     "D768": 1536,
+     "D512": 1024,
+     "D256": 512,
+     "D128": 256
+    },
+    "rescore_candidates": 50,
+    "comparison": {
+     "scifact": {
+      "queries": 300,
+      "reference": "D768",
+      "arms": {
+       "D768": {
+        "recall": 0.8836,
+        "ndcg": 0.7921
+       },
+       "D512": {
+        "recall": 0.8819,
+        "ndcg": 0.7912,
+        "recall_vs_ref": {
+         "mean": -0.0017,
+         "lo": -0.0105,
+         "hi": 0.007,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0008,
+         "lo": -0.0088,
+         "hi": 0.0072,
+         "p": 0.8397,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        }
+       },
+       "D512r": {
+        "recall": 0.8836,
+        "ndcg": 0.7921,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        }
+       },
+       "D256": {
+        "recall": 0.883,
+        "ndcg": 0.7885,
+        "recall_vs_ref": {
+         "mean": -0.0006,
+         "lo": -0.0197,
+         "hi": 0.0185,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0036,
+         "lo": -0.0179,
+         "hi": 0.0108,
+         "p": 0.6285,
+         "p_holm": 1.0,
+         "verdict": "undecided"
+        }
+       },
+       "D256r": {
+        "recall": 0.8836,
+        "ndcg": 0.7921,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        }
+       },
+       "D128": {
+        "recall": 0.8141,
+        "ndcg": 0.7175,
+        "recall_vs_ref": {
+         "mean": -0.0694,
+         "lo": -0.0975,
+         "hi": -0.0414,
+         "p": 0.0,
+         "p_holm": 0.0003,
+         "verdict": "worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0745,
+         "lo": -0.0984,
+         "hi": -0.0506,
+         "p": 0.0,
+         "p_holm": 0.0003,
+         "verdict": "worse"
+        }
+       },
+       "D128r": {
+        "recall": 0.8652,
+        "ndcg": 0.7849,
+        "recall_vs_ref": {
+         "mean": -0.0183,
+         "lo": -0.0329,
+         "hi": -0.0034,
+         "p": 0.0311,
+         "p_holm": 0.1557,
+         "verdict": "undecided"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0071,
+         "lo": -0.0136,
+         "hi": -0.001,
+         "p": 0.0311,
+         "p_holm": 0.1557,
+         "verdict": "undecided"
+        }
+       }
+      }
+     }
+    }
+   },
+   "nfcorpus": {
+    "collection": "nfcorpus",
+    "chunks": 9336,
+    "vectors": 9228,
+    "bytes_per_vector": {
+     "D768": 1536,
+     "D512": 1024,
+     "D256": 512,
+     "D128": 256
+    },
+    "rescore_candidates": 50,
+    "comparison": {
+     "nfcorpus": {
+      "queries": 323,
+      "reference": "D768",
+      "arms": {
+       "D768": {
+        "recall": 0.1656,
+        "ndcg": 0.3256
+       },
+       "D512": {
+        "recall": 0.1639,
+        "ndcg": 0.3262,
+        "recall_vs_ref": {
+         "mean": -0.0016,
+         "lo": -0.0047,
+         "hi": 0.0014,
+         "p": 0.3255,
+         "p_holm": 0.6511,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0006,
+         "lo": -0.0031,
+         "hi": 0.0044,
+         "p": 0.7378,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        }
+       },
+       "D512r": {
+        "recall": 0.1656,
+        "ndcg": 0.3256,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0,
+         "lo": -0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        }
+       },
+       "D256": {
+        "recall": 0.1528,
+        "ndcg": 0.3116,
+        "recall_vs_ref": {
+         "mean": -0.0128,
+         "lo": -0.0212,
+         "hi": -0.0045,
+         "p": 0.0006,
+         "p_holm": 0.0026,
+         "verdict": "worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.014,
+         "lo": -0.0216,
+         "hi": -0.0065,
+         "p": 0.0002,
+         "p_holm": 0.001,
+         "verdict": "worse"
+        }
+       },
+       "D256r": {
+        "recall": 0.1634,
+        "ndcg": 0.3246,
+        "recall_vs_ref": {
+         "mean": -0.0021,
+         "lo": -0.0043,
+         "hi": 0.0,
+         "p": 0.0618,
+         "p_holm": 0.1854,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.001,
+         "lo": -0.0027,
+         "hi": 0.0007,
+         "p": 0.3637,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        }
+       },
+       "D128": {
+        "recall": 0.1167,
+        "ndcg": 0.2486,
+        "recall_vs_ref": {
+         "mean": -0.0489,
+         "lo": -0.0669,
+         "hi": -0.031,
+         "p": 0.0,
+         "p_holm": 0.0003,
+         "verdict": "worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.077,
+         "lo": -0.0934,
+         "hi": -0.0606,
+         "p": 0.0,
+         "p_holm": 0.0003,
+         "verdict": "worse"
+        }
+       },
+       "D128r": {
+        "recall": 0.1456,
+        "ndcg": 0.3093,
+        "recall_vs_ref": {
+         "mean": -0.02,
+         "lo": -0.0321,
+         "hi": -0.0078,
+         "p": 0.0,
+         "p_holm": 0.0003,
+         "verdict": "worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": -0.0163,
+         "lo": -0.0234,
+         "hi": -0.0091,
+         "p": 0.0,
+         "p_holm": 0.0003,
+         "verdict": "worse"
+        }
+       }
+      }
+     }
+    }
+   },
+   "finished": "2026-11-08T22:12:37"
+  },
+  "corpus-dims": {
+   "experiment": "corpus-dims",
+   "started": "2026-11-08T18:21:19",
+   "corpus": {
+    "atoms": 1338585,
+    "questions": 4714,
+    "depth": 100,
+    "rescore_candidates": 50,
+    "bytes_per_vector": {
+     "D768": 1536,
+     "D512": 1024,
+     "D256": 512,
+     "D128": 256
+    },
+    "comparison": {
+     "queries": 4714,
+     "reference": "D768",
+     "arms": {
+      "D768": {
+       "recall": 0.822,
+       "ndcg": 0.6996,
+       "hit": 0.8246
+      },
+      "D512": {
+       "recall": 0.8225,
+       "ndcg": 0.6997,
+       "hit": 0.8252,
+       "recall_vs_ref": {
+        "mean": 0.0005,
+        "lo": -0.0015,
+        "hi": 0.0026,
+        "p": 0.697,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": 0.0001,
+        "lo": -0.0016,
+        "hi": 0.0019,
+        "p": 0.8659,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "hit_vs_ref": {
+        "mean": 0.0006,
+        "lo": -0.0017,
+        "hi": 0.0029,
+        "p": 0.7003,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "D512r": {
+       "recall": 0.8217,
+       "ndcg": 0.6995,
+       "hit": 0.8241,
+       "recall_vs_ref": {
+        "mean": -0.0003,
+        "lo": -0.0006,
+        "hi": -0.0,
+        "p": 0.4975,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": -0.0001,
+        "lo": -0.0002,
+        "hi": 0.0,
+        "p": 0.4975,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "hit_vs_ref": {
+        "mean": -0.0004,
+        "lo": -0.0009,
+        "hi": 0.0,
+        "p": 0.4975,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "D256": {
+       "recall": 0.8186,
+       "ndcg": 0.6952,
+       "hit": 0.8216,
+       "recall_vs_ref": {
+        "mean": -0.0034,
+        "lo": -0.007,
+        "hi": 0.0003,
+        "p": 0.0707,
+        "p_holm": 0.2828,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": -0.0044,
+        "lo": -0.0072,
+        "hi": -0.0016,
+        "p": 0.0022,
+        "p_holm": 0.009,
+        "verdict": "worse"
+       },
+       "hit_vs_ref": {
+        "mean": -0.003,
+        "lo": -0.0068,
+        "hi": 0.0008,
+        "p": 0.1543,
+        "p_holm": 0.6172,
+        "verdict": "no worse"
+       }
+      },
+      "D256r": {
+       "recall": 0.8218,
+       "ndcg": 0.6995,
+       "hit": 0.8244,
+       "recall_vs_ref": {
+        "mean": -0.0002,
+        "lo": -0.0009,
+        "hi": 0.0004,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": -0.0001,
+        "lo": -0.0003,
+        "hi": 0.0001,
+        "p": 0.8138,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       },
+       "hit_vs_ref": {
+        "mean": -0.0002,
+        "lo": -0.0009,
+        "hi": 0.0004,
+        "p": 1.0,
+        "p_holm": 1.0,
+        "verdict": "no worse"
+       }
+      },
+      "D128": {
+       "recall": 0.7897,
+       "ndcg": 0.6643,
+       "hit": 0.7919,
+       "recall_vs_ref": {
+        "mean": -0.0323,
+        "lo": -0.0383,
+        "hi": -0.0263,
+        "p": 0.0,
+        "p_holm": 0.0003,
+        "verdict": "worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": -0.0353,
+        "lo": -0.0402,
+        "hi": -0.0305,
+        "p": 0.0,
+        "p_holm": 0.0003,
+        "verdict": "worse"
+       },
+       "hit_vs_ref": {
+        "mean": -0.0327,
+        "lo": -0.0388,
+        "hi": -0.0265,
+        "p": 0.0,
+        "p_holm": 0.0003,
+        "verdict": "worse"
+       }
+      },
+      "D128r": {
+       "recall": 0.8127,
+       "ndcg": 0.6953,
+       "hit": 0.8152,
+       "recall_vs_ref": {
+        "mean": -0.0093,
+        "lo": -0.0126,
+        "hi": -0.0059,
+        "p": 0.0,
+        "p_holm": 0.0003,
+        "verdict": "worse"
+       },
+       "ndcg_vs_ref": {
+        "mean": -0.0043,
+        "lo": -0.006,
+        "hi": -0.0026,
+        "p": 0.0,
+        "p_holm": 0.0003,
+        "verdict": "worse"
+       },
+       "hit_vs_ref": {
+        "mean": -0.0093,
+        "lo": -0.0128,
+        "hi": -0.0059,
+        "p": 0.0,
+        "p_holm": 0.0003,
+        "verdict": "worse"
+       }
+      }
+     }
+    },
+    "by_family_recall": {
+     "cite:wikipedia->paper": {
+      "D768": 0.6021,
+      "D512": 0.6066,
+      "D512r": 0.6021,
+      "D256": 0.5976,
+      "D256r": 0.6021,
+      "D128": 0.5255,
+      "D128r": 0.5871
+     },
+     "link:hackernews->wikipedia": {
+      "D768": 0.1585,
+      "D512": 0.1537,
+      "D512r": 0.1521,
+      "D256": 0.1603,
+      "D256r": 0.1537,
+      "D128": 0.1246,
+      "D128r": 0.1413
+     },
+     "link:stackexchange->wikipedia": {
+      "D768": 0.0601,
+      "D512": 0.0571,
+      "D512r": 0.0601,
+      "D256": 0.0668,
+      "D256r": 0.0601,
+      "D128": 0.0586,
+      "D128r": 0.0541
+     },
+     "titles:arxiv": {
+      "D768": 0.86,
+      "D512": 0.864,
+      "D512r": 0.86,
+      "D256": 0.856,
+      "D256r": 0.86,
+      "D128": 0.82,
+      "D128r": 0.846
+     },
+     "titles:gutenberg": {
+      "D768": 0.9408,
+      "D512": 0.9379,
+      "D512r": 0.9408,
+      "D256": 0.932,
+      "D256r": 0.9408,
+      "D128": 0.8846,
+      "D128r": 0.9201
+     },
+     "titles:hackernews": {
+      "D768": 0.99,
+      "D512": 0.99,
+      "D512r": 0.99,
+      "D256": 0.99,
+      "D256r": 0.99,
+      "D128": 0.982,
+      "D128r": 0.99
+     },
+     "titles:openalex": {
+      "D768": 0.866,
+      "D512": 0.862,
+      "D512r": 0.866,
+      "D256": 0.844,
+      "D256r": 0.866,
+      "D128": 0.812,
+      "D128r": 0.848
+     },
+     "titles:stackexchange": {
+      "D768": 0.954,
+      "D512": 0.952,
+      "D512r": 0.954,
+      "D256": 0.942,
+      "D256r": 0.952,
+      "D128": 0.892,
+      "D128r": 0.942
+     },
+     "titles:wikipedia": {
+      "D768": 0.952,
+      "D512": 0.962,
+      "D512r": 0.952,
+      "D256": 0.964,
+      "D256r": 0.954,
+      "D128": 0.928,
+      "D128r": 0.948
+     },
+     "twins:arxiv->openalex": {
+      "D768": 0.996,
+      "D512": 0.996,
+      "D512r": 0.996,
+      "D256": 0.996,
+      "D256r": 0.996,
+      "D128": 0.992,
+      "D128r": 0.996
+     },
+     "twins:openalex->arxiv": {
+      "D768": 0.988,
+      "D512": 0.988,
+      "D512r": 0.988,
+      "D256": 0.986,
+      "D256r": 0.988,
+      "D128": 0.98,
+      "D128r": 0.984
+     }
+    }
+   },
+   "finished": "2026-11-08T18:34:21"
+  },
+  "edges": {
+   "experiment": "edges",
+   "started": "2026-11-08T18:34:23",
+   "corpus": {
+    "items": 400274,
+    "items_with_vectors": 400274,
+    "reps": 20,
+    "thresholds": {
+     "G": 0.785,
+     "GQ": 0.8647521734237671,
+     "SQ": {
+      "wikipedia": 0.8900713920593262,
+      "openalex": 0.8867958188056946,
+      "arxiv": 0.8825055360794067,
+      "stackexchange": 0.8484647870063782,
+      "gutenberg": 0.9479695558547974,
+      "hackernews": 0.8081436157226562
+     }
+    },
+    "hubness_10nn": {
+     "skew_in_degree": 21.382791259342714,
+     "max_in_degree": 3071,
+     "share_never_a_neighbour": 0.09051050030728951
+    },
+    "explicit_without_twins": {
+     "edges": 1914771,
+     "semantic_edges": 0,
+     "cross_semantic": 0,
+     "bridges": 37,
+     "fp_mean": 25.9,
+     "fp_bar": 39.270115930686615,
+     "excess_ratio": 0.9421922783550356,
+     "pairs_above_own_bar": 3,
+     "pairs_with_edges": 8,
+     "by_pair": {
+      "arxiv-wikipedia": {
+       "edges": 195,
+       "bridges": 5,
+       "fp_mean": 0.4,
+       "fp_bar": 1.3797958971132713
+      },
+      "arxiv-stackexchange": {
+       "edges": 463,
+       "bridges": 22,
+       "fp_mean": 0.0,
+       "fp_bar": 0.0
+      },
+      "hackernews-wikipedia": {
+       "edges": 283,
+       "bridges": 10,
+       "fp_mean": 0.0,
+       "fp_bar": 0.0
+      },
+      "arxiv-hackernews": {
+       "edges": 9,
+       "bridges": 0,
+       "fp_mean": 0.0,
+       "fp_bar": 0.0
+      },
+      "gutenberg-wikipedia": {
+       "edges": 1,
+       "bridges": 0,
+       "fp_mean": 0.0,
+       "fp_bar": 0.0
+      },
+      "openalex-stackexchange": {
+       "edges": 295,
+       "bridges": 0,
+       "fp_mean": 8.5,
+       "fp_bar": 13.1690470119715
+      },
+      "openalex-wikipedia": {
+       "edges": 287,
+       "bridges": 0,
+       "fp_mean": 0.0,
+       "fp_bar": 0.0
+      },
+      "stackexchange-wikipedia": {
+       "edges": 1790,
+       "bridges": 0,
+       "fp_mean": 16.9,
+       "fp_bar": 27.34796630928718
+      },
+      "hackernews-openalex": {
+       "edges": 0,
+       "bridges": 0,
+       "fp_mean": 0.1,
+       "fp_bar": 0.7000000000000001
+      }
+     }
+    },
+    "title_only_atoms": {
+     "wikipedia": {
+      "title": {
+       "atoms": 10,
+       "sampled": 10,
+       "neighbours_above_sigma_mean": 66.8,
+       "neighbours_above_sigma_median": 10.5
+      },
+      "body": {
+       "atoms": 42767,
+       "sampled": 2000,
+       "neighbours_above_sigma_mean": 11.8435,
+       "neighbours_above_sigma_median": 8.0
+      }
+     },
+     "openalex": {
+      "title": {
+       "atoms": 414,
+       "sampled": 414,
+       "neighbours_above_sigma_mean": 19242.193236714975,
+       "neighbours_above_sigma_median": 17703.5
+      },
+      "body": {
+       "atoms": 1406,
+       "sampled": 1406,
+       "neighbours_above_sigma_mean": 8944.26600284495,
+       "neighbours_above_sigma_median": 5234.5
+      }
+     },
+     "arxiv": {
+      "title": {
+       "atoms": 493,
+       "sampled": 493,
+       "neighbours_above_sigma_mean": 15779.466531440163,
+       "neighbours_above_sigma_median": 14402.0
+      },
+      "body": {
+       "atoms": 1424,
+       "sampled": 1424,
+       "neighbours_above_sigma_mean": 7208.945224719101,
+       "neighbours_above_sigma_median": 3016.5
+      }
+     },
+     "stackexchange": {
+      "title": {
+       "atoms": 2,
+       "sampled": 2,
+       "neighbours_above_sigma_mean": 123.5,
+       "neighbours_above_sigma_median": 123.5
+      },
+      "body": {
+       "atoms": 1490,
+       "sampled": 1490,
+       "neighbours_above_sigma_mean": 915.0973154362416,
+       "neighbours_above_sigma_median": 211.0
+      }
+     },
+     "gutenberg": {
+      "title": {
+       "atoms": 0
+      },
+      "body": {
+       "atoms": 125379,
+       "sampled": 2000,
+       "neighbours_above_sigma_mean": 219.7965,
+       "neighbours_above_sigma_median": 129.5
+      }
+     },
+     "hackernews": {
+      "title": {
+       "atoms": 11,
+       "sampled": 11,
+       "neighbours_above_sigma_mean": 69.54545454545455,
+       "neighbours_above_sigma_median": 62.0
+      },
+      "body": {
+       "atoms": 4537,
+       "sampled": 2000,
+       "neighbours_above_sigma_mean": 27.8105,
+       "neighbours_above_sigma_median": 11.0
+      }
+     }
+    },
+    "rules": {
+     "G": {
+      "semantic_edges": 3302152,
+      "twin_pairs": 27295,
+      "mean_degree_by_source": {
+       "wikipedia": 20.142982302435605,
+       "openalex": 17.615270049438386,
+       "arxiv": 16.768045320338942,
+       "stackexchange": 15.217561757276625,
+       "gutenberg": 35.62130177514793,
+       "hackernews": 16.200203490647258
+      },
+      "degree_ratio_max_min": 2.3408021825910965,
+      "sources_without_edges": [],
+      "skew_degree": 22.983500560069867,
+      "without_twins": {
+       "edges": 4987982,
+       "semantic_edges": 3073211,
+       "cross_semantic": 642363,
+       "bridges": 3030,
+       "fp_mean": 749.3,
+       "fp_bar": 798.4206677479042,
+       "excess_ratio": 3.7949919414619933,
+       "pairs_above_own_bar": 12,
+       "pairs_with_edges": 15,
+       "by_pair": {
+        "arxiv-gutenberg": {
+         "edges": 672,
+         "bridges": 24,
+         "fp_mean": 0.7,
+         "fp_bar": 2.5
+        },
+        "arxiv-hackernews": {
+         "edges": 12017,
+         "bridges": 276,
+         "fp_mean": 58.5,
+         "fp_bar": 69.2051389528581
+        },
+        "arxiv-wikipedia": {
+         "edges": 9066,
+         "bridges": 43,
+         "fp_mean": 5.0,
+         "fp_bar": 8.687817782917154
+        },
+        "arxiv-openalex": {
+         "edges": 384795,
+         "bridges": 127,
+         "fp_mean": 2.0,
+         "fp_bar": 3.264911064067352
+        },
+        "arxiv-stackexchange": {
+         "edges": 22001,
+         "bridges": 169,
+         "fp_mean": 82.5,
+         "fp_bar": 104.06385865284783
+        },
+        "gutenberg-hackernews": {
+         "edges": 2113,
+         "bridges": 147,
+         "fp_mean": 0.9,
+         "fp_bar": 3.3413111231467405
+        },
+        "gutenberg-stackexchange": {
+         "edges": 909,
+         "bridges": 30,
+         "fp_mean": 3.0,
+         "fp_bar": 6.346640106136302
+        },
+        "gutenberg-wikipedia": {
+         "edges": 3218,
+         "bridges": 9,
+         "fp_mean": 0.1,
+         "fp_bar": 0.7000000000000001
+        },
+        "hackernews-stackexchange": {
+         "edges": 37592,
+         "bridges": 1234,
+         "fp_mean": 216.9,
+         "fp_bar": 240.28289973463515
+        },
+        "hackernews-wikipedia": {
+         "edges": 21745,
+         "bridges": 606,
+         "fp_mean": 136.7,
+         "fp_bar": 162.43790978304182
+        },
+        "hackernews-openalex": {
+         "edges": 12046,
+         "bridges": 193,
+         "fp_mean": 198.3,
+         "fp_bar": 221.313908837918
+        },
+        "openalex-stackexchange": {
+         "edges": 101833,
+         "bridges": 60,
+         "fp_mean": 13.0,
+         "fp_bar": 17.979959839195494
+        },
+        "stackexchange-wikipedia": {
+         "edges": 27231,
+         "bridges": 112,
+         "fp_mean": 31.7,
+         "fp_bar": 40.327861844049195
+        },
+        "gutenberg-openalex": {
+         "edges": 184,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "openalex-wikipedia": {
+         "edges": 10264,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        }
+       }
+      },
+      "with_twins": {
+       "edges": 5015379,
+       "semantic_edges": 3073211,
+       "cross_semantic": 642363,
+       "bridges": 3044,
+       "fp_mean": 755.2,
+       "fp_bar": 821.5795149123584,
+       "excess_ratio": 3.705058298982439,
+       "pairs_above_own_bar": 12,
+       "pairs_with_edges": 15,
+       "by_pair": {
+        "arxiv-gutenberg": {
+         "edges": 672,
+         "bridges": 25,
+         "fp_mean": 0.9,
+         "fp_bar": 2.5613247725836152
+        },
+        "arxiv-hackernews": {
+         "edges": 12017,
+         "bridges": 277,
+         "fp_mean": 62.3,
+         "fp_bar": 77.79322432549145
+        },
+        "arxiv-wikipedia": {
+         "edges": 9066,
+         "bridges": 43,
+         "fp_mean": 4.5,
+         "fp_bar": 9.885164807134505
+        },
+        "arxiv-openalex": {
+         "edges": 412192,
+         "bridges": 132,
+         "fp_mean": 1.4,
+         "fp_bar": 3.439607805437114
+        },
+        "arxiv-stackexchange": {
+         "edges": 22001,
+         "bridges": 168,
+         "fp_mean": 82.6,
+         "fp_bar": 108.63382415243676
+        },
+        "gutenberg-hackernews": {
+         "edges": 2113,
+         "bridges": 146,
+         "fp_mean": 0.9,
+         "fp_bar": 3.3413111231467405
+        },
+        "gutenberg-stackexchange": {
+         "edges": 909,
+         "bridges": 27,
+         "fp_mean": 3.0,
+         "fp_bar": 6.346640106136302
+        },
+        "gutenberg-wikipedia": {
+         "edges": 3218,
+         "bridges": 9,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "hackernews-stackexchange": {
+         "edges": 37592,
+         "bridges": 1251,
+         "fp_mean": 214.0,
+         "fp_bar": 244.37103883636513
+        },
+        "hackernews-wikipedia": {
+         "edges": 21745,
+         "bridges": 611,
+         "fp_mean": 132.6,
+         "fp_bar": 147.38377489006106
+        },
+        "hackernews-openalex": {
+         "edges": 12046,
+         "bridges": 190,
+         "fp_mean": 204.6,
+         "fp_bar": 237.57514215283993
+        },
+        "openalex-stackexchange": {
+         "edges": 101833,
+         "bridges": 58,
+         "fp_mean": 13.5,
+         "fp_bar": 21.46241169495775
+        },
+        "stackexchange-wikipedia": {
+         "edges": 27231,
+         "bridges": 107,
+         "fp_mean": 34.6,
+         "fp_bar": 43.234813257969165
+        },
+        "gutenberg-openalex": {
+         "edges": 184,
+         "bridges": 0,
+         "fp_mean": 0.2,
+         "fp_bar": 1.4000000000000001
+        },
+        "openalex-wikipedia": {
+         "edges": 10264,
+         "bridges": 0,
+         "fp_mean": 0.1,
+         "fp_bar": 0.7000000000000001
+        }
+       }
+      }
+     },
+     "GQ": {
+      "semantic_edges": 1908304,
+      "twin_pairs": 27277,
+      "mean_degree_by_source": {
+       "wikipedia": 14.505694760820045,
+       "openalex": 13.817836432713458,
+       "arxiv": 12.263088408267121,
+       "stackexchange": 6.37020727448426,
+       "gutenberg": 24.375739644970412,
+       "hackernews": 2.2539980694477055
+      },
+      "degree_ratio_max_min": 10.814445662299601,
+      "sources_without_edges": [],
+      "skew_degree": 10.17385877248063,
+      "without_twins": {
+       "edges": 3619215,
+       "semantic_edges": 1704444,
+       "cross_semantic": 390530,
+       "bridges": 664,
+       "fp_mean": 168.6,
+       "fp_bar": 183.19314907756376,
+       "excess_ratio": 3.6245896931378323,
+       "pairs_above_own_bar": 8,
+       "pairs_with_edges": 15,
+       "by_pair": {
+        "arxiv-wikipedia": {
+         "edges": 1840,
+         "bridges": 5,
+         "fp_mean": 3.5,
+         "fp_bar": 6.5
+        },
+        "arxiv-openalex": {
+         "edges": 318415,
+         "bridges": 120,
+         "fp_mean": 1.8,
+         "fp_bar": 5.678143885933063
+        },
+        "arxiv-hackernews": {
+         "edges": 1298,
+         "bridges": 41,
+         "fp_mean": 10.6,
+         "fp_bar": 18.2
+        },
+        "arxiv-stackexchange": {
+         "edges": 7630,
+         "bridges": 75,
+         "fp_mean": 39.7,
+         "fp_bar": 50.28489489791939
+        },
+        "gutenberg-hackernews": {
+         "edges": 194,
+         "bridges": 14,
+         "fp_mean": 0.1,
+         "fp_bar": 0.7000000000000001
+        },
+        "gutenberg-stackexchange": {
+         "edges": 102,
+         "bridges": 2,
+         "fp_mean": 1.2,
+         "fp_bar": 4.272458299147443
+        },
+        "gutenberg-wikipedia": {
+         "edges": 2942,
+         "bridges": 9,
+         "fp_mean": 0.1,
+         "fp_bar": 0.7000000000000001
+        },
+        "hackernews-wikipedia": {
+         "edges": 2915,
+         "bridges": 69,
+         "fp_mean": 33.3,
+         "fp_bar": 40.89210115844092
+        },
+        "hackernews-stackexchange": {
+         "edges": 6307,
+         "bridges": 257,
+         "fp_mean": 21.1,
+         "fp_bar": 27.99637585982667
+        },
+        "hackernews-openalex": {
+         "edges": 1075,
+         "bridges": 23,
+         "fp_mean": 23.6,
+         "fp_bar": 31.952245207128442
+        },
+        "openalex-stackexchange": {
+         "edges": 38487,
+         "bridges": 27,
+         "fp_mean": 9.7,
+         "fp_bar": 16.80211236182588
+        },
+        "stackexchange-wikipedia": {
+         "edges": 7521,
+         "bridges": 22,
+         "fp_mean": 23.3,
+         "fp_bar": 29.1
+        },
+        "arxiv-gutenberg": {
+         "edges": 18,
+         "bridges": 0,
+         "fp_mean": 0.6,
+         "fp_bar": 1.9266499161421602
+        },
+        "gutenberg-openalex": {
+         "edges": 41,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "openalex-wikipedia": {
+         "edges": 5068,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        }
+       }
+      },
+      "with_twins": {
+       "edges": 3646612,
+       "semantic_edges": 1704444,
+       "cross_semantic": 390530,
+       "bridges": 669,
+       "fp_mean": 177.2,
+       "fp_bar": 200.5032186618072,
+       "excess_ratio": 3.336604791010441,
+       "pairs_above_own_bar": 9,
+       "pairs_with_edges": 15,
+       "by_pair": {
+        "arxiv-wikipedia": {
+         "edges": 1840,
+         "bridges": 7,
+         "fp_mean": 3.4,
+         "fp_bar": 6.393325909419153
+        },
+        "arxiv-openalex": {
+         "edges": 345812,
+         "bridges": 128,
+         "fp_mean": 1.1,
+         "fp_bar": 2.986796226411321
+        },
+        "arxiv-hackernews": {
+         "edges": 1298,
+         "bridges": 39,
+         "fp_mean": 10.7,
+         "fp_bar": 18.29210115844092
+        },
+        "arxiv-stackexchange": {
+         "edges": 7630,
+         "bridges": 73,
+         "fp_mean": 43.0,
+         "fp_bar": 56.7695315824468
+        },
+        "gutenberg-hackernews": {
+         "edges": 194,
+         "bridges": 14,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "gutenberg-stackexchange": {
+         "edges": 102,
+         "bridges": 2,
+         "fp_mean": 1.6,
+         "fp_bar": 3.639607805437114
+        },
+        "gutenberg-wikipedia": {
+         "edges": 2942,
+         "bridges": 9,
+         "fp_mean": 0.2,
+         "fp_bar": 1.0000000000000002
+        },
+        "hackernews-wikipedia": {
+         "edges": 2915,
+         "bridges": 70,
+         "fp_mean": 33.6,
+         "fp_bar": 44.30327052820772
+        },
+        "hackernews-stackexchange": {
+         "edges": 6307,
+         "bridges": 254,
+         "fp_mean": 20.4,
+         "fp_bar": 29.573875952943773
+        },
+        "hackernews-openalex": {
+         "edges": 1075,
+         "bridges": 22,
+         "fp_mean": 26.3,
+         "fp_bar": 36.578132126023675
+        },
+        "openalex-stackexchange": {
+         "edges": 38487,
+         "bridges": 27,
+         "fp_mean": 9.9,
+         "fp_bar": 13.180243893371346
+        },
+        "stackexchange-wikipedia": {
+         "edges": 7521,
+         "bridges": 24,
+         "fp_mean": 26.2,
+         "fp_bar": 36.3901913622856
+        },
+        "arxiv-gutenberg": {
+         "edges": 18,
+         "bridges": 0,
+         "fp_mean": 0.6,
+         "fp_bar": 3.1612496949731397
+        },
+        "gutenberg-openalex": {
+         "edges": 41,
+         "bridges": 0,
+         "fp_mean": 0.2,
+         "fp_bar": 1.0000000000000002
+        },
+        "openalex-wikipedia": {
+         "edges": 5068,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        }
+       }
+      }
+     },
+     "SQ": {
+      "semantic_edges": 1973267,
+      "twin_pairs": 27233,
+      "mean_degree_by_source": {
+       "wikipedia": 11.473190818293324,
+       "openalex": 10.058574491998153,
+       "arxiv": 9.449434695984062,
+       "stackexchange": 9.425087001461748,
+       "gutenberg": 18.9792899408284,
+       "hackernews": 10.844877514283478
+      },
+      "degree_ratio_max_min": 2.0136991773004196,
+      "sources_without_edges": [],
+      "skew_degree": 16.170661863146357,
+      "without_twins": {
+       "edges": 3697950,
+       "semantic_edges": 1783179,
+       "cross_semantic": 363801,
+       "bridges": 1448,
+       "fp_mean": 504.2,
+       "fp_bar": 540.0307130824939,
+       "excess_ratio": 2.6813289780035285,
+       "pairs_above_own_bar": 9,
+       "pairs_with_edges": 15,
+       "by_pair": {
+        "arxiv-openalex": {
+         "edges": 240699,
+         "bridges": 129,
+         "fp_mean": 2.1,
+         "fp_bar": 4.7
+        },
+        "arxiv-hackernews": {
+         "edges": 4956,
+         "bridges": 93,
+         "fp_mean": 26.9,
+         "fp_bar": 36.257350052231665
+        },
+        "arxiv-stackexchange": {
+         "edges": 11532,
+         "bridges": 111,
+         "fp_mean": 41.3,
+         "fp_bar": 51.5
+        },
+        "arxiv-wikipedia": {
+         "edges": 904,
+         "bridges": 1,
+         "fp_mean": 4.1,
+         "fp_bar": 6.18806130178211
+        },
+        "gutenberg-hackernews": {
+         "edges": 1286,
+         "bridges": 99,
+         "fp_mean": 0.1,
+         "fp_bar": 0.7000000000000001
+        },
+        "gutenberg-stackexchange": {
+         "edges": 211,
+         "bridges": 4,
+         "fp_mean": 2.0,
+         "fp_bar": 4.0
+        },
+        "gutenberg-wikipedia": {
+         "edges": 1853,
+         "bridges": 5,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "hackernews-wikipedia": {
+         "edges": 12748,
+         "bridges": 280,
+         "fp_mean": 125.1,
+         "fp_bar": 140.07865147468223
+        },
+        "hackernews-openalex": {
+         "edges": 7911,
+         "bridges": 164,
+         "fp_mean": 139.2,
+         "fp_bar": 159.7484792624661
+        },
+        "hackernews-stackexchange": {
+         "edges": 14236,
+         "bridges": 476,
+         "fp_mean": 124.2,
+         "fp_bar": 144.3553962997506
+        },
+        "openalex-stackexchange": {
+         "edges": 56381,
+         "bridges": 48,
+         "fp_mean": 10.6,
+         "fp_bar": 16.613318551349163
+        },
+        "stackexchange-wikipedia": {
+         "edges": 11847,
+         "bridges": 38,
+         "fp_mean": 28.1,
+         "fp_bar": 38.997706180660224
+        },
+        "arxiv-gutenberg": {
+         "edges": 1,
+         "bridges": 0,
+         "fp_mean": 0.5,
+         "fp_bar": 1.8416407864998738
+        },
+        "gutenberg-openalex": {
+         "edges": 4,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "openalex-wikipedia": {
+         "edges": 2555,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        }
+       }
+      },
+      "with_twins": {
+       "edges": 3725347,
+       "semantic_edges": 1783179,
+       "cross_semantic": 363801,
+       "bridges": 1452,
+       "fp_mean": 504.7,
+       "fp_bar": 553.7473240860294,
+       "excess_ratio": 2.622134567235253,
+       "pairs_above_own_bar": 10,
+       "pairs_with_edges": 15,
+       "by_pair": {
+        "arxiv-openalex": {
+         "edges": 268096,
+         "bridges": 134,
+         "fp_mean": 1.5,
+         "fp_bar": 3.54939015319192
+        },
+        "arxiv-hackernews": {
+         "edges": 4956,
+         "bridges": 93,
+         "fp_mean": 31.0,
+         "fp_bar": 35.732863826479694
+        },
+        "arxiv-stackexchange": {
+         "edges": 11532,
+         "bridges": 105,
+         "fp_mean": 44.2,
+         "fp_bar": 57.78823020117043
+        },
+        "arxiv-wikipedia": {
+         "edges": 904,
+         "bridges": 1,
+         "fp_mean": 3.2,
+         "fp_bar": 6.866060555964672
+        },
+        "gutenberg-hackernews": {
+         "edges": 1286,
+         "bridges": 99,
+         "fp_mean": 0.2,
+         "fp_bar": 1.0000000000000002
+        },
+        "gutenberg-stackexchange": {
+         "edges": 211,
+         "bridges": 5,
+         "fp_mean": 1.6,
+         "fp_bar": 4.312931993250108
+        },
+        "gutenberg-wikipedia": {
+         "edges": 1853,
+         "bridges": 5,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "hackernews-wikipedia": {
+         "edges": 12748,
+         "bridges": 280,
+         "fp_mean": 119.4,
+         "fp_bar": 137.8434270134376
+        },
+        "hackernews-openalex": {
+         "edges": 7911,
+         "bridges": 167,
+         "fp_mean": 141.7,
+         "fp_bar": 170.12604439594082
+        },
+        "hackernews-stackexchange": {
+         "edges": 14236,
+         "bridges": 476,
+         "fp_mean": 123.5,
+         "fp_bar": 144.91494805036893
+        },
+        "openalex-stackexchange": {
+         "edges": 56381,
+         "bridges": 48,
+         "fp_mean": 9.8,
+         "fp_bar": 15.582732917920385
+        },
+        "stackexchange-wikipedia": {
+         "edges": 11847,
+         "bridges": 39,
+         "fp_mean": 27.8,
+         "fp_bar": 36.6
+        },
+        "arxiv-gutenberg": {
+         "edges": 1,
+         "bridges": 0,
+         "fp_mean": 0.8,
+         "fp_bar": 2.7595917942265427
+        },
+        "gutenberg-openalex": {
+         "edges": 4,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "openalex-wikipedia": {
+         "edges": 2555,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        }
+       }
+      }
+     },
+     "M": {
+      "semantic_edges": 642246,
+      "twin_pairs": 27122,
+      "mean_degree_by_source": {
+       "wikipedia": 4.958296828456282,
+       "openalex": 2.8899530438739838,
+       "arxiv": 3.2495259127679494,
+       "stackexchange": 3.652838174223103,
+       "gutenberg": 4.612426035502959,
+       "hackernews": 1.9459445357543503
+      },
+      "degree_ratio_max_min": 2.5480154944571356,
+      "sources_without_edges": [],
+      "skew_degree": 0.7767848136235971,
+      "without_twins": {
+       "edges": 2414561,
+       "semantic_edges": 499790,
+       "cross_semantic": 66896,
+       "bridges": 125,
+       "fp_mean": 131.2,
+       "fp_bar": 148.7681530047982,
+       "excess_ratio": 0.8402335948606446,
+       "pairs_above_own_bar": 3,
+       "pairs_with_edges": 13,
+       "by_pair": {
+        "arxiv-openalex": {
+         "edges": 58758,
+         "bridges": 78,
+         "fp_mean": 2.1,
+         "fp_bar": 4.541311123146741
+        },
+        "arxiv-stackexchange": {
+         "edges": 1233,
+         "bridges": 12,
+         "fp_mean": 18.1,
+         "fp_bar": 27.064373932405992
+        },
+        "arxiv-hackernews": {
+         "edges": 366,
+         "bridges": 2,
+         "fp_mean": 2.3,
+         "fp_bar": 4.990724809414742
+        },
+        "gutenberg-wikipedia": {
+         "edges": 152,
+         "bridges": 2,
+         "fp_mean": 0.2,
+         "fp_bar": 1.0000000000000002
+        },
+        "hackernews-wikipedia": {
+         "edges": 797,
+         "bridges": 8,
+         "fp_mean": 20.9,
+         "fp_bar": 28.353858061433687
+        },
+        "hackernews-stackexchange": {
+         "edges": 1299,
+         "bridges": 23,
+         "fp_mean": 11.5,
+         "fp_bar": 19.56225774829855
+        },
+        "arxiv-wikipedia": {
+         "edges": 349,
+         "bridges": 0,
+         "fp_mean": 4.1,
+         "fp_bar": 8.242463035441595
+        },
+        "gutenberg-hackernews": {
+         "edges": 4,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "gutenberg-stackexchange": {
+         "edges": 1,
+         "bridges": 0,
+         "fp_mean": 0.8,
+         "fp_bar": 2.0
+        },
+        "hackernews-openalex": {
+         "edges": 91,
+         "bridges": 0,
+         "fp_mean": 30.5,
+         "fp_bar": 41.09245014149229
+        },
+        "openalex-stackexchange": {
+         "edges": 4499,
+         "bridges": 0,
+         "fp_mean": 11.0,
+         "fp_bar": 19.98888202169769
+        },
+        "openalex-wikipedia": {
+         "edges": 534,
+         "bridges": 0,
+         "fp_mean": 0.2,
+         "fp_bar": 1.0000000000000002
+        },
+        "stackexchange-wikipedia": {
+         "edges": 2136,
+         "bridges": 0,
+         "fp_mean": 29.1,
+         "fp_bar": 35.760330322138685
+        },
+        "gutenberg-openalex": {
+         "edges": 0,
+         "bridges": 0,
+         "fp_mean": 0.4,
+         "fp_bar": 1.72664991614216
+        }
+       }
+      },
+      "with_twins": {
+       "edges": 2441958,
+       "semantic_edges": 499790,
+       "cross_semantic": 66896,
+       "bridges": 138,
+       "fp_mean": 134.6,
+       "fp_bar": 145.598181667894,
+       "excess_ratio": 0.9478140346201213,
+       "pairs_above_own_bar": 3,
+       "pairs_with_edges": 13,
+       "by_pair": {
+        "arxiv-openalex": {
+         "edges": 86155,
+         "bridges": 94,
+         "fp_mean": 1.9,
+         "fp_bar": 3.98806130178211
+        },
+        "arxiv-stackexchange": {
+         "edges": 1233,
+         "bridges": 10,
+         "fp_mean": 22.6,
+         "fp_bar": 29.364613810115106
+        },
+        "arxiv-hackernews": {
+         "edges": 366,
+         "bridges": 1,
+         "fp_mean": 1.6,
+         "fp_bar": 4.312931993250107
+        },
+        "gutenberg-wikipedia": {
+         "edges": 152,
+         "bridges": 2,
+         "fp_mean": 0.3,
+         "fp_bar": 1.2165151389911681
+        },
+        "hackernews-wikipedia": {
+         "edges": 797,
+         "bridges": 8,
+         "fp_mean": 22.6,
+         "fp_bar": 28.41033561853358
+        },
+        "hackernews-stackexchange": {
+         "edges": 1299,
+         "bridges": 23,
+         "fp_mean": 11.6,
+         "fp_bar": 18.71055553385247
+        },
+        "arxiv-wikipedia": {
+         "edges": 349,
+         "bridges": 0,
+         "fp_mean": 3.9,
+         "fp_bar": 8.137924020083418
+        },
+        "gutenberg-hackernews": {
+         "edges": 4,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "gutenberg-stackexchange": {
+         "edges": 1,
+         "bridges": 0,
+         "fp_mean": 0.4,
+         "fp_bar": 1.72664991614216
+        },
+        "hackernews-openalex": {
+         "edges": 91,
+         "bridges": 0,
+         "fp_mean": 31.2,
+         "fp_bar": 39.675848040166834
+        },
+        "openalex-stackexchange": {
+         "edges": 4499,
+         "bridges": 0,
+         "fp_mean": 10.4,
+         "fp_bar": 16.278775382679626
+        },
+        "openalex-wikipedia": {
+         "edges": 534,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "stackexchange-wikipedia": {
+         "edges": 2136,
+         "bridges": 0,
+         "fp_mean": 27.9,
+         "fp_bar": 37.756977224281286
+        },
+        "arxiv-gutenberg": {
+         "edges": 0,
+         "bridges": 0,
+         "fp_mean": 0.2,
+         "fp_bar": 1.0000000000000002
+        }
+       }
+      }
+     },
+     "C": {
+      "semantic_edges": 407441,
+      "twin_pairs": 27153,
+      "mean_degree_by_source": {
+       "wikipedia": 3.1315051690905906,
+       "openalex": 1.754042294989278,
+       "arxiv": 1.8419069108716004,
+       "stackexchange": 2.4193378714763645,
+       "gutenberg": 3.304733727810651,
+       "hackernews": 1.3392293443948762
+      },
+      "degree_ratio_max_min": 2.4676383784764497,
+      "sources_without_edges": [],
+      "skew_degree": 1.188385463916011,
+      "without_twins": {
+       "edges": 2197141,
+       "semantic_edges": 282370,
+       "cross_semantic": 28243,
+       "bridges": 79,
+       "fp_mean": 89.0,
+       "fp_bar": 100.83215956619924,
+       "excess_ratio": 0.783480194611266,
+       "pairs_above_own_bar": 3,
+       "pairs_with_edges": 12,
+       "by_pair": {
+        "arxiv-openalex": {
+         "edges": 22893,
+         "bridges": 51,
+         "fp_mean": 1.2,
+         "fp_bar": 2.4000000000000004
+        },
+        "arxiv-stackexchange": {
+         "edges": 745,
+         "bridges": 7,
+         "fp_mean": 9.4,
+         "fp_bar": 15.413318551349164
+        },
+        "gutenberg-wikipedia": {
+         "edges": 119,
+         "bridges": 2,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "hackernews-stackexchange": {
+         "edges": 901,
+         "bridges": 14,
+         "fp_mean": 6.1,
+         "fp_bar": 8.18806130178211
+        },
+        "hackernews-wikipedia": {
+         "edges": 808,
+         "bridges": 5,
+         "fp_mean": 14.5,
+         "fp_bar": 20.776941930590084
+        },
+        "arxiv-hackernews": {
+         "edges": 294,
+         "bridges": 0,
+         "fp_mean": 0.3,
+         "fp_bar": 1.2165151389911681
+        },
+        "arxiv-wikipedia": {
+         "edges": 401,
+         "bridges": 0,
+         "fp_mean": 3.7,
+         "fp_bar": 6.237715508089904
+        },
+        "gutenberg-hackernews": {
+         "edges": 4,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "hackernews-openalex": {
+         "edges": 87,
+         "bridges": 0,
+         "fp_mean": 16.2,
+         "fp_bar": 22.940919818541087
+        },
+        "openalex-stackexchange": {
+         "edges": 2600,
+         "bridges": 0,
+         "fp_mean": 12.1,
+         "fp_bar": 21.5847245611035
+        },
+        "openalex-wikipedia": {
+         "edges": 475,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "stackexchange-wikipedia": {
+         "edges": 2239,
+         "bridges": 0,
+         "fp_mean": 25.0,
+         "fp_bar": 32.84856674813943
+        },
+        "gutenberg-stackexchange": {
+         "edges": 0,
+         "bridges": 0,
+         "fp_mean": 0.5,
+         "fp_bar": 1.8416407864998738
+        }
+       }
+      },
+      "with_twins": {
+       "edges": 2224538,
+       "semantic_edges": 282370,
+       "cross_semantic": 28243,
+       "bridges": 105,
+       "fp_mean": 97.2,
+       "fp_bar": 120.97898231632297,
+       "excess_ratio": 0.8679193525157715,
+       "pairs_above_own_bar": 3,
+       "pairs_with_edges": 12,
+       "by_pair": {
+        "arxiv-openalex": {
+         "edges": 50290,
+         "bridges": 79,
+         "fp_mean": 2.0,
+         "fp_bar": 3.549193338482967
+        },
+        "arxiv-stackexchange": {
+         "edges": 745,
+         "bridges": 4,
+         "fp_mean": 12.9,
+         "fp_bar": 18.373572873361603
+        },
+        "gutenberg-wikipedia": {
+         "edges": 119,
+         "bridges": 2,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "hackernews-stackexchange": {
+         "edges": 901,
+         "bridges": 15,
+         "fp_mean": 5.3,
+         "fp_bar": 8.769870314579494
+        },
+        "hackernews-wikipedia": {
+         "edges": 808,
+         "bridges": 5,
+         "fp_mean": 15.1,
+         "fp_bar": 22.5
+        },
+        "arxiv-hackernews": {
+         "edges": 294,
+         "bridges": 0,
+         "fp_mean": 1.2,
+         "fp_bar": 3.53238075793812
+        },
+        "arxiv-wikipedia": {
+         "edges": 401,
+         "bridges": 0,
+         "fp_mean": 3.2,
+         "fp_bar": 6.64093010681705
+        },
+        "gutenberg-hackernews": {
+         "edges": 4,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "hackernews-openalex": {
+         "edges": 87,
+         "bridges": 0,
+         "fp_mean": 17.9,
+         "fp_bar": 28.309610943738484
+        },
+        "openalex-stackexchange": {
+         "edges": 2600,
+         "bridges": 0,
+         "fp_mean": 11.6,
+         "fp_bar": 17.87375485654325
+        },
+        "openalex-wikipedia": {
+         "edges": 475,
+         "bridges": 0,
+         "fp_mean": 0.0,
+         "fp_bar": 0.0
+        },
+        "stackexchange-wikipedia": {
+         "edges": 2239,
+         "bridges": 0,
+         "fp_mean": 27.5,
+         "fp_bar": 38.20513895285811
+        },
+        "arxiv-gutenberg": {
+         "edges": 0,
+         "bridges": 0,
+         "fp_mean": 0.3,
+         "fp_bar": 1.5806248474865698
+        },
+        "gutenberg-stackexchange": {
+         "edges": 0,
+         "bridges": 0,
+         "fp_mean": 0.2,
+         "fp_bar": 1.0000000000000002
+        }
+       }
+      }
+     }
+    }
+   },
+   "finished": "2026-11-08T18:59:41"
+  },
+  "carried": {
+   "experiment": "carried",
+   "started": "2026-11-08T22:14:20",
+   "scifact": {
+    "collection": "scifact",
+    "chunks": 11987,
+    "carried": 3137,
+    "vectors": {
+     "N": 11986,
+     "Nd": 8850
+    },
+    "comparison": {
+     "scifact": {
+      "queries": 300,
+      "reference": "N",
+      "arms": {
+       "N": {
+        "recall": 0.8836,
+        "ndcg": 0.7918
+       },
+       "Nd": {
+        "recall": 0.9176,
+        "ndcg": 0.8249,
+        "recall_vs_ref": {
+         "mean": 0.034,
+         "lo": 0.0134,
+         "hi": 0.0545,
+         "p": 0.0012,
+         "p_holm": 0.0012,
+         "verdict": "better"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0331,
+         "lo": 0.0168,
+         "hi": 0.0493,
+         "p": 0.0,
+         "p_holm": 0.0,
+         "verdict": "better"
+        }
+       }
+      }
+     }
+    }
+   },
+   "nfcorpus": {
+    "collection": "nfcorpus",
+    "chunks": 9336,
+    "carried": 2802,
+    "vectors": {
+     "N": 9228,
+     "Nd": 6460
+    },
+    "comparison": {
+     "nfcorpus": {
+      "queries": 323,
+      "reference": "N",
+      "arms": {
+       "N": {
+        "recall": 0.1656,
+        "ndcg": 0.3256
+       },
+       "Nd": {
+        "recall": 0.1748,
+        "ndcg": 0.3595,
+        "recall_vs_ref": {
+         "mean": 0.0092,
+         "lo": -0.0043,
+         "hi": 0.0228,
+         "p": 0.1905,
+         "p_holm": 0.1905,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0338,
+         "lo": 0.0201,
+         "hi": 0.0477,
+         "p": 0.0,
+         "p_holm": 0.0,
+         "verdict": "better"
+        }
+       }
+      }
+     }
+    }
+   },
+   "W": {
+    "collection": "W",
+    "chunks": 25399,
+    "carried": 9,
+    "vectors": {
+     "N": 25398,
+     "Nd": 25389
+    },
+    "comparison": {
+     "link": {
+      "queries": 543,
+      "reference": "N",
+      "arms": {
+       "N": {
+        "recall": 0.6022,
+        "ndcg": 0.4639
+       },
+       "Nd": {
+        "recall": 0.6114,
+        "ndcg": 0.4689,
+        "recall_vs_ref": {
+         "mean": 0.0092,
+         "lo": -0.0,
+         "hi": 0.0175,
+         "p": 0.0591,
+         "p_holm": 0.0591,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.005,
+         "lo": 0.0016,
+         "hi": 0.0085,
+         "p": 0.0019,
+         "p_holm": 0.0019,
+         "verdict": "better"
+        }
+       }
+      }
+     },
+     "title": {
+      "queries": 600,
+      "reference": "N",
+      "arms": {
+       "N": {
+        "recall": 1.0,
+        "ndcg": 0.9947
+       },
+       "Nd": {
+        "recall": 1.0,
+        "ndcg": 0.9979,
+        "recall_vs_ref": {
+         "mean": 0.0,
+         "lo": 0.0,
+         "hi": 0.0,
+         "p": 1.0,
+         "p_holm": 1.0,
+         "verdict": "no worse"
+        },
+        "ndcg_vs_ref": {
+         "mean": 0.0032,
+         "lo": 0.0002,
+         "hi": 0.006,
+         "p": 0.0309,
+         "p_holm": 0.0309,
+         "verdict": "better"
+        }
+       }
+      }
+     }
+    }
+   },
+   "finished": "2026-11-08T22:14:54"
+  },
+  "title-only": {
+   "wikipedia": {
+    "items": 11414,
+    "chunks": 488999,
+    "title_only": 107,
+    "carried": 109
+   },
+   "openalex": {
+    "items": 145029,
+    "chunks": 266149,
+    "title_only": 61845,
+    "carried": 61270
+   },
+   "stackexchange": {
+    "items": 163503,
+    "chunks": 239270,
+    "title_only": 274,
+    "carried": 321
+   },
+   "gutenberg": {
+    "items": 338,
+    "chunks": 125379,
+    "title_only": 0,
+    "carried": 0
+   },
+   "arxiv": {
+    "items": 41659,
+    "chunks": 81889,
+    "title_only": 21458,
+    "carried": 21279
+   },
+   "hackernews": {
+    "items": 38331,
+    "chunks": 168258,
+    "title_only": 318,
+    "carried": 1276
+   },
+   "all": {
+    "items": 400274,
+    "chunks": 1369944,
+    "title_only": 84002,
+    "carried": 84255
+   }
+  }
+ }
+}
