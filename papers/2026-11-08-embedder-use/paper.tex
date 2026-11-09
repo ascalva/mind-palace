@@ -1,0 +1,420 @@
+% A self-contained article for one pull request.
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{How a Knowledge Store Uses Its Embedder:\\Six Choices Measured Across Domains}
+\author{Alberto Serrano-Calva}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+An embedding model is the one component of a knowledge store that relates any text to any other
+without rules written for its source. Whether the store uses it well is decided by choices around
+the model, and we measure six of them in an open-source store against its live defaults, on two
+public retrieval sets, 600 long Wikipedia articles and a corpus of 1.37 million chunks from six
+sources, each comparison's arms, metric and falsifier committed before it ran and every arm paired
+query by query with a sign-flip test. The lexical tokenizer normalized no Unicode, so one word in
+two encodings was two terms and decomposed words split at their marks; NFKC with case folding
+changes no ranking on these mostly English sets and is implemented, with a tokenizer identity that
+every lexical store records, refuses to mix and re-derives under. The item's title in the document
+template raises nDCG@10 by 0.029 and 0.038 on the public sets and costs nothing on the long
+articles; dropping the title-only chunk the chunker emits beside single-paragraph abstracts gains
+as much with no embedding at all. Late chunking helps short documents and loses recall on long
+ones, and a control shows its gain on short documents comes from leaving the template's tokens out
+of the mean. Task prompts gain nothing, 256 dimensions with rescoring lose nothing, larger chunk
+budgets raise nDCG with half the vectors but leave the long articles' recall undecided, and
+thresholds for semantic edges set per source from the data find fewer cross-source bridges per
+false positive than one global threshold, whose bridges turn out to be carried by hub edges.
+\end{abstract}
+
+\section{Introduction}
+
+A knowledge store that holds text from many sources needs a way to relate an item to the others
+that does not depend on where the item came from. Hand-written integrators relate items by rules
+about one kind of event: a session log's tool calls, a commit's files. An embedding model
+\citep{vera2025embeddinggemma} is the store's first integrator that is domain-free by
+construction: it turns any text into a vector, and a cosine between vectors into an edge. Whether
+the store uses that prior well is a set of engineering choices around the model rather than the
+model itself, and this article measures six of them in an open-source store
+\citep{serranocalva2026palace}:
+
+\begin{enumerate}
+\item the lexical tokenizer that sits beside the embedder, which normalized no Unicode;
+\item the chunk budget, 1{,}200 characters, against budgets in characters and in the model's tokens;
+\item whether a chunk is embedded with its document's context: the item's title in the document
+  template, or late chunking \citep{gunther2024late};
+\item the query's task prompt;
+\item truncating the vector to fewer dimensions \citep{kusupati2022matryoshka};
+\item how a semantic edge is thresholded: one global cosine, against thresholds set per source
+  from the data, mutual nearest neighbours, and CSLS \citep{conneau2018word}.
+\end{enumerate}
+
+Two principles govern the study. A choice is judged across domains: two public retrieval sets,
+SciFact \citep{wadden2020scifact} and NFCorpus \citep{boteva2016nfcorpus} from BEIR
+\citep{thakur2021beir}, and long Wikipedia articles and a 1.37-million-chunk corpus of six open
+sources. And a threshold must set itself from the data, a quantile or a held-out fit, never a
+constant tuned for one source. Every comparison's arms, primary metric and falsifier were
+committed before it ran. The contributions are the measurements, a fix to the tokenizer with an
+identity that every lexical store records and refuses to mix, and a ranking of the remaining
+changes by gain per cost.
+
+\section{Background}
+
+\paragraph{Lexical retrieval and normalization.} BM25 \citep{robertson2009bm25} scores a unit by
+the query terms it shares, each weighted by its rarity; what a term is depends on the tokenizer.
+Unicode gives one abstract text several encodings: a precomposed letter or a base letter with
+combining marks (canonical equivalence), and ligatures, sub- and superscripts and full-width forms
+that stand for plain characters (compatibility equivalence). NFC and NFKC map equivalent texts to
+one form \citep{uax15}; case folding maps caseless-equal texts to one form. Stemming merges
+inflections; Harman's S stemmer strips English plurals by three rules
+\citep{harman1991suffixing}.
+
+\paragraph{Chunks and their context.} A long document is cut into chunks that are embedded
+separately, so a chunk's vector sees only its own text. Two remedies give it the document: a
+document template that names the item's title (EmbeddingGemma's documented form is
+\code{title: \{title\} | text: \{text\}}), and late chunking \citep{gunther2024late}, which embeds
+the whole document once and averages each chunk's token embeddings, so every token has attended to
+the rest of the document.
+
+\paragraph{Prompts and dimensions.} EmbeddingGemma is trained with task prompts on the query side
+(\code{task: search result}, \code{question answering}, \code{fact checking}) and with Matryoshka
+representation learning, so a prefix of its vector is itself an embedding
+\citep{vera2025embeddinggemma,kusupati2022matryoshka}.
+
+\paragraph{Hubness.} In high dimensions a few points are among the nearest neighbours of many
+others \citep{radovanovic2010hubs}; a threshold on raw cosine then gives a dense region of the
+space many edges and a sparse one none. Mutual nearest neighbours keep an edge only when each end
+is among the other's nearest; CSLS \citep{conneau2018word} scores a pair by twice its cosine less
+each end's mean cosine to its own nearest neighbours.
+
+\section{The store and the method}\label{sec:method}
+
+\paragraph{The store.} An item's text is cut by a block-aware chunker: paragraphs are packed
+greedily up to 1{,}200 characters, a paragraph longer than the budget is cut into windows, and
+each chunk after the first begins with the last 150 characters of the one before. Every chunk is
+embedded by EmbeddingGemma-2 (Q8\_0, 768 dimensions), served by llama.cpp
+\citep{gerganov2023llamacpp} with four slots of 2{,}048 tokens, under the document template
+\code{title: none | text: \{text\}}; a query under \code{task: search result | query: \{text\}}.
+The chunk vectors live in a plane at float16, content-addressed by the chunk's text; a document's
+score for a query is its best chunk's cosine.
+
+\paragraph{Data.} SciFact (5{,}183 abstracts, 300 test claims) and NFCorpus (3{,}633 documents,
+323 test queries), each document written as an item \code{\{title\}\textbackslash n\textbackslash
+n\{text\}}; W, 600 Wikipedia articles of the corpus instance (median 29~kB), the 442 that are the
+gold of 543 questions whose source links them, and 158 drawn at random, with each article's title
+as a second family of questions; and the corpus battery: 400{,}274 items in six sources, 1{,}369{,}944
+chunks, 4{,}714 questions in 11 families (titles, citations, links between sources, and twin
+records of one paper in two sources).
+
+\paragraph{Metrics and the test.} recall@10 and nDCG@10 at the document level. Each arm is paired
+with the live default query by query; the mean difference is tested by a sign-flip randomization
+test with each query its own cluster (20{,}000 sign vectors; the interval is the test inverted)
+\citep{good2005,phipson2010}, and Holm's adjustment \citep{holm1979simple} runs over an
+experiment's arms. An arm is \emph{better} or \emph{worse} at a Holm-adjusted $p < 0.05$, and
+\emph{no worse} when its interval's lower end is at or above $-0.01$.
+
+\paragraph{The shared embedder.} The embedding server serves a working instance as well. The
+study sent one stream of 64 texts a request, sampled the server's slots every five seconds through
+every phase and probed them before every request, and reports costs in tokens embedded, which do
+not depend on load; no timing is a result. Late chunking needs per-token vectors, so it ran on a
+second server started for it with pooling off and stopped after it. With pooling off the server
+returns one 768-dimension vector a token, and the mean over every token of an input equals the
+pooled vector of the first server (cosine $1.0$, norms equal), so a late vector and an independent
+vector differ only in the tokens pooled and the context they saw.
+
+\section{The tokenizer and its identity}\label{sec:tokenizer}
+
+The lexical index took maximal runs of letters and digits of the lower-cased text. Without
+normalization one text in two encodings gave two sets of terms, and since a combining mark is not
+a letter, a decomposed word split at its marks (\code{na\"{\i}ve} in NFD gave \code{nai} and
+\code{ve}), and words of scripts whose vowel signs compose into no precomposed character lost
+them (a Devanagari word became its consonants).
+
+\begin{definition}
+A tokenizer $\tau = (F, \phi, \mu)$ has a normal form $F \in \{\text{none}, \text{NFC},
+\text{NFKC}\}$, a case fold $\phi \in \{\text{lower}, \text{casefold}\}$ and a flag $\mu$ for
+combining marks. Its terms are $\tau(x) = R_\mu(F(\phi(F(x))))$, where $R_\mu$ takes the maximal
+runs that start with a letter or digit and continue with letters and digits, and with combining
+marks when $\mu$. Its identity is the tuple with the version of the Unicode database, whose
+character classes and folds $R_\mu$ and $\phi$ read.
+\end{definition}
+
+\begin{proposition}[Invariance]\label{prop:invariance}
+If $F$ is NFC (NFKC) and $x, y$ are canonically (compatibility) equivalent, then $\tau(x) =
+\tau(y)$.
+\end{proposition}
+
+\begin{proof}
+Equivalent texts have one normal form, $F(x) = F(y)$ \citep{uax15}, and $\tau(x)$ depends on $x$
+only through $F(x)$. The second normalization makes the result a function of $F(x)$ even when the
+fold produces an unnormalized sequence.
+\end{proof}
+
+The legacy tokenizer is $(\text{none}, \text{lower}, \text{false})$ and is reproduced exactly; the
+current one is $(\text{NFKC}, \text{casefold}, \text{true})$, chosen by the pre-declared rule of
+\cref{sec:tok-results}. Only terms are normalized: chunk texts and content hashes stay on the raw
+bytes, so no stored atom changes.
+
+A query tokenized by one tokenizer and scored against units tokenized by another matches the
+words the two agree on and misses the rest, and no score reveals it. The store therefore treats
+the tokenizer as the vector plane treats its embedder:
+
+\begin{algorithm}[t]
+\caption{The lexical store's identity (\code{core/stores/lexical.py}).}\label{alg:identity}
+\begin{algorithmic}[1]
+\Function{Recorded}{}
+  \State \Return the stored identity; else \code{LEGACY} if any version is held; else none
+\EndFunction
+\Function{Land}{versions} \Comment{one transaction}
+  \State $r \gets$ \Call{Recorded}{}
+  \If{$r$ is none} store $\tau$'s identity \ElsIf{$r \ne \tau$} refuse \EndIf
+  \State write the units of each version, tokenized by $\tau$
+\EndFunction
+\Function{Score}{query}: refuse unless \Call{Recorded}{} $\in \{\text{none}, \tau\}$; tokenize by $\tau$
+\EndFunction
+\Function{Backfill}{} \Comment{\code{derive\_lexical}, run by the \code{embed} job first}
+  \If{\Call{Recorded}{} $\notin \{\text{none}, \tau\}$} reset units, postings, versions and identity \EndIf
+  \State land every active item the index has no record of, from the raw store
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{proposition}[One tokenizer a store]\label{prop:one}
+After any sequence of landings, resets and backfills, every unit a store holds was tokenized by
+the tokenizer its identity names.
+\end{proposition}
+
+\begin{proof}
+By induction on transactions. A reset removes every unit with the identity. A landing either finds
+no identity and no version, so the store holds no unit and the landing records $\tau$ before
+writing units by $\tau$; or finds $\tau$ and writes units by $\tau$; or finds another identity and
+writes nothing. A store from before identities were recorded holds only legacy units and reads as
+\code{LEGACY}. The units and the identity commit in one transaction, so no crash separates them.
+\end{proof}
+
+The currency reads (whether a version is held, how many units it has) do not depend on terms and
+do not refuse, so a lazy landing's check for an unchanged item still answers, and a changed item
+is refused rather than landed beside units of another tokenizer. The backfill's reset and its
+landings run in the store's one writer, so nothing reads the emptied index between them.
+
+\section{Results}\label{sec:results}
+
+Every figure is a mean paired difference against the live default with its 95\% interval;
+\emph{better}, \emph{worse} and \emph{no worse} are the decision words of \cref{sec:method}. The
+study's record in the repository has every arm and family.
+
+\subsection{Tokenization}\label{sec:tok-results}
+
+The arms are the legacy tokenizer T0; NFC or NFKC with \code{lower} or \code{casefold} (T1 to
+T4); T4 with combining marks inside a token (T5); and, for information, T5 with Harman's S stemmer
+(T6). The rule implements the most normalizing arm, T5 first, that is not \emph{worse} than T0 on
+any primary metric. No normalizing arm moves one: T1 to T5 rank every SciFact and NFCorpus query
+exactly as T0 and give every corpus question the same recall@10 (0.874); the largest nDCG@10
+difference on the corpus is $+0.003$ ($p_{\text{Holm}} = 0.69$). So T5 is implemented. The words it
+merges are rare in these mostly English sets, 0.009\% to 0.028\% of token occurrences (7{,}211 of
+the corpus's 1{,}053{,}985 terms merge into 3{,}237), and they are the forms a reader takes for one:
+a ligature from PDF extraction, the micro sign and the Greek $\mu$, sub- and superscript digits
+(H$_2$O$_2$, IC$_{50}$, m$^2$). Of the corpus's 1{,}338{,}585 atoms, 18{,}931 are not in NFKC and 24
+would coincide with another under normalized hashes; hashes stay on the bytes. The stemmer raises
+nDCG@10 on NFCorpus ($+0.014$, \emph{better}) and SciFact ($+0.012$) and lowers recall@10 on the
+corpus battery ($-0.002$), whose questions are titles and names; it is English only and not
+adopted. The corpus's stage-1 index had been built by an ASCII-only tokenizer, which loses
+recall@10 against T0 ($-0.002$, \emph{worse}). The current tokenizer runs at 31 million characters a
+second against the legacy one's 44.
+
+\subsection{Chunk size}
+
+\begin{table}[t]
+\centering\footnotesize
+\caption{Chunk budgets against the live 1{,}200 characters: nDCG@10 (NFCorpus, 323 queries) and
+recall@10 (W's 543 link questions, primary), and the vectors each stores.}\label{tab:chunks}
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lrrrr}
+\toprule
+arm & NFCorpus nDCG@10 & W link recall@10 & W link nDCG@10 & vectors (NFCorpus / W) \\
+\midrule
+C600 & $+0.001$ & $-0.038$ \emph{worse} & $-0.022$ \emph{worse} & 14{,}213 / 47{,}446 \\
+C1200 & 0.326 & 0.602 & 0.464 & 9{,}228 / 25{,}398 \\
+C2400 & $+0.021$ \emph{better} & $-0.001$ ($-0.021$, $+0.020$) & $+0.031$ \emph{better} & 3{,}866 / 11{,}943 \\
+C4800 & $+0.028$ \emph{better} & $-0.005$ ($-0.027$, $+0.018$) & $+0.022$ \emph{better} & 3{,}611 / 5{,}572 \\
+K128 & $+0.001$ & $-0.015$ & $-0.018$ \emph{worse} & 14{,}237 / 46{,}223 \\
+K256 & $-0.004$ & $+0.002$ & $+0.006$ & 8{,}934 / 24{,}644 \\
+K512 & $+0.021$ \emph{better} & $+0.002$ ($-0.018$, $+0.022$) & $+0.021$ \emph{better} & 4{,}086 / 11{,}570 \\
+K1024 & $+0.028$ \emph{better} & $+0.008$ ($-0.017$, $+0.032$) & $+0.020$ \emph{better} & 3{,}613 / 5{,}434 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\Cref{tab:chunks} gives the budgets. Larger budgets raise nDCG@10 on both sets with a half to a
+fifth of the vectors and 3\% to 14\% fewer tokens, since less text is repeated as overlap; smaller
+ones lose on W. W's recall@10, the pre-declared primary metric, stays undecided for every larger
+budget: each interval contains zero and reaches below the margin. By the rule the live budget
+stays. A budget counted in the embedder's tokens behaves as the character budget of the same size
+(K512 as C2400, K1024 as C4800).
+
+\subsection{The chunk's context}
+
+\begin{table}[t]
+\centering\footnotesize
+\caption{Context against N (\code{title: none}, each chunk alone). L1 is the control: late pooling
+of each chunk's own tokens with no other chunk in view. Nd drops the chunk the next one carries
+whole (exploratory, no embedding).}\label{tab:context}
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lrrrr}
+\toprule
+arm & SciFact nDCG@10 & NFCorpus nDCG@10 & W link recall@10 & W link nDCG@10 \\
+\midrule
+N & 0.792 & 0.326 & 0.602 & 0.464 \\
+T, title & $+0.029$ \emph{better} & $+0.038$ \emph{better} & $-0.009$ ($-0.029$, $+0.010$) & $+0.017$ \emph{better} \\
+L, late & $+0.047$ \emph{better} & $+0.016$ \emph{better} & $-0.033$ \emph{worse} & $-0.014$ \\
+LT, late, title & $+0.032$ \emph{better} & $+0.015$ & $-0.045$ \emph{worse} & $-0.028$ \emph{worse} \\
+L1, control & $+0.040$ \emph{better} & $+0.030$ \emph{better} & $-0.012$ & $-0.006$ \\
+Nd & $+0.033$ \emph{better} & $+0.034$ \emph{better} & $+0.009$ & $+0.005$ \emph{better} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\Cref{tab:context} has the arms. The title in the document template pays: \emph{better} on both
+public sets and \emph{worse} on none, for 12\% more tokens on abstracts and 1\% on W. Late chunking
+does not: \emph{better} on the abstracts and \emph{worse} on the long articles' recall. The control
+explains the split. L1 changes only the pooled set, leaving the template's and the special tokens
+out of each chunk's mean, and it gives most of late chunking's gain on SciFact and more than it on
+NFCorpus; so on short documents the gain is the pooled set, and on long ones the other chunks in
+view cost recall. On one-chunk documents the late and independent vectors agree at a median
+cosine of 0.99.
+
+\paragraph{The title-only chunk.} The chunker emits an item's title as a chunk of its own when the
+first paragraph does not fit beside it, and carries all of it into the next chunk as its overlap.
+Every multi-chunk document of SciFact and NFCorpus has one (29\% and 31\% of their chunks), and so
+do 23\% of the corpus's OpenAlex chunks and 26\% of its arXiv chunks; 84{,}002 of its 1{,}369{,}944
+chunks in all, almost none in Wikipedia, Stack Exchange, Gutenberg or Hacker News. Such a chunk is
+mostly template, and its atoms are hubs: those of OpenAlex and arXiv have on average 19{,}242 and
+15{,}779 atoms of other items above the cosine 0.785, twice the other atoms of the same sources.
+Dropping it (Nd) gains as much as the title template, with no embedding.
+
+\subsection{Task prompts and dimensions}
+
+No task prompt is \emph{better} on the set whose task it names: question answering on NFCorpus
+$+0.005$ (\emph{no worse}), fact checking on SciFact $-0.008$, and on NFCorpus $-0.011$
+(\emph{worse}). The store keeps \code{search result}. For dimensions, the first 256 coordinates with
+the 50 best chunks rescored by the full float16 vector are \emph{no worse} than 768 on SciFact
+($+0.000$), NFCorpus ($-0.001$) and the corpus battery ($-0.000$) at a third of the resident
+bytes; flat 256 loses on NFCorpus ($-0.014$, \emph{worse}), and 128 dimensions lose everywhere.
+
+\subsection{Semantic edges}
+
+\begin{table}[t]
+\centering\small
+\caption{Semantic edges over the corpus's 400{,}274 items, read by stage 1's bridges without the
+twin records (the explicit graph alone: 37 bridges against a bar of 39.3).}\label{tab:edges}
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lrrrrr}
+\toprule
+rule & edges & bridges / bar & excess & pairs above own bar & degree skew \\
+\midrule
+G, cosine $\ge 0.785$ & 3{,}302{,}152 & 3{,}030 / 798.4 & 3.79 & 12 & 23.0 \\
+GQ, global median & 1{,}908{,}304 & 664 / 183.2 & 3.62 & 8 & 10.2 \\
+SQ, per-source medians & 1{,}973{,}267 & 1{,}448 / 540.0 & 2.68 & 9 & 16.2 \\
+M, mutual 10 nearest & 642{,}246 & 125 / 148.8 & 0.84 & 3 & 0.8 \\
+C, CSLS & 407{,}441 & 79 / 100.8 & 0.78 & 3 & 1.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The 10-nearest digraph of the items is strongly hubbed: in-degree skewness 21.4, one item among
+the 10 nearest of 3{,}071 others, 9.1\% of items nobody's neighbour. The thresholds the data sets,
+the median cosine to the 10th nearest, are all above 0.785 (0.808 for Hacker News to 0.948 for
+Gutenberg, 0.865 over all items), so the global threshold gives nearly every item its 10 nearest.
+\Cref{tab:edges} reads each rule. Per-source quantiles even out the degrees across sources (the
+largest source mean over the smallest is 2.0, against 2.3 and 10.8) but find fewer bridges per
+false positive; mutual neighbours and CSLS remove the hubness and with it every bridge above the
+null. No calibrated rule beats the global threshold, which stays; the excess of semantic bridges
+stage 1 reported is carried by hub edges.
+
+\section{Recommendations}
+
+\Cref{tab:recs} ranks the changes that passed their rule, or were measured as exploratory, by
+gain per cost. No live default is changed by this work.
+
+\begin{table}[t]
+\centering\small
+\caption{Recommendations by gain per cost.}\label{tab:recs}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.29\textwidth}>{\raggedright\arraybackslash}p{0.29\textwidth}>{\raggedright\arraybackslash}p{0.34\textwidth}}
+\toprule
+change & gain & what adopting it re-derives \\
+\midrule
+emit no chunk the next one carries whole & nDCG@10 $+0.033$, $+0.034$, $+0.005$ (exploratory) & occupancies and lexical units only; no text is embedded; 84{,}255 of the corpus's vectors removed \\
+the title in the document template & nDCG@10 $+0.029$, $+0.038$, $+0.017$ & every vector, with 1\% to 12\% more tokens \\
+256 dimensions, rescored & none lost; a third of the resident bytes & a pass over the stored vectors \\
+the normalizing tokenizer (built) & correctness & the lexical index, in minutes \\
+a budget of 2{,}400 characters, once a larger sample decides recall & nDCG@10 $+0.021$, $+0.031$; half the vectors & every vector, with fewer tokens \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The first two act on the same chunk, and their combination was not measured; the second's gain on
+abstracts may be partly the first's. Not recommended: another task prompt, late chunking, quantile
+or hubness-corrected thresholds for semantic edges, stemming.
+
+\section{Limitations}
+
+Each figure is one run of one model, quantization and server; another embedder moves every
+number, and the comparisons are paired within a run for that reason. The public sets are English
+abstracts and the corpus is mostly English, so the Unicode fix shows its value in counts rather
+than in recall: few terms change, and the retrieval figures cannot separate the arms. W is 600
+articles of one source, sampled around the corpus battery's link questions, and its queries are
+titles and links rather than judged relevance. The corpus battery's families are mostly lexical
+by construction (titles, citations), which favours the lexical arm. The bridge reading depends on
+the community partition and the null of stage 1, and an excess of bridges over the false-positive
+bar is a property of the edge set as a whole, not a measure of any one edge. The embedder was
+shared with a working instance and the late-chunking server shared the GPU, so no timing is
+reported as a result; costs are in tokens. Gutenberg's books (108~MB) were left out of the
+experiments that re-embed, for their cost.
+
+\section{Future work}
+
+The chunker's emission of a chunk that the next chunk carries whole is a domain-free defect with
+a domain-free fix: do not emit a chunk wholly contained in the next one's overlap. The store's
+lexical tokenizer treats a run of a script written without spaces as one term; a segmenter for
+those scripts is the next consistency step, and so are joiners inside words (the zero-width
+non-joiner of Persian). Thresholds for semantic edges that set themselves per source should be
+tested against the store's own downstream readings (the walk, the diffusion, the rises), not only
+the bridges. Late chunking with windows longer than the live server's slot needs a server
+configured for it and a measurement of where the model's context stops helping.
+
+\section{Conclusion}
+
+The embedder was used well in its geometry (dimensions, threshold, prompt) and less well at its
+input. The largest gains measured here come from what the store hands the model: a title that
+names the document, and no chunk that is all template. Both are domain-free in form, and the
+second is a defect of a domain-free rule that shows only on documents of one long paragraph. The
+threshold for semantic edges needed no calibration at the item grain, and the bridges it produces
+deserve a reading of their own before any threshold is tuned for them. The lexical index now
+normalizes its terms, and a change of tokenizer can no longer mix two vocabularies in one index.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}
